@@ -46,7 +46,11 @@ env:
 jobs:
   ios:
     name: iOS release flows
-    runs-on: macos-14
+    # Expo SDK 54 / React Native 0.81 generate a Podfile that rejects Xcode 15
+    # ("Please upgrade XCode"), which is the macos-14 default. macos-15 ships
+    # Xcode 16, and the version is pinned below so the toolchain is recorded in
+    # the evidence rather than inherited from whatever the image defaults to.
+    runs-on: macos-15
     timeout-minutes: 120
     outputs:
       result: ${{ steps.evidence.outputs.result }}
@@ -88,6 +92,20 @@ jobs:
         with:
           node-version: 20
           cache: npm
+
+      - name: Select Xcode
+        id: xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Record toolchain
+        id: toolchain
+        run: |
+          set -euo pipefail
+          XCODE="$(xcodebuild -version | head -n1 | awk '{print $2}')"
+          echo "xcode=$XCODE" >> "$GITHUB_OUTPUT"
+          echo "Xcode $XCODE"
 
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
@@ -209,7 +227,7 @@ jobs:
             --candidate-sha "${{ steps.candidate.outputs.sha }}" \
             --run-id "${{ github.run_id }}" \
             --build-identifier "${{ steps.build.outputs.build_identifier }}" \
-            --device "${{ steps.sim.outputs.device }}" \
+            --device "${{ steps.sim.outputs.device }}_Xcode-${{ steps.toolchain.outputs.xcode }}" \
             --runner "Maestro ${MAESTRO_VERSION}" \
             --report artifacts/report.xml \
             --artifact-links "$RUN_URL" \
