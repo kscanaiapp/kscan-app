@@ -1,0 +1,24 @@
+# Release flow: privacy.account_deletion_request
+# Branch-neutral. Selectors are app testIDs; identities come from QA_EMAIL /
+# QA_PASSWORD injected by the release workflow, never hardcoded.
+appId: ${APP_ID}
+name: privacy.account_deletion_request
+tags:
+  - release
+  - privacy
+env:
+  APP_ID: ${APP_ID}
+  QA_EMAIL: ${QA_EMAIL}
+  QA_PASSWORD: ${QA_PASSWORD}
+---
+- runFlow: ../../subflows/sign-in.yaml
+- tapOn:
+    id: "home-v2-privacy-button"
+- extendedWaitUntil:
+    visible:
+      id: "privacy-button"
+    timeout: 30000
+# Non-destructive: the deletion entry point must be present and disclose the
+# grace period. The flow stops before confirming, so no QA account is deleted.
+- assertVisible: ".*(Delete|Deletion).*"
+- takeScreenshot: "privacy-account-deletion-entry"

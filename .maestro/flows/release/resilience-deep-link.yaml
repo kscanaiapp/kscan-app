@@ -1,0 +1,21 @@
+# Release flow: resilience.deep_link
+# Branch-neutral. Selectors are app testIDs; identities come from QA_EMAIL /
+# QA_PASSWORD injected by the release workflow, never hardcoded.
+appId: ${APP_ID}
+name: resilience.deep_link
+tags:
+  - release
+  - resilience
+  - optional
+env:
+  APP_ID: ${APP_ID}
+  QA_EMAIL: ${QA_EMAIL}
+  QA_PASSWORD: ${QA_PASSWORD}
+---
+- runFlow: ../../subflows/sign-in.yaml
+- openLink: kscan://home
+- extendedWaitUntil:
+    visible:
+      id: "router-home-screen"
+    timeout: 45000
+- takeScreenshot: "resilience-deep-link"

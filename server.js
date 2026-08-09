@@ -1,6 +1,13 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const {
+  secretsMatch,
+  validateWaitlistWelcomeRequest,
+  validateAccountDeletionRestorationRequest,
+  sendWaitlistWelcomeEmail,
+  sendAccountDeletionRestorationEmail,
+} = require('./services/transactionalEmail');
 
 require('dotenv').config();
 
@@ -1237,6 +1244,88 @@ app.use(
   }),
 );
 
+// Permanent tombstone for the retired public analysis surface. Keep this before
+// JSON parsing so request bodies are neither parsed nor logged. This handler does
+// not authenticate, invoke a provider, or call next().
+//
+// The scan runtime routes exclusively through the scan-identify Supabase Edge
+// Function (JWT-verified, per-user daily quota, anonymous rate limit). This Render
+// route was an unauthenticated, unrate-limited Gemini proxy with no remaining
+// runtime consumer, so it is retired rather than left reachable.
+app.all('/api/analyze', (_req, res) => res.status(410).json({
+  status: 'FAILED',
+  error: 'LEGACY_ANALYZE_DISABLED',
+  message: 'This legacy analysis route is no longer available.',
+}));
+
+// ── Internal transactional email routes ──────────────────────────────────────
+// This Render service owns transactional email delivery. The Supabase deletion
+// flow (supabase/functions/_shared/deletion/common.ts) already POSTs to
+// /internal/email/account-deletion-restoration with the x-kscan-email-secret
+// header, so these routes are an existing runtime dependency, not new surface.
+//
+// Each route parses its own small JSON body AFTER the shared-secret check, so an
+// unauthenticated caller never reaches a body parser.
+function requireInternalEmailAuth(req, res, next) {
+  const configuredSecret = process.env.KSCAN_EMAIL_INTERNAL_SECRET;
+  if (!configuredSecret || !process.env.RESEND_API_KEY) {
+    return res.status(503).json({ status: 'error', code: 'EMAIL_SERVICE_NOT_CONFIGURED' });
+  }
+  if (!secretsMatch(req.headers['x-kscan-email-secret'], configuredSecret)) {
+    return res.status(401).json({ status: 'error', code: 'UNAUTHORIZED' });
+  }
+  return next();
+}
+
+app.post(
+  '/internal/email/waitlist-welcome',
+  requireInternalEmailAuth,
+  express.json({ limit: '8kb' }),
+  async (req, res) => {
+    const validated = validateWaitlistWelcomeRequest(req.body);
+    if (!validated.ok) {
+      return res.status(400).json({ status: 'error', code: validated.code });
+    }
+    const result = await sendWaitlistWelcomeEmail(validated.value);
+    const statusCode = result.status === 'sent' ? 200 : result.status === 'failed_retryable' ? 503 : 422;
+    return res.status(statusCode).json({ status: result.status, eventType: validated.value.eventType, code: result.code });
+  },
+);
+
+app.use('/internal/email/waitlist-welcome', (error, _req, res, next) => {
+  if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
+    return res.status(400).json({ status: 'error', code: 'INVALID_JSON' });
+  }
+  return next(error);
+});
+
+app.post(
+  '/internal/email/account-deletion-restoration',
+  requireInternalEmailAuth,
+  express.json({ limit: '16kb' }),
+  async (req, res) => {
+    const validated = validateAccountDeletionRestorationRequest(req.body);
+    if (!validated.ok) {
+      return res.status(400).json({ status: 'error', code: validated.code });
+    }
+    const result = await sendAccountDeletionRestorationEmail(validated.value);
+    const statusCode = result.status === 'sent' ? 200 : result.status === 'failed_retryable' ? 503 : 422;
+    return res.status(statusCode).json({
+      status: result.status,
+      eventType: validated.value.eventType,
+      kind: validated.value.kind,
+      code: result.code,
+    });
+  },
+);
+
+app.use('/internal/email/account-deletion-restoration', (error, _req, res, next) => {
+  if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
+    return res.status(400).json({ status: 'error', code: 'INVALID_JSON' });
+  }
+  return next(error);
+});
+
 // Body size: 15 MB hard cap. Raw image from expo-image-manipulator at 1024px
 // JPEG quality 0.7 is ~200–400 KB base64-encoded (~1.3× raw), so 15 MB provides
 // ample headroom while preventing abuse.
@@ -1980,238 +2069,12 @@ function validateImageInput(image) {
   return null; // valid
 }
 
-app.post('/api/analyze', async (req, res) => {
-  try {
-    console.log('[K-SCAN] /api/analyze hit');
-
-    // ── TextScan branch ───────────────────────────────────────────────────────
-    // Delegated to handleTextAnalyze so image logic remains untouched.
-    if (req.body?.mode === 'text') {
-      return await handleTextAnalyze(req, res);
-    }
-
-    if (DEBUG) {
-      console.log('[K-SCAN] body keys:', Object.keys(req.body || {}));
-      console.log('[K-SCAN] image type:', typeof req.body?.image);
-      console.log('[K-SCAN] image length:', req.body?.image?.length || 0);
-    }
-
-    const { image } = req.body;
-
-    const validationError = validateImageInput(image);
-    if (validationError) {
-      return res.status(400).json({
-        result: validationError,
-        metadata: { category: '', color: '', silhouette: '' },
-        products: [],
-      });
-    }
-
-    const { mimeType, data } = extractImageParts(image);
-
-    if (DEBUG) {
-      console.log('[K-SCAN] extracted mimeType:', mimeType);
-      console.log('[K-SCAN] extracted data length:', data?.length || 0);
-    }
-
-    // ── Always log the image receipt so failures are diagnosable ───────────────
-    console.log(`[K-SCAN] image received — mimeType: ${mimeType || '(none)'}  dataLen: ${data?.length ?? 0}`);
-
-    // ── Diagnostic response headers ───────────────────────────────────────────
-    // Never in response body. In production: only when VALIDATION_SECRET_KEY auth
-    // header matches. In non-production: always emitted. See shouldEmitDiagnostics().
-    const emitDiag = shouldEmitDiagnostics(req);
-    if (emitDiag) {
-      res.set({
-        'X-KScan-Parser-Version':        PARSER_VERSION,
-        'X-KScan-Normalization-Version': NORMALIZATION_VERSION,
-        'X-KScan-Prompt-Version':        PROMPT_VERSION,
-        'X-KScan-Deployed-Commit':       DEPLOYED_COMMIT,
-      });
-    }
-
-    // ── Server-side latency tracking ──────────────────────────────────────────
-    // Measures request_entry → response_send to exclude client network variability.
-    const reqStart  = Date.now();
-    let   retried   = false;
-    res.on('finish', () => {
-      const latencyMs = Date.now() - reqStart;
-      console.log(
-        `[K-SCAN METRICS] latency=${latencyMs}ms status=${res.statusCode}` +
-        ` retry=${retried ? 1 : 0} provider=${USE_OPENROUTER ? 'OpenRouter' : 'Gemini'}`
-      );
-      if (retried) logPipelineEvent('RETRY_METRIC', { latencyMs, status: res.statusCode });
-      if (latencyMs > 15000) console.warn('[K-SCAN METRICS] WARNING: p95 exceeded 15 s ceiling');
-    });
-
-    // ── Budget constants ──────────────────────────────────────────────────────
-    // Primary gets 11 s; retry gets what remains up to a 3 s cap.
-    // Combined max: 14 s + overhead, safely within the 15 s server ceiling.
-    const SERVER_BUDGET_MS = 14500;
-    const PRIMARY_TIMEOUT_MS = 11000;
-
-    if (USE_OPENROUTER) {
-      console.log('[K-SCAN] Provider: OpenRouter  model:', OPENROUTER_MODEL);
-
-      // First attempt — normal temperature, standard system prompt.
-      const firstCall = await callOpenRouter(mimeType, data, { timeoutMs: PRIMARY_TIMEOUT_MS });
-      let orResult = firstCall?.parsed;
-
-      // Conditional retry — at most 1 additional call per request.
-      // Triggered when the first response produces empty metadata (prose fallback
-      // fired or parse returned null). Uses lower temperature + strict schema prompt.
-      // Retry only runs if the remaining time budget allows >= 2 s.
-      const hasEmptyMeta = !orResult || (!orResult.metadata?.category && !orResult.metadata?.color);
-      const elapsed      = Date.now() - reqStart;
-      const retryBudget  = SERVER_BUDGET_MS - elapsed - 200; // 200 ms overhead reserve
-      if (hasEmptyMeta && retryBudget >= 2000) {
-        retried = true;
-        logPipelineEvent('RETRY_TRIGGERED', {
-          provider:     'OpenRouter',
-          reason:       'EMPTY_METADATA_AFTER_REPAIR',
-          retryBudget:  retryBudget,
-          preview:      previewProviderText(firstCall?.rawText, 200),
-        });
-        console.log(`[K-SCAN] OpenRouter retry: temperature=0.1 budget=${retryBudget}ms`);
-        const retryCall = await callOpenRouter(mimeType, data, {
-          temperature:  0.1,
-          systemPrompt: REPAIR_SYSTEM_PROMPT,
-          isRetry:      true,
-          timeoutMs:    Math.min(retryBudget, 3000),
-        });
-        if (retryCall?.parsed &&
-            (retryCall.parsed.type === 'non-fashion' || retryCall.parsed.metadata?.category)) {
-          orResult = retryCall.parsed;
-        }
-      }
-
-      if (emitDiag) {
-        res.set('X-KScan-Retry-Triggered', retried ? '1' : '0');
-      }
-
-      if (orResult) {
-        if (orResult.type === 'non-fashion') {
-          console.log('[K-SCAN] Result: NON_FASHION — suppressing product matching');
-          console.log('[K-SCAN] Final response status: 200 NON_FASHION');
-          return res.status(200).json({ ...orResult, products: [] });
-        }
-        console.log('[K-SCAN] Result: fashion  category:', orResult.metadata?.category, ' color:', orResult.metadata?.color);
-        console.log('[K-SCAN] Final response status: 200 fashion');
-        return res.status(200).json({ ...orResult, products: matchProducts(orResult.metadata) });
-      }
-      // All attempts produced no usable content
-      console.warn('[K-SCAN] FAILED: OpenRouter returned no usable content for this image');
-      if (ALLOW_DEV_FALLBACK) return res.status(200).json(DEV_FALLBACK);
-      console.warn('[K-SCAN] Final response status: 503 FAILED AI_PROVIDER_UNAVAILABLE');
-      return res.status(503).json({ status: 'FAILED', error: 'AI_PROVIDER_UNAVAILABLE', message: 'Style-Parse could not complete.' });
-    }
-
-    console.log('[K-SCAN] Provider: Gemini');
-    if (!GEMINI_API_KEY) {
-      console.error('[K-SCAN] Missing GEMINI_API_KEY');
-      if (ALLOW_DEV_FALLBACK) return res.status(200).json(DEV_FALLBACK);
-      return res.status(503).json({ status: 'FAILED', error: 'AI_PROVIDER_UNAVAILABLE', message: 'Style-Parse could not complete.' });
-    }
-
-    const geminiUrl =
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
-
-    const geminiController = new AbortController();
-    const geminiTimeout = setTimeout(() => geminiController.abort(), 20000);
-
-    const geminiRes = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: SYSTEM_PROMPT },
-              { inline_data: { mime_type: mimeType || 'image/jpeg', data } },
-            ],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.4,
-          maxOutputTokens: 1024,
-          topP:          0.95,
-        },
-      }),
-      signal: geminiController.signal,
-    });
-    clearTimeout(geminiTimeout);
-
-    const geminiJson = await geminiRes.json();
-    console.log('[K-SCAN] Gemini HTTP status:', geminiRes.status);
-
-    if (!geminiRes.ok) {
-      const message = geminiJson?.error?.message || `Gemini API error: ${geminiRes.status}`;
-      console.error('[K-SCAN] Gemini error:', message);
-      if (ALLOW_DEV_FALLBACK) return res.status(200).json(DEV_FALLBACK);
-      console.warn('[K-SCAN] Final response status: 503 FAILED AI_PROVIDER_UNAVAILABLE');
-      return res.status(503).json({ status: 'FAILED', error: 'AI_PROVIDER_UNAVAILABLE', message: 'Style-Parse could not complete.' });
-    }
-
-    const textPart = geminiJson?.candidates?.[0]?.content?.parts?.[0];
-    const rawText  = typeof textPart?.text === 'string' ? textPart.text.trim() : '';
-    const blockReason =
-      geminiJson?.promptFeedback?.blockReason ||
-      geminiJson?.candidates?.[0]?.finishReason;
-
-    console.log(`[K-SCAN] Gemini rawText length: ${rawText.length}  blockReason: ${blockReason ?? 'none'}`);
-    if (DEV_PROVIDER_LOGS && DEBUG) console.warn('[K-SCAN] Gemini rawText preview:', previewProviderText(rawText, 1000));
-
-    if (rawText) {
-      const parsed = parseAIResponse(rawText, { provider: 'Gemini' });
-      if (parsed) {
-        if (parsed.type === 'non-fashion') {
-          console.log('[K-SCAN] Result: NON_FASHION');
-          console.log('[K-SCAN] Final response status: 200 NON_FASHION');
-          return res.status(200).json({ ...parsed, products: [] });
-        }
-        console.log('[K-SCAN] Result: fashion  metadata:', JSON.stringify(parsed.metadata));
-        console.log('[K-SCAN] Final response status: 200 fashion');
-        return res.status(200).json({ ...parsed, products: matchProducts(parsed.metadata) });
-      }
-      aiLog('warn', '[K-SCAN] parseAIResponse returned null for non-empty Gemini rawText', {
-        provider: 'Gemini',
-        responseLength: rawText.length,
-        preview: previewProviderText(rawText, 1000),
-      });
-    }
-
-    if (blockReason && blockReason !== 'STOP') {
-      console.warn('[K-SCAN] Final response status: 200 blocked', blockReason);
-      return res.status(200).json({
-        result:   `Analysis was not generated (${blockReason}). Try a different photo.`,
-        metadata: { category: '', color: '', silhouette: '' },
-        products: [],
-      });
-    }
-
-    console.warn('[K-SCAN] Final response status: 200 empty-analysis-fallback');
-    return res.status(200).json({
-      result:   "AI couldn't describe this look. Try a clearer, full-outfit photo.",
-      metadata: { category: '', color: '', silhouette: '' },
-      products: [],
-    });
-
-  } catch (error) {
-    if (error.name === 'AbortError') {
-      console.warn('[K-SCAN] Final response status: 504 timeout');
-      return res.status(504).json({
-        result: 'Analysis timed out on the server. Please try again.',
-        metadata: { category: '', color: '', silhouette: '' },
-        products: [],
-      });
-    }
-    console.error('[K-SCAN] Server error message:', error?.message);
-    console.log('[K-SCAN] DEV_FALLBACK branch: OUTER_SERVER_EXCEPTION');
-    if (ALLOW_DEV_FALLBACK) return res.status(200).json(DEV_FALLBACK);
-    console.warn('[K-SCAN] Final response status: 500 FAILED AI_PROVIDER_UNAVAILABLE');
-    return res.status(500).json({ status: 'FAILED', error: 'AI_PROVIDER_UNAVAILABLE', message: 'Style-Parse could not complete.' });
-  }
-});
+// RETIRED: the legacy POST analyze handler for that path was removed here.
+// It was unauthenticated, unrate-limited, and had no remaining runtime consumer:
+// the camera path in hooks/useKScan.js routes only through scan-identify, and
+// TextScan routes only through services/textScanEdge.ts. The pre-body tombstone
+// registered above returns 410 for every method on this path.
+// Regression coverage: __tests__/legacyAnalyzeProductionGate.test.js
 
 if (require.main === module) {
   // Bind to 0.0.0.0 so the server is reachable from:

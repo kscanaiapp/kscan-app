@@ -1,0 +1,24 @@
+# Release flow: privacy.correction_and_export
+# Branch-neutral. Selectors are app testIDs; identities come from QA_EMAIL /
+# QA_PASSWORD injected by the release workflow, never hardcoded.
+appId: ${APP_ID}
+name: privacy.correction_and_export
+tags:
+  - release
+  - privacy
+env:
+  APP_ID: ${APP_ID}
+  QA_EMAIL: ${QA_EMAIL}
+  QA_PASSWORD: ${QA_PASSWORD}
+---
+- runFlow: ../../subflows/sign-in.yaml
+- tapOn:
+    id: "home-v2-privacy-button"
+- extendedWaitUntil:
+    visible:
+      id: "privacy-button"
+    timeout: 30000
+# Non-destructive: assert the correction/export affordances are reachable.
+# This flow deliberately does not submit a request.
+- assertVisible: ".*(Export|Correct).*"
+- takeScreenshot: "privacy-correction-and-export"
