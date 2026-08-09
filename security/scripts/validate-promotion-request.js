@@ -3,10 +3,12 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { loadPolicy } = require('./native-ui-automation-policy.js');
 
 const PASSING = new Set(['PASS', 'PASS_WITH_REPORT_ONLY_FINDINGS']);
 
-function validatePromotion(certification, observed) {
+function validatePromotion(certification, observed, options = {}) {
+  const policy = options.policy || loadPolicy();
   const reasons = [];
   const runtime = certification.release_class === 'RUNTIME_RELEASE';
   if (observed.release_decision !== 'APPROVE') reasons.push('RELEASE_DECISION_NOT_APPROVE');
@@ -25,7 +27,10 @@ function validatePromotion(certification, observed) {
   if ((certification.blocking_findings || []).length) reasons.push('BLOCKING_FINDINGS_PRESENT');
   if ((certification.operational_failures || []).length) reasons.push('OPERATIONAL_FAILURES_PRESENT');
   if (certification.quarantine_policy !== 'PASS') reasons.push('QUARANTINE_POLICY_NOT_PASSING');
-  if (runtime) {
+  // Native UI automation is enforced only while policy requires it. Suspending
+  // it removes the requirement; it does not turn absent evidence into a pass.
+  // Every other promotion control above and below is untouched.
+  if (runtime && policy.required_for_release) {
     for (const platform of ['android', 'ios']) {
       const evidence = certification[`native_${platform}`] || {};
       const prefix = `NATIVE_${platform.toUpperCase()}`;
@@ -40,6 +45,9 @@ function validatePromotion(certification, observed) {
     }
   }
   return {
+    native_ui_automation_policy: policy.required_for_release
+      ? 'REQUIRED_BLOCKING'
+      : 'NOT_REQUIRED_BY_CURRENT_POLICY',
     candidate_sha: observed.candidate_sha || null,
     candidate_tree_sha: observed.candidate_tree_sha || null,
     certification_run_id: String(observed.certification_run_id || ''),

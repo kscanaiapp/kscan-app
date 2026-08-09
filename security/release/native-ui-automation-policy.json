@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "control": "native_ui_automation",
+  "status": "SUSPENDED",
+  "required_for_release": false,
+  "reason": "MAESTRO_PIPELINE_UNRELIABLE",
+  "decided_by": "owner",
+  "decided_on": "2026-08-09",
+  "scope": ["ios", "android"],
+  "replacement": null,
+  "policy_outcome": "NOT_REQUIRED_BY_CURRENT_POLICY",
+  "release_classes": {
+    "RUNTIME_RELEASE": "NOT_REQUIRED_BY_CURRENT_POLICY",
+    "CONTROL_PLANE_CHANGE": "NOT_REQUIRED_BY_CURRENT_POLICY"
+  },
+  "certification_behavior": "INFORMATIONAL_ONLY",
+  "contributes_blocker": false,
+  "evidence_basis": [
+    "docs/release/runtime-provenance-resolution.md (DEFECT-RRR-005 through RRR-010)"
+  ],
+  "notes": [
+    "This records an owner decision to stop treating native UI automation as a release gate. It is NOT a statement that native UI tests passed.",
+    "Certification and promotion must represent this as NOT_REQUIRED_BY_CURRENT_POLICY. Representing it as PASS would assert coverage that does not exist; representing it as BLOCKED or OPERATIONAL_FAILURE would assert a failure that is not being measured.",
+    "Six consecutive live dispatches produced no usable flow evidence. Every failure traced to test infrastructure -- runner image, Xcode scheme selection, shell dialect, and JS bundling -- rather than to the application under test.",
+    "No replacement runner is selected in this pass. Choosing one is deliberately out of scope so the decision is not made under schedule pressure."
+  ],
+  "reinstatement_requires": [
+    "A replacement runner selected intentionally, not inherited by default.",
+    "Reliable operation on both supported mobile platforms, or explicit per-platform runners with their own policy entries.",
+    "Flows that exercise real application behavior rather than placeholder assertions, verified against the product surface each flow ID claims.",
+    "Repeated execution without infrastructure flakiness.",
+    "Evidence bound to the exact candidate SHA.",
+    "Infrastructure faults classified as OPERATIONAL_FAILURE.",
+    "Genuine application failures classified as BLOCKED.",
+    "Several consecutive successful CI validations before the control becomes release-blocking again."
+  ],
+  "reinstatement_procedure": "Set status to ACTIVE and required_for_release to true in this file. Certification and promotion read this policy at runtime, so no code change is needed to re-arm the gate.",
+  "risk_acceptance_requires_explicit_policy_change": true
+}
