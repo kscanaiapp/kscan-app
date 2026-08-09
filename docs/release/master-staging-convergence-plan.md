@@ -45,11 +45,17 @@ These files remain included in runtime-tree computation where they are already p
 
 ## Owner-decision items
 
-1. Decide whether the master scan gateway contract is obsolete, must be ported semantically into staging, or is superseded by reviewed staging behavior. Required evidence: contract-level tests against identical fixtures and security/privacy fields.
-2. Decide whether master’s `/api/analyze` retirement is authoritative for the staging runtime. Staging currently retains callers and active behavior.
-3. Establish deployment provenance and ownership for master’s Render/Resend waitlist and deletion-restoration email routes before any staging port.
-4. Resolve the fact that Build 2.5 contribution and global EAS activation are already ancestors of the current staging head. This task cannot remove or certify that release line.
+Items 1–4 were resolved on evidence in `docs/release/runtime-provenance-resolution.md`. They are retained here with their outcome so the decision trail stays readable.
+
+1. ~~Master scan gateway disposition.~~ **Resolved: `SUPERSEDED_BY_STAGING`.** Master's gateway is reached only under `USE_GATEWAY_WIRING=true`, is non-enforcing, and its flag-off behavior is a strict subset of staging's (which additionally has an anonymous rate limit, a per-user daily quota, and an account-deletion guard). No port.
+2. ~~Authority of master's `/api/analyze` retirement.~~ **Resolved: `UNUSED_SAFE_TO_RETIRE`, ported.** No staging runtime consumer remains; the route was staging's own documented `SHOULD_NOT_BE_PUBLIC` finding. Master's `/catalog-images/*` tombstone was deliberately not ported, because `data/catalog.json` still resolves imagery through that mount.
+3. ~~Ownership of the Render/Resend email routes.~~ **Resolved: `AUTHORITATIVE_MASTER_RUNTIME`, ported.** Staging already shipped the consumer (`supabase/functions/_shared/deletion/common.ts`) without the provider — see DEFECT-RRR-001. Remaining owner action is operational only: provision `RESEND_API_KEY` and `KSCAN_EMAIL_INTERNAL_SECRET` on the Render service and confirm its deploy branch.
+4. ~~Build 2.5 ancestry in the staging head.~~ **Resolved by owner directive: `DOCUMENT / PRESERVE`.** Existing ancestry is retained and stays inside the runtime release tree; new Build 2.5 imports remain blocked.
+
+Still open:
+
 5. Provide/approve a complete maintained native Android and iOS runner covering the required implemented critical flows. The branch-neutral Maestro suite is incomplete; the only fuller iOS launcher is Build 2.5-specific and excluded.
+6. Enable leaked-password protection, which the current Supabase staging plan does not support. Policy remains `REQUIRED_BLOCKING`; this is an external plan requirement, not a code change.
 
 ## Execution sequence
 
