@@ -210,4 +210,5 @@ test('master validation emits the exact intended check name', () => {
   const workflow = fs.readFileSync(path.join(__dirname, '..', '..', '.github', 'workflows', 'master-promotion-validation.yml'), 'utf8');
   assert.match(workflow, /name: Master promotion tree equivalence/);
   assert.match(workflow, /git merge-tree --write-tree origin\/master/);
+  assert.doesNotMatch(workflow, /Only immutable staging promotion/);
 });
