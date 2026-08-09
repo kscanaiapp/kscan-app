@@ -159,30 +159,51 @@ jobs:
         id: build
         run: |
           set -euo pipefail
-          SCHEME="$(node -p "const a=require('./app.json'); (a.expo||a).scheme || (a.expo||a).slug")"
           cd ios
           WORKSPACE="$(ls -d *.xcworkspace | head -n1)"
-          XCSCHEME="$(xcodebuild -workspace "$WORKSPACE" -list -json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).workspace.schemes[0]")"
+          # The app scheme is the one matching the generated project, NOT the
+          # first scheme in the list -- a Pods workspace lists dependency
+          # schemes (EXConstants, hermes-engine, ...) that build a static
+          # library and produce no .app, which reads as a green build with a
+          # missing artifact.
+          APP_SCHEME="$(basename "$WORKSPACE" .xcworkspace)"
+          if ! xcodebuild -workspace "$WORKSPACE" -list -json \
+              | APP_SCHEME="$APP_SCHEME" node -e "
+                  let raw=''; process.stdin.on('data', d => raw += d).on('end', () => {
+                    const schemes = JSON.parse(raw).workspace.schemes || [];
+                    if (!schemes.includes(process.env.APP_SCHEME)) {
+                      console.error('scheme ' + process.env.APP_SCHEME + ' not found. Available: ' + schemes.join(', '));
+                      process.exit(1);
+                    }
+                  });
+                "; then
+            echo "could not resolve the application scheme" >&2
+            exit 1
+          fi
+          echo "Building scheme $APP_SCHEME from $WORKSPACE"
+          set -o pipefail
           xcodebuild \
             -workspace "$WORKSPACE" \
-            -scheme "$XCSCHEME" \
+            -scheme "$APP_SCHEME" \
             -configuration Debug \
             -sdk iphonesimulator \
             -derivedDataPath build \
             -destination "id=${{ steps.sim.outputs.udid }}" \
             CODE_SIGNING_ALLOWED=NO \
-            build | xcpretty || xcodebuild \
-            -workspace "$WORKSPACE" \
-            -scheme "$XCSCHEME" \
-            -configuration Debug \
-            -sdk iphonesimulator \
-            -derivedDataPath build \
-            -destination "id=${{ steps.sim.outputs.udid }}" \
-            CODE_SIGNING_ALLOWED=NO \
-            build
+            build 2>&1 | tee ../xcodebuild.log | xcpretty || {
+              echo "xcodebuild failed; tail of raw log:" >&2
+              tail -50 ../xcodebuild.log >&2
+              exit 1
+            }
           cd ..
-          APP="$(find ios/build/Build/Products -maxdepth 2 -name '*.app' -type d | head -n1)"
-          if [ -z "$APP" ]; then echo 'no .app produced' >&2; exit 1; fi
+          APP="$(find ios/build/Build/Products -maxdepth 3 -name '*.app' -type d \
+            -not -path '*/XCFrameworkIntermediates/*' | head -n1)"
+          if [ -z "$APP" ]; then
+            echo "build reported success but produced no .app under ios/build/Build/Products" >&2
+            find ios/build/Build/Products -maxdepth 3 -type d >&2 || true
+            exit 1
+          fi
+          echo "Built $APP"
           echo "app=$APP" >> "$GITHUB_OUTPUT"
           echo "build_identifier=ios-sim-${{ steps.candidate.outputs.sha }}-$(find "$APP" -type f -exec shasum {} + | shasum | cut -c1-12)" >> "$GITHUB_OUTPUT"
 
@@ -216,18 +237,22 @@ jobs:
 
       - name: Build native evidence
         id: evidence
+        if: always() && steps.candidate.outputs.sha != ''
         env:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
+          mkdir -p artifacts
+          # A build or simulator fault must still emit evidence, so certification
+          # sees an explicit OPERATIONAL_FAILURE rather than a missing artifact.
           INFRA=''
           if [ ! -f artifacts/report.xml ]; then INFRA='--infrastructure-failure'; fi
           node security/scripts/build-native-mobile-evidence.js \
             --platform ios \
             --candidate-sha "${{ steps.candidate.outputs.sha }}" \
             --run-id "${{ github.run_id }}" \
-            --build-identifier "${{ steps.build.outputs.build_identifier }}" \
-            --device "${{ steps.sim.outputs.device }}_Xcode-${{ steps.toolchain.outputs.xcode }}" \
+            --build-identifier "${{ steps.build.outputs.build_identifier || 'unavailable-build-failed' }}" \
+            --device "${{ steps.sim.outputs.device || 'unavailable' }}_Xcode-${{ steps.toolchain.outputs.xcode || 'unknown' }}" \
             --runner "Maestro ${MAESTRO_VERSION}" \
             --report artifacts/report.xml \
             --artifact-links "$RUN_URL" \
@@ -238,6 +263,7 @@ jobs:
           cat artifacts/native-ios-evidence.json
 
       - name: Upload native evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: native-ios-evidence
@@ -254,6 +280,7 @@ jobs:
             artifacts/report.xml
             artifacts/maestro.log
             artifacts/maestro-debug/**
+            xcodebuild.log
           if-no-files-found: warn
           retention-days: 30
 
