@@ -13,6 +13,9 @@ test('master tree check emits its exact governance context', () => {
   const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'master-promotion-validation.yml'), 'utf8');
   assert.match(workflow, /name: Master promotion tree equivalence/);
   assert.match(workflow, /git merge-tree --write-tree origin\/master/);
+  assert.match(workflow, /compute-runtime-release-tree\.js/);
+  assert.match(workflow, /RUNTIME_RELEASE_TREE/);
+  assert.doesNotMatch(workflow, /test "\$CANDIDATE_TREE" = "\$MERGE_TREE"/);
   assert.doesNotMatch(workflow, /Only immutable staging promotion/);
 });
 
@@ -27,6 +30,29 @@ test('promotion validator fails closed on a BLOCK decision', () => {
   const decision = validatePromotion({}, { release_decision: 'BLOCK' });
   assert.equal(decision.promotion_authorized, false);
   assert.ok(decision.validation_failures.includes('RELEASE_DECISION_NOT_APPROVE'));
+});
+
+test('runtime promotion requires native evidence and rejects legacy TestSprite labels', () => {
+  const sha = 'a'.repeat(40);
+  const tree = 'b'.repeat(40);
+  const certification = {
+    release_class: 'RUNTIME_RELEASE', certification_run_id: '123', candidate_commit_sha: sha,
+    candidate_tree_sha: tree, final_verdict: 'PASS', promotion_eligible: true,
+    quarantine_policy: 'PASS', blocking_findings: [], operational_failures: [],
+    testsprite_android: { result: 'PASS', tested_sha: sha, test_id: 'fake', run_id: 'fake' },
+    testsprite_ios: { result: 'PASS', tested_sha: sha, test_id: 'fake', run_id: 'fake' },
+  };
+  const observed = {
+    release_decision: 'APPROVE', certification_run_id: '123', candidate_sha: sha,
+    candidate_tree_sha: tree, branch_tree_sha: tree, staging_head_sha: sha,
+    certification_workflow: 'Staging Release Certification', certification_event: 'push',
+    certification_head_branch: 'staging/production-parity', certification_head_sha: sha,
+    certification_status: 'completed',
+  };
+  const decision = validatePromotion(certification, observed);
+  assert.equal(decision.promotion_authorized, false);
+  assert.ok(decision.validation_failures.includes('NATIVE_ANDROID_NOT_PASSING'));
+  assert.ok(decision.validation_failures.includes('NATIVE_IOS_NOT_PASSING'));
 });
 
 test('staging Auth workflow can target only the staging project', () => {
