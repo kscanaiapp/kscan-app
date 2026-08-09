@@ -1,6 +1,6 @@
 # K Scan AI — Play Store Readiness Notes
 
-_Last updated: 2026-07-08 (integration/free-tier-beta-into-style-dna)_
+_Last updated: 2026-08-09 (audit/android-build25-final-google-remediation) — sections 5 and 5a revised; the rest still reflects 2026-07-08 (integration/free-tier-beta-into-style-dna)._
 
 This document is the current source of truth for Google Play Console entries and Data Safety declarations. It reflects the code/config on this branch as of the date above.
 
@@ -84,13 +84,26 @@ K Scan AI requests approximate location for weather-aware styling suggestions. A
 - Dressing Rooms can be shared via public share links.
 - Room members can post messages and reactions.
 - Share links enforce `max_redemptions` and expiry.
-- In room chat, each message shows a **Report** action. Tapping it opens a confirmation with **Report & Hide**; confirming immediately hides the content on the device and filters content from that reported user locally when the sender is known.
+- In room chat, each message shows a **Report** action. Tapping it opens a confirmation with **Report & Hide**; confirming immediately hides the content on the device, filters content from that reported user locally when the sender is known, and files a server-side report.
+- Each message from another participant also shows **Report user** (files an account-level report) and **Block** (see below). A **Room Safety** roster lets a participant be blocked even if they have never sent a message, and a sender hidden by Report & Hide still exposes a Block route.
 - Hidden content IDs are stored device-locally (`kscan.hidden_content_ids.v1`). Hidden user IDs are also stored device-locally (`kscan.hidden_user_ids.v1`) so blocked-sender filtering survives a cold app restart.
-- A server-side `content_reports` moderation migration has been added for internal review and is pending deployment if not yet applied. Full admin dashboard and server-side cross-device blocking remain future enhancements.
+- **Server-side, cross-device user blocking is live** (`public.dressing_room_user_blocks` + `block_dressing_room_user` / `unblock_dressing_room_user` / `list_dressing_room_blocked_users`, applied to production 2026-08-06). A block is account-level and bidirectional. Enforcement is in the backend, not the client: `internal.is_dressing_room_pair_blocked` gates `resolve_dressing_room_collaboration_access`, the `can_access_room_messages` RLS predicate on `dressing_room_messages`, and `join_room_via_share_token`, so a blocked pair cannot read, send, or redeem a share link into each other's rooms even by calling PostgREST directly.
+- Blocked accounts are listed, and can be unblocked, under **Privacy → Blocked Users**.
+- The `content_reports` moderation table is deployed to production. Authenticated users hold INSERT only; there is no SELECT/UPDATE/DELETE policy, so reports are readable exclusively by service-role moderation tooling. `reporter_user_id` defaults to `auth.uid()` and cannot be spoofed by the client.
+- An internal admin moderation dashboard is still a future enhancement; reports are reviewed through service-role tooling.
 
 Data Safety note: `content_reports` contains user IDs and content references for app safety, abuse prevention, and moderation. It is not shared with third parties.
 
-**Play risk:** User-generated content with sharing is a common Play review friction point. This build provides report + local hide/block plus a prepared server-side report log. Before public launch, deploy the `content_reports` migration, implement an admin moderation dashboard, and add server-side cross-device blocking to fully satisfy Play policy expectations.
+**Play risk:** User-generated content with sharing is a common Play review friction point. This build provides message reporting, user reporting, account-level backend-enforced blocking with an unblock surface, local hide, and a server-side report log. The remaining gap is operational (moderation tooling / review SLA), not a missing in-app control.
+
+## 5a. AI-generated content reporting
+
+- Model-authored prose reaches the user on two surfaces, and both carry an in-app **Report Response** control:
+  - StyleChat assistant messages (`components/style-chat/StyleChatBubble.tsx`) — per message.
+  - The scan style-analysis paragraph (`components/AnalysisCard.tsx`) — per analysis.
+- Reporting opens a prefilled message to `kscanai.app@gmail.com` carrying platform, feature, session ID, message ID, item ID, and timestamp; a device with no mail handler is shown the address instead.
+- Other Elise surfaces render no provider prose and therefore expose no report control: the Private Dressing Room's copy table is app-owned (`services/privateDressingRoomEliseUx.ts` never reads the response contract's `displayCopy` / `clarification`), and the Today with Elise greeting is deterministic app copy varied only by the user's own first name.
+- **Known limitation:** AI-output reports are delivered by email and are not persisted to `content_reports`. That table's `target_type` CHECK admits only `room / message / reaction / item / image / profile / user`, so persisting them requires a production migration and is deliberately out of scope for this release.
 
 ## 6. Production/Staging Project Naming
 

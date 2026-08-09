@@ -21,6 +21,7 @@ import { SecondhandShelf } from './SecondhandShelf';
 import { SneakerMatchCard } from './SneakerMatchCard';
 import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
 import { normalizePurchaseOptions } from '../services/purchaseOptions';
+import { reportAiOutput } from '../services/reportAiOutput';
 import {
   COLORS,
   LUXURY,
@@ -322,6 +323,25 @@ export function AnalysisCard({
               {/* AI result body */}
               <Text style={styles.body}>{resultText}</Text>
 
+              {/* Offensive/unsafe AI-output reporting for the Scan Results
+                  surface. This paragraph is model-authored prose, so it needs
+                  the same in-app reporting route StyleChat already gives its
+                  assistant messages (components/style-chat/StyleChatBubble).
+                  Hidden when there is no analysis text to report. */}
+              {resultText && resultText !== EMPTY_VALUE ? (
+                <TouchableOpacity
+                  onPress={() => reportAiOutput('Scan Results', { itemId: scanSourceId ?? null })}
+                  style={styles.reportBtn}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="Report this style analysis as offensive or unsafe"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  testID="analysis-card-report-ai"
+                >
+                  <Text style={styles.reportText}>Report Response</Text>
+                </TouchableOpacity>
+              ) : null}
+
               {/* Match summary */}
               <View style={styles.matchSummary}>
                 <Text style={styles.matchSummaryLabel}>K Scan understood:</Text>
@@ -575,6 +595,22 @@ const styles = StyleSheet.create({
   body: {
     ...LUXURY.typography.body,
     marginTop: SPACING.lg,
+  },
+  // Mirrors the StyleChat bubble's report affordance so the two AI surfaces
+  // present the same control rather than inventing a second visual language.
+  reportBtn: {
+    marginTop: SPACING.sm,
+    alignSelf: 'flex-start',
+    paddingVertical: SPACING.xs,
+    minHeight: 32,
+    justifyContent: 'center',
+  },
+  reportText: {
+    ...LUXURY.typography.caption,
+    fontSize: 11,
+    color: LUXURY.colors.stone,
+    letterSpacing: 0.6,
+    textDecorationLine: 'underline',
   },
   matchSummary: {
     marginTop: SPACING.lg,

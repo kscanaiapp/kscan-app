@@ -366,7 +366,15 @@ function loadScannerHarness({
   };
 }
 
-async function waitFor(predicate, timeoutMs = 300) {
+/**
+ * Wall-clock bounded, so the budget must survive a loaded machine. At the
+ * original 300 ms the FIFO-ordering case failed intermittently in a full-suite
+ * run (many test files resolving promises concurrently) while passing every
+ * time in isolation — a harness flake, not a product defect. The budget only
+ * bounds the FAILURE path: a satisfied predicate returns on the next 4 ms tick
+ * regardless, so a larger deadline costs a passing run nothing.
+ */
+async function waitFor(predicate, timeoutMs = 5000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (predicate()) return;
