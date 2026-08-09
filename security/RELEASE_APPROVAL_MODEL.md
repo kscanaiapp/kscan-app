@@ -92,7 +92,7 @@ not a coincidence to simplify away.
   ruleset's required-checks list but produced by no job in any workflow file
   and absent from every real check-run observed on this branch. Dropped as a
   stale/fictional name rather than preserved.
-- Mobile TestSprite (Android/iOS) and the Pre-Publish Release Security Gate
+- Native Android/iOS release evidence and the Pre-Publish Release Security Gate
   — mobile certification and pre-publish gating belong to the production
   promotion decision below, not the staging PR merge.
 
@@ -108,8 +108,8 @@ for a given commit SHA requires all of the following to be true for that
   against the merged SHA, plus staging health)
 - `ZAP Baseline (staging)` and `ZAP API staging` pass against the deployed
   SHA
-- mobile TestSprite passes for Android
-- mobile TestSprite passes for iOS
+- native release evidence passes for Android at the exact candidate SHA
+- native release evidence passes for iOS at the exact candidate SHA
 - the Pre-Publish Release Security Gate passes
 - no unresolved blocking security findings exist for that SHA
 
@@ -129,7 +129,7 @@ PR checks pass (staging required checks, above)
   -> the exact same SHA may be promoted
 ```
 
-Mobile TestSprite and the Pre-Publish Release Security Gate are part of this
+Native mobile evidence and the Pre-Publish Release Security Gate are part of this
 funnel once their workflows are merged (tracked separately; not yet present
 on `staging/production-parity` as of this document). Until then, production
 eligibility is governed by the staging security/health/ZAP evidence above —

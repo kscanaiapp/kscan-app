@@ -146,7 +146,7 @@ jobs:
             `Agent release decision: ${d.release_decision}`, `Release class: ${c.release_class}`,
             `Staging health: ${c.staging_health}`, `Security: ${c.static_security}`,
             `Artifact exposure: ${c.artifact_exposure}`, `ZAP baseline/API: ${c.zap_baseline} / ${c.zap_api}`,
-            `TestSprite Android: ${mobile('testsprite_android')}`, `TestSprite iOS: ${mobile('testsprite_ios')}`,
+            `Native Android: ${mobile('native_android')}`, `Native iOS: ${mobile('native_ios')}`,
             `Blocking findings: ${JSON.stringify(c.blocking_findings||[])}`,
             `Report-only findings: ${JSON.stringify(c.report_only_findings||[])}`,
           ].join('\n\n');

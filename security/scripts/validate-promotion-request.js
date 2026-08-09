@@ -27,10 +27,16 @@ function validatePromotion(certification, observed) {
   if (certification.quarantine_policy !== 'PASS') reasons.push('QUARANTINE_POLICY_NOT_PASSING');
   if (runtime) {
     for (const platform of ['android', 'ios']) {
-      const evidence = certification[`testsprite_${platform}`] || {};
-      if (evidence.result !== 'PASS') reasons.push(`TESTSPRITE_${platform.toUpperCase()}_NOT_PASSING`);
-      if (evidence.tested_sha !== certification.candidate_commit_sha) reasons.push(`TESTSPRITE_${platform.toUpperCase()}_SHA_MISMATCH`);
-      if (!evidence.test_id || !evidence.run_id) reasons.push(`TESTSPRITE_${platform.toUpperCase()}_IDENTITY_MISSING`);
+      const evidence = certification[`native_${platform}`] || {};
+      const prefix = `NATIVE_${platform.toUpperCase()}`;
+      if (evidence.result !== 'PASS') reasons.push(`${prefix}_NOT_PASSING`);
+      if (evidence.tested_sha !== certification.candidate_commit_sha) reasons.push(`${prefix}_SHA_MISMATCH`);
+      if (!evidence.runner || /testsprite/i.test(evidence.runner) || !evidence.build_identifier || !evidence.run_id) {
+        reasons.push(`${prefix}_IDENTITY_MISSING`);
+      }
+      if (evidence.contract_validated !== true || evidence.flows_run < 1 || evidence.flows_failed !== 0 || !(evidence.artifact_links || []).length) {
+        reasons.push(`${prefix}_EVIDENCE_INVALID`);
+      }
     }
   }
   return {
