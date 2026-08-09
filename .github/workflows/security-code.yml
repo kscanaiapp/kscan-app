@@ -219,7 +219,9 @@ jobs:
           set -euo pipefail
           START_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           echo "start_time=${START_TIME}" >> "$GITHUB_OUTPUT"
-          VERSION="$(docker run --rm semgrep/semgrep:1.171.0 semgrep --version | head -n 1)"
+          # Same SIGPIPE hazard as the OSV step: capture, then slice in-shell.
+          VERSION_OUTPUT="$(docker run --rm semgrep/semgrep:1.171.0 semgrep --version)"
+          VERSION="${VERSION_OUTPUT%%$'\n'*}"
           echo "scanner_version=${VERSION}" >> "$GITHUB_OUTPUT"
           # Standalone CE via official container; no paid Semgrep Cloud upload.
           # Use --json-output/--text-output for dual reports. Do NOT combine
@@ -347,7 +349,13 @@ jobs:
           set -euo pipefail
           START_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           echo "start_time=${START_TIME}" >> "$GITHUB_OUTPUT"
-          VERSION="$(osv-scanner --version | head -n 1)"
+          # Capture the full version output first, then take its first line in
+          # the shell. Piping into `head -n 1` closes the pipe as soon as one
+          # line is read; osv-scanner then dies of SIGPIPE and, under
+          # `set -o pipefail`, the step exits 141 before any scan runs. That is
+          # an operational failure masquerading as a security gate result.
+          VERSION_OUTPUT="$(osv-scanner --version)"
+          VERSION="${VERSION_OUTPUT%%$'\n'*}"
           echo "scanner_version=${VERSION}" >> "$GITHUB_OUTPUT"
 
           # OSV-Scanner v2.x: `scan source` + --lockfile + --output-file
@@ -490,7 +498,8 @@ jobs:
           PY
           END_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           echo "end_time=${END_TIME}" >> "$GITHUB_OUTPUT"
-          VERSION="$(trivy --version 2>/dev/null | head -n 1 || echo unknown)"
+          VERSION_OUTPUT="$(trivy --version 2>/dev/null || echo unknown)"
+          VERSION="${VERSION_OUTPUT%%$'\n'*}"
           echo "scanner_version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Summarize Trivy findings
