@@ -5,7 +5,6 @@ import {
   ScrollView,
   StyleSheet,
   Keyboard,
-  Linking,
 } from 'react-native';
 import { router } from 'expo-router';
 import { goBackOrHome } from '../../services/navigationExit';
@@ -35,6 +34,7 @@ import {
   TEXTSCAN_VOICE_PLACEHOLDER_ENABLED,
 } from '../../constants/featureFlags';
 import { analyzeTextWithEdge } from '../../services/textScanEdge';
+import { openExternalUrl } from '../../services/openExternalUrl';
 import {
   validateTextScanQuery,
   toAttributeGrid,
@@ -72,16 +72,17 @@ export default function TextScanScreen() {
 
   const isQueryValid = query.trim().length >= MIN_QUERY_LENGTH;
 
+  // productUrl arrives verbatim from the TextScan backend response, which
+  // accepts any of productUrl / product_url / purchaseUrl / url / link /
+  // affiliateUrl — so the scheme is upstream-controlled, not ours. Route every
+  // open through the shared guard; a rejected URL surfaces the same
+  // "link unavailable" copy an unreachable one already did.
   const openUrl = useCallback((rawUrl: string | undefined, errorMessage: string) => {
     const url = rawUrl?.trim();
     if (!url) return;
-    try {
-      Linking.openURL(url).catch(() => {
-        setTextScanError(errorMessage);
-      });
-    } catch {
-      setTextScanError(errorMessage);
-    }
+    void openExternalUrl(url).then((opened) => {
+      if (!opened) setTextScanError(errorMessage);
+    });
   }, []);
 
   const openWebSearch = useCallback(() => {
