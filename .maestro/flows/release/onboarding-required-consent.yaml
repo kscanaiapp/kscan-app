@@ -1,0 +1,36 @@
+# Release flow: onboarding.required_consent
+# Branch-neutral. Selectors are app testIDs; identities come from QA_EMAIL /
+# QA_PASSWORD injected by the release workflow, never hardcoded.
+appId: ${APP_ID}
+name: onboarding.required_consent
+tags:
+  - release
+  - onboarding
+  - consent
+env:
+  APP_ID: ${APP_ID}
+  QA_EMAIL: ${QA_EMAIL}
+  QA_PASSWORD: ${QA_PASSWORD}
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-welcome-screen-v1"
+    timeout: 30000
+- tapOn:
+    id: "onboarding-get-started-button-v1"
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-terms-screen"
+    timeout: 20000
+# Continue must stay blocked until Terms and Privacy are both accepted.
+- tapOn:
+    id: "onboarding-accept-continue-button"
+- assertVisible:
+    id: "onboarding-terms-screen"
+- tapOn:
+    id: "onboarding-terms-checkbox"
+- tapOn:
+    id: "onboarding-privacy-checkbox"
+- takeScreenshot: "onboarding-required-consent"

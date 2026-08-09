@@ -1,0 +1,41 @@
+# Release flow: scanner.permission_recovery
+# Branch-neutral. Selectors are app testIDs; identities come from QA_EMAIL /
+# QA_PASSWORD injected by the release workflow, never hardcoded.
+appId: ${APP_ID}
+name: scanner.permission_recovery
+tags:
+  - release
+  - scanner
+  - permissions
+env:
+  APP_ID: ${APP_ID}
+  QA_EMAIL: ${QA_EMAIL}
+  QA_PASSWORD: ${QA_PASSWORD}
+---
+- launchApp:
+    clearState: true
+    permissions:
+      camera: deny
+- runFlow: ../../subflows/sign-in-nolaunch.yaml
+- tapOn:
+    id: "home-v2-start-scan"
+- extendedWaitUntil:
+    visible:
+      id: "scan-room-open-camera"
+    timeout: 30000
+- tapOn:
+    id: "scan-room-open-camera"
+- extendedWaitUntil:
+    visible: "Grant Access"
+    timeout: 20000
+# Re-grant and confirm the capture surface becomes usable again.
+- launchApp:
+    clearState: false
+    permissions:
+      camera: allow
+- runFlow: ../../subflows/open-scanner.yaml
+- extendedWaitUntil:
+    visible:
+      id: "scan-room-capture-button"
+    timeout: 30000
+- takeScreenshot: "scanner-permission-recovered"

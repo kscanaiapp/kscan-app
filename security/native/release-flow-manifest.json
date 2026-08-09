@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "description": "Maps each required mobile flow id to the branch-neutral Maestro flow that proves it. The runner uses this to translate Maestro results into native evidence, so a flow file rename can never silently drop a required flow from the evidence.",
+  "runner": "Maestro",
+  "flow_root": ".maestro/flows/release",
+  "flows": [
+    { "id": "auth.sign_in", "file": "auth-sign-in.yaml", "platforms": ["android", "ios"] },
+    { "id": "auth.invalid_sign_in", "file": "auth-invalid-sign-in.yaml", "platforms": ["android", "ios"] },
+    { "id": "auth.session_restore", "file": "auth-session-restore.yaml", "platforms": ["android", "ios"] },
+    { "id": "auth.logout_login", "file": "auth-logout-login.yaml", "platforms": ["android", "ios"] },
+    { "id": "onboarding.required_consent", "file": "onboarding-required-consent.yaml", "platforms": ["android", "ios"] },
+    { "id": "onboarding.ai_processing_consent", "file": "onboarding-ai-processing-consent.yaml", "platforms": ["android", "ios"] },
+    { "id": "onboarding.age_privacy_ack", "file": "onboarding-age-privacy-ack.yaml", "platforms": ["android", "ios"] },
+    { "id": "home.load_and_navigation", "file": "home-load-and-navigation.yaml", "platforms": ["android", "ios"] },
+    { "id": "scanner.camera_or_photo_entry", "file": "scanner-camera-or-photo-entry.yaml", "platforms": ["android", "ios"] },
+    { "id": "scanner.permission_denial", "file": "scanner-permission-denial.yaml", "platforms": ["android", "ios"] },
+    { "id": "scanner.permission_recovery", "file": "scanner-permission-recovery.yaml", "platforms": ["android", "ios"] },
+    { "id": "scanner.successful_scan", "file": "scanner-successful-scan.yaml", "platforms": ["android", "ios"] },
+    { "id": "scanner.retry_and_error", "file": "scanner-retry-and-error.yaml", "platforms": ["android", "ios"] },
+    { "id": "closet.authorized_access_and_isolation", "file": "closet-authorized-access-and-isolation.yaml", "platforms": ["android", "ios"] },
+    { "id": "dressing_room.access_control", "file": "dressing-room-access-control.yaml", "platforms": ["android", "ios"] },
+    { "id": "dressing_room.shared_access_control", "file": "dressing-room-shared-access-control.yaml", "platforms": ["android", "ios"] },
+    { "id": "dressing_room.report_or_block", "file": "dressing-room-report-or-block.yaml", "platforms": ["android", "ios"] },
+    { "id": "elise.initialization_and_auth", "file": "elise-initialization-and-auth.yaml", "platforms": ["android", "ios"] },
+    { "id": "elise.graceful_error", "file": "elise-graceful-error.yaml", "platforms": ["android", "ios"] },
+    { "id": "privacy.settings", "file": "privacy-settings.yaml", "platforms": ["android", "ios"] },
+    { "id": "privacy.correction_and_export", "file": "privacy-correction-and-export.yaml", "platforms": ["android", "ios"] },
+    { "id": "privacy.account_deletion_request", "file": "privacy-account-deletion-request.yaml", "platforms": ["android", "ios"] },
+    { "id": "resilience.foreground_background", "file": "resilience-foreground-background.yaml", "platforms": ["android", "ios"] },
+    { "id": "resilience.network_recovery", "file": "resilience-network-recovery.yaml", "platforms": ["android", "ios"] },
+    { "id": "resilience.deep_link", "file": "resilience-deep-link.yaml", "platforms": ["android", "ios"] }
+  ]
+}
