@@ -10,7 +10,7 @@
  *     reviews, resolved conversations, and the source/security/static/
  *     configuration checks listed in STAGING_REQUIRED_CHECKS below.
  *   - Dynamic post-deployment checks (staging health, synthetic auth tests,
- *     ZAP, mobile TestSprite, the Pre-Publish Release Security Gate) are
+ *     ZAP, native Android/iOS evidence, the Pre-Publish Release Security Gate) are
  *     deliberately NOT in that list — they run against the exact merged SHA
  *     after it deploys and gate PRODUCTION promotion, not the staging merge
  *     itself. Requiring them pre-merge would make the merge gate depend on a

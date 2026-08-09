@@ -10,11 +10,11 @@ const REQUIRED = [
   'static_security', 'migration_validation', 'contract_tests', 'staging_parity',
   'staging_health', 'synthetic_auth', 'rpc_rls_authorization', 'artifact_exposure',
   'zap_baseline', 'zap_api', 'leaked_password_protection', 'quarantine_policy',
-  'testsprite_android', 'testsprite_ios',
+  'native_android', 'native_ios',
 ];
 const CONTROL_PLANE_NOT_APPLICABLE = new Set([
   'migration_validation', 'staging_health', 'synthetic_auth', 'leaked_password_protection',
-  'testsprite_android', 'testsprite_ios', 'zap_baseline', 'zap_api',
+  'native_android', 'native_ios', 'zap_baseline', 'zap_api',
 ]);
 const RUNTIME_NOT_APPLICABLE = new Set(['migration_validation', 'zap_baseline', 'zap_api']);
 
@@ -22,10 +22,11 @@ function normalize(value) {
   return String(value || 'OPERATIONAL_FAILURE').trim().toUpperCase().replace(/[ -]+/g, '_');
 }
 
-function normalizeMobile(value) {
+function normalizeNative(value) {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
     return {
-      test_id: value.test_id || null,
+      runner: value.runner || null,
+      build_identifier: value.build_identifier || null,
       run_id: value.run_id || null,
       result: normalize(value.result),
       tested_sha: value.tested_sha || null,
@@ -33,12 +34,15 @@ function normalizeMobile(value) {
       flows_passed: Number(value.flows_passed || 0),
       flows_failed: Number(value.flows_failed || 0),
       artifact_links: Array.isArray(value.artifact_links) ? value.artifact_links.filter(Boolean) : [],
+      flow_results: Array.isArray(value.flow_results) ? value.flow_results : [],
+      contract_validated: value.contract_validated === true,
       reason: value.reason || null,
     };
   }
   return {
-    test_id: null, run_id: null, result: normalize(value), tested_sha: null,
-    flows_run: 0, flows_passed: 0, flows_failed: 0, artifact_links: [], reason: null,
+    runner: null, build_identifier: null, run_id: null, result: normalize(value), tested_sha: null,
+    flows_run: 0, flows_passed: 0, flows_failed: 0, artifact_links: [], flow_results: [],
+    contract_validated: false, reason: null,
   };
 }
 
@@ -46,10 +50,10 @@ function build(input) {
   const releaseClass = String(input.release_class || '').toUpperCase();
   const releaseClassValid = RELEASE_CLASSES.has(releaseClass);
   const runtimeRelease = releaseClass === 'RUNTIME_RELEASE';
-  const android = normalizeMobile(input.testsprite_android);
-  const ios = normalizeMobile(input.testsprite_ios);
+  const android = normalizeNative(input.native_android);
+  const ios = normalizeNative(input.native_ios);
   const components = Object.fromEntries(REQUIRED.map((name) => [name,
-    name === 'testsprite_android' ? android.result : name === 'testsprite_ios' ? ios.result : normalize(input[name]),
+    name === 'native_android' ? android.result : name === 'native_ios' ? ios.result : normalize(input[name]),
   ]));
   const invalid = Object.entries(components).filter(([, value]) => !VERDICTS.has(value));
   const blocking = Object.entries(components).filter(([, value]) => value === 'BLOCKED');
@@ -64,9 +68,15 @@ function build(input) {
   const deploymentMatches = !deploymentRequired || input.candidate_commit_sha === input.deployed_staging_sha;
   const deploymentContractValid = releaseClassValid && (runtimeRelease ? deploymentRequired : !deploymentRequired);
   const mobileShaMismatch = runtimeRelease && [android, ios].some((mobile) =>
-    mobile.result === 'PASS' && (!mobile.test_id || !mobile.run_id || mobile.tested_sha !== input.candidate_commit_sha));
+    mobile.result === 'PASS' && mobile.tested_sha !== input.candidate_commit_sha);
+  const nativeIdentityInvalid = runtimeRelease && [android, ios].some((mobile) =>
+    mobile.result === 'PASS' && (
+      !mobile.runner || /testsprite/i.test(mobile.runner) || !mobile.build_identifier || !mobile.run_id
+      || !mobile.contract_validated || mobile.flows_run < 1 || mobile.flows_passed < 1
+      || mobile.flows_failed !== 0 || mobile.artifact_links.length < 1
+    ));
   const mobileEvidenceNotConfigured = runtimeRelease && (
-    input.mobile_evidence_configured === false || input.mobile_evidence_configured === 'false');
+    input.native_evidence_configured === false || input.native_evidence_configured === 'false');
   const shaMatch = candidateMatchesHead && deploymentMatches;
 
   const extraBlocking = [
@@ -74,6 +84,7 @@ function build(input) {
     ...(!deploymentContractValid ? ['RELEASE_CLASS_DEPLOYMENT_CONTRACT_MISMATCH'] : []),
     ...(!shaMatch ? ['candidate_identity_mismatch'] : []),
     ...(mobileShaMismatch ? ['MOBILE_TEST_SHA_MISMATCH'] : []),
+    ...(nativeIdentityInvalid ? ['NATIVE_MOBILE_EVIDENCE_INVALID'] : []),
     ...(mobileEvidenceNotConfigured ? ['MOBILE_EVIDENCE_NOT_CONFIGURED'] : []),
   ];
   let finalVerdict = 'PASS';
@@ -92,9 +103,9 @@ function build(input) {
     deployment_required: deploymentRequired,
     certification_run_id: input.certification_run_id || null,
     sha_match: shaMatch,
-    ...Object.fromEntries(Object.entries(components).filter(([name]) => !name.startsWith('testsprite_'))),
-    testsprite_android: android,
-    testsprite_ios: ios,
+    ...Object.fromEntries(Object.entries(components).filter(([name]) => !name.startsWith('native_'))),
+    native_android: android,
+    native_ios: ios,
     blocking_findings: [
       ...blocking.map(([name]) => name), ...extraBlocking,
       ...invalid.map(([name]) => `invalid_verdict:${name}`),
@@ -122,4 +133,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { build, normalizeMobile, VERDICTS, RELEASE_CLASSES, REQUIRED };
+module.exports = { build, normalizeNative, VERDICTS, RELEASE_CLASSES, REQUIRED };
