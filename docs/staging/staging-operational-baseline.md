@@ -148,10 +148,12 @@ fails non-interactively: *"EAS CLI couldn't find any credentials suitable for in
 
 ### Builds produced by this pass
 
+No artifact was produced. An Android staging build was triggered ([`e8d9bb4d-2062-4438-91ff-a0d97eb461d8`](https://expo.dev/accounts/ams2dad/projects/kscan/builds/e8d9bb4d-2062-4438-91ff-a0d97eb461d8), source `92c1a4b25d8dc202bb9022a39f35b2d9717abff1`, profile `staging`) and sat in the EAS free-tier queue without starting compute, then was cancelled on owner instruction before it built. The `staging` profile itself is verified correct and ready (see above); the actual build run is left for the owner/a future pass to trigger. iOS was never attempted to completion — it fails immediately, before any build compute runs, on the missing-credentials condition described above.
+
 | Platform | Build ID | Source SHA | Profile | Result |
 |---|---|---|---|---|
-| Android | [`e8d9bb4d-2062-4438-91ff-a0d97eb461d8`](https://expo.dev/accounts/ams2dad/projects/kscan/builds/e8d9bb4d-2062-4438-91ff-a0d97eb461d8) | `92c1a4b25d8dc202bb9022a39f35b2d9717abff1` | `staging` | queued/building at report time — see run log for final status |
-| iOS | — | — | `staging` | Not produced — blocked on credentials, see above |
+| Android | `e8d9bb4d-2062-4438-91ff-a0d97eb461d8` | `92c1a4b25d8dc202bb9022a39f35b2d9717abff1` | `staging` | Queued, then cancelled on owner instruction before compute started — no artifact |
+| iOS | — | — | `staging` | Not attempted to completion — blocked on credentials, see above |
 
 ## Mobile smoke validation
 
