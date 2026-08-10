@@ -3,8 +3,8 @@
   "staging_project_ref": "yzqjvdfgefveprobvvyw",
   "production_project_ref_blocked": "wyyuqfdxucjksghsmhry",
   "staging_branch": "staging/production-parity",
-  "expected_branch_sha": "cf117f6e4d72ae58e27ccacc124f8075d2ab9226",
-  "generated_at": "2026-08-09T00:00:00Z",
+  "expected_branch_sha": "2efc7e2573cfcfdde02c158da3cbe8a41819ecd2",
+  "generated_at": "2026-08-10T00:00:00Z",
   "evidence_method": "Supabase Management API (list_migrations, list_edge_functions, execute_sql against pg_catalog/storage) + GitHub ruleset API",
   "notes": "Expected-state baseline. Update after any reviewed staging migration apply or Edge Function deploy.",
   "migrations": [
