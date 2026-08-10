@@ -1,4 +1,13 @@
+import type { AppleCredentialLinkOutcome } from './appleCredentialLink';
+
 type AuthLifecycleDetails = {
+  /**
+   * Outcome of handing the Apple authorization grant to the backend. A closed
+   * set of status words — deliberately typed as the union rather than `string`
+   * so the authorization code itself can never be passed here. Type-only
+   * import, so this adds no runtime dependency to the trace module.
+   */
+  appleCredentialLink?: AppleCredentialLinkOutcome;
   authEvent?: string;
   callbackKind?: 'code' | 'tokens' | 'otp' | 'missing';
   guardAction?: string;

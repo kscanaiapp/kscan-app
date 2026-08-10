@@ -47,6 +47,20 @@ verify_jwt = false
 [functions.process-account-deletions]
 verify_jwt = false
 
+# Sign in with Apple credential capture. Called by the app straight after a
+# successful Apple sign-in; the target account is resolved from the verified
+# bearer alone, so this must stay JWT-verified.
+[functions.apple-credential-link]
+verify_jwt = true
+
+# Apple authorization revocation. Server-to-server only, invoked by the deletion
+# purge path. verify_jwt is false because the caller is a worker holding the
+# service-role key, not an end user; the function itself requires that key as
+# the bearer and rejects every user JWT, so no end user can drive revocation for
+# any account.
+[functions.apple-revoke-credential]
+verify_jwt = false
+
 # ── Privacy ──────────────────────────────────────────────────────────────────
 
 [functions.privacy-data-export]

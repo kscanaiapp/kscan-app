@@ -207,6 +207,17 @@ function createSupabaseMock(options = {}) {
         },
       };
     },
+    // Apple authorization revocation (IOS29-NEW-003) runs inside the hard-delete
+    // pipeline immediately before the auth delete. These fixtures are all
+    // non-Apple accounts, so the honest default is `no_credential` — the status
+    // the real function returns when nothing is stored for the user. Recorded in
+    // `calls` so ordering against auth.deleteUser stays observable here too.
+    functions: {
+      async invoke(name, options) {
+        calls.push({ type: 'functions.invoke', name, value: options?.body?.userId });
+        return { data: { status: 'no_credential' }, error: null };
+      },
+    },
     auth: {
       admin: {
         async deleteUser(value) {

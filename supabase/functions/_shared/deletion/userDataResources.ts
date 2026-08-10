@@ -71,6 +71,12 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   // Privacy-rights abuse rate limiter (Issue #47). `user_id` is a bare uuid with
   // no FK to auth.users, so nothing cascades at the Auth delete; purge directly.
   { table: 'privacy_request_rate_limits', column: 'user_id', action: 'direct_delete_before_auth', optional: true },
+  // Encrypted Apple refresh token used to revoke Sign in with Apple at deletion
+  // (IOS29-NEW-003). The normal path revokes with Apple and erases this row
+  // BEFORE the Auth delete, so the cascade should find nothing; registering it
+  // as a cascade keeps the secret from surviving its owner if a purge ever
+  // skips revocation.
+  { table: 'apple_auth_credentials', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'user_stylist_preferences', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   {
     table: 'dressing_room_collab_idempotency',
