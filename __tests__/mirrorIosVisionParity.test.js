@@ -284,11 +284,53 @@ test('no ML Kit, Gradle, model asset or new permission came along', () => {
       `a new usage-description permission appeared: ${key}`,
     );
   }
+  // Vision is not a required-reason API, so the API-type list is the surface
+  // that would actually move if this module reached for one. It stays frozen.
   assert.deepEqual(
-    after.privacyManifests ?? {},
-    before.privacyManifests ?? {},
-    'the privacy manifest changed; Vision is not a required-reason API category',
+    after.privacyManifests?.NSPrivacyAccessedAPITypes ?? [],
+    before.privacyManifests?.NSPrivacyAccessedAPITypes ?? [],
+    'a required-reason API declaration changed; Vision needs none',
   );
+  assert.equal(after.privacyManifests?.NSPrivacyTracking, false);
+  assert.deepEqual(after.privacyManifests?.NSPrivacyTrackingDomains ?? [], []);
+
+  // The collected-data list is NOT frozen. Freezing it was over-broad: it made
+  // the manifest permanently unable to become more accurate, and the Build 28
+  // IPA audit (IOS28-IPA-002) found it under-declaring six categories the app
+  // genuinely collects. What this module must still guarantee is that it adds
+  // nothing of its own and downgrades nothing that was already declared.
+  //
+  // Additions are allowlisted BY NAME, so an unexplained new category — the
+  // thing this assertion exists to catch — still fails here.
+  const IOS28_IPA_002_ADDITIONS = new Set([
+    'NSPrivacyCollectedDataTypeName',
+    'NSPrivacyCollectedDataTypeOtherUserContent',
+    'NSPrivacyCollectedDataTypeSearchHistory',
+    'NSPrivacyCollectedDataTypeProductInteraction',
+    'NSPrivacyCollectedDataTypeCoarseLocation',
+    'NSPrivacyCollectedDataTypePerformanceData',
+  ]);
+  const byType = (manifest) =>
+    new Map(
+      (manifest?.NSPrivacyCollectedDataTypes ?? []).map((e) => [e.NSPrivacyCollectedDataType, e]),
+    );
+  const beforeTypes = byType(before.privacyManifests);
+  const afterTypes = byType(after.privacyManifests);
+
+  for (const [type, entry] of beforeTypes) {
+    assert.deepEqual(
+      afterTypes.get(type),
+      entry,
+      `the pre-existing declaration for ${type} was altered`,
+    );
+  }
+  for (const type of afterTypes.keys()) {
+    if (beforeTypes.has(type)) continue;
+    assert.ok(
+      IOS28_IPA_002_ADDITIONS.has(type),
+      `an undocumented data type appeared in the privacy manifest: ${type}`,
+    );
+  }
 });
 
 test('Apple Vision only — the three authorized requests and nothing else', () => {
