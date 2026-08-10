@@ -50,7 +50,10 @@ function validateWaitlistWelcomeRequest(body) {
     return { ok: false, code: 'UNSUPPORTED_FIELDS' };
   }
   const recipientEmail = typeof body.recipientEmail === 'string' ? body.recipientEmail.trim().toLowerCase() : '';
-  if (!EMAIL.test(recipientEmail) || recipientEmail.length > 254) return { ok: false, code: 'INVALID_RECIPIENT' };
+  // Length gate MUST run before EMAIL.test(): the regex has ambiguous adjacent
+  // [^\s@]+ groups around a literal '.', so an unbounded attacker-controlled
+  // string can force polynomial backtracking (CodeQL js/polynomial-redos).
+  if (recipientEmail.length > 254 || !EMAIL.test(recipientEmail)) return { ok: false, code: 'INVALID_RECIPIENT' };
   if (body.eventType !== WAITLIST_WELCOME_EVENT) return { ok: false, code: 'UNSUPPORTED_EVENT' };
   if (typeof body.idempotencyKey !== 'string' || !UUID_IDEMPOTENCY_KEY.test(body.idempotencyKey)) {
     return { ok: false, code: 'INVALID_IDEMPOTENCY_KEY' };
@@ -83,7 +86,10 @@ function validateAccountDeletionRestorationRequest(body) {
   }
 
   const recipientEmail = typeof body.recipientEmail === 'string' ? body.recipientEmail.trim().toLowerCase() : '';
-  if (!EMAIL.test(recipientEmail) || recipientEmail.length > 254) return { ok: false, code: 'INVALID_RECIPIENT' };
+  // Length gate MUST run before EMAIL.test(): the regex has ambiguous adjacent
+  // [^\s@]+ groups around a literal '.', so an unbounded attacker-controlled
+  // string can force polynomial backtracking (CodeQL js/polynomial-redos).
+  if (recipientEmail.length > 254 || !EMAIL.test(recipientEmail)) return { ok: false, code: 'INVALID_RECIPIENT' };
   if (body.eventType !== ACCOUNT_DELETION_RESTORATION_EVENT) return { ok: false, code: 'UNSUPPORTED_EVENT' };
   if (typeof body.idempotencyKey !== 'string' || !DELETION_IDEMPOTENCY_KEY.test(body.idempotencyKey)) {
     return { ok: false, code: 'INVALID_IDEMPOTENCY_KEY' };
