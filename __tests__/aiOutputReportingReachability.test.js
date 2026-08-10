@@ -46,17 +46,17 @@ function readCode(relativePath) {
     .replace(/(^|[^:])\/\/.*$/gm, '$1');
 }
 
-test('GP-002: the Scan Results analysis surface exposes a report control', () => {
+test('GP-006: the Scan Results analysis surface opens the shared in-app report flow', () => {
   const source = readSource('components/AnalysisCard.tsx');
 
   assert.match(
     source,
-    /import \{ reportAiOutput \} from '\.\.\/services\/reportAiOutput'/,
-    'AnalysisCard must use the shared AI-output reporting service',
+    /import \{ useAiOutputReporting \} from '\.\.\/contexts\/AiOutputReportingContext'/,
+    'AnalysisCard must use the shared in-app AI-output reporting context',
   );
   assert.match(
     source,
-    /reportAiOutput\('Scan Results'/,
+    /openAiOutputReport\(\{ feature: 'Scan Results', itemId: scanSourceId \?\? null \}\)/,
     "the report must be filed under the 'Scan Results' feature label",
   );
   assert.match(
@@ -84,24 +84,46 @@ test('GP-002: the report control is bound to the analysis body, not the footer',
   );
 });
 
-test('GP-002: StyleChat keeps its existing per-message report control', () => {
+test('GP-006: StyleChat keeps its existing per-message report control and opens the in-app flow', () => {
   const source = readSource('components/style-chat/StyleChatBubble.tsx');
-  assert.match(source, /reportAiOutput\('StyleChat'/);
+  assert.match(source, /openAiOutputReport\(\{[\s\S]*feature: 'StyleChat'/);
   assert.match(
     source,
     /accessibilityLabel="Report this Elise response as offensive or unsafe"/,
   );
 });
 
-test('GP-002: the reporting service carries the identifiers a review needs', () => {
+test('GP-006: the report service carries only review identifiers, never email or scan media', () => {
   const source = readSource('services/reportAiOutput.ts');
-  for (const field of ['Platform:', 'Feature:', 'Session ID:', 'Message ID:', 'Item ID:', 'Timestamp:']) {
-    assert.ok(source.includes(field), `report body must include "${field}"`);
+  const code = readCode('services/reportAiOutput.ts');
+  for (const field of ['feature', 'session_id', 'message_id', 'item_id']) {
+    assert.ok(source.includes(field), `report context must include "${field}"`);
   }
-  assert.match(
-    source,
-    /Alert\.alert\('Could not open mail'/,
-    'a device with no mail handler must still be told how to report',
+  assert.doesNotMatch(source, /mailto:|Linking\.openURL|openURL\(/i);
+  assert.doesNotMatch(code, /scanImageUri|outputText|raw_response|rawOutput/i);
+});
+
+test('GP-006: the root mounts the in-app sheet with reason, success, failure, retry, and duplicate-tap guards', () => {
+  const layout = readSource('app/_layout.tsx');
+  const context = readSource('contexts/AiOutputReportingContext.tsx');
+
+  assert.match(layout, /<AiOutputReportProvider>/);
+  for (const token of [
+    'testID="ai-output-report-sheet"',
+    'ai-output-report-reason-${reason.id}',
+    'testID="ai-output-report-submit"',
+    'testID="ai-output-report-success"',
+    'testID="ai-output-report-error"',
+    'testID="ai-output-report-retry"',
+    'createAiOutputReportSubmissionGate',
+    "state === 'submitting'",
+  ]) {
+    assert.ok(context.includes(token), `in-app report sheet must contain ${token}`);
+  }
+  assert.doesNotMatch(
+    context,
+    /mailto:|Linking\.openURL|openURL\(/i,
+    'the sheet must never hand reporting to an external email application',
   );
 });
 
