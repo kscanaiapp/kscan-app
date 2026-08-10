@@ -1209,10 +1209,13 @@ function parseAIResponse(rawText, context = {}) {
   return null; // genuinely empty
 }
 
-// ── CORS: restrict in production — open for local dev ─────────────────────────
-// For a hosted beta backend, replace '*' with your actual app origin
-// (e.g. the Expo Go deep-link or your hosted frontend domain).
-const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
+// ── CORS: closed by default ────────────────────────────────────────────────
+// Every deployed environment sets CORS_ORIGIN explicitly (see render.yaml).
+// Falling back to '*' meant any environment that omitted the var silently
+// allowed every browser origin (CodeQL js/cors-permissive-configuration).
+// CORS only gates browser fetch/XHR callers — the mobile app and
+// server-to-server callers are unaffected by this default either way.
+const CORS_ORIGIN = process.env.CORS_ORIGIN || false;
 app.use(cors({ origin: CORS_ORIGIN }));
 app.all('/catalog-images/*', (_req, res) => res.status(410).json({
   status: 'FAILED',
