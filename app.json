@@ -35,6 +35,8 @@
                                      "expo-location",
                                      {
                                          "locationWhenInUsePermission":  "K Scan AI uses your approximate location while you use the app to tailor StyleChat suggestions to your local weather. Your raw coordinates are not stored.",
+                                         "locationAlwaysPermission":  false,
+                                         "locationAlwaysAndWhenInUsePermission":  false,
                                          "isIosBackgroundLocationEnabled":  false,
                                          "isAndroidBackgroundLocationEnabled":  false
                                      }
@@ -101,7 +103,7 @@
                  "ios":  {
                              "bundleIdentifier":  "com.kscanai.app",
                              "icon": "./assets/images/kscan-ios-icon.png",
-                             "buildNumber": "26",
+                             "buildNumber": "29",
                              "associatedDomains":  [
                                                        "applinks:kscan.app"
                                                    ],
@@ -120,6 +122,12 @@
                                                       "NSPrivacyTrackingDomains": [],
                                                       "NSPrivacyCollectedDataTypes": [
                                                                                         {
+                                                                                            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeName",
+                                                                                            "NSPrivacyCollectedDataTypeLinked": true,
+                                                                                            "NSPrivacyCollectedDataTypeTracking": false,
+                                                                                            "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"]
+                                                                                        },
+                                                                                        {
                                                                                             "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeEmailAddress",
                                                                                             "NSPrivacyCollectedDataTypeLinked": true,
                                                                                             "NSPrivacyCollectedDataTypeTracking": false,
@@ -136,6 +144,36 @@
                                                                                             "NSPrivacyCollectedDataTypeLinked": true,
                                                                                             "NSPrivacyCollectedDataTypeTracking": false,
                                                                                             "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"]
+                                                                                        },
+                                                                                        {
+                                                                                            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeOtherUserContent",
+                                                                                            "NSPrivacyCollectedDataTypeLinked": true,
+                                                                                            "NSPrivacyCollectedDataTypeTracking": false,
+                                                                                            "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality", "NSPrivacyCollectedDataTypePurposeProductPersonalization"]
+                                                                                        },
+                                                                                        {
+                                                                                            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeSearchHistory",
+                                                                                            "NSPrivacyCollectedDataTypeLinked": true,
+                                                                                            "NSPrivacyCollectedDataTypeTracking": false,
+                                                                                            "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality", "NSPrivacyCollectedDataTypePurposeAnalytics"]
+                                                                                        },
+                                                                                        {
+                                                                                            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeProductInteraction",
+                                                                                            "NSPrivacyCollectedDataTypeLinked": true,
+                                                                                            "NSPrivacyCollectedDataTypeTracking": false,
+                                                                                            "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality", "NSPrivacyCollectedDataTypePurposeAnalytics"]
+                                                                                        },
+                                                                                        {
+                                                                                            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeCoarseLocation",
+                                                                                            "NSPrivacyCollectedDataTypeLinked": true,
+                                                                                            "NSPrivacyCollectedDataTypeTracking": false,
+                                                                                            "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"]
+                                                                                        },
+                                                                                        {
+                                                                                            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePerformanceData",
+                                                                                            "NSPrivacyCollectedDataTypeLinked": false,
+                                                                                            "NSPrivacyCollectedDataTypeTracking": false,
+                                                                                            "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAnalytics"]
                                                                                         }
                                                                                     ],
                                                       "NSPrivacyAccessedAPITypes":  [
