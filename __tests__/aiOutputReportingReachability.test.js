@@ -8,10 +8,18 @@
  * analysis paragraph and is the surface a Library saved scan opens into, so it
  * carried AI prose with no reporting route at all.
  *
+ * app/text-scan/index.tsx WAS listed here as out of scope on the grounds that
+ * it "renders validated attributes and product cards only". That was wrong on
+ * both platform lines: its ANALYSIS card prints `textScanResult.result`, and
+ * services/textScanEdge.ts fills that field from the provider response
+ * (result / analysis / description / message / summary / interpretation /
+ * visual_observation). services/reportAiOutput.ts has always declared a
+ * 'TextScan' feature label and the production content_reports CHECK constraint
+ * has always accepted it — only the control was missing. It is now wired and
+ * asserted below.
+ *
  * Surfaces deliberately NOT covered here, with the reason each is out of scope:
  *
- *   app/text-scan/index.tsx        renders validated attributes and product
- *                                  cards only — no model prose block.
  *   Today with Elise (Home)        services/todayWithElise/generatedGreeting.ts
  *                                  is deterministic app-authored copy; the only
  *                                  variable is the user's own first name.
@@ -91,6 +99,55 @@ test('GP-006: StyleChat keeps its existing per-message report control and opens 
     source,
     /accessibilityLabel="Report this Elise response as offensive or unsafe"/,
   );
+});
+
+test('GP-006: the TextScan analysis surface opens the shared in-app report flow', () => {
+  const source = readSource('app/text-scan/index.tsx');
+
+  assert.match(
+    source,
+    /import \{ useAiOutputReporting \} from '\.\.\/\.\.\/contexts\/AiOutputReportingContext'/,
+    'TextScan must use the shared in-app AI-output reporting context',
+  );
+  assert.match(
+    source,
+    /openAiOutputReport\(\{ feature: 'TextScan', itemId: textScanResult\?\.id \?\? null \}\)/,
+    "the report must be filed under the 'TextScan' feature label with a stable item id",
+  );
+  assert.match(source, /testID="text-scan-report-ai"/);
+
+  // The control belongs to the provider-prose branch only. The error and
+  // non-fashion branches render app-owned copy, and offering to report our own
+  // string would file noise against the moderation queue.
+  assert.match(
+    source,
+    /\{!textScanError && !isNonFashion && textScanResult\?\.result \?/,
+    'the control must be bound to the branch that renders provider prose',
+  );
+});
+
+test('GP-006: every declared feature label has a reachable control', () => {
+  const service = readSource('services/reportAiOutput.ts');
+  const labels = [...service.matchAll(/'(StyleChat|TextScan|Scan Results)'/g)].map((m) => m[1]);
+  const declared = new Set(labels);
+  assert.deepEqual(
+    [...declared].sort(),
+    ['Scan Results', 'StyleChat', 'TextScan'],
+    'AiOutputReportFeature must stay the three-surface union this test enumerates',
+  );
+
+  const callSites = [
+    ['components/AnalysisCard.tsx', 'Scan Results'],
+    ['components/style-chat/StyleChatBubble.tsx', 'StyleChat'],
+    ['app/text-scan/index.tsx', 'TextScan'],
+  ];
+  for (const [file, feature] of callSites) {
+    assert.match(
+      readSource(file),
+      new RegExp(`feature: '${feature}'`),
+      `${feature} declares a report label but ${file} never opens the flow with it`,
+    );
+  }
 });
 
 test('GP-006: the report service carries only review identifiers, never email or scan media', () => {

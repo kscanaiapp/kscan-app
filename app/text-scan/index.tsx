@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Keyboard,
+  TouchableOpacity,
 } from 'react-native';
 import { router } from 'expo-router';
 import { goBackOrHome } from '../../services/navigationExit';
@@ -46,6 +47,7 @@ import {
   TEXTSCAN_DEMO_SUGGESTIONS,
 } from '../../data/textscan-demo';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
+import { useAiOutputReporting } from '../../contexts/AiOutputReportingContext';
 import { setStyleChatHandoffContext } from '../../services/style-chat/styleChatHandoffContext';
 import type { TextScanFilter } from '../../components/text-scan/ResultFilterTabs';
 
@@ -60,6 +62,7 @@ const WEB_SEARCH_ERROR_MESSAGE = 'Unable to open web search. Please try again.';
 
 export default function TextScanScreen() {
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
+  const { openAiOutputReport } = useAiOutputReporting();
   const styleChatEnabled = !featureFreezeLoading && isFeatureEnabled('styleChat');
 
   const [viewState, setViewState] = useState<ViewState>('input');
@@ -323,6 +326,26 @@ export default function TextScanScreen() {
                 {textScanResult?.result || 'Analysis complete.'}
               </Text>
             )}
+
+            {/* GP-006 reachability: this branch is the only one that renders
+                provider-authored prose — textScanEdge fills `result` from the
+                model response. The error and non-fashion branches above print
+                app-owned copy, so neither is reportable. */}
+            {!textScanError && !isNonFashion && textScanResult?.result ? (
+              <TouchableOpacity
+                onPress={() =>
+                  openAiOutputReport({ feature: 'TextScan', itemId: textScanResult?.id ?? null })
+                }
+                style={styles.reportBtn}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Report this analysis as offensive or unsafe"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                testID="text-scan-report-ai"
+              >
+                <Text style={styles.reportText}>Report Response</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
 
           {/* Interpreted Attributes */}
@@ -842,6 +865,22 @@ const styles = StyleSheet.create({
   summaryBody: {
     ...LUXURY.typography.body,
     color: LUXURY.colors.graphite,
+  },
+  // Matches the Scan Results control in components/AnalysisCard so the same
+  // action reads the same way on every AI surface.
+  reportBtn: {
+    marginTop: SPACING.sm,
+    alignSelf: 'flex-start',
+    paddingVertical: SPACING.xs,
+    minHeight: 32,
+    justifyContent: 'center',
+  },
+  reportText: {
+    ...LUXURY.typography.caption,
+    fontSize: 11,
+    color: LUXURY.colors.stone,
+    letterSpacing: 0.6,
+    textDecorationLine: 'underline',
   },
   actionStack: {
     gap: SPACING.md,
