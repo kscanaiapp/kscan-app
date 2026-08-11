@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "description": "Machine-readable reconciliation state for migrations observed applied on production (wyyuqfdxucjksghsmhry) that have no equivalent in the staging baseline. Consumed by security/release/production-eligibility.js. While overallStatus is not RESOLVED, production promotion fails closed. This file records EVIDENCE and OPEN QUESTIONS; it does not resolve anything on the owner's behalf.",
+  "observedOn": "2026-08-11",
+  "observationMethod": "Read-only Supabase Management API list_migrations against both projects, reconciled by migration NAME (this repo's deploy tool stamps its own apply-time version, so filename timestamps are not reliable join keys - see the ledger-naming note in docs/release/PRODUCTION_MIGRATION_RECONCILIATION.md).",
+  "overallStatus": "PRODUCTION_MIGRATION_RECONCILIATION_REQUIRED",
+  "productionLedgerCaveat": "Production's supabase_migrations.schema_migrations table is known to contain at least two placeholder statement entries (documented in docs/security/batch0-migration-source-restoration.md). An entry appearing in the ledger therefore proves an entry was recorded, NOT that the recorded DDL is what actually ran. Do not treat ledger presence as authoritative provenance.",
+  "counts": {
+    "productionOnlyByName": 4,
+    "stagingAheadPendingPromotion": 18,
+    "stagingOnlyByDesign": 2
+  },
+  "records": [
+    {
+      "name": "add_ai_output_reporting",
+      "productionEvidence": {
+        "ledgerVersion": "20260809152053",
+        "observedApplied": true
+      },
+      "repoEquivalent": {
+        "found": true,
+        "path": "supabase/migrations/20260809133736_add_ai_output_reporting.sql",
+        "presentOnStagingBranch": false,
+        "foundOnBranches": [
+          "hotfix/android-build28-gp006-ai-reporting (03ee000)",
+          "iOS release line (04070ec)"
+        ],
+        "evidenceMethod": "git log --all --diff-filter=A over the bare object store"
+      },
+      "stagingEquivalent": { "applied": false },
+      "semanticStatus": "PRODUCTION_ONLY_INTENTIONAL",
+      "provenanceStatus": "REPO_SOURCE_FOUND_OFF_BRANCH",
+      "promotionImpact": "BLOCKS_PRODUCTION_PROMOTION_UNTIL_MERGED_OR_WAIVED",
+      "requiredDecision": "Owner decision: forward-port supabase/migrations/20260809133736_add_ai_output_reporting.sql onto staging/production-parity (making staging reproduce production), or record a permanent documented waiver. Source exists and is recoverable - this is a branch-topology gap, not a lost migration.",
+      "notes": "GP-006 in-app AI-output reporting. Deliberately shipped direct to production on the Android/iOS release lines, which do not merge into staging/production-parity. Applied version (20260809152053) differs from the filename timestamp (20260809133736) per this project's deploy-tool stamping convention - the two refer to the same migration."
+    },
+    {
+      "name": "contribution_block_enforcement",
+      "productionEvidence": {
+        "ledgerVersion": "20260809102805",
+        "observedApplied": true
+      },
+      "repoEquivalent": {
+        "found": true,
+        "path": "supabase/migrations/20260809120000_contribution_block_enforcement.sql",
+        "presentOnStagingBranch": false,
+        "foundOnBranches": [
+          "fix/db enforce Dressing Room blocking on item contribution (dd4487a)",
+          "integration/android-build28-final-v1"
+        ],
+        "evidenceMethod": "git log --all --diff-filter=A over the bare object store"
+      },
+      "stagingEquivalent": { "applied": false },
+      "semanticStatus": "PRODUCTION_ONLY_INTENTIONAL",
+      "provenanceStatus": "REPO_SOURCE_FOUND_OFF_BRANCH",
+      "promotionImpact": "BLOCKS_PRODUCTION_PROMOTION_UNTIL_MERGED_OR_WAIVED",
+      "requiredDecision": "Owner decision: forward-port onto staging/production-parity, or record a permanent documented waiver. Source exists and is recoverable.",
+      "notes": "GP-004 Dressing Room contribution blocking enforcement. Same direct-to-production release-line path as add_ai_output_reporting. Ships alongside a pgTAP test (supabase/tests/dressing_room_contribution_blocking_test.sql) on the same commit."
+    },
+    {
+      "name": "legal_acceptances_add_ai_processing",
+      "productionEvidence": {
+        "ledgerVersion": "20260805170417",
+        "observedApplied": true
+      },
+      "repoEquivalent": {
+        "found": true,
+        "path": "supabase/migrations/20260805120000_legal_acceptances_add_ai_processing.sql",
+        "presentOnStagingBranch": false,
+        "foundOnBranches": [
+          "iOS Build 25 line (38787ae)",
+          "Android Build 25 line (07b47fd)"
+        ],
+        "evidenceMethod": "git log --all --diff-filter=A over the bare object store"
+      },
+      "stagingEquivalent": { "applied": false },
+      "semanticStatus": "PRODUCTION_ONLY_INTENTIONAL",
+      "provenanceStatus": "REPO_SOURCE_FOUND_OFF_BRANCH",
+      "promotionImpact": "BLOCKS_PRODUCTION_PROMOTION_UNTIL_MERGED_OR_WAIVED",
+      "requiredDecision": "Owner decision: forward-port onto staging/production-parity, or record a permanent documented waiver.",
+      "notes": "Onboarding AI-image-processing disclosure. Landed twice as parallel iOS/Android commits (38787ae, 07b47fd) with the same filename and message - a mirrored-release-line pattern, not a duplicate application. NOTE the filename collision hazard: the staging branch already carries a DIFFERENT migration at the same 20260805120000 prefix (reconcile_deletion_requests_to_production_columns). Any forward-port must renumber, or the two will collide."
+    },
+    {
+      "name": "shared_room_item_contributions",
+      "productionEvidence": {
+        "ledgerVersion": "20260808201806",
+        "observedApplied": true
+      },
+      "repoEquivalent": {
+        "found": true,
+        "path": "supabase/migrations-deferred/20260725100000_shared_room_item_contributions.sql",
+        "presentOnStagingBranch": true,
+        "deferred": true,
+        "evidenceMethod": "present in the deferred-migrations quarantine directory on staging/production-parity"
+      },
+      "stagingEquivalent": { "applied": false, "reason": "deliberately deferred, never applied to staging" },
+      "semanticStatus": "STALE_DOCUMENTATION",
+      "provenanceStatus": "REQUIRES_OWNER_DECISION",
+      "promotionImpact": "BLOCKS_PRODUCTION_PROMOTION",
+      "requiredDecision": "Owner decision required, and this one cannot be resolved by a forward-port alone. supabase/migrations-deferred/README.md states this migration 'is not applied in production' and defers it precisely BECAUSE production defined three dressing_room_items RLS policies differently. Production has since applied a migration of this name (20260808201806), so the README's stated premise is now false. Required: (1) re-verify production's CURRENT dressing_room_items policy set and created_by column against the deferred file, (2) determine whether what production applied is semantically the same migration or a divergent variant, (3) then either promote the deferred file, replace it with production's actual applied form, or re-document the deferral on accurate grounds.",
+      "notes": "This is the sharpest reconciliation item and the reason PRODUCTION_MIGRATION_RECONCILIATION_REQUIRED exists as a machine-enforced state. The deferred file is not merely un-promoted - its recorded justification is contradicted by live production state, so the repository's own documentation cannot currently be trusted on this object. Resolving it requires a read-only production schema comparison that Phase 2A deliberately did not perform (Phase 2A is a control-plane phase, not a production-audit phase)."
+    }
+  ],
+  "resolutionRule": "overallStatus may only become RESOLVED when every record has a semanticStatus in [EQUIVALENT, SUPERSEDED, PRODUCTION_ONLY_INTENTIONAL] AND a provenanceStatus in [RESOLVED, WAIVED_BY_OWNER], with the waiver recorded in docs/release/PRODUCTION_MIGRATION_RECONCILIATION.md. No automation may set RESOLVED."
+}
