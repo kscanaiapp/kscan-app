@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "description": "Authoritative governance classification for every Edge Function surface, repo-side and live-side. The release manifest generator refuses to produce a manifest if any repo directory or known live-only function is missing a classification here - no surface is silently ignored, and no QUARANTINED/HERITAGE surface is ever pulled into a release.",
+  "classifiedOn": "2026-08-11",
+  "classes": {
+    "GOVERNED": "Included in the release manifest. Source-hashed, release-tracked.",
+    "QUARANTINED": "Deliberately excluded by governance decision. Never included in a release, never deployed by release automation.",
+    "HERITAGE_UNMANAGED": "Live on a project with no repository source at any point in git history. Cannot be source-attributed or release-managed. Excluded, permanently, unless source is recovered.",
+    "EXCLUDED_WITH_REASON": "Repo source exists but is deliberately not part of the backend release set."
+  },
+  "functions": {
+    "scan-identify": { "class": "GOVERNED", "sourcePath": "supabase/functions/scan-identify", "reason": "Core scanner backend. Already under content-hash coverage in config/edge-function-manifest.json." },
+    "stylechat-generate": { "class": "GOVERNED", "sourcePath": "supabase/functions/stylechat-generate", "reason": "Core Elise/StyleChat backend. Already under content-hash coverage in config/edge-function-manifest.json." },
+    "style-outfit-generate": { "class": "GOVERNED", "sourcePath": "supabase/functions/style-outfit-generate", "reason": "Elise outfit generation. Deployed to both projects; extends coverage beyond the prior two-function manifest." },
+    "handle-user-deletion": { "class": "GOVERNED", "sourcePath": "supabase/functions/handle-user-deletion", "reason": "Account-deletion lifecycle entry point." },
+    "process-account-deletions": { "class": "GOVERNED", "sourcePath": "supabase/functions/process-account-deletions", "reason": "Account-deletion worker. Note: its scheduling trigger is not visible to this repository (see docs/release/BACKEND_RELEASE_DISCOVERY.md)." },
+    "restore-account": { "class": "GOVERNED", "sourcePath": "supabase/functions/restore-account", "reason": "Account restoration path." },
+    "resend-restoration-email": { "class": "GOVERNED", "sourcePath": "supabase/functions/resend-restoration-email", "reason": "Restoration email path. Known open gap: no rate limit or dedup guard (see discovery)." },
+    "privacy-data-export": { "class": "GOVERNED", "sourcePath": "supabase/functions/privacy-data-export", "reason": "Privacy request surface." },
+    "privacy-correction-request": { "class": "GOVERNED", "sourcePath": "supabase/functions/privacy-correction-request", "reason": "Privacy request surface." },
+    "shared-room-image-url": { "class": "GOVERNED", "sourcePath": "supabase/functions/shared-room-image-url", "reason": "Shared room media signing." },
+    "stylist-speech": { "class": "GOVERNED", "sourcePath": "supabase/functions/stylist-speech", "reason": "Stylist voice surface. Live production entrypoint_path indicates a past local-CLI deploy from a developer worktree - a provenance concern recorded in discovery, not a governance exclusion." },
+    "product-search-deals": { "class": "GOVERNED", "sourcePath": "supabase/functions/product-search-deals", "reason": "Commerce provider surface." },
+    "nike-shoe-details": { "class": "GOVERNED", "sourcePath": "supabase/functions/nike-shoe-details", "reason": "Commerce provider surface." },
+    "kickscrew-sneaker-description": { "class": "GOVERNED", "sourcePath": "supabase/functions/kickscrew-sneaker-description", "reason": "Commerce provider surface." },
+    "search-vinted-secondhand": { "class": "GOVERNED", "sourcePath": "supabase/functions/search-vinted-secondhand", "reason": "Commerce provider surface." },
+    "tryon-clothes-pro": { "class": "GOVERNED", "sourcePath": "supabase/functions/tryon-clothes-pro", "reason": "Try-on provider surface." },
+
+    "staging-health": {
+      "class": "EXCLUDED_WITH_REASON",
+      "sourcePath": "supabase/functions/staging-health",
+      "reason": "Staging-only diagnostic probe, deliberately never deployed to production. Excluded from the production release set; still source-tracked in the repository.",
+      "environments": ["staging"]
+    },
+
+    "product-match": {
+      "class": "QUARANTINED",
+      "sourcePath": null,
+      "reason": "Governed quarantine boundary (Issue #46 / Issue #72 product-match provenance). Live on staging only, correctly absent from staging/production-parity. Must never be pulled into a release set.",
+      "environments": ["staging"]
+    },
+
+    "privacy-controls": {
+      "class": "HERITAGE_UNMANAGED",
+      "sourcePath": null,
+      "reason": "Website-heritage function from the project's prior life as 'K Scan Privacy Controls'. Live on staging only, with zero repository source at any point in git history - it cannot be source-attributed or release-managed. Documented in docs/security/public-ingress-inventory.md.",
+      "environments": ["staging"]
+    },
+    "public-sale-share-opt-out": {
+      "class": "HERITAGE_UNMANAGED",
+      "sourcePath": null,
+      "reason": "Website-heritage function, same provenance situation as privacy-controls. Live on staging only, no repository source ever.",
+      "environments": ["staging"]
+    }
+  },
+  "sharedDependencyPath": "supabase/functions/_shared",
+  "notes": [
+    "_shared is not a function; it is hashed separately and its digest is attached to every GOVERNED function entry, because a change there can alter the behaviour of functions whose own directory is untouched.",
+    "This file governs release INCLUSION. It is not a deployment allowlist and does not itself deploy anything. security/staging/provenance-exceptions.json remains the staging deploy-time quarantine mechanism."
+  ]
+}
