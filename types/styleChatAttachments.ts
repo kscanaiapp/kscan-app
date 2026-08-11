@@ -202,6 +202,16 @@ export type DraftAttachment = {
   /** Hydrated only after an idempotent candidate promotion succeeds. */
   closetItemId?: string | null;
   /**
+   * This item has been handed off to the private Dressing Room in this session.
+   *
+   * CLIENT-ONLY AND IN-MEMORY, like every other field on this draft. It records
+   * that a handoff happened so the follow-up row can offer "Open Dressing Room"
+   * instead of repeating "Style This Item"; it is NOT a claim that a Look was
+   * saved, and nothing reads it as ownership. It dies with the composer draft —
+   * on removal, on send-clear, and on the actor reset that clears the store.
+   */
+  styledInDressingRoom?: boolean;
+  /**
    * Per-attachment identification outcome (Phase 2B.3).
    *
    * Distinct from `state`, which describes the ATTACHMENT lifecycle (sanitizing,
