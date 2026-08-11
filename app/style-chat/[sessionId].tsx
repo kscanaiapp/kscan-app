@@ -52,9 +52,13 @@ import { useStylistIdentity } from '../../hooks/useStylistIdentity';
 import { matchOccasionFromText } from '../../types/fashionReasoning';
 import { StyleChatAttachmentBar } from '../../components/style-chat/StyleChatAttachmentBar';
 import { StyleChatActiveItemBar } from '../../components/style-chat/StyleChatActiveItemBar';
+import { StyleChatFollowUpBar } from '../../components/style-chat/StyleChatFollowUpBar';
 import { StyleChatPhotoIntake } from '../../components/style-chat/StyleChatPhotoIntake';
 import { useStyleChatAttachments } from '../../hooks/useStyleChatAttachments';
-import { resolveActiveItemContext } from '../../services/style-chat/eliseImageStylingLoop';
+import {
+  resolveActiveItemContext,
+  resolveActiveItemFashionContext,
+} from '../../services/style-chat/eliseImageStylingLoop';
 import {
   getDraftComposerText,
   setDraftComposerText,
@@ -392,6 +396,126 @@ export default function StyleChatSessionScreen() {
     [chatAttachments.attachments],
   );
 
+  /**
+   * THE ONE SEND PIPELINE.
+   *
+   * The composer and every follow-up chip call this, so a chip is genuinely "a
+   * faster way of asking Elise a normal question" rather than a second code path
+   * that can drift from the one the send rules were written against. It is
+   * extracted verbatim from the composer's previous inline handler; the only
+   * additions are `clearComposer` (a chip must not wipe text the user typed) and
+   * the persistent-context branch below.
+   */
+  const submitMessage = useCallback(
+    (text: string, options?: { clearComposer?: boolean }) => {
+      const clearComposer = options?.clearComposer !== false;
+      weather.markStylingIntent();
+      if (attachmentsEnabled && chatAttachments.hasActiveAttachments) {
+        // Send rule: attachment-bearing sends require every attachment
+        // ready; pending/failed chips block the send (remove to send
+        // text only). The snapshot is immutable for this operation.
+        if (!chatAttachments.canSendWithAttachments) return;
+        const snapshot = chatAttachments.snapshotForSend();
+        // Phase 2B.3: an image-backed message must not claim visual
+        // grounding it does not have. When identities exist but none is
+        // usable, the send is refused rather than quietly downgraded to a
+        // text-only send whose reply the transcript would show beside a photo.
+        if (snapshot.fashionContextBlockedReason) {
+          Alert.alert(
+            'Attachment',
+            'Elise could not read that photo well enough to advise on it. Retry it, or remove it to send just your message.',
+          );
+          return;
+        }
+        void sendMessage(text, {
+          attachments: {
+            references: snapshot.references,
+            drafts: snapshot.drafts,
+            ...(snapshot.fashionContext
+              ? { fashionContext: snapshot.fashionContext }
+              : {}),
+            onSending: () => chatAttachments.markSending(snapshot.drafts),
+            onSent: () => {
+              chatAttachments.markSent(snapshot.drafts);
+              if (clearComposer) setComposerText('');
+            },
+            onSendFailed: () => chatAttachments.markSendFailed(snapshot.drafts),
+          },
+        });
+        return;
+      }
+
+      /**
+       * The item is already sent, and the conversation is still about it.
+       *
+       * Carrying its canonical identity forward is what makes a follow-up
+       * context-aware WITHOUT a second upload, a second identification, a second
+       * Closet candidate or a second charge: this object was derived and
+       * validated when the photo was attached, and it is the styling-safe
+       * projection — no image, no evidence id, no candidate id. Re-sending it is
+       * re-sending JSON the client already holds, through the same additive
+       * `fashionContextV2` field a Scanner handoff uses.
+       *
+       * It is honest because it is visible: the context bar above the composer
+       * names the item, and clearing that bar stops this from being attached.
+       */
+      const persistentContext =
+        attachmentsEnabled && activeItem
+          ? resolveActiveItemFashionContext(chatAttachments.attachments, activeItem.draftId)
+          : null;
+      const carriedContext = persistentContext ?? handoffFashionContext;
+
+      // Phase 2B.3: a Scanner handoff carrying a canonical identity sends it
+      // through the same additive field as every other Elise source, so
+      // there is one identity contract on the wire.
+      void sendMessage(text, {
+        onUserMessagePersisted: () => {
+          if (clearComposer) setComposerText('');
+        },
+        ...(carriedContext
+          ? {
+            attachments: {
+              references: [],
+              drafts: [],
+              fashionContext: carriedContext,
+            },
+          }
+          : {}),
+      });
+    },
+    [
+      activeItem,
+      attachmentsEnabled,
+      chatAttachments,
+      handoffFashionContext,
+      sendMessage,
+      setComposerText,
+      weather,
+    ],
+  );
+
+  /**
+   * A follow-up chip submits its predefined prompt as a normal message.
+   *
+   * The user's typed text is deliberately left alone: tapping "What shoes work?"
+   * must not silently discard a half-written question.
+   */
+  const handleFollowUpPrompt = useCallback(
+    (prompt: string) => {
+      if (isSending) return;
+      submitMessage(prompt, { clearComposer: false });
+    },
+    [isSending, submitMessage],
+  );
+
+  /** Post-answer Closet progression. Optional, never a precondition for anything. */
+  const handleSaveActiveItemToCloset = useCallback(() => {
+    if (!activeItem) return;
+    void chatAttachments.saveDirectImageToCloset(activeItem.draftId).then((result) => {
+      if (!result.ok) Alert.alert('Closet', result.message);
+    });
+  }, [activeItem, chatAttachments]);
+
   /** Stop styling this item. The photo is removed from the composer entirely. */
   const handleClearActiveItem = useCallback(() => {
     if (!activeItem) return;
@@ -491,6 +615,16 @@ export default function StyleChatSessionScreen() {
         />
       ) : null}
       {attachmentsEnabled ? (
+        <StyleChatFollowUpBar
+          context={activeItem}
+          handlers={{
+            onPrompt: handleFollowUpPrompt,
+            onSaveToCloset: handleSaveActiveItemToCloset,
+          }}
+          disabled={isSending}
+        />
+      ) : null}
+      {attachmentsEnabled ? (
         <StyleChatAttachmentBar
           attachments={chatAttachments.attachments}
           onAddOwnedItem={(item) => chatAttachments.addOwnedItem(item)}
@@ -511,58 +645,7 @@ export default function StyleChatSessionScreen() {
           stylistDisplayName={stylistDisplayName}
           value={composerText}
           onChangeText={setComposerText}
-          onSend={text => {
-            weather.markStylingIntent();
-            if (attachmentsEnabled && chatAttachments.hasActiveAttachments) {
-              // Send rule: attachment-bearing sends require every attachment
-              // ready; pending/failed chips block the send (remove to send
-              // text only). The snapshot is immutable for this operation.
-              if (!chatAttachments.canSendWithAttachments) return;
-              const snapshot = chatAttachments.snapshotForSend();
-              // Phase 2B.3: an image-backed message must not claim visual
-              // grounding it does not have. When identities exist but none is
-              // usable, the send is refused rather than quietly downgraded to a
-              // text-only send whose reply the transcript would show beside a photo.
-              if (snapshot.fashionContextBlockedReason) {
-                Alert.alert(
-                  'Attachment',
-                  'Elise could not read that photo well enough to advise on it. Retry it, or remove it to send just your message.',
-                );
-                return;
-              }
-              void sendMessage(text, {
-                attachments: {
-                  references: snapshot.references,
-                  drafts: snapshot.drafts,
-                  ...(snapshot.fashionContext
-                    ? { fashionContext: snapshot.fashionContext }
-                    : {}),
-                  onSending: () => chatAttachments.markSending(snapshot.drafts),
-                  onSent: () => {
-                    chatAttachments.markSent(snapshot.drafts);
-                    setComposerText('');
-                  },
-                  onSendFailed: () => chatAttachments.markSendFailed(snapshot.drafts),
-                },
-              });
-              return;
-            }
-            // Phase 2B.3: a Scanner handoff carrying a canonical identity sends it
-            // through the same additive field as every other Elise source, so
-            // there is one identity contract on the wire.
-            void sendMessage(text, {
-              onUserMessagePersisted: () => setComposerText(''),
-              ...(handoffFashionContext
-                ? {
-                  attachments: {
-                    references: [],
-                    drafts: [],
-                    fashionContext: handoffFashionContext,
-                  },
-                }
-                : {}),
-            });
-          }}
+          onSend={(text) => submitMessage(text, { clearComposer: true })}
           disabled={
             !canSend ||
             (attachmentsEnabled &&

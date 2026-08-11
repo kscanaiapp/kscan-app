@@ -284,7 +284,14 @@ test('useStyleChat keeps the draft until the first user row is persisted', () =>
   const screen = fs.readFileSync(path.join(ROOT, 'app', 'style-chat', '[sessionId].tsx'), 'utf8');
   assert.match(source, /waitForSessionGreeting/);
   assert.match(source, /onUserMessagePersisted\?\.\(\)/);
-  assert.match(screen, /onUserMessagePersisted:\s*\(\) => setComposerText\(''\)/);
+  // The property is WHEN the composer is cleared, not the exact expression that
+  // clears it. The follow-up loop routes the composer and its chips through one
+  // `submitMessage`, so the clear now sits inside that callback behind the
+  // caller's `clearComposer` intent — a chip must not wipe text the user typed.
+  assert.match(
+    screen,
+    /onUserMessagePersisted:\s*\(\) =>\s*\{\s*if \(clearComposer\) setComposerText\(''\);\s*\}/,
+  );
   assert.doesNotMatch(screen, /void sendMessage\(text\);\s*setComposerText\(''\)/);
 });
 
