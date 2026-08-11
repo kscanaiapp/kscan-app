@@ -16,14 +16,19 @@ in this document, even where a value was observed during discovery.
 | Created | 2026-05-14 | 2026-04-04 |
 | Org | `dtcbsuytyjpvadcnyymn` ("KScan"), **plan: free** (verified live) | same org |
 
-Both refs were independently verified three ways: (1) live `list_projects`/`get_project`
+Both refs were independently verified two ways: (1) live `list_projects`/`get_project`
 against the Supabase Management API — exactly these two projects exist, no third
 project is reachable from this account; (2) `supabase/config.toml` on
-`origin/staging/production-parity` declares `project_id = "yzqjvdfgefveprobvvyw"`;
-(3) `config/edge-function-manifest.json` declares `approvedProjectRef =
-"wyyuqfdxucjksghsmhry"` for the governed production Edge Functions. All three
-agree. **SEPARATION_STATUS: CONFIRMED PHYSICALLY DISTINCT** — different hosts,
+`origin/staging/production-parity` declares `project_id = "yzqjvdfgefveprobvvyw"`.
+**SEPARATION_STATUS: CONFIRMED PHYSICALLY DISTINCT** — different hosts,
 different Postgres minor versions, different regions, different creation dates.
+
+> A third "source" cited in the original Phase 1 draft —
+> `config/edge-function-manifest.json`'s `approvedProjectRef` — has been
+> **withdrawn as an authority** in Phase 2A.1. It was not a corroborating
+> environment declaration; it was a deploy-target claim that had leaked into an
+> environment-neutral artifact manifest. See "Which file is authoritative"
+> below and defect **DEF-REL-006**.
 
 The org is on a hard 2-project free-tier cap (previously hit when a third project
 was attempted); there is no capacity to spin up an ephemeral/branch project for
@@ -98,6 +103,42 @@ project is currently `supabase link`-ed and have no `--project-ref` override
 flag. This is an operator-workstation hazard, not a CI hazard — any local CLI
 session must re-verify its link target before running a mutating command.
 
+## Which file is authoritative (settled in Phase 2A.1, defect DEF-REL-006)
+
+Two release-governance surfaces previously asserted different canonical project
+refs. They are now separated by role, and no file means both:
+
+| Surface | Means | Scope |
+|---|---|---|
+| `supabase/config.toml` `project_id` | **Which environment THIS CHECKOUT targets.** Branch-specific and correct as-is: the staging line declares staging; the Android/production release lines declare production. | environment identity |
+| `security/scripts/lib/environment-authority.js` | **The ref → environment mapping.** The single source of truth; no other file may carry its own copy. | authority |
+| `config/edge-function-manifest.json` `parity` | **Artifact identity only** — governed function set, per-file SHA-256, bundle/tree hashes. Declares `environmentScope: ENVIRONMENT_NEUTRAL` and names no project. | artifact |
+| `scripts/deploy-edge-functions.js` | **Deploy-target enforcement.** Asserts the production environment explicitly before any production deploy. | deploy |
+
+Why the artifact manifest must be environment-neutral: it is committed
+byte-identically on every branch — that is precisely the mechanism by which
+"matches the manifest" transitively means "matches the other platform branch."
+The same governed source legitimately deploys to staging and to production, so
+an environment claim inside it is a category error. Manifest v1 carried one
+(`approvedProjectRef` = production, recorded from the Android line where
+`config.toml` declares production), which made the parity gate demand a
+production checkout on a staging branch. The value is preserved as provenance
+in `parity.deployAuthority.legacyV1ApprovedProjectRef`, not deleted.
+
+**Why staging and production cannot be confused now:**
+
+- Source parity proves a checkout *has* a known environment identity; it never
+  requires or infers a particular one. Missing, malformed, or unrecognized refs
+  all fail closed (`MISSING_ENVIRONMENT_IDENTITY`, `MALFORMED_IDENTITY`,
+  `UNKNOWN_PROJECT`).
+- Choosing an environment is a separate, deploy-time decision.
+  `deploy-edge-functions.js` calls `assertExpectedEnvironment('production', …)`,
+  so a staging checkout aborts with `ENVIRONMENT_MISMATCH` — staging identity is
+  never usable as production identity, and the reverse is equally refused.
+- Both directions are covered by regression tests in
+  `__tests__/edgeFunctionSourceParity.test.js` (the `authority:` and
+  `deploy guard:` cases).
+
 ## FAIL_CLOSED_GAPS (summary)
 
 1. `SUPABASE_ACCESS_TOKEN` credential scope unverified — likely account-wide,
@@ -106,11 +147,15 @@ session must re-verify its link target before running a mutating command.
 2. Production has no CI identity, so there is nothing to environment-match
    against in an automated way — the entire production deploy path is a human
    action with a Supabase CLI session, outside every guard listed above.
-3. Two independent "canonical ref" constants exist in two different tools for
-   two different purposes (`supabase/config.toml` → staging;
-   `scripts/edge-function-manifest-lib.js` → production) — not a security bug
-   today, but a reconciliation risk for anyone extending either tool without
-   knowing both exist.
+3. ~~Two independent "canonical ref" constants exist in two different tools for
+   two different purposes.~~ **RESOLVED in Phase 2A.1 (defect DEF-REL-006).** The
+   duplicated constant is gone: `scripts/edge-function-manifest-lib.js` no
+   longer defines its own `APPROVED_PROJECT_REF` and instead resolves refs
+   through `security/scripts/lib/environment-authority.js`. It also no longer
+   exports a single "approved" ref, because that name implied one canonical
+   environment for every consumer — which is what let a production deploy claim
+   leak into an environment-neutral artifact gate. See "Which file is
+   authoritative" above.
 4. GitHub Environment protection rules (required reviewers, wait timers) for
    the `staging` environment could not be verified from repository files —
    this is live GitHub repo-settings state, not committed config.

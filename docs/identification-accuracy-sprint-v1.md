@@ -110,8 +110,10 @@ Deploy when ready through the guarded path — see
 node scripts/deploy-edge-functions.js --function scan-identify --confirm-deploy scan-identify
 ```
 
-Note (Phase 2A.5, IMG-006): the parity gate pins the approved target to the
-production project `wyyuqfdxucjksghsmhry`. An App Staging deploy of a governed
-function is therefore blocked at step 2 and requires an owner-approved change to
-`APPROVED_PROJECT_REF` in `scripts/edge-function-manifest-lib.js`. Do not work
-around it with a raw `supabase functions deploy`.
+Note (Phase 2A.5, IMG-006; revised Phase 2A.1, DEF-REL-006): the deploy wrapper
+`scripts/deploy-edge-functions.js` is the production path and asserts the
+production environment at step 2, so an App Staging deploy of a governed
+function through it is blocked and changing that is an owner decision. The
+source-parity gate itself is environment-neutral and passes from either
+environment — it certifies artifact identity, not deploy targets. Do not work
+around either control with a raw `supabase functions deploy`.
