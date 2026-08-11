@@ -667,7 +667,18 @@ function deriveBrandProvenance(
   visibleBrandText: string | null,
   logoDetected: boolean,
   brandGuess: string | null,
+  /**
+   * Phase 7.2 evidence tier, when the backend gate decided one. Optional so
+   * every existing caller — and any deployment where the gate has not run —
+   * keeps the exact previous derivation.
+   */
+  brandEvidenceType?: string | null,
 ): FashionIdentificationBrandProvenance {
+  // A decided evidence type is more truthful than inferring provenance from
+  // which field happened to be populated: `label` and `monogram` are both
+  // brand-naming marks that the old field-shape inference could not tell apart.
+  if (brandEvidenceType === 'wordmark' || brandEvidenceType === 'label') return 'visible_text';
+  if (brandEvidenceType === 'logo' || brandEvidenceType === 'monogram') return 'logo_shape';
   if (visibleBrandText) return 'visible_text';
   if (logoDetected) return 'logo_shape';
   if (brandGuess) return 'visual';
@@ -687,7 +698,15 @@ export function normalizeToV2(input: ProviderNormalizationInput): FashionIdentif
   const visibleBrandText = str(id.visible_brand_text);
   const logoDetected = id.logo_detected === true;
   const brandGuess = str(id.brand_guess);
-  const brandValue = brandGuess ?? visibleBrandText;
+  // Phase 7.2 brand evidence tier, decided upstream by the backend gate.
+  const brandEvidenceLevel = str(id.brand_evidence_level);
+  const brandEvidenceType = str(id.brand_evidence_type);
+  // Tier C is resemblance, never identity. When the gate resolved `style_only`
+  // the brand does not survive into V2 at all — a value the gate refused to
+  // establish must not reappear here through the visible-text fallback.
+  const brandBlockedByTier = brandEvidenceLevel === 'style_only' ||
+    brandEvidenceLevel === 'none';
+  const brandValue = brandBlockedByTier ? null : (brandGuess ?? visibleBrandText);
 
   const brandEvidence: FashionBrandEvidenceV2[] = [];
   const primaryEvidenceId = input.evidenceIds[0];
@@ -712,6 +731,18 @@ export function normalizeToV2(input: ProviderNormalizationInput): FashionIdentif
       ...(primaryEvidenceId ? { evidenceId: primaryEvidenceId } : {}),
       type: 'brand_guess',
       observation: brandGuess,
+      confidence: null,
+    });
+  }
+  // Phase 7.2: record WHAT KIND of evidence was accepted, using the free-string
+  // `type` this array already allows. No contract vocabulary is widened — the
+  // V2 brand-provenance enum is mirrored in the JSON schema and the client and
+  // held together by a parity test, so an internal tier does not belong in it.
+  if (brandEvidenceType && brandEvidenceType !== 'none') {
+    brandEvidence.push({
+      ...(primaryEvidenceId ? { evidenceId: primaryEvidenceId } : {}),
+      type: `evidence_${brandEvidenceType}`,
+      observation: brandEvidenceLevel,
       confidence: null,
     });
   }
@@ -781,8 +812,13 @@ export function normalizeToV2(input: ProviderNormalizationInput): FashionIdentif
         // surfaced as brand confidence when brand evidence actually exists,
         // and stays null otherwise rather than being invented.
         confidence: isIdentityBearing && brandValue ? globalConfidence : null,
-        provenance: isIdentityBearing
-          ? deriveBrandProvenance(visibleBrandText, logoDetected, brandGuess)
+        provenance: isIdentityBearing && brandValue
+          ? deriveBrandProvenance(
+            visibleBrandText,
+            logoDetected,
+            brandGuess,
+            brandEvidenceType,
+          )
           : 'unknown',
         evidence: isIdentityBearing ? brandEvidence : [],
       },

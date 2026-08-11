@@ -266,8 +266,10 @@ Set any level the query does not support to "unknown" rather than repeating anot
 `,
   ];
 
+  // ── Prompts Phase 7.2 did NOT touch keep the ORIGINAL byte-exact proof ────
+  // The single-variable guarantee still holds in full for these two, and is
+  // asserted exactly as it was.
   for (const [label, start, end] of [
-    ['IDENTIFY_PROMPT', 'const IDENTIFY_PROMPT', 'const MULTI_ITEM_IDENTIFY_PROMPT'],
     ['MULTI_ITEM_IDENTIFY_PROMPT', 'const MULTI_ITEM_IDENTIFY_PROMPT', 'const MULTI_ITEM_RESPONSE_SCHEMA'],
     ['TEXT_IDENTIFY_PROMPT', 'const TEXT_IDENTIFY_PROMPT', '// ── Helpers'],
   ]) {
@@ -289,6 +291,67 @@ Set any level the query does not support to "unknown" rather than repeating anot
       `${label} differs from certified by something other than clothing_type`,
     );
   }
+
+  // ── IDENTIFY_PROMPT: property proof, because Phase 7.2 refactored it ──────
+  //
+  // WHY THIS ONE CHANGED SHAPE. Byte-equality-modulo-clothing_type was a PROXY
+  // for the claim this test is named after: that no certified category or
+  // subtype TEACHING was altered. Phase 7.2 is a second, deliberate experiment
+  // that was explicitly authorised to replace vague guidance with compact
+  // evidence guidance and to remove redundant few-shot bulk, so byte equality
+  // and that build cannot both hold. Phase 7's own single-variable evidence is
+  // unaffected — it is banked at the Phase 7 SHAs and nothing here rewrites it.
+  //
+  // What is asserted instead is the CLAIM ITSELF, which is strictly what the
+  // name promises and still fails on the original regression (changing the
+  // footwear example's item_type from "sneakers" to "footwear"): every taxonomy
+  // value the certified prompt taught is still taught, with the same pairing.
+  const certifiedIdentify = certified.slice(
+    certified.indexOf('const IDENTIFY_PROMPT'),
+    certified.indexOf('const MULTI_ITEM_IDENTIFY_PROMPT'),
+  );
+  const candidateIdentify = INDEX_SOURCE.slice(
+    INDEX_SOURCE.indexOf('const IDENTIFY_PROMPT'),
+    INDEX_SOURCE.indexOf('const MULTI_ITEM_IDENTIFY_PROMPT'),
+  );
+
+  const values = (text, field) =>
+    [...new Set([...text.matchAll(new RegExp(`"${field}": "([^"]+)"`, 'g'))].map((m) => m[1]))];
+
+  for (const field of ['item_type', 'subtype']) {
+    const certifiedValues = values(certifiedIdentify, field);
+    const candidateValues = values(candidateIdentify, field);
+    assert.ok(certifiedValues.length > 0, `certified prompt teaches ${field} values`);
+    for (const taught of certifiedValues) {
+      assert.ok(
+        candidateValues.includes(taught),
+        `certified ${field} teaching "${taught}" was dropped from IDENTIFY_PROMPT`,
+      );
+    }
+  }
+
+  // The pairings must survive too, not merely the individual values — that is
+  // what makes "sneakers" still belong to the footwear example.
+  const pairs = (text) =>
+    [...text.matchAll(/"item_type": "([^"]+)",\s*\n\s*"clothing_type": "[^"]*",\s*\n\s*"subtype": "([^"]+)"/g)]
+      .map((m) => `${m[1]}|${m[2]}`);
+  const certifiedPairs = new Set(
+    [...certifiedIdentify.matchAll(/"item_type": "([^"]+)",[\s\S]{0,400}?"subtype": "([^"]+)"/g)]
+      .map((m) => `${m[1]}|${m[2]}`),
+  );
+  const candidatePairs = new Set(pairs(candidateIdentify));
+  for (const pair of certifiedPairs) {
+    assert.ok(
+      candidatePairs.has(pair),
+      `certified category/subtype pairing "${pair}" was altered or dropped`,
+    );
+  }
+
+  // And the Phase 7 insertion itself is still present verbatim.
+  assert.ok(
+    candidateIdentify.includes(INSERTED_BLOCKS[0]),
+    'the Phase 7 clothing_type teaching block must remain verbatim',
+  );
 });
 
 test('the certified footwear example keeps its original item_type', () => {
@@ -482,7 +545,15 @@ test('the legacy identification passthrough is stripped of the V2-only tier', ()
     INDEX_SOURCE.indexOf('const v2Result: FashionIdentificationResultV2'),
     INDEX_SOURCE.indexOf('Hard commerce decision'),
   );
-  assert.match(v2Reattach, /clothing_type: v2ClothingType/);
+  // Phase 7.2 turned the single-field re-attach into a multi-field one (the
+  // brand-evidence tier is isolated the same way), so the assignment form
+  // changed. The property is unchanged: clothing_type is re-attached for V2
+  // ONLY, and only from v2ClothingType.
+  assert.match(v2Reattach, /reattached\.clothing_type = v2ClothingType/);
+  assert.ok(
+    !INDEX_SOURCE.includes('legacyIdentification.clothing_type'),
+    'clothing_type must never be written back onto the legacy view',
+  );
 });
 
 // ── 5. Required-field decision and uncertainty safety ───────────────────────

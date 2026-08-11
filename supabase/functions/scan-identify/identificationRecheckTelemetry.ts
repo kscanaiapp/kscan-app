@@ -50,6 +50,14 @@ export type IdentificationRecheckMetrics = {
   /** Per-tier reconciliation decision, so a reversal can be attributed. */
   fieldOutcomes: Array<{ tier: IdentityTier; outcome: FieldOutcome }>;
 
+  // ── Phase 7.2 fashion + brand evidence ─────────────────────────────────────
+  /** Whether a family-specific discriminator pack focused the recheck. */
+  discriminatorPackUsed: boolean;
+  /** The level-1 family the pack was drawn from. A taxonomy label, not PII. */
+  disputedFashionFamily: string | null;
+  /** Whether the recheck supplied a brand the first pass had left unknown. */
+  brandAdoptedFromRecheck: boolean;
+
   // ── Outcome of the second call ─────────────────────────────────────────────
   recheckStatus: 'not_run' | 'completed' | 'failed';
   recheckFailureReason: RecheckFailureReason | null;
@@ -91,6 +99,49 @@ export function logIdentificationRecheckMetrics(
   console.log('[scan-identify] identification_recheck_metrics %s', JSON.stringify(metrics));
 }
 
+// ── Phase 7.2 brand evidence telemetry ───────────────────────────────────────
+
+/**
+ * Emitted on EVERY classified scan, independently of the recheck feature flag,
+ * because the brand evidence gate itself runs on every classified scan. Putting
+ * these fields on the recheck line instead would make brand precision
+ * unmeasurable whenever the recheck is switched off — which is its default.
+ */
+export type BrandEvidenceMetrics = {
+  version: string;
+  /** Whether a brand survived the evidence gate. */
+  brandAsserted: boolean;
+  brandUnknown: boolean;
+  /** Resolved tier: direct | distinctive | style_only | none. */
+  brandEvidenceLevel: string | null;
+  /** Resolved evidence kind: wordmark | logo | label | monogram | … | none. */
+  brandEvidenceType: string | null;
+  /** True when a proposed brand was removed for lack of qualifying evidence. */
+  brandSuppressed: boolean;
+  /**
+   * Bounded machine reasons from the gate, e.g. `text_is_care_or_size`.
+   *
+   * PRIVACY (§21): these are fixed codes. The visible text that produced them is
+   * NEVER logged. The requirement is the resulting brand/evidence
+   * classification, not an unrestricted transcript of what the image said — a
+   * transcript would be exactly the arbitrary image-derived text this must not
+   * store.
+   */
+  brandEvidenceReasons: string[];
+};
+
+export function logBrandEvidenceMetrics(metrics: BrandEvidenceMetrics): void {
+  const privacy = assertQualityMetricsPrivacy(metrics);
+  if (!privacy.ok) {
+    console.warn(
+      '[scan-identify] brand_evidence_metrics_privacy_block violations=%d',
+      privacy.violations.length,
+    );
+    return;
+  }
+  console.log('[scan-identify] brand_evidence_metrics %s', JSON.stringify(metrics));
+}
+
 /** Zeroed baseline so every field is present on every emitted line. */
 export function emptyRecheckMetrics(
   flagEnabled: boolean,
@@ -110,6 +161,9 @@ export function emptyRecheckMetrics(
     identityChanged: false,
     fieldsChanged: [],
     fieldOutcomes: [],
+    discriminatorPackUsed: false,
+    disputedFashionFamily: null,
+    brandAdoptedFromRecheck: false,
     recheckStatus: 'not_run',
     recheckFailureReason: null,
     primaryLatencyMs: null,

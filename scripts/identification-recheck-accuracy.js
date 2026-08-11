@@ -134,9 +134,68 @@ function percentile(values, p) {
   return finite[index];
 }
 
+/**
+ * Brand is scored SEPARATELY from taxonomy, and on precision first (§22).
+ *
+ * WHY NOT REUSE THE TIER REPORT: for a garment tier, answering is the goal and
+ * abstention is a cost. For brand it is the reverse — a wrong brand corrupts
+ * every Product Match query built from it, while an unknown brand costs a blank
+ * field. So brand gets its own denominator (`precision` = correct / asserted)
+ * and the answer rate is reported beside it as context, never as the score.
+ *
+ * A build that fills more brand fields is NOT thereby better, and this function
+ * is arranged so that claim cannot be made from its output.
+ */
+function emptyBrandReport() {
+  const movements = {};
+  for (const key of MOVEMENTS) movements[key] = 0;
+  return {
+    scorable: 0,
+    unscorable: 0,
+    movements,
+    control: { correct: 0, incorrect: 0, unknown: 0 },
+    candidate: { correct: 0, incorrect: 0, unknown: 0 },
+  };
+}
+
+function summariseBrand(report) {
+  const controlAsserted = report.control.correct + report.control.incorrect;
+  const candidateAsserted = report.candidate.correct + report.candidate.incorrect;
+  return {
+    scorable: report.scorable,
+    unscorable: report.unscorable,
+    movements: report.movements,
+
+    // ── The headline: precision ────────────────────────────────────────────
+    controlPrecision: ratio(report.control.correct, controlAsserted),
+    candidatePrecision: ratio(report.candidate.correct, candidateAsserted),
+
+    // ── Context, never the score ───────────────────────────────────────────
+    controlAnswerRate: ratio(controlAsserted, report.scorable),
+    candidateAnswerRate: ratio(candidateAsserted, report.scorable),
+
+    controlCorrectAssertions: report.control.correct,
+    controlIncorrectAssertions: report.control.incorrect,
+    candidateCorrectAssertions: report.candidate.correct,
+    candidateIncorrectAssertions: report.candidate.incorrect,
+
+    unknownToCorrect: report.movements['unknown->correct'],
+    unknownToIncorrect: report.movements['unknown->incorrect'],
+    correctToIncorrect: report.movements['correct->incorrect'],
+    incorrectToCorrect: report.movements['incorrect->correct'],
+    // Dropping a wrong brand is a PRECISION GAIN, and is counted as one.
+    incorrectToUnknown: report.movements['incorrect->unknown'],
+    correctToUnknown: report.movements['correct->unknown'],
+
+    // Net false brand assertions removed. The number this build is judged on.
+    falseAssertionDelta: report.candidate.incorrect - report.control.incorrect,
+  };
+}
+
 function evaluate(cases) {
   const tiers = {};
   for (const tier of TIERS) tiers[tier] = emptyTierReport();
+  const brand = emptyBrandReport();
 
   const controlCost = { latencyMs: [], inputTokens: [], responseTokens: [], thinkingTokens: [], calls: [] };
   const candidateCost = { latencyMs: [], inputTokens: [], responseTokens: [], thinkingTokens: [], calls: [] };
@@ -163,6 +222,23 @@ function evaluate(cases) {
       report.control[before] += 1;
       report.candidate[after] += 1;
       report.movements[movementKey(before, after)] += 1;
+    }
+
+    // ── Brand, scored independently of the taxonomy tiers ──────────────────
+    const brandTruth = canon(entry.truth ? entry.truth.brand : null);
+    if (brandTruth === null) {
+      // No ground-truth brand for this case. Deliberately NOT scored as
+      // "should be unknown": an unlabelled case and a genuinely brandless
+      // garment are different things, and conflating them would let a build
+      // score points for abstaining on cases nobody labelled.
+      brand.unscorable += 1;
+    } else {
+      brand.scorable += 1;
+      const before = grade(entry.control ? entry.control.brand : null, brandTruth);
+      const after = grade(entry.candidate ? entry.candidate.brand : null, brandTruth);
+      brand.control[before] += 1;
+      brand.candidate[after] += 1;
+      brand.movements[movementKey(before, after)] += 1;
     }
 
     if (entry.recheckTriggered) triggered += 1;
@@ -233,11 +309,14 @@ function evaluate(cases) {
     providerCallsTotal: sum(bucket.calls),
   });
 
+  const brandSummary = summariseBrand(brand);
+
   return {
     caseCount: cases.length,
     recheckTriggeredCount: triggered,
     recheckTriggerRate: ratio(triggered, cases.length),
     perTier,
+    brand: brandSummary,
     totals: {
       corrections: correctionsTotal,
       reversals: reversalsTotal,
@@ -255,7 +334,16 @@ function evaluate(cases) {
       : netTotal === 0
       ? 'NET_NEUTRAL'
       : 'NET_NEGATIVE',
-    promotionRecommended: netTotal > 0,
+    // Brand is a SEPARATE gate, not averaged into the taxonomy net. A build
+    // that improves subtypes while adding false brands is not promotable:
+    // the false brand propagates into every Product Match query built from it,
+    // which is a larger harm than the subtype gain is a benefit.
+    brandVerdict: brandSummary.falseAssertionDelta < 0
+      ? 'BRAND_PRECISION_IMPROVED'
+      : brandSummary.falseAssertionDelta === 0
+      ? 'BRAND_PRECISION_UNCHANGED'
+      : 'BRAND_PRECISION_REGRESSED',
+    promotionRecommended: netTotal > 0 && brandSummary.falseAssertionDelta <= 0,
   };
 }
 
@@ -305,6 +393,44 @@ function render(result) {
     lines.push('');
   }
 
+  const b = result.brand;
+  lines.push('-'.repeat(78));
+  lines.push(`BRAND    scorable=${b.scorable}  unscorable(no ground truth)=${b.unscorable}`);
+  lines.push('-'.repeat(78));
+  lines.push('  PRECISION IS THE SCORE. Answer rate is context, not achievement.');
+  lines.push(
+    `  precision (correct / asserted)   control ${pct(b.controlPrecision)}  →  candidate ${
+      pct(b.candidatePrecision)
+    }`,
+  );
+  lines.push(
+    `  answer rate                      control ${pct(b.controlAnswerRate)}  →  candidate ${
+      pct(b.candidateAnswerRate)
+    }`,
+  );
+  lines.push(
+    `  correct assertions               control ${
+      String(b.controlCorrectAssertions).padStart(4)
+    }        →  candidate ${String(b.candidateCorrectAssertions).padStart(4)}`,
+  );
+  lines.push(
+    `  INCORRECT assertions             control ${
+      String(b.controlIncorrectAssertions).padStart(4)
+    }        →  candidate ${String(b.candidateIncorrectAssertions).padStart(4)}`,
+  );
+  lines.push('');
+  lines.push(`  unknown→correct    ${String(b.unknownToCorrect).padStart(4)}   (brand recovered)`);
+  lines.push(`  unknown→incorrect  ${String(b.unknownToIncorrect).padStart(4)}   (FALSE BRAND INTRODUCED)`);
+  lines.push(`  correct→incorrect  ${String(b.correctToIncorrect).padStart(4)}   (FALSE BRAND INTRODUCED)`);
+  lines.push(`  incorrect→correct  ${String(b.incorrectToCorrect).padStart(4)}   (brand corrected)`);
+  lines.push(`  incorrect→unknown  ${String(b.incorrectToUnknown).padStart(4)}   (false brand removed — a GAIN)`);
+  lines.push(`  correct→unknown    ${String(b.correctToUnknown).padStart(4)}   (brand lost)`);
+  lines.push('');
+  lines.push(
+    `  FALSE BRAND ASSERTION DELTA: ${b.falseAssertionDelta > 0 ? '+' : ''}${b.falseAssertionDelta}  (negative is better)`,
+  );
+  lines.push('');
+
   const c = result.cost;
   lines.push('-'.repeat(78));
   lines.push('COST / LATENCY');
@@ -325,12 +451,15 @@ function render(result) {
   lines.push(
     `TOTAL NET: ${result.totals.corrections} corrections − ${result.totals.reversals} reversals = ${result.totals.net}`,
   );
-  lines.push(`VERDICT:   ${result.verdict}`);
+  lines.push(`FASHION:   ${result.verdict}`);
+  lines.push(`BRAND:     ${result.brandVerdict}`);
   lines.push(
     `PROMOTION: ${
       result.promotionRecommended
-        ? 'net-positive on accuracy — weigh against the measured cost above'
-        : 'DO NOT PROMOTE — the recheck does not produce a net accuracy gain'
+        ? 'net-positive on fashion accuracy with no brand-precision regression — weigh against the measured cost above'
+        : result.totals.net <= 0
+        ? 'DO NOT PROMOTE — no net fashion accuracy gain'
+        : 'DO NOT PROMOTE — fashion accuracy improved but brand precision REGRESSED (a false brand corrupts every Product Match query built from it)'
     }`,
   );
   lines.push('='.repeat(78));

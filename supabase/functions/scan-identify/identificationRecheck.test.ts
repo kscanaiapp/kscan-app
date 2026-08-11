@@ -691,13 +691,29 @@ Deno.test('I: V1 and V2 stay two projections of ONE identity after reconciliatio
 });
 
 Deno.test('I: index.ts still strips clothing_type from the legacy passthrough', () => {
+  // Phase 7.2 widened the same isolation to the brand-evidence fields, so the
+  // destructure is now multi-line. What must remain true is that clothing_type
+  // is still held out of the legacy passthrough.
   assert(
-    INDEX_SOURCE.includes('({ clothing_type: _omitted, ...rest })'),
+    INDEX_SOURCE.includes('clothing_type: _omittedType,'),
     'the Phase 7 V1 tier isolation must survive this build',
   );
+  for (
+    const isolated of [
+      'brand_evidence_level: _omittedLevel,',
+      'brand_evidence_type: _omittedEvidenceType,',
+      'brand_evidence_on_item: _omittedOnItem,',
+    ]
+  ) {
+    assert(
+      INDEX_SOURCE.includes(isolated),
+      `Phase 7.2 internal brand metadata must stay out of the legacy view: ${isolated}`,
+    );
+  }
   // And the recheck writes BEFORE that isolation, so one identity feeds both.
   const recheckIndex = INDEX_SOURCE.indexOf('const recheckFlagEnabled = isIdentificationRecheckEnabled()');
-  const isolationIndex = INDEX_SOURCE.indexOf('({ clothing_type: _omitted, ...rest })');
+  const isolationIndex = INDEX_SOURCE.indexOf('clothing_type: _omittedType,');
+  assert(recheckIndex > 0 && isolationIndex > 0, 'both anchors must exist');
   assert(recheckIndex < isolationIndex, 'reconciliation must precede the legacy projection');
 });
 
@@ -767,8 +783,21 @@ Deno.test('J: the recheck prompt requests no commerce and carries no products', 
   ) {
     assert(!prompt.includes(forbidden), `prompt must not carry ${forbidden}`);
   }
-  // And the response schema cannot express commerce.
+  // And the response schema cannot express commerce. Phase 7.2 added brand
+  // evidence keys (same call, no extra request) — still nothing commercial.
   assertEquals(Object.keys(RECHECK_RESPONSE_SCHEMA.properties).sort(), [
+    'brand',
+    'brand_evidence_level',
+    'brand_evidence_on_item',
+    'brand_evidence_type',
+    'category',
+    'clothing_type',
+    'confidence',
+    'subtype',
+  ]);
+  // Only the taxonomy keys are REQUIRED: a recheck must be able to say nothing
+  // about brand, because silence is correct when no brand evidence is visible.
+  assertEquals([...RECHECK_RESPONSE_SCHEMA.required].sort(), [
     'category',
     'clothing_type',
     'confidence',

@@ -40,7 +40,9 @@
     "bench:product-match:reseal": "node scripts/product-match-benchmark.js --reseal",
     "inspect:similarity": "node scripts/similarity-inspector.js",
     "test:identification-recheck": "node --test __tests__/identificationRecheckAccuracy.test.js",
-    "eval:identification-recheck": "node scripts/identification-recheck-accuracy.js"
+    "eval:identification-recheck": "node scripts/identification-recheck-accuracy.js",
+    "test:prompt-budget": "node --test __tests__/scannerPromptBudget.test.js",
+    "inspect:prompt-budget": "node scripts/scanner-prompt-budget.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

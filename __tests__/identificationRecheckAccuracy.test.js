@@ -226,6 +226,122 @@ test('cost accounting sums tokens, calls and MAX_TOKENS finishes', () => {
   assert.equal(result.recheckTriggerRate, 0.5);
 });
 
+// ── Phase 7.2: brand precision ──────────────────────────────────────────────
+
+const TB = (category, clothingType, subtype, brand) => ({
+  category,
+  clothingType,
+  subtype,
+  brand,
+});
+
+test('brand precision is correct/asserted, not correct/total', () => {
+  const result = evaluate([
+    // Candidate asserts a correct brand the control missed.
+    {
+      truth: TB('pants', 'jeans', 'wide_leg_jeans', "Levi's"),
+      control: TB('pants', 'jeans', 'wide_leg_jeans', null),
+      candidate: TB('pants', 'jeans', 'wide_leg_jeans', "Levi's"),
+    },
+    // Candidate drops a brand the control got WRONG — a precision gain.
+    {
+      truth: TB('top', 'hoodie', null, 'Nike'),
+      control: TB('top', 'hoodie', null, 'Adidas'),
+      candidate: TB('top', 'hoodie', null, null),
+    },
+  ]);
+  const b = result.brand;
+  assert.equal(b.scorable, 2);
+  assert.equal(b.candidateCorrectAssertions, 1);
+  assert.equal(b.candidateIncorrectAssertions, 0);
+  assert.equal(b.candidatePrecision, 1);
+  assert.equal(b.controlPrecision, 0);
+  assert.equal(b.incorrectToUnknown, 1);
+  assert.equal(b.unknownToCorrect, 1);
+  assert.equal(b.falseAssertionDelta, -1);
+  assert.equal(result.brandVerdict, 'BRAND_PRECISION_IMPROVED');
+});
+
+test('filling MORE brand fields is not scored as better when they are wrong', () => {
+  // The exact claim §22 forbids: the candidate answers brand far more often,
+  // and is wrong most of the time.
+  const result = evaluate([
+    {
+      truth: TB('pants', 'jeans', 'wide_leg_jeans', "Levi's"),
+      control: TB('pants', 'jeans', 'wide_leg_jeans', null),
+      candidate: TB('pants', 'jeans', 'wide_leg_jeans', 'Wrangler'),
+    },
+    {
+      truth: TB('top', 'hoodie', null, 'Nike'),
+      control: TB('top', 'hoodie', null, null),
+      candidate: TB('top', 'hoodie', null, 'Adidas'),
+    },
+    {
+      truth: TB('footwear', 'sneaker', null, 'Nike'),
+      control: TB('footwear', 'sneaker', null, null),
+      candidate: TB('footwear', 'sneaker', null, 'Nike'),
+    },
+  ]);
+  const b = result.brand;
+  // Answer rate went UP...
+  assert.equal(b.controlAnswerRate, 0);
+  assert.equal(b.candidateAnswerRate, 1);
+  // ...and precision is poor, with two false brands introduced.
+  assert.equal(b.candidatePrecision, 1 / 3);
+  assert.equal(b.unknownToIncorrect, 2);
+  assert.equal(b.falseAssertionDelta, 2);
+  assert.equal(result.brandVerdict, 'BRAND_PRECISION_REGRESSED');
+  assert.equal(result.promotionRecommended, false);
+});
+
+test('a brand-precision regression blocks promotion even when fashion improves', () => {
+  const result = evaluate([
+    // Fashion genuinely improves...
+    {
+      truth: TB('pants', 'jeans', 'wide_leg_jeans', 'Nike'),
+      control: TB('pants', 'jeans', 'skinny_jeans', 'Nike'),
+      candidate: TB('pants', 'jeans', 'wide_leg_jeans', 'Adidas'),
+    },
+  ]);
+  assert.equal(result.perTier.subtype.net, 1);
+  assert.equal(result.verdict, 'NET_POSITIVE');
+  // ...but a correct brand was replaced with a wrong one.
+  assert.equal(result.brand.correctToIncorrect, 1);
+  assert.equal(result.brand.falseAssertionDelta, 1);
+  assert.equal(result.promotionRecommended, false);
+});
+
+test('cases with no ground-truth brand are excluded, not scored as "should be unknown"', () => {
+  const result = evaluate([
+    {
+      truth: TB('pants', 'jeans', 'wide_leg_jeans', null),
+      control: TB('pants', 'jeans', 'wide_leg_jeans', null),
+      candidate: TB('pants', 'jeans', 'wide_leg_jeans', null),
+    },
+    {
+      truth: TB('top', 'hoodie', null, 'Nike'),
+      control: TB('top', 'hoodie', null, 'Nike'),
+      candidate: TB('top', 'hoodie', null, 'Nike'),
+    },
+  ]);
+  assert.equal(result.brand.scorable, 1);
+  assert.equal(result.brand.unscorable, 1);
+  const total = Object.values(result.brand.movements).reduce((a, x) => a + x, 0);
+  assert.equal(total, 1);
+});
+
+test('brand comparison is case- and punctuation-insensitive', () => {
+  const result = evaluate([
+    {
+      truth: TB('pants', 'jeans', null, "Levi's"),
+      control: TB('pants', 'jeans', null, "LEVI'S"),
+      candidate: TB('pants', 'jeans', null, "levi's"),
+    },
+  ]);
+  assert.equal(result.brand.movements['unchanged correct'], 1);
+  assert.equal(result.brand.falseAssertionDelta, 0);
+});
+
 test('a tier-blind blended score cannot hide cross-tier damage', () => {
   // Subtype improves twice; category is corrupted twice. A single blended
   // accuracy number would read as "unchanged" — per-tier nets do not.
