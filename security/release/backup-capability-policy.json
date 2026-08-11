@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "description": "Verified infrastructure recovery capability, and the migration-class promotion policy that follows from it. Consumed by security/release/production-eligibility.js. This file encodes a VERIFIED INFRASTRUCTURE FACT, not a preference - do not relax productionPromotionPolicy without first changing (and re-verifying) the capability block above it.",
+  "verifiedOn": "2026-08-11",
+  "verificationMethod": "Supabase Management API get_organization returned plan=free for org dtcbsuytyjpvadcnyymn, which owns both the staging and production projects. Independently corroborated by docs/security/security-ci-runbook.md ('Backup and recovery | Not covered') and by the leaked-password-protection control failing with HTTP 402 plan-limited on the same org.",
+  "capability": {
+    "organizationPlan": "free",
+    "productionPitrAvailable": false,
+    "productionAutomatedBackupsVerified": false,
+    "productionRestoreDrillHistory": "NONE",
+    "generalVerifiedProductionRestoreCapability": false
+  },
+  "productionPromotionPolicy": {
+    "EXPANSION_SAFE": {
+      "productionPromotionEligible": true,
+      "condition": "may become eligible for future automated promotion after the normal certification gates pass",
+      "blockerCode": null
+    },
+    "REVERSIBLE": {
+      "productionPromotionEligible": false,
+      "condition": "requires a tested, explicit recovery path recorded against the release before production eligibility; a rollback runbook that has never been exercised does not satisfy this",
+      "blockerCode": "RECOVERY_PLAN_REQUIRED_FOR_RISK_CLASS"
+    },
+    "DATA_TRANSFORMING": {
+      "productionPromotionEligible": false,
+      "condition": "PRODUCTION BLOCKED by default while productionPitrAvailable is false",
+      "blockerCode": "PITR_REQUIRED_FOR_RISK_CLASS"
+    },
+    "FORWARD_FIX_ONLY": {
+      "productionPromotionEligible": false,
+      "condition": "PRODUCTION BLOCKED until an explicit reviewed recovery plan exists for the release",
+      "blockerCode": "REVIEWED_RECOVERY_PLAN_REQUIRED"
+    },
+    "DESTRUCTIVE": {
+      "productionPromotionEligible": false,
+      "condition": "PRODUCTION BLOCKED",
+      "blockerCode": "DESTRUCTIVE_MIGRATION_PROHIBITED"
+    }
+  },
+  "notes": [
+    "Phase 2A implements policy groundwork and a pure validator only. No production deployment path exists in this repository, and none is created by this policy file.",
+    "If the organization later moves to a plan with PITR, changing productionPitrAvailable to true is necessary but NOT sufficient: productionRestoreDrillHistory must also record a real, successful restore drill before DATA_TRANSFORMING promotion should be reconsidered."
+  ]
+}
