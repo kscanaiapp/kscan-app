@@ -9,6 +9,21 @@ facts only.
 See also `ENVIRONMENT_AUTHORITY.md` for the environment-identity deep dive this
 document assumes as background.
 
+> **Phase 2A corrections (2026-08-11).** Four corrections were applied to this
+> document after manager review of Phase 1. They are marked inline below as
+> **[CORRECTED IN PHASE 2A]**:
+> 1. The proposal to commit every generated staging-certification JSON to Git
+>    is **withdrawn**. See `RELEASE_EVIDENCE_POLICY.md` for the replacement
+>    three-tier retention model.
+> 2. Production migration state is stated as **observed ledger entries**, not
+>    as trustworthy release provenance. The two are not the same thing here.
+> 3. `shared_room_item_contributions` is now a **formal production-promotion
+>    reconciliation blocker**, machine-enforced. See
+>    `PRODUCTION_MIGRATION_RECONCILIATION.md`.
+> 4. The absence of verified PITR/restore now carries an explicit
+>    **prohibition** on DATA_TRANSFORMING and DESTRUCTIVE production
+>    promotion, encoded in `security/release/backup-capability-policy.json`.
+
 ## Source state
 
 - Repository: `kscanaiapp/kscan-app`. Default branch (`origin/HEAD`): `master`.
@@ -79,7 +94,16 @@ document assumes as background.
   files.
 - **STAGING_MIGRATION_LEVEL** (live, via Management API): 103 applied — matches
   repo count exactly.
-- **PRODUCTION_MIGRATION_LEVEL** (live): 87 applied.
+- **PRODUCTION_MIGRATION_LEVEL**: **[CORRECTED IN PHASE 2A]** 87 ledger
+  entries were **observed** via the Management API. This is a statement about
+  what the ledger reports, **not** a statement that production's migration
+  provenance is known or trustworthy. Production's own
+  `supabase_migrations.schema_migrations` table contains at least two entries
+  whose stored `statements` are placeholders rather than the DDL that ran
+  (documented in `docs/security/batch0-migration-source-restoration.md`), so
+  ledger presence proves a record exists, not that the recorded DDL executed.
+  Production migration provenance therefore remains **UNKNOWN**; do not
+  collapse "87 observed entries" into "production is at migration level 87."
 - Project convention (documented in-repo, GP-004/GP-006 migration headers):
   **the applied `version` timestamp does not match the migration filename** —
   the deploy tool stamps its own apply-time timestamp. Reconciliation must
@@ -113,6 +137,17 @@ document assumes as background.
     gate must catch: a migration explicitly marked "not safe to promote
     because production differs" where production has since moved further
     without staging's knowledge.**
+
+    **[CORRECTED IN PHASE 2A]** This is now a **formal production-promotion
+    reconciliation blocker**, not merely a noted discrepancy. It is recorded
+    in `security/release/production-migration-reconciliation.json` with
+    `promotionImpact: BLOCKS_PRODUCTION_PROMOTION`, and
+    `security/release/production-eligibility.js` returns
+    `PRODUCTION_MIGRATION_RECONCILIATION_REQUIRED` while it is unresolved.
+    Resolving it requires a scoped, owner-authorized read-only comparison of
+    production's current `dressing_room_items` policy set and column list
+    against the deferred file — Phase 2A deliberately did not perform that
+    comparison. See `PRODUCTION_MIGRATION_RECONCILIATION.md`.
   - **MIGRATION_DRIFT classification: UNEXPECTED_DRIFT** (not merely
     EXPECTED_ENVIRONMENT_DIVERGENCE) — specifically because of the 4
     production-ahead migrations and the stale-deferral case above. The
@@ -409,6 +444,24 @@ without a manual, reviewed, individually-approved forward-fix or reverse
 script prepared *in advance* — there is no safety net to fall back on if such
 a migration goes wrong. EXPANSION_SAFE and REVERSIBLE-only migrations are the
 only classes safe for any future automated promotion.
+
+**[CORRECTED IN PHASE 2A]** This is no longer advisory prose. It is encoded
+as machine-enforced policy in
+`security/release/backup-capability-policy.json` and applied by
+`security/release/production-eligibility.js`:
+
+| Risk class | Production promotion | Blocker code |
+|---|---|---|
+| EXPANSION_SAFE | eligible after normal gates | — |
+| REVERSIBLE | blocked until a **tested** recovery path exists (an unexercised rollback runbook does not satisfy this) | `RECOVERY_PLAN_REQUIRED_FOR_RISK_CLASS` |
+| DATA_TRANSFORMING | **blocked** while PITR is unavailable | `PITR_REQUIRED_FOR_RISK_CLASS` |
+| FORWARD_FIX_ONLY | blocked pending an explicit reviewed recovery plan | `REVIEWED_RECOVERY_PLAN_REQUIRED` |
+| DESTRUCTIVE | **blocked** | `DESTRUCTIVE_MIGRATION_PROHIBITED` |
+
+Note the policy file's own escalation guard: flipping
+`productionPitrAvailable` to `true` is necessary but **not sufficient** to
+reconsider DATA_TRANSFORMING promotion — `productionRestoreDrillHistory` must
+also record a real, successful restore drill.
 
 ## Migration risk sample (basis for the future safety gate)
 
