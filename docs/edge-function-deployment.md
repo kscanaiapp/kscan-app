@@ -128,10 +128,17 @@ are **not** covered and remain open owner decisions:
   repository**. It is not part of any deployed bundle. It was left in place
   rather than deleted, because adopting or removing prompt-hardening code is a
   backend-owner decision, not a synchronization side effect.
-- **Non-production project references.** The gate pins the approved project to
-  `wyyuqfdxucjksghsmhry`. Deploying a governed function to a staging project is
-  therefore blocked by step 2 and requires an owner-approved change to
-  `APPROVED_PROJECT_REF` in `scripts/edge-function-manifest-lib.js`.
+- **Non-production project references.** This deploy wrapper is the production
+  path: step 2 asserts the checkout resolves to the **production** environment
+  via `assertExpectedEnvironment('production', …)` in
+  `security/scripts/lib/environment-authority.js`. A staging checkout, an
+  unknown ref, a malformed ref, and a missing `supabase/config.toml` all abort
+  before anything deploys. Deploying a governed function to staging through
+  this wrapper is therefore blocked, and changing that is an owner decision.
+  Note that the *source-parity gate* (`check-edge-function-parity.js`) is
+  deliberately environment-neutral and passes on either environment — it
+  certifies artifact identity, not deploy targets. See
+  `docs/release/ENVIRONMENT_AUTHORITY.md` and defect DEF-REL-006.
 - **Runtime verification.** The gate compares repository source. It does not and
   cannot confirm what is currently running in production; that comparison was
   performed once, read-only, during Phase 2A.

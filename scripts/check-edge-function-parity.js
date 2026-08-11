@@ -16,8 +16,11 @@
  *   - a file moved between the bundle set and the non-deployed tree
  *   - a required local module cannot be resolved from a function entry point
  *   - the aggregate bundle or tree hash differs
- *   - `supabase/config.toml` is missing, or its project_id is not the approved
- *     production reference
+ *   - `supabase/config.toml` is missing, or its project_id is not a known
+ *     K Scan environment (this gate proves the checkout HAS an environment
+ *     identity; it does not require a particular one — the artifact inventory
+ *     is environment-neutral, and choosing a deploy target is enforced at
+ *     deploy time by scripts/deploy-edge-functions.js)
  *   - the manifest is stale with respect to the working tree
  *
  * Usage:
@@ -36,11 +39,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const {
-  APPROVED_PROJECT_REF,
   CONFIG_RELATIVE_PATH,
   FUNCTIONS_ROOT,
   buildParity,
-  readProjectRef,
+  resolveCheckoutEnvironment,
 } = require('./edge-function-manifest-lib.js');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -70,23 +72,35 @@ function verifyParity() {
     return [`${MANIFEST_RELATIVE_PATH} has no usable "parity" section.`];
   }
 
-  // Project reference: a deploy from a checkout linked elsewhere must not pass.
-  const projectRef = readProjectRef(REPO_ROOT);
-  if (projectRef === null) {
-    failures.push(
-      `${CONFIG_RELATIVE_PATH.split(path.sep).join('/')} is missing — this checkout cannot prove ` +
-        'which Supabase project a deploy would reach.',
-    );
-  } else if (projectRef !== expected.approvedProjectRef) {
-    failures.push(
-      `Project reference mismatch: config.toml declares "${projectRef}", ` +
-        `manifest approves "${expected.approvedProjectRef}".`,
-    );
+  // Environment identity: this checkout must be able to PROVE which Supabase
+  // project it targets. It is not required to be any particular one — the
+  // artifact inventory below is environment-neutral, and this manifest is
+  // committed identically on branches that legitimately target staging and on
+  // branches that legitimately target production. Requiring a single ref here
+  // is what made this gate fail on the staging line for a non-drift reason.
+  //
+  // Choosing an environment is a deploy-time decision, enforced by
+  // scripts/deploy-edge-functions.js. Proving one is a parity-time
+  // precondition, enforced here, and it fails closed.
+  const checkout = resolveCheckoutEnvironment(REPO_ROOT);
+  if (!checkout.ok) {
+    const configPath = CONFIG_RELATIVE_PATH.split(path.sep).join('/');
+    if (checkout.code === 'MISSING_ENVIRONMENT_IDENTITY') {
+      failures.push(
+        `${configPath} is missing — this checkout cannot prove which Supabase project a deploy would reach.`,
+      );
+    } else {
+      failures.push(
+        `${configPath} declares project "${checkout.ref}", which is not a known K Scan environment ` +
+          `(${checkout.code}). Refusing to certify parity for an unrecognized project.`,
+      );
+    }
   }
-  if (expected.approvedProjectRef !== APPROVED_PROJECT_REF) {
+
+  if (expected.environmentScope !== 'ENVIRONMENT_NEUTRAL') {
     failures.push(
-      `Manifest approves project "${expected.approvedProjectRef}" but the gate is built for ` +
-        `"${APPROVED_PROJECT_REF}".`,
+      `${MANIFEST_RELATIVE_PATH} declares environmentScope "${expected.environmentScope}" — ` +
+        'this gate only certifies an environment-neutral artifact inventory.',
     );
   }
 
@@ -222,9 +236,11 @@ function main() {
   }
 
   const manifest = JSON.parse(fs.readFileSync(MANIFEST_ABSOLUTE_PATH, 'utf8'));
+  const checkout = resolveCheckoutEnvironment(REPO_ROOT);
   console.log('EDGE FUNCTION PARITY: PASS');
   console.log(`  manifest version : ${manifest.parity.manifestVersion}`);
-  console.log(`  project ref      : ${manifest.parity.approvedProjectRef}`);
+  console.log(`  artifact scope   : ${manifest.parity.environmentScope}`);
+  console.log(`  checkout targets : ${checkout.environment} (${checkout.ref})`);
   for (const fn of manifest.parity.functions) {
     console.log(
       `  ${fn.name.padEnd(20)} bundle ${String(fn.bundleFileCount).padStart(3)} files  ${fn.bundleHash.slice(0, 16)}…`,

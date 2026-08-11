@@ -1,0 +1,523 @@
+{
+  "schemaVersion": 1,
+  "description": "Snapshot of supabase/migrations/*.sql present on origin/staging/production-parity at Phase 1 discovery (2026-08-11), SHA 7d7c73bd4065ad9a25349e42f347418117d91867. Used by classify-migration-risk.js to distinguish an UNCLASSIFIED_HISTORICAL migration (grandfathered, non-blocking) from an UNCLASSIFIED_NEW migration (blocks manifest freeze until classified in migration-risk-classifications.json).",
+  "baselineSourceSha": "7d7c73bd4065ad9a25349e42f347418117d91867",
+  "count": 103,
+  "migrations": [
+    {
+      "file": "supabase/migrations/202605122359_profiles_base.sql",
+      "version": "202605122359",
+      "name": "profiles_base"
+    },
+    {
+      "file": "supabase/migrations/202605130000_profiles_privacy_status.sql",
+      "version": "202605130000",
+      "name": "profiles_privacy_status"
+    },
+    {
+      "file": "supabase/migrations/202605130001_privacy_settings.sql",
+      "version": "202605130001",
+      "name": "privacy_settings"
+    },
+    {
+      "file": "supabase/migrations/202605130002_privacy_settings_schema_parity.sql",
+      "version": "202605130002",
+      "name": "privacy_settings_schema_parity"
+    },
+    {
+      "file": "supabase/migrations/202605130003_deletion_requests.sql",
+      "version": "202605130003",
+      "name": "deletion_requests"
+    },
+    {
+      "file": "supabase/migrations/202605130004_privacy_requests_extensible.sql",
+      "version": "202605130004",
+      "name": "privacy_requests_extensible"
+    },
+    {
+      "file": "supabase/migrations/202605160001_deletion_requests_client_insert.sql",
+      "version": "202605160001",
+      "name": "deletion_requests_client_insert"
+    },
+    {
+      "file": "supabase/migrations/202605200001_persistent_style_objects.sql",
+      "version": "202605200001",
+      "name": "persistent_style_objects"
+    },
+    {
+      "file": "supabase/migrations/202605200002_style_library_images_storage.sql",
+      "version": "202605200002",
+      "name": "style_library_images_storage"
+    },
+    {
+      "file": "supabase/migrations/202605230001_app_config_feature_freeze.sql",
+      "version": "202605230001",
+      "name": "app_config_feature_freeze"
+    },
+    {
+      "file": "supabase/migrations/202605240001_room_shares_public_preview.sql",
+      "version": "202605240001",
+      "name": "room_shares_public_preview"
+    },
+    {
+      "file": "supabase/migrations/202605240002_fix_public_room_preview_malformed_uuid.sql",
+      "version": "202605240002",
+      "name": "fix_public_room_preview_malformed_uuid"
+    },
+    {
+      "file": "supabase/migrations/202605240003_public_room_preview_image_storage_metadata.sql",
+      "version": "202605240003",
+      "name": "public_room_preview_image_storage_metadata"
+    },
+    {
+      "file": "supabase/migrations/202605240004_public_room_preview_storage_paths.sql",
+      "version": "202605240004",
+      "name": "public_room_preview_storage_paths"
+    },
+    {
+      "file": "supabase/migrations/202606030001_add_room_note_to_dressing_rooms.sql",
+      "version": "202606030001",
+      "name": "add_room_note_to_dressing_rooms"
+    },
+    {
+      "file": "supabase/migrations/202606050001_dressing_room_item_reactions.sql",
+      "version": "202606050001",
+      "name": "dressing_room_item_reactions"
+    },
+    {
+      "file": "supabase/migrations/202606050002_public_room_preview_item_ids.sql",
+      "version": "202606050002",
+      "name": "public_room_preview_item_ids"
+    },
+    {
+      "file": "supabase/migrations/202606060001_replace_fire_with_thumbs_down_reaction.sql",
+      "version": "202606060001",
+      "name": "replace_fire_with_thumbs_down_reaction"
+    },
+    {
+      "file": "supabase/migrations/202606070001_style_chat.sql",
+      "version": "202606070001",
+      "name": "style_chat"
+    },
+    {
+      "file": "supabase/migrations/202606070002_style_chat_usage_rpc.sql",
+      "version": "202606070002",
+      "name": "style_chat_usage_rpc"
+    },
+    {
+      "file": "supabase/migrations/202606070003_style_memory_hardening.sql",
+      "version": "202606070003",
+      "name": "style_memory_hardening"
+    },
+    {
+      "file": "supabase/migrations/202606070004_fix_upsert_style_memory_event_on_conflict.sql",
+      "version": "202606070004",
+      "name": "fix_upsert_style_memory_event_on_conflict"
+    },
+    {
+      "file": "supabase/migrations/202606070005_stylechat_daily_usage.sql",
+      "version": "202606070005",
+      "name": "stylechat_daily_usage"
+    },
+    {
+      "file": "supabase/migrations/202606070006_fix_stylechat_daily_usage_rpc_ambiguity.sql",
+      "version": "202606070006",
+      "name": "fix_stylechat_daily_usage_rpc_ambiguity"
+    },
+    {
+      "file": "supabase/migrations/202606070007_align_public_room_cover_priority.sql",
+      "version": "202606070007",
+      "name": "align_public_room_cover_priority"
+    },
+    {
+      "file": "supabase/migrations/20260607222310_inspiration_uploads.sql",
+      "version": "20260607222310",
+      "name": "inspiration_uploads"
+    },
+    {
+      "file": "supabase/migrations/202606090001_style_chat_burst_usage.sql",
+      "version": "202606090001",
+      "name": "style_chat_burst_usage"
+    },
+    {
+      "file": "supabase/migrations/202606110001_dressing_room_messages.sql",
+      "version": "202606110001",
+      "name": "dressing_room_messages"
+    },
+    {
+      "file": "supabase/migrations/20260611223807_fix_room_messages_authenticated_grants.sql",
+      "version": "20260611223807",
+      "name": "fix_room_messages_authenticated_grants"
+    },
+    {
+      "file": "supabase/migrations/20260617000001_create_legal_acceptances.sql",
+      "version": "20260617000001",
+      "name": "create_legal_acceptances"
+    },
+    {
+      "file": "supabase/migrations/20260617215307_create_saved_scans.sql",
+      "version": "20260617215307",
+      "name": "create_saved_scans"
+    },
+    {
+      "file": "supabase/migrations/202606180001_fix_staging_grants_saved_scans_soft_delete.sql",
+      "version": "202606180001",
+      "name": "fix_staging_grants_saved_scans_soft_delete"
+    },
+    {
+      "file": "supabase/migrations/202606180002_fix_saved_scans_soft_delete_select_policy.sql",
+      "version": "202606180002",
+      "name": "fix_saved_scans_soft_delete_select_policy"
+    },
+    {
+      "file": "supabase/migrations/202606180003_fix_style_chat_messages_session_rls.sql",
+      "version": "202606180003",
+      "name": "fix_style_chat_messages_session_rls"
+    },
+    {
+      "file": "supabase/migrations/20260618132214_create_waitlist_signups_main_backend.sql",
+      "version": "20260618132214",
+      "name": "create_waitlist_signups_main_backend"
+    },
+    {
+      "file": "supabase/migrations/202606240001_dressing_room_participants_shared_messaging.sql",
+      "version": "202606240001",
+      "name": "dressing_room_participants_shared_messaging"
+    },
+    {
+      "file": "supabase/migrations/202606240002_dressing_room_item_reactions_participant_rls.sql",
+      "version": "202606240002",
+      "name": "dressing_room_item_reactions_participant_rls"
+    },
+    {
+      "file": "supabase/migrations/202606290001_product_catalog.sql",
+      "version": "202606290001",
+      "name": "product_catalog"
+    },
+    {
+      "file": "supabase/migrations/20260704175544_free_tier_utility_tables.sql",
+      "version": "20260704175544",
+      "name": "free_tier_utility_tables"
+    },
+    {
+      "file": "supabase/migrations/20260705000001_fix_inspiration_closet_delete_and_room_link.sql",
+      "version": "20260705000001",
+      "name": "fix_inspiration_closet_delete_and_room_link"
+    },
+    {
+      "file": "supabase/migrations/20260707000001_scan_identify_daily_usage.sql",
+      "version": "20260707000001",
+      "name": "scan_identify_daily_usage"
+    },
+    {
+      "file": "supabase/migrations/20260708090847_content_reports.sql",
+      "version": "20260708090847",
+      "name": "content_reports"
+    },
+    {
+      "file": "supabase/migrations/20260708140542_increase_room_share_redemptions_to_10_for_testing.sql",
+      "version": "20260708140542",
+      "name": "increase_room_share_redemptions_to_10_for_testing"
+    },
+    {
+      "file": "supabase/migrations/20260709130346_android_backend_runtime_fixes.sql",
+      "version": "20260709130346",
+      "name": "android_backend_runtime_fixes"
+    },
+    {
+      "file": "supabase/migrations/20260710000001_room_share_redemption_contract_remediation.sql",
+      "version": "20260710000001",
+      "name": "room_share_redemption_contract_remediation"
+    },
+    {
+      "file": "supabase/migrations/20260711000001_ai_stylist_looks_extension.sql",
+      "version": "20260711000001",
+      "name": "ai_stylist_looks_extension"
+    },
+    {
+      "file": "supabase/migrations/20260711000002_outfit_decision_rooms.sql",
+      "version": "20260711000002",
+      "name": "outfit_decision_rooms"
+    },
+    {
+      "file": "supabase/migrations/20260711000003_style_outfit_usage.sql",
+      "version": "20260711000003",
+      "name": "style_outfit_usage"
+    },
+    {
+      "file": "supabase/migrations/20260711195508_restore_service_role_app_table_grants.sql",
+      "version": "20260711195508",
+      "name": "restore_service_role_app_table_grants"
+    },
+    {
+      "file": "supabase/migrations/20260712000001_saved_scan_media_backing.sql",
+      "version": "20260712000001",
+      "name": "saved_scan_media_backing"
+    },
+    {
+      "file": "supabase/migrations/20260712010000_audit_hardening_ai_stylist_stylechat.sql",
+      "version": "20260712010000",
+      "name": "audit_hardening_ai_stylist_stylechat"
+    },
+    {
+      "file": "supabase/migrations/20260712020000_harden_app_role_privileges.sql",
+      "version": "20260712020000",
+      "name": "harden_app_role_privileges"
+    },
+    {
+      "file": "supabase/migrations/20260713000001_user_stylist_preferences.sql",
+      "version": "20260713000001",
+      "name": "user_stylist_preferences"
+    },
+    {
+      "file": "supabase/migrations/20260714000001_user_stylist_preferences_rls_grants.sql",
+      "version": "20260714000001",
+      "name": "user_stylist_preferences_rls_grants"
+    },
+    {
+      "file": "supabase/migrations/20260714000002_app_config_read_grants.sql",
+      "version": "20260714000002",
+      "name": "app_config_read_grants"
+    },
+    {
+      "file": "supabase/migrations/20260714000003_add_user_stylist_preferences_avatar_allowlist.sql",
+      "version": "20260714000003",
+      "name": "add_user_stylist_preferences_avatar_allowlist"
+    },
+    {
+      "file": "supabase/migrations/20260715000001_expand_stylist_portrait_avatar_allowlist.sql",
+      "version": "20260715000001",
+      "name": "expand_stylist_portrait_avatar_allowlist"
+    },
+    {
+      "file": "supabase/migrations/20260716000001_shared_room_memberships.sql",
+      "version": "20260716000001",
+      "name": "shared_room_memberships"
+    },
+    {
+      "file": "supabase/migrations/20260717201524_20260716035943_add_purchase_options_to_saved_scans.sql",
+      "version": "20260717201524",
+      "name": "20260716035943_add_purchase_options_to_saved_scans"
+    },
+    {
+      "file": "supabase/migrations/20260718151651_include_inspiration_uploads_in_shared_room_preview.sql",
+      "version": "20260718151651",
+      "name": "include_inspiration_uploads_in_shared_room_preview"
+    },
+    {
+      "file": "supabase/migrations/202607200001_elise_generation_quota_idempotency.sql",
+      "version": "202607200001",
+      "name": "elise_generation_quota_idempotency"
+    },
+    {
+      "file": "supabase/migrations/20260720115423_scan_commerce_events.sql",
+      "version": "20260720115423",
+      "name": "scan_commerce_events"
+    },
+    {
+      "file": "supabase/migrations/202607210001_elise_generation_resilience_e2.sql",
+      "version": "202607210001",
+      "name": "elise_generation_resilience_e2"
+    },
+    {
+      "file": "supabase/migrations/20260721090920_fix_elise_quota_after_generation_reservation.sql",
+      "version": "20260721090920",
+      "name": "fix_elise_quota_after_generation_reservation"
+    },
+    {
+      "file": "supabase/migrations/20260721201218_dr3_collaborative_interactions.sql",
+      "version": "20260721201218",
+      "name": "dr3_collaborative_interactions"
+    },
+    {
+      "file": "supabase/migrations/20260721201347_dr4_collab_idempotency_room_scope.sql",
+      "version": "20260721201347",
+      "name": "dr4_collab_idempotency_room_scope"
+    },
+    {
+      "file": "supabase/migrations/20260722004639_stylechat_request_quota_events.sql",
+      "version": "20260722004639",
+      "name": "stylechat_request_quota_events"
+    },
+    {
+      "file": "supabase/migrations/20260722022830_lock_down_stylechat_quota_refunds.sql",
+      "version": "20260722022830",
+      "name": "lock_down_stylechat_quota_refunds"
+    },
+    {
+      "file": "supabase/migrations/20260722024920_fix_stylechat_quota_rpc_ambiguity.sql",
+      "version": "20260722024920",
+      "name": "fix_stylechat_quota_rpc_ambiguity"
+    },
+    {
+      "file": "supabase/migrations/20260722030304_create_llm_routing_events.sql",
+      "version": "20260722030304",
+      "name": "create_llm_routing_events"
+    },
+    {
+      "file": "supabase/migrations/20260722031812_limit_llm_routing_event_privileges.sql",
+      "version": "20260722031812",
+      "name": "limit_llm_routing_event_privileges"
+    },
+    {
+      "file": "supabase/migrations/20260722191013_account_deletion_lifecycle.sql",
+      "version": "20260722191013",
+      "name": "account_deletion_lifecycle"
+    },
+    {
+      "file": "supabase/migrations/20260722201910_waitlist_email_delivery_state.sql",
+      "version": "20260722201910",
+      "name": "waitlist_email_delivery_state"
+    },
+    {
+      "file": "supabase/migrations/20260723021145_account_deletion_security_hardening.sql",
+      "version": "20260723021145",
+      "name": "account_deletion_security_hardening"
+    },
+    {
+      "file": "supabase/migrations/20260723021515_reconcile_account_deletion_subsystem_to_production.sql",
+      "version": "20260723021515",
+      "name": "reconcile_account_deletion_subsystem_to_production"
+    },
+    {
+      "file": "supabase/migrations/20260723021635_account_deletion_device_sessions_and_revoke.sql",
+      "version": "20260723021635",
+      "name": "account_deletion_device_sessions_and_revoke"
+    },
+    {
+      "file": "supabase/migrations/20260723021735_account_deletion_claim_retry_peek_v2.sql",
+      "version": "20260723021735",
+      "name": "account_deletion_claim_retry_peek_v2"
+    },
+    {
+      "file": "supabase/migrations/20260723040000_account_deletion_crash_recovery.sql",
+      "version": "20260723040000",
+      "name": "account_deletion_crash_recovery"
+    },
+    {
+      "file": "supabase/migrations/20260723050000_account_deletion_rls_active_account.sql",
+      "version": "20260723050000",
+      "name": "account_deletion_rls_active_account"
+    },
+    {
+      "file": "supabase/migrations/20260723060000_deletion_ledger_pii_sanitizer.sql",
+      "version": "20260723060000",
+      "name": "deletion_ledger_pii_sanitizer"
+    },
+    {
+      "file": "supabase/migrations/20260723070000_profiles_backfill_and_active_account_hardening.sql",
+      "version": "20260723070000",
+      "name": "profiles_backfill_and_active_account_hardening"
+    },
+    {
+      "file": "supabase/migrations/20260723132813_harden_deletion_trigger_function_grants.sql",
+      "version": "20260723132813",
+      "name": "harden_deletion_trigger_function_grants"
+    },
+    {
+      "file": "supabase/migrations/20260724220000_shared_room_recipient_read_policies.sql",
+      "version": "20260724220000",
+      "name": "shared_room_recipient_read_policies"
+    },
+    {
+      "file": "supabase/migrations/20260724221500_shared_room_memberships_select_grant.sql",
+      "version": "20260724221500",
+      "name": "shared_room_memberships_select_grant"
+    },
+    {
+      "file": "supabase/migrations/20260803020000_provider_request_security.sql",
+      "version": "20260803020000",
+      "name": "provider_request_security"
+    },
+    {
+      "file": "supabase/migrations/20260803020100_provider_request_security_revoke_anon.sql",
+      "version": "20260803020100",
+      "name": "provider_request_security_revoke_anon"
+    },
+    {
+      "file": "supabase/migrations/20260803020200_provider_request_security_fix_trigger_search_path.sql",
+      "version": "20260803020200",
+      "name": "provider_request_security_fix_trigger_search_path"
+    },
+    {
+      "file": "supabase/migrations/20260803160206_provider_request_ttl_tuning.sql",
+      "version": "20260803160206",
+      "name": "provider_request_ttl_tuning"
+    },
+    {
+      "file": "supabase/migrations/20260803214145_harden_public_rpc_execution_grants.sql",
+      "version": "20260803214145",
+      "name": "harden_public_rpc_execution_grants"
+    },
+    {
+      "file": "supabase/migrations/20260803214253_harden_public_rpc_execution_grants_trigger_cleanup.sql",
+      "version": "20260803214253",
+      "name": "harden_public_rpc_execution_grants_trigger_cleanup"
+    },
+    {
+      "file": "supabase/migrations/20260803220000_image_ingestion_quarantine_storage.sql",
+      "version": "20260803220000",
+      "name": "image_ingestion_quarantine_storage"
+    },
+    {
+      "file": "supabase/migrations/20260803220100_image_ingestion_clean_storage.sql",
+      "version": "20260803220100",
+      "name": "image_ingestion_clean_storage"
+    },
+    {
+      "file": "supabase/migrations/20260803220200_image_scan_verdicts.sql",
+      "version": "20260803220200",
+      "name": "image_scan_verdicts"
+    },
+    {
+      "file": "supabase/migrations/20260804090000_edge_function_errors.sql",
+      "version": "20260804090000",
+      "name": "edge_function_errors"
+    },
+    {
+      "file": "supabase/migrations/20260804101903_legal_acceptances.sql",
+      "version": "20260804101903",
+      "name": "legal_acceptances"
+    },
+    {
+      "file": "supabase/migrations/20260805120000_reconcile_deletion_requests_to_production_columns.sql",
+      "version": "20260805120000",
+      "name": "reconcile_deletion_requests_to_production_columns"
+    },
+    {
+      "file": "supabase/migrations/20260805121000_legal_documents_bucket_parity.sql",
+      "version": "20260805121000",
+      "name": "legal_documents_bucket_parity"
+    },
+    {
+      "file": "supabase/migrations/20260805130000_production_live_derived_can_react_to_dressing_room_item.sql",
+      "version": "20260805130000",
+      "name": "production_live_derived_can_react_to_dressing_room_item"
+    },
+    {
+      "file": "supabase/migrations/20260806153233_dressing_room_user_blocking.sql",
+      "version": "20260806153233",
+      "name": "dressing_room_user_blocking"
+    },
+    {
+      "file": "supabase/migrations/20260808115552_harden_trigger_function_search_path.sql",
+      "version": "20260808115552",
+      "name": "harden_trigger_function_search_path"
+    },
+    {
+      "file": "supabase/migrations/20260808115735_enforce_rpc_privilege_boundary.sql",
+      "version": "20260808115735",
+      "name": "enforce_rpc_privilege_boundary"
+    },
+    {
+      "file": "supabase/migrations/20260808120214_revoke_public_execute_on_saved_scans_trigger.sql",
+      "version": "20260808120214",
+      "name": "revoke_public_execute_on_saved_scans_trigger"
+    },
+    {
+      "file": "supabase/migrations/20260808121216_privacy_request_rate_limits.sql",
+      "version": "20260808121216",
+      "name": "privacy_request_rate_limits"
+    }
+  ]
+}

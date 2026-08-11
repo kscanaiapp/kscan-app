@@ -1,12 +1,19 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-01T16:13:17.420Z",
-    "generatedFromGitSha": "4d6b74550122e29957687476ff809b81cd63ed0d"
+    "generatedAtUtc": "2026-08-11T23:30:52.896Z",
+    "generatedFromGitSha": "b50cb88a4f990a1f5fa78ae9355f89fcd3539c6b"
   },
   "parity": {
-    "manifestVersion": "edge-function-manifest-v1",
-    "approvedProjectRef": "wyyuqfdxucjksghsmhry",
+    "manifestVersion": "edge-function-manifest-v2",
+    "environmentScope": "ENVIRONMENT_NEUTRAL",
+    "deployAuthority": {
+      "model": "ENVIRONMENT_SUPPLIED_AND_VALIDATED_SEPARATELY",
+      "authoritativeSource": "supabase/config.toml project_id, resolved through security/scripts/lib/environment-authority.js",
+      "enforcedBy": "scripts/deploy-edge-functions.js",
+      "legacyV1ApprovedProjectRef": "wyyuqfdxucjksghsmhry",
+      "legacyV1Note": "Manifest v1 asserted this production ref as the approved deploy target. It is preserved as provenance only; this manifest is environment-neutral and no longer compares it against the checkout."
+    },
     "expectedFunctions": [
       "scan-identify",
       "style-outfit-generate",

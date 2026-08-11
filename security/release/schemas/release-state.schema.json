@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "kscan-release-state-transition-v1",
+  "title": "K Scan AI backend release state transition record",
+  "description": "One entry in a release's append-only transition history. Produced by security/release/release-state-machine.js#applyTransition. Never contains secret values or user data.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["releaseId", "from", "to", "actor", "irreversible", "timestamp"],
+  "properties": {
+    "releaseId": { "type": "string", "minLength": 1 },
+    "from": {
+      "type": "string",
+      "enum": [
+        "DRAFT", "FROZEN", "STAGING_READY", "STAGING_DEPLOYING", "STAGING_DEPLOYED", "STAGING_VERIFIED",
+        "AWAITING_PRODUCTION_APPROVAL", "PRODUCTION_DEPLOYING", "PRODUCTION_VERIFYING", "PRODUCTION_VERIFIED", "CLOSED",
+        "BLOCKED", "STAGING_FAILED", "PRODUCTION_FAILED", "ROLLBACK_REQUIRED", "ROLLBACK_IN_PROGRESS", "ROLLED_BACK",
+        "FORWARD_FIX_REQUIRED", "RECOVERY_REQUIRED"
+      ]
+    },
+    "to": { "$ref": "#/properties/from" },
+    "actor": { "type": "string", "enum": ["AUTOMATION", "AUTHORIZED_AGENT", "OWNER"] },
+    "actorId": { "type": ["string", "null"], "description": "Non-secret identifier only (username/handle). Never a credential." },
+    "reason": { "type": ["string", "null"] },
+    "irreversible": { "type": "boolean" },
+    "timestamp": { "type": "string", "format": "date-time" }
+  }
+}

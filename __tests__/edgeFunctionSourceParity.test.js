@@ -27,10 +27,13 @@ const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
 
 const {
-  APPROVED_PROJECT_REF,
+  LEGACY_V1_APPROVED_PROJECT_REF,
+  PRODUCTION_REF,
+  STAGING_REF,
   GOVERNED_FUNCTIONS,
   buildParity,
   resolveBundle,
+  resolveCheckoutEnvironment,
 } = require('../scripts/edge-function-manifest-lib.js');
 
 const REPO_ROOT = path.join(__dirname, '..');
@@ -50,13 +53,24 @@ function runNode(repoRoot, scriptRelativePath, args = []) {
   };
 }
 
+/** Rewrites a fixture's `supabase/config.toml` project_id to an arbitrary ref. */
+function setFixtureProjectRef(root, projectRef) {
+  const configPath = path.join(root, 'supabase', 'config.toml');
+  const current = fs.readFileSync(configPath, 'utf8');
+  fs.writeFileSync(configPath, current.replace(/^(\s*project_id\s*=\s*)["'][^"']+["']/m, `$1"${projectRef}"`));
+  return configPath;
+}
+
 /**
  * Materializes a self-contained throwaway repository containing only what the
  * gate reads. Because the scripts resolve their repo root from their own
  * location, copying them in is what redirects the gate at the fixture — no
  * environment override exists, so there is no bypass for a real deploy.
+ *
+ * `environment` repoints the fixture's config.toml at a given project ref;
+ * omit it to inherit whatever this checkout declares.
  */
-function makeFixtureRepo(t, { gitInit = false } = {}) {
+function makeFixtureRepo(t, { gitInit = false, environment = null } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kscan-edge-parity-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 
@@ -70,6 +84,15 @@ function makeFixtureRepo(t, { gitInit = false } = {}) {
     fs.copyFileSync(path.join(REPO_ROOT, 'scripts', script), path.join(root, 'scripts', script));
   }
 
+  // The gate resolves project ref -> environment through the shared authority
+  // module rather than carrying its own copy of the mapping, so the fixture
+  // needs it too.
+  fs.mkdirSync(path.join(root, 'security', 'scripts', 'lib'), { recursive: true });
+  fs.copyFileSync(
+    path.join(REPO_ROOT, 'security', 'scripts', 'lib', 'environment-authority.js'),
+    path.join(root, 'security', 'scripts', 'lib', 'environment-authority.js'),
+  );
+
   fs.mkdirSync(path.join(root, 'config'), { recursive: true });
   fs.copyFileSync(MANIFEST_PATH, path.join(root, 'config', 'edge-function-manifest.json'));
 
@@ -78,6 +101,10 @@ function makeFixtureRepo(t, { gitInit = false } = {}) {
     path.join(REPO_ROOT, 'supabase', 'config.toml'),
     path.join(root, 'supabase', 'config.toml'),
   );
+
+  // Repoint the fixture at a specific environment when the test is about
+  // deploy-target authority rather than source drift.
+  if (environment !== null) setFixtureProjectRef(root, environment);
   for (const dir of [...GOVERNED_FUNCTIONS, '_shared']) {
     fs.cpSync(
       path.join(REPO_ROOT, 'supabase', 'functions', dir),
@@ -116,7 +143,14 @@ test('committed manifest governs every governed function and the approved projec
     'style-outfit-generate',
     'stylechat-generate',
   ]);
-  assert.equal(manifest.parity.approvedProjectRef, APPROVED_PROJECT_REF);
+  // The artifact inventory is environment-neutral: it must NOT name a project.
+  // Manifest v1 did, which made this gate assert a production deploy target on
+  // every branch that committed it — including staging. See DEF-REL-006.
+  assert.equal(manifest.parity.environmentScope, 'ENVIRONMENT_NEUTRAL');
+  assert.equal(manifest.parity.approvedProjectRef, undefined,
+    'a project ref must not be identity material in an environment-neutral manifest');
+  assert.equal(manifest.parity.deployAuthority.legacyV1ApprovedProjectRef, LEGACY_V1_APPROVED_PROJECT_REF,
+    'the v1 production ref is preserved as provenance, not deleted');
 
   for (const fn of manifest.parity.functions) {
     assert.ok(fn.bundleFileCount > 0, `${fn.name} must resolve a non-empty deployable bundle`);
@@ -236,17 +270,66 @@ test('drift: an extra file in a governed function directory fails the gate', (t)
   assert.match(drifted.output, /unexpected file not in manifest/);
 });
 
-test('drift: a non-approved project reference fails the gate', (t) => {
+// ── Environment authority (DEF-REL-006) ──────────────────────────────────────────
+//
+// Source parity is environment-NEUTRAL: the same governed source legitimately
+// deploys to staging and to production, and the same manifest is committed on
+// both lines. So the gate proves the checkout HAS a known environment identity;
+// it does not demand a particular one. Choosing a deploy target is a separate,
+// deploy-time decision (see the deploy-guard tests below).
+
+test('authority: a staging checkout passes source parity', (t) => {
+  const root = makeFixtureRepo(t, { environment: STAGING_REF });
+  const result = runNode(root, CHECKER);
+  assert.equal(result.status, 0, result.output);
+  assert.match(result.output, /EDGE FUNCTION PARITY: PASS/);
+  assert.match(result.output, /checkout targets : staging/);
+});
+
+test('authority: a production checkout passes source parity', (t) => {
+  const root = makeFixtureRepo(t, { environment: PRODUCTION_REF });
+  const result = runNode(root, CHECKER);
+  assert.equal(result.status, 0, result.output);
+  assert.match(result.output, /EDGE FUNCTION PARITY: PASS/);
+  assert.match(result.output, /checkout targets : production/);
+});
+
+test('authority: an unknown project reference fails the gate', (t) => {
+  const root = makeFixtureRepo(t, { environment: 'a'.repeat(20) });
+  const drifted = runNode(root, CHECKER);
+  assert.equal(drifted.status, 1);
+  assert.match(drifted.output, /not a known K Scan environment/);
+  assert.match(drifted.output, /UNKNOWN_PROJECT/);
+});
+
+test('authority: a malformed project reference fails the gate', (t) => {
+  const root = makeFixtureRepo(t, { environment: 'not-a-ref' });
+  const drifted = runNode(root, CHECKER);
+  assert.equal(drifted.status, 1);
+  assert.match(drifted.output, /not a known K Scan environment/);
+  assert.match(drifted.output, /MALFORMED_IDENTITY/);
+});
+
+test('authority: resolveCheckoutEnvironment fails closed and never guesses', () => {
+  assert.deepEqual(resolveCheckoutEnvironment(REPO_ROOT), {
+    ok: true, ref: STAGING_REF, environment: 'staging', code: null,
+  });
+  const nowhere = resolveCheckoutEnvironment(path.join(os.tmpdir(), 'kscan-no-such-checkout'));
+  assert.equal(nowhere.ok, false);
+  assert.equal(nowhere.environment, null);
+  assert.equal(nowhere.code, 'MISSING_ENVIRONMENT_IDENTITY');
+});
+
+test('authority: a manifest claiming to be environment-scoped is refused', (t) => {
   const root = makeFixtureRepo(t);
-  const configPath = path.join(root, 'supabase', 'config.toml');
-  fs.writeFileSync(
-    configPath,
-    fs.readFileSync(configPath, 'utf8').replace(APPROVED_PROJECT_REF, 'yzqjvdfgefveprobvvyw'),
-  );
+  const manifestPath = path.join(root, 'config', 'edge-function-manifest.json');
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  manifest.parity.environmentScope = 'PRODUCTION_ONLY';
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
 
   const drifted = runNode(root, CHECKER);
   assert.equal(drifted.status, 1);
-  assert.match(drifted.output, /Project reference mismatch/);
+  assert.match(drifted.output, /only certifies an environment-neutral artifact inventory/);
 });
 
 test('drift: a missing config.toml fails the gate instead of passing by default', (t) => {
@@ -269,8 +352,11 @@ test('staleness: an out-of-date manifest is reported as stale', (t) => {
 
 // ── The approved deployment path ─────────────────────────────────────────────
 
+// scripts/deploy-edge-functions.js is the PRODUCTION deploy path, so its
+// fixtures target production. That is where deploy-target authority is
+// enforced — deliberately not in the environment-neutral parity gate above.
 test('deploy guard: a synchronized tree reaches a dry run and deploys nothing', (t) => {
-  const root = makeFixtureRepo(t, { gitInit: true });
+  const root = makeFixtureRepo(t, { gitInit: true, environment: PRODUCTION_REF });
 
   const dryRun = runNode(root, DEPLOYER);
   assert.equal(dryRun.status, 0, dryRun.output);
@@ -284,7 +370,7 @@ test('deploy guard: a synchronized tree reaches a dry run and deploys nothing', 
 });
 
 test('deploy guard: drift aborts before any deployment step', (t) => {
-  const root = makeFixtureRepo(t, { gitInit: true });
+  const root = makeFixtureRepo(t, { gitInit: true, environment: PRODUCTION_REF });
   fs.appendFileSync(fixturePath(root, 'stylechat-generate', 'index.ts'), '\n// intentional drift\n');
 
   const blocked = runNode(root, DEPLOYER, ['--function', 'stylechat-generate']);
@@ -295,7 +381,7 @@ test('deploy guard: drift aborts before any deployment step', (t) => {
 });
 
 test('deploy guard: uncommitted function source aborts the deploy', (t) => {
-  const root = makeFixtureRepo(t, { gitInit: true });
+  const root = makeFixtureRepo(t, { gitInit: true, environment: PRODUCTION_REF });
   // Regenerate so the manifest matches, leaving only the "uncommitted" problem.
   fs.appendFileSync(fixturePath(root, 'scan-identify', 'index.ts'), '\n// local edit\n');
   assert.equal(runNode(root, GENERATOR).status, 0);
@@ -307,23 +393,48 @@ test('deploy guard: uncommitted function source aborts the deploy', (t) => {
 });
 
 test('deploy guard: refuses functions the manifest does not govern', (t) => {
-  const root = makeFixtureRepo(t, { gitInit: true });
+  const root = makeFixtureRepo(t, { gitInit: true, environment: PRODUCTION_REF });
 
   const blocked = runNode(root, DEPLOYER, ['--function', 'handle-user-deletion']);
   assert.equal(blocked.status, 2);
   assert.match(blocked.output, /Not governed by the parity manifest/);
 });
 
-test('deploy guard: a wrong project reference aborts before deployment', (t) => {
-  const root = makeFixtureRepo(t, { gitInit: true });
-  const configPath = path.join(root, 'supabase', 'config.toml');
-  fs.writeFileSync(
-    configPath,
-    fs.readFileSync(configPath, 'utf8').replace(APPROVED_PROJECT_REF, 'yzqjvdfgefveprobvvyw'),
-  );
+test('deploy guard: a STAGING checkout cannot run the production deploy path', (t) => {
+  // The direction that matters most: staging identity must never be usable as
+  // production identity, even though source parity itself passes on staging.
+  const root = makeFixtureRepo(t, { gitInit: true, environment: STAGING_REF });
+
+  assert.equal(runNode(root, CHECKER).status, 0, 'source parity is environment-neutral and should pass');
 
   const blocked = runNode(root, DEPLOYER);
   assert.equal(blocked.status, 1);
-  assert.match(blocked.output, /ABORTED|not the approved production reference|Project reference mismatch/);
+  assert.match(blocked.output, /does not resolve to the production environment/);
+  assert.match(blocked.output, /ENVIRONMENT_MISMATCH/);
+  assert.match(blocked.output, /Nothing was deployed/);
+  assert.ok(!/Deployment complete/.test(blocked.output));
+});
+
+test('deploy guard: an unknown project reference aborts before deployment', (t) => {
+  const root = makeFixtureRepo(t, { gitInit: true, environment: 'a'.repeat(20) });
+
+  const blocked = runNode(root, DEPLOYER);
+  assert.equal(blocked.status, 1);
+  // Defense in depth: the manifest-currency step runs the generator, which
+  // itself refuses an unprovable environment, so the abort lands one step
+  // before the deploy-target assertion. Either step aborting is correct; what
+  // matters is that the unknown ref is named and nothing deploys.
+  assert.match(blocked.output, /UNKNOWN_PROJECT/);
+  assert.match(blocked.output, /ABORTED/);
+  assert.match(blocked.output, /Nothing was deployed/);
+  assert.ok(!/Deployment complete/.test(blocked.output));
+});
+
+test('deploy guard: a missing config.toml aborts before deployment', (t) => {
+  const root = makeFixtureRepo(t, { gitInit: true, environment: PRODUCTION_REF });
+  fs.rmSync(path.join(root, 'supabase', 'config.toml'));
+
+  const blocked = runNode(root, DEPLOYER);
+  assert.notEqual(blocked.status, 0);
   assert.ok(!/Deployment complete/.test(blocked.output));
 });

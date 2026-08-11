@@ -27,10 +27,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const {
-  APPROVED_PROJECT_REF,
   CONFIG_RELATIVE_PATH,
   buildParity,
-  readProjectRef,
+  resolveCheckoutEnvironment,
   serializeManifest,
 } = require('./edge-function-manifest-lib.js');
 
@@ -65,20 +64,25 @@ function main() {
   const checkOnly = args.has('--check');
   const printOnly = args.has('--print');
 
-  const projectRef = readProjectRef(REPO_ROOT);
-  if (projectRef === null) {
-    console.error(
-      `FAIL  ${CONFIG_RELATIVE_PATH.split(path.sep).join('/')} is missing.\n` +
-        '      Without it a checkout cannot prove which Supabase project a deploy would reach.',
-    );
-    process.exit(2);
-  }
-  if (projectRef !== APPROVED_PROJECT_REF) {
-    console.error(
-      `FAIL  Project reference mismatch.\n` +
-        `      config.toml declares : ${projectRef}\n` +
-        `      approved production  : ${APPROVED_PROJECT_REF}`,
-    );
+  // The manifest is environment-neutral, so it may legitimately be generated
+  // from a staging-targeting or a production-targeting checkout. What is NOT
+  // acceptable is generating from a checkout whose environment cannot be
+  // proven — that would mint an artifact record of unknown origin.
+  const checkout = resolveCheckoutEnvironment(REPO_ROOT);
+  if (!checkout.ok) {
+    const configPath = CONFIG_RELATIVE_PATH.split(path.sep).join('/');
+    if (checkout.code === 'MISSING_ENVIRONMENT_IDENTITY') {
+      console.error(
+        `FAIL  ${configPath} is missing.\n` +
+          '      Without it a checkout cannot prove which Supabase project a deploy would reach.',
+      );
+    } else {
+      console.error(
+        `FAIL  Unknown environment identity.\n` +
+          `      config.toml declares : ${checkout.ref}\n` +
+          `      resolution           : ${checkout.code}`,
+      );
+    }
     process.exit(2);
   }
 
@@ -132,7 +136,8 @@ function main() {
 
   console.log(`Wrote ${MANIFEST_RELATIVE_PATH.split(path.sep).join('/')}`);
   console.log(`  manifest version : ${parity.manifestVersion}`);
-  console.log(`  project ref      : ${parity.approvedProjectRef}`);
+  console.log(`  artifact scope   : ${parity.environmentScope}`);
+  console.log(`  generated from   : ${checkout.environment} checkout (${checkout.ref})`);
   console.log(`  source Git SHA   : ${provenance.generatedFromGitSha}`);
   for (const fn of parity.functions) {
     console.log(`  ${fn.name}`);

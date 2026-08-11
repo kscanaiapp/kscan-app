@@ -37,6 +37,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const { FUNCTIONS_ROOT, readProjectRef } = require('./edge-function-manifest-lib.js');
+const { assertExpectedEnvironment } = require('../security/scripts/lib/environment-authority.js');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const MANIFEST_ABSOLUTE_PATH = path.join(REPO_ROOT, 'config', 'edge-function-manifest.json');
@@ -113,15 +114,23 @@ function main() {
   }
 
   console.log('\n── Step 2/6  project reference ─────────────────────────────────');
+  // This wrapper is the PRODUCTION deploy path, so it asserts the production
+  // environment explicitly rather than trusting a ref recorded in the artifact
+  // manifest. The manifest is environment-neutral; the deploy target is not.
+  //
+  // assertExpectedEnvironment fails closed in every direction: a staging ref, an
+  // unknown ref, a malformed ref and a missing config.toml all abort here.
   const projectRef = readProjectRef(REPO_ROOT);
-  if (projectRef !== manifest.parity.approvedProjectRef) {
+  try {
+    assertExpectedEnvironment('production', projectRef);
+  } catch (error) {
     console.error(
-      `FAIL  config.toml project_id "${projectRef}" is not the approved production reference ` +
-        `"${manifest.parity.approvedProjectRef}".\n\nABORTED  Nothing was deployed.`,
+      `FAIL  config.toml project_id "${projectRef}" does not resolve to the production ` +
+        `environment (${error.code}).\n\nABORTED  Nothing was deployed.`,
     );
     process.exit(1);
   }
-  console.log(`PASS  Target project ${projectRef} matches the approved production reference.`);
+  console.log(`PASS  Target project ${projectRef} resolves to the production environment.`);
 
   console.log('\n── Step 3/6  function tree parity ──────────────────────────────');
   if (!runGate('check-edge-function-parity.js')) {

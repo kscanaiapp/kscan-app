@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "description": "Authoritative migration risk classification registry, keyed by migration NAME (not version - this repo's deploy tool stamps its own apply-time version, so filename timestamp is not a reliable key; see docs/release/PRODUCTION_MIGRATION_RECONCILIATION.md). Populated for future/release-relevant migrations only, per Phase 1 discovery's instruction not to retroactively hand-edit all historical migrations. A migration present in security/release/migration-baseline.json but absent here is UNCLASSIFIED_HISTORICAL (grandfathered, non-blocking). A migration absent from BOTH files is UNCLASSIFIED_NEW and blocks manifest freeze until an entry is added here. Explicit human/agent classification here is authoritative over security/release/classify-migration-risk.js's static pattern detector, which is advisory only.",
+  "riskClasses": ["EXPANSION_SAFE", "REVERSIBLE", "DATA_TRANSFORMING", "FORWARD_FIX_ONLY", "DESTRUCTIVE"],
+  "classifiedBy": "phase1-discovery-2026-08-11",
+  "classifications": {
+    "provider_request_security": {
+      "classification": "EXPANSION_SAFE",
+      "rationale": "3 new tables, 4 new SECURITY DEFINER RPCs, seed INSERT. No pre-existing object touched."
+    },
+    "provider_request_security_revoke_anon": {
+      "classification": "REVERSIBLE",
+      "rationale": "Revokes EXECUTE on 4 functions created in the same PR's prior migration. Tightening, not touching any pre-existing object."
+    },
+    "provider_request_security_fix_trigger_search_path": {
+      "classification": "REVERSIBLE",
+      "rationale": "CREATE OR REPLACE FUNCTION adding only `set search_path = public`; no behavior change."
+    },
+    "provider_request_ttl_tuning": {
+      "classification": "REVERSIBLE",
+      "rationale": "Two bounded, row-scoped UPDATEs on a config table (2 rows total). Not unbounded data transformation."
+    },
+    "harden_public_rpc_execution_grants": {
+      "classification": "REVERSIBLE",
+      "rationale": "REVOKE campaign across 9 pre-existing RPCs plus a CREATE OR REPLACE FUNCTION on get_item_reaction_counts adding an authorization predicate. Access-tightening on functions, not schema/data changes; reversible by re-granting or reverting the function body.",
+      "riskDetectorMismatchExpected": true
+    },
+    "harden_public_rpc_execution_grants_trigger_cleanup": {
+      "classification": "REVERSIBLE",
+      "rationale": "Follow-up REVOKE closing a gap the prior migration in the same PR left open on 9 trigger functions."
+    },
+    "image_ingestion_quarantine_storage": {
+      "classification": "EXPANSION_SAFE",
+      "rationale": "New storage bucket + new insert-only policy. No pre-existing bucket/policy touched."
+    },
+    "image_ingestion_clean_storage": {
+      "classification": "EXPANSION_SAFE",
+      "rationale": "New storage bucket + new select-only policy."
+    },
+    "image_scan_verdicts": {
+      "classification": "EXPANSION_SAFE",
+      "rationale": "New table + RLS + REVOKE/GRANT, all scoped to the new table."
+    },
+    "edge_function_errors": {
+      "classification": "EXPANSION_SAFE",
+      "rationale": "New internal-schema table + REVOKE/GRANT, all scoped to the new table."
+    },
+    "legal_acceptances": {
+      "classification": "FORWARD_FIX_ONLY",
+      "rationale": "Explicitly a recovered-migration-source provenance repair (CREATE TABLE IF NOT EXISTS, idempotent DROP POLICY IF EXISTS + recreate), not a new schema change. No down-migration is meaningful for a provenance repair."
+    },
+    "reconcile_deletion_requests_to_production_columns": {
+      "classification": "EXPANSION_SAFE",
+      "rationale": "ALTER TABLE ADD COLUMN IF NOT EXISTS x3, all nullable, no backfill required (author-confirmed safe against the then-2 existing staging rows)."
+    },
+    "legal_documents_bucket_parity": {
+      "classification": "EXPANSION_SAFE",
+      "rationale": "Idempotent storage.buckets upsert (INSERT ... ON CONFLICT DO UPDATE) to match a production parity finding."
+    },
+    "production_live_derived_can_react_to_dressing_room_item": {
+      "classification": "FORWARD_FIX_ONLY",
+      "rationale": "Reproduces a function that already existed live but had no migration source, via verbatim pg_get_functiondef reproduction. Includes REVOKE/GRANT stated to match already-live production grants exactly."
+    },
+    "dressing_room_user_blocking": {
+      "classification": "REVERSIBLE",
+      "rationale": "Highest-risk file in the Phase 1 sample: new table, additive nullable column, CREATE OR REPLACE FUNCTION on 4 pre-existing load-bearing SECURITY DEFINER functions with materially changed bodies, and DROP POLICY + recreate on two populated tables (dressing_rooms, content_reports). Classified REVERSIBLE, not DESTRUCTIVE, because no DDL removes data or columns - but it is the one migration in the sample with a dedicated hand-authored rollback runbook (20260806153233_dressing_room_user_blocking_ROLLBACK.md), and that runbook's own down-steps are labeled data-destructive. Treat this migration's future promotion as requiring the REVERSIBLE class's tested-explicit-recovery gate to be genuinely satisfied, not rubber-stamped.",
+      "reviewFlag": "has a companion rollback doc whose down-path is destructive; recovery-plan testing should exercise that doc, not merely acknowledge it exists"
+    },
+    "harden_trigger_function_search_path": {
+      "classification": "REVERSIBLE",
+      "rationale": "ALTER FUNCTION ... SET search_path on 4 functions. Config-only, no body/signature change."
+    },
+    "enforce_rpc_privilege_boundary": {
+      "classification": "REVERSIBLE",
+      "rationale": "~20 REVOKE EXECUTE statements (tightening only, author's own audit confirms every affected RPC already internally guarded on auth.uid()) plus one GRANT (`grant usage on schema internal to authenticated`) that fixed a real fail-closed regression shipped by the prior migration in this same window. Net effect is access tightening / bug fix, not data or schema change."
+    },
+    "revoke_public_execute_on_saved_scans_trigger": {
+      "classification": "REVERSIBLE",
+      "rationale": "Single REVOKE EXECUTE closing a PUBLIC-role grant. Tightening only."
+    },
+    "privacy_request_rate_limits": {
+      "classification": "EXPANSION_SAFE",
+      "rationale": "New table + RLS + SECURITY DEFINER RPC. Contains one flagged runtime pattern (a probabilistic, table-wide-but-WHERE-bounded DELETE inside a hot request-path RPC) that is not itself destructive DDL but is worth static-detector coverage - see classify-migration-risk.js RISK_PATTERNS.",
+      "reviewFlag": "embedded DELETE inside a client-triggered RPC path; bounded by WHERE + low execution probability, not unqualified"
+    }
+  }
+}

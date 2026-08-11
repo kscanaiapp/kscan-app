@@ -40,16 +40,50 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
+// Single source of truth for project-ref -> environment. This gate must not
+// carry its own copy of the mapping; that duplication is what produced the
+// conflicting-authority defect this module now documents.
+const {
+  PRODUCTION_REF,
+  STAGING_REF,
+  resolveEnvironment,
+} = require('../security/scripts/lib/environment-authority.js');
+
 /** Bumped only when the manifest shape changes in a way consumers must notice. */
-const MANIFEST_VERSION = 'edge-function-manifest-v1';
+const MANIFEST_VERSION = 'edge-function-manifest-v2';
 
 /**
- * The Supabase project the canonical trees are allowed to be deployed to.
- * Recorded from `supabase/config.toml` on the canonical (Android) line and
- * re-asserted by the gate, so a deploy from a checkout linked to a different
- * project reference fails before it can reach an unintended backend.
+ * Historical value of `parity.approvedProjectRef` (manifest v1).
+ *
+ * It was recorded from `supabase/config.toml` on the canonical (Android) line,
+ * where that file declares the PRODUCTION project. That made the v1 manifest
+ * assert a production deploy target — while the same manifest is, by design,
+ * committed byte-identically on every branch, including
+ * `staging/production-parity`, whose `config.toml` correctly declares STAGING.
+ * The gate therefore failed on the staging line for a reason that had nothing
+ * to do with source drift.
+ *
+ * Retained as provenance, not as an assertion: see DEPLOY_AUTHORITY below and
+ * docs/release/ENVIRONMENT_AUTHORITY.md. The production deploy target is still
+ * enforced, but by scripts/deploy-edge-functions.js through the shared
+ * environment authority — not by this environment-neutral artifact manifest.
  */
-const APPROVED_PROJECT_REF = 'wyyuqfdxucjksghsmhry';
+const LEGACY_V1_APPROVED_PROJECT_REF = 'wyyuqfdxucjksghsmhry';
+
+/**
+ * Declares where deploy-target authority actually lives, so a reader of the
+ * manifest cannot mistake the artifact inventory for an environment claim.
+ * Constant across branches, so it does not break cross-branch convergence.
+ */
+const DEPLOY_AUTHORITY = Object.freeze({
+  model: 'ENVIRONMENT_SUPPLIED_AND_VALIDATED_SEPARATELY',
+  authoritativeSource:
+    'supabase/config.toml project_id, resolved through security/scripts/lib/environment-authority.js',
+  enforcedBy: 'scripts/deploy-edge-functions.js',
+  legacyV1ApprovedProjectRef: LEGACY_V1_APPROVED_PROJECT_REF,
+  legacyV1Note:
+    'Manifest v1 asserted this production ref as the approved deploy target. It is preserved as provenance only; this manifest is environment-neutral and no longer compares it against the checkout.',
+});
 
 /**
  * Functions whose source is governed by this gate.
@@ -227,10 +261,36 @@ function buildParity(repoRoot, functionNames = GOVERNED_FUNCTIONS) {
 
   return {
     manifestVersion: MANIFEST_VERSION,
-    approvedProjectRef: APPROVED_PROJECT_REF,
+    // The artifact inventory is identical for every environment: the same
+    // source deploys to staging and to production. Environment identity is
+    // deliberately NOT part of this section.
+    environmentScope: 'ENVIRONMENT_NEUTRAL',
+    deployAuthority: DEPLOY_AUTHORITY,
     expectedFunctions: [...functionNames].sort(),
     functions,
   };
+}
+
+/**
+ * Resolves which environment this checkout targets, from `supabase/config.toml`.
+ *
+ * Fail-closed by construction: a missing config, an unparseable project_id, or
+ * a ref that is not one of the two known projects all resolve to `ok: false`.
+ * There is no default and no fallback — a checkout that cannot prove its
+ * environment is never treated as either one.
+ *
+ * @returns {{ok: boolean, ref: string|null, environment: 'staging'|'production'|null, code: string|null}}
+ */
+function resolveCheckoutEnvironment(repoRoot) {
+  const ref = readProjectRef(repoRoot);
+  if (ref === null) {
+    return { ok: false, ref: null, environment: null, code: 'MISSING_ENVIRONMENT_IDENTITY' };
+  }
+  try {
+    return { ok: true, ref, environment: resolveEnvironment(ref), code: null };
+  } catch (error) {
+    return { ok: false, ref, environment: null, code: error.code || 'UNKNOWN_PROJECT' };
+  }
 }
 
 /** Stable serialization: the gate compares text, so key order must be fixed. */
@@ -239,7 +299,14 @@ function serializeManifest(manifest) {
 }
 
 module.exports = {
-  APPROVED_PROJECT_REF,
+  // `APPROVED_PROJECT_REF` is deliberately NOT exported any more: its name
+  // implied a single canonical environment for every consumer, which is what
+  // let a production deploy-target claim leak into an environment-neutral
+  // artifact gate. Consumers now ask for the environment they mean.
+  DEPLOY_AUTHORITY,
+  LEGACY_V1_APPROVED_PROJECT_REF,
+  PRODUCTION_REF,
+  STAGING_REF,
   CONFIG_RELATIVE_PATH,
   FUNCTIONS_ROOT,
   GOVERNED_FUNCTIONS,
@@ -249,6 +316,7 @@ module.exports = {
   listFilesRecursively,
   readProjectRef,
   resolveBundle,
+  resolveCheckoutEnvironment,
   serializeManifest,
   sha256OfFile,
   toPosix,
