@@ -12,7 +12,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { STYLE_CHAT_COPY } from '../../constants/styleChat';
@@ -56,9 +56,19 @@ import { StyleChatFollowUpBar } from '../../components/style-chat/StyleChatFollo
 import { StyleChatPhotoIntake } from '../../components/style-chat/StyleChatPhotoIntake';
 import { useStyleChatAttachments } from '../../hooks/useStyleChatAttachments';
 import {
+  ELISE_IMAGE_LOOP_COPY,
   resolveActiveItemContext,
   resolveActiveItemFashionContext,
+  resolveStyleTarget,
 } from '../../services/style-chat/eliseImageStylingLoop';
+import {
+  DRESSING_ROOM_ANCHOR_MESSAGES,
+  PRIVATE_DRESSING_ROOM_ROUTE,
+  dressingRoomAnchorParams,
+  isAnchorRefused,
+  preflightDressingRoomAnchor,
+} from '../../services/privateDressingRoomChatHandoff';
+import { createActorRequest } from '../../services/actorContext';
 import {
   getDraftComposerText,
   setDraftComposerText,
@@ -516,6 +526,74 @@ export default function StyleChatSessionScreen() {
     });
   }, [activeItem, chatAttachments]);
 
+  /**
+   * THE NAVIGATION LATCH.
+   *
+   * A ref, not state, and claimed SYNCHRONOUSLY before the first await — the
+   * same discipline the photo-intake picker guard needed. State would not be
+   * committed before a second tap arrived, and a timer would only make the race
+   * narrower rather than closing it. It is released on refusal and deliberately
+   * NOT released on success: the destination now owns the interaction, and the
+   * focus effect below clears it when the user comes back.
+   */
+  const styleHandoffRef = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      styleHandoffRef.current = false;
+    }, []),
+  );
+
+  /**
+   * Style This Item — the conversion point of this loop.
+   *
+   * Build 3 owns styling. This confirms the handoff is entitled to happen and
+   * that the destination will actually honour the anchor, then hands the saved
+   * Closet item to the EXISTING route contract, which creates or reuses the
+   * session, composes through the approved path, persists the active Look and
+   * renders it. No parallel outfit editor, no duplicated item, no new schema.
+   */
+  const openDressingRoomForActiveItem = useCallback(() => {
+    if (styleHandoffRef.current) return;
+    if (!activeItem) return;
+    styleHandoffRef.current = true;
+    const draftId = activeItem.draftId;
+
+    // THE OWNERSHIP BOUNDARY, re-proved against the LIVE drafts rather than
+    // against whatever the chip captured when it rendered. An unsaved candidate
+    // stops here and never reaches the Closet read.
+    const target = resolveStyleTarget(chatAttachments.attachments, draftId);
+    if (!target) {
+      styleHandoffRef.current = false;
+      Alert.alert('Dressing Room', ELISE_IMAGE_LOOP_COPY.ownershipBlockedMessage);
+      return;
+    }
+
+    const actorRequest = createActorRequest();
+    void preflightDressingRoomAnchor({
+      closetItemId: target.closetItemId,
+      actorId: user?.id ?? null,
+      actorRequest,
+    })
+      .then((decision) => {
+        if (isAnchorRefused(decision)) {
+          styleHandoffRef.current = false;
+          Alert.alert('Dressing Room', DRESSING_ROOM_ANCHOR_MESSAGES[decision.reason]);
+          return;
+        }
+        // Marked before the push so the follow-up row has already progressed to
+        // "Open Dressing Room" by the time the user navigates back.
+        chatAttachments.markStyledInDressingRoom(draftId);
+        router.push({
+          pathname: PRIVATE_DRESSING_ROOM_ROUTE,
+          params: dressingRoomAnchorParams(decision.closetItemId),
+        });
+      })
+      .catch(() => {
+        styleHandoffRef.current = false;
+        Alert.alert('Dressing Room', ELISE_IMAGE_LOOP_COPY.handoffFailedMessage);
+      });
+  }, [activeItem, chatAttachments, user?.id]);
+
   /** Stop styling this item. The photo is removed from the composer entirely. */
   const handleClearActiveItem = useCallback(() => {
     if (!activeItem) return;
@@ -620,6 +698,12 @@ export default function StyleChatSessionScreen() {
           handlers={{
             onPrompt: handleFollowUpPrompt,
             onSaveToCloset: handleSaveActiveItemToCloset,
+            // All three reach the same anchored workspace: Build 3's slot editor
+            // is where "change something" already lives, so there is no second
+            // destination and no second editor.
+            onStyleThisItem: openDressingRoomForActiveItem,
+            onOpenDressingRoom: openDressingRoomForActiveItem,
+            onChangeSomething: openDressingRoomForActiveItem,
           }}
           disabled={isSending}
         />

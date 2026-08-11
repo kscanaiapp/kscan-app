@@ -461,6 +461,31 @@ export function useStyleChatAttachments(sessionId: string) {
     [sessionId, applyClosetOutcome],
   );
 
+  /**
+   * Record that this item has been handed off to the private Dressing Room.
+   *
+   * IN-MEMORY AND CLIENT-ONLY, like every other field on the draft. It changes
+   * which follow-up the composer offers next — "Open Dressing Room" rather than
+   * "Style This Item" — and nothing else reads it. It is emphatically NOT a
+   * claim that a Look was saved, and it never participates in the ownership
+   * decision, which stays `closetState === 'saved'` plus a committed item id.
+   *
+   * Update-only: a draft removed between the handoff and this call is not
+   * resurrected.
+   */
+  const markStyledInDressingRoom = useCallback(
+    (draftId: string) => {
+      const live = getDraftAttachments(sessionId).find((entry) => entry.draftId === draftId);
+      if (!live || live.styledInDressingRoom === true) return;
+      updateDraftAttachment(sessionId, {
+        ...live,
+        styledInDressingRoom: true,
+        selection: { ...live.selection, updatedAt: now() },
+      });
+    },
+    [sessionId],
+  );
+
   const setSnapshotSendState = useCallback(
     (drafts: DraftAttachment[], state: 'sending' | 'send_failed' | 'sent') => {
       for (const snapshot of drafts) {
@@ -666,6 +691,7 @@ export function useStyleChatAttachments(sessionId: string) {
     addUnsavedDirectImage,
     applyClosetOutcome,
     saveDirectImageToCloset,
+    markStyledInDressingRoom,
     markSending: (drafts: DraftAttachment[]) => setSnapshotSendState(drafts, 'sending'),
     markSent: (drafts: DraftAttachment[]) => setSnapshotSendState(drafts, 'sent'),
     markSendFailed: (drafts: DraftAttachment[]) => setSnapshotSendState(drafts, 'send_failed'),
