@@ -10,7 +10,7 @@
       },
       {
         "path": "supabase/functions/scan-identify/index.ts",
-        "sha256": "02c96b6da56944615b00bb4a3f1d30f39c5926ba1982c4b5cd17151beca55364"
+        "sha256": "b95bc769690f7b48af2585c7890428c3d18517210156d75f8fa0e433a66d5458"
       },
       {
         "path": "supabase/functions/scan-identify/v2Activation.ts",

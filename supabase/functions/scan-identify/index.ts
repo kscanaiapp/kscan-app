@@ -141,6 +141,27 @@ import {
   applyScannerQualityGate,
   type QualityGateResult,
 } from './scannerQualityGate.ts';
+// ── Phase 7.1 confidence-gated identification recheck ────────────────────────
+import {
+  isIdentificationRecheckEnabled,
+  resolveRecheckTimeoutMs,
+  RECHECK_MAX_OUTPUT_TOKENS,
+} from './identificationRecheckConfig.ts';
+import {
+  evaluateIdentificationGate,
+  isRecheckEligibleMode,
+  type IdentityTriple,
+} from './identificationRecheckGate.ts';
+import {
+  performIdentificationRecheck,
+  type RecheckProvider,
+  type RecheckProviderResult,
+} from './identificationRecheck.ts';
+import { reconcileIdentification } from './identificationRecheckReconcile.ts';
+import {
+  emptyRecheckMetrics,
+  logIdentificationRecheckMetrics,
+} from './identificationRecheckTelemetry.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 /** Appended to vision/text prompts when quality tune is enabled. Response shape unchanged. */
@@ -1502,6 +1523,36 @@ function extractGeminiErrorMeta(raw: string): { code?: number | string; status?:
 interface GeminiResponse {
   candidates?: Array<{ content?: { parts?: Array<{ text?: string }> }; finishReason?: string }>;
   promptFeedback?: { blockReason?: string };
+  /**
+   * Provider accounting. Previously declared nowhere, which is why Phase 6 could
+   * not tell a truncated response from a malformed one and had to infer cost.
+   * `thoughtsTokenCount` is the reasoning spend: billed, never visible in the
+   * text, and drawn from the SAME ceiling as the structured output.
+   */
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+    thoughtsTokenCount?: number;
+    totalTokenCount?: number;
+  };
+}
+
+/** Bounded, null-safe view of provider accounting for telemetry. */
+function extractGeminiUsage(data: GeminiResponse): {
+  inputTokens: number | null;
+  responseTokens: number | null;
+  thinkingTokens: number | null;
+  totalTokens: number | null;
+} {
+  const finite = (v: unknown): number | null =>
+    typeof v === 'number' && Number.isFinite(v) ? v : null;
+  const usage = data.usageMetadata;
+  return {
+    inputTokens: finite(usage?.promptTokenCount),
+    responseTokens: finite(usage?.candidatesTokenCount),
+    thinkingTokens: finite(usage?.thoughtsTokenCount),
+    totalTokens: finite(usage?.totalTokenCount),
+  };
 }
 
 function extractGeminiText(data: GeminiResponse): string {
@@ -2349,6 +2400,14 @@ Deno.serve(async (req) => {
     }
 
     const blockReason = data.promptFeedback?.blockReason;
+    // Primary-call accounting, captured once at the only point where the raw
+    // provider envelope still exists. Recorded whether or not a recheck later
+    // runs, so the recheck's cost is always reported against a real baseline
+    // rather than an assumed one.
+    const primaryFinishReason = data.candidates?.[0]?.finishReason ?? null;
+    const primaryUsage = extractGeminiUsage(data);
+    const primaryLatencyMs = elapsedMs;
+    const primaryAttempts = attempt;
     const text = extractGeminiText(data);
     if (!text) {
       console.warn(
@@ -2767,6 +2826,238 @@ Deno.serve(async (req) => {
       identification ? Object.keys(identification).length : 0,
       elapsedMs,
     );
+
+    // ── Phase 7.1: confidence-gated identification recheck ──────────────────
+    // Sits HERE deliberately: after quality-tune and the intelligence gate have
+    // produced the final first-pass identity, and BEFORE the legacy projection,
+    // the V2 normalization, the commerce decision and every persistence path
+    // are derived. Correcting `identification` at this single point is what
+    // keeps the legacy view and the V2 view two projections of ONE identity —
+    // patching them separately downstream is exactly how they would come to
+    // disagree.
+    //
+    // Commerce cannot influence any of this: no commerce provider, catalog
+    // query or similarity matcher has run yet, and none of their outputs exists
+    // to be read. That ordering is the isolation guarantee, not a convention.
+    const recheckFlagEnabled = isIdentificationRecheckEnabled();
+    const primaryIdentityTriple: IdentityTriple = {
+      category: safeString(identification?.item_type) ?? null,
+      clothingType: safeString(identification?.clothing_type) ?? null,
+      subtype: safeString(identification?.subtype) ?? null,
+    };
+    const recheckMetrics = emptyRecheckMetrics(recheckFlagEnabled, primaryIdentityTriple);
+    recheckMetrics.primaryLatencyMs = primaryLatencyMs;
+    recheckMetrics.primaryFinishReason = primaryFinishReason;
+    recheckMetrics.primaryInputTokens = primaryUsage.inputTokens;
+    recheckMetrics.primaryResponseTokens = primaryUsage.responseTokens;
+    recheckMetrics.primaryThinkingTokens = primaryUsage.thinkingTokens;
+    recheckMetrics.primaryProviderAttempts = primaryAttempts;
+
+    if (recheckFlagEnabled) {
+      // Detection resolves no garment and text mode has no image to look at
+      // again; §12 requires the recheck to attach to the RESOLVED garment only.
+      const modeEligible = isRecheckEligibleMode(requestModeForRoute);
+      if (!modeEligible) {
+        recheckMetrics.ineligibleReason = `mode_${requestModeForRoute}`;
+      } else if (!imageBase64) {
+        recheckMetrics.ineligibleReason = 'no_image_evidence';
+      } else {
+        recheckMetrics.recheckEligible = true;
+      }
+
+      if (recheckMetrics.recheckEligible) {
+        const gate = evaluateIdentificationGate({
+          identity: primaryIdentityTriple,
+          globalConfidence: typeof identification?.confidence_score === 'number' &&
+              Number.isFinite(identification.confidence_score)
+            ? (identification.confidence_score as number)
+            : null,
+          consistencyConflictCodes: (intelligenceGate?.consistencyConflicts ?? []).map(
+            (c) => c.code,
+          ),
+          qualityBand: intelligenceGate?.qualityBand ?? null,
+          visualObservations: [safeString(identification?.visual_observation) ?? ''],
+          // This branch is only reachable on a classified, identity-bearing
+          // result: non-fashion and every failure path returned earlier.
+          identityBearing: true,
+        });
+        recheckMetrics.gateDecision = gate.decision;
+        recheckMetrics.recheckReasonCodes = gate.reasonCodes;
+
+        if (gate.decision === 'REVIEW_REQUIRED') {
+          const recheckTimeoutMs = resolveRecheckTimeoutMs();
+
+          // ONE call. No retry loop, no fallback model, no second opinion:
+          // the bounded attempt loop the primary uses is deliberately NOT
+          // reused here (§14).
+          const recheckProvider: RecheckProvider = async (req) => {
+            const recheckController = new AbortController();
+            const recheckTimer = setTimeout(
+              () => recheckController.abort(),
+              recheckTimeoutMs,
+            );
+            try {
+              const recheckRes = await fetch(buildGeminiUrl(routePlan.primaryModel), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [
+                    {
+                      role: 'user',
+                      parts: [
+                        { text: req.prompt },
+                        {
+                          inline_data: {
+                            mime_type: req.mimeType,
+                            data: req.imageBase64,
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                  generationConfig: {
+                    // Deterministic: a review pass that returns a different
+                    // answer on each run is noise, not a second opinion.
+                    temperature: 0,
+                    maxOutputTokens: req.maxOutputTokens,
+                    responseMimeType: 'application/json',
+                    responseSchema: req.responseSchema,
+                  },
+                }),
+                signal: recheckController.signal,
+              });
+              const recheckRaw = await recheckRes.text().catch(() => '');
+              if (!recheckRes.ok) {
+                return {
+                  ok: false,
+                  text: null,
+                  finishReason: null,
+                  usage: null,
+                  failureKind: 'http_error',
+                } as RecheckProviderResult;
+              }
+              let recheckEnvelope: GeminiResponse;
+              try {
+                recheckEnvelope = JSON.parse(recheckRaw);
+              } catch {
+                return {
+                  ok: false,
+                  text: null,
+                  finishReason: null,
+                  usage: null,
+                  failureKind: 'empty_response',
+                } as RecheckProviderResult;
+              }
+              return {
+                ok: true,
+                text: extractGeminiText(recheckEnvelope),
+                finishReason: recheckEnvelope.candidates?.[0]?.finishReason ?? null,
+                usage: extractGeminiUsage(recheckEnvelope),
+                failureKind: null,
+              } as RecheckProviderResult;
+            } catch (err) {
+              const aborted = err instanceof Error && err.name === 'AbortError';
+              return {
+                ok: false,
+                text: null,
+                finishReason: null,
+                usage: null,
+                failureKind: aborted ? 'timeout' : 'network_error',
+              } as RecheckProviderResult;
+            } finally {
+              clearTimeout(recheckTimer);
+            }
+          };
+
+          recheckMetrics.recheckTriggered = true;
+          recheckMetrics.identificationProviderCalls = 2;
+
+          const recheckOutcome = await performIdentificationRecheck(
+            {
+              primary: primaryIdentityTriple,
+              primaryConfidence: typeof identification?.confidence_score === 'number' &&
+                  Number.isFinite(identification.confidence_score)
+                ? (identification.confidence_score as number)
+                : null,
+              reasonCodes: gate.reasonCodes,
+              garmentContext: useSelectedItemProvider && selectedCandidate
+                ? {
+                  candidateId: selectedCandidate.candidateId,
+                  category: selectedCandidate.category,
+                  ...(selectedCandidate.subtype
+                    ? { subtype: selectedCandidate.subtype }
+                    : {}),
+                  ...(selectedCandidate.bounds
+                    ? { bounds: selectedCandidate.bounds }
+                    : {}),
+                }
+                : null,
+              imageBase64,
+              mimeType: DEFAULT_MIME,
+            },
+            recheckProvider,
+          );
+
+          recheckMetrics.recheckLatencyMs = recheckOutcome.latencyMs;
+          recheckMetrics.recheckFinishReason = recheckOutcome.finishReason;
+          recheckMetrics.recheckInputTokens = recheckOutcome.usage?.inputTokens ?? null;
+          recheckMetrics.recheckResponseTokens = recheckOutcome.usage?.responseTokens ?? null;
+          recheckMetrics.recheckThinkingTokens = recheckOutcome.usage?.thinkingTokens ?? null;
+
+          if (recheckOutcome.status === 'completed') {
+            recheckMetrics.recheckStatus = 'completed';
+            recheckMetrics.recheckIdentity = recheckOutcome.identity;
+
+            const reconciled = reconcileIdentification({
+              primary: primaryIdentityTriple,
+              recheck: recheckOutcome.identity,
+              primaryConfidence:
+                typeof identification?.confidence_score === 'number' &&
+                  Number.isFinite(identification.confidence_score)
+                  ? (identification.confidence_score as number)
+                  : null,
+              recheckConfidence: recheckOutcome.confidence,
+              reasonCodes: gate.reasonCodes,
+            });
+
+            recheckMetrics.finalIdentity = reconciled.final;
+            recheckMetrics.identityChanged = reconciled.identityChanged;
+            recheckMetrics.fieldsChanged = reconciled.fieldsChanged;
+            recheckMetrics.fieldOutcomes = reconciled.fields.map((f) => ({
+              tier: f.tier,
+              outcome: f.outcome,
+            }));
+
+            // Write the canonical identity back onto the ONE sanitized
+            // identification every downstream view derives from. An abstained
+            // tier becomes '' rather than a retained stale value: the contract's
+            // existing absence convention, and the honest representation of a
+            // conflict the evidence could not settle.
+            if (reconciled.identityChanged && identification) {
+              identification.item_type = reconciled.final.category ?? '';
+              identification.clothing_type = reconciled.final.clothingType ?? '';
+              identification.subtype = reconciled.final.subtype ?? '';
+            }
+          } else {
+            // §19 fail-open: a failed recheck leaves the primary identification
+            // exactly as it was. The scan is never lost, downgraded or blocked
+            // because optional accuracy work did not land.
+            recheckMetrics.recheckStatus = 'failed';
+            recheckMetrics.recheckFailureReason = recheckOutcome.reason;
+          }
+        }
+      }
+    }
+
+    // Telemetry is emitted ONLY when the feature is on. With the flag off this
+    // build must be inert in every observable way, log output included — a
+    // rollback that still changes what the function prints is not a rollback,
+    // and a line whose gate was never evaluated carries nothing worth the noise.
+    if (recheckFlagEnabled) {
+      recheckMetrics.totalIdentificationLatencyMs = (recheckMetrics.primaryLatencyMs ?? 0) +
+        (recheckMetrics.recheckLatencyMs ?? 0);
+      logIdentificationRecheckMetrics(recheckMetrics);
+    }
 
     // ── V2-only taxonomy tier isolation (Phase 7) ───────────────────────────
     // `clothing_type` is a V2 contract addition. The legacy `identification`

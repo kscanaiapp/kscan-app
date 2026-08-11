@@ -38,7 +38,9 @@
     "test:product-match-governance": "node --test __tests__/productMatchFoundation.test.js",
     "bench:product-match": "node scripts/product-match-benchmark.js",
     "bench:product-match:reseal": "node scripts/product-match-benchmark.js --reseal",
-    "inspect:similarity": "node scripts/similarity-inspector.js"
+    "inspect:similarity": "node scripts/similarity-inspector.js",
+    "test:identification-recheck": "node --test __tests__/identificationRecheckAccuracy.test.js",
+    "eval:identification-recheck": "node scripts/identification-recheck-accuracy.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
