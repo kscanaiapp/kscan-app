@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import {
+  AccessibilityInfo,
   Alert,
   View,
   Text,
@@ -57,10 +58,15 @@ import { StyleChatPhotoIntake } from '../../components/style-chat/StyleChatPhoto
 import { useStyleChatAttachments } from '../../hooks/useStyleChatAttachments';
 import {
   ELISE_IMAGE_LOOP_COPY,
+  describeClosetState,
+  followUpImpressionKey,
+  loopTelemetryPayload,
   resolveActiveItemContext,
   resolveActiveItemFashionContext,
+  resolveFollowUpActions,
   resolveStyleTarget,
 } from '../../services/style-chat/eliseImageStylingLoop';
+import { emitClosetCandidateEvent } from '../../services/closetTelemetry';
 import {
   DRESSING_ROOM_ANCHOR_MESSAGES,
   PRIVATE_DRESSING_ROOM_ROUTE,
@@ -407,6 +413,58 @@ export default function StyleChatSessionScreen() {
   );
 
   /**
+   * Impressions and the accessible state announcement.
+   *
+   * Keyed on the offered SET, not on renders: a chat screen rerenders on every
+   * keystroke, and a per-render event would say more about typing speed than
+   * about the feature. The refs hold comparison keys only — never an id that is
+   * emitted.
+   */
+  const followUpImpressionRef = useRef<string | null>(null);
+  const closetAnnouncementRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!attachmentsEnabled) return;
+    const key = followUpImpressionKey(activeItem);
+    if (!activeItem || !key) {
+      followUpImpressionRef.current = null;
+      closetAnnouncementRef.current = null;
+      return;
+    }
+
+    if (followUpImpressionRef.current !== key) {
+      followUpImpressionRef.current = key;
+      const payload = loopTelemetryPayload(activeItem);
+      emitClosetCandidateEvent('elise_image_followup_shown', payload);
+      if (resolveFollowUpActions(activeItem).some((action) => action.type === 'save_to_closet')) {
+        emitClosetCandidateEvent('elise_image_save_prompt_shown', payload);
+      }
+    }
+
+    /**
+     * Announce the Closet transition, and say what it unlocked.
+     *
+     * Success must be legible without animation, and Style This Item must be
+     * DISCOVERABLE when it appears — a screen reader user should not have to
+     * hunt the row again to find out that saving changed what is on offer.
+     * Skipped on the first observation so re-entering the screen does not
+     * announce a state the user already knows.
+     */
+    const closetLine = describeClosetState(activeItem);
+    const previous = closetAnnouncementRef.current;
+    closetAnnouncementRef.current = closetLine;
+    if (previous !== null && previous !== closetLine) {
+      AccessibilityInfo.announceForAccessibility(
+        activeItem.owned
+          ? `${closetLine}. ${ELISE_IMAGE_LOOP_COPY.styleThisItemLabel} is now available.`
+          : closetLine,
+      );
+    }
+    if (activeItem.owned && previous !== null && previous !== closetLine) {
+      emitClosetCandidateEvent('elise_image_saved', loopTelemetryPayload(activeItem));
+    }
+  }, [activeItem, attachmentsEnabled]);
+
+  /**
    * THE ONE SEND PIPELINE.
    *
    * The composer and every follow-up chip call this, so a chip is genuinely "a
@@ -513,14 +571,27 @@ export default function StyleChatSessionScreen() {
   const handleFollowUpPrompt = useCallback(
     (prompt: string) => {
       if (isSending) return;
+      // `actionType: 'prompt'` — the TYPE, never the question. The sink's
+      // allowlist would drop a stray free-text field, but the projection means
+      // there is nothing to drop.
+      if (activeItem) {
+        emitClosetCandidateEvent('elise_image_followup_selected', {
+          ...loopTelemetryPayload(activeItem),
+          actionType: 'prompt',
+        });
+      }
       submitMessage(prompt, { clearComposer: false });
     },
-    [isSending, submitMessage],
+    [activeItem, isSending, submitMessage],
   );
 
   /** Post-answer Closet progression. Optional, never a precondition for anything. */
   const handleSaveActiveItemToCloset = useCallback(() => {
     if (!activeItem) return;
+    emitClosetCandidateEvent('elise_image_save_selected', {
+      ...loopTelemetryPayload(activeItem),
+      actionType: 'save_to_closet',
+    });
     void chatAttachments.saveDirectImageToCloset(activeItem.draftId).then((result) => {
       if (!result.ok) Alert.alert('Closet', result.message);
     });
@@ -557,6 +628,13 @@ export default function StyleChatSessionScreen() {
     if (!activeItem) return;
     styleHandoffRef.current = true;
     const draftId = activeItem.draftId;
+    const telemetry = loopTelemetryPayload(activeItem);
+    // One selection event per accepted tap, emitted after the latch is claimed
+    // so a rapid double tap produces one event as well as one navigation.
+    emitClosetCandidateEvent('elise_image_style_item_selected', {
+      ...telemetry,
+      actionType: activeItem.styled ? 'open_dressing_room' : 'style_this_item',
+    });
 
     // THE OWNERSHIP BOUNDARY, re-proved against the LIVE drafts rather than
     // against whatever the chip captured when it rendered. An unsaved candidate
@@ -583,6 +661,7 @@ export default function StyleChatSessionScreen() {
         // Marked before the push so the follow-up row has already progressed to
         // "Open Dressing Room" by the time the user navigates back.
         chatAttachments.markStyledInDressingRoom(draftId);
+        emitClosetCandidateEvent('elise_image_dressing_room_opened', telemetry);
         router.push({
           pathname: PRIVATE_DRESSING_ROOM_ROUTE,
           params: dressingRoomAnchorParams(decision.closetItemId),
@@ -597,6 +676,7 @@ export default function StyleChatSessionScreen() {
   /** Stop styling this item. The photo is removed from the composer entirely. */
   const handleClearActiveItem = useCallback(() => {
     if (!activeItem) return;
+    emitClosetCandidateEvent('elise_image_context_cleared', loopTelemetryPayload(activeItem));
     chatAttachments.removeAttachment(activeItem.draftId);
   }, [activeItem, chatAttachments]);
 
@@ -609,7 +689,10 @@ export default function StyleChatSessionScreen() {
    * abandoned photo from lingering as a reservation.
    */
   const handleChangeActiveItem = useCallback(() => {
-    if (activeItem) chatAttachments.removeAttachment(activeItem.draftId);
+    if (activeItem) {
+      emitClosetCandidateEvent('elise_image_context_replaced', loopTelemetryPayload(activeItem));
+      chatAttachments.removeAttachment(activeItem.draftId);
+    }
     setPhotoIntakeVisible(true);
   }, [activeItem, chatAttachments]);
 

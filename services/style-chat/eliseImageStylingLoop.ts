@@ -485,6 +485,56 @@ export function resolveFollowUpLeadIn(context: EliseActiveItemContext | null): s
   return ELISE_IMAGE_LOOP_COPY.leadInUnsent;
 }
 
+// ── Telemetry projection ─────────────────────────────────────────────────────
+
+/** Where in the app a loop action was taken. An enum, never a route or a URL. */
+export const ELISE_LOOP_TELEMETRY_SOURCE = 'elise_chat' as const;
+
+/**
+ * The bounded payload for every elise_image_* event.
+ *
+ * FIVE ENUMS, NOTHING ELSE. Built here rather than at each call site so no
+ * caller can decide to "just add" the prompt, the title, the candidate id or the
+ * item id — the sink's allowlist would drop them, but the mistake would be
+ * invisible, and the point of a projection is that the mistake is impossible.
+ *
+ * The title is deliberately absent even though it is on the context: it is a
+ * garment name the user may have typed.
+ */
+export function loopTelemetryPayload(context: EliseActiveItemContext): {
+  itemCategory: CategoryBucket;
+  attachmentState: AttachmentState;
+  closetState: ClosetSaveState;
+  source: typeof ELISE_LOOP_TELEMETRY_SOURCE;
+} {
+  return {
+    itemCategory: context.categoryBucket,
+    attachmentState: context.attachmentState,
+    closetState: context.closetState,
+    source: ELISE_LOOP_TELEMETRY_SOURCE,
+  };
+}
+
+/**
+ * Dedupe key for "shown" events.
+ *
+ * An impression must be recorded when the offered set CHANGES, not on every
+ * render — a chat screen rerenders on each keystroke, and a per-render event
+ * would say far more about typing speed than about the feature. The draft id is
+ * part of the key so replacing the item counts as a new impression; it is used
+ * only for comparison and is never emitted.
+ */
+export function followUpImpressionKey(context: EliseActiveItemContext | null): string | null {
+  if (!context) return null;
+  return [
+    context.draftId,
+    context.attachmentState,
+    context.closetState,
+    context.owned ? 'owned' : 'unowned',
+    context.styled ? 'styled' : 'unstyled',
+  ].join('|');
+}
+
 /** Accessible, honest one-line description of ownership. Never implies ownership. */
 export function describeClosetState(context: EliseActiveItemContext): string {
   if (context.owned) return ELISE_IMAGE_LOOP_COPY.savedBadge;
