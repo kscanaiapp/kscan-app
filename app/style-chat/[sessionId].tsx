@@ -56,8 +56,10 @@ import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import { useStylistIdentity } from '../../hooks/useStylistIdentity';
 import { matchOccasionFromText } from '../../types/fashionReasoning';
 import { StyleChatAttachmentBar } from '../../components/style-chat/StyleChatAttachmentBar';
+import { StyleChatActiveItemBar } from '../../components/style-chat/StyleChatActiveItemBar';
 import { StyleChatPhotoIntake } from '../../components/style-chat/StyleChatPhotoIntake';
 import { useStyleChatAttachments } from '../../hooks/useStyleChatAttachments';
+import { resolveActiveItemContext } from '../../services/style-chat/eliseImageStylingLoop';
 import {
   getDraftComposerText,
   setDraftComposerText,
@@ -435,6 +437,49 @@ export default function StyleChatSessionScreen() {
     setPhotoIntakeVisible(false);
   }, [attachmentsEnabled, chatAttachments.clearAttachments]);
 
+  /**
+   * The item Elise is currently discussing.
+   *
+   * Derived from the live composer drafts rather than held in its own state, so
+   * there is no second store to keep in sync and nothing to invalidate: the
+   * attachment store is already reset on sign-out and on an actor change
+   * (AuthSessionContext → resetAttachmentStore), which means this context clears
+   * with it and can never survive into another account's conversation.
+   */
+  const activeItem = useMemo(
+    () => resolveActiveItemContext(chatAttachments.attachments),
+    [chatAttachments.attachments],
+  );
+
+  /** Stop styling this item. The photo is removed from the composer entirely. */
+  const handleClearActiveItem = useCallback(() => {
+    if (!activeItem) return;
+    chatAttachments.removeAttachment(activeItem.draftId);
+  }, [activeItem, chatAttachments]);
+
+  /**
+   * Replace the active item through the EXISTING attachment intake.
+   *
+   * The old attachment is dropped first so the composer never holds two direct
+   * images while the picker is open — `removeAttachment` also releases the old
+   * Closet candidate unless it was saved, which is the behaviour that keeps an
+   * abandoned photo from lingering as a reservation.
+   *
+   * PLATFORM DIFFERENCE, DELIBERATE. This line reaches the intake through the
+   * visual attachment composer, which is the iOS entry point; the legacy photo
+   * intake modal is behind an explicit opt-in and must not be revived by a
+   * control that merely wants to pick another photo.
+   *
+   * With NEITHER route enabled this control cannot complete — and it is also
+   * unreachable: a direct image can only be created by one of those two intakes,
+   * so with both off there is no active item and the bar does not render.
+   */
+  const handleChangeActiveItem = useCallback(() => {
+    if (activeItem) chatAttachments.removeAttachment(activeItem.draftId);
+    if (visualAttachmentsEnabled) setAttachMenuOpen(true);
+    else if (legacyPhotoIntakeEnabled) setPhotoIntakeVisible(true);
+  }, [activeItem, chatAttachments, visualAttachmentsEnabled, legacyPhotoIntakeEnabled]);
+
   const latestUserMessage = [...messages].reverse().find((message) => message.sender === 'user');
   const showStyleMeForThis = Boolean(
     AI_STYLIST_UI_ENABLED &&
@@ -554,6 +599,14 @@ export default function StyleChatSessionScreen() {
         uploadUnavailableReason={uploadUnavailableReason}
       />
       {ErrorBanner}
+      {attachmentsEnabled ? (
+        <StyleChatActiveItemBar
+          context={activeItem}
+          onClear={handleClearActiveItem}
+          onChange={handleChangeActiveItem}
+          disabled={isSending}
+        />
+      ) : null}
       {attachmentsEnabled ? (
         <StyleChatAttachmentBar
           attachments={chatAttachments.attachments}
