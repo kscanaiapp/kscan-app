@@ -150,13 +150,25 @@ test('the action set is a pure function of state', () => {
 
 // ── State rules ──────────────────────────────────────────────────────────────
 
-test('an unsaved item offers questions plus an optional save', () => {
-  for (const attachmentState of ['ready', 'sent']) {
+test('an answered unsaved item offers questions plus an optional save', () => {
+  const actions = loop.resolveFollowUpActions(ctx({ attachmentState: 'sent' }));
+  assert.equal(types(actions), 'prompt|prompt|save_to_closet');
+  assert.equal(actions[0].prompt, 'What would you wear with this?');
+  assert.equal(actions[2].label, 'Save to Closet');
+});
+
+test('before Elise has answered the row is questions only', () => {
+  // The repaired attachment chip already carries Save / Retry save from the
+  // moment the photo is attached. A second Save button beneath it, for the same
+  // item, would be two controls for one action — so this row waits until there
+  // is an answer to progress FROM.
+  for (const attachmentState of ['ready', 'sending']) {
     const actions = loop.resolveFollowUpActions(ctx({ attachmentState }));
-    assert.equal(types(actions), 'prompt|prompt|save_to_closet');
-    assert.equal(actions[0].prompt, 'What would you wear with this?');
-    assert.equal(actions[2].label, 'Save to Closet');
+    assert.equal(types(actions), 'prompt|prompt');
   }
+  const chip = read('components/style-chat/StyleChatAttachmentBar.tsx');
+  assert.match(chip, /draft\.closetState === 'not_saved' \|\| draft\.closetState === 'save_failed'/);
+  assert.match(chip, /Retry save/);
 });
 
 test('a failed save offers a retry and leaves the questions in place', () => {

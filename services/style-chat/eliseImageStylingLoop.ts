@@ -426,8 +426,21 @@ export function resolveFollowUpActions(
 
   // Not owned. The save control is an OFFER, never a gate: the two prompts above
   // it work whether or not the user ever saves.
-  const saveAction: EliseFollowUpAction | null =
-    context.closetState === 'saving'
+  //
+  // POST-ANSWER ONLY, and that is a deliberate boundary rather than a missing
+  // state. The repaired attachment chip already carries its own Save / Retry
+  // save control from the moment the photo is attached, and that repair is not
+  // being redesigned here; offering a second Save button directly beneath it,
+  // for the same item, in the same stack, would be two controls for one action.
+  // What this build adds is the progression AFTER Elise has answered — which is
+  // exactly where the user has a reason to keep the piece and no affordance
+  // suggested it. Before the first send the row is two questions, which is still
+  // inside the 2–3 bound.
+  const answered =
+    context.attachmentState === 'sent' || context.attachmentState === 'send_failed';
+  const saveAction: EliseFollowUpAction | null = !answered
+    ? null
+    : context.closetState === 'saving'
       ? {
           id: 'save_to_closet',
           type: 'save_to_closet',
@@ -450,12 +463,11 @@ export function resolveFollowUpActions(
 
   // Before the first send the generic opener leads; afterwards the second
   // category prompt leads, so a follow-up is not the question just asked.
-  const second =
-    context.attachmentState === 'sent' || context.attachmentState === 'send_failed'
-      ? prompts[1] ?? prompts[0]
-      : prompts[0];
+  const second = answered ? prompts[1] ?? prompts[0] : prompts[0];
 
-  return [promptAction(GENERIC_PAIRING_PROMPT, 9), promptAction(second, 1), saveAction];
+  const actions = [promptAction(GENERIC_PAIRING_PROMPT, 9), promptAction(second, 1)];
+  if (saveAction) actions.push(saveAction);
+  return actions;
 }
 
 /** Lead-in copy above the follow-up row. State-driven; never model-authored. */
@@ -464,7 +476,11 @@ export function resolveFollowUpLeadIn(context: EliseActiveItemContext | null): s
   if (context.styled && context.owned) return ELISE_IMAGE_LOOP_COPY.leadInStyled;
   if (context.owned) return ELISE_IMAGE_LOOP_COPY.leadInSaved;
   if (context.attachmentState === 'sent' || context.attachmentState === 'send_failed') {
-    return ELISE_IMAGE_LOOP_COPY.leadInSavePrompt;
+    // "Like this piece?" only where a save is actually being offered; a saving
+    // item is mid-transaction and being asked again would be noise.
+    return context.closetState === 'saving'
+      ? ELISE_IMAGE_LOOP_COPY.leadInSaved
+      : ELISE_IMAGE_LOOP_COPY.leadInSavePrompt;
   }
   return ELISE_IMAGE_LOOP_COPY.leadInUnsent;
 }
