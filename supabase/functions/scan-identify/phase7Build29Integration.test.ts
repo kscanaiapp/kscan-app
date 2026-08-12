@@ -18,7 +18,11 @@ import {
   type RecheckProvider,
 } from './identificationRecheck.ts';
 // @ts-ignore Deno local imports require explicit TypeScript extensions.
-import { evaluateIdentificationGate, isRecheckEligibleMode } from './identificationRecheckGate.ts';
+import {
+  evaluateIdentificationGate,
+  isRecheckEligibleMode,
+  type RecheckReasonCode,
+} from './identificationRecheckGate.ts';
 // @ts-ignore Deno local imports require explicit TypeScript extensions.
 import { emptyRecheckMetrics } from './identificationRecheckTelemetry.ts';
 // @ts-ignore Deno local imports require explicit TypeScript extensions.
@@ -34,7 +38,7 @@ const PROMPT_INPUT = {
   primaryBrand: null,
   primary: { category: 'top', clothingType: 'shirt', subtype: 'oxford shirt' },
   primaryConfidence: 0.4,
-  reasonCodes: ['LOW_IDENTITY_CONFIDENCE'] as const,
+  reasonCodes: ['LOW_IDENTITY_CONFIDENCE'] as RecheckReasonCode[],
   garmentContext: null,
 };
 
