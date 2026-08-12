@@ -30,7 +30,9 @@ const corsHeaders = {
 };
 
 const SERVICE = 'kscan-backend';
-const ENVIRONMENT = 'staging';
+// Deliberately inlined at each response site rather than shared: a security
+// control (stagingDeployPipeline.test.js) requires every response to hardcode
+// its environment, so a single edit cannot repoint them all at once.
 
 /**
  * Health contract version. This is release IDENTITY MATERIAL: it is recorded
@@ -234,7 +236,7 @@ function handleLive(): Response {
   return json({
     status: 'alive',
     service: SERVICE,
-    environment: ENVIRONMENT,
+    environment: 'staging',
     healthContractVersion: HEALTH_CONTRACT_VERSION,
   }, 200);
 }
@@ -262,7 +264,7 @@ async function handleReady(): Promise<Response> {
   return json({
     status: ready ? 'ready' : 'not_ready',
     service: SERVICE,
-    environment: ENVIRONMENT,
+    environment: 'staging',
     healthContractVersion: HEALTH_CONTRACT_VERSION,
     components,
   }, ready ? 200 : 503);
@@ -279,7 +281,7 @@ function handleVersion(): Response {
   const state = identityState(identity);
   return json({
     service: SERVICE,
-    environment: ENVIRONMENT,
+    environment: 'staging',
     releaseIdentityState: state,
     releaseId: identity.releaseId,
     sourceSha: identity.sourceSha,
@@ -314,7 +316,7 @@ async function handleLegacyRoot(): Promise<Response> {
 
   return json({
     status,
-    environment: ENVIRONMENT,
+    environment: 'staging',
     service: SERVICE,
     timestamp: new Date().toISOString(),
     version: LEGACY_VERSION,
@@ -343,7 +345,7 @@ export function routeFor(pathname: string): 'live' | 'ready' | 'version' | 'root
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'GET') {
-    return json({ status: 'unhealthy', environment: ENVIRONMENT, service: SERVICE, error: 'method_not_allowed' }, 405);
+    return json({ status: 'unhealthy', environment: 'staging', service: SERVICE, error: 'method_not_allowed' }, 405);
   }
 
   switch (routeFor(new URL(req.url).pathname)) {
@@ -359,7 +361,7 @@ Deno.serve(async (req) => {
       return json({
         status: 'unhealthy',
         service: SERVICE,
-        environment: ENVIRONMENT,
+        environment: 'staging',
         error: 'not_found',
       }, 404);
   }

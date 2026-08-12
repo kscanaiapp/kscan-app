@@ -77,3 +77,29 @@
 - **Regression test:** `__tests__/edgeFunctionSourceParity.test.js` — `authority: a staging checkout passes source parity`, `authority: a production checkout passes source parity`, `authority: an unknown project reference fails the gate`, `authority: a malformed project reference fails the gate`, `authority: resolveCheckoutEnvironment fails closed and never guesses`, `authority: a manifest claiming to be environment-scoped is refused`, `deploy guard: a STAGING checkout cannot run the production deploy path`, `deploy guard: an unknown project reference aborts before deployment`, `deploy guard: a missing config.toml aborts before deployment`, plus the committed-manifest assertion that a project ref is absent from the parity section and the legacy ref is retained.
 - **Verification:** `npm run test:edge-parity` 24/24 pass (was 11/17). `npm run test:release-control-plane` 91/91. `test:staging-parity` 23, `test:staging-certification` 35, `test:rpc-policy` 20, `test:provenance-quarantine` 12, `test:security` 27, `test:staging-deploy` 20, `test:staging-v2-guard` 67 — all pass. Full suite 4932 pass / 20 fail vs 4919 / 26 before: **zero new failures, six resolved**. Release-manifest `identityDigest` determinism re-verified; production eligibility still returns `false` with every prior blocker intact.
 - **Final state:** Fixed. Environment identity, artifact identity, and deploy-target authority are now three distinct surfaces, and no file means two of them.
+
+## DEF-REL-007 — verify-supabase had no self-contained environment refusal
+
+- **Preexisting or introduced:** Preexisting; identified in Phase 1 discovery and repaired in Phase 2B.
+- **Symptom:** `scripts/verify-supabase.js` probed whichever Supabase project the caller's `EXPO_PUBLIC_SUPABASE_URL` named. Unlike its sibling controls (`synthetic-staging-tests.js`, `verify-staging-parity.js`, `stagingBackendContract.test.js`), it carried no production-refusal guard of its own.
+- **Root cause:** The script's staging-only safety was a property of the calling workflow's environment variables rather than of the script. Nothing in it asserted an expected environment, so a mis-set variable, a copied command line, or a local developer run could point a "staging verification" at production and it would proceed to probe.
+- **Security impact:** Read-only probes only, so no mutation risk — but it could have produced a report labelled staging verification from production data, which is a provenance/labelling failure in a release-governance control.
+- **Release impact:** A release could have been certified against evidence gathered from the wrong environment.
+- **Files/workflows:** `scripts/verify-supabase.js`, `__tests__/release/verifySupabaseAuthority.test.js`.
+- **Fix:** The expected environment is now explicit (`KSCAN_EXPECTED_ENVIRONMENT`, defaulting to `staging`) and validated through `security/scripts/lib/environment-authority.js`. The guard runs before the first probe and fails closed in every direction: production-when-staging-expected, staging-when-production-expected, unknown ref, malformed ref, and missing identity all BLOCK.
+- **Regression test:** `__tests__/release/verifySupabaseAuthority.test.js` — 7 cases exercising the real script as a subprocess, including an assertion that no reachability section is printed on refusal (i.e. the guard refuses *before* probing), so removing or bypassing the guard fails the suite.
+- **Verification:** 7/7 pass. `test:staging-deploy` 20/20 and the full suite show zero new failures.
+- **Final state:** Fixed.
+
+## DEF-REL-008 — health contract refactor broke a pre-existing staging-health security control
+
+- **Preexisting or introduced:** Introduced during Phase 2B and repaired before publication.
+- **Symptom:** `test:staging-deploy` failed on `health: staging-health response shape contains no secret markers`, which asserts the literal `environment: 'staging'` appears in the function source.
+- **Root cause:** Adding the health contract v1 routes, I hoisted the environment name into a shared `const ENVIRONMENT = 'staging'` and emitted `environment: ENVIRONMENT` from each handler. Behaviour was unchanged, but the existing control asserts the *literal* at each response site.
+- **Security impact:** None realized — the control caught it. The control's intent is stronger than it first appears: requiring the literal at each response site means a single edit cannot repoint every response's claimed environment at once, which a shared binding would allow.
+- **Release impact:** Would have failed the staging deploy pipeline gate.
+- **Files/workflows:** `supabase/functions/staging-health/index.ts`.
+- **Fix:** Conformed to the existing control rather than rewriting it — the environment literal is inlined at every response site and the shared constant was removed, with a comment recording why the repetition is deliberate.
+- **Regression test:** Added `every response hardcodes its environment as a literal` in `__tests__/release/releaseVerification.test.js`, which asserts no shared `const ENVIRONMENT =` binding exists and that at least four response sites carry the literal — so a future re-hoist fails from the release side too, not only the security side.
+- **Verification:** `test:staging-deploy` 20/20, `test:release-verification` 58/58.
+- **Final state:** Fixed.
