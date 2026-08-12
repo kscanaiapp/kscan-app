@@ -1,14 +1,23 @@
 import { createClient } from '@supabase/supabase-js';
 import { createAuthBootstrapStorage } from './authSessionBootstrap';
 import { secureSessionStorage } from './secureSessionStorage';
+import { validateSupabaseConfig } from './supabaseConfig';
 
 const configuredUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const configuredAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 
-export const supabaseConfigError =
-  !configuredUrl || !configuredAnonKey
-    ? 'Missing EXPO_PUBLIC_SUPABASE_URL or EXPO_PUBLIC_SUPABASE_ANON_KEY.'
-    : null;
+const configValidation = validateSupabaseConfig(configuredUrl, configuredAnonKey);
+
+export const supabaseRuntimeProjectRef = configValidation.urlProjectRef;
+export const supabaseConfigError = configValidation.ok
+  ? null
+  : `Supabase configuration error [${configValidation.code}]: ${configValidation.message}`;
+
+export function assertSupabaseConfigured(): void {
+  if (supabaseConfigError) {
+    throw new Error(supabaseConfigError);
+  }
+}
 
 if (supabaseConfigError && typeof __DEV__ !== 'undefined' && __DEV__) {
   console.warn(`[K Scan Supabase] ${supabaseConfigError}`);
