@@ -50,7 +50,10 @@
     "stagingv2:deploy-function": "node scripts/staging-v2/deploy-function.mjs",
     "stagingv2:configure-storage": "node scripts/staging-v2/configure-storage.mjs",
     "stagingv2:seed": "node scripts/staging-v2/seed-fixtures.mjs",
-    "stagingv2:validate-target": "node scripts/staging-v2/validate-target.mjs"
+    "stagingv2:validate-target": "node scripts/staging-v2/validate-target.mjs",
+    "observability:verify-build-env": "node scripts/verify-observability-build-env.mjs",
+    "observability:export-sourcemaps": "node scripts/export-observability-sourcemaps.mjs",
+    "eas-build-pre-install": "node scripts/verify-observability-build-env.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

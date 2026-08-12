@@ -108,4 +108,3 @@ No parallel health system is created.
 - **CONFLICTING:** multiple domain request-ID shapes cannot be repurposed as a transport correlation ID; raw mobile error logging was incompatible with the privacy requirements.
 - **NOT_APPLICABLE:** monitoring/replay SDK version while no provider exists.
 - **DEFERRED_BUILD29:** provider selection/provisioning, actual symbolication proof, full distributed tracing, dependency-health expansion, paid provider canaries, session replay activation/certification, physical-device proof, dashboards/alerts.
-

@@ -123,3 +123,4 @@ product-search-response.json
 
 # Raw portrait source files (processed JPEGs are bundled)
 assets/stylist-avatars/portraits/raw/
+dist/

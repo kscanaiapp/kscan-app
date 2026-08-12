@@ -5,6 +5,7 @@
   },
   "build": {
     "preview": {
+      "environment": "preview",
       "distribution": "internal",
       "autoIncrement": true,
       "android": {
@@ -12,6 +13,7 @@
         "applicationArchivePath": "android/app/build/outputs/apk/release/app-release.apk"
       },
       "env": {
+        "KSCAN_OBSERVABILITY_ENVIRONMENT": "staging",
         "EXPO_PUBLIC_HOME_NAVIGATION_V2": "true",
         "EXPO_PUBLIC_ACCOUNT_HOME_UX_V1": "true",
         "EXPO_PUBLIC_ONBOARDING_FRAMEWORK_V1": "true",
@@ -63,12 +65,14 @@
       }
     },
     "development": {
+      "environment": "development",
       "developmentClient": false,
       "distribution": "internal",
       "android": {
         "buildType": "apk"
       },
       "env": {
+        "KSCAN_OBSERVABILITY_ENVIRONMENT": "development",
         "EXPO_PUBLIC_HOME_NAVIGATION_V2": "true",
         "EXPO_PUBLIC_ACCOUNT_HOME_UX_V1": "true",
         "EXPO_PUBLIC_ONBOARDING_FRAMEWORK_V1": "true",
@@ -100,6 +104,7 @@
       }
     },
     "production": {
+      "environment": "production",
       "distribution": "store",
       "autoIncrement": true,
       "android": {
@@ -109,6 +114,7 @@
         "buildConfiguration": "Release"
       },
       "env": {
+        "KSCAN_OBSERVABILITY_ENVIRONMENT": "production",
         "EXPO_PUBLIC_HOME_NAVIGATION_V2": "true",
         "EXPO_PUBLIC_ACCOUNT_HOME_UX_V1": "true",
         "EXPO_PUBLIC_ONBOARDING_FRAMEWORK_V1": "true",
@@ -149,6 +155,7 @@
       }
     },
     "staging": {
+      "environment": "preview",
       "distribution": "internal",
       "autoIncrement": true,
       "android": {
@@ -158,6 +165,7 @@
         "buildConfiguration": "Release"
       },
       "env": {
+        "KSCAN_OBSERVABILITY_ENVIRONMENT": "staging",
         "EXPO_PUBLIC_HOME_NAVIGATION_V2": "true",
         "EXPO_PUBLIC_ACCOUNT_HOME_UX_V1": "true",
         "EXPO_PUBLIC_ONBOARDING_FRAMEWORK_V1": "true",
