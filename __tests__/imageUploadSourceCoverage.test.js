@@ -24,6 +24,7 @@ const os = require('node:os');
 const path = require('node:path');
 const ts = require('typescript');
 const vm = require('node:vm');
+const observabilityStub = require('./helpers/observabilityStub');
 
 const ROOT = path.resolve(__dirname, '..');
 const FIXTURES = path.join(__dirname, 'fixtures', 'image-upload');
@@ -113,6 +114,7 @@ function buildScannerChain(uriRegistry) {
       },
     },
     '../constants/build': { SCAN_DIAGNOSTICS_ENABLED: false },
+    './observability': observabilityStub,
   });
   return { imageUtils, sanitizer, adapter, calls };
 }

@@ -23,6 +23,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
 const vm = require('node:vm');
+const observabilityStub = require('./helpers/observabilityStub');
 
 const ROOT = path.resolve(__dirname, '..');
 const QA_PATH = 'services/privateDressingRoomEliseQaProvider.ts';
@@ -51,6 +52,7 @@ function loadUnder({ dev, env = {} }) {
     const mod = { exports: {} };
     const dirname = path.dirname(filename);
     const localRequire = (specifier) => {
+      if (specifier === './observability') return observabilityStub;
       if (specifier === 'expo-crypto') {
         return { getRandomBytes: (n) => Uint8Array.from({ length: n }, (_, i) => (i * 17) % 256) };
       }

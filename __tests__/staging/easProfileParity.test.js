@@ -37,6 +37,7 @@ const ENVIRONMENT_SPECIFIC_KEYS = new Map([
   ['EXPO_PUBLIC_SUPABASE_ANON_KEY', 'publishable key for the selected project'],
   ['EXPO_PUBLIC_ENVIRONMENT', 'environment label surfaced in diagnostics only'],
   ['EXPO_PUBLIC_ENV_LABEL', 'environment label surfaced in diagnostics only'],
+  ['KSCAN_OBSERVABILITY_ENVIRONMENT', 'environment label attached to diagnostics only'],
 ]);
 
 function readEas() {
