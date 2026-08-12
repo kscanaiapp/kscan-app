@@ -35,7 +35,16 @@ const { assertNoEmbeddedSecret } = require('../scripts/lib/secret-shape-guard');
 const { assertExpectedEnvironment } = require('../scripts/lib/environment-authority');
 
 const MANIFEST_SCHEMA_VERSION = 1;
-const HEALTH_CONTRACT_VERSION = 'health-contract-v0-staging-only';
+/**
+ * Health contract version — release IDENTITY MATERIAL, folded into
+ * identityDigest. Must stay in lockstep with HEALTH_CONTRACT_VERSION in
+ * supabase/functions/staging-health/index.ts; the exact-candidate verifier
+ * compares the live /version value against this and blocks on a mismatch.
+ *
+ * v1 (Phase 2B) supersedes the v0 placeholder and denotes the real contract:
+ * /health/live, /health/ready and /version.
+ */
+const HEALTH_CONTRACT_VERSION = 'health-contract-v1';
 
 class ReleaseManifestError extends Error {
   constructor(message, code, detail) {
