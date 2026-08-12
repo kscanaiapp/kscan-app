@@ -85,11 +85,12 @@
       "sourceBranch": "scanner/phase7-identification-recheck",
       "sourceHeadSha": "46256450",
       "mergeState": "NO_PR",
-      "integrationStatus": "DEFERRED_OWNER_DECISION",
+      "integrationStatus": "INCLUDED_VIA_FORWARD_PORT",
       "dependencies": [],
       "deviceProofRequired": true,
       "productionActivationRequired": false,
-      "note": "Diverges from the staging lineage at e394261 (2026-07-16); 293 commits / 759 files. Legacy product fork. Integrating it is the unresolved Scanner architecture decision, not an integration merge."
+      "note": "Phase 7.1 confidence-gated identification recheck, reimplemented on the Build 29 parallel-multiimage pipeline. Legacy branch NOT merged (~760 files divergent); the modules were ported and index.ts wiring hand-integrated. Ships dark: SCAN_IDENTIFICATION_RECHECK_ENABLED defaults false.",
+      "portedFrom": "scanner/phase7-identification-recheck@4625645"
     },
     {
       "workstream": "scanner-phase7-fashion-brand-evidence",
@@ -97,11 +98,12 @@
       "sourceBranch": "scanner/phase7-fashion-brand-evidence",
       "sourceHeadSha": "4dc0751c",
       "mergeState": "NO_PR",
-      "integrationStatus": "DEFERRED_OWNER_DECISION",
+      "integrationStatus": "INCLUDED_VIA_FORWARD_PORT",
       "dependencies": [],
       "deviceProofRequired": true,
       "productionActivationRequired": false,
-      "note": "Same lineage and divergence. The brand-evidence commerce gate (hasBrandEvidenceForCommerce) IS present in the candidate; the Phase 7 recheck loop is not."
+      "note": "Phase 7.2 fashion + brand visual evidence, single-pass. No new provider call, no OCR, no logo API. Composed primary prompt measured at 11677 chars (down from 13740) and pinned by scannerPromptBudget.test.js.",
+      "portedFrom": "scanner/phase7-fashion-brand-evidence@4dc0751"
     },
     {
       "workstream": "dependency-bumps-tar-undici-npm-group",
@@ -117,6 +119,29 @@
       "dependencies": [],
       "deviceProofRequired": false,
       "productionActivationRequired": false
+    },
+    {
+      "workstream": "scanner-phase7-clothing-type-tier",
+      "sourcePr": null,
+      "sourceBranch": "scanner/phase7-* (prep commits 6aaeaba..718352c)",
+      "sourceHeadSha": "718352c",
+      "mergeState": "NO_PR",
+      "integrationStatus": "INCLUDED_VIA_FORWARD_PORT",
+      "dependencies": [
+        "scanner-phase7-identification-recheck"
+      ],
+      "deviceProofRequired": false,
+      "productionActivationRequired": false,
+      "note": "The clothing_type middle taxonomy tier. A PREREQUISITE for Phase 7.1/7.2 rather than optional: the recheck gate reasons over the taxonomy triple. Ported only into files this lineage has; multiItemSelectionContract/productMatchBridge/product-match were skipped as legacy architecture."
     }
-  ]
+  ],
+  "scannerPipeline": {
+    "phase7": "FORWARD_PORTED",
+    "recheckFlag": "SCAN_IDENTIFICATION_RECHECK_ENABLED",
+    "recheckDefault": false,
+    "recheckMaxProviderCalls": 1,
+    "recheckTimeoutMsDefault": 6000,
+    "identificationRecheckVersion": "v7.1",
+    "multiImageArchitecture": "parallel-multiimage (preserved)"
+  }
 }
