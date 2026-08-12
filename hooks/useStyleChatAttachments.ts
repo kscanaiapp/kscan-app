@@ -46,6 +46,7 @@ import { ensureSavedScanMediaBacking } from '../services/savedScanMedia';
 import { recordAiStylistEvent } from '../services/styleMemoryEvents';
 import {
   cleanupPreparedDirectImage,
+  discardPreparedDirectImage,
   prepareEliseDirectImage,
   resolvePreparedDirectImageAttachment,
 } from '../services/style-chat/eliseDirectImageAttachment';
@@ -61,6 +62,9 @@ import type { OwnedClosetItem, OwnedItemSourceType } from '../types/ownedClosetI
 import type { OutfitVariation } from '../types/fashionReasoning';
 import type { SavedScanModel } from '../services/savedScansCloud';
 import type { Look } from '../types/styleObjects';
+import { createActorRequest } from '../services/actorContext';
+import { deleteClosetCandidate } from '../services/closetCandidateLibrary';
+import { promoteSelectedClosetCandidates } from '../services/closetCandidatePromotion';
 
 export type AddAttachmentResult = { ok: boolean; message?: string };
 
@@ -80,7 +84,7 @@ function attachmentItemCount(attachment: StyleChatAttachment, summaryCount?: num
 
 function countDirectImageDrafts(attachments: DraftAttachment[]): number {
   return attachments.filter((entry) => {
-    if (entry.state === 'cancelled') return false;
+    if (entry.state === 'cancelled' || entry.state === 'sent') return false;
     const subtitle = entry.summary.subtitle?.toLowerCase() ?? '';
     return (
       subtitle === 'photo' ||
@@ -94,6 +98,7 @@ function countDirectImageDrafts(attachments: DraftAttachment[]): number {
 
 /** Resolution guard: one saga per draftId at a time. */
 const resolvingDraftIds = new Set<string>();
+const savingClosetCandidateIds = new Set<string>();
 /** Focused draft id per session (client UI only). */
 const focusedDraftBySession = new Map<string, string | null>();
 const focusListeners = new Set<() => void>();
@@ -132,16 +137,30 @@ export function useStyleChatAttachments(sessionId: string) {
     () => getFocusedDraftId(sessionId),
   );
 
-  const hasPending = attachments.some((entry) => isPendingAttachmentState(entry.state));
-  const hasFailed = attachments.some((entry) => entry.state === 'failed_retryable');
-  const allReady = attachments.length > 0 && attachments.every((entry) => entry.state === 'ready');
-  const canSendWithAttachments = attachments.length === 0 || allReady;
-  const atAttachmentLimit = attachments.filter((entry) => entry.state !== 'cancelled').length >= MAX_ELISE_ATTACHMENTS;
+  const activeForSend = attachments.filter(
+    (entry) => entry.state !== 'sent' && entry.state !== 'cancelled',
+  );
+  const hasPending = activeForSend.some(
+    (entry) => isPendingAttachmentState(entry.state) || entry.state === 'sending',
+  );
+  const hasFailed = activeForSend.some(
+    (entry) => entry.state === 'failed_retryable' || entry.state === 'send_failed',
+  );
+  const allReady =
+    activeForSend.length > 0 &&
+    activeForSend.every(
+      (entry) => entry.state === 'ready' || entry.state === 'send_failed',
+    );
+  const canSendWithAttachments = activeForSend.length === 0 || allReady;
+  const hasActiveAttachments = activeForSend.length > 0;
+  const atAttachmentLimit = activeForSend.length >= MAX_ELISE_ATTACHMENTS;
   const atDirectImageLimit = countDirectImageDrafts(attachments) >= MAX_ELISE_DIRECT_IMAGES;
 
   const validateAddition = useCallback(
     (candidate: StyleChatAttachment, candidateItemCount: number, options?: { isDirectImage?: boolean }): AddAttachmentResult => {
-      const live = getDraftAttachments(sessionId).filter((entry) => entry.state !== 'cancelled');
+      const live = getDraftAttachments(sessionId).filter(
+        (entry) => entry.state !== 'cancelled' && entry.state !== 'sent',
+      );
       if (live.length >= MAX_ELISE_ATTACHMENTS) {
         return { ok: false, message: ELISE_ATTACHMENT_LIMIT_MESSAGE };
       }
@@ -476,10 +495,7 @@ export function useStyleChatAttachments(sessionId: string) {
     [sessionId, validateAddition, addSharedItem],
   );
 
-  /**
-   * Camera / gallery → Scanner-compatible prep → saved_scan owned_item.
-   * Does not call scan-identify merely to manufacture the attachment.
-   */
+  /** Camera/gallery → privacy prep → private candidate → identify → ready. */
   const addDirectImage = useCallback(
     async (
       localUri: string,
@@ -518,10 +534,12 @@ export function useStyleChatAttachments(sessionId: string) {
         prepared = await prepareEliseDirectImage(localUri, source);
         if (!updateDraftAttachment(sessionId, {
           draftId,
-          state: 'creating_record',
+          state: 'identifying',
           selection: {
-            localImageUri: localUri,
-            sanitizedImageUri: prepared.preparedUri,
+            localImageUri: prepared.candidateImageUri,
+            sanitizedImageUri: prepared.candidateImageUri,
+            closetCandidateId: prepared.candidateId,
+            closetCandidateBatchId: prepared.candidateBatchId,
             retryCount: 0,
             updatedAt: now(),
           },
@@ -533,19 +551,14 @@ export function useStyleChatAttachments(sessionId: string) {
             itemCount: 1,
           },
         })) {
-          await cleanupPreparedDirectImage(prepared);
+          await discardPreparedDirectImage(prepared);
           return { ok: false, message: 'Attachment removed.' };
         }
 
-        // ── Phase 2B.3: canonical identification before staging ──────────────
+        // ── Phase 2B.3: canonical identification before attachment readiness ──
         // Flag ON: the photo is identified through `identify_for_style` and the
-        // staged title/category come from that identity. Flag OFF: the exact
-        // previous call below, hardcoded 'tops' included.
-        //
-        // Identify FIRST, stage SECOND. Staging first would write a placeholder
-        // saved record and cloud row, then need a second write to correct it — and
-        // an identification failure would leave an orphaned row and uploaded media
-        // behind. This order yields one correct write and no orphans.
+        // ready title/category come from that identity. Candidate staging is
+        // private and reversible; it never creates a saved_scan or Closet item.
         const v2Flag = beginEliseV2Session();
         let identified: DirectImageIdentificationOutcome | null = null;
         if (v2Flag.enabled) {
@@ -553,8 +566,10 @@ export function useStyleChatAttachments(sessionId: string) {
             draftId,
             state: 'identifying',
             selection: {
-              localImageUri: localUri,
-              sanitizedImageUri: prepared.preparedUri,
+              localImageUri: prepared.candidateImageUri,
+              sanitizedImageUri: prepared.candidateImageUri,
+              closetCandidateId: prepared.candidateId,
+              closetCandidateBatchId: prepared.candidateBatchId,
               retryCount: 0,
               updatedAt: now(),
             },
@@ -579,7 +594,7 @@ export function useStyleChatAttachments(sessionId: string) {
           });
 
           if (identified.kind === 'cancelled') {
-            await cleanupPreparedDirectImage(prepared);
+            await discardPreparedDirectImage(prepared);
             return { ok: false, message: 'Attachment removed.' };
           }
           // An identification that produced no usable garment must NOT be staged.
@@ -593,8 +608,10 @@ export function useStyleChatAttachments(sessionId: string) {
               draftId,
               state: 'failed_retryable',
               selection: {
-                localImageUri: localUri,
-                sanitizedImageUri: prepared.preparedUri,
+                localImageUri: prepared.candidateImageUri,
+                sanitizedImageUri: prepared.candidateImageUri,
+                closetCandidateId: prepared.candidateId,
+                closetCandidateBatchId: prepared.candidateBatchId,
                 retryCount: 1,
                 lastErrorCode: identified.kind === 'needs_selection'
                   ? 'MULTIPLE_CANDIDATES'
@@ -611,8 +628,31 @@ export function useStyleChatAttachments(sessionId: string) {
                 itemCount: 1,
               },
             });
+            await cleanupPreparedDirectImage(prepared);
             return { ok: false, message };
           }
+        }
+
+        if (!identified || identified.kind !== 'identified') {
+          await discardPreparedDirectImage(prepared);
+          updateDraftAttachment(sessionId, {
+            draftId,
+            state: 'failed_retryable',
+            selection: {
+              localImageUri: localUri,
+              retryCount: 1,
+              lastErrorCode: 'IDENTIFICATION_REQUIRED',
+              updatedAt: now(),
+            },
+            resolved: null,
+            summary: {
+              title: 'Could not identify this photo',
+              subtitle: 'Photo',
+              imageUri: localUri,
+              itemCount: 1,
+            },
+          });
+          return { ok: false, message: 'Could not identify this photo.' };
         }
 
         const result = await resolvePreparedDirectImageAttachment(prepared, {
@@ -625,32 +665,30 @@ export function useStyleChatAttachments(sessionId: string) {
           updateDraftAttachment(sessionId, {
             draftId,
             state: 'ready',
-            ...(identified?.kind === 'identified'
-              ? {
-                fashionContext: identified.context,
-                identificationState: identified.identificationState,
-              }
-              : {}),
+            fashionContext: identified.context,
+            identificationState: identified.identificationState,
+            closetState: result.closetState,
+            closetItemId: result.closetItemId ?? null,
             selection: {
-              localImageUri: localUri,
-              sanitizedImageUri: prepared.preparedUri,
-              remoteSourceType: 'saved_scan',
-              remoteSourceId:
-                result.resolved.attachmentType === 'owned_item' ? result.resolved.sourceId : null,
+              localImageUri: prepared.candidateImageUri,
+              sanitizedImageUri: prepared.candidateImageUri,
+              closetCandidateId: prepared.candidateId,
+              closetCandidateBatchId: prepared.candidateBatchId,
               retryCount: 0,
               lastErrorCode: null,
               updatedAt: now(),
             },
-            resolved: result.resolved,
+            resolved: null,
             summary: result.summary,
           });
+          await cleanupPreparedDirectImage(prepared);
           trackEliseAttachmentTelemetry('elise_attachment_direct_image', {
             attachmentCount: 1,
             directImageCount: 1,
             attachmentsResolved: 1,
             preparationOutcome: 'ready',
             resolutionOutcome: 'ready',
-            transportOutcome: 'saved_scan',
+            transportOutcome: 'fashion_context',
             sendOutcome: 'pending',
             latencyMs: Date.now() - startedAt,
             contractVersion: STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
@@ -671,20 +709,10 @@ export function useStyleChatAttachments(sessionId: string) {
           draftId,
           state: 'failed_retryable',
           selection: {
-            localScanId:
-              'localScanId' in result && typeof result.localScanId === 'string'
-                ? result.localScanId
-                : null,
-            localImageUri: localUri,
-            sanitizedImageUri: prepared.preparedUri,
-            remoteSourceType:
-              'savedScanId' in result && typeof result.savedScanId === 'string'
-                ? 'saved_scan'
-                : null,
-            remoteSourceId:
-              'savedScanId' in result && typeof result.savedScanId === 'string'
-                ? result.savedScanId
-                : null,
+            localImageUri: prepared.candidateImageUri,
+            sanitizedImageUri: prepared.candidateImageUri,
+            closetCandidateId: prepared.candidateId,
+            closetCandidateBatchId: prepared.candidateBatchId,
             retryCount: 1,
             lastErrorCode: failureCode,
             updatedAt: now(),
@@ -713,8 +741,10 @@ export function useStyleChatAttachments(sessionId: string) {
           draftId,
           state: 'failed_retryable',
           selection: {
-            localImageUri: localUri,
-            sanitizedImageUri: prepared?.preparedUri ?? null,
+            localImageUri: prepared?.candidateImageUri ?? localUri,
+            sanitizedImageUri: prepared?.candidateImageUri ?? null,
+            closetCandidateId: prepared?.candidateId ?? null,
+            closetCandidateBatchId: prepared?.candidateBatchId ?? null,
             retryCount: 1,
             lastErrorCode: 'PREPARATION_FAILED',
             updatedAt: now(),
@@ -727,6 +757,7 @@ export function useStyleChatAttachments(sessionId: string) {
             itemCount: 1,
           },
         });
+        await cleanupPreparedDirectImage(prepared);
         return { ok: false, message: 'Could not prepare that photo. Please try again.' };
       }
     },
@@ -862,11 +893,143 @@ export function useStyleChatAttachments(sessionId: string) {
     [sessionId, resolveOwnedItemDraft],
   );
 
+  const applyClosetOutcome = useCallback(
+    (
+      candidateId: string,
+      closetState: NonNullable<DraftAttachment['closetState']>,
+      closetItemId?: string | null,
+    ) => {
+      const live = getDraftAttachments(sessionId).find(
+        (entry) => entry.selection.closetCandidateId === candidateId,
+      );
+      if (!live) return;
+      updateDraftAttachment(sessionId, {
+        ...live,
+        closetState,
+        closetItemId: closetItemId ?? live.closetItemId ?? null,
+        selection: { ...live.selection, updatedAt: now() },
+      });
+    },
+    [sessionId],
+  );
+
+  const saveDirectImageToCloset = useCallback(
+    async (draftId: string): Promise<AddAttachmentResult> => {
+      const draft = getDraftAttachments(sessionId).find((entry) => entry.draftId === draftId);
+      const candidateId = draft?.selection.closetCandidateId ?? null;
+      if (!draft || !candidateId) return { ok: false, message: 'This photo cannot be saved.' };
+      if (draft.closetState === 'saved') return { ok: true };
+      if (savingClosetCandidateIds.has(candidateId)) return { ok: true };
+
+      savingClosetCandidateIds.add(candidateId);
+      applyClosetOutcome(candidateId, 'saving');
+      const actorRequest = createActorRequest();
+      try {
+        const result = await promoteSelectedClosetCandidates({
+          actorId: actorRequest.actorId,
+          actorEpoch: actorRequest.epoch,
+          batchId: draft.selection.closetCandidateBatchId ?? null,
+          candidateIds: [candidateId],
+        });
+        const item = result?.results?.[0];
+        const closetItemId = item?.committedClosetItemId ?? null;
+        if (
+          (item?.status === 'promoted' || item?.status === 'already_promoted') &&
+          typeof closetItemId === 'string' &&
+          closetItemId
+        ) {
+          applyClosetOutcome(candidateId, 'saved', closetItemId);
+          return { ok: true };
+        }
+        applyClosetOutcome(candidateId, 'save_failed');
+        return { ok: false, message: "Couldn't save to Closet. You can retry." };
+      } catch {
+        applyClosetOutcome(candidateId, 'save_failed');
+        return { ok: false, message: "Couldn't save to Closet. You can retry." };
+      } finally {
+        savingClosetCandidateIds.delete(candidateId);
+      }
+    },
+    [sessionId, applyClosetOutcome],
+  );
+
+  /**
+   * Record that this item has been handed off to the private Dressing Room.
+   *
+   * IN-MEMORY AND CLIENT-ONLY, like every other field on the draft. It changes
+   * which follow-up the composer offers next — "Open Dressing Room" rather than
+   * "Style This Item" — and nothing else reads it. It is emphatically NOT a
+   * claim that a Look was saved, and it never participates in the ownership
+   * decision, which stays `closetState === 'saved'` plus a committed item id.
+   *
+   * Update-only: a draft removed between the handoff and this call is not
+   * resurrected.
+   */
+  const markStyledInDressingRoom = useCallback(
+    (draftId: string) => {
+      const live = getDraftAttachments(sessionId).find((entry) => entry.draftId === draftId);
+      if (!live || live.styledInDressingRoom === true) return;
+      updateDraftAttachment(sessionId, {
+        ...live,
+        styledInDressingRoom: true,
+        selection: { ...live.selection, updatedAt: now() },
+      });
+    },
+    [sessionId],
+  );
+
+  const setSnapshotSendState = useCallback(
+    (drafts: DraftAttachment[], state: 'sending' | 'send_failed' | 'sent') => {
+      for (const snapshot of drafts) {
+        const live = getDraftAttachments(sessionId).find(
+          (entry) => entry.draftId === snapshot.draftId,
+        );
+        if (!live) continue;
+        if (!live.selection.closetCandidateId && state === 'sent') {
+          removeDraftAttachment(sessionId, live.draftId);
+          continue;
+        }
+        updateDraftAttachment(sessionId, {
+          ...live,
+          state,
+          selection: { ...live.selection, updatedAt: now() },
+        });
+      }
+      if (
+        state === 'sent' &&
+        drafts.some((draft) => draft.draftId === getFocusedDraftId(sessionId))
+      ) {
+        const remaining = getDraftAttachments(sessionId).filter(
+          (entry) => entry.state !== 'cancelled' && entry.state !== 'sent',
+        );
+        setFocusedDraftId(sessionId, remaining[0]?.draftId ?? null);
+      }
+    },
+    [sessionId],
+  );
+
   const removeAttachment = useCallback(
     (draftId: string) => {
+      const draft = getDraftAttachments(sessionId).find((entry) => entry.draftId === draftId);
       removeDraftAttachment(sessionId, draftId);
+      const candidateId = draft?.selection.closetCandidateId;
+      const stillReferenced = candidateId
+        ? getDraftAttachments(sessionId).some(
+            (entry) => entry.selection.closetCandidateId === candidateId,
+          )
+        : false;
+      if (
+        draft &&
+        candidateId &&
+        !stillReferenced &&
+        draft.closetState !== 'saved'
+      ) {
+        void deleteClosetCandidate(createActorRequest(), candidateId);
+      }
       if (getFocusedDraftId(sessionId) === draftId) {
-        const remaining = getDraftAttachments(sessionId).filter((entry) => entry.state !== 'cancelled');
+        const remaining = getDraftAttachments(sessionId).filter(
+          (entry) => entry.state !== 'cancelled' && entry.state !== 'sent',
+        );
         setFocusedDraftId(sessionId, remaining[0]?.draftId ?? null);
       }
     },
@@ -888,7 +1051,10 @@ export function useStyleChatAttachments(sessionId: string) {
     // draft first. Visual-collection focus still uses focusEvidenceId when present.
     const orderedDrafts = orderAttachmentsForSend(
       getDraftAttachments(sessionId)
-        .filter((entry) => entry.state === 'ready' && entry.resolved)
+        .filter(
+          (entry) =>
+            (entry.state === 'ready' || entry.state === 'send_failed') && entry.resolved,
+        )
         .map((entry) => ({
           draftId: entry.draftId,
           focused: entry.draftId === getFocusedDraftId(sessionId),
@@ -922,9 +1088,7 @@ export function useStyleChatAttachments(sessionId: string) {
     // SOURCE order (not completion order, and not the focus ordering above —
     // focus is a multimodal priority hint for the attachment array, whereas
     // fashion-context order is which garment is which).
-    const fashionContextDecision = resolveSendFashionContext(
-      getDraftAttachments(sessionId).filter((entry) => entry.state !== 'cancelled'),
-    );
+    const fashionContextDecision = resolveSendFashionContext(snapshot.drafts);
 
     return {
       ...snapshot,
@@ -998,6 +1162,7 @@ export function useStyleChatAttachments(sessionId: string) {
     hasFailed,
     allReady,
     canSendWithAttachments,
+    hasActiveAttachments,
     atAttachmentLimit,
     atDirectImageLimit,
     addOwnedItem,
@@ -1007,6 +1172,12 @@ export function useStyleChatAttachments(sessionId: string) {
     addSharedItem,
     addDressingRoomItem,
     addDirectImage,
+    applyClosetOutcome,
+    saveDirectImageToCloset,
+    markStyledInDressingRoom,
+    markSending: (drafts: DraftAttachment[]) => setSnapshotSendState(drafts, 'sending'),
+    markSent: (drafts: DraftAttachment[]) => setSnapshotSendState(drafts, 'sent'),
+    markSendFailed: (drafts: DraftAttachment[]) => setSnapshotSendState(drafts, 'send_failed'),
     setFocusedAttachment,
     retryAttachment,
     removeAttachment,

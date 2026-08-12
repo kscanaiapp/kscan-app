@@ -37,7 +37,11 @@ import {
 } from '../privacyImageUpload';
 import { identifyScanImage } from '../scanIdentification';
 import { mapScanIdentifyToAnalysis } from '../scanIdentificationMapper';
-import { resolvePreparedDirectImageAttachment } from './eliseDirectImageAttachment';
+import {
+  discardPreparedDirectImage,
+  resolvePreparedDirectImageAttachment,
+  stageSanitizedEliseDirectImage,
+} from './eliseDirectImageAttachment';
 import type { EliseVisualContextInput } from '../../types/eliseVisualContext';
 import type { FashionIdentificationResultV2 } from '../../types/fashionIdentificationV2';
 import { prepareFashionEvidence } from '../fashionEvidenceGateway';
@@ -64,8 +68,8 @@ export type VisualContextEvidenceFailureReason =
 
 export type VisualContextEvidenceSuccess = {
   ok: true;
-  /** Stable actor-owned reference proving the image has authorized backing. */
-  savedScanId: string;
+  /** Stable actor-owned local candidate; not a committed Closet item. */
+  candidateId: string;
   fields: VisualContextEvidenceFields;
   /**
    * Canonical V2 identity for this reference (Phase 2B.3).
@@ -198,13 +202,18 @@ async function finishVisualContextEvidence(input: {
   }
   const fields: VisualContextEvidenceFields = projected;
 
+  let prepared: Awaited<ReturnType<typeof stageSanitizedEliseDirectImage>>;
+  try {
+    prepared = await stageSanitizedEliseDirectImage(
+      input.sanitizedUri,
+      'photo_library',
+      input.previewUri,
+    );
+  } catch {
+    return { ok: false, reason: 'staging_failed', message: STAGING_FAILED_MESSAGE };
+  }
   const staged = await resolvePreparedDirectImageAttachment(
-    {
-      previewUri: input.previewUri ?? input.sanitizedUri,
-      preparedUri: input.sanitizedUri,
-      source: 'photo_library',
-      operationId: `vctx_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    },
+    prepared,
     {
       title: fields.title,
       category: fields.category as string,
@@ -225,17 +234,13 @@ async function finishVisualContextEvidence(input: {
   );
 
   if (!staged.ok) {
-    return { ok: false, reason: 'staging_failed', message: STAGING_FAILED_MESSAGE };
-  }
-  const savedScanId =
-    staged.resolved.attachmentType === 'owned_item' ? staged.resolved.sourceId : null;
-  if (!savedScanId) {
+    await discardPreparedDirectImage(prepared);
     return { ok: false, reason: 'staging_failed', message: STAGING_FAILED_MESSAGE };
   }
 
   return {
     ok: true,
-    savedScanId,
+    candidateId: staged.prepared.candidateId,
     fields,
     identificationV2: input.identification,
     identificationState: input.identificationState,
@@ -403,16 +408,20 @@ export async function prepareVisualContextEvidence(input: {
   }
 
   // ── 3. Authorized, actor-bound remote backing ─────────────────────────────
-  // Reuses the direct-attachment staging saga: local saveScan under a captured
-  // actor request, cloud row upsert scoped to the authenticated user, then
-  // private media upload. Ownership is never supplied by this caller.
+  // Reuses private actor-scoped candidate staging. This creates neither a
+  // saved_scan row nor a committed Closet item.
+  let prepared: Awaited<ReturnType<typeof stageSanitizedEliseDirectImage>>;
+  try {
+    prepared = await stageSanitizedEliseDirectImage(
+      sanitizedUri,
+      'photo_library',
+      input.previewUri,
+    );
+  } catch {
+    return { ok: false, reason: 'staging_failed', message: STAGING_FAILED_MESSAGE };
+  }
   const staged = await resolvePreparedDirectImageAttachment(
-    {
-      previewUri: input.previewUri ?? sanitizedUri,
-      preparedUri: sanitizedUri,
-      source: 'photo_library',
-      operationId: `vctx_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    },
+    prepared,
     {
       title: fields.title,
       category: fields.category,
@@ -422,14 +431,9 @@ export async function prepareVisualContextEvidence(input: {
   );
 
   if (!staged.ok) {
+    await discardPreparedDirectImage(prepared);
     return { ok: false, reason: 'staging_failed', message: STAGING_FAILED_MESSAGE };
   }
 
-  const savedScanId =
-    staged.resolved.attachmentType === 'owned_item' ? staged.resolved.sourceId : null;
-  if (!savedScanId) {
-    return { ok: false, reason: 'staging_failed', message: STAGING_FAILED_MESSAGE };
-  }
-
-  return { ok: true, savedScanId, fields };
+  return { ok: true, candidateId: staged.prepared.candidateId, fields };
 }

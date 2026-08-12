@@ -96,9 +96,11 @@ export function upsertDraftAttachment(
   const draft = getOrCreateDraft(sessionId, actorKey);
   const index = draft.attachments.findIndex((entry) => entry.draftId === attachment.draftId);
   if (index >= 0) {
-    draft.attachments[index] = attachment;
+    draft.attachments = draft.attachments.map((entry, entryIndex) =>
+      entryIndex === index ? attachment : entry,
+    );
   } else {
-    draft.attachments.push(attachment);
+    draft.attachments = [...draft.attachments, attachment];
   }
   notify();
 }
@@ -124,7 +126,13 @@ export function updateDraftAttachment(
   if (!draft) return false;
   const index = draft.attachments.findIndex((entry) => entry.draftId === attachment.draftId);
   if (index < 0) return false;
-  draft.attachments[index] = attachment;
+  // `useSyncExternalStore` compares snapshots with Object.is. Publish a new
+  // array identity for every applied transition so a Closet-only state change
+  // (saving -> saved / save_failed) cannot remain visually stale while the
+  // underlying attachment has already changed.
+  draft.attachments = draft.attachments.map((entry, entryIndex) =>
+    entryIndex === index ? attachment : entry,
+  );
   notify();
   return true;
 }
@@ -173,18 +181,28 @@ export function snapshotReadyAttachments(
   drafts: DraftAttachment[];
 } {
   const ready = getDraftAttachments(sessionId, actorKey).filter(
-    (entry) => entry.state === 'ready' && entry.resolved,
+    (entry) =>
+      (entry.state === 'ready' || entry.state === 'send_failed') &&
+      Boolean(entry.resolved || entry.fashionContext),
   );
   const seen = new Set<string>();
   const unique: DraftAttachment[] = [];
   for (const entry of ready) {
-    const key = attachmentKey(entry.resolved as StyleChatAttachment);
+    const key = entry.resolved
+      ? attachmentKey(entry.resolved)
+      : `direct:${entry.selection.closetCandidateId ?? entry.draftId}`;
     if (seen.has(key)) continue;
     seen.add(key);
     unique.push(entry);
   }
   return {
-    references: unique.map((entry) => JSON.parse(JSON.stringify(entry.resolved)) as StyleChatAttachment),
+    references: unique
+      .map((entry) =>
+        entry.resolved
+          ? (JSON.parse(JSON.stringify(entry.resolved)) as StyleChatAttachment)
+          : null,
+      )
+      .filter(Boolean) as StyleChatAttachment[],
     drafts: unique.map((entry) => JSON.parse(JSON.stringify(entry)) as DraftAttachment),
   };
 }
