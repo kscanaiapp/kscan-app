@@ -45,7 +45,7 @@
     "test:staging-v2-guard": "node --test __tests__/staging/stagingV2WriteGuard.test.js",
     "test:staging-certification": "node --test __tests__/security/stagingCertification.test.js",
     "test:release-control-plane": "node --test __tests__/security/environmentAuthority.test.js __tests__/release/releaseStateMachine.test.js __tests__/release/migrationRiskClassification.test.js __tests__/release/releaseManifest.test.js __tests__/release/productionEligibility.test.js",
-    "test:release-verification": "node --test __tests__/release/releaseVerification.test.js __tests__/release/verifySupabaseAuthority.test.js __tests__/release/verifiedBaseline.test.js __tests__/release/baselineEvidenceBinding.test.js __tests__/release/activationPipeline.test.js",
+    "test:release-verification": "node --test __tests__/release/releaseVerification.test.js __tests__/release/verifySupabaseAuthority.test.js __tests__/release/verifiedBaseline.test.js __tests__/release/baselineEvidenceBinding.test.js __tests__/release/activationPipeline.test.js __tests__/release/activationExecutionIntegrity.test.js",
     "stagingv2:apply-migrations": "node scripts/staging-v2/apply-migrations.mjs",
     "stagingv2:deploy-function": "node scripts/staging-v2/deploy-function.mjs",
     "stagingv2:configure-storage": "node scripts/staging-v2/configure-storage.mjs",

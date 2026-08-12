@@ -168,3 +168,68 @@
 - **Regression test:** `deploy core: worktree mutation cannot change the deployed bytes (TOCTOU)` builds a throwaway repo, materializes, mutates the worktree, re-materializes, and asserts the hash is unchanged and the tampered content never appears.
 - **Verification:** 30/30 in `activationPipeline.test.js`; zero new failures in the full suite.
 - **Final state:** Fixed.
+
+## DEF-REL-014 — REAL_EXECUTE_ADAPTERS_UNWIRED
+
+- **Preexisting or introduced:** Introduced in Phase 2B.3, found by manager review before merge.
+- **Symptom:** The orchestrator defaulted `probeHealth`, `certification` and `github` to null, and the CLI supplied none of them. A real EXECUTE would therefore have produced `health = OPERATIONAL_FAILURE` with absent certification and no persistence — STAGING_VERIFIED unreachable no matter how well every deployment went.
+- **Root cause:** Adapters existed only as test injection points. The library was proven; the path that actually runs was not. Prior-baseline discovery had the same shape: the CLI always passed `priorVerifiedRelease = null`, so a second dispatch after a successful bootstrap would not have found its own trust root.
+- **Security impact:** None realized (fail-closed). The risk was operational: a run that deployed 17 functions and then could not conclude.
+- **Release impact:** Activation was not completable.
+- **Files:** `security/release/activation-runtime-adapters.mjs` (new), `security/release/run-bootstrap-activation.mjs`.
+- **Fix:** Real adapters implemented and wired by the CLI itself via `buildCliDeps()`. The health probe hits `/health/live`, `/health/ready` and `/version` with bounded timeouts and passes the verbatim `/version` body to the exact verifier; timeout, DNS failure, malformed JSON, non-2xx and a NOT_VERIFIABLE identity all resolve to OPERATIONAL_FAILURE rather than PASS. Certification consumes the repository's existing canonical report and blocks when missing or malformed rather than passing null. Prior verified releases are discovered read-only in both modes through `loadPriorVerifiedRelease` with a read-only GitHub adapter, and the package is fully re-validated — tag naming is never trusted.
+- **Regression test:** `activationExecutionIntegrity.test.js` — CLI-wiring assertions (`buildCliDeps` returns all three adapters AND the CLI source passes them through), four health failure modes, the NOT_VERIFIABLE case, the healthy case, and four certification cases. Plus a subprocess test that runs the real CLI.
+- **Verification:** 28/28 in the new suite; `test:release-verification` 175/175; zero new failures in the full suite.
+- **Final state:** Fixed. Not executed.
+
+## DEF-REL-015 — PERSISTENCE_EXECUTION_SPLIT
+
+- **Preexisting or introduced:** Introduced in Phase 2B.3, found by manager review before merge.
+- **Symptom:** The workflow expected `activation/verified-baseline.json` and three sibling files, but the orchestrator only printed one combined result to stdout, so the persistence job could never find the package. Separately, `publishPackage()` implemented upload + read-back + digest verification while the workflow published with its own inline `gh release create` block — the code that ran was the one WITHOUT the read-back.
+- **Root cause:** Two publication implementations, and the reported guarantee ("read-back verified") belonged to the one the workflow bypassed.
+- **Security impact:** A corrupted or truncated upload would have been reported as successful persistence, so a later release could have attempted carry-forward from an unusable package.
+- **Release impact:** Persistence could not succeed, and its verification claim was untrue of the executed path.
+- **Files:** `security/release/run-bootstrap-activation.mjs`, `security/release/persist-verified-release-package.mjs` (new), `.github/workflows/staging-release-bootstrap.yml`.
+- **Fix:** `--output-dir` writes each artifact atomically (tmp + rename) the moment it legitimately exists; `verified-baseline.json` is written only after minting AND validation succeed, so a denied release cannot leave a "verified" file behind. Publication moved entirely into `persist-verified-release-package.mjs`, which calls `publishPackage()` — the single authority that uploads, reads back and compares digests. The workflow now invokes that executable and contains no publication algorithm. Per Part E the execute job keeps `contents: read` and legitimately ends `PERSISTENCE_PENDING`; only the persistence job publishes.
+- **Regression test:** PLAN_ONLY writes plan artifacts but no baseline; persistence refuses a missing baseline; persistence refuses evidence that was not staging-verified; a full publish uploads four assets as a prerelease tagged at the exact candidate and a read-back mismatch returns `VERIFIED_BASELINE_PERSISTENCE_GAP`; the workflow contains no `gh release create`.
+- **Verification:** 28/28; zero new failures.
+- **Final state:** Fixed.
+
+## DEF-REL-016 — DEPLOY_CORE_NOT_SHARED_AND_VERIFY_JWT_NOT_ENFORCED
+
+- **Preexisting or introduced:** Introduced in Phase 2B.3. **I reported `SHARED_WITH_EXISTING_STAGING_PATH = YES` when `scripts/deploy-staging-function.mjs` had not been modified at all** — the claim was false, and the new core was a parallel second deployer.
+- **Symptom:** Two deployment implementations. Worse, the new core recorded `verifyJwt` but never passed `--no-verify-jwt`, while the existing deployer did.
+- **Root cause:** The refactor was described but not performed. The verify_jwt omission followed from building a new path instead of extending the proven one.
+- **Security impact:** Real. `verify_jwt` is runtime AUTHORIZATION. Bootstrap would have deployed `staging-health` with JWT verification enabled — breaking the deliberately public health probe, which is the surface release verification depends on. The inverse error on another function would expose an authenticated endpoint.
+- **Release impact:** Bootstrap would have produced a staging backend whose health contract was unreachable.
+- **Files:** `security/release/staging-deploy-core.mjs`, `scripts/deploy-staging-function.mjs`.
+- **Fix:** `buildDeployArgs()` is now the single command primitive and emits `--no-verify-jwt` when the posture is false; `scripts/deploy-staging-function.mjs` imports and uses it, so the hand-rolled flag push is gone and the two paths cannot drift. `resolveVerifyJwt()` resolves the posture from governed configuration — the manifest entry first, then the function's own `config.toml` (which is where `staging-health` declares `verify_jwt = false`, since the root file omits it) — and throws `VERIFY_JWT_UNRESOLVED` rather than defaulting. The controlled path's `EXPECTED_VERIFY_JWT` input is now cross-checked against the governed value instead of trusted.
+- **Regression test:** the existing deployer imports the core and no longer pushes the flag itself; `--no-verify-jwt` present/absent by posture; `staging-health` resolves to `false` from `function-config.toml` and its command carries the flag; an undeclared posture is refused.
+- **Verification:** 28/28 plus `test:staging-deploy` 20/20; zero new failures.
+- **Final state:** Fixed.
+
+## DEF-REL-017 — CANDIDATE_DEPLOY_HASH_CONTRACT_MISMATCH
+
+- **Preexisting or introduced:** Introduced in Phase 2B.3, found by manager review before merge.
+- **Symptom:** `candidate-binding.js` hashed entries keyed on REPO-relative paths (`supabase/functions/x/index.ts:<sha>`) while the deploy core hashed FUNCTION-relative paths (`index.ts:<sha>`). Measured directly: binding `838379e5...` vs deploy `c41dc2a3...` for the same untouched source. The binding hash could therefore never equal the deploy-input hash, and a real EXECUTE would have blocked **every** governed function with `SOURCE_HASH_MISMATCH`.
+- **Root cause:** Three near-identical hashers with no shared definition, and a test that only proved the negative case — it supplied a deliberately wrong hash, so it passed whether or not the matching case worked.
+- **Security impact:** None realized (fail-closed), but the control was inert: it would have blocked everything, which is indistinguishable from blocking nothing once someone "fixes" it by loosening the comparison.
+- **Release impact:** Bootstrap could not deploy a single function.
+- **Files:** `security/release/function-source-hash.js` (new), `security/release/candidate-binding.js`, `security/release/staging-deploy-core.mjs`.
+- **Fix:** One canonical implementation with an explicit contract — paths relative to the function directory with POSIX separators, sorted byte-wise, every regular file included recursively, **raw bytes** hashed (not utf8-decoded, so binary content and newline translation cannot shift the digest), and `_shared` deliberately excluded because the manifest tracks it separately as `sharedDependencyHash`. Binding hashes git-object bytes through `hashFromFileMap`; the deploy core delegates to `hashFunctionSource`. Both now agree by construction rather than by coincidence.
+- **Regression test:** the decisive positive test — bind a real candidate, materialize the same candidate, hash the deploy input, assert equality — for a normal function (`scan-identify`) AND `staging-health`. Plus: the canonical hasher is byte-based (a lone CR changes the digest), the deploy core delegates to it, and a mutated deploy input still blocks.
+- **Verification:** equality proven for `scan-identify`, `staging-health` and `stylechat-generate`; 28/28; zero new failures.
+- **Final state:** Fixed.
+
+## DEF-REL-018 — ACTIVATION_PREFLIGHT_TOOLCHAIN_AND_FRESHNESS_GAPS
+
+- **Preexisting or introduced:** Introduced in Phase 2B.3, found by manager review before merge.
+- **Symptom:** Four distinct gaps in one workflow. (1) The workflow called `supabase` without installing the CLI. (2) `supabase migration list ... || echo '[]'` converted a CLI, auth, network or format failure into "zero migrations". (3) Staging HEAD and live inventory were checked only in preflight, so an environment-approval delay or a concurrent merge could make the evidence stale before mutation. (4) Each orchestrator invocation minted its own `releaseId` from its own clock, and `deploymentAttempt` was hardcoded to 1.
+- **Root cause:** The workflow was written against library behaviour rather than runner reality, and time-of-check/time-of-use was not considered across an approval gate.
+- **Security impact:** The empty-list fallback is the serious one: it would have let the bootstrap planner reconcile the candidate against a fabricated empty live state and reach a conclusion nobody measured.
+- **Release impact:** A run could have deployed against stale evidence, under a releaseId that did not match the plan the operator approved.
+- **Files:** `.github/workflows/staging-release-bootstrap.yml`, `security/release/build-activation-inventory.mjs` (new), `security/release/run-bootstrap-activation.mjs`.
+- **Fix:** The pinned `supabase/setup-cli@v1` at `2.109.1` (the repository's existing standard) is installed in every job that invokes `supabase`, and the version is printed. Inventory is built by a fail-closed builder that validates shape and raises `ACTIVATION_INVENTORY_OPERATIONAL_FAILURE` on missing/empty/malformed/unknown-schema output — an empty *function* list is refused outright, while an empty *migration* list is accepted because it is structurally possible. EXECUTE re-fetches staging HEAD and blocks with `STALE_BOOTSTRAP_CANDIDATE` before any mutation, and re-reads the live inventory and compares it against the plan-stage snapshot. One `releaseId` is minted at preflight and threaded through plan, execute, receipt, metadata and tag; `deploymentAttempt` binds to `GITHUB_RUN_ATTEMPT`. A CLI arg-parsing defect found by these tests was fixed too: a missing `--inventory` flag resolved to `argv[0]`, making the CLI try to JSON.parse the node executable.
+- **Regression test:** inventory shape/failure matrix incl. the real 103-migration case; no empty-list fallback in the workflow; CLI setup precedes every supabase command with the pinned version; both revalidation steps exist and precede the activation run; one releaseId minted and consumed by plan and execute; attempt bound to the run attempt; real-CLI subprocess tests for missing/empty/malformed inventory.
+- **Verification:** 28/28; zero new failures.
+- **Final state:** Fixed.
