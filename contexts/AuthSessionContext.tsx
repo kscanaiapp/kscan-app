@@ -8,7 +8,12 @@ import React, {
   useState,
 } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
-import { supabase, takeAuthBootstrapStorageError } from '../services/supabaseClient';
+import {
+  assertSupabaseConfigured,
+  supabase,
+  supabaseConfigError,
+  takeAuthBootstrapStorageError,
+} from '../services/supabaseClient';
 import { AUTH_CALLBACK_URL } from '../services/authConfig';
 import { isSessionUsable } from '../services/routingGuard';
 import { invalidateAllMemoryCache } from '../services/style-chat/styleMemoryCache';
@@ -29,6 +34,8 @@ import { clearStyleChatHandoffContext } from '../services/style-chat/styleChatHa
 import { resetStyleChatGreetingState } from '../services/style-chat/styleChatGreeting';
 import { advanceActorEpoch } from '../services/actorContext';
 import { clearTodayWeather } from '../services/weather/todayWeatherStore';
+import { buildSignupNameMetadata, type SignupNameInput } from '../services/userFirstName';
+import { resetCorrelationContext } from '../services/observability';
 
 /**
  * Returned by signUp so the caller can distinguish between an immediate
@@ -50,7 +57,7 @@ export interface AuthSessionContextValue {
   /** True during a background token refresh. Writes should be deferred. */
   isRefreshing: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<SignUpResult>;
+  signUp: (email: string, password: string, profile?: SignupNameInput) => Promise<SignUpResult>;
   signOut: () => Promise<void>;
 }
 
@@ -63,6 +70,7 @@ function resetActorScopedRuntimeState(nextActorId: string | null): void {
   // stale `catch`/`finally` handlers) to be rejected instead of repopulating
   // the new actor's state.
   advanceActorEpoch(nextActorId);
+  resetCorrelationContext();
   invalidateAllMemoryCache();
   resetAttachmentStore();
   // Actor change (sign-in / sign-out / user update): drop any composer
@@ -93,6 +101,18 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     let mounted = true;
+
+    if (supabaseConfigError) {
+      traceAuthLifecycle('bootstrap-result', {
+        outcome: 'configuration-error',
+        sessionPresent: false,
+      });
+      setSession(null);
+      setLoading(false);
+      return () => {
+        mounted = false;
+      };
+    }
 
     const {
       data: { subscription },
@@ -209,15 +229,25 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
+    assertSupabaseConfigured();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string): Promise<SignUpResult> => {
+  const signUp = useCallback(async (
+    email: string,
+    password: string,
+    profile?: SignupNameInput,
+  ): Promise<SignUpResult> => {
+    assertSupabaseConfigured();
+    const nameMetadata = buildSignupNameMetadata(profile ?? {});
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: AUTH_CALLBACK_URL },
+      options: {
+        emailRedirectTo: AUTH_CALLBACK_URL,
+        ...(Object.keys(nameMetadata).length > 0 ? { data: nameMetadata } : {}),
+      },
     });
     if (error) throw error;
     return {

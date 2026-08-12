@@ -18,6 +18,7 @@ import { SecondhandShelf } from './SecondhandShelf';
 import { SneakerMatchCard } from './SneakerMatchCard';
 import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
+import { useAiOutputReporting } from '../contexts/AiOutputReportingContext';
 import {
   COLORS,
   LUXURY,
@@ -47,6 +48,7 @@ export interface AnalysisCardProps {
     category: string;
     color: string;
     silhouette: string;
+    pattern?: string | null;
     confidenceScore?: number;
     scanQualityNote?: string | null;
     stylingSuggestions?: string[];
@@ -126,6 +128,7 @@ export function AnalysisCard({
   const { height: windowHeight, modalMaxWidth } = useResponsiveLayout();
   const fromY = windowHeight * 0.36;
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
+  const { openAiOutputReport } = useAiOutputReporting();
   const priceDiscoveryEnabled = !featureFreezeLoading && isFeatureEnabled('priceDiscovery');
   const resaleValuationEnabled = !featureFreezeLoading && isFeatureEnabled('resaleValuation');
   const translateY    = useRef(new Animated.Value(fromY)).current;
@@ -205,6 +208,9 @@ export function AnalysisCard({
   const category   = sanitizeText(meta.category);
   const color      = sanitizeText(meta.color);
   const silhouette = sanitizeText(meta.silhouette);
+  // Not sanitizeText: that substitutes an em dash for an absent value, which
+  // would render a "Pattern —" chip asserting the scan looked and found none.
+  const pattern    = typeof meta.pattern === 'string' ? meta.pattern.trim() : '';
   const confidenceScore = typeof meta.confidenceScore === 'number' ? meta.confidenceScore : undefined;
   const scanQualityNote = meta.scanQualityNote ?? undefined;
   const showLowConfidence = confidenceScore !== undefined && confidenceScore < 0.70;
@@ -269,6 +275,27 @@ export function AnalysisCard({
 
               {/* AI result body */}
               <Text style={styles.body}>{resultText}</Text>
+
+              {/* Offensive/unsafe AI-output reporting for the Scan Results
+                  surface. This paragraph is model-authored prose, so it needs
+                  the same in-app reporting route StyleChat already gives its
+                  assistant messages (components/style-chat/StyleChatBubble).
+                  Hidden when there is no analysis text to report. */}
+              {resultText && resultText !== EMPTY_VALUE ? (
+                <TouchableOpacity
+                  onPress={() =>
+                    openAiOutputReport({ feature: 'Scan Results', itemId: scanSourceId ?? null })
+                  }
+                  style={styles.reportBtn}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="Report this style analysis as offensive or unsafe"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  testID="analysis-card-report-ai"
+                >
+                  <Text style={styles.reportText}>Report Response</Text>
+                </TouchableOpacity>
+              ) : null}
 
               {/* Match summary */}
               <View style={styles.matchSummary}>
@@ -344,6 +371,14 @@ export function AnalysisCard({
                 <Animated.View style={{ opacity: chip3Opacity }}>
                   <MetadataChip label="Silhouette" value={silhouette} />
                 </Animated.View>
+                {/* Pattern (BUG-11). Rendered only when the scan established
+                    one — an absent pattern stays absent rather than becoming
+                    "solid", which would be a claim the scan never made. */}
+                {pattern ? (
+                  <Animated.View style={{ opacity: chip3Opacity }}>
+                    <MetadataChip label="Pattern" value={pattern} />
+                  </Animated.View>
+                ) : null}
               </View>
 
               {/* Low-confidence / scan quality guidance */}
@@ -579,6 +614,22 @@ const styles = StyleSheet.create({
   body: {
     ...LUXURY.typography.body,
     marginTop: SPACING.lg,
+  },
+  // Mirrors the StyleChat bubble's report affordance so the two AI surfaces
+  // present the same control rather than inventing a second visual language.
+  reportBtn: {
+    marginTop: SPACING.sm,
+    alignSelf: 'flex-start',
+    paddingVertical: SPACING.xs,
+    minHeight: 32,
+    justifyContent: 'center',
+  },
+  reportText: {
+    ...LUXURY.typography.caption,
+    fontSize: 11,
+    color: LUXURY.colors.stone,
+    letterSpacing: 0.6,
+    textDecorationLine: 'underline',
   },
   matchSummary: {
     marginTop: SPACING.lg,

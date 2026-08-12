@@ -53,6 +53,8 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   { table: 'style_memory_events', column: 'user_id', action: 'auth_delete_cascade' },
   { table: 'style_chat_usage', column: 'user_id', action: 'auth_delete_cascade' },
   { table: 'style_chat_daily_usage', column: 'user_id', action: 'auth_delete_cascade' },
+  { table: 'elise_generation_operations', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  { table: 'image_scan_verdicts', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'scan_identify_usage_daily', column: 'user_id', action: 'auth_delete_cascade' },
   { table: 'content_reports', column: 'reporter_user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'content_reports', column: 'reported_user_id', action: 'auth_delete_set_null', optional: true },
@@ -67,6 +69,14 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   { table: 'wardrobe_activity_log', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'style_chat_burst_usage', column: 'user_id', action: 'direct_delete_before_auth', optional: true },
   { table: 'scan_intelligence_events', column: 'user_id', action: 'direct_delete_before_auth', optional: true },
+  { table: 'provider_request_reservations', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  { table: 'provider_security_events', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  // This table intentionally has no auth.users FK, so the worker must remove
+  // its rows before deleting the Auth user.
+  { table: 'privacy_request_rate_limits', column: 'user_id', action: 'direct_delete_before_auth', optional: true },
+  // Encrypted Apple refresh token is revoked and erased before Auth deletion;
+  // the cascade remains a final owner-bound secret-cleanup safeguard.
+  { table: 'apple_auth_credentials', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'user_stylist_preferences', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   {
     table: 'dressing_room_collab_idempotency',
@@ -93,7 +103,10 @@ export interface StorageResourceTemplate {
 }
 
 export const STORAGE_RESOURCE_TEMPLATES: StorageResourceTemplate[] = [
-  { bucket: 'style-library-images', prefixTemplates: ['{userId}/scans', '{userId}/inspirations'] },
+  {
+    bucket: 'style-library-images',
+    prefixTemplates: ['{userId}/scans', '{userId}/inspirations', '{userId}/saved-scans'],
+  },
 ];
 
 export const STORAGE_RESOURCES = STORAGE_RESOURCE_TEMPLATES.map((resource) => ({

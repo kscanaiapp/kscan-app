@@ -418,8 +418,12 @@ test('preserve: permission card icons and profile avatar fallback unchanged', ()
   assert.match(permissions, /icon="◉"/);
   assert.match(permissions, /icon="◈"/);
   assert.doesNotMatch(permissions, /KScanIcon/);
-  // Home profile button keeps its initial/sparkle avatar fallback.
-  assert.match(HOME, /profileName \? profileName\.charAt\(0\)\.toUpperCase\(\) : '✦'/);
+  // Home profile button keeps its initial/sparkle avatar fallback. Asserted on
+  // the BEHAVIOUR, not on the identifier: Build 29 moved name resolution into
+  // `resolvePreferredName`, renaming `profileName` to `preferredName` without
+  // changing what the avatar renders. Pinning the old identifier reported a
+  // regression that did not exist while still being blind to a real one.
+  assert.match(HOME, /(\w+) \? \1\.charAt\(0\)\.toUpperCase\(\) : '✦'/);
 });
 
 test('preserve: VoiceScan placeholder stays inactive and non-interactive', () => {

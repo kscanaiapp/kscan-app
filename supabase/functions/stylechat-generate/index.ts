@@ -20,6 +20,7 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2.105.4';
 import { assertAccountActive } from '../_shared/deletion/common.ts';
+import { observeEdgeRequest } from '../_shared/observability.ts';
 import { parseStyleDnaContext, buildStyleDnaContextBlock } from './styleDnaContext.ts';
 import {
   parseActiveContext,
@@ -104,7 +105,7 @@ import { ELISE_ADVICE_CONTRACT_VERSION, ELISE_ADVICE_LIMITS } from './eliseAdvic
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-kscan-request-id, traceparent',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
@@ -885,7 +886,7 @@ function buildWeatherContextBlock(ctx: WeatherStylingContext): string {
 
 // ── Main handler ───────────────────────────────────────────────────────────────
 
-Deno.serve(async (req) => {
+Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async () => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS });
   }
@@ -2658,4 +2659,4 @@ Deno.serve(async (req) => {
         }
       : {}),
   });
-});
+}));

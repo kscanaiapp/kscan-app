@@ -63,8 +63,10 @@ test('privacy hydrate cancels stale generations and does not wipe remote rows wh
   );
 });
 
-test('Supabase client remains a module singleton with explicit missing-config fallback', () => {
+test('Supabase client remains a module singleton with validated fail-closed auth configuration', () => {
   assert.match(supabaseClientSource, /export const supabase = createClient/);
+  assert.match(supabaseClientSource, /validateSupabaseConfig\(configuredUrl, configuredAnonKey\)/);
+  assert.match(supabaseClientSource, /export function assertSupabaseConfigured/);
   assert.match(supabaseClientSource, /missing-supabase-url\.supabase\.co/);
   assert.equal(
     (supabaseClientSource.match(/createClient\(/g) || []).length,

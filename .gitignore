@@ -123,3 +123,12 @@ product-search-response.json
 
 # Raw portrait source files (processed JPEGs are bundled)
 assets/stylist-avatars/portraits/raw/
+dist/
+
+.env.local
+
+# Sentry provider credentials — generated per developer / per build.
+# The privileged token must only ever come from SENTRY_AUTH_TOKEN in a secret store.
+sentry.properties
+android/sentry.properties
+ios/sentry.properties

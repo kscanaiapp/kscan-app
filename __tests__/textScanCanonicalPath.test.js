@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
 const vm = require('node:vm');
+const observabilityStub = require('./helpers/observabilityStub');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -251,6 +252,7 @@ async function loadTextScanEdgeWithMockSupabase(mockSupabase) {
   const requireMap = {
     './supabaseClient': { supabase: mockSupabase },
     './textScan': textScan,
+    './observability': observabilityStub,
   };
   return loadTsModule('services/textScanEdge.ts', requireMap);
 }

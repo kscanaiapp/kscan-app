@@ -22,7 +22,13 @@ import {
   type StyleChatAttachment,
 } from '../../../types/styleChatAttachments';
 import type { EliseAdviceMetadataClient } from '../../../types/eliseAdvice';
+import { ELISE_FASHION_CONTEXT_V2 } from '../../../types/fashionIdentificationV2';
 import { prepareContextForTransport } from '../eliseFashionContextV2';
+import {
+  correlationHeaders,
+  createCorrelationContext,
+  emitObservabilityEvent,
+} from '../../observability';
 
 const EDGE_FN      = 'stylechat-generate';
 export const ELISE_VISUAL_COLLECTION_CONTRACT_VERSION = '1';
@@ -351,6 +357,8 @@ export class EdgeStyleChatProvider {
     // JSON.stringify and arrive at the backend missing required fields; refusing
     // it here keeps that from becoming a server-side validation failure.
     const fashionContext = toTransportableFashionContext(input.fashionContextV2);
+    const hasFashionContext = Boolean(fashionContext);
+    const correlation = createCorrelationContext();
 
     try {
       const { data, error } = await supabase.functions.invoke<EdgeChatResult>(EDGE_FN, {
@@ -388,10 +396,17 @@ export class EdgeStyleChatProvider {
           // body and no existing request shape changes.
           ...(fashionContext ? { fashionContextV2: fashionContext } : {}),
         },
+        headers: correlationHeaders(correlation),
         signal: ac.signal,
       });
 
       if (error) {
+        emitObservabilityEvent('elise.request_failed', {
+          operation: 'stylechat_generate',
+          request_id: correlation.requestId,
+          trace_id: correlation.traceId,
+          error_category: 'invoke_error',
+        });
         const httpStatus = getFunctionHttpStatus(error);
         // The Supabase functions-js SDK wraps non-2xx responses as FunctionsHttpError
         // with the raw (unconsumed) Response in error.context. Attempt to parse a
@@ -411,6 +426,18 @@ export class EdgeStyleChatProvider {
               ) {
                 return {
                   status: 'visual_collection_rejected',
+                  errorCode: body.errorCode,
+                  message: { sender: 'assistant', content: '', model: '', tokenEstimate: 0 },
+                  usage: DEFAULT_USAGE,
+                };
+              }
+              if (
+                hasFashionContext &&
+                typeof body.errorCode === 'string' &&
+                body.errorCode.startsWith('FASHION_CONTEXT_')
+              ) {
+                return {
+                  status: 'attachments_rejected',
                   errorCode: body.errorCode,
                   message: { sender: 'assistant', content: '', model: '', tokenEstimate: 0 },
                   usage: DEFAULT_USAGE,
@@ -460,9 +487,12 @@ export class EdgeStyleChatProvider {
         // Attachment-bearing sends must never degrade into an attachment-blind
         // answer: function-unavailable / 404 / 503 / network failures become an
         // explicit unsupported result so the caller preserves the draft.
-        if (hasAttachments || hasVisualCollection) {
+        if (hasAttachments || hasVisualCollection || hasFashionContext) {
           return {
-            status: hasAttachments ? 'attachments_unsupported' : 'visual_collection_unsupported',
+            status:
+              hasAttachments || hasFashionContext
+                ? 'attachments_unsupported'
+                : 'visual_collection_unsupported',
             message: { sender: 'assistant', content: '', model: '', tokenEstimate: 0 },
             usage: DEFAULT_USAGE,
           };
@@ -472,6 +502,12 @@ export class EdgeStyleChatProvider {
           httpStatus != null ? `EDGE_HTTP_${httpStatus}` : 'EDGE_INVOKE_ERROR',
         );
       }
+
+      emitObservabilityEvent('elise.request_completed', {
+        operation: 'stylechat_generate',
+        request_id: correlation.requestId,
+        trace_id: correlation.traceId,
+      });
 
       if (!data || typeof data.status !== 'string') {
         if (__DEV__) console.warn('[EdgeStyleChatProvider] unexpected response shape');
@@ -530,6 +566,24 @@ export class EdgeStyleChatProvider {
         const raw = data as unknown as Record<string, unknown>;
         if (raw.contractVersion !== STYLECHAT_ATTACHMENT_CONTRACT_VERSION) {
           if (__DEV__) console.warn('[EdgeStyleChatProvider] backend lacks attachment capability');
+          return {
+            status: 'attachments_unsupported',
+            message: { sender: 'assistant', content: '', model: '', tokenEstimate: 0 },
+            usage: normalizeUsage(data.usage),
+          };
+        }
+      }
+
+      // A direct unsaved image is grounded by fashionContextV2 rather than a
+      // saved_scan reference. Require the backend's existing explicit ack so an
+      // older function can never produce an image-blind reply that looks valid.
+      if (hasFashionContext) {
+        const raw = data as unknown as Record<string, unknown>;
+        if (
+          raw.fashionContextVersion !== ELISE_FASHION_CONTEXT_V2 ||
+          raw.fashionContextAccepted !== true
+        ) {
+          if (__DEV__) console.warn('[EdgeStyleChatProvider] backend rejected fashion context');
           return {
             status: 'attachments_unsupported',
             message: { sender: 'assistant', content: '', model: '', tokenEstimate: 0 },
@@ -602,11 +656,14 @@ export class EdgeStyleChatProvider {
       } else if (__DEV__) {
         console.warn('[EdgeStyleChatProvider] unexpected client failure');
       }
-      if (hasAttachments || hasVisualCollection) {
+      if (hasAttachments || hasVisualCollection || hasFashionContext) {
         // Timeout/network with evidence: preserve the draft, never pretend
         // the model saw the collection or attachments.
         return {
-          status: hasAttachments ? 'attachments_unsupported' : 'visual_collection_unsupported',
+          status:
+            hasAttachments || hasFashionContext
+              ? 'attachments_unsupported'
+              : 'visual_collection_unsupported',
           message: { sender: 'assistant', content: '', model: '', tokenEstimate: 0 },
           usage: DEFAULT_USAGE,
         };

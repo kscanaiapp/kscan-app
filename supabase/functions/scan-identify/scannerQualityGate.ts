@@ -218,7 +218,21 @@ function subtypeCompatible(category: string, subtype: string): boolean {
   return subCat === cat;
 }
 
-function categorySubtypeConflict(category: string, subtype: string): boolean {
+/**
+ * Whether a broader taxonomy label and a narrower one under it contradict.
+ *
+ * EXPORTED FOR PHASE 7.1 (identification recheck) rather than reimplemented
+ * there. The recheck's hierarchy validation needs exactly this predicate over
+ * two tier pairs — category↔clothingType and clothingType↔subtype — and a
+ * second copy of the rule is precisely how the two would drift into disagreeing
+ * about what a coherent garment identity is. The parameter names still read
+ * `category`/`subtype` because the rule is about broader-vs-narrower, not about
+ * which of the three named tiers is being compared.
+ *
+ * Deliberately NOT a new fashion ontology: it reuses the COMPATIBLE_SUBTYPES
+ * families and `normalizeCategory` that this gate already ships.
+ */
+export function categorySubtypeConflict(category: string, subtype: string): boolean {
   if (!category || !subtype) return false;
   if (isGenericFashionLabel(category) || isGenericFashionLabel(subtype)) return false;
   if (subtypeCompatible(category, subtype)) return false;

@@ -231,6 +231,7 @@ export function buildScannerV2Request(input: ScannerV2RequestInput): ScannerV2Re
       candidateId: candidate.candidateId,
       evidenceId: candidate.evidenceId,
       category: candidate.category,
+      ...(str(candidate.clothingType) ? { clothingType: candidate.clothingType as string } : {}),
       ...(str(candidate.subtype) ? { subtype: candidate.subtype as string } : {}),
       ...(candidate.bounds ? { bounds: candidate.bounds } : {}),
       // Echoed ONLY when detection actually supplied one. Never fabricated.

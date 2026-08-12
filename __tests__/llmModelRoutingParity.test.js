@@ -237,17 +237,67 @@ test('scan-identify carries no retired model and no generic GEMINI_MODEL overrid
 });
 
 test('scan-identify selects every attempt model through the allowlist', () => {
-  // The URL builder is the only place a model reaches the provider, and it is
-  // only ever fed by nextAttemptModel(), which is allowlist-bound.
+  // The URL builder is the only place a model reaches the provider, and every
+  // caller must feed it from the routing plan.
+  //
+  // PHASE 7.1 widened this from "exactly one call site" to "every call site is
+  // allowlist-bound". The count was only ever a PROXY for the property that
+  // matters — no unapproved model may reach the provider — and the confidence-
+  // gated identification recheck adds a legitimate second call. Asserting the
+  // property directly is strictly stronger than asserting the count: it keeps
+  // failing for the case the count existed to catch (a raw, env-read or literal
+  // model id reaching the URL) while no longer failing merely because a second
+  // governed call exists.
   assert.match(scanSource, /const buildGeminiUrl = \(model: string\)/);
-  const urlCallers = scanSource.match(/buildGeminiUrl\(([^)]*)\)/g) || [];
-  assert.deepEqual(
-    urlCallers.filter((c) => !c.includes('model: string')),
-    ['buildGeminiUrl(attemptModel)'],
-    'exactly one provider URL call site, fed by the routing plan',
-  );
+
+  const urlCallers = (scanSource.match(/buildGeminiUrl\(([^)]*)\)/g) || [])
+    .filter((c) => !c.includes('model: string'));
+
+  // Both approved sources are allowlist-bound:
+  //   nextAttemptModel(routePlan, …) → plan.primaryModel / plan.fallbackModel
+  //   routePlan.primaryModel         → resolveAllowedModel(...)
+  const ALLOWLIST_BOUND_ARGS = new Set(['attemptModel', 'routePlan.primaryModel']);
+
+  assert.ok(urlCallers.length > 0, 'the provider URL builder must actually be called');
+  for (const caller of urlCallers) {
+    const arg = caller.slice('buildGeminiUrl('.length, -1).trim();
+    assert.ok(
+      ALLOWLIST_BOUND_ARGS.has(arg),
+      `provider URL call site is not allowlist-bound: ${caller}`,
+    );
+  }
+
+  // No call site may smuggle in an environment read or a hardcoded model id.
+  for (const caller of urlCallers) {
+    assert.doesNotMatch(caller, /readTrimmedEnv|Deno\.env|gemini-/i);
+  }
+
+  // The bounded attempt loop that feeds the primary call site is unchanged.
   assert.match(scanSource, /const attemptModel = nextAttemptModel\(routePlan, attempt\);/);
   assert.match(scanSource, /if \(!attemptModel\) break;/);
+});
+
+test('the identification recheck adds exactly one governed provider call site', () => {
+  // Phase 7.1 §14: the recheck is ONE additional fashion-analysis call. It gets
+  // no retry loop, no model escalation and no second opinion of its own — the
+  // properties that would turn a bounded accuracy escalation into an unbounded
+  // reasoning budget.
+  const urlCallers = (scanSource.match(/buildGeminiUrl\(([^)]*)\)/g) || [])
+    .filter((c) => !c.includes('model: string'));
+  assert.equal(
+    urlCallers.filter((c) => c.includes('routePlan.primaryModel')).length,
+    1,
+    'the recheck must have exactly one provider call site',
+  );
+
+  const start = scanSource.indexOf('const recheckProvider: RecheckProvider');
+  const end = scanSource.indexOf('recheckMetrics.recheckLatencyMs = recheckOutcome.latencyMs');
+  assert.ok(start > 0 && end > start, 'the recheck provider block must be present');
+  const block = scanSource.slice(start, end);
+
+  assert.doesNotMatch(block, /\bwhile\s*\(/, 'the recheck must contain no retry loop');
+  assert.doesNotMatch(block, /nextAttemptModel/, 'the recheck must not escalate models');
+  assert.doesNotMatch(block, /fallbackModel/, 'the recheck must not use the fallback model');
 });
 
 test('scan-identify retries only eligible failures and never loops', () => {
@@ -323,7 +373,8 @@ test('Elise sources its allowlist from the shared module so surfaces cannot drif
 });
 
 test('config.toml pins JWT posture so a deploy cannot silently change it', () => {
-  assert.match(configToml, /project_id = "wyyuqfdxucjksghsmhry"/);
+  assert.match(configToml, /project_id = "yzqjvdfgefveprobvvyw"/);
+  assert.doesNotMatch(configToml, /project_id = "wyyuqfdxucjksghsmhry"/);
   assert.match(configToml, /\[functions\.scan-identify\][\s\S]{0,80}verify_jwt = false/);
   assert.match(configToml, /\[functions\.stylechat-generate\][\s\S]{0,80}verify_jwt = true/);
   assert.match(configToml, /\[functions\.style-outfit-generate\]/, 'style-outfit-generate must be declared so verify_jwt cannot silently drift');

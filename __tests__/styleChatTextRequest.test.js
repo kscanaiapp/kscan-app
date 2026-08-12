@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
+const observabilityStub = require('./helpers/observabilityStub');
 
 const ROOT = path.resolve(__dirname, '..');
 const providerSource = fs.readFileSync(
@@ -65,9 +66,13 @@ function loadProvider(invoke) {
   const customRequire = (specifier) => {
     if (specifier === '../../supabaseClient') return { supabase: { functions: { invoke } } };
     if (specifier === '../../../constants/styleChat') return styleChatConstants;
+    if (specifier === '../../observability') return observabilityStub;
     if (specifier === '../styleChatErrors') return loadStyleChatErrors();
     if (specifier === '../../../types/styleChatAttachments') {
       return require('../types/styleChatAttachments.ts');
+    }
+    if (specifier === '../../../types/fashionIdentificationV2') {
+      return { ELISE_FASHION_CONTEXT_V2: 'elise-fashion-context-v2' };
     }
     // DR-2 e931547 wired ELISE_ADVICE_METADATA_CLIENT_V1 into the provider so it
     // can passthrough optional advice metadata. The flag defaults OFF; the

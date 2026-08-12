@@ -29,6 +29,7 @@ import { supabase } from '../../services/supabaseClient';
 import { parseAuthCallbackUrl } from '../../services/authDeepLink';
 import { completeOAuthCallbackSession } from '../../services/oauthCallbackSession';
 import { traceAuthLifecycle } from '../../services/authLifecycleTrace';
+import { linkAppleCredential } from '../../services/appleCredentialLink';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -50,6 +51,8 @@ export default function AuthScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
   const [step, setStep] = useState<AuthStep>('idle');
   const [error, setError] = useState<string | null>(null);
   const [appleAuthAvailable, setAppleAuthAvailable] = useState(false);
@@ -77,6 +80,8 @@ export default function AuthScreen() {
     setError(null);
     setStep('idle');
     setConfirmPassword('');
+    setPasswordVisible(false);
+    setConfirmPasswordVisible(false);
     // Preserve email so the user doesn't have to retype it
   };
 
@@ -222,9 +227,18 @@ export default function AuthScreen() {
         return;
       }
 
+      // Hand the one-time authorization grant to the backend so account
+      // deletion can revoke this Apple authorization later (TN3194). Awaited so
+      // the code is spent while it is still valid, but never allowed to fail
+      // the sign-in that has already succeeded — the documented fallback for a
+      // missing token is that deletion still completes.
+      const linkOutcome = await linkAppleCredential(credential.authorizationCode);
+
       traceAuthLifecycle('apple-session-establishment', {
         outcome: 'accepted',
         sessionPresent: true,
+        // Status word only. The authorization code itself is never traced.
+        appleCredentialLink: linkOutcome,
       });
       return;
     } catch (err) {
@@ -250,6 +264,8 @@ export default function AuthScreen() {
     setError(null);
     setPassword('');
     setConfirmPassword('');
+    setPasswordVisible(false);
+    setConfirmPasswordVisible(false);
   };
 
   // ── Email confirmation panel (Case B) ────────────────────────────────────────
@@ -462,43 +478,75 @@ export default function AuthScreen() {
 
           <View style={styles.fieldGroup}>
             <Text style={styles.fieldLabel}>PASSWORD</Text>
-            <TextInput
-              testID="auth-password-input"
-              value={password}
-              onChangeText={setPassword}
-              placeholder="••••••••"
-              placeholderTextColor={LUXURY.colors.stone}
-              accessibilityLabel="Password"
-              accessibilityHint={mode === 'sign-in' ? 'Enter your password' : 'Create a password'}
-              secureTextEntry
-              autoCapitalize="none"
-              autoComplete={mode === 'sign-in' ? 'password' : 'new-password'}
-              autoCorrect={false}
-              editable={!busy}
-              onSubmitEditing={mode === 'sign-in' ? handleSubmit : undefined}
-              style={[styles.input, busy && styles.inputDisabled]}
-            />
+            <View style={styles.passwordInputWrap}>
+              <TextInput
+                testID="auth-password-input"
+                value={password}
+                onChangeText={setPassword}
+                placeholder="••••••••"
+                placeholderTextColor={LUXURY.colors.stone}
+                accessibilityLabel="Password"
+                accessibilityHint={mode === 'sign-in' ? 'Enter your password' : 'Create a password'}
+                secureTextEntry={!passwordVisible}
+                autoCapitalize="none"
+                autoComplete={mode === 'sign-in' ? 'password' : 'new-password'}
+                autoCorrect={false}
+                editable={!busy}
+                onSubmitEditing={mode === 'sign-in' ? handleSubmit : undefined}
+                style={[styles.input, styles.passwordInput, busy && styles.inputDisabled]}
+              />
+              <Pressable
+                testID="auth-password-visibility-toggle"
+                onPress={() => setPasswordVisible((visible) => !visible)}
+                disabled={busy}
+                accessibilityRole="button"
+                accessibilityLabel={passwordVisible ? 'Hide password' : 'Show password'}
+                accessibilityState={{ disabled: busy }}
+                hitSlop={8}
+                style={styles.passwordVisibilityButton}
+              >
+                <Text style={[styles.passwordVisibilityText, busy && styles.disabled]}>
+                  {passwordVisible ? 'Hide' : 'Show'}
+                </Text>
+              </Pressable>
+            </View>
           </View>
 
           {mode === 'create-account' ? (
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>CONFIRM PASSWORD</Text>
-              <TextInput
-                testID="auth-confirm-password-input"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                placeholder="••••••••"
-                placeholderTextColor={LUXURY.colors.stone}
-                accessibilityLabel="Confirm password"
-                accessibilityHint="Re-enter your password"
-                secureTextEntry
-                autoCapitalize="none"
-                autoComplete="new-password"
-                autoCorrect={false}
-                editable={!busy}
-                onSubmitEditing={handleSubmit}
-                style={[styles.input, busy && styles.inputDisabled]}
-              />
+              <View style={styles.passwordInputWrap}>
+                <TextInput
+                  testID="auth-confirm-password-input"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  placeholder="••••••••"
+                  placeholderTextColor={LUXURY.colors.stone}
+                  accessibilityLabel="Confirm password"
+                  accessibilityHint="Re-enter your password"
+                  secureTextEntry={!confirmPasswordVisible}
+                  autoCapitalize="none"
+                  autoComplete="new-password"
+                  autoCorrect={false}
+                  editable={!busy}
+                  onSubmitEditing={handleSubmit}
+                  style={[styles.input, styles.passwordInput, busy && styles.inputDisabled]}
+                />
+                <Pressable
+                  testID="auth-confirm-password-visibility-toggle"
+                  onPress={() => setConfirmPasswordVisible((visible) => !visible)}
+                  disabled={busy}
+                  accessibilityRole="button"
+                  accessibilityLabel={confirmPasswordVisible ? 'Hide confirm password' : 'Show confirm password'}
+                  accessibilityState={{ disabled: busy }}
+                  hitSlop={8}
+                  style={styles.passwordVisibilityButton}
+                >
+                  <Text style={[styles.passwordVisibilityText, busy && styles.disabled]}>
+                    {confirmPasswordVisible ? 'Hide' : 'Show'}
+                  </Text>
+                </Pressable>
+              </View>
             </View>
           ) : null}
 
@@ -733,6 +781,26 @@ const styles = StyleSheet.create({
   },
   inputDisabled: {
     opacity: 0.6,
+  },
+  passwordInputWrap: {
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  passwordInput: {
+    paddingRight: 76,
+  },
+  passwordVisibilityButton: {
+    position: 'absolute',
+    right: SPACING.md,
+    minWidth: 48,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  passwordVisibilityText: {
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.plum,
+    fontSize: 13,
   },
   primaryButton: {
     minHeight: LUXURY.buttons.primary.height,

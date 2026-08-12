@@ -78,6 +78,14 @@
       "classification": "REVERSIBLE",
       "rationale": "Single REVOKE EXECUTE closing a PUBLIC-role grant. Tightening only."
     },
+    "apple_auth_credentials": {
+      "classification": "EXPANSION_SAFE",
+      "rationale": "New table only (create table if not exists public.apple_auth_credentials), plus RLS enable, REVOKE from anon/authenticated, GRANT to service_role, and one new index — every statement scoped to the new table. No pre-existing object is touched. Same shape as image_scan_verdicts. Holds one encrypted secret per user with RLS on and deliberately no policies, so anon/authenticated match zero rows; the FK to auth.users cascades on delete as a safety net behind the explicit revoke-then-erase path."
+    },
+    "legal_acceptances_restore_ai_processing": {
+      "classification": "FORWARD_FIX_ONLY",
+      "rationale": "Drops and recreates legal_acceptances_acceptance_type_check on the PRE-EXISTING public.legal_acceptances table to widen the allowed set to include 'ai_processing'. Not EXPANSION_SAFE, because a pre-existing object is modified. Not REVERSIBLE in practice: the widening is strictly more permissive so it cannot fail on existing rows, but the inverse re-narrowing would fail as soon as one ai_processing acceptance has been recorded — which is exactly what the restored consent contract writes. Renumbered from the Android lineage's 20260805120000, which is already occupied here by deletion-request reconciliation."
+    },
     "privacy_request_rate_limits": {
       "classification": "EXPANSION_SAFE",
       "rationale": "New table + RLS + SECURITY DEFINER RPC. Contains one flagged runtime pattern (a probabilistic, table-wide-but-WHERE-bounded DELETE inside a hot request-path RPC) that is not itself destructive DDL but is worth static-detector coverage - see classify-migration-risk.js RISK_PATTERNS.",

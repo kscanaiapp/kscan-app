@@ -14,6 +14,12 @@ export type ContentReportInput = {
   notes?: string | null;
   reportedUserId?: string | null;
   roomId?: string | null;
+  /**
+   * AI-output reports carry only a small allowlisted identifier context. The
+   * database migration independently enforces this shape and prohibits it on
+   * non-AI report targets.
+   */
+  aiOutputContext?: Record<string, string> | null;
 };
 
 export type ContentReportResult =
@@ -63,6 +69,15 @@ export async function submitContentReport(input: ContentReportInput): Promise<Co
     input.reportedUserId && isValidUuid(input.reportedUserId) ? input.reportedUserId : null;
 
   const roomId = input.roomId && isValidUuid(input.roomId) ? input.roomId : null;
+  const aiOutputContext = input.aiOutputContext ?? null;
+
+  if (input.targetType === 'ai_output' && !aiOutputContext) {
+    return { ok: false, serverAccepted: false, error: new Error('Invalid AI output report context.') };
+  }
+
+  if (input.targetType !== 'ai_output' && aiOutputContext) {
+    return { ok: false, serverAccepted: false, error: new Error('AI output context is not valid for this report.') };
+  }
 
   const { data: sessionData } = await supabase.auth.getSession();
   const session = sessionData?.session;
@@ -82,6 +97,7 @@ export async function submitContentReport(input: ContentReportInput): Promise<Co
   if (notes) row.notes = notes;
   if (reportedUserId) row.reported_user_id = reportedUserId;
   if (roomId) row.room_id = roomId;
+  if (aiOutputContext) row.ai_output_context = aiOutputContext;
 
   // Intentionally omit reporter_user_id so the database default (auth.uid()) binds it.
   try {

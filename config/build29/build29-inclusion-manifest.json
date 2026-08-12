@@ -1,0 +1,147 @@
+{
+  "contractVersion": "build29-inclusion-manifest-v1",
+  "generatedFrom": "integration/build29-system-20260812",
+  "base": {
+    "branch": "staging/production-parity",
+    "sha": "194bbaa6bc410119bb3e14bab63c384c222e6c6d"
+  },
+  "workstreams": [
+    {
+      "workstream": "build29-product-compliance-restoration",
+      "sourcePr": 111,
+      "sourceBranch": "codex/build29-hostile-audit-20260811",
+      "sourceHeadSha": "89d6628fc249d612d2198a3f22b8c802730f74e7",
+      "mergeState": "MERGEABLE",
+      "integrationStatus": "INCLUDED",
+      "dependencies": [],
+      "deviceProofRequired": true,
+      "productionActivationRequired": false
+    },
+    {
+      "workstream": "build29-observability-foundation",
+      "sourcePr": 113,
+      "sourceBranch": "ops/build29-observability-foundation-v1",
+      "sourceHeadSha": "ac7ce7a1b03727826b0cd86aa0272cfaf4adb778",
+      "mergeState": "MERGEABLE",
+      "integrationStatus": "INCLUDED",
+      "dependencies": [
+        "build29-product-compliance-restoration"
+      ],
+      "deviceProofRequired": true,
+      "productionActivationRequired": false
+    },
+    {
+      "workstream": "backend-release-provenance-backbone",
+      "sourcePr": [
+        107,
+        108,
+        109,
+        112
+      ],
+      "sourceBranch": null,
+      "sourceHeadSha": "194bbaa6bc410119bb3e14bab63c384c222e6c6d",
+      "mergeState": "MERGED",
+      "integrationStatus": "ALREADY_IN_STAGING",
+      "dependencies": [],
+      "deviceProofRequired": false,
+      "productionActivationRequired": false
+    },
+    {
+      "workstream": "staging-release-bootstrap-registration",
+      "sourcePr": 110,
+      "sourceBranch": "ops/register-staging-release-bootstrap",
+      "sourceHeadSha": "9d05a3d1",
+      "mergeState": "MERGED_TO_MASTER",
+      "integrationStatus": "ALREADY_IN_STAGING",
+      "dependencies": [],
+      "deviceProofRequired": false,
+      "productionActivationRequired": false
+    },
+    {
+      "workstream": "elise-image-styling-loop",
+      "sourcePr": null,
+      "sourceBranch": "integration/{ios,android}-elise-image-styling-loop-v1",
+      "sourceHeadSha": "cc17a3cd,1b0034f9",
+      "mergeState": "NO_PR",
+      "integrationStatus": "SUPERSEDED_BY_PR_111",
+      "dependencies": [],
+      "deviceProofRequired": false,
+      "productionActivationRequired": false
+    },
+    {
+      "workstream": "ios-build29-apple-revocation-and-readiness",
+      "sourcePr": null,
+      "sourceBranch": "hotfix/ios-build29-*, hotfix/prod-deletion-worker-apple-revocation",
+      "sourceHeadSha": "e369fca9,1f70ce72,a9fa5ebe",
+      "mergeState": "NO_PR",
+      "integrationStatus": "SUPERSEDED_BY_PR_111",
+      "dependencies": [],
+      "deviceProofRequired": false,
+      "productionActivationRequired": false
+    },
+    {
+      "workstream": "scanner-phase7-identification-recheck",
+      "sourcePr": null,
+      "sourceBranch": "scanner/phase7-identification-recheck",
+      "sourceHeadSha": "46256450",
+      "mergeState": "NO_PR",
+      "integrationStatus": "INCLUDED_VIA_FORWARD_PORT",
+      "dependencies": [],
+      "deviceProofRequired": true,
+      "productionActivationRequired": false,
+      "note": "Phase 7.1 confidence-gated identification recheck, reimplemented on the Build 29 parallel-multiimage pipeline. Legacy branch NOT merged (~760 files divergent); the modules were ported and index.ts wiring hand-integrated. Ships dark: SCAN_IDENTIFICATION_RECHECK_ENABLED defaults false.",
+      "portedFrom": "scanner/phase7-identification-recheck@4625645"
+    },
+    {
+      "workstream": "scanner-phase7-fashion-brand-evidence",
+      "sourcePr": null,
+      "sourceBranch": "scanner/phase7-fashion-brand-evidence",
+      "sourceHeadSha": "4dc0751c",
+      "mergeState": "NO_PR",
+      "integrationStatus": "INCLUDED_VIA_FORWARD_PORT",
+      "dependencies": [],
+      "deviceProofRequired": true,
+      "productionActivationRequired": false,
+      "note": "Phase 7.2 fashion + brand visual evidence, single-pass. No new provider call, no OCR, no logo API. Composed primary prompt measured at 11677 chars (down from 13740) and pinned by scannerPromptBudget.test.js.",
+      "portedFrom": "scanner/phase7-fashion-brand-evidence@4dc0751"
+    },
+    {
+      "workstream": "dependency-bumps-tar-undici-npm-group",
+      "sourcePr": [
+        100,
+        101,
+        102
+      ],
+      "sourceBranch": "dependabot/*",
+      "sourceHeadSha": null,
+      "mergeState": "OPEN_AGAINST_MASTER",
+      "integrationStatus": "NOT_BUILD29",
+      "dependencies": [],
+      "deviceProofRequired": false,
+      "productionActivationRequired": false
+    },
+    {
+      "workstream": "scanner-phase7-clothing-type-tier",
+      "sourcePr": null,
+      "sourceBranch": "scanner/phase7-* (prep commits 6aaeaba..718352c)",
+      "sourceHeadSha": "718352c",
+      "mergeState": "NO_PR",
+      "integrationStatus": "INCLUDED_VIA_FORWARD_PORT",
+      "dependencies": [
+        "scanner-phase7-identification-recheck"
+      ],
+      "deviceProofRequired": false,
+      "productionActivationRequired": false,
+      "note": "The clothing_type middle taxonomy tier. A PREREQUISITE for Phase 7.1/7.2 rather than optional: the recheck gate reasons over the taxonomy triple. Ported only into files this lineage has; multiItemSelectionContract/productMatchBridge/product-match were skipped as legacy architecture."
+    }
+  ],
+  "scannerPipeline": {
+    "phase7": "FORWARD_PORTED",
+    "recheckFlag": "SCAN_IDENTIFICATION_RECHECK_ENABLED",
+    "recheckDefault": false,
+    "recheckMaxProviderCalls": 1,
+    "recheckTimeoutMsDefault": 6000,
+    "identificationRecheckVersion": "v7.1",
+    "multiImageArchitecture": "parallel-multiimage (preserved)"
+  }
+}

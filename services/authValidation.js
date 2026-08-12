@@ -49,6 +49,10 @@ function validateAuthInput(mode, email, password, confirmPassword) {
 function mapAuthError(msg, mode) {
   const lower = (msg || '').toLowerCase();
 
+  if (lower.includes('supabase configuration error')) {
+    return 'This app build is not configured for account access. Install a staging-configured build and try again.';
+  }
+
   // Only Supabase Auth's own invalid-credentials response may produce the
   // incorrect-password message. Everything below this point must not blame
   // the user's credentials for a failure that retyping the password cannot fix.

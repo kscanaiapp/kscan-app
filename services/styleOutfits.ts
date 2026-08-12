@@ -35,6 +35,11 @@ import {
   type StyleOutfitMode,
 } from '../types/fashionReasoning';
 import type { OwnedItemRef } from '../types/ownedClosetItem';
+import {
+  correlationHeaders,
+  createCorrelationContext,
+  emitObservabilityEvent,
+} from './observability';
 
 export const STYLE_OUTFIT_FUNCTION_NAME = 'style-outfit-generate';
 export const UNAVAILABLE_COOLDOWN_MS = 30_000;
@@ -216,10 +221,20 @@ export async function generateOutfits(request: StyleOutfitRequest): Promise<Styl
       maximumOutfits: Math.max(1, Math.min(request.maximumOutfits ?? MAX_OUTFIT_SUGGESTIONS, MAX_OUTFIT_SUGGESTIONS)),
       contractVersion: FASHION_REASONING_CONTRACT_VERSION,
     };
+    const correlation = createCorrelationContext();
 
-    const { data, error } = await supabase.functions.invoke(STYLE_OUTFIT_FUNCTION_NAME, { body });
+    const { data, error } = await supabase.functions.invoke(STYLE_OUTFIT_FUNCTION_NAME, {
+      body,
+      headers: correlationHeaders(correlation),
+    });
 
     if (error) {
+      emitObservabilityEvent('dressing_room.request_failed', {
+        operation: 'style_outfit_generate',
+        request_id: correlation.requestId,
+        trace_id: correlation.traceId,
+        error_category: 'invoke_error',
+      });
       // Function not found / 404 / 503 / network failure / timeout → cooldown.
       markUnavailable();
       if (__DEV__) console.warn('[styleOutfits] invoke_failed');
@@ -228,6 +243,12 @@ export async function generateOutfits(request: StyleOutfitRequest): Promise<Styl
 
     const payload = (data ?? {}) as Record<string, unknown>;
     const status = typeof payload.status === 'string' ? payload.status : '';
+    emitObservabilityEvent('dressing_room.request_completed', {
+      operation: 'style_outfit_generate',
+      request_id: correlation.requestId,
+      trace_id: correlation.traceId,
+      provider_category: status || 'unknown',
+    });
 
     switch (status) {
       case 'success':

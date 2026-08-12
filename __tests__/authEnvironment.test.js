@@ -11,20 +11,22 @@ const supabaseClientSource = fs.readFileSync(
   'utf8',
 );
 
-test('remote tester and release profiles target one non-local Supabase project', () => {
-  const projectHosts = [];
+test('remote tester profiles target staging while production remains isolated', () => {
+  const expectedRefs = {
+    development: 'yzqjvdfgefveprobvvyw',
+    preview: 'yzqjvdfgefveprobvvyw',
+    production: 'wyyuqfdxucjksghsmhry',
+  };
 
-  for (const profileName of ['development', 'preview', 'production']) {
+  for (const [profileName, expectedRef] of Object.entries(expectedRefs)) {
     const rawUrl = easConfig.build[profileName].env.EXPO_PUBLIC_SUPABASE_URL;
     const parsed = new URL(rawUrl);
 
     assert.equal(parsed.protocol, 'https:', profileName);
     assert.match(parsed.hostname, /^[a-z0-9]+\.supabase\.co$/, profileName);
     assert.doesNotMatch(parsed.hostname, /^(?:10\.0\.2\.2|localhost|127\.0\.0\.1)$/, profileName);
-    projectHosts.push(parsed.hostname);
+    assert.equal(parsed.hostname, `${expectedRef}.supabase.co`, profileName);
   }
-
-  assert.equal(new Set(projectHosts).size, 1);
 });
 
 test('remote tester and release profiles enable canonical scan-identify wiring', () => {
@@ -46,5 +48,7 @@ test('mobile auth scheme and package are shared across build profiles', () => {
 test('Supabase client reads explicit build environment without a local fallback', () => {
   assert.match(supabaseClientSource, /process\.env\.EXPO_PUBLIC_SUPABASE_URL/);
   assert.match(supabaseClientSource, /process\.env\.EXPO_PUBLIC_SUPABASE_ANON_KEY/);
+  assert.match(supabaseClientSource, /validateSupabaseConfig\(configuredUrl, configuredAnonKey\)/);
+  assert.match(supabaseClientSource, /Supabase configuration error \[\$\{configValidation\.code\}\]/);
   assert.doesNotMatch(supabaseClientSource, /10\.0\.2\.2|localhost|127\.0\.0\.1/);
 });

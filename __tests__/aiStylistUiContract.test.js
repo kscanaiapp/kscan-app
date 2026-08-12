@@ -8,6 +8,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
 const vm = require('node:vm');
+const observabilityStub = require('./helpers/observabilityStub');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -67,6 +68,7 @@ function loadStyleOutfits({ uiEnabled, backendEnabled, invoke, session }) {
     },
     '../types/fashionReasoning': reasoning,
     '../types/ownedClosetItem': {},
+    './observability': observabilityStub,
   });
 }
 

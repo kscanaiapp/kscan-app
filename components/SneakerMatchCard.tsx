@@ -5,10 +5,10 @@ import {
   Image,
   StyleSheet,
   TouchableOpacity,
-  Linking,
 } from 'react-native';
 import type { SneakerReference } from '../services/sneakers/types';
 import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
+import { openExternalUrl } from '../services/openExternalUrl';
 
 interface Props {
   matches: SneakerReference[];
@@ -21,7 +21,7 @@ function fmt(price: number | null): string | null {
 
 function openUrl(url: string | null | undefined): void {
   if (!url) return;
-  Linking.openURL(url).catch(() => {});
+  void openExternalUrl(url);
 }
 
 export function SneakerMatchCard({ matches }: Props) {

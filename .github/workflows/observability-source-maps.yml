@@ -1,0 +1,75 @@
+name: Build 29 Observability Source Maps
+
+on:
+  pull_request:
+    branches: [staging/production-parity]
+    paths:
+      - 'app/**'
+      - 'components/**'
+      - 'contexts/**'
+      - 'hooks/**'
+      - 'services/**'
+      - 'src/**'
+      - 'app.config.js'
+      - 'app.json'
+      - 'eas.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/export-observability-sourcemaps.mjs'
+      - 'scripts/upload-observability-sourcemaps.mjs'
+      - 'scripts/verify-observability-build-env.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      KSCAN_OBSERVABILITY_ENVIRONMENT: staging
+      KSCAN_RELEASE_ID: pr-${{ github.event.pull_request.number }}-${{ github.sha }}
+      KSCAN_SOURCE_SHA: ${{ github.sha }}
+      KSCAN_OBSERVABILITY_DISTRIBUTION: source-map-ci
+      KSCAN_BUILD_IDENTIFIER: github-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run observability:verify-build-env
+      - run: npm run observability:export-sourcemaps
+
+      # Provider handoff is the FINAL transport step and is credential-gated.
+      # Without an org-scoped SENTRY_AUTH_TOKEN the job still produces the
+      # release-bound, checksummed manifest; it simply does not transmit it.
+      #
+      # The `secrets` context is not available in a step-level `if`, so the
+      # credential is probed once here and the token stays scoped to the only
+      # two steps that need it rather than leaking into `npm ci`.
+      - name: Probe provider credential
+        id: provider
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          if [ -n "${SENTRY_AUTH_TOKEN}" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload source maps to Sentry
+        if: steps.provider.outputs.configured == 'true'
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
+        run: npm run observability:upload-sourcemaps
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build29-observability-source-maps-${{ github.sha }}
+          path: dist/observability-source-maps
+          retention-days: 14

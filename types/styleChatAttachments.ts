@@ -122,6 +122,9 @@ export const ATTACHMENT_STATES = [
   'uploading_media',
   'finalizing',
   'ready',
+  'sending',
+  'sent',
+  'send_failed',
   'failed_retryable',
   'rejected',
   'cancelled',
@@ -143,6 +146,15 @@ export function isPendingAttachmentState(state: AttachmentState): boolean {
   return (PENDING_ATTACHMENT_STATES as readonly string[]).includes(state);
 }
 
+/** Optional Closet persistence is deliberately independent of attachment send state. */
+export const CLOSET_SAVE_STATES = [
+  'not_saved',
+  'saving',
+  'saved',
+  'save_failed',
+] as const;
+export type ClosetSaveState = (typeof CLOSET_SAVE_STATES)[number];
+
 /**
  * One draft attachment entry. The selection layer (local ids, local URIs,
  * job/retry state) NEVER becomes an Edge Function payload; only `resolved`
@@ -157,6 +169,9 @@ export type DraftAttachment = {
     localScanId?: string | null;
     localImageUri?: string | null;
     sanitizedImageUri?: string | null;
+    /** Durable Closet-candidate backing for a direct Elise image. Client-only. */
+    closetCandidateId?: string | null;
+    closetCandidateBatchId?: string | null;
     /** Stable remote row acquired during resolution; client-only until ready. */
     remoteSourceType?: OwnedItemSourceType | null;
     remoteSourceId?: string | null;
@@ -182,6 +197,20 @@ export type DraftAttachment = {
    * becomes a trust boundary.
    */
   fashionContext?: unknown;
+  /** Independent optional Closet transaction; never controls `state`. */
+  closetState?: ClosetSaveState;
+  /** Hydrated only after an idempotent candidate promotion succeeds. */
+  closetItemId?: string | null;
+  /**
+   * This item has been handed off to the private Dressing Room in this session.
+   *
+   * CLIENT-ONLY AND IN-MEMORY, like every other field on this draft. It records
+   * that a handoff happened so the follow-up row can offer "Open Dressing Room"
+   * instead of repeating "Style This Item"; it is NOT a claim that a Look was
+   * saved, and nothing reads it as ownership. It dies with the composer draft —
+   * on removal, on send-clear, and on the actor reset that clears the store.
+   */
+  styledInDressingRoom?: boolean;
   /**
    * Per-attachment identification outcome (Phase 2B.3).
    *

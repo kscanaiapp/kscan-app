@@ -25,7 +25,7 @@
  *
  *   deploy all governed functions EXCEPT staging-health
  *     -> all must PASS
- *   write the six KSCAN_* release-identity values
+ *   write the seven KSCAN_* release-identity values
  *     -> must PASS
  *   deploy staging-health LAST, from the same frozen candidate
  *
@@ -299,6 +299,7 @@ export async function runBootstrapActivation({
         manifestDigest: manifest.identityDigest,
         healthContractVersion: manifest.healthContractVersion,
         deployedAt: now().toISOString(),
+        environment: 'staging',
       },
       projectRef,
       planOnly: true,
@@ -366,6 +367,7 @@ export async function runBootstrapActivation({
             manifestDigest: manifest.identityDigest,
             healthContractVersion: manifest.healthContractVersion,
             deployedAt: now().toISOString(),
+            environment: 'staging',
           },
           projectRef,
           env,

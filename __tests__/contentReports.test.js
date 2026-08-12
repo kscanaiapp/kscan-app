@@ -112,6 +112,51 @@ test('contentReports: defaults reason category to inappropriate', async () => {
   assert.equal(client._calls[0].rows.notes, undefined);
 });
 
+test('contentReports: accepts the legitimate ai_output target and preserves its allowlisted context', async () => {
+  const client = createMockClient({ session: authSession() });
+  const { submitContentReport } = loadService(client);
+
+  const result = await submitContentReport({
+    targetType: 'ai_output',
+    targetId: 'assistant-message-abc',
+    reasonCategory: 'offensive',
+    notes: 'This response is not okay.',
+    aiOutputContext: {
+      feature: 'StyleChat',
+      reason_detail: 'offensive_or_inappropriate',
+      session_id: 'session-abc',
+      message_id: 'assistant-message-abc',
+    },
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(client._calls.length, 1);
+  const row = client._calls[0].rows;
+  assert.equal(row.target_type, 'ai_output');
+  assert.equal(row.target_id, 'assistant-message-abc');
+  assert.deepEqual(row.ai_output_context, {
+    feature: 'StyleChat',
+    reason_detail: 'offensive_or_inappropriate',
+    session_id: 'session-abc',
+    message_id: 'assistant-message-abc',
+  });
+  assert.equal('reporter_user_id' in row, false, 'the authenticated database identity remains authoritative');
+});
+
+test('contentReports: rejects missing AI context and keeps non-AI reports unchanged', async () => {
+  const client = createMockClient({ session: authSession() });
+  const { submitContentReport } = loadService(client);
+
+  const invalid = await submitContentReport({ targetType: 'ai_output', targetId: 'assistant-message-abc' });
+  assert.equal(invalid.ok, false);
+  assert.equal(client._calls.length, 0);
+
+  const normal = await submitContentReport({ targetType: 'message', targetId: TARGET_ID });
+  assert.equal(normal.ok, true);
+  assert.equal(client._calls.length, 1);
+  assert.equal('ai_output_context' in client._calls[0].rows, false);
+});
+
 test('contentReports: treats duplicate unique violation 23505 as success', async () => {
   const duplicateError = { code: '23505', message: 'duplicate key value violates unique constraint' };
   const client = createMockClient({ session: authSession(), insertError: duplicateError });

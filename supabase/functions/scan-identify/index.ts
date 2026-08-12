@@ -44,6 +44,7 @@ import {
   type NormalizedIdentification,
   type RankedScanProduct,
 } from '../_shared/scanHelpers.ts';
+import { emitBackendObservability, observeEdgeRequest } from '../_shared/observability.ts';
 import {
   fetchCatalogCandidates,
   adaptCatalogCandidate,
@@ -133,6 +134,34 @@ import {
   applyScannerQualityGate,
   type QualityGateResult,
 } from './scannerQualityGate.ts';
+// ── Phase 7.1 confidence-gated identification recheck ────────────────────────
+import {
+  IDENTIFICATION_RECHECK_VERSION,
+  isIdentificationRecheckEnabled,
+  resolveRecheckTimeoutMs,
+  RECHECK_MAX_OUTPUT_TOKENS,
+} from './identificationRecheckConfig.ts';
+import {
+  evaluateIdentificationGate,
+  isRecheckEligibleMode,
+  type IdentityTriple,
+} from './identificationRecheckGate.ts';
+import {
+  performIdentificationRecheck,
+  recheckBrandArtifact,
+  shouldAdoptRecheckBrand,
+  type RecheckProvider,
+  type RecheckProviderResult,
+} from './identificationRecheck.ts';
+import { reconcileIdentification } from './identificationRecheckReconcile.ts';
+// ── Phase 7.2 fashion + brand visual evidence ────────────────────────────────
+import { applyBrandEvidenceGate } from './brandEvidence.ts';
+import { buildDiscriminatorFocus } from './fashionDiscriminatorPacks.ts';
+import {
+  emptyRecheckMetrics,
+  logBrandEvidenceMetrics,
+  logIdentificationRecheckMetrics,
+} from './identificationRecheckTelemetry.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
 /** Appended to vision/text prompts when quality tune is enabled. Response shape unchanged. */
@@ -152,7 +181,7 @@ Quality precision rules (mandatory):
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-scan-id, x-request-id',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-scan-id, x-request-id, x-kscan-request-id, traceparent',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
@@ -198,6 +227,7 @@ const ARRAY_ATTR_KEYS = ['colorPalette', 'styleTags'] as const;
 const IDENTIFICATION_STRING_KEYS = [
   'visual_observation',
   'item_type',
+  'clothing_type',
   'subtype',
   'primary_color',
   'pattern',
@@ -210,6 +240,11 @@ const IDENTIFICATION_STRING_KEYS = [
   'closure',
   'visible_brand_text',
   'brand_guess',
+  // Phase 7.2 brand evidence tiering. Internal identification metadata: these
+  // decide whether a brand may be asserted at all, and are held out of the
+  // legacy passthrough exactly like `clothing_type`.
+  'brand_evidence_level',
+  'brand_evidence_type',
   'scan_quality_note',
 ] as const;
 const IDENTIFICATION_ARRAY_KEYS = [
@@ -220,7 +255,15 @@ const IDENTIFICATION_ARRAY_KEYS = [
   'search_queries',
   'styling_suggestions',
 ] as const;
-const IDENTIFICATION_BOOLEAN_KEYS = ['logo_detected', 'non_fashion'] as const;
+const IDENTIFICATION_BOOLEAN_KEYS = [
+  'logo_detected',
+  'non_fashion',
+  // Whether the brand evidence the model used is physically on the identified
+  // item. Load-bearing for §17: a logo on background signage, packaging or a
+  // second garment is real evidence about a real brand — just not about this
+  // item — and this is the field that says so.
+  'brand_evidence_on_item',
+] as const;
 const IDENTIFICATION_NUMBER_KEYS = ['confidence_score'] as const;
 
 const SAFE_FAILED_MESSAGE =
@@ -283,13 +326,36 @@ Do not infer age, race, gender identity, body type, health, religion, income, or
 Real camera scan rules:
 - If multiple clothing items are present, identify the dominant, most central, or largest fashion item.
 - Ignore accessories unless they are the primary subject.
-- Focus on garment cut, silhouette, color, texture, material, pattern, and distinctive construction details.
-- Do not infer brand unless a logo, tag, or text is clearly visible.
+- Identify from construction evidence you can actually see, not from overall resemblance.
 - If the item is partially obscured, describe only what is visible and lower confidence_score.
 - If the image is too dark, too blurry, too far away, or the item is too small, include scan_quality_note.
 - If a jacket, coat, blazer, dress, or other garment is the dominant item, classify the scan as that garment even if a bag, shoe, hat, or other accessory is also visible. Never classify the scan as a bag or accessory when a garment is clearly the main subject.
 - Choose exactly one dominant item. Do not blend two items into one result.
 - If uncertain between two categories, return item_type: "unknown" with a lower confidence_score rather than forcing a confident wrong category.
+
+Visual evidence to read before answering:
+- Silhouette: fitted or relaxed, straight or tapered or wide, cropped or full length, structured or draped, oversized or regular.
+- Construction: closures, seams, panels, lapels, collars, cuffs, waist construction, pockets, vents, pleats, hems, straps, hardware.
+- Material surface: denim, leather, knit, woven, fleece, satin-like, technical shell, quilting, ribbing, distressing. Do not assert a material the image does not support.
+- Pattern: solid, stripe, plaid or check, floral, graphic, geometric, animal, or a visible branded motif.
+
+Then read the geometry that separates similar families:
+- Pants: leg width, taper, flare point, rise, waistband, denim vs tailored construction, pockets, pleats, hem.
+- Outerwear and blazers: lapel or collar, closure, body length, insulation or quilting, hood, pockets, cuffs, shoulder tailoring.
+- Tops: neckline, collar, sleeve, placket, knit vs woven, ribbing, hem, body shape.
+- Dresses and skirts: waist placement, length, flare, pleating, slit, neckline, sleeve, drape.
+- Footwear: toe shape, sole, heel, shaft height, lacing, closure, upper construction, paneling.
+- Bags and accessories: form, structure, closure, handles or straps, hardware, scale.
+These are attention cues, not answers. Report only what the image supports.
+
+Brand evidence (precision matters far more than answering):
+- Tier A may establish a brand: a readable wordmark, a recognizable logo, a branded label, an identifiable monogram, or a readable model name.
+- Tier B may support a brand only when genuinely distinctive: brand-specific hardware, a signature motif, a proprietary pattern, or model-specific construction.
+- Tier C never establishes a brand: style resemblance, athletic or luxury appearance, colourway, generic stripes, common stitching, silhouette similarity.
+- Brand evidence must be ON the item you identified. Ignore marks on background signage, posters, screens, watermarks, social overlays, shopping bags, packaging, retailer branding, and any other garment or accessory in the frame.
+- Read visible text only where it is genuinely legible. Separate brand text from size, care and composition text: "100% COTTON" is not a brand. Never complete partially obscured letters: "NI..." is not Nike. Text printed as graphic artwork is not necessarily the maker.
+- If only Tier C evidence exists, set brand_guess null, logo_detected false, brand_evidence_level "style_only". Unknown brand is a correct answer.
+- Set brand_evidence_on_item true only when the evidence you used is physically on the identified item.
 
 Return strict JSON only.
 No markdown.
@@ -307,6 +373,7 @@ The \`attributes\` object is legacy and must remain populated for the current ap
 The optional \`identification\` object must include:
 - visual_observation
 - item_type
+- clothing_type
 - subtype
 - primary_color
 - secondary_colors
@@ -324,11 +391,20 @@ The optional \`identification\` object must include:
 - visible_brand_text
 - logo_detected
 - brand_guess
+- brand_evidence_level: one of "direct", "distinctive", "style_only", "none"
+- brand_evidence_type: one of "wordmark", "logo", "label", "monogram", "hardware", "model_detail", "distinctive_construction", "none"
+- brand_evidence_on_item: true only when the brand evidence is physically on the identified item
 - confidence_score
 - search_queries
 - non_fashion
 - styling_suggestions
 - scan_quality_note
+
+The three taxonomy levels are distinct and must not repeat each other:
+- item_type: the broad product category (pants, top, outerwear, footwear, bag).
+- clothing_type: the recognizable garment or footwear family within that category (jeans, blazer, boot).
+- subtype: the most specific style or construction you can support (wide_leg_jeans, double-breasted blazer, chelsea boot).
+Set any level you cannot support from what is visible to "unknown" rather than repeating another level.
 
 If the item is a common fashion staple such as blazer, jeans, white shirt, black dress, sneakers, handbag, coat, or top, include 2 practical styling_suggestions.
 
@@ -356,6 +432,7 @@ Return strict JSON only, matching exactly this shape:
   "identification": {
     "visual_observation": "A concise 1-2 sentence description of the dominant fashion item only.",
     "item_type": "blazer",
+    "clothing_type": "blazer",
     "subtype": "double-breasted blazer",
     "primary_color": "black",
     "secondary_colors": [],
@@ -373,6 +450,9 @@ Return strict JSON only, matching exactly this shape:
     "visible_brand_text": null,
     "logo_detected": false,
     "brand_guess": null,
+    "brand_evidence_level": "none",
+    "brand_evidence_type": "none",
+    "brand_evidence_on_item": false,
     "confidence_score": 0.84,
     "search_queries": [
       "black double breasted blazer gold buttons",
@@ -387,162 +467,27 @@ Return strict JSON only, matching exactly this shape:
   "userMessage": "Black double-breasted blazer with structured shoulders, peak lapels, and gold buttons."
 }
 
-Few-shot examples:
-
-Example 1 — Black Blazer
-Input description: A black tailored blazer with structured shoulders, gold buttons, and peak lapels.
-Expected output:
+Worked taxonomy examples — three DISTINCT levels, never one value repeated:
 {
-  "status": "completed",
-  "attributes": {
-    "category": "blazer",
-    "itemType": "double-breasted blazer",
-    "silhouette": "structured",
-    "colorPalette": ["black"],
-    "materialEstimate": "wool blend",
-    "pattern": "solid",
-    "texture": "wool blend",
-    "styleTags": ["tailored", "minimalist", "polished"],
-    "occasion": "workwear",
-    "confidenceScore": 0.92
-  },
-  "identification": {
-    "visual_observation": "A black double-breasted blazer with structured shoulders, peak lapels, and gold buttons.",
-    "item_type": "blazer",
-    "subtype": "double-breasted blazer",
-    "primary_color": "black",
-    "secondary_colors": [],
-    "pattern": "solid",
-    "material_estimate": "wool blend",
-    "silhouette": "structured",
-    "fit": "tailored",
-    "length": "hip length",
-    "sleeve_length": "long sleeve",
-    "neckline_or_lapel": "peak lapel",
-    "closure": "front buttons",
-    "distinctive_features": ["gold buttons", "structured shoulders"],
-    "style_tags": ["tailored", "minimalist", "polished"],
-    "occasion_tags": ["workwear", "evening", "smart casual"],
-    "visible_brand_text": null,
-    "logo_detected": false,
-    "brand_guess": null,
-    "confidence_score": 0.92,
-    "search_queries": [
-      "black double breasted blazer gold buttons",
-      "tailored black blazer structured shoulders",
-      "minimalist black blazer peak lapel"
-    ],
-    "non_fashion": false,
-    "styling_suggestions": ["Pair with tailored trousers and a silk blouse.", "Layer over a monochrome dress for a sharp look."],
-    "scan_quality_note": null
-  },
-  "recommendedProducts": [],
-  "userMessage": "Black double-breasted blazer with structured shoulders, peak lapels, and gold buttons."
-}
-
-Example 2 — Floral Midi Dress
-Input description: A floral midi dress with short puff sleeves, fitted waist, and soft flowing skirt.
-Expected output:
+  "item_type": "blazer",
+  "clothing_type": "blazer",
+  "subtype": "double-breasted blazer"}
 {
-  "status": "completed",
-  "attributes": {
-    "category": "dress",
-    "itemType": "puff-sleeve midi dress",
-    "silhouette": "A-line",
-    "colorPalette": ["multi", "green", "pink"],
-    "materialEstimate": "lightweight cotton or viscose",
-    "pattern": "floral",
-    "texture": "lightweight cotton or viscose",
-    "styleTags": ["feminine", "romantic", "summer"],
-    "occasion": "daytime",
-    "confidenceScore": 0.89
-  },
-  "identification": {
-    "visual_observation": "A floral puff-sleeve midi dress with a fitted waist and soft flowing skirt.",
-    "item_type": "dress",
-    "subtype": "puff-sleeve midi dress",
-    "primary_color": "multi",
-    "secondary_colors": ["green", "pink"],
-    "pattern": "floral",
-    "material_estimate": "lightweight cotton or viscose",
-    "silhouette": "A-line",
-    "fit": "fitted waist",
-    "length": "midi",
-    "sleeve_length": "short sleeve",
-    "neckline_or_lapel": "round neck",
-    "closure": "side zipper",
-    "distinctive_features": ["puff sleeves", "fitted waist", "flowing skirt"],
-    "style_tags": ["feminine", "romantic", "summer"],
-    "occasion_tags": ["daytime", "casual", "brunch"],
-    "visible_brand_text": null,
-    "logo_detected": false,
-    "brand_guess": null,
-    "confidence_score": 0.89,
-    "search_queries": [
-      "floral puff sleeve midi dress fitted waist",
-      "A-line floral midi dress short sleeve",
-      "romantic summer dress puff sleeves"
-    ],
-    "non_fashion": false,
-    "styling_suggestions": ["Style with strappy sandals and a woven clutch for brunch.", "Add a denim jacket and white sneakers for a casual day out."],
-    "scan_quality_note": null
-  },
-  "recommendedProducts": [],
-  "userMessage": "Floral puff-sleeve midi dress with a fitted waist and soft flowing skirt."
-}
-
-Example 3 — Sneakers
-Input description: White low-top leather sneakers with rubber sole and minimal branding.
-Expected output:
+  "item_type": "pants",
+  "clothing_type": "jeans",
+  "subtype": "wide_leg_jeans"}
 {
-  "status": "completed",
-  "attributes": {
-    "category": "sneakers",
-    "itemType": "low-top leather sneakers",
-    "silhouette": "low-top",
-    "colorPalette": ["white"],
-    "materialEstimate": "leather upper, rubber sole",
-    "pattern": "solid",
-    "texture": "leather upper, rubber sole",
-    "styleTags": ["minimalist", "casual", "streetwear"],
-    "occasion": "casual",
-    "confidenceScore": 0.87
-  },
-  "identification": {
-    "visual_observation": "White low-top leather sneakers with a rubber sole and minimal branding.",
-    "item_type": "sneakers",
-    "subtype": "low-top leather sneakers",
-    "primary_color": "white",
-    "secondary_colors": [],
-    "pattern": "solid",
-    "material_estimate": "leather upper, rubber sole",
-    "silhouette": "low-top",
-    "fit": "standard",
-    "length": null,
-    "sleeve_length": null,
-    "neckline_or_lapel": null,
-    "closure": "lace-up",
-    "distinctive_features": ["minimal branding", "rubber sole"],
-    "style_tags": ["minimalist", "casual", "streetwear"],
-    "occasion_tags": ["casual", "everyday", "travel"],
-    "visible_brand_text": null,
-    "logo_detected": false,
-    "brand_guess": null,
-    "confidence_score": 0.87,
-    "search_queries": [
-      "white low top leather sneakers rubber sole",
-      "minimalist white leather sneakers",
-      "casual white low top sneakers"
-    ],
-    "non_fashion": false,
-    "styling_suggestions": ["Wear with cropped jeans and a plain tee for a clean look.", "Pair with a midi skirt and oversized sweater for contrast."],
-    "scan_quality_note": null
-  },
-  "recommendedProducts": [],
-  "userMessage": "White low-top leather sneakers with a rubber sole and minimal branding."
+  "item_type": "dress",
+  "clothing_type": "dress",
+  "subtype": "puff-sleeve midi dress"
 }
+{
+  "item_type": "sneakers",
+  "clothing_type": "sneaker",
+  "subtype": "low-top leather sneakers"}
+A value may legitimately sit at two levels ("blazer" is both a category and a family). All three collapsing to one value is always wrong.
 
-Example 4 — Non-Fashion
+Example — Non-Fashion (the completed shape is fully specified above)
 Input description: A coffee mug on a desk.
 Expected output:
 {
@@ -564,6 +509,7 @@ Expected output:
   "identification": {
     "visual_observation": "The image appears to show a non-fashion item.",
     "item_type": "NON_FASHION",
+    "clothing_type": "unknown",
     "subtype": "unknown",
     "primary_color": "unknown",
     "secondary_colors": [],
@@ -581,6 +527,9 @@ Expected output:
     "visible_brand_text": null,
     "logo_detected": false,
     "brand_guess": null,
+    "brand_evidence_level": "none",
+    "brand_evidence_type": "none",
+    "brand_evidence_on_item": false,
     "confidence_score": 0.95,
     "search_queries": [],
     "non_fashion": true,
@@ -630,6 +579,7 @@ Use exactly this response shape:
     {
       "label": "black blazer",
       "category": "blazer",
+      "clothing_type": "blazer",
       "subtype": "double-breasted blazer",
       "bounds": { "x": 0.12, "y": 0.08, "width": 0.76, "height": 0.54 },
       "confidenceScore": 0.86,
@@ -659,6 +609,12 @@ const MULTI_ITEM_RESPONSE_SCHEMA = {
         properties: {
           label: { type: 'STRING' },
           category: { type: 'STRING' },
+          // Optional here, unlike the single-item schema. This pass answers a
+          // DETECTION question and the prompt asks each candidate to stay
+          // compact; forcing a third taxonomy level on every candidate would
+          // spend the shared output budget on the pass that does not carry the
+          // identification. The selected-item pass requires it.
+          clothing_type: { type: 'STRING' },
           subtype: { type: 'STRING' },
           bounds: {
             type: 'OBJECT',
@@ -715,6 +671,7 @@ const SELECTED_ITEM_RESPONSE_SCHEMA = {
       properties: {
         visual_observation: { type: 'STRING' },
         item_type: { type: 'STRING' },
+        clothing_type: { type: 'STRING' },
         subtype: { type: 'STRING' },
         primary_color: { type: 'STRING' },
         pattern: { type: 'STRING' },
@@ -724,9 +681,15 @@ const SELECTED_ITEM_RESPONSE_SCHEMA = {
         confidence_score: { type: 'NUMBER', minimum: 0, maximum: 1 },
         non_fashion: { type: 'BOOLEAN' },
       },
+      // `clothing_type` is required alongside its two sibling taxonomy levels,
+      // which is what makes it answerable at all. The prompt sanctions
+      // "unknown" for a level the image does not support, so requiring the KEY
+      // never forces a fabricated VALUE — the same convention item_type and
+      // subtype already rely on.
       required: [
         'visual_observation',
         'item_type',
+        'clothing_type',
         'subtype',
         'primary_color',
         'confidence_score',
@@ -792,6 +755,7 @@ The \`attributes\` object is legacy and must remain populated for the current ap
 The optional \`identification\` object must include:
 - visual_observation
 - item_type
+- clothing_type
 - subtype
 - primary_color
 - secondary_colors
@@ -814,6 +778,12 @@ The optional \`identification\` object must include:
 - non_fashion
 - styling_suggestions
 - scan_quality_note
+
+The three taxonomy levels are distinct and must not repeat each other:
+- item_type: the broad product category (pants, top, outerwear, footwear, bag).
+- clothing_type: the recognizable garment or footwear family within that category (jeans, blazer, boot).
+- subtype: the most specific style or construction the query supports (wide_leg_jeans, double-breasted blazer, chelsea boot).
+Set any level the query does not support to "unknown" rather than repeating another level.
 
 If the item is a common fashion staple such as blazer, jeans, white shirt, black dress, sneakers, handbag, coat, or top, include 2 practical styling_suggestions.
 
@@ -841,6 +811,7 @@ Return strict JSON only, matching exactly this shape:
   "identification": {
     "visual_observation": "A concise 1-2 sentence description of the described fashion item.",
     "item_type": "blazer",
+    "clothing_type": "blazer",
     "subtype": "double-breasted blazer",
     "primary_color": "black",
     "secondary_colors": [],
@@ -1459,6 +1430,36 @@ function extractGeminiErrorMeta(raw: string): { code?: number | string; status?:
 interface GeminiResponse {
   candidates?: Array<{ content?: { parts?: Array<{ text?: string }> }; finishReason?: string }>;
   promptFeedback?: { blockReason?: string };
+  /**
+   * Provider accounting. Previously declared nowhere, which is why Phase 6 could
+   * not tell a truncated response from a malformed one and had to infer cost.
+   * `thoughtsTokenCount` is the reasoning spend: billed, never visible in the
+   * text, and drawn from the SAME ceiling as the structured output.
+   */
+  usageMetadata?: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+    thoughtsTokenCount?: number;
+    totalTokenCount?: number;
+  };
+}
+
+/** Bounded, null-safe view of provider accounting for telemetry. */
+function extractGeminiUsage(data: GeminiResponse): {
+  inputTokens: number | null;
+  responseTokens: number | null;
+  thinkingTokens: number | null;
+  totalTokens: number | null;
+} {
+  const finite = (v: unknown): number | null =>
+    typeof v === 'number' && Number.isFinite(v) ? v : null;
+  const usage = data.usageMetadata;
+  return {
+    inputTokens: finite(usage?.promptTokenCount),
+    responseTokens: finite(usage?.candidatesTokenCount),
+    thinkingTokens: finite(usage?.thoughtsTokenCount),
+    totalTokens: finite(usage?.totalTokenCount),
+  };
 }
 
 function extractGeminiText(data: GeminiResponse): string {
@@ -1553,7 +1554,7 @@ function sanitizeSelectedCandidate(value: unknown): {
   return { candidateId, category, ...(subtype ? { subtype } : {}), ...(bounds ? { bounds } : {}) };
 }
 
-Deno.serve(async (req) => {
+Deno.serve(async (req) => observeEdgeRequest(req, 'scan-identify', async (observabilityContext) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS });
   }
@@ -2163,6 +2164,13 @@ Deno.serve(async (req) => {
         signal: controller.signal,
       });
       raw = await res.text().catch(() => '');
+      emitBackendObservability('provider_operation', observabilityContext, {
+        provider: 'gemini',
+        model_family: 'flash',
+        operation: mode === 'text' ? 'text_fashion_identification' : 'image_fashion_identification',
+        response_status: res.status,
+        retry_count: attempt - 1,
+      });
 
       if (res.ok) break;
 
@@ -2259,6 +2267,14 @@ Deno.serve(async (req) => {
     }
 
     const blockReason = data.promptFeedback?.blockReason;
+    // Primary-call accounting, captured once at the only point where the raw
+    // provider envelope still exists. Recorded whether or not a recheck later
+    // runs, so the recheck's cost is always reported against a real baseline
+    // rather than an assumed one.
+    const primaryFinishReason = data.candidates?.[0]?.finishReason ?? null;
+    const primaryUsage = extractGeminiUsage(data);
+    const primaryLatencyMs = elapsedMs;
+    const primaryAttempts = attempt;
     const text = extractGeminiText(data);
     if (!text) {
       console.warn(
@@ -2678,7 +2694,325 @@ Deno.serve(async (req) => {
       elapsedMs,
     );
 
-    const completedResponse = normalized('completed', userMessage, attributes, identification);
+    // ── Phase 7.2: brand evidence tier gate ─────────────────────────────────
+    // Runs BEFORE the identification recheck and before every projection, so a
+    // brand that the image does not actually support is gone by the time the
+    // legacy view, the V2 result, commerce query construction and persistence
+    // are derived from this one identification.
+    //
+    // Deliberately independent of the taxonomy decision (§13): this changes only
+    // WHO MADE IT, never WHAT IT IS. A visible Nike mark cannot turn a hoodie
+    // into a running shoe here, because no code path in this gate touches
+    // item_type, clothing_type or subtype.
+    const brandGate = applyBrandEvidenceGate(identification);
+    if (identification) {
+      identification = brandGate.identification;
+    }
+    logBrandEvidenceMetrics({
+      version: IDENTIFICATION_RECHECK_VERSION,
+      brandAsserted: brandGate.decision.brandEstablished,
+      brandUnknown: !brandGate.decision.brandEstablished,
+      brandEvidenceLevel: brandGate.decision.level,
+      brandEvidenceType: brandGate.decision.type,
+      brandSuppressed: brandGate.brandSuppressed,
+      brandEvidenceReasons: brandGate.decision.reasons,
+    });
+
+    // ── Phase 7.1: confidence-gated identification recheck ──────────────────
+    // Sits HERE deliberately: after quality-tune and the intelligence gate have
+    // produced the final first-pass identity, and BEFORE the legacy projection,
+    // the V2 normalization, the commerce decision and every persistence path
+    // are derived. Correcting `identification` at this single point is what
+    // keeps the legacy view and the V2 view two projections of ONE identity —
+    // patching them separately downstream is exactly how they would come to
+    // disagree.
+    //
+    // Commerce cannot influence any of this: no commerce provider, catalog
+    // query or similarity matcher has run yet, and none of their outputs exists
+    // to be read. That ordering is the isolation guarantee, not a convention.
+    const recheckFlagEnabled = isIdentificationRecheckEnabled();
+    const primaryIdentityTriple: IdentityTriple = {
+      category: safeString(identification?.item_type) ?? null,
+      clothingType: safeString(identification?.clothing_type) ?? null,
+      subtype: safeString(identification?.subtype) ?? null,
+    };
+    const recheckMetrics = emptyRecheckMetrics(recheckFlagEnabled, primaryIdentityTriple);
+    recheckMetrics.primaryLatencyMs = primaryLatencyMs;
+    recheckMetrics.primaryFinishReason = primaryFinishReason;
+    recheckMetrics.primaryInputTokens = primaryUsage.inputTokens;
+    recheckMetrics.primaryResponseTokens = primaryUsage.responseTokens;
+    recheckMetrics.primaryThinkingTokens = primaryUsage.thinkingTokens;
+    recheckMetrics.primaryProviderAttempts = primaryAttempts;
+
+    if (recheckFlagEnabled) {
+      // Detection resolves no garment and text mode has no image to look at
+      // again; §12 requires the recheck to attach to the RESOLVED garment only.
+      const modeEligible = isRecheckEligibleMode(requestModeForRoute);
+      if (!modeEligible) {
+        recheckMetrics.ineligibleReason = `mode_${requestModeForRoute}`;
+      } else if (!imageBase64) {
+        recheckMetrics.ineligibleReason = 'no_image_evidence';
+      } else {
+        recheckMetrics.recheckEligible = true;
+      }
+
+      if (recheckMetrics.recheckEligible) {
+        const gate = evaluateIdentificationGate({
+          identity: primaryIdentityTriple,
+          globalConfidence: typeof identification?.confidence_score === 'number' &&
+              Number.isFinite(identification.confidence_score)
+            ? (identification.confidence_score as number)
+            : null,
+          consistencyConflictCodes: (intelligenceGate?.consistencyConflicts ?? []).map(
+            (c) => c.code,
+          ),
+          qualityBand: intelligenceGate?.qualityBand ?? null,
+          visualObservations: [safeString(identification?.visual_observation) ?? ''],
+          // This branch is only reachable on a classified, identity-bearing
+          // result: non-fashion and every failure path returned earlier.
+          identityBearing: true,
+        });
+        recheckMetrics.gateDecision = gate.decision;
+        recheckMetrics.recheckReasonCodes = gate.reasonCodes;
+
+        if (gate.decision === 'REVIEW_REQUIRED') {
+          const recheckTimeoutMs = resolveRecheckTimeoutMs();
+
+          // ONE call. No retry loop, no fallback model, no second opinion:
+          // the bounded attempt loop the primary uses is deliberately NOT
+          // reused here (§14).
+          const recheckProvider: RecheckProvider = async (req) => {
+            const recheckController = new AbortController();
+            const recheckTimer = setTimeout(
+              () => recheckController.abort(),
+              recheckTimeoutMs,
+            );
+            try {
+              const recheckRes = await fetch(buildGeminiUrl(routePlan.primaryModel), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  contents: [
+                    {
+                      role: 'user',
+                      parts: [
+                        { text: req.prompt },
+                        {
+                          inline_data: {
+                            mime_type: req.mimeType,
+                            data: req.imageBase64,
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                  generationConfig: {
+                    // Deterministic: a review pass that returns a different
+                    // answer on each run is noise, not a second opinion.
+                    temperature: 0,
+                    maxOutputTokens: req.maxOutputTokens,
+                    responseMimeType: 'application/json',
+                    responseSchema: req.responseSchema,
+                  },
+                }),
+                signal: recheckController.signal,
+              });
+              const recheckRaw = await recheckRes.text().catch(() => '');
+              if (!recheckRes.ok) {
+                return {
+                  ok: false,
+                  text: null,
+                  finishReason: null,
+                  usage: null,
+                  failureKind: 'http_error',
+                } as RecheckProviderResult;
+              }
+              let recheckEnvelope: GeminiResponse;
+              try {
+                recheckEnvelope = JSON.parse(recheckRaw);
+              } catch {
+                return {
+                  ok: false,
+                  text: null,
+                  finishReason: null,
+                  usage: null,
+                  failureKind: 'empty_response',
+                } as RecheckProviderResult;
+              }
+              return {
+                ok: true,
+                text: extractGeminiText(recheckEnvelope),
+                finishReason: recheckEnvelope.candidates?.[0]?.finishReason ?? null,
+                usage: extractGeminiUsage(recheckEnvelope),
+                failureKind: null,
+              } as RecheckProviderResult;
+            } catch (err) {
+              const aborted = err instanceof Error && err.name === 'AbortError';
+              return {
+                ok: false,
+                text: null,
+                finishReason: null,
+                usage: null,
+                failureKind: aborted ? 'timeout' : 'network_error',
+              } as RecheckProviderResult;
+            } finally {
+              clearTimeout(recheckTimer);
+            }
+          };
+
+          recheckMetrics.recheckTriggered = true;
+          recheckMetrics.identificationProviderCalls = 2;
+
+          // Phase 7.2: the first pass has already established the family, so the
+          // second look can ask a specific construction question instead of
+          // "look again". Null when no family resolved — a recheck pointed at
+          // the wrong family's evidence is worse than an unfocused one.
+          const discriminator = buildDiscriminatorFocus(primaryIdentityTriple);
+          recheckMetrics.discriminatorPackUsed = discriminator !== null;
+          recheckMetrics.disputedFashionFamily = discriminator?.family ?? null;
+          const primaryBrandForRecheck = safeString(identification?.brand_guess) ?? null;
+
+          const recheckOutcome = await performIdentificationRecheck(
+            {
+              discriminatorFocus: discriminator,
+              primaryBrand: primaryBrandForRecheck,
+              primary: primaryIdentityTriple,
+              primaryConfidence: typeof identification?.confidence_score === 'number' &&
+                  Number.isFinite(identification.confidence_score)
+                ? (identification.confidence_score as number)
+                : null,
+              reasonCodes: gate.reasonCodes,
+              garmentContext: useSelectedItemProvider && selectedCandidate
+                ? {
+                  candidateId: selectedCandidate.candidateId,
+                  category: selectedCandidate.category,
+                  ...(selectedCandidate.subtype
+                    ? { subtype: selectedCandidate.subtype }
+                    : {}),
+                  ...(selectedCandidate.bounds
+                    ? { bounds: selectedCandidate.bounds }
+                    : {}),
+                }
+                : null,
+              imageBase64,
+              mimeType: DEFAULT_MIME,
+            },
+            recheckProvider,
+          );
+
+          recheckMetrics.recheckLatencyMs = recheckOutcome.latencyMs;
+          recheckMetrics.recheckFinishReason = recheckOutcome.finishReason;
+          recheckMetrics.recheckInputTokens = recheckOutcome.usage?.inputTokens ?? null;
+          recheckMetrics.recheckResponseTokens = recheckOutcome.usage?.responseTokens ?? null;
+          recheckMetrics.recheckThinkingTokens = recheckOutcome.usage?.thinkingTokens ?? null;
+
+          if (recheckOutcome.status === 'completed') {
+            recheckMetrics.recheckStatus = 'completed';
+            recheckMetrics.recheckIdentity = recheckOutcome.identity;
+
+            const reconciled = reconcileIdentification({
+              primary: primaryIdentityTriple,
+              recheck: recheckOutcome.identity,
+              primaryConfidence:
+                typeof identification?.confidence_score === 'number' &&
+                  Number.isFinite(identification.confidence_score)
+                  ? (identification.confidence_score as number)
+                  : null,
+              recheckConfidence: recheckOutcome.confidence,
+              reasonCodes: gate.reasonCodes,
+            });
+
+            recheckMetrics.finalIdentity = reconciled.final;
+            recheckMetrics.identityChanged = reconciled.identityChanged;
+            recheckMetrics.fieldsChanged = reconciled.fieldsChanged;
+            recheckMetrics.fieldOutcomes = reconciled.fields.map((f) => ({
+              tier: f.tier,
+              outcome: f.outcome,
+            }));
+
+            // Write the canonical identity back onto the ONE sanitized
+            // identification every downstream view derives from. An abstained
+            // tier becomes '' rather than a retained stale value: the contract's
+            // existing absence convention, and the honest representation of a
+            // conflict the evidence could not settle.
+            if (reconciled.identityChanged && identification) {
+              identification.item_type = reconciled.final.category ?? '';
+              identification.clothing_type = reconciled.final.clothingType ?? '';
+              identification.subtype = reconciled.final.subtype ?? '';
+            }
+
+            // Phase 7.2 §13: brand is reconciled as a SEPARATE judgement from
+            // the taxonomy. A recheck may only FILL a brand the first pass left
+            // unknown, and only on a direct on-item mark — it can never
+            // overwrite or clear an existing one. The adopted brand is then put
+            // back through the same evidence gate, so a brand arriving by this
+            // route is held to exactly the standard as one from the first pass.
+            if (identification && shouldAdoptRecheckBrand({
+              primaryBrand: safeString(identification.brand_guess) ?? null,
+              finding: recheckOutcome.brand,
+            })) {
+              const artifact = recheckBrandArtifact(recheckOutcome.brand);
+              identification.brand_guess = recheckOutcome.brand.brand;
+              identification.brand_evidence_type = recheckOutcome.brand.evidenceType;
+              identification.brand_evidence_on_item = true;
+              if (artifact.visibleBrandText) {
+                identification.visible_brand_text = artifact.visibleBrandText;
+              }
+              if (artifact.logoDetected) identification.logo_detected = true;
+              // Re-gated, not trusted. If the mark it read turns out to be care
+              // text, a stub, or otherwise disqualified, the gate removes it
+              // exactly as it would a first-pass brand.
+              const regated = applyBrandEvidenceGate(identification);
+              identification = regated.identification;
+              recheckMetrics.brandAdoptedFromRecheck = !regated.brandSuppressed;
+            }
+          } else {
+            // §19 fail-open: a failed recheck leaves the primary identification
+            // exactly as it was. The scan is never lost, downgraded or blocked
+            // because optional accuracy work did not land.
+            recheckMetrics.recheckStatus = 'failed';
+            recheckMetrics.recheckFailureReason = recheckOutcome.reason;
+          }
+        }
+      }
+    }
+
+    // Telemetry is emitted ONLY when the feature is on. With the flag off this
+    // build must be inert in every observable way, log output included — a
+    // rollback that still changes what the function prints is not a rollback,
+    // and a line whose gate was never evaluated carries nothing worth the noise.
+    if (recheckFlagEnabled) {
+      recheckMetrics.totalIdentificationLatencyMs = (recheckMetrics.primaryLatencyMs ?? 0) +
+        (recheckMetrics.recheckLatencyMs ?? 0);
+      logIdentificationRecheckMetrics(recheckMetrics);
+    }
+    // ── V2-only taxonomy tier isolation (Phase 7) ───────────────────────────
+    // `clothing_type` is a V2 contract addition. The legacy `identification`
+    // object is a passthrough that legacy clients still receive, so the field
+    // is held out of it and re-attached for V2 normalization only. Both views
+    // still derive from the same sanitized identification, so they cannot
+    // disagree — the legacy view simply does not carry the third tier.
+    //
+    // Phase 7.2 extends the same isolation to the three brand-evidence fields.
+    // They are internal gating metadata, not part of the production brand
+    // contract a legacy client consumes: that client reads brand_guess,
+    // visible_brand_text and logo_detected, all of which it still receives —
+    // already gated, so a legacy client gets the PRECISION improvement without
+    // a schema change. Leaking the tier fields would widen the V1 surface for
+    // no consumer.
+    const v2ClothingType = safeString(identification?.clothing_type);
+    const v2BrandEvidenceLevel = safeString(identification?.brand_evidence_level);
+    const v2BrandEvidenceType = safeString(identification?.brand_evidence_type);
+    const legacyIdentification = identification
+      ? (({
+        clothing_type: _omittedType,
+        brand_evidence_level: _omittedLevel,
+        brand_evidence_type: _omittedEvidenceType,
+        brand_evidence_on_item: _omittedOnItem,
+        ...rest
+      }) => rest)(identification)      : identification;
+
+    const completedResponse = normalized('completed', userMessage, attributes, legacyIdentification);
     const completedResponseWithAttributes = ensureLegacyAttributes(completedResponse);
     const completedNormalizedId = normalizeIdentification(
       completedResponseWithAttributes.identification as Partial<NormalizedIdentification> | null | undefined,
@@ -2697,6 +3031,7 @@ Deno.serve(async (req) => {
         // follow-up selected-item request stays correlated to this detection.
         evidenceId: v2EvidenceIds[0] ?? '',
         category: garment.category ?? null,
+        ...(garment.clothingType ? { clothingType: garment.clothingType } : {}),
         subtype: garment.subtype ?? null,
         ...(garment.bounds ? { bounds: garment.bounds } : {}),
       }))
@@ -2705,9 +3040,18 @@ Deno.serve(async (req) => {
       requestId: internalRequest.requestId ?? scanId,
       outcome: v2DetectionCandidates ? 'multiple_items_need_selection' : 'classified',
       evidenceIds: v2EvidenceIds,
-      identification: completedResponseWithAttributes.identification as
-        | Record<string, unknown>
-        | undefined,
+      identification: (() => {
+        const base = completedResponseWithAttributes.identification as
+          | Record<string, unknown>
+          | undefined;
+        // Re-attach the V2-only fields held out of the legacy view. Both views
+        // still derive from the SAME gated identification, so the brand each
+        // reports is identical — V2 simply also carries how it was established.
+        const reattached: Record<string, unknown> = { ...(base ?? {}) };
+        if (v2ClothingType) reattached.clothing_type = v2ClothingType;
+        if (v2BrandEvidenceLevel) reattached.brand_evidence_level = v2BrandEvidenceLevel;
+        if (v2BrandEvidenceType) reattached.brand_evidence_type = v2BrandEvidenceType;
+        return reattached;      })(),
       attributes: completedResponseWithAttributes.attributes as Record<string, unknown> | undefined,
       ...(v2DetectionCandidates ? { candidates: v2DetectionCandidates } : {}),
     });
@@ -3459,7 +3803,7 @@ Deno.serve(async (req) => {
   } finally {
     clearTimeout(timer);
   }
-});
+}));
 
 function hasBrandEvidenceForCommerce(
   identification: Record<string, unknown> | null | undefined,

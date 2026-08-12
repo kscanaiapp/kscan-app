@@ -8,6 +8,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
 const vm = require('node:vm');
+const observabilityStub = require('./helpers/observabilityStub');
 
 const ROOT = path.resolve(__dirname, '..');
 const FIXTURES = path.join(__dirname, 'fixtures', 'image-upload');
@@ -42,6 +43,7 @@ function loadTsModule(relativePath, requireMap = {}) {
     Promise,
     require: (id) => {
       if (id in requireMap) return requireMap[id];
+      if (id === './observability') return observabilityStub;
       if (id.startsWith('node:')) return require(id);
       throw new Error(`Unexpected require: ${id}`);
     },

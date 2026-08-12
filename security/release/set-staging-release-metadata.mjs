@@ -8,14 +8,14 @@
  * This is the ONLY sanctioned path that writes Supabase function configuration
  * in this repository, and it is deliberately not a general secret manager.
  *
- *   - the key set is a STATIC allowlist of exactly six release-identity keys
+ *   - the key set is a STATIC allowlist of exactly seven release-identity keys
  *   - the target project is derived from environment-authority, never from a
  *     caller-supplied ref
  *   - the production project is an explicit deny, checked before any command
  *     is constructed, let alone executed
  *
- * The six values are NON-SECRET build metadata (a release id, git SHAs, a
- * digest, a contract version, a timestamp). They are still handled as
+ * The seven values are NON-SECRET build metadata (environment, a release id,
+ * git SHAs, a digest, a contract version, a timestamp). They are still handled as
  * ephemeral deployment material: written to a RUNNER_TEMP env file, passed to
  * the CLI by path, and deleted in a finally block.
  *
@@ -46,6 +46,7 @@ export const ALLOWED_METADATA_KEYS = Object.freeze([
   'KSCAN_MANIFEST_DIGEST',
   'KSCAN_HEALTH_CONTRACT_VERSION',
   'KSCAN_DEPLOYED_AT',
+  'KSCAN_ENVIRONMENT',
 ]);
 
 /** Caller-facing field -> Supabase key. The mapping is fixed. */
@@ -56,6 +57,7 @@ const FIELD_TO_KEY = Object.freeze({
   manifestDigest: 'KSCAN_MANIFEST_DIGEST',
   healthContractVersion: 'KSCAN_HEALTH_CONTRACT_VERSION',
   deployedAt: 'KSCAN_DEPLOYED_AT',
+  environment: 'KSCAN_ENVIRONMENT',
 });
 
 const SHA1_RE = /^[a-f0-9]{40}$/;
@@ -63,6 +65,7 @@ const SHA256_RE = /^[a-f0-9]{64}$/;
 const RELEASE_ID_RE = /^[A-Za-z0-9._-]{1,120}$/;
 const HEALTH_CONTRACT_RE = /^health-contract-v[0-9][A-Za-z0-9.-]*$/;
 const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
+const ENVIRONMENT_RE = /^staging$/;
 
 export class ReleaseMetadataError extends Error {
   constructor(message, code, detail) {
@@ -109,6 +112,8 @@ export function buildMetadataMap(fields) {
     'healthContractVersion must look like health-contract-vN');
   need(typeof fields.deployedAt === 'string' && ISO_RE.test(fields.deployedAt),
     'deployedAt must be an ISO-8601 UTC timestamp');
+  need(typeof fields.environment === 'string' && ENVIRONMENT_RE.test(fields.environment),
+    'environment must be the literal staging environment');
 
   if (errors.length > 0) {
     throw new ReleaseMetadataError(

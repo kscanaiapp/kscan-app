@@ -207,6 +207,17 @@ function createSupabaseMock(options = {}) {
         },
       };
     },
+    // Apple authorization revocation (IOS29-NEW-003) runs inside the hard-delete
+    // pipeline immediately before the auth delete. These fixtures are all
+    // non-Apple accounts, so the honest default is `no_credential` — the status
+    // the real function returns when nothing is stored for the user. Recorded in
+    // `calls` so ordering against auth.deleteUser stays observable here too.
+    functions: {
+      async invoke(name, options) {
+        calls.push({ type: 'functions.invoke', name, value: options?.body?.userId });
+        return { data: { status: 'no_credential' }, error: null };
+      },
+    },
     auth: {
       admin: {
         async deleteUser(value) {
@@ -587,10 +598,31 @@ test('deleteDirectUserRows deletes explicit non-cascade resources by user id', a
 
   assert.deepEqual(
     calls.map((call) => call.table).sort(),
-    ['scan_intelligence_events', 'style_chat_burst_usage'],
+    ['privacy_request_rate_limits', 'scan_intelligence_events', 'style_chat_burst_usage'],
   );
   assert.ok(calls.every((call) => call.value === 'user-abc'));
   assert.ok(results.every((entry) => entry.status === 'deleted'));
+});
+
+test('privacy_request_rate_limits is purged directly because staging has no auth FK', () => {
+  const entry = USER_DATA_RESOURCES.find(
+    (resource) => resource.table === 'privacy_request_rate_limits',
+  );
+  assert.ok(entry, 'privacy_request_rate_limits must be in the deletion registry');
+  assert.equal(entry.column, 'user_id');
+  assert.equal(entry.action, 'direct_delete_before_auth');
+
+  const migration = fs.readFileSync(
+    path.join(
+      __dirname,
+      '..',
+      'supabase',
+      'migrations',
+      '20260808121216_privacy_request_rate_limits.sql',
+    ),
+    'utf8',
+  );
+  assert.doesNotMatch(migration, /user_id[^,]*references\s+auth\.users/i);
 });
 
 test('processDeletionRequest deletes storage and direct rows before auth user deletion', async () => {

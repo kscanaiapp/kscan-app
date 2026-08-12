@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { logError } from '../utils/errorLogger';
+import { captureHandledException } from '../../services/observability';
 
 type ErrorBoundaryProps = React.PropsWithChildren;
 
@@ -48,6 +49,16 @@ export default class ErrorBoundary extends React.Component<
 
     logError('Error Boundary caught render error', error, {
       componentStack: errorInfo.componentStack,
+    });
+
+    // A boundary SWALLOWS the error: it never reaches ErrorUtils, and
+    // `Sentry.wrap` installs no boundary of its own, so nothing else reports
+    // this. The user is now looking at the error screen — the most severe
+    // client failure there is — so it must raise its own event rather than
+    // existing only as a breadcrumb waiting for some later error.
+    captureHandledException(error, {
+      operation: 'error_boundary_render',
+      error_category: error instanceof Error ? error.name : 'unknown_error',
     });
   }
 
