@@ -20,6 +20,7 @@ const {
   classifySchemaObjectProbe,
   classifyEdgeOptionsProbe,
 } = require('./verify-supabase-helpers');
+const { assertExpectedEnvironment } = require('../security/scripts/lib/environment-authority.js');
 
 const REQUIRED_VARS = [
   ['EXPO_PUBLIC_SUPABASE_URL', 'Supabase project URL (e.g. https://xxx.supabase.co)'],
@@ -101,6 +102,37 @@ const envProjectRef = extractProjectRefFromUrl(url);
 const linkedProjectRef = readLinkedProjectRef();
 
 console.log('\n── Project targeting ─────────────────────────────────────────────\n');
+
+// ── Environment authority (Phase 2B, DEF-REL-007) ───────────────────────────
+//
+// This script previously had NO self-contained refusal guard: whichever project
+// the caller's env vars pointed at is what it probed. Its staging-only safety
+// was a property of which variables the calling workflow happened to set, not
+// of the script, so a mis-set variable — or a local run — could silently point
+// a "staging verification" at production.
+//
+// The expected environment is now explicit and validated through the shared
+// authority module. Fail-closed in every direction: production when staging is
+// expected, staging when production is expected, unknown, malformed and
+// missing identity all BLOCK.
+const expectedEnvironment = (process.env.KSCAN_EXPECTED_ENVIRONMENT || 'staging').trim();
+try {
+  const resolved = assertExpectedEnvironment(expectedEnvironment, envProjectRef);
+  console.log(`  Expected environment        : ${expectedEnvironment}`);
+  console.log(`  Resolved environment        : ${resolved}`);
+  gate.push({ code: 'PASS', msg: `Environment authority: resolved ${resolved} matches expected ${expectedEnvironment}` });
+} catch (error) {
+  const message =
+    `Environment authority refused this target: expected "${expectedEnvironment}", ` +
+    `project ref ${envProjectRef ? `"${envProjectRef}"` : '(absent)'} (${error.code}).`;
+  console.error(`  ✗ BLOCKER: ${message}`);
+  console.error('  Refusing to run verification against an unproven or unintended project.');
+  gate.push({ code: 'BLOCKER', msg: message });
+  console.error('\n── Release gate summary ────────────────────────────────────────────────\n');
+  console.error('  BLOCKER  Environment authority refusal — no probes were run.');
+  process.exit(1);
+}
+
 if (envProjectRef) {
   console.log(`  Runtime Supabase project ref: ${envProjectRef}`);
 }

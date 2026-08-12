@@ -322,6 +322,67 @@ jobs:
             test "$CODE" != "503"
           fi
 
+      # Health contract v1 (Phase 2B). Probed separately from the legacy root
+      # above so the pre-existing gate keeps its exact meaning. Structured
+      # results are emitted for release evidence rather than relying on the
+      # step's exit code alone.
+      - name: Probe health contract v1
+        if: ${{ needs.preflight.outputs.function_name == 'staging-health' }}
+        env:
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          SUPABASE_STAGING_ANON_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
+        run: |
+          set -euo pipefail
+          BASE="${SUPABASE_STAGING_URL%/}/functions/v1/staging-health"
+          probe() {
+            curl -sS -o "$2" -w "%{http_code}" \
+              -H "apikey: ${SUPABASE_STAGING_ANON_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_STAGING_ANON_KEY}" \
+              "${BASE}$1"
+          }
+          LIVE_CODE=$(probe "/health/live" /tmp/live.json)
+          READY_CODE=$(probe "/health/ready" /tmp/ready.json)
+          VERSION_CODE=$(probe "/version" /tmp/version.json)
+          echo "live=${LIVE_CODE} ready=${READY_CODE} version=${VERSION_CODE}"
+          cat /tmp/live.json; echo; cat /tmp/ready.json; echo; cat /tmp/version.json; echo
+          python3 - <<'PY'
+          import json, os
+          live = json.load(open("/tmp/live.json", encoding="utf-8"))
+          ready = json.load(open("/tmp/ready.json", encoding="utf-8"))
+          version = json.load(open("/tmp/version.json", encoding="utf-8"))
+
+          assert live.get("status") == "alive", live
+          assert live.get("environment") == "staging", live
+          assert ready.get("environment") == "staging", ready
+          assert version.get("environment") == "staging", version
+
+          # The public surface must never echo credential material.
+          for body in (live, ready, version):
+              text = json.dumps(body).lower()
+              for bad in ("service_role", "password", "eyj", "sbp_"):
+                  assert bad not in text, (bad, body)
+
+          # Release identity is corroborating evidence. Reported, not asserted
+          # here: activation wires the deployment metadata, and the exact
+          # candidate verifier is what compares it against the frozen manifest.
+          state = version.get("releaseIdentityState")
+          print(f"releaseIdentityState={state}")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as fh:
+              fh.write(f"- health contract: live/ready/version probed, releaseIdentityState={state}\n")
+          PY
+
+      - name: Upload health contract evidence
+        if: ${{ always() && needs.preflight.outputs.function_name == 'staging-health' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: backend-release-health-${{ github.run_id }}
+          path: |
+            /tmp/live.json
+            /tmp/ready.json
+            /tmp/version.json
+          if-no-files-found: warn
+          retention-days: 30
+
   synthetic-tests:
     name: Synthetic tests
     runs-on: ubuntu-latest
