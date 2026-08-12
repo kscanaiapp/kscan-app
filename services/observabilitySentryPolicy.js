@@ -19,6 +19,7 @@ const {
   buildObservabilityContext,
   isSensitiveObservabilityKey,
   redactObservabilityValue,
+  safeDiagnosticToken,
   REDACTED,
 } = require('./observabilityRedaction');
 
@@ -41,6 +42,32 @@ const DSN_RE = /^https:\/\/[A-Za-z0-9]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\/[0-9]+$/;
  * to ordinary error events.
  */
 const FORBIDDEN_INTEGRATION_RE = /replay|screenshot|viewhierarchy/i;
+
+/**
+ * Event `contexts` entries permitted to leave the device, by container name.
+ *
+ * WHY AN ALLOWLIST AND NOT A REDACTOR: `redactObservabilityValue` refuses values
+ * by SHAPE. Ordinary prose has no distinguishing shape, so a context container
+ * named anything at all (`contexts.scanner.note`, `contexts.response.body`)
+ * carried its string values off the device verbatim. Any container not named
+ * here is dropped whole, so a future SDK or product integration that starts
+ * attaching a new context cannot leak through it by default.
+ *
+ * These are the SDK's own device/app/runtime containers plus the trace context
+ * that carries K Scan's correlation identity. All are content-free.
+ */
+const ALLOWED_EVENT_CONTEXTS = new Set([
+  'device', 'os', 'app', 'runtime', 'culture', 'trace',
+  'react_native_context', 'ota_updates', 'browser',
+]);
+
+/**
+ * Stack-frame fields that can carry application source text rather than
+ * structure. `debugSymbolicatorIntegration` populates these in development, and
+ * a future integration could populate them elsewhere; frames are otherwise pure
+ * structure (file, function, line, column) and are the primary diagnostic value.
+ */
+const SOURCE_BEARING_FRAME_KEYS = ['pre_context', 'context_line', 'post_context', 'vars'];
 
 /** Event metadata containers that are rebuilt through the allowlist, not trusted. */
 const SAFE_TAG_KEYS = [
@@ -69,7 +96,9 @@ function readFlag(rawValue) {
   if (normalized === '') return { state: 'missing' };
   if (normalized === 'true') return { state: 'on' };
   if (normalized === 'false') return { state: 'off' };
-  // "1", "yes", "enabled", "TRUE " with junk, anything else: refuse to guess.
+  // Surrounding whitespace and letter case are normalized away first, so
+  // `"TRUE "` reads as on. Anything that is not one of those two words —
+  // "1", "yes", "on", "enabled" — is refused rather than guessed at.
   return { state: 'malformed' };
 }
 
@@ -146,17 +175,29 @@ function resolveProviderDecision(input = {}) {
   const dsn = String(rawDsn).trim();
   if (!DSN_RE.test(dsn)) return disabled(DISABLED.DSN_MALFORMED);
 
-  const build = input.build === undefined || input.build === null || input.build === ''
+  // `dist` MUST be whatever the source maps were filed under, or symbolication
+  // silently never happens. `scripts/upload-observability-sourcemaps.mjs`
+  // passes the governed build identifier as `--dist`, so when the build stamped
+  // one, that identifier IS the dist. The native build number is only a
+  // fallback for builds that never produced uploadable artifacts (the upload
+  // refuses to run without a build identifier, so the two cannot disagree).
+  const stampedBuildIdentifier = typeof observability.buildIdentifier === 'string'
+    ? observability.buildIdentifier.trim()
+    : '';
+  const nativeBuild = input.build === undefined || input.build === null || input.build === ''
     ? null
     : String(input.build);
+  const build = stampedBuildIdentifier || nativeBuild;
 
+  // The `build` TAG stays the native build number — that is the number a human
+  // reads off a device. Only `dist` follows the artifact identity.
   const tags = buildObservabilityContext({
     release_id: releaseId,
     source_sha: sourceSha,
     environment,
     platform: input.platform ?? null,
     app_version: input.appVersion ?? null,
-    build,
+    build: nativeBuild,
   });
 
   return Object.freeze({
@@ -205,11 +246,6 @@ function replayCanActivate(options) {
     !== (Array.isArray(options.integrations) ? options.integrations.length : 0);
 }
 
-function sanitizeStringValue(value) {
-  const redacted = redactObservabilityValue(value);
-  return typeof redacted === 'string' ? redacted : REDACTED;
-}
-
 function sanitizeTagBag(bag) {
   const safe = {};
   if (!bag || typeof bag !== 'object') return safe;
@@ -221,6 +257,26 @@ function sanitizeTagBag(bag) {
   return safe;
 }
 
+/** Strip any source text a symbolicating integration attached to a frame. */
+function sanitizeStacktrace(stacktrace) {
+  if (!stacktrace || typeof stacktrace !== 'object') return stacktrace;
+  if (!Array.isArray(stacktrace.frames)) return stacktrace;
+  return {
+    ...stacktrace,
+    frames: stacktrace.frames.map((frame) => {
+      if (!frame || typeof frame !== 'object') return frame;
+      const next = { ...frame };
+      for (const key of SOURCE_BEARING_FRAME_KEYS) delete next[key];
+      return next;
+    }),
+  };
+}
+
+/**
+ * `value` and `type` are free-text and reach the device from anywhere an `Error`
+ * is constructed, including provider SDKs that put a response body in the
+ * message. Both are reduced to a diagnostic token; the frames survive intact.
+ */
 function sanitizeExceptionValues(exception) {
   if (!exception || typeof exception !== 'object') return exception;
   const values = Array.isArray(exception.values) ? exception.values : null;
@@ -230,7 +286,9 @@ function sanitizeExceptionValues(exception) {
     values: values.map((entry) => {
       if (!entry || typeof entry !== 'object') return entry;
       const next = { ...entry };
-      if (typeof next.value === 'string') next.value = sanitizeStringValue(next.value);
+      if ('value' in next) next.value = safeDiagnosticToken(next.value);
+      if ('type' in next) next.type = safeDiagnosticToken(next.type);
+      if (next.stacktrace) next.stacktrace = sanitizeStacktrace(next.stacktrace);
       return next;
     }),
   };
@@ -258,7 +316,7 @@ function sanitizeProviderEvent(event) {
     dist: typeof event.dist === 'string' ? event.dist : undefined,
     type: typeof event.type === 'string' ? event.type : undefined,
     transaction: typeof event.transaction === 'string'
-      ? sanitizeStringValue(event.transaction)
+      ? safeDiagnosticToken(event.transaction)
       : undefined,
     logger: typeof event.logger === 'string' ? event.logger : undefined,
     sdk: event.sdk,
@@ -270,13 +328,22 @@ function sanitizeProviderEvent(event) {
   };
 
   if (typeof event.message === 'string') {
-    safe.message = sanitizeStringValue(event.message);
+    safe.message = safeDiagnosticToken(event.message);
   } else if (event.message && typeof event.message === 'object') {
     safe.message = redactObservabilityValue(event.message);
   }
   if (event.exception) safe.exception = sanitizeExceptionValues(event.exception);
-  if (event.stacktrace) safe.stacktrace = event.stacktrace;
-  if (Array.isArray(event.threads?.values)) safe.threads = event.threads;
+  if (event.stacktrace) safe.stacktrace = sanitizeStacktrace(event.stacktrace);
+  if (Array.isArray(event.threads?.values)) {
+    safe.threads = {
+      ...event.threads,
+      values: event.threads.values.map((thread) => (
+        thread && typeof thread === 'object' && thread.stacktrace
+          ? { ...thread, stacktrace: sanitizeStacktrace(thread.stacktrace) }
+          : thread
+      )),
+    };
+  }
 
   // No user identity, ever — not id, not email, not IP, not username.
   // `extra`, `request`, `user`, and `attachments` are intentionally never copied.
@@ -287,18 +354,19 @@ function sanitizeProviderEvent(event) {
 }
 
 /**
- * Device/app/os contexts are useful and safe; anything else is rebuilt through
- * the redactor so a nested prompt, image URL, or token cannot ride along.
+ * Device/app/os/runtime contexts are useful and content-free; every other
+ * container is dropped whole.
+ *
+ * The surviving containers are still rebuilt through the redactor, so a nested
+ * token, image URI, or signed URL inside an otherwise-allowed container cannot
+ * ride along either.
  */
 function sanitizeEventContexts(contexts) {
   if (!contexts || typeof contexts !== 'object') return undefined;
   const safe = {};
   for (const [name, value] of Object.entries(contexts)) {
+    if (!ALLOWED_EVENT_CONTEXTS.has(name)) continue;
     if (FORBIDDEN_INTEGRATION_RE.test(name) || isSensitiveObservabilityKey(name)) continue;
-    if (name === 'trace' && value && typeof value === 'object') {
-      safe.trace = redactObservabilityValue(value);
-      continue;
-    }
     safe[name] = redactObservabilityValue(value);
   }
   return safe;
@@ -321,7 +389,7 @@ function sanitizeProviderBreadcrumb(breadcrumb) {
     data: sanitizeTagBag(breadcrumb.data),
   };
   if (typeof breadcrumb.message === 'string') {
-    safe.message = sanitizeStringValue(breadcrumb.message);
+    safe.message = safeDiagnosticToken(breadcrumb.message);
   }
   for (const key of Object.keys(safe)) {
     if (safe[key] === undefined) delete safe[key];
@@ -457,6 +525,17 @@ function initializeProvider(sdk, input = {}, hooks = {}) {
       });
     }
 
+    // Terminal handled failures raise a real event. `beforeSend` still rebuilds
+    // it from the allowlist, so the exception message cannot carry content.
+    if (typeof hooks.onException === 'function') {
+      hooks.onException((error, context) => {
+        sdk.captureException(error, {
+          tags: sanitizeTagBag(context),
+          level: 'error',
+        });
+      });
+    }
+
     return getProviderState();
   } catch {
     runtimeState = { initialized: true, enabled: false, reason: 'DISABLED_PROVIDER_INIT_FAILED' };
@@ -475,6 +554,8 @@ module.exports = {
   OBSERVABILITY_CONTRACT_VERSION,
   SUPPORTED_ENVIRONMENTS,
   FORBIDDEN_INTEGRATION_RE,
+  ALLOWED_EVENT_CONTEXTS,
+  SOURCE_BEARING_FRAME_KEYS,
   DECISION_REASONS: DISABLED,
   resolveProviderDecision,
   filterProviderIntegrations,

@@ -148,6 +148,38 @@ export function setObservabilitySink(next: ObservabilitySink | null): void {
   sink = typeof next === 'function' ? next : defaultSink;
 }
 
+// A breadcrumb is not an error report. Breadcrumbs only travel attached to a
+// later event, so a failure that produces no subsequent event is never seen at
+// all. Paths that end a user's session — a caught render error puts the app on
+// the error screen — must therefore raise an event of their own.
+type ExceptionSink = (error: unknown, context: ObservabilityContext) => void;
+
+let exceptionSink: ExceptionSink | null = null;
+
+export function setExceptionSink(next: ExceptionSink | null): void {
+  exceptionSink = typeof next === 'function' ? next : null;
+}
+
+/**
+ * Report a handled failure that the app recovered from but the user still felt.
+ *
+ * Deliberately NOT wired into `logError`: that is called from ordinary catch
+ * blocks across the app and would turn recoverable, already-handled conditions
+ * into an event storm. Reserve this for terminal paths.
+ */
+export function captureHandledException(
+  error: unknown,
+  input: Record<string, unknown> = {},
+): void {
+  try {
+    const context = createMobileObservabilityContext(input);
+    emitObservabilityEvent('mobile.handled_exception', input);
+    exceptionSink?.(error, context);
+  } catch {
+    // Observability must not alter product behavior.
+  }
+}
+
 export function emitObservabilityEvent(eventName: string, input: Record<string, unknown> = {}): void {
   try {
     if (!/^[a-z0-9_.:-]{1,80}$/.test(eventName)) return;

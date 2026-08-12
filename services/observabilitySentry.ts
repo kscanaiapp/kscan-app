@@ -7,7 +7,11 @@ import {
   initializeProvider,
   resetProviderForTests,
 } from './observabilitySentryPolicy';
-import { setCorrelationObserver, setObservabilitySink } from './observability';
+import {
+  setCorrelationObserver,
+  setExceptionSink,
+  setObservabilitySink,
+} from './observability';
 
 /**
  * Sentry transport binding for the Build 29 observability foundation.
@@ -76,6 +80,10 @@ export function initializeObservabilityProvider(): ObservabilityProviderState {
       // payloads are already allowlisted, and `beforeBreadcrumb` re-checks
       // them. Sentry structured logs stay disabled.
       onSink: setObservabilitySink,
+      // Terminal handled failures (a caught render error) produce no unhandled
+      // exception, so the SDK's own global handler never sees them. Without
+      // this they would exist only as a breadcrumb on some later event.
+      onException: setExceptionSink,
     },
   );
 }
@@ -89,6 +97,7 @@ export function resetObservabilityProviderForTests(): void {
   resetProviderForTests();
   setCorrelationObserver(null);
   setObservabilitySink(null);
+  setExceptionSink(null);
 }
 
 /**
