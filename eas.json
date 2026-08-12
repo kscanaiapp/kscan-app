@@ -67,7 +67,6 @@
       }
     },
     "development": {
-      "environment": "development",
       "developmentClient": false,
       "distribution": "internal",
       "android": {
@@ -108,7 +107,6 @@
       }
     },
     "production": {
-      "environment": "production",
       "distribution": "store",
       "autoIncrement": true,
       "android": {

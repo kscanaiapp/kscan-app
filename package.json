@@ -53,8 +53,7 @@
     "stagingv2:validate-target": "node scripts/staging-v2/validate-target.mjs",
     "observability:verify-build-env": "node scripts/verify-observability-build-env.mjs",
     "observability:export-sourcemaps": "node scripts/export-observability-sourcemaps.mjs",
-    "observability:upload-sourcemaps": "node scripts/upload-observability-sourcemaps.mjs",
-    "eas-build-pre-install": "node scripts/verify-observability-build-env.mjs"
+    "observability:upload-sourcemaps": "node scripts/upload-observability-sourcemaps.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
