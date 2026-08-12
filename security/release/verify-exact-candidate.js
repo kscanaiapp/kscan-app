@@ -47,6 +47,7 @@
 
 const { resolveEnvironment } = require('../scripts/lib/environment-authority.js');
 const { verifyReceiptIntegrity } = require('./deployment-receipt.js');
+const { validateVerifiedBaseline } = require('./verified-baseline.js');
 
 const VERIFIER_SCHEMA_VERSION = 1;
 
@@ -77,7 +78,21 @@ function check(id, ok, detail, severity = 'BLOCKED') {
  */
 function attestComponents({ manifest, deployedFunctions = [], previousVerifiedState = null }) {
   const deployed = new Set(deployedFunctions);
-  const carriedForwardHashes = (previousVerifiedState && previousVerifiedState.componentSourceHashes) || {};
+
+  // A prior baseline must prove itself EVERY time it is trusted. Protecting
+  // only minting would be pointless: a caller can hand this function any
+  // object it likes, and field names lining up is not provenance (DEF-REL-009).
+  // An invalid baseline is discarded entirely rather than partially honoured,
+  // so its components fall through to UNATTESTED.
+  let baselineRejection = null;
+  let trustedBaseline = null;
+  if (previousVerifiedState) {
+    const { valid, errors } = validateVerifiedBaseline(previousVerifiedState, { manifest });
+    if (valid) trustedBaseline = previousVerifiedState;
+    else baselineRejection = errors;
+  }
+
+  const carriedForwardHashes = (trustedBaseline && trustedBaseline.componentSourceHashes) || {};
   const components = [];
 
   for (const fn of manifest.edgeFunctions || []) {
@@ -99,7 +114,7 @@ function attestComponents({ manifest, deployedFunctions = [], previousVerifiedSt
         name: fn.name,
         attestation: ATTESTATION.CARRIED_FORWARD,
         sourceHash: fn.sourceHash,
-        basis: `unchanged since verified release ${previousVerifiedState.releaseId}`,
+        basis: `unchanged since verified release ${trustedBaseline.releaseId}`,
       });
       continue;
     }
@@ -108,9 +123,13 @@ function attestComponents({ manifest, deployedFunctions = [], previousVerifiedSt
       name: fn.name,
       attestation: ATTESTATION.UNATTESTED,
       sourceHash: fn.sourceHash,
-      basis: priorHash
-        ? 'source hash differs from the last verified state but was not redeployed in this run'
-        : 'not deployed in this run and no prior verified state covers it',
+      basis: baselineRejection
+        ? `the supplied previous verified state was rejected (${baselineRejection[0]}), so nothing may be carried forward`
+        : priorHash
+          // Changed code is never carried forward: a governed component whose
+          // source moved must be redeployed to be attested.
+          ? 'source hash differs from the last verified state but was not redeployed in this run'
+          : 'not deployed in this run and no prior verified state covers it',
     });
   }
 
@@ -269,25 +288,16 @@ function verifyExactCandidate(opts) {
   };
 }
 
-/** Builds the carry-forward baseline a future run will use. */
-function buildVerifiedState({ releaseId, manifest }) {
-  const componentSourceHashes = {};
-  for (const fn of manifest.edgeFunctions || []) {
-    if (fn.releaseIncluded && fn.sourceHash) componentSourceHashes[fn.name] = fn.sourceHash;
-  }
-  return {
-    releaseId,
-    manifestDigest: manifest.identityDigest,
-    sourceSha: manifest.sourceSha,
-    componentSourceHashes,
-  };
-}
-
 module.exports = {
   VERIFIER_SCHEMA_VERSION,
   RESULT,
   ATTESTATION,
   attestComponents,
   verifyExactCandidate,
-  buildVerifiedState,
+  // `buildVerifiedState({ releaseId, manifest })` was REMOVED in Phase 2B.1
+  // (DEF-REL-009). It turned manifest-declared hashes into a "verified state"
+  // with no proof the release was ever verified, which let a
+  // FULL_RUNTIME_ATTESTATION_GAP run become a trust root for the next release.
+  // Minting now lives in security/release/verified-baseline.js and requires the
+  // complete evidence chain. Do not reintroduce a manifest-only constructor.
 };

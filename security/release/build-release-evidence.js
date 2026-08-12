@@ -23,6 +23,7 @@ const path = require('node:path');
 
 const { assertNoEmbeddedSecret } = require('../scripts/lib/secret-shape-guard.js');
 const { RESULT: VERIFIER_RESULT } = require('./verify-exact-candidate.js');
+const { stagingVerifiedDecision } = require('./verified-baseline.js');
 
 const EVIDENCE_SCHEMA_VERSION = 1;
 
@@ -297,19 +298,13 @@ function buildReleaseEvidence(opts) {
  * Pure: it decides whether the STAGING_DEPLOYED -> STAGING_VERIFIED transition
  * is permitted. It never performs the transition, and it never consults
  * production eligibility — the two gates are deliberately separate.
+ *
+ * The implementation lives in security/release/verified-baseline.js so that
+ * baseline minting and this guard cannot drift apart: minting requires this
+ * exact decision to have allowed the transition, and two copies of the
+ * predicate would eventually disagree (cf. DEF-REL-006).
  */
-function canEnterStagingVerified(evidence) {
-  const reasons = [];
-  if (!evidence) return { allowed: false, reasons: ['no release evidence supplied'] };
-
-  if (!evidence.stagingVerifiedEligible) {
-    reasons.push(`release candidate verdict is ${evidence.releaseCandidateVerdict}`);
-  }
-  for (const blocker of evidence.blockers || []) reasons.push(`blocker: ${blocker.id}`);
-  for (const failure of evidence.operationalFailures || []) reasons.push(`operational failure: ${failure.id}`);
-
-  return { allowed: reasons.length === 0, reasons };
-}
+const canEnterStagingVerified = stagingVerifiedDecision;
 
 module.exports = {
   EVIDENCE_SCHEMA_VERSION,
