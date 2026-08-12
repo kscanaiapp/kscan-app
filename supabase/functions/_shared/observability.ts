@@ -212,8 +212,9 @@ export async function withCorrelationResponse(
     return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
   }
 
+  const bodyText = await response.text();
   try {
-    const parsed = JSON.parse(await response.text());
+    const parsed = JSON.parse(bodyText);
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       return new Response(JSON.stringify(parsed), { status: response.status, statusText: response.statusText, headers });
     }
@@ -222,7 +223,7 @@ export async function withCorrelationResponse(
       correlation: { requestId: context.requestId, traceId: context.traceId },
     }), { status: response.status, statusText: response.statusText, headers });
   } catch {
-    return new Response(null, { status: response.status, statusText: response.statusText, headers });
+    return new Response(bodyText, { status: response.status, statusText: response.statusText, headers });
   }
 }
 

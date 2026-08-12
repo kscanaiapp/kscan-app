@@ -113,3 +113,19 @@ Deno.test('response correlation returns canonical request and trace identity', a
   assertEquals(body.correlation.requestId, suppliedRequestId);
   assertEquals(body.correlation.traceId, 'b'.repeat(32));
 });
+
+Deno.test('response correlation preserves malformed JSON bodies without changing product semantics', async () => {
+  const response = await observeEdgeRequest(
+    new Request('https://example.test'),
+    'test-function',
+    async () => new Response('{not-json', {
+      status: 502,
+      headers: { 'Content-Type': 'application/json' },
+    }),
+  );
+
+  assertEquals(response.status, 502);
+  assertEquals(await response.text(), '{not-json');
+  assert(response.headers.has('X-KScan-Request-ID'));
+  assert(response.headers.has('traceparent'));
+});
