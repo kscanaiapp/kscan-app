@@ -255,3 +255,77 @@ mints a new attempt rather than editing prior evidence.
 This is the build pass. No staging deployment has been performed, no staging
 function environment metadata has been set, and `staging-health` has not been
 redeployed. Those are the next, separately-approved activation step.
+
+## Activation pipeline (Phase 2B.3)
+
+Phase 2B built the verification model; **Phase 2B.3 built the executable path
+that runs it** (DEF-REL-012). Entry point:
+`security/release/run-bootstrap-activation.mjs`, driven by
+`.github/workflows/staging-release-bootstrap.yml` (`workflow_dispatch` only).
+
+### Ordering is a trust property, not a convenience
+
+Supabase release metadata reaches Edge Functions independently of a code
+deploy. If metadata were written first, `/version` would advertise a release
+that is not yet running. The order is therefore fixed:
+
+1. deploy every governed function **except** `staging-health`
+2. **all** must PASS — a single failure stops here, and no metadata is written
+3. write the six allowlisted `KSCAN_*` values
+4. deploy `staging-health` **last**, from the same frozen candidate
+
+`staging-health` is deployed last precisely because it is the surface that
+reports release identity: it must not claim a release until the release exists.
+
+### Release metadata is narrow by construction
+
+`security/release/set-staging-release-metadata.mjs` may write exactly six keys
+— `KSCAN_RELEASE_ID`, `KSCAN_SOURCE_SHA`, `KSCAN_SOURCE_TREE_SHA`,
+`KSCAN_MANIFEST_DIGEST`, `KSCAN_HEALTH_CONTRACT_VERSION`, `KSCAN_DEPLOYED_AT`
+— against a static allowlist. It is **not** a general secret manager. The
+production project is an explicit deny checked before any command is built,
+and `SUPABASE_ACCESS_TOKEN` reaches the CLI through the environment only, never
+as an argv element and never into evidence.
+
+### Identity semantics of the metadata
+
+The six keys are **not** in `ENV_NAME_ALLOWLIST`, so neither their presence nor
+their values affect `configFingerprint` or `identityDigest` — a manifest frozen
+before the write still describes the candidate after it. `releaseId` is
+observational and never hashed.
+
+One hazard worth naming: the legacy `KSCAN_DEPLOY_VERSION` **is** allowlisted,
+so introducing it into the *generator's* environment would shift the digest
+between PLAN_ONLY and EXECUTE. The orchestrator never sets it. Note also that
+the fingerprint reads the generator's environment (the CI runner), not the
+Supabase function runtime — it describes build-time configuration structure.
+
+### Modes
+
+`PLAN_ONLY` is read-only: no Supabase write, no deploy, no metadata, no tag.
+`EXECUTE` requires `GITHUB_ACTIONS=true` **and**
+`KSCAN_ACTIVATION_ENVIRONMENT=staging`, so a laptop run fails closed rather
+than bypassing the environment's protection rules and audit record.
+
+### Durable persistence
+
+The baseline + evidence pair is published as a **staging prerelease** tagged
+`staging-verified-<shortsha>-<releaseId>`, anchored to the verified commit.
+Evidence is deliberately **not** committed to `staging/production-parity`:
+committing it would move the source tree after the release was verified, so
+the verified SHA would no longer be branch HEAD. The tag prefix cannot collide
+with mobile/app version tags.
+
+Nothing durable is created until verification has already succeeded, and
+persistence only reports PASS after the uploaded assets are read back and their
+digests re-checked. If persistence fails, the run returns
+`VERIFIED_BASELINE_PERSISTENCE_GAP` — the release may be verified in runtime
+evidence, but it is not retrievable for carry-forward, so activation is not
+complete.
+
+**These assets are durable operational evidence, not cryptographic
+authenticity.** They are not signed, not immutable, and not WORM storage; an
+admin can delete or replace them. What retrieval guarantees is that a tampered
+package cannot silently authorize carry-forward — digests are recomputed, the
+tag must point at the expected commit, and baseline and evidence must
+corroborate under the Phase 2B.2 rules. Signing and attestation are Phase 3.
