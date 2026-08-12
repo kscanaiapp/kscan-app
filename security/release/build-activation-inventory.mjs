@@ -78,22 +78,31 @@ export function extractFunctions(parsed) {
  * Extracts applied migration names. An empty list is structurally valid here
  * (a project can genuinely have none), so it is accepted — but a shape the
  * parser does not recognize is not.
+ *
+ * DEF-REL-019: the pinned CLI's real `migration list --linked --output-format
+ * json` shape is `{ migrations: [{ local, remote, time }, ...], message }` —
+ * not a bare array of `{ name }` objects, which was never verified against
+ * the actual CLI. `remote` is the version applied to the live database (what
+ * "live staging inventory" means here); `local` is only what the checked-out
+ * candidate's migration files contain, which is not this function's concern.
+ * A migration present locally but not yet applied (`remote === ''`) is
+ * correctly absent from the live inventory, not an error.
  */
 export function extractMigrations(parsed) {
-  if (!Array.isArray(parsed)) {
-    throw new InventoryError(`migration inventory must be a JSON array, got ${typeof parsed}`);
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new InventoryError(`migration inventory must be a JSON object with a migrations array, got ${Array.isArray(parsed) ? 'array' : typeof parsed}`);
   }
-  return parsed.map((entry, index) => {
-    if (!entry || typeof entry !== 'object') {
-      throw new InventoryError(`migration inventory entry ${index} is not an object`);
-    }
-    // The pinned CLI reports `name`; `version` alone is not enough to reconcile
-    // against the manifest, which matches by name.
-    if (typeof entry.name !== 'string' || entry.name.length === 0) {
-      throw new InventoryError(`migration inventory entry ${index} has no name field`);
-    }
-    return entry.name;
-  });
+  if (!Array.isArray(parsed.migrations)) {
+    throw new InventoryError('migration inventory is missing a migrations array');
+  }
+  return parsed.migrations
+    .map((entry, index) => {
+      if (!entry || typeof entry !== 'object' || typeof entry.remote !== 'string') {
+        throw new InventoryError(`migration inventory entry ${index} has no remote field`);
+      }
+      return entry.remote;
+    })
+    .filter((remote) => remote.length > 0);
 }
 
 /** Builds the inventory, optionally comparing against an earlier snapshot. */
