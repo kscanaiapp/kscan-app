@@ -204,7 +204,15 @@ async function main() {
     debug: true,
   });
 
-  console.log(JSON.stringify({
+  // DEF-B29-SVV-011: stdout carries EXACTLY ONE JSON document -- the deploy
+  // receipt emitted at the end of this function. The controlled deploy
+  // workflow tees stdout into deploy-result.json and reads it with a
+  // single-document loader (`json.load`), so a second document here made a
+  // SUCCESSFUL deploy report failure ("Extra data: line 31 column 1") and
+  // skipped health and synthetic verification. This pre-deploy block is
+  // progress diagnostics, not the receipt, so it belongs on stderr, where the
+  // Actions log still shows it.
+  console.error(JSON.stringify({
     phase: 'deploy',
     target: identity.projectRef,
     function: fnName,
