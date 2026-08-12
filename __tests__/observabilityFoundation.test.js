@@ -14,11 +14,13 @@ test('dynamic Expo config attributes mobile release, source, build, platform env
     KSCAN_RELEASE_ID: process.env.KSCAN_RELEASE_ID,
     KSCAN_SOURCE_SHA: process.env.KSCAN_SOURCE_SHA,
     KSCAN_OBSERVABILITY_ENVIRONMENT: process.env.KSCAN_OBSERVABILITY_ENVIRONMENT,
+    KSCAN_BUILD_IDENTIFIER: process.env.KSCAN_BUILD_IDENTIFIER,
   };
   try {
     process.env.KSCAN_RELEASE_ID = 'staging-build29-test';
     process.env.KSCAN_SOURCE_SHA = 'a'.repeat(40);
     process.env.KSCAN_OBSERVABILITY_ENVIRONMENT = 'staging';
+    process.env.KSCAN_BUILD_IDENTIFIER = 'github-4242-1';
     delete require.cache[require.resolve('../app.config.js')];
     const resolveConfig = require('../app.config.js');
     const config = resolveConfig({ config: {
@@ -32,6 +34,9 @@ test('dynamic Expo config attributes mobile release, source, build, platform env
       environment: 'staging',
       releaseId: 'staging-build29-test',
       sourceSha: 'a'.repeat(40),
+      // The dist source maps are filed under. Must be stamped into the build so
+      // the runtime reports the same dist the upload used.
+      buildIdentifier: 'github-4242-1',
       sourceAttributionState: 'VERIFIABLE',
       replayEnabled: false,
     });

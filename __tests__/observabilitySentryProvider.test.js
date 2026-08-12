@@ -490,7 +490,10 @@ test('nested unsafe metadata is redacted at depth', () => {
   ]) {
     assert.equal(serialized.includes(forbidden), false, `nested leak: ${forbidden}`);
   }
-  assert.equal(sanitized.contexts.custom.level_one.level_two.safe_marker, 'ok');
+  // A container the allowlist does not name is dropped WHOLE rather than
+  // recursively redacted. Recursive redaction refuses values by shape, and
+  // prose has no shape — `contexts.custom.note = "<a prompt>"` survived it.
+  assert.equal(sanitized.contexts.custom, undefined);
   assert.equal(sanitized.contexts.app.app_name, 'K Scan');
 });
 
