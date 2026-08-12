@@ -74,22 +74,39 @@ function check(id, ok, detail, severity = 'BLOCKED') {
  * @param {object} opts
  * @param {object} opts.manifest
  * @param {string[]} opts.deployedFunctions      - what this run actually deployed
- * @param {object|null} opts.previousVerifiedState - prior verified baseline, if any
+ * @param {object|null} opts.previousRelease - {baseline, evidence} bundle from the prior verified release
  */
-function attestComponents({ manifest, deployedFunctions = [], previousVerifiedState = null }) {
+function attestComponents({ manifest, deployedFunctions = [], previousRelease = null, previousVerifiedState = null, previousVerifiedEvidence = null }) {
   const deployed = new Set(deployedFunctions);
 
-  // A prior baseline must prove itself EVERY time it is trusted. Protecting
-  // only minting would be pointless: a caller can hand this function any
-  // object it likes, and field names lining up is not provenance (DEF-REL-009).
-  // An invalid baseline is discarded entirely rather than partially honoured,
-  // so its components fall through to UNATTESTED.
+  // Carry-forward requires BOTH the prior baseline AND the authoritative
+  // release evidence it was minted from (DEF-REL-010).
+  //
+  // A baseline's own checksum only proves internal consistency — anyone can
+  // recompute a valid SHA-256 over a fabrication. Provenance comes from the
+  // two artifacts corroborating each other, so a baseline supplied alone is
+  // refused no matter how well-formed it is. An invalid pair is discarded
+  // entirely rather than partially honoured, so its components fall through
+  // to UNATTESTED.
+  const bundle = previousRelease || (
+    previousVerifiedState || previousVerifiedEvidence
+      ? { baseline: previousVerifiedState, evidence: previousVerifiedEvidence }
+      : null
+  );
+
   let baselineRejection = null;
   let trustedBaseline = null;
-  if (previousVerifiedState) {
-    const { valid, errors } = validateVerifiedBaseline(previousVerifiedState, { manifest });
-    if (valid) trustedBaseline = previousVerifiedState;
-    else baselineRejection = errors;
+  if (bundle && (bundle.baseline || bundle.evidence)) {
+    if (!bundle.baseline) {
+      baselineRejection = ['PRIOR_BASELINE_MISSING: release evidence alone cannot authorize carry-forward'];
+    } else {
+      const { valid, errors } = validateVerifiedBaseline(bundle.baseline, {
+        manifest,
+        priorReleaseEvidence: bundle.evidence || null,
+      });
+      if (valid) trustedBaseline = bundle.baseline;
+      else baselineRejection = errors;
+    }
   }
 
   const carriedForwardHashes = (trustedBaseline && trustedBaseline.componentSourceHashes) || {};
@@ -145,7 +162,7 @@ function attestComponents({ manifest, deployedFunctions = [], previousVerifiedSt
  * @param {string[]} opts.liveMigrationNames    - migration names applied on staging
  * @param {string} opts.expectedEnvironment
  * @param {string} opts.observedProjectRef
- * @param {object|null} [opts.previousVerifiedState]
+ * @param {object|null} [opts.previousRelease] - {baseline, evidence}; BOTH are required for carry-forward
  * @returns {{result: string, checks: object[], components: object[], limitations: string[]}}
  */
 function verifyExactCandidate(opts) {
@@ -157,7 +174,9 @@ function verifyExactCandidate(opts) {
     liveMigrationNames = null,
     expectedEnvironment = 'staging',
     observedProjectRef,
+    previousRelease = null,
     previousVerifiedState = null,
+    previousVerifiedEvidence = null,
   } = opts || {};
 
   const checks = [];
@@ -249,7 +268,7 @@ function verifyExactCandidate(opts) {
     `deployed but not governed: ${ungovernedDeployed.join(', ')}`));
 
   // ── component attestation ─────────────────────────────────────────────────
-  const components = attestComponents({ manifest, deployedFunctions, previousVerifiedState });
+  const components = attestComponents({ manifest, deployedFunctions, previousRelease, previousVerifiedState, previousVerifiedEvidence });
   const unattested = components.filter((c) => c.attestation === ATTESTATION.UNATTESTED);
 
   // ── verdict ───────────────────────────────────────────────────────────────
@@ -267,8 +286,8 @@ function verifyExactCandidate(opts) {
     result = RESULT.FULL_RUNTIME_ATTESTATION_GAP;
     limitations.push(
       `${unattested.length} governed component(s) are UNATTESTED: ${unattested.map((c) => c.name).join(', ')}. ` +
-      (previousVerifiedState
-        ? 'They were neither redeployed in this run nor matched by the previous verified state.'
+      ((previousRelease && previousRelease.baseline) || previousVerifiedState
+        ? 'They were neither redeployed in this run nor covered by a corroborated previous verified release (baseline + its authoritative release evidence).'
         : 'No previous verified release baseline exists, so nothing can be carried forward. This is expected for the first release through this system.'),
     );
   } else {

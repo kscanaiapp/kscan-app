@@ -22,10 +22,32 @@
  *              from a release that was never verified
  *
  * A failed, blocked, pending, operational-failure or attestation-gap release
- * may NEVER become a trust root. Minting now requires the complete evidence
- * chain, and consumption re-validates it — a caller cannot fabricate a
- * baseline-shaped object and have it trusted just because the field names line
- * up.
+ * may NEVER become a trust root. Minting requires the complete evidence chain.
+ *
+ * ─── WHAT baselineDigest DOES AND DOES NOT PROVE (DEF-REL-010) ──────────────
+ *
+ * `baselineDigest` is an UNKEYED SHA-256 over the baseline's own content. It
+ * proves the object is internally consistent — that nobody edited a field
+ * without recomputing the checksum. It does NOT prove the object was ever
+ * produced by `mintVerifiedBaseline`, and it does NOT prove it came from a
+ * STAGING_VERIFIED release. Anyone can build a baseline-shaped object with
+ * plausible identity and 64-hex component hashes and then compute a fresh,
+ * perfectly valid digest over their fabrication.
+ *
+ *     baselineDigest  = INTEGRITY / CONSISTENCY
+ *     NOT               AUTHENTICITY / PROVENANCE
+ *
+ * Provenance therefore comes from CORROBORATION, not from the checksum: a
+ * baseline authorizes carry-forward only alongside the authoritative release
+ * evidence it was minted from, and the two must agree on the evidence digest,
+ * release id, source SHA, source tree, manifest digest, receipt digest and
+ * component hashes. A standalone baseline JSON — however well-formed, however
+ * correctly checksummed — authorizes nothing.
+ *
+ * Phase 2B deliberately introduces no HMAC key, signing key or PKI. That means
+ * there is no cryptographic authenticity here, and this module does not claim
+ * any. The operational provenance source remains the immutable CI release
+ * evidence artifact.
  *
  * ─── DEPENDENCY POSITION ────────────────────────────────────────────────────
  *
@@ -54,10 +76,16 @@ const REQUIRED_BASELINE_FIELDS = Object.freeze([
   'sourceTreeSha',
   'manifestDigest',
   'receiptDigest',
+  // Binds the baseline to the authoritative release evidence it was minted
+  // from. Without this a baseline is an unanchored assertion (DEF-REL-010).
+  'releaseEvidenceDigest',
   'componentSourceHashes',
   'componentAttestations',
   'baselineDigest',
 ]);
+
+/** Release verdicts from which a baseline may legitimately have been minted. */
+const ELIGIBLE_PRIOR_VERDICTS = Object.freeze(['PASS', 'PASS_WITH_REPORT_ONLY_FINDINGS']);
 
 class VerifiedBaselineError extends Error {
   constructor(message, code, detail) {
@@ -180,6 +208,14 @@ function mintVerifiedBaseline({ manifest, frozen, receipt, exactCandidateVerific
     sourceTreeSha: frozen.sourceTreeSha,
     manifestDigest: frozen.identityDigest,
     receiptDigest: receipt.receiptDigest,
+    // The anchor: consumption re-fetches this evidence and cross-checks it.
+    releaseEvidenceDigest: releaseEvidence.evidenceDigest,
+    // Recorded when available so an operator can find the originating run.
+    // Never fabricated — null is honest, an invented id is not.
+    releaseEvidenceSourceRunId:
+      (releaseEvidence.certification && releaseEvidence.certification.sourceRunId)
+      || (releaseEvidence.deployment && releaseEvidence.deployment.deploymentRunId)
+      || null,
     componentSourceHashes,
     componentAttestations,
     verifiedAt: verifiedAt || new Date().toISOString(),
@@ -191,15 +227,33 @@ function mintVerifiedBaseline({ manifest, frozen, receipt, exactCandidateVerific
 }
 
 /**
- * Validates a baseline at CONSUMPTION time. Protecting only creation would be
- * pointless — a caller can hand `verifyExactCandidate` any object it likes, so
- * a baseline must prove itself every time it is trusted.
+ * Validates a baseline at CONSUMPTION time.
  *
- * @returns {{valid: boolean, errors: string[]}}
+ * Two levels, deliberately distinct (DEF-REL-010):
+ *
+ *   structural  — required fields, checksum consistency, hash shape,
+ *                 governance sanity. This is what `baselineDigest` can
+ *                 support, and it is NOT sufficient to trust anything.
+ *
+ *   corroborated — the above PLUS agreement with the authoritative release
+ *                 evidence the baseline claims to come from. Only this
+ *                 authorizes carry-forward.
+ *
+ * Omitting `priorReleaseEvidence` therefore yields `valid: false` with
+ * PRIOR_RELEASE_EVIDENCE_MISSING: there is no "trust me, the checksum is
+ * fine" path, because recomputing a checksum over a fabrication is trivial.
+ *
+ * @param {object} baseline
+ * @param {object} [opts]
+ * @param {object|null} [opts.manifest]
+ * @param {object|null} [opts.priorReleaseEvidence] - evidence the baseline was minted from
+ * @returns {{valid: boolean, errors: string[], structurallyValid: boolean}}
  */
-function validateVerifiedBaseline(baseline, { manifest = null } = {}) {
+function validateVerifiedBaseline(baseline, { manifest = null, priorReleaseEvidence = null } = {}) {
   const errors = [];
-  if (!baseline || typeof baseline !== 'object') return { valid: false, errors: ['baseline must be an object'] };
+  if (!baseline || typeof baseline !== 'object') {
+    return { valid: false, structurallyValid: false, errors: ['baseline must be an object'] };
+  }
 
   for (const field of REQUIRED_BASELINE_FIELDS) {
     const value = baseline[field];
@@ -209,11 +263,14 @@ function validateVerifiedBaseline(baseline, { manifest = null } = {}) {
     errors.push(`unsupported baseline schemaVersion: ${baseline.schemaVersion}`);
   }
 
-  // Integrity: this is what rejects a hand-written, manifest-shaped object.
+  // Integrity only. A matching digest proves the object is self-consistent,
+  // NOT that it was ever minted from a verified release — an attacker who
+  // recomputes the digest over their fabrication passes this check. The
+  // corroboration block below is what actually establishes provenance.
   if (baseline.baselineDigest) {
     const { baselineDigest, ...body } = baseline;
     if (computeBaselineDigest(body) !== baselineDigest) {
-      errors.push('baselineDigest does not match baseline content — baseline was fabricated or modified');
+      errors.push('baselineDigest does not match baseline content — baseline was modified after minting');
     }
   }
 
@@ -248,10 +305,105 @@ function validateVerifiedBaseline(baseline, { manifest = null } = {}) {
     }
   }
 
-  return { valid: errors.length === 0, errors };
+  const structurallyValid = errors.length === 0;
+
+  // ── corroboration against the authoritative source evidence ───────────────
+  //
+  // This is the part an unkeyed checksum cannot substitute for. The baseline
+  // must agree with real, retained release evidence that itself shows a
+  // STAGING_VERIFIED-eligible release.
+  if (!priorReleaseEvidence) {
+    errors.push('PRIOR_RELEASE_EVIDENCE_MISSING: a standalone baseline cannot authorize carry-forward, regardless of its checksum');
+    return { valid: false, structurallyValid, errors };
+  }
+
+  const evidenceDigest = priorReleaseEvidence.evidenceDigest;
+  if (!evidenceDigest) {
+    errors.push('prior release evidence carries no evidenceDigest');
+  } else {
+    const { evidenceDigest: _omit, ...evidenceBody } = priorReleaseEvidence;
+    const recomputed = crypto.createHash('sha256').update(canonicalize(evidenceBody), 'utf8').digest('hex');
+    if (recomputed !== evidenceDigest) {
+      errors.push('prior release evidence failed its own integrity check');
+    }
+    if (baseline.releaseEvidenceDigest !== evidenceDigest) {
+      errors.push('baseline.releaseEvidenceDigest does not match the supplied prior release evidence');
+    }
+  }
+
+  const release = priorReleaseEvidence.release || {};
+  if (baseline.releaseId !== release.releaseId) {
+    errors.push(`release id mismatch: baseline ${baseline.releaseId} vs evidence ${release.releaseId}`);
+  }
+  if (baseline.sourceSha !== release.sourceSha) {
+    errors.push('source SHA mismatch between baseline and prior release evidence');
+  }
+  if (baseline.sourceTreeSha !== release.sourceTreeSha) {
+    errors.push('source tree SHA mismatch between baseline and prior release evidence');
+  }
+  if (baseline.manifestDigest !== release.manifestDigest) {
+    errors.push('manifest digest mismatch between baseline and prior release evidence');
+  }
+
+  const priorReceiptDigest = priorReleaseEvidence.deployment && priorReleaseEvidence.deployment.receiptDigest;
+  if (baseline.receiptDigest !== priorReceiptDigest) {
+    errors.push('receipt digest mismatch between baseline and prior release evidence');
+  }
+
+  if (priorReleaseEvidence.stagingVerifiedEligible !== true) {
+    errors.push('prior release evidence was not eligible for STAGING_VERIFIED');
+  }
+  const decision = stagingVerifiedDecision(priorReleaseEvidence);
+  if (!decision.allowed) {
+    errors.push(`prior release could not enter STAGING_VERIFIED: ${decision.reasons.join('; ')}`);
+  }
+  if (!ELIGIBLE_PRIOR_VERDICTS.includes(priorReleaseEvidence.releaseCandidateVerdict)) {
+    errors.push(`prior releaseCandidateVerdict ${priorReleaseEvidence.releaseCandidateVerdict} is not an eligible verdict`);
+  }
+
+  const priorExact = priorReleaseEvidence.exactCandidateVerification;
+  if (!priorExact || priorExact.result !== 'PASS') {
+    errors.push(`prior exact candidate verification was ${priorExact ? priorExact.result : 'absent'}, not PASS`);
+  } else {
+    // Component hashes/attestations must agree with the evidence that minted
+    // the baseline, so a baseline cannot quietly widen its own coverage.
+    const byName = new Map((priorExact.components || []).map((c) => [c.name, c]));
+    for (const [name, hash] of Object.entries(baseline.componentSourceHashes || {})) {
+      const component = byName.get(name);
+      if (!component) {
+        errors.push(`baseline claims component ${name}, absent from the prior evidence's attested set`);
+      } else if (component.sourceHash !== hash) {
+        errors.push(`component ${name} hash disagrees with the prior evidence`);
+      } else if (baseline.componentAttestations[name] !== component.attestation) {
+        errors.push(`component ${name} attestation disagrees with the prior evidence`);
+      }
+    }
+  }
+
+  return { valid: errors.length === 0, structurallyValid, errors };
 }
 
 // ── BOOTSTRAP_FULL_ATTESTATION ───────────────────────────────────────────────
+
+/**
+ * The one authoritative staging-applicability rule.
+ *
+ * `class` governs RELEASE inclusion; `environments` governs DEPLOY targeting.
+ * They are independent axes, and bootstrap needs both: a GOVERNED function
+ * scoped to production only must not be required by a staging bootstrap, and
+ * a quarantined function is never applicable regardless of its environments.
+ *
+ * A GOVERNED entry with no `environments` is a shared function under the
+ * current model and is applicable everywhere.
+ */
+function isApplicableToEnvironment(entry, environment) {
+  if (!entry) return false;
+  if (entry.class !== 'GOVERNED' || !entry.releaseIncluded) return false;
+  const environments = entry.environments;
+  if (environments === undefined || environments === null) return true;
+  if (!Array.isArray(environments)) return false;
+  return environments.includes(environment);
+}
 
 const RELEASE_MODE = Object.freeze({
   CHANGE_SCOPED_DEPLOYMENT: 'CHANGE_SCOPED_DEPLOYMENT',
@@ -304,11 +456,16 @@ function planBootstrapFullAttestation({
     return { ok: false, mode: RELEASE_MODE.BOOTSTRAP_FULL_ATTESTATION, refusals, plan: null };
   }
 
-  // Staging-applicable governed functions only. Quarantined, heritage and
-  // excluded surfaces are structurally unreachable from this list.
-  const governedForStaging = (manifest.edgeFunctions || []).filter((fn) => (
-    fn.class === 'GOVERNED' && fn.releaseIncluded
-  ));
+  // Staging-applicable governed functions only.
+  //
+  // DEF-REL-011: this previously filtered on class + releaseIncluded alone,
+  // despite the surrounding code calling the result "staging-applicable". A
+  // GOVERNED function scoped to production would have been demanded by a
+  // STAGING bootstrap and, being absent from live staging, would have halted
+  // it with a spurious reconciliation error. Environment applicability is now
+  // applied through the single shared rule.
+  const governedForStaging = (manifest.edgeFunctions || [])
+    .filter((fn) => isApplicableToEnvironment(fn, 'staging'));
 
   if (liveFunctionNames === null) {
     refuse('BOOTSTRAP_LIVE_INVENTORY_UNAVAILABLE', 'live staging Edge Function inventory was not supplied; cannot prove bootstrap adds nothing new');
@@ -347,8 +504,14 @@ function planBootstrapFullAttestation({
       migrations: [],
       migrationsNote: 'Bootstrap establishes Edge Function provenance only. Database provenance comes from the manifest migration inventory plus live migration-state verification; already-applied migrations are never replayed to manufacture trust.',
       excludedByGovernance: (manifest.edgeFunctions || [])
-        .filter((fn) => !(fn.class === 'GOVERNED' && fn.releaseIncluded))
-        .map((fn) => ({ name: fn.name, class: fn.class })),
+        .filter((fn) => !isApplicableToEnvironment(fn, 'staging'))
+        .map((fn) => ({
+          name: fn.name,
+          class: fn.class,
+          reason: fn.class === 'GOVERNED' && fn.releaseIncluded
+            ? 'not applicable to staging'
+            : `class ${fn.class}`,
+        })),
     },
   };
 }
@@ -357,7 +520,9 @@ module.exports = {
   BASELINE_SCHEMA_VERSION,
   REQUIRED_BASELINE_FIELDS,
   NON_BASELINE_CLASSES,
+  ELIGIBLE_PRIOR_VERDICTS,
   RELEASE_MODE,
+  isApplicableToEnvironment,
   STAGING_PROJECT_REF,
   VerifiedBaselineError,
   canonicalize,

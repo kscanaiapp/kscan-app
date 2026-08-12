@@ -18,12 +18,13 @@
  * Node built-ins only. Pure: no network, no deployment, no mutation.
  */
 
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
 const { assertNoEmbeddedSecret } = require('../scripts/lib/secret-shape-guard.js');
 const { RESULT: VERIFIER_RESULT } = require('./verify-exact-candidate.js');
-const { stagingVerifiedDecision } = require('./verified-baseline.js');
+const { stagingVerifiedDecision, canonicalize } = require('./verified-baseline.js');
 
 const EVIDENCE_SCHEMA_VERSION = 1;
 
@@ -289,7 +290,34 @@ function buildReleaseEvidence(opts) {
   };
 
   assertNoEmbeddedSecret(evidence, 'releaseEvidence');
+
+  // Deterministic digest over the complete release-scoped evidence, excluding
+  // itself. This is what a verified baseline binds to, so that a baseline
+  // cannot be trusted without the evidence it claims to have come from
+  // (DEF-REL-010).
+  //
+  // Like baselineDigest, this is an INTEGRITY checksum, not authentication:
+  // it detects inconsistency between a baseline and its evidence, and it is
+  // only meaningful because the evidence itself is retained as immutable CI
+  // run evidence. See docs/release/STAGING_RELEASE_VERIFICATION.md.
+  evidence.evidenceDigest = computeEvidenceDigest(evidence);
   return evidence;
+}
+
+/** Digest over release evidence, always excluding the digest field itself. */
+function computeEvidenceDigest(evidence) {
+  const { evidenceDigest, ...body } = evidence;
+  return crypto.createHash('sha256').update(canonicalize(body), 'utf8').digest('hex');
+}
+
+/** @returns {{valid: boolean, reason: string|null}} */
+function verifyEvidenceIntegrity(evidence) {
+  if (!evidence || !evidence.evidenceDigest) {
+    return { valid: false, reason: 'release evidence carries no evidenceDigest' };
+  }
+  return computeEvidenceDigest(evidence) === evidence.evidenceDigest
+    ? { valid: true, reason: null }
+    : { valid: false, reason: 'evidenceDigest does not match evidence content' };
 }
 
 /**
@@ -315,4 +343,6 @@ module.exports = {
   evaluateRequiredControls,
   buildReleaseEvidence,
   canEnterStagingVerified,
+  computeEvidenceDigest,
+  verifyEvidenceIntegrity,
 };
