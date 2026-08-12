@@ -1,12 +1,18 @@
 import { supabase } from './supabaseClient';
 import type { User } from '@supabase/supabase-js';
-import { AGE_VERSION, PRIVACY_VERSION, TERMS_VERSION } from '../constants/legal';
+import {
+  AGE_VERSION,
+  AI_PROCESSING_VERSION,
+  PRIVACY_VERSION,
+  TERMS_VERSION,
+} from '../constants/legal';
 import { logError } from '../src/utils/errorLogger';
 
 export interface RecordLegalAcceptancesInput {
   termsVersion: string;
   privacyVersion: string;
   minimumAgeVersion: string;
+  aiProcessingVersion: string;
   appVersion?: string | null;
 }
 
@@ -50,7 +56,8 @@ export async function hasCurrentLegalAcceptances(
   return (
     accepted.has(`terms:${TERMS_VERSION}`) &&
     accepted.has(`privacy:${PRIVACY_VERSION}`) &&
-    accepted.has(`minimum_age:${AGE_VERSION}`)
+    accepted.has(`minimum_age:${AGE_VERSION}`) &&
+    accepted.has(`ai_processing:${AI_PROCESSING_VERSION}`)
   );
 }
 
@@ -68,6 +75,7 @@ export async function recordLegalAcceptances(
     termsVersion,
     privacyVersion,
     minimumAgeVersion,
+    aiProcessingVersion,
     appVersion,
   }: RecordLegalAcceptancesInput,
   client = supabase,
@@ -80,6 +88,9 @@ export async function recordLegalAcceptances(
     return { ok: false, error: 'Unable to save your preferences. Please try again.' };
   }
   if (!minimumAgeVersion || typeof minimumAgeVersion !== 'string' || minimumAgeVersion.trim().length === 0) {
+    return { ok: false, error: 'Unable to save your preferences. Please try again.' };
+  }
+  if (!aiProcessingVersion || typeof aiProcessingVersion !== 'string' || aiProcessingVersion.trim().length === 0) {
     return { ok: false, error: 'Unable to save your preferences. Please try again.' };
   }
 
@@ -113,6 +124,14 @@ export async function recordLegalAcceptances(
       user_id: user.id,
       acceptance_type: 'minimum_age',
       policy_version: minimumAgeVersion.trim(),
+      source: 'mobile',
+      app_version: appVersion ?? null,
+      metadata: {},
+    },
+    {
+      user_id: user.id,
+      acceptance_type: 'ai_processing',
+      policy_version: aiProcessingVersion.trim(),
       source: 'mobile',
       app_version: appVersion ?? null,
       metadata: {},
