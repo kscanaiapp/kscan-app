@@ -105,3 +105,51 @@ test('SVV-011: the workflow still reads deploy-result.json as a single document'
   assert.match(workflow, /node scripts\/deploy-staging-function\.mjs \| tee deploy-result\.json/);
   assert.match(workflow, /json\.load\(open\('deploy-result\.json'\)\)/);
 });
+
+test('SVV-011: no child process inherits stdout', () => {
+  // The first SVV-011 patch moved this script's own console.log to stderr but
+  // missed the preflight child, which runs with --json and inherited stdout --
+  // so a second document still reached deploy-result.json. Counting
+  // console.log call sites cannot see that; this can.
+  const source = fs.readFileSync(SCRIPT, 'utf8');
+  assert.doesNotMatch(
+    source,
+    /stdio:\s*'inherit'/,
+    "a child's stdout must be captured, not inherited, or it lands in the receipt stream",
+  );
+});
+
+test('SVV-011: anything on stdout is the receipt and nothing else', () => {
+  // Behavioural. Runs the real script far enough to execute preflight, then
+  // lets it fail. It cannot mutate staging: deploy needs real credentials and
+  // this exits well before that. Pre-fix, stdout held the preflight report
+  // (657 bytes, no manifestPath); post-fix it is empty.
+  const res = spawnSync(process.execPath, [SCRIPT], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      SUPABASE_ACCESS_TOKEN: 'stub-token-not-a-credential',
+      SUPABASE_STAGING_PROJECT_REF: 'yzqjvdfgefveprobvvyw',
+      SUPABASE_STAGING_URL: 'https://yzqjvdfgefveprobvvyw.supabase.co',
+      SUPABASE_STAGING_ANON_KEY: 'sb_publishable_test_key_value',
+      DEPLOY_FUNCTIONS: 'apple-credential-link',
+      FUNCTION_NAME: 'apple-credential-link',
+      EXPECTED_VERIFY_JWT: 'true',
+      SKIP_PREFLIGHT_REMOTE: 'true',
+    },
+  });
+
+  const stdout = res.stdout.trim();
+  if (stdout === '') return; // nothing emitted is a valid "no receipt"
+
+  let parsed;
+  assert.doesNotThrow(
+    () => { parsed = JSON.parse(stdout); },
+    'stdout must parse as exactly one JSON document',
+  );
+  assert.ok(
+    Object.prototype.hasOwnProperty.call(parsed, 'manifestPath'),
+    'the only document allowed on stdout is the deploy receipt',
+  );
+});
