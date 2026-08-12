@@ -60,18 +60,69 @@ function resolveMigrationFile(version, explicitPath) {
   return match;
 }
 
-function remoteHasVersion(version) {
-  const sql = `select version, name from supabase_migrations.schema_migrations where version = '${version}'`;
-  const out = runSupabase(['db', 'query', sql, '--linked', '--output-format', 'json']);
-  const parsed = JSON.parse(out);
-  return (parsed.rows || []).length > 0;
+/**
+ * `supabase db query` cannot be used to READ remote state on the pinned CLI
+ * (2.109.1) — DEF-B29-SVV-007. Three independent reasons, all verified against
+ * the real binary:
+ *
+ *   1. `db query` has no `--output-format` flag. Passing it is silently
+ *      ignored, so the caller never learns the request was malformed.
+ *   2. Its envelope is `{_tag, error|result}`, never `{rows}`. Reading
+ *      `parsed.rows` therefore always yielded `undefined`.
+ *   3. Decisively: it exits 0 even when the query fails to connect.
+ *
+ * Together those made every remote lookup answer "nothing found" on any
+ * failure — which reported all 105 local migrations as pending AND silently
+ * disarmed the already-applied re-apply guard. Remote state is now read
+ * through the one contract this CLI actually documents and that the release
+ * bootstrap already relies on: `migration list --linked --output-format json`.
+ */
+function listRemoteVersions() {
+  const out = runSupabase(['migration', 'list', '--linked', '--output-format', 'json']);
+  let parsed;
+  try {
+    parsed = JSON.parse(out);
+  } catch (err) {
+    fail(`Could not parse the remote migration ledger as JSON: ${err.message}`);
+  }
+  const rows = Array.isArray(parsed) ? parsed : parsed?.migrations;
+  if (!Array.isArray(rows)) {
+    fail('Remote migration ledger has an unexpected shape; refusing to guess remote state');
+  }
+  return rows
+    .map((row) => (row && row.remote ? String(row.remote).trim() : ''))
+    .filter((version) => version.length > 0);
 }
 
-function listRemoteVersions() {
-  const sql = 'select version from supabase_migrations.schema_migrations order by version';
-  const out = runSupabase(['db', 'query', sql, '--linked', '--output-format', 'json']);
-  const parsed = JSON.parse(out);
-  return (parsed.rows || []).map((r) => String(r.version));
+function remoteHasVersion(version, knownRemoteVersions) {
+  const remote = knownRemoteVersions ?? listRemoteVersions();
+  return remote.includes(version);
+}
+
+/**
+ * `db query` is still the only way to EXECUTE the migration SQL, but its exit
+ * code cannot be trusted (reason 3 above). Without this guard a failed apply
+ * would exit 0, `migration repair --status applied` would then record the
+ * version anyway, and post-apply verification would read that self-written
+ * ledger row back and PASS — booking a migration that never ran.
+ */
+function assertQuerySucceeded(rawOutput, context) {
+  const text = String(rawOutput ?? '');
+  for (const line of text.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('{')) continue;
+    let parsed;
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch {
+      continue;
+    }
+    if (parsed && (parsed._tag === 'Error' || parsed.error)) {
+      const code = parsed.error?.code ?? 'unknown';
+      const message = parsed.error?.message ?? 'no message';
+      fail(`${context} reported an error envelope despite exit 0: ${code}: ${message}`);
+    }
+  }
 }
 
 function main() {
@@ -104,12 +155,15 @@ function main() {
 
   runSupabase(['link', '--project-ref', STAGING_PROJECT_REF, '--yes']);
 
-  if (remoteHasVersion(version)) {
+  // One read of the remote ledger backs both the re-apply guard and the
+  // pending calculation, so the two can never disagree about remote state.
+  const remote = listRemoteVersions();
+
+  if (remoteHasVersion(version, remote)) {
     fail(`Version ${version} is already recorded on staging — refusing re-apply`);
   }
 
   const local = listLocalMigrationVersions();
-  const remote = listRemoteVersions();
   const remoteSet = new Set(remote);
   const pending = local.filter((m) => !remoteSet.has(m.version));
   if (pending.length !== 1 || pending[0].version !== version) {
@@ -129,7 +183,8 @@ function main() {
   }, null, 2));
 
   try {
-    runSupabase(['db', 'query', '--linked', '-f', migration.path]);
+    const applyOutput = runSupabase(['db', 'query', '--linked', '-f', migration.path]);
+    assertQuerySucceeded(applyOutput, 'SQL apply');
   } catch (err) {
     fail(`SQL apply failed: ${err.message}`);
   }
