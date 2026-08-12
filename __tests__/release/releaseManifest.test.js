@@ -202,11 +202,27 @@ test('quarantined and heritage functions are represented but never release-inclu
   assert.equal(byName['public-sale-share-opt-out'].releaseIncluded, false);
 });
 
-test('staging-health is excluded with an explicit reason rather than silently dropped', () => {
+test('staging-health is GOVERNED because it now carries release identity', () => {
+  // Phase 2B reclassification: it hosts the health contract and serves the live
+  // release identity the exact-candidate verifier reads, so its source is
+  // release-critical. Deploy scope stays staging-only via `environments`.
   const manifest = gen();
   const entry = manifest.edgeFunctions.find((f) => f.name === 'staging-health');
-  assert.equal(entry.class, 'EXCLUDED_WITH_REASON');
-  assert.equal(entry.releaseIncluded, false);
+  assert.equal(entry.class, 'GOVERNED');
+  assert.equal(entry.releaseIncluded, true);
+  assert.ok(entry.sourceHash, 'governed staging-health must carry a source hash');
+  assert.ok(entry.sharedDependencyHash, 'governed staging-health must carry the shared dependency hash');
+});
+
+test('health contract version is identity material and is v1', () => {
+  const manifest = gen();
+  assert.equal(manifest.healthContractVersion, 'health-contract-v1');
+  // Identity material: it is inside the hashed section, so changing the
+  // contract changes the manifest identity digest.
+  assert.ok(
+    JSON.stringify(manifest.configStructure).includes('health-contract-v1'),
+    'health contract version must participate in the hashed config structure',
+  );
 });
 
 test('an unclassified live-only function is rejected, not ignored', () => {

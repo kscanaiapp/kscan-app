@@ -27,9 +27,9 @@
     "tryon-clothes-pro": { "class": "GOVERNED", "sourcePath": "supabase/functions/tryon-clothes-pro", "reason": "Try-on provider surface." },
 
     "staging-health": {
-      "class": "EXCLUDED_WITH_REASON",
+      "class": "GOVERNED",
       "sourcePath": "supabase/functions/staging-health",
-      "reason": "Staging-only diagnostic probe, deliberately never deployed to production. Excluded from the production release set; still source-tracked in the repository.",
+      "reason": "Reclassified from EXCLUDED_WITH_REASON in Phase 2B. It now hosts the health contract (/health/live, /health/ready, /version) and serves the authoritative live release identity that exact-candidate verification reads, so its source is release-critical: a change to it changes what the release reports about itself. Still deployed to staging only - `environments` scopes the deploy target, `class` scopes release governance, and the two are deliberately independent.",
       "environments": ["staging"]
     },
 
