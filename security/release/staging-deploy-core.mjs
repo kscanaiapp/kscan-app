@@ -123,14 +123,57 @@ export function materializeCandidate({ repoRoot, candidateSha, tempRoot = proces
  * configuration, never from a default:
  *
  *   1. the manifest entry, populated from root `supabase/config.toml`
- *   2. the function's own `supabase/functions/<name>/config.toml`
- *      (`staging-health` is declared only here — the root file omits it)
+ *   2. root `supabase/config.toml`, where `edge-function-governance.json`
+ *      records the posture as pinned
+ *   3. the function's own `supabase/functions/<name>/config.toml`
+ *      (`staging-health` is declared only here, the root file omits it)
  *
- * If neither declares it, this throws rather than guessing.
+ * If none declares it, this throws rather than guessing.
  */
+
+/**
+ * Reads the governed posture from root `supabase/config.toml` (DEF-B29-SVV-010).
+ *
+ * The list above always named root config.toml as the authority, but reached it
+ * only "populated from" it via the manifest, and nothing ever populated that.
+ * The manifest is `environmentScope: ENVIRONMENT_NEUTRAL` (DEF-REL-006) and
+ * carries no `verifyJwt` key for any function, so step 1 never fired. Every
+ * governed function except `staging-health` (the only one with a per-function
+ * config.toml) was therefore undeployable through this path: a correct
+ * fail-closed refusal standing on a premise that was never true. Root
+ * config.toml is now read directly rather than through a manifest field that
+ * does not exist.
+ *
+ * Returns null rather than a default when the posture is absent, so the caller
+ * still fails closed.
+ */
+function readRootConfigVerifyJwt(candidateRoot, functionName) {
+  const rootConfig = path.join(candidateRoot, 'supabase', 'config.toml');
+  if (!fs.existsSync(rootConfig)) return null;
+  const target = `[functions.${functionName}]`;
+  let inSection = false;
+  for (const rawLine of fs.readFileSync(rootConfig, 'utf8').split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (line.startsWith('[')) {
+      // Any new table ends the previous one, so a neighbouring function's
+      // posture can never be read as this function's.
+      inSection = line === target;
+      continue;
+    }
+    if (!inSection) continue;
+    const match = /^verify_jwt\s*=\s*(true|false)\s*$/.exec(line);
+    if (match) return match[1] === 'true';
+  }
+  return null;
+}
+
 export function resolveVerifyJwt({ manifestEntry, candidateRoot, functionName }) {
   if (manifestEntry && typeof manifestEntry.verifyJwt === 'boolean') {
     return { verifyJwt: manifestEntry.verifyJwt, source: 'manifest/root-config' };
+  }
+  const fromRootConfig = readRootConfigVerifyJwt(candidateRoot, functionName);
+  if (typeof fromRootConfig === 'boolean') {
+    return { verifyJwt: fromRootConfig, source: 'root-config.toml' };
   }
   const perFunction = path.join(candidateRoot, 'supabase', 'functions', functionName, 'config.toml');
   if (fs.existsSync(perFunction)) {
