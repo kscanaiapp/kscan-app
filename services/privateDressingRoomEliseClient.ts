@@ -25,6 +25,7 @@
  */
 
 import { supabase } from './supabaseClient';
+import { correlationHeaders, createCorrelationContext } from './observability';
 import { resolveAuthenticatedFunctionSession } from './authenticatedFunctionSession';
 import { createControlledEliseInvoke } from './privateDressingRoomEliseQaProvider';
 import {
@@ -48,7 +49,7 @@ export const ELISE_INVOKE_TIMEOUT_MS = 20_000;
 
 export type EliseInvoke = (
   name: string,
-  options: { body: unknown; signal?: AbortSignal },
+  options: { body: unknown; headers?: Record<string, string>; signal?: AbortSignal },
 ) => Promise<{ data: unknown; error: unknown }>;
 
 export type EliseTransportOutcome =
@@ -154,8 +155,10 @@ export async function sendEliseRequest(input: {
     }
     if (controller.signal.aborted) return { kind: 'cancelled' };
 
+    const correlation = createCorrelationContext();
     const { data, error } = await invoke(ELISE_FUNCTION_NAME, {
       body: input.plan.body,
+      headers: correlationHeaders(correlation),
       signal: controller.signal,
     });
 

@@ -176,7 +176,7 @@ bootstrap with a spurious reconciliation error.
 
 Release identity metadata (`KSCAN_RELEASE_ID`, `KSCAN_SOURCE_SHA`,
 `KSCAN_SOURCE_TREE_SHA`, `KSCAN_MANIFEST_DIGEST`,
-`KSCAN_HEALTH_CONTRACT_VERSION`, `KSCAN_DEPLOYED_AT`) is **corroborating
+`KSCAN_HEALTH_CONTRACT_VERSION`, `KSCAN_DEPLOYED_AT`, `KSCAN_ENVIRONMENT`) is **corroborating
 evidence**, not proof: it is configuration, and configuration can be set to
 say anything. It is only meaningful in combination with the frozen manifest,
 the immutable candidate source, and the receipt. A deployment that cannot
@@ -279,9 +279,10 @@ reports release identity: it must not claim a release until the release exists.
 
 ### Release metadata is narrow by construction
 
-`security/release/set-staging-release-metadata.mjs` may write exactly six keys
+`security/release/set-staging-release-metadata.mjs` may write exactly seven keys
 — `KSCAN_RELEASE_ID`, `KSCAN_SOURCE_SHA`, `KSCAN_SOURCE_TREE_SHA`,
-`KSCAN_MANIFEST_DIGEST`, `KSCAN_HEALTH_CONTRACT_VERSION`, `KSCAN_DEPLOYED_AT`
+`KSCAN_MANIFEST_DIGEST`, `KSCAN_HEALTH_CONTRACT_VERSION`, `KSCAN_DEPLOYED_AT`,
+`KSCAN_ENVIRONMENT`
 — against a static allowlist. It is **not** a general secret manager. The
 production project is an explicit deny checked before any command is built,
 and `SUPABASE_ACCESS_TOKEN` reaches the CLI through the environment only, never
@@ -289,7 +290,7 @@ as an argv element and never into evidence.
 
 ### Identity semantics of the metadata
 
-The six keys are **not** in `ENV_NAME_ALLOWLIST`, so neither their presence nor
+The seven keys are **not** in `ENV_NAME_ALLOWLIST`, so neither their presence nor
 their values affect `configFingerprint` or `identityDigest` — a manifest frozen
 before the write still describes the candidate after it. `releaseId` is
 observational and never hashed.

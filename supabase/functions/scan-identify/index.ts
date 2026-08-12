@@ -44,6 +44,7 @@ import {
   type NormalizedIdentification,
   type RankedScanProduct,
 } from '../_shared/scanHelpers.ts';
+import { emitBackendObservability, observeEdgeRequest } from '../_shared/observability.ts';
 import {
   fetchCatalogCandidates,
   adaptCatalogCandidate,
@@ -152,7 +153,7 @@ Quality precision rules (mandatory):
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-scan-id, x-request-id',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-scan-id, x-request-id, x-kscan-request-id, traceparent',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
@@ -1553,7 +1554,7 @@ function sanitizeSelectedCandidate(value: unknown): {
   return { candidateId, category, ...(subtype ? { subtype } : {}), ...(bounds ? { bounds } : {}) };
 }
 
-Deno.serve(async (req) => {
+Deno.serve(async (req) => observeEdgeRequest(req, 'scan-identify', async (observabilityContext) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS });
   }
@@ -2163,6 +2164,13 @@ Deno.serve(async (req) => {
         signal: controller.signal,
       });
       raw = await res.text().catch(() => '');
+      emitBackendObservability('provider_operation', observabilityContext, {
+        provider: 'gemini',
+        model_family: 'flash',
+        operation: mode === 'text' ? 'text_fashion_identification' : 'image_fashion_identification',
+        response_status: res.status,
+        retry_count: attempt - 1,
+      });
 
       if (res.ok) break;
 
@@ -3459,7 +3467,7 @@ Deno.serve(async (req) => {
   } finally {
     clearTimeout(timer);
   }
-});
+}));
 
 function hasBrandEvidenceForCommerce(
   identification: Record<string, unknown> | null | undefined,

@@ -35,6 +35,7 @@ import { resetStyleChatGreetingState } from '../services/style-chat/styleChatGre
 import { advanceActorEpoch } from '../services/actorContext';
 import { clearTodayWeather } from '../services/weather/todayWeatherStore';
 import { buildSignupNameMetadata, type SignupNameInput } from '../services/userFirstName';
+import { resetCorrelationContext } from '../services/observability';
 
 /**
  * Returned by signUp so the caller can distinguish between an immediate
@@ -69,6 +70,7 @@ function resetActorScopedRuntimeState(nextActorId: string | null): void {
   // stale `catch`/`finally` handlers) to be rejected instead of repopulating
   // the new actor's state.
   advanceActorEpoch(nextActorId);
+  resetCorrelationContext();
   invalidateAllMemoryCache();
   resetAttachmentStore();
   // Actor change (sign-in / sign-out / user update): drop any composer

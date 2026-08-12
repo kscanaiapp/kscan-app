@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
 const vm = require('node:vm');
+const observabilityStub = require('./helpers/observabilityStub');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -46,6 +47,7 @@ function loadTsModule(relativePath, requireMap = {}) {
 const adapter = loadTsModule('services/scanIdentification.ts', {
   './supabaseClient': { supabase: {} },
   '../constants/build': { SCAN_DIAGNOSTICS_ENABLED: false },
+  './observability': observabilityStub,
 });
 const scanResultObject = loadTsModule('services/scanResultObject.ts');
 const scanTitleBuilder = loadTsModule('services/scanTitleBuilder.ts');

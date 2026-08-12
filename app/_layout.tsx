@@ -20,6 +20,10 @@ import {
 import { traceAuthLifecycle } from '../services/authLifecycleTrace';
 import ErrorBoundary from '../src/components/ErrorBoundary';
 import { logError } from '../src/utils/errorLogger';
+import {
+  initializeObservabilityProvider,
+  withObservabilityRoot,
+} from '../services/observabilitySentry';
 import { cleanupOrphanedStylistSpeechFiles } from '../services/avatars/stylistSpeechFiles';
 
 type GlobalErrorHandler = (error: Error, isFatal?: boolean) => void;
@@ -33,6 +37,11 @@ type GlobalWithErrorUtils = typeof globalThis & {
 };
 
 const rnGlobal = globalThis as GlobalWithErrorUtils;
+
+// `package.json` main is `expo-router/entry`, so THIS file is the authoritative
+// root. Initialization is module-scoped and one-shot: it must complete before
+// `withObservabilityRoot` is evaluated below, and it fails OFF on its own.
+initializeObservabilityProvider();
 
 if (rnGlobal.ErrorUtils && !rnGlobal.__KSCAN_ERROR_UTILS_ATTACHED__) {
   const defaultHandler = rnGlobal.ErrorUtils.getGlobalHandler();
@@ -270,7 +279,7 @@ function AuthGate() {
   return <Stack screenOptions={{ headerShown: false }} />;
 }
 
-export default function Layout() {
+function Layout() {
   useEffect(() => {
     void cleanupOrphanedStylistSpeechFiles();
   }, []);
@@ -291,6 +300,8 @@ export default function Layout() {
     </ErrorBoundary>
   );
 }
+
+export default withObservabilityRoot(Layout);
 
 const styles = StyleSheet.create({
   loadingOverlay: {

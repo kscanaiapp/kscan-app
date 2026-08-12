@@ -19,6 +19,11 @@
 
 import { supabase } from './supabaseClient';
 import { SCAN_DIAGNOSTICS_ENABLED } from '../constants/build';
+import {
+  correlationHeaders,
+  createCorrelationContext,
+  emitObservabilityEvent,
+} from './observability';
 import type {
   ScanIdentifyRequest,
   ScanIdentifyResponse,
@@ -339,14 +344,13 @@ function resolveFailedUserMessage(
  */
 function logScanFailure(
   reason: ScanFailureReason,
-  detail: { scanStatus?: string; hasPayload?: boolean; backendMessage?: string } = {},
+  detail: { scanStatus?: string; hasPayload?: boolean } = {},
 ): void {
   if (!SCAN_DIAGNOSTICS_ENABLED) return;
   console.log('[scanIdentification] Failure reason:', {
     reason,
     scanStatus: detail.scanStatus,
     hasPayload: detail.hasPayload,
-    backendMessage: detail.backendMessage?.slice(0, 200),
   });
 }
 
@@ -539,15 +543,23 @@ export async function identifyScanImage(
   }
 
   const timeoutId = setTimeout(() => ac.abort(), INVOKE_TIMEOUT_MS);
+  const correlation = createCorrelationContext();
 
   try {
     const { data, error } = await supabase.functions.invoke(EDGE_FN, {
       body: requestBody,
+      headers: correlationHeaders(correlation),
       signal: ac.signal,
     });
 
     if (error) {
-      logScanFailure('invoke_error', { hasPayload: false, backendMessage: error?.message });
+      logScanFailure('invoke_error', { hasPayload: false });
+      emitObservabilityEvent('scanner.request_failed', {
+        operation: 'scan_identify',
+        request_id: correlation.requestId,
+        trace_id: correlation.traceId,
+        error_category: 'invoke_error',
+      });
       // A bounded contract error (HTTP 400 with a stable `error.code`) is the
       // one failure the Scanner V2 adapter must be able to branch on. Reading
       // it costs nothing on the legacy path, where 400s do not occur, and it
@@ -564,21 +576,36 @@ export async function identifyScanImage(
     const reason = classifyRawResponse(data);
     const normalized = normalizeScanIdentifyResponse(data);
     if (reason !== 'completed' && reason !== 'non_fashion') {
-      const backendMessage =
-        data && typeof data === 'object' && typeof (data as any).userMessage === 'string'
-          ? (data as any).userMessage.slice(0, 200)
-          : undefined;
-      logScanFailure(reason, { scanStatus: normalized.status, hasPayload: !!data, backendMessage });
+      logScanFailure(reason, { scanStatus: normalized.status, hasPayload: !!data });
+      emitObservabilityEvent('scanner.request_failed', {
+        operation: 'scan_identify',
+        request_id: correlation.requestId,
+        trace_id: correlation.traceId,
+        error_category: reason,
+      });
     } else if (__DEV__) {
       console.log('[scanIdentification] response scan_status=' + normalized.status +
         ' category=' + (normalized.attributes?.category ?? '(none)') +
         ' recommendedProducts=' + normalized.recommendedProducts.length);
     }
+    if (reason === 'completed' || reason === 'non_fashion') {
+      emitObservabilityEvent('scanner.request_completed', {
+        operation: 'scan_identify',
+        request_id: correlation.requestId,
+        trace_id: correlation.traceId,
+      });
+    }
     return normalized;
   } catch (err: any) {
     const isAbort = err?.name === 'AbortError';
     const reason: ScanFailureReason = isAbort ? 'timeout' : 'invoke_error';
-    logScanFailure(reason, { hasPayload: false, backendMessage: err?.message });
+    logScanFailure(reason, { hasPayload: false });
+    emitObservabilityEvent('scanner.request_failed', {
+      operation: 'scan_identify',
+      request_id: correlation.requestId,
+      trace_id: correlation.traceId,
+      error_category: reason,
+    });
     return failed(isAbort ? TIMEOUT_MESSAGE : NETWORK_MESSAGE);
   } finally {
     clearTimeout(timeoutId);

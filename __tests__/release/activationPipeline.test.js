@@ -45,20 +45,21 @@ const VALID_FIELDS = Object.freeze({
   manifestDigest: 'f'.repeat(64),
   healthContractVersion: 'health-contract-v1',
   deployedAt: '2026-08-12T02:11:03Z',
+  environment: 'staging',
 });
 
 // ── release metadata writer ──────────────────────────────────────────────────
 
-test('metadata: the allowlist is exactly the six release-identity keys', async () => {
+test('metadata: the allowlist is exactly the seven release-identity keys', async () => {
   const { ALLOWED_METADATA_KEYS, buildMetadataMap } = await load('security/release/set-staging-release-metadata.mjs');
   assert.deepEqual([...ALLOWED_METADATA_KEYS].sort(), [
-    'KSCAN_DEPLOYED_AT', 'KSCAN_HEALTH_CONTRACT_VERSION', 'KSCAN_MANIFEST_DIGEST',
+    'KSCAN_DEPLOYED_AT', 'KSCAN_ENVIRONMENT', 'KSCAN_HEALTH_CONTRACT_VERSION', 'KSCAN_MANIFEST_DIGEST',
     'KSCAN_RELEASE_ID', 'KSCAN_SOURCE_SHA', 'KSCAN_SOURCE_TREE_SHA',
   ]);
   assert.deepEqual(Object.keys(buildMetadataMap(VALID_FIELDS)).sort(), [...ALLOWED_METADATA_KEYS].sort());
 });
 
-test('metadata: an unknown seventh key is rejected', async () => {
+test('metadata: an unknown eighth key is rejected', async () => {
   const { buildMetadataMap } = await load('security/release/set-staging-release-metadata.mjs');
   assert.throws(
     () => buildMetadataMap({ ...VALID_FIELDS, serviceRoleKey: 'nope' }),
@@ -84,6 +85,7 @@ test('metadata: unknown and malformed identity are rejected', async () => {
     { ...VALID_FIELDS, releaseId: '' },
     { ...VALID_FIELDS, healthContractVersion: 'made-up' },
     { ...VALID_FIELDS, deployedAt: 'yesterday' },
+    { ...VALID_FIELDS, environment: 'production' },
   ]) {
     assert.throws(() => buildMetadataMap(bad), (e) => e.code === 'MALFORMED_METADATA');
   }
@@ -125,7 +127,7 @@ test('metadata: planOnly writes nothing', async () => {
     exec: () => { throw new Error('planOnly must not execute'); },
   });
   assert.equal(result.written, false);
-  assert.deepEqual(result.plan.keys.length, 6);
+  assert.deepEqual(result.plan.keys.length, 7);
 });
 
 // ── deploy core: immutable source ────────────────────────────────────────────
@@ -295,16 +297,16 @@ test('orchestrator: unsatisfied migration state blocks before deployment', async
 
 // ── config fingerprint identity semantics (Part 7) ───────────────────────────
 
-test('fingerprint: the six KSCAN release-identity keys are NOT identity material', () => {
-  const six = ['KSCAN_RELEASE_ID', 'KSCAN_SOURCE_SHA', 'KSCAN_SOURCE_TREE_SHA',
-    'KSCAN_MANIFEST_DIGEST', 'KSCAN_HEALTH_CONTRACT_VERSION', 'KSCAN_DEPLOYED_AT'];
-  for (const key of six) {
+test('fingerprint: the seven KSCAN release-identity keys are NOT identity material', () => {
+  const seven = ['KSCAN_RELEASE_ID', 'KSCAN_SOURCE_SHA', 'KSCAN_SOURCE_TREE_SHA',
+    'KSCAN_MANIFEST_DIGEST', 'KSCAN_HEALTH_CONTRACT_VERSION', 'KSCAN_DEPLOYED_AT', 'KSCAN_ENVIRONMENT'];
+  for (const key of seven) {
     assert.ok(!ENV_NAME_ALLOWLIST.includes(key),
       `${key} must not be in the fingerprint allowlist, or setting metadata would shift identity between plan and execute`);
   }
-  // Presence of all six in the generator env must not move the digest.
+  // Presence of all seven in the generator env must not move the digest.
   const withoutMeta = manifest({ env: {} });
-  const withMeta = manifest({ env: Object.fromEntries(six.map((k) => [k, 'value'])) });
+  const withMeta = manifest({ env: Object.fromEntries(seven.map((k) => [k, 'value'])) });
   assert.equal(withMeta.identityDigest, withoutMeta.identityDigest);
 });
 

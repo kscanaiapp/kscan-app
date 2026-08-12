@@ -1,4 +1,9 @@
 import { supabase } from './supabaseClient';
+import {
+  correlationHeaders,
+  createCorrelationContext,
+  emitObservabilityEvent,
+} from './observability';
 import { validateTextScanQuery } from './textScan';
 import type { TextScanProduct, TextScanProductType, TextScanResult } from './textScan';
 
@@ -405,6 +410,7 @@ export async function analyzeTextWithEdge(
 
   const ac = new AbortController();
   const timeoutId = setTimeout(() => ac.abort(), INVOKE_TIMEOUT_MS);
+  const correlation = createCorrelationContext();
 
   try {
     const { data, error } = await supabase.functions.invoke(EDGE_FN, {
@@ -414,19 +420,38 @@ export async function analyzeTextWithEdge(
         source: options.source ?? 'textscan',
         clientTimestamp: new Date().toISOString(),
       },
+      headers: correlationHeaders(correlation),
       signal: ac.signal,
     });
 
     if (error) {
-      if (__DEV__) console.warn('[textScanEdge] invoke error:', error?.message);
+      if (__DEV__) console.warn('[textScanEdge] invoke error');
+      emitObservabilityEvent('textscan.request_failed', {
+        operation: 'text_scan',
+        request_id: correlation.requestId,
+        trace_id: correlation.traceId,
+        error_category: 'invoke_error',
+      });
       const err = new Error('TEXTSCAN_ANALYSIS_FAILED');
       (err as any).userMessage = SAFE_FAILED_MESSAGE;
       throw err;
     }
 
-    return mapEdgeResponseToTextScanResult(data, trimmed);
+    const result = mapEdgeResponseToTextScanResult(data, trimmed);
+    emitObservabilityEvent('textscan.request_completed', {
+      operation: 'text_scan',
+      request_id: correlation.requestId,
+      trace_id: correlation.traceId,
+    });
+    return result;
   } catch (err: any) {
     if (err?.name === 'AbortError') {
+      emitObservabilityEvent('textscan.request_failed', {
+        operation: 'text_scan',
+        request_id: correlation.requestId,
+        trace_id: correlation.traceId,
+        error_category: 'timeout',
+      });
       const timeoutErr = new Error('TEXTSCAN_TIMEOUT');
       (timeoutErr as any).userMessage =
         'Analysis is taking longer than expected. Please try again in a moment.';
@@ -434,6 +459,12 @@ export async function analyzeTextWithEdge(
     }
     // Re-throw if it already has a userMessage
     if (err?.userMessage) throw err;
+    emitObservabilityEvent('textscan.request_failed', {
+      operation: 'text_scan',
+      request_id: correlation.requestId,
+      trace_id: correlation.traceId,
+      error_category: 'unexpected_error',
+    });
     const fallbackErr = new Error('TEXTSCAN_ANALYSIS_FAILED');
     (fallbackErr as any).userMessage = SAFE_FAILED_MESSAGE;
     throw fallbackErr;
