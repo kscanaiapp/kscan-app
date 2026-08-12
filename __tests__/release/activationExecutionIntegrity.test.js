@@ -349,15 +349,24 @@ test('DEF-REL-018: inventory failures never become an empty list', async () => {
   assert.throws(() => inv.extractFunctions([]), (e) => e.code === 'ACTIVATION_INVENTORY_OPERATIONAL_FAILURE');
   assert.throws(() => inv.extractFunctions('not an array'), (e) => e.code === 'ACTIVATION_INVENTORY_OPERATIONAL_FAILURE');
   assert.throws(() => inv.extractFunctions([{ nope: 1 }]), (e) => e.code === 'ACTIVATION_INVENTORY_OPERATIONAL_FAILURE');
-  assert.throws(() => inv.extractMigrations([{ version: '1' }]), (e) => e.code === 'ACTIVATION_INVENTORY_OPERATIONAL_FAILURE');
+  // A bare array is the OLD (never-real) assumed shape; the real CLI wraps
+  // migrations in an object, so a bare array must fail closed too.
+  assert.throws(() => inv.extractMigrations([{ local: '1', remote: '1', time: '1' }]), (e) => e.code === 'ACTIVATION_INVENTORY_OPERATIONAL_FAILURE');
   assert.throws(() => inv.extractMigrations({}), (e) => e.code === 'ACTIVATION_INVENTORY_OPERATIONAL_FAILURE');
+  assert.throws(() => inv.extractMigrations({ migrations: [{ local: '1' }] }), (e) => e.code === 'ACTIVATION_INVENTORY_OPERATIONAL_FAILURE', 'a row with no remote field must fail closed, not be treated as unapplied');
 
   // Valid shapes, including the real 103-migration case.
   assert.deepEqual(inv.extractFunctions([{ slug: 'b' }, { name: 'a' }]), ['a', 'b']);
-  const many = Array.from({ length: 103 }, (_, i) => ({ name: `m${i}`, version: `${i}` }));
-  assert.equal(inv.extractMigrations(many).length, 103);
+  const many = Array.from({ length: 103 }, (_, i) => ({ local: `m${i}`, remote: `m${i}`, time: `m${i}` }));
+  assert.equal(inv.extractMigrations({ migrations: many }).length, 103);
   // An empty migration list is structurally possible and therefore allowed.
-  assert.deepEqual(inv.extractMigrations([]), []);
+  assert.deepEqual(inv.extractMigrations({ migrations: [] }), []);
+  // A row present locally but not yet applied remotely is correctly excluded
+  // from the LIVE inventory, not an error.
+  assert.deepEqual(
+    inv.extractMigrations({ migrations: [{ local: 'x', remote: '', time: 'x' }, { local: 'y', remote: 'y', time: 'y' }] }),
+    ['y'],
+  );
 });
 
 test('DEF-REL-018: the workflow has no migration-list empty fallback', () => {
@@ -366,13 +375,46 @@ test('DEF-REL-018: the workflow has no migration-list empty fallback', () => {
   assert.match(yaml, /build-activation-inventory\.mjs/, 'inventory must be built by the fail-closed builder');
 });
 
+// ── DEF-REL-019: migration list needs --linked, not --project-ref ───────────
+
+test('DEF-REL-019: migration list never receives --project-ref (the pinned CLI rejects it)', () => {
+  const yaml = workflowConfig();
+  assert.ok(
+    !/supabase migration list[^\n]*--project-ref/.test(yaml),
+    'migration list must never be called with --project-ref on CLI 2.109.1',
+  );
+});
+
+test('DEF-REL-019: the runner links to the exact already-validated staging ref before listing migrations', () => {
+  const yaml = workflowConfig();
+  const linkLines = yaml.split('\n').filter((l) => /^\s+supabase link\b/.test(l));
+  assert.equal(linkLines.length, 2, 'preflight and the pre-EXECUTE revalidation must each link once');
+  for (const line of linkLines) {
+    assert.match(line, /--project-ref "\$SUPABASE_STAGING_PROJECT_REF"/, 'link must target the validated staging var, never a literal or caller-supplied ref');
+  }
+  // Every migration list call must be preceded by a link call in the same step.
+  const migrationLines = yaml.split('\n').filter((l) => /^\s+supabase migration list\b/.test(l));
+  assert.equal(migrationLines.length, 2);
+  for (const line of migrationLines) {
+    assert.match(line, /--linked\b/, 'migration list must read from the linked project');
+    assert.match(line, /--output-format json/, 'migration list must request the structured JSON format explicitly');
+    assert.ok(!/\s-o\s+json/.test(line), '-o json is the wrong flag for migration list on this CLI (it renders a table, not JSON)');
+  }
+});
+
+test('DEF-REL-019: migration inventory collection stays read-only — no push/repair/up/down', () => {
+  const yaml = workflowConfig();
+  assert.ok(!/supabase migration (push|repair|up|down|new)\b/.test(yaml), 'inventory collection must never mutate migration state');
+  assert.ok(!/supabase db (push|reset)\b/.test(yaml), 'inventory collection must never mutate the database');
+});
+
 test('DEF-REL-018: the pinned Supabase CLI is set up before any supabase command', () => {
   const lines = workflowConfig().split('\n');
   const setupAt = [];
   const commandAt = [];
   lines.forEach((line, i) => {
     if (/supabase\/setup-cli/.test(line)) setupAt.push(i);
-    if (/^\s+supabase\s+(functions|migration|secrets)\b/.test(line)) commandAt.push(i);
+    if (/^\s+supabase\s+(functions|migration|link|secrets)\b/.test(line)) commandAt.push(i);
   });
   assert.ok(setupAt.length >= 2, 'every job invoking supabase must set up the CLI');
   assert.ok(commandAt.length > 0, 'the workflow does invoke supabase');

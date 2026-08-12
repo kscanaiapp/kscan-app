@@ -119,7 +119,18 @@ jobs:
           # surface as an operational failure, never as "zero migrations"
           # (DEF-REL-018/K). `set -e` plus the validator below enforce that.
           supabase functions list --project-ref "$SUPABASE_STAGING_PROJECT_REF" -o json > activation/functions.json
-          supabase migration list --project-ref "$SUPABASE_STAGING_PROJECT_REF" -o json > activation/migrations.json
+          # Pinned CLI 2.109.1 rejects `migration list --project-ref`: that flag
+          # does not exist on this subcommand (verified against the real CLI,
+          # DEF-REL-019). `migration list` only reads from an explicitly linked
+          # project, a --db-url, or --local, so the runner links to the exact
+          # already-validated staging ref first. No SUPABASE_DB_PASSWORD is
+          # needed: with only SUPABASE_ACCESS_TOKEN set, the CLI provisions a
+          # short-lived "login role" through the Management API (verified
+          # live). `--output-format json` is required, not `-o json` — for
+          # `migration list` specifically, `-o` (the legacy "status variables"
+          # formatter) renders a pretty table even when passed `json`.
+          supabase link --project-ref "$SUPABASE_STAGING_PROJECT_REF"
+          supabase migration list --linked --output-format json > activation/migrations.json
           node security/release/build-activation-inventory.mjs \
             --functions activation/functions.json \
             --migrations activation/migrations.json \
@@ -225,7 +236,10 @@ jobs:
           set -euo pipefail
           mkdir -p activation/recheck
           supabase functions list --project-ref "$SUPABASE_STAGING_PROJECT_REF" -o json > activation/recheck/functions.json
-          supabase migration list --project-ref "$SUPABASE_STAGING_PROJECT_REF" -o json > activation/recheck/migrations.json
+          # Same DEF-REL-019 fix as preflight: migration list needs --linked,
+          # not --project-ref, and --output-format json, not -o json.
+          supabase link --project-ref "$SUPABASE_STAGING_PROJECT_REF"
+          supabase migration list --linked --output-format json > activation/recheck/migrations.json
           node security/release/build-activation-inventory.mjs \
             --functions activation/recheck/functions.json \
             --migrations activation/recheck/migrations.json \
