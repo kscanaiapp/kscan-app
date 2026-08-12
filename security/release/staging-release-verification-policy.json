@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "description": "Release-scoped normalization policy. The existing staging certification (security/scripts/build-staging-certification.js) remains the environment-level authority and is consumed here as an INPUT; this policy states how each of its findings maps onto a RELEASE-scoped verdict. There is exactly one authoritative release verdict, produced by security/release/build-release-evidence.js. This file never downgrades a finding generically - anything not explicitly classified below fails closed.",
+  "policyVersion": "staging-release-verification-policy-v1",
+  "decidedOn": "2026-08-11",
+  "principles": [
+    "STAGING_VERIFIED is release-scoped: it asserts that the exact frozen candidate deployed to staging passed every applicable release-content and operational gate. It does NOT assert that every environment capability required for production is enabled.",
+    "An UNKNOWN or unclassified certification finding fails closed: stagingVerifiedBlocking defaults to true until a human classifies it.",
+    "An OPERATIONAL_FAILURE in a required control blocks STAGING_VERIFIED. Missing evidence is never a pass.",
+    "Environment-scoped findings may coexist with STAGING_VERIFIED only where explicitly marked stagingVerifiedBlocking=false, and such findings still block production promotion.",
+    "This policy does not reinterpret the suspended native UI automation control. That control keeps its own policy file (security/release/native-ui-automation-policy.json) and is consumed unchanged."
+  ],
+  "defaultForUnclassifiedFinding": {
+    "scope": "UNKNOWN",
+    "disposition": "REQUIRES_CLASSIFICATION",
+    "releaseContentBlocking": true,
+    "stagingVerifiedBlocking": true,
+    "productionPromotionBlocking": true,
+    "rationale": "Fail closed. A finding nobody has classified must not be able to pass a release by default."
+  },
+  "findings": {
+    "leaked_password_protection": {
+      "scope": "ENVIRONMENT",
+      "disposition": "OWNER_EXTERNAL_ACTION_REQUIRED",
+      "releaseContentBlocking": false,
+      "stagingVerifiedBlocking": false,
+      "productionPromotionBlocking": true,
+      "rationale": "HaveIBeenPwned leaked-password checking requires the Supabase Pro plan; the KScan organization is on the free plan and the setting returns HTTP 402. This is a property of the environment's subscription, not of any release candidate's content - no change to the candidate can clear it, and blocking STAGING_VERIFIED on it would make the state permanently unreachable while telling us nothing about the release. It remains a hard production-promotion blocker because production genuinely requires the control.",
+      "ownerAction": "Upgrade the staging/production Supabase plan, enable leaked-password protection, and rerun certification.",
+      "evidence": "security/staging/password-security-policy.json (current_observed_state: DISABLED_PLAN_LIMITED_HTTP_402)"
+    },
+    "native_ui_automation": {
+      "scope": "DELEGATED",
+      "disposition": "GOVERNED_BY_EXISTING_POLICY",
+      "releaseContentBlocking": false,
+      "stagingVerifiedBlocking": false,
+      "productionPromotionBlocking": false,
+      "delegatedTo": "security/release/native-ui-automation-policy.json",
+      "rationale": "Consumed unchanged from its own policy file, which currently reads SUSPENDED / required_for_release=false / NOT_REQUIRED_BY_CURRENT_POLICY. This entry exists only to record the delegation so a reader does not conclude the control was silently dropped. If that policy re-arms the control, this entry must not be used to keep it non-blocking."
+    }
+  },
+  "requiredReleaseControls": [
+    "freeze_valid",
+    "candidate_binding",
+    "deployment_receipt",
+    "exact_candidate_verification",
+    "health_live",
+    "health_ready",
+    "version_identity",
+    "smoke_auth",
+    "smoke_database_rls_rpc"
+  ],
+  "requiredControlNotes": "An OPERATIONAL_FAILURE or BLOCKED result in any control listed here blocks STAGING_VERIFIED. Smoke categories that are legitimately unsupported in staging report NOT_APPLICABLE with a reason and are not in this required list; they must never be reported as PASS."
+}
