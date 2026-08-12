@@ -49,6 +49,8 @@ export function buildSourceMapManifest(root, identity) {
     releaseId: identity.releaseId,
     sourceSha: identity.sourceSha,
     environment: identity.environment,
+    distribution: identity.distribution,
+    buildIdentifier: identity.buildIdentifier,
     generatedAt: new Date().toISOString(),
     provider: null,
     uploadState: 'BLOCKED_NEW_PROVIDER_CONFIGURATION',

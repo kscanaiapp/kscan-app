@@ -78,12 +78,14 @@ test('build environment validation rejects missing attribution and cross-environ
     KSCAN_RELEASE_ID: 'release-test',
     EAS_BUILD_GIT_COMMIT_HASH: 'b'.repeat(40),
     EAS_BUILD_PROFILE: 'staging',
+    EAS_BUILD_ID: 'build-test-1',
   }).ok, true);
   assert.equal(module.validateObservabilityBuildEnvironment({
     KSCAN_OBSERVABILITY_ENVIRONMENT: 'production',
     KSCAN_RELEASE_ID: 'release-test',
     EAS_BUILD_GIT_COMMIT_HASH: 'b'.repeat(40),
     EAS_BUILD_PROFILE: 'staging',
+    EAS_BUILD_ID: 'build-test-1',
   }).ok, false);
   assert.equal(module.validateObservabilityBuildEnvironment({
     KSCAN_OBSERVABILITY_ENVIRONMENT: 'staging',
@@ -101,10 +103,14 @@ test('source map manifest is release-bound, checksummed, and upload-blocked with
       releaseId: 'release-test',
       sourceSha: 'c'.repeat(40),
       environment: 'staging',
+      distribution: 'staging',
+      buildIdentifier: 'build-test-1',
     });
     assert.equal(manifest.releaseId, 'release-test');
     assert.equal(manifest.sourceSha, 'c'.repeat(40));
     assert.equal(manifest.environment, 'staging');
+    assert.equal(manifest.distribution, 'staging');
+    assert.equal(manifest.buildIdentifier, 'build-test-1');
     assert.equal(manifest.uploadState, 'BLOCKED_NEW_PROVIDER_CONFIGURATION');
     assert.equal(manifest.files.length, 2);
     assert.ok(manifest.files.every((entry) => /^[a-f0-9]{64}$/.test(entry.sha256)));

@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 const SHA_RE = /^[a-f0-9]{40}$/i;
 const RELEASE_ID_RE = /^[A-Za-z0-9._-]{1,120}$/;
+const BUILD_IDENTITY_RE = /^[A-Za-z0-9._-]{1,160}$/;
 const VALID_ENVIRONMENTS = new Set(['development', 'staging', 'production']);
 
 export function validateObservabilityBuildEnvironment(env = process.env) {
@@ -12,6 +13,12 @@ export function validateObservabilityBuildEnvironment(env = process.env) {
   const sourceSha = String(env.KSCAN_SOURCE_SHA || env.EAS_BUILD_GIT_COMMIT_HASH || env.GITHUB_SHA || '')
     .trim()
     .toLowerCase();
+  const distribution = String(
+    env.KSCAN_OBSERVABILITY_DISTRIBUTION || env.EAS_BUILD_PROFILE || '',
+  ).trim().toLowerCase();
+  const buildIdentifier = String(
+    env.KSCAN_BUILD_IDENTIFIER || env.EAS_BUILD_ID || env.GITHUB_RUN_ID || '',
+  ).trim();
 
   if (!VALID_ENVIRONMENTS.has(environment)) {
     errors.push('KSCAN_OBSERVABILITY_ENVIRONMENT must be development, staging, or production');
@@ -21,6 +28,12 @@ export function validateObservabilityBuildEnvironment(env = process.env) {
   }
   if (!SHA_RE.test(sourceSha)) {
     errors.push('KSCAN_SOURCE_SHA or EAS_BUILD_GIT_COMMIT_HASH must be a 40-hex Git SHA');
+  }
+  if (!BUILD_IDENTITY_RE.test(distribution)) {
+    errors.push('KSCAN_OBSERVABILITY_DISTRIBUTION or EAS_BUILD_PROFILE must identify the distribution');
+  }
+  if (!BUILD_IDENTITY_RE.test(buildIdentifier)) {
+    errors.push('KSCAN_BUILD_IDENTIFIER or EAS_BUILD_ID must identify the build/export');
   }
 
   const profile = String(env.EAS_BUILD_PROFILE || '').trim().toLowerCase();
@@ -34,7 +47,13 @@ export function validateObservabilityBuildEnvironment(env = process.env) {
   return {
     ok: errors.length === 0,
     errors,
-    identity: { environment, releaseId: releaseId || null, sourceSha: SHA_RE.test(sourceSha) ? sourceSha : null },
+    identity: {
+      environment,
+      releaseId: releaseId || null,
+      sourceSha: SHA_RE.test(sourceSha) ? sourceSha : null,
+      distribution: BUILD_IDENTITY_RE.test(distribution) ? distribution : null,
+      buildIdentifier: BUILD_IDENTITY_RE.test(buildIdentifier) ? buildIdentifier : null,
+    },
   };
 }
 

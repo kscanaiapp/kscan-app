@@ -29,6 +29,8 @@ jobs:
       KSCAN_OBSERVABILITY_ENVIRONMENT: staging
       KSCAN_RELEASE_ID: pr-${{ github.event.pull_request.number }}-${{ github.sha }}
       KSCAN_SOURCE_SHA: ${{ github.sha }}
+      KSCAN_OBSERVABILITY_DISTRIBUTION: source-map-ci
+      KSCAN_BUILD_IDENTIFIER: github-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
