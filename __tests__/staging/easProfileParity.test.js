@@ -38,6 +38,15 @@ const ENVIRONMENT_SPECIFIC_KEYS = new Map([
   ['EXPO_PUBLIC_ENVIRONMENT', 'environment label surfaced in diagnostics only'],
   ['EXPO_PUBLIC_ENV_LABEL', 'environment label surfaced in diagnostics only'],
   ['KSCAN_OBSERVABILITY_ENVIRONMENT', 'environment label attached to diagnostics only'],
+  ['EXPO_PUBLIC_KSCAN_OBSERVABILITY_ENVIRONMENT', 'runtime mirror of the build-time observability environment label; diagnostics only'],
+  [
+    'EXPO_PUBLIC_KSCAN_OBSERVABILITY_ENABLED',
+    // Deliberate, reviewable drift: Build 29 authorizes the monitoring provider
+    // on the staging line only. Production activation is a separate decision.
+    // The switch governs diagnostic transport, not product behavior — the app
+    // is functionally identical with it off, which its fail-OFF tests prove.
+    'monitoring transport switch; staging-only for Build 29, production activation pending a separate decision',
+  ],
 ]);
 
 function readEas() {

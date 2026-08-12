@@ -1,6 +1,12 @@
 import Constants from 'expo-constants';
 import * as ExpoCrypto from 'expo-crypto';
 import { Platform } from 'react-native';
+import {
+  ALLOWED_CONTEXT_KEYS,
+  buildObservabilityContext as buildSafeContext,
+  isSensitiveObservabilityKey as isSensitiveKey,
+  redactObservabilityValue as redactValue,
+} from './observabilityRedaction';
 
 export const REQUEST_ID_HEADER = 'X-KScan-Request-ID';
 export const TRACEPARENT_HEADER = 'traceparent';
@@ -8,23 +14,6 @@ export const OBSERVABILITY_CONTRACT_VERSION = 'build29-observability-v1';
 
 const REQUEST_ID_RE = /^ksr_[a-f0-9]{32}$/;
 const TRACEPARENT_RE = /^00-([a-f0-9]{32})-([a-f0-9]{16})-([a-f0-9]{2})$/;
-const SAFE_TOKEN_RE = /^[A-Za-z0-9_.:/-]{1,160}$/;
-const REDACTED = '[REDACTED]';
-
-const SENSITIVE_KEY_FRAGMENTS = [
-  'authorization', 'cookie', 'token', 'jwt', 'password', 'secret', 'api_key',
-  'apikey', 'email', 'phone', 'prompt', 'message', 'chat', 'conversation',
-  'image', 'photo', 'uri', 'signed_url', 'storage_path', 'latitude', 'longitude',
-  'face', 'base64', 'access_token', 'refresh_token',
-];
-
-const ALLOWED_CONTEXT_KEYS = new Set([
-  'release_id', 'source_sha', 'environment', 'platform', 'app_version', 'build',
-  'screen', 'operation', 'request_id', 'trace_id', 'error_category',
-  'provider_category', 'fallback_used', 'duration_bucket', 'network_category',
-  'function_name', 'status_code', 'retry_count',
-]);
-
 type SafeScalar = string | number | boolean | null;
 export type ObservabilityContext = Record<string, SafeScalar>;
 export type CorrelationContext = {
@@ -36,68 +25,18 @@ export type CorrelationContext = {
 
 type ObservabilitySink = (eventName: string, context: ObservabilityContext) => void;
 
-function normalizedKey(key: string): string {
-  return key.toLowerCase().replace(/[^a-z0-9_]/g, '');
-}
+export { ALLOWED_CONTEXT_KEYS };
 
 export function isSensitiveObservabilityKey(key: string): boolean {
-  const normalized = normalizedKey(key);
-  return SENSITIVE_KEY_FRAGMENTS.some((fragment) => normalized.includes(fragment));
+  return isSensitiveKey(key);
 }
 
 export function redactObservabilityValue(value: unknown, depth = 0): unknown {
-  if (depth > 8) return REDACTED;
-  if (value === null || typeof value === 'boolean') return value;
-  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-  if (typeof value === 'string') {
-    if (
-      /bearer\s+/i.test(value) ||
-      /data:image\//i.test(value) ||
-      /eyJ[A-Za-z0-9_-]+\./.test(value) ||
-      /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(value) ||
-      /https?:\/\/[^\s]+[?&](?:token|signature|key)=/i.test(value) ||
-      /\+?\d[\d\s().-]{7,}\d/.test(value)
-    ) {
-      return REDACTED;
-    }
-    return value.slice(0, 160);
-  }
-  if (Array.isArray(value)) {
-    return value.slice(0, 24).map((item) => redactObservabilityValue(item, depth + 1));
-  }
-  if (typeof value === 'object') {
-    const safe: Record<string, unknown> = {};
-    for (const [key, nested] of Object.entries(value as Record<string, unknown>).slice(0, 48)) {
-      safe[key] = isSensitiveObservabilityKey(key)
-        ? REDACTED
-        : redactObservabilityValue(nested, depth + 1);
-    }
-    return safe;
-  }
-  return undefined;
-}
-
-function safeScalar(value: unknown): SafeScalar | undefined {
-  if (value === null) return null;
-  if (typeof value === 'boolean') return value;
-  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
-  if (typeof value === 'string') {
-    const redacted = redactObservabilityValue(value);
-    if (redacted === REDACTED) return REDACTED;
-    const bounded = String(redacted).slice(0, 160);
-    return SAFE_TOKEN_RE.test(bounded) ? bounded : undefined;
-  }
-  return undefined;
+  return redactValue(value, depth);
 }
 
 export function buildObservabilityContext(input: Record<string, unknown>): ObservabilityContext {
-  const safe: ObservabilityContext = {};
-  for (const [key, value] of Object.entries(input || {})) {
-    if (!ALLOWED_CONTEXT_KEYS.has(key) || isSensitiveObservabilityKey(key)) continue;
-    const scalar = safeScalar(value);
-    if (scalar !== undefined) safe[key] = scalar;
-  }
-  return safe;
+  return buildSafeContext(input) as ObservabilityContext;
 }
 
 function randomHex(bytes: number): string {
@@ -134,6 +73,18 @@ export function resetCorrelationContext(): void {
   correlationEpoch += 1;
 }
 
+// A monitoring provider must MIRROR K Scan correlation identity, never mint its
+// own. Observers are notified after the canonical context is built so a
+// provider adapter can tag its events with the same request/trace ids that
+// already travel on X-KScan-Request-ID and traceparent.
+type CorrelationObserver = (context: CorrelationContext) => void;
+
+let correlationObserver: CorrelationObserver | null = null;
+
+export function setCorrelationObserver(next: CorrelationObserver | null): void {
+  correlationObserver = typeof next === 'function' ? next : null;
+}
+
 export function createCorrelationContext(input: {
   requestId?: unknown;
   traceparent?: unknown;
@@ -142,12 +93,18 @@ export function createCorrelationContext(input: {
   const traceparent = isValidTraceparent(input.traceparent)
     ? input.traceparent.toLowerCase()
     : createTraceparent();
-  return {
+  const context = {
     requestId,
     traceparent,
     traceId: TRACEPARENT_RE.exec(traceparent)?.[1] ?? '',
     epoch: correlationEpoch,
   };
+  try {
+    correlationObserver?.(context);
+  } catch {
+    // A provider must never break request correlation.
+  }
+  return context;
 }
 
 export function correlationHeaders(context: CorrelationContext): Record<string, string> {

@@ -8,12 +8,32 @@ import { validateObservabilityBuildEnvironment } from './verify-observability-bu
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outputRoot = path.join(repoRoot, 'dist', 'observability-source-maps');
+const PROVIDER = 'sentry';
 const SECRET_PATTERNS = [
   /\bgh[pousr]_[A-Za-z0-9]{20,}/,
   /\bsbp_[A-Za-z0-9]{20,}/,
   /\bsb_secret_[A-Za-z0-9_-]{10,}/,
   /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/,
 ];
+
+/**
+ * Which provider transport, if any, this export is allowed to hand off to.
+ *
+ * The privileged token is read only to decide readiness — it is never written
+ * into the manifest, logged, or passed through an argument vector.
+ */
+export function resolveProviderUploadState(env = process.env) {
+  const hasToken = String(env.SENTRY_AUTH_TOKEN || '').trim().length > 0;
+  const org = String(env.SENTRY_ORG || '').trim();
+  const project = String(env.SENTRY_PROJECT || '').trim();
+  if (!hasToken) {
+    return { provider: PROVIDER, uploadState: 'BLOCKED_MISSING_PROVIDER_CREDENTIAL', org: org || null, project: project || null };
+  }
+  if (!org || !project) {
+    return { provider: PROVIDER, uploadState: 'BLOCKED_MISSING_PROVIDER_TARGET', org: org || null, project: project || null };
+  }
+  return { provider: PROVIDER, uploadState: 'READY_FOR_PROVIDER_UPLOAD', org, project };
+}
 
 function walkFiles(root) {
   const files = [];
@@ -25,7 +45,7 @@ function walkFiles(root) {
   return files;
 }
 
-export function buildSourceMapManifest(root, identity) {
+export function buildSourceMapManifest(root, identity, providerState = resolveProviderUploadState({})) {
   const files = walkFiles(root)
     .filter((file) => /\.(?:map|hbc|jsbundle|js)$/.test(file))
     .map((file) => {
@@ -52,8 +72,10 @@ export function buildSourceMapManifest(root, identity) {
     distribution: identity.distribution,
     buildIdentifier: identity.buildIdentifier,
     generatedAt: new Date().toISOString(),
-    provider: null,
-    uploadState: 'BLOCKED_NEW_PROVIDER_CONFIGURATION',
+    provider: providerState.provider,
+    providerOrg: providerState.org ?? null,
+    providerProject: providerState.project ?? null,
+    uploadState: providerState.uploadState,
     files,
   };
 }
@@ -72,12 +94,13 @@ function main() {
   if (result.status !== 0) {
     throw new Error(`EXPO_SOURCE_MAP_EXPORT_FAILED:${result.status ?? result.error?.code ?? 'spawn_error'}`);
   }
-  const manifest = buildSourceMapManifest(outputRoot, validation.identity);
+  const manifest = buildSourceMapManifest(outputRoot, validation.identity, resolveProviderUploadState(process.env));
   fs.writeFileSync(path.join(outputRoot, 'observability-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
   console.log(JSON.stringify({
     status: 'SOURCE_MAP_PIPELINE_CONFIGURED',
     outputRoot,
     files: manifest.files.length,
+    provider: manifest.provider,
     uploadState: manifest.uploadState,
   }));
 }

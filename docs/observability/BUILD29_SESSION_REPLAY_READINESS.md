@@ -2,7 +2,13 @@
 
 ## Verdict
 
-**NOT_SUPPORTED** by the currently installed monitoring stack and **READY_FOR_LATER_IMPLEMENTATION only after provider and privacy owner decisions**.
+**NOT_AUTHORIZED for Build 29** and **READY_FOR_LATER_IMPLEMENTATION only after privacy owner decisions**.
+
+As of the Sentry provider integration a replay-capable SDK IS installed
+(`@sentry/react-native` 8.22.0). Capability is therefore no longer the reason
+replay is off — policy is. The Sentry wizard enabled replay by default
+(`replaysSessionSampleRate: 0.1`, `replaysOnErrorSampleRate: 1`); that
+configuration was removed and replaced with two independent barriers.
 
 Build 29 does not activate replay. Staging replay is off. Production replay is off. Error monitoring remains independent of replay scaffolding.
 
@@ -10,16 +16,38 @@ Build 29 does not activate replay. Staging replay is off. Production replay is o
 
 | Question | Result |
 | --- | --- |
-| Does the current monitoring provider support mobile replay? | No current monitoring provider is configured. |
-| Does the installed SDK support replay? | No replay-capable monitoring SDK is installed. |
-| Camera/gallery blocking available? | No. |
-| Image blocking available? | No. |
-| Text masking available? | No. |
-| Error-linked replay available? | No. |
-| Sampling configuration available? | No. |
-| Retention controls available? | No provider retention controls exist in repository config. |
-| Environment isolation available? | EAS/Supabase environments are separated, but there is no replay destination to isolate. |
-| Kill switch available? | Build metadata contains an explicit `replayEnabled: false`; there is no capture runtime to turn on. |
+| Does the current monitoring provider support mobile replay? | Yes — Sentry (`k-scan-ai/react-native`) supports mobile replay. |
+| Does the installed SDK support replay? | Yes — `@sentry/react-native` 8.22.0 ships `mobileReplayIntegration`. |
+| Camera/gallery blocking available? | Provider-claimed, NOT validated by K Scan privacy review. |
+| Image blocking available? | Provider-claimed, NOT validated by K Scan privacy review. |
+| Text masking available? | Provider-claimed, NOT validated by K Scan privacy review. |
+| Error-linked replay available? | Yes, via `replaysOnErrorSampleRate` — deliberately not configured. |
+| Sampling configuration available? | Yes — deliberately not configured. |
+| Retention controls available? | Provider-side only; no K Scan retention decision has been made. |
+| Environment isolation available? | Yes — the provider is authorized on the staging line only. |
+| Kill switch available? | Yes, and it is engaged. See "How replay is held off" below. |
+
+## How replay is held off
+
+Two independent barriers, either of which alone is sufficient:
+
+1. **Replay is never requested.** `buildProviderOptions` emits no
+   `replaysSessionSampleRate`, no `replaysOnErrorSampleRate`, and no
+   `_experiments` block. The SDK installs `mobileReplayIntegration` only when
+   one of those sample rates is a number, so the integration is never created.
+2. **Replay is stripped if it ever appears.** `filterProviderIntegrations` runs
+   over the SDK's own default integration list at init time and removes anything
+   matching `/replay|screenshot|viewhierarchy/i`. `Screenshot` and
+   `ViewHierarchy` are refused for the same reason replay is: they attach
+   rendered app surfaces to ordinary error events.
+
+A third barrier covers exfiltration rather than capture: `beforeSend` returns
+`null` for `replay_event` and `replay_video`, so a replay envelope has no
+transport off the device even if one were somehow produced.
+
+Certified by `__tests__/observabilitySentryProvider.test.js`:
+`replayCanActivate` proves sample rates in either location are detected, and
+that the shipped options set cannot activate capture.
 
 ## Never-record policy
 
@@ -51,6 +79,8 @@ Face blur or Privacy Lens is not sufficient replay protection. Replay requires i
 
 - **Build 29 replay implemented:** no
 - **Disabled configuration invariant:** yes (`replayEnabled: false`)
+- **Development replay enabled:** no
 - **Staging replay enabled:** no
 - **Production replay enabled:** no
+- **Wizard-default replay configuration:** removed
 - **Build 29 blocker:** no

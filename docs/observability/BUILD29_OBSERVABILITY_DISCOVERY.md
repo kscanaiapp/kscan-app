@@ -108,3 +108,98 @@ No parallel health system is created.
 - **CONFLICTING:** multiple domain request-ID shapes cannot be repurposed as a transport correlation ID; raw mobile error logging was incompatible with the privacy requirements.
 - **NOT_APPLICABLE:** monitoring/replay SDK version while no provider exists.
 - **DEFERRED_BUILD29:** provider selection/provisioning, actual symbolication proof, full distributed tracing, dependency-health expansion, paid provider canaries, session replay activation/certification, physical-device proof, dashboards/alerts.
+
+---
+
+# Addendum — Sentry provider integration
+
+The Build 29 foundation was built provider-neutral and left the transport slot
+open (`provider: null`, `uploadState: BLOCKED_NEW_PROVIDER_CONFIGURATION`). That
+slot is now filled by Sentry. This addendum records what changed and, more
+importantly, what deliberately did not.
+
+## Provider
+
+| Field | Value |
+| --- | --- |
+| Provider | Sentry |
+| Organization | `k-scan-ai` |
+| Project | `react-native` |
+| SDK | `@sentry/react-native` 8.22.0 |
+| DSN source | `EXPO_PUBLIC_SENTRY_DSN` (EAS environment; never committed) |
+| Auth token source | `SENTRY_AUTH_TOKEN` (GitHub/EAS secret; never committed) |
+| Minimum token scope | `org:ci` |
+
+## Sentry is the transport, not the authority
+
+K Scan keeps ownership of every identity and privacy concern. Sentry receives
+them; it does not define them.
+
+- **Release identity.** Sentry's `release` IS `extra.observability.releaseId` and
+  Sentry's `dist` IS the platform build identifier. No provider-generated
+  release is ever created. If K Scan cannot verifiably attribute the build
+  (`sourceAttributionState !== 'VERIFIABLE'`), the provider stays OFF rather
+  than reporting under an invented identity.
+- **Correlation.** `X-KScan-Request-ID` and W3C `traceparent` remain the only
+  correlation headers on K Scan requests. `tracePropagationTargets: []` stops
+  the SDK injecting competing `sentry-trace`/`baggage` headers. Sentry mirrors
+  the K Scan request/trace ids as tags via a correlation observer.
+- **Privacy.** There is exactly one redaction boundary. The rules that governed
+  the K Scan event pipeline were extracted to
+  `services/observabilityRedaction.js`, and both `services/observability.ts` and
+  the provider adapter consume it. `beforeSend` rebuilds every outbound event
+  from the allowlist, so anything not explicitly re-added is dropped — including
+  anything a future SDK version starts attaching by default.
+- **Environment.** The build-time authority (`KSCAN_OBSERVABILITY_ENVIRONMENT`)
+  still decides the environment. The provider re-checks it against the runtime
+  mirror and fails OFF on mismatch.
+
+## Fail-OFF switch
+
+`EXPO_PUBLIC_KSCAN_OBSERVABILITY_ENABLED` governs the transport:
+
+| Condition | Result |
+| --- | --- |
+| Flag missing | OFF |
+| Flag malformed (`1`, `yes`, `on`, …) | OFF |
+| Flag `false` | OFF |
+| DSN missing or malformed | OFF |
+| Environment unsupported, or mismatched against the build stamp | OFF |
+| Observability contract version mismatch | OFF |
+| Release identity not verifiable | OFF |
+| SDK init throws | OFF, app unaffected |
+
+Monitoring is never a runtime dependency: every disabled path leaves the app
+fully operational, and the router root is returned unwrapped.
+
+## EAS authorization
+
+| Profile | Observability environment | Provider |
+| --- | --- | --- |
+| `development` | development | OFF |
+| `preview` | staging | ON |
+| `staging` | staging | ON |
+| `production` | production | **OFF — Build 29 does not authorize production activation** |
+
+## Entrypoint correction
+
+The Sentry wizard wrote `Sentry.init` and `Sentry.wrap` into `app.js`. That file
+is **not** the entrypoint — `package.json` `main` is `expo-router/entry`, so the
+authoritative root is `app/_layout.tsx`. The wizard's `app.js` changes were
+reverted and initialization moved to the governed root, where it runs once.
+
+## Source maps
+
+The local pipeline remains the identity authority: it exports maps, checksums
+every artifact (SHA-256), and binds them to release/source/environment/
+distribution/build. Sentry upload is the FINAL TRANSPORT STEP only. Before any
+byte is transmitted, `upload-observability-sourcemaps.mjs` re-proves the
+manifest identity against the build environment and re-verifies every checksum,
+and refuses to run without an environment-supplied credential.
+
+## Still deferred
+
+- Real staging symbolication proof (requires an authorized EAS build).
+- Production activation decision.
+- Session replay (see `BUILD29_SESSION_REPLAY_READINESS.md`).
+- Dashboards, alerting, and quota/retention decisions.

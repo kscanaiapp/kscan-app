@@ -93,7 +93,7 @@ test('build environment validation rejects missing attribution and cross-environ
   }).ok, false);
 });
 
-test('source map manifest is release-bound, checksummed, and upload-blocked without a provider', async () => {
+test('source map manifest is release-bound, checksummed, and upload-blocked without a credential', async () => {
   const module = await import(pathToFileURL(path.join(ROOT, 'scripts/export-observability-sourcemaps.mjs')));
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'kscan-sourcemaps-'));
   try {
@@ -111,7 +111,10 @@ test('source map manifest is release-bound, checksummed, and upload-blocked with
     assert.equal(manifest.environment, 'staging');
     assert.equal(manifest.distribution, 'staging');
     assert.equal(manifest.buildIdentifier, 'build-test-1');
-    assert.equal(manifest.uploadState, 'BLOCKED_NEW_PROVIDER_CONFIGURATION');
+    // Sentry is now the configured transport, but the handoff still refuses to
+    // arm itself without an environment-supplied credential.
+    assert.equal(manifest.provider, 'sentry');
+    assert.equal(manifest.uploadState, 'BLOCKED_MISSING_PROVIDER_CREDENTIAL');
     assert.equal(manifest.files.length, 2);
     assert.ok(manifest.files.every((entry) => /^[a-f0-9]{64}$/.test(entry.sha256)));
   } finally {

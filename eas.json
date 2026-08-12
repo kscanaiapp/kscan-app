@@ -14,6 +14,8 @@
       },
       "env": {
         "KSCAN_OBSERVABILITY_ENVIRONMENT": "staging",
+        "EXPO_PUBLIC_KSCAN_OBSERVABILITY_ENVIRONMENT": "staging",
+        "EXPO_PUBLIC_KSCAN_OBSERVABILITY_ENABLED": "true",
         "EXPO_PUBLIC_HOME_NAVIGATION_V2": "true",
         "EXPO_PUBLIC_ACCOUNT_HOME_UX_V1": "true",
         "EXPO_PUBLIC_ONBOARDING_FRAMEWORK_V1": "true",
@@ -73,6 +75,8 @@
       },
       "env": {
         "KSCAN_OBSERVABILITY_ENVIRONMENT": "development",
+        "EXPO_PUBLIC_KSCAN_OBSERVABILITY_ENVIRONMENT": "development",
+        "EXPO_PUBLIC_KSCAN_OBSERVABILITY_ENABLED": "false",
         "EXPO_PUBLIC_HOME_NAVIGATION_V2": "true",
         "EXPO_PUBLIC_ACCOUNT_HOME_UX_V1": "true",
         "EXPO_PUBLIC_ONBOARDING_FRAMEWORK_V1": "true",
@@ -115,6 +119,8 @@
       },
       "env": {
         "KSCAN_OBSERVABILITY_ENVIRONMENT": "production",
+        "EXPO_PUBLIC_KSCAN_OBSERVABILITY_ENVIRONMENT": "production",
+        "EXPO_PUBLIC_KSCAN_OBSERVABILITY_ENABLED": "false",
         "EXPO_PUBLIC_HOME_NAVIGATION_V2": "true",
         "EXPO_PUBLIC_ACCOUNT_HOME_UX_V1": "true",
         "EXPO_PUBLIC_ONBOARDING_FRAMEWORK_V1": "true",
@@ -166,6 +172,8 @@
       },
       "env": {
         "KSCAN_OBSERVABILITY_ENVIRONMENT": "staging",
+        "EXPO_PUBLIC_KSCAN_OBSERVABILITY_ENVIRONMENT": "staging",
+        "EXPO_PUBLIC_KSCAN_OBSERVABILITY_ENABLED": "true",
         "EXPO_PUBLIC_HOME_NAVIGATION_V2": "true",
         "EXPO_PUBLIC_ACCOUNT_HOME_UX_V1": "true",
         "EXPO_PUBLIC_ONBOARDING_FRAMEWORK_V1": "true",
