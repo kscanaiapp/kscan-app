@@ -242,7 +242,18 @@ jobs:
     needs:
       - preflight
       - source-validation
-    if: needs.source-validation.result == 'success'
+    # DEF-B29-SVV-009: `approved-single-migration` is optional and is SKIPPED
+    # whenever approve_migration=NO. A skip propagates down the graph, so every
+    # job below it must opt back in explicitly — `source-validation` already
+    # does. Without the same opt-in here, a function could only ever be
+    # deployed as a side effect of also applying a migration, which is the
+    # opposite of what a single-function controlled deploy is for.
+    # `always() &&` restores reachability; the explicit result checks keep the
+    # gating identical to the implicit success() it replaces.
+    if: |
+      always() &&
+      needs.preflight.result == 'success' &&
+      needs.source-validation.result == 'success'
     environment: staging
     outputs:
       manifest_path: ${{ steps.deploy.outputs.manifest_path }}
@@ -296,6 +307,12 @@ jobs:
     needs:
       - preflight
       - deploy-one-function
+    # Same DEF-B29-SVV-009 opt-in as the deploy job. Semantics unchanged: this
+    # still runs only when the deploy actually succeeded.
+    if: |
+      always() &&
+      needs.preflight.result == 'success' &&
+      needs.deploy-one-function.result == 'success'
     environment: staging
     steps:
       - name: Probe deployed function
@@ -398,6 +415,12 @@ jobs:
     needs:
       - preflight
       - health-check
+    # Same DEF-B29-SVV-009 opt-in. Semantics unchanged: this still runs only
+    # when the health check actually passed.
+    if: |
+      always() &&
+      needs.preflight.result == 'success' &&
+      needs.health-check.result == 'success'
     environment: staging
     steps:
       - name: Checkout
