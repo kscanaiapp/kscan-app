@@ -31,6 +31,10 @@ on:
         description: 'Type ACTIVATE-STAGING-BOOTSTRAP to permit EXECUTE. Ignored for PLAN_ONLY.'
         required: false
         default: ''
+      certification_run_id:
+        description: 'Staging Release Certification run id whose evidence authorizes EXECUTE. Required for EXECUTE; ignored for PLAN_ONLY.'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -66,10 +70,15 @@ jobs:
         env:
           MODE: ${{ inputs.mode }}
           CONFIRM: ${{ inputs.confirm_execute }}
+          CERTIFICATION_RUN_ID: ${{ inputs.certification_run_id }}
         run: |
           set -euo pipefail
           if [ "$MODE" = "EXECUTE" ] && [ "$CONFIRM" != "ACTIVATE-STAGING-BOOTSTRAP" ]; then
             echo "FAIL  EXECUTE requires confirm_execute=ACTIVATE-STAGING-BOOTSTRAP"
+            exit 1
+          fi
+          if [ "$MODE" = "EXECUTE" ] && [ -z "$CERTIFICATION_RUN_ID" ]; then
+            echo "FAIL  EXECUTE requires certification_run_id (DEF-B29-SVV-013B)"
             exit 1
           fi
 
@@ -245,6 +254,49 @@ jobs:
             --migrations activation/recheck/migrations.json \
             --out activation/recheck/inventory.json \
             --compare activation/inventory.json
+
+      # DEF-B29-SVV-013B: EXECUTE previously pointed KSCAN_CERTIFICATION_REPORT
+      # at a path nothing ever produced, so it could never authorize a
+      # mutation. The caller now names an explicit certification run, and the
+      # shared certification authority decides whether that run's evidence
+      # describes exactly this candidate. Runs BEFORE the first staging write.
+      - name: Acquire and validate exact certification evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CERTIFICATION_RUN_ID: ${{ inputs.certification_run_id }}
+          CANDIDATE_SHA: ${{ needs.preflight.outputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "$CERTIFICATION_RUN_ID" ]; then
+            echo "FAIL  EXECUTE requires certification_run_id"
+            exit 1
+          fi
+
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${CERTIFICATION_RUN_ID}" > cert-run.json
+
+          # Only this run's own artifact is trusted; the name is bound to the id.
+          gh run download "$CERTIFICATION_RUN_ID" \
+            --name "staging-certification-${CERTIFICATION_RUN_ID}" \
+            --dir certification-download
+          test -f certification-download/staging-certification.json
+
+          # Every certification run for this exact candidate, so an older pass
+          # cannot be cherry-picked past a newer one.
+          gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/staging-release-certification.yml/runs?head_sha=${CANDIDATE_SHA}&per_page=100" \
+            --jq '[.workflow_runs[] | {id: (.id|tostring), status: .status, conclusion: .conclusion, completed_at: .updated_at}]' \
+            > cert-candidate-runs.json
+
+          mkdir -p security/reports
+          cp certification-download/staging-certification.json security/reports/staging-certification.json
+
+          node security/release/assert-bootstrap-certification.mjs \
+            --certification security/reports/staging-certification.json \
+            --run-metadata cert-run.json \
+            --candidate-runs cert-candidate-runs.json \
+            --supplied-run-id "$CERTIFICATION_RUN_ID" \
+            --candidate-sha "$CANDIDATE_SHA" \
+            --candidate-tree-sha "$(git rev-parse "${CANDIDATE_SHA}^{tree}")" \
+            --staging-head-sha "$(git rev-parse origin/staging/production-parity)"
 
       - name: Run bootstrap activation
         env:
