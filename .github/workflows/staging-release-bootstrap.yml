@@ -1,0 +1,250 @@
+name: Staging Release Bootstrap Activation
+
+# One-time BOOTSTRAP_FULL_ATTESTATION activation for the staging backend, plus
+# the read-only PLAN_ONLY dry run that must precede it.
+#
+# This workflow NEVER runs automatically. It is workflow_dispatch only: a
+# bootstrap deploys the whole governed staging function set, which is an
+# initialization exception, not ordinary release behaviour.
+#
+# ENVIRONMENT AUTHORITY: the staging project ref is derived from
+# security/scripts/lib/environment-authority.js. It is deliberately NOT a
+# workflow input — a caller must not be able to point activation at a project.
+# The production project is an explicit deny inside every write path.
+#
+# PERMISSIONS: least privilege. The default for the workflow is contents: read.
+# Only the persistence job receives contents: write, and only so it can create
+# the staging verification tag/prerelease that carries the baseline package.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'PLAN_ONLY (read-only dry run) or EXECUTE (live staging bootstrap)'
+        required: true
+        default: PLAN_ONLY
+        type: choice
+        options:
+          - PLAN_ONLY
+          - EXECUTE
+      confirm_execute:
+        description: 'Type ACTIVATE-STAGING-BOOTSTRAP to permit EXECUTE. Ignored for PLAN_ONLY.'
+        required: false
+        default: ''
+
+# Workflow-wide default: read only.
+permissions:
+  contents: read
+
+concurrency:
+  # A bootstrap must never race another bootstrap.
+  group: staging-release-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Preflight (read-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    environment: staging
+    outputs:
+      candidate_sha: ${{ steps.candidate.outputs.sha }}
+      mode: ${{ steps.gate.outputs.mode }}
+    steps:
+      - name: Checkout canonical staging
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: staging/production-parity
+          fetch-depth: 0
+
+      - name: Gate EXECUTE behind an explicit typed confirmation
+        id: gate
+        env:
+          MODE: ${{ inputs.mode }}
+          CONFIRM: ${{ inputs.confirm_execute }}
+        run: |
+          set -euo pipefail
+          if [ "$MODE" = "EXECUTE" ] && [ "$CONFIRM" != "ACTIVATE-STAGING-BOOTSTRAP" ]; then
+            echo "FAIL  EXECUTE requires confirm_execute=ACTIVATE-STAGING-BOOTSTRAP"
+            exit 1
+          fi
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve candidate (must be current staging HEAD)
+        id: candidate
+        run: |
+          set -euo pipefail
+          SHA=$(git rev-parse HEAD)
+          REMOTE=$(git rev-parse origin/staging/production-parity)
+          if [ "$SHA" != "$REMOTE" ]; then
+            echo "FAIL  candidate $SHA is not current staging HEAD $REMOTE"
+            exit 1
+          fi
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "candidate: $SHA"
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6.0.0
+        with:
+          node-version: '20'
+
+      - name: Collect live staging inventory (read-only)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+        run: |
+          set -euo pipefail
+          # Fail closed if the configured ref is not the staging project.
+          node -e "
+            const a = require('./security/scripts/lib/environment-authority.js');
+            a.assertExpectedEnvironment('staging', process.env.SUPABASE_STAGING_PROJECT_REF);
+            console.log('environment authority: staging confirmed');
+          "
+          mkdir -p activation
+          supabase functions list --project-ref "$SUPABASE_STAGING_PROJECT_REF" -o json > activation/functions.json
+          supabase migration list --project-ref "$SUPABASE_STAGING_PROJECT_REF" -o json > activation/migrations.json 2>/dev/null \
+            || echo '[]' > activation/migrations.json
+          node -e "
+            const fs=require('fs');
+            const fns=JSON.parse(fs.readFileSync('activation/functions.json','utf8'));
+            let migs=[]; try { migs=JSON.parse(fs.readFileSync('activation/migrations.json','utf8')); } catch {}
+            const inv={
+              functions:(fns||[]).map(f=>f.slug||f.name).sort(),
+              migrations:(migs||[]).filter(m=>m.name).map(m=>m.name),
+            };
+            fs.writeFileSync('activation/inventory.json', JSON.stringify(inv,null,2));
+            console.log('live functions:', inv.functions.length, 'live migrations:', inv.migrations.length);
+          "
+
+      - name: Upload inventory
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.6.2
+        with:
+          name: activation-inventory-${{ github.run_id }}
+          path: activation/
+          retention-days: 30
+
+  plan:
+    name: PLAN_ONLY dry run
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    environment: staging
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.preflight.outputs.candidate_sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6.0.0
+        with:
+          node-version: '20'
+      - uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.1.8
+        with:
+          name: activation-inventory-${{ github.run_id }}
+          path: activation
+
+      - name: Run orchestrator in PLAN_ONLY (writes nothing)
+        run: |
+          set -euo pipefail
+          node security/release/run-bootstrap-activation.mjs --inventory activation/inventory.json \
+            | tee activation/plan.json
+
+      - name: Upload plan
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.6.2
+        with:
+          name: activation-plan-${{ github.run_id }}
+          path: activation/plan.json
+          retention-days: 30
+
+  execute:
+    name: EXECUTE bootstrap (live staging)
+    needs: [preflight, plan]
+    if: ${{ inputs.mode == 'EXECUTE' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      # Still read: deployment mutates Supabase, not this repository.
+      contents: read
+    environment: staging
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.preflight.outputs.candidate_sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6.0.0
+        with:
+          node-version: '20'
+      - uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.1.8
+        with:
+          name: activation-inventory-${{ github.run_id }}
+          path: activation
+
+      - name: Run bootstrap activation
+        env:
+          # Staging environment only. Never echoed, never written to evidence.
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          SUPABASE_STAGING_ANON_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
+          STAGING_SYNTHETIC_ACTIVE_EMAIL: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_EMAIL }}
+          STAGING_SYNTHETIC_ACTIVE_PASSWORD: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_PASSWORD }}
+          # Marks this as the governed CI path; the orchestrator fails closed
+          # on EXECUTE without it.
+          KSCAN_ACTIVATION_ENVIRONMENT: staging
+        run: |
+          set -euo pipefail
+          node security/release/run-bootstrap-activation.mjs --execute --inventory activation/inventory.json \
+            | tee activation/activation-result.json
+
+      - name: Upload run evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.6.2
+        with:
+          name: backend-release-activation-${{ needs.preflight.outputs.candidate_sha }}-${{ github.run_id }}
+          path: activation/
+          retention-days: 90
+
+  persist:
+    name: Persist verified baseline package
+    needs: [preflight, execute]
+    if: ${{ inputs.mode == 'EXECUTE' && needs.execute.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      # The ONLY job granted write, and only to create the staging
+      # verification tag/prerelease carrying the baseline package.
+      # GITHUB_TOKEN is sufficient; no PAT is used.
+      contents: write
+    environment: staging
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.preflight.outputs.candidate_sha }}
+      - uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.1.8
+        with:
+          name: backend-release-activation-${{ needs.preflight.outputs.candidate_sha }}-${{ github.run_id }}
+          path: activation
+
+      - name: Publish staging verified prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ needs.preflight.outputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          # The orchestrator has already minted and validated the baseline; this
+          # step only publishes the package it produced.
+          if [ ! -f activation/verified-baseline.json ]; then
+            echo "VERIFIED_BASELINE_PERSISTENCE_GAP: no baseline produced"
+            exit 1
+          fi
+          TAG=$(node -e "console.log(JSON.parse(require('fs').readFileSync('activation/activation-result.json','utf8')).persistence.tag)")
+          gh release create "$TAG" \
+            --target "$CANDIDATE_SHA" \
+            --title "Staging verified — $TAG" \
+            --prerelease \
+            --notes "Durable operational evidence for backend release carry-forward. Not cryptographically signed; see docs/release/STAGING_RELEASE_VERIFICATION.md." \
+            activation/verified-baseline.json \
+            activation/release-evidence.json \
+            activation/deployment-receipt.json \
+            activation/frozen-manifest.json
