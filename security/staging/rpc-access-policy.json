@@ -6,8 +6,8 @@
   "generated_at": "2026-08-08T00:00:00Z",
   "root_cause": "This project carries a project-wide ALTER DEFAULT PRIVILEGES ... GRANT EXECUTE ON FUNCTIONS TO anon. A \"revoke all on function ... from public\" therefore does NOT remove the direct anon grant created at CREATE time, so every function added after the 20260803214145/20260803214253 hardening pass arrived anon-executable. Documented in 20260803020100_provider_request_security_revoke_anon.sql:3-16 and 20260803214253:1-8.",
   "classification_counts": {
-    "SERVICE_ROLE_ONLY": 15,
-    "AUTHENTICATED_INTENTIONAL": 48,
+    "SERVICE_ROLE_ONLY": 16,
+    "AUTHENTICATED_INTENTIONAL": 47,
     "TRIGGER_ONLY": 15,
     "PUBLIC_INTENTIONAL": 3,
     "INTERNAL_ONLY": 1
@@ -1421,17 +1421,17 @@
       "signature": "public.refund_stylechat_request_quota_for_user(uuid,text)",
       "security_mode": "SECURITY DEFINER",
       "search_path": "\"\"",
-      "classification": "AUTHENTICATED_INTENTIONAL",
-      "severity": null,
+      "classification": "SERVICE_ROLE_ONLY",
+      "severity": "HIGH",
       "expected_anon_execute": false,
-      "expected_authenticated_execute": true,
+      "expected_authenticated_execute": false,
       "expected_service_role_execute": true,
       "current_anon_execute": false,
       "current_authenticated_execute": false,
       "current_service_role_execute": true,
-      "reason": "Established authenticated mobile application contract; anon EXECUTE already absent.",
+      "reason": "Service-role-only compensation path after a total StyleChat provider failure. It accepts an arbitrary user id and request id, so client execution would allow quota refunds outside the trusted Edge Function flow.",
       "callers": [
-        "mobile client (authenticated)"
+        "service_role: supabase/functions/stylechat-generate/index.ts"
       ],
       "remediation": [
         "NONE"

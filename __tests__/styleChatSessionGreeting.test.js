@@ -288,7 +288,16 @@ test('useStyleChat keeps the draft until the send is known to have succeeded', (
   // resolves true (a fully successful send) — never optimistically, and
   // never merely on persistence, so a downstream failure (burst limit,
   // operational error) leaves the user's text intact for retry.
-  assert.match(screen, /const sent = await sendMessage\(text\);\s*\n\s*if \(!sent\) return;\s*\n\s*setComposerText\(''\);/);
+  //
+  // The PROPERTY is what this pins, not the exact expression. The follow-up
+  // loop routes the composer and its chips through one `submitMessage`, so the
+  // clear now sits behind the caller's `clearComposer` intent as well — a chip
+  // must not wipe text the user typed — but it still happens only after `sent`.
+  assert.match(
+    screen,
+    /if \(!sent\) return;\s*\n\s*if \(clearComposer\) setComposerText\(''\);/,
+  );
+  assert.match(screen, /if \(!sentWithVisual\) return;/);
   assert.doesNotMatch(screen, /void sendMessage\(text\);\s*setComposerText\(''\)/);
 });
 

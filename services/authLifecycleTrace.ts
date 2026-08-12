@@ -1,4 +1,8 @@
+import type { AppleCredentialLinkOutcome } from './appleCredentialLink';
+
 type AuthLifecycleDetails = {
+  /** Status only; the Apple authorization code must never enter tracing. */
+  appleCredentialLink?: AppleCredentialLinkOutcome;
   authEvent?: string;
   callbackKind?: 'code' | 'tokens' | 'otp' | 'missing';
   guardAction?: string;

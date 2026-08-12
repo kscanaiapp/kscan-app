@@ -20,7 +20,9 @@ const vm = require('node:vm');
 
 const ROOT = path.resolve(__dirname, '..');
 const DAY_MS = 24 * 60 * 60 * 1000;
-const NOW = Date.parse('2026-07-28T12:00:00.000Z');
+// Eligibility defaults to the real clock, so a frozen literal eventually turns
+// every otherwise-live fixture into an expired candidate.
+const NOW = Date.now();
 
 // ── Mini renderer ────────────────────────────────────────────────────────────
 

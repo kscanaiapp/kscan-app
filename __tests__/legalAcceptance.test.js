@@ -54,15 +54,19 @@ function createMockClient({ session = null, upsertError = null } = {}) {
 }
 
 function loadService(mockClient) {
-  return loadTsModule('services/legalAcceptance.ts', {
+  const service = loadTsModule('services/legalAcceptance.ts', {
     './supabaseClient': { supabase: mockClient },
     '../constants/legal': {
       TERMS_VERSION: '1.0',
       PRIVACY_VERSION: '1.0',
       AGE_VERSION: '1.0',
+      AI_PROCESSING_VERSION: 'v1',
     },
     '../src/utils/errorLogger': { logError: () => {} },
   });
+  const record = service.recordLegalAcceptances;
+  service.recordLegalAcceptances = (input, client) => record({ aiProcessingVersion: '4.0', ...input }, client);
+  return service;
 }
 
 function createAcceptanceReadClient(rows, error = null) {
@@ -85,6 +89,7 @@ test('recognizes an existing account only when all current legal versions are pr
     { acceptance_type: 'terms', policy_version: '1.0' },
     { acceptance_type: 'privacy', policy_version: '1.0' },
     { acceptance_type: 'minimum_age', policy_version: '1.0' },
+    { acceptance_type: 'ai_processing', policy_version: 'v1' },
   ]);
   const { hasCurrentLegalAcceptances } = loadService(client);
 
@@ -159,7 +164,7 @@ test('rejects missing authenticated user', async () => {
 
 // ─── Upsert behavior ────────────────────────────────────────────────────────
 
-test('builds exactly three legal acceptance rows', async () => {
+test('builds exactly four legal acceptance rows', async () => {
   const client = createMockClient({ session: { user: { id: 'user-1' } } });
   const { recordLegalAcceptances } = loadService(client);
   await recordLegalAcceptances({
@@ -171,10 +176,10 @@ test('builds exactly three legal acceptance rows', async () => {
   assert.equal(client._upsertCalls.length, 1);
   const call = client._upsertCalls[0];
   assert.equal(call.tableName, 'legal_acceptances');
-  assert.equal(call.rows.length, 3);
+  assert.equal(call.rows.length, 4);
 });
 
-test('uses acceptance_type values: terms, privacy, minimum_age', async () => {
+test('uses acceptance_type values: terms, privacy, minimum_age, ai_processing', async () => {
   const client = createMockClient({ session: { user: { id: 'user-1' } } });
   const { recordLegalAcceptances } = loadService(client);
   await recordLegalAcceptances({
@@ -187,6 +192,66 @@ test('uses acceptance_type values: terms, privacy, minimum_age', async () => {
   assert.ok(types.includes('terms'));
   assert.ok(types.includes('privacy'));
   assert.ok(types.includes('minimum_age'));
+  assert.ok(types.includes('ai_processing'));
+});
+
+test('records AI consent as an actor-scoped, versioned ledger row', async () => {
+  const client = createMockClient({ session: { user: { id: 'actor-a' } } });
+  const { recordLegalAcceptances } = loadService(client);
+  await recordLegalAcceptances({
+    termsVersion: '1.0',
+    privacyVersion: '2.0',
+    minimumAgeVersion: '3.0',
+    aiProcessingVersion: 'v1',
+  }, client);
+
+  const aiRow = client._upsertCalls[0].rows.find((row) => row.acceptance_type === 'ai_processing');
+  assert.deepEqual(JSON.parse(JSON.stringify(aiRow)), {
+    user_id: 'actor-a',
+    acceptance_type: 'ai_processing',
+    policy_version: 'v1',
+    source: 'mobile',
+    app_version: null,
+    metadata: {},
+  });
+});
+
+test('rejects an empty AI-processing consent version', async () => {
+  const client = createMockClient({ session: { user: { id: 'actor-a' } } });
+  const { recordLegalAcceptances } = loadService(client);
+  const result = await recordLegalAcceptances({
+    termsVersion: '1.0',
+    privacyVersion: '2.0',
+    minimumAgeVersion: '3.0',
+    aiProcessingVersion: '',
+  }, client);
+
+  assert.equal(result.ok, false);
+  assert.equal(client._upsertCalls.length, 0);
+});
+
+test('does not restore a returning user whose ledger lacks AI-processing consent', async () => {
+  const client = createAcceptanceReadClient([
+    { acceptance_type: 'terms', policy_version: '1.0' },
+    { acceptance_type: 'privacy', policy_version: '1.0' },
+    { acceptance_type: 'minimum_age', policy_version: '1.0' },
+  ]);
+  const { hasCurrentLegalAcceptances } = loadService(client);
+
+  assert.equal(await hasCurrentLegalAcceptances('legacy-actor', client), false);
+});
+
+test('legal acceptance lookups remain isolated to the authenticated actor id', async () => {
+  const client = createAcceptanceReadClient([
+    { acceptance_type: 'terms', policy_version: '1.0' },
+    { acceptance_type: 'privacy', policy_version: '1.0' },
+    { acceptance_type: 'minimum_age', policy_version: '1.0' },
+    { acceptance_type: 'ai_processing', policy_version: 'v1' },
+  ]);
+  const { hasCurrentLegalAcceptances } = loadService(client);
+
+  assert.equal(await hasCurrentLegalAcceptances('actor-b', client), true);
+  assert.equal(client._calls[0].value, 'actor-b');
 });
 
 test('uses source: mobile', async () => {
@@ -202,6 +267,7 @@ test('uses source: mobile', async () => {
   assert.equal(rows[0].source, 'mobile');
   assert.equal(rows[1].source, 'mobile');
   assert.equal(rows[2].source, 'mobile');
+  assert.equal(rows[3].source, 'mobile');
 });
 
 test('uses app_version null when unavailable', async () => {
@@ -217,6 +283,7 @@ test('uses app_version null when unavailable', async () => {
   assert.equal(rows[0].app_version, null);
   assert.equal(rows[1].app_version, null);
   assert.equal(rows[2].app_version, null);
+  assert.equal(rows[3].app_version, null);
 });
 
 test('uses app_version when provided', async () => {
@@ -233,6 +300,7 @@ test('uses app_version when provided', async () => {
   assert.equal(rows[0].app_version, '1.2.3');
   assert.equal(rows[1].app_version, '1.2.3');
   assert.equal(rows[2].app_version, '1.2.3');
+  assert.equal(rows[3].app_version, '1.2.3');
 });
 
 test('uses upsert on user_id,acceptance_type,policy_version', async () => {
@@ -289,6 +357,7 @@ test('derives user_id from session user, not from caller', async () => {
   assert.equal(rows[0].user_id, 'user-abc-123');
   assert.equal(rows[1].user_id, 'user-abc-123');
   assert.equal(rows[2].user_id, 'user-abc-123');
+  assert.equal(rows[3].user_id, 'user-abc-123');
 });
 
 test('trims policy versions before persisting', async () => {
@@ -304,6 +373,7 @@ test('trims policy versions before persisting', async () => {
   assert.equal(rows[0].policy_version, '1.0');
   assert.equal(rows[1].policy_version, '2.0');
   assert.equal(rows[2].policy_version, '3.0');
+  assert.equal(rows[3].policy_version, '4.0');
 });
 
 test('returns ok: true on success', async () => {

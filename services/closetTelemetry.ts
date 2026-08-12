@@ -59,6 +59,25 @@ export const CLOSET_CANDIDATE_EVENTS = [
   'mirror_candidate_staging_completed',
   'mirror_candidate_staging_partial',
   'mirror_candidate_staging_cancelled',
+  // Elise image styling loop. The conversation-side continuation of the same
+  // candidate lifecycle these events already describe: a photo attached to Elise
+  // IS a Closet candidate, and whether the user keeps it, styles it, or drops it
+  // is the outcome this sink exists to record. No new transport is added — the
+  // sink, the scrub and the two allowlists below are unchanged.
+  //
+  // SHAPE AND OUTCOME ONLY. The property allowlist admits five enums and nothing
+  // else, so a raw prompt, the user's typed text, an image URI, an actor id, a
+  // Closet item id, a candidate id and a session id are all rejected by
+  // construction rather than by anyone remembering not to pass them.
+  'elise_image_followup_shown',
+  'elise_image_followup_selected',
+  'elise_image_save_prompt_shown',
+  'elise_image_save_selected',
+  'elise_image_saved',
+  'elise_image_style_item_selected',
+  'elise_image_dressing_room_opened',
+  'elise_image_context_cleared',
+  'elise_image_context_replaced',
 ] as const;
 
 export type ClosetCandidateEvent = typeof CLOSET_CANDIDATE_EVENTS[number];
@@ -120,6 +139,19 @@ export const CLOSET_CANDIDATE_EVENT_PROPERTIES = [
   'groupCountBucket',
   'successCountBucket',
   'failureCountBucket',
+  // Elise image styling loop — elise_image_* only. Every one is an enum:
+  //   itemCategory     one of the eight CategoryBucket values
+  //   attachmentState  the attachment lifecycle state
+  //   closetState      not_saved | saving | saved | save_failed
+  //   actionType       the follow-up action TYPE, never its prompt text
+  //   source           where in the app the action was taken
+  // There is deliberately no free-text property here either: one is all it takes
+  // for a caller to pass the question the user actually asked.
+  'itemCategory',
+  'attachmentState',
+  'closetState',
+  'actionType',
+  'source',
 ] as const;
 
 export type ClosetCandidateEventProperty =

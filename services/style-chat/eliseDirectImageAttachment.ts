@@ -1,7 +1,10 @@
 // Direct-image attachment preparation for Elise.
-// Reuses Scanner-compatible compress + privacy preparation. Does NOT call
-// scan-identify merely to manufacture an attachment — creates a saved_scan
-// row with private media so V2 can attach owned_item/saved_scan.
+//
+// The selected photo is first reserved in the existing actor-scoped Closet
+// candidate store. That gives Elise a durable app-controlled image without
+// creating a Recent Scan, saved_scan row, or Closet item. Privacy preparation
+// and identification remain unchanged; Closet promotion is explicit and
+// idempotent by candidate identity.
 
 import {
   SCANNER_IMAGE_JPEG_QUALITY,
@@ -11,16 +14,16 @@ import {
   cleanupSanitizedImage,
   prepareImageForPrivacyUpload,
 } from '../privacyImageUpload';
-import { saveScan } from '../library';
 import { createActorRequest } from '../actorContext';
-import { upsertSavedScanRowForAttachment } from '../savedScansCloud';
-import { ensureSavedScanMediaBacking } from '../savedScanMedia';
-import { supabase } from '../supabaseClient';
 import {
-  STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
-  type StyleChatAttachment,
-  type StyleChatAttachmentSummary,
-} from '../../types/styleChatAttachments';
+  createClosetCandidate,
+  deleteClosetCandidate,
+  getClosetCandidate,
+  transitionClosetCandidate,
+  updateClosetCandidate,
+} from '../closetCandidateLibrary';
+import { promoteSelectedClosetCandidates } from '../closetCandidatePromotion';
+import type { StyleChatAttachmentSummary } from '../../types/styleChatAttachments';
 
 export type PreparedDirectImage = {
   previewUri: string;
@@ -29,63 +32,91 @@ export type PreparedDirectImage = {
   height?: number;
   source: 'camera' | 'photo_library';
   operationId: string;
+  candidateId: string;
+  candidateBatchId: string;
+  candidateImageUri: string;
+  candidateThumbnailUri?: string | null;
 };
 
 export type DirectImageAttachResult =
   | {
       ok: true;
-      resolved: StyleChatAttachment;
       summary: StyleChatAttachmentSummary;
       prepared: PreparedDirectImage;
+      closetState: 'not_saved' | 'saved';
+      closetItemId?: string | null;
     }
   | {
       ok: false;
       errorCode: 'PREPARATION_FAILED' | 'UPLOAD_FAILED' | 'RESOLUTION_FAILED';
       message: string;
-      /** Retry context only; never sent in the Contract V2 request. */
-      localScanId?: string;
-      savedScanId?: string;
+      candidateId?: string;
     };
 
 function newOperationId(): string {
   return `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-/**
- * Prepare a local camera/gallery URI with the accepted Scanner pathway:
- * URI validate → single metadata-stripped re-encode (896/0.65 JPEG).
- */
+/** Stage an image that has already passed the existing privacy preparation. */
+export async function stageSanitizedEliseDirectImage(
+  sanitizedUri: string,
+  source: 'camera' | 'photo_library',
+  previewUri?: string,
+): Promise<PreparedDirectImage> {
+  if (!sanitizedUri || typeof sanitizedUri !== 'string') throw new Error('No image selected.');
+
+  const operationId = newOperationId();
+  const staged = await createClosetCandidate(createActorRequest(), {
+    sourceUri: sanitizedUri,
+    sourceType: source === 'camera' ? 'camera' : 'gallery',
+    sourceLineageId: `elise:${operationId}`,
+    draft: { title: 'Photo' },
+  });
+  if (
+    staged.kind === 'rejected' ||
+    staged.kind === 'already_in_closet' ||
+    !('candidate' in staged) ||
+    !staged.candidate?.candidateImageUri
+  ) {
+    throw new Error('Could not keep a durable copy of this photo.');
+  }
+
+  const candidate = staged.candidate;
+  return {
+    previewUri: previewUri ?? candidate.candidateThumbnailUri ?? candidate.candidateImageUri,
+    preparedUri: sanitizedUri,
+    source,
+    operationId,
+    candidateId: candidate.candidateId,
+    candidateBatchId: candidate.batchId,
+    candidateImageUri: candidate.candidateImageUri,
+    candidateThumbnailUri: candidate.candidateThumbnailUri,
+  };
+}
+
+/** Preserve the existing privacy boundary before writing durable app media. */
 export async function prepareEliseDirectImage(
   localUri: string,
   source: 'camera' | 'photo_library',
 ): Promise<PreparedDirectImage> {
-  if (!localUri || typeof localUri !== 'string') {
-    throw new Error('No image selected.');
-  }
+  if (!localUri || typeof localUri !== 'string') throw new Error('No image selected.');
 
-  const operationId = newOperationId();
-  // Single Scanner-compatible resize+re-encode pass (896 / 0.65). The prior
-  // implementation ran a second compressForUpload pass on top of this output
-  // to produce a base64 data URI that no downstream caller ever read —
-  // that pass has been removed to avoid a wasted generational JPEG re-encode.
   const prepared = await prepareImageForPrivacyUpload(localUri, {
     maxDimension: SCANNER_IMAGE_MAX_WIDTH,
     quality: SCANNER_IMAGE_JPEG_QUALITY,
   });
-
-  return {
-    previewUri: prepared.sanitizedUri,
-    preparedUri: prepared.sanitizedUri,
-    width: prepared.width,
-    height: prepared.height,
-    source,
-    operationId,
-  };
+  try {
+    const staged = await stageSanitizedEliseDirectImage(prepared.sanitizedUri, source);
+    return { ...staged, width: prepared.width, height: prepared.height };
+  } catch (error) {
+    await cleanupSanitizedImage(prepared.sanitizedUri);
+    throw error;
+  }
 }
 
 /**
- * Persist a prepared direct image as a cloud-backed saved_scan and return the
- * V2 owned_item attachment. Skips scan-identify.
+ * Finalize identification metadata on the durable candidate. No Closet or
+ * cloud persistence is required for Elise readiness.
  */
 export async function resolvePreparedDirectImageAttachment(
   prepared: PreparedDirectImage,
@@ -93,138 +124,73 @@ export async function resolvePreparedDirectImageAttachment(
     title?: string;
     category?: string;
     signal?: AbortSignal;
-    /**
-     * Real identification output to persist instead of the placeholder.
-     *
-     * The direct composer path deliberately skips scan-identify, so it has
-     * nothing better than `"<title> — attached for Elise"` to store. The Elise
-     * header-gallery path (IMG-007) does call scan-identify first, and passing
-     * its mapped analysis here means the saved scan and its cloud row carry the
-     * actual result rather than a placeholder that would then need a second
-     * write to correct.
-     */
     analysis?: { result?: string; metadata?: Record<string, unknown> } & Record<string, unknown>;
   },
 ): Promise<DirectImageAttachResult> {
   if (options?.signal?.aborted) {
-    return {
-      ok: false,
-      errorCode: 'PREPARATION_FAILED',
-      message: 'Attachment cancelled.',
-    };
+    return { ok: false, errorCode: 'PREPARATION_FAILED', message: 'Attachment cancelled.' };
   }
 
-  let localScanId: string | undefined;
-  let savedScanId: string | undefined;
   try {
     const title = (options?.title ?? 'Photo').trim().slice(0, 80) || 'Photo';
     const category = (options?.category ?? 'tops').trim().slice(0, 80) || 'tops';
+    const actorRequest = createActorRequest();
+    let loaded = await getClosetCandidate(actorRequest, prepared.candidateId);
+    if (!loaded.ok) throw new Error('candidate');
 
-    // Elise-backed saves carry the same actor authority as Scanner saves:
-    // ownership is derived from the captured context and a stale context is
-    // rejected rather than writing under the wrong owner.
-    const scan = await saveScan({
-      photoUri: prepared.preparedUri,
-      analysis: options?.analysis ?? {
-        result: `${title} — attached for Elise`,
-        metadata: { category, color: undefined },
-      },
-      source: prepared.source === 'camera' ? 'camera' : 'upload',
-      actorRequest: createActorRequest(),
-    });
-    if (!scan) {
-      return {
-        ok: false,
-        errorCode: 'UPLOAD_FAILED',
-        message: 'Could not save the photo. Please try again.',
-      };
-    }
-    localScanId = scan.id;
-
-    // Explicit user-requested Elise preparation. Broad/passive Library sync
-    // remains gated inside saveScanToCloud; this operation creates only the
-    // one row/media backing required for the selected attachment.
-    const cloudResult = await upsertSavedScanRowForAttachment(scan);
-    if (!cloudResult.ok) {
-      return {
-        ok: false,
-        errorCode: 'UPLOAD_FAILED',
-        message: 'Could not sync the photo. Please try again.',
-        localScanId,
-      };
+    if (loaded.candidate.status === 'queued') {
+      const classifying = await transitionClosetCandidate(
+        actorRequest,
+        prepared.candidateId,
+        { to: 'classifying', attempt: 'manual' },
+      );
+      if (!classifying || classifying.ok !== true) throw new Error('candidate');
+      loaded = classifying;
     }
 
-    const resultData =
-      cloudResult.data && typeof cloudResult.data === 'object'
-        ? (cloudResult.data as { id?: unknown })
-        : null;
-    savedScanId = typeof resultData?.id === 'string' ? resultData.id : undefined;
-
-    // Backward-compatible fallback for a successful implementation that did
-    // not return the id. Scope explicitly by the authenticated user in
-    // addition to RLS; the caller never supplies ownership.
-    if (!savedScanId) {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const userId = sessionData.session?.user?.id;
-      if (userId) {
-        const { data: row } = await supabase
-          .from('saved_scans')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('local_id', scan.id)
-          .is('deleted_at', null)
-          .maybeSingle();
-        savedScanId = row?.id as string | undefined;
-      }
-    }
-    if (!savedScanId) {
-      return {
-        ok: false,
-        errorCode: 'RESOLUTION_FAILED',
-        message: 'Could not finish attaching the photo. Please try again.',
-        localScanId,
-      };
+    const patch = { title, category, classificationVersion: 'elise-fashion-context-v2' };
+    if (loaded.candidate.status === 'classifying') {
+      const ready = await transitionClosetCandidate(
+        actorRequest,
+        prepared.candidateId,
+        { to: 'ready_for_review', patch },
+      );
+      if (!ready || ready.ok !== true) throw new Error('candidate');
+      loaded = ready;
+    } else if (loaded.candidate.status === 'ready_for_review') {
+      const updated = await updateClosetCandidate(actorRequest, prepared.candidateId, patch);
+      if (!updated || updated.ok !== true) throw new Error('candidate');
+      loaded = updated;
     }
 
-    const media = await ensureSavedScanMediaBacking({
-      savedScanId,
-      localImageUri: prepared.preparedUri,
-    });
-    if (!media.ok) {
-      return {
-        ok: false,
-        errorCode: media.retryable ? 'UPLOAD_FAILED' : 'RESOLUTION_FAILED',
-        message: 'Could not prepare the photo for Elise. Please try again.',
-        localScanId,
-        savedScanId,
-      };
+    const closetItemId =
+      loaded.candidate.status === 'saved'
+        ? loaded.candidate.promotedClosetItemId ?? null
+        : loaded.candidate.status === 'duplicate'
+          ? loaded.candidate.duplicateMatch?.closetItemId ?? null
+          : null;
+    if (loaded.candidate.status !== 'ready_for_review' && !closetItemId) {
+      throw new Error('candidate');
     }
-
-    const resolved: StyleChatAttachment = {
-      attachmentType: 'owned_item',
-      sourceType: 'saved_scan',
-      sourceId: savedScanId,
-      contractVersion: STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
-    };
 
     return {
       ok: true,
-      resolved,
       summary: {
         title,
-        subtitle: prepared.source === 'camera' ? 'Photo' : 'Photo',
-        imageUri: prepared.previewUri,
+        subtitle: 'Photo',
+        imageUri: prepared.candidateThumbnailUri ?? prepared.candidateImageUri,
         itemCount: 1,
       },
       prepared,
+      closetState: closetItemId ? 'saved' : 'not_saved',
+      closetItemId,
     };
   } catch {
     return {
       ok: false,
       errorCode: 'RESOLUTION_FAILED',
       message: 'Could not attach the photo. Please try again.',
-      ...(localScanId ? { localScanId } : {}),
-      ...(savedScanId ? { savedScanId } : {}),
+      candidateId: prepared.candidateId,
     };
   }
 }
@@ -234,4 +200,22 @@ export async function cleanupPreparedDirectImage(
 ): Promise<void> {
   if (!prepared) return;
   await cleanupSanitizedImage(prepared.preparedUri);
+}
+
+export async function discardPreparedDirectImage(
+  prepared: PreparedDirectImage | null | undefined,
+): Promise<void> {
+  if (!prepared) return;
+  await cleanupPreparedDirectImage(prepared);
+  await deleteClosetCandidate(createActorRequest(), prepared.candidateId).catch(() => null);
+}
+
+export async function promotePreparedDirectImageToCloset(prepared: PreparedDirectImage) {
+  const actorRequest = createActorRequest();
+  return promoteSelectedClosetCandidates({
+    actorId: actorRequest.actorId,
+    actorEpoch: actorRequest.epoch,
+    batchId: prepared.candidateBatchId,
+    candidateIds: [prepared.candidateId],
+  });
 }

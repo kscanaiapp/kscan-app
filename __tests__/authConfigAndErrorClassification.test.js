@@ -109,14 +109,14 @@ test('errors: only a real invalid-credentials response blames the password', () 
   assert.match(mapAuthError('Invalid login credentials', 'sign-in'), /password is incorrect/i);
 });
 
-// A config-error branch in mapAuthError is deliberately NOT added here: this
-// production baseline's services/supabaseClient.ts still fails open (dev-only
-// console.warn + placeholder URL) rather than throwing a formatted
-// `Supabase configuration error [code]: message`, so mapAuthError has no such
-// string to recognize yet. Wiring supabaseClient.ts to fail closed is a
-// separate, more invasive change deferred pending confirmation (a module-load
-// throw needs a verified error boundary first). validateSupabaseConfig itself
-// is exercised directly by the tests above regardless of this deferral.
+test('errors: build configuration failure is not reported as a network outage', () => {
+  const message = mapAuthError(
+    'Supabase configuration error [missing_url]: EXPO_PUBLIC_SUPABASE_URL is not set.',
+    'sign-in',
+  );
+  assert.match(message, /not configured/i);
+  assert.doesNotMatch(message, /network|connection|password/i);
+});
 
 test('errors: an unmatched backend failure is NOT reported as a bad password', () => {
   const message = mapAuthError('Internal Server Error (500)', 'sign-in');
