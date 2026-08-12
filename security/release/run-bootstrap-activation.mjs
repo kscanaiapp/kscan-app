@@ -57,6 +57,7 @@ import smokeModule from './run-release-smoke.js';
 import metadataWriter from './set-staging-release-metadata.mjs';
 import deployCore from './staging-deploy-core.mjs';
 import packageModule from './verified-release-package.mjs';
+import runtimeAdapters from './activation-runtime-adapters.mjs';
 
 const { STAGING_REF, PRODUCTION_REF, assertExpectedEnvironment } = authority;
 const { generateReleaseManifest, freezeManifest, verifyFreeze } = manifestModule;
@@ -68,7 +69,8 @@ const { planBootstrapFullAttestation, mintVerifiedBaseline, validateVerifiedBase
 const { runReleaseSmoke } = smokeModule;
 const { setStagingReleaseMetadata } = metadataWriter;
 const { materializeCandidate, deployOneFromCandidate } = deployCore;
-const { buildPackage, publishPackage } = packageModule;
+const { buildPackage, publishPackage, loadPriorVerifiedRelease } = packageModule;
+const { createHealthProbe, createCertificationLoader, createGithubAdapter } = runtimeAdapters;
 
 export const MODE = Object.freeze({ PLAN_ONLY: 'PLAN_ONLY', EXECUTE: 'EXECUTE' });
 export const HEALTH_FUNCTION = 'staging-health';
@@ -150,11 +152,31 @@ export async function runBootstrapActivation({
   priorVerifiedRelease = null,
   certification = null,
   deploymentRunId = 'local',
+  // DEF-REL-018/N: one releaseId per EXECUTE run, generated once by the
+  // authoritative step and threaded through plan/execute/receipt/metadata/tag.
+  releaseId: providedReleaseId = null,
+  // Bound to the real run attempt so a re-run is distinguishable.
+  deploymentAttempt = 1,
   now = () => new Date(),
   env = process.env,
+  outputDir = null,
   deps = {},
 } = {}) {
   const steps = [];
+  const artifacts = {};
+  // DEF-REL-015: each artifact is written as its own file the moment it
+  // legitimately exists, because the persistence job consumes files, not a
+  // combined stdout blob. Nothing "verified" is written when it was denied.
+  const writeArtifact = (name, value) => {
+    artifacts[name] = value;
+    if (!outputDir) return;
+    fs.mkdirSync(outputDir, { recursive: true });
+    const target = path.join(outputDir, name);
+    const tmp = `${target}.tmp`;
+    fs.writeFileSync(tmp, `${JSON.stringify(value, null, 2)}
+`);
+    fs.renameSync(tmp, target); // atomic replace
+  };
   const record = (name, status, detail) => {
     steps.push({ name, status, detail: detail || null });
     return status;
@@ -184,7 +206,7 @@ export async function runBootstrapActivation({
   // ── candidate + manifest + freeze ────────────────────────────────────────
   const candidateSha = git(repoRoot, ['rev-parse', 'HEAD']);
   const candidateTreeSha = git(repoRoot, ['rev-parse', 'HEAD^{tree}']);
-  const releaseId = buildReleaseId(candidateSha, now());
+  const releaseId = providedReleaseId || buildReleaseId(candidateSha, now());
 
   const manifest = generateReleaseManifest({
     repoRoot,
@@ -227,6 +249,8 @@ export async function runBootstrapActivation({
     return { ok: false, mode, releaseId, steps, code: plan.refusals[0]?.code || 'BOOTSTRAP_PLAN_REFUSED', refusals: plan.refusals };
   }
   const partition = partitionBootstrapPlan(plan.plan.functions);
+  writeArtifact('frozen-manifest.json', { frozen, manifest });
+  writeArtifact('bootstrap-plan.json', plan.plan);
   record('bootstrap_plan', STATUS.PASS, `${plan.plan.functions.length} functions; ${HEALTH_FUNCTION} last`);
 
   // ── migration state ──────────────────────────────────────────────────────
@@ -304,7 +328,7 @@ export async function runBootstrapActivation({
   // ══ EXECUTE ══════════════════════════════════════════════════════════════
 
   const startedAt = now().toISOString();
-  let receipt = createReceipt({ binding: binding.binding, deploymentRunId, deploymentAttempt: 1, startedAt,
+  let receipt = createReceipt({ binding: binding.binding, deploymentRunId, deploymentAttempt, startedAt,
     preDeployVerification: { status: STATUS.PASS, freeze: true, binding: true, migrations: true } });
 
   const materialized = materialize({ repoRoot, candidateSha });
@@ -386,6 +410,7 @@ export async function runBootstrapActivation({
     deployResults,
     postDeployIdentity: failure ? null : { releaseId, sourceSha: candidateSha, manifestDigest: manifest.identityDigest },
   });
+  writeArtifact('deployment-receipt.json', finalReceipt);
   record('deployment_receipt', STATUS.PASS, `attempt ${finalReceipt.deploymentAttempt}, status ${finalReceipt.status}`);
 
   if (failure) {
@@ -401,6 +426,7 @@ export async function runBootstrapActivation({
     ? await probeHealth({ projectRef })
     : { live: { status: STATUS.OPERATIONAL_FAILURE, detail: 'no health probe adapter supplied' },
         ready: { status: STATUS.OPERATIONAL_FAILURE }, version: { status: STATUS.OPERATIONAL_FAILURE }, versionBody: null };
+  writeArtifact('health-results.json', health);
   record('health_contract', health.live?.status === STATUS.PASS && health.ready?.status === STATUS.PASS
     ? STATUS.PASS : STATUS.OPERATIONAL_FAILURE);
 
@@ -415,6 +441,7 @@ export async function runBootstrapActivation({
     observedProjectRef: projectRef,
     previousRelease: null,
   });
+  writeArtifact('exact-verification.json', verification);
   record('exact_candidate_verification', verification.result === RESULT.PASS ? STATUS.PASS : STATUS.BLOCKED, verification.result);
 
   // ── smoke ────────────────────────────────────────────────────────────────
@@ -425,6 +452,7 @@ export async function runBootstrapActivation({
     syntheticAvailable: Boolean(env.STAGING_SYNTHETIC_ACTIVE_EMAIL),
     env,
   });
+  writeArtifact('smoke-results.json', smoke);
   record('backend_smoke', smoke.requiredFailures.length === 0 ? STATUS.PASS : STATUS.BLOCKED,
     smoke.requiredFailures.join(', ') || null);
 
@@ -444,6 +472,7 @@ export async function runBootstrapActivation({
     productionEligibility: null,
   });
 
+  writeArtifact('release-evidence.json', evidence);
   const decision = canEnterStagingVerified(evidence);
   record('staging_verified', decision.allowed ? STATUS.PASS : STATUS.BLOCKED, decision.reasons.join('; ') || null);
 
@@ -465,16 +494,29 @@ export async function runBootstrapActivation({
   if (!baselineValidation.valid) {
     return { ok: false, mode, releaseId, steps, code: 'BASELINE_VALIDATION_FAILED', evidence, baseline };
   }
+  // Only now: a "verified" baseline file must never exist for a denied release.
+  writeArtifact('verified-baseline.json', baseline);
 
   // ── persist (durable, after verification only) ───────────────────────────
   const pkg = buildPackage({ baseline, evidence, receipt: finalReceipt, manifest, candidateSha, releaseId });
+  writeArtifact('release-package.json', { tag: pkg.tag, candidateSha: pkg.candidateSha, releaseId: pkg.releaseId, assetDigests: pkg.assetDigests });
+
+  // Part E: the execute job holds contents:read, so it does NOT publish. When
+  // no adapter is supplied the run legitimately ends PERSISTENCE_PENDING —
+  // runtime-verified and baseline-minted, awaiting the persistence job. That
+  // is an intermediate workflow state, not a failure of the execute job.
   const persistence = github
     ? await publishPackage({ pkg, github })
-    : { ok: false, persisted: false, code: 'VERIFIED_BASELINE_PERSISTENCE_GAP', failures: [{ code: 'NO_GITHUB_ADAPTER', detail: 'no persistence adapter supplied' }] };
-  record('persistence', persistence.ok ? STATUS.PASS : STATUS.OPERATIONAL_FAILURE, persistence.ok ? persistence.tag : persistence.code);
+    : { ok: false, persisted: false, pending: true, code: 'PERSISTENCE_PENDING', tag: pkg.tag };
+  record('persistence', persistence.ok ? STATUS.PASS
+    : (persistence.pending ? STATUS.PENDING : STATUS.OPERATIONAL_FAILURE),
+  persistence.ok ? persistence.tag : persistence.code);
 
   return {
-    ok: persistence.ok,
+    // A pending-persistence run is a successful execute job.
+    ok: persistence.ok || Boolean(persistence.pending),
+    runtimeVerified: true,
+    baselineMinted: true,
     mode,
     releaseId,
     candidateSha,
@@ -488,31 +530,111 @@ export async function runBootstrapActivation({
     baseline,
     persistence,
     // Verified in runtime evidence, but not retrievable for carry-forward.
-    code: persistence.ok ? null : 'VERIFIED_BASELINE_PERSISTENCE_GAP',
+    code: persistence.ok ? null : (persistence.pending ? 'PERSISTENCE_PENDING' : 'VERIFIED_BASELINE_PERSISTENCE_GAP'),
+    outputDir,
     mutated: true,
   };
 }
 
-export default { MODE, HEALTH_FUNCTION, ActivationError, assertExecuteAuthority, buildReleaseId, partitionBootstrapPlan, runBootstrapActivation };
+export default { MODE, HEALTH_FUNCTION, ActivationError, assertExecuteAuthority, buildReleaseId, partitionBootstrapPlan, runBootstrapActivation, buildCliDeps };
 
-// CLI: PLAN_ONLY by default; EXECUTE must be asked for explicitly.
+// ── CLI ─────────────────────────────────────────────────────────────────────
+//
+// DEF-REL-014: the CLI must WIRE THE REAL ADAPTERS. Previously it called
+// runBootstrapActivation() with no health probe, no certification and no
+// GitHub adapter, so a real EXECUTE could never reach STAGING_VERIFIED however
+// well the deploys went. Adapters that exist only in tests prove nothing about
+// the path that actually runs, which is why buildCliDeps is exported and
+// asserted by an integration test.
+
+/** Builds the real runtime adapters the CLI uses. Exported so tests can prove wiring. */
+export function buildCliDeps({ env = process.env, repoRoot, readOnly = false } = {}) {
+  const repo = env.GITHUB_REPOSITORY || 'kscanaiapp/kscan-app';
+  return {
+    probeHealth: createHealthProbe({
+      stagingUrl: env.SUPABASE_STAGING_URL,
+      anonKey: env.SUPABASE_STAGING_ANON_KEY,
+    }),
+    loadCertification: createCertificationLoader({
+      repoRoot,
+      reportPath: env.KSCAN_CERTIFICATION_REPORT || null,
+    }),
+    // Read-only for discovery; the execute job never publishes.
+    githubRead: createGithubAdapter({ repo, readOnly: true, env }),
+    readOnly,
+  };
+}
+
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
-  const mode = process.argv.includes('--execute') ? MODE.EXECUTE : MODE.PLAN_ONLY;
-  const inventoryPath = process.argv[process.argv.indexOf('--inventory') + 1];
+  const argv = process.argv;
+  // A missing flag must yield null, never argv[0]. `indexOf(...) + 1` on an
+  // absent flag returns 0, which previously made the CLI try to JSON.parse the
+  // node executable itself.
+  const flagValue = (flag) => {
+    const i = argv.indexOf(flag);
+    return i === -1 || i + 1 >= argv.length ? null : argv[i + 1];
+  };
+  const mode = argv.includes('--execute') ? MODE.EXECUTE : MODE.PLAN_ONLY;
+  const inventoryPath = flagValue('--inventory');
+  const outputDir = flagValue('--output-dir');
+  const releaseId = flagValue('--release-id');
+  const repoRoot = process.cwd();
+
   const inventory = inventoryPath && fs.existsSync(inventoryPath)
     ? JSON.parse(fs.readFileSync(inventoryPath, 'utf8')) : null;
-  if (!inventory) {
-    console.error('FAIL  --inventory <file> is required (live staging function + migration inventory)');
+
+  // Fail closed: an inventory that could not be collected is an operational
+  // failure, never an empty list (DEF-REL-018/K).
+  if (!inventory || !Array.isArray(inventory.functions) || !Array.isArray(inventory.migrations)) {
+    console.error('ACTIVATION_INVENTORY_OPERATIONAL_FAILURE: --inventory must supply {functions:[], migrations:[]}');
     process.exit(2);
   }
+  if (inventory.functions.length === 0) {
+    console.error('ACTIVATION_INVENTORY_OPERATIONAL_FAILURE: live function inventory is empty; refusing to plan');
+    process.exit(2);
+  }
+
+  const cli = buildCliDeps({ repoRoot, readOnly: mode === MODE.PLAN_ONLY });
+
+  // Certification is REQUIRED for a real run; a missing report blocks.
+  const certResult = cli.loadCertification();
+  if (!certResult.ok && mode === MODE.EXECUTE) {
+    console.error(`ACTIVATION_CERTIFICATION_OPERATIONAL_FAILURE: ${certResult.detail}`);
+    process.exit(1);
+  }
+
+  // Prior verified baseline discovery — read-only, both modes. Bootstrap is a
+  // one-time mode, so an existing trust root must be discovered, not assumed
+  // absent (DEF-REL-014/P). Naming alone is never trusted: the loader
+  // re-validates the package.
+  let priorVerifiedRelease = null;
+  try {
+    const prior = await loadPriorVerifiedRelease({ github: cli.githubRead });
+    if (prior.ok) priorVerifiedRelease = prior.bundle;
+  } catch {
+    // No discoverable release is the expected first-bootstrap state.
+  }
+
   runBootstrapActivation({
-    repoRoot: process.cwd(),
+    repoRoot,
     mode,
     liveFunctionNames: inventory.functions,
     liveMigrationNames: inventory.migrations,
+    certification: certResult.certification,
+    priorVerifiedRelease,
+    releaseId,
     deploymentRunId: process.env.GITHUB_RUN_ID || 'local',
+    deploymentAttempt: Number(process.env.GITHUB_RUN_ATTEMPT || 1),
+    outputDir,
+    deps: { probeHealth: cli.probeHealth },
   }).then((result) => {
-    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    if (outputDir) {
+      fs.mkdirSync(outputDir, { recursive: true });
+      fs.writeFileSync(path.join(outputDir, 'activation-result.json'), `${JSON.stringify(result, null, 2)}
+`);
+    }
+    process.stdout.write(`${JSON.stringify(result, null, 2)}
+`);
     process.exit(result.ok ? 0 : 1);
   }).catch((error) => {
     console.error(`FAIL  ${error.code || 'ERROR'}: ${error.message}`);
