@@ -372,6 +372,136 @@ function sanitizeEventContexts(contexts) {
   return safe;
 }
 
+/* ------------------------------------------------------------------------- *
+ * Transaction boundary
+ *
+ * A transaction envelope is NOT an error envelope, and running it through
+ * `sanitizeProviderEvent` was wrong in both directions: that function drops
+ * `start_timestamp` and `spans`, which Sentry requires, so every transaction
+ * would have been rejected as malformed; and it has no opinion at all about
+ * span `description`/`data`, which is where a URL, a prompt, or a SQL string
+ * would actually ride out.
+ *
+ * `tracesSampleRate` is a number in the shipped options, so this path is live
+ * the moment a DSN is configured — not dormant.
+ * ------------------------------------------------------------------------- */
+
+/**
+ * Bounded operation labels. Anything outside this set becomes `other`, so an
+ * auto-instrumented op cannot introduce unbounded tag cardinality or carry
+ * text from a route, a URL, or a query.
+ */
+const ALLOWED_SPAN_OPS = new Set([
+  'scanner.request', 'elise.request', 'closet.rpc', 'dressing_room.request',
+  'textscan.request', 'edge.function',
+  'app.start', 'app.start.cold', 'app.start.warm',
+  'navigation', 'navigation.processing',
+  'ui.load', 'ui.load.initial_display', 'ui.load.full_display', 'ui.action',
+  'http.client', 'db.query', 'resource.script', 'function',
+]);
+const FALLBACK_SPAN_OP = 'other';
+
+function normalizeSpanOp(op) {
+  if (typeof op !== 'string') return undefined;
+  const trimmed = op.trim().toLowerCase();
+  return ALLOWED_SPAN_OPS.has(trimmed) ? trimmed : FALLBACK_SPAN_OP;
+}
+
+/**
+ * Transaction identity, bounded and de-identified.
+ *
+ * Route-shaped names are genuinely useful, so they survive — but any segment
+ * that looks like an identifier (UUID, hex id, digit run) is collapsed to
+ * `:id`, so `/rooms/<uuid>` cannot become a per-user transaction name. The
+ * result must still pass the diagnostic-token rule.
+ */
+function normalizeTransactionName(name) {
+  if (typeof name !== 'string') return undefined;
+  const collapsed = name
+    .trim()
+    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, ':id')
+    .replace(/\b[0-9a-f]{16,}\b/gi, ':id')
+    .replace(/\b\d{3,}\b/g, ':id')
+    .slice(0, 80);
+  const token = safeDiagnosticToken(collapsed);
+  return token === REDACTED ? 'transaction' : token;
+}
+
+function sanitizeTraceContext(trace) {
+  if (!trace || typeof trace !== 'object') return undefined;
+  const safe = {};
+  // Identity and shape only. `data`, `tags` and `description` are never copied.
+  if (typeof trace.trace_id === 'string') safe.trace_id = trace.trace_id;
+  if (typeof trace.span_id === 'string') safe.span_id = trace.span_id;
+  if (typeof trace.parent_span_id === 'string') safe.parent_span_id = trace.parent_span_id;
+  const op = normalizeSpanOp(trace.op);
+  if (op) safe.op = op;
+  if (typeof trace.status === 'string') safe.status = safeDiagnosticToken(trace.status);
+  return safe;
+}
+
+function sanitizeSpan(span) {
+  if (!span || typeof span !== 'object') return null;
+  const safe = {};
+  if (typeof span.span_id === 'string') safe.span_id = span.span_id;
+  if (typeof span.parent_span_id === 'string') safe.parent_span_id = span.parent_span_id;
+  if (typeof span.trace_id === 'string') safe.trace_id = span.trace_id;
+  const op = normalizeSpanOp(span.op);
+  if (op) safe.op = op;
+  if (typeof span.status === 'string') safe.status = safeDiagnosticToken(span.status);
+  if (typeof span.start_timestamp === 'number') safe.start_timestamp = span.start_timestamp;
+  if (typeof span.timestamp === 'number') safe.timestamp = span.timestamp;
+  // DELIBERATELY ABSENT: description (raw URLs, SQL, prompts), data (arbitrary
+  // attributes incl. http.url and db.statement), tags, measurements, origin.
+  return safe;
+}
+
+/** The `beforeSendTransaction` boundary. */
+function sanitizeProviderTransaction(event) {
+  if (!event || typeof event !== 'object') return null;
+  if (event.type === 'replay_event' || event.type === 'replay_video') return null;
+
+  const safe = {
+    type: 'transaction',
+    event_id: typeof event.event_id === 'string' ? event.event_id : undefined,
+    // Both timestamps are REQUIRED for a valid transaction. Dropping
+    // start_timestamp is what made every transaction malformed.
+    start_timestamp: typeof event.start_timestamp === 'number' ? event.start_timestamp : undefined,
+    timestamp: typeof event.timestamp === 'number' ? event.timestamp : undefined,
+    platform: typeof event.platform === 'string' ? event.platform : undefined,
+    environment: typeof event.environment === 'string' ? event.environment : undefined,
+    release: typeof event.release === 'string' ? event.release : undefined,
+    dist: typeof event.dist === 'string' ? event.dist : undefined,
+    sdk: event.sdk,
+    transaction: normalizeTransactionName(event.transaction),
+    transaction_info: { source: 'custom' },
+    tags: sanitizeTagBag(event.tags),
+    contexts: {},
+    spans: Array.isArray(event.spans)
+      ? event.spans.map(sanitizeSpan).filter(Boolean).slice(0, 100)
+      : [],
+  };
+
+  const trace = sanitizeTraceContext(event.contexts && event.contexts.trace);
+  if (trace) safe.contexts.trace = trace;
+  // Device/app/os context is content-free and useful for performance triage.
+  for (const name of ['device', 'os', 'app', 'runtime']) {
+    const value = event.contexts && event.contexts[name];
+    if (value && typeof value === 'object') safe.contexts[name] = redactObservabilityValue(value);
+  }
+
+  // A transaction with no trace identity cannot be attributed to anything and
+  // is not worth transmitting.
+  if (!safe.contexts.trace || typeof safe.contexts.trace.trace_id !== 'string') return null;
+  if (safe.start_timestamp === undefined || safe.timestamp === undefined) return null;
+
+  // No user, no request, no extra, no measurements, no attachments, ever.
+  for (const key of Object.keys(safe)) {
+    if (safe[key] === undefined) delete safe[key];
+  }
+  return safe;
+}
+
 /** The `beforeBreadcrumb` boundary. */
 function sanitizeProviderBreadcrumb(breadcrumb) {
   if (!breadcrumb || typeof breadcrumb !== 'object') return null;
@@ -433,7 +563,7 @@ function buildProviderOptions(decision) {
 
     integrations: filterProviderIntegrations,
     beforeSend: sanitizeProviderEvent,
-    beforeSendTransaction: sanitizeProviderEvent,
+    beforeSendTransaction: sanitizeProviderTransaction,
     beforeBreadcrumb: sanitizeProviderBreadcrumb,
   };
 }
@@ -562,5 +692,9 @@ module.exports = {
   replayCanActivate,
   buildProviderOptions,
   sanitizeProviderEvent,
+  sanitizeProviderTransaction,
   sanitizeProviderBreadcrumb,
+  normalizeSpanOp,
+  normalizeTransactionName,
+  ALLOWED_SPAN_OPS,
 };
