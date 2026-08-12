@@ -235,10 +235,42 @@ test('assessMigration on a real repository migration resolves without throwing',
   assert.equal(result.detectorClassificationMismatch, false);
 });
 
-test('migration baseline snapshot matches the migrations actually present in the repository', () => {
+test('every repository migration is accounted for: grandfathered by the baseline or explicitly classified', () => {
+  // The baseline is a FROZEN snapshot of what was on staging at Phase 1
+  // discovery, and `classifyMigration` reads it only as a fallback when a
+  // migration has no explicit entry. Asserting baseline == disk therefore
+  // coupled a deliberately immutable file to a directory that grows on every
+  // release, and would have forced each new migration to be grandfathered —
+  // the precise outcome the UNCLASSIFIED_NEW gate exists to prevent.
+  //
+  // The invariant that actually matters is that nothing on disk is unaccounted
+  // for, and that nothing the baseline recorded has silently disappeared.
   const dir = path.join(REPO_ROOT, 'supabase', 'migrations');
   const onDisk = fs.readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
-  const inBaseline = registries.baseline.migrations.map((m) => path.basename(m.file)).sort();
-  assert.deepEqual(inBaseline, onDisk, 'migration-baseline.json must match supabase/migrations/*.sql exactly');
-  assert.equal(registries.baseline.count, onDisk.length);
+  const baselineFiles = registries.baseline.migrations.map((m) => path.basename(m.file)).sort();
+
+  assert.equal(
+    registries.baseline.count,
+    registries.baseline.migrations.length,
+    'migration-baseline.json count must match its own entry list',
+  );
+
+  const vanished = baselineFiles.filter((f) => !onDisk.includes(f));
+  assert.deepEqual(vanished, [], 'a migration recorded in the baseline is no longer in the repository');
+
+  const baselineNames = new Set(registries.baseline.migrations.map((m) => m.name));
+  const unaccounted = onDisk
+    .map((file) => {
+      const base = file.replace(/\.sql$/, '');
+      const match = base.match(/^(\d+)_(.+)$/);
+      return match ? match[2] : base;
+    })
+    .filter((name) => !baselineNames.has(name))
+    .filter((name) => !registries.classifications.classifications[name]);
+
+  assert.deepEqual(
+    unaccounted,
+    [],
+    'migrations added after the baseline must be classified in security/release/migration-risk-classifications.json',
+  );
 });
