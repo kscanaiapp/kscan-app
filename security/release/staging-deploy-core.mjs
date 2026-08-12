@@ -37,6 +37,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import authority from '../scripts/lib/environment-authority.js';
+import sourceHash from './function-source-hash.js';
 
 const { STAGING_REF, PRODUCTION_REF, assertExpectedEnvironment } = authority;
 
@@ -49,23 +50,15 @@ export class StagingDeployError extends Error {
   }
 }
 
-/** Recursively hashes a directory's contents. Mirrors the manifest generator's algorithm. */
+/**
+ * Canonical function-source digest (DEF-REL-017). Delegates to the single
+ * shared implementation in function-source-hash.js so the deploy-input hash is
+ * byte-identical to the one candidate binding recorded. There is deliberately
+ * no local hashing here — three near-identical hashers is what caused the
+ * binding/deploy contract mismatch in the first place.
+ */
 export function hashDirectory(dir) {
-  if (!fs.existsSync(dir)) return null;
-  const files = [];
-  const walk = (current) => {
-    for (const entry of fs.readdirSync(current, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-      const full = path.join(current, entry.name);
-      if (entry.isDirectory()) walk(full);
-      else if (entry.isFile()) files.push(full);
-    }
-  };
-  walk(dir);
-  const parts = files.map((f) => {
-    const rel = path.relative(dir, f).split(path.sep).join('/');
-    return `${rel}:${crypto.createHash('sha256').update(fs.readFileSync(f, 'utf8'), 'utf8').digest('hex')}`;
-  });
-  return crypto.createHash('sha256').update(parts.join('\n'), 'utf8').digest('hex');
+  return sourceHash.hashFunctionSource(dir);
 }
 
 /**
@@ -121,6 +114,52 @@ export function materializeCandidate({ repoRoot, candidateSha, tempRoot = proces
 }
 
 /**
+ * Resolves the governed `verify_jwt` posture for a function (DEF-REL-016).
+ *
+ * This is deliberately fail-closed. Deploying with the wrong posture silently
+ * changes runtime AUTHORIZATION: deploying `staging-health` with JWT
+ * verification on would break the public probe, and deploying an authenticated
+ * function with it off would expose it. So the value must come from governed
+ * configuration, never from a default:
+ *
+ *   1. the manifest entry, populated from root `supabase/config.toml`
+ *   2. the function's own `supabase/functions/<name>/config.toml`
+ *      (`staging-health` is declared only here — the root file omits it)
+ *
+ * If neither declares it, this throws rather than guessing.
+ */
+export function resolveVerifyJwt({ manifestEntry, candidateRoot, functionName }) {
+  if (manifestEntry && typeof manifestEntry.verifyJwt === 'boolean') {
+    return { verifyJwt: manifestEntry.verifyJwt, source: 'manifest/root-config' };
+  }
+  const perFunction = path.join(candidateRoot, 'supabase', 'functions', functionName, 'config.toml');
+  if (fs.existsSync(perFunction)) {
+    const match = /^\s*verify_jwt\s*=\s*(true|false)\s*$/m.exec(fs.readFileSync(perFunction, 'utf8'));
+    if (match) return { verifyJwt: match[1] === 'true', source: 'function-config.toml' };
+  }
+  throw new StagingDeployError(
+    `verify_jwt posture for ${functionName} is not declared in governed configuration; refusing to guess`,
+    'VERIFY_JWT_UNRESOLVED',
+  );
+}
+
+/**
+ * The shared deploy command primitive. Both the ordinary controlled
+ * single-function path and bootstrap build their command here, so the
+ * `--no-verify-jwt` flag cannot be honoured by one caller and forgotten by the
+ * other — which is exactly what happened before DEF-REL-016.
+ */
+export function buildDeployArgs({ functionName, projectRef, verifyJwt, debug = false }) {
+  if (typeof verifyJwt !== 'boolean') {
+    throw new StagingDeployError(`verifyJwt must be an explicit boolean for ${functionName}`, 'VERIFY_JWT_UNRESOLVED');
+  }
+  const args = ['functions', 'deploy', functionName, '--project-ref', projectRef];
+  if (!verifyJwt) args.push('--no-verify-jwt');
+  if (debug) args.push('--debug');
+  return args;
+}
+
+/**
  * Validates a single function deployment before it runs. Pure: no I/O beyond
  * hashing the already-materialized source.
  */
@@ -158,7 +197,17 @@ export function validateDeployInput({ functionName, manifest, candidateRoot, exp
     });
   }
 
-  return { ok: violations.length === 0, violations, sourceDir: dir, sourceHash: actual, verifyJwt: entry.verifyJwt };
+  let verifyJwt = null;
+  let verifyJwtSource = null;
+  try {
+    const resolved = resolveVerifyJwt({ manifestEntry: entry, candidateRoot, functionName });
+    verifyJwt = resolved.verifyJwt;
+    verifyJwtSource = resolved.source;
+  } catch (error) {
+    violations.push({ code: error.code, detail: error.message });
+  }
+
+  return { ok: violations.length === 0, violations, sourceDir: dir, sourceHash: actual, verifyJwt, verifyJwtSource };
 }
 
 /**
@@ -183,13 +232,18 @@ export function deployOneFromCandidate({
     return { ok: false, functionName, status: 'BLOCKED', violations: validation.violations };
   }
 
+  const deployArgs = buildDeployArgs({
+    functionName, projectRef, verifyJwt: validation.verifyJwt,
+  });
+
   const plan = {
     functionName,
     projectRef,
     sourceDir: validation.sourceDir,
     sourceHash: validation.sourceHash,
     verifyJwt: validation.verifyJwt,
-    command: ['supabase', 'functions', 'deploy', functionName, '--project-ref', projectRef],
+    verifyJwtSource: validation.verifyJwtSource,
+    command: ['supabase', ...deployArgs],
   };
 
   if (planOnly) return { ok: true, functionName, status: 'PLANNED', plan, deployed: false };
@@ -201,9 +255,10 @@ export function deployOneFromCandidate({
     };
   }
 
-  // `--project-ref` is always explicit: never rely on linked-project state.
-  const args = ['functions', 'deploy', functionName, '--project-ref', projectRef];
-  const result = exec('supabase', args, {
+  // `--project-ref` is always explicit: never rely on linked-project state,
+  // and `--no-verify-jwt` comes from the shared builder so the posture cannot
+  // drift between callers.
+  const result = exec('supabase', deployArgs, {
     encoding: 'utf8',
     cwd: candidateRoot,
     env: { ...env },
@@ -223,6 +278,8 @@ export function deployOneFromCandidate({
 export default {
   StagingDeployError,
   hashDirectory,
+  resolveVerifyJwt,
+  buildDeployArgs,
   materializeCandidate,
   validateDeployInput,
   deployOneFromCandidate,

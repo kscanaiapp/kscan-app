@@ -31,6 +31,7 @@ import {
   STAGING_PROJECT_REF,
   fail,
 } from './lib/staging-helpers.mjs';
+import { buildDeployArgs, resolveVerifyJwt } from '../security/release/staging-deploy-core.mjs';
 
 function listFunctions() {
   const out = runSupabase([
@@ -181,8 +182,27 @@ async function main() {
   const priorVersion = prior?.version ?? prior?.id ?? null;
 
   const commit = gitHeadSha();
-  const deployArgs = ['functions', 'deploy', fnName, '--project-ref', STAGING_PROJECT_REF, '--debug'];
-  if (!verifyJwt) deployArgs.push('--no-verify-jwt');
+  // DEF-REL-016: the deploy command is built by the SHARED core, so this
+  // controlled single-function path and bootstrap activation cannot drift
+  // apart on the verify_jwt posture. The caller-supplied EXPECTED_VERIFY_JWT
+  // is cross-checked against governed configuration rather than trusted.
+  const governed = resolveVerifyJwt({
+    manifestEntry: null,
+    candidateRoot: process.cwd(),
+    functionName: fnName,
+  });
+  if (governed.verifyJwt !== verifyJwt) {
+    fail(
+      `EXPECTED_VERIFY_JWT=${verifyJwt} contradicts governed configuration `
+      + `(${governed.verifyJwt}, from ${governed.source}) for ${fnName}`,
+    );
+  }
+  const deployArgs = buildDeployArgs({
+    functionName: fnName,
+    projectRef: STAGING_PROJECT_REF,
+    verifyJwt: governed.verifyJwt,
+    debug: true,
+  });
 
   console.log(JSON.stringify({
     phase: 'deploy',

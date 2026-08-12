@@ -33,6 +33,7 @@ const crypto = require('node:crypto');
 const path = require('node:path');
 
 const { assertExpectedEnvironment } = require('../scripts/lib/environment-authority.js');
+const { hashFromFileMap } = require('./function-source-hash.js');
 
 const BINDING_SCHEMA_VERSION = 1;
 
@@ -94,6 +95,17 @@ function resolveCandidate(repoRoot, candidateRef) {
 function readFromCandidate(repoRoot, candidateSha, repoPath) {
   try {
     return git(repoRoot, ['show', `${candidateSha}:${repoPath}`]);
+  } catch {
+    return null;
+  }
+}
+
+/** Same read, raw bytes. Hashing must never depend on newline translation. */
+function readBytesFromCandidate(repoRoot, candidateSha, repoPath) {
+  try {
+    return execFileSync('git', ['-C', repoRoot, 'show', `${candidateSha}:${repoPath}`], {
+      encoding: 'buffer', maxBuffer: 64 * 1024 * 1024,
+    });
   } catch {
     return null;
   }
@@ -287,16 +299,23 @@ function bindCandidate(opts) {
       violations.push({ code: 'CANDIDATE_SOURCE_MISSING', component: slug, detail: `${entry.sourcePath} is absent from the candidate` });
       continue;
     }
-    const parts = [];
+    // Canonical hash (DEF-REL-017): keys relative to the FUNCTION directory,
+    // values raw git-object BYTES. This makes the digest byte-identical to the
+    // one the deploy core computes over the materialized candidate. The old
+    // implementation keyed on repo-relative paths and decoded as utf8, so
+    // binding and deployment could never agree — every governed function would
+    // have blocked with SOURCE_HASH_MISMATCH on a real EXECUTE.
+    const prefix = `${entry.sourcePath.replace(/\/$/, '')}/`;
+    const fileMap = new Map();
     for (const filePath of listing) {
-      const contents = readFromCandidate(repoRoot, sha, filePath);
+      const contents = readBytesFromCandidate(repoRoot, sha, filePath);
       if (contents === null) {
         violations.push({ code: 'CANDIDATE_SOURCE_UNREADABLE', component: slug, detail: filePath });
         continue;
       }
-      parts.push(`${filePath}:${sha256(contents)}`);
+      fileMap.set(filePath.startsWith(prefix) ? filePath.slice(prefix.length) : filePath, contents);
     }
-    deployableSources[slug] = sha256(parts.join('\n'));
+    deployableSources[slug] = hashFromFileMap(fileMap);
   }
 
   const binding = {
@@ -327,6 +346,7 @@ module.exports = {
   CandidateBindingError,
   resolveCandidate,
   readFromCandidate,
+  readBytesFromCandidate,
   isReleaseRelevant,
   findWorkingTreeDivergence,
   validateDeploymentDelta,
