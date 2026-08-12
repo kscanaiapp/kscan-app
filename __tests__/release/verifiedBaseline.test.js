@@ -97,6 +97,8 @@ function fullAttestationRun({ deployAll = true, evidenceOverrides = {} } = {}) {
   const evidence = buildReleaseEvidence({
     repoRoot: REPO_ROOT,
     release: { releaseId: frozen.releaseId, sourceSha: frozen.sourceSha, sourceTreeSha: frozen.sourceTreeSha, manifestDigest: frozen.identityDigest },
+    // NOTE: release/deployment blocks must describe THIS run — the baseline
+    // binds them and consumption cross-checks every field.
     deployment: { deploymentRunId: 'run-boot', deploymentAttempt: 1, status: 'PASS', receiptDigest: receipt.receiptDigest, functionsDeployed: deployed, migrationsApplied: [] },
     exactCandidateVerification: verification,
     health: { live: pass, ready: pass, version: pass },
@@ -238,7 +240,7 @@ test('13. a fully exact run with valid receipt and eligible evidence mints a bas
   assert.equal(run.verification.result, RESULT.PASS);
   const baseline = mint(run);
   assert.equal(baseline.schemaVersion, BASELINE_SCHEMA_VERSION);
-  assert.equal(validateVerifiedBaseline(baseline, { manifest: run.manifest }).valid, true);
+  assert.equal(validateVerifiedBaseline(baseline, { manifest: run.manifest, priorReleaseEvidence: run.evidence }).valid, true);
 });
 
 test('14. the baseline binds source SHA, tree, manifest, receipt and component hashes', () => {
@@ -262,33 +264,19 @@ test('15. baseline validation rejects fabricated and incomplete state', () => {
   const run = fullAttestationRun();
   const good = mint(run);
 
-  // Hand-written, manifest-shaped object — the exact laundering artefact.
-  const fabricated = {
-    schemaVersion: 1,
-    releaseId: 'rel-made-up',
-    sourceSha: 'a'.repeat(40),
-    sourceTreeSha: 'b'.repeat(40),
-    manifestDigest: 'c'.repeat(64),
-    receiptDigest: 'd'.repeat(64),
-    componentSourceHashes: { 'scan-identify': 'e'.repeat(64) },
-    componentAttestations: { 'scan-identify': ATTESTATION.EXACT },
-    baselineDigest: 'f'.repeat(64),
-  };
-  const fab = validateVerifiedBaseline(fabricated);
-  assert.equal(fab.valid, false);
-  assert.ok(fab.errors.some((e) => /fabricated or modified/.test(e)));
-
   // Incomplete.
   const { receiptDigest, ...incomplete } = good;
-  assert.equal(validateVerifiedBaseline(incomplete).valid, false);
+  assert.equal(validateVerifiedBaseline(incomplete, { priorReleaseEvidence: run.evidence }).valid, false);
 
-  // Tampered after minting.
+  // Tampered after minting — caught by the checksum.
   const tampered = { ...good, sourceSha: 'f'.repeat(40) };
-  assert.equal(validateVerifiedBaseline(tampered).valid, false);
+  assert.equal(validateVerifiedBaseline(tampered, { priorReleaseEvidence: run.evidence }).valid, false);
 
   // Malformed component hash.
-  const malformed = { ...good, componentSourceHashes: { ...good.componentSourceHashes, 'scan-identify': 'nope' } };
-  assert.equal(validateVerifiedBaseline(malformed).valid, false);
+  const malformedBody = { ...good, componentSourceHashes: { ...good.componentSourceHashes, 'scan-identify': 'nope' } };
+  delete malformedBody.baselineDigest;
+  const malformed = { ...malformedBody, baselineDigest: computeBaselineDigest(malformedBody) };
+  assert.equal(validateVerifiedBaseline(malformed, { priorReleaseEvidence: run.evidence }).valid, false);
 });
 
 test('a baseline claiming a quarantined or unclassified component is rejected', () => {
@@ -427,7 +415,8 @@ test('26. after a valid baseline, an unchanged component may be CARRIED_FORWARD'
   const run = fullAttestationRun();
   const baseline = mint(run);
   const components = attestComponents({
-    manifest: run.manifest, deployedFunctions: [], previousVerifiedState: baseline,
+    manifest: run.manifest, deployedFunctions: [],
+    previousRelease: { baseline, evidence: run.evidence },
   });
   assert.ok(components.length > 0);
   assert.ok(components.every((c) => c.attestation === ATTESTATION.CARRIED_FORWARD));
@@ -443,7 +432,10 @@ test('27. a changed-but-not-deployed component becomes UNATTESTED', () => {
       f.name === 'scan-identify' ? { ...f, sourceHash: 'f'.repeat(64) } : f
     )),
   };
-  const components = attestComponents({ manifest: changed, deployedFunctions: [], previousVerifiedState: baseline });
+  const components = attestComponents({
+    manifest: changed, deployedFunctions: [],
+    previousRelease: { baseline, evidence: run.evidence },
+  });
   const scan = components.find((c) => c.name === 'scan-identify');
   assert.equal(scan.attestation, ATTESTATION.UNATTESTED, 'changed code must never be carried forward');
 });
@@ -454,7 +446,8 @@ test('28. an invalid or fabricated prior baseline cannot authorize CARRIED_FORWA
   // Same field names, tampered content — the laundering artefact.
   const fabricated = { ...good, releaseId: 'rel-i-made-this-up' };
   const components = attestComponents({
-    manifest: run.manifest, deployedFunctions: [], previousVerifiedState: fabricated,
+    manifest: run.manifest, deployedFunctions: [],
+    previousRelease: { baseline: fabricated, evidence: run.evidence },
   });
   assert.ok(components.every((c) => c.attestation === ATTESTATION.UNATTESTED),
     'a rejected baseline must carry nothing forward');
@@ -479,7 +472,7 @@ test('a fabricated baseline cannot rescue a release into exact PASS', () => {
     liveMigrationNames: run.manifest.migrations.map((x) => x.name),
     expectedEnvironment: 'staging',
     observedProjectRef: STAGING_REF,
-    previousVerifiedState: fabricated,
+    previousRelease: { baseline: fabricated, evidence: null },
   });
   assert.equal(result.result, RESULT.FULL_RUNTIME_ATTESTATION_GAP);
 });

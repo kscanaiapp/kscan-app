@@ -109,6 +109,10 @@ function buildEdgeFunctionInventory({ repoRoot, governance, liveFunctionNames })
       sharedDependencyHash: decl.class === 'GOVERNED' ? sharedDigest : null,
       verifyJwt: null, // filled from the config fingerprint structure by the caller
       releaseIncluded: decl.class === 'GOVERNED',
+      // Deploy-target scope. Independent of `class`, which governs release
+      // inclusion: a GOVERNED function may still be scoped to one environment.
+      // `null` means shared/unscoped, i.e. applicable everywhere.
+      environments: decl.environments || null,
     });
   }
 
@@ -128,6 +132,7 @@ function buildEdgeFunctionInventory({ repoRoot, governance, liveFunctionNames })
       sharedDependencyHash: null,
       verifyJwt: null,
       releaseIncluded: false,
+      environments: decl.environments || null,
     });
   }
 
@@ -255,6 +260,7 @@ function generateReleaseManifest(opts) {
       sharedDependencyHash: fn.sharedDependencyHash,
       verifyJwt: fn.verifyJwt,
       releaseIncluded: fn.releaseIncluded,
+      environments: fn.environments,
     })),
     migrations: migrations.map((m) => ({
       name: m.name,

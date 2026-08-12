@@ -333,7 +333,24 @@ function mintLegitimateBaseline(overrides = {}) {
     previousVerifiedState: null,
   });
 
+  // The evidence must describe THIS run, not the generic fixture: the baseline
+  // binds it and consumption cross-checks release id / SHA / tree / manifest /
+  // receipt digest, so a mismatched fixture would (correctly) be rejected.
   const evidence = buildReleaseEvidence(evidenceInputs({
+    release: {
+      releaseId: frozen.releaseId,
+      sourceSha: frozen.sourceSha,
+      sourceTreeSha: frozen.sourceTreeSha,
+      manifestDigest: frozen.identityDigest,
+    },
+    deployment: {
+      deploymentRunId: 'bootstrap-run',
+      deploymentAttempt: 1,
+      status: 'PASS',
+      receiptDigest: receipt.receiptDigest,
+      functionsDeployed: allGoverned,
+      migrationsApplied: [],
+    },
     exactCandidateVerification: verification,
   }));
 
@@ -384,7 +401,8 @@ function verificationInputs(overrides = {}) {
     liveMigrationNames: m.migrations.map((x) => x.name),
     expectedEnvironment: 'staging',
     observedProjectRef: STAGING_REF,
-    previousVerifiedState: mintLegitimateBaseline().baseline,
+    // Carry-forward now requires the baseline AND its source evidence.
+    previousRelease: (() => { const r = mintLegitimateBaseline(); return { baseline: r.baseline, evidence: r.evidence }; })(),
     ...overrides,
   };
 }
@@ -429,7 +447,7 @@ test('missing required evidence entirely is OPERATIONAL_FAILURE', () => {
 });
 
 test('with no prior verified state, unchanged components are UNATTESTED and the run reports the attestation gap', () => {
-  const result = verifyExactCandidate({ ...verificationInputs(), previousVerifiedState: null });
+  const result = verifyExactCandidate({ ...verificationInputs(), previousRelease: null, previousVerifiedState: null });
   assert.equal(result.result, RESULT.FULL_RUNTIME_ATTESTATION_GAP);
   assert.ok(result.components.some((c) => c.attestation === ATTESTATION.UNATTESTED));
   assert.ok(result.limitations.some((l) => /No previous verified release baseline/.test(l)));
@@ -438,16 +456,19 @@ test('with no prior verified state, unchanged components are UNATTESTED and the 
 test('carried-forward attestation requires a matching prior verified baseline', () => {
   const m = manifest();
   const withPrior = attestComponents({
-    manifest: m, deployedFunctions: [], previousVerifiedState: mintLegitimateBaseline().baseline,
+    manifest: m,
+    deployedFunctions: [],
+    previousRelease: (() => { const r = mintLegitimateBaseline(); return { baseline: r.baseline, evidence: r.evidence }; })(),
   });
   assert.ok(withPrior.every((c) => c.attestation === ATTESTATION.CARRIED_FORWARD));
 
+  // A bare, uncorroborated object is refused outright now.
   const stale = attestComponents({
     manifest: m,
     deployedFunctions: [],
-    previousVerifiedState: { releaseId: 'p', componentSourceHashes: { 'scan-identify': 'different' } },
+    previousRelease: { baseline: { releaseId: 'p', componentSourceHashes: { 'scan-identify': 'different' } }, evidence: null },
   });
-  assert.ok(stale.some((c) => c.attestation === ATTESTATION.UNATTESTED));
+  assert.ok(stale.every((c) => c.attestation === ATTESTATION.UNATTESTED));
 });
 
 test('a deployed component outside the governed set is BLOCKED', () => {

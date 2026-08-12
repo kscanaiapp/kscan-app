@@ -105,13 +105,72 @@ returns no partial baseline and no warning-level downgrade:
 - `releaseEvidence.stagingVerifiedEligible === true`
 - `canEnterStagingVerified(releaseEvidence).allowed === true`
 
-Consumption is guarded too: a baseline re-validates every time it is trusted
-(integrity digest, required fields, well-formed hashes, no `UNATTESTED` or
-governance-excluded components). A hand-written, baseline-shaped object fails
-the digest check, and a rejected baseline carries **nothing** forward — its
-components fall through to `UNATTESTED`. Changed code is never carried
-forward: a governed component whose source moved must be redeployed to be
-attested.
+## What `baselineDigest` does and does not prove (DEF-REL-010)
+
+> An earlier version of this document claimed "a hand-written,
+> baseline-shaped object fails the digest check." **That was wrong.** It is
+> only true of an attacker who forgets to recompute the digest.
+
+`baselineDigest` is an **unkeyed SHA-256 over the baseline's own content**. It
+proves the object is internally consistent — that nobody edited a field and
+left the checksum stale. It does **not** prove the object was produced by
+`mintVerifiedBaseline`, and it does **not** prove it came from a
+`STAGING_VERIFIED` release. Anyone can construct a baseline-shaped object with
+plausible identity and well-formed 64-hex hashes and then compute a perfectly
+valid digest over their fabrication.
+
+```
+baselineDigest / evidenceDigest  =  INTEGRITY / CONSISTENCY
+NOT                                 AUTHENTICITY / PROVENANCE
+```
+
+Phase 2B introduces **no HMAC key, signing key or PKI**, so there is no
+cryptographic authenticity here and this system does not claim any. The
+operational provenance source remains the immutable CI release-evidence
+artifact.
+
+## Carry-forward requires corroboration, not a checksum
+
+Because a checksum cannot establish origin, a baseline **never authorizes
+carry-forward on its own**. It must be presented together with the
+authoritative release evidence it was minted from, and the two must agree:
+
+| Cross-check | Both must state the same |
+|---|---|
+| `baseline.releaseEvidenceDigest` | `evidence.evidenceDigest` (itself re-verified) |
+| `releaseId` | `evidence.release.releaseId` |
+| `sourceSha` / `sourceTreeSha` | `evidence.release.*` |
+| `manifestDigest` | `evidence.release.manifestDigest` |
+| `receiptDigest` | `evidence.deployment.receiptDigest` |
+| component hashes + attestations | `evidence.exactCandidateVerification.components` |
+
+and the prior evidence must itself show a genuinely verified release:
+`stagingVerifiedEligible === true`, `stagingVerifiedDecision().allowed`, a
+verdict of `PASS` or `PASS_WITH_REPORT_ONLY_FINDINGS`, and
+`exactCandidateVerification.result === PASS`.
+
+**A standalone baseline JSON authorizes nothing**, however well-formed and
+however correctly checksummed. Supplying evidence without a baseline, or a
+baseline whose evidence disagrees on any field above, is refused the same way.
+A rejected pair carries **nothing** forward — its components fall through to
+`UNATTESTED`, never partially. Changed code is never carried forward either: a
+governed component whose source moved must be redeployed to be attested.
+
+## Bootstrap staging applicability
+
+`class` governs **release inclusion**; `environments` governs **deploy
+targeting**. They are independent axes, and the bootstrap needs both:
+
+| Entry | Staging-applicable? |
+|---|---|
+| `GOVERNED`, no `environments` (shared) | yes |
+| `GOVERNED`, `environments` includes `staging` | yes |
+| `GOVERNED`, `environments` excludes `staging` (e.g. production-only) | **no** |
+| `QUARANTINED` / `HERITAGE_UNMANAGED` / `EXCLUDED_WITH_REASON` / unknown | **never**, whatever `environments` says |
+
+A production-scoped `GOVERNED` function must not be demanded by a staging
+bootstrap — it is not live on staging, so requiring it would halt the
+bootstrap with a spurious reconciliation error.
 
 ## Why `/version` is not sufficient on its own
 
