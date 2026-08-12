@@ -135,11 +135,17 @@ importantly, what deliberately did not.
 K Scan keeps ownership of every identity and privacy concern. Sentry receives
 them; it does not define them.
 
-- **Release identity.** Sentry's `release` IS `extra.observability.releaseId` and
-  Sentry's `dist` IS the platform build identifier. No provider-generated
-  release is ever created. If K Scan cannot verifiably attribute the build
-  (`sourceAttributionState !== 'VERIFIABLE'`), the provider stays OFF rather
-  than reporting under an invented identity.
+- **Release identity.** Sentry's `release` IS `extra.observability.releaseId`.
+  Sentry's `dist` IS `extra.observability.buildIdentifier` — the same governed
+  value `scripts/upload-observability-sourcemaps.mjs` passes as `--dist`, because
+  Sentry matches an event to its source maps on the `(release, dist)` pair and a
+  runtime `dist` that differs from the uploaded one never symbolicates. The
+  native build number is carried separately as the `build` tag, and is used as
+  `dist` only for builds that stamped no identifier — which are exactly the
+  builds that cannot upload artifacts, so the two can never disagree. No
+  provider-generated release is ever created. If K Scan cannot verifiably
+  attribute the build (`sourceAttributionState !== 'VERIFIABLE'`), the provider
+  stays OFF rather than reporting under an invented identity.
 - **Correlation.** `X-KScan-Request-ID` and W3C `traceparent` remain the only
   correlation headers on K Scan requests. `tracePropagationTargets: []` stops
   the SDK injecting competing `sentry-trace`/`baggage` headers. Sentry mirrors
@@ -150,6 +156,27 @@ them; it does not define them.
   the provider adapter consume it. `beforeSend` rebuilds every outbound event
   from the allowlist, so anything not explicitly re-added is dropped — including
   anything a future SDK version starts attaching by default.
+
+  Two containers need more than shape-based redaction, because free text has no
+  shape to match on:
+
+  - `contexts` is allowlisted **by container name**. Device, OS, app, runtime,
+    culture, OTA-update and trace contexts survive; every other container is
+    dropped whole. Recursively redacting an arbitrary container did not work —
+    `contexts.<anything>.<key>` carried ordinary prose off the device intact.
+  - `exception.values[].value`/`.type`, the event `message` and the
+    `transaction` name are reduced to a **diagnostic token**: a bounded value
+    with no whitespace. This keeps K Scan's error contract (`TEXTSCAN_TIMEOUT`,
+    `MALFORMED_EDGE_RESPONSE`, `AbortError`) and refuses prose, because an
+    `Error` message is a free-text field that any provider SDK can populate with
+    a response body. The deliberate cost is that third-party prose messages
+    ("Network request failed") arrive redacted; the stack frames, error
+    location, release, source SHA and operation tag are unaffected and remain
+    the primary diagnostic signal.
+
+  Stack frames keep their structure (file, function, line, column) but are
+  stripped of `pre_context`/`context_line`/`post_context`/`vars`, which carry
+  application source text rather than location.
 - **Environment.** The build-time authority (`KSCAN_OBSERVABILITY_ENVIRONMENT`)
   still decides the environment. The provider re-checks it against the runtime
   mirror and fails OFF on mismatch.
@@ -197,9 +224,25 @@ byte is transmitted, `upload-observability-sourcemaps.mjs` re-proves the
 manifest identity against the build environment and re-verifies every checksum,
 and refuses to run without an environment-supplied credential.
 
+## What actually reaches the provider
+
+| Failure path | Reaches Sentry | Mechanism |
+| --- | --- | --- |
+| Unhandled JS exception | Yes | The SDK's own `ReactNativeErrorHandlers`. `initializeObservabilityProvider()` runs at module scope in `app/_layout.tsx` **before** K Scan attaches its `ErrorUtils` wrapper, so the wrapper's `defaultHandler` IS the SDK handler and chains to it. One event, not two. |
+| Unhandled promise rejection | Yes | Same integration (`patchGlobalPromise`). |
+| React render error caught by `ErrorBoundary` | Yes | `captureHandledException` from `componentDidCatch`. A boundary swallows the error so `ErrorUtils` never sees it, and `Sentry.wrap` installs no boundary of its own — without this call the app's most visible failure produced no event at all. No duplicate: the boundary is the only observer. |
+| Native crash | Yes | Native layer, reported on next launch. Does **not** pass through the JS `beforeSend`; see "Still deferred". |
+| `logError(...)` from an ordinary catch block | Breadcrumb only | Deliberate. These are recovered, already-handled conditions; raising an event per call would be an event storm. They appear as context on whatever event follows. |
+
 ## Still deferred
 
 - Real staging symbolication proof (requires an authorized EAS build).
+- Native crash envelope proof. Native events are assembled and sent by the
+  native SDK and do not pass through the JS `beforeSend` allowlist. The controls
+  that bound them are `sendDefaultPii: false`, `attachScreenshot: false`,
+  `attachViewHierarchy: false` and `Sentry.setUser(null)`, all of which are
+  forwarded to the native layer at init — but the resulting envelope has not
+  been inspected, and cannot be without an authorized build.
 - Production activation decision.
 - Session replay (see `BUILD29_SESSION_REPLAY_READINESS.md`).
 - Dashboards, alerting, and quota/retention decisions.

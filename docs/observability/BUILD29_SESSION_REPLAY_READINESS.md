@@ -41,9 +41,11 @@ Two independent barriers, either of which alone is sufficient:
    `ViewHierarchy` are refused for the same reason replay is: they attach
    rendered app surfaces to ordinary error events.
 
-A third barrier covers exfiltration rather than capture: `beforeSend` returns
-`null` for `replay_event` and `replay_video`, so a replay envelope has no
-transport off the device even if one were somehow produced.
+`beforeSend` additionally returns `null` for `replay_event` and `replay_video`.
+This is defence-in-depth against a future SDK change, **not** a third barrier:
+the SDK does not route replay envelopes through `beforeSend` at all, so that
+check would not intercept a replay produced by the current version. The two
+barriers above are what actually hold replay off.
 
 Certified by `__tests__/observabilitySentryProvider.test.js`:
 `replayCanActivate` proves sample rates in either location are detected, and
