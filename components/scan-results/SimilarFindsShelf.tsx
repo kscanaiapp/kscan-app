@@ -5,9 +5,9 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Linking,
 } from 'react-native';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
+import { openExternalUrl } from '../../services/openExternalUrl';
 import { ProductCard } from '../luxury/ProductCard';
 import { SectionHeader } from '../luxury/SectionHeader';
 import { EmptyStateCard } from '../luxury/EmptyStateCard';
@@ -66,7 +66,7 @@ export function SimilarFindsShelf({
                 price={price}
                 onPress={
                   product.productUrl
-                    ? () => Linking.openURL(product.productUrl!)
+                    ? () => void openExternalUrl(product.productUrl)
                     : undefined
                 }
                 accessibilityLabel={

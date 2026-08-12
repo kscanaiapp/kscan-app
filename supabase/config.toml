@@ -47,6 +47,12 @@ verify_jwt = false
 [functions.process-account-deletions]
 verify_jwt = false
 
+[functions.apple-credential-link]
+verify_jwt = true
+
+[functions.apple-revoke-credential]
+verify_jwt = false
+
 # ── Privacy ──────────────────────────────────────────────────────────────────
 
 [functions.privacy-data-export]

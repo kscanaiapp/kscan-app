@@ -17,6 +17,7 @@ import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import {
   DEFAULT_STYLIST_IDENTITY,
   isPersistableAvatarId,
+  isSpeechEnabledAvatar,
   STYLIST_ABSTRACT_PRESETS,
   STYLIST_NAME_MAX_LENGTH,
   STYLIST_NAME_MIN_LENGTH,
@@ -84,6 +85,15 @@ export function PersonalizeStylistModal({
     setDraftName(cleaned);
     setNameError(validateName(cleaned));
   }, [validateName]);
+
+  // Only the portrait stylists carry a voice profile; every abstract look,
+  // including the default `elise_default`, is 'silent'. useStyleChat drops
+  // speech for a silent profile, so on a default account the toggle could be
+  // switched on and persisted while nothing would ever be spoken. Gate on the
+  // saved identity, which is what actually decides whether speech can happen.
+  const avatarSupportsVoice = isSpeechEnabledAvatar(identity.avatarId);
+  const voiceSwitchOn = voicePreference.enabled && avatarSupportsVoice;
+  const voiceSwitchDisabled = voicePreference.loading || saving || !avatarSupportsVoice;
 
   const canSave = useMemo(() => {
     const trimmed = draftName.trim().replace(/[\x00-\x1F\x7F]/g, '');
@@ -190,30 +200,36 @@ export function PersonalizeStylistModal({
                 <View style={styles.voicePreferenceCopy}>
                   <Text style={styles.label}>VOICE RESPONSES</Text>
                   <Text style={styles.voicePreferenceHelper}>
-                    Speak new stylist replies automatically. Existing messages never replay.
+                    {avatarSupportsVoice
+                      ? 'Speak new stylist replies automatically. Existing messages never replay.'
+                      : 'This stylist look has no voice. Choose a portrait stylist to turn on spoken replies.'}
                   </Text>
                 </View>
                 <Switch
                   testID="voice-responses-switch"
-                  value={voicePreference.enabled}
+                  value={voiceSwitchOn}
                   onValueChange={(enabled) => {
                     setVoicePreferenceError(null);
                     void voicePreference.setEnabled(enabled).catch(() => {
                       setVoicePreferenceError('Voice setting could not be saved. Try again.');
                     });
                   }}
-                  disabled={voicePreference.loading || saving}
+                  disabled={voiceSwitchDisabled}
                   trackColor={{ false: LUXURY.colors.border, true: LUXURY.colors.plumMuted }}
-                  thumbColor={voicePreference.enabled ? LUXURY.colors.plum : LUXURY.colors.pearl}
+                  thumbColor={voiceSwitchOn ? LUXURY.colors.plum : LUXURY.colors.pearl}
                   accessibilityLabel="Voice responses"
-                  accessibilityHint="Controls automatic speech for new stylist replies"
+                  accessibilityHint={
+                    avatarSupportsVoice
+                      ? 'Controls automatic speech for new stylist replies'
+                      : 'Unavailable because the selected stylist look has no voice'
+                  }
                   accessibilityState={{
-                    checked: voicePreference.enabled,
-                    disabled: voicePreference.loading || saving,
+                    checked: voiceSwitchOn,
+                    disabled: voiceSwitchDisabled,
                   }}
                 />
                 <Text style={styles.voicePreferenceValue}>
-                  {voicePreference.enabled ? 'On' : 'Off'}
+                  {voiceSwitchOn ? 'On' : 'Off'}
                 </Text>
               </View>
               {voicePreferenceError ? (
