@@ -218,13 +218,21 @@ jobs:
         run: |
           set -euo pipefail
           FN="${{ needs.preflight.outputs.function_name }}"
+          # --node-modules-dir=none (DEF-B29-SVV-008): this repository has a
+          # root package.json, which puts Deno into node_modules resolution
+          # mode. The runner never installs npm dependencies, so any function
+          # importing an `npm:` specifier — apple-credential-link imports
+          # `npm:@supabase/supabase-js@2` — failed with "Could not find
+          # ... in a node_modules folder" before its source was ever checked.
+          # Resolving npm specifiers from Deno's own cache keeps this job
+          # hermetic instead of making it depend on an `npm ci` it does not run.
           if command -v deno >/dev/null 2>&1; then
-            deno check "supabase/functions/${FN}/index.ts"
+            deno check --node-modules-dir=none "supabase/functions/${FN}/index.ts"
           else
             curl -fsSL https://deno.land/install.sh | sh
             export DENO_INSTALL="$HOME/.deno"
             export PATH="$DENO_INSTALL/bin:$PATH"
-            deno check "supabase/functions/${FN}/index.ts"
+            deno check --node-modules-dir=none "supabase/functions/${FN}/index.ts"
           fi
 
   deploy-one-function:
