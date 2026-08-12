@@ -31,6 +31,10 @@ on:
         description: 'Type ACTIVATE-STAGING-BOOTSTRAP to permit EXECUTE. Ignored for PLAN_ONLY.'
         required: false
         default: ''
+      certification_run_id:
+        description: 'Staging Release Certification run id whose evidence authorizes EXECUTE. Required for EXECUTE; ignored for PLAN_ONLY.'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -66,10 +70,15 @@ jobs:
         env:
           MODE: ${{ inputs.mode }}
           CONFIRM: ${{ inputs.confirm_execute }}
+          CERTIFICATION_RUN_ID: ${{ inputs.certification_run_id }}
         run: |
           set -euo pipefail
           if [ "$MODE" = "EXECUTE" ] && [ "$CONFIRM" != "ACTIVATE-STAGING-BOOTSTRAP" ]; then
             echo "FAIL  EXECUTE requires confirm_execute=ACTIVATE-STAGING-BOOTSTRAP"
+            exit 1
+          fi
+          if [ "$MODE" = "EXECUTE" ] && [ -z "$CERTIFICATION_RUN_ID" ]; then
+            echo "FAIL  EXECUTE requires certification_run_id (DEF-B29-SVV-013B)"
             exit 1
           fi
 
@@ -119,7 +128,18 @@ jobs:
           # surface as an operational failure, never as "zero migrations"
           # (DEF-REL-018/K). `set -e` plus the validator below enforce that.
           supabase functions list --project-ref "$SUPABASE_STAGING_PROJECT_REF" -o json > activation/functions.json
-          supabase migration list --project-ref "$SUPABASE_STAGING_PROJECT_REF" -o json > activation/migrations.json
+          # Pinned CLI 2.109.1 rejects `migration list --project-ref`: that flag
+          # does not exist on this subcommand (verified against the real CLI,
+          # DEF-REL-019). `migration list` only reads from an explicitly linked
+          # project, a --db-url, or --local, so the runner links to the exact
+          # already-validated staging ref first. No SUPABASE_DB_PASSWORD is
+          # needed: with only SUPABASE_ACCESS_TOKEN set, the CLI provisions a
+          # short-lived "login role" through the Management API (verified
+          # live). `--output-format json` is required, not `-o json` — for
+          # `migration list` specifically, `-o` (the legacy "status variables"
+          # formatter) renders a pretty table even when passed `json`.
+          supabase link --project-ref "$SUPABASE_STAGING_PROJECT_REF"
+          supabase migration list --linked --output-format json > activation/migrations.json
           node security/release/build-activation-inventory.mjs \
             --functions activation/functions.json \
             --migrations activation/migrations.json \
@@ -225,12 +245,58 @@ jobs:
           set -euo pipefail
           mkdir -p activation/recheck
           supabase functions list --project-ref "$SUPABASE_STAGING_PROJECT_REF" -o json > activation/recheck/functions.json
-          supabase migration list --project-ref "$SUPABASE_STAGING_PROJECT_REF" -o json > activation/recheck/migrations.json
+          # Same DEF-REL-019 fix as preflight: migration list needs --linked,
+          # not --project-ref, and --output-format json, not -o json.
+          supabase link --project-ref "$SUPABASE_STAGING_PROJECT_REF"
+          supabase migration list --linked --output-format json > activation/recheck/migrations.json
           node security/release/build-activation-inventory.mjs \
             --functions activation/recheck/functions.json \
             --migrations activation/recheck/migrations.json \
             --out activation/recheck/inventory.json \
             --compare activation/inventory.json
+
+      # DEF-B29-SVV-013B: EXECUTE previously pointed KSCAN_CERTIFICATION_REPORT
+      # at a path nothing ever produced, so it could never authorize a
+      # mutation. The caller now names an explicit certification run, and the
+      # shared certification authority decides whether that run's evidence
+      # describes exactly this candidate. Runs BEFORE the first staging write.
+      - name: Acquire and validate exact certification evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CERTIFICATION_RUN_ID: ${{ inputs.certification_run_id }}
+          CANDIDATE_SHA: ${{ needs.preflight.outputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "$CERTIFICATION_RUN_ID" ]; then
+            echo "FAIL  EXECUTE requires certification_run_id"
+            exit 1
+          fi
+
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${CERTIFICATION_RUN_ID}" > cert-run.json
+
+          # Only this run's own artifact is trusted; the name is bound to the id.
+          gh run download "$CERTIFICATION_RUN_ID" \
+            --name "staging-certification-${CERTIFICATION_RUN_ID}" \
+            --dir certification-download
+          test -f certification-download/staging-certification.json
+
+          # Every certification run for this exact candidate, so an older pass
+          # cannot be cherry-picked past a newer one.
+          gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/staging-release-certification.yml/runs?head_sha=${CANDIDATE_SHA}&per_page=100" \
+            --jq '[.workflow_runs[] | {id: (.id|tostring), status: .status, conclusion: .conclusion, completed_at: .updated_at}]' \
+            > cert-candidate-runs.json
+
+          mkdir -p security/reports
+          cp certification-download/staging-certification.json security/reports/staging-certification.json
+
+          node security/release/assert-bootstrap-certification.mjs \
+            --certification security/reports/staging-certification.json \
+            --run-metadata cert-run.json \
+            --candidate-runs cert-candidate-runs.json \
+            --supplied-run-id "$CERTIFICATION_RUN_ID" \
+            --candidate-sha "$CANDIDATE_SHA" \
+            --candidate-tree-sha "$(git rev-parse "${CANDIDATE_SHA}^{tree}")" \
+            --staging-head-sha "$(git rev-parse origin/staging/production-parity)"
 
       - name: Run bootstrap activation
         env:
