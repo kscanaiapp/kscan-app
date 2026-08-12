@@ -38,6 +38,8 @@ export type FashionCandidateCorrelation = {
   evidenceId: string;
   candidateId: string;
   category: string;
+  /** Phase 7. See `FashionIdentificationResultV2.item.clothingType`. */
+  clothingType?: string;
   subtype?: string;
   bounds?: { x: number; y: number; width: number; height: number };
   detectionDigest?: string;
@@ -215,6 +217,7 @@ export function extractFashionV2Candidates(
       evidenceId,
       candidateId,
       category,
+      ...(str(entry.clothingType) ? { clothingType: str(entry.clothingType) as string } : {}),
       ...(str(entry.subtype) ? { subtype: str(entry.subtype) as string } : {}),
       ...(boundsValid
         ? {

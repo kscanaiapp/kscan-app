@@ -184,6 +184,20 @@ export type FashionIdentificationResultV2 = {
   resolutionLevel: FashionIdentificationResolutionLevel;
   item: {
     category: string | null;
+    /**
+     * The middle taxonomy tier: the recognizable garment or footwear FAMILY
+     * (`jeans`, `blazer`, `boot`), between the broad `category` (`pants`,
+     * `footwear`) and the specific `subtype` (`wide_leg_jeans`,
+     * `chelsea_boot`).
+     *
+     * A normalized descriptive string, not a controlled enum. The repository
+     * has no canonical middle-tier vocabulary — `normalizeCategory` returns
+     * level-1 values only, and the evaluation ontology is explicitly
+     * evaluation-only and derived from a 33-case pilot. An enum built from
+     * that would reject valid garment families outside the pilot, so this
+     * follows the same free-string convention `subtype` already uses.
+     */
+    clothingType: string | null;
     subtype: string | null;
     brand: {
       value: string | null;
@@ -225,6 +239,7 @@ export type FashionIdentificationResultV2 = {
     candidateId: string;
     evidenceId: string;
     category: string | null;
+    clothingType?: string | null;
     subtype: string | null;
     bounds?: { x: number; y: number; width: number; height: number };
     detectionDigest?: string | null;
@@ -596,6 +611,7 @@ export type ProviderNormalizationInput = {
     candidateId: string;
     evidenceId: string;
     category: string | null;
+    clothingType?: string | null;
     subtype: string | null;
     bounds?: { x: number; y: number; width: number; height: number };
     detectionDigest?: string | null;
@@ -651,7 +667,18 @@ function deriveBrandProvenance(
   visibleBrandText: string | null,
   logoDetected: boolean,
   brandGuess: string | null,
+  /**
+   * Phase 7.2 evidence tier, when the backend gate decided one. Optional so
+   * every existing caller — and any deployment where the gate has not run —
+   * keeps the exact previous derivation.
+   */
+  brandEvidenceType?: string | null,
 ): FashionIdentificationBrandProvenance {
+  // A decided evidence type is more truthful than inferring provenance from
+  // which field happened to be populated: `label` and `monogram` are both
+  // brand-naming marks that the old field-shape inference could not tell apart.
+  if (brandEvidenceType === 'wordmark' || brandEvidenceType === 'label') return 'visible_text';
+  if (brandEvidenceType === 'logo' || brandEvidenceType === 'monogram') return 'logo_shape';
   if (visibleBrandText) return 'visible_text';
   if (logoDetected) return 'logo_shape';
   if (brandGuess) return 'visual';
@@ -671,7 +698,15 @@ export function normalizeToV2(input: ProviderNormalizationInput): FashionIdentif
   const visibleBrandText = str(id.visible_brand_text);
   const logoDetected = id.logo_detected === true;
   const brandGuess = str(id.brand_guess);
-  const brandValue = brandGuess ?? visibleBrandText;
+  // Phase 7.2 brand evidence tier, decided upstream by the backend gate.
+  const brandEvidenceLevel = str(id.brand_evidence_level);
+  const brandEvidenceType = str(id.brand_evidence_type);
+  // Tier C is resemblance, never identity. When the gate resolved `style_only`
+  // the brand does not survive into V2 at all — a value the gate refused to
+  // establish must not reappear here through the visible-text fallback.
+  const brandBlockedByTier = brandEvidenceLevel === 'style_only' ||
+    brandEvidenceLevel === 'none';
+  const brandValue = brandBlockedByTier ? null : (brandGuess ?? visibleBrandText);
 
   const brandEvidence: FashionBrandEvidenceV2[] = [];
   const primaryEvidenceId = input.evidenceIds[0];
@@ -699,8 +734,25 @@ export function normalizeToV2(input: ProviderNormalizationInput): FashionIdentif
       confidence: null,
     });
   }
+  // Phase 7.2: record WHAT KIND of evidence was accepted, using the free-string
+  // `type` this array already allows. No contract vocabulary is widened — the
+  // V2 brand-provenance enum is mirrored in the JSON schema and the client and
+  // held together by a parity test, so an internal tier does not belong in it.
+  if (brandEvidenceType && brandEvidenceType !== 'none') {
+    brandEvidence.push({
+      ...(primaryEvidenceId ? { evidenceId: primaryEvidenceId } : {}),
+      type: `evidence_${brandEvidenceType}`,
+      observation: brandEvidenceLevel,
+      confidence: null,
+    });
+  }
 
   const category = str(id.item_type) ?? str(attrs.category);
+  // Read from the provider's own field ONLY. There is deliberately no fallback
+  // to category or subtype: synthesising the middle tier from a neighbouring
+  // one would score a single model assertion in two taxonomy denominators and
+  // report a capability the scanner does not have.
+  const clothingType = str(id.clothing_type);
   const subtype = str(id.subtype);
 
   const primaryColor = str(id.primary_color) ??
@@ -752,6 +804,7 @@ export function normalizeToV2(input: ProviderNormalizationInput): FashionIdentif
     resolutionLevel,
     item: {
       category: isIdentityBearing ? category : null,
+      clothingType: isIdentityBearing ? clothingType : null,
       subtype: isIdentityBearing ? subtype : null,
       brand: {
         value: isIdentityBearing ? brandValue : null,
@@ -759,8 +812,13 @@ export function normalizeToV2(input: ProviderNormalizationInput): FashionIdentif
         // surfaced as brand confidence when brand evidence actually exists,
         // and stays null otherwise rather than being invented.
         confidence: isIdentityBearing && brandValue ? globalConfidence : null,
-        provenance: isIdentityBearing
-          ? deriveBrandProvenance(visibleBrandText, logoDetected, brandGuess)
+        provenance: isIdentityBearing && brandValue
+          ? deriveBrandProvenance(
+            visibleBrandText,
+            logoDetected,
+            brandGuess,
+            brandEvidenceType,
+          )
           : 'unknown',
         evidence: isIdentityBearing ? brandEvidence : [],
       },

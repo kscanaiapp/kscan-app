@@ -51,6 +51,10 @@
     "stagingv2:configure-storage": "node scripts/staging-v2/configure-storage.mjs",
     "stagingv2:seed": "node scripts/staging-v2/seed-fixtures.mjs",
     "stagingv2:validate-target": "node scripts/staging-v2/validate-target.mjs",
+    "test:identification-recheck": "node --test __tests__/identificationRecheckAccuracy.test.js",
+    "eval:identification-recheck": "node scripts/identification-recheck-accuracy.js",
+    "test:prompt-budget": "node --test __tests__/scannerPromptBudget.test.js",
+    "inspect:prompt-budget": "node scripts/scanner-prompt-budget.js",
     "observability:verify-build-env": "node scripts/verify-observability-build-env.mjs",
     "observability:export-sourcemaps": "node scripts/export-observability-sourcemaps.mjs",
     "observability:upload-sourcemaps": "node scripts/upload-observability-sourcemaps.mjs"

@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-12T05:33:29.423Z",
-    "generatedFromGitSha": "e3be5db26e92907e8431a3e010392bf2b30c65a7"
+    "generatedAtUtc": "2026-08-12T13:10:22.827Z",
+    "generatedFromGitSha": "dc9e2f02293f2125b431ef883edb29a602420553"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v2",
@@ -26,10 +26,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 32,
-        "treeFileCount": 41,
-        "bundleHash": "b47af738da27cb7961185aceadfd2771738fbc1a05bddc7330ba69d4061f751f",
-        "treeHash": "f3d516917892dad9810a505316162fd21273d2e52307831a064bc03ebe8bff38",
+        "bundleFileCount": 39,
+        "treeFileCount": 50,
+        "bundleHash": "b3e2f9a4b655d355515249cf1a61053cda1554fb1b24882dd390f64801706ea8",
+        "treeHash": "fbca5e9cced83aef1a6bb77aa05a64c2e016c53e605f0795f333fc84140330fc",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -48,7 +48,7 @@
           },
           {
             "path": "supabase/functions/_shared/fashionIdentificationV2.ts",
-            "sha256": "da4aa4210ae3bbf4ff878e5ca34165e95b45c1584a7b4217b6baed59d13a99fe",
+            "sha256": "6bb35175352b1fde50bf0569a73d4d0185d6cd7279bc13243d97561eccf4e8fc",
             "bundle": true
           },
           {
@@ -64,6 +64,11 @@
           {
             "path": "supabase/functions/_shared/scanHelpers.ts",
             "sha256": "4addf3a4199145bdea516aae7a858e788e00818753fc26eabd7441b1b26dee45",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/brandEvidence.ts",
+            "sha256": "a8cc6940958cb2ee8b8df9c696943f0b751e31ca0b7bc9100dbe61cbb6fd0e6a",
             "bundle": true
           },
           {
@@ -122,8 +127,48 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/scan-identify/fashionBrandEvidence.test.ts",
+            "sha256": "12b73ea7e17731ceef436e7a7624d21b57d0dbebe3d6efc794d4f79adf495f02",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/scan-identify/fashionDiscriminatorPacks.ts",
+            "sha256": "80e9fa311ff43eab0d31cfc124cb0680afa4ba3ee804ba160aa70d64fd4a513f",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/identificationRecheck.test.ts",
+            "sha256": "bb0020e9e0bfbb60791ff1fd0f0c2b4ae64341f9f160433eb4ed0723f442bb0b",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/scan-identify/identificationRecheck.ts",
+            "sha256": "3f3b8f86db3ad7980c8b60088cc65691cf5cc09b51b455fce6b577d41c1c7ff9",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/identificationRecheckConfig.ts",
+            "sha256": "dbdb33faeb2df9d69648a27bb90d81b1abe4fcab2163b9cf04e89ec12fc304cd",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/identificationRecheckGate.ts",
+            "sha256": "c5977d24736cead90acafa1cdb5c3b951d1cec0dcf783c8f3692f34327f8830d",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/identificationRecheckReconcile.ts",
+            "sha256": "216709fa5af19fb1397ebd809d681b07065f7f5afd020ef4b6561ce9400a39b8",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/identificationRecheckTelemetry.ts",
+            "sha256": "b20d1943d476baccb19e071e51047ec9f5830edd454f03227d747be1b31a694a",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/scan-identify/index.ts",
-            "sha256": "a3d7616c36bcfe1306c26e97ea8f0b61f725b267eab8b766458889973fca3c13",
+            "sha256": "6db123cd3cbf34e8d6ca318485f3a1975352f0d7d2182e26917810e126b62a6f",
             "bundle": true
           },
           {
@@ -138,7 +183,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/multiItemGarments.ts",
-            "sha256": "6b91ff2b7978cc4a7975d0b4590e966633f1c260281c900316843c23d9260a16",
+            "sha256": "644fe535c60698b7b4ac8976f3a4c5570f400f25399aa31a54d44ee277cde1b9",
             "bundle": true
           },
           {
@@ -198,7 +243,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/scannerQualityGate.ts",
-            "sha256": "504c61acb73580cb8a2aeab1b33f8b1f0507cdb76d890cb0e27a80282868048c",
+            "sha256": "0476780f46041f18541ea6dc57e8c37bb57a8b92a24fe6eefd92374c21ca3fdf",
             "bundle": true
           },
           {

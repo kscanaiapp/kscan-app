@@ -6,11 +6,11 @@
     "backend": [
       {
         "path": "supabase/functions/_shared/fashionIdentificationV2.ts",
-        "sha256": "da4aa4210ae3bbf4ff878e5ca34165e95b45c1584a7b4217b6baed59d13a99fe"
+        "sha256": "6bb35175352b1fde50bf0569a73d4d0185d6cd7279bc13243d97561eccf4e8fc"
       },
       {
         "path": "supabase/functions/scan-identify/index.ts",
-        "sha256": "a3d7616c36bcfe1306c26e97ea8f0b61f725b267eab8b766458889973fca3c13"
+        "sha256": "6db123cd3cbf34e8d6ca318485f3a1975352f0d7d2182e26917810e126b62a6f"
       },
       {
         "path": "supabase/functions/scan-identify/v2Activation.ts",
@@ -32,7 +32,7 @@
       },
       {
         "path": "types/fashionIdentificationV2.ts",
-        "sha256": "63bc9d8fe13ba260350612ffb3a6549fbecfc40f6986edbf088ecc9267fcfa2e"
+        "sha256": "e7021755f845b69882a80c95907ca1c8c5c0059509db9a6ef32dacb6d7d80930"
       }
     ],
     "eliseIntent": [
@@ -72,7 +72,7 @@
       },
       {
         "path": "services/scannerIdentificationV2.ts",
-        "sha256": "805ae9736d9c2c10f60ed2376747ff880f0588fa6dc4ae1fab9238a12174e4c0"
+        "sha256": "ec78bc796b0e58b082b9dab30883ce2b58f23e42c3f469891ccfdaa6f21d07d6"
       },
       {
         "path": "services/scannerScanRequest.ts",
@@ -86,7 +86,7 @@
       },
       {
         "path": "services/fashionIdentificationV2Core.ts",
-        "sha256": "c98f4a3b3098a7110767bed2df8e04ee333dfa9900798e91689cc5735752ed5d"
+        "sha256": "8959765ed925b719bb3fe16c58440074bb626dd420363d3f4427fa5234ae890a"
       },
       {
         "path": "services/identificationSnapshot.ts",
