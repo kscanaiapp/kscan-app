@@ -159,7 +159,7 @@ function attestComponents({ manifest, deployedFunctions = [], previousRelease = 
  * @param {object} opts.manifest                - manifest for the candidate
  * @param {object} opts.receipt                 - finalized deployment receipt
  * @param {object|null} opts.liveVersion        - parsed /version response
- * @param {string[]} opts.liveMigrationNames    - migration names applied on staging
+ * @param {string[]} opts.liveMigrationVersions - migration VERSIONS applied on staging
  * @param {string} opts.expectedEnvironment
  * @param {string} opts.observedProjectRef
  * @param {object|null} [opts.previousRelease] - {baseline, evidence}; BOTH are required for carry-forward
@@ -171,7 +171,7 @@ function verifyExactCandidate(opts) {
     manifest,
     receipt,
     liveVersion,
-    liveMigrationNames = null,
+    liveMigrationVersions = null,
     expectedEnvironment = 'staging',
     observedProjectRef,
     previousRelease = null,
@@ -244,17 +244,20 @@ function verifyExactCandidate(opts) {
   }
 
   // ── migration state ───────────────────────────────────────────────────────
-  if (liveMigrationNames === null) {
+  if (liveMigrationVersions === null) {
     checks.push(check('migration_state_observed', false, 'live migration inventory was not collected', 'OPERATIONAL_FAILURE'));
   } else {
-    const expected = new Set((manifest.migrations || []).map((m) => m.name));
-    const live = new Set(liveMigrationNames);
-    const missing = [...expected].filter((name) => !live.has(name));
+    // DEF-B29-SVV-012: version is the canonical migration identity, and the
+    // live inventory supplies versions. Comparing names here made every
+    // candidate migration look missing.
+    const expected = new Set((manifest.migrations || []).map((m) => m.version));
+    const live = new Set(liveMigrationVersions);
+    const missing = [...expected].filter((version) => !live.has(version));
     checks.push(check('migration_state_matches', missing.length === 0,
       `staging is missing ${missing.length} candidate migration(s): ${missing.slice(0, 5).join(', ')}`));
     // Staging carrying extra migrations is expected (website heritage), so it
     // is reported as context rather than treated as candidate drift.
-    const extra = [...live].filter((name) => !expected.has(name));
+    const extra = [...live].filter((version) => !expected.has(version));
     if (extra.length > 0) {
       limitations.push(`staging carries ${extra.length} migration(s) not in the candidate manifest (expected for website-heritage objects)`);
     }
