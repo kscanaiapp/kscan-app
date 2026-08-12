@@ -23,6 +23,11 @@ import {
 } from '../../../types/styleChatAttachments';
 import type { EliseAdviceMetadataClient } from '../../../types/eliseAdvice';
 import { prepareContextForTransport } from '../eliseFashionContextV2';
+import {
+  correlationHeaders,
+  createCorrelationContext,
+  emitObservabilityEvent,
+} from '../../observability';
 
 const EDGE_FN      = 'stylechat-generate';
 export const ELISE_VISUAL_COLLECTION_CONTRACT_VERSION = '1';
@@ -351,6 +356,7 @@ export class EdgeStyleChatProvider {
     // JSON.stringify and arrive at the backend missing required fields; refusing
     // it here keeps that from becoming a server-side validation failure.
     const fashionContext = toTransportableFashionContext(input.fashionContextV2);
+    const correlation = createCorrelationContext();
 
     try {
       const { data, error } = await supabase.functions.invoke<EdgeChatResult>(EDGE_FN, {
@@ -388,10 +394,17 @@ export class EdgeStyleChatProvider {
           // body and no existing request shape changes.
           ...(fashionContext ? { fashionContextV2: fashionContext } : {}),
         },
+        headers: correlationHeaders(correlation),
         signal: ac.signal,
       });
 
       if (error) {
+        emitObservabilityEvent('elise.request_failed', {
+          operation: 'stylechat_generate',
+          request_id: correlation.requestId,
+          trace_id: correlation.traceId,
+          error_category: 'invoke_error',
+        });
         const httpStatus = getFunctionHttpStatus(error);
         // The Supabase functions-js SDK wraps non-2xx responses as FunctionsHttpError
         // with the raw (unconsumed) Response in error.context. Attempt to parse a
@@ -472,6 +485,12 @@ export class EdgeStyleChatProvider {
           httpStatus != null ? `EDGE_HTTP_${httpStatus}` : 'EDGE_INVOKE_ERROR',
         );
       }
+
+      emitObservabilityEvent('elise.request_completed', {
+        operation: 'stylechat_generate',
+        request_id: correlation.requestId,
+        trace_id: correlation.traceId,
+      });
 
       if (!data || typeof data.status !== 'string') {
         if (__DEV__) console.warn('[EdgeStyleChatProvider] unexpected response shape');

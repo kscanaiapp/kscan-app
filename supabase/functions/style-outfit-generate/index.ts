@@ -30,6 +30,7 @@
 // user-facing scores; no retailer products; anchor preserved in every outfit.
 
 import { createClient } from 'npm:@supabase/supabase-js@2.105.4';
+import { emitBackendObservability, observeEdgeRequest } from '../_shared/observability.ts';
 import {
   FASHION_REASONING_CONTRACT_VERSION,
   STYLE_OUTFIT_PROMPT_VERSION,
@@ -54,7 +55,7 @@ import {
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-kscan-request-id, traceparent',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
@@ -262,7 +263,7 @@ async function callGeminiJson(
 
 // ── Main handler ──────────────────────────────────────────────────────────────
 
-Deno.serve(async (req) => {
+Deno.serve(async (req) => observeEdgeRequest(req, 'style-outfit-generate', async (observabilityContext) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS });
   }
@@ -504,6 +505,10 @@ Deno.serve(async (req) => {
     ),
   ];
   const poolResult = finalizeCandidatePool(candidates, request);
+  emitBackendObservability('database_operation', observabilityContext, {
+    operation: 'closet_candidate_read',
+    row_count_bucket: candidates.length === 0 ? '0' : candidates.length === 1 ? '1' : candidates.length <= 5 ? '2-5' : '6_plus',
+  });
 
   if (!poolResult.ok) {
     if (poolResult.reason === 'anchor_not_owned') {
@@ -597,12 +602,15 @@ Deno.serve(async (req) => {
 
   // 7. Provider call with one safe retry on malformed output.
   let providerOutput: unknown = null;
+  let providerRetryCount = 0;
+  const providerStartedAt = Date.now();
   try {
     providerOutput = await callGeminiJson(modelName, geminiKey, SYSTEM_PROMPT, userPrompt, 'initial');
   } catch (firstError) {
     const message = firstError instanceof Error ? firstError.message : 'provider_error';
     const retryable = message === 'provider_invalid_output' || message === 'provider_non_json' || message === 'provider_empty';
     if (retryable) {
+      providerRetryCount = 1;
       try {
         providerOutput = await callGeminiJson(modelName, geminiKey, SYSTEM_PROMPT, userPrompt, 'retry');
       } catch {
@@ -610,6 +618,14 @@ Deno.serve(async (req) => {
       }
     }
   }
+  emitBackendObservability('provider_operation', observabilityContext, {
+    provider: 'gemini',
+    model_family: 'flash',
+    operation: 'style_outfit_generation',
+    duration_ms: Date.now() - providerStartedAt,
+    response_status: providerOutput === null ? 503 : 200,
+    retry_count: providerRetryCount,
+  });
 
   if (providerOutput === null) {
     // Safe error: no raw provider details leave the function.
@@ -658,4 +674,4 @@ Deno.serve(async (req) => {
     },
     variationOrder: OUTFIT_VARIATIONS,
   });
-});
+}));

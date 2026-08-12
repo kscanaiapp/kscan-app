@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-11T23:30:52.896Z",
-    "generatedFromGitSha": "b50cb88a4f990a1f5fa78ae9355f89fcd3539c6b"
+    "generatedAtUtc": "2026-08-12T05:17:59.028Z",
+    "generatedFromGitSha": "194bbaa6bc410119bb3e14bab63c384c222e6c6d"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v2",
@@ -26,10 +26,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 31,
-        "treeFileCount": 40,
-        "bundleHash": "04e2c0786f3504e155c580fb816f71387ecf4c61be89da31eb705ad1fd6e0b68",
-        "treeHash": "58ed02754b905522dbb31644845fb93b8e60fa1990a5c507455e4db33620c4a5",
+        "bundleFileCount": 32,
+        "treeFileCount": 41,
+        "bundleHash": "d75352d89131198822d3e20626f6e19017c30258311085af0cbf7ca4148f0613",
+        "treeHash": "706cc4d70b768f5952b34be14754bcc5073dfa32701433bebf80e7c16fef9766",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -54,6 +54,11 @@
           {
             "path": "supabase/functions/_shared/llmModelRouting.ts",
             "sha256": "4e39d7a549e1f6222e34ec7eddb89f8a6da8fffa4ba1509bf2495f7c1c6ef14c",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/observability.ts",
+            "sha256": "311d9cca3797958c4624a3682a5f9abb5f58a592fdb9e657a0a13b7bf9fbe986",
             "bundle": true
           },
           {
@@ -118,7 +123,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/index.ts",
-            "sha256": "dcc7732abce278e7b90e000e388932b3041a32bb608d5b2cabeeddfc4808efc6",
+            "sha256": "a3d7616c36bcfe1306c26e97ea8f0b61f725b267eab8b766458889973fca3c13",
             "bundle": true
           },
           {
@@ -240,10 +245,10 @@
           "npm:@supabase/supabase-js@2",
           "npm:@supabase/supabase-js@2.105.4"
         ],
-        "bundleFileCount": 34,
-        "treeFileCount": 49,
-        "bundleHash": "8d8911038840410bf9df1866a3afde7fa92e9464c77ff878d948aa1557932894",
-        "treeHash": "c6b5f5efe2d4f9b9ed6adb0b70f9b2d8065f6cefe1606d5b29ffab1a108e20c4",
+        "bundleFileCount": 35,
+        "treeFileCount": 50,
+        "bundleHash": "6d1e1ad9ce9904d9b65a36c4909162454c52031a51ec3f89fe918356aa05430f",
+        "treeHash": "ba72474f9be66fd3d481199dcc9c22a60c2d41a103f90e42b9996d21f23a3bf5",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -253,6 +258,11 @@
           {
             "path": "supabase/functions/_shared/llmModelRouting.ts",
             "sha256": "4e39d7a549e1f6222e34ec7eddb89f8a6da8fffa4ba1509bf2495f7c1c6ef14c",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/observability.ts",
+            "sha256": "311d9cca3797958c4624a3682a5f9abb5f58a592fdb9e657a0a13b7bf9fbe986",
             "bundle": true
           },
           {
@@ -452,7 +462,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/index.ts",
-            "sha256": "97018163046b595a5e5a5154e9847eef5ace75bc59220a2a74eb55d9628e7d12",
+            "sha256": "bf93dd93d425cff3eb4058b0141dd1e48b5fdccb3eb9690217dafbca4cfb4da2",
             "bundle": true
           },
           {
@@ -498,14 +508,19 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2.105.4"
         ],
-        "bundleFileCount": 6,
-        "treeFileCount": 8,
-        "bundleHash": "b7339f46b44940f23f606ebca7bff9110818b5f166ad2c9bb7aea687df44ea72",
-        "treeHash": "f6b262bf873cc548cef6385ecfa389630042f598ad64d68e889ef54c32a15362",
+        "bundleFileCount": 7,
+        "treeFileCount": 9,
+        "bundleHash": "c31baac7a15a5411d3964f999ed030e70f369d5ab090a805855860629f62da17",
+        "treeHash": "694159bbeae509a1904a47dae5ccb73ecea86b888e0c5cb143bf931f0264e3c4",
         "files": [
           {
+            "path": "supabase/functions/_shared/observability.ts",
+            "sha256": "311d9cca3797958c4624a3682a5f9abb5f58a592fdb9e657a0a13b7bf9fbe986",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/style-outfit-generate/index.ts",
-            "sha256": "1baa0ac9c439c023d53fcf2aa8d7216aed6beeec833967ffdb8e629f70500d75",
+            "sha256": "b5f5885d339beee51bd1bb0ae615d0f80249d71d97fb31e4829dacbd0c76806a",
             "bundle": true
           },
           {
