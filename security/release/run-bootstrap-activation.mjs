@@ -148,7 +148,7 @@ export async function runBootstrapActivation({
   mode = MODE.PLAN_ONLY,
   projectRef = STAGING_REF,
   liveFunctionNames,
-  liveMigrationNames,
+  liveMigrationVersions,
   priorVerifiedRelease = null,
   certification = null,
   deploymentRunId = 'local',
@@ -254,11 +254,19 @@ export async function runBootstrapActivation({
   record('bootstrap_plan', STATUS.PASS, `${plan.plan.functions.length} functions; ${HEALTH_FUNCTION} last`);
 
   // ── migration state ──────────────────────────────────────────────────────
-  const expectedMigrations = manifest.migrations.map((m) => m.name);
-  const liveMigrations = new Set(liveMigrationNames || []);
-  const missingMigrations = expectedMigrations.filter((n) => !liveMigrations.has(n));
+  // DEF-B29-SVV-012: migration identity is the VERSION on BOTH sides.
+  //
+  // This compared manifest migration NAMES ("apple_auth_credentials") against
+  // the live inventory, which returns the CLI's `remote` field -- the VERSION
+  // applied to the database ("20260810120000"). Names never equal versions, so
+  // all 105 live migrations were reported missing and the gate blocked a
+  // correct staging. The existing tests fed names on both sides, so they agreed
+  // with each other while disagreeing with production wiring.
+  const expectedMigrationVersions = manifest.migrations.map((m) => m.version);
+  const liveMigrations = new Set(liveMigrationVersions || []);
+  const missingMigrations = expectedMigrationVersions.filter((version) => !liveMigrations.has(version));
   record('migration_state', missingMigrations.length === 0 ? STATUS.PASS : STATUS.BLOCKED,
-    missingMigrations.length === 0 ? `${expectedMigrations.length} satisfied` : `missing: ${missingMigrations.join(', ')}`);
+    missingMigrations.length === 0 ? `${expectedMigrationVersions.length} satisfied` : `missing: ${missingMigrations.join(', ')}`);
   if (missingMigrations.length > 0) {
     return { ok: false, mode, releaseId, steps, code: 'MIGRATION_STATE_UNSATISFIED', missingMigrations };
   }
@@ -438,7 +446,7 @@ export async function runBootstrapActivation({
     manifest,
     receipt: finalReceipt,
     liveVersion: health.versionBody,
-    liveMigrationNames: liveMigrationNames || [],
+    liveMigrationVersions: liveMigrationVersions || [],
     expectedEnvironment: 'staging',
     observedProjectRef: projectRef,
     previousRelease: null,
@@ -621,7 +629,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
     repoRoot,
     mode,
     liveFunctionNames: inventory.functions,
-    liveMigrationNames: inventory.migrations,
+    liveMigrationVersions: inventory.migrations,
     certification: certResult.certification,
     priorVerifiedRelease,
     releaseId,

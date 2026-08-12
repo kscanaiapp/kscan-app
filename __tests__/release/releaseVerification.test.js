@@ -327,7 +327,7 @@ function mintLegitimateBaseline(overrides = {}) {
       manifestDigest: frozen.identityDigest,
       healthContractVersion: m.healthContractVersion,
     },
-    liveMigrationNames: m.migrations.map((x) => x.name),
+    liveMigrationVersions: m.migrations.map((x) => x.version),
     expectedEnvironment: 'staging',
     observedProjectRef: STAGING_REF,
     previousVerifiedState: null,
@@ -398,7 +398,7 @@ function verificationInputs(overrides = {}) {
       manifestDigest: frozen.identityDigest,
       healthContractVersion: m.healthContractVersion,
     },
-    liveMigrationNames: m.migrations.map((x) => x.name),
+    liveMigrationVersions: m.migrations.map((x) => x.version),
     expectedEnvironment: 'staging',
     observedProjectRef: STAGING_REF,
     // Carry-forward now requires the baseline AND its source evidence.
