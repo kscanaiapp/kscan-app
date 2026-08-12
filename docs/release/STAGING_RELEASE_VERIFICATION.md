@@ -51,10 +51,67 @@ So each governed component carries an explicit attestation class:
 
 When any governed component is `UNATTESTED` because no prior verified baseline
 exists, the verifier returns **`FULL_RUNTIME_ATTESTATION_GAP`**, which blocks
-`STAGING_VERIFIED`. **This is the expected result for the first release through
-this system**: there is nothing earlier to carry forward from, and inventing a
-baseline would be fabricated provenance. The first activation run establishes
-the baseline that later runs carry forward.
+`STAGING_VERIFIED`. There is nothing earlier to carry forward from, and
+inventing a baseline would be fabricated provenance.
+
+> ### `FULL_RUNTIME_ATTESTATION_GAP` ≠ VERIFIED BASELINE
+>
+> **Corrected in Phase 2B.1 (DEF-REL-009).** An earlier draft of this document
+> said "the first activation run establishes the baseline that later runs carry
+> forward." **That was wrong, and the code that made it true was a provenance
+> laundering path.** A run that ends in `FULL_RUNTIME_ATTESTATION_GAP` did not
+> verify anything, so it cannot become a trust root for anything.
+
+## How the first trust root is actually created
+
+1. A normal first **change-scoped** activation with no prior baseline may
+   legitimately return `FULL_RUNTIME_ATTESTATION_GAP`.
+2. **That run does NOT create a verified trust root.** No baseline is minted,
+   and the next release still has nothing to carry forward.
+3. The first trust root requires an explicit, one-time
+   **`BOOTSTRAP_FULL_ATTESTATION`** release, which redeploys every
+   already-live, staging-applicable `GOVERNED` function from the frozen
+   candidate so each becomes `EXACTLY_DEPLOYED_FROM_FROZEN_CANDIDATE`.
+4. That bootstrap release must itself reach **`STAGING_VERIFIED`**.
+5. **Only then** may a verified baseline be minted, and only then may later
+   normal change-scoped releases carry unchanged components forward.
+
+`BOOTSTRAP_FULL_ATTESTATION` is an **initialization exception, not a
+deployment model.** It refuses to run when a baseline already exists, outside
+staging, against an unknown or missing project identity, on an invalid freeze,
+or when candidate binding failed.
+
+**Bootstrap is not an installer.** It compares the governed inventory against
+the *live* staging Edge Function inventory and, if a governed function is not
+already running, stops with
+`BOOTSTRAP_LIVE_INVENTORY_RECONCILIATION_REQUIRED` rather than installing it —
+a provenance mechanism must never change what the backend *is*. Quarantined,
+heritage-unmanaged and excluded surfaces are structurally unreachable from the
+plan. Migrations are never replayed to manufacture trust; database provenance
+comes from the manifest inventory plus live migration-state verification.
+
+## What minting a baseline requires
+
+`mintVerifiedBaseline()` refuses unless **all** of the following hold, and
+returns no partial baseline and no warning-level downgrade:
+
+- manifest, freeze record, finalized receipt, exact verification and release
+  evidence all present
+- receipt integrity validates against its own digest
+- release ID, source SHA, source tree SHA and manifest digest agree across
+  freeze, receipt and manifest
+- `exactCandidateVerification.result === PASS`
+- **zero** `UNATTESTED` governed components
+- `releaseEvidence.stagingVerifiedEligible === true`
+- `canEnterStagingVerified(releaseEvidence).allowed === true`
+
+Consumption is guarded too: a baseline re-validates every time it is trusted
+(integrity digest, required fields, well-formed hashes, no `UNATTESTED` or
+governance-excluded components). A hand-written, baseline-shaped object fails
+the digest check, and a rejected baseline carries **nothing** forward — its
+components fall through to `UNATTESTED`. Changed code is never carried
+forward: a governed component whose source moved must be redeployed to be
+attested.
 
 ## Why `/version` is not sufficient on its own
 

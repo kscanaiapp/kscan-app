@@ -30,8 +30,8 @@ const {
   ATTESTATION,
   attestComponents,
   verifyExactCandidate,
-  buildVerifiedState,
 } = require('../../security/release/verify-exact-candidate');
+const { mintVerifiedBaseline } = require('../../security/release/verified-baseline');
 const {
   STATUS,
   loadPolicy,
@@ -289,6 +289,70 @@ test('a receipt carrying a credential-shaped value is refused', () => {
 
 // ── exact candidate verification ─────────────────────────────────────────────
 
+/**
+ * Mints a baseline the only legitimate way: a full-attestation run where every
+ * governed component is EXACTLY_DEPLOYED and the release reaches
+ * STAGING_VERIFIED. This is the BOOTSTRAP_FULL_ATTESTATION shape.
+ *
+ * There is deliberately no shortcut — a manifest alone can no longer produce a
+ * baseline (DEF-REL-009).
+ */
+function mintLegitimateBaseline(overrides = {}) {
+  const m = manifest();
+  const frozen = freezeManifest(m, { frozenAt: '2026-08-12T00:00:00.000Z' });
+  const allGoverned = m.edgeFunctions.filter((f) => f.releaseIncluded).map((f) => f.name);
+
+  const receipt = finalizeReceipt(
+    createReceipt({
+      binding: {
+        ...binding(),
+        candidateSha: frozen.sourceSha,
+        candidateTreeSha: frozen.sourceTreeSha,
+        manifestDigest: frozen.identityDigest,
+      },
+      deploymentRunId: 'bootstrap-run',
+      startedAt: '2026-08-12T00:00:00.000Z',
+    }),
+    { completedAt: '2026-08-12T00:05:00.000Z', status: 'PASS', functionsDeployed: allGoverned },
+  );
+
+  const verification = verifyExactCandidate({
+    frozen,
+    manifest: m,
+    receipt,
+    liveVersion: {
+      releaseIdentityState: 'VERIFIABLE',
+      releaseId: frozen.releaseId,
+      sourceSha: frozen.sourceSha,
+      manifestDigest: frozen.identityDigest,
+      healthContractVersion: m.healthContractVersion,
+    },
+    liveMigrationNames: m.migrations.map((x) => x.name),
+    expectedEnvironment: 'staging',
+    observedProjectRef: STAGING_REF,
+    previousVerifiedState: null,
+  });
+
+  const evidence = buildReleaseEvidence(evidenceInputs({
+    exactCandidateVerification: verification,
+  }));
+
+  return {
+    manifest: m,
+    frozen,
+    receipt,
+    verification,
+    evidence,
+    baseline: mintVerifiedBaseline({
+      manifest: m, frozen, receipt,
+      exactCandidateVerification: verification,
+      releaseEvidence: evidence,
+      verifiedAt: '2026-08-12T00:10:00.000Z',
+      ...overrides,
+    }),
+  };
+}
+
 function verificationInputs(overrides = {}) {
   const m = manifest();
   const frozen = freezeManifest(m, { frozenAt: '2026-08-12T00:00:00.000Z' });
@@ -320,7 +384,7 @@ function verificationInputs(overrides = {}) {
     liveMigrationNames: m.migrations.map((x) => x.name),
     expectedEnvironment: 'staging',
     observedProjectRef: STAGING_REF,
-    previousVerifiedState: buildVerifiedState({ releaseId: 'rel-prev', manifest: m }),
+    previousVerifiedState: mintLegitimateBaseline().baseline,
     ...overrides,
   };
 }
@@ -374,7 +438,7 @@ test('with no prior verified state, unchanged components are UNATTESTED and the 
 test('carried-forward attestation requires a matching prior verified baseline', () => {
   const m = manifest();
   const withPrior = attestComponents({
-    manifest: m, deployedFunctions: [], previousVerifiedState: buildVerifiedState({ releaseId: 'p', manifest: m }),
+    manifest: m, deployedFunctions: [], previousVerifiedState: mintLegitimateBaseline().baseline,
   });
   assert.ok(withPrior.every((c) => c.attestation === ATTESTATION.CARRIED_FORWARD));
 
