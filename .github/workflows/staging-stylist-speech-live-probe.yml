@@ -1,0 +1,122 @@
+name: K Scan Staging Stylist Speech Live Probe
+
+# Governed Build 29 Elise voice (stylist-speech) live probe.
+#
+# The IOS-01 client work and the stylist-speech handler suites prove the client
+# and the handler logic. Neither proves the DEPLOYED staging function can reach
+# the configured ElevenLabs provider. This workflow closes that gap: it signs in
+# as the existing protected ACTIVE synthetic staging account, creates a
+# synthetic StyleChat session and assistant message under that account's own
+# RLS, pins an approved SPEAKING portrait stylist, sends ONE authenticated
+# request to the real deployed stylist-speech function, and inspects the
+# resulting sanitized `stylist_speech_provider` diagnostics line via the
+# Supabase Management API.
+#
+# This is not a general Edge Function invoker. There is no input for a project
+# ref, a URL, or a function name - all three are fixed. The project ref is
+# asserted against security/scripts/lib/environment-authority.js, which never
+# accepts production. See security/release/run-stylist-speech-live-probe.js for
+# the full evidence contract: no JWT, email, assistant text, audio, alignment
+# payload, provider body, or credential ever reaches the artifact.
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kscan-staging-stylist-speech-live-probe
+  cancel-in-progress: false
+
+jobs:
+  live-probe:
+    name: Stylist speech live probe (staging only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    environment: staging
+    steps:
+      - name: Checkout canonical staging
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: staging/production-parity
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6.0.0
+        with:
+          node-version: '20'
+
+      - name: Confirm environment authority
+        env:
+          SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+        run: |
+          set -euo pipefail
+          node -e "
+            const a = require('./security/scripts/lib/environment-authority.js');
+            a.assertExpectedEnvironment('staging', process.env.SUPABASE_STAGING_PROJECT_REF);
+            console.log('environment authority: staging confirmed');
+          "
+
+      - name: Record candidate identity
+        id: candidate
+        run: |
+          set -euo pipefail
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "tree=$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"
+
+      - name: Run stylist speech live probe
+        id: probe
+        continue-on-error: true
+        env:
+          # Credentials and tokens reach the runner through the environment
+          # only. They are never an argv element, never echoed, and the script
+          # masks the synthetic access token to stderr the instant it receives
+          # it.
+          SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          SUPABASE_STAGING_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          STAGING_SYNTHETIC_ACTIVE_EMAIL: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_EMAIL }}
+          STAGING_SYNTHETIC_ACTIVE_PASSWORD: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_PASSWORD }}
+        run: |
+          set -uo pipefail
+          node security/release/run-stylist-speech-live-probe.js > stylist-speech-live-probe-raw.json
+          echo "probe_exit=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Assemble sanitized evidence
+        if: always()
+        env:
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.sha }}
+          CANDIDATE_TREE: ${{ steps.candidate.outputs.tree }}
+        run: |
+          set -euo pipefail
+          if [ -s stylist-speech-live-probe-raw.json ]; then
+            node -e "
+              const raw = require('./stylist-speech-live-probe-raw.json');
+              const evidence = {
+                candidate_sha: process.env.CANDIDATE_SHA,
+                candidate_tree: process.env.CANDIDATE_TREE,
+                ...raw,
+              };
+              require('fs').writeFileSync('stylist-speech-live-probe-report.json', JSON.stringify(evidence, null, 2));
+              console.log(JSON.stringify(evidence, null, 2));
+            "
+          else
+            printf '{"candidate_sha":"%s","candidate_tree":"%s","operational_failure":true}\n' \
+              "$CANDIDATE_SHA" "$CANDIDATE_TREE" > stylist-speech-live-probe-report.json
+          fi
+
+      - name: Upload sanitized evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: stylist-speech-live-probe-${{ github.run_id }}
+          path: stylist-speech-live-probe-report.json
+          retention-days: 30
+
+      - name: Fail the job if the provider path did not verify
+        if: steps.probe.outcome != 'success'
+        run: |
+          echo "Stylist speech live probe did not reach VOICE_PROVIDER_RUNTIME_VERIFICATION=PASS, or failed operationally. See the uploaded evidence artifact." >&2
+          exit 1
