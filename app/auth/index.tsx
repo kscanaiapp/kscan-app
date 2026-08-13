@@ -27,6 +27,10 @@ import { validateAuthInput, mapAuthError } from '../../services/authValidation';
 import { AUTH_CALLBACK_URL } from '../../services/authConfig';
 import { supabase } from '../../services/supabaseClient';
 import { parseAuthCallbackUrl } from '../../services/authDeepLink';
+import {
+  buildAccountDeletionNoticeMessage,
+  consumeAccountDeletionNotice,
+} from '../../services/accountDeletionNotice';
 import { completeOAuthCallbackSession } from '../../services/oauthCallbackSession';
 import { traceAuthLifecycle } from '../../services/authLifecycleTrace';
 import { linkAppleCredential } from '../../services/appleCredentialLink';
@@ -45,6 +49,15 @@ function createRawNonce(length = 32) {
 export default function AuthScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  // IOS-03: the deletion confirmation is handed across sign-out in memory and
+  // consumed exactly once here, so the user lands on login with proof their
+  // request was accepted instead of an unexplained login screen. Reading it
+  // clears it, so it never reappears on an unrelated later visit, and a cold
+  // start has nothing to show.
+  const [deletionNotice] = useState(() => {
+    const notice = consumeAccountDeletionNotice();
+    return notice ? buildAccountDeletionNoticeMessage(notice) : null;
+  });
   const { signIn, signUp } = useAuthSession();
 
   const [mode, setMode] = useState<AuthMode>('sign-in');
@@ -451,6 +464,14 @@ export default function AuthScreen() {
             <View style={styles.dividerLine} />
           </View>
 
+          {deletionNotice ? (
+            <View style={styles.noticeBanner} testID="auth-account-deletion-notice">
+              <Text style={styles.noticeText} accessibilityLiveRegion="polite">
+                {deletionNotice}
+              </Text>
+            </View>
+          ) : null}
+
           {error ? (
             <View style={styles.errorBanner}>
               <Text style={styles.errorText}>{error}</Text>
@@ -747,6 +768,19 @@ const styles = StyleSheet.create({
   emailHighlight: {
     color: LUXURY.colors.ink,
     fontWeight: '600',
+  },
+  noticeBanner: {
+    borderWidth: 1,
+    borderColor: 'rgba(90, 74, 110, 0.25)',
+    borderRadius: RADIUS.md,
+    backgroundColor: 'rgba(90, 74, 110, 0.08)',
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  noticeText: {
+    ...LUXURY.typography.body,
+    fontSize: 13,
+    color: LUXURY.colors.ink,
   },
   errorBanner: {
     borderWidth: 1,

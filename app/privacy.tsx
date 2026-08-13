@@ -47,6 +47,10 @@ import {
   type DressingRoomBlockedUser,
 } from '../services/dressingRoomBlocks';
 import { createSingleFlight } from '../services/singleFlight';
+import {
+  buildAccountDeletionNoticeMessage,
+  setAccountDeletionNotice,
+} from '../services/accountDeletionNotice';
 
 const PRIVACY_COPY = {
   saleRemote:
@@ -393,8 +397,19 @@ export default function PrivacyScreen() {
   };
 
   const confirmDeletion = async () => {
-    setDeletionConfirmVisible(false);
+    // Single-flight the submission itself. `disabled` alone is not enough: a
+    // rapid double-tap in the same frame, before React re-renders the button,
+    // would otherwise submit twice.
+    if (deletionSubmitting) return;
     setDeletionSubmitting(true);
+    // Dismiss the confirmation Modal BEFORE the await, not after. On iOS an
+    // Alert presented in the same commit that dismisses an RN Modal can be
+    // swallowed with the modal's view controller — the user would then never
+    // see the confirmation, which is the exact IOS-03 symptom. Letting the
+    // network round-trip elapse guarantees the modal is fully gone first.
+    // Duplicate submissions are prevented by the guard above, not by the
+    // button unmounting, so dismissing early costs nothing.
+    setDeletionConfirmVisible(false);
     try {
       // The service normalizer owns the backend field names. `accepted` means an
       // active deletion lifecycle exists — NOT that the account was purged. No
@@ -402,23 +417,29 @@ export default function PrivacyScreen() {
       // later, restorable-window-gated step.
       const result = await submitAccountDeletionRequest(supabase, session);
       setDeletionPending(true);
-      const confirmationMessage = result.alreadyRequested
-        ? 'Your account deletion request is already active. You have been signed out.'
-        : 'Your account deletion request was submitted. You have been signed out.';
+
+      // Copy is built from the single accuracy-owning helper so the Privacy
+      // Alert and the post-sign-out confirmation can never drift apart, and
+      // so neither can claim a restoration email that this lifecycle does not
+      // send (handle-user-deletion and process-account-deletions both send
+      // none) or invent a grace-period date the backend did not supply.
+      const notice = {
+        alreadyRequested: result.alreadyRequested === true,
+        gracePeriodEndsAt: result.gracePeriodEndsAt ?? null,
+      };
+      const confirmationMessage = buildAccountDeletionNoticeMessage(notice);
       setMessage(confirmationMessage);
 
-      // Grace-window copy is appended only when the backend supplied a valid
-      // timestamp. Deletion is restorable until then, so this must never read
-      // as permanent removal.
-      const graceCopy = result.gracePeriodEndsAt
-        ? ` Your account can be restored using the email we sent, until ${new Date(
-            result.gracePeriodEndsAt,
-          ).toLocaleDateString()}.`
-        : ' Your account can be restored using the email we sent, during the grace period.';
+      // Hand the confirmation across the sign-out transition. Acknowledging the
+      // Alert below signs the user out and replaces the route with /auth, which
+      // destroys this screen and every trace of the confirmation; the auth
+      // screen shows it once so the user lands with proof the request was
+      // accepted. Set only after proven acceptance.
+      setAccountDeletionNotice(notice);
 
       Alert.alert(
         'Account deletion request',
-        `${confirmationMessage}${graceCopy}`,
+        confirmationMessage,
         [
           {
             text: 'OK',
@@ -438,6 +459,8 @@ export default function PrivacyScreen() {
         { cancelable: false }
       );
     } catch (error) {
+      // No notice is set and no sign-out happens: a failed request must never
+      // read as accepted, and the user stays put so they can retry.
       console.error('Account deletion request failed', error);
       setMessage("We couldn't submit your request right now. Please try again later.");
       setDeletionSubmitting(false);
