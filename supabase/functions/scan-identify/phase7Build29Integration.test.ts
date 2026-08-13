@@ -215,3 +215,46 @@ Deno.test('B29: with the flag off the metrics baseline reports a single provider
   assertEquals(metrics.identificationProviderCalls, 1);
   assertEquals(metrics.finalIdentity, PROMPT_INPUT.primary);
 });
+
+/* ── No duplicate persistence/commerce side effect ───────────────────────── */
+
+// There is no dedicated behavioral test proving "one recheck-triggered scan
+// creates no duplicate Closet save or scan_commerce_events row" - a live
+// staging probe would have to actually save to Closet or emit a commerce
+// event to observe that, which is a bigger blast radius than a governed
+// identification-only probe should carry. This is the structural invariant
+// that makes such a duplicate impossible by construction instead: the entire
+// recheck subsystem contains no database client, no insert/upsert call, and
+// no reference to the commerce or closet persistence surfaces. Extends the
+// same technique as "the recheck performs no image retrieval of its own"
+// (this file, above) to the full recheck subsystem rather than just
+// identificationRecheck.ts.
+Deno.test('B29: the recheck subsystem contains no persistence or commerce dispatch of its own', () => {
+  const recheckSubsystemFiles = [
+    './identificationRecheck.ts',
+    './identificationRecheckGate.ts',
+    './identificationRecheckReconcile.ts',
+    './identificationRecheckTelemetry.ts',
+  ];
+  const forbidden = [
+    'createClient',
+    'supabase.from(',
+    '.insert(',
+    '.upsert(',
+    'persistCommerceOutcomeRow',
+    'scan_commerce_events',
+    'closet',
+    'storage',
+    'signedUrl',
+    'createSignedUrl',
+  ];
+  for (const relativePath of recheckSubsystemFiles) {
+    const source = Deno.readTextFileSync(new URL(relativePath, import.meta.url));
+    for (const term of forbidden) {
+      assert(
+        !source.includes(term),
+        `${relativePath} must not perform persistence or commerce dispatch (found "${term}")`,
+      );
+    }
+  }
+});
