@@ -850,7 +850,7 @@ Deno.test('§20: no OCR, logo API, or other new network dependency', () => {
   }
 });
 
-Deno.test('§20: reasoning, output and timeout budgets are unchanged', () => {
+Deno.test('§20: reasoning latency is bounded while output and timeout budgets stay unchanged', () => {
   assert(INDEX_SOURCE.includes('const MAX_OUTPUT_TOKENS = 2048;'), 'output ceiling unchanged');
   assert(
     INDEX_SOURCE.includes('const DEFAULT_GEMINI_TIMEOUT_MS = 14_000;'),
@@ -859,8 +859,15 @@ Deno.test('§20: reasoning, output and timeout budgets are unchanged', () => {
   // The primary generationConfig still uses the same ceiling, not a new one.
   const configs = INDEX_SOURCE.match(/maxOutputTokens: MAX_OUTPUT_TOKENS/g) || [];
   assertEquals(configs.length, 2, 'both primary paths still use the shared ceiling');
-  // No thinking/reasoning budget was introduced.
-  assert(!/thinkingConfig|thinkingBudget|reasoningEffort/i.test(INDEX_SOURCE));
+  assert(
+    INDEX_SOURCE.includes("const GEMINI_THINKING_LEVEL = 'minimal';"),
+    'classification explicitly avoids the provider medium-thinking default',
+  );
+  const thinkingConfigs = INDEX_SOURCE.match(
+    /thinkingConfig: \{ thinkingLevel: GEMINI_THINKING_LEVEL \}/g,
+  ) || [];
+  assertEquals(thinkingConfigs.length, 3, 'both primary paths and the one recheck pin minimal thinking');
+  assert(!/thinkingBudget|reasoningEffort/i.test(INDEX_SOURCE), 'no token budget or reasoning override');
 });
 
 Deno.test('§20: the image is transmitted exactly as before', () => {

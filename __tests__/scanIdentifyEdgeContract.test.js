@@ -433,6 +433,25 @@ test('edge source: default Gemini timeout is 14000ms when env override is absent
   );
 });
 
+test('edge source: Gemini scanner calls pin minimal thinking inside existing timeout guards', () => {
+  assert.ok(
+    EDGE_SOURCE.includes("const GEMINI_THINKING_LEVEL = 'minimal'"),
+    'Scanner classification must not inherit the provider medium-thinking default',
+  );
+  const pinnedConfigs = EDGE_SOURCE.match(
+    /thinkingConfig: \{ thinkingLevel: GEMINI_THINKING_LEVEL \}/g,
+  ) || [];
+  assert.equal(
+    pinnedConfigs.length,
+    3,
+    'Text/image primary paths and the single Phase 7 recheck must use the fixed minimal level',
+  );
+  assert.ok(
+    !EDGE_SOURCE.includes('SCAN_GEMINI_THINKING_LEVEL'),
+    'Thinking level must not become a generic runtime provider override',
+  );
+});
+
 test('edge source: SCAN_GEMINI_TIMEOUT_MS override clamps within 2000ms to 20000ms', () => {
   assert.ok(EDGE_SOURCE.includes('SCAN_GEMINI_TIMEOUT_MS'), 'Must reference SCAN_GEMINI_TIMEOUT_MS');
   assert.ok(EDGE_SOURCE.includes('parsed >= 2_000'), 'Must enforce minimum 2000ms');

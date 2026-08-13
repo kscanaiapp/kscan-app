@@ -189,6 +189,12 @@ const CORS_HEADERS = {
 const MAX_IMAGE_BASE64_BYTES = 2 * 1024 * 1024;
 const MAX_TEXT_QUERY_LEN = 500;
 const MAX_OUTPUT_TOKENS = 2048;
+// Scanner work is bounded extraction/classification, not open-ended reasoning.
+// Gemini 3.6 Flash defaults to medium thinking, which can consume the primary
+// latency budget before returning structured output. Pinning the supported
+// minimal level restores deterministic latency without changing models,
+// prompts, output ceilings, or the primary/recheck timeout guards.
+const GEMINI_THINKING_LEVEL = 'minimal';
 // Provider call timeout. Target is ~5s; a 14s hard cap absorbs cold starts / free
 // tier latency without hanging. Operator-tunable via SCAN_GEMINI_TIMEOUT_MS.
 const DEFAULT_GEMINI_TIMEOUT_MS = 14_000;
@@ -2096,6 +2102,7 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'scan-identify', async (observ
           temperature: 0.2,
           maxOutputTokens: MAX_OUTPUT_TOKENS,
           responseMimeType: 'application/json',
+          thinkingConfig: { thinkingLevel: GEMINI_THINKING_LEVEL },
         },
       }
     : {
@@ -2118,6 +2125,7 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'scan-identify', async (observ
           temperature: useMultiItemDetectionProvider || useSelectedItemProvider ? 0 : 0.2,
           maxOutputTokens: MAX_OUTPUT_TOKENS,
           responseMimeType: 'application/json',
+          thinkingConfig: { thinkingLevel: GEMINI_THINKING_LEVEL },
           ...(useMultiItemDetectionProvider
             ? { responseSchema: MULTI_ITEM_RESPONSE_SCHEMA }
             : useSelectedItemProvider
@@ -2813,6 +2821,7 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'scan-identify', async (observ
                     maxOutputTokens: req.maxOutputTokens,
                     responseMimeType: 'application/json',
                     responseSchema: req.responseSchema,
+                    thinkingConfig: { thinkingLevel: GEMINI_THINKING_LEVEL },
                   },
                 }),
                 signal: recheckController.signal,
