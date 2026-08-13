@@ -120,3 +120,46 @@ export async function submitContentReport(input: ContentReportInput): Promise<Co
     return { ok: false, serverAccepted: false, error: new Error('Report could not be sent.') };
   }
 }
+
+/**
+ * The single decision point for "may the UI claim the report was received?".
+ *
+ * DEF-B29-IOS-02C: `ok: true` is NOT sufficient. It also covers the
+ * local-only outcome ({ ok: true, serverAccepted: false, localOnly: true }),
+ * which is returned when there is no authenticated session — the row never
+ * reached the server. Claiming receipt there tells the user their report was
+ * filed when nothing was submitted. Only server acceptance may produce a
+ * receipt confirmation; a duplicate (23505) still counts, because the
+ * original report is on file.
+ */
+export function isReportServerAccepted(result: ContentReportResult): boolean {
+  return result.ok === true && result.serverAccepted === true;
+}
+
+/**
+ * Report an ACCOUNT (not a message).
+ *
+ * Target identity is fixed here so no caller can drift: `targetId` and
+ * `reportedUserId` are both the reported account's Supabase auth user id —
+ * never a room id, participant-row id, profile id, or message id. The
+ * database independently enforces the same shape for user-type reports
+ * (`target_id = reported_user_id::text` plus a real prior Dressing Room
+ * relationship; see 20260806153233_dressing_room_user_blocking.sql), so a
+ * wrong identifier here is rejected server-side rather than silently
+ * mis-filed.
+ */
+export async function submitUserReport(input: {
+  reportedUserId: string;
+  roomId?: string | null;
+  reasonCategory?: ReportReasonCategory;
+  notes?: string | null;
+}): Promise<ContentReportResult> {
+  return submitContentReport({
+    targetType: 'user',
+    targetId: input.reportedUserId,
+    reportedUserId: input.reportedUserId,
+    roomId: input.roomId ?? null,
+    reasonCategory: input.reasonCategory ?? 'inappropriate',
+    notes: input.notes ?? null,
+  });
+}

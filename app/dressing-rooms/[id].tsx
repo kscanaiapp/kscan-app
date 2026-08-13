@@ -1020,7 +1020,17 @@ function DressingRoomDetailContent() {
 
             {/* Room Chat — shared messaging (owner + authorized participants).
                 Authenticated only; never rendered on the public preview. */}
-            {isAuthenticated && ROOM_CHAT_ENABLED ? <RoomMessagesPanel roomId={roomId} /> : null}
+            {/* roomOwnerId is the ROOM's owner, never the current user's id —
+                passing the viewer's id would make "am I blocking the owner?"
+                permanently false and give a participant the owner's
+                block-consequence copy. */}
+            {isAuthenticated && ROOM_CHAT_ENABLED ? (
+              <RoomMessagesPanel
+                roomId={roomId}
+                isOwner={Boolean(user?.id && room?.userId && room.userId === user.id)}
+                roomOwnerId={room?.userId ?? null}
+              />
+            ) : null}
 
             <View style={styles.dangerZone}>
               <TertiaryButton
