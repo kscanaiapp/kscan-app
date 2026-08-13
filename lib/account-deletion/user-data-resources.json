@@ -7,7 +7,8 @@
     "outfit_decision_votes",
     "stylechat_quota_events",
     "style_outfit_burst_usage",
-    "style_outfit_daily_usage"
+    "style_outfit_daily_usage",
+    "dressing_room_user_blocks"
   ],
   "storage": [
     {
@@ -48,6 +49,8 @@
     { "table": "scan_identify_usage_daily", "column": "user_id", "action": "auth_delete_cascade" },
     { "table": "content_reports", "column": "reporter_user_id", "action": "auth_delete_cascade", "optional": true },
     { "table": "content_reports", "column": "reported_user_id", "action": "auth_delete_set_null", "optional": true },
+    { "table": "dressing_room_user_blocks", "column": "blocker_user_id", "action": "auth_delete_cascade", "optional": true },
+    { "table": "dressing_room_user_blocks", "column": "blocked_user_id", "action": "auth_delete_cascade", "optional": true },
     { "table": "wardrobe_utility_items", "column": "user_id", "action": "auth_delete_cascade", "optional": true },
     { "table": "wardrobe_collections", "column": "user_id", "action": "auth_delete_cascade", "optional": true },
     { "table": "wardrobe_collection_items", "column": "user_id", "action": "auth_delete_cascade", "optional": true },

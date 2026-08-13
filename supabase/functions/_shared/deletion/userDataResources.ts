@@ -26,6 +26,7 @@ export const REQUIRED_REGISTRY_TABLES: string[] = [
   'stylechat_quota_events',
   'style_outfit_burst_usage',
   'style_outfit_daily_usage',
+  'dressing_room_user_blocks',
 ];
 
 export const USER_DATA_RESOURCES: UserDataResource[] = [
@@ -58,6 +59,15 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   { table: 'scan_identify_usage_daily', column: 'user_id', action: 'auth_delete_cascade' },
   { table: 'content_reports', column: 'reporter_user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'content_reports', column: 'reported_user_id', action: 'auth_delete_set_null', optional: true },
+  // IOS-02 moderation (PR #137). Both columns carry a real ON DELETE CASCADE FK
+  // to auth.users in the live schema, so the rows DO disappear with the Auth
+  // user -- but until they were listed here the purge manifest never mentioned
+  // them and verifyDeletionCompleteness never residual-checked them, so erasure
+  // could be reported complete without either side ever looking. A user's block
+  // list is their own moderation data; being blocked is likewise personal to the
+  // blocked account, so both directions are registry-owned.
+  { table: 'dressing_room_user_blocks', column: 'blocker_user_id', action: 'auth_delete_cascade', optional: true },
+  { table: 'dressing_room_user_blocks', column: 'blocked_user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'wardrobe_utility_items', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'wardrobe_collections', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'wardrobe_collection_items', column: 'user_id', action: 'auth_delete_cascade', optional: true },
