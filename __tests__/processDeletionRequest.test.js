@@ -1105,7 +1105,17 @@ test('deleteOwnedStorageObjects returns sanitized prefixes without full user id'
   }
 });
 
-test('USER_DATA_RESOURCES includes the seven production-confirmed gap tables', () => {
+test('USER_DATA_RESOURCES includes every confirmed registry gap table', () => {
+  // Tables that were once user-owned in the live schema but absent from the
+  // registry. Each was found by comparing auth.users foreign keys against the
+  // registry, and each must never regress out of it: an unlisted table is
+  // invisible to both the purge manifest and verifyDeletionCompleteness, so
+  // erasure can be reported complete without either ever checking it.
+  //
+  // dressing_room_user_blocks joined this list in the Build 29 deletion
+  // closeout: IOS-02 moderation (PR #137) added it with ON DELETE CASCADE FKs
+  // on both blocker_user_id and blocked_user_id, after the registry was last
+  // reconciled against the schema.
   const expected = {
     user_stylist_preferences: 'user_id',
     dressing_room_collab_idempotency: 'actor_id',
@@ -1114,6 +1124,7 @@ test('USER_DATA_RESOURCES includes the seven production-confirmed gap tables', (
     stylechat_quota_events: 'user_id',
     style_outfit_burst_usage: 'user_id',
     style_outfit_daily_usage: 'user_id',
+    dressing_room_user_blocks: 'blocker_user_id',
   };
 
   assert.deepEqual([...REQUIRED_REGISTRY_TABLES].sort(), Object.keys(expected).sort());
