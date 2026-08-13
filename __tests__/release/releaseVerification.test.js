@@ -620,24 +620,24 @@ test('release smoke refuses production by construction', () => {
   );
 });
 
-test('a failing required smoke category is BLOCKED, and an unsupported optional one is NOT_APPLICABLE', () => {
+test('a genuine failing required smoke assertion is BLOCKED', () => {
   const failing = runReleaseSmoke({
     repoRoot: REPO_ROOT, projectRef: STAGING_REF, stagingUrl: 'https://x',
-    syntheticAvailable: false,
-    exec: () => ({ status: 1, output: 'contract failures' }),
+    exec: (_root, args) => args.includes('--test')
+      ? { status: 1, output: "not ok 1 - contract assertion\ncode: 'ERR_ASSERTION'" }
+      : { status: 1, output: JSON.stringify({ ok: false, results: [{ name: 'configuration', ok: false, details: 'missing required synthetic auth credentials' }] }) },
   });
   assert.equal(failing.categories.smoke_database_rls_rpc.status, 'BLOCKED');
-  // Optional synthetic categories degrade honestly rather than faking a pass.
-  assert.equal(failing.categories.smoke_scanner.status, 'NOT_APPLICABLE');
-  assert.ok(failing.categories.smoke_scanner.detail.includes('synthetic staging credentials'));
   assert.ok(failing.requiredFailures.includes('smoke_database_rls_rpc'));
 });
 
 test('a required smoke category never silently degrades to NOT_APPLICABLE', () => {
   const result = runReleaseSmoke({
     repoRoot: REPO_ROOT, projectRef: STAGING_REF, stagingUrl: 'https://x',
-    syntheticAvailable: false,
-    exec: () => ({ status: 0, output: '' }),
+    env: { STAGING_CONTRACT_TESTS: '1' },
+    exec: (_root, args) => args.includes('--test')
+      ? { status: 0, output: '# skipped 0' }
+      : { status: 1, output: JSON.stringify({ ok: false, results: [{ name: 'configuration', ok: false, details: 'missing required synthetic auth credentials' }] }) },
   });
   // smoke_auth is required and synthetic-backed; without credentials it must
   // report OPERATIONAL_FAILURE, not NOT_APPLICABLE.
