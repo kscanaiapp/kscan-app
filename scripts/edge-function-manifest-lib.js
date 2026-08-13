@@ -105,7 +105,18 @@ const DEPLOY_AUTHORITY = Object.freeze({
  * refuses to deploy any function absent from the manifest, so hosting the
  * versioned private Dressing Room contract here means governing it here.
  */
-const GOVERNED_FUNCTIONS = ['scan-identify', 'stylechat-generate', 'style-outfit-generate'];
+const GOVERNED_FUNCTIONS = [
+  'scan-identify',
+  'stylechat-generate',
+  'style-outfit-generate',
+  // Build 29: the Elise voice surface. It was already GOVERNED in
+  // security/release/edge-function-governance.json but absent here, so it had
+  // no content-hash coverage at all — verify:edge-parity passed while the
+  // deployed function served a different bound than source (PR #141's 700 ->
+  // 1000 spoken-character repair never reached staging, and no gate noticed).
+  // Governing it here is what turns that class of drift into a gate failure.
+  'stylist-speech',
+];
 
 const FUNCTIONS_ROOT = path.join('supabase', 'functions');
 const CONFIG_RELATIVE_PATH = path.join('supabase', 'config.toml');

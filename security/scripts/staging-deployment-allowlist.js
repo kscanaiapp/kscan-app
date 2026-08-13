@@ -43,6 +43,14 @@ const STAGING_DEPLOYMENT_ALLOWLIST = [
   // (account_deletion_worker_enabled / account_deletion_worker_dry_run) and a
   // shared-secret auth check, none of which deployment can bypass.
   'process-account-deletions',
+  // Build 29 Elise voice. Added deliberately: stylist-speech was GOVERNED but
+  // never allow-listed, so PR #141's spoken-length repair (700 -> 1000 chars)
+  // merged and the running function kept serving the old bound. Nothing failed
+  // — the deploy step simply reported NO_CHANGED_FUNCTIONS — which is exactly
+  // the silent source/runtime divergence this list exists to make deliberate.
+  // The function reads only rows the caller already owns and dispatches to a
+  // configured provider; it has no destructive path.
+  'stylist-speech',
   // Deliberately NOT listed — hardened in source this pass but kept
   // undeployed pending an explicit follow-up decision:
   //   'search-vinted-secondhand' — required Apify secrets absent from staging

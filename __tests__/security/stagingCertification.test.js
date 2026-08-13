@@ -246,9 +246,22 @@ test('the removed native workflows and flow inventory are actually gone', () => 
   }
 });
 
-test('password security policy preserves the documented blocking requirement', () => {
+test('password security policy records the plan limit honestly and stays production-blocking', () => {
+  // The owner decided on 2026-08-13 not to change Supabase plans for this
+  // control, so staging certification classifies it rather than blocking on it.
+  // What must NOT drift: the control is never recorded as satisfied, the
+  // classification rests on positively observed 402 entitlement evidence, and
+  // production promotion still requires the real control.
   const policy = require('../../security/staging/password-security-policy.json');
-  assert.equal(policy.policy_outcome, 'REQUIRED_BLOCKING');
-  assert.equal(policy.release_classes.RUNTIME_RELEASE, 'REQUIRED_BLOCKING');
+  assert.equal(policy.policy_outcome, 'NOT_APPLICABLE_PLAN_LIMIT');
+  assert.equal(policy.certification_behavior, 'NOT_APPLICABLE_PLAN_LIMIT');
+  assert.notEqual(policy.certification_behavior, 'PASS');
+  assert.equal(policy.staging_certification_blocking, false);
+  assert.equal(policy.production_promotion_blocking, true);
+  assert.equal(policy.plan_upgrade_required, false);
+  assert.equal(policy.current_observed_state, 'DISABLED_PLAN_LIMITED_HTTP_402');
+  assert.equal(policy.entitlement_evidence.observed_status, 402);
+  assert.equal(policy.release_classes.CONTROL_PLANE_CHANGE, 'NOT_APPLICABLE');
   assert.equal(policy.production_project_targeted, false);
+  assert.equal(policy.risk_acceptance_requires_explicit_policy_change, true);
 });

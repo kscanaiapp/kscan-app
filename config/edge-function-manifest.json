@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-13T17:06:51.496Z",
-    "generatedFromGitSha": "9b67703c0d8a33a0593bd9ba6d32c0e22b3be12d"
+    "generatedAtUtc": "2026-08-13T22:35:03.450Z",
+    "generatedFromGitSha": "8fdab71b181da160ca079ce0779ea1bc4ee3495b"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v2",
@@ -17,7 +17,8 @@
     "expectedFunctions": [
       "scan-identify",
       "style-outfit-generate",
-      "stylechat-generate"
+      "stylechat-generate",
+      "stylist-speech"
     ],
     "functions": [
       {
@@ -606,6 +607,109 @@
           {
             "path": "supabase/functions/style-outfit-generate/validation.ts",
             "sha256": "dc12a93417747b5c5ec20a79a6fcb98aa21b0392ceb0b6b08cfc793c22fe0234",
+            "bundle": true
+          }
+        ]
+      },
+      {
+        "name": "stylist-speech",
+        "entry": "supabase/functions/stylist-speech/index.ts",
+        "remoteSpecifiers": [
+          "npm:@supabase/supabase-js@2.105.4"
+        ],
+        "bundleFileCount": 10,
+        "treeFileCount": 18,
+        "bundleHash": "934a379d35669248c49f4aeab66d15caf32c8e561af656b5274cffdb71589ea3",
+        "treeHash": "632247c0b44bed41772f08cdd86e27a335903dfe61676f319bf00181e6331649",
+        "files": [
+          {
+            "path": "supabase/functions/stylist-speech/elevenLabsClient.test.ts",
+            "sha256": "c953d64b6140c9a3cb79313d9f51f4c0f48dcfd173bfef1e24dc5ef2c8b6f743",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylist-speech/elevenLabsClient.ts",
+            "sha256": "1e8c18d2b77c7c4af3508dc972bf897a5720d46528e67d5fcc382d47f263ea5e",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylist-speech/handler.test.ts",
+            "sha256": "bdeb002e855f8830874bc21b07df53f2513cb936f85c3bccd2ecf038a2cf6d71",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylist-speech/handler.ts",
+            "sha256": "6ce730a666ca070de4483701ce85143df7dd9083bed0b7ff39fc63b25de0c2a3",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylist-speech/index.ts",
+            "sha256": "1a898df758c704fce8fcc361f1cc9c6a859d621203bf512f830aa15a1d0be237",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylist-speech/providerDiagnostics.test.ts",
+            "sha256": "8e1b41130b6d86cdb4de97d980e955abf8178802cfeab3ab0f0e6cea81593201",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylist-speech/providerDiagnostics.ts",
+            "sha256": "d21081c1d5c9819ec426b80ba5c72433ee9c0be6d59ac07bb224d17141990312",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylist-speech/providerFailure.test.ts",
+            "sha256": "aa5efc4cda162190ee26eccf3bdca483a971e0684cfe909de4f154432c679499",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylist-speech/providerFailure.ts",
+            "sha256": "56ef90457ca73a778706f9cbdf7f013a0fa15c039e01735e41879178d64dda09",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylist-speech/rateLimit.test.ts",
+            "sha256": "940d175d1658954160c8a3b3971615c956f23d6a3624c133f3bdebcbe88f05a0",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylist-speech/rateLimit.ts",
+            "sha256": "d4f568150742302d38b841b8303398caf0831316d11665a4ee2e335bb76eb8a0",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylist-speech/secretConfig.test.ts",
+            "sha256": "2ce147ca4139eabd0cf79d5c7c1baede6f71411b8e99d92f612e82e6638365a0",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylist-speech/secretConfig.ts",
+            "sha256": "dc2bc6fc3c9edb67fb4eac20777e63c4b8a9077cf2dd80019d7d10dad530e7b9",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylist-speech/speechText.test.ts",
+            "sha256": "c63e99278dacdf890b1743796d43bd4bce0c05cd6c27b106e3e81cf4202f7454",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylist-speech/speechText.ts",
+            "sha256": "20d92eb358b9aeeca27cb46a429bab11cba50c3063f08e4052be847ac8863adc",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylist-speech/types.ts",
+            "sha256": "849e45cbc7d00be5ac03124873bb0d8e63f848993d51cd053a6c21fde5d8361d",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylist-speech/voiceProfiles.test.ts",
+            "sha256": "5f24168602ae5a9ac47977c46b719739cb22a054678146d6c076b495d2ff0284",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylist-speech/voiceProfiles.ts",
+            "sha256": "5464ed9193f2846c9769c8ddce1ccf020c6001119d054600b16d6463a18f0a3d",
             "bundle": true
           }
         ]

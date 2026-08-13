@@ -6,7 +6,21 @@ const path = require('node:path');
 
 const { loadPolicy, certificationBlock } = require('./native-ui-automation-policy.js');
 
-const VERDICTS = new Set(['PASS', 'PASS_WITH_REPORT_ONLY_FINDINGS', 'PENDING', 'NOT_APPLICABLE', 'BLOCKED', 'OPERATIONAL_FAILURE']);
+const VERDICTS = new Set([
+  'PASS', 'PASS_WITH_REPORT_ONLY_FINDINGS', 'PENDING', 'NOT_APPLICABLE',
+  'NOT_APPLICABLE_PLAN_LIMIT', 'BLOCKED', 'OPERATIONAL_FAILURE',
+]);
+// NOT_APPLICABLE_PLAN_LIMIT states that the environment's subscription does not
+// sell the capability at all, established by a targeted HTTP 402 entitlement
+// probe (security/scripts/classify-leaked-password-protection.js). No candidate
+// change can clear such a control, so blocking on it measures the billing plan
+// rather than the release.
+//
+// It is scoped to an explicit allow-list. A control outside this set that
+// somehow arrives carrying the verdict is a blocking finding, not a waiver --
+// otherwise the verdict becomes a universal skip token for any gate whose
+// operator can produce a 402.
+const PLAN_LIMIT_ELIGIBLE = new Set(['leaked_password_protection']);
 const RELEASE_CLASSES = new Set(['RUNTIME_RELEASE', 'CONTROL_PLANE_CHANGE']);
 const BASE_REQUIRED = [
   'static_security', 'migration_validation', 'contract_tests', 'staging_parity',
@@ -73,6 +87,11 @@ function build(input, options = {}) {
   const allowedNotApplicable = runtimeRelease ? RUNTIME_NOT_APPLICABLE : CONTROL_PLANE_NOT_APPLICABLE;
   const unexpectedNotApplicable = Object.entries(components)
     .filter(([name, value]) => value === 'NOT_APPLICABLE' && !allowedNotApplicable.has(name));
+  // A plan-limited verdict is non-blocking only for a control explicitly
+  // eligible for it. Anywhere else it is treated as a blocking finding.
+  const planLimited = Object.entries(components)
+    .filter(([, value]) => value === 'NOT_APPLICABLE_PLAN_LIMIT');
+  const ineligiblePlanLimited = planLimited.filter(([name]) => !PLAN_LIMIT_ELIGIBLE.has(name));
   const pending = Object.entries(components).filter(([, value]) => value === 'PENDING');
   const reportOnly = Object.entries(components).filter(([, value]) => value === 'PASS_WITH_REPORT_ONLY_FINDINGS');
   const deploymentRequired = input.deployment_required === true || input.deployment_required === 'true';
@@ -101,6 +120,7 @@ function build(input, options = {}) {
     ...(mobileShaMismatch ? ['MOBILE_TEST_SHA_MISMATCH'] : []),
     ...(nativeIdentityInvalid ? ['NATIVE_MOBILE_EVIDENCE_INVALID'] : []),
     ...(mobileEvidenceNotConfigured ? ['MOBILE_EVIDENCE_NOT_CONFIGURED'] : []),
+    ...ineligiblePlanLimited.map(([name]) => `plan_limit_not_permitted:${name}`),
   ];
   let finalVerdict = 'PASS';
   if (invalid.length || blocking.length || extraBlocking.length) finalVerdict = 'BLOCKED';
@@ -119,6 +139,16 @@ function build(input, options = {}) {
     certification_run_id: input.certification_run_id || null,
     sha_match: shaMatch,
     ...Object.fromEntries(Object.entries(components).filter(([name]) => !name.startsWith('native_'))),
+    // Stated outright so a reader never has to infer it from the verdict.
+    // NOT_APPLICABLE_PLAN_LIMIT is recorded as exactly what it is: the control
+    // is absent, not satisfied. It is never rewritten to PASS or ENABLED.
+    leaked_password_blocking: components.leaked_password_protection === 'BLOCKED',
+    // The owner has decided not to change subscription plans to satisfy this
+    // control, so certification does not demand an upgrade. The capability gap
+    // itself stays visible in plan_limited_controls and remains a production
+    // promotion blocker under security/release/staging-release-verification-policy.json.
+    plan_upgrade_required: false,
+    plan_limited_controls: planLimited.map(([name]) => name),
     // Audit-visible and deliberately not a verdict. While suspended this reads
     // NOT_REQUIRED_BY_CURRENT_POLICY -- never PASS, which would claim coverage
     // that does not exist, and never BLOCKED, which would claim a measured
@@ -156,4 +186,4 @@ function main() {
 }
 
 if (require.main === module) main();
-module.exports = { build, normalizeNative, VERDICTS, RELEASE_CLASSES, REQUIRED, BASE_REQUIRED, NATIVE_COMPONENTS };
+module.exports = { build, normalizeNative, VERDICTS, RELEASE_CLASSES, REQUIRED, BASE_REQUIRED, NATIVE_COMPONENTS, PLAN_LIMIT_ELIGIBLE };

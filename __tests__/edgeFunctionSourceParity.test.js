@@ -137,11 +137,16 @@ test('committed manifest governs every governed function and the approved projec
 
   // Spelled out rather than derived from GOVERNED_FUNCTIONS: widening the gate
   // must fail this assertion first, so it stays a decision and not a side
-  // effect. style-outfit-generate joined in Build 3 Phase 4.
+  // effect. style-outfit-generate joined in Build 3 Phase 4. stylist-speech
+  // joined in Build 29: it was GOVERNED in edge-function-governance.json but
+  // had no content-hash coverage here, so the deployed voice function drifted
+  // from source (PR #141's 700 -> 1000 spoken-character repair never reached
+  // staging) while this gate reported PASS.
   assert.deepEqual(manifest.parity.expectedFunctions, [
     'scan-identify',
     'style-outfit-generate',
     'stylechat-generate',
+    'stylist-speech',
   ]);
   // The artifact inventory is environment-neutral: it must NOT name a project.
   // Manifest v1 did, which made this gate assert a production deploy target on
