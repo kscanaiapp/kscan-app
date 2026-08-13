@@ -171,7 +171,10 @@ function buildLogQuerySql() {
 }
 
 function buildLogQueryUrl(projectRef, startIso, endIso) {
-  const url = new URL(`https://api.supabase.com/v1/projects/${projectRef}/analytics/endpoints/logs.all`);
+  // ClickHouse-backed log querying replaced the legacy logs.all endpoint.
+  // Keep the project ref path-bound and the SQL fixed: this probe can read
+  // only the one content-blind Phase 7 telemetry marker from function logs.
+  const url = new URL(`https://api.supabase.com/v1/projects/${projectRef}/analytics/endpoints/logs`);
   url.searchParams.set('sql', buildLogQuerySql());
   url.searchParams.set('iso_timestamp_start', startIso);
   url.searchParams.set('iso_timestamp_end', endIso);
