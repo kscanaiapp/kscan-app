@@ -124,35 +124,148 @@ function parseJsonReport(output) {
   }
 }
 
+// ── Sanitized failure diagnostics (DEF-B29-SVV-014 §10) ──────────────────────
+//
+// An earlier pass had a contract suite that genuinely executed and genuinely
+// failed, but whose per-assertion output was not preserved — so the failure
+// could not be attributed without re-running it. Evidence now keeps exactly
+// enough to identify the assertion (file, test, assertion code, exit code,
+// short reason) and nothing more. Unrestricted stdout is never persisted.
+
+/** Upper bound on any single preserved reason. Diagnostics, not a transcript. */
+const MAX_REASON_CHARS = 200;
+
+/** Upper bound on preserved failures per suite. Overflow is counted, never dropped silently. */
+const MAX_FAILURES = 20;
+
+/**
+ * Strips credential-shaped material from suite output before it is persisted.
+ *
+ * Ordered widest-token-first so a JWT is never partially consumed by a later,
+ * narrower rule and left partially recoverable. This runs over assertion text
+ * that is already bounded in scope; it is not a general-purpose scrubber.
+ */
+function sanitizeDiagnostic(text) {
+  const out = String(text === null || text === undefined ? '' : text)
+    .replace(/eyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}/g, '[redacted-jwt]')
+    .replace(/sbp_[a-f0-9]{40}/gi, '[redacted-token]')
+    .replace(/\bsb_(?:publishable|secret)_[A-Za-z0-9_-]+/g, '[redacted-key]')
+    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [redacted]')
+    .replace(/(["']?(?:password|passwd|secret|token|apikey|api_key|authorization)["']?\s*[:=]\s*)\S+/gi, '$1[redacted]')
+    .replace(/([?&](?:token|signature|sig|apikey|access_token|jwt)=)[^&\s"']+/gi, '$1[redacted]')
+    .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, '[redacted-email]')
+    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '[redacted-uuid]')
+    .replace(/[A-Za-z0-9+/]{80,}={0,2}/g, '[redacted-blob]')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return out.length > MAX_REASON_CHARS ? `${out.slice(0, MAX_REASON_CHARS)}…` : out;
+}
+
+/** Bounds a failure list, reporting what was dropped rather than truncating silently. */
+function boundFailures(all) {
+  return {
+    failures: all.slice(0, MAX_FAILURES),
+    truncatedFailures: Math.max(0, all.length - MAX_FAILURES),
+  };
+}
+
+/** Parses node:test TAP output into sanitized per-assertion failure records. */
+function extractContractFailures(output) {
+  const lines = String(output || '').split(/\r?\n/);
+  const failures = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    const header = /^\s*not ok \d+\s*-\s*(.+?)\s*$/.exec(lines[i]);
+    if (!header) continue;
+    const failure = {
+      testFile: path.posix.join('__tests__', 'staging', 'stagingBackendContract.test.js'),
+      testName: sanitizeDiagnostic(header[1]),
+      assertion: null,
+      reason: null,
+    };
+    for (let j = i + 1; j < lines.length; j += 1) {
+      if (/^\s*\.\.\.\s*$/.test(lines[j]) || /^\s*not ok /.test(lines[j])) break;
+      const location = /^\s*location:\s*'?([^'\n]+?)'?\s*$/.exec(lines[j]);
+      if (location) failure.testFile = sanitizeDiagnostic(location[1]);
+      const code = /^\s*code:\s*'?([A-Za-z0-9_]+)'?\s*$/.exec(lines[j]);
+      if (code) failure.assertion = code[1];
+      const error = /^\s*error:\s*'?(.+?)'?\s*$/.exec(lines[j]);
+      if (error && !failure.reason) failure.reason = sanitizeDiagnostic(error[1]);
+    }
+    failures.push(failure);
+  }
+  return failures;
+}
+
+/** Maps the synthetic suite's JSON report onto sanitized failure records. */
+function extractSyntheticFailures(report) {
+  if (!report || !Array.isArray(report.results)) return [];
+  return report.results
+    .filter((result) => result && result.ok === false)
+    .map((result) => ({
+      testFile: path.posix.join('security', 'scripts', 'synthetic-staging-tests.js'),
+      testName: sanitizeDiagnostic(result.name),
+      assertion: sanitizeDiagnostic(result.name),
+      reason: sanitizeDiagnostic(result.details),
+    }));
+}
+
 function classifyContractRun(run = {}) {
   const output = String(run.output || '');
+  const base = {
+    exitCode: typeof run.status === 'number' ? run.status : null,
+    failures: [],
+    truncatedFailures: 0,
+  };
   if (run.timedOut) {
-    return { status: STATUS.OPERATIONAL_FAILURE, executed: false, detail: 'staging backend contract suite timed out' };
+    return {
+      status: STATUS.OPERATIONAL_FAILURE,
+      executed: false,
+      detail: 'staging backend contract suite timed out',
+      ...base,
+    };
   }
   if (/SKIP[^\n]*set STAGING_CONTRACT_TESTS=1|# skipped [1-9]\d*/i.test(output)) {
     return {
       status: STATUS.OPERATIONAL_FAILURE,
       executed: false,
       detail: 'staging backend contract suite did not execute because required configuration was absent',
+      ...base,
     };
   }
   if (run.status === 0) {
-    return { status: STATUS.PASS, executed: true, detail: null };
+    return { status: STATUS.PASS, executed: true, detail: null, ...base };
   }
   if (/ERR_ASSERTION|AssertionError|(?:^|\n)not ok\b/i.test(output)) {
-    return { status: STATUS.BLOCKED, executed: true, detail: 'staging backend contract suite reported assertion failures' };
+    return {
+      status: STATUS.BLOCKED,
+      executed: true,
+      detail: 'staging backend contract suite reported assertion failures',
+      ...base,
+      ...boundFailures(extractContractFailures(output)),
+    };
   }
   return {
     status: STATUS.OPERATIONAL_FAILURE,
     executed: false,
     detail: 'staging backend contract suite failed before assertions completed',
+    ...base,
   };
 }
 
 function classifySyntheticRun(run = {}) {
   const output = String(run.output || '');
+  const base = {
+    exitCode: typeof run.status === 'number' ? run.status : null,
+    failures: [],
+    truncatedFailures: 0,
+  };
   if (run.timedOut) {
-    return { status: STATUS.OPERATIONAL_FAILURE, executed: false, detail: 'synthetic staging suite timed out' };
+    return {
+      status: STATUS.OPERATIONAL_FAILURE,
+      executed: false,
+      detail: 'synthetic staging suite timed out',
+      ...base,
+    };
   }
 
   const report = parseJsonReport(output);
@@ -165,18 +278,26 @@ function classifySyntheticRun(run = {}) {
       status: STATUS.OPERATIONAL_FAILURE,
       executed: false,
       detail: 'synthetic staging suite did not execute because required configuration was absent',
+      ...base,
     };
   }
   if (run.status === 0 && report?.ok !== false) {
-    return { status: STATUS.PASS, executed: true, detail: null };
+    return { status: STATUS.PASS, executed: true, detail: null, ...base };
   }
   if (report && Array.isArray(report.results)) {
-    return { status: STATUS.BLOCKED, executed: true, detail: 'synthetic staging suite reported assertion failures' };
+    return {
+      status: STATUS.BLOCKED,
+      executed: true,
+      detail: 'synthetic staging suite reported assertion failures',
+      ...base,
+      ...boundFailures(extractSyntheticFailures(report)),
+    };
   }
   return {
     status: STATUS.OPERATIONAL_FAILURE,
     executed: false,
     detail: 'synthetic staging suite failed before assertions completed',
+    ...base,
   };
 }
 
@@ -204,8 +325,18 @@ function runReleaseSmoke(opts) {
   assertExpectedEnvironment('staging', projectRef);
 
   const results = {};
-  const record = (id, status, detail, evidence) => {
-    results[id] = { status, detail: detail || null, ...(evidence ? { evidence } : {}) };
+  // Each category carries its own exit code and sanitized assertion list, so a
+  // BLOCKED category can be attributed from evidence alone without re-running.
+  const record = (id, status, detail, evidence, suite) => {
+    results[id] = {
+      status,
+      detail: detail || null,
+      ...(evidence ? { evidence } : {}),
+      ...(suite ? { exitCode: suite.exitCode ?? null } : {}),
+      ...(suite && suite.failures && suite.failures.length
+        ? { failures: suite.failures, truncatedFailures: suite.truncatedFailures }
+        : {}),
+    };
   };
 
   // ── contract suite: anon-key-only, read-only, refuses production ──────────
@@ -222,6 +353,7 @@ function runReleaseSmoke(opts) {
       contractResult.status,
       contractResult.detail,
       contractResult.executed ? 'stagingBackendContract' : null,
+      contractResult,
     );
   }
 
@@ -239,6 +371,7 @@ function runReleaseSmoke(opts) {
       syntheticResult.status,
       syntheticResult.detail,
       syntheticResult.executed ? 'syntheticStagingTests' : null,
+      syntheticResult,
     );
   }
 
@@ -272,5 +405,8 @@ module.exports = {
   CATEGORIES,
   classifyContractRun,
   classifySyntheticRun,
+  sanitizeDiagnostic,
+  extractContractFailures,
+  extractSyntheticFailures,
   runReleaseSmoke,
 };
