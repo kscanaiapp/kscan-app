@@ -20,6 +20,14 @@ import {
 } from './avatars/stylistSpeechFiles';
 import { requestStylistSpeech } from './avatars/stylistSpeechClient';
 
+/**
+ * `auto` is StyleChat speaking a newly persisted message on its own and must
+ * never repeat a message that already spoke. `retry` is an explicit user action
+ * on a failed message, so it is allowed past the success record while still
+ * obeying in-flight suppression, generation isolation, and scope matching.
+ */
+export type AvatarSpeechTrigger = 'auto' | 'retry';
+
 export interface SpeakAvatarMessagePayload {
   actorId: string;
   sessionId: string;
@@ -27,6 +35,7 @@ export interface SpeakAvatarMessagePayload {
   stylistId: string;
   avatarId: string;
   source: AvatarSpeechSource;
+  trigger?: AvatarSpeechTrigger;
 }
 
 export interface AvatarSpeechScope {
@@ -35,15 +44,21 @@ export interface AvatarSpeechScope {
   avatarId?: string;
 }
 
-const MAX_ATTEMPTED_MESSAGE_KEYS = 200;
+const MAX_SPOKEN_MESSAGE_KEYS = 200;
 
 let generation = 0;
 let pendingController: AbortController | null = null;
 let activePlayer: StylistAudioPlaybackHandle | null = null;
 let activeFileUri: string | null = null;
 let currentScope: SpeakAvatarMessagePayload | null = null;
-const attemptedKeys = new Set<string>();
-const attemptedOrder: string[] = [];
+// The operation currently being generated or played. Exactly one speech
+// operation is active at a time, so a single key is enough to suppress a
+// duplicate concurrent attempt without also making a failure permanent.
+let inFlightKey: string | null = null;
+// Operations that reached confirmed native playback. Only a successful start
+// retires a message from automatic speech.
+const spokenKeys = new Set<string>();
+const spokenOrder: string[] = [];
 
 function nextGeneration(): number {
   generation += 1;
@@ -63,15 +78,14 @@ function operationKey(payload: SpeakAvatarMessagePayload): string {
   ].join(':');
 }
 
-function rememberAttempt(key: string): boolean {
-  if (attemptedKeys.has(key)) return false;
-  attemptedKeys.add(key);
-  attemptedOrder.push(key);
-  while (attemptedOrder.length > MAX_ATTEMPTED_MESSAGE_KEYS) {
-    const oldest = attemptedOrder.shift();
-    if (oldest) attemptedKeys.delete(oldest);
+function rememberSpoken(key: string): void {
+  if (spokenKeys.has(key)) return;
+  spokenKeys.add(key);
+  spokenOrder.push(key);
+  while (spokenOrder.length > MAX_SPOKEN_MESSAGE_KEYS) {
+    const oldest = spokenOrder.shift();
+    if (oldest) spokenKeys.delete(oldest);
   }
-  return true;
 }
 
 function matchesScope(payload: SpeakAvatarMessagePayload, scope?: AvatarSpeechScope): boolean {
@@ -89,6 +103,7 @@ async function releaseResources(): Promise<void> {
   pendingController = null;
   activePlayer = null;
   activeFileUri = null;
+  inFlightKey = null;
   controller?.abort();
   player?.stop();
   await deleteTemporaryStylistSpeechFile(fileUri);
@@ -123,12 +138,20 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
     !payload.avatarId ||
     payload.stylistId !== payload.avatarId
   ) return;
-  if (!rememberAttempt(operationKey(payload))) return;
+
+  const key = operationKey(payload);
+  // A duplicate concurrent attempt is suppressed for both triggers so a retry
+  // tap cannot start a second player alongside an in-flight attempt.
+  if (inFlightKey === key) return;
+  // Only automatic speech is retired by a previous success; an explicit retry
+  // is the user asking for this message again.
+  if ((payload.trigger ?? 'auto') === 'auto' && spokenKeys.has(key)) return;
 
   const requestGeneration = nextGeneration();
   await releaseResources();
   if (!isCurrent(requestGeneration)) return;
 
+  inFlightKey = key;
   currentScope = payload;
   beginAvatarSpeech({ ...payload, generation: requestGeneration });
   const controller = new AbortController();
@@ -162,7 +185,11 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
 
     activePlayer = await playStylistAudio(uri, {
       onPlaybackStarted: () => {
-        if (isCurrent(requestGeneration)) markAvatarSpeechPlaying(requestGeneration);
+        if (!isCurrent(requestGeneration)) return;
+        // Confirmed native playback — not merely a play() call — is what retires
+        // this message from automatic speech.
+        rememberSpoken(key);
+        markAvatarSpeechPlaying(requestGeneration);
       },
       onPlaybackProgress: (seconds) => {
         if (isCurrent(requestGeneration)) {
@@ -213,6 +240,7 @@ export async function stopAvatarSpeechPlayback(scope?: AvatarSpeechScope): Promi
 }
 
 export function resetAvatarSpeechAttemptsForTests(): void {
-  attemptedKeys.clear();
-  attemptedOrder.length = 0;
+  spokenKeys.clear();
+  spokenOrder.length = 0;
+  inFlightKey = null;
 }
