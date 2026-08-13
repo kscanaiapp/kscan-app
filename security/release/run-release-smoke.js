@@ -18,9 +18,9 @@
  *     Phase 1 found it was never wired into CI; this module wires it in.
  *
  * What this module adds is the release-scoped mapping: which categories are
- * REQUIRED for STAGING_VERIFIED, and honest per-category status. A category
- * that cannot be exercised safely reports NOT_APPLICABLE with a reason — never
- * a fabricated PASS.
+ * REQUIRED for STAGING_VERIFIED, and honest per-category status. A configured
+ * suite assertion failure is BLOCKED; a suite that times out, skips, or cannot
+ * initialize is OPERATIONAL_FAILURE. Neither state can fabricate a PASS.
  *
  * DELETION LIFECYCLE IS DELIBERATELY EXCLUDED from ordinary release smoke: the
  * only meaningful end-to-end test of it is destructive, and
@@ -112,6 +112,74 @@ function runNode(repoRoot, args, env) {
   };
 }
 
+function parseJsonReport(output) {
+  const text = String(output || '');
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start === -1 || end < start) return null;
+  try {
+    return JSON.parse(text.slice(start, end + 1));
+  } catch {
+    return null;
+  }
+}
+
+function classifyContractRun(run = {}) {
+  const output = String(run.output || '');
+  if (run.timedOut) {
+    return { status: STATUS.OPERATIONAL_FAILURE, executed: false, detail: 'staging backend contract suite timed out' };
+  }
+  if (/SKIP[^\n]*set STAGING_CONTRACT_TESTS=1|# skipped [1-9]\d*/i.test(output)) {
+    return {
+      status: STATUS.OPERATIONAL_FAILURE,
+      executed: false,
+      detail: 'staging backend contract suite did not execute because required configuration was absent',
+    };
+  }
+  if (run.status === 0) {
+    return { status: STATUS.PASS, executed: true, detail: null };
+  }
+  if (/ERR_ASSERTION|AssertionError|(?:^|\n)not ok\b/i.test(output)) {
+    return { status: STATUS.BLOCKED, executed: true, detail: 'staging backend contract suite reported assertion failures' };
+  }
+  return {
+    status: STATUS.OPERATIONAL_FAILURE,
+    executed: false,
+    detail: 'staging backend contract suite failed before assertions completed',
+  };
+}
+
+function classifySyntheticRun(run = {}) {
+  const output = String(run.output || '');
+  if (run.timedOut) {
+    return { status: STATUS.OPERATIONAL_FAILURE, executed: false, detail: 'synthetic staging suite timed out' };
+  }
+
+  const report = parseJsonReport(output);
+  const configurationFailure = report?.results?.some((result) => (
+    result?.name === 'configuration'
+    || /missing required synthetic auth credentials/i.test(String(result?.details || ''))
+  ));
+  if (configurationFailure || /missing required synthetic auth credentials/i.test(output)) {
+    return {
+      status: STATUS.OPERATIONAL_FAILURE,
+      executed: false,
+      detail: 'synthetic staging suite did not execute because required configuration was absent',
+    };
+  }
+  if (run.status === 0 && report?.ok !== false) {
+    return { status: STATUS.PASS, executed: true, detail: null };
+  }
+  if (report && Array.isArray(report.results)) {
+    return { status: STATUS.BLOCKED, executed: true, detail: 'synthetic staging suite reported assertion failures' };
+  }
+  return {
+    status: STATUS.OPERATIONAL_FAILURE,
+    executed: false,
+    detail: 'synthetic staging suite failed before assertions completed',
+  };
+}
+
 /**
  * Runs the real staging smoke suites and maps them onto release categories.
  *
@@ -120,7 +188,6 @@ function runNode(repoRoot, args, env) {
  * @param {string} opts.projectRef        - resolved staging project ref
  * @param {string} opts.stagingUrl
  * @param {object} [opts.env]             - extra env for the child suites
- * @param {boolean} [opts.syntheticAvailable] - are synthetic credentials configured?
  * @param {function} [opts.exec]          - injected runner, for tests
  */
 function runReleaseSmoke(opts) {
@@ -129,7 +196,6 @@ function runReleaseSmoke(opts) {
     projectRef,
     stagingUrl,
     env = {},
-    syntheticAvailable = false,
     exec = runNode,
   } = opts || {};
 
@@ -146,51 +212,34 @@ function runReleaseSmoke(opts) {
   const contract = exec(
     repoRoot,
     ['--test', path.join('__tests__', 'staging', 'stagingBackendContract.test.js')],
-    { ...env, STAGING_CONTRACT_TESTS: '1', SUPABASE_STAGING_URL: stagingUrl },
+    { ...env, SUPABASE_STAGING_URL: stagingUrl },
   );
-  const contractOk = contract.status === 0 && !contract.timedOut;
-  const contractDetail = contract.timedOut
-    ? 'staging backend contract suite timed out'
-    : (contractOk ? null : 'staging backend contract suite reported failures');
+  const contractResult = classifyContractRun(contract);
 
   for (const category of CATEGORIES.filter((c) => c.runner === 'contract')) {
-    if (contract.timedOut) {
-      record(category.id, STATUS.OPERATIONAL_FAILURE, contractDetail);
-    } else {
-      record(category.id, contractOk ? STATUS.PASS : STATUS.BLOCKED, contractDetail, 'stagingBackendContract');
-    }
+    record(
+      category.id,
+      contractResult.status,
+      contractResult.detail,
+      contractResult.executed ? 'stagingBackendContract' : null,
+    );
   }
 
   // ── synthetic suite: pre-provisioned throwaway accounts ──────────────────
-  if (!syntheticAvailable) {
-    // Honest gap, not a pass: without provisioned synthetic credentials the
-    // authenticated paths genuinely cannot be exercised.
-    for (const category of CATEGORIES.filter((c) => c.runner === 'synthetic')) {
-      const status = category.required ? STATUS.OPERATIONAL_FAILURE : STATUS.NOT_APPLICABLE;
-      record(
-        category.id,
-        status,
-        'synthetic staging credentials are not configured for this run, so the authenticated path could not be exercised',
-      );
-    }
-  } else {
-    const synthetic = exec(
-      repoRoot,
-      [path.join('security', 'scripts', 'synthetic-staging-tests.js')],
-      { ...env, SUPABASE_STAGING_URL: stagingUrl },
-    );
-    const syntheticOk = synthetic.status === 0 && !synthetic.timedOut;
-    const syntheticDetail = synthetic.timedOut
-      ? 'synthetic staging suite timed out'
-      : (syntheticOk ? null : 'synthetic staging suite reported failures');
+  const synthetic = exec(
+    repoRoot,
+    [path.join('security', 'scripts', 'synthetic-staging-tests.js')],
+    { ...env, SUPABASE_STAGING_URL: stagingUrl },
+  );
+  const syntheticResult = classifySyntheticRun(synthetic);
 
-    for (const category of CATEGORIES.filter((c) => c.runner === 'synthetic')) {
-      if (synthetic.timedOut) {
-        record(category.id, STATUS.OPERATIONAL_FAILURE, syntheticDetail);
-      } else {
-        record(category.id, syntheticOk ? STATUS.PASS : STATUS.BLOCKED, syntheticDetail, 'syntheticStagingTests');
-      }
-    }
+  for (const category of CATEGORIES.filter((c) => c.runner === 'synthetic')) {
+    record(
+      category.id,
+      syntheticResult.status,
+      syntheticResult.detail,
+      syntheticResult.executed ? 'syntheticStagingTests' : null,
+    );
   }
 
   const requiredFailures = CATEGORIES
@@ -202,6 +251,10 @@ function runReleaseSmoke(opts) {
     schemaVersion: SMOKE_SCHEMA_VERSION,
     environment: 'staging',
     projectRef,
+    suites: {
+      contract: contractResult,
+      synthetic: syntheticResult,
+    },
     categories: results,
     requiredFailures,
     // Explicitly recorded so evidence readers can see what release smoke does
@@ -217,5 +270,7 @@ module.exports = {
   SMOKE_SCHEMA_VERSION,
   STATUS,
   CATEGORIES,
+  classifyContractRun,
+  classifySyntheticRun,
   runReleaseSmoke,
 };

@@ -459,7 +459,6 @@ export async function runBootstrapActivation({
     repoRoot,
     projectRef,
     stagingUrl: env.SUPABASE_STAGING_URL || '',
-    syntheticAvailable: Boolean(env.STAGING_SYNTHETIC_ACTIVE_EMAIL),
     env,
   });
   writeArtifact('smoke-results.json', smoke);
