@@ -88,7 +88,7 @@ test('SVV-012: exact version parity satisfies migration_state', async () => {
 test('SVV-012: the full Build 29 candidate reports 106 expected, 106 live, 0 missing', async () => {
   const m = manifest();
   // 106 since the Build 29 deletion closeout added
-  // 20260813222000_backfill_legacy_pending_deletion_requests. The count is
+  // 20260813224918_backfill_legacy_pending_deletion_requests. The count is
   // pinned deliberately: this gate exists because a name/version confusion once
   // reported every live migration as missing, so an unexplained change in the
   // total is exactly what it is meant to catch.

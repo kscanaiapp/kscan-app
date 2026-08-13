@@ -1,5 +1,11 @@
 -- Un-stick legacy `pending` deletion requests.
 --
+-- FILENAME VERSION. Applied to staging through the Management API, which
+-- assigns its own version (20260813224918) rather than honouring the authored
+-- filename. The file is named for the version actually applied so the
+-- repository matches live staging exactly -- the same convention already used
+-- by 20260808121216_privacy_request_rate_limits.sql.
+--
 -- THE DEFECT. Rows created by the pre-Build-29 request-based handler carry
 -- status='pending' with a NULL grace_period_ends_at and no restoration token.
 -- Every governed path in the current lifecycle keys on status='deactivated':
@@ -69,7 +75,7 @@ begin
       'pending',
       'deactivated',
       'system',
-      'migration:20260813222000',
+      'migration:20260813224918',
       'LEGACY_PENDING_BACKFILL',
       '{}'::jsonb
     );
