@@ -419,13 +419,15 @@ export default function PrivacyScreen() {
       setDeletionPending(true);
 
       // Copy is built from the single accuracy-owning helper so the Privacy
-      // Alert and the post-sign-out confirmation can never drift apart, and
-      // so neither can claim a restoration email that this lifecycle does not
-      // send (handle-user-deletion and process-account-deletions both send
-      // none) or invent a grace-period date the backend did not supply.
+      // Alert and the post-sign-out confirmation can never drift apart, and so
+      // neither can invent a grace-period date the backend did not supply.
+      // `restorationEmailQueued` is forwarded verbatim (including null) so the
+      // helper can distinguish "email sent", "email failed — offer resend", and
+      // "no email claim to make".
       const notice = {
         alreadyRequested: result.alreadyRequested === true,
         gracePeriodEndsAt: result.gracePeriodEndsAt ?? null,
+        restorationEmailQueued: result.restorationEmailQueued ?? null,
       };
       const confirmationMessage = buildAccountDeletionNoticeMessage(notice);
       setMessage(confirmationMessage);

@@ -4,9 +4,19 @@ const PUBLIC_ROUTES = new Set([
   '/auth/reset',
   '/auth/update-password',
   '/onboarding',
+  // Account restoration is reached from an emailed link by a user who cannot
+  // sign in (their account is in the `deactivated` grace window). The token in
+  // the URL is validated server-side by restore-account, exactly like the
+  // shared-room token below.
+  '/account/restore',
 ]);
 
-const LIMITED_ACCOUNT_ROUTES = new Set(['/privacy']);
+// Routes a limited account (pending_deletion / locked) may still use.
+// `/account/restore` is here as well as in PUBLIC_ROUTES because a deactivated
+// user may still hold a live session: without it the pending-deletion redirect
+// below would bounce them to /privacy and their restoration link would be
+// unusable for the one case it exists to serve.
+const LIMITED_ACCOUNT_ROUTES = new Set(['/privacy', '/account/restore']);
 
 function normalizePathname(pathname) {
   if (!pathname || pathname === '') return '/';

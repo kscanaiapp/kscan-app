@@ -106,6 +106,21 @@
                                                                             "BROWSABLE",
                                                                             "DEFAULT"
                                                                         ]
+                                                       },
+                                                       {
+                                                           "action":  "VIEW",
+                                                           "autoVerify":  true,
+                                                           "data":  [
+                                                                        {
+                                                                            "scheme":  "https",
+                                                                            "host":  "kscan.app",
+                                                                            "pathPrefix":  "/account/restore"
+                                                                        }
+                                                                    ],
+                                                           "category":  [
+                                                                            "BROWSABLE",
+                                                                            "DEFAULT"
+                                                                        ]
                                                        }
                                                    ]
                              },

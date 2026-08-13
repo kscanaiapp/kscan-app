@@ -1,11 +1,11 @@
 /**
  * Account-deletion request submission.
  *
- * CONTRACT (deployed handle-user-deletion v69, canonical source 2c00c56):
+ * CONTRACT (Build 29 restorable lifecycle, supabase/functions/handle-user-deletion):
  * The endpoint does NOT delete the account. It opens an asynchronous,
  * restorable lifecycle: the row is created as `deactivated` with a 30-day
- * grace window and a restoration token emailed to the user. Permanent purge
- * happens later, in a worker, and is only terminal when
+ * grace window and a single-use restoration token emailed to the user.
+ * Permanent purge happens later, in a worker, and is only terminal when
  * `status === 'purged' AND purged_at IS NOT NULL`.
  *
  * Accepted submission therefore means "an active deletion lifecycle exists",
@@ -13,15 +13,23 @@
  * Recent Scans or unlink media — that stays gated behind the terminal-status
  * endpoint, which is not built yet.
  *
- * v69 accepted response (camelCase):
- *   { status: 'deactivated', requestedAt, gracePeriodEndsAt,
- *     restorationEmailQueued, sessionRevocationOk }
- * v69 existing-request response:
- *   { status: <active status>, requestedAt, gracePeriodEndsAt,
- *     alreadyRequested: true }
- * Legacy response, kept for backward compatibility only (snake_case):
+ * Accepted new-request response (camelCase):
+ *   { status: 'deactivated', alreadyRequested: false, requestId, requestedAt,
+ *     gracePeriodEndsAt, restorationEmailQueued }
+ * Existing-lifecycle response:
+ *   { status: <active status>, alreadyRequested: true, requestId, requestedAt,
+ *     gracePeriodEndsAt }
+ *   — carries NO `restorationEmailQueued`, because this call sent no email.
+ *     That absence normalizes to `null` (unknown), never to `false` (failed).
+ * Legacy responses, kept for backward compatibility only (snake_case):
  *   { status: 'pending', request_id, requested_at, grace_period_ends_at }
  *   { status: 'already_requested', requested_at }
+ *
+ * `restorationEmailQueued` is the ONLY truthful signal that a restoration link
+ * was actually delivered. Deletion acceptance and email delivery are separate
+ * facts: an accepted request with `restorationEmailQueued === false` is still
+ * accepted, and the user must be pointed at the resend path instead of being
+ * told to look for mail that never arrived.
  */
 
 // Mirrors ACTIVE_STATUSES in the deployed function and the partial unique index
@@ -59,7 +67,18 @@ function readString(value) {
 }
 
 /**
- * Accepts camelCase (v69) or snake_case (legacy). An absent field normalizes to
+ * Reads the email-delivery signal. Absent => null (unknown / not applicable),
+ * which callers must render as "no email claim" rather than "email failed".
+ * Only a literal `true` counts as delivered.
+ */
+function readEmailQueued(data) {
+  const raw = data.restorationEmailQueued ?? data.restoration_email_queued;
+  if (raw === undefined || raw === null) return null;
+  return raw === true;
+}
+
+/**
+ * Accepts camelCase or snake_case (legacy). An absent field normalizes to
  * null; a field that is present but unparseable fails closed, because a
  * malformed timestamp means the grace window cannot be described truthfully.
  */
@@ -96,7 +115,7 @@ async function getPendingDeletionRequest(supabase, userId) {
  *
  * @returns {{accepted: true, lifecycle: 'active', alreadyRequested: boolean,
  *            requestedAt: string|null, gracePeriodEndsAt: string|null,
- *            backendStatus: string}}
+ *            restorationEmailQueued: boolean|null, backendStatus: string}}
  * @throws {DeletionResponseError} on any response that is not provable acceptance.
  */
 function normalizeDeletionSubmissionResponse(data) {
@@ -119,6 +138,7 @@ function normalizeDeletionSubmissionResponse(data) {
 
   const requestedAt = readTimestamp(data, 'requestedAt', 'requested_at');
   const gracePeriodEndsAt = readTimestamp(data, 'gracePeriodEndsAt', 'grace_period_ends_at');
+  const restorationEmailQueued = readEmailQueued(data);
 
   // Legacy duplicate marker. Compatibility only; not the canonical shape.
   if (status === 'already_requested') {
@@ -128,6 +148,7 @@ function normalizeDeletionSubmissionResponse(data) {
       alreadyRequested: true,
       requestedAt,
       gracePeriodEndsAt,
+      restorationEmailQueued,
       backendStatus: status,
     };
   }
@@ -151,6 +172,7 @@ function normalizeDeletionSubmissionResponse(data) {
     alreadyRequested: data.alreadyRequested === true,
     requestedAt,
     gracePeriodEndsAt,
+    restorationEmailQueued,
     backendStatus: status,
   };
 }

@@ -78,27 +78,71 @@ test('A: an accepted request produces confirmation without permanent-purge wordi
   assert.match(message, /restored/i, 'the lifecycle is restorable and must say so');
 });
 
-test('A: the confirmation never claims a restoration email was sent', () => {
+test('A: the confirmation never claims an email when none was reported', () => {
   const n = loadNotice();
   for (const notice of [
-    { alreadyRequested: false, gracePeriodEndsAt: null },
-    { alreadyRequested: true, gracePeriodEndsAt: '2026-09-12T00:00:00Z' },
+    { alreadyRequested: false, gracePeriodEndsAt: null, restorationEmailQueued: null },
+    {
+      alreadyRequested: true,
+      gracePeriodEndsAt: '2026-09-12T00:00:00Z',
+      restorationEmailQueued: null,
+    },
   ]) {
     const message = n.buildAccountDeletionNoticeMessage(notice);
     assert.ok(
       !/email we sent|we sent you an email|check your email/i.test(message),
-      `no email is sent at request time; copy must not promise one: ${message}`,
+      `no send was reported; copy must not promise one: ${message}`,
     );
   }
 });
 
-test('A: the deployed request path really does not send a restoration email', () => {
-  // Guards the premise of the copy above. If a restoration email is ever wired
-  // into the request path, this fails and the copy should be revisited.
-  const handler = readSource('supabase/functions/handle-user-deletion/index.ts');
-  const worker = readSource('supabase/functions/process-account-deletions/index.ts');
-  assert.ok(!/sendRestorationEmail/.test(handler), 'handle-user-deletion sends no restoration email');
-  assert.ok(!/sendRestorationEmail/.test(worker), 'process-account-deletions sends no restoration email');
+test('A: the request path really does send a restoration email (Build 29)', () => {
+  // Guards the premise of the copy above. Build 29 superseded the historical
+  // "deletion is deferred / no restoration email" posture: the request path now
+  // mails a restoration link, so the copy is allowed — and required — to say so
+  // when the send actually succeeded.
+  const handler = readSource('supabase/functions/handle-user-deletion/handler.ts');
+  assert.match(handler, /sendRestorationEmail/, 'handle-user-deletion mails a restoration link');
+  assert.match(handler, /kind: 'request'/, "and does so with the 'request' idempotency kind");
+
+  // Ordering is the security property: the hash must already be persisted.
+  const insertIdx = handler.indexOf('restoration_token_hash: params.tokenHash');
+  const emailIdx = handler.indexOf('deps.sendRestorationEmail(');
+  assert.ok(insertIdx !== -1 && emailIdx !== -1);
+  assert.ok(insertIdx < emailIdx, 'the token hash is persisted before the link is mailed');
+});
+
+test('A: copy claims an email ONLY when the backend reported one was queued', () => {
+  const n = loadNotice();
+
+  const sent = n.buildAccountDeletionNoticeMessage({
+    alreadyRequested: false,
+    gracePeriodEndsAt: null,
+    restorationEmailQueued: true,
+  });
+  assert.match(sent, /emailed you a restoration link/i);
+
+  const failed = n.buildAccountDeletionNoticeMessage({
+    alreadyRequested: false,
+    gracePeriodEndsAt: null,
+    restorationEmailQueued: false,
+  });
+  assert.match(failed, /could not send your restoration email/i);
+  assert.ok(
+    !/emailed you a restoration link/i.test(failed),
+    'a failed send must never read as a successful one',
+  );
+  assert.match(failed, /sign-in screen/i, 'and must point at the resend recovery path');
+
+  const unknown = n.buildAccountDeletionNoticeMessage({
+    alreadyRequested: true,
+    gracePeriodEndsAt: null,
+    restorationEmailQueued: null,
+  });
+  assert.ok(
+    !/emailed you|could not send/i.test(unknown),
+    'an unknown send state makes no claim in either direction',
+  );
 });
 
 /* ── Case B — the confirmation survives the sign-out transition ─────────── */
@@ -286,7 +330,13 @@ test('the notice carries no PII, token, or persisted state', () => {
   const code = readCode('services/accountDeletionNotice.ts');
   assert.ok(!/AsyncStorage|SecureStore|localStorage/.test(code), 'must stay in memory only');
   assert.ok(!/token/i.test(code), 'no restoration token may be handled here');
-  assert.ok(!/email/i.test(code), 'no email address may be carried');
+  // `restorationEmailQueued` is a boolean outcome, not an address. What must
+  // never appear is an actual address or an address-shaped field.
+  assert.ok(!/@/.test(code), 'no email address may be carried');
+  assert.ok(
+    !/email\s*[:=]\s*['"`]/i.test(code),
+    'no literal email address may be assigned',
+  );
   assert.ok(source.includes('MEMORY ONLY'), 'the constraint must stay documented');
 
   const n = loadNotice();
@@ -299,7 +349,12 @@ test('the notice carries no PII, token, or persisted state', () => {
     userId: '11111111-1111-4111-8111-111111111111',
   });
   const stored = n.consumeAccountDeletionNotice();
-  assert.deepEqual(Object.keys(stored).sort(), ['alreadyRequested', 'gracePeriodEndsAt']);
+  assert.deepEqual(Object.keys(stored).sort(), [
+    'alreadyRequested',
+    'gracePeriodEndsAt',
+    'restorationEmailQueued',
+  ]);
+  assert.equal(stored.restorationEmailQueued, null, 'an absent signal stays unknown, not false');
 });
 
 test('no deletion state is placed in route parameters', () => {
