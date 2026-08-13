@@ -167,11 +167,14 @@ function sanitizeMetricsForEvidence(metrics) {
 }
 
 function buildLogQuerySql() {
-  return `select timestamp, event_message from logs where source = 'function_logs' and event_message like '%${RECHECK_METRIC_MARKER}%' order by timestamp asc limit 50`;
+  return `select timestamp, event_message from logs where source_name = 'function_logs' and event_message like '%${RECHECK_METRIC_MARKER}%' order by timestamp asc limit 50`;
 }
 
 function buildLogQueryUrl(projectRef, startIso, endIso) {
-  const url = new URL(`https://api.supabase.com/v1/projects/${projectRef}/analytics/endpoints/logs.all`);
+  // ClickHouse-backed log querying replaced the legacy logs.all endpoint.
+  // Keep the project ref path-bound and the SQL fixed: this probe can read
+  // only the one content-blind Phase 7 telemetry marker from function logs.
+  const url = new URL(`https://api.supabase.com/v1/projects/${projectRef}/analytics/endpoints/logs`);
   url.searchParams.set('sql', buildLogQuerySql());
   url.searchParams.set('iso_timestamp_start', startIso);
   url.searchParams.set('iso_timestamp_end', endIso);

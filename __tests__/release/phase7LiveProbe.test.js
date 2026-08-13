@@ -242,15 +242,17 @@ test('parseRecheckMetricsLine returns null for unrelated log lines', () => {
 
 // ── Log query never targets anything but this project's function_logs ──────
 
-test('buildLogQuerySql is a fixed, parameter-free query against function_logs', () => {
+test('buildLogQuerySql is a fixed ClickHouse query against function_logs', () => {
   const sql = buildLogQuerySql();
-  assert.match(sql, /source = 'function_logs'/);
+  assert.match(sql, /from logs where source_name = 'function_logs'/);
   assert.match(sql, /identification_recheck_metrics/);
+  assert.doesNotMatch(sql, /\bfrom\s+function_logs\b/i, 'legacy per-source table is not queried');
 });
 
 test('buildLogQueryUrl scopes the query to the exact supplied project ref', () => {
   const url = buildLogQueryUrl(STAGING_REF, '2026-01-01T00:00:00Z', '2026-01-01T01:00:00Z');
-  assert.ok(url.startsWith(`https://api.supabase.com/v1/projects/${STAGING_REF}/analytics/endpoints/logs.all?`));
+  assert.ok(url.startsWith(`https://api.supabase.com/v1/projects/${STAGING_REF}/analytics/endpoints/logs?`));
+  assert.ok(!url.includes('/logs.all?'), 'removed legacy endpoint is not used');
 });
 
 // ── Windowed correlation never fabricates a match ───────────────────────────
