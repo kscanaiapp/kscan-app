@@ -13,10 +13,10 @@
  * pending-deletion redirect would bounce that user to /privacy and the link
  * would be unusable for them.
  *
- * TOKEN HYGIENE: the token is read from route params into component state,
- * handed to `restoreAccountWithToken`, and then the route is replaced with a
- * token-free URL so it does not linger in navigation history. It is never
- * written to storage, logged, or included in any error surface.
+ * TOKEN HYGIENE: the token is read from route params, handed to
+ * `restoreAccountWithToken`, and then cleared from the route so it does not
+ * linger in navigation history. It is never written to storage, logged, or
+ * included in any error surface.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
@@ -70,11 +70,18 @@ export default function AccountRestoreScreen() {
     let cancelled = false;
     (async () => {
       const result = await restoreAccountWithToken(supabase, token);
-      // Drop the token-bearing URL from history as soon as it has been used,
-      // so backgrounding, a back gesture, or a screenshot of the URL cannot
-      // replay it.
+      // Drop the token from the route as soon as it has been used, so
+      // backgrounding, a back gesture, or a screenshot of the URL cannot replay
+      // it.
+      //
+      // setParams, NOT router.replace: replacing the route with the same path
+      // pushes a new screen key and remounts this component, which would reset
+      // the single-flight latch below and re-run the effect with no token --
+      // overwriting a genuine success with "link not valid". setParams rewrites
+      // the current entry's params in place, so the token leaves history and
+      // the rendered result survives.
       try {
-        router.replace('/account/restore');
+        router.setParams({ token: undefined });
       } catch {
         // Navigation is best-effort hygiene; never fail the restore over it.
       }

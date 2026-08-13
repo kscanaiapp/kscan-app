@@ -324,8 +324,14 @@ test('the route consumes the token exactly once and then drops it from history',
   assert.match(code, /attemptedRef/, 'a single-flight latch guards the single-use token');
   assert.match(
     code,
-    /router\.replace\('\/account\/restore'\)/,
-    'the token-bearing URL is replaced after use',
+    /router\.setParams\(\{ token: undefined \}\)/,
+    'the token is cleared from the route after use',
+  );
+  // router.replace to the same path would remount the screen, reset the latch,
+  // and repaint a success as "link not valid".
+  assert.ok(
+    !/router\.replace\('\/account\/restore'\)/.test(code),
+    'clearing the token must not remount the screen',
   );
 });
 
