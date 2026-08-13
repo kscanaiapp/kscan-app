@@ -17,6 +17,10 @@
  * validator, for instance). Without it Deno denies the read and the test fails
  * for a permissions reason that looks exactly like a real regression.
  *
+ * `--allow-env` is required by the account-deletion suites: the shared deletion
+ * helpers resolve `ACCOUNT_RESTORATION_BASE_URL` at call time. It grants no
+ * network reach.
+ *
  * No network permission is granted. These suites are deterministic: no Supabase,
  * no provider call, no live model.
  *
@@ -45,7 +49,18 @@ const TEST_SUFFIX = '.test.ts';
  * platform branches while nothing in the repository objected — precisely the
  * Phase 2A failure this list exists to prevent.
  */
-const GOVERNED = ['scan-identify', 'stylechat-generate', 'style-outfit-generate', '_shared'];
+const GOVERNED = [
+  'scan-identify',
+  'stylechat-generate',
+  'style-outfit-generate',
+  // Build 29 account-deletion lifecycle. Added deliberately: this function
+  // creates the `deactivated` state and the restoration token, so its ordering
+  // invariant (hash persisted before the link is mailed) and its
+  // no-raw-token-anywhere property are release-blocking and must be gated, not
+  // remembered.
+  'handle-user-deletion',
+  '_shared',
+];
 
 const requested = process.argv.slice(2);
 const targets = requested.length > 0 ? requested : GOVERNED;
@@ -80,7 +95,7 @@ if (found.length === 0) {
   process.exit(1);
 }
 
-const result = spawnSync('deno', ['test', '--allow-read', ...found], {
+const result = spawnSync('deno', ['test', '--allow-read', '--allow-env', ...found], {
   cwd: ROOT,
   stdio: 'inherit',
   env: process.env,

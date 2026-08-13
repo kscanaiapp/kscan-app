@@ -9,7 +9,10 @@ function read(rel) {
   return fs.readFileSync(path.join(ROOT, rel), 'utf8');
 }
 
-const deletion = read('supabase/functions/handle-user-deletion/index.ts');
+// Build 29 split the request logic out of the entry point so it can be driven
+// by handler.test.ts; the entry point is now just `Deno.serve(createHandler())`.
+const deletion = read('supabase/functions/handle-user-deletion/handler.ts');
+const sharedDeletion = read('supabase/functions/_shared/deletion/common.ts');
 const correction = read('supabase/functions/privacy-correction-request/index.ts');
 const exportFn = read('supabase/functions/privacy-data-export/index.ts');
 const helper = read('supabase/functions/_shared/privacyRequestRateLimit.ts');
@@ -32,17 +35,22 @@ test('privacy rate-limit helper never takes identity from request body', () => {
 });
 
 test('handle-user-deletion rate-limits after already_requested short-circuit', () => {
-  const alreadyIdx = deletion.indexOf('already_requested');
-  const rateIdx = deletion.indexOf("reservePrivacyRequestRateLimit(user.id, 'account_deletion')");
-  assert.ok(alreadyIdx !== -1, 'must preserve already_requested');
+  const alreadyIdx = deletion.indexOf('alreadyRequestedResponse(existing)');
+  const rateIdx = deletion.indexOf("deps.reserveRateLimit(user.id, 'account_deletion')");
+  assert.ok(alreadyIdx !== -1, 'must preserve the already-requested short-circuit');
   assert.ok(rateIdx !== -1, 'must reserve account_deletion rate limit');
   assert.ok(alreadyIdx < rateIdx, 'existing-request check must precede rate-limit reservation');
+  // The reservation still resolves to the shared, audited helper.
+  assert.match(deletion, /reservePrivacyRequestRateLimit as reserveRateLimitImpl/);
 });
 
 test('handle-user-deletion still requires auth and rejects body user ids', () => {
-  assert.match(deletion, /auth\.getUser\(accessToken\)/);
+  // Auth now runs through the shared deletion helper rather than a per-function
+  // copy; assert the delegation AND the audited implementation behind it.
+  assert.match(deletion, /deps\.requireUser\(req\)/);
   assert.doesNotMatch(deletion, /req\.json\(/);
-  assert.match(deletion, /Authentication required/);
+  assert.match(sharedDeletion, /auth\.getUser\(accessToken\)/);
+  assert.match(sharedDeletion, /Authentication required/);
 });
 
 test('privacy-correction-request rate-limits before insert', () => {
