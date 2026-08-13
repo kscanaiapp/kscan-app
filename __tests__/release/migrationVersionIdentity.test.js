@@ -85,13 +85,18 @@ test('SVV-012: exact version parity satisfies migration_state', async () => {
   assert.match(step.detail, /satisfied/);
 });
 
-test('SVV-012: the full Build 29 candidate reports 105 expected, 105 live, 0 missing', async () => {
+test('SVV-012: the full Build 29 candidate reports 106 expected, 106 live, 0 missing', async () => {
   const m = manifest();
-  assert.equal(m.migrations.length, 105, 'the Build 29 candidate carries 105 migrations');
+  // 106 since the Build 29 deletion closeout added
+  // 20260813222000_backfill_legacy_pending_deletion_requests. The count is
+  // pinned deliberately: this gate exists because a name/version confusion once
+  // reported every live migration as missing, so an unexplained change in the
+  // total is exactly what it is meant to catch.
+  assert.equal(m.migrations.length, 106, 'the Build 29 candidate carries 106 migrations');
   const result = await planOnly({ m, liveMigrationVersions: m.migrations.map((x) => x.version) });
   const step = migrationStep(result);
   assert.equal(step.status, 'PASS');
-  assert.equal(step.detail, '105 satisfied');
+  assert.equal(step.detail, '106 satisfied');
 });
 
 test('SVV-012: a missing migration blocks and names the missing VERSION', async () => {
