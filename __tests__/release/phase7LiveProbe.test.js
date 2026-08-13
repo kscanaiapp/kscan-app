@@ -244,7 +244,8 @@ test('parseRecheckMetricsLine returns null for unrelated log lines', () => {
 
 test('buildLogQuerySql is a fixed ClickHouse query against function_logs', () => {
   const sql = buildLogQuerySql();
-  assert.match(sql, /from logs where source_name = 'function_logs'/);
+  assert.match(sql, /from logs where source = 'function_logs'/);
+  assert.doesNotMatch(sql, /\bsource_name\b/, 'unpopulated compatibility column is not queried');
   assert.match(sql, /identification_recheck_metrics/);
   assert.doesNotMatch(sql, /\bfrom\s+function_logs\b/i, 'legacy per-source table is not queried');
 });

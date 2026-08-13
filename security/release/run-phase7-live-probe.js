@@ -167,7 +167,7 @@ function sanitizeMetricsForEvidence(metrics) {
 }
 
 function buildLogQuerySql() {
-  return `select timestamp, event_message from logs where source_name = 'function_logs' and event_message like '%${RECHECK_METRIC_MARKER}%' order by timestamp asc limit 50`;
+  return `select timestamp, event_message from logs where source = 'function_logs' and event_message like '%${RECHECK_METRIC_MARKER}%' order by timestamp asc limit 50`;
 }
 
 function buildLogQueryUrl(projectRef, startIso, endIso) {
