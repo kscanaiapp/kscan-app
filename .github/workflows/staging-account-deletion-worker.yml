@@ -1,0 +1,171 @@
+name: Staging Account Deletion Worker
+
+# Build 29 permanent-deletion activation.
+#
+# The account-deletion lifecycle (active -> deactivated -> restored | purged)
+# has always had a worker that performs the terminal purge, but nothing ever
+# called it: `process-account-deletions` is an HTTP endpoint and the repository
+# contained no scheduler of any kind. A grace period that never expires into a
+# purge is not a deletion feature, so this workflow is the missing trigger.
+#
+# DELIBERATELY NARROW. This is not a generic Edge Function invoker:
+#   * the function slug is a literal, not an input;
+#   * the project ref is a literal, and the production ref is an explicit deny
+#     checked before any request is built;
+#   * the only credential is the protected `staging` environment secret;
+#   * the secret is passed to curl through a file, never on a command line and
+#     never echoed;
+#   * only sanitized counts and status reach the log or the step summary.
+#
+# Widening any of those requires a reviewed change to this file, which is the
+# point — the same reasoning as security/release/set-staging-runtime-flag.mjs.
+
+on:
+  schedule:
+    # 09:15 UTC daily. Permanent erasure is a once-a-day housekeeping job, not a
+    # real-time operation: the grace period is 30 days, so the worst case cost
+    # of a daily cadence is that a purge happens up to 24h after it became
+    # eligible, which is immaterial against a 30-day window. A tighter cadence
+    # would add invocation noise and widen the blast radius of a bad deploy for
+    # no user-visible benefit. The off-peak minute avoids the top-of-hour
+    # scheduling congestion that makes GitHub cron start times drift most.
+    - cron: '15 9 * * *'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Why this manual run is being made (recorded in the summary).'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  # The worker claims rows with a lease, so a concurrent run is safe by design.
+  # Serialising anyway keeps the audit trail one-run-at-a-time and avoids two
+  # runs racing for the same small candidate set.
+  group: staging-account-deletion-worker
+  cancel-in-progress: false
+
+jobs:
+  invoke-worker:
+    name: Invoke staging deletion worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: staging
+    env:
+      # Literals, not inputs. See header.
+      STAGING_REF: yzqjvdfgefveprobvvyw
+      PRODUCTION_REF: wyyuqfdxucjksghsmhry
+      FUNCTION_SLUG: process-account-deletions
+    steps:
+      - name: Assert staging authority and refuse production
+        run: |
+          set -euo pipefail
+          if [ "${STAGING_REF}" = "${PRODUCTION_REF}" ]; then
+            echo "::error::Target ref equals the production ref. Refusing."
+            exit 1
+          fi
+          case "${STAGING_REF}" in
+            yzqjvdfgefveprobvvyw) : ;;
+            *) echo "::error::Unrecognised target project ref. Refusing."; exit 1 ;;
+          esac
+          echo "Target project: ${STAGING_REF} (staging)"
+          echo "Function: ${FUNCTION_SLUG}"
+
+      - name: Invoke worker
+        id: invoke
+        env:
+          WORKER_SECRET: ${{ secrets.ACCOUNT_DELETION_WORKER_SECRET }}
+        run: |
+          set -euo pipefail
+
+          # FAIL CLOSED: an absent secret must stop the run, never fall through
+          # to an unauthenticated call that a 401 would make look like a code
+          # regression.
+          if [ -z "${WORKER_SECRET:-}" ]; then
+            echo "::error::ACCOUNT_DELETION_WORKER_SECRET is not set in the staging environment. Refusing to invoke."
+            exit 1
+          fi
+
+          umask 077
+          HDR="$(mktemp)"
+          trap 'rm -f "${HDR}"' EXIT
+          # The secret reaches curl through @file so it never appears in a
+          # process listing or in the workflow log.
+          printf 'x-deletion-worker-secret: %s\n' "${WORKER_SECRET}" > "${HDR}"
+
+          HTTP_CODE="$(curl --silent --show-error \
+            --output response.json \
+            --write-out '%{http_code}' \
+            --max-time 300 \
+            --request POST \
+            --header @"${HDR}" \
+            --header 'Content-Type: application/json' \
+            --data '{}' \
+            "https://${STAGING_REF}.supabase.co/functions/v1/${FUNCTION_SLUG}")" || {
+              echo "::error::Worker invocation failed at the transport layer."
+              exit 1
+            }
+
+          echo "http_code=${HTTP_CODE}" >> "$GITHUB_OUTPUT"
+
+          if [ "${HTTP_CODE}" != "200" ]; then
+            # Body is NOT printed: an error body from an authenticated internal
+            # endpoint is not guaranteed to be free of operational detail.
+            echo "::error::Worker returned HTTP ${HTTP_CODE}."
+            exit 1
+          fi
+
+          # Sanitized projection only — counts, mode and flags. No request ids,
+          # no user ids, no subject refs, no manifest contents.
+          node --input-type=commonjs -e '
+            const fs = require("node:fs");
+            let body;
+            try {
+              body = JSON.parse(fs.readFileSync("response.json", "utf8"));
+            } catch {
+              console.log("::error::Worker response was not valid JSON.");
+              process.exit(1);
+            }
+            const summary = body.summary || {};
+            const out = {
+              mode: body.mode ?? "unknown",
+              dryRun: body.dryRun === true,
+              killSwitchEnabled: body.killSwitchEnabled === true,
+              eligibleCount: Number(summary.eligibleCount ?? body.eligibleCount ?? 0),
+              planCount: Number(summary.planCount ?? 0),
+              processedCount: Number(body.processedCount ?? summary.processedCount ?? 0),
+              purgedCount: Number(body.purgedCount ?? summary.purgedCount ?? 0),
+              failedCount: Number(body.failedCount ?? summary.failedCount ?? 0),
+            };
+            console.log(JSON.stringify(out));
+            fs.writeFileSync("worker-summary.json", JSON.stringify(out, null, 2) + "\n");
+          '
+
+      - name: Record run summary
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "### Staging account-deletion worker"
+            echo ""
+            echo "- Project: \`${STAGING_REF}\` (staging)"
+            echo "- Function: \`${FUNCTION_SLUG}\`"
+            echo "- HTTP: \`${{ steps.invoke.outputs.http_code || 'n/a' }}\`"
+            if [ -n "${{ github.event.inputs.reason || '' }}" ]; then
+              echo "- Reason: ${{ github.event.inputs.reason }}"
+            fi
+            echo ""
+            if [ -f worker-summary.json ]; then
+              echo '```json'
+              cat worker-summary.json
+              echo '```'
+            else
+              echo "_No sanitized summary produced._"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove raw response
+        if: always()
+        run: rm -f response.json
