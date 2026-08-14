@@ -29,6 +29,21 @@ function transpileModule(file, mocks = {}) {
   return mod.exports;
 }
 
+// Registered Metro static require() targets in constants/avatarFacialOverlays.ts
+// (stylist_portrait_02 eyes + brows production overlays). The sandboxed
+// require() above throws on anything outside `mocks`, so every call site that
+// loads that module now needs these -- unlike require.extensions['.png'],
+// which only intercepts real Node module resolution and has no effect
+// inside this VM sandbox.
+const FACIAL_OVERLAY_ASSET_MOCKS = {
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_eyes_open.png': 1,
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_eyes_halfClosed.png': 1,
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_eyes_closed.png': 1,
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_brows_neutral.png': 1,
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_brows_raised.png': 1,
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_brows_focused.png': 1,
+};
+
 const rules = transpileModule('services/avatarExpressionRules.ts');
 const { resolveBrowState, resolveExpressionMode } = rules;
 
@@ -130,7 +145,7 @@ test('the component renders brows as an overlay inside the composite and resets 
 });
 
 test('missing brow assets mean no brow layer even when the state is non-neutral', () => {
-  const overlays = transpileModule('constants/avatarFacialOverlays.ts');
+  const overlays = transpileModule('constants/avatarFacialOverlays.ts', FACIAL_OVERLAY_ASSET_MOCKS);
   for (const state of ['neutral', 'raised', 'focused']) {
     assert.equal(overlays.getFacialOverlayAsset('stylist_portrait_01', 'brows', state), null);
   }

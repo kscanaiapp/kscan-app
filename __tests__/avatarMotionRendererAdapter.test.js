@@ -38,6 +38,21 @@ function transpileModule(file, mocks = {}) {
   return mod.exports;
 }
 
+// Registered Metro static require() targets in constants/avatarFacialOverlays.ts
+// (stylist_portrait_02 eyes + brows production overlays). The sandboxed
+// require() above throws on anything outside `mocks`, so every call site that
+// loads that module now needs these -- unlike require.extensions['.png'],
+// which only intercepts real Node module resolution and has no effect
+// inside this VM sandbox.
+const FACIAL_OVERLAY_ASSET_MOCKS = {
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_eyes_open.png': 1,
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_eyes_halfClosed.png': 1,
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_eyes_closed.png': 1,
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_brows_neutral.png': 1,
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_brows_raised.png': 1,
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_brows_focused.png': 1,
+};
+
 // ── Minimal deterministic React/react-native doubles ─────────────────────────
 
 function createElement(type, props, ...children) {
@@ -97,10 +112,10 @@ function loadComponent() {
     '../../services/avatarMotionRenderer': rendererService,
     '../../services/avatarMotionCapabilities': transpileModule('services/avatarMotionCapabilities.ts', {
       '../constants/stylistIdentity': stylistIdentity,
-      '../constants/avatarFacialOverlays': transpileModule('constants/avatarFacialOverlays.ts', {}),
+      '../constants/avatarFacialOverlays': transpileModule('constants/avatarFacialOverlays.ts', FACIAL_OVERLAY_ASSET_MOCKS),
       './avatarMotionState': motionStateService,
     }),
-    '../../constants/avatarFacialOverlays': transpileModule('constants/avatarFacialOverlays.ts', {}),
+    '../../constants/avatarFacialOverlays': transpileModule('constants/avatarFacialOverlays.ts', FACIAL_OVERLAY_ASSET_MOCKS),
     '../../services/avatarExpressionRules': transpileModule('services/avatarExpressionRules.ts', {}),
     '../../hooks/useAvatarBlink': { useAvatarBlink: () => 'open' },
     '../../constants/featureFlags': { AVATAR_MOTION_V1_ENABLED: false },
@@ -262,16 +277,21 @@ test('the component is a thin consumer: no timers, no state machine, no subscrip
 test('capability derivation reflects the shipped asset truth for the priority portraits', () => {
   const capabilities = transpileModule('services/avatarMotionCapabilities.ts', {
     '../constants/stylistIdentity': stylistIdentity,
-    '../constants/avatarFacialOverlays': transpileModule('constants/avatarFacialOverlays.ts', {}),
+    '../constants/avatarFacialOverlays': transpileModule('constants/avatarFacialOverlays.ts', FACIAL_OVERLAY_ASSET_MOCKS),
     './avatarMotionState': transpileModule('services/avatarMotionState.ts', {}),
   });
   for (const id of ['stylist_portrait_01', 'stylist_portrait_02', 'stylist_portrait_03', 'stylist_portrait_04']) {
     const caps = capabilities.getAvatarMotionCapabilities(id);
+    // stylist_portrait_02 ships eyes + brows overlays; mouthRound is never
+    // registered for any avatar (the renderer never reads it), so roundMouth
+    // stays false even for 02. Every other priority portrait stays fully
+    // asset-missing.
+    const shipped = id === 'stylist_portrait_02';
     assert.equal(caps.threeStateMouth, true, `${id} three-state mouth`);
     assert.equal(caps.roundMouth, false, `${id} round mouth requires a real asset`);
-    assert.equal(caps.blink, false, `${id} blink assets missing`);
-    assert.equal(caps.brows, false, `${id} brow assets missing`);
-    assert.equal(caps.gaze, false, `${id} gaze assets missing`);
+    assert.equal(caps.blink, shipped, `${id} blink assets`);
+    assert.equal(caps.brows, shipped, `${id} brow assets`);
+    assert.equal(caps.gaze, shipped, `${id} gaze assets`);
     assert.equal(caps.headMotion, true, `${id} head motion`);
     assert.equal(caps.upperBodyMotion, true, `${id} upper-body motion`);
   }

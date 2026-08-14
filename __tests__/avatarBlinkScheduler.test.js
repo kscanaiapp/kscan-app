@@ -35,6 +35,21 @@ function transpileModule(file, mocks = {}) {
   return mod.exports;
 }
 
+// Registered Metro static require() targets in constants/avatarFacialOverlays.ts
+// (stylist_portrait_02 eyes + brows production overlays). The sandboxed
+// require() above throws on anything outside `mocks`, so every call site that
+// loads that module now needs these -- unlike require.extensions['.png'],
+// which only intercepts real Node module resolution and has no effect
+// inside this VM sandbox.
+const FACIAL_OVERLAY_ASSET_MOCKS = {
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_eyes_open.png': 1,
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_eyes_halfClosed.png': 1,
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_eyes_closed.png': 1,
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_brows_neutral.png': 1,
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_brows_raised.png': 1,
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_brows_focused.png': 1,
+};
+
 const scheduler = transpileModule('services/avatarBlinkScheduler.ts');
 const {
   planNextBlink,
@@ -340,7 +355,7 @@ test('blink never distorts the portrait and lives inside the rigid composite', (
 });
 
 test('missing eye assets degrade to static open eyes (no layer mounts)', () => {
-  const overlays = transpileModule('constants/avatarFacialOverlays.ts');
+  const overlays = transpileModule('constants/avatarFacialOverlays.ts', FACIAL_OVERLAY_ASSET_MOCKS);
   // Registry is empty in production: every state resolves to null and the
   // component's `eyeAsset` stays null, so nothing mounts.
   for (const state of ['open', 'halfClosed', 'closed']) {
