@@ -78,7 +78,10 @@ test('getGreetingTextForUser uses first name and stylist identity', () => {
 test('getGreetingTextForUser falls back when first name is missing', () => {
   const { getGreetingTextForUser } = loadGreeting(createMockRepository());
   const identity = { displayName: 'Ava', avatarId: 'elise_default' };
-  assert.equal(getGreetingTextForUser(null, identity), 'Hi, I’m Ava. How can I style you today?');
+  assert.equal(
+    getGreetingTextForUser(null, identity),
+    'Hey, I’m Ava. Show me what you’re working with, and we’ll figure it out together.',
+  );
 });
 
 test('isGreetingMessage recognizes the greeting uiBlocks marker', () => {
