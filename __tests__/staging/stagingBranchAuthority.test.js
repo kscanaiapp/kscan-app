@@ -33,17 +33,22 @@ function readWorkflow(name) {
 test('the staging security gate classifies against the new staging authority', () => {
   const gate = readWorkflow('security-staging-gate.yml');
 
-  assert.match(
-    gate,
-    new RegExp(`STAGING_AUTHORITY_BRANCH:\\s*${STAGING_AUTHORITY_BRANCH}`),
+  assert.ok(
+    gate.includes(`STAGING_AUTHORITY_BRANCH: ${STAGING_AUTHORITY_BRANCH}`),
     'the staging gate must declare staging/production-parity as the authority branch',
   );
 
-  // Every diff-base fallback must resolve to the new authority, not the fork.
+  // Branch-name diff bases. The classify step no longer declares one -- it now
+  // pins explicit SHAs (see the next test) -- so the deploy job's
+  // FALLBACK_BASE_BRANCH is the only remaining declaration. Every one that
+  // exists must still resolve to the authority and never to the frozen fork.
   const fallbacks = [...gate.matchAll(/(?:GITHUB_BASE_REF|FALLBACK_BASE_BRANCH):[^\n]*/g)].map(
     (m) => m[0],
   );
-  assert.ok(fallbacks.length >= 2, 'expected the gate to declare its diff-base fallbacks');
+  assert.ok(
+    fallbacks.length >= 1,
+    'expected the gate to declare at least one diff-base fallback; a gate with none has no governing base at all',
+  );
   for (const line of fallbacks) {
     assert.ok(
       line.includes(STAGING_AUTHORITY_BRANCH),
@@ -54,6 +59,50 @@ test('the staging security gate classifies against the new staging authority', (
       `diff-base fallback must not default to the frozen fork, got: ${line.trim()}`,
     );
   }
+});
+
+test('surface classification diffs against pinned SHAs, not a mutable branch name', () => {
+  const gate = readWorkflow('security-staging-gate.yml');
+
+  // WHY: the classify step used to diff against
+  // `origin/${github.base_ref || <branch>}`. A branch name is mutable, so the
+  // classified surface set could change after review. It now pins the explicit
+  // pull-request base/head SHAs. Assert the stronger mechanism stays in place:
+  // reverting to a branch-name base would silently reintroduce exactly the
+  // drift that moving off the frozen fork was meant to end.
+  assert.match(
+    gate,
+    /DIFF_BASE_SHA:\s*\$\{\{\s*github\.event\.pull_request\.base\.sha/,
+    'the classify step must pin its diff base to the pull-request base SHA',
+  );
+  assert.match(
+    gate,
+    /DIFF_HEAD_SHA:\s*\$\{\{\s*github\.event\.pull_request\.head\.sha/,
+    'the classify step must pin its diff head to the pull-request head SHA',
+  );
+  assert.match(
+    gate,
+    /classify-changed-surfaces\.js "\$DIFF_BASE_SHA" "\$DIFF_HEAD_SHA"/,
+    'the classifier must be invoked with the pinned SHAs',
+  );
+});
+
+test('the frozen legacy fork is never a default anywhere in the gate', () => {
+  const gate = readWorkflow('security-staging-gate.yml');
+
+  // One global guard covering every diff-base mechanism, present or future:
+  // the fork may be named only to declare what is frozen, never as a value
+  // that anything falls back to.
+  const defaulted = gate
+    .split('\n')
+    .filter((line) => line.includes(FROZEN_LEGACY_BRANCH))
+    .filter((line) => !/^\s*FROZEN_LEGACY_BRANCH:/.test(line));
+
+  assert.deepEqual(
+    defaulted,
+    [],
+    `the frozen fork may only appear as the FROZEN_LEGACY_BRANCH declaration, found: ${defaulted.join(' | ')}`,
+  );
 });
 
 test('staging deploy authority is an allow-list containing only the governing branch and explicit dispatch', () => {
