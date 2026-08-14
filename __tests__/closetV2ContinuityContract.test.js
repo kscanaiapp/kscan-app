@@ -525,3 +525,97 @@ test('S3: identification is immutable to commerce — a retailer result cannot r
   assert.equal(item.color, 'Charcoal');
   assert.equal(item.brand, 'Acme Tailoring');
 });
+
+// ── S5 §H: Recent Scan and Closet proven INDEPENDENTLY ───────────────────────
+//
+// These four are deliberately separate gates. The failure mode being guarded
+// against is a suite where Recent Scan commerce "passes" only because a Closet
+// copy happened to be present — which would hide a Recent Scan persistence
+// regression completely. Each test below names exactly what it proves, and the
+// first two never construct a Closet item at all.
+
+test('RECENT_SCAN_RELOAD: a scan reopens after reload with identity and metadata intact', () => {
+  const { reloaded } = persistAndReload(makeModel());
+
+  // No Closet adapter is invoked anywhere in this test.
+  assert.equal(reloaded.cloudId, REMOTE_UUID, 'identity must survive reload');
+  assert.equal(reloaded.id, 'scan-local-1', 'local identity must survive reload');
+  assert.equal(reloaded.identificationSnapshot.subtype, 'double-breasted blazer');
+  assert.equal(reloaded.identificationSnapshot.attributes.fit, 'Tailored');
+  assert.equal(reloaded.attributes.category, 'Outerwear');
+  assert.equal(typeof reloaded.result, 'string');
+});
+
+test('RECENT_SCAN_COMMERCE: persisted commerce is recoverable WITHOUT Closet', () => {
+  const { reloaded } = persistAndReload(makeModel());
+
+  // Nothing in this test creates, saves to, or reads from Closet. If commerce
+  // is present here, the Recent Scan path owns it independently.
+  const options = Array.from(reloaded.purchaseOptions);
+  assert.equal(options.length, 1, 'commerce must come back from the Recent Scan row itself');
+  assert.equal(options[0].retailer, 'Nordstrom');
+  assert.equal(options[0].productUrl, 'https://example.com/p/charcoal-blazer');
+  assert.equal(options[0].price, '395.00');
+  assert.equal(options[0].currency, 'USD');
+  assert.equal(options[0].productId, 'sku-4417');
+  assert.equal(options[0].provider, 'serpapi');
+
+  // The CTA needs a usable link; a null here is the historical regression.
+  assert.ok(options[0].productUrl, 'the commerce CTA must remain functional after reload');
+});
+
+test('RECENT_SCAN_TO_CLOSET: saving to Closet does not mutate or downgrade the scan', () => {
+  const model = makeModel();
+  const { persisted } = persistAndReload(model);
+  const scanRow = {
+    ...persisted,
+    id: REMOTE_UUID,
+    created_at: '2026-08-14T00:00:00Z',
+    updated_at: '2026-08-14T00:00:00Z',
+  };
+
+  // Snapshot the scan's commerce BEFORE the Closet conversion.
+  const before = JSON.parse(JSON.stringify(scanRow.purchase_options));
+
+  const item = owned.normalizeSavedScanRow(scanRow);
+  assert.equal(item.subcategory, 'double-breasted blazer', 'Closet inherits the canonical metadata');
+
+  // The Closet conversion is a projection. It must not write back.
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(scanRow.purchase_options)),
+    before,
+    'converting to a Closet item must not mutate the originating scan commerce',
+  );
+  assert.equal(scanRow.analysis_result.identificationSnapshot.subtype, 'double-breasted blazer');
+});
+
+test('CLOSET_RELOAD: the Closet item survives its own reload independently', () => {
+  const { persisted } = persistAndReload(makeModel());
+  const scanRow = {
+    ...persisted,
+    id: REMOTE_UUID,
+    created_at: '2026-08-14T00:00:00Z',
+    updated_at: '2026-08-14T00:00:00Z',
+  };
+
+  const first = owned.normalizeSavedScanRow(scanRow);
+  // Reload = re-derive from the persisted row, as a fresh app launch would.
+  const second = owned.normalizeSavedScanRow(JSON.parse(JSON.stringify(scanRow)));
+
+  for (const field of ['category', 'subcategory', 'color', 'material', 'pattern', 'silhouette', 'fit', 'brand']) {
+    assert.equal(second[field], first[field], `${field} must be stable across Closet reload`);
+  }
+  assert.equal(
+    Array.from(second.brandEvidence).length,
+    Array.from(first.brandEvidence).length,
+    'brand evidence must be stable across Closet reload',
+  );
+});
+
+test('INDEPENDENCE: a scan whose Closet projection is never built still keeps commerce', () => {
+  // The explicit anti-pattern guard. Build ONLY the Recent Scan path and
+  // assert commerce is whole — no Closet object is ever constructed.
+  const { persisted, reloaded } = persistAndReload(makeModel());
+  assert.equal(Array.from(reloaded.purchaseOptions).length, 1);
+  assert.equal(persisted.purchase_options[0].productUrl, 'https://example.com/p/charcoal-blazer');
+});
