@@ -19,6 +19,10 @@ import {
   deleteTemporaryStylistSpeechFile,
 } from './avatars/stylistSpeechFiles';
 import { requestStylistSpeech } from './avatars/stylistSpeechClient';
+import {
+  ensureAvatarSpeechLifecycleListener,
+  registerAvatarInterruptionHandler,
+} from './avatarSpeechLifecycle';
 
 /**
  * `auto` is StyleChat speaking a newly persisted message on its own and must
@@ -163,8 +167,30 @@ interface NormalizedSpeech {
   trigger: AvatarSpeechTrigger;
 }
 
+// Avatar AppState interruption, bound lazily on the first speech request.
+//
+// Ownership sits in the service layer, never in a UI component, so a mounted
+// avatar cannot install a second AppState listener and a background event
+// cannot be missed while no avatar happens to be mounted. The handler delegates
+// to stopAvatarSpeechPlayback() rather than reimplementing teardown, so the
+// authoritative generation bump, player stop, temp-file cleanup and store reset
+// stay in exactly one place: a late native callback from the interrupted
+// generation is inert, and returning to the foreground never resumes.
+let speechLifecycleBound = false;
+
+function ensureSpeechLifecycleBound(): void {
+  if (!speechLifecycleBound) {
+    speechLifecycleBound = true;
+    registerAvatarInterruptionHandler(() => {
+      void stopAvatarSpeechPlayback();
+    });
+  }
+  ensureAvatarSpeechLifecycleListener();
+}
+
 async function runSpeechOperation(payload: NormalizedSpeech): Promise<void> {
   const key = payload.key;
+  ensureSpeechLifecycleBound();
   // A duplicate concurrent attempt is suppressed for both triggers so a retry
   // tap cannot start a second player alongside an in-flight attempt.
   if (inFlightKey === key) return;
