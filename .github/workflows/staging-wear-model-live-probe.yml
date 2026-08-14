@@ -75,9 +75,13 @@ jobs:
           ref: master
           path: trusted
 
+      # Node 22, not the repo's usual 20: @supabase/supabase-js constructs a
+      # RealtimeClient that requires a native WebSocket, which Node 20 does not
+      # provide. On 20 the probe dies in createClient before it can reach
+      # staging at all.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6.0.0
         with:
-          node-version: '20'
+          node-version: '22'
 
       # Provenance only. The candidate is NEVER checked out, so none of its
       # source can execute; its SHA is resolved independently through the API
