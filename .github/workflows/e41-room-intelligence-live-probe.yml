@@ -5,6 +5,25 @@
 # they supply their own evidence, so they certify the manifest builder, not the
 # interaction between authorization, the manifest and the model.
 #
+# ── TRUST BOUNDARY ───────────────────────────────────────────────────────────
+#
+# The first version of this workflow checked out the caller-supplied
+# `candidate_ref` and then executed THAT checkout's probe source, and THAT
+# checkout's harness tests, in steps holding staging credentials. Anyone able to
+# dispatch it could therefore run arbitrary code against staging secrets, and
+# could also rewrite the assertions that decide whether their own candidate
+# passes. Both are removed here.
+#
+#   TRUSTED  (default branch, reviewed)  -> executes, holds credentials,
+#                                           owns PASS/FAIL, redaction, cleanup
+#   CANDIDATE (arbitrary ref)            -> resolved for provenance ONLY:
+#                                           never checked out, never executed
+#
+# The candidate ref is validated against a strict allowlist and passed through
+# the environment, never interpolated into a command. Product code under test
+# lives in the DEPLOYED function, which is what the probe exercises over HTTP —
+# so certifying a candidate never requires running the candidate's own source.
+#
 # Staging (yzqjvdfgefveprobvvyw) only. Production is never targeted, and the
 # probe itself refuses a production ref or URL before any network call.
 #
@@ -17,7 +36,7 @@ on:
   workflow_dispatch:
     inputs:
       candidate_ref:
-        description: 'Branch or SHA whose probe source should run'
+        description: 'Candidate branch or SHA to record as provenance (NOT executed)'
         required: true
         default: integration/build29-dressing-room-e41
         type: string
@@ -42,20 +61,65 @@ jobs:
     timeout-minutes: 25
     environment: staging
     steps:
-      - name: Checkout candidate
+      # TRUSTED source. `ref` is the hardcoded default branch, never an input:
+      # this is the only code that will run while credentials are present.
+      - name: Checkout TRUSTED probe source (default branch)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ inputs.candidate_ref }}
+          ref: master
+          path: trusted
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '20'
+
+      # Provenance only. The candidate is NEVER checked out, so none of its
+      # source can execute; its SHA is resolved independently through the API
+      # rather than trusted from the caller's string.
+      - name: Resolve candidate provenance (no checkout, no execution)
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Strict allowlist. Refs are quoted everywhere below, so metacharacters
+          # cannot execute, but a traversal sequence could still redirect the API
+          # path -- so the shape is constrained before use.
+          if ! printf '%s' "${CANDIDATE_REF}" | grep -Eq '^[A-Za-z0-9._/-]{1,255}$'; then
+            echo "::error::candidate_ref contains characters outside the allowlist."
+            exit 1
+          fi
+          case "${CANDIDATE_REF}" in
+            *..*|/*|*/) echo "::error::candidate_ref shape refused."; exit 1 ;;
+          esac
+
+          # Fail closed: an unresolvable candidate must stop the run, never
+          # certify against an unknown source.
+          if ! CANDIDATE_SHA="$(gh api "repos/${REPO}/commits/${CANDIDATE_REF}" --jq '.sha')"; then
+            echo "::error::candidate_ref could not be resolved."
+            exit 1
+          fi
+          CANDIDATE_TREE="$(gh api "repos/${REPO}/commits/${CANDIDATE_SHA}" --jq '.commit.tree.sha')"
+          TRUSTED_SHA="$(git -C trusted rev-parse HEAD)"
+
+          echo "candidate_sha=${CANDIDATE_SHA}" >> "$GITHUB_OUTPUT"
+          echo "candidate_tree=${CANDIDATE_TREE}" >> "$GITHUB_OUTPUT"
+          echo "trusted_sha=${TRUSTED_SHA}" >> "$GITHUB_OUTPUT"
+          echo "Candidate ref requested: ${CANDIDATE_REF}"
+          echo "Candidate SHA resolved:  ${CANDIDATE_SHA}"
+          echo "Trusted probe SHA:       ${TRUSTED_SHA}"
 
       - name: Confirm environment authority
         env:
           SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
         run: |
           set -euo pipefail
+          if [ -z "${SUPABASE_STAGING_PROJECT_REF:-}" ]; then
+            echo "::error::Missing staging project identity."
+            exit 1
+          fi
           if [ "${SUPABASE_STAGING_PROJECT_REF}" != "${EXPECTED_STAGING_REF}" ]; then
             echo "::error::Staging project ref does not match the expected authority."
             exit 1
@@ -65,38 +129,39 @@ jobs:
             exit 1
           fi
 
-      - name: Verify the probe harness before trusting its verdict
+      # Runs the TRUSTED harness tests. Previously these came from the candidate,
+      # which let a candidate certify its own PASS criteria.
+      - name: Verify the trusted harness before trusting its verdict
+        working-directory: trusted
         run: |
           set -euo pipefail
           node --test __tests__/release/e41BehaviorAssertions.test.js
           node --test __tests__/release/e41ProbeHarness.test.js
 
+      # The ONLY credentialed step. Executes trusted source exclusively.
       - name: Run E4.1 live probe
         id: probe
+        working-directory: trusted
         env:
           SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
           SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
           SUPABASE_STAGING_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
           STAGING_SYNTHETIC_ACTIVE_EMAIL: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_EMAIL }}
           STAGING_SYNTHETIC_ACTIVE_PASSWORD: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_PASSWORD }}
+          E41_CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          E41_CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+          E41_CANDIDATE_TREE_SHA: ${{ steps.candidate.outputs.candidate_tree }}
+          E41_TRUST_SOURCE_SHA: ${{ steps.candidate.outputs.trusted_sha }}
+          E41_WORKFLOW_SHA: ${{ github.sha }}
+        # A real script file, not an inline program: an inline program passed
+        # through the shell has its ${...} expanded by bash before node sees it.
         run: |
           set -euo pipefail
-          node -e "
-            const probe = require('./security/release/run-e41-room-intelligence-live-probe.js');
-            probe.run().then((report) => {
-              require('node:fs').writeFileSync('e41-probe-report.json', JSON.stringify(report, null, 2));
-              console.log(JSON.stringify(report.summary, null, 2));
-              process.exit(report.summary.verdict === 'PASS' ? 0 : 1);
-            }).catch((error) => {
-              // Classification, never the message body: a thrown error can
-              // carry response text.
-              console.error('E4.1 probe failed:', error.code || 'UNKNOWN');
-              process.exit(1);
-            });
-          "
+          node security/release/e41-probe-cli.js
 
       - name: Publish certification summary
         if: always()
+        working-directory: trusted
         run: |
           set -euo pipefail
           if [ -f e41-probe-report.json ]; then
@@ -104,7 +169,7 @@ jobs:
               echo '### E4.1 runtime certification'
               echo ''
               echo '```json'
-              python3 -c "import json;d=json.load(open('e41-probe-report.json'));print(json.dumps({'summary':d['summary'],'latency':d['latency']},indent=2))"
+              python3 -c "import json;d=json.load(open('e41-probe-report.json'));print(json.dumps({'summary':d['summary'],'provenance':d.get('provenance'),'latency':d['latency']},indent=2))"
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
           else
@@ -116,6 +181,6 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: e41-room-intelligence-probe-${{ github.run_id }}
-          path: e41-probe-report.json
+          path: trusted/e41-probe-report.json
           retention-days: 30
           if-no-files-found: warn
