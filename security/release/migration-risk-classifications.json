@@ -106,6 +106,10 @@
     "wardrobe_wear_event_items": {
       "classification": "FORWARD_FIX_ONLY",
       "rationale": "Adds public.wardrobe_wear_event_items (new table, RLS + GRANTs + indexes) and two additive nullable columns on public.wardrobe_wear_events (saved_look_id FK ON DELETE SET NULL, saved_look_ref text). Also DROPS NOT NULL on the pre-existing wardrobe_wear_events.source_item_id so an outfit-level wear need not elect a single garment, replacing it with a CHECK requiring identity from source_item_id, saved_look_id or saved_look_ref. Classified FORWARD_FIX_ONLY rather than REVERSIBLE because that NOT NULL cannot be restored once any outfit-level event exists: those rows carry a null source_item_id by design, so re-narrowing would require deleting real wear history or fabricating a source item for it. No data is transformed and no column is dropped; Build 28 writers are unaffected because they always supply source_item_id."
+    },
+    "harden_wardrobe_wear_anon_privileges": {
+      "classification": "REVERSIBLE",
+      "rationale": "Privilege-layer only. REVOKE ALL ... FROM anon, public on public.wardrobe_wear_events and public.wardrobe_utility_items, then re-GRANT select/insert/update/delete to authenticated exactly as 20260704175544_free_tier_utility_tables.sql already grants them. No DDL: no table, column, constraint, index, trigger, function or policy is created, altered or dropped, RLS state is untouched, and no row is read or written. REVERSIBLE rather than EXPANSION_SAFE because it tightens two pre-existing objects rather than adding new ones; the prior state is restored by a single GRANT per table. Removes anon grants that ALTER DEFAULT PRIVILEGES on the staging database conferred without any migration asking for them, matching the correction already made at source for public.wardrobe_wear_event_items."
     }
   }
 }
