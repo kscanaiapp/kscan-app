@@ -12,6 +12,16 @@ export const ELISE_OUTPUT_PARSER_VERSION = 'stylechat-output-v1';
 export interface EliseBackendFlags {
   aiEnabled: boolean;
   contextNormalizationV1: boolean;
+  /**
+   * E4.1 Room Intelligence.
+   *
+   * Deliberately its own gate rather than riding on contextNormalizationV1.
+   * That flag predates E4.1 and governs the legacy E-1 normalization
+   * BEHAVIOUR; reusing it would have meant enabling an older pipeline just to
+   * switch on room reasoning, and would have left no way to roll E4.1 back
+   * without also disabling that. The two now fail independently.
+   */
+  roomIntelligenceV1: boolean;
   generationSafetyV1: boolean;
   quotaIdempotencyV1: boolean;
   speechResilienceV1: boolean;
@@ -102,6 +112,7 @@ export function readEliseBackendConfig(env: EnvReader): EliseBackendConfig {
     flags: {
       aiEnabled: !((readTrimmed(env, 'STYLECHAT_AI_ENABLED') ?? '').toLowerCase() === 'false'),
       contextNormalizationV1: parseBooleanEnv(env, 'ELISE_CONTEXT_NORMALIZATION_V1_ENABLED', false),
+      roomIntelligenceV1: parseBooleanEnv(env, 'ELISE_ROOM_INTELLIGENCE_V1_ENABLED', false),
       generationSafetyV1: parseBooleanEnv(env, 'ELISE_GENERATION_SAFETY_V1_ENABLED', false),
       quotaIdempotencyV1: parseBooleanEnv(env, 'ELISE_QUOTA_IDEMPOTENCY_V1_ENABLED', false),
       speechResilienceV1: parseBooleanEnv(env, 'ELISE_SPEECH_RESILIENCE_V1_ENABLED', false),

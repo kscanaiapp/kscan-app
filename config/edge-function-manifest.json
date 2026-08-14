@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-14T10:34:51.801Z",
-    "generatedFromGitSha": "e66b63c3e1161860515325ccf6938cc28d806d0d"
+    "generatedAtUtc": "2026-08-14T11:03:22.816Z",
+    "generatedFromGitSha": "15781e7b4f926b70a1e32a7cd4473a258cc8556e"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v2",
@@ -297,9 +297,9 @@
           "npm:@supabase/supabase-js@2.105.4"
         ],
         "bundleFileCount": 41,
-        "treeFileCount": 60,
-        "bundleHash": "00bfe7b4d3c22eae4fd0909b6ffbe4b2d6d34bc19b654994a6116691ceffa9e0",
-        "treeHash": "bb444bb69738a5d3ca0727e07fc5861b257ca7ae869f38f50dd5ad15780e0aac",
+        "treeFileCount": 61,
+        "bundleHash": "5892b70a457b995dbf413cbff5e94004e876f3c76e057da1204353beaf0a6be1",
+        "treeHash": "3ee350a6023224f53b79563334bfb76fbf087e029719ea23cc234d7cb273be65",
         "files": [
           {
             "path": "supabase/functions/_shared/aiSecurity/escapeUntrustedText.ts",
@@ -433,7 +433,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseConfig.ts",
-            "sha256": "d4f78c097e1aea3c6e588476e1e8efbe65e3ac71db10942b378bfe7240f5ee1b",
+            "sha256": "a1de614eb8e5b84b85b156db70f1c38500b545ef2489746531f2522b35b019ba",
             "bundle": true
           },
           {
@@ -553,7 +553,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/index.ts",
-            "sha256": "48465865547f6eb96fda3bca83ba02d7a07e9a5927f4abc935401a4e6b44729a",
+            "sha256": "a19dd2afbca570c624197df55d0b29f32d26c597311291e8475b4b0be71662bc",
             "bundle": true
           },
           {
@@ -574,6 +574,11 @@
           {
             "path": "supabase/functions/stylechat-generate/promptInjectionHardening.test.ts",
             "sha256": "267be8bad5e731f06623b45b7dbaf096b22273fbd518a39cbe370c7689bc9e67",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/roomIntelligenceGate.test.ts",
+            "sha256": "a7a7ab15c88415cf15c0477ae4902049d4fdea59059544f139483fb5727c4ce3",
             "bundle": false
           },
           {

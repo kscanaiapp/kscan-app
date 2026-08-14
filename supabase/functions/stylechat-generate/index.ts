@@ -1267,7 +1267,23 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
 
   // ── 4a-E1. Typed visual-context continuity (flagged) ─────────────────────────
   // Runs after actor/session validation. Failures for optional context fail open.
-  if (config.flags.contextNormalizationV1 && body.activeContext != null) {
+  //
+  // The ENVELOPE is shared infrastructure: it is the server-authoritative,
+  // resolved, authorized evidence set, and both consumers below need it. What
+  // each flag gates is the BEHAVIOUR built on top of it, not the resolution:
+  //
+  //   contextNormalizationV1 -> the legacy E-1 visual-context prompt block
+  //   roomIntelligenceV1     -> the E4.1 room manifest
+  //
+  // Constructing the envelope emits no prompt text and changes no response on
+  // its own, so running it for either consumer is safe. Keeping the two
+  // behaviours on separate gates is what makes E4.1 independently reversible:
+  // rolling it back must not require disabling an older pipeline, and a problem
+  // in that older pipeline must not force E4.1 off.
+  if (
+    (config.flags.contextNormalizationV1 || config.flags.roomIntelligenceV1) &&
+    body.activeContext != null
+  ) {
     const eliseResourceData: EliseResourceDataSource = {
       fetchSavedScan: async (id) => {
         const { data, error } = await userClient
@@ -1367,24 +1383,36 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
         sessionId,
         dataSource: eliseResourceData,
       });
-      visualContextPromptBlock = typedVisualContext.promptBlock;
+      // Legacy E-1 behaviour stays behind its own flag: the envelope may have
+      // been built purely for E4.1, and in that case this prompt block must NOT
+      // appear.
+      if (config.flags.contextNormalizationV1) {
+        visualContextPromptBlock = typedVisualContext.promptBlock;
+      }
       // E4.1: describe the authorized evidence as ONE room rather than a flat
       // list, so "what is missing" has a grounded answer. Built from the
       // already-resolved envelope -- this adds no new authority and admits
       // only items the resolver marked server_verified.
-      const roomManifest = buildRoomManifest(typedVisualContext.envelope.evidence);
-      roomIntelligenceBlock = [
-        serializeRoomManifestSection(roomManifest, escapePromptData),
-        serializeRoomReasoningSection(roomManifest),
-      ].filter((section): section is string => Boolean(section)).join('\n\n') || null;
-      roomManifestItemCount = roomManifest.items.length;
-      roomManifestRevision = roomManifest.revision;
+      if (config.flags.roomIntelligenceV1) {
+        const roomManifest = buildRoomManifest(typedVisualContext.envelope.evidence);
+        roomIntelligenceBlock = [
+          serializeRoomManifestSection(roomManifest, escapePromptData),
+          serializeRoomReasoningSection(roomManifest),
+        ].filter((section): section is string => Boolean(section)).join('\n\n') || null;
+        roomManifestItemCount = roomManifest.items.length;
+        roomManifestRevision = roomManifest.revision;
+      }
       emitEliseTelemetry(config, 'elise_context_normalization_outcome', {
         requestId,
         operationType: 'stylechat_generate_reply',
         actorHash,
-        flagState: 'contextNormalizationV1',
-        contextNormalizationV1: true,
+        // Names the gates that actually ran. Reporting 'contextNormalizationV1'
+        // unconditionally would misattribute an envelope built solely for E4.1.
+        flagState: [
+          config.flags.contextNormalizationV1 ? 'contextNormalizationV1' : null,
+          config.flags.roomIntelligenceV1 ? 'roomIntelligenceV1' : null,
+        ].filter(Boolean).join(',') || 'none',
+        contextNormalizationV1: config.flags.contextNormalizationV1,
         internalContractVersion: ELISE_VISUAL_CONTEXT_INTERNAL_VERSION,
         normalizationLatencyMs: typedVisualContext.normalizationLatencyMs,
         receivedCount: typedVisualContext.envelope.normalization.receivedCount,
@@ -1403,12 +1431,18 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
       // Optional enrichment must never block safe text generation.
       typedVisualContext = null;
       visualContextPromptBlock = null;
+      roomIntelligenceBlock = null;
+      roomManifestItemCount = 0;
+      roomManifestRevision = null;
       emitEliseTelemetry(config, 'elise_context_normalization_outcome', {
         requestId,
         operationType: 'stylechat_generate_reply',
         actorHash,
-        flagState: 'contextNormalizationV1',
-        contextNormalizationV1: true,
+        flagState: [
+          config.flags.contextNormalizationV1 ? 'contextNormalizationV1' : null,
+          config.flags.roomIntelligenceV1 ? 'roomIntelligenceV1' : null,
+        ].filter(Boolean).join(',') || 'none',
+        contextNormalizationV1: config.flags.contextNormalizationV1,
         internalContractVersion: ELISE_VISUAL_CONTEXT_INTERNAL_VERSION,
         acceptedCount: 0,
         rejectedCount: 0,
