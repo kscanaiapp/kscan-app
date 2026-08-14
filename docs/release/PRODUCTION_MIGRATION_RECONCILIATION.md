@@ -91,39 +91,29 @@ source provenance is still classified UNKNOWN.
   naive forward-port would collide. Any promotion of this item must renumber
   it first.
 
-### 4. `shared_room_item_contributions` — **the formal promotion blocker**
+### 4. `shared_room_item_contributions` — **resolved intentional difference**
 
-This one is different in kind from the other three, and is the reason
-`PRODUCTION_MIGRATION_RECONCILIATION_REQUIRED` exists as a machine-enforced
-state rather than a note.
+This one is different in kind from the other three. Its provenance question
+was resolved by an authorized read-only production schema audit on 2026-08-14;
+the migration remains deliberately quarantined for Build 29.
 
 - Production ledger: `20260808201806`, observed applied.
 - Repository source sits in the **deferred quarantine directory**:
   `supabase/migrations-deferred/20260725100000_shared_room_item_contributions.sql`.
-- `supabase/migrations-deferred/README.md` states that this migration
-  **"is not applied in production"**, and defers it *precisely because*
-  production was believed to define three `dressing_room_items` RLS policies
-  differently, plus lack a `created_by` column the migration adds.
-- Live production state contradicts that premise: a migration of this name is
-  applied there.
+- Production's ledger stores the exact quarantined migration statement.
+- Production currently has the `created_by` column, all three contributor
+  policies, the identity-guard trigger, and both functions from that source.
+- `contribution_block_enforcement` subsequently hardened production's
+  `can_contribute_to_dressing_room` function with participant-left, owner, and
+  bidirectional block checks.
+- Replaying the older quarantined migration on staging would therefore regress
+  the current production authorization contract.
 
-So the repository's own written justification for quarantining this migration
-is **stale** — and, because that justification is what the quarantine rests
-on, the repository currently cannot be trusted on this object without
-re-verification.
-
-Resolving it is **not** a forward-port. It requires, in order:
-
-1. A read-only comparison of production's *current* `dressing_room_items`
-   policy set and column list against what the deferred file would create.
-2. A determination of whether what production applied is semantically the
-   same migration or a divergent variant that happens to share a name.
-3. Only then: promote the deferred file, replace it with production's actual
-   applied form, or re-document the deferral on accurate grounds.
-
-Phase 2A deliberately did not perform step 1. This is a control-plane phase,
-and step 1 is a production schema audit — it needs its own scoped,
-owner-authorized pass.
+Disposition: `PRODUCTION_ONLY_INTENTIONAL` / provenance `RESOLVED`. Keep the
+historical file in `migrations-deferred`; do not activate or edit it. A future
+staging convergence requires a separately reviewed, block-aware migration.
+The other three open records still keep the overall reconciliation state
+fail-closed.
 
 ## Effect on releases (what the control plane actually enforces)
 

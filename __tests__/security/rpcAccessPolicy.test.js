@@ -206,7 +206,7 @@ test('every declared remediation is actually implemented by the migrations', () 
   }
   for (const signature of policy.remediation_summary.revoke_authenticated) {
     assert.ok(
-      privilegeSql.includes(`revoke execute on function ${signature} from authenticated;`),
+      privilegeSql.includes(`revoke execute on function ${signature} from authenticated`),
       `privilege migration is missing the authenticated revoke for ${signature}`,
     );
   }
@@ -214,6 +214,23 @@ test('every declared remediation is actually implemented by the migrations', () 
     assert.ok(
       searchPathSql.includes(`alter function ${signature} set search_path`),
       `search_path migration is missing ${signature}`,
+    );
+  }
+});
+
+test('lineage-only trigger revokes are guarded so a zero-state migration run cannot abort', () => {
+  const privilegeSql = fs.readFileSync(PRIVILEGE_MIGRATION, 'utf8');
+  for (const signature of [
+    'public.handle_new_user_privacy()',
+    'public.update_privacy_settings_updated_at()',
+  ]) {
+    assert.ok(
+      privilegeSql.includes(`to_regprocedure('${signature}') is not null`),
+      `${signature} must be checked before REVOKE because the active chain does not create it`,
+    );
+    assert.ok(
+      privilegeSql.includes(`revoke execute on function ${signature} from authenticated`),
+      `${signature} must still be revoked when the legacy object exists`,
     );
   }
 });

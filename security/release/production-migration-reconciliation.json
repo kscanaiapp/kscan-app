@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "description": "Machine-readable reconciliation state for migrations observed applied on production (wyyuqfdxucjksghsmhry) that have no equivalent in the staging baseline. Consumed by security/release/production-eligibility.js. While overallStatus is not RESOLVED, production promotion fails closed. This file records EVIDENCE and OPEN QUESTIONS; it does not resolve anything on the owner's behalf.",
-  "observedOn": "2026-08-11",
+  "observedOn": "2026-08-14",
   "observationMethod": "Read-only Supabase Management API list_migrations against both projects, reconciled by migration NAME (this repo's deploy tool stamps its own apply-time version, so filename timestamps are not reliable join keys - see the ledger-naming note in docs/release/PRODUCTION_MIGRATION_RECONCILIATION.md).",
   "overallStatus": "PRODUCTION_MIGRATION_RECONCILIATION_REQUIRED",
   "productionLedgerCaveat": "Production's supabase_migrations.schema_migrations table is known to contain at least two placeholder statement entries (documented in docs/security/batch0-migration-source-restoration.md). An entry appearing in the ledger therefore proves an entry was recorded, NOT that the recorded DDL is what actually ran. Do not treat ledger presence as authoritative provenance.",
@@ -94,11 +94,11 @@
         "evidenceMethod": "present in the deferred-migrations quarantine directory on staging/production-parity"
       },
       "stagingEquivalent": { "applied": false, "reason": "deliberately deferred, never applied to staging" },
-      "semanticStatus": "STALE_DOCUMENTATION",
-      "provenanceStatus": "REQUIRES_OWNER_DECISION",
+      "semanticStatus": "PRODUCTION_ONLY_INTENTIONAL",
+      "provenanceStatus": "RESOLVED",
       "promotionImpact": "BLOCKS_PRODUCTION_PROMOTION",
-      "requiredDecision": "Owner decision required, and this one cannot be resolved by a forward-port alone. supabase/migrations-deferred/README.md states this migration 'is not applied in production' and defers it precisely BECAUSE production defined three dressing_room_items RLS policies differently. Production has since applied a migration of this name (20260808201806), so the README's stated premise is now false. Required: (1) re-verify production's CURRENT dressing_room_items policy set and created_by column against the deferred file, (2) determine whether what production applied is semantically the same migration or a divergent variant, (3) then either promote the deferred file, replace it with production's actual applied form, or re-document the deferral on accurate grounds.",
-      "notes": "This is the sharpest reconciliation item and the reason PRODUCTION_MIGRATION_RECONCILIATION_REQUIRED exists as a machine-enforced state. The deferred file is not merely un-promoted - its recorded justification is contradicted by live production state, so the repository's own documentation cannot currently be trusted on this object. Resolving it requires a read-only production schema comparison that Phase 2A deliberately did not perform (Phase 2A is a control-plane phase, not a production-audit phase)."
+      "requiredDecision": "No Build 29 action: keep the historical migration quarantined. Any future staging convergence must use a separately reviewed migration that reproduces production's current block-aware authorization contract rather than replaying this older source.",
+      "notes": "Resolved by the authorized 2026-08-14 read-only production schema audit. Production's ledger stores the exact quarantined migration statement and production has its created_by column, contributor policies, identity guard trigger, and functions. The current can_contribute_to_dressing_room function was subsequently hardened by contribution_block_enforcement, so replaying the quarantined source on staging would regress that contract. The explicit Build 29 invariant remains: deferred file present, active copy absent, deployment exclusion intentional. The other unresolved records continue to keep overallStatus fail-closed."
     }
   ],
   "resolutionRule": "overallStatus may only become RESOLVED when every record has a semanticStatus in [EQUIVALENT, SUPERSEDED, PRODUCTION_ONLY_INTENTIONAL] AND a provenanceStatus in [RESOLVED, WAIVED_BY_OWNER], with the waiver recorded in docs/release/PRODUCTION_MIGRATION_RECONCILIATION.md. No automation may set RESOLVED."

@@ -126,7 +126,6 @@ revoke execute on function public.revalidate_elise_generation_context(uuid,uuid,
 -- to avoid unnecessary privilege churn.
 
 revoke execute on function public.enforce_minor_privacy_defaults() from authenticated;
-revoke execute on function public.handle_new_user_privacy() from authenticated;
 revoke execute on function public.normalize_dressing_room_note() from authenticated;
 revoke execute on function public.set_profiles_updated_at() from authenticated;
 revoke execute on function public.set_provider_request_limits_updated_at() from authenticated;
@@ -136,7 +135,22 @@ revoke execute on function public.set_style_objects_updated_at() from authentica
 revoke execute on function public.set_updated_at() from authenticated;
 revoke execute on function public.set_user_stylist_preferences_updated_at() from anon;
 revoke execute on function public.set_user_stylist_preferences_updated_at() from authenticated;
-revoke execute on function public.update_privacy_settings_updated_at() from authenticated;
+
+-- These two trigger functions exist on the evolved staging lineage but are not
+-- created by the active repository migration chain. A direct REVOKE aborts a
+-- clean database rebuild before the remaining hardening migrations can run.
+-- Absence is already the strictest privilege state, so preserve the reviewed
+-- revoke when each legacy object exists and otherwise continue fail-closed.
+do $$
+begin
+  if to_regprocedure('public.handle_new_user_privacy()') is not null then
+    execute 'revoke execute on function public.handle_new_user_privacy() from authenticated';
+  end if;
+  if to_regprocedure('public.update_privacy_settings_updated_at()') is not null then
+    execute 'revoke execute on function public.update_privacy_settings_updated_at() from authenticated';
+  end if;
+end;
+$$;
 
 -- ── D. Repair: authenticated USAGE on the internal schema ──
 --

@@ -108,9 +108,19 @@ select is(
 select is(
   (select count(*) from information_schema.role_table_grants
    where table_schema = 'public' and table_name = 'shared_room_memberships'
-     and grantee in ('anon', 'authenticated')),
+     and grantee = 'authenticated' and privilege_type = 'SELECT'),
+  1::bigint,
+  'authenticated has the reviewed SELECT grant needed for RLS policy evaluation'
+);
+select is(
+  (select count(*) from information_schema.role_table_grants
+   where table_schema = 'public' and table_name = 'shared_room_memberships'
+     and (
+       grantee = 'anon'
+       or (grantee = 'authenticated' and privilege_type in ('INSERT', 'UPDATE', 'DELETE'))
+     )),
   0::bigint,
-  'anon and authenticated have no direct table privilege'
+  'anon has no table privilege and authenticated has no direct mutation privilege'
 );
 select is(
   (select count(*) from information_schema.role_table_grants
@@ -310,12 +320,14 @@ select is(
 );
 reset role;
 
--- Actual direct table operations are denied, not merely filtered by RLS.
+-- Direct SELECT is allowed only through the recipient-scoped RLS policy;
+-- direct mutations remain denied by the absence of grants and policies.
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000002', true);
-select throws_ok(
-  $$select * from public.shared_room_memberships$$,
-  '42501', null, 'authenticated direct SELECT is denied'
+select results_eq(
+  $$select recipient_user_id from public.shared_room_memberships order by recipient_user_id$$,
+  $$values ('00000000-0000-0000-0000-000000000002'::uuid)$$,
+  'authenticated direct SELECT is restricted to the caller membership by RLS'
 );
 select throws_ok(
   $$insert into public.shared_room_memberships (share_id, recipient_user_id)

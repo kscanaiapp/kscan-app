@@ -309,10 +309,15 @@ select is(
   'room_shares RLS remains enabled'
 );
 
-select is(
-  (select count(*) from pg_policies where schemaname = 'public' and tablename = 'room_shares'),
-  1::bigint,
-  'room_shares owner policy count is unchanged'
+select results_eq(
+  $$select policyname from pg_policies
+    where schemaname = 'public' and tablename = 'room_shares'
+    order by policyname$$,
+  $$values
+    ('Account must be active (deletion guard)'::name),
+    ('Recipients can select shares backing own memberships'::name),
+    ('Users can select own room shares'::name)$$,
+  'room_shares has exactly the owner, recipient-read, and deletion-guard policies'
 );
 
 select is(

@@ -31,6 +31,11 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '..');
 const appJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'app.json'), 'utf8'));
 const easJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'eas.json'), 'utf8'));
+const androidGradle = fs.readFileSync(path.join(ROOT, 'android', 'app', 'build.gradle'), 'utf8');
+const androidManifest = fs.readFileSync(
+  path.join(ROOT, 'android', 'app', 'src', 'main', 'AndroidManifest.xml'),
+  'utf8',
+);
 
 /** The release currently under development. Bumping this is a deliberate act. */
 const BUILD_UNDER_DEVELOPMENT = 29;
@@ -55,6 +60,17 @@ test('iOS buildNumber matches the release under development', () => {
 
 test('Android versionCode matches the release under development', () => {
   assert.equal(expo.android.versionCode, BUILD_UNDER_DEVELOPMENT);
+});
+
+test('checked-in Android native versionCode matches the release under development', () => {
+  const match = androidGradle.match(/\bversionCode\s+(\d+)\b/);
+  assert.ok(match, 'android/app/build.gradle must declare a numeric versionCode');
+  assert.equal(Number(match[1]), BUILD_UNDER_DEVELOPMENT);
+});
+
+test('checked-in Android native project includes the account restoration app link', () => {
+  assert.match(androidManifest, /android:host="kscan\.app"/);
+  assert.match(androidManifest, /android:pathPrefix="\/account\/restore"/);
 });
 
 test('iOS and Android carry the SAME build identity', () => {

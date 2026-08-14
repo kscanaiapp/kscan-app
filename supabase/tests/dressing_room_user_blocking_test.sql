@@ -1,6 +1,6 @@
 begin;
 
-select plan(48);
+select plan(50);
 
 -- RLS-dependent assertions in this file explicitly `set local role authenticated`
 -- around themselves (in addition to set_config('request.jwt.claim.sub', ...)):
