@@ -467,6 +467,83 @@ const SPEECH_CONFIG_ENTRIES: readonly [string, StylistSpeechConfiguration][] = O
 export const STYLIST_SPEECH_CONFIG_BY_ID: ReadonlyMap<string, StylistSpeechConfiguration> =
   createReadonlyMap(SPEECH_CONFIG_ENTRIES);
 
+// ── Build 29 facial-motion coverage ─────────────────────────────────────────
+//
+// Facial-motion coverage and speech-profile coverage are INTENTIONALLY
+// INDEPENDENT contracts and must not be reconciled into one list:
+//
+//   speech-profile coverage  = portraits 02 / 05 / 08  (SPEECH_CONFIG_ENTRIES)
+//   facial-motion coverage   = portraits 01 / 02 / 03 / 04
+//
+// Portrait 02 is the cross-system reference avatar: it is the single portrait
+// in both contracts, so it carries the deepest combined speech + facial-motion
+// validation. It is deliberately ABSENT below — it already has an approved
+// speech configuration, and duplicating its mouth region here would let the two
+// copies drift. The resolver prefers the speech configuration, so 02 keeps
+// exactly one source of truth.
+//
+// Portraits 01/03/04 are facial-motion only: they are not voice-configured, so
+// they never speak, but they must still animate and be validated. Registering
+// them here does NOT add them to the speech contract, and
+// `STYLIST_SPEECH_CONFIG_BY_ID.size` stays at 3 as Build 29 governs.
+const FACIAL_MOTION_CONFIG_ENTRIES: readonly [string, StylistSpeechConfiguration][] = Object.freeze([
+  [
+    'stylist_portrait_01',
+    {
+      speakingMotionMode: 'mouth_states',
+      mouthRegion: { x: 0.41, y: 0.56, width: 0.18, height: 0.09 },
+      mouthStateSources: {
+        closed: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_01_mouth_closed.png') : 1,
+        halfOpen: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_01_mouth_half_open.png') : 1,
+        open: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_01_mouth_open.png') : 1,
+      },
+    },
+  ],
+  [
+    'stylist_portrait_03',
+    {
+      speakingMotionMode: 'mouth_states',
+      mouthRegion: { x: 0.42, y: 0.54, width: 0.18, height: 0.09 },
+      mouthStateSources: {
+        closed: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_03_mouth_closed.png') : 1,
+        halfOpen: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_03_mouth_half_open.png') : 1,
+        open: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_03_mouth_open.png') : 1,
+      },
+    },
+  ],
+  [
+    'stylist_portrait_04',
+    {
+      speakingMotionMode: 'mouth_states',
+      mouthRegion: { x: 0.41, y: 0.47, width: 0.17, height: 0.09 },
+      mouthStateSources: {
+        closed: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_04_mouth_closed.png') : 1,
+        halfOpen: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_04_mouth_half_open.png') : 1,
+        open: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_04_mouth_open.png') : 1,
+      },
+    },
+  ],
+]);
+
+/** Facial-motion mouth configuration for portraits outside the speech contract. */
+export const STYLIST_FACIAL_MOTION_CONFIG_BY_ID: ReadonlyMap<string, StylistSpeechConfiguration> =
+  createReadonlyMap(FACIAL_MOTION_CONFIG_ENTRIES);
+
+/**
+ * Mouth configuration for RENDERING, across both coverage contracts.
+ *
+ * Speech configuration wins so the cross-system reference avatar (02) renders
+ * from the same entry Build 29 governs its speech with. Facial-motion-only
+ * portraits fall through to their own entry. Presets in neither contract stay
+ * undefined and fail closed to the static portrait.
+ */
+export function getStylistMouthMotionConfig(
+  avatarId: string | null | undefined,
+): StylistSpeechConfiguration | undefined {
+  if (!avatarId) return undefined;
+  return STYLIST_SPEECH_CONFIG_BY_ID.get(avatarId) ?? STYLIST_FACIAL_MOTION_CONFIG_BY_ID.get(avatarId);
+}
+
 /** Presets that are selectable in the personalization UI. */
 export const STYLIST_SELECTABLE_PRESETS: readonly StylistAvatarPreset[] = Object.freeze(
   STYLIST_AVATAR_PRESETS.filter((p): p is StylistAvatarPreset & { selectable: true } => p.selectable),

@@ -7,7 +7,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import {
-  getStylistSpeechConfig,
+  getStylistMouthMotionConfig,
   STYLIST_AVATAR_PRESET_BY_ID,
   type StylistAvatarPreset,
   type StylistAvatarPresetPortraitReady,
@@ -145,7 +145,7 @@ export function AnimatedStylistAvatar({
     () => (avatarId ? STYLIST_AVATAR_PRESET_BY_ID.get(avatarId) : undefined),
     [avatarId],
   );
-  const speechConfig = useMemo(() => getStylistSpeechConfig(avatarId), [avatarId]);
+  const speechConfig = useMemo(() => getStylistMouthMotionConfig(avatarId), [avatarId]);
   const capabilities = useMemo(() => getAvatarMotionCapabilities(avatarId), [avatarId]);
   const effectiveState = reducedMotion ? 'static' : state;
   // Thinking is the only state with a distinct static treatment (the ring).
