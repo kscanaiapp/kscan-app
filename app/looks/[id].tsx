@@ -29,6 +29,8 @@ import {
   TertiaryButton,
   PrivacyFooter,
 } from '../../components/luxury';
+import { WoreThisButton } from '../../components/closet/WoreThisButton';
+import { logLookWear } from '../../services/wearHistory';
 import { LUXURY, SPACING } from '../../constants/theme';
 import { MODAL_MAX_WIDTH } from '../../services/responsiveLayout';
 import { AI_STYLIST_UI_ENABLED, STYLECHAT_ATTACHMENTS_ENABLED } from '../../constants/featureFlags';
@@ -233,6 +235,36 @@ function LookDetailContent() {
                 <Text style={styles.whyLabel}>WHY IT WORKS</Text>
                 <Text style={styles.whyText}>{look.explanation}</Text>
               </View>
+            ) : null}
+            {/*
+              "Wore this look" (Closet V2 / S6).
+
+              ONE explicit action creates ONE logical wear event carrying every
+              unique garment in the look. Saving, editing, renaming, reordering
+              or merely opening this look creates nothing — only this control
+              does, which is what keeps Saved Look and Worn Look distinct.
+
+              The garments are read from the look's CURRENT contents at the
+              moment the user says they wore it; the service snapshots them, so
+              a later edit cannot rewrite this wear.
+            */}
+            {look && items.length > 0 ? (
+              <WoreThisButton
+                testID="look-wore-this"
+                accessibilityLabel={`Record that you wore ${look.title} today`}
+                onLogWear={() =>
+                  logLookWear(
+                    look.id,
+                    items.map((item) => ({
+                      sourceItemId:
+                        item.sourceDressingRoomItemId ?? item.id,
+                      sourceType: 'look_item',
+                      titleSnapshot: item.title ?? null,
+                      categorySnapshot: item.category ?? null,
+                    })),
+                  )
+                }
+              />
             ) : null}
             <SecondaryButton
               title="Edit Look"

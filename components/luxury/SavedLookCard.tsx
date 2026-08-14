@@ -34,6 +34,13 @@ export interface SavedLookCardProps {
   accessibilityLabel?: string;
   /** Override root style (e.g. width for grids). */
   style?: ViewStyle;
+  /**
+   * Optional content rendered below the card body, outside the pressable
+   * region so its own controls stay independently focusable and do not
+   * trigger the card's onPress. Undefined renders nothing, so every existing
+   * caller is unaffected.
+   */
+  footer?: React.ReactNode;
 }
 
 /**
@@ -56,6 +63,7 @@ export function SavedLookCard({
   testID,
   accessibilityLabel,
   style,
+  footer,
 }: SavedLookCardProps) {
   const [imageError, setImageError] = useState(false);
   const hasImage = Boolean(imageUrl) && !imageError;
@@ -130,6 +138,12 @@ export function SavedLookCard({
         accessibilityLabel={accessibilityLabel ?? `${title} saved look`}
       >
         {cardContent}
+        {/*
+          Footer sits inside the card frame but is rendered after the pressable
+          body so its own controls keep independent focus order and a press on
+          them does not also fire the card's onPress.
+        */}
+        {footer ? <View style={styles.footer}>{footer}</View> : null}
       </Pressable>
     );
   }
@@ -142,6 +156,7 @@ export function SavedLookCard({
       accessibilityLabel={accessibilityLabel ?? `${title} saved look`}
     >
       {cardContent}
+      {footer ? <View style={styles.footer}>{footer}</View> : null}
     </View>
   );
 }
@@ -253,6 +268,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     color: LUXURY.colors.stone,
     marginTop: SPACING.xs,
+  },
+  footer: {
+    marginTop: SPACING.sm,
+    paddingTop: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: LUXURY.colors.border,
   },
   viewLabel: {
     ...LUXURY.typography.ctaSecondary,

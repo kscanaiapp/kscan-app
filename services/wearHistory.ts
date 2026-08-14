@@ -745,6 +745,15 @@ export function rankingIsMeaningful(stats: WearStats[]): boolean {
  */
 export type WearDisplayState = 'worn' | 'none_recorded' | 'unknown_legacy';
 
+/**
+ * When canonical wear tracking began.
+ *
+ * Anything saved before this date has no recorded wears for a reason that has
+ * nothing to do with whether the user wore it, so the UI must not treat the
+ * absence as evidence. Pinned to the S5 migration date.
+ */
+export const WEAR_TRACKING_STARTED_AT = '2026-08-14T00:00:00.000Z';
+
 export function describeWearState(input: {
   timesWorn: number;
   itemAddedAt?: string | null;

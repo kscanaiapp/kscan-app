@@ -69,6 +69,14 @@ import { createClosetBatchId } from '../services/closetCandidateSchema';
 import { ClosetIntakeModal } from '../components/closet/ClosetIntakeModal';
 import { MirrorSelfieExtractionModal } from '../components/closet/MirrorSelfieExtractionModal';
 import { ClosetCandidateStatusPanel } from '../components/closet/ClosetCandidateStatusPanel';
+import { WoreThisButton } from '../components/closet/WoreThisButton';
+import {
+  logItemWear,
+  getWearStats,
+  describeWearState,
+  WEAR_TRACKING_STARTED_AT,
+  type WearStats,
+} from '../services/wearHistory';
 import { isScanPromoted } from '../services/closetPromotion';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -215,6 +223,20 @@ const LEGACY_CHROME = {
 // ── Screen ────────────────────────────────────────────────────────────────────
 export default function LibraryScreen() {
   const router = useRouter();
+  // Wear statistics are read from the canonical event model, never from the
+  // legacy local counter. A failed load leaves the map empty, which renders as
+  // "no wears recorded" rather than as a fabricated zero.
+  const [wearStats, setWearStats] = useState<Record<string, WearStats>>({});
+  const loadWearStats = useCallback(async () => {
+    const result = await getWearStats();
+    if (!result.ok) return;
+    const byItem: Record<string, WearStats> = {};
+    for (const stat of result.stats) byItem[stat.sourceItemId] = stat;
+    setWearStats(byItem);
+  }, []);
+  useEffect(() => {
+    void loadWearStats();
+  }, [loadWearStats]);
   // Compact widths reproduce the certified two-column phone grid bit-for-bit;
   // regular (iPad) widths gain columns inside the centered content column.
   const { gridColumns, gridCellWidth } = useResponsiveLayout();
@@ -430,6 +452,49 @@ export default function LibraryScreen() {
             }),
         }
       : {};
+
+  /**
+   * Short wear context for a Closet card.
+   *
+   * Distinguishes three genuinely different states rather than collapsing them
+   * into "Never worn", which would be a false claim for anything saved before
+   * wear tracking existed — the user may well have worn it many times.
+   */
+  const wearContextLabel = (item: { id: string; createdAt?: string | null }): string => {
+    const stat = wearStats[item.id];
+    const state = describeWearState({
+      timesWorn: stat?.timesWorn ?? 0,
+      itemAddedAt: item.createdAt ?? null,
+      trackingStartedAt: WEAR_TRACKING_STARTED_AT,
+    });
+    if (state === 'worn' && stat) {
+      const times = stat.timesWorn === 1 ? 'Worn once' : `Worn ${stat.timesWorn} times`;
+      return stat.lastWornAt ? `${times} · Last worn ${formatDate(stat.lastWornAt)}` : times;
+    }
+    if (state === 'none_recorded') return 'Not worn yet';
+    return 'No wears recorded';
+  };
+
+  const renderWoreThis = (item: { id: string; title?: string | null; category?: string | null }) => (
+    <WoreThisButton
+      compact
+      testID="closet-wore-this"
+      accessibilityLabel={`Record that you wore ${item.title ?? 'this item'} today`}
+      onLogWear={() =>
+        logItemWear({
+          sourceItemId: item.id,
+          sourceType: 'closet_item',
+          titleSnapshot: item.title ?? null,
+          categorySnapshot: item.category ?? null,
+        })
+      }
+      onRecorded={() => {
+        // Refresh from the canonical model rather than incrementing locally.
+        // An optimistic bump would be a second, divergent source of truth.
+        void loadWearStats();
+      }}
+    />
+  );
 
   const handleDeleteClosetItem = (id: string) => {
     Alert.alert(
@@ -667,6 +732,23 @@ export default function LibraryScreen() {
               </View>
             ) : null}
             {/*
+              Wear History entry point (Closet V2 / S6).
+
+              Deliberately rendered AFTER the Mirror Selfie action and in its
+              own container: Mirror Selfie is a protected surface and must keep
+              its position as the first action under the Closet header. This is
+              an additional route into wardrobe history, never a replacement
+              for it.
+            */}
+            <View style={styles.wearHistoryAction}>
+              <SecondaryButton
+                title="Wear History"
+                onPress={() => router.push('/wear-history')}
+                accessibilityLabel="See what you have worn and when"
+                testID="closet-wear-history-button"
+              />
+            </View>
+            {/*
               Candidate staging surface (Closet Upgrade Build 1).
 
               Mounted ONLY when the derived capability is active, so a build with
@@ -711,26 +793,28 @@ export default function LibraryScreen() {
                       testID="closet-card"
                       imageUrl={a.thumbnailUri ?? a.imageUri}
                       title={a.title}
-                      accessibilityLabel={`${a.title} Closet item`}
+                      accessibilityLabel={`${a.title} Closet item. ${wearContextLabel(a)}`}
                       subtitle={a.category ?? 'Owned item'}
-                      date={formatDate(a.createdAt)}
+                      date={wearContextLabel(a)}
                       status="Closet"
                       onDelete={() => handleDeleteClosetItem(a.id)}
                       {...closetOutfitAction(a.id)}
                       style={{ width: CARD_W }}
+                      footer={renderWoreThis(a)}
                     />
                     {b ? (
                       <SavedLookCard
                         testID="closet-card"
                         imageUrl={b.thumbnailUri ?? b.imageUri}
                         title={b.title}
-                        accessibilityLabel={`${b.title} Closet item`}
+                        accessibilityLabel={`${b.title} Closet item. ${wearContextLabel(b)}`}
                         subtitle={b.category ?? 'Owned item'}
-                        date={formatDate(b.createdAt)}
+                        date={wearContextLabel(b)}
                         status="Closet"
                         onDelete={() => handleDeleteClosetItem(b.id)}
                         {...closetOutfitAction(b.id)}
                         style={{ width: CARD_W }}
+                        footer={renderWoreThis(b)}
                       />
                     ) : (
                       <View style={{ width: CARD_W, minHeight: CARD_MIN_H }} />
@@ -1136,6 +1220,10 @@ const styles = StyleSheet.create({
   },
   // Mirror Selfie action, sitting under the Closet section header beside the
   // existing Add Item affordance.
+  wearHistoryAction: {
+    marginTop: SPACING.sm,
+    paddingHorizontal: H_PAD,
+  },
   mirrorAction: {
     paddingHorizontal: SPACING.xl,
     paddingBottom: SPACING.md,
