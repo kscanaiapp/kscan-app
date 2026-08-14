@@ -79,21 +79,12 @@ jobs:
           SUPABASE_STAGING_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
           STAGING_SYNTHETIC_ACTIVE_EMAIL: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_EMAIL }}
           STAGING_SYNTHETIC_ACTIVE_PASSWORD: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_PASSWORD }}
+        # Invokes a real script file. An inline program passed through the shell
+        # gets its ${...} expanded by bash before node sees it, which corrupts
+        # the JS and reports as a probe failure rather than a workflow one.
         run: |
           set -euo pipefail
-          node -e "
-            const probe = require('./security/release/run-e41-room-intelligence-live-probe.js');
-            probe.run().then((report) => {
-              require('node:fs').writeFileSync('e41-probe-report.json', JSON.stringify(report, null, 2));
-              console.log(JSON.stringify(report.summary, null, 2));
-              process.exit(report.summary.verdict === 'PASS' ? 0 : 1);
-            }).catch((error) => {
-              // Classification, never the message body: a thrown error can
-              // carry response text.
-              console.error('E4.1 probe failed:', error.code || 'UNKNOWN', error.status ? `http=${error.status}` : '');
-              process.exit(1);
-            });
-          "
+          node security/release/e41-probe-cli.js
 
       - name: Publish certification summary
         if: always()

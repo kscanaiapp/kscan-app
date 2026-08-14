@@ -149,14 +149,29 @@ test('the fixture matches the real dressing_rooms schema', () => {
   );
 });
 
+test('the workflow invokes a real script, never an inline node -e program', () => {
+  // An inline program inside a double-quoted bash string has its ${...}
+  // expanded by the shell before node sees it. That corrupted the generated JS
+  // and surfaced as a probe failure rather than a workflow one.
+  const workflow = read(WORKFLOW);
+  assert.match(workflow, /node security\/release\/e41-probe-cli\.js/);
+  assert.doesNotMatch(workflow, /node -e/, 'the probe must not be inlined into the shell');
+  assert.ok(fs.existsSync(path.join(ROOT, 'security', 'release', 'e41-probe-cli.js')));
+});
+
 test('fixture failures surface an HTTP status without a response body', () => {
   // A bare classification cost a full round trip to diagnose. The status is
   // diagnostic; the body could carry room contents and is never attached.
   const probeSource = read(PROBE);
   assert.match(probeSource, /'FIXTURE_FAILURE',\s*roomRes\.status/);
   assert.match(probeSource, /if \(Number\.isFinite\(status\)\) this\.status = status;/);
-  const workflow = read(WORKFLOW);
-  assert.match(workflow, /error\.status \? `http=\$\{error\.status\}` : ''/);
+  // The status is surfaced by the CLI entrypoint, which is where the run's
+  // exit path lives.
+  const cli = read(path.join(ROOT, 'security', 'release', 'e41-probe-cli.js'));
+  assert.match(cli, /Number\.isFinite\(error && error\.status\)/);
+  assert.match(cli, /E4\.1 probe failed:/);
+  // ...and the report body is never printed alongside it.
+  assert.doesNotMatch(cli, /console\.error\([^)]*error\.message/);
 });
 
 test('the matrix asserts invariants rather than model prose', () => {
