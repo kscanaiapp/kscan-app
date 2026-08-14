@@ -6,8 +6,9 @@
  * `evidence[1..n]` list. That is enough to answer "what is this jacket" and not
  * enough to answer "what is missing from this look" — nothing in the prompt
  * said the items constituted ONE room, which item does which structural job,
- * or that the list was exhaustive. Asked what was missing, the model had no
- * basis to distinguish "the room has no shoes" from "shoes were not attached".
+ * or that the list was exhaustive. Asked what was missing, the model could not
+ * tell a room genuinely lacking shoes apart from one whose shoes were simply
+ * never attached.
  *
  * This module turns that authorized list into a bounded room manifest: one
  * room, a known item set, derived roles, and an explicit statement of what the

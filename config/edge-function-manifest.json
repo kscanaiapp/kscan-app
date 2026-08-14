@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-14T10:23:13.936Z",
-    "generatedFromGitSha": "f832a2bce306ec12947f19982a3b68527e0ea1ec"
+    "generatedAtUtc": "2026-08-14T10:34:51.801Z",
+    "generatedFromGitSha": "e66b63c3e1161860515325ccf6938cc28d806d0d"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v2",
@@ -294,14 +294,12 @@
         "entry": "supabase/functions/stylechat-generate/index.ts",
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2",
-          "npm:@supabase/supabase-js@2.105.4",
-          "shoes were not attached",
-          "what you may not\n * claim"
+          "npm:@supabase/supabase-js@2.105.4"
         ],
         "bundleFileCount": 41,
         "treeFileCount": 60,
-        "bundleHash": "5097d02078cc05456480b0e9d12d9e4083ae62c3485919e6f26b96d777cfc04c",
-        "treeHash": "51cd44ecba8ac5672b67221e29330306bfa673072767ce48cf2a5c19414ec3bd",
+        "bundleHash": "00bfe7b4d3c22eae4fd0909b6ffbe4b2d6d34bc19b654994a6116691ceffa9e0",
+        "treeHash": "bb444bb69738a5d3ca0727e07fc5861b257ca7ae869f38f50dd5ad15780e0aac",
         "files": [
           {
             "path": "supabase/functions/_shared/aiSecurity/escapeUntrustedText.ts",
@@ -330,12 +328,12 @@
           },
           {
             "path": "supabase/functions/_shared/dressingRoomIntelligence/promptSections.ts",
-            "sha256": "c950e949e56a5ccc94bdd4e362ca1325ce41ec4d252ccc73d5713edf29e4e3b6",
+            "sha256": "cb67aad02bfed3e89baf895b99dfe470f75687ded3c735b34bce265608551781",
             "bundle": true
           },
           {
             "path": "supabase/functions/_shared/dressingRoomIntelligence/roomManifest.ts",
-            "sha256": "bf4dd40bc6e5d73200726d4a0354b5ec98828f95b98c407ec8f7d781673b96da",
+            "sha256": "f193354747eae7b5b642a2c83157663b918e25bab1bd0aab1eee08b0ea0f4645",
             "bundle": true
           },
           {

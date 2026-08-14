@@ -104,9 +104,9 @@ export function serializeRoomManifestSection(
 /**
  * The reasoning affordance section.
  *
- * Separate from the grounding rules because it is advisory, not a constraint —
- * and because keeping "what you may reason about" apart from "what you may not
- * claim" makes it obvious which lines are safety-bearing.
+ * Kept apart from the grounding rules because it is advisory, not a
+ * constraint. Separating the reasoning affordances from the claims that are
+ * forbidden makes it obvious which lines are safety-bearing.
  */
 export function serializeRoomReasoningSection(manifest: RoomManifest): string | null {
   if (!manifest.authorized || manifest.items.length === 0) return null;
