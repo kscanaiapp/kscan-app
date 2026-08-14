@@ -59,6 +59,22 @@ const GOVERNED = [
   // no-raw-token-anywhere property are release-blocking and must be gated, not
   // remembered.
   'handle-user-deletion',
+  // Build 29 speech. Added deliberately, and late: 75057d1 brought
+  // stylist-speech under the parity manifest and deploy coverage and added it
+  // to parity.expectedFunctions, but this list was not updated with it — so a
+  // governed, deployed function shipped with its Deno suites (handler,
+  // speechText, speechCues) discovered by nothing and run by no npm script.
+  // That is the exact failure this file's header describes: tests that must be
+  // remembered are tests that stop being run. E4.1 makes it load-bearing,
+  // because longer room-reasoning answers put real pressure on the spoken
+  // bound.
+  'stylist-speech',
+  // Shared Room image resolution. Also added late, and found the same way: its
+  // validation suite covers the bucket allowlist, owner-scoped path contract
+  // and the exclusion of detached/deleted/foreign-owner rows — authorization
+  // logic for exactly the "images resolve in a shared room" requirement — and
+  // none of it was being executed.
+  'shared-room-image-url',
   '_shared',
 ];
 
