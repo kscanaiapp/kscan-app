@@ -271,6 +271,17 @@ test('SAVED != WORN: nothing outside the wear service writes the wear tables', (
         // The free-tier sync layer maps the table name generically and is the
         // documented legacy writer; it is allowed, but nothing else is.
         if (rel.startsWith(path.join('services', 'free-tier'))) continue;
+        // The staging wear-model live probe. Not product code: it ships in no
+        // bundle, runs only from its workflow_dispatch job against staging, and
+        // is the certification harness for this very contract. It touches the
+        // tables directly on purpose and in two places that a product writer
+        // never would -- as the NEGATIVE control that proves a second identity
+        // cannot update or delete another user's rows, and to remove its own
+        // tagged fixtures afterwards. Its positive-path writes still go through
+        // services/wearHistory.ts, which is the point of the probe. Exempted by
+        // exact path rather than by directory so a future security/ script
+        // cannot inherit the exemption silently.
+        if (rel === path.join('security', 'release', 'run-wear-model-live-probe.js')) continue;
         if (/wardrobe_wear_event_items/.test(src)) offenders.push(rel);
       }
     }
