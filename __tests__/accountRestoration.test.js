@@ -261,6 +261,17 @@ test('rotate_restoration_token_by_email invalidates the previous link', () => {
   assert.match(LIFECYCLE_SQL, /deletion_requests_restoration_token_hash_uidx/);
 });
 
+test('restoration resend rotation enforces three attempts in a rolling 24-hour window', () => {
+  const fn = LIFECYCLE_SQL.slice(
+    LIFECYCLE_SQL.indexOf('create or replace function public.rotate_restoration_token_by_email'),
+  ).split('$$;')[0];
+
+  assert.match(fn, /day_ago timestamptz := now\(\) - interval '24 hours'/);
+  assert.match(fn, /coalesce\(claimed\.restoration_email_count, 0\) >= 3/);
+  assert.match(fn, /claimed\.restoration_email_sent_at > day_ago/);
+  assert.match(fn, /else 1\s+end/, 'a new 24-hour window resets the counter');
+});
+
 test('resend eligibility is scoped to live deactivated rows only', () => {
   const peekSql = readSource(
     'supabase/migrations/20260723021735_account_deletion_claim_retry_peek_v2.sql',

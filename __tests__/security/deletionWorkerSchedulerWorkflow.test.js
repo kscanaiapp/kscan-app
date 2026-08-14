@@ -1,14 +1,14 @@
 /**
- * Contract for the Build 29 permanent-deletion scheduler.
+ * Contract for the Build 29 manual deletion-worker verification workflow.
  *
  * This workflow is the only thing in the repository that invokes the account
- * deletion worker on its own, which makes it the one place where "a narrow,
- * staging-bound trigger" could quietly turn into "a generic Edge Function
- * invoker pointed at whatever a caller supplies". These assertions exist to
- * make that drift fail CI rather than ship.
+ * deletion worker, which makes it the one place where "a narrow, staging-bound
+ * manual probe" could quietly turn into either an automatic purge scheduler or
+ * a generic Edge Function invoker pointed at whatever a caller supplies.
+ * These assertions exist to make both forms of drift fail CI rather than ship.
  *
  * Properties locked here:
- *   * it runs on a schedule AND can be dispatched for governed manual testing;
+ *   * it can only be dispatched for governed manual testing;
  *   * it binds the protected `staging` environment, so the worker secret is
  *     only reachable from an environment the owner controls;
  *   * the project ref and the function slug are literals, never inputs;
@@ -36,28 +36,15 @@ const PRODUCTION_REF = 'wyyuqfdxucjksghsmhry';
 
 const source = fs.readFileSync(WORKFLOW_PATH, 'utf8');
 
-test('the deletion worker scheduler exists', () => {
+test('the deletion worker verification workflow exists', () => {
   assert.ok(source.length > 0, 'workflow file must exist and be non-empty');
 });
 
-test('it runs on a schedule and supports governed manual dispatch', () => {
+test('automatic purge scheduling is deferred and only governed manual dispatch remains', () => {
   assert.match(source, /^on:/m);
-  assert.match(source, /schedule:/);
-  assert.match(source, /cron:\s*'[^']+'/);
   assert.match(source, /workflow_dispatch:/);
-});
-
-test('the cadence is at most daily, never minute- or hour-level', () => {
-  const cron = source.match(/cron:\s*'([^']+)'/)?.[1];
-  assert.ok(cron, 'a cron expression must be present');
-  const [minute, hour, dom, month, dow] = cron.trim().split(/\s+/);
-  // A wildcard in minute or hour would mean many runs per day.
-  assert.notEqual(minute, '*', 'minute must be pinned');
-  assert.notEqual(hour, '*', 'hour must be pinned — permanent erasure is daily housekeeping');
-  assert.ok(!minute.includes('/') && !hour.includes('/'), 'no step intervals');
-  assert.equal(dom, '*');
-  assert.equal(month, '*');
-  assert.equal(dow, '*');
+  assert.doesNotMatch(source, /^\s*schedule:/m);
+  assert.doesNotMatch(source, /\bcron:/);
 });
 
 test('it binds the protected staging environment', () => {

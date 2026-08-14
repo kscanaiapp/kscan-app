@@ -36,10 +36,10 @@ const STAGING_DEPLOYMENT_ALLOWLIST = [
   'kickscrew-sneaker-description',
   // Staging deployment observability — approved for controlled pipeline proof.
   'staging-health',
-  // Build 29 permanent-deletion activation. Added deliberately: the account
-  // deletion feature ships with terminal purge, so the worker must be able to
-  // receive registry and lifecycle fixes. Its destructive behaviour stays gated
-  // behind two independent app_config kill switches
+  // Account-deletion worker source remains governed so privacy, authorization,
+  // and lifecycle fixes can reach staging for owner-authorized manual testing.
+  // Automatic purge/scheduler activation is explicitly deferred for Build 29.
+  // Destructive behaviour stays gated behind two independent app_config switches
   // (account_deletion_worker_enabled / account_deletion_worker_dry_run) and a
   // shared-secret auth check, none of which deployment can bypass.
   'process-account-deletions',

@@ -1,12 +1,11 @@
 name: Staging Account Deletion Worker
 
-# Build 29 permanent-deletion activation.
+# Governed manual staging verification only.
 #
-# The account-deletion lifecycle (active -> deactivated -> restored | purged)
-# has always had a worker that performs the terminal purge, but nothing ever
-# called it: `process-account-deletions` is an HTTP endpoint and the repository
-# contained no scheduler of any kind. A grace period that never expires into a
-# purge is not a deletion feature, so this workflow is the missing trigger.
+# Automatic final purge/scheduler activation is explicitly deferred for Build
+# 29 by product decision. The worker remains available for owner-authorized,
+# synthetic-account verification of the existing deletion lifecycle, but this
+# workflow must never invoke it on a timer.
 #
 # DELIBERATELY NARROW. This is not a generic Edge Function invoker:
 #   * the function slug is a literal, not an input;
@@ -21,15 +20,6 @@ name: Staging Account Deletion Worker
 # point — the same reasoning as security/release/set-staging-runtime-flag.mjs.
 
 on:
-  schedule:
-    # 09:15 UTC daily. Permanent erasure is a once-a-day housekeeping job, not a
-    # real-time operation: the grace period is 30 days, so the worst case cost
-    # of a daily cadence is that a purge happens up to 24h after it became
-    # eligible, which is immaterial against a 30-day window. A tighter cadence
-    # would add invocation noise and widen the blast radius of a bad deploy for
-    # no user-visible benefit. The off-peak minute avoids the top-of-hour
-    # scheduling congestion that makes GitHub cron start times drift most.
-    - cron: '15 9 * * *'
   workflow_dispatch:
     inputs:
       reason:

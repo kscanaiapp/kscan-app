@@ -215,13 +215,11 @@ Only one worker-shaped component exists: the account-deletion lifecycle
 Edge Functions).
 
 - **How started**: HTTP `Deno.serve` handler, shared-secret-authenticated
-  (`ACCOUNT_DELETION_WORKER_SECRET`). **No scheduling mechanism exists in the
-  repository** — no GitHub Actions `schedule:` trigger, no `pg_cron` job, no
-  Vercel Cron (no Vercel project exists at all). The repo's own scripts
-  explicitly flag this as unverifiable: the only remaining possible scheduler
-  is the Supabase Dashboard's native scheduled-function feature, which is
-  **out-of-band and invisible to this repo's review/promotion gates** if it
-  exists at all.
+  (`ACCOUNT_DELETION_WORKER_SECRET`). The repository workflow is
+  `workflow_dispatch` only and targets staging for owner-authorized synthetic
+  verification. Automatic final purge/scheduler activation is
+  **DEFERRED_BY_EXPLICIT_PRODUCT_DECISION** for Build 29. No production trigger
+  was created or changed by this release.
 - **How stopped**: two independent `app_config` kill-switch rows
   (`account_deletion_worker_enabled`, seeded `false`;
   `account_deletion_worker_dry_run`, seeded `true`), enforced in 3 independent
@@ -231,13 +229,10 @@ Edge Functions).
 - **Idempotency**: strong — claim-and-lease pattern with `for update skip
   locked`, lease expiry, and crash-recovery reconciliation. Confirmed via
   direct migration/source read, not inference.
-- **Amplification risk found**: `resend-restoration-email` has **no rate limit
-  or dedup guard** (confirmed by full source read) — every call rotates the
-  restoration token and sends a new email. A recent rate-limit migration
-  (`20260808121216_privacy_request_rate_limits.sql`) covers 3 sibling
-  functions but not this one. A runaway/duplicate scheduler firing against
-  this specific endpoint could spam a user's inbox. This is a concrete,
-  currently-open gap, not a hypothetical.
+- **Restoration resend control**: `rotate_restoration_token_by_email` enforces
+  at most three restoration emails in a rolling 24-hour window while the Edge
+  Function preserves the same generic response for matched and unmatched
+  addresses. The RPC remains service-role-only.
 
 ## Health / version surfaces
 
@@ -565,9 +560,8 @@ since that is where real regressions have actually occurred here.
 - PITR or any backup capability (plan-level absence, not a tooling gap).
 - A generic, automated database reverse-migration/forward-fix tool (today:
   case-by-case hand-authored runbooks).
-- A scheduling mechanism for the account-deletion worker that is visible to
-  code review (today: possibly Dashboard-configured, invisible to this repo).
-- Rate-limiting on `resend-restoration-email` (concrete, currently-open gap).
+- Automatic account-deletion purge scheduling is intentionally absent from the
+  Build 29 release surface: `DEFERRED_BY_EXPLICIT_PRODUCT_DECISION`.
 - GitHub Environment-level protection-rule visibility from repo tooling.
 
 ## Stop-condition review
