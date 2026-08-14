@@ -704,3 +704,24 @@ export function resolveMirrorSelfieV1Active(
     mirrorSelfie === true
   );
 }
+// ── Elise avatar motion (V1 expansion) ───────────────────────────────────────
+/**
+ * Master switch for the avatar motion system (idle breathing, restrained head
+ * motion, listening/thinking states, semantic expressions). Independent from
+ * voice: disabling motion never disables speech audio, and the existing voice
+ * preference never gates motion. Default false — the feature ships dark and
+ * fails closed to the static portrait. Enable locally with
+ * EXPO_PUBLIC_AVATAR_MOTION_V1=true.
+ */
+export const AVATAR_MOTION_V1_ENABLED =
+  process.env.EXPO_PUBLIC_AVATAR_MOTION_V1 === 'true';
+
+/**
+ * Development/test-only local speech fixture: bundled audio plus a fixed
+ * transcript and alignment driven through the production player, store, and
+ * renderer with no Supabase request, no ElevenLabs request, and no provider
+ * quota. Never reachable from production UI; the fixture module additionally
+ * requires __DEV__.
+ */
+export const AVATAR_SPEECH_FIXTURE_ENABLED =
+  process.env.EXPO_PUBLIC_AVATAR_SPEECH_FIXTURE === 'true';
