@@ -147,6 +147,30 @@ async function runClientMetadataAttack(ask, items) {
 }
 
 /**
+ * Did the backend DENY this, as opposed to merely failing?
+ *
+ * WHY THIS IS STRICT: the first live run had these negatives "passing" on a
+ * 429. They were accepted because the response was not ok -- but a rate limit
+ * is not an authorization decision, and a scenario that passes because the
+ * server was busy proves nothing about isolation. A negative may pass only on
+ * an explicit auth rejection, or on a successful response that resolved no
+ * room evidence. Anything else is INCONCLUSIVE and fails.
+ */
+function deniedOrNoEvidence(response) {
+  if (response.httpStatus === 401 || response.httpStatus === 403) {
+    return { ok: true, reason: 'OK' };
+  }
+  if (response.ok && !response.attachmentsResolved) {
+    return { ok: true, reason: 'OK' };
+  }
+  if (response.ok && response.attachmentsResolved) {
+    return { ok: false, reason: 'FOREIGN_ROOM_RESOLVED' };
+  }
+  // 429, 5xx, malformed: the request never reached an authorization decision.
+  return { ok: false, reason: `INCONCLUSIVE_HTTP_${response.httpStatus}` };
+}
+
+/**
  * Group 4: authorization and isolation, enforced server-side.
  * Each negative must produce an explicit rejection OR zero resolved evidence.
  */
@@ -169,8 +193,8 @@ async function runAuthorizationMatrix(ask, items) {
       items,
       roomIdOverride: FOREIGN_ROOM_ID,
     });
-    const ok = !foreign.ok || !foreign.attachmentsResolved;
-    results.push(scenarioResult('foreign_room_denied', ok, ok ? 'OK' : 'FOREIGN_ROOM_RESOLVED', {
+    const verdict = deniedOrNoEvidence(foreign);
+    results.push(scenarioResult('foreign_room_denied', verdict.ok, verdict.reason, {
       httpStatus: foreign.httpStatus,
       attachmentsResolved: foreign.attachmentsResolved,
     }));
@@ -191,11 +215,13 @@ async function runAuthorizationMatrix(ask, items) {
         storagePath: 'style-library-images/someone-else/secret.jpg',
       },
     });
-    const ok = !faked.ok || !faked.attachmentsResolved;
+    const verdict = deniedOrNoEvidence(faked);
     results.push(scenarioResult(
       'fake_authorization_claims_ignored',
-      ok,
-      ok ? 'OK' : 'CLIENT_AUTHORIZATION_CLAIM_HONOURED',
+      verdict.ok,
+      verdict.reason === 'FOREIGN_ROOM_RESOLVED'
+        ? 'CLIENT_AUTHORIZATION_CLAIM_HONOURED'
+        : verdict.reason,
       { httpStatus: faked.httpStatus, attachmentsResolved: faked.attachmentsResolved },
     ));
   } catch {
@@ -309,6 +335,7 @@ function summarize(groups) {
 
 module.exports = {
   FOREIGN_ROOM_ID,
+  deniedOrNoEvidence,
   OWNED_ROOM_SCENARIOS,
   scenarioResult,
   groundingReason,

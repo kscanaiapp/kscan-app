@@ -47,6 +47,14 @@ const { assertExpectedEnvironment } = authority;
 const STYLECHAT_PATH = '/functions/v1/stylechat-generate';
 const REST_PATH = '/rest/v1';
 
+/**
+ * stylechat-generate enforces STYLECHAT_BURST_LIMIT_PER_MINUTE (4 on staging).
+ * The matrix fires ~19 model requests, so an unpaced run 429s from the fifth
+ * onward -- which is exactly what happened, and it invalidated every scenario
+ * after the fourth. Pacing is a property of the probe, not of the product.
+ */
+const BURST_SAFE_INTERVAL_MS = 16_000;
+
 /** Marks every row this probe creates, so cleanup can never over-reach. */
 const SYNTHETIC_MARKER = 'e41-probe';
 
@@ -307,6 +315,11 @@ async function askElise(ctx, options) {
     ? { apikey: ctx.publishableKey, 'Content-Type': 'application/json' }
     : restHeaders(ctx.publishableKey, ctx.accessToken);
 
+  // Space model requests so the burst limiter never becomes the thing under
+  // test. Skipped for the unauthenticated probe, which is rejected at the
+  // gateway and never reaches the limiter.
+  if (!unauthenticated && ctx.pace) await ctx.pace();
+
   const startedAt = Date.now();
   const res = await ctx.fetchImpl(ctx.styleChatUrl, {
     method: 'POST',
@@ -394,6 +407,12 @@ async function run(env, fetchImpl) {
     accessToken: signIn.accessToken,
     restBase: `${normalizeBase(environment.SUPABASE_STAGING_URL)}${REST_PATH}`,
     styleChatUrl: buildStyleChatUrl(environment.SUPABASE_STAGING_URL),
+  };
+  let lastRequestAt = 0;
+  ctx.pace = async () => {
+    const waitMs = BURST_SAFE_INTERVAL_MS - (Date.now() - lastRequestAt);
+    if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs));
+    lastRequestAt = Date.now();
   };
 
   const actorId = await getActorId(ctx, environment.SUPABASE_STAGING_URL);

@@ -369,3 +369,50 @@ test('an all-pass matrix yields a PASS verdict', () => {
   assert.equal(summary.verdict, 'PASS');
   assert.deepEqual(summary.failedScenarios, []);
 });
+
+// ── Negative scenarios must not pass on a non-authorization failure ─────────
+
+test('a negative scenario does NOT pass on a rate limit', () => {
+  // The first live run had these "passing" on 429. A rate limit is not an
+  // authorization decision, and a scenario that passes because the server was
+  // busy proves nothing about isolation.
+  const verdict = matrix.deniedOrNoEvidence({ ok: false, httpStatus: 429, attachmentsResolved: 0 });
+  assert.equal(verdict.ok, false);
+  assert.equal(verdict.reason, 'INCONCLUSIVE_HTTP_429');
+});
+
+test('a negative scenario does NOT pass on a server error', () => {
+  const verdict = matrix.deniedOrNoEvidence({ ok: false, httpStatus: 500, attachmentsResolved: 0 });
+  assert.equal(verdict.ok, false);
+  assert.match(verdict.reason, /^INCONCLUSIVE_HTTP_500$/);
+});
+
+test('a negative scenario passes on an explicit auth rejection', () => {
+  for (const status of [401, 403]) {
+    assert.equal(matrix.deniedOrNoEvidence({ ok: false, httpStatus: status }).ok, true);
+  }
+});
+
+test('a negative scenario passes when the request succeeds but resolves no evidence', () => {
+  const verdict = matrix.deniedOrNoEvidence({ ok: true, httpStatus: 200, attachmentsResolved: 0 });
+  assert.equal(verdict.ok, true);
+});
+
+test('a negative scenario FAILS when foreign room evidence actually resolves', () => {
+  const verdict = matrix.deniedOrNoEvidence({ ok: true, httpStatus: 200, attachmentsResolved: 3 });
+  assert.equal(verdict.ok, false);
+  assert.equal(verdict.reason, 'FOREIGN_ROOM_RESOLVED');
+});
+
+test('the probe paces model requests under the burst limit', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '..', '..', 'security', 'release', 'run-e41-room-intelligence-live-probe.js'),
+    'utf8',
+  );
+  // Unpaced, the matrix 429s from the fifth request onward and every later
+  // scenario becomes meaningless.
+  assert.match(source, /BURST_SAFE_INTERVAL_MS/);
+  assert.match(source, /if \(!unauthenticated && ctx\.pace\) await ctx\.pace\(\)/);
+});
