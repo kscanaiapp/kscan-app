@@ -35,6 +35,52 @@ import {
   STAGING_PROJECT_REF,
   fail,
 } from './lib/staging-helpers.mjs';
+import { createRequire } from 'node:module';
+
+// The shared environment authority is CommonJS and is the single source of
+// truth for ref -> environment. Imported directly rather than re-deriving the
+// mapping here, because a local copy is exactly how the production ref ended
+// up written into headers that claim staging.
+const authority = createRequire(import.meta.url)('../security/scripts/lib/environment-authority.js');
+const { PRODUCTION_REF, assertExpectedEnvironment } = authority;
+
+/**
+ * Re-prove the CLI's ACTUAL link target immediately before a write.
+ *
+ * The preflight above already resolved identity, but it did so before
+ * `supabase link` ran and before any of the remote-ledger reads. This asserts
+ * the target again from the CLI's own on-disk link state at the last possible
+ * moment, so the ref that gets written to is the ref that was verified rather
+ * than one inherited from an earlier step.
+ *
+ * The motivating defect is real: several migration headers in this repository
+ * claim "approved for KScan App Staging" while naming wyyuqfdxucjksghsmhry,
+ * which is PRODUCTION. Label text near a ref cannot be trusted, so this checks
+ * the ref itself and fails closed on anything that is not staging — including
+ * an absent or unreadable link file.
+ */
+function assertLinkedTargetImmediatelyBeforeWrite(expectedRef) {
+  const linkFile = path.join(process.cwd(), 'supabase', '.temp', 'project-ref');
+  let linked;
+  try {
+    linked = fs.readFileSync(linkFile, 'utf8').trim();
+  } catch {
+    fail(`Refusing to write: cannot read the CLI link state at ${linkFile}`);
+  }
+  if (!linked) fail('Refusing to write: the CLI reports no linked project');
+  if (linked === PRODUCTION_REF) {
+    fail(`Refusing to write: the CLI is linked to PRODUCTION (${linked})`);
+  }
+  if (linked !== expectedRef) {
+    fail(
+      `Refusing to write: linked project ${linked} is not the approved staging target ${expectedRef}`,
+    );
+  }
+  // Independent second opinion from the shared authority module, so this does
+  // not rest solely on a string compare against one constant.
+  assertExpectedEnvironment(linked, 'staging');
+  return linked;
+}
 
 function requireApproval() {
   if (String(process.env.APPROVE_STAGING_MIGRATION || '').toUpperCase() !== 'YES') {
@@ -181,6 +227,12 @@ function main() {
     sha256: hash,
     findings,
   }, null, 2));
+
+  // LAST-MOMENT TARGET ASSERTION. Everything above this line is preparation;
+  // the next call mutates a live project. Re-prove the target here rather than
+  // trusting the preflight that ran before `link` and before the ledger reads.
+  const writeTarget = assertLinkedTargetImmediatelyBeforeWrite(STAGING_PROJECT_REF);
+  console.log(JSON.stringify({ phase: 'write-target-verified', target: writeTarget }));
 
   try {
     const applyOutput = runSupabase(['db', 'query', '--linked', '-f', migration.path]);

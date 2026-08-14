@@ -257,3 +257,60 @@ test('SVV-004: plan-only performs no write', async () => {
   assert.equal(result.written, false);
   assert.equal(calls.length, 0);
 });
+
+// ── Last-moment write-target assertion (S7 owner tightening) ────────────────
+
+test('SVV-004: the staging apply path re-proves its target immediately before the write', () => {
+  const fs = require('node:fs');
+  const src = fs.readFileSync(
+    path.join(ROOT, 'scripts', 'apply-staging-migration.mjs'),
+    'utf8',
+  );
+
+  // The preflight runs BEFORE `supabase link` and before the remote ledger
+  // reads. Trusting it at write time means the ref that gets mutated is not
+  // necessarily the ref that was verified. The owner asked for a last-moment
+  // assertion after the label defect was found, and this pins it.
+  assert.match(
+    src,
+    /assertLinkedTargetImmediatelyBeforeWrite/,
+    'a last-moment target assertion must exist',
+  );
+
+  const assertAt = src.indexOf('assertLinkedTargetImmediatelyBeforeWrite(STAGING_PROJECT_REF)');
+  const writeAt = src.indexOf("runSupabase(['db', 'query', '--linked'");
+  assert.ok(assertAt > 0 && writeAt > 0, 'both the assertion and the write must be present');
+  assert.ok(
+    assertAt < writeAt,
+    'the assertion must run BEFORE the mutating query, not after it',
+  );
+
+  // It must read the CLI's own live link state, not a variable carried down
+  // from the preflight.
+  assert.match(src, /supabase', '\.temp', 'project-ref'/, 'must read the real link state');
+  // And it must fail closed on production specifically.
+  assert.match(src, /linked === PRODUCTION_REF/, 'production must be an explicit deny');
+  assert.match(
+    src,
+    /assertExpectedEnvironment\(linked, 'staging'\)/,
+    'the shared authority module must give an independent second opinion',
+  );
+});
+
+test('SVV-004: the apply path derives refs from the shared authority, not a local copy', () => {
+  const fs = require('node:fs');
+  const src = fs.readFileSync(
+    path.join(ROOT, 'scripts', 'apply-staging-migration.mjs'),
+    'utf8',
+  );
+  assert.match(
+    src,
+    /environment-authority\.js/,
+    'a locally redeclared ref constant is how the production ref got into staging-labelled headers',
+  );
+  assert.doesNotMatch(
+    src,
+    /const PRODUCTION_REF = ['"][a-z0-9]{20}['"]/,
+    'the production ref must not be hardcoded here',
+  );
+});
