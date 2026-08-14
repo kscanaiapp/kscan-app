@@ -33,7 +33,15 @@ function normalizeName(value: unknown): string | null {
  *   "Hi, Kathleen. I’m Elise. How can I help style you today?"
  *
  * Without one:
- *   "Hi, I’m Elise. How can I style you today?"
+ *   "Hey, I’m Elise. Show me what you’re working with, and we’ll figure it out together."
+ *
+ * The personalized form stays authoritative: using the user's name is the whole
+ * point of having it, and Build 29 did not trade that away. The no-name form is
+ * the approved Build 29 entry line, which earns its place precisely where there
+ * is no name to lean on — it opens with what Elise wants the user to *do*
+ * rather than asking an open question the user has no context to answer.
+ *
+ * Exactly one of these is ever spoken. There is no second entry greeting.
  */
 export function buildStylistGreeting(input: StylistGreetingInput): StylistGreetingResult {
   const stylistName = normalizeName(input.stylistName) ?? 'Elise';
@@ -49,7 +57,7 @@ export function buildStylistGreeting(input: StylistGreetingInput): StylistGreeti
   }
 
   return {
-    text: `Hi, I’m ${stylistName}. How can I style you today?`,
+    text: `Hey, I’m ${stylistName}. Show me what you’re working with, and we’ll figure it out together.`,
     userFirstName: null,
     stylistName,
     genericFallback: true,
