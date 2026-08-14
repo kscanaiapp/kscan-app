@@ -19,11 +19,21 @@ import {
   type SavedScanRow,
 } from './savedScansCloud';
 import {
+  ABSENT_ITEM_METADATA_PROVENANCE,
   OWNED_ITEM_CONTRACT_VERSION,
   type OwnedClosetItem,
+  type OwnedItemMetadataProvenance,
   ownedItemKey,
 } from '../types/ownedClosetItem';
 import type { InspirationItem } from '../types/styleObjects';
+import {
+  resolveCanonicalFashionMetadata,
+  type CanonicalFashionMetadata,
+} from './canonicalFashionMetadata';
+import {
+  sanitizeIdentificationSnapshot,
+  type PersistedIdentificationSnapshotV1,
+} from './identificationSnapshot';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -45,36 +55,51 @@ export function isServerVerifiableUuid(value: unknown): value is string {
   return typeof value === 'string' && UUID_RE.test(value.trim());
 }
 
-type SavedScanMeta = {
-  category: string | null;
-  subcategory: string | null;
-  color: string | null;
-  pattern: string | null;
-  material: string | null;
-  silhouette: string | null;
-  fit: string | null;
-  brand: string | null;
-  styleTags: string[];
-};
-
-function extractSavedScanMeta(analysis: unknown): SavedScanMeta {
+/**
+ * Read a stored `analysis_result` blob into canonical metadata.
+ *
+ * BEFORE Closet V2 this read only `analysis_result.metadata` — the six-field
+ * legacy projection of `SavedScanModel.attributes` (category, silhouette,
+ * color_palette, material_estimate, style_tags, confidence_score). It also
+ * looked for `subcategory`, `pattern`, `fit` and `brand`, none of which that
+ * writer emits, so those four resolved to null on every row ever written.
+ *
+ * The durable `identificationSnapshot` on the same blob has always carried
+ * them. It is now the authority, with the legacy projection as the per-field
+ * fallback so legacy and snapshot-less rows are unaffected.
+ */
+function resolveSavedScanMetadata(analysis: unknown): CanonicalFashionMetadata {
   const analysisObject =
     analysis && typeof analysis === 'object' ? (analysis as Record<string, unknown>) : {};
-  const meta =
+  const legacy =
     analysisObject.metadata && typeof analysisObject.metadata === 'object'
       ? (analysisObject.metadata as Record<string, unknown>)
       : {};
 
+  // A newer-contract snapshot returns an `unsupported` marker; that is not a
+  // usable snapshot, so it degrades to legacy rather than being read as one.
+  const hydrated = sanitizeIdentificationSnapshot(analysisObject.identificationSnapshot);
+  const snapshot =
+    hydrated && !('unsupported' in hydrated)
+      ? (hydrated as PersistedIdentificationSnapshotV1)
+      : null;
+
+  return resolveCanonicalFashionMetadata({ snapshot, legacy });
+}
+
+/** Project canonical provenance onto the owned-item contract's field names. */
+function toItemProvenance(
+  metadata: CanonicalFashionMetadata,
+): OwnedItemMetadataProvenance {
   return {
-    category: cleanText(meta.category),
-    subcategory: cleanText(meta.subcategory) || cleanText(meta.itemType),
-    color: cleanText(meta.color) || cleanText(meta.color_palette),
-    pattern: cleanText(meta.pattern),
-    material: cleanText(meta.material_estimate) || cleanText(meta.material),
-    silhouette: cleanText(meta.silhouette),
-    fit: cleanText(meta.fit),
-    brand: cleanText(meta.brand),
-    styleTags: cleanTags(meta.style_tags),
+    category: metadata.provenance.category,
+    subcategory: metadata.provenance.subtype,
+    color: metadata.provenance.primaryColor,
+    material: metadata.provenance.material,
+    pattern: metadata.provenance.pattern,
+    silhouette: metadata.provenance.silhouette,
+    fit: metadata.provenance.fit,
+    brand: metadata.provenance.brand,
   };
 }
 
@@ -93,7 +118,7 @@ function computeAiEligibility(input: {
 // ── saved_scans (cloud row) ────────────────────────────────────────────────────
 
 export function normalizeSavedScanRow(row: SavedScanRow): OwnedClosetItem {
-  const meta = extractSavedScanMeta(row.analysis_result);
+  const meta = resolveSavedScanMetadata(row.analysis_result);
   const unavailable = row.deleted_at != null;
   const remoteBacked = isServerVerifiableUuid(row.id);
   const category = meta.category;
@@ -112,13 +137,15 @@ export function normalizeSavedScanRow(row: SavedScanRow): OwnedClosetItem {
     storagePath: mediaReady ? cleanText(row.storage_path) : null,
     mediaStatus: row.media_status ?? null,
     category,
-    subcategory: meta.subcategory,
-    color: meta.color,
+    subcategory: meta.subtype,
+    color: meta.primaryColor,
     pattern: meta.pattern,
     material: meta.material,
     silhouette: meta.silhouette,
     fit: meta.fit,
     brand: meta.brand,
+    brandEvidence: meta.brandEvidence,
+    metadataProvenance: toItemProvenance(meta),
     styleTags: meta.styleTags,
     normalizedAttributes: {},
     sourceMetadata: {
@@ -138,7 +165,23 @@ export function normalizeLocalSavedScan(scan: SavedScanModel): OwnedClosetItem {
   const attributes = scan.attributes ?? ({} as SavedScanModel['attributes']);
   const remoteBacked = isServerVerifiableUuid(scan.cloudId);
   const unavailable = scan.deletedAt != null;
-  const category = cleanText(attributes.category);
+
+  // The model arrives with its snapshot already hydrated and validated by
+  // `mapSavedScanRowToModel`. Before Closet V2 this path ignored it and
+  // hard-coded subcategory/pattern/fit/brand to null, so a local scan lost
+  // four fields the snapshot was holding the whole time.
+  const meta = resolveCanonicalFashionMetadata({
+    snapshot: scan.identificationSnapshot ?? null,
+    legacy: {
+      category: attributes.category,
+      silhouette: attributes.silhouette,
+      color_palette: attributes.color_palette,
+      material_estimate: attributes.material_estimate,
+      style_tags: attributes.style_tags,
+      confidence_score: attributes.confidence_score,
+    },
+  });
+  const category = meta.category;
 
   return {
     sourceType: 'saved_scan',
@@ -150,14 +193,16 @@ export function normalizeLocalSavedScan(scan: SavedScanModel): OwnedClosetItem {
     storageBucket: null,
     storagePath: null,
     category,
-    subcategory: null,
-    color: cleanText(attributes.color_palette),
-    pattern: null,
-    material: cleanText(attributes.material_estimate),
-    silhouette: cleanText(attributes.silhouette),
-    fit: null,
-    brand: null,
-    styleTags: cleanTags(attributes.style_tags),
+    subcategory: meta.subtype,
+    color: meta.primaryColor,
+    pattern: meta.pattern,
+    material: meta.material,
+    silhouette: meta.silhouette,
+    fit: meta.fit,
+    brand: meta.brand,
+    brandEvidence: meta.brandEvidence,
+    metadataProvenance: toItemProvenance(meta),
+    styleTags: meta.styleTags,
     normalizedAttributes: {},
     sourceMetadata: {
       savedAt: cleanText(scan.savedAt) || cleanText(scan.createdAt),
@@ -200,6 +245,10 @@ export function normalizeInspirationItem(item: InspirationItem): OwnedClosetItem
     silhouette,
     fit: null,
     brand: null,
+    // Inspiration uploads carry no garment identification, so there is nothing
+    // to evidence and nothing to attribute a provenance to.
+    brandEvidence: [],
+    metadataProvenance: ABSENT_ITEM_METADATA_PROVENANCE,
     styleTags: [],
     normalizedAttributes: item.garmentRole ? { garmentRole: item.garmentRole } : {},
     sourceMetadata: {

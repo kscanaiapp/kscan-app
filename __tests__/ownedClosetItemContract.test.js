@@ -39,11 +39,16 @@ function loadTsModule(relativePath, requireMap = {}) {
 }
 
 const ownedTypes = loadTsModule('types/ownedClosetItem.ts');
+// Both carry type-only imports, so they load with no require map of their own.
+const identificationSnapshot = loadTsModule('services/identificationSnapshot.ts');
+const canonicalFashionMetadata = loadTsModule('services/canonicalFashionMetadata.ts');
 
 const contract = loadTsModule('services/ownedClosetItems.ts', {
   './supabaseClient': { supabase: {} },
   './savedScansCloud': { upsertSavedScanRowForAttachment: async () => ({ ok: false }) },
   '../types/ownedClosetItem': ownedTypes,
+  './canonicalFashionMetadata': canonicalFashionMetadata,
+  './identificationSnapshot': identificationSnapshot,
 });
 
 const REMOTE_UUID = '123e4567-e89b-42d3-a456-426614174000';
@@ -88,7 +93,13 @@ test('saved_scan normalization maps metadata and classifies remote-backed + AI-e
   assert.equal(item.color, 'Charcoal');
   assert.equal(item.material, 'Wool');
   assert.equal(item.brand, 'Acme');
-  assert.deepEqual(item.styleTags, ['classic', 'work']);
+  // Array.from() re-homes the value into this realm before comparing. The
+  // canonical adapter is loaded in its own VM context by the harness above, so
+  // arrays it constructs carry that context's Array.prototype and
+  // deepStrictEqual rejects them on prototype identity alone. Contents are
+  // asserted exactly as before; only the cross-realm prototype check is
+  // sidestepped.
+  assert.deepEqual(Array.from(item.styleTags), ['classic', 'work']);
   assert.equal(item.remoteBacked, true);
   assert.equal(item.aiEligible, true);
   assert.equal(item.unavailable, false);

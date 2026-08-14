@@ -30,6 +30,47 @@ export type StyleChatItemSourceType =
   | DressingRoomItemSourceType
   | SharedRoomItemSourceType;
 
+/**
+ * A single separable brand observation, mirrored from the durable
+ * identification snapshot (`IdentificationBrandEvidence`). Redeclared here
+ * rather than imported so the owned-item contract stays a leaf type with no
+ * dependency on the services layer.
+ */
+export type OwnedItemBrandEvidence = {
+  type: string;
+  value?: string | null;
+  confidence?: number | null;
+};
+
+/** Which layer supplied a canonical field. */
+export type OwnedItemFieldProvenance =
+  | 'identification_snapshot_v1'
+  | 'legacy_metadata'
+  | 'absent';
+
+export type OwnedItemMetadataProvenance = {
+  category: OwnedItemFieldProvenance;
+  subcategory: OwnedItemFieldProvenance;
+  color: OwnedItemFieldProvenance;
+  material: OwnedItemFieldProvenance;
+  pattern: OwnedItemFieldProvenance;
+  silhouette: OwnedItemFieldProvenance;
+  fit: OwnedItemFieldProvenance;
+  brand: OwnedItemFieldProvenance;
+};
+
+/** Every field absent — the honest default for a record with no metadata. */
+export const ABSENT_ITEM_METADATA_PROVENANCE: OwnedItemMetadataProvenance = {
+  category: 'absent',
+  subcategory: 'absent',
+  color: 'absent',
+  material: 'absent',
+  pattern: 'absent',
+  silhouette: 'absent',
+  fit: 'absent',
+  brand: 'absent',
+};
+
 /** Reference to an owned item that the server can independently verify. */
 export type OwnedItemRef = {
   sourceType: OwnedItemSourceType;
@@ -61,6 +102,23 @@ export type OwnedClosetItem = {
   silhouette: string | null;
   fit: string | null;
   brand: string | null;
+  /**
+   * Separable brand observations from the durable identification snapshot
+   * (Closet V2 / S2). Empty for legacy rows and for rows whose snapshot never
+   * recorded one.
+   *
+   * Kept alongside `brand` rather than folded into it on purpose: a
+   * `brand_guess` and an observed `visible_brand_text` are different claims,
+   * and collapsing them turns a guess into an assertion. Consumers that only
+   * need a display string keep reading `brand` and are unaffected.
+   */
+  brandEvidence: OwnedItemBrandEvidence[];
+  /**
+   * Which layer answered each canonical field — the identification snapshot,
+   * the legacy metadata projection, or nothing. Lets a consumer distinguish
+   * "this garment has no pattern" from "pattern was never captured".
+   */
+  metadataProvenance: OwnedItemMetadataProvenance;
   styleTags: string[];
   /** Normalized attribute bag for forward compatibility (bounded, no blobs). */
   normalizedAttributes: Record<string, string>;

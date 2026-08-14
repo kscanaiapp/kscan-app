@@ -201,6 +201,9 @@ test('production service chain resolves a local Recent Scan to the canonical row
     './supabaseClient': { supabase: client },
     './savedScansCloud': cloud,
     '../types/ownedClosetItem': ownedTypes,
+    // Type-only imports internally, so both load with no require map.
+    './canonicalFashionMetadata': loadTsModule('services/canonicalFashionMetadata.ts'),
+    './identificationSnapshot': loadTsModule('services/identificationSnapshot.ts'),
   });
 
   const localItem = owned.normalizeLocalSavedScan(SCAN);
@@ -220,6 +223,9 @@ test('the production service chain never substitutes the local id into Contract 
     './supabaseClient': { supabase: client },
     './savedScansCloud': cloud,
     '../types/ownedClosetItem': ownedTypes,
+    // Type-only imports internally, so both load with no require map.
+    './canonicalFashionMetadata': loadTsModule('services/canonicalFashionMetadata.ts'),
+    './identificationSnapshot': loadTsModule('services/identificationSnapshot.ts'),
   });
   const resolved = await owned.ensureRemoteBackedOwnedItem(
     owned.normalizeLocalSavedScan(SCAN),

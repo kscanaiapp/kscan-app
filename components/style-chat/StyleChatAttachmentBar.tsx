@@ -37,10 +37,10 @@ import { joinSharedRoom } from '../../services/roomMessages';
 import { sharedRoomDisplayTitle } from '../../services/sharedWithMeListLogic';
 import type { SharedRoomMembershipSummary } from '../../services/sharedRoomMemberships';
 import {
-  OWNED_ITEM_CONTRACT_VERSION,
   ownedItemKey,
   type OwnedClosetItem,
 } from '../../types/ownedClosetItem';
+import { normalizeLocalSavedScan } from '../../services/ownedClosetItems';
 import type { DraftAttachment } from '../../types/styleChatAttachments';
 import type { DressingRoom, DressingRoomItem, Look } from '../../types/styleObjects';
 import type { SavedScanModel } from '../../services/savedScansCloud';
@@ -744,31 +744,29 @@ function RecentScansPickerModal({
                       onSelect(row.owned, row.scan);
                       return;
                     }
-                    // Local-only: synthesize a minimal owned item from the scan.
+                    // Local-only: derive the owned item through the canonical
+                    // normalizer rather than hand-building one.
+                    //
+                    // This literal used to be written out field by field with
+                    // subcategory/color/pattern/material/fit/brand pinned to
+                    // null, so attaching a local scan to Elise discarded every
+                    // one of those even when the scan's identification snapshot
+                    // held them. The normalizer resolves them from that
+                    // snapshot (Closet V2 / S2).
+                    //
+                    // The overrides below are deliberate and are NOT metadata:
+                    // this picker renders its own row-level title/image and
+                    // intentionally treats a local-only scan as attachable,
+                    // which is a looser rule than the library's AI-eligibility
+                    // test. Keeping them preserves picker behaviour exactly.
                     onSelect(
                       {
-                        sourceType: 'saved_scan',
-                        sourceId: row.scan.cloudId ?? null,
-                        localId: row.scan.id,
+                        ...normalizeLocalSavedScan(row.scan),
                         title: row.title,
                         imageUri: row.imageUri,
-                        storageBucket: row.scan.storageBucket ?? null,
-                        storagePath: row.scan.storagePath ?? null,
                         category: row.category,
-                        subcategory: null,
-                        color: null,
-                        pattern: null,
-                        material: null,
-                        silhouette: row.scan.attributes?.silhouette ?? null,
-                        fit: null,
-                        brand: null,
-                        styleTags: row.scan.attributes?.style_tags ?? [],
-                        normalizedAttributes: {},
-                        sourceMetadata: {},
                         unavailable: false,
-                        remoteBacked: Boolean(row.scan.cloudId),
                         aiEligible: true,
-                        contractVersion: OWNED_ITEM_CONTRACT_VERSION,
                       },
                       row.scan,
                     );
