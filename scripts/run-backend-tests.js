@@ -84,17 +84,40 @@ const targets = requested.length > 0 ? requested : GOVERNED;
 const found = [];
 const missing = [];
 
+/**
+ * Discovery walks SUBDIRECTORIES.
+ *
+ * WHY: this loop used to read only the top level of each governed directory.
+ * That silently excluded every suite in a nested module — `_shared/aiSecurity`,
+ * `_shared/dressingRoomIntelligence` and anything else organised as a folder —
+ * which is the same "tests that must be remembered stop being run" failure this
+ * file's header describes, one level deeper. A shared module is exactly where
+ * cross-function contracts live, so it is the worst place to lose coverage.
+ */
+function collectTests(dir, out) {
+  for (
+    const entry of fs
+      .readdirSync(dir, { withFileTypes: true })
+      .sort((a, b) => a.name.localeCompare(b.name))
+  ) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      collectTests(full, out);
+      continue;
+    }
+    if (entry.isFile() && entry.name.endsWith(TEST_SUFFIX)) {
+      out.push(path.relative(ROOT, full));
+    }
+  }
+}
+
 for (const name of targets) {
   const dir = path.join(FUNCTIONS_DIR, name);
   if (!fs.existsSync(dir)) {
     missing.push(name);
     continue;
   }
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-    if (entry.isFile() && entry.name.endsWith(TEST_SUFFIX)) {
-      found.push(path.relative(ROOT, path.join(dir, entry.name)));
-    }
-  }
+  collectTests(dir, found);
 }
 
 console.log('─'.repeat(64));

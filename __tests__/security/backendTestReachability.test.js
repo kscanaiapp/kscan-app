@@ -52,16 +52,31 @@ function manifestGovernedFunctions() {
   return manifest.parity.expectedFunctions.slice().sort();
 }
 
-/** Function directories that actually contain executable Deno test files. */
+/** Every .test.ts under a directory, at any depth. */
+function denoTestsUnder(dir) {
+  const out = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...denoTestsUnder(full));
+    else if (entry.isFile() && entry.name.endsWith('.test.ts')) out.push(full);
+  }
+  return out;
+}
+
+/**
+ * Function directories that contain executable Deno test files at ANY depth.
+ *
+ * Depth matters: the runner originally read only the top level of each governed
+ * directory, so the entire `_shared/security` suite (cors, quota, validation,
+ * provider, logging) and `_shared/appleAuth` existed, passed, and had never
+ * once been executed. A shared module is where cross-function contracts live,
+ * which makes it the worst place to lose coverage silently.
+ */
 function functionsWithDenoTests() {
   return fs
     .readdirSync(FUNCTIONS_DIR, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
-    .filter((entry) =>
-      fs
-        .readdirSync(path.join(FUNCTIONS_DIR, entry.name))
-        .some((file) => file.endsWith('.test.ts')),
-    )
+    .filter((entry) => denoTestsUnder(path.join(FUNCTIONS_DIR, entry.name)).length > 0)
     .map((entry) => entry.name)
     .sort();
 }
@@ -101,6 +116,32 @@ test('the runner list contains no entry that does not exist on disk', () => {
       `GOVERNED names '${name}', which does not exist under supabase/functions`,
     );
   }
+});
+
+test('the backend runner discovers tests in nested module directories', () => {
+  // The runner originally read only the top level of each governed directory.
+  // Every suite organised as a folder was therefore invisible: the whole
+  // _shared/security set and _shared/appleAuth existed, passed, and had never
+  // been executed. Registering a directory is not enough if discovery stops at
+  // its first level.
+  const runner = fs.readFileSync(RUNNER, 'utf8');
+  assert.match(
+    runner,
+    /function collectTests\(/,
+    'discovery must recurse into subdirectories',
+  );
+  assert.ok(
+    !/readdirSync\(dir, \{ withFileTypes: true \}\)[\s\S]{0,200}?entry\.isFile\(\)[\s\S]{0,120}?found\.push/.test(runner),
+    'discovery must not collect only top-level files',
+  );
+
+  // And prove it against the tree: every nested suite must be reachable.
+  const nested = denoTestsUnder(path.join(FUNCTIONS_DIR, '_shared'))
+    .filter((file) => path.relative(path.join(FUNCTIONS_DIR, '_shared'), file).includes(path.sep));
+  assert.ok(
+    nested.length > 0,
+    'expected nested shared suites to exist; if they moved, retarget this assertion',
+  );
 });
 
 test('stylist-speech specifically stays registered', () => {
