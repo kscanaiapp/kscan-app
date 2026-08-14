@@ -1054,7 +1054,22 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
     activeContext = normalizedVisualContext.activeContext;
     // Full typed pipeline runs after auth/session are confirmed (below).
   }
-  if (!config.flags.contextNormalizationV1 && body.activeContext != null && !activeContext) {
+  // Legacy pre-rejection of an unparseable activeContext.
+  //
+  // Must NOT fire when Room Intelligence is on. This guard exists for the
+  // configuration where nothing downstream can interpret activeContext, so
+  // accepting it would silently drop the user's context. Under
+  // roomIntelligenceV1 the typed pipeline DOES interpret it -- rejecting here
+  // meant a room-bearing request 400'd before the envelope was ever built, so
+  // E4.1 could not run unless the legacy flag was also on. That is exactly the
+  // coupling the separate gate was introduced to remove, and only a live
+  // request against the deployed function exposed it.
+  if (
+    !config.flags.contextNormalizationV1 &&
+    !config.flags.roomIntelligenceV1 &&
+    body.activeContext != null &&
+    !activeContext
+  ) {
     const activeContextRecord = typeof body.activeContext === 'object' &&
       !Array.isArray(body.activeContext)
       ? body.activeContext as Record<string, unknown>

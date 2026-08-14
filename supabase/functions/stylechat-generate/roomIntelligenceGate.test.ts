@@ -109,6 +109,27 @@ Deno.test('a context failure clears the E4.1 block too, not just the legacy one'
   assert.match(failurePath, /roomManifestRevision = null;/);
 });
 
+Deno.test('a room-bearing request is not pre-rejected when only E4.1 is on', () => {
+  // REGRESSION, found by live staging certification: the legacy activeContext
+  // guard fired whenever contextNormalizationV1 was off, so every E4.1 request
+  // returned 400 ACTIVE_CONTEXT_INVALID before the envelope was built. E4.1
+  // could not run without the legacy flag -- the exact coupling the separate
+  // gate exists to remove.
+  //
+  // The guard is correct when NOTHING downstream can interpret activeContext;
+  // it is wrong when the typed pipeline can.
+  const guard = SOURCE.slice(
+    SOURCE.indexOf('Legacy pre-rejection of an unparseable activeContext'),
+  ).slice(0, 900);
+  assert.match(guard, /!config\.flags\.contextNormalizationV1 &&/);
+  assert.match(
+    guard,
+    /!config\.flags\.roomIntelligenceV1 &&/,
+    'the legacy activeContext rejection must stand down when Room Intelligence is on',
+  );
+  assert.match(guard, /body\.activeContext != null/);
+});
+
 Deno.test('telemetry attributes the envelope to the gates that actually ran', () => {
   // Reporting 'contextNormalizationV1' unconditionally would misattribute an
   // envelope built solely for E4.1, and make the flag rollout unreadable.

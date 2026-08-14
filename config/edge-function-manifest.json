@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-14T11:03:22.816Z",
-    "generatedFromGitSha": "15781e7b4f926b70a1e32a7cd4473a258cc8556e"
+    "generatedAtUtc": "2026-08-14T12:08:13.910Z",
+    "generatedFromGitSha": "06a11f34a0c42dd96936dcd4a5adef442a2d90d1"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v2",
@@ -298,8 +298,8 @@
         ],
         "bundleFileCount": 41,
         "treeFileCount": 61,
-        "bundleHash": "5892b70a457b995dbf413cbff5e94004e876f3c76e057da1204353beaf0a6be1",
-        "treeHash": "3ee350a6023224f53b79563334bfb76fbf087e029719ea23cc234d7cb273be65",
+        "bundleHash": "eea86edae8a8155cc1898e5e0517c229e1fd46eabaf106703663d522a103b5a9",
+        "treeHash": "3127fbc36a19cb192eaa88eb309fefa2de6f6620734ca544430a9dcbdb22e0be",
         "files": [
           {
             "path": "supabase/functions/_shared/aiSecurity/escapeUntrustedText.ts",
@@ -553,7 +553,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/index.ts",
-            "sha256": "a19dd2afbca570c624197df55d0b29f32d26c597311291e8475b4b0be71662bc",
+            "sha256": "cf1eeb98f71c00f60323aa9ae19b75b21c5b0409a39832b6046822a00ee3839b",
             "bundle": true
           },
           {
@@ -578,7 +578,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/roomIntelligenceGate.test.ts",
-            "sha256": "a7a7ab15c88415cf15c0477ae4902049d4fdea59059544f139483fb5727c4ce3",
+            "sha256": "a3283013efa4d766b4a413e42674a9921ce4e6dd81361dde3fbf86757c6b4e94",
             "bundle": false
           },
           {
