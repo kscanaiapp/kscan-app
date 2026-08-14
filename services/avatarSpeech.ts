@@ -38,6 +38,25 @@ export interface SpeakAvatarMessagePayload {
   trigger?: AvatarSpeechTrigger;
 }
 
+/**
+ * One deterministic cue at a confirmed state transition.
+ *
+ * `occurrenceId` must identify the TRANSITION, not the render: a committed
+ * Closet item id, an accepted handoff id, a hydrated Look id. That is what lets
+ * the same cue speak again for a genuinely different item while a rerender,
+ * refocus, or foreground return replays nothing.
+ */
+export interface SpeakAvatarCuePayload {
+  actorId: string;
+  cue: string;
+  occurrenceId: string;
+  stylistId: string;
+  avatarId: string;
+  /** Present when the cue is raised inside a chat session; absent elsewhere. */
+  sessionId?: string | null;
+  trigger?: AvatarSpeechTrigger;
+}
+
 export interface AvatarSpeechScope {
   actorId?: string;
   sessionId?: string;
@@ -50,7 +69,7 @@ let generation = 0;
 let pendingController: AbortController | null = null;
 let activePlayer: StylistAudioPlaybackHandle | null = null;
 let activeFileUri: string | null = null;
-let currentScope: SpeakAvatarMessagePayload | null = null;
+let currentScope: NormalizedSpeech | null = null;
 // The operation currently being generated or played. Exactly one speech
 // operation is active at a time, so a single key is enough to suppress a
 // duplicate concurrent attempt without also making a failure permanent.
@@ -88,7 +107,7 @@ function rememberSpoken(key: string): void {
   }
 }
 
-function matchesScope(payload: SpeakAvatarMessagePayload, scope?: AvatarSpeechScope): boolean {
+function matchesScope(payload: NormalizedSpeech, scope?: AvatarSpeechScope): boolean {
   if (!scope) return true;
   if (scope.actorId && payload.actorId !== scope.actorId) return false;
   if (scope.sessionId && payload.sessionId !== scope.sessionId) return false;
@@ -126,26 +145,32 @@ async function failCurrent(value: number): Promise<void> {
 }
 
 /**
- * Requests and plays one newly persisted assistant message. The service accepts
- * references only; the authenticated Edge Function owns text and voice lookup.
+ * The single shape the speech runner works in. Message mode and cue mode differ
+ * only in where the words come from and what identifies the operation; the
+ * generation guard, in-flight suppression, success dedupe, temp-file handling and
+ * playback lifecycle are deliberately shared so the two modes cannot drift into
+ * two different sets of bugs.
  */
-export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Promise<void> {
-  if (
-    !payload.actorId ||
-    !payload.sessionId ||
-    !payload.messageId ||
-    !payload.stylistId ||
-    !payload.avatarId ||
-    payload.stylistId !== payload.avatarId
-  ) return;
+interface NormalizedSpeech {
+  key: string;
+  actorId: string;
+  sessionId: string | null;
+  messageId: string | null;
+  cue: string | null;
+  stylistId: string;
+  avatarId: string;
+  source: AvatarSpeechSource;
+  trigger: AvatarSpeechTrigger;
+}
 
-  const key = operationKey(payload);
+async function runSpeechOperation(payload: NormalizedSpeech): Promise<void> {
+  const key = payload.key;
   // A duplicate concurrent attempt is suppressed for both triggers so a retry
   // tap cannot start a second player alongside an in-flight attempt.
   if (inFlightKey === key) return;
   // Only automatic speech is retired by a previous success; an explicit retry
-  // is the user asking for this message again.
-  if ((payload.trigger ?? 'auto') === 'auto' && spokenKeys.has(key)) return;
+  // is the user asking for this again.
+  if (payload.trigger === 'auto' && spokenKeys.has(key)) return;
 
   const requestGeneration = nextGeneration();
   await releaseResources();
@@ -153,25 +178,44 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
 
   inFlightKey = key;
   currentScope = payload;
-  beginAvatarSpeech({ ...payload, generation: requestGeneration });
+  beginAvatarSpeech({
+    actorId: payload.actorId,
+    sessionId: payload.sessionId,
+    messageId: payload.messageId,
+    cue: payload.cue,
+    stylistId: payload.stylistId,
+    avatarId: payload.avatarId,
+    source: payload.source,
+    generation: requestGeneration,
+  });
   const controller = new AbortController();
   pendingController = controller;
 
   try {
-    const speech = await requestStylistSpeech({
-      actorId: payload.actorId,
-      sessionId: payload.sessionId,
-      messageId: payload.messageId,
-      stylistId: payload.stylistId,
-      signal: controller.signal,
-    });
+    const speech = await requestStylistSpeech(
+      payload.cue
+        ? {
+          mode: 'cue',
+          actorId: payload.actorId,
+          cue: payload.cue,
+          stylistId: payload.stylistId,
+          signal: controller.signal,
+        }
+        : {
+          actorId: payload.actorId,
+          sessionId: payload.sessionId ?? '',
+          messageId: payload.messageId ?? '',
+          stylistId: payload.stylistId,
+          signal: controller.signal,
+        },
+    );
     if (!isCurrent(requestGeneration)) return;
     pendingController = null;
 
     const uri = await createTemporaryStylistSpeechFile({
       actorId: payload.actorId,
-      sessionId: payload.sessionId,
-      messageId: payload.messageId,
+      sessionId: payload.sessionId ?? 'cue',
+      messageId: payload.messageId ?? `cue-${payload.cue}`,
       stylistId: payload.stylistId,
       voiceProfile: speech.voiceProfile,
       audioBase64: speech.audioBase64,
@@ -187,7 +231,7 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
       onPlaybackStarted: () => {
         if (!isCurrent(requestGeneration)) return;
         // Confirmed native playback — not merely a play() call — is what retires
-        // this message from automatic speech.
+        // this operation from automatic speech.
         rememberSpoken(key);
         markAvatarSpeechPlaying(requestGeneration);
       },
@@ -211,6 +255,63 @@ export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Pr
   } catch {
     if (isCurrent(requestGeneration)) await failCurrent(requestGeneration);
   }
+}
+
+/**
+ * Requests and plays one newly persisted assistant message. The service accepts
+ * references only; the authenticated Edge Function owns text and voice lookup.
+ */
+export async function speakAvatarMessage(payload: SpeakAvatarMessagePayload): Promise<void> {
+  if (
+    !payload.actorId ||
+    !payload.sessionId ||
+    !payload.messageId ||
+    !payload.stylistId ||
+    !payload.avatarId ||
+    payload.stylistId !== payload.avatarId
+  ) return;
+
+  await runSpeechOperation({
+    key: operationKey(payload),
+    actorId: payload.actorId,
+    sessionId: payload.sessionId,
+    messageId: payload.messageId,
+    cue: null,
+    stylistId: payload.stylistId,
+    avatarId: payload.avatarId,
+    source: payload.source,
+    trigger: payload.trigger ?? 'auto',
+  });
+}
+
+/**
+ * Speaks one allowlisted deterministic cue for a confirmed state transition.
+ *
+ * The client names a cue key; the Edge Function owns the words. Speech is an
+ * enhancement here — callers fire this without awaiting and never gate a product
+ * action on it, so a provider failure can never roll back a save or a handoff.
+ */
+export async function speakAvatarCue(payload: SpeakAvatarCuePayload): Promise<void> {
+  if (
+    !payload.actorId ||
+    !payload.cue ||
+    !payload.occurrenceId ||
+    !payload.stylistId ||
+    !payload.avatarId ||
+    payload.stylistId !== payload.avatarId
+  ) return;
+
+  await runSpeechOperation({
+    key: [payload.actorId, 'cue', payload.cue, payload.occurrenceId, payload.stylistId].join(':'),
+    actorId: payload.actorId,
+    sessionId: payload.sessionId ?? null,
+    messageId: null,
+    cue: payload.cue,
+    stylistId: payload.stylistId,
+    avatarId: payload.avatarId,
+    source: 'cue',
+    trigger: payload.trigger ?? 'auto',
+  });
 }
 
 /** Stops pending generation or playback only when the optional scope matches. */
