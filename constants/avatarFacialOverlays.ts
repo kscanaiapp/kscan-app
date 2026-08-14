@@ -79,13 +79,97 @@ export interface AvatarFacialOverlayPackage {
 /**
  * Authoritative registry, keyed by avatarId.
  *
- * EMPTY until owner-approved overlay art for stylist_portrait_01..04 has
- * been produced, visually reviewed, and measured. See
- * docs/avatars/AVATAR_MOTION_V1_ASSET_AND_QA_CONTRACT.md §2 for the
- * outstanding asset requirements report.
+ * PRODUCTION STATUS: stylist_portrait_02 ships eyes + brows overlays,
+ * derived from owner-supplied source photography of the same subject as the
+ * approved base portrait, measured and registered below. mouthRound is
+ * intentionally NOT registered for any avatar: it is defined in this
+ * registry's type for future use, but the current renderer
+ * (components/stylist/AnimatedStylistAvatar.tsx) never reads a mouthRound
+ * overlay — round-mouth rendering exclusively uses the legacy full-canvas
+ * `mouthStateSources.round` convention in constants/stylistIdentity.ts.
+ * Registering a mouthRound entry here would flip AvatarMotionCapabilities.
+ * roundMouth true via services/avatarMotionCapabilities.ts's OR condition
+ * without the renderer ever displaying it — a capability that lies about
+ * what's on screen. See docs/avatars/AVATAR_MOTION_V1_ASSET_AND_QA_CONTRACT.md
+ * §2 for the outstanding asset requirements report, including why
+ * stylist_portrait_02 round-mouth remains unshipped and 01/03/04/05/08
+ * remain fully empty.
  */
 export const AVATAR_FACIAL_OVERLAY_PACKAGES: ReadonlyMap<string, AvatarFacialOverlayPackage> =
-  Object.freeze(new Map<string, AvatarFacialOverlayPackage>());
+  Object.freeze(
+    new Map<string, AvatarFacialOverlayPackage>([
+      [
+        'stylist_portrait_02',
+        {
+          avatarId: 'stylist_portrait_02',
+          eyes: {
+            open: {
+              source: require('../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_eyes_open.png'),
+              region: { x: 0.3154, y: 0.1328, width: 0.4121, height: 0.0762 },
+              anchor: { x: 0.5, y: 0.5 },
+              pixelWidth: 844,
+              pixelHeight: 156,
+              blendMarginPx: 36,
+              supportedState: 'open',
+              fallbackState: 'open',
+            },
+            halfClosed: {
+              source: require('../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_eyes_halfClosed.png'),
+              region: { x: 0.3154, y: 0.1328, width: 0.4121, height: 0.0762 },
+              anchor: { x: 0.5, y: 0.5 },
+              pixelWidth: 844,
+              pixelHeight: 156,
+              blendMarginPx: 36,
+              supportedState: 'halfClosed',
+              fallbackState: 'closed',
+            },
+            closed: {
+              source: require('../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_eyes_closed.png'),
+              region: { x: 0.3154, y: 0.1328, width: 0.4121, height: 0.0762 },
+              anchor: { x: 0.5, y: 0.5 },
+              pixelWidth: 844,
+              pixelHeight: 156,
+              blendMarginPx: 36,
+              supportedState: 'closed',
+              fallbackState: 'closed',
+            },
+          },
+          brows: {
+            neutral: {
+              source: require('../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_brows_neutral.png'),
+              region: { x: 0.3154, y: 0.0859, width: 0.4199, height: 0.0684 },
+              anchor: { x: 0.5, y: 0.5 },
+              pixelWidth: 860,
+              pixelHeight: 140,
+              blendMarginPx: 36,
+              supportedState: 'neutral',
+              fallbackState: 'neutral',
+            },
+            raised: {
+              source: require('../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_brows_raised.png'),
+              region: { x: 0.3154, y: 0.0859, width: 0.4199, height: 0.0684 },
+              anchor: { x: 0.5, y: 0.5 },
+              pixelWidth: 860,
+              pixelHeight: 140,
+              blendMarginPx: 36,
+              supportedState: 'raised',
+              fallbackState: 'neutral',
+            },
+            focused: {
+              source: require('../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_brows_focused.png'),
+              region: { x: 0.3154, y: 0.0859, width: 0.4199, height: 0.0684 },
+              anchor: { x: 0.5, y: 0.5 },
+              pixelWidth: 860,
+              pixelHeight: 140,
+              blendMarginPx: 36,
+              supportedState: 'focused',
+              fallbackState: 'neutral',
+            },
+          },
+        },
+      ],
+    ]),
+  );
 
 function isNormalized(value: number): boolean {
   return Number.isFinite(value) && value >= 0 && value <= 1;
