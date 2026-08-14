@@ -1,6 +1,6 @@
 import {
   STYLIST_AVATAR_PRESET_BY_ID,
-  STYLIST_SPEECH_CONFIG_BY_ID,
+  getStylistMouthMotionConfig,
 } from '../constants/stylistIdentity';
 import { hasValidFacialOverlayPackage } from '../constants/avatarFacialOverlays';
 import {
@@ -35,7 +35,9 @@ export function getAvatarMotionCapabilities(
     return NO_MOTION_CAPABILITIES;
   }
 
-  const speech = STYLIST_SPEECH_CONFIG_BY_ID.get(avatarId);
+  // Spans BOTH coverage contracts: speech-configured portraits and
+  // facial-motion-only portraits. Presets in neither fail closed.
+  const speech = getStylistMouthMotionConfig(avatarId);
   const hasMouthStates =
     speech?.speakingMotionMode === 'mouth_states' &&
     speech.mouthRegion != null &&
