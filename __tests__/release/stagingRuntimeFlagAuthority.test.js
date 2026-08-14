@@ -135,23 +135,53 @@ test('SVV-004: every KSCAN release-identity key is rejected outright', async () 
   assert.equal(calls.length, 0);
 });
 
-test('SVV-004: the allowlist is exactly the two reviewed keys and their exact values', async () => {
-  // This assertion is the tripwire for silent widening, and it did its job:
-  // adding the E4.1 gate failed it, which is why the addition is recorded here
-  // rather than merely appearing in the writer.
+test('SVV-004: the allowlist is exactly the reviewed keys and their exact values', async () => {
+  // This assertion is the tripwire for silent widening, and it has now done its
+  // job twice: adding the E4.1 gate failed it, and so did the Closet V2 / S7
+  // widening below. Both are recorded here rather than merely appearing in the
+  // writer.
   //
-  // Still pinned exhaustively, key AND value: a third flag, or a new value on
-  // an existing flag, must fail this test and be justified in its own review.
+  // Still pinned exhaustively, key AND value: a new flag, or a new value on an
+  // existing flag, must fail this test and be justified in its own review.
+  const CLOSET_INTELLIGENCE = [
+    'ELISE_ADVICE_INTENTS_V1_ENABLED',
+    'ELISE_CLOSET_RETRIEVAL_V1_ENABLED',
+    'ELISE_COMPATIBILITY_SCORING_V1_ENABLED',
+    'ELISE_WARDROBE_GAP_V1_ENABLED',
+    'ELISE_PURCHASE_ADVICE_V1_ENABLED',
+    'ELISE_MULTI_LOOK_V1_ENABLED',
+  ];
+
   const { ALLOWED_FLAGS } = await load();
   assert.deepEqual(
     Object.keys(ALLOWED_FLAGS).sort(),
-    ['ELISE_ROOM_INTELLIGENCE_V1_ENABLED', FLAG].sort(),
+    ['ELISE_ROOM_INTELLIGENCE_V1_ENABLED', FLAG, ...CLOSET_INTELLIGENCE].sort(),
     'widening requires a reviewed change',
   );
   assert.deepEqual(ALLOWED_FLAGS[FLAG], ['true']);
   // E4.1 is reversible on purpose: if staging certification fails, turning it
   // back OFF must go through this same governed writer, not a manual edit.
   assert.deepEqual(ALLOWED_FLAGS.ELISE_ROOM_INTELLIGENCE_V1_ENABLED, ['true', 'false']);
+  // The Closet intelligence flags are reversible for the same reason: staging
+  // activation is an experiment, and one that cannot be switched off through
+  // this path would have to be undone by hand against a live project.
+  for (const key of CLOSET_INTELLIGENCE) {
+    assert.deepEqual(ALLOWED_FLAGS[key], ['true', 'false'], `${key} must be reversible`);
+  }
+});
+
+test('SVV-004: the allowlist admits no wildcard or prefix rule', async () => {
+  // The value of this writer is that widening costs a review. A prefix rule
+  // such as /^ELISE_/ would silently pre-approve every future flag someone
+  // happens to name that way, which is the failure this whole control exists
+  // to prevent.
+  const source = require('node:fs').readFileSync(
+    path.join(ROOT, 'security', 'release', 'set-staging-runtime-flag.mjs'),
+    'utf8',
+  );
+  assert.doesNotMatch(source, /startsWith\(\s*['"]ELISE_/, 'no prefix matching');
+  assert.doesNotMatch(source, /RegExp|\/\^ELISE/, 'no pattern matching on flag names');
+  assert.doesNotMatch(source, /Object\.keys\(process\.env\)/, 'no env enumeration');
 });
 
 test('SVV-004: the scanner flag did not inherit a reversible value set', async () => {

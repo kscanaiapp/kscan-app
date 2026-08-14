@@ -1,5 +1,14 @@
--- Status: REVIEWED — approved for KScan App Staging (wyyuqfdxucjksghsmhry) only.
--- Not for Production until validated.
+-- Status: REVIEWED — approved for K Scan AI Staging (yzqjvdfgefveprobvvyw) only.
+-- Not for Production (KScan App Production, wyyuqfdxucjksghsmhry) until validated.
+--
+-- REF CORRECTION (S7). This header previously read "KScan App Staging
+-- (wyyuqfdxucjksghsmhry)", copied from the convention used by several older
+-- migrations. That ref is PRODUCTION, not staging. The authoritative mapping
+-- is security/scripts/lib/environment-authority.js:
+--     staging     yzqjvdfgefveprobvvyw   ("K Scan AI Staging")
+--     production  wyyuqfdxucjksghsmhry   ("KScan App Production")
+-- A header that names the production project while claiming staging approval
+-- is wrong in the one direction that matters, so it is corrected here.
 --
 -- Build 29 Closet V2 / S5 — wear-history data-model reconciliation.
 --
