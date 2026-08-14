@@ -76,6 +76,7 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   { table: 'wardrobe_care_notes', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'wardrobe_wishlist_intents', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'wardrobe_wear_events', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  { table: 'wardrobe_wear_event_items', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'wardrobe_activity_log', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'style_chat_burst_usage', column: 'user_id', action: 'direct_delete_before_auth', optional: true },
   { table: 'scan_intelligence_events', column: 'user_id', action: 'direct_delete_before_auth', optional: true },
