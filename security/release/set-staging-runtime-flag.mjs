@@ -46,6 +46,16 @@ const { STAGING_REF, PRODUCTION_REF, assertExpectedEnvironment } = authority;
  */
 const ALLOWED_FLAGS = Object.freeze({
   SCAN_IDENTIFICATION_RECHECK_ENABLED: Object.freeze(['true']),
+  // E4.1 Room Intelligence. Added as a reviewed widening, not a convenience:
+  // certifying E4.1 needs it switchable on staging, and the alternative was
+  // enabling ELISE_CONTEXT_NORMALIZATION_V1_ENABLED, which governs an older
+  // pipeline that predates E4.1 and would have carried far more blast radius.
+  //
+  // 'false' is allowed here where the scanner flag allows only 'true', and that
+  // asymmetry is deliberate: this switch must be reversible. If certification
+  // fails, turning E4.1 back OFF has to be possible through this same governed
+  // path rather than by hand.
+  ELISE_ROOM_INTELLIGENCE_V1_ENABLED: Object.freeze(['true', 'false']),
 });
 
 /** Release-identity keys this writer must never touch. */
