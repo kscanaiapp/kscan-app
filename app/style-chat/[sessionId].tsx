@@ -29,6 +29,7 @@ import { StyleChatInput } from '../../components/style-chat/StyleChatInput';
 import { StyleChatContextPreview } from '../../components/style-chat/StyleChatContextPreview';
 import { StyleChatStyleDnaCard } from '../../components/style-chat/StyleChatStyleDnaCard';
 import { useStyleChat } from '../../hooks/useStyleChat';
+import { useAvatarConversationMotion } from '../../hooks/useAvatarConversationMotion';
 import { getFriendlyStyleChatError } from '../../services/style-chat/styleChatErrors';
 import { deleteStyleChatSession } from '../../services/style-chat/styleChatRepository';
 import {
@@ -222,6 +223,21 @@ export default function StyleChatSessionScreen() {
     getWeatherLocation: weather.getWeatherLocation,
     getStyleDnaContext,
     activeContext: activeContextForGeneration,
+  });
+
+  // Avatar conversation motion. Additive and fail-closed: with
+  // AVATAR_MOTION_V1 off the hook subscribes to nothing and starts no timer.
+  //
+  // It only READS StyleChat signals that already exist here and translates
+  // them into motion-controller events. It sends no message, issues no speech
+  // request, touches no persistence, and never gates typing — the composer's
+  // own synchronous stopAvatarSpeechPlayback above still runs first. Passing
+  // the selected avatarId makes an avatar switch a teardown boundary, so
+  // motion belonging to the previous avatar cannot carry over.
+  useAvatarConversationMotion({
+    inputActive: composerText.trim().length > 0,
+    isSending,
+    avatarId: identity.avatarId,
   });
 
   const [isDeleting, setIsDeleting] = useState(false);
