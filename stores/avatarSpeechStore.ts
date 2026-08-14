@@ -8,7 +8,7 @@ export type AvatarSpeechPhase =
   | 'stopping'
   | 'error';
 
-export type AvatarSpeechSource = 'greeting' | 'message';
+export type AvatarSpeechSource = 'greeting' | 'message' | 'cue';
 
 export interface AvatarSpeechAlignment {
   characters: string[];
@@ -20,6 +20,8 @@ export interface AvatarSpeechState {
   actorId: string | null;
   sessionId: string | null;
   messageId: string | null;
+  /** Set for a deterministic cue; null when speaking a persisted message. */
+  cue: string | null;
   stylistId: string | null;
   avatarId: string | null;
   generation: number;
@@ -35,6 +37,7 @@ type Listener = () => void;
 export const DEFAULT_AVATAR_SPEECH_STATE: AvatarSpeechState = Object.freeze({
   actorId: null,
   sessionId: null,
+  cue: null,
   messageId: null,
   stylistId: null,
   avatarId: null,
@@ -102,8 +105,11 @@ export function resetAvatarSpeechStore(generation = state.generation): void {
 
 export function beginAvatarSpeech(payload: {
   actorId: string;
-  sessionId: string;
-  messageId: string;
+  /** Null for a cue raised outside a chat session, such as the Dressing Room. */
+  sessionId: string | null;
+  /** Null in cue mode: a cue has no persisted message behind it. */
+  messageId: string | null;
+  cue?: string | null;
   stylistId: string;
   avatarId: string;
   generation: number;
@@ -113,6 +119,7 @@ export function beginAvatarSpeech(payload: {
     actorId: payload.actorId,
     sessionId: payload.sessionId,
     messageId: payload.messageId,
+    cue: payload.cue ?? null,
     stylistId: payload.stylistId,
     avatarId: payload.avatarId,
     generation: payload.generation,

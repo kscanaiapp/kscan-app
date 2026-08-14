@@ -5,7 +5,9 @@ import type { StylistVoiceProfile } from '../../constants/stylistIdentity';
 const CLIENT_SPEECH_TIMEOUT_MS = 20_000;
 const MAX_AUDIO_BASE64_CHARACTERS = 2_500_000;
 
-export interface StylistSpeechClientRequest {
+/** Speak a persisted assistant message the caller owns. */
+export interface StylistSpeechMessageClientRequest {
+  mode?: 'message';
   actorId: string;
   sessionId: string;
   messageId: string;
@@ -13,8 +15,33 @@ export interface StylistSpeechClientRequest {
   signal?: AbortSignal;
 }
 
+/**
+ * Speak one allowlisted deterministic cue.
+ *
+ * Carries a cue KEY only. The approved words live in the Edge Function, which is
+ * what keeps a client from putting arbitrary text into text-to-speech.
+ */
+export interface StylistSpeechCueClientRequest {
+  mode: 'cue';
+  actorId: string;
+  cue: string;
+  stylistId: string;
+  signal?: AbortSignal;
+}
+
+export type StylistSpeechClientRequest =
+  | StylistSpeechMessageClientRequest
+  | StylistSpeechCueClientRequest;
+
+function isCueRequest(
+  request: StylistSpeechClientRequest,
+): request is StylistSpeechCueClientRequest {
+  return request.mode === 'cue';
+}
+
 export interface StylistSpeechClientResponse {
-  messageId: string;
+  messageId: string | null;
+  cue: string | null;
   stylistId: string;
   voiceProfile: Exclude<StylistVoiceProfile, 'silent'>;
   mimeType: 'audio/mpeg';
@@ -73,8 +100,20 @@ function validateResponse(
     throw new Error('Speech response is invalid.');
   }
   const record = value as Record<string, unknown>;
+  // The response echoes exactly one identity. Checking that the *other* field is
+  // empty is what stops a cue reply from satisfying a message request, or the
+  // reverse, instead of only checking the field we happened to ask for.
+  //
+  // "Empty" deliberately accepts absent as well as null. A client build can reach
+  // a stylist-speech deployment that predates cue mode and therefore omits `cue`
+  // entirely; requiring a literal null would break message-mode speech for every
+  // user between the app release and the function deploy. The field we asked for
+  // is still matched exactly, so nothing is loosened where it matters.
+  const identityMatches = isCueRequest(request)
+    ? record.cue === request.cue && record.messageId == null
+    : record.messageId === request.messageId && record.cue == null;
   if (
-    record.messageId !== request.messageId ||
+    !identityMatches ||
     record.stylistId !== request.stylistId ||
     (record.voiceProfile !== 'feminine' && record.voiceProfile !== 'masculine') ||
     record.mimeType !== 'audio/mpeg' ||
@@ -86,7 +125,8 @@ function validateResponse(
   ) throw new Error('Speech response is invalid.');
 
   return {
-    messageId: record.messageId,
+    messageId: isCueRequest(request) ? null : request.messageId,
+    cue: isCueRequest(request) ? request.cue : null,
     stylistId: record.stylistId,
     voiceProfile: record.voiceProfile,
     mimeType: record.mimeType,
@@ -98,16 +138,22 @@ function validateResponse(
 export async function requestStylistSpeech(
   request: StylistSpeechClientRequest,
 ): Promise<StylistSpeechClientResponse> {
-  if (!request.actorId || !request.sessionId || !request.messageId || !request.stylistId) {
+  const cueMode = isCueRequest(request);
+  if (!request.actorId || !request.stylistId) {
+    throw new Error('Speech references are required.');
+  }
+  if (cueMode ? !request.cue : (!request.sessionId || !request.messageId)) {
     throw new Error('Speech references are required.');
   }
 
   const { data, error } = await supabase.functions.invoke('stylist-speech', {
-    body: {
-      sessionId: request.sessionId,
-      messageId: request.messageId,
-      stylistId: request.stylistId,
-    },
+    body: cueMode
+      ? { cue: request.cue, stylistId: request.stylistId }
+      : {
+        sessionId: request.sessionId,
+        messageId: request.messageId,
+        stylistId: request.stylistId,
+      },
     signal: request.signal,
     timeout: CLIENT_SPEECH_TIMEOUT_MS,
   });
