@@ -35,12 +35,16 @@ export interface SavedLookCardProps {
   /** Override root style (e.g. width for grids). */
   style?: ViewStyle;
   /**
-   * Optional content rendered below the card body, outside the pressable
-   * region so its own controls stay independently focusable and do not
-   * trigger the card's onPress. Undefined renders nothing, so every existing
-   * caller is unaffected.
+   * Optional contextual control overlaid on the image, mirroring the existing
+   * delete affordance and sharing its visual language.
+   *
+   * Deliberately an OVERLAY rather than a footer row: a footer adds height to
+   * every cell of a two-column grid, which is real density cost on the main
+   * Closet surface. This reuses space the card already spends on chrome and
+   * leaves normal card navigation untouched. Undefined renders nothing, so
+   * every existing caller is unaffected.
    */
-  footer?: React.ReactNode;
+  cornerAction?: React.ReactNode;
 }
 
 /**
@@ -63,7 +67,7 @@ export function SavedLookCard({
   testID,
   accessibilityLabel,
   style,
-  footer,
+  cornerAction,
 }: SavedLookCardProps) {
   const [imageError, setImageError] = useState(false);
   const hasImage = Boolean(imageUrl) && !imageError;
@@ -88,6 +92,9 @@ export function SavedLookCard({
           <View style={styles.statusPill}>
             <Text style={styles.statusText}>{status}</Text>
           </View>
+        ) : null}
+        {cornerAction ? (
+          <View style={styles.cornerAction}>{cornerAction}</View>
         ) : null}
         {onDelete ? (
           <Pressable
@@ -138,12 +145,6 @@ export function SavedLookCard({
         accessibilityLabel={accessibilityLabel ?? `${title} saved look`}
       >
         {cardContent}
-        {/*
-          Footer sits inside the card frame but is rendered after the pressable
-          body so its own controls keep independent focus order and a press on
-          them does not also fire the card's onPress.
-        */}
-        {footer ? <View style={styles.footer}>{footer}</View> : null}
       </Pressable>
     );
   }
@@ -156,7 +157,6 @@ export function SavedLookCard({
       accessibilityLabel={accessibilityLabel ?? `${title} saved look`}
     >
       {cardContent}
-      {footer ? <View style={styles.footer}>{footer}</View> : null}
     </View>
   );
 }
@@ -269,11 +269,11 @@ const styles = StyleSheet.create({
     color: LUXURY.colors.stone,
     marginTop: SPACING.xs,
   },
-  footer: {
-    marginTop: SPACING.sm,
-    paddingTop: SPACING.sm,
-    borderTopWidth: 1,
-    borderTopColor: LUXURY.colors.border,
+  cornerAction: {
+    position: 'absolute',
+    left: SPACING.xs,
+    bottom: SPACING.xs,
+    zIndex: 2,
   },
   viewLabel: {
     ...LUXURY.typography.ctaSecondary,

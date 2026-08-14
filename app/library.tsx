@@ -475,6 +475,15 @@ export default function LibraryScreen() {
     return 'No wears recorded';
   };
 
+  /**
+   * The explicit wear action, rendered as a contextual overlay on the card
+   * image — the same affordance pattern the delete control already uses.
+   *
+   * Deliberately NOT a footer row: a footer adds height to every cell of a
+   * two-column grid, and the main Closet surface must stay an intake surface
+   * first. This reuses chrome the card already spends and leaves normal card
+   * navigation (card press -> Dressing Room) completely untouched.
+   */
   const renderWoreThis = (item: { id: string; title?: string | null; category?: string | null }) => (
     <WoreThisButton
       compact
@@ -800,7 +809,7 @@ export default function LibraryScreen() {
                       onDelete={() => handleDeleteClosetItem(a.id)}
                       {...closetOutfitAction(a.id)}
                       style={{ width: CARD_W }}
-                      footer={renderWoreThis(a)}
+                      cornerAction={renderWoreThis(a)}
                     />
                     {b ? (
                       <SavedLookCard
@@ -814,7 +823,7 @@ export default function LibraryScreen() {
                         onDelete={() => handleDeleteClosetItem(b.id)}
                         {...closetOutfitAction(b.id)}
                         style={{ width: CARD_W }}
-                        footer={renderWoreThis(b)}
+                        cornerAction={renderWoreThis(b)}
                       />
                     ) : (
                       <View style={{ width: CARD_W, minHeight: CARD_MIN_H }} />

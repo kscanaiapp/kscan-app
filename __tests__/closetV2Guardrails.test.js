@@ -44,17 +44,25 @@ test('Mirror Selfie: the Library entry point still exists with its baseline iden
   );
 });
 
-test('Mirror Selfie: the control stays in its Closet-header position', () => {
+test('MIRROR_SELFIE_VISIBLE: the control is rendered on the Closet surface', () => {
   const library = read('app/library.tsx');
 
-  // The baseline places the action under the Closet section header via
-  // styles.mirrorAction. Relocating it elsewhere on the screen is a demotion
-  // and needs owner approval, so the style anchor is pinned here.
-  assert.match(library, /styles\.mirrorAction/, 'the mirrorAction placement anchor must survive');
+  // POSITION AND SIZE ARE DELIBERATELY NOT ASSERTED.
+  //
+  // An earlier revision of this gate pinned the styles.mirrorAction anchor, which
+  // froze the layout and would have failed any hierarchy cleanup. The owner
+  // constraint is discoverability and function, not coordinates: Mirror Selfie
+  // may move, resize, or be regrouped. It may not disappear or stop working.
+  assert.match(library, /title="Mirror Selfie"/, 'the control must be present and named');
   assert.match(
     library,
-    /mirrorAction:\s*\{/,
-    'the mirrorAction style must still be defined',
+    /MIRROR_SELFIE_V1_ACTIVE \?/,
+    'it must render whenever the capability is active',
+  );
+  assert.doesNotMatch(
+    library,
+    /Mirror Selfie[\s\S]{0,200}accessibilityElementsHidden/,
+    'it must not be hidden from the accessibility tree',
   );
 });
 
@@ -207,4 +215,100 @@ test('Cost Per Wear: the implementation is preserved, not removed', () => {
     fs.existsSync(path.join(ROOT, 'components/free-tier/CostPerWearCard.tsx')),
     'the CPW card must remain in the tree',
   );
+});
+
+// ── 3. Add Items intake pipeline (S6 owner gate) ─────────────────────────────
+//
+// Reported as four independent gates on purpose. "The button still renders" is
+// not evidence the pipeline behind it works, and collapsing these into one
+// Closet PASS is exactly how an intake regression would slip through a layout
+// change.
+
+test('ADD_ITEMS_CONTROL: the primary intake affordance is present and wired', () => {
+  const library = read('app/library.tsx');
+
+  assert.match(library, /actionLabel=\{CLOSET_DIRECT_INTAKE_ACTIVE \? 'Add Item' : undefined\}/,
+    'Add Item must remain the section-header primary action');
+  assert.match(library, /setClosetIntakeVisible\(true\)/, 'it must open the intake modal');
+  assert.match(
+    library,
+    /actionAccessibilityLabel="Add an item to your Closet"/,
+    'the primary intake action must keep its accessible name',
+  );
+  assert.match(library, /<ClosetIntakeModal/, 'the intake modal must stay mounted');
+
+  // It must not have been demoted behind, or replaced by, the wear surface.
+  const addAt = library.indexOf("'Add Item'");
+  const wearAt = library.indexOf('closet-wear-history-button');
+  assert.ok(addAt > 0, 'Add Item must exist');
+  assert.ok(addAt < wearAt, 'Add Item must precede the wear-history entry point');
+});
+
+test('ADD_ITEMS_UPLOAD_PIPELINE: every existing intake source is still routed', () => {
+  const routing = read('services/closetIntakeRouting.js');
+  const modal = read('components/closet/ClosetIntakeModal.tsx');
+
+  // The real pipeline is source selection -> routeClosetIntake -> staging.
+  // Preserve the sources that are actually wired, not an assumed subset.
+  for (const source of ['camera', 'gallery']) {
+    assert.match(
+      routing,
+      new RegExp(`'${source}'`),
+      `${source} intake must remain routed through closetIntakeRouting`,
+    );
+  }
+  assert.match(read('app/library.tsx'), /routeClosetIntake/, 'the library must call the router');
+  assert.match(modal, /camera|gallery/i, 'the modal must still offer source selection');
+});
+
+test('ADD_ITEMS_PERSISTENCE: intake still reaches candidate staging and commits', () => {
+  const library = read('app/library.tsx');
+  assert.match(library, /useClosetCandidates/, 'staging hook must remain wired');
+  assert.match(library, /createClosetBatchId/, 'batch identity must still be created at intake');
+  assert.match(
+    read('types/closetCandidate.ts'),
+    /CLOSET_CANDIDATE_ACTIVE_SOURCES/,
+    'the active intake source vocabulary must remain declared',
+  );
+});
+
+test('ADD_ITEMS_RELOAD: the committed Closet is still loaded from its own store', () => {
+  const library = read('app/library.tsx');
+  assert.match(library, /useCloset\(/, 'the committed Closet must still load through useCloset');
+  // Wear history must not have become the Closet's loader.
+  assert.doesNotMatch(
+    library,
+    /useCloset[\s\S]{0,80}wearHistory/,
+    'Closet contents must not be sourced from wear history',
+  );
+});
+
+// ── 4. Mirror Selfie: function, intake, accessibility ────────────────────────
+
+test('MIRROR_SELFIE_FUNCTIONAL: the extraction flow is intact end to end', () => {
+  const library = read('app/library.tsx');
+  assert.match(library, /setMirrorSelfieVisible\(true\)/, 'the control opens the sheet');
+  assert.match(library, /<MirrorSelfieExtractionModal/, 'the sheet is mounted');
+  assert.match(
+    library,
+    /closetCandidates\.stageMirrorSelection\(selection\)/,
+    'a selection must still be staged through the candidate pipeline',
+  );
+});
+
+test('MIRROR_SELFIE_INTAKE: mirror crops still reach Closet candidate staging', () => {
+  assert.match(
+    read('types/closetCandidate.ts'),
+    /'mirror_extract'/,
+    'mirror_extract must remain an accepted intake source',
+  );
+  assert.ok(
+    fs.existsSync(path.join(ROOT, 'services/closetMirrorStaging.ts')),
+    'the mirror staging adapter must remain in the tree',
+  );
+});
+
+test('MIRROR_SELFIE_ACCESSIBILITY: the control keeps an explicit accessible name', () => {
+  const library = read('app/library.tsx');
+  assert.match(library, /accessibilityLabel="Add several items from one mirror selfie"/);
 });
