@@ -44,6 +44,8 @@ function envelope(): EliseVisualContextEnvelope {
         colors: ['navy'],
         materials: ['wool'],
         silhouette: 'structured',
+        pattern: null,
+        fit: null,
         styleAttributes: [],
         textureAttributes: [],
         occasionAttributes: [],

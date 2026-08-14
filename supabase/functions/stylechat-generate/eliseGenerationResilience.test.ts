@@ -204,6 +204,8 @@ Deno.test('E-2 structured grounding excludes raw URLs/storage and keeps trust ru
       colors: ['navy'],
       materials: [],
       silhouette: null,
+      pattern: null,
+      fit: null,
       styleAttributes: [],
       textureAttributes: [],
       occasionAttributes: [],

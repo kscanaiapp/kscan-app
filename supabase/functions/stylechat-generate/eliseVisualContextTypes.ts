@@ -92,6 +92,14 @@ export interface EliseVisualEvidence {
   colors: string[];
   materials: string[];
   silhouette: string | null;
+  /**
+   * Closet V2 / S4. Both were previously absent from this envelope, so Room
+   * Intelligence declared them structurally unavailable and told the model it
+   * could not judge them. The identification contract has always produced
+   * both; they were dropped at the resolver, not missing from the scan.
+   */
+  pattern: string | null;
+  fit: string | null;
   styleAttributes: string[];
   textureAttributes: string[];
   occasionAttributes: string[];

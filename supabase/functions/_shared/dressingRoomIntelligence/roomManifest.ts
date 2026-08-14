@@ -84,6 +84,12 @@ export type ResolvedEvidenceLike = {
   colors: string[];
   materials: string[];
   silhouette: string | null;
+  /**
+   * Closet V2 / S4. Optional so a caller built against the pre-S4 envelope
+   * still type-checks; absent is read as "not carried", exactly as before.
+   */
+  pattern?: string | null;
+  fit?: string | null;
   styleAttributes: string[];
   occasionAttributes: string[];
   brand: string | null;
@@ -97,8 +103,34 @@ const ROOM_SOURCE_TYPES = new Set(['owned_room_item', 'shared_room_item']);
  * does not guarantee. Recorded explicitly and told to the model rather than
  * silently omitted, so "I can't judge the texture" is available as an honest
  * answer instead of an invented one.
+ *
+ * `texture` remains here permanently: nothing in the identification contract
+ * produces it.
+ *
+ * `fit` and `pattern` were here for the same reason until Closet V2 / S4
+ * repaired the resolver — the identification snapshot always carried them, but
+ * the evidence envelope dropped them before the manifest could see them. They
+ * are now computed per-manifest below rather than declared constant, because a
+ * constant list goes stale in exactly the direction that makes the model
+ * understate what it actually knows. An item that genuinely has no pattern
+ * still reports pattern unavailable; a room where every item has one no longer
+ * does.
  */
-const STRUCTURALLY_UNAVAILABLE = ['texture', 'fit', 'pattern'];
+const ALWAYS_UNAVAILABLE = ['texture'];
+
+/** Per-field availability across the admitted room items. */
+function deriveUnavailableFields(items: RoomManifestItem[]): string[] {
+  const unavailable = [...ALWAYS_UNAVAILABLE];
+  // A field is unavailable to the room only when NO admitted item carries it.
+  // Partial coverage is genuine evidence and must not be suppressed.
+  //
+  // An empty room falls through both checks and reports each unavailable,
+  // which is correct: with no items there is no evidence of either, and
+  // claiming otherwise would be the exact overstatement this list prevents.
+  if (!items.some((item) => item.pattern)) unavailable.push('pattern');
+  if (!items.some((item) => item.fit)) unavailable.push('fit');
+  return unavailable;
+}
 
 function firstOrNull(values: string[]): string | null {
   return values.length > 0 ? values[0] : null;
@@ -160,10 +192,12 @@ export function buildRoomManifest(
     primaryColor: firstOrNull(item.colors),
     otherColors: item.colors.slice(1),
     materials: item.materials,
-    // Not produced by the active contract; carried as null rather than derived.
-    pattern: null,
+    // Closet V2 / S4: carried from the repaired resolver contract. Still
+    // `?? null` rather than derived — an item whose source never recorded one
+    // reports absent, it does not borrow a neighbour's value.
+    pattern: item.pattern ?? null,
     silhouette: item.silhouette,
-    fit: null,
+    fit: item.fit ?? null,
     brand: item.brand,
     occasion: item.occasionAttributes,
     relationship: item.actorRelationship,
@@ -185,7 +219,7 @@ export function buildRoomManifest(
     revision: computeRevision(items.map((i) => i.itemId)),
     items,
     coverage: roleCoverage(items.map((i) => i.role)),
-    unavailableFields: [...STRUCTURALLY_UNAVAILABLE],
+    unavailableFields: deriveUnavailableFields(items),
   };
 }
 

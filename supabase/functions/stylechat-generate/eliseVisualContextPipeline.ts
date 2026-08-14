@@ -205,6 +205,8 @@ function emptyEvidence(): Omit<
     colors: [],
     materials: [],
     silhouette: null,
+    pattern: null,
+    fit: null,
     styleAttributes: [],
     textureAttributes: [],
     occasionAttributes: [],
@@ -284,6 +286,8 @@ function parseRawEvidence(
     colors: normalizeStringArray(raw.colors, B.maxColors, warnings, provisionalId),
     materials: normalizeStringArray(raw.materials, B.maxMaterials, warnings, provisionalId),
     silhouette: normalizeText(raw.silhouette, B.maxFieldChars, warnings, provisionalId),
+    pattern: normalizeText(raw.pattern, B.maxFieldChars, warnings, provisionalId),
+    fit: normalizeText(raw.fit, B.maxFieldChars, warnings, provisionalId),
     styleAttributes: normalizeStringArray(
       raw.styleAttributes,
       B.maxStyleAttributes,
@@ -373,6 +377,8 @@ function mergeNonconflicting(
     category: primary.category ?? secondary.category,
     subcategory: primary.subcategory ?? secondary.subcategory,
     silhouette: primary.silhouette ?? secondary.silhouette,
+    pattern: primary.pattern ?? secondary.pattern,
+    fit: primary.fit ?? secondary.fit,
     brand: primary.brand ?? secondary.brand,
     confidence: primary.confidence ?? secondary.confidence,
     colors: primary.colors.length ? primary.colors : secondary.colors,
@@ -751,6 +757,12 @@ export function serializeEliseVisualContextPrompt(
     }
     if (item.silhouette) {
       block.push(`${prefix}.silhouette: ${escapePromptData(item.silhouette)}`);
+    }
+    if (item.pattern) {
+      block.push(`${prefix}.pattern: ${escapePromptData(item.pattern)}`);
+    }
+    if (item.fit) {
+      block.push(`${prefix}.fit: ${escapePromptData(item.fit)}`);
     }
     if (item.styleAttributes.length) {
       block.push(

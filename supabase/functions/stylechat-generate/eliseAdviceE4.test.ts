@@ -57,6 +57,8 @@ function makeEnvelope(partial: Partial<EliseVisualContextEnvelope['evidence'][nu
       colors: e.colors ?? ['navy'],
       materials: e.materials ?? ['wool'],
       silhouette: e.silhouette ?? 'structured',
+      pattern: null,
+      fit: null,
       styleAttributes: e.styleAttributes ?? [],
       textureAttributes: e.textureAttributes ?? [],
       occasionAttributes: e.occasionAttributes ?? [],

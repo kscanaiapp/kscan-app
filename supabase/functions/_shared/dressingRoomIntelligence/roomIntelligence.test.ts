@@ -272,3 +272,88 @@ Deno.test('compound garment names classify by their head noun', () => {
   assert.equal(deriveGarmentRole({ subtype: 'cargo trouser' }), 'bottom');
   assert.equal(deriveGarmentRole({ subtype: 'jumpsuit' }), 'one_piece');
 });
+
+// ── Closet V2 / S4: pattern + fit reach the manifest ─────────────────────────
+
+function s4Evidence(overrides: Record<string, unknown> = {}) {
+  return {
+    evidenceId: 'e1',
+    itemId: 'item-1',
+    roomId: 'room-1',
+    sourceType: 'owned_room_item',
+    actorRelationship: 'owned',
+    trust: 'server_verified',
+    title: 'Charcoal blazer',
+    category: 'Outerwear',
+    subcategory: 'blazer',
+    colors: ['Charcoal'],
+    materials: ['Wool'],
+    silhouette: 'Structured',
+    pattern: 'Herringbone',
+    fit: 'Tailored',
+    styleAttributes: [],
+    occasionAttributes: [],
+    brand: 'Acme',
+    imageReferenceType: 'storage_object',
+    ...overrides,
+  } as Parameters<typeof buildRoomManifest>[0][number];
+}
+
+Deno.test('S4: pattern and fit reach the manifest from resolved evidence', () => {
+  const manifest = buildRoomManifest([s4Evidence()]);
+  assert.equal(manifest.items[0].pattern, 'Herringbone');
+  assert.equal(manifest.items[0].fit, 'Tailored');
+});
+
+Deno.test('S4: a field the room actually carries is no longer declared unavailable', () => {
+  const manifest = buildRoomManifest([s4Evidence()]);
+  assert.equal(manifest.unavailableFields.includes('pattern'), false);
+  assert.equal(manifest.unavailableFields.includes('fit'), false);
+  // texture is never produced by the identification contract.
+  assert.equal(manifest.unavailableFields.includes('texture'), true);
+});
+
+Deno.test('S4: a room carrying neither still declares both unavailable', () => {
+  const manifest = buildRoomManifest([s4Evidence({ pattern: null, fit: null })]);
+  assert.equal(manifest.items[0].pattern, null);
+  assert.equal(manifest.items[0].fit, null);
+  assert.equal(manifest.unavailableFields.includes('pattern'), true);
+  assert.equal(manifest.unavailableFields.includes('fit'), true);
+});
+
+Deno.test('S4: an empty room declares both unavailable rather than claiming coverage', () => {
+  const manifest = buildRoomManifest([]);
+  assert.equal(manifest.unavailableFields.includes('pattern'), true);
+  assert.equal(manifest.unavailableFields.includes('fit'), true);
+});
+
+Deno.test('S4: partial coverage is not suppressed by an item that lacks the field', () => {
+  const manifest = buildRoomManifest([
+    s4Evidence(),
+    s4Evidence({ evidenceId: 'e2', itemId: 'item-2', pattern: null, fit: null }),
+  ]);
+  // One item genuinely has a pattern. Declaring pattern unavailable for the
+  // whole room would understate evidence the server actually holds.
+  assert.equal(manifest.unavailableFields.includes('pattern'), false);
+  assert.equal(manifest.items[1].pattern, null);
+});
+
+Deno.test('S4: a pre-S4 evidence shape without pattern/fit still builds', () => {
+  const legacy = s4Evidence();
+  delete (legacy as Record<string, unknown>).pattern;
+  delete (legacy as Record<string, unknown>).fit;
+  const manifest = buildRoomManifest([legacy]);
+  assert.equal(manifest.items[0].pattern, null);
+  assert.equal(manifest.items[0].fit, null);
+  assert.equal(manifest.unavailableFields.includes('pattern'), true);
+});
+
+Deno.test('S4: client_metadata evidence is still excluded even when it claims pattern/fit', () => {
+  const manifest = buildRoomManifest([
+    s4Evidence({ trust: 'client_metadata', pattern: 'Forged', fit: 'Forged' }),
+  ]);
+  assert.equal(manifest.items.length, 0);
+  assert.equal(manifest.authorized, false);
+  // The forged values must not leak into availability either.
+  assert.equal(manifest.unavailableFields.includes('pattern'), true);
+});

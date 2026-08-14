@@ -97,10 +97,12 @@ function snapshotMetadata(item: Record<string, unknown>): {
   colors: string[];
   materials: string[];
   silhouette: string | null;
+  pattern: string | null;
+  fit: string | null;
 } {
   const payload = item.snapshot_payload;
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-    return { colors: [], materials: [], silhouette: null };
+    return { colors: [], materials: [], silhouette: null, pattern: null, fit: null };
   }
   const record = payload as Record<string, unknown>;
   const metadata =
@@ -126,7 +128,20 @@ function snapshotMetadata(item: Record<string, unknown>): {
     asString(attributes.silhouette) ??
     asString(metadata.silhouette);
 
-  return { colors, materials, silhouette };
+  // Closet V2 / S4. Read with the same defensive breadth as the fields above:
+  // snapshot_payload is heterogeneous jsonb written by several item sources
+  // across builds. A payload that never recorded either yields null, which is
+  // the honest answer and is what makes the manifest report it unavailable.
+  const pattern =
+    asString(record.pattern) ??
+    asString(attributes.pattern) ??
+    asString(metadata.pattern);
+  const fit =
+    asString(record.fit) ??
+    asString(attributes.fit) ??
+    asString(metadata.fit);
+
+  return { colors, materials, silhouette, pattern, fit };
 }
 
 export async function resolveScanOwnership(
