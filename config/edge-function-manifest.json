@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-14T06:06:19.431Z",
-    "generatedFromGitSha": "d30729bb76e71e1eb78c9ff3f71b76afd7ab87d3"
+    "generatedAtUtc": "2026-08-14T06:22:25.838Z",
+    "generatedFromGitSha": "3251fcc1b8119e2e0010ee57ffbacd5026465286"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v2",
@@ -296,11 +296,21 @@
           "npm:@supabase/supabase-js@2",
           "npm:@supabase/supabase-js@2.105.4"
         ],
-        "bundleFileCount": 35,
-        "treeFileCount": 51,
-        "bundleHash": "2212cdfb3f0a71c35dc26cfef5190d1931cd5ec3e9d99c646bdc9010fd71a72e",
-        "treeHash": "50988b7e1ab5b8715d0363c0253924b75163f1a6292140f21a576f68fd1f28dd",
+        "bundleFileCount": 37,
+        "treeFileCount": 54,
+        "bundleHash": "04b61a6752bd4751a8cfd2995da58f3d3e7e999398e51195b949f9aa982c8238",
+        "treeHash": "882b1eb158c3b85f5363afd1de24a2dd715a73f7959fd6bb95278807a49a0550",
         "files": [
+          {
+            "path": "supabase/functions/_shared/aiSecurity/escapeUntrustedText.ts",
+            "sha256": "56c660271501130234403e7ec3ae02853a200cef261af06d63bea0cfea780349",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/aiSecurity/trustTypes.ts",
+            "sha256": "7beb5d139999993d72e98aced6086e2ad628f1bcfa0acdbdccff0cf460388b40",
+            "bundle": true
+          },
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
             "sha256": "34425a84ea83beb2d2a2ea53aebb533f26403b2d7136b653f0e6d63a74ffcf7c",
@@ -533,8 +543,13 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/promptHardening.ts",
-            "sha256": "a14643b1205f9dc21e448fb0f8239f73adf8babb2078b9f9b658675b81543e38",
+            "sha256": "2619d07561765430238c2c5adfcf1058f082b667a49185323586d206c8fe646a",
             "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/promptInjectionHardening.test.ts",
+            "sha256": "267be8bad5e731f06623b45b7dbaf096b22273fbd518a39cbe370c7689bc9e67",
+            "bundle": false
           },
           {
             "path": "supabase/functions/stylechat-generate/styleDnaContext.ts",
