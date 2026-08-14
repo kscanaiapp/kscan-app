@@ -261,14 +261,19 @@ Deno.test('inventory: every governed function is covered by the manifest closure
   };
   // style-outfit-generate joined the governed set in Build 3 Phase 4, when it
   // became the host of the versioned private Dressing Room contract.
+  // stylist-speech joined in Build 29, when speech was brought under the same
+  // parity and deploy coverage as the other AI surfaces -- it reads persisted
+  // rows to authorize a request, so it is a governed deployable like the rest.
   assertEquals(manifest.parity.expectedFunctions.sort(), [
     'scan-identify',
     'style-outfit-generate',
     'stylechat-generate',
+    'stylist-speech',
   ]);
   assert(bundleClosure('scan-identify').length > 0);
   assert(bundleClosure('stylechat-generate').length > 0);
   assert(bundleClosure('style-outfit-generate').length > 0);
+  assert(bundleClosure('stylist-speech').length > 0);
 });
 
 /**
