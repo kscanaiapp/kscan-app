@@ -1,89 +1,157 @@
-name: K Scan Staging Wear Model Live Probe
-
-# Governed Build 29 Closet V2 wear-history (S5) live probe.
+# Build 29 Closet V2 wear-model live probe (staging only).
 #
 # S7A certified the S5 wear model against a from-zero local database and left
-# every staging runtime gate NOT TESTED. The reason was not technical doubt: the
-# only legitimate staging identities are the pre-provisioned synthetic accounts
-# whose credentials exist solely as GitHub secrets, which a local session cannot
-# and should not read. This workflow is where that evidence can legitimately be
-# produced.
+# every staging runtime gate NOT TESTED. That was not technical doubt: the only
+# legitimate staging identities are the pre-provisioned synthetic accounts whose
+# credentials exist solely as GitHub secrets, which a local session cannot and
+# should not read. This is where that evidence can legitimately be produced.
 #
-# It signs in as the existing protected ACTIVE synthetic staging account, drives
-# the REAL services/wearHistory.ts through that account's own authenticated
-# session, and proves the wear model end to end under live RLS: item wear,
-# outfit wear, idempotency, Saved Look != worn, and the DEF-S5-001 closure gate
-# (deleting a worn Saved Look must succeed while its wear history survives).
+# It signs in as the existing protected ACTIVE synthetic staging account and
+# proves the wear-history contract against the live database: item wear, outfit
+# wear, replay idempotency, Saved Look != worn, owner and cross-user RLS, and
+# the DEF-S5-001 closure gate — deleting a worn Saved Look must SUCCEED while
+# its wear history survives with saved_look_ref intact.
 #
-# This is not a general Edge Function invoker or a Supabase mutation tool. There
-# is no input for a project ref, a URL, a table or a statement. The ref is
-# asserted against security/scripts/lib/environment-authority.js, which never
-# accepts production, and the probe refuses to create Auth users against any
-# hosted project. See security/release/run-wear-model-live-probe.js for the full
-# evidence contract: no JWT, email, password or credential ever reaches the
-# artifact, which carries booleans, counts and fixture ids only.
+# ── TRUST BOUNDARY ───────────────────────────────────────────────────────────
 #
-# Every fixture is tagged `s7a_fixture` with a per-run id and removed through the
-# owning account's own session; the report states whether the account returned
-# to its pre-run baseline.
+# Same boundary the E4.1 probe establishes, for the same reason. A job holding
+# staging credentials must not execute a caller-supplied ref's source, or anyone
+# able to dispatch it could run arbitrary code against staging secrets AND
+# rewrite the assertions that decide whether their own candidate passes.
+#
+#   TRUSTED  (default branch, reviewed)  -> executes, holds credentials,
+#                                           owns PASS/FAIL and cleanup
+#   CANDIDATE (arbitrary ref)            -> resolved for provenance ONLY:
+#                                           never checked out, never executed
+#
+# The probe therefore does not import services/wearHistory.ts. It issues the
+# same requests that service issues, and
+# __tests__/wearModelLiveProbeContract.test.js holds its copy of the wire
+# contract to the service's own definitions — so drift fails on the candidate
+# branch, which is where drift would be introduced.
+#
+# Staging (yzqjvdfgefveprobvvyw) only. Production is never targeted, and the
+# probe refuses a production ref before any network call.
+#
+# Artifacts carry PASS/FAIL, counts, fixture ids and safe metadata only. No JWT,
+# email, password or credential is ever uploaded.
+
+name: K Scan Staging Wear Model Live Probe
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      candidate_ref:
+        description: 'Candidate branch or SHA to record as provenance (NOT executed)'
+        required: true
+        default: feature/build29-closet-v2
+        type: string
 
 permissions:
   contents: read
 
+# Shares the staging serialization group: the probe creates and deletes fixture
+# rows, so it must not interleave with a staging deployment.
 concurrency:
-  group: kscan-staging-wear-model-live-probe
+  group: kscan-staging-deployment
   cancel-in-progress: false
 
+env:
+  EXPECTED_STAGING_REF: yzqjvdfgefveprobvvyw
+  PRODUCTION_REF: wyyuqfdxucjksghsmhry
+
 jobs:
-  live-probe:
+  wear-model-live-probe:
     name: Wear model live probe (staging only)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: read
+    timeout-minutes: 25
     environment: staging
     steps:
-      # No `ref:` — this certifies the candidate the dispatch targeted, which is
-      # the whole point of running it. A pinned branch would certify something
-      # other than the tree under test.
-      - name: Checkout dispatched candidate
+      # TRUSTED source. `ref` is the hardcoded default branch, never an input:
+      # this is the only code that will run while credentials are present.
+      - name: Checkout TRUSTED probe source (default branch)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: master
+          path: trusted
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6.0.0
         with:
           node-version: '20'
+
+      # Provenance only. The candidate is NEVER checked out, so none of its
+      # source can execute; its SHA is resolved independently through the API
+      # rather than trusted from the caller's string.
+      - name: Resolve candidate provenance (no checkout, no execution)
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Strict allowlist. Refs are quoted everywhere below, so metacharacters
+          # cannot execute, but a traversal sequence could still redirect the API
+          # path -- so the shape is constrained before use.
+          if ! printf '%s' "${CANDIDATE_REF}" | grep -Eq '^[A-Za-z0-9._/-]{1,255}$'; then
+            echo "::error::candidate_ref contains characters outside the allowlist."
+            exit 1
+          fi
+          case "${CANDIDATE_REF}" in
+            *..*|/*|*/) echo "::error::candidate_ref shape refused."; exit 1 ;;
+          esac
+
+          # Fail closed: an unresolvable candidate must stop the run, never
+          # certify against an unknown source.
+          if ! CANDIDATE_SHA="$(gh api "repos/${REPO}/commits/${CANDIDATE_REF}" --jq '.sha')"; then
+            echo "::error::candidate_ref could not be resolved."
+            exit 1
+          fi
+          CANDIDATE_TREE="$(gh api "repos/${REPO}/commits/${CANDIDATE_SHA}" --jq '.commit.tree.sha')"
+          TRUSTED_SHA="$(git -C trusted rev-parse HEAD)"
+
+          echo "candidate_sha=${CANDIDATE_SHA}" >> "$GITHUB_OUTPUT"
+          echo "candidate_tree=${CANDIDATE_TREE}" >> "$GITHUB_OUTPUT"
+          echo "trusted_sha=${TRUSTED_SHA}" >> "$GITHUB_OUTPUT"
+          echo "Candidate ref requested: ${CANDIDATE_REF}"
+          echo "Candidate SHA resolved:  ${CANDIDATE_SHA}"
+          echo "Trusted probe SHA:       ${TRUSTED_SHA}"
 
       - name: Confirm environment authority
         env:
           SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
         run: |
           set -euo pipefail
+          if [ -z "${SUPABASE_STAGING_PROJECT_REF:-}" ]; then
+            echo "::error::Missing staging project identity."
+            exit 1
+          fi
+          if [ "${SUPABASE_STAGING_PROJECT_REF}" != "${EXPECTED_STAGING_REF}" ]; then
+            echo "::error::Staging project ref does not match the expected authority."
+            exit 1
+          fi
+          if [ "${SUPABASE_STAGING_PROJECT_REF}" = "${PRODUCTION_REF}" ]; then
+            echo "::error::Refusing to target production."
+            exit 1
+          fi
           node -e "
-            const a = require('./security/scripts/lib/environment-authority.js');
+            const a = require('./trusted/security/scripts/lib/environment-authority.js');
             a.assertExpectedEnvironment('staging', process.env.SUPABASE_STAGING_PROJECT_REF);
             console.log('environment authority: staging confirmed');
           "
 
-      - name: Install probe dependencies
+      - name: Install TRUSTED probe dependencies
+        working-directory: trusted
         run: npm ci --no-audit --no-fund
-
-      - name: Record candidate identity
-        id: candidate
-        run: |
-          set -euo pipefail
-          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          echo "tree=$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"
 
       - name: Run wear model live probe
         id: probe
         continue-on-error: true
+        working-directory: trusted
         env:
           # Credentials reach the runner through the environment only. They are
-          # never an argv element and are never echoed; the probe logs progress
-          # to stderr and writes only sanitized JSON to stdout.
+          # never an argv element and are never echoed; the probe writes progress
+          # to stderr and only sanitized JSON to stdout.
           SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
           SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
           SUPABASE_STAGING_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
@@ -101,14 +169,15 @@ jobs:
           KSCAN_WEAR_PROBE_RUN_ID: s7b${{ github.run_id }}
         run: |
           set -uo pipefail
-          node security/release/run-wear-model-live-probe.js > wear-model-live-probe-raw.json
+          node security/release/run-wear-model-live-probe.js > ../wear-model-live-probe-raw.json
           echo "probe_exit=$?" >> "$GITHUB_OUTPUT"
 
       - name: Assemble sanitized evidence
         if: always()
         env:
-          CANDIDATE_SHA: ${{ steps.candidate.outputs.sha }}
-          CANDIDATE_TREE: ${{ steps.candidate.outputs.tree }}
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+          CANDIDATE_TREE: ${{ steps.candidate.outputs.candidate_tree }}
+          TRUSTED_SHA: ${{ steps.candidate.outputs.trusted_sha }}
         run: |
           set -euo pipefail
           if [ -s wear-model-live-probe-raw.json ]; then
@@ -117,14 +186,16 @@ jobs:
               const evidence = {
                 candidate_sha: process.env.CANDIDATE_SHA,
                 candidate_tree: process.env.CANDIDATE_TREE,
+                trusted_probe_sha: process.env.TRUSTED_SHA,
                 ...raw,
               };
               require('fs').writeFileSync('wear-model-live-probe-report.json', JSON.stringify(evidence, null, 2));
               console.log(JSON.stringify(evidence, null, 2));
             "
           else
-            printf '{"candidate_sha":"%s","candidate_tree":"%s","operational_failure":true}\n' \
-              "$CANDIDATE_SHA" "$CANDIDATE_TREE" > wear-model-live-probe-report.json
+            printf '{"candidate_sha":"%s","candidate_tree":"%s","trusted_probe_sha":"%s","operational_failure":true}\n' \
+              "${CANDIDATE_SHA:-unknown}" "${CANDIDATE_TREE:-unknown}" "${TRUSTED_SHA:-unknown}" \
+              > wear-model-live-probe-report.json
           fi
 
       - name: Upload sanitized evidence
