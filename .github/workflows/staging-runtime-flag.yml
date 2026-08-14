@@ -27,6 +27,7 @@ on:
         type: choice
         options:
           - SCAN_IDENTIFICATION_RECHECK_ENABLED
+          - ELISE_ROOM_INTELLIGENCE_V1_ENABLED
       value:
         description: 'Value to set'
         required: true
@@ -34,6 +35,10 @@ on:
         type: choice
         options:
           - 'true'
+          # 'false' exists so E4.1 can be rolled back through this same governed
+          # path if certification fails. The writer still refuses 'false' for
+          # any flag whose allowlist does not include it.
+          - 'false'
       confirm:
         description: 'Type SET-STAGING-RUNTIME-FLAG to permit the write.'
         required: true

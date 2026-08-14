@@ -135,10 +135,46 @@ test('SVV-004: every KSCAN release-identity key is rejected outright', async () 
   assert.equal(calls.length, 0);
 });
 
-test('SVV-004: the allowlist is exactly one key and one value', async () => {
+test('SVV-004: the allowlist is exactly the two reviewed keys and their exact values', async () => {
+  // This assertion is the tripwire for silent widening, and it did its job:
+  // adding the E4.1 gate failed it, which is why the addition is recorded here
+  // rather than merely appearing in the writer.
+  //
+  // Still pinned exhaustively, key AND value: a third flag, or a new value on
+  // an existing flag, must fail this test and be justified in its own review.
   const { ALLOWED_FLAGS } = await load();
-  assert.deepEqual(Object.keys(ALLOWED_FLAGS), [FLAG], 'widening requires a reviewed change');
+  assert.deepEqual(
+    Object.keys(ALLOWED_FLAGS).sort(),
+    ['ELISE_ROOM_INTELLIGENCE_V1_ENABLED', FLAG].sort(),
+    'widening requires a reviewed change',
+  );
   assert.deepEqual(ALLOWED_FLAGS[FLAG], ['true']);
+  // E4.1 is reversible on purpose: if staging certification fails, turning it
+  // back OFF must go through this same governed writer, not a manual edit.
+  assert.deepEqual(ALLOWED_FLAGS.ELISE_ROOM_INTELLIGENCE_V1_ENABLED, ['true', 'false']);
+});
+
+test('SVV-004: the scanner flag did not inherit a reversible value set', async () => {
+  // Guards against the E4.1 widening being copy-pasted onto the other flag.
+  const { ALLOWED_FLAGS } = await load();
+  assert.ok(
+    !ALLOWED_FLAGS[FLAG].includes('false'),
+    'SCAN_IDENTIFICATION_RECHECK_ENABLED must remain one-way',
+  );
+});
+
+test('SVV-004: the E4.1 gate is offered by the governed workflow', async () => {
+  // A writer allowlist nobody can reach is not a governed path. The workflow
+  // dropdown must offer the flag and the value, or activation would still
+  // require a manual secret write.
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const workflow = fs.readFileSync(
+    path.resolve(__dirname, '..', '..', '.github', 'workflows', 'staging-runtime-flag.yml'),
+    'utf8',
+  );
+  assert.match(workflow, /- ELISE_ROOM_INTELLIGENCE_V1_ENABLED/);
+  assert.match(workflow, /- 'false'/, 'rollback must be reachable from the workflow');
 });
 
 test('SVV-004: the token is never an argv element and the value never reaches the command line', async () => {
