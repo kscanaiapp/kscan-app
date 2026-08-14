@@ -44,6 +44,11 @@ import {
   shouldFallbackToSecondaryModel,
   shouldRetryTextProviderError,
 } from './eliseProviderRetry.ts';
+import {
+  buildRoomManifest,
+  serializeRoomManifestSection,
+  serializeRoomReasoningSection,
+} from '../_shared/dressingRoomIntelligence/index.ts';
 import { validateEliseGenerationOutput } from './eliseOutputValidation.ts';
 import {
   buildEliseGroundingPackage,
@@ -51,7 +56,7 @@ import {
 } from './eliseStructuredGrounding.ts';
 import type { EliseOperationReservation } from './eliseGenerationTypes.ts';
 import { ELISE_GROUNDING_VERSION } from './eliseGenerationTypes.ts';
-import { stripUnsafeModelOutput } from './promptHardening.ts';
+import { escapePromptData, stripUnsafeModelOutput } from './promptHardening.ts';
 import { emitEliseTelemetry, makeRequestId, stableActorHash } from './telemetry.ts';
 import { normalizeLegacyVisualContext, type NormalizedVisualContext } from './visualContext.ts';
 import {
@@ -1039,6 +1044,9 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
   let typedVisualContext: BuildEliseVisualContextResult | null = null;
   let activeContext = parseActiveContext(body.activeContext);
   let visualContextPromptBlock: string | null = null;
+  let roomIntelligenceBlock: string | null = null;
+  let roomManifestItemCount = 0;
+  let roomManifestRevision: string | null = null;
 
   if (config.flags.contextNormalizationV1) {
     // Keep a best-effort legacy shape for response capability metadata only.
@@ -1360,6 +1368,17 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
         dataSource: eliseResourceData,
       });
       visualContextPromptBlock = typedVisualContext.promptBlock;
+      // E4.1: describe the authorized evidence as ONE room rather than a flat
+      // list, so "what is missing" has a grounded answer. Built from the
+      // already-resolved envelope -- this adds no new authority and admits
+      // only items the resolver marked server_verified.
+      const roomManifest = buildRoomManifest(typedVisualContext.envelope.evidence);
+      roomIntelligenceBlock = [
+        serializeRoomManifestSection(roomManifest, escapePromptData),
+        serializeRoomReasoningSection(roomManifest),
+      ].filter((section): section is string => Boolean(section)).join('\n\n') || null;
+      roomManifestItemCount = roomManifest.items.length;
+      roomManifestRevision = roomManifest.revision;
       emitEliseTelemetry(config, 'elise_context_normalization_outcome', {
         requestId,
         operationType: 'stylechat_generate_reply',
@@ -2029,10 +2048,19 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
       ? `${systemTextWithStyleDna}\n\n${buildActiveContextBlock(activeContext)}`
       : systemTextWithStyleDna);
 
+  // E4.1 room intelligence. Appended after the per-item context on EVERY
+  // grounding path, not only the contextNormalizationV1 branch: the room
+  // contract and its grounding rules must not depend on which context flag
+  // happens to be active, or the same room would be described differently to
+  // the model depending on configuration.
+  const systemTextWithRoomIntelligence = roomIntelligenceBlock
+    ? `${systemTextForModelBase}\n\n${roomIntelligenceBlock}`
+    : systemTextForModelBase;
+
   const systemTextForModelWithAdvice =
     !config.flags.structuredGroundingV1 && advicePromptBlock
-      ? `${systemTextForModelBase}\n\n${advicePromptBlock}`
-      : systemTextForModelBase;
+      ? `${systemTextWithRoomIntelligence}\n\n${advicePromptBlock}`
+      : systemTextWithRoomIntelligence;
 
   // ── Phase 2B.3: canonical fashion identity, appended last ──────────────────
   // Last on purpose. Every earlier block is descriptive context the model may
@@ -2600,6 +2628,8 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
     provider: 'google',
     model: servedModelName,
     usedFallbackModel,
+    roomManifestItemCount,
+    roomManifestRevision,
     latencyMs: elapsedMs,
     generationLatencyMs: elapsedMs,
     retryCount: wasRetried ? Math.max(1, providerRetryCount) : 0,
