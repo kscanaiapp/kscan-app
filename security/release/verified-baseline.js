@@ -426,6 +426,16 @@ const STAGING_PROJECT_REF = 'yzqjvdfgefveprobvvyw';
  * migrations are never replayed to manufacture trust.
  *
  * This PLANS and VALIDATES only. It executes nothing.
+ *
+ * @param {object} [opts]
+ * @param {any} [opts.manifest]
+ * @param {any} [opts.frozen]
+ * @param {string} [opts.environment]
+ * @param {string} [opts.projectRef]
+ * @param {string[] | null} [opts.liveFunctionNames]
+ * @param {any} [opts.previousVerifiedState]
+ * @param {boolean | null} [opts.freezeValid]
+ * @param {boolean | null} [opts.candidateBindingOk]
  */
 function planBootstrapFullAttestation({
   manifest,

@@ -257,8 +257,14 @@ export function validateDeployInput({ functionName, manifest, candidateRoot, exp
  * Deploys one governed function from the materialized candidate.
  *
  * @param {object} opts
+ * @param {string} opts.functionName
+ * @param {object} opts.manifest
+ * @param {string} opts.candidateRoot
+ * @param {string} [opts.expectedSourceHash]
+ * @param {string} [opts.projectRef]
  * @param {boolean} [opts.planOnly] - validate and return the plan; deploy nothing
  * @param {function} [opts.exec]    - injected runner, for tests
+ * @param {NodeJS.ProcessEnv} [opts.env]
  */
 export function deployOneFromCandidate({
   functionName,

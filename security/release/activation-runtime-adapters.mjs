@@ -30,7 +30,12 @@ const STATUS = Object.freeze({
 
 const DEFAULT_TIMEOUT_MS = 15_000;
 
-/** Bounded fetch. A hang must surface as OPERATIONAL_FAILURE, never a stall. */
+/**
+ * Bounded fetch. A hang must surface as OPERATIONAL_FAILURE, never a stall.
+ *
+ * @param {string} url
+ * @param {{headers?: Record<string, string>, timeoutMs?: number, fetchImpl?: typeof fetch}} [options]
+ */
 async function getJson(url, { headers = {}, timeoutMs = DEFAULT_TIMEOUT_MS, fetchImpl = fetch } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -60,6 +65,9 @@ async function getJson(url, { headers = {}, timeoutMs = DEFAULT_TIMEOUT_MS, fetc
  * OPERATIONAL_FAILURE. The parsed `/version` body is returned verbatim as
  * `versionBody` so `verifyExactCandidate` compares against what the deployment
  * actually said, not a summary of it.
+ */
+/**
+ * @param {{stagingUrl?: string, anonKey?: string, fetchImpl?: typeof fetch, timeoutMs?: number}} [options]
  */
 export function createHealthProbe({ stagingUrl, anonKey, fetchImpl = fetch, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
   return async function probeHealth() {
@@ -119,7 +127,15 @@ export function createHealthProbe({ stagingUrl, anonKey, fetchImpl = fetch, time
  * Returns `{ ok, certification, detail }`. A missing, unreadable or malformed
  * report is an OPERATIONAL_FAILURE, never a silent null.
  */
-export function createCertificationLoader({ reportPath, repoRoot, exec = spawnSync, generate = false } = {}) {
+/**
+ * @param {{reportPath?: string | null, repoRoot?: string, exec?: typeof spawnSync, generate?: boolean}} [options]
+ */
+export function createCertificationLoader({
+  reportPath = null,
+  repoRoot = process.cwd(),
+  exec = spawnSync,
+  generate = false,
+} = {}) {
   return function loadCertification() {
     const target = reportPath || path.join(repoRoot, 'security', 'reports', 'staging-certification.json');
 
@@ -167,7 +183,15 @@ export function createCertificationLoader({ reportPath, repoRoot, exec = spawnSy
  * `readOnly` omits every mutating operation, so the same adapter can safely
  * back prior-baseline discovery during PLAN_ONLY.
  */
-export function createGithubAdapter({ repo, exec = spawnSync, readOnly = false, env = process.env } = {}) {
+/**
+ * @param {{repo?: string, exec?: typeof spawnSync, readOnly?: boolean, env?: NodeJS.ProcessEnv}} [options]
+ */
+export function createGithubAdapter({
+  repo = 'kscanaiapp/kscan-app',
+  exec = spawnSync,
+  readOnly = false,
+  env = process.env,
+} = {}) {
   const gh = (args, input) => {
     const result = exec('gh', args, { encoding: 'utf8', env, input });
     if (result.status !== 0) {

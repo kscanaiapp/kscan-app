@@ -1,5 +1,7 @@
 {
-  "compilerOptions": {},
+  "compilerOptions": {
+    "allowImportingTsExtensions": true
+  },
   "extends": "expo/tsconfig.base",
   "exclude": ["supabase/functions/**", "qa/**"]
 }

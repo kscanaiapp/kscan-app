@@ -57,8 +57,9 @@ function readJson(file) {
  * @param {string} opts.inputDir  - the execute job's output directory
  * @param {object} [opts.github]  - injected adapter (tests supply a fake)
  * @param {boolean} [opts.planOnly]
+ * @param {NodeJS.ProcessEnv} [opts.env]
  */
-export async function persistVerifiedRelease({ inputDir, github = null, planOnly = false, env = process.env } = {}) {
+export async function persistVerifiedRelease({ inputDir, github = null, planOnly = false, env = process.env }) {
   const missing = REQUIRED_INPUT_FILES.filter((name) => !fs.existsSync(path.join(inputDir, name)));
   if (missing.length > 0) {
     // A denied release never produces verified-baseline.json, so this is also

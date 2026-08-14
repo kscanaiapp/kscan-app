@@ -142,6 +142,22 @@ export function partitionBootstrapPlan(functions) {
  *
  * Adapters (`deps`) are injected so the whole sequence is unit-testable without
  * a Supabase project, a GitHub API, or a network.
+ *
+ * @param {object} opts
+ * @param {string} opts.repoRoot
+ * @param {'PLAN_ONLY'|'EXECUTE'} [opts.mode]
+ * @param {string} [opts.projectRef]
+ * @param {string[]} [opts.liveFunctionNames]
+ * @param {string[]} [opts.liveMigrationVersions]
+ * @param {object | null} [opts.priorVerifiedRelease]
+ * @param {object | null} [opts.certification]
+ * @param {string} [opts.deploymentRunId]
+ * @param {string | null} [opts.releaseId]
+ * @param {number} [opts.deploymentAttempt]
+ * @param {() => Date} [opts.now]
+ * @param {NodeJS.ProcessEnv} [opts.env]
+ * @param {string | null} [opts.outputDir]
+ * @param {Record<string, any>} [opts.deps]
  */
 export async function runBootstrapActivation({
   repoRoot,
@@ -161,7 +177,7 @@ export async function runBootstrapActivation({
   env = process.env,
   outputDir = null,
   deps = {},
-} = {}) {
+}) {
   const steps = [];
   const artifacts = {};
   // DEF-REL-015: each artifact is written as its own file the moment it
@@ -556,8 +572,12 @@ export default { MODE, HEALTH_FUNCTION, ActivationError, assertExecuteAuthority,
 // the path that actually runs, which is why buildCliDeps is exported and
 // asserted by an integration test.
 
-/** Builds the real runtime adapters the CLI uses. Exported so tests can prove wiring. */
-export function buildCliDeps({ env = process.env, repoRoot, readOnly = false } = {}) {
+/**
+ * Builds the real runtime adapters the CLI uses. Exported so tests can prove wiring.
+ *
+ * @param {{repoRoot: string, env?: NodeJS.ProcessEnv, readOnly?: boolean}} opts
+ */
+export function buildCliDeps({ env = process.env, repoRoot, readOnly = false }) {
   const repo = env.GITHUB_REPOSITORY || 'kscanaiapp/kscan-app';
   return {
     probeHealth: createHealthProbe({

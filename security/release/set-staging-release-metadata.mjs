@@ -180,7 +180,7 @@ export function setStagingReleaseMetadata({
   planOnly = false,
   exec = spawnSync,
   env = process.env,
-} = {}) {
+}) {
   const target = assertStagingTarget(projectRef);
   const map = buildMetadataMap(fields);
 

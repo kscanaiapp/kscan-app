@@ -24,6 +24,18 @@ function run(name, cmd) {
   }
 }
 
+function runExpectFailure(name, cmd, expectedError) {
+  try {
+    execSync(cmd, { stdio: 'pipe', encoding: 'utf8' });
+    results.push({ name, ok: false, error: 'command unexpectedly succeeded' });
+  } catch (err) {
+    const output = `${err.stdout || ''}\n${err.stderr || ''}\n${err.message || ''}`;
+    results.push(expectedError.test(output)
+      ? { name, ok: true }
+      : { name, ok: false, error: 'command failed for an unexpected reason' });
+  }
+}
+
 run('Node syntax: normalize-security-findings.js', 'node --check security/scripts/normalize-security-findings.js');
 run('Node syntax: compare-security-baseline.js', 'node --check security/scripts/compare-security-baseline.js');
 run('Node syntax: classify-changed-surfaces.js', 'node --check security/scripts/classify-changed-surfaces.js');
@@ -34,11 +46,15 @@ run('Baseline JSON parse', "node -e \"JSON.parse(require('fs').readFileSync('sec
 run('OpenAPI YAML present', "node -e \"require('fs').accessSync('security/openapi/staging-api.yaml')\"");
 run('Security unit tests', 'node --test __tests__/security/baselineComparison.test.js');
 run('Staging project ref guard', 'node security/scripts/verify-staging-project-ref.js yzqjvdfgefveprobvvyw');
-run('ZAP target validation matrix localhost reject', 'node security/scripts/validate-zap-target.js https://localhost/ example.com');
+runExpectFailure(
+  'ZAP target validation matrix localhost reject',
+  'node security/scripts/validate-zap-target.js https://localhost/ example.com',
+  /hostname does not exactly match ZAP_ALLOWED_HOST/,
+);
 run('git diff --check', 'git diff --check');
 
 console.log(JSON.stringify({ results, passed: results.filter((r) => r.ok).length, failed: results.filter((r) => !r.ok).length }, null, 2));
 
-if (results.some((r) => !r.ok && !r.name.includes('ZAP target validation matrix localhost reject'))) {
+if (results.some((r) => !r.ok)) {
   process.exit(1);
 }
