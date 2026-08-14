@@ -88,6 +88,7 @@ async function runOwnedRoomMatrix(ask, items) {
       results.push(scenarioResult(scenario.id, false, reason, {
         httpStatus: response.httpStatus,
         latencyMs: response.elapsedMs,
+        rejectionSnippet: response.rejectionSnippet ?? null,
       }));
       continue;
     }

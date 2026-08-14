@@ -270,12 +270,21 @@ async function askElise(ctx, options) {
   });
   const elapsedMs = Date.now() - startedAt;
 
+  const rawBody = await res.text();
   let payload = null;
   try {
-    payload = JSON.parse(await res.text());
+    payload = JSON.parse(rawBody);
   } catch {
     payload = null;
   }
+
+  // Rejection bodies ONLY, and only when the request failed. A 400 whose shape
+  // we guessed wrong cost several deploy-and-rerun cycles; a bounded slice of
+  // the refusal makes the next one self-explanatory. Never captured for a
+  // SUCCESSFUL response, because that body carries the model's answer.
+  const rejectionSnippet = res.ok
+    ? null
+    : String(rawBody || '').replace(/\s+/g, ' ').slice(0, 200);
 
   return {
     httpStatus: res.status,
@@ -291,6 +300,7 @@ async function askElise(ctx, options) {
     // vocabulary, never user or model text. Without it a 400 is a guessing
     // game, and each guess costs a full deploy-and-rerun cycle.
     errorCode: typeof payload?.errorCode === 'string' ? payload.errorCode : null,
+    rejectionSnippet,
     ok: res.ok,
   };
 }
