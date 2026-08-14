@@ -8,6 +8,7 @@ import {
   type StylistSpeechResponse,
   type StylistSpeechVoiceProfile,
 } from './types.ts';
+import { requireSpeechCueText } from './speechCues.ts';
 import { resolveServerVoiceProfile } from './voiceProfiles.ts';
 
 export const STYLIST_SPEECH_CORS_HEADERS = {
@@ -17,7 +18,8 @@ export const STYLIST_SPEECH_CORS_HEADERS = {
 };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const REQUEST_KEYS = new Set(['sessionId', 'messageId', 'stylistId']);
+const MESSAGE_REQUEST_KEYS = new Set(['sessionId', 'messageId', 'stylistId']);
+const CUE_REQUEST_KEYS = new Set(['cue', 'stylistId']);
 
 export interface StylistSpeechHandlerDependencies {
   createDataAccess(authHeader: string): StylistSpeechDataAccess;
@@ -34,29 +36,53 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+/**
+ * Parse either request shape.
+ *
+ * The two modes are parsed as whole shapes rather than as optional fields, so a
+ * body carrying both `cue` and `messageId` is rejected instead of silently
+ * favouring one. Unknown keys stay rejected in both modes.
+ */
 function parseRequestBody(value: unknown): StylistSpeechRequest {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new StylistSpeechError(400, 'INVALID_REQUEST', 'A valid speech request is required.');
   }
   const record = value as Record<string, unknown>;
-  if (Object.keys(record).some((key) => !REQUEST_KEYS.has(key))) {
-    throw new StylistSpeechError(400, 'INVALID_REQUEST', 'The speech request contains unsupported fields.');
-  }
-
-  const sessionId = typeof record.sessionId === 'string' ? record.sessionId.trim() : '';
-  const messageId = typeof record.messageId === 'string' ? record.messageId.trim() : '';
+  const keys = Object.keys(record);
   const stylistId = typeof record.stylistId === 'string' ? record.stylistId.trim() : '';
-  if (!UUID_RE.test(sessionId) || !UUID_RE.test(messageId) || !stylistId) {
+  if (!stylistId) {
     throw new StylistSpeechError(400, 'INVALID_REQUEST', 'The speech request contains invalid references.');
   }
-  return { sessionId, messageId, stylistId };
+
+  if ('cue' in record) {
+    if (keys.some((key) => !CUE_REQUEST_KEYS.has(key))) {
+      throw new StylistSpeechError(400, 'INVALID_REQUEST', 'The speech request contains unsupported fields.');
+    }
+    const cue = typeof record.cue === 'string' ? record.cue.trim() : '';
+    if (!cue) {
+      throw new StylistSpeechError(400, 'INVALID_REQUEST', 'The speech request contains invalid references.');
+    }
+    return { mode: 'cue', cue, stylistId };
+  }
+
+  if (keys.some((key) => !MESSAGE_REQUEST_KEYS.has(key))) {
+    throw new StylistSpeechError(400, 'INVALID_REQUEST', 'The speech request contains unsupported fields.');
+  }
+  const sessionId = typeof record.sessionId === 'string' ? record.sessionId.trim() : '';
+  const messageId = typeof record.messageId === 'string' ? record.messageId.trim() : '';
+  if (!UUID_RE.test(sessionId) || !UUID_RE.test(messageId)) {
+    throw new StylistSpeechError(400, 'INVALID_REQUEST', 'The speech request contains invalid references.');
+  }
+  return { mode: 'message', sessionId, messageId, stylistId };
 }
 
 function operationKey(
   actorId: string,
   request: StylistSpeechRequest,
 ): string {
-  return `${actorId}:${request.sessionId}:${request.messageId}:${request.stylistId}`;
+  return request.mode === 'cue'
+    ? `${actorId}:cue:${request.cue}:${request.stylistId}`
+    : `${actorId}:${request.sessionId}:${request.messageId}:${request.stylistId}`;
 }
 
 function sanitizeError(error: unknown): Response {
@@ -107,27 +133,39 @@ export function createStylistSpeechHandler(
       const body = parseRequestBody(rawBody);
       const voiceProfile: StylistSpeechVoiceProfile = resolveServerVoiceProfile(body.stylistId);
 
-      const session = await dataAccess.getSession(body.sessionId, actor.id);
-      if (!session || session.id !== body.sessionId || session.user_id !== actor.id) {
-        throw new StylistSpeechError(404, 'SESSION_NOT_FOUND', 'The conversation was not found.');
-      }
+      let speechText: string;
+      if (body.mode === 'cue') {
+        // A cue has no row to own, so the authenticated actor plus the
+        // stylist-preference check below carry the whole authorization. The words
+        // are looked up server-side from the allowlist; the request only named a
+        // key, so a caller can never put its own text into speech.
+        speechText = buildSpeechText(requireSpeechCueText(body.cue));
+        if (!speechText) {
+          throw new StylistSpeechError(400, 'INVALID_REQUEST', 'The speech request contains invalid references.');
+        }
+      } else {
+        const session = await dataAccess.getSession(body.sessionId, actor.id);
+        if (!session || session.id !== body.sessionId || session.user_id !== actor.id) {
+          throw new StylistSpeechError(404, 'SESSION_NOT_FOUND', 'The conversation was not found.');
+        }
 
-      const message = await dataAccess.getMessage(body.messageId, actor.id);
-      if (
-        !message ||
-        message.id !== body.messageId ||
-        message.user_id !== actor.id ||
-        message.session_id !== body.sessionId
-      ) {
-        throw new StylistSpeechError(404, 'MESSAGE_NOT_FOUND', 'The message was not found.');
-      }
-      if (message.sender !== 'assistant' || isHiddenOrSystemOnlyMessage(message)) {
-        throw new StylistSpeechError(422, 'MESSAGE_INELIGIBLE', 'This message cannot be spoken.');
-      }
+        const message = await dataAccess.getMessage(body.messageId, actor.id);
+        if (
+          !message ||
+          message.id !== body.messageId ||
+          message.user_id !== actor.id ||
+          message.session_id !== body.sessionId
+        ) {
+          throw new StylistSpeechError(404, 'MESSAGE_NOT_FOUND', 'The message was not found.');
+        }
+        if (message.sender !== 'assistant' || isHiddenOrSystemOnlyMessage(message)) {
+          throw new StylistSpeechError(422, 'MESSAGE_INELIGIBLE', 'This message cannot be spoken.');
+        }
 
-      const speechText = buildSpeechText(message.content);
-      if (!speechText) {
-        throw new StylistSpeechError(422, 'MESSAGE_INELIGIBLE', 'This message cannot be spoken.');
+        speechText = buildSpeechText(message.content);
+        if (!speechText) {
+          throw new StylistSpeechError(422, 'MESSAGE_INELIGIBLE', 'This message cannot be spoken.');
+        }
       }
 
       const preference = await dataAccess.getStylistPreference(actor.id);
@@ -144,7 +182,8 @@ export function createStylistSpeechHandler(
           env: dependencies.env,
         });
         const response: StylistSpeechResponse = {
-          messageId: body.messageId,
+          messageId: body.mode === 'message' ? body.messageId : null,
+          cue: body.mode === 'cue' ? body.cue : null,
           stylistId: body.stylistId,
           voiceProfile,
           mimeType: 'audio/mpeg',

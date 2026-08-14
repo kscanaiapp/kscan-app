@@ -1,10 +1,29 @@
 export type StylistSpeechVoiceProfile = 'feminine' | 'masculine';
 
-export interface StylistSpeechRequest {
+/**
+ * Speak a persisted assistant message. The function reads the text from a row
+ * the caller provably owns, so the client never supplies speech text.
+ */
+export interface StylistSpeechMessageRequest {
+  mode: 'message';
   sessionId: string;
   messageId: string;
   stylistId: string;
 }
+
+/**
+ * Speak one allowlisted deterministic cue. Carries a cue KEY, never cue text —
+ * the approved words live server-side in `speechCues.ts`.
+ */
+export interface StylistSpeechCueRequest {
+  mode: 'cue';
+  cue: string;
+  stylistId: string;
+}
+
+export type StylistSpeechRequest =
+  | StylistSpeechMessageRequest
+  | StylistSpeechCueRequest;
 
 export interface SpeechAlignment {
   characters: string[];
@@ -13,7 +32,10 @@ export interface SpeechAlignment {
 }
 
 export interface StylistSpeechResponse {
-  messageId: string;
+  /** Set in message mode; null for a deterministic cue. */
+  messageId: string | null;
+  /** Set in cue mode; null when speaking a persisted message. */
+  cue: string | null;
   stylistId: string;
   voiceProfile: StylistSpeechVoiceProfile;
   mimeType: 'audio/mpeg';
