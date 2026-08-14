@@ -38,6 +38,21 @@ function transpileModule(file, mocks = {}) {
   return mod.exports;
 }
 
+// Registered Metro static require() targets in constants/avatarFacialOverlays.ts
+// (stylist_portrait_02 eyes + brows production overlays). The sandboxed
+// require() above throws on anything outside `mocks`, so every call site that
+// loads that module now needs these -- unlike require.extensions['.png'],
+// which only intercepts real Node module resolution and has no effect
+// inside this VM sandbox.
+const FACIAL_OVERLAY_ASSET_MOCKS = {
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_eyes_open.png': 1,
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_eyes_halfClosed.png': 1,
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_eyes_closed.png': 1,
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_brows_neutral.png': 1,
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_brows_raised.png': 1,
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_brows_focused.png': 1,
+};
+
 function createElement(type, props, ...children) {
   return { type, props: props ?? {}, children: children.flat(Infinity).filter(Boolean) };
 }
@@ -90,10 +105,10 @@ function loadComponent({ motionFlag = false, motionActive = false } = {}) {
     '../../services/avatarMotionRenderer': transpileModule('services/avatarMotionRenderer.ts'),
     '../../services/avatarMotionCapabilities': transpileModule('services/avatarMotionCapabilities.ts', {
       '../constants/stylistIdentity': stylistIdentity,
-      '../constants/avatarFacialOverlays': transpileModule('constants/avatarFacialOverlays.ts', {}),
+      '../constants/avatarFacialOverlays': transpileModule('constants/avatarFacialOverlays.ts', FACIAL_OVERLAY_ASSET_MOCKS),
       './avatarMotionState': motionState,
     }),
-    '../../constants/avatarFacialOverlays': transpileModule('constants/avatarFacialOverlays.ts', {}),
+    '../../constants/avatarFacialOverlays': transpileModule('constants/avatarFacialOverlays.ts', FACIAL_OVERLAY_ASSET_MOCKS),
     '../../services/avatarExpressionRules': transpileModule('services/avatarExpressionRules.ts', {}),
     '../../hooks/useAvatarBlink': { useAvatarBlink: () => 'open' },
     '../../constants/featureFlags': { AVATAR_MOTION_V1_ENABLED: motionFlag },

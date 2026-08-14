@@ -32,7 +32,22 @@ function transpileModule(file, mocks = {}) {
   return mod.exports;
 }
 
-const overlays = transpileModule('constants/avatarFacialOverlays.ts');
+// Registered Metro static require() targets in constants/avatarFacialOverlays.ts
+// (stylist_portrait_02 eyes + brows production overlays). The sandboxed
+// require() above throws on anything outside `mocks`, so every call site that
+// loads that module now needs these -- unlike require.extensions['.png'],
+// which only intercepts real Node module resolution and has no effect
+// inside this VM sandbox.
+const FACIAL_OVERLAY_ASSET_MOCKS = {
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_eyes_open.png': 1,
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_eyes_halfClosed.png': 1,
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_eyes_closed.png': 1,
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_brows_neutral.png': 1,
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_brows_raised.png': 1,
+  '../assets/stylist-avatars/portraits/facial-overlays/avatar_stylist_02_brows_focused.png': 1,
+};
+
+const overlays = transpileModule('constants/avatarFacialOverlays.ts', FACIAL_OVERLAY_ASSET_MOCKS);
 const {
   AVATAR_FACIAL_OVERLAY_PACKAGES,
   isValidFacialOverlayAsset,
@@ -61,18 +76,26 @@ const TARGET_AVATARS = [
   'stylist_portrait_04',
 ];
 
-// ── Production truth: no approved overlay assets exist yet ──────────────────
+// ── Production truth: only stylist_portrait_02 eyes/brows are shipped ──────
 
-test('the registry is empty until owner-approved overlay art is registered', () => {
-  assert.equal(AVATAR_FACIAL_OVERLAY_PACKAGES.size, 0);
+test('the registry ships only stylist_portrait_02 eyes and brows today', () => {
+  assert.equal(AVATAR_FACIAL_OVERLAY_PACKAGES.size, 1);
   for (const avatarId of TARGET_AVATARS) {
     for (const layer of ['mouthRound', 'eyes', 'brows']) {
+      // mouthRound is never registered for any avatar: the current renderer
+      // never reads it (round-mouth stays on the legacy mouthStateSources
+      // convention), so registering it here would flip a capability the
+      // renderer would never actually display. See the registry's own
+      // top-of-file comment.
+      const shipped = avatarId === 'stylist_portrait_02' && layer !== 'mouthRound';
       assert.equal(
         hasValidFacialOverlayPackage(avatarId, layer),
-        false,
-        `${avatarId}/${layer} must stay false until real assets land`,
+        shipped,
+        `${avatarId}/${layer} must be ${shipped} given today's registry`,
       );
-      assert.equal(getFacialOverlayAsset(avatarId, layer, 'open'), null);
+      if (!shipped) {
+        assert.equal(getFacialOverlayAsset(avatarId, layer, 'open'), null);
+      }
     }
   }
 });
@@ -87,14 +110,18 @@ test('capability truth: round mouth, blink, brows, and gaze are false today; a r
       './avatarMotionState': motionState,
     });
 
-  // Current shipped truth: the real (empty) registry keeps everything false.
+  // Current shipped truth: stylist_portrait_02 ships eyes+brows (blink and
+  // brows capability true); mouthRound is never registered for any avatar
+  // (see the registry's own comment), so roundMouth stays false everywhere
+  // even for 02. Every other avatar stays fully false.
   const current = load(overlays);
   for (const avatarId of TARGET_AVATARS) {
     const caps = current.getAvatarMotionCapabilities(avatarId);
+    const shipped = avatarId === 'stylist_portrait_02';
     assert.equal(caps.roundMouth, false, `${avatarId} round mouth`);
-    assert.equal(caps.blink, false, `${avatarId} blink`);
-    assert.equal(caps.brows, false, `${avatarId} brows`);
-    assert.equal(caps.gaze, false, `${avatarId} gaze`);
+    assert.equal(caps.blink, shipped, `${avatarId} blink`);
+    assert.equal(caps.brows, shipped, `${avatarId} brows`);
+    assert.equal(caps.gaze, shipped, `${avatarId} gaze`);
     assert.equal(caps.threeStateMouth, true, `${avatarId} three-state mouth unchanged`);
   }
 
