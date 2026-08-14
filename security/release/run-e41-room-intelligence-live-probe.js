@@ -198,6 +198,51 @@ async function createRoomFixture(ctx) {
   return { roomId, items };
 }
 
+/**
+ * stylechat-generate requires a persisted sessionId -- the first live run
+ * returned 400 "sessionId required" for every scenario because the probe sent
+ * undefined on the opening turn. Created through the same authenticated REST
+ * path the speech probe uses.
+ */
+async function createSyntheticSession(ctx) {
+  const res = await ctx.fetchImpl(`${ctx.restBase}/style_chat_sessions`, {
+    method: 'POST',
+    headers: restHeaders(ctx.publishableKey, ctx.accessToken, { Prefer: 'return=representation' }),
+    body: JSON.stringify({
+      user_id: ctx.actorId,
+      title: `E4.1 certification (${SYNTHETIC_MARKER})`,
+      mode: 'general',
+    }),
+  });
+  if (!res.ok) {
+    throw new E41ProbeError(
+      `fixture session creation failed (${res.status})`,
+      'FIXTURE_FAILURE',
+      res.status,
+    );
+  }
+  const rows = await res.json().catch(() => null);
+  const id = Array.isArray(rows) ? rows[0]?.id : rows?.id;
+  if (!id) throw new E41ProbeError('fixture session id missing', 'FIXTURE_FAILURE');
+  return id;
+}
+
+async function destroySyntheticSession(ctx, sessionId) {
+  if (!sessionId) return false;
+  try {
+    const res = await ctx.fetchImpl(
+      `${ctx.restBase}/style_chat_sessions?id=eq.${encodeURIComponent(sessionId)}`,
+      {
+        method: 'DELETE',
+        headers: restHeaders(ctx.publishableKey, ctx.accessToken, { Prefer: 'return=minimal' }),
+      },
+    );
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 /** Removes only rows this probe created, identified by the room it owns. */
 async function destroyRoomFixture(ctx, roomId) {
   if (!roomId) return false;
@@ -253,7 +298,7 @@ async function askElise(ctx, options) {
 
   const body = {
     message,
-    sessionId: sessionId || undefined,
+    sessionId: sessionId || ctx.sessionId,
     contractVersion: '2',
     ...(visualContext ? { activeContext: visualContext } : {}),
   };
@@ -358,6 +403,9 @@ async function run(env, fetchImpl) {
   const groups = {};
   try {
     fixture = await createRoomFixture(ctx);
+    // One session for the whole matrix. Multi-turn scenarios thread their own
+    // sessionId through; single-turn ones fall back to this.
+    ctx.sessionId = await createSyntheticSession(ctx);
     const ask = (options) => askElise(ctx, options);
 
     const owned = await matrix.runOwnedRoomMatrix(ask, fixture.items);
@@ -391,6 +439,7 @@ async function run(env, fetchImpl) {
   } finally {
     // Cleanup must run even when the matrix throws, or a failed run leaves a
     // room behind that the next run would trip over.
+    if (ctx.sessionId) await destroySyntheticSession(ctx, ctx.sessionId);
     if (fixture) await destroyRoomFixture(ctx, fixture.roomId);
   }
 }
@@ -408,6 +457,8 @@ async function getActorId(ctx, supabaseUrl) {
 
 module.exports = {
   run,
+  createSyntheticSession,
+  destroySyntheticSession,
   getActorId,
   SYNTHETIC_MARKER,
   FIXTURE_ITEMS,
