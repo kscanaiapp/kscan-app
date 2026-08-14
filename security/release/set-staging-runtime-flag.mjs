@@ -56,6 +56,30 @@ const ALLOWED_FLAGS = Object.freeze({
   // fails, turning E4.1 back OFF has to be possible through this same governed
   // path rather than by hand.
   ELISE_ROOM_INTELLIGENCE_V1_ENABLED: Object.freeze(['true', 'false']),
+
+  // ── Closet intelligence (Build 29 Closet V2 / S7) ────────────────────────
+  //
+  // Six keys, each enumerated explicitly. No wildcard, no prefix match, no
+  // "any ELISE_* key" shortcut: the point of this writer is that widening it
+  // costs a reviewed code change, and a prefix rule would silently pre-approve
+  // every future flag someone happens to name ELISE_something.
+  //
+  // All six accept 'true' AND 'false'. The asymmetry the scanner flag uses
+  // ('true' only) is wrong for these: staging activation is an experiment, and
+  // an experiment that cannot be turned off through the same governed path has
+  // to be undone by hand against a live project.
+  //
+  // ADVICE_INTENTS is the hard prerequisite — eliseAdvicePipeline returns null
+  // without it, so the other five are inert until it is on. COMPATIBILITY_
+  // SCORING is nested inside the CLOSET_RETRIEVAL branch in the pipeline, so it
+  // is likewise inert unless retrieval is enabled. Both facts are properties of
+  // the source, not of this allowlist; this writer does not enforce ordering.
+  ELISE_ADVICE_INTENTS_V1_ENABLED: Object.freeze(['true', 'false']),
+  ELISE_CLOSET_RETRIEVAL_V1_ENABLED: Object.freeze(['true', 'false']),
+  ELISE_COMPATIBILITY_SCORING_V1_ENABLED: Object.freeze(['true', 'false']),
+  ELISE_WARDROBE_GAP_V1_ENABLED: Object.freeze(['true', 'false']),
+  ELISE_PURCHASE_ADVICE_V1_ENABLED: Object.freeze(['true', 'false']),
+  ELISE_MULTI_LOOK_V1_ENABLED: Object.freeze(['true', 'false']),
 });
 
 /** Release-identity keys this writer must never touch. */
