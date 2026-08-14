@@ -217,10 +217,30 @@ create policy "Users can delete own wear event items"
   to authenticated
   using (user_id = auth.uid());
 
--- RLS is necessary but NOT sufficient here: this project does not grant new
--- public tables to the authenticated role by default, so without this every
--- authenticated query fails with 42501. Same hazard the free-tier migration
--- documents.
+-- RLS is necessary but NOT sufficient here, and the insufficiency runs in BOTH
+-- directions. The privilege layer has to be stated explicitly on each side.
+--
+-- MISSING PRIVILEGE. A from-zero database does not grant new public tables to
+-- the authenticated role, so without the GRANT below every authenticated query
+-- fails with 42501. Same hazard the free-tier migration documents.
+--
+-- UNREQUESTED PRIVILEGE. The opposite failure was observed for real. Applied to
+-- K Scan AI Staging, this table came up holding SELECT/INSERT/UPDATE/DELETE for
+-- anon, which this migration never granted: they arrived from ALTER DEFAULT
+-- PRIVILEGES configured on that database, so deploying the migration created a
+-- privilege the source never asked for. Staging was repaired by hand with a
+-- REVOKE; stating it here is what stops a clean apply to any other environment
+-- from silently recreating it.
+--
+-- anon is revoked rather than left to RLS. Wear history is private user data,
+-- and a table privilege held shut only by policy is one policy mistake away
+-- from being reachable — the same belt-and-braces reasoning public.saved_scans
+-- and public.apple_auth_credentials already use. PUBLIC is included because
+-- anon inherits it, so revoking anon alone would leave a second route to the
+-- same privilege; public.outfit_decision_groups and friends revoke both for
+-- that reason.
+revoke all on public.wardrobe_wear_event_items from anon, public;
+
 grant select, insert, update, delete
   on public.wardrobe_wear_event_items to authenticated;
 

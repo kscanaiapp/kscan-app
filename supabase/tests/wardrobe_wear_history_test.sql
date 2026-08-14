@@ -187,9 +187,27 @@ select ok(
   'authenticated holds DELETE'
 );
 
+-- The mirror of the GRANT above, and the one that regressed for real: applied
+-- to staging, this table came up holding all four privileges for anon via that
+-- database's ALTER DEFAULT PRIVILEGES. Asserting only SELECT would have let
+-- three of the four back in, so every verb is named. has_table_privilege
+-- resolves inherited PUBLIC grants too, which is the second route the REVOKE in
+-- the migration closes.
 select ok(
   not has_table_privilege('anon', 'public.wardrobe_wear_event_items', 'SELECT'),
   'anonymous callers hold no read privilege on private wear history'
+);
+select ok(
+  not has_table_privilege('anon', 'public.wardrobe_wear_event_items', 'INSERT'),
+  'anonymous callers cannot write wear history'
+);
+select ok(
+  not has_table_privilege('anon', 'public.wardrobe_wear_event_items', 'UPDATE'),
+  'anonymous callers cannot alter wear history'
+);
+select ok(
+  not has_table_privilege('anon', 'public.wardrobe_wear_event_items', 'DELETE'),
+  'anonymous callers cannot erase wear history'
 );
 
 -- ── Account isolation ───────────────────────────────────────────────────────
