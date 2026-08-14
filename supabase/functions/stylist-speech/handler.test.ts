@@ -81,7 +81,8 @@ Deno.test('returns bound speech for an owned assistant message', async () => {
   assert.equal(body.stylistId, 'stylist_portrait_05');
   assert.equal(body.voiceProfile, 'feminine');
   assert.equal(atob(String(body.audioBase64)), 'feminine:Hello from K Scan.');
-  assert.deepEqual(Object.keys(body).sort(), ['alignment', 'audioBase64', 'messageId', 'mimeType', 'stylistId', 'voiceProfile']);
+  assert.equal(body.cue, null);
+  assert.deepEqual(Object.keys(body).sort(), ['alignment', 'audioBase64', 'cue', 'messageId', 'mimeType', 'stylistId', 'voiceProfile']);
 });
 
 Deno.test('selects masculine voices from the fixed server allowlist', async () => {
