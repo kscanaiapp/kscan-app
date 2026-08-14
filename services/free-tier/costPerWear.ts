@@ -2,6 +2,36 @@
  * Free Tier Utility Expansion — wear tracking + estimated cost per wear.
  * Uses the kscan.freeTier.wearTracking.v1 store. Estimates only; no
  * financial-accuracy claims.
+ *
+ * ── AUTHORITY NOTICE (Build 29 Closet V2 / S5) ─────────────────────────────
+ *
+ * The `WearTrackingEntry` map this module owns is a DERIVED CACHE. It is not
+ * wear-history truth and must not be treated as such.
+ *
+ *     CANONICAL   public.wardrobe_wear_events
+ *                 + public.wardrobe_wear_event_items
+ *                 written only via services/wearHistory.ts
+ *
+ *     THIS FILE   local projection: per-item wearCount + lastWornAt
+ *
+ * `markWornToday` increments a counter and stamps a date. It predates the
+ * canonical model and is retained so existing free-tier surfaces and Build 28
+ * clients keep working — but new wear logging MUST go through
+ * `logItemWear` / `logLookWear` in services/wearHistory.ts, which record a
+ * dated event with its garments and are idempotent against duplicate
+ * submission. This counter is none of those things: it cannot express an
+ * outfit, cannot say when its wears happened, and increments on every call.
+ *
+ * The projection direction is one-way and enforced by test:
+ *
+ *     events  ->  counter      OK   (projectWearTrackingFromEvents)
+ *     counter ->  events       NEVER — a count of 7 does not know its dates,
+ *                                     so reconstructing events would fabricate
+ *                                     seven of them.
+ *
+ * Cost Per Wear itself remains OUT of Build 29 scope and dormant; nothing here
+ * changes that, and the canonical wear model deliberately does not feed
+ * `estimatedPrice`.
  */
 
 import { FREE_TIER_STORAGE_KEYS, type WearTrackingEntry } from './wardrobeUtilityTypes';
