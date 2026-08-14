@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { goBackOrOnboarding } from '../../services/navigationExit';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // @ts-ignore — expo-apple-authentication is not installed for Android builds; iOS-only feature
@@ -27,9 +27,14 @@ import { validateAuthInput, mapAuthError } from '../../services/authValidation';
 import { AUTH_CALLBACK_URL } from '../../services/authConfig';
 import { supabase } from '../../services/supabaseClient';
 import { parseAuthCallbackUrl } from '../../services/authDeepLink';
+import {
+  buildAccountDeletionNoticeMessage,
+  consumeAccountDeletionNotice,
+} from '../../services/accountDeletionNotice';
 import { completeOAuthCallbackSession } from '../../services/oauthCallbackSession';
 import { traceAuthLifecycle } from '../../services/authLifecycleTrace';
 import { linkAppleCredential } from '../../services/appleCredentialLink';
+import { requestRestorationEmail } from '../../services/accountRestoration';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -45,7 +50,29 @@ function createRawNonce(length = 32) {
 export default function AuthScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  // IOS-03: the deletion confirmation is handed across sign-out in memory and
+  // consumed exactly once here, so the user lands on login with proof their
+  // request was accepted instead of an unexplained login screen. Reading it
+  // clears it, so it never reappears on an unrelated later visit, and a cold
+  // start has nothing to show.
+  const [deletionNotice] = useState(() => {
+    const notice = consumeAccountDeletionNotice();
+    return notice ? buildAccountDeletionNoticeMessage(notice) : null;
+  });
   const { signIn, signUp } = useAuthSession();
+
+  // Restoration resend surface. A user whose account is in the `deactivated`
+  // grace window cannot sign in, so the only way back is a fresh restoration
+  // link. `/account/restore` sends an expired/invalid link here with
+  // `?restore=1`, which opens the panel directly.
+  const restoreParams = useLocalSearchParams<{ restore?: string | string[] }>();
+  const restoreParamRequested = Array.isArray(restoreParams?.restore)
+    ? restoreParams.restore[0] === '1'
+    : restoreParams?.restore === '1';
+  const [restoreOpen, setRestoreOpen] = useState(restoreParamRequested);
+  const [restoreEmail, setRestoreEmail] = useState('');
+  const [restoreBusy, setRestoreBusy] = useState(false);
+  const [restoreMessage, setRestoreMessage] = useState<string | null>(null);
 
   const [mode, setMode] = useState<AuthMode>('sign-in');
   const [email, setEmail] = useState('');
@@ -69,6 +96,25 @@ export default function AuthScreen() {
       mounted = false;
     };
   }, []);
+  /**
+   * Requests a fresh restoration link. The response is deliberately identical
+   * whether or not an eligible deletion request exists — the surface must never
+   * become an account-existence oracle — so this only ever renders the generic
+   * message the service returns.
+   */
+  const handleRestoreSubmit = async () => {
+    if (restoreBusy) return;
+    setRestoreBusy(true);
+    setRestoreMessage(null);
+    try {
+      const result = await requestRestorationEmail(supabase, restoreEmail);
+      setRestoreMessage(result.message);
+      if (result.ok) setRestoreEmail('');
+    } finally {
+      setRestoreBusy(false);
+    }
+  };
+
 
   const busy = step === 'submitting' || step === 'google-oauth' || step === 'apple-oauth';
   const googleBusy = step === 'google-oauth';
@@ -451,6 +497,14 @@ export default function AuthScreen() {
             <View style={styles.dividerLine} />
           </View>
 
+          {deletionNotice ? (
+            <View style={styles.noticeBanner} testID="auth-account-deletion-notice">
+              <Text style={styles.noticeText} accessibilityLiveRegion="polite">
+                {deletionNotice}
+              </Text>
+            </View>
+          ) : null}
+
           {error ? (
             <View style={styles.errorBanner}>
               <Text style={styles.errorText}>{error}</Text>
@@ -582,6 +636,83 @@ export default function AuthScreen() {
                 Forgot password?
               </Text>
             </Pressable>
+          ) : null}
+
+          {mode === 'sign-in' ? (
+            <>
+              <Pressable
+                testID="auth-restore-account-toggle"
+                onPress={() => {
+                  setRestoreOpen((open) => {
+                    const next = !open;
+                    // Carry whatever the user already typed above so they do
+                    // not retype their address; clearing the result keeps a
+                    // stale generic message from reading as a fresh send.
+                    if (next && !restoreEmail && email) setRestoreEmail(email);
+                    if (!next) setRestoreMessage(null);
+                    return next;
+                  });
+                }}
+                disabled={busy || restoreBusy}
+                style={styles.forgotPasswordButton}
+                accessibilityRole="button"
+                accessibilityLabel="Restore a deleted account"
+                accessibilityState={{ disabled: busy || restoreBusy, expanded: restoreOpen }}
+              >
+                <Text style={[styles.secondaryLinkAction, busy && styles.disabled]}>
+                  {restoreOpen ? 'Hide account restore' : 'Restore a deleted account'}
+                </Text>
+              </Pressable>
+
+              {restoreOpen ? (
+                <View style={styles.restorePanel} testID="auth-restore-panel">
+                  <Text style={styles.restoreHint}>
+                    If you asked us to delete your account, enter that email and we
+                    will send a restoration link while the grace period is still
+                    open.
+                  </Text>
+                  <View style={styles.fieldGroup}>
+                    <Text style={styles.fieldLabel}>ACCOUNT EMAIL</Text>
+                    <TextInput
+                      testID="auth-restore-email-input"
+                      value={restoreEmail}
+                      onChangeText={setRestoreEmail}
+                      placeholder="you@example.com"
+                      placeholderTextColor={LUXURY.colors.stone}
+                      accessibilityLabel="Account email for restoration"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoComplete="email"
+                      autoCorrect={false}
+                      editable={!restoreBusy}
+                      style={[styles.input, restoreBusy && styles.inputDisabled]}
+                    />
+                  </View>
+                  <Pressable
+                    testID="auth-restore-submit"
+                    onPress={handleRestoreSubmit}
+                    disabled={restoreBusy}
+                    style={[styles.primaryButton, restoreBusy && styles.primaryButtonBusy]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Send restoration link"
+                    accessibilityState={{ disabled: restoreBusy, busy: restoreBusy }}
+                  >
+                    {restoreBusy ? (
+                      <ActivityIndicator size="small" color={COLORS.textInverse} />
+                    ) : (
+                      <Text style={styles.primaryButtonText}>SEND RESTORATION LINK</Text>
+                    )}
+                  </Pressable>
+                  {restoreMessage ? (
+                    <View style={styles.noticeBanner} testID="auth-restore-result">
+                      <Text style={styles.noticeText} accessibilityLiveRegion="polite">
+                        {restoreMessage}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+            </>
           ) : null}
         </View>
 
@@ -747,6 +878,31 @@ const styles = StyleSheet.create({
   emailHighlight: {
     color: LUXURY.colors.ink,
     fontWeight: '600',
+  },
+  restorePanel: {
+    marginTop: SPACING.md,
+    paddingTop: SPACING.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: LUXURY.colors.border,
+  },
+  restoreHint: {
+    color: LUXURY.colors.stone,
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: SPACING.sm,
+  },
+  noticeBanner: {
+    borderWidth: 1,
+    borderColor: 'rgba(90, 74, 110, 0.25)',
+    borderRadius: RADIUS.md,
+    backgroundColor: 'rgba(90, 74, 110, 0.08)',
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  noticeText: {
+    ...LUXURY.typography.body,
+    fontSize: 13,
+    color: LUXURY.colors.ink,
   },
   errorBanner: {
     borderWidth: 1,

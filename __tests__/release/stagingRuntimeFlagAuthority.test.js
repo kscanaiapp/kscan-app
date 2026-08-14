@@ -1,0 +1,193 @@
+#!/usr/bin/env node
+'use strict';
+
+/**
+ * Regression tests for DEF-B29-SVV-004.
+ *
+ * Phase 7 ships dark and needs SCAN_IDENTIFICATION_RECHECK_ENABLED=true in the
+ * staging Edge Function environment, but no governed path existed to set it.
+ * The two shortcuts were refused: the KSCAN release-metadata writer describes
+ * release IDENTITY, not behaviour, and a generic key/value setter would be an
+ * arbitrary write primitive aimed at a live backend.
+ *
+ * These tests pin the resulting authority as deliberately narrow: one
+ * allowlisted key, one allowlisted value, staging only, confirmation required,
+ * and no secret material anywhere in its output.
+ *
+ * No network: the Supabase CLI is injected.
+ */
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const path = require('node:path');
+const { pathToFileURL } = require('node:url');
+
+const ROOT = path.resolve(__dirname, '..', '..');
+const MODULE_URL = pathToFileURL(path.join(ROOT, 'security', 'release', 'set-staging-runtime-flag.mjs')).href;
+const load = () => import(MODULE_URL);
+
+const STAGING = 'yzqjvdfgefveprobvvyw';
+const PRODUCTION = 'wyyuqfdxucjksghsmhry';
+const CONFIRM = 'SET-STAGING-RUNTIME-FLAG';
+const FLAG = 'SCAN_IDENTIFICATION_RECHECK_ENABLED';
+
+/** Records every CLI invocation so tests can assert what was and was not run. */
+function recorder(status = 0) {
+  const calls = [];
+  const exec = (cmd, args, opts) => {
+    calls.push({ cmd, args, opts });
+    return { status, stdout: '', stderr: '' };
+  };
+  return { calls, exec };
+}
+
+const baseEnv = { SUPABASE_ACCESS_TOKEN: 'sbp_' + 'a'.repeat(40) };
+
+test('SVV-004: the approved flag, value and staging ref is allowed', async () => {
+  const { setStagingRuntimeFlag } = await load();
+  const { calls, exec } = recorder();
+  const result = setStagingRuntimeFlag({
+    key: FLAG, value: 'true', projectRef: STAGING, confirm: CONFIRM, env: baseEnv, exec,
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.written, true);
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0].args.slice(0, 2), ['secrets', 'set']);
+  assert.ok(calls[0].args.includes('--project-ref'));
+  assert.ok(calls[0].args.includes(STAGING));
+});
+
+test('SVV-004: an unknown flag is refused', async () => {
+  const { setStagingRuntimeFlag } = await load();
+  const { calls, exec } = recorder();
+  assert.throws(
+    () => setStagingRuntimeFlag({ key: 'SOME_OTHER_FLAG', value: 'true', projectRef: STAGING, confirm: CONFIRM, env: baseEnv, exec }),
+    (err) => err.code === 'FLAG_NOT_ALLOWLISTED',
+  );
+  assert.equal(calls.length, 0, 'nothing may be executed for an unknown flag');
+});
+
+test('SVV-004: the approved flag with an unapproved value is refused', async () => {
+  const { setStagingRuntimeFlag } = await load();
+  const { calls, exec } = recorder();
+  for (const value of ['false', '1', 'TRUE', '', 'yes']) {
+    assert.throws(
+      () => setStagingRuntimeFlag({ key: FLAG, value, projectRef: STAGING, confirm: CONFIRM, env: baseEnv, exec }),
+      (err) => err.code === 'FLAG_VALUE_NOT_ALLOWLISTED',
+      `value ${JSON.stringify(value)} must be refused on this activation path`,
+    );
+  }
+  assert.equal(calls.length, 0);
+});
+
+test('SVV-004: the production project is explicitly rejected', async () => {
+  const { setStagingRuntimeFlag } = await load();
+  const { calls, exec } = recorder();
+  assert.throws(
+    () => setStagingRuntimeFlag({ key: FLAG, value: 'true', projectRef: PRODUCTION, confirm: CONFIRM, env: baseEnv, exec }),
+    (err) => err.code === 'PRODUCTION_TARGET_REJECTED',
+  );
+  assert.equal(calls.length, 0, 'no command may be built for production');
+});
+
+test('SVV-004: an unknown project ref is rejected', async () => {
+  const { setStagingRuntimeFlag } = await load();
+  const { calls, exec } = recorder();
+  assert.throws(() => setStagingRuntimeFlag({
+    key: FLAG, value: 'true', projectRef: 'notaproject', confirm: CONFIRM, env: baseEnv, exec,
+  }));
+  assert.equal(calls.length, 0);
+});
+
+test('SVV-004: missing confirmation is refused', async () => {
+  const { setStagingRuntimeFlag } = await load();
+  const { calls, exec } = recorder();
+  for (const confirm of ['', 'yes', 'set-staging-runtime-flag']) {
+    assert.throws(
+      () => setStagingRuntimeFlag({ key: FLAG, value: 'true', projectRef: STAGING, confirm, env: baseEnv, exec }),
+      (err) => err.code === 'CONFIRMATION_REQUIRED',
+    );
+  }
+  assert.equal(calls.length, 0);
+});
+
+test('SVV-004: missing Supabase authority is refused', async () => {
+  const { setStagingRuntimeFlag } = await load();
+  const { calls, exec } = recorder();
+  assert.throws(
+    () => setStagingRuntimeFlag({ key: FLAG, value: 'true', projectRef: STAGING, confirm: CONFIRM, env: {}, exec }),
+    (err) => err.code === 'MISSING_SUPABASE_AUTHORITY',
+  );
+  assert.equal(calls.length, 0);
+});
+
+test('SVV-004: every KSCAN release-identity key is rejected outright', async () => {
+  const { setStagingRuntimeFlag, RELEASE_METADATA_KEYS } = await load();
+  const { calls, exec } = recorder();
+  assert.ok(RELEASE_METADATA_KEYS.includes('KSCAN_RELEASE_ID'));
+  for (const key of RELEASE_METADATA_KEYS) {
+    assert.throws(
+      () => setStagingRuntimeFlag({ key, value: 'true', projectRef: STAGING, confirm: CONFIRM, env: baseEnv, exec }),
+      (err) => err.code === 'RELEASE_METADATA_KEY_REJECTED',
+      `${key} must never be writable here`,
+    );
+  }
+  assert.equal(calls.length, 0);
+});
+
+test('SVV-004: the allowlist is exactly one key and one value', async () => {
+  const { ALLOWED_FLAGS } = await load();
+  assert.deepEqual(Object.keys(ALLOWED_FLAGS), [FLAG], 'widening requires a reviewed change');
+  assert.deepEqual(ALLOWED_FLAGS[FLAG], ['true']);
+});
+
+test('SVV-004: the token is never an argv element and the value never reaches the command line', async () => {
+  const { setStagingRuntimeFlag } = await load();
+  const { calls, exec } = recorder();
+  setStagingRuntimeFlag({ key: FLAG, value: 'true', projectRef: STAGING, confirm: CONFIRM, env: baseEnv, exec });
+
+  const argv = calls[0].args.join(' ');
+  assert.ok(!argv.includes(baseEnv.SUPABASE_ACCESS_TOKEN), 'token must not be in argv');
+  assert.ok(!argv.includes('sbp_'), 'no token shape in argv');
+  assert.match(argv, /--env-file/, 'the value is delivered through an env file');
+  assert.ok(!/(^|\s)true(\s|$)/.test(argv), 'the value itself must not be an argv element');
+  // The token still reaches the CLI, through the environment only.
+  assert.equal(calls[0].opts.env.SUPABASE_ACCESS_TOKEN, baseEnv.SUPABASE_ACCESS_TOKEN);
+});
+
+test('SVV-004: the ephemeral env file is removed even on failure', async () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const { setStagingRuntimeFlag } = await load();
+  const before = fs.readdirSync(os.tmpdir()).filter((f) => f.startsWith('kscan-runtime-flag-'));
+  const { exec } = recorder(1);
+  assert.throws(
+    () => setStagingRuntimeFlag({ key: FLAG, value: 'true', projectRef: STAGING, confirm: CONFIRM, env: baseEnv, exec }),
+    (err) => err.code === 'FLAG_WRITE_FAILED',
+  );
+  const after = fs.readdirSync(os.tmpdir()).filter((f) => f.startsWith('kscan-runtime-flag-'));
+  assert.deepEqual(after, before, 'no env file may survive a failed write');
+});
+
+test('SVV-004: a failed write reports no token material', async () => {
+  const { setStagingRuntimeFlag } = await load();
+  const exec = () => ({ status: 1, stdout: '', stderr: `boom ${baseEnv.SUPABASE_ACCESS_TOKEN}` });
+  try {
+    setStagingRuntimeFlag({ key: FLAG, value: 'true', projectRef: STAGING, confirm: CONFIRM, env: baseEnv, exec });
+    assert.fail('expected a failure');
+  } catch (err) {
+    const serialized = JSON.stringify({ message: err.message, detail: err.detail });
+    assert.ok(!serialized.includes(baseEnv.SUPABASE_ACCESS_TOKEN), 'the token must be redacted');
+    assert.match(serialized, /\[redacted\]/);
+  }
+});
+
+test('SVV-004: plan-only performs no write', async () => {
+  const { setStagingRuntimeFlag } = await load();
+  const { calls, exec } = recorder();
+  const result = setStagingRuntimeFlag({
+    key: FLAG, value: 'true', projectRef: STAGING, confirm: CONFIRM, env: baseEnv, exec, planOnly: true,
+  });
+  assert.equal(result.written, false);
+  assert.equal(calls.length, 0);
+});

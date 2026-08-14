@@ -188,11 +188,33 @@ test('DR-3 access parser fails closed on malformed payloads', () => {
     currentOwnerId: 'o',
     relationship: 'owner',
     accessVersion: 3,
+    canReact: true,
+    canMessage: true,
+    canReply: true,
   });
   assert.equal(ok.ok, true);
   assert.equal(ok.canReact, true);
+  assert.equal(ok.canMessage, true);
+  assert.equal(ok.canReply, true);
   assert.equal(ok.canUpdateReadState, false);
   assert.equal(ok.accessVersion, 3);
+
+  // Capabilities are the backend's block-aware grant, never assumed. A
+  // payload that withholds them must fail closed rather than default to
+  // allowed: an owner whose only participant is blocked still has ok:true
+  // (room + history preserved) but canMessage:false.
+  const withheld = collab.parseCollaborationAccess({
+    ok: true,
+    roomId: 'r',
+    authenticatedActorId: 'a',
+    currentOwnerId: 'o',
+    relationship: 'owner',
+    accessVersion: 3,
+  });
+  assert.equal(withheld.ok, true);
+  assert.equal(withheld.canMessage, false);
+  assert.equal(withheld.canReact, false);
+  assert.equal(withheld.canReply, false);
 });
 
 test('DR-4 access error classifier recognizes revoke classes', () => {
@@ -209,8 +231,19 @@ test('DR-3 client access failures collapse to one generic message (no existence 
   assert.equal(notFound.ok, false);
   assert.equal(unauthorized.ok, false);
   assert.equal(collab.isCollaborationAccessError(collab.COLLAB_ACCESS_ERROR), true);
-  // Exactly one user-facing string exists for loss of access.
-  assert.equal(collab.COLLAB_ACCESS_ERROR, 'You no longer have access to this room.');
+  // Exactly one user-facing string exists for loss of access. It is also
+  // shown to someone a counterparty blocked, so it must stay neutral: it may
+  // not disclose a block, and may not assert a state change the reader never
+  // had ("you no longer have access" is false for a first-time joiner who was
+  // blocked before joining).
+  assert.equal(collab.COLLAB_ACCESS_ERROR, 'This Dressing Room is no longer available.');
+  assert.doesNotMatch(collab.COLLAB_ACCESS_ERROR, /block/i);
+  assert.doesNotMatch(collab.COLLAB_ACCESS_ERROR, /no longer have access/i);
+  // Historical/persisted strings must still classify as access loss.
+  assert.equal(
+    collab.isCollaborationAccessError('You no longer have access to this room.'),
+    true,
+  );
   assert.doesNotMatch(panel, /not_found/);
 });
 

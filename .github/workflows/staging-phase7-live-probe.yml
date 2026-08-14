@@ -1,0 +1,121 @@
+name: K Scan Staging Phase 7 Live Probe
+
+# Governed Build 29 Phase 7 live probe.
+#
+# The runtime-flag workflow (staging-runtime-flag.yml) proves a write was
+# accepted by Supabase. It does NOT prove the running scan-identify function
+# actually observes SCAN_IDENTIFICATION_RECHECK_ENABLED=true. This workflow
+# closes that gap: it signs in as the existing protected ACTIVE synthetic
+# staging account, sends authenticated image-bearing requests to the real
+# deployed scan-identify function using the existing committed QA fixture
+# pool (assets/qa_fixtures), and inspects the resulting
+# `[scan-identify] identification_recheck_metrics` log line via the Supabase
+# Management API.
+#
+# This is not a general Edge Function invoker. There is no input for a
+# project ref, a URL, or a function name - all three are fixed. The project
+# ref is asserted against security/scripts/lib/environment-authority.js,
+# which never accepts production. See
+# security/release/run-phase7-live-probe.js for the full evidence contract.
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kscan-staging-phase7-live-probe
+  cancel-in-progress: false
+
+jobs:
+  live-probe:
+    name: Phase 7 live probe (staging only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    environment: staging
+    steps:
+      - name: Checkout canonical staging
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: staging/production-parity
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6.0.0
+        with:
+          node-version: '20'
+
+      - name: Confirm environment authority
+        env:
+          SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+        run: |
+          set -euo pipefail
+          node -e "
+            const a = require('./security/scripts/lib/environment-authority.js');
+            a.assertExpectedEnvironment('staging', process.env.SUPABASE_STAGING_PROJECT_REF);
+            console.log('environment authority: staging confirmed');
+          "
+
+      - name: Record candidate identity
+        id: candidate
+        run: |
+          set -euo pipefail
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "tree=$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"
+
+      - name: Run Phase 7 live probe
+        id: probe
+        continue-on-error: true
+        env:
+          # Credentials and tokens reach the runner through the environment
+          # only. They are never an argv element, never echoed, and the
+          # script masks the synthetic access token to stderr the instant it
+          # receives it.
+          SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          SUPABASE_STAGING_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          STAGING_SYNTHETIC_ACTIVE_EMAIL: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_EMAIL }}
+          STAGING_SYNTHETIC_ACTIVE_PASSWORD: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_PASSWORD }}
+        run: |
+          set -uo pipefail
+          node security/release/run-phase7-live-probe.js > phase7-live-probe-raw.json
+          echo "probe_exit=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Assemble sanitized evidence
+        if: always()
+        env:
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.sha }}
+          CANDIDATE_TREE: ${{ steps.candidate.outputs.tree }}
+        run: |
+          set -euo pipefail
+          if [ -s phase7-live-probe-raw.json ]; then
+            node -e "
+              const raw = require('./phase7-live-probe-raw.json');
+              const evidence = {
+                candidate_sha: process.env.CANDIDATE_SHA,
+                candidate_tree: process.env.CANDIDATE_TREE,
+                ...raw,
+              };
+              require('fs').writeFileSync('phase7-live-probe-report.json', JSON.stringify(evidence, null, 2));
+              console.log(JSON.stringify(evidence, null, 2));
+            "
+          else
+            printf '{"candidate_sha":"%s","candidate_tree":"%s","operational_failure":true}\n' \
+              "$CANDIDATE_SHA" "$CANDIDATE_TREE" > phase7-live-probe-report.json
+          fi
+
+      - name: Upload sanitized evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: phase7-live-probe-${{ github.run_id }}
+          path: phase7-live-probe-report.json
+          retention-days: 30
+
+      - name: Fail the job if the probe did not meet its minimum bar
+        if: steps.probe.outcome != 'success'
+        run: |
+          echo "Phase 7 live probe did not meet its minimum bar (flagEnabled/metric/logical-success), or failed operationally. See the uploaded evidence artifact." >&2
+          exit 1

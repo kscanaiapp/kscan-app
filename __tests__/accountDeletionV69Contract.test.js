@@ -258,15 +258,29 @@ test('DELETE-SUBMISSION-DOES-NOT-UNLINK-MEDIA', () => {
 // ── 18. Truthful copy ────────────────────────────────────────────────────────
 
 test('DELETE-SUBMISSION-COPY-IS-NONTERMINAL', () => {
-  assert.match(PRIVACY_SRC, /Your account deletion request was submitted/);
-  assert.match(PRIVACY_SRC, /Your account deletion request is already active/);
+  // IOS-03 moved this copy into services/accountDeletionNotice.ts so the
+  // Privacy Alert and the post-sign-out confirmation cannot drift apart. The
+  // contract is unchanged and asserted at its new home; privacy.tsx is still
+  // checked for terminal wording so it can never reintroduce a purge claim.
+  const NOTICE_SRC = fs.readFileSync(
+    path.join(__dirname, '..', 'services', 'accountDeletionNotice.ts'),
+    'utf8',
+  );
+  assert.match(NOTICE_SRC, /Your account deletion request was received/);
+  assert.match(NOTICE_SRC, /Your account deletion request is already active/);
   // Must never claim permanent deletion or full local removal.
-  assert.doesNotMatch(PRIVACY_SRC, /permanently deleted/i);
-  assert.doesNotMatch(PRIVACY_SRC, /account was deleted/i);
-  assert.doesNotMatch(PRIVACY_SRC, /all local data (was|has been) removed/i);
-  assert.doesNotMatch(PRIVACY_SRC, /all device data/i);
+  for (const src of [NOTICE_SRC, PRIVACY_SRC]) {
+    assert.doesNotMatch(src, /permanently deleted/i);
+    assert.doesNotMatch(src, /account was deleted/i);
+    assert.doesNotMatch(src, /all local data (was|has been) removed/i);
+    assert.doesNotMatch(src, /all device data/i);
+  }
   // Restorability is surfaced.
-  assert.match(PRIVACY_SRC, /can be restored/i);
+  assert.match(NOTICE_SRC, /can (be|still be) restored/i);
+  // And the restoration route offered must be one the backend actually
+  // provides: no restoration email is sent when a request is accepted, so the
+  // copy may not tell the user to look for one.
+  assert.doesNotMatch(NOTICE_SRC, /email we sent/i);
 });
 
 // ── 19. Duplicate submission ─────────────────────────────────────────────────

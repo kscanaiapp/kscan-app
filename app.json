@@ -59,7 +59,7 @@
                              ],
                  "android":  {
                                  "package":  "com.kscanai.app",
-                                 "versionCode": 23,
+                                 "versionCode": 29,
                                  "edgeToEdgeEnabled": true,
                                  "softwareKeyboardLayoutMode":  "resize",
                                  "permissions":  [
@@ -106,13 +106,28 @@
                                                                             "BROWSABLE",
                                                                             "DEFAULT"
                                                                         ]
+                                                       },
+                                                       {
+                                                           "action":  "VIEW",
+                                                           "autoVerify":  true,
+                                                           "data":  [
+                                                                        {
+                                                                            "scheme":  "https",
+                                                                            "host":  "kscan.app",
+                                                                            "pathPrefix":  "/account/restore"
+                                                                        }
+                                                                    ],
+                                                           "category":  [
+                                                                            "BROWSABLE",
+                                                                            "DEFAULT"
+                                                                        ]
                                                        }
                                                    ]
                              },
                  "ios":  {
                              "bundleIdentifier":  "com.kscanai.app",
                              "icon": "./assets/images/kscan-ios-icon.png",
-                             "buildNumber": "23",
+                             "buildNumber": "29",
                              "associatedDomains":  [
                                                        "applinks:kscan.app"
                                                    ],

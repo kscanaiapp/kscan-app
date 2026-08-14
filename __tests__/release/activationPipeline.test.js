@@ -230,7 +230,7 @@ test('orchestrator: EXECUTE is refused outside the governed CI path', async () =
 test('orchestrator: the production project is rejected before any work', async () => {
   const { runBootstrapActivation } = await load('security/release/run-bootstrap-activation.mjs');
   await assert.rejects(
-    () => runBootstrapActivation({ repoRoot: REPO_ROOT, projectRef: PRODUCTION_REF, liveFunctionNames: [], liveMigrationNames: [] }),
+    () => runBootstrapActivation({ repoRoot: REPO_ROOT, projectRef: PRODUCTION_REF, liveFunctionNames: [], liveMigrationVersions: [] }),
     (e) => e.code === 'PRODUCTION_TARGET_REJECTED',
   );
 });
@@ -244,7 +244,7 @@ test('orchestrator: PLAN_ONLY performs zero writes', async () => {
     repoRoot: REPO_ROOT,
     mode: MODE.PLAN_ONLY,
     liveFunctionNames: live,
-    liveMigrationNames: m.migrations.map((x) => x.name),
+    liveMigrationVersions: m.migrations.map((x) => x.version),
     deps: {
       deployFn: () => { throw new Error('PLAN_ONLY must not deploy'); },
       setMetadata: (o) => { assert.equal(o.planOnly, true, 'PLAN_ONLY must only plan metadata'); return { plan: { keys: [] } }; },
@@ -264,7 +264,7 @@ test('orchestrator: a prior baseline prevents bootstrap', async () => {
   const result = await runBootstrapActivation({
     repoRoot: REPO_ROOT,
     liveFunctionNames: m.edgeFunctions.map((f) => f.name),
-    liveMigrationNames: m.migrations.map((x) => x.name),
+    liveMigrationVersions: m.migrations.map((x) => x.version),
     priorVerifiedRelease: { baseline: {}, evidence: {} },
   });
   assert.equal(result.ok, false);
@@ -276,7 +276,7 @@ test('orchestrator: a missing governed live function prevents bootstrap', async 
   const m = manifest();
   const live = m.edgeFunctions.map((f) => f.name).filter((n) => n !== 'staging-health');
   const result = await runBootstrapActivation({
-    repoRoot: REPO_ROOT, liveFunctionNames: live, liveMigrationNames: m.migrations.map((x) => x.name),
+    repoRoot: REPO_ROOT, liveFunctionNames: live, liveMigrationVersions: m.migrations.map((x) => x.version),
   });
   assert.equal(result.ok, false);
   assert.equal(result.code, 'BOOTSTRAP_LIVE_INVENTORY_RECONCILIATION_REQUIRED');
@@ -288,7 +288,7 @@ test('orchestrator: unsatisfied migration state blocks before deployment', async
   const result = await runBootstrapActivation({
     repoRoot: REPO_ROOT,
     liveFunctionNames: m.edgeFunctions.map((f) => f.name),
-    liveMigrationNames: [], // nothing applied
+    liveMigrationVersions: [], // nothing applied
     deps: { deployFn: () => { throw new Error('must not deploy'); } },
   });
   assert.equal(result.ok, false);
@@ -427,7 +427,7 @@ test('security: the plan can never contain quarantined or heritage components', 
   const result = await runBootstrapActivation({
     repoRoot: REPO_ROOT, mode: MODE.PLAN_ONLY,
     liveFunctionNames: live,
-    liveMigrationNames: m.migrations.map((x) => x.name),
+    liveMigrationVersions: m.migrations.map((x) => x.version),
     deps: { setMetadata: () => ({ plan: { keys: [] } }) },
   });
   assert.equal(result.ok, true, JSON.stringify(result.steps));

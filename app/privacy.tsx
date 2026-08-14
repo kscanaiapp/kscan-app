@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -41,6 +41,16 @@ import { supabase } from '../services/supabaseClient';
 import { LOCAL_PRIVACY_STORAGE_KEY } from '../services/privacyLocalStore';
 import { hasPendingDeletionProfile } from '../services/routingGuard';
 import { SignatureStyleSettingsSection } from '../components/style-chat/SignatureStyleSettingsSection';
+import {
+  listDressingRoomBlockedUsers,
+  unblockDressingRoomUser,
+  type DressingRoomBlockedUser,
+} from '../services/dressingRoomBlocks';
+import { createSingleFlight } from '../services/singleFlight';
+import {
+  buildAccountDeletionNoticeMessage,
+  setAccountDeletionNotice,
+} from '../services/accountDeletionNotice';
 
 const PRIVACY_COPY = {
   saleRemote:
@@ -171,6 +181,67 @@ function DataRequestCard({
   );
 }
 
+interface BlockedUsersCardProps {
+  loading: boolean;
+  error: string | null;
+  blockedUsers: DressingRoomBlockedUser[];
+  unblockingId: string | null;
+  onUnblock: (blockedUserId: string) => void;
+  onRetry: () => void;
+}
+
+function BlockedUsersCard({
+  loading,
+  error,
+  blockedUsers,
+  unblockingId,
+  onUnblock,
+  onRetry,
+}: BlockedUsersCardProps) {
+  return (
+    <View style={styles.dataCard}>
+      <SectionHeader
+        title="Blocked Users"
+        subtitle="Accounts you've blocked in Dressing Rooms"
+      />
+      {loading ? (
+        <ActivityIndicator size="small" color={LUXURY.colors.plum} />
+      ) : error ? (
+        <View>
+          <Text style={styles.blockedUsersError}>{error}</Text>
+          {/* Without this the list could only recover by leaving the screen:
+              it reloads on auth change only, and there is no pull-to-refresh. */}
+          <SecondaryButton
+            title="Retry"
+            onPress={onRetry}
+            accessibilityLabel="Retry loading blocked users"
+            accessibilityHint="Try loading your blocked users again"
+            testID="privacy-blocked-users-retry"
+          />
+        </View>
+      ) : blockedUsers.length === 0 ? (
+        <Text style={styles.blockedUsersEmpty}>You haven't blocked anyone.</Text>
+      ) : (
+        <View style={styles.blockedUsersList}>
+          {blockedUsers.map((entry) => (
+            <View key={entry.blockedUserId} style={styles.blockedUsersRow}>
+              <Text style={styles.blockedUsersLabel}>Blocked User</Text>
+              <SecondaryButton
+                title={unblockingId === entry.blockedUserId ? 'Unblocking…' : 'Unblock'}
+                onPress={() => onUnblock(entry.blockedUserId)}
+                disabled={unblockingId === entry.blockedUserId}
+                accessibilityLabel="Unblock user"
+                accessibilityHint="Removes this account from your blocked list"
+                testID={`privacy-unblock-${entry.blockedUserId}`}
+              />
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
 interface AccountDeletionCardProps {
   pending: boolean;
   disabled: boolean;
@@ -220,6 +291,14 @@ export default function PrivacyScreen() {
   const [deletionSubmitting, setDeletionSubmitting] = useState(false);
   const [deletionPending, setDeletionPending] = useState(false);
   const [deletionConfirmVisible, setDeletionConfirmVisible] = useState(false);
+  const [blockedUsers, setBlockedUsers] = useState<DressingRoomBlockedUser[]>([]);
+  const [blockedUsersLoading, setBlockedUsersLoading] = useState(false);
+  const [blockedUsersError, setBlockedUsersError] = useState<string | null>(null);
+  const [unblockingId, setUnblockingId] = useState<string | null>(null);
+  // Single-flight guard for the unblock RPC only — taken immediately before
+  // the await, released in `finally`. Never held while the confirmation
+  // dialog is merely visible (same iOS dead-latch contract as Report User).
+  const unblockFlightRef = useRef(createSingleFlight());
 
   const saleSharingLocked = !canToggleSaleSharing(normalized.age_group);
   const accountDeletionPending = hasPendingDeletionProfile(profile);
@@ -237,6 +316,59 @@ export default function PrivacyScreen() {
 
   const syncChipLabel = SYNC_STATUS_LABELS[syncStatus] ?? syncStatus;
   const syncChipVariant = SYNC_STATUS_VARIANTS[syncStatus] ?? 'neutral';
+
+  const loadBlockedUsers = useCallback(async () => {
+    if (!isAuthenticated) {
+      setBlockedUsers([]);
+      return;
+    }
+    setBlockedUsersLoading(true);
+    setBlockedUsersError(null);
+    try {
+      const rows = await listDressingRoomBlockedUsers();
+      setBlockedUsers(rows);
+    } catch (err: any) {
+      setBlockedUsersError(
+        typeof err?.message === 'string' ? err.message : "We couldn't load your blocked users.",
+      );
+    } finally {
+      setBlockedUsersLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    void loadBlockedUsers();
+  }, [loadBlockedUsers]);
+
+  const handleUnblock = useCallback((blockedUserId: string) => {
+    Alert.alert(
+      'Unblock this user?',
+      'You will not automatically regain any prior shared Dressing Room access.',
+      [
+        // Nothing is latched here, so cancelling (or any iOS dismissal that
+        // never invokes a button) can never leave Unblock permanently dead.
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Unblock',
+          onPress: () => {
+            void unblockFlightRef.current.run(async () => {
+              setUnblockingId(blockedUserId);
+              try {
+                await unblockDressingRoomUser(blockedUserId);
+                setBlockedUsers((current) =>
+                  current.filter((entry) => entry.blockedUserId !== blockedUserId),
+                );
+              } catch {
+                Alert.alert("We couldn't unblock that user. Please try again.");
+              } finally {
+                setUnblockingId(null);
+              }
+            });
+          },
+        },
+      ],
+    );
+  }, []);
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Your privacy preferences will continue to be stored on this device.', [
@@ -265,8 +397,19 @@ export default function PrivacyScreen() {
   };
 
   const confirmDeletion = async () => {
-    setDeletionConfirmVisible(false);
+    // Single-flight the submission itself. `disabled` alone is not enough: a
+    // rapid double-tap in the same frame, before React re-renders the button,
+    // would otherwise submit twice.
+    if (deletionSubmitting) return;
     setDeletionSubmitting(true);
+    // Dismiss the confirmation Modal BEFORE the await, not after. On iOS an
+    // Alert presented in the same commit that dismisses an RN Modal can be
+    // swallowed with the modal's view controller — the user would then never
+    // see the confirmation, which is the exact IOS-03 symptom. Letting the
+    // network round-trip elapse guarantees the modal is fully gone first.
+    // Duplicate submissions are prevented by the guard above, not by the
+    // button unmounting, so dismissing early costs nothing.
+    setDeletionConfirmVisible(false);
     try {
       // The service normalizer owns the backend field names. `accepted` means an
       // active deletion lifecycle exists — NOT that the account was purged. No
@@ -274,23 +417,31 @@ export default function PrivacyScreen() {
       // later, restorable-window-gated step.
       const result = await submitAccountDeletionRequest(supabase, session);
       setDeletionPending(true);
-      const confirmationMessage = result.alreadyRequested
-        ? 'Your account deletion request is already active. You have been signed out.'
-        : 'Your account deletion request was submitted. You have been signed out.';
+
+      // Copy is built from the single accuracy-owning helper so the Privacy
+      // Alert and the post-sign-out confirmation can never drift apart, and so
+      // neither can invent a grace-period date the backend did not supply.
+      // `restorationEmailQueued` is forwarded verbatim (including null) so the
+      // helper can distinguish "email sent", "email failed — offer resend", and
+      // "no email claim to make".
+      const notice = {
+        alreadyRequested: result.alreadyRequested === true,
+        gracePeriodEndsAt: result.gracePeriodEndsAt ?? null,
+        restorationEmailQueued: result.restorationEmailQueued ?? null,
+      };
+      const confirmationMessage = buildAccountDeletionNoticeMessage(notice);
       setMessage(confirmationMessage);
 
-      // Grace-window copy is appended only when the backend supplied a valid
-      // timestamp. Deletion is restorable until then, so this must never read
-      // as permanent removal.
-      const graceCopy = result.gracePeriodEndsAt
-        ? ` Your account can be restored using the email we sent, until ${new Date(
-            result.gracePeriodEndsAt,
-          ).toLocaleDateString()}.`
-        : ' Your account can be restored using the email we sent, during the grace period.';
+      // Hand the confirmation across the sign-out transition. Acknowledging the
+      // Alert below signs the user out and replaces the route with /auth, which
+      // destroys this screen and every trace of the confirmation; the auth
+      // screen shows it once so the user lands with proof the request was
+      // accepted. Set only after proven acceptance.
+      setAccountDeletionNotice(notice);
 
       Alert.alert(
         'Account deletion request',
-        `${confirmationMessage}${graceCopy}`,
+        confirmationMessage,
         [
           {
             text: 'OK',
@@ -310,6 +461,8 @@ export default function PrivacyScreen() {
         { cancelable: false }
       );
     } catch (error) {
+      // No notice is set and no sign-out happens: a failed request must never
+      // read as accepted, and the user stays put so they can retry.
       console.error('Account deletion request failed', error);
       setMessage("We couldn't submit your request right now. Please try again later.");
       setDeletionSubmitting(false);
@@ -553,6 +706,19 @@ export default function PrivacyScreen() {
               onCorrection={handleCorrection}
             />
 
+            {isAuthenticated ? (
+              <BlockedUsersCard
+                loading={blockedUsersLoading}
+                error={blockedUsersError}
+                blockedUsers={blockedUsers}
+                unblockingId={unblockingId}
+                onUnblock={handleUnblock}
+                onRetry={() => {
+                  void loadBlockedUsers();
+                }}
+              />
+            ) : null}
+
             <AccountDeletionCard
               pending={deletionPending || accountDeletionPending}
               disabled={!isAuthenticated || saving || deletionSubmitting || deletionPending || accountDeletionPending}
@@ -726,6 +892,31 @@ const styles = StyleSheet.create({
   },
   correctionButton: {
     width: '100%',
+  },
+  blockedUsersList: {
+    gap: SPACING.sm,
+  },
+  blockedUsersRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: SPACING.sm,
+  },
+  blockedUsersLabel: {
+    ...LUXURY.typography.body,
+    fontSize: 13,
+    color: LUXURY.colors.graphite,
+  },
+  blockedUsersEmpty: {
+    ...LUXURY.typography.body,
+    fontSize: 13,
+    color: LUXURY.colors.stone,
+  },
+  blockedUsersError: {
+    ...LUXURY.typography.body,
+    fontSize: 13,
+    color: LUXURY.colors.error,
+    marginBottom: SPACING.sm,
   },
   correctionBox: {
     gap: SPACING.sm,

@@ -4,6 +4,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { loadPolicy } = require('./native-ui-automation-policy.js');
+const { certificationEvidenceFailures } = require('./lib/certification-authority.js');
 
 const PASSING = new Set(['PASS', 'PASS_WITH_REPORT_ONLY_FINDINGS']);
 
@@ -12,21 +13,11 @@ function validatePromotion(certification, observed, options = {}) {
   const reasons = [];
   const runtime = certification.release_class === 'RUNTIME_RELEASE';
   if (observed.release_decision !== 'APPROVE') reasons.push('RELEASE_DECISION_NOT_APPROVE');
-  if (observed.certification_workflow !== 'Staging Release Certification') reasons.push('CERTIFICATION_WORKFLOW_MISMATCH');
-  if (!['push', 'workflow_dispatch'].includes(observed.certification_event)) reasons.push('CERTIFICATION_EVENT_NOT_AUTHORITATIVE');
-  if (observed.certification_head_branch !== 'staging/production-parity') reasons.push('CERTIFICATION_BRANCH_MISMATCH');
-  if (observed.certification_head_sha !== observed.candidate_sha) reasons.push('CERTIFICATION_RUN_SHA_MISMATCH');
-  if (observed.certification_status !== 'completed') reasons.push('CERTIFICATION_RUN_NOT_COMPLETED');
-  if (String(certification.certification_run_id) !== String(observed.certification_run_id)) reasons.push('CERTIFICATION_RUN_ID_MISMATCH');
-  if (certification.candidate_commit_sha !== observed.candidate_sha) reasons.push('CANDIDATE_SHA_MISMATCH');
-  if (certification.candidate_tree_sha !== observed.candidate_tree_sha) reasons.push('CANDIDATE_TREE_MISMATCH');
+  // DEF-B29-SVV-013B: the certification-evidence checks are shared with the
+  // bootstrap activation path, so they live in one authority rather than
+  // being restated per consumer. Promotion-specific constraints stay here.
+  reasons.push(...certificationEvidenceFailures(certification, observed));
   if (observed.branch_tree_sha !== certification.candidate_tree_sha) reasons.push('PROMOTION_BRANCH_TREE_MISMATCH');
-  if (observed.staging_head_sha !== certification.candidate_commit_sha) reasons.push('STALE_CANDIDATE');
-  if (!PASSING.has(certification.final_verdict)) reasons.push('CERTIFICATION_NOT_PASSING');
-  if (certification.promotion_eligible !== true) reasons.push('PROMOTION_NOT_ELIGIBLE');
-  if ((certification.blocking_findings || []).length) reasons.push('BLOCKING_FINDINGS_PRESENT');
-  if ((certification.operational_failures || []).length) reasons.push('OPERATIONAL_FAILURES_PRESENT');
-  if (certification.quarantine_policy !== 'PASS') reasons.push('QUARANTINE_POLICY_NOT_PASSING');
   // Native UI automation is enforced only while policy requires it. Suspending
   // it removes the requirement; it does not turn absent evidence into a pass.
   // Every other promotion control above and below is untouched.

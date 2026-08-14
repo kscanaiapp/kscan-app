@@ -271,7 +271,7 @@ test('DEF-REL-015: PLAN_ONLY writes the plan artifacts to --output-dir', async (
   await runBootstrapActivation({
     repoRoot: REPO_ROOT, mode: MODE.PLAN_ONLY,
     liveFunctionNames: manifest.edgeFunctions.map((f) => f.name),
-    liveMigrationNames: manifest.migrations.map((m) => m.name),
+    liveMigrationVersions: manifest.migrations.map((m) => m.version),
     outputDir: out,
     deps: { setMetadata: () => ({ plan: { keys: [] } }) },
   });

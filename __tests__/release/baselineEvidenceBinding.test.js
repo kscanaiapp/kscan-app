@@ -91,7 +91,7 @@ function fullAttestationRun({ deployAll = true } = {}) {
       manifestDigest: frozen.identityDigest,
       healthContractVersion: m.healthContractVersion,
     },
-    liveMigrationNames: m.migrations.map((x) => x.name),
+    liveMigrationVersions: m.migrations.map((x) => x.version),
     expectedEnvironment: 'staging',
     observedProjectRef: STAGING_REF,
     previousRelease: null,

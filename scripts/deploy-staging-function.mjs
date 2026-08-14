@@ -160,16 +160,26 @@ async function main() {
 
   // Preflight (skip remote if SKIP_PREFLIGHT_REMOTE=true for unit tests)
   if (process.env.SKIP_STAGING_PREFLIGHT !== 'true') {
-    execFileSync(process.execPath, [
-      path.join('scripts', 'staging-deploy-preflight.mjs'),
-      '--json',
-      '--allow-dirty',
-      ...(process.env.SKIP_PREFLIGHT_REMOTE === 'true' ? ['--skip-remote'] : []),
-    ], {
-      encoding: 'utf8',
-      env: { ...process.env, DEPLOY_FUNCTIONS: fnName },
-      stdio: 'inherit',
-    });
+    // DEF-B29-SVV-011: preflight runs with --json and would otherwise inherit
+    // this process's stdout, putting a SECOND JSON document in front of the
+    // receipt. Capture it and re-emit on stderr so the log keeps the report
+    // while stdout stays a single document.
+    try {
+      const preflightReport = execFileSync(process.execPath, [
+        path.join('scripts', 'staging-deploy-preflight.mjs'),
+        '--json',
+        '--allow-dirty',
+        ...(process.env.SKIP_PREFLIGHT_REMOTE === 'true' ? ['--skip-remote'] : []),
+      ], {
+        encoding: 'utf8',
+        env: { ...process.env, DEPLOY_FUNCTIONS: fnName },
+        stdio: ['ignore', 'pipe', 'inherit'],
+      });
+      if (preflightReport) console.error(preflightReport.trimEnd());
+    } catch (err) {
+      if (err.stdout) console.error(String(err.stdout).trimEnd());
+      fail(`Staging preflight failed: ${err.message}`);
+    }
   }
 
   const sourceHash = functionSourceHash(fnName);
@@ -204,7 +214,15 @@ async function main() {
     debug: true,
   });
 
-  console.log(JSON.stringify({
+  // DEF-B29-SVV-011: stdout carries EXACTLY ONE JSON document -- the deploy
+  // receipt emitted at the end of this function. The controlled deploy
+  // workflow tees stdout into deploy-result.json and reads it with a
+  // single-document loader (`json.load`), so a second document here made a
+  // SUCCESSFUL deploy report failure ("Extra data: line 31 column 1") and
+  // skipped health and synthetic verification. This pre-deploy block is
+  // progress diagnostics, not the receipt, so it belongs on stderr, where the
+  // Actions log still shows it.
+  console.error(JSON.stringify({
     phase: 'deploy',
     target: identity.projectRef,
     function: fnName,
@@ -253,11 +271,14 @@ async function main() {
   if (!health.ok) {
     console.error('Post-deploy health check failed — invoking rollback');
     try {
-      execFileSync(process.execPath, [
+      const rollbackOutput = execFileSync(process.execPath, [
         path.join('scripts', 'rollback-staging-function.mjs'),
         '--manifest',
         manifestPath,
-      ], { encoding: 'utf8', stdio: 'inherit', env: process.env });
+      ], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], env: process.env });
+      // Same single-document contract: the rollback runs after the receipt has
+      // already been written to stdout.
+      if (rollbackOutput) console.error(String(rollbackOutput).trimEnd());
     } catch {
       fail('Health failed and rollback also failed');
     }
