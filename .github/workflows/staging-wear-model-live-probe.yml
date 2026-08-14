@@ -1,0 +1,142 @@
+name: K Scan Staging Wear Model Live Probe
+
+# Governed Build 29 Closet V2 wear-history (S5) live probe.
+#
+# S7A certified the S5 wear model against a from-zero local database and left
+# every staging runtime gate NOT TESTED. The reason was not technical doubt: the
+# only legitimate staging identities are the pre-provisioned synthetic accounts
+# whose credentials exist solely as GitHub secrets, which a local session cannot
+# and should not read. This workflow is where that evidence can legitimately be
+# produced.
+#
+# It signs in as the existing protected ACTIVE synthetic staging account, drives
+# the REAL services/wearHistory.ts through that account's own authenticated
+# session, and proves the wear model end to end under live RLS: item wear,
+# outfit wear, idempotency, Saved Look != worn, and the DEF-S5-001 closure gate
+# (deleting a worn Saved Look must succeed while its wear history survives).
+#
+# This is not a general Edge Function invoker or a Supabase mutation tool. There
+# is no input for a project ref, a URL, a table or a statement. The ref is
+# asserted against security/scripts/lib/environment-authority.js, which never
+# accepts production, and the probe refuses to create Auth users against any
+# hosted project. See security/release/run-wear-model-live-probe.js for the full
+# evidence contract: no JWT, email, password or credential ever reaches the
+# artifact, which carries booleans, counts and fixture ids only.
+#
+# Every fixture is tagged `s7a_fixture` with a per-run id and removed through the
+# owning account's own session; the report states whether the account returned
+# to its pre-run baseline.
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kscan-staging-wear-model-live-probe
+  cancel-in-progress: false
+
+jobs:
+  live-probe:
+    name: Wear model live probe (staging only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    environment: staging
+    steps:
+      # No `ref:` — this certifies the candidate the dispatch targeted, which is
+      # the whole point of running it. A pinned branch would certify something
+      # other than the tree under test.
+      - name: Checkout dispatched candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6.0.0
+        with:
+          node-version: '20'
+
+      - name: Confirm environment authority
+        env:
+          SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+        run: |
+          set -euo pipefail
+          node -e "
+            const a = require('./security/scripts/lib/environment-authority.js');
+            a.assertExpectedEnvironment('staging', process.env.SUPABASE_STAGING_PROJECT_REF);
+            console.log('environment authority: staging confirmed');
+          "
+
+      - name: Install probe dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Record candidate identity
+        id: candidate
+        run: |
+          set -euo pipefail
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "tree=$(git rev-parse HEAD^{tree})" >> "$GITHUB_OUTPUT"
+
+      - name: Run wear model live probe
+        id: probe
+        continue-on-error: true
+        env:
+          # Credentials reach the runner through the environment only. They are
+          # never an argv element and are never echoed; the probe logs progress
+          # to stderr and writes only sanitized JSON to stdout.
+          SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          SUPABASE_STAGING_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
+          # A must be the ACTIVE account: `looks` and `saved_scans` both carry an
+          # account-status guard, so a pending/locked identity cannot create the
+          # fixtures the probe needs.
+          KSCAN_WEAR_PROBE_EMAIL_A: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_EMAIL }}
+          KSCAN_WEAR_PROBE_PASSWORD_A: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_PASSWORD }}
+          # B exists only to prove it CANNOT reach A's rows. The wear tables carry
+          # no account-status guard, so the pending account is a legitimate second
+          # identity for that assertion. If it cannot sign in, the probe reports
+          # RLS_RUNTIME_CROSS_USER as NOT TESTED rather than inventing a pass.
+          KSCAN_WEAR_PROBE_EMAIL_B: ${{ secrets.STAGING_SYNTHETIC_PENDING_EMAIL }}
+          KSCAN_WEAR_PROBE_PASSWORD_B: ${{ secrets.STAGING_SYNTHETIC_PENDING_PASSWORD }}
+          KSCAN_WEAR_PROBE_RUN_ID: s7b${{ github.run_id }}
+        run: |
+          set -uo pipefail
+          node security/release/run-wear-model-live-probe.js > wear-model-live-probe-raw.json
+          echo "probe_exit=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Assemble sanitized evidence
+        if: always()
+        env:
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.sha }}
+          CANDIDATE_TREE: ${{ steps.candidate.outputs.tree }}
+        run: |
+          set -euo pipefail
+          if [ -s wear-model-live-probe-raw.json ]; then
+            node -e "
+              const raw = require('./wear-model-live-probe-raw.json');
+              const evidence = {
+                candidate_sha: process.env.CANDIDATE_SHA,
+                candidate_tree: process.env.CANDIDATE_TREE,
+                ...raw,
+              };
+              require('fs').writeFileSync('wear-model-live-probe-report.json', JSON.stringify(evidence, null, 2));
+              console.log(JSON.stringify(evidence, null, 2));
+            "
+          else
+            printf '{"candidate_sha":"%s","candidate_tree":"%s","operational_failure":true}\n' \
+              "$CANDIDATE_SHA" "$CANDIDATE_TREE" > wear-model-live-probe-report.json
+          fi
+
+      - name: Upload sanitized evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wear-model-live-probe-${{ github.run_id }}
+          path: wear-model-live-probe-report.json
+          retention-days: 30
+
+      - name: Fail the job if the wear model did not verify
+        if: steps.probe.outcome != 'success'
+        run: |
+          echo "Wear model live probe did not reach WEAR_MODEL_RUNTIME_VERIFICATION=PASS, or failed operationally. See the uploaded evidence artifact." >&2
+          exit 1
