@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { execFileSync } = require('node:child_process');
 const ts = require('typescript');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -183,9 +184,15 @@ test('motion and voice remain independently controllable', () => {
 });
 
 test('no backend, auth, routing, database, commerce, or scanner behavior is touched', () => {
-  const changed = fs
-    .readFileSync(path.join(ROOT, '.git', 'HEAD'), 'utf8')
-    .trim();
+  // Resolve HEAD through Git rather than reading .git/HEAD directly: in a
+  // linked worktree `.git` is a FILE containing a gitdir pointer, not a
+  // directory, so the direct path only exists in a normal clone layout. Asking
+  // Git works in both layouts and proves repository readability at least as
+  // strongly as reading the file did.
+  const changed = execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+  }).trim();
   assert.ok(changed.length > 0, 'repository is readable');
   // Structural guarantee: no motion module imports Supabase, routing, or
   // commerce/scanner surfaces.
