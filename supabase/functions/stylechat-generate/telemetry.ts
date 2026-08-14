@@ -52,6 +52,9 @@ const ALLOWED_KEYS = new Set([
   'quotaReservationOutcome',
   'generationLatencyMs',
   'providerLatencyMs',
+  // Which model served the reply: 'model' names it, this says whether the
+  // approved secondary had to be used. Boolean only -- no provider prose.
+  'usedFallbackModel',
   'outputValidationOutcome',
   'persistenceOutcome',
   'staleResponseOutcome',

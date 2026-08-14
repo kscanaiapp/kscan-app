@@ -68,3 +68,40 @@ export function isRetryableFailureClass(
     failureClass === 'UNKNOWN_PROVIDER_ERROR'
   );
 }
+
+/**
+ * Model fallback eligibility.
+ *
+ * WHY THIS EXISTS: the approved fallback model was resolved into config
+ * (`fallbackModelName`) and asserted by eliseConfig.test.ts, but nothing ever
+ * read it — every attempt, including the same-model provider retry, reused the
+ * primary. An eligible primary failure therefore went straight to the canned
+ * error text while the approved secondary sat unused. This predicate is the
+ * missing half of that contract.
+ *
+ * It is deliberately NOT the same question as `shouldRetryTextProviderError`:
+ * that asks "is another attempt against THIS model worth it", which is false
+ * for a retired or unavailable model id. Switching models is exactly what
+ * rescues MODEL_NOT_AVAILABLE, so it is eligible here and not there.
+ *
+ * Excluded, because a second model cannot change the outcome and would only
+ * burn the remaining request budget:
+ *   AUTHENTICATION_FAILURE - same API key, same rejection.
+ *   INVALID_REQUEST        - same request body, same rejection.
+ * Non-provider classes (session/operation lifecycle) are excluded because they
+ * never represent a provider call that could be retried at all.
+ */
+export function shouldFallbackToSecondaryModel(
+  failureClass: EliseProviderFailureClass,
+): boolean {
+  return (
+    failureClass === 'PROVIDER_TIMEOUT' ||
+    failureClass === 'NETWORK_FAILURE' ||
+    failureClass === 'RATE_LIMIT' ||
+    failureClass === 'PROVIDER_BUSY' ||
+    failureClass === 'MODEL_NOT_AVAILABLE' ||
+    failureClass === 'EMPTY_RESPONSE' ||
+    failureClass === 'MALFORMED_RESPONSE' ||
+    failureClass === 'UNKNOWN_PROVIDER_ERROR'
+  );
+}

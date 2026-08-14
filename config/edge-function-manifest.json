@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-14T05:46:02.593Z",
-    "generatedFromGitSha": "38869996a44054df572136cedc1541a40e3238cb"
+    "generatedAtUtc": "2026-08-14T06:06:19.431Z",
+    "generatedFromGitSha": "d30729bb76e71e1eb78c9ff3f71b76afd7ab87d3"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v2",
@@ -30,7 +30,7 @@
         "bundleFileCount": 39,
         "treeFileCount": 51,
         "bundleHash": "f282cb29376935c6a659c714855fd5c01a9133bea0071d96664de55703c89476",
-        "treeHash": "0bba4ad6202f036b43ee6169fc40024e69d0bf86f90c168b7b796f6b4f4b12d7",
+        "treeHash": "933b3efb2390e29f15a7733e9c04ae038aa54cba451aab34358f0c41bc80d995",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -189,7 +189,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
-            "sha256": "076a74ea2c1ad4199e4ddb78c01f5cfdee130517ab23fb2183bda9095076a6bf",
+            "sha256": "f8f7c2e9f5778c2297cd1a6611a26db6cef2db5c7c0590c7118ee952042f6feb",
             "bundle": false
           },
           {
@@ -297,9 +297,9 @@
           "npm:@supabase/supabase-js@2.105.4"
         ],
         "bundleFileCount": 35,
-        "treeFileCount": 50,
-        "bundleHash": "9db34b76fb3c3cf12806951eab533d724d2f265f27853338b7de59e915c1e458",
-        "treeHash": "325463c26771630e67b663aa25a484bd38e83b088af66123a7de72cafa0591c1",
+        "treeFileCount": 51,
+        "bundleHash": "2212cdfb3f0a71c35dc26cfef5190d1931cd5ec3e9d99c646bdc9010fd71a72e",
+        "treeHash": "50988b7e1ab5b8715d0363c0253924b75163f1a6292140f21a576f68fd1f28dd",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -437,13 +437,18 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/stylechat-generate/eliseModelFallback.test.ts",
+            "sha256": "f3416a7802a2413731063b06f4cbad3444115bb953d3862679e400ebe1234f34",
+            "bundle": false
+          },
+          {
             "path": "supabase/functions/stylechat-generate/eliseOutputValidation.ts",
             "sha256": "e985325cc8968b83c6dc4e6140e91556f730b69ffb5d5b3d33aa135fa635d79f",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseProviderRetry.ts",
-            "sha256": "ecca73c3f270e3932aa54ff3765715bbb0d26a2290643801ec65b23b50fcd61e",
+            "sha256": "38ce89300b742a4f61eb4dba6db2bacc806d45ac49c81ef06c9882ec24a21e34",
             "bundle": true
           },
           {
@@ -513,7 +518,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/index.ts",
-            "sha256": "bf93dd93d425cff3eb4058b0141dd1e48b5fdccb3eb9690217dafbca4cfb4da2",
+            "sha256": "c93ee4ebf17256d3372088d8dc78acdc1b755f2a0d345634d70d321bf63b7948",
             "bundle": true
           },
           {
@@ -538,7 +543,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/telemetry.ts",
-            "sha256": "852113bea6bd6db4578f3fc1b34b42ac362c4577e15e180004d6072ee06a251d",
+            "sha256": "8e3898c7b101dc08df94b82745eeca2453d8f755abb80000f7a89115e663b180",
             "bundle": true
           },
           {

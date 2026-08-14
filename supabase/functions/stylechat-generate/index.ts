@@ -41,6 +41,7 @@ import {
 import {
   classifyTextProviderError,
   isRetryableFailureClass,
+  shouldFallbackToSecondaryModel,
   shouldRetryTextProviderError,
 } from './eliseProviderRetry.ts';
 import { validateEliseGenerationOutput } from './eliseOutputValidation.ts';
@@ -2159,6 +2160,20 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
 
   const geminiUrl    = buildGeminiUrl(modelName, geminiKey);
 
+  // Approved secondary. Allowlist-validated in eliseConfig (never client-selected).
+  // Null when it resolves to the primary, so the fallback attempt is skipped
+  // rather than pointlessly repeating the same model against the same key.
+  const fallbackModelName = config.fallbackModelName !== modelName
+    ? config.fallbackModelName
+    : null;
+  const fallbackGeminiUrl = fallbackModelName
+    ? buildGeminiUrl(fallbackModelName, geminiKey)
+    : null;
+  // The model that actually produced the returned text. Reported instead of
+  // assuming the primary served the request.
+  let servedModelName = modelName;
+  let usedFallbackModel = false;
+
   let assistantText  = '';
   let tokenEstimate  = 0;
   let whyThisWorks: string | undefined;
@@ -2191,6 +2206,54 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
     }
   }
 
+  /**
+   * One logical provider attempt: primary, an optional same-model retry, then
+   * the approved secondary model.
+   *
+   * The secondary attempt is the missing half of the routing contract -- the
+   * fallback model was configured and asserted but never invoked, so an
+   * eligible primary failure returned canned error text while an approved
+   * model sat unused. It runs inside the SAME quota reservation as the primary,
+   * so a request served by the fallback still costs exactly one message.
+   */
+  async function attemptFallbackModel(
+    body: typeof geminiBody,
+    attemptLabel: string,
+    failureClass: ReturnType<typeof classifyTextProviderError>,
+    originalError: unknown,
+  ): Promise<Awaited<ReturnType<typeof callGemini>>> {
+    // A fallback call is only worth starting if a full provider timeout still
+    // fits in the request budget; otherwise the caller's own deadline would
+    // abort it mid-flight and we would have spent the remaining time for
+    // nothing.
+    const remainingBudgetMs = 20_000 - (Date.now() - startedAt);
+    if (
+      !fallbackGeminiUrl ||
+      !fallbackModelName ||
+      !shouldFallbackToSecondaryModel(failureClass) ||
+      remainingBudgetMs <= GEMINI_TIMEOUT_MS
+    ) {
+      throw originalError;
+    }
+    console.warn(
+      '[stylechat-generate] model_fallback attempt=%s failureClass=%s primary=%s fallback=%s elapsedMs=%d',
+      attemptLabel,
+      failureClass,
+      modelName,
+      fallbackModelName,
+      Date.now() - startedAt,
+    );
+    const result = await callGemini(
+      fallbackGeminiUrl,
+      body,
+      `${attemptLabel}-model-fallback`,
+      fallbackModelName,
+    );
+    usedFallbackModel = true;
+    servedModelName = fallbackModelName;
+    return result;
+  }
+
   async function callGeminiWithOptionalRetry(
     body: typeof geminiBody,
     attemptLabel: string,
@@ -2208,10 +2271,25 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
         retryAfterSeconds,
         remainingBudgetMs: 20_000 - (Date.now() - startedAt),
       });
-      if (!shouldRetry) throw error;
+      if (!shouldRetry) {
+        // No same-model attempt is warranted -- but a DIFFERENT model still may
+        // be, which is precisely the MODEL_NOT_AVAILABLE case.
+        return await attemptFallbackModel(body, attemptLabel, failureClass, error);
+      }
       providerRetryCount += 1;
       wasRetried = true;
-      return await callGemini(geminiUrl, body, `${attemptLabel}-provider-retry`, modelName);
+      try {
+        return await callGemini(geminiUrl, body, `${attemptLabel}-provider-retry`, modelName);
+      } catch (retryError) {
+        const retryFailureClass = classifyTextProviderError(retryError);
+        stableErrorClass = retryFailureClass;
+        return await attemptFallbackModel(
+          body,
+          `${attemptLabel}-provider-retry`,
+          retryFailureClass,
+          retryError,
+        );
+      }
     }
   }
 
@@ -2470,7 +2548,7 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
       sessionId,
       sourceMessageId: generationIdentity.sourceMessageId,
       content: assistantText,
-      model: modelName,
+      model: servedModelName,
       tokenEstimate: usedFallback ? 0 : Math.max(1, Math.ceil(assistantText.length / 4)),
     });
     if (persisted) {
@@ -2520,7 +2598,8 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
     operationType: generationIdentity.operationType,
     actorHash,
     provider: 'google',
-    model: modelName,
+    model: servedModelName,
+    usedFallbackModel,
     latencyMs: elapsedMs,
     generationLatencyMs: elapsedMs,
     retryCount: wasRetried ? Math.max(1, providerRetryCount) : 0,
@@ -2551,7 +2630,7 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
   } = {
     sender: 'assistant',
     content: assistantText,
-    model: modelName,
+    model: servedModelName,
     tokenEstimate: finalTokenEstimate,
   };
 
