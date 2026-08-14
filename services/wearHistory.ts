@@ -419,3 +419,340 @@ export function itemsNotWornSince(
     })
     .map((candidate) => candidate.sourceItemId);
 }
+
+// ── Read contract (S6) ───────────────────────────────────────────────────────
+//
+// The ONLY sanctioned way to read wear history. UI components must not query
+// Supabase directly, must not load the whole table, and must not fall back to
+// the local counter when a page is slow — all three reintroduce the dual
+// authority S5 removed.
+
+/** Keyset cursor. Opaque to callers; ordering is owned by this module. */
+export type WearHistoryCursor = { wornAt: string; id: string };
+
+export type WearHistoryEntry = {
+  id: string;
+  wornAt: string;
+  /** 'saved_look' when the wear came from a look, else 'item'. */
+  kind: WearEventSource;
+  /** Durable look id. Present even after the look itself is deleted. */
+  savedLookRef: string | null;
+  /** True while the look still exists; false once it has been deleted. */
+  savedLookLive: boolean;
+  items: Array<{
+    sourceItemId: string;
+    sourceType: string;
+    titleSnapshot: string | null;
+    categorySnapshot: string | null;
+  }>;
+};
+
+export type WearHistoryPage = {
+  entries: WearHistoryEntry[];
+  /** Null when the last page has been reached. */
+  nextCursor: WearHistoryCursor | null;
+  hasMore: boolean;
+};
+
+export type WearHistoryReadResult =
+  | { ok: true; page: WearHistoryPage }
+  | { ok: false; reason: 'unauthenticated' | 'network'; error: string };
+
+/** Bounded by construction. A caller cannot ask for an unbounded page. */
+export const WEAR_HISTORY_PAGE_SIZE = 25;
+export const WEAR_HISTORY_MAX_PAGE_SIZE = 100;
+
+/** Rows scanned when computing wardrobe-wide statistics. */
+export const WEAR_STATS_SCAN_LIMIT = 1000;
+
+const EVENT_COLUMNS =
+  'id, worn_at, saved_look_id, saved_look_ref, source_item_id, ' +
+  'wardrobe_wear_event_items(source_item_id, source_type, title_snapshot, category_snapshot, deleted_at)';
+
+function toEntry(row: Record<string, unknown>): WearHistoryEntry {
+  const rawItems = Array.isArray(row.wardrobe_wear_event_items)
+    ? (row.wardrobe_wear_event_items as Array<Record<string, unknown>>)
+    : [];
+  const items = rawItems
+    .filter((item) => !item.deleted_at)
+    .map((item) => ({
+      sourceItemId: String(item.source_item_id ?? ''),
+      sourceType: String(item.source_type ?? 'unknown'),
+      titleSnapshot: (item.title_snapshot as string | null) ?? null,
+      categorySnapshot: (item.category_snapshot as string | null) ?? null,
+    }))
+    .filter((item) => item.sourceItemId.length > 0);
+
+  const savedLookRef = (row.saved_look_ref as string | null) ?? null;
+  return {
+    id: String(row.id),
+    wornAt: String(row.worn_at),
+    kind: savedLookRef ? 'saved_look' : 'item',
+    savedLookRef,
+    // saved_look_id nulls out when the look is deleted; saved_look_ref does
+    // not. The pair is what lets the UI say "this look no longer exists"
+    // instead of either crashing or inventing a current look.
+    savedLookLive: !!row.saved_look_id,
+    items,
+  };
+}
+
+/**
+ * One bounded, ordered, owner-scoped page of wear history.
+ *
+ * Ordering is `worn_at DESC, id DESC`. The id tie-breaker is not cosmetic:
+ * `worn_at` is only second-granular and two wears can share it, and without a
+ * stable second key a row can appear on two consecutive pages or be skipped
+ * entirely — the classic keyset paging bug.
+ */
+export async function getWearHistory(
+  options: { cursor?: WearHistoryCursor | null; pageSize?: number } = {},
+  client: typeof supabase = supabase,
+): Promise<WearHistoryReadResult> {
+  const userId = await currentUserId(client);
+  if (!userId) {
+    return { ok: false, reason: 'unauthenticated', error: 'Sign in to see your wear history.' };
+  }
+
+  const pageSize = Math.min(
+    Math.max(1, options.pageSize ?? WEAR_HISTORY_PAGE_SIZE),
+    WEAR_HISTORY_MAX_PAGE_SIZE,
+  );
+
+  try {
+    let query = client
+      .from('wardrobe_wear_events')
+      .select(EVENT_COLUMNS)
+      .eq('user_id', userId)
+      .is('deleted_at', null)
+      .order('worn_at', { ascending: false })
+      .order('id', { ascending: false })
+      // Fetch one extra to detect a further page without a second round trip
+      // or a COUNT over the whole table.
+      .limit(pageSize + 1);
+
+    const cursor = options.cursor;
+    if (cursor && cursor.wornAt && cursor.id) {
+      query = query.or(
+        [
+          'worn_at.lt.' + cursor.wornAt,
+          'and(worn_at.eq.' + cursor.wornAt + ',id.lt.' + cursor.id + ')',
+        ].join(','),
+      );
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      return { ok: false, reason: 'network', error: 'Could not load your wear history.' };
+    }
+
+    // PostgREST types an embedded select as a union with GenericStringError.
+    // Narrowed through unknown once, here, rather than at each field access.
+    const rows = (Array.isArray(data) ? data : []) as unknown as Array<Record<string, unknown>>;
+    const hasMore = rows.length > pageSize;
+    const entries = rows.slice(0, pageSize).map(toEntry);
+    const last = entries.length > 0 ? entries[entries.length - 1] : null;
+
+    return {
+      ok: true,
+      page: {
+        entries,
+        hasMore,
+        nextCursor: hasMore && last ? { wornAt: last.wornAt, id: last.id } : null,
+      },
+    };
+  } catch {
+    return { ok: false, reason: 'network', error: 'Could not load your wear history.' };
+  }
+}
+
+/** Every recorded wear of one garment, newest first. Bounded. */
+export async function getItemWearHistory(
+  sourceItemId: string,
+  options: { limit?: number } = {},
+  client: typeof supabase = supabase,
+): Promise<WearHistoryReadResult> {
+  const userId = await currentUserId(client);
+  if (!userId) {
+    return { ok: false, reason: 'unauthenticated', error: 'Sign in to see your wear history.' };
+  }
+  const id = bounded(sourceItemId, 128);
+  if (!id) return { ok: true, page: { entries: [], hasMore: false, nextCursor: null } };
+
+  const limit = Math.min(
+    Math.max(1, options.limit ?? WEAR_HISTORY_PAGE_SIZE),
+    WEAR_HISTORY_MAX_PAGE_SIZE,
+  );
+
+  try {
+    const { data, error } = await client
+      .from('wardrobe_wear_event_items')
+      .select(
+        'wear_event_id, source_item_id, source_type, title_snapshot, category_snapshot, ' +
+          'wardrobe_wear_events(id, worn_at, saved_look_id, saved_look_ref)',
+      )
+      .eq('user_id', userId)
+      .eq('source_item_id', id)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      return { ok: false, reason: 'network', error: 'Could not load this wear history.' };
+    }
+
+    const entries = (Array.isArray(data) ? data : [])
+      .map((raw) => {
+        const row = raw as unknown as Record<string, unknown>;
+        const event = row.wardrobe_wear_events as Record<string, unknown> | null;
+        if (!event) return null;
+        const savedLookRef = (event.saved_look_ref as string | null) ?? null;
+        const entry: WearHistoryEntry = {
+          id: String(event.id),
+          wornAt: String(event.worn_at),
+          kind: savedLookRef ? 'saved_look' : 'item',
+          savedLookRef,
+          savedLookLive: !!event.saved_look_id,
+          items: [
+            {
+              sourceItemId: String(row.source_item_id ?? ''),
+              sourceType: String(row.source_type ?? 'unknown'),
+              titleSnapshot: (row.title_snapshot as string | null) ?? null,
+              categorySnapshot: (row.category_snapshot as string | null) ?? null,
+            },
+          ],
+        };
+        return entry;
+      })
+      .filter((entry): entry is WearHistoryEntry => entry !== null);
+
+    return { ok: true, page: { entries, hasMore: entries.length >= limit, nextCursor: null } };
+  } catch {
+    return { ok: false, reason: 'network', error: 'Could not load this wear history.' };
+  }
+}
+
+export type WearStatsResult =
+  | { ok: true; stats: WearStats[]; truncated: boolean }
+  | { ok: false; reason: 'unauthenticated' | 'network'; error: string };
+
+/**
+ * Wardrobe-wide statistics.
+ *
+ * Deliberately a SEPARATE query from getWearHistory. Deriving "most worn" from
+ * whichever page happened to be on screen would produce a ranking that changes
+ * as the user scrolls — a statistic that is wrong in a way the user cannot see.
+ *
+ * Bounded at WEAR_STATS_SCAN_LIMIT events. When that bound is hit, `truncated`
+ * is true and the caller must not present the result as a complete wardrobe
+ * ranking. Reporting the limit is the honest alternative to silently ranking a
+ * sample as if it were everything.
+ */
+export async function getWearStats(
+  options: { scanLimit?: number } = {},
+  client: typeof supabase = supabase,
+): Promise<WearStatsResult> {
+  const userId = await currentUserId(client);
+  if (!userId) {
+    return { ok: false, reason: 'unauthenticated', error: 'Sign in to see your wardrobe stats.' };
+  }
+
+  const scanLimit = Math.min(
+    Math.max(1, options.scanLimit ?? WEAR_STATS_SCAN_LIMIT),
+    WEAR_STATS_SCAN_LIMIT,
+  );
+
+  try {
+    const { data, error } = await client
+      .from('wardrobe_wear_events')
+      .select('id, worn_at, wardrobe_wear_event_items(source_item_id, deleted_at)')
+      .eq('user_id', userId)
+      .is('deleted_at', null)
+      .order('worn_at', { ascending: false })
+      .limit(scanLimit + 1);
+
+    if (error) {
+      return { ok: false, reason: 'network', error: 'Could not load your wardrobe stats.' };
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+    const truncated = rows.length > scanLimit;
+    const events = rows.slice(0, scanLimit).map((raw) => {
+      const row = raw as unknown as Record<string, unknown>;
+      const rawItems = Array.isArray(row.wardrobe_wear_event_items)
+        ? (row.wardrobe_wear_event_items as Array<Record<string, unknown>>)
+        : [];
+      return {
+        wornAt: String(row.worn_at),
+        items: rawItems
+          .filter((item) => !item.deleted_at)
+          .map((item) => ({ sourceItemId: String(item.source_item_id ?? '') }))
+          .filter((item) => item.sourceItemId.length > 0),
+      };
+    });
+
+    return { ok: true, stats: projectWearStats(events), truncated };
+  } catch {
+    return { ok: false, reason: 'network', error: 'Could not load your wardrobe stats.' };
+  }
+}
+
+// ── Ranking helpers (pure) ───────────────────────────────────────────────────
+
+/**
+ * Rank by wear count.
+ *
+ * Ties break on sourceItemId so the order is STABLE across renders. An
+ * arbitrary tie order would let two equally-worn garments swap places on every
+ * refresh, which reads as data changing when nothing has.
+ */
+export function rankByWear(
+  stats: WearStats[],
+  direction: 'most' | 'least',
+  limit = 5,
+): WearStats[] {
+  const sorted = [...stats].sort((a, b) => {
+    const delta =
+      direction === 'most' ? b.timesWorn - a.timesWorn : a.timesWorn - b.timesWorn;
+    if (delta !== 0) return delta;
+    return a.sourceItemId < b.sourceItemId ? -1 : a.sourceItemId > b.sourceItemId ? 1 : 0;
+  });
+  return sorted.slice(0, Math.max(0, limit));
+}
+
+/**
+ * Whether a ranking is worth showing at all.
+ *
+ * A "most worn" list built from two recorded wears is not a wardrobe insight,
+ * it is noise presented with the authority of a statistic. Below this bar the
+ * UI says it needs more history rather than ranking a sample.
+ */
+export const MIN_ITEMS_FOR_RANKING = 3;
+
+export function rankingIsMeaningful(stats: WearStats[]): boolean {
+  return stats.length >= MIN_ITEMS_FOR_RANKING;
+}
+
+/**
+ * How a garment's wear state should be described to a user.
+ *
+ * `unknown` exists because of a real honesty problem. Wear tracking began at
+ * Build 29; a garment saved before that has no recorded wears, but the user
+ * may well have worn it many times. Telling them "Never worn" would be a
+ * false statement about their own wardrobe. The UI says "No wears recorded"
+ * for those and reserves "Not worn yet" for garments added after tracking
+ * started, where the absence really is evidence.
+ */
+export type WearDisplayState = 'worn' | 'none_recorded' | 'unknown_legacy';
+
+export function describeWearState(input: {
+  timesWorn: number;
+  itemAddedAt?: string | null;
+  trackingStartedAt: string;
+}): WearDisplayState {
+  if (input.timesWorn > 0) return 'worn';
+  const addedAt = input.itemAddedAt ? Date.parse(input.itemAddedAt) : Number.NaN;
+  const trackingStart = Date.parse(input.trackingStartedAt);
+  if (!Number.isFinite(addedAt) || !Number.isFinite(trackingStart)) return 'unknown_legacy';
+  return addedAt >= trackingStart ? 'none_recorded' : 'unknown_legacy';
+}
