@@ -36,7 +36,10 @@ function scenarioResult(id, pass, reasonCode, extra) {
  * Returns a reason code, or null when the answer is clean.
  */
 function groundingReason(response, manifestItems, roomKind) {
-  if (!response.ok) return 'HTTP_FAILURE';
+  // Surface the function's own rejection code when it gave one: 'HTTP_FAILURE'
+  // alone does not say whether the request was malformed, unauthorized, or
+  // refused by a feature gate.
+  if (!response.ok) return response.errorCode ? `HTTP_400_${response.errorCode}` : 'HTTP_FAILURE';
   if (!response.text || !String(response.text).trim()) return 'EMPTY_RESPONSE';
 
   if (assertions.detectForeignItems(response.text, manifestItems).length) {

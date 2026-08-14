@@ -287,6 +287,10 @@ async function askElise(ctx, options) {
     capabilities: payload?.capabilities ?? null,
     attachmentsResolved: payload?.attachmentsResolved ?? null,
     sessionId: payload?.sessionId ?? sessionId ?? null,
+    // The function's own rejection enum. Safe to emit: it is a fixed
+    // vocabulary, never user or model text. Without it a 400 is a guessing
+    // game, and each guess costs a full deploy-and-rerun cycle.
+    errorCode: typeof payload?.errorCode === 'string' ? payload.errorCode : null,
     ok: res.ok,
   };
 }
