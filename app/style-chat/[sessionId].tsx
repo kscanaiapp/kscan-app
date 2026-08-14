@@ -29,6 +29,7 @@ import { StyleChatInput } from '../../components/style-chat/StyleChatInput';
 import { StyleChatContextPreview } from '../../components/style-chat/StyleChatContextPreview';
 import { StyleChatStyleDnaCard } from '../../components/style-chat/StyleChatStyleDnaCard';
 import { useStyleChat } from '../../hooks/useStyleChat';
+import { useAvatarConversationMotion } from '../../hooks/useAvatarConversationMotion';
 import { getFriendlyStyleChatError } from '../../services/style-chat/styleChatErrors';
 import { deleteStyleChatSession } from '../../services/style-chat/styleChatRepository';
 import {
@@ -54,6 +55,7 @@ import { STYLE_DNA_ENABLED } from '../../services/style-dna/localStyleDnaFeedbac
 import { buildStyleDnaContext } from '../../services/style-dna/styleDnaContext';
 import { AI_STYLIST_UI_ENABLED, ELISE_LEGACY_PHOTO_INTAKE_ENABLED, ELISE_VISUAL_ATTACHMENTS_V1_ENABLED, STYLECHAT_ATTACHMENTS_ENABLED } from '../../constants/featureFlags';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
+import { useEliseSpeechCue } from '../../hooks/useEliseSpeechCue';
 import { useStylistIdentity } from '../../hooks/useStylistIdentity';
 import { matchOccasionFromText } from '../../types/fashionReasoning';
 import { StyleChatAttachmentBar } from '../../components/style-chat/StyleChatAttachmentBar';
@@ -97,6 +99,7 @@ export default function StyleChatSessionScreen() {
   const stableSessionId = sessionId ?? '';
   const { user } = useAuthSession();
   const { identity } = useStylistIdentity();
+  const speakEliseCue = useEliseSpeechCue();
   const stylistDisplayName = identity.displayName;
   // Style Memory Phase 0 local feedback key. StyleChat is auth-only, so this is
   // populated whenever messages exist; null hides the local feedback UI.
@@ -220,6 +223,21 @@ export default function StyleChatSessionScreen() {
     getWeatherLocation: weather.getWeatherLocation,
     getStyleDnaContext,
     activeContext: activeContextForGeneration,
+  });
+
+  // Avatar conversation motion. Additive and fail-closed: with
+  // AVATAR_MOTION_V1 off the hook subscribes to nothing and starts no timer.
+  //
+  // It only READS StyleChat signals that already exist here and translates
+  // them into motion-controller events. It sends no message, issues no speech
+  // request, touches no persistence, and never gates typing — the composer's
+  // own synchronous stopAvatarSpeechPlayback above still runs first. Passing
+  // the selected avatarId makes an avatar switch a teardown boundary, so
+  // motion belonging to the previous avatar cannot carry over.
+  useAvatarConversationMotion({
+    inputActive: composerText.trim().length > 0,
+    isSending,
+    avatarId: identity.avatarId,
   });
 
   const [isDeleting, setIsDeleting] = useState(false);
@@ -470,6 +488,38 @@ export default function StyleChatSessionScreen() {
     () => resolveActiveItemContext(chatAttachments.attachments),
     [chatAttachments.attachments],
   );
+
+  /**
+   * Deterministic speech for the two states this screen OWNS.
+   *
+   * Driven by the resolved context rather than by the tap handlers, and that is
+   * the point in both cases:
+   *
+   * `image_understood` — resolveActiveItemContext only returns a context once the
+   * attachment has left the pending states, so a context existing IS the proof
+   * that identification finished and produced something nameable. Speaking off
+   * the picker callback instead would have Elise claim she can see the piece
+   * while identification was still running.
+   *
+   * `closet_saved` — `owned` is true only when persistence reported saved AND
+   * handed back a committed item id. saveDirectImageToCloset answers {ok:true}
+   * for an already-saved item and for a save already in flight too, so the tap
+   * result is not evidence that anything was newly committed; the ownership flag
+   * is.
+   *
+   * The cue is keyed on draftId, so each item speaks once and a rerender,
+   * refocus or foreground return replays nothing — while a genuinely different
+   * item still gets its own cue.
+   */
+  useEffect(() => {
+    if (!activeItem) return;
+    speakEliseCue('image_understood', activeItem.draftId, stableSessionId);
+  }, [activeItem?.draftId, speakEliseCue, stableSessionId]);
+
+  useEffect(() => {
+    if (!activeItem?.owned) return;
+    speakEliseCue('closet_saved', activeItem.draftId, stableSessionId);
+  }, [activeItem?.draftId, activeItem?.owned, speakEliseCue, stableSessionId]);
 
   /**
    * Impressions and the accessible state announcement.
@@ -761,6 +811,11 @@ export default function StyleChatSessionScreen() {
         // "Open Dressing Room" by the time the user navigates back.
         chatAttachments.markStyledInDressingRoom(draftId);
         emitClosetCandidateEvent('elise_image_dressing_room_opened', telemetry);
+        // Only an ACCEPTED handoff speaks. The ownership refusal and the anchor
+        // refusal both return above, and the latch means a rapid double tap
+        // produces one cue as well as one navigation. Keyed on the committed
+        // Closet item so styling a different piece speaks again.
+        speakEliseCue('style_item', decision.closetItemId, stableSessionId);
         router.push({
           pathname: PRIVATE_DRESSING_ROOM_ROUTE,
           params: dressingRoomAnchorParams(decision.closetItemId),
@@ -770,7 +825,7 @@ export default function StyleChatSessionScreen() {
         styleHandoffRef.current = false;
         Alert.alert('Dressing Room', ELISE_IMAGE_LOOP_COPY.handoffFailedMessage);
       });
-  }, [activeItem, chatAttachments, user?.id]);
+  }, [activeItem, chatAttachments, user?.id, speakEliseCue, stableSessionId]);
 
   /** Stop styling this item. The photo is removed from the composer entirely. */
   const handleClearActiveItem = useCallback(() => {

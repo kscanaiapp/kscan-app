@@ -15,7 +15,7 @@
 // services/privateDressingRoomCoordinator.ts and every write in
 // services/privateDressingRoomSessionStore.ts. Nothing here calls persistence.
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -53,6 +53,7 @@ import type { ResolvedLookItem } from '../../../services/privateDressingRoomCoor
 import { PRIVATE_SLOT_LABELS } from '../../../types/privateDressingRoomComposition';
 import type { PrivateDressingRoomSlot } from '../../../types/privateDressingRoomComposition';
 import { PRIVATE_COMPARISON_COPY } from '../../../services/privateDressingRoomComparison';
+import { useEliseSpeechCue } from '../../../hooks/useEliseSpeechCue';
 import {
   PRIVATE_ELISE_COPY,
   PRIVATE_ELISE_INPUT_MAX_LENGTH,
@@ -212,13 +213,26 @@ export default function PrivateDressingRoomScreen() {
   const eliseBusy = isEliseBusy(eliseStatus);
   const occasionDraftValue = normalizeOccasionInput(occasionDraft);
 
+  const speakEliseCue = useEliseSpeechCue();
+  /** Counts ACCEPTED modification requests so each one keys its own cue. */
+  const eliseChangeCountRef = useRef(0);
+
   const submitOccasionDescription = useCallback(() => {
     const instruction = normalizeOccasionInput(occasionDraft);
     if (!instruction || eliseBusy) return;
     setOccasionSheetOpen(false);
     setOccasionDraft('');
     void askElise(instruction);
-  }, [occasionDraft, eliseBusy, askElise]);
+    // Only an ACCEPTED action speaks: the guard above already rejected an empty
+    // instruction and a busy Elise, and `eliseBusy` is what stops a rapid second
+    // tap from becoming a second accepted action. The counter keys each accepted
+    // request separately so asking for a further change speaks again.
+    eliseChangeCountRef.current += 1;
+    speakEliseCue(
+      'change_something',
+      `${session?.anchorClosetItemId ?? 'dressing-room'}:${eliseChangeCountRef.current}`,
+    );
+  }, [occasionDraft, eliseBusy, askElise, speakEliseCue, session?.anchorClosetItemId]);
 
   const dismissOccasionSheet = useCallback(() => {
     setOccasionSheetOpen(false);
@@ -236,6 +250,18 @@ export default function PrivateDressingRoomScreen() {
 
   const editorLook = effectiveLooks.find((look) => look.lookId === slotEditor.lookId) ?? null;
   const anchorId = session?.anchorClosetItemId ?? null;
+
+  /**
+   * Moment 5. Navigation starting is NOT the trigger; this fires only once the
+   * destination genuinely holds what it promised — an anchor resolved against the
+   * Closet and at least one composed Look. Keyed on the anchor, so returning to
+   * the same anchored Look stays silent while styling a different piece speaks.
+   */
+  useEffect(() => {
+    if (!anchorId || anchorMissing) return;
+    if (effectiveLooks.length === 0) return;
+    speakEliseCue('dressing_room_ready', anchorId);
+  }, [anchorId, anchorMissing, effectiveLooks.length, speakEliseCue]);
   const closetById = new Map(closetItems.map((item) => [item.id, item]));
 
   /** A slot row's override state, used to decide whether Restore Original shows. */

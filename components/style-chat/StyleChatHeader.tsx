@@ -1,5 +1,12 @@
-import { useCallback, useMemo } from 'react';
-import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef } from 'react';
+import {
+  AccessibilityInfo,
+  BackHandler,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,9 +16,15 @@ import { ELISE_IDENTITY } from '../../constants/elise';
 import { useStylistIdentity } from '../../hooks/useStylistIdentity';
 import { AnimatedStylistAvatar } from '../stylist/AnimatedStylistAvatar';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
-import { useAvatarSpeechState } from '../../stores/avatarSpeechStore';
+import { useAvatarMotionState } from '../../hooks/useAvatarMotionState';
+import { useAvatarMotionMode } from '../../hooks/useAvatarConversationMotion';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
-import { deriveAvatarMouthState } from '../../services/avatarSpeechMotion';
+import {
+  decideMotionAnnouncement,
+  getAvatarMotionStatusText,
+} from '../../services/avatarMotionStatus';
+import type { AvatarMotionMode } from '../../services/avatarMotionState';
+import { useAvatarTapAcknowledgement } from '../../hooks/useAvatarTapAcknowledgement';
 
 interface StyleChatHeaderProps {
   showBadge?: boolean;
@@ -54,7 +67,9 @@ export function StyleChatHeader({
   const { identity } = useStylistIdentity();
   const { user } = useAuthSession();
   const reducedMotion = useReducedMotion();
-  const speechState = useAvatarSpeechState();
+  // Discrete projection: this subscription emits only when a visible field
+  // changes, so the header no longer rerenders on playback-position ticks.
+  const speechState = useAvatarMotionState();
   const actorId = user?.id ?? null;
   const isSpeaking =
     Boolean(actorId && sessionId) &&
@@ -63,24 +78,47 @@ export function StyleChatHeader({
     speechState.stylistId === identity.avatarId &&
     speechState.avatarId === identity.avatarId &&
     speechState.phase === 'playing';
-  const mouthState = useMemo(() => {
-    if (!isSpeaking) return 'closed';
-    return deriveAvatarMouthState({
-      phase: speechState.phase,
-      playbackSeconds: speechState.playbackSeconds,
-      alignment: speechState.alignment,
-      reducedMotion,
-    });
-  }, [isSpeaking, speechState.phase, speechState.playbackSeconds, speechState.alignment, reducedMotion]);
+  const mouthState = !isSpeaking || reducedMotion ? 'closed' : speechState.mouth;
+  const conversationMode = useAvatarMotionMode();
   const displayName = identity.displayName;
   const headerAccessibilityLabel = `${displayName}, ${ELISE_IDENTITY.role}`;
 
-  let avatarState: 'idle' | 'thinking' | 'speaking' = 'idle';
+  let avatarState: 'idle' | 'listening' | 'thinking' | 'speaking' = 'idle';
   if (isSpeaking) {
     avatarState = 'speaking';
-  } else if (isThinking) {
+  } else if (isThinking || conversationMode === 'thinking') {
     avatarState = 'thinking';
+  } else if (conversationMode === 'listening') {
+    avatarState = 'listening';
   }
+
+  // Textual equivalent for every semantic state. This is the accessible
+  // channel: it exists with motion on, with motion off, and under Reduce
+  // Motion, and it never describes playback frames or mouth changes.
+  const statusMode: AvatarMotionMode = avatarState;
+  const statusText = getAvatarMotionStatusText({ mode: statusMode, stylistName: displayName });
+  const lastAnnouncedRef = useRef<AvatarMotionMode | null>(null);
+  useEffect(() => {
+    // One announcement per semantic transition; repeats within a state
+    // (including every playback tick during speech) are suppressed.
+    const decision = decideMotionAnnouncement(
+      statusMode,
+      lastAnnouncedRef.current,
+      displayName,
+    );
+    lastAnnouncedRef.current = decision.nextAnnouncedMode;
+    if (decision.announce && decision.text) {
+      AccessibilityInfo.announceForAccessibility(decision.text);
+    }
+  }, [statusMode, displayName]);
+
+  // Tap acknowledgement: enabled only with the motion flag on. The service
+  // arbitrates (idle/listening only, cooldown), so a tap can never interrupt
+  // speech, restart completed speech, or reach any backend.
+  const { onAvatarPress, enabled: tapAcknowledgementEnabled } = useAvatarTapAcknowledgement({
+    displayName,
+    reducedMotion,
+  });
 
   return (
     <View
@@ -93,20 +131,41 @@ export function StyleChatHeader({
           { paddingTop: Math.max(SPACING.xl, insets.top + SPACING.sm) },
         ]}
       >
-        <View
-          style={styles.avatarWrap}
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-        >
-          <AnimatedStylistAvatar
-            avatarId={identity.avatarId}
-            size={67}
-            state={avatarState}
-            mouthState={mouthState}
-            reducedMotion={reducedMotion}
-            accessibilityLabel={`${displayName} avatar`}
-          />
-        </View>
+        {tapAcknowledgementEnabled ? (
+          <Pressable
+            testID="style-chat-avatar-pressable"
+            style={styles.avatarWrap}
+            accessibilityRole="button"
+            accessibilityLabel={`Say hello to ${displayName}`}
+            accessibilityHint={`${displayName} gives a brief acknowledgement`}
+            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+            onPress={onAvatarPress}
+          >
+            <AnimatedStylistAvatar
+              avatarId={identity.avatarId}
+              size={67}
+              state={avatarState}
+              mouthState={mouthState}
+              reducedMotion={reducedMotion}
+              accessibilityLabel={`${displayName} avatar`}
+            />
+          </Pressable>
+        ) : (
+          <View
+            style={styles.avatarWrap}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            <AnimatedStylistAvatar
+              avatarId={identity.avatarId}
+              size={67}
+              state={avatarState}
+              mouthState={mouthState}
+              reducedMotion={reducedMotion}
+              accessibilityLabel={`${displayName} avatar`}
+            />
+          </View>
+        )}
 
         <View
           style={styles.stylistText}
@@ -118,9 +177,19 @@ export function StyleChatHeader({
             {displayName}
           </Text>
           <Text style={styles.stylistGreeting} numberOfLines={1} maxFontSizeMultiplier={1.3}>
-            {ELISE_IDENTITY.role}
+            {statusText ?? ELISE_IDENTITY.role}
           </Text>
         </View>
+        {statusText ? (
+          <Text
+            testID="style-chat-avatar-status"
+            style={styles.visuallyHiddenStatus}
+            accessibilityLiveRegion="polite"
+            maxFontSizeMultiplier={1.3}
+          >
+            {statusText}
+          </Text>
+        ) : null}
         {isSpeaking || isThinking ? (
           <View
             style={[
@@ -241,6 +310,15 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: LUXURY.colors.graphite,
     marginTop: 2,
+  },
+  // Zero-size live region: the visible status already appears under the
+  // stylist name, so this exists only to carry polite announcements without
+  // changing layout.
+  visuallyHiddenStatus: {
+    width: 0,
+    height: 0,
+    opacity: 0,
+    position: 'absolute',
   },
   statusDot: {
     width: 8,

@@ -418,6 +418,12 @@ function loadSpeechService(options = {}) {
   };
 
   const speech = load('services/avatarSpeech.ts', {
+    './avatarSpeechLifecycle': {
+      // Inert: this suite exercises request/retry/error behavior, not the
+      // AppState interruption path (see avatarSpeechLifecycle.test.js).
+      ensureAvatarSpeechLifecycleListener: () => {},
+      registerAvatarInterruptionHandler: () => () => {},
+    },
     '../stores/avatarSpeechStore': store,
     './avatars/stylistSpeechClient': {
       requestStylistSpeech: async (request) => {

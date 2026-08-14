@@ -183,6 +183,12 @@ test('visible speaking state begins only after native playback reports playing',
   let callbacks;
   let clientRequest;
   const speech = transpileModule('services/avatarSpeech.ts', {
+    './avatarSpeechLifecycle': {
+      // Inert: this suite exercises request/retry/error behavior, not the
+      // AppState interruption path (see avatarSpeechLifecycle.test.js).
+      ensureAvatarSpeechLifecycleListener: () => {},
+      registerAvatarInterruptionHandler: () => () => {},
+    },
     '../stores/avatarSpeechStore': store,
     './avatars/stylistSpeechClient': {
       requestStylistSpeech: async (request) => {
@@ -228,6 +234,12 @@ test('client duplicate suppression prevents a second generation request for one 
   const store = loadAvatarSpeechStore();
   let requests = 0;
   const speech = transpileModule('services/avatarSpeech.ts', {
+    './avatarSpeechLifecycle': {
+      // Inert: this suite exercises request/retry/error behavior, not the
+      // AppState interruption path (see avatarSpeechLifecycle.test.js).
+      ensureAvatarSpeechLifecycleListener: () => {},
+      registerAvatarInterruptionHandler: () => () => {},
+    },
     '../stores/avatarSpeechStore': store,
     './avatars/stylistSpeechClient': {
       requestStylistSpeech: async (request) => {

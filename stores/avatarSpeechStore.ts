@@ -8,7 +8,7 @@ export type AvatarSpeechPhase =
   | 'stopping'
   | 'error';
 
-export type AvatarSpeechSource = 'greeting' | 'message';
+export type AvatarSpeechSource = 'greeting' | 'message' | 'cue';
 
 export interface AvatarSpeechAlignment {
   characters: string[];
@@ -20,6 +20,8 @@ export interface AvatarSpeechState {
   actorId: string | null;
   sessionId: string | null;
   messageId: string | null;
+  /** Set for a deterministic cue; null when speaking a persisted message. */
+  cue: string | null;
   stylistId: string | null;
   avatarId: string | null;
   generation: number;
@@ -35,6 +37,7 @@ type Listener = () => void;
 export const DEFAULT_AVATAR_SPEECH_STATE: AvatarSpeechState = Object.freeze({
   actorId: null,
   sessionId: null,
+  cue: null,
   messageId: null,
   stylistId: null,
   avatarId: null,
@@ -78,10 +81,28 @@ function replaceState(next: AvatarSpeechState) {
   emit();
 }
 
+/**
+ * Speech generation authority accepts only finite, non-negative integers.
+ *
+ * Validation must happen BEFORE any comparison or adoption. A NaN generation
+ * never equals itself, so an unguarded NaN could never be advanced or finished
+ * again and would strand the avatar in a non-idle phase; adopting Infinity
+ * would permanently invalidate every later real generation. Rejecting leaves
+ * the current generation authority untouched, so a subsequent valid
+ * generation still succeeds normally.
+ *
+ * Matches isValidMotionGeneration in services/avatarMotionController.ts — the
+ * two authorities must agree on what a generation is.
+ */
+export function isValidSpeechGeneration(value: number): boolean {
+  return Number.isInteger(value) && value >= 0;
+}
+
 function updateCurrentGeneration(
   generation: number,
   update: Partial<AvatarSpeechState>,
 ): boolean {
+  if (!isValidSpeechGeneration(generation)) return false;
   if (state.generation !== generation || state.phase === 'idle') return false;
   replaceState({ ...state, ...update });
   return true;
@@ -97,22 +118,32 @@ export function subscribeToAvatarSpeech(listener: Listener): () => void {
 }
 
 export function resetAvatarSpeechStore(generation = state.generation): void {
-  replaceState({ ...DEFAULT_AVATAR_SPEECH_STATE, generation });
+  const safeGeneration = isValidSpeechGeneration(generation)
+    ? generation
+    : DEFAULT_AVATAR_SPEECH_STATE.generation;
+  replaceState({ ...DEFAULT_AVATAR_SPEECH_STATE, generation: safeGeneration });
 }
 
 export function beginAvatarSpeech(payload: {
   actorId: string;
-  sessionId: string;
-  messageId: string;
+  /** Null for a cue raised outside a chat session, such as the Dressing Room. */
+  sessionId: string | null;
+  /** Null in cue mode: a cue has no persisted message behind it. */
+  messageId: string | null;
+  cue?: string | null;
   stylistId: string;
   avatarId: string;
   generation: number;
   source: AvatarSpeechSource;
 }): void {
+  // Reject before adoption: opening 'requesting' under a malformed generation
+  // would strand the phase, since nothing could ever match it to close it.
+  if (!isValidSpeechGeneration(payload.generation)) return;
   replaceState({
     actorId: payload.actorId,
     sessionId: payload.sessionId,
     messageId: payload.messageId,
+    cue: payload.cue ?? null,
     stylistId: payload.stylistId,
     avatarId: payload.avatarId,
     generation: payload.generation,
@@ -144,6 +175,7 @@ export function updateAvatarSpeechPlayback(
   generation: number,
   playbackSeconds: number,
 ): boolean {
+  if (!isValidSpeechGeneration(generation)) return false;
   if (!Number.isFinite(playbackSeconds) || playbackSeconds < 0) return false;
   if (state.generation !== generation || state.phase !== 'playing') return false;
   const bounded = Math.round(playbackSeconds * 1000) / 1000;
@@ -166,6 +198,7 @@ export function setAvatarSpeechError(generation: number, error: string): boolean
 }
 
 export function finishAvatarSpeech(generation: number): boolean {
+  if (!isValidSpeechGeneration(generation)) return false;
   if (state.generation !== generation) return false;
   resetAvatarSpeechStore(generation);
   return true;

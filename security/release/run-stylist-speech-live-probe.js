@@ -309,14 +309,29 @@ async function deleteSyntheticSession(ctx, sessionId) {
 
 // -- The single live request -------------------------------------------------
 
-async function requestStylistSpeech(ctx, sessionId, messageId) {
+/**
+ * One speech request, whatever its shape.
+ *
+ * Extracted so cue mode and the negative cases reuse the SAME evidence
+ * reduction as message mode - audio and alignment collapse to booleans and a
+ * byte count here, and the parsed body is dropped. A second reducer would be a
+ * second place for raw audio to escape into an artifact.
+ *
+ * `unauthenticated` deliberately sends the request with no bearer token so the
+ * 401 path is proven against the live function rather than assumed.
+ */
+async function postSpeechRequest(ctx, requestBody, options) {
+  const opts = options || {};
+  const headers = opts.unauthenticated
+    ? restHeaders(ctx.publishableKey, null)
+    : restHeaders(ctx.publishableKey, ctx.accessToken);
+  if (opts.unauthenticated) delete headers.Authorization;
+
   const startedAt = Date.now();
   const res = await ctx.fetchImpl(buildStylistSpeechUrl(ctx.supabaseUrl), {
     method: 'POST',
-    headers: restHeaders(ctx.publishableKey, ctx.accessToken),
-    // Persisted references only. The assistant text is NOT sent: the function
-    // reads it from the row it authorized, so this cannot bypass authority.
-    body: JSON.stringify({ sessionId, messageId, stylistId: PROBE_STYLIST_ID }),
+    headers,
+    body: JSON.stringify(requestBody),
   });
   const elapsedMs = Date.now() - startedAt;
   const httpStatus = res.status;
@@ -343,6 +358,123 @@ async function requestStylistSpeech(ctx, sessionId, messageId) {
     functionErrorCode: body && typeof body.code === 'string' ? body.code : null,
     returnedVoiceProfile: body && typeof body.voiceProfile === 'string' ? body.voiceProfile : null,
     mimeType: body && typeof body.mimeType === 'string' ? body.mimeType : null,
+    returnedCue: body && typeof body.cue === 'string' ? body.cue : null,
+    returnedMessageId: body && typeof body.messageId === 'string' ? body.messageId : null,
+  };
+}
+
+/**
+ * Message mode, unchanged. Persisted references only - the assistant text is
+ * NOT sent, because the function reads it from the row it authorized, so this
+ * cannot bypass authority. This is the regression path and its request shape is
+ * deliberately identical to the pre-cue probe.
+ */
+async function requestStylistSpeech(ctx, sessionId, messageId) {
+  return postSpeechRequest(ctx, { sessionId, messageId, stylistId: PROBE_STYLIST_ID });
+}
+
+/**
+ * The cues raised by Moments 2-6.
+ *
+ * `entry` is allowlisted server-side but is NOT probed as a cue: Moment 1 is
+ * owned by the persisted greeting and speaks through message mode, so probing
+ * it here would assert a path the app never takes.
+ */
+const PROBE_CUES = Object.freeze([
+  'image_understood',
+  'closet_saved',
+  'style_item',
+  'dressing_room_ready',
+  'change_something',
+]);
+
+const UNKNOWN_CUE = 'not_an_allowlisted_cue';
+const SILENT_STYLIST_ID = 'elise_default';
+
+/** One live cue request. Carries a cue KEY only; the server owns the words. */
+async function probeCue(ctx, cue) {
+  const result = await postSpeechRequest(ctx, { cue, stylistId: PROBE_STYLIST_ID });
+  return {
+    cue,
+    httpStatus: result.httpStatus,
+    functionErrorCode: result.functionErrorCode,
+    returnedCue: result.returnedCue,
+    returnedMessageId: result.returnedMessageId,
+    returnedVoiceProfile: result.returnedVoiceProfile,
+    audioPresent: result.audioPresent,
+    audioByteLength: result.audioByteLength,
+    alignmentPresent: result.alignmentPresent,
+    roundTripMs: result.elapsedMs,
+    // The cue must be echoed back exactly, message identity must be empty, and
+    // real audio must arrive. Anything less is not a passing cue.
+    pass:
+      result.httpStatus === 200 &&
+      result.functionErrorCode === null &&
+      result.returnedCue === cue &&
+      !result.returnedMessageId &&
+      result.audioPresent &&
+      result.audioByteLength > 0 &&
+      result.alignmentPresent,
+  };
+}
+
+/**
+ * The fail-closed cases. Each asserts a REJECTION and, just as importantly,
+ * that no provider audio came back with it - a refusal that still billed the
+ * ElevenLabs account would not be a refusal.
+ */
+async function probeNegatives(ctx, sessionId, messageId) {
+  const rejected = (r) => r.httpStatus >= 400 && !r.audioPresent;
+
+  const unknownCue = await postSpeechRequest(ctx, {
+    cue: UNKNOWN_CUE,
+    stylistId: PROBE_STYLIST_ID,
+  });
+  const unauthenticated = await postSpeechRequest(
+    ctx,
+    { cue: PROBE_CUES[0], stylistId: PROBE_STYLIST_ID },
+    { unauthenticated: true },
+  );
+  // Both identities at once. The handler must refuse rather than quietly pick a
+  // mode, because picking one would make the request's meaning ambiguous.
+  const mixedMode = await postSpeechRequest(ctx, {
+    cue: PROBE_CUES[0],
+    sessionId,
+    messageId,
+    stylistId: PROBE_STYLIST_ID,
+  });
+  // A silent stylist has no configured voice; cue mode must refuse it exactly
+  // as message mode does.
+  const silentStylist = await postSpeechRequest(ctx, {
+    cue: PROBE_CUES[0],
+    stylistId: SILENT_STYLIST_ID,
+  });
+
+  return {
+    unknownCue: {
+      httpStatus: unknownCue.httpStatus,
+      functionErrorCode: unknownCue.functionErrorCode,
+      audioPresent: unknownCue.audioPresent,
+      rejected: rejected(unknownCue),
+    },
+    unauthenticatedCue: {
+      httpStatus: unauthenticated.httpStatus,
+      functionErrorCode: unauthenticated.functionErrorCode,
+      audioPresent: unauthenticated.audioPresent,
+      rejected: rejected(unauthenticated),
+    },
+    mixedModeRequest: {
+      httpStatus: mixedMode.httpStatus,
+      functionErrorCode: mixedMode.functionErrorCode,
+      audioPresent: mixedMode.audioPresent,
+      rejected: rejected(mixedMode),
+    },
+    silentStylistCue: {
+      httpStatus: silentStylist.httpStatus,
+      functionErrorCode: silentStylist.functionErrorCode,
+      audioPresent: silentStylist.audioPresent,
+      rejected: rejected(silentStylist),
+    },
   };
 }
 
@@ -407,6 +539,8 @@ async function run(env, fetchImpl, sleepImpl) {
   let preferenceRestored = false;
   let requestResult = null;
   let diagnosticEvents = [];
+  let cueResults = [];
+  let negativeResults = null;
 
   try {
     sessionId = await createSyntheticSession(ctx, actorId);
@@ -414,6 +548,18 @@ async function run(env, fetchImpl, sleepImpl) {
 
     const windowStartIso = new Date(Date.now() - 5000).toISOString();
     requestResult = await requestStylistSpeech(ctx, sessionId, messageId);
+
+    // Cue mode, one live provider round trip per cue raised by Moments 2-6.
+    // Sequential on purpose: the function's burst limiter is per actor, and
+    // firing these in parallel would prove the rate limiter works rather than
+    // proving the cues do.
+    for (const cue of PROBE_CUES) {
+      cueResults.push(await probeCue(ctx, cue));
+    }
+
+    // The fail-closed cases run AFTER the positive ones so a refusal cannot be
+    // mistaken for a cue that simply never got its turn.
+    negativeResults = await probeNegatives(ctx, sessionId, messageId);
 
     diagnosticEvents = await pollForDiagnostics(
       environment.SUPABASE_STAGING_PROJECT_REF,
@@ -468,15 +614,42 @@ async function run(env, fetchImpl, sleepImpl) {
     audioByteLength: requestResult.audioByteLength,
     alignmentPresent: requestResult.alignmentPresent,
     roundTripMs: requestResult.elapsedMs,
+    cueProbes: cueResults,
+    cueProbesAttempted: PROBE_CUES.length,
+    cueProbesPassed: cueResults.filter((entry) => entry.pass).length,
+    allCueProbesPassed:
+      cueResults.length === PROBE_CUES.length && cueResults.every((entry) => entry.pass),
+    negativeProbes: negativeResults,
+    allNegativeProbesRejected: Boolean(
+      negativeResults &&
+      negativeResults.unknownCue.rejected &&
+      negativeResults.unauthenticatedCue.rejected &&
+      negativeResults.mixedModeRequest.rejected &&
+      negativeResults.silentStylistCue.rejected,
+    ),
     providerDiagnosticObserved: diagnostics !== null,
     providerDiagnosticEventCount: diagnosticEvents.length,
     providerDiagnostics: diagnostics,
     providerReached: diagnostics !== null && diagnostics.failureKind !== 'pre_dispatch',
     providerDiagnosticClass,
+    // The verdict now spans BOTH modes and the fail-closed cases. Message mode
+    // passing on its own is no longer sufficient: cue mode is the capability
+    // this deployment exists to add, and a cue path that speaks for an unknown
+    // key or an unauthenticated caller is a worse outcome than one that stays
+    // silent, so a missed rejection blocks just as a missing cue does.
     voiceProviderRuntimeVerification:
       requestResult.httpStatus === 200
       && requestResult.audioPresent
       && providerDiagnosticClass === 'PROVIDER_HEALTHY'
+      && cueResults.length === PROBE_CUES.length
+      && cueResults.every((entry) => entry.pass)
+      && Boolean(
+        negativeResults
+        && negativeResults.unknownCue.rejected
+        && negativeResults.unauthenticatedCue.rejected
+        && negativeResults.mixedModeRequest.rejected
+        && negativeResults.silentStylistCue.rejected,
+      )
         ? 'PASS'
         : 'BLOCK',
     audioRetained: false,
