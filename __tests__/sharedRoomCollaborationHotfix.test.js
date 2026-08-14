@@ -217,12 +217,52 @@ test('contributions flag alone enables item capabilities and collaborator status
 });
 
 // ── Contributions migration (local, additive, owner-safe) ────────────────────
+//
+// This migration is DELIBERATELY DEFERRED, not missing. It drops and
+// recreates three dressing_room_items RLS policies differently than
+// production defines them and adds a column production does not have
+// (see supabase/migrations-deferred/README.md); applying it to staging
+// would make staging enforce a write-authorization contract the released
+// client does not run against in production. Promoting it into the active,
+// deployable supabase/migrations/ path is a product decision, not a
+// technical restoration -- scripts/staging-v2/apply-migrations.mjs only
+// reads supabase/migrations, so the deferred location is deploy-inert by
+// construction. The governed invariant this suite enforces:
+//
+//   DEFERRED_MIGRATION_PRESENT:         YES
+//   ACTIVE_MIGRATION_PRESENT:           NO
+//   DEPLOYMENT_EXCLUSION_INTENTIONAL:   YES
+
+const DEFERRED_MIGRATION_PATH = 'supabase/migrations-deferred/20260725100000_shared_room_item_contributions.sql';
+const ACTIVE_MIGRATION_PATH = 'supabase/migrations/20260725100000_shared_room_item_contributions.sql';
+
+function readDeferredMigration() {
+  return fs.readFileSync(path.join(ROOT, DEFERRED_MIGRATION_PATH), 'utf8');
+}
+
+test('the shared-room contributions migration is deferred, not deployed, and not silently promoted', () => {
+  // Fails if the deferred migration disappears unexpectedly: existence is
+  // asserted explicitly, not merely implied by a successful read elsewhere.
+  assert.ok(
+    fs.existsSync(path.join(ROOT, DEFERRED_MIGRATION_PATH)),
+    'DEFERRED_MIGRATION_PRESENT must be true: the governed migration must still exist at the deferred path',
+  );
+  const deferredContent = readDeferredMigration();
+  assert.ok(deferredContent.length > 0, 'the deferred migration must not be an empty file');
+
+  // Fails if the migration is silently promoted into the deployable path
+  // without the corresponding governance decision (see the README in
+  // supabase/migrations-deferred/). Promotion is a product decision that
+  // must show up as its own reviewed change, never as a side effect.
+  assert.equal(
+    fs.existsSync(path.join(ROOT, ACTIVE_MIGRATION_PATH)),
+    false,
+    'ACTIVE_MIGRATION_PRESENT must be false: this migration must not be promoted into supabase/migrations/ without an explicit governance decision',
+  );
+});
 
 test('contributions migration uses a current room-scoped participant/share predicate', () => {
-  const migration = fs.readFileSync(
-    path.join(ROOT, 'supabase/migrations/20260725100000_shared_room_item_contributions.sql'),
-    'utf8',
-  );
+  const migration = readDeferredMigration();
   assert.doesNotMatch(migration, /\b(drop\s+table|truncate|delete\s+from)\b/i, 'additive only');
   assert.doesNotMatch(migration, /using\s*\(\s*true\s*\)/i, 'no unrestricted USING');
   assert.doesNotMatch(migration, /with\s+check\s*\(\s*true\s*\)/i, 'no unrestricted WITH CHECK');
@@ -243,10 +283,7 @@ test('contributions migration uses a current room-scoped participant/share predi
 });
 
 test('contribution UPDATE cannot reassign contributor identity or move an item between rooms', () => {
-  const migration = fs.readFileSync(
-    path.join(ROOT, 'supabase/migrations/20260725100000_shared_room_item_contributions.sql'),
-    'utf8',
-  );
+  const migration = readDeferredMigration();
   assert.match(migration, /before update of created_by, dressing_room_id/);
   assert.match(migration, /new\.created_by is distinct from old\.created_by/);
   assert.match(migration, /new\.dressing_room_id is distinct from old\.dressing_room_id/);
@@ -255,10 +292,7 @@ test('contribution UPDATE cannot reassign contributor identity or move an item b
 });
 
 test('contribution DELETE remains own-item-only while existing owner policies are untouched', () => {
-  const migration = fs.readFileSync(
-    path.join(ROOT, 'supabase/migrations/20260725100000_shared_room_item_contributions.sql'),
-    'utf8',
-  );
+  const migration = readDeferredMigration();
   assert.match(migration, /for delete[\s\S]*created_by = \(select auth\.uid\(\)\)[\s\S]*can_contribute_to_dressing_room/);
   assert.doesNotMatch(migration, /drop policy if exists "Users can (insert|update|delete) own dressing room items"/);
   const grants = fs.readFileSync(
