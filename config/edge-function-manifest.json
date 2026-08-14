@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-14T06:37:49.422Z",
-    "generatedFromGitSha": "bc2fde24945b3bf4f7664337f4eb6562a12f3dda"
+    "generatedAtUtc": "2026-08-14T06:42:28.765Z",
+    "generatedFromGitSha": "e0ac6f932aef5b95d446b5029d66c8da0a104812"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v2",
@@ -643,10 +643,15 @@
           "npm:@supabase/supabase-js@2.105.4"
         ],
         "bundleFileCount": 11,
-        "treeFileCount": 20,
+        "treeFileCount": 21,
         "bundleHash": "95fe5fa89a26a43505dd784d69fa7d60d15b097b02193a96d2652c64d267a81f",
-        "treeHash": "6540da9ddcf0e4d9cb3a359a595dfcb54ad9c30b478e82e8c397c03f7a22bd35",
+        "treeHash": "ce003f43a0de92c812205513c03da590319923b55702b9284ef56011e04b11d1",
         "files": [
+          {
+            "path": "supabase/functions/stylist-speech/e41SpeechLengthContract.test.ts",
+            "sha256": "ed0870bc22d58aeb34fdf85de0137e4fe620e56e32fa9336a4650ecbd431f0cc",
+            "bundle": false
+          },
           {
             "path": "supabase/functions/stylist-speech/elevenLabsClient.test.ts",
             "sha256": "c953d64b6140c9a3cb79313d9f51f4c0f48dcfd173bfef1e24dc5ef2c8b6f743",
