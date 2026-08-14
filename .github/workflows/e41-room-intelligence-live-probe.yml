@@ -90,7 +90,7 @@ jobs:
             }).catch((error) => {
               // Classification, never the message body: a thrown error can
               // carry response text.
-              console.error('E4.1 probe failed:', error.code || 'UNKNOWN');
+              console.error('E4.1 probe failed:', error.code || 'UNKNOWN', error.status ? `http=${error.status}` : '');
               process.exit(1);
             });
           "

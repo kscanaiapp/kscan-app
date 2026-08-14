@@ -114,6 +114,51 @@ test('account-deletion infrastructure is never touched by the probe', () => {
   }
 });
 
+test('the fixture matches the real dressing_rooms schema', () => {
+  // The first live run failed FIXTURE_FAILURE because the probe posted `name`
+  // to dressing_rooms, whose NOT NULL column is `title`. Pinned against the
+  // migration so a schema drift or a rewrite cannot silently reintroduce it.
+  const probeSource = read(PROBE);
+  assert.match(
+    probeSource,
+    /dressing_rooms[\s\S]{0,400}?title: `E4\.1 certification/,
+    'the room fixture must insert `title`, the NOT NULL column',
+  );
+  assert.doesNotMatch(
+    probeSource,
+    /dressing_rooms[\s\S]{0,400}?name:/,
+    'dressing_rooms has no `name` column',
+  );
+
+  const migrations = fs.readdirSync(path.join(ROOT, 'supabase', 'migrations'))
+    .filter((f) => f.endsWith('.sql'))
+    .map((f) => fs.readFileSync(path.join(ROOT, 'supabase', 'migrations', f), 'utf8'))
+    .join('\n');
+  const createTable = /create table if not exists public\.dressing_rooms\s*\(([\s\S]*?)\);/.exec(migrations);
+  assert.ok(createTable, 'dressing_rooms migration not found');
+  const columns = createTable[1];
+  // Plain substring checks: the column list is normalised SQL, so a regex here
+  // would add escaping risk for no extra precision.
+  assert.ok(
+    columns.includes('title text not null'),
+    'dressing_rooms must still declare title as NOT NULL',
+  );
+  assert.ok(
+    !columns.split('\n').some((line) => /^\s*name\s+text/.test(line)),
+    'schema gained a `name` column; revisit the fixture',
+  );
+});
+
+test('fixture failures surface an HTTP status without a response body', () => {
+  // A bare classification cost a full round trip to diagnose. The status is
+  // diagnostic; the body could carry room contents and is never attached.
+  const probeSource = read(PROBE);
+  assert.match(probeSource, /'FIXTURE_FAILURE',\s*roomRes\.status/);
+  assert.match(probeSource, /if \(Number\.isFinite\(status\)\) this\.status = status;/);
+  const workflow = read(WORKFLOW);
+  assert.match(workflow, /error\.status \? `http=\$\{error\.status\}` : ''/);
+});
+
 test('the matrix asserts invariants rather than model prose', () => {
   const matrix = read(MATRIX);
   // A literal expected-sentence comparison would make the suite fail on

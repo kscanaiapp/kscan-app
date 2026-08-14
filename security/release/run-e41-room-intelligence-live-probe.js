@@ -83,10 +83,17 @@ const FORBIDDEN_EVIDENCE_PATTERNS = Object.freeze([
 ]);
 
 class E41ProbeError extends Error {
-  constructor(message, code) {
+  /**
+   * `status` carries the HTTP code only -- never a response body. The first
+   * live run failed with a bare FIXTURE_FAILURE and no way to tell a schema
+   * mismatch from an RLS refusal without re-reading the source, which cost a
+   * whole round trip. A status is diagnostic and cannot leak room contents.
+   */
+  constructor(message, code, status) {
     super(message);
     this.name = 'E41ProbeError';
     this.code = code || 'UNKNOWN';
+    if (Number.isFinite(status)) this.status = status;
   }
 }
 
@@ -142,10 +149,15 @@ async function createRoomFixture(ctx) {
   const roomRes = await ctx.fetchImpl(`${ctx.restBase}/dressing_rooms`, {
     method: 'POST',
     headers: restHeaders(ctx.publishableKey, ctx.accessToken, { Prefer: 'return=representation' }),
-    body: JSON.stringify({ user_id: ctx.actorId, name: `E4.1 certification (${SYNTHETIC_MARKER})` }),
+    // `title` is the NOT NULL column on dressing_rooms; there is no `name`.
+    body: JSON.stringify({ user_id: ctx.actorId, title: `E4.1 certification (${SYNTHETIC_MARKER})` }),
   });
   if (!roomRes.ok) {
-    throw new E41ProbeError(`fixture room creation failed (${roomRes.status})`, 'FIXTURE_FAILURE');
+    throw new E41ProbeError(
+      `fixture room creation failed (${roomRes.status})`,
+      'FIXTURE_FAILURE',
+      roomRes.status,
+    );
   }
   const rooms = await roomRes.json().catch(() => null);
   const roomId = Array.isArray(rooms) ? rooms[0]?.id : rooms?.id;
@@ -172,7 +184,11 @@ async function createRoomFixture(ctx) {
       }),
     });
     if (!res.ok) {
-      throw new E41ProbeError(`fixture item creation failed (${res.status})`, 'FIXTURE_FAILURE');
+      throw new E41ProbeError(
+        `fixture item creation failed (${res.status})`,
+        'FIXTURE_FAILURE',
+        res.status,
+      );
     }
     const rows = await res.json().catch(() => null);
     const itemId = Array.isArray(rows) ? rows[0]?.id : rows?.id;
