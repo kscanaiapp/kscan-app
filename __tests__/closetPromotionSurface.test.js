@@ -541,6 +541,16 @@ function mountLibrary(options = {}) {
     },
     '../services/closetCandidateSchema': { createClosetBatchId: () => 'batch_test' },
     '../components/closet/ClosetIntakeModal': { ClosetIntakeModal: 'ClosetIntakeModal' },
+    // Closet V2 / S6 wear surface. Stubbed rather than executed: these tests
+    // are about batch-review/promotion rendering, and the wear service owns
+    // its own coverage in wearHistoryProductSurface.test.js.
+    '../components/closet/WoreThisButton': { WoreThisButton: 'WoreThisButton' },
+    '../services/wearHistory': {
+      logItemWear: async () => ({ ok: true, deduplicated: false, event: { id: 'e', wornAt: '', savedLookId: null, sourceItemId: null, items: [] } }),
+      getWearStats: async () => ({ ok: true, stats: [], truncated: false }),
+      describeWearState: () => 'none_recorded',
+      WEAR_TRACKING_STARTED_AT: '2026-08-14T00:00:00.000Z',
+    },
     // Build 2.5 Step 3. Stubbed like its sibling: this harness renders the
     // Closet screen, and the Mirror sheet is gated off in every profile here.
     '../components/closet/MirrorSelfieExtractionModal': {

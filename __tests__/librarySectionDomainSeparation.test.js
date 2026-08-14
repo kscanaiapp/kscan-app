@@ -357,7 +357,15 @@ test('record accessibility labels use the active domain instead of saved-look la
 
   const closet = renderLibrary({ section: 'closet', closetItems: [CLOSET_FIXTURE] });
   const closetCard = byTestID(closet.tree, 'closet-card')[0];
-  assert.equal(closetCard.props.accessibilityLabel, 'CLOSET_OWNED_TITLE Closet item');
+  // The label carries the item's wear context as well (Closet V2 / S6): wear
+  // counts must not be conveyed by visual treatment alone. The assertion this
+  // test exists for — that a Closet card never speaks saved-look language —
+  // is checked explicitly below rather than by exact-matching the whole string.
+  assert.ok(
+    closetCard.props.accessibilityLabel.startsWith('CLOSET_OWNED_TITLE Closet item'),
+    'the Closet card must lead with its own domain title',
+  );
+  assert.doesNotMatch(closetCard.props.accessibilityLabel, /saved look/i);
   assert.doesNotMatch(closetCard.props.accessibilityLabel, /recent scan|saved look/i);
 });
 
