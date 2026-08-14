@@ -549,14 +549,28 @@ async function applyResolution(
     item.imageReferenceType = 'storage_object';
   }
   if (resolution.metadata) {
-    item.title = item.title ?? resolution.metadata.title ?? null;
-    item.category = item.category ?? resolution.metadata.category ?? null;
-    item.silhouette = item.silhouette ?? resolution.metadata.silhouette ?? null;
-    item.brand = item.brand ?? resolution.metadata.brand ?? null;
-    if (!item.colors.length && resolution.metadata.colors?.length) {
+    // SERVER WINS. This precedence used to be inverted: the client value was
+    // kept and the resolved row was consulted only as a fallback, so a caller
+    // could describe a verified room item however it liked -- a different
+    // brand, category, colour or title -- and that description was rendered
+    // into the prompt under the `server_verified` trust label set two blocks
+    // above. The item's identity and authorization were server-derived while
+    // its ATTRIBUTES were not, which is precisely the combination the
+    // grounding invariant cannot tolerate: Elise would state, as verified room
+    // truth, whatever the request claimed.
+    //
+    // The client value is retained ONLY where the server has no opinion at all,
+    // because some sources (a live camera scan not yet persisted) genuinely
+    // have no row to speak for them. Where the server does have a value it is
+    // authoritative and overwrites the claim.
+    item.title = resolution.metadata.title ?? item.title ?? null;
+    item.category = resolution.metadata.category ?? item.category ?? null;
+    item.silhouette = resolution.metadata.silhouette ?? item.silhouette ?? null;
+    item.brand = resolution.metadata.brand ?? item.brand ?? null;
+    if (resolution.metadata.colors?.length) {
       item.colors = resolution.metadata.colors.slice(0, B.maxColors);
     }
-    if (!item.materials.length && resolution.metadata.materials?.length) {
+    if (resolution.metadata.materials?.length) {
       item.materials = resolution.metadata.materials.slice(0, B.maxMaterials);
     }
   }

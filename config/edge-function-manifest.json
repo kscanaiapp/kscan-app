@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-14T06:22:25.838Z",
-    "generatedFromGitSha": "3251fcc1b8119e2e0010ee57ffbacd5026465286"
+    "generatedAtUtc": "2026-08-14T06:37:49.422Z",
+    "generatedFromGitSha": "bc2fde24945b3bf4f7664337f4eb6562a12f3dda"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v2",
@@ -297,9 +297,9 @@
           "npm:@supabase/supabase-js@2.105.4"
         ],
         "bundleFileCount": 37,
-        "treeFileCount": 54,
-        "bundleHash": "04b61a6752bd4751a8cfd2995da58f3d3e7e999398e51195b949f9aa982c8238",
-        "treeHash": "882b1eb158c3b85f5363afd1de24a2dd715a73f7959fd6bb95278807a49a0550",
+        "treeFileCount": 55,
+        "bundleHash": "3fdf15b15ad4482e586e7c07cb9e37647371d74d14b247d536675a8c9daa6288",
+        "treeHash": "d9f886a0302423da7cce3771f4369d63f3eae7bd57e204d3f04420961376b196",
         "files": [
           {
             "path": "supabase/functions/_shared/aiSecurity/escapeUntrustedText.ts",
@@ -463,8 +463,13 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseResourceResolvers.ts",
-            "sha256": "f829a792661167e462b75f610767cee83b4ca157f428f546fb93d29bdff4352a",
+            "sha256": "04a85a7caffb8ffe2fd21fe2ac8f0221b113683600dd3da85ddb39ac338d2271",
             "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseRoomItemAuthority.test.ts",
+            "sha256": "9416701263b9cc4534f088d31a3500d76a5168a1419f160180156579a51a4490",
+            "bundle": false
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseRoomItemEvidence.ts",
@@ -488,7 +493,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseVisualContextPipeline.ts",
-            "sha256": "1f605bbe7fa256a49daed994ad006e8a73955ecd3e3933a162c6bb2501a24b29",
+            "sha256": "002bac012c64a00311b100e7dabf9b8cb922e7113dfdbf88a51d3d920532a10e",
             "bundle": true
           },
           {

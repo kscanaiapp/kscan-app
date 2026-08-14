@@ -63,6 +63,72 @@ function materialsFromRow(row: Record<string, unknown>): string[] {
   return material ? [material] : [];
 }
 
+function asStringList(value: unknown, limit: number): string[] {
+  if (!Array.isArray(value)) {
+    const single = asString(value);
+    return single ? [single] : [];
+  }
+  const out: string[] = [];
+  for (const entry of value) {
+    const text = asString(entry);
+    if (text && !out.includes(text)) out.push(text);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+/**
+ * Server-side descriptive metadata for a Dressing Room item.
+ *
+ * WHY THIS EXISTS: the room-item resolvers previously returned
+ * `colors: []`, `materials: []`, `silhouette: null` — the server had no
+ * opinion, so the client's claim about a verified item was the only value
+ * available and won by default. The authoritative copy of that metadata is the
+ * row's `snapshot_payload`, which is written when the item is added to the
+ * room; reading it is what lets the server actually be the authority its
+ * `server_verified` trust label already claims.
+ *
+ * Deliberately defensive: `snapshot_payload` is heterogeneous jsonb written by
+ * several item sources across builds, so every field is optional and a
+ * malformed payload yields no opinion rather than throwing. No value is
+ * invented — an absent field stays absent.
+ */
+function snapshotMetadata(item: Record<string, unknown>): {
+  colors: string[];
+  materials: string[];
+  silhouette: string | null;
+} {
+  const payload = item.snapshot_payload;
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return { colors: [], materials: [], silhouette: null };
+  }
+  const record = payload as Record<string, unknown>;
+  const metadata =
+    record.metadata && typeof record.metadata === 'object' && !Array.isArray(record.metadata)
+      ? (record.metadata as Record<string, unknown>)
+      : {};
+  const attributes =
+    record.attributes && typeof record.attributes === 'object' &&
+      !Array.isArray(record.attributes)
+      ? (record.attributes as Record<string, unknown>)
+      : {};
+
+  const colors = asStringList(
+    record.colors ?? attributes.colors ?? metadata.color ?? attributes.color ?? record.color,
+    8,
+  );
+  const materials = asStringList(
+    record.materials ?? attributes.material ?? metadata.materialEstimate ?? record.material,
+    8,
+  );
+  const silhouette =
+    asString(record.silhouette) ??
+    asString(attributes.silhouette) ??
+    asString(metadata.silhouette);
+
+  return { colors, materials, silhouette };
+}
+
 export async function resolveScanOwnership(
   data: EliseResourceDataSource,
   actorId: string,
@@ -207,9 +273,7 @@ export async function resolveOwnedRoomItem(
     metadata: {
       title: asString(item.title),
       category: asString(item.category),
-      colors: [],
-      materials: [],
-      silhouette: null,
+      ...snapshotMetadata(item),
       brand: asString(item.brand),
     },
   };
@@ -254,9 +318,7 @@ export async function resolveSharedRoomItem(
     metadata: {
       title: asString(item.title),
       category: asString(item.category),
-      colors: [],
-      materials: [],
-      silhouette: null,
+      ...snapshotMetadata(item),
       brand: asString(item.brand),
     },
   };
