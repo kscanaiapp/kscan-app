@@ -312,7 +312,31 @@ export async function upsertSavedScanRowForAttachment(
           && existingAnalysis !== null
           && Object.keys(existingAnalysis).length > 0;
 
-        if (!hasExistingAnalysis) {
+        // ENRICHMENT EXCEPTION (Closet V2 / S2).
+        //
+        // A Build 28 row carries `{ result, metadata }` and no identification
+        // snapshot. That is non-empty, so the guard above treated it as
+        // authoritative and refused every later write — meaning a row saved
+        // before the snapshot contract existed could NEVER acquire one, even
+        // when the user re-scanned and a rich snapshot was in hand. Its
+        // subtype, pattern, fit and brand stayed permanently absent.
+        //
+        // Adding a snapshot where there was none is purely additive: the
+        // legacy `result`/`metadata` keys travel in the same payload and are
+        // preserved, so nothing a previous build could read is lost. This is
+        // deliberately one-directional — it never replaces an existing
+        // snapshot, so a newer identification cannot be clobbered by a
+        // re-save that happens to carry an older one.
+        const incomingHasSnapshot =
+          typeof row.analysis_result === 'object' &&
+          row.analysis_result !== null &&
+          'identificationSnapshot' in row.analysis_result;
+        const existingHasSnapshot =
+          typeof existingAnalysis === 'object' &&
+          existingAnalysis !== null &&
+          'identificationSnapshot' in (existingAnalysis as Record<string, unknown>);
+
+        if (!hasExistingAnalysis || (incomingHasSnapshot && !existingHasSnapshot)) {
           updatePayload.analysis_result = row.analysis_result;
         }
 

@@ -421,6 +421,82 @@ test('S3: absent commerce stays absent and is never invented', () => {
   assert.deepEqual(Array.from(reloaded.purchaseOptions), []);
 });
 
+// ── S2: legacy-row enrichment ────────────────────────────────────────────────
+
+/** Minimal saved_scans client: one row, lookup + update + insert. */
+function mockClient(existingRow) {
+  const calls = { updates: [], inserts: 0 };
+  const client = {
+    auth: {
+      getSession: async () => ({ data: { session: { user: { id: USER_ID } } }, error: null }),
+    },
+    from() {
+      return {
+        select() { return this; },
+        eq() { return this; },
+        is() { return this; },
+        maybeSingle: async () => ({ data: existingRow, error: null }),
+        update(payload) {
+          calls.updates.push(payload);
+          return { eq: () => ({ eq: async () => ({ error: null }) }) };
+        },
+        insert: async () => {
+          calls.inserts += 1;
+          return { error: null };
+        },
+      };
+    },
+  };
+  return { client, calls };
+}
+
+function legacyStoredRow() {
+  return {
+    id: REMOTE_UUID,
+    deleted_at: null,
+    // Build 28 shape: non-empty, but carries no identification snapshot.
+    analysis_result: { result: 'A blazer', metadata: { category: 'Blazer' } },
+    products: [],
+    purchase_options: [],
+  };
+}
+
+test('S2: a legacy row CAN acquire an identification snapshot on re-save', async () => {
+  const { client, calls } = mockClient(legacyStoredRow());
+  const result = await cloud.upsertSavedScanRowForAttachment(makeModel(), client);
+
+  assert.equal(result.ok, true);
+  assert.equal(calls.updates.length, 1, 'the existing row must be updated, not duplicated');
+
+  const written = calls.updates[0].analysis_result;
+  assert.ok(
+    written,
+    'a re-save carrying a snapshot must be allowed to write it onto a legacy row — ' +
+      'otherwise subtype/pattern/fit/brand stay permanently absent for Build 28 users',
+  );
+  assert.equal(written.identificationSnapshot.subtype, 'double-breasted blazer');
+  // Additive: what a previous build could read must still be there.
+  assert.equal(typeof written.result, 'string');
+  assert.ok(written.metadata, 'the legacy metadata projection must be preserved');
+});
+
+test('S2: enrichment never clobbers an existing snapshot', async () => {
+  const stored = legacyStoredRow();
+  stored.analysis_result.identificationSnapshot = {
+    contractVersion: 'fashion-identification-v1',
+    subtype: 'already-identified',
+  };
+
+  const { calls, client } = mockClient(stored);
+  await cloud.upsertSavedScanRowForAttachment(makeModel(), client);
+
+  assert.equal(
+    calls.updates[0].analysis_result,
+    undefined,
+    'a row that already has a snapshot must not have it replaced by a re-save',
+  );
+});
+
 test('S3: identification is immutable to commerce — a retailer result cannot rewrite the garment', () => {
   const model = makeModel({
     purchaseOptions: [
