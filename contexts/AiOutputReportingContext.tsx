@@ -18,6 +18,7 @@ import {
   type AiOutputReportReasonId,
   type AiOutputReportRequest,
 } from '../services/reportAiOutput';
+import { isReportServerAccepted } from '../services/contentReports';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../constants/theme';
 
 type AiOutputReportingContextValue = {
@@ -68,7 +69,16 @@ export function AiOutputReportProvider({ children }: { children: ReactNode }) {
       );
       if (!attempt.started) return;
 
-      setState(attempt.value.ok ? 'success' : 'error');
+      // KSB29-035: `ok: true` is NOT server acceptance. It also covers the
+      // local-only outcome ({ ok: true, serverAccepted: false, localOnly: true })
+      // returned when there is no authenticated session — the row never reached
+      // the server. Showing "REPORT SENT" there tells the user their report was
+      // filed for review when nothing was submitted, which for a Play
+      // submission requirement is the one failure mode that must not happen
+      // silently. `isReportServerAccepted` is the single authoritative decision
+      // point the Dressing Room report path already uses (DEF-B29-IOS-02C); a
+      // duplicate still counts, because the original report is on file.
+      setState(isReportServerAccepted(attempt.value) ? 'success' : 'error');
     } catch {
       setState('error');
     }
