@@ -103,13 +103,16 @@ function countArray(value) {
 
 function inspectPositiveResponse(httpStatus, body, expected) {
   const v2 = body && typeof body === 'object' ? body.identificationV2 : null;
-  const evidenceIds = Array.isArray(v2?.evidenceIds) ? v2.evidenceIds : [];
+  const evidenceIds = Array.isArray(v2?.evidence)
+    ? v2.evidence
+      .map((entry) => (entry && typeof entry.evidenceId === 'string' ? entry.evidenceId : null))
+      .filter(Boolean)
+    : [];
   const facts = {
     httpStatus,
     logicalStatus: typeof body?.status === 'string' ? body.status : null,
     contractVersion: typeof body?.contractVersion === 'string' ? body.contractVersion : null,
     v2Status: typeof v2?.status === 'string' ? v2.status : null,
-    v2Outcome: typeof v2?.outcome === 'string' ? v2.outcome : null,
     requestCorrelated: v2?.requestId === expected.requestId,
     evidenceCorrelated: evidenceIds.length === 1 && evidenceIds[0] === expected.evidenceId,
     recommendedProductCount: countArray(body?.recommendedProducts),
@@ -121,8 +124,7 @@ function inspectPositiveResponse(httpStatus, body, expected) {
     facts.httpStatus === 200 &&
     facts.logicalStatus === 'completed' &&
     facts.contractVersion === CONTRACT_VERSION &&
-    facts.v2Status === 'completed' &&
-    ['classified', 'multiple_items_need_selection'].includes(facts.v2Outcome) &&
+    ['completed', 'partial', 'multiple_items_need_selection'].includes(facts.v2Status) &&
     facts.requestCorrelated &&
     facts.evidenceCorrelated &&
     facts.recommendedProductCount === 0 &&

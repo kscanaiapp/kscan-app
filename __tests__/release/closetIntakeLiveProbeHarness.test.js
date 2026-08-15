@@ -34,9 +34,8 @@ test('positive response requires live V2 correlation and zero commerce arrays', 
     contractVersion: probe.CONTRACT_VERSION,
     identificationV2: {
       status: 'completed',
-      outcome: 'classified',
       requestId: 'req-1',
-      evidenceIds: ['evidence-1'],
+      evidence: [{ evidenceId: 'evidence-1', observations: [] }],
     },
     recommendedProducts: [],
     products: [],
@@ -46,15 +45,27 @@ test('positive response requires live V2 correlation and zero commerce arrays', 
   assert.equal(facts.accepted, true);
 });
 
+test('detection-mode multiple-item status is an accepted V2 outcome', () => {
+  const facts = probe.inspectPositiveResponse(200, {
+    status: 'completed',
+    contractVersion: probe.CONTRACT_VERSION,
+    identificationV2: {
+      status: 'multiple_items_need_selection',
+      requestId: 'req-2',
+      evidence: [{ evidenceId: 'evidence-2', observations: [] }],
+    },
+  }, { requestId: 'req-2', evidenceId: 'evidence-2' });
+  assert.equal(facts.accepted, true);
+});
+
 test('positive response fails on missing V2 evidence or any commerce result', () => {
   const base = {
     status: 'completed',
     contractVersion: probe.CONTRACT_VERSION,
     identificationV2: {
-      status: 'completed',
-      outcome: 'classified',
+      status: 'multiple_items_need_selection',
       requestId: 'req-1',
-      evidenceIds: ['wrong'],
+      evidence: [{ evidenceId: 'wrong', observations: [] }],
     },
     purchaseOptions: [{ id: 'not-allowed' }],
   };
