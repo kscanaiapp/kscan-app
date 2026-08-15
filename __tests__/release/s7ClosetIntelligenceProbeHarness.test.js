@@ -45,6 +45,8 @@ test('S7 probe evidence allowlist rejects content-bearing and unknown fields', (
     purchaseVerdict: 'consider',
     purchaseReasonCodes: ['balanced_utility'],
     multiLookCount: 0,
+    multiLookUngroundedCandidateCount: 0,
+    multiLookRepeatedWithinLookCount: 0,
   };
   assert.deepEqual(probe.safeRuntimeEvidence(safe), safe);
   assert.equal(probe.safeRuntimeEvidence({ ...safe, prompt: 'secret' }), null);

@@ -2097,6 +2097,10 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
       if (adviceResult) {
         advicePromptBlock = adviceResult.promptBlock;
         adviceMetadata = adviceResult.adviceMetadata as unknown as Record<string, unknown>;
+        const multiLookCandidates = adviceResult.looks?.flatMap((look) => look.candidateIds) ?? [];
+        const groundedCandidateIds = new Set(
+          adviceResult.shortlist.map((row) => row.candidate.candidateId),
+        );
         closetIntelligenceRuntimeEvidence = {
           adviceIntent: adviceResult.telemetry.adviceIntent,
           closetInventoryState: closetIntelligenceContext.inventoryState,
@@ -2118,6 +2122,13 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
           purchaseVerdict: adviceResult.purchaseAdvice?.verdict ?? null,
           purchaseReasonCodes: adviceResult.purchaseAdvice?.reasons.slice(0, 4) ?? [],
           multiLookCount: adviceResult.looks?.length ?? 0,
+          multiLookUngroundedCandidateCount: multiLookCandidates.filter(
+            (candidateId) => !groundedCandidateIds.has(candidateId),
+          ).length,
+          multiLookRepeatedWithinLookCount: (adviceResult.looks ?? []).reduce(
+            (count, look) => count + look.candidateIds.length - new Set(look.candidateIds).size,
+            0,
+          ),
         };
         emitEliseTelemetry(config, 'elise_advice_outcome', {
           requestId,

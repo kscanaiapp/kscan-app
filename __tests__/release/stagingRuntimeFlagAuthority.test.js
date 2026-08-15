@@ -303,7 +303,7 @@ test('SVV-004: the staging apply path re-proves its target immediately before th
   assert.match(src, /linked === PRODUCTION_REF/, 'production must be an explicit deny');
   assert.match(
     src,
-    /assertExpectedEnvironment\(linked, 'staging'\)/,
+    /assertExpectedEnvironment\('staging', linked\)/,
     'the shared authority module must give an independent second opinion',
   );
 });

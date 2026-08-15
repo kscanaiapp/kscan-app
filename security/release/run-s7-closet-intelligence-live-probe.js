@@ -74,6 +74,8 @@ function safeRuntimeEvidence(value) {
     'purchaseVerdict',
     'purchaseReasonCodes',
     'multiLookCount',
+    'multiLookUngroundedCandidateCount',
+    'multiLookRepeatedWithinLookCount',
   ]);
   if (!Object.keys(value).every((key) => allowed.has(key))) return null;
   return value;
@@ -338,6 +340,7 @@ async function runCompatibility(ctx) {
 }
 
 async function runWardrobeGap(ctx) {
+  ctx.recentIds = await createRecentScans(ctx, 12, false);
   const partial = await invoke(
     ctx,
     'What am I missing to complete this look?',
@@ -348,6 +351,11 @@ async function runWardrobeGap(ctx) {
     'What am I missing to complete this look?',
     closetContext('complete', []),
   );
+  const unavailable = await invoke(
+    ctx,
+    'What am I missing to complete this look?',
+    closetContext('unavailable', []),
+  );
   return [
     assertion('WARDROBE_GAP_PARTIAL_IS_UNKNOWN_RUNTIME',
       partial.runtime.wardrobeGapEvidence === 'insufficient' &&
@@ -357,6 +365,16 @@ async function runWardrobeGap(ctx) {
       empty.runtime.wardrobeGapEvidence === 'complete' &&
       empty.runtime.wardrobeGapCount > 0,
       'authoritative empty Closet produced complete-snapshot gaps'),
+    assertion('WARDROBE_GAP_RECENT_SCAN_NOT_COVERAGE_RUNTIME',
+      empty.runtime.recentScanCandidateCount === 12 &&
+      empty.runtime.ownedClosetCandidateCount === 0 &&
+      empty.runtime.wardrobeGapCount > 0,
+      '12 unowned Recent Scans did not inflate Closet coverage'),
+    assertion('WARDROBE_GAP_UNAVAILABLE_IS_UNKNOWN_RUNTIME',
+      unavailable.runtime.closetInventoryState === 'unavailable' &&
+      unavailable.runtime.wardrobeGapEvidence === 'insufficient' &&
+      unavailable.runtime.wardrobeGapCount === 0,
+      'unavailable device Closet produced insufficient evidence, not empty'),
   ];
 }
 
@@ -381,6 +399,9 @@ async function runPurchaseAdvice(ctx) {
     assertion('PURCHASE_NO_INVENTED_COMMERCE_RUNTIME',
       !textHasFabricatedCommerce,
       'no URL, price, or retailer field invented'),
+    assertion('PURCHASE_RETAILER_NEUTRAL_RUNTIME',
+      result.runtime.purchaseReasonCodes.includes('retailer_neutral'),
+      'purchase reasoning remained retailer-neutral'),
     assertion('INTELLIGENCE_DOES_NOT_MUTATE_COMMERCE_RUNTIME',
       JSON.stringify(commerceBefore) === JSON.stringify(commerceAfter),
       'Recent Scan products and purchase_options unchanged'),
@@ -402,13 +423,41 @@ async function runMultiLook(ctx) {
       closetItem('closet_5', 'bag', { primaryColor: 'brown' }),
     ]),
   );
+  const afterRemoval = await invoke(
+    ctx,
+    'Give me three ways to style my Closet pieces.',
+    closetContext('complete', [
+      closetItem('closet_1', 'jacket'),
+      closetItem('closet_2', 'shirt', { primaryColor: 'white' }),
+      closetItem('closet_3', 'pants', { primaryColor: 'black' }),
+      closetItem('closet_4', 'shoes', { primaryColor: 'black' }),
+    ]),
+  );
+  const insufficient = await invoke(
+    ctx,
+    'Give me three ways to style my Closet pieces.',
+    closetContext('partial', [closetItem('closet_1', 'jacket')]),
+  );
   return [
     assertion('MULTI_LOOK_RUNTIME',
       result.runtime.multiLookCount >= 2 && result.runtime.multiLookCount <= 3,
       'generated 2-3 grounded distinct looks'),
     assertion('MULTI_LOOK_NO_INVENTED_OWNERSHIP_RUNTIME',
-      result.runtime.ownedClosetCandidateCount === 5,
+      result.runtime.ownedClosetCandidateCount === 5 &&
+      result.runtime.multiLookUngroundedCandidateCount === 0,
       'all and only 5 supplied Closet candidates were owned'),
+    assertion('MULTI_LOOK_DELETED_GARMENT_FRESH_RUNTIME',
+      afterRemoval.runtime.ownedClosetCandidateCount === 4 &&
+      afterRemoval.runtime.multiLookUngroundedCandidateCount === 0,
+      'removed fifth garment was absent on the next grounded request'),
+    assertion('MULTI_LOOK_NO_IMPOSSIBLE_REUSE_RUNTIME',
+      result.runtime.multiLookRepeatedWithinLookCount === 0 &&
+      afterRemoval.runtime.multiLookRepeatedWithinLookCount === 0,
+      'no generated look repeated the same Closet item within itself'),
+    assertion('MULTI_LOOK_INSUFFICIENT_EVIDENCE_RUNTIME',
+      insufficient.runtime.wardrobeGapEvidence === 'insufficient' &&
+      insufficient.runtime.multiLookCount === 0,
+      'partial Closet state generated no multi-look output'),
   ];
 }
 
@@ -508,4 +557,3 @@ if (require.main === module) {
       process.exit(1);
     });
 }
-
