@@ -64,9 +64,13 @@ function safeRuntimeEvidence(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const allowed = new Set([
     'adviceIntent',
+    'roomAdviceScope',
     'closetInventoryState',
     'ownedClosetCandidateCount',
     'recentScanCandidateCount',
+    'inspirationCandidateCount',
+    'ownedRoomCandidateCount',
+    'sharedRoomCandidateCount',
     'compatibilityScoringRan',
     'compatibilityWarningCodes',
     'wardrobeGapEvidence',

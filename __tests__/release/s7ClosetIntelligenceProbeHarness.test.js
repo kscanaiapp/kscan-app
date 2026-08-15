@@ -35,9 +35,13 @@ test('S7 probe capability readback is exact and refuses missing/extra fields', (
 test('S7 probe evidence allowlist rejects content-bearing and unknown fields', () => {
   const safe = {
     adviceIntent: 'purchase_advice',
+    roomAdviceScope: 'none',
     closetInventoryState: 'complete',
     ownedClosetCandidateCount: 0,
     recentScanCandidateCount: 1,
+    inspirationCandidateCount: 0,
+    ownedRoomCandidateCount: 0,
+    sharedRoomCandidateCount: 0,
     compatibilityScoringRan: true,
     compatibilityWarningCodes: [],
     wardrobeGapEvidence: 'not_applicable',
