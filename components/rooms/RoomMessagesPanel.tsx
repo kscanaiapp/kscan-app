@@ -130,6 +130,7 @@ function MessageRow({
           {replyEnabled && !isReply && onReply ? (
             <TouchableOpacity
               onPress={() => onReply(message)}
+              style={styles.inlineAction}
               accessibilityRole="button"
               accessibilityLabel="Reply to message"
               testID={`room-message-reply-${message.id}`}
@@ -139,6 +140,7 @@ function MessageRow({
           ) : null}
           <TouchableOpacity
             onPress={() => onReport(message)}
+            style={styles.inlineAction}
             accessibilityRole="button"
             accessibilityLabel="Report message"
             testID={`room-message-report-${message.id}`}
@@ -149,7 +151,7 @@ function MessageRow({
             <TouchableOpacity
               onPress={() => onReportUser(message)}
               disabled={reportingUser}
-              style={reportingUser ? styles.inlineActionDisabled : null}
+              style={[styles.inlineAction, reportingUser ? styles.inlineActionDisabled : null]}
               accessibilityRole="button"
               accessibilityLabel="Report user"
               accessibilityHint="Send this account to K Scan AI for review"
@@ -165,7 +167,7 @@ function MessageRow({
             <TouchableOpacity
               onPress={() => onBlock(message)}
               disabled={blocking}
-              style={blocking ? styles.inlineActionDisabled : null}
+              style={[styles.inlineAction, blocking ? styles.inlineActionDisabled : null]}
               accessibilityRole="button"
               accessibilityLabel="Block user"
               accessibilityHint="Stop Dressing Room interaction with this account"
@@ -1046,6 +1048,21 @@ const styles = StyleSheet.create({
     ...LUXURY.typography.caption,
     color: LUXURY.colors.error,
     fontWeight: '600',
+  },
+  /**
+   * Sized container for the inline message actions (Reply / Report / Report
+   * user / Block). Their labels, roles and disabled state were already correct,
+   * but none declared a target, so it was whatever the small caption text
+   * happened to measure — well under the platform minimum on a control that
+   * performs a safety action.
+   *
+   * A sized container, not hitSlop: these sit in a tight horizontal row, where
+   * overlapping hit areas would make the wrong action fire.
+   */
+  inlineAction: {
+    minHeight: 48,
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.xs,
   },
   inlineActionDisabled: {
     opacity: 0.45,

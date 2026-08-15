@@ -351,7 +351,10 @@ const styles = StyleSheet.create({
     color: LUXURY.colors.inverse,
   },
   secondaryButton: {
-    minHeight: 44,
+    // The Cancel/dismiss control on the AI-report sheet. 44 met the iOS
+    // minimum but not Android's 48; a single shared floor is simpler here and
+    // costs no layout.
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: SPACING.xs,

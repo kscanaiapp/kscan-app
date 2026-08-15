@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, ViewStyle, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, SPACING } from '../../constants/theme';
+import { getOnboardingBottomClearance } from '../../services/onboardingLayout';
 import { FORM_MAX_WIDTH } from '../../services/responsiveLayout';
 import { OnboardingStepIndicator } from './OnboardingStepIndicator';
 
@@ -45,7 +46,12 @@ export function OnboardingShell({
           styles.content,
           {
             paddingTop: insets.top + SPACING.lg,
-            paddingBottom: insets.bottom + SPACING.xl,
+            // KSB29-058: floored, not raw. A measured inset of 0 (cold-start
+            // frame, or a device that misreports it) collapsed this to
+            // SPACING.xl alone and let the step's CTA render inside the system
+            // navigation/gesture area. On onboarding that CTA is the
+            // AI-processing consent gate.
+            paddingBottom: getOnboardingBottomClearance(insets.bottom, SPACING.xl),
             paddingHorizontal: SPACING.lg,
           },
         ]}
