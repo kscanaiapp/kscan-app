@@ -55,6 +55,14 @@ const BLOCKED_PERMISSIONS = [
   'android.permission.FOREGROUND_SERVICE_MICROPHONE',
   // Build 29 ships no notification surface.
   'android.permission.POST_NOTIFICATIONS',
+  // androidx.biometric, pulled in transitively by expo-secure-store (`api
+  // "androidx.biometric:biometric:1.1.0"`). K Scan never passes
+  // requireAuthentication to SecureStore — services/secureSessionStorage.ts uses the
+  // plain get/set/deleteItemAsync forms — and ships no expo-local-authentication, so
+  // the biometric prompt is unreachable and these declarations are dead weight on the
+  // Play listing.
+  'android.permission.USE_BIOMETRIC',
+  'android.permission.USE_FINGERPRINT',
   // Media/storage: expo-image-picker uses the system photo picker, which needs
   // no storage or media permission on any supported API level.
   'android.permission.READ_EXTERNAL_STORAGE',
