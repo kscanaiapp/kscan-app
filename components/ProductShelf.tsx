@@ -883,7 +883,7 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
   },
   addToRoomButton: {
-    minHeight: 36,
+    minHeight: 48,
     borderRadius: RADIUS.pill,
     borderWidth: 1,
     borderColor: LUXURY.colors.plumMuted,

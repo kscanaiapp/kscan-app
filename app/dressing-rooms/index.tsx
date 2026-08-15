@@ -621,7 +621,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surfaceCard,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
-    minHeight: 36,
+    minHeight: 48,
     justifyContent: 'center',
     alignItems: 'center',
     ...SHADOWS.editorialSmall,

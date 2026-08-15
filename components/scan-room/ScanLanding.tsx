@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xl,
   },
   textScanButton: {
-    minHeight: 44,
+    minHeight: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
     backgroundColor: LUXURY.colors.pearl,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
-    minHeight: 36,
+    minHeight: 48,
     justifyContent: 'center',
     alignItems: 'center',
     ...SHADOWS.editorialSmall,

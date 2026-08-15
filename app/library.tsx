@@ -1279,6 +1279,12 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.sm,
   },
   subNavTab: {
+    // Declared no minHeight at all, so its target was whatever the label text
+    // happened to measure — about 26dp in practice, well under the 48dp
+    // platform minimum. A sized container, not hitSlop: hitSlop leaves the
+    // VISIBLE target small and can be clipped by a parent.
+    minHeight: 48,
+    justifyContent: 'center',
     borderRadius: 18,
     borderWidth: 1,
     borderColor: LUXURY.colors.border,
