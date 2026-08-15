@@ -10,6 +10,7 @@ import React, {
 import type { Session, User } from '@supabase/supabase-js';
 import {
   assertSupabaseConfigured,
+  clearPersistedAuthSession,
   supabase,
   supabaseConfigError,
   takeAuthBootstrapStorageError,
@@ -99,6 +100,14 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
   const authEventGenerationGuardRef = useRef(createAuthBootstrapGenerationGuard());
   const authActorBoundaryGuardRef = useRef(createAuthActorBoundaryGuard());
 
+  /**
+   * KSB29-057. Set the moment the user presses Logout, and cleared only by a
+   * genuine new sign-in. While it is set, no auth event may restore a session:
+   * the background refresher or a late in-flight event could otherwise deliver
+   * the old actor back after the user explicitly signed out.
+   */
+  const signedOutRef = useRef(false);
+
   useEffect(() => {
     let mounted = true;
 
@@ -119,7 +128,10 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
     } = supabase.auth.onAuthStateChange((event, newSession) => {
       if (!mounted) return;
       authEventGenerationGuardRef.current.noteAuthEvent();
-      const usableSession = isSessionUsable(newSession) ? newSession : null;
+      // A real sign-in is the only thing that reopens the door.
+      if (event === 'SIGNED_IN') signedOutRef.current = false;
+      const usableSession =
+        signedOutRef.current || !isSessionUsable(newSession) ? null : newSession;
       traceAuthLifecycle('auth-state-event', {
         authEvent: event,
         sessionPresent: Boolean(newSession),
@@ -257,10 +269,33 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const signOut = useCallback(async () => {
+    // Latch FIRST, synchronously, before any await. Everything below yields to
+    // the event loop, and an auth event arriving in one of those gaps must not
+    // be able to reinstate the actor the user just signed out of.
+    signedOutRef.current = true;
+
     await stopAvatarSpeechPlayback();
     resetActorScopedRuntimeState(null);
     setSession(null);
-    await supabase.auth.signOut();
+
+    // Remote revocation is best effort. auth-js returns early from signOut()
+    // when this call fails with anything other than 401/403/404 — a network
+    // failure included — and so never reaches its own local cleanup step.
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      logError('Remote sign-out failed; clearing local session anyway', error);
+    }
+
+    // KSB29-057: this is the part that must not be conditional. Logout is an
+    // explicit security decision by the user, and network availability cannot
+    // be allowed to reverse it — without this, a user who signed out offline
+    // was restored as authenticated on the next cold start.
+    try {
+      await clearPersistedAuthSession();
+    } catch (error) {
+      logError('Unable to clear persisted auth session', error);
+    }
   }, []);
 
   const value = useMemo<AuthSessionContextValue>(

@@ -59,6 +59,35 @@ const authStorage = createAuthBootstrapStorage({
   },
 });
 
+/**
+ * Remove this device's persisted Supabase auth material, unconditionally.
+ *
+ * KSB29-057. `supabase.auth.signOut()` only reaches its local `_removeSession()`
+ * step if the remote revocation call succeeds or fails with 401/403/404 — a
+ * network failure returns early, leaving the persisted session intact. A user
+ * who pressed Logout offline would then be restored as authenticated on the
+ * next cold start.
+ *
+ * Logout is an explicit security decision by the user, so it cannot depend on
+ * connectivity. This clears the material directly, through the same storage
+ * adapter the client reads (so `hiddenKeys` is reset and both the keystore and
+ * the legacy AsyncStorage location are cleared).
+ *
+ * The key is read off the client itself, which is authoritative; the fallback
+ * is auth-js's own default derivation, used only if that internal field is ever
+ * renamed.
+ */
+export async function clearPersistedAuthSession(): Promise<void> {
+  const storageKey =
+    (supabase.auth as unknown as { storageKey?: string }).storageKey ||
+    `sb-${new URL(url).hostname.split('.')[0]}-auth-token`;
+
+  await authStorage.removeItem(storageKey);
+  // auth-js writes the PKCE verifier beside the session and removes it in the
+  // same step that the network failure skips.
+  await authStorage.removeItem(`${storageKey}-code-verifier`);
+}
+
 export function takeAuthBootstrapStorageError(): unknown {
   const error = authBootstrapStorageError;
   authBootstrapStorageError = null;
