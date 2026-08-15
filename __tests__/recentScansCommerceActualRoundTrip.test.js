@@ -349,14 +349,35 @@ test('production commerce helpers reject credentials and retain price currency s
     'https://shop.example.com/item?access_token=secret',
     'https://project.supabase.co/storage/v1/object/sign/private/x.jpg?token=secret',
     'https://cdn.example.com/x.jpg?X-Amz-Signature=secret&X-Amz-Expires=60',
-    'https://shop.example.com/item#token=secret',
+    'https://cdn.example.com/x.jpg?GoogleAccessId=svc&Expires=99&Signature=abc',
+    'https://cdn.example.com/x.jpg?Key-Pair-Id=APKA&Policy=eyJ&Signature=abc',
     'https://shop.example.com/item?jwt=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijklmnop',
   ];
   for (const url of hostile) assert.equal(normalizePersistedCommerceUrl(url), null, url);
-  assert.equal(
-    normalizePersistedCommerceUrl('https://shop.example.com/item?affiliate=kscan&utm_source=app'),
+
+  // KSB29-025 / DEF-032 — DELIBERATE POLICY CHANGE.
+  //
+  // These were previously rejected, because the filter refused any URL whose
+  // query or fragment contained a key named `token`, `sig`, `signature`,
+  // `expires`, `expires_at` or `policy`. Legitimate commerce providers use
+  // signed and expiring product links as a matter of course, so that rule
+  // silently emptied the purchase options on valid scans — real merchandise the
+  // user could have bought, discarded to guard a boundary that lives elsewhere.
+  //
+  // The boundary is the DESTINATION (protocol, host, embedded credentials,
+  // private-network targets) plus the value-shaped rules, not a parameter name.
+  // K Scan's own signed URLs are still refused above, by the object-storage
+  // signing parameters and the Supabase signed-object path — which is what this
+  // filter exists to keep out of a shareable snapshot.
+  const legitimate = [
     'https://shop.example.com/item?affiliate=kscan&utm_source=app',
-  );
+    'https://shop.example.com/p/12345?token=abc123',
+    'https://shop.example.com/p/12345?sig=abc&expires=1799999999',
+    'https://go.retailer.example/deeplink?signature=abc&policy=standard',
+  ];
+  for (const url of legitimate) {
+    assert.equal(normalizePersistedCommerceUrl(url), url, `must survive persistence: ${url}`);
+  }
   assert.equal(formatCommercePrice('519', 'USD'), '$519.00');
   assert.match(formatCommercePrice('519', 'EUR'), /519/);
 
@@ -402,4 +423,40 @@ test('real persisted payload remains bounded for a 25-scan maximum library', asy
   assert.equal((JSON.parse(libraryJson)[0].purchaseOptions || []).length, 24);
   assert.ok(oneScanBytes < 40_000);
   assert.ok(fullLibraryBytes < 1_000_000);
+});
+
+test('KSB29-025: no commerce surface opens a destination outside the safety layer', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const root = path.resolve(__dirname, '..');
+
+  // Every surface that can launch a purchase destination. PurchaseOptionsPanel
+  // called `Linking.openURL(option.productUrl!)` directly, so the centralized
+  // selector/opener -- HTTPS only, no embedded credentials, no loopback or
+  // private-network target, no javascript:/file:/data: -- was simply not in the
+  // path for the primary Scan Results purchase control.
+  const surfaces = [
+    'components/scan-results/PurchaseOptionsPanel.tsx',
+    'components/ProductShelf.tsx',
+  ];
+
+  for (const relativePath of surfaces) {
+    const source = fs.readFileSync(path.join(root, relativePath), 'utf8');
+
+    // A raw openURL on provider-supplied metadata is the defect itself.
+    const rawOpens = source.match(/Linking\.openURL\([^)]*\)/g) || [];
+    for (const call of rawOpens) {
+      assert.doesNotMatch(
+        call,
+        /productUrl|affiliateUrl|purchaseUrl|option\./,
+        `${relativePath} opens provider metadata without the safety layer: ${call}`,
+      );
+    }
+
+    assert.match(
+      source,
+      /openPersistedCommerceUrl\(/,
+      `${relativePath} must open destinations through the centralized opener`,
+    );
+  }
 });

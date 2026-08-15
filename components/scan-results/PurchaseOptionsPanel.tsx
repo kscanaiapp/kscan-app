@@ -11,6 +11,8 @@ import { SectionHeader } from '../luxury/SectionHeader';
 import { EmptyStateCard } from '../luxury/EmptyStateCard';
 import { InlineNotice } from '../luxury/InlineNotice';
 import type { PurchaseOption } from './types';
+import { openPersistedCommerceUrl } from '../../services/dressingRoomCommerce';
+import { isSafeCommerceUrl } from '../../services/commerceDestination';
 
 interface PurchaseOptionsPanelProps {
   purchaseOptions?: PurchaseOption[];
@@ -37,7 +39,14 @@ export function PurchaseOptionsPanel({
       {hasData ? (
         <View style={styles.list}>
           {purchaseOptions!.map((option, index) => {
-            const hasProductUrl = Boolean(option.productUrl);
+            // KSB29-025 / DEF-020 / DEF-032: product metadata is untrusted
+            // provider input, so the destination is validated BEFORE the row
+            // offers to open it. `isSafeCommerceUrl` is the authoritative
+            // check — HTTPS only, no embedded credentials, no loopback or
+            // private-network target, no javascript:/file:/data:. A URL that
+            // fails it renders as "Unavailable" rather than as a live control.
+            const safeProductUrl = isSafeCommerceUrl(option.productUrl);
+            const hasProductUrl = Boolean(safeProductUrl);
             const hasPrice = Boolean(option.priceLabel);
             const hasAvailability = Boolean(option.availabilityLabel);
 
@@ -76,7 +85,15 @@ export function PurchaseOptionsPanel({
                   ) : null}
                   {hasProductUrl ? (
                     <TouchableOpacity
-                      onPress={() => Linking.openURL(option.productUrl!)}
+                      onPress={() => {
+                        // Routed through the centralized opener rather than
+                        // calling Linking.openURL directly, so this row cannot
+                        // drift away from the shared destination policy the
+                        // way it had.
+                        void openPersistedCommerceUrl(safeProductUrl, (url) =>
+                          Linking.openURL(url),
+                        );
+                      }}
                       activeOpacity={0.78}
                       accessibilityRole="link"
                       accessibilityLabel={`View options for ${option.title ?? option.retailer}`}

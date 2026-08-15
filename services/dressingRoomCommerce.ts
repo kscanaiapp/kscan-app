@@ -8,6 +8,28 @@ import type { CanonicalPurchaseOption } from '../types/canonicalDressingRoomItem
 const MAX_OPTIONS = 24;
 const MAX_TEXT = 200;
 const MAX_URL = 2000;
+/**
+ * Query keys that identify CREDENTIAL material or an object-storage signing
+ * scheme — never a merchant's own link format.
+ *
+ * KSB29-025 / DEF-032. This set previously also contained the generic names
+ * `token`, `sig`, `signature`, `expires`, `expires_at` and `policy`. Legitimate
+ * commerce providers routinely use signed and expiring product links, so those
+ * entries rejected real retailer destinations and silently emptied the purchase
+ * options on perfectly valid scans. That made the filter simultaneously too
+ * aggressive here and, because PurchaseOptionsPanel bypassed the safety layer
+ * entirely, too weak where it mattered.
+ *
+ * The security boundary is the DESTINATION — protocol, host, credentials,
+ * private-network targets — plus the value-shaped rules below, not a generic
+ * parameter name. What remains here is either an explicit credential
+ * (`access_token`, `api_key`, `authorization`, `secret`, `jwt`, `id_token`,
+ * `credential(s)`) or an unambiguous object-storage signing parameter
+ * (`awsaccesskeyid`, `googleaccessid`, `key-pair-id`, plus the `x-amz-` /
+ * `x-goog-` prefixes and the Supabase `/storage/v1/object/sign/` path check).
+ * Those still keep K Scan's own signed URLs out of a persisted, shareable
+ * purchase-option snapshot, which is what this filter exists for.
+ */
 const SENSITIVE_URL_QUERY_KEYS = new Set([
   'access_token',
   'api_key',
@@ -16,17 +38,11 @@ const SENSITIVE_URL_QUERY_KEYS = new Set([
   'awsaccesskeyid',
   'credential',
   'credentials',
-  'expires',
-  'expires_at',
   'googleaccessid',
   'id_token',
   'jwt',
   'key-pair-id',
-  'policy',
   'secret',
-  'signature',
-  'sig',
-  'token',
 ]);
 
 function cleanText(value: unknown, max = MAX_TEXT): string | null {
@@ -42,9 +58,10 @@ function cleanText(value: unknown, max = MAX_TEXT): string | null {
 /**
  * Return only durable HTTPS commerce URLs.
  *
- * Merchant tracking/affiliate parameters are retained, but credentials,
- * expiring object signatures, user-info credentials and JWT-shaped values are
- * never allowed into a persisted purchase-option snapshot.
+ * Merchant tracking/affiliate parameters are retained — including signed and
+ * expiring merchant links, which are normal in commerce — but credentials,
+ * object-storage signing parameters, user-info credentials and JWT-shaped
+ * values are never allowed into a persisted purchase-option snapshot.
  */
 export function normalizePersistedCommerceUrl(value: unknown): string | null {
   const text = cleanText(value, MAX_URL);
@@ -75,7 +92,10 @@ export function normalizePersistedCommerceUrl(value: unknown): string | null {
         return text;
       }
     })();
-    if (/(?:[?&#]|%3[ffb])(?:access_token|api_?key|authorization|credentials?|id_token|jwt|secret|sig(?:nature)?|token)=/i.test(decoded)) {
+    // Same policy as the key set above: explicit credential names only. `sig`,
+    // `signature` and bare `token` are deliberately absent — they are ordinary
+    // merchant link parameters, and rejecting them destroyed valid commerce.
+    if (/(?:[?&#]|%3[ffb])(?:access_token|api_?key|authorization|credentials?|id_token|jwt|secret)=/i.test(decoded)) {
       return null;
     }
     if (/(?:^|[/?&=])eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}(?:$|[?&#/])/i.test(decoded)) {
