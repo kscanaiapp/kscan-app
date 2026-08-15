@@ -78,7 +78,7 @@ function assertLinkedTargetImmediatelyBeforeWrite(expectedRef) {
   }
   // Independent second opinion from the shared authority module, so this does
   // not rest solely on a string compare against one constant.
-  assertExpectedEnvironment(linked, 'staging');
+  assertExpectedEnvironment('staging', linked);
   return linked;
 }
 

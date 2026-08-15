@@ -171,6 +171,15 @@ test('migration: apply script refuses without APPROVE_STAGING_MIGRATION', () => 
   assert.match(result.stderr, /APPROVE_STAGING_MIGRATION=YES/);
 });
 
+test('migration: last-moment authority check passes environment before project ref', () => {
+  const script = fs.readFileSync(
+    path.join(ROOT, 'scripts', 'apply-staging-migration.mjs'),
+    'utf8',
+  );
+  assert.match(script, /assertExpectedEnvironment\(\s*['"]staging['"]\s*,\s*linked\s*\)/);
+  assert.doesNotMatch(script, /assertExpectedEnvironment\(\s*linked\s*,\s*['"]staging['"]\s*\)/);
+});
+
 test('function: allow-listed staging-health source exists', () => {
   assert.ok(fs.existsSync(path.join(ROOT, 'supabase', 'functions', 'staging-health', 'index.ts')));
   const allowlist = require(path.join(ROOT, 'security', 'scripts', 'staging-deployment-allowlist.js'));
