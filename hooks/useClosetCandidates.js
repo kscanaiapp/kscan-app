@@ -7,6 +7,7 @@ import {
   createClosetCandidateBatch,
   manuallyClassifyClosetCandidate,
   retryClosetCandidate,
+  resolveClosetCandidateDuplicate,
   rejectClosetCandidate,
   deleteClosetCandidate,
   cleanupExpiredClosetCandidates,
@@ -553,6 +554,34 @@ export function useClosetCandidates() {
     [refresh],
   );
 
+  /**
+   * DUPLICATE ASSIST — the user's answer to "is this the same item?".
+   *
+   * Both outcomes go through the one service primitive, which owns the state
+   * machine decision; the hook only refreshes what the user sees. Classification
+   * is cancelled first for the same reason `reject` does it: if the answer is
+   * "same item" the in-flight work is wasted, and a late completion landing
+   * after the decision would fight it.
+   */
+  const resolveDuplicate = useCallback(
+    async (candidateId, decision) => {
+      if (decision === 'same_item') cancelAllClosetClassifications();
+      const actorRequest = createActorRequest();
+      const result = await resolveClosetCandidateDuplicate(actorRequest, candidateId, decision);
+      if (!isActorRequestCurrent(actorRequest)) return result;
+      await refresh();
+      // "Different item" puts the candidate back in `queued`, so the same
+      // reconnect nudge `retry` needs applies: without it the offline preflight
+      // can immediately re-park the record the user just released.
+      if (result.ok && decision === 'different_item' && CLOSET_CANDIDATE_STAGING_ACTIVE) {
+        await requeueClosetCandidatesOnReconnect(actorRequest);
+        if (isActorRequestCurrent(actorRequest)) await refresh();
+      }
+      return result;
+    },
+    [refresh],
+  );
+
   const remove = useCallback(
     async (candidateId) => {
       cancelAllClosetClassifications();
@@ -721,6 +750,7 @@ export function useClosetCandidates() {
     retry,
     reject,
     remove,
+    resolveDuplicate,
     classifyManually,
     promoteSelected,
     refresh,

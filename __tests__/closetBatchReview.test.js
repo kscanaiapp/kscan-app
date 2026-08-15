@@ -599,7 +599,16 @@ test('a duplicate explains itself without exposing any internal matching detail'
     );
   }
   assert.equal(item.selectionEligible, false);
-  assert.deepEqual(item.availableActions, ['remove'], 'a duplicate is removable, never retried');
+  // DUPLICATE ASSIST (section 14). A duplicate now asks the user rather than
+  // being a dead row: the detection already existed, only the decision was
+  // missing. It offers ONLY the question -- mixing in `remove`/`retry` would let
+  // the row be resolved without the decision ever being made, which is exactly
+  // the `duplicate_unresolved` state Build 1 was stuck in.
+  assert.deepEqual(
+    item.availableActions,
+    ['same_item', 'different_item'],
+    'a duplicate asks the user which it is; it is never auto-merged',
+  );
 });
 
 test('a failure shows registry copy, never a raw backend string', () => {
@@ -631,7 +640,7 @@ test('each status offers exactly the affordances its state permits', () => {
     waiting_for_network: ['retry', 'remove'],
     needs_manual_classification: ['add_details', 'retry', 'remove'],
     ready_for_review: ['remove'],
-    duplicate: ['remove'],
+    duplicate: ['same_item', 'different_item'],
   };
   for (const [status, actions] of Object.entries(expected)) {
     const item = project([candidate({ candidateId: status, status })]).groups[0].items[0];
@@ -647,16 +656,44 @@ test('no projected action is a promotion action', () => {
   for (const item of group.items) {
     for (const action of item.availableActions) {
       assert.ok(
-        ['add_details', 'retry', 'remove'].includes(action),
+        ['add_details', 'retry', 'remove', 'same_item', 'different_item'].includes(action),
         `unexpected action ${action}`,
       );
     }
   }
   assert.deepEqual(ENV.projection.CLOSET_BATCH_REVIEW_ACTIONS.slice().sort(), [
     'add_details',
+    'different_item',
     'remove',
     'retry',
+    'same_item',
   ]);
+});
+
+test('DUPLICATE ASSIST: the decision is offered only where a duplicate exists', () => {
+  // Every other status keeps its ordinary affordances -- the duplicate question
+  // must not leak onto rows that are not duplicates.
+  for (const status of ['queued', 'ready_for_review', 'needs_manual_classification', 'failed']) {
+    const item = project([candidate({ candidateId: status, status })]).groups[0].items[0];
+    for (const forbidden of ['same_item', 'different_item']) {
+      assert.ok(
+        !item.availableActions.includes(forbidden),
+        `${status} must not offer ${forbidden}`,
+      );
+    }
+  }
+
+  // And an EXPIRED duplicate cannot be resolved either way: every mutation but
+  // deletion is refused by the store, so offering the question would be an
+  // affordance that provably fails.
+  const expired = project([
+    candidate({
+      candidateId: 'stale-dupe',
+      status: 'duplicate',
+      expiresAt: new Date(NOW - DAY_MS).toISOString(),
+    }),
+  ]).groups[0].items[0];
+  assert.deepEqual(expired.availableActions, ['remove']);
 });
 
 // ── Eligibility matrix ───────────────────────────────────────────────────────

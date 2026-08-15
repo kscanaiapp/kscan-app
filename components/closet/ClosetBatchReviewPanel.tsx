@@ -89,6 +89,7 @@ export function ClosetBatchReviewPanel({
     setActiveBatchId,
     retry,
     remove,
+    resolveDuplicate,
     classifyManually,
     promoteSelected,
     promotion,
@@ -316,6 +317,37 @@ export function ClosetBatchReviewPanel({
                   }}
                   accessibilityLabel="Add a category for this photo yourself"
                   testID={`closet-batch-manual-${item.candidateId}`}
+                />
+              ) : null}
+              {/*
+                DUPLICATE ASSIST (section 14). The row asks; it never decides.
+                "Same item" keeps the existing canonical Closet identity and
+                discards this photo, so the wardrobe stays single-valued.
+                "Different item" sends it through the ordinary intake flow.
+                Nothing is merged on the strength of the match alone.
+              */}
+              {item.availableActions.includes('same_item') ? (
+                <SecondaryButton
+                  style={styles.actionButton}
+                  numberOfLines={1}
+                  title="Same item"
+                  onPress={() => {
+                    void resolveDuplicate(item.candidateId, 'same_item');
+                  }}
+                  accessibilityLabel="This is already in my Closet. Keep the one I have."
+                  testID={`closet-batch-same-item-${item.candidateId}`}
+                />
+              ) : null}
+              {item.availableActions.includes('different_item') ? (
+                <SecondaryButton
+                  style={styles.actionButton}
+                  numberOfLines={1}
+                  title="Different item"
+                  onPress={() => {
+                    void resolveDuplicate(item.candidateId, 'different_item');
+                  }}
+                  accessibilityLabel="This is a different item. Add it to my Closet."
+                  testID={`closet-batch-different-item-${item.candidateId}`}
                 />
               ) : null}
               {item.availableActions.includes('retry') ? (

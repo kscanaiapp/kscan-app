@@ -49,7 +49,31 @@ import {
  * would either fail every time or require a second correction path in the service
  * layer, which is not this phase's scope.
  */
-export const CLOSET_BATCH_REVIEW_ACTIONS = ['add_details', 'retry', 'remove'] as const;
+/**
+ * DUPLICATE ASSIST (Build 29, section 14).
+ *
+ * `same_item` and `different_item` resolve a potential duplicate. The detection
+ * that produces one already exists — an exact normalized-byte match against the
+ * committed Closet, written as `duplicateMatch` with the record created directly
+ * in the `duplicate` status — and the state machine already documents both
+ * outcomes as legal edges (`duplicate -> rejected`, and `duplicate -> queued`,
+ * described there as "the 'Add anyway' edge ... not reachable in Build 1").
+ *
+ * What was missing was only the user's say. Until now a duplicate offered
+ * `remove` and nothing else, and review eligibility blocked it as
+ * `duplicate_unresolved` — a state with no affordance that could resolve it.
+ *
+ * NO SIMILARITY ENGINE IS INTRODUCED HERE, and none is needed: the signal is
+ * already computed. The user's decision is authoritative; nothing merges on the
+ * strength of the match alone.
+ */
+export const CLOSET_BATCH_REVIEW_ACTIONS = [
+  'add_details',
+  'retry',
+  'remove',
+  'same_item',
+  'different_item',
+] as const;
 
 export type ClosetBatchReviewAction = typeof CLOSET_BATCH_REVIEW_ACTIONS[number];
 
@@ -235,6 +259,13 @@ function resolveActions(
 
   const meta = statusUIMetadata(status);
   const actions: ClosetBatchReviewAction[] = [];
+
+  // A potential duplicate asks the user, and offers ONLY that question. Mixing
+  // it with the ordinary affordances would let the row be resolved without the
+  // decision ever being made, which is the state Build 1 was stuck in.
+  if (status === 'duplicate') {
+    return Object.freeze(['same_item', 'different_item'] as ClosetBatchReviewAction[]);
+  }
   // The manual editor accepts exactly one source status. Build 1's rule, unchanged.
   if (meta.canEditMetadata && status === 'needs_manual_classification') {
     actions.push('add_details');

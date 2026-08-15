@@ -737,7 +737,14 @@ test('a duplicate explains itself in plain language and offers no selection', ()
   assert.ok(message, 'a duplicate must explain itself');
   assert.equal(message.props.children, 'This photo matches an item already in your Closet.');
   assert.equal(byTestId(tree, 'closet-batch-select-d').length, 0);
-  assert.equal(byTestId(tree, 'closet-batch-remove-d').length, 1);
+
+  // DUPLICATE ASSIST (section 14). This previously asserted that a duplicate
+  // offered ONLY `remove` -- a dead row whose blocking reason
+  // (`duplicate_unresolved`) no affordance could clear. The detection already
+  // existed; the decision did not. The row now asks, and asks only that.
+  assert.equal(byTestId(tree, 'closet-batch-remove-d').length, 0);
+  assert.equal(byTestId(tree, 'closet-batch-same-item-d').length, 1);
+  assert.equal(byTestId(tree, 'closet-batch-different-item-d').length, 1);
 
   const rendered = textContent(tree);
   for (const leak of ['sha256', 'exact_normalized_bytes', 'closet-9']) {
@@ -995,10 +1002,13 @@ test('no Phase 2 surface writes candidate storage or the committed Closet', () =
 test('every mutation the review surface offers goes back through the one hook api', () => {
   const panel = stripComments(readSource('components/closet/ClosetBatchReviewPanel.tsx'));
   // Destructured from the injected api, never imported.
-  assert.ok(/retry,\s*\n?\s*remove,\s*\n?\s*classifyManually,/.test(panel));
+  assert.ok(/retry,\s*\n?\s*remove,\s*\n?\s*resolveDuplicate,\s*\n?\s*classifyManually,/.test(panel));
   assert.ok(panel.includes('void retry(item.candidateId)'));
   assert.ok(panel.includes('void remove(item.candidateId)'));
   assert.ok(panel.includes('onSubmit={classifyManually}'));
+  // Duplicate Assist goes through the same injected api, never the store.
+  assert.ok(panel.includes("void resolveDuplicate(item.candidateId, 'same_item')"));
+  assert.ok(panel.includes("void resolveDuplicate(item.candidateId, 'different_item')"));
   assert.ok(
     !panel.includes("from '../../services/closetCandidateLibrary'"),
     'the surface must not import the store',
@@ -1048,8 +1058,21 @@ test('KSB29-027: unbounded status text cannot collapse the review row', () => {
 
   // Every action control keeps a fixed footprint, so the body cannot win the
   // flex fight against the column the row exists for.
-  const actionButtons = source.match(/<SecondaryButton\s+style=\{styles\.actionButton\}/g) || [];
-  assert.equal(actionButtons.length, 3, 'all three row actions must be width-bounded');
+  // Scoped to the ROW action column. The panel header's select-all / clear
+  // controls are laid out separately and are not part of this row's flex fight.
+  const actionsColumn = source.slice(
+    source.indexOf('<View style={styles.actions}>'),
+    source.indexOf('<ClosetCandidateManualClassifyModal'),
+  );
+  const allActions = actionsColumn.match(/<SecondaryButton\b/g) || [];
+  const boundedActions =
+    actionsColumn.match(/<SecondaryButton\s+style=\{styles\.actionButton\}/g) || [];
+  assert.ok(allActions.length >= 3, 'the row must offer its actions');
+  assert.equal(
+    boundedActions.length,
+    allActions.length,
+    'EVERY row action must be width-bounded, including any added later',
+  );
 
   assert.match(source, /actions:\s*\{[^}]*flexShrink:\s*0/, 'the action column must not shrink');
   assert.match(source, /actionButton:\s*\{[^}]*minWidth:\s*\d+/, 'actions need a minimum width');
