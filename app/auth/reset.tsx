@@ -139,7 +139,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     borderRadius: RADIUS.md,
-    backgroundColor: COLORS.surface,
+    // Contrast repair. This used COLORS.surface, which is a DARK GLASS token
+    // (rgba(18,16,26,0.88), compositing to ~#2d2b33) while the text on it uses
+    // the light-theme tokens — near-black on near-black, measured at 1.34:1
+    // against a 4.5:1 requirement. Effectively invisible.
+    //
+    // The giveaway that this was a mistake rather than a design: the input
+    // INSIDE this same card already uses a light background, and these three
+    // recovery screens are the only places in the app that use the dark-glass
+    // token as a card surface.
+    //
+    // surfaceCard is the existing light card token. No new colour is
+    // introduced and authentication is not redesigned.
+    backgroundColor: COLORS.surfaceCard,
     padding: SPACING.xl,
     gap: SPACING.lg,
   },
@@ -148,7 +160,10 @@ const styles = StyleSheet.create({
   errorText: { ...TYPOGRAPHY.body, color: COLORS.errorSoft, fontSize: 13 },
   messageText: { ...TYPOGRAPHY.bodyStrong, color: COLORS.success, fontSize: 13 },
   fieldGroup: { gap: SPACING.xs },
-  fieldLabel: { ...TYPOGRAPHY.caption, color: COLORS.textTertiary },
+  // textTertiary lands at 4.38:1 on the light card — a hair under the
+  // 4.5:1 normal-text requirement. textSecondary is an existing token and
+  // clears it at 8.71:1.
+  fieldLabel: { ...TYPOGRAPHY.caption, color: COLORS.textSecondary },
   input: {
     height: 50,
     borderRadius: RADIUS.sm,
