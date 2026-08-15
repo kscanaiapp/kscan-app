@@ -5,6 +5,7 @@ import {
   CONVERSATION_MAX_WIDTH,
   FORM_MAX_WIDTH,
   MODAL_MAX_WIDTH,
+  chunkIntoRows,
   getContentWidth,
   getGridColumns,
   getResponsiveGridCellWidth,
@@ -34,6 +35,17 @@ export interface ResponsiveLayout {
    * compact widths, responsive columns inside the content column on regular.
    */
   gridCellWidth: (options: ResponsiveGridCellWidthOptions) => number;
+  /**
+   * Split a collection into grid rows using THIS layout's column count.
+   *
+   * Bound to `gridColumns` on purpose. The iPad grid defect (DEF-045/DEF-068)
+   * was precisely a disagreement between the column count cells were sized for
+   * and the number placed in a row; taking the count from the same object that
+   * produced the width makes that disagreement unrepresentable at the call
+   * site. Short final rows are returned unpadded — grid rows are flex rows
+   * with a gap and fixed-width cells, so they left-align correctly.
+   */
+  toGridRows: <T>(items: readonly T[]) => T[][];
 }
 
 /**
@@ -63,6 +75,7 @@ export function useResponsiveLayout(): ResponsiveLayout {
       gridColumns,
       gridCellWidth: (options: ResponsiveGridCellWidthOptions) =>
         getResponsiveGridCellWidth(width, options),
+      toGridRows: <T,>(items: readonly T[]) => chunkIntoRows(items, gridColumns),
     };
   }, [width, height]);
 }

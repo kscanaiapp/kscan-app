@@ -91,14 +91,28 @@ import {
 const INSPIRATION_CARD_H_PAD = SPACING.xl;
 const INSPIRATION_CARD_GAP = SPACING.md;
 
-function useInspirationCardWidth(): number {
-  const { gridCellWidth } = useResponsiveLayout();
-  return gridCellWidth({
-    horizontalPadding: INSPIRATION_CARD_H_PAD,
-    gap: INSPIRATION_CARD_GAP,
-    chromePadding: SPACING.lg,
-    columns: 2,
-  });
+/**
+ * DEF-068: this pinned `columns: 2`, so the card width stayed phone-sized on a
+ * regular-width iPad and the grid below rendered two per row to match --
+ * leaving the rest of the row empty. Dropping the pin lets the shared helper
+ * use the responsive column count, which is 2 on every compact width, so the
+ * iPhone layout is unchanged.
+ */
+function useInspirationGrid(): {
+  cardWidth: number;
+  columns: number;
+  toRows: <T>(items: readonly T[]) => T[][];
+} {
+  const { gridCellWidth, gridColumns, toGridRows } = useResponsiveLayout();
+  return {
+    columns: gridColumns,
+    toRows: toGridRows,
+    cardWidth: gridCellWidth({
+      horizontalPadding: INSPIRATION_CARD_H_PAD,
+      gap: INSPIRATION_CARD_GAP,
+      chromePadding: SPACING.lg,
+    }),
+  };
 }
 
 const KSCAN_PUBLIC_BASE_URL = 'https://kscan.app';
@@ -284,7 +298,7 @@ function CreateLookModal({
 }
 
 function DressingRoomDetailContent() {
-  const inspirationCardWidth = useInspirationCardWidth();
+  const { cardWidth: inspirationCardWidth, toRows: toInspirationRows } = useInspirationGrid();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { isAuthenticated, user } = useAuthSession();
   const roomId = String(id || '');
@@ -1040,17 +1054,15 @@ function DressingRoomDetailContent() {
                 </Text>
               ) : (
                 <View>
-                  {inspirations.reduce<[InspirationItem, InspirationItem | null][]>((pairs, item, i) => {
-                    if (i % 2 === 0) pairs.push([item, inspirations[i + 1] ?? null]);
-                    return pairs;
-                  }, []).map(([a, b]) => (
-                    <View key={a.id} style={styles.inspirationRow}>
-                      <RoomInspirationCard item={a} onRemove={handleRemoveInspiration} />
-                      {b ? (
-                        <RoomInspirationCard item={b} onRemove={handleRemoveInspiration} />
-                      ) : (
-                        <View style={{ width: inspirationCardWidth }} />
-                      )}
+                  {toInspirationRows(inspirations).map((row) => (
+                    <View key={row[0].id} style={styles.inspirationRow}>
+                      {row.map((item) => (
+                        <RoomInspirationCard
+                          key={item.id}
+                          item={item}
+                          onRemove={handleRemoveInspiration}
+                        />
+                      ))}
                     </View>
                   ))}
                 </View>
@@ -1133,7 +1145,7 @@ function RoomInspirationCard({
   item: InspirationItem;
   onRemove: (id: string) => void;
 }) {
-  const cardWidth = useInspirationCardWidth();
+  const { cardWidth } = useInspirationGrid();
   return (
     <View style={[inspirationCardStyles.card, { width: cardWidth }]}>
       {item.imageUrl ? (

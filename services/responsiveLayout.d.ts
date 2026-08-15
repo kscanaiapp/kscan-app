@@ -30,3 +30,10 @@ export function getGridColumns(windowWidth: number, options?: GridColumnsOptions
 export function getContentWidth(windowWidth: number, maxWidth?: number): number;
 export function computeGridCellWidth(containerWidth: number, options?: GridCellWidthOptions): number;
 export function getResponsiveGridCellWidth(windowWidth: number, options?: ResponsiveGridCellWidthOptions): number;
+
+/**
+ * Split a collection into rows of `columns` items. Short final rows are
+ * returned as-is rather than padded, because grid rows are flex rows with a
+ * gap and fixed-width cells.
+ */
+export function chunkIntoRows<T>(items: readonly T[], columns: number): T[][];

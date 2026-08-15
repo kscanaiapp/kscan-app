@@ -147,17 +147,36 @@ test('the Closet entry passes only the selected closetItemId', () => {
 
 test('the collaborative Add to Room action is unchanged', () => {
   const source = read(LIBRARY);
+  // Both inspiration render paths keep the action: the single-item card and
+  // the grid card. This counted 3 while the grid duplicated its card JSX for a
+  // hardcoded pair of items; the iPad column fix renders one card per item, so
+  // the count measured duplication rather than reach.
   const addToRoom = (source.match(/viewLabel="Add to Room"/g) ?? []).length;
-  assert.equal(addToRoom, 3, 'all three Add to Room surfaces remain');
+  assert.equal(addToRoom, 2, 'one per render path: single card and grid card');
+  assert.match(
+    source,
+    /inspirationRows\.map\([\s\S]{0,600}?viewLabel="Add to Room"/,
+    'every grid inspiration keeps Add to Room',
+  );
+  assert.match(source, /handleAddInspirationToRoom\(item\)/, 'wired to the room handler');
 });
 
 test('the Closet entry is additive: delete stays on the same card', () => {
   const source = read(LIBRARY);
+  // The contract is that ONE Closet card carries both the outfit entry and its
+  // own delete — the entry is additive, not a replacement. It used to be
+  // asserted as "2 of each" only because the grid duplicated its card JSX for a
+  // hardcoded pair; there is now a single card render per item.
   const closetCards = (source.match(/testID="closet-card"/g) ?? []).length;
   const outfitActions = (source.match(/closetOutfitAction\(/g) ?? []).length;
-  assert.equal(closetCards, 2);
-  assert.equal(outfitActions, 2, 'both Closet cards get the entry');
-  assert.match(source, /onDelete=\{\(\) => handleDeleteClosetItem\(a\.id\)\}/);
+  assert.equal(closetCards, 1, 'one card render, used for every Closet item');
+  assert.equal(outfitActions, 1, 'that card gets the outfit entry');
+  // Both actions must live on the SAME card render.
+  assert.match(
+    source,
+    /testID="closet-card"[\s\S]{0,700}?onDelete=\{\(\) => handleDeleteClosetItem\(item\.id\)\}[\s\S]{0,200}?closetOutfitAction\(item\.id\)/,
+    'delete and the outfit entry stay on the same Closet card',
+  );
 });
 
 // ── Workspace states ─────────────────────────────────────────────────────────

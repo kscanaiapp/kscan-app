@@ -216,6 +216,31 @@ function renderLibrary({ section, scans = [], closetItems = [], separation = tru
         refresh: async () => {},
       }),
     },
+    // Unlisted modules fall through to deepStub, whose callables return
+    // proxies rather than values. The screen builds its grid rows through this
+    // hook, so it must return REAL arrays or no card ever reaches the tree.
+    '../hooks/useResponsiveLayout': {
+      __esModule: true,
+      useResponsiveLayout: () => ({
+        width: 390,
+        height: 844,
+        widthClass: 'compact',
+        isRegular: false,
+        isLandscape: false,
+        contentWidth: 390,
+        contentMaxWidth: 840,
+        formMaxWidth: 560,
+        conversationMaxWidth: 640,
+        modalMaxWidth: 560,
+        gridColumns: 2,
+        gridCellWidth: () => 165,
+        toGridRows: (items) => {
+          const rows = [];
+          for (let i = 0; i < items.length; i += 2) rows.push(items.slice(i, i + 2));
+          return rows;
+        },
+      }),
+    },
     '../hooks/useFeatureFreeze': {
       __esModule: true,
       useFeatureFreeze: () => ({ isFeatureEnabled: () => true, isLoading: false }),
