@@ -390,7 +390,15 @@ export function ProductShelf({
                   <TouchableOpacity
                     testID="add-to-dressing-room-button"
                     accessibilityRole="button"
-                    accessibilityLabel="Add to Dressing Room"
+                    // The visible text switches to "Can't Save Yet", but the
+                    // label always announced "Add to Dressing Room" — so a
+                    // screen-reader user was told the opposite of what the
+                    // button says. It is NOT disabled in that state (it opens
+                    // the sheet that explains why), so it must not claim a
+                    // disabled state either.
+                    accessibilityLabel={
+                      canSaveToRoom ? 'Add to Dressing Room' : "Can't save to a Dressing Room yet"
+                    }
                     style={[
                       styles.addToRoomButton,
                       !canSaveToRoom ? styles.addToRoomButtonDisabled : null,
@@ -494,8 +502,10 @@ export function AddToRoomModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalBackdrop}>
-        <View style={styles.modalCard}>
-          <Text style={styles.modalTitle}>Add to Dressing Room</Text>
+        {/* Without accessibilityViewIsModal, assistive technology can still
+            reach the shelf behind this sheet. */}
+        <View style={styles.modalCard} accessibilityViewIsModal>
+          <Text style={styles.modalTitle} accessibilityRole="header">Add to Dressing Room</Text>
           <Text style={styles.modalItemName} numberOfLines={2}>
             {getProductTitle(product) || 'Catalog item'}
           </Text>
@@ -526,6 +536,10 @@ export function AddToRoomModal({
                       style={styles.roomChoice}
                       onPress={() => handleAdd(room.id)}
                       disabled={saving}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${room.title}, ${room.itemCount ?? 0} items`}
+                      accessibilityState={{ disabled: saving }}
+                      testID={`add-to-room-choice-${room.id}`}
                     >
                       <Text style={styles.roomChoiceTitle}>{room.title}</Text>
                       <Text style={styles.roomChoiceMeta}>{room.itemCount ?? 0} ITEMS</Text>
@@ -543,6 +557,8 @@ export function AddToRoomModal({
                   placeholder="Vacation Capsule"
                   placeholderTextColor={COLORS.editorialTextMuted}
                   style={styles.quickCreateInput}
+                  accessibilityLabel="New Dressing Room name"
+                  testID="add-to-room-new-name"
                 />
               </View>
             </>
@@ -554,6 +570,10 @@ export function AddToRoomModal({
                 style={[styles.modalPrimaryButton, (!newRoomTitle.trim() || saving) && styles.modalButtonDisabled]}
                 onPress={handleCreateAndAdd}
                 disabled={!newRoomTitle.trim() || saving}
+                accessibilityRole="button"
+                accessibilityLabel="Create Dressing Room and add this item"
+                accessibilityState={{ disabled: !newRoomTitle.trim() || saving }}
+                testID="add-to-room-create"
               >
                 {saving ? (
                   <ActivityIndicator color={COLORS.textInverse} />
@@ -565,7 +585,17 @@ export function AddToRoomModal({
           ) : null}
 
           {message ? <Text style={styles.modalMessage}>{message}</Text> : null}
-          <TouchableOpacity style={styles.modalSecondaryButton} onPress={onClose} disabled={saving}>
+          {/* An unlabelled close makes the sheet a trap for a screen-reader
+              user: there is no other way out of a modal view. */}
+          <TouchableOpacity
+            style={styles.modalSecondaryButton}
+            onPress={onClose}
+            disabled={saving}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+            accessibilityState={{ disabled: saving }}
+            testID="add-to-room-close"
+          >
             <Text style={styles.modalSecondaryText}>CLOSE</Text>
           </TouchableOpacity>
         </View>

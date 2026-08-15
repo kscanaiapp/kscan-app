@@ -142,11 +142,33 @@ test('semantics: the active Recent Scans / My Closet tab exposes selected state'
 const HOME = read('components', 'home', 'HomeLuxuryTechV1.tsx');
 
 test('semantics: VoiceScan stays discoverable but announces that it is unavailable', () => {
-  assert.match(HOME, /accessibilityLabel="Voice Scan, coming soon"/);
-  assert.match(HOME, /accessibilityState=\{\{ disabled: inactive \}\}/);
+  // UPDATED FOR THE BUILD 29 ARCHITECTURE, invariant unchanged.
+  //
+  // Build 28 shipped this as a disabled BUTTON and the contract asserted
+  // `accessibilityState={{ disabled: inactive }}`. Build 29 renders a
+  // non-interactive pill with `accessibilityRole="text"` instead, which is
+  // better: a `disabled` state is meaningful only on an interactive role, and a
+  // control that cannot be pressed should not announce itself as a button at
+  // all. Pinning the old shape would have forced an interactive role back onto
+  // something that is not interactive.
+  //
+  // What is asserted is the behaviour both share: the placeholder is
+  // DISCOVERABLE and it SAYS it is unavailable.
+  // The pill's OWN opening tag only. Its children include a decorative glyph
+  // that is correctly hidden from assistive technology, and conflating the two
+  // would read as the pill itself being hidden.
+  const start = HOME.indexOf('testID="home-luxury-voicescan-coming-soon"');
+  assert.ok(start > 0, 'the VoiceScan placeholder must exist');
+  const pill = HOME.slice(start, HOME.indexOf('>', HOME.indexOf('accessibilityLabel', start)));
+  assert.match(pill, /accessibilityLabel="Voice Scan\. Coming Soon\."/);
+  assert.match(pill, /accessibilityRole="text"/);
+
   // Suppressing the control entirely is explicitly not the contract: a user who
-  // cannot see the dimmed pill should still learn the feature is coming.
-  assert.doesNotMatch(HOME, /importantForAccessibility="no-hide-descendants"/);
+  // cannot see the dimmed pill should still learn the feature is coming. The
+  // decorative glyph INSIDE it is hidden, which is correct and must not be
+  // confused with hiding the pill.
+  assert.doesNotMatch(pill, /accessibilityElementsHidden/);
+  assert.doesNotMatch(pill, /importantForAccessibility="no/);
 });
 
 // ── ProductShelf / room picker semantics ─────────────────────────────────────
