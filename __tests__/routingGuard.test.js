@@ -340,3 +340,85 @@ test('authenticated app entry waits for profile status before allowing protected
   assert.equal(state.action, 'loading');
   assert.equal(state.redirectTo, null);
 });
+
+/* ------------------------------------------------------------------ */
+/* KSB29-059 — account restoration must survive every routing branch   */
+/* ------------------------------------------------------------------ */
+
+test('KSB29-059: incomplete onboarding does not preempt account restoration', () => {
+  // The gap: restoration was exempt from the signed-out branch (PUBLIC_ROUTES)
+  // and from the pending-deletion branch (LIMITED_ACCOUNT_ROUTES), but NOT from
+  // the onboarding branch. A signed-in user with incomplete onboarding who
+  // opened their emailed restoration link was redirected to /onboarding -- while
+  // the restore screen had already mounted and spent the SINGLE-USE token. The
+  // link was then dead and its result was never shown.
+  const state = getRoutingGuardState({
+    pathname: '/account/restore',
+    loading: false,
+    session: validSession,
+    profile: { account_status: 'active', age_group: 'unknown' },
+    onboardingComplete: false,
+    nowSeconds: NOW,
+  });
+  assert.equal(state.action, 'allow', 'restoration must render before onboarding routing applies');
+  assert.equal(state.redirectTo, null);
+});
+
+test('KSB29-059: the restoration exemption does not widen the onboarding gate', () => {
+  // Exempting restoration must not incidentally admit the other limited-account
+  // route. /privacy is reachable for a pending-deletion account, which is a
+  // different branch; mid-onboarding it must still redirect.
+  const state = getRoutingGuardState({
+    pathname: '/privacy',
+    loading: false,
+    session: validSession,
+    profile: { account_status: 'active', age_group: 'unknown' },
+    onboardingComplete: false,
+    nowSeconds: NOW,
+  });
+  assert.equal(state.action, 'redirect');
+  assert.equal(state.redirectTo, '/onboarding?resume=terms');
+});
+
+test('KSB29-059: restoration remains allowed on every other branch it already covered', () => {
+  const signedOut = getRoutingGuardState({
+    pathname: '/account/restore',
+    loading: false,
+    session: null,
+    nowSeconds: NOW,
+  });
+  assert.equal(signedOut.action, 'allow', 'signed-out restoration link must still work');
+
+  const deactivatedWithSession = getRoutingGuardState({
+    pathname: '/account/restore',
+    loading: false,
+    session: validSession,
+    profile: pendingProfile,
+    nowSeconds: NOW,
+  });
+  assert.equal(deactivatedWithSession.action, 'allow', 'deactivated-with-session must still work');
+});
+
+test('KSB29-059: the restore screen spends its token only once focused', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const source = fs.readFileSync(
+    path.join(__dirname, '..', 'app', '(public)', 'account', 'restore.tsx'),
+    'utf8',
+  );
+
+  // Mounting is not being shown. A redirect can leave the screen mounted just
+  // long enough for a mount effect to spend the single-use token on a screen
+  // the user never sees, so the consume must wait for focus.
+  assert.match(source, /useIsFocused/, 'the restore screen must observe focus');
+  assert.match(
+    source,
+    /if \(!isFocused\) return;[\s\S]{0,120}attemptedRef\.current = true;/,
+    'the focus check must precede the single-flight latch and the consume attempt',
+  );
+  assert.match(
+    source,
+    /\}, \[isFocused\]\);/,
+    'the consume effect must re-evaluate when focus arrives',
+  );
+});

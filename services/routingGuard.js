@@ -1,3 +1,5 @@
+const ACCOUNT_RESTORE_ROUTE = '/account/restore';
+
 const PUBLIC_ROUTES = new Set([
   '/auth',
   '/auth/callback',
@@ -70,6 +72,17 @@ function isLimitedAccountRoute(pathname) {
   return LIMITED_ACCOUNT_ROUTES.has(normalizePathname(pathname));
 }
 
+/**
+ * The account restoration route, specifically.
+ *
+ * Deliberately NOT `isLimitedAccountRoute`, which also covers `/privacy`:
+ * exempting restoration from the onboarding redirect must not incidentally
+ * make the privacy screen reachable mid-onboarding.
+ */
+function isAccountRestoreRoute(pathname) {
+  return normalizePathname(pathname) === ACCOUNT_RESTORE_ROUTE;
+}
+
 function isSessionUsable(session, nowSeconds = Math.floor(Date.now() / 1000)) {
   if (!session) return false;
   if (typeof session.expires_at === 'number' && session.expires_at <= nowSeconds) {
@@ -121,6 +134,24 @@ function getRoutingGuardState({ pathname, loading, session, nowSeconds, profile,
     if (isOnboardingRoute(normalizedPathname)) {
       return { action: 'allow', pathname: normalizedPathname, redirectTo: null };
     }
+    // KSB29-059. Account restoration was exempted from the signed-out branch
+    // (PUBLIC_ROUTES) and from the pending-deletion branch
+    // (LIMITED_ACCOUNT_ROUTES), but NOT from this one. A user with a live
+    // session and incomplete onboarding who opened their emailed restoration
+    // link was redirected to /onboarding while the restore screen had already
+    // mounted and consumed the token -- a single-use token spent on a screen
+    // that was replaced before it could show the result, turning a recoverable
+    // account into a user-facing dead end.
+    //
+    // Restoration is a recovery route, like password recovery above it, and
+    // must be allowed to complete before ordinary onboarding routing applies.
+    //
+    // Deliberately isAccountRestoreRoute and NOT isLimitedAccountRoute: the
+    // latter also covers /privacy, and exempting restoration must not
+    // incidentally make the privacy screen reachable mid-onboarding.
+    if (isAccountRestoreRoute(normalizedPathname)) {
+      return { action: 'allow', pathname: normalizedPathname, redirectTo: null };
+    }
     return {
       action: 'redirect',
       pathname: normalizedPathname,
@@ -140,10 +171,12 @@ function getRoutingGuardState({ pathname, loading, session, nowSeconds, profile,
 }
 
 module.exports = {
+  ACCOUNT_RESTORE_ROUTE,
   LIMITED_ACCOUNT_ROUTES,
   PUBLIC_ROUTES,
   getRoutingGuardState,
   hasPendingDeletionProfile,
+  isAccountRestoreRoute,
   isAuthCallbackUrl,
   isPasswordRecoveryRoute,
   isLimitedAccountRoute,

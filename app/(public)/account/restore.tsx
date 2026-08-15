@@ -21,6 +21,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 
 import {
@@ -46,6 +47,22 @@ export default function AccountRestoreScreen() {
   const params = useLocalSearchParams<{ token?: string | string[] }>();
   const [state, setState] = useState<ScreenState>({ phase: 'restoring' });
 
+  /**
+   * KSB29-059. The token must not be spent until this screen is genuinely the
+   * active one.
+   *
+   * Mounting is not the same as being shown. A routing-guard redirect (or any
+   * navigation that lands elsewhere in the same frame) leaves this component
+   * mounted just long enough for a mount effect to run — and a restoration
+   * token is SINGLE USE. Spending it on a screen the user never sees converts
+   * a recoverable account into a permanent failure: the link is now dead and
+   * the outcome was never displayed.
+   *
+   * Waiting for focus means the consume attempt and the screen that reports
+   * its result are the same event.
+   */
+  const isFocused = useIsFocused();
+
   // Single-flight latch. A restoration token is single-use, so a re-render or a
   // param change must never fire a second consume attempt — the second would
   // always fail and would overwrite a genuine success with "link no longer
@@ -53,6 +70,7 @@ export default function AccountRestoreScreen() {
   const attemptedRef = useRef(false);
 
   useEffect(() => {
+    if (!isFocused) return;
     if (attemptedRef.current) return;
     attemptedRef.current = true;
 
@@ -93,10 +111,11 @@ export default function AccountRestoreScreen() {
     return () => {
       cancelled = true;
     };
-    // Intentionally runs once: the latch above, not the dependency list, owns
-    // single-flight, and `params.token` is deliberately cleared mid-flow.
+    // Runs once, on the first frame this screen is actually focused: the latch
+    // above, not the dependency list, owns single-flight, and `params.token` is
+    // deliberately cleared mid-flow.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isFocused]);
 
   const goToSignIn = useCallback(() => {
     router.replace('/auth');
