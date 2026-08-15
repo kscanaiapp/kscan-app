@@ -2500,3 +2500,40 @@ test('fallback: the paid legacy response is threaded through the direct outcome'
   );
   assert.equal(calls, 2, 'one V2 attempt plus the single legacy retry — a caller reusing the response never bills a third scan');
 });
+
+test('KSB29-012: every release profile activates Elise identification V2', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const root = path.resolve(__dirname, '..');
+  const eas = JSON.parse(fs.readFileSync(path.join(root, 'eas.json'), 'utf8'));
+
+  // This is a LIVE user-facing gate, not a dormant rollout switch. With it off,
+  // hooks/useStyleChatAttachments.ts assigns `identified` only inside
+  // `if (v2Flag.enabled)`, and the next guard is
+  // `if (!identified || identified.kind !== 'identified')` -- which therefore
+  // always fires, so every direct Elise camera/gallery attachment fails with
+  // "Could not identify this photo."
+  for (const [profile, config] of Object.entries(eas.build)) {
+    assert.equal(
+      config.env.EXPO_PUBLIC_ELISE_IDENTIFICATION_V2_ENABLED,
+      'true',
+      `${profile} must activate Elise identification V2`,
+    );
+  }
+
+  // The deterministic-failure shape above, asserted against the real hook so
+  // this test explains WHY the flag cannot be left off.
+  const hook = fs.readFileSync(path.join(root, 'hooks', 'useStyleChatAttachments.ts'), 'utf8');
+  const region = hook.slice(hook.indexOf('const v2Flag = beginEliseV2Session()'));
+  assert.match(region.slice(0, 400), /if \(v2Flag\.enabled\)/);
+  assert.match(
+    region,
+    /if \(!identified \|\| identified\.kind !== 'identified'\)/,
+    'the unconditional guard that makes flag-off a hard failure',
+  );
+
+  // Exact string semantics: only "true" opts in, so a partial environment fails
+  // closed rather than half-on.
+  const flags = loadFlags({ EXPO_PUBLIC_ELISE_IDENTIFICATION_V2_ENABLED: 'TRUE' });
+  assert.equal(flags.resolveEliseIdentificationV2Enabled(), false, 'only exact "true" opts in');
+});

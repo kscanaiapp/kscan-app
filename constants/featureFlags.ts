@@ -422,11 +422,26 @@ export const SCANNER_IDENTIFICATION_V2_ENABLED = resolveScannerIdentificationV2E
  * One shared flag would make it impossible to roll out either without the other,
  * and a Scanner regression would force an Elise rollback for no reason.
  *
- * Default false, and only the exact string "true" opts in: the deployed
- * production backend does not yet serve this to Elise, so a build that has not
- * explicitly opted in must keep every current Elise path unchanged.
+ * Only the exact string "true" opts in. The default remains false so a
+ * misconfigured or partial environment fails closed rather than half-on.
  *
- * Flag OFF is not a degraded mode — it is exactly today's behaviour.
+ * KSB29-012 — TWO CLAIMS IN THE ORIGINAL NOTE HERE ARE NO LONGER TRUE, and
+ * both mattered:
+ *
+ *   "the deployed production backend does not yet serve this to Elise" — it
+ *   does. Production scan-identify (v147) handles `identify_for_style`, and
+ *   production stylechat-generate (v90) accepts `fashionContextV2`. Both were
+ *   verified against the live functions on 2026-08-15.
+ *
+ *   "Flag OFF is not a degraded mode — it is exactly today's behaviour" — it is
+ *   not. hooks/useStyleChatAttachments.ts only assigns `identified` inside
+ *   `if (v2Flag.enabled)`, and the very next guard is
+ *   `if (!identified || identified.kind !== 'identified')`. With the flag off,
+ *   `identified` stays null and that guard ALWAYS fires, so every direct Elise
+ *   camera/gallery attachment fails with "Could not identify this photo."
+ *
+ * This is therefore a live user-facing gate, not a dormant rollout switch, and
+ * eas.json sets it to "true" in every build profile.
  */
 export function resolveEliseIdentificationV2Enabled(
   value: string | undefined = process.env.EXPO_PUBLIC_ELISE_IDENTIFICATION_V2_ENABLED,
