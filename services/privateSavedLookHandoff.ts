@@ -8,9 +8,21 @@ import {
   type SavedLookReturnContextV1,
 } from '../types/privateSavedLookHandoff';
 
-export const MISSING_PIECE_HANDOFF_STATUS =
-  'STRUCTURED MISSING-PIECE HANDOFF READY' as const;
-export const EXTERNAL_COMMERCE_STATUS = 'EXTERNAL COMMERCE DEFERRED' as const;
+/**
+ * USER-FACING copy for the missing-piece handoff screen.
+ *
+ * These were 'STRUCTURED MISSING-PIECE HANDOFF READY' and 'EXTERNAL COMMERCE
+ * DEFERRED' — internal phase vocabulary rendered directly as the screen's
+ * heading and subheading. They described our build process to a user who was
+ * trying to find a piece for an outfit.
+ *
+ * The engineering meaning is unchanged and is now stated in this comment rather
+ * than on the screen: the structured query is built and validated locally, and
+ * no external retailer call is made in this phase.
+ */
+export const MISSING_PIECE_HANDOFF_STATUS = "Let's find this piece" as const;
+export const EXTERNAL_COMMERCE_STATUS =
+  'Shopping for this piece is coming soon.' as const;
 
 function text(value: unknown, max = 120): string | null {
   if (typeof value !== 'string') return null;

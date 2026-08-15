@@ -85,3 +85,32 @@ test('Phase 2 component names and handoff keys are not renamed for branding', ()
   assert.match(useAttachments, /addResolvedOwnedItem/);
   assert.match(useAttachments, /StyleChatAttachment/);
 });
+
+test('the photo picker latch is taken synchronously, not after two awaits', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const source = fs.readFileSync(
+    path.join(__dirname, '..', 'components', 'style-chat', 'StyleChatPhotoIntake.tsx'),
+    'utf8',
+  );
+  const picker = source.slice(
+    source.indexOf('const startPicker = useCallback'),
+    source.indexOf('const operationId = ++operationIdRef.current'),
+  );
+
+  // The latch was checked, then set only after BOTH the permission request and
+  // the picker resolved. Every tap in that window passed the check and launched
+  // another native picker. Checking a latch you have not taken yet is not a
+  // guard, so the set must precede the first await.
+  const check = picker.indexOf('if (inFlightRef.current) return');
+  const take = picker.indexOf('inFlightRef.current = true');
+  const firstAwait = picker.indexOf('await ');
+  assert.ok(check >= 0 && take >= 0 && firstAwait >= 0, 'the picker must latch');
+  assert.ok(take > check, 'the latch is taken after its own check');
+  assert.ok(take < firstAwait, 'the latch must be taken before any await');
+
+  // ...and every early exit must release it, or one cancellation leaves the
+  // control permanently dead.
+  const releases = (picker.match(/inFlightRef\.current = false/g) || []).length;
+  assert.ok(releases >= 3, `expected a release on denial, throw and cancel; found ${releases}`);
+});

@@ -114,6 +114,14 @@ test('controlled adapter performs no external commerce and reports the governed 
   assert.equal(controlled.result.providerProductRef, null);
   assert.equal(controlled.result.retailer, null);
   assert.equal(controlled.result.destinationUrl, null);
-  assert.equal(handoff.MISSING_PIECE_HANDOFF_STATUS, 'STRUCTURED MISSING-PIECE HANDOFF READY');
-  assert.equal(handoff.EXTERNAL_COMMERCE_STATUS, 'EXTERNAL COMMERCE DEFERRED');
+  // These are rendered as the screen's heading and subheading, so they must
+  // read as product copy. This previously pinned the internal phase vocabulary
+  // ('STRUCTURED MISSING-PIECE HANDOFF READY' / 'EXTERNAL COMMERCE DEFERRED'),
+  // which is what made the leak durable.
+  assert.equal(handoff.MISSING_PIECE_HANDOFF_STATUS, "Let's find this piece");
+  assert.equal(handoff.EXTERNAL_COMMERCE_STATUS, 'Shopping for this piece is coming soon.');
+  for (const copy of [handoff.MISSING_PIECE_HANDOFF_STATUS, handoff.EXTERNAL_COMMERCE_STATUS]) {
+    assert.doesNotMatch(copy, /STRUCTURED|HANDOFF|DEFERRED|TAXONOMY|PHASE/i,
+      'user-facing copy must not carry internal vocabulary');
+  }
 });

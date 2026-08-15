@@ -106,30 +106,52 @@ export function StyleChatPhotoIntake({
   }, []);
 
   const startPicker = useCallback(async () => {
+    // The latch is taken SYNCHRONOUSLY, on the same tick as the check.
+    //
+    // It was previously set only after the permission request AND the picker
+    // itself had both resolved — two awaits later. Every tap during that window
+    // passed the `if (inFlightRef.current) return` check and launched another
+    // native picker, so a user tapping twice on a slow permission prompt got
+    // stacked pickers and, on dismissing them, a second operation racing the
+    // first. Checking a latch you have not taken yet is not a guard.
     if (inFlightRef.current) return; // single in-flight analysis
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert(
-        'Photo Access Required',
-        'Allow K Scan to access your photo library in Settings to upload a photo.',
-        [{ text: 'OK' }],
-      );
+    inFlightRef.current = true;
+
+    let picked: ImagePicker.ImagePickerResult;
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Photo Access Required',
+          'Allow K Scan to access your photo library in Settings to upload a photo.',
+          [{ text: 'OK' }],
+        );
+        inFlightRef.current = false;
+        return;
+      }
+
+      picked = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 1,
+        allowsEditing: false,
+        allowsMultipleSelection: false,
+      });
+    } catch {
+      // A picker that never opened must not leave the control dead.
+      inFlightRef.current = false;
       return;
     }
 
-    const picked = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 1,
-      allowsEditing: false,
-      allowsMultipleSelection: false,
-    });
-    // Picker cancellation: no row, no upload, no state change.
-    if (picked.canceled || !picked.assets?.[0]?.uri) return;
+    // Every exit before the analysis begins must release the latch, or the
+    // control stays permanently disabled after one cancellation.
+    if (picked.canceled || !picked.assets?.[0]?.uri) {
+      inFlightRef.current = false;
+      return;
+    }
 
     const operationId = ++operationIdRef.current;
     abortRef.current?.abort();
     abortRef.current = new AbortController();
-    inFlightRef.current = true;
     const localUri = picked.assets[0].uri;
     setImageUri(localUri);
     setIdentifiedAnalysis(null);

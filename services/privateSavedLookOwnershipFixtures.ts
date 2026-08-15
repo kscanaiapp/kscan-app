@@ -111,7 +111,7 @@ export const PRIVATE_OWNERSHIP_FIXTURES: OwnershipFixture[] = [
     savedLook: saved({ slots: [{ ...saved().slots[0], closetItemId: null, wasOwnedAtSave: false,
       snapshot: { ...saved().slots[0].snapshot, category: null, clothingType: null, subtype: null } }] }),
     closet: [], expectedState: 'unknown', expectedMatchedItemId: null,
-    expectedConfidenceExplanation: 'lacks enough', expectedCommerceSuppression: false,
+    expectedConfidenceExplanation: "can't tell whether you already own", expectedCommerceSuppression: false,
     expectedActions: ['find_alternative'],
   },
   {

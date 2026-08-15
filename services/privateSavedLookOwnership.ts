@@ -233,7 +233,10 @@ function resolveSlot(
       'unknown',
       null,
       [],
-      'The saved slot lacks enough normalized taxonomy to decide ownership.',
+      // Product copy, not engineering vocabulary. "lacks enough normalized
+      // taxonomy" describes our data model to a user who only wants to know
+      // whether they already own the piece.
+      "We can't tell whether you already own this one.",
     );
   }
 
