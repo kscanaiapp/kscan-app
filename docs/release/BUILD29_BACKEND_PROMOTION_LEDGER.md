@@ -309,6 +309,41 @@ rather than repair it.
 
 ---
 
+---
+
+## 6. Shared items deliberately NOT done (carried forward)
+
+Neither is a backend promotion; both are recorded here because they were in
+scope and closing them badly would have been worse than leaving them.
+
+### "Disable Shared Link" shown for a never-shared room
+
+Cosmetic. `app/dressing-rooms/[id].tsx` renders the revoke control whenever the
+share section is visible, including for a room that was never shared.
+
+Not repaired because no share state is read at load: `getDressingRoomDetail`
+returns `{ room, items }` and there is no read-only share lookup, only
+`createOrGetRoomShare` (which creates) and `revokeRoomShare`. Doing it properly
+needs a new service read, a `RoomDetail` change and load wiring.
+
+The cheap version — tracking only shares created in the current session — would
+**hide the revoke control for a room shared previously**, so a user could no
+longer disable a live invite link. That is materially worse than the cosmetic
+issue it fixes, so it is left alone.
+
+### `.easignore.txt` duplicate
+
+Genuinely dead: it duplicates `.easignore` (which is a strict superset covering
+secrets, keystores and `/maestro/`), and EAS reads `.easignore`, never the
+`.txt`. It is misleading precisely because it looks authoritative.
+
+Not deleted because it is named in
+`security/scripts/compute-runtime-release-tree.js` and in
+`docs/release/runtime-release-tree-model.md`. Removing it shifts the computed
+runtime release tree and would trip the release gates for a cosmetic dedupe —
+deletion creates more release risk than the duplicate does.
+
+
 ## Summary
 
 | item | promotion |
