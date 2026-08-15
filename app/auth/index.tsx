@@ -34,6 +34,7 @@ import {
 import { completeOAuthCallbackSession } from '../../services/oauthCallbackSession';
 import { traceAuthLifecycle } from '../../services/authLifecycleTrace';
 import { linkAppleCredential } from '../../services/appleCredentialLink';
+import { captureAppleDisplayName } from '../../services/appleDisplayName';
 import { requestRestorationEmail } from '../../services/accountRestoration';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -261,7 +262,7 @@ export default function AuthScreen() {
         return;
       }
 
-      const { error: signInError } = await supabase.auth.signInWithIdToken({
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithIdToken({
         provider: 'apple',
         token: credential.identityToken,
         nonce: rawNonce,
@@ -280,11 +281,22 @@ export default function AuthScreen() {
       // missing token is that deletion still completes.
       const linkOutcome = await linkAppleCredential(credential.authorizationCode);
 
+      // Apple returns fullName only on the FIRST authorization and never puts
+      // it in the identity token, so this is the one moment the name exists.
+      // Best-effort for the same reason as the credential handoff above: the
+      // session is already established and must not be undone by a name write.
+      const displayNameOutcome = await captureAppleDisplayName(
+        signInData?.user ?? null,
+        credential.fullName,
+      );
+
       traceAuthLifecycle('apple-session-establishment', {
         outcome: 'accepted',
         sessionPresent: true,
         // Status word only. The authorization code itself is never traced.
         appleCredentialLink: linkOutcome,
+        // Status word only. The name itself is never traced.
+        appleDisplayName: displayNameOutcome,
       });
       return;
     } catch (err) {
