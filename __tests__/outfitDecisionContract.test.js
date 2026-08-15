@@ -229,3 +229,25 @@ test('owner screen renders decisions owner-gated; shared screen participant-gate
   assert.match(ownerScreen, /room\.userId === user\.id/);
   assert.match(publicScreen, /role="participant"/);
 });
+
+test('KSB29-024: backend errors never render database internals to room visitors', () => {
+  // Shared Dressing Rooms are reachable by unauthenticated visitors, so the
+  // user-facing error may only ever be the stable fallback copy. The previous
+  // implementation returned `error?.message || fallback` from a function named
+  // `safeError`, which forwarded raw Postgres/PostgREST text -- constraint
+  // names, column names, RLS policy details -- straight to the screen.
+  assert.match(
+    service,
+    /function safeError\(_error: any, fallback: string\) \{\s+return new Error\(fallback, \{ cause: _error \}\);\s+\}/,
+    'safeError must return the fallback copy, matching services/styleObjects.ts',
+  );
+  assert.doesNotMatch(
+    service,
+    /new Error\(error\?\.message/,
+    'no backend message may be forwarded into a user-facing Error',
+  );
+
+  // Every throw site must go through it rather than constructing its own.
+  const rawThrows = service.match(/throw new Error\([^)]*error[^)]*\)/g) || [];
+  assert.deepEqual(rawThrows, [], 'all backend failures must be routed through safeError');
+});

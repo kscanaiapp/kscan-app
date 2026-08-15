@@ -31,8 +31,19 @@ export const DECISION_QUESTION_PRESETS = [
   'Help me improve this.',
 ] as const;
 
-function safeError(error: any, fallback: string) {
-  return new Error(error?.message || fallback);
+/**
+ * KSB29-024. This forwarded `error?.message` — the raw Postgres/PostgREST text
+ * — despite being named `safeError`. Shared Dressing Rooms are reachable by
+ * unauthenticated visitors, so a backend implementation error became a
+ * database-information disclosure: constraint names, column names, and RLS
+ * policy details rendered straight into the user-facing error.
+ *
+ * The authoritative form already exists in services/styleObjects.ts; this is
+ * the same function, aligned. The original is preserved as `cause` so internal
+ * diagnostics keep the detail without it reaching the screen.
+ */
+function safeError(_error: any, fallback: string) {
+  return new Error(fallback, { cause: _error });
 }
 
 function mapGroup(row: any): OutfitDecisionGroup {
