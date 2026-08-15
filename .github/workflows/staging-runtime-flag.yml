@@ -41,9 +41,9 @@ on:
         type: choice
         options:
           - 'true'
-          # 'false' exists so E4.1 can be rolled back through this same governed
-          # path if certification fails. The writer still refuses 'false' for
-          # any flag whose allowlist does not include it.
+          # Reversible Elise staging flags must be switchable through this
+          # same governed path; the canonical staging writer independently
+          # rejects false for the one-way scanner flag.
           - 'false'
       confirm:
         description: 'Type SET-STAGING-RUNTIME-FLAG to permit the write.'

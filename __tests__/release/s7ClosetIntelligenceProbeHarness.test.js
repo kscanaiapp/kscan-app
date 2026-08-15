@@ -70,3 +70,24 @@ test('S7 credentialed workflow executes trusted master source and never candidat
   assert.match(workflow, /KSCAN_S7_PROBE_STAGE:\s*\$\{\{\s*inputs\.stage\s*\}\}/);
   assert.match(workflow, /PRODUCTION_REF:\s*wyyuqfdxucjksghsmhry/);
 });
+
+test('governed staging workflow explicitly exposes every reversible S7 flag', () => {
+  const workflow = fs.readFileSync(
+    path.resolve(__dirname, '..', '..', '.github', 'workflows', 'staging-runtime-flag.yml'),
+    'utf8',
+  );
+  const flags = [
+    'ELISE_ADVICE_INTENTS_V1_ENABLED',
+    'ELISE_CLOSET_RETRIEVAL_V1_ENABLED',
+    'ELISE_COMPATIBILITY_SCORING_V1_ENABLED',
+    'ELISE_WARDROBE_GAP_V1_ENABLED',
+    'ELISE_PURCHASE_ADVICE_V1_ENABLED',
+    'ELISE_MULTI_LOOK_V1_ENABLED',
+  ];
+  for (const flag of flags) {
+    const matches = workflow.match(new RegExp(`- ${flag}\\b`, 'g')) || [];
+    assert.equal(matches.length, 1, `${flag} must be an explicit single choice`);
+  }
+  assert.match(workflow, /options:\s*\n\s*- 'true'[\s\S]*?\n\s*- 'false'/);
+  assert.doesNotMatch(workflow, /ELISE_\*|\^ELISE_/);
+});
