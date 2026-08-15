@@ -16,6 +16,7 @@ import {
   retrieveAuthorizedWardrobeCandidates,
   type EliseWardrobeDataSource,
 } from './eliseWardrobeRetrieval.ts';
+import type { ClosetInventoryState } from './closetIntelligenceContext.ts';
 import { rankAndBoundCandidates } from './eliseCompatibilityScoring.ts';
 import {
   analyzeWardrobeGap,
@@ -103,6 +104,7 @@ export async function runEliseAdvicePipeline(input: {
   let ownershipSourceCounts: Record<string, number> = {};
   let partialFailure = false;
   let inventoryCount = 0;
+  let closetInventoryState: ClosetInventoryState = 'unavailable';
 
   if (flags.closetRetrievalV1) {
     const retrieval = await retrieveAuthorizedWardrobeCandidates({
@@ -117,7 +119,10 @@ export async function runEliseAdvicePipeline(input: {
     countsBySource = retrieval.countsBySource;
     ownershipSourceCounts = retrieval.ownershipSourceCounts;
     partialFailure = retrieval.partialFailure;
-    inventoryCount = retrieval.candidates.length;
+    closetInventoryState = retrieval.closetInventoryState;
+    inventoryCount = retrieval.candidates.filter(
+      (candidate) => candidate.sourceType === 'closet' && candidate.actorRelationship === 'owned',
+    ).length;
 
     if (flags.compatibilityScoringV1) {
       const scoreStarted = Date.now();
@@ -166,9 +171,11 @@ export async function runEliseAdvicePipeline(input: {
     (intent === 'wardrobe_gap' || intent === 'build_outfit' || intent === 'multi_look_generation')
       ? analyzeWardrobeGap({
           focus: focused,
-          shortlist,
+          shortlist: shortlist.filter(
+            (row) => row.candidate.sourceType === 'closet' && row.candidate.actorRelationship === 'owned',
+          ),
           inventoryCount,
-          partialFailure,
+          inventoryState: closetInventoryState,
         })
       : null;
 

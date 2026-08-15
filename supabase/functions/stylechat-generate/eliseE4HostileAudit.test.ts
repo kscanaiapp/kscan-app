@@ -50,6 +50,7 @@ function envelope(): EliseVisualContextEnvelope {
         textureAttributes: [],
         occasionAttributes: [],
         brand: null,
+        brandEvidence: [],
         confidence: 0.85,
         imageReferenceType: 'storage_object',
         canonicalStorageReference: null,

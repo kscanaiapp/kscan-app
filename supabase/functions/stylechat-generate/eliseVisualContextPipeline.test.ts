@@ -55,6 +55,21 @@ function mockData(overrides: Partial<EliseResourceDataSource> = {}): EliseResour
           title: 'Owned room shoe',
           category: 'footwear',
           brand: 'Demo',
+          snapshot_payload: {
+            metadata: {
+              subcategory: 'loafer',
+              colors: ['espresso'],
+              materials: ['leather'],
+              silhouette: 'sleek',
+              pattern: 'solid',
+              fit: 'true to size',
+              brand: 'Demo',
+              brandEvidence: [
+                { type: 'visible_brand_text', value: 'DEMO', confidence: 0.94 },
+                { type: 'brand_guess', value: 'Demo Heritage', confidence: 0.61 },
+              ],
+            },
+          },
           storage_bucket: 'rooms',
           storage_path: `${ACTOR}/${ITEM_ID}.jpg`,
         };
@@ -217,6 +232,135 @@ Deno.test('E-1 owned and shared room items keep distinct provenance', async () =
     ['owned', 'shared'],
   );
   assert.equal(result.envelope.focusedEvidenceId, SHARED_ITEM);
+});
+
+Deno.test('E-1 verified room metadata overrides forged client fields end to end', async () => {
+  const result = await buildEliseVisualContextEnvelope({
+    rawActiveContext: {
+      source: 'dressing_room',
+      visualCollection: {
+        evidence: [{
+          id: ITEM_ID,
+          order: 1,
+          title: 'Forged title',
+          sourceType: 'owned_room_item',
+          roomId: ROOM_ID,
+          itemId: ITEM_ID,
+          category: 'forged category',
+          subcategory: 'forged subtype',
+          colors: ['forged color'],
+          materials: ['forged material'],
+          silhouette: 'forged silhouette',
+          pattern: 'forged pattern',
+          fit: 'forged fit',
+          brand: 'Forged Brand',
+          brandEvidence: [{ type: 'visible_brand_text', value: 'FORGED' }],
+        }],
+      },
+    },
+    actorId: ACTOR,
+    sessionId: 'session-1',
+    dataSource: mockData(),
+  });
+
+  const item = result.envelope.evidence[0];
+  assert.equal(item.trust, 'server_verified');
+  assert.equal(item.title, 'Owned room shoe');
+  assert.equal(item.category, 'footwear');
+  assert.equal(item.subcategory, 'loafer');
+  assert.deepEqual(item.colors, ['espresso']);
+  assert.deepEqual(item.materials, ['leather']);
+  assert.equal(item.silhouette, 'sleek');
+  assert.equal(item.pattern, 'solid');
+  assert.equal(item.fit, 'true to size');
+  assert.equal(item.brand, 'Demo');
+  assert.deepEqual(item.brandEvidence.map((entry) => entry.type), [
+    'visible_brand_text',
+    'brand_guess',
+  ]);
+  assert.match(result.promptBlock ?? '', /brandEvidence\[2\]\.type: "brand_guess"/);
+});
+
+Deno.test('E-1 a persisted V1 brand guess is never promoted under server_verified trust', async () => {
+  const result = await buildEliseVisualContextEnvelope({
+    rawActiveContext: {
+      source: 'recent_scan',
+      visualCollection: {
+        evidence: [{
+          id: SCAN_ID,
+          sourceType: 'recent_scan',
+          scanId: SCAN_ID,
+          title: 'Client title',
+          brand: 'Client-promoted Guess',
+        }],
+      },
+    },
+    actorId: ACTOR,
+    sessionId: 'session-1',
+    dataSource: mockData({
+      fetchSavedScan: async () => ({
+        id: SCAN_ID,
+        user_id: ACTOR,
+        title: 'Stored scan',
+        analysis_result: {
+          identificationSnapshot: {
+            category: 'Outerwear',
+            brand: {
+              value: 'Guess House',
+              evidence: [{ type: 'brand_guess', value: 'Guess House', confidence: 0.6 }],
+            },
+          },
+        },
+      }),
+    }),
+  });
+  assert.equal(result.envelope.evidence[0].brand, null);
+  assert.equal(result.envelope.evidence[0].brandEvidence[0].type, 'brand_guess');
+  assert.doesNotMatch(result.promptBlock ?? '', /evidence\[1\]\.brand: Guess House/);
+});
+
+Deno.test('E-1 V2 visual provenance remains a guess under server_verified trust', async () => {
+  const result = await buildEliseVisualContextEnvelope({
+    rawActiveContext: {
+      source: 'recent_scan',
+      visualCollection: {
+        evidence: [{
+          id: SCAN_ID,
+          sourceType: 'recent_scan',
+          scanId: SCAN_ID,
+          brand: 'Client-promoted V2 Guess',
+        }],
+      },
+    },
+    actorId: ACTOR,
+    sessionId: 'session-1',
+    dataSource: mockData({
+      fetchSavedScan: async () => ({
+        id: SCAN_ID,
+        user_id: ACTOR,
+        analysis_result: {
+          identificationSnapshotV2: {
+            identification: {
+              item: {
+                brand: {
+                  value: 'Guess House V2',
+                  provenance: 'visual',
+                  evidence: [{
+                    type: 'brand_guess',
+                    observation: 'Guess House V2',
+                    confidence: 0.61,
+                  }],
+                },
+              },
+            },
+          },
+        },
+      }),
+    }),
+  });
+  assert.equal(result.envelope.evidence[0].brand, null);
+  assert.equal(result.envelope.evidence[0].brandEvidence[0].type, 'brand_guess');
+  assert.doesNotMatch(result.promptBlock ?? '', /evidence\[1\]\.brand: Guess House V2/);
 });
 
 Deno.test('E-1 commerce and upload never become owned', async () => {

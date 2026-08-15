@@ -70,12 +70,12 @@ Deno.test('the two gates are independently settable in all four combinations', (
 
 // ── The decoupled seam ──────────────────────────────────────────────────────
 
-Deno.test('the envelope is built when EITHER consumer needs it', () => {
+Deno.test('the envelope is built when any authorized consumer needs it', () => {
   // Envelope construction is resolution and authorization only: it emits no
   // prompt text and changes no response by itself, so it is safe to share.
   assert.match(
     SOURCE,
-    /\(config\.flags\.contextNormalizationV1 \|\| config\.flags\.roomIntelligenceV1\) &&\s*\n?\s*body\.activeContext != null/,
+    /config\.flags\.contextNormalizationV1 \|\|\s*\n?\s*config\.flags\.roomIntelligenceV1 \|\|\s*\n?\s*config\.flags\.adviceIntentsV1\s*\n?\s*\) &&\s*\n?\s*body\.activeContext != null/,
     'evidence construction must not remain gated on the legacy flag alone',
   );
 });

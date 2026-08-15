@@ -10,6 +10,7 @@ import { getFriendlyStyleChatError } from '../services/style-chat/styleChatError
 import type { StyleChatMessage, StyleChatSession, StyleChatUiBlock } from '../services/style-chat/types';
 import type { WeatherLocationInput } from '../constants/weatherStyling';
 import { saveTodayWeather } from '../services/weather/todayWeatherStore';
+import { buildClosetIntelligenceContext } from '../services/style-chat/closetIntelligenceContext';
 import type { StyleDnaContext } from '../services/style-dna/styleDnaContext';
 import type { StyleChatHandoffContext } from '../services/style-chat/styleChatHandoffContext';
 import { STYLE_CHAT_COPY, STYLE_CHAT_DAILY_MESSAGE_LIMIT } from '../constants/styleChat';
@@ -492,6 +493,14 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
           ? await resolveStyleDna().catch(() => null)
           : null;
         if (!isCurrentSend()) return;
+        // S7 reads the committed Closet authority, not Recent Scan history.
+        // The builder returns an explicit unavailable state on any actor/read
+        // failure so wardrobe-gap reasoning cannot turn missing evidence into
+        // absence. It carries metadata only and no local ids or image paths.
+        const closetIntelligenceContext = await buildClosetIntelligenceContext(
+          actorIdRef.current,
+        );
+        if (!isCurrentSend()) return;
         // Active scan/upload/TextScan context is held in a ref so it is included on
         // every send while the context card is visible, without recreating sendMessage.
         if (hasAttachments) {
@@ -503,6 +512,7 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
           message: trimmed,
           weatherLocation,
           styleDnaContext,
+          closetIntelligenceContext,
           activeContext: activeContextSnapshot,
           sourceMessageId: persistedUserMessageId,
           ...(hasAttachments

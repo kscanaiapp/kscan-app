@@ -105,6 +105,7 @@ export interface EliseVisualEvidence {
   occasionAttributes: string[];
 
   brand: string | null;
+  brandEvidence: EliseBrandEvidence[];
   confidence: number | null;
 
   imageReferenceType: EliseImageReferenceType;
@@ -117,6 +118,12 @@ export interface EliseVisualEvidence {
     purchaseUrlPresent: boolean;
   } | null;
 }
+
+export type EliseBrandEvidence = {
+  type: string;
+  value: string | null;
+  confidence: number | null;
+};
 
 export interface EliseNormalizationSummary {
   receivedCount: number;
@@ -144,6 +151,7 @@ export const ELISE_CONTEXT_BOUNDS = {
   maxSummaryChars: 500,
   maxCategoryChars: 80,
   maxBrandChars: 80,
+  maxBrandEvidence: 8,
   maxFieldChars: 80,
   maxIdChars: 80,
   maxColors: 8,
@@ -168,14 +176,18 @@ export type EliseResourceResolution =
       storageBucket?: string | null;
       storagePath?: string | null;
     };
-    metadata?: Partial<{
+    metadata: {
       title: string | null;
       category: string | null;
+      subcategory: string | null;
       colors: string[];
       materials: string[];
       silhouette: string | null;
+      pattern: string | null;
+      fit: string | null;
       brand: string | null;
-    }>;
+      brandEvidence: EliseBrandEvidence[];
+    };
   }
   | { status: 'not_found' }
   | { status: 'unauthorized' }

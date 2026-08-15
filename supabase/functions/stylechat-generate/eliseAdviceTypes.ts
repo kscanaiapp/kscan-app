@@ -86,6 +86,8 @@ export interface EliseWardrobeCandidate {
   styleAttributes: string[];
   brand: string | null;
   confidence: number | null;
+  /** Bounded deterministic warnings about contradictory supplied metadata. */
+  metadataWarnings: string[];
   canonicalResourceIds: {
     itemId?: string;
     scanId?: string;

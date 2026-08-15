@@ -248,7 +248,7 @@ test('S2: every canonical field reaches the Closet adapter after a full round tr
   assert.equal(item.pattern, 'Herringbone', 'pattern must survive');
   assert.equal(item.silhouette, 'Structured', 'silhouette must survive');
   assert.equal(item.fit, 'Tailored', 'fit must survive');
-  assert.equal(item.brand, 'Acme Tailoring', 'brand must survive');
+  assert.equal(item.brand, 'ACME', 'observed brand text must survive without promoting a guess');
 });
 
 test('S2: brand evidence stays separable and is never collapsed into the brand string', () => {
@@ -270,13 +270,108 @@ test('S2: brand evidence stays separable and is never collapsed into the brand s
   const visible = Array.from(item.brandEvidence).find((e) => e.type === 'visible_brand_text');
   assert.equal(visible.value, 'ACME', 'the observed brand text must keep its value');
 
-  // A guess and an observation are different claims. The guess populating
-  // `brand` must not erase the fact that it WAS a guess.
-  assert.equal(item.brand, 'Acme Tailoring');
+  // A guess and an observation are different claims. Only the visible text is
+  // authoritative enough for the scalar; the guess remains typed evidence.
+  assert.equal(item.brand, 'ACME');
   assert.ok(
     Array.from(item.brandEvidence).some((e) => e.type === 'brand_guess'),
-    'brand_guess must remain visible as a guess after being promoted to brand',
+    'brand_guess must remain visible as a guess and never become the scalar brand',
   );
+});
+
+test('S2: a guess without observed brand evidence never becomes the scalar brand', () => {
+  const response = richScanResponse();
+  response.identification.visible_brand_text = null;
+  response.identification.logo_detected = false;
+  const model = makeModel({
+    identificationSnapshot: identificationSnapshot.buildIdentificationSnapshot(response, {
+      entryPath: 'camera',
+    }),
+  });
+  const { persisted } = persistAndReload(model);
+  const item = owned.normalizeSavedScanRow({
+    ...persisted,
+    id: REMOTE_UUID,
+    created_at: '2026-08-14T00:00:00Z',
+    updated_at: '2026-08-14T00:00:00Z',
+  });
+  assert.equal(item.brand, null);
+  assert.equal(item.metadataProvenance.brand, 'absent');
+  assert.equal(item.brandEvidence[0].type, 'brand_guess');
+  assert.equal(item.brandEvidence[0].value, 'Acme Tailoring');
+});
+
+test('S2: a V2 snapshot outranks V1 and carries the complete canonical garment', () => {
+  const v2 = {
+    snapshotVersion: 2,
+    contractVersion: 'fashion-identification-v2',
+    source: 'camera',
+    createdAt: '2026-08-14T00:00:00Z',
+    updatedAt: '2026-08-14T00:00:00Z',
+    purchaseOptions: [],
+    identification: {
+      contractVersion: 'fashion-identification-v2',
+      requestId: 'request-v2',
+      status: 'completed',
+      resolutionLevel: 'brand_and_subtype',
+      item: {
+        category: 'Outerwear V2',
+        clothingType: 'blazer',
+        subtype: 'cropped blazer',
+        brand: {
+          value: 'Maison V2',
+          confidence: 0.93,
+          provenance: 'visible_text',
+          evidence: [{ type: 'evidence_wordmark', observation: 'MAISON V2', confidence: 0.93 }],
+        },
+        colors: { primary: 'Ink', secondary: ['Silver'] },
+        material: ['Wool blend'],
+        silhouette: ['Cropped'],
+        pattern: ['Pinstripe'],
+        attributes: { fit: 'Tailored', pockets: [], visible: ['sharp lapel'], distinctive: [] },
+      },
+      confidence: { category: 0.96, subtype: 0.9, brand: 0.93, modelFamily: null, exactProduct: null },
+      exactProduct: null,
+      evidence: [],
+      conflicts: [],
+      compatibility: { legacyProjectionAvailable: true, globalConfidence: 0.91 },
+    },
+  };
+  const { persisted } = persistAndReload(makeModel({ identificationSnapshotV2: v2 }));
+  const item = owned.normalizeSavedScanRow({
+    ...persisted,
+    id: REMOTE_UUID,
+    created_at: '2026-08-14T00:00:00Z',
+    updated_at: '2026-08-14T00:00:00Z',
+  });
+  assert.equal(item.category, 'Outerwear V2');
+  assert.equal(item.subcategory, 'cropped blazer');
+  assert.equal(item.pattern, 'Pinstripe');
+  assert.equal(item.fit, 'Tailored');
+  assert.equal(item.brand, 'Maison V2');
+  assert.equal(item.metadataProvenance.brand, 'identification_snapshot_v2');
+  assert.equal(item.brandEvidence[0].type, 'evidence_wordmark');
+
+  // V2's generic `visual` provenance is produced by brand_guess. It must stay
+  // evidence-only just like the V1 guess path.
+  v2.identification.item.brand = {
+    value: 'Guess House',
+    confidence: 0.61,
+    provenance: 'visual',
+    evidence: [{ type: 'brand_guess', observation: 'Guess House', confidence: 0.61 }],
+  };
+  const { persisted: guessPersisted } = persistAndReload(
+    makeModel({ identificationSnapshotV2: v2 }),
+  );
+  const guessItem = owned.normalizeSavedScanRow({
+    ...guessPersisted,
+    id: REMOTE_UUID,
+    created_at: '2026-08-14T00:00:00Z',
+    updated_at: '2026-08-14T00:00:00Z',
+  });
+  assert.equal(guessItem.brand, null);
+  assert.equal(guessItem.metadataProvenance.brand, 'absent');
+  assert.equal(guessItem.brandEvidence[0].type, 'brand_guess');
 });
 
 test('S2: provenance distinguishes a captured field from an absent one', () => {
@@ -374,7 +469,7 @@ test('S2: a local scan carries its snapshot metadata into the Closet adapter', (
   assert.equal(item.subcategory, 'double-breasted blazer');
   assert.equal(item.pattern, 'Herringbone');
   assert.equal(item.fit, 'Tailored');
-  assert.equal(item.brand, 'Acme Tailoring');
+  assert.equal(item.brand, 'ACME');
 });
 
 // ── S3: commerce persistence continuity ──────────────────────────────────────
@@ -523,7 +618,7 @@ test('S3: identification is immutable to commerce — a retailer result cannot r
   assert.equal(item.category, 'Blazer');
   assert.equal(item.subcategory, 'double-breasted blazer');
   assert.equal(item.color, 'Charcoal');
-  assert.equal(item.brand, 'Acme Tailoring');
+  assert.equal(item.brand, 'ACME');
 });
 
 // ── S5 §H: Recent Scan and Closet proven INDEPENDENTLY ───────────────────────

@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-14T17:23:13.158Z",
-    "generatedFromGitSha": "208569c33c2a4348c67c870f6f35ee36b1fc886e"
+    "generatedAtUtc": "2026-08-15T00:17:34.871Z",
+    "generatedFromGitSha": "36baef2993decd01da048124fb440b8a86524039"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v2",
@@ -296,10 +296,10 @@
           "npm:@supabase/supabase-js@2",
           "npm:@supabase/supabase-js@2.105.4"
         ],
-        "bundleFileCount": 41,
-        "treeFileCount": 61,
-        "bundleHash": "2147ac945bedc6b08a788ef965412c8c556b5c802135c43448bbf9ca325e34b4",
-        "treeHash": "a102f2e80a0d6a57d40b89c15dd3226435a67eecca453feec667cba1578a5e00",
+        "bundleFileCount": 43,
+        "treeFileCount": 64,
+        "bundleHash": "26eddaf74833bca7d2aef144d56354063fea7bd05d970752dc7b79a6ff310a03",
+        "treeHash": "d941daf9203ce1b7d716f976e28c7145ab380ffdaea36d5ad4195cec8169f64f",
         "files": [
           {
             "path": "supabase/functions/_shared/aiSecurity/escapeUntrustedText.ts",
@@ -328,12 +328,12 @@
           },
           {
             "path": "supabase/functions/_shared/dressingRoomIntelligence/promptSections.ts",
-            "sha256": "cb67aad02bfed3e89baf895b99dfe470f75687ded3c735b34bce265608551781",
+            "sha256": "3254b81976553e4d3c9f7a2272d851c1c9b8a284d341fa2225bdba5fbaca71b8",
             "bundle": true
           },
           {
             "path": "supabase/functions/_shared/dressingRoomIntelligence/roomManifest.ts",
-            "sha256": "818b822603c7b7f8a88723a223bb985036cf1220aec22cd7b766aaca8d96f82c",
+            "sha256": "a8c7da76029478cf6e6a9a93a10740503666e06dee97eb5a9631ddf91bed687b",
             "bundle": true
           },
           {
@@ -377,6 +377,16 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/stylechat-generate/closetIntelligenceContext.ts",
+            "sha256": "1475e830e396bfec896c220ad893ec321a99392a034b32eb51a8cfe6b6abfe68",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/closetIntelligenceProbe.ts",
+            "sha256": "66c76c21fa87f5aa4be5210a63b9edf77d1966242462177d5f04ec1e088bb947",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/stylechat-generate/contextMessages.test.ts",
             "sha256": "e60ddf84c348ad4172b8f0bff0d8fdb2f3bd35f1a9136ecfea91ef751086c3f8",
             "bundle": false
@@ -398,7 +408,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseAdviceE4.test.ts",
-            "sha256": "d360b77bc51af50eb82d41fc6f3b828e7624cc2af3955c7c5f7fe96591320fcb",
+            "sha256": "4bbac8d11fdadebb04da305662667ec1617ac24d3fd45d148e8d7cb85a0efc88",
             "bundle": false
           },
           {
@@ -408,32 +418,37 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseAdvicePipeline.ts",
-            "sha256": "2397b01dcc89df2efaf54cf8e5bbf9ffb361d42ebef0151d4113977ef146b931",
+            "sha256": "fa47c6624cf3def81cc6297f570dcf8c4e09f93dd172c0045cc485b03426896f",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseAdvicePrompt.ts",
-            "sha256": "2b2c3aa38a29697fdd7dd174399427aeb27ff15a0975d50107bc12b01d52cc77",
+            "sha256": "050036f7a70b2abca048196d3a5519f18f62dc1e460c14614dc7fdab5c6b66a1",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseAdviceTypes.ts",
-            "sha256": "d7873d6cf566212a7ed7f374879c3fdb8966415319d8c8df2ec2988a3986cda8",
+            "sha256": "73eafd9089490f9b0508c1c6d627004d2b0d46d77bfc4ffbd2eb6438b225ea37",
             "bundle": true
           },
           {
+            "path": "supabase/functions/stylechat-generate/eliseClosetAuthorityHostile.test.ts",
+            "sha256": "1ede4ca0cfa3098d50be7ac5ebc48a7528b94275b07449d80dbe8b3022744a9a",
+            "bundle": false
+          },
+          {
             "path": "supabase/functions/stylechat-generate/eliseCompatibilityScoring.ts",
-            "sha256": "a51be03013bcd2c2f04102ab457e32da69f6ba7ce291ff9658c115f5c0e17022",
+            "sha256": "bfa8f6e38bfdd1e330fb6172eaddebba049943e4d40cbdd509792564fc04b60a",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseConfig.test.ts",
-            "sha256": "d96f2a89849e4fe544dbff8afed8fe1dfe18ec644bffb6367e38aa874257230d",
+            "sha256": "3ecae62b3344ef79a03712ecd7fda959bf0ae70b4b8a3fcf37a5ef50b0ade6b4",
             "bundle": false
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseConfig.ts",
-            "sha256": "a1de614eb8e5b84b85b156db70f1c38500b545ef2489746531f2522b35b019ba",
+            "sha256": "bf9d84af10412206f8748898d005af9f69905139e06f19adb3c1f374e11f4356",
             "bundle": true
           },
           {
@@ -443,12 +458,12 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseE4HostileAudit.test.ts",
-            "sha256": "ff003d3a3fbd3e4db9eabea807549b54e695f1cf2d4f4567b665defa4f1ef592",
+            "sha256": "1c3fafc9f9decc4363cfd4f354a8a038b441b794e91cd076d0eb6a835a96d052",
             "bundle": false
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseFashionFeatures.ts",
-            "sha256": "c620fb79d33cdd6d4ea2e921c60aa85e9cf735230d2ec86542a553e606d23256",
+            "sha256": "5e5da60b0adde5e0970b52101ec682c244d130facb17c61557a6bd824df7af3e",
             "bundle": true
           },
           {
@@ -458,7 +473,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseGenerationResilience.test.ts",
-            "sha256": "a92a2994e32991de7f0f56b16b8c223ad27117f19442dcdca503d42cc3803533",
+            "sha256": "776a8457b2f70e778c55c47a595c8f9840ed8baaee2a65fc16c5724d8bdbf89a",
             "bundle": false
           },
           {
@@ -483,7 +498,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseResourceResolvers.ts",
-            "sha256": "f94139adac32da23ee736366622869e217bee86e158c10967c459d130939b9ed",
+            "sha256": "fb3f28c6acc7cbfa56e3f27308134a9553f8c571bd1df03f938adcd6f06a1048",
             "bundle": true
           },
           {
@@ -508,27 +523,27 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseVisualContextPipeline.test.ts",
-            "sha256": "f33c0af3d12ba9fe309a1b7f42a691f39760504ad8d38aa6e8ef9f8f76011df3",
+            "sha256": "17708ef9c087471d37070b0d661d5e7923f799072b3984528c968937548aea08",
             "bundle": false
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseVisualContextPipeline.ts",
-            "sha256": "7cd828d4124f41f0fd5eba54bb126b4462b30e5e76fd684ccb284ca0eb462997",
+            "sha256": "07a7f2cf0fa53f58806d8eb1de390518dc1e4b4a3fc050923dab4e6a5a682048",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseVisualContextTypes.ts",
-            "sha256": "fa1e2b94ff0d7eaa3edf6b35b2a512533bd9e2defec3ff6ea228b6c06e5a3259",
+            "sha256": "1ca3c794ed21dfcdced1e1bd483eaf9311c7a48e058e57e7357c52fadc197f62",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseWardrobeGap.ts",
-            "sha256": "bae6a899f2307c1428766f291fafab61247d97635f826ac4159024ca08e405c8",
+            "sha256": "85334fdb7d9fb43cf095b5ece873ecf19f37ce2f34325c0c7cef762a1ee5b570",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseWardrobeRetrieval.ts",
-            "sha256": "a2bc85f382951cf0d731d97ea14baefdc435c3cc69996ff5c39538f0427371ed",
+            "sha256": "a08b839629a3640aa5a90ac3ffd07b496d0f8bbc0dc6117adcc68340a17c7faa",
             "bundle": true
           },
           {
@@ -553,7 +568,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/index.ts",
-            "sha256": "cf1eeb98f71c00f60323aa9ae19b75b21c5b0409a39832b6046822a00ee3839b",
+            "sha256": "a66a41125bd5a0ae09e3678494bb04acb388559d55d1191db7119531a268be35",
             "bundle": true
           },
           {
@@ -578,7 +593,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/roomIntelligenceGate.test.ts",
-            "sha256": "a3283013efa4d766b4a413e42674a9921ce4e6dd81361dde3fbf86757c6b4e94",
+            "sha256": "135170b9fc8cbf2dd8dc52d8a496507b5d61ec83e38e7f74e210ca1d40f769fe",
             "bundle": false
           },
           {

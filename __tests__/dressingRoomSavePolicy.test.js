@@ -52,6 +52,9 @@ function loadStyleObjects() {
       if (id === './supabaseClient') return { supabase: {} };
       if (id === 'expo-file-system/legacy') return {};
       if (id === 'expo-image-manipulator') return {};
+      if (id === './dressingRoomScanMetadata') {
+        return { buildDressingRoomScanSnapshotMetadata: (metadata) => metadata ?? {} };
+      }
       if (id === './dressingRoomItemContract') {
         // Stub the canonical image-source contract so buildProductMatchSnapshot
         // can run in this isolated VM. Only isRemoteImageUrl is exercised here;
@@ -138,6 +141,9 @@ function loadStyleObjectsWithExtensionCapture(flagOverrides) {
       if (id === './supabaseClient') return { supabase: {} };
       if (id === 'expo-file-system/legacy') return {};
       if (id === 'expo-image-manipulator') return {};
+      if (id === './dressingRoomScanMetadata') {
+        return { buildDressingRoomScanSnapshotMetadata: (metadata) => metadata ?? {} };
+      }
       if (id === './dressingRoomItemContract') {
         return {
           isRemoteImageUrl: (value) => /^https?:\/\//i.test(String(value ?? '').trim()),

@@ -46,6 +46,11 @@ export type RoomManifestItem = {
   silhouette: string | null;
   fit: string | null;
   brand: string | null;
+  brandEvidence: Array<{
+    type: string;
+    value: string | null;
+    confidence: number | null;
+  }>;
   occasion: string[];
   /** 'owned' | 'shared' — never upgraded, never client-claimed. */
   relationship: string;
@@ -93,6 +98,11 @@ export type ResolvedEvidenceLike = {
   styleAttributes: string[];
   occasionAttributes: string[];
   brand: string | null;
+  brandEvidence?: Array<{
+    type: string;
+    value: string | null;
+    confidence: number | null;
+  }>;
   imageReferenceType: string;
 };
 
@@ -199,6 +209,7 @@ export function buildRoomManifest(
     silhouette: item.silhouette,
     fit: item.fit ?? null,
     brand: item.brand,
+    brandEvidence: item.brandEvidence?.slice(0, 8) ?? [],
     occasion: item.occasionAttributes,
     relationship: item.actorRelationship,
     hasAuthorizedImage: item.imageReferenceType === 'storage_object',

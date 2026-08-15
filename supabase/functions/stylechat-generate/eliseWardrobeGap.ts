@@ -11,6 +11,7 @@ import type {
   EliseAdviceLook,
 } from './eliseAdviceTypes.ts';
 import { ELISE_ADVICE_LIMITS } from './eliseAdviceTypes.ts';
+import type { ClosetInventoryState } from './closetIntelligenceContext.ts';
 
 const ROLE_GAPS: Array<{ code: string; role: string; categoryHint: string }> = [
   { code: 'missing_shoe', role: 'shoe', categoryHint: 'shoes' },
@@ -25,8 +26,26 @@ export function analyzeWardrobeGap(input: {
   focus: EliseFocusedItem;
   shortlist: EliseScoredCandidate[];
   inventoryCount: number;
-  partialFailure?: boolean;
+  inventoryState: ClosetInventoryState;
 }): EliseWardrobeGap {
+  // Unknown or partial inventory cannot prove absence. Return no gap codes and
+  // carry an explicit evidence note so neither deterministic purchase advice nor
+  // the model can turn a failed/partial read into a shopping recommendation.
+  if (input.inventoryState !== 'complete') {
+    return {
+      gapCodes: [],
+      categories: [],
+      partialInventory: true,
+      notes: [
+        input.inventoryState === 'unavailable'
+          ? 'insufficient_inventory_evidence'
+          : 'partial_inventory_available',
+        'gap_not_inferred_from_missing_evidence',
+        'gap_scoped_to_authorized_candidates',
+      ],
+    };
+  }
+
   const roles = new Set(
     input.shortlist
       .map((s) => s.candidate.layeringRole)
@@ -56,11 +75,8 @@ export function analyzeWardrobeGap(input: {
   }
 
   const notes: string[] = [];
-  const partialInventory =
-    Boolean(input.partialFailure) || input.inventoryCount < 3;
-  if (partialInventory) {
-    notes.push('partial_inventory_available');
-  }
+  const partialInventory = false;
+  notes.push('complete_inventory_snapshot');
   notes.push('gap_scoped_to_authorized_candidates');
 
   return {
@@ -79,6 +95,14 @@ export function buildPurchaseAdvice(input: {
 }): ElisePurchaseAdvice | null {
   if (input.intent !== 'purchase_advice' && input.intent !== 'wardrobe_gap') {
     return null;
+  }
+
+  if (input.wardrobeGap?.partialInventory) {
+    return {
+      verdict: 'consider',
+      confidence: 0.35,
+      reasons: ['insufficient_inventory_evidence', 'no_purchase_inference_from_missing_evidence'],
+    };
   }
 
   const ownedNearDup = input.shortlist.find(
@@ -168,11 +192,13 @@ export function buildMultiLooks(input: {
   if (input.intent !== 'multi_look_generation' && input.intent !== 'build_outfit') {
     return null;
   }
+  if (input.wardrobeGap?.partialInventory) return [];
   if (!input.shortlist.length) return [];
 
   const labels = ['casual', 'elevated', 'signature_aligned'] as const;
   const looks: EliseAdviceLook[] = [];
   const used = new Set<string>();
+  const signatures = new Set<string>();
 
   for (let i = 0; i < Math.min(ELISE_ADVICE_LIMITS.multiLookCount, labels.length); i += 1) {
     const picks: string[] = [];
@@ -196,10 +222,15 @@ export function buildMultiLooks(input: {
         picks.push(scored.candidate.candidateId);
       }
     }
+    const boundedPicks = picks.slice(0, 3);
+    if (!boundedPicks.length) continue;
+    const signature = [...boundedPicks].sort().join('|');
+    if (signatures.has(signature)) continue;
+    signatures.add(signature);
     looks.push({
       lookId: `look_${i + 1}`,
       label: labels[i],
-      candidateIds: picks.slice(0, 3),
+      candidateIds: boundedPicks,
       missingPieceCodes: (input.wardrobeGap?.gapCodes ?? []).slice(0, 2),
     });
   }

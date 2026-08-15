@@ -95,7 +95,7 @@ function parsePositiveIntEnv(
 }
 
 export function readEliseBackendConfig(env: EnvReader): EliseBackendConfig {
-  return {
+  const config: EliseBackendConfig = {
     backendVersion: ELISE_BACKEND_VERSION,
     promptVersion: ELISE_PROMPT_VERSION,
     contextContractVersion: ELISE_CONTEXT_CONTRACT_VERSION,
@@ -126,6 +126,9 @@ export function readEliseBackendConfig(env: EnvReader): EliseBackendConfig {
       explanations: parseBooleanEnv(env, 'STYLECHAT_EXPLANATIONS_ENABLED', true),
       adviceIntentsV1: parseBooleanEnv(env, 'ELISE_ADVICE_INTENTS_V1_ENABLED', false),
       closetRetrievalV1: parseBooleanEnv(env, 'ELISE_CLOSET_RETRIEVAL_V1_ENABLED', false),
+      // Compatibility has no independent candidate authority. Even if its raw
+      // environment flag is true, its effective state is OFF when retrieval is
+      // OFF. The dependency is finalized below after both values are read.
       compatibilityScoringV1: parseBooleanEnv(env, 'ELISE_COMPATIBILITY_SCORING_V1_ENABLED', false),
       wardrobeGapV1: parseBooleanEnv(env, 'ELISE_WARDROBE_GAP_V1_ENABLED', false),
       purchaseAdviceV1: parseBooleanEnv(env, 'ELISE_PURCHASE_ADVICE_V1_ENABLED', false),
@@ -138,5 +141,20 @@ export function readEliseBackendConfig(env: EnvReader): EliseBackendConfig {
       sharedRoomEvidenceV1: parseBooleanEnv(env, 'ELISE_SHARED_ROOM_EVIDENCE_V1_ENABLED', false),
       adviceMetadataClientV1: parseBooleanEnv(env, 'ELISE_ADVICE_METADATA_CLIENT_V1_ENABLED', false),
     },
+  };
+  config.flags.compatibilityScoringV1 =
+    config.flags.closetRetrievalV1 && config.flags.compatibilityScoringV1;
+  return config;
+}
+
+/** Safe runtime readback: effective feature state only, never secret values. */
+export function closetIntelligenceCapabilityState(flags: EliseBackendFlags) {
+  return {
+    adviceIntentsV1: flags.adviceIntentsV1,
+    closetRetrievalV1: flags.closetRetrievalV1,
+    compatibilityScoringV1: flags.compatibilityScoringV1,
+    wardrobeGapV1: flags.wardrobeGapV1,
+    purchaseAdviceV1: flags.purchaseAdviceV1,
+    multiLookV1: flags.multiLookV1,
   };
 }

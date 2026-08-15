@@ -155,7 +155,8 @@ test('representative Edge Functions wrap every response with correlation', () =>
   ]) {
     const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
     assert.match(source, /observeEdgeRequest\(req,/);
-    assert.match(source, /x-kscan-request-id, traceparent/);
+    assert.match(source, /x-kscan-request-id/);
+    assert.match(source, /traceparent/);
   }
 });
 

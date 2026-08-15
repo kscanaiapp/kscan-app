@@ -210,6 +210,7 @@ Deno.test('E-2 structured grounding excludes raw URLs/storage and keeps trust ru
       textureAttributes: [],
       occasionAttributes: [],
       brand: null,
+      brandEvidence: [],
       confidence: 0.8,
       imageReferenceType: 'storage_object',
       canonicalStorageReference: 'bucket:path/secret.jpg',

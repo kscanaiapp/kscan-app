@@ -181,6 +181,20 @@ test('scan-image save flow uploads on explicit modal action', () => {
   assert.match(analysisCard, /scanImageUri/);
 });
 
+test('scan-image save carries canonical fashion metadata and commerce through the modal', () => {
+  assert.match(service, /buildDressingRoomScanSnapshotMetadata/);
+  for (const field of ['subcategory', 'materials', 'pattern', 'fit', 'brandEvidence']) {
+    assert.match(
+      libraryScreen,
+      new RegExp(`${field}:`),
+      `${field} must enter the Add-to-Dressing-Room boundary`,
+    );
+  }
+  for (const field of ['purchaseOptions', 'products', 'scanId', 'savedScanId']) {
+    assert.match(addScanModal, new RegExp(`${field}: scan\\?\\.${field}`));
+  }
+});
+
 test('item reactions migration protects raw rows and exposes counts through RPC', () => {
   assert.match(reactionsMigration, /create table if not exists public\.dressing_room_item_reactions/);
   assert.match(reactionsMigration, /references public\.dressing_room_items\(id\) on delete cascade/);

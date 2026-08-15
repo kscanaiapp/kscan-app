@@ -37,6 +37,7 @@ import type {
   ScanImageSnapshotSource,
 } from '../types/styleObjects';
 import type { CanonicalItemSourceKind } from '../types/canonicalDressingRoomItem';
+import { buildDressingRoomScanSnapshotMetadata } from './dressingRoomScanMetadata';
 
 export const SNAPSHOT_VERSION = 1;
 export const STYLE_LIBRARY_IMAGES_BUCKET = 'style-library-images';
@@ -748,6 +749,10 @@ export async function addScanImageToDressingRoom(input: {
   }
 
   const metadata = input.scan.metadata ?? {};
+  const snapshotMetadata = buildDressingRoomScanSnapshotMetadata(
+    metadata,
+    input.scan.createdAt,
+  );
   const title =
     cleanText(metadata.category)
       ? `${cleanText(metadata.category)} scan`
@@ -766,15 +771,7 @@ export async function addScanImageToDressingRoom(input: {
       contentType: storageBucket ? 'image/jpeg' : null,
     },
     result: cleanText(input.scan.result),
-    metadata: {
-      category: cleanText(metadata.category),
-      color: cleanText(metadata.color),
-      silhouette: cleanText(metadata.silhouette),
-      itemType: cleanText(metadata.itemType),
-      brand: cleanText(metadata.brand),
-      size: cleanText(metadata.size),
-      capturedAt: cleanText(input.scan.createdAt),
-    },
+    metadata: snapshotMetadata,
   };
 
   if (DRESSING_ROOM_CANONICAL_ITEM_V1 || DRESSING_ROOM_COMMERCE_PRESERVATION_V1 || DRESSING_ROOM_DEDUPE_V1) {

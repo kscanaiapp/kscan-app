@@ -89,6 +89,14 @@ export function serializeRoomManifestSection(
     }
     if (item.silhouette) block.push(`${p}.silhouette: ${escape(item.silhouette)}`);
     if (item.brand) block.push(`${p}.brand: ${escape(item.brand)}`);
+    item.brandEvidence.forEach((evidence, evidenceIndex) => {
+      const evidencePrefix = `${p}.brandEvidence[${evidenceIndex + 1}]`;
+      block.push(`${evidencePrefix}.type: ${escape(evidence.type)}`);
+      if (evidence.value) block.push(`${evidencePrefix}.value: ${escape(evidence.value)}`);
+      if (typeof evidence.confidence === 'number') {
+        block.push(`${evidencePrefix}.confidence: ${evidence.confidence.toFixed(2)}`);
+      }
+    });
     if (item.occasion.length) {
       block.push(`${p}.occasionEvidence: [${item.occasion.map(escape).join(', ')}]`);
     }

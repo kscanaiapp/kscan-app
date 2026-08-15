@@ -166,10 +166,21 @@ export type ScanImageSnapshotSource = {
   result?: string | null;
   metadata?: {
     category?: string | null;
+    subcategory?: string | null;
     color?: string | null;
+    secondaryColors?: string[] | null;
+    materials?: string[] | null;
+    material?: string | null;
     silhouette?: string | null;
+    pattern?: string | null;
+    fit?: string | null;
     itemType?: string | null;
     brand?: string | null;
+    brandEvidence?: Array<{
+      type: string;
+      value?: string | null;
+      confidence?: number | null;
+    }> | null;
     size?: string | null;
   } | null;
   /** Optional DR-1 commerce / provenance fields (ignored when flags OFF). */

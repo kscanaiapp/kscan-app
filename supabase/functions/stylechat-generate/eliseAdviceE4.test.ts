@@ -63,6 +63,7 @@ function makeEnvelope(partial: Partial<EliseVisualContextEnvelope['evidence'][nu
       textureAttributes: e.textureAttributes ?? [],
       occasionAttributes: e.occasionAttributes ?? [],
       brand: e.brand ?? null,
+      brandEvidence: e.brandEvidence ?? [],
       confidence: e.confidence ?? 0.8,
       imageReferenceType: 'storage_object',
       canonicalStorageReference: null,
@@ -418,7 +419,7 @@ Deno.test('E-4 wardrobe gap and multi-look do not invent Closet items', () => {
     },
     shortlist,
     inventoryCount: 1,
-    partialFailure: true,
+    inventoryState: 'partial',
   });
   assert.ok(gap.partialInventory);
   assert.ok(gap.notes.includes('partial_inventory_available'));

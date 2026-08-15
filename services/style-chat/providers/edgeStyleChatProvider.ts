@@ -24,6 +24,7 @@ import {
 import type { EliseAdviceMetadataClient } from '../../../types/eliseAdvice';
 import { ELISE_FASHION_CONTEXT_V2 } from '../../../types/fashionIdentificationV2';
 import { prepareContextForTransport } from '../eliseFashionContextV2';
+import type { ClosetIntelligenceContext } from '../closetIntelligenceContext';
 import {
   correlationHeaders,
   createCorrelationContext,
@@ -93,6 +94,15 @@ export interface EdgeChatResult {
    */
   adviceMetadata?: EliseAdviceMetadataClient | Record<string, unknown>;
   adviceContractVersion?: string;
+  /** Effective S7 runtime state reported by the deployed Edge Function. */
+  closetIntelligenceCapabilities?: {
+    adviceIntentsV1: boolean;
+    closetRetrievalV1: boolean;
+    compatibilityScoringV1: boolean;
+    wardrobeGapV1: boolean;
+    purchaseAdviceV1: boolean;
+    multiLookV1: boolean;
+  };
   /**
    * Optional compact weather context, present only when this turn actually
    * resolved live weather. Absent on every pre-deployment backend and on every
@@ -347,6 +357,8 @@ export class EdgeStyleChatProvider {
      * would make one of those cases unsendable.
      */
     fashionContextV2?: unknown;
+    /** Current actor-scoped committed Closet; metadata-only and request-local. */
+    closetIntelligenceContext?: ClosetIntelligenceContext | null;
   }): Promise<EdgeChatResult> {
     const ac        = new AbortController();
     const timeoutId = setTimeout(() => ac.abort(), this.timeoutMs);
@@ -395,6 +407,9 @@ export class EdgeStyleChatProvider {
           // actually supplied one, so a text-only request stays a byte-for-byte v1
           // body and no existing request shape changes.
           ...(fashionContext ? { fashionContextV2: fashionContext } : {}),
+          ...(input.closetIntelligenceContext
+            ? { closetIntelligenceContext: input.closetIntelligenceContext }
+            : {}),
         },
         headers: correlationHeaders(correlation),
         signal: ac.signal,
@@ -625,6 +640,20 @@ export class EdgeStyleChatProvider {
       const rawWeather = (data as unknown as Record<string, unknown>).weatherContext;
       const weatherContextVersion = (data as unknown as Record<string, unknown>)
         .weatherContextVersion;
+      const rawClosetCapabilities = (data as unknown as Record<string, unknown>)
+        .closetIntelligenceCapabilities;
+      const closetIntelligenceCapabilities =
+        isRecord(rawClosetCapabilities) &&
+          [
+            'adviceIntentsV1',
+            'closetRetrievalV1',
+            'compatibilityScoringV1',
+            'wardrobeGapV1',
+            'purchaseAdviceV1',
+            'multiLookV1',
+          ].every((key) => typeof rawClosetCapabilities[key] === 'boolean')
+          ? rawClosetCapabilities as EdgeChatResult['closetIntelligenceCapabilities']
+          : undefined;
 
       return {
         status,
@@ -645,6 +674,7 @@ export class EdgeStyleChatProvider {
                 : {}),
             }
           : {}),
+        ...(closetIntelligenceCapabilities ? { closetIntelligenceCapabilities } : {}),
       };
 
     } catch (err: unknown) {

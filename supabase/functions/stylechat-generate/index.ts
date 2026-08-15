@@ -27,7 +27,10 @@ import {
   buildActiveContextBlock,
   VISUAL_COLLECTION_CONTRACT_VERSION,
 } from './activeContext.ts';
-import { readEliseBackendConfig } from './eliseConfig.ts';
+import {
+  closetIntelligenceCapabilityState,
+  readEliseBackendConfig,
+} from './eliseConfig.ts';
 import {
   buildGenerationIdentity,
   finalizeGenerationOperation,
@@ -66,7 +69,10 @@ import {
   envelopeWarningCodes,
   type BuildEliseVisualContextResult,
 } from './eliseVisualContextPipeline.ts';
-import type { EliseResourceDataSource } from './eliseResourceResolvers.ts';
+import {
+  savedScanMetadata,
+  type EliseResourceDataSource,
+} from './eliseResourceResolvers.ts';
 import { ELISE_VISUAL_CONTEXT_INTERNAL_VERSION } from './eliseVisualContextTypes.ts';
 // v2 (Closet Intelligence) modules — used only on the v2 request path.
 import {
@@ -106,12 +112,17 @@ import {
 import { runEliseAdvicePipeline } from './eliseAdvicePipeline.ts';
 import type { EliseWardrobeDataSource } from './eliseWardrobeRetrieval.ts';
 import { ELISE_ADVICE_CONTRACT_VERSION, ELISE_ADVICE_LIMITS } from './eliseAdviceTypes.ts';
+import {
+  parseClosetIntelligenceContext,
+  type ParsedClosetIntelligenceContext,
+} from './closetIntelligenceContext.ts';
+import { isStagingClosetProbeRequest } from './closetIntelligenceProbe.ts';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-kscan-request-id, traceparent',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-kscan-request-id, x-kscan-s7-probe, traceparent',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
@@ -968,6 +979,9 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
     // Phase 2B.3 — canonical Elise fashion identity. Additive and optional:
     // absent on every current client, and absence must change nothing.
     fashionContextV2?: unknown;
+    // S7: metadata-only current committed Closet projection. Recent Scans are
+    // deliberately not a substitute for this authority.
+    closetIntelligenceContext?: unknown;
   } = {};
   try {
     body = await req.json();
@@ -976,6 +990,11 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
   }
 
   const config = readEliseBackendConfig({ get: (name) => Deno.env.get(name) ?? undefined });
+  const closetIntelligenceCapabilities = closetIntelligenceCapabilityState(config.flags);
+  const exposeClosetIntelligenceProbeEvidence = isStagingClosetProbeRequest(
+    req.headers.get('x-kscan-s7-probe'),
+    Deno.env.get('KSCAN_ENVIRONMENT'),
+  );
   const requestId = typeof body.requestId === 'string' && body.requestId.trim()
     ? body.requestId.trim().slice(0, 80)
     : makeRequestId();
@@ -1036,6 +1055,25 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
     }
   }
 
+  let closetIntelligenceContext: ParsedClosetIntelligenceContext = {
+    contractVersion: 'closet_intelligence_context_v1',
+    inventoryState: 'unavailable',
+    items: [],
+  };
+  if (body.closetIntelligenceContext != null) {
+    const parsedClosetContext = parseClosetIntelligenceContext(body.closetIntelligenceContext);
+    if (parsedClosetContext.ok) {
+      closetIntelligenceContext = parsedClosetContext.context;
+    } else {
+      // Stable code only. Never log titles or metadata from the local Closet.
+      console.log(
+        '[stylechat-generate] closet context rejected uid=%s code=%s',
+        userId.slice(0, 8),
+        parsedClosetContext.code,
+      );
+    }
+  }
+
   // Optional, additive active scan/upload/TextScan context for grounding.
   // Flag OFF: legacy parseActiveContext path (accepted foundation behavior).
   // Flag ON: typed E-1 envelope with server-side resolution; raw client context
@@ -1067,6 +1105,7 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
   if (
     !config.flags.contextNormalizationV1 &&
     !config.flags.roomIntelligenceV1 &&
+    !config.flags.adviceIntentsV1 &&
     body.activeContext != null &&
     !activeContext
   ) {
@@ -1156,6 +1195,7 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
         tokenEstimate: 0,
       },
       usage: { messagesUsed: 0, messagesLimit: DAILY_LIMIT },
+      closetIntelligenceCapabilities,
     });
   }
 
@@ -1289,6 +1329,7 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
   //
   //   contextNormalizationV1 -> the legacy E-1 visual-context prompt block
   //   roomIntelligenceV1     -> the E4.1 room manifest
+  //   adviceIntentsV1        -> the S7 focused-item evidence
   //
   // Constructing the envelope emits no prompt text and changes no response on
   // its own, so running it for either consumer is safe. Keeping the two
@@ -1296,14 +1337,18 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
   // rolling it back must not require disabling an older pipeline, and a problem
   // in that older pipeline must not force E4.1 off.
   if (
-    (config.flags.contextNormalizationV1 || config.flags.roomIntelligenceV1) &&
+    (
+      config.flags.contextNormalizationV1 ||
+      config.flags.roomIntelligenceV1 ||
+      config.flags.adviceIntentsV1
+    ) &&
     body.activeContext != null
   ) {
     const eliseResourceData: EliseResourceDataSource = {
       fetchSavedScan: async (id) => {
         const { data, error } = await userClient
           .from('saved_scans')
-          .select('id,user_id,title,storage_bucket,storage_path')
+          .select('id,user_id,title,analysis_result,storage_bucket,storage_path')
           .eq('id', id)
           .eq('user_id', userId)
           .is('deleted_at', null)
@@ -1315,7 +1360,7 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
         const { data, error } = await userClient
           .from('inspiration_items')
           .select(
-            'id,user_id,note,category,color,material,silhouette,storage_bucket,storage_path',
+            'id,user_id,note,category,color,material,pattern,silhouette,storage_bucket,storage_path',
           )
           .eq('id', id)
           .eq('user_id', userId)
@@ -1338,7 +1383,7 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
         const { data, error } = await userClient
           .from('dressing_room_items')
           .select(
-            'id,dressing_room_id,title,category,brand,storage_bucket,storage_path',
+            'id,dressing_room_id,title,category,brand,snapshot_payload,storage_bucket,storage_path',
           )
           .eq('id', itemId)
           .eq('dressing_room_id', roomId)
@@ -1896,9 +1941,17 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
   // ── E-4 closet-aware advice (flag-gated; fail-open on retrieval errors) ─────
   let advicePromptBlock: string | null = null;
   let adviceMetadata: Record<string, unknown> | null = null;
+  let closetIntelligenceRuntimeEvidence: Record<string, unknown> | null = null;
   if (config.flags.adviceIntentsV1) {
     try {
       const wardrobeData: EliseWardrobeDataSource = {
+        closetInventoryState: closetIntelligenceContext.inventoryState,
+        async listClosetItems(_actorId, limit) {
+          return closetIntelligenceContext.items.slice(
+            0,
+            Math.min(limit, ELISE_ADVICE_LIMITS.initialCandidatesPerSource),
+          );
+        },
         async listSavedScans(actorId, limit) {
           const { data } = await userClient
             .from('saved_scans')
@@ -1908,17 +1961,26 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
             .order('created_at', { ascending: false })
             .limit(Math.min(limit, ELISE_ADVICE_LIMITS.initialCandidatesPerSource));
           return ((data ?? []) as Record<string, unknown>[]).map((row) => {
-            const analysis =
-              row.analysis_result && typeof row.analysis_result === 'object'
-                ? (row.analysis_result as Record<string, unknown>)
-                : {};
+            const metadata = savedScanMetadata(row);
             return {
               ...row,
-              category: analysis.category ?? analysis.itemType ?? null,
-              brand: analysis.brand ?? null,
-              color: analysis.color ?? (Array.isArray(analysis.colors) ? analysis.colors[0] : null),
-              material: analysis.material ?? null,
-              snapshot_payload: { metadata: analysis },
+              category: metadata.category,
+              brand: metadata.brand,
+              color: metadata.colors,
+              material: metadata.materials,
+              snapshot_payload: {
+                metadata: {
+                  category: metadata.category,
+                  itemType: metadata.subcategory,
+                  colors: metadata.colors,
+                  materials: metadata.materials,
+                  silhouette: metadata.silhouette,
+                  pattern: metadata.pattern,
+                  fit: metadata.fit,
+                  brand: metadata.brand,
+                  brandEvidence: metadata.brandEvidence,
+                },
+              },
             };
           });
         },
@@ -1927,6 +1989,7 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
             .from('inspiration_items')
             .select('id, user_id, category, color, material, pattern, silhouette, garment_role, created_at')
             .eq('user_id', actorId)
+            .is('deleted_at', null)
             .order('created_at', { ascending: false })
             .limit(Math.min(limit, ELISE_ADVICE_LIMITS.initialCandidatesPerSource));
           return (data ?? []) as Record<string, unknown>[];
@@ -2034,6 +2097,28 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
       if (adviceResult) {
         advicePromptBlock = adviceResult.promptBlock;
         adviceMetadata = adviceResult.adviceMetadata as unknown as Record<string, unknown>;
+        closetIntelligenceRuntimeEvidence = {
+          adviceIntent: adviceResult.telemetry.adviceIntent,
+          closetInventoryState: closetIntelligenceContext.inventoryState,
+          ownedClosetCandidateCount:
+            adviceResult.telemetry.candidateCountsBySource.closet ?? 0,
+          recentScanCandidateCount:
+            adviceResult.telemetry.candidateCountsBySource.recent_scan ?? 0,
+          compatibilityScoringRan:
+            config.flags.closetRetrievalV1 && config.flags.compatibilityScoringV1,
+          compatibilityWarningCodes: [...new Set(
+            adviceResult.shortlist.flatMap((row) => row.score.warnings),
+          )].slice(0, 8),
+          wardrobeGapEvidence: adviceResult.wardrobeGap
+            ? adviceResult.wardrobeGap.partialInventory
+              ? 'insufficient'
+              : 'complete'
+            : 'not_applicable',
+          wardrobeGapCount: adviceResult.wardrobeGap?.gapCodes.length ?? 0,
+          purchaseVerdict: adviceResult.purchaseAdvice?.verdict ?? null,
+          purchaseReasonCodes: adviceResult.purchaseAdvice?.reasons.slice(0, 4) ?? [],
+          multiLookCount: adviceResult.looks?.length ?? 0,
+        };
         emitEliseTelemetry(config, 'elise_advice_outcome', {
           requestId,
           adviceIntent: adviceResult.telemetry.adviceIntent,
@@ -2786,6 +2871,10 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
         : {}),
       ...fashionContextResponseFields(),
       ...weatherContextResponseFields(),
+      closetIntelligenceCapabilities,
+      ...(exposeClosetIntelligenceProbeEvidence && closetIntelligenceRuntimeEvidence
+        ? { closetIntelligenceRuntimeEvidence }
+        : {}),
       ...(adviceMetadata && config.flags.adviceMetadataClientV1
         ? {
             adviceContractVersion: ELISE_ADVICE_CONTRACT_VERSION,
@@ -2810,6 +2899,10 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
       : {}),
     ...fashionContextResponseFields(),
     ...weatherContextResponseFields(),
+    closetIntelligenceCapabilities,
+    ...(exposeClosetIntelligenceProbeEvidence && closetIntelligenceRuntimeEvidence
+      ? { closetIntelligenceRuntimeEvidence }
+      : {}),
     ...(adviceMetadata && config.flags.adviceMetadataClientV1
       ? {
           adviceContractVersion: ELISE_ADVICE_CONTRACT_VERSION,

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 
 import {
+  closetIntelligenceCapabilityState,
   readEliseBackendConfig,
   parseBooleanEnv,
 } from './eliseConfig.ts';
@@ -35,6 +36,31 @@ Deno.test('Elise backend config defaults preserve current behavior and default r
   assert.equal(config.flags.dressingRoomAttachmentsV1, false);
   assert.equal(config.flags.sharedRoomEvidenceV1, false);
   assert.equal(config.flags.adviceMetadataClientV1, false);
+});
+
+Deno.test('S7 compatibility effective state is nested beneath Closet retrieval', () => {
+  const disabledByDependency = readEliseBackendConfig(env({
+    ELISE_CLOSET_RETRIEVAL_V1_ENABLED: 'false',
+    ELISE_COMPATIBILITY_SCORING_V1_ENABLED: 'true',
+  }));
+  assert.equal(disabledByDependency.flags.compatibilityScoringV1, false);
+
+  const enabled = readEliseBackendConfig(env({
+    ELISE_ADVICE_INTENTS_V1_ENABLED: 'true',
+    ELISE_CLOSET_RETRIEVAL_V1_ENABLED: 'true',
+    ELISE_COMPATIBILITY_SCORING_V1_ENABLED: 'true',
+    ELISE_WARDROBE_GAP_V1_ENABLED: 'true',
+    ELISE_PURCHASE_ADVICE_V1_ENABLED: 'true',
+    ELISE_MULTI_LOOK_V1_ENABLED: 'true',
+  }));
+  assert.deepEqual(closetIntelligenceCapabilityState(enabled.flags), {
+    adviceIntentsV1: true,
+    closetRetrievalV1: true,
+    compatibilityScoringV1: true,
+    wardrobeGapV1: true,
+    purchaseAdviceV1: true,
+    multiLookV1: true,
+  });
 });
 
 Deno.test('Elise backend config supports independent valid overrides and safe invalid fallback', () => {

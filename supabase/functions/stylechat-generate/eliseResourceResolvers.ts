@@ -5,6 +5,7 @@
 
 import type {
   EliseActorRelationship,
+  EliseBrandEvidence,
   EliseEvidenceSourceType,
   EliseEvidenceTrust,
   EliseResourceResolution,
@@ -37,6 +38,10 @@ export type EliseResourceDataSource = {
 
 function asString(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function asNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 function ownerMatches(row: Record<string, unknown>, actorId: string): boolean {
@@ -77,6 +82,110 @@ function asStringList(value: unknown, limit: number): string[] {
   return out;
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function brandEvidenceFrom(value: unknown): EliseBrandEvidence[] {
+  if (!Array.isArray(value)) return [];
+  const out: EliseBrandEvidence[] = [];
+  for (const entry of value) {
+    const record = asRecord(entry);
+    const type = asString(record.type);
+    if (!type) continue;
+    out.push({
+      type,
+      value: asString(record.value) ?? asString(record.observation),
+      confidence: asNumber(record.confidence),
+    });
+    if (out.length >= 8) break;
+  }
+  return out;
+}
+
+type VerifiedMetadata = Extract<
+  EliseResourceResolution,
+  { status: 'verified' }
+>['metadata'];
+
+function emptyMetadata(title: string | null, category: string | null): VerifiedMetadata {
+  return {
+    title,
+    category,
+    subcategory: null,
+    colors: [],
+    materials: [],
+    silhouette: null,
+    pattern: null,
+    fit: null,
+    brand: null,
+    brandEvidence: [],
+  };
+}
+
+/** Canonical, server-read metadata for a saved_scans row. */
+export function savedScanMetadata(row: Record<string, unknown>): VerifiedMetadata {
+  const analysis = asRecord(row.analysis_result);
+  const legacy = asRecord(analysis.metadata);
+  const v1 = asRecord(analysis.identificationSnapshot);
+  const v2Envelope = asRecord(analysis.identificationSnapshotV2);
+  const v2Identification = asRecord(v2Envelope.identification);
+  const v2Item = asRecord(v2Identification.item);
+
+  const v2Brand = asRecord(v2Item.brand);
+  const v1Brand = asRecord(v1.brand);
+  const v2BrandProvenance = asString(v2Brand.provenance);
+  // In the V2 contract `visual` is the fallback provenance for brand_guess;
+  // only an on-item wordmark/label or logo shape is an observed scalar brand.
+  const v2BrandIsObserved =
+    v2BrandProvenance === 'visible_text' ||
+    v2BrandProvenance === 'logo_shape';
+  const v2BrandEvidence = brandEvidenceFrom(v2Brand.evidence);
+  const v1BrandEvidence = brandEvidenceFrom(v1Brand.evidence);
+  const visibleV1Brand = v1BrandEvidence.find(
+    (entry) => entry.type === 'visible_brand_text' && entry.value,
+  )?.value ?? null;
+
+  const v2Colors = asRecord(v2Item.colors);
+  const v1Colors = asRecord(v1.colors);
+  const v2Attributes = asRecord(v2Item.attributes);
+  const v1Attributes = asRecord(v1.attributes);
+  const primaryColor =
+    asString(v2Colors.primary) ?? asString(v1Colors.primary) ??
+    asString(legacy.color) ?? asString(legacy.color_palette);
+  const secondaryColors = asStringList(
+    v2Colors.secondary ?? v1Colors.secondary,
+    8,
+  ).filter((color) => color !== primaryColor);
+
+  return {
+    title: asString(row.title),
+    category: asString(v2Item.category) ?? asString(v1.category) ?? asString(legacy.category),
+    subcategory:
+      asString(v2Item.subtype) ?? asString(v1.subtype) ??
+      asString(legacy.subcategory) ?? asString(legacy.itemType),
+    colors: primaryColor ? [primaryColor, ...secondaryColors] : secondaryColors,
+    materials: asStringList(v2Item.material, 8).length
+      ? asStringList(v2Item.material, 8)
+      : asStringList(v1.material, 8).length
+      ? asStringList(v1.material, 8)
+      : asStringList(legacy.material_estimate ?? legacy.material, 8),
+    silhouette:
+      asStringList(v2Item.silhouette, 8)[0] ??
+      asStringList(v1.silhouette, 8)[0] ??
+      asString(legacy.silhouette),
+    pattern:
+      asStringList(v2Item.pattern, 8)[0] ??
+      asStringList(v1.pattern, 8)[0] ??
+      asString(legacy.pattern),
+    fit: asString(v2Attributes.fit) ?? asString(v1Attributes.fit) ?? asString(legacy.fit),
+    brand: v2BrandIsObserved ? asString(v2Brand.value) : visibleV1Brand,
+    brandEvidence: v2BrandEvidence.length ? v2BrandEvidence : v1BrandEvidence,
+  };
+}
+
 /**
  * Server-side descriptive metadata for a Dressing Room item.
  *
@@ -94,15 +203,27 @@ function asStringList(value: unknown, limit: number): string[] {
  * invented — an absent field stays absent.
  */
 function snapshotMetadata(item: Record<string, unknown>): {
+  subcategory: string | null;
   colors: string[];
   materials: string[];
   silhouette: string | null;
   pattern: string | null;
   fit: string | null;
+  brand: string | null;
+  brandEvidence: EliseBrandEvidence[];
 } {
   const payload = item.snapshot_payload;
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-    return { colors: [], materials: [], silhouette: null, pattern: null, fit: null };
+    return {
+      subcategory: null,
+      colors: [],
+      materials: [],
+      silhouette: null,
+      pattern: null,
+      fit: null,
+      brand: null,
+      brandEvidence: [],
+    };
   }
   const record = payload as Record<string, unknown>;
   const metadata =
@@ -116,11 +237,12 @@ function snapshotMetadata(item: Record<string, unknown>): {
       : {};
 
   const colors = asStringList(
-    record.colors ?? attributes.colors ?? metadata.color ?? attributes.color ?? record.color,
+    record.colors ?? attributes.colors ?? metadata.colors ?? metadata.color ?? attributes.color ?? record.color,
     8,
   );
   const materials = asStringList(
-    record.materials ?? attributes.material ?? metadata.materialEstimate ?? record.material,
+    record.materials ?? attributes.material ?? metadata.materials ?? metadata.material ??
+      metadata.materialEstimate ?? record.material,
     8,
   );
   const silhouette =
@@ -141,7 +263,20 @@ function snapshotMetadata(item: Record<string, unknown>): {
     asString(attributes.fit) ??
     asString(metadata.fit);
 
-  return { colors, materials, silhouette, pattern, fit };
+  const subcategory =
+    asString(record.subcategory) ??
+    asString(attributes.subcategory) ??
+    asString(metadata.subcategory) ??
+    asString(metadata.itemType);
+  const brand =
+    asString(record.brand) ??
+    asString(attributes.brand) ??
+    asString(metadata.brand);
+  const brandEvidence = brandEvidenceFrom(
+    record.brandEvidence ?? attributes.brandEvidence ?? metadata.brandEvidence,
+  );
+
+  return { subcategory, colors, materials, silhouette, pattern, fit, brand, brandEvidence };
 }
 
 export async function resolveScanOwnership(
@@ -171,14 +306,7 @@ export async function resolveScanOwnership(
       storageBucket: storage.bucket,
       storagePath: storage.path,
     },
-    metadata: {
-      title: asString(row.title),
-      category: null,
-      colors: [],
-      materials: [],
-      silhouette: null,
-      brand: null,
-    },
+    metadata: savedScanMetadata(row),
   };
 }
 
@@ -216,14 +344,7 @@ export async function resolveClosetItem(
         storageBucket: storage.bucket,
         storagePath: storage.path,
       },
-      metadata: {
-        title: asString(row.title),
-        category: null,
-        colors: [],
-        materials: [],
-        silhouette: null,
-        brand: null,
-      },
+      metadata: savedScanMetadata(row),
     };
   }
   if (!ownerMatches(row, actorId)) return { status: 'unauthorized' };
@@ -240,12 +361,11 @@ export async function resolveClosetItem(
       storagePath: storage.path,
     },
     metadata: {
-      title: asString(row.note) ?? asString(row.title),
-      category: asString(row.category),
+      ...emptyMetadata(asString(row.note) ?? asString(row.title), asString(row.category)),
       colors: colorsFromRow(row),
       materials: materialsFromRow(row),
       silhouette: asString(row.silhouette),
-      brand: null,
+      pattern: asString(row.pattern),
     },
   };
 }
@@ -273,6 +393,7 @@ export async function resolveOwnedRoomItem(
   const itemRoom = asString(item.dressing_room_id);
   if (itemRoom && itemRoom !== roomId) return { status: 'unauthorized' };
   const storage = storageCanonical(item);
+  const snapshot = snapshotMetadata(item);
   return {
     status: 'verified',
     actorRelationship: 'owned',
@@ -288,8 +409,8 @@ export async function resolveOwnedRoomItem(
     metadata: {
       title: asString(item.title),
       category: asString(item.category),
-      ...snapshotMetadata(item),
-      brand: asString(item.brand),
+      ...snapshot,
+      brand: asString(item.brand) ?? snapshot.brand,
     },
   };
 }
@@ -317,6 +438,7 @@ export async function resolveSharedRoomItem(
   const itemRoom = asString(item.dressing_room_id);
   if (itemRoom && itemRoom !== roomId) return { status: 'unauthorized' };
   const storage = storageCanonical(item);
+  const snapshot = snapshotMetadata(item);
   return {
     status: 'verified',
     // Shared must never upgrade to owned.
@@ -333,8 +455,8 @@ export async function resolveSharedRoomItem(
     metadata: {
       title: asString(item.title),
       category: asString(item.category),
-      ...snapshotMetadata(item),
-      brand: asString(item.brand),
+      ...snapshot,
+      brand: asString(item.brand) ?? snapshot.brand,
     },
   };
 }

@@ -44,6 +44,7 @@ export type OwnedItemBrandEvidence = {
 
 /** Which layer supplied a canonical field. */
 export type OwnedItemFieldProvenance =
+  | 'identification_snapshot_v2'
   | 'identification_snapshot_v1'
   | 'legacy_metadata'
   | 'absent';
@@ -109,8 +110,9 @@ export type OwnedClosetItem = {
    *
    * Kept alongside `brand` rather than folded into it on purpose: a
    * `brand_guess` and an observed `visible_brand_text` are different claims,
-   * and collapsing them turns a guess into an assertion. Consumers that only
-   * need a display string keep reading `brand` and are unaffected.
+   * and collapsing them turns a guess into an assertion. Consumers that need
+   * a display string may use `brand`; it is null unless the adapter has an
+   * authoritative observed-brand source.
    */
   brandEvidence: OwnedItemBrandEvidence[];
   /**

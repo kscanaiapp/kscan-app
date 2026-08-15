@@ -165,6 +165,12 @@ export function normalizeWardrobeCandidate(input: {
   const silhouette = asString(meta.silhouette) ?? asString(row.silhouette);
   const fit = asString(meta.fit) ?? asString(row.fit);
   const formality = asString(meta.formality) ?? asString(meta.dressCode) ?? null;
+  const categoryRole = inferLayeringRole(category, null);
+  const subcategoryRole = inferLayeringRole(subcategory, null);
+  const metadataWarnings: string[] = [];
+  if (categoryRole && subcategoryRole && categoryRole !== subcategoryRole) {
+    metadataWarnings.push('contradictory_category_metadata');
+  }
 
   return {
     candidateId: input.candidateId.slice(0, 80),
@@ -186,13 +192,16 @@ export function normalizeWardrobeCandidate(input: {
     silhouette,
     fit,
     proportionRole: inferProportionRole(silhouette, fit),
-    layeringRole: inferLayeringRole(category, subcategory),
+    layeringRole: metadataWarnings.length
+      ? null
+      : categoryRole ?? subcategoryRole,
     formality,
     seasons: asStringArray(meta.seasons ?? meta.season, 4),
     occasions: asStringArray(meta.occasions ?? meta.occasion, 4),
     styleAttributes: asStringArray(meta.styleAttributes ?? meta.style, 8),
     brand: asString(row.brand) ?? asString(meta.brand),
     confidence: asNumber(meta.confidence) ?? asNumber(meta.brandCertainty),
+    metadataWarnings,
     canonicalResourceIds: input.canonicalResourceIds ?? {},
   };
 }

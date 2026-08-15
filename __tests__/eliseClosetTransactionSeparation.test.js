@@ -57,12 +57,38 @@ test('ELISE-DOES-NOT-IMPORT-CLOSET-ORCHESTRATOR', () => {
   for (const file of eliseFiles) {
     const source = fs.readFileSync(path.join(ROOT, file), 'utf8');
     for (const orchestrator of CLOSET_ORCHESTRATOR_MODULES) {
+      const isAuthorizedReadOnlyProjection =
+        file.replace(/\\/g, '/') === 'services/style-chat/closetIntelligenceContext.ts' &&
+        orchestrator === 'closetLibrary';
+      if (isAuthorizedReadOnlyProjection) continue;
       assert.ok(
         !new RegExp(`from\\s+['"][^'"]*${orchestrator}['"]`).test(source) &&
           !new RegExp(`require\\(['"][^'"]*${orchestrator}['"]\\)`).test(source),
         `${file} must not route Elise through the Closet orchestrator (${orchestrator})`
       );
     }
+  }
+
+  const projection = readIfExists('services/style-chat/closetIntelligenceContext.ts');
+  assert.ok(projection, 'the committed-Closet intelligence projection must exist');
+  assert.match(
+    projection,
+    /import \{ loadClosetTyped \} from ['"]\.\.\/closetLibrary['"]/,
+    'Elise may read the committed Closet only through its typed, actor-scoped loader',
+  );
+  for (const forbiddenWriter of [
+    'saveScanToCloset',
+    'addClosetItem',
+    'removeClosetItem',
+    'deleteClosetItem',
+    'promoteCloset',
+    'commitCloset',
+  ]) {
+    assert.doesNotMatch(
+      projection,
+      new RegExp(`\\b${forbiddenWriter}\\b`),
+      `the intelligence projection must remain read-only (${forbiddenWriter})`,
+    );
   }
 });
 

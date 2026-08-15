@@ -32,7 +32,9 @@ import {
 } from './canonicalFashionMetadata';
 import {
   sanitizeIdentificationSnapshot,
+  sanitizeIdentificationSnapshotV2,
   type PersistedIdentificationSnapshotV1,
+  type PersistedIdentificationSnapshotV2,
 } from './identificationSnapshot';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -84,7 +86,11 @@ function resolveSavedScanMetadata(analysis: unknown): CanonicalFashionMetadata {
       ? (hydrated as PersistedIdentificationSnapshotV1)
       : null;
 
-  return resolveCanonicalFashionMetadata({ snapshot, legacy });
+  const snapshotV2 = sanitizeIdentificationSnapshotV2(
+    analysisObject.identificationSnapshotV2,
+  ) as PersistedIdentificationSnapshotV2 | null;
+
+  return resolveCanonicalFashionMetadata({ snapshotV2, snapshot, legacy });
 }
 
 /** Project canonical provenance onto the owned-item contract's field names. */
@@ -171,6 +177,7 @@ export function normalizeLocalSavedScan(scan: SavedScanModel): OwnedClosetItem {
   // hard-coded subcategory/pattern/fit/brand to null, so a local scan lost
   // four fields the snapshot was holding the whole time.
   const meta = resolveCanonicalFashionMetadata({
+    snapshotV2: scan.identificationSnapshotV2 ?? null,
     snapshot: scan.identificationSnapshot ?? null,
     legacy: {
       category: attributes.category,

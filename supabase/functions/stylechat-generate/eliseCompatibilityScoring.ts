@@ -262,7 +262,7 @@ export function scoreWardrobeCompatibility(input: {
     redundancyPenalty: redundancy.score,
   };
 
-  const total = clamp(
+  const unadjustedTotal = clamp(
     dimensions.categoryRole * 0.18 +
       dimensions.colorHarmony * 0.14 +
       dimensions.silhouetteBalance * 0.1 +
@@ -274,6 +274,12 @@ export function scoreWardrobeCompatibility(input: {
       dimensions.ownershipPriority * 0.14 +
       dimensions.redundancyPenalty * 0.04,
   );
+  // Contradictory garment-role evidence cannot support a confident ordering.
+  // Keep the candidate available, but deliberately compress its rank toward
+  // uncertainty until the metadata is corrected.
+  const total = candidate.metadataWarnings.length
+    ? Math.min(unadjustedTotal, 0.5)
+    : unadjustedTotal;
 
   const reasons = [
     ...cat.reasons,
@@ -287,7 +293,12 @@ export function scoreWardrobeCompatibility(input: {
     ...redundancy.reasons,
   ].slice(0, ELISE_ADVICE_LIMITS.maxReasonCodes);
 
-  const warnings = [...cat.warnings, ...color.warnings, ...redundancy.warnings].slice(
+  const warnings = [
+    ...candidate.metadataWarnings,
+    ...cat.warnings,
+    ...color.warnings,
+    ...redundancy.warnings,
+  ].slice(
     0,
     ELISE_ADVICE_LIMITS.maxReasonCodes,
   );

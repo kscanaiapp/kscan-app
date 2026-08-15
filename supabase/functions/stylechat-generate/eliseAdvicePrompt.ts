@@ -32,6 +32,7 @@ export function buildEliseAdvicePromptBlock(input: {
     '- Discovered/commerce options are shopping suggestions only.',
     '- Prefer owned items before saved, then shared, then commerce.',
     '- Do not invent prices, stock, sales urgency, or retailer preference.',
+    '- Never quote an internal compatibility score, confidence number, or percentage.',
     '- Do not execute purchases, cart changes, or preference writes.',
     `- adviceIntent: ${escapePromptData(input.intent)}`,
   ];
@@ -61,7 +62,7 @@ export function buildEliseAdvicePromptBlock(input: {
       lines.push(
         `- id=${escapePromptData(c.candidateId)} source=${escapePromptData(c.sourceType)} ` +
           `relationship=${escapePromptData(c.actorRelationship)} role=${escapePromptData(scored.recommendationRole)} ` +
-          `score=${scored.score.total} category=${escapePromptData(c.category ?? 'unknown')} ` +
+          `category=${escapePromptData(c.category ?? 'unknown')} ` +
           `colors=${escapePromptData(c.colors.join('|') || 'unknown')} ` +
           `reasons=${escapePromptData(scored.score.reasons.join(',') || 'none')} ` +
           `label=${escapePromptData(ownershipLanguageLabel(c.actorRelationship))}`,
@@ -84,7 +85,6 @@ export function buildEliseAdvicePromptBlock(input: {
     lines.push('[PURCHASE ADVICE — DETERMINISTIC]');
     lines.push(
       `verdict=${escapePromptData(input.purchaseAdvice.verdict)} ` +
-        `confidence=${input.purchaseAdvice.confidence} ` +
         `reasons=${escapePromptData(input.purchaseAdvice.reasons.join(',') || 'none')}`,
     );
     lines.push('[/PURCHASE ADVICE — DETERMINISTIC]');
@@ -109,6 +109,7 @@ export function buildEliseAdvicePromptBlock(input: {
     '- Offer one alternative when useful.',
     '- Mention a missing piece only when gap codes exist.',
     '- Suggest commerce only when allowed by intent and no strong owned alternative exists.',
+    '- Describe compatibility qualitatively; never expose scores or percentages.',
     '[/RESPONSE GUIDANCE]',
     '[/Elise Closet-Aware Advice Grounding]',
   );

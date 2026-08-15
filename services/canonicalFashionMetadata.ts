@@ -22,7 +22,9 @@
 // This module is the single place that answers "what does the system actually
 // know about this garment", in priority order:
 //
-//     PersistedIdentificationSnapshotV1   (authority — the Scanner contract)
+//     PersistedIdentificationSnapshotV2   (authority — current Scanner contract)
+//        ↓ falls back per-field to
+//     PersistedIdentificationSnapshotV1   (legacy durable Scanner contract)
 //        ↓ falls back per-field to
 //     legacy analysis_result.metadata     (six-field legacy projection)
 //        ↓ falls back to
@@ -33,10 +35,10 @@
 //     answered so a caller can tell "no pattern" from "pattern unknown".
 //   - No database column is renamed. This normalizes at the adapter boundary
 //     only, which is the whole point of the module.
-//   - Brand evidence is NOT collapsed into a brand string. `visible_brand_text`,
-//     `logo_detected` and `brand_guess` stay separable, exactly as
-//     `buildIdentificationSnapshot` recorded them, so a later phase can weigh
-//     them independently and so a guess is never presented as an observation.
+//   - Brand evidence is NOT collapsed into a brand string. A V2 scalar is
+//     authoritative only with visible-text/logo provenance; V1 may use
+//     visible brand text only. `brand_guess` always remains typed evidence and
+//     is never presented as an observation.
 //   - Snapshot list fields (material/silhouette/pattern) are kept as lists AND
 //     surfaced as a scalar head, because the existing OwnedClosetItem contract
 //     is scalar and must keep working unchanged.
@@ -44,10 +46,12 @@
 import type {
   IdentificationBrandEvidence,
   PersistedIdentificationSnapshotV1,
+  PersistedIdentificationSnapshotV2,
 } from './identificationSnapshot';
 
 /** Which layer answered a given field. */
 export type CanonicalMetadataProvenance =
+  | 'identification_snapshot_v2'
   | 'identification_snapshot_v1'
   | 'legacy_metadata'
   | 'absent';
@@ -148,14 +152,31 @@ function sanitizeBrandEvidence(value: unknown): IdentificationBrandEvidence[] {
   return out;
 }
 
+function sanitizeV2BrandEvidence(value: unknown): IdentificationBrandEvidence[] {
+  if (!Array.isArray(value)) return [];
+  return sanitizeBrandEvidence(
+    value.map((entry) => {
+      if (!entry || typeof entry !== 'object') return null;
+      const record = entry as Record<string, unknown>;
+      return {
+        type: record.type,
+        value: record.observation,
+        confidence: record.confidence,
+      };
+    }),
+  );
+}
+
 /** The legacy six-field projection stored at `analysis_result.metadata`. */
 export type LegacyScanMetadata = Record<string, unknown> | null | undefined;
 
 function pick(
-  fromSnapshot: string | null,
+  fromV2: string | null,
+  fromV1: string | null,
   fromLegacy: string | null,
 ): { value: string | null; provenance: CanonicalMetadataProvenance } {
-  if (fromSnapshot) return { value: fromSnapshot, provenance: 'identification_snapshot_v1' };
+  if (fromV2) return { value: fromV2, provenance: 'identification_snapshot_v2' };
+  if (fromV1) return { value: fromV1, provenance: 'identification_snapshot_v1' };
   if (fromLegacy) return { value: fromLegacy, provenance: 'legacy_metadata' };
   return { value: null, provenance: 'absent' };
 }
@@ -169,11 +190,15 @@ function pick(
  * way, and all must keep resolving from `legacy` rather than becoming empty.
  */
 export function resolveCanonicalFashionMetadata(input: {
+  snapshotV2?: PersistedIdentificationSnapshotV2 | null;
   snapshot?: PersistedIdentificationSnapshotV1 | null;
   legacy?: LegacyScanMetadata;
 }): CanonicalFashionMetadata {
+  const snapshotV2 = input.snapshotV2 ?? null;
   const snapshot = input.snapshot ?? null;
   const legacy = input.legacy && typeof input.legacy === 'object' ? input.legacy : {};
+  const v2Item = snapshotV2?.identification?.item ?? null;
+  const v2Confidence = snapshotV2?.identification?.compatibility?.globalConfidence ?? null;
 
   const snapAttributes =
     snapshot && snapshot.attributes && typeof snapshot.attributes === 'object'
@@ -192,6 +217,9 @@ export function resolveCanonicalFashionMetadata(input: {
   const snapshotMaterials = textList(snapshot?.material);
   const snapshotPatterns = textList(snapshot?.pattern);
   const snapshotSilhouettes = textList(snapshot?.silhouette);
+  const snapshotV2Materials = textList(v2Item?.material);
+  const snapshotV2Patterns = textList(v2Item?.pattern);
+  const snapshotV2Silhouettes = textList(v2Item?.silhouette);
 
   const legacyMaterial = text(legacy.material_estimate) ?? text(legacy.material);
   const legacyPattern = text(legacy.pattern);
@@ -199,37 +227,77 @@ export function resolveCanonicalFashionMetadata(input: {
   // Legacy stored the palette under `color_palette`; some rows used `color`.
   const legacyColor = text(legacy.color) ?? text(legacy.color_palette);
 
-  const category = pick(text(snapshot?.category), text(legacy.category));
+  const category = pick(text(v2Item?.category), text(snapshot?.category), text(legacy.category));
   // Legacy readers looked for `subcategory`/`itemType`; neither is written by
   // the current writer, but a hand-written or migrated row may carry them.
   const subtype = pick(
+    text(v2Item?.subtype),
     text(snapshot?.subtype),
     text(legacy.subcategory) ?? text(legacy.subtype) ?? text(legacy.itemType),
   );
-  const primaryColor = pick(text(snapColors.primary), legacyColor);
-  const material = pick(head(snapshotMaterials), legacyMaterial);
-  const pattern = pick(head(snapshotPatterns), legacyPattern);
-  const silhouette = pick(head(snapshotSilhouettes), legacySilhouette);
-  const fit = pick(text(snapAttributes.fit), text(legacy.fit));
-  const brand = pick(text(snapBrand.value), text(legacy.brand));
+  const primaryColor = pick(text(v2Item?.colors?.primary), text(snapColors.primary), legacyColor);
+  const material = pick(head(snapshotV2Materials), head(snapshotMaterials), legacyMaterial);
+  const pattern = pick(head(snapshotV2Patterns), head(snapshotPatterns), legacyPattern);
+  const silhouette = pick(
+    head(snapshotV2Silhouettes),
+    head(snapshotSilhouettes),
+    legacySilhouette,
+  );
+  const fit = pick(text(v2Item?.attributes?.fit), text(snapAttributes.fit), text(legacy.fit));
 
-  const materials = snapshotMaterials.length > 0
+  const v1BrandEvidence = sanitizeBrandEvidence(snapBrand.evidence);
+  const visibleV1Brand = v1BrandEvidence.find(
+    (entry) => entry.type === 'visible_brand_text' && text(entry.value),
+  );
+  const v2BrandProvenance = text(v2Item?.brand?.provenance);
+  const v2BrandIsObserved =
+    v2BrandProvenance === 'visible_text' ||
+    v2BrandProvenance === 'logo_shape';
+  // A V1 brand.value is commonly the model's brand_guess. It is not an
+  // observed brand and must never be flattened into the authoritative scalar.
+  // V2 may supply the scalar only after the backend's visual-evidence gate has
+  // established one; commerce/catalog corroboration remains separate.
+  // A present V2 identification owns the brand decision even when that
+  // decision is "guess only". Falling through to an older V1/legacy scalar in
+  // that case can resurrect stale contradictory brand data and turn it into an
+  // observation. Older layers are consulted only when no V2 snapshot exists.
+  const brand = snapshotV2
+    ? pick(v2BrandIsObserved ? text(v2Item?.brand?.value) : null, null, null)
+    : pick(
+        null,
+        text(visibleV1Brand?.value),
+        v1BrandEvidence.some((entry) => entry.type === 'brand_guess')
+          ? null
+          : text(legacy.brand),
+      );
+
+  const materials = snapshotV2Materials.length > 0
+    ? snapshotV2Materials
+    : snapshotMaterials.length > 0
     ? snapshotMaterials
     : (legacyMaterial ? [legacyMaterial] : []);
-  const patterns = snapshotPatterns.length > 0
+  const patterns = snapshotV2Patterns.length > 0
+    ? snapshotV2Patterns
+    : snapshotPatterns.length > 0
     ? snapshotPatterns
     : (legacyPattern ? [legacyPattern] : []);
-  const silhouettes = snapshotSilhouettes.length > 0
+  const silhouettes = snapshotV2Silhouettes.length > 0
+    ? snapshotV2Silhouettes
+    : snapshotSilhouettes.length > 0
     ? snapshotSilhouettes
     : (legacySilhouette ? [legacySilhouette] : []);
 
   const styleTags = (() => {
+    const fromV2 = textList(v2Item?.attributes?.visible);
+    if (fromV2.length > 0) return fromV2;
     const fromSnapshot = textList(snapAttributes.visible);
     if (fromSnapshot.length > 0) return fromSnapshot;
     return textList(legacy.style_tags);
   })();
 
   const secondaryColors = (() => {
+    const fromV2 = textList(v2Item?.colors?.secondary);
+    if (fromV2.length > 0) return fromV2.filter((c) => c !== primaryColor.value);
     const fromSnapshot = textList(snapColors.secondary);
     if (fromSnapshot.length > 0) return fromSnapshot.filter((c) => c !== primaryColor.value);
     return [];
@@ -260,14 +328,20 @@ export function resolveCanonicalFashionMetadata(input: {
     silhouette: silhouette.value,
     fit: fit.value,
     brand: brand.value,
-    brandConfidence: finiteNumber(snapBrand.confidence),
-    brandEvidence: sanitizeBrandEvidence(snapBrand.evidence),
+    brandConfidence: brand.value
+      ? finiteNumber(v2Item?.brand?.confidence) ?? finiteNumber(snapBrand.confidence)
+      : null,
+    brandEvidence: snapshotV2
+      ? sanitizeV2BrandEvidence(v2Item?.brand?.evidence)
+      : v1BrandEvidence,
     styleTags,
     confidence:
-      finiteNumber(snapshot?.confidence?.overall) ?? finiteNumber(legacy.confidence_score),
+      finiteNumber(v2Confidence) ??
+      finiteNumber(snapshot?.confidence?.overall) ??
+      finiteNumber(legacy.confidence_score),
     provenance,
     snapshotBacked: Object.values(provenance).some(
-      (p) => p === 'identification_snapshot_v1',
+      (p) => p === 'identification_snapshot_v1' || p === 'identification_snapshot_v2',
     ),
   };
 }

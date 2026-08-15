@@ -89,6 +89,13 @@ export function AddScanToDressingRoomModal({
     createdAt: scan?.createdAt ?? new Date().toISOString(),
     result: scan?.result ?? null,
     metadata: scan?.metadata ?? null,
+    purchaseOptions: scan?.purchaseOptions,
+    products: scan?.products,
+    recommendedProducts: scan?.recommendedProducts,
+    scanId: scan?.scanId ?? null,
+    selectedItemId: scan?.selectedItemId ?? null,
+    savedScanId: scan?.savedScanId ?? null,
+    backendVersion: scan?.backendVersion ?? null,
   });
 
   const handleSave = async (roomId: string, roomTitle: string) => {

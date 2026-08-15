@@ -13,8 +13,12 @@ import type {
 } from './eliseAdviceTypes.ts';
 import { ELISE_ADVICE_LIMITS } from './eliseAdviceTypes.ts';
 import { intentAllowsCommerce, intentNeedsShared, intentPrefersOwned } from './eliseAdviceIntents.ts';
+import type { ClosetInventoryState } from './closetIntelligenceContext.ts';
 
 export type EliseWardrobeDataSource = {
+  /** Current committed device-local Closet projection for this request. */
+  listClosetItems?(actorId: string, limit: number): Promise<Record<string, unknown>[]>;
+  closetInventoryState?: ClosetInventoryState;
   listSavedScans(actorId: string, limit: number): Promise<Record<string, unknown>[]>;
   listInspirationItems(actorId: string, limit: number): Promise<Record<string, unknown>[]>;
   listOwnedRoomItems(actorId: string, limit: number): Promise<Record<string, unknown>[]>;
@@ -29,6 +33,7 @@ export interface EliseWardrobeRetrievalResult {
   ownershipSourceCounts: Record<string, number>;
   retrievalLatencyMs: number;
   partialFailure: boolean;
+  closetInventoryState: ClosetInventoryState;
 }
 
 function ownerMatches(row: Record<string, unknown>, actorId: string): boolean {
@@ -127,12 +132,63 @@ export async function retrieveAuthorizedWardrobeCandidates(input: {
   let authorizedCount = 0;
   let rejectedCount = 0;
   let partialFailure = false;
+  const closetInventoryState = input.data.closetInventoryState ?? 'unavailable';
+
+  // A partial or unavailable local manifest is not an empty Closet. Preserve
+  // that distinction through gap analysis even if the cloud-backed saved/room
+  // sources remain readable.
+  if (closetInventoryState !== 'complete') partialFailure = true;
 
   const preferOwned = intentPrefersOwned(input.intent);
   const allowCommerce = intentAllowsCommerce(input.intent, input.message);
   const needShared = input.includeShared ?? intentNeedsShared(input.intent, input.message);
 
   const tasks: Array<Promise<void>> = [];
+
+  if (input.data.listClosetItems) {
+    tasks.push(
+      (async () => {
+        try {
+          const rows = await input.data.listClosetItems!(input.actorId, limit);
+          for (const row of rows) {
+            const ref = typeof row.ref === 'string' ? row.ref : null;
+            if (!ref || row.__closet_context_authorized !== true) {
+              rejectedCount += 1;
+              continue;
+            }
+            const candidate = normalizeWardrobeCandidate({
+              candidateId: `closet:${ref}`,
+              sourceType: 'closet',
+              actorRelationship: 'owned',
+              row: {
+                ...row,
+                color: row.primaryColor,
+                material: row.materials,
+                snapshot_payload: {
+                  metadata: {
+                    category: row.category,
+                    itemType: row.subtype ?? row.clothingType,
+                    colors: [row.primaryColor, ...(Array.isArray(row.secondaryColors) ? row.secondaryColors : [])]
+                      .filter(Boolean),
+                    materials: row.materials,
+                    brand: row.brand,
+                  },
+                },
+              },
+              // Opaque request-local reference only; no device or server id.
+              canonicalResourceIds: {},
+            });
+            candidates.push(candidate);
+            authorizedCount += 1;
+            pushCount(countsBySource, 'closet');
+            pushCount(ownershipSourceCounts, 'owned');
+          }
+        } catch {
+          partialFailure = true;
+        }
+      })(),
+    );
+  }
 
   tasks.push(
     (async () => {
@@ -150,18 +206,15 @@ export async function retrieveAuthorizedWardrobeCandidates(input: {
           }
           const candidate = normalizeWardrobeCandidate({
             candidateId: `saved_scan:${id}`,
-            sourceType: 'saved_scan',
+            sourceType: 'recent_scan',
             actorRelationship: 'scanned',
             row,
             canonicalResourceIds: { scanId: id, itemId: id },
           });
-          // Saved scans that are closet-backed are owned when marked or default owned for actor.
-          candidate.actorRelationship = 'owned';
-          candidate.sourceType = 'closet';
           candidates.push(candidate);
           authorizedCount += 1;
-          pushCount(countsBySource, 'closet');
-          pushCount(ownershipSourceCounts, 'owned');
+          pushCount(countsBySource, 'recent_scan');
+          pushCount(ownershipSourceCounts, 'scanned');
         }
       } catch {
         partialFailure = true;
@@ -317,5 +370,6 @@ export async function retrieveAuthorizedWardrobeCandidates(input: {
     ownershipSourceCounts,
     retrievalLatencyMs: Date.now() - started,
     partialFailure,
+    closetInventoryState,
   };
 }

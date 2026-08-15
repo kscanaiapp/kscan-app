@@ -305,6 +305,22 @@ Deno.test('S4: pattern and fit reach the manifest from resolved evidence', () =>
   assert.equal(manifest.items[0].fit, 'Tailored');
 });
 
+Deno.test('S4: brand evidence remains typed when no authoritative brand exists', () => {
+  const manifest = buildRoomManifest([
+    s4Evidence({
+      brand: null,
+      brandEvidence: [
+        { type: 'brand_guess', value: 'Guess House', confidence: 0.61 },
+      ],
+    }),
+  ]);
+  const section = serializeRoomManifestSection(manifest, identity) ?? '';
+  assert.equal(manifest.items[0].brand, null);
+  assert.equal(manifest.items[0].brandEvidence[0].type, 'brand_guess');
+  assert.match(section, /brandEvidence\[1\]\.type: brand_guess/);
+  assert.doesNotMatch(section, /items\[1\]\.brand: Guess House/);
+});
+
 Deno.test('S4: a field the room actually carries is no longer declared unavailable', () => {
   const manifest = buildRoomManifest([s4Evidence()]);
   assert.equal(manifest.unavailableFields.includes('pattern'), false);
