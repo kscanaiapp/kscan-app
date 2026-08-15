@@ -1050,7 +1050,12 @@ export default function App() {
           <ScanResultV2
             analysis={analysis}
             scanImageUri={photo?.uri ?? null}
-            scanSourceId={photo?.qaFixtureName ?? null}
+            // KSB29-034: the report target must be a PERSISTED identity. A QA
+            // fixture name is development-only, so on a real device this
+            // resolved to null and the report had no reportable target. The
+            // saved scan id is the identity the server can actually resolve;
+            // the fixture name stays as the development fallback.
+            scanSourceId={savedScanId ?? photo?.qaFixtureName ?? null}
             onDismiss={dismissResult}
             onSaveToLibrary={savedScanId ? () => router.push('/library') : undefined}
             saveActionLabel={savedScanId ? 'View Closet' : undefined}
@@ -1091,7 +1096,12 @@ export default function App() {
             secondhand={analysis?.secondhand ?? null}
             sneakerReference={analysis?.sneakerReference ?? null}
             scanImageUri={photo?.uri ?? null}
-            scanSourceId={photo?.qaFixtureName ?? null}
+            // KSB29-034: the report target must be a PERSISTED identity. A QA
+            // fixture name is development-only, so on a real device this
+            // resolved to null and the report had no reportable target. The
+            // saved scan id is the identity the server can actually resolve;
+            // the fixture name stays as the development fallback.
+            scanSourceId={savedScanId ?? photo?.qaFixtureName ?? null}
             scanSourceType="live_scan"
             onDismiss={dismissResult}
             onAddToDressingRoom={dressingRoomsEnabled ? () => setScanRoomModalVisible(true) : undefined}
