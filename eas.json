@@ -14,6 +14,7 @@
       },
       "env": {
         "KSCAN_OBSERVABILITY_ENVIRONMENT": "staging",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
         "EXPO_PUBLIC_KSCAN_OBSERVABILITY_ENVIRONMENT": "staging",
         "EXPO_PUBLIC_KSCAN_OBSERVABILITY_ENABLED": "true",
         "EXPO_PUBLIC_HOME_NAVIGATION_V2": "true",
@@ -75,6 +76,7 @@
       },
       "env": {
         "KSCAN_OBSERVABILITY_ENVIRONMENT": "development",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
         "EXPO_PUBLIC_KSCAN_OBSERVABILITY_ENVIRONMENT": "development",
         "EXPO_PUBLIC_KSCAN_OBSERVABILITY_ENABLED": "false",
         "EXPO_PUBLIC_HOME_NAVIGATION_V2": "true",
@@ -119,6 +121,7 @@
       },
       "env": {
         "KSCAN_OBSERVABILITY_ENVIRONMENT": "production",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
         "EXPO_PUBLIC_KSCAN_OBSERVABILITY_ENVIRONMENT": "production",
         "EXPO_PUBLIC_KSCAN_OBSERVABILITY_ENABLED": "false",
         "EXPO_PUBLIC_HOME_NAVIGATION_V2": "true",
@@ -173,6 +176,7 @@
       },
       "env": {
         "KSCAN_OBSERVABILITY_ENVIRONMENT": "staging",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true",
         "EXPO_PUBLIC_KSCAN_OBSERVABILITY_ENVIRONMENT": "staging",
         "EXPO_PUBLIC_KSCAN_OBSERVABILITY_ENABLED": "true",
         "EXPO_PUBLIC_HOME_NAVIGATION_V2": "true",

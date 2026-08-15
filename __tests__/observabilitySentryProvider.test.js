@@ -718,6 +718,16 @@ test('EAS profiles authorize the provider only where Build 29 permits', () => {
     assert.equal(env.EXPO_PUBLIC_KSCAN_OBSERVABILITY_ENABLED, want.enabled, `${profile} enable flag`);
     // The DSN is never committed: it must come from an EAS environment secret.
     assert.equal('EXPO_PUBLIC_SENTRY_DSN' in env, false, `${profile} must not commit a DSN`);
+    // Build 29 disposition: SENTRY_COMPLETION is deferred, so the Expo plugin's
+    // source-map upload must never run. Without this, a store build with no
+    // SENTRY_AUTH_TOKEN fails during the upload step — optional observability
+    // taking down a shipping build. The plugin stays registered (see below) so
+    // Build 30 can re-enable upload by removing exactly this one variable.
+    assert.equal(
+      env.SENTRY_DISABLE_AUTO_UPLOAD,
+      'true',
+      `${profile} must disable Sentry source-map auto-upload`,
+    );
   }
 });
 
