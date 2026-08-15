@@ -120,23 +120,38 @@ function AuthGate() {
     return unsubscribe;
   }, [session?.user?.id]);
 
+  /**
+   * DEF-008 — readiness must still be observed when it arrives late.
+   *
+   * This poll previously stopped after 2s (`setTimeout(clearInterval, 2000)`)
+   * without ever setting `navReady`. The effect only re-runs when
+   * `navigationRef` identity changes, so on any cold start where the navigator
+   * mounted later than that deadline -- an older device, a cold first launch, a
+   * large bundle -- `navReady` stayed false permanently. The redirect effect
+   * below is gated on it while `guardState.action === 'redirect'` renders the
+   * full-screen spinner, so the app sat on the K-SCAN spinner until force-quit.
+   *
+   * The deadline was the whole defect, so it is gone: the poll now runs until
+   * readiness actually arrives and stops itself the moment it does. Nothing
+   * here decides whether navigation is *allowed* -- the auth/privacy guard
+   * keeps sole authority over that -- so waiting longer can never let an actor
+   * past a gate, it only lets a legitimate redirect finally run.
+   */
   useEffect(() => {
     if (!navigationRef) return;
     if (navigationRef.isReady()) {
       setNavReady(true);
       return;
     }
-    const check = () => {
+    const id = setInterval(() => {
       if (navigationRef.isReady()) {
+        // Stop on success: without this the interval kept firing for the
+        // lifetime of the effect even after readiness was observed.
+        clearInterval(id);
         setNavReady(true);
       }
-    };
-    const id = setInterval(check, 50);
-    const timeout = setTimeout(() => clearInterval(id), 2000);
-    return () => {
-      clearInterval(id);
-      clearTimeout(timeout);
-    };
+    }, 50);
+    return () => clearInterval(id);
   }, [navigationRef]);
 
   const waitingForAuthCallbackRoute =

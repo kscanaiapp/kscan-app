@@ -25,6 +25,25 @@ async function resolveAccessToken() {
   return null;
 }
 
+/**
+ * DEF-009 — every privacy request is bounded.
+ *
+ * The privacy bootstrap runs on the authenticated cold-launch path and gates
+ * routing: `PrivacyPreferencesContext` leaves `bootStatus` at 'loading' until
+ * `ensurePrivacySettings()` settles, and `app/_layout.tsx` turns that into the
+ * full-screen auth-gate spinner. A bare `fetch` handles a *refused* connection
+ * fine, but a socket that is open and silent -- captive Wi-Fi, a dead cellular
+ * data path, a stalled proxy -- never settles at all, so the request never
+ * rejects, the catch never runs, and boot never reaches a terminal state.
+ *
+ * An AbortController is used rather than a promise race because it cancels the
+ * request instead of merely abandoning it: the socket is torn down, `fetch`
+ * rejects with an AbortError, and the existing catch in the privacy context
+ * reaches its deterministic recoverable state (remote marked unavailable, boot
+ * released) instead of hanging forever.
+ */
+const PRIVACY_REQUEST_TIMEOUT_MS = 10000;
+
 async function supabaseFetch(path, options = {}) {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     throw new Error(
@@ -35,15 +54,32 @@ async function supabaseFetch(path, options = {}) {
   if (!token) {
     throw new Error('No authenticated session. Sign in to use account-level privacy features.');
   }
-  const response = await fetch(`${SUPABASE_URL}${path}`, {
-    ...options,
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      ...(options.headers ?? {}),
-    },
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PRIVACY_REQUEST_TIMEOUT_MS);
+
+  let response;
+  try {
+    response = await fetch(`${SUPABASE_URL}${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        ...(options.headers ?? {}),
+      },
+    });
+  } catch (error) {
+    // Report the deadline as a deadline. Callers only need "this did not
+    // succeed", but an aborted request otherwise surfaces as a bare
+    // "AbortError" that reads like a bug rather than a slow network.
+    if (error && error.name === 'AbortError') {
+      throw new Error('Privacy request timed out. Check your connection and try again.');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 
   let data = null;
   const text = await response.text();
