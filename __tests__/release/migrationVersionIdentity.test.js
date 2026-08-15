@@ -85,9 +85,17 @@ test('SVV-012: exact version parity satisfies migration_state', async () => {
   assert.match(step.detail, /satisfied/);
 });
 
-test('SVV-012: the full Build 29 candidate reports 109 expected, 109 live, 0 missing', async () => {
+test('SVV-012: the full Build 29 candidate reports 110 expected, 110 live, 0 missing', async () => {
   const m = manifest();
-  // 109 since the hostile audit added
+  // 110 since the Build 29 shared repair added
+  // 20260815120000_content_reports_ai_output (KSB29-036). That one declares
+  // capability PRODUCTION ALREADY HAS -- ai_output_context and the 'ai_output'
+  // target type, verified live on 2026-08-15 -- which no migration in this
+  // repository had ever declared, so a database built from history rejected
+  // every AI-output report. It is additive and idempotent, so it is a no-op
+  // against production and converges staging onto it.
+  //
+  // Previously 109 since the hostile audit added
   // 20260814230933_harden_wardrobe_wear_owner_links after Closet V2 / S7B added
   // 20260814140000_harden_wardrobe_wear_anon_privileges (which was 107 after S5
   // added 20260814120000_wardrobe_wear_event_items, itself 106 after the
@@ -98,11 +106,11 @@ test('SVV-012: the full Build 29 candidate reports 109 expected, 109 live, 0 mis
   // meant to catch. The latest change is exactly one migration: composite
   // owner foreign keys prevent wear-event children and Saved Look links from
   // crossing actor boundaries beneath RLS.
-  assert.equal(m.migrations.length, 109, 'the Build 29 candidate carries 109 migrations');
+  assert.equal(m.migrations.length, 110, 'the Build 29 candidate carries 110 migrations');
   const result = await planOnly({ m, liveMigrationVersions: m.migrations.map((x) => x.version) });
   const step = migrationStep(result);
   assert.equal(step.status, 'PASS');
-  assert.equal(step.detail, '109 satisfied');
+  assert.equal(step.detail, '110 satisfied');
 });
 
 test('SVV-012: a missing migration blocks and names the missing VERSION', async () => {

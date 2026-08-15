@@ -69,6 +69,7 @@ function loadUseKScanWithMocks({
   initialStatus = 'preview',
   initialPhoto = { uri: 'file://test.jpg' },
   mediaPermissionStatus = 'granted',
+  platformOS = 'android',
 } = {}) {
   const hookPath = path.join(__dirname, '..', 'hooks', 'useKScan.js');
   let source = stripImports(fs.readFileSync(hookPath, 'utf8'));
@@ -118,6 +119,12 @@ function loadUseKScanWithMocks({
         accessibilityAnnouncements.push(message);
       },
     },
+    // KSB29-004: the hook resolves the identification platform at runtime
+    // instead of hardcoding 'ios'. `stripImports` removes the react-native
+    // import, so the sandbox has to supply Platform the same way it supplies
+    // AccessibilityInfo. Defaulted to android, which is the case the hardcoded
+    // value was getting wrong.
+    Platform: { OS: platformOS },
     Alert: {
       alert: (...args) => {
         alertCalls.push(args);
