@@ -10,8 +10,22 @@ export const SCAN_DIAGNOSTICS_ENABLED =
   (typeof __DEV__ !== 'undefined' && __DEV__ === true) ||
   process.env.EXPO_PUBLIC_SCAN_DIAG === '1';
 
-// Gated diagnostic logging for the scan title builder. Off in production unless
-// explicitly enabled via env. Does not log image bytes or secrets.
+// Gated diagnostic logging for the scan title builder.
+//
+// REQUIRES DEVELOPMENT MODE. This previously keyed off the environment alone,
+// so an EXPO_PUBLIC_* variable — which Expo inlines at build time and which is
+// set from eas.json, CI, or a shell — could switch diagnostic logging on in a
+// STORE BUILD. A debug escape whose only gate is a string in the build
+// environment is one configuration mistake away from shipping.
+//
+// `__DEV__ && explicit flag`: the flag alone can no longer do it, and a
+// production bundle has no path to enable it at all. Note the other constants
+// here already follow this shape (QA_TOOLS_ENABLED), so this brings the odd one
+// out into line rather than inventing a rule.
+//
+// Does not log image bytes or secrets.
 export const SCAN_IDENTITY_DEBUG =
-  process.env.EXPO_PUBLIC_SCAN_IDENTITY_DEBUG === 'true' ||
-  process.env.SCAN_IDENTITY_DEBUG === 'true';
+  typeof __DEV__ !== 'undefined' &&
+  __DEV__ === true &&
+  (process.env.EXPO_PUBLIC_SCAN_IDENTITY_DEBUG === 'true' ||
+    process.env.SCAN_IDENTITY_DEBUG === 'true');

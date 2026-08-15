@@ -1021,3 +1021,42 @@ test('mapper: high-confidence brand appears in title', () => {
   assert.equal(out.title, 'Red Lacoste Polo Shirt');
   assert.equal(out.metadata.brandConfidence, 'high');
 });
+
+test('SCAN_IDENTITY_DEBUG cannot be enabled in a production bundle', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const ts = require('typescript');
+  const vm = require('node:vm');
+  const root = path.resolve(__dirname, '..');
+
+  const source = fs.readFileSync(path.join(root, 'constants', 'build.js'), 'utf8');
+  const output = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+  }).outputText;
+
+  const evaluate = (isDev, env) => {
+    const mod = { exports: {} };
+    const sandbox = { exports: mod.exports, module: mod, process: { env }, __DEV__: isDev };
+    vm.createContext(sandbox);
+    new vm.Script(output).runInContext(sandbox);
+    return mod.exports.SCAN_IDENTITY_DEBUG;
+  };
+
+  // THE DEFECT: the environment alone could switch diagnostic logging on in a
+  // store build. EXPO_PUBLIC_* is inlined at build time from eas.json, CI, or a
+  // shell, so a debug escape gated only on a string is one configuration
+  // mistake away from shipping.
+  for (const env of [
+    { EXPO_PUBLIC_SCAN_IDENTITY_DEBUG: 'true' },
+    { SCAN_IDENTITY_DEBUG: 'true' },
+    { EXPO_PUBLIC_SCAN_IDENTITY_DEBUG: 'true', SCAN_IDENTITY_DEBUG: 'true' },
+  ]) {
+    assert.equal(evaluate(false, env), false,
+      `production must refuse ${JSON.stringify(env)}`);
+  }
+
+  // Still available where it is useful, and still requires the explicit flag —
+  // dev mode alone must not turn it on either.
+  assert.equal(evaluate(true, { EXPO_PUBLIC_SCAN_IDENTITY_DEBUG: 'true' }), true);
+  assert.equal(evaluate(true, {}), false, 'dev alone must not enable it');
+});
