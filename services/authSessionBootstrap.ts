@@ -166,8 +166,24 @@ export function createAuthBootstrapStorage({
 
     if (result.error) {
       onRecoveryError(result.error);
-      hiddenKeys.add(key);
+
+      // KSB29-056: ONLY a terminal failure may hide the key.
+      //
+      // This previously hid the key on EVERY refresh failure — offline, 5xx,
+      // 429, any temporary service blip — which made the persisted session
+      // unreadable for the remainder of the app run. The material stayed on
+      // disk, so a later LAUNCH could recover, but within this run the user was
+      // effectively signed out: every subsequent read returned null without
+      // ever retrying. Opening K Scan during a brief network interruption
+      // therefore looked exactly like being logged out.
+      //
+      // A transient failure now leaves the key visible, so a later read retries
+      // the refresh and the session recovers as soon as connectivity returns.
+      // Concurrent reads are still collapsed into one refresh by
+      // `activeRecoveries`, so this cannot reintroduce the construction-time
+      // retry loop that the hiding was originally added to prevent.
       if (isHandledStaleRefreshTokenError(result.error)) {
+        hiddenKeys.add(key);
         try {
           await storage.removeItem(key);
         } catch (storageError) {

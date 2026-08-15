@@ -283,12 +283,52 @@ test('a transient network failure is retained, reported, and never classified as
     onRecoveryError: (error) => observedErrors.push(error),
   });
 
-  assert.equal(await wrapped.getItem(key), null, 'unusable expired session fails closed this launch');
-  assert.equal(await storage.getItem(key), raw, 'retryable session remains available for a later launch');
-  assert.equal(await wrapped.getItem(key), null);
-  assert.equal(refreshCalls, 1);
+  assert.equal(await wrapped.getItem(key), null, 'unusable expired session fails closed this read');
+  assert.equal(await storage.getItem(key), raw, 'retryable session is never removed locally');
+
+  // KSB29-056 — THIS ASSERTION WAS INVERTED AND CODIFIED THE DEFECT.
+  //
+  // It previously required `refreshCalls === 1`: the key was hidden on the
+  // first transient failure, so every later read returned null WITHOUT
+  // retrying, and the user stayed effectively signed out for the rest of the
+  // app run. The persisted material surviving on disk only helped at the next
+  // LAUNCH. Build 28's invariant was that nothing is permanently hidden by a
+  // temporary failure, so a later read must retry.
+  assert.equal(await wrapped.getItem(key), null, 'still signed out while the failure persists');
+  assert.equal(refreshCalls, 2, 'a transient failure must not permanently hide the session');
   assert.strictEqual(observedErrors[0], networkError);
   assert.equal(isHandledStaleRefreshTokenError(observedErrors[0]), false);
+});
+
+test('a session that failed transiently recovers within the same app run', async () => {
+  // The point of not hiding the key: when connectivity returns, the very next
+  // read must produce a usable session without requiring an app restart.
+  const key = 'sb-project-auth-token';
+  const storage = createMemoryStorage({ [key]: JSON.stringify(session()) });
+  const refreshed = session({ expires_at: 200_000, access_token: 'recovered-access-token' });
+  let refreshCalls = 0;
+  const wrapped = createAuthBootstrapStorage({
+    storage,
+    now: () => 100_000,
+    refreshSession: async () => {
+      refreshCalls += 1;
+      if (refreshCalls === 1) {
+        return {
+          session: null,
+          error: { name: 'AuthRetryableFetchError', status: 0, message: 'Network request failed' },
+        };
+      }
+      return { session: refreshed, error: null };
+    },
+    onRecoveryError: () => {},
+  });
+
+  assert.equal(await wrapped.getItem(key), null, 'offline read fails closed');
+
+  const recovered = await wrapped.getItem(key);
+  assert.notEqual(recovered, null, 'the session must be recoverable once the network returns');
+  assert.deepEqual(JSON.parse(recovered), refreshed);
+  assert.deepEqual(JSON.parse(await storage.getItem(key)), refreshed, 'and is persisted again');
 });
 
 test('Supabase initial-session bootstrap emits no console.error for expected stale recovery', async () => {
