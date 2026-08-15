@@ -283,7 +283,19 @@ test('the Stylist and Closet entries are untouched by Phase 2', () => {
   const library = read('app/library.tsx');
   assert.match(stylist, /testID="private-dressing-room-entry"/);
   assert.match(library, /viewLabel: 'Build an outfit'/);
-  assert.equal((library.match(/viewLabel="Add to Room"/g) ?? []).length, 3);
+  // Both inspiration render paths must offer Add to Room: the single-item card
+  // and the grid card. This previously asserted a count of 3 because the grid
+  // duplicated its card JSX for the two items in a hardcoded pair; the iPad
+  // column fix collapsed that into one render per item, so counting occurrences
+  // measured the duplication rather than the behaviour.
+  const addToRoom = (library.match(/viewLabel="Add to Room"/g) ?? []).length;
+  assert.equal(addToRoom, 2, 'one per render path: single card and grid card');
+  assert.match(library, /width: SINGLE_CARD_W[\s\S]{0,80}\/>/, 'single-inspiration path intact');
+  assert.match(
+    library,
+    /inspirationRows\.map\([\s\S]{0,600}?viewLabel="Add to Room"/,
+    'the grid path must still offer Add to Room for every item',
+  );
 });
 
 test('discard confirmation and session controls survive', () => {

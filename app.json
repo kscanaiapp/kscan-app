@@ -6,7 +6,7 @@
                  "sdkVersion":  "54.0.0",
                  "scheme":  "kscan",
                  "orientation":  "default",
-                 "userInterfaceStyle":  "dark",
+                 "userInterfaceStyle":  "light",
                  "icon":  "./assets/icon.png",
                  "splash":  {
                                 "image":  "./assets/splash-icon.png",

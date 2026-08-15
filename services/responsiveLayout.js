@@ -84,7 +84,29 @@ function getResponsiveGridCellWidth(windowWidth, options = {}) {
   return computeItemGridCellWidth(container, { horizontalPadding, gap, columns });
 }
 
+// Split a collection into rows of `columns` items.
+//
+// The column COUNT was already responsive (getGridColumns), but every grid
+// built its rows with a hardcoded two-item pair reducer, so cells were sized
+// for three or four columns on iPad while only two were ever rendered -- a
+// third to a half of the row left empty. This is the shared row builder those
+// grids were missing, so column count is decided in exactly one place.
+//
+// Rows are plain arrays, never padded with nulls: `gridRow` is a flex row with
+// a gap and fixed-width cells, so a short final row left-aligns correctly on
+// its own. Callers render `row.map(...)` and need no placeholder branch.
+function chunkIntoRows(items, columns) {
+  const list = Array.isArray(items) ? items : [];
+  const size = Math.max(1, Math.floor(Number(columns) || 1));
+  const rows = [];
+  for (let index = 0; index < list.length; index += size) {
+    rows.push(list.slice(index, index + size));
+  }
+  return rows;
+}
+
 module.exports = {
+  chunkIntoRows,
   REGULAR_WIDTH_BREAKPOINT,
   WIDE_WIDTH_BREAKPOINT,
   CONTENT_MAX_WIDTH,

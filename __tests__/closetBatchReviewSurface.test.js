@@ -525,6 +525,13 @@ function mountLibrary(options = {}) {
         modalMaxWidth: 560,
         gridColumns: 2,
         gridCellWidth: () => 165,
+        // Mirrors the real hook: rows are built from THIS layout's column
+        // count, so a stub that omits it no longer silently diverges.
+        toGridRows: (items) => {
+          const rows = [];
+          for (let i = 0; i < items.length; i += 2) rows.push(items.slice(i, i + 2));
+          return rows;
+        },
       }),
     },
     '../hooks/useClosetCandidates': candidateHook,

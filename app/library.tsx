@@ -233,7 +233,7 @@ export default function LibraryScreen() {
   const router = useRouter();
   // Compact widths reproduce the certified two-column phone grid bit-for-bit;
   // regular (iPad) widths gain columns inside the centered content column.
-  const { gridColumns, gridCellWidth } = useResponsiveLayout();
+  const { gridColumns, gridCellWidth, toGridRows } = useResponsiveLayout();
   const CARD_W = gridCellWidth({
     horizontalPadding: H_PAD,
     gap: CARD_GAP,
@@ -653,20 +653,15 @@ export default function LibraryScreen() {
   // "Your Closet" — the alias that made scan history look like owned inventory.
   const chrome = CLOSET_SEPARATION_V1 ? SECTION_CHROME[section] : LEGACY_CHROME;
 
-  const scanPairs = scans.reduce<[SavedScan, SavedScan | null][]>((pairs, scan, i) => {
-    if (i % 2 === 0) pairs.push([scan, scans[i + 1] ?? null]);
-    return pairs;
-  }, []);
-
-  const closetPairs = closet.items.reduce<[any, any | null][]>((pairs, item, i) => {
-    if (i % 2 === 0) pairs.push([item, closet.items[i + 1] ?? null]);
-    return pairs;
-  }, []);
-
-  const inspirationPairs = inspirations.reduce<[InspirationItem, InspirationItem | null][]>((pairs, item, i) => {
-    if (i % 2 === 0) pairs.push([item, inspirations[i + 1] ?? null]);
-    return pairs;
-  }, []);
+  // DEF-045: these were two-item pair reducers. CARD_W has always been sized
+  // for `gridColumns` (3 on a regular-width iPad, 4 when wide), so rendering
+  // exactly two per row left a third to a half of every row empty on tablet.
+  // Row building now uses the same column count the cell width was derived
+  // from, which is what makes the two agree. Compact widths resolve
+  // gridColumns to 2, so the certified iPhone grid is byte-identical.
+  const scanRows = toGridRows(scans);
+  const closetRows = toGridRows(closet.items);
+  const inspirationRows = toGridRows(inspirations);
 
   return (
     <LuxuryScreen safeArea={false} scrollable={false} backgroundColor={LUXURY.colors.ivory}>
@@ -855,38 +850,24 @@ export default function LibraryScreen() {
               />
             ) : (
               <View style={styles.grid}>
-                {closetPairs.map(([a, b]) => (
-                  <View key={a.id} style={styles.gridRow}>
-                    <SavedLookCard
-                      testID="closet-card"
-                      imageUrl={a.thumbnailUri ?? a.imageUri}
-                      title={a.title}
-                      accessibilityLabel={`${a.title} Closet item. ${wearContextLabel(a)}`}
-                      subtitle={a.category ?? 'Owned item'}
-                      date={wearContextLabel(a)}
-                      status="Closet"
-                      onDelete={() => handleDeleteClosetItem(a.id)}
-                      {...closetOutfitAction(a.id)}
-                      style={{ width: CARD_W }}
-                      cornerAction={renderWoreThis(a)}
-                    />
-                    {b ? (
+                {closetRows.map((row) => (
+                  <View key={row[0].id} style={styles.gridRow}>
+                    {row.map((item: any) => (
                       <SavedLookCard
+                        key={item.id}
                         testID="closet-card"
-                        imageUrl={b.thumbnailUri ?? b.imageUri}
-                        title={b.title}
-                        accessibilityLabel={`${b.title} Closet item. ${wearContextLabel(b)}`}
-                        subtitle={b.category ?? 'Owned item'}
-                        date={wearContextLabel(b)}
+                        imageUrl={item.thumbnailUri ?? item.imageUri}
+                        title={item.title}
+                        accessibilityLabel={`${item.title} Closet item. ${wearContextLabel(item)}`}
+                        subtitle={item.category ?? 'Owned item'}
+                        date={wearContextLabel(item)}
                         status="Closet"
-                        onDelete={() => handleDeleteClosetItem(b.id)}
-                        {...closetOutfitAction(b.id)}
+                        onDelete={() => handleDeleteClosetItem(item.id)}
+                        {...closetOutfitAction(item.id)}
                         style={{ width: CARD_W }}
-                        cornerAction={renderWoreThis(b)}
+                        cornerAction={renderWoreThis(item)}
                       />
-                    ) : (
-                      <View style={{ width: CARD_W, minHeight: CARD_MIN_H }} />
-                    )}
+                    ))}
                   </View>
                 ))}
               </View>
@@ -942,37 +923,27 @@ export default function LibraryScreen() {
           </View>
         ) : (
           <View style={styles.grid}>
-            {scanPairs.map(([a, b]) => (
-              <View key={a.id} style={styles.gridRow}>
-                <SavedLookCard
-                  testID="scan-card"
-                  imageUrl={a.thumbnailUri}
-                  title={a.attributes.category || 'Scan'}
-                  accessibilityLabel={`${a.attributes.category || 'Scan'} Recent Scan`}
-                  subtitle={a.result}
-                  tags={[a.attributes.color_palette, a.attributes.silhouette].filter(Boolean) as string[]}
-                  date={formatDate(a.createdAt)}
-                  status="Scan"
-                  onPress={() => handleOpenScan(a)}
-                  onDelete={() => handleDeleteScan(a.id)}
-                  style={{ width: CARD_W }}
-                />
-                {b ? (
+            {scanRows.map((row) => (
+              <View key={row[0].id} style={styles.gridRow}>
+                {/* One render per card: the second card previously omitted
+                    testID="scan-card", so half the grid was invisible to any
+                    test selecting on it. */}
+                {row.map((scan) => (
                   <SavedLookCard
-                    imageUrl={b.thumbnailUri}
-                    title={b.attributes.category || 'Scan'}
-                    accessibilityLabel={`${b.attributes.category || 'Scan'} Recent Scan`}
-                    subtitle={b.result}
-                    tags={[b.attributes.color_palette, b.attributes.silhouette].filter(Boolean) as string[]}
-                    date={formatDate(b.createdAt)}
+                    key={scan.id}
+                    testID="scan-card"
+                    imageUrl={scan.thumbnailUri}
+                    title={scan.attributes.category || 'Scan'}
+                    accessibilityLabel={`${scan.attributes.category || 'Scan'} Recent Scan`}
+                    subtitle={scan.result}
+                    tags={[scan.attributes.color_palette, scan.attributes.silhouette].filter(Boolean) as string[]}
+                    date={formatDate(scan.createdAt)}
                     status="Scan"
-                    onPress={() => handleOpenScan(b)}
-                    onDelete={() => handleDeleteScan(b.id)}
+                    onPress={() => handleOpenScan(scan)}
+                    onDelete={() => handleDeleteScan(scan.id)}
                     style={{ width: CARD_W }}
                   />
-                ) : (
-                  <View style={{ width: CARD_W, minHeight: CARD_MIN_H }} />
-                )}
+                ))}
               </View>
             ))}
           </View>
@@ -1036,34 +1007,22 @@ export default function LibraryScreen() {
           </View>
         ) : (
           <View style={styles.grid}>
-            {inspirationPairs.map(([a, b]) => (
-              <View key={a.id} style={styles.gridRow}>
-                <SavedLookCard
-                  imageUrl={a.imageUrl}
-                  title={a.note || 'Inspiration'}
-                  subtitle="Upload"
-                  date={formatDate(a.createdAt)}
-                  status="Upload"
-                  onPress={dressingRoomsEnabled ? () => handleAddInspirationToRoom(a) : undefined}
-                  viewLabel="Add to Room"
-                  onDelete={() => handleDeleteInspiration(a.id)}
-                  style={{ width: CARD_W }}
-                />
-                {b ? (
+            {inspirationRows.map((row) => (
+              <View key={row[0].id} style={styles.gridRow}>
+                {row.map((item) => (
                   <SavedLookCard
-                    imageUrl={b.imageUrl}
-                    title={b.note || 'Inspiration'}
+                    key={item.id}
+                    imageUrl={item.imageUrl}
+                    title={item.note || 'Inspiration'}
                     subtitle="Upload"
-                    date={formatDate(b.createdAt)}
+                    date={formatDate(item.createdAt)}
                     status="Upload"
-                    onPress={dressingRoomsEnabled ? () => handleAddInspirationToRoom(b) : undefined}
+                    onPress={dressingRoomsEnabled ? () => handleAddInspirationToRoom(item) : undefined}
                     viewLabel="Add to Room"
-                    onDelete={() => handleDeleteInspiration(b.id)}
+                    onDelete={() => handleDeleteInspiration(item.id)}
                     style={{ width: CARD_W }}
                   />
-                ) : (
-                  <View style={{ width: CARD_W, minHeight: CARD_MIN_H }} />
-                )}
+                ))}
               </View>
             ))}
           </View>
