@@ -17,6 +17,7 @@ test('request builder exposes exactly the authoritative Closet entry paths', () 
     assert.equal(request.intent, 'identify_for_closet');
     assert.equal(request.mode, 'detect_items');
     assert.equal(request.source.entryPath, entryPath);
+    assert.equal(request.source.platform, 'android');
     assert.equal(request.evidence[0].transport.imageBase64, IMAGE);
   }
 });
@@ -64,9 +65,9 @@ test('positive response fails on missing V2 evidence or any commerce result', ()
 });
 
 test('hostile near-miss passes only for the exact validator rejection', () => {
-  assert.equal(probe.inspectNegativeResponse(400, { code: 'invalid_source' }).rejected, true);
-  assert.equal(probe.inspectNegativeResponse(200, { code: 'invalid_source' }).rejected, false);
-  assert.equal(probe.inspectNegativeResponse(400, { code: 'invalid_intent' }).rejected, false);
+  assert.equal(probe.inspectNegativeResponse(400, { error: { code: 'INVALID_SOURCE' } }).rejected, true);
+  assert.equal(probe.inspectNegativeResponse(200, { error: { code: 'INVALID_SOURCE' } }).rejected, false);
+  assert.equal(probe.inspectNegativeResponse(400, { error: { code: 'INVALID_INTENT' } }).rejected, false);
 });
 
 test('URL is literal scan-identify and cannot be redirected by input', () => {

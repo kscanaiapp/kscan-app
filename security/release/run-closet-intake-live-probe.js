@@ -74,7 +74,9 @@ function buildClosetRequest(entryPath, imageBase64, ids = {}) {
     requestId,
     intent: 'identify_for_closet',
     mode: 'detect_items',
-    source: { entryPath, platform: 'ci' },
+    // Match a real mobile client value. The backend intentionally refuses
+    // synthetic platform names such as "ci" as an invalid source.
+    source: { entryPath, platform: 'android' },
     evidence: [
       {
         evidenceId,
@@ -131,11 +133,11 @@ function inspectPositiveResponse(httpStatus, body, expected) {
 }
 
 function inspectNegativeResponse(httpStatus, body) {
-  const code = typeof body?.code === 'string' ? body.code : null;
+  const code = typeof body?.error?.code === 'string' ? body.error.code : null;
   return {
     httpStatus,
     code,
-    rejected: httpStatus === 400 && code === 'invalid_source',
+    rejected: httpStatus === 400 && code === 'INVALID_SOURCE',
   };
 }
 
