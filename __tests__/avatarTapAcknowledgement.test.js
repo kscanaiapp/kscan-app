@@ -208,3 +208,90 @@ test('header wiring: pressable avatar only with the flag on, with role, label, a
   assert.match(hook, /clearTimeout\(revertTimerRef\.current\)/, 'expression revert timer is cleaned up');
   assert.match(hook, /return \(\) => \{/, 'unmount cleanup exists');
 });
+
+/* ------------------------------------------------------------------ */
+/* KSB29-M01 — repeated taps must keep working                         */
+/* ------------------------------------------------------------------ */
+
+/** The same stack, with a controllable clock so reaction expiry is exact. */
+function loadStackWithClock() {
+  const contract = transpileModule('services/avatarMotionState.ts', {});
+  const controllerModule = transpileModule('services/avatarMotionController.ts', {
+    './avatarMotionState': contract,
+  });
+  let nowMs = 10_000;
+  const controller = controllerModule.createAvatarMotionController({
+    clock: () => nowMs,
+    capabilities: FULL_CAPABILITIES,
+  });
+  const acknowledgement = transpileModule('services/avatarAcknowledgement.ts', {
+    './avatarMotionController': {
+      ...controllerModule,
+      getSharedAvatarMotionController: () => controller,
+    },
+  });
+  acknowledgement.resetAvatarAcknowledgementForTests();
+  return {
+    acknowledgement,
+    controller,
+    controllerModule,
+    advance: (ms) => { nowMs += ms; },
+    now: () => nowMs,
+  };
+}
+
+test('KSB29-M01: a second tap is acknowledged once the reaction has expired', () => {
+  const { acknowledgement, controller, advance, now } = loadStackWithClock();
+
+  assert.equal(
+    acknowledgement.acknowledgeAvatarTap({ nowMs: now(), reducedMotion: false }),
+    'acknowledged',
+    'the first tap must be acknowledged',
+  );
+
+  // THE DEFECT: `reacting` self-expires against the clock but nothing writes
+  // the stored mode back, so `getSnapshot().mode` stays 'reacting' forever.
+  // Reading it made every later tap 'busy' -- the feature worked exactly once
+  // per app run.
+  advance(5_000); // past both the 700ms reaction and the 2500ms cooldown
+  assert.equal(controller.getSnapshot().mode, 'reacting', 'the stored mode is still stale');
+  assert.equal(
+    controller.getEffectiveMode(),
+    'idle',
+    'but the EFFECTIVE mode has returned to idle',
+  );
+
+  assert.equal(
+    acknowledgement.acknowledgeAvatarTap({ nowMs: now(), reducedMotion: false }),
+    'acknowledged',
+    'a later tap must be acknowledged again',
+  );
+});
+
+test('KSB29-M01: a tap DURING the reaction is still refused', () => {
+  // The exemption must not become "always allow". While the reaction is genuinely
+  // running, a tap is still busy -- an acknowledgement may not preempt itself.
+  const { acknowledgement, advance, now } = loadStackWithClock();
+  assert.equal(
+    acknowledgement.acknowledgeAvatarTap({ nowMs: now(), reducedMotion: false }),
+    'acknowledged',
+  );
+  advance(300); // inside the 700ms reaction
+  assert.equal(
+    acknowledgement.acknowledgeAvatarTap({ nowMs: now(), reducedMotion: false }),
+    'busy',
+  );
+});
+
+test('KSB29-M01: speaking and thinking still refuse a tap after expiry logic', () => {
+  // Reaction expiry must not have weakened the genuine priority states: a tap
+  // may never interrupt speech.
+  const { acknowledgement, controller, advance, now } = loadStackWithClock();
+  controller.requestMode('thinking');
+  advance(5_000);
+  assert.equal(
+    acknowledgement.acknowledgeAvatarTap({ nowMs: now(), reducedMotion: false }),
+    'busy',
+    'thinking is not a self-expiring state and must still refuse',
+  );
+});

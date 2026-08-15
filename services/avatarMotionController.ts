@@ -99,6 +99,20 @@ export interface IdleMicroMotionPlan {
 
 export interface AvatarMotionController {
   getSnapshot(): AvatarMotionState;
+  /**
+   * The mode as it is RIGHT NOW, with a finished reaction already expired.
+   *
+   * KSB29-M01. `reacting` self-expires against the injected clock rather than
+   * against a scheduled timer, so `getSnapshot().mode` keeps reporting
+   * `reacting` long after the reaction is over — nothing writes the state back
+   * to idle. The controller already computed this internally; it was simply
+   * never exposed, so every caller that asked "is Elise busy?" got a stale yes.
+   * That is what made a second tap do nothing.
+   *
+   * Callers deciding whether an interaction may run must use this, not
+   * `getSnapshot().mode`.
+   */
+  getEffectiveMode(): AvatarMotionMode;
   subscribe(listener: () => void): () => void;
   /** Request a schedulable mode. Returns true when the transition applied. */
   requestMode(mode: 'idle' | 'listening' | 'thinking' | 'reacting', generation?: number): boolean;
@@ -241,6 +255,10 @@ export function createAvatarMotionController(
   return {
     getSnapshot() {
       return state;
+    },
+
+    getEffectiveMode() {
+      return effectiveMode();
     },
 
     subscribe(listener) {

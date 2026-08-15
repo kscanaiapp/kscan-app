@@ -68,7 +68,11 @@ export function acknowledgeAvatarTap(
   input: AcknowledgeAvatarTapInput,
 ): AcknowledgementOutcome {
   const controller = getSharedAvatarMotionController();
-  const mode = controller.getSnapshot().mode;
+  // KSB29-M01: the EFFECTIVE mode, so a finished reaction no longer counts as
+  // busy. Reading the raw stored mode meant the first tap left `reacting`
+  // latched forever and every later tap returned 'busy' — the feature worked
+  // exactly once per app run.
+  const mode = controller.getEffectiveMode();
   if (mode !== 'idle' && mode !== 'listening') return 'busy';
   if (
     lastAcknowledgedAtMs !== null &&

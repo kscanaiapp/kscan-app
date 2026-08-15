@@ -166,11 +166,13 @@ export function useAvatarMotionMode(): AvatarMotionMode {
     AVATAR_MOTION_V1_ENABLED
       ? (listener: () => void) => getSharedAvatarMotionController().subscribe(listener)
       : noopSubscribe,
+    // KSB29-M01: the effective mode, so the UI sees a reaction end rather than
+    // holding `reacting` until some other transition happens to overwrite it.
     AVATAR_MOTION_V1_ENABLED
-      ? () => getSharedAvatarMotionController().getSnapshot().mode
+      ? () => getSharedAvatarMotionController().getEffectiveMode()
       : getIdleMode,
     AVATAR_MOTION_V1_ENABLED
-      ? () => getSharedAvatarMotionController().getSnapshot().mode
+      ? () => getSharedAvatarMotionController().getEffectiveMode()
       : getIdleMode,
   );
 }
