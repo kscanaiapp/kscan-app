@@ -486,6 +486,18 @@ test('a negative scenario FAILS when foreign room evidence actually resolves', (
   assert.equal(verdict.reason, 'FOREIGN_ROOM_RESOLVED');
 });
 
+test('foreign-item diagnostics expose nouns only and never model prose', () => {
+  const diagnostics = matrix.groundingDiagnostics(
+    'FOREIGN_ITEM_ASSERTED',
+    { text: 'The belt works with the coat. Keep the belt.' },
+    ROOM_ITEMS,
+  );
+
+  assert.deepEqual(diagnostics, { foreignItemNouns: ['coat', 'belt'] });
+  assert.equal(JSON.stringify(diagnostics).includes('works with'), false);
+  assert.deepEqual(matrix.groundingDiagnostics('OK', { text: 'private prose' }, ROOM_ITEMS), {});
+});
+
 test('the probe paces model requests under the burst limit', () => {
   const fs = require('node:fs');
   const path = require('node:path');
