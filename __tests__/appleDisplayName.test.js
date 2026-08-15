@@ -172,33 +172,62 @@ test('the name is never persisted on device and never logged', () => {
   assert.ok(!/console\.(log|info|warn|error|debug)/.test(source), 'the name must never be logged');
 });
 
-test('the auth screen captures the Apple name and traces only a status word', () => {
-  const screen = readSource('app/auth/index.tsx');
+test('the shared Apple path captures the name and traces only a status word', () => {
+  // DEF-005 moved the flow into services/appleSignIn, shared by the auth screen
+  // and onboarding, so capture now reaches BOTH surfaces from one place.
+  const service = readSource('services/appleSignIn.ts');
 
   assert.ok(
-    /captureAppleDisplayName\(/.test(screen),
-    'the Apple handler must capture the first-authorization name',
+    /captureAppleDisplayName\(/.test(service),
+    'the Apple path must capture the first-authorization name',
   );
   assert.ok(
-    /credential\.fullName/.test(screen),
+    /credential\.fullName/.test(service),
     'the name must come from the Apple credential itself',
   );
   // The signed-in user has to be threaded through, otherwise the
   // already-has-a-name guard can never see an existing name.
   assert.ok(
-    /data: signInData[\s\S]{0,400}?signInWithIdToken/.test(screen),
+    /const \{ data, error \}[\s\S]{0,200}?signInWithIdToken/.test(service),
     'the signed-in user must be captured from signInWithIdToken',
   );
   assert.ok(
-    /appleDisplayName: displayNameOutcome/.test(screen),
-    'only the outcome status word may be traced',
+    /captureAppleDisplayName\(data\?\.user \?\? null/.test(service),
+    'capture must run against the user the session just produced',
   );
+
+  // Each surface traces the outcome word, and only the outcome word.
+  for (const screen of ['app/auth/index.tsx', 'app/onboarding/index.tsx']) {
+    const source = readSource(screen);
+    assert.ok(
+      /appleDisplayName: result\.displayName/.test(source),
+      `only the outcome status word may be traced (${screen})`,
+    );
+    // The Apple credential's name must never be handled by a screen. (Plain
+    // `fullName` is legitimate elsewhere — onboarding's email sign-up form
+    // collects one — so this pins the credential field specifically.)
+    assert.ok(
+      !/credential\.fullName/.test(source) && !/captureAppleDisplayName/.test(source),
+      `the raw Apple credential name must never reach the screen (${screen})`,
+    );
+  }
 });
 
 test('Apple sign-in cancellation stays cancellation, not an auth failure', () => {
-  const screen = readSource('app/auth/index.tsx');
+  const service = readSource('services/appleSignIn.ts');
   assert.ok(
-    /ERR_REQUEST_CANCELED[\s\S]{0,200}?[Cc]ancelled/.test(screen),
-    'a user-cancelled Apple sheet must not be reported as a sign-in failure',
+    /ERR_REQUEST_CANCELED[\s\S]{0,200}?status: 'cancelled'/.test(service),
+    'a dismissed Apple sheet must be classified as cancellation, not failure',
+  );
+  // ...and both surfaces must render it as cancellation rather than an error.
+  assert.ok(
+    /status === 'cancelled'[\s\S]{0,120}Sign-in cancelled\./.test(readSource('app/auth/index.tsx')),
+    'the auth screen must render cancellation as cancellation',
+  );
+  assert.ok(
+    /status === 'cancelled'[\s\S]{0,120}Sign-in cancelled\./.test(
+      readSource('app/onboarding/index.tsx'),
+    ),
+    'onboarding must render cancellation as cancellation',
   );
 });

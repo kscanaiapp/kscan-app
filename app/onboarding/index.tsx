@@ -46,6 +46,7 @@ import { AUTH_CALLBACK_URL } from '../../services/authConfig';
 import { parseAuthCallbackUrl } from '../../services/authDeepLink';
 import { completeOAuthCallbackSession } from '../../services/oauthCallbackSession';
 import { traceAuthLifecycle } from '../../services/authLifecycleTrace';
+import { performAppleSignIn } from '../../services/appleSignIn';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -80,6 +81,7 @@ export default function OnboardingScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
+  const [appleBusy, setAppleBusy] = useState(false);
   const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
   const resumeHandledRef = useRef(false);
   const authResumeKeyRef = useRef<string | null>(null);
@@ -335,6 +337,53 @@ export default function OnboardingScreen() {
     }
   }, [continueAuthenticatedFlow]);
 
+  // ── Apple sign-in handler (used from onboarding auth-choice step) ───────────
+
+  /**
+   * DEF-005: this control used to be `onContinueApple={goToAuth}` — pure
+   * navigation, so the first tap opened no Apple sheet and only moved the user
+   * to a second screen to press Apple again. Onboarding is the primary
+   * unauthenticated surface (`app/_layout.tsx` rewrites `/auth` redirects
+   * here), so that no-op was the path a reviewer was most likely to take.
+   *
+   * The flow itself is the shared service, identical to the one the sign-in
+   * screen runs, so nonce handling, the credential handoff and Apple's one-time
+   * fullName capture cannot drift between the two surfaces again.
+   */
+  const handleAppleSignIn = useCallback(async () => {
+    setCreateError(null);
+    setConfirmationEmail(null);
+    setAppleBusy(true);
+
+    const result = await performAppleSignIn();
+
+    if (result.status === 'signed-in') {
+      traceAuthLifecycle('onboarding-apple-session-establishment', {
+        outcome: 'accepted',
+        sessionPresent: true,
+        // Status words only. Neither the authorization code nor the name is traced.
+        appleCredentialLink: result.credentialLink,
+        appleDisplayName: result.displayName,
+      });
+      // Same post-auth continuation the email and Google paths use, so Apple
+      // lands in the canonical onboarding routing rather than its own.
+      await continueAuthenticatedFlow(result.userId);
+      setAppleBusy(false);
+      return;
+    }
+
+    if (result.status === 'cancelled') {
+      setCreateError('Sign-in cancelled.');
+    } else if (result.status === 'unavailable') {
+      setCreateError('Apple sign-in is available on iOS devices.');
+    } else if (result.reason === 'network') {
+      setCreateError('Network error. Please try again.');
+    } else {
+      setCreateError('We could not complete Apple sign-in. Please try again.');
+    }
+    setAppleBusy(false);
+  }, [continueAuthenticatedFlow]);
+
   // ── Step 4: Accept & Continue handler ───────────────────────────────────
 
   const handleAcceptAndContinue = useCallback(async () => {
@@ -381,11 +430,12 @@ export default function OnboardingScreen() {
     <AccountSetupStepV1
       onContinueEmail={goToNext}
       onContinueGoogle={handleGoogleSignIn}
-      onContinueApple={goToAuth}
+      onContinueApple={handleAppleSignIn}
       onGoToLogin={goToAuth}
       appleAvailable={Platform.OS === 'ios'}
       error={createError}
       googleBusy={googleBusy}
+      appleBusy={appleBusy}
     />
   );
 
