@@ -53,6 +53,54 @@ the platform adds it implicitly on Android 16, so there is nothing to remove.
 `ACCESS_NETWORK_STATE` and `MODIFY_AUDIO_SETTINGS` are normal permissions with real
 consumers and are retained.
 
+## 3a. Merged-manifest proof after repair
+
+`:app:processReleaseMainManifest` was run locally against the repaired tree (Gradle 8.14.3,
+AGP release variant; **not** an EAS build). The resulting merged release manifest declares:
+
+```text
+uses-permission: android.permission.ACCESS_COARSE_LOCATION
+uses-permission: android.permission.ACCESS_NETWORK_STATE
+uses-permission: android.permission.CAMERA
+uses-permission: android.permission.INTERNET
+uses-permission: android.permission.MODIFY_AUDIO_SETTINGS
+uses-permission: android.permission.VIBRATE
+uses-permission: com.kscanai.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION   (React Native internal)
+
+foregroundServiceType occurrences: 0
+android:allowBackup="false"
+android:icon="@mipmap/ic_launcher"  android:roundIcon="@mipmap/ic_launcher_round"
+MainActivity android:screenOrientation="unspecified"
+/rooms intent-filters: 1        autoVerify intent-filters: 2
+```
+
+Absent from the merged output: `AudioControlsService`, `AudioRecordingService`,
+`LocationTaskService`, `FOREGROUND_SERVICE`, `USE_BIOMETRIC`, `USE_FINGERPRINT`,
+`READ_MEDIA_IMAGES`, `RECORD_AUDIO`, `ACCESS_FINE_LOCATION`, `AD_ID`, `POST_NOTIFICATIONS`.
+
+The merge genuinely included library manifests — five Play Services, CameraX, ML Kit and
+datatransport services survive, none with a `foregroundServiceType` — so the absences are
+real removals rather than a merge that never consumed dependencies.
+
+This moves the permission and foreground-service contract from `CONFIG_VERIFIED` to
+`MERGED_MANIFEST_VERIFIED`.
+
+### Local release-validation environment requirement
+
+Local Gradle release validation requires `SENTRY_DISABLE_AUTO_UPLOAD=true`. Without it the
+`@sentry/react-native` Gradle hook attempts a source-map upload and fails because no local
+`sentry-cli` auth token is configured. The production EAS profiles already set the disable
+flag, so **no Build 29 source or release-config repair is required**:
+
+```text
+LOCAL_RELEASE_BUILD_WITHOUT_SENTRY_ENV   EXPECTED FAILURE / ENVIRONMENT REQUIREMENT
+EAS PRODUCTION BUILD PATH                UNAFFECTED
+SOURCE CHANGE REQUIRED                   NO
+```
+
+That task also writes `android/app/src/main/assets/modules.json` into the source tree. It
+is validation debris: delete it rather than committing it.
+
 ## 4. Repair ledger
 
 | ID | Severity | Surface | Finding | Disposition |
@@ -114,8 +162,8 @@ Build 28's `withAndroidPermissionBlocklist` was **not** forward-ported: it only 
 ```text
 SHARED SOURCE AUTHORITY             VERIFIED
 ANDROID MANIFEST                    PASS
-ANDROID PERMISSION SET              PASS
-FOREGROUND SERVICE CONFIG           PASS
+ANDROID PERMISSION SET              PASS (MERGED_MANIFEST_VERIFIED)
+FOREGROUND SERVICE CONFIG           PASS (MERGED_MANIFEST_VERIFIED)
 ANDROID PORTRAIT BEHAVIOR           NOT_A_DEFECT (adaptive orientation retained by owner decision)
 ANDROID ADAPTIVE ICON               PASS
 ANDROID MONOCHROME ICON             PASS
@@ -164,6 +212,8 @@ classified rather than forked on this branch.
 FOCUSED ANDROID SUITES              53/53 PASS
 FULL CLOSURE SUITE                  6493 tests, 6434 pass, 0 fail, 59 skipped
 PREBUILD CONVERGENCE                AndroidManifest.xml regenerates with zero drift
+MERGED RELEASE MANIFEST              0 foreground services, 0 foregroundServiceType,
+                                    6 real permissions, no biometric declarations
 ```
 
 New Android regression suites: `androidNativeDeclarationContract`, `androidLauncherIcon`,
