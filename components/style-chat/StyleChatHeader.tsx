@@ -17,7 +17,10 @@ import { useStylistIdentity } from '../../hooks/useStylistIdentity';
 import { AnimatedStylistAvatar } from '../stylist/AnimatedStylistAvatar';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useAvatarMotionState } from '../../hooks/useAvatarMotionState';
-import { useAvatarMotionMode } from '../../hooks/useAvatarConversationMotion';
+import {
+  useAvatarMotionExpression,
+  useAvatarMotionMode,
+} from '../../hooks/useAvatarConversationMotion';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
 import {
   decideMotionAnnouncement,
@@ -83,19 +86,29 @@ export function StyleChatHeader({
   const displayName = identity.displayName;
   const headerAccessibilityLabel = `${displayName}, ${ELISE_IDENTITY.role}`;
 
-  let avatarState: 'idle' | 'listening' | 'thinking' | 'speaking' = 'idle';
+  const conversationExpression = useAvatarMotionExpression();
+
+  let avatarState: 'idle' | 'listening' | 'thinking' | 'speaking' | 'reacting' = 'idle';
   if (isSpeaking) {
     avatarState = 'speaking';
   } else if (isThinking || conversationMode === 'thinking') {
     avatarState = 'thinking';
   } else if (conversationMode === 'listening') {
     avatarState = 'listening';
+  } else if (conversationMode === 'reacting') {
+    // KSB29-M02. There was no branch for this at all, so a tap set `reacting`
+    // and the renderer silently kept showing idle. Ordered AFTER speaking and
+    // thinking so an acknowledgement can never mask a higher-priority state.
+    avatarState = 'reacting';
   }
 
   // Textual equivalent for every semantic state. This is the accessible
   // channel: it exists with motion on, with motion off, and under Reduce
   // Motion, and it never describes playback frames or mouth changes.
-  const statusMode: AvatarMotionMode = avatarState;
+  // The ACCESSIBLE status stays idle during a reaction: the acknowledgement is a
+  // brief visual courtesy, and announcing it would interrupt a screen-reader
+  // user mid-sentence for something that conveys no state change.
+  const statusMode: AvatarMotionMode = avatarState === 'reacting' ? 'idle' : avatarState;
   const statusText = getAvatarMotionStatusText({ mode: statusMode, stylistName: displayName });
   const lastAnnouncedRef = useRef<AvatarMotionMode | null>(null);
   useEffect(() => {
@@ -146,6 +159,7 @@ export function StyleChatHeader({
               size={67}
               state={avatarState}
               mouthState={mouthState}
+              expression={conversationExpression}
               reducedMotion={reducedMotion}
               accessibilityLabel={`${displayName} avatar`}
             />
@@ -161,6 +175,7 @@ export function StyleChatHeader({
               size={67}
               state={avatarState}
               mouthState={mouthState}
+              expression={conversationExpression}
               reducedMotion={reducedMotion}
               accessibilityLabel={`${displayName} avatar`}
             />

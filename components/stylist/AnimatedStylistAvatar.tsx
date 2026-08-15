@@ -42,6 +42,14 @@ export type AnimatedStylistAvatarState =
   | 'listening'
   | 'thinking'
   | 'speaking'
+  /**
+   * KSB29-M02. The brief tap acknowledgement. It shares idle's calm
+   * presentation -- no louder motion -- and is visible through the brow layer:
+   * `resolveBrowState` already turns ('warm', 'reacting') into a raise. Without
+   * this member the header had no way to report the state at all, so the
+   * acknowledgement was computed and then thrown away.
+   */
+  | 'reacting'
   | 'static';
 
 export interface AnimatedStylistAvatarProps {

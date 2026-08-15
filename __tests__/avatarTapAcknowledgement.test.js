@@ -295,3 +295,79 @@ test('KSB29-M01: speaking and thinking still refuse a tap after expiry logic', (
     'thinking is not a self-expiring state and must still refuse',
   );
 });
+
+/* ------------------------------------------------------------------ */
+/* KSB29-M02 — the acknowledgement must be OBSERVABLE                  */
+/* ------------------------------------------------------------------ */
+
+test('KSB29-M02: a tap produces a visible brow change through the real rules', () => {
+  const { acknowledgement, controller, now } = loadStackWithClock();
+  const contract = transpileModule('services/avatarMotionState.ts', {});
+  const rules = transpileModule('services/avatarExpressionRules.ts', {
+    './avatarMotionState': contract,
+  });
+
+  // Before the tap: nothing to show.
+  assert.equal(
+    rules.resolveBrowState('neutral', 'idle', FULL_CAPABILITIES, false),
+    'neutral',
+  );
+
+  acknowledgement.acknowledgeAvatarTap({ nowMs: now(), reducedMotion: false });
+
+  // The controller now holds the pair the expression rules already understood.
+  const snapshot = controller.getSnapshot();
+  assert.equal(snapshot.mode, 'reacting');
+  assert.equal(snapshot.expression, 'warm');
+
+  // THE POINT OF M02: that pair renders as something the user can see. The rule
+  // existed all along; the header delivered neither value, so the tap was
+  // computed and thrown away.
+  assert.equal(
+    rules.resolveBrowState(snapshot.expression, snapshot.mode, FULL_CAPABILITIES, false),
+    'raised',
+    'the acknowledgement must be visible, not merely recorded',
+  );
+});
+
+test('KSB29-M02: the header reports both the reacting state and the expression', () => {
+  const header = fs.readFileSync(
+    path.join(ROOT, 'components', 'style-chat', 'StyleChatHeader.tsx'),
+    'utf8',
+  );
+
+  // Without a `reacting` branch the renderer silently kept showing idle.
+  assert.match(header, /conversationMode === 'reacting'/);
+  assert.match(header, /avatarState = 'reacting'/);
+
+  // ...and without the expression the brow rule could never fire.
+  assert.match(header, /useAvatarMotionExpression/);
+  const expressionProps = header.match(/expression=\{conversationExpression\}/g) || [];
+  assert.equal(expressionProps.length, 2, 'both avatar renders must carry the expression');
+
+  // Priority is preserved: an acknowledgement may not mask speech or thinking.
+  const speakingIndex = header.indexOf("avatarState = 'speaking'");
+  const thinkingIndex = header.indexOf("avatarState = 'thinking'");
+  const reactingIndex = header.indexOf("avatarState = 'reacting'");
+  assert.ok(speakingIndex < reactingIndex && thinkingIndex < reactingIndex);
+});
+
+test('KSB29-M02: a reaction is not announced to assistive technology', () => {
+  // The acknowledgement is a brief visual courtesy. Announcing it would
+  // interrupt a screen-reader user mid-sentence to report no state change.
+  const header = fs.readFileSync(
+    path.join(ROOT, 'components', 'style-chat', 'StyleChatHeader.tsx'),
+    'utf8',
+  );
+  assert.match(header, /avatarState === 'reacting' \? 'idle' : avatarState/);
+});
+
+test('KSB29-M02: Reduce Motion still yields no expression change', () => {
+  // Unchanged contract: under Reduce Motion the semantic event fires and the
+  // UI announces it textually, but no motion or expression is set.
+  const { acknowledgement, controller, now } = loadStackWithClock();
+  acknowledgement.acknowledgeAvatarTap({ nowMs: now(), reducedMotion: true });
+  const snapshot = controller.getSnapshot();
+  assert.equal(snapshot.mode, 'idle');
+  assert.equal(snapshot.expression, 'neutral');
+});

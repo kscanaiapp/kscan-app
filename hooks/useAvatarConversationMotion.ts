@@ -9,7 +9,7 @@ import {
   ensureAvatarSpeechLifecycleListener,
   registerAvatarInterruptionHandler,
 } from '../services/avatarSpeechLifecycle';
-import type { AvatarMotionMode } from '../services/avatarMotionState';
+import type { AvatarExpressionMode, AvatarMotionMode } from '../services/avatarMotionState';
 import {
   getAvatarMotionSnapshot,
   subscribeToAvatarMotion,
@@ -30,6 +30,10 @@ const noopSubscribe = () => () => {};
 
 function getIdleMode(): AvatarMotionMode {
   return 'idle';
+}
+
+function getNeutralExpression(): AvatarExpressionMode {
+  return 'neutral';
 }
 
 /**
@@ -161,6 +165,31 @@ export function useAvatarConversationMotion({
  * Constant idle when the motion flag is off — no controller subscription is
  * created in the fail-closed configuration.
  */
+/**
+ * The avatar's current semantic expression.
+ *
+ * KSB29-M02. `acknowledgeAvatarTap` sets `reacting` + a `warm` expression, and
+ * `resolveBrowState` already turns exactly that pair into a visible brow raise
+ * -- but the header passed neither to the renderer, so the acknowledgement
+ * produced no observable change and the UI's promise ("Elise gives a brief
+ * acknowledgement") went unmet. This is the missing read.
+ *
+ * Fails closed with the motion flag off, exactly like `useAvatarMotionMode`.
+ */
+export function useAvatarMotionExpression(): AvatarExpressionMode {
+  return useSyncExternalStore(
+    AVATAR_MOTION_V1_ENABLED
+      ? (listener: () => void) => getSharedAvatarMotionController().subscribe(listener)
+      : noopSubscribe,
+    AVATAR_MOTION_V1_ENABLED
+      ? () => getSharedAvatarMotionController().getSnapshot().expression
+      : getNeutralExpression,
+    AVATAR_MOTION_V1_ENABLED
+      ? () => getSharedAvatarMotionController().getSnapshot().expression
+      : getNeutralExpression,
+  );
+}
+
 export function useAvatarMotionMode(): AvatarMotionMode {
   return useSyncExternalStore(
     AVATAR_MOTION_V1_ENABLED

@@ -201,6 +201,10 @@ function loadHeaderStack() {
       // Motion mode is flag-gated elsewhere; hold it constant so this suite
       // isolates playback-driven rerenders.
       useAvatarMotionMode: () => 'idle',
+      // KSB29-M02: the header now also reads the semantic expression so a tap
+      // acknowledgement is visible. Held constant here for the same reason the
+      // mode is -- this suite isolates playback-driven rerenders.
+      useAvatarMotionExpression: () => 'neutral',
     },
     '../../contexts/AuthSessionContext': {
       useAuthSession: () => ({ user: { id: 'actor-1' } }),
