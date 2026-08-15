@@ -211,7 +211,17 @@ test('scan landing: TextScan button uses textscan icon, keeps handler + label', 
   assert.match(SCAN_LANDING, /\{textScanEnabled && \(/);
   // Row layout added so the icon and label stay aligned and centered.
   assert.match(SCAN_LANDING, /textScanButton:\s*\{[\s\S]*?flexDirection: 'row'/);
-  assert.match(SCAN_LANDING, /textScanButton:\s*\{[\s\S]*?minHeight: 44/);
+  // UPDATED WITH THE SOURCE (Wave 5). This pinned `minHeight: 44`, which is
+  // below Android's 48dp minimum — the accessibility contract requires >= 48,
+  // so the literal 44 was pinning the defect. What matters here is that the
+  // control still DECLARES a target at all; the exact floor is owned by
+  // phase4AccessibilityContracts.test.js.
+  const textScanMin = /textScanButton:\s*\{[\s\S]*?minHeight:\s*(\d+)/.exec(SCAN_LANDING);
+  assert.ok(textScanMin, 'textScanButton must declare a minHeight');
+  assert.ok(
+    Number(textScanMin[1]) >= 48,
+    `textScanButton declares ${textScanMin[1]}, below the 48dp minimum`,
+  );
 });
 
 test('live camera: TextScan pill uses textscan icon, keeps handler + label', () => {
