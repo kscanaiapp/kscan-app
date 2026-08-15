@@ -1120,3 +1120,60 @@ test('telemetry: counts are bucketed at every boundary', () => {
   assert.equal(adapter.bucketCount(null), null);
   assert.equal(adapter.bucketCount(-1), null);
 });
+
+/* ------------------------------------------------------------------ */
+/* KSB29-004 — scanner requests must report the real platform          */
+/* ------------------------------------------------------------------ */
+
+test('KSB29-004: scanner identification reports the runtime platform, not a hardcoded one', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const vm = require('node:vm');
+  const root = path.resolve(__dirname, '..');
+  const source = fs.readFileSync(path.join(root, 'hooks', 'useKScan.js'), 'utf8');
+
+  // Both scanner call sites sent `platform: 'ios'` unconditionally, so every
+  // Android scan reported itself as iOS. It rarely breaks a scan, which is why
+  // it survived -- but it corrupts analytics, attribution, and the
+  // platform-specific evidence used to diagnose scanner regressions.
+  assert.doesNotMatch(
+    source,
+    /platform:\s*'ios'/,
+    'no scanner request may hardcode a platform',
+  );
+
+  const callSites = source.match(/platform:\s*currentIdentificationPlatform\(\)/g) || [];
+  assert.equal(callSites.length, 2, 'both identification call sites must resolve at runtime');
+
+  // Execute the real resolver under each platform rather than asserting its
+  // shape from source: what matters is the value the request actually carries.
+  const body = source.slice(
+    source.indexOf('function currentIdentificationPlatform()'),
+  );
+  const fnSource = body.slice(0, body.indexOf('\n}') + 2);
+
+  const resolveFor = (os) => {
+    const sandbox = { Platform: { OS: os } };
+    vm.createContext(sandbox);
+    return new vm.Script(`${fnSource}; currentIdentificationPlatform();`).runInContext(sandbox);
+  };
+
+  assert.equal(resolveFor('android'), 'android', 'an Android scan must report android');
+  assert.equal(resolveFor('ios'), 'ios', 'an iOS scan must still report ios');
+  // Unknown platforms degrade rather than being asserted as iOS.
+  assert.equal(resolveFor('web'), 'other');
+  assert.equal(resolveFor('windows'), 'other');
+
+  // And every value it can produce must be one the server contract accepts.
+  const contract = fs.readFileSync(
+    path.join(root, 'types', 'fashionIdentificationV2.ts'),
+    'utf8',
+  );
+  for (const platform of ['android', 'ios', 'other']) {
+    assert.match(
+      contract,
+      new RegExp(`'${platform}'`),
+      `FASHION_IDENTIFICATION_PLATFORMS must accept '${platform}'`,
+    );
+  }
+});

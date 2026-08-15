@@ -1,5 +1,25 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { AccessibilityInfo } from 'react-native';
+import { AccessibilityInfo, Platform } from 'react-native';
+
+/**
+ * The platform this request is actually running on.
+ *
+ * KSB29-004: both scanner identification call sites hardcoded `'ios'`, so every
+ * Android scan reported itself as iOS. It does not usually break a scan, which
+ * is why it survived — but it silently corrupts analytics, attribution, and the
+ * platform-specific operational evidence used to diagnose scanner regressions.
+ * The server contract (FASHION_IDENTIFICATION_PLATFORMS) has always accepted
+ * 'android'.
+ *
+ * Resolved through one helper rather than inline at each call site, so the two
+ * cannot drift apart again. Anything that is not a platform the contract knows
+ * about degrades to 'other' rather than being asserted as iOS.
+ */
+function currentIdentificationPlatform() {
+  if (Platform.OS === 'android') return 'android';
+  if (Platform.OS === 'ios') return 'ios';
+  return 'other';
+}
 import * as Crypto from 'expo-crypto';
 import * as ImagePicker from 'expo-image-picker';
 import { SCAN_IDENTIFY_BACKEND_ENABLED } from '../constants/featureFlags';
@@ -585,7 +605,7 @@ export function useKScan() {
         const outcome = await runScannerIdentification({
           mode: 'detect_items',
           evidence,
-          platform: 'ios',
+          platform: currentIdentificationPlatform(),
           requestId: createEvidenceId(),
           sessionFlag: scannerV2SessionRef.current,
           legacyCorrelation: {
@@ -761,7 +781,7 @@ export function useKScan() {
       const outcome = await runScannerIdentification({
         mode: 'identify_selected_item',
         evidence,
-        platform: 'ios',
+        platform: currentIdentificationPlatform(),
         requestId: createEvidenceId(),
         sessionFlag: scannerV2SessionRef.current,
         selectedCandidate: {
