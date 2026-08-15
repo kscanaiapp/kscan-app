@@ -83,6 +83,22 @@ function groundingReason(response, manifestItems, roomKind) {
   return null;
 }
 
+/**
+ * Sanitized diagnostics for a failed grounding assertion.
+ *
+ * The live evidence bundle must never contain model prose. A noun-only list is
+ * enough to distinguish a real invented-garment failure from a classifier
+ * vocabulary defect without leaking the response or fixture metadata.
+ */
+function groundingDiagnostics(reason, response, manifestItems) {
+  if (reason !== 'FOREIGN_ITEM_ASSERTED') return {};
+  return {
+    foreignItemNouns: [...new Set(
+      assertions.detectForeignItems(response.text, manifestItems).map((entry) => entry.noun),
+    )],
+  };
+}
+
 /** The eight required owned-room reasoning scenarios. */
 const OWNED_ROOM_SCENARIOS = Object.freeze([
   { id: 'compatibility', prompt: 'Do these pieces work together?' },
@@ -118,6 +134,7 @@ async function runOwnedRoomMatrix(ask, items) {
         httpStatus: response.httpStatus,
         latencyMs: response.elapsedMs,
         rejectionSnippet: response.rejectionSnippet ?? null,
+        ...groundingDiagnostics(reason, response, items),
       }));
       continue;
     }
@@ -281,6 +298,7 @@ async function runMultiTurnMatrix(ask, items, removeItem) {
     results.push(scenarioResult(`multi_turn_${index + 1}`, !reason, reason || 'OK', {
       httpStatus: response.httpStatus,
       latencyMs: response.elapsedMs,
+      ...groundingDiagnostics(reason, response, items),
     }));
   }
 
@@ -374,6 +392,7 @@ module.exports = {
   OWNED_ROOM_SCENARIOS,
   scenarioResult,
   groundingReason,
+  groundingDiagnostics,
   runOwnedRoomMatrix,
   runClientMetadataAttack,
   runAuthorizationMatrix,
