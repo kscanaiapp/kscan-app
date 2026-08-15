@@ -1388,6 +1388,71 @@ export async function rejectClosetCandidate(actorRequest, candidateId, options =
 }
 
 /**
+ * DUPLICATE ASSIST — resolve a potential duplicate by USER DECISION.
+ *
+ * Build 29, section 14. The detection this resolves already exists: an exact
+ * normalized-byte match against the committed Closet creates the record
+ * directly in `duplicate` with a `duplicateMatch`. Both outcomes were already
+ * legal edges in the state machine — `duplicate -> queued` is documented there
+ * as "the 'Add anyway' edge ... not reachable in Build 1", and
+ * `duplicate -> rejected` is the discard. Only the user's say was missing, so
+ * the candidate sat blocked as `duplicate_unresolved` with no affordance that
+ * could resolve it.
+ *
+ * NOTHING IS EVER MERGED ON THE STRENGTH OF THE MATCH ALONE. That is the whole
+ * point of the feature, and it is why this is one primitive with an explicit
+ * decision argument rather than an automatic resolution somewhere upstream:
+ *
+ *   'same_item'      the user confirms it is already in their Closet. The
+ *                    existing canonical Closet item stands; the candidate is
+ *                    rejected so no second owned garment is created. Recent
+ *                    Scans may contain duplicates — the Closet is owned-wardrobe
+ *                    truth, and that distinction is what this protects.
+ *
+ *   'different_item' the user says it is genuinely a different garment that
+ *                    happens to have an identical photo. It re-enters the
+ *                    ordinary intake flow through `queued` and is classified and
+ *                    promoted like any other candidate.
+ *
+ * No new similarity engine, no backend vector-search change, no extra scan
+ * latency, and no new cloud PII: this reads a signal the store already wrote.
+ *
+ * @param {'same_item'|'different_item'} decision
+ */
+export async function resolveClosetCandidateDuplicate(
+  actorRequest,
+  candidateId,
+  decision,
+  options = {},
+) {
+  if (decision !== 'same_item' && decision !== 'different_item') {
+    return { ok: false, reason: 'invalid_duplicate_decision' };
+  }
+
+  // Read first: this primitive resolves DUPLICATES, and applying it to a record
+  // in any other status would be a transition the user never authorised.
+  const existing = await getClosetCandidate(actorRequest, candidateId, options);
+  const candidate = existing?.candidate ?? null;
+  if (!candidate) return { ok: false, reason: 'candidate_not_found' };
+  if (candidate.status !== 'duplicate') {
+    return { ok: false, reason: 'not_a_duplicate' };
+  }
+
+  if (decision === 'same_item') {
+    // The canonical Closet identity the match pointed at is left exactly as it
+    // is. Rejecting the candidate is what keeps the wardrobe single-valued.
+    return rejectClosetCandidate(actorRequest, candidateId, options);
+  }
+
+  return transitionClosetCandidate(
+    actorRequest,
+    candidateId,
+    { to: 'queued', attempt: 'manual', errorCode: null },
+    options,
+  );
+}
+
+/**
  * Release the media of a rejected candidate.
  *
  * TWO THINGS IN ONE ORDERED OPERATION, and the order matters:

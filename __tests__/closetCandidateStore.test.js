@@ -1456,3 +1456,115 @@ test('the sweep spares in-flight media and refuses to run on a partial read', as
   assert.equal(refused.errorCode, 'candidate_store_recovery_required');
   assert.equal(env.m.files.has(stale), true);
 });
+
+// ── Duplicate Assist (Build 29, section 14) ──────────────────────────────────
+//
+// The detection already existed; only the user's decision was missing, so a
+// matched candidate sat blocked as `duplicate_unresolved` with no affordance
+// that could resolve it. These drive the REAL store through both outcomes.
+
+/** Stage a candidate that collides with a committed Closet item. */
+async function stageDuplicateOfCloset(env, req) {
+  seedSource(env.m, '/picker/a.jpg');
+  const probe = await stage(env, req, '/picker/a.jpg');
+  const signature = {
+    contentHash: probe.candidate.contentHash,
+    contentHashVersion: probe.candidate.contentHashVersion,
+    normalizedByteLength: probe.candidate.normalizedByteLength,
+  };
+  await env.store.deleteClosetCandidate(req, probe.candidate.candidateId);
+
+  const committed = await env.closetLibrary.createClosetItem({
+    sourceUri: '/picker/a.jpg',
+    draft: { title: 'Coat' },
+    actorRequest: req,
+    ownerId: 'user-a',
+  });
+  const raw = JSON.parse(env.m.files.get('/doc/kscan_closet/kscan_closet.json'));
+  raw[0] = { ...raw[0], ...signature };
+  env.m.files.set('/doc/kscan_closet/kscan_closet.json', JSON.stringify(raw));
+
+  const staged = await stage(env, req, '/picker/a.jpg');
+  assert.equal(staged.candidate.status, 'duplicate', 'precondition: a duplicate was staged');
+  return { staged, committed };
+}
+
+test('DUPLICATE ASSIST: "same item" keeps one owned garment, not two', async () => {
+  const env = load();
+  const req = asActor(env.actorContext, 'user-a');
+  const { staged, committed } = await stageDuplicateOfCloset(env, req);
+
+  const resolved = await env.store.resolveClosetCandidateDuplicate(
+    req,
+    staged.candidate.candidateId,
+    'same_item',
+  );
+  assert.equal(resolved.ok, true);
+  assert.equal(resolved.candidate.status, 'rejected');
+
+  // THE POINT OF THE FEATURE: the Closet still holds exactly the one item, and
+  // it is the ORIGINAL canonical identity, not a replacement.
+  const closet = JSON.parse(env.m.files.get('/doc/kscan_closet/kscan_closet.json'));
+  const live = closet.filter((item) => !item.deletedAt);
+  assert.equal(live.length, 1, 'confirming a duplicate must not create a second garment');
+  assert.equal(live[0].id, committed.item.id, 'the existing canonical identity is preserved');
+});
+
+test('DUPLICATE ASSIST: "different item" re-enters the ordinary intake flow', async () => {
+  const env = load();
+  const req = asActor(env.actorContext, 'user-a');
+  const { staged } = await stageDuplicateOfCloset(env, req);
+
+  const resolved = await env.store.resolveClosetCandidateDuplicate(
+    req,
+    staged.candidate.candidateId,
+    'different_item',
+  );
+  assert.equal(resolved.ok, true);
+  assert.equal(resolved.candidate.status, 'queued', 'it must rejoin normal intake');
+
+  // And it can now proceed, which `duplicate` could not: the earlier test proves
+  // `duplicate -> classifying` is refused.
+  const advanced = await env.store.transitionClosetCandidate(
+    req,
+    staged.candidate.candidateId,
+    { to: 'classifying' },
+  );
+  assert.equal(advanced.ok, true, 'a confirmed-different item classifies like any other');
+});
+
+test('DUPLICATE ASSIST: nothing resolves without an explicit user decision', async () => {
+  const env = load();
+  const req = asActor(env.actorContext, 'user-a');
+  const { staged } = await stageDuplicateOfCloset(env, req);
+  const id = staged.candidate.candidateId;
+
+  // No auto-merge, and no guessing from the match: an unrecognised decision is
+  // refused rather than defaulted in either direction.
+  for (const bogus of [undefined, null, '', 'maybe', 'merge', true]) {
+    const result = await env.store.resolveClosetCandidateDuplicate(req, id, bogus);
+    assert.equal(result.ok, false, `decision ${String(bogus)} must be refused`);
+    assert.equal(result.reason, 'invalid_duplicate_decision');
+  }
+
+  // The record is untouched by every refusal.
+  const after = await env.store.getClosetCandidate(req, id);
+  assert.equal(after.candidate.status, 'duplicate');
+});
+
+test('DUPLICATE ASSIST: the primitive only ever resolves duplicates', async () => {
+  const env = load();
+  const req = asActor(env.actorContext, 'user-a');
+  seedSource(env.m, '/picker/b.jpg');
+  const ordinary = await stage(env, req, '/picker/b.jpg');
+  assert.notEqual(ordinary.candidate.status, 'duplicate');
+
+  // Applying it elsewhere would be a transition the user never authorised.
+  const result = await env.store.resolveClosetCandidateDuplicate(
+    req,
+    ordinary.candidate.candidateId,
+    'different_item',
+  );
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'not_a_duplicate');
+});
