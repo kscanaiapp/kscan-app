@@ -329,7 +329,20 @@ test('target identity — a user report sends the auth user id as BOTH target_id
 test('target identity — the panel reports the message SENDER id, not the message id', () => {
   const source = readSource(PANEL);
   assert.match(source, /reportUserById\(message\.senderId\)/);
-  assert.match(source, /blockUserById\(message\.senderId,\s*message\.senderId === roomOwnerId\)/);
+  // DEF-030 renamed the owner reference to `effectiveOwnerId` (the prop, backed
+  // by an id latched from the access call) so a failed owner lookup can no
+  // longer empty the safety roster. The contract asserted here is unchanged:
+  // the SENDER is the block target, and comparing that sender against the room
+  // owner is what selects the block-consequence copy.
+  assert.match(
+    source,
+    /blockUserById\(message\.senderId,\s*message\.senderId === effectiveOwnerId\)/,
+  );
+  assert.match(
+    source,
+    /const effectiveOwnerId = roomOwnerId \?\? resolvedOwnerId/,
+    'the effective owner must still originate from the ROOM owner, never the viewer',
+  );
 });
 
 test('target identity — roomOwnerId is the ROOM owner, never the viewer', () => {

@@ -228,6 +228,25 @@ export function RoomMessagesPanel({
   /** The ROOM's owner id — never the current user's id. */
   roomOwnerId?: string | null;
 }) {
+  /**
+   * DEF-030 — the room owner must not stop being reportable because one
+   * best-effort lookup failed.
+   *
+   * The screen resolves the owner once after joining and passes null on
+   * failure. `listBlockableCounterparties` then contributes no owner entry, and
+   * RLS means a participant's own row is the only participant row they can
+   * read (which is skipped as self) -- so `counterparties` came back empty and
+   * the whole Room Safety section stopped rendering. In an image-only room
+   * with no messages, that removed the ONLY path to Report/Block.
+   *
+   * `revalidateAccess` already re-resolves access on the panel's own schedule
+   * and was discarding `currentOwnerId`. Latching it here lets a failed initial
+   * resolution self-heal with no extra request and no change to how rooms are
+   * shared, joined, or enforced.
+   */
+  const [resolvedOwnerId, setResolvedOwnerId] = useState<string | null>(roomOwnerId ?? null);
+  const effectiveOwnerId = roomOwnerId ?? resolvedOwnerId;
+
   const [messages, setMessages] = useState<RoomMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -303,6 +322,11 @@ export function RoomMessagesPanel({
         return { ok: false, canMessage: false };
       }
       accessVersionRef.current = access.accessVersion;
+      // DEF-030: this response already carries the owner id. Latching it is
+      // what repairs a failed initial resolution.
+      if (typeof access.currentOwnerId === 'string' && access.currentOwnerId) {
+        setResolvedOwnerId(access.currentOwnerId);
+      }
       setCanMessage(access.canMessage);
       return { ok: true, canMessage: access.canMessage };
     } catch {
@@ -321,14 +345,14 @@ export function RoomMessagesPanel({
       const rows = await listBlockableCounterparties({
         roomId,
         currentUserId,
-        roomOwnerId,
+        roomOwnerId: effectiveOwnerId,
       });
       if (!mountedRef.current) return;
       setCounterparties(rows);
     } catch {
       if (mountedRef.current) setCounterparties([]);
     }
-  }, [roomId, roomOwnerId]);
+  }, [roomId, effectiveOwnerId]);
 
   const load = useCallback(async () => {
     if (!roomId) return;
@@ -592,9 +616,9 @@ export function RoomMessagesPanel({
   const handleBlock = useCallback(
     (message: RoomMessage) => {
       if (!message.senderId || message.isMine) return;
-      blockUserById(message.senderId, message.senderId === roomOwnerId);
+      blockUserById(message.senderId, message.senderId === effectiveOwnerId);
     },
-    [blockUserById, roomOwnerId],
+    [blockUserById, effectiveOwnerId],
   );
 
   useEffect(() => {
@@ -837,7 +861,7 @@ export function RoomMessagesPanel({
                   key={`hidden-${senderId}`}
                   senderId={senderId}
                   blocking={blockingUserId === senderId}
-                  onBlock={(target) => blockUserById(target, target === roomOwnerId)}
+                  onBlock={(target) => blockUserById(target, target === effectiveOwnerId)}
                 />
               ))}
             </View>

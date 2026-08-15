@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
+import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import {
   COLORS,
   LUXURY,
@@ -137,6 +138,15 @@ export function ScanResultV2({
   const isExiting = React.useRef(false);
   const scrollViewRef = React.useRef<ScrollView>(null);
   const [actionRowHeight, setActionRowHeight] = React.useState(0);
+  // DEF-010: the priceDiscovery freeze is a remote kill switch, and this is the
+  // shipping commerce surface. AnalysisCard honoured it while this screen did
+  // not, so a freeze removed the shelves on a reopened scan but left them on a
+  // fresh one. Same derivation as AnalysisCard: while the config is still
+  // loading the feature is treated as OFF, so a freeze is never briefly
+  // ignored on first paint.
+  const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
+  const priceDiscoveryEnabled = !featureFreezeLoading && isFeatureEnabled('priceDiscovery');
+
   const [similarFindsTarget, setSimilarFindsTarget] = React.useState<{
     key: string;
     y: number;
@@ -419,7 +429,7 @@ export function ScanResultV2({
               </View>
 
               {/* Similar Finds: only show when there are at least 2 matches. */}
-              {hasRenderableSimilarFinds ? (
+              {priceDiscoveryEnabled && hasRenderableSimilarFinds ? (
                 <View
                   style={styles.section}
                   onLayout={(event) => {
@@ -437,7 +447,9 @@ export function ScanResultV2({
               ) : null}
 
               {/* Purchase Options */}
-              {Array.isArray(v2Data.purchaseOptions) && v2Data.purchaseOptions.length > 0 ? (
+              {priceDiscoveryEnabled
+                && Array.isArray(v2Data.purchaseOptions)
+                && v2Data.purchaseOptions.length > 0 ? (
                 <View style={styles.section}>
                   <PurchaseOptionsPanel
                     purchaseOptions={v2Data.purchaseOptions}

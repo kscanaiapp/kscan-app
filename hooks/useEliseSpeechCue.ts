@@ -1,8 +1,8 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { getStylistVoiceProfile } from '../constants/stylistIdentity';
-import { speakAvatarCue } from '../services/avatarSpeech';
+import { speakAvatarCue, stopAvatarSpeechPlayback } from '../services/avatarSpeech';
 import type { EliseSpeechMoment } from '../services/style-chat/eliseSpeechMoments';
 import { useScreenReaderEnabled, useScreenReaderReady } from './useScreenReaderEnabled';
 import { useStylistIdentity } from './useStylistIdentity';
@@ -62,4 +62,33 @@ export function useEliseSpeechCue(): SpeakEliseCue {
     screenReaderEnabled,
     screenReaderReady,
   ]);
+}
+
+/**
+ * DEF-062 — stop this screen's cue when the user leaves it.
+ *
+ * Cues are fire-and-forget by design, which is right for the request but left
+ * playback running: walking out of the Dressing Room mid-sentence meant Elise
+ * kept talking over whatever screen came next, with no way to stop her.
+ *
+ * Scoped to the same actor + avatar the cue was spoken under, so this silences
+ * THIS user's stylist and cannot cancel speech that belongs to another scope.
+ * The scope is captured in a ref and read at cleanup, so an identity change
+ * during teardown cannot make the cleanup target the wrong avatar. Nothing
+ * about how speech is produced or stored changes.
+ */
+export function useStopEliseCueOnLeave(): void {
+  const { user } = useAuthSession();
+  const { identity } = useStylistIdentity();
+
+  const scopeRef = useRef({ actorId: user?.id ?? null, avatarId: identity.avatarId });
+  scopeRef.current = { actorId: user?.id ?? null, avatarId: identity.avatarId };
+
+  useEffect(() => {
+    return () => {
+      const { actorId, avatarId } = scopeRef.current;
+      if (!actorId || !avatarId) return;
+      void stopAvatarSpeechPlayback({ actorId, avatarId });
+    };
+  }, []);
 }

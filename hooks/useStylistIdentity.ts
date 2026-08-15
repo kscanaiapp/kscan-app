@@ -9,6 +9,8 @@
 //   - action functions are stable for dependency arrays
 
 import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+
+import { stopAvatarSpeechPlayback } from '../services/avatarSpeech';
 import {
   DEFAULT_STYLIST_IDENTITY,
   type StylistIdentity,
@@ -84,13 +86,44 @@ export function useStylistIdentity() {
     void hydrateStylistIdentityForUser(userId);
   }, [isAuthenticated, userId]);
 
+  /**
+   * DEF-063 — changing stylist stops the previous stylist mid-sentence.
+   *
+   * Speech already in flight belongs to the avatar that was speaking. Without
+   * this, switching identity left the OLD voice playing over the new one, and
+   * switching to a silent stylist was worse still: the user explicitly chose
+   * silence and kept hearing the previous voice finish.
+   *
+   * Scoped to the actor and the OUTGOING avatar, so it silences exactly the
+   * speech the switch invalidated. Placed at the identity-change seam rather
+   * than in a screen, so every caller of updateIdentity/resetIdentity inherits
+   * it. The speech store itself is untouched.
+   */
+  const stopOutgoingSpeech = useCallback(
+    (outgoingAvatarId: string | null | undefined) => {
+      if (!userId || !outgoingAvatarId) return;
+      void stopAvatarSpeechPlayback({ actorId: userId, avatarId: outgoingAvatarId });
+    },
+    [userId],
+  );
+
   const update = useCallback(async (input: Partial<StylistIdentity>) => {
-    return updateStylistIdentity(input);
-  }, []);
+    const outgoingAvatarId = identity.avatarId;
+    const didUpdate = await updateStylistIdentity(input);
+    // Only when the avatar actually changed: renaming the same stylist must not
+    // cut off a sentence that is still hers.
+    if (didUpdate && input.avatarId && input.avatarId !== outgoingAvatarId) {
+      stopOutgoingSpeech(outgoingAvatarId);
+    }
+    return didUpdate;
+  }, [identity.avatarId, stopOutgoingSpeech]);
 
   const reset = useCallback(async () => {
-    return resetStylistIdentity();
-  }, []);
+    const outgoingAvatarId = identity.avatarId;
+    const didReset = await resetStylistIdentity();
+    if (didReset) stopOutgoingSpeech(outgoingAvatarId);
+    return didReset;
+  }, [identity.avatarId, stopOutgoingSpeech]);
 
   return useMemo(
     () => ({

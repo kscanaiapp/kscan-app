@@ -53,7 +53,7 @@ import type { ResolvedLookItem } from '../../../services/privateDressingRoomCoor
 import { PRIVATE_SLOT_LABELS } from '../../../types/privateDressingRoomComposition';
 import type { PrivateDressingRoomSlot } from '../../../types/privateDressingRoomComposition';
 import { PRIVATE_COMPARISON_COPY } from '../../../services/privateDressingRoomComparison';
-import { useEliseSpeechCue } from '../../../hooks/useEliseSpeechCue';
+import { useEliseSpeechCue, useStopEliseCueOnLeave } from '../../../hooks/useEliseSpeechCue';
 import {
   PRIVATE_ELISE_COPY,
   PRIVATE_ELISE_INPUT_MAX_LENGTH,
@@ -214,6 +214,9 @@ export default function PrivateDressingRoomScreen() {
   const occasionDraftValue = normalizeOccasionInput(occasionDraft);
 
   const speakEliseCue = useEliseSpeechCue();
+  // DEF-062: leaving this screen stops its cue rather than letting Elise talk
+  // over whatever comes next.
+  useStopEliseCueOnLeave();
   /** Counts ACCEPTED modification requests so each one keys its own cue. */
   const eliseChangeCountRef = useRef(0);
 

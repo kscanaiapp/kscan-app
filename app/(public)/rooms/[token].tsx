@@ -6,6 +6,7 @@ import {
   KeyboardAvoidingView,
   Linking,
   Platform,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -30,7 +31,7 @@ import {
   TertiaryButton,
   PrivacyFooter,
 } from '../../../components/luxury';
-import { LUXURY, SPACING } from '../../../constants/theme';
+import { LUXURY, RADIUS, SPACING } from '../../../constants/theme';
 import { AI_STYLIST_UI_ENABLED } from '../../../constants/featureFlags';
 import { OutfitDecisionSection } from '../../../components/dressing-rooms/OutfitDecisionSection';
 import { getPublicRoomDecisionPreview } from '../../../services/outfitDecisions';
@@ -1197,6 +1198,39 @@ export default function SharedRoomScreen() {
               </>
             ) : null}
 
+            {/*
+              DEF-031 — a signed-out visitor reaches this screen from a normal
+              HTTPS share link and DOES see user-generated imagery above, but
+              RoomMessagesPanel (which carries Report/Block) renders only for an
+              authenticated member, so there was no reporting path at all on
+              this surface. Apple 1.2 requires one wherever UGC is shown.
+
+              This does not change who may view a shared room, join it, or act
+              in it -- it only makes the existing controls reachable, by naming
+              the requirement and sending the visitor to the canonical sign-in
+              entry. Signing in and reopening the link lands them in the room
+              with the full safety surface.
+            */}
+            {!isAuthenticated && preview.items.length > 0 ? (
+              <View style={styles.publicSafetyCard} testID="public-room-safety-signin">
+                <Text style={styles.publicSafetyTitle}>See something inappropriate?</Text>
+                <Text style={styles.publicSafetyBody}>
+                  Sign in to report or block. Reporting is tied to your account so we can
+                  act on it.
+                </Text>
+                <Pressable
+                  style={styles.publicSafetyButton}
+                  onPress={() => router.push('/onboarding')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Sign in to report or block"
+                  accessibilityHint="Opens sign in so you can report this content"
+                  testID="public-room-safety-signin-button"
+                >
+                  <Text style={styles.publicSafetyButtonText}>Sign in to report or block</Text>
+                </Pressable>
+              </View>
+            ) : null}
+
             {preview.isCapped ? (
               <InlineNotice
                 variant="info"
@@ -1405,6 +1439,38 @@ const styles = StyleSheet.create({
   decisionOptionVotes: {
     ...LUXURY.typography.body,
     color: LUXURY.colors.graphite,
+  },
+  publicSafetyCard: {
+    marginTop: SPACING.lg,
+    padding: SPACING.lg,
+    borderRadius: RADIUS.lg,
+    backgroundColor: LUXURY.colors.pearl,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    gap: SPACING.sm,
+  },
+  publicSafetyTitle: {
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.ink,
+  },
+  publicSafetyBody: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.graphite,
+  },
+  publicSafetyButton: {
+    marginTop: SPACING.xs,
+    // >= 44pt: this is a safety control and must meet the HIG target size.
+    minHeight: 44,
+    borderRadius: RADIUS.pill,
+    backgroundColor: LUXURY.colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.lg,
+  },
+  publicSafetyButtonText: {
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.pearl,
+    fontSize: 14,
   },
   itemGrid: {
     flexDirection: 'row',

@@ -37,6 +37,7 @@ import {
   InlineNotice,
 } from '../components/luxury';
 import { submitAccountDeletionRequest } from '../services/accountDeletion';
+import { resolveAuthenticatedFunctionSession } from '../services/authenticatedFunctionSession';
 import { supabase } from '../services/supabaseClient';
 import { LOCAL_PRIVACY_STORAGE_KEY } from '../services/privacyLocalStore';
 import { hasPendingDeletionProfile } from '../services/routingGuard';
@@ -411,6 +412,28 @@ export default function PrivacyScreen() {
     // button unmounting, so dismissing early costs nothing.
     setDeletionConfirmVisible(false);
     try {
+      // DEF-014: preflight the session the same way every other authenticated
+      // Edge Function call does. handle-user-deletion runs with verify_jwt, so
+      // an expired token produced a bare 401 and the generic "try again later"
+      // copy below -- which reads as a backend outage and gives the user no
+      // idea that signing in again would fix it. Account deletion is a
+      // Guideline 5.1.1(v) path; it must not look broken when it is merely
+      // stale. The preflight refreshes when it can and only reports failure
+      // when the session genuinely cannot be established.
+      const auth = await resolveAuthenticatedFunctionSession();
+      if (!auth.ok) {
+        // `in` rather than a discriminant read: this project does not enable
+        // strict mode, so narrowing the union on `ok` alone is not reliable.
+        const expired = 'reason' in auth && auth.reason === 'session_expired';
+        setMessage(
+          expired
+            ? 'Your session expired. Please sign in again to request account deletion.'
+            : 'Please sign in again to request account deletion.',
+        );
+        setDeletionSubmitting(false);
+        return;
+      }
+
       // The service normalizer owns the backend field names. `accepted` means an
       // active deletion lifecycle exists — NOT that the account was purged. No
       // local Recent Scan or media cleanup happens here; permanent purge is a

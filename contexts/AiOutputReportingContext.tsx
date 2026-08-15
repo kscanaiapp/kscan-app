@@ -37,20 +37,59 @@ export function useAiOutputReporting(): AiOutputReportingContextValue {
   return value;
 }
 
+/**
+ * DEF-054 — a hung submission must not trap the report sheet.
+ *
+ * `submitAiOutputReport` ultimately runs on a bare fetch, which never settles
+ * when a socket is open but silent (captive Wi-Fi, dead cellular path). The
+ * sheet refused to close while submitting, so the two together made the sheet
+ * permanently unclosable -- on a safety feature, whose whole value is that a
+ * user can act and move on.
+ *
+ * 15s is deliberately generous: this is a one-shot user-initiated write, not a
+ * boot-blocking read, so the bar is "the user has clearly been abandoned".
+ */
+const REPORT_SUBMIT_TIMEOUT_MS = 15000;
+
+function withReportTimeout<T>(promise: Promise<T>): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new Error('Report submission timed out')),
+      REPORT_SUBMIT_TIMEOUT_MS,
+    );
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 export function AiOutputReportProvider({ children }: { children: ReactNode }) {
   const [request, setRequest] = useState<AiOutputReportRequest | null>(null);
   const [reasonId, setReasonId] = useState<AiOutputReportReasonId | null>(null);
   const [notes, setNotes] = useState('');
   const [state, setState] = useState<ReportState>('form');
   const submissionGateRef = useRef(createAiOutputReportSubmissionGate());
+  // Bumped whenever the sheet is dismissed, so a submission that resolves after
+  // the user has walked away cannot reopen or repaint a closed sheet.
+  const sheetGenerationRef = useRef(0);
 
+  // DEF-054: dismissal is always available. A submission already handed to the
+  // gate is left to finish on its own -- the server-side outcome is unaffected,
+  // and the report is deduplicated if it does land.
   const close = useCallback(() => {
-    if (state === 'submitting') return;
+    sheetGenerationRef.current += 1;
     setRequest(null);
     setReasonId(null);
     setNotes('');
     setState('form');
-  }, [state]);
+  }, []);
 
   const openAiOutputReport = useCallback((nextRequest: AiOutputReportRequest) => {
     setRequest(nextRequest);
@@ -63,10 +102,15 @@ export function AiOutputReportProvider({ children }: { children: ReactNode }) {
     if (!request || !reasonId) return;
 
     setState('submitting');
+    const generation = sheetGenerationRef.current;
     try {
-      const attempt = await submissionGateRef.current.run(() =>
-        submitAiOutputReport({ request, reasonId, notes }),
+      const attempt = await withReportTimeout(
+        submissionGateRef.current.run(() =>
+          submitAiOutputReport({ request, reasonId, notes }),
+        ),
       );
+      // The user dismissed the sheet while this was in flight; leave it closed.
+      if (generation !== sheetGenerationRef.current) return;
       if (!attempt.started) return;
 
       // KSB29-035: `ok: true` is NOT server acceptance. It also covers the
@@ -80,6 +124,9 @@ export function AiOutputReportProvider({ children }: { children: ReactNode }) {
       // duplicate still counts, because the original report is on file.
       setState(isReportServerAccepted(attempt.value) ? 'success' : 'error');
     } catch {
+      // Includes the timeout. 'error' already renders the retry affordance, so
+      // an abandoned request lands the user somewhere they can act.
+      if (generation !== sheetGenerationRef.current) return;
       setState('error');
     }
   }, [notes, reasonId, request]);

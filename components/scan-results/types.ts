@@ -56,6 +56,13 @@ export type LegacyAnalysisData = {
     silhouette?: string;
     material?: string;
     pattern?: string;
+    /**
+     * DEF-017: `confidenceScore` is what the scan pipeline actually writes
+     * (services/scanIdentificationMapper.ts). `confidence` predates it and is
+     * retained only so older persisted snapshots still resolve — the type
+     * omitted the live field, which is why the mismatch went unnoticed.
+     */
+    confidenceScore?: number;
     confidence?: number;
     styleTags?: string[];
     brand?: string | null;
@@ -247,7 +254,17 @@ export function mapLegacyToV2(
     // Without this the V2 view model dropped pattern on the way in, so the
     // normalizer's surviving value never reached a chip.
     pattern: meta.pattern || undefined,
-    confidence: typeof meta.confidence === 'number' ? meta.confidence : undefined,
+    // DEF-017: the producer writes `confidenceScore`
+    // (services/scanIdentificationMapper.ts), so reading only `confidence` made
+    // this undefined for every scan and the match badge never rendered.
+    // `confidenceScore` is the live field and wins; `confidence` is kept as the
+    // fallback so older persisted snapshots still resolve.
+    confidence:
+      typeof meta.confidenceScore === 'number'
+        ? meta.confidenceScore
+        : typeof meta.confidence === 'number'
+          ? meta.confidence
+          : undefined,
     styleTags: meta.styleTags,
     styleAnalysis: analysisText || undefined,
     analysisText: analysisText || undefined,
