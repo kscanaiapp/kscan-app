@@ -101,6 +101,20 @@ test('no foreground-service permission or service reaches the app manifest', () 
   assert.doesNotMatch(manifest, /foregroundServiceType/);
 });
 
+test('no biometric permission reaches the app manifest', () => {
+  const manifest = read(MAIN_MANIFEST);
+  const granted = new Set(grantedPermissions(manifest));
+  const blocked = new Set(blockedPermissions(manifest));
+
+  // androidx.biometric arrives transitively through expo-secure-store. The shipped
+  // Build 29 artifact declared USE_BIOMETRIC and USE_FINGERPRINT even though K Scan
+  // never passes requireAuthentication, so the prompt is unreachable.
+  for (const permission of ['android.permission.USE_BIOMETRIC', 'android.permission.USE_FINGERPRINT']) {
+    assert.ok(!granted.has(permission), `${permission} is granted but unreachable`);
+    assert.ok(blocked.has(permission), `${permission} is not tombstoned`);
+  }
+});
+
 test('the release variant re-blocks the forbidden permissions as defence in depth', () => {
   const blocked = new Set(blockedPermissions(read(RELEASE_MANIFEST)));
 

@@ -80,6 +80,8 @@
                                                             "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
                                                             "android.permission.FOREGROUND_SERVICE_MICROPHONE",
                                                             "android.permission.POST_NOTIFICATIONS",
+                                                            "android.permission.USE_BIOMETRIC",
+                                                            "android.permission.USE_FINGERPRINT",
                                                             "android.permission.READ_EXTERNAL_STORAGE",
                                                             "android.permission.WRITE_EXTERNAL_STORAGE",
                                                             "android.permission.READ_MEDIA_IMAGES",
