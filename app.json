@@ -62,6 +62,7 @@
                                  "package":  "com.kscanai.app",
                                  "versionCode": 29,
                                  "edgeToEdgeEnabled": true,
+                                 "allowBackup": false,
                                  "softwareKeyboardLayoutMode":  "resize",
                                  "permissions":  [
                                                      "android.permission.CAMERA",

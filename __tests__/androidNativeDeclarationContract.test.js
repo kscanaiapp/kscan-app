@@ -33,6 +33,21 @@ test('app.json is the authority for the Android permission set', () => {
   assert.deepEqual(android.blockedPermissions, contract.BLOCKED_PERMISSIONS);
 });
 
+test('backup and device transfer stay disabled through a regeneration', () => {
+  const android = readJson('app.json').expo.android;
+  const manifest = read(MAIN_MANIFEST);
+  const extractionRules = read('android/app/src/main/res/xml/data_extraction_rules.xml');
+
+  // Expo defaults allowBackup to true. The committed manifest hardens it to false,
+  // but a prebuild reads app.json, so the hardening has to live there too or the
+  // next regeneration silently opts K Scan back into Android Auto Backup.
+  assert.equal(android.allowBackup, false);
+  assert.match(manifest, /android:allowBackup="false"/);
+  assert.match(manifest, /android:dataExtractionRules="@xml\/data_extraction_rules"/);
+  assert.match(extractionRules, /<cloud-backup>\s*<exclude domain="root"\s*\/>\s*<\/cloud-backup>/);
+  assert.match(extractionRules, /<device-transfer>\s*<exclude domain="root"\s*\/>\s*<\/device-transfer>/);
+});
+
 test('a prebuild re-applies the foreground-service removals', () => {
   const plugins = readJson('app.json').expo.plugins;
 
