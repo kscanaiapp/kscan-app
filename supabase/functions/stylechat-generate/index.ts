@@ -117,6 +117,10 @@ import {
   type ParsedClosetIntelligenceContext,
 } from './closetIntelligenceContext.ts';
 import { isStagingClosetProbeRequest } from './closetIntelligenceProbe.ts';
+import {
+  requestedEliseRoomSource,
+  resolveEliseRoomAdviceScope,
+} from './eliseRoomAdviceScope.ts';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -1944,15 +1948,22 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
   let closetIntelligenceRuntimeEvidence: Record<string, unknown> | null = null;
   if (config.flags.adviceIntentsV1) {
     try {
+      const roomAdviceScope = resolveEliseRoomAdviceScope(
+        typedVisualContext?.envelope ?? null,
+        requestedEliseRoomSource(body.activeContext),
+      );
+      const hasRoomAdviceScope = roomAdviceScope.kind !== 'none';
       const wardrobeData: EliseWardrobeDataSource = {
         closetInventoryState: closetIntelligenceContext.inventoryState,
         async listClosetItems(_actorId, limit) {
+          if (hasRoomAdviceScope) return [];
           return closetIntelligenceContext.items.slice(
             0,
             Math.min(limit, ELISE_ADVICE_LIMITS.initialCandidatesPerSource),
           );
         },
         async listSavedScans(actorId, limit) {
+          if (hasRoomAdviceScope) return [];
           const { data } = await userClient
             .from('saved_scans')
             .select('id, user_id, title, analysis_result, storage_bucket, storage_path, created_at')
@@ -1985,6 +1996,7 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
           });
         },
         async listInspirationItems(actorId, limit) {
+          if (hasRoomAdviceScope) return [];
           const { data } = await userClient
             .from('inspiration_items')
             .select('id, user_id, category, color, material, pattern, silhouette, garment_role, created_at')
@@ -1995,11 +2007,17 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
           return (data ?? []) as Record<string, unknown>[];
         },
         async listOwnedRoomItems(actorId, limit) {
-          const { data: rooms } = await userClient
+          if (roomAdviceScope.kind === 'unresolved' || roomAdviceScope.kind === 'shared_room') {
+            return [];
+          }
+          let roomsQuery = userClient
             .from('dressing_rooms')
             .select('id')
-            .eq('user_id', actorId)
-            .limit(20);
+            .eq('user_id', actorId);
+          if (roomAdviceScope.kind === 'owned_room') {
+            roomsQuery = roomsQuery.eq('id', roomAdviceScope.roomId);
+          }
+          const { data: rooms } = await roomsQuery.limit(20);
           const roomIds = ((rooms ?? []) as Array<{ id: string }>).map((r) => r.id).filter(Boolean);
           if (!roomIds.length) return [];
           const { data } = await userClient
@@ -2018,6 +2036,9 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
           }));
         },
         async listSharedRoomItems(_actorId, limit) {
+          if (roomAdviceScope.kind === 'unresolved' || roomAdviceScope.kind === 'owned_room') {
+            return [];
+          }
           const { data: memberships, error } = await userClient
             .from('shared_room_memberships')
             .select(
@@ -2050,7 +2071,10 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
             }
           }
           if (shareOwnerByRoom.size === 0) return [];
-          const candidateRoomIds = [...shareOwnerByRoom.keys()];
+          const candidateRoomIds = [...shareOwnerByRoom.keys()].filter((roomId) =>
+            roomAdviceScope.kind !== 'shared_room' || roomId === roomAdviceScope.roomId
+          );
+          if (candidateRoomIds.length === 0) return [];
           const { data: rooms } = await userClient
             .from('dressing_rooms')
             .select('id,user_id')
@@ -2080,6 +2104,7 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
         actorId: userId,
         envelope: typedVisualContext?.envelope ?? null,
         data: wardrobeData,
+        includeShared: roomAdviceScope.kind === 'shared_room' ? true : undefined,
         flags: {
           adviceIntentsV1: config.flags.adviceIntentsV1,
           closetRetrievalV1: config.flags.closetRetrievalV1,
@@ -2103,11 +2128,18 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
         );
         closetIntelligenceRuntimeEvidence = {
           adviceIntent: adviceResult.telemetry.adviceIntent,
+          roomAdviceScope: roomAdviceScope.kind,
           closetInventoryState: closetIntelligenceContext.inventoryState,
           ownedClosetCandidateCount:
             adviceResult.telemetry.candidateCountsBySource.closet ?? 0,
           recentScanCandidateCount:
             adviceResult.telemetry.candidateCountsBySource.recent_scan ?? 0,
+          inspirationCandidateCount:
+            adviceResult.telemetry.candidateCountsBySource.inspiration ?? 0,
+          ownedRoomCandidateCount:
+            adviceResult.telemetry.candidateCountsBySource.owned_room ?? 0,
+          sharedRoomCandidateCount:
+            adviceResult.telemetry.candidateCountsBySource.shared_room ?? 0,
           compatibilityScoringRan:
             config.flags.closetRetrievalV1 && config.flags.compatibilityScoringV1,
           compatibilityWarningCodes: [...new Set(

@@ -42,6 +42,35 @@ function groundingReason(response, manifestItems, roomKind) {
   if (!response.ok) return response.errorCode ? `HTTP_400_${response.errorCode}` : 'HTTP_FAILURE';
   if (!response.text || !String(response.text).trim()) return 'EMPTY_RESPONSE';
 
+  const roomEvidence = response.roomAdviceEvidence;
+  if (!roomEvidence) return 'ROOM_ADVICE_EVIDENCE_MISSING';
+  const expectedScope = roomKind === 'shared_room' ? 'shared_room' : 'owned_room';
+  if (roomEvidence.roomAdviceScope !== expectedScope) return 'ROOM_ADVICE_SCOPE_MISMATCH';
+  const forbiddenCounts = roomKind === 'shared_room'
+    ? [
+      roomEvidence.ownedClosetCandidateCount,
+      roomEvidence.recentScanCandidateCount,
+      roomEvidence.inspirationCandidateCount,
+      roomEvidence.ownedRoomCandidateCount,
+    ]
+    : [
+      roomEvidence.ownedClosetCandidateCount,
+      roomEvidence.recentScanCandidateCount,
+      roomEvidence.inspirationCandidateCount,
+      roomEvidence.sharedRoomCandidateCount,
+    ];
+  if (forbiddenCounts.some((count) => Number(count) > 0)) {
+    return 'FOREIGN_ADVICE_SOURCE_REACHED_MODEL';
+  }
+  const roomCandidateCount = Number(
+    roomKind === 'shared_room'
+      ? roomEvidence.sharedRoomCandidateCount
+      : roomEvidence.ownedRoomCandidateCount,
+  );
+  if (!Number.isFinite(roomCandidateCount) || roomCandidateCount < manifestItems.length) {
+    return 'ROOM_ADVICE_MANIFEST_INCOMPLETE';
+  }
+
   if (assertions.detectForeignItems(response.text, manifestItems).length) {
     return 'FOREIGN_ITEM_ASSERTED';
   }

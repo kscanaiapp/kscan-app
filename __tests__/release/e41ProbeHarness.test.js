@@ -65,6 +65,14 @@ function stubResponse(over = {}) {
     contractVersion: '2',
     capabilities: { attachments: true },
     attachmentsResolved: 4,
+    roomAdviceEvidence: {
+      roomAdviceScope: 'owned_room',
+      ownedClosetCandidateCount: 0,
+      recentScanCandidateCount: 0,
+      inspirationCandidateCount: 0,
+      ownedRoomCandidateCount: ROOM_ITEMS.length,
+      sharedRoomCandidateCount: 0,
+    },
     sessionId: 's1',
     ...over,
   };
@@ -224,6 +232,55 @@ test('an HTTP failure is classified, not silently passed', async () => {
   const ask = async () => stubResponse({ ok: false, httpStatus: 500, text: '' });
   const { results } = await matrix.runOwnedRoomMatrix(ask, ROOM_ITEMS);
   assert.ok(results.every((r) => r.reasonCode === 'HTTP_FAILURE'));
+});
+
+test('owned-room grounding requires sanitized live S7 scope evidence', () => {
+  assert.equal(
+    matrix.groundingReason(stubResponse({ roomAdviceEvidence: null }), ROOM_ITEMS, 'owned_room'),
+    'ROOM_ADVICE_EVIDENCE_MISSING',
+  );
+  assert.equal(
+    matrix.groundingReason(
+      stubResponse({
+        roomAdviceEvidence: {
+          ...stubResponse().roomAdviceEvidence,
+          roomAdviceScope: 'unresolved',
+        },
+      }),
+      ROOM_ITEMS,
+      'owned_room',
+    ),
+    'ROOM_ADVICE_SCOPE_MISMATCH',
+  );
+});
+
+test('owned-room grounding rejects cross-source bleed and incomplete room retrieval', () => {
+  assert.equal(
+    matrix.groundingReason(
+      stubResponse({
+        roomAdviceEvidence: {
+          ...stubResponse().roomAdviceEvidence,
+          recentScanCandidateCount: 1,
+        },
+      }),
+      ROOM_ITEMS,
+      'owned_room',
+    ),
+    'FOREIGN_ADVICE_SOURCE_REACHED_MODEL',
+  );
+  assert.equal(
+    matrix.groundingReason(
+      stubResponse({
+        roomAdviceEvidence: {
+          ...stubResponse().roomAdviceEvidence,
+          ownedRoomCandidateCount: ROOM_ITEMS.length - 1,
+        },
+      }),
+      ROOM_ITEMS,
+      'owned_room',
+    ),
+    'ROOM_ADVICE_MANIFEST_INCOMPLETE',
+  );
 });
 
 test('a thrown request is caught and classified', async () => {

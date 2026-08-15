@@ -81,6 +81,8 @@ export async function runEliseAdvicePipeline(input: {
   envelope: EliseVisualContextEnvelope | null;
   data: EliseWardrobeDataSource;
   flags: EliseAdviceFlagState;
+  /** Server-derived room scope may require shared retrieval regardless of prose. */
+  includeShared?: boolean;
   weatherSummary?: string | null;
   signatureStyleSummary?: string | null;
 }): Promise<EliseAdvicePipelineResult | null> {
@@ -112,6 +114,7 @@ export async function runEliseAdvicePipeline(input: {
       intent,
       message: input.message,
       data: input.data,
+      includeShared: input.includeShared,
     });
     retrievalLatencyMs = retrieval.retrievalLatencyMs;
     authorizedCount = retrieval.authorizedCount;
