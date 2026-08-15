@@ -93,3 +93,17 @@ test('evidence privacy rejects image, JWT, email and PAT-shaped values', () => {
   }
   assert.doesNotThrow(() => probe.assertEvidencePrivacy({ verdict: 'PASS', entryPath: 'closet_mirror' }));
 });
+
+test('a failed live assertion preserves the detailed sanitized evidence', () => {
+  const existing = {
+    verdict: 'FAIL',
+    environment: 'staging',
+    entryPathResults: [{ entryPath: 'closet_mirror', accepted: false }],
+  };
+  const error = new probe.ClosetIntakeProbeError('failed', 'LIVE_ASSERTION_FAILED');
+  assert.deepEqual(probe.buildTerminalFailureReport(error, existing), {
+    ...existing,
+    executionCode: 'LIVE_ASSERTION_FAILED',
+  });
+  assert.equal(probe.buildTerminalFailureReport(error, null).verdict, 'OPERATIONAL_FAILURE');
+});

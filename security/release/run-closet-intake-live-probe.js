@@ -232,16 +232,30 @@ async function run(env = process.env, fetchImpl = fetch) {
   return report;
 }
 
+function buildTerminalFailureReport(error, existingReport = null) {
+  if (existingReport && typeof existingReport === 'object' && existingReport.verdict === 'FAIL') {
+    return {
+      ...existingReport,
+      executionCode: error?.code || 'UNEXPECTED',
+    };
+  }
+  return {
+    verdict: 'OPERATIONAL_FAILURE',
+    environment: 'staging',
+    code: error?.code || 'UNEXPECTED',
+    message: String(error?.message || error).slice(0, 300),
+  };
+}
+
 if (require.main === module) {
   run()
     .then((report) => process.stdout.write(`${JSON.stringify(report, null, 2)}\n`))
     .catch((error) => {
-      const report = {
-        verdict: 'OPERATIONAL_FAILURE',
-        environment: 'staging',
-        code: error?.code || 'UNEXPECTED',
-        message: String(error?.message || error).slice(0, 300),
-      };
+      let existingReport = null;
+      try {
+        existingReport = JSON.parse(fs.readFileSync('closet-intake-live-probe-report.json', 'utf8'));
+      } catch { /* no prior assertion report exists */ }
+      const report = buildTerminalFailureReport(error, existingReport);
       assertEvidencePrivacy(report);
       fs.writeFileSync('closet-intake-live-probe-report.json', `${JSON.stringify(report, null, 2)}\n`);
       process.stderr.write(`${JSON.stringify(report)}\n`);
@@ -260,5 +274,6 @@ module.exports = {
   inspectPositiveResponse,
   inspectNegativeResponse,
   assertEvidencePrivacy,
+  buildTerminalFailureReport,
   run,
 };
