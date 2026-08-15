@@ -582,6 +582,62 @@ export async function createOrGetRoomShare(roomId: string): Promise<string> {
   return token;
 }
 
+/**
+ * The room's CURRENT share state, read-only.
+ *
+ * DRESSING_ROOM_SHARE_STATE_PERSISTENCE. Sharing had no load-time read at all:
+ * the only ways to learn about a share were `createOrGetRoomShare`, which
+ * CREATES one as a side effect, and `revokeRoomShare`, which destroys it.
+ * Neither can answer "is this room shared right now?", so the room screen
+ * rendered "Disable Shared Link" unconditionally — offered for a room that was
+ * never shared, and unable to reflect a share created on another device or in
+ * a previous session.
+ *
+ * No migration is needed: `room_shares` already carries a
+ * `Users can select own room shares` policy (`owner_id = auth.uid()`), so this
+ * is a plain read under existing RLS. A non-owner selects nothing.
+ *
+ * "Active" is the same predicate the redemption path uses — is_active, not
+ * revoked, not expired — so the control the owner sees and the link a recipient
+ * can redeem cannot disagree.
+ */
+export type RoomShareState = {
+  shareToken: string;
+  createdAt: string;
+  expiresAt: string | null;
+};
+
+export async function getRoomShareState(roomId: string): Promise<RoomShareState | null> {
+  const { data, error } = await supabase
+    .from('room_shares')
+    .select('share_token, created_at, expires_at, is_active, revoked_at, access_level')
+    .eq('room_id', roomId)
+    .eq('access_level', 'view')
+    .eq('is_active', true)
+    .is('revoked_at', null)
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  // A failed read must NOT be reported as "no share": that would hide the
+  // revoke control for a room that is genuinely shared, which is the one
+  // outcome worse than showing it unnecessarily.
+  if (error) throw safeError(error, 'Unable to check the shared link.');
+
+  const row = Array.isArray(data) ? data[0] : null;
+  if (!row || typeof row.share_token !== 'string' || !row.share_token.trim()) return null;
+
+  // Expiry is filtered here rather than in the query so a clock-skewed row is
+  // treated the same way the redemption path treats it.
+  const expiresAt = typeof row.expires_at === 'string' ? row.expires_at : null;
+  if (expiresAt && Date.parse(expiresAt) <= Date.now()) return null;
+
+  return {
+    shareToken: row.share_token.trim(),
+    createdAt: typeof row.created_at === 'string' ? row.created_at : '',
+    expiresAt,
+  };
+}
+
 export async function revokeRoomShare(roomId: string): Promise<boolean> {
   const { data, error } = await supabase.rpc('revoke_room_share', {
     p_room_id: roomId,

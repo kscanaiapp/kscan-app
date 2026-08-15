@@ -85,9 +85,14 @@ test('SVV-012: exact version parity satisfies migration_state', async () => {
   assert.match(step.detail, /satisfied/);
 });
 
-test('SVV-012: the full Build 29 candidate reports 111 expected, 111 live, 0 missing', async () => {
+test('SVV-012: the full Build 29 candidate reports 112 expected, 112 live, 0 missing', async () => {
   const m = manifest();
-  // 111 since the Build 29 shared repair added
+  // 112 since the shared repair added 20260815160000_room_share_redemption_limit
+  // (shared-link redemption cap actually enforced; max_redemptions had never
+  // been read, so redemptions were unlimited). Tightening only, no schema or
+  // data change.
+  //
+  // Previously 111 since the same wave added
   // 20260815140000_dressing_room_items_blocking (KSB29-029/030/031). Blocking
   // was enforced on the room shell but not on dressing_room_items or the three
   // SECURITY DEFINER share helpers, so a blocked recipient could still read
@@ -112,11 +117,11 @@ test('SVV-012: the full Build 29 candidate reports 111 expected, 111 live, 0 mis
   // meant to catch. The latest change is exactly one migration: composite
   // owner foreign keys prevent wear-event children and Saved Look links from
   // crossing actor boundaries beneath RLS.
-  assert.equal(m.migrations.length, 111, 'the Build 29 candidate carries 111 migrations');
+  assert.equal(m.migrations.length, 112, 'the Build 29 candidate carries 112 migrations');
   const result = await planOnly({ m, liveMigrationVersions: m.migrations.map((x) => x.version) });
   const step = migrationStep(result);
   assert.equal(step.status, 'PASS');
-  assert.equal(step.detail, '111 satisfied');
+  assert.equal(step.detail, '112 satisfied');
 });
 
 test('SVV-012: a missing migration blocks and names the missing VERSION', async () => {

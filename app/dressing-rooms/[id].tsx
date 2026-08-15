@@ -48,6 +48,8 @@ import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 import {
   createOrGetRoomShare,
+  getRoomShareState,
+  type RoomShareState,
   createLookFromDressingRoomItems,
   deleteDressingRoom,
   getItemReactionCounts,
@@ -294,6 +296,32 @@ function DressingRoomDetailContent() {
   const [shareMessage, setShareMessage] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
   const [revokingShare, setRevokingShare] = useState(false);
+  /**
+   * DRESSING_ROOM_SHARE_STATE_PERSISTENCE.
+   *
+   * `null` means no active share; `undefined` means not yet known. The
+   * distinction matters: before this loaded, the screen rendered "Disable
+   * Shared Link" unconditionally — offered for a room that was never shared,
+   * and unable to reflect a share created on another device or in an earlier
+   * session. A share is durable state on the room, so the screen reads it
+   * rather than inferring it from what happened during this visit.
+   */
+  const [shareState, setShareState] = useState<RoomShareState | null | undefined>(undefined);
+
+  const refreshShareState = useCallback(async () => {
+    if (!roomId) return;
+    try {
+      setShareState(await getRoomShareState(roomId));
+    } catch {
+      // A failed read must not be reported as "not shared": hiding the revoke
+      // control for a genuinely shared room is the worse outcome, so the
+      // previous known state stands.
+    }
+  }, [roomId]);
+
+  useEffect(() => {
+    void refreshShareState();
+  }, [refreshShareState]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editing, setEditing] = useState(false);
   const [creatingLook, setCreatingLook] = useState(false);
@@ -581,6 +609,7 @@ function DressingRoomDetailContent() {
       const shareUrl = `${KSCAN_PUBLIC_BASE_URL}/rooms/${encodeURIComponent(shareToken)}`;
       await Share.share(buildRoomSharePayload(shareUrl));
       setShareMessage('Room link ready to share.');
+      await refreshShareState();
     } catch (err: any) {
       console.error('Share dressing room failed', err);
       setShareError(DRESSING_ROOM_SHARE_ERROR);
@@ -638,6 +667,7 @@ function DressingRoomDetailContent() {
             try {
               const revoked = await revokeRoomShare(room.id);
               setShareMessage(revoked ? 'Shared link disabled.' : 'No active shared link to disable.');
+              await refreshShareState();
             } catch (err: any) {
               console.error('Revoke dressing room share failed', err);
               setShareError(DRESSING_ROOM_SHARE_ERROR);
@@ -896,6 +926,13 @@ function DressingRoomDetailContent() {
                     accessibilityLabel="Share room link"
                     accessibilityHint="Create or copy a private invite link for this room"
                   />
+                  {/*
+                    Shown only when an active share actually exists. Revoke and
+                    block stay separate controls: disabling the link kills
+                    invitation-token access, blocking kills the account-to-account
+                    relationship.
+                  */}
+                  {shareState ? (
                   <SecondaryButton
                     title={revokingShare ? 'Disabling Link' : 'Disable Shared Link'}
                     onPress={handleRevokeShare}
@@ -903,7 +940,9 @@ function DressingRoomDetailContent() {
                     loading={revokingShare}
                     accessibilityLabel="Disable shared room link"
                     accessibilityHint="Revoke the current invite link so it no longer works"
+                    testID="disable-shared-link-button"
                   />
+                  ) : null}
                   {shareError ? <Text style={styles.shareError}>{shareError}</Text> : null}
                   {shareMessage ? <Text style={styles.shareMessage}>{shareMessage}</Text> : null}
                 </>
