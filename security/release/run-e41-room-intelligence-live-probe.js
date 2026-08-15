@@ -309,11 +309,25 @@ async function askElise(ctx, options) {
     sessionId: sessionId || ctx.sessionId,
     contractVersion: '2',
     ...(visualContext ? { activeContext: visualContext } : {}),
+    ...(
+      items?.length && !roomIdOverride
+        ? {
+          // The active context authorizes the focused item. Real V2
+          // attachments authorize the remaining room items, proving that the
+          // deployed attachment path and the room-aware S7 scope agree.
+          attachments: items.slice(1, 4).map((item) => ({
+            attachmentType: 'owned_item',
+            sourceType: 'dressing_room_item',
+            sourceId: item.itemId,
+          })),
+        }
+        : {}
+    ),
   };
 
   const headers = unauthenticated
     ? { apikey: ctx.publishableKey, 'Content-Type': 'application/json' }
-    : restHeaders(ctx.publishableKey, ctx.accessToken);
+    : restHeaders(ctx.publishableKey, ctx.accessToken, { 'x-kscan-s7-probe': '1' });
 
   // Space model requests so the burst limiter never becomes the thing under
   // test. Skipped for the unauthenticated probe, which is rejected at the
@@ -353,6 +367,21 @@ async function askElise(ctx, options) {
     contractVersion: payload?.contractVersion ?? null,
     capabilities: payload?.capabilities ?? null,
     attachmentsResolved: payload?.attachmentsResolved ?? null,
+    roomAdviceEvidence: payload?.closetIntelligenceRuntimeEvidence
+      ? {
+        roomAdviceScope: payload.closetIntelligenceRuntimeEvidence.roomAdviceScope ?? null,
+        ownedClosetCandidateCount:
+          payload.closetIntelligenceRuntimeEvidence.ownedClosetCandidateCount ?? null,
+        recentScanCandidateCount:
+          payload.closetIntelligenceRuntimeEvidence.recentScanCandidateCount ?? null,
+        inspirationCandidateCount:
+          payload.closetIntelligenceRuntimeEvidence.inspirationCandidateCount ?? null,
+        ownedRoomCandidateCount:
+          payload.closetIntelligenceRuntimeEvidence.ownedRoomCandidateCount ?? null,
+        sharedRoomCandidateCount:
+          payload.closetIntelligenceRuntimeEvidence.sharedRoomCandidateCount ?? null,
+      }
+      : null,
     sessionId: payload?.sessionId ?? sessionId ?? null,
     // The function's own rejection enum. Safe to emit: it is a fixed
     // vocabulary, never user or model text. Without it a 400 is a guessing
