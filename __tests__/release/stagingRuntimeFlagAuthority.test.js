@@ -193,7 +193,7 @@ test('SVV-004: the scanner flag did not inherit a reversible value set', async (
   );
 });
 
-test('SVV-004: the E4.1 gate is offered by the governed workflow', async () => {
+test('SVV-004: every reversible Elise gate is offered by the governed workflow', async () => {
   // A writer allowlist nobody can reach is not a governed path. The workflow
   // dropdown must offer the flag and the value, or activation would still
   // require a manual secret write.
@@ -203,7 +203,18 @@ test('SVV-004: the E4.1 gate is offered by the governed workflow', async () => {
     path.resolve(__dirname, '..', '..', '.github', 'workflows', 'staging-runtime-flag.yml'),
     'utf8',
   );
-  assert.match(workflow, /- ELISE_ROOM_INTELLIGENCE_V1_ENABLED/);
+  const reversibleEliseFlags = [
+    'ELISE_ROOM_INTELLIGENCE_V1_ENABLED',
+    'ELISE_ADVICE_INTENTS_V1_ENABLED',
+    'ELISE_CLOSET_RETRIEVAL_V1_ENABLED',
+    'ELISE_COMPATIBILITY_SCORING_V1_ENABLED',
+    'ELISE_WARDROBE_GAP_V1_ENABLED',
+    'ELISE_PURCHASE_ADVICE_V1_ENABLED',
+    'ELISE_MULTI_LOOK_V1_ENABLED',
+  ];
+  for (const key of reversibleEliseFlags) {
+    assert.match(workflow, new RegExp(`- ${key}`), `${key} must be reachable from the workflow`);
+  }
   assert.match(workflow, /- 'false'/, 'rollback must be reachable from the workflow');
 });
 
