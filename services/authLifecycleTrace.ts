@@ -1,8 +1,11 @@
 import type { AppleCredentialLinkOutcome } from './appleCredentialLink';
+import type { AppleDisplayNameOutcome } from './appleDisplayName';
 
 type AuthLifecycleDetails = {
   /** Status only; the Apple authorization code must never enter tracing. */
   appleCredentialLink?: AppleCredentialLinkOutcome;
+  /** Status only; the Apple-provided name must never enter tracing. */
+  appleDisplayName?: AppleDisplayNameOutcome;
   authEvent?: string;
   callbackKind?: 'code' | 'tokens' | 'otp' | 'missing';
   guardAction?: string;
