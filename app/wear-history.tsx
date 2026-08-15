@@ -21,6 +21,7 @@ import {
   InlineNotice,
 } from '../components/luxury';
 import { goBackOrHome } from '../services/navigationExit';
+import { WEAR_TRACKING_ACTIVE } from '../constants/featureFlags';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import {
   createActorRequest,
@@ -76,6 +77,15 @@ function entryDetail(entry: WearHistoryEntry): string {
 
 export default function WearHistoryScreen() {
   const router = useRouter();
+
+  // Wear is DEFERRED to Build 30. The Closet navigation entry is hidden, but a
+  // route file that stays registered is still reachable by deep link and by
+  // restored navigation state, and it would render a permanently-failing screen
+  // against a table production does not serve. Redirect instead of rendering.
+  // The screen implementation below is preserved intact for Build 30.
+  useEffect(() => {
+    if (!WEAR_TRACKING_ACTIVE) router.replace('/library');
+  }, [router]);
   const { isAuthenticated, loading: actorLoading, user } = useAuthSession();
   const actorId = isAuthenticated ? user?.id ?? null : null;
   const actorEpoch = getActorContext().epoch;
@@ -130,7 +140,8 @@ export default function WearHistoryScreen() {
   }, [actorId, actorLoading, actorStamp]);
 
   useEffect(() => {
-    void loadFirstPage();
+    // Do not issue the wear query while the redirect above is in flight.
+    if (WEAR_TRACKING_ACTIVE) void loadFirstPage();
     return () => {
       requestSequenceRef.current += 1;
       loadingMoreRef.current = false;
@@ -171,6 +182,11 @@ export default function WearHistoryScreen() {
   const visibleLoading = stateIsCurrent ? loading : true;
   const visibleHasMore = stateIsCurrent ? hasMore : false;
   const visibleStatsTruncated = stateIsCurrent ? statsTruncated : false;
+
+  // Nothing below this line may render while Wear is deferred. Hiding only the
+  // navigation entry left the retry control inside this screen reachable, which
+  // would re-issue the query the redirect exists to avoid.
+  if (!WEAR_TRACKING_ACTIVE) return null;
 
   const showRanking = rankingIsMeaningful(visibleStats);
   const mostWorn = showRanking ? rankByWear(visibleStats, 'most', 3) : [];

@@ -57,6 +57,7 @@ import {
   CLOSET_BATCH_REVIEW_V2_ACTIVE,
   MIRROR_SELFIE_V1_ACTIVE,
   PRIVATE_DRESSING_ROOM_V1,
+  WEAR_TRACKING_ACTIVE,
 } from '../constants/featureFlags';
 import { FreeTierUtilitySection } from '../components/free-tier/FreeTierUtilitySection';
 import { normalizeLocalSavedScan } from '../services/ownedClosetItems';
@@ -277,7 +278,7 @@ export default function LibraryScreen() {
   useEffect(() => {
     wearStatsRequestSeqRef.current += 1;
     setWearStats({});
-    if (isAuthenticated && user?.id) void loadWearStats();
+    if (WEAR_TRACKING_ACTIVE && isAuthenticated && user?.id) void loadWearStats();
     return () => {
       wearStatsRequestSeqRef.current += 1;
     };
@@ -484,6 +485,11 @@ export default function LibraryScreen() {
    * wear tracking existed — the user may well have worn it many times.
    */
   const wearContextLabel = (item: { id: string; createdAt?: string | null }): string => {
+    // Wear is DEFERRED to Build 30. Without this the card would claim "No wears
+    // recorded" on every item — a wear statement about a feature the build does
+    // not ship. Fall back to the item's added date, which is exactly what this
+    // line showed before wear tracking existed.
+    if (!WEAR_TRACKING_ACTIVE) return item.createdAt ? formatDate(item.createdAt) : '';
     const stat = wearStats[item.id];
     const state = describeWearState({
       timesWorn: stat?.timesWorn ?? 0,
@@ -507,7 +513,12 @@ export default function LibraryScreen() {
    * first. This reuses chrome the card already spends and leaves normal card
    * navigation (card press -> Dressing Room) completely untouched.
    */
-  const renderWoreThis = (item: { id: string; title?: string | null; category?: string | null }) => (
+  const renderWoreThis = (item: { id: string; title?: string | null; category?: string | null }) =>
+    // Wear is DEFERRED to Build 30: returning null here removes the corner
+    // action from every Closet card at once, so no reachable tap can write a
+    // wear event production cannot read back. The card renders exactly as it
+    // does for a user with no wears — no empty slot, no disabled affordance.
+    !WEAR_TRACKING_ACTIVE ? null : (
     <WoreThisButton
       compact
       testID="closet-wore-this"
@@ -772,14 +783,16 @@ export default function LibraryScreen() {
               an additional route into wardrobe history, never a replacement
               for it.
             */}
-            <View style={styles.wearHistoryAction}>
-              <SecondaryButton
-                title="Wear History"
-                onPress={() => router.push('/wear-history')}
-                accessibilityLabel="See what you have worn and when"
-                testID="closet-wear-history-button"
-              />
-            </View>
+            {WEAR_TRACKING_ACTIVE ? (
+              <View style={styles.wearHistoryAction}>
+                <SecondaryButton
+                  title="Wear History"
+                  onPress={() => router.push('/wear-history')}
+                  accessibilityLabel="See what you have worn and when"
+                  testID="closet-wear-history-button"
+                />
+              </View>
+            ) : null}
             {/*
               Candidate staging surface (Closet Upgrade Build 1).
 

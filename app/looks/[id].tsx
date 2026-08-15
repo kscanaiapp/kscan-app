@@ -33,7 +33,11 @@ import { WoreThisButton } from '../../components/closet/WoreThisButton';
 import { logLookWear } from '../../services/wearHistory';
 import { LUXURY, SPACING } from '../../constants/theme';
 import { MODAL_MAX_WIDTH } from '../../services/responsiveLayout';
-import { AI_STYLIST_UI_ENABLED, STYLECHAT_ATTACHMENTS_ENABLED } from '../../constants/featureFlags';
+import {
+  AI_STYLIST_UI_ENABLED,
+  STYLECHAT_ATTACHMENTS_ENABLED,
+  WEAR_TRACKING_ACTIVE,
+} from '../../constants/featureFlags';
 import { ELISE_IDENTITY } from '../../constants/elise';
 import { setAttachmentHandoff } from '../../services/style-chat/styleChatAttachmentStore';
 import { STYLECHAT_ATTACHMENT_CONTRACT_VERSION } from '../../types/styleChatAttachments';
@@ -248,7 +252,7 @@ function LookDetailContent() {
               moment the user says they wore it; the service snapshots them, so
               a later edit cannot rewrite this wear.
             */}
-            {look && items.length > 0 ? (
+            {WEAR_TRACKING_ACTIVE && look && items.length > 0 ? (
               <WoreThisButton
                 testID="look-wore-this"
                 accessibilityLabel={`Record that you wore ${look.title} today`}

@@ -725,3 +725,36 @@ export const AVATAR_MOTION_V1_ENABLED =
  */
 export const AVATAR_SPEECH_FIXTURE_ENABLED =
   process.env.EXPO_PUBLIC_AVATAR_SPEECH_FIXTURE === 'true';
+
+// ── Wear History / Cost Per Wear (DEFERRED to Build 30) ──────────────────────
+/**
+ * Master gate for the canonical wear-event system: the Closet "Wore this"
+ * control, the Saved Look "Wore this look" control, the Wear History screen,
+ * and every reachable path that writes a wear event.
+ *
+ * FALSE FOR BUILD 29 BY EXPLICIT PRODUCT DECISION, not because the feature is
+ * broken. The client implementation in `services/wearHistory.ts` is complete
+ * and is deliberately preserved intact — but production cannot correctly
+ * support it: the wear-event item relation is not promoted there, so a user who
+ * taps "Wore this" in a store build records a wear the wardrobe can never read
+ * back. A half-written wear is worse than no wear, so the entry points are
+ * hidden rather than the writes being made to fail quietly.
+ *
+ * (The relation is named only in services/wearHistory.ts, which is the single
+ * authorized writer; wearHistoryContract.test.js enforces that.)
+ *
+ * DELIBERATELY A HARDCODED CONSTANT, NOT AN ENV FLAG. An env flag reachable
+ * from `eas.json` is one edit away from shipping the broken loop; Build 30
+ * turns Wear on by changing this value together with the migration promotion,
+ * in one reviewable commit, which is the coupling the audit found missing.
+ *
+ * Nothing below Wear depends on this: Closet, Saved Looks, and Elise all
+ * function normally with wear data absent — each already handles the empty
+ * result the same way it handles a user who has recorded no wears.
+ *
+ * NOTE: the separate free-tier Cost Per Wear surface
+ * (`constants/freeTierUtilityFlags.ts`) is independently inactive — no
+ * `EXPO_PUBLIC_FREE_TIER_*` variable is set in the development, staging, or
+ * production build profiles, so its master switch resolves false there.
+ */
+export const WEAR_TRACKING_ACTIVE = false;
