@@ -807,11 +807,32 @@ export default function LibraryScreen() {
             {CLOSET_CANDIDATE_STAGING_ACTIVE ? (
               <ClosetCandidateStatusPanel api={closetCandidates} />
             ) : null}
+            {/*
+              KSB29-026. "We could not load your wardrobe" is not "you own
+              nothing". A failed read used to collapse to `[]` and render the
+              empty state, which on the owned-wardrobe surface reads as
+              destructive data loss. The notice sits above the grid so items
+              from the last successful read stay visible underneath it, and the
+              empty state below is suppressed while an error is showing.
+            */}
+            {closet.loadError ? (
+              <InlineNotice
+                variant="error"
+                title="Unable to load your Closet"
+                body={closet.loadError.message ?? "We couldn't load your Closet."}
+                action={{
+                  label: 'Retry',
+                  onPress: () => { void closet.refresh(); },
+                  accessibilityLabel: 'Retry loading your Closet',
+                }}
+                testID="closet-load-error"
+              />
+            ) : null}
             {closet.loading ? (
               <View style={styles.loadingWrap}>
                 <ActivityIndicator size="large" color={LUXURY.colors.plum} />
               </View>
-            ) : closet.items.length === 0 ? (
+            ) : closet.items.length === 0 && !closet.loadError ? (
               <EmptyStateCard
                 title={chrome.emptyTitle}
                 subtitle={

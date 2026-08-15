@@ -1,7 +1,8 @@
 import { useState, useCallback, useRef } from 'react';
 import { useFocusEffect } from 'expo-router';
 import {
-  loadCloset,
+  loadClosetTyped,
+  CLOSET_LOAD_CODES,
   deleteClosetItem,
   createClosetItem,
 } from '../services/closetLibrary';
@@ -32,6 +33,19 @@ import { useAuthSession } from '../contexts/AuthSessionContext';
 export function useCloset() {
   const [snapshot, setSnapshot] = useState({ actorKey: null, items: [] });
   const [loading, setLoading] = useState(true);
+  /**
+   * KSB29-026. A failed read is NOT an empty wardrobe.
+   *
+   * Both read paths called `loadCloset(actorId)`, which collapses every failure
+   * to `[]`. A transient read error therefore rendered as "your Closet is
+   * empty" — indistinguishable from destructive data loss, on the one surface
+   * whose entire job is to be the user's owned-wardrobe truth. The typed loader
+   * already reported the difference; nothing consumed it.
+   *
+   * Non-null means the last read failed and may be retried. Items from the
+   * previous successful read are retained underneath it.
+   */
+  const [loadError, setLoadError] = useState(null);
   const [busy, setBusy] = useState(false);
   const { isAuthenticated, user } = useAuthSession();
   const actorId = isAuthenticated ? user?.id ?? null : null;
@@ -48,17 +62,35 @@ export function useCloset() {
       isActorRequestCurrent(actorRequest);
 
     setLoading(true);
-    setSnapshot({ actorKey, items: [] });
+    // Clear ONLY on an actor boundary. Clearing unconditionally made every
+    // refresh flash an empty wardrobe and left it empty if the read then failed.
+    setSnapshot((current) => (current.actorKey === actorKey ? current : { actorKey, items: [] }));
+    setLoadError(null);
 
-    void loadCloset(actorId)
-      .then((items) => {
+    void loadClosetTyped(actorId, { actorRequest })
+      .then((result) => {
         if (!isCurrent()) return;
-        setSnapshot({ actorKey, items: getClosetItemProjections(items) });
+        if (result.ok) {
+          // A genuine empty result IS empty — that distinction is the point.
+          setSnapshot({ actorKey, items: getClosetItemProjections(result.items) });
+          setLoadError(null);
+        } else if (result.code === CLOSET_LOAD_CODES.ACTOR_CHANGED) {
+          // The one failure that MUST clear: never show one actor another's rows.
+          setSnapshot({ actorKey, items: [] });
+        } else {
+          // Retain what we last knew and surface a retriable error instead of
+          // silently reporting that the user owns nothing.
+          setLoadError({ code: result.code, message: result.message, retriable: true });
+        }
         setLoading(false);
       })
       .catch(() => {
         if (!isCurrent()) return;
-        setSnapshot({ actorKey, items: [] });
+        setLoadError({
+          code: CLOSET_LOAD_CODES.READ_FAILED,
+          message: "We couldn't load your Closet.",
+          retriable: true,
+        });
         setLoading(false);
       });
 
@@ -72,12 +104,27 @@ export function useCloset() {
 
   useFocusEffect(hydrate);
 
-  /** Re-read from disk under a fresh actor request. */
+  /**
+   * Re-read from disk under a fresh actor request.
+   *
+   * Same rule as hydrate: a failed re-read leaves the known items in place. A
+   * refresh triggered right after a successful write must never be able to
+   * blank the wardrobe the write just added to.
+   */
   const refresh = useCallback(async () => {
     const actorRequest = createActorRequest();
-    const items = await loadCloset(actorId);
+    const result = await loadClosetTyped(actorId, { actorRequest });
     if (!isActorRequestCurrent(actorRequest)) return;
-    setSnapshot({ actorKey, items: getClosetItemProjections(items) });
+    if (result.ok) {
+      setSnapshot({ actorKey, items: getClosetItemProjections(result.items) });
+      setLoadError(null);
+      return;
+    }
+    if (result.code === CLOSET_LOAD_CODES.ACTOR_CHANGED) {
+      setSnapshot({ actorKey, items: [] });
+      return;
+    }
+    setLoadError({ code: result.code, message: result.message, retriable: true });
   }, [actorId, actorKey]);
 
   /**
@@ -149,5 +196,5 @@ export function useCloset() {
   );
 
   const items = snapshot.actorKey === actorKey ? snapshot.items : [];
-  return { items, loading, busy, addFromUri, addFromScan, remove, refresh };
+  return { items, loading, busy, loadError, addFromUri, addFromScan, remove, refresh };
 }

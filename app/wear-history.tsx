@@ -84,7 +84,10 @@ export default function WearHistoryScreen() {
   // against a table production does not serve. Redirect instead of rendering.
   // The screen implementation below is preserved intact for Build 30.
   useEffect(() => {
-    if (!WEAR_TRACKING_ACTIVE) router.replace('/library');
+    // The section-qualified route, not the bare '/library': Wear History is
+    // reached from the Closet, so the redirect must land back on the Closet
+    // rather than on the Library's default section.
+    if (!WEAR_TRACKING_ACTIVE) router.replace({ pathname: '/library', params: { section: 'closet' } });
   }, [router]);
   const { isAuthenticated, loading: actorLoading, user } = useAuthSession();
   const actorId = isAuthenticated ? user?.id ?? null : null;

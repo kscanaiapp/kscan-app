@@ -362,15 +362,49 @@ test('the projection still strips internals after a typed load', async () => {
 
 // ── Caller compatibility ─────────────────────────────────────────────────────
 
-test('no existing production caller was changed to the typed API', () => {
-  // The private Dressing Room migrates to loadClosetTyped in a later Phase 2
-  // commit; every other production surface keeps the compatibility wrapper.
-  const candidate = fs.readFileSync(path.join(ROOT, 'services/closetCandidateLibrary.js'), 'utf8');
+test('the Closet screen reads through the typed API (KSB29-026)', () => {
+  // THIS TEST PREVIOUSLY ASSERTED THE OPPOSITE, and that is the defect.
+  //
+  // It required `useCloset` to keep calling the untyped `loadCloset(actorId)`
+  // wrapper, on the stated plan that callers would migrate "in a later Phase 2
+  // commit". That migration never happened, and the wrapper collapses EVERY
+  // failure to `[]` -- so a transient read error rendered as "your Closet is
+  // empty" on the one surface whose whole job is to be the user's owned-
+  // wardrobe truth. A test that pins a transitional state eventually certifies
+  // it; this one did.
+  //
+  // The typed loader already reported the difference between a genuine empty
+  // result and a failed read. Nothing consumed it until now.
   const useCloset = fs.readFileSync(path.join(ROOT, 'hooks/useCloset.js'), 'utf8');
+  // Comments stripped: this file documents the old call in prose, and a raw
+  // substring search would match the very comment explaining why it is gone.
+  const useClosetCode = useCloset
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(^|[^:])\/\/.*$/gm, '$1');
+
+  assert.match(useClosetCode, /loadClosetTyped\(actorId, \{ actorRequest \}\)/);
+  assert.equal(
+    /loadCloset\(actorId\)/.test(useClosetCode),
+    false,
+    'the screen must not read through the failure-collapsing wrapper',
+  );
+
+  // A failed read must retain what was last known and expose a retriable error.
+  assert.match(useClosetCode, /setLoadError\(\{/, 'a failed read must be reportable');
+  assert.match(useClosetCode, /retriable: true/);
+  // ...and the ONE failure that must still clear is an actor boundary: never
+  // show one account another account's wardrobe.
+  assert.match(
+    useClosetCode,
+    /CLOSET_LOAD_CODES\.ACTOR_CHANGED[\s\S]{0,200}items: \[\]/,
+    'an actor change must still clear the snapshot',
+  );
+
+  // Unchanged: the candidate library keeps the compatibility wrapper. Only the
+  // user-facing wardrobe surface needed the distinction.
+  const candidate = fs.readFileSync(path.join(ROOT, 'services/closetCandidateLibrary.js'), 'utf8');
   assert.equal(candidate.includes('loadClosetTyped'), false);
-  assert.equal(useCloset.includes('loadClosetTyped'), false);
   assert.match(candidate, /loadCloset\(post\.ownerId\)/);
-  assert.match(useCloset, /loadCloset\(actorId\)/);
 });
 
 test('loadCloset remains the single delegating wrapper, not a second implementation', () => {
