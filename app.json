@@ -56,7 +56,8 @@
                                          "organization":  "k-scan-ai"
                                      }
                                  ],
-                                 "./plugins/withRemoveUnusedForegroundServices"
+                                 "./plugins/withRemoveUnusedForegroundServices",
+                                 "./plugins/withAndroidEdgeToEdgeSystemBars"
                              ],
                  "android":  {
                                  "package":  "com.kscanai.app",

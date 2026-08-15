@@ -58,16 +58,22 @@ test('a prebuild re-applies the foreground-service removals', () => {
   );
 });
 
+// `expo prebuild` emits permissions in alphabetical order, so compare sets, not order.
+const sorted = (values) => [...values].sort();
+
 test('the committed main manifest declares exactly the granted permissions', () => {
   const manifest = read(MAIN_MANIFEST);
 
-  assert.deepEqual(grantedPermissions(manifest), contract.GRANTED_PERMISSIONS);
+  assert.deepEqual(
+    sorted(grantedPermissions(manifest)),
+    sorted(contract.EFFECTIVE_GRANTED_PERMISSIONS),
+  );
 });
 
 test('the committed main manifest tombstones every blocked permission', () => {
   const manifest = read(MAIN_MANIFEST);
 
-  assert.deepEqual(blockedPermissions(manifest), contract.BLOCKED_PERMISSIONS);
+  assert.deepEqual(sorted(blockedPermissions(manifest)), sorted(contract.BLOCKED_PERMISSIONS));
 });
 
 test('no foreground-service permission or service reaches the app manifest', () => {

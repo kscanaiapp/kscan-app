@@ -34,11 +34,25 @@ test('release R8 preserves the reflected Expo SecureStore bridge used by auth', 
   assert.doesNotMatch(proguardRules, /-keep\s+class\s+expo\.modules\.\*\*/);
 });
 
-test('Android activity is adaptive and does not retain an Expo prebuild portrait lock', () => {
+/** Orientation values that leave the activity free to follow the device. */
+const ADAPTIVE_ORIENTATIONS = ['unspecified', 'fullSensor', 'fullUser', 'user', 'behind'];
+
+test('Android activity is adaptive and is not locked to a single orientation', () => {
   const manifest = read('android/app/src/main/AndroidManifest.xml');
   const appConfig = JSON.parse(read('app.json'));
 
-  assert.doesNotMatch(manifest, /android:screenOrientation=/);
+  // B29-UI-001 removed the K Scan-owned portrait restriction so the app follows the
+  // device on phones, tablets and foldables. Assert that invariant rather than the
+  // literal absence of the attribute: `expo prebuild` writes the behaviourally
+  // equivalent android:screenOrientation="unspecified" from orientation: "default",
+  // and a test that forbids the attribute outright fails on a faithful regeneration.
+  const declared = /android:screenOrientation="([^"]+)"/.exec(manifest);
+  if (declared) {
+    assert.ok(
+      ADAPTIVE_ORIENTATIONS.includes(declared[1]),
+      `MainActivity is locked to android:screenOrientation="${declared[1]}"`,
+    );
+  }
   assert.equal(appConfig.expo.orientation, 'default');
 });
 
