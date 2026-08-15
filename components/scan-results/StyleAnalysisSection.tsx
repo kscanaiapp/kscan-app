@@ -9,10 +9,17 @@ import {
   UIManager,
 } from 'react-native';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
+import { useAiOutputReporting } from '../../contexts/AiOutputReportingContext';
 
 interface StyleAnalysisSectionProps {
   analysisText?: string;
   testID?: string;
+  /**
+   * Persisted identity of the scan this analysis describes, used as the report
+   * target. Null disables the report control rather than filing an
+   * unresolvable report.
+   */
+  scanSourceId?: string | null;
 }
 
 /**
@@ -25,8 +32,10 @@ interface StyleAnalysisSectionProps {
 export function StyleAnalysisSection({
   analysisText,
   testID,
+  scanSourceId,
 }: StyleAnalysisSectionProps) {
   const [expanded, setExpanded] = useState(false);
+  const { openAiOutputReport } = useAiOutputReporting();
 
   // Enable LayoutAnimation on Android
   if (Platform.OS === 'android') {
@@ -66,6 +75,37 @@ export function StyleAnalysisSection({
               </Text>
             </TouchableOpacity>
           )}
+
+          {/*
+            KSB29-021 — AI-output reporting on the surface production actually
+            renders.
+
+            SCAN_RESULTS_V2_UI is enabled in the production profile, so this
+            component IS the primary Scan Results AI-output surface. The Report
+            control existed only on the legacy AnalysisCard path, which that
+            flag branches away from — so the shipped app exposed no way to
+            report model-authored scan prose at all.
+
+            This reuses the existing reporting flow verbatim (same context, same
+            feature name, same service); nothing new is introduced. Hidden when
+            there is no persisted scan identity, because a report with no
+            resolvable target cannot be actioned.
+          */}
+          {scanSourceId ? (
+            <TouchableOpacity
+              onPress={() =>
+                openAiOutputReport({ feature: 'Scan Results', itemId: scanSourceId })
+              }
+              style={styles.reportButton}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Report this style analysis as offensive or unsafe"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              testID="scan-result-v2-report-ai"
+            >
+              <Text style={styles.reportText}>Report Response</Text>
+            </TouchableOpacity>
+          ) : null}
         </>
       ) : (
         <Text style={styles.preparedBody}>
@@ -103,9 +143,25 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: 'center',
   },
+  reportButton: {
+    marginTop: SPACING.sm,
+    alignSelf: 'flex-start',
+    // 48dp, not the legacy card's 32: this control is being added now, so it
+    // is added at the shared touch-target minimum rather than inheriting a
+    // violation the accessibility wave would have to come back and repair.
+    minHeight: 48,
+    justifyContent: 'center',
+  },
   toggleText: {
     ...LUXURY.typography.ctaSecondary,
     fontSize: 12,
     letterSpacing: 1.6,
+  },
+  reportText: {
+    ...LUXURY.typography.caption,
+    fontSize: 11,
+    color: LUXURY.colors.stone,
+    letterSpacing: 0.6,
+    textDecorationLine: 'underline',
   },
 });

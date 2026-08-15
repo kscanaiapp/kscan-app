@@ -413,6 +413,7 @@ export function ScanResultV2({
               <View style={styles.section}>
                 <StyleAnalysisSection
                   analysisText={v2Data.styleAnalysis || v2Data.analysisText}
+                  scanSourceId={scanSourceId ?? null}
                 />
               </View>
 
