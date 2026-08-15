@@ -1,38 +1,38 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
-  <uses-permission android:name="android.permission.CAMERA"/>
-  <uses-permission android:name="android.permission.INTERNET"/>
-  <uses-permission android:name="android.permission.VIBRATE"/>
-  <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-  <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove"/>
-  <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" tools:node="remove"/>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
   <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" tools:node="remove"/>
+  <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+  <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" tools:node="remove"/>
+  <uses-permission android:name="android.permission.BLUETOOTH" tools:node="remove"/>
+  <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" tools:node="remove"/>
+  <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" tools:node="remove"/>
+  <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" tools:node="remove"/>
+  <uses-permission android:name="android.permission.BLUETOOTH_SCAN" tools:node="remove"/>
+  <uses-permission android:name="android.permission.CALL_PHONE" tools:node="remove"/>
+  <uses-permission android:name="android.permission.CAMERA"/>
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove"/>
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" tools:node="remove"/>
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" tools:node="remove"/>
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" tools:node="remove"/>
+  <uses-permission android:name="android.permission.INTERNET"/>
+  <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:node="remove"/>
+  <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS" tools:node="remove"/>
+  <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS" tools:node="remove"/>
+  <uses-permission android:name="android.permission.READ_CALL_LOG" tools:node="remove"/>
+  <uses-permission android:name="android.permission.READ_CONTACTS" tools:node="remove"/>
   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove"/>
-  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove"/>
+  <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" tools:node="remove"/>
   <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove"/>
   <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" tools:node="remove"/>
-  <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" tools:node="remove"/>
-  <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" tools:node="remove"/>
-  <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove"/>
-  <uses-permission android:name="android.permission.BLUETOOTH" tools:node="remove"/>
-  <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" tools:node="remove"/>
-  <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" tools:node="remove"/>
-  <uses-permission android:name="android.permission.BLUETOOTH_SCAN" tools:node="remove"/>
-  <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" tools:node="remove"/>
-  <uses-permission android:name="android.permission.READ_CONTACTS" tools:node="remove"/>
-  <uses-permission android:name="android.permission.WRITE_CONTACTS" tools:node="remove"/>
   <uses-permission android:name="android.permission.READ_SMS" tools:node="remove"/>
   <uses-permission android:name="android.permission.RECEIVE_SMS" tools:node="remove"/>
+  <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove"/>
   <uses-permission android:name="android.permission.SEND_SMS" tools:node="remove"/>
-  <uses-permission android:name="android.permission.READ_CALL_LOG" tools:node="remove"/>
+  <uses-permission android:name="android.permission.VIBRATE"/>
   <uses-permission android:name="android.permission.WRITE_CALL_LOG" tools:node="remove"/>
-  <uses-permission android:name="android.permission.PROCESS_OUTGOING_CALLS" tools:node="remove"/>
-  <uses-permission android:name="android.permission.CALL_PHONE" tools:node="remove"/>
+  <uses-permission android:name="android.permission.WRITE_CONTACTS" tools:node="remove"/>
+  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove"/>
+  <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove"/>
   <queries>
     <intent>
       <action android:name="android.intent.action.VIEW"/>
@@ -41,42 +41,34 @@
     </intent>
   </queries>
   <application android:name=".MainApplication" android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:allowBackup="false" android:dataExtractionRules="@xml/data_extraction_rules" android:theme="@style/AppTheme" android:supportsRtl="true" android:enableOnBackInvokedCallback="false">
-    <!-- Google Play foreground-service compliance: strip unused foreground services that
-         dependency library manifests merge in. K Scan runs NO foreground service.
-           - expo-location LocationTaskService (location): app only reads foreground position.
-           - expo-audio AudioControlsService (mediaPlayback) + AudioRecordingService (microphone):
-             stylist voice plays foreground-only (shouldPlayInBackground:false) with recording
-             disabled, so neither service is started.
-         Kept in sync with plugins/androidNativeDeclarationContract.js so a prebuild cannot
-         silently restore them. -->
-    <service android:name="expo.modules.location.services.LocationTaskService" tools:node="remove"/>
-    <service android:name="expo.modules.audio.service.AudioControlsService" tools:node="remove"/>
-    <service android:name="expo.modules.audio.service.AudioRecordingService" tools:node="remove"/>
     <meta-data android:name="expo.modules.updates.ENABLED" android:value="false"/>
     <meta-data android:name="expo.modules.updates.EXPO_UPDATES_CHECK_ON_LAUNCH" android:value="ALWAYS"/>
     <meta-data android:name="expo.modules.updates.EXPO_UPDATES_LAUNCH_WAIT_MS" android:value="0"/>
-    <activity android:name=".MainActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode" android:launchMode="singleTask" android:windowSoftInputMode="adjustResize" android:theme="@style/AppTheme" android:exported="true">
+    <service android:name="expo.modules.location.services.LocationTaskService" tools:node="remove"/>
+    <service android:name="expo.modules.audio.service.AudioControlsService" tools:node="remove"/>
+    <service android:name="expo.modules.audio.service.AudioRecordingService" tools:node="remove"/>
+    <activity android:name=".MainActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode" android:launchMode="singleTask" android:windowSoftInputMode="adjustResize" android:theme="@style/AppTheme" android:exported="true" android:screenOrientation="unspecified">
       <intent-filter>
         <action android:name="android.intent.action.MAIN"/>
         <category android:name="android.intent.category.LAUNCHER"/>
       </intent-filter>
-      <intent-filter>
+      <intent-filter data-generated="true">
         <action android:name="android.intent.action.VIEW"/>
-        <category android:name="android.intent.category.DEFAULT"/>
-        <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="kscan"/>
-      </intent-filter>
-      <intent-filter android:autoVerify="true">
-        <action android:name="android.intent.action.VIEW"/>
-        <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+      </intent-filter>
+      <intent-filter android:autoVerify="true" data-generated="true">
+        <action android:name="android.intent.action.VIEW"/>
         <data android:scheme="https" android:host="kscan.app" android:pathPrefix="/rooms"/>
-      </intent-filter>
-      <intent-filter android:autoVerify="true">
-        <action android:name="android.intent.action.VIEW"/>
-        <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+      </intent-filter>
+      <intent-filter android:autoVerify="true" data-generated="true">
+        <action android:name="android.intent.action.VIEW"/>
         <data android:scheme="https" android:host="kscan.app" android:pathPrefix="/account/restore"/>
+        <category android:name="android.intent.category.BROWSABLE"/>
+        <category android:name="android.intent.category.DEFAULT"/>
       </intent-filter>
     </activity>
   </application>

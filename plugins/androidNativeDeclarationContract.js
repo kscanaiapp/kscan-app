@@ -23,6 +23,17 @@ const GRANTED_PERMISSIONS = [
 ];
 
 /**
+ * Permissions contributed by a dependency's own config plugin rather than by app.json.
+ *
+ * expo-audio's plugin adds MODIFY_AUDIO_SETTINGS, and its library manifest
+ * (node_modules/expo-audio/android/src/main/AndroidManifest.xml) declares it too, so it
+ * reaches the merged artifact whether or not the app manifest names it. It is a normal
+ * permission: no runtime prompt, no Play declaration. Listed here so the effective
+ * manifest can be asserted exactly instead of loosely.
+ */
+const PLUGIN_GRANTED_PERMISSIONS = ['android.permission.MODIFY_AUDIO_SETTINGS'];
+
+/**
  * Permissions that dependency manifests merge in but that Build 29 must not
  * declare. Every entry is reachable from the resolved Android graph, which is
  * dependency-identical to the certified Build 28 graph apart from
@@ -131,8 +142,13 @@ function removeUnusedForegroundServices(androidManifest) {
   return androidManifest;
 }
 
+/** Every permission the generated manifest is allowed to declare for real. */
+const EFFECTIVE_GRANTED_PERMISSIONS = [...GRANTED_PERMISSIONS, ...PLUGIN_GRANTED_PERMISSIONS];
+
 module.exports = {
   GRANTED_PERMISSIONS,
+  PLUGIN_GRANTED_PERMISSIONS,
+  EFFECTIVE_GRANTED_PERMISSIONS,
   BLOCKED_PERMISSIONS,
   REMOVED_FOREGROUND_SERVICES,
   RELEASE_ONLY_BLOCKED_PERMISSIONS,
