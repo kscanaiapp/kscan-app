@@ -1064,6 +1064,7 @@ function DressingRoomDetailContent() {
       <RoomItemDetailModal
         visible={itemDetailVisible}
         item={selectedItem}
+        isOwner={Boolean(user?.id && room?.userId && room.userId === user.id)}
         selected={selectedItem ? selectedSet.has(selectedItem.id) : false}
         onClose={closeItemDetail}
         onRemove={() => {

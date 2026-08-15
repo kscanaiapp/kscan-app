@@ -8,6 +8,37 @@
 
 export type EliseVisualContextSource = 'scan' | 'upload';
 
+/**
+ * KSB29-028 — E4.1 room provenance.
+ *
+ * The server can already resolve a Dressing Room item against the database and
+ * mark the resulting evidence `server_verified`
+ * (`resolveOwnedRoomItem` / `resolveSharedRoomItem` in
+ * supabase/functions/stylechat-generate/eliseResourceResolvers.ts). To do that
+ * it needs the resource triple below. The client had no way to express it —
+ * `EliseVisualContextSource` is only 'scan' | 'upload' — so a Dressing Room
+ * hand-off arrived describing a garment with no resolvable identity, and the
+ * certified E4.1 path was unreachable from the app.
+ *
+ * `roomId` and `itemId` ARE ids, which this module otherwise forbids. The
+ * distinction is deliberate and narrow: the banned ids are LOCAL ones — device
+ * URIs, actor keys, session ids — which identify the user or their device.
+ * These two are canonical server-side RESOURCE ids that the server must have in
+ * order to verify ownership at all, and it re-checks them against the actor on
+ * every request. Sending them is what makes verification possible; withholding
+ * them is what forced the server to fall back to unverified client metadata.
+ *
+ * 'shared' must never be upgraded to 'owned' — the server enforces that
+ * independently, and the client must not assert an ownership it cannot prove.
+ */
+export type EliseRoomEvidenceSourceType = 'owned_room_item' | 'shared_room_item';
+
+export type EliseRoomProvenance = {
+  sourceType: EliseRoomEvidenceSourceType;
+  roomId: string;
+  itemId: string;
+};
+
 export type EliseVisualContextStatus = 'preparing' | 'analyzing' | 'ready' | 'blocked' | 'failed';
 
 export type EliseVisualContextPrivacyPolicy = {
@@ -27,6 +58,11 @@ export type EliseVisualContextPrivacyPolicy = {
  */
 export type EliseVisualContextInput = {
   source: EliseVisualContextSource;
+  /**
+   * Room provenance, when this evidence came from a Dressing Room. Absent for
+   * every other source, and absence keeps today's behaviour exactly.
+   */
+  roomProvenance?: EliseRoomProvenance | null;
   title: string;
   summary?: string | null;
   category?: string | null;

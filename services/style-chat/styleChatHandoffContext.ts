@@ -7,11 +7,18 @@
 // - Do not store PII, facial data, or biometrics.
 
 import type {
+  EliseRoomProvenance,
   EliseVisualCollectionInput,
   EliseVisualContextInput,
 } from '../../types/eliseVisualContext';
 
-export type StyleChatHandoffSource = 'camera' | 'upload' | 'text-scan';
+/**
+ * KSB29-028: 'dressing-room' is a distinct entry path, not a flavour of
+ * 'camera'. The room hand-off previously collapsed onto 'camera'/'upload',
+ * which told the server this was an ad-hoc photo and discarded the fact that a
+ * verifiable room resource stood behind it.
+ */
+export type StyleChatHandoffSource = 'camera' | 'upload' | 'text-scan' | 'dressing-room';
 
 export type StyleChatHandoffContext = {
   source: StyleChatHandoffSource;
@@ -29,6 +36,15 @@ export type StyleChatHandoffContext = {
   visualContext?: EliseVisualContextInput | null;
   /** Bounded ordered collection for multi-reference reasoning. */
   visualCollection?: EliseVisualCollectionInput | null;
+  /**
+   * Room provenance for a Dressing Room hand-off (KSB29-028).
+   *
+   * Unlike `imageUri` and `identificationV2`, this IS part of the server-safe
+   * projection: the server needs the resource triple to resolve the item and
+   * mark the evidence `server_verified` rather than falling back to unverified
+   * client metadata.
+   */
+  roomProvenance?: EliseRoomProvenance | null;
   /**
    * Canonical V2 identity from the Scanner result that produced this handoff
    * (Phase 2B.3).

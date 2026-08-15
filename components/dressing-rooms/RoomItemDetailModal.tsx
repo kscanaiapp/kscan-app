@@ -21,11 +21,20 @@ import { MODAL_MAX_WIDTH } from '../../services/responsiveLayout';
 import { setStyleChatHandoffContext } from '../../services/style-chat/styleChatHandoffContext';
 import type { StyleChatHandoffSource } from '../../services/style-chat/styleChatHandoffContext';
 import type { DressingRoomItem } from '../../types/styleObjects';
+import type { EliseRoomProvenance } from '../../types/eliseVisualContext';
 
 type Props = {
   visible: boolean;
   item: DressingRoomItem | null;
   selected?: boolean;
+  /**
+   * KSB29-028: whether the VIEWER owns this room. Decides between
+   * `owned_room_item` and `shared_room_item`, which the server treats as
+   * genuinely different trust levels — shared must never upgrade to owned.
+   * Defaults to shared, the lower privilege, so an unwired caller cannot claim
+   * ownership it has not proven.
+   */
+  isOwner?: boolean;
   onClose: () => void;
   onRemove: () => void;
   onToggleSelected?: () => void;
@@ -57,18 +66,36 @@ export function RoomItemDetailModal({
   visible,
   item,
   selected,
+  isOwner = false,
   onClose,
   onRemove,
   onToggleSelected,
 }: Props) {
   const handleAskStyleChat = useCallback(() => {
     if (!item) return;
-    const source = mapSourceToHandoff(item.sourceType);
+
+    // KSB29-028. The room resource this item genuinely is. Both ids come off
+    // the item itself, and the server re-verifies them against the actor on
+    // every request, so this asserts nothing the server takes on trust.
+    const roomProvenance: EliseRoomProvenance | null =
+      item.dressingRoomId && item.id
+        ? {
+            sourceType: isOwner ? 'owned_room_item' : 'shared_room_item',
+            roomId: item.dressingRoomId,
+            itemId: item.id,
+          }
+        : null;
+
+    // A room hand-off is its own entry path. Collapsing it onto 'camera' told
+    // the server this was an ad-hoc photo and discarded the resolvable resource
+    // behind it; the legacy mapping stays only for items with no room identity.
+    const source = roomProvenance ? 'dressing-room' : mapSourceToHandoff(item.sourceType);
     const payload = (item.snapshotPayload || {}) as Record<string, any>;
     const meta = payload.metadata || payload;
 
     setStyleChatHandoffContext({
       source,
+      roomProvenance,
       imageUri: item.imageUrl ?? null,
       category: item.category || meta?.category || null,
       color: meta?.color || null,
@@ -80,7 +107,7 @@ export function RoomItemDetailModal({
     });
     onClose();
     router.push('/style-chat');
-  }, [item, onClose]);
+  }, [item, isOwner, onClose]);
 
   const attributeChips = useMemo(() => {
     if (!item) return [];

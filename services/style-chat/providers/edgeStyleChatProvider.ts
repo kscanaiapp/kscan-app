@@ -158,8 +158,22 @@ export function toServerSafeActiveContext(
 ): Omit<StyleChatHandoffContext, 'imageUri' | 'textScanId' | 'createdAt'> {
   const visual = context.visualContext;
   const visualCollection = context.visualCollection;
+  // KSB29-028. The server resolves a Dressing Room item from this triple and
+  // marks the evidence `server_verified`; without it the request described a
+  // garment the server could not identify, so the certified E4.1 path was
+  // unreachable from the app. Emitted at BOTH levels because the pipeline reads
+  // `sourceType`/`roomId`/`itemId` off each evidence entry as well as off the
+  // top-level context.
+  const roomProvenance = context.roomProvenance
+    ? {
+        sourceType: context.roomProvenance.sourceType,
+        roomId: context.roomProvenance.roomId,
+        itemId: context.roomProvenance.itemId,
+      }
+    : null;
   return {
     source: context.source,
+    ...(roomProvenance ? roomProvenance : {}),
     ...(context.query != null ? { query: context.query } : {}),
     ...(context.category != null ? { category: context.category } : {}),
     ...(context.color != null ? { color: context.color } : {}),
@@ -171,6 +185,13 @@ export function toServerSafeActiveContext(
       ? {
           visualContext: {
             source: visual.source,
+            ...(visual.roomProvenance
+              ? {
+                  sourceType: visual.roomProvenance.sourceType,
+                  roomId: visual.roomProvenance.roomId,
+                  itemId: visual.roomProvenance.itemId,
+                }
+              : roomProvenance ?? {}),
             title: visual.title,
             summary: visual.summary ?? null,
             category: visual.category ?? null,
@@ -190,6 +211,16 @@ export function toServerSafeActiveContext(
               id: entry.id,
               order: entry.order,
               source: entry.source,
+              // Per-entry provenance: a collection can mix a room item with a
+              // scan, so this must travel with the entry rather than be
+              // inferred from the request.
+              ...(entry.roomProvenance
+                ? {
+                    sourceType: entry.roomProvenance.sourceType,
+                    roomId: entry.roomProvenance.roomId,
+                    itemId: entry.roomProvenance.itemId,
+                  }
+                : {}),
               title: entry.title,
               summary: entry.summary ?? null,
               category: entry.category ?? null,
