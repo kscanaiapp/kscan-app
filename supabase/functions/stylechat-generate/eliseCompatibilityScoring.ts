@@ -85,12 +85,17 @@ function colorHarmonyScore(
 ): { score: number; reasons: string[]; warnings: string[] } {
   const reasons: string[] = [];
   const warnings: string[] = [];
-  if (!focus || (!focus.colors.length && !focus.colorFamilies.length)) {
+  const focusColorMissing = !focus || (!focus.colors.length && !focus.colorFamilies.length);
+  const candidateColorMissing = !candidate.colors.length && !candidate.colorFamilies.length;
+  if (focusColorMissing) {
     warnings.push('vague_color_metadata');
-    return { score: 0.4, reasons, warnings };
   }
-  if (!candidate.colors.length && !candidate.colorFamilies.length) {
+  if (candidateColorMissing) {
     warnings.push('vague_candidate_color');
+  }
+  // Report the two evidence gaps independently. Returning on the missing
+  // focus first used to hide incomplete candidate metadata entirely.
+  if (focusColorMissing || candidateColorMissing) {
     return { score: 0.35, reasons, warnings };
   }
   const familyOverlap = overlapScore(focus.colorFamilies, candidate.colorFamilies);

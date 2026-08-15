@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-15T00:17:34.871Z",
-    "generatedFromGitSha": "36baef2993decd01da048124fb440b8a86524039"
+    "generatedAtUtc": "2026-08-15T00:58:02.152Z",
+    "generatedFromGitSha": "9d846c2c3cbc91b386fcbc76a0fa324808fbefbf"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v2",
@@ -298,8 +298,8 @@
         ],
         "bundleFileCount": 43,
         "treeFileCount": 64,
-        "bundleHash": "26eddaf74833bca7d2aef144d56354063fea7bd05d970752dc7b79a6ff310a03",
-        "treeHash": "d941daf9203ce1b7d716f976e28c7145ab380ffdaea36d5ad4195cec8169f64f",
+        "bundleHash": "ae099377eacf77f113cb746639a4ecbf65e71a3fa7056a97737d13625dce4ca9",
+        "treeHash": "28e9f3a6e82776955a0c6cf695ca69ea1014f34c05aaace8dbbeee11a4ed42aa",
         "files": [
           {
             "path": "supabase/functions/_shared/aiSecurity/escapeUntrustedText.ts",
@@ -408,7 +408,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseAdviceE4.test.ts",
-            "sha256": "4bbac8d11fdadebb04da305662667ec1617ac24d3fd45d148e8d7cb85a0efc88",
+            "sha256": "6fb3bbbd04f9d5063c671ea76207bc13a556a8a8e2a8063ba58fbad2a013f21e",
             "bundle": false
           },
           {
@@ -438,7 +438,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseCompatibilityScoring.ts",
-            "sha256": "bfa8f6e38bfdd1e330fb6172eaddebba049943e4d40cbdd509792564fc04b60a",
+            "sha256": "34173866d70338747e801dfec02309f5f576be19f40079c22dc854b6998fdcac",
             "bundle": true
           },
           {

@@ -313,6 +313,22 @@ Deno.test('E-4 compatibility scoring prioritizes owned complements and penalizes
   assert.ok(ranked[0].candidate.actorRelationship === 'owned' || ranked.length > 0);
 });
 
+Deno.test('E-4 compatibility scoring reports candidate gaps even without a focused item', () => {
+  const incomplete = normalizeWardrobeCandidate({
+    candidateId: 'missing-color',
+    sourceType: 'closet',
+    actorRelationship: 'owned',
+    row: { category: 'pants' },
+  });
+  const score = scoreWardrobeCompatibility({
+    focus: null,
+    candidate: incomplete,
+    intent: 'style_current_item',
+  });
+  assert.ok(score.warnings.includes('vague_color_metadata'));
+  assert.ok(score.warnings.includes('vague_candidate_color'));
+});
+
 Deno.test('E-4 purchase advice skip/buy/consider and retailer neutrality', () => {
   const focus = {
     evidenceId: 'e',
