@@ -304,3 +304,143 @@ test('accepted Home and greeting architecture remains delegated and replay-free'
   const hydrationBlock = hook.match(/async function loadMessages\(\)[\s\S]*?async function loadDailyUsage/)?.[0] ?? '';
   assert.doesNotMatch(hydrationBlock, /speakAvatarMessage/);
 });
+
+/* ------------------------------------------------------------------ */
+/* KSB29-V01 — typing must not erase the retry control                 */
+/* ------------------------------------------------------------------ */
+
+/** A speech runtime whose generation request always fails. */
+function failingSpeechRuntime(store) {
+  return transpileModule('services/avatarSpeech.ts', {
+    './avatarSpeechLifecycle': {
+      ensureAvatarSpeechLifecycleListener: () => {},
+      registerAvatarInterruptionHandler: () => () => {},
+    },
+    '../stores/avatarSpeechStore': store,
+    './avatars/stylistSpeechClient': {
+      requestStylistSpeech: async () => {
+        throw new Error('Speech is temporarily unavailable.');
+      },
+    },
+    './avatars/stylistSpeechFiles': {
+      createTemporaryStylistSpeechFile: async () => 'file://speech.mp3',
+      deleteTemporaryStylistSpeechFile: async () => {},
+    },
+    './avatars/stylistAudioPlayback': {
+      playStylistAudio: async () => ({ stop: () => {} }),
+    },
+  });
+}
+
+const FAILED_MESSAGE = {
+  actorId: 'actor-1',
+  sessionId: 'session-1',
+  messageId: 'message-1',
+  stylistId: 'stylist_portrait_05',
+  avatarId: 'stylist_portrait_05',
+  source: 'message',
+};
+
+test('KSB29-V01: composer typing preserves the failed speech tuple', async () => {
+  const store = loadAvatarSpeechStore();
+  const speech = failingSpeechRuntime(store);
+
+  await speech.speakAvatarMessage(FAILED_MESSAGE);
+  assert.equal(store.getAvatarSpeechState().phase, 'error', 'precondition: speech failed');
+
+  // Exactly what app/style-chat/[sessionId].tsx does on every keystroke.
+  await speech.stopAvatarSpeechPlayback({
+    actorId: FAILED_MESSAGE.actorId,
+    sessionId: FAILED_MESSAGE.sessionId,
+    avatarId: FAILED_MESSAGE.avatarId,
+  });
+
+  const after = store.getAvatarSpeechState();
+  assert.equal(after.phase, 'error', 'typing must not clear the failure');
+  assert.equal(after.messageId, FAILED_MESSAGE.messageId, 'the failed tuple must survive');
+  assert.equal(after.actorId, FAILED_MESSAGE.actorId);
+  assert.equal(after.sessionId, FAILED_MESSAGE.sessionId);
+  assert.equal(after.avatarId, FAILED_MESSAGE.avatarId);
+
+  // ...which is what keeps the retry control on screen: the component renders
+  // only while it owns the scope AND the phase is error.
+  const presentation = transpileModule('services/avatars/voiceRetryPresentation.ts', {});
+  const owns = presentation.ownsAvatarSpeechScope(after, {
+    actorId: FAILED_MESSAGE.actorId,
+    sessionId: FAILED_MESSAGE.sessionId,
+    messageId: FAILED_MESSAGE.messageId,
+    avatarId: FAILED_MESSAGE.avatarId,
+  });
+  assert.equal(owns, true, 'the message must still own the speech scope');
+  assert.equal(
+    presentation.nextVoiceRetryFailedState(true, { ownsSpeechState: owns, phase: after.phase }),
+    true,
+    'the retry control must survive ordinary typing',
+  );
+});
+
+test('KSB29-V01: an actor boundary still clears a failed speech state', async () => {
+  // The narrow exemption must not become a leak. An UNSCOPED stop is what auth
+  // boundaries and app backgrounding use, and it must still wipe everything --
+  // a failure from one account may never survive into another.
+  const store = loadAvatarSpeechStore();
+  const speech = failingSpeechRuntime(store);
+
+  await speech.speakAvatarMessage(FAILED_MESSAGE);
+  assert.equal(store.getAvatarSpeechState().phase, 'error');
+
+  await speech.stopAvatarSpeechPlayback();
+
+  const after = store.getAvatarSpeechState();
+  assert.equal(after.phase, 'idle', 'an unscoped stop must clear the failure');
+  assert.equal(after.messageId, null);
+  assert.equal(after.actorId, null);
+});
+
+test('KSB29-V01: a scoped stop still stops real playback', async () => {
+  // The exemption is for the error phase only; a playing message must still be
+  // silenced the instant the user types.
+  const store = loadAvatarSpeechStore();
+  let stopped = false;
+  let callbacks;
+  const speech = transpileModule('services/avatarSpeech.ts', {
+    './avatarSpeechLifecycle': {
+      ensureAvatarSpeechLifecycleListener: () => {},
+      registerAvatarInterruptionHandler: () => () => {},
+    },
+    '../stores/avatarSpeechStore': store,
+    './avatars/stylistSpeechClient': {
+      requestStylistSpeech: async (request) => ({
+        messageId: request.messageId,
+        stylistId: request.stylistId,
+        voiceProfile: 'feminine',
+        mimeType: 'audio/mpeg',
+        audioBase64: 'YXVkaW8=',
+        alignment: null,
+      }),
+    },
+    './avatars/stylistSpeechFiles': {
+      createTemporaryStylistSpeechFile: async () => 'file://speech.mp3',
+      deleteTemporaryStylistSpeechFile: async () => {},
+    },
+    './avatars/stylistAudioPlayback': {
+      playStylistAudio: async (_uri, value) => {
+        callbacks = value;
+        return { stop: () => { stopped = true; } };
+      },
+    },
+  });
+
+  await speech.speakAvatarMessage(FAILED_MESSAGE);
+  callbacks.onPlaybackStarted();
+  assert.equal(store.getAvatarSpeechState().phase, 'playing');
+
+  await speech.stopAvatarSpeechPlayback({
+    actorId: FAILED_MESSAGE.actorId,
+    sessionId: FAILED_MESSAGE.sessionId,
+    avatarId: FAILED_MESSAGE.avatarId,
+  });
+
+  assert.equal(stopped, true, 'typing must still silence a playing reply');
+  assert.equal(store.getAvatarSpeechState().phase, 'idle');
+});

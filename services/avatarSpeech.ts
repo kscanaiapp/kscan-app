@@ -370,6 +370,23 @@ export async function speakAvatarCue(payload: SpeakAvatarCuePayload): Promise<vo
 /** Stops pending generation or playback only when the optional scope matches. */
 export async function stopAvatarSpeechPlayback(scope?: AvatarSpeechScope): Promise<void> {
   const store = getAvatarSpeechState();
+
+  // KSB29-V01 — typing must not erase the retry control.
+  //
+  // The composer calls this on every keystroke to stop Elise talking over the
+  // user. An `error` phase HAS NO PLAYBACK TO STOP: the request already failed
+  // and `failCurrent` released everything. But the reset ran anyway, wiping the
+  // failed tuple, so `StyleChatVoiceRetry` lost scope ownership and the only
+  // recovery path for that message vanished the moment the user typed. The
+  // retry control exists specifically for a failed reply, and it was being
+  // removed by the most ordinary thing a user can do next.
+  //
+  // Deliberately narrow: this applies only to a SCOPED stop, which the composer
+  // is the only caller of. Unscoped stops -- auth actor boundaries and app
+  // backgrounding -- still clear everything, so a failure can never survive a
+  // sign-out or leak across accounts.
+  if (scope && store.phase === 'error') return;
+
   const pendingMatches = currentScope ? matchesScope(currentScope, scope) : false;
   const storeMatches = !scope || (
     store.phase !== 'idle' &&
