@@ -411,8 +411,12 @@ test('the V2 contract assertion catches each missing element', () => {
     'CONTRACT_VERSION_NOT_2',
   );
   assert.equal(
-    matrix.assertV2Contract(stubResponse({ attachmentsResolved: 0 })).reasonCode,
-    'NO_ATTACHMENTS_RESOLVED',
+    matrix.assertV2Contract(stubResponse({ capabilities: [] })).reasonCode,
+    'ATTACHMENT_CAPABILITY_MISSING',
+  );
+  assert.equal(
+    matrix.assertV2Contract(stubResponse({ roomAdviceEvidence: null })).reasonCode,
+    'ROOM_ADVICE_EVIDENCE_MISSING',
   );
   assert.equal(
     matrix.assertV2Contract(stubResponse({ servedModel: null })).reasonCode,
