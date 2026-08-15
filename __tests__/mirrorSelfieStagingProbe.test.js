@@ -22,11 +22,14 @@
  * defeat the control it exists behind. So the request contract is certified and
  * the response is not.
  *
- * CONSEQUENCE: no Mirror Selfie production promotion is claimed. Both
- * environments already accept `closet_mirror` (staging v32 and production v147
- * each carry it in the entry-path vocabulary), so no promotion appears to be
- * required — but "appears" is not certification, and the ledger records the
- * live probe as outstanding rather than passed.
+ * CONSEQUENCE: the production promotion disposition stays PENDING. Both
+ * environments accept `closet_mirror` (staging v32, production v147), but that
+ * does NOT establish that production needs no promotion — a validator accepting
+ * an entry path says nothing about whether the deployed generation identifies
+ * correctly through it. The model call, prompt, response mapping and commerce
+ * gate all sit behind the validator and are untouched by it. Only the
+ * authenticated live probe, or proven deployed-source equivalence across the
+ * `closet_mirror` path, can close that.
  *
  * Mirror Selfie is NOT disabled. The correct response to an unrun probe is to
  * run it when the credential exists, not to remove a feature that has already
@@ -226,6 +229,18 @@ test('the live response probe is recorded as outstanding, not as passed', () => 
     ledger,
     /not yet run|outstanding/i,
     'the outstanding live probe must be stated, not implied',
+  );
+  // The disposition must stay undetermined rather than being inferred from the
+  // validator accepting the entry path.
+  assert.match(
+    ledger,
+    /promotion required\?\*\* \| \*\*PENDING\*\*/,
+    'the production promotion disposition must remain pending',
+  );
+  assert.doesNotMatch(
+    ledger,
+    /NONE APPARENT/,
+    'validator acceptance must not be read as "no promotion required"',
   );
 
   // And the feature must not have been quietly switched off to avoid the gap.

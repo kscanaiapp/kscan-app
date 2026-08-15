@@ -162,7 +162,7 @@ four EAS profiles, guarded by
 | **staging** | **v32** — `closet_mirror` in the entry-path vocabulary |
 | **production** | **v147** — `closet_mirror` present |
 | **user-facing dependency** | Mirror Selfie Closet intake. |
-| **promotion required?** | **NONE APPARENT** — but see the limit below |
+| **promotion required?** | **PENDING** — not determined; see the limit below |
 
 **Run and passing** (`__tests__/mirrorSelfieStagingProbe.test.js`), using the
 REAL `closet_mirror` mobile contract rather than substitute semantics:
@@ -173,17 +173,32 @@ REAL `closet_mirror` mobile contract rather than substitute semantics:
 4. ordinary Closet camera/gallery requests still validate, and Scanner entry
    paths stay distinct — a Closet request can never masquerade as Scanner
 
-**NOT run: the live model round-trip.** An actual fashion-identification
-RESPONSE from staging is not exercised. The governed probe for that is
+**NOT run (outstanding): the live model round-trip.** An actual
+fashion-identification RESPONSE from staging is not yet run. The governed probe for that is
 `scripts/smoke-scan-identify.js`, which requires **`STAGING_USER_JWT`** — a real
 staging user token that is not available in this environment. The script
 explicitly refuses service-role keys and fabricated JWTs, and manufacturing one
 to make the probe look complete would defeat the control it exists behind.
 
-**Consequence.** The request contract is certified; the response is not. Both
-environments already accept `closet_mirror`, so no promotion *appears* to be
-required — but "appears" is not certification, and this is recorded as
-outstanding rather than passed. Completing it needs only the credential.
+**Consequence — the production promotion disposition stays PENDING.**
+
+The request contract is certified; the response is not. Both environments
+accept `closet_mirror`, but **that does not establish that production needs no
+promotion**, and the earlier wording in this ledger inferred too much from it.
+A validator accepting an entry path says nothing about whether the deployed
+generation *identifies* correctly through it — the model call, the prompt, the
+response mapping and the commerce gate all sit behind the validator and are not
+exercised by it.
+
+Only one of these closes it:
+
+  - the authenticated live probe runs against staging (`STAGING_USER_JWT`) and
+    returns a successful fashion identification through `closet_mirror`; or
+  - exact deployed-source equivalence is proven between staging v32 and
+    production v147 across the `closet_mirror` path, making the inference sound.
+
+Until one of those holds, treat `scan-identify` production promotion for Mirror
+Selfie as **undetermined**, not as "not required".
 
 **Mirror Selfie is NOT disabled** and stays `true` in all four EAS profiles.
 The correct response to an unrun probe is to run it when the credential exists,
@@ -300,6 +315,6 @@ rather than repair it.
 | --- | --- |
 | `stylist-speech` v29 → v31 | **REQUIRED** (production) |
 | `stylechat-generate` v90 → v91 | **REQUIRED** (production, S7) |
-| `scan-identify` | not required for KSB29-012; Mirror probe outstanding |
+| `scan-identify` | not required for KSB29-012; **Mirror disposition PENDING** |
 | AI-output migration | **REQUIRED** (staging only; production already has it) |
 | Dressing Room authorization | **REQUIRED** (staging + production) |
