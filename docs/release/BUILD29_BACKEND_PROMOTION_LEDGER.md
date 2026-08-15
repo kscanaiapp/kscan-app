@@ -88,7 +88,7 @@ so promotion introduces **no new secret**.
 | field | value |
 | --- | --- |
 | **source** | `closetIntelligenceContext` present — 13 references |
-| **staging** | **v91** |
+| **staging** | **v91** — 13 references, `parseClosetIntelligenceContext` 3, `ClosetInventoryState` 9 (matches source) |
 | **production** | **v90** — `closetIntelligenceContext` references: **0** |
 | **user-facing dependency** | Closet V2 / S7: Elise reasoning over the user's actual wardrobe. |
 | **promotion required?** | **YES** |
@@ -118,6 +118,12 @@ Reference counts read directly from the deployed function bodies of both
 projects. E4.1's client→server path is proven end-to-end by
 `__tests__/e41RealClientContract.test.js`, which drives the production request
 builder into the production server normalizer.
+
+`__tests__/s7ClosetIntelligencePromotion.test.js` pins the client→server pair
+so the two cannot drift while this promotion is pending: the client places the
+field on the outbound body, the certified server parses it and routes it to the
+advice/gap/retrieval surfaces, both sides use the same key, and no alternative
+transport has been introduced.
 
 ### Secrets / dependencies
 
