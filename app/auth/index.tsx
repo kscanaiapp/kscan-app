@@ -15,9 +15,6 @@ import { StatusBar } from 'expo-status-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { goBackOrOnboarding } from '../../services/navigationExit';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-// @ts-ignore — expo-apple-authentication is not installed for Android builds; iOS-only feature
-import * as AppleAuthentication from 'expo-apple-authentication';
-import * as Crypto from 'expo-crypto';
 import * as WebBrowser from 'expo-web-browser';
 
 import { useAuthSession } from '../../contexts/AuthSessionContext';
@@ -33,20 +30,13 @@ import {
 } from '../../services/accountDeletionNotice';
 import { completeOAuthCallbackSession } from '../../services/oauthCallbackSession';
 import { traceAuthLifecycle } from '../../services/authLifecycleTrace';
-import { linkAppleCredential } from '../../services/appleCredentialLink';
-import { captureAppleDisplayName } from '../../services/appleDisplayName';
+import { isAppleSignInAvailable, performAppleSignIn } from '../../services/appleSignIn';
 import { requestRestorationEmail } from '../../services/accountRestoration';
 
 WebBrowser.maybeCompleteAuthSession();
 
 type AuthMode = 'sign-in' | 'create-account';
 type AuthStep = 'idle' | 'submitting' | 'google-oauth' | 'apple-oauth' | 'confirm-email';
-
-function createRawNonce(length = 32) {
-  const charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._';
-  const randomBytes = Crypto.getRandomBytes(length);
-  return Array.from(randomBytes, (byte) => charset[byte % charset.length]).join('');
-}
 
 export default function AuthScreen() {
   const router = useRouter();
@@ -89,7 +79,7 @@ export default function AuthScreen() {
     if (Platform.OS !== 'ios') return;
 
     let mounted = true;
-    void AppleAuthentication.isAvailableAsync().then((available) => {
+    void isAppleSignInAvailable().then((available) => {
       if (mounted) setAppleAuthAvailable(available);
     });
 
@@ -241,78 +231,32 @@ export default function AuthScreen() {
     setError(null);
     setStep('apple-oauth');
 
-    try {
-      const rawNonce = createRawNonce();
-      const hashedNonce = await Crypto.digestStringAsync(
-        Crypto.CryptoDigestAlgorithm.SHA256,
-        rawNonce,
-      );
+    // The flow itself lives in services/appleSignIn so this screen and
+    // onboarding cannot drift apart again (DEF-005/DEF-006). This screen keeps
+    // only its own copy and busy state.
+    const result = await performAppleSignIn();
 
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [
-          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-          AppleAuthentication.AppleAuthenticationScope.EMAIL,
-        ],
-        nonce: hashedNonce,
-      });
-
-      if (!credential.identityToken) {
-        setError('We could not complete Apple sign-in. Please try again.');
-        setStep('idle');
-        return;
-      }
-
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithIdToken({
-        provider: 'apple',
-        token: credential.identityToken,
-        nonce: rawNonce,
-      });
-
-      if (signInError) {
-        setError('We could not complete Apple sign-in. Please try again.');
-        setStep('idle');
-        return;
-      }
-
-      // Hand the one-time authorization grant to the backend so account
-      // deletion can revoke this Apple authorization later (TN3194). Awaited so
-      // the code is spent while it is still valid, but never allowed to fail
-      // the sign-in that has already succeeded — the documented fallback for a
-      // missing token is that deletion still completes.
-      const linkOutcome = await linkAppleCredential(credential.authorizationCode);
-
-      // Apple returns fullName only on the FIRST authorization and never puts
-      // it in the identity token, so this is the one moment the name exists.
-      // Best-effort for the same reason as the credential handoff above: the
-      // session is already established and must not be undone by a name write.
-      const displayNameOutcome = await captureAppleDisplayName(
-        signInData?.user ?? null,
-        credential.fullName,
-      );
-
+    if (result.status === 'signed-in') {
       traceAuthLifecycle('apple-session-establishment', {
         outcome: 'accepted',
         sessionPresent: true,
-        // Status word only. The authorization code itself is never traced.
-        appleCredentialLink: linkOutcome,
-        // Status word only. The name itself is never traced.
-        appleDisplayName: displayNameOutcome,
+        // Status words only. Neither the authorization code nor the name is traced.
+        appleCredentialLink: result.credentialLink,
+        appleDisplayName: result.displayName,
       });
       return;
-    } catch (err) {
-      const code = typeof err === 'object' && err && 'code' in err ? String(err.code) : '';
-      const message = err instanceof Error ? err.message : '';
-      const lowerMessage = message.toLowerCase();
-
-      if (code === 'ERR_REQUEST_CANCELED') {
-        setError('Sign-in cancelled.');
-      } else if (lowerMessage.includes('network')) {
-        setError('Network error. Please try again.');
-      } else {
-        setError('We could not complete Apple sign-in. Please try again.');
-      }
-      setStep('idle');
     }
+
+    if (result.status === 'cancelled') {
+      setError('Sign-in cancelled.');
+    } else if (result.status === 'unavailable') {
+      setError('Apple sign-in is available on iOS devices.');
+    } else if (result.reason === 'network') {
+      setError('Network error. Please try again.');
+    } else {
+      setError('We could not complete Apple sign-in. Please try again.');
+    }
+    setStep('idle');
   };
 
   // Invoked from the confirmation panel: return to sign-in mode

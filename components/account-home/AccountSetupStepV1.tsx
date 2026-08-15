@@ -15,6 +15,7 @@ interface AccountSetupStepV1Props {
   appleAvailable?: boolean;
   error?: string | null;
   googleBusy?: boolean;
+  appleBusy?: boolean;
 }
 
 /**
@@ -34,6 +35,7 @@ export function AccountSetupStepV1({
   appleAvailable,
   error,
   googleBusy,
+  appleBusy,
 }: AccountSetupStepV1Props) {
   return (
     <View style={styles.stepContent} testID="onboarding-auth-choice-screen-v1">
@@ -74,6 +76,8 @@ export function AccountSetupStepV1({
             testID="onboarding-continue-apple-button-v1"
             title="Apple  CONTINUE WITH APPLE"
             onPress={onContinueApple}
+            loading={appleBusy}
+            disabled={appleBusy}
             style={styles.wideButton}
           />
         )}

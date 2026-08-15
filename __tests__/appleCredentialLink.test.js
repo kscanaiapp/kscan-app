@@ -151,12 +151,14 @@ test('the client never logs the code', () => {
   );
 });
 
-test('the auth screen captures the code and traces only a status word', () => {
-  const source = readSource('app/auth/index.tsx');
+test('the shared Apple path captures the code and traces only a status word', () => {
+  // DEF-005 moved the Apple flow into one service shared by the auth screen and
+  // onboarding. The contract is unchanged, so it is asserted where it now lives.
+  const source = readSource('services/appleSignIn.ts');
 
   assert.match(
     source,
-    /import \{ linkAppleCredential \} from '\.\.\/\.\.\/services\/appleCredentialLink'/,
+    /import \{ linkAppleCredential, type AppleCredentialLinkOutcome \} from '\.\/appleCredentialLink'/,
   );
   assert.match(
     source,
@@ -165,16 +167,25 @@ test('the auth screen captures the code and traces only a status word', () => {
   );
 
   // The trace records the outcome word. Tracing the code itself would defeat
-  // the point of never logging it.
-  assert.match(source, /appleCredentialLink: linkOutcome/);
+  // the point of never logging it. Both surfaces trace, so both are checked.
+  for (const screen of ['app/auth/index.tsx', 'app/onboarding/index.tsx']) {
+    const screenSource = readSource(screen);
+    assert.match(screenSource, /appleCredentialLink: result\.credentialLink/, screen);
+    assert.ok(
+      !/traceAuthLifecycle\([^)]*authorizationCode/s.test(screenSource),
+      `the authorization code must never be traced (${screen})`,
+    );
+  }
+  // The code must not escape the service in the first place.
   assert.ok(
-    !/traceAuthLifecycle\([^)]*authorizationCode/s.test(source),
-    'the authorization code must never be traced',
+    !/authorizationCode/.test(readSource('app/auth/index.tsx'))
+      && !/authorizationCode/.test(readSource('app/onboarding/index.tsx')),
+    'no screen may handle the authorization code directly',
   );
 });
 
 test('capture happens after the Supabase session is established, and only for Apple', () => {
-  const source = readSource('app/auth/index.tsx');
+  const source = readSource('services/appleSignIn.ts');
 
   const signInIndex = source.indexOf('signInWithIdToken');
   const linkIndex = source.indexOf('linkAppleCredential(credential.authorizationCode)');
@@ -193,13 +204,17 @@ test('capture happens after the Supabase session is established, and only for Ap
     'Apple credential capture must have exactly one call site',
   );
 
-  const googleIndex = source.indexOf('signInWithOAuth');
-  if (googleIndex > -1) {
-    const googleRegion = source.slice(googleIndex, googleIndex + 1200);
-    assert.ok(
-      !googleRegion.includes('linkAppleCredential'),
-      'the Google path must be untouched by Apple credential capture',
-    );
+  // The Google path lives in the screens; neither may touch Apple capture.
+  for (const screen of ['app/auth/index.tsx', 'app/onboarding/index.tsx']) {
+    const screenSource = readSource(screen);
+    const googleIndex = screenSource.indexOf('signInWithOAuth');
+    if (googleIndex > -1) {
+      const googleRegion = screenSource.slice(googleIndex, googleIndex + 1200);
+      assert.ok(
+        !googleRegion.includes('linkAppleCredential'),
+        `the Google path must be untouched by Apple credential capture (${screen})`,
+      );
+    }
   }
 });
 

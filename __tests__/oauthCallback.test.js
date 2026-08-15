@@ -43,6 +43,13 @@ const authGateSource = fs.readFileSync(
   path.join(__dirname, '..', 'app', '_layout.tsx'),
   'utf8',
 );
+// DEF-005: the Apple flow moved out of the auth screen into one shared service
+// used by both the auth screen and onboarding. The contracts below are
+// unchanged — they are asserted where the implementation now lives.
+const appleSignInSource = fs.readFileSync(
+  path.join(__dirname, '..', 'services', 'appleSignIn.ts'),
+  'utf8',
+);
 const appConfig = JSON.parse(
   fs.readFileSync(path.join(__dirname, '..', 'app.json'), 'utf8'),
 ).expo;
@@ -153,9 +160,16 @@ test('Google OAuth cancel and dismiss paths still show Sign-in cancelled', () =>
 
 // 12. Apple sign-in remains a separate native id-token flow
 test('Apple sign-in stays separate from the Google deep-link browser flow', () => {
-  assert.match(authScreenSource, /AppleAuthentication\.signInAsync/);
-  assert.match(authScreenSource, /signInWithIdToken\(\{[\s\S]*?provider: 'apple'/);
-  assert.doesNotMatch(authScreenSource, /provider: 'apple'[\s\S]{0,240}openAuthSessionAsync/);
+  assert.match(appleSignInSource, /AppleAuthentication\.signInAsync/);
+  assert.match(appleSignInSource, /signInWithIdToken\(\{[\s\S]*?provider: 'apple'/);
+  assert.doesNotMatch(appleSignInSource, /provider: 'apple'[\s\S]{0,240}openAuthSessionAsync/);
+  // Apple is native-sheet only: the browser session flow belongs to Google.
+  assert.doesNotMatch(appleSignInSource, /openAuthSessionAsync/);
+  // Both surfaces reach Apple through that one service, never their own copy.
+  assert.match(authScreenSource, /performAppleSignIn\(\)/);
+  assert.match(onboardingSource, /performAppleSignIn\(\)/);
+  assert.doesNotMatch(authScreenSource, /AppleAuthentication\.signInAsync/);
+  assert.doesNotMatch(onboardingSource, /AppleAuthentication\.signInAsync/);
 });
 
 test('native Apple sign-in retains the nonce and CNG capability contract', () => {
@@ -166,11 +180,15 @@ test('native Apple sign-in retains the nonce and CNG capability contract', () =>
   assert.equal(appConfig.ios.bundleIdentifier, 'com.kscanai.app');
   assert.equal(appConfig.ios.usesAppleSignIn, true);
   assert.ok(pluginNames.includes('expo-apple-authentication'));
-  assert.match(authScreenSource, /Crypto\.getRandomBytes\(length\)/);
-  assert.match(authScreenSource, /Crypto\.CryptoDigestAlgorithm\.SHA256,[\s\S]*rawNonce/);
-  assert.match(authScreenSource, /AppleAuthentication\.signInAsync\(\{[\s\S]*nonce: hashedNonce/);
-  assert.match(authScreenSource, /signInWithIdToken\(\{[\s\S]*token: credential\.identityToken,[\s\S]*nonce: rawNonce/);
-  assert.match(authScreenSource, /code === 'ERR_REQUEST_CANCELED'[\s\S]*setError\('Sign-in cancelled\.'\)/);
+  assert.match(appleSignInSource, /Crypto\.getRandomBytes\(length\)/);
+  assert.match(appleSignInSource, /Crypto\.CryptoDigestAlgorithm\.SHA256,[\s\S]*rawNonce/);
+  assert.match(appleSignInSource, /AppleAuthentication\.signInAsync\(\{[\s\S]*nonce: hashedNonce/);
+  assert.match(appleSignInSource, /signInWithIdToken\(\{[\s\S]*token: credential\.identityToken,[\s\S]*nonce: rawNonce/);
+  // Cancellation is now classified once in the service and rendered by each
+  // surface, so the contract is asserted on both halves rather than one string.
+  assert.match(appleSignInSource, /code === 'ERR_REQUEST_CANCELED'[\s\S]{0,200}status: 'cancelled'/);
+  assert.match(authScreenSource, /status === 'cancelled'[\s\S]{0,120}setError\('Sign-in cancelled\.'\)/);
+  assert.match(onboardingSource, /status === 'cancelled'[\s\S]{0,120}setCreateError\('Sign-in cancelled\.'\)/);
 });
 
 test('all Google callback consumers use the shared idempotent session completion path', () => {
