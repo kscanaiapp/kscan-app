@@ -120,8 +120,17 @@ function load(platformOS = 'android') {
     return {};
   });
 
+  // The REAL canonical resolver, not a stub. DEF-001 was a taxonomy-loss defect,
+  // so a stubbed resolver would let the promotion mapper pass while still
+  // dropping fields. It imports nothing at runtime (its only import is a type),
+  // so loading the genuine module here costs nothing.
+  const canonicalFashionMetadata = runModule('services/canonicalFashionMetadata.ts', (spec) => {
+    throw new Error(`canonicalFashionMetadata must import nothing at runtime: ${spec}`);
+  });
+
   const closetPromotion = runModule('services/closetPromotion.js', (spec) => {
     if (spec === './closetLibrary') return closetLibrary;
+    if (spec === './canonicalFashionMetadata') return canonicalFashionMetadata;
     return {};
   });
 
@@ -824,4 +833,123 @@ test('UPDATE-CANNOT-PATCH-MEDIA-LINEAGE-OWNER-OR-COMMERCE', async () => {
       `update must not admit commerce field "${forbidden}"`
     );
   }
+});
+
+// ── DEF-001: TAXONOMY SURVIVES PROMOTION ─────────────────────────────────────
+//
+// Promotion used to read only `attributes.category`, so brand, subtype, colours
+// and material -- all of which the identification snapshot was already holding
+// -- were dropped on the way into the Closet. Nothing failed: the item appeared,
+// permanently less intelligent than the scan it came from. The suites above all
+// stayed green because none of them ever asserted a taxonomy field, which is
+// precisely how the loss survived three audits.
+
+const IDENTIFIED_ANALYSIS = () => ({
+  result: 'Navy wool overcoat',
+  metadata: { category: 'Outerwear', color: 'Navy', silhouette: 'Longline' },
+  identificationSnapshotV2: {
+    contractVersion: 2,
+    identification: {
+      item: {
+        category: 'Outerwear',
+        subtype: 'Overcoat',
+        brand: { value: 'Acme', provenance: 'visible_text', confidence: 0.9 },
+        colors: { primary: 'Navy', secondary: ['Charcoal'] },
+        material: ['Wool', 'Cashmere'],
+        pattern: ['Herringbone'],
+        silhouette: ['Longline'],
+        attributes: { fit: 'Relaxed', visible: ['tailored'] },
+      },
+      compatibility: { globalConfidence: 0.82 },
+    },
+  },
+  products: [{ id: 'p1', title: 'Coat', url: 'https://retailer.example/p1', price: '$420' }],
+  purchaseOptions: [
+    { id: 'po1', retailer: 'Retailer', url: 'https://retailer.example/buy', price: '$420' },
+  ],
+});
+
+test('DEF-001 — promotion preserves the identified fashion taxonomy', async () => {
+  const { library, closetLibrary, closetPromotion, actorContext, m } = load();
+  const scan = await saveScanAs(library, actorContext, 'A', IDENTIFIED_ANALYSIS());
+  assert.ok(scan, 'precondition: scan saved');
+
+  const result = await closetPromotion.promoteScanToCloset({
+    scan,
+    actorRequest: actorContext.createActorRequest(),
+    ownerId: 'A',
+  });
+  assert.equal(result.ok, true, result.reason);
+
+  // Assert against the SERIALIZED record: an in-memory object could carry a
+  // field the store's own allowlist then drops on write.
+  const persisted = JSON.parse(m.files.get('/doc/kscan_closet/kscan_closet.json'))[0];
+
+  assert.equal(persisted.category, 'Outerwear');
+  assert.equal(persisted.subtype, 'Overcoat', 'subtype must survive promotion');
+  assert.equal(persisted.brand, 'Acme', 'an OBSERVED brand must survive promotion');
+  assert.equal(persisted.primaryColor, 'Navy', 'primary colour must survive promotion');
+  assert.deepEqual(persisted.secondaryColors, ['Charcoal'], 'secondary colours must survive');
+  assert.deepEqual(persisted.material, ['Wool', 'Cashmere'], 'the full material list must survive');
+
+  // The title is a display label composed from the structured fields, never the
+  // storage for them.
+  assert.equal(persisted.title, 'Acme Overcoat');
+
+  // The commerce boundary is unchanged by carrying taxonomy.
+  for (const forbidden of closetPromotion.FORBIDDEN_CLOSET_FIELDS) {
+    assert.ok(
+      !Object.prototype.hasOwnProperty.call(persisted, forbidden),
+      `Closet record must not carry commerce field "${forbidden}"`,
+    );
+  }
+  assert.ok(!/retailer\.example|\$420/.test(JSON.stringify(persisted)));
+});
+
+test('DEF-001 — absent taxonomy stays absent and is never invented', () => {
+  const { closetPromotion } = load();
+
+  // A scan with no snapshot and only a category: every other field must be
+  // null, not "Unknown", not back-filled from the category, and not parsed out
+  // of the title.
+  const draft = closetPromotion.mapScanToClosetDraft({
+    id: 'scan_1',
+    attributes: { category: 'Shoes' },
+  });
+  assert.ok(draft);
+  assert.equal(draft.category, 'Shoes');
+  assert.equal(draft.title, 'Shoes');
+  assert.equal(draft.subtype, null);
+  assert.equal(draft.brand, null);
+  assert.equal(draft.primaryColor, null);
+  assert.equal(draft.clothingType, null, 'clothingType has no canonical source and is never guessed');
+  assert.deepEqual(draft.secondaryColors, []);
+  assert.deepEqual(draft.material, []);
+});
+
+test('DEF-001 — a brand GUESS is never promoted as an observed brand', async () => {
+  const { library, closetPromotion, actorContext, m } = load();
+
+  // The canonical resolver refuses to flatten an unobserved brand into the
+  // authoritative scalar. Promotion must inherit that judgement rather than
+  // reaching past it -- a guessed brand written into the Closet becomes an
+  // owned-wardrobe fact the user never confirmed.
+  const analysis = IDENTIFIED_ANALYSIS();
+  analysis.identificationSnapshotV2.identification.item.brand = {
+    value: 'Acme',
+    provenance: 'guess',
+    confidence: 0.4,
+  };
+
+  const scan = await saveScanAs(library, actorContext, 'A', analysis);
+  const result = await closetPromotion.promoteScanToCloset({
+    scan,
+    actorRequest: actorContext.createActorRequest(),
+    ownerId: 'A',
+  });
+  assert.equal(result.ok, true, result.reason);
+
+  const persisted = JSON.parse(m.files.get('/doc/kscan_closet/kscan_closet.json'))[0];
+  assert.equal(persisted.brand, null, 'a guessed brand must not become an owned-wardrobe fact');
+  assert.equal(persisted.subtype, 'Overcoat', 'the rest of the taxonomy is unaffected');
 });

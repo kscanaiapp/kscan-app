@@ -14,6 +14,7 @@
  */
 
 import { createClosetItem, findClosetItemByLineage } from './closetLibrary';
+import { resolveCanonicalFashionMetadata } from './canonicalFashionMetadata';
 
 /**
  * Recent Scan fields that must NEVER reach a Closet record.
@@ -92,16 +93,69 @@ export function mapScanToClosetDraft(scan, { clientRequestId } = {}) {
   if (!scan || typeof scan !== 'object') return null;
 
   const attributes = scan.attributes && typeof scan.attributes === 'object' ? scan.attributes : {};
-  const category = text(attributes.category);
   const lineage = resolveScanLineageId(scan);
   if (!lineage) return null;
 
+  // DEF-001. This read only `attributes.category`, so promoting a Recent Scan
+  // into the Closet silently discarded the brand, subtype, colours and material
+  // the identification snapshot was already holding. The save succeeded, which
+  // is why it went unnoticed: the item appeared, just permanently less
+  // intelligent than the scan it came from, and every downstream consumer --
+  // Closet filters, Elise's wardrobe reasoning, Duplicate Assist -- inherited
+  // the loss.
+  //
+  // The canonical resolver is the authority for reading fashion metadata off a
+  // scan; a second hand-written mapper here is exactly what produced the drift.
+  // The legacy projection below matches `normalizeLocalSavedScan` in
+  // services/ownedClosetItems.ts field for field, so the same scan resolves the
+  // same way whether it is being read or promoted.
+  const meta = resolveCanonicalFashionMetadata({
+    snapshotV2: scan.identificationSnapshotV2 ?? null,
+    snapshot: scan.identificationSnapshot ?? null,
+    legacy: {
+      category: attributes.category,
+      silhouette: attributes.silhouette,
+      color_palette: attributes.color_palette,
+      material_estimate: attributes.material_estimate,
+      style_tags: attributes.style_tags,
+      confidence_score: attributes.confidence_score,
+      pattern: attributes.pattern,
+    },
+  });
+
+  const category = meta.category ?? text(attributes.category);
   const localId = text(scan.id);
   const cloudId = text(scan.cloudId);
 
+  // The title is a DISPLAY label, composed the same way the direct-intake path
+  // composes it. Nothing may parse it back — every part of it also exists as
+  // its own structured field below.
+  const descriptor = meta.subtype ?? category;
+  const title = [meta.brand, descriptor].filter(Boolean).join(' ') || category || 'Closet item';
+
+  // One field to one field, named explicitly on both sides. The scan is never
+  // spread, so a commerce field introduced upstream tomorrow is dropped by
+  // construction rather than by consulting FORBIDDEN_CLOSET_FIELDS.
+  //
+  // DELIBERATELY NOT MAPPED, because the committed Closet record has no field
+  // for them: `pattern`, `fit`, `silhouette`, `styleTags`, `confidence` and the
+  // per-field `provenance`. Following the direct-intake module's rule, a
+  // taxonomy concept with no committed home is left visible as a missing line
+  // here rather than passed to the store to evaporate in its allowlist. Adding
+  // columns for them is a schema change, not this repair; Pattern's own
+  // end-to-end contract is KSB29-037 and lives on the scan surfaces.
+  //
+  // `clothingType` has no canonical source at all -- absent stays absent, and
+  // it is never back-filled from category, which would invent a fact.
   return {
-    title: category || 'Closet item',
+    title,
     category,
+    clothingType: null,
+    subtype: meta.subtype,
+    brand: meta.brand,
+    primaryColor: meta.primaryColor,
+    secondaryColors: meta.secondaryColors,
+    material: meta.materials,
     notes: null,
     origin: 'recent_scan',
     sourceLocalScanId: localId && !isUuid(localId) ? localId : null,
