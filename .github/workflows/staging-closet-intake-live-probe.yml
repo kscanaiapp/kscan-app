@@ -1,0 +1,132 @@
+# Governed Build 29 Closet intake live probe (staging only).
+#
+# TRUST BOUNDARY: staging credentials execute reviewed default-branch source
+# only. candidate_ref is resolved for provenance and is never checked out or
+# executed. The probe script independently denies production.
+
+name: K Scan Staging Closet Intake Live Probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_ref:
+        description: 'Candidate branch or SHA to record (never executed)'
+        required: true
+        default: feature/build29-closet-v2
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kscan-staging-deployment
+  cancel-in-progress: false
+
+env:
+  EXPECTED_STAGING_REF: yzqjvdfgefveprobvvyw
+  PRODUCTION_REF: wyyuqfdxucjksghsmhry
+
+jobs:
+  closet-intake-live-probe:
+    name: Closet camera/gallery/mirror live probe (staging only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+    steps:
+      - name: Checkout TRUSTED probe source (default branch)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: master
+          path: trusted
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6.0.0
+        with:
+          node-version: '22'
+
+      - name: Resolve candidate provenance (no checkout, no execution)
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_REF: ${{ inputs.candidate_ref }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "${CANDIDATE_REF}" | grep -Eq '^[A-Za-z0-9._/-]{1,255}$'; then
+            echo "::error::candidate_ref contains characters outside the allowlist."
+            exit 1
+          fi
+          case "${CANDIDATE_REF}" in
+            *..*|/*|*/) echo "::error::candidate_ref shape refused."; exit 1 ;;
+          esac
+          CANDIDATE_SHA="$(gh api "repos/${REPO}/commits/${CANDIDATE_REF}" --jq '.sha')"
+          CANDIDATE_TREE="$(gh api "repos/${REPO}/commits/${CANDIDATE_SHA}" --jq '.commit.tree.sha')"
+          TRUSTED_SHA="$(git -C trusted rev-parse HEAD)"
+          echo "candidate_sha=${CANDIDATE_SHA}" >> "$GITHUB_OUTPUT"
+          echo "candidate_tree=${CANDIDATE_TREE}" >> "$GITHUB_OUTPUT"
+          echo "trusted_sha=${TRUSTED_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Confirm staging authority and production denial
+        env:
+          SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_STAGING_PROJECT_REF:-}" ]; then
+            echo "::error::Missing staging project identity."
+            exit 1
+          fi
+          if [ "${SUPABASE_STAGING_PROJECT_REF}" != "${EXPECTED_STAGING_REF}" ]; then
+            echo "::error::Staging project ref mismatch."
+            exit 1
+          fi
+          if [ "${SUPABASE_STAGING_PROJECT_REF}" = "${PRODUCTION_REF}" ]; then
+            echo "::error::Refusing production."
+            exit 1
+          fi
+          node -e "const a=require('./trusted/security/scripts/lib/environment-authority.js');a.assertExpectedEnvironment('staging',process.env.SUPABASE_STAGING_PROJECT_REF)"
+
+      - name: Verify TRUSTED probe harness
+        working-directory: trusted
+        run: node --test __tests__/release/closetIntakeLiveProbeHarness.test.js
+
+      - name: Run Closet intake live probe
+        id: probe
+        continue-on-error: true
+        working-directory: trusted
+        env:
+          SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          SUPABASE_STAGING_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
+          STAGING_SYNTHETIC_ACTIVE_EMAIL: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_EMAIL }}
+          STAGING_SYNTHETIC_ACTIVE_PASSWORD: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_PASSWORD }}
+        run: node security/release/run-closet-intake-live-probe.js
+
+      - name: Attach trusted and candidate provenance
+        if: always()
+        working-directory: trusted
+        env:
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+          CANDIDATE_TREE: ${{ steps.candidate.outputs.candidate_tree }}
+          TRUSTED_SHA: ${{ steps.candidate.outputs.trusted_sha }}
+        run: |
+          set -euo pipefail
+          if [ -s closet-intake-live-probe-report.json ]; then
+            node -e "const fs=require('fs');const p='closet-intake-live-probe-report.json';const r=JSON.parse(fs.readFileSync(p,'utf8'));r.candidate_sha=process.env.CANDIDATE_SHA;r.candidate_tree=process.env.CANDIDATE_TREE;r.trusted_probe_sha=process.env.TRUSTED_SHA;fs.writeFileSync(p,JSON.stringify(r,null,2))"
+          else
+            printf '{"verdict":"OPERATIONAL_FAILURE","candidate_sha":"%s","candidate_tree":"%s","trusted_probe_sha":"%s"}\n' \
+              "${CANDIDATE_SHA:-unknown}" "${CANDIDATE_TREE:-unknown}" "${TRUSTED_SHA:-unknown}" \
+              > closet-intake-live-probe-report.json
+          fi
+
+      - name: Upload sanitized Closet intake evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: closet-intake-live-${{ github.run_id }}
+          path: trusted/closet-intake-live-probe-report.json
+          retention-days: 30
+
+      - name: Fail if the live Closet intake did not verify
+        if: steps.probe.outcome != 'success'
+        run: |
+          echo "Closet intake did not verify. See sanitized evidence artifact." >&2
+          exit 1
