@@ -505,6 +505,10 @@ function mountLibrary(options = {}) {
       FreeTierUtilitySection: 'FreeTierUtilitySection',
     },
     '../services/ownedClosetItems': { normalizeLocalSavedScan: (scan) => scan },
+    '../services/actorContext': {
+      createActorRequest: () => ({ actorId: 'test-actor', epoch: 1 }),
+      isActorRequestCurrent: () => true,
+    },
     '../services/style-chat/styleChatAttachmentStore': { setAttachmentHandoff: () => {} },
     '../hooks/useCloset': {
       useCloset: () => ({
