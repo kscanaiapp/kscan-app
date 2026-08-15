@@ -71,6 +71,35 @@ const OWNERSHIP_MARKERS = Object.freeze([
   'your', "you've got", 'you have', 'you own', 'yours',
 ]);
 
+/**
+ * Safe one-way vocabulary expansions for a manifest item.
+ *
+ * These are deliberately hypernyms or singular/plural forms, never adjacent
+ * styles. A blazer may accurately be called a jacket, trousers may be called
+ * pants, and loafers may be called shoes. The reverse is not necessarily true:
+ * a generic jacket is not proof of a blazer, and shoes are not proof of
+ * loafers. Keeping this map one-way prevents the classifier from hiding a real
+ * invented-subtype failure while avoiding wording-only false positives.
+ */
+const SAFE_MANIFEST_NOUN_EXPANSIONS = Object.freeze({
+  blazer: ['jacket'],
+  trouser: ['trousers', 'pants'],
+  trousers: ['trouser', 'pants'],
+  pants: ['trouser', 'trousers'],
+  loafer: ['loafers', 'shoe', 'shoes'],
+  loafers: ['loafer', 'shoe', 'shoes'],
+  sneaker: ['sneakers', 'trainer', 'trainers', 'shoe', 'shoes'],
+  sneakers: ['sneaker', 'trainer', 'trainers', 'shoe', 'shoes'],
+  trainer: ['trainers', 'sneaker', 'sneakers', 'shoe', 'shoes'],
+  trainers: ['trainer', 'sneaker', 'sneakers', 'shoe', 'shoes'],
+  boot: ['boots', 'shoe', 'shoes'],
+  boots: ['boot', 'shoe', 'shoes'],
+  shirt: ['top'],
+  blouse: ['top'],
+  tee: ['t-shirt', 'top'],
+  't-shirt': ['tee', 'top'],
+});
+
 /** Every failure the probe can report, so callers branch on codes not strings. */
 const FAILURE_CLASSIFICATIONS = Object.freeze([
   'AUTH_FAILURE',
@@ -110,6 +139,11 @@ function itemVocabulary(item) {
     if (!value) continue;
     for (const noun of GARMENT_NOUNS) {
       if (value.includes(noun)) terms.add(noun);
+    }
+  }
+  for (const noun of [...terms]) {
+    for (const equivalent of SAFE_MANIFEST_NOUN_EXPANSIONS[noun] || []) {
+      terms.add(equivalent);
     }
   }
   return terms;

@@ -73,6 +73,21 @@ test('real room items are never reported as foreign however they are described',
   assert.deepEqual(engine.detectForeignItems(text, ROOM), []);
 });
 
+test('manifest-derived hypernyms and number variants are not foreign items', () => {
+  const text =
+    'The jacket anchors the outfit. The top keeps it clean, the pants add structure, ' +
+    'and the shoes finish it.';
+  assert.deepEqual(engine.detectForeignItems(text, ROOM), []);
+});
+
+test('safe hypernyms do not turn adjacent absent styles into room items', () => {
+  const foreign = engine.detectForeignItems(
+    'The coat, skirt, and sneakers are already doing the work.',
+    ROOM,
+  );
+  assert.deepEqual(foreign.map((entry) => entry.noun), ['coat', 'skirt', 'sneakers']);
+});
+
 test('detection is per sentence, so one suggestion cannot excuse a later claim', () => {
   const text = 'You could add a scarf. The belt already ties it together.';
   const foreign = engine.detectForeignItems(text, ROOM);
