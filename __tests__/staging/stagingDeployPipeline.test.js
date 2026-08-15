@@ -144,6 +144,19 @@ test('migration: prohibited SQL is blocked', async () => {
   assert.ok(allowed.some((f) => f.id === 'DROP_TABLE' && f.severity === 'WARN'));
 });
 
+test('migration: wear owner-link hardening is accepted by the governed staging policy', async () => {
+  const { scanSqlForProhibited } = await import(
+    pathToFileUrl(path.join(ROOT, 'scripts', 'lib', 'staging-helpers.mjs'))
+  );
+  const sql = fs.readFileSync(
+    path.join(ROOT, 'supabase', 'migrations', '20260814230933_harden_wardrobe_wear_owner_links.sql'),
+    'utf8',
+  );
+  const blocked = scanSqlForProhibited(sql).filter((finding) => finding.severity === 'BLOCK');
+  assert.deepEqual(blocked, [], 'the approved migration must need no destructive override');
+  assert.doesNotMatch(sql, /\balter\s+table\b[\s\S]{0,80}\bdrop\b/i);
+});
+
 test('migration: apply script refuses without APPROVE_STAGING_MIGRATION', () => {
   const script = path.join(ROOT, 'scripts', 'apply-staging-migration.mjs');
   const result = runNode(script, {

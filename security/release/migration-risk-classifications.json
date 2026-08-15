@@ -113,7 +113,7 @@
     },
     "harden_wardrobe_wear_owner_links": {
       "classification": "REVERSIBLE",
-      "rationale": "Adds two supporting unique indexes, replaces the wear-item event FK with a composite (wear_event_id, user_id) owner FK, replaces the optional Saved Look FK with a composite (saved_look_id, user_id) owner FK using column-subset ON DELETE SET NULL, and adds one lookup index. Both new constraints are added NOT VALID and validated before their id-only predecessors are removed, so unexpected legacy owner mismatches fail the migration closed. No rows or columns are changed. The exact prior state can be restored by recreating the two original id-only FKs before dropping the composite FKs and their three supporting indexes."
+      "rationale": "Adds two supporting unique indexes, a composite (wear_event_id, user_id) owner FK, a composite (saved_look_id, user_id) owner FK using column-subset ON DELETE SET NULL, and one lookup index. Both new constraints are added NOT VALID and then validated, so unexpected legacy owner mismatches fail the migration closed. The legacy id-only FKs remain as redundant guards; no destructive ALTER, row change, or column change occurs. The exact prior state can be restored by dropping only the two composite FKs and their three supporting indexes."
     }
   }
 }

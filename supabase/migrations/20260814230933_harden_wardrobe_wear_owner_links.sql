@@ -17,8 +17,9 @@ create unique index if not exists looks_id_user_id_uidx
   on public.looks (id, user_id);
 
 -- Preserve the existing deletion behavior while binding the child owner to
--- the event owner. Validate before removing the old FK so a surprise legacy
--- mismatch fails closed without weakening referential integrity.
+-- the event owner. The legacy id-only FK remains in place as a redundant,
+-- non-destructive guard; the composite FK is the constraint that enforces
+-- actor ownership.
 alter table public.wardrobe_wear_event_items
   add constraint wardrobe_wear_event_items_event_owner_fkey
   foreign key (wear_event_id, user_id)
@@ -28,9 +29,6 @@ alter table public.wardrobe_wear_event_items
 
 alter table public.wardrobe_wear_event_items
   validate constraint wardrobe_wear_event_items_event_owner_fkey;
-
-alter table public.wardrobe_wear_event_items
-  drop constraint wardrobe_wear_event_items_wear_event_id_fkey;
 
 -- PostgreSQL 17's column-subset SET NULL keeps the immutable event owner while
 -- clearing only the optional live Saved Look link. saved_look_ref continues to
@@ -44,9 +42,6 @@ alter table public.wardrobe_wear_events
 
 alter table public.wardrobe_wear_events
   validate constraint wardrobe_wear_events_saved_look_owner_fkey;
-
-alter table public.wardrobe_wear_events
-  drop constraint wardrobe_wear_events_saved_look_id_fkey;
 
 -- Supports the reverse lookup PostgreSQL performs when a Saved Look is
 -- deleted. The earlier (user_id, saved_look_id) index serves user history
