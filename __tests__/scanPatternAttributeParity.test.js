@@ -290,3 +290,25 @@ test('NEGATIVE CONTROL: a fabricated pattern is detectable', () => {
     assert.notEqual(result, 'none');
   }
 });
+
+test('a reopened scan reads the canonical projection, not raw attributes', () => {
+  // Wave 2 / 13.4 — fresh vs reopened parity. A reopened scan used to be
+  // strictly poorer than the same scan moments earlier: three raw attribute
+  // fields, the identification snapshot ignored, and no pattern at all.
+  const library = read('app/library.tsx');
+  const card = library.slice(library.indexOf('<AnalysisCard'), library.indexOf('products={selectedScan.products}'));
+
+  for (const field of ['category', 'color', 'silhouette', 'pattern']) {
+    assert.match(
+      card,
+      new RegExp(`${field}: selectedOwnedItem\?\.`),
+      `the reopened scan must read ${field} from the canonical projection`,
+    );
+  }
+  // The raw attributes survive only as a fallback, never as the primary read.
+  assert.doesNotMatch(
+    card,
+    /category: selectedScan\.attributes\.category,/,
+    'raw attributes must not be the primary source',
+  );
+});

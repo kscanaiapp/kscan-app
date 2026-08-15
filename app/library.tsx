@@ -1126,10 +1126,32 @@ export default function LibraryScreen() {
       {selectedScan && (
         <AnalysisCard
           result={selectedScan.result}
+          /*
+            Fresh vs reopened parity (Wave 2 / 13.4).
+
+            This read three raw fields straight off `selectedScan.attributes`,
+            so a reopened scan was strictly poorer than the same scan had been
+            moments earlier: the identification snapshot was ignored and pattern
+            never appeared at all. `selectedOwnedItem` is the canonical
+            projection -- already computed on this screen, already used by the
+            Dressing Room hand-off below -- so the reopened flow now reads the
+            same authority the rest of Build 29 does, falling back to the raw
+            attributes only where the projection has nothing.
+
+            KNOWN REMAINING GAP, deliberately not closed here: AnalysisCard
+            renders category/color/silhouette/pattern but has no chip for brand,
+            subtype, material or fit, so those resolve correctly and still have
+            nowhere to show on this surface. Closing it means either adding
+            chips to the legacy card or migrating this flow onto ScanResultV2,
+            which today lacks the Closet and saved-item controls the library
+            flow depends on. Both are feature work, not stale wiring, so the
+            display gap is recorded rather than improvised.
+          */
           metadata={{
-            category: selectedScan.attributes.category,
-            color: selectedScan.attributes.color_palette,
-            silhouette: selectedScan.attributes.silhouette,
+            category: selectedOwnedItem?.category ?? selectedScan.attributes.category,
+            color: selectedOwnedItem?.color ?? selectedScan.attributes.color_palette,
+            silhouette: selectedOwnedItem?.silhouette ?? selectedScan.attributes.silhouette,
+            pattern: selectedOwnedItem?.pattern ?? selectedScan.attributes.pattern ?? null,
           }}
           products={selectedScan.products}
           purchaseOptions={selectedScan.purchaseOptions ?? []}
