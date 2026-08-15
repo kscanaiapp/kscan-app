@@ -28,7 +28,11 @@ import {
   buildOutfitConfirmationCandidates,
   type OutfitConfirmationCandidate,
 } from './outfitConfirmation/outfitDetectionBridge';
-import { buildScannerV2Display, type ScannerV2Display } from './scannerV2Display';
+import {
+  buildScannerV2Display,
+  normalizePatternLabel,
+  type ScannerV2Display,
+} from './scannerV2Display';
 import type { FashionIdentificationResultV2 } from '../types/fashionIdentificationV2';
 import { SCAN_IDENTITY_DEBUG } from '../constants/build';
 
@@ -192,7 +196,16 @@ function applyV2Identity(
     next.itemType = display.subtype || display.category;
   }
   if (display.material.length) next.materialEstimate = display.material.join(', ');
-  if (display.pattern.length) next.pattern = display.pattern.join(', ');
+  // KSB29-037. This was `display.pattern.join(', ')`, which passed the model's
+  // "unknown" straight through and produced "Pattern: unknown" on the scan
+  // surfaces -- a statement about the garment that the scan never established.
+  // Filtered here so no display surface has to know about placeholder values,
+  // and so an absent pattern stays absent rather than becoming a claim.
+  const patternLabel = display.pattern
+    .map((entry) => normalizePatternLabel(entry))
+    .filter(Boolean)
+    .join(', ');
+  if (patternLabel) next.pattern = patternLabel;
   if (display.visibleAttributes.length) next.styleTags = display.visibleAttributes;
   // Absent confidence stays absent. Writing 0 would assert certainty of
   // non-match, which is the opposite of "unknown".
