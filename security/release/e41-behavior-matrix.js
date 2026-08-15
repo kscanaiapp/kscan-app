@@ -333,11 +333,17 @@ function assertV2Contract(sample) {
   if (!sample) return scenarioResult('v2_contract', false, 'NO_SUCCESSFUL_SAMPLE');
   const problems = [];
   if (String(sample.contractVersion) !== '2') problems.push('CONTRACT_VERSION_NOT_2');
-  if (!sample.attachmentsResolved) problems.push('NO_ATTACHMENTS_RESOLVED');
+  const attachmentCapability = Array.isArray(sample.capabilities)
+    ? sample.capabilities.includes('attachments')
+    : sample.capabilities?.attachments === true;
+  if (!attachmentCapability) problems.push('ATTACHMENT_CAPABILITY_MISSING');
+  if (!sample.roomAdviceEvidence) problems.push('ROOM_ADVICE_EVIDENCE_MISSING');
   if (!sample.servedModel) problems.push('SERVED_MODEL_MISSING');
   return scenarioResult('v2_contract', problems.length === 0, problems[0] || 'OK', {
     contractVersion: sample.contractVersion,
     attachmentsResolved: sample.attachmentsResolved,
+    attachmentCapability,
+    roomAdviceScope: sample.roomAdviceEvidence?.roomAdviceScope ?? null,
     servedModel: sample.servedModel,
   });
 }

@@ -309,20 +309,6 @@ async function askElise(ctx, options) {
     sessionId: sessionId || ctx.sessionId,
     contractVersion: '2',
     ...(visualContext ? { activeContext: visualContext } : {}),
-    ...(
-      items?.length && !roomIdOverride
-        ? {
-          // The active context authorizes the focused item. Real V2
-          // attachments authorize the remaining room items, proving that the
-          // deployed attachment path and the room-aware S7 scope agree.
-          attachments: items.slice(1, 4).map((item) => ({
-            attachmentType: 'owned_item',
-            sourceType: 'dressing_room_item',
-            sourceId: item.itemId,
-          })),
-        }
-        : {}
-    ),
   };
 
   const headers = unauthenticated
