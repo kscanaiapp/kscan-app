@@ -1021,3 +1021,41 @@ test('the candidate hook focuses a new batch only through the shared resolver', 
   // Selection and active batch are never persisted by the hook.
   assert.ok(!hook.includes('selectedCandidateIds'), 'the candidate hook must not own selection');
 });
+
+test('KSB29-027: unbounded status text cannot collapse the review row', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const source = fs.readFileSync(
+    path.join(__dirname, '..', 'components', 'closet', 'ClosetBatchReviewPanel.tsx'),
+    'utf8',
+  );
+
+  // The defect: a long network/error message grew the body until the action
+  // column was squeezed out and the committed Closet grid below was pushed off
+  // screen. The row is otherwise a working surface -- this is a layout bound,
+  // not a redesign.
+  const statusBlock = source.slice(
+    source.indexOf('testID={`closet-batch-status-'),
+    source.indexOf('</View>', source.indexOf('closet-batch-message-')),
+  );
+  assert.match(statusBlock, /numberOfLines=\{2\}/, 'status text must be bounded');
+
+  const messageBlock = source.slice(
+    source.indexOf('style={styles.message}'),
+    source.indexOf('testID={`closet-batch-message-'),
+  );
+  assert.match(messageBlock, /numberOfLines=\{2\}/, 'the status message must be bounded');
+
+  // Every action control keeps a fixed footprint, so the body cannot win the
+  // flex fight against the column the row exists for.
+  const actionButtons = source.match(/<SecondaryButton\s+style=\{styles\.actionButton\}/g) || [];
+  assert.equal(actionButtons.length, 3, 'all three row actions must be width-bounded');
+
+  assert.match(source, /actions:\s*\{[^}]*flexShrink:\s*0/, 'the action column must not shrink');
+  assert.match(source, /actionButton:\s*\{[^}]*minWidth:\s*\d+/, 'actions need a minimum width');
+  // Added now rather than left for the accessibility wave to come back to.
+  assert.match(source, /actionButton:\s*\{[^}]*minHeight:\s*48/, 'actions need a 48dp target');
+
+  // A tall body must grow the row downward rather than centring against it.
+  assert.match(source, /row:\s*\{[^}]*alignItems:\s*'flex-start'/);
+});

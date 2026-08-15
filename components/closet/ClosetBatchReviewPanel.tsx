@@ -245,7 +245,11 @@ export function ClosetBatchReviewPanel({
 
             <View style={styles.body}>
               {/* Status is carried by words, never by colour alone. */}
-              <Text style={styles.status} testID={`closet-batch-status-${item.candidateId}`}>
+              <Text
+                style={styles.status}
+                numberOfLines={2}
+                testID={`closet-batch-status-${item.candidateId}`}
+              >
                 {item.statusLabel}
               </Text>
               {/* The one actively promoting card, and only ever one. */}
@@ -258,11 +262,22 @@ export function ClosetBatchReviewPanel({
                 />
               ) : null}
               {item.displaySummary ? (
-                <Text style={styles.detail}>{item.displaySummary}</Text>
+                <Text style={styles.detail} numberOfLines={2}>{item.displaySummary}</Text>
               ) : null}
-              {item.displayBrand ? <Text style={styles.detail}>{item.displayBrand}</Text> : null}
+              {item.displayBrand ? (
+                <Text style={styles.detail} numberOfLines={1}>{item.displayBrand}</Text>
+              ) : null}
               {item.statusMessage ? (
-                <Text style={styles.message} testID={`closet-batch-message-${item.candidateId}`}>
+                <Text
+                  style={styles.message}
+                  // KSB29-027. Unbounded status text -- a network or error
+                  // message -- grew the row until the action column was squeezed
+                  // out and the committed Closet grid below was pushed off
+                  // screen. Two lines is enough to read the state; the row stays
+                  // a row.
+                  numberOfLines={2}
+                  testID={`closet-batch-message-${item.candidateId}`}
+                >
                   {item.statusMessage}
                 </Text>
               ) : null}
@@ -287,6 +302,8 @@ export function ClosetBatchReviewPanel({
 
               {item.availableActions.includes('add_details') ? (
                 <SecondaryButton
+                  style={styles.actionButton}
+                  numberOfLines={1}
                   title="Add details"
                   onPress={() => {
                     setManualTarget({
@@ -303,6 +320,8 @@ export function ClosetBatchReviewPanel({
               ) : null}
               {item.availableActions.includes('retry') ? (
                 <SecondaryButton
+                  style={styles.actionButton}
+                  numberOfLines={1}
                   title="Try again"
                   onPress={() => {
                     void retry(item.candidateId);
@@ -313,6 +332,8 @@ export function ClosetBatchReviewPanel({
               ) : null}
               {item.availableActions.includes('remove') ? (
                 <SecondaryButton
+                  style={styles.actionButton}
+                  numberOfLines={1}
                   title="Remove"
                   onPress={() => {
                     void remove(item.candidateId);
@@ -403,7 +424,7 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingVertical: SPACING.sm,
     gap: SPACING.sm,
   },
@@ -420,6 +441,8 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
   },
   status: {
     fontSize: 14,
@@ -437,6 +460,14 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: SPACING.xs,
+    // The action column is the row's reason for existing -- it must never be
+    // squeezed out by however much text the body happens to hold.
+    flexShrink: 0,
+  },
+  actionButton: {
+    minWidth: 104,
+    // 48dp shared minimum touch target.
+    minHeight: 48,
   },
   checkbox: {
     paddingHorizontal: SPACING.sm,
