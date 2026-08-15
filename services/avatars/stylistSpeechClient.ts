@@ -3,6 +3,70 @@ import type { AvatarSpeechAlignment } from '../../stores/avatarSpeechStore';
 import type { StylistVoiceProfile } from '../../constants/stylistIdentity';
 
 const CLIENT_SPEECH_TIMEOUT_MS = 20_000;
+
+/**
+ * KSB29-022 — why a speech request failed, kept as a classification rather than
+ * a bare throw.
+ *
+ * The client previously threw one undifferentiated
+ * `Error('Speech is temporarily unavailable.')` for every failure, and the
+ * caller caught it with a bare `catch {}`. So a COMPLETE cue-service outage —
+ * every cue rejected because the deployed backend predates cue mode — was
+ * indistinguishable from one flaky network call, and nothing anywhere recorded
+ * which had happened. That is what let the production contract gap stay
+ * invisible.
+ *
+ * `unsupported_contract` is the specific shape of that gap: the deployed
+ * stylist-speech generation rejects the request as malformed (HTTP 400) because
+ * it does not know cue mode. It is not retryable — retrying cannot make an
+ * older deployment understand a newer request — and that distinction is the
+ * point of classifying at all.
+ *
+ * The user-facing copy is unchanged; this is diagnostic state, not new UI.
+ */
+export type StylistSpeechFailureCode =
+  | 'unsupported_contract'
+  | 'unavailable'
+  | 'invalid_response';
+
+export class StylistSpeechClientError extends Error {
+  readonly code: StylistSpeechFailureCode;
+  /** False when retrying provably cannot help, e.g. a deployment mismatch. */
+  readonly retryable: boolean;
+
+  constructor(code: StylistSpeechFailureCode, message: string) {
+    super(message);
+    this.name = 'StylistSpeechClientError';
+    this.code = code;
+    this.retryable = code !== 'unsupported_contract';
+  }
+}
+
+/**
+ * Classify a Supabase Functions invoke error.
+ *
+ * A 400 on a cue request means the deployment does not recognise the cue
+ * contract — production v29 rejects any key outside
+ * {sessionId, messageId, stylistId}. Anything else is treated as transient,
+ * which is the safe default: a wrong "permanent" verdict would suppress a retry
+ * that would have worked.
+ */
+function classifyInvokeFailure(error: unknown, cueMode: boolean): StylistSpeechClientError {
+  const status = (() => {
+    const candidate = error as { status?: unknown; context?: { status?: unknown } } | null;
+    if (typeof candidate?.status === 'number') return candidate.status;
+    if (typeof candidate?.context?.status === 'number') return candidate.context.status;
+    return null;
+  })();
+
+  if (cueMode && status === 400) {
+    return new StylistSpeechClientError(
+      'unsupported_contract',
+      'Speech is temporarily unavailable.',
+    );
+  }
+  return new StylistSpeechClientError('unavailable', 'Speech is temporarily unavailable.');
+}
 const MAX_AUDIO_BASE64_CHARACTERS = 2_500_000;
 
 /** Speak a persisted assistant message the caller owns. */
@@ -158,7 +222,7 @@ export async function requestStylistSpeech(
     timeout: CLIENT_SPEECH_TIMEOUT_MS,
   });
   if (error) {
-    throw new Error('Speech is temporarily unavailable.');
+    throw classifyInvokeFailure(error, cueMode);
   }
   return validateResponse(data, request);
 }

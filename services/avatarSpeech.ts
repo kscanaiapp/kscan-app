@@ -140,12 +140,31 @@ async function finishCurrent(value: number): Promise<void> {
   finishAvatarSpeech(value);
 }
 
-async function failCurrent(value: number): Promise<void> {
+/**
+ * User-safe failure copy, chosen by classification.
+ *
+ * Both strings are deliberately non-technical: the user is told Elise's voice is
+ * unavailable, never why the backend disagreed with the client. The DISTINCTION
+ * exists so the state carries whether a retry could ever help — an older
+ * deployment will not start understanding a newer request, so offering an
+ * endless retry there would be a lie.
+ */
+function describeSpeechFailure(error: unknown): string {
+  const code = (error as { code?: unknown } | null)?.code;
+  return code === 'unsupported_contract'
+    ? 'Elise’s voice is unavailable right now.'
+    : 'Speech is temporarily unavailable.';
+}
+
+async function failCurrent(
+  value: number,
+  message = 'Speech is temporarily unavailable.',
+): Promise<void> {
   if (!isCurrent(value)) return;
   await releaseResources();
   if (!isCurrent(value)) return;
   currentScope = null;
-  setAvatarSpeechError(value, 'Speech is temporarily unavailable.');
+  setAvatarSpeechError(value, message);
 }
 
 /**
@@ -278,8 +297,16 @@ async function runSpeechOperation(payload: NormalizedSpeech): Promise<void> {
       activePlayer = null;
       await deleteTemporaryStylistSpeechFile(uri);
     }
-  } catch {
-    if (isCurrent(requestGeneration)) await failCurrent(requestGeneration);
+  } catch (error) {
+    // KSB29-022. This was a bare `catch {}`, so a COMPLETE cue-service outage
+    // -- every cue rejected because the deployed backend predates cue mode --
+    // looked exactly like one flaky network call and left no trace of which had
+    // happened. Speech is an enhancement and must still never block a product
+    // action, so the failure is still swallowed; it is now swallowed
+    // OBSERVABLY.
+    if (isCurrent(requestGeneration)) {
+      await failCurrent(requestGeneration, describeSpeechFailure(error));
+    }
   }
 }
 
