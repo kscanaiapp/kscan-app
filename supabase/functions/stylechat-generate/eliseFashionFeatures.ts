@@ -151,7 +151,12 @@ export function normalizeWardrobeCandidate(input: {
     asString(meta.category) ??
     asString(meta.itemType) ??
     asString(meta.item_type);
-  const subcategory = asString(meta.subcategory) ?? asString(meta.itemType) ?? null;
+  const subcategory =
+    asString(meta.subcategory) ??
+    asString(meta.subtype) ??
+    asString(meta.itemType) ??
+    asString(meta.item_type) ??
+    null;
   const colors = [
     ...asStringArray(row.color),
     ...asStringArray(meta.color),

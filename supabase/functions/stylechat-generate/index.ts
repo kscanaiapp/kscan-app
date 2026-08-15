@@ -2023,7 +2023,7 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
           const { data } = await userClient
             .from('dressing_room_items')
             .select(
-              'id, dressing_room_id, brand, category, price_amount, source_type, snapshot_payload, created_at',
+              'id, dressing_room_id, title, brand, category, price_amount, source_type, snapshot_payload, created_at',
             )
             .in('dressing_room_id', roomIds)
             .order('created_at', { ascending: false })
@@ -2086,7 +2086,7 @@ Deno.serve(async (req) => observeEdgeRequest(req, 'stylechat-generate', async ()
           const { data } = await userClient
             .from('dressing_room_items')
             .select(
-              'id, dressing_room_id, brand, category, price_amount, source_type, snapshot_payload, created_at',
+              'id, dressing_room_id, title, brand, category, price_amount, source_type, snapshot_payload, created_at',
             )
             .in('dressing_room_id', roomIds)
             .order('created_at', { ascending: false })

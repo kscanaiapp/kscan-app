@@ -506,6 +506,56 @@ Deno.test('E-4 prompt block only contains authorized candidate ids', () => {
   assert.match(block, /Do not invent Closet/);
 });
 
+Deno.test('E-4 prompt preserves an authoritative subtype as the present garment identity', () => {
+  const candidate = normalizeWardrobeCandidate({
+    candidateId: 'owned-room:blazer',
+    sourceType: 'owned_room',
+    actorRelationship: 'owned',
+    row: {
+      category: 'outerwear',
+      title: 'Navy blazer',
+      snapshot_payload: { subtype: 'blazer', colors: ['navy'] },
+    },
+  });
+  const prompt = buildEliseAdvicePromptBlock({
+    intent: 'style_current_item',
+    focused: {
+      evidenceId: 'owned-room:blazer',
+      actorRelationship: 'owned',
+      candidate,
+      resolution: 'referenced_saved',
+    },
+    shortlist: [{
+      candidate,
+      recommendationRole: 'primary',
+      score: {
+        total: 0.7,
+        dimensions: {
+          categoryRole: 0.7,
+          colorHarmony: 0.7,
+          silhouetteBalance: 0.7,
+          materialTexture: 0.7,
+          formality: 0.7,
+          season: 0.7,
+          occasion: 0.7,
+          signatureStyle: 0.7,
+          ownershipPriority: 1,
+          redundancyPenalty: 0,
+        },
+        warnings: [],
+        reasons: ['owned_priority'],
+      },
+    }],
+    wardrobeGap: null,
+    purchaseAdvice: null,
+    looks: null,
+  });
+
+  assert.equal(candidate.subcategory, 'blazer');
+  assert.match(prompt, /category="outerwear" itemType="blazer"/);
+  assert.match(prompt, /never a coat/i);
+});
+
 Deno.test('E-4 pipeline returns null when advice intents flag OFF', async () => {
   const result = await runEliseAdvicePipeline({
     message: 'What goes with this?',

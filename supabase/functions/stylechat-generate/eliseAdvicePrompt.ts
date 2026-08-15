@@ -27,6 +27,8 @@ export function buildEliseAdvicePromptBlock(input: {
     '[Elise Closet-Aware Advice Grounding]',
     'RULES:',
     '- Use ONLY the candidates listed below. Do not invent Closet or saved items.',
+    '- When itemType is known, it is the exact identity of the present garment. Use it instead of guessing from a broad category.',
+    '- Do not relabel a present garment as an adjacent type. A blazer may be called a blazer or jacket, never a coat.',
     '- Ownership language must match actorRelationship exactly.',
     '- Owned means the user already has it. Saved is not owned. Shared is not owned.',
     '- Discovered/commerce options are shopping suggestions only.',
@@ -41,8 +43,9 @@ export function buildEliseAdvicePromptBlock(input: {
     const f = input.focused.candidate;
     lines.push('[FOCUSED ITEM]');
     lines.push(
-      `id=${escapePromptData(f.candidateId)} relationship=${escapePromptData(f.actorRelationship)} ` +
+        `id=${escapePromptData(f.candidateId)} relationship=${escapePromptData(f.actorRelationship)} ` +
         `category=${escapePromptData(f.category ?? 'unknown')} ` +
+        `itemType=${escapePromptData(f.subcategory ?? 'unknown')} ` +
         `colors=${escapePromptData(f.colors.join('|') || 'unknown')} ` +
         `language=${escapePromptData(ownershipLanguageLabel(f.actorRelationship))}`,
     );
@@ -63,6 +66,7 @@ export function buildEliseAdvicePromptBlock(input: {
         `- id=${escapePromptData(c.candidateId)} source=${escapePromptData(c.sourceType)} ` +
           `relationship=${escapePromptData(c.actorRelationship)} role=${escapePromptData(scored.recommendationRole)} ` +
           `category=${escapePromptData(c.category ?? 'unknown')} ` +
+          `itemType=${escapePromptData(c.subcategory ?? 'unknown')} ` +
           `colors=${escapePromptData(c.colors.join('|') || 'unknown')} ` +
           `reasons=${escapePromptData(scored.score.reasons.join(',') || 'none')} ` +
           `label=${escapePromptData(ownershipLanguageLabel(c.actorRelationship))}`,
