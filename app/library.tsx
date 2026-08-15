@@ -95,6 +95,8 @@ interface ScanAttributes {
   silhouette: string;
   color_palette: string;
   material_estimate: string | null;
+  /** KSB29-037. Absent on scans saved before pattern was persisted. */
+  pattern?: string | null;
   style_tags: string[];
   confidence_score: number | null;
 }

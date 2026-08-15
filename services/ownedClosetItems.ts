@@ -184,6 +184,12 @@ export function normalizeLocalSavedScan(scan: SavedScanModel): OwnedClosetItem {
       silhouette: attributes.silhouette,
       color_palette: attributes.color_palette,
       material_estimate: attributes.material_estimate,
+      // KSB29-037. The projection omitted `pattern`, so for a scan with no
+      // identification snapshot the resolver had no legacy source to fall back
+      // to and pattern resolved absent — the value was sitting in the saved
+      // attributes the whole time. Every reopened legacy scan lost its pattern
+      // on this line.
+      pattern: attributes.pattern,
       style_tags: attributes.style_tags,
       confidence_score: attributes.confidence_score,
     },

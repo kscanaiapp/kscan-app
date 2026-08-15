@@ -391,6 +391,7 @@ export function ScanResultV2({
                   color={v2Data.color}
                   silhouette={v2Data.silhouette}
                   material={v2Data.material}
+                  pattern={v2Data.pattern}
                   confidence={v2Data.confidence}
                   styleTags={v2Data.styleTags}
                 />

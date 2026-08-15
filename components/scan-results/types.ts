@@ -36,6 +36,8 @@ export type ScanResultV2 = {
   color?: string;
   silhouette?: string;
   material?: string;
+  /** KSB29-037: pattern is part of the contract, not an optional extra. */
+  pattern?: string;
   confidence?: number;
   matchLabel?: string;
   styleTags?: string[];
@@ -53,6 +55,7 @@ export type LegacyAnalysisData = {
     color?: string;
     silhouette?: string;
     material?: string;
+    pattern?: string;
     confidence?: number;
     styleTags?: string[];
     brand?: string | null;
@@ -241,6 +244,9 @@ export function mapLegacyToV2(
     color: meta.color || undefined,
     silhouette: meta.silhouette || undefined,
     material: meta.material || undefined,
+    // Without this the V2 view model dropped pattern on the way in, so the
+    // normalizer's surviving value never reached a chip.
+    pattern: meta.pattern || undefined,
     confidence: typeof meta.confidence === 'number' ? meta.confidence : undefined,
     styleTags: meta.styleTags,
     styleAnalysis: analysisText || undefined,

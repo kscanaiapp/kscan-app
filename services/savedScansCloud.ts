@@ -72,6 +72,12 @@ export interface SavedScanModel {
     silhouette: string;
     color_palette: string;
     material_estimate: string | null;
+    /**
+     * KSB29-037. Written by services/library.js on save and read back by the
+     * canonical resolver's legacy projection. Optional because rows saved
+     * before the field existed simply do not carry it — absent stays absent.
+     */
+    pattern?: string | null;
     style_tags: string[];
     confidence_score: number | null;
   };
