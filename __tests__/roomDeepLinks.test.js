@@ -52,8 +52,16 @@ test('checked-in Android manifest mirrors the verified room link intent filter',
     'utf8',
   );
 
-  assert.match(manifest, /<intent-filter android:autoVerify="true">/);
-  assert.match(manifest, /android:scheme="https"/);
-  assert.match(manifest, /android:host="kscan\.app"/);
-  assert.match(manifest, /android:pathPrefix="\/rooms"/);
+  // Matched structurally rather than as a literal tag: `expo prebuild` also stamps
+  // data-generated="true" on the filters it owns, and attribute order is its choice.
+  const roomFilter = manifest
+    .split('<intent-filter')
+    .find((block) => block.includes('android:pathPrefix="/rooms"'));
+
+  assert.ok(roomFilter, 'no intent-filter declares the /rooms path prefix');
+  assert.match(roomFilter, /android:autoVerify="true"/);
+  assert.match(roomFilter, /android:scheme="https"/);
+  assert.match(roomFilter, /android:host="kscan\.app"/);
+  assert.match(roomFilter, /android\.intent\.category\.BROWSABLE/);
+  assert.match(roomFilter, /android\.intent\.category\.DEFAULT/);
 });
