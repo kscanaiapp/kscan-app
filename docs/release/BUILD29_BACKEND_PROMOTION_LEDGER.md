@@ -154,11 +154,41 @@ Deployed production function body read directly. The flag is now `"true"` in all
 four EAS profiles, guarded by
 `__tests__/eliseIdentificationV2Migration.test.js`.
 
-### Outstanding
+### Mirror Selfie — bounded probe PARTIALLY RUN, no promotion claimed
 
-The bounded **Mirror Selfie staging probe** using the real `closet_mirror`
-mobile contract is **not yet run** on this branch. Until it is, no Mirror Selfie
-promotion delta is claimed here. Mirror Selfie remains ON and is not disabled.
+| field | value |
+| --- | --- |
+| **source** | `closet_mirror` entry path present |
+| **staging** | **v32** — `closet_mirror` in the entry-path vocabulary |
+| **production** | **v147** — `closet_mirror` present |
+| **user-facing dependency** | Mirror Selfie Closet intake. |
+| **promotion required?** | **NONE APPARENT** — but see the limit below |
+
+**Run and passing** (`__tests__/mirrorSelfieStagingProbe.test.js`), using the
+REAL `closet_mirror` mobile contract rather than substitute semantics:
+
+1. exact staging generation identified — scan-identify **v32**
+2. the real payload from the production builder `buildClosetV2Request`
+3. that payload is **accepted by the deployed request validator**, executed
+4. ordinary Closet camera/gallery requests still validate, and Scanner entry
+   paths stay distinct — a Closet request can never masquerade as Scanner
+
+**NOT run: the live model round-trip.** An actual fashion-identification
+RESPONSE from staging is not exercised. The governed probe for that is
+`scripts/smoke-scan-identify.js`, which requires **`STAGING_USER_JWT`** — a real
+staging user token that is not available in this environment. The script
+explicitly refuses service-role keys and fabricated JWTs, and manufacturing one
+to make the probe look complete would defeat the control it exists behind.
+
+**Consequence.** The request contract is certified; the response is not. Both
+environments already accept `closet_mirror`, so no promotion *appears* to be
+required — but "appears" is not certification, and this is recorded as
+outstanding rather than passed. Completing it needs only the credential.
+
+**Mirror Selfie is NOT disabled** and stays `true` in all four EAS profiles.
+The correct response to an unrun probe is to run it when the credential exists,
+not to remove a feature that has already had implementation and testing
+investment.
 
 ---
 
@@ -203,12 +233,64 @@ None.
 
 ---
 
-## 5. Dressing Room authorization migrations — PENDING
+## 5. Dressing Room authorization — PROMOTION REQUIRED (staging + production)
 
-Wave 4 (KSB29-029 / 030 / 031 / 033) is not yet complete on this branch. This
-section will carry the `dressing_room_items` blocking migration, the
-SECURITY DEFINER helper review, and the `dressing_room_item_reactions` grant
-once those land.
+| field | value |
+| --- | --- |
+| **source** | `supabase/migrations/20260815140000_dressing_room_items_blocking.sql` (added on this branch) |
+| **staging** | block check **absent** on `dressing_room_items` and on all three share helpers |
+| **production** | block check **absent** — identical to staging |
+| **user-facing dependency** | User blocking in shared Dressing Rooms. A real authorization boundary, not moderation. |
+| **promotion required?** | **YES — both environments** |
+
+### Exact contract difference
+
+`dressing_rooms` already refuses a blocked recipient (its recipient SELECT
+policy carries `not internal.is_dressing_room_pair_blocked(...)`). Nothing else
+does:
+
+| object | checks block, before |
+| --- | --- |
+| `dressing_rooms` recipient SELECT policy | **yes** |
+| `dressing_room_items` recipient SELECT policy | **no** |
+| `list_shared_rooms_for_me` (SECURITY DEFINER) | **no** |
+| `save_shared_room_for_me` (SECURITY DEFINER) | **no** |
+| `touch_shared_room_for_me` (SECURITY DEFINER) | **no** |
+
+So a blocked recipient was denied the room shell and could still read every
+item in it directly, still see it listed as `available` with title and item
+count, still save it, and still refresh its access time. The three helpers are
+SECURITY DEFINER, so RLS never runs for them and the check has to be explicit.
+
+The migration reuses `internal.is_dressing_room_pair_blocked` unchanged and
+transcribes the item predicate from the working `dressing_rooms` policy, so the
+two cannot disagree about what "blocked" means. Blocked access resolves to the
+same `unavailable` status as a revoked or expired share, so it is not an oracle.
+
+### Validation evidence
+
+Applied to App Staging inside transactions that were **rolled back**: the
+resulting policy carried the block check while preserving every existing share
+condition (membership, not-removed, active, not-revoked, not-expired), both
+rewritten RPCs kept SECURITY DEFINER and their pinned `search_path` and gained
+the check, and a follow-up query confirmed staging was left unchanged.
+Classified `REVERSIBLE` in
+`security/release/migration-risk-classifications.json` — tightening only, no
+table, column, or row touched. Guarded by
+`__tests__/dressingRoomItemBlockingMigration.test.js`.
+
+### Secrets / dependencies
+
+None. Requires the `internal.is_dressing_room_pair_blocked` helper, which both
+environments already have.
+
+### KSB29-033 — NOT A DEFECT, no action
+
+The audit reported no effective GRANT on `dressing_room_item_reactions`. Read
+live on both projects: `authenticated` already holds SELECT, INSERT, UPDATE and
+DELETE with RLS enabled, so its policies are reachable. Nothing is granted —
+broadening a permission that is already correct would weaken the boundary
+rather than repair it.
 
 ---
 
@@ -220,4 +302,4 @@ once those land.
 | `stylechat-generate` v90 → v91 | **REQUIRED** (production, S7) |
 | `scan-identify` | not required for KSB29-012; Mirror probe outstanding |
 | AI-output migration | **REQUIRED** (staging only; production already has it) |
-| Dressing Room authorization | pending Wave 4 |
+| Dressing Room authorization | **REQUIRED** (staging + production) |
