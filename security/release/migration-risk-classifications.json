@@ -118,6 +118,10 @@
     "content_reports_ai_output": {
       "classification": "EXPANSION_SAFE",
       "rationale": "KSB29-036 reverse-drift repair. Adds a nullable jsonb column and re-declares two CHECK constraints on content_reports; no data is read, written, moved or deleted. It reproduces state PRODUCTION ALREADY HAS -- verified against the live database on 2026-08-15, where ai_output_context and the 'ai_output' target type are present -- so applying it to production is a no-op and applying it to staging converges staging on production. The constraint bodies are transcribed from production's own pg_get_constraintdef output and were validated by applying this migration to App Staging inside a transaction and rolling back: the resulting definitions were byte-identical. Fully idempotent (add column if not exists, drop constraint if exists before each add), so re-running is safe."
+    },
+    "dressing_room_items_blocking": {
+      "classification": "REVERSIBLE",
+      "rationale": "KSB29-029/030/031 authorization repair. TIGHTENING ONLY: adds a block check to the dressing_room_items recipient SELECT policy and to three SECURITY DEFINER helpers (list/save/touch_shared_room_for_me), reusing the existing internal.is_dressing_room_pair_blocked relation. No table, column, or data is touched; no privilege is broadened and RLS is never disabled. Reversible because the prior policy and function bodies are recoverable verbatim from the migration that created them. Verified live on both projects 2026-08-15: dressing_rooms already enforced the block, dressing_room_items and all three RPCs did not. Validated by applying to App Staging inside transactions that were rolled back -- the policy carried the block check while preserving every existing share condition, both rewritten RPCs kept SECURITY DEFINER and their pinned search_path, and staging was confirmed unchanged afterwards. Blocked access returns the same 'unavailable' status as a revoked or expired share, so it is not an oracle."
     }
   }
 }
