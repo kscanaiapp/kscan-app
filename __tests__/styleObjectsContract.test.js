@@ -151,8 +151,18 @@ test('snapshot version 1 is explicit', () => {
 
 test('ProductShelf exposes a visible Add to Dressing Room action', () => {
   assert.match(productShelf, /Add to Dressing Room/);
-  assert.match(productShelf, /accessibilityLabel="Add to Dressing Room"/);
   assert.match(productShelf, /testID="add-to-dressing-room-button"/);
+
+  // UPDATED WITH THE SOURCE. This asserted a HARDCODED
+  // `accessibilityLabel="Add to Dressing Room"`, which was the defect: the
+  // visible text switches to "Can't Save Yet" while the label kept announcing
+  // the opposite. The label now tracks the text, so pinning the literal string
+  // would have re-broken it.
+  assert.match(
+    productShelf,
+    /accessibilityLabel=\{\s*canSaveToRoom \? 'Add to Dressing Room' : "Can't save to a Dressing Room yet"\s*\}/,
+    'the announced label must track the visible text',
+  );
 });
 
 test('ProductShelf gates Dressing Room saves by title and remote image eligibility', () => {

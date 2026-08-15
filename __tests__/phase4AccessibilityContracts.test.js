@@ -223,3 +223,83 @@ test('the shared LuxuryButton and theme button contract is unchanged by Phase 4'
   assert.match(theme, /secondary:\s*\{[\s\S]*?height:\s*52/);
   assert.match(theme, /secondary:\s*\{[\s\S]*?minWidth:\s*200/);
 });
+
+// ── Wave 5 batch 2: live regions, form semantics, keyboard-aware modals ──────
+//
+// Forward-ported behaviours that the fork lost along with their guards.
+
+test('a11y: the analysis wait is announced to assistive technology', () => {
+  const analyzing = read('components', 'scan-room', 'AnalyzingScan.tsx');
+
+  // The spinner announces nothing, so without a live region the whole analysis
+  // wait is silent to a screen-reader user.
+  assert.match(analyzing, /accessibilityLiveRegion="polite"/);
+  assert.match(analyzing, /testID="analyzing-scan-status"/);
+
+  // A failure ends the wait and is worth interrupting for; the in-progress
+  // state is not.
+  assert.match(analyzing, /accessibilityLiveRegion="assertive"/);
+  assert.match(analyzing, /testID="analyzing-scan-error-region"/);
+});
+
+test('a11y: Style Object text fields announce what they are for', () => {
+  const cards = read('components', 'StyleObjectCards.tsx');
+
+  // The visible label is a sibling Text, which assistive technology does not
+  // associate with the field. Without an explicit label the input announced
+  // only its placeholder — or nothing once it held a value, so a user editing a
+  // saved Look heard the text but never what it was for.
+  const input = cards.slice(cards.indexOf('<TextInput'), cards.indexOf('</View>', cards.indexOf('<TextInput')));
+  assert.match(input, /accessibilityLabel=\{label\}/);
+  assert.match(input, /accessibilityLabelledBy=/);
+});
+
+test('a11y: the create-room sheet stays usable with the keyboard open', () => {
+  const rooms = read('app', 'dressing-rooms', 'index.tsx');
+  const modal = rooms.slice(
+    rooms.indexOf('function CreateRoomModal'),
+    rooms.indexOf('function DressingRoomsContent'),
+  );
+
+  // Two text fields in a centred card: without keyboard avoidance the keyboard
+  // covers Create AND Cancel, so the form can neither be completed nor
+  // dismissed.
+  assert.match(modal, /<KeyboardAvoidingView/);
+  assert.match(modal, /behavior=\{Platform\.OS === 'ios' \? 'padding' : undefined\}/);
+  assert.match(modal, /accessibilityViewIsModal/);
+  assert.match(modal, /accessibilityRole="header"/);
+});
+
+test('a11y: cancelling room creation discards the abandoned draft', () => {
+  const rooms = read('app', 'dressing-rooms', 'index.tsx');
+  const modal = rooms.slice(
+    rooms.indexOf('function CreateRoomModal'),
+    rooms.indexOf('function DressingRoomsContent'),
+  );
+
+  // Save cleared the fields; cancel did not, so a room the user explicitly
+  // decided NOT to create came back pre-filled and one tap from existing — with
+  // its stale error, so the fresh form opened already complaining.
+  assert.match(modal, /const handleCancel = useCallback\(/);
+  const cancel = modal.slice(modal.indexOf('const handleCancel'), modal.indexOf('}, [saving, onClose])'));
+  assert.match(cancel, /setTitle\(''\)/);
+  assert.match(cancel, /setDescription\(''\)/);
+  assert.match(cancel, /setError\(null\)/);
+
+  // Every dismissal path must go through it, including the hardware back / swipe
+  // dismissal, or the draft survives by the route nobody tested.
+  assert.match(modal, /onRequestClose=\{handleCancel\}/);
+  assert.match(modal, /onPress=\{handleCancel\}/);
+  assert.doesNotMatch(modal, /onPress=\{onClose\}/, 'cancel must not bypass the reset');
+});
+
+test('a11y: the room message safety actions declare a real target', () => {
+  const panel = read('components', 'rooms', 'RoomMessagesPanel.tsx');
+
+  // Reply / Report / Report user / Block had correct semantics but no sized
+  // container, so the target was whatever the caption text measured.
+  const min = declaredMinHeight(panel, 'inlineAction');
+  assert.ok(min !== null && min >= PLATFORM_MIN, `inlineAction declares ${min}`);
+  const uses = panel.match(/styles\.inlineAction\b/g) || [];
+  assert.ok(uses.length >= 4, 'all four safety actions must use the sized container');
+});

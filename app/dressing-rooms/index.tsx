@@ -5,8 +5,10 @@ import {
   Animated,
   Easing,
   Image,
+  KeyboardAvoidingView,
   Linking,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -366,6 +368,23 @@ function CreateRoomModal({
 
   const canSave = useMemo(() => title.trim().length > 0 && !saving, [title, saving]);
 
+  /**
+   * Cancel discards the draft.
+   *
+   * `handleSave` cleared the fields on success but cancel called `onClose`
+   * directly, so an abandoned title and description survived and reappeared the
+   * next time the sheet opened — a room the user had explicitly decided not to
+   * create, pre-filled and one tap from existing. A stale error was kept too,
+   * so the fresh form opened already complaining.
+   */
+  const handleCancel = useCallback(() => {
+    if (saving) return;
+    setTitle('');
+    setDescription('');
+    setError(null);
+    onClose();
+  }, [saving, onClose]);
+
   const handleSave = async () => {
     if (!canSave || savingRef.current) return;
     savingRef.current = true;
@@ -387,10 +406,19 @@ function CreateRoomModal({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.modalBackdrop}>
-        <View style={styles.modalCard}>
-          <Text style={styles.modalTitle}>New Dressing Room</Text>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleCancel}>
+      {/*
+        Two text fields in a centred card: without keyboard avoidance the
+        keyboard covers Create and Cancel on shorter devices, so the form
+        cannot be completed OR dismissed — the user is stuck in a modal with no
+        reachable way out.
+      */}
+      <KeyboardAvoidingView
+        style={styles.modalBackdrop}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.modalCard} accessibilityViewIsModal>
+          <Text style={styles.modalTitle} accessibilityRole="header">New Dressing Room</Text>
           <Text style={styles.modalSubtitle}>
             Create a private board for a trip, event, sale watchlist, or styling project.
           </Text>
@@ -412,12 +440,12 @@ function CreateRoomModal({
           />
           <SecondaryButton
             title="Cancel"
-            onPress={onClose}
+            onPress={handleCancel}
             disabled={saving}
             accessibilityLabel="Cancel create room"
           />
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

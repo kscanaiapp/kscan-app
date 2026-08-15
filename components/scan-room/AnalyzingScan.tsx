@@ -88,7 +88,18 @@ export function AnalyzingScan({
     return (
       <View style={styles.root} testID={testID}>
         <ScanRoomHeader rightAction={homeButton} />
-        <View style={styles.errorContainer}>
+        {/*
+          The analysis outcome must reach assistive technology. Without a live
+          region the screen silently swaps from "analyzing" to "failed" and a
+          screen-reader user is left waiting on a scan that already stopped.
+          `assertive` here, `polite` for the in-progress state: a failure ends
+          the wait and is worth interrupting for.
+        */}
+        <View
+          style={styles.errorContainer}
+          accessibilityLiveRegion="assertive"
+          testID="analyzing-scan-error-region"
+        >
           <EmptyStateCard
             title={errorMessage || 'Analysis failed'}
             subtitle="We couldn't complete the scan. Please try again."
@@ -136,7 +147,20 @@ export function AnalyzingScan({
       {/* Compact processing card */}
       <View style={styles.processingCard}>
         <ActivityIndicator size="small" color={LUXURY.colors.plum} />
-        <Text style={styles.processingTitle}>Analyzing your look…</Text>
+        {/*
+          Restores the live-region behaviour lost in the fork. The analysis wait
+          is otherwise entirely silent to assistive technology: the spinner is
+          not announced, so a screen-reader user has no signal that the scan is
+          running at all. `polite` because this is progress, not an outcome.
+        */}
+        <Text
+          style={styles.processingTitle}
+          accessibilityLiveRegion="polite"
+          accessibilityRole="text"
+          testID="analyzing-scan-status"
+        >
+          Analyzing your look…
+        </Text>
         <View style={styles.analyzingButton}>
           <Text style={styles.analyzingButtonText}>ANALYZING…</Text>
         </View>

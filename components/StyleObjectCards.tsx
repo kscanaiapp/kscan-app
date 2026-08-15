@@ -139,7 +139,15 @@ export function TextField({
 }) {
   return (
     <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+      {/*
+        The visible label is a sibling Text, which assistive technology does not
+        associate with the field. Without an explicit label the input announced
+        only its placeholder — or nothing at all when it already had a value, so
+        a user editing a saved Look heard the text but never what it was for.
+      */}
+      <Text style={styles.fieldLabel} nativeID={`style-object-field-${label}`}>
+        {label}
+      </Text>
       <TextInput
         value={value}
         onChangeText={onChangeText}
@@ -148,6 +156,9 @@ export function TextField({
         style={[styles.input, multiline ? styles.textArea : null]}
         multiline={multiline}
         maxLength={maxLength}
+        accessibilityLabel={label}
+        accessibilityLabelledBy={`style-object-field-${label}`}
+        testID={`style-object-field-input-${label}`}
       />
     </View>
   );
