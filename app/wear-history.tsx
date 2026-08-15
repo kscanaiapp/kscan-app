@@ -9,7 +9,7 @@
 // governed read contract in services/wearHistory.ts. This screen performs no
 // Supabase query of its own and never falls back to the legacy local counter.
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LUXURY, RADIUS, SPACING } from '../constants/theme';
@@ -21,6 +21,12 @@ import {
   InlineNotice,
 } from '../components/luxury';
 import { goBackOrHome } from '../services/navigationExit';
+import { useAuthSession } from '../contexts/AuthSessionContext';
+import {
+  createActorRequest,
+  getActorContext,
+  isActorRequestCurrent,
+} from '../services/actorContext';
 import {
   getWearHistory,
   getWearStats,
@@ -70,6 +76,11 @@ function entryDetail(entry: WearHistoryEntry): string {
 
 export default function WearHistoryScreen() {
   const router = useRouter();
+  const { isAuthenticated, loading: actorLoading, user } = useAuthSession();
+  const actorId = isAuthenticated ? user?.id ?? null : null;
+  const actorEpoch = getActorContext().epoch;
+  const actorStamp = actorId ? `user:${actorId}:epoch:${actorEpoch}` : null;
+  const [stateActorStamp, setStateActorStamp] = useState<string | null>(null);
   const [entries, setEntries] = useState<WearHistoryEntry[]>([]);
   const [cursor, setCursor] = useState<WearHistoryCursor | null>(null);
   const [hasMore, setHasMore] = useState(false);
@@ -78,11 +89,31 @@ export default function WearHistoryScreen() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const requestSequenceRef = useRef(0);
+  const loadingMoreRef = useRef(false);
 
   const loadFirstPage = useCallback(async () => {
+    const sequence = ++requestSequenceRef.current;
+    const actorRequest = createActorRequest();
+    setStateActorStamp(actorStamp);
     setLoading(true);
+    setLoadingMore(false);
+    loadingMoreRef.current = false;
     setError(null);
+    setEntries([]);
+    setCursor(null);
+    setHasMore(false);
+    setStats([]);
+    setStatsTruncated(false);
+    if (actorLoading || !actorId) {
+      setLoading(false);
+      return;
+    }
     const [history, wardrobeStats] = await Promise.all([getWearHistory(), getWearStats()]);
+    if (
+      sequence !== requestSequenceRef.current ||
+      !isActorRequestCurrent(actorRequest)
+    ) return;
     if (history.ok !== true) {
       setError(history.error);
       setLoading(false);
@@ -96,16 +127,27 @@ export default function WearHistoryScreen() {
       setStatsTruncated(wardrobeStats.truncated);
     }
     setLoading(false);
-  }, []);
+  }, [actorId, actorLoading, actorStamp]);
 
   useEffect(() => {
     void loadFirstPage();
+    return () => {
+      requestSequenceRef.current += 1;
+      loadingMoreRef.current = false;
+    };
   }, [loadFirstPage]);
 
   const loadMore = useCallback(async () => {
-    if (!cursor || loadingMore) return;
+    if (!cursor || loadingMoreRef.current || stateActorStamp !== actorStamp) return;
+    loadingMoreRef.current = true;
+    const sequence = requestSequenceRef.current;
+    const actorRequest = createActorRequest();
     setLoadingMore(true);
     const next = await getWearHistory({ cursor });
+    if (
+      sequence !== requestSequenceRef.current ||
+      !isActorRequestCurrent(actorRequest)
+    ) return;
     if (next.ok === true) {
       // Append rather than replace. The keyset cursor guarantees no overlap,
       // so a de-duplication pass here would only mask a paging bug.
@@ -115,15 +157,27 @@ export default function WearHistoryScreen() {
     } else {
       setError(next.error);
     }
+    loadingMoreRef.current = false;
     setLoadingMore(false);
-  }, [cursor, loadingMore]);
+  }, [actorStamp, cursor, stateActorStamp]);
 
-  const showRanking = rankingIsMeaningful(stats);
-  const mostWorn = showRanking ? rankByWear(stats, 'most', 3) : [];
-  const leastWorn = showRanking ? rankByWear(stats, 'least', 3) : [];
+  // Actor-stamped rendering closes the frame between an auth transition and
+  // the clearing effect. State from the prior actor may still exist in React,
+  // but it is never eligible to render under a different actor/epoch.
+  const stateIsCurrent = stateActorStamp === actorStamp;
+  const visibleEntries = stateIsCurrent ? entries : [];
+  const visibleStats = stateIsCurrent ? stats : [];
+  const visibleError = stateIsCurrent ? error : null;
+  const visibleLoading = stateIsCurrent ? loading : true;
+  const visibleHasMore = stateIsCurrent ? hasMore : false;
+  const visibleStatsTruncated = stateIsCurrent ? statsTruncated : false;
+
+  const showRanking = rankingIsMeaningful(visibleStats);
+  const mostWorn = showRanking ? rankByWear(visibleStats, 'most', 3) : [];
+  const leastWorn = showRanking ? rankByWear(visibleStats, 'least', 3) : [];
 
   const labelFor = (stat: WearStats): string => {
-    const entry = entries.find((e) =>
+    const entry = visibleEntries.find((e) =>
       e.items.some((item) => item.sourceItemId === stat.sourceItemId),
     );
     const named = entry?.items.find((item) => item.sourceItemId === stat.sourceItemId);
@@ -134,14 +188,14 @@ export default function WearHistoryScreen() {
     <View style={styles.screen}>
       <KScanHeader title="Wear History" onBack={() => goBackOrHome(router)} />
       <ScrollView contentContainerStyle={styles.content} testID="wear-history-scroll">
-        {loading ? (
+        {visibleLoading ? (
           <ActivityIndicator
             color={LUXURY.colors.plum}
             accessibilityLabel="Loading your wear history"
           />
-        ) : error ? (
+        ) : visibleError ? (
           <View>
-            <InlineNotice variant="error" title="Wear History" body={error} />
+            <InlineNotice variant="error" title="Wear History" body={visibleError} />
             <View style={styles.retry}>
               <SecondaryButton
                 title="Try again"
@@ -151,7 +205,7 @@ export default function WearHistoryScreen() {
               />
             </View>
           </View>
-        ) : entries.length === 0 ? (
+        ) : visibleEntries.length === 0 ? (
           <EmptyStateCard
             title="No wears recorded yet"
             subtitle="Tap Wore this on a Closet item to start building your history."
@@ -196,7 +250,7 @@ export default function WearHistoryScreen() {
                   </View>
                 ))}
 
-                {statsTruncated ? (
+                {visibleStatsTruncated ? (
                   <Text style={styles.caveat} testID="wear-stats-truncated">
                     Based on your most recent wears.
                   </Text>
@@ -211,7 +265,7 @@ export default function WearHistoryScreen() {
             )}
 
             <SectionHeader title="Recently worn" />
-            {entries.map((entry) => (
+            {visibleEntries.map((entry) => (
               <View
                 key={entry.id}
                 style={styles.entry}
@@ -229,7 +283,7 @@ export default function WearHistoryScreen() {
               </View>
             ))}
 
-            {hasMore ? (
+            {visibleHasMore ? (
               <View style={styles.more}>
                 <SecondaryButton
                   title={loadingMore ? 'Loading…' : 'Show more'}

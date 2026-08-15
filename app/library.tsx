@@ -60,6 +60,8 @@ import {
 } from '../constants/featureFlags';
 import { FreeTierUtilitySection } from '../components/free-tier/FreeTierUtilitySection';
 import { normalizeLocalSavedScan } from '../services/ownedClosetItems';
+import type { SavedScanModel } from '../services/savedScansCloud';
+import { createActorRequest, isActorRequestCurrent } from '../services/actorContext';
 import { setAttachmentHandoff } from '../services/style-chat/styleChatAttachmentStore';
 import { useCloset } from '../hooks/useCloset';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
@@ -97,6 +99,7 @@ interface ScanAttributes {
 }
 
 interface SavedScan {
+  cloudId?: string;
   id: string;
   createdAt: string;
   imageUri?: string | null;
@@ -107,6 +110,8 @@ interface SavedScan {
   storageBucket?: string | null;
   storagePath?: string | null;
   attributes: ScanAttributes;
+  identificationSnapshot?: SavedScanModel['identificationSnapshot'];
+  identificationSnapshotV2?: SavedScanModel['identificationSnapshotV2'];
   result: string;
   products: Product[];
   /** Durable commerce snapshot written by services/library.js saveScan and
@@ -223,20 +228,6 @@ const LEGACY_CHROME = {
 // ── Screen ────────────────────────────────────────────────────────────────────
 export default function LibraryScreen() {
   const router = useRouter();
-  // Wear statistics are read from the canonical event model, never from the
-  // legacy local counter. A failed load leaves the map empty, which renders as
-  // "no wears recorded" rather than as a fabricated zero.
-  const [wearStats, setWearStats] = useState<Record<string, WearStats>>({});
-  const loadWearStats = useCallback(async () => {
-    const result = await getWearStats();
-    if (!result.ok) return;
-    const byItem: Record<string, WearStats> = {};
-    for (const stat of result.stats) byItem[stat.sourceItemId] = stat;
-    setWearStats(byItem);
-  }, []);
-  useEffect(() => {
-    void loadWearStats();
-  }, [loadWearStats]);
   // Compact widths reproduce the certified two-column phone grid bit-for-bit;
   // regular (iPad) widths gain columns inside the centered content column.
   const { gridColumns, gridCellWidth } = useResponsiveLayout();
@@ -247,7 +238,7 @@ export default function LibraryScreen() {
   });
   const CARD_MIN_H = CARD_W + 80;
   const SINGLE_CARD_W = CARD_W * gridColumns + CARD_GAP * (gridColumns - 1);
-  const { scans, loading, remove, actorKey } = useLibrary();
+  const { scans, loading, remove, actorKey, actorEpoch } = useLibrary();
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const { isAuthenticated, user } = useAuthSession();
   const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');
@@ -259,6 +250,38 @@ export default function LibraryScreen() {
 
   const [selectedScan, setSelectedScan] = useState<SavedScan | null>(null);
   const [dressingRoomModalVisible, setDressingRoomModalVisible] = useState(false);
+  const selectedOwnedItem = selectedScan
+    ? normalizeLocalSavedScan(selectedScan as SavedScanModel)
+    : null;
+
+  // Wear statistics are private actor-scoped state. A bare mount-only fetch
+  // allowed User A's late response (or already-rendered map) to survive an
+  // account transition. Capture the auth epoch and a local sequence for every
+  // request; both must still match before state may be committed.
+  const [wearStats, setWearStats] = useState<Record<string, WearStats>>({});
+  const wearStatsRequestSeqRef = useRef(0);
+  const loadWearStats = useCallback(async () => {
+    const seq = ++wearStatsRequestSeqRef.current;
+    const actorRequest = createActorRequest();
+    const result = await getWearStats();
+    if (seq !== wearStatsRequestSeqRef.current || !isActorRequestCurrent(actorRequest)) return;
+    if (!result.ok) {
+      setWearStats({});
+      return;
+    }
+    const byItem: Record<string, WearStats> = {};
+    for (const stat of result.stats) byItem[stat.sourceItemId] = stat;
+    setWearStats(byItem);
+  }, [actorEpoch]);
+
+  useEffect(() => {
+    wearStatsRequestSeqRef.current += 1;
+    setWearStats({});
+    if (isAuthenticated && user?.id) void loadWearStats();
+    return () => {
+      wearStatsRequestSeqRef.current += 1;
+    };
+  }, [actorEpoch, isAuthenticated, loadWearStats, user?.id]);
 
   // ── Closet separation ──────────────────────────────────────────────────────
   // The section is explicit route state, never inferred from which segment
@@ -1143,13 +1166,24 @@ export default function LibraryScreen() {
           storagePath={selectedScan.storagePath}
           scan={{
             sourceType: 'style_library_scan',
-            sourceId: selectedScan.id,
+            sourceId: selectedScan.cloudId ?? selectedScan.id,
             result: selectedScan.result,
             metadata: {
-              category: selectedScan.attributes.category,
-              color: selectedScan.attributes.color_palette,
-              silhouette: selectedScan.attributes.silhouette,
+              category: selectedOwnedItem?.category,
+              subcategory: selectedOwnedItem?.subcategory,
+              color: selectedOwnedItem?.color,
+              materials: selectedOwnedItem?.material ? [selectedOwnedItem.material] : [],
+              material: selectedOwnedItem?.material,
+              silhouette: selectedOwnedItem?.silhouette,
+              pattern: selectedOwnedItem?.pattern,
+              fit: selectedOwnedItem?.fit,
+              brand: selectedOwnedItem?.brand,
+              brandEvidence: selectedOwnedItem?.brandEvidence ?? [],
             },
+            purchaseOptions: selectedScan.purchaseOptions ?? [],
+            products: selectedScan.products,
+            scanId: selectedScan.id,
+            savedScanId: selectedScan.cloudId ?? null,
           }}
           onClose={() => setDressingRoomModalVisible(false)}
         />

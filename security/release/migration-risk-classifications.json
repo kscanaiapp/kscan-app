@@ -110,6 +110,10 @@
     "harden_wardrobe_wear_anon_privileges": {
       "classification": "REVERSIBLE",
       "rationale": "Privilege-layer only. REVOKE ALL ... FROM anon, public on public.wardrobe_wear_events and public.wardrobe_utility_items, then re-GRANT select/insert/update/delete to authenticated exactly as 20260704175544_free_tier_utility_tables.sql already grants them. No DDL: no table, column, constraint, index, trigger, function or policy is created, altered or dropped, RLS state is untouched, and no row is read or written. REVERSIBLE rather than EXPANSION_SAFE because it tightens two pre-existing objects rather than adding new ones; the prior state is restored by a single GRANT per table. Removes anon grants that ALTER DEFAULT PRIVILEGES on the staging database conferred without any migration asking for them, matching the correction already made at source for public.wardrobe_wear_event_items."
+    },
+    "harden_wardrobe_wear_owner_links": {
+      "classification": "REVERSIBLE",
+      "rationale": "Adds two supporting unique indexes, replaces the wear-item event FK with a composite (wear_event_id, user_id) owner FK, replaces the optional Saved Look FK with a composite (saved_look_id, user_id) owner FK using column-subset ON DELETE SET NULL, and adds one lookup index. Both new constraints are added NOT VALID and validated before their id-only predecessors are removed, so unexpected legacy owner mismatches fail the migration closed. No rows or columns are changed. The exact prior state can be restored by recreating the two original id-only FKs before dropping the composite FKs and their three supporting indexes."
     }
   }
 }

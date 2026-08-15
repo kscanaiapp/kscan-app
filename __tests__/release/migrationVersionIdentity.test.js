@@ -85,23 +85,24 @@ test('SVV-012: exact version parity satisfies migration_state', async () => {
   assert.match(step.detail, /satisfied/);
 });
 
-test('SVV-012: the full Build 29 candidate reports 108 expected, 108 live, 0 missing', async () => {
+test('SVV-012: the full Build 29 candidate reports 109 expected, 109 live, 0 missing', async () => {
   const m = manifest();
-  // 108 since Closet V2 / S7B added
-  // 20260814140000_harden_wardrobe_wear_anon_privileges (was 107 after S5
+  // 109 since the hostile audit added
+  // 20260814230933_harden_wardrobe_wear_owner_links after Closet V2 / S7B added
+  // 20260814140000_harden_wardrobe_wear_anon_privileges (which was 107 after S5
   // added 20260814120000_wardrobe_wear_event_items, itself 106 after the
   // Build 29 deletion closeout added 20260813224918_backfill_legacy_pending_
   // deletion_requests). The count is pinned deliberately: this gate exists
   // because a name/version confusion once reported every live migration as
   // missing, so an unexplained change in the total is exactly what it is
-  // meant to catch. This change is explained and is exactly one migration: a
-  // privilege-layer REVOKE removing anon grants that ALTER DEFAULT PRIVILEGES
-  // on the staging database conferred without any migration asking for them.
-  assert.equal(m.migrations.length, 108, 'the Build 29 candidate carries 108 migrations');
+  // meant to catch. The latest change is exactly one migration: composite
+  // owner foreign keys prevent wear-event children and Saved Look links from
+  // crossing actor boundaries beneath RLS.
+  assert.equal(m.migrations.length, 109, 'the Build 29 candidate carries 109 migrations');
   const result = await planOnly({ m, liveMigrationVersions: m.migrations.map((x) => x.version) });
   const step = migrationStep(result);
   assert.equal(step.status, 'PASS');
-  assert.equal(step.detail, '108 satisfied');
+  assert.equal(step.detail, '109 satisfied');
 });
 
 test('SVV-012: a missing migration blocks and names the missing VERSION', async () => {

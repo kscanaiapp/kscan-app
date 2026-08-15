@@ -456,7 +456,23 @@ export type WearHistoryPage = {
 
 export type WearHistoryReadResult =
   | { ok: true; page: WearHistoryPage }
-  | { ok: false; reason: 'unauthenticated' | 'network'; error: string };
+  | { ok: false; reason: 'unauthenticated' | 'invalid_input' | 'network'; error: string };
+
+const WEAR_CURSOR_ID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const WEAR_CURSOR_TIMESTAMP_RE =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/;
+
+function isValidWearHistoryCursor(value: unknown): value is WearHistoryCursor {
+  if (!value || typeof value !== 'object') return false;
+  const cursor = value as Record<string, unknown>;
+  if (typeof cursor.wornAt !== 'string' || typeof cursor.id !== 'string') return false;
+  // PostgREST's `.or()` accepts a raw filter expression. Restrict both cursor
+  // components to values this service itself emits so caller input cannot add
+  // another predicate or alter the keyset boundary.
+  if (!WEAR_CURSOR_TIMESTAMP_RE.test(cursor.wornAt)) return false;
+  return Number.isFinite(Date.parse(cursor.wornAt)) && WEAR_CURSOR_ID_RE.test(cursor.id);
+}
 
 /** Bounded by construction. A caller cannot ask for an unbounded page. */
 export const WEAR_HISTORY_PAGE_SIZE = 25;
@@ -532,7 +548,14 @@ export async function getWearHistory(
       .limit(pageSize + 1);
 
     const cursor = options.cursor;
-    if (cursor && cursor.wornAt && cursor.id) {
+    if (cursor && !isValidWearHistoryCursor(cursor)) {
+      return {
+        ok: false,
+        reason: 'invalid_input',
+        error: 'Could not load that page of your wear history.',
+      };
+    }
+    if (cursor) {
       query = query.or(
         [
           'worn_at.lt.' + cursor.wornAt,
@@ -595,7 +618,7 @@ export async function getItemWearHistory(
       .eq('source_item_id', id)
       .is('deleted_at', null)
       .order('created_at', { ascending: false })
-      .limit(limit);
+      .limit(limit + 1);
 
     if (error) {
       return { ok: false, reason: 'network', error: 'Could not load this wear history.' };
@@ -626,7 +649,12 @@ export async function getItemWearHistory(
       })
       .filter((entry): entry is WearHistoryEntry => entry !== null);
 
-    return { ok: true, page: { entries, hasMore: entries.length >= limit, nextCursor: null } };
+    const hasMore = entries.length > limit;
+
+    return {
+      ok: true,
+      page: { entries: entries.slice(0, limit), hasMore, nextCursor: null },
+    };
   } catch {
     return { ok: false, reason: 'network', error: 'Could not load this wear history.' };
   }

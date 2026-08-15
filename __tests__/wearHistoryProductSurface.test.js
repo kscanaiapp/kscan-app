@@ -125,16 +125,57 @@ test('a caller cannot request an unbounded page', async () => {
 
 test('the cursor filters strictly past the last row, including the tie-breaker', async () => {
   const db = makeReadDb([]);
+  const cursorId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
   await wear.getWearHistory(
-    { cursor: { wornAt: '2026-08-14T10:00:00Z', id: 'e5' } },
+    { cursor: { wornAt: '2026-08-14T10:00:00Z', id: cursorId } },
     db.client,
   );
   assert.match(db.calls.or, /worn_at\.lt\.2026-08-14T10:00:00Z/);
   assert.match(
     db.calls.or,
-    /and\(worn_at\.eq\.2026-08-14T10:00:00Z,id\.lt\.e5\)/,
+    new RegExp(`and\\(worn_at\\.eq\\.2026-08-14T10:00:00Z,id\\.lt\\.${cursorId}\\)`),
     'rows sharing worn_at must be split by id, or a row is skipped or repeated',
   );
+});
+
+test('a malformed cursor is rejected before it reaches the raw PostgREST filter', async () => {
+  const db = makeReadDb([]);
+  const result = await wear.getWearHistory(
+    {
+      cursor: {
+        wornAt: '2026-08-14T10:00:00Z),user_id.neq.owner',
+        id: 'not-a-uuid',
+      },
+    },
+    db.client,
+  );
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'invalid_input');
+  assert.equal(db.calls.or, null, 'untrusted cursor text must never reach .or()');
+});
+
+test('one-item history fetches an extra row so hasMore is exact', async () => {
+  const rows = [
+    {
+      wear_event_id: 'e1', source_item_id: 'item-a', source_type: 'closet_item',
+      title_snapshot: 'A', category_snapshot: 'Tops',
+      wardrobe_wear_events: { id: 'e1', worn_at: '2026-08-14T10:00:00Z', saved_look_id: null, saved_look_ref: null },
+    },
+    {
+      wear_event_id: 'e2', source_item_id: 'item-a', source_type: 'closet_item',
+      title_snapshot: 'A', category_snapshot: 'Tops',
+      wardrobe_wear_events: { id: 'e2', worn_at: '2026-08-13T10:00:00Z', saved_look_id: null, saved_look_ref: null },
+    },
+  ];
+  const db = makeReadDb(rows);
+  const result = await wear.getItemWearHistory('item-a', { limit: 1 }, db.client);
+  assert.equal(db.calls.limit, 2);
+  assert.equal(result.page.entries.length, 1);
+  assert.equal(result.page.hasMore, true);
+
+  const exact = makeReadDb(rows.slice(0, 1));
+  const exactResult = await wear.getItemWearHistory('item-a', { limit: 1 }, exact.client);
+  assert.equal(exactResult.page.hasMore, false, 'exactly one row is not evidence of another page');
 });
 
 test('a full page advertises a next cursor anchored on the last visible row', async () => {
@@ -394,6 +435,17 @@ test('the history screen states its limits instead of overstating them', () => {
   assert.match(historyScreen, /wear-stats-insufficient/);
   assert.match(historyScreen, /wear-stats-truncated/);
   assert.match(historyScreen, /A look you no longer have/);
+});
+
+test('private wear state is actor-and-epoch stamped before it can render', () => {
+  for (const src of [library, historyScreen]) {
+    assert.match(src, /createActorRequest\(/);
+    assert.match(src, /isActorRequestCurrent\(/);
+  }
+  assert.match(historyScreen, /stateActorStamp === actorStamp/);
+  assert.match(historyScreen, /requestSequenceRef\.current/);
+  assert.match(library, /actorEpoch/);
+  assert.match(library, /wearStatsRequestSeqRef\.current/);
 });
 
 test('history entries render the point-in-time snapshot, not current contents', () => {

@@ -12,6 +12,9 @@ values
 insert into public.looks (id, user_id, title)
 values ('20000000-0000-0000-0000-0000000000b1', '00000000-0000-0000-0000-0000000000a1', 'Monday Look');
 
+insert into public.looks (id, user_id, title)
+values ('20000000-0000-0000-0000-0000000000b2', '00000000-0000-0000-0000-0000000000a2', 'Other User Look');
+
 -- ── Structure ───────────────────────────────────────────────────────────────
 
 select has_table('public', 'wardrobe_wear_event_items', 'the relationship table exists');
@@ -56,6 +59,31 @@ values (
   '2026-08-14T11:00:00Z'
 );
 select pass('an outfit-level event inserts with a null source_item_id');
+
+-- Owner identity is part of each relationship, not merely an RLS claim on the
+-- row being written. These execute as the migration-test role (which bypasses
+-- RLS) so the database constraint itself has to reject the mismatch.
+select throws_ok(
+  $$insert into public.wardrobe_wear_events
+      (user_id, client_id, source_item_id, saved_look_id, saved_look_ref)
+    values ('00000000-0000-0000-0000-0000000000a1', 'cross-look-owner', null,
+            '20000000-0000-0000-0000-0000000000b2',
+            '20000000-0000-0000-0000-0000000000b2')$$,
+  '23503',
+  null,
+  'an event cannot attach another user''s Saved Look'
+);
+
+select throws_ok(
+  $$insert into public.wardrobe_wear_event_items
+      (user_id, wear_event_id, client_id, source_item_id)
+    values ('00000000-0000-0000-0000-0000000000a2',
+            '30000000-0000-0000-0000-0000000000c2',
+            'cross-event-owner', 'foreign-item')$$,
+  '23503',
+  null,
+  'a relationship cannot attach to another user''s wear event'
+);
 
 -- ── One event, many garments ────────────────────────────────────────────────
 
