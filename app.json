@@ -102,6 +102,7 @@
                                                         ],
                                  "adaptiveIcon":  {
                                                       "foregroundImage":  "./assets/adaptive-icon.png",
+                                                      "monochromeImage":  "./assets/adaptive-icon-monochrome.png",
                                                       "backgroundColor":  "#1a0a2e"
                                                   },
                                  "intentFilters":  [

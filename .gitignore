@@ -104,9 +104,9 @@ scripts/textscan-live-smoke.ps1
 # Local App Store / reviewer artifacts
 store.config.json
 
-# Generated Android adaptive icon assets (from Expo prebuild / adaptiveIcon foreground)
-android/app/src/main/res/mipmap-anydpi-v26/
-android/app/src/main/res/mipmap-*/ic_launcher_foreground.webp
+# Android launcher resources are committed, NOT ignored. EAS Build consumes the
+# checked-in android/ tree without re-running prebuild, so ignoring the adaptive
+# and monochrome mipmaps shipped an artifact with no adaptive icon at all.
 
 # Supabase local CLI state
 supabase/.temp/
