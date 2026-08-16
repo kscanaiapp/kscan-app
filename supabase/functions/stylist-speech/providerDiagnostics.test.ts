@@ -9,7 +9,7 @@ import {
 } from './providerDiagnostics.ts';
 
 const API_KEY = 'sk_super_secret_key_value_1234567890';
-const FULL_VOICE_ID = 'NQMJRVvPew6HsaebYnZj';
+const FULL_VOICE_ID = 'ZZZFixtureVoiceId0001';
 
 function baseInput(overrides: Partial<DiagnosticsInput> = {}): DiagnosticsInput {
   return {

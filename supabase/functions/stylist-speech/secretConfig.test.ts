@@ -14,17 +14,17 @@ function assertConfigRejected(fn: () => unknown): void {
 
 Deno.test('trims surrounding whitespace from a valid secret', () => {
   const value = readRequiredSecret(
-    env({ ELEVENLABS_FEMININE_VOICE_ID: '  NQMJRVvPew6HsaebYnZj \n' }),
+    env({ ELEVENLABS_FEMININE_VOICE_ID: '  ZZZFixtureVoiceId0001 \n' }),
     'ELEVENLABS_FEMININE_VOICE_ID',
     'voiceId',
   );
-  assert.equal(value, 'NQMJRVvPew6HsaebYnZj');
+  assert.equal(value, 'ZZZFixtureVoiceId0001');
 });
 
 Deno.test('accepts every owner-approved configured value', () => {
   assert.equal(
-    readRequiredSecret(env({ K: 'NQMJRVvPew6HsaebYnZj' }), 'K', 'voiceId'),
-    'NQMJRVvPew6HsaebYnZj',
+    readRequiredSecret(env({ K: 'ZZZFixtureVoiceId0001' }), 'K', 'voiceId'),
+    'ZZZFixtureVoiceId0001',
   );
   assert.equal(
     readRequiredSecret(env({ K: 'guZ5txGiatiDmC3jrjOO' }), 'K', 'voiceId'),
@@ -46,9 +46,9 @@ Deno.test('accepts every owner-approved configured value', () => {
 
 Deno.test('rejects a value wrapped in accidental quote characters', () => {
   assertConfigRejected(() =>
-    readRequiredSecret(env({ K: '"NQMJRVvPew6HsaebYnZj"' }), 'K', 'voiceId'));
+    readRequiredSecret(env({ K: '"ZZZFixtureVoiceId0001"' }), 'K', 'voiceId'));
   assertConfigRejected(() =>
-    readRequiredSecret(env({ K: "'NQMJRVvPew6HsaebYnZj'" }), 'K', 'voiceId'));
+    readRequiredSecret(env({ K: "'ZZZFixtureVoiceId0001'" }), 'K', 'voiceId'));
   assertConfigRejected(() =>
     readRequiredSecret(env({ K: '`eleven_flash_v2_5`' }), 'K', 'model'));
 });

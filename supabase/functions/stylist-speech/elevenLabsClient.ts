@@ -72,6 +72,7 @@ function parseAlignment(value: unknown): SpeechAlignment | null {
 export async function requestElevenLabsSpeech(input: {
   text: string;
   voiceProfile: StylistSpeechVoiceProfile;
+  voiceSecretName: string;
   env: ElevenLabsEnvironment;
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
@@ -80,13 +81,7 @@ export async function requestElevenLabsSpeech(input: {
   correlationId?: string;
 }): Promise<ElevenLabsSpeechResult> {
   const apiKey = readRequiredSecret(input.env, 'ELEVENLABS_API_KEY', 'apiKey');
-  const voiceId = readRequiredSecret(
-    input.env,
-    input.voiceProfile === 'feminine'
-      ? 'ELEVENLABS_FEMININE_VOICE_ID'
-      : 'ELEVENLABS_MASCULINE_VOICE_ID',
-    'voiceId',
-  );
+  const voiceId = readRequiredSecret(input.env, input.voiceSecretName, 'voiceId');
   const modelId = readRequiredSecret(input.env, 'ELEVENLABS_MODEL_ID', 'model');
   const outputFormat = readRequiredSecret(input.env, 'ELEVENLABS_OUTPUT_FORMAT', 'outputFormat');
   const url = new URL(`${ELEVENLABS_TIMING_ENDPOINT}/${encodeURIComponent(voiceId)}/with-timestamps`);

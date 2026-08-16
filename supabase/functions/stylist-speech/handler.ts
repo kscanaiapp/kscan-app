@@ -9,7 +9,7 @@ import {
   type StylistSpeechVoiceProfile,
 } from './types.ts';
 import { requireSpeechCueText } from './speechCues.ts';
-import { resolveServerVoiceProfile } from './voiceProfiles.ts';
+import { resolveServerVoiceSelection } from './voiceProfiles.ts';
 
 export const STYLIST_SPEECH_CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -131,7 +131,8 @@ export function createStylistSpeechHandler(
         throw new StylistSpeechError(400, 'INVALID_REQUEST', 'A valid JSON request is required.');
       }
       const body = parseRequestBody(rawBody);
-      const voiceProfile: StylistSpeechVoiceProfile = resolveServerVoiceProfile(body.stylistId);
+      const voiceSelection = resolveServerVoiceSelection(body.stylistId);
+      const voiceProfile: StylistSpeechVoiceProfile = voiceSelection.profile;
 
       let speechText: string;
       if (body.mode === 'cue') {
@@ -179,6 +180,7 @@ export function createStylistSpeechHandler(
         const generated = await generateSpeech({
           text: speechText,
           voiceProfile,
+          voiceSecretName: voiceSelection.voiceSecretName,
           env: dependencies.env,
         });
         const response: StylistSpeechResponse = {
