@@ -128,6 +128,7 @@ function AttachmentChip({
 
 export function StyleChatAttachmentBar({
   attachments,
+  stylistDisplayName = ELISE_IDENTITY.displayName,
   onAddOwnedItem,
   onAddLook,
   onUploadPhoto,
@@ -137,6 +138,8 @@ export function StyleChatAttachmentBar({
   disabled,
 }: {
   attachments: DraftAttachment[];
+  /** The active stylist name, resolved by the StyleChat screen. */
+  stylistDisplayName?: string;
   onAddOwnedItem: (item: OwnedClosetItem) => { ok: boolean; message?: string };
   onAddLook: (look: Look) => { ok: boolean; message?: string };
   onUploadPhoto: () => void;
@@ -145,6 +148,7 @@ export function StyleChatAttachmentBar({
   onSaveToCloset: (draftId: string) => void;
   disabled?: boolean;
 }) {
+  const resolvedStylistName = stylistDisplayName.trim() || ELISE_IDENTITY.displayName;
   const closet = useOwnedClosetItems();
   const [menuOpen, setMenuOpen] = useState(false);
   const [picker, setPicker] = useState<'closet' | 'look' | null>(null);
@@ -161,7 +165,7 @@ export function StyleChatAttachmentBar({
           onPress={() => setMenuOpen(true)}
           disabled={disabled}
           accessibilityRole="button"
-          accessibilityLabel={ELISE_IDENTITY.attachAccessibilityLabel}
+          accessibilityLabel={`Add an attachment for ${resolvedStylistName}`}
           testID="stylechat-attach-button"
         >
           <Text style={styles.attachButtonText}>＋</Text>
@@ -183,14 +187,14 @@ export function StyleChatAttachmentBar({
       <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
         <View style={styles.backdrop}>
           <View style={styles.menuCard}>
-            <Text style={styles.menuTitle}>Add for Elise</Text>
+            <Text style={styles.menuTitle}>{`Add for ${resolvedStylistName}`}</Text>
             <SecondaryButton
               title="Add From Closet"
               onPress={() => {
                 setMenuOpen(false);
                 setPicker('closet');
               }}
-              accessibilityLabel="Add a Closet item for Elise"
+              accessibilityLabel={`Add a Closet item for ${resolvedStylistName}`}
             />
             <SecondaryButton
               title="Add a Look"
@@ -198,7 +202,7 @@ export function StyleChatAttachmentBar({
                 setMenuOpen(false);
                 setPicker('look');
               }}
-              accessibilityLabel="Add a Look for Elise"
+              accessibilityLabel={`Add a Look for ${resolvedStylistName}`}
             />
             <SecondaryButton
               title="Upload a Photo"
@@ -206,7 +210,7 @@ export function StyleChatAttachmentBar({
                 setMenuOpen(false);
                 onUploadPhoto();
               }}
-              accessibilityLabel="Upload a photo for Elise"
+              accessibilityLabel={`Upload a photo for ${resolvedStylistName}`}
             />
             <SecondaryButton title="Cancel" onPress={() => setMenuOpen(false)} />
           </View>
@@ -218,6 +222,7 @@ export function StyleChatAttachmentBar({
           items={closet.items}
           loading={closet.loading}
           error={closet.error}
+          stylistDisplayName={resolvedStylistName}
           onClose={() => setPicker(null)}
           onSelect={(item) => {
             const result = onAddOwnedItem(item);
@@ -244,12 +249,14 @@ function ClosetPickerModal({
   items,
   loading,
   error,
+  stylistDisplayName,
   onClose,
   onSelect,
 }: {
   items: OwnedClosetItem[];
   loading: boolean;
   error: string | null;
+  stylistDisplayName: string;
   onClose: () => void;
   onSelect: (item: OwnedClosetItem) => void;
 }) {
@@ -257,7 +264,7 @@ function ClosetPickerModal({
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <View style={styles.pickerCard}>
-          <Text style={styles.menuTitle}>Add From Closet for Elise</Text>
+          <Text style={styles.menuTitle}>{`Add From Closet for ${stylistDisplayName}`}</Text>
           {loading ? (
             <ActivityIndicator color={LUXURY.colors.plum} />
           ) : error ? (
@@ -303,16 +310,18 @@ function ClosetPickerModal({
 function LookPickerModal({
   onClose,
   onSelect,
+  stylistDisplayName,
 }: {
   onClose: () => void;
   onSelect: (look: Look) => void;
+  stylistDisplayName: string;
 }) {
   const { looks, loading, error } = useLooks();
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <View style={styles.pickerCard}>
-          <Text style={styles.menuTitle}>Add a Look for Elise</Text>
+          <Text style={styles.menuTitle}>{`Add a Look for ${stylistDisplayName}`}</Text>
           {loading ? (
             <ActivityIndicator color={LUXURY.colors.plum} />
           ) : error ? (

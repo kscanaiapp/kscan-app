@@ -455,6 +455,24 @@ export interface StylistSpeechConfiguration {
     open: number;
     round?: number;
   };
+  /**
+   * Approved non-speaking portrait frames. Fix #4 may consume these from the
+   * authoritative native playback state; this registry never advances them.
+   */
+  expressionFrameSources?: {
+    confident: number;
+    engaged: number;
+    neutral: number;
+    thoughtful: number;
+    warm: number;
+    blink: number;
+    brows: number;
+    browsRaised: number;
+    eyesClosed: number;
+    eyesHalf: number;
+    eyesOpen: number;
+    focused: number;
+  };
 }
 
 const SPEECH_CONFIG_ENTRIES: readonly [string, StylistSpeechConfiguration][] = Object.freeze([
@@ -470,6 +488,21 @@ const SPEECH_CONFIG_ENTRIES: readonly [string, StylistSpeechConfiguration][] = O
         closed: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_mouth_closed.png') : 1,
         halfOpen: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_mouth_half_open.png') : 1,
         open: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_mouth_open.png') : 1,
+        round: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/round-mouth-02.png') : 1,
+      },
+      expressionFrameSources: {
+        confident: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_confident.png') : 1,
+        engaged: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_engaged.png') : 1,
+        neutral: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_neutral.png') : 1,
+        thoughtful: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_thoughtful.png') : 1,
+        warm: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_warm.png') : 1,
+        blink: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/blink-02.png') : 1,
+        brows: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/brows-02.png') : 1,
+        browsRaised: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/brows-raised-02.png') : 1,
+        eyesClosed: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/eyes-closed-02.png') : 1,
+        eyesHalf: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/eyes-half-02.png') : 1,
+        eyesOpen: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/eyes-open-02.png') : 1,
+        focused: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/focused-02.png') : 1,
       },
     },
   ],
@@ -516,27 +549,8 @@ export interface StylistAvatarFraming {
   offsetXRatio: number;
 }
 
-// DELIBERATELY EMPTY. No shipped portrait may take a framing override, and the
-// reason is a property of the asset set rather than a preference:
-//
-//   * A framing override recenters by overscanning (zooming) the source, so it
-//     can only spend headroom the source actually has.
-//   * 8 of the 10 bundled portraits — including Henry (stylist_portrait_02) —
-//     have 0.0% headroom: the subject already touches the top edge. Any
-//     center-anchored overscan > 1.0 therefore clips the top of the head.
-//   * Horizontal variation across the set is normal, not a defect. Henry sits
-//     at 61.3% head-center-x; David (stylist_portrait_09) sits at 61.8% — more
-//     off-center than Henry — with no override and no reported defect. The
-//     circular mask absorbs this range.
-//
-// An earlier revision gave Henry { offsetXRatio: 0.113 } with a 1.28 overscan.
-// That rendered him ~28% larger than every peer and cut ~10.9% of frame height
-// off the top of his head in the Personalize Your Stylist picker — a visible
-// regression far worse than the mild off-centering it was meant to correct.
-//
-// Keep the mechanism (a future portrait shipped WITH real headroom could use
-// it) but do not re-add an entry without first measuring that portrait's
-// headroom and confirming the overscan it implies stays within it.
+// The approved Henry base has its own headroom, so the picker uses the shared
+// size-by-size cover path without a presentation transform.
 const FRAMING_OVERRIDE_ENTRIES: readonly [string, StylistAvatarFraming][] = Object.freeze([]);
 
 export const STYLIST_AVATAR_FRAMING_BY_ID: ReadonlyMap<string, StylistAvatarFraming> =

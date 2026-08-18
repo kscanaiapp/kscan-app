@@ -485,6 +485,50 @@ test('service rejects unknown avatar IDs before any Supabase call', async () => 
   assert.equal(tableCalls, 0);
 });
 
+test('save falls back to the legacy preferences schema when display_name_customized is not deployed', async () => {
+  const selectColumns = [];
+  const upsertRows = [];
+  const supabase = {
+    auth: { getSession: async () => ({ data: { session: { user: { id: 'user-a' } } } }) },
+    from: (tableName) => {
+      assert.equal(tableName, 'user_stylist_preferences');
+      return {
+        upsert: (row) => {
+          upsertRows.push(row);
+          return {
+            select: (columns) => ({
+              single: async () => {
+                selectColumns.push(columns);
+                if (columns.includes('display_name_customized')) {
+                  return {
+                    data: null,
+                    error: { code: '42703', message: 'column user_stylist_preferences.display_name_customized does not exist' },
+                  };
+                }
+                return {
+                  data: { ...row, display_name: 'Elise', created_at: '2026-01-01', updated_at: '2026-01-01' },
+                  error: null,
+                };
+              },
+            }),
+          };
+        },
+      };
+    },
+  };
+  const service = loadStylistIdentityServiceWithSupabase(supabase);
+
+  const saved = await service.saveStylistIdentity({ avatarId: 'stylist_portrait_02' }, 'user-a');
+
+  assert.equal(saved.avatarId, 'stylist_portrait_02');
+  assert.equal(saved.displayName, 'Henry');
+  assert.equal(selectColumns.length, 2);
+  assert.match(selectColumns[0], /display_name_customized/);
+  assert.doesNotMatch(selectColumns[1], /display_name_customized/);
+  assert.equal(upsertRows.length, 2);
+  assert.equal('display_name_customized' in upsertRows[1], false);
+});
+
 // ── Fix #6: end-to-end persistence semantics against a realistic fake table ──
 //
 // This fake models the one property that matters here: an upsert's SET clause
@@ -984,25 +1028,11 @@ test('StylistAvatar supports placeholder, ready-image, and load-failure paths', 
 
 // ── Fix #1: Stylist 02 static-portrait framing correction ───────────────────
 
-// REGRESSION (Fix #1 reopen): Henry must render through the SAME unscaled path
-// as every peer in the Personalize Your Stylist picker.
-//
-// An earlier revision gave stylist_portrait_02 an offsetXRatio with a 1.28
-// overscan, which rendered him ~28% larger than peers and clipped the top of
-// his head. Because 8 of 10 portraits (Henry included) have 0.0% headroom in
-// the source, no center-anchored overscan is safe for them at all.
-test('no shipped portrait carries a framing override, so every avatar renders at identical scale', () => {
+test('the approved Henry base uses the shared picker framing and leaves every other avatar unaffected', () => {
   const portraitIds = STYLIST_PORTRAIT_PRESETS.map((preset) => preset.id);
   const abstractIds = STYLIST_ABSTRACT_PRESETS.map((preset) => preset.id);
 
-  // HENRY_SCALE_MATCHES_PEERS / HENRY_PICKER_HEAD_FULLY_VISIBLE: an absent
-  // override is what puts Henry on the plain size×size cover path.
-  assert.equal(
-    getStylistAvatarFraming('stylist_portrait_02'),
-    undefined,
-    'stylist_portrait_02 must NOT have a framing override: its source has 0.0% headroom, '
-      + 'so any overscan clips the top of the head and breaks scale parity with peers',
-  );
+  assert.equal(getStylistAvatarFraming('stylist_portrait_02'), undefined);
 
   for (const id of [...portraitIds, ...abstractIds, DEFAULT_STYLIST_IDENTITY.avatarId]) {
     assert.equal(getStylistAvatarFraming(id), undefined, `${id} must not have a framing override`);
@@ -1011,6 +1041,7 @@ test('no shipped portrait carries a framing override, so every avatar renders at
   assert.equal(getStylistAvatarFraming(null), undefined);
   assert.equal(getStylistAvatarFraming(undefined), undefined);
   assert.equal(getStylistAvatarFraming('unknown_avatar'), undefined);
+  assert.doesNotMatch(stylistAvatar, /verticalOffsetPercent/);
 });
 
 test('PERSONALIZE_PICKER_USES_GOVERNING_FRAMING_AUTHORITY: the picker renders portraits through StylistAvatar with framing left at its default', () => {
@@ -1037,16 +1068,24 @@ test('the framing mechanism itself survives for a future portrait that ships wit
   assert.match(stylistAvatar, /applyFraming\??:\s*boolean/);
 });
 
-test('framing correction does not touch the mouth-state speech configuration', () => {
-  // The mouthRegion percentages must stay exactly what they were before this
-  // fix; only StylistAvatar's static-portrait render path changes.
+test('Henry registers the complete approved frame set for the existing avatar and live mouth-state speech', () => {
   const stylist02Speech = STYLIST_SPEECH_CONFIG_BY_ID.get('stylist_portrait_02');
   assert.ok(stylist02Speech);
   assert.deepEqual(stylist02Speech.mouthRegion, { x: 0.43, y: 0.48, width: 0.17, height: 0.09 });
+  assert.ok(stylist02Speech.mouthStateSources?.closed);
+  assert.ok(stylist02Speech.mouthStateSources?.halfOpen);
+  assert.ok(stylist02Speech.mouthStateSources?.open);
+  assert.ok(stylist02Speech.mouthStateSources?.round);
+  assert.deepEqual(Object.keys(stylist02Speech.expressionFrameSources ?? {}).sort(), [
+    'blink', 'brows', 'browsRaised', 'confident', 'engaged', 'eyesClosed',
+    'eyesHalf', 'eyesOpen', 'focused', 'neutral', 'thoughtful', 'warm',
+  ]);
   assert.match(
     stylistIdentityConstants,
     /Recalibrated for the refreshed Avatar 02 subject \(prior crop: y 0\.49\)/,
   );
+  assert.match(animatedStylistAvatar, /MouthStateLayer/);
+  assert.doesNotMatch(animatedStylistAvatar, /setTimeout\(/);
 });
 
 test('StylistAvatar applies the recenter only for avatars with a framing override, and never for the placeholder/abstract paths', () => {
@@ -1067,8 +1106,7 @@ test('AnimatedStylistAvatar opts the mouth-state speaking overlay out of the new
   assert.ok(mouthBranch, 'expected the StylistAvatar call that precedes MouthStateLayer');
   assert.match(mouthBranch, /applyFraming=\{false\}/);
 
-  // The two non-speaking fallback branches (idle/thinking, and incomplete
-  // asset set) must NOT set applyFraming=false, so they get the correction.
+  // The two non-speaking fallback branches must NOT opt out of shared portrait framing.
   const allMatches = [...animatedStylistAvatar.matchAll(/<StylistAvatar[\s\S]*?\/>/g)];
   const fallbackBranches = allMatches
     .filter((m) => !animatedStylistAvatar.slice(m.index, m.index + m[0].length + 40).includes('MouthStateLayer'))
@@ -1184,8 +1222,9 @@ test('shipped portrait assets exist, are square JPEGs, and have unique hashes', 
 
     const dimensions = sizeOf(filePath);
     assert.equal(dimensions.type, 'jpg');
-    assert.equal(dimensions.width, 1024);
-    assert.equal(dimensions.height, 1024);
+    const expectedSide = id === 'stylist_portrait_02' ? 2048 : 1024;
+    assert.equal(dimensions.width, expectedSide);
+    assert.equal(dimensions.height, expectedSide);
 
     const hash = crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
     assert.equal(hashes.has(hash), false, 'each portrait asset must have a unique hash');
@@ -1217,7 +1256,8 @@ test('portrait manifest matches exact shipped hashes and sizes', () => {
       .find((line) => line.includes(`| \`${filename}\` |`));
     assert.ok(row, `manifest row missing for ${filename}`);
     const cells = row.split('|').map((cell) => cell.trim());
-    assert.match(cells[2], /^1024.+1024$/);
+    const expectedSide = preset.id === 'stylist_portrait_02' ? 2048 : 1024;
+    assert.match(cells[2], new RegExp(`^${expectedSide}.+${expectedSide}$`));
     assert.equal(cells[3], 'sRGB/RGB');
     assert.equal(Number(cells[4].replaceAll(',', '')), bytes.length);
     assert.equal(cells[5].replaceAll('`', ''), hash);

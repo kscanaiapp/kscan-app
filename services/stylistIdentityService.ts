@@ -33,6 +33,16 @@ type SaveStylistIdentityOptions = Readonly<{
   clearCustomDisplayName?: boolean;
 }>;
 
+function isMissingDisplayNameCustomizedColumn(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { code?: unknown; message?: unknown };
+  return (
+    candidate.code === '42703' &&
+    typeof candidate.message === 'string' &&
+    candidate.message.includes('display_name_customized')
+  );
+}
+
 async function requireUserId(expectedUserId?: string): Promise<string> {
   const { data } = await supabase.auth.getSession();
   const id = data.session?.user?.id ?? null;
@@ -57,11 +67,19 @@ export async function fetchStylistIdentity(expectedUserId?: string): Promise<Sty
     return DEFAULT_STYLIST_IDENTITY;
   }
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('user_stylist_preferences')
     .select('user_id, display_name, display_name_customized, avatar_id, created_at, updated_at')
     .eq('user_id', userId)
     .maybeSingle();
+
+  if (isMissingDisplayNameCustomizedColumn(error)) {
+    ({ data, error } = await supabase
+      .from('user_stylist_preferences')
+      .select('user_id, display_name, avatar_id, created_at, updated_at')
+      .eq('user_id', userId)
+      .maybeSingle());
+  }
 
   if (error) {
     if (__DEV__) console.info('[stylistIdentity] load unavailable');
@@ -131,11 +149,20 @@ export async function saveStylistIdentity(
   const userId = await requireUserId(expectedUserId);
   upsertRow.user_id = userId;
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('user_stylist_preferences')
     .upsert(upsertRow, { onConflict: 'user_id' })
     .select('user_id, display_name, display_name_customized, avatar_id, created_at, updated_at')
     .single();
+
+  if (isMissingDisplayNameCustomizedColumn(error)) {
+    const { display_name_customized: _omitted, ...legacyUpsertRow } = upsertRow;
+    ({ data, error } = await supabase
+      .from('user_stylist_preferences')
+      .upsert(legacyUpsertRow, { onConflict: 'user_id' })
+      .select('user_id, display_name, avatar_id, created_at, updated_at')
+      .single());
+  }
 
   if (error) {
     if (__DEV__) console.info('[stylistIdentity] save unavailable');
