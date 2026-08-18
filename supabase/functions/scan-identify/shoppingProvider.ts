@@ -27,6 +27,12 @@ export interface RecommendedProduct {
    * undefined for those providers rather than being fabricated.
    */
   brand?: string;
+  /**
+   * v126 — retail vs. resale provenance, when the provider declares one.
+   * Provenance only: it must never carry a ranking bonus or penalty
+   * (retailer-neutrality is a hard rule — see scanCommerceRouter.ts).
+   */
+  commerceType?: 'retail' | 'resale';
 }
 
 export interface ShoppingResult {
