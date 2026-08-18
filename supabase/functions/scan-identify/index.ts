@@ -1766,7 +1766,7 @@ Deno.serve(async (req) => {
     scanId?: unknown;
     scan_id?: unknown;
     id?: unknown;
-    // v127 MODE B (commerce-only). No image field is read on this path.
+    // v127 MODE B (commerce-only). No image field is read on this route.
     identification?: unknown;
     attributes?: unknown;
     searchQueries?: unknown;
@@ -1882,7 +1882,7 @@ Deno.serve(async (req) => {
     String(auth.hasProjectAccess),
   );
 
-  // v127 flag resolution for the commerce-only path. Same env helpers the
+  // v127 flag resolution for the commerce-only route. Same env helpers the
   // inline path uses; resolved here because MODE B returns before the inline
   // Gemini section where those locals are declared.
   const commerceFunnelEnabled = isCommerceFunnelEnabled();
@@ -3418,7 +3418,7 @@ Deno.serve(async (req) => {
       // The scan result is complete once Gemini has answered. Holding this
       // response open for provider latency is what made the scanner feel slow,
       // so under v127 no provider promise is created here at all — not started
-      // and abandoned, not raced against a timeout, simply not on this path.
+      // and abandoned, not raced against a timeout, simply not on this route.
       //
       // The client renders immediately and issues a MODE B commerce-only
       // request, which reuses this same commerce stack with a bounded fast
