@@ -465,7 +465,13 @@ export function useKScan(actorId = null) {
   // Async enrichment for the currently displayed analysis. Never blocks or
   // replaces the result card; guarded by mount + secondhand request id.
   const enrichDisplayedAnalysis = useCallback((data, secondhandRequestId) => {
-    const secondhandRequest = buildSecondhandSearchRequest(data);
+    // Phase 3 provider cleanup: the Vinted/Apify backend has no configured
+    // credentials (APIFY_VINTED_ACTOR_ID / APIFY_API_TOKEN are unset in both
+    // App Staging and Production), so this call was firing on every scan and
+    // always resolving to SECONDHAND_RESULTS_UNAVAILABLE — a dead network
+    // round trip on every single scan for zero result. Disabled until Apify
+    // is actually configured; restore the call below when it is.
+    const secondhandRequest = null; // was: buildSecondhandSearchRequest(data);
     if (secondhandRequest) {
       searchVintedSecondhand(secondhandRequest)
         .then((secondhand) => {
