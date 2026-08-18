@@ -467,6 +467,35 @@ const SPEECH_CONFIG_ENTRIES: readonly [string, StylistSpeechConfiguration][] = O
 export const STYLIST_SPEECH_CONFIG_BY_ID: ReadonlyMap<string, StylistSpeechConfiguration> =
   createReadonlyMap(SPEECH_CONFIG_ENTRIES);
 
+// ── Optional static-portrait framing correction ───────────────────────────────
+//
+// Some bundled 1:1 portrait sources place the subject off-center within their
+// own frame, which a circular avatar mask then clips asymmetrically. This is a
+// presentation-only recenter (zoom + horizontal shift at render time) for the
+// static portrait; it intentionally does not apply to the mouth-state overlay
+// system, whose assets carry their own independently calibrated framing.
+
+export interface StylistAvatarFraming {
+  /** Horizontal recenter offset as a fraction of the rendered avatar size. */
+  offsetXRatio: number;
+}
+
+const FRAMING_OVERRIDE_ENTRIES: readonly [string, StylistAvatarFraming][] = Object.freeze([
+  // Henry's source portrait places the head ~11% right of center; measured
+  // from the bundled asset, not a re-crop of it.
+  ['stylist_portrait_02', { offsetXRatio: 0.113 }],
+]);
+
+export const STYLIST_AVATAR_FRAMING_BY_ID: ReadonlyMap<string, StylistAvatarFraming> =
+  createReadonlyMap(FRAMING_OVERRIDE_ENTRIES);
+
+export function getStylistAvatarFraming(
+  avatarId: string | null | undefined,
+): StylistAvatarFraming | undefined {
+  if (!avatarId) return undefined;
+  return STYLIST_AVATAR_FRAMING_BY_ID.get(avatarId);
+}
+
 /** Presets that are selectable in the personalization UI. */
 export const STYLIST_SELECTABLE_PRESETS: readonly StylistAvatarPreset[] = Object.freeze(
   STYLIST_AVATAR_PRESETS.filter((p): p is StylistAvatarPreset & { selectable: true } => p.selectable),
