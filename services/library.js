@@ -260,6 +260,28 @@ export function selectPurchaseOptionsSnapshot(analysis) {
 }
 
 /**
+ * Content fingerprint of a commerce snapshot, used to decide whether a shelf
+ * still needs to be written.
+ *
+ * Must not be reduced to a count: v127 enrichment replaces offers in place
+ * rather than appending, so an enriched shelf has the same length as the
+ * discovery shelf it upgraded. Keying on length alone therefore treats the
+ * better data as already-persisted and drops it. The fields here are exactly
+ * the ones enrichment can improve.
+ */
+export function purchaseOptionsFingerprint(options) {
+  if (!Array.isArray(options) || options.length === 0) return '';
+  return options
+    .map((option) => {
+      if (!option || typeof option !== 'object') return '';
+      return [option.productUrl, option.price, option.imageUrl, option.title]
+        .map((field) => (typeof field === 'string' ? field : ''))
+        .join('|');
+    })
+    .join('~');
+}
+
+/**
  * Re-normalize a persisted scan on read so legacy records (saved before the
  * commerce snapshot or before ownership existed), null, and malformed payloads
  * all hydrate into the canonical shape. Idempotent.

@@ -26,7 +26,12 @@ import {
 import { buildEliseVisualContext } from './services/style-chat/buildEliseVisualContext';
 import { supabase } from './services/supabaseClient';
 import { useKScan } from './hooks/useKScan';
-import { saveScan, selectPurchaseOptionsSnapshot, attachScanPurchaseOptions } from './services/library';
+import {
+  saveScan,
+  selectPurchaseOptionsSnapshot,
+  attachScanPurchaseOptions,
+  purchaseOptionsFingerprint,
+} from './services/library';
 import { createActorRequest, isActorRequestCurrent } from './services/actorContext';
 import { setStyleChatHandoffContext } from './services/style-chat/styleChatHandoffContext';
 import { AnalysisCard } from './components/AnalysisCard';
@@ -454,8 +459,9 @@ export default function App() {
     if (!options.length) return;
     // One attach per (record, shelf). Re-running for the same shelf would be
     // harmless — the write replaces rather than appends — but it would still be
-    // a pointless write on every rerender.
-    const key = savedScanId + ':' + options.length;
+    // a pointless write on every rerender. Keyed on shelf CONTENT, because
+    // enrichment upgrades offers in place and so leaves the count unchanged.
+    const key = savedScanId + ':' + purchaseOptionsFingerprint(options);
     if (attachedCommerceRef.current === key) return;
     attachedCommerceRef.current = key;
     const actorRequest = createActorRequest();
