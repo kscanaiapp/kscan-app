@@ -21,6 +21,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.105.4';
 import { assertAccountActive } from '../_shared/deletion/common.ts';
 import { parseStyleDnaContext, buildStyleDnaContextBlock } from './styleDnaContext.ts';
+import { parseGenderStylingContext, buildGenderStylingContextBlock } from './genderStylingContext.ts';
 import {
   parseActiveContext,
   buildActiveContextBlock,
@@ -951,6 +952,8 @@ Deno.serve(async (req) => {
     message?: unknown;
     weatherLocation?: unknown;
     styleDnaContext?: unknown;
+    // Fix #5 — additive and optional. Absent on every pre-Fix-#5 client.
+    genderStylingContext?: unknown;
     activeContext?: unknown;
     sourceMessageId?: unknown;
     requestId?: unknown;
@@ -998,6 +1001,10 @@ Deno.serve(async (req) => {
   // Optional, additive Style DNA personalization signal. Unknown/absent/malformed -> null
   // (older app builds send nothing and behave exactly as before).
   const styleDnaContext = parseStyleDnaContext(body.styleDnaContext);
+
+  // Fix #5 — explicit, self-disclosed baseline styling context. Unknown/absent/
+  // malformed -> null (older app builds send nothing and behave exactly as before).
+  const genderStylingContext = parseGenderStylingContext(body.genderStylingContext);
 
   const sourceMessageId = typeof body.sourceMessageId === 'string'
     ? body.sourceMessageId.trim()
@@ -1822,6 +1829,12 @@ Deno.serve(async (req) => {
   const systemTextWithStyleDna = styleDnaContext
     ? `${systemTextWithWeather}\n\n${buildStyleDnaContextBlock(styleDnaContext)}`
     : systemTextWithWeather;
+  // Fix #5 is additive and independent of weather/Style DNA: appended only when
+  // the client sent a recognized value. Absent/malformed leaves the prompt
+  // unchanged (identical to a pre-Fix-#5 client).
+  const systemTextWithGenderContext = genderStylingContext
+    ? `${systemTextWithStyleDna}\n\n${buildGenderStylingContextBlock(genderStylingContext)}`
+    : systemTextWithStyleDna;
 
   // ── E-4 closet-aware advice (flag-gated; fail-open on retrieval errors) ─────
   let advicePromptBlock: string | null = null;
@@ -2018,14 +2031,14 @@ Deno.serve(async (req) => {
   }
 
   const systemTextForModelBase = config.flags.structuredGroundingV1 && structuredGroundingBlock
-    ? `${systemTextWithStyleDna}\n\n${structuredGroundingBlock}`
+    ? `${systemTextWithGenderContext}\n\n${structuredGroundingBlock}`
     : config.flags.contextNormalizationV1
     ? (visualContextPromptBlock
-      ? `${systemTextWithStyleDna}\n\n${visualContextPromptBlock}`
-      : systemTextWithStyleDna)
+      ? `${systemTextWithGenderContext}\n\n${visualContextPromptBlock}`
+      : systemTextWithGenderContext)
     : (activeContext
-      ? `${systemTextWithStyleDna}\n\n${buildActiveContextBlock(activeContext)}`
-      : systemTextWithStyleDna);
+      ? `${systemTextWithGenderContext}\n\n${buildActiveContextBlock(activeContext)}`
+      : systemTextWithGenderContext);
 
   const systemTextForModelWithAdvice =
     !config.flags.structuredGroundingV1 && advicePromptBlock
