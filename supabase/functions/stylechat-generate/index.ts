@@ -23,6 +23,11 @@ import { assertAccountActive } from '../_shared/deletion/common.ts';
 import { parseStyleDnaContext, buildStyleDnaContextBlock } from './styleDnaContext.ts';
 import { parseGenderStylingContext, buildGenderStylingContextBlock } from './genderStylingContext.ts';
 import {
+  resolveStylistDisplayName,
+  buildStylistPersonaBlock,
+  SAFE_DEFAULT_STYLIST_NAME,
+} from './stylistIdentity.ts';
+import {
   parseActiveContext,
   buildActiveContextBlock,
   VISUAL_COLLECTION_CONTRACT_VERSION,
@@ -1702,6 +1707,32 @@ Deno.serve(async (req) => {
   // no sequential latency before Gemini. Resolves to null on timeout/failure.
   const weatherContextPromise = fetchWeatherStylingContext(weatherLocation);
 
+  // Fix #6 — resolve the model's own persona name server-side, from the same
+  // RLS-scoped row the client reads/writes (never from client-supplied request
+  // text, which would otherwise be a prompt-injection path for a display name).
+  // userClient enforces auth.uid() = user_id, so this can never read another
+  // actor's row. Fails open to the safe default on any query error.
+  //
+  // display_name_customized gates whether the stored display_name is treated
+  // as an explicit override: false (including every pre-Fix-#6 row, via the
+  // migration's column default) means "not a deliberate choice," so the
+  // canonical name for avatar_id is resolved instead — the same precedence
+  // constants/stylistIdentity.ts's normalizeStylistIdentity applies client-side.
+  let stylistDisplayName = SAFE_DEFAULT_STYLIST_NAME;
+  try {
+    const { data: stylistPrefsRow } = await userClient
+      .from('user_stylist_preferences')
+      .select('display_name, display_name_customized, avatar_id')
+      .eq('user_id', userId)
+      .maybeSingle();
+    stylistDisplayName = resolveStylistDisplayName(
+      stylistPrefsRow?.display_name_customized === true ? stylistPrefsRow.display_name : null,
+      stylistPrefsRow?.avatar_id,
+    );
+  } catch {
+    // Fail open: the persona block still renders with the safe default name.
+  }
+
   // Fetch the recent message window plus a small greeting buffer. Greetings are
   // persisted as assistant rows but must not consume model-context slots, so we
   // filter them out after fetch and keep the newest MAX_RECENT_MESSAGES genuine
@@ -1835,6 +1866,11 @@ Deno.serve(async (req) => {
   const systemTextWithGenderContext = genderStylingContext
     ? `${systemTextWithStyleDna}\n\n${buildGenderStylingContextBlock(genderStylingContext)}`
     : systemTextWithStyleDna;
+  // Fix #6 — the model always has a resolved name (custom, else canonical for the
+  // active portrait, else the safe default), never asserted independently of the
+  // same row the client's UI and greeting resolve from.
+  const systemTextWithStylistName =
+    `${systemTextWithGenderContext}\n\n${buildStylistPersonaBlock(stylistDisplayName)}`;
 
   // ── E-4 closet-aware advice (flag-gated; fail-open on retrieval errors) ─────
   let advicePromptBlock: string | null = null;
@@ -2031,14 +2067,14 @@ Deno.serve(async (req) => {
   }
 
   const systemTextForModelBase = config.flags.structuredGroundingV1 && structuredGroundingBlock
-    ? `${systemTextWithGenderContext}\n\n${structuredGroundingBlock}`
+    ? `${systemTextWithStylistName}\n\n${structuredGroundingBlock}`
     : config.flags.contextNormalizationV1
     ? (visualContextPromptBlock
-      ? `${systemTextWithGenderContext}\n\n${visualContextPromptBlock}`
-      : systemTextWithGenderContext)
+      ? `${systemTextWithStylistName}\n\n${visualContextPromptBlock}`
+      : systemTextWithStylistName)
     : (activeContext
-      ? `${systemTextWithGenderContext}\n\n${buildActiveContextBlock(activeContext)}`
-      : systemTextWithGenderContext);
+      ? `${systemTextWithStylistName}\n\n${buildActiveContextBlock(activeContext)}`
+      : systemTextWithStylistName);
 
   const systemTextForModelWithAdvice =
     !config.flags.structuredGroundingV1 && advicePromptBlock
