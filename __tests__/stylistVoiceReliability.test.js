@@ -364,6 +364,68 @@ test('the ElevenLabs provider contract is unchanged', () => {
   assert.match(client, /normalized_alignment/);
 });
 
+test('a burst-limit 429 fails soft: text chat stays usable and a later retry can succeed', async () => {
+  // Shapes the mocked backend error exactly like the real client contract:
+  // stylistSpeechClient.ts converts every function error, burst-limit included,
+  // to this one sanitized message — the client never branches on HTTP status.
+  const { speech, store, stats } = loadSpeech({ failures: 1 });
+
+  await speech.speakAvatarMessage(PAYLOAD);
+  assert.equal(store.getAvatarSpeechState().phase, 'error',
+    'a 429 must surface as the same recoverable error phase as any other failure');
+  assert.equal(stats.plays, 0);
+
+  // The written reply is never touched by a speech failure; only the store's
+  // speech phase changes. No test asserts message removal because avatarSpeech
+  // never receives or replaces the persisted message list.
+
+  // No automatic retry timer exists in the client — a second dispatch only
+  // happens because the caller (a retry tap, or the next real message) asked
+  // for it explicitly.
+  await speech.speakAvatarMessage(PAYLOAD);
+  assert.equal(stats.requests, 2, 'a later attempt after the window must be able to succeed');
+  assert.equal(store.getAvatarSpeechState().phase, 'playing');
+});
+
+test('a rate-limited message does not block the next unrelated message from speaking', async () => {
+  const { speech, store, stats } = loadSpeech({ failures: 1 });
+  await speech.speakAvatarMessage(PAYLOAD);
+  assert.equal(store.getAvatarSpeechState().phase, 'error');
+
+  const next = { ...PAYLOAD, messageId: '44444444-4444-4444-8444-444444444444' };
+  await speech.speakAvatarMessage(next);
+  assert.equal(store.getAvatarSpeechState().phase, 'playing');
+  assert.equal(store.getAvatarSpeechState().messageId, next.messageId);
+  assert.equal(stats.starts, 1);
+});
+
+test('no automatic retry storm: the client issues exactly one request per explicit call', async () => {
+  const { speech, stats } = loadSpeech({ failures: 3 });
+  // Three consecutive failures, each requiring its own explicit call — never a
+  // loop inside speakAvatarMessage itself.
+  await speech.speakAvatarMessage(PAYLOAD);
+  await speech.speakAvatarMessage(PAYLOAD);
+  await speech.speakAvatarMessage(PAYLOAD);
+  assert.equal(stats.requests, 3, 'each failure must correspond to exactly one caller-issued attempt');
+  assert.equal(stats.plays, 0);
+
+  await speech.speakAvatarMessage(PAYLOAD);
+  assert.equal(stats.requests, 4);
+  assert.equal(stats.plays, 1, 'recovery still produces exactly one player, never a duplicate');
+});
+
+test('the conversational burst ceiling is a usability policy, not a design change', () => {
+  const source = fs.readFileSync(
+    path.join(ROOT, 'supabase', 'functions', 'stylist-speech', 'rateLimit.ts'), 'utf8');
+  assert.match(source, /SPEECH_BURST_LIMIT\s*=\s*10/);
+  assert.match(source, /SPEECH_BURST_WINDOW_MS\s*=\s*60_000/);
+  // The daily ceiling, response contract, and per-actor keying are untouched.
+  assert.match(source, /SPEECH_DAILY_LIMIT\s*=\s*50/);
+  assert.match(source, /'BURST_LIMIT'/);
+  assert.match(source, /429/);
+  assert.match(source, /burstByActor/);
+});
+
 test('Fix #3 touches no avatar-animation or commerce source', () => {
   const speechFiles = [
     'services/avatarSpeech.ts',
