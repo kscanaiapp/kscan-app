@@ -441,6 +441,16 @@ export function normalizeScanIdentifyResponse(raw: unknown): ScanIdentifyRespons
       imageDigestPrefix: typeof src.imageDigestPrefix === 'string' ? src.imageDigestPrefix : undefined,
       displayResult: normalizeDisplayResult(src.displayResult),
     };
+    // v127: only an explicit `true` defers. A missing or malformed commerce
+    // block keeps the Phase 3 reading of recommendedProducts.
+    const commerceMeta = src.commerce;
+    if (
+      commerceMeta && typeof commerceMeta === 'object' && !Array.isArray(commerceMeta) &&
+      (commerceMeta as Record<string, unknown>).deferred === true
+    ) {
+      out.commerceDeferred = true;
+    }
+    // Android line: detectedGarments normalizes to [] when the field is present.
     if (Object.prototype.hasOwnProperty.call(src, 'detectedGarments')) {
       out.detectedGarments = normalizeDetectedGarments(src.detectedGarments) ?? [];
     }

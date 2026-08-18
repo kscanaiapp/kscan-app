@@ -81,6 +81,13 @@ export type MappedFashionAnalysis = {
   products: RankedScanProduct[];
   /** Live commerce purchase options when the backend separates them. */
   purchaseOptions?: RankedScanProduct[];
+  /** v127: commerce was deferred to a follow-up commerce-only request. */
+  commerceDeferred?: boolean;
+  /** v127: structured evidence for that request. Never contains image data. */
+  commerceEvidence?: {
+    identification: Record<string, unknown>;
+    attributes: Record<string, unknown> | null;
+  };
   displayResult?: DisplayResult;
   /** Clean, deterministic display title for the scan result UI. */
   title?: string;
@@ -327,6 +334,16 @@ export function mapScanIdentifyToAnalysis(
       purchaseOptions,
       displayResult: resp.displayResult,
     };
+    // v127: carry the deferral marker onto the analysis so the scan-result
+    // surface can distinguish "commerce not fetched yet" from "no results".
+    // Nothing downstream reads it unless the backend set it.
+    if (resp.commerceDeferred === true) {
+      analysis.commerceDeferred = true;
+      analysis.commerceEvidence = {
+        identification: (resp.identification ?? {}) as Record<string, unknown>,
+        attributes: (resp.attributes ?? null) as Record<string, unknown> | null,
+      };
+    }
 
     // Durable identification snapshot (IMG-008). Built from the response so it
     // keeps the fields `metadata` drops. Wrapped for the same reason as below:

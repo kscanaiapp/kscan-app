@@ -123,6 +123,16 @@ export type ScanIdentifyResponse = {
   identification?: DetailedIdentification;
   /** Live commerce product matches (provider results). */
   recommendedProducts: RankedScanProduct[];
+  /**
+   * v127: the backend answered the identity immediately and did NOT run
+   * commerce providers on this request. An empty `recommendedProducts` here
+   * means "not fetched yet", not "no results" — the client must issue a
+   * commerce-only (MODE B) request rather than render an empty shelf.
+   *
+   * Absent on every pre-v127 response and whenever the funnel flag is off, so
+   * its absence is the Phase 3 behavior.
+   */
+  commerceDeferred?: boolean;
   /** Catalog similarity matches scored deterministically from product_catalog. */
   similarityMatches?: RankedScanProduct[];
   userMessage?: string;
