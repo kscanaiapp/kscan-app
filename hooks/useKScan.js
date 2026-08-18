@@ -233,8 +233,22 @@ export function useKScan(actorId = null) {
 
   // v127 commerce hydration guards. Declared here so startInFlight can reset
   // them; the hydration logic that consumes them lives further down.
-  const commerceGenerationRef = useRef(0);
-  const commerceRequestedRef = useRef(null);
+  // v127 commerce hydration refs.
+  //
+  // Android's Scanner is a multi-item queue (scanItems / selectScanItem), so
+  // "which result is this response for" cannot be a scan-level generation
+  // alone — the displayed item can change without a new scan attempt. This
+  // mirrors the existing secondhandRequestRef pattern used by
+  // enrichDisplayedAnalysis for exactly the same class of problem: a single
+  // incrementing counter, captured at dispatch and compared before every
+  // apply, bumped whenever the displayed item changes for ANY reason (new
+  // scan, or the review screen switching to a different candidate).
+  const commerceRequestRef = useRef(0);
+  // Single-flight, keyed by object identity of the evidence being hydrated
+  // (stable per item — item.analysis is built once and reused) rather than by
+  // a derived key, since only one item is ever displayed at a time.
+  const commerceRequestedForRef = useRef(null);
+  const commerceActiveForRef = useRef(null);
   const commerceAbortRef = useRef(null);
 
   const clearInFlight = useCallback((operationId) => {
@@ -257,8 +271,9 @@ export function useKScan(actorId = null) {
     // previous result. Bumping here (rather than at setStatus('result')) means
     // a late answer for the old scan is already inert before the new one
     // finishes, which is what makes the A-then-B overwrite case impossible.
-    commerceGenerationRef.current += 1;
-    commerceRequestedRef.current = null;
+    commerceRequestRef.current += 1;
+    commerceRequestedForRef.current = null;
+    commerceActiveForRef.current = null;
     commerceAbortRef.current?.abort();
     commerceAbortRef.current = null;
     if (isMountedRef.current) setCommerceStatus('idle');
@@ -1066,6 +1081,15 @@ export function useKScan(actorId = null) {
           detailStatus,
         };
 
+        // v127: stash this item's stable id onto its commerce evidence so a
+        // later hydration response can find and update the matching scanItems
+        // entry, not just whichever item happens to be displayed at the time.
+        // Client-only — buildCommerceOnlyBody() copies a fixed key allowlist,
+        // so this never reaches the network.
+        if (item.analysis?.commerceEvidence) {
+          item.analysis.commerceEvidence.itemId = item.id;
+        }
+
         if (!isGenerationValid(generation, queueActor)) return;
 
         scanItemsHasEntriesRef.current = true;
@@ -1262,50 +1286,72 @@ export function useKScan(actorId = null) {
     setAnalysis(item.analysis);
     setAnalysisActorId(currentActorRef.current);
     enrichDisplayedAnalysis(item.analysis, secondhandRequestId);
+    // v127: clear a leftover commerce status from the previously displayed
+    // item. Response application is already guarded by evidence object
+    // identity (see hydrateDeferredCommerce), so this is a pure UX reset, not
+    // a correctness fix — without it, switching FROM a still-pending item TO
+    // one whose commerce is not deferred would keep showing "pending".
+    setCommerceStatus('idle');
   }, [status, scanItems, enrichDisplayedAnalysis]);
 
   // ── v127 deferred commerce hydration ──────────────────────────────────────
   //
   // When the backend defers commerce, the scan result is already on screen and
-  // the shelf hydrates afterwards. Three separate guards are needed and none
-  // substitutes for the others:
-  //
-  //   commerceGenerationRef  — which scan result the response belongs to, so a
-  //                            slow scan A cannot overwrite a newer scan B.
-  //   commerceRequestedRef   — single-flight, so a rerender cannot dispatch a
-  //                            second request for the same result.
-  //   isMountedRef           — no state write after unmount.
-  //
-  // The scan's own operationId cannot be reused: clearInFlight() increments it
-  // when the scan completes, so it is already stale by the time commerce runs.
+  // the shelf hydrates afterwards. Android additionally has a multi-item
+  // review queue (scanItems / selectScanItem) where the displayed item can
+  // change without a new scan attempt, so "which result is this response for"
+  // is tracked per DISPLAYED ITEM, not per scan — the same problem
+  // enrichDisplayedAnalysis already solves for sneaker/secondhand enrichment
+  // via secondhandRequestRef, and this mirrors that pattern rather than
+  // inventing a second one.
   const hydrateDeferredCommerce = useCallback(async (analysisWithEvidence, { isRetry = false } = {}) => {
     const evidence = analysisWithEvidence?.commerceEvidence;
     if (!evidence?.identification) return;
 
-    const generation = commerceGenerationRef.current;
-    const flightKey = `${generation}`;
-    // Single-flight per scan result. A retry is an explicit user action and is
-    // allowed to supersede a settled attempt, never to race a live one.
-    if (!isRetry && commerceRequestedRef.current === flightKey) return;
-    if (isRetry && commerceRequestedRef.current === `${flightKey}:active`) return;
-    commerceRequestedRef.current = `${flightKey}:active`;
+    // Single-flight per displayed item, keyed by evidence object identity. A
+    // retry is an explicit user action and may supersede a settled attempt,
+    // never race a live one.
+    if (!isRetry && commerceRequestedForRef.current === evidence) return;
+    if (isRetry && commerceActiveForRef.current === evidence) return;
+    commerceRequestedForRef.current = evidence;
+    commerceActiveForRef.current = evidence;
 
     commerceAbortRef.current?.abort();
     const controller = new AbortController();
     commerceAbortRef.current = controller;
 
+    commerceRequestRef.current += 1;
+    const requestId = commerceRequestRef.current;
+
     // The scan result is already visible; only the shelf enters a pending state.
-    if (isMountedRef.current && commerceGenerationRef.current === generation) {
+    if (isMountedRef.current) {
       setCommerceStatus('pending');
     }
 
     const applyIfCurrent = (updater) => {
-      // Stale-response protection: a late answer for a superseded scan is
-      // dropped rather than rendered over the current one.
+      // Stale-response protection: a late answer for an item that is no longer
+      // displayed (new scan, or the user switched to another candidate) is
+      // dropped rather than rendered over what is now on screen.
       if (!isMountedRef.current) return false;
-      if (commerceGenerationRef.current !== generation) return false;
+      if (commerceRequestRef.current !== requestId) return false;
       updater();
       return true;
+    };
+
+    // Update whichever surface still shows this item: the singleton `analysis`
+    // when it is the one currently displayed, and — Android only — the backing
+    // scanItems entry so switching back to this item later shows the hydrated
+    // shelf instead of the pre-hydration snapshot.
+    const applyToItem = (updateAnalysis) => {
+      const itemId = evidence.itemId;
+      if (itemId) {
+        setScanItems((current) => current.map((it) => (
+          it.id === itemId && it.analysis ? { ...it, analysis: updateAnalysis(it.analysis) } : it
+        )));
+      }
+      setAnalysis((prev) => (
+        prev && prev.commerceEvidence === evidence ? updateAnalysis(prev) : prev
+      ));
     };
 
     let result;
@@ -1316,7 +1362,7 @@ export function useKScan(actorId = null) {
       result = { status: 'error', purchaseOptions: [], enrichmentCandidates: [], retryable: true };
     }
 
-    commerceRequestedRef.current = flightKey;
+    commerceActiveForRef.current = null;
 
     if (result.status === 'error') {
       // Commerce failure is never scan failure: status stays 'result'.
@@ -1327,7 +1373,7 @@ export function useKScan(actorId = null) {
     const hydrated = applyIfCurrent(() => {
       setCommerceStatus(result.status);
       if (result.purchaseOptions.length > 0) {
-        setAnalysis((prev) => (prev ? { ...prev, purchaseOptions: result.purchaseOptions } : prev));
+        applyToItem((a) => ({ ...a, purchaseOptions: result.purchaseOptions }));
       }
     });
     if (!hydrated) return;
@@ -1346,19 +1392,18 @@ export function useKScan(actorId = null) {
       }
       if (enrichedResult.status === 'error' || !enrichedResult.purchaseOptions.length) return;
       applyIfCurrent(() => {
-        setAnalysis((prev) => {
-          if (!prev) return prev;
-          const merged = mergeEnrichedOffers(
-            Array.isArray(prev.purchaseOptions) ? prev.purchaseOptions : [],
+        applyToItem((a) => ({
+          ...a,
+          purchaseOptions: mergeEnrichedOffers(
+            Array.isArray(a.purchaseOptions) ? a.purchaseOptions : [],
             enrichedResult.purchaseOptions,
-          );
-          return { ...prev, purchaseOptions: merged };
-        });
+          ),
+        }));
       });
     }
   }, []);
 
-  // Dispatch hydration once per deferred scan result.
+  // Dispatch hydration once per displayed deferred item.
   useEffect(() => {
     if (status !== 'result') return;
     if (!analysis?.commerceDeferred) return;
