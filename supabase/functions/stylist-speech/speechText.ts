@@ -1,4 +1,11 @@
-export const MAX_SPEECH_CHARACTERS = 700;
+/**
+ * Bound for spoken text. This must stay at or above `MAX_RESPONSE_CHARS` in
+ * `stylechat-generate`, which is the longest reply a user can be shown: a
+ * smaller value here silently narrates only part of a complete, valid Elise
+ * answer. The two functions are deployed separately, so the value is restated
+ * rather than imported.
+ */
+export const MAX_SPEECH_CHARACTERS = 1000;
 
 const HIDDEN_BLOCK_RE = /<(?:actions|stylechat_actions|internal|system|debug)\b[^>]*>[\s\S]*?<\/(?:actions|stylechat_actions|internal|system|debug)>/gi;
 const MARKDOWN_LINK_RE = /!?\[([^\]]+)\]\((?:https?:\/\/|mailto:)[^)]+\)/gi;
