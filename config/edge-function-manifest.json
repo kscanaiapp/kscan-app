@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-18T13:09:40.082Z",
-    "generatedFromGitSha": "ff494c7684ea78051998a6cde2a4b4c0d47c7854"
+    "generatedAtUtc": "2026-08-18T15:00:25.820Z",
+    "generatedFromGitSha": "15a19eca1b2781f348b149f3da1adda49719f6b9"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -19,10 +19,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 34,
-        "treeFileCount": 53,
-        "bundleHash": "d07e3b3fcdcf15c49788672f9d38560da961911189990c119e3b1526a79ab891",
-        "treeHash": "b3fd6fe092d97452c665f20d403407a0a747d10081a39a5f838f81274c6bf2a7",
+        "bundleFileCount": 38,
+        "treeFileCount": 58,
+        "bundleHash": "f0fa06159c27de7ee4c23a75f916655bc964adb2e820bfdb0d423eedaff79b04",
+        "treeHash": "44c3d0d14e5233ca0186e247ff657c25457292cc8244b29d28ea443504edcd86",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -55,9 +55,29 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/scan-identify/canonicalCommerce.ts",
+            "sha256": "8d463cc9ee3a54d9a7ff8742880d5cad4e3dc3e8071e3083baea9c0f71e0b32a",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/scan-identify/closetMirrorEntryPath.test.ts",
             "sha256": "73277ee7d1d0fd7fd494851febe34b75458f3efb572335dd9be40d7d030bf6f8",
             "bundle": false
+          },
+          {
+            "path": "supabase/functions/scan-identify/commerceFastPath.ts",
+            "sha256": "4c9889b2cb1f5f34dbac5aa6863c4d357408074d8a53961c22b820d71ef03299",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/commerceFunnel.v127.test.ts",
+            "sha256": "b4404d67ccde0e1ea191eb14ffaf552f6ba5bb6fd6912f893a8f1f02d9fb197f",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/scan-identify/commerceFunnelConfig.ts",
+            "sha256": "a4625246aeb0f16a8189d89a2593e43a31df8bf897b765d0e2abc9aa32fac348",
+            "bundle": true
           },
           {
             "path": "supabase/functions/scan-identify/commerceIdentity.v124.test.ts",
@@ -120,6 +140,11 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/scan-identify/commerceResultCache.ts",
+            "sha256": "4f6c69f517b27eb0a528e53c10bceb762b73ad6cd2aed3e201f2b4d67c49c5bd",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/scan-identify/commerceRetrieval.v125.test.ts",
             "sha256": "80efad99ecae4fe418fc848f8a98736a04c5ac2a50c1c4dee65482ce50b8547e",
             "bundle": false
@@ -151,7 +176,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/index.ts",
-            "sha256": "367735daa616587b340d558a25fc95f52fc9cf42d65b040d4b3690c790431318",
+            "sha256": "e202c2978aebf3f71399c998eae91236725a69860bebc7990f7ee8d97453e474",
             "bundle": true
           },
           {
@@ -186,7 +211,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/poshmarkProvider.ts",
-            "sha256": "5de9597d9f26178eda351f52ff474e2962319105ae16ebe38d881ee55a41fbee",
+            "sha256": "ce995624e7e76757d7d9407b169255ad27ce3484be192ba06aa3d11f387cb77f",
             "bundle": true
           },
           {
@@ -216,7 +241,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/scanCommerceRouter.ts",
-            "sha256": "959f53e507b9172f432771e0872cf401777f249ed5af358f22adf98e04229def",
+            "sha256": "7be2db2c623c6fb8cce970c784d4276dedc2295276f481e82e801af06264967c",
             "bundle": true
           },
           {
@@ -251,7 +276,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/shoppingProvider.ts",
-            "sha256": "4c955c75b1cf1e0ade9ded7919094aef0b63fa6947d0480ef7f89b1da552dcc8",
+            "sha256": "33798bbcb357b70ec39ad9b25d68182117b239e47f481ea90cd2a33552f6bd8c",
             "bundle": true
           },
           {
