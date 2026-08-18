@@ -167,7 +167,14 @@ function createBackend() {
 
       if (this.op === 'update') {
         const targets = this.rows();
-        targets.forEach((row) => Object.assign(row, this.payload));
+        // The real touchSession() stamps updated_at with wall-clock Date.now(),
+        // which would race against this fake's synthetic insert clock (already
+        // used for every created_at/updated_at on insert below) and make
+        // cross-session ordering nondeterministic in tests. Route any caller
+        // timestamp through the same synthetic clock instead.
+        const patch = { ...this.payload };
+        if ('updated_at' in patch) patch.updated_at = nextTimestamp();
+        targets.forEach((row) => Object.assign(row, patch));
         return { data: targets, error: null };
       }
 
@@ -245,6 +252,16 @@ function createHarness() {
   return { ...backend, repository, greeting: loadGreeting(backend.client, repository) };
 }
 
+// Mirrors hooks/useStyleChatSessions.ts getLatestSessionId: prefer the latest
+// session that actually has a message, and only fall back to the latest owned
+// row (which may be empty) when no owned session has ever received one.
+async function resolveLatestSessionId(harness) {
+  const nonEmptySessionId = await harness.repository.getLatestNonEmptySessionId();
+  if (nonEmptySessionId) return nonEmptySessionId;
+  const latest = await harness.repository.getLatestStyleChatSession();
+  return latest?.id ?? null;
+}
+
 // Resume-or-create exactly as Home wires it.
 async function launchFromHome(harness, guard) {
   const { launchStyleChatSession } = loadGuard();
@@ -252,10 +269,7 @@ async function launchFromHome(harness, guard) {
   const result = await launchStyleChatSession({
     guard,
     createSession: () => harness.repository.createStyleChatSession({}),
-    resolveExistingSessionId: async () => {
-      const latest = await harness.repository.getLatestStyleChatSession();
-      return latest?.id ?? null;
-    },
+    resolveExistingSessionId: () => resolveLatestSessionId(harness),
     navigate: (sessionId) => navigations.push(sessionId),
   });
   return { result, navigations };
@@ -702,4 +716,235 @@ test('SINGLE_AUTHORITY: resume flows through the existing launch guard, not a pa
   );
   // The resolved session is remembered so a retry cannot create a duplicate.
   assert.match(guard, /if \(existingSessionId\) \{\s*\n\s*sessionId = existingSessionId;\s*\n\s*guard\.rememberSession\(sessionId\);/);
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+// Phase 2 — resume the latest MEANINGFUL conversation, not the latest row.
+//
+// A user hit by the Phase 1 gap may already own several empty session stubs
+// newer than their real conversation (e.g. they backed out of Home before the
+// StyleChat screen finished mounting). Resume must skip those stubs rather
+// than resurface one of them.
+// ══════════════════════════════════════════════════════════════════════════
+
+test('NEGATIVE_CONTROL: the Phase 1 "latest owned row" resolver picks a newer empty stub over the real conversation', async () => {
+  const harness = createHarness();
+  const real = await harness.repository.createStyleChatSession({});
+  await harness.repository.saveStyleChatMessage({ sessionId: real.id, sender: 'user', content: 'What should I wear to the gala?' });
+  await harness.repository.saveStyleChatMessage({ sessionId: real.id, sender: 'assistant', content: 'The black silk gown.' });
+
+  // Two dead-end sessions created after the real conversation, never used.
+  await harness.repository.createStyleChatSession({});
+  await harness.repository.createStyleChatSession({});
+
+  // This is the exact Phase 1 resolver, unchanged — it orders by
+  // style_chat_sessions.updated_at with no notion of message content, so it
+  // resurfaces the newest empty stub instead of the real conversation.
+  const phase1Choice = await harness.repository.getLatestStyleChatSession();
+
+  assert.notEqual(
+    phase1Choice.id,
+    real.id,
+    'demonstrates the gap this phase closes: a newer empty stub outranks the real conversation',
+  );
+});
+
+test('SESSION_ACTIVITY_AUTHORITY: resume does not trust the fire-and-forget updated_at bump', () => {
+  const repository = fs.readFileSync(
+    path.join(ROOT, 'services', 'style-chat', 'styleChatRepository.ts'),
+    'utf8',
+  );
+  const resolver = repository.slice(
+    repository.indexOf('export async function getLatestNonEmptySessionId'),
+    repository.indexOf('export async function listStyleChatMessages'),
+  );
+  assert.match(resolver, /\.from\('style_chat_messages'\)/);
+  assert.match(resolver, /order\('created_at', \{ ascending: false \}\)/);
+  assert.doesNotMatch(resolver, /updated_at/);
+});
+
+test('LATEST_NON_EMPTY_SELECTION: a real conversation is resumed over newer empty stubs', async () => {
+  const harness = createHarness();
+  const real = await harness.repository.createStyleChatSession({});
+  await harness.repository.saveStyleChatMessage({ sessionId: real.id, sender: 'user', content: 'Hi' });
+  await harness.repository.saveStyleChatMessage({ sessionId: real.id, sender: 'assistant', content: 'Hello!' });
+
+  await harness.repository.createStyleChatSession({}); // empty, newer
+  await harness.repository.createStyleChatSession({}); // empty, newest
+
+  const resumed = await resolveLatestSessionId(harness);
+  assert.equal(resumed, real.id);
+  assert.equal(harness.state.tables.style_chat_sessions.length, 3, 'resolving must not create a session');
+});
+
+test('MULTIPLE_NON_EMPTY_SELECTION: the more recently active real conversation wins', async () => {
+  const harness = createHarness();
+  const older = await harness.repository.createStyleChatSession({});
+  await harness.repository.saveStyleChatMessage({ sessionId: older.id, sender: 'user', content: 'older' });
+
+  const newer = await harness.repository.createStyleChatSession({});
+  await harness.repository.saveStyleChatMessage({ sessionId: newer.id, sender: 'user', content: 'newer' });
+
+  const resumed = await resolveLatestSessionId(harness);
+  assert.equal(resumed, newer.id);
+});
+
+test('ALL_EMPTY_FALLBACK: with no messages anywhere, resume falls back to the latest owned row deterministically', async () => {
+  const harness = createHarness();
+  await harness.repository.createStyleChatSession({});
+  const newer = await harness.repository.createStyleChatSession({});
+
+  const resumed = await resolveLatestSessionId(harness);
+  assert.equal(resumed, newer.id);
+  assert.equal(harness.state.tables.style_chat_sessions.length, 2, 'the fallback must not create a session');
+});
+
+test('NO_SESSION_CREATION: a user with no sessions at all resolves to null rather than a side-effecting create', async () => {
+  const harness = createHarness();
+  const resumed = await resolveLatestSessionId(harness);
+  assert.equal(resumed, null);
+  assert.equal(harness.state.tables.style_chat_sessions.length, 0);
+});
+
+test('REPEATED_HOME_CTA: pressing Start Chat repeatedly still resumes the one real conversation', async () => {
+  const harness = createHarness();
+  const { createStyleChatSessionLaunchGuard } = loadGuard();
+
+  const first = await launchFromHome(harness, createStyleChatSessionLaunchGuard());
+  const realSessionId = first.navigations[0];
+  await harness.repository.saveStyleChatMessage({ sessionId: realSessionId, sender: 'user', content: 'Hi' });
+
+  // Two more dead-end presses, simulating a user who backed out before the
+  // conversation loaded on those visits.
+  await harness.repository.createStyleChatSession({});
+  await harness.repository.createStyleChatSession({});
+
+  const second = await launchFromHome(harness, createStyleChatSessionLaunchGuard());
+  const third = await launchFromHome(harness, createStyleChatSessionLaunchGuard());
+
+  assert.equal(second.navigations[0], realSessionId);
+  assert.equal(third.navigations[0], realSessionId);
+  assert.equal(harness.state.tables.style_chat_sessions.length, 3, 'no additional session created');
+});
+
+test('APP_RESTART: a real conversation with newer empty stubs is still resumed after a fresh process', async () => {
+  const harness = createHarness();
+  const real = await harness.repository.createStyleChatSession({});
+  await harness.repository.saveStyleChatMessage({ sessionId: real.id, sender: 'user', content: 'Before restart' });
+  await harness.repository.createStyleChatSession({}); // newer, empty
+
+  // Relaunch: new module instance, same backing store.
+  const restarted = loadRepository(harness.client);
+  const nonEmptyId = await restarted.getLatestNonEmptySessionId();
+
+  assert.equal(nonEmptyId, real.id);
+});
+
+test('NO_DUPLICATE_MESSAGES: resolving and reloading the same real session twice returns the same N messages', async () => {
+  const harness = createHarness();
+  const real = await harness.repository.createStyleChatSession({});
+  await harness.repository.saveStyleChatMessage({ sessionId: real.id, sender: 'user', content: 'a' });
+  await harness.repository.saveStyleChatMessage({ sessionId: real.id, sender: 'assistant', content: 'b' });
+  await harness.repository.createStyleChatSession({}); // newer, empty
+
+  const firstResume = await resolveLatestSessionId(harness);
+  const secondResume = await resolveLatestSessionId(harness);
+  assert.equal(firstResume, secondResume);
+
+  const firstLoad = await harness.repository.listStyleChatMessages(firstResume);
+  const secondLoad = await harness.repository.listStyleChatMessages(secondResume);
+  assert.equal(firstLoad.length, 2);
+  assert.deepEqual(secondLoad.map((m) => m.id), firstLoad.map((m) => m.id));
+});
+
+test("CROSS_USER_ISOLATION: the non-empty resolver never selects another user's session", async () => {
+  const harness = createHarness();
+  const mine = await harness.repository.createStyleChatSession({});
+  await harness.repository.saveStyleChatMessage({ sessionId: mine.id, sender: 'user', content: 'mine' });
+
+  harness.state.authUserId = USER_B;
+  const theirs = await harness.repository.createStyleChatSession({});
+  await harness.repository.saveStyleChatMessage({ sessionId: theirs.id, sender: 'user', content: 'theirs, newer' });
+
+  harness.state.authUserId = USER_A;
+  const resumed = await resolveLatestSessionId(harness);
+  assert.equal(resumed, mine.id);
+});
+
+test('CROSS_USER_ISOLATION: signed-out resolution is refused, not silently empty', async () => {
+  const harness = createHarness();
+  const session = await harness.repository.createStyleChatSession({});
+  await harness.repository.saveStyleChatMessage({ sessionId: session.id, sender: 'user', content: 'hi' });
+  harness.state.authUserId = null;
+
+  await assert.rejects(() => harness.repository.getLatestNonEmptySessionId(), /Sign in/);
+});
+
+test('NETWORK_FAIL_SOFT: a transient resolver failure fails the launch instead of creating a duplicate', async () => {
+  const harness = createHarness();
+  const real = await harness.repository.createStyleChatSession({});
+  await harness.repository.saveStyleChatMessage({ sessionId: real.id, sender: 'user', content: 'hi' });
+
+  harness.state.offline = true;
+  const { createStyleChatSessionLaunchGuard } = loadGuard();
+  const offline = await launchFromHome(harness, createStyleChatSessionLaunchGuard());
+
+  assert.equal(offline.result.status, 'failed');
+  assert.deepEqual(offline.navigations, []);
+  assert.equal(harness.state.tables.style_chat_sessions.length, 1, 'no duplicate session created on a failed lookup');
+
+  harness.state.offline = false;
+  const recovered = await launchFromHome(harness, createStyleChatSessionLaunchGuard());
+  assert.equal(recovered.result.status, 'navigated');
+  assert.equal(recovered.navigations[0], real.id);
+  assert.equal(harness.state.tables.style_chat_sessions.length, 1);
+});
+
+test('HISTORICAL_ASSISTANT_SPEECH: resuming past newer empty stubs reports no fresh insert', async () => {
+  const harness = createHarness();
+  const real = await harness.repository.createStyleChatSession({});
+  const inserted = await harness.greeting.ensureSessionGreeting(USER_A, real.id, 'Hello, I am Elise.');
+  assert.equal(inserted.inserted, true);
+  await harness.repository.saveStyleChatMessage({ sessionId: real.id, sender: 'user', content: 'Style me' });
+  await harness.repository.createStyleChatSession({}); // newer, empty stub
+
+  const resumedId = await resolveLatestSessionId(harness);
+  assert.equal(resumedId, real.id);
+
+  const restartedGreeting = loadGreeting(harness.client, loadRepository(harness.client));
+  const reopened = await restartedGreeting.ensureSessionGreeting(USER_A, resumedId, 'Hello, I am Elise.');
+  assert.equal(reopened.inserted, false, 'the resumed conversation must not report a fresh greeting insert');
+});
+
+test('NEW_ASSISTANT_FIX3_COMPATIBILITY: a freshly persisted reply in the resumed session is still speech-eligible', () => {
+  const hook = fs.readFileSync(path.join(ROOT, 'hooks', 'useStyleChat.ts'), 'utf8');
+  const sendTail = hook.slice(hook.indexOf('const savedAssistant = await saveStyleChatMessage('));
+  assert.match(sendTail, /if \(canSpeakNewMessages\) \{[\s\S]*?speakAvatarMessage\(\{[\s\S]*?messageId: savedAssistant\.id/);
+});
+
+test('QUERY_EFFICIENCY: the resolver selects only session_id, never message content, and takes no extra round trip when a real conversation exists', async () => {
+  const repository = fs.readFileSync(
+    path.join(ROOT, 'services', 'style-chat', 'styleChatRepository.ts'),
+    'utf8',
+  );
+  const resolver = repository.slice(
+    repository.indexOf('export async function getLatestNonEmptySessionId'),
+    repository.indexOf('export async function listStyleChatMessages'),
+  );
+  assert.match(resolver, /\.select\('session_id'\)/);
+  assert.doesNotMatch(resolver, /content/);
+
+  const harness = createHarness();
+  const real = await harness.repository.createStyleChatSession({});
+  await harness.repository.saveStyleChatMessage({ sessionId: real.id, sender: 'user', content: 'hi' });
+
+  let queryCount = 0;
+  const originalFrom = harness.client.from;
+  harness.client.from = (table) => {
+    queryCount += 1;
+    return originalFrom(table);
+  };
+
+  await resolveLatestSessionId(harness);
+  assert.equal(queryCount, 1, 'a real conversation resolves in a single query, no session-row round trip needed');
 });
