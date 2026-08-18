@@ -20,6 +20,7 @@ import type { RecommendedProduct } from './shoppingProvider.ts';
 import type { ScannerCategoryRoute } from './scannerCategoryRoute.ts';
 import { buildCategoryCommerceQueries } from './commerceRelevanceQueries.ts';
 import { scoreProductAgreement } from './commerceRelevanceAgreement.ts';
+import type { CommerceIdentityEvidence } from './scannerQualityGate.ts';
 import {
   applySoftDiversityRerank,
   selectByAgreementCoverage,
@@ -54,6 +55,11 @@ export type CommerceRelevanceOptions = {
   enabled: true;
   categoryRoute: ScannerCategoryRoute;
   qualityBand?: 'high' | 'moderate' | 'low' | null;
+  /**
+   * v124 graded commercial identity evidence. Omitted → exact v122 ranking.
+   * Ranking-only: filtering, dedupe, coverage, and diversity are unchanged.
+   */
+  commerceIdentity?: CommerceIdentityEvidence;
 };
 
 const FILLER = new Set([
@@ -480,7 +486,12 @@ export function filterAndDedupeProducts(
   if (relevance?.enabled) {
     // v122: agreement score → coverage selection → dedupe → soft diversity
     const scored: ScoredProduct[] = validShaped.map((p, originalIndex) => {
-      const ag = scoreProductAgreement(p, garmentIdentification, relevance.categoryRoute);
+      const ag = scoreProductAgreement(
+        p,
+        garmentIdentification,
+        relevance.categoryRoute,
+        relevance.commerceIdentity,
+      );
       return {
         product: p,
         agreementScore: ag.score,

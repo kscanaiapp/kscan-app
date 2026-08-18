@@ -15,6 +15,8 @@ export type FarfetchProduct = {
   id: string;
   title: string;
   name?: string;
+  /** v124 — brand as declared by the provider payload, when present. */
+  brand?: string;
   source: 'Farfetch';
   retailer: 'Farfetch';
   price?: string;
@@ -257,6 +259,21 @@ function extractTitle(item: Record<string, unknown>): string | undefined {
     undefined;
 }
 
+/**
+ * v124 — product brand from the provider payload only. Not parsed out of the
+ * title and not taken from the retailer field: this preserves identity the
+ * provider actually supplied, and nothing more.
+ */
+function extractBrand(item: Record<string, unknown>): string | undefined {
+  const brand = item.brand;
+  if (typeof brand === 'string') return str(brand);
+  if (brand && typeof brand === 'object' && !Array.isArray(brand)) {
+    return str((brand as Record<string, unknown>).name) ||
+      str((brand as Record<string, unknown>).value);
+  }
+  return str(item.brandName) || str(item.designer) || str(item.manufacturer) || undefined;
+}
+
 function extractProductUrl(item: Record<string, unknown>): string | undefined {
   const candidates = [item.url, item.productUrl, item.product_url, item.link, item.pdpUrl, item.productLink, item.redirectUrl];
   let preferred: string | undefined;
@@ -325,11 +342,13 @@ function mapFarfetchItems(items: unknown[], limit: number): FarfetchProduct[] {
     const id = extractId(item, i);
     const imageUrl = extractImageUrl(item);
     const price = formatPrice(item.price);
+    const brand = extractBrand(item);
 
     out.push({
       id,
       title: title.slice(0, MAX_TITLE_LEN),
       name: title.slice(0, MAX_TITLE_LEN),
+      ...(brand ? { brand } : {}),
       source: 'Farfetch',
       retailer: 'Farfetch',
       price,
