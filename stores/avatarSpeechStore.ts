@@ -189,3 +189,17 @@ export function useAvatarSpeechState(): AvatarSpeechState {
     getAvatarSpeechState,
   );
 }
+
+/**
+ * Subscribes to one derived value instead of the whole state. Playback progress
+ * replaces the state object several times a second, so a consumer that only
+ * needs the phase — such as per-message recovery UI rendered once per assistant
+ * reply — must not re-render on every tick.
+ *
+ * The selector must return a primitive or an otherwise reference-stable value,
+ * because `useSyncExternalStore` compares snapshots with `Object.is`.
+ */
+export function useAvatarSpeechSelection<T>(select: (state: AvatarSpeechState) => T): T {
+  const snapshot = () => select(getAvatarSpeechState());
+  return useSyncExternalStore(subscribeToAvatarSpeech, snapshot, snapshot);
+}
