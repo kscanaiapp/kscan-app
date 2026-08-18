@@ -184,6 +184,7 @@ export function AnimatedStylistAvatar({
         avatarId={avatarId}
         size={size}
         accessibilityLabel={accessibilityLabel ?? preset.accessibilityLabel}
+        applyFraming={false}
       />
       <MouthStateLayer
         source={mouthSource}
