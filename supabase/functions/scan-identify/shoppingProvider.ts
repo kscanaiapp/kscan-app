@@ -18,6 +18,15 @@ export interface RecommendedProduct {
   type: 'retail' | 'similar';
   imageUrl?: string;
   productUrl?: string;
+  /**
+   * v124 — product brand, when the provider actually declares one.
+   *
+   * Additive and always optional: never inferred from the title, never derived
+   * from `source` (which is retailer identity, not brand, and must stay out of
+   * ranking). Serper and Brave do not supply a brand field, so this stays
+   * undefined for those providers rather than being fabricated.
+   */
+  brand?: string;
 }
 
 export interface ShoppingResult {

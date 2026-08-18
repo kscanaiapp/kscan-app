@@ -115,6 +115,10 @@ import {
   COMMERCE_RELEVANCE_VERSION,
 } from './commerceRelevanceConfig.ts';
 import {
+  isCommerceIdentityEnabled,
+  COMMERCE_IDENTITY_VERSION,
+} from './commerceIdentityConfig.ts';
+import {
   mapToFailureReason,
 } from './commerceRelevanceFailure.ts';
 import {
@@ -222,6 +226,17 @@ const IDENTIFICATION_ARRAY_KEYS = [
 ] as const;
 const IDENTIFICATION_BOOLEAN_KEYS = ['logo_detected', 'non_fashion'] as const;
 const IDENTIFICATION_NUMBER_KEYS = ['confidence_score'] as const;
+
+/**
+ * v124 commerce-identity evidence keys. Additive and gated: when the identity
+ * flag is off these are dropped exactly as any unknown key was before, so the
+ * sanitized identification is byte-identical to v123.
+ */
+const IDENTIFICATION_IDENTITY_STRING_KEYS = [
+  'brand_confidence',
+  'exact_item_hypothesis',
+  'exact_match_confidence',
+] as const;
 
 const SAFE_FAILED_MESSAGE =
   "We couldn't complete this scan. Please try again in better light or retake the photo.";
@@ -739,12 +754,80 @@ const SELECTED_ITEM_RESPONSE_SCHEMA = {
   required: ['status', 'attributes', 'identification', 'recommendedProducts', 'userMessage'],
 } as const;
 
+/**
+ * v124 selected-item schema — the v123 contract plus optional commercial
+ * identity evidence.
+ *
+ * Strictly additive: every existing property and every entry in `required` is
+ * carried over unchanged, and all new fields are optional, so a response valid
+ * under the v123 schema stays valid here and older clients see no difference.
+ * Selected only when BACKEND_COMMERCE_IDENTITY_ENABLED is on.
+ */
+const SELECTED_ITEM_RESPONSE_SCHEMA_V124 = {
+  type: 'OBJECT',
+  properties: {
+    ...SELECTED_ITEM_RESPONSE_SCHEMA.properties,
+    identification: {
+      type: 'OBJECT',
+      properties: {
+        ...SELECTED_ITEM_RESPONSE_SCHEMA.properties.identification.properties,
+        // ── Commercial identity evidence (all optional) ──────────────────────
+        visible_brand_text: { type: 'STRING' },
+        logo_detected: { type: 'BOOLEAN' },
+        brand_guess: { type: 'STRING' },
+        brand_confidence: { type: 'STRING', enum: ['low', 'medium', 'high'] },
+        exact_item_hypothesis: { type: 'STRING' },
+        exact_match_confidence: { type: 'STRING', enum: ['low', 'medium', 'high'] },
+        distinctive_features: { type: 'ARRAY', items: { type: 'STRING' }, maxItems: 8 },
+        style_tags: { type: 'ARRAY', items: { type: 'STRING' }, maxItems: 6 },
+      },
+      required: [...SELECTED_ITEM_RESPONSE_SCHEMA.properties.identification.required],
+    },
+  },
+  required: [...SELECTED_ITEM_RESPONSE_SCHEMA.required],
+} as const;
+
+const SELECTED_ITEM_COMMERCE_IDENTITY_PROMPT = `
+Also perform a bounded commercial identity analysis of the same selected garment.
+This is for shopping match quality only. It never changes which garment you analyzed.
+
+Add these optional identification fields when — and only when — the image supports them:
+- visible_brand_text: brand wording, wordmark, or tag text you can actually read on the garment. Omit if none is legible.
+- logo_detected: true only when a brand logo or monogram is actually visible.
+- brand_guess: the brand you believe made this item.
+- brand_confidence: "high" | "medium" | "low"
+    high   = you can see a logo, wordmark, or tag identifying the brand.
+    medium = no readable wordmark, but distinctive construction, hardware, a recognizable
+             model/family detail, silhouette, or pattern makes the brand visually plausible.
+    low    = a weak hypothesis with little supporting visual evidence.
+- exact_item_hypothesis: the specific purchasable product or product family the item
+  appears to be, for example "L01 Motorcycle Jacket", "Speedy 30", "Air Jordan 1 High",
+  "Rockstud Pump". Omit this field entirely when the product family cannot be
+  responsibly inferred. Do not invent a model name to fill the field.
+- exact_match_confidence: "high" | "medium" | "low", graded the same way.
+- distinctive_features: up to 8 short, concrete, fashion-specific construction details that
+  would help distinguish this exact item from look-alikes, for example "asymmetric zipper",
+  "silver-tone hardware", "belted hem", "quilted construction", "chain strap",
+  "monogram pattern", "contrast stitching", "distinctive pocket layout".
+  Keep each entry a short noun phrase. No sentences, no marketing prose, no adjectives
+  such as luxury, designer, premium, vintage, or inspired.
+- style_tags: up to 6 short style descriptors.
+
+Rules:
+- Omitting a field is always better than guessing one. "low" is the correct grade for a
+  weak hypothesis; do not inflate it.
+- Never state or imply certainty you do not have.
+- Never identify a person, and never infer age, race, gender identity, body type, health,
+  religion, income, or any other protected trait — including from a brand or price signal.
+- Analyze only the selected garment. Ignore the person, face, body, background, and every
+  unselected garment.`;
+
 function buildSelectedItemPrompt(candidate: {
   candidateId: string;
   category: string;
   subtype?: string;
   bounds?: { x: number; y: number; width: number; height: number };
-}): string {
+}, commerceIdentityEnabled = false): string {
   const target = JSON.stringify(candidate);
   return `You are K Scan AI's selected-garment identification engine.
 
@@ -754,7 +837,11 @@ Analyze only that garment in the original parent image.
 Use its normalized bounds to locate it.
 Do not switch to a larger, more central, or more recognizable garment.
 Ignore the person, face, body, background, and every unselected garment.
-Do not guess a brand unless clearly visible on the selected garment.
+${
+    commerceIdentityEnabled
+      ? 'Report brand only as graded evidence, per the commercial identity section below.'
+      : 'Do not guess a brand unless clearly visible on the selected garment.'
+  }
 
 Return strict JSON only in the existing single-item response shape:
 - status must be completed
@@ -764,7 +851,10 @@ Return strict JSON only in the existing single-item response shape:
 - userMessage must concisely describe the selected garment
 - do not return detectedGarments
 
-If an attribute is uncertain, use "unknown" rather than switching garments.`;
+If an attribute is uncertain, use "unknown" rather than switching garments.${
+    commerceIdentityEnabled ? `
+${SELECTED_ITEM_COMMERCE_IDENTITY_PROMPT}` : ''
+  }`;
 }
 
 const TEXT_IDENTIFY_PROMPT = `You are K Scan AI's fashion identification engine.
@@ -1325,7 +1415,10 @@ function sanitizeAttributes(raw: unknown): Record<string, unknown> | undefined {
 /**
  * Build a sanitized identification object from raw model output.
  */
-function sanitizeIdentification(raw: unknown): Record<string, unknown> | undefined {
+function sanitizeIdentification(
+  raw: unknown,
+  allowCommerceIdentity = false,
+): Record<string, unknown> | undefined {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
   const src = raw as Record<string, unknown>;
   const out: Record<string, unknown> = {};
@@ -1333,6 +1426,12 @@ function sanitizeIdentification(raw: unknown): Record<string, unknown> | undefin
   for (const key of IDENTIFICATION_STRING_KEYS) {
     const v = safeString(src[key]);
     if (v) out[key] = v;
+  }
+  if (allowCommerceIdentity) {
+    for (const key of IDENTIFICATION_IDENTITY_STRING_KEYS) {
+      const v = safeString(src[key]);
+      if (v) out[key] = v;
+    }
   }
   for (const key of IDENTIFICATION_ARRAY_KEYS) {
     const v = safeStringArray(src[key]);
@@ -2042,6 +2141,9 @@ Deno.serve(async (req) => {
   const relevanceEnabled = intelligenceEnabled && isCommerceRelevanceEnabled();
   // TextScan parity requires relevance ON; when OFF → exact repaired-v122 TextScan behavior.
   const textScanParityEnabled = relevanceEnabled && isTextScanCommerceParityEnabled();
+  // Commerce identity requires relevance ON; when OFF → exact repaired-v123 behavior.
+  // Ranking-only: it never changes the commerce query, provider order, or call count.
+  const commerceIdentityEnabled = relevanceEnabled && isCommerceIdentityEnabled();
 
   const requestModeForRoute = useMultiItemDetectionProvider
     ? 'multi_item_detection' as const
@@ -2077,7 +2179,7 @@ Deno.serve(async (req) => {
   const multiItemPrompt = withQualityAndRoute(MULTI_ITEM_IDENTIFY_PROMPT);
   const textIdentifyPrompt = withQualityAndRoute(TEXT_IDENTIFY_PROMPT);
   const selectedItemPrompt = selectedCandidate
-    ? withQualityAndRoute(buildSelectedItemPrompt(selectedCandidate))
+    ? withQualityAndRoute(buildSelectedItemPrompt(selectedCandidate, commerceIdentityEnabled))
     : '';
 
   const geminiBody = mode === 'text'
@@ -2120,7 +2222,11 @@ Deno.serve(async (req) => {
           ...(useMultiItemDetectionProvider
             ? { responseSchema: MULTI_ITEM_RESPONSE_SCHEMA }
             : useSelectedItemProvider
-            ? { responseSchema: SELECTED_ITEM_RESPONSE_SCHEMA }
+            ? {
+              responseSchema: commerceIdentityEnabled
+                ? SELECTED_ITEM_RESPONSE_SCHEMA_V124
+                : SELECTED_ITEM_RESPONSE_SCHEMA,
+            }
             : {}),
         },
       };
@@ -2385,7 +2491,10 @@ Deno.serve(async (req) => {
     }
 
     // Try the new rich identification shape first.
-    let identification = sanitizeIdentification(primaryGarmentFields.identification ?? parsed.identification);
+    let identification = sanitizeIdentification(
+      primaryGarmentFields.identification ?? parsed.identification,
+      commerceIdentityEnabled,
+    );
     let attributes: Record<string, unknown> | undefined;
     if (useMultiItemDetectionProvider && primaryGarmentFields.attributes) {
       attributes = primaryGarmentFields.attributes;
@@ -2399,7 +2508,10 @@ Deno.serve(async (req) => {
     // If the model returned only legacy attributes (no identification), derive a
     // minimal identification so catalog retrieval still gets a canonicalCategory.
     if (!identification && attributes && rawStatus === 'completed') {
-      identification = sanitizeIdentification(buildIdentificationFromAttributes(attributes));
+      identification = sanitizeIdentification(
+        buildIdentificationFromAttributes(attributes),
+        commerceIdentityEnabled,
+      );
     }
 
     // Quality-tune: deterministic taxonomy normalization + generic recovery.
@@ -2419,7 +2531,9 @@ Deno.serve(async (req) => {
             g.attributes as Record<string, unknown>,
           );
           if (intelligenceEnabled) {
-            const gated = applyScannerQualityGate(tuned.identification, tuned.attributes);
+            const gated = applyScannerQualityGate(tuned.identification, tuned.attributes, {
+              commerceIdentityEnabled,
+            });
             tuned = {
               ...tuned,
               identification: gated.identification,
@@ -2444,7 +2558,8 @@ Deno.serve(async (req) => {
           qualityInvalidPairsResolved += tuned.invalidPairResolved;
         }
         const primaryTuned = primaryGarmentResponseFields(detectedGarments);
-        identification = sanitizeIdentification(primaryTuned.identification) ?? identification;
+        identification = sanitizeIdentification(primaryTuned.identification, commerceIdentityEnabled) ??
+          identification;
         attributes = (primaryTuned.attributes as Record<string, unknown> | undefined) ?? attributes;
       } else if (identification || attributes) {
         let tuned = applyQualityTaxonomyTune(
@@ -2452,14 +2567,17 @@ Deno.serve(async (req) => {
           attributes as Record<string, unknown> | undefined,
         );
         if (intelligenceEnabled) {
-          intelligenceGate = applyScannerQualityGate(tuned.identification, tuned.attributes);
+          intelligenceGate = applyScannerQualityGate(tuned.identification, tuned.attributes, {
+            commerceIdentityEnabled,
+          });
           tuned = {
             ...tuned,
             identification: intelligenceGate.identification,
             attributes: intelligenceGate.attributes,
           };
         }
-        identification = sanitizeIdentification(tuned.identification) ?? identification;
+        identification = sanitizeIdentification(tuned.identification, commerceIdentityEnabled) ??
+          identification;
         if (tuned.attributes) attributes = tuned.attributes;
         qualityNormCorrectionCount = tuned.correctionCount;
         qualityNormRuleIds = tuned.ruleIds;
@@ -2777,6 +2895,12 @@ Deno.serve(async (req) => {
                 qualityBand: intelligenceGate.qualityBand,
               }
               : {}),
+            ...(commerceIdentityEnabled && intelligenceGate
+              ? {
+                commerceIdentityEnabled: true,
+                commerceIdentity: intelligenceGate.commerceIdentity,
+              }
+              : {}),
           }).catch((err) => {
             console.warn('[scan-identify] text commerce router error:', err);
             return {
@@ -2919,6 +3043,9 @@ Deno.serve(async (req) => {
                 enabled: true as const,
                 categoryRoute: commerceCategoryRoute,
                 qualityBand: intelligenceGate?.qualityBand ?? null,
+                ...(commerceIdentityEnabled && intelligenceGate?.commerceIdentity
+                  ? { commerceIdentity: intelligenceGate.commerceIdentity }
+                  : {}),
               }
               : undefined;
             const filtered = filterAndDedupeProducts(
@@ -3091,6 +3218,12 @@ Deno.serve(async (req) => {
               relevanceEnabled: true,
               relevanceRoute: commerceCategoryRoute,
               qualityBand: intelligenceGate.qualityBand,
+            }
+            : {}),
+          ...(commerceIdentityEnabled && intelligenceGate
+            ? {
+              commerceIdentityEnabled: true,
+              commerceIdentity: intelligenceGate.commerceIdentity,
             }
             : {}),
         }).catch((err) => {
@@ -3377,6 +3510,17 @@ Deno.serve(async (req) => {
           '[scan-identify] commerce_relevance_version=%s enabled=true route=%s',
           COMMERCE_RELEVANCE_VERSION,
           commerceCategoryRoute,
+        );
+      }
+      if (commerceIdentityEnabled) {
+        // Grades only — never the brand string, model hypothesis, or any
+        // free-text evidence, so this stays scrubbed of model-derived content.
+        console.log(
+          '[scan-identify] commerce_identity_version=%s enabled=true brand_grade=%s exact_grade=%s features=%d',
+          COMMERCE_IDENTITY_VERSION,
+          intelligenceGate?.commerceIdentity?.brandGrade ?? 'n/a',
+          intelligenceGate?.commerceIdentity?.exactMatchGrade ?? 'n/a',
+          intelligenceGate?.commerceIdentity?.distinctiveFeatures.length ?? 0,
         );
       }
       if (textScanParityEnabled && mode === 'text') {
