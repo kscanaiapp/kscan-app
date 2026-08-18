@@ -28,6 +28,7 @@ import { StyleChatInput } from '../../components/style-chat/StyleChatInput';
 import { StyleChatContextPreview } from '../../components/style-chat/StyleChatContextPreview';
 import { StyleChatStyleDnaCard } from '../../components/style-chat/StyleChatStyleDnaCard';
 import { useStyleChat } from '../../hooks/useStyleChat';
+import { useGenderStylingContext } from '../../hooks/useGenderStylingContext';
 import { getFriendlyStyleChatError } from '../../services/style-chat/styleChatErrors';
 import { deleteStyleChatSession } from '../../services/style-chat/styleChatRepository';
 import {
@@ -83,6 +84,9 @@ export default function StyleChatSessionScreen() {
   const { preferences: styleDnaPreferences, updatePreferences: updateStyleDnaPreferences } =
     useStyleDnaPreferences({ userKey });
   const weather = useWeatherStyling(sessionId ?? '');
+  // Fix #5 — already hydrated by the time a session screen mounts (the
+  // /style-chat index screen gates entry on this same hook's first-use card).
+  const genderStylingContext = useGenderStylingContext();
   // Phase 2: build a data-only Style Memory context per send. Reads the local profile
   // fresh each time and self-gates on EXPO_PUBLIC_STYLE_DNA_CONTEXT_ENABLED + the
   // >=3-signal threshold (returns null otherwise). Reading fresh means a reset — which
@@ -198,6 +202,7 @@ export default function StyleChatSessionScreen() {
     getWeatherLocation: weather.getWeatherLocation,
     getStyleDnaContext,
     activeContext: activeContextForGeneration,
+    genderStylingContext: genderStylingContext.value,
   });
 
   const [isDeleting, setIsDeleting] = useState(false);
