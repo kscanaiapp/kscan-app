@@ -184,6 +184,11 @@ test('visible speaking state begins only after native playback reports playing',
   let clientRequest;
   const speech = transpileModule('services/avatarSpeech.ts', {
     '../stores/avatarSpeechStore': store,
+    // Inert: AppState binding is a subscription only and owns no speech state.
+    './avatars/speechAppState': {
+      ensureSpeechAppStateListener: () => {},
+      registerSpeechInterruptionHandler: () => {},
+    },
     './avatars/stylistSpeechClient': {
       requestStylistSpeech: async (request) => {
         clientRequest = request;
@@ -229,6 +234,11 @@ test('client duplicate suppression prevents a second generation request for one 
   let requests = 0;
   const speech = transpileModule('services/avatarSpeech.ts', {
     '../stores/avatarSpeechStore': store,
+    // Inert: AppState binding is a subscription only and owns no speech state.
+    './avatars/speechAppState': {
+      ensureSpeechAppStateListener: () => {},
+      registerSpeechInterruptionHandler: () => {},
+    },
     './avatars/stylistSpeechClient': {
       requestStylistSpeech: async (request) => {
         requests += 1;
