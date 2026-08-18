@@ -1,10 +1,29 @@
 export type StylistSpeechVoiceProfile = 'feminine' | 'masculine';
 
-export interface StylistSpeechRequest {
+/**
+ * Speak a persisted assistant message. The function reads the text from a row
+ * the caller provably owns, so the client never supplies speech text.
+ */
+export interface StylistSpeechMessageRequest {
+  mode: 'message';
   sessionId: string;
   messageId: string;
   stylistId: string;
 }
+
+/**
+ * Speak one allowlisted deterministic cue. Carries a cue KEY, never cue text —
+ * the approved words live server-side in `speechCues.ts`.
+ */
+export interface StylistSpeechCueRequest {
+  mode: 'cue';
+  cue: string;
+  stylistId: string;
+}
+
+export type StylistSpeechRequest =
+  | StylistSpeechMessageRequest
+  | StylistSpeechCueRequest;
 
 export interface SpeechAlignment {
   characters: string[];
@@ -12,13 +31,33 @@ export interface SpeechAlignment {
   characterEndTimesSeconds: number[];
 }
 
+/**
+ * Build 29 alignment diagnostic addendum — reports which provider field (if
+ * either) produced `alignment`, so the client can tell a provider that sent
+ * nothing apart from a provider that sent something which failed to parse,
+ * without ever seeing the raw field. Additive only; does not change what
+ * `alignment` itself contains.
+ *
+ * Deliberately free of double-quoted phrases: the edge-function parity gate
+ * scans deployable sources for import specifiers and reads a quoted fragment
+ * in a comment as one.
+ */
+export interface SpeechAlignmentDiagnostics {
+  source: 'normalized_alignment' | 'alignment' | 'none';
+  rawStatus: 'absent' | 'malformed' | 'valid';
+}
+
 export interface StylistSpeechResponse {
-  messageId: string;
+  /** Set in message mode; null for a deterministic cue. */
+  messageId: string | null;
+  /** Set in cue mode; null when speaking a persisted message. */
+  cue: string | null;
   stylistId: string;
   voiceProfile: StylistSpeechVoiceProfile;
   mimeType: 'audio/mpeg';
   audioBase64: string;
   alignment: SpeechAlignment | null;
+  alignmentDiagnostics: SpeechAlignmentDiagnostics;
 }
 
 export interface SpeechSessionRow {
