@@ -20,7 +20,12 @@ import { useRouter } from 'expo-router';
 import { useScanAnimation } from './hooks/useScanAnimation';
 import { useKScan } from './hooks/useKScan';
 import { candidateReviewDescriptor } from './services/multiImageScan';
-import { saveScan, selectPurchaseOptionsSnapshot, attachScanPurchaseOptions } from './services/library';
+import {
+  saveScan,
+  selectPurchaseOptionsSnapshot,
+  attachScanPurchaseOptions,
+  purchaseOptionsFingerprint,
+} from './services/library';
 import { createActorRequest, isActorRequestCurrent } from './services/actorContext';
 import { setStyleChatHandoffContext } from './services/style-chat/styleChatHandoffContext';
 import { AnalysisCard } from './components/AnalysisCard';
@@ -551,85 +556,15 @@ export default function App() {
       if (!options.length) continue;
       // One attach per (record, shelf). Re-running for the same shelf would be
       // harmless — the write replaces rather than appends — but it would still
-      // be a pointless write on every rerender.
-      const key = savedId + ':' + options.length;
+      // be a pointless write on every rerender. Keyed on shelf CONTENT, because
+      // enrichment upgrades offers in place and so leaves the count unchanged.
+      const key = savedId + ':' + purchaseOptionsFingerprint(options);
       if (attachedCommerceRef.current[item.id] === key) continue;
       attachedCommerceRef.current[item.id] = key;
       const actorRequest = createActorRequest();
       attachScanPurchaseOptions(savedId, options, { actorRequest }).catch(() => null);
     }
   }, [status, scanItems, savedScanIdsByItem]);
-
-  // When the scanner was opened from Elise, automatically return the structured
-  // visual context to the originating session once analysis completes.
-  const hasReturnedRef = useRef(false);
-  useEffect(() => {
-    if (status !== 'result' || !returnToSessionId || !analysis || hasReturnedRef.current) return;
-    hasReturnedRef.current = true;
-
-    void (async () => {
-      const intent = visualContextIntentId
-        ? consumeVisualContextScanIntent(visualContextIntentId)
-        : null;
-      if (!intent || intent.sessionId !== returnToSessionId) {
-        router.replace(`/style-chat/${returnToSessionId}`);
-        return;
-      }
-
-      const { data } = await supabase.auth.getSession();
-      const user = data.session?.user;
-      if (!user) {
-        router.replace(`/style-chat/${returnToSessionId}`);
-        return;
-      }
-      const actorKey = `user:${user.id}`;
-      if (
-        intent.actorKey !== actorKey ||
-        !isVisualContextRevisionCurrent(actorKey, returnToSessionId, intent.expectedRevision)
-      ) {
-        router.replace(`/style-chat/${returnToSessionId}`);
-        return;
-      }
-      const meta = analysis?.metadata ?? {};
-      const source = photo?.source === 'upload' ? 'upload' : 'scan';
-
-      // Phase 2B.3: when Scanner produced a canonical V2 identity, hand THAT to
-      // Elise rather than only the legacy display metadata. The identity is
-      // reused verbatim — Elise never re-identifies a garment Scanner already
-      // identified, so the handoff costs no second scan and the two surfaces
-      // cannot disagree about what the item is.
-      //
-      // Absent when Scanner ran on the legacy contract, which leaves the
-      // descriptive fields below as the only context exactly as today.
-      const scannerIdentificationV2 =
-        analysis?.identificationSnapshotV2?.identification ?? null;
-
-      appendVisualContextEntry(actorKey, returnToSessionId, buildEliseVisualContext({
-        actorKey,
-        sessionId: returnToSessionId,
-        source,
-        status: 'ready',
-        title: analysis.title || meta.displayCategory || meta.category || 'Fashion item',
-        summary: analysis.result || null,
-        category: meta.category || meta.displayCategory || null,
-        colors: meta.color ? meta.color.split(', ').map((s) => s.trim()).filter(Boolean) : undefined,
-        materials: meta.material || meta.materialEstimate ? [meta.material || meta.materialEstimate] : undefined,
-        silhouette: meta.silhouette || null,
-        styleAttributes: meta.styleTags || meta.styleDescriptors || undefined,
-        brand: meta.brand || null,
-        confidence: typeof meta.confidenceScore === 'number' ? meta.confidenceScore : undefined,
-        ...(scannerIdentificationV2
-          ? {
-            identificationV2: scannerIdentificationV2,
-            identificationState:
-              scannerIdentificationV2.status === 'partial' ? 'partial' : 'ready',
-          }
-          : {}),
-      }));
-
-      router.replace(`/style-chat/${returnToSessionId}`);
-    })();
-  }, [status, analysis, returnToSessionId, visualContextIntentId, photo?.source, router]);
 
   // Android hardware back button — handle non-modal screens where React
   // Native's default behavior would exit the app instead of resetting state.

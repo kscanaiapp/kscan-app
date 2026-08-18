@@ -278,6 +278,49 @@ async function persistScanImage(photoUri, assetId) {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
+ * Select the durable commerce snapshot for a scan.
+ *
+ * Precedence is deliberate and must not be widened to `products`:
+ * scanIdentificationMapper maps `similarityMatches` → `products` (the catalog
+ * "similar items" shelf) and `recommendedProducts` → `purchaseOptions` (live
+ * commerce). Falling back to `products` would relabel similarity matches as
+ * purchase options. The `recommendedProducts` fallback covers the older
+ * backend shape where no `similarityMatches` field exists and the mapper
+ * leaves `purchaseOptions` undefined.
+ */
+export function selectPurchaseOptionsSnapshot(analysis) {
+  if (!analysis || typeof analysis !== 'object') return [];
+  const raw = Array.isArray(analysis.purchaseOptions)
+    ? analysis.purchaseOptions
+    : Array.isArray(analysis.recommendedProducts)
+      ? analysis.recommendedProducts
+      : [];
+  return normalizePurchaseOptions(raw);
+}
+
+/**
+ * Content fingerprint of a commerce snapshot, used to decide whether a shelf
+ * still needs to be written.
+ *
+ * Must not be reduced to a count: v127 enrichment replaces offers in place
+ * rather than appending, so an enriched shelf has the same length as the
+ * discovery shelf it upgraded. Keying on length alone therefore treats the
+ * better data as already-persisted and drops it. The fields here are exactly
+ * the ones enrichment can improve.
+ */
+export function purchaseOptionsFingerprint(options) {
+  if (!Array.isArray(options) || options.length === 0) return '';
+  return options
+    .map((option) => {
+      if (!option || typeof option !== 'object') return '';
+      return [option.productUrl, option.price, option.imageUrl, option.title]
+        .map((field) => (typeof field === 'string' ? field : ''))
+        .join('|');
+    })
+    .join('~');
+}
+
+/**
  * Load all saved scans from local storage. Returns [] on any error.
  * @param {string|null|undefined} [actorId] - when provided, filters owned scans;
  *   null selects only ownerless device-local legacy rows.
