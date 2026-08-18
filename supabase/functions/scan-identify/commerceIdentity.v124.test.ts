@@ -323,14 +323,19 @@ Deno.test('provider brand survives normalization and feeds identity matching', (
 });
 
 Deno.test('providers extract brand from provider payloads only, never from titles', async () => {
-  const farfetch = await Deno.readTextFile(new URL('./farfetchProvider.ts', import.meta.url));
+  // Phase 3: Farfetch3 and KicksCrew are URL-driven enrichment adapters
+  // (farfetch3Provider.ts / kicksCrewProvider.ts), not keyword-search
+  // adapters — the retired farfetchProvider.ts no longer exists. The
+  // underlying guarantee this test protects is unchanged: brand comes only
+  // from a provider-declared field, never derived from title or retailer.
+  const farfetch = await Deno.readTextFile(new URL('./farfetch3Provider.ts', import.meta.url));
   const kickscrew = await Deno.readTextFile(new URL('./kicksCrewProvider.ts', import.meta.url));
   const router = await Deno.readTextFile(new URL('./scanCommerceRouter.ts', import.meta.url));
 
-  // Both specialized providers now read and carry a provider-declared brand.
-  assert(/function extractBrand\(/.test(farfetch));
-  assert(/const brand = extractBrand\(item\);/.test(farfetch));
-  assert(/const brand = extractBrand\(item\);/.test(kickscrew));
+  // Both specialized providers read and carry a provider-declared brand field.
+  assert(/const brandField = data\.brand as/.test(farfetch));
+  assert(/const brand = str\(brandField\?\.name\)/.test(farfetch));
+  assert(/const brand = str\(product\.vendor\)/.test(kickscrew));
   assert(farfetch.includes('...(brand ? { brand } : {})'));
   assert(kickscrew.includes('...(brand ? { brand } : {})'));
 
@@ -340,7 +345,7 @@ Deno.test('providers extract brand from provider payloads only, never from title
 
   // Brand is never taken from retailer identity.
   assert(!/brand:\s*(p\.)?source/.test(router));
-  assert(!/extractBrand[\s\S]{0,400}item\.(source|retailer)\b/.test(farfetch));
+  assert(!/const brand = str\(brandField\?\.name\)[\s\S]{0,400}\.(source|retailer)\b/.test(farfetch));
 });
 
 // ── F. Retailer neutrality ───────────────────────────────────────────────────
@@ -358,7 +363,7 @@ Deno.test('retailer neutrality: the provider that returned a listing never score
     productUrl: 'https://shop-h.test/p/l01',
     brand: 'Saint Laurent',
   };
-  const scores = ['Farfetch', 'KicksCrew', 'Serper', 'Brave', 'RetailerA'].map((source) =>
+  const scores = ['Farfetch', 'KicksCrew', 'Poshmark', 'Serper', 'Brave', 'RetailerA'].map((source) =>
     scoreProductAgreement(product({ ...base, source }), garment, null, identity).score
   );
   assertEquals(new Set(scores).size, 1, 'retailer identity changed the score');

@@ -1,11 +1,19 @@
 // scanCommerceRouter.ts — Camera-scan live commerce fallback for image mode.
 //
-// Phase 2B scope:
-//   - KicksCrew specialized provider for sneaker/footwear scans (when enabled)
-//   - Farfetch specialized provider for non-sneaker fashion scans (when enabled)
-//   - Serper Shopping fallback
-//   - Brave Web Search fallback
-//   - No other specialized providers yet
+// Phase 3 scope (provider modernization + expansion):
+//   Discovery (retailer-neutral, run in bounded parallel):
+//     - Serper Shopping / Brave Web Search fallback (unchanged)
+//     - Poshmark resale search (new)
+//   Enrichment (URL-driven only — neither API offers keyword search; proven
+//   live during Phase 3 contract discovery, see farfetch3Provider.ts and
+//   kicksCrewProvider.ts headers):
+//     - Farfetch3, for any discovered farfetch.com product URL
+//     - KicksCrew, for any discovered kickscrew.com product URL, sneaker
+//       scans only (unchanged routing gate)
+//   v124 identity-aware ranking and v125 query-intelligence are untouched by
+//   this phase — only provider orchestration changed, because the old
+//   sequential "KicksCrew/Farfetch keyword search first" cascade cannot work
+//   against URL-driven-only provider contracts.
 //
 // Backend-only. No API keys, headers, raw provider payloads, or user PII are
 // logged or returned to the mobile app.
@@ -16,13 +24,16 @@ import {
   type RecommendedProduct,
 } from './shoppingProvider.ts';
 import {
-  searchFarfetchProducts,
-  type FarfetchProduct,
-} from './farfetchProvider.ts';
+  enrichFarfetchProductByUrl,
+  isFarfetchProductUrl,
+  type Farfetch3Product,
+} from './farfetch3Provider.ts';
 import {
-  searchKicksCrewProducts,
+  enrichKicksCrewProductByUrl,
+  isKicksCrewProductUrl,
   type KicksCrewProduct,
 } from './kicksCrewProvider.ts';
+import { searchPoshmarkProducts, type PoshmarkProduct } from './poshmarkProvider.ts';
 import { isQualityTuneEnabled, QUALITY_TUNE_MIN_VALID_PRODUCTS } from './qualityTuneConfig.ts';
 import {
   buildWeightedCommerceQueries,
@@ -78,7 +89,7 @@ export type ScanCommerceInput = {
   commerceRetrievalEnabled?: boolean;
 };
 
-export type ScanCommerceProvider = 'kickscrew' | 'farfetch' | 'serper' | 'brave' | 'none';
+export type ScanCommerceProvider = 'kickscrew' | 'farfetch' | 'poshmark' | 'serper' | 'brave' | 'none';
 
 export type ScanCommerceResult = {
   products: RecommendedProduct[];
@@ -181,8 +192,21 @@ const TRACKING_PARAMS = new Set([
 ]);
 
 const MAX_QUERY_LEN = 200;
-const SUFFICIENT_THRESHOLD = 3;
 const MAX_RESULTS = 10;
+
+// ── Phase 3: discovery/enrichment orchestration bounds ─────────────────────
+//
+// One explicit outer deadline for the whole discovery fan-out, matching the
+// existing shoppingProvider.ts per-provider timeout (4.5s) rather than
+// inventing a new budget. Providers that do not answer in time are dropped
+// (partial-result salvage), never awaited past the deadline.
+const GLOBAL_DISCOVERY_DEADLINE_MS = 4_500;
+// Enrichment is a second network hop per candidate — bounded intentionally so
+// a large discovery pool cannot fan out into an unbounded number of extra
+// requests. Enrichment only runs for candidates that already resolved to the
+// matching retailer's domain.
+const MAX_FARFETCH_ENRICH = 2;
+const MAX_KICKSCREW_ENRICH = 2;
 
 const SNEAKER_KEYWORDS = new Set([
   'sneaker',
@@ -593,7 +617,7 @@ function logCommerce(
 // ── Provider result merging ──────────────────────────────────────────────────
 
 function normalizeToRecommendedProduct(
-  p: FarfetchProduct | KicksCrewProduct,
+  p: Farfetch3Product | KicksCrewProduct | PoshmarkProduct,
   includeBrand = false,
 ): RecommendedProduct {
   return {
@@ -604,6 +628,7 @@ function normalizeToRecommendedProduct(
     type: p.type,
     imageUrl: p.imageUrl,
     productUrl: p.productUrl,
+    commerceType: p.commerceType,
     // v124: provider brand was previously discarded at this boundary.
     ...(includeBrand && p.brand ? { brand: p.brand } : {}),
   };
@@ -623,27 +648,87 @@ function dedupeProductsByUrl(products: RecommendedProduct[]): RecommendedProduct
   return out;
 }
 
+// ── Phase 3: bounded parallel discovery + URL-driven enrichment ────────────
+
+/**
+ * Races a promise against a shared deadline instead of rejecting on timeout,
+ * so a slow discovery provider degrades to "no result" rather than failing
+ * the whole fan-out — partial-result salvage, not an error path.
+ */
+function withDeadline<T>(promise: Promise<T>, timeoutMs: number, onTimeout: T): Promise<T> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(onTimeout), timeoutMs);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(onTimeout);
+      },
+    );
+  });
+}
+
+/**
+ * Enrich the bounded subset of a candidate pool whose productUrl already
+ * resolves to the given retailer's domain. Returns the pool with matching
+ * entries replaced by their enriched version when enrichment succeeds;
+ * candidates that fail enrichment (or were never attempted, past the bound)
+ * are left exactly as discovered — enrichment can only improve a candidate,
+ * never remove one.
+ */
+async function enrichDiscoveredUrls(
+  pool: RecommendedProduct[],
+  opts: {
+    matchesDomain: (url: string | undefined) => boolean;
+    enrich: (url: string) => Promise<{ product: { productUrl: string } & Partial<RecommendedProduct> | null }>;
+    cap: number;
+    includeBrand: boolean;
+  },
+): Promise<RecommendedProduct[]> {
+  const candidates = pool.filter((p) => opts.matchesDomain(p.productUrl)).slice(0, opts.cap);
+  if (candidates.length === 0) return pool;
+
+  const results = await Promise.allSettled(
+    candidates.map((c) => opts.enrich(c.productUrl as string)),
+  );
+
+  const enrichedByUrl = new Map<string, RecommendedProduct>();
+  for (const result of results) {
+    if (result.status !== 'fulfilled' || !result.value.product) continue;
+    const p = result.value.product as unknown as Farfetch3Product | KicksCrewProduct;
+    enrichedByUrl.set(p.productUrl.toLowerCase(), normalizeToRecommendedProduct(p, opts.includeBrand));
+  }
+  if (enrichedByUrl.size === 0) return pool;
+
+  return pool.map((p) => {
+    const key = (p.productUrl || '').toLowerCase();
+    return enrichedByUrl.get(key) ?? p;
+  });
+}
+
 // ── Public entry point ───────────────────────────────────────────────────────
 
 /**
  * Get live commerce results for a camera scan.
  *
- * Phase 2B routing:
- *   For sneaker/footwear scans:
- *     1. KicksCrew when enabled and a RapidAPI key is available.
- *        - 3+ valid products: use KicksCrew, skip Farfetch/Serper/Brave.
- *        - 1-2 valid products: keep KicksCrew and try Farfetch.
- *          - combined 3+ : skip Serper/Brave.
- *          - combined <3 : fall back to Serper/Brave.
- *        - 0 valid products or failure: fall back to Farfetch → Serper/Brave.
- *   For non-sneaker fashion scans:
- *     1. Farfetch when enabled and a RapidAPI key is available.
- *        - 3+ valid products: use Farfetch, skip Serper/Brave.
- *        - 1-2 valid products: keep Farfetch and fall back to Serper/Brave.
- *        - 0 valid products or failure: fall back to Serper/Brave.
+ * Phase 3 routing:
+ *   1. Serper/Brave (retailer-neutral) and Poshmark (resale) run in bounded
+ *      parallel against one shared deadline. A straggler is dropped, not
+ *      awaited — its results are simply absent, not an error.
+ *   2. Any discovered farfetch.com product URL is enriched via Farfetch3
+ *      (bounded count). Any discovered kickscrew.com product URL is enriched
+ *      via KicksCrew (bounded count, sneaker scans only — unchanged gate).
+ *      Neither provider can discover candidates from a query; both are
+ *      URL-driven enrichment only (proven live, not assumed).
+ *   3. The enriched pool feeds the unchanged v124/v125 quality-tune filter,
+ *      dedupe, and brand-neutral fallback-query recursion.
  *
  * Provider failures are caught and surfaced only as safe diagnostics; the scan
- * itself never fails because of commerce.
+ * itself never fails because of commerce. No provider identity ever carries a
+ * ranking bonus — v124 stays the sole relevance authority.
  */
 export async function getScanCommerceResults(
   input: ScanCommerceInput,
@@ -752,163 +837,86 @@ export async function getScanCommerceResults(
     input.originalText,
   );
 
-  // ── 1. Sneaker path: try KicksCrew first ────────────────────────────────────
-  let kicksProducts: RecommendedProduct[] = [];
-  let kicksErrorType: string | undefined;
+  // ── 1. Bounded parallel discovery: Serper/Brave + Poshmark ──────────────────
+  //
+  // Neither Farfetch3 nor KicksCrew offers keyword search (proven live — see
+  // their provider files), so discovery is retailer-neutral text search only.
+  // Both discovery calls race the same deadline; a straggler is dropped, not
+  // awaited — partial-result salvage, not a hard failure.
+  providersTried.push('serper');
+  const poshmarkAttempted = { tried: false };
+  const [shoppingSettled, poshmarkSettled] = await Promise.all([
+    withDeadline(
+      getShoppingResults({ query, limit }),
+      GLOBAL_DISCOVERY_DEADLINE_MS,
+      { products: [], provider: 'none' as const, query, errorType: 'timeout' },
+    ),
+    withDeadline(
+      (async () => {
+        poshmarkAttempted.tried = true;
+        return searchPoshmarkProducts(query, { limit });
+      })(),
+      GLOBAL_DISCOVERY_DEADLINE_MS,
+      { products: [], provider: 'poshmark' as const, query, errorType: 'timeout' },
+    ),
+  ]);
 
-  if (isSneaker) {
-    try {
-      const kicks = await searchKicksCrewProducts(query, { limit });
-      if (kicks.errorType !== 'disabled' && kicks.errorType !== 'no_key') {
-        providersTried.push('kickscrew');
-      }
-      kicksProducts = kicks.products.map((p) => normalizeToRecommendedProduct(p, identityEnabled));
-      kicksErrorType = kicks.errorType;
-    } catch (err) {
-      providersTried.push('kickscrew');
-      kicksErrorType = err instanceof Error ? err.name : 'unknown';
-    }
-
-    // 1a. KicksCrew has enough products → skip Farfetch/Serper/Brave entirely.
-    if (kicksProducts.length >= SUFFICIENT_THRESHOLD) {
-      let products = dedupeProductsByUrl(kicksProducts).slice(0, MAX_RESULTS);
-      let qualityTuneMeta: ScanCommerceResult['qualityTune'];
-      if (qualityEnabled) {
-        const filtered = filterAndDedupeProducts(
-          products,
-          input.identification || {},
-          relevanceOpts,
-        );
-        products = filtered.products.slice(0, MAX_RESULTS);
-        qualityTuneMeta = {
-          fallbackUsed: false,
-          productsBeforeDedupe: filtered.stats.productsBeforeDedupe,
-          productsAfterDedupe: filtered.stats.productsAfterDedupe,
-          categoryMismatchRemovals: filtered.stats.categoryMismatchRemovals,
-          identityKeyTypesUsed: filtered.stats.identityKeyTypesUsed,
-          productsBeforeFilter: filtered.stats.productsBeforeFilter,
-          retailerCount: filtered.stats.retailerCount,
-        };
-        // If quality filtering drops below threshold, continue provider cascade.
-        if (
-          shouldRunFallbackQuery(products.length, QUALITY_TUNE_MIN_VALID_PRODUCTS) &&
-          !input.disableQualityFallback
-        ) {
-          // keep kicksProducts; do not early-return
-        } else {
-          logCommerce('kickscrew', Date.now() - started, products.length, 0, kicksErrorType);
-          return {
-            products,
-            provider: 'kickscrew',
-            providersTried,
-            query,
-            count: products.length,
-            errorType: kicksErrorType,
-            ...(qualityTuneMeta ? { qualityTune: qualityTuneMeta } : {}),
-          };
-        }
-      } else {
-        logCommerce('kickscrew', Date.now() - started, products.length, 0, kicksErrorType);
-        return {
-          products,
-          provider: 'kickscrew',
-          providersTried,
-          query,
-          count: products.length,
-          errorType: kicksErrorType,
-        };
-      }
-    }
-  }
-
-  // ── 2. Try Farfetch (first for non-sneaker, supplement for sneaker) ────────
-  let farfetchProducts: RecommendedProduct[] = [];
-  let farfetchErrorType: string | undefined;
-  try {
-    const farfetch = await searchFarfetchProducts(query, { limit });
-    // Only record that we tried Farfetch if it was actually enabled/configured.
-    if (farfetch.errorType !== 'disabled' && farfetch.errorType !== 'no_key') {
-      providersTried.push('farfetch');
-    }
-    farfetchProducts = farfetch.products.map((p) => normalizeToRecommendedProduct(p, identityEnabled));
-    farfetchErrorType = farfetch.errorType;
-  } catch (err) {
-    providersTried.push('farfetch');
-    farfetchErrorType = err instanceof Error ? err.name : 'unknown';
-  }
-
-  // Merge KicksCrew first, then Farfetch, deduping by normalized URL.
-  const kicksFarfetchMerged = dedupeProductsByUrl([...kicksProducts, ...farfetchProducts]);
-
-  // 2a. Combined KicksCrew + Farfetch is enough → skip Serper/Brave.
-  if (kicksFarfetchMerged.length >= SUFFICIENT_THRESHOLD) {
-    let products = kicksFarfetchMerged.slice(0, MAX_RESULTS);
-    let provider: ScanCommerceProvider = kicksProducts.length > 0 ? 'kickscrew' : 'farfetch';
-    let qualityTuneMeta: ScanCommerceResult['qualityTune'];
-    let allowEarlyReturn = true;
-    if (qualityEnabled) {
-      const filtered = filterAndDedupeProducts(
-        products,
-        input.identification || {},
-        relevanceOpts,
-      );
-      products = filtered.products.slice(0, MAX_RESULTS);
-      qualityTuneMeta = {
-        fallbackUsed: false,
-        productsBeforeDedupe: filtered.stats.productsBeforeDedupe,
-        productsAfterDedupe: filtered.stats.productsAfterDedupe,
-        categoryMismatchRemovals: filtered.stats.categoryMismatchRemovals,
-        identityKeyTypesUsed: filtered.stats.identityKeyTypesUsed,
-        productsBeforeFilter: filtered.stats.productsBeforeFilter,
-        retailerCount: filtered.stats.retailerCount,
-      };
-      if (
-        shouldRunFallbackQuery(products.length, QUALITY_TUNE_MIN_VALID_PRODUCTS) &&
-        !input.disableQualityFallback
-      ) {
-        allowEarlyReturn = false;
-      }
-    }
-    if (allowEarlyReturn) {
-      logCommerce(provider, Date.now() - started, products.length, 0, kicksErrorType ?? farfetchErrorType);
-      return {
-        products,
-        provider,
-        providersTried,
-        query,
-        count: products.length,
-        errorType: kicksErrorType ?? farfetchErrorType,
-        ...(queryStrategy ? { queryStrategy } : {}),
-        ...(qualityTuneMeta ? { qualityTune: qualityTuneMeta } : {}),
-      };
-    }
-  }
-
-  // ── 3. Serper/Brave fallback ───────────────────────────────────────────────
-  let serperBraveProducts: RecommendedProduct[] = [];
-  let serperBraveProvider: ScanCommerceProvider = 'none';
-  let serperBraveErrorType: string | undefined;
-
-  try {
-    providersTried.push('serper');
-    const shopping = await getShoppingResults({ query, limit });
-    serperBraveProducts = shopping.products;
-    serperBraveProvider = shopping.provider === 'brave'
-      ? 'brave'
-      : shopping.provider === 'serper'
-      ? 'serper'
-      : 'none';
-    if (serperBraveProvider === 'brave') providersTried.push('brave');
-    serperBraveErrorType = shopping.errorType;
-  } catch (err) {
-    serperBraveErrorType = err instanceof Error ? err.name : 'unknown';
-  }
-
-  // Merge live providers in priority order, then dedupe.
-  let merged = dedupeProductsByUrl([...kicksFarfetchMerged, ...serperBraveProducts]).slice(0, MAX_RESULTS);
-  let provider: ScanCommerceProvider = merged.length > 0
-    ? (kicksProducts.length > 0 ? 'kickscrew' : farfetchProducts.length > 0 ? 'farfetch' : serperBraveProvider)
+  const shoppingProvider: ScanCommerceProvider = shoppingSettled.provider === 'brave'
+    ? 'brave'
+    : shoppingSettled.provider === 'serper'
+    ? 'serper'
     : 'none';
+  if (shoppingProvider === 'brave') providersTried.push('brave');
+  if (poshmarkAttempted.tried && poshmarkSettled.errorType !== 'disabled' && poshmarkSettled.errorType !== 'no_key') {
+    providersTried.push('poshmark');
+  }
+
+  const poshmarkProducts = poshmarkSettled.products.map((p) =>
+    normalizeToRecommendedProduct(p, identityEnabled)
+  );
+
+  // Priority order: retailer-neutral shopping results first, Poshmark resale
+  // additive after — dedupe collapses any URL overlap.
+  let pool = dedupeProductsByUrl([...shoppingSettled.products, ...poshmarkProducts]);
+
+  // ── 2. URL-driven enrichment ─────────────────────────────────────────────
+  //
+  // Farfetch3 and KicksCrew cannot discover candidates from a query — they can
+  // only enrich a product URL K Scan already has. Scan the discovered pool for
+  // matching-domain URLs (bounded) and enrich in place; enrichment never
+  // removes a candidate, it only strengthens one already present.
+  const farfetchCandidateCount = pool.filter((p) => isFarfetchProductUrl(p.productUrl)).length;
+  if (farfetchCandidateCount > 0) providersTried.push('farfetch');
+  pool = await enrichDiscoveredUrls(pool, {
+    matchesDomain: isFarfetchProductUrl,
+    enrich: enrichFarfetchProductByUrl,
+    cap: MAX_FARFETCH_ENRICH,
+    includeBrand: identityEnabled,
+  });
+
+  // KicksCrew stays sneaker-gated, exactly as before Phase 3.
+  if (isSneaker) {
+    const kickscrewCandidateCount = pool.filter((p) => isKicksCrewProductUrl(p.productUrl)).length;
+    if (kickscrewCandidateCount > 0) providersTried.push('kickscrew');
+    pool = await enrichDiscoveredUrls(pool, {
+      matchesDomain: isKicksCrewProductUrl,
+      enrich: enrichKicksCrewProductByUrl,
+      cap: MAX_KICKSCREW_ENRICH,
+      includeBrand: identityEnabled,
+    });
+  }
+
+  function labelProvider(p: RecommendedProduct): ScanCommerceProvider {
+    if (p.source === 'KicksCrew') return 'kickscrew';
+    if (p.source === 'Farfetch') return 'farfetch';
+    if (p.source === 'Poshmark') return 'poshmark';
+    return shoppingProvider;
+  }
+
+  const discoveryErrorType = shoppingSettled.errorType ?? poshmarkSettled.errorType;
+
+  let merged = pool.slice(0, MAX_RESULTS);
+  let provider: ScanCommerceProvider = merged.length > 0 ? labelProvider(merged[0]) : 'none';
 
   let qualityTuneMeta: ScanCommerceResult['qualityTune'];
   let fallbackUsed = false;
@@ -972,7 +980,7 @@ export async function getScanCommerceResults(
     provider = merged.length > 0 ? provider : 'none';
   }
 
-  logCommerce(provider, Date.now() - started, merged.length, 0, kicksErrorType ?? farfetchErrorType ?? serperBraveErrorType);
+  logCommerce(provider, Date.now() - started, merged.length, 0, discoveryErrorType);
 
   return {
     products: merged,
@@ -980,7 +988,7 @@ export async function getScanCommerceResults(
     providersTried,
     query,
     count: merged.length,
-    errorType: merged.length > 0 ? undefined : (kicksErrorType ?? farfetchErrorType ?? serperBraveErrorType ?? 'no_results'),
+    errorType: merged.length > 0 ? undefined : (discoveryErrorType ?? 'no_results'),
     ...(queryStrategy ? { queryStrategy } : {}),
     ...(qualityTuneMeta ? { qualityTune: qualityTuneMeta } : {}),
   };
