@@ -31,6 +31,7 @@ import {
   type CommerceRelevanceOptions,
 } from './qualityTuneCommerce.ts';
 import type { ScannerCategoryRoute } from './scannerCategoryRoute.ts';
+import type { CommerceIdentityEvidence } from './scannerQualityGate.ts';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -57,6 +58,15 @@ export type ScanCommerceInput = {
    * Image mode is unchanged regardless of this flag.
    */
   allowTextMode?: boolean;
+  /**
+   * v124 commerce identity — omit for exact repaired-v123 behavior.
+   *
+   * `commerceIdentityEnabled` governs provider brand normalization;
+   * `commerceIdentity` carries the graded evidence used by the ranker.
+   * Neither affects query construction, provider order, or provider count.
+   */
+  commerceIdentityEnabled?: boolean;
+  commerceIdentity?: CommerceIdentityEvidence;
 };
 
 export type ScanCommerceProvider = 'kickscrew' | 'farfetch' | 'serper' | 'brave' | 'none';
@@ -568,7 +578,10 @@ function logCommerce(
 
 // ── Provider result merging ──────────────────────────────────────────────────
 
-function normalizeToRecommendedProduct(p: FarfetchProduct | KicksCrewProduct): RecommendedProduct {
+function normalizeToRecommendedProduct(
+  p: FarfetchProduct | KicksCrewProduct,
+  includeBrand = false,
+): RecommendedProduct {
   return {
     id: p.id,
     title: p.title,
@@ -577,6 +590,8 @@ function normalizeToRecommendedProduct(p: FarfetchProduct | KicksCrewProduct): R
     type: p.type,
     imageUrl: p.imageUrl,
     productUrl: p.productUrl,
+    // v124: provider brand was previously discarded at this boundary.
+    ...(includeBrand && p.brand ? { brand: p.brand } : {}),
   };
 }
 
@@ -647,9 +662,17 @@ export async function getScanCommerceResults(
   const qualityEnabled = isQualityTuneEnabled();
   let fallbackQuery = '';
   let query = '';
+  const identityEnabled = input.commerceIdentityEnabled === true;
   const relevanceOpts: CommerceRelevanceOptions | undefined =
     input.relevanceEnabled && input.relevanceRoute
-      ? { enabled: true, categoryRoute: input.relevanceRoute, qualityBand: input.qualityBand }
+      ? {
+        enabled: true,
+        categoryRoute: input.relevanceRoute,
+        qualityBand: input.qualityBand,
+        ...(identityEnabled && input.commerceIdentity
+          ? { commerceIdentity: input.commerceIdentity }
+          : {}),
+      }
       : undefined;
 
   if (qualityEnabled) {
@@ -718,7 +741,7 @@ export async function getScanCommerceResults(
       if (kicks.errorType !== 'disabled' && kicks.errorType !== 'no_key') {
         providersTried.push('kickscrew');
       }
-      kicksProducts = kicks.products.map(normalizeToRecommendedProduct);
+      kicksProducts = kicks.products.map((p) => normalizeToRecommendedProduct(p, identityEnabled));
       kicksErrorType = kicks.errorType;
     } catch (err) {
       providersTried.push('kickscrew');
@@ -786,7 +809,7 @@ export async function getScanCommerceResults(
     if (farfetch.errorType !== 'disabled' && farfetch.errorType !== 'no_key') {
       providersTried.push('farfetch');
     }
-    farfetchProducts = farfetch.products.map(normalizeToRecommendedProduct);
+    farfetchProducts = farfetch.products.map((p) => normalizeToRecommendedProduct(p, identityEnabled));
     farfetchErrorType = farfetch.errorType;
   } catch (err) {
     providersTried.push('farfetch');
