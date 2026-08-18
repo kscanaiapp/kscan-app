@@ -6,14 +6,19 @@ import {
 } from './elevenLabsClient.ts';
 import { StylistSpeechError } from './types.ts';
 
-const FEMININE_VOICE_ID = 'NQMJRVvPew6HsaebYnZj';
+// Test-only fixture secret names and values — not real owner-approved voice
+// IDs. requestElevenLabsSpeech never receives a raw voice ID directly; it
+// only receives a secret NAME and resolves the value through the same
+// readRequiredSecret boundary used for the API key/model/output format.
+const FEMININE_VOICE_SECRET_NAME = 'ELEVENLABS_STYLIST_TEST_FEMININE_VOICE_ID';
+const MASCULINE_VOICE_SECRET_NAME = 'ELEVENLABS_STYLIST_TEST_MASCULINE_VOICE_ID';
+const FEMININE_VOICE_ID = 'ZZZFixtureVoiceId0001';
 const MASCULINE_VOICE_ID = 'guZ5txGiatiDmC3jrjOO';
 const API_KEY = 'sk_0123456789abcdef0123456789abcdef';
 
 const BASE_ENV = new Map([
   ['ELEVENLABS_API_KEY', API_KEY],
-  ['ELEVENLABS_FEMININE_VOICE_ID', FEMININE_VOICE_ID],
-  ['ELEVENLABS_MASCULINE_VOICE_ID', MASCULINE_VOICE_ID],
+  [FEMININE_VOICE_SECRET_NAME, FEMININE_VOICE_ID],
   ['ELEVENLABS_MODEL_ID', 'eleven_flash_v2_5'],
   ['ELEVENLABS_OUTPUT_FORMAT', 'mp3_44100_128'],
 ]);
@@ -34,13 +39,16 @@ function providerPayload(overrides: Record<string, unknown> = {}) {
   });
 }
 
-Deno.test('uses the timing endpoint, selected voice, server key, model, and output format', async () => {
+Deno.test('uses the timing endpoint, secret-resolved voice, server key, model, and output format', async () => {
   let capturedUrl = '';
   let capturedInit: RequestInit | undefined;
+  const values = new Map(BASE_ENV);
+  values.set(MASCULINE_VOICE_SECRET_NAME, MASCULINE_VOICE_ID);
   const result = await requestElevenLabsSpeech({
     text: 'Hello there.',
     voiceProfile: 'masculine',
-    env: environment(),
+    voiceSecretName: MASCULINE_VOICE_SECRET_NAME,
+    env: environment(values),
     diagnosticsSink: () => {},
     fetchImpl: ((url: string | URL | Request, init?: RequestInit) => {
       capturedUrl = String(url);
@@ -68,6 +76,7 @@ Deno.test('places the output format only in the query string and the voice ID on
   await requestElevenLabsSpeech({
     text: 'Hello there.',
     voiceProfile: 'feminine',
+    voiceSecretName: FEMININE_VOICE_SECRET_NAME,
     env: environment(),
     diagnosticsSink: () => {},
     fetchImpl: ((url: string | URL | Request, init?: RequestInit) => {
@@ -87,14 +96,15 @@ Deno.test('places the output format only in the query string and the voice ID on
   assert.doesNotMatch(capturedBody, new RegExp(FEMININE_VOICE_ID));
 });
 
-Deno.test('requires every server-side ElevenLabs secret independently', async () => {
+Deno.test('requires every server-side ElevenLabs secret independently, including the resolved voice secret', async () => {
   for (const missing of BASE_ENV.keys()) {
     const values = new Map(BASE_ENV);
     values.delete(missing);
     await assert.rejects(
       requestElevenLabsSpeech({
         text: 'Hello.',
-        voiceProfile: missing === 'ELEVENLABS_MASCULINE_VOICE_ID' ? 'masculine' : 'feminine',
+        voiceProfile: 'feminine',
+        voiceSecretName: FEMININE_VOICE_SECRET_NAME,
         env: environment(values),
         diagnosticsSink: () => {},
         fetchImpl: (() => Promise.reject(new Error('must not fetch'))) as typeof fetch,
@@ -103,6 +113,40 @@ Deno.test('requires every server-side ElevenLabs secret independently', async ()
         error instanceof StylistSpeechError && error.code === 'SERVER_CONFIGURATION',
     );
   }
+});
+
+Deno.test('rejects a malformed value stored under the resolved voice secret name, without dispatching a request', async () => {
+  for (const badVoiceId of ['', 'too-short', 'has a space in it 1234', 'ok-but-has-illegal-punct$$$$']) {
+    const values = new Map(BASE_ENV);
+    values.set(FEMININE_VOICE_SECRET_NAME, badVoiceId);
+    await assert.rejects(
+      requestElevenLabsSpeech({
+        text: 'Hello.',
+        voiceProfile: 'feminine',
+        voiceSecretName: FEMININE_VOICE_SECRET_NAME,
+        env: environment(values),
+        diagnosticsSink: () => {},
+        fetchImpl: (() => Promise.reject(new Error('must not fetch'))) as typeof fetch,
+      }),
+      (error: unknown) =>
+        error instanceof StylistSpeechError && error.code === 'SERVER_CONFIGURATION',
+    );
+  }
+});
+
+Deno.test('rejects an unresolved voice secret name (points at a secret that is not set)', async () => {
+  await assert.rejects(
+    requestElevenLabsSpeech({
+      text: 'Hello.',
+      voiceProfile: 'feminine',
+      voiceSecretName: 'ELEVENLABS_STYLIST_99_VOICE_ID',
+      env: environment(),
+      diagnosticsSink: () => {},
+      fetchImpl: (() => Promise.reject(new Error('must not fetch'))) as typeof fetch,
+    }),
+    (error: unknown) =>
+      error instanceof StylistSpeechError && error.code === 'SERVER_CONFIGURATION',
+  );
 });
 
 Deno.test('classifies provider failures into specific app-owned categories without exposing bodies', async () => {
@@ -121,6 +165,7 @@ Deno.test('classifies provider failures into specific app-owned categories witho
       requestElevenLabsSpeech({
         text: 'Hello.',
         voiceProfile: 'feminine',
+        voiceSecretName: FEMININE_VOICE_SECRET_NAME,
         env: environment(),
         diagnosticsSink: () => {},
         fetchImpl: (() => Promise.resolve(new Response(body, { status }))) as typeof fetch,
@@ -142,6 +187,7 @@ Deno.test('emits sanitized diagnostics on failure with no key, voice ID, or mess
     requestElevenLabsSpeech({
       text: 'The private stylist sentence that must never be logged.',
       voiceProfile: 'feminine',
+      voiceSecretName: FEMININE_VOICE_SECRET_NAME,
       env: environment(),
       now: (() => { let t = 1000; return () => (t += 700); })(),
       diagnosticsSink: (line) => lines.push(line),
@@ -169,6 +215,7 @@ Deno.test('aborts a provider request at the configured timeout', async () => {
     requestElevenLabsSpeech({
       text: 'Hello.',
       voiceProfile: 'feminine',
+      voiceSecretName: FEMININE_VOICE_SECRET_NAME,
       env: environment(),
       timeoutMs: 5,
       diagnosticsSink: () => {},
@@ -187,6 +234,7 @@ Deno.test('rejects malformed JSON and invalid audio', async () => {
       requestElevenLabsSpeech({
         text: 'Hello.',
         voiceProfile: 'feminine',
+        voiceSecretName: FEMININE_VOICE_SECRET_NAME,
         env: environment(),
         diagnosticsSink: () => {},
         fetchImpl: (() => Promise.resolve(new Response(raw))) as typeof fetch,
@@ -201,6 +249,7 @@ Deno.test('keeps valid audio when timing alignment is malformed', async () => {
   const result = await requestElevenLabsSpeech({
     text: 'Hello.',
     voiceProfile: 'feminine',
+    voiceSecretName: FEMININE_VOICE_SECRET_NAME,
     env: environment(),
     diagnosticsSink: () => {},
     fetchImpl: (() => Promise.resolve(new Response(providerPayload({
@@ -223,6 +272,7 @@ Deno.test('rejects oversized provider responses', async () => {
     requestElevenLabsSpeech({
       text: 'Hello.',
       voiceProfile: 'feminine',
+      voiceSecretName: FEMININE_VOICE_SECRET_NAME,
       env: environment(),
       diagnosticsSink: () => {},
       fetchImpl: (() => Promise.resolve(new Response(oversized))) as typeof fetch,
@@ -237,6 +287,7 @@ Deno.test('a valid, well-timed provider response still succeeds and records succ
   const result = await requestElevenLabsSpeech({
     text: 'Hello there.',
     voiceProfile: 'feminine',
+    voiceSecretName: FEMININE_VOICE_SECRET_NAME,
     env: environment(),
     now: (() => { let t = 0; return () => (t += 120); })(),
     diagnosticsSink: (line) => lines.push(line),
