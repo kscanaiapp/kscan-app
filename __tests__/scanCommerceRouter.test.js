@@ -1,5 +1,13 @@
 // Tests for supabase/functions/scan-identify/scanCommerceRouter.ts
 // All provider HTTP is mocked. No real network calls are made.
+//
+// Phase 3 (v126): Farfetch/KicksCrew are URL-driven enrichment only (neither
+// offers keyword search on its current RapidAPI contract); Serper/Brave and
+// the new Poshmark resale provider run bounded-parallel discovery instead of
+// the old sequential Farfetch/KicksCrew-first cascade. See
+// supabase/functions/scan-identify/scanCommerceRouter.ts and
+// commerceProviders.v126.test.ts (Deno-side structural/orchestration lock)
+// for the authoritative contract this file exercises with real HTTP mocks.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -15,8 +23,9 @@ let FETCH_IMPL = async () => {
   throw new Error('fetch not configured');
 };
 
-function loadModule(filename, requireMap = {}) {
-  const source = fs.readFileSync(filename, 'utf8');
+function loadModule(filename, requireMap = {}, transformSource) {
+  let source = fs.readFileSync(filename, 'utf8');
+  if (typeof transformSource === 'function') source = transformSource(source);
   const output = ts.transpileModule(source, {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
@@ -49,9 +58,14 @@ function loadModule(filename, requireMap = {}) {
 
 const fn = (name) => path.join(ROOT, 'supabase/functions/scan-identify', name);
 
+// ── Module graph (matches scanCommerceRouter.ts's actual value-import list;
+// pure `import type` specifiers — ScannerCategoryRoute, CommerceIdentityEvidence,
+// CommerceQueryStrategy — are elided by the TS transpiler and never require()'d). ──
+
 const shoppingProvider = loadModule(fn('shoppingProvider.ts'));
-const farfetchProvider = loadModule(fn('farfetchProvider.ts'));
+const farfetch3Provider = loadModule(fn('farfetch3Provider.ts'));
 const kicksCrewProvider = loadModule(fn('kicksCrewProvider.ts'));
+const poshmarkProvider = loadModule(fn('poshmarkProvider.ts'));
 const qualityTuneConfig = loadModule(fn('qualityTuneConfig.ts'));
 const scanHelpers = loadModule(path.join(ROOT, 'supabase/functions/_shared/scanHelpers.ts'));
 const qualityTuneNormalize = loadModule(fn('qualityTuneNormalize.ts'), {
@@ -69,7 +83,6 @@ const commerceRelevanceQueries = loadModule(fn('commerceRelevanceQueries.ts'), {
   './commerceRelevanceConfig.ts': commerceRelevanceConfig,
   './commerceRelevanceColorMaterial.ts': commerceRelevanceColorMaterial,
   './qualityTuneNormalize.ts': qualityTuneNormalize,
-  // v125: confidence-aware query strategy vocabulary + category compatibility.
   './commerceRetrievalConfig.ts': commerceRetrievalConfig,
   '../_shared/scanHelpers.ts': scanHelpers,
 });
@@ -90,31 +103,49 @@ const qualityTuneCommerce = loadModule(fn('qualityTuneCommerce.ts'), {
   './commerceRelevanceFailure.ts': commerceRelevanceFailure,
 });
 
-const router = loadModule(fn('scanCommerceRouter.ts'), {
+const ROUTER_REQUIRE_MAP = {
   './shoppingProvider.ts': shoppingProvider,
-  './farfetchProvider.ts': farfetchProvider,
+  './farfetch3Provider.ts': farfetch3Provider,
   './kicksCrewProvider.ts': kicksCrewProvider,
+  './poshmarkProvider.ts': poshmarkProvider,
   './qualityTuneConfig.ts': qualityTuneConfig,
   './qualityTuneCommerce.ts': qualityTuneCommerce,
-  './scannerCategoryRoute.ts': scannerCategoryRoute,
+};
+
+const router = loadModule(fn('scanCommerceRouter.ts'), ROUTER_REQUIRE_MAP);
+
+// A second router instance with GLOBAL_DISCOVERY_DEADLINE_MS shrunk from 4_500
+// to 80ms, used only by the "slow Poshmark does not block" test below so that
+// test never waits anywhere near the real 4.5s deadline. If the constant's
+// source text ever changes, this assertion fails loudly instead of silently
+// testing the wrong thing.
+const routerFastDeadline = loadModule(fn('scanCommerceRouter.ts'), ROUTER_REQUIRE_MAP, (source) => {
+  const needle = 'const GLOBAL_DISCOVERY_DEADLINE_MS = 4_500;';
+  assert.ok(
+    source.includes(needle),
+    'GLOBAL_DISCOVERY_DEADLINE_MS constant text changed; update the fast-deadline test harness to match',
+  );
+  return source.replace(needle, 'const GLOBAL_DISCOVERY_DEADLINE_MS = 80;');
 });
 
 function resetEnv() {
   ENV = {
-    // Pin the v119-equivalent router path; quality-tune-on behavior is covered by the qualityTune suites.
+    // Pin the quality-tune-off router path; quality-tune-on behavior is covered by the qualityTune suites.
     BACKEND_QUALITY_TUNE_ENABLED: 'false',
     SHOPPING_SERPER_API_KEY: 'serper-test-key',
     SHOPPING_BRAVE_API_KEY: 'brave-test-key',
     RAPIDAPI_KEY: 'rapidapi-test-key',
-    FARFETCH_ENABLED: 'true',
-    FARFETCH_RAPIDAPI_HOST: 'farfetch-data.p.rapidapi.com',
-    FARFETCH_RAPIDAPI_BASE_URL: 'https://farfetch-data.p.rapidapi.com',
+    FARFETCH3_ENABLED: 'true',
+    FARFETCH3_RAPIDAPI_HOST: 'farfetch3.p.rapidapi.com',
     KICKSCREW_ENABLED: 'false',
     KICKSCREW_RAPIDAPI_HOST: 'kickscrew-sneakers-data.p.rapidapi.com',
-    KICKSCREW_RAPIDAPI_BASE_URL: 'https://kickscrew-sneakers-data.p.rapidapi.com',
+    POSHMARK_ENABLED: 'false',
+    POSHMARK_RAPIDAPI_HOST: 'poshmark-fashion-resale.p.rapidapi.com',
   };
   shoppingProvider._resetShoppingCache();
 }
+
+// ── HTTP mock builders ──────────────────────────────────────────────────────
 
 function serperOk(items) {
   return { ok: true, status: 200, json: async () => ({ shopping: items }) };
@@ -122,13 +153,50 @@ function serperOk(items) {
 function braveOk(results) {
   return { ok: true, status: 200, json: async () => ({ web: { results } }) };
 }
-function farfetchOk(items) {
-  return { ok: true, status: 200, json: async () => ({ products: items }) };
+
+/** Apollo/GraphQL-cache-shaped payload matching farfetch3Provider.ts's mapProduct(). */
+function farfetch3Payload({ id = 'ff3-1', title, brand, priceRaw, currency = 'USD', imageUrl } = {}) {
+  return {
+    internalProductId: id,
+    description: { short: { textContent: title } },
+    ...(brand ? { brand: { name: brand } } : {}),
+    ...(priceRaw !== undefined
+      ? {
+        productPrice: {
+          final: { value: { raw: priceRaw } },
+          currency: `Currency:{"isoCode":"${currency}"}`,
+        },
+      }
+      : {}),
+    ...(imageUrl ? { images: [{ size1000: { url: imageUrl } }] } : {}),
+  };
 }
-function kickscrewOk(items) {
-  return { ok: true, status: 200, json: async () => ({ products: items }) };
+function farfetch3Ok(payload) {
+  return { ok: true, status: 200, json: async () => payload };
 }
-function routeFetch({ serper, brave, farfetch, kickscrew }) {
+
+/** Shopify-shaped payload matching kicksCrewProvider.ts's mapProduct(). Note: variant
+ * price must be a STRING (mapProduct parses it with `parseFloat(str(record.price))`,
+ * and `str()` only accepts values that are already typeof 'string'). */
+function kicksCrewPayload({ title, vendor, price, currency = 'USD', sku, imageSrc } = {}) {
+  return {
+    product: {
+      title,
+      ...(vendor ? { vendor } : {}),
+      ...(price !== undefined ? { variants: [{ price: String(price), price_currency: currency, sku }] } : {}),
+      ...(imageSrc ? { image: { src: imageSrc } } : {}),
+    },
+  };
+}
+function kickscrewOk(payload) {
+  return { ok: true, status: 200, json: async () => payload };
+}
+
+function poshmarkOk(results) {
+  return { ok: true, status: 200, json: async () => ({ success: true, count: results.length, results }) };
+}
+
+function routeFetch({ serper, brave, farfetch3, kickscrew, poshmark }) {
   return async (url, options) => {
     const u = String(url);
     if (u.includes('serper.dev')) {
@@ -139,16 +207,29 @@ function routeFetch({ serper, brave, farfetch, kickscrew }) {
       if (typeof brave === 'function') return brave(url, options);
       return brave;
     }
-    if (u.includes('farfetch-data.p.rapidapi.com')) {
-      if (typeof farfetch === 'function') return farfetch(url, options);
-      return farfetch;
+    if (u.includes('farfetch3.p.rapidapi.com')) {
+      if (typeof farfetch3 === 'function') return farfetch3(url, options);
+      return farfetch3;
     }
     if (u.includes('kickscrew-sneakers-data.p.rapidapi.com')) {
       if (typeof kickscrew === 'function') return kickscrew(url, options);
       return kickscrew;
     }
+    if (u.includes('poshmark-fashion-resale.p.rapidapi.com')) {
+      if (typeof poshmark === 'function') return poshmark(url, options);
+      return poshmark;
+    }
     throw new Error('unexpected url ' + u);
   };
+}
+
+function abortAfter(ms) {
+  return () =>
+    new Promise((_resolve, reject) => {
+      const e = new Error('aborted');
+      e.name = 'AbortError';
+      setTimeout(() => reject(e), ms);
+    });
 }
 
 // ── Query construction ──
@@ -272,9 +353,9 @@ test('getScanCommerceResults: weak query does not call providers', async () => {
   assert.equal(result.errorType, 'weak_query');
 });
 
-// ── Provider routing ──
+// ── Discovery: bounded parallel Serper/Brave + Poshmark ──
 
-test('getScanCommerceResults: Serper success returns retail products', async () => {
+test('Discovery: Serper success returns retail products', async () => {
   resetEnv();
   FETCH_IMPL = routeFetch({
     serper: serperOk([
@@ -289,11 +370,7 @@ test('getScanCommerceResults: Serper success returns retail products', async () 
   });
   const result = await router.getScanCommerceResults({
     mode: 'image',
-    identification: {
-      brand_guess: 'Lacoste',
-      item_type: 'polo shirt',
-      primary_color: 'red',
-    },
+    identification: { brand_guess: 'Lacoste', item_type: 'polo shirt', primary_color: 'red' },
     limit: 8,
   });
   assert.equal(result.provider, 'serper');
@@ -301,12 +378,13 @@ test('getScanCommerceResults: Serper success returns retail products', async () 
   assert.equal(result.products[0].title, 'Red Polo Shirt');
   assert.equal(result.products[0].type, 'retail');
   assert.equal(result.products[0].source, 'Shop');
+  assert.equal(result.providersTried.length, 1);
+  assert.equal(result.providersTried[0], 'serper');
 });
 
-test('getScanCommerceResults: Serper empty triggers Brave fallback', async () => {
+test('Discovery: Serper empty triggers Brave fallback', async () => {
   resetEnv();
   FETCH_IMPL = routeFetch({
-    farfetch: farfetchOk([]),
     serper: serperOk([]),
     brave: braveOk([{ title: 'Polo Buying Guide', url: 'https://blog.com/polo', profile: { name: 'Style Blog' } }]),
   });
@@ -315,18 +393,16 @@ test('getScanCommerceResults: Serper empty triggers Brave fallback', async () =>
     identification: { item_type: 'polo shirt', primary_color: 'red' },
   });
   assert.equal(result.provider, 'brave');
-  assert.equal(result.providersTried.length, 3);
-  assert.equal(result.providersTried[0], 'farfetch');
-  assert.equal(result.providersTried[1], 'serper');
-  assert.equal(result.providersTried[2], 'brave');
+  assert.equal(result.providersTried.length, 2);
+  assert.equal(result.providersTried[0], 'serper');
+  assert.equal(result.providersTried[1], 'brave');
   assert.equal(result.products.length, 1);
   assert.equal(result.products[0].type, 'similar');
 });
 
-test('getScanCommerceResults: all providers fail returns empty products', async () => {
+test('Discovery: all providers fail returns empty products', async () => {
   resetEnv();
   FETCH_IMPL = routeFetch({
-    farfetch: farfetchOk([]),
     serper: serperOk([]),
     brave: braveOk([]),
   });
@@ -358,308 +434,480 @@ test('getScanCommerceResults: text mode returns no products', async () => {
   assert.equal(result.errorType, 'wrong_mode');
 });
 
-// ── Farfetch provider routing ──
-
-test('Farfetch is skipped when FARFETCH_ENABLED is not true', async () => {
+test('Discovery: Poshmark contributes resale candidates alongside Serper', async () => {
   resetEnv();
-  ENV.FARFETCH_ENABLED = 'false';
-  let farfetchCalled = false;
+  ENV.POSHMARK_ENABLED = 'true';
   FETCH_IMPL = routeFetch({
-    farfetch: () => {
-      farfetchCalled = true;
-      return { ok: false, status: 500, json: async () => ({}) };
-    },
-    serper: serperOk([{ title: 'Polo', link: 'https://shop.com/polo' }]),
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { brand_guess: 'Lacoste', item_type: 'polo shirt', primary_color: 'red' },
-  });
-  assert.equal(result.provider, 'serper');
-  assert.equal(farfetchCalled, false);
-  assert.equal(result.providersTried.includes('farfetch'), false);
-});
-
-test('Farfetch is skipped when no RapidAPI key exists', async () => {
-  resetEnv();
-  delete ENV.RAPIDAPI_KEY;
-  delete ENV.FARFETCH_RAPIDAPI_KEY;
-  let farfetchCalled = false;
-  FETCH_IMPL = routeFetch({
-    farfetch: () => {
-      farfetchCalled = true;
-      return { ok: false, status: 500, json: async () => ({}) };
-    },
-    serper: serperOk([{ title: 'Polo', link: 'https://shop.com/polo' }]),
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { brand_guess: 'Lacoste', item_type: 'polo shirt', primary_color: 'red' },
-  });
-  assert.equal(result.provider, 'serper');
-  assert.equal(farfetchCalled, false);
-  assert.equal(result.providersTried.includes('farfetch'), false);
-});
-
-test('Farfetch is tried before Serper when enabled', async () => {
-  resetEnv();
-  FETCH_IMPL = routeFetch({
-    farfetch: farfetchOk([
-      { id: 'ff1', name: 'Red Polo', url: 'https://farfetch.com/red-polo', price: '$95', images: [{ url: 'https://cdn.farfetch.com/red-polo.jpg' }] },
-      { id: 'ff2', name: 'Navy Polo', url: 'https://farfetch.com/navy-polo', price: '$90' },
-      { id: 'ff3', name: 'White Polo', url: 'https://farfetch.com/white-polo', price: '$85' },
+    serper: serperOk([{ title: 'Red Polo Shirt Retail', link: 'https://shop.com/polo', price: '$89.00' }]),
+    poshmark: poshmarkOk([
+      {
+        listingId: 'p1',
+        title: 'Red Polo Shirt Resale',
+        price: 35,
+        currency: 'USD',
+        brand: 'Lacoste',
+        url: 'https://poshmark.com/listing/red-polo-p1',
+      },
     ]),
   });
   const result = await router.getScanCommerceResults({
     mode: 'image',
     identification: { brand_guess: 'Lacoste', item_type: 'polo shirt', primary_color: 'red' },
   });
-  assert.equal(result.provider, 'farfetch');
-  assert.equal(result.providersTried[0], 'farfetch');
-  assert.equal(result.products.length, 3);
-  assert.equal(result.products[0].source, 'Farfetch');
-  assert.equal(result.products[0].type, 'retail');
-  assert.equal(result.products[0].productUrl, 'https://farfetch.com/red-polo');
-});
-
-test('Farfetch success with 3+ valid products skips Serper/Brave', async () => {
-  resetEnv();
-  let serperCalled = false;
-  FETCH_IMPL = routeFetch({
-    farfetch: farfetchOk([
-      { id: 'ff1', name: 'Bag A', url: 'https://farfetch.com/bag-a' },
-      { id: 'ff2', name: 'Bag B', url: 'https://farfetch.com/bag-b' },
-      { id: 'ff3', name: 'Bag C', url: 'https://farfetch.com/bag-c' },
-    ]),
-    serper: () => {
-      serperCalled = true;
-      return serperOk([]);
-    },
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { brand_guess: 'Chanel', item_type: 'handbag', primary_color: 'black' },
-  });
-  assert.equal(result.provider, 'farfetch');
-  assert.equal(serperCalled, false);
-  assert.equal(result.products.length, 3);
-});
-
-test('Farfetch success with 1-2 valid products merges with Serper/Brave', async () => {
-  resetEnv();
-  FETCH_IMPL = routeFetch({
-    farfetch: farfetchOk([
-      { id: 'ff1', name: 'Bag A', url: 'https://farfetch.com/bag-a' },
-      { id: 'ff2', name: 'Bag B', url: 'https://farfetch.com/bag-b' },
-    ]),
-    serper: serperOk([
-      { title: 'Bag C', link: 'https://shop.com/bag-c' },
-      { title: 'Bag D', link: 'https://shop.com/bag-d' },
-    ]),
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { brand_guess: 'Chanel', item_type: 'handbag', primary_color: 'black' },
-  });
-  assert.equal(result.provider, 'farfetch');
-  assert.equal(result.providersTried.length, 2);
-  assert.equal(result.providersTried[0], 'farfetch');
-  assert.equal(result.providersTried[1], 'serper');
-  assert.equal(result.products.length, 4);
-  assert.equal(result.products[0].source, 'Farfetch');
-  assert.equal(result.products[2].source, 'shop.com');
-});
-
-test('Farfetch zero valid products falls back to Serper/Brave', async () => {
-  resetEnv();
-  FETCH_IMPL = routeFetch({
-    farfetch: farfetchOk([]),
-    serper: serperOk([{ title: 'Polo', link: 'https://shop.com/polo' }]),
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { brand_guess: 'Lacoste', item_type: 'polo shirt', primary_color: 'red' },
-  });
-  assert.equal(result.provider, 'serper');
-  assert.equal(result.providersTried[0], 'farfetch');
-  assert.equal(result.providersTried[1], 'serper');
-  assert.equal(result.products.length, 1);
-});
-
-test('Farfetch HTTP failure falls back to Serper/Brave', async () => {
-  resetEnv();
-  FETCH_IMPL = routeFetch({
-    farfetch: { ok: false, status: 500, json: async () => ({}) },
-    serper: serperOk([{ title: 'Polo', link: 'https://shop.com/polo' }]),
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { brand_guess: 'Lacoste', item_type: 'polo shirt', primary_color: 'red' },
-  });
-  assert.equal(result.provider, 'serper');
-  assert.equal(result.products.length, 1);
-});
-
-test('Farfetch invalid JSON falls back safely', async () => {
-  resetEnv();
-  FETCH_IMPL = routeFetch({
-    farfetch: { ok: true, status: 200, json: async () => 'not json' },
-    serper: serperOk([{ title: 'Polo', link: 'https://shop.com/polo' }]),
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { brand_guess: 'Lacoste', item_type: 'polo shirt', primary_color: 'red' },
-  });
-  assert.equal(result.provider, 'serper');
-  assert.equal(result.products.length, 1);
-});
-
-test('Farfetch invalid products are skipped', async () => {
-  resetEnv();
-  FETCH_IMPL = routeFetch({
-    farfetch: farfetchOk([
-      { id: 'bad1', name: '', url: 'https://farfetch.com/bad' },
-      { id: 'bad2', name: 'No URL' },
-      { id: 'good', name: 'Valid Bag', url: 'https://farfetch.com/bag' },
-    ]),
-    serper: serperOk([]),
-    brave: braveOk([]),
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { brand_guess: 'Chanel', item_type: 'handbag', primary_color: 'black' },
-  });
-  // Only 1 valid Farfetch product, so Serper/Brave fallback runs; both empty.
-  assert.equal(result.products.length, 1);
-  assert.equal(result.products[0].title, 'Valid Bag');
-  assert.equal(result.providersTried[0], 'farfetch');
-});
-
-test('Farfetch internal duplicate URLs are deduped', async () => {
-  resetEnv();
-  FETCH_IMPL = routeFetch({
-    farfetch: farfetchOk([
-      { id: 'ff1', name: 'Bag A', url: 'https://farfetch.com/bag?utm_source=x' },
-      { id: 'ff2', name: 'Bag A dup', url: 'https://farfetch.com/bag?utm_campaign=y' },
-      { id: 'ff3', name: 'Bag B', url: 'https://farfetch.com/bag-b' },
-    ]),
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { brand_guess: 'Chanel', item_type: 'handbag', primary_color: 'black' },
-  });
-  assert.equal(result.provider, 'farfetch');
   assert.equal(result.products.length, 2);
+  assert.ok(result.providersTried.includes('serper'));
+  assert.ok(result.providersTried.includes('poshmark'));
+  const retail = result.products.find((p) => p.title === 'Red Polo Shirt Retail');
+  const resale = result.products.find((p) => p.title === 'Red Polo Shirt Resale');
+  assert.ok(retail);
+  assert.ok(resale);
+  assert.equal(retail.commerceType, undefined);
+  assert.equal(resale.commerceType, 'resale');
+  assert.equal(resale.source, 'Poshmark');
 });
 
-test('FARFETCH_RAPIDAPI_KEY is preferred over RAPIDAPI_KEY', async () => {
+test('Discovery: a slow/never-resolving Poshmark does not block the overall result', async () => {
   resetEnv();
-  ENV.FARFETCH_RAPIDAPI_KEY = 'dedicated-farfetch-key';
+  ENV.POSHMARK_ENABLED = 'true';
+  FETCH_IMPL = routeFetch({
+    serper: serperOk([{ title: 'Red Polo Shirt', link: 'https://shop.com/polo', price: '$89.00' }]),
+    // Resolves well after the shortened 80ms deadline, but is finite (unlike a
+    // true never-resolving promise) so no timer keeps the test process alive.
+    poshmark: () =>
+      new Promise((resolve) => {
+        setTimeout(() => resolve(poshmarkOk([])), 300);
+      }),
+  });
+  const started = Date.now();
+  const result = await routerFastDeadline.getScanCommerceResults({
+    mode: 'image',
+    identification: { brand_guess: 'Lacoste', item_type: 'polo shirt', primary_color: 'red' },
+  });
+  const elapsed = Date.now() - started;
+  assert.ok(elapsed < 1000, `expected the shortened discovery deadline to resolve quickly, took ${elapsed}ms`);
+  assert.equal(result.provider, 'serper');
+  assert.equal(result.products.length, 1);
+  assert.equal(result.products[0].title, 'Red Polo Shirt');
+  // Poshmark was attempted (the discovery leg started) even though it timed out.
+  assert.ok(result.providersTried.includes('poshmark'));
+});
+
+// ── Enrichment: Farfetch3 / KicksCrew are URL-driven only ──
+
+test('Enrichment: Farfetch3 enriches a discovered farfetch.com product URL in place', async () => {
+  resetEnv();
+  let farfetch3CallCount = 0;
+  FETCH_IMPL = routeFetch({
+    serper: serperOk([
+      {
+        title: 'Placeholder Jacket',
+        link: 'https://www.farfetch.com/shopping/mens-black-jacket-item-12345.aspx',
+        price: '$50.00',
+      },
+      {
+        // A listing/search page — must NOT be treated as an enrichable product URL.
+        title: 'Farfetch Jackets Listing',
+        link: 'https://www.farfetch.com/shopping/mens/jackets/items.aspx',
+      },
+    ]),
+    farfetch3: () => {
+      farfetch3CallCount++;
+      return farfetch3Ok(
+        farfetch3Payload({
+          title: 'Enriched Saint Laurent Jacket',
+          brand: 'Saint Laurent',
+          priceRaw: 1200,
+          currency: 'USD',
+          imageUrl: 'https://cdn.farfetch-contents.com/jacket.jpg',
+        }),
+      );
+    },
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { brand_guess: 'Saint Laurent', item_type: 'jacket', primary_color: 'black' },
+    commerceIdentityEnabled: true,
+  });
+  assert.equal(farfetch3CallCount, 1, 'only the real product URL should trigger /searchByURL, not the listing page');
+  assert.equal(result.products.length, 2);
+  const enriched = result.products.find((p) => p.productUrl.includes('mens-black-jacket-item-12345.aspx'));
+  assert.ok(enriched);
+  assert.equal(enriched.title, 'Enriched Saint Laurent Jacket');
+  assert.equal(enriched.brand, 'Saint Laurent');
+  assert.equal(enriched.price, '$1,200.00');
+  assert.equal(enriched.source, 'Farfetch');
+  assert.equal(enriched.commerceType, 'retail');
+  const listing = result.products.find((p) => p.productUrl.includes('items.aspx'));
+  assert.ok(listing);
+  assert.equal(listing.title, 'Farfetch Jackets Listing');
+  assert.equal(result.providersTried.includes('farfetch'), true);
+});
+
+test('Enrichment: KicksCrew only enriches discovered URLs for sneaker-routed scans', async () => {
+  resetEnv();
+  ENV.KICKSCREW_ENABLED = 'true';
+  let kickscrewCalled = false;
+  FETCH_IMPL = routeFetch({
+    serper: serperOk([
+      { title: 'Placeholder Bag', link: 'https://www.kickscrew.com/en-PT/products/some-bag', price: '$40.00' },
+    ]),
+    kickscrew: () => {
+      kickscrewCalled = true;
+      return kickscrewOk(kicksCrewPayload({ title: 'Enriched Bag', vendor: 'KicksCrew', price: '99.00' }));
+    },
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { brand_guess: 'Chanel', item_type: 'handbag', primary_color: 'black' },
+  });
+  assert.equal(kickscrewCalled, false, 'KicksCrew must never be called for a non-sneaker scan');
+  assert.equal(result.products.length, 1);
+  assert.equal(result.products[0].title, 'Placeholder Bag');
+  assert.equal(result.providersTried.includes('kickscrew'), false);
+});
+
+test('Enrichment: KicksCrew enriches a discovered kickscrew.com product URL for a sneaker scan', async () => {
+  resetEnv();
+  ENV.KICKSCREW_ENABLED = 'true';
+  FETCH_IMPL = routeFetch({
+    serper: serperOk([
+      {
+        title: 'Placeholder Air Force 1',
+        link: 'https://www.kickscrew.com/en-PT/products/air-force-1-white',
+        price: '$95.00',
+      },
+    ]),
+    kickscrew: kickscrewOk(
+      kicksCrewPayload({
+        title: "Air Jordan 1 Mid 'Pine Green' 852542-301",
+        vendor: 'Air Jordan',
+        price: '1141.00',
+        currency: 'USD',
+        sku: '852542-301',
+        imageSrc: 'https://cdn.shopify.com/kc/pine-green.jpg',
+      }),
+    ),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
+    commerceIdentityEnabled: true,
+  });
+  assert.equal(result.products.length, 1);
+  const p = result.products[0];
+  assert.equal(p.title, "Air Jordan 1 Mid 'Pine Green' 852542-301");
+  assert.equal(p.brand, 'Air Jordan');
+  assert.equal(p.price, '$1,141.00');
+  assert.equal(p.source, 'KicksCrew');
+  assert.equal(p.commerceType, 'retail');
+  assert.ok(p.productUrl.includes('kickscrew.com'));
+  assert.equal(result.providersTried.includes('kickscrew'), true);
+});
+
+test('Enrichment bounded: only MAX_FARFETCH_ENRICH (2) candidates are enriched even with 3 discovered', async () => {
+  resetEnv();
+  let farfetch3CallCount = 0;
+  FETCH_IMPL = routeFetch({
+    serper: serperOk([
+      { title: 'Original A', link: 'https://www.farfetch.com/shopping/item-a-item-101.aspx' },
+      { title: 'Original B', link: 'https://www.farfetch.com/shopping/item-b-item-102.aspx' },
+      { title: 'Original C', link: 'https://www.farfetch.com/shopping/item-c-item-103.aspx' },
+    ]),
+    farfetch3: () => {
+      farfetch3CallCount++;
+      return farfetch3Ok(farfetch3Payload({ title: 'Enriched Product', priceRaw: 100 }));
+    },
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { brand_guess: 'Saint Laurent', item_type: 'jacket', primary_color: 'black' },
+  });
+  assert.equal(farfetch3CallCount, 2, 'MAX_FARFETCH_ENRICH caps enrichment fan-out at 2 calls');
+  assert.equal(result.products.length, 3);
+  const enrichedCount = result.products.filter((p) => p.title === 'Enriched Product').length;
+  assert.equal(enrichedCount, 2);
+  assert.equal(result.products[2].title, 'Original C');
+});
+
+// ── Enrichment/discovery failure is non-fatal ──
+
+const FARFETCH3_ENRICHMENT_FAILURE_SCENARIOS = [
+  ['auth failure (401)', { ok: false, status: 401, json: async () => ({}) }],
+  ['rate limit (429)', { ok: false, status: 429, json: async () => ({}) }],
+  ['server error (500)', { ok: false, status: 500, json: async () => ({}) }],
+  ['malformed JSON', { ok: true, status: 200, json: async () => 'not an object' }],
+  ['extraction error payload', { ok: true, status: 200, json: async () => ({ error: 'Error Extracting URL' }) }],
+  ['timeout', abortAfter(5)],
+];
+
+for (const [label, response] of FARFETCH3_ENRICHMENT_FAILURE_SCENARIOS) {
+  test(`Farfetch3 enrichment failure is non-fatal: ${label}`, async () => {
+    resetEnv();
+    FETCH_IMPL = routeFetch({
+      serper: serperOk([
+        { title: 'Original Jacket', link: 'https://www.farfetch.com/shopping/mens-jacket-item-12345.aspx' },
+      ]),
+      farfetch3: response,
+    });
+    const result = await router.getScanCommerceResults({
+      mode: 'image',
+      identification: { brand_guess: 'Saint Laurent', item_type: 'jacket', primary_color: 'black' },
+    });
+    assert.equal(result.products.length, 1);
+    assert.equal(result.products[0].title, 'Original Jacket');
+    assert.ok(result.providersTried.includes('farfetch'));
+  });
+}
+
+const KICKSCREW_ENRICHMENT_FAILURE_SCENARIOS = [
+  ['auth failure (401)', { ok: false, status: 401, json: async () => ({}) }],
+  ['rate limit (429)', { ok: false, status: 429, json: async () => ({}) }],
+  ['not found (404)', { ok: false, status: 404, json: async () => ({}) }],
+  ['malformed JSON', { ok: true, status: 200, json: async () => 'not an object' }],
+  ['timeout', abortAfter(5)],
+];
+
+for (const [label, response] of KICKSCREW_ENRICHMENT_FAILURE_SCENARIOS) {
+  test(`KicksCrew enrichment failure is non-fatal: ${label}`, async () => {
+    resetEnv();
+    ENV.KICKSCREW_ENABLED = 'true';
+    FETCH_IMPL = routeFetch({
+      serper: serperOk([
+        { title: 'Original Sneaker', link: 'https://www.kickscrew.com/en-PT/products/af1' },
+      ]),
+      kickscrew: response,
+    });
+    const result = await router.getScanCommerceResults({
+      mode: 'image',
+      identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
+    });
+    assert.equal(result.products.length, 1);
+    assert.equal(result.products[0].title, 'Original Sneaker');
+    assert.ok(result.providersTried.includes('kickscrew'));
+  });
+}
+
+const POSHMARK_DISCOVERY_FAILURE_SCENARIOS = [
+  ['auth failure (401)', { ok: false, status: 401, json: async () => ({}) }],
+  ['rate limit (429)', { ok: false, status: 429, json: async () => ({}) }],
+  ['malformed JSON', { ok: true, status: 200, json: async () => 'not an object' }],
+  ['invalid response shape', { ok: true, status: 200, json: async () => ({ success: false }) }],
+  ['timeout', abortAfter(5)],
+];
+
+for (const [label, response] of POSHMARK_DISCOVERY_FAILURE_SCENARIOS) {
+  test(`Poshmark discovery failure is non-fatal: ${label}`, async () => {
+    resetEnv();
+    ENV.POSHMARK_ENABLED = 'true';
+    FETCH_IMPL = routeFetch({
+      serper: serperOk([{ title: 'Red Polo Shirt', link: 'https://shop.com/polo' }]),
+      poshmark: response,
+    });
+    const result = await router.getScanCommerceResults({
+      mode: 'image',
+      identification: { brand_guess: 'Lacoste', item_type: 'polo shirt', primary_color: 'red' },
+    });
+    assert.equal(result.provider, 'serper');
+    assert.equal(result.products.length, 1);
+  });
+}
+
+// ── Retailer neutrality: provider identity never reorders or preferences results ──
+
+test('Retailer neutrality: mixed providers preserve discovery order, no provider gets ranking priority', async () => {
+  resetEnv();
+  ENV.POSHMARK_ENABLED = 'true';
+  FETCH_IMPL = routeFetch({
+    serper: serperOk([
+      { title: 'Plain Retail Jacket', link: 'https://shop.com/jacket' },
+      { title: 'Placeholder FF Jacket', link: 'https://www.farfetch.com/shopping/ff-jacket-item-555.aspx' },
+    ]),
+    farfetch3: farfetch3Ok(farfetch3Payload({ title: 'Enriched FF Jacket', priceRaw: 900 })),
+    poshmark: poshmarkOk([
+      {
+        listingId: 'p1',
+        title: 'Resale Jacket',
+        price: 120,
+        currency: 'USD',
+        url: 'https://poshmark.com/listing/resale-jacket-p1',
+      },
+    ]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { brand_guess: 'Saint Laurent', item_type: 'jacket', primary_color: 'black' },
+  });
+  assert.equal(result.products.length, 3);
+  // Order must match discovery order (Serper items first, in array order, then
+  // Poshmark appended) — enrichment replaces a candidate in place, it never
+  // moves it, and no provider name carries a ranking bonus.
+  assert.equal(result.products[0].title, 'Plain Retail Jacket');
+  assert.equal(result.products[0].source, 'shop.com');
+  assert.equal(result.products[1].title, 'Enriched FF Jacket');
+  assert.equal(result.products[1].source, 'Farfetch');
+  assert.equal(result.products[2].title, 'Resale Jacket');
+  assert.equal(result.products[2].source, 'Poshmark');
+  assert.equal(result.products[2].commerceType, 'resale');
+});
+
+test('Cross-provider URL dedupe: the earlier discovery-order candidate wins on a URL collision', async () => {
+  resetEnv();
+  ENV.POSHMARK_ENABLED = 'true';
+  FETCH_IMPL = routeFetch({
+    serper: serperOk([
+      { title: 'Poshmark Listing via Serper', link: 'https://poshmark.com/listing/dup-item?utm_source=serper' },
+    ]),
+    poshmark: poshmarkOk([
+      {
+        listingId: 'dup1',
+        title: 'Poshmark Listing Direct',
+        price: 40,
+        currency: 'USD',
+        url: 'https://poshmark.com/listing/dup-item',
+      },
+    ]),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { brand_guess: 'Lacoste', item_type: 'polo shirt', primary_color: 'red' },
+  });
+  assert.equal(result.products.length, 1);
+  assert.equal(result.products[0].title, 'Poshmark Listing via Serper');
+});
+
+// ── Env-key preference: dedicated RapidAPI key wins over the shared fallback ──
+
+test('FARFETCH3_RAPIDAPI_KEY is preferred over RAPIDAPI_KEY', async () => {
+  resetEnv();
+  ENV.FARFETCH3_RAPIDAPI_KEY = 'dedicated-farfetch3-key';
   let usedKey;
   FETCH_IMPL = routeFetch({
-    farfetch: async (_url, options) => {
-      usedKey = options?.headers?.['X-RapidAPI-Key'];
-      return farfetchOk([{ id: 'ff1', name: 'Bag', url: 'https://farfetch.com/bag' }]);
-    },
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { brand_guess: 'Chanel', item_type: 'handbag', primary_color: 'black' },
-  });
-  assert.equal(result.provider, 'farfetch');
-  assert.equal(usedKey, 'dedicated-farfetch-key');
-});
-
-test('Farfetch timeout falls back to Serper/Brave', async () => {
-  resetEnv();
-  FETCH_IMPL = routeFetch({
-    farfetch: () => new Promise((_resolve, reject) => {
-      const e = new Error('aborted');
-      e.name = 'AbortError';
-      setTimeout(() => reject(e), 10);
-    }),
-    serper: serperOk([{ title: 'Polo', link: 'https://shop.com/polo' }]),
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { brand_guess: 'Lacoste', item_type: 'polo shirt', primary_color: 'red' },
-  });
-  assert.equal(result.provider, 'serper');
-  assert.equal(result.products.length, 1);
-});
-
-test('Farfetch 429 falls back safely without response-body logging', async () => {
-  resetEnv();
-  FETCH_IMPL = routeFetch({
-    farfetch: { ok: false, status: 429, json: async () => ({ message: 'rate limited' }) },
-    serper: serperOk([{ title: 'Polo', link: 'https://shop.com/polo' }]),
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { brand_guess: 'Lacoste', item_type: 'polo shirt', primary_color: 'red' },
-  });
-  assert.equal(result.provider, 'serper');
-  assert.equal(result.products.length, 1);
-});
-
-test('Farfetch is not called for non-fashion scans', async () => {
-  resetEnv();
-  let farfetchCalled = false;
-  FETCH_IMPL = routeFetch({
-    farfetch: () => {
-      farfetchCalled = true;
-      return farfetchOk([{ id: 'ff1', name: 'Bag', url: 'https://farfetch.com/bag' }]);
-    },
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { non_fashion: true, item_type: 'NON_FASHION' },
-  });
-  assert.equal(farfetchCalled, false);
-  assert.equal(result.errorType, 'non_fashion');
-});
-
-test('Farfetch is not called for weak query', async () => {
-  resetEnv();
-  let farfetchCalled = false;
-  FETCH_IMPL = routeFetch({
-    farfetch: () => {
-      farfetchCalled = true;
-      return farfetchOk([{ id: 'ff1', name: 'Bag', url: 'https://farfetch.com/bag' }]);
-    },
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { item_type: 'top', primary_color: 'stylish' },
-  });
-  assert.equal(farfetchCalled, false);
-  assert.equal(result.errorType, 'weak_query');
-});
-
-test('Cross-provider URL dedupe prefers Farfetch over Serper', async () => {
-  resetEnv();
-  FETCH_IMPL = routeFetch({
-    farfetch: farfetchOk([
-      { id: 'ff1', name: 'Bag A', url: 'https://shop.com/bag-a' },
-    ]),
     serper: serperOk([
-      { title: 'Bag A dup', link: 'https://shop.com/bag-a?utm_source=serper' },
-      { title: 'Bag B', link: 'https://shop.com/bag-b' },
+      { title: 'Placeholder Jacket', link: 'https://www.farfetch.com/shopping/mens-jacket-item-12345.aspx' },
     ]),
+    farfetch3: async (_url, options) => {
+      usedKey = options?.headers?.['x-rapidapi-key'];
+      return farfetch3Ok(farfetch3Payload({ title: 'Enriched Jacket', priceRaw: 500 }));
+    },
   });
   const result = await router.getScanCommerceResults({
     mode: 'image',
-    identification: { brand_guess: 'Chanel', item_type: 'handbag', primary_color: 'black' },
+    identification: { brand_guess: 'Saint Laurent', item_type: 'jacket', primary_color: 'black' },
   });
-  // 1 Farfetch + 2 Serper, but one Serper duplicates Farfetch URL.
-  assert.equal(result.products.length, 2);
-  assert.equal(result.products[0].source, 'Farfetch');
-  assert.equal(result.products[1].source, 'shop.com');
+  assert.equal(usedKey, 'dedicated-farfetch3-key');
+  assert.equal(result.products[0].title, 'Enriched Jacket');
 });
 
-// ── Sneaker detection ──
+test('KICKSCREW_RAPIDAPI_KEY is preferred over RAPIDAPI_KEY', async () => {
+  resetEnv();
+  ENV.KICKSCREW_ENABLED = 'true';
+  ENV.KICKSCREW_RAPIDAPI_KEY = 'dedicated-kickscrew-key';
+  let usedKey;
+  FETCH_IMPL = routeFetch({
+    serper: serperOk([
+      { title: 'Placeholder Sneaker', link: 'https://www.kickscrew.com/en-PT/products/af1' },
+    ]),
+    kickscrew: async (_url, options) => {
+      usedKey = options?.headers?.['x-rapidapi-key'];
+      return kickscrewOk(kicksCrewPayload({ title: 'Enriched Sneaker', vendor: 'Nike', price: '150.00' }));
+    },
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
+  });
+  assert.equal(usedKey, 'dedicated-kickscrew-key');
+  assert.equal(result.products[0].title, 'Enriched Sneaker');
+});
 
-test('isSneakerIdentification: Nike Air Force 1 triggers KicksCrew', () => {
+test('POSHMARK_RAPIDAPI_KEY is preferred over RAPIDAPI_KEY', async () => {
+  resetEnv();
+  ENV.POSHMARK_ENABLED = 'true';
+  ENV.POSHMARK_RAPIDAPI_KEY = 'dedicated-poshmark-key';
+  let usedKey;
+  FETCH_IMPL = routeFetch({
+    serper: serperOk([{ title: 'Placeholder Retail Polo', link: 'https://shop.com/polo' }]),
+    poshmark: async (_url, options) => {
+      usedKey = options?.headers?.['x-rapidapi-key'];
+      return poshmarkOk([
+        {
+          listingId: 'p1',
+          title: 'Resale Polo',
+          price: 40,
+          currency: 'USD',
+          url: 'https://poshmark.com/listing/resale-polo',
+        },
+      ]);
+    },
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { brand_guess: 'Lacoste', item_type: 'polo shirt', primary_color: 'red' },
+  });
+  assert.equal(usedKey, 'dedicated-poshmark-key');
+  const resaleItem = result.products.find((p) => p.commerceType === 'resale');
+  assert.ok(resaleItem);
+  assert.equal(resaleItem.title, 'Resale Polo');
+});
+
+test('RAPIDAPI_KEY is used as Poshmark fallback key when no dedicated key is set', async () => {
+  resetEnv();
+  ENV.POSHMARK_ENABLED = 'true';
+  let usedKey;
+  FETCH_IMPL = routeFetch({
+    serper: serperOk([{ title: 'Placeholder Retail Polo', link: 'https://shop.com/polo' }]),
+    poshmark: async (_url, options) => {
+      usedKey = options?.headers?.['x-rapidapi-key'];
+      return poshmarkOk([
+        {
+          listingId: 'p1',
+          title: 'Resale Polo',
+          price: 40,
+          currency: 'USD',
+          url: 'https://poshmark.com/listing/resale-polo',
+        },
+      ]);
+    },
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { brand_guess: 'Lacoste', item_type: 'polo shirt', primary_color: 'red' },
+  });
+  assert.equal(usedKey, ENV.RAPIDAPI_KEY);
+  const resaleItem = result.products.find((p) => p.commerceType === 'resale');
+  assert.ok(resaleItem);
+});
+
+// ── Result cap ──
+
+test('Final recommendedProducts capped to top 10', async () => {
+  resetEnv();
+  ENV.POSHMARK_ENABLED = 'true';
+  const serperItems = Array.from({ length: 8 }, (_, i) => ({
+    title: `Serper Item ${i}`,
+    link: `https://shop.com/item-${i}`,
+  }));
+  const poshmarkItems = Array.from({ length: 5 }, (_, i) => ({
+    listingId: `p${i}`,
+    title: `Poshmark Item ${i}`,
+    price: 50 + i,
+    currency: 'USD',
+    url: `https://poshmark.com/listing/item-${i}`,
+  }));
+  FETCH_IMPL = routeFetch({
+    serper: serperOk(serperItems),
+    poshmark: poshmarkOk(poshmarkItems),
+  });
+  const result = await router.getScanCommerceResults({
+    mode: 'image',
+    identification: { brand_guess: 'Lacoste', item_type: 'polo shirt', primary_color: 'red' },
+  });
+  assert.equal(result.products.length, 10);
+});
+
+// ── Sneaker routing gate (unchanged by Phase 3) ──
+
+test('isSneakerIdentification: Nike Air Force 1 triggers KicksCrew routing', () => {
   assert.equal(router.isSneakerIdentification({ item_type: 'sneaker', brand_guess: 'Nike' }, {}), true);
   assert.equal(
     router.isSneakerIdentification(
@@ -670,7 +918,7 @@ test('isSneakerIdentification: Nike Air Force 1 triggers KicksCrew', () => {
   );
 });
 
-test('isSneakerIdentification: Jordan 1 triggers KicksCrew', () => {
+test('isSneakerIdentification: Jordan 1 triggers KicksCrew routing', () => {
   assert.equal(router.isSneakerIdentification({ item_type: 'sneaker', brand_guess: 'Jordan' }, {}), true);
   assert.equal(
     router.isSneakerIdentification(
@@ -681,21 +929,21 @@ test('isSneakerIdentification: Jordan 1 triggers KicksCrew', () => {
   );
 });
 
-test('isSneakerIdentification: Adidas Samba triggers KicksCrew', () => {
+test('isSneakerIdentification: Adidas Samba triggers KicksCrew routing', () => {
   assert.equal(
     router.isSneakerIdentification({ item_type: 'sneaker', brand_guess: 'Adidas', subtype: 'Samba' }, {}),
     true,
   );
 });
 
-test('isSneakerIdentification: New Balance 990 triggers KicksCrew', () => {
+test('isSneakerIdentification: New Balance 990 triggers KicksCrew routing', () => {
   assert.equal(
     router.isSneakerIdentification({ item_type: 'running shoe', brand_guess: 'New Balance', style_tags: ['990'] }, {}),
     true,
   );
 });
 
-test('isSneakerIdentification: Converse Chuck Taylor high top triggers KicksCrew', () => {
+test('isSneakerIdentification: Converse Chuck Taylor high top triggers KicksCrew routing', () => {
   assert.equal(
     router.isSneakerIdentification(
       { item_type: 'high-top', brand_guess: 'Converse', visible_brand_text: 'Chuck Taylor' },
@@ -705,7 +953,7 @@ test('isSneakerIdentification: Converse Chuck Taylor high top triggers KicksCrew
   );
 });
 
-test('isSneakerIdentification: Asics Gel-Kayano running shoe triggers KicksCrew', () => {
+test('isSneakerIdentification: Asics Gel-Kayano running shoe triggers KicksCrew routing', () => {
   assert.equal(
     router.isSneakerIdentification(
       { item_type: 'running shoe', brand_guess: 'Asics', style_tags: ['Gel-Kayano'] },
@@ -715,12 +963,12 @@ test('isSneakerIdentification: Asics Gel-Kayano running shoe triggers KicksCrew'
   );
 });
 
-test('isSneakerIdentification: shoe alone does not trigger KicksCrew', () => {
+test('isSneakerIdentification: shoe alone does not trigger KicksCrew routing', () => {
   assert.equal(router.isSneakerIdentification({ item_type: 'shoe', primary_color: 'black' }, {}), false);
   assert.equal(router.isSneakerIdentification({ item_type: 'shoes', primary_color: 'white' }, {}), false);
 });
 
-test('isSneakerIdentification: non-sneaker footwear does not trigger KicksCrew', () => {
+test('isSneakerIdentification: non-sneaker footwear does not trigger KicksCrew routing', () => {
   assert.equal(router.isSneakerIdentification({ item_type: 'loafer', brand_guess: 'Gucci' }, {}), false);
   assert.equal(router.isSneakerIdentification({ item_type: 'Chelsea boot', brand_guess: 'Chelsea' }, {}), false);
   assert.equal(router.isSneakerIdentification({ item_type: 'high heel', brand_guess: 'Louboutin' }, {}), false);
@@ -729,7 +977,7 @@ test('isSneakerIdentification: non-sneaker footwear does not trigger KicksCrew',
   assert.equal(router.isSneakerIdentification({ item_type: 'ballet flat', brand_guess: 'Chanel' }, {}), false);
 });
 
-test('isSneakerIdentification: non-footwear fashion does not trigger KicksCrew', () => {
+test('isSneakerIdentification: non-footwear fashion does not trigger KicksCrew routing', () => {
   assert.equal(router.isSneakerIdentification({ item_type: 'handbag', brand_guess: 'Chanel' }, {}), false);
   assert.equal(router.isSneakerIdentification({ item_type: 'polo shirt', brand_guess: 'Lacoste' }, {}), false);
   assert.equal(router.isSneakerIdentification({ item_type: 'trench coat', brand_guess: 'Burberry' }, {}), false);
@@ -746,490 +994,25 @@ test('isSneakerIdentification: strong sneaker model overrides non-sneaker footwe
   );
 });
 
-// ── KicksCrew provider routing ──
-
-test('KicksCrew disabled skips provider and continues to Farfetch', async () => {
+test('getScanCommerceResults: sneaker query with no discovered kickscrew.com URL does not force KicksCrew', async () => {
   resetEnv();
+  ENV.KICKSCREW_ENABLED = 'true';
   let kickscrewCalled = false;
   FETCH_IMPL = routeFetch({
+    serper: serperOk([{ title: 'Air Jordan 1 Retro', link: 'https://shop.com/aj1' }]),
     kickscrew: () => {
       kickscrewCalled = true;
-      return kickscrewOk([{ id: 'kc1', name: 'Air Force 1', url: 'https://kickscrew.com/af1' }]);
+      return kickscrewOk(kicksCrewPayload({ title: 'Should not be called' }));
     },
-    farfetch: farfetchOk([{ id: 'ff1', name: 'Sneaker', url: 'https://farfetch.com/sneaker' }]),
   });
   const result = await router.getScanCommerceResults({
     mode: 'image',
-    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
+    identification: { item_type: 'sneakers', brand_guess: 'Nike' },
+    searchQueries: ['Nike Air Jordan 1 Retro'],
   });
   assert.equal(kickscrewCalled, false);
-  assert.equal(result.provider, 'farfetch');
   assert.equal(result.providersTried.includes('kickscrew'), false);
-});
-
-test('KicksCrew missing key skips provider and continues to Farfetch', async () => {
-  resetEnv();
-  ENV.KICKSCREW_ENABLED = 'true';
-  // Give Farfetch its own dedicated key so it can run while KicksCrew has none.
-  ENV.FARFETCH_RAPIDAPI_KEY = 'dedicated-farfetch-key';
-  delete ENV.RAPIDAPI_KEY;
-  delete ENV.KICKSCREW_RAPIDAPI_KEY;
-  let kickscrewCalled = false;
-  FETCH_IMPL = routeFetch({
-    kickscrew: () => {
-      kickscrewCalled = true;
-      return kickscrewOk([{ id: 'kc1', name: 'Air Force 1', url: 'https://kickscrew.com/af1' }]);
-    },
-    farfetch: farfetchOk([{ id: 'ff1', name: 'Sneaker', url: 'https://farfetch.com/sneaker' }]),
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
-  });
-  assert.equal(kickscrewCalled, false);
-  assert.equal(result.provider, 'farfetch');
-  assert.equal(result.providersTried.includes('kickscrew'), false);
-});
-
-test('KICKSCREW_RAPIDAPI_KEY is preferred over RAPIDAPI_KEY', async () => {
-  resetEnv();
-  ENV.KICKSCREW_ENABLED = 'true';
-  ENV.KICKSCREW_RAPIDAPI_KEY = 'dedicated-kickscrew-key';
-  let usedKey;
-  FETCH_IMPL = routeFetch({
-    kickscrew: async (_url, options) => {
-      usedKey = options?.headers?.['x-rapidapi-key'];
-      return kickscrewOk([{ id: 'kc1', name: 'Air Force 1', url: 'https://kickscrew.com/af1' }]);
-    },
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
-  });
-  assert.equal(result.provider, 'kickscrew');
-  assert.equal(usedKey, 'dedicated-kickscrew-key');
-});
-
-test('RAPIDAPI_KEY is used as KicksCrew fallback key', async () => {
-  resetEnv();
-  ENV.KICKSCREW_ENABLED = 'true';
-  let usedKey;
-  FETCH_IMPL = routeFetch({
-    kickscrew: async (_url, options) => {
-      usedKey = options?.headers?.['x-rapidapi-key'];
-      return kickscrewOk([{ id: 'kc1', name: 'Air Force 1', url: 'https://kickscrew.com/af1' }]);
-    },
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
-  });
-  assert.equal(result.provider, 'kickscrew');
-  assert.equal(usedKey, 'rapidapi-test-key');
-});
-
-test('KicksCrew success with 3+ products skips Farfetch/Serper/Brave', async () => {
-  resetEnv();
-  ENV.KICKSCREW_ENABLED = 'true';
-  let farfetchCalled = false;
-  let serperCalled = false;
-  FETCH_IMPL = routeFetch({
-    kickscrew: kickscrewOk([
-      { id: 'kc1', name: 'Air Force 1 White', url: 'https://kickscrew.com/af1-white' },
-      { id: 'kc2', name: 'Air Force 1 Black', url: 'https://kickscrew.com/af1-black' },
-      { id: 'kc3', name: 'Air Force 1 Grey', url: 'https://kickscrew.com/af1-grey' },
-    ]),
-    farfetch: () => {
-      farfetchCalled = true;
-      return farfetchOk([]);
-    },
-    serper: () => {
-      serperCalled = true;
-      return serperOk([]);
-    },
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
-  });
-  assert.equal(result.provider, 'kickscrew');
-  assert.equal(result.products.length, 3);
-  assert.equal(result.products[0].source, 'KicksCrew');
-  assert.equal(farfetchCalled, false);
-  assert.equal(serperCalled, false);
-  assert.equal(result.providersTried[0], 'kickscrew');
-});
-
-test('KicksCrew success with 1-2 products merges with Farfetch', async () => {
-  resetEnv();
-  ENV.KICKSCREW_ENABLED = 'true';
-  let serperCalled = false;
-  FETCH_IMPL = routeFetch({
-    kickscrew: kickscrewOk([
-      { id: 'kc1', name: 'Air Force 1 White', url: 'https://kickscrew.com/af1-white' },
-      { id: 'kc2', name: 'Air Force 1 Black', url: 'https://kickscrew.com/af1-black' },
-    ]),
-    farfetch: farfetchOk([
-      { id: 'ff1', name: 'Air Force 1 Grey', url: 'https://farfetch.com/af1-grey' },
-      { id: 'ff2', name: 'Air Force 1 Beige', url: 'https://farfetch.com/af1-beige' },
-    ]),
-    serper: () => {
-      serperCalled = true;
-      return serperOk([]);
-    },
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
-  });
-  assert.equal(result.provider, 'kickscrew');
-  assert.equal(result.products.length, 4);
-  assert.equal(result.products[0].source, 'KicksCrew');
-  assert.equal(result.products[2].source, 'Farfetch');
-  assert.equal(serperCalled, false);
-});
-
-test('KicksCrew + Farfetch combined >=3 skips Serper/Brave', async () => {
-  resetEnv();
-  ENV.KICKSCREW_ENABLED = 'true';
-  let serperCalled = false;
-  FETCH_IMPL = routeFetch({
-    kickscrew: kickscrewOk([
-      { id: 'kc1', name: 'Jordan 1 White', url: 'https://kickscrew.com/j1-white' },
-    ]),
-    farfetch: farfetchOk([
-      { id: 'ff1', name: 'Jordan 1 Red', url: 'https://farfetch.com/j1-red' },
-      { id: 'ff2', name: 'Jordan 1 Black', url: 'https://farfetch.com/j1-black' },
-    ]),
-    serper: () => {
-      serperCalled = true;
-      return serperOk([]);
-    },
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { item_type: 'sneaker', brand_guess: 'Jordan', style_tags: ['Jordan 1'] },
-  });
-  assert.equal(result.provider, 'kickscrew');
-  assert.equal(result.products.length, 3);
-  assert.equal(serperCalled, false);
-});
-
-test('KicksCrew + Farfetch combined <3 continues to Serper/Brave', async () => {
-  resetEnv();
-  ENV.KICKSCREW_ENABLED = 'true';
-  FETCH_IMPL = routeFetch({
-    kickscrew: kickscrewOk([
-      { id: 'kc1', name: 'Jordan 1 White', url: 'https://kickscrew.com/j1-white' },
-    ]),
-    farfetch: farfetchOk([]),
-    serper: serperOk([{ title: 'Jordan 1 Red', link: 'https://shop.com/j1-red' }]),
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { item_type: 'sneaker', brand_guess: 'Jordan', style_tags: ['Jordan 1'] },
-  });
-  assert.equal(result.provider, 'kickscrew');
-  assert.equal(result.products.length, 2);
-  assert.equal(result.providersTried[0], 'kickscrew');
-  assert.equal(result.providersTried[1], 'farfetch');
-  assert.equal(result.providersTried[2], 'serper');
-});
-
-test('KicksCrew zero products falls back to Farfetch', async () => {
-  resetEnv();
-  ENV.KICKSCREW_ENABLED = 'true';
-  FETCH_IMPL = routeFetch({
-    kickscrew: kickscrewOk([]),
-    farfetch: farfetchOk([
-      { id: 'ff1', name: 'Sneaker', url: 'https://farfetch.com/sneaker' },
-    ]),
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
-  });
-  assert.equal(result.provider, 'farfetch');
   assert.equal(result.products.length, 1);
-  assert.equal(result.products[0].source, 'Farfetch');
-});
-
-test('KicksCrew timeout falls back to Farfetch', async () => {
-  resetEnv();
-  ENV.KICKSCREW_ENABLED = 'true';
-  FETCH_IMPL = routeFetch({
-    kickscrew: () => new Promise((_resolve, reject) => {
-      const e = new Error('aborted');
-      e.name = 'AbortError';
-      setTimeout(() => reject(e), 10);
-    }),
-    farfetch: farfetchOk([{ id: 'ff1', name: 'Sneaker', url: 'https://farfetch.com/sneaker' }]),
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
-  });
-  assert.equal(result.provider, 'farfetch');
-  assert.equal(result.products.length, 1);
-});
-
-test('KicksCrew 401 falls back safely', async () => {
-  resetEnv();
-  ENV.KICKSCREW_ENABLED = 'true';
-  FETCH_IMPL = routeFetch({
-    kickscrew: { ok: false, status: 401, json: async () => ({ message: 'unauthorized' }) },
-    farfetch: farfetchOk([{ id: 'ff1', name: 'Sneaker', url: 'https://farfetch.com/sneaker' }]),
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
-  });
-  assert.equal(result.provider, 'farfetch');
-  assert.equal(result.products.length, 1);
-});
-
-test('KicksCrew 429 falls back safely', async () => {
-  resetEnv();
-  ENV.KICKSCREW_ENABLED = 'true';
-  FETCH_IMPL = routeFetch({
-    kickscrew: { ok: false, status: 429, json: async () => ({ message: 'rate limited' }) },
-    farfetch: farfetchOk([{ id: 'ff1', name: 'Sneaker', url: 'https://farfetch.com/sneaker' }]),
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
-  });
-  assert.equal(result.provider, 'farfetch');
-  assert.equal(result.products.length, 1);
-});
-
-test('KicksCrew invalid JSON falls back safely', async () => {
-  resetEnv();
-  ENV.KICKSCREW_ENABLED = 'true';
-  FETCH_IMPL = routeFetch({
-    kickscrew: { ok: true, status: 200, json: async () => 'not json' },
-    farfetch: farfetchOk([{ id: 'ff1', name: 'Sneaker', url: 'https://farfetch.com/sneaker' }]),
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
-  });
-  assert.equal(result.provider, 'farfetch');
-  assert.equal(result.products.length, 1);
-});
-
-test('KicksCrew successful mapping produces normalized retail products', async () => {
-  resetEnv();
-  ENV.KICKSCREW_ENABLED = 'true';
-  FETCH_IMPL = routeFetch({
-    kickscrew: kickscrewOk([
-      {
-        id: 'kc1',
-        name: "Air Jordan 1 Mid 'Pine Green' 852542-301",
-        brand: 'Air Jordan',
-        price: { amount: 1141.0, currency: 'USD' },
-        images: [{ url: 'https://cdn.shopify.com/kc/pine-green.jpg' }],
-        url: 'https://www.kickscrew.com/en-PT/products/air-jordan-1-mid-se-pine-green-852542-301',
-      },
-    ]),
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { item_type: 'sneaker', brand_guess: 'Jordan', style_tags: ['Jordan 1'] },
-  });
-  assert.equal(result.provider, 'kickscrew');
-  assert.equal(result.products.length, 1);
-  const p = result.products[0];
-  assert.equal(p.title, "Air Jordan 1 Mid 'Pine Green' 852542-301");
-  assert.equal(p.source, 'KicksCrew');
-  assert.equal(p.type, 'retail');
-  assert.equal(p.price, '$1,141.00');
-  assert.equal(p.imageUrl, 'https://cdn.shopify.com/kc/pine-green.jpg');
-  assert.ok(p.productUrl.includes('kickscrew.com'));
-});
-
-test('KicksCrew invalid products are skipped', async () => {
-  resetEnv();
-  ENV.KICKSCREW_ENABLED = 'true';
-  FETCH_IMPL = routeFetch({
-    kickscrew: kickscrewOk([
-      { id: 'bad1', name: '', url: 'https://kickscrew.com/bad' },
-      { id: 'bad2', name: 'No URL' },
-      { id: 'good', name: 'Valid Sneaker', url: 'https://kickscrew.com/valid' },
-    ]),
-    farfetch: farfetchOk([]),
-    serper: serperOk([]),
-    brave: braveOk([]),
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
-  });
-  assert.equal(result.products.length, 1);
-  assert.equal(result.products[0].title, 'Valid Sneaker');
-});
-
-test('KicksCrew out-of-stock products are skipped when availability is available', async () => {
-  resetEnv();
-  ENV.KICKSCREW_ENABLED = 'true';
-  FETCH_IMPL = routeFetch({
-    kickscrew: kickscrewOk([
-      { id: 'kc1', name: 'In Stock', url: 'https://kickscrew.com/in-stock', availability: 'in_stock' },
-      { id: 'kc2', name: 'Out of Stock', url: 'https://kickscrew.com/oos', availability: 'out_of_stock' },
-      { id: 'kc3', name: 'Sold Out', url: 'https://kickscrew.com/sold-out', inStock: false },
-      { id: 'kc4', name: 'Available', url: 'https://kickscrew.com/avail', available: true },
-    ]),
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
-  });
-  assert.equal(result.products.length, 2);
-  assert.equal(result.products[0].title, 'In Stock');
-  assert.equal(result.products[1].title, 'Available');
-});
-
-test('KicksCrew internal duplicate URLs are deduped', async () => {
-  resetEnv();
-  ENV.KICKSCREW_ENABLED = 'true';
-  FETCH_IMPL = routeFetch({
-    kickscrew: kickscrewOk([
-      { id: 'kc1', name: 'AF1 White', url: 'https://kickscrew.com/af1?utm_source=x' },
-      { id: 'kc2', name: 'AF1 White dup', url: 'https://kickscrew.com/af1?utm_campaign=y' },
-      { id: 'kc3', name: 'AF1 Black', url: 'https://kickscrew.com/af1-black' },
-    ]),
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
-  });
-  assert.equal(result.provider, 'kickscrew');
-  assert.equal(result.products.length, 2);
-});
-
-test('KicksCrew wins duplicate URL over catalog and Farfetch', async () => {
-  resetEnv();
-  ENV.KICKSCREW_ENABLED = 'true';
-  FETCH_IMPL = routeFetch({
-    kickscrew: kickscrewOk([
-      { id: 'kc1', name: 'AF1 White', url: 'https://shop.com/af1-white' },
-    ]),
-    farfetch: farfetchOk([
-      { id: 'ff1', name: 'AF1 White Farfetch', url: 'https://shop.com/af1-white' },
-    ]),
-    serper: serperOk([{ title: 'AF1 White Serper', link: 'https://shop.com/af1-white' }]),
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
-  });
-  assert.equal(result.products.length, 1);
-  assert.equal(result.products[0].source, 'KicksCrew');
-});
-
-test('KicksCrew is not called for non-sneaker fashion scans', async () => {
-  resetEnv();
-  ENV.KICKSCREW_ENABLED = 'true';
-  let kickscrewCalled = false;
-  FETCH_IMPL = routeFetch({
-    kickscrew: () => {
-      kickscrewCalled = true;
-      return kickscrewOk([{ id: 'kc1', name: 'Sneaker', url: 'https://kickscrew.com/sneaker' }]);
-    },
-    farfetch: farfetchOk([{ id: 'ff1', name: 'Handbag', url: 'https://farfetch.com/bag' }]),
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { brand_guess: 'Chanel', item_type: 'handbag', primary_color: 'black' },
-  });
-  assert.equal(kickscrewCalled, false);
-  assert.equal(result.provider, 'farfetch');
-  assert.equal(result.products[0].source, 'Farfetch');
-});
-
-test('KicksCrew is not called for weak sneaker query', async () => {
-  resetEnv();
-  ENV.KICKSCREW_ENABLED = 'true';
-  let kickscrewCalled = false;
-  FETCH_IMPL = routeFetch({
-    kickscrew: () => {
-      kickscrewCalled = true;
-      return kickscrewOk([{ id: 'kc1', name: 'Sneaker', url: 'https://kickscrew.com/sneaker' }]);
-    },
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { item_type: 'sneaker', primary_color: 'cool' },
-  });
-  assert.equal(kickscrewCalled, false);
-  assert.equal(result.errorType, 'weak_query');
-});
-
-test('KicksCrew is not called for non-fashion scans', async () => {
-  resetEnv();
-  ENV.KICKSCREW_ENABLED = 'true';
-  let kickscrewCalled = false;
-  FETCH_IMPL = routeFetch({
-    kickscrew: () => {
-      kickscrewCalled = true;
-      return kickscrewOk([{ id: 'kc1', name: 'Sneaker', url: 'https://kickscrew.com/sneaker' }]);
-    },
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { non_fashion: true, item_type: 'NON_FASHION', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
-  });
-  assert.equal(kickscrewCalled, false);
-  assert.equal(result.errorType, 'non_fashion');
-});
-
-test('Non-sneaker fashion still calls Farfetch first', async () => {
-  resetEnv();
-  ENV.KICKSCREW_ENABLED = 'true';
-  FETCH_IMPL = routeFetch({
-    farfetch: farfetchOk([
-      { id: 'ff1', name: 'Red Polo', url: 'https://farfetch.com/red-polo' },
-      { id: 'ff2', name: 'Navy Polo', url: 'https://farfetch.com/navy-polo' },
-      { id: 'ff3', name: 'White Polo', url: 'https://farfetch.com/white-polo' },
-    ]),
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { brand_guess: 'Lacoste', item_type: 'polo shirt', primary_color: 'red' },
-  });
-  assert.equal(result.provider, 'farfetch');
-  assert.equal(result.providersTried[0], 'farfetch');
-  assert.equal(result.products.length, 3);
-});
-
-test('Final recommendedProducts capped to top 10', async () => {
-  resetEnv();
-  ENV.KICKSCREW_ENABLED = 'true';
-  // KicksCrew + Farfetch combined <3 so Serper runs, giving enough total to hit the cap.
-  const kickscrewItems = Array.from({ length: 1 }, (_, i) => ({
-    id: `kc${i}`,
-    name: `Sneaker ${i}`,
-    url: `https://kickscrew.com/sneaker-${i}`,
-  }));
-  const farfetchItems = Array.from({ length: 1 }, (_, i) => ({
-    id: `ff${i}`,
-    name: `Sneaker FF ${i}`,
-    url: `https://farfetch.com/sneaker-ff-${i}`,
-  }));
-  const serperItems = Array.from({ length: 10 }, (_, i) => ({
-    title: `Sneaker SERP ${i}`,
-    link: `https://shop.com/sneaker-serp-${i}`,
-  }));
-  FETCH_IMPL = routeFetch({
-    kickscrew: kickscrewOk(kickscrewItems),
-    farfetch: farfetchOk(farfetchItems),
-    serper: serperOk(serperItems),
-  });
-  const result = await router.getScanCommerceResults({
-    mode: 'image',
-    identification: { item_type: 'sneaker', brand_guess: 'Nike', style_tags: ['Air Force 1'] },
-  });
-  assert.equal(result.products.length, 10);
 });
 
 // ── Product normalization / dedupe helpers ──
