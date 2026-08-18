@@ -7,6 +7,10 @@
 // list, and the chat session screen.
 
 export type StylistIdentity = {
+  /** Resolved for display: the custom name if one is set, else the canonical
+   *  name for avatarId, else the safe default. This is what every consumer
+   *  (UI, greeting, model persona) already reads and continues to read
+   *  unchanged (Fix #6 resolves this value; it does not change its shape). */
   displayName: string;
   avatarId: string;
 };
@@ -95,6 +99,38 @@ export const DEFAULT_STYLIST_IDENTITY: StylistIdentity = Object.freeze({
   displayName: 'Elise',
   avatarId: 'elise_default',
 });
+
+// ── Fix #6 — canonical per-portrait names and the single name resolver ──────
+//
+// Every shipped portrait has a default display name; a generic/abstract avatar
+// (including the system default) resolves to "Elise", the system identity — not
+// specific to stylist_portrait_01. A user's custom name (set via
+// PersonalizeStylistModal) always overrides the resolved default. THIS is the
+// one place that precedence is decided; every consumer (Home, StyleChatHeader,
+// greeting composition, the backend model persona) resolves through
+// normalizeStylistIdentity's already-resolved `displayName` rather than
+// re-implementing the rule.
+
+export const CANONICAL_PORTRAIT_NAMES: ReadonlyMap<string, string> = Object.freeze(
+  new Map([
+    ['stylist_portrait_01', 'Elise'],
+    ['stylist_portrait_02', 'Henry'],
+    ['stylist_portrait_03', 'Janet'],
+    ['stylist_portrait_04', 'Marie'],
+    ['stylist_portrait_05', 'Sarah'],
+    ['stylist_portrait_06', 'Vivian'],
+    ['stylist_portrait_07', 'Isabella'],
+    ['stylist_portrait_08', 'Michael'],
+    ['stylist_portrait_09', 'David'],
+    ['stylist_portrait_10', 'Kim'],
+  ]),
+);
+
+/** Canonical default name for a portrait; abstract presets/unknown ids fall back to the safe default. */
+export function resolveCanonicalStylistName(avatarId: string | null | undefined): string {
+  if (!avatarId) return DEFAULT_STYLIST_IDENTITY.displayName;
+  return CANONICAL_PORTRAIT_NAMES.get(avatarId) ?? DEFAULT_STYLIST_IDENTITY.displayName;
+}
 
 /** Maximum display-name length enforced by UI and persistence. */
 export const STYLIST_NAME_MAX_LENGTH = 24;
@@ -624,16 +660,45 @@ export function sanitizeStylistName(value: unknown): {
 }
 
 /**
+ * THE single name resolver (Fix #6). customName wins whenever it sanitizes to a
+ * valid value; otherwise the canonical name for avatarId; otherwise the safe
+ * default. UI, greeting composition, and the backend model persona must all
+ * resolve through this precedence — never re-implement it independently.
+ *
+ * Callers decide what counts as "a custom name" (see normalizeStylistIdentity,
+ * which gates on the persisted display_name_customized flag) — this function
+ * itself only sanitizes and applies precedence, it does not read storage.
+ */
+export function resolveStylistDisplayName(
+  customName: string | null | undefined,
+  avatarId: string | null | undefined,
+): string {
+  if (typeof customName === 'string') {
+    const nameResult = sanitizeStylistName(customName);
+    if (nameResult.valid) return nameResult.value;
+  }
+  return resolveCanonicalStylistName(avatarId);
+}
+
+/**
  * Build a validated identity object from raw persisted data. This is the only
  * place raw storage rows should be normalized so every consumer receives the
  * same safe fallback.
+ *
+ * `display_name` stays a required historical column (existing consumers,
+ * migrations, and defaults are untouched). Whether it represents a genuine
+ * user choice is tracked by the separate `display_name_customized` boolean
+ * (added for Fix #6, default false) — only when that flag is true is the
+ * stored text treated as an explicit override; otherwise the canonical name
+ * for avatarId (or the safe default) is resolved instead. This is what keeps
+ * a pre-Fix-#6 row's historical 'Elise' from being mistaken for a deliberate
+ * customization once a different avatar's canonical name should apply.
  */
 export function normalizeStylistIdentity(raw: unknown): StylistIdentity {
   const fallback = DEFAULT_STYLIST_IDENTITY;
   if (!raw || typeof raw !== 'object') return fallback;
 
   const record = raw as Record<string, unknown>;
-  const nameResult = sanitizeStylistName(record.display_name ?? record.displayName);
   const avatarId = resolveAvatarId(
     typeof record.avatar_id === 'string'
       ? record.avatar_id
@@ -642,7 +707,12 @@ export function normalizeStylistIdentity(raw: unknown): StylistIdentity {
         : undefined,
   );
 
-  const displayName = nameResult.valid ? nameResult.value : fallback.displayName;
+  const isCustomized = record.display_name_customized === true;
+  const rawStoredName = record.display_name ?? record.displayName;
+  const customName =
+    isCustomized && typeof rawStoredName === 'string' ? rawStoredName : null;
+  const displayName = resolveStylistDisplayName(customName, avatarId);
+
   return displayName === fallback.displayName && avatarId === fallback.avatarId
     ? fallback
     : Object.freeze({ displayName, avatarId });

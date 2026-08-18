@@ -17,6 +17,8 @@ import {
 interface UserStylistPreferenceRow {
   user_id: string;
   display_name: string;
+  /** Fix #6: true only when the user has explicitly set display_name themselves. */
+  display_name_customized: boolean;
   avatar_id: string;
   created_at: string;
   updated_at: string;
@@ -48,7 +50,7 @@ export async function fetchStylistIdentity(expectedUserId?: string): Promise<Sty
 
   const { data, error } = await supabase
     .from('user_stylist_preferences')
-    .select('user_id, display_name, avatar_id, created_at, updated_at')
+    .select('user_id, display_name, display_name_customized, avatar_id, created_at, updated_at')
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -68,6 +70,14 @@ export async function fetchStylistIdentity(expectedUserId?: string): Promise<Sty
  *
  * Portrait placeholder IDs are rejected before any Supabase request; only
  * persistable avatar IDs can be written to the allowlisted column.
+ *
+ * `identity.displayName` is written (and `display_name_customized` set true)
+ * ONLY when the caller's partial actually includes a `displayName` key — an
+ * avatar-only update (`{ avatarId }`, no `displayName` key) omits both columns
+ * from the upsert payload entirely, which leaves an existing row's stored name
+ * and customization flag untouched rather than overwriting them with whatever
+ * happened to be on screen (Fix #6). A brand-new row with no prior state falls
+ * through to the column defaults ('Elise', not customized).
  */
 export async function saveStylistIdentity(
   identity: Partial<StylistIdentity>,
@@ -78,34 +88,38 @@ export async function saveStylistIdentity(
   // into the default and write an unintended value.
   const avatarId = identity.avatarId ?? DEFAULT_STYLIST_IDENTITY.avatarId;
   assertPersistableAvatarId(avatarId);
-  const nameResult = sanitizeStylistName(
-    identity.displayName ?? DEFAULT_STYLIST_IDENTITY.displayName,
-  );
-  if (!nameResult.valid) {
-    throw new StylistIdentityValidationError(
-      'invalid_identity_input',
-      'Enter a valid stylist name before saving.',
-    );
+
+  const upsertRow: {
+    user_id: string;
+    avatar_id: string;
+    updated_at: string;
+    display_name?: string;
+    display_name_customized?: boolean;
+  } = {
+    user_id: '', // filled in below once the session actor is confirmed
+    avatar_id: avatarId,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (identity.displayName !== undefined) {
+    const nameResult = sanitizeStylistName(identity.displayName);
+    if (!nameResult.valid) {
+      throw new StylistIdentityValidationError(
+        'invalid_identity_input',
+        'Enter a valid stylist name before saving.',
+      );
+    }
+    upsertRow.display_name = nameResult.value;
+    upsertRow.display_name_customized = true;
   }
 
-  const normalized = normalizeStylistIdentity({
-    displayName: nameResult.value,
-    avatarId,
-  });
   const userId = await requireUserId(expectedUserId);
+  upsertRow.user_id = userId;
 
   const { data, error } = await supabase
     .from('user_stylist_preferences')
-    .upsert(
-      {
-        user_id: userId,
-        display_name: normalized.displayName,
-        avatar_id: normalized.avatarId,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id' },
-    )
-    .select('user_id, display_name, avatar_id, created_at, updated_at')
+    .upsert(upsertRow, { onConflict: 'user_id' })
+    .select('user_id, display_name, display_name_customized, avatar_id, created_at, updated_at')
     .single();
 
   if (error) {

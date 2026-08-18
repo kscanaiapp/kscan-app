@@ -81,10 +81,32 @@ const {
   STYLIST_NAME_MAX_LENGTH,
   STYLIST_NAME_MIN_LENGTH,
   getStylistAvatarFraming,
+  CANONICAL_PORTRAIT_NAMES,
+  resolveCanonicalStylistName,
+  resolveStylistDisplayName,
 } = require('../constants/stylistIdentity.ts');
 
 const animatedStylistAvatar = fs.readFileSync(
   path.join(ROOT, 'components', 'stylist', 'AnimatedStylistAvatar.tsx'),
+  'utf8',
+);
+const personalizeStylistModalSource = fs.readFileSync(
+  path.join(ROOT, 'components', 'stylist', 'PersonalizeStylistModal.tsx'),
+  'utf8',
+);
+const stylistIdentityStoreSource = fs.readFileSync(
+  path.join(ROOT, 'stores', 'stylistIdentityStore.ts'),
+  'utf8',
+);
+const displayNameCustomizedMigrationPath = path.join(
+  ROOT,
+  'supabase',
+  'migrations',
+  '20260818000001_add_user_stylist_preferences_display_name_customized.sql',
+);
+const displayNameCustomizedMigration = fs.readFileSync(displayNameCustomizedMigrationPath, 'utf8');
+const styleChatGreetingSource = fs.readFileSync(
+  path.join(ROOT, 'services', 'style-chat', 'styleChatGreeting.ts'),
   'utf8',
 );
 
@@ -258,27 +280,112 @@ test('sanitizeStylistName enforces min and max length', () => {
 test('normalizeStylistIdentity returns default for invalid or missing data', () => {
   assert.equal(normalizeStylistIdentity(null), DEFAULT_STYLIST_IDENTITY);
   assert.equal(normalizeStylistIdentity({}), DEFAULT_STYLIST_IDENTITY);
-  assert.equal(normalizeStylistIdentity({ display_name: 'A' }), DEFAULT_STYLIST_IDENTITY);
+  assert.equal(
+    normalizeStylistIdentity({ display_name: 'A', display_name_customized: true }),
+    DEFAULT_STYLIST_IDENTITY,
+  );
   assert.equal(normalizeStylistIdentity({ avatar_id: 'unknown' }), DEFAULT_STYLIST_IDENTITY);
-  const portraitRow = normalizeStylistIdentity({
-    display_name: 'Other User',
-    avatar_id: 'stylist_portrait_01',
-  });
-  assert.equal(portraitRow.displayName, 'Other User');
-  assert.equal(portraitRow.avatarId, 'stylist_portrait_01');
-  assert.equal(normalizeStylistIdentity({ display_name: '', avatar_id: '' }), DEFAULT_STYLIST_IDENTITY);
+  assert.equal(
+    normalizeStylistIdentity({ display_name: '', avatar_id: '', display_name_customized: true }),
+    DEFAULT_STYLIST_IDENTITY,
+  );
 });
 
-test('normalizeStylistIdentity returns default reference for default values', () => {
+// Fix #6 — a stored display_name is authoritative ONLY when
+// display_name_customized is exactly true. This is what keeps a pre-Fix-#6
+// row's historical 'Elise' (written before customization tracking existed)
+// from being mistaken for a deliberate choice once a different avatar's
+// canonical name should apply instead.
+test('CUSTOM_NAME_NOT_OVERWRITTEN semantics: display_name is ignored unless display_name_customized is exactly true', () => {
+  const notCustomized = normalizeStylistIdentity({
+    display_name: 'Other User',
+    avatar_id: 'stylist_portrait_02',
+  });
+  assert.equal(notCustomized.displayName, 'Henry');
+  assert.equal(notCustomized.avatarId, 'stylist_portrait_02');
+
+  // Truthy-but-not-boolean-true must not accidentally authorize the name either.
+  for (const falsyCustomizedFlag of [false, 0, '', null, undefined, 'true', 1]) {
+    const row = normalizeStylistIdentity({
+      display_name: 'Other User',
+      avatar_id: 'stylist_portrait_02',
+      display_name_customized: falsyCustomizedFlag,
+    });
+    assert.equal(row.displayName, 'Henry', `flag=${JSON.stringify(falsyCustomizedFlag)}`);
+  }
+});
+
+test('CUSTOM_ALEX_OVERRIDES_HENRY: display_name_customized true makes the stored name authoritative', () => {
+  const customized = normalizeStylistIdentity({
+    display_name: 'Alex',
+    avatar_id: 'stylist_portrait_02',
+    display_name_customized: true,
+  });
+  assert.equal(customized.displayName, 'Alex');
+  // STYLIST_02_REMAINS_STYLIST_02_AFTER_RENAME
+  assert.equal(customized.avatarId, 'stylist_portrait_02');
+});
+
+test('normalizeStylistIdentity returns default reference for default (system/star) values', () => {
   const first = normalizeStylistIdentity({ display_name: 'Elise', avatar_id: 'elise_default' });
   const second = normalizeStylistIdentity({ display_name: 'Elise', avatar_id: 'elise_default' });
   assert.equal(first, second);
   assert.equal(first, DEFAULT_STYLIST_IDENTITY);
 
-  const custom = normalizeStylistIdentity({ display_name: 'Sofia', avatar_id: 'editorial_plum' });
-  assert.equal(custom.displayName, 'Sofia');
-  assert.equal(custom.avatarId, 'editorial_plum');
-  assert.ok(Object.isFrozen(custom));
+  // A generic/system avatar with no customization resolves to Elise regardless
+  // of whatever historical text sits in display_name (not customized -> ignored).
+  const genericNotCustomized = normalizeStylistIdentity({
+    display_name: 'Sofia',
+    avatar_id: 'editorial_plum',
+  });
+  assert.equal(genericNotCustomized.displayName, 'Elise');
+  assert.equal(genericNotCustomized.avatarId, 'editorial_plum');
+  // Distinct avatarId from the fallback ('elise_default'), so this is NOT the
+  // same frozen reference even though displayName happens to match.
+  assert.notEqual(genericNotCustomized, DEFAULT_STYLIST_IDENTITY);
+
+  const customGeneric = normalizeStylistIdentity({
+    display_name: 'Kate',
+    avatar_id: 'editorial_plum',
+    display_name_customized: true,
+  });
+  assert.equal(customGeneric.displayName, 'Kate');
+  assert.equal(customGeneric.avatarId, 'editorial_plum');
+  assert.ok(Object.isFrozen(customGeneric));
+});
+
+for (const [avatarId, expectedName] of [
+  ['stylist_portrait_01', 'Elise'],
+  ['stylist_portrait_02', 'Henry'],
+  ['stylist_portrait_03', 'Janet'],
+  ['stylist_portrait_04', 'Marie'],
+  ['stylist_portrait_05', 'Sarah'],
+  ['stylist_portrait_06', 'Vivian'],
+  ['stylist_portrait_07', 'Isabella'],
+  ['stylist_portrait_08', 'Michael'],
+  ['stylist_portrait_09', 'David'],
+  ['stylist_portrait_10', 'Kim'],
+]) {
+  test(`CANONICAL_${avatarId.slice(-2)}_${expectedName.toUpperCase()}: ${avatarId} resolves to ${expectedName} with no custom name`, () => {
+    assert.equal(resolveCanonicalStylistName(avatarId), expectedName);
+    assert.equal(resolveStylistDisplayName(null, avatarId), expectedName);
+    const row = normalizeStylistIdentity({ avatar_id: avatarId });
+    assert.equal(row.displayName, expectedName);
+    assert.equal(row.avatarId, avatarId);
+  });
+}
+
+test('SELECT_STYLIST_UPDATES_DEFAULT_NAME: switching avatarId with no customization recomputes the canonical name', () => {
+  const henry = normalizeStylistIdentity({ avatar_id: 'stylist_portrait_02' });
+  assert.equal(henry.displayName, 'Henry');
+  const sarah = normalizeStylistIdentity({ avatar_id: 'stylist_portrait_05' });
+  assert.equal(sarah.displayName, 'Sarah');
+});
+
+test('generic/system avatar selections resolve to Elise, not just stylist_portrait_01 specifically', () => {
+  for (const genericAvatarId of ['elise_default', 'editorial_plum', 'chrome_muse', 'deep_space']) {
+    assert.equal(resolveCanonicalStylistName(genericAvatarId), 'Elise');
+  }
 });
 
 // ── Persistence / migration contract ─────────────────────────────────────────
@@ -384,6 +491,133 @@ test('service rejects unknown avatar IDs before any Supabase call', async () => 
 
   assert.equal(authCalls, 0);
   assert.equal(tableCalls, 0);
+});
+
+// ── Fix #6: end-to-end persistence semantics against a realistic fake table ──
+//
+// This fake models the one property that matters here: an upsert's SET clause
+// only includes columns present in the payload, so an omitted key leaves an
+// existing row's column untouched on UPDATE (verified for real against
+// genderStylingContextService in Fix #5's test suite; this fake pins the same
+// contract for stylistIdentityService's avatar-only-update path).
+
+function makeFakeStylistPreferencesTable() {
+  const rows = new Map();
+  return {
+    rows,
+    from(tableName) {
+      if (tableName !== 'user_stylist_preferences') throw new Error(`unexpected table ${tableName}`);
+      let pendingEq = null;
+      const builder = {
+        select: () => builder,
+        eq: (_col, value) => { pendingEq = value; return builder; },
+        maybeSingle: async () => ({ data: rows.get(pendingEq) ?? null, error: null }),
+        upsert: (partial) => {
+          const existing = rows.get(partial.user_id) ?? {
+            user_id: partial.user_id,
+            display_name: 'Elise',
+            display_name_customized: false,
+            avatar_id: 'elise_default',
+            created_at: '2026-01-01T00:00:00.000Z',
+          };
+          // Only overwrite columns actually present in the payload -- the
+          // real behavior this fake exists to model.
+          const merged = { ...existing, ...partial };
+          rows.set(partial.user_id, merged);
+          return {
+            select: () => ({ single: async () => ({ data: merged, error: null }) }),
+          };
+        },
+      };
+      return builder;
+    },
+  };
+}
+
+function makeFakeSupabaseForUser(userId, table) {
+  return {
+    auth: { getSession: async () => ({ data: { session: { user: { id: userId } } } }) },
+    from: (name) => table.from(name),
+  };
+}
+
+test('CUSTOM_NAME_PERSISTS_AFTER_REOPEN: a saved custom name round-trips through fetch as if the app were reopened', async () => {
+  const table = makeFakeStylistPreferencesTable();
+  const service = loadStylistIdentityServiceWithSupabase(makeFakeSupabaseForUser('user-a', table));
+
+  const saved = await service.saveStylistIdentity(
+    { displayName: 'Alex', avatarId: 'stylist_portrait_02' },
+    'user-a',
+  );
+  assert.equal(saved.displayName, 'Alex');
+  assert.equal(saved.avatarId, 'stylist_portrait_02');
+
+  // Simulate leaving and reopening Elise: a fresh fetch against the same table.
+  const reopened = await service.fetchStylistIdentity('user-a');
+  assert.equal(reopened.displayName, 'Alex');
+  assert.equal(reopened.avatarId, 'stylist_portrait_02');
+});
+
+test('CUSTOM_NAME_NOT_OVERWRITTEN (persistence layer): an avatar-only save leaves an existing custom name and its flag untouched', async () => {
+  const table = makeFakeStylistPreferencesTable();
+  const service = loadStylistIdentityServiceWithSupabase(makeFakeSupabaseForUser('user-a', table));
+
+  await service.saveStylistIdentity({ displayName: 'Alex', avatarId: 'stylist_portrait_02' }, 'user-a');
+  // Now switch avatar only -- no displayName key in the partial.
+  const afterAvatarChange = await service.saveStylistIdentity({ avatarId: 'stylist_portrait_05' }, 'user-a');
+
+  assert.equal(afterAvatarChange.avatarId, 'stylist_portrait_05');
+  // CUSTOM_NAME_NOT_OVERWRITTEN: "Alex" carries over rather than resetting to
+  // Sarah (stylist_portrait_05's canonical name), because the row's
+  // display_name_customized flag was never touched by the avatar-only save.
+  assert.equal(afterAvatarChange.displayName, 'Alex');
+
+  const row = table.rows.get('user-a');
+  assert.equal(row.display_name, 'Alex');
+  assert.equal(row.display_name_customized, true);
+});
+
+test('SELECT_STYLIST_UPDATES_DEFAULT_NAME (persistence layer): an avatar-only save on a never-customized row resolves the new canonical name', async () => {
+  const table = makeFakeStylistPreferencesTable();
+  const service = loadStylistIdentityServiceWithSupabase(makeFakeSupabaseForUser('user-a', table));
+
+  // No prior save at all -- fresh actor, never customized.
+  const afterFirstAvatarPick = await service.saveStylistIdentity({ avatarId: 'stylist_portrait_02' }, 'user-a');
+  assert.equal(afterFirstAvatarPick.displayName, 'Henry');
+
+  const afterSecondAvatarPick = await service.saveStylistIdentity({ avatarId: 'stylist_portrait_05' }, 'user-a');
+  assert.equal(afterSecondAvatarPick.displayName, 'Sarah');
+
+  const row = table.rows.get('user-a');
+  assert.equal(row.display_name_customized, false);
+});
+
+test('ACCOUNT_ISOLATION (persistence layer): user A\'s custom name never appears for user B', async () => {
+  const table = makeFakeStylistPreferencesTable();
+  const serviceA = loadStylistIdentityServiceWithSupabase(makeFakeSupabaseForUser('user-a', table));
+  const serviceB = loadStylistIdentityServiceWithSupabase(makeFakeSupabaseForUser('user-b', table));
+
+  await serviceA.saveStylistIdentity({ displayName: 'Alex', avatarId: 'stylist_portrait_02' }, 'user-a');
+
+  const bIdentity = await serviceB.fetchStylistIdentity('user-b');
+  assert.notEqual(bIdentity.displayName, 'Alex');
+  assert.equal(bIdentity.displayName, 'Elise');
+
+  await serviceB.saveStylistIdentity({ displayName: 'Kate', avatarId: 'stylist_portrait_05' }, 'user-b');
+  const aIdentity = await serviceA.fetchStylistIdentity('user-a');
+  assert.equal(aIdentity.displayName, 'Alex', "user B's save must not affect user A's row");
+
+  assert.equal(table.rows.get('user-a').display_name, 'Alex');
+  assert.equal(table.rows.get('user-b').display_name, 'Kate');
+});
+
+test('an actor mismatch throws before touching the table (defense in depth alongside RLS)', async () => {
+  const table = makeFakeStylistPreferencesTable();
+  const service = loadStylistIdentityServiceWithSupabase(makeFakeSupabaseForUser('user-b', table));
+
+  await assert.rejects(service.fetchStylistIdentity('user-a'));
+  await assert.rejects(service.saveStylistIdentity({ displayName: 'Alex', avatarId: 'stylist_portrait_02' }, 'user-a'));
+  assert.equal(table.rows.has('user-a'), false);
 });
 
 // ── Store reference stability ────────────────────────────────────────────────
@@ -548,12 +782,22 @@ test('store keeps the latest identity when overlapping saves resolve out of orde
   const firstSave = store.updateStylistIdentity({ displayName: 'Sofia', avatarId: 'editorial_plum' });
   const secondSave = store.updateStylistIdentity({ displayName: 'Maya', avatarId: 'deep_space' });
 
-  pendingSaves.get('Maya').resolve({ displayName: 'Maya', avatarId: 'deep_space' });
+  // Fix #6: a realistic save response includes display_name_customized=true
+  // whenever the save actually set a new name, matching the real service.
+  pendingSaves.get('Maya').resolve({
+    displayName: 'Maya',
+    avatarId: 'deep_space',
+    display_name_customized: true,
+  });
   await secondSave;
   assert.equal(store.getStylistIdentitySnapshot().displayName, 'Maya');
   assert.equal(store.getStylistIdentitySnapshot().avatarId, 'deep_space');
 
-  pendingSaves.get('Sofia').resolve({ displayName: 'Sofia', avatarId: 'editorial_plum' });
+  pendingSaves.get('Sofia').resolve({
+    displayName: 'Sofia',
+    avatarId: 'editorial_plum',
+    display_name_customized: true,
+  });
   await firstSave;
   assert.equal(store.getStylistIdentitySnapshot().displayName, 'Maya');
   assert.equal(store.getStylistIdentitySnapshot().avatarId, 'deep_space');
@@ -789,6 +1033,91 @@ test('AnimatedStylistAvatar opts the mouth-state speaking overlay out of the new
   for (const block of fallbackBranches) {
     assert.doesNotMatch(block, /applyFraming/);
   }
+});
+
+// ── Fix #6: single-resolver coherence (UI / greeting / model / speech-ready) ──
+
+test('VISIBLE_NAME_USES_RESOLVED_NAME: HomeStylistCard and StyleChatHeader read identity.displayName, not a second source', () => {
+  assert.match(homeStylistCard, /identity\.displayName/);
+  assert.doesNotMatch(homeStylistCard, /ELISE_IDENTITY\.displayName/);
+});
+
+test('GREETING_USES_RESOLVED_NAME: the greeting builder consumes identity.displayName, unmodified from before Fix #6', () => {
+  assert.match(styleChatGreetingSource, /stylistName:\s*identity\.displayName/);
+  assert.match(styleChatGreetingSource, /identity:\s*StylistIdentity/);
+});
+
+test('VISIBLE_AND_GREETING_NAMES_MATCH: both read the exact same resolved field on the exact same identity object', () => {
+  const identity = normalizeStylistIdentity({
+    display_name: 'Alex',
+    avatar_id: 'stylist_portrait_02',
+    display_name_customized: true,
+  });
+  // What HomeStylistCard/StyleChatHeader would render:
+  const visibleName = identity.displayName;
+  // What getGreetingTextForUser would build the greeting from:
+  const greetingName = identity.displayName;
+  assert.equal(visibleName, greetingName);
+  assert.equal(visibleName, 'Alex');
+});
+
+test('FUTURE_SPEECH_INTRODUCTION_USES_RESOLVED_NAME / NO_SECOND_SPEECH_NAME_RESOLVER: the greeting text itself (what any future speech playback would read) contains exactly the resolved name', () => {
+  // Mirrors buildStylistGreeting's own template without importing React
+  // Native-dependent modules into this test file.
+  const withCustomName = normalizeStylistIdentity({
+    display_name: 'Alex',
+    avatar_id: 'stylist_portrait_02',
+    display_name_customized: true,
+  }).displayName;
+  const withDefaultName = normalizeStylistIdentity({ avatar_id: 'stylist_portrait_02' }).displayName;
+  assert.equal(withCustomName, 'Alex');
+  assert.equal(withDefaultName, 'Henry');
+  // getGreetingTextForUser passes identity.displayName straight through as
+  // stylistName with no intermediate transform, so "the text a future speech
+  // path would read" is provably the same string as the UI's resolved name.
+  assert.match(styleChatGreetingSource, /buildStylistGreeting\(\{[\s\S]*?stylistName:\s*identity\.displayName,?\s*\}\)/);
+});
+
+test('PersonalizeStylistModal tracks whether the name field was actually edited, and omits displayName from onSave when it was not', () => {
+  assert.match(personalizeStylistModalSource, /nameEditedRef/);
+  assert.match(personalizeStylistModalSource, /handleNameChange[\s\S]*?nameEditedRef\.current = true/);
+  const saveCall = personalizeStylistModalSource.match(/await onSave\(\{[\s\S]*?\}\);/)?.[0];
+  assert.ok(saveCall, 'expected the onSave(...) call in handleSave');
+  assert.match(saveCall, /nameEditedRef\.current \? \{ displayName: trimmed \} : \{\}/);
+});
+
+test('the store passes displayName to the service only when the caller\'s update actually included it', () => {
+  assert.match(
+    stylistIdentityStoreSource,
+    /input\.displayName !== undefined \? \{ displayName: nextIdentity\.displayName \} : \{\}/,
+  );
+});
+
+test('display_name_customized migration is additive: no RLS, grant, policy, or auth change, no backfill guess beyond the honest column default', () => {
+  const sqlOnly = displayNameCustomizedMigration
+    .split('\n')
+    .filter((line) => !line.trim().startsWith('--'))
+    .join('\n');
+  assert.match(sqlOnly, /alter table public\.user_stylist_preferences/);
+  assert.match(sqlOnly, /add column if not exists display_name_customized boolean not null default false/);
+  assert.doesNotMatch(sqlOnly, /\brow level security\b/i);
+  assert.doesNotMatch(sqlOnly, /\bcreate policy\b/i);
+  assert.doesNotMatch(sqlOnly, /^\s*grant\s/im);
+  assert.doesNotMatch(sqlOnly, /^\s*revoke\s/im);
+  assert.doesNotMatch(sqlOnly, /\bupdate\s+public\.user_stylist_preferences\s+set\b/i);
+  assert.doesNotMatch(sqlOnly, /\bauth\.\w+\(/i);
+  // display_name itself is untouched -- still the same required, defaulted column.
+  assert.doesNotMatch(sqlOnly, /alter column display_name/i);
+});
+
+test('FIX5_GENDER_CONTEXT_UNCHANGED: gender styling context module is untouched by any Fix #6 file', () => {
+  const genderConstants = fs.readFileSync(path.join(ROOT, 'constants', 'genderStylingContext.ts'), 'utf8');
+  const genderService = fs.readFileSync(path.join(ROOT, 'services', 'genderStylingContextService.ts'), 'utf8');
+  // Fix #6 touches stylist identity naming only; the gender context module
+  // must not reference avatarId/stylist naming at all -- the two preferences
+  // are independent, per the product contract.
+  assert.doesNotMatch(genderConstants, /avatarId|display_name|CANONICAL_PORTRAIT/i);
+  assert.doesNotMatch(genderService, /avatarId|display_name|CANONICAL_PORTRAIT/i);
 });
 
 // ── Shipped portrait assets ──────────────────────────────────────────────────
