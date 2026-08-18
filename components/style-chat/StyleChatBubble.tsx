@@ -5,6 +5,7 @@ import type { StyleChatMessage } from '../../services/style-chat/types';
 import { StyleChatUiBlockView } from './StyleChatUiBlock';
 import { StyleChatActionCards } from './StyleChatActionCards';
 import { StyleChatFeedbackControls } from './StyleChatFeedbackControls';
+import { StyleChatVoiceRetry } from './StyleChatVoiceRetry';
 import { useStylistIdentity } from '../../hooks/useStylistIdentity';
 import { STYLE_DNA_ENABLED } from '../../services/style-dna/localStyleDnaFeedbackStore';
 import { reportAiOutput } from '../../services/reportAiOutput';
@@ -264,6 +265,9 @@ export function StyleChatBubble({
           >
             <Text style={styles.retryText}>Retry</Text>
           </Pressable>
+        ) : null}
+        {message.sender === 'assistant' && !isSyntheticFailure && isStablePersistedId(message.id) ? (
+          <StyleChatVoiceRetry sessionId={message.sessionId} messageId={message.id} />
         ) : null}
         {message.sender === 'assistant' && !isSyntheticFailure && !isGreeting ? (
           <Pressable
