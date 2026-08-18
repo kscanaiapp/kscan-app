@@ -63,11 +63,15 @@ const scannerCategoryRoute = loadModule(fn('scannerCategoryRoute.ts'), {
 const commerceRelevanceConfig = loadModule(fn('commerceRelevanceConfig.ts'));
 const commerceRelevanceColorMaterial = loadModule(fn('commerceRelevanceColorMaterial.ts'));
 const commerceRelevanceFailure = loadModule(fn('commerceRelevanceFailure.ts'));
+const commerceRetrievalConfig = loadModule(fn('commerceRetrievalConfig.ts'));
 
 const commerceRelevanceQueries = loadModule(fn('commerceRelevanceQueries.ts'), {
   './commerceRelevanceConfig.ts': commerceRelevanceConfig,
   './commerceRelevanceColorMaterial.ts': commerceRelevanceColorMaterial,
   './qualityTuneNormalize.ts': qualityTuneNormalize,
+  // v125: confidence-aware query strategy vocabulary + category compatibility.
+  './commerceRetrievalConfig.ts': commerceRetrievalConfig,
+  '../_shared/scanHelpers.ts': scanHelpers,
 });
 const commerceRelevanceAgreement = loadModule(fn('commerceRelevanceAgreement.ts'), {
   './scannerCategoryRoute.ts': scannerCategoryRoute,
