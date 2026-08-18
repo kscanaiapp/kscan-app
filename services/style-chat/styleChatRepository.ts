@@ -197,6 +197,33 @@ async function touchSession(sessionId: string): Promise<void> {
     .eq('id', sessionId);
 }
 
+// The id of the user's most recently active session that has at least one
+// persisted message, or null when no owned session has ever received one.
+//
+// Ordering deliberately does NOT use style_chat_sessions.updated_at: that
+// column is bumped by touchSession() above via an unawaited "fire-and-forget"
+// call whose own comment states a failed bump is non-fatal, so a dropped
+// update silently leaves it stale relative to real message activity. The
+// single most recent row in style_chat_messages for this user is written by
+// the same insert that persisted the message, in the same request, so its
+// session_id is authoritative for "most recently used" — and the read is a
+// single indexed lookup against style_chat_messages_user_desc
+// (user_id, created_at desc), fetching only the session_id column.
+export async function getLatestNonEmptySessionId(): Promise<string | null> {
+  const userId = await requireUserId();
+
+  const { data, error } = await supabase
+    .from('style_chat_messages')
+    .select('session_id')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return (data as { session_id: string } | null)?.session_id ?? null;
+}
+
 // ── Messages ──────────────────────────────────────────────────────────────────
 
 export async function listStyleChatMessages(
