@@ -102,7 +102,11 @@ function cueHandler(preferenceId: string | null = 'stylist_portrait_05') {
     generateSpeech: ({ text, voiceProfile }) => {
       spoken.text = text;
       spoken.voiceProfile = voiceProfile;
-      return Promise.resolve({ audioBase64: 'QUJDRA==', alignment: null });
+      return Promise.resolve({
+        audioBase64: 'QUJDRA==',
+        alignment: null,
+        alignmentDiagnostics: { source: 'none', rawStatus: 'absent' },
+      });
     },
   });
 }
