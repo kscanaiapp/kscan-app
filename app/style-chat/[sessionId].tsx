@@ -562,6 +562,7 @@ export default function StyleChatSessionScreen() {
       {attachmentsEnabled ? (
         <StyleChatAttachmentBar
           attachments={chatAttachments.attachments}
+          stylistDisplayName={stylistDisplayName}
           focusedDraftId={chatAttachments.focusedDraftId}
           onAddOwnedItem={(item, scan) => chatAttachments.addOwnedItem(item, scan)}
           onAddLook={(look) => chatAttachments.addLook(look)}
