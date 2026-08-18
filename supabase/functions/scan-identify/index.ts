@@ -186,6 +186,17 @@ const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models
 const DEFAULT_MIME = 'image/jpeg';
 const ANON_SCAN_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const ANON_SCAN_RATE_LIMIT_MAX = 6;
+// MODE B (commerce-only) has no bearer-token requirement at all — verify_jwt
+// is off for this function and an attacker can simply omit the Authorization
+// header, so gating by auth state would not bound anything. This is the same
+// IP+UA fingerprint authority the anonymous image path already uses, applied
+// uniformly regardless of auth state, so it is the actual spend boundary
+// rather than a check an attacker can route around. The window matches the
+// image-scan limiter; the max is higher because one legitimate scan issues
+// roughly 2-3 MODE B calls (discovery, optional enrichment, an occasional
+// user retry) against potentially several scans in one session.
+const COMMERCE_ONLY_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const COMMERCE_ONLY_RATE_LIMIT_MAX = 40;
 const SCAN_IDENTIFY_IMAGE_DAILY_LIMIT_DEFAULT = 30;
 const SCAN_IDENTIFY_TEXT_DAILY_LIMIT_DEFAULT = 50;
 const PROJECT_ACCESS_CACHE_MS = 5 * 60 * 1000;
@@ -297,6 +308,11 @@ type ProjectAccessCacheEntry = {
 
 const anonymousScanRateLimits = new Map<string, AnonymousRateEntry>();
 const projectAccessCache = new Map<string, ProjectAccessCacheEntry>();
+// A separate map from `anonymousScanRateLimits`: that one only ever sees
+// anonymous image scans, and MODE B is checked for every caller regardless of
+// auth state. Sharing the map would let commerce-only traffic exhaust an
+// anonymous user's scan budget, or vice versa.
+const commerceOnlyRateLimits = new Map<string, AnonymousRateEntry>();
 
 // ── Provider prompts (server-side only) ────────────────────────────────────────
 
@@ -1301,36 +1317,66 @@ function buildRateLimitedResponse(): Record<string, unknown> {
   };
 }
 
+/** Shared sliding-window limiter body. Each caller owns its own map/budget. */
+function checkSlidingWindowRateLimit(
+  map: Map<string, AnonymousRateEntry>,
+  fingerprint: string,
+  windowMs: number,
+  max: number,
+): { allowed: boolean; retryAfterSeconds: number; count: number } {
+  const now = Date.now();
+  if (map.size > 1000) {
+    for (const [key, entry] of map.entries()) {
+      if (now - entry.windowStart > windowMs * 2) {
+        map.delete(key);
+      }
+    }
+  }
+
+  const current = map.get(fingerprint);
+  const entry = !current || now - current.windowStart >= windowMs
+    ? { windowStart: now, count: 0 }
+    : current;
+  entry.count += 1;
+  map.set(fingerprint, entry);
+
+  const retryAfterSeconds = Math.max(1, Math.ceil((entry.windowStart + windowMs - now) / 1000));
+  return { allowed: entry.count <= max, retryAfterSeconds, count: entry.count };
+}
+
 function checkAnonymousImageRateLimit(fingerprint: string): {
   allowed: boolean;
   retryAfterSeconds: number;
   count: number;
 } {
-  const now = Date.now();
-  if (anonymousScanRateLimits.size > 1000) {
-    for (const [key, entry] of anonymousScanRateLimits.entries()) {
-      if (now - entry.windowStart > ANON_SCAN_RATE_LIMIT_WINDOW_MS * 2) {
-        anonymousScanRateLimits.delete(key);
-      }
-    }
-  }
-
-  const current = anonymousScanRateLimits.get(fingerprint);
-  const entry = !current || now - current.windowStart >= ANON_SCAN_RATE_LIMIT_WINDOW_MS
-    ? { windowStart: now, count: 0 }
-    : current;
-  entry.count += 1;
-  anonymousScanRateLimits.set(fingerprint, entry);
-
-  const retryAfterSeconds = Math.max(
-    1,
-    Math.ceil((entry.windowStart + ANON_SCAN_RATE_LIMIT_WINDOW_MS - now) / 1000),
+  return checkSlidingWindowRateLimit(
+    anonymousScanRateLimits,
+    fingerprint,
+    ANON_SCAN_RATE_LIMIT_WINDOW_MS,
+    ANON_SCAN_RATE_LIMIT_MAX,
   );
-  return {
-    allowed: entry.count <= ANON_SCAN_RATE_LIMIT_MAX,
-    retryAfterSeconds,
-    count: entry.count,
-  };
+}
+
+/**
+ * Bound MODE B provider spend (P1-A repair).
+ *
+ * MODE B has no bearer-token requirement — `verify_jwt` is off for this
+ * function, so an attacker can omit the Authorization header entirely and
+ * gating by auth state would not bound anything. Checked for EVERY caller
+ * regardless of auth state, before any provider work, using the same IP+UA
+ * fingerprint authority the anonymous image path already uses.
+ */
+function checkCommerceOnlyRateLimit(fingerprint: string): {
+  allowed: boolean;
+  retryAfterSeconds: number;
+  count: number;
+} {
+  return checkSlidingWindowRateLimit(
+    commerceOnlyRateLimits,
+    fingerprint,
+    COMMERCE_ONLY_RATE_LIMIT_WINDOW_MS,
+    COMMERCE_ONLY_RATE_LIMIT_MAX,
+  );
 }
 
 function validateImageBase64(imageBase64: string): string | undefined {
@@ -1969,6 +2015,29 @@ Deno.serve(async (req) => {
   // implementation, this mode only changes when it runs.
   if (commerceFunnelEnabled && isCommerceOnlyRequest(body)) {
     const commerceOnlyStarted = Date.now();
+
+    // Rate limit before anything else in this block: no provider call, no
+    // evidence parsing, no ranking work happens for a request this rejects.
+    const commerceOnlyFingerprint = await sha256Hex(getClientFingerprintMaterial(req));
+    const commerceOnlyRate = checkCommerceOnlyRateLimit(commerceOnlyFingerprint);
+    if (!commerceOnlyRate.allowed) {
+      console.warn(
+        '[scan-identify] commerce_only_rate_limited fingerprint=%s count=%d',
+        commerceOnlyFingerprint.slice(0, 12),
+        commerceOnlyRate.count,
+      );
+      return json(
+        {
+          status: 'failed',
+          error: 'commerce_only_rate_limited',
+          retryAfterSeconds: commerceOnlyRate.retryAfterSeconds,
+          purchaseOptions: [],
+          recommendedProducts: [],
+        },
+        429,
+      );
+    }
+
     const rejected = rejectImagePayloadForCommerceOnly(body);
     if (rejected) {
       console.warn('[scan-identify] commerce_only_rejected reason=%s', rejected);

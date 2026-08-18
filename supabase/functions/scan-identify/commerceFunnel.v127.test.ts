@@ -890,3 +890,183 @@ Deno.test('PRIVACY: MODE B attribute text is bounded before it reaches a provide
   assert.equal(out.keepBool, true);
   assert.equal(out.keepNum, 5);
 });
+
+// ── M. P1-A: MODE B provider spend is bounded ───────────────────────────────
+//
+// MODE B had no auth, rate limit, or quota check of any kind: `verify_jwt` is
+// off for this function, so a caller could omit the Authorization header
+// entirely and invoke Serper/Brave/Poshmark as an unlimited standalone paid
+// search API. Gating by auth state would not have bounded that, since the
+// caller controls whether a bearer token is sent at all. This reuses the same
+// IP+UA fingerprint authority the anonymous image path already has, applied
+// uniformly regardless of auth state, before any evidence parsing or provider
+// call.
+
+/**
+ * Extract one `function name(...): ReturnType { body }` as plain JS.
+ *
+ * Only the signature is touched — parameter type annotations are dropped by
+ * splitting on top-level commas and keeping the name before `:`, and any
+ * return-type text between the parameter list and the opening `{` is
+ * discarded outright. The body is copied verbatim: this codebase's function
+ * bodies use plain `const x = ...` (no inline type annotations), and a
+ * `{ key: value }` object literal in a body is already valid JS, so nothing
+ * there needs stripping — which is what made the previous regex-based
+ * stripper unsafe, since it could not tell an object literal key from a type
+ * annotation and silently corrupted the body.
+ */
+function extractFunctionAsJs(src: string, name: string): string {
+  const nameStart = src.indexOf(`function ${name}(`);
+  assert.ok(nameStart > 0, `missing ${name}`);
+  const parenOpen = nameStart + `function ${name}`.length;
+  assert.equal(src[parenOpen], '(');
+
+  let depth = 0;
+  let parenClose = -1;
+  for (let i = parenOpen; i < src.length; i++) {
+    if (src[i] === '(') depth++;
+    else if (src[i] === ')') {
+      depth--;
+      if (depth === 0) { parenClose = i; break; }
+    }
+  }
+  assert.ok(parenClose > 0, `unbalanced parameter list for ${name}`);
+
+  // Split top-level commas only — a param type like `Map<string, Foo>`
+  // contains a comma of its own that must not split the parameter list.
+  const paramText = src.slice(parenOpen + 1, parenClose);
+  const rawParams: string[] = [];
+  let nest = 0;
+  let last = 0;
+  for (let i = 0; i < paramText.length; i++) {
+    const ch = paramText[i];
+    if (ch === '<' || ch === '(' || ch === '{' || ch === '[') nest++;
+    else if (ch === '>' || ch === ')' || ch === '}' || ch === ']') nest--;
+    else if (ch === ',' && nest === 0) {
+      rawParams.push(paramText.slice(last, i));
+      last = i + 1;
+    }
+  }
+  rawParams.push(paramText.slice(last));
+
+  const params = rawParams
+    .map((p) => p.trim().split(':')[0].trim())
+    .filter(Boolean);
+
+  // Skip an optional return-type annotation between `)` and the body's `{`.
+  // This file's return types are either absent or a single `{ ... }` object
+  // literal, so the body's own opening brace is not the first `{` after
+  // `parenClose` when a return type is present — it is the one AFTER the
+  // return type's closing `}`.
+  let cursor = parenClose + 1;
+  while (/\s/.test(src[cursor])) cursor++;
+  if (src[cursor] === ':') {
+    cursor++;
+    while (/\s/.test(src[cursor])) cursor++;
+    assert.equal(src[cursor], '{', `${name} has a non-object return type this extractor does not handle`);
+    let typeDepth = 0;
+    for (; cursor < src.length; cursor++) {
+      if (src[cursor] === '{') typeDepth++;
+      else if (src[cursor] === '}') {
+        typeDepth--;
+        if (typeDepth === 0) { cursor++; break; }
+      }
+    }
+    while (/\s/.test(src[cursor])) cursor++;
+  }
+  const bodyOpen = cursor;
+  assert.equal(src[bodyOpen], '{', `no function body found for ${name}`);
+
+  depth = 0;
+  let bodyClose = -1;
+  for (let i = bodyOpen; i < src.length; i++) {
+    if (src[i] === '{') depth++;
+    else if (src[i] === '}') {
+      depth--;
+      if (depth === 0) { bodyClose = i; break; }
+    }
+  }
+  assert.ok(bodyClose > bodyOpen, `unbalanced body for ${name}`);
+
+  return `function ${name}(${params.join(', ')}) ${src.slice(bodyOpen, bodyClose + 1)}`;
+}
+
+function extractRateLimiter(src: string) {
+  const grab = (name: string) => extractFunctionAsJs(src, name);
+  const winM = src.match(/const COMMERCE_ONLY_RATE_LIMIT_WINDOW_MS = ([^;]+);/);
+  const maxM = src.match(/const COMMERCE_ONLY_RATE_LIMIT_MAX = ([^;]+);/);
+  assert.ok(winM && maxM, 'rate limit constants not found');
+
+  const code = [
+    `const COMMERCE_ONLY_RATE_LIMIT_WINDOW_MS = ${winM![1]};`,
+    `const COMMERCE_ONLY_RATE_LIMIT_MAX = ${maxM![1]};`,
+    grab('checkSlidingWindowRateLimit'),
+    grab('checkCommerceOnlyRateLimit'),
+    'return { checkCommerceOnlyRateLimit, WINDOW_MS: COMMERCE_ONLY_RATE_LIMIT_WINDOW_MS, MAX: COMMERCE_ONLY_RATE_LIMIT_MAX };',
+  ].join('\n');
+
+  // commerceOnlyRateLimits is a module-level Map captured by the extracted
+  // function's closure; re-declare it fresh so tests do not share state.
+  const withMap = `const commerceOnlyRateLimits = new Map();\n${code}`;
+  return new Function(withMap)() as {
+    checkCommerceOnlyRateLimit: (fp: string) => { allowed: boolean; retryAfterSeconds: number; count: number };
+    WINDOW_MS: number;
+    MAX: number;
+  };
+}
+
+Deno.test('P1-A: MODE B provider spend is bounded per fingerprint, not unlimited', async () => {
+  const src = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
+  const { checkCommerceOnlyRateLimit, MAX } = extractRateLimiter(src);
+
+  // Exactly MAX calls from one fingerprint are allowed.
+  let lastAllowed = true;
+  for (let i = 0; i < MAX; i++) {
+    const r = checkCommerceOnlyRateLimit('fp-abuse');
+    lastAllowed = r.allowed;
+    assert.equal(r.allowed, true, `call ${i + 1} of the allowed budget was rejected`);
+  }
+  assert.equal(lastAllowed, true);
+
+  // The next call from the SAME fingerprint is rejected — this is the bound
+  // that did not exist before this repair, where nothing capped this loop.
+  const blocked = checkCommerceOnlyRateLimit('fp-abuse');
+  assert.equal(blocked.allowed, false, 'MODE B accepted more than MAX calls from one fingerprint — unbounded');
+  assert.ok(blocked.retryAfterSeconds > 0);
+
+  // A DIFFERENT fingerprint is unaffected — the bound is per-caller, not a
+  // single global counter that would let one abusive client lock everyone out.
+  const other = checkCommerceOnlyRateLimit('fp-legitimate-user');
+  assert.equal(other.allowed, true, 'a legitimate caller was blocked by another fingerprint\'s abuse');
+});
+
+Deno.test('P1-A: the rate-limit rejection returns before any evidence parsing or provider call', async () => {
+  const src = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
+  const rateLimitReturn = src.indexOf("error: 'commerce_only_rate_limited'");
+  const evidenceParse = src.indexOf('const evidence = readCommerceOnlyEvidence(body);');
+  const providerCall = src.indexOf('const fast = await getFastCommerceResults({');
+
+  assert.ok(rateLimitReturn > 0, 'MODE B has no rate limit rejection at all');
+  assert.ok(evidenceParse > rateLimitReturn, 'evidence is parsed before the rate limit is checked');
+  assert.ok(providerCall > rateLimitReturn, 'a provider can be called before the rate limit is checked');
+
+  // And the check itself is the very first thing MODE B does, ahead of even
+  // the (cheap) image-payload rejection — no work of any kind precedes it.
+  const modeBStart = src.indexOf('if (commerceFunnelEnabled && isCommerceOnlyRequest(body)) {');
+  const rateLimitCheck = src.indexOf('checkCommerceOnlyRateLimit(commerceOnlyFingerprint)');
+  const imageRejectCheck = src.indexOf('rejectImagePayloadForCommerceOnly(body)', modeBStart);
+  assert.ok(modeBStart > 0 && rateLimitCheck > modeBStart && rateLimitCheck < imageRejectCheck);
+});
+
+Deno.test('P1-A: authenticated and anonymous callers share the same spend boundary', async () => {
+  // MODE B has no bearer-token requirement — verify_jwt is off for this
+  // function — so an attacker can simply omit the Authorization header and
+  // any auth-gated limiter would not bound them. The fingerprint check must
+  // not read `auth` at all, or it can be routed around by omitting a token.
+  const src = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
+  const start = src.indexOf('if (commerceFunnelEnabled && isCommerceOnlyRequest(body)) {');
+  const rateLimitEnd = src.indexOf("429,\n      );\n    }", start);
+  assert.ok(start > 0 && rateLimitEnd > start);
+  const rateLimitBlock = src.slice(start, rateLimitEnd);
+  assert.equal(/\bauth\.\w+/.test(rateLimitBlock), false, 'rate limit is conditioned on auth state and can be bypassed by omitting a token');
+});
