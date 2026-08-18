@@ -103,7 +103,20 @@ const qualityTuneCommerce = loadModule(fn('qualityTuneCommerce.ts'), {
   './commerceRelevanceFailure.ts': commerceRelevanceFailure,
 });
 
+// v127: the router orchestrates through the funnel primitives, so the stub
+// graph has to carry them too or this suite fails while iOS passes.
+const commerceFunnelConfig = loadModule(fn('commerceFunnelConfig.ts'));
+const commerceFastPath = loadModule(fn('commerceFastPath.ts'), {
+  './commerceFunnelConfig.ts': commerceFunnelConfig,
+});
+const commerceResultCache = loadModule(fn('commerceResultCache.ts'), {
+  './commerceFunnelConfig.ts': commerceFunnelConfig,
+});
+
 const ROUTER_REQUIRE_MAP = {
+  './commerceFunnelConfig.ts': commerceFunnelConfig,
+  './commerceFastPath.ts': commerceFastPath,
+  './commerceResultCache.ts': commerceResultCache,
   './shoppingProvider.ts': shoppingProvider,
   './farfetch3Provider.ts': farfetch3Provider,
   './kicksCrewProvider.ts': kicksCrewProvider,
