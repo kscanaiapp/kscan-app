@@ -12,6 +12,7 @@ import type { WeatherLocationInput } from '../constants/weatherStyling';
 import { saveTodayWeather } from '../services/weather/todayWeatherStore';
 import type { StyleDnaContext } from '../services/style-dna/styleDnaContext';
 import type { StyleChatHandoffContext } from '../services/style-chat/styleChatHandoffContext';
+import type { GenderStylingContext } from '../constants/genderStylingContext';
 import { STYLE_CHAT_COPY, STYLE_CHAT_DAILY_MESSAGE_LIMIT } from '../constants/styleChat';
 import {
   buildAttachmentUiBlock,
@@ -101,6 +102,11 @@ export interface UseStyleChatOptions {
   // Active scan/upload/TextScan context visible in the StyleChat UI. Passed to the
   // backend on every message so replies are grounded to the reference item.
   activeContext?: StyleChatHandoffContext | null;
+  // Fix #5 — explicit, self-disclosed baseline styling context. A stable stored
+  // value (not re-resolved per send like weather/Style DNA); null when the user
+  // has not answered or chose "prefer not to say" is still sent explicitly so
+  // the backend can distinguish "answered neutral" from "never asked."
+  genderStylingContext?: GenderStylingContext | null;
 }
 
 export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): UseStyleChatReturn {
@@ -123,6 +129,8 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
   getStyleDnaContextRef.current = opts?.getStyleDnaContext;
   const activeContextRef = useRef(opts?.activeContext);
   activeContextRef.current = opts?.activeContext;
+  const genderStylingContextRef = useRef(opts?.genderStylingContext);
+  genderStylingContextRef.current = opts?.genderStylingContext;
   const [error, setError] = useState<string | null>(null);
   const [messagesUsed, setMessagesUsed] = useState(0);
   const [messagesLimit, setMessagesLimit] = useState(STYLE_CHAT_DAILY_MESSAGE_LIMIT);
@@ -480,6 +488,7 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
           weatherLocation,
           styleDnaContext,
           activeContext,
+          genderStylingContext: genderStylingContextRef.current ?? null,
           ...(hasAttachments
             ? {
                 attachments: sendAttachments!.references,
