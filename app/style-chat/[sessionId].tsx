@@ -47,7 +47,11 @@ import {
 } from '../../services/style-dna/localStyleDnaProfile';
 import { STYLE_DNA_ENABLED } from '../../services/style-dna/localStyleDnaFeedbackStore';
 import { buildStyleDnaContext } from '../../services/style-dna/styleDnaContext';
-import { AI_STYLIST_UI_ENABLED, STYLECHAT_ATTACHMENTS_ENABLED } from '../../constants/featureFlags';
+import {
+  AI_STYLIST_UI_ENABLED,
+  ELISE_VISUAL_ATTACHMENTS_V1_ENABLED,
+  STYLECHAT_ATTACHMENTS_ENABLED,
+} from '../../constants/featureFlags';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import { useStylistIdentity } from '../../hooks/useStylistIdentity';
 import { matchOccasionFromText } from '../../types/fashionReasoning';
@@ -372,12 +376,13 @@ export default function StyleChatSessionScreen() {
   // preselect an occasion, and the raw hint lands in the optional note field.
   // No outfit generation happens inside the chat response.
   const { isFeatureEnabled: isStylistFeatureEnabled } = useFeatureFreeze();
-  // Phase 2 Closet attachments: subordinate capability under aiStylist.
-  // Disabled → controls hidden, v2 never sent, v1 StyleChat unchanged.
+  // The approved visual attachment route is self-contained and must not be
+  // suppressed by the broader, non-core aiStylist freeze. The legacy
+  // Closet-only route remains subordinate to aiStylist.
   const attachmentsEnabled =
-    AI_STYLIST_UI_ENABLED &&
-    STYLECHAT_ATTACHMENTS_ENABLED &&
-    isStylistFeatureEnabled('aiStylist');
+    (ELISE_VISUAL_ATTACHMENTS_V1_ENABLED ||
+      (AI_STYLIST_UI_ENABLED && STYLECHAT_ATTACHMENTS_ENABLED)) &&
+    (ELISE_VISUAL_ATTACHMENTS_V1_ENABLED || isStylistFeatureEnabled('aiStylist'));
   const chatAttachments = useStyleChatAttachments(sessionId ?? '');
   const [photoIntakeVisible, setPhotoIntakeVisible] = useState(false);
   const latestUserMessage = [...messages].reverse().find((message) => message.sender === 'user');
@@ -454,6 +459,7 @@ export default function StyleChatSessionScreen() {
       {attachmentsEnabled ? (
         <StyleChatAttachmentBar
           attachments={chatAttachments.attachments}
+          stylistDisplayName={stylistDisplayName}
           onAddOwnedItem={(item) => chatAttachments.addOwnedItem(item)}
           onAddLook={(look) => chatAttachments.addLook(look)}
           onUploadPhoto={() => setPhotoIntakeVisible(true)}

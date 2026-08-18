@@ -29,7 +29,7 @@ statically by `constants/stylistIdentity.ts`.
 | File | Dimensions | Mode | Size (bytes) | SHA-256 |
 |------|------------|------|--------------|---------|
 | `stylist_portrait_01.jpg` | 1024×1024 | sRGB/RGB | 283,575 | `1c19a3ab86e561bad3dabb5b6768297b2a953a5d3abdd3c0a90b0cc11fdc3814` |
-| `stylist_portrait_02.jpg` | 1024×1024 | sRGB/RGB | 283,707 | `8c6352af31c7c839c588019958f5fcfa6996ea068777eb21cb970ce3936132cd` |
+| `stylist_portrait_02.jpg` | 2048×2048 | sRGB/RGB | 2,517,707 | `3eb9897613b70db46b3fb4ccbe23a779adfc8a5e38b5768fb799f43b8445ace1` |
 | `stylist_portrait_03.jpg` | 1024×1024 | sRGB/RGB | 269,150 | `8f0a5fbaa1113418a2d2f3296d30b409eaad0ee30da669701238a741ef4baf99` |
 | `stylist_portrait_04.jpg` | 1024×1024 | sRGB/RGB | 254,296 | `251d33ab700e2ae328bdc9576c5f7c979b18dd097422affd3ddca3c0a9ab547d` |
 | `stylist_portrait_05.jpg` | 1024×1024 | sRGB/RGB | 190,375 | `5240c79b3206afd5ac04be986a3990e490aba55bcc17cc1c067605cf3eef33e5` |
@@ -68,6 +68,10 @@ background. All four retain centered facial features and circular-crop-safe
 spacing. Portraits 05 through 10 are unchanged. The `accessibilityLabel` values
 for 01 and 02 in `constants/stylistIdentity.ts` were updated to match the new
 subjects; the prior labels described the superseded images.
+
+Portrait 02 was replaced on 2026-08-18 with the owner-supplied full-headroom
+JPEG from `stylist 02`. It intentionally remains at 2048×2048 so its approved
+framing is preserved in the shared circular picker without a per-avatar offset.
 
 ## Registry mapping
 
