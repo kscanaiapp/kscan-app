@@ -132,6 +132,25 @@ export async function listStyleChatSessions(): Promise<StyleChatSession[]> {
   return (Array.isArray(data) ? data as SessionRow[] : []).map(toSession);
 }
 
+// Most recently active owned session, or null when the user has none. Server
+// truth for "which conversation do I resume" — a local pointer would survive a
+// delete on another device and resume a session that no longer exists.
+export async function getLatestStyleChatSession(): Promise<StyleChatSession | null> {
+  const userId = await requireUserId();
+
+  const { data, error } = await supabase
+    .from('style_chat_sessions')
+    .select('id, user_id, title, mode, created_at, updated_at')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  return toSession(data as SessionRow);
+}
+
 export async function createStyleChatSession(input: {
   title?: string;
   mode?: StyleChatMode;
