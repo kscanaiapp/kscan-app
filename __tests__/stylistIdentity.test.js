@@ -69,6 +69,7 @@ const {
   STYLIST_SELECTABLE_PRESETS,
   STYLIST_PERSISTABLE_AVATAR_IDS,
   STYLIST_PORTRAIT_PLACEHOLDER_IDS,
+  STYLIST_SPEECH_CONFIG_BY_ID,
   getStylistAvatarSection,
   isRenderablePortraitPreset,
   sanitizeStylistName,
@@ -79,7 +80,13 @@ const {
   StylistIdentityValidationError,
   STYLIST_NAME_MAX_LENGTH,
   STYLIST_NAME_MIN_LENGTH,
+  getStylistAvatarFraming,
 } = require('../constants/stylistIdentity.ts');
+
+const animatedStylistAvatar = fs.readFileSync(
+  path.join(ROOT, 'components', 'stylist', 'AnimatedStylistAvatar.tsx'),
+  'utf8',
+);
 
 // ── Constants / registry ─────────────────────────────────────────────────────
 
@@ -719,6 +726,69 @@ test('StylistAvatar supports placeholder, ready-image, and load-failure paths', 
   assert.doesNotMatch(stylistAvatar, /fadeDuration=/);
   assert.match(stylistAvatar, /onError=\{\(\) => setLoadFailed\(true\)\}/);
   assert.match(stylistAvatar, /if \(loadFailed\)[\s\S]*?<AbstractAvatar/);
+});
+
+// ── Fix #1: Stylist 02 static-portrait framing correction ───────────────────
+
+test('only stylist_portrait_02 carries a framing override; every other avatar is unaffected', () => {
+  const portraitIds = STYLIST_PORTRAIT_PRESETS.map((preset) => preset.id);
+  const abstractIds = STYLIST_ABSTRACT_PRESETS.map((preset) => preset.id);
+
+  const framing02 = getStylistAvatarFraming('stylist_portrait_02');
+  assert.ok(framing02, 'stylist_portrait_02 must have a framing override');
+  assert.equal(typeof framing02.offsetXRatio, 'number');
+  assert.ok(framing02.offsetXRatio > 0 && framing02.offsetXRatio < 0.5);
+
+  for (const id of [...portraitIds, ...abstractIds, DEFAULT_STYLIST_IDENTITY.avatarId]) {
+    if (id === 'stylist_portrait_02') continue;
+    assert.equal(getStylistAvatarFraming(id), undefined, `${id} must not have a framing override`);
+  }
+
+  assert.equal(getStylistAvatarFraming(null), undefined);
+  assert.equal(getStylistAvatarFraming(undefined), undefined);
+  assert.equal(getStylistAvatarFraming('unknown_avatar'), undefined);
+});
+
+test('framing correction does not touch the mouth-state speech configuration', () => {
+  // The mouthRegion percentages must stay exactly what they were before this
+  // fix; only StylistAvatar's static-portrait render path changes.
+  const stylist02Speech = STYLIST_SPEECH_CONFIG_BY_ID.get('stylist_portrait_02');
+  assert.ok(stylist02Speech);
+  assert.deepEqual(stylist02Speech.mouthRegion, { x: 0.43, y: 0.48, width: 0.17, height: 0.09 });
+  assert.match(
+    stylistIdentityConstants,
+    /Recalibrated for the refreshed Avatar 02 subject \(prior crop: y 0\.49\)/,
+  );
+});
+
+test('StylistAvatar applies the recenter only for avatars with a framing override, and never for the placeholder/abstract paths', () => {
+  assert.match(stylistAvatar, /applyFraming\??:\s*boolean/);
+  assert.match(stylistAvatar, /getStylistAvatarFraming/);
+  // Legacy (no-override) render path is untouched: still a single <Image> with
+  // resizeMode="cover" at exactly {size, size} and no transform.
+  const legacyBranch = stylistAvatar.match(/if \(!framing\) \{[\s\S]*?\n {2}\}/)?.[0];
+  assert.ok(legacyBranch, 'no-framing branch must exist verbatim');
+  assert.match(legacyBranch, /width: size,\s*\n\s*height: size,/);
+  assert.doesNotMatch(legacyBranch, /transform:/);
+});
+
+test('AnimatedStylistAvatar opts the mouth-state speaking overlay out of the new framing so overlay alignment is unaffected', () => {
+  const mouthBranch = animatedStylistAvatar.match(
+    /<StylistAvatar[\s\S]*?\/>\s*<MouthStateLayer/,
+  )?.[0];
+  assert.ok(mouthBranch, 'expected the StylistAvatar call that precedes MouthStateLayer');
+  assert.match(mouthBranch, /applyFraming=\{false\}/);
+
+  // The two non-speaking fallback branches (idle/thinking, and incomplete
+  // asset set) must NOT set applyFraming=false, so they get the correction.
+  const allMatches = [...animatedStylistAvatar.matchAll(/<StylistAvatar[\s\S]*?\/>/g)];
+  const fallbackBranches = allMatches
+    .filter((m) => !animatedStylistAvatar.slice(m.index, m.index + m[0].length + 40).includes('MouthStateLayer'))
+    .map((m) => m[0]);
+  assert.equal(fallbackBranches.length, 2, 'expected exactly two non-speaking StylistAvatar call sites');
+  for (const block of fallbackBranches) {
+    assert.doesNotMatch(block, /applyFraming/);
+  }
 });
 
 // ── Shipped portrait assets ──────────────────────────────────────────────────
