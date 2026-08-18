@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-18T20:35:52.600Z",
-    "generatedFromGitSha": "0423c3f0a73ecb2035d6e035845c88162505796c"
+    "generatedAtUtc": "2026-08-18T21:16:56.714Z",
+    "generatedFromGitSha": "bea84508e782670d0bc66df40071f31b17648bec"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -21,8 +21,8 @@
         ],
         "bundleFileCount": 38,
         "treeFileCount": 58,
-        "bundleHash": "ba7519d3b7452e56494a355a98a0cc4c61f5235f4543e614df09926b79f23ec8",
-        "treeHash": "5e4da0f26ba5efe60a3e3c65093eb96c322d942935752a4dc7861e84c3b849d3",
+        "bundleHash": "576c51dcb695aabc9ca4b690238a07e631e3e17b977ce8666eda0735e1b9d78b",
+        "treeHash": "55b8dea0393668c9bb8dea855e0afcd90c808d63374cc68511850181d0d43764",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -71,7 +71,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/commerceFunnel.v127.test.ts",
-            "sha256": "bf201d101ceff7d2aa0b1fa08c3322e93085f0daf2dc634df83261aae299bbb5",
+            "sha256": "d6f9955f3d1b71bb6a4c0e6dc983b7bd3e2d64e7e9066274bd57bae8ab7ec62d",
             "bundle": false
           },
           {
@@ -221,7 +221,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/qualityTuneCommerce.ts",
-            "sha256": "2fd3fb9527fd347e0fb7ae0deb1c0b06e492241d31f30fe05efa12ee23cc7deb",
+            "sha256": "9be2434ba3cc4f7906f85767edf8ac0d6f4499a962b6e7ab252896569fa831ab",
             "bundle": true
           },
           {
@@ -241,7 +241,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/scanCommerceRouter.ts",
-            "sha256": "8e6845742b01b6abd9058edfce70cc657c87b9c358ab094cc3d29efe84a5d1cb",
+            "sha256": "9bc24c857f5ab615de9b10f21695dea00cb1f5d7076d7c86c1478d6df841eb2b",
             "bundle": true
           },
           {
