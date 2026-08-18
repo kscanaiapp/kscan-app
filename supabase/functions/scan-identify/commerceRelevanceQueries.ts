@@ -1,12 +1,29 @@
 /**
- * Category-specific commerce query templates (v122).
+ * Category-specific commerce query templates (v122), with confidence-aware
+ * identity enrichment (v125).
+ *
  * Retailer-neutral. Target 3–5 key terms; absolute cap 8 meaningful words.
+ *
+ * v125 does not widen the budget — it changes what the budget is spent on.
+ * Without `commerceIdentity` every code path below is the untouched v122/v124
+ * template, so a disabled v125 produces byte-identical queries.
  */
 
 import {
   ABSOLUTE_QUERY_MEANINGFUL_WORDS,
   TARGET_QUERY_KEY_TERMS_MAX,
 } from './commerceRelevanceConfig.ts';
+import {
+  type CommerceQueryStrategy,
+  DISCRIMINATING_PATTERN_TOKENS,
+  GENERIC_FEATURE_TOKENS,
+  HIGH_SIGNAL_FEATURE_TOKENS,
+  KNOWN_CATALOG_CATEGORIES,
+  MAX_QUERY_DISTINCTIVE_FEATURES,
+  MAX_QUERY_FEATURE_WORDS,
+} from './commerceRetrievalConfig.ts';
+import { normalizeCategory } from '../_shared/scanHelpers.ts';
+import type { CommerceIdentityEvidence } from './scannerQualityGate.ts';
 import {
   colorTermsForQuery,
   materialForQuery,
@@ -25,6 +42,12 @@ export type RelevanceQueryInput = {
   materialAllowed?: boolean;
   brandAllowed?: boolean;
   originalText?: string;
+  /**
+   * v125 graded commercial identity (from the v124 quality gate). Omit for
+   * exact v124 query construction — this is the only channel through which
+   * identity may influence retrieval.
+   */
+  commerceIdentity?: CommerceIdentityEvidence;
 };
 
 export type RelevanceQueries = {
@@ -33,6 +56,14 @@ export type RelevanceQueries = {
   colorCertainty: string | null;
   materialCertainty: string | null;
   template: ScannerCategoryRoute;
+  /** v125 — present only when identity evidence was supplied. */
+  strategy?: CommerceQueryStrategy;
+  /** v125 diagnostics — bounded, never contains the query string itself. */
+  identityTerms?: {
+    brandIncluded: boolean;
+    exactHypothesisIncluded: boolean;
+    distinctiveFeatureCount: number;
+  };
 };
 
 const FILLER: ReadonlySet<string> = new Set([
@@ -188,6 +219,117 @@ function brandIfAllowed(id: Record<string, unknown>, brandAllowed?: boolean): st
   return usable(id.brand_guess) || visible;
 }
 
+// ── v125 confidence-aware identity enrichment ────────────────────────────────
+
+function featureWords(raw: string): string[] {
+  return collapseSpaces(raw).toLowerCase().split(' ').filter(Boolean);
+}
+
+/**
+ * Pick the distinctive construction terms worth spending query budget on.
+ *
+ * A feature qualifies only if it names construction, hardware, or closure —
+ * "asymmetric zipper" narrows a search, "clean lines" does not. Marketing
+ * adjectives are rejected outright even when they appear alongside a real term.
+ */
+export function selectDistinctiveQueryFeatures(
+  identity: CommerceIdentityEvidence | undefined,
+): string[] {
+  if (!identity || !Array.isArray(identity.distinctiveFeatures)) return [];
+  const out: string[] = [];
+  const seenToken = new Set<string>();
+
+  for (const raw of identity.distinctiveFeatures) {
+    if (out.length >= MAX_QUERY_DISTINCTIVE_FEATURES) break;
+    if (typeof raw !== 'string') continue;
+    const phrase = collapseSpaces(raw);
+    if (!phrase) continue;
+    const words = featureWords(phrase);
+    if (!words.length || words.length > MAX_QUERY_FEATURE_WORDS) continue;
+    if (words.some((w) => GENERIC_FEATURE_TOKENS.has(w))) continue;
+    if (!words.some((w) => HIGH_SIGNAL_FEATURE_TOKENS.has(w))) continue;
+    // Do not spend budget twice on the same construction concept.
+    if (words.every((w) => seenToken.has(w))) continue;
+    for (const w of words) seenToken.add(w);
+    out.push(phrase);
+  }
+  return out;
+}
+
+/** Pattern earns query budget only when it actually narrows the search. */
+export function patternForQuery(pattern: string): string {
+  const t = collapseSpaces(pattern).toLowerCase();
+  if (!t || t === 'solid') return '';
+  const words = t.split(' ').filter(Boolean);
+  if (!words.some((w) => DISCRIMINATING_PATTERN_TOKENS.has(w))) return '';
+  return collapseSpaces(pattern);
+}
+
+/**
+ * A model hypothesis is only usable when it does not contradict the category
+ * the Scanner actually identified. "Speedy 30 Handbag" on an outerwear scan is
+ * evidence of a bad hypothesis, not evidence of a bag.
+ *
+ * An unrecognized hypothesis ("Speedy 30", "Rockstud") carries no category
+ * signal at all and is therefore treated as non-contradicting.
+ */
+export function hypothesisCategoryCompatible(
+  hypothesis: string,
+  scannedCategory: string,
+): boolean {
+  const scanned = normalizeCategory(scannedCategory);
+  if (!scanned || !KNOWN_CATALOG_CATEGORIES.has(scanned)) return true;
+  const fromHypothesis = normalizeCategory(hypothesis);
+  if (!fromHypothesis || !KNOWN_CATALOG_CATEGORIES.has(fromHypothesis)) return true;
+  return fromHypothesis === scanned;
+}
+
+export type QueryStrategyResolution = {
+  strategy: CommerceQueryStrategy;
+  brand: string;
+  hypothesis: string;
+};
+
+/**
+ * Choose the retrieval strategy from graded evidence.
+ *
+ * The grades come from v124 and are load-bearing rather than advisory:
+ *   VERIFIED  brand → usable prominently
+ *   PLAUSIBLE brand → usable only alongside a real garment term
+ *   WEAK      brand → ranking evidence only, never retrieval
+ *   INVALID   brand → discarded
+ *
+ * A model hypothesis additionally requires supporting brand evidence: a model
+ * name with no brand behind it is a guess, and guesses must not steer what we
+ * search for.
+ */
+export function resolveQueryStrategy(
+  identity: CommerceIdentityEvidence | undefined,
+  garmentTerm: string,
+  scannedCategory: string,
+): QueryStrategyResolution {
+  if (!identity) return { strategy: 'attribute_only', brand: '', hypothesis: '' };
+
+  const brandUsable = identity.brandGrade === 'verified' ||
+    (identity.brandGrade === 'plausible' && !!garmentTerm);
+  const brand = brandUsable && typeof identity.brand === 'string' ? collapseSpaces(identity.brand) : '';
+
+  const hypothesisRaw = typeof identity.exactItemHypothesis === 'string'
+    ? collapseSpaces(identity.exactItemHypothesis)
+    : '';
+  const hypothesisGraded = identity.exactMatchGrade === 'verified' ||
+    identity.exactMatchGrade === 'plausible';
+
+  if (
+    hypothesisRaw && hypothesisGraded && brand &&
+    hypothesisCategoryCompatible(hypothesisRaw, scannedCategory)
+  ) {
+    return { strategy: 'exact_identity', brand, hypothesis: hypothesisRaw };
+  }
+  if (brand) return { strategy: 'brand_distinctive', brand, hypothesis: '' };
+  return { strategy: 'attribute_only', brand: '', hypothesis: '' };
+}
+
 /**
  * Build category-templated primary + fallback commerce queries.
  */
@@ -293,7 +435,69 @@ export function buildCategoryCommerceQueries(input: RelevanceQueryInput): Releva
     fallbackParts = [...colorTerms.slice(0, 1), category || subtype];
   }
 
-  if (brand) {
+  // ── v125 confidence-aware override (omitted → exact v124 construction) ─────
+  let strategy: CommerceQueryStrategy | undefined;
+  let identityTerms: RelevanceQueries['identityTerms'];
+  if (input.commerceIdentity) {
+    const garmentTerm = subtype || category;
+    const resolved = resolveQueryStrategy(
+      input.commerceIdentity,
+      garmentTerm,
+      category || subtype,
+    );
+    strategy = resolved.strategy;
+
+    const discriminatingPattern = patternForQuery(pattern);
+    // A discriminating pattern is itself a construction signal. Spending budget
+    // on two overlapping signals is what pushes colour out of the query, so the
+    // second feature yields to the pattern rather than competing with it.
+    const features = selectDistinctiveQueryFeatures(input.commerceIdentity)
+      .slice(0, discriminatingPattern ? 1 : MAX_QUERY_DISTINCTIVE_FEATURES);
+
+    // When the hypothesis already names the garment ("L01 Motorcycle Jacket"),
+    // repeating the subtype buys nothing and costs two words of budget.
+    const hypothesisNamesGarment = !!resolved.hypothesis &&
+      normalizeCategory(resolved.hypothesis) === normalizeCategory(category || subtype);
+    const garmentTermForIdentity = hypothesisNamesGarment ? '' : garmentTerm;
+
+    // Priority is the whole point of v125: commercial identity first, then the
+    // garment term, then construction, and only then the attribute tail. The
+    // budget is unchanged, so colour and silhouette now yield to identity
+    // rather than crowding it out.
+    if (resolved.strategy === 'exact_identity') {
+      primaryParts = [
+        resolved.brand,
+        resolved.hypothesis,
+        garmentTermForIdentity,
+        primaryMaterial,
+        ...features,
+        discriminatingPattern,
+        ...colorTerms,
+      ];
+    } else if (resolved.strategy === 'brand_distinctive') {
+      primaryParts = [
+        resolved.brand,
+        garmentTerm,
+        ...features,
+        primaryMaterial,
+        discriminatingPattern,
+        ...colorTerms,
+      ];
+    } else {
+      primaryParts = [
+        garmentTerm,
+        ...features,
+        primaryMaterial,
+        discriminatingPattern,
+        ...colorTerms,
+        silhouette && !/(oversized|minimalist)/i.test(silhouette) ? silhouette : '',
+      ];
+    }
+
+    // Fallback drops uncertain commercial identity before it drops the garment
+    // term — an over-specific brand or model is exactly what it exists to undo.
+    fallbackParts = [...colorTerms, fallbackMaterial, garmentTerm || category];
+  } else if (brand) {
     primaryParts = [brand, ...primaryParts];
   }
 
@@ -309,11 +513,30 @@ export function buildCategoryCommerceQueries(input: RelevanceQueryInput): Releva
   let fallback = finalizeQuery(fallbackParts, TARGET_QUERY_KEY_TERMS_MAX);
   if (fallback === primary) fallback = '';
 
+  if (strategy) {
+    const lowerPrimary = primary.toLowerCase();
+    const brandLower = collapseSpaces(
+      typeof input.commerceIdentity?.brand === 'string' ? input.commerceIdentity.brand : '',
+    ).toLowerCase();
+    const hypothesisLower = collapseSpaces(
+      typeof input.commerceIdentity?.exactItemHypothesis === 'string'
+        ? input.commerceIdentity.exactItemHypothesis
+        : '',
+    ).toLowerCase();
+    identityTerms = {
+      brandIncluded: !!brandLower && lowerPrimary.includes(brandLower.split(' ')[0]!),
+      exactHypothesisIncluded: !!hypothesisLower &&
+        meaningfulWords(hypothesisLower).every((w) => lowerPrimary.includes(w)),
+      distinctiveFeatureCount: selectDistinctiveQueryFeatures(input.commerceIdentity).length,
+    };
+  }
+
   return {
     primary,
     fallback,
     colorCertainty: colorResolved?.certainty ?? null,
     materialCertainty: materialResolved?.certainty ?? null,
     template: route,
+    ...(strategy ? { strategy, identityTerms } : {}),
   };
 }

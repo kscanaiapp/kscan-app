@@ -32,6 +32,7 @@ import {
 } from './qualityTuneCommerce.ts';
 import type { ScannerCategoryRoute } from './scannerCategoryRoute.ts';
 import type { CommerceIdentityEvidence } from './scannerQualityGate.ts';
+import type { CommerceQueryStrategy } from './commerceRetrievalConfig.ts';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -67,6 +68,14 @@ export type ScanCommerceInput = {
    */
   commerceIdentityEnabled?: boolean;
   commerceIdentity?: CommerceIdentityEvidence;
+  /**
+   * v125 commerce retrieval enrichment — omit for exact v124 query
+   * construction. Independent of `commerceIdentityEnabled` so that
+   * `v124 ON + v125 OFF` remains a valid, independently rollback-able state.
+   * Changes query content only: provider set, order, timeouts, concurrency,
+   * early-exit threshold, and fallback conditions are all untouched.
+   */
+  commerceRetrievalEnabled?: boolean;
 };
 
 export type ScanCommerceProvider = 'kickscrew' | 'farfetch' | 'serper' | 'brave' | 'none';
@@ -78,6 +87,11 @@ export type ScanCommerceResult = {
   query: string;
   count: number;
   errorType?: string;
+  /**
+   * v125 query-strategy classification. Bounded enum, diagnostics only — never
+   * required by clients and never carries the query string itself.
+   */
+  queryStrategy?: CommerceQueryStrategy;
   /** Quality-tune diagnostics (never required by clients). */
   qualityTune?: {
     fallbackUsed: boolean;
@@ -662,7 +676,9 @@ export async function getScanCommerceResults(
   const qualityEnabled = isQualityTuneEnabled();
   let fallbackQuery = '';
   let query = '';
+  let queryStrategy: CommerceQueryStrategy | undefined;
   const identityEnabled = input.commerceIdentityEnabled === true;
+  const retrievalEnabled = input.commerceRetrievalEnabled === true;
   const relevanceOpts: CommerceRelevanceOptions | undefined =
     input.relevanceEnabled && input.relevanceRoute
       ? {
@@ -704,9 +720,13 @@ export async function getScanCommerceResults(
             detailLevel: input.qualityDetailLevel,
           }
           : {}),
+        ...(retrievalEnabled && input.commerceIdentity
+          ? { commerceIdentity: input.commerceIdentity }
+          : {}),
       });
       query = weighted.primary;
       fallbackQuery = weighted.fallback;
+      queryStrategy = weighted.strategy;
     }
   } else {
     query = buildScanCommerceQuery(input);
@@ -720,6 +740,7 @@ export async function getScanCommerceResults(
       query,
       count: 0,
       errorType: 'weak_query',
+      ...(queryStrategy ? { queryStrategy } : {}),
     };
   }
 
@@ -857,6 +878,7 @@ export async function getScanCommerceResults(
         query,
         count: products.length,
         errorType: kicksErrorType ?? farfetchErrorType,
+        ...(queryStrategy ? { queryStrategy } : {}),
         ...(qualityTuneMeta ? { qualityTune: qualityTuneMeta } : {}),
       };
     }
@@ -959,6 +981,7 @@ export async function getScanCommerceResults(
     query,
     count: merged.length,
     errorType: merged.length > 0 ? undefined : (kicksErrorType ?? farfetchErrorType ?? serperBraveErrorType ?? 'no_results'),
+    ...(queryStrategy ? { queryStrategy } : {}),
     ...(qualityTuneMeta ? { qualityTune: qualityTuneMeta } : {}),
   };
 }
