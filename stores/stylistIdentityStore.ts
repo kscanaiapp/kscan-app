@@ -222,7 +222,9 @@ export async function resetStylistIdentity(): Promise<boolean> {
   setStylistIdentityState({ isLoading: true, error: null });
 
   try {
-    await saveStylistIdentity(DEFAULT_STYLIST_IDENTITY, actorUserId ?? undefined);
+    await saveStylistIdentity(DEFAULT_STYLIST_IDENTITY, actorUserId ?? undefined, {
+      clearCustomDisplayName: true,
+    });
     if (activeUserId !== actorUserId || saveRequestVersion !== requestVersion) return false;
     setStylistIdentityState({
       identity: DEFAULT_STYLIST_IDENTITY,

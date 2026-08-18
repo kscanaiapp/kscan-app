@@ -592,6 +592,24 @@ test('SELECT_STYLIST_UPDATES_DEFAULT_NAME (persistence layer): an avatar-only sa
   assert.equal(row.display_name_customized, false);
 });
 
+test('RESTORE_DEFAULT_CLEARS_NAME_AUTHORITY: reset after a custom name lets a later avatar-only selection use its canonical name', async () => {
+  const table = makeFakeStylistPreferencesTable();
+  const service = loadStylistIdentityServiceWithSupabase(makeFakeSupabaseForUser('user-a', table));
+
+  await service.saveStylistIdentity({ displayName: 'Alex', avatarId: 'stylist_portrait_02' }, 'user-a');
+  const restored = await service.saveStylistIdentity(
+    DEFAULT_STYLIST_IDENTITY,
+    'user-a',
+    { clearCustomDisplayName: true },
+  );
+  assert.equal(restored.displayName, 'Elise');
+  assert.equal(table.rows.get('user-a').display_name_customized, false);
+
+  const afterPortraitSwitch = await service.saveStylistIdentity({ avatarId: 'stylist_portrait_02' }, 'user-a');
+  assert.equal(afterPortraitSwitch.displayName, 'Henry');
+  assert.equal(afterPortraitSwitch.avatarId, 'stylist_portrait_02');
+});
+
 test('ACCOUNT_ISOLATION (persistence layer): user A\'s custom name never appears for user B', async () => {
   const table = makeFakeStylistPreferencesTable();
   const serviceA = loadStylistIdentityServiceWithSupabase(makeFakeSupabaseForUser('user-a', table));
