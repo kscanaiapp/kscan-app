@@ -119,6 +119,10 @@ import {
   COMMERCE_IDENTITY_VERSION,
 } from './commerceIdentityConfig.ts';
 import {
+  isCommerceRetrievalEnabled,
+  COMMERCE_RETRIEVAL_VERSION,
+} from './commerceRetrievalConfig.ts';
+import {
   mapToFailureReason,
 } from './commerceRelevanceFailure.ts';
 import {
@@ -2144,6 +2148,10 @@ Deno.serve(async (req) => {
   // Commerce identity requires relevance ON; when OFF → exact repaired-v123 behavior.
   // Ranking-only: it never changes the commerce query, provider order, or call count.
   const commerceIdentityEnabled = relevanceEnabled && isCommerceIdentityEnabled();
+  // Retrieval enrichment consumes v124's graded evidence, so it requires
+  // identity ON. The reverse does not hold: v124 ON + v125 OFF is valid and is
+  // the state this repository ships by default.
+  const commerceRetrievalEnabled = commerceIdentityEnabled && isCommerceRetrievalEnabled();
 
   const requestModeForRoute = useMultiItemDetectionProvider
     ? 'multi_item_detection' as const
@@ -2899,6 +2907,7 @@ Deno.serve(async (req) => {
               ? {
                 commerceIdentityEnabled: true,
                 commerceIdentity: intelligenceGate.commerceIdentity,
+                commerceRetrievalEnabled,
               }
               : {}),
           }).catch((err) => {
@@ -2991,6 +3000,9 @@ Deno.serve(async (req) => {
                 brandAllowed: !intelligenceGate.brandSuppressed &&
                   hasBrandEvidenceForCommerce(identification as Record<string, unknown> | undefined),
               }
+              : {}),
+            ...(commerceRetrievalEnabled && intelligenceGate?.commerceIdentity
+              ? { commerceIdentity: intelligenceGate.commerceIdentity }
               : {}),
           })
           : null;
@@ -3224,6 +3236,7 @@ Deno.serve(async (req) => {
             ? {
               commerceIdentityEnabled: true,
               commerceIdentity: intelligenceGate.commerceIdentity,
+              commerceRetrievalEnabled,
             }
             : {}),
         }).catch((err) => {
@@ -3521,6 +3534,15 @@ Deno.serve(async (req) => {
           intelligenceGate?.commerceIdentity?.brandGrade ?? 'n/a',
           intelligenceGate?.commerceIdentity?.exactMatchGrade ?? 'n/a',
           intelligenceGate?.commerceIdentity?.distinctiveFeatures.length ?? 0,
+        );
+      }
+      if (commerceRetrievalEnabled) {
+        // Bounded strategy classification only — never the query string, which
+        // the existing privacy policy keeps out of logs.
+        console.log(
+          '[scan-identify] commerce_retrieval_version=%s enabled=true route=%s',
+          COMMERCE_RETRIEVAL_VERSION,
+          commerceCategoryRoute,
         );
       }
       if (textScanParityEnabled && mode === 'text') {

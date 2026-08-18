@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-18T11:11:29.765Z",
-    "generatedFromGitSha": "046d6d1db2082496dac9aaefed2a927e23658971"
+    "generatedAtUtc": "2026-08-18T11:41:43.824Z",
+    "generatedFromGitSha": "ce4175937a4ad1313c362a7bc63f179dca11c520"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -19,10 +19,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 32,
-        "treeFileCount": 42,
-        "bundleHash": "89060cd4a726f860d683c3ddff05c67143f4e281e1e0a5ffb22f6b3bf28e13d7",
-        "treeHash": "86b01f5a683c6620eb36e4e6e0f3e6196c07064978ffadaa33f31aea21f32506",
+        "bundleFileCount": 33,
+        "treeFileCount": 44,
+        "bundleHash": "1c1c636c2fe6d93366c51ddd24b5f83ca2550d69d4be6138f3d30d47a8277af1",
+        "treeHash": "bb411c9ab623c38c45b78257b91200bd9d0e228efd1514703fa8dc4a2abfd3e1",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -61,7 +61,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/commerceIdentity.v124.test.ts",
-            "sha256": "5ff05c81ed83a4209789f293971d73b97f4f019546c29dffad811a28750034a4",
+            "sha256": "1bc6d8f7e82abb5a7565652762d8825212fc111ef6943ad5a3cfdf55a5430d6f",
             "bundle": false
           },
           {
@@ -111,7 +111,17 @@
           },
           {
             "path": "supabase/functions/scan-identify/commerceRelevanceQueries.ts",
-            "sha256": "e211c89949dba7e4d5df7e6b7c5d68c6081633d7c505f2b81ae21c3f9a63f779",
+            "sha256": "11c6ec9a1691c0854e8e64ef6298891e5732cffcd427157bbb952121985674b7",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/commerceRetrieval.v125.test.ts",
+            "sha256": "80efad99ecae4fe418fc848f8a98736a04c5ac2a50c1c4dee65482ce50b8547e",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/scan-identify/commerceRetrievalConfig.ts",
+            "sha256": "f14e3f5b363834e39b8ccf353bfbc60ffe5101bf198456ef752f04238daee2a3",
             "bundle": true
           },
           {
@@ -121,7 +131,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/index.ts",
-            "sha256": "9ff82e56ae5c2ccad16166c7601850dcc5e8511983c3f9cf87170bb5f2f2e1e3",
+            "sha256": "367735daa616587b340d558a25fc95f52fc9cf42d65b040d4b3690c790431318",
             "bundle": true
           },
           {
@@ -151,7 +161,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/qualityTuneCommerce.ts",
-            "sha256": "25e9618a0cb5ffddb097881850f10e9d5a3e51f6857eaa3fd08f8ecd9412c71f",
+            "sha256": "2fd3fb9527fd347e0fb7ae0deb1c0b06e492241d31f30fe05efa12ee23cc7deb",
             "bundle": true
           },
           {
@@ -171,7 +181,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/scanCommerceRouter.ts",
-            "sha256": "a25474bbc686d56c5b813d0b41de580dcdb5b15c26adda8188e1f73e9d5e0c48",
+            "sha256": "72bd0698ab6efce114e23b50a6edea2a821da98f9ed4a762211316d0cab14fda",
             "bundle": true
           },
           {
