@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-18T19:30:09.430Z",
-    "generatedFromGitSha": "0e9d8c7723b3b86d05158a5838687ffd0952285e"
+    "generatedAtUtc": "2026-08-18T19:48:06.894Z",
+    "generatedFromGitSha": "7f411b558f2f5f85d4b49169ef51556a2866d6ab"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -21,8 +21,8 @@
         ],
         "bundleFileCount": 38,
         "treeFileCount": 58,
-        "bundleHash": "004be1d39530ea18be5fde919665f34c596490066c3ce28b9ef57ab1833d94c0",
-        "treeHash": "3f3b9542c795a5dddb586c7320ce634edba95f27e420f5be1789962ea5114618",
+        "bundleHash": "df124fce0823b78178487e57efc01430d1efa6f56a36c4a70deea684b324878c",
+        "treeHash": "de90cd65bff6f92bcd59dd4cfb80233ffbbaec2a2c32d03d4cd39de34a6ebe2c",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -71,7 +71,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/commerceFunnel.v127.test.ts",
-            "sha256": "317b14b33ea9b773d74a28cb601bc5fdac170467500621e46f26ab85ed08af73",
+            "sha256": "52cb46b8928e9ff9081f252003d984821f52847da429630af671d62ede7d0609",
             "bundle": false
           },
           {
@@ -176,7 +176,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/index.ts",
-            "sha256": "427667aa8a77cfb5ab721777c7ad85e1de84c7eaf4a3731356c48d6ea98f1847",
+            "sha256": "e1274da1c3e096e8d93771454032eb2a95c2e5b31b843bb9781b350abe559b54",
             "bundle": true
           },
           {
