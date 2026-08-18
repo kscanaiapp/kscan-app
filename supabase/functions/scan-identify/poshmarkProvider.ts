@@ -227,7 +227,7 @@ function mapListing(item: Record<string, unknown>, index: number): PoshmarkProdu
  */
 export async function searchPoshmarkProducts(
   query: string,
-  options?: { limit?: number },
+  options?: { limit?: number; timeoutMs?: number },
 ): Promise<PoshmarkSearchResult> {
   const started = Date.now();
 
@@ -254,7 +254,13 @@ export async function searchPoshmarkProducts(
   const url = `https://${host}/poshmark/search?query=${encodeURIComponent(collapsed)}&limit=${limit}`;
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+  // v127: the caller may supply a shorter deadline than this provider's own
+  // ceiling so a slow response cannot outlive the fast-path budget. Only ever
+  // shortens — a caller cannot extend a provider past its configured timeout.
+  const effectiveTimeoutMs = typeof options?.timeoutMs === 'number' && options.timeoutMs > 0
+    ? Math.min(options.timeoutMs, PROVIDER_TIMEOUT_MS)
+    : PROVIDER_TIMEOUT_MS;
+  const timeout = setTimeout(() => controller.abort(), effectiveTimeoutMs);
 
   try {
     const res = await fetch(url, {

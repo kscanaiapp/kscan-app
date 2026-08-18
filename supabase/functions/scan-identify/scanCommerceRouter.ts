@@ -44,6 +44,21 @@ import {
 import type { ScannerCategoryRoute } from './scannerCategoryRoute.ts';
 import type { CommerceIdentityEvidence } from './scannerQualityGate.ts';
 import type { CommerceQueryStrategy } from './commerceRetrievalConfig.ts';
+import {
+  ENRICHMENT_DEADLINE_MS,
+  FAST_COMMERCE_DEADLINE_MS,
+  FAST_COMMERCE_SUFFICIENT_RESULTS,
+  MAX_ENRICHMENT_CANDIDATES,
+  providerDeadlineMs,
+} from './commerceFunnelConfig.ts';
+import { collectBounded } from './commerceFastPath.ts';
+import {
+  buildCommerceCacheKey,
+  commerceCacheGet,
+  commerceCacheSet,
+  fingerprintQuery,
+  type CommerceCacheKeyInput,
+} from './commerceResultCache.ts';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -709,6 +724,508 @@ async function enrichDiscoveredUrls(
   });
 }
 
+// ── Shared query resolution (v127) ──────────────────────────────────────────
+
+type ResolvedCommerceQueries = {
+  qualityEnabled: boolean;
+  identityEnabled: boolean;
+  relevanceOpts: CommerceRelevanceOptions | undefined;
+  query: string;
+  fallbackQuery: string;
+  queryStrategy: CommerceQueryStrategy | undefined;
+};
+
+/**
+ * Build the commerce queries for a request.
+ *
+ * Extracted verbatim from the Phase 3 inline block so the fast path and the
+ * legacy path cannot drift into two different query builders. The v125
+ * construction it delegates to is unchanged — this only decides which options
+ * to pass, exactly as before.
+ */
+function resolveCommerceQueries(input: ScanCommerceInput): ResolvedCommerceQueries {
+  const qualityEnabled = isQualityTuneEnabled();
+  const identityEnabled = input.commerceIdentityEnabled === true;
+  const retrievalEnabled = input.commerceRetrievalEnabled === true;
+  const relevanceOpts: CommerceRelevanceOptions | undefined =
+    input.relevanceEnabled && input.relevanceRoute
+      ? {
+        enabled: true,
+        categoryRoute: input.relevanceRoute,
+        qualityBand: input.qualityBand,
+        ...(identityEnabled && input.commerceIdentity
+          ? { commerceIdentity: input.commerceIdentity }
+          : {}),
+      }
+      : undefined;
+
+  let query = '';
+  let fallbackQuery = '';
+  let queryStrategy: CommerceQueryStrategy | undefined;
+
+  if (qualityEnabled) {
+    if (input.disableQualityFallback) {
+      // Forced single fallback attempt — use provided query only.
+      const forced = Array.isArray(input.searchQueries) && typeof input.searchQueries[0] === 'string'
+        ? input.searchQueries[0].trim()
+        : '';
+      query = forced || buildScanCommerceQuery(input);
+    } else {
+      const weighted = buildWeightedCommerceQueries({
+        identification: input.identification,
+        attributes: input.attributes,
+        searchQueries: input.searchQueries,
+        originalText: input.originalText,
+        ...(input.qualityDetailLevel
+          ? {
+            detailLevel: input.qualityDetailLevel,
+            materialAllowed: input.materialAllowed,
+            brandAllowed: input.brandAllowed,
+          }
+          : {}),
+        ...(relevanceOpts
+          ? {
+            relevanceRoute: relevanceOpts.categoryRoute,
+            qualityBand: relevanceOpts.qualityBand,
+            materialAllowed: input.materialAllowed,
+            brandAllowed: input.brandAllowed,
+            detailLevel: input.qualityDetailLevel,
+          }
+          : {}),
+        ...(retrievalEnabled && input.commerceIdentity
+          ? { commerceIdentity: input.commerceIdentity }
+          : {}),
+      });
+      query = weighted.primary;
+      fallbackQuery = weighted.fallback;
+      queryStrategy = weighted.strategy;
+    }
+  } else {
+    query = buildScanCommerceQuery(input);
+  }
+
+  return { qualityEnabled, identityEnabled, relevanceOpts, query, fallbackQuery, queryStrategy };
+}
+
+// ── v127: fast commerce path + deferred enrichment ──────────────────────────
+
+export type FastCommerceMarketContext = {
+  locale?: string | null;
+  currency?: string | null;
+  country?: string | null;
+};
+
+export type EnrichmentCandidate = {
+  productUrl: string;
+  retailer: 'farfetch' | 'kickscrew';
+};
+
+export type ProviderTiming = {
+  provider: string;
+  durationMs: number | null;
+  resultCount: number;
+  outcome: 'success' | 'zero_result' | 'timeout' | 'disabled' | 'no_key' | 'error';
+};
+
+export type FastCommerceResult = {
+  products: RecommendedProduct[];
+  provider: ScanCommerceProvider;
+  providersTried: string[];
+  query: string;
+  count: number;
+  errorType?: string;
+  queryStrategy?: CommerceQueryStrategy;
+  /** v127 funnel diagnostics. Bounded values only — never a query string. */
+  funnel: {
+    cacheHit: boolean;
+    cacheKey: string;
+    cacheAgeMs: number | null;
+    cacheLookupMs: number;
+    discoveryMs: number;
+    earlyExit: boolean;
+    deadlineMs: number;
+    providers: ProviderTiming[];
+    salvagedFromPartial: boolean;
+  };
+  /** Bounded set of URLs worth a deferred enrichment hop. */
+  enrichmentCandidates: EnrichmentCandidate[];
+};
+
+function providerOutcomeFor(
+  errorType: string | undefined,
+  count: number,
+  timedOut: boolean,
+): ProviderTiming['outcome'] {
+  if (timedOut) return 'timeout';
+  if (errorType === 'disabled') return 'disabled';
+  if (errorType === 'no_key') return 'no_key';
+  if (errorType === 'timeout') return 'timeout';
+  if (errorType) return 'error';
+  return count > 0 ? 'success' : 'zero_result';
+}
+
+/**
+ * Fast commerce retrieval (v127).
+ *
+ * The first commerce shelf optimizes for time-to-first-useful-offer, not for
+ * provider completeness:
+ *
+ *   1. A sanitized result cache is consulted before any network call.
+ *   2. Discovery providers run concurrently against ONE budget, and the call
+ *      returns as soon as enough rankable candidates exist.
+ *   3. URL enrichment does not run here at all — it is returned as a bounded
+ *      candidate list for a deferred hop, because Farfetch3 (~3.0s) and
+ *      KicksCrew (~2.6s) each cost more than this entire budget.
+ *
+ * Ranking is untouched: the pool is handed to the same v124 filter the Phase 3
+ * path uses. This function decides what we retrieve and how long we wait, never
+ * what wins.
+ */
+export async function getFastCommerceResults(
+  input: ScanCommerceInput & { market?: FastCommerceMarketContext },
+): Promise<FastCommerceResult> {
+  const started = Date.now();
+  const providersTried: string[] = [];
+  const providers: ProviderTiming[] = [];
+
+  const emptyFunnel = (cacheKey: string) => ({
+    cacheHit: false,
+    cacheKey,
+    cacheAgeMs: null,
+    cacheLookupMs: 0,
+    discoveryMs: 0,
+    earlyExit: false,
+    deadlineMs: FAST_COMMERCE_DEADLINE_MS,
+    providers,
+    salvagedFromPartial: false,
+  });
+
+  if (input.mode !== 'image' && !(input.mode === 'text' && input.allowTextMode === true)) {
+    return {
+      products: [], provider: 'none', providersTried, query: '', count: 0,
+      errorType: 'wrong_mode', funnel: emptyFunnel(''), enrichmentCandidates: [],
+    };
+  }
+  if (isNonFashionIdentification(input.identification)) {
+    return {
+      products: [], provider: 'none', providersTried, query: '', count: 0,
+      errorType: 'non_fashion', funnel: emptyFunnel(''), enrichmentCandidates: [],
+    };
+  }
+
+  const resolved = resolveCommerceQueries(input);
+  const query = resolved.query;
+
+  if (!query || isWeakQuery(query)) {
+    return {
+      products: [], provider: 'none', providersTried, query, count: 0,
+      errorType: 'weak_query', funnel: emptyFunnel(''), enrichmentCandidates: [],
+      ...(resolved.queryStrategy ? { queryStrategy: resolved.queryStrategy } : {}),
+    };
+  }
+
+  // ── 1. Cache ──────────────────────────────────────────────────────────────
+  const id = (input.identification || {}) as Record<string, unknown>;
+  const identity = input.commerceIdentity;
+  const cacheKeyInput: CommerceCacheKeyInput = {
+    category: usableField(id.item_type),
+    subtype: usableField(id.subtype),
+    // Only evidence v124 graded usable may key the cache — a weak guess must
+    // not fragment it, exactly as it must not reach a provider query.
+    brand: identity && (identity.brandGrade === 'verified' || identity.brandGrade === 'plausible')
+      ? identity.brand
+      : null,
+    exactItemHypothesis:
+      identity && (identity.exactMatchGrade === 'verified' || identity.exactMatchGrade === 'plausible')
+        ? identity.exactItemHypothesis
+        : null,
+    queryFingerprint: fingerprintQuery(query),
+    locale: input.market?.locale ?? null,
+    currency: input.market?.currency ?? null,
+    country: input.market?.country ?? null,
+  };
+  const cacheKey = buildCommerceCacheKey(cacheKeyInput);
+  const cacheStarted = Date.now();
+  const lookup = commerceCacheGet(cacheKey);
+  const cacheLookupMs = Date.now() - cacheStarted;
+
+  if (lookup.hit && lookup.entry) {
+    const cachedProducts = lookup.entry.products;
+    return {
+      products: cachedProducts,
+      provider: cachedProducts.length > 0 ? labelCachedProvider(cachedProducts[0]) : 'none',
+      providersTried: lookup.entry.providersTried,
+      query,
+      count: cachedProducts.length,
+      ...(resolved.queryStrategy ? { queryStrategy: resolved.queryStrategy } : {}),
+      funnel: {
+        cacheHit: true,
+        cacheKey,
+        cacheAgeMs: lookup.ageMs ?? null,
+        cacheLookupMs,
+        discoveryMs: 0,
+        earlyExit: true,
+        deadlineMs: FAST_COMMERCE_DEADLINE_MS,
+        providers,
+        salvagedFromPartial: false,
+      },
+      enrichmentCandidates: selectEnrichmentCandidates(cachedProducts, input),
+    };
+  }
+
+  // ── 2. Bounded parallel discovery ─────────────────────────────────────────
+  const limit = Math.max(1, Math.min(10, input.limit ?? 8));
+  const discoveryStarted = Date.now();
+  const remaining = () => Math.max(0, FAST_COMMERCE_DEADLINE_MS - (Date.now() - started));
+  // Invariant: no provider may be handed a deadline longer than the budget that
+  // remains for the whole fan-out.
+  const perProviderMs = providerDeadlineMs(remaining(), FAST_COMMERCE_DEADLINE_MS);
+
+  providersTried.push('serper');
+  const outcome = await collectBounded<
+    { kind: 'shopping'; value: Awaited<ReturnType<typeof getShoppingResults>> } |
+    { kind: 'poshmark'; value: Awaited<ReturnType<typeof searchPoshmarkProducts>> }
+  >(
+    [
+      {
+        key: 'shopping',
+        promise: getShoppingResults({ query, limit, timeoutMs: perProviderMs })
+          .then((value) => ({ kind: 'shopping' as const, value })),
+        onTimeout: {
+          kind: 'shopping',
+          value: { products: [], provider: 'none' as const, query, errorType: 'timeout' },
+        },
+      },
+      {
+        key: 'poshmark',
+        // Poshmark ranged to 13.9s in Phase 3 measurement. It runs in parallel
+        // and is accepted when it is quick; it can never make the shelf wait.
+        promise: searchPoshmarkProducts(query, { limit, timeoutMs: perProviderMs })
+          .then((value) => ({ kind: 'poshmark' as const, value })),
+        onTimeout: {
+          kind: 'poshmark',
+          value: { products: [], provider: 'poshmark' as const, query, errorType: 'timeout' },
+        },
+      },
+    ],
+    {
+      deadlineMs: perProviderMs,
+      isSufficient: (settled) => {
+        let usable = 0;
+        for (const s of settled) usable += s.value.products.length;
+        return usable >= FAST_COMMERCE_SUFFICIENT_RESULTS;
+      },
+    },
+  );
+  const discoveryMs = Date.now() - discoveryStarted;
+
+  const shoppingSettled = (outcome.values.get('shopping') as { kind: 'shopping'; value: Awaited<ReturnType<typeof getShoppingResults>> }).value;
+  const poshmarkSettled = (outcome.values.get('poshmark') as { kind: 'poshmark'; value: Awaited<ReturnType<typeof searchPoshmarkProducts>> }).value;
+
+  providers.push({
+    provider: shoppingSettled.provider === 'brave' ? 'brave' : 'serper',
+    durationMs: outcome.durationsMs.get('shopping') ?? null,
+    resultCount: shoppingSettled.products.length,
+    outcome: providerOutcomeFor(
+      shoppingSettled.errorType,
+      shoppingSettled.products.length,
+      outcome.timedOutKeys.includes('shopping'),
+    ),
+  });
+  providers.push({
+    provider: 'poshmark',
+    durationMs: outcome.durationsMs.get('poshmark') ?? null,
+    resultCount: poshmarkSettled.products.length,
+    outcome: providerOutcomeFor(
+      poshmarkSettled.errorType,
+      poshmarkSettled.products.length,
+      outcome.timedOutKeys.includes('poshmark'),
+    ),
+  });
+
+  const shoppingProviderLabel: ScanCommerceProvider = shoppingSettled.provider === 'brave'
+    ? 'brave'
+    : shoppingSettled.provider === 'serper'
+    ? 'serper'
+    : 'none';
+  if (shoppingProviderLabel === 'brave') providersTried.push('brave');
+  if (poshmarkSettled.errorType !== 'disabled' && poshmarkSettled.errorType !== 'no_key') {
+    providersTried.push('poshmark');
+  }
+
+  const poshmarkProducts = poshmarkSettled.products.map((p) =>
+    normalizeToRecommendedProduct(p, resolved.identityEnabled)
+  );
+  const pool = dedupeProductsByUrl([...shoppingSettled.products, ...poshmarkProducts]);
+
+  // ── 3. Unchanged v124 ranking ─────────────────────────────────────────────
+  let merged = pool.slice(0, MAX_RESULTS);
+  if (resolved.qualityEnabled) {
+    const filtered = filterAndDedupeProducts(
+      merged,
+      input.identification || {},
+      resolved.relevanceOpts,
+    );
+    merged = filtered.products.slice(0, MAX_RESULTS);
+  }
+
+  const discoveryErrorType = shoppingSettled.errorType ?? poshmarkSettled.errorType;
+  const provider: ScanCommerceProvider = merged.length > 0
+    ? labelCachedProvider(merged[0], shoppingProviderLabel)
+    : 'none';
+
+  if (merged.length > 0) {
+    commerceCacheSet(cacheKey, { products: merged, query, providersTried });
+  }
+
+  return {
+    products: merged,
+    provider,
+    providersTried,
+    query,
+    count: merged.length,
+    errorType: merged.length > 0 ? undefined : (discoveryErrorType ?? 'no_results'),
+    ...(resolved.queryStrategy ? { queryStrategy: resolved.queryStrategy } : {}),
+    funnel: {
+      cacheHit: false,
+      cacheKey,
+      cacheAgeMs: null,
+      cacheLookupMs,
+      discoveryMs,
+      earlyExit: outcome.earlyExit,
+      deadlineMs: perProviderMs,
+      providers,
+      // A straggler was dropped but the shelf still has offers — the defining
+      // partial-salvage case.
+      salvagedFromPartial: outcome.timedOutKeys.length > 0 && merged.length > 0,
+    },
+    enrichmentCandidates: selectEnrichmentCandidates(merged, input),
+  };
+}
+
+function labelCachedProvider(
+  p: RecommendedProduct,
+  shoppingLabel: ScanCommerceProvider = 'serper',
+): ScanCommerceProvider {
+  if (p.source === 'KicksCrew') return 'kickscrew';
+  if (p.source === 'Farfetch') return 'farfetch';
+  if (p.source === 'Poshmark') return 'poshmark';
+  return shoppingLabel;
+}
+
+/**
+ * Bounded set of already-visible offers worth a second network hop.
+ *
+ * Selection is by retailer domain only — the same rule Phase 3 used to decide
+ * enrichment eligibility — so this cannot become a back door for provider
+ * preference. The KicksCrew sneaker gate is applied here unchanged.
+ */
+export function selectEnrichmentCandidates(
+  products: RecommendedProduct[],
+  input: Pick<ScanCommerceInput, 'identification' | 'attributes' | 'searchQueries' | 'originalText'>,
+): EnrichmentCandidate[] {
+  const out: EnrichmentCandidate[] = [];
+  for (const p of products) {
+    if (out.length >= MAX_ENRICHMENT_CANDIDATES) break;
+    if (isFarfetchProductUrl(p.productUrl)) {
+      out.push({ productUrl: p.productUrl as string, retailer: 'farfetch' });
+    }
+  }
+  const isSneaker = isSneakerIdentification(
+    input.identification,
+    input.attributes,
+    input.searchQueries,
+    input.originalText,
+  );
+  if (isSneaker) {
+    for (const p of products) {
+      if (out.length >= MAX_ENRICHMENT_CANDIDATES) break;
+      if (isKicksCrewProductUrl(p.productUrl)) {
+        out.push({ productUrl: p.productUrl as string, retailer: 'kickscrew' });
+      }
+    }
+  }
+  return out.slice(0, MAX_ENRICHMENT_CANDIDATES);
+}
+
+export type EnrichmentResult = {
+  products: RecommendedProduct[];
+  attempted: number;
+  succeeded: number;
+  durationMs: number;
+  providers: ProviderTiming[];
+};
+
+/**
+ * Deferred URL enrichment (v127).
+ *
+ * Runs against offers the user can already see. Merges richer fields into the
+ * existing offer by URL identity, so an enriched result replaces its own
+ * discovery record rather than appearing as a second product — the caller can
+ * apply the returned list wholesale without deduping again.
+ */
+export async function enrichCommerceOffers(
+  products: RecommendedProduct[],
+  candidates: EnrichmentCandidate[],
+  opts?: { includeBrand?: boolean; deadlineMs?: number },
+): Promise<EnrichmentResult> {
+  const started = Date.now();
+  const providers: ProviderTiming[] = [];
+  const bounded = candidates.slice(0, MAX_ENRICHMENT_CANDIDATES);
+
+  if (bounded.length === 0) {
+    return { products, attempted: 0, succeeded: 0, durationMs: 0, providers };
+  }
+
+  const deadlineMs = Math.max(0, opts?.deadlineMs ?? ENRICHMENT_DEADLINE_MS);
+  const outcome = await collectBounded<{ url: string; product: RecommendedProduct | null }>(
+    bounded.map((c) => ({
+      key: `${c.retailer}:${c.productUrl}`,
+      promise: (c.retailer === 'farfetch'
+        ? enrichFarfetchProductByUrl(c.productUrl)
+        : enrichKicksCrewProductByUrl(c.productUrl)
+      ).then((r) => ({
+        url: c.productUrl,
+        product: r.product
+          ? normalizeToRecommendedProduct(
+            r.product as unknown as Farfetch3Product | KicksCrewProduct,
+            opts?.includeBrand === true,
+          )
+          : null,
+      })),
+      onTimeout: { url: c.productUrl, product: null },
+    })),
+    { deadlineMs },
+  );
+
+  const enrichedByUrl = new Map<string, RecommendedProduct>();
+  for (const [key, value] of outcome.values) {
+    const retailer = key.split(':')[0]!;
+    const timedOut = outcome.timedOutKeys.includes(key);
+    providers.push({
+      provider: retailer,
+      durationMs: outcome.durationsMs.get(key) ?? null,
+      resultCount: value.product ? 1 : 0,
+      outcome: providerOutcomeFor(undefined, value.product ? 1 : 0, timedOut),
+    });
+    if (value.product) {
+      enrichedByUrl.set(value.url.toLowerCase(), value.product);
+    }
+  }
+
+  const merged = enrichedByUrl.size === 0
+    ? products
+    : products.map((p) => enrichedByUrl.get((p.productUrl || '').toLowerCase()) ?? p);
+
+  return {
+    products: merged,
+    attempted: bounded.length,
+    succeeded: enrichedByUrl.size,
+    durationMs: Date.now() - started,
+    providers,
+  };
+}
+
 // ── Public entry point ───────────────────────────────────────────────────────
 
 /**
@@ -758,64 +1275,13 @@ export async function getScanCommerceResults(
     };
   }
 
-  const qualityEnabled = isQualityTuneEnabled();
-  let fallbackQuery = '';
-  let query = '';
-  let queryStrategy: CommerceQueryStrategy | undefined;
-  const identityEnabled = input.commerceIdentityEnabled === true;
-  const retrievalEnabled = input.commerceRetrievalEnabled === true;
-  const relevanceOpts: CommerceRelevanceOptions | undefined =
-    input.relevanceEnabled && input.relevanceRoute
-      ? {
-        enabled: true,
-        categoryRoute: input.relevanceRoute,
-        qualityBand: input.qualityBand,
-        ...(identityEnabled && input.commerceIdentity
-          ? { commerceIdentity: input.commerceIdentity }
-          : {}),
-      }
-      : undefined;
-
-  if (qualityEnabled) {
-    if (input.disableQualityFallback) {
-      // Forced single fallback attempt — use provided query only.
-      const forced = Array.isArray(input.searchQueries) && typeof input.searchQueries[0] === 'string'
-        ? input.searchQueries[0].trim()
-        : '';
-      query = forced || buildScanCommerceQuery(input);
-    } else {
-      const weighted = buildWeightedCommerceQueries({
-        identification: input.identification,
-        attributes: input.attributes,
-        searchQueries: input.searchQueries,
-        originalText: input.originalText,
-        ...(input.qualityDetailLevel
-          ? {
-            detailLevel: input.qualityDetailLevel,
-            materialAllowed: input.materialAllowed,
-            brandAllowed: input.brandAllowed,
-          }
-          : {}),
-        ...(relevanceOpts
-          ? {
-            relevanceRoute: relevanceOpts.categoryRoute,
-            qualityBand: relevanceOpts.qualityBand,
-            materialAllowed: input.materialAllowed,
-            brandAllowed: input.brandAllowed,
-            detailLevel: input.qualityDetailLevel,
-          }
-          : {}),
-        ...(retrievalEnabled && input.commerceIdentity
-          ? { commerceIdentity: input.commerceIdentity }
-          : {}),
-      });
-      query = weighted.primary;
-      fallbackQuery = weighted.fallback;
-      queryStrategy = weighted.strategy;
-    }
-  } else {
-    query = buildScanCommerceQuery(input);
-  }
+  const resolved = resolveCommerceQueries(input);
+  const qualityEnabled = resolved.qualityEnabled;
+  const identityEnabled = resolved.identityEnabled;
+  const relevanceOpts = resolved.relevanceOpts;
+  const fallbackQuery = resolved.fallbackQuery;
+  let query = resolved.query;
+  const queryStrategy = resolved.queryStrategy;
 
   if (!query || isWeakQuery(query)) {
     return {
