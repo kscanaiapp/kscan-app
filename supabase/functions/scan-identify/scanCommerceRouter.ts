@@ -1114,7 +1114,7 @@ function labelCachedProvider(
 }
 
 /**
- * Bounded set of already-visible offers worth a second network hop.
+ * Bounded set of offers the user can already see that are worth a second hop.
  *
  * Selection is by retailer domain only — the same rule Phase 3 used to decide
  * enrichment eligibility — so this cannot become a back door for provider
