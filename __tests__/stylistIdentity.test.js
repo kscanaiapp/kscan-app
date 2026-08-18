@@ -992,23 +992,57 @@ test('StylistAvatar supports placeholder, ready-image, and load-failure paths', 
 
 // ── Fix #1: Stylist 02 static-portrait framing correction ───────────────────
 
-test('only stylist_portrait_02 carries a framing override; every other avatar is unaffected', () => {
+// REGRESSION (Fix #1 reopen): Henry must render through the SAME unscaled path
+// as every peer in the Personalize Your Stylist picker.
+//
+// An earlier revision gave stylist_portrait_02 an offsetXRatio with a 1.28
+// overscan, which rendered him ~28% larger than peers and clipped the top of
+// his head. Because 8 of 10 portraits (Henry included) have 0.0% headroom in
+// the source, no center-anchored overscan is safe for them at all.
+test('no shipped portrait carries a framing override, so every avatar renders at identical scale', () => {
   const portraitIds = STYLIST_PORTRAIT_PRESETS.map((preset) => preset.id);
   const abstractIds = STYLIST_ABSTRACT_PRESETS.map((preset) => preset.id);
 
-  const framing02 = getStylistAvatarFraming('stylist_portrait_02');
-  assert.ok(framing02, 'stylist_portrait_02 must have a framing override');
-  assert.equal(typeof framing02.offsetXRatio, 'number');
-  assert.ok(framing02.offsetXRatio > 0 && framing02.offsetXRatio < 0.5);
+  // HENRY_SCALE_MATCHES_PEERS / HENRY_PICKER_HEAD_FULLY_VISIBLE: an absent
+  // override is what puts Henry on the plain size×size cover path.
+  assert.equal(
+    getStylistAvatarFraming('stylist_portrait_02'),
+    undefined,
+    'stylist_portrait_02 must NOT have a framing override: its source has 0.0% headroom, '
+      + 'so any overscan clips the top of the head and breaks scale parity with peers',
+  );
 
   for (const id of [...portraitIds, ...abstractIds, DEFAULT_STYLIST_IDENTITY.avatarId]) {
-    if (id === 'stylist_portrait_02') continue;
     assert.equal(getStylistAvatarFraming(id), undefined, `${id} must not have a framing override`);
   }
 
   assert.equal(getStylistAvatarFraming(null), undefined);
   assert.equal(getStylistAvatarFraming(undefined), undefined);
   assert.equal(getStylistAvatarFraming('unknown_avatar'), undefined);
+});
+
+test('PERSONALIZE_PICKER_USES_GOVERNING_FRAMING_AUTHORITY: the picker renders portraits through StylistAvatar with framing left at its default', () => {
+  // The picker must not bypass the governing avatar framing authority, and
+  // must not opt out of it either -- it renders the same StylistAvatar every
+  // other static portrait surface uses, at a single consistent thumbnail size.
+  assert.match(personalizeStylistModalSource, /import \{ StylistAvatar \} from '\.\/StylistAvatar'/);
+  const portraitGrid = personalizeStylistModalSource.match(
+    /STYLIST_PORTRAIT_PRESETS\.map\([\s\S]*?\}\)\}/,
+  )?.[0];
+  assert.ok(portraitGrid, 'expected the portrait grid in PersonalizeStylistModal');
+  assert.match(portraitGrid, /<StylistAvatar avatarId=\{preset\.id\} size=\{70\} \/>/);
+  // Never passes applyFraming -- so it always uses the governing authority's
+  // answer for the avatar, whatever that authority currently says.
+  assert.doesNotMatch(portraitGrid, /applyFraming/);
+});
+
+test('the framing mechanism itself survives for a future portrait that ships with real headroom', () => {
+  // The fix is a data change in the governing authority, not removal of the
+  // authority: the resolver and the applyFraming opt-out plumbing must remain
+  // so the speaking-overlay distinction keeps working.
+  assert.equal(typeof getStylistAvatarFraming, 'function');
+  assert.match(stylistAvatar, /getStylistAvatarFraming/);
+  assert.match(stylistAvatar, /applyFraming\??:\s*boolean/);
 });
 
 test('framing correction does not touch the mouth-state speech configuration', () => {
