@@ -280,6 +280,9 @@ type ShoppingMeta = {
   similarityMatches?: number;
   commerceSkipped?: boolean;
   reason?: string;
+  /** v127: commerce was deferred to a follow-up commerce-only (MODE B) request. */
+  deferred?: boolean;
+  funnelVersion?: string;
 };
 
 type AnonymousRateEntry = {
@@ -1927,9 +1930,20 @@ Deno.serve(async (req) => {
     const gated = applyScannerQualityGate(evidence.identification, evidence.attributes, {
       commerceIdentityEnabled: commerceIdentityEnabledForCommerceOnly,
     });
+    // Must match the inline MODE A call exactly (see the `commerceCategoryRoute`
+    // resolution on the image route): `selected_item` without a
+    // `selectedCandidate` returns 'general' unconditionally, and
+    // `identification` is not an input field, so routing by it silently
+    // collapsed every deferred query onto the general template while the
+    // flag-off path kept the category-specific one.
     const route = resolveScannerCategoryRoute({
-      requestMode: 'selected_item',
-      identification: gated.identification,
+      requestMode: 'legacy_single_item',
+      knownCategory: typeof gated.identification?.item_type === 'string'
+        ? gated.identification.item_type
+        : null,
+      knownSubtype: typeof gated.identification?.subtype === 'string'
+        ? gated.identification.subtype
+        : null,
     });
 
     const fast = await getFastCommerceResults({
@@ -3429,6 +3443,15 @@ Deno.serve(async (req) => {
         mode,
         source,
       );
+      // Commerce is deferred, so this response carries no offers. These must
+      // still be assigned: the response builder, the audit event, and the
+      // commerce telemetry below all dereference them unconditionally, and an
+      // unassigned binding here throws and is caught by the handler's outer
+      // catch — turning a successful scan into `failed` for every signed-in
+      // user the moment the funnel flag is enabled.
+      finalRecommendedProducts = [];
+      finalSimilarityMatches = [];
+      rankedProductsForAudit = [];
       shoppingMeta = {
         provider: 'deferred',
         query: '',
