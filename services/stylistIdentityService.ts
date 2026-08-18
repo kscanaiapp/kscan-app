@@ -24,6 +24,15 @@ interface UserStylistPreferenceRow {
   updated_at: string;
 }
 
+type SaveStylistIdentityOptions = Readonly<{
+  /**
+   * Used only by the explicit "Restore default" action. It removes the
+   * customization authority so a later avatar-only selection resolves that
+   * portrait's canonical name rather than preserving a stale "Elise" override.
+   */
+  clearCustomDisplayName?: boolean;
+}>;
+
 async function requireUserId(expectedUserId?: string): Promise<string> {
   const { data } = await supabase.auth.getSession();
   const id = data.session?.user?.id ?? null;
@@ -82,6 +91,7 @@ export async function fetchStylistIdentity(expectedUserId?: string): Promise<Sty
 export async function saveStylistIdentity(
   identity: Partial<StylistIdentity>,
   expectedUserId?: string,
+  options: SaveStylistIdentityOptions = {},
 ): Promise<StylistIdentity> {
   // Validate raw caller input before auth or table access. Normalization is for
   // untrusted stored rows; using it here would silently turn an unknown avatar
@@ -101,7 +111,12 @@ export async function saveStylistIdentity(
     updated_at: new Date().toISOString(),
   };
 
-  if (identity.displayName !== undefined) {
+  if (options.clearCustomDisplayName) {
+    // "Restore default" is semantically different from explicitly naming the
+    // stylist "Elise": reset the authority flag as well as the stored value.
+    upsertRow.display_name = DEFAULT_STYLIST_IDENTITY.displayName;
+    upsertRow.display_name_customized = false;
+  } else if (identity.displayName !== undefined) {
     const nameResult = sanitizeStylistName(identity.displayName);
     if (!nameResult.valid) {
       throw new StylistIdentityValidationError(
