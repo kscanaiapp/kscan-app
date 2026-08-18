@@ -1445,13 +1445,72 @@ function isCommerceOnlyRequest(body: { requestMode?: unknown }): boolean {
  * field is a rejected request, not a silently ignored field, so a client bug
  * cannot quietly start shipping images.
  */
+const PROHIBITED_IMAGE_KEYS = [
+  'imageBase64',
+  'image',
+  'imageUrl',
+  'imageUri',
+  'photo',
+  'base64',
+  'evidence',
+];
+
 function rejectImagePayloadForCommerceOnly(
   body: Record<string, unknown>,
+  path = '',
+  depth = 0,
 ): string | null {
-  for (const field of ['imageBase64', 'image', 'imageUrl', 'imageUri', 'photo', 'base64', 'evidence']) {
-    if (body[field] !== undefined && body[field] !== null) return `image_payload_rejected:${field}`;
+  // Checked at every level, not only the top: `attributes` reaches the provider
+  // query without an allowlist, so a top-level-only sweep left
+  // `attributes.imageBase64` as a second route for image bytes to enter the
+  // commerce stack. Depth is bounded so a hostile body cannot cost time here.
+  if (depth > 4) return null;
+  for (const [key, value] of Object.entries(body)) {
+    if (value === undefined || value === null) continue;
+    const here = path ? `${path}.${key}` : key;
+    if (PROHIBITED_IMAGE_KEYS.includes(key)) return `image_payload_rejected:${here}`;
+    if (typeof value === 'object' && !Array.isArray(value)) {
+      const nested = rejectImagePayloadForCommerceOnly(
+        value as Record<string, unknown>,
+        here,
+        depth + 1,
+      );
+      if (nested) return nested;
+    }
   }
   return null;
+}
+
+/**
+ * Bound the free-text MODE B attributes carry.
+ *
+ * Keys are preserved — the ranker and the v125 query builder read named
+ * attributes, and an allowlist here would silently drop commerce signal on the
+ * deferred path only. Values are capped exactly as `searchQueries` already is,
+ * because named attribute values are concatenated into the outbound provider
+ * query and were the one uncapped caller-controlled text on this route.
+ */
+function boundCommerceAttributes(
+  raw: Record<string, unknown>,
+  depth = 0,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (typeof value === 'string') {
+      const bounded = safeString(value);
+      if (bounded !== undefined) out[key] = bounded;
+    } else if (typeof value === 'number' || typeof value === 'boolean') {
+      out[key] = value;
+    } else if (Array.isArray(value)) {
+      out[key] = value
+        .slice(0, MAX_ARRAY_ITEMS)
+        .map((entry) => (typeof entry === 'string' ? safeString(entry) : undefined))
+        .filter((entry): entry is string => entry !== undefined);
+    } else if (value && typeof value === 'object' && depth < 2) {
+      out[key] = boundCommerceAttributes(value as Record<string, unknown>, depth + 1);
+    }
+  }
+  return out;
 }
 
 type CommerceOnlyEvidence = {
@@ -1469,7 +1528,7 @@ function readCommerceOnlyEvidence(
   if (!identification) return null;
 
   const attributes = body.attributes && typeof body.attributes === 'object' && !Array.isArray(body.attributes)
-    ? body.attributes as Record<string, unknown>
+    ? boundCommerceAttributes(body.attributes as Record<string, unknown>)
     : undefined;
   const searchQueries = safeStringArray(body.searchQueries) ?? undefined;
 

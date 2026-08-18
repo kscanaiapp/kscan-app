@@ -584,12 +584,16 @@ Deno.test('INVARIANT 8: every provider failing yields an empty retryable shelf, 
 
 Deno.test('INVARIANT 11: MODE B rejects every image-shaped payload field', async () => {
   const index = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
-  const start = index.indexOf('function rejectImagePayloadForCommerceOnly');
-  assert.ok(start > 0, 'MODE B image gate is missing');
-  const block = index.slice(start, index.indexOf('\n}', start));
+  assert.ok(
+    index.indexOf('function rejectImagePayloadForCommerceOnly') > 0,
+    'MODE B image gate is missing',
+  );
 
+  // Executed rather than grepped: the gate is recursive, so its key list lives
+  // outside the function body and a source slice would no longer see it.
+  const { reject } = loadPrivacyGate(index);
   for (const field of ['imageBase64', 'image', 'imageUrl', 'imageUri', 'photo', 'base64', 'evidence']) {
-    assert.ok(block.includes(`'${field}'`), `MODE B does not reject ${field}`);
+    assert.ok(reject({ [field]: 'x' }), `MODE B does not reject ${field}`);
   }
   // Rejection, not silent ignore — a client bug must fail loudly.
   assert.ok(index.includes("error: 'commerce_only_invalid'"));
@@ -791,4 +795,98 @@ Deno.test('TYPECHECK GATE: the Edge Function compiles clean', async () => {
     code, 0,
     `deno check failed:\n${new TextDecoder().decode(stderr)}`,
   );
+});
+
+// ── L. MODE B image ingress is closed at every depth ────────────────────────
+//
+// The original gate swept top-level keys only. `identification` was mitigated
+// by its allowlist, but `attributes` was a raw cast that reaches the outbound
+// provider query, so `attributes.imageBase64` was an accepted second route for
+// image bytes into the commerce stack. The gate is now recursive, and attribute
+// values are capped exactly as searchQueries already were.
+
+function extractFn(src: string, name: string): string {
+  const start = src.indexOf('function ' + name + '(');
+  assert.ok(start > 0, 'missing ' + name);
+  const end = src.indexOf('\n}\n', start);
+  return src.slice(start, end + 3);
+}
+
+function loadPrivacyGate(src: string) {
+  const strip = (s: string) =>
+    s
+      .replace(/:\s*Record<string,\s*unknown>/g, '')
+      .replace(/:\s*string\s*\|\s*null/g, '')
+      .replace(/:\s*string\s*\|\s*undefined/g, '')
+      .replace(/:\s*unknown/g, '')
+      .replace(/:\s*string/g, '')
+      .replace(/:\s*number/g, '')
+      .replace(/\s+as\s+Record<string,\s*unknown>/g, '')
+      .replace(/\(entry\):\s*entry is string/g, '(entry)');
+
+  const code = [
+    'const MAX_STRING_LEN = 120; const MAX_ARRAY_ITEMS = 12;',
+    "const PROHIBITED_IMAGE_KEYS = ['imageBase64','image','imageUrl','imageUri','photo','base64','evidence'];",
+    strip(extractFn(src, 'safeString')),
+    strip(extractFn(src, 'rejectImagePayloadForCommerceOnly')),
+    strip(extractFn(src, 'boundCommerceAttributes')),
+    'return { reject: rejectImagePayloadForCommerceOnly, bound: boundCommerceAttributes };',
+  ].join('\n');
+
+  return new Function(code)() as {
+    reject: (b: Record<string, unknown>) => string | null;
+    bound: (a: Record<string, unknown>) => Record<string, unknown>;
+  };
+}
+
+Deno.test('PRIVACY: MODE B rejects an image payload nested at any depth', async () => {
+  const src = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
+  const { reject } = loadPrivacyGate(src);
+
+  // Top level — the original coverage.
+  for (const key of ['imageBase64', 'image', 'imageUrl', 'imageUri', 'photo', 'base64', 'evidence']) {
+    assert.ok(reject({ [key]: 'x' }), 'top-level ' + key + ' accepted');
+  }
+
+  // Nested — the gap. `attributes` reaches the provider query unallowlisted,
+  // so this was image bytes crossing the trust boundary with a 200.
+  assert.ok(reject({ attributes: { imageBase64: 'AAAA' } }), 'attributes.imageBase64 accepted');
+  assert.ok(reject({ attributes: { imageUrl: 'https://private/scan.jpg' } }), 'private scan URL accepted');
+  assert.ok(reject({ identification: { photo: 'AAAA' } }), 'identification.photo accepted');
+  assert.ok(reject({ attributes: { a: { b: { base64: 'AAAA' } } } }), 'deeply nested base64 accepted');
+
+  // The reason names the offending path, so a client bug is diagnosable.
+  assert.equal(reject({ attributes: { imageBase64: 'A' } }), 'image_payload_rejected:attributes.imageBase64');
+
+  // A legitimate commerce-only body still passes untouched.
+  assert.equal(
+    reject({
+      identification: { item_type: 'shoes', subtype: 'sneakers' },
+      attributes: { category: 'footwear', colorPalette: ['red'] },
+      searchQueries: ['red sneakers'],
+      market: { locale: 'en-US' },
+    }),
+    null,
+  );
+});
+
+Deno.test('PRIVACY: MODE B attribute text is bounded before it reaches a provider', async () => {
+  const src = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
+  const { bound } = loadPrivacyGate(src);
+
+  // Named attribute values are concatenated into the outbound provider query.
+  // searchQueries was already capped; these were not.
+  const out = bound({
+    category: 'y'.repeat(500),
+    colorPalette: ['x'.repeat(500)],
+    keepBool: true,
+    keepNum: 5,
+  });
+  assert.equal((out.category as string).length, 120);
+  assert.equal((out.colorPalette as string[])[0].length, 120);
+
+  // Keys are preserved rather than allowlisted — dropping them would silently
+  // remove commerce signal on the deferred path only.
+  assert.equal(out.keepBool, true);
+  assert.equal(out.keepNum, 5);
 });
