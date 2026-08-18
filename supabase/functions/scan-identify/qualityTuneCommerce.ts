@@ -21,6 +21,7 @@ import type { ScannerCategoryRoute } from './scannerCategoryRoute.ts';
 import { buildCategoryCommerceQueries } from './commerceRelevanceQueries.ts';
 import { scoreProductAgreement } from './commerceRelevanceAgreement.ts';
 import type { CommerceIdentityEvidence } from './scannerQualityGate.ts';
+import type { CommerceQueryStrategy } from './commerceRetrievalConfig.ts';
 import {
   applySoftDiversityRerank,
   selectByAgreementCoverage,
@@ -33,6 +34,8 @@ import {
 } from './commerceRelevanceFailure.ts';
 
 export type WeightedCommerceQueries = {
+  /** v125 — present only when identity-aware retrieval ran. */
+  strategy?: CommerceQueryStrategy;
   primary: string;
   fallback: string;
 };
@@ -156,6 +159,11 @@ export function buildWeightedCommerceQueries(input: {
   /** v122 only — omit for exact v121 behavior */
   relevanceRoute?: ScannerCategoryRoute;
   qualityBand?: 'high' | 'moderate' | 'low' | null;
+  /**
+   * v125 only — omit for exact v124 query construction. Reaches only the
+   * category-template path; the legacy v120/v121 paths are untouched.
+   */
+  commerceIdentity?: CommerceIdentityEvidence;
 }): WeightedCommerceQueries {
   const id = input.identification || {};
   const attrs = input.attributes || {};
@@ -171,8 +179,9 @@ export function buildWeightedCommerceQueries(input: {
       materialAllowed: input.materialAllowed,
       brandAllowed: input.brandAllowed,
       originalText: input.originalText,
+      ...(input.commerceIdentity ? { commerceIdentity: input.commerceIdentity } : {}),
     });
-    return { primary: q.primary, fallback: q.fallback };
+    return { primary: q.primary, fallback: q.fallback, strategy: q.strategy };
   }
 
   const logo = id.logo_detected === true;

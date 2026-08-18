@@ -459,20 +459,29 @@ Deno.test('QUERY INVARIANCE: identity evidence never reaches commerce query cons
   }
 });
 
-Deno.test('QUERY INVARIANCE: the query module was not modified by v124', async () => {
+Deno.test('QUERY INVARIANCE: raw identity fields never reach the query module', async () => {
+  // v125 deliberately lets the query builder consume identity — but only the
+  // *graded* envelope, passed explicitly. Reading the raw model fields would
+  // bypass the quality gate's VERIFIED/PLAUSIBLE/WEAK/INVALID grading, which is
+  // the whole protection against a weak guess steering retrieval.
   const queries = await Deno.readTextFile(
     new URL('./commerceRelevanceQueries.ts', import.meta.url),
   );
   for (
     const forbidden of [
-      'commerceIdentity',
       'exact_item_hypothesis',
       'brand_confidence',
       'exact_match_confidence',
-      'v124',
     ]
   ) {
-    assert(!queries.includes(forbidden), `commerceRelevanceQueries.ts references ${forbidden}`);
+    assert(
+      !queries.includes(forbidden),
+      `commerceRelevanceQueries.ts reads raw ${forbidden} instead of the graded envelope`,
+    );
+  }
+  // Retailer neutrality: no provider may be named in query construction.
+  for (const retailer of ['Farfetch', 'KicksCrew', 'Serper', 'Brave']) {
+    assert(!queries.includes(retailer), `commerceRelevanceQueries.ts names retailer ${retailer}`);
   }
 });
 
@@ -629,15 +638,18 @@ Deno.test('v124 changes ranking only: no extra call, no provider-order change', 
   assert(!/commerceIdentity[\s\S]{0,200}SUFFICIENT_THRESHOLD/.test(router));
   assert(!/SUFFICIENT_THRESHOLD[\s\S]{0,200}commerceIdentity/.test(router));
 
-  // Identity evidence is read only while building the relevance options —
-  // never by the query builder and never by provider selection.
-  const optsStart = router.indexOf('const relevanceOpts');
-  const optsEnd = router.indexOf('if (qualityEnabled)', optsStart);
-  assert(optsStart > 0 && optsEnd > optsStart);
-  const outsideOpts = router.slice(0, optsStart) + router.slice(optsEnd);
+  // Identity evidence reaches ranking (relevance options) and, under v125,
+  // query construction. It must never reach provider selection or fan-out.
+  const providerSectionStart = router.indexOf('if (isSneaker)');
+  assert(providerSectionStart > 0, 'provider selection block not found');
+  const providerSection = router.slice(providerSectionStart);
   assert(
-    !/input\.commerceIdentity\b/.test(outsideOpts),
-    'identity evidence is read outside the relevance-options construction',
+    !/input\.commerceIdentity\b/.test(providerSection),
+    'identity evidence is read by provider selection / fan-out',
+  );
+  assert(
+    !/commerceRetrievalEnabled[\s\S]{0,200}searchKicksCrewProducts/.test(router),
+    'retrieval flag influences provider selection',
   );
 
   // Exactly one Gemini generateContent call site, as before v124.
