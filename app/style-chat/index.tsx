@@ -9,9 +9,11 @@ import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { StyleChatHeader, useStyleChatHomeBackHandler } from '../../components/style-chat/StyleChatHeader';
 import { StyleChatSessionList } from '../../components/style-chat/StyleChatSessionList';
+import { GenderStylingContextPrompt } from '../../components/style-chat/GenderStylingContextPrompt';
 import { LuxuryScreen, PrivacyFooter } from '../../components/luxury';
 import { LUXURY } from '../../constants/theme';
 import { useStyleChatSessions } from '../../hooks/useStyleChatSessions';
+import { useGenderStylingContext } from '../../hooks/useGenderStylingContext';
 import { getStyleChatHandoffContext } from '../../services/style-chat/styleChatHandoffContext';
 import {
   createStyleChatSessionLaunchGuard,
@@ -31,6 +33,13 @@ export default function StyleChatIndexScreen() {
   const { sessions, loading, error, createSession, deleteSession } = useStyleChatSessions();
   const [isCreating, setIsCreating] = useState(false);
   const [launchError, setLaunchError] = useState<string | null>(null);
+  const genderContext = useGenderStylingContext();
+  // Blocking only until hydration resolves one way or the other; a hydrate
+  // failure fails OPEN (proceeds to normal Elise entry) rather than trapping
+  // the user behind a preference the backend couldn't load.
+  const genderGateLoading =
+    genderContext.isLoading && !genderContext.hasHydrated && !genderContext.error;
+  const showGenderGate = genderContext.needsFirstUseAnswer;
 
   useFocusEffect(
     useCallback(() => {
@@ -58,12 +67,21 @@ export default function StyleChatIndexScreen() {
   }, [createSession]);
 
   useEffect(() => {
-    if (handoffAutoStartAttemptedRef.current || loading || isCreating || error) return;
+    if (
+      handoffAutoStartAttemptedRef.current ||
+      loading ||
+      isCreating ||
+      error ||
+      genderGateLoading ||
+      showGenderGate
+    ) {
+      return;
+    }
     const handoff = getStyleChatHandoffContext();
     handoffAutoStartAttemptedRef.current = true;
     if (!handoff) return;
     void handleNewSession();
-  }, [error, handleNewSession, isCreating, loading]);
+  }, [error, handleNewSession, isCreating, loading, genderGateLoading, showGenderGate]);
 
   const handleDeleteSession = (session: StyleChatSession) => {
     const clearDialog = () => { isDeleteDialogOpenRef.current = false; };
@@ -104,15 +122,23 @@ export default function StyleChatIndexScreen() {
       <StatusBar style="dark" />
       <StyleChatHeader />
       <View style={styles.listWrap}>
-        <StyleChatSessionList
-          sessions={sessions}
-          loading={loading}
-          error={launchError ?? error}
-          onNewSession={() => { void handleNewSession(); }}
-          onSelectSession={session => router.push(`/style-chat/${session.id}`)}
-          onDeleteSession={handleDeleteSession}
-          newSessionDisabled={isCreating}
-        />
+        {genderGateLoading ? null : showGenderGate ? (
+          <GenderStylingContextPrompt
+            onSelect={(value) => { void genderContext.save(value); }}
+            saving={genderContext.isLoading}
+            error={genderContext.error}
+          />
+        ) : (
+          <StyleChatSessionList
+            sessions={sessions}
+            loading={loading}
+            error={launchError ?? error}
+            onNewSession={() => { void handleNewSession(); }}
+            onSelectSession={session => router.push(`/style-chat/${session.id}`)}
+            onDeleteSession={handleDeleteSession}
+            newSessionDisabled={isCreating}
+          />
+        )}
       </View>
       <PrivacyFooter
         onPrivacyPress={() => void Linking.openURL('https://kscan.app/legal/privacy')}

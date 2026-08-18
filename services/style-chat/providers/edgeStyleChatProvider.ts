@@ -17,6 +17,7 @@ import { getFriendlyStyleChatError } from '../styleChatErrors';
 import type { WeatherLocationInput } from '../../../constants/weatherStyling';
 import type { StyleDnaContext } from '../../style-dna/styleDnaContext';
 import type { StyleChatHandoffContext } from '../styleChatHandoffContext';
+import type { GenderStylingContext } from '../../../constants/genderStylingContext';
 import {
   STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
   type StyleChatAttachment,
@@ -328,6 +329,11 @@ export class EdgeStyleChatProvider {
     message: string;
     weatherLocation?: WeatherLocationInput | null;
     styleDnaContext?: StyleDnaContext | null;
+    /**
+     * Fix #5 — explicit, self-disclosed baseline styling context. A stable
+     * stored preference, not resolved fresh per send like weather/Style DNA.
+     */
+    genderStylingContext?: GenderStylingContext | null;
     activeContext?: StyleChatHandoffContext | null;
     sourceMessageId?: string | null;
     /** v2 (Closet Intelligence): READY resolved references only — never local ids. */
@@ -370,6 +376,12 @@ export class EdgeStyleChatProvider {
           // it stay valid; the Edge Function treats a missing field as pre-Phase 2.
           ...(input.styleDnaContext && input.styleDnaContext.enabled
             ? { styleDnaContext: input.styleDnaContext }
+            : {}),
+          // Additive/optional Fix #5 baseline styling context. Sent only when the
+          // user has an on-record answer; requests without it stay valid and the
+          // Edge Function treats a missing field as pre-Fix-#5 / unanswered.
+          ...(input.genderStylingContext
+            ? { genderStylingContext: input.genderStylingContext }
             : {}),
           // Additive/optional active scan/upload/TextScan context. Sent while the user
           // has a visible context card in StyleChat. Requests without it stay valid.
