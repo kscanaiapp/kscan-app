@@ -451,7 +451,13 @@ export function useKScan() {
 
         const isConfirmationResult =
           Array.isArray(data.confirmationCandidates) && data.confirmationCandidates.length > 0;
-        const secondhandRequest = isConfirmationResult ? null : buildSecondhandSearchRequest(data);
+        // Phase 3 provider cleanup: the Vinted/Apify backend has no configured
+        // credentials (APIFY_VINTED_ACTOR_ID / APIFY_API_TOKEN are unset in both
+        // App Staging and Production), so this call was firing on every scan and
+        // always resolving to SECONDHAND_RESULTS_UNAVAILABLE — a dead network
+        // round trip on every single scan for zero result. Disabled until Apify
+        // is actually configured; restore the call below when it is.
+        const secondhandRequest = null; // was: isConfirmationResult ? null : buildSecondhandSearchRequest(data);
         if (secondhandRequest) {
           searchVintedSecondhand(secondhandRequest)
             .then((secondhand) => {
