@@ -105,6 +105,16 @@ export interface AnalysisCardProps {
   products?: Product[];
   /** Persisted or live commerce snapshot — distinct from catalog products. */
   purchaseOptions?: Product[] | PurchaseOption[] | unknown[];
+  /**
+   * v127 (P1-B): deferred commerce lifecycle. Undefined/'idle' leaves this
+   * panel's visibility exactly as it behaves without this prop — hidden when
+   * `purchaseOptions` is empty. 'pending'/'error' additionally show the panel
+   * (with its own pending/error treatment) only while still empty; once any
+   * options arrive the panel renders them and this status is moot.
+   */
+  commerceStatus?: 'idle' | 'pending' | 'success' | 'empty' | 'error';
+  /** Present only when a failed deferred fetch is retryable. */
+  onRetryCommerce?: () => void;
   /** Optional structured Scan Result Object (Part 2). When present, an additive
    *  ScanResultCard renders above the product shelf. Absent → UI unchanged. */
   scanResultObject?: ScanResultObject | null;
@@ -144,11 +154,32 @@ function sanitizeText(value?: string) {
   return value?.trim() || EMPTY_VALUE;
 }
 
+/**
+ * v127 (P1-B): whether the "MATCHING PRODUCTS" panel renders at all. Pulled
+ * out of the JSX branch so this exact precedence is independently testable.
+ * Options in hand always win, regardless of status. Pending/error render
+ * the panel (which shows its own pending/error treatment) only while there
+ * is nothing to show yet.
+ */
+export function resolvePurchaseShelfMode(
+  purchaseOptionsCount: number,
+  priceDiscoveryEnabled: boolean,
+  commerceStatus: string,
+): 'options' | 'pending' | 'error' | 'hidden' {
+  if (!priceDiscoveryEnabled) return 'hidden';
+  if (purchaseOptionsCount >= 1) return 'options';
+  if (commerceStatus === 'pending') return 'pending';
+  if (commerceStatus === 'error') return 'error';
+  return 'hidden';
+}
+
 export function AnalysisCard({
   result,
   metadata,
   products = [],
   purchaseOptions = [],
+  commerceStatus = 'idle',
+  onRetryCommerce,
   scanResultObject,
   secondhand,
   sneakerReference,
@@ -168,6 +199,11 @@ export function AnalysisCard({
   const priceDiscoveryEnabled = !featureFreezeLoading && isFeatureEnabled('priceDiscovery');
   const resaleValuationEnabled = !featureFreezeLoading && isFeatureEnabled('resaleValuation');
   const commerceOptions = toPurchaseOptions(purchaseOptions);
+  const purchaseShelfMode = resolvePurchaseShelfMode(
+    commerceOptions.length,
+    priceDiscoveryEnabled,
+    commerceStatus,
+  );
   const reducedMotion = useReducedMotion();
   const translateY    = useRef(new Animated.Value(FROM_Y)).current;
   const opacity       = useRef(new Animated.Value(0)).current;
@@ -469,8 +505,17 @@ export function AnalysisCard({
               ) : null}
 
               {/* Persisted/live commerce options — same panel contract as ScanResultV2. */}
-              {priceDiscoveryEnabled && commerceOptions.length > 0 ? (
+              {purchaseShelfMode === 'options' ? (
                 <PurchaseOptionsPanel purchaseOptions={commerceOptions} />
+              ) : purchaseShelfMode === 'pending' || purchaseShelfMode === 'error' ? (
+                // v127 (P1-B): the panel previously never mounted at all while
+                // commerce was deferred — no pending indicator, no error, no
+                // retry. `commerceOptions` is empty here by definition.
+                <PurchaseOptionsPanel
+                  purchaseOptions={[]}
+                  commerceStatus={purchaseShelfMode}
+                  onRetry={onRetryCommerce}
+                />
               ) : null}
 
               {resaleValuationEnabled && secondhand?.enabled && secondhand.items.length > 0 ? (

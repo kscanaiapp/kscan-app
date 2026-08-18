@@ -273,6 +273,8 @@ export default function App() {
     photo,
     selectedImages,
     analysis,
+    commerceStatus,
+    retryCommerce,
     scanItems,
     selectedScanItemId,
     analysisActorId,
@@ -1189,6 +1191,12 @@ export default function App() {
             metadata={analysis?.metadata ?? EMPTY_METADATA}
             products={analysis?.products ?? []}
             purchaseOptions={analysis?.purchaseOptions ?? []}
+            // v127 (P1-B): commerceStatus reflects the CURRENTLY SELECTED
+            // item (see hooks/useKScan.js selectScanItem / the per-item
+            // scheduler in services/commerceJobScheduler.ts) — switching
+            // items shows that item's own status, never another item's.
+            commerceStatus={analysis?.commerceDeferred ? commerceStatus : 'idle'}
+            onRetryCommerce={retryCommerce}
             scanResultObject={analysis?.scanResultObject ?? null}
             secondhand={analysis?.secondhand ?? null}
             sneakerReference={analysis?.sneakerReference ?? null}
