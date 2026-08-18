@@ -692,3 +692,103 @@ Deno.test('FLAG OFF: query construction is shared, not duplicated, between paths
   assert.deepEqual((router.match(/function resolveCommerceQueries/g) ?? []).length, 1);
   assert.ok(router.includes('const resolved = resolveCommerceQueries(input);'));
 });
+
+// ── K. Deferred-branch definite assignment (regression: MODE A returned failed) ─
+//
+// The v127 deferred branch originally assigned only `shoppingMeta`, leaving
+// `finalRecommendedProducts` and `rankedProductsForAudit` unassigned. The
+// response builder, the audit event, and the commerce telemetry all
+// dereference those bindings unconditionally, so with the funnel flag ON every
+// authenticated image scan threw, was swallowed by the handler's outer catch,
+// and came back `failed` — after paying for the Gemini call.
+//
+// Source-shape assertions could not catch that: the branch reads correctly as
+// text. These two tests are behavioral.
+
+Deno.test('REGRESSION: the deferred branch assigns every binding the response path reads', async () => {
+  const index = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
+  const start = index.indexOf('} else if (commerceFunnelEnabled) {');
+  const end = index.indexOf('\n    } else {', start);
+  assert.ok(start > 0 && end > start, 'deferred branch not found');
+  const branch = index.slice(start, end);
+
+  // Every binding the deferred response path dereferences must be assigned in
+  // the branch that produces that response.
+  for (const binding of [
+    'finalRecommendedProducts',
+    'finalSimilarityMatches',
+    'rankedProductsForAudit',
+    'shoppingMeta',
+  ]) {
+    assert.ok(
+      branch.includes(`${binding} = `),
+      `deferred branch never assigns ${binding} — the flag-on scan will throw`,
+    );
+  }
+});
+
+Deno.test('REGRESSION: an unassigned ranked-products binding is what threw', async () => {
+  const { buildAuditEvent } = await import('../_shared/scanHelpers.ts');
+  const response = { status: 'completed', scanId: 'scan-1' };
+
+  // Negative control: this is precisely the pre-fix state of the binding.
+  assert.throws(
+    () => buildAuditEvent(response, null, undefined as never, 12, 'scan-1'),
+    TypeError,
+    'undefined ranked products no longer throws — the negative control is stale',
+  );
+
+  // What the repaired branch now passes.
+  const event = buildAuditEvent(response, null, [], 12, 'scan-1');
+  assert.equal(event.status, 'completed');
+});
+
+Deno.test('REGRESSION: MODE B resolves the same category route as the inline path', async () => {
+  const { resolveScannerCategoryRoute } = await import('./scannerCategoryRoute.ts');
+
+  // A sneaker identity must reach the footwear route on BOTH paths, or the
+  // deferred shelf is built from a different v125 query template than the
+  // flag-off path builds for the same garment.
+  const identification = { item_type: 'shoes', subtype: 'sneakers' };
+
+  const inline = resolveScannerCategoryRoute({
+    requestMode: 'legacy_single_item',
+    knownCategory: identification.item_type,
+    knownSubtype: identification.subtype,
+  });
+
+  // The pre-fix MODE B call shape: `selected_item` with no candidate.
+  const brokenModeB = resolveScannerCategoryRoute({ requestMode: 'selected_item' });
+  assert.equal(brokenModeB, 'general', 'negative control is stale');
+  assert.notEqual(
+    inline, brokenModeB,
+    'inline and the old MODE B shape agree, so this regression cannot be observed',
+  );
+
+  // And the shape MODE B uses now.
+  const index = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
+  const modeB = index.slice(
+    index.indexOf('if (commerceFunnelEnabled && isCommerceOnlyRequest(body))'),
+  ).slice(0, 3000);
+  assert.ok(
+    modeB.includes("requestMode: 'legacy_single_item'"),
+    'MODE B no longer routes by known category/subtype',
+  );
+  assert.equal(modeB.includes("requestMode: 'selected_item'"), false);
+});
+
+Deno.test('TYPECHECK GATE: the Edge Function compiles clean', async () => {
+  // The compiler pointed directly at the deferred-branch defect (7x TS2454)
+  // and `supabase functions deploy` does not typecheck, so nothing caught it.
+  // This makes the type checker part of the suite.
+  const cmd = new Deno.Command(Deno.execPath(), {
+    args: ['check', new URL('./index.ts', import.meta.url).pathname.replace(/^\//, '')],
+    stdout: 'piped',
+    stderr: 'piped',
+  });
+  const { code, stderr } = await cmd.output();
+  assert.equal(
+    code, 0,
+    `deno check failed:\n${new TextDecoder().decode(stderr)}`,
+  );
+});
