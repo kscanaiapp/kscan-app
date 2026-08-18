@@ -14,6 +14,8 @@ export type KicksCrewProduct = {
   id: string;
   title: string;
   name?: string;
+  /** v124 — brand as declared by the provider payload, when present. */
+  brand?: string;
   source: 'KicksCrew';
   retailer: 'KicksCrew';
   price?: string;
@@ -385,11 +387,14 @@ function mapKicksCrewItems(items: unknown[], limit: number): KicksCrewProduct[] 
     const id = extractId(item, i);
     const imageUrl = extractImageUrl(item);
     const price = extractPrice(item);
+    // v124: extractBrand already existed here but its result was discarded.
+    const brand = extractBrand(item);
 
     out.push({
       id,
       title: title.slice(0, MAX_TITLE_LEN),
       name: title.slice(0, MAX_TITLE_LEN),
+      ...(brand ? { brand } : {}),
       source: 'KicksCrew',
       retailer: 'KicksCrew',
       price,
