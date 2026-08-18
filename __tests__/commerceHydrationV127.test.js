@@ -277,44 +277,77 @@ test('FLAG OFF: a response without commerce.deferred keeps Phase 3 behavior', ()
 // identical class of problem (a late sneaker/secondhand response decorating
 // the wrong candidate) — see the comment above hydrateDeferredCommerce.
 
-test('SINGLE FLIGHT: one hydration per displayed item, retry may supersede', () => {
-  const src = fs.readFileSync(path.join(ROOT, 'hooks', 'useKScan.js'), 'utf8');
-  assert.ok(src.includes('commerceRequestedForRef'), 'no single-flight guard');
-  assert.ok(src.includes('commerceActiveForRef'), 'no active-request guard');
-  assert.ok(src.includes('if (!isRetry && commerceRequestedForRef.current === evidence) return;'));
-  assert.ok(src.includes('if (isRetry && commerceActiveForRef.current === evidence) return;'));
-  // Keyed by evidence object identity, not a derived string — switching to a
-  // different item's evidence naturally clears the guard without an explicit
-  // reset, since that object was never seen before.
-  assert.ok(src.includes('commerceRequestedForRef.current = evidence;'));
-});
+// P1-C replaced the single global abort/single-flight slot with a per-item
+// job registry (services/commerceJobScheduler.ts) — switching the selected
+// item must not abort or discard another item's job. The scheduling
+// DECISIONS are proven behaviorally in __tests__/commerceJobScheduler.test.js
+// (real execution against the hostile item-switch matrix); these remaining
+// checks confirm the hook actually calls that module rather than re-inlining
+// the logic it replaced.
 
-test('STALE RESPONSE: request-id guard drops an answer for a no-longer-displayed item', () => {
+test('SINGLE FLIGHT / STALE RESPONSE: the hook delegates to the per-item scheduler, not an inlined global guard', () => {
   const src = fs.readFileSync(path.join(ROOT, 'hooks', 'useKScan.js'), 'utf8');
-  assert.ok(src.includes('commerceRequestRef.current += 1;'), 'request id never advances');
-  assert.ok(src.includes('if (commerceRequestRef.current !== requestId) return false;'));
-  // Bumped at every dispatch (so a request for the currently displayed item
-  // always wins a race against a stale one) AND at scan start (so cross-scan
-  // answers cannot survive either).
-  const dispatchBumpIdx = src.indexOf(
-    'commerceRequestRef.current += 1;',
-    src.indexOf('const hydrateDeferredCommerce'),
+  assert.ok(
+    src.includes("from '../services/commerceJobScheduler'"),
+    'hook no longer imports the per-item scheduler',
   );
-  assert.ok(dispatchBumpIdx > 0, 'no per-dispatch request-id bump');
-  const startBumpIdx = src.indexOf('commerceRequestRef.current += 1;');
-  const startIdx = src.indexOf('const startInFlight = useCallback');
-  assert.ok(startBumpIdx > startIdx && startBumpIdx - startIdx < 900, 'request id is not bumped in startInFlight');
+  for (const fn of ['shouldDispatchCommerceHydration', 'isCommerceJobCurrent', 'isCommerceJobVisible']) {
+    assert.ok(src.includes(fn), `hook does not call ${fn}`);
+  }
+  // The pre-P1-C single global slots must not have come back.
+  for (const removed of ['commerceRequestedForRef', 'commerceActiveForRef', 'commerceAbortRef', 'commerceRequestRef']) {
+    assert.equal(src.includes(removed), false, `${removed} reintroduces the single global commerce slot P1-C removed`);
+  }
   // Applying a result additionally checks that `analysis` still points at the
   // SAME evidence object before writing it — a second, independent guard
-  // beyond the request-id counter, so a late item-B answer can never render
-  // into item-A's slot even if some future refactor weakens the counter.
+  // beyond the scheduler, so a late item-B answer can never render into
+  // item-A's slot even if some future refactor weakens the scheduler.
   assert.ok(src.includes('prev && prev.commerceEvidence === evidence ? updateAnalysis(prev) : prev'));
 });
 
-test('UNMOUNT SAFETY: no state write after unmount, and hydration is aborted', () => {
+test('WIRING: every helper hooks/useKScan.js imports from commerceJobScheduler is exported by it', () => {
+  // The same class of defect as the original P0 (app.js importing a helper
+  // services/library never exported): a typo here would be a runtime
+  // TypeError the very first time a deferred scan hydrates, invisible to a
+  // source-text-only check unless it actually resolves the import.
+  const hookSrc = fs.readFileSync(path.join(ROOT, 'hooks', 'useKScan.js'), 'utf8');
+  const schedulerSrc = fs.readFileSync(path.join(ROOT, 'services', 'commerceJobScheduler.ts'), 'utf8');
+  const exported = [...schedulerSrc.matchAll(/^export\s+function\s+(\w+)/gm)].map((m) => m[1]);
+
+  const importRe = /import\s*\{([^}]+)\}\s*from\s*'\.\.\/services\/commerceJobScheduler'/;
+  const match = hookSrc.match(importRe);
+  assert.ok(match, 'hook does not import from ../services/commerceJobScheduler');
+  const named = match[1].split(',').map((n) => n.trim().split(/\s+as\s+/)[0].trim()).filter(Boolean);
+  assert.ok(named.length > 0);
+  for (const name of named) {
+    assert.ok(exported.includes(name), `hook imports ${name}, commerceJobScheduler does not export it`);
+  }
+});
+
+test('SCAN SUPERSESSION: a new scan bumps the generation and aborts every item\'s job at once', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'hooks', 'useKScan.js'), 'utf8');
+  const startIdx = src.indexOf('const startInFlight = useCallback');
+  assert.ok(startIdx > 0, 'startInFlight not found');
+  const body = src.slice(startIdx, startIdx + 900);
+  assert.ok(body.includes('commerceScanGenerationRef.current += 1;'), 'new scan does not bump the commerce generation');
+  assert.ok(
+    body.includes('for (const job of commerceJobsRef.current.values()) job.controller?.abort();'),
+    'new scan does not abort every item\'s in-flight commerce job',
+  );
+});
+
+test('UNMOUNT SAFETY: every in-flight job is aborted, and item switching aborts none', () => {
   const src = fs.readFileSync(path.join(ROOT, 'hooks', 'useKScan.js'), 'utf8');
   assert.ok(src.includes('if (!isMountedRef.current) return false;'));
-  assert.ok(src.includes('commerceAbortRef.current?.abort();'));
+  // Unmount aborts every remaining job.
+  const unmountIdx = src.indexOf('hook unmounts');
+  const unmountBody = src.slice(unmountIdx, unmountIdx + 300);
+  assert.ok(unmountBody.includes('for (const job of commerceJobsRef.current.values()) job.controller?.abort();'));
+  // selectScanItem must never abort a job — it only changes what is displayed.
+  const selectStart = src.indexOf('const selectScanItem = useCallback');
+  const selectEnd = src.indexOf('}, [status, scanItems, enrichDisplayedAnalysis]);');
+  const selectBody = src.slice(selectStart, selectEnd);
+  assert.equal(selectBody.includes('.abort()'), false, 'selecting an item aborts a commerce job — the P1-C defect');
 });
 
 test('SCAN STATUS IS NOT REGRESSED: hydration only touches commerce state', () => {
