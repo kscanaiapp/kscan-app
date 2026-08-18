@@ -314,6 +314,11 @@ test('a newer utterance stops the old player and stale callbacks cannot clear it
   let deletes = 0;
   const speech = load('services/avatarSpeech.ts', {
     '../stores/avatarSpeechStore': store,
+    // Inert: AppState binding is a subscription only and owns no speech state.
+    './avatars/speechAppState': {
+      ensureSpeechAppStateListener: () => {},
+      registerSpeechInterruptionHandler: () => {},
+    },
     './avatars/stylistSpeechClient': {
       requestStylistSpeech: async (request) => ({
         ...speechResponse(),
