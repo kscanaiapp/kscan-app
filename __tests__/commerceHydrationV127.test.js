@@ -426,3 +426,139 @@ test('MULTI-ITEM: a hydrated result updates the matching scanItems entry by id',
   // user currently has on screen.
   assert.ok(body.includes('prev && prev.commerceEvidence === evidence'));
 });
+
+// ── 8. Module wiring (regression: v127 imported helpers that did not exist) ──
+//
+// The v127 late-commerce effect was ported from the other platform's app.js
+// together with its call sites but not its helpers, so `app.js` imported
+// `selectPurchaseOptionsSnapshot` from a library module that never exported it.
+// Babel resolves a missing named export to `undefined`, so this was not a build
+// error — it was a TypeError thrown inside the effect on every saved scan.
+//
+// These tests are executable: they read the real module's real export list.
+
+function libraryExports() {
+  const src = fs.readFileSync(path.join(ROOT, 'services', 'library.js'), 'utf8');
+  return [...src.matchAll(/^export\s+(?:async\s+)?function\s+(\w+)/gm)].map((m) => m[1]);
+}
+
+test('WIRING: every helper app.js imports from services/library is exported by it', () => {
+  const app = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
+  const exported = libraryExports();
+
+  // Every `import { ... } from './services/library'` specifier must resolve.
+  const importRe = /import\s*\{([^}]+)\}\s*from\s*'\.\/services\/library'/g;
+  const named = [];
+  for (const match of app.matchAll(importRe)) {
+    for (const raw of match[1].split(',')) {
+      const name = raw.trim().split(/\s+as\s+/)[0].trim();
+      if (name) named.push(name);
+    }
+  }
+
+  assert.ok(named.length > 0, 'no library import found in app.js');
+  for (const name of named) {
+    assert.ok(
+      exported.includes(name),
+      `app.js imports ${name} from services/library, which does not export it`,
+    );
+  }
+});
+
+test('WIRING: the commerce snapshot selector exists and is behaviorally correct', () => {
+  assert.ok(
+    libraryExports().includes('selectPurchaseOptionsSnapshot'),
+    'services/library.js does not export selectPurchaseOptionsSnapshot',
+  );
+
+  const src = fs.readFileSync(path.join(ROOT, 'services', 'library.js'), 'utf8');
+  const start = src.indexOf('export function selectPurchaseOptionsSnapshot');
+  const body = src.slice(start, src.indexOf('\n}', start));
+  // Precedence must not be widened to `products`: that shelf is catalog
+  // similarity, not live commerce.
+  assert.ok(body.includes('analysis.purchaseOptions'));
+  assert.ok(body.includes('analysis.recommendedProducts'));
+  assert.equal(/analysis\.products/.test(body), false, 'similarity matches relabelled as offers');
+});
+
+test('WIRING: no identifier from the mis-ported Elise effect survives in app.js', () => {
+  const app = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
+  // These were referenced by an effect copied from the other platform without
+  // its imports or its `useLocalSearchParams` declarations. The dependency
+  // array is evaluated on every render, so a single surviving reference is a
+  // ReferenceError that prevents the Scan screen from mounting.
+  // Collect every top-level binding: import specifiers plus declarations. A
+  // reference is only safe if it resolves to one of them.
+  const bound = new Set();
+  for (const match of app.matchAll(/import\s*(?:\w+\s*,\s*)?\{([^}]+)\}\s*from/g)) {
+    for (const raw of match[1].split(',')) {
+      const name = raw.trim().split(/\s+as\s+/).pop().trim();
+      if (name) bound.add(name);
+    }
+  }
+  for (const match of app.matchAll(/(?:const|let|var|function)\s+(\w+)/g)) {
+    bound.add(match[1]);
+  }
+
+  for (const identifier of [
+    'returnToSessionId',
+    'visualContextIntentId',
+    'consumeVisualContextScanIntent',
+    'isVisualContextRevisionCurrent',
+    'appendVisualContextEntry',
+  ]) {
+    assert.ok(
+      !app.includes(identifier) || bound.has(identifier),
+      `app.js references ${identifier} without declaring or importing it`,
+    );
+  }
+});
+
+test('PERSISTENCE: the attach key is content-derived, so enrichment still persists', () => {
+  const app = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
+  const start = app.indexOf('attachedCommerceRef');
+  assert.ok(start > 0, 'no late-commerce attach effect');
+  const body = app.slice(start, start + 1400);
+
+  // Enrichment replaces offers in place, so the shelf length is invariant
+  // across the enrichment hop. A length-keyed guard therefore treats enriched
+  // data as already-written and silently drops it.
+  assert.ok(
+    body.includes('purchaseOptionsFingerprint(options)'),
+    'attach key is not content-derived — enriched offers will not persist',
+  );
+  assert.equal(
+    /:\s*'\s*\+\s*options\.length/.test(body), false,
+    'attach key still uses the offer count',
+  );
+});
+
+test('PERSISTENCE: the fingerprint distinguishes an enriched shelf of equal length', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'services', 'library.js'), 'utf8');
+  const start = src.indexOf('export function purchaseOptionsFingerprint');
+  assert.ok(start > 0, 'no fingerprint helper');
+  const end = src.indexOf('\n}', src.indexOf('.join(', start));
+  // Execute the real helper rather than asserting on its text.
+  const fingerprint = new Function(
+    'return ' + src.slice(start + 'export '.length, end + 2),
+  )();
+
+  const discovery = [
+    { title: 'Moto Jacket', productUrl: 'https://s.test/a', price: '$450', imageUrl: '' },
+    { title: 'Suede Bomber', productUrl: 'https://s.test/b', price: '$300', imageUrl: '' },
+  ];
+  // What bounded URL enrichment returns: same offers, better data, same count.
+  const enriched = [
+    { title: 'Moto Jacket', productUrl: 'https://s.test/a', price: '$399', imageUrl: 'https://c.test/a.jpg' },
+    { title: 'Suede Bomber', productUrl: 'https://s.test/b', price: '$300', imageUrl: '' },
+  ];
+
+  assert.equal(discovery.length, enriched.length, 'fixture does not model in-place enrichment');
+  assert.notEqual(
+    fingerprint(discovery), fingerprint(enriched),
+    'fingerprint cannot distinguish an enriched shelf — enrichment will not persist',
+  );
+  // Stable for identical content, so no redundant write on every rerender.
+  assert.equal(fingerprint(discovery), fingerprint(discovery.map((o) => ({ ...o }))));
+  assert.equal(fingerprint([]), '');
+});
