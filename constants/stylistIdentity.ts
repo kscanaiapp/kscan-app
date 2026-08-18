@@ -455,6 +455,24 @@ export interface StylistSpeechConfiguration {
     open: number;
     round?: number;
   };
+  /**
+   * Approved non-speaking portrait frames. Fix #4 may consume these from the
+   * authoritative native playback state; this registry never advances them.
+   */
+  expressionFrameSources?: {
+    confident: number;
+    engaged: number;
+    neutral: number;
+    thoughtful: number;
+    warm: number;
+    blink: number;
+    brows: number;
+    browsRaised: number;
+    eyesClosed: number;
+    eyesHalf: number;
+    eyesOpen: number;
+    focused: number;
+  };
 }
 
 const SPEECH_CONFIG_ENTRIES: readonly [string, StylistSpeechConfiguration][] = Object.freeze([
@@ -470,6 +488,21 @@ const SPEECH_CONFIG_ENTRIES: readonly [string, StylistSpeechConfiguration][] = O
         closed: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_mouth_closed.png') : 1,
         halfOpen: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_mouth_half_open.png') : 1,
         open: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_mouth_open.png') : 1,
+        round: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/round-mouth-02.png') : 1,
+      },
+      expressionFrameSources: {
+        confident: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_confident.png') : 1,
+        engaged: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_engaged.png') : 1,
+        neutral: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_neutral.png') : 1,
+        thoughtful: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_thoughtful.png') : 1,
+        warm: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_warm.png') : 1,
+        blink: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/blink-02.png') : 1,
+        brows: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/brows-02.png') : 1,
+        browsRaised: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/brows-raised-02.png') : 1,
+        eyesClosed: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/eyes-closed-02.png') : 1,
+        eyesHalf: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/eyes-half-02.png') : 1,
+        eyesOpen: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/eyes-open-02.png') : 1,
+        focused: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/focused-02.png') : 1,
       },
     },
   ],
@@ -516,11 +549,9 @@ export interface StylistAvatarFraming {
   offsetXRatio: number;
 }
 
-const FRAMING_OVERRIDE_ENTRIES: readonly [string, StylistAvatarFraming][] = Object.freeze([
-  // Henry's source portrait places the head ~11% right of center; measured
-  // from the bundled asset, not a re-crop of it.
-  ['stylist_portrait_02', { offsetXRatio: 0.113 }],
-]);
+// The approved Henry base has its own headroom, so the picker uses the shared
+// size-by-size cover path without a presentation transform.
+const FRAMING_OVERRIDE_ENTRIES: readonly [string, StylistAvatarFraming][] = Object.freeze([]);
 
 export const STYLIST_AVATAR_FRAMING_BY_ID: ReadonlyMap<string, StylistAvatarFraming> =
   createReadonlyMap(FRAMING_OVERRIDE_ENTRIES);
