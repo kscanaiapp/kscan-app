@@ -75,6 +75,18 @@ interface ProductShelfProps {
   emptyTitle?: string;
   emptyBody?: string;
   testID?: string;
+  /**
+   * v127 (P1-B): deferred commerce is still in flight. Only meaningful when
+   * `products` is empty — a non-empty shelf already has something to show and
+   * takes precedence, matching the caller-side "at least one option" gate.
+   */
+  pending?: boolean;
+  /** v127 (P1-B): deferred commerce failed. Same precedence as `pending`. */
+  hasError?: boolean;
+  errorTitle?: string;
+  errorBody?: string;
+  /** Present only when a failed fetch is retryable. */
+  onRetry?: () => void;
 }
 
 const CARD_WIDTH  = 144;
@@ -152,6 +164,20 @@ function formatPrice(product: Product | null | undefined): string | null {
 
 export function canAddProductToDressingRoom(product: Product | null | undefined) {
   return getProductTitle(product).length > 0 && isRemoteImageUrl(getProductImageUrl(product));
+}
+
+/**
+ * v127 (P1-B): which empty-shelf treatment to render when there are no
+ * products. Pulled out of the JSX branch so this exact precedence is
+ * independently testable — a pure decision, not a parallel copy of it.
+ *
+ * `pending` wins over `hasError`: a stale error from a settled attempt must
+ * not outlive a fresh dispatch (e.g. a retry) that is now in flight.
+ */
+export function resolveEmptyShelfMode(pending: boolean, hasError: boolean): 'pending' | 'error' | 'empty' {
+  if (pending) return 'pending';
+  if (hasError) return 'error';
+  return 'empty';
 }
 
 function ProductImagePlaceholder({ category }: { category: string }) {
@@ -266,6 +292,11 @@ export function ProductShelf({
   emptyTitle = 'No similar items yet.',
   emptyBody = 'Try a clearer angle, closer crop, or simpler background so K Scan can surface product matches.',
   testID,
+  pending = false,
+  hasError = false,
+  errorTitle = 'Could not load purchase options.',
+  errorBody = 'Check your connection and try again.',
+  onRetry,
 }: ProductShelfProps) {
   const [linkErrorVisible, setLinkErrorVisible] = useState(false);
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
@@ -274,6 +305,32 @@ export function ProductShelf({
   const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');
 
   if (!products || products.length === 0) {
+    const emptyMode = resolveEmptyShelfMode(pending, hasError);
+    if (emptyMode === 'pending') {
+      return (
+        <View testID={testID ? `${testID}-pending` : 'product-shelf-pending'} style={styles.emptyShelf}>
+          <ActivityIndicator color={LUXURY.colors.plum} />
+        </View>
+      );
+    }
+    if (emptyMode === 'error') {
+      return (
+        <View testID={testID ? `${testID}-error` : 'product-shelf-error'} style={styles.emptyShelf}>
+          <Text style={styles.emptyShelfTitle}>{errorTitle}</Text>
+          <Text style={styles.emptyShelfBody}>{errorBody}</Text>
+          {onRetry ? (
+            <TouchableOpacity
+              onPress={onRetry}
+              accessibilityRole="button"
+              accessibilityLabel="Retry loading purchase options"
+              testID={testID ? `${testID}-retry` : 'product-shelf-retry'}
+            >
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      );
+    }
     return (
       <View testID={testID ? `${testID}-empty` : 'product-shelf-empty'} style={styles.emptyShelf}>
         <Text style={styles.emptyShelfTitle}>{emptyTitle}</Text>
@@ -646,6 +703,13 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
     lineHeight: 18,
     textTransform: 'none',
+  },
+  retryText: {
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.plum,
+    textAlign: 'center',
+    marginTop: SPACING.md,
+    textDecorationLine: 'underline',
   },
   labelRow: {
     flexDirection: 'row',

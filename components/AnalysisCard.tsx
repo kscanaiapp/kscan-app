@@ -58,6 +58,16 @@ export interface AnalysisCardProps {
    *  catalog similarity shelf. Rehydrated from the saved scan when a Recent
    *  Scan is reopened, so the cards survive app relaunch. */
   purchaseOptions?: Product[];
+  /**
+   * v127 (P1-B): deferred commerce lifecycle. Undefined/'idle' leaves the
+   * "WHERE TO BUY" section exactly as it behaves without this prop — hidden
+   * when `purchaseOptions` is empty. 'pending'/'error' additionally render
+   * inside the section only when `purchaseOptions` is STILL empty; once any
+   * options arrive the shelf renders them and this status is moot.
+   */
+  commerceStatus?: 'idle' | 'pending' | 'success' | 'empty' | 'error';
+  /** Present only when a failed deferred fetch is retryable. */
+  onRetryCommerce?: () => void;
   confirmationCandidates?: OutfitConfirmationCandidate[];
   selectedCandidateId?: string | null;
   onSelectCandidate?: (candidateId: string) => void;
@@ -101,11 +111,33 @@ function sanitizeText(value?: string) {
   return value?.trim() || EMPTY_VALUE;
 }
 
+/**
+ * v127 (P1-B): which treatment the "WHERE TO BUY" section gets. Pulled out
+ * of the JSX branch so this exact precedence is independently testable.
+ *
+ * Options in hand always win, regardless of status — a stale 'error' from
+ * before a successful retry must never hide options that already arrived.
+ * Pending/error render ONLY while there is nothing to show yet.
+ */
+export function resolvePurchaseShelfMode(
+  purchaseOptionsCount: number,
+  priceDiscoveryEnabled: boolean,
+  commerceStatus: string,
+): 'options' | 'pending' | 'error' | 'hidden' {
+  if (!priceDiscoveryEnabled) return 'hidden';
+  if (purchaseOptionsCount >= 1) return 'options';
+  if (commerceStatus === 'pending') return 'pending';
+  if (commerceStatus === 'error') return 'error';
+  return 'hidden';
+}
+
 export function AnalysisCard({
   result,
   metadata,
   products = [],
   purchaseOptions = [],
+  commerceStatus = 'idle',
+  onRetryCommerce,
   confirmationCandidates = [],
   selectedCandidateId,
   onSelectCandidate,
@@ -129,6 +161,11 @@ export function AnalysisCard({
   const fromY = windowHeight * 0.36;
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const priceDiscoveryEnabled = !featureFreezeLoading && isFeatureEnabled('priceDiscovery');
+  const purchaseShelfMode = resolvePurchaseShelfMode(
+    purchaseOptions.length,
+    priceDiscoveryEnabled,
+    commerceStatus,
+  );
   const resaleValuationEnabled = !featureFreezeLoading && isFeatureEnabled('resaleValuation');
   const translateY    = useRef(new Animated.Value(fromY)).current;
   const opacity       = useRef(new Animated.Value(0)).current;
@@ -475,11 +512,23 @@ export function AnalysisCard({
                   shows the same cards as the original result with no Scanner
                   navigation state involved. One option is enough to render;
                   zero hides the section rather than inventing offers. */}
-              {priceDiscoveryEnabled && purchaseOptions.length >= 1 ? (
+              {purchaseShelfMode === 'options' ? (
                 <ProductShelf
                   products={purchaseOptions}
                   label="WHERE TO BUY"
                   testID="purchase-options-shelf"
+                />
+              ) : purchaseShelfMode === 'pending' || purchaseShelfMode === 'error' ? (
+                // v127 (P1-B): the section previously disappeared entirely
+                // while commerce was deferred — no pending indicator, no
+                // error, no retry.
+                <ProductShelf
+                  products={[]}
+                  label="WHERE TO BUY"
+                  testID="purchase-options-shelf"
+                  pending={purchaseShelfMode === 'pending'}
+                  hasError={purchaseShelfMode === 'error'}
+                  onRetry={onRetryCommerce}
                 />
               ) : null}
 

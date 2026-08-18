@@ -272,6 +272,8 @@ export default function App() {
     status,
     photo,
     analysis,
+    commerceStatus,
+    retryCommerce,
     error,
     nonFashionMessage,
     isAnalyzing,
@@ -1112,6 +1114,12 @@ export default function App() {
             // Same snapshot shape that saveScan persists, so the live result and
             // the reopened Recent Scan render the identical purchase cards.
             purchaseOptions={selectPurchaseOptionsSnapshot(analysis)}
+            // v127 (P1-B): only meaningful on this live-scan surface — a
+            // reopened Recent Scan (app/library.tsx) renders AnalysisCard
+            // without this prop, so it stays 'idle' there and the section
+            // keeps its pre-existing hidden-when-empty behavior.
+            commerceStatus={analysis?.commerceDeferred ? commerceStatus : 'idle'}
+            onRetryCommerce={retryCommerce}
             confirmationCandidates={analysis?.confirmationCandidates ?? []}
             selectedCandidateId={selectedCandidateId}
             onSelectCandidate={selectConfirmationCandidate}
