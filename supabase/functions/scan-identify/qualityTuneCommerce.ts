@@ -317,13 +317,21 @@ function productIdentityKey(p: RecommendedProduct): { key: string; type: string 
     : '';
   if (retailerId && sku) return { key: `sku:${retailerId}|${sku}`, type: 'retailer_sku' };
 
+  // Canonical URL is checked before the provider-id tier: every active
+  // provider synthesizes `id` by hashing the RAW productUrl (see
+  // shoppingProvider.ts/poshmarkProvider.ts `makeId`), so a trailing slash,
+  // path case difference, or extra query param produces a DIFFERENT `pid:`
+  // for what canonicalizeUrlForIdentity would correctly recognize as the same
+  // listing. Checking `pid:` first made this tier permanently unreachable
+  // whenever a URL exists — which is true for every offer these providers
+  // return — and let deterministic near-duplicates survive dedup.
+  const canon = canonicalizeUrlForIdentity(p.productUrl);
+  if (canon) return { key: `url:${canon}`, type: 'canonical_url' };
+
   const providerId = typeof p.id === 'string' && p.id.trim() ? p.id.trim().toLowerCase() : '';
   if (providerId && !providerId.startsWith('http')) {
     return { key: `pid:${providerId}`, type: 'provider_product_id' };
   }
-
-  const canon = canonicalizeUrlForIdentity(p.productUrl);
-  if (canon) return { key: `url:${canon}`, type: 'canonical_url' };
 
   const title = normalizeTitle(p.title);
   const retailer = retailerId || (typeof p.source === 'string' ? p.source.toLowerCase() : '');
@@ -335,14 +343,14 @@ function productIdentityKey(p: RecommendedProduct): { key: string; type: string 
   return { key: `fallback:${title || 'unknown'}`, type: 'weak_fallback' };
 }
 
-function hasUsableImage(p: RecommendedProduct): boolean {
+export function hasUsableImage(p: RecommendedProduct): boolean {
   const url = typeof p.imageUrl === 'string' ? p.imageUrl.trim() : '';
   if (!url) return false;
   if (!/^https?:\/\//i.test(url)) return false;
   return true;
 }
 
-function hasValidPurchaseUrl(p: RecommendedProduct): boolean {
+export function hasValidPurchaseUrl(p: RecommendedProduct): boolean {
   const url = typeof p.productUrl === 'string' ? p.productUrl.trim() : '';
   if (!url) return false;
   if (!/^https?:\/\//i.test(url)) return false;

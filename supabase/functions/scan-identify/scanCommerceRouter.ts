@@ -38,6 +38,8 @@ import { isQualityTuneEnabled, QUALITY_TUNE_MIN_VALID_PRODUCTS } from './quality
 import {
   buildWeightedCommerceQueries,
   filterAndDedupeProducts,
+  hasUsableImage,
+  hasValidPurchaseUrl,
   shouldRunFallbackQuery,
   type CommerceRelevanceOptions,
 } from './qualityTuneCommerce.ts';
@@ -1010,9 +1012,23 @@ export async function getFastCommerceResults(
     ],
     {
       deadlineMs: perProviderMs,
+      // Counts candidates that can survive filterAndDedupeProducts' first
+      // structural gate (valid purchase URL + usable image), not raw provider
+      // counts. Raw counts let 3 candidates that are ALL later rejected
+      // (missing image, invalid/demo URL) close this gate early — abandoning
+      // a still-running provider that might have supplied the only real
+      // offers, and returning an empty final shelf despite "enough" raw
+      // candidates having arrived. This does not run the full filter (no
+      // category-match, no dedup): that needs the identification/relevance
+      // route this closure doesn't have, and would make an early-exit check
+      // itself the expensive thing it exists to avoid.
       isSufficient: (settled) => {
         let usable = 0;
-        for (const s of settled) usable += s.value.products.length;
+        for (const s of settled) {
+          for (const p of s.value.products) {
+            if (hasValidPurchaseUrl(p) && hasUsableImage(p)) usable += 1;
+          }
+        }
         return usable >= FAST_COMMERCE_SUFFICIENT_RESULTS;
       },
     },

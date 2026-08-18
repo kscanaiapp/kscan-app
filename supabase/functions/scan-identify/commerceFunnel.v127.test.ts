@@ -1070,3 +1070,190 @@ Deno.test('P1-A: authenticated and anonymous callers share the same spend bounda
   const rateLimitBlock = src.slice(start, rateLimitEnd);
   assert.equal(/\bauth\.\w+/.test(rateLimitBlock), false, 'rate limit is conditioned on auth state and can be bypassed by omitting a token');
 });
+
+// ── N. Early-exit sufficiency counts USABLE candidates, not raw ones ────────
+//
+// The fast-path collector's `isSufficient` closure originally counted raw
+// provider result counts. Three candidates a provider returns that are ALL
+// later rejected by filterAndDedupeProducts' first structural gate (missing
+// image, invalid/demo purchase URL) could still close the early-exit gate,
+// abandoning a slower provider that might have supplied the only real offers
+// — an empty final shelf despite "enough" raw candidates having arrived.
+
+Deno.test('EARLY EXIT: unusable raw candidates do not close the gate while a real provider is still running', async () => {
+  const { collectBounded } = await import('./commerceFastPath.ts');
+  const { hasUsableImage, hasValidPurchaseUrl } = await import('./qualityTuneCommerce.ts');
+  const { FAST_COMMERCE_SUFFICIENT_RESULTS } = await import('./commerceFunnelConfig.ts');
+
+  const junkProduct = (i: number) => ({
+    id: `junk-${i}`,
+    title: 'Junk',
+    source: 'RetailerA',
+    price: '$10',
+    type: 'retail' as const,
+    // No imageUrl, no productUrl: rejected by hasUsableImage/hasValidPurchaseUrl.
+  });
+  const realProduct = (i: number) => ({
+    id: `real-${i}`,
+    title: 'Real Product',
+    source: 'RetailerB',
+    price: '$500',
+    type: 'retail' as const,
+    imageUrl: `https://cdn.example-shop.test/real-${i}.jpg`,
+    productUrl: `https://retailer.example-shop.test/p/${i}`,
+  });
+
+  // Fast provider settles immediately with FAST_COMMERCE_SUFFICIENT_RESULTS
+  // junk candidates — enough to close the OLD (raw-count) gate.
+  const junkCount = FAST_COMMERCE_SUFFICIENT_RESULTS;
+  const junk = Array.from({ length: junkCount }, (_, i) => junkProduct(i));
+  assert.equal(junk.filter((p) => hasValidPurchaseUrl(p) && hasUsableImage(p)).length, 0);
+
+  let slowProviderRan = false;
+  const outcome = await collectBounded(
+    [
+      {
+        key: 'fast-junk',
+        promise: Promise.resolve({ kind: 'fast-junk' as const, value: { products: junk } }),
+        onTimeout: { kind: 'fast-junk' as const, value: { products: [] } },
+      },
+      {
+        key: 'slow-real',
+        promise: new Promise((resolve) => {
+          setTimeout(() => {
+            slowProviderRan = true;
+            resolve({ kind: 'slow-real' as const, value: { products: [realProduct(1), realProduct(2)] } });
+          }, 40);
+        }),
+        onTimeout: { kind: 'slow-real' as const, value: { products: [] } },
+      },
+    ],
+    {
+      deadlineMs: 500,
+      isSufficient: (settled) => {
+        let usable = 0;
+        for (const s of settled) {
+          for (const p of s.value.products) {
+            if (hasValidPurchaseUrl(p) && hasUsableImage(p)) usable += 1;
+          }
+        }
+        return usable >= FAST_COMMERCE_SUFFICIENT_RESULTS;
+      },
+    },
+  );
+
+  // The fix: junk alone does not close the gate, so the collector waits for
+  // the slow provider within its deadline.
+  assert.ok(slowProviderRan, 'the usable-candidate gate did not wait for a provider with real offers');
+  const slow = (outcome.values.get('slow-real') as { value: { products: unknown[] } }).value;
+  assert.equal(slow.products.length, 2, 'the slow provider\'s real offers were abandoned');
+});
+
+Deno.test('EARLY EXIT: negative control — the pre-fix raw count DOES close the gate on junk alone', async () => {
+  const { collectBounded } = await import('./commerceFastPath.ts');
+  const { FAST_COMMERCE_SUFFICIENT_RESULTS } = await import('./commerceFunnelConfig.ts');
+
+  const junk = Array.from({ length: FAST_COMMERCE_SUFFICIENT_RESULTS }, (_, i) => ({ id: `junk-${i}` }));
+
+  let slowProviderRan = false;
+  await collectBounded(
+    [
+      {
+        key: 'fast-junk',
+        promise: Promise.resolve({ value: { products: junk } }),
+        onTimeout: { value: { products: [] } },
+      },
+      {
+        key: 'slow-real',
+        promise: new Promise((resolve) => {
+          setTimeout(() => { slowProviderRan = true; resolve({ value: { products: [{ id: 'real' }] } }); }, 40);
+        }),
+        onTimeout: { value: { products: [] } },
+      },
+    ],
+    {
+      deadlineMs: 500,
+      // The ORIGINAL (pre-fix) closure: raw counts, no usability check.
+      isSufficient: (settled) => {
+        let usable = 0;
+        for (const s of settled) usable += s.value.products.length;
+        return usable >= FAST_COMMERCE_SUFFICIENT_RESULTS;
+      },
+    },
+  );
+
+  assert.equal(slowProviderRan, false, 'negative control did not reproduce the pre-fix early-exit-on-junk defect');
+});
+
+// ── O. Canonical-URL dedupe tier is reachable ───────────────────────────────
+//
+// productIdentityKey checked the provider-synthesized `pid:` tier before the
+// canonical-URL tier. Every active provider sets `id` by hashing the raw
+// productUrl (shoppingProvider.ts / poshmarkProvider.ts `makeId`), so `pid:`
+// always matched first and the canonical-URL tier — which strips the hash,
+// trailing slash, and tracking params — was unreachable. Deterministic
+// near-duplicates (trailing slash, path case, an extra unknown query param)
+// therefore survived dedup as separate "products".
+
+Deno.test('DEDUPE: a trailing-slash URL variant collapses with its canonical twin', async () => {
+  const { filterAndDedupeProducts } = await import('./qualityTuneCommerce.ts');
+  const garment = { item_type: 'outerwear', subtype: 'Moto Jacket', primary_color: 'black' };
+
+  const base = (productUrl: string, id: string) => ({
+    id,
+    title: 'Saint Laurent Leather Moto Jacket',
+    source: 'RetailerNeutral',
+    price: '$1,200',
+    type: 'retail' as const,
+    imageUrl: 'https://cdn.example-shop.test/i.jpg',
+    productUrl,
+  });
+
+  const products = [
+    // Same listing; only a trailing slash differs. `id` is a hash of the raw
+    // URL (as every real provider produces), so these two get DIFFERENT
+    // provider-id hashes despite being the same product.
+    base('https://retailer.example-shop.test/p/jacket-123', 'hash-a'),
+    base('https://retailer.example-shop.test/p/jacket-123/', 'hash-b'),
+  ];
+  assert.notEqual(products[0].id, products[1].id);
+
+  const { products: deduped, stats } = filterAndDedupeProducts(products, garment);
+  assert.equal(deduped.length, 1, 'a trailing-slash URL variant was not recognized as the same product');
+  assert.equal(stats.productsAfterDedupe, 1);
+});
+
+Deno.test('DEDUPE: negative control — the pre-fix precedence keeps both as distinct products', async () => {
+  // The ORIGINAL (pre-fix) tier order: provider id checked BEFORE canonical URL.
+  const src = await Deno.readTextFile(new URL('./qualityTuneCommerce.ts', import.meta.url));
+  const start = src.indexOf('function productIdentityKey');
+  assert.ok(start > 0);
+  const skuLine = "if (retailerId && sku) return { key: `sku:${retailerId}|${sku}`, type: 'retailer_sku' };";
+  const afterSku = src.indexOf(skuLine, start) + skuLine.length;
+
+  const preFixSrc = `
+    function productIdentityKey(p) {
+      const rec = p;
+      const retailerId = typeof rec.retailerId === 'string' ? rec.retailerId.toLowerCase() : (typeof p.source === 'string' ? p.source.toLowerCase() : '');
+      const sku = typeof rec.sku === 'string' ? rec.sku.toLowerCase() : (typeof rec.SKU === 'string' ? rec.SKU.toLowerCase() : '');
+      if (retailerId && sku) return { key: 'sku:' + retailerId + '|' + sku, type: 'retailer_sku' };
+      const providerId = typeof p.id === 'string' && p.id.trim() ? p.id.trim().toLowerCase() : '';
+      if (providerId && !providerId.startsWith('http')) {
+        return { key: 'pid:' + providerId, type: 'provider_product_id' };
+      }
+      const canon = canonicalizeUrlForIdentity(p.productUrl);
+      if (canon) return { key: 'url:' + canon, type: 'canonical_url' };
+      return { key: 'fallback:unknown', type: 'weak_fallback' };
+    }
+    return productIdentityKey;
+  `;
+  assert.ok(afterSku > start, 'could not locate the sku tier to build the negative control from');
+
+  const { canonicalizeUrlForIdentity } = await import('./qualityTuneCommerce.ts');
+  const preFixIdentityKey = new Function('canonicalizeUrlForIdentity', preFixSrc)(canonicalizeUrlForIdentity);
+
+  const a = preFixIdentityKey({ id: 'hash-a', productUrl: 'https://retailer.example-shop.test/p/jacket-123', source: 'RetailerNeutral' });
+  const b = preFixIdentityKey({ id: 'hash-b', productUrl: 'https://retailer.example-shop.test/p/jacket-123/', source: 'RetailerNeutral' });
+  assert.notEqual(a.key, b.key, 'negative control did not reproduce the pre-fix unreachable-canonical-tier defect');
+  assert.equal(a.type, 'provider_product_id');
+});
