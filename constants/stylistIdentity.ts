@@ -516,11 +516,28 @@ export interface StylistAvatarFraming {
   offsetXRatio: number;
 }
 
-const FRAMING_OVERRIDE_ENTRIES: readonly [string, StylistAvatarFraming][] = Object.freeze([
-  // Henry's source portrait places the head ~11% right of center; measured
-  // from the bundled asset, not a re-crop of it.
-  ['stylist_portrait_02', { offsetXRatio: 0.113 }],
-]);
+// DELIBERATELY EMPTY. No shipped portrait may take a framing override, and the
+// reason is a property of the asset set rather than a preference:
+//
+//   * A framing override recenters by overscanning (zooming) the source, so it
+//     can only spend headroom the source actually has.
+//   * 8 of the 10 bundled portraits — including Henry (stylist_portrait_02) —
+//     have 0.0% headroom: the subject already touches the top edge. Any
+//     center-anchored overscan > 1.0 therefore clips the top of the head.
+//   * Horizontal variation across the set is normal, not a defect. Henry sits
+//     at 61.3% head-center-x; David (stylist_portrait_09) sits at 61.8% — more
+//     off-center than Henry — with no override and no reported defect. The
+//     circular mask absorbs this range.
+//
+// An earlier revision gave Henry { offsetXRatio: 0.113 } with a 1.28 overscan.
+// That rendered him ~28% larger than every peer and cut ~10.9% of frame height
+// off the top of his head in the Personalize Your Stylist picker — a visible
+// regression far worse than the mild off-centering it was meant to correct.
+//
+// Keep the mechanism (a future portrait shipped WITH real headroom could use
+// it) but do not re-add an entry without first measuring that portrait's
+// headroom and confirming the overscan it implies stays within it.
+const FRAMING_OVERRIDE_ENTRIES: readonly [string, StylistAvatarFraming][] = Object.freeze([]);
 
 export const STYLIST_AVATAR_FRAMING_BY_ID: ReadonlyMap<string, StylistAvatarFraming> =
   createReadonlyMap(FRAMING_OVERRIDE_ENTRIES);
