@@ -481,6 +481,62 @@ export async function saveScan({ photoUri, analysis, source, actorRequest, owner
 }
 
 /**
+ * Attach commerce that arrived after the scan was already saved (v127).
+ *
+ * v127 decouples commerce from scan completion, so the scan row is written
+ * before purchase options exist. This updates that SAME record rather than
+ * creating a second one — the record id is the join, and a scan whose id is not
+ * present is simply not updated.
+ *
+ * Ownership is enforced exactly as elsewhere: the write runs inside the
+ * serialized mutation queue and is rejected if the actor changed while commerce
+ * was in flight, so late commerce can never land on another actor's record.
+ *
+ * Idempotent by construction: purchase options are replaced, never appended, so
+ * a duplicate hydration or a retry cannot double the shelf.
+ */
+export async function attachScanPurchaseOptions(id, purchaseOptions, { actorRequest } = {}) {
+  if (!id) return false;
+  const normalized = normalizePurchaseOptions(
+    Array.isArray(purchaseOptions) ? purchaseOptions : [],
+  );
+  // Nothing to attach. Writing an empty array would clear a shelf that a
+  // previous hydration had legitimately filled.
+  if (normalized.length === 0) return false;
+
+  try {
+    return await enqueueLibraryMutation(async () => {
+      if (actorRequest !== undefined && !isActorRequestCurrent(actorRequest)) return false;
+
+      const existing = await readAllLibrary();
+      const index = existing.findIndex((item) => item && item.id === id);
+      if (index === -1) return false;
+
+      const target = existing[index];
+      if (actorRequest !== undefined) {
+        const owner = normalizeOwnerId(normalizeActorIdArg(actorRequest.actorId));
+        // A record belongs to exactly one partition; late commerce may not
+        // cross from the ownerless projection into an owned record or back.
+        if (normalizeOwnerId(target.ownerId) !== owner) return false;
+      }
+
+      const updated = existing.slice();
+      updated[index] = { ...target, purchaseOptions: normalized };
+      await persistLibrary(updated);
+
+      // Mirror the save path: cloud sync is fire-and-forget and its failure
+      // never rolls back the committed local write.
+      if (normalizeOwnerId(target.ownerId)) {
+        saveScanToCloud(updated[index]).catch(() => null);
+      }
+      return true;
+    });
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Delete a scan owned by / visible to the requesting actor. Both the record id
  * AND the actor must match: an authenticated actor can never delete an
  * ownerless record, and the signed-out projection can never delete an owned one.

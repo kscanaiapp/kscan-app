@@ -26,7 +26,7 @@ import {
 import { buildEliseVisualContext } from './services/style-chat/buildEliseVisualContext';
 import { supabase } from './services/supabaseClient';
 import { useKScan } from './hooks/useKScan';
-import { saveScan, selectPurchaseOptionsSnapshot } from './services/library';
+import { saveScan, selectPurchaseOptionsSnapshot, attachScanPurchaseOptions } from './services/library';
 import { createActorRequest, isActorRequestCurrent } from './services/actorContext';
 import { setStyleChatHandoffContext } from './services/style-chat/styleChatHandoffContext';
 import { AnalysisCard } from './components/AnalysisCard';
@@ -438,6 +438,29 @@ export default function App() {
       });
     return () => { live = false; };
   }, [status, photo, analysis]);
+
+  // v127: attach commerce that arrived after the scan row was already written.
+  //
+  // The save above captures purchase options at save time, which under v127 is
+  // before providers have answered. This effect closes that window from the
+  // other side: it fires whenever purchase options exist and the record id is
+  // known, so it is correct whether commerce landed before or after the save
+  // completed — the id simply appears later in the second case, and there is no
+  // timer anywhere in this path.
+  const attachedCommerceRef = useRef(null);
+  useEffect(() => {
+    if (status !== 'result' || !savedScanId) return;
+    const options = selectPurchaseOptionsSnapshot(analysis);
+    if (!options.length) return;
+    // One attach per (record, shelf). Re-running for the same shelf would be
+    // harmless — the write replaces rather than appends — but it would still be
+    // a pointless write on every rerender.
+    const key = savedScanId + ':' + options.length;
+    if (attachedCommerceRef.current === key) return;
+    attachedCommerceRef.current = key;
+    const actorRequest = createActorRequest();
+    attachScanPurchaseOptions(savedScanId, options, { actorRequest }).catch(() => null);
+  }, [status, savedScanId, analysis]);
 
   // When the scanner was opened from Elise, automatically return the structured
   // visual context to the originating session once analysis completes.
