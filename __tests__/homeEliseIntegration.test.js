@@ -241,9 +241,15 @@ test('identity hook hydrates once per authenticated actor', () => {
   assert.match(useStylistIdentity, /resetStylistIdentityStore\(\)/);
 });
 
-test('Home sessions hook creates a new conversation without conditional resume copy', () => {
+test('Home sessions hook resumes the latest conversation without conditional resume copy', () => {
   assert.match(useStyleChatSessions, /listStyleChatSessions/);
-  assert.match(homeV1, /const \{ createSession \} = useStyleChatSessions\(\)/);
+  assert.match(homeV1, /const \{ createSession, getLatestSessionId \} = useStyleChatSessions\(\)/);
   assert.match(homeV1, /launchStyleChatSession/);
+  // Which conversation to resume is resolved server-side inside the launch
+  // guard. Deriving it from the locally loaded list raced with that list's
+  // load: before it arrived the card read "no sessions", flipped its copy, and
+  // started a new conversation on top of an existing one.
   assert.doesNotMatch(homeV1, /hasStyleChatSessions/);
+  assert.doesNotMatch(homeV1, /sessions\.length/);
+  assert.doesNotMatch(homeStylistCard, /hasSessions/);
 });
