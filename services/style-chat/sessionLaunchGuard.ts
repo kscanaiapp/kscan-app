@@ -17,12 +17,28 @@ export async function launchStyleChatSession(input: {
   createSession: () => Promise<{ id?: string | null }>;
   navigate: (sessionId: string) => void;
   isCurrent?: () => boolean;
+  /**
+   * Resolves the conversation to resume, or null when the user has none.
+   * Omitted by callers whose affordance means "start a new one" explicitly.
+   *
+   * A rejection here fails the launch rather than falling through to create:
+   * a transient lookup error must not silently strand the existing
+   * conversation behind a brand-new empty one.
+   */
+  resolveExistingSessionId?: () => Promise<string | null>;
 }): Promise<StyleChatSessionLaunchResult> {
   const { guard } = input;
   if (!guard.tryBegin()) return { status: 'ignored' };
 
   try {
     let sessionId = guard.getPendingSessionId();
+    if (!sessionId && input.resolveExistingSessionId) {
+      const existingSessionId = await input.resolveExistingSessionId();
+      if (existingSessionId) {
+        sessionId = existingSessionId;
+        guard.rememberSession(sessionId);
+      }
+    }
     if (!sessionId) {
       const session = await input.createSession();
       if (!session?.id) throw new Error('StyleChat session creation returned no session ID.');
