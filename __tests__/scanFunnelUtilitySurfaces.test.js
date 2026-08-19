@@ -115,21 +115,50 @@ test('Shopping Intent is kept in every context, including the funnel', () => {
 
 // -- Ordering: commerce before intent ---------------------------------------
 //
-// The two platform lines mount commerce on different surfaces: Android renders
-// PurchaseOptionsPanel inside AnalysisCard (ScanResultV2 is candidate review
-// only), iOS renders it inside ScanResultV2. The ORDER contract is shared even
-// though the host is not, so these tests resolve the commerce host first.
+// v127 (P1-B) repair: SCAN_RESULTS_V2_UI_ENABLED is 'true' in every governed
+// build profile on BOTH platform lines (see eas.json), so ScanResultV2 is the
+// REAL live final-result surface on both — AnalysisCard is an unreachable
+// fallback everywhere. An earlier version of this file assumed Android kept
+// commerce on AnalysisCard because ScanResultV2 was "candidate review only";
+// that premise was false (ScanResultV2 also renders the analyzed result, not
+// just the review step) and let this suite validate a dead component. The
+// commerce host is now resolved from the same governed configuration the app
+// ships with, not from a hardcoded guess about which file "should" have it.
 
-/** Files that could host the commerce panel, in either platform layout. */
-const COMMERCE_HOSTS = [ANALYSIS_CARD, 'components/scan-results/ScanResultV2.tsx'];
+function easProfiles() {
+  return JSON.parse(read('eas.json')).build;
+}
 
+/** True only when every governed profile ships the V2 result UI. */
+function scanResultsV2LiveEverywhere() {
+  const profiles = Object.values(easProfiles());
+  assert.ok(profiles.length > 0, 'eas.json must define at least one build profile');
+  return profiles.every((p) => p.env?.EXPO_PUBLIC_SCAN_RESULTS_V2_UI === 'true');
+}
+
+/**
+ * Resolves the file that ACTUALLY hosts the commerce panel on a shipped
+ * build, preferring whichever component the governed config makes live and
+ * falling back to the other only if that one does not mount the panel.
+ */
 function commerceHost() {
-  for (const file of COMMERCE_HOSTS) {
+  const preferred = scanResultsV2LiveEverywhere()
+    ? ['components/scan-results/ScanResultV2.tsx', ANALYSIS_CARD]
+    : [ANALYSIS_CARD, 'components/scan-results/ScanResultV2.tsx'];
+  for (const file of preferred) {
     const source = read(file);
     if (source.includes('<PurchaseOptionsPanel')) return { file, source };
   }
   assert.fail('no surface mounts PurchaseOptionsPanel on this platform line');
 }
+
+test('commerceHost resolves to the surface the app actually ships live', () => {
+  const { file } = commerceHost();
+  const expected = scanResultsV2LiveEverywhere()
+    ? 'components/scan-results/ScanResultV2.tsx'
+    : ANALYSIS_CARD;
+  assert.equal(file, expected, 'the resolved commerce host must match the governed live surface');
+});
 
 test('commerce renders before the utility surface that carries Shopping Intent', () => {
   const { file, source } = commerceHost();
@@ -174,14 +203,12 @@ test('the commerce panel handles the governed empty state on every line', () => 
 
 test('where deferred commerce status is wired, pending, error and retry are complete', () => {
   // Fix #9 P1-B wired a pending/error/retry treatment so the panel mounts while
-  // commerce is still deferred instead of leaving an empty gap.
-  //
-  // KNOWN GAP: the iOS convergence line carries commerceHydration but NOT P1-B,
-  // so its panel has no commerceStatus union. That is recorded here rather than
-  // repaired: adding commerce UI to the frozen compliance release candidate is
-  // outside the authorized funnel-context correction.
+  // commerce is still deferred instead of leaving an empty gap. Repair pass 1
+  // closed the platform gap this test used to record: both lines now carry the
+  // full commerceStatus union on components/scan-results/PurchaseOptionsPanel.tsx,
+  // so this assertion is no longer conditional.
   const panel = read('components/scan-results/PurchaseOptionsPanel.tsx');
-  if (!/commerceStatus/.test(panel)) return;
+  assert.match(panel, /commerceStatus/, 'the panel must declare the commerceStatus contract on every line');
 
   assert.match(panel, /'idle' \| 'pending' \| 'success' \| 'empty' \| 'error'/);
   assert.match(panel, /onRetry/, 'a failed deferred fetch must be retryable');

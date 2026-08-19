@@ -138,8 +138,17 @@ test('AnalysisCard: the feature flag gate is absolute — nothing renders when p
 });
 
 // ── Retry wiring: app.js -> AnalysisCard -> PurchaseOptionsPanel -> retryCommerce
+//
+// NOTE: AnalysisCard is the pre-v127-live-surface-repair fallback component —
+// SCAN_RESULTS_V2_UI_ENABLED is 'true' in every governed profile on this line,
+// so app.js actually renders ScanResultV2 for a completed scan, not this one.
+// This test is retained because AnalysisCard still exists as the fallback for
+// an unhealthy config and its own wiring must not silently rot. The LIVE
+// surface's equivalent contract is asserted in
+// __tests__/liveCommerceSurfaceStateContract.test.js, which resolves which
+// component is actually live from eas.json rather than assuming.
 
-test('WIRING: the Retry control reaches retryCommerce, not a placeholder', () => {
+test('WIRING (fallback surface): the Retry control reaches retryCommerce, not a placeholder', () => {
   const appSrc = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
   const cardSrc = fs.readFileSync(path.join(ROOT, 'components/AnalysisCard.tsx'), 'utf8');
   const panelSrc = fs.readFileSync(path.join(ROOT, 'components/scan-results/PurchaseOptionsPanel.tsx'), 'utf8');
