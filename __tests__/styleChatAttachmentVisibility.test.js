@@ -69,15 +69,9 @@ function attachmentsEnabled(flags, { aiStylistFrozen = false } = {}) {
   );
 }
 
-/** Parses a .env file into a plain object. Values are never logged. */
-function readEnvFile(file) {
-  if (!fs.existsSync(file)) return null;
-  const env = {};
-  for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
-    const match = /^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/.exec(line.trim());
-    if (match) env[match[1]] = match[2];
-  }
-  return env;
+/** The committed, governed build-profile configuration. Never gitignored. */
+function easProfiles() {
+  return JSON.parse(fs.readFileSync(path.join(ROOT, 'eas.json'), 'utf8')).build;
 }
 
 const ENABLED_ENV = {
@@ -148,23 +142,46 @@ test('attachment visibility depends on no avatar, speech or V10 input', () => {
   }
 });
 
-// -- Build configuration guard (the negative control) -------------------------
+// -- Build configuration guard (durable — reads only committed files) ---------
 
-test('the worktree build environment enables the attachment authority', () => {
-  // THIS is the test that reproduces the reported device defect. The source is
-  // byte-identical to the last known-good authority; the control disappeared
-  // because this worktree's .env — which is gitignored and therefore never
-  // travels with a branch, a cherry-pick or a new worktree — carries none of
-  // the three governing flags.
-  const env = readEnvFile(path.join(ROOT, '.env'));
-  assert.ok(env, '.env must exist for a device QA build');
+test('CONFIG DURABILITY: every governed build profile enables the attachment authority', () => {
+  // Repair pass 1 (build29 durability defect): an approved, frozen feature
+  // must not depend on a gitignored `.env` that never travels with a branch,
+  // a cherry-pick, or a new worktree. This test previously read `.env`
+  // directly and only passed because one machine happened to have a local
+  // file with the right values — a clean clone failed it immediately. It now
+  // reads ONLY eas.json (committed, governed, always travels with the repo)
+  // and checks every build profile the app actually ships, not one developer
+  // machine's local override.
+  const profiles = easProfiles();
+  const names = Object.keys(profiles);
+  assert.ok(names.length > 0, 'eas.json must define at least one build profile');
 
-  const flags = loadFeatureFlags(env);
-  assert.equal(
-    attachmentsEnabled(flags),
-    true,
-    'the QA build environment must enable the StyleChat attachment entry point',
-  );
+  for (const name of names) {
+    const flags = loadFeatureFlags(profiles[name].env ?? {});
+    assert.equal(
+      attachmentsEnabled(flags),
+      true,
+      `eas.json profile "${name}" must enable the StyleChat attachment entry point`,
+    );
+  }
+});
+
+test('CONFIG DURABILITY: a completely clean worktree with no local .env still ships the attachment authority', () => {
+  // The actual clean-worktree contract: committed files only, no local
+  // override of any kind. Every governed profile's env, taken exactly as
+  // eas.json commits it, must independently satisfy the gate — this does
+  // NOT read process.env or any local file besides eas.json and
+  // constants/featureFlags.ts, both committed.
+  const profiles = easProfiles();
+  for (const [name, profile] of Object.entries(profiles)) {
+    const flags = loadFeatureFlags({ ...(profile.env ?? {}) });
+    assert.equal(
+      attachmentsEnabled(flags),
+      true,
+      `profile "${name}" loses the attachment control without any local .env present`,
+    );
+  }
 });
 
 // -- Governance: the helper above must match what ships -----------------------
