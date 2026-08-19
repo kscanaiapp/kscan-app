@@ -400,7 +400,11 @@ export class AvatarRuntime {
     const reported = snapshot.playbackPositionSeconds;
     const usable = snapshot.playbackAvailable !== false && Number.isFinite(reported) && reported >= 0;
     if (!usable) {
-      this.metrics.countEvent('PLAYBACK_HOLD_EVENTS', 1);
+      // Only a gap DURING playback is a stall. Before playback starts the host
+      // legitimately has no position, and counting those frames would inflate
+      // the stall metric on every ordinary utterance — which would make a real
+      // stall indistinguishable from a normal run.
+      if (snapshot.playing) this.metrics.countEvent('PLAYBACK_HOLD_EVENTS', 1);
       return this.heldPlaybackSeconds;
     }
     this.heldPlaybackSeconds = reported;
