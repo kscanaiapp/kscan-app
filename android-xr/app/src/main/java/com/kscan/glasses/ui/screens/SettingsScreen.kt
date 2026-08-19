@@ -2,6 +2,7 @@ package com.kscan.glasses.ui.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
@@ -26,6 +27,7 @@ fun SettingsScreen(
     voiceSamples: List<String>,
     onToggleAudioOnly: (Boolean) -> Unit,
     onSimulateVoice: (String) -> Unit,
+    diagnostics: List<Pair<String, String>> = emptyList(),
 ) {
     Column(
         modifier = Modifier
@@ -33,35 +35,48 @@ fun SettingsScreen(
             .padding(20.dp),
     ) {
         Text(
-            text = "Settings",
+            text = if (diagnostics.isEmpty()) "Settings" else "Hardware diagnostics",
             color = Color(0xFF00E5FF),
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
         )
-        FocusableCard(
-            title = if (hasDisplay) "Display glasses (mock)" else "Audio-only (mock)",
-            subtitle = "Select to toggle capability mock",
-            focused = focusedIndex == 0,
-            modifier = Modifier
-                .padding(vertical = 8.dp)
-                .clickable { onToggleAudioOnly(hasDisplay) },
-        )
-        Text(
-            text = "Mock voice commands",
-            color = Color(0xFFE0E0E8),
-            fontSize = 18.sp,
-            modifier = Modifier.padding(top = 12.dp),
-        )
-        voiceSamples.forEachIndexed { index, phrase ->
+        if (diagnostics.isNotEmpty()) {
+            Row(modifier = Modifier.fillMaxSize().padding(top = 8.dp)) {
+                diagnostics.chunked((diagnostics.size + 1) / 2).forEach { group ->
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                        group.forEach { (label, value) ->
+                            Text(label.uppercase(), color = Color(0xFF7A7A92), fontSize = 10.sp)
+                            Text(value, color = Color(0xFFF4F4FA), fontSize = 12.sp, modifier = Modifier.padding(bottom = 6.dp))
+                        }
+                    }
+                }
+            }
+        } else {
             FocusableCard(
-                title = phrase,
-                focused = focusedIndex == index + 1,
+                title = if (hasDisplay) "Display glasses (mock)" else "Audio-only (mock)",
+                subtitle = "Select to toggle capability mock",
+                focused = focusedIndex == 0,
                 modifier = Modifier
-                    .padding(vertical = 4.dp)
-                    .clickable { onSimulateVoice(phrase) },
+                    .padding(vertical = 8.dp)
+                    .clickable { onToggleAudioOnly(hasDisplay) },
             )
+            Text(
+                text = "Mock voice commands",
+                color = Color(0xFFE0E0E8),
+                fontSize = 18.sp,
+                modifier = Modifier.padding(top = 12.dp),
+            )
+            voiceSamples.forEachIndexed { index, phrase ->
+                FocusableCard(
+                    title = phrase,
+                    focused = focusedIndex == index + 1,
+                    modifier = Modifier
+                        .padding(vertical = 4.dp)
+                        .clickable { onSimulateVoice(phrase) },
+                )
+            }
+            VoiceHint("Always-on wake word not supported in alpha")
         }
-        VoiceHint("Always-on wake word not supported in alpha")
         VoiceHint("Back to return")
     }
 }

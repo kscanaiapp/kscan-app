@@ -145,6 +145,9 @@ class KScanViewModel(
     private val _phoneBridgeStatus = MutableStateFlow<PhoneBridgeProviderStatus?>(null)
     val phoneBridgeStatus: StateFlow<PhoneBridgeProviderStatus?> = _phoneBridgeStatus.asStateFlow()
 
+    private val _pairingCode = MutableStateFlow<String?>(null)
+    val pairingCode: StateFlow<String?> = _pairingCode.asStateFlow()
+
     /** Focusable rows for the connected HUD, rebuilt on every state change. */
     private val _connectedItems = MutableStateFlow<List<ConnectedFocusItem>>(emptyList())
     val connectedItems: StateFlow<List<ConnectedFocusItem>> = _connectedItems.asStateFlow()
@@ -170,6 +173,9 @@ class KScanViewModel(
         _screen.value = AppScreen.CONNECTED
         viewModelScope.launch {
             provider.status.collect { _phoneBridgeStatus.value = it }
+        }
+        viewModelScope.launch {
+            provider.pairingCode.collect { _pairingCode.value = it }
         }
         viewModelScope.launch {
             provider.events.collect { machine.on(ConnectedInput.Bridge(it)) }
@@ -540,7 +546,7 @@ class KScanViewModel(
     private fun handleSettingsInput(input: GlassesInput) {
         when (val event = settingsNavigator.onInput(input)) {
             is FocusEvent.Activated -> {
-                if (event.index == 0) {
+                if (!connectedMode && event.index == 0) {
                     toggleAudioOnlyMode(_hasDisplay.value)
                 } else {
                     settingsVoiceSamples.getOrNull(event.index - 1)?.let { simulateVoice(it) }

@@ -55,6 +55,7 @@ fun ConnectedHudScreen(
     focusItems: List<ConnectedFocusItem>,
     focusedIndex: Int,
     actionNotice: String?,
+    pairingCode: String?,
     mockBadge: String?,
 ) {
     Column(
@@ -82,6 +83,9 @@ fun ConnectedHudScreen(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+        }
+        if (ui.state == ConnectedState.PAIRING && pairingCode != null) {
+            StatusChip(label = "PAIR CODE  $pairingCode", accent = Cyan)
         }
         when (ui.metadata.progress.kind) {
             ProgressKind.INDETERMINATE -> LinearProgressIndicator(
