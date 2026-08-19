@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
@@ -15,6 +15,7 @@ import { deriveAvatarMouthState } from '../../services/avatarSpeechMotion';
 import { isAvatarEngineActive } from '../../services/avatars/avatarVisualMode';
 import { resolveAvatarMotionEpoch } from '../../services/avatars/avatarMotionEpoch';
 import { observeAvatarShadowFrame } from '../../services/avatars/avatarShadowBridge';
+import { emitAvatarShadowReport } from '../../services/avatars/avatarShadowReportFormat';
 
 interface StyleChatHeaderProps {
   showBadge?: boolean;
@@ -99,6 +100,17 @@ export function StyleChatHeader({
       legacyMouthState: mouthState,
     });
   }, [engineActive, identity.avatarId, speechState, isSpeaking, reducedMotion, actorId, sessionId, mouthState]);
+
+  // Development-only capture. An utterance ending is the natural boundary for a
+  // QA sample, so each one prints its dataset to the Metro / Xcode / logcat
+  // console with nothing to install and nothing to remember to call.
+  const previousPhaseRef = useRef(speechState.phase);
+  useEffect(() => {
+    const previous = previousPhaseRef.current;
+    previousPhaseRef.current = speechState.phase;
+    if (!engineActive) return;
+    if (previous === 'playing' && speechState.phase !== 'playing') emitAvatarShadowReport();
+  }, [engineActive, speechState.phase]);
 
   const displayName = identity.displayName;
   const headerAccessibilityLabel = `${displayName}, ${ELISE_IDENTITY.role}`;
