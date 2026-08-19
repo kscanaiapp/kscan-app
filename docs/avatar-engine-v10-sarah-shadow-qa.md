@@ -99,7 +99,22 @@ STALE_FRAME_REJECTIONS
 ENGINE_ERRORS
 ```
 
-Filled in by a person watching the face — telemetry cannot answer these:
+Filled in by the QA person. No interpretation required — just observation:
+
+```
+SAMPLE:                  1-5
+MODE:                    LEGACY / V10_SHADOW
+FIRST WORD SARAH SAYS:   <the opening word, verbatim>
+VISIBLE LEGACY MOUTH:    looked normal / chatter / lag / other
+AUDIO:                   normal / delayed / interrupted / other
+NOTES:
+```
+
+`FIRST WORD` is not cosmetic. It is the only thing that makes
+`PLAYBACK_TO_FIRST_MOUTH_V10` interpretable, and it cannot be recovered after
+the run — see below.
+
+Then, for cadence adjudication, a person watching the face:
 
 ```
 MOUTH SYNC      legacy / V10 / tie
@@ -108,6 +123,27 @@ LABIALS         correct / overclosed / underclosed
 PAUSES          good / chatters / hangs
 FACE STABILITY  pass / fail
 ```
+
+### Why the opening word matters
+
+A lower `PLAYBACK_TO_FIRST_MOUTH_MS` is **not** automatically better. The real
+criterion is time to the first *phonetically correct* mouth change.
+
+If the utterance opens on a bilabial (b / m / p), the correct behaviour is:
+
+```
+audio starts -> mouth stays CLOSED -> consonant releases -> mouth opens
+```
+
+V10 will report a later first-mouth than legacy there, and V10 is right —
+legacy's immediate `halfOpen` is an incorrect opening that merely happens to
+record 0 ms. If the utterance opens on a vowel, the same delay would be a
+genuine defect.
+
+The engine does not record the opening viseme, so this distinction has to come
+from the sentence itself. Without the opening word written down, every
+first-mouth number in the dataset becomes uninterpretable and the run has to be
+repeated.
 
 To judge MOUTH SYNC honestly, the legacy mouth is what is on screen. Compare the
 **numbers** for timing, and use the visual only for cadence, labials, pauses and
