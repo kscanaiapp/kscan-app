@@ -138,7 +138,7 @@ export default function HomeLuxuryTechV1() {
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const { picks, isLoading: stylePicksLoading, error: stylePicksError } = useStylePicks();
   const { identity, isLoading: identityLoading, error: identityError, updateIdentity, resetIdentity } = useStylistIdentity();
-  const { createSession } = useStyleChatSessions();
+  const { createSession, getLatestSessionId } = useStyleChatSessions();
 
   const [personalizeVisible, setPersonalizeVisible] = useState(false);
   const [textScanNavigating, setTextScanNavigating] = useState(false);
@@ -185,6 +185,12 @@ export default function HomeLuxuryTechV1() {
     const result = await launchStyleChatSession({
       guard,
       createSession,
+      // Home's stylist CTA continues the user's conversation; only a user with
+      // no conversation at all gets a new one. Creating unconditionally here
+      // stranded every prior conversation behind a fresh empty session, which
+      // read as the history having been lost. Explicitly starting another
+      // conversation remains available on the conversations list.
+      resolveExistingSessionId: getLatestSessionId,
       navigate: (sessionId) => router.push(`/style-chat/${sessionId}`),
       isCurrent: () => screenActiveRef.current && actorIdRef.current === launchActorId,
     });
@@ -196,7 +202,7 @@ export default function HomeLuxuryTechV1() {
       }
     }
     if (screenActiveRef.current) setIsCreatingSession(false);
-  }, [createSession]);
+  }, [createSession, getLatestSessionId]);
 
   const handlePersonalize = useCallback(() => {
     setPersonalizeVisible(true);

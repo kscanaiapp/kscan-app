@@ -55,6 +55,8 @@ type RoomSelection =
 
 export type StyleChatAttachmentBarProps = {
   attachments: DraftAttachment[];
+  /** The active stylist name, resolved by the StyleChat screen. */
+  stylistDisplayName?: string;
   focusedDraftId?: string | null;
   onAddOwnedItem: (item: OwnedClosetItem, localScan?: SavedScanModel | null) => AddResult;
   onAddLook?: (look: Look) => AddResult;
@@ -290,6 +292,7 @@ function AttachmentChip({
 
 export function StyleChatAttachmentBar({
   attachments,
+  stylistDisplayName,
   focusedDraftId = null,
   onAddOwnedItem,
   onAddLook,
@@ -310,6 +313,7 @@ export function StyleChatAttachmentBar({
   menuOpen: menuOpenProp,
   onMenuOpenChange,
 }: StyleChatAttachmentBarProps) {
+  const resolvedStylistName = stylistDisplayName?.trim() || ELISE_IDENTITY.displayName;
   const closet = useOwnedClosetItems();
   const insets = useSafeAreaInsets();
   const [menuOpenInternal, setMenuOpenInternal] = useState(false);
@@ -477,7 +481,7 @@ export function StyleChatAttachmentBar({
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.chipRow}
-          accessibilityLabel="Attachments for Elise"
+          accessibilityLabel={`Attachments for ${resolvedStylistName}`}
         >
           {visibleAttachments.map((draft) => {
             const shared = isSharedDraft(draft);
@@ -505,7 +509,7 @@ export function StyleChatAttachmentBar({
             onPress={() => setMenuOpen(true)}
             disabled={disabled || pickingImage}
             accessibilityRole="button"
-            accessibilityLabel={ELISE_IDENTITY.attachAccessibilityLabel}
+            accessibilityLabel={`Add an attachment for ${resolvedStylistName}`}
             accessibilityHint="Opens options to add a photo, scan, Closet item, or Dressing Room piece"
             testID="stylechat-attach-button"
           >
@@ -539,21 +543,21 @@ export function StyleChatAttachmentBar({
           >
             <View style={styles.handle} />
             <Text style={styles.menuTitle} accessibilityRole="header">
-              Add for Elise
+              {`Add for ${resolvedStylistName}`}
             </Text>
 
             <SecondaryButton
               title="Take Photo"
               onPress={() => chooseMenuAction(() => { void handleTakePhoto(); }, directImageDisabled || !canTakePhoto)}
               disabled={directImageDisabled || !canTakePhoto}
-              accessibilityLabel="Take a photo for Elise"
+              accessibilityLabel={`Take a photo for ${resolvedStylistName}`}
               testID="stylechat-attach-take-photo"
             />
             <SecondaryButton
               title="Choose from Photos"
               onPress={() => chooseMenuAction(() => { void handleChoosePhotos(); }, directImageDisabled || !canChoosePhotos)}
               disabled={directImageDisabled || !canChoosePhotos}
-              accessibilityLabel="Choose a photo for Elise"
+              accessibilityLabel={`Choose a photo for ${resolvedStylistName}`}
               testID="stylechat-attach-choose-photos"
             />
             <SecondaryButton
@@ -564,7 +568,7 @@ export function StyleChatAttachmentBar({
                 }, libraryDisabled)
               }
               disabled={libraryDisabled}
-              accessibilityLabel="Add from recent scans for Elise"
+              accessibilityLabel={`Add from recent scans for ${resolvedStylistName}`}
               testID="stylechat-attach-recent"
             />
             <SecondaryButton
@@ -575,7 +579,7 @@ export function StyleChatAttachmentBar({
                 }, libraryDisabled)
               }
               disabled={libraryDisabled}
-              accessibilityLabel="Add from Closet and Saved for Elise"
+              accessibilityLabel={`Add from Closet and Saved for ${resolvedStylistName}`}
               testID="stylechat-attach-closet"
             />
             <SecondaryButton
@@ -586,7 +590,7 @@ export function StyleChatAttachmentBar({
                 }, libraryDisabled)
               }
               disabled={libraryDisabled}
-              accessibilityLabel="Add from Dressing Rooms for Elise"
+              accessibilityLabel={`Add from Dressing Rooms for ${resolvedStylistName}`}
               testID="stylechat-attach-rooms"
             />
             <SecondaryButton

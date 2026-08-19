@@ -4,6 +4,8 @@ import type { StyleChatSession, StyleChatMode } from '../services/style-chat/typ
 import {
   createStyleChatSession,
   deleteStyleChatSession,
+  getLatestNonEmptySessionId,
+  getLatestStyleChatSession,
   listStyleChatSessions,
 } from '../services/style-chat/styleChatRepository';
 import { getFriendlyStyleChatError } from '../services/style-chat/styleChatErrors';
@@ -46,5 +48,23 @@ export function useStyleChatSessions() {
     setSessions(prev => prev.filter(s => s.id !== sessionId));
   }, []);
 
-  return { sessions, loading, error, reload, createSession, deleteSession };
+  // Read through to the server rather than `sessions[0]`: the list is populated
+  // by a focus effect, so a tap that lands before it resolves would read an
+  // empty list and create a duplicate of the conversation being resumed.
+  //
+  // Prefer the latest session that actually has a message over the latest
+  // owned row: a user who repeatedly hit the old always-create entry point
+  // may own several newer empty stubs sitting in front of their real
+  // conversation, and resuming "latest row" would resurface one of those
+  // instead. Only when no owned session has ever received a message — new
+  // account, or every session is genuinely empty — does resume fall back to
+  // the latest owned row, which is the prior (Phase 1) behavior.
+  const getLatestSessionId = useCallback(async (): Promise<string | null> => {
+    const nonEmptySessionId = await getLatestNonEmptySessionId();
+    if (nonEmptySessionId) return nonEmptySessionId;
+    const latest = await getLatestStyleChatSession();
+    return latest?.id ?? null;
+  }, []);
+
+  return { sessions, loading, error, reload, createSession, deleteSession, getLatestSessionId };
 }
