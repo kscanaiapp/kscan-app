@@ -216,7 +216,11 @@ function brandIfAllowed(id: Record<string, unknown>, brandAllowed?: boolean): st
   const logo = id.logo_detected === true;
   const visible = usable(id.visible_brand_text);
   if (!logo && !visible) return '';
-  return usable(id.brand_guess) || visible;
+  // Direct evidence governs over a hypothesis: text actually legible on the
+  // garment must win the query's brand term over a conflicting brand_guess.
+  // brand_guess remains the fallback when a logo was detected but no text
+  // was legible — a named guess for that logo is still useful.
+  return visible || usable(id.brand_guess);
 }
 
 // ── v125 confidence-aware identity enrichment ────────────────────────────────

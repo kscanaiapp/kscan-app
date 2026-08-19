@@ -280,7 +280,14 @@ export function mapScanIdentifyToAnalysis(
     const confirmationCandidates = buildOutfitConfirmationCandidates(resp.detectedGarments);
 
     // Conservative brand attribution: do not hallucinate brands.
-    const geminiBrand = resp.identification?.brand_guess ?? resp.identification?.visible_brand_text ?? null;
+    //
+    // Direct evidence must govern over a hypothesis. visible_brand_text is
+    // literally read off the garment; brand_guess is the model's inference
+    // and may be wrong even when a conflicting wordmark was legible in the
+    // same response (e.g. a guess drawn from silhouette/style resemblance
+    // while a different brand's tag was actually read). When both are
+    // present and disagree, the directly-read text is authoritative.
+    const geminiBrand = resp.identification?.visible_brand_text || resp.identification?.brand_guess || null;
     const { brand, confidence: brandConfidence } = deriveBrandConfidence(
       geminiBrand,
       resp.identification?.logo_detected,
