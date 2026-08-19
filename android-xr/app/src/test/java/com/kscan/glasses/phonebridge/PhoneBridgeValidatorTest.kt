@@ -86,7 +86,7 @@ class PhoneBridgeValidatorTest {
 
         fun actionSave(requestId: String = "glasses-act-1") = PhoneBridgeMessage.ActionSave(
             requestId = requestId, sessionId = SESSION_ID, deviceId = PHONE_ID, timestamp = now,
-            payload = ActionSavePayload(resultId = "res-1"),
+            payload = ActionSavePayload(resultId = "res-1", actionId = "save:res-1"),
         )
 
         fun scanProcessing(scanId: String, requestId: String = "phone-req-proc") = PhoneBridgeMessage.ScanProcessing(
@@ -227,7 +227,7 @@ class PhoneBridgeValidatorTest {
             f.validate(
                 PhoneBridgeMessage.ActionOpenOnPhone(
                     requestId = "glasses-act-2", sessionId = SESSION_ID, deviceId = PHONE_ID, timestamp = f.now,
-                    payload = ActionOpenOnPhonePayload(resultId = "res-1"),
+                    payload = ActionOpenOnPhonePayload(resultId = "res-1", actionId = "open:res-1"),
                 ),
             ),
         )

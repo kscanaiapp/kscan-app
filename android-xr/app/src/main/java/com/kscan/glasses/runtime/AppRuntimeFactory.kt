@@ -119,6 +119,20 @@ object AppRuntimeFactory {
             profile.isDebugBuild -> DisabledPhoneBridgeProvider()
             profile.isHardwareCandidate &&
                 com.kscan.glasses.BuildConfig.KSCAN_WEARABLE_BRIDGE_URL.isNotBlank() &&
+                com.kscan.glasses.BuildConfig.KSCAN_WEARABLE_PUBLISHABLE_KEY.isNotBlank() -> {
+                val bridgeUrl = com.kscan.glasses.BuildConfig.KSCAN_WEARABLE_BRIDGE_URL
+                val bridgeHost = runCatching { java.net.URI.create(bridgeUrl).host }.getOrDefault(bridgeUrl)
+                RealKScanPhoneBridgeProvider(
+                    api = HttpWearableBridgeApi(
+                        endpoint = bridgeUrl,
+                        publishableKey = com.kscan.glasses.BuildConfig.KSCAN_WEARABLE_PUBLISHABLE_KEY,
+                    ),
+                    glassesDeviceId = wearableDeviceId,
+                    appVersion = com.kscan.glasses.BuildConfig.VERSION_NAME,
+                    bridgeUrlHost = bridgeHost,
+                )
+            }
+                com.kscan.glasses.BuildConfig.KSCAN_WEARABLE_BRIDGE_URL.isNotBlank() &&
                 com.kscan.glasses.BuildConfig.KSCAN_WEARABLE_PUBLISHABLE_KEY.isNotBlank() ->
                 RealKScanPhoneBridgeProvider(
                     api = HttpWearableBridgeApi(

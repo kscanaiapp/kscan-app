@@ -95,7 +95,7 @@ class MockPhoneCompanionTest {
                 PhoneBridgeMessage.ActionSave(
                     requestId = requestId, sessionId = validator.currentSessionId!!,
                     deviceId = GLASSES_ID, timestamp = now,
-                    payload = ActionSavePayload(resultId = resultId),
+                    payload = ActionSavePayload(resultId = resultId, actionId = "save:$resultId"),
                 ),
             )
             mock.handleIncoming(frame)
@@ -106,7 +106,7 @@ class MockPhoneCompanionTest {
                 PhoneBridgeMessage.ActionOpenOnPhone(
                     requestId = requestId, sessionId = validator.currentSessionId!!,
                     deviceId = GLASSES_ID, timestamp = now,
-                    payload = ActionOpenOnPhonePayload(resultId = resultId),
+                    payload = ActionOpenOnPhonePayload(resultId = resultId, actionId = "open:$resultId"),
                 ),
             )
             mock.handleIncoming(frame)
@@ -386,7 +386,7 @@ class MockPhoneCompanionTest {
             PhoneBridgeMessage.ActionSave(
                 requestId = "glasses-act-1", sessionId = "sess-ghost",
                 deviceId = GLASSES_ID, timestamp = now,
-                payload = ActionSavePayload(resultId = "res-1"),
+                payload = ActionSavePayload(resultId = "res-1", actionId = "save:res-1"),
             ),
         )
         mock.handleIncoming(frame)

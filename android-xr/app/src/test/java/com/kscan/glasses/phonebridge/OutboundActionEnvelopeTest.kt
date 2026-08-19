@@ -63,7 +63,7 @@ class OutboundActionEnvelopeTest {
                 sessionId = SESSION_ID,
                 deviceId = GLASSES_ID,
                 timestamp = T0,
-                payload = ActionSavePayload(resultId = "res-1", productTitle = "Leather Biker Jacket"),
+                payload = ActionSavePayload(resultId = "res-1", productTitle = "Leather Biker Jacket", actionId = "save:res-1"),
             ),
         )
 
@@ -81,7 +81,7 @@ class OutboundActionEnvelopeTest {
                 sessionId = SESSION_ID,
                 deviceId = GLASSES_ID,
                 timestamp = T0,
-                payload = ActionOpenOnPhonePayload(resultId = "res-1"),
+                payload = ActionOpenOnPhonePayload(resultId = "res-1", actionId = "open:res-1"),
             ),
         )
 

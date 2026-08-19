@@ -54,6 +54,9 @@ interface PhoneBridgeProvider {
     /** Six-digit one-time challenge while pairing; never a credential. */
     val pairingCode: StateFlow<String?>
 
+    /** Staging-safe diagnostics for the Settings screen. No secrets. */
+    val diagnostics: StateFlow<List<Pair<String, String>>>
+
     /** Asks the phone to approve pairing (opens a pair.request). */
     suspend fun requestPairing(): PhoneBridgeSendResult
 

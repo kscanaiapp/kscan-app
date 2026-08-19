@@ -16,11 +16,17 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-/** Real result-only provider backed by the authenticated wearable Edge Function. */
+/**
+ * Real result-only provider backed by the authenticated wearable Edge Function.
+ *
+ * @param bridgeUrlHost Safe host fragment for staging diagnostics (e.g. "yzqjvdfgefveprobvvyw.supabase.co").
+ *                      Never a full URL with credentials. Used only in diagnostics.
+ */
 class RealKScanPhoneBridgeProvider(
     private val api: WearableBridgeApi,
     private val glassesDeviceId: String,
     private val appVersion: String,
+    private val bridgeUrlHost: String = "",
     parentScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     private val clock: () -> Long = System::currentTimeMillis,
     private val pollIntervalMs: Long = 1_000,
@@ -36,9 +42,22 @@ class RealKScanPhoneBridgeProvider(
     private val _pairingCode = MutableStateFlow<String?>(null)
     override val pairingCode: StateFlow<String?> = _pairingCode.asStateFlow()
 
+    /** Staging-safe diagnostics for the Settings screen. No secrets, no tokens. */
+    private val _diagnostics = MutableStateFlow<List<Pair<String, String>>>(emptyList())
+    override val diagnostics: StateFlow<List<Pair<String, String>>> = _diagnostics.asStateFlow()
+
     private var pollJob: Job? = null
     private var wearableToken: String? = null
     private var cursor: Long = 0
+
+    // ----- safe observability counters (section 36 / 37) -----
+    private var lastRequestId: String = "—"
+    private var lastSafeError: String = "—"
+    private var reconnectCount: Int = 0
+    private var scanSuccessCount: Int = 0
+    private var scanFailCount: Int = 0
+    private var lastScanStartMs: Long = 0
+    private var lastScanDurationMs: Long = 0
 
     override suspend fun requestPairing(): PhoneBridgeSendResult {
         if (!job.isActive) return PhoneBridgeSendResult.Unavailable
@@ -58,15 +77,18 @@ class RealKScanPhoneBridgeProvider(
             val ticket = api.createPairing(frame)
             _pairingCode.value = ticket.challengeCode
             startPairPolling(ticket)
+            refreshDiagnostics()
             PhoneBridgeSendResult.Sent
         } catch (_: Exception) {
             _status.value = PhoneBridgeProviderStatus.UNAVAILABLE
+            refreshDiagnostics()
             PhoneBridgeSendResult.Unavailable
         }
     }
 
     override suspend fun requestCapture(preference: CapturePreference): PhoneBridgeSendResult =
         sendSession { sessionId, now ->
+            lastScanStartMs = now
             PhoneBridgeMessage.CaptureRequest(
                 requestId = nextId(), sessionId = sessionId, deviceId = glassesDeviceId,
                 timestamp = now, expiresAt = now + ACTION_TTL_MS,
@@ -76,19 +98,21 @@ class RealKScanPhoneBridgeProvider(
 
     override suspend fun saveResult(resultId: String, productTitle: String?): PhoneBridgeSendResult =
         sendSession { sessionId, now ->
+            val actionId = stableActionId("save", resultId)
             PhoneBridgeMessage.ActionSave(
                 requestId = nextId(), sessionId = sessionId, deviceId = glassesDeviceId,
                 timestamp = now, expiresAt = now + ACTION_TTL_MS,
-                payload = ActionSavePayload(resultId, productTitle),
+                payload = ActionSavePayload(resultId = resultId, productTitle = productTitle, actionId = actionId),
             )
         }
 
     override suspend fun openOnPhone(resultId: String): PhoneBridgeSendResult =
         sendSession { sessionId, now ->
+            val actionId = stableActionId("open", resultId)
             PhoneBridgeMessage.ActionOpenOnPhone(
                 requestId = nextId(), sessionId = sessionId, deviceId = glassesDeviceId,
                 timestamp = now, expiresAt = now + ACTION_TTL_MS,
-                payload = ActionOpenOnPhonePayload(resultId),
+                payload = ActionOpenOnPhonePayload(resultId = resultId, actionId = actionId),
             )
         }
 
@@ -128,6 +152,7 @@ class RealKScanPhoneBridgeProvider(
                         _pairingCode.value = null
                         _status.value = PhoneBridgeProviderStatus.ACTIVE
                         startSessionPolling()
+                        refreshDiagnostics()
                         return@launch
                     }
                 } catch (_: Exception) {
@@ -154,8 +179,10 @@ class RealKScanPhoneBridgeProvider(
                     consecutiveFailures = 0
                     if (reportedLost) {
                         reportedLost = false
+                        reconnectCount += 1
                         _status.value = PhoneBridgeProviderStatus.ACTIVE
                         _events.emit(PhoneBridgeEvent.ConnectionRestored)
+                        refreshDiagnostics()
                     }
                 } catch (_: Exception) {
                     consecutiveFailures += 1
@@ -163,6 +190,7 @@ class RealKScanPhoneBridgeProvider(
                         reportedLost = true
                         _status.value = PhoneBridgeProviderStatus.UNAVAILABLE
                         _events.emit(PhoneBridgeEvent.ConnectionLost(ConnectionLostReason.TRANSPORT_LOST))
+                        refreshDiagnostics()
                     }
                 }
                 delay(pollIntervalMs)
@@ -172,11 +200,30 @@ class RealKScanPhoneBridgeProvider(
 
     private suspend fun acceptFrames(frames: List<String>) {
         for (raw in frames) {
-            val accepted = validator.validateIncoming(raw) as? PhoneBridgeValidator.ValidationResult.Accepted
-                ?: continue
+            val result = validator.validateIncoming(raw)
+            if (result is PhoneBridgeValidator.ValidationResult.Rejected) {
+                lastSafeError = result.code.name
+                refreshDiagnostics()
+                continue
+            }
+            val accepted = result as PhoneBridgeValidator.ValidationResult.Accepted
             val event = accepted.message.toEvent() ?: continue
-            if (event is PhoneBridgeEvent.SessionRevoked) wearableToken = null
+            when (event) {
+                is PhoneBridgeEvent.ScanCompleted -> {
+                    scanSuccessCount += 1
+                    lastScanDurationMs = clock() - lastScanStartMs
+                }
+                is PhoneBridgeEvent.ScanFailed -> {
+                    scanFailCount += 1
+                    lastScanDurationMs = clock() - lastScanStartMs
+                    lastSafeError = event.code.name
+                }
+                is PhoneBridgeEvent.SessionError -> lastSafeError = event.code
+                is PhoneBridgeEvent.SessionRevoked -> wearableToken = null
+                else -> Unit
+            }
             _events.emit(event)
+            refreshDiagnostics()
         }
     }
 
@@ -187,15 +234,48 @@ class RealKScanPhoneBridgeProvider(
             wearableToken = null
             return PhoneBridgeSendResult.Unavailable
         }
+        val message = build(sessionId, clock())
+        lastRequestId = message.requestId
+        refreshDiagnostics()
         return try {
-            api.send(token, validator.validateOutgoing(build(sessionId, clock())))
+            api.send(token, validator.validateOutgoing(message))
             PhoneBridgeSendResult.Sent
         } catch (_: Exception) {
             PhoneBridgeSendResult.Unavailable
         }
     }
 
+    /** Builds the staging diagnostics snapshot. No secrets, no tokens, no raw payloads. */
+    private fun refreshDiagnostics() {
+        val now = clock()
+        val sessionExpiry = validator.sessionExpiresAt
+        val expirySec = sessionExpiry?.let { ((it - now) / 1_000).coerceAtLeast(0) }
+        _diagnostics.value = listOf(
+            "Bridge host" to bridgeUrlHost.ifBlank { "NOT CONFIGURED" },
+            "Provider" to "RealKScanPhoneBridge",
+            "Connection" to status.value.name,
+            "Pairing" to if (pairingCode.value != null) "PAIRING" else "IDLE",
+            "Session" to when {
+                wearableToken == null -> "NONE"
+                validator.sessionRevoked -> "REVOKED"
+                validator.sessionReady -> "READY"
+                else -> "ACTIVE"
+            },
+            "Session TTL" to (expirySec?.let { "${it}s" } ?: "—"),
+            "Last request" to lastRequestId.take(8),
+            "Last error" to lastSafeError,
+            "Last scan" to if (lastScanDurationMs > 0) "${lastScanDurationMs}ms" else "—",
+            "Reconnects" to reconnectCount.toString(),
+            "Scans OK" to scanSuccessCount.toString(),
+            "Scans FAIL" to scanFailCount.toString(),
+            "Capture" to "PHONE-OWNED",
+            "Sanitizer" to "PHONE ML KIT / FAIL-CLOSED",
+        )
+    }
+
     private fun nextId(): String = UUID.randomUUID().toString()
+
+    private fun stableActionId(type: String, resultId: String): String = "$type:$resultId"
 
     companion object {
         private const val TAG = "RealPhoneBridge"

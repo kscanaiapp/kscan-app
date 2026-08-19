@@ -35,15 +35,13 @@ fun KScanGlassesApp(viewModel: KScanViewModel) {
     val hasDisplay by viewModel.hasDisplay.collectAsState()
     val lastVoice by viewModel.lastVoiceAction.collectAsState()
     val runtimeStatus = viewModel.runtimeStatus
+    val bridgeDiagnostics by viewModel.phoneBridgeDiagnostics.collectAsState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            // True-black HUD root; near-black tones live only inside cards/chips.
             .background(Color.Black),
     ) {
-        // Persistent honesty header on every screen: ALPHA, MOCK (when any mock
-        // component is active), pipeline state, and HW VALIDATION PENDING.
         Box(modifier = Modifier.padding(start = 20.dp, top = 12.dp)) {
             RuntimeStatusHeader(status = runtimeStatus)
         }
@@ -74,18 +72,15 @@ fun KScanGlassesApp(viewModel: KScanViewModel) {
                     voiceSamples = viewModel.settingsVoiceSamples,
                     onToggleAudioOnly = { viewModel.toggleAudioOnlyMode(it) },
                     onSimulateVoice = viewModel::simulateVoice,
-                    diagnostics = if (viewModel.connectedMode) listOf(
-                        "App" to BuildConfig.VERSION_NAME,
-                        "Source" to BuildConfig.KSCAN_BUILD_SHA.take(12),
-                        "Build" to BuildConfig.BUILD_TYPE.uppercase(),
-                        "Android" to "API ${Build.VERSION.SDK_INT}",
-                        "XR state" to if (BuildConfig.HARDWARE_CANDIDATE) "CANDIDATE / HW PENDING" else "DEV / EMULATOR",
-                        "Bridge" to (viewModel.phoneBridgeStatus.value?.name ?: "UNAVAILABLE"),
-                        "Capture" to "PHONE-OWNED",
-                        "Privacy" to "PHONE ML KIT / FAIL-CLOSED",
-                        "Network" to "HTTPS RESULT-ONLY",
-                        "Secrets" to "NOT DISPLAYED",
-                    ) else emptyList(),
+                    diagnostics = if (viewModel.connectedMode) {
+                        listOf(
+                            "App" to BuildConfig.VERSION_NAME,
+                            "Source" to BuildConfig.KSCAN_BUILD_SHA.take(12),
+                            "Build" to BuildConfig.BUILD_TYPE.uppercase(),
+                            "Android" to "API ${Build.VERSION.SDK_INT}",
+                            "XR state" to if (BuildConfig.HARDWARE_CANDIDATE) "CANDIDATE / HW PENDING" else "DEV / EMULATOR",
+                        ) + bridgeDiagnostics
+                    } else emptyList(),
                 )
                 AppScreen.ERROR -> ErrorScreen(
                     message = error ?: "Unknown error",
@@ -97,7 +92,6 @@ fun KScanGlassesApp(viewModel: KScanViewModel) {
     }
 }
 
-/** Connected-mode root: machine-driven HUD with the persistent honesty header. */
 @Composable
 private fun ConnectedHudDestination(
     viewModel: KScanViewModel,

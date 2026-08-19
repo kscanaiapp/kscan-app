@@ -62,18 +62,21 @@ class MockPhoneBridgeProvider private constructor(
 
     private val _events = MutableSharedFlow<PhoneBridgeEvent>(extraBufferCapacity = EVENT_BUFFER)
     override val events: SharedFlow<PhoneBridgeEvent> = _events.asSharedFlow()
+
     private val _pairingCode = MutableStateFlow<String?>(null)
     override val pairingCode: StateFlow<String?> = _pairingCode.asStateFlow()
+
+    private val _diagnostics = MutableStateFlow<List<Pair<String, String>>>(emptyList())
+    override val diagnostics: StateFlow<List<Pair<String, String>>> = _diagnostics.asStateFlow()
 
     private var idCounter = 0
     private fun nextId(): String = "glasses-req-${++idCounter}"
 
     init {
-        // Glasses-side inbound: validate every raw frame; accepted ones become events.
         scope.launch {
             transports.glassesSide.incoming.collect { raw ->
                 val accepted = validator.validateIncoming(raw) as? PhoneBridgeValidator.ValidationResult.Accepted
-                    ?: return@collect // rejections are already SafeLogged code-only
+                    ?: return@collect
                 val event = accepted.message.toEvent() ?: return@collect
                 when (event) {
                     is PhoneBridgeEvent.ConnectionLost -> _status.value = PhoneBridgeProviderStatus.UNAVAILABLE
@@ -83,7 +86,6 @@ class MockPhoneBridgeProvider private constructor(
                 _events.emit(event)
             }
         }
-        // Phone-side inbound: hand glasses frames to the mock companion.
         scope.launch {
             transports.phoneSide.incoming.collect { raw -> companion.handleIncoming(raw) }
         }
@@ -122,7 +124,7 @@ class MockPhoneBridgeProvider private constructor(
                 sessionId = sessionId,
                 deviceId = glassesDeviceId,
                 timestamp = clock(),
-                payload = ActionSavePayload(resultId = resultId, productTitle = productTitle),
+                payload = ActionSavePayload(resultId = resultId, productTitle = productTitle, actionId = "save:$resultId"),
             ),
         )
     }
@@ -135,7 +137,7 @@ class MockPhoneBridgeProvider private constructor(
                 sessionId = sessionId,
                 deviceId = glassesDeviceId,
                 timestamp = clock(),
-                payload = ActionOpenOnPhonePayload(resultId = resultId),
+                payload = ActionOpenOnPhonePayload(resultId = resultId, actionId = "open:$resultId"),
             ),
         )
     }
@@ -185,11 +187,6 @@ class MockPhoneBridgeProvider private constructor(
         private const val EVENT_BUFFER = 64
         private const val GLASSES_MODEL = "KScan Glasses"
 
-        /**
-         * Creates a started provider. [parentScope] owns the provider's
-         * coroutines via a child supervisor job; production passes an
-         * app-lifetime scope, tests pass a test scope.
-         */
         fun create(
             parentScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
             clock: () -> Long = System::currentTimeMillis,

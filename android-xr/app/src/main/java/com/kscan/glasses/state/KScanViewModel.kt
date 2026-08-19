@@ -148,6 +148,10 @@ class KScanViewModel(
     private val _pairingCode = MutableStateFlow<String?>(null)
     val pairingCode: StateFlow<String?> = _pairingCode.asStateFlow()
 
+    /** Provider diagnostics for the Settings screen staging overlay; empty in legacy mode. */
+    private val _phoneBridgeDiagnostics = MutableStateFlow<List<Pair<String, String>>>(emptyList())
+    val phoneBridgeDiagnostics: StateFlow<List<Pair<String, String>>> = _phoneBridgeDiagnostics.asStateFlow()
+
     /** Focusable rows for the connected HUD, rebuilt on every state change. */
     private val _connectedItems = MutableStateFlow<List<ConnectedFocusItem>>(emptyList())
     val connectedItems: StateFlow<List<ConnectedFocusItem>> = _connectedItems.asStateFlow()
@@ -176,6 +180,9 @@ class KScanViewModel(
         }
         viewModelScope.launch {
             provider.pairingCode.collect { _pairingCode.value = it }
+        }
+        viewModelScope.launch {
+            provider.diagnostics.collect { _phoneBridgeDiagnostics.value = it }
         }
         viewModelScope.launch {
             provider.events.collect { machine.on(ConnectedInput.Bridge(it)) }
@@ -416,11 +423,6 @@ class KScanViewModel(
             }
             is ScanOrchestratorResult.DryRunReady -> {
                 _orchestratorState.value = ScanOrchestratorState.COMPLETE
-                // "Ready" here means CONFIGURATION GATE ready only: the dry-run
-                // evaluated flags/URL/debug config without any transport, and the
-                // image privacy stage has NOT run for real (face masking is not
-                // implemented in this build; strict mode fails closed). Never
-                // describe this as live analysis readiness.
                 _results.value = ResultsUiState(
                     summary = "Dry-run gate ready (config only)",
                     topProducts = emptyList(),
@@ -443,8 +445,6 @@ class KScanViewModel(
 
     fun onInput(input: GlassesInput) {
         if (connectedMode) {
-            // Connected mode: the machine owns CONNECTED; Closet/Settings remain
-            // as legacy overlay screens. No other legacy screen is reachable.
             when (_screen.value) {
                 AppScreen.CONNECTED -> handleConnectedInput(input)
                 AppScreen.SETTINGS -> handleSettingsInput(input)
@@ -482,11 +482,8 @@ class KScanViewModel(
             AppScreen.RESULTS -> handleResultsScreenInput(input)
             AppScreen.SETTINGS -> handleSettingsInput(input)
             AppScreen.LIBRARY -> handleLibraryInput(input)
-            // Select retries; Back/Left also exit the error state — the primary
-            // navigation key must never dead-end on a nested screen.
             AppScreen.ERROR -> if (input is GlassesInput.Select || input is GlassesInput.Back || input is GlassesInput.Left) retryFromError()
             AppScreen.PROCESSING -> Unit
-            // Reachable only defensively: onInput short-circuits connected mode.
             AppScreen.CONNECTED -> handleConnectedInput(input)
         }
     }
@@ -578,9 +575,6 @@ class KScanViewModel(
             }
             VoiceAction.WAKE, VoiceAction.UNKNOWN -> Unit
         }
-        // Voice-mapped presses are not re-routed while on SETTINGS: the settings
-        // voice cards inject these same phrases, so re-routing a mapped Select
-        // would re-activate the card and loop.
         mappedInput?.let {
             if (it !is GlassesInput.ScanShortcut && _screen.value != AppScreen.SETTINGS) routeFocusInput(it)
         }

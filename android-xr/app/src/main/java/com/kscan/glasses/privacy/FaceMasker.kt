@@ -100,6 +100,10 @@ class FaceMasker(
         }
 
         // Encode masked bitmap to JPEG base64.
+        // EXIF / GPS metadata guarantee: The source bytes are decoded into an
+        // Android Bitmap, which discards all original metadata. The masked output
+        // is rendered into a fresh ARGB_8888 bitmap and re-compressed as JPEG.
+        // No EXIF, GPS, or original metadata survives this path.
         val outputStream = ByteArrayOutputStream()
         if (!maskedBitmap.compress(Bitmap.CompressFormat.JPEG, 85, outputStream)) {
             return MaskResult.Error("JPEG encode failed")
