@@ -28,7 +28,27 @@ import { WardrobeDuplicateHintCard } from './WardrobeDuplicateHintCard';
 import { WearAgainSuggestionCard } from './WearAgainSuggestionCard';
 import { WishlistIntentCard } from './WishlistIntentCard';
 
-export type UtilityPanelContext = 'scan' | 'library' | 'product' | 'room' | 'home';
+/**
+ * Which journey the panel is rendering inside.
+ *
+ * `scan_result` was split out of `library` because that value conflated two
+ * different journeys: the scan-to-commerce funnel (a live scan result, or the
+ * same result reopened from Recent Scans) and the Closet owned-item lifecycle.
+ * They are not the same page and must not carry the same surfaces — a reopened
+ * Recent Scan is still discovery, not wardrobe maintenance.
+ */
+export type UtilityPanelContext =
+  | 'scan'
+  | 'scan_result'
+  | 'library'
+  | 'product'
+  | 'room'
+  | 'home';
+
+/** True for any surface inside the scan-to-commerce funnel. */
+export function isScanFunnelContext(context: UtilityPanelContext): boolean {
+  return context === 'scan' || context === 'scan_result';
+}
 
 export function SavedItemUtilityPanel(props: {
   item: NormalizedItem | null | undefined;
@@ -56,11 +76,32 @@ export function SavedItemUtilityPanel(props: {
         <WardrobeDuplicateHintCard candidate={props.item} savedItems={related} />
       ) : null}
       {props.item.brand ? <BrandSizingNoteCard brand={props.item.brand} /> : null}
-      {context !== 'product' ? <CareNoteCard itemId={props.item.id} /> : null}
-      {context !== 'product' ? (
+
+      {/* Care Notes — reserved for K+ owned-item management. Withheld from the
+          whole scan-to-commerce funnel: a user deciding whether to BUY a piece
+          has nothing to care for yet. The component and its data model are
+          intentionally left intact for that later surface. */}
+      {!isScanFunnelContext(context) && context !== 'product' ? (
+        <CareNoteCard itemId={props.item.id} />
+      ) : null}
+
+      {/* Rate this piece — post-ownership feedback, so it belongs to the Closet
+          lifecycle and never to discovery. Kept available for owned-item
+          contexts; note that no Closet surface mounts this panel today, so this
+          preserves the capability rather than displaying it. */}
+      {!isScanFunnelContext(context) && context !== 'product' ? (
         <OutfitRatingCard targetId={props.item.id} title="Rate this piece" />
       ) : null}
-      {context !== 'product' ? <CostPerWearCard item={props.item} /> : null}
+
+      {/* Wear tracker / cost per wear — K+ owned-item analytics. Same reasoning
+          as Care Notes: meaningless before the purchase decision. */}
+      {!isScanFunnelContext(context) && context !== 'product' ? (
+        <CostPerWearCard item={props.item} />
+      ) : null}
+
+      {/* Shopping Intent stays in every context. It is deliberately rendered
+          after the host's commerce section, never before it: the user should
+          see what they can buy before being asked what they intend to do. */}
       <WishlistIntentCard item={props.item} />
       {related.length > 0 ? (
         <CompleteTheLookCard
