@@ -590,3 +590,98 @@ test('the header emits a sample at each utterance boundary in dev', () => {
   const emitBlock = header.slice(header.indexOf('previousPhaseRef'));
   assert.match(emitBlock, /if\s*\(!engineActive\)\s*return;/);
 });
+
+// -- Measurement-integrity regressions ---------------------------------------
+
+test('STALL_HOLD counts only gaps DURING playback, never ordinary startup', () => {
+  // Regression: the adapter reports playbackAvailable=false for every
+  // non-playing phase, so `requesting`, `ready` and `idle` frames each counted
+  // as a hold. A clean utterance reported 3 stall events, which would have made
+  // a real stall indistinguishable from a normal run in the first dataset.
+  const { bridge } = loadShadowGraph();
+  const alignment = HELLO();
+  const observe = (phase, playbackSeconds, hostNowMs) =>
+    bridge.observeAvatarShadowFrame({
+      avatarId: SARAH,
+      speech: speechState({ phase, playbackSeconds, alignment: phase === 'requesting' ? null : alignment }),
+      scopeMatches: true, reduceMotion: false, foreground: true,
+      motionEpoch: 1, hostNowMs, legacyMouthState: 'closed',
+    });
+
+  observe('requesting', 0, 0);
+  observe('ready', 0, 100);
+  SWEEP.forEach((seconds, index) => observe('playing', seconds, 200 + index * 80));
+  observe('idle', 0, 3000);
+
+  assert.equal(
+    bridge.getAvatarShadowReport().engine.counters.PLAYBACK_HOLD_EVENTS,
+    0,
+    'an utterance with no stall must report zero hold events',
+  );
+});
+
+test('completion and interruption reach the engine, not just the legacy counters', () => {
+  // Regression: the adapter never called endSpeech, so RESET_COMPLETION and
+  // RESET_INTERRUPTION stayed at zero forever. The shadow report compares
+  // legacy resets against engine resets, so a permanent zero read as V10
+  // failing to reset when nothing had ever asked it to.
+  const { bridge } = loadShadowGraph();
+  const alignment = HELLO();
+  const observe = (generation, phase, playbackSeconds) =>
+    bridge.observeAvatarShadowFrame({
+      avatarId: SARAH,
+      speech: speechState({ generation, phase, playbackSeconds, alignment }),
+      scopeMatches: true, reduceMotion: false, foreground: true,
+      motionEpoch: 1, hostNowMs: 0, legacyMouthState: 'closed',
+    });
+
+  observe(1, 'playing', 0.2);
+  observe(1, 'idle', 0);
+  observe(2, 'playing', 0.2);
+  observe(2, 'stopping', 0);
+
+  const report = bridge.getAvatarShadowReport();
+  assert.equal(report.engine.counters.RESET_COMPLETION, 1, 'engine must see the completion');
+  assert.equal(report.engine.counters.RESET_INTERRUPTION, 1, 'engine must see the interruption');
+  assert.equal(report.legacy.resets.completion, report.engine.counters.RESET_COMPLETION);
+  assert.equal(report.legacy.resets.interruption, report.engine.counters.RESET_INTERRUPTION);
+});
+
+test('a superseding utterance is a new-utterance reset, not a completion', () => {
+  const { AvatarEngineHostAdapter } = loadAdapter();
+  const adapter = new AvatarEngineHostAdapter();
+  const alignment = HELLO();
+  const frame = (generation, phase, playbackSeconds) =>
+    adapter.computeFrame({
+      avatarId: SARAH,
+      speech: { avatarId: SARAH, generation, phase, playbackSeconds, alignment },
+      scopeMatches: true, reduceMotion: false, foreground: true,
+      motionEpoch: 0, hostNowMs: 0,
+    });
+
+  frame(1, 'playing', 0.2);
+  // Generation 2 arrives without generation 1 ever reporting idle.
+  frame(2, 'playing', 0.1);
+
+  const counters = adapter.metricsSnapshot().counters;
+  assert.equal(counters.RESET_COMPLETION, 0, 'a supersede must not be miscounted as a completion');
+  assert.ok(counters.RESET_NEW_UTTERANCE >= 1);
+});
+
+test('completion discards the timeline rather than leaving it resident', () => {
+  const { AvatarEngineHostAdapter } = loadAdapter();
+  const adapter = new AvatarEngineHostAdapter();
+  const alignment = HELLO();
+  const frame = (phase, playbackSeconds) =>
+    adapter.computeFrame({
+      avatarId: SARAH,
+      speech: { avatarId: SARAH, generation: 1, phase, playbackSeconds, alignment },
+      scopeMatches: true, reduceMotion: false, foreground: true,
+      motionEpoch: 0, hostNowMs: 0,
+    });
+
+  frame('playing', 0.2);
+  assert.ok(adapter.debugState().timelineIntervals > 0);
+  frame('idle', 0);
+  assert.equal(adapter.debugState().timelineIntervals, 0, 'the timeline must not linger past completion');
+});
