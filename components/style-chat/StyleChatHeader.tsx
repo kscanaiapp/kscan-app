@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
@@ -12,6 +12,9 @@ import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useAvatarSpeechState } from '../../stores/avatarSpeechStore';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
 import { deriveAvatarMouthState } from '../../services/avatarSpeechMotion';
+import { isAvatarEngineActive } from '../../services/avatars/avatarVisualMode';
+import { resolveAvatarMotionEpoch } from '../../services/avatars/avatarMotionEpoch';
+import { observeAvatarShadowFrame } from '../../services/avatars/avatarShadowBridge';
 
 interface StyleChatHeaderProps {
   showBadge?: boolean;
@@ -66,6 +69,37 @@ export function StyleChatHeader({
       reducedMotion,
     });
   }, [isSpeaking, speechState.phase, speechState.playbackSeconds, speechState.alignment, reducedMotion]);
+
+  // Avatar Engine V10 shadow observation.
+  //
+  // The legacy value above is computed, rendered and remains authoritative.
+  // V10 recalculates the SAME snapshot and records metrics, then its answer is
+  // discarded. Nothing below changes a pixel.
+  //
+  // It runs in an effect rather than during render for two reasons: the visible
+  // path must not pay for V10's calculation, and a shadow system must never sit
+  // between the host and what it draws. It also reuses the `speechState` this
+  // component already subscribed to, so no second subscription, no duplicated
+  // speech state and no second playback clock is introduced.
+  const engineActive = isAvatarEngineActive();
+  useEffect(() => {
+    if (!engineActive) return;
+    observeAvatarShadowFrame({
+      avatarId: identity.avatarId,
+      speech: speechState,
+      scopeMatches: isSpeaking,
+      reduceMotion: reducedMotion,
+      foreground: true,
+      motionEpoch: resolveAvatarMotionEpoch({
+        actorId,
+        sessionId: sessionId ?? null,
+        avatarId: identity.avatarId,
+      }),
+      hostNowMs: Date.now(),
+      legacyMouthState: mouthState,
+    });
+  }, [engineActive, identity.avatarId, speechState, isSpeaking, reducedMotion, actorId, sessionId, mouthState]);
+
   const displayName = identity.displayName;
   const headerAccessibilityLabel = `${displayName}, ${ELISE_IDENTITY.role}`;
 
