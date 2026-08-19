@@ -7,6 +7,7 @@
  * enforces it.
  */
 
+export * from './version';
 export * from './types';
 export * from './contract';
 export * from './config';

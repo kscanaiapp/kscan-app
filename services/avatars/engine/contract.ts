@@ -32,6 +32,8 @@ import type {
  * fields do not bump it; a renamed, removed or retyped field does.
  */
 export const AVATAR_ENGINE_CONTRACT_VERSION = 2 as const;
+// NOTE: this is the WIRE CONTRACT version, not the engine's product version
+// ('V10') and not its package semver ('10.0.0'). See ./version.ts.
 export type AvatarEngineContractVersion = typeof AVATAR_ENGINE_CONTRACT_VERSION;
 
 // ── Host → engine ────────────────────────────────────────────────────────────
