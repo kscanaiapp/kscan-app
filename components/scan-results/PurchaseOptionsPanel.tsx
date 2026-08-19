@@ -16,6 +16,32 @@ import { selectCommerceDestination } from '../../services/commerceDestination';
 interface PurchaseOptionsPanelProps {
   purchaseOptions?: PurchaseOption[];
   testID?: string;
+  /**
+   * v127 (P1-B): deferred commerce lifecycle. 'idle' (the default) leaves
+   * this panel exactly as it behaves without this prop — data or the
+   * existing empty state. 'pending'/'error' apply only while there is no
+   * data yet; once options arrive they always render regardless of status.
+   */
+  commerceStatus?: 'idle' | 'pending' | 'success' | 'empty' | 'error';
+  /** Present only when a failed deferred fetch is retryable. */
+  onRetry?: () => void;
+}
+
+/**
+ * Which treatment this panel shows. Pulled out of the JSX branch so this
+ * exact precedence is independently testable — a pure decision, not a
+ * parallel copy of it. Options in hand always win, regardless of status: a
+ * stale 'error' from before a successful retry must never hide options that
+ * already arrived.
+ */
+export function resolvePurchaseOptionsPanelMode(
+  hasData: boolean,
+  commerceStatus: string,
+): 'data' | 'pending' | 'error' | 'empty' {
+  if (hasData) return 'data';
+  if (commerceStatus === 'pending') return 'pending';
+  if (commerceStatus === 'error') return 'error';
+  return 'empty';
 }
 
 /**
@@ -28,14 +54,17 @@ interface PurchaseOptionsPanelProps {
 export function PurchaseOptionsPanel({
   purchaseOptions,
   testID,
+  commerceStatus = 'idle',
+  onRetry,
 }: PurchaseOptionsPanelProps) {
   const hasData = Array.isArray(purchaseOptions) && purchaseOptions.length > 0;
+  const mode = resolvePurchaseOptionsPanelMode(hasData, commerceStatus);
 
   return (
     <View style={styles.container} testID={testID ?? 'purchase-options-panel'}>
       <SectionHeader title="MATCHING PRODUCTS" />
 
-      {hasData ? (
+      {mode === 'data' ? (
         <View style={styles.list}>
           {purchaseOptions!.map((option, index) => {
             // Validated rather than merely present: an unsafe or malformed URL
@@ -96,6 +125,21 @@ export function PurchaseOptionsPanel({
             );
           })}
         </View>
+      ) : mode === 'pending' ? (
+        <InlineNotice
+          variant="info"
+          body="Finding where to buy this…"
+          testID="purchase-options-pending"
+          accessibilityRole="text"
+        />
+      ) : mode === 'error' ? (
+        <InlineNotice
+          variant="error"
+          body="Couldn't load purchase options."
+          action={onRetry ? { label: 'Retry', onPress: onRetry, testID: 'purchase-options-retry' } : undefined}
+          testID="purchase-options-error"
+          accessibilityRole="alert"
+        />
       ) : (
         <EmptyStateCard
           title="Matching products will appear here for shoppable looks."

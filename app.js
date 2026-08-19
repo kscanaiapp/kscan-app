@@ -1082,6 +1082,12 @@ export default function App() {
             analysis={analysis}
             scanImageUri={photo?.uri ?? null}
             scanSourceId={photo?.qaFixtureName ?? null}
+            // v127 (P1-B): only meaningful on this live-scan surface — a
+            // reopened Recent Scan (app/library.tsx) renders AnalysisCard
+            // without this prop, so it stays 'idle' there and the section
+            // keeps its pre-existing hidden-when-empty behavior.
+            commerceStatus={analysis?.commerceDeferred ? commerceStatus : 'idle'}
+            onRetryCommerce={retryCommerce}
             onDismiss={dismissResult}
             onSaveToLibrary={savedScanId ? () => router.push('/library') : undefined}
             saveActionLabel={savedScanId ? 'View Closet' : undefined}
