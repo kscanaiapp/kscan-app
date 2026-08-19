@@ -243,6 +243,8 @@ export const AI_STYLIST_BACKEND_ENABLED =
  */
 export const STYLECHAT_ATTACHMENTS_ENABLED =
   process.env.EXPO_PUBLIC_STYLECHAT_ATTACHMENTS_ENABLED === 'true';
+export const ELISE_VISUAL_ATTACHMENTS_V1_ENABLED =
+  process.env.EXPO_PUBLIC_ELISE_VISUAL_ATTACHMENTS_V1_ENABLED === 'true';
 
 // ── Dressing Rooms DR-1 canonical item / commerce / dedupe ───────────────────
 /**

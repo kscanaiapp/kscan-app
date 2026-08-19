@@ -233,6 +233,7 @@ export function StyleChatAttachmentBar({
       ) : null}
       {picker === 'look' ? (
         <LookPickerModal
+          stylistDisplayName={resolvedStylistName}
           onClose={() => setPicker(null)}
           onSelect={(look) => {
             const result = onAddLook(look);
