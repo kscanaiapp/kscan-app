@@ -54,6 +54,8 @@ import {
 } from './shoppingProvider.ts';
 import {
   getScanCommerceResults,
+  getFastCommerceResults,
+  enrichCommerceOffers,
   type ScanCommerceResult,
 } from './scanCommerceRouter.ts';
 // Phase 2B.1 activation. Explicit `.ts` specifiers (Deno requirement) also put
@@ -123,6 +125,11 @@ import {
   COMMERCE_RETRIEVAL_VERSION,
 } from './commerceRetrievalConfig.ts';
 import {
+  isCommerceFunnelEnabled,
+  COMMERCE_FUNNEL_VERSION,
+} from './commerceFunnelConfig.ts';
+import { buildCanonicalCommerce } from './canonicalCommerce.ts';
+import {
   mapToFailureReason,
 } from './commerceRelevanceFailure.ts';
 import {
@@ -179,6 +186,17 @@ const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models
 const DEFAULT_MIME = 'image/jpeg';
 const ANON_SCAN_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const ANON_SCAN_RATE_LIMIT_MAX = 6;
+// MODE B (commerce-only) has no bearer-token requirement at all — verify_jwt
+// is off for this function and an attacker can simply omit the Authorization
+// header, so gating by auth state would not bound anything. This is the same
+// IP+UA fingerprint authority the anonymous image path already uses, applied
+// uniformly regardless of auth state, so it is the actual spend boundary
+// rather than a check an attacker can route around. The window matches the
+// image-scan limiter; the max is higher because one legitimate scan issues
+// roughly 2-3 MODE B calls (discovery, optional enrichment, an occasional
+// user retry) against potentially several scans in one session.
+const COMMERCE_ONLY_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const COMMERCE_ONLY_RATE_LIMIT_MAX = 40;
 const SCAN_IDENTIFY_IMAGE_DAILY_LIMIT_DEFAULT = 30;
 const SCAN_IDENTIFY_TEXT_DAILY_LIMIT_DEFAULT = 50;
 const PROJECT_ACCESS_CACHE_MS = 5 * 60 * 1000;
@@ -273,6 +291,9 @@ type ShoppingMeta = {
   similarityMatches?: number;
   commerceSkipped?: boolean;
   reason?: string;
+  /** v127: commerce was deferred to a follow-up commerce-only (MODE B) request. */
+  deferred?: boolean;
+  funnelVersion?: string;
 };
 
 type AnonymousRateEntry = {
@@ -287,6 +308,11 @@ type ProjectAccessCacheEntry = {
 
 const anonymousScanRateLimits = new Map<string, AnonymousRateEntry>();
 const projectAccessCache = new Map<string, ProjectAccessCacheEntry>();
+// A separate map from `anonymousScanRateLimits`: that one only ever sees
+// anonymous image scans, and MODE B is checked for every caller regardless of
+// auth state. Sharing the map would let commerce-only traffic exhaust an
+// anonymous user's scan budget, or vice versa.
+const commerceOnlyRateLimits = new Map<string, AnonymousRateEntry>();
 
 // ── Provider prompts (server-side only) ────────────────────────────────────────
 
@@ -1291,36 +1317,66 @@ function buildRateLimitedResponse(): Record<string, unknown> {
   };
 }
 
+/** Shared sliding-window limiter body. Each caller owns its own map/budget. */
+function checkSlidingWindowRateLimit(
+  map: Map<string, AnonymousRateEntry>,
+  fingerprint: string,
+  windowMs: number,
+  max: number,
+): { allowed: boolean; retryAfterSeconds: number; count: number } {
+  const now = Date.now();
+  if (map.size > 1000) {
+    for (const [key, entry] of map.entries()) {
+      if (now - entry.windowStart > windowMs * 2) {
+        map.delete(key);
+      }
+    }
+  }
+
+  const current = map.get(fingerprint);
+  const entry = !current || now - current.windowStart >= windowMs
+    ? { windowStart: now, count: 0 }
+    : current;
+  entry.count += 1;
+  map.set(fingerprint, entry);
+
+  const retryAfterSeconds = Math.max(1, Math.ceil((entry.windowStart + windowMs - now) / 1000));
+  return { allowed: entry.count <= max, retryAfterSeconds, count: entry.count };
+}
+
 function checkAnonymousImageRateLimit(fingerprint: string): {
   allowed: boolean;
   retryAfterSeconds: number;
   count: number;
 } {
-  const now = Date.now();
-  if (anonymousScanRateLimits.size > 1000) {
-    for (const [key, entry] of anonymousScanRateLimits.entries()) {
-      if (now - entry.windowStart > ANON_SCAN_RATE_LIMIT_WINDOW_MS * 2) {
-        anonymousScanRateLimits.delete(key);
-      }
-    }
-  }
-
-  const current = anonymousScanRateLimits.get(fingerprint);
-  const entry = !current || now - current.windowStart >= ANON_SCAN_RATE_LIMIT_WINDOW_MS
-    ? { windowStart: now, count: 0 }
-    : current;
-  entry.count += 1;
-  anonymousScanRateLimits.set(fingerprint, entry);
-
-  const retryAfterSeconds = Math.max(
-    1,
-    Math.ceil((entry.windowStart + ANON_SCAN_RATE_LIMIT_WINDOW_MS - now) / 1000),
+  return checkSlidingWindowRateLimit(
+    anonymousScanRateLimits,
+    fingerprint,
+    ANON_SCAN_RATE_LIMIT_WINDOW_MS,
+    ANON_SCAN_RATE_LIMIT_MAX,
   );
-  return {
-    allowed: entry.count <= ANON_SCAN_RATE_LIMIT_MAX,
-    retryAfterSeconds,
-    count: entry.count,
-  };
+}
+
+/**
+ * Bound MODE B provider spend (P1-A repair).
+ *
+ * MODE B has no bearer-token requirement — `verify_jwt` is off for this
+ * function, so an attacker can omit the Authorization header entirely and
+ * gating by auth state would not bound anything. Checked for EVERY caller
+ * regardless of auth state, before any provider work, using the same IP+UA
+ * fingerprint authority the anonymous image path already uses.
+ */
+function checkCommerceOnlyRateLimit(fingerprint: string): {
+  allowed: boolean;
+  retryAfterSeconds: number;
+  count: number;
+} {
+  return checkSlidingWindowRateLimit(
+    commerceOnlyRateLimits,
+    fingerprint,
+    COMMERCE_ONLY_RATE_LIMIT_WINDOW_MS,
+    COMMERCE_ONLY_RATE_LIMIT_MAX,
+  );
 }
 
 function validateImageBase64(imageBase64: string): string | undefined {
@@ -1419,6 +1475,122 @@ function sanitizeAttributes(raw: unknown): Record<string, unknown> | undefined {
 /**
  * Build a sanitized identification object from raw model output.
  */
+// ── v127 MODE B helpers (commerce-only request) ─────────────────────────────
+
+/** A commerce-only request is opt-in and explicit — never inferred. */
+function isCommerceOnlyRequest(body: { requestMode?: unknown }): boolean {
+  return body.requestMode === 'commerce_only';
+}
+
+/**
+ * Hard privacy gate for MODE B.
+ *
+ * The commerce-only path must operate on structured evidence, so an image
+ * payload is not merely unnecessary here — accepting one would create a second
+ * route by which image bytes could reach the commerce stack. Any image-shaped
+ * field is a rejected request, not a silently ignored field, so a client bug
+ * cannot quietly start shipping images.
+ */
+const PROHIBITED_IMAGE_KEYS = [
+  'imageBase64',
+  'image',
+  'imageUrl',
+  'imageUri',
+  'photo',
+  'base64',
+  'evidence',
+];
+
+function rejectImagePayloadForCommerceOnly(
+  body: Record<string, unknown>,
+  path = '',
+  depth = 0,
+): string | null {
+  // Checked at every level, not only the top: `attributes` reaches the provider
+  // query without an allowlist, so a top-level-only sweep left
+  // `attributes.imageBase64` as a second route for image bytes to enter the
+  // commerce stack. Depth is bounded so a hostile body cannot cost time here.
+  if (depth > 4) return null;
+  for (const [key, value] of Object.entries(body)) {
+    if (value === undefined || value === null) continue;
+    const here = path ? `${path}.${key}` : key;
+    if (PROHIBITED_IMAGE_KEYS.includes(key)) return `image_payload_rejected:${here}`;
+    if (typeof value === 'object' && !Array.isArray(value)) {
+      const nested = rejectImagePayloadForCommerceOnly(
+        value as Record<string, unknown>,
+        here,
+        depth + 1,
+      );
+      if (nested) return nested;
+    }
+  }
+  return null;
+}
+
+/**
+ * Bound the free-text MODE B attributes carry.
+ *
+ * Keys are preserved — the ranker and the v125 query builder read named
+ * attributes, and an allowlist here would silently drop commerce signal on the
+ * deferred path only. Values are capped exactly as `searchQueries` already is,
+ * because named attribute values are concatenated into the outbound provider
+ * query and were the one uncapped caller-controlled text on this route.
+ */
+function boundCommerceAttributes(
+  raw: Record<string, unknown>,
+  depth = 0,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (typeof value === 'string') {
+      const bounded = safeString(value);
+      if (bounded !== undefined) out[key] = bounded;
+    } else if (typeof value === 'number' || typeof value === 'boolean') {
+      out[key] = value;
+    } else if (Array.isArray(value)) {
+      out[key] = value
+        .slice(0, MAX_ARRAY_ITEMS)
+        .map((entry) => (typeof entry === 'string' ? safeString(entry) : undefined))
+        .filter((entry): entry is string => entry !== undefined);
+    } else if (value && typeof value === 'object' && depth < 2) {
+      out[key] = boundCommerceAttributes(value as Record<string, unknown>, depth + 1);
+    }
+  }
+  return out;
+}
+
+type CommerceOnlyEvidence = {
+  identification: Record<string, unknown>;
+  attributes?: Record<string, unknown>;
+  searchQueries?: string[];
+  market?: { locale?: string | null; currency?: string | null; country?: string | null };
+};
+
+/** Read the structured evidence MODE B accepts. Nothing else is consumed. */
+function readCommerceOnlyEvidence(
+  body: { identification?: unknown; attributes?: unknown; searchQueries?: unknown; market?: unknown },
+): CommerceOnlyEvidence | null {
+  const identification = sanitizeIdentification(body.identification, true);
+  if (!identification) return null;
+
+  const attributes = body.attributes && typeof body.attributes === 'object' && !Array.isArray(body.attributes)
+    ? boundCommerceAttributes(body.attributes as Record<string, unknown>)
+    : undefined;
+  const searchQueries = safeStringArray(body.searchQueries) ?? undefined;
+
+  let market: CommerceOnlyEvidence['market'];
+  if (body.market && typeof body.market === 'object' && !Array.isArray(body.market)) {
+    const m = body.market as Record<string, unknown>;
+    market = {
+      locale: safeString(m.locale) ?? null,
+      currency: safeString(m.currency) ?? null,
+      country: safeString(m.country) ?? null,
+    };
+  }
+
+  return { identification, attributes, searchQueries, market };
+}
+
 function sanitizeIdentification(
   raw: unknown,
   allowCommerceIdentity = false,
@@ -1702,6 +1874,12 @@ Deno.serve(async (req) => {
     scanId?: unknown;
     scan_id?: unknown;
     id?: unknown;
+    // v127 MODE B (commerce-only). No image field is read on this route.
+    identification?: unknown;
+    attributes?: unknown;
+    searchQueries?: unknown;
+    market?: unknown;
+    enrich?: unknown;
   } = {};
   try {
     body = await req.json();
@@ -1811,6 +1989,186 @@ Deno.serve(async (req) => {
     logUserId,
     String(auth.hasProjectAccess),
   );
+
+  // v127 flag resolution for the commerce-only route. Same env helpers the
+  // inline path uses; resolved here because MODE B returns before the inline
+  // Gemini section where those locals are declared.
+  const commerceFunnelEnabled = isCommerceFunnelEnabled();
+  const qualityTuneEnabledForCommerceOnly = isQualityTuneEnabled();
+  const intelligenceEnabledForCommerceOnly = qualityTuneEnabledForCommerceOnly &&
+    isScannerIntelligenceEnabled();
+  const relevanceEnabledForCommerceOnly = intelligenceEnabledForCommerceOnly &&
+    isCommerceRelevanceEnabled();
+  const commerceIdentityEnabledForCommerceOnly = relevanceEnabledForCommerceOnly &&
+    isCommerceIdentityEnabled();
+  const commerceRetrievalEnabledForCommerceOnly = commerceIdentityEnabledForCommerceOnly &&
+    isCommerceRetrievalEnabled();
+
+  // ── v127 MODE B: commerce-only request ──────────────────────────────────
+  //
+  // Structured evidence in, ranked offers out. No image is accepted and none is
+  // required: this path exists precisely so the scan result can render before
+  // commerce has finished, and so a commerce retry never re-runs Gemini.
+  //
+  // It reuses the same query construction, ranking, filtering, and provider
+  // normalization as the inline path — there is exactly one commerce
+  // implementation, this mode only changes when it runs.
+  if (commerceFunnelEnabled && isCommerceOnlyRequest(body)) {
+    const commerceOnlyStarted = Date.now();
+
+    // Rate limit before anything else in this block: no provider call, no
+    // evidence parsing, no ranking work happens for a request this rejects.
+    const commerceOnlyFingerprint = await sha256Hex(getClientFingerprintMaterial(req));
+    const commerceOnlyRate = checkCommerceOnlyRateLimit(commerceOnlyFingerprint);
+    if (!commerceOnlyRate.allowed) {
+      console.warn(
+        '[scan-identify] commerce_only_rate_limited fingerprint=%s count=%d',
+        commerceOnlyFingerprint.slice(0, 12),
+        commerceOnlyRate.count,
+      );
+      return json(
+        {
+          status: 'failed',
+          error: 'commerce_only_rate_limited',
+          retryAfterSeconds: commerceOnlyRate.retryAfterSeconds,
+          purchaseOptions: [],
+          recommendedProducts: [],
+        },
+        429,
+      );
+    }
+
+    const rejected = rejectImagePayloadForCommerceOnly(body);
+    if (rejected) {
+      console.warn('[scan-identify] commerce_only_rejected reason=%s', rejected);
+      return json(
+        { status: 'failed', error: 'commerce_only_invalid', reason: rejected, purchaseOptions: [], recommendedProducts: [] },
+        400,
+      );
+    }
+
+    const evidence = readCommerceOnlyEvidence(body);
+    if (!evidence) {
+      return json(
+        { status: 'failed', error: 'commerce_only_invalid', reason: 'missing_identification', purchaseOptions: [], recommendedProducts: [] },
+        400,
+      );
+    }
+
+    const gated = applyScannerQualityGate(evidence.identification, evidence.attributes, {
+      commerceIdentityEnabled: commerceIdentityEnabledForCommerceOnly,
+    });
+    // Must match the inline MODE A call exactly (see the `commerceCategoryRoute`
+    // resolution on the image route): `selected_item` without a
+    // `selectedCandidate` returns 'general' unconditionally, and
+    // `identification` is not an input field, so routing by it silently
+    // collapsed every deferred query onto the general template while the
+    // flag-off path kept the category-specific one.
+    const route = resolveScannerCategoryRoute({
+      requestMode: 'legacy_single_item',
+      knownCategory: typeof gated.identification?.item_type === 'string'
+        ? gated.identification.item_type
+        : null,
+      knownSubtype: typeof gated.identification?.subtype === 'string'
+        ? gated.identification.subtype
+        : null,
+    });
+
+    const fast = await getFastCommerceResults({
+      mode: 'image',
+      identification: gated.identification,
+      attributes: gated.attributes,
+      searchQueries: evidence.searchQueries,
+      limit: 10,
+      market: evidence.market,
+      ...(intelligenceEnabledForCommerceOnly
+        ? {
+          qualityDetailLevel: gated.commerceQueryDetailLevel,
+          materialAllowed: !gated.materialSuppressed && gated.qualityBand !== 'low',
+          brandAllowed: !gated.brandSuppressed && hasBrandEvidenceForCommerce(gated.identification),
+        }
+        : {}),
+      ...(relevanceEnabledForCommerceOnly
+        ? { relevanceEnabled: true, relevanceRoute: route, qualityBand: gated.qualityBand }
+        : {}),
+      ...(commerceIdentityEnabledForCommerceOnly
+        ? {
+          commerceIdentityEnabled: true,
+          commerceIdentity: gated.commerceIdentity,
+          commerceRetrievalEnabled: commerceRetrievalEnabledForCommerceOnly,
+        }
+        : {}),
+    }).catch((err) => {
+      console.warn('[scan-identify] commerce_only provider error:', err);
+      return null;
+    });
+
+    if (!fast) {
+      // Commerce failure is never a scan failure — the caller already has a
+      // rendered scan result and simply gets an empty, retryable shelf.
+      return json({
+        status: 'completed',
+        purchaseOptions: [],
+        recommendedProducts: [],
+        commerce: { available: false, retryable: true, errorType: 'provider_error' },
+      }, 200);
+    }
+
+    // Optional bounded enrichment hop, requested explicitly by the client after
+    // first paint. Never runs on the first commerce response.
+    let products = fast.products;
+    let enrichment: Awaited<ReturnType<typeof enrichCommerceOffers>> | null = null;
+    if (body.enrich === true && fast.enrichmentCandidates.length > 0) {
+      enrichment = await enrichCommerceOffers(products, fast.enrichmentCandidates, {
+        includeBrand: commerceIdentityEnabledForCommerceOnly,
+      }).catch(() => null);
+      if (enrichment) products = enrichment.products;
+    }
+
+    const canonical = buildCanonicalCommerce(products);
+
+    console.log(
+      '[scan-identify] commerce_only_done v=%s cacheHit=%s discoveryMs=%d early=%s offers=%d enriched=%d totalMs=%d',
+      COMMERCE_FUNNEL_VERSION,
+      String(fast.funnel.cacheHit),
+      fast.funnel.discoveryMs,
+      String(fast.funnel.earlyExit),
+      products.length,
+      enrichment?.succeeded ?? 0,
+      Date.now() - commerceOnlyStarted,
+    );
+
+    return json({
+      status: 'completed',
+      purchaseOptions: products,
+      recommendedProducts: products,
+      canonicalProducts: canonical.products,
+      commerce: {
+        available: products.length > 0,
+        retryable: products.length === 0,
+        provider: fast.provider,
+        providersTried: fast.providersTried,
+        count: products.length,
+        ...(fast.errorType ? { errorType: fast.errorType } : {}),
+        enrichmentCandidates: fast.enrichmentCandidates,
+        enrichmentAttempted: enrichment?.attempted ?? 0,
+        enrichmentSucceeded: enrichment?.succeeded ?? 0,
+      },
+      funnel: {
+        version: COMMERCE_FUNNEL_VERSION,
+        cacheHit: fast.funnel.cacheHit,
+        cacheAgeMs: fast.funnel.cacheAgeMs,
+        cacheLookupMs: fast.funnel.cacheLookupMs,
+        discoveryMs: fast.funnel.discoveryMs,
+        earlyExit: fast.funnel.earlyExit,
+        deadlineMs: fast.funnel.deadlineMs,
+        salvagedFromPartial: fast.funnel.salvagedFromPartial,
+        providers: fast.funnel.providers,
+        enrichmentMs: enrichment?.durationMs ?? 0,
+        totalMs: Date.now() - commerceOnlyStarted,
+      },
+    }, 200);
+  }
 
   if (useMultiItemProvider && requestMode === 'selected_item' && !selectedCandidate) {
     console.warn(
@@ -3195,6 +3553,45 @@ Deno.serve(async (req) => {
         similarityMatches: 0,
         commerceSkipped: true,
         reason: 'anonymous_image_analysis',
+      };
+    } else if (commerceFunnelEnabled) {
+      // ── v127 MODE A: commerce leaves the scan critical path ───────────────
+      //
+      // The scan result is complete once Gemini has answered. Holding this
+      // response open for provider latency is what made the scanner feel slow,
+      // so under v127 no provider promise is created here at all — not started
+      // and abandoned, not raced against a timeout, simply not on this route.
+      //
+      // The client renders immediately and issues a MODE B commerce-only
+      // request, which reuses this same commerce stack with a bounded fast
+      // deadline. Commerce is deferred, never cancelled.
+      console.log(
+        '[scan-identify] commerce_deferred v=%s mode=%s source=%s',
+        COMMERCE_FUNNEL_VERSION,
+        mode,
+        source,
+      );
+      // Commerce is deferred, so this response carries no offers. These must
+      // still be assigned: the response builder, the audit event, and the
+      // commerce telemetry below all dereference them unconditionally, and an
+      // unassigned binding here throws and is caught by the handler's outer
+      // catch — turning a successful scan into `failed` for every signed-in
+      // user the moment the funnel flag is enabled.
+      finalRecommendedProducts = [];
+      finalSimilarityMatches = [];
+      rankedProductsForAudit = [];
+      shoppingMeta = {
+        provider: 'deferred',
+        query: '',
+        count: 0,
+        providersTried: [],
+        catalogCount: 0,
+        similarityMatches: 0,
+        commerceSkipped: true,
+        // Explicit client contract: fetch commerce with a MODE B request.
+        deferred: true,
+        funnelVersion: COMMERCE_FUNNEL_VERSION,
+        reason: 'deferred_to_commerce_only_request',
       };
     } else {
       // Image (camera) mode: live commerce first, then deterministic catalog

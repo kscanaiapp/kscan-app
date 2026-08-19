@@ -27,6 +27,12 @@ export interface RecommendedProduct {
    * undefined for those providers rather than being fabricated.
    */
   brand?: string;
+  /**
+   * v126 — retail vs. resale provenance, when the provider declares one.
+   * Provenance only: it must never carry a ranking bonus or penalty
+   * (retailer-neutrality is a hard rule — see scanCommerceRouter.ts).
+   */
+  commerceType?: 'retail' | 'resale';
 }
 
 export interface ShoppingResult {
@@ -303,14 +309,14 @@ function logProvider(
 
 // ── Serper (primary) ─────────────────────────────────────────────────────────
 
-async function callSerper(query: string, limit: number): Promise<{ products: RecommendedProduct[]; errorType?: string }> {
+async function callSerper(query: string, limit: number, timeoutMs = PROVIDER_TIMEOUT_MS): Promise<{ products: RecommendedProduct[]; errorType?: string }> {
   const key = readEnv('SHOPPING_SERPER_API_KEY');
   if (!key) {
     logProvider('serper', 0, 0, 0, 'no_key');
     return { products: [], errorType: 'no_key' };
   }
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), Math.min(timeoutMs, PROVIDER_TIMEOUT_MS));
   const started = Date.now();
   try {
     const res = await fetch(SERPER_URL, {
@@ -375,14 +381,14 @@ function mapSerperItems(items: unknown[], limit: number): RecommendedProduct[] {
 
 // ── Brave (fallback) ─────────────────────────────────────────────────────────
 
-async function callBrave(query: string, limit: number): Promise<{ products: RecommendedProduct[]; errorType?: string }> {
+async function callBrave(query: string, limit: number, timeoutMs = PROVIDER_TIMEOUT_MS): Promise<{ products: RecommendedProduct[]; errorType?: string }> {
   const key = readEnv('SHOPPING_BRAVE_API_KEY');
   if (!key) {
     logProvider('brave', 0, 0, 0, 'no_key');
     return { products: [], errorType: 'no_key' };
   }
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), Math.min(timeoutMs, PROVIDER_TIMEOUT_MS));
   const started = Date.now();
   try {
     const url = `${BRAVE_URL}?q=${encodeURIComponent(query)}&count=${limit}`;
@@ -491,7 +497,9 @@ function mapBraveResults(results: unknown[], limit: number): RecommendedProduct[
  * Serper is primary (retail cards); Brave is fallback (similar web links).
  * Controlled by the SHOPPING_ENABLED kill switch (enabled unless "false").
  */
-export async function getShoppingResults(input: { query: string; limit?: number }): Promise<ShoppingResult> {
+export async function getShoppingResults(
+  input: { query: string; limit?: number; timeoutMs?: number },
+): Promise<ShoppingResult> {
   const query = collapseSpaces(str(input.query));
   const limit = clampLimit(input.limit, DEFAULT_LIMIT);
 
@@ -504,6 +512,12 @@ export async function getShoppingResults(input: { query: string; limit?: number 
     return { products: [], provider: 'none', query, errorType: 'empty_query' };
   }
 
+  // v127: a caller-supplied deadline only ever shortens this provider's own
+  // ceiling, never extends it.
+  const providerTimeoutMs = typeof input.timeoutMs === 'number' && input.timeoutMs > 0
+    ? Math.min(input.timeoutMs, PROVIDER_TIMEOUT_MS)
+    : PROVIDER_TIMEOUT_MS;
+
   const cacheKey = query.toLowerCase();
   const cached = cacheGet(cacheKey);
   if (cached) {
@@ -511,7 +525,7 @@ export async function getShoppingResults(input: { query: string; limit?: number 
   }
 
   // 1. Serper primary.
-  const serper = await callSerper(query, limit);
+  const serper = await callSerper(query, limit, providerTimeoutMs);
   if (serper.products.length > 0) {
     const result: ShoppingResult = {
       products: serper.products.slice(0, limit),
@@ -524,7 +538,7 @@ export async function getShoppingResults(input: { query: string; limit?: number 
 
   // 2. Brave fallback (Serper failed / timed out / quota / no usable results).
   const braveLimit = clampLimit(Math.max(BRAVE_MIN, limit), DEFAULT_LIMIT);
-  const brave = await callBrave(query, braveLimit);
+  const brave = await callBrave(query, braveLimit, providerTimeoutMs);
   if (brave.products.length > 0) {
     const result: ShoppingResult = {
       products: brave.products.slice(0, braveLimit),

@@ -9,6 +9,13 @@ import { mapScanIdentifyToAnalysis } from '../services/scanIdentificationMapper'
 import { prepareScannerEvidence, createEvidenceId } from '../services/scannerEvidenceGateway';
 import { beginScannerV2Session } from '../services/scannerIdentificationV2';
 import { runScannerIdentification } from '../services/scannerScanRequest';
+import { fetchDeferredCommerce, mergeEnrichedOffers } from '../services/commerceHydration';
+import {
+  commerceJobKey,
+  shouldDispatchCommerceHydration,
+  isCommerceJobCurrent,
+  isCommerceJobVisible,
+} from '../services/commerceJobScheduler';
 import {
   buildSecondhandSearchRequest,
   searchVintedSecondhand,
@@ -121,6 +128,13 @@ export function useKScan(actorId = null) {
   // Single nonblocking session-level notices. Never provider details.
   const [detectionNotice, setDetectionNotice] = useState(null);
   const [queueNotice, setQueueNotice] = useState(null);
+  // v127: commerce lifecycle is tracked separately from scan status so a
+  // pending shelf never drags the scan back into a loading state.
+  //
+  // Declared LAST on purpose: the positional useState slot table in the
+  // duplicate-guard suite reassigns every slot after any state inserted above
+  // an existing one.
+  const [commerceStatus, setCommerceStatus] = useState('idle');
 
   const isMountedRef = useRef(true);
   // Synchronous lock — read before state updates propagate, so rapid taps that
@@ -223,6 +237,32 @@ export function useKScan(actorId = null) {
     prevIsAnalyzingRef.current = isAnalyzing;
   }, [isAnalyzing]);
 
+  // v127 commerce hydration guards. Declared here so startInFlight can reset
+  // them; the hydration logic that consumes them lives further down.
+  // v127 commerce hydration authority.
+  //
+  // commerceScanGenerationRef is a SCAN-level generation: bumped only when a
+  // new scan attempt starts (startInFlight), so it invalidates every item's
+  // commerce job at once when the whole scan is superseded.
+  //
+  // commerceJobsRef is a PER-ITEM registry (itemId -> job). Android's Scanner
+  // is a multi-item queue (scanItems / selectScanItem), so "does this
+  // response still matter" is a per-item question, not a single global one:
+  // switching the selected item must not abort or discard another item's
+  // in-flight or completed commerce (P1-C). A job is
+  //   { controller, evidence, scanGeneration, active, status }
+  // keyed by evidence.itemId, falling back to evidence object identity itself
+  // if an item somehow has no id (defensive; every item.commerceEvidence.itemId
+  // is set at construction, see the `applyToItem` comment below).
+  const commerceScanGenerationRef = useRef(0);
+  const commerceJobsRef = useRef(new Map());
+  // Mirrors `selectedScanItemId` state so async hydration completions can read
+  // the CURRENT selection rather than the value closed over at dispatch time.
+  const selectedScanItemIdRef = useRef(null);
+  useEffect(() => {
+    selectedScanItemIdRef.current = selectedScanItemId;
+  }, [selectedScanItemId]);
+
   const clearInFlight = useCallback((operationId) => {
     // Only the current attempt may clear the guard it created. Incrementing the
     // operation ID here also prevents a late background completion from this
@@ -239,6 +279,16 @@ export function useKScan(actorId = null) {
 
   const startInFlight = useCallback(() => {
     if (scanInFlightRef.current) return null;
+    // v127: a new scan attempt supersedes EVERY item's commerce job from the
+    // previous scan — the whole scan is superseded, not just the displayed
+    // item, so this is the one case where aborting everything is correct
+    // (contrast with selectScanItem below, which must abort nothing). Bumping
+    // the generation here (rather than at setStatus('result')) means a late
+    // answer for the old scan is already inert before the new one finishes.
+    commerceScanGenerationRef.current += 1;
+    for (const job of commerceJobsRef.current.values()) job.controller?.abort();
+    commerceJobsRef.current = new Map();
+    if (isMountedRef.current) setCommerceStatus('idle');
     scanInFlightRef.current = true;
     const operationId = ++operationIdRef.current;
     activeOperationActorRef.current = currentActorRef.current;
@@ -465,7 +515,13 @@ export function useKScan(actorId = null) {
   // Async enrichment for the currently displayed analysis. Never blocks or
   // replaces the result card; guarded by mount + secondhand request id.
   const enrichDisplayedAnalysis = useCallback((data, secondhandRequestId) => {
-    const secondhandRequest = buildSecondhandSearchRequest(data);
+    // Phase 3 provider cleanup: the Vinted/Apify backend has no configured
+    // credentials (APIFY_VINTED_ACTOR_ID / APIFY_API_TOKEN are unset in both
+    // App Staging and Production), so this call was firing on every scan and
+    // always resolving to SECONDHAND_RESULTS_UNAVAILABLE — a dead network
+    // round trip on every single scan for zero result. Disabled until Apify
+    // is actually configured; restore the call below when it is.
+    const secondhandRequest = null; // was: buildSecondhandSearchRequest(data);
     if (secondhandRequest) {
       searchVintedSecondhand(secondhandRequest)
         .then((secondhand) => {
@@ -1037,6 +1093,15 @@ export function useKScan(actorId = null) {
           detailStatus,
         };
 
+        // v127: stash this item's stable id onto its commerce evidence so a
+        // later hydration response can find and update the matching scanItems
+        // entry, not just whichever item happens to be displayed at the time.
+        // Client-only — buildCommerceOnlyBody() copies a fixed key allowlist,
+        // so this never reaches the network.
+        if (item.analysis?.commerceEvidence) {
+          item.analysis.commerceEvidence.itemId = item.id;
+        }
+
         if (!isGenerationValid(generation, queueActor)) return;
 
         scanItemsHasEntriesRef.current = true;
@@ -1233,7 +1298,166 @@ export function useKScan(actorId = null) {
     setAnalysis(item.analysis);
     setAnalysisActorId(currentActorRef.current);
     enrichDisplayedAnalysis(item.analysis, secondhandRequestId);
+    // v127 (P1-C): show THIS item's own commerce status rather than forcing
+    // 'idle'. selectedScanItemIdRef has not been updated by the mirroring
+    // effect yet (that runs after this render commits), so read the incoming
+    // itemId directly rather than the ref. Switching item selection never
+    // touches commerceJobsRef — no other item's job is aborted or altered by
+    // this call, which is the entire fix: the previous implementation used a
+    // single global slot, so starting or resuming any item's job aborted
+    // whatever the previously displayed item had in flight.
+    const job = commerceJobsRef.current.get(itemId);
+    setCommerceStatus(job ? job.status : 'idle');
   }, [status, scanItems, enrichDisplayedAnalysis]);
+
+  // ── v127 deferred commerce hydration (P1-C: per-item scheduler) ─────────────
+  //
+  // Each item's job is independent. Starting or resuming B's hydration must
+  // never abort or discard A's in-flight or completed job — only a whole NEW
+  // SCAN (startInFlight) may invalidate every job at once. Switching the
+  // selected item changes which job's status is VISIBLE; it starts nothing,
+  // stops nothing, and cannot cause data loss.
+  const hydrateDeferredCommerce = useCallback(async (analysisWithEvidence, { isRetry = false } = {}) => {
+    const evidence = analysisWithEvidence?.commerceEvidence;
+    if (!evidence?.identification) return;
+
+    // Every item's commerceEvidence carries itemId (set once when scanItems
+    // is built — see the useKScan.js comment where `.itemId = item.id` is
+    // assigned). The evidence object itself is the fallback key so a job
+    // still exists to single-flight against if that were ever missing.
+    const itemKey = commerceJobKey(evidence);
+    const scanGeneration = commerceScanGenerationRef.current;
+
+    const existing = commerceJobsRef.current.get(itemKey);
+    // See services/commerceJobScheduler.ts for exactly what this decides and
+    // why, and __tests__/commerceJobScheduler.test.js for the executable
+    // proof against the hostile item-switch matrix.
+    if (!shouldDispatchCommerceHydration(existing, evidence, isRetry)) return;
+
+    // Abort only THIS item's previous attempt, if any — never another item's.
+    existing?.controller?.abort();
+
+    const controller = new AbortController();
+    const job = { controller, evidence, scanGeneration, active: true, status: 'pending' };
+    commerceJobsRef.current.set(itemKey, job);
+
+    const isVisible = () => isCommerceJobVisible(evidence.itemId, selectedScanItemIdRef.current);
+    // The scan result is already visible; only the shelf enters a pending
+    // state, and only if this job belongs to the item currently on screen.
+    if (isMountedRef.current && isVisible()) {
+      setCommerceStatus('pending');
+    }
+
+    const applyIfCurrent = (updater) => {
+      // Deliberately NOT gated on "is this item currently selected": A may
+      // update/persist its own data while B is displayed, per the required
+      // contract. See isCommerceJobCurrent for what this actually checks.
+      if (!isMountedRef.current) return false;
+      if (!isCommerceJobCurrent(commerceJobsRef.current, itemKey, job, commerceScanGenerationRef.current)) return false;
+      updater();
+      return true;
+    };
+
+    // Update whichever surface still shows this item: the singleton `analysis`
+    // when it is the one currently displayed, and — Android only — the backing
+    // scanItems entry so switching back to this item later shows the hydrated
+    // shelf instead of the pre-hydration snapshot.
+    const applyToItem = (updateAnalysis) => {
+      const itemId = evidence.itemId;
+      if (itemId) {
+        setScanItems((current) => current.map((it) => (
+          it.id === itemId && it.analysis ? { ...it, analysis: updateAnalysis(it.analysis) } : it
+        )));
+      }
+      setAnalysis((prev) => (
+        prev && prev.commerceEvidence === evidence ? updateAnalysis(prev) : prev
+      ));
+    };
+
+    // Update the visible commerceStatus only when this job's item is still
+    // the one on screen — A's outcome must never overwrite B's status.
+    const applyVisibleStatus = (status) => {
+      if (isVisible() && isMountedRef.current) setCommerceStatus(status);
+    };
+
+    let result;
+    try {
+      result = await fetchDeferredCommerce(evidence, { signal: controller.signal });
+    } catch {
+      // fetchDeferredCommerce never throws, but a caller must not depend on it.
+      result = { status: 'error', purchaseOptions: [], enrichmentCandidates: [], retryable: true };
+    }
+
+    job.active = false;
+
+    if (result.status === 'error') {
+      // Commerce failure is never scan failure: status stays 'result'.
+      const finalStatus = result.retryable === false ? 'idle' : 'error';
+      applyIfCurrent(() => {
+        job.status = finalStatus;
+        applyVisibleStatus(finalStatus);
+      });
+      return;
+    }
+
+    const hydrated = applyIfCurrent(() => {
+      job.status = result.status;
+      applyVisibleStatus(result.status);
+      if (result.purchaseOptions.length > 0) {
+        applyToItem((a) => ({ ...a, purchaseOptions: result.purchaseOptions }));
+      }
+    });
+    if (!hydrated) return;
+
+    // Bounded enrichment, after first paint. The backend serves the repeat
+    // discovery from its own cache, so this hop costs the enrichment call only.
+    if (result.purchaseOptions.length > 0 && result.enrichmentCandidates.length > 0) {
+      let enrichedResult;
+      try {
+        enrichedResult = await fetchDeferredCommerce(evidence, {
+          enrich: true,
+          signal: controller.signal,
+        });
+      } catch {
+        return;
+      }
+      if (enrichedResult.status === 'error' || !enrichedResult.purchaseOptions.length) return;
+      applyIfCurrent(() => {
+        applyToItem((a) => ({
+          ...a,
+          purchaseOptions: mergeEnrichedOffers(
+            Array.isArray(a.purchaseOptions) ? a.purchaseOptions : [],
+            enrichedResult.purchaseOptions,
+          ),
+        }));
+      });
+    }
+  }, []);
+
+  // Dispatch hydration once per displayed deferred item. Fires again whenever
+  // `analysis?.commerceEvidence` changes — including a selection switch to a
+  // different deferred item — starting THAT item's job without touching
+  // whatever job the previously displayed item already has running.
+  useEffect(() => {
+    if (status !== 'result') return;
+    if (!analysis?.commerceDeferred) return;
+    hydrateDeferredCommerce(analysis);
+  }, [status, analysis?.commerceDeferred, analysis?.commerceEvidence, hydrateDeferredCommerce]);
+
+  // Abort every in-flight job when the hook unmounts — teardown, not a
+  // selection change, so aborting everything here is correct.
+  useEffect(() => () => {
+    for (const job of commerceJobsRef.current.values()) job.controller?.abort();
+  }, []);
+
+  /**
+   * Explicit user retry for the CURRENTLY DISPLAYED item only. Issues MODE B
+   * only — never re-runs Gemini, never touches another item's job.
+   */
+  const retryCommerce = useCallback(() => {
+    if (!analysis?.commerceDeferred) return;
+    hydrateDeferredCommerce(analysis, { isRetry: true });
+  }, [analysis, hydrateDeferredCommerce]);
 
   return {
     status,
@@ -1243,6 +1467,7 @@ export function useKScan(actorId = null) {
     scanItems,
     selectedScanItemId,
     analysisActorId,
+    commerceStatus,
     error,
     nonFashionMessage,
     isAnalyzing,
@@ -1260,6 +1485,7 @@ export function useKScan(actorId = null) {
     retake,
     dismissResult,
     retry,
+    retryCommerce,
     selectStaticFixture,
     uploadPhoto,
     selectGalleryPhoto,

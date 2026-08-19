@@ -20,7 +20,12 @@ import { useRouter } from 'expo-router';
 import { useScanAnimation } from './hooks/useScanAnimation';
 import { useKScan } from './hooks/useKScan';
 import { candidateReviewDescriptor } from './services/multiImageScan';
-import { saveScan } from './services/library';
+import {
+  saveScan,
+  selectPurchaseOptionsSnapshot,
+  attachScanPurchaseOptions,
+  purchaseOptionsFingerprint,
+} from './services/library';
 import { createActorRequest, isActorRequestCurrent } from './services/actorContext';
 import { setStyleChatHandoffContext } from './services/style-chat/styleChatHandoffContext';
 import { AnalysisCard } from './components/AnalysisCard';
@@ -268,6 +273,8 @@ export default function App() {
     photo,
     selectedImages,
     analysis,
+    commerceStatus,
+    retryCommerce,
     scanItems,
     selectedScanItemId,
     analysisActorId,
@@ -530,6 +537,36 @@ export default function App() {
     ) return;
     void persistScanItem(scanItems[0]);
   }, [status, scanStage, queueActive, queueHalted, selectedCandidateIds.length, scanItems, selectedImages.length, analysisActorId, user?.id, persistScanItem]);
+
+  // v127: attach commerce that arrived after a scan item's row was already
+  // written.
+  //
+  // Android saves per item (persistScanItem / savedScanIdsByItem) rather than
+  // a single scan record, so this iterates every scanItems entry instead of
+  // reading a single saved id. It is correct whether commerce lands before or
+  // after that item's save completes — the saved id simply appears later in
+  // savedScanIdsByItem in that case — and there is no timer anywhere in this
+  // path. It also updates every item, not only the one currently displayed, so
+  // a background item's commerce still persists once it is saved.
+  const attachedCommerceRef = useRef({});
+  useEffect(() => {
+    if (status !== 'result') return;
+    for (const item of scanItems) {
+      const savedId = savedScanIdsByItem[item.id];
+      if (!savedId) continue;
+      const options = selectPurchaseOptionsSnapshot(item.analysis);
+      if (!options.length) continue;
+      // One attach per (record, shelf). Re-running for the same shelf would be
+      // harmless — the write replaces rather than appends — but it would still
+      // be a pointless write on every rerender. Keyed on shelf CONTENT, because
+      // enrichment upgrades offers in place and so leaves the count unchanged.
+      const key = savedId + ':' + purchaseOptionsFingerprint(options);
+      if (attachedCommerceRef.current[item.id] === key) continue;
+      attachedCommerceRef.current[item.id] = key;
+      const actorRequest = createActorRequest();
+      attachScanPurchaseOptions(savedId, options, { actorRequest }).catch(() => null);
+    }
+  }, [status, scanItems, savedScanIdsByItem]);
 
   // Android hardware back button — handle non-modal screens where React
   // Native's default behavior would exit the app instead of resetting state.
@@ -1154,6 +1191,12 @@ export default function App() {
             metadata={analysis?.metadata ?? EMPTY_METADATA}
             products={analysis?.products ?? []}
             purchaseOptions={analysis?.purchaseOptions ?? []}
+            // v127 (P1-B): commerceStatus reflects the CURRENTLY SELECTED
+            // item (see hooks/useKScan.js selectScanItem / the per-item
+            // scheduler in services/commerceJobScheduler.ts) — switching
+            // items shows that item's own status, never another item's.
+            commerceStatus={analysis?.commerceDeferred ? commerceStatus : 'idle'}
+            onRetryCommerce={retryCommerce}
             scanResultObject={analysis?.scanResultObject ?? null}
             secondhand={analysis?.secondhand ?? null}
             sneakerReference={analysis?.sneakerReference ?? null}
