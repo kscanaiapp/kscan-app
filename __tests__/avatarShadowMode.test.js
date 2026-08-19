@@ -480,3 +480,113 @@ test('shadow mode is inert when the engine is not active', () => {
   assert.match(header, /if\s*\(!engineActive\)\s*return;/);
   assert.match(header, /isAvatarEngineActive\(\)/);
 });
+
+// -- Capture surface ----------------------------------------------------------
+
+test('AUDIO_START is measured from the host lifecycle, not from engine work', () => {
+  const { bridge } = loadShadowGraph();
+  const alignment = HELLO();
+  const observe = (speech, hostNowMs) =>
+    bridge.observeAvatarShadowFrame({
+      avatarId: SARAH, speech, scopeMatches: true, reduceMotion: false,
+      foreground: true, motionEpoch: 1, hostNowMs, legacyMouthState: 'closed',
+    });
+
+  observe(speechState({ phase: 'requesting', playbackSeconds: 0 }), 1000);
+  observe(speechState({ phase: 'ready', alignment, playbackSeconds: 0 }), 1200);
+  observe(speechState({ phase: 'playing', alignment, playbackSeconds: 0 }), 1275);
+
+  const record = bridge.getAvatarShadowReport().utterances[0];
+  assert.equal(record.audioStartMs, 75, 'ready -> playing wall clock');
+});
+
+test('AUDIO_START is null when the utterance was never observed as ready', () => {
+  const { bridge } = loadShadowGraph();
+  bridge.observeAvatarShadowFrame({
+    avatarId: SARAH, speech: speechState({ phase: 'playing', alignment: HELLO() }),
+    scopeMatches: true, reduceMotion: false, foreground: true,
+    motionEpoch: 1, hostNowMs: 500, legacyMouthState: 'closed',
+  });
+  assert.equal(bridge.getAvatarShadowReport().utterances[0].audioStartMs, null);
+});
+
+test('the formatted dataset names every field the QA protocol asks for', () => {
+  const graph = loadShadowGraph();
+  const format = loadTsModule('services/avatars/avatarShadowReportFormat.ts');
+  replay(graph, { positions: SWEEP, alignment: HELLO(), generation: 1 });
+  replay(graph, { positions: SWEEP, alignment: HELLO(), generation: 2 });
+
+  const text = format.formatAvatarShadowReport(graph.bridge.getAvatarShadowReport());
+
+  const required = [
+    'AUDIO_START',
+    'PLAYBACK_TO_FIRST_MOUTH_LEGACY',
+    'PLAYBACK_TO_FIRST_MOUTH_V10',
+    'TIMELINE_COMPILE_MS',
+    'FRAME_CALC_P50',
+    'FRAME_CALC_P95',
+    'FRAME_CALC_MAX',
+    'ALIGNMENT_INPUT',
+    'ALIGNMENT_RETAINED',
+    'ALIGNMENT_DISCARDED',
+    'LEGACY_TRANSITIONS_PER_SEC',
+    'V10_TRANSITIONS_PER_SEC',
+    'FRAME_AGREEMENT',
+    'STALL_HOLD',
+    'COMPLETION_RESET',
+    'INTERRUPTION_RESET',
+    'REPEAT_UTTERANCE',
+    'STALE_FRAME_REJECTIONS',
+    'ENGINE_ERRORS',
+  ];
+  for (const field of required) {
+    assert.ok(text.includes(field), `formatted dataset is missing ${field}`);
+  }
+
+  // The human-judgment template must be present and per-sample.
+  for (const field of ['MOUTH SYNC', 'CADENCE', 'LABIALS', 'PAUSES', 'FACE STABILITY']) {
+    assert.ok(text.includes(field), `judgment template is missing ${field}`);
+  }
+  // Each sample appears twice: once as a metric block headed
+  // "-- SAMPLE 1 (generation N) --" and once in the judgment template.
+  assert.equal(text.split('SAMPLE 1').length - 1, 2, 'one metric block and one judgment block');
+  assert.match(text, /-- SAMPLE 1 \(generation \d+\) --/);
+  assert.ok(text.includes('SAMPLE 2'), 'every captured utterance must appear');
+});
+
+test('the formatted dataset leaks no speech content', () => {
+  const graph = loadShadowGraph();
+  const format = loadTsModule('services/avatars/avatarShadowReportFormat.ts');
+  replay(graph, { positions: SWEEP, alignment: HELLO() });
+
+  const text = format.formatAvatarShadowReport(graph.bridge.getAvatarShadowReport());
+  for (const forbidden of ['Hello', 'there', 'friend']) {
+    assert.equal(text.includes(forbidden), false, `spoken text leaked: ${forbidden}`);
+  }
+});
+
+test('an empty run formats without throwing and reports n/a rather than zero', () => {
+  const graph = loadShadowGraph();
+  const format = loadTsModule('services/avatars/avatarShadowReportFormat.ts');
+  const text = format.formatAvatarShadowReport(graph.bridge.getAvatarShadowReport());
+  assert.ok(text.includes('OBSERVATIONS'));
+  assert.ok(text.includes('n/a'), 'unmeasured values must read n/a, never a misleading 0');
+});
+
+test('report emission is development-only', () => {
+  const source = executableSource('services/avatars/avatarShadowReportFormat.ts');
+  assert.match(source, /typeof __DEV__ === 'undefined' \|\| !__DEV__/);
+  // The formatter itself must stay pure so it is testable without a device.
+  const formatterBody = source.slice(0, source.indexOf('emitAvatarShadowReport'));
+  assert.equal(/console\./.test(formatterBody), false, 'the formatter must not log');
+});
+
+test('the header emits a sample at each utterance boundary in dev', () => {
+  const header = executableSource('components/style-chat/StyleChatHeader.tsx');
+  assert.match(header, /emitAvatarShadowReport/);
+  assert.match(header, /previous === 'playing' && speechState\.phase !== 'playing'/);
+  // Capture must not run when the engine is inactive.
+  // tsc splits `if (x) return;` across two lines, so match tolerantly.
+  const emitBlock = header.slice(header.indexOf('previousPhaseRef'));
+  assert.match(emitBlock, /if\s*\(!engineActive\)\s*return;/);
+});
