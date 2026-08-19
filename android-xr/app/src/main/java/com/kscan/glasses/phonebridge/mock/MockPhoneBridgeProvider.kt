@@ -62,6 +62,8 @@ class MockPhoneBridgeProvider private constructor(
 
     private val _events = MutableSharedFlow<PhoneBridgeEvent>(extraBufferCapacity = EVENT_BUFFER)
     override val events: SharedFlow<PhoneBridgeEvent> = _events.asSharedFlow()
+    private val _pairingCode = MutableStateFlow<String?>(null)
+    override val pairingCode: StateFlow<String?> = _pairingCode.asStateFlow()
 
     private var idCounter = 0
     private fun nextId(): String = "glasses-req-${++idCounter}"

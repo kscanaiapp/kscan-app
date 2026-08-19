@@ -12,6 +12,8 @@ import com.kscan.glasses.config.BetaConfig
 import com.kscan.glasses.phonebridge.DisabledPhoneBridgeProvider
 import com.kscan.glasses.phonebridge.FutureRealPhoneBridgeProvider
 import com.kscan.glasses.phonebridge.PhoneBridgeProvider
+import com.kscan.glasses.phonebridge.HttpWearableBridgeApi
+import com.kscan.glasses.phonebridge.RealKScanPhoneBridgeProvider
 import com.kscan.glasses.phonebridge.mock.MockPhoneBridgeProvider
 import com.kscan.glasses.privacy.PrivacyImageSanitizer
 import com.kscan.glasses.privacy.PrivacyImageSanitizerFactory
@@ -61,6 +63,7 @@ object AppRuntimeFactory {
         debugConfig: DebugAnalyzeConfig = DebugAnalyzeConfig.fromBuildConfig(),
         betaConfig: BetaConfig = BetaConfig.DEFAULT,
         clientConfig: AnalyzeClientConfig = AnalyzeClientConfig.MOCK_ONLY,
+        wearableDeviceId: String = "unconfigured-device",
     ): Resolved {
         // 1. Flag-level release guard: throws if any mock flag is set in release.
         ReleaseSafetyGuard.verify(
@@ -114,6 +117,17 @@ object AppRuntimeFactory {
         val phoneBridge: PhoneBridgeProvider = when {
             profile.isDebugBuild && profile.useMockPhoneBridge -> MockPhoneBridgeProvider.create()
             profile.isDebugBuild -> DisabledPhoneBridgeProvider()
+            profile.isHardwareCandidate &&
+                com.kscan.glasses.BuildConfig.KSCAN_WEARABLE_BRIDGE_URL.isNotBlank() &&
+                com.kscan.glasses.BuildConfig.KSCAN_WEARABLE_PUBLISHABLE_KEY.isNotBlank() ->
+                RealKScanPhoneBridgeProvider(
+                    api = HttpWearableBridgeApi(
+                        endpoint = com.kscan.glasses.BuildConfig.KSCAN_WEARABLE_BRIDGE_URL,
+                        publishableKey = com.kscan.glasses.BuildConfig.KSCAN_WEARABLE_PUBLISHABLE_KEY,
+                    ),
+                    glassesDeviceId = wearableDeviceId,
+                    appVersion = com.kscan.glasses.BuildConfig.VERSION_NAME,
+                )
             else -> FutureRealPhoneBridgeProvider()
         }
 
@@ -134,7 +148,9 @@ object AppRuntimeFactory {
 
         // 7. Explicit runtime state for the UI, derived from resolved instances.
         val runtimeStatus = RuntimeStatus(
-            state = RuntimeStateResolver.resolve(
+            state = if (profile.isHardwareCandidate && phoneBridge is RealKScanPhoneBridgeProvider) {
+                GlassesRuntimeState.PHONE_COMPANION_RESULT_ONLY
+            } else RuntimeStateResolver.resolve(
                 bridge = bridge,
                 sanitizer = sanitizer,
                 analyzeClient = analyzeClient,

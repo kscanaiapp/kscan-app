@@ -23,6 +23,8 @@ class FutureRealPhoneBridgeProvider : PhoneBridgeProvider {
 
     private val _events = MutableSharedFlow<PhoneBridgeEvent>(extraBufferCapacity = 1)
     override val events: SharedFlow<PhoneBridgeEvent> = _events.asSharedFlow()
+    private val _pairingCode = MutableStateFlow<String?>(null)
+    override val pairingCode: StateFlow<String?> = _pairingCode.asStateFlow()
 
     override suspend fun requestPairing(): PhoneBridgeSendResult = PhoneBridgeSendResult.Unavailable
     override suspend fun requestCapture(preference: CapturePreference): PhoneBridgeSendResult =

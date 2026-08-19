@@ -4,6 +4,7 @@ import android.app.Application
 import com.kscan.glasses.analyze.DebugAnalyzeConfig
 import com.kscan.glasses.analyze.DebugAnalyzeCredentialProvider
 import com.kscan.glasses.runtime.AppRuntimeFactory
+import com.kscan.glasses.phonebridge.WearableDeviceIdentity
 import com.kscan.glasses.safety.ReleaseSafetyGuard
 
 class KScanApplication : Application() {
@@ -30,6 +31,9 @@ class KScanApplication : Application() {
 
         // Construct bridge, sanitizer, and analyze client from one profile and
         // verify that the resolved instances agree with the build configuration.
-        runtime = AppRuntimeFactory.resolve(debugConfig = debugConfig)
+        runtime = AppRuntimeFactory.resolve(
+            debugConfig = debugConfig,
+            wearableDeviceId = WearableDeviceIdentity.getOrCreate(this),
+        )
     }
 }

@@ -51,6 +51,9 @@ interface PhoneBridgeProvider {
     /** Validated bridge events in arrival order. */
     val events: SharedFlow<PhoneBridgeEvent>
 
+    /** Six-digit one-time challenge while pairing; never a credential. */
+    val pairingCode: StateFlow<String?>
+
     /** Asks the phone to approve pairing (opens a pair.request). */
     suspend fun requestPairing(): PhoneBridgeSendResult
 
