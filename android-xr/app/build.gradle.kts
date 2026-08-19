@@ -32,6 +32,9 @@ fun localProperty(name: String): String? {
     } else null
 }
 
+fun buildConfigString(value: String): String =
+    "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+
 android {
     namespace = "com.kscan.glasses"
     compileSdk = 34
@@ -67,6 +70,11 @@ android {
         buildConfigField("boolean", "USE_MOCK_BRIDGE", "true")
         buildConfigField("boolean", "USE_MOCK_API", "true")
         buildConfigField("boolean", "USE_MOCK_SANITIZER", "true")
+        buildConfigField("boolean", "HARDWARE_CANDIDATE", "false")
+        buildConfigField("String", "KSCAN_WEARABLE_BRIDGE_URL", buildConfigString(""))
+        buildConfigField("String", "KSCAN_WEARABLE_PUBLISHABLE_KEY", buildConfigString(""))
+        // Supplied by the reproducible candidate build command; never a credential.
+        buildConfigField("String", "KSCAN_BUILD_SHA", buildConfigString(project.findProperty("KSCAN_BUILD_SHA")?.toString() ?: "uncommitted"))
 
         vectorDrawables {
             useSupportLibrary = true
@@ -83,6 +91,7 @@ android {
             buildConfigField("boolean", "USE_MOCK_BRIDGE", "false")
             buildConfigField("boolean", "USE_MOCK_SANITIZER", "false")
             buildConfigField("boolean", "KSCAN_DEBUG_MOCK_PHONE_BRIDGE", "false")
+            buildConfigField("boolean", "HARDWARE_CANDIDATE", "false")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -96,6 +105,28 @@ android {
             // gitignored local.properties to select the strict sanitizer in debug builds.
             // Upload then fails closed while face masking is unavailable in this build.
             buildConfigField("boolean", "USE_MOCK_SANITIZER", "${debugPropertyBooleanOrDefault("KSCAN_DEBUG_USE_MOCK_SANITIZER", true)}")
+        }
+        create("candidate") {
+            initWith(getByName("release"))
+            isDebuggable = false
+            signingConfig = signingConfigs.getByName("debug")
+            versionNameSuffix = "-physical-device-candidate-v1"
+            buildConfigField("boolean", "USE_MOCK_API", "false")
+            buildConfigField("boolean", "USE_MOCK_BRIDGE", "false")
+            buildConfigField("boolean", "USE_MOCK_SANITIZER", "false")
+            buildConfigField("boolean", "KSCAN_DEBUG_MOCK_PHONE_BRIDGE", "false")
+            buildConfigField("boolean", "HARDWARE_CANDIDATE", "true")
+            buildConfigField(
+                "String",
+                "KSCAN_WEARABLE_BRIDGE_URL",
+                buildConfigString(debugProperty("KSCAN_WEARABLE_BRIDGE_URL")),
+            )
+            buildConfigField(
+                "String",
+                "KSCAN_WEARABLE_PUBLISHABLE_KEY",
+                buildConfigString(debugProperty("KSCAN_WEARABLE_PUBLISHABLE_KEY")),
+            )
+            resValue("string", "app_name", "K Scan XR Candidate")
         }
     }
 
@@ -142,6 +173,7 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+    implementation("com.google.mlkit:face-detection:16.1.6")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
