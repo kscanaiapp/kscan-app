@@ -304,7 +304,10 @@ test('visual mode gates only what draws, never whether speech happens', () => {
 
   assert.equal(isAvatarEngineVisible('LEGACY'), false);
   assert.equal(isAvatarEngineVisible('V10_SHADOW'), false, 'shadow mode must stay invisible');
-  assert.equal(isAvatarEngineVisible('V10_VISIBLE'), true);
+  // V10_VISIBLE is closed by the phase gate for the Sarah shadow phase, so the
+  // engine cannot render even when the mode is requested explicitly. See
+  // avatarShadowMode.test.js for the gate's own coverage.
+  assert.equal(isAvatarEngineVisible('V10_VISIBLE'), false);
 });
 
 test('shadow mode computes a frame without claiming the renderer', () => {
