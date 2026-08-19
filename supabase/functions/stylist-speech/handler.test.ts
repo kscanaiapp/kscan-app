@@ -56,6 +56,7 @@ function handlerFor(overrides: DataOverrides = {}, dependencyOverrides: Record<s
     generateSpeech: ({ text, voiceProfile }) => Promise.resolve({
       audioBase64: btoa(`${voiceProfile}:${text}`),
       alignment: null,
+      alignmentDiagnostics: { source: 'none', rawStatus: 'absent' },
     }),
     ...dependencyOverrides,
   });
@@ -69,7 +70,11 @@ function capturingHandler(overrides: DataOverrides, captured: { voiceSecretName?
     generateSpeech: ({ text, voiceProfile, voiceSecretName }) => {
       captured.voiceSecretName = voiceSecretName;
       captured.voiceProfile = voiceProfile;
-      return Promise.resolve({ audioBase64: btoa(`${voiceProfile}:${text}`), alignment: null });
+      return Promise.resolve({
+        audioBase64: btoa(`${voiceProfile}:${text}`),
+        alignment: null,
+        alignmentDiagnostics: { source: 'none', rawStatus: 'absent' },
+      });
     },
   });
 }
@@ -95,7 +100,7 @@ Deno.test('returns bound speech for an owned assistant message', async () => {
   assert.equal(body.voiceProfile, 'feminine');
   assert.equal(atob(String(body.audioBase64)), 'feminine:Hello from K Scan.');
   assert.equal(body.cue, null);
-  assert.deepEqual(Object.keys(body).sort(), ['alignment', 'audioBase64', 'cue', 'messageId', 'mimeType', 'stylistId', 'voiceProfile']);
+  assert.deepEqual(Object.keys(body).sort(), ['alignment', 'alignmentDiagnostics', 'audioBase64', 'cue', 'messageId', 'mimeType', 'stylistId', 'voiceProfile']);
 });
 
 Deno.test('selects masculine voices from the fixed server allowlist', async () => {
