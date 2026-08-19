@@ -1122,6 +1122,12 @@ export default function App() {
             analysis={analysis}
             scanImageUri={activePhoto?.uri ?? null}
             scanSourceId={photo?.qaFixtureName ?? null}
+            // v127 (P1-B): commerceStatus reflects the CURRENTLY SELECTED
+            // item (see hooks/useKScan.js selectScanItem / the per-item
+            // scheduler in services/commerceJobScheduler.ts) — switching
+            // items shows that item's own status, never another item's.
+            commerceStatus={analysis?.commerceDeferred ? commerceStatus : 'idle'}
+            onRetryCommerce={retryCommerce}
             onDismiss={dismissResult}
             onSaveToLibrary={activeScanItem
               ? activeSavedScanId

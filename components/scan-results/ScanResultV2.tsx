@@ -41,7 +41,9 @@ import {
   type MultiItemResultSummary,
 } from './MultiItemResultNavigator';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import { recordScanLatencyMarker } from '../../services/scanLatencyMarkers';
+import { resolvePurchaseShelfMode } from '../AnalysisCard';
 import type {
   CandidateReviewDescriptor,
   ScanItemQueueState,
@@ -100,6 +102,16 @@ interface ScanResultV2Props {
   onAskStyleChat?: () => void;
   /** Called to scroll to / focus Similar Finds. */
   onFindSimilar?: () => void;
+  /**
+   * v127 (P1-B): deferred commerce lifecycle for the CURRENTLY DISPLAYED
+   * item. Undefined/'idle' leaves the Purchase Options panel exactly as it
+   * behaves without this prop — hidden when there is no data. 'pending'/
+   * 'error' additionally show the panel (with its own governed treatment)
+   * only while still empty; once options arrive they always win.
+   */
+  commerceStatus?: 'idle' | 'pending' | 'success' | 'empty' | 'error';
+  /** Present only when a failed deferred fetch is retryable. */
+  onRetryCommerce?: () => void;
   multiItem?: {
     imageCount: number;
     items: ReadonlyArray<MultiItemResultSummary>;
@@ -154,6 +166,8 @@ export function ScanResultV2({
   onAddToDressingRoom,
   onAskStyleChat,
   onFindSimilar,
+  commerceStatus = 'idle',
+  onRetryCommerce,
   multiItem,
   candidateReview,
   testID,
@@ -270,6 +284,22 @@ export function ScanResultV2({
 
   // Build title from available metadata
   const title = v2Data?.title || 'Fashion Item';
+
+  // v127 (P1-B): the live commerce status/retry contract must be evaluated
+  // on THIS surface — it previously existed only on the AnalysisCard
+  // fallback, which SCAN_RESULTS_V2_UI_ENABLED makes unreachable in every
+  // governed profile. Same precedence as AnalysisCard, including the
+  // remote priceDiscovery kill-switch.
+  const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
+  const priceDiscoveryEnabled = !featureFreezeLoading && isFeatureEnabled('priceDiscovery');
+  const commerceOptionsCount = Array.isArray(v2Data?.purchaseOptions)
+    ? v2Data.purchaseOptions.length
+    : 0;
+  const purchaseShelfMode = resolvePurchaseShelfMode(
+    commerceOptionsCount,
+    priceDiscoveryEnabled,
+    commerceStatus,
+  );
 
   const renderableSimilarFinds = Array.isArray(v2Data?.similarFinds)
     ? v2Data.similarFinds.filter(isRenderableSimilarFind)
@@ -587,11 +617,21 @@ export function ScanResultV2({
                 </View>
               ) : null}
 
-              {/* Purchase Options */}
-              {Array.isArray(v2Data.purchaseOptions) && v2Data.purchaseOptions.length > 0 ? (
+              {/* Purchase Options — v127 (P1-B): pending/empty/error/retry
+                  must be visible on the LIVE result surface, not only on the
+                  unreachable AnalysisCard fallback. Options in hand always win. */}
+              {purchaseShelfMode === 'options' ? (
                 <View style={styles.section}>
                   <PurchaseOptionsPanel
                     purchaseOptions={v2Data.purchaseOptions}
+                  />
+                </View>
+              ) : purchaseShelfMode === 'pending' || purchaseShelfMode === 'error' ? (
+                <View style={styles.section}>
+                  <PurchaseOptionsPanel
+                    purchaseOptions={[]}
+                    commerceStatus={purchaseShelfMode}
+                    onRetry={onRetryCommerce}
                   />
                 </View>
               ) : null}
