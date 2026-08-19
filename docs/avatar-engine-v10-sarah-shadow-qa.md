@@ -3,8 +3,12 @@
 Run this on a device against the real speech backend. It produces the dataset
 that decides whether V10 goes to visible Sarah or needs one focused timing fix.
 
-Engine frozen at `feature/avatar-engine-v10-integration-readiness` @ `a76d4e6`.
-No engine changes until this dataset exists.
+Frozen QA candidate: tag **`v10-sarah-shadow-qa-freeze-2026-08-19`** = `d0a11d6`
+on `feature/avatar-engine-v10-integration-readiness`.
+
+Build from that tag. Commits after it are documentation only — the built
+application is byte-identical — but building the tag removes all doubt. No
+engine changes until this dataset exists.
 
 ## Setup
 
@@ -152,8 +156,10 @@ Sarah.
 
 ## The four questions this answers
 
-1. **Timing** — is `PLAYBACK_TO_FIRST_MOUTH_V10` closer to zero than
-   `PLAYBACK_TO_FIRST_MOUTH_LEGACY`, with `AUDIO_START` unchanged?
+1. **Timing** — does V10 reach the first *phonetically correct* mouth change
+   sooner than legacy, with `AUDIO_START` unchanged? Read
+   `PLAYBACK_TO_FIRST_MOUTH_V10` against the sample's FIRST WORD, never on its
+   own: closer to zero is only better when the utterance opens on a vowel.
 2. **Cadence** — `V10_TRANSITIONS_PER_SEC` vs `LEGACY_TRANSITIONS_PER_SEC`,
    adjudicated by the CADENCE judgment. Synthetic alignment predicts ~3×.
 3. **Phonetics** — shape 2 plus the LABIALS judgment.
