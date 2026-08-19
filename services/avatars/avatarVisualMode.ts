@@ -26,13 +26,30 @@ export const AVATAR_VISUAL_MODE_ENV = 'EXPO_PUBLIC_AVATAR_VISUAL_MODE';
 export const DEFAULT_AVATAR_VISUAL_MODE: AvatarVisualMode = 'LEGACY';
 
 /**
+ * Phase gate for visible V10.
+ *
+ * The current phase is Sarah SHADOW. V10 has never rendered a pixel in the real
+ * app and has no measured baseline yet, so visible mode is closed here rather
+ * than left reachable by an environment variable — a typo or a stale build
+ * profile must not be able to put an unproven visual system in front of a user.
+ *
+ * While this is false, a request for V10_VISIBLE is DOWNGRADED to V10_SHADOW
+ * rather than rejected: the engine still calculates and still records, so the
+ * request produces data instead of an error. Opening the gate is a deliberate,
+ * reviewable one-line change made only after visible Sarah is approved.
+ */
+export const V10_VISIBLE_MODE_AVAILABLE = false;
+
+/**
  * Parses a mode from an arbitrary value, failing closed to LEGACY.
  *
  * Exported separately from the environment read so the policy is testable
  * without mutating `process.env`.
  */
 export function parseAvatarVisualMode(value: unknown): AvatarVisualMode {
-  if (value === 'V10_SHADOW' || value === 'V10_VISIBLE' || value === 'LEGACY') return value;
+  if (value === 'LEGACY' || value === 'V10_SHADOW') return value;
+  // Downgraded, not honoured, while the phase gate is closed.
+  if (value === 'V10_VISIBLE') return V10_VISIBLE_MODE_AVAILABLE ? 'V10_VISIBLE' : 'V10_SHADOW';
   return DEFAULT_AVATAR_VISUAL_MODE;
 }
 
@@ -54,5 +71,5 @@ export function isAvatarEngineActive(mode: AvatarVisualMode = getAvatarVisualMod
 
 /** True when the engine frame — rather than the legacy value — drives pixels. */
 export function isAvatarEngineVisible(mode: AvatarVisualMode = getAvatarVisualMode()): boolean {
-  return mode === 'V10_VISIBLE';
+  return V10_VISIBLE_MODE_AVAILABLE && mode === 'V10_VISIBLE';
 }
