@@ -50,14 +50,16 @@ const { buildScanTitle, cleanRawTitle, deriveBrandConfidence } = builder;
 
 // ── Title priority tree ──────────────────────────────────────────────────────
 
-test('buildScanTitle: high-confidence brand + color + category', () => {
+test('buildScanTitle: high-confidence brand + color + category leads with brand', () => {
+  // Repair pass 2: brand leads (fashion/retail convention — "Prada Yellow
+  // Polo Shirt", not "Yellow Prada Polo Shirt").
   const title = buildScanTitle({
     color: 'red',
     brand: 'Lacoste',
     brandConfidence: 'high',
     displayCategory: 'polo shirt',
   });
-  assert.equal(title, 'Red Lacoste Polo Shirt');
+  assert.equal(title, 'Lacoste Red Polo Shirt');
 });
 
 test('buildScanTitle: high-confidence brand + category, no color', () => {
@@ -139,7 +141,7 @@ test('buildScanTitle: preserves brand casing', () => {
     brandConfidence: 'high',
     displayCategory: 'sneakers',
   });
-  assert.equal(title, 'Black Nike Sneakers');
+  assert.equal(title, 'Nike Black Sneakers');
 });
 
 // ── Raw title cleanup ────────────────────────────────────────────────────────

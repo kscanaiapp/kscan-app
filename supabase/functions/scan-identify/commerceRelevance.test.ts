@@ -158,6 +158,52 @@ Deno.test('category queries: bags and accessories templates', () => {
   assert(/sunglass/i.test(acc.primary));
 });
 
+// ── Build29 repair pass 2: direct evidence must govern over a guess ─────────
+//
+// THE DEFECT THIS PINS: brandIfAllowed preferred brand_guess (a hypothesis)
+// over visible_brand_text (literally read off the garment) when both were
+// present, so a conflicting guess could win the query's brand term over
+// text that was actually legible on the item — the same "weak evidence beats
+// strong evidence" inversion behind the "Yellow Top" Scanner regression.
+
+Deno.test('category queries: directly-read brand text governs over a conflicting guess', () => {
+  const q = buildCategoryCommerceQueries({
+    categoryRoute: 'apparel',
+    detailLevel: 'specific',
+    qualityBand: 'high',
+    identification: {
+      item_type: 'top',
+      subtype: 'polo shirt',
+      primary_color: 'yellow',
+      logo_detected: true,
+      visible_brand_text: 'Prada', // what was actually legible on the garment
+      brand_guess: 'Gucci', // the model's separate, conflicting hypothesis
+    },
+  });
+  assert(/prada/i.test(q.primary), 'the directly-read brand must reach the query');
+  assert(!/gucci/i.test(q.primary), 'the losing, conflicting guess must not reach the query');
+});
+
+Deno.test('category queries: a detected logo with no legible text still falls back to the named guess', () => {
+  // Preserves the pre-existing, correct behavior: when there is no literal
+  // text to prefer, the model's named guess for what the detected logo
+  // represents is still useful and must not be dropped.
+  const q = buildCategoryCommerceQueries({
+    categoryRoute: 'apparel',
+    detailLevel: 'specific',
+    qualityBand: 'high',
+    identification: {
+      item_type: 'top',
+      subtype: 'polo shirt',
+      primary_color: 'yellow',
+      logo_detected: true,
+      visible_brand_text: null,
+      brand_guess: 'Prada',
+    },
+  });
+  assert(/prada/i.test(q.primary));
+});
+
 Deno.test('category queries: unsupported brand and material excluded', () => {
   const q = buildCategoryCommerceQueries({
     categoryRoute: 'apparel',

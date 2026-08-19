@@ -846,7 +846,7 @@ test('mapper: high-confidence brand appears in title', () => {
       confidence_score: 0.9,
     },
   });
-  assert.equal(out.title, 'Red Lacoste Polo Shirt');
+  assert.equal(out.title, 'Lacoste Red Polo Shirt');
   assert.equal(out.metadata.brandConfidence, 'high');
 });
 
