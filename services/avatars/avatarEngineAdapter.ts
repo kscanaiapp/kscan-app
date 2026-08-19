@@ -111,6 +111,8 @@ export class AvatarEngineHostAdapter {
   private readonly now: () => number;
   private readonly runtime: AvatarRuntime;
   private loadedAvatarId: string | null = null;
+  private previousPhase: AvatarEngineSpeechInput['phase'] = 'idle';
+  private previousGeneration = -1;
 
   constructor(options: AvatarEngineAdapterOptions = {}) {
     this.metrics = options.metrics ?? new AvatarEngineMetricsCollector();
@@ -131,6 +133,7 @@ export class AvatarEngineHostAdapter {
     this.ensureAvatarLoaded(avatarId);
 
     const snapshot = this.toSnapshot(input, avatarId);
+    this.reconcileSpeechEnd(input.speech, snapshot);
     const frame = this.runtime.update(snapshot);
 
     const applied = isFrameApplicable(frame, {
@@ -177,6 +180,37 @@ export class AvatarEngineHostAdapter {
    * integration: an avatar animates exactly as far as its approved assets and
    * calibrated regions allow, and no further.
    */
+  /**
+   * Tells the engine an utterance ended, and why.
+   *
+   * The engine can render correctly without this — a non-playing phase already
+   * yields a closed mouth — but without it `endSpeech` is never called, the
+   * compiled timeline lingers until the next utterance replaces it, and the
+   * RESET_COMPLETION / RESET_INTERRUPTION counters stay at zero forever. That
+   * last part actively misleads: the shadow report compares legacy resets
+   * against engine resets, and a permanent zero reads as V10 failing to reset
+   * when in fact nothing ever asked it to.
+   */
+  private reconcileSpeechEnd(
+    speech: AvatarEngineSpeechInput,
+    snapshot: AvatarSpeechRuntimeSnapshot,
+  ): void {
+    const phase = snapshot.phase;
+    const wasPlaying = this.previousPhase === 'playing';
+    const generation = this.previousGeneration;
+    this.previousPhase = phase;
+    this.previousGeneration = snapshot.speechGeneration;
+
+    if (!wasPlaying || phase === 'playing') return;
+    if (generation < 0) return;
+    // A generation change at the same moment means the next utterance already
+    // superseded this one; that is a new-utterance reset, not a completion.
+    if (snapshot.speechGeneration !== generation) return;
+
+    const interrupted = speech.phase === 'stopping' || speech.phase === 'error';
+    this.runtime.endSpeech(generation, interrupted ? 'interruption' : 'completion');
+  }
+
   private ensureAvatarLoaded(avatarId: string): void {
     if (avatarId === this.loadedAvatarId) return;
     this.loadedAvatarId = avatarId;
