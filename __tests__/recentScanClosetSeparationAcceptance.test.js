@@ -362,10 +362,21 @@ test('the BUG-12 prompt gate is independent of the commerce section', () => {
   // hasStickyActions gates ONLY the next-step prompt. The purchase panel has
   // its own condition, so a scan with commerce but no available actions still
   // renders Where to Buy.
+  //
+  // v127 (P1-B) repair: the panel's data condition is now expressed through
+  // the testable pure function resolvePurchaseShelfMode (see
+  // commerceShelfWiring.test.js and liveCommerceSurfaceStateContract.test.js
+  // for its behavioral coverage) rather than an inline boolean, so the count
+  // still derives from v2Data.purchaseOptions and nothing else.
   const source = stripComments(read('components/scan-results/ScanResultV2.tsx'));
   assert.match(
     source,
-    /Array\.isArray\(v2Data\.purchaseOptions\) && v2Data\.purchaseOptions\.length > 0/,
+    /const commerceOptionsCount = Array\.isArray\(v2Data\?\.purchaseOptions\)/,
+    'the purchase panel data count must derive from v2Data.purchaseOptions alone',
+  );
+  assert.match(
+    source,
+    /purchaseShelfMode === 'options'/,
     'the purchase panel must render on its own data condition',
   );
 
