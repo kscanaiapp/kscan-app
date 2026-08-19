@@ -570,7 +570,13 @@ export function AnalysisCard({
                     source: 'library',
                   })}
                   relatedItems={normalizeItems(relatedSavedScans ?? [], 'library')}
-                  context="library"
+                  // This surface is the scan result — live, or the same result
+                  // reopened from Recent Scans. It was previously declared
+                  // "library", which conflated it with the Closet owned-item
+                  // lifecycle and pulled wardrobe-maintenance surfaces into the
+                  // scan-to-commerce funnel. A reopened Recent Scan is still
+                  // discovery, so it declares its real journey here.
+                  context="scan_result"
                 />
               ) : null}
             </ScrollView>
