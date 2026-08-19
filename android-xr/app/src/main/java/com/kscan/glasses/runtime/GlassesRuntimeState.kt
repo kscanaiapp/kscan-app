@@ -29,6 +29,9 @@ enum class GlassesRuntimeState {
     /** All dry-run gates pass; real analyze readiness proven without transport execution. */
     DRY_RUN_READY,
 
+    /** Result-only wearable mode; phone owns capture, local privacy, and analysis. */
+    PHONE_COMPANION_RESULT_ONLY,
+
     /**
      * Live analysis authorized. UNREACHABLE in this build: no build profile may
      * authorize live analysis yet. RuntimeStateResolver never returns this value.
@@ -55,6 +58,7 @@ data class RuntimeProfile(
     val useMockApi: Boolean,
     val useMockSanitizer: Boolean,
     val useMockPhoneBridge: Boolean,
+    val isHardwareCandidate: Boolean = false,
 ) {
     val anyMock: Boolean
         get() = useMockBridge || useMockApi || useMockSanitizer || useMockPhoneBridge
@@ -66,6 +70,7 @@ data class RuntimeProfile(
             useMockApi = BuildConfig.USE_MOCK_API,
             useMockSanitizer = BuildConfig.USE_MOCK_SANITIZER,
             useMockPhoneBridge = BuildConfig.KSCAN_DEBUG_MOCK_PHONE_BRIDGE,
+            isHardwareCandidate = BuildConfig.HARDWARE_CANDIDATE,
         )
     }
 }

@@ -4,12 +4,16 @@ import com.kscan.glasses.analyze.AnalyzeClient
 import com.kscan.glasses.analyze.AnalyzeRequest
 import com.kscan.glasses.config.BetaConfig
 import com.kscan.glasses.phonebridge.DisabledPhoneBridgeProvider
+import com.kscan.glasses.privacy.FaceMasker
+import com.kscan.glasses.privacy.MaskResult
 import com.kscan.glasses.privacy.MockPrivacyImageSanitizer
 import com.kscan.glasses.privacy.PrivacyImageSanitizer
 import com.kscan.glasses.privacy.SanitizeResult
 import com.kscan.glasses.privacy.StrictPrivacyImageSanitizer
 import com.kscan.glasses.state.AnalyzeResponse
 import com.kscan.glasses.state.NonFashionAnalyzeResult
+import io.mockk.every
+import io.mockk.mockk
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -48,11 +52,16 @@ class ScanOrchestratorStrictPrivacyTest {
         ioDispatcher = dispatcher,
     )
 
+    private fun notImplementedMasker(): FaceMasker = mockk {
+        every { isMaskingAvailable } returns false
+        every { maskFaces(any(), any()) } returns MaskResult.NotImplemented("Mock: face masking not available")
+    }
+
     @Test
     fun `strict sanitizer blocks before analyze when face masking is NotImplemented`() = runTest {
         val analyzeClient = CountingAnalyzeClient()
         val orchestrator = createOrchestrator(
-            sanitizer = StrictPrivacyImageSanitizer(), // real strict instance; FaceMasker NotImplemented
+            sanitizer = StrictPrivacyImageSanitizer(faceMasker = notImplementedMasker()),
             analyzeClient = analyzeClient,
             dispatcher = UnconfinedTestDispatcher(testScheduler),
         )
@@ -70,7 +79,7 @@ class ScanOrchestratorStrictPrivacyTest {
     fun `strict privacy failure surfaces exact HUD message and never claims masking`() = runTest {
         val analyzeClient = CountingAnalyzeClient()
         val orchestrator = createOrchestrator(
-            sanitizer = StrictPrivacyImageSanitizer(),
+            sanitizer = StrictPrivacyImageSanitizer(faceMasker = notImplementedMasker()),
             analyzeClient = analyzeClient,
             dispatcher = UnconfinedTestDispatcher(testScheduler),
         )
@@ -144,13 +153,22 @@ class ScanOrchestratorStrictPrivacyTest {
     }
 
     @Test
-    fun `strict sanitizer never reports success in this build`() = runTest {
-        // The mock sanitizer must not be usable to make strict mode appear successful;
-        // the real StrictPrivacyImageSanitizer only ever fails closed right now.
-        val strict = StrictPrivacyImageSanitizer()
+    fun `strict sanitizer with unavailable masking returns MaskingUnavailable`() = runTest {
+        // When FaceMasker reports NotImplemented, the strict sanitizer must
+        // expose MaskingUnavailable — never silently succeed.
+        val strict = StrictPrivacyImageSanitizer(faceMasker = notImplementedMasker())
         val result = strict.sanitize("raw-capture-bytes", "image/jpeg")
         assertTrue(result is SanitizeResult.MaskingUnavailable)
         assertTrue(result !is SanitizeResult.Success)
+    }
+
+    @Test
+    fun `strict sanitizer with real masking handles invalid input as blocked`() = runTest {
+        // With the real FaceMasker, invalid input returns Error -> Blocked.
+        val strict = StrictPrivacyImageSanitizer()
+        val result = strict.sanitize("not-valid-base64!!!", "image/jpeg")
+        // The sanitizer blocks on any masker error.
+        assertTrue(result is SanitizeResult.Blocked)
     }
 
     @Test

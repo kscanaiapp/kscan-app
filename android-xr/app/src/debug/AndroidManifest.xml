@@ -24,7 +24,7 @@
         -->
         <receiver
             android:name=".MockScenarioReceiver"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
                 <action android:name="com.kscan.glasses.action.MOCK_SCENARIO" />
             </intent-filter>
