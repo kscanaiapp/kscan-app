@@ -48,6 +48,15 @@ export interface AvatarShadowObservation {
 
 export interface ShadowUtteranceRecord {
   speechGeneration: number;
+  /**
+   * Host-observed audio startup latency: wall-clock ms from the store first
+   * reporting `ready` to it first reporting `playing`.
+   *
+   * This is the number that must be UNCHANGED between a LEGACY run and a
+   * V10_SHADOW run. The engine is structurally off the audio path, so any
+   * movement here is the signal to reject the integration outright.
+   */
+  audioStartMs: number | null;
   /** Playback position, in ms, at which each path first left `closed`. */
   legacyFirstMouthMs: number | null;
   v10FirstMouthMs: number | null;
@@ -104,6 +113,7 @@ let previousLegacyMouth: LegacyAvatarMouthState = 'closed';
 let previousV10Mouth: string = 'closed';
 let firstPlaybackSeconds: number | null = null;
 let lastPlaybackSeconds = 0;
+let readyAtMs: number | null = null;
 
 const legacyResets = { completion: 0, interruption: 0, newUtterance: 0 };
 const frameReasons: Partial<Record<AvatarFrameReason, number>> = {};
@@ -113,6 +123,7 @@ function startUtterance(generation: number): void {
   if (current) archiveCurrent();
   current = {
     speechGeneration: generation,
+    audioStartMs: null,
     legacyFirstMouthMs: null,
     v10FirstMouthMs: null,
     legacyTransitions: 0,
@@ -129,6 +140,7 @@ function startUtterance(generation: number): void {
   previousV10Mouth = 'closed';
   firstPlaybackSeconds = null;
   lastPlaybackSeconds = 0;
+  readyAtMs = null;
 }
 
 function archiveCurrent(): void {
@@ -158,6 +170,13 @@ export function observeAvatarShadowFrame(input: AvatarShadowObservation): void {
     legacyResets.newUtterance += 1;
     startUtterance(generation);
   }
+  // Audio startup latency, measured from the host's own lifecycle rather than
+  // from anything the engine does.
+  if (phase === 'ready' && readyAtMs === null) readyAtMs = input.hostNowMs;
+  if (previousPhase !== 'playing' && phase === 'playing' && current && current.audioStartMs === null) {
+    current.audioStartMs = readyAtMs === null ? null : Math.max(0, input.hostNowMs - readyAtMs);
+  }
+
   if (previousPhase === 'playing' && phase === 'idle') {
     legacyResets.completion += 1;
     if (current) current.completed = true;
@@ -275,6 +294,7 @@ export function resetAvatarShadowBridgeForTests(): void {
   previousV10Mouth = 'closed';
   firstPlaybackSeconds = null;
   lastPlaybackSeconds = 0;
+  readyAtMs = null;
   legacyResets.completion = 0;
   legacyResets.interruption = 0;
   legacyResets.newUtterance = 0;
