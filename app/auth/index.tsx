@@ -29,6 +29,7 @@ import { supabase } from '../../services/supabaseClient';
 import { parseAuthCallbackUrl } from '../../services/authDeepLink';
 import { completeOAuthCallbackSession } from '../../services/oauthCallbackSession';
 import { traceAuthLifecycle } from '../../services/authLifecycleTrace';
+import { linkAppleCredential } from '../../services/appleCredentialLink';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -222,9 +223,18 @@ export default function AuthScreen() {
         return;
       }
 
+      // Hand the one-time authorization grant to the backend so account
+      // deletion can revoke this Apple authorization later (TN3194). Awaited so
+      // the code is spent while it is still valid, but never allowed to fail
+      // the sign-in that has already succeeded — the documented fallback for a
+      // missing token is that deletion still completes.
+      const linkOutcome = await linkAppleCredential(credential.authorizationCode);
+
       traceAuthLifecycle('apple-session-establishment', {
         outcome: 'accepted',
         sessionPresent: true,
+        // Status word only. The authorization code itself is never traced.
+        appleCredentialLink: linkOutcome,
       });
       return;
     } catch (err) {
