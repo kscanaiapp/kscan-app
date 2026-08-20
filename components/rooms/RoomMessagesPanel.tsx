@@ -49,7 +49,7 @@ import {
   readHiddenContentIds,
   readHiddenUserIds,
 } from '../../services/ugcSafetyStore';
-import { submitContentReport } from '../../services/contentReports';
+import { isReportServerAccepted, submitContentReport } from '../../services/contentReports';
 import {
   blockDressingRoomUser,
   DRESSING_ROOM_INTERACTION_UNAVAILABLE_ERROR,
@@ -480,26 +480,24 @@ export function RoomMessagesPanel({
   const reportUserById = useCallback(
     (targetUserId: string) => {
       if (!targetUserId || currentUserIdRef.current === targetUserId) return;
-      // Reject the second tap before React can re-render the disabled button.
-      if (reportUserInFlightRef.current) return;
-      reportUserInFlightRef.current = true;
-
-      const release = () => {
-        reportUserInFlightRef.current = false;
-        if (mountedRef.current) setReportingUserId(null);
-      };
 
       Alert.alert(
         'Report this user?',
         'We will review this account for violations of our community guidelines. This does not block them — use Block user separately if you also want to stop interacting with them.',
         [
-          // Cancel must release the guard, or the control stays dead for the
-          // rest of the session.
-          { text: 'Cancel', style: 'cancel', onPress: release },
+          { text: 'Cancel', style: 'cancel' },
           {
             text: 'Report user',
             style: 'destructive',
             onPress: async () => {
+              // Reject a second concurrent submission. Latched here, at
+              // submit time, and always released in `finally` below —
+              // never on Alert's `{ onDismiss }`, which is Android-only:
+              // an iOS dismissal that never invokes a button would leave
+              // the guard permanently stuck and this control silently
+              // dead for the rest of the session.
+              if (reportUserInFlightRef.current) return;
+              reportUserInFlightRef.current = true;
               if (mountedRef.current) setReportingUserId(targetUserId);
               try {
                 const result = await submitContentReport({
@@ -509,18 +507,23 @@ export function RoomMessagesPanel({
                   roomId,
                   reasonCategory: 'inappropriate',
                 });
-                if (result.ok) {
+                // Server acceptance is the only basis for a receipt
+                // confirmation. `ok: true` alone also covers the
+                // local-only outcome (no authenticated session), which
+                // never reached the server and must not be claimed as
+                // received.
+                if (isReportServerAccepted(result)) {
                   Alert.alert('Thanks. We received your report.');
                 } else {
                   Alert.alert("We couldn't send that report. Please try again.");
                 }
               } finally {
-                release();
+                reportUserInFlightRef.current = false;
+                if (mountedRef.current) setReportingUserId(null);
               }
             },
           },
         ],
-        { onDismiss: release },
       );
     },
     [roomId],
