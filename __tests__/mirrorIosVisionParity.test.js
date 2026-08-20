@@ -284,11 +284,69 @@ test('no ML Kit, Gradle, model asset or new permission came along', () => {
       `a new usage-description permission appeared: ${key}`,
     );
   }
+  // Privacy manifest: Vision/Mirror must never be the thing that silently
+  // expands the app's declared data-collection surface. The manifest's
+  // DATA-INVENTORY CONTENT is independently governed and tested in detail by
+  // __tests__/verifyAppleReadiness.test.js (see commit "fix(ios): align
+  // Apple privacy manifest with current data inventory") — that inventory is
+  // expected to grow over time as real, reviewed data-collection paths are
+  // added. What THIS test protects is narrower and permanent: Vision itself
+  // introduces none of that collection (it reads a file:// URI the app
+  // already owns and returns numbers), and the structural privacy posture —
+  // tracking off, required-reason API categories — never drifts.
+  const beforeManifest = before.privacyManifests ?? {};
+  const afterManifest = after.privacyManifests ?? {};
+
+  assert.equal(afterManifest.NSPrivacyTracking, false, 'tracking must stay off');
+  assert.deepEqual(afterManifest.NSPrivacyTrackingDomains ?? [], [], 'no tracking domain may appear');
+
+  // Required-reason API categories are unrelated to Vision (Vision is not a
+  // required-reason API) and must not drift.
   assert.deepEqual(
-    after.privacyManifests ?? {},
-    before.privacyManifests ?? {},
-    'the privacy manifest changed; Vision is not a required-reason API category',
+    (afterManifest.NSPrivacyAccessedAPITypes ?? []).map((e) => e.NSPrivacyAccessedAPIType).sort(),
+    (beforeManifest.NSPrivacyAccessedAPITypes ?? []).map((e) => e.NSPrivacyAccessedAPIType).sort(),
+    'a required-reason API category changed; Vision does not need one',
   );
+
+  const beforeTypes = new Set(
+    (beforeManifest.NSPrivacyCollectedDataTypes ?? []).map((e) => e.NSPrivacyCollectedDataType),
+  );
+  const afterTypes = new Set(
+    (afterManifest.NSPrivacyCollectedDataTypes ?? []).map((e) => e.NSPrivacyCollectedDataType),
+  );
+
+  // Nothing already-declared may silently disappear.
+  for (const type of beforeTypes) {
+    assert.ok(afterTypes.has(type), `${type} was removed from the privacy manifest`);
+  }
+
+  // Anything added beyond the historical baseline must be on the reviewed,
+  // approved allowlist for the current governed data inventory — Vision must
+  // not add undeclared collection of its own.
+  const APPROVED_ADDITIONS = new Set([
+    'NSPrivacyCollectedDataTypeName',
+    'NSPrivacyCollectedDataTypeOtherUserContent',
+    'NSPrivacyCollectedDataTypeSearchHistory',
+    'NSPrivacyCollectedDataTypeProductInteraction',
+    'NSPrivacyCollectedDataTypeCoarseLocation',
+  ]);
+  for (const type of afterTypes) {
+    if (beforeTypes.has(type)) continue;
+    assert.ok(
+      APPROVED_ADDITIONS.has(type),
+      `${type} is a new, unreviewed privacy-manifest data type`,
+    );
+  }
+
+  // Last line of defense — per-category Linked/Purposes detail lives in
+  // verifyAppleReadiness.test.js, but tracking:false is asserted here too.
+  for (const entry of afterManifest.NSPrivacyCollectedDataTypes ?? []) {
+    assert.equal(
+      entry.NSPrivacyCollectedDataTypeTracking,
+      false,
+      `${entry.NSPrivacyCollectedDataType} must not be marked as used for tracking`,
+    );
+  }
 });
 
 test('Apple Vision only — the three authorized requests and nothing else', () => {

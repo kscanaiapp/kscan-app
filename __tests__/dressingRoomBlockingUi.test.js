@@ -115,14 +115,40 @@ test('blocking UI: block and report-user are single-flight guarded by refs', () 
   assert.match(panel, /if \(reportUserInFlightRef\.current\) return;/);
 });
 
-test('blocking UI: guards release on cancel and on dialog dismiss, not only on success', () => {
+test('blocking UI: Block guards release on cancel and on dialog dismiss, not only on success', () => {
   // A guard that only released in the success path would permanently disable
   // the control after one cancel.
   const cancels = panel.match(/text: 'Cancel', style: 'cancel', onPress: release/g) ?? [];
-  assert.ok(cancels.length >= 2, 'block and report-user Cancel must both release');
+  assert.equal(cancels.length, 1, 'Block Cancel must release');
   const dismisses = panel.match(/\{ onDismiss: release \}/g) ?? [];
-  assert.ok(dismisses.length >= 2, 'block and report-user must release on dismiss');
+  assert.equal(dismisses.length, 1, 'Block must release on dismiss');
   assert.match(panel, /finally \{\s*release\(\);/);
+});
+
+// DEF-B29-IOS-02B (see __tests__/dressingRoomReportUserFeedback.test.js):
+// Report User deliberately does NOT use the Cancel-onPress-release /
+// onDismiss pattern above. That pattern latches the guard before the dialog
+// even opens and relies on `onDismiss` to recover it — but `onDismiss` is
+// Android-only, so an iOS dismissal that never invokes a button left the
+// guard permanently stuck. Report User's guard is instead taken inside the
+// confirm button's own onPress (submit time) and released only in
+// `finally`, so it never depends on Cancel or dismiss at all. Full coverage
+// of that contract lives in dressingRoomReportUserFeedback.test.js; this
+// test only guards against the OLD, removed pattern silently coming back.
+test('blocking UI: Report User does not depend on Cancel-release or onDismiss', () => {
+  const start = panel.indexOf('const reportUserById = useCallback(');
+  assert.ok(start >= 0, 'reportUserById not found');
+  const end = panel.indexOf('\n  );', start);
+  const reportUserById = panel.slice(start, end);
+
+  assert.ok(
+    !/text: 'Cancel', style: 'cancel', onPress: release/.test(reportUserById),
+    'Report User must not latch a guard before the dialog and release it on Cancel',
+  );
+  assert.ok(
+    !/\{ onDismiss: release \}/.test(reportUserById),
+    'Report User must not rely on Android-only onDismiss',
+  );
 });
 
 test('blocking UI: destructive controls expose a disabled/busy state while in flight', () => {
