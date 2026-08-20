@@ -136,6 +136,36 @@
                                                                                             "NSPrivacyCollectedDataTypeLinked": true,
                                                                                             "NSPrivacyCollectedDataTypeTracking": false,
                                                                                             "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"]
+                                                                                        },
+                                                                                        {
+                                                                                            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeName",
+                                                                                            "NSPrivacyCollectedDataTypeLinked": true,
+                                                                                            "NSPrivacyCollectedDataTypeTracking": false,
+                                                                                            "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"]
+                                                                                        },
+                                                                                        {
+                                                                                            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeOtherUserContent",
+                                                                                            "NSPrivacyCollectedDataTypeLinked": true,
+                                                                                            "NSPrivacyCollectedDataTypeTracking": false,
+                                                                                            "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"]
+                                                                                        },
+                                                                                        {
+                                                                                            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeSearchHistory",
+                                                                                            "NSPrivacyCollectedDataTypeLinked": true,
+                                                                                            "NSPrivacyCollectedDataTypeTracking": false,
+                                                                                            "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"]
+                                                                                        },
+                                                                                        {
+                                                                                            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeProductInteraction",
+                                                                                            "NSPrivacyCollectedDataTypeLinked": false,
+                                                                                            "NSPrivacyCollectedDataTypeTracking": false,
+                                                                                            "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAnalytics"]
+                                                                                        },
+                                                                                        {
+                                                                                            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeCoarseLocation",
+                                                                                            "NSPrivacyCollectedDataTypeLinked": true,
+                                                                                            "NSPrivacyCollectedDataTypeTracking": false,
+                                                                                            "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality", "NSPrivacyCollectedDataTypePurposeProductPersonalization"]
                                                                                         }
                                                                                     ],
                                                       "NSPrivacyAccessedAPITypes":  [
