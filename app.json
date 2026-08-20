@@ -53,7 +53,7 @@
     ],
     "android": {
       "package": "com.kscanai.app",
-      "versionCode": 28,
+      "versionCode": 31,
       "softwareKeyboardLayoutMode": "resize",
       "icon": "./assets/icon.png",
       "permissions": [
