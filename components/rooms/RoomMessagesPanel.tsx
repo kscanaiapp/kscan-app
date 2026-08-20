@@ -1052,6 +1052,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: SPACING.xs,
+    // B-04: on a non-mine, reply-eligible message, messageMetaRight can hold
+    // a timestamp plus up to 3 inline actions (Reply/Report/Report
+    // user/Block). Their combined intrinsic width exceeds the available
+    // card width on small iPhones, and RN's row default (flexShrink: 0,
+    // flexWrap: 'nowrap') does not shrink or wrap that content — it
+    // overflows the card. Wrapping this row lets the actions drop to a
+    // second line instead.
+    flexWrap: 'wrap',
+    rowGap: SPACING.xs,
   },
   messageSender: {
     ...LUXURY.typography.caption,
@@ -1066,6 +1075,9 @@ const styles = StyleSheet.create({
   messageMetaRight: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    flexShrink: 1,
+    justifyContent: 'flex-end',
     gap: SPACING.sm,
   },
   reportButtonText: {
