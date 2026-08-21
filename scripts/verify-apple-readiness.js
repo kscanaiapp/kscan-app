@@ -9,6 +9,14 @@ function readJson(relativePath) {
   return JSON.parse(fs.readFileSync(path.join(ROOT, relativePath), 'utf8'));
 }
 
+function readTextIfExists(relativePath) {
+  try {
+    return fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
+  } catch {
+    return '';
+  }
+}
+
 function hasDependency(packageJson, name) {
   return Boolean(packageJson.dependencies?.[name] || packageJson.devDependencies?.[name]);
 }
@@ -164,6 +172,31 @@ function verify() {
     'Apple Sign-In config plugin is present',
   );
   check(result, ios.usesAppleSignIn === true, 'Apple Sign-In entitlement is declared');
+
+  // Apple requires that deleting an account created with Sign in with Apple also
+  // revokes that authorization (TN3194). Revocation is only possible if the client
+  // captured the one-time authorization code at sign-in, and this gate previously
+  // could not tell whether that wiring was present — it passed either way, so a
+  // convergence that dropped the bridge would have shipped silently.
+  const credentialLinkSource = readTextIfExists('services/appleCredentialLink.ts');
+  const authScreenSource = readTextIfExists('app/auth/index.tsx');
+  const captureIndex = authScreenSource.indexOf('linkAppleCredential(credential.authorizationCode)');
+  const sessionIndex = authScreenSource.indexOf('signInWithIdToken');
+  check(
+    result,
+    credentialLinkSource.includes("functions.invoke('apple-credential-link'"),
+    'Apple credential-link client posts to the apple-credential-link function',
+  );
+  check(
+    result,
+    captureIndex > -1,
+    'Apple sign-in captures the authorization code for deletion revocation',
+  );
+  check(
+    result,
+    sessionIndex > -1 && captureIndex > sessionIndex,
+    'Apple authorization code is captured after the session is established',
+  );
   check(result, !hasDependency(packageJson, 'expo-media-library'), 'No media library dependency');
   check(result, !hasDependency(packageJson, 'expo-ads-admob'), 'No ads dependency');
   check(result, !hasDependency(packageJson, 'expo-tracking-transparency'), 'No App Tracking Transparency dependency');
