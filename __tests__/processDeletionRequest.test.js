@@ -115,6 +115,7 @@ function createSupabaseMock(options = {}) {
     profile = null,
     profilesById = {},
     authUser = null,
+    appleRevocationStatus = 'no_credential',
     authUsersById = {},
     updateResult = { data: [{ id: 'room-1' }], error: null },
     residualTables = {},
@@ -218,6 +219,18 @@ function createSupabaseMock(options = {}) {
           const user = authUsersById[value] ?? authUser;
           return { data: { user }, error: null };
         },
+      },
+    },
+    // B29-IOS-004: the pipeline now revokes the Sign in with Apple
+    // authorization before deleting the Auth user. These fixtures model a
+    // non-Apple account, whose settled 'no_credential' answer lets deletion
+    // proceed — the blocking statuses are exercised in
+    // manualDeletionAppleRevocation.test.js.
+    functions: {
+      async invoke(name, payload) {
+        calls.push({ type: 'functions.invoke', name });
+        void payload;
+        return { data: { status: appleRevocationStatus }, error: null };
       },
     },
   };
