@@ -50,6 +50,7 @@ function loadStyleObjects() {
       if (id.startsWith('node:')) return require(id);
       // Stub app/runtime deps — only used inside functions we are not calling here.
       if (id === './supabaseClient') return { supabase: {} };
+      if (id === './roomMessages') return { containsBlockedMessageContent: () => false };
       if (id === 'expo-file-system/legacy') return {};
       if (id === 'expo-image-manipulator') return {};
       if (id === './dressingRoomItemContract') {
@@ -143,6 +144,7 @@ function loadStyleObjectsWithExtensionCapture(flagOverrides) {
     require: (id) => {
       if (id.startsWith('node:')) return require(id);
       if (id === './supabaseClient') return { supabase: {} };
+      if (id === './roomMessages') return { containsBlockedMessageContent: () => false };
       if (id === 'expo-file-system/legacy') return {};
       if (id === 'expo-image-manipulator') return {};
       if (id === './dressingRoomItemContract') {

@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient';
+import { containsBlockedMessageContent } from './roomMessages';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
 import {
@@ -130,6 +131,11 @@ async function getCurrentSessionUserId() {
   return data.session?.user?.id ?? null;
 }
 
+export const ROOM_NOTE_OBJECTIONABLE_ERROR =
+  "That note can't be saved. Please remove any offensive language and try again.";
+export const ROOM_TITLE_OBJECTIONABLE_ERROR =
+  "That title can't be used. Please remove any offensive language and try again.";
+
 export function normalizeRoomNoteValue(value?: string | null) {
   const note = String(value ?? '').trim();
   return note.length > 0 ? note : null;
@@ -140,6 +146,10 @@ function validateRoomNoteValue(value?: string | null) {
   if (note && note.length > ROOM_NOTE_MAX_LENGTH) {
     throw new Error(`Room note must be ${ROOM_NOTE_MAX_LENGTH} characters or fewer.`);
   }
+  // Apple Guideline 1.2: room notes are visible to share recipients.
+  if (note && containsBlockedMessageContent(note)) {
+    throw new Error(ROOM_NOTE_OBJECTIONABLE_ERROR);
+  }
   return note;
 }
 
@@ -148,6 +158,10 @@ function normalizeRoomTitleValue(value?: string | null): string {
   if (!title) throw new Error('Dressing Room title is required.');
   if (title.length > ROOM_TITLE_MAX_LENGTH) {
     throw new Error(`Dressing Room title must be ${ROOM_TITLE_MAX_LENGTH} characters or fewer.`);
+  }
+  // Apple Guideline 1.2: room titles are visible to participants and public link viewers.
+  if (containsBlockedMessageContent(title)) {
+    throw new Error(ROOM_TITLE_OBJECTIONABLE_ERROR);
   }
   return title;
 }

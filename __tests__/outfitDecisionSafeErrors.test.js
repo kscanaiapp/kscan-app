@@ -107,6 +107,9 @@ function createMockClient({ rpcImpl, fromImpl } = {}) {
 function loadService(mockClient) {
   return loadTsModule('services/outfitDecisions.ts', {
     './supabaseClient': { __esModule: true, supabase: mockClient },
+    // Guideline 1.2 denylist lives in roomMessages; these tests cover error
+    // hygiene, not content filtering, so a permissive stub keeps them focused.
+    './roomMessages': { __esModule: true, containsBlockedMessageContent: () => false },
   });
 }
 
