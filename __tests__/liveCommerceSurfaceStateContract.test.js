@@ -133,7 +133,7 @@ test('behavioral: resolvePurchaseShelfMode governs the live surface exactly as t
 
   assert.equal(resolvePurchaseShelfMode(0, true, 'pending'), 'pending');
   assert.equal(resolvePurchaseShelfMode(0, true, 'error'), 'error');
-  assert.equal(resolvePurchaseShelfMode(0, true, 'idle'), 'hidden');
+  assert.equal(resolvePurchaseShelfMode(0, true, 'idle'), 'empty');
   assert.equal(resolvePurchaseShelfMode(2, true, 'error'), 'options', 'data in hand always wins');
   assert.equal(
     resolvePurchaseShelfMode(0, false, 'pending'),

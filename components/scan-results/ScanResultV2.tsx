@@ -514,7 +514,7 @@ export function ScanResultV2({
                     purchaseOptions={v2Data.purchaseOptions}
                   />
                 </View>
-              ) : purchaseShelfMode === 'pending' || purchaseShelfMode === 'error' ? (
+              ) : purchaseShelfMode === 'pending' || purchaseShelfMode === 'error' || purchaseShelfMode === 'empty' ? (
                 <View style={styles.section}>
                   <PurchaseOptionsPanel
                     purchaseOptions={[]}
