@@ -10,12 +10,12 @@ test('Expo android adaptive icon config points at cream background and new asset
   assert.equal(appJson.expo.icon, './assets/icon.png');
   assert.equal(appJson.expo.android.icon, './assets/icon.png');
   assert.equal(appJson.expo.android.package, 'com.kscanai.app');
-  assert.equal(appJson.expo.android.versionCode, 31);
+  assert.equal(appJson.expo.android.versionCode, 32);
   const nativeBuildGradle = fs.readFileSync(
     path.join(ROOT, 'android/app/build.gradle'),
     'utf8',
   );
-  assert.match(nativeBuildGradle, /versionCode\s+31\b/);
+  assert.match(nativeBuildGradle, /versionCode\s+32\b/);
   // The native project is checked in, so these two are synced by hand and can
   // drift independently of the literal above.
   assert.equal(
