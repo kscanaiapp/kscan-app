@@ -123,11 +123,11 @@ test('AnalysisCard: pending/error mount the panel only while nothing has arrived
   assert.equal(resolvePurchaseShelfMode(0, true, 'error'), 'error');
 });
 
-test('AnalysisCard: idle/success/empty status with no options stays hidden (pre-existing behavior)', () => {
+test('AnalysisCard: idle/success/empty status with no options renders the governed empty state', () => {
   for (const status of ['idle', 'success', 'empty', 'unknown-future-status']) {
     assert.equal(
-      resolvePurchaseShelfMode(0, true, status), 'hidden',
-      `status "${status}" unexpectedly mounts the panel`,
+      resolvePurchaseShelfMode(0, true, status), 'empty',
+      `status "${status}" unexpectedly failed to mount the empty state`,
     );
   }
 });

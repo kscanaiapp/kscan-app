@@ -155,22 +155,21 @@ function sanitizeText(value?: string) {
 }
 
 /**
- * v127 (P1-B): whether the "MATCHING PRODUCTS" panel renders at all. Pulled
- * out of the JSX branch so this exact precedence is independently testable.
- * Options in hand always win, regardless of status. Pending/error render
- * the panel (which shows its own pending/error treatment) only while there
- * is nothing to show yet.
+ * Whether the "MATCHING PRODUCTS" panel renders at all. Pulled out of the
+ * JSX branch so this exact precedence is independently testable. Options in
+ * hand always win, regardless of status; pending, error, and a completed
+ * zero-result search each render the panel with their own treatment.
  */
 export function resolvePurchaseShelfMode(
   purchaseOptionsCount: number,
   priceDiscoveryEnabled: boolean,
   commerceStatus: string,
-): 'options' | 'pending' | 'error' | 'hidden' {
+): 'options' | 'pending' | 'error' | 'empty' | 'hidden' {
   if (!priceDiscoveryEnabled) return 'hidden';
   if (purchaseOptionsCount >= 1) return 'options';
   if (commerceStatus === 'pending') return 'pending';
   if (commerceStatus === 'error') return 'error';
-  return 'hidden';
+  return 'empty';
 }
 
 export function AnalysisCard({
@@ -507,10 +506,10 @@ export function AnalysisCard({
               {/* Persisted/live commerce options — same panel contract as ScanResultV2. */}
               {purchaseShelfMode === 'options' ? (
                 <PurchaseOptionsPanel purchaseOptions={commerceOptions} />
-              ) : purchaseShelfMode === 'pending' || purchaseShelfMode === 'error' ? (
-                // v127 (P1-B): the panel previously never mounted at all while
-                // commerce was deferred — no pending indicator, no error, no
-                // retry. `commerceOptions` is empty here by definition.
+              ) : purchaseShelfMode === 'pending' || purchaseShelfMode === 'error' || purchaseShelfMode === 'empty' ? (
+                // A completed zero-result search is a real answer, not the
+                // same as "never checked" — it still mounts the panel so its
+                // governed empty state renders instead of nothing at all.
                 <PurchaseOptionsPanel
                   purchaseOptions={[]}
                   commerceStatus={purchaseShelfMode}

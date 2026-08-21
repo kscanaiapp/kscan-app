@@ -280,7 +280,21 @@ test('assistive settings fail closed before native hydration resolves', () => {
   assert.equal(reducedMotion.useReducedMotion(), true);
 });
 
-test('voice preference defaults off and fails closed during actor switches', async () => {
+function loadVoicePreferenceStore(getItem) {
+  return load('stores/stylistVoicePreferenceStore.ts', {
+    '@react-native-async-storage/async-storage': { default: {
+      getItem,
+      setItem: async () => {},
+    } },
+    'expo-crypto': {
+      CryptoDigestAlgorithm: { SHA256: 'SHA256' },
+      digestStringAsync: async (_algorithm, actorId) => `hash-${actorId}`,
+    },
+    react: { useSyncExternalStore: () => {} },
+  });
+}
+
+test('voice preference fails closed during actor switches; an unset actor now defaults on', async () => {
   const values = new Map([['@kscan/stylist-voice/v1/hash-actor-a', 'on']]);
   const preference = load('stores/stylistVoicePreferenceStore.ts', {
     '@react-native-async-storage/async-storage': { default: {
@@ -302,9 +316,46 @@ test('voice preference defaults off and fails closed during actor switches', asy
     { actorId: 'actor-b', enabled: false, loading: true },
   );
   await switchPromise;
-  assert.equal(preference.getStylistVoicePreferenceState().enabled, false);
+  // actor-b has no recorded choice — the migrated default applies.
+  assert.equal(preference.getStylistVoicePreferenceState().enabled, true);
   await preference.setStylistVoicePreference('actor-b', true);
   assert.equal(values.get('@kscan/stylist-voice/v1/hash-actor-b'), 'on');
+});
+
+test('NO_PREFERENCE_DEFAULTS_ON: an actor with no stored value hydrates enabled', async () => {
+  const preference = loadVoicePreferenceStore(async () => null);
+  await preference.hydrateStylistVoicePreference('never-configured-actor');
+  assert.equal(preference.getStylistVoicePreferenceState().enabled, true);
+});
+
+test('EXPLICIT_FALSE_STAYS_OFF: a stored "off" value hydrates disabled, not the new default', async () => {
+  const preference = loadVoicePreferenceStore(async () => 'off');
+  await preference.hydrateStylistVoicePreference('opted-out-actor');
+  assert.equal(preference.getStylistVoicePreferenceState().enabled, false);
+});
+
+test('EXPLICIT_TRUE_STAYS_ON: a stored "on" value hydrates enabled', async () => {
+  const preference = loadVoicePreferenceStore(async () => 'on');
+  await preference.hydrateStylistVoicePreference('opted-in-actor');
+  assert.equal(preference.getStylistVoicePreferenceState().enabled, true);
+});
+
+test('NEW_ASSISTANT_MESSAGE_SPEAKS_WHEN_DEFAULT_ON: the live gate reads the store unmodified', async () => {
+  const preference = loadVoicePreferenceStore(async () => null);
+  await preference.hydrateStylistVoicePreference('fresh-actor');
+  const { enabled, loading } = preference.getStylistVoicePreferenceState();
+
+  // A fresh actor is speech-eligible: enabled defaults on, and hydration has
+  // already settled, so nothing gates a real new message on this account.
+  assert.equal(enabled, true);
+  assert.equal(loading, false);
+
+  const hookSrc = fs.readFileSync(path.join(ROOT, 'hooks/useStyleChat.ts'), 'utf8');
+  assert.match(
+    hookSrc,
+    /canSpeakNewMessages =\s+voicePreference\.enabled &&\s+!voicePreference\.loading/,
+    'the dispatch gate must still read the live preference store directly, not a cached/hardcoded value',
+  );
 });
 
 test('a newer utterance stops the old player and stale callbacks cannot clear it', async () => {
