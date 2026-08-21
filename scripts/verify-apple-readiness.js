@@ -48,6 +48,30 @@ function getProductionSubmit(easJson) {
   return easJson.submit?.production?.ios ?? {};
 }
 
+// The manual deletion executor (lib/account-deletion/processorCore.mjs) is
+// the operative path this release ships. These two checks are structural,
+// text-based contracts over that file's source rather than a live import —
+// the file is an ES module and this script is CommonJS, and a text check is
+// also what lets the paired unit tests run a negative control against a
+// fixture string instead of mutating production source (see
+// __tests__/verifyAppleReadiness.test.js).
+function appleRevocationInvoked(deletionCoreSource) {
+  return deletionCoreSource.includes("functions.invoke('apple-revoke-credential'");
+}
+
+function appleRevocationOccursBeforeAuthDelete(deletionCoreSource) {
+  const revokeCallIndex = deletionCoreSource.indexOf('await requestAppleRevocation(');
+  const blockingGateIndex = deletionCoreSource.indexOf(
+    'isBlockingAppleRevocationStatus(appleRevocation.status)',
+  );
+  const authDeleteIndex = deletionCoreSource.indexOf('await supabase.auth.admin.deleteUser(');
+  return (
+    revokeCallIndex > -1 &&
+    blockingGateIndex > revokeCallIndex &&
+    authDeleteIndex > blockingGateIndex
+  );
+}
+
 function hasReviewInfo(storeConfig) {
   const review = storeConfig.apple?.review ?? {};
   return Boolean(
@@ -197,6 +221,24 @@ function verify() {
     sessionIndex > -1 && captureIndex > sessionIndex,
     'Apple authorization code is captured after the session is established',
   );
+
+  // Apple also requires that deleting an account revokes its Sign in with
+  // Apple authorization (TN3194). The capture above is only half the
+  // obligation — these two checks confirm the manual deletion executor this
+  // release ships actually invokes revocation, and does so before the Auth
+  // user (and the credential row that cascades with it) is deleted.
+  const deletionCoreSource = readTextIfExists('lib/account-deletion/processorCore.mjs');
+  check(
+    result,
+    appleRevocationInvoked(deletionCoreSource),
+    'Manual deletion executor invokes apple-revoke-credential',
+  );
+  check(
+    result,
+    appleRevocationOccursBeforeAuthDelete(deletionCoreSource),
+    'Apple revocation is requested and gated before the Auth user is deleted',
+  );
+
   check(result, !hasDependency(packageJson, 'expo-media-library'), 'No media library dependency');
   check(result, !hasDependency(packageJson, 'expo-ads-admob'), 'No ads dependency');
   check(result, !hasDependency(packageJson, 'expo-tracking-transparency'), 'No App Tracking Transparency dependency');
@@ -235,4 +277,6 @@ if (require.main === module) {
 module.exports = {
   hasReviewInfo,
   verify,
+  appleRevocationInvoked,
+  appleRevocationOccursBeforeAuthDelete,
 };

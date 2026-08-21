@@ -3,7 +3,12 @@ const test = require('node:test');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { hasReviewInfo, verify } = require('../scripts/verify-apple-readiness');
+const {
+  hasReviewInfo,
+  verify,
+  appleRevocationInvoked,
+  appleRevocationOccursBeforeAuthDelete,
+} = require('../scripts/verify-apple-readiness');
 
 function readAppJsonPrivacyManifest() {
   const appJson = JSON.parse(fs.readFileSync(path.join(__dirname, '../app.json'), 'utf8'));
@@ -168,6 +173,80 @@ test('privacy manifest: required-reason API declarations are unchanged (UserDefa
     'NSPrivacyAccessedAPICategoryUserDefaults',
     'NSPrivacyAccessedAPICategoryFileTimestamp',
   ]);
+});
+
+// Apple revocation wiring (TN3194): the readiness gate previously could not
+// tell whether the manual deletion executor revoked Sign in with Apple
+// before deleting the Auth user — it passed either way, so a convergence
+// that dropped or reordered that step would have shipped silently (this is
+// exactly what happened once already; see lib/account-deletion/processorCore.mjs).
+// These tests are the REQUIRED NEGATIVE CONTROL: they prove the checks fail
+// against a test-controlled fixture that is missing/reorders the revocation
+// step, without ever touching real production source.
+
+const FIXTURE_WITH_CORRECT_ORDERING = `
+export async function requestAppleRevocation(supabase, userId) {
+  result = await supabase.functions.invoke('apple-revoke-credential', { body: { userId } });
+}
+
+export async function runHardDeletePipeline(supabase, request, options = {}) {
+  const appleRevocation = await requestAppleRevocation(supabase, userId);
+  if (isBlockingAppleRevocationStatus(appleRevocation.status)) {
+    throw new Error('apple_revocation_blocked:' + appleRevocation.status);
+  }
+  const deleteResult = await supabase.auth.admin.deleteUser(userId);
+}
+`;
+
+const FIXTURE_MISSING_REVOCATION = `
+export async function runHardDeletePipeline(supabase, request, options = {}) {
+  const deleteResult = await supabase.auth.admin.deleteUser(userId);
+}
+`;
+
+const FIXTURE_REVOCATION_AFTER_AUTH_DELETE = `
+export async function requestAppleRevocation(supabase, userId) {
+  result = await supabase.functions.invoke('apple-revoke-credential', { body: { userId } });
+}
+
+export async function runHardDeletePipeline(supabase, request, options = {}) {
+  const deleteResult = await supabase.auth.admin.deleteUser(userId);
+  const appleRevocation = await requestAppleRevocation(supabase, userId);
+  if (isBlockingAppleRevocationStatus(appleRevocation.status)) {
+    throw new Error('apple_revocation_blocked:' + appleRevocation.status);
+  }
+}
+`;
+
+test('apple revocation wiring: a correctly-ordered fixture passes both checks', () => {
+  assert.equal(appleRevocationInvoked(FIXTURE_WITH_CORRECT_ORDERING), true);
+  assert.equal(appleRevocationOccursBeforeAuthDelete(FIXTURE_WITH_CORRECT_ORDERING), true);
+});
+
+test('NEGATIVE CONTROL: a fixture with no revocation call fails both checks', () => {
+  assert.equal(appleRevocationInvoked(FIXTURE_MISSING_REVOCATION), false);
+  assert.equal(appleRevocationOccursBeforeAuthDelete(FIXTURE_MISSING_REVOCATION), false);
+});
+
+test('NEGATIVE CONTROL: a fixture that revokes after the Auth delete fails the ordering check', () => {
+  // The call is present...
+  assert.equal(appleRevocationInvoked(FIXTURE_REVOCATION_AFTER_AUTH_DELETE), true);
+  // ...but not correctly ordered, which is the regression that actually matters.
+  assert.equal(appleRevocationOccursBeforeAuthDelete(FIXTURE_REVOCATION_AFTER_AUTH_DELETE), false);
+});
+
+test('apple revocation wiring: the readiness gate passes against the real deletion executor', () => {
+  const result = verify();
+  const invoked = result.checks.find(
+    (item) => item.label === 'Manual deletion executor invokes apple-revoke-credential',
+  );
+  const ordered = result.checks.find(
+    (item) => item.label === 'Apple revocation is requested and gated before the Auth user is deleted',
+  );
+  assert.ok(invoked, 'check must be registered');
+  assert.ok(ordered, 'check must be registered');
+  assert.equal(invoked.ok, true);
+  assert.equal(ordered.ok, true);
 });
 
 test('hasReviewInfo requires contact, demo account, and notes', () => {

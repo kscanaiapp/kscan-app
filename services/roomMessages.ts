@@ -44,6 +44,8 @@ export const ROOM_MESSAGES_STALE_ERROR = 'This room session is no longer active.
 export const ROOM_MESSAGE_SIGN_IN_ERROR = 'Sign in to view and send room messages.';
 export const ROOM_MESSAGE_EMPTY_ERROR = 'Message cannot be empty.';
 export const ROOM_MESSAGE_TOO_LONG_ERROR = `Messages must be ${ROOM_MESSAGE_MAX_LENGTH} characters or fewer.`;
+export const ROOM_MESSAGE_OBJECTIONABLE_ERROR =
+  "That message can't be sent. Please remove any offensive language and try again.";
 export const ROOM_JOIN_ERROR = "We couldn't open that shared room. The link may be invalid or no longer active.";
 const ROOM_MESSAGES_REALTIME_UNAVAILABLE = 'Live message updates are not available yet.';
 
@@ -111,6 +113,42 @@ export function normalizeMessageBody(value?: string | null) {
     .trim();
 }
 
+// Apple Guideline 1.2 (User-Generated Content) requires "a method for
+// filtering objectionable material" before it reaches other participants.
+// This is deliberately a small, fixed denylist of unambiguous slurs and
+// extreme profanity — not a general-purpose profanity filter, and it makes
+// no attempt to defeat spacing/leetspeak evasion. It exists to satisfy the
+// filtering requirement for the room chat, not to replace Report/Block.
+const BLOCKED_MESSAGE_TERMS = [
+  'nigger',
+  'nigga',
+  'chink',
+  'spic',
+  'kike',
+  'gook',
+  'wetback',
+  'beaner',
+  'towelhead',
+  'raghead',
+  'tranny',
+  'faggot',
+  'retard',
+  'cunt',
+  'whore',
+  'slut',
+  'kill yourself',
+  'kys',
+];
+
+const BLOCKED_MESSAGE_PATTERN = new RegExp(
+  `\\b(${BLOCKED_MESSAGE_TERMS.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`,
+  'i',
+);
+
+export function containsBlockedMessageContent(body: string): boolean {
+  return BLOCKED_MESSAGE_PATTERN.test(body);
+}
+
 export function validateMessageBody(value?: string | null) {
   const body = normalizeMessageBody(value);
   if (body.length === 0) {
@@ -118,6 +156,9 @@ export function validateMessageBody(value?: string | null) {
   }
   if (body.length > ROOM_MESSAGE_MAX_LENGTH) {
     throw new Error(ROOM_MESSAGE_TOO_LONG_ERROR);
+  }
+  if (containsBlockedMessageContent(body)) {
+    throw new Error(ROOM_MESSAGE_OBJECTIONABLE_ERROR);
   }
   return body;
 }
