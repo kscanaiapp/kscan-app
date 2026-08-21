@@ -164,11 +164,34 @@ On confirmed processing, `scripts/process-deletion-request.js`:
 3. Transfers any shared dressing rooms to the earliest remaining active participant (see Shared Room Safety above), or records `no_valid_recipient` when no active participant exists.
 4. Removes owned storage objects from `style-library-images` under `{userId}/scans/` and `{userId}/inspirations/`.
 5. Deletes known user-linked non-cascade rows such as `style_chat_burst_usage` and optional `scan_intelligence_events`.
-6. Calls `supabase.auth.admin.deleteUser(user_id)` last.
-7. Relies on the schema's `on delete cascade` foreign keys to remove the user's remaining linked public rows.
-8. Optionally writes a local audit JSON file outside the app data path, using a partial user ID only. The audit includes the room-transfer result, storage results, direct-deletion results, and deletion coverage map.
+6. Revokes the user's Sign in with Apple authorization by calling the deployed `apple-revoke-credential` function, immediately before the Auth delete. See Apple Authorization Revocation below.
+7. Calls `supabase.auth.admin.deleteUser(user_id)` last.
+8. Relies on the schema's `on delete cascade` foreign keys to remove the user's remaining linked public rows.
+9. Optionally writes a local audit JSON file outside the app data path, using a partial user ID only. The audit includes the room-transfer result, storage results, direct-deletion results, the Apple revocation status word, and deletion coverage map.
 
 Because `deletion_requests` currently cascades from `auth.users`, the request row is expected to be removed with the Auth user. Keep the generated audit JSON or support-ticket note as the operational completion record.
+
+## Apple Authorization Revocation
+
+Apple requires that deleting an account created with Sign in with Apple also revokes that authorization (TN3194, Guideline 5.1.1(v)). The operator script performs this on the same terms as the scheduled `process-account-deletions` worker, so both executors satisfy the obligation identically.
+
+Revocation is delegated to the deployed `apple-revoke-credential` function, authenticated with the service-role key the operator already exports. No Apple signing key, client secret, or refresh token is handled by the script or reachable from this repo.
+
+The step runs immediately before `auth.admin.deleteUser` because the stored credential cascades away with the Auth user — after that point the token is gone and the obligation can never be met.
+
+Outcomes, which appear as `appleAuthorizationRevocation` in the audit JSON:
+
+| Status | Meaning | Effect |
+| --- | --- | --- |
+| `revoked` | Apple accepted the revocation | Deletion proceeds |
+| `already_gone` | Token was already invalidated | Deletion proceeds |
+| `no_credential` | Non-Apple account, or an Apple account from before capture existed | Deletion proceeds; direct the user to revoke access manually in their Apple ID settings |
+| `unreadable` | Stored credential cannot be decrypted; the token is unrecoverable | Deletion proceeds |
+| `failed` / `not_configured` / anything unrecognised | Potentially retryable, or an unknown backend state | **Deletion STOPS** |
+
+A blocking status aborts the run with `apple_revocation_blocked:<status>` **before anything further is erased and before the ledger record is prepared**, so the request stays eligible and can simply be re-run once the cause is resolved. An unrecognised status is treated as blocking, never assumed benign.
+
+If you see `not_configured`, the Apple environment variables are missing on the function — resolve that with the owner rather than bypassing the step. Do not edit the processor to skip revocation.
 
 ## Post-Deletion Verification
 
