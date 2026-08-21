@@ -82,12 +82,123 @@ test('remote feature-freeze defaults open so aiStylist passes without a freeze',
   assert.equal(flags.DEFAULT_FEATURE_FREEZE_CONFIG.featureFreeze, false);
 });
 
-test('composer attachment gate uses exactly the family terms (no hidden gate)', () => {
-  const session = fs.readFileSync(path.join(ROOT, 'app/style-chat/[sessionId].tsx'), 'utf8');
-  assert.match(
-    session,
-    /AI_STYLIST_UI_ENABLED &&\s*\n?\s*STYLECHAT_ATTACHMENTS_ENABLED &&\s*\n?\s*isStylistFeatureEnabled\('aiStylist'\)/,
-    'composer gate must be the three-term family gate',
+/**
+ * Evaluate the REAL `attachmentsEnabled` expression out of the shipping
+ * screen. Extracting and running the actual source (rather than restating
+ * the boolean here) means this suite cannot drift from what ships: if the
+ * gate is edited, these cases evaluate the edited expression.
+ */
+function loadComposerAttachmentGate() {
+  const src = fs.readFileSync(path.join(ROOT, 'app/style-chat/[sessionId].tsx'), 'utf8');
+  const match = src.match(/const attachmentsEnabled =([\s\S]*?);\n/);
+  assert.ok(match, 'attachmentsEnabled gate not found in app/style-chat/[sessionId].tsx');
+  const expression = match[1];
+  return function evaluateGate({
+    visualAttachments,
+    aiStylistUi,
+    stylechatAttachments,
+    aiStylistNotFrozen,
+  }) {
+    return vm.runInNewContext(`(${expression})`, {
+      ELISE_VISUAL_ATTACHMENTS_V1_ENABLED: visualAttachments,
+      AI_STYLIST_UI_ENABLED: aiStylistUi,
+      STYLECHAT_ATTACHMENTS_ENABLED: stylechatAttachments,
+      isStylistFeatureEnabled: (key) => {
+        assert.equal(key, 'aiStylist', 'the composer gate reads the aiStylist freeze key');
+        return aiStylistNotFrozen;
+      },
+    });
+  };
+}
+
+/**
+ * OWNER-APPROVED CONTRACT - DO NOT "REPAIR" THIS BACK.
+ *
+ * Elise visual attachments are a self-contained, separately approved route.
+ * They INTENTIONALLY survive the global `aiStylist` kill switch whenever
+ * their own dedicated capability flag (ELISE_VISUAL_ATTACHMENTS_V1_ENABLED)
+ * is enabled. The aiStylist freeze is a broad, non-core switch and must not
+ * silently darken the approved visual attachment route.
+ *
+ * An earlier revision of this suite required a three-term
+ * `AI_STYLIST_UI_ENABLED && STYLECHAT_ATTACHMENTS_ENABLED &&
+ * isStylistFeatureEnabled('aiStylist')` gate. That was the OLD contract,
+ * superseded by owner ruling during Build 29 closure. A future audit that
+ * "fixes" the implementation to make aiStylist a mandatory master switch
+ * would be reintroducing the old contract and disabling approved
+ * functionality.
+ *
+ * The LEGACY Closet-only route (visual attachments flag OFF) remains fully
+ * subordinate to the AI Stylist family, exactly as before.
+ */
+test('visual attachments intentionally survive the aiStylist global kill switch when their dedicated feature gate is enabled', () => {
+  const gate = loadComposerAttachmentGate();
+
+  // CASE 1 - dedicated capability on, family healthy: enabled.
+  assert.equal(
+    gate({
+      visualAttachments: true,
+      aiStylistUi: true,
+      stylechatAttachments: true,
+      aiStylistNotFrozen: true,
+    }),
+    true,
+    'CASE 1: visual attachments + healthy family must enable attachments',
+  );
+
+  // CASE 2 - THE APPROVED EXEMPTION. aiStylist is frozen off, yet the
+  // dedicated visual attachment capability keeps the route alive.
+  assert.equal(
+    gate({
+      visualAttachments: true,
+      aiStylistUi: true,
+      stylechatAttachments: true,
+      aiStylistNotFrozen: false,
+    }),
+    true,
+    'CASE 2: the aiStylist freeze must NOT darken the approved visual attachment route',
+  );
+
+  // The exemption is genuinely self-contained: it holds even when the broader
+  // AI Stylist UI / legacy attachment flags are also off.
+  assert.equal(
+    gate({
+      visualAttachments: true,
+      aiStylistUi: false,
+      stylechatAttachments: false,
+      aiStylistNotFrozen: false,
+    }),
+    true,
+    'CASE 2b: the visual attachment capability is self-contained by design',
+  );
+});
+
+test('with the dedicated visual attachment gate OFF, attachments stay fully subordinate to the AI Stylist family', () => {
+  const gate = loadComposerAttachmentGate();
+  const legacy = (overrides) =>
+    gate({
+      visualAttachments: false,
+      aiStylistUi: true,
+      stylechatAttachments: true,
+      aiStylistNotFrozen: true,
+      ...overrides,
+    });
+
+  // CASE 3 - legacy route, family healthy: enabled.
+  assert.equal(legacy({}), true, 'CASE 3: legacy Closet-only route enables when the family is healthy');
+
+  // CASE 4 - every mandatory legacy prerequisite independently disables.
+  assert.equal(
+    legacy({ aiStylistNotFrozen: false }), false,
+    'CASE 4: the aiStylist freeze DOES still govern the legacy route',
+  );
+  assert.equal(
+    legacy({ aiStylistUi: false }), false,
+    'CASE 4: AI_STYLIST_UI_ENABLED is mandatory for the legacy route',
+  );
+  assert.equal(
+    legacy({ stylechatAttachments: false }), false,
+    'CASE 4: STYLECHAT_ATTACHMENTS_ENABLED is mandatory for the legacy route',
   );
 });
 
