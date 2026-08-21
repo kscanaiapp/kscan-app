@@ -269,7 +269,14 @@ test('StyleChat composer follows the selected stylist display name', () => {
 });
 
 test('accessible labels use dynamic Elise language', () => {
-  assert.match(styleChatAttachmentBar, /ELISE_IDENTITY\.attachAccessibilityLabel/);
+  // The attach control and the chips must name the ACTIVE stylist, not a
+  // hardcoded 'Elise' -- stylist #2 (Henry) would otherwise be announced as
+  // Elise to screen-reader users. Pin the dynamic form, not the static
+  // ELISE_IDENTITY constant, which is Elise-specific by construction.
+  assert.match(styleChatAttachmentBar, /const resolvedStylistName =/);
+  assert.match(styleChatAttachmentBar, /`Add an attachment for \$\{resolvedStylistName\}`/);
+  assert.match(styleChatAttachmentBar, /`Attachment for \$\{stylistDisplayName\}: \$\{draft\.summary\.title\}/);
+  assert.doesNotMatch(styleChatAttachmentBar, /Attachment for Elise/);
   assert.match(styleChatBubble, /useStylistIdentity\(\)/);
   assert.match(styleChatBubble, /const stylistDisplayName = identity\.displayName/);
   assert.match(styleChatBubble, /importantForAccessibility="no-hide-descendants"/);
