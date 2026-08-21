@@ -34,11 +34,14 @@ function AttachmentChip({
   onRemove,
   onRetry,
   onSaveToCloset,
+  stylistDisplayName,
 }: {
   draft: DraftAttachment;
   onRemove: () => void;
   onRetry: () => void;
   onSaveToCloset: () => void;
+  /** Active stylist name, so the chip never announces a different stylist. */
+  stylistDisplayName: string;
 }) {
   const pending = ![
     'ready',
@@ -57,7 +60,7 @@ function AttachmentChip({
   return (
     <View
       style={[styles.chip, unavailable && styles.chipUnavailable]}
-      accessibilityLabel={`Attachment for Elise: ${draft.summary.title}${stateCopy ? `, ${stateCopy}` : ''}`}
+      accessibilityLabel={`Attachment for ${stylistDisplayName}: ${draft.summary.title}${stateCopy ? `, ${stateCopy}` : ''}`}
     >
       {!unavailable && draft.summary.imageUri ? (
         <Image source={{ uri: draft.summary.imageUri }} style={styles.chipImage} resizeMode="cover" />
@@ -178,6 +181,7 @@ export function StyleChatAttachmentBar({
               onRemove={() => onRemove(draft.draftId)}
               onRetry={() => onRetry(draft.draftId, closet.items, closet.localScans as SavedScanModel[])}
               onSaveToCloset={() => onSaveToCloset(draft.draftId)}
+              stylistDisplayName={resolvedStylistName}
             />
           ))}
         </ScrollView>
