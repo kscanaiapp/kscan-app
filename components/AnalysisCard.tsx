@@ -112,23 +112,24 @@ function sanitizeText(value?: string) {
 }
 
 /**
- * v127 (P1-B): which treatment the "WHERE TO BUY" section gets. Pulled out
- * of the JSX branch so this exact precedence is independently testable.
+ * Which treatment the "WHERE TO BUY" section gets. Pulled out of the JSX
+ * branch so this exact precedence is independently testable.
  *
  * Options in hand always win, regardless of status — a stale 'error' from
  * before a successful retry must never hide options that already arrived.
- * Pending/error render ONLY while there is nothing to show yet.
+ * Pending/error render while the result is still unsettled; a completed
+ * zero-result search renders its own empty treatment rather than nothing.
  */
 export function resolvePurchaseShelfMode(
   purchaseOptionsCount: number,
   priceDiscoveryEnabled: boolean,
   commerceStatus: string,
-): 'options' | 'pending' | 'error' | 'hidden' {
+): 'options' | 'pending' | 'error' | 'empty' | 'hidden' {
   if (!priceDiscoveryEnabled) return 'hidden';
   if (purchaseOptionsCount >= 1) return 'options';
   if (commerceStatus === 'pending') return 'pending';
   if (commerceStatus === 'error') return 'error';
-  return 'hidden';
+  return 'empty';
 }
 
 export function AnalysisCard({
@@ -518,10 +519,10 @@ export function AnalysisCard({
                   label="WHERE TO BUY"
                   testID="purchase-options-shelf"
                 />
-              ) : purchaseShelfMode === 'pending' || purchaseShelfMode === 'error' ? (
-                // v127 (P1-B): the section previously disappeared entirely
-                // while commerce was deferred — no pending indicator, no
-                // error, no retry.
+              ) : purchaseShelfMode === 'pending' || purchaseShelfMode === 'error' || purchaseShelfMode === 'empty' ? (
+                // A completed zero-result search is a real answer, not the
+                // same as "never checked" — it still mounts the shelf so its
+                // own governed empty state renders instead of nothing at all.
                 <ProductShelf
                   products={[]}
                   label="WHERE TO BUY"
