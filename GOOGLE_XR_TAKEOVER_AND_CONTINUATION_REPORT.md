@@ -83,15 +83,21 @@ Real, fail-closed, independently confirmed (see Completed Prior-Agent Work). One
 
 ## Wearable Scan Wrapper
 
-Not independently re-traced this session beyond what the mobile companion's `services/wearables/bridge.ts` shows (`beginWearableCapture`, `completeWearableScan`, `failWearableScan` — session/result plumbing around a scan). Not re-verified against the canonical K Scan analysis path this pass.
+Traced fully in a follow-up pass. `completeWearableScan`/`normalizeWearableResult` (`services/wearables/bridge.ts`) consume `analysis` — the object `hooks/useKScan.js` produces after calling `analyzeImage()` — and produce the bounded wearable result (`resultId`, `summary`, `confidence`, `products[]`, `availableActions`, `scanStatus`). Proven end-to-end with a real captured API response, not a synthetic one — see `__tests__/wearableAnalysisPathIntegration.test.js` in the mobile companion repo.
 
 ## Real K Scan Analysis
 
-Not independently re-traced this session. The prior report's claims here were not re-audited; treat as unverified rather than confirmed.
+**Found broken, then fixed — a real, previously-undiscovered defect in the shared K Scan product, not a wearable-specific issue.** `analyzeImage()` (called by both the wearable path and the regular in-app scan flow, both funnel through the same `hooks/useKScan.js`) posted to `${EXPO_PUBLIC_API_URL}/api/analyze`. That route is a permanent tombstone on the Render-hosted `server.js` (`410 LEGACY_ANALYZE_DISABLED`, deliberately retired in commit `260219cb`), and `EXPO_PUBLIC_API_URL` itself is unconfigured anywhere — not in `eas.json` on this branch or current `origin/master`, not in `.env`, not in `app.json`, and not in the live EAS dashboard (checked via an already-authenticated `eas-cli` session: zero environment variables in production, preview, or development, at project or account scope). **Every scan attempt — wearable or regular — would fail immediately with `KSCAN_API_URL_NOT_CONFIGURED` in any real EAS-built app.** This is not specific to this branch: `origin/master` has the byte-identical gap.
+
+The initial repair plan (deploy the repo's other analyze implementation, `app/api/analyze+api.js`, via EAS Hosting) was abandoned after finding a better fix: `scan-identify`, a mature Supabase Edge Function, is **already deployed and active** on both production (v153) and staging (v39), with real Gemini vision/text analysis, JWT auth, payload/text-length limits, prompt-injection defenses on text queries, privacy-conscious attribute allowlisting (drops any non-fashion/identity field the model might hallucinate — matches the product rule "K Scan identifies fashion items, not people"), and privacy-safe logging. `GEMINI_API_KEY` lives there as a Deno server secret, never touched by any client. No client code anywhere in this repo (either branch) called it before this fix — a second, independent incomplete-migration gap alongside the dead REST route.
+
+Fixed: `services/api.js`'s `analyzeImage()` now calls `supabase.functions.invoke('scan-identify', ...)` and maps the response to the exact shape `useKScan.js` already expects, so the hook needed zero changes. **Verified live against staging (never production)** with real authenticated calls using this repo's own QA fixture photos (`assets/qa_fixtures/footwear.jpg`, `top.jpg`) — real Gemini classification came back correctly (a red low-top sneaker: category, material, color, silhouette, styling suggestions, confidence 0.88). 13 new unit tests cover the mapping (`__tests__/scanIdentifyClientWiring.test.js`), plus a full end-to-end integration test chaining a real captured response through to the wearable formatter (`__tests__/wearableAnalysisPathIntegration.test.js`).
+
+**Important caveat discovered during live testing:** the deployed `scan-identify` function's actual response is materially richer than this repo's checked-in `supabase/functions/scan-identify/` source — extra fields (`identification`, `displayResult`, `shoppingMeta`, `purchaseOptions`, `similarityMatches`, `commerce`, `correlation`) that don't exist in the committed `index.ts`, and the live function permits unauthenticated requests (reduced-feature "anonymous analysis" tier) where the committed source hard-blocks with 401. **The checked-in source and the live deployment have drifted** — this session's earlier code-level audit of `index.ts` (auth/quota/payload-limit/privacy/logging review, described in this report's history) was auditing stale code; only the live black-box testing is authoritative for what's actually running. The client fix only reads fields confirmed present by that live testing, not the full (unverified) committed contract. This source/deploy drift is itself a separate, real finding worth the team's attention, independent of the wearable work.
 
 ## StyleMatch
 
-Not independently re-traced this session; unverified rather than confirmed.
+Real, not mocked — confirmed via live testing, not source reading (the committed source's own comment claims "recommendedProducts is always [] in this slice," which is already stale relative to what's deployed). Both live test calls (a real sneaker photo and a real hoodie photo) show `shoppingMeta`/`commerce` reporting genuine attempted providers (`kickscrew`, `serper`) and an honest `count: 0` — for the hoodie test, the search query included the fixture's fictional "COQ" brand text, and correctly found nothing, which is exactly the behavior a real (not fabricated) search would produce. No case observed a fabricated/placeholder product. Separately, downstream client-side enrichment (`searchVintedSecondhand`, `searchSneakers` in `hooks/useKScan.js`) was already real and unchanged by this fix — genuine Vinted and StockX/GOAT/Flight Club marketplace lookups, not stubs.
 
 ## Save
 
@@ -225,15 +231,18 @@ Mobile companion (`kscan-google-xr-mobile-companion-candidate-v1`, branch `featu
 - `9ea32296` — fix(wearables): preserve uncommitted Google XR mobile companion work
 - `9ba013d4` — fix(wearables): forward glasses' stable actionId instead of the volatile requestId
 - `883942b9` — fix(test): mock sanitizeImageBeforeUpload/getPrivacySanitizerStatus in duplicate-guard harness
+- `cb46e246` — fix(scan): wire analyzeImage to the real scan-identify Edge Function
+- `35728f9f` — fix(scan): thread real confidenceScore into metadata.confidence
+- `20f8a43f` — test(wearables): prove the full K Scan analysis -> StyleMatch -> wearable result chain
 
 ## Push Confirmation
 
-**Pushed twice this session, per explicit user authorization (no merge to main/master).** First push covered the actionId/provider fixes; a second follow-up push covered the reliability-matrix harness, results, and doc updates written after that. Both remotes verified via `git fetch` + `git rev-parse` after each push; final state:
+**Pushed three times this session, per explicit user authorization (no merge to main/master).** First push covered the actionId/provider fixes; a second covered the reliability-matrix harness and results; a third covered the scan-identify client-wiring fix (a shared K Scan scanner repair discovered by this integration work, not a Google-only change) and its tests. Both remotes verified via `git fetch` + `git rev-parse` after each push; final state:
 
 | Repo | Branch | Remote | Local HEAD | `origin/<branch>` | Match |
 |---|---|---|---|---|---|
 | `kscan-google-xr-physical-device-candidate-v1` | `feature/google-xr-live-integration-closure-v1` | `https://github.com/kscanaiapp/kscan-app.git` | `9f1e99f59ade36a63e1b9b4e22a739b546dd728a` | `9f1e99f59ade36a63e1b9b4e22a739b546dd728a` | YES |
-| `kscan-google-xr-mobile-companion-candidate-v1` | `feature/google-xr-mobile-companion-candidate-v1` | `https://github.com/kscanaiapp/kscan-app.git` | `883942b914c5e485e4cde75b08223ac319be3835` | `883942b914c5e485e4cde75b08223ac319be3835` | YES |
+| `kscan-google-xr-mobile-companion-candidate-v1` | `feature/google-xr-mobile-companion-candidate-v1` | `https://github.com/kscanaiapp/kscan-app.git` | `20f8a43fc55fc25c64ced54c9aefc1a7c75c9252` | `20f8a43fc55fc25c64ced54c9aefc1a7c75c9252` | YES |
 
 (Any doc-only commit made after this table was written, e.g. correcting this table's own hash, is not reflected here — check `git log` for the true tip.) Both pushes were clean fast-forwards, verified 0-behind via fetch first each time. Mobile companion branch did not exist on origin before this session's first push (`git ls-remote` returned nothing); it now has upstream tracking established (`git push -u`). Neither branch was merged into `master`/`main`. No other local branches, stashes, APKs, `local.properties`, or credential/env files were pushed — every push was scoped to a single named branch ref, and build artifacts/`local.properties` are gitignored in both repos.
 
