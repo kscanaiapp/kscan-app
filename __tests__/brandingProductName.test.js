@@ -134,6 +134,7 @@ const AUDITED_USER_FACING_FILES = [
   ['services', 'textScan.ts'],
   ['services', 'textScanEdge.ts'],
   ['components', 'home', 'HomeV2.tsx'],
+  ['data', 'scan-results-demo.ts'],
 ];
 
 for (const segments of AUDITED_USER_FACING_FILES) {
