@@ -41,6 +41,7 @@ import { supabase } from '../services/supabaseClient';
 import { LOCAL_PRIVACY_STORAGE_KEY } from '../services/privacyLocalStore';
 import { hasPendingDeletionProfile } from '../services/routingGuard';
 import { SignatureStyleSettingsSection } from '../components/style-chat/SignatureStyleSettingsSection';
+import { META_WEARABLE_CANDIDATE_ENABLED } from '../constants/featureFlags';
 import {
   listDressingRoomBlockedUsers,
   unblockDressingRoomUser,
@@ -627,6 +628,21 @@ export default function PrivacyScreen() {
                   style={styles.signOutButton}
                   accessibilityLabel="Sign out"
                   accessibilityHint="Keep preferences on this device only"
+                />
+              </View>
+            ) : null}
+
+            {isAuthenticated && META_WEARABLE_CANDIDATE_ENABLED ? (
+              <View style={styles.sectionCard}>
+                <SectionHeader
+                  title="Meta Glasses"
+                  subtitle="Private physical-device candidate"
+                />
+                <SecondaryButton
+                  title="Pair or Manage Meta Glasses"
+                  onPress={() => router.push('/wearables/meta')}
+                  accessibilityLabel="Pair or manage Meta glasses"
+                  accessibilityHint="Open the private Meta phone companion"
                 />
               </View>
             ) : null}

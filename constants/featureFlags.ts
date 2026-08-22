@@ -527,6 +527,10 @@ export const DEV_INITIAL_ROUTE: string | null =
       : null
     : null;
 
+/** Private, internal-only Meta physical-device companion surface. */
+export const META_WEARABLE_CANDIDATE_ENABLED =
+  process.env.EXPO_PUBLIC_META_WEARABLE_CANDIDATE_ENABLED === 'true';
+
 // ── Closet testing bundle (internal testing builds) ──────────────────────────
 /**
  * Separates Closet from Recent Scans as distinct domains and enables the

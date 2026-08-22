@@ -36,6 +36,8 @@ import { advanceActorEpoch } from '../services/actorContext';
 import { clearTodayWeather } from '../services/weather/todayWeatherStore';
 import { buildSignupNameMetadata, type SignupNameInput } from '../services/userFirstName';
 import { resetCorrelationContext } from '../services/observability';
+import { META_WEARABLE_CANDIDATE_ENABLED } from '../constants/featureFlags';
+import { revokeAllMetaWearableSessions } from '../services/metaWearableCompanion';
 
 /**
  * Returned by signUp so the caller can distinguish between an immediate
@@ -258,6 +260,23 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
 
   const signOut = useCallback(async () => {
     await stopAvatarSpeechPlayback();
+    // Candidate builds fail closed: a phone sign-out is not allowed to leave a
+    // still-active wearable credential behind. The ordinary Build 29 path is
+    // unchanged while the candidate flag is off.
+    //
+    // This revoke call must never block sign-out. It runs against a remote
+    // Edge Function, and sign-out has to complete even when that call throws
+    // (no network, an already-expired session, a backend error) — a phone
+    // that cannot sign out because a wearable cleanup call failed is a worse
+    // outcome than a wearable session that outlives this sign-out by a few
+    // minutes until it naturally expires.
+    if (META_WEARABLE_CANDIDATE_ENABLED) {
+      try {
+        await revokeAllMetaWearableSessions();
+      } catch (error) {
+        logError('Unable to revoke Meta wearable sessions during sign-out', error);
+      }
+    }
     resetActorScopedRuntimeState(null);
     setSession(null);
     await supabase.auth.signOut();

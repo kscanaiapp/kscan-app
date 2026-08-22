@@ -4,6 +4,13 @@
     "appVersionSource": "remote"
   },
   "build": {
+    "meta-physical-candidate": {
+      "extends": "preview",
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_META_WEARABLE_CANDIDATE_ENABLED": "true"
+      }
+    },
     "preview": {
       "environment": "preview",
       "distribution": "internal",

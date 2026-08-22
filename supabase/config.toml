@@ -84,6 +84,12 @@ verify_jwt = true
 [functions.stylist-speech]
 verify_jwt = true
 
+# Meta physical-device candidate. The wearable backend (wearable-bridge,
+# wearable-scan, wearable-save, wearable-open-on-phone) is owned and deployed
+# from the kscan-glasses-webapp repo's Supabase project config, not this one —
+# this mobile app is a pure client of it (see services/metaWearableCompanion.ts).
+# No local function entries belong here for it.
+
 # ── Local shadow stack ───────────────────────────────────────────────────────
 #
 # Explicit non-default ports. Several other K Scan worktrees run their own local

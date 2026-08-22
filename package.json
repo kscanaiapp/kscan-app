@@ -3,6 +3,7 @@
   "version": "1.0.1",
   "main": "expo-router/entry",
   "scripts": {
+    "postinstall": "patch-package --error-on-fail",
     "server": "node server.js",
     "test:all": "node scripts/run-all-tests.js",
     "test:privacy": "node --test __tests__/privacyPolicy.test.js __tests__/privacyPreferenceMerge.test.js",
@@ -62,7 +63,9 @@
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-ml-kit/face-detection": "2.0.1",
     "@sentry/react-native": "^8.22.0",
+    "@shopify/react-native-skia": "2.2.12",
     "@supabase/supabase-js": "^2.105.4",
     "cors": "^2.8.6",
     "dotenv": "^16.4.5",
@@ -122,6 +125,7 @@
   "devDependencies": {
     "@elevenlabs/elevenlabs-js": "^2.58.0",
     "@types/react": "~19.1.10",
+    "patch-package": "8.0.1",
     "typescript": "~5.9.2"
   }
 }
