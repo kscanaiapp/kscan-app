@@ -178,7 +178,7 @@ async function requestPhotoLibraryPermission(): Promise<boolean> {
   if (status === 'granted') return true;
   Alert.alert(
     'Photo Access Required',
-    'Allow K Scan to access your photo library in Settings to upload inspiration.',
+    'Allow K Scan AI to access your photo library in Settings to upload inspiration.',
     [{ text: 'OK' }]
   );
   return false;

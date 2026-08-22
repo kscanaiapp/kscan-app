@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-19T20:44:48.946Z",
-    "generatedFromGitSha": "6f45bf56aac6db6769b59019ae44c3c7c1eeff6f"
+    "generatedAtUtc": "2026-08-22T20:50:40.066Z",
+    "generatedFromGitSha": "33b631276fff41b831efeb941c4f2b9884e85d5e"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -325,8 +325,8 @@
         ],
         "bundleFileCount": 36,
         "treeFileCount": 53,
-        "bundleHash": "f48f89d538e899775d07a26539ed885c3a1b96690c4d1779ab0406ba3dbc5829",
-        "treeHash": "e269293ccdb15229500daec9c576564c3d18e6187ed72a891f63766583f9ec49",
+        "bundleHash": "deabb9d7cee23cd706805eae945408181c1b80989babd2ce73990aab1da56a5a",
+        "treeHash": "a119289658920eb66fbbeea295c59a2aaeb6bda5203c5f0a57b5c76138539dd7",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -545,7 +545,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/index.ts",
-            "sha256": "1d17431b479a29e7536eb44c588f08871ccef8282e7c56e8960ebc6ee082ebe7",
+            "sha256": "1e45099c7a9635d08ea394df6a76cc20dadae756c322b0729d37eb88f02e6d38",
             "bundle": true
           },
           {
@@ -603,12 +603,12 @@
         ],
         "bundleFileCount": 6,
         "treeFileCount": 8,
-        "bundleHash": "b7339f46b44940f23f606ebca7bff9110818b5f166ad2c9bb7aea687df44ea72",
-        "treeHash": "f6b262bf873cc548cef6385ecfa389630042f598ad64d68e889ef54c32a15362",
+        "bundleHash": "b839a39e6e6436bcefd380a9c8889c068e59b6363074a79b2de7170aa4b2a5b7",
+        "treeHash": "46c618f4560b2273375a9d13ed5a6a7bea889c83d704ac1fb68c769437d167c0",
         "files": [
           {
             "path": "supabase/functions/style-outfit-generate/index.ts",
-            "sha256": "1baa0ac9c439c023d53fcf2aa8d7216aed6beeec833967ffdb8e629f70500d75",
+            "sha256": "839a52a93e40af242e0166c3e1004647e60e24b098a3c77a31df9a0f5dadec5e",
             "bundle": true
           },
           {
@@ -633,7 +633,7 @@
           },
           {
             "path": "supabase/functions/style-outfit-generate/privateDressingRoomEliseHandler.ts",
-            "sha256": "00ae9bd5540793abe8361da0fc58b1c4c2421b4ac6e9a1a50885ebba0a51ea29",
+            "sha256": "2b4fd5916a40bb77fdf4ab78c0dce09d93ccaeae589e875dea5ea3e4ea10ae76",
             "bundle": true
           },
           {

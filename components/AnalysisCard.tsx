@@ -380,7 +380,7 @@ export function AnalysisCard({
 
               {/* Match summary */}
               <View style={styles.matchSummary}>
-                <Text style={styles.matchSummaryLabel}>K Scan understood:</Text>
+                <Text style={styles.matchSummaryLabel}>K Scan AI understood:</Text>
                 <Text style={styles.matchSummaryValue} numberOfLines={2}>
                   {category} · {color} · {silhouette}
                 </Text>

@@ -16,7 +16,7 @@ interface WelcomeStepV1Props {
  * Bright luxury Welcome / Landing step (Step 1).
  *
  * Matches the landing-page-v1 mockup:
- * - K Scan brand header
+ * - K Scan AI brand header
  * - Real fashion hero image
  * - "See it. Scan it. Style it." headline
  * - Value proposition body
@@ -33,7 +33,7 @@ export function WelcomeStepV1({ onGetStarted, onAlreadyHaveAccount }: WelcomeSte
         source={require('../../assets/images/welcome-hero.png')}
         style={[styles.heroImage, { height: heroHeight }]}
         resizeMode="cover"
-        accessibilityLabel="Welcome to K Scan"
+        accessibilityLabel="Welcome to K Scan AI"
       />
 
       <View style={styles.textBlock}>

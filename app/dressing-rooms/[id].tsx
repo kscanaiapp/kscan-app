@@ -100,18 +100,18 @@ const EMPTY_REACTION_COUNTS: ReactionCountsForItem = {
 };
 
 const buildRoomSharePayload = (shareUrl: string) => {
-  const message = `Join my K Scan Dressing Room: ${shareUrl}`;
+  const message = `Join my K Scan AI Dressing Room: ${shareUrl}`;
 
   if (Platform.OS === 'ios') {
     return {
-      title: 'K Scan Dressing Room',
+      title: 'K Scan AI Dressing Room',
       message,
       url: shareUrl,
     };
   }
 
   return {
-    title: 'K Scan Dressing Room',
+    title: 'K Scan AI Dressing Room',
     message,
   };
 };
@@ -738,7 +738,7 @@ function DressingRoomDetailContent() {
     if (!hasUsablePhotoLibraryAccess(permission)) {
       Alert.alert(
         'Photo Access Required',
-        'Allow K Scan to access your photo library in Settings to upload inspiration.',
+        'Allow K Scan AI to access your photo library in Settings to upload inspiration.',
         [
           { text: 'Cancel', style: 'cancel' },
           {
@@ -746,7 +746,7 @@ function DressingRoomDetailContent() {
             onPress: () => {
               void tryOpenPhotoLibrarySettings(() => Linking.openSettings()).then((opened) => {
                 if (!opened) {
-                  Alert.alert('Unable to Open Settings', 'Open Settings and allow photo access for K Scan.');
+                  Alert.alert('Unable to Open Settings', 'Open Settings and allow photo access for K Scan AI.');
                 }
               });
             },
@@ -821,7 +821,7 @@ function DressingRoomDetailContent() {
             style={styles.homeButton}
             accessibilityRole="button"
             accessibilityLabel="Go Home"
-            accessibilityHint="Returns to the K Scan home screen"
+            accessibilityHint="Returns to the K Scan AI home screen"
           >
             <Text style={styles.homeButtonText}>HOME</Text>
           </TouchableOpacity>

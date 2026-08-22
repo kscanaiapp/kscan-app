@@ -92,7 +92,7 @@ export const SAVED_LOOK_DETAIL_COPY = {
 /** The shopping handoff screen. */
 export const SAVED_LOOK_HANDOFF_COPY = {
   readyTitle: 'Ready to shop',
-  readySubtitle: 'Shopping opens outside K Scan',
+  readySubtitle: 'Shopping opens outside K Scan AI',
   preparing: 'Getting things ready...',
   selectedPieceEyebrow: 'LOOKING FOR',
   deferredBody:

@@ -41,7 +41,7 @@ export function AccountSetupStepV1({
         source={require('../../assets/images/welcome-hero.png')}
         style={styles.heroImage}
         resizeMode="cover"
-        accessibilityLabel="K Scan account setup hero"
+        accessibilityLabel="K Scan AI account setup hero"
       />
 
       <View style={styles.textBlock}>

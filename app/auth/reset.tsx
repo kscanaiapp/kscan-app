@@ -62,7 +62,7 @@ export default function ResetPasswordScreen() {
           <Text style={[styles.backText, busy && styles.disabled]}>Back</Text>
         </Pressable>
         <View style={styles.headerCenter}>
-          <Text style={styles.brand}>K-SCAN</Text>
+          <Text style={styles.brand}>K Scan AI</Text>
           <Text style={styles.screenTitle}>PASSWORD RESET</Text>
         </View>
         <View style={styles.headerRight} />

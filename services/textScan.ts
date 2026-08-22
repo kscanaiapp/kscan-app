@@ -272,7 +272,7 @@ function mapRecommendedProducts(raw: unknown): TextScanProduct[] {
       p.affiliate_url
     ) || undefined;
     const id = firstNonEmptyString(p.id, productUrl, `${title}-${index}`);
-    const source = firstNonEmptyString(p.retailer, p.source, p.provider, p.merchant, p.store, p.brand) || 'K Scan';
+    const source = firstNonEmptyString(p.retailer, p.source, p.provider, p.merchant, p.store, p.brand) || 'K Scan AI';
     const imageUrl = firstNonEmptyString(
       p.imageUrl,
       p.image_url,

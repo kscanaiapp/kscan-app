@@ -13,7 +13,7 @@ tags:
     permissions:
       camera: deny
 
-- assertVisible: "K-SCAN"
+- assertVisible: "K Scan AI"
 - assertVisible: "Camera access is currently disabled.*"
 - assertVisible: "Grant Access"
 

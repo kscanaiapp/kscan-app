@@ -63,6 +63,6 @@ env:
       id: "scan-button"
     timeout: 6000
 
-- assertVisible: "K-SCAN"
+- assertVisible: "K Scan AI"
 - assertVisible:
     id: "scan-button"

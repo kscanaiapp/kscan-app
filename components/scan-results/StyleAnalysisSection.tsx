@@ -69,7 +69,7 @@ export function StyleAnalysisSection({
         </>
       ) : (
         <Text style={styles.preparedBody}>
-          K Scan identified the core fashion attributes from this scan.
+          K Scan AI identified the core fashion attributes from this scan.
         </Text>
       )}
     </View>

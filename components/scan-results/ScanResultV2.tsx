@@ -371,7 +371,7 @@ export function ScanResultV2({
                 ]}
               >
                 <View style={styles.header}>
-                  <Text style={styles.brandTitle}>K SCAN</Text>
+                  <Text style={styles.brandTitle}>K Scan AI</Text>
                   <Text style={styles.statusLabel}>
                     {candidateReview.stage === 'processing'
                       ? 'FINDING YOUR MATCHES'
@@ -520,7 +520,7 @@ export function ScanResultV2({
             >
               {/* Header */}
               <View style={styles.header}>
-                <Text style={styles.brandTitle}>K SCAN</Text>
+                <Text style={styles.brandTitle}>K Scan AI</Text>
                 <Text style={styles.statusLabel}>SCAN ANALYSIS COMPLETE</Text>
                 <TouchableOpacity
                   onPress={handleBack}

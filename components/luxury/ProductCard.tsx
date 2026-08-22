@@ -105,7 +105,7 @@ export function ProductCard({
         onPress={onPress}
         style={[styles.card, style]}
         accessibilityRole="button"
-        accessibilityLabel={accessibilityLabel ?? `${title} by ${subtitle ?? 'K Scan'}`}
+        accessibilityLabel={accessibilityLabel ?? `${title} by ${subtitle ?? 'K Scan AI'}`}
       >
         {cardContent}
       </Pressable>
@@ -116,7 +116,7 @@ export function ProductCard({
     <View
       style={[styles.card, style]}
       accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel ?? `${title} by ${subtitle ?? 'K Scan'}`}
+      accessibilityLabel={accessibilityLabel ?? `${title} by ${subtitle ?? 'K Scan AI'}`}
     >
       {cardContent}
     </View>

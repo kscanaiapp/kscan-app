@@ -164,7 +164,7 @@ test('internal Style DNA identifiers are preserved in code', () => {
 test('Edge Function system prompt is name-neutral and does not hardcode Elise', () => {
   assert.doesNotMatch(edgeIndex, /You are Elise/);
   assert.doesNotMatch(edgeIndex, /My name is Elise/);
-  assert.match(edgeIndex, /You are K Scan's personal AI fashion stylist/);
+  assert.match(edgeIndex, /You are K Scan AI's personal AI fashion stylist/);
   assert.match(edgeIndex, /AI, not a human/);
   assert.match(edgeIndex, /not a licensed fashion professional/);
   assert.match(edgeIndex, /not physically present/);

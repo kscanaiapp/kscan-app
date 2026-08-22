@@ -272,7 +272,7 @@ export function ProductShelf({ products }: ProductShelfProps) {
       <View testID="product-shelf-empty" style={styles.emptyShelf}>
         <Text style={styles.emptyShelfTitle}>No similar items yet.</Text>
         <Text style={styles.emptyShelfBody}>
-          Try a clearer angle, closer crop, or simpler background so K Scan can surface product matches.
+          Try a clearer angle, closer crop, or simpler background so K Scan AI can surface product matches.
         </Text>
       </View>
     );

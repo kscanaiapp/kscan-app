@@ -299,7 +299,7 @@ function LookDetailContent() {
                 key={item.id}
                 imageUrl={item.imageUrl}
                 title={item.title || 'Untitled item'}
-                subtitle={item.brand || item.category || 'K Scan'}
+                subtitle={item.brand || item.category || 'K Scan AI'}
                 tags={[item.category].filter(Boolean) as string[]}
                 status="Item"
                 accessibilityLabel={`${item.title || 'Untitled item'} look item`}

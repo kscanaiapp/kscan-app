@@ -13,7 +13,7 @@ tags:
     permissions:
       camera: unset        # unset so the in-app or OS prompt appears
 
-- assertVisible: "K-SCAN"
+- assertVisible: "K Scan AI"
 
 # Handle in-app permission screen (Grant Access button)
 - runFlow: ../../subflows/grant-camera-permission.yaml
@@ -33,6 +33,6 @@ tags:
 
 - waitForAnimationToEnd
 
-- assertVisible: "K-SCAN"
+- assertVisible: "K Scan AI"
 - assertVisible:
     id: "scan-button"

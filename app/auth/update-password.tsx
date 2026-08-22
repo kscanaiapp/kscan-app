@@ -63,7 +63,7 @@ export default function UpdatePasswordScreen() {
           <Text style={[styles.cancelText, busy && styles.disabled]}>Cancel</Text>
         </Pressable>
         <View style={styles.headerCenter}>
-          <Text style={styles.brand}>K-SCAN</Text>
+          <Text style={styles.brand}>K Scan AI</Text>
           <Text style={styles.screenTitle}>UPDATE PASSWORD</Text>
         </View>
         <View style={styles.headerSide} />

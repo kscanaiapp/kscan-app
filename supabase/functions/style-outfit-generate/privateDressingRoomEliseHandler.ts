@@ -118,7 +118,7 @@ const DRESS_CODE_LIST = PRIVATE_ELISE_DRESS_CODES.join(', ');
  * returned value is checked against the contract afterwards, a prompt that were
  * ignored entirely still cannot produce an invalid application state.
  */
-const ELISE_SYSTEM_PROMPT = `You are K Scan's occasion interpreter for a private styling workspace.
+const ELISE_SYSTEM_PROMPT = `You are K Scan AI's occasion interpreter for a private styling workspace.
 
 You classify a short occasion description. You do not chat, do not give styling advice, and do not describe garments.
 

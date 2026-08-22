@@ -406,7 +406,7 @@ export default function OnboardingScreen() {
     return (
     <View style={styles.stepContent} testID="onboarding-create-account-screen">
       <Text style={styles.stepTitle}>Create Account</Text>
-      <Text style={styles.stepBody}>Join K Scan to save your style journey.</Text>
+      <Text style={styles.stepBody}>Join K Scan AI to save your style journey.</Text>
 
       <View style={styles.fieldGroup}>
         <Text style={styles.fieldLabel}>FULL NAME</Text>
@@ -563,7 +563,7 @@ export default function OnboardingScreen() {
       </View>
 
       <Text style={styles.privacyNote}>
-        K Scan is not designed for facial recognition or identifying people. Raw scans and
+        K Scan AI is not designed for facial recognition or identifying people. Raw scans and
         uploaded images are not sold to third-party data buyers. Camera access is used when you
         choose to scan. You can manage permissions in device settings.
       </Text>
@@ -688,7 +688,7 @@ export default function OnboardingScreen() {
   const renderHomeHandoff = () => (
     <View style={styles.stepContent} testID="onboarding-home-handoff">
       <ActivityIndicator size="large" color={LUXURY.colors.plum} />
-      <Text style={styles.stepTitle}>Entering K Scan...</Text>
+      <Text style={styles.stepTitle}>Entering K Scan AI...</Text>
     </View>
   );
 
