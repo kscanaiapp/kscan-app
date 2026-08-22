@@ -228,14 +228,14 @@ Mobile companion (`kscan-google-xr-mobile-companion-candidate-v1`, branch `featu
 
 ## Push Confirmation
 
-**Pushed, per explicit user authorization in this follow-up turn (no merge to main/master).** Both remotes verified via `git fetch` + `git rev-parse` immediately after push:
+**Pushed twice this session, per explicit user authorization (no merge to main/master).** First push covered the actionId/provider fixes; a second follow-up push covered the reliability-matrix harness, results, and doc updates written after that. Both remotes verified via `git fetch` + `git rev-parse` after each push; final state:
 
-| Repo | Branch | Remote | Local HEAD after push | `origin/<branch>` after fetch | Match |
+| Repo | Branch | Remote | Local HEAD | `origin/<branch>` | Match |
 |---|---|---|---|---|---|
-| `kscan-google-xr-physical-device-candidate-v1` | `feature/google-xr-live-integration-closure-v1` | `https://github.com/kscanaiapp/kscan-app.git` | `9d9be0b21b4fdd531106a2bb0a0be5053e8462a8` | `9d9be0b21b4fdd531106a2bb0a0be5053e8462a8` | YES |
-| `kscan-google-xr-mobile-companion-candidate-v1` | `feature/google-xr-mobile-companion-candidate-v1` | `https://github.com/kscanaiapp/kscan-app.git` | `9ba013d461550039b3dd84167e14eb2ce42f3a92` | `9ba013d461550039b3dd84167e14eb2ce42f3a92` | YES |
+| `kscan-google-xr-physical-device-candidate-v1` | `feature/google-xr-live-integration-closure-v1` | `https://github.com/kscanaiapp/kscan-app.git` | `9f1e99f59ade36a63e1b9b4e22a739b546dd728a` | `9f1e99f59ade36a63e1b9b4e22a739b546dd728a` | YES |
+| `kscan-google-xr-mobile-companion-candidate-v1` | `feature/google-xr-mobile-companion-candidate-v1` | `https://github.com/kscanaiapp/kscan-app.git` | `883942b914c5e485e4cde75b08223ac319be3835` | `883942b914c5e485e4cde75b08223ac319be3835` | YES |
 
-Native push was a clean fast-forward (`d1906b85..9d9be0b2`, 2 commits, 0 behind before push — verified via fetch first). Mobile companion branch did not exist on origin at all before this push (`git ls-remote` returned nothing); it is now pushed for the first time with upstream tracking established (`git push -u`). Neither branch was merged into `master`/`main`. No other local branches, stashes, APKs, `local.properties`, or credential/env files were pushed — both pushes were scoped to a single named branch ref, and build artifacts/`local.properties` are gitignored in both repos.
+(Any doc-only commit made after this table was written, e.g. correcting this table's own hash, is not reflected here — check `git log` for the true tip.) Both pushes were clean fast-forwards, verified 0-behind via fetch first each time. Mobile companion branch did not exist on origin before this session's first push (`git ls-remote` returned nothing); it now has upstream tracking established (`git push -u`). Neither branch was merged into `master`/`main`. No other local branches, stashes, APKs, `local.properties`, or credential/env files were pushed — every push was scoped to a single named branch ref, and build artifacts/`local.properties` are gitignored in both repos.
 
 Note: `git fetch` on the native repo's `origin` pulled in a large number of unrelated branches from other concurrent work on this shared monorepo (`kscanaiapp/kscan-app`) — none of that was touched. `master` on that remote has also moved (`8a8bf30a..688dc35e`) since this branch's base; that's unrelated build29 work, not evaluated here.
 
