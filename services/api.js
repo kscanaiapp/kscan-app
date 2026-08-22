@@ -197,6 +197,14 @@ function mapScanIdentifyResponse(data) {
     ? data.recommendedProducts
     : Array.isArray(data.products) ? data.products : [];
 
+  // confidenceScore is real (the model's own estimate, 0-1) — pass it through so
+  // downstream consumers (e.g. the wearable formatter's analysis.metadata.confidence
+  // read in services/wearables/bridge.ts) get the real value instead of silently
+  // defaulting to 0.5 for every scan.
+  const confidence = typeof attributes.confidenceScore === 'number'
+    ? Math.max(0, Math.min(1, attributes.confidenceScore))
+    : undefined;
+
   return {
     type: 'fashion',
     result,
@@ -204,6 +212,7 @@ function mapScanIdentifyResponse(data) {
       category: typeof attributes.category === 'string' ? attributes.category : '',
       color: Array.isArray(attributes.colorPalette) ? attributes.colorPalette.join(', ') : '',
       silhouette: typeof attributes.silhouette === 'string' ? attributes.silhouette : '',
+      ...(confidence !== undefined ? { confidence } : {}),
     },
     products: deduplicateProducts(rawProducts.map(normalizeProduct).filter(Boolean)),
   };

@@ -145,6 +145,31 @@ test('analyzeImage: falls back from empty recommendedProducts to a populated pro
   assert.equal(out.products[0].retailer, 'Acme');
 });
 
+test('analyzeImage: real confidenceScore is threaded through to metadata.confidence for the wearable formatter', async () => {
+  const { api } = loadApiModuleWithMockSupabase(async () => ({
+    data: {
+      status: 'completed',
+      userMessage: 'A red sneaker.',
+      recommendedProducts: [],
+      attributes: { category: 'footwear', confidenceScore: 0.88 },
+    },
+    error: null,
+  }));
+
+  const out = await api.analyzeImage('data:image/jpeg;base64,AAAA');
+  assert.equal(out.metadata.confidence, 0.88);
+});
+
+test('analyzeImage: missing confidenceScore leaves metadata.confidence unset (caller default applies)', async () => {
+  const { api } = loadApiModuleWithMockSupabase(async () => ({
+    data: { status: 'completed', userMessage: 'x', recommendedProducts: [], attributes: { category: 'footwear' } },
+    error: null,
+  }));
+
+  const out = await api.analyzeImage('data:image/jpeg;base64,AAAA');
+  assert.equal('confidence' in out.metadata, false);
+});
+
 test('analyzeImage: non_fashion status maps to non-fashion type with message', async () => {
   const { api } = loadApiModuleWithMockSupabase(async () => ({
     data: { status: 'non_fashion', userMessage: 'This looks like a house plant.', recommendedProducts: [] },
