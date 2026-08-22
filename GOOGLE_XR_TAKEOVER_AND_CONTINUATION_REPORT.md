@@ -219,7 +219,7 @@ The pre-fix hash matching the prior report byte-for-byte is itself useful eviden
 Native (`kscan-google-xr-physical-device-candidate-v1`, branch `feature/google-xr-live-integration-closure-v1`):
 - `230da883` — fix(xr): derive stableActionId as a valid UUID; remove unguarded phone-bridge fallback
 - `9d9be0b2` — docs(xr): add takeover state and continuation report
-- (pending) docs(xr): record live reliability-matrix results and add wearable-reliability QA harness
+- `00567958` — test(xr): add live wearable-bridge reliability harness; record full matrix results
 
 Mobile companion (`kscan-google-xr-mobile-companion-candidate-v1`, branch `feature/google-xr-mobile-companion-candidate-v1`):
 - `9ea32296` — fix(wearables): preserve uncommitted Google XR mobile companion work
