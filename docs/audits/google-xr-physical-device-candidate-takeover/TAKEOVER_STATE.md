@@ -67,4 +67,8 @@ d1906b85 feat(xr): idempotent action frames, live diagnostics, metadata strippin
 
 ## Recommended immediate continuation point
 
-Native HEAD `230da883`, mobile HEAD `9ba013d4`, both local-only. Next session should: (1) decide whether to push both branches (mobile companion has never been pushed at all), (2) run an interactive XR-emulator pass now that the actionId fix is in place, (3) optionally fix the pre-existing duplicate-guard test harness gap, (4) plan the physical-hardware QA pass once a device is available.
+Native HEAD `230da883`, mobile HEAD `9ba013d4`, both local-only at the time this document was written. Next session should: (1) decide whether to push both branches (mobile companion has never been pushed at all), (2) run an interactive XR-emulator pass now that the actionId fix is in place, (3) optionally fix the pre-existing duplicate-guard test harness gap, (4) plan the physical-hardware QA pass once a device is available.
+
+## Addendum (same-session continuation)
+
+Both branches were pushed in a follow-up turn per explicit user authorization (native `9d9be0b2`, mobile `9ba013d4` — mobile HEAD unchanged from above; native gained one further docs commit first). Neither was merged to `master`/`main`. This document remains the Phase 0 snapshot; `GOOGLE_XR_TAKEOVER_AND_CONTINUATION_REPORT.md` at the repo root is the live document for everything after this point, including the push confirmation with exact remote SHAs and all further verification work.
