@@ -86,6 +86,18 @@ function loadUseKScanWithMocks({ analyzeImage, compressForUpload, log }) {
     useRef: (initialValue) => ({ current: initialValue }),
     analyzeImage,
     compressForUpload,
+    // Mirrors the real pass-through behavior for requireFaceMasking=false/undefined
+    // (this test never sets it). A wearable-mode test must supply its own mock
+    // that actually exercises the strict path rather than relying on this one.
+    sanitizeImageBeforeUpload: async (input, options = {}) => {
+      if (!options.requireFaceMasking) return input;
+      throw new Error('sanitizeImageBeforeUpload: strict face masking is not mocked in this harness');
+    },
+    getPrivacySanitizerStatus: () => ({
+      faceDetectionAvailable: false,
+      faceBlurApplied: false,
+      mode: 'unavailable',
+    }),
     buildSecondhandSearchRequest: () => null,
     searchVintedSecondhand: async () => ({ enabled: false, items: [] }),
     errorPulse: () => {},
