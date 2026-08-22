@@ -11,18 +11,33 @@ self-report.
 ## Running it
 
 ```
-node matrix.mjs      # pairing, sessions, scan cycles, actions, error recovery,
-                      # reconnect, replay — ~2-4 minutes, creates/cleans up
-                      # throwaway auth.users via the *.invalid TLD (RFC 2606)
-node expired.mjs      # expired-challenge rejection — ~2.5 minutes (real wait
-                      # for the 120s pairing TTL to elapse)
+node matrix.mjs              # pairing, sessions, scan cycles, actions, error
+                              # recovery, reconnect, replay — ~2-4 minutes
+node expired.mjs             # expired-challenge rejection — ~2.5 minutes (real
+                              # wait for the 120s pairing TTL to elapse)
+node reconnect-expanded.mjs  # reconnect during scan request / processing /
+                              # results / Save / Open-on-Phone — ~1-2 minutes
+node stale-revision.mjs      # stale-revision rejection + equal-revision
+                              # idempotent resend — ~30s
+node soak-30min.mjs          # sustained 30-minute soak, 6 concurrent
+                              # long-lived sessions, re-pairs automatically at
+                              # the real 15-minute session TTL (see below) —
+                              # takes the full 30 minutes
 ```
 
-Both scripts create real rows in staging (`auth.users`, `wearable_pairings`,
-`wearable_sessions`, `wearable_results`, `wearable_actions`, `saved_scans`) and
-print a PASS/FAIL summary per batch. **Neither script deletes its own test
-data automatically** — after a run, clean up via SQL (see below) so staging
-doesn't accumulate throwaway accounts.
+All scripts create real rows in staging (`auth.users`, `wearable_pairings`,
+`wearable_sessions`, `wearable_results`, `wearable_actions`, `saved_scans`) via
+throwaway `*.invalid`-TLD accounts (RFC 2606) and print a PASS/FAIL summary per
+batch. **None of them delete their own test data automatically** — after a
+run, clean up via SQL (see below) so staging doesn't accumulate throwaway
+accounts.
+
+`soak-30min.mjs` specifically: wearable sessions have a real 15-minute TTL
+(`SESSION_TTL_MS`, `wearable-bridge/index.ts`). A soak that pairs once and runs
+for 30 minutes *will* see every session expire simultaneously at t+15m unless
+it re-pairs — the script does this automatically (tracked as a separate
+"repairs" counter, not counted as an error), but if you're modifying it,
+don't mistake TTL-expiry 403s for reliability failures.
 
 ```sql
 -- cleanup, in FK-safe order
@@ -53,8 +68,9 @@ Covers, against the real backend: pairing (create/approve/poll), expired
 challenges, replay, wrong-session rejection, explicit revoke, sign-out revoke,
 scan cycles (capture → phone → result), Save/Open-on-Phone idempotency
 (including DB-level de-duplication, not just the API response), malformed/
-oversized-payload rejection, and cursor-based poll resumption across a
-simulated reconnect gap.
+oversized-payload rejection, cursor-based poll resumption across a reconnect
+gap at five different protocol points, stale-revision rejection, and a
+genuine 30-minute sustained soak.
 
 Does **not** cover: real ML Kit face detection (needs a real Android
 runtime — verify via `testDebugUnitTest`/an installed APK, not this harness),
