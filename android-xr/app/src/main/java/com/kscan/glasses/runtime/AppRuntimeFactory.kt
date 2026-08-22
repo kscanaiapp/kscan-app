@@ -108,12 +108,14 @@ object AppRuntimeFactory {
                 )
         }
 
-        // 5. Phone bridge: the versioned phonebridge layer behind exactly three
-        // providers. The mock companion is selected ONLY for debug builds that
-        // explicitly opt in via BuildConfig.KSCAN_DEBUG_MOCK_PHONE_BRIDGE
-        // (default false, set in gitignored local.properties). Release always
-        // resolves the fail-safe future-real stub; the flag-level guard above
-        // has already thrown if a release build ever sets the mock flag.
+        // 5. Phone bridge: the versioned phonebridge layer behind four providers
+        // (Mock, Disabled, Real, FutureReal-stub). The mock companion is selected
+        // ONLY for debug builds that explicitly opt in via
+        // BuildConfig.KSCAN_DEBUG_MOCK_PHONE_BRIDGE (default false, set in
+        // gitignored local.properties). Only isHardwareCandidate resolves the
+        // real provider; every other non-debug build falls through to the
+        // fail-safe future-real stub. The flag-level guard above has already
+        // thrown if a release build ever sets the mock flag.
         val phoneBridge: PhoneBridgeProvider = when {
             profile.isDebugBuild && profile.useMockPhoneBridge -> MockPhoneBridgeProvider.create()
             profile.isDebugBuild -> DisabledPhoneBridgeProvider()
@@ -132,16 +134,6 @@ object AppRuntimeFactory {
                     bridgeUrlHost = bridgeHost,
                 )
             }
-                com.kscan.glasses.BuildConfig.KSCAN_WEARABLE_BRIDGE_URL.isNotBlank() &&
-                com.kscan.glasses.BuildConfig.KSCAN_WEARABLE_PUBLISHABLE_KEY.isNotBlank() ->
-                RealKScanPhoneBridgeProvider(
-                    api = HttpWearableBridgeApi(
-                        endpoint = com.kscan.glasses.BuildConfig.KSCAN_WEARABLE_BRIDGE_URL,
-                        publishableKey = com.kscan.glasses.BuildConfig.KSCAN_WEARABLE_PUBLISHABLE_KEY,
-                    ),
-                    glassesDeviceId = wearableDeviceId,
-                    appVersion = com.kscan.glasses.BuildConfig.VERSION_NAME,
-                )
             else -> FutureRealPhoneBridgeProvider()
         }
 

@@ -275,7 +275,12 @@ class RealKScanPhoneBridgeProvider(
 
     private fun nextId(): String = UUID.randomUUID().toString()
 
-    private fun stableActionId(type: String, resultId: String): String = "$type:$resultId"
+    // Deterministic UUID (v3, name-based) so the same (type, resultId) pair always
+    // derives the same actionId across retries — required both for phone-side
+    // idempotency and because the backend validates actionId against a strict
+    // UUID regex; a raw "type:resultId" string would fail that check outright.
+    private fun stableActionId(type: String, resultId: String): String =
+        UUID.nameUUIDFromBytes("$type:$resultId".toByteArray(Charsets.UTF_8)).toString()
 
     companion object {
         private const val TAG = "RealPhoneBridge"
