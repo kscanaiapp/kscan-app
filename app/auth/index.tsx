@@ -303,7 +303,7 @@ export default function AuthScreen() {
                 <Text style={styles.cardBody}>
                   We sent a confirmation link to{' '}
                   <Text style={styles.emailHighlight}>{email.trim()}</Text>. Open the link to verify
-                  your account and K Scan will sign you in automatically.
+                  your account and K Scan AI will sign you in automatically.
                 </Text>
                 <Pressable style={styles.primaryButton} onPress={handleBackToSignIn}>
                   <Text style={styles.primaryButtonText}>SIGN IN</Text>
@@ -394,7 +394,7 @@ export default function AuthScreen() {
           <Text style={styles.cardBody}>
             {mode === 'sign-in'
               ? 'Sign in to save your privacy preferences across devices and access account management.'
-              : 'Create an account to sync your privacy preferences and manage your K Scan data.'}
+              : 'Create an account to sync your privacy preferences and manage your K Scan AI data.'}
           </Text>
 
           <Pressable

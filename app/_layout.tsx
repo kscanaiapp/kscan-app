@@ -266,7 +266,7 @@ function AuthGate() {
           <ActivityIndicator size="large" color={COLORS.accent} />
           <Text style={styles.recoveryTitle}>Reconnecting your account</Text>
           <Text style={styles.recoveryBody}>
-            We couldn&apos;t reach K Scan just now. You&apos;re still signed in — this will
+            We couldn&apos;t reach K Scan AI just now. You&apos;re still signed in — this will
             finish on its own once you&apos;re back online.
           </Text>
           <Pressable

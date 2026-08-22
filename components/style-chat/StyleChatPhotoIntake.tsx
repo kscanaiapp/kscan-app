@@ -111,7 +111,7 @@ export function StyleChatPhotoIntake({
     if (status !== 'granted') {
       Alert.alert(
         'Photo Access Required',
-        'Allow K Scan to access your photo library in Settings to upload a photo.',
+        'Allow K Scan AI to access your photo library in Settings to upload a photo.',
         [{ text: 'OK' }],
       );
       return;

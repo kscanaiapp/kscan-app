@@ -110,7 +110,7 @@ test('the welcome hero still renders the static image with motion layered on top
   // motion is disabled, stopped, or never starts.
   assert.match(welcomeSource, /require\('\.\.\/\.\.\/assets\/images\/welcome-hero\.png'\)/);
   assert.match(welcomeSource, /<Animated\.Image/);
-  assert.match(welcomeSource, /accessibilityLabel="Welcome to K Scan"/);
+  assert.match(welcomeSource, /accessibilityLabel="Welcome to K Scan AI"/);
 
   // Static style first, responsive height second (BUG-01 — no hardcoded
   // device height), motion transform last - the base layout is unchanged

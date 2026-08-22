@@ -1,6 +1,6 @@
 {
     "expo":  {
-                 "name":  "K Scan",
+                 "name":  "K Scan AI",
                  "slug":  "kscan",
                  "version":  "1.0.1",
                  "sdkVersion":  "54.0.0",
@@ -17,7 +17,7 @@
                                  [
                                      "expo-camera",
                                      {
-                                         "cameraPermission":  "K Scan uses your camera to photograph your outfit for style analysis.",
+                                         "cameraPermission":  "K Scan AI uses your camera to photograph your outfit for style analysis.",
                                          "microphonePermission":  false,
                                          "recordAudioAndroid":  false
                                      }
@@ -25,7 +25,7 @@
                                  [
                                      "expo-image-picker",
                                      {
-                                         "photosPermission":  "K Scan uses your photo library to let you upload style inspiration images to your Style Closet and Dressing Rooms."
+                                         "photosPermission":  "K Scan AI uses your photo library to let you upload style inspiration images to your Style Closet and Dressing Rooms."
                                      }
                                  ],
                                  "expo-router",
@@ -110,8 +110,8 @@
                              "infoPlist":  {
                                                "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait"],
                                                "UISupportedInterfaceOrientations~ipad": ["UIInterfaceOrientationPortrait", "UIInterfaceOrientationPortraitUpsideDown", "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight"],
-                                               "NSCameraUsageDescription":  "K Scan uses your camera to photograph your outfit for style analysis.",
-                                               "NSPhotoLibraryUsageDescription":  "K Scan uses your photo library to let you upload style inspiration images to your Style Closet and Dressing Rooms.",
+                                               "NSCameraUsageDescription":  "K Scan AI uses your camera to photograph your outfit for style analysis.",
+                                               "NSPhotoLibraryUsageDescription":  "K Scan AI uses your photo library to let you upload style inspiration images to your Style Closet and Dressing Rooms.",
                                                "NSLocationWhenInUseUsageDescription":  "K Scan AI uses your approximate location while you use the app to tailor StyleChat suggestions to your local weather. Your raw coordinates are not stored.",
                                                "ITSAppUsesNonExemptEncryption":  false
                                            },

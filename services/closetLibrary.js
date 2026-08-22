@@ -831,7 +831,7 @@ export async function loadClosetTyped(actorId = undefined, options = {}) {
       return state.futureSchema > 0
         ? fail(
             CLOSET_LOAD_CODES.FUTURE_SCHEMA,
-            'Your Closet was saved by a newer version of K Scan.',
+            'Your Closet was saved by a newer version of K Scan AI.',
           )
         : fail(CLOSET_LOAD_CODES.VALIDATION_FAILED, "We couldn't read your Closet.");
     }

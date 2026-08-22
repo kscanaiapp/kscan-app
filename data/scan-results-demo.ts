@@ -68,7 +68,7 @@ export function getDemoScanResultV2(base?: Partial<ScanResultV2>): ScanResultV2 
     matchLabel: '92% MATCH',
     styleTags: ['Tailored', 'Belted', 'Double-Breasted'],
     styleAnalysis:
-      'K Scan identified a structured outerwear silhouette with classic tailoring details. The garment features a belted waist and double-breasted closure, characteristic of heritage trench styling.',
+      'K Scan AI identified a structured outerwear silhouette with classic tailoring details. The garment features a belted waist and double-breasted closure, characteristic of heritage trench styling.',
     similarFinds: DEMO_PRODUCT_MATCHES,
     purchaseOptions: DEMO_PURCHASE_OPTIONS,
     ...base,

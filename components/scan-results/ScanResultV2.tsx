@@ -383,7 +383,7 @@ export function ScanResultV2({
             >
               {/* Header */}
               <View style={styles.header}>
-                <Text style={styles.brandTitle}>K SCAN</Text>
+                <Text style={styles.brandTitle}>K SCAN AI</Text>
                 <Text style={styles.statusLabel}>SCAN ANALYSIS COMPLETE</Text>
                 <TouchableOpacity
                   onPress={handleBack}

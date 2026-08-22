@@ -46,7 +46,7 @@ export function KScanHeader({
   title,
   subtitle,
   showBrandMark = false,
-  brandLabel = 'K Scan',
+  brandLabel = 'K Scan AI',
   onBack,
   backLabel = 'Back',
   rightAction,

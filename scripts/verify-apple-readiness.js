@@ -136,14 +136,14 @@ function verify() {
   );
   check(
     result,
-    infoPlist.NSCameraUsageDescription === 'K Scan uses your camera to photograph your outfit for style analysis.',
+    infoPlist.NSCameraUsageDescription === 'K Scan AI uses your camera to photograph your outfit for style analysis.',
     'Camera usage description is present and scoped',
   );
   check(result, !('NSMicrophoneUsageDescription' in infoPlist), 'No microphone usage description is declared');
   check(
     result,
     infoPlist.NSPhotoLibraryUsageDescription ===
-      'K Scan uses your photo library to let you upload style inspiration images to your Style Closet and Dressing Rooms.',
+      'K Scan AI uses your photo library to let you upload style inspiration images to your Style Closet and Dressing Rooms.',
     'Photo library usage description is present and scoped',
   );
   check(result, privacyManifests.NSPrivacyTracking === false, 'Privacy manifest declares no tracking');
@@ -181,7 +181,7 @@ function verify() {
   );
 
   check(result, apple.version === '1.0.1', 'App Store metadata version is 1.0.1');
-  check(result, englishInfo.title === 'K Scan', 'App Store title is K Scan');
+  check(result, englishInfo.title === 'K Scan AI', 'App Store title is K Scan AI');
   check(result, englishInfo.subtitle === 'AI fashion discovery', 'App Store subtitle is scoped');
   check(result, englishInfo.privacyPolicyUrl === 'https://kscan.app/legal/privacy', 'Privacy URL is set');
   check(result, englishInfo.supportUrl === 'https://kscan.app/support', 'Support URL is set');

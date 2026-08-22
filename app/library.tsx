@@ -183,7 +183,7 @@ async function requestPhotoLibraryPermission(): Promise<boolean> {
   if (hasUsablePhotoLibraryAccess(permission)) return true;
   Alert.alert(
     'Photo Access Required',
-    'Allow K Scan to access your photo library in Settings to upload inspiration.',
+    'Allow K Scan AI to access your photo library in Settings to upload inspiration.',
     [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -191,7 +191,7 @@ async function requestPhotoLibraryPermission(): Promise<boolean> {
         onPress: () => {
           void tryOpenPhotoLibrarySettings(() => Linking.openSettings()).then((opened) => {
             if (!opened) {
-              Alert.alert('Unable to Open Settings', 'Open Settings and allow photo access for K Scan.');
+              Alert.alert('Unable to Open Settings', 'Open Settings and allow photo access for K Scan AI.');
             }
           });
         },

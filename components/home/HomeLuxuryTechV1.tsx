@@ -259,7 +259,7 @@ export default function HomeLuxuryTechV1() {
       backgroundColor={LUXURY.colors.ivory}
       scrollable
       safeArea
-      accessibilityLabel="K Scan Home"
+      accessibilityLabel="K Scan AI Home"
     >
       <StatusBar style="dark" />
 
@@ -330,7 +330,7 @@ export default function HomeLuxuryTechV1() {
             source={require('../../assets/images/home-hero-v1.png')}
             style={styles.heroImageActual}
             resizeMode="cover"
-            accessibilityLabel="K Scan home hero image"
+            accessibilityLabel="K Scan AI home hero image"
           />
         </View>
       </View>
@@ -467,7 +467,7 @@ export default function HomeLuxuryTechV1() {
       <PrivacyFooter
         onPrivacyPress={() => router.push('/privacy')}
         onDataPress={() => void Linking.openURL('https://kscan.app/legal/delete-account')}
-        trustCopy="Private by design. K Scan is not designed for facial recognition or identifying people."
+        trustCopy="Private by design. K Scan AI is not designed for facial recognition or identifying people."
         privacyTestID="home-luxury-privacy-button"
       />
 

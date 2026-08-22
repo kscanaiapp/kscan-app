@@ -665,7 +665,7 @@ export default function App() {
             style={styles.homeButtonV1}
             accessibilityRole="button"
             accessibilityLabel="Go Home"
-            accessibilityHint="Returns to the K Scan home screen"
+            accessibilityHint="Returns to the K Scan AI home screen"
           >
             <Text style={styles.homeButtonV1Text}>Home</Text>
           </Pressable>
@@ -853,7 +853,7 @@ export default function App() {
             style={styles.homeButton}
             accessibilityRole="button"
             accessibilityLabel="Go Home"
-            accessibilityHint="Returns to the K Scan home screen"
+            accessibilityHint="Returns to the K Scan AI home screen"
           >
             <Text style={styles.homeButtonText}>Home</Text>
           </Pressable>
