@@ -40,7 +40,7 @@ function stripImports(source) {
 function loadUseKScanWithMocks({ analyzeImage, compressForUpload, log }) {
   const hookPath = path.join(__dirname, '..', 'hooks', 'useKScan.js');
   let source = stripImports(fs.readFileSync(hookPath, 'utf8'));
-  source = source.replace('export function useKScan()', 'function useKScan()');
+  source = source.replace(/export function useKScan\([^)]*\)/, 'function useKScan(options = {})');
   source += '\nmodule.exports = { useKScan };';
 
   let stateIndex = 0;
