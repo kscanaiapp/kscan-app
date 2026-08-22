@@ -74,9 +74,13 @@ async function handleFrame(sessionId: string, frame: WearableFrame) {
   }
   if (frame.messageType === 'action.save' || frame.messageType === 'action.open_on_phone') {
     const resultId = String(frame.payload?.resultId ?? '');
-    if (!resultId) return;
+    const actionId = String(frame.payload?.actionId ?? '');
+    if (!resultId || !actionId) return;
     const actionType = frame.messageType === 'action.save' ? 'save' : 'open_on_phone';
-    const ack = await completeWearableAction(sessionId, frame.requestId, resultId, actionType);
+    // actionId must come from the glasses' payload (stable per resultId+type), not
+    // frame.requestId, which is a fresh random id on every send/retry — using it
+    // here would defeat the backend's actionId-keyed duplicate-save protection.
+    const ack = await completeWearableAction(sessionId, actionId, resultId, actionType);
     await AsyncStorage.setItem(RESULT_CACHE_PREFIX + resultId, JSON.stringify(ack.result));
     if (actionType === 'open_on_phone') {
       router.push({ pathname: '/wearable-result', params: { resultId } });
