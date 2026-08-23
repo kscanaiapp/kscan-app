@@ -71,6 +71,7 @@ android {
     minSdk safeExtGet(project, 'minSdkVersion', 24) as Integer
     buildConfigField 'boolean', 'MWDAT_ENABLED', "${mwdatEnabled}"
     buildConfigField 'String', 'MWDAT_VERSION', "\"${mwdatVersion}\""
+    testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
   }
 
   buildFeatures {
@@ -123,6 +124,13 @@ if (mwdatEnabled) {
 
 dependencies {
   implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1'
+
+  // On-device fail-closed proof for the DAT-off engine. Mirrors the harness
+  // kscan-pii-native already uses, so the two native modules are verified the
+  // same way. See src/androidTest/.../MetaWearableFailClosedInstrumentationTests.kt.
+  androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+  androidTestImplementation 'androidx.test:runner:1.6.2'
+  androidTestImplementation 'androidx.test:rules:1.6.1'
 
   if (mwdatEnabled) {
     implementation "com.meta.wearable:mwdat-core:${mwdatVersion}"

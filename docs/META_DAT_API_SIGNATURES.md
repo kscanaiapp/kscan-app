@@ -1,6 +1,7 @@
 # Meta DAT — API Signature Authority
 
 Status date: 2026-08-23
+Independently re-verified: 2026-08-23 (release-gate completion pass)
 Adapter under audit: `modules/kscan-meta-wearable/android/src/mwdat/java/com/kscan/metawearable/dat/DatEngine.kt`
 Declared SDK version: `kscan.mwdat.version` default `0.9.0`
 Registry: `https://maven.pkg.github.com/facebook/meta-wearables-dat-android`
@@ -23,6 +24,22 @@ That is not a guess about the blocker — it was measured:
 The upstream repository is **public**, so no Meta-side entitlement, allowlist or
 partner approval is implicated. GitHub Packages simply requires an authenticated
 Maven request even for public packages, and this token cannot make one.
+
+### Re-verification, release-gate completion pass
+
+Every row of the probe table above was re-run independently rather than carried
+forward:
+
+| Probe | Result (re-run) |
+|---|---|
+| `mwdat-core` / `mwdat-camera` / `mwdat-display` / `mwdat-mockdevice` `0.9.0` `.pom`, authenticated as `kscanaiapp` | `401` — all four |
+| `gh auth status` token scopes | `gist, read:org, repo, workflow` — still no `read:packages` |
+| `GET /user/packages?package_type=maven` | `403 "You need at least read:packages scope to list packages."` |
+| `GET /repos/facebook/meta-wearables-dat-android` | `200`, `visibility=public`, `archived=false` |
+| `GITHUB_TOKEN` env / `android/local.properties` `github_token` | neither set |
+
+The conclusion is unchanged and now doubly sourced: this is a token scope, not a
+Meta entitlement. Nothing below moved off `NOT VERIFIED`.
 
 **The entire blocker is one scope on one token** (issue #191):
 

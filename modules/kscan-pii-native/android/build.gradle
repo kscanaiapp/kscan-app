@@ -12,6 +12,13 @@ android {
   defaultConfig {
     versionCode 1
     versionName "1.0.0"
+    // Without this, AGP defaults to android.test.InstrumentationTestRunner —
+    // the pre-AndroidX framework runner, removed from the platform years ago.
+    // The instrumentation process crashed before a single test ran, and the
+    // result XML reported tests="0" with no failures, so the suite looked
+    // green-by-absence rather than broken. These tests cover the fail-closed
+    // face-masking that gates every camera capture; they need to actually run.
+    testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
   }
 
   compileOptions {
@@ -60,8 +67,8 @@ dependencies {
   testImplementation 'org.robolectric:robolectric:4.10'
   testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3'
 
-  androidTestImplementation 'androidx.test.ext:junit:1.1.5'
-  androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
-  androidTestImplementation 'androidx.test:runner:1.5.2'
-  androidTestImplementation 'androidx.test:rules:1.5.0'
+  androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+  androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
+  androidTestImplementation 'androidx.test:runner:1.6.2'
+  androidTestImplementation 'androidx.test:rules:1.6.1'
 }
