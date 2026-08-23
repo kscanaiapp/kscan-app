@@ -130,6 +130,7 @@ import {
 } from './commerceFunnelConfig.ts';
 import { buildCanonicalCommerce } from './canonicalCommerce.ts';
 import {
+  mapFastCommerceFailureReason,
   mapToFailureReason,
 } from './commerceRelevanceFailure.ts';
 import {
@@ -138,6 +139,7 @@ import {
 } from './textScanCommerceParityConfig.ts';
 import {
   captureCommerceOutcome as persistCommerceOutcomeRow,
+  captureCommerceOutcomeNonBlocking,
 } from './commerceOutcomeCapture.ts';
 import {
   buildRoutedIdentifyPrompt,
@@ -2135,6 +2137,45 @@ Deno.serve(async (req) => {
     if (!fast) {
       // Commerce failure is never a scan failure — the caller already has a
       // rendered scan result and simply gets an empty, retryable shelf.
+      //
+      // Best-effort scrubbed outcome persistence — never blocks the response.
+      // This is the deferred commerce attempt actually completing (with a
+      // genuine provider failure), not a fabricated outcome: MODE A's own
+      // 'deferred' response never reaches captureCommerceOutcome, so without
+      // this call every MODE B provider error was previously invisible to
+      // commerce telemetry.
+      captureCommerceOutcomeNonBlocking({
+        requestMode: 'commerce_only',
+        sourceClass: null,
+        appPlatform,
+        appVersion,
+        status: 'completed',
+        isFashion: true,
+        categoryRoute: route,
+        qualityBand: gated.qualityBand,
+        commerceQueryDetailLevel: gated.commerceQueryDetailLevel,
+        providerOutcome: 'error',
+        providersTried: null,
+        primaryResultCount: 0,
+        fallbackUsed: false,
+        productsBeforeFilter: 0,
+        productsAfterFilter: 0,
+        productsBeforeDedupe: 0,
+        productsAfterDedupe: 0,
+        categoryMismatchRemovals: 0,
+        retailerCount: 0,
+        commerceDurationMs: Date.now() - commerceOnlyStarted,
+        totalDurationMs: Date.now() - commerceOnlyStarted,
+        failureReason: mapToFailureReason({ providerOutcome: 'error' }),
+        textScanParityEnabled: false,
+        correlationHash: typeof commerceOnlyCandidateId === 'string'
+          ? commerceOnlyCandidateId.slice(0, 12)
+          : null,
+        // No fast result exists on this path, so there is no query strategy
+        // or agreement score to report — only that v124/v127 were active.
+        commerceIdentityEnabled: commerceIdentityEnabledForCommerceOnly,
+        commerceFunnelEnabled: true,
+      }, captureCommerceOutcome);
       return json({
         status: 'completed',
         purchaseOptions: [],
@@ -2167,6 +2208,72 @@ Deno.serve(async (req) => {
       enrichment?.succeeded ?? 0,
       Date.now() - commerceOnlyStarted,
     );
+
+    // Best-effort scrubbed outcome persistence — never blocks the response.
+    // Mirrors the image-mode capture below field-for-field (one normalized
+    // commerce-outcome contract for both MODE A and MODE B): qualityTune is
+    // absent on a cache hit, since those stats were computed at cache-write
+    // time and were never stored, so every count here falls back to the
+    // shelf actually returned to the caller — the same fallback idiom the
+    // image-mode call already uses when its own stats are unavailable.
+    {
+      const qt = fast.qualityTune;
+      const beforeFilter = qt?.productsBeforeFilter ?? products.length;
+      const beforeDedupe = qt?.productsBeforeDedupe ?? products.length;
+      const afterDedupe = qt?.productsAfterDedupe ?? products.length;
+      const mismatchRemovals = qt?.categoryMismatchRemovals ?? 0;
+      const retailerCount = qt?.retailerCount ?? new Set(
+        products
+          .map((p) =>
+            typeof (p as { source?: string }).source === 'string'
+              ? (p as { source: string }).source
+              : ''
+          )
+          .filter(Boolean),
+      ).size;
+      // MODE B never runs a fallback query — getFastCommerceResults only ever
+      // executes resolved.query, never resolved.fallbackQuery — so
+      // fallbackUsed is always false here, not a placeholder.
+      const modeBFailureReason = mapFastCommerceFailureReason({
+        errorType: fast.errorType,
+        productCount: products.length,
+        providerOutcomes: fast.funnel.providers.map((provider) => provider.outcome),
+      });
+
+      captureCommerceOutcomeNonBlocking({
+        requestMode: 'commerce_only',
+        sourceClass: null,
+        appPlatform,
+        appVersion,
+        status: 'completed',
+        isFashion: fast.errorType !== 'non_fashion',
+        categoryRoute: route,
+        qualityBand: gated.qualityBand,
+        commerceQueryDetailLevel: gated.commerceQueryDetailLevel,
+        providerOutcome: fast.provider,
+        providersTried: fast.providersTried,
+        primaryResultCount: products.length,
+        fallbackUsed: false,
+        productsBeforeFilter: beforeFilter,
+        productsAfterFilter: afterDedupe,
+        productsBeforeDedupe: beforeDedupe,
+        productsAfterDedupe: afterDedupe,
+        categoryMismatchRemovals: mismatchRemovals,
+        retailerCount,
+        commerceDurationMs: Date.now() - commerceOnlyStarted,
+        totalDurationMs: Date.now() - commerceOnlyStarted,
+        failureReason: modeBFailureReason,
+        textScanParityEnabled: false,
+        correlationHash: typeof commerceOnlyCandidateId === 'string'
+          ? commerceOnlyCandidateId.slice(0, 12)
+          : null,
+        queryStrategy: fast.queryStrategy ?? null,
+        topAgreementScore: qt?.topAgreementScore ?? null,
+        topAgreementBand: qt?.topAgreementBand ?? null,
+        commerceIdentityEnabled: commerceIdentityEnabledForCommerceOnly,
+        commerceFunnelEnabled: true,
+      }, captureCommerceOutcome);
+    }
 
     return json({
       status: 'completed',
