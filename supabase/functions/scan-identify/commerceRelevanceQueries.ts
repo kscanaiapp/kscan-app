@@ -126,11 +126,19 @@ function finalizeQuery(parts: string[], maxTerms = TARGET_QUERY_KEY_TERMS_MAX): 
     if (!p) continue;
     const key = p.toLowerCase();
     if (seen.has(key)) continue;
-    // Skip if every token already present
     const tokens = meaningfulWords(p);
-    if (tokens.every((t) => seen.has(t.toLowerCase()))) continue;
-    for (const t of tokens) seen.add(t.toLowerCase());
-    phrases.push(p);
+    // Cross-phrase dedup. A full-overlap phrase (every token already seen,
+    // e.g. a repeated material) is dropped entirely. A phrase that only
+    // partially overlaps an earlier one — a brand repeated inside its own
+    // model hypothesis ("Nike" + "Nike Air Force 1 Low"), or a material
+    // repeated inside a subtype phrase ("leather" + "leather moto jacket") —
+    // must not carry its already-seen tokens into the query a second time.
+    // An earlier, already-selected phrase is never edited; only a later,
+    // overlapping one is trimmed to the tokens it newly contributes.
+    const residual = tokens.filter((t) => !seen.has(t.toLowerCase()));
+    if (!residual.length) continue;
+    for (const t of residual) seen.add(t.toLowerCase());
+    phrases.push(residual.join(' '));
   }
 
   const selected: string[] = [];
