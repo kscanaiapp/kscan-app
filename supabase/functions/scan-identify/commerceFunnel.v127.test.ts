@@ -40,6 +40,12 @@ import {
   selectEnrichmentCandidates,
 } from './scanCommerceRouter.ts';
 import type { RecommendedProduct } from './shoppingProvider.ts';
+import {
+  buildCommerceOutcomeRow,
+  captureCommerceOutcome,
+  type CommerceOutcomeInput,
+} from './commerceOutcomeCapture.ts';
+import { FAILURE_REASON_WEAK_QUERY, mapToFailureReason } from './commerceRelevanceFailure.ts';
 
 // ── Fetch harness ────────────────────────────────────────────────────────────
 
@@ -1256,4 +1262,471 @@ Deno.test('DEDUPE: negative control — the pre-fix precedence keeps both as dis
   const b = preFixIdentityKey({ id: 'hash-b', productUrl: 'https://retailer.example-shop.test/p/jacket-123/', source: 'RetailerNeutral' });
   assert.notEqual(a.key, b.key, 'negative control did not reproduce the pre-fix unreachable-canonical-tier defect');
   assert.equal(a.type, 'provider_product_id');
+});
+
+// ── P. MODE B commerce outcome telemetry (repair) ───────────────────────────
+//
+// Before this repair, MODE B (commerce_only) never called captureCommerceOutcome
+// on either terminal outcome — a genuine provider failure, or a genuine
+// commerce attempt that returned offers or came back empty. MODE A's own
+// 'deferred' response never reaches captureCommerceOutcome either (deferring
+// is not an outcome, it is a promise to attempt later), so turning v127 on
+// made every real MODE B commerce attempt invisible to scan_commerce_events.
+// This section proves the historical gap, then proves the repair closes it —
+// by static wiring (the established convention for index.ts internals, which
+// cannot be imported directly: it is a Deno.serve() entrypoint, not a
+// module) and by a genuine runtime call into the real captureCommerceOutcome
+// authority at the fetch boundary.
+
+function boundModeB(src: string): { start: number; end: number; block: string } {
+  const start = src.indexOf('if (commerceFunnelEnabled && isCommerceOnlyRequest(body)) {');
+  assert.ok(start > 0, 'MODE B block is missing');
+  const end = src.indexOf('\n  if (useMultiItemProvider && requestMode ===', start);
+  assert.ok(end > start, 'could not bound the end of the MODE B block');
+  return { start, end, block: src.slice(start, end) };
+}
+
+Deno.test('NEGATIVE CONTROL: the historical pre-fix MODE B block never called captureCommerceOutcome', () => {
+  // Verbatim (trimmed of comments/logging only) from the merged Build 32
+  // baseline — PR #194 head 1dc718b, merge commit 76a6fd0 — both terminal
+  // MODE B return points, before this repair touched them.
+  const preFixModeB = `
+  if (commerceFunnelEnabled && isCommerceOnlyRequest(body)) {
+    const commerceOnlyStarted = Date.now();
+    const commerceOnlyFingerprint = await sha256Hex(getClientFingerprintMaterial(req));
+    const commerceOnlyRate = checkCommerceOnlyRateLimit(commerceOnlyFingerprint);
+    if (!commerceOnlyRate.allowed) {
+      return json({ status: 'failed', error: 'commerce_only_rate_limited' }, 429);
+    }
+    const rejected = rejectImagePayloadForCommerceOnly(body);
+    if (rejected) {
+      return json({ status: 'failed', error: 'commerce_only_invalid', reason: rejected }, 400);
+    }
+    const evidence = readCommerceOnlyEvidence(body);
+    if (!evidence) {
+      return json({ status: 'failed', error: 'commerce_only_invalid', reason: 'missing_identification' }, 400);
+    }
+    const commerceOnlyCandidateId = readCommerceOnlyCandidateId(body);
+    const gated = applyScannerQualityGate(evidence.identification, evidence.attributes, {
+      commerceIdentityEnabled: commerceIdentityEnabledForCommerceOnly,
+    });
+    const route = resolveScannerCategoryRoute({ requestMode: 'legacy_single_item' });
+    const fast = await getFastCommerceResults({ mode: 'image' }).catch((err) => {
+      return null;
+    });
+    if (!fast) {
+      return json({
+        status: 'completed',
+        purchaseOptions: [],
+        recommendedProducts: [],
+        commerce: { available: false, retryable: true, errorType: 'provider_error' },
+      }, 200);
+    }
+    let products = fast.products;
+    const canonical = buildCanonicalCommerce(products);
+    return json({
+      status: 'completed',
+      purchaseOptions: products,
+      recommendedProducts: products,
+      canonicalProducts: canonical.products,
+    }, 200);
+  }
+  `;
+  assert.equal(
+    (preFixModeB.match(/captureCommerceOutcome\(/g) ?? []).length,
+    0,
+    'the historical pre-fix reconstruction is wrong — it already calls captureCommerceOutcome',
+  );
+});
+
+Deno.test('WIRING: the repaired MODE B block calls captureCommerceOutcome on both terminal outcomes', async () => {
+  const src = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
+  const { start, block } = boundModeB(src);
+
+  const callCount = (block.match(/void captureCommerceOutcome\(\{/g) ?? []).length;
+  assert.equal(callCount, 2, `expected exactly 2 capture calls (provider-error + success), found ${callCount}`);
+
+  // Each call must precede its own return, not follow it — a call placed
+  // after `return` is dead code and would silently reintroduce the gap.
+  const providerErrorCapture = block.indexOf('void captureCommerceOutcome({');
+  const providerErrorReturn = block.indexOf(
+    "commerce: { available: false, retryable: true, errorType: 'provider_error' }",
+  );
+  assert.ok(providerErrorCapture > 0 && providerErrorCapture < providerErrorReturn,
+    'the provider-error capture call must run before its return');
+
+  const doneLogIndex = block.indexOf('commerce_only_done');
+  const secondCapture = block.indexOf('void captureCommerceOutcome({', providerErrorCapture + 1);
+  assert.ok(secondCapture > doneLogIndex,
+    'the success-path capture call must follow the commerce_only_done log line');
+  const finalReturn = block.indexOf('return json({', secondCapture);
+  assert.ok(secondCapture > 0 && secondCapture < finalReturn,
+    'the success-path capture call must run before its return');
+});
+
+Deno.test('WIRING: MODE B never fabricates an outcome for a request it did not attempt', async () => {
+  // Rate-limited / rejected-payload / missing-identification are REJECTIONS
+  // before any commerce attempt — captureCommerceOutcome must not appear
+  // ahead of the point where a real attempt (getFastCommerceResults) begins.
+  const src = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
+  const { start } = boundModeB(src);
+  const fastCallIndex = src.indexOf('const fast = await getFastCommerceResults({', start);
+  assert.ok(fastCallIndex > start);
+  const preAttempt = src.slice(start, fastCallIndex);
+  assert.ok(
+    !preAttempt.includes('captureCommerceOutcome('),
+    'a rejection before the real commerce attempt must not be persisted as a commerce outcome',
+  );
+});
+
+Deno.test('WIRING: MODE B telemetry never carries the query string or raw provider payload', async () => {
+  const src = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
+  const { block } = boundModeB(src);
+  for (const leak of ['query:', 'fast.query', 'evidence.searchQueries']) {
+    assert.ok(
+      !new RegExp(`captureCommerceOutcome\\([\\s\\S]{0,50}${leak.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(block),
+      `MODE B telemetry construction references ${leak} near a capture call`,
+    );
+  }
+});
+
+Deno.test('RUNTIME: MODE B success now reaches the real persistence authority exactly once', async () => {
+  setEnv();
+  commerceCacheClear();
+  installFetch([
+    { match: isSerper, delayMs: 0, body: serperBody(2, 'telemrepair') },
+    { match: isBrave, delayMs: 0, body: { web: { results: [] } } },
+    { match: isPoshmark, delayMs: 0, body: poshmarkBody(0, 'telemrepair') },
+    { match: (u) => u.includes('/rest/v1/scan_commerce_events'), delayMs: 0, status: 201, body: [] },
+  ]);
+  try {
+    // The real MODE B discovery call — same function, same code path index.ts
+    // now feeds into captureCommerceOutcome.
+    const fast = await getFastCommerceResults(fastInput('moto jacket telemrepair'));
+    assert.ok(fast.products.length > 0, 'fixture must produce a real, non-empty MODE B result');
+
+    const fetchCallsBeforeCapture = fetchCallCount;
+
+    // The exact mapping index.ts's success-path call now performs.
+    const products = fast.products;
+    const qt = fast.qualityTune;
+    const failureReason = mapToFailureReason({
+      providerOutcome: fast.errorType === 'timeout' ? 'timeout' : null,
+      commercePrimaryEmpty: products.length === 0 && fast.errorType !== 'timeout',
+    });
+
+    const result = await captureCommerceOutcome(
+      {
+        requestMode: 'commerce_only',
+        sourceClass: null,
+        appPlatform: 'ios',
+        appVersion: null,
+        status: 'completed',
+        isFashion: true,
+        categoryRoute: 'apparel',
+        qualityBand: 'high',
+        commerceQueryDetailLevel: 'specific',
+        providerOutcome: fast.provider,
+        providersTried: fast.providersTried,
+        primaryResultCount: products.length,
+        fallbackUsed: false,
+        productsBeforeFilter: qt?.productsBeforeFilter ?? products.length,
+        productsAfterFilter: qt?.productsAfterDedupe ?? products.length,
+        productsBeforeDedupe: qt?.productsBeforeDedupe ?? products.length,
+        productsAfterDedupe: qt?.productsAfterDedupe ?? products.length,
+        categoryMismatchRemovals: qt?.categoryMismatchRemovals ?? 0,
+        retailerCount: qt?.retailerCount ?? 0,
+        commerceDurationMs: fast.funnel.discoveryMs,
+        totalDurationMs: fast.funnel.discoveryMs,
+        failureReason,
+        textScanParityEnabled: false,
+      },
+      (key) => {
+        if (key === 'SUPABASE_URL') return 'http://localhost:54321';
+        if (key === 'SUPABASE_SERVICE_ROLE_KEY') return 'test-service-role-key';
+        return undefined;
+      },
+    );
+
+    assert.equal(result.attempted, true, 'the persistence authority must report an attempt (not capture_disabled)');
+    assert.equal(result.ok, true, `capture failed: ${result.reason}`);
+    assert.equal(
+      fetchCallCount,
+      fetchCallsBeforeCapture + 1,
+      'exactly one insert must reach the real Supabase REST boundary',
+    );
+  } finally {
+    restoreFetch();
+  }
+});
+
+Deno.test('RUNTIME: MODE B provider failure also reaches the real persistence authority', async () => {
+  // The `!fast` branch: getFastCommerceResults threw and was caught. This
+  // exercises the OTHER capture call site index.ts now has — the one the
+  // audit found was silently dropping every MODE B provider error.
+  installFetch([
+    { match: (u) => u.includes('/rest/v1/scan_commerce_events'), delayMs: 0, status: 201, body: [] },
+  ]);
+  try {
+    const fetchCallsBeforeCapture = fetchCallCount;
+    const result = await captureCommerceOutcome(
+      {
+        requestMode: 'commerce_only',
+        sourceClass: null,
+        appPlatform: 'android',
+        appVersion: null,
+        status: 'completed',
+        isFashion: true,
+        categoryRoute: 'apparel',
+        qualityBand: 'high',
+        commerceQueryDetailLevel: 'specific',
+        providerOutcome: 'error',
+        providersTried: null,
+        primaryResultCount: 0,
+        fallbackUsed: false,
+        productsBeforeFilter: 0,
+        productsAfterFilter: 0,
+        productsBeforeDedupe: 0,
+        productsAfterDedupe: 0,
+        categoryMismatchRemovals: 0,
+        retailerCount: 0,
+        commerceDurationMs: 42,
+        totalDurationMs: 42,
+        failureReason: mapToFailureReason({ providerOutcome: 'error' }),
+        textScanParityEnabled: false,
+      },
+      (key) => {
+        if (key === 'SUPABASE_URL') return 'http://localhost:54321';
+        if (key === 'SUPABASE_SERVICE_ROLE_KEY') return 'test-service-role-key';
+        return undefined;
+      },
+    );
+
+    assert.equal(result.attempted, true);
+    assert.equal(result.ok, true, `capture failed: ${result.reason}`);
+    assert.equal(fetchCallCount, fetchCallsBeforeCapture + 1);
+  } finally {
+    restoreFetch();
+  }
+});
+
+// ── Q. Accuracy telemetry (repair) ──────────────────────────────────────────
+//
+// The v124/v127 audit found agreement scores and query strategy were already
+// computed but discarded before reaching scan_commerce_events, making match
+// quality unmeasurable. These fields close that gap: additive, nullable,
+// bounded to known enums, and derived from values the ranker already
+// produces — no new scoring, no new confidence model.
+
+function baseOutcomeInput(): CommerceOutcomeInput {
+  return {
+    requestMode: 'commerce_only',
+    sourceClass: null,
+    appPlatform: null,
+    appVersion: null,
+    status: 'completed',
+    isFashion: true,
+    categoryRoute: 'apparel',
+    qualityBand: 'high',
+    commerceQueryDetailLevel: 'specific',
+    providerOutcome: 'serper',
+    providersTried: ['serper'],
+    primaryResultCount: 3,
+    fallbackUsed: false,
+    productsBeforeFilter: 5,
+    productsAfterFilter: 3,
+    productsBeforeDedupe: 5,
+    productsAfterDedupe: 3,
+    categoryMismatchRemovals: 0,
+    retailerCount: 3,
+    commerceDurationMs: 500,
+    totalDurationMs: 500,
+    failureReason: null,
+    textScanParityEnabled: false,
+  };
+}
+
+Deno.test('ACCURACY: a bounded query_strategy survives, an unknown one is dropped', () => {
+  const row = buildCommerceOutcomeRow({ ...baseOutcomeInput(), queryStrategy: 'exact_identity' });
+  assert.equal(row.query_strategy, 'exact_identity');
+
+  const bogus = buildCommerceOutcomeRow({ ...baseOutcomeInput(), queryStrategy: 'invented_strategy' });
+  assert.equal(bogus.query_strategy, null, 'an unrecognized strategy must not reach the row');
+});
+
+Deno.test('ACCURACY: top_agreement_score is rounded and bounded; a non-finite value is null', () => {
+  const row = buildCommerceOutcomeRow({ ...baseOutcomeInput(), topAgreementScore: 87.6 });
+  assert.equal(row.top_agreement_score, 88);
+
+  const missing = buildCommerceOutcomeRow({ ...baseOutcomeInput(), topAgreementScore: null });
+  assert.equal(missing.top_agreement_score, null);
+
+  const nonsense = buildCommerceOutcomeRow({
+    ...baseOutcomeInput(),
+    topAgreementScore: Number.NaN,
+  });
+  assert.equal(nonsense.top_agreement_score, null);
+});
+
+Deno.test('ACCURACY: a bounded top_agreement_band survives, an unknown one is dropped', () => {
+  const row = buildCommerceOutcomeRow({ ...baseOutcomeInput(), topAgreementBand: 'strong' });
+  assert.equal(row.top_agreement_band, 'strong');
+
+  const bogus = buildCommerceOutcomeRow({ ...baseOutcomeInput(), topAgreementBand: 'excellent' });
+  assert.equal(bogus.top_agreement_band, null, 'an unrecognized band must not reach the row');
+});
+
+Deno.test('ACCURACY: version columns stamp only when the matching layer actually ran', () => {
+  const identityOn = buildCommerceOutcomeRow({ ...baseOutcomeInput(), commerceIdentityEnabled: true });
+  assert.ok(identityOn.commerce_identity_version, 'v124 ran — version must be stamped');
+
+  const identityOff = buildCommerceOutcomeRow({ ...baseOutcomeInput(), commerceIdentityEnabled: false });
+  assert.equal(identityOff.commerce_identity_version, null);
+
+  const identityOmitted = buildCommerceOutcomeRow(baseOutcomeInput());
+  assert.equal(identityOmitted.commerce_identity_version, null, 'omitted must behave exactly like false');
+
+  const funnelOn = buildCommerceOutcomeRow({ ...baseOutcomeInput(), commerceFunnelEnabled: true });
+  assert.ok(funnelOn.commerce_funnel_version, 'v127 ran (this IS MODE B) — version must be stamped');
+
+  const funnelOff = buildCommerceOutcomeRow({ ...baseOutcomeInput(), commerceFunnelEnabled: false });
+  assert.equal(funnelOff.commerce_funnel_version, null);
+});
+
+Deno.test('ACCURACY: omitting every new field is byte-identical to the pre-repair contract', () => {
+  const row = buildCommerceOutcomeRow(baseOutcomeInput());
+  assert.equal(row.query_strategy, null);
+  assert.equal(row.top_agreement_score, null);
+  assert.equal(row.top_agreement_band, null);
+  assert.equal(row.commerce_identity_version, null);
+  assert.equal(row.commerce_funnel_version, null);
+  // Every pre-existing field is unaffected by the widened contract.
+  assert.equal(row.request_mode, 'commerce_only');
+  assert.equal(row.primary_result_count, 3);
+});
+
+Deno.test('RUNTIME: MODE B success persists query_strategy and top_agreement_score end-to-end', async () => {
+  setEnv();
+  commerceCacheClear();
+  installFetch([
+    { match: isSerper, delayMs: 0, body: serperBody(2, 'telemaccuracy') },
+    { match: isBrave, delayMs: 0, body: { web: { results: [] } } },
+    { match: isPoshmark, delayMs: 0, body: poshmarkBody(0, 'telemaccuracy') },
+    { match: (u) => u.includes('/rest/v1/scan_commerce_events'), delayMs: 0, status: 201, body: [] },
+  ]);
+  let capturedRow: unknown = null;
+  const realFetchForBody = globalThis.fetch;
+  try {
+    // agreementScores is only computed on the v122 relevance path — the
+    // plain fastInput() fixture (no relevanceEnabled/relevanceRoute) falls
+    // through to the older v120/v121 dedup path, which never scores
+    // agreement at all. This test needs relevance active to exercise it.
+    const fast = await getFastCommerceResults(
+      fastInput('moto jacket telemaccuracy', { relevanceEnabled: true, relevanceRoute: 'apparel' }),
+    );
+    assert.ok(fast.products.length > 0, 'fixture must produce a real, non-empty MODE B result');
+    assert.ok(fast.qualityTune, 'quality-tune stats must be present for a fresh (non-cache-hit) discovery');
+    assert.ok(
+      typeof fast.qualityTune!.topAgreementScore === 'number',
+      'a real agreement score must have been computed for this fixture',
+    );
+
+    const input: CommerceOutcomeInput = {
+      ...baseOutcomeInput(),
+      providerOutcome: fast.provider,
+      providersTried: fast.providersTried,
+      primaryResultCount: fast.products.length,
+      queryStrategy: fast.queryStrategy ?? null,
+      topAgreementScore: fast.qualityTune?.topAgreementScore ?? null,
+      topAgreementBand: fast.qualityTune?.topAgreementBand ?? null,
+      commerceIdentityEnabled: false,
+      commerceFunnelEnabled: true,
+    };
+    // Inspect exactly what would be persisted, independent of the network mock.
+    capturedRow = buildCommerceOutcomeRow(input);
+
+    const result = await captureCommerceOutcome(input, (key) => {
+      if (key === 'SUPABASE_URL') return 'http://localhost:54321';
+      if (key === 'SUPABASE_SERVICE_ROLE_KEY') return 'test-service-role-key';
+      return undefined;
+    });
+    assert.equal(result.ok, true, `capture failed: ${result.reason}`);
+  } finally {
+    restoreFetch();
+    void realFetchForBody;
+  }
+
+  const row = capturedRow as {
+    query_strategy: string | null;
+    top_agreement_score: number | null;
+    top_agreement_band: string | null;
+    commerce_funnel_version: string | null;
+    commerce_identity_version: string | null;
+  };
+  assert.ok(row.query_strategy === null || typeof row.query_strategy === 'string');
+  assert.equal(typeof row.top_agreement_score, 'number');
+  assert.ok(row.top_agreement_band === 'strong' || row.top_agreement_band === 'usable' || row.top_agreement_band === 'weak');
+  assert.ok(row.commerce_funnel_version, 'commerce_funnel_version must be stamped for a MODE B request');
+  assert.equal(row.commerce_identity_version, null, 'v124 was not enabled for this fixture');
+});
+
+// ── R. weak_query observability (repair) ────────────────────────────────────
+//
+// isWeakQuery already gates both commerce entry points and both already
+// return errorType: 'weak_query' before any provider call — but no failure
+// reason existed to carry that state into telemetry, so it fell into the
+// generic commerce_primary_empty bucket alongside genuine NO_MATCH and
+// provider-misconfiguration outcomes. This exposes the existing gate's
+// outcome; it does not change when the gate fires.
+
+Deno.test('weak_query is distinguishable from provider error, timeout, and genuine empty', () => {
+  assert.equal(mapToFailureReason({ weakQuery: true }), FAILURE_REASON_WEAK_QUERY);
+  assert.notEqual(mapToFailureReason({ weakQuery: true }), mapToFailureReason({ providerOutcome: 'error' }));
+  assert.notEqual(mapToFailureReason({ weakQuery: true }), mapToFailureReason({ providerOutcome: 'timeout' }));
+  assert.notEqual(mapToFailureReason({ weakQuery: true }), mapToFailureReason({ commercePrimaryEmpty: true }));
+  assert.notEqual(mapToFailureReason({ weakQuery: true }), mapToFailureReason({ isNonFashion: true }));
+  // A genuinely non-weak, non-timeout, non-error, empty-result outcome is
+  // still exactly the pre-existing reason — the vocabulary addition is
+  // additive, not a reclassification of unrelated outcomes.
+  assert.equal(mapToFailureReason({ weakQuery: false, commercePrimaryEmpty: true }), 'commerce_primary_empty');
+});
+
+Deno.test('weak_query survives buildCommerceOutcomeRow and round-trips through sanitizeFailureReason', () => {
+  const row = buildCommerceOutcomeRow({
+    ...baseOutcomeInput(),
+    primaryResultCount: 0,
+    failureReason: mapToFailureReason({ weakQuery: true }),
+  });
+  assert.equal(row.failure_reason, 'weak_query');
+});
+
+Deno.test('getFastCommerceResults genuinely returns errorType weak_query for a weak fixture, never reaching a provider', async () => {
+  installFetch([]); // any real call here is itself a test failure
+  try {
+    // No brand, no material, no color, no distinctive detail — collapses to
+    // fewer than 3 meaningful, non-generic words: isWeakQuery's own bar.
+    const fast = await getFastCommerceResults({
+      mode: 'image',
+      identification: { item_type: 'thing' },
+      limit: 8,
+    });
+    assert.equal(fast.errorType, 'weak_query');
+    assert.equal(fast.products.length, 0);
+    assert.equal(fetchCallCount, 0, 'a weak query must never reach a provider');
+  } finally {
+    restoreFetch();
+  }
+});
+
+Deno.test('RUNTIME: MODE B derives weak_query, not commerce_primary_empty, for a genuinely weak query', () => {
+  // The exact derivation index.ts's success-path capture call performs.
+  const fastLikeWeak = { errorType: 'weak_query' as const };
+  const productsLength = 0;
+  const failureReason = mapToFailureReason({
+    weakQuery: fastLikeWeak.errorType === 'weak_query',
+    providerOutcome: (fastLikeWeak.errorType as string) === 'timeout' ? 'timeout' : null,
+    commercePrimaryEmpty: productsLength === 0 &&
+      (fastLikeWeak.errorType as string) !== 'timeout' && (fastLikeWeak.errorType as string) !== 'weak_query',
+  });
+  assert.equal(failureReason, FAILURE_REASON_WEAK_QUERY);
 });

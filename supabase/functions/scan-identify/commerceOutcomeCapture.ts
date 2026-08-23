@@ -19,6 +19,8 @@ import { TEXTSCAN_COMMERCE_PARITY_VERSION } from './textScanCommerceParityConfig
 import { COMMERCE_RELEVANCE_VERSION } from './commerceRelevanceConfig.ts';
 import { SCANNER_INTELLIGENCE_VERSION } from './scannerIntelligenceConfig.ts';
 import { QUALITY_TUNE_VERSION } from './qualityTuneConfig.ts';
+import { COMMERCE_IDENTITY_VERSION } from './commerceIdentityConfig.ts';
+import { COMMERCE_FUNNEL_VERSION } from './commerceFunnelConfig.ts';
 
 export const SCAN_COMMERCE_EVENTS_TABLE = 'scan_commerce_events';
 
@@ -47,6 +49,24 @@ export type CommerceOutcomeInput = {
   failureReason: string | null;
   textScanParityEnabled: boolean;
   correlationHash?: string | null;
+  /**
+   * Accuracy-telemetry repair (v124/v127). All optional/nullable — omitting
+   * them is byte-identical to the pre-repair contract.
+   *
+   * queryStrategy: bounded v125 enum, never the query string.
+   * topAgreementScore / topAgreementBand: the highest v122/v124 agreement
+   *   score among ranked candidates, and its deterministic band — both
+   *   already computed by filterAndDedupeProducts, not new scoring.
+   * commerceIdentityEnabled / commerceFunnelEnabled: whether v124/v127
+   *   actually ran for this request. Stamps the matching version constant
+   *   only when true, mirroring textScanParityEnabled's existing pattern —
+   *   not a new enablement model.
+   */
+  queryStrategy?: string | null;
+  topAgreementScore?: number | null;
+  topAgreementBand?: string | null;
+  commerceIdentityEnabled?: boolean;
+  commerceFunnelEnabled?: boolean;
 };
 
 export type CommerceOutcomeRow = {
@@ -77,6 +97,11 @@ export type CommerceOutcomeRow = {
   commerce_relevance_version: string;
   textscan_parity_version: string | null;
   correlation_hash: string | null;
+  query_strategy: string | null;
+  top_agreement_score: number | null;
+  top_agreement_band: string | null;
+  commerce_identity_version: string | null;
+  commerce_funnel_version: string | null;
 };
 
 const ALLOWED_ROUTES = new Set(['apparel', 'footwear', 'bags', 'accessories', 'general']);
@@ -85,6 +110,12 @@ const ALLOWED_DETAIL = new Set(['specific', 'moderate', 'broad']);
 const ALLOWED_STATUS = new Set([
   'completed', 'non_fashion', 'failed', 'rate_limited', 'invalid', 'error',
 ]);
+/** Mirrors CommerceQueryStrategy in commerceRetrievalConfig.ts. */
+const ALLOWED_QUERY_STRATEGY = new Set([
+  'exact_identity', 'brand_distinctive', 'attribute_only', 'fallback',
+]);
+/** Mirrors AgreementBand in commerceRelevanceAgreement.ts. */
+const ALLOWED_AGREEMENT_BAND = new Set(['strong', 'usable', 'weak']);
 
 function finiteOrNull(v: unknown): number | null {
   const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN;
@@ -116,6 +147,8 @@ export function buildCommerceOutcomeRow(input: CommerceOutcomeInput): CommerceOu
   const band = safeShort(input.qualityBand, 16);
   const detail = safeShort(input.commerceQueryDetailLevel, 16);
   const status = safeShort(input.status, 24) || 'unknown';
+  const strategy = safeShort(input.queryStrategy, 24);
+  const agreementBand = safeShort(input.topAgreementBand, 16);
 
   return {
     request_mode: safeShort(input.requestMode, 40) || 'unknown',
@@ -145,6 +178,11 @@ export function buildCommerceOutcomeRow(input: CommerceOutcomeInput): CommerceOu
     commerce_relevance_version: COMMERCE_RELEVANCE_VERSION,
     textscan_parity_version: input.textScanParityEnabled ? TEXTSCAN_COMMERCE_PARITY_VERSION : null,
     correlation_hash: safeShort(input.correlationHash, 16),
+    query_strategy: strategy && ALLOWED_QUERY_STRATEGY.has(strategy) ? strategy : null,
+    top_agreement_score: finiteOrNull(input.topAgreementScore),
+    top_agreement_band: agreementBand && ALLOWED_AGREEMENT_BAND.has(agreementBand) ? agreementBand : null,
+    commerce_identity_version: input.commerceIdentityEnabled ? COMMERCE_IDENTITY_VERSION : null,
+    commerce_funnel_version: input.commerceFunnelEnabled ? COMMERCE_FUNNEL_VERSION : null,
   };
 }
 
