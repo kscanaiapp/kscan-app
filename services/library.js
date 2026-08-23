@@ -32,6 +32,11 @@ import { hydrateScanHistory } from './identificationSnapshot';
 
 const LIB_DIR      = FileSystem.documentDirectory + 'kscan_library/';
 const LIBRARY_PATH = LIB_DIR + 'kscan_library.json';
+// Staging and retention paths for the atomic manifest swap. Same idiom as
+// services/privateSavedLookStore.ts, which already governs a manifest of this
+// shape — Recent Scans is not getting a bespoke storage engine of its own.
+const LIBRARY_TEMP_PATH   = LIBRARY_PATH + '.tmp';
+const LIBRARY_BACKUP_PATH = LIBRARY_PATH + '.bak';
 const IMAGES_DIR   = LIB_DIR + 'images/';
 const THUMBS_DIR   = LIB_DIR + 'thumbnails/';
 const MAX_SCANS     = 25; // per partition, not per manifest
@@ -46,8 +51,9 @@ const THUMB_COMPRESS = 0.88;
 const IMAGE_WIDTH   = 1440; // px — room-upload friendly, still compact
 
 // Serializes every manifest mutation so concurrent saves/deletes cannot
-// interleave a read-modify-write. Stage 1 does not redesign the write itself;
-// atomic manifest writes remain DEFERRED HARDENING.
+// interleave a read-modify-write. The write itself is now an atomic
+// stage-verify-swap (see persistLibrary), so serialization and durability are
+// no longer the same concern.
 let libraryMutationQueue = Promise.resolve();
 
 let mediaAssetCounter = 0;
@@ -90,14 +96,119 @@ async function ensureDirs() {
   } catch { /* non-fatal — directory may already exist */ }
 }
 
+/**
+ * Replace the manifest atomically.
+ *
+ * The previous implementation wrote the serialized array straight over
+ * LIBRARY_PATH. That is a whole-library hazard, not a one-record one: the
+ * manifest is a single JSON document, so a write interrupted midway (device
+ * out of space, process killed, I/O error) leaves truncated JSON on disk,
+ * readAllLibrary's JSON.parse throws, and the catch returns [] — every
+ * committed scan reads as gone, and the next successful save cements the loss.
+ * Reproduced deterministically; see recentScanPersistenceIntegrity.test.js.
+ *
+ * Staging + verify + swap makes the failure atomic instead: an interrupted
+ * write can only ever damage the temp file, and the live manifest is replaced
+ * by a rename once its replacement is known to be complete and readable. On a
+ * failed swap the retained backup is put back, so the caller's existing
+ * rollback path sees an intact library rather than a half-updated one.
+ *
+ * Throws on failure — deliberately. Every caller already treats a throw as
+ * "this write did not commit" and unwinds accordingly.
+ */
 async function persistLibrary(scans) {
   // Ensure LIB_DIR exists before writing (first-run safety)
   await FileSystem.makeDirectoryAsync(LIB_DIR, { intermediates: true }).catch(() => null);
-  await FileSystem.writeAsStringAsync(
-    LIBRARY_PATH,
-    JSON.stringify(scans),
-    { encoding: FileSystem.EncodingType.UTF8 }
-  );
+  const payload = JSON.stringify(scans);
+
+  // Stage. A stale temp from an earlier failure is never appended to or reused.
+  await FileSystem.deleteAsync(LIBRARY_TEMP_PATH, { idempotent: true }).catch(() => null);
+  await FileSystem.writeAsStringAsync(LIBRARY_TEMP_PATH, payload, {
+    encoding: FileSystem.EncodingType.UTF8,
+  });
+
+  // Verify before the swap. A short write that does not itself throw is the
+  // exact case a length-blind rename would promote into the live manifest.
+  const verified = await FileSystem.readAsStringAsync(LIBRARY_TEMP_PATH, {
+    encoding: FileSystem.EncodingType.UTF8,
+  }).catch(() => null);
+  if (verified !== payload) {
+    await FileSystem.deleteAsync(LIBRARY_TEMP_PATH, { idempotent: true }).catch(() => null);
+    throw new Error('kscan_library_manifest_unverified');
+  }
+
+  // Retain the current manifest as the recovery copy, then swap.
+  //
+  // Only a manifest that still READS is worth retaining. readAllLibrary
+  // already treats an unparseable live manifest as "unusable, fall back to
+  // the retained copy" — so promoting that same unusable file over the
+  // retained copy destroys the only good history we have. That is not
+  // hypothetical: with a corrupt live manifest and a good backup, one failed
+  // rename then restores the corrupt file and leaves no backup at all, and
+  // the next read reports an empty library. Retention is skipped rather than
+  // performed blindly; the existing (good) backup stays exactly where it is.
+  const current = await FileSystem.getInfoAsync(LIBRARY_PATH).catch(() => ({ exists: false }));
+  const currentIsUsable = current?.exists ? await manifestReads(LIBRARY_PATH) : false;
+  if (current?.exists && currentIsUsable) {
+    await FileSystem.deleteAsync(LIBRARY_BACKUP_PATH, { idempotent: true }).catch(() => null);
+    await FileSystem.moveAsync({ from: LIBRARY_PATH, to: LIBRARY_BACKUP_PATH });
+  } else if (current?.exists) {
+    // Unreadable: discard it instead of letting it displace the good backup.
+    await FileSystem.deleteAsync(LIBRARY_PATH, { idempotent: true }).catch(() => null);
+  }
+  try {
+    await FileSystem.moveAsync({ from: LIBRARY_TEMP_PATH, to: LIBRARY_PATH });
+  } catch (error) {
+    // Put the previous verified manifest back rather than leaving no manifest.
+    const backup = await FileSystem.getInfoAsync(LIBRARY_BACKUP_PATH).catch(() => ({ exists: false }));
+    if (backup?.exists) {
+      await FileSystem.moveAsync({ from: LIBRARY_BACKUP_PATH, to: LIBRARY_PATH }).catch(() => null);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Whether a manifest file on disk still parses as a scan array.
+ *
+ * The same usability bar readAllLibrary applies when it decides whether to
+ * trust a file or fall through to the retained copy. Never throws.
+ */
+async function manifestReads(uri) {
+  try {
+    return Array.isArray(JSON.parse(await FileSystem.readAsStringAsync(uri)));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Promote a staged or retained manifest when the primary is missing.
+ *
+ * Only reachable if the process died inside the swap window above. Returns
+ * whether a promotion happened; never throws.
+ */
+async function recoverMissingManifest() {
+  const primary = await FileSystem.getInfoAsync(LIBRARY_PATH).catch(() => ({ exists: false }));
+  if (primary?.exists) return false;
+  for (const candidate of [LIBRARY_TEMP_PATH, LIBRARY_BACKUP_PATH]) {
+    const info = await FileSystem.getInfoAsync(candidate).catch(() => ({ exists: false }));
+    if (!info?.exists) continue;
+    // Only promote a candidate that actually parses as a manifest.
+    try {
+      const raw = await FileSystem.readAsStringAsync(candidate);
+      if (!Array.isArray(JSON.parse(raw))) continue;
+    } catch {
+      continue;
+    }
+    try {
+      await FileSystem.moveAsync({ from: candidate, to: LIBRARY_PATH });
+      return true;
+    } catch {
+      // Try the next candidate.
+    }
+  }
+  return false;
 }
 
 /**
@@ -107,21 +218,34 @@ async function persistLibrary(scans) {
  */
 async function readAllLibrary() {
   try {
-    const info = await FileSystem.getInfoAsync(LIBRARY_PATH);
-    if (!info.exists) return [];
-    const raw = await FileSystem.readAsStringAsync(LIBRARY_PATH);
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
+    await recoverMissingManifest();
     // Per-record hydration (Phase 2B.2). Recent Scans legitimately holds V2, V1,
     // unversioned legacy and — after any past partial write — corrupt entries in
     // one array. The previous `.map()` let a single throwing record fall through
     // to the outer catch and return an EMPTY history, which reads to the user as
     // "all my scans are gone". Each record is now isolated: a failure drops only
     // that record, order is preserved, and nothing is rewritten on read.
-    const { records } = hydrateScanHistory(parsed, (scan) => (
-      scan && typeof scan === 'object' && !Array.isArray(scan) ? hydrateSavedScan(scan) : null
-    ));
-    return records;
+    //
+    // Document-level damage is a separate failure from record-level damage. A
+    // manifest that does not parse at all is not "no scans" — it is a manifest
+    // we cannot read, so the last verified copy is preferred over reporting an
+    // empty history. Reading never rewrites either file.
+    for (const path of [LIBRARY_PATH, LIBRARY_BACKUP_PATH]) {
+      const info = await FileSystem.getInfoAsync(path).catch(() => ({ exists: false }));
+      if (!info?.exists) continue;
+      let parsed;
+      try {
+        parsed = JSON.parse(await FileSystem.readAsStringAsync(path));
+      } catch {
+        continue; // corrupt document — fall through to the retained copy
+      }
+      if (!Array.isArray(parsed)) continue;
+      const { records } = hydrateScanHistory(parsed, (scan) => (
+        scan && typeof scan === 'object' && !Array.isArray(scan) ? hydrateSavedScan(scan) : null
+      ));
+      return records;
+    }
+    return [];
   } catch {
     return [];
   }
