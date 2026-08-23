@@ -499,3 +499,44 @@ test('PERSISTENCE: the fingerprint distinguishes an enriched shelf of equal leng
   assert.equal(fingerprint(discovery), fingerprint(discovery.map((o) => ({ ...o }))));
   assert.equal(fingerprint([]), '');
 });
+
+// ── 6. Build 32: per-item correlation id (candidateId) ───────────────────────
+
+test('candidateId is omitted from the body when not supplied (every pre-Build-32 caller)', () => {
+  const body = hydration.buildCommerceOnlyBody(EVIDENCE);
+  assert.equal('candidateId' in body, false);
+});
+
+test('candidateId is carried on the body only when supplied, trimmed', () => {
+  const body = hydration.buildCommerceOnlyBody({ ...EVIDENCE, candidateId: '  garment-1-outerwear-jacket  ' });
+  assert.equal(body.candidateId, 'garment-1-outerwear-jacket');
+});
+
+test('a blank candidateId is treated as absent, not sent as an empty string', () => {
+  const body = hydration.buildCommerceOnlyBody({ ...EVIDENCE, candidateId: '   ' });
+  assert.equal('candidateId' in body, false);
+});
+
+test('the response echoes candidateId back only when the backend returned one', async () => {
+  reset();
+  RESPONDER = () => ({
+    data: {
+      status: 'completed',
+      purchaseOptions: [offer('https://a.test/1')],
+      candidateId: 'garment-1-outerwear-jacket',
+      commerce: {},
+      funnel: {},
+    },
+    error: null,
+  });
+  const result = await hydration.fetchDeferredCommerce({ ...EVIDENCE, candidateId: 'garment-1-outerwear-jacket' });
+  assert.equal(result.candidateId, 'garment-1-outerwear-jacket');
+
+  reset();
+  RESPONDER = () => ({
+    data: { status: 'completed', purchaseOptions: [offer('https://a.test/1')], commerce: {}, funnel: {} },
+    error: null,
+  });
+  const noId = await hydration.fetchDeferredCommerce(EVIDENCE);
+  assert.equal(noId.candidateId, undefined);
+});

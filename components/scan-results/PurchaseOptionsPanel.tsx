@@ -15,6 +15,8 @@ import { selectCommerceDestination } from '../../services/commerceDestination';
 
 interface PurchaseOptionsPanelProps {
   purchaseOptions?: PurchaseOption[];
+  /** Section heading. Defaults to the single-item shelf's existing title. */
+  title?: string;
   testID?: string;
   /**
    * v127 (P1-B): deferred commerce lifecycle. 'idle' (the default) leaves
@@ -53,6 +55,7 @@ export function resolvePurchaseOptionsPanelMode(
  */
 export function PurchaseOptionsPanel({
   purchaseOptions,
+  title = 'MATCHING PRODUCTS',
   testID,
   commerceStatus = 'idle',
   onRetry,
@@ -62,7 +65,7 @@ export function PurchaseOptionsPanel({
 
   return (
     <View style={styles.container} testID={testID ?? 'purchase-options-panel'}>
-      <SectionHeader title="MATCHING PRODUCTS" />
+      <SectionHeader title={title} />
 
       {mode === 'data' ? (
         <View style={styles.list}>

@@ -109,6 +109,16 @@ interface SavedScan {
    *  those hydrate to [] and simply hide the purchase section. */
   purchaseOptions?: Product[];
   source: string;
+  /** Build 32: canonical multi-item identities and their per-item commerce,
+   *  written by saveMultiItemScan/attachScanMultiItemCommerce. Absent or
+   *  empty on every non-multi-item and pre-Build-32 scan. */
+  multiItemCandidates?: Array<{ id: string; label: string; category: string; subtype: string }>;
+  multiItemCommerce?: Array<{
+    candidateId: string;
+    status: string;
+    bestMatch: Product | null;
+    alternatives: Product[];
+  }>;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1094,6 +1104,8 @@ export default function LibraryScreen() {
           }}
           products={selectedScan.products}
           purchaseOptions={selectedScan.purchaseOptions ?? []}
+          multiItemCandidates={selectedScan.multiItemCandidates ?? []}
+          multiItemCommerce={selectedScan.multiItemCommerce ?? []}
           scanImageUri={selectedScan.imageUri ?? null}
           scanSourceId={selectedScan.id}
           scanSourceType="style_library_scan"
