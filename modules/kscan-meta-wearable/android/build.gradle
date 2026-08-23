@@ -1,0 +1,110 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+group = 'com.kscan.metawearable'
+version = '1.0.0'
+
+def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
+apply from: expoModulesCorePlugin
+applyKotlinExpoModulesCorePlugin()
+useCoreDependencies()
+
+static def safeExtGet(project, prop, fallback) {
+  return project.rootProject.ext.has(prop) ? project.rootProject.ext.get(prop) : fallback
+}
+
+// ---------------------------------------------------------------------------
+// Meta Wearables Device Access Toolkit (DAT) wiring.
+//
+// The DAT artifacts live in a PRIVATE GitHub Packages repository and require a
+// personal access token carrying the `read:packages` scope. Without one every
+// artifact resolves HTTP 401, which would fail the whole Android build for
+// every developer and every CI job — including the ones that have nothing to
+// do with the glasses.
+//
+// So the DAT dependency and the source set that touches it are both opt-in,
+// controlled by `kscan.mwdat.enabled`. With the flag off (the default) this
+// module still builds and still ships: MetaWearableModule compiles against no
+// DAT symbol at all and deterministically reports the adapter as unavailable.
+// With the flag on, the `mwdat` source set joins the compilation and the real
+// adapter is linked in. Nothing about the JS contract changes between the two.
+// ---------------------------------------------------------------------------
+// Settable either as a Gradle property (-Pkscan.mwdat.enabled=true, or in
+// gradle.properties) or as an environment variable, because EAS/CI build
+// profiles can set env vars but cannot easily pass a dotted Gradle property.
+def mwdatEnabled = (
+  System.getenv('KSCAN_MWDAT_ENABLED') ?: project.findProperty('kscan.mwdat.enabled') ?: 'false'
+).toString().toBoolean()
+def mwdatVersion = (
+  System.getenv('KSCAN_MWDAT_VERSION') ?: project.findProperty('kscan.mwdat.version') ?: '0.9.0'
+).toString()
+def mwdatToken = System.getenv('GITHUB_TOKEN') ?: project.findProperty('github_token')
+def mwdatActor = System.getenv('GITHUB_ACTOR') ?: (project.findProperty('github_actor') ?: 'kscan')
+
+if (mwdatEnabled) {
+  if (!mwdatToken) {
+    throw new GradleException(
+      'kscan.mwdat.enabled=true but no GitHub Packages credential was found. ' +
+      'Set GITHUB_TOKEN (or github_token in local.properties) to a token with the read:packages scope. ' +
+      'Without it com.meta.wearable:mwdat-* resolves HTTP 401.')
+  }
+  repositories {
+    maven {
+      url = uri('https://maven.pkg.github.com/facebook/meta-wearables-dat-android')
+      credentials {
+        username = mwdatActor
+        password = mwdatToken
+      }
+    }
+  }
+}
+
+android {
+  namespace 'com.kscan.metawearable'
+  compileSdk safeExtGet(project, 'compileSdkVersion', 35)
+
+  defaultConfig {
+    // DAT requires Android 10+ (API 29). The host app's minSdk is lower, so
+    // this module raises the floor for itself only; the runtime guard in
+    // MetaWearableModule reports UNSUPPORTED_OS below 29 rather than crashing.
+    minSdk Math.max(29, (safeExtGet(project, 'minSdkVersion', 24) as Integer))
+    buildConfigField 'boolean', 'MWDAT_ENABLED', "${mwdatEnabled}"
+    buildConfigField 'String', 'MWDAT_VERSION', "\"${mwdatVersion}\""
+  }
+
+  buildFeatures {
+    buildConfig true
+  }
+
+  sourceSets {
+    main {
+      java.srcDirs = ['src/main/java']
+    }
+  }
+
+  if (mwdatEnabled) {
+    sourceSets.main.java.srcDirs += 'src/mwdat/java'
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+  kotlinOptions {
+    jvmTarget = '17'
+  }
+}
+
+dependencies {
+  implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1'
+
+  if (mwdatEnabled) {
+    implementation "com.meta.wearable:mwdat-core:${mwdatVersion}"
+    implementation "com.meta.wearable:mwdat-camera:${mwdatVersion}"
+    implementation "com.meta.wearable:mwdat-display:${mwdatVersion}"
+    // MockDeviceKit ships as a normal dependency (not debug-only) because the
+    // hardware-candidate build is the one that exercises it on a host with no
+    // physical glasses. It is inert unless MockDeviceKit.enable(...) is called.
+    implementation "com.meta.wearable:mwdat-mockdevice:${mwdatVersion}"
+  }
+}

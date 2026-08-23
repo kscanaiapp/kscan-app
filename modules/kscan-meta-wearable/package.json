@@ -1,0 +1,15 @@
+{
+  "name": "kscan-meta-wearable",
+  "version": "1.0.0",
+  "description": "Native Meta Wearables Device Access Toolkit (DAT) adapter for K Scan AI.",
+  "main": "index.ts",
+  "types": "index.ts",
+  "sideEffects": false,
+  "license": "UNLICENSED",
+  "private": true,
+  "peerDependencies": {
+    "expo": "*",
+    "react": "*",
+    "react-native": "*"
+  }
+}

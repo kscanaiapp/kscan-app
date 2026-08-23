@@ -1,0 +1,29 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      Meta Wearables Device Access Toolkit requirements.
+
+      BLUETOOTH_CONNECT is the permission that actually gates talking to the
+      glasses on Android 12+; the legacy BLUETOOTH entry is retained with a
+      maxSdkVersion so it is not requested where it no longer applies.
+
+      CAMERA here is the *phone's* camera permission, which DAT requires to be
+      held by the host app before it will grant glasses camera access. It does
+      not by itself open the phone camera anywhere in K Scan.
+    -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <application>
+        <!--
+          Device Access Toolkit App Model. DAT 0.9 supports only DAM going
+          forward, and Display capability is unavailable without it.
+        -->
+        <meta-data
+            android:name="com.meta.wearable.mwdat.DAM_ENABLED"
+            android:value="true" />
+    </application>
+
+</manifest>
