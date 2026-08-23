@@ -509,6 +509,8 @@ diff of the failure list. **Final confirmed tally: 6138/6198 passing, exactly th
 |---|---|
 | `aefa237` | `fix(meta): bring meta-physical-candidate to explicit flag parity with preview` |
 | `81d9122` | `fix(meta): report the missing-token failure exactly once, not twice` |
+| `ed0bdd5` | `fix(meta): drop the module's artificial minSdk-29 floor, which broke every app build` |
+| `d7f8eb6` | `docs(meta): add the DAT unblock/validation report and physical QA checklist` |
 
 **Webapp** — `kscanaiapp/kscan-glasses-webapp`,
 `feature/meta-physical-device-candidate-v1`: no new commits this phase (the
@@ -517,8 +519,17 @@ this phase only *deployed* it — deployment is not a commit).
 
 ## Push Confirmation
 
-*(Filled in at the end of this phase — see the final message to the user for
-confirmed local-HEAD-equals-origin-HEAD state for both repos.)*
+Local HEAD equals origin HEAD for both repos, verified with `git rev-parse`
+immediately after pushing:
+
+```
+MOBILE local=d7f8eb6c27584d44804517baabe77c074bc42a93
+       origin=d7f8eb6c27584d44804517baabe77c074bc42a93
+WEBAPP local=8b671618360aa9806b089108facc9c8de89139eb
+       origin=8b671618360aa9806b089108facc9c8de89139eb
+```
+
+No merge to `main`/`master`. No force push. Feature branches only.
 
 ---
 
@@ -554,11 +565,17 @@ PREREQUISITES**
 Everything reachable without those two credentials was reached: the
 missing-token failure mode is now correct and singular instead of confusing;
 the staging backend now runs the tested grouping fix instead of the stale
-pre-fix code; six of seven "pre-existing, unrelated" test failures turned out
-to be Meta-relevant and are now fixed, with the seventh documented as a real
-architectural question rather than silently patched; both new test harnesses
-were proven to actually catch the faults they claim to catch; and the app
-boots and runs on an emulator.
+pre-fix code, verified live; six of seven "pre-existing, unrelated" test
+failures turned out to be Meta-relevant and are now fixed, with the seventh
+documented as a real architectural question rather than silently patched;
+both new test harnesses were proven to actually catch the faults they claim
+to catch; and — the most consequential finding of this phase — the full app
+build was broken unconditionally for every developer by an artificial minSdk
+floor that a module-only build could never have caught, found and fixed only
+because this phase insisted on building and running the whole app rather than
+stopping at the module boundary. That full app now builds, installs, and
+launches clean on a real Android emulator with zero crashes and a verified
+token-free APK.
 
 None of that substitutes for the two things only a human can provide:
 
