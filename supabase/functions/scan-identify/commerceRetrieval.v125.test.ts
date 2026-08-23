@@ -504,3 +504,235 @@ Deno.test('privacy: v125 telemetry carries the version and route, never the quer
     assert(!block.includes(leak), `v125 telemetry leaks ${leak}`);
   }
 });
+
+// ── J. Cross-phrase token dedup (repair) ──────────────────────────────────────
+//
+// finalizeQuery's cross-phrase dedup previously skipped a phrase only when
+// EVERY one of its tokens had already appeared in an earlier phrase. A phrase
+// that only partially overlapped — a brand repeated inside its own model
+// hypothesis, or a material repeated inside a subtype phrase — was kept in
+// full, duplicating the overlapping token(s) in the outbound provider query.
+// These tests pin the repaired behavior: keep only the tokens a later phrase
+// newly contributes, never re-emit a token an earlier phrase already placed.
+
+function tokenCounts(q: string): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const w of q.toLowerCase().split(/\s+/).filter(Boolean)) {
+    counts.set(w, (counts.get(w) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function assertNoDuplicateTokens(q: string, label: string) {
+  for (const [tok, n] of tokenCounts(q)) {
+    assert(n === 1, `${label}: token "${tok}" appears ${n} times in "${q}"`);
+  }
+}
+
+Deno.test('DEDUP: brand repeated inside its own hypothesis is emitted once (footwear)', () => {
+  const { v125 } = queries({
+    item_type: 'footwear',
+    subtype: 'low top sneaker',
+    primary_color: 'white',
+    material_estimate: 'leather',
+    pattern: 'solid',
+    distinctive_features: ['perforated toe box'],
+    visible_brand_text: 'Nike',
+    logo_detected: true,
+    brand_guess: 'Nike',
+    brand_confidence: 'high',
+    exact_item_hypothesis: 'Nike Air Force 1 Low',
+    exact_match_confidence: 'high',
+  }, 'footwear');
+
+  assertEquals(v125.strategy, 'exact_identity');
+  assertNoDuplicateTokens(v125.primary, 'primary');
+  const lower = v125.primary.toLowerCase();
+  assert(lower.startsWith('nike air force 1 low'), `hypothesis mangled: ${v125.primary}`);
+  assertEquals((lower.match(/\bnike\b/g) ?? []).length, 1, `brand duplicated: ${v125.primary}`);
+});
+
+Deno.test('DEDUP: brand repeated inside its own hypothesis is emitted once (apparel)', () => {
+  const { v125 } = queries({
+    ...MOTO_BASE,
+    distinctive_features: ['asymmetric zipper', 'silver-tone hardware'],
+    visible_brand_text: 'AllSaints',
+    logo_detected: true,
+    brand_guess: 'AllSaints',
+    brand_confidence: 'high',
+    exact_item_hypothesis: 'AllSaints Balfern Leather Biker Jacket',
+    exact_match_confidence: 'medium',
+  });
+
+  assertEquals(v125.strategy, 'exact_identity');
+  assertNoDuplicateTokens(v125.primary, 'primary');
+  assertNoDuplicateTokens(v125.fallback, 'fallback');
+  const lower = v125.primary.toLowerCase();
+  assertEquals((lower.match(/\ballsaints\b/g) ?? []).length, 1, `brand duplicated: ${v125.primary}`);
+  assert(lower.includes('balfern'), `hypothesis lost: ${v125.primary}`);
+});
+
+Deno.test('DEDUP: a brand absent from its hypothesis is still emitted once, where allowed', () => {
+  const { v125 } = queries({
+    ...MOTO_BASE,
+    distinctive_features: ['asymmetric zipper'],
+    brand_guess: 'Saint Laurent',
+    brand_confidence: 'medium',
+    exact_item_hypothesis: 'L01 Motorcycle Jacket',
+    exact_match_confidence: 'medium',
+  });
+
+  assertEquals(v125.strategy, 'exact_identity');
+  assertNoDuplicateTokens(v125.primary, 'primary');
+  const lower = v125.primary.toLowerCase();
+  assertEquals((lower.match(/\bsaint\b/g) ?? []).length, 1);
+  assert(lower.includes('l01'), `hypothesis dropped when brand does not overlap it: ${v125.primary}`);
+});
+
+Deno.test('DEDUP: material already embedded in the subtype phrase is emitted once', () => {
+  const { v125 } = queries({
+    ...MOTO_BASE,
+    subtype: 'leather moto jacket',
+    material_estimate: 'leather',
+    distinctive_features: [],
+  });
+
+  assertNoDuplicateTokens(v125.primary, 'primary');
+  assertNoDuplicateTokens(v125.fallback, 'fallback');
+  const fb = v125.fallback.toLowerCase();
+  assertEquals((fb.match(/\bleather\b/g) ?? []).length, 1, `material duplicated: ${v125.fallback}`);
+  assert(fb.includes('moto') && fb.includes('jacket'), `garment term lost: ${v125.fallback}`);
+});
+
+Deno.test('DEDUP: a material NOT embedded in the subtype phrase is still retained', () => {
+  const { v125 } = queries({
+    ...MOTO_BASE,
+    subtype: 'moto jacket',
+    material_estimate: 'leather',
+    distinctive_features: [],
+  });
+
+  assertNoDuplicateTokens(v125.fallback, 'fallback');
+  const fb = v125.fallback.toLowerCase();
+  assert(fb.includes('leather'), `material dropped when it does not overlap the subtype: ${v125.fallback}`);
+  assert(fb.includes('moto') && fb.includes('jacket'));
+});
+
+Deno.test('DEDUP: unbranded attribute-only queries stay valid with overlapping construction terms', () => {
+  // Pattern, subtype, and a distinctive feature all naturally share "quilted" —
+  // a realistic overlap the repair must resolve without dropping the item.
+  const { v125 } = queries({
+    ...MOTO_BASE,
+    subtype: 'quilted jacket',
+    pattern: 'quilted',
+    distinctive_features: ['quilted panel construction'],
+  });
+
+  assertEquals(v125.strategy, 'attribute_only');
+  assertNoDuplicateTokens(v125.primary, 'primary');
+  assert(v125.primary.length > 0, 'attribute_only query must not collapse to empty');
+  assert(v125.primary.toLowerCase().includes('quilted'));
+});
+
+Deno.test('DEDUP: an excluded low-confidence brand cannot re-enter via the dedup fix', () => {
+  // The dedup repair only trims tokens a LATER phrase re-contributes; it must
+  // never restore a term the strategy resolver already excluded (weak brand,
+  // unanchored hypothesis) even when that excluded term collides token-for-
+  // token with something legitimately in the query.
+  const { v125, identity } = queries({
+    ...MOTO_BASE,
+    subtype: 'nike jacket', // shares a token with the excluded brand below
+    distinctive_features: [],
+    brand_guess: 'Nike',
+    brand_confidence: 'low',
+    exact_item_hypothesis: 'Nike Windrunner',
+    exact_match_confidence: 'low',
+  });
+
+  assertEquals(identity.brandGrade, 'weak');
+  assertEquals(v125.strategy, 'attribute_only');
+  assertNoDuplicateTokens(v125.primary, 'primary');
+  assert(v125.primary.toLowerCase().includes('nike'), 'the subtype token itself must still survive');
+  assert(!v125.primary.toLowerCase().includes('windrunner'), 'excluded hypothesis leaked back in');
+});
+
+Deno.test('DEDUP: word budget and cap are unaffected by the repair (overlap fixtures)', () => {
+  const fixtures: Record<string, unknown>[] = [
+    {
+      ...MOTO_BASE,
+      subtype: 'leather moto jacket',
+      distinctive_features: ['asymmetric zipper', 'silver-tone hardware', 'belted hem'],
+      visible_brand_text: 'AllSaints',
+      logo_detected: true,
+      brand_guess: 'AllSaints',
+      brand_confidence: 'high',
+      exact_item_hypothesis: 'AllSaints Balfern Leather Biker Jacket',
+      exact_match_confidence: 'medium',
+    },
+    {
+      item_type: 'footwear',
+      subtype: 'low top leather sneaker',
+      primary_color: 'white',
+      material_estimate: 'leather',
+      distinctive_features: ['perforated toe box'],
+      visible_brand_text: 'Nike',
+      logo_detected: true,
+      brand_guess: 'Nike',
+      brand_confidence: 'high',
+      exact_item_hypothesis: 'Nike Air Force 1 Leather Low',
+      exact_match_confidence: 'high',
+    },
+  ];
+
+  for (const raw of fixtures) {
+    const route: ScannerCategoryRoute = raw.item_type === 'footwear' ? 'footwear' : 'apparel';
+    const { v125 } = queries(raw, route);
+    assertNoDuplicateTokens(v125.primary, 'primary');
+    assert(
+      meaningfulWordCount(v125.primary) <= ABSOLUTE_QUERY_MEANINGFUL_WORDS,
+      `primary exceeded the word cap: "${v125.primary}"`,
+    );
+    assert(
+      meaningfulWordCount(v125.fallback) <= ABSOLUTE_QUERY_MEANINGFUL_WORDS,
+      `fallback exceeded the word cap: "${v125.fallback}"`,
+    );
+  }
+});
+
+Deno.test('DEDUP: fallback stays structurally distinct from primary under overlap', () => {
+  const { v125 } = queries({
+    ...MOTO_BASE,
+    subtype: 'leather moto jacket',
+    distinctive_features: ['asymmetric zipper'],
+    visible_brand_text: 'AllSaints',
+    logo_detected: true,
+    brand_guess: 'AllSaints',
+    brand_confidence: 'high',
+    exact_item_hypothesis: 'AllSaints Balfern Leather Biker Jacket',
+    exact_match_confidence: 'medium',
+  });
+
+  assertEquals(v125.strategy, 'exact_identity');
+  assertNoDuplicateTokens(v125.fallback, 'fallback');
+  assert(v125.fallback !== v125.primary);
+  assert(!v125.fallback.toLowerCase().includes('allsaints'));
+  assert(!v125.fallback.toLowerCase().includes('balfern'));
+});
+
+Deno.test('DEDUP: the repair touches query construction only — no provider or ranking coupling', async () => {
+  const queriesSrc = await Deno.readTextFile(
+    new URL('./commerceRelevanceQueries.ts', import.meta.url),
+  );
+  // No provider call, no ranking/agreement authority, is reachable from the
+  // file that owns finalizeQuery — confirms #9 (no provider-count change) and
+  // #10 (no ranking change) as static, not just behavioral, guarantees.
+  for (
+    const forbidden of [
+      'scoreProductAgreement', 'scoreCommercialIdentity', 'filterAndDedupeProducts',
+      'getShoppingResults', 'searchPoshmarkProducts', 'searchFarfetchProducts',
+      'searchKicksCrewProducts',
+    ]
+  ) {
+    assert(!queriesSrc.includes(forbidden), `query builder now touches ${forbidden}`);
+  }
+});
