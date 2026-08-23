@@ -55,10 +55,20 @@ android {
   compileSdk safeExtGet(project, 'compileSdkVersion', 35)
 
   defaultConfig {
-    // DAT requires Android 10+ (API 29). The host app's minSdk is lower, so
-    // this module raises the floor for itself only; the runtime guard in
-    // MetaWearableModule reports UNSUPPORTED_OS below 29 rather than crashing.
-    minSdk Math.max(29, (safeExtGet(project, 'minSdkVersion', 24) as Integer))
+    // DAT requires Android 10+ (API 29), but that is a constraint on the DAT
+    // SDK itself (linked only in the `mwdat` source set when the flag is on),
+    // not on this module's always-compiled main source set, which calls no
+    // API-29-specific symbol. Declaring an artificial minSdk floor of 29 here
+    // made the Android manifest merger refuse the WHOLE app (whose real
+    // minSdk is lower) even with the flag off, since the merger enforces a
+    // library's declared minSdk unconditionally, before any code runs.
+    // Below 29, MetaWearableModule's requireSupportedOs() runtime guard is
+    // what actually protects DAT calls from ever executing - it is the
+    // correct place for that check, not the manifest. If the DAT artifacts'
+    // own AARs declare a real minSdk-29 requirement, the manifest merger will
+    // enforce that for a genuine reason once the flag is on and they are
+    // actually linked in - which is the right point to catch it.
+    minSdk safeExtGet(project, 'minSdkVersion', 24) as Integer
     buildConfigField 'boolean', 'MWDAT_ENABLED', "${mwdatEnabled}"
     buildConfigField 'String', 'MWDAT_VERSION', "\"${mwdatVersion}\""
   }
