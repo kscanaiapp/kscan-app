@@ -303,6 +303,48 @@ test('a first-run device with no manifest at all reads as an empty library', asy
   assert.deepEqual(await loadLibraryModule(storage).loadLibrary(), []);
 });
 
+test('an unreadable live manifest is never retained over a good backup', async () => {
+  // The whole point of the read fallback is that a corrupt live manifest is a
+  // survivable state: the retained copy still holds the history. A write that
+  // happens while in that state must not consume the good backup by promoting
+  // the unusable file into it — otherwise one failed rename during the swap
+  // restores the corrupt file, leaves no backup, and the library reads empty.
+  const storage = createMemoryStorage();
+  const good = JSON.stringify([
+    { id: 'scan_keep_1', createdAt: '2026-08-01T00:00:00.000Z', ownerId: null,
+      imageUri: 'memory://i1', thumbnailUri: 'memory://t1', attributes: {},
+      result: 'kept 1', products: [], purchaseOptions: [], source: 'scan' },
+    { id: 'scan_keep_2', createdAt: '2026-08-02T00:00:00.000Z', ownerId: null,
+      imageUri: 'memory://i2', thumbnailUri: 'memory://t2', attributes: {},
+      result: 'kept 2', products: [], purchaseOptions: [], source: 'scan' },
+  ]);
+  storage.files.set(MANIFEST, '{ truncated-live');   // unreadable live manifest
+  storage.files.set(BACKUP, good);                   // the only good history
+
+  // Fail the swap into the live path exactly once, then let recovery proceed.
+  const realMove = storage.fileSystem.moveAsync;
+  let failedOnce = false;
+  storage.fileSystem.moveAsync = async (args) => {
+    if (!failedOnce && args.to === MANIFEST) {
+      failedOnce = true;
+      throw new Error('injected transient rename failure');
+    }
+    return realMove(args);
+  };
+
+  const library = loadLibraryModule(storage);
+  await library.attachScanPurchaseOptions('scan_keep_1', SNAPSHOT_A);
+  storage.fileSystem.moveAsync = realMove;
+
+  const survived = await loadLibraryModule(storage).loadLibrary();
+  assert.equal(survived.length, 2,
+    'the committed history survives a failed write taken while the live manifest was corrupt');
+  assert.deepEqual(
+    survived.map((s) => s.id).sort(),
+    ['scan_keep_1', 'scan_keep_2'],
+  );
+});
+
 // ── 3. Commerce attachment idempotence ───────────────────────────────────────
 
 const SNAPSHOT_A = [
@@ -559,8 +601,21 @@ test('single-item records are unaffected by multi-item fields being present', as
   const loaded = await loadLibraryModule(storage).loadLibrary();
   const single = loaded.find((r) => r.id === saved.id);
   assert.equal(single.purchaseOptions.length, 2, 'single-item commerce is unchanged');
-  assert.equal(single.multiItemCommerce, undefined,
-    'this branch does not invent multi-item fields on single-item records');
+  // No multi-item CONTENT may be invented for a single-item record. The field
+  // may legitimately be absent (this branch alone) or an empty array (once the
+  // Build 32 commerce branch hydrates it to [] so readers can always iterate);
+  // what must never happen is a populated card appearing from nowhere.
+  const singleMulti = single.multiItemCommerce;
+  assert.ok(
+    singleMulti === undefined || (Array.isArray(singleMulti) && singleMulti.length === 0),
+    `single-item records carry no multi-item commerce, got ${JSON.stringify(singleMulti)}`,
+  );
+  const singleCandidates = single.multiItemCandidates;
+  assert.ok(
+    singleCandidates === undefined
+      || (Array.isArray(singleCandidates) && singleCandidates.length === 0),
+    'and no multi-item candidates either',
+  );
 });
 
 // ── 6. Payload growth ────────────────────────────────────────────────────────

@@ -138,10 +138,23 @@ async function persistLibrary(scans) {
   }
 
   // Retain the current manifest as the recovery copy, then swap.
+  //
+  // Only a manifest that still READS is worth retaining. readAllLibrary
+  // already treats an unparseable live manifest as "unusable, fall back to
+  // the retained copy" — so promoting that same unusable file over the
+  // retained copy destroys the only good history we have. That is not
+  // hypothetical: with a corrupt live manifest and a good backup, one failed
+  // rename then restores the corrupt file and leaves no backup at all, and
+  // the next read reports an empty library. Retention is skipped rather than
+  // performed blindly; the existing (good) backup stays exactly where it is.
   const current = await FileSystem.getInfoAsync(LIBRARY_PATH).catch(() => ({ exists: false }));
-  if (current?.exists) {
+  const currentIsUsable = current?.exists ? await manifestReads(LIBRARY_PATH) : false;
+  if (current?.exists && currentIsUsable) {
     await FileSystem.deleteAsync(LIBRARY_BACKUP_PATH, { idempotent: true }).catch(() => null);
     await FileSystem.moveAsync({ from: LIBRARY_PATH, to: LIBRARY_BACKUP_PATH });
+  } else if (current?.exists) {
+    // Unreadable: discard it instead of letting it displace the good backup.
+    await FileSystem.deleteAsync(LIBRARY_PATH, { idempotent: true }).catch(() => null);
   }
   try {
     await FileSystem.moveAsync({ from: LIBRARY_TEMP_PATH, to: LIBRARY_PATH });
@@ -152,6 +165,20 @@ async function persistLibrary(scans) {
       await FileSystem.moveAsync({ from: LIBRARY_BACKUP_PATH, to: LIBRARY_PATH }).catch(() => null);
     }
     throw error;
+  }
+}
+
+/**
+ * Whether a manifest file on disk still parses as a scan array.
+ *
+ * The same usability bar readAllLibrary applies when it decides whether to
+ * trust a file or fall through to the retained copy. Never throws.
+ */
+async function manifestReads(uri) {
+  try {
+    return Array.isArray(JSON.parse(await FileSystem.readAsStringAsync(uri)));
+  } catch {
+    return false;
   }
 }
 
