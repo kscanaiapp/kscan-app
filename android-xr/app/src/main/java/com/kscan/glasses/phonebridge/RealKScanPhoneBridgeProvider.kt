@@ -231,7 +231,22 @@ class RealKScanPhoneBridgeProvider(
         val token = wearableToken ?: return PhoneBridgeSendResult.Unavailable
         val sessionId = validator.currentSessionId ?: return PhoneBridgeSendResult.Unavailable
         if (validator.sessionRevoked || (validator.sessionExpiresAt ?: 0) <= clock()) {
+            // Locally-detected expiry/revocation. Nulling the token stops session
+            // polling, so the backend's own session.revoked frame can no longer
+            // reach the runtime. Emit the revocation ourselves so the state
+            // machine leaves READY for DISCONNECTED and the user is offered
+            // re-pairing instead of being stranded on a READY HUD with only a
+            // transient "bridge unavailable" notice.
+            val reason = if (validator.sessionRevoked) {
+                SessionRevokeReason.USER_REVOKED
+            } else {
+                SessionRevokeReason.EXPIRED
+            }
             wearableToken = null
+            _status.value = PhoneBridgeProviderStatus.UNAVAILABLE
+            lastSafeError = "SESSION_${reason.name}"
+            _events.emit(PhoneBridgeEvent.SessionRevoked(reason))
+            refreshDiagnostics()
             return PhoneBridgeSendResult.Unavailable
         }
         val message = build(sessionId, clock())

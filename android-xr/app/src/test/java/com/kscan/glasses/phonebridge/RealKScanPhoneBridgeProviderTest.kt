@@ -45,6 +45,34 @@ class RealKScanPhoneBridgeProviderTest {
     }
 
     @Test
+    fun `locally-detected session expiry emits SessionRevoked EXPIRED and stops the session`() = runTest {
+        var now = 10_000L
+        val api = FakeApi(clock = { now })
+        val provider = RealKScanPhoneBridgeProvider(
+            api = api, glassesDeviceId = GLASSES_ID, appVersion = "test",
+            parentScope = backgroundScope, clock = { now }, pollIntervalMs = 1,
+        )
+        // Collect the pairing pair plus whatever the expiry path emits.
+        val events = backgroundScope.async { provider.events.take(3).toList() }
+        assertEquals(PhoneBridgeSendResult.Sent, provider.requestPairing())
+        advanceTimeBy(2)
+        runCurrent()
+
+        // Session expires at pairing_clock + 30_000 (see FakeApi). Cross it, then
+        // act: the provider must surface the revocation, not silently no-op.
+        now = 45_000L
+        assertEquals(PhoneBridgeSendResult.Unavailable, provider.saveResult(UUID.randomUUID().toString()))
+        runCurrent()
+
+        val collected = events.await()
+        val revoked = collected.filterIsInstance<PhoneBridgeEvent.SessionRevoked>().single()
+        assertEquals(SessionRevokeReason.EXPIRED, revoked.reason)
+        // Token cleared: a second action can no longer even reach the expiry branch.
+        assertEquals(PhoneBridgeSendResult.Unavailable, provider.saveResult(UUID.randomUUID().toString()))
+        provider.close()
+    }
+
+    @Test
     fun `actions fail closed before pairing and after close`() = runTest {
         val provider = RealKScanPhoneBridgeProvider(
             api = FakeApi { 10_000L }, glassesDeviceId = GLASSES_ID,
