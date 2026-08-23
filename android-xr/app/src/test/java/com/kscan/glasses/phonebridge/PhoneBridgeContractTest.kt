@@ -130,11 +130,11 @@ class PhoneBridgeContractTest {
         // action.*
         PhoneBridgeMessage.ActionSave(
             requestId = "req-12", sessionId = SESSION_ID, deviceId = GLASSES_ID, timestamp = NOW,
-            payload = ActionSavePayload(resultId = "res-1", productTitle = "Leather Biker Jacket"),
+            payload = ActionSavePayload(resultId = "res-1", productTitle = "Leather Biker Jacket", actionId = "save:res-1"),
         ),
         PhoneBridgeMessage.ActionOpenOnPhone(
             requestId = "req-13", sessionId = SESSION_ID, deviceId = GLASSES_ID, timestamp = NOW,
-            payload = ActionOpenOnPhonePayload(resultId = "res-1"),
+            payload = ActionOpenOnPhonePayload(resultId = "res-1", actionId = "open:res-1"),
         ),
         PhoneBridgeMessage.ActionRetry(
             requestId = "req-14", sessionId = SESSION_ID, deviceId = GLASSES_ID, timestamp = NOW,

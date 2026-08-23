@@ -43,10 +43,10 @@ class PrivacyImageSanitizerFactoryTest {
     }
 
     @Test
-    fun `strict sanitizer reports masking unavailable in this build`() {
-        // FaceMasker is NotImplemented; the strict sanitizer must expose that
-        // so runtime state and UI never imply privacy readiness.
+    fun `strict sanitizer reports masking available in this build`() {
+        // FaceMasker is now implemented with ML Kit; the strict sanitizer
+        // must expose that runtime state and UI can proceed with privacy.
         val sanitizer = StrictPrivacyImageSanitizer()
-        assertFalse(sanitizer.isMaskingAvailable)
+        assertTrue(sanitizer.isMaskingAvailable)
     }
 }

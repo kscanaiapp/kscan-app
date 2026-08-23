@@ -21,6 +21,12 @@ class DisabledPhoneBridgeProvider : PhoneBridgeProvider {
     private val _events = MutableSharedFlow<PhoneBridgeEvent>(extraBufferCapacity = 1)
     override val events: SharedFlow<PhoneBridgeEvent> = _events.asSharedFlow()
 
+    private val _pairingCode = MutableStateFlow<String?>(null)
+    override val pairingCode: StateFlow<String?> = _pairingCode.asStateFlow()
+
+    private val _diagnostics = MutableStateFlow<List<Pair<String, String>>>(emptyList())
+    override val diagnostics: StateFlow<List<Pair<String, String>>> = _diagnostics.asStateFlow()
+
     override suspend fun requestPairing(): PhoneBridgeSendResult = PhoneBridgeSendResult.Disabled
     override suspend fun requestCapture(preference: CapturePreference): PhoneBridgeSendResult =
         PhoneBridgeSendResult.Disabled

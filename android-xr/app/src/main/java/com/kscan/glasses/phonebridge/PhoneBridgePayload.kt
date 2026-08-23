@@ -147,11 +147,15 @@ data class ResultDismissPayload(
 data class ActionSavePayload(
     val resultId: String,
     val productTitle: String? = null,
+    /** Stable idempotency key for the same logical user action (save of a given result). */
+    val actionId: String,
 ) : PhoneBridgePayload
 
 @Serializable
 data class ActionOpenOnPhonePayload(
     val resultId: String,
+    /** Stable idempotency key for the same logical user action (open of a given result). */
+    val actionId: String,
 ) : PhoneBridgePayload
 
 @Serializable

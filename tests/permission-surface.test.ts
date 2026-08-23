@@ -11,6 +11,7 @@ import { dirname, join } from 'node:path';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MAIN_MANIFEST = join(__dirname, '../android-xr/app/src/main/AndroidManifest.xml');
 const DEBUG_MANIFEST = join(__dirname, '../android-xr/app/src/debug/AndroidManifest.xml');
+const CANDIDATE_MANIFEST = join(__dirname, '../android-xr/app/src/candidate/AndroidManifest.xml');
 
 function permissionsIn(path: string): string[] {
   const src = readFileSync(path, 'utf8');
@@ -34,6 +35,19 @@ describe('manifest permission surface (static contract)', () => {
 
   it('debug overlay declares INTERNET and nothing else', () => {
     assert.deepEqual(permissionsIn(DEBUG_MANIFEST), ['android.permission.INTERNET']);
+  });
+
+  it('hardware candidate declares only INTERNET for the authenticated HTTPS bridge', () => {
+    assert.deepEqual(permissionsIn(CANDIDATE_MANIFEST), ['android.permission.INTERNET']);
+    const src = readFileSync(CANDIDATE_MANIFEST, 'utf8');
+    assert.ok(!src.includes('CAMERA'));
+    assert.ok(!src.includes('RECORD_AUDIO'));
+  });
+
+  it('debug scenario receiver is not exported', () => {
+    const src = readFileSync(DEBUG_MANIFEST, 'utf8');
+    assert.ok(src.includes('android:name=".MockScenarioReceiver"'));
+    assert.ok(src.includes('android:exported="false"'));
   });
 
   it('debug overlay documents that INTERNET must never reach main', () => {

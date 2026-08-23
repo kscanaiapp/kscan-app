@@ -12,6 +12,8 @@ import com.kscan.glasses.config.BetaConfig
 import com.kscan.glasses.phonebridge.DisabledPhoneBridgeProvider
 import com.kscan.glasses.phonebridge.FutureRealPhoneBridgeProvider
 import com.kscan.glasses.phonebridge.PhoneBridgeProvider
+import com.kscan.glasses.phonebridge.HttpWearableBridgeApi
+import com.kscan.glasses.phonebridge.RealKScanPhoneBridgeProvider
 import com.kscan.glasses.phonebridge.mock.MockPhoneBridgeProvider
 import com.kscan.glasses.privacy.PrivacyImageSanitizer
 import com.kscan.glasses.privacy.PrivacyImageSanitizerFactory
@@ -61,6 +63,7 @@ object AppRuntimeFactory {
         debugConfig: DebugAnalyzeConfig = DebugAnalyzeConfig.fromBuildConfig(),
         betaConfig: BetaConfig = BetaConfig.DEFAULT,
         clientConfig: AnalyzeClientConfig = AnalyzeClientConfig.MOCK_ONLY,
+        wearableDeviceId: String = "unconfigured-device",
     ): Resolved {
         // 1. Flag-level release guard: throws if any mock flag is set in release.
         ReleaseSafetyGuard.verify(
@@ -105,15 +108,32 @@ object AppRuntimeFactory {
                 )
         }
 
-        // 5. Phone bridge: the versioned phonebridge layer behind exactly three
-        // providers. The mock companion is selected ONLY for debug builds that
-        // explicitly opt in via BuildConfig.KSCAN_DEBUG_MOCK_PHONE_BRIDGE
-        // (default false, set in gitignored local.properties). Release always
-        // resolves the fail-safe future-real stub; the flag-level guard above
-        // has already thrown if a release build ever sets the mock flag.
+        // 5. Phone bridge: the versioned phonebridge layer behind four providers
+        // (Mock, Disabled, Real, FutureReal-stub). The mock companion is selected
+        // ONLY for debug builds that explicitly opt in via
+        // BuildConfig.KSCAN_DEBUG_MOCK_PHONE_BRIDGE (default false, set in
+        // gitignored local.properties). Only isHardwareCandidate resolves the
+        // real provider; every other non-debug build falls through to the
+        // fail-safe future-real stub. The flag-level guard above has already
+        // thrown if a release build ever sets the mock flag.
         val phoneBridge: PhoneBridgeProvider = when {
             profile.isDebugBuild && profile.useMockPhoneBridge -> MockPhoneBridgeProvider.create()
             profile.isDebugBuild -> DisabledPhoneBridgeProvider()
+            profile.isHardwareCandidate &&
+                com.kscan.glasses.BuildConfig.KSCAN_WEARABLE_BRIDGE_URL.isNotBlank() &&
+                com.kscan.glasses.BuildConfig.KSCAN_WEARABLE_PUBLISHABLE_KEY.isNotBlank() -> {
+                val bridgeUrl = com.kscan.glasses.BuildConfig.KSCAN_WEARABLE_BRIDGE_URL
+                val bridgeHost = runCatching { java.net.URI.create(bridgeUrl).host }.getOrDefault(bridgeUrl)
+                RealKScanPhoneBridgeProvider(
+                    api = HttpWearableBridgeApi(
+                        endpoint = bridgeUrl,
+                        publishableKey = com.kscan.glasses.BuildConfig.KSCAN_WEARABLE_PUBLISHABLE_KEY,
+                    ),
+                    glassesDeviceId = wearableDeviceId,
+                    appVersion = com.kscan.glasses.BuildConfig.VERSION_NAME,
+                    bridgeUrlHost = bridgeHost,
+                )
+            }
             else -> FutureRealPhoneBridgeProvider()
         }
 
@@ -134,7 +154,9 @@ object AppRuntimeFactory {
 
         // 7. Explicit runtime state for the UI, derived from resolved instances.
         val runtimeStatus = RuntimeStatus(
-            state = RuntimeStateResolver.resolve(
+            state = if (profile.isHardwareCandidate && phoneBridge is RealKScanPhoneBridgeProvider) {
+                GlassesRuntimeState.PHONE_COMPANION_RESULT_ONLY
+            } else RuntimeStateResolver.resolve(
                 bridge = bridge,
                 sanitizer = sanitizer,
                 analyzeClient = analyzeClient,

@@ -66,8 +66,8 @@ class AppRuntimeFactoryTest {
         // Bridge and analyze client remain mock-permitted in this profile.
         assertTrue(resolved.bridge is MockBridgeProvider)
         assertTrue(resolved.analyzeClient is MockAnalyzeClient)
-        // The strict sanitizer cannot mask in this build.
-        assertFalse((resolved.sanitizer as StrictPrivacyImageSanitizer).isMaskingAvailable)
+        // Face masking is now implemented with ML Kit.
+        assertTrue((resolved.sanitizer as StrictPrivacyImageSanitizer).isMaskingAvailable)
     }
 
     @Test
@@ -78,8 +78,8 @@ class AppRuntimeFactoryTest {
         assertTrue(resolved.sanitizer is StrictPrivacyImageSanitizer)
         assertFalse(resolved.analyzeClient is MockAnalyzeClient)
         assertFalse(resolved.runtimeStatus.mock)
-        // Strict sanitizer without face masking -> privacy blocked, never "ready".
-        assertEquals(GlassesRuntimeState.PRIVACY_BLOCKED, resolved.runtimeStatus.state)
+        // Strict sanitizer with face masking available -> configuration required.
+        assertEquals(GlassesRuntimeState.CONFIGURATION_REQUIRED, resolved.runtimeStatus.state)
     }
 
     @Test(expected = IllegalStateException::class)

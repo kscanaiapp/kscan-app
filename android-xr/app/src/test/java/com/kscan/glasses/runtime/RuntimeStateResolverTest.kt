@@ -62,22 +62,22 @@ class RuntimeStateResolverTest {
     }
 
     @Test
-    fun `strict pipeline without face masking maps to PRIVACY_BLOCKED`() {
-        // StrictPrivacyImageSanitizer.isMaskingAvailable is false in this build
-        // (FaceMasker NotImplemented) — uploads must be blocked, and the state
-        // must say so instead of implying readiness.
+    fun `strict pipeline with face masking available maps to CONFIGURATION_REQUIRED`() {
+        // StrictPrivacyImageSanitizer.isMaskingAvailable is true now
+        // (FaceMasker implemented with ML Kit) — uploads are possible,
+        // but live analysis is not yet authorized.
         val state = RuntimeStateResolver.resolve(
             bridge = nonMockBridge,
             sanitizer = strictSanitizer,
             analyzeClient = nonMockAnalyzeClient,
             isDebugBuild = false,
         )
-        assertEquals(GlassesRuntimeState.PRIVACY_BLOCKED, state)
+        assertEquals(GlassesRuntimeState.CONFIGURATION_REQUIRED, state)
     }
 
     @Test
     fun `debug strict-privacy profile still reports MOCK while bridge and API are mock`() {
-        // The strict sanitizer blocks uploads, and the remaining mock components
+        // The strict sanitizer is real, and the remaining mock components
         // keep the MOCK label on the HUD — both facts stay visible.
         val state = RuntimeStateResolver.resolve(
             bridge = MockBridgeProvider(),

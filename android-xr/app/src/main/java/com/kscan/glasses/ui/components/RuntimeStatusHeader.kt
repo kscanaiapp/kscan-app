@@ -30,6 +30,7 @@ object RuntimeStatusLabels {
             GlassesRuntimeState.PRIVACY_BLOCKED -> segments += "PRIVACY BLOCKED"
             GlassesRuntimeState.CONFIGURATION_REQUIRED -> segments += "SETUP REQUIRED"
             GlassesRuntimeState.DRY_RUN_READY -> segments += "DRY RUN READY"
+            GlassesRuntimeState.PHONE_COMPANION_RESULT_ONLY -> segments += "PHONE PRIVACY"
             GlassesRuntimeState.LIVE_ANALYSIS_AUTHORIZED -> segments += "CONFIGURATION ERROR"
         }
         segments += HW_VALIDATION_PENDING
