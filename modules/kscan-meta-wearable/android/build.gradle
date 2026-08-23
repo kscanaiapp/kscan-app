@@ -85,6 +85,13 @@ android {
 
   if (mwdatEnabled) {
     sourceSets.main.java.srcDirs += 'src/mwdat/java'
+    // The DAT permissions (BLUETOOTH / BLUETOOTH_CONNECT) and the DAM App
+    // Model meta-data live in a manifest that is selected ONLY here. This
+    // module is autolinked into every K Scan build whether or not the flag is
+    // on, so anything left in src/main/AndroidManifest.xml is merged into the
+    // shipping app unconditionally — which is how a flag-off build ended up
+    // requesting Nearby-devices access for hardware it cannot talk to.
+    sourceSets.main.manifest.srcFile 'src/mwdat/AndroidManifest.xml'
   }
 
   compileOptions {

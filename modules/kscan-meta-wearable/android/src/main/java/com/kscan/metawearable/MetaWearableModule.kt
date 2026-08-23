@@ -63,7 +63,10 @@ class MetaWearableModule : Module() {
    * cancellation rather than as a spurious adapter failure - the distinction
    * matters because a cancelled capture must not be reported as a device fault.
    */
-  private inline fun <T> guarded(block: () -> T): T = try {
+  private inline fun <T> guarded(
+    fallbackCode: String = MetaWearableCodes.UNEXPECTED,
+    block: () -> T,
+  ): T = try {
     block()
   } catch (cancelled: CancellationException) {
     throw cancelled
@@ -73,11 +76,12 @@ class MetaWearableModule : Module() {
     // Intentionally does not forward `unexpected` as the cause: its message can
     // carry SDK-internal detail (and, on a capture path, buffer information)
     // that has no business crossing into JavaScript.
-    throw CodedException(
-      MetaWearableCodes.INITIALIZATION_FAILED,
-      "The Meta adapter failed unexpectedly.",
-      null,
-    )
+    //
+    // The fallback is per-call-site. Every unexpected failure used to be
+    // reported as META_INITIALIZATION_FAILED, so a capture that blew up on
+    // working, initialized hardware told JavaScript the adapter had failed to
+    // start — sending the caller to diagnose the wrong subsystem.
+    throw CodedException(fallbackCode, "The Meta adapter failed unexpectedly.", null)
   }
 
   override fun definition() = ModuleDefinition {
@@ -108,7 +112,7 @@ class MetaWearableModule : Module() {
     }
 
     AsyncFunction("initialize") {
-      guarded {
+      guarded(MetaWearableCodes.INITIALIZATION_FAILED) {
         requireSupportedOs()
         val context = appContext.reactContext
           ?: throw MetaWearableException(MetaWearableCodes.NO_ACTIVITY, "No React context.")
@@ -119,7 +123,7 @@ class MetaWearableModule : Module() {
     // ---- registration ----------------------------------------------------
 
     AsyncFunction("startRegistration") {
-      guarded {
+      guarded(MetaWearableCodes.REGISTRATION_FAILED) {
         requireReady()
         engine.startRegistration(requireActivity())
       }
@@ -150,19 +154,23 @@ class MetaWearableModule : Module() {
     }
 
     AsyncFunction("requestCameraPermission") Coroutine { ->
-      guarded { engine.requestCameraPermission(requireActivity()) }
+      guarded(MetaWearableCodes.PERMISSION_FAILED) { engine.requestCameraPermission(requireActivity()) }
     }
 
     // ---- session ---------------------------------------------------------
 
     AsyncFunction("createSession") Coroutine { ->
-      requireReady()
-      guarded { engine.createSession() }
+      guarded(MetaWearableCodes.SESSION_CREATE_FAILED) {
+        requireReady()
+        engine.createSession()
+      }
     }
 
     AsyncFunction("startSession") Coroutine { ->
-      requireReady()
-      guarded { engine.startSession() }
+      guarded(MetaWearableCodes.SESSION_START_FAILED) {
+        requireReady()
+        engine.startSession()
+      }
     }
 
     AsyncFunction("stopSession") Coroutine { ->
@@ -172,18 +180,24 @@ class MetaWearableModule : Module() {
     // ---- camera ----------------------------------------------------------
 
     AsyncFunction("attachCamera") Coroutine { config: Map<String, Any?> ->
-      requireReady()
-      guarded { engine.attachCamera(config) }
+      guarded(MetaWearableCodes.CAMERA_ATTACH_FAILED) {
+        requireReady()
+        engine.attachCamera(config)
+      }
     }
 
     AsyncFunction("startCamera") Coroutine { ->
-      requireReady()
-      guarded { engine.startCamera() }
+      guarded(MetaWearableCodes.CAMERA_UNAVAILABLE) {
+        requireReady()
+        engine.startCamera()
+      }
     }
 
     AsyncFunction("capturePhoto") Coroutine { timeoutMs: Long ->
-      requireReady()
-      guarded { engine.capturePhoto(timeoutMs) }
+      guarded(MetaWearableCodes.CAPTURE_FAILED) {
+        requireReady()
+        engine.capturePhoto(timeoutMs)
+      }
     }
 
     AsyncFunction("stopCamera") Coroutine { ->
@@ -197,13 +211,17 @@ class MetaWearableModule : Module() {
     }
 
     AsyncFunction("attachDisplay") Coroutine { ->
-      requireReady()
-      guarded { engine.attachDisplay() }
+      guarded(MetaWearableCodes.DISPLAY_ATTACH_FAILED) {
+        requireReady()
+        engine.attachDisplay()
+      }
     }
 
     AsyncFunction("renderResult") Coroutine { payload: Map<String, Any?> ->
-      requireReady()
-      guarded { engine.renderResult(payload) }
+      guarded(MetaWearableCodes.DISPLAY_RENDER_FAILED) {
+        requireReady()
+        engine.renderResult(payload)
+      }
     }
 
     AsyncFunction("clearDisplay") Coroutine { ->

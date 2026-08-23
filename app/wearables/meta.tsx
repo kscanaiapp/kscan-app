@@ -11,8 +11,9 @@ import {
 } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import * as ImagePicker from 'expo-image-picker';
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
+import { META_WEARABLE_CANDIDATE_ENABLED } from '../../constants/featureFlags';
 import { compressSanitizedImageForAnalysis } from '../../services/privacyImageUpload';
 import {
   MetaWearableCompanionError,
@@ -44,6 +45,11 @@ import {
   renderMetaResultOnGlasses,
   startMetaGlassesCapture,
 } from '../../services/metaWearableDeviceNative';
+import { describeCommerceGroup } from '../../services/metaWearableDevice';
+import {
+  isWearableSessionExpired,
+  wearableSessionSecondsRemaining,
+} from '../../services/metaWearableSessionClock';
 
 function safeCode(error: unknown): string {
   return error instanceof MetaWearableCompanionError ? error.code : 'WEARABLE_REQUEST_FAILED';
@@ -53,6 +59,27 @@ function primaryMatchOf(result: MetaWearableScanResult): Record<string, unknown>
   return result.primaryMatch && typeof result.primaryMatch === 'object'
     ? (result.primaryMatch as Record<string, unknown>)
     : {};
+}
+
+/**
+ * Describes the alternatives by provenance rather than as one undifferentiated
+ * count. "5 alternative matches" hides the difference between five buyable
+ * listings and five look-alikes from the catalog.
+ */
+function summariseAlternatives(alternatives: unknown[]): string {
+  let retail = 0;
+  let suggested = 0;
+  for (const entry of alternatives) {
+    const group = entry && typeof entry === 'object' ? (entry as Record<string, unknown>).commerceGroup : null;
+    if (group === 'retail') retail += 1;
+    else if (group === 'suggested') suggested += 1;
+  }
+  const parts: string[] = [];
+  if (retail) parts.push(`${retail} in stock`);
+  if (suggested) parts.push(`${suggested} similar`);
+  const unlabelled = alternatives.length - retail - suggested;
+  if (unlabelled > 0) parts.push(`${unlabelled} more`);
+  return `${parts.join(' · ')} available`;
 }
 
 function ActionButton({ label, onPress, disabled = false, secondary = false }: {
@@ -77,7 +104,24 @@ function ActionButton({ label, onPress, disabled = false, secondary = false }: {
   );
 }
 
-export default function MetaWearableCompanionScreen() {
+/**
+ * Route gate.
+ *
+ * expo-router registers every file under app/ as a route, so this screen was
+ * reachable by deep link (kscan:///wearables/meta) in ANY build — the feature
+ * flag only hid the entry point on the privacy screen. A store build would have
+ * shipped a live, unfinished "Meta Companion" surface that anyone with the link
+ * could open, pointed at a project where the wearable tables do not even exist.
+ *
+ * The gate is a wrapper with no hooks of its own, so the companion component's
+ * hooks stay unconditional regardless of the flag.
+ */
+export default function MetaWearableCompanionRoute() {
+  if (!META_WEARABLE_CANDIDATE_ENABLED) return <Redirect href="/" />;
+  return <MetaWearableCompanionScreen />;
+}
+
+function MetaWearableCompanionScreen() {
   const [phoneDeviceId, setPhoneDeviceId] = useState<string | null>(null);
   const [challenge, setChallenge] = useState<MetaWearablePairingChallenge | null>(null);
   const [session, setSession] = useState<MetaWearableSessionClaim | null>(null);
@@ -87,6 +131,10 @@ export default function MetaWearableCompanionScreen() {
   const [status, setStatus] = useState('Generate a pairing code to link this phone as the Meta glasses candidate session.');
   const [lastErrorCode, setLastErrorCode] = useState<string | null>(null);
   const [glassesStatus, setGlassesStatus] = useState<string>('NOT_LINKED');
+  // When this phone claimed the session, so expiry can still be computed if the
+  // bridge did not return sessionExpiresAt.
+  const [sessionClaimedAt, setSessionClaimedAt] = useState<number>(0);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   const refreshSessions = useCallback(async () => {
     try {
@@ -112,6 +160,28 @@ export default function MetaWearableCompanionScreen() {
     })();
     void refreshSessions();
   }, [refreshSessions]);
+
+  // The bridge expires wearable sessions after 15 minutes and refuses every
+  // protected call past that instant. Without this watcher the screen kept
+  // saying "Paired." and kept Capture enabled, so a wearer could be walked all
+  // the way through opening the camera, taking a real photo and running the
+  // on-device privacy pipeline before the server revealed the session was gone.
+  // The UI now leaves READY at the authoritative expiry, not at first failure.
+  useEffect(() => {
+    if (!session) {
+      setSessionExpired(false);
+      return;
+    }
+    const evaluate = () => {
+      setSessionExpired(isWearableSessionExpired(session.sessionExpiresAt, sessionClaimedAt, Date.now()));
+    };
+    evaluate();
+    // Polled rather than scheduled at the expiry instant: a background timer is
+    // not guaranteed to fire on either platform, and waking to find the app
+    // still claiming READY is the exact failure being fixed.
+    const timer = setInterval(evaluate, 10_000);
+    return () => clearInterval(timer);
+  }, [session, sessionClaimedAt]);
 
   const generateChallenge = useCallback(async () => {
     setBusy(true);
@@ -140,6 +210,8 @@ export default function MetaWearableCompanionScreen() {
         challenge.pairingSecret,
       );
       setSession(claim);
+      setSessionClaimedAt(Date.now());
+      setSessionExpired(false);
       setChallenge(null);
       setStatus('Paired. This phone now holds a short-lived wearable session.');
       await refreshSessions();
@@ -166,7 +238,7 @@ export default function MetaWearableCompanionScreen() {
   }, [challenge]);
 
   const capture = useCallback(async () => {
-    if (!session || busy) return;
+    if (!session || busy || sessionExpired) return;
     setBusy(true);
     setLastErrorCode(null);
     let rawUri: string | null = null;
@@ -230,10 +302,10 @@ export default function MetaWearableCompanionScreen() {
       if (rawUri) removeMetaWearableLocalAsset(rawUri);
       setBusy(false);
     }
-  }, [session, busy]);
+  }, [session, busy, sessionExpired]);
 
   const saveResult = useCallback(async () => {
-    if (!session || !result) return;
+    if (!session || !result || sessionExpired) return;
     setBusy(true);
     setLastErrorCode(null);
     try {
@@ -246,10 +318,10 @@ export default function MetaWearableCompanionScreen() {
     } finally {
       setBusy(false);
     }
-  }, [session, result]);
+  }, [session, result, sessionExpired]);
 
   const openOnPhone = useCallback(async () => {
-    if (!session || !result) return;
+    if (!session || !result || sessionExpired) return;
     const resultId = typeof result.resultId === 'string' ? result.resultId : '';
     if (!resultId) return;
     setBusy(true);
@@ -264,7 +336,7 @@ export default function MetaWearableCompanionScreen() {
     } finally {
       setBusy(false);
     }
-  }, [session, result]);
+  }, [session, result, sessionExpired]);
 
   const removeSession = useCallback((row: MetaWearableSessionSummary) => {
     Alert.alert('Remove Meta glasses?', 'This immediately revokes the wearable session.', [
@@ -316,11 +388,21 @@ export default function MetaWearableCompanionScreen() {
             )}
           </View>
         ) : (
-          <View style={[styles.card, styles.requestCard]}>
-            <Text style={styles.cardLabel}>SCAN</Text>
-            <Text style={styles.body}>Capture comes from your Meta glasses when they are connected and permitted, and from this phone otherwise. Either way the image stays local until face detection and solid masking succeed.</Text>
-            <Text style={styles.meta}>GLASSES ADAPTER · {glassesStatus}</Text>
-            <ActionButton label={busy ? 'Processing…' : 'Open Camera'} disabled={busy} onPress={() => void capture()} />
+          <View style={[styles.card, sessionExpired ? styles.expiredCard : styles.requestCard]}>
+            <Text style={styles.cardLabel}>{sessionExpired ? 'SESSION EXPIRED' : 'SCAN'}</Text>
+            {sessionExpired ? (
+              <>
+                <Text style={styles.body}>This wearable session has reached its 15-minute limit and the backend will refuse it. Pair again to scan.</Text>
+                <ActionButton label="Pair Again" onPress={() => { setSession(null); setResult(null); setStatus('Generate a new pairing code to claim a fresh wearable session.'); }} />
+              </>
+            ) : (
+              <>
+                <Text style={styles.body}>Capture comes from your Meta glasses when they are connected and permitted, and from this phone otherwise. Either way the image stays local until face detection and solid masking succeed.</Text>
+                <Text style={styles.meta}>GLASSES ADAPTER · {glassesStatus}</Text>
+                <Text style={styles.meta}>SESSION · {wearableSessionSecondsRemaining(session.sessionExpiresAt, sessionClaimedAt, Date.now())}s REMAINING</Text>
+                <ActionButton label={busy ? 'Processing…' : 'Open Camera'} disabled={busy} onPress={() => void capture()} />
+              </>
+            )}
           </View>
         )}
 
@@ -329,11 +411,19 @@ export default function MetaWearableCompanionScreen() {
             <Text style={styles.cardLabel}>RESULT</Text>
             <Text style={styles.deviceName}>{typeof result.summary === 'string' ? result.summary : 'StyleMatch'}</Text>
             <Text style={styles.body}>{typeof primary.title === 'string' ? primary.title : 'Fashion item'}</Text>
-            {alternatives.length ? <Text style={styles.meta}>{alternatives.length} alternative match{alternatives.length === 1 ? '' : 'es'} available</Text> : null}
+            {/* A 'suggested' item is a visual-similarity match from the
+                catalog, not something on sale. Presenting it with no
+                qualifier — as this screen used to — reads as a buyable
+                listing. */}
+            {describeCommerceGroup(primary.commerceGroup) ? (
+              <Text style={styles.meta}>{describeCommerceGroup(primary.commerceGroup).toUpperCase()}</Text>
+            ) : null}
+            {alternatives.length ? <Text style={styles.meta}>{summariseAlternatives(alternatives)}</Text> : null}
             <View style={styles.actions}>
-              <ActionButton label="Save" disabled={busy} onPress={() => void saveResult()} />
-              <ActionButton label="Open on Phone" secondary disabled={busy} onPress={() => void openOnPhone()} />
+              <ActionButton label="Save" disabled={busy || sessionExpired} onPress={() => void saveResult()} />
+              <ActionButton label="Open on Phone" secondary disabled={busy || sessionExpired} onPress={() => void openOnPhone()} />
             </View>
+            {sessionExpired ? <Text style={styles.meta}>SESSION EXPIRED · PAIR AGAIN TO SAVE OR OPEN</Text> : null}
           </View>
         ) : null}
 
@@ -372,6 +462,7 @@ const styles = StyleSheet.create({
   subtitle: { color: COLORS.chrome, fontSize: 15, lineHeight: 22 },
   card: { backgroundColor: COLORS.graphite, borderColor: COLORS.graphiteLine, borderWidth: 1, borderRadius: RADIUS.lg, padding: SPACING.lg, gap: SPACING.md },
   requestCard: { borderColor: COLORS.electricCyan },
+  expiredCard: { borderColor: COLORS.error },
   diagnosticCard: { backgroundColor: COLORS.obsidianSoft, borderColor: COLORS.purpleSoft, borderWidth: 1, borderRadius: RADIUS.lg, padding: SPACING.lg, gap: SPACING.sm },
   cardLabel: { ...TYPOGRAPHY.caption, color: COLORS.electricCyan },
   code: { color: COLORS.white, fontSize: 34, fontWeight: '700', letterSpacing: 8, textAlign: 'center' },

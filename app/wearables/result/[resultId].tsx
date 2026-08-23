@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../../../constants/theme';
+import { META_WEARABLE_CANDIDATE_ENABLED } from '../../../constants/featureFlags';
 import { getCachedMetaWearableResult } from '../../../services/metaWearableCompanion';
+import { describeCommerceGroup } from '../../../services/metaWearableDevice';
 
 // The wearable backend deliberately exposes no "fetch a result by id" client
 // operation — wearable_results has row-level security enabled with zero
@@ -14,7 +16,18 @@ import { getCachedMetaWearableResult } from '../../../services/metaWearableCompa
 // rather than a backend call that does not exist. See
 // services/metaWearableCompanion.ts for the full explanation; a genuine
 // second-device deployment would need its own delivery mechanism here.
-export default function MetaWearableResultScreen() {
+/**
+ * Route gate. expo-router registers every file under app/ as a route, so this
+ * screen was reachable by deep link in ANY build — the feature flag only hid
+ * the entry point elsewhere. The gate lives in a wrapper with no hooks of its
+ * own so the inner component's hooks stay unconditional.
+ */
+export default function MetaWearableResultRoute() {
+  if (!META_WEARABLE_CANDIDATE_ENABLED) return <Redirect href="/" />;
+  return <MetaWearableResultScreen />;
+}
+
+function MetaWearableResultScreen() {
   const params = useLocalSearchParams<{ resultId?: string }>();
   const resultId = typeof params.resultId === 'string' ? params.resultId : '';
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
@@ -47,7 +60,14 @@ export default function MetaWearableResultScreen() {
           <View style={styles.card}>
             <Text style={styles.label}>BEST MATCH</Text>
             <Text style={styles.product}>{typeof primary.title === 'string' ? primary.title : 'Fashion item'}</Text>
-            <Text style={styles.detail}>{[primary.brand, primary.retailer, primary.resaleSource].filter((value) => typeof value === 'string').join(' · ')}</Text>
+            {/* `resaleSource` used to be read here. wearable-scan has never
+                produced that field — it deliberately emits no resale
+                provenance, because scan-identify carries none — so it was
+                always undefined and always filtered away. `commerceGroup` is
+                the field the backend actually stamps, and it is the one that
+                tells the reader whether this is a listing they can buy or a
+                visual-similarity suggestion. */}
+            <Text style={styles.detail}>{[primary.brand, primary.retailer, describeCommerceGroup(primary.commerceGroup)].filter((value) => typeof value === 'string' && value.trim()).join(' · ')}</Text>
             {alternatives.length ? <Text style={styles.meta}>{alternatives.length} alternative match{alternatives.length === 1 ? '' : 'es'} available</Text> : null}
             <Text style={styles.meta}>Result ID {resultId}</Text>
           </View>

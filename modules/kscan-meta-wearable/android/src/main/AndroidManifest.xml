@@ -1,29 +1,25 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!--
-      Meta Wearables Device Access Toolkit requirements.
+      DEFAULT (kscan.mwdat.enabled = false) MANIFEST — deliberately empty.
 
-      BLUETOOTH_CONNECT is the permission that actually gates talking to the
-      glasses on Android 12+; the legacy BLUETOOTH entry is retained with a
-      maxSdkVersion so it is not requested where it no longer applies.
+      This library is autolinked into EVERY K Scan Android build, flag or no
+      flag, because it lives in modules/ and expo-modules-autolinking picks it
+      up unconditionally. Whatever this file declares is therefore merged into
+      the shipping app's manifest even when the DAT SDK was never compiled in.
 
-      CAMERA here is the *phone's* camera permission, which DAT requires to be
-      held by the host app before it will grant glasses camera access. It does
-      not by itself open the phone camera anywhere in K Scan.
+      This file used to declare BLUETOOTH, BLUETOOTH_CONNECT, INTERNET, CAMERA
+      and the DAT App Model meta-data. The merged debug manifest confirmed the
+      result: a build with the flag OFF still requested BLUETOOTH and
+      BLUETOOTH_CONNECT — a runtime "Nearby devices" permission on Android 12+
+      — for hardware it has no code to talk to. Neither permission is declared
+      anywhere else in K Scan, so both were contributed solely by this module,
+      and both would have shipped to Play as a new sensitive-permission request
+      on a feature users cannot even reach.
+
+      The DAT requirements now live in src/mwdat/AndroidManifest.xml, selected
+      by android/build.gradle only when the flag is on — the same gate that
+      already controls the DAT source set and dependencies.
     -->
-    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
-    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.CAMERA" />
-
-    <application>
-        <!--
-          Device Access Toolkit App Model. DAT 0.9 supports only DAM going
-          forward, and Display capability is unavailable without it.
-        -->
-        <meta-data
-            android:name="com.meta.wearable.mwdat.DAM_ENABLED"
-            android:value="true" />
-    </application>
 
 </manifest>

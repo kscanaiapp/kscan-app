@@ -18,6 +18,16 @@ class MetaWearableException(
 ) : Exception(message ?: code, cause)
 
 object MetaWearableCodes {
+  /**
+   * An unexpected Kotlin/SDK failure with no better-fitting code.
+   *
+   * Distinct from INITIALIZATION_FAILED on purpose: every unexpected failure in
+   * the bridge used to be reported as INITIALIZATION_FAILED, so a capture that
+   * blew up on working, already-initialized hardware told JavaScript the
+   * adapter had failed to start.
+   */
+  const val UNEXPECTED = "META_UNEXPECTED"
+
   // Adapter / environment
   const val ADAPTER_UNAVAILABLE = "META_ADAPTER_UNAVAILABLE"
   const val UNSUPPORTED_OS = "META_UNSUPPORTED_OS"

@@ -263,6 +263,22 @@ export function captureFromGlasses(
 }
 
 /**
+ * Human-readable label for a wearable product's commerce provenance.
+ *
+ * `wearable-scan` stamps every product with the array it came from:
+ *   'retail'    — a live commerce listing; buyable now.
+ *   'suggested' — a catalog visual-similarity match; NOT a listing.
+ *
+ * Returns '' for anything else, including a missing group, so an unknown
+ * provenance is silent rather than mislabelled.
+ */
+export function describeCommerceGroup(value: unknown): string {
+  if (value === 'retail') return 'In stock';
+  if (value === 'suggested') return 'Similar item';
+  return '';
+}
+
+/**
  * Reduces a canonical K Scan result to something readable on glasses.
  *
  * This is not the browser HUD squeezed smaller. A wearer reading this is
@@ -293,7 +309,15 @@ export function toDisplayPayload(
     ? `${Math.round(result.confidence)}% match`
     : '';
 
-  const subtitleParts = [brand || retailer, confidence].filter(Boolean);
+  // Commerce provenance is part of the claim, not decoration. The backend
+  // labels each item 'retail' (a live, buyable listing) or 'suggested' (a
+  // visual-similarity match from the catalog); showing a suggestion with a
+  // price and no qualifier tells a wearer they can buy something that may not
+  // be for sale at all. An unrecognised or missing group says nothing rather
+  // than guessing.
+  const group = describeCommerceGroup(primary.commerceGroup);
+
+  const subtitleParts = [brand || retailer, group, confidence].filter(Boolean);
 
   const priceLabel = typeof primary.priceLabel === 'string'
     ? primary.priceLabel
