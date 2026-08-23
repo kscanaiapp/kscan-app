@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-23T00:59:54.241Z",
-    "generatedFromGitSha": "6f9e3c61fe040023ec15ab9b06cb0eca6afa63a5"
+    "generatedAtUtc": "2026-08-23T02:15:24.593Z",
+    "generatedFromGitSha": "facf21525b41324d770bbad1ad6f1719ee2cad24"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -20,9 +20,9 @@
           "npm:@supabase/supabase-js@2"
         ],
         "bundleFileCount": 38,
-        "treeFileCount": 58,
-        "bundleHash": "67d84040a2dd931f0eba7e27fa721687da19c8bcf6cc450862b3a3d46cbf7f23",
-        "treeHash": "5a2aeab2dfce3eef8a3aff8e6961b122979b74deb101c4884969550f744118fd",
+        "treeFileCount": 59,
+        "bundleHash": "b755ef813f2a9442fad0b6066bf605de069f6c95ce998629a0a2cec38bc4b3ff",
+        "treeHash": "e156c5db370b0c977b6a611702f0ceb40eb0ac4c62b3f06b3863dc95755285f9",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -176,7 +176,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/index.ts",
-            "sha256": "118b443d7c084c9f3c3282e0d653ee5cc73b1dd5931b03bfb492531a175a70b8",
+            "sha256": "651b8eb9035b8bbdaf53fb0f364c9f68376f219f952f56088d7ec3113e3d0246",
             "bundle": true
           },
           {
@@ -188,6 +188,11 @@
             "path": "supabase/functions/scan-identify/kicksCrewProvider.ts",
             "sha256": "dae9afc051889319ed5a5509619793cc6afef5309c1f9f151712b166816032e6",
             "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/multiItemCommerceCorrelation.test.ts",
+            "sha256": "40b6e559cb529c848e7ad117b4842c67c9c7e5c859f053bb3eadb9e1cb7f4a82",
+            "bundle": false
           },
           {
             "path": "supabase/functions/scan-identify/multiItemGarments.test.ts",
