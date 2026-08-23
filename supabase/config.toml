@@ -3,8 +3,8 @@
 # Declares the JWT posture of every deployed Edge Function so a deploy can never
 # silently change it. Without this file the CLI applies its own default, which
 # would flip scan-identify from its deployed verify_jwt = false to true and
-# break the anonymous scan path that the function implements and rate limits
-# itself.
+# break the commerce-only (MODE B) request, which genuinely has no bearer
+# token by design.
 #
 # Changing any verify_jwt value here changes production authentication
 # behaviour and is an owner decision, not a deployment side effect.
@@ -13,10 +13,13 @@ project_id = "wyyuqfdxucjksghsmhry"
 
 # ── LLM surfaces ─────────────────────────────────────────────────────────────
 
-# Scanner + TextScan. Gateway JWT verification is intentionally off: the
-# function supports an anonymous, fingerprint-rate-limited scan path and
-# verifies the JWT itself when one is supplied. Authenticated callers are then
-# subject to the shared account-active guard before quota or any provider call.
+# Scanner + TextScan. Gateway JWT verification is off because the
+# commerce-only (MODE B) request has no bearer token by design. The function
+# verifies the JWT itself for text/image identification: paid inference
+# requires a verified, non-anonymous user (Build 32 P1-B) and is rejected
+# outright otherwise, with no fallback to project-key presence. Authenticated
+# callers are then subject to the shared account-active guard before quota or
+# any provider call.
 [functions.scan-identify]
 verify_jwt = false
 
