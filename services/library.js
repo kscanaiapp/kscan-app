@@ -303,8 +303,38 @@ export function hydrateSavedScan(scan) {
     // Absent on every pre-Build-32 record; defaults to empty rather than
     // undefined so a reader can always safely map/iterate.
     multiItemCandidates: Array.isArray(scan.multiItemCandidates) ? scan.multiItemCandidates : [],
-    multiItemCommerce: Array.isArray(scan.multiItemCommerce) ? scan.multiItemCommerce : [],
+    multiItemCommerce: normalizeStoredMultiItemCommerce(scan.multiItemCommerce),
   };
+}
+
+/**
+ * Read-path hygiene for stored per-item commerce.
+ *
+ * The single-item shelf has always been re-normalized on READ, not merely on
+ * write, because what is on disk is not necessarily what this build wrote:
+ * an older build, a partially-synced cloud record, or a damaged manifest can
+ * all put values here. Multi-item cards were being handed back exactly as
+ * stored, so an unsafe `productUrl` (`javascript:` and friends) that the write
+ * path would have stripped still reached a reopened scan and rendered as a
+ * tappable offer. Same data, same hazard — so the same normalizer, applied at
+ * the same point.
+ */
+function normalizeStoredMultiItemCommerce(stored) {
+  if (!Array.isArray(stored)) return [];
+  return stored
+    .filter((card) => card && typeof card === 'object' && !Array.isArray(card))
+    .map((card) => {
+      const bestMatch = normalizePurchaseOptions(card.bestMatch ? [card.bestMatch] : []);
+      return {
+        ...card,
+        candidateId: typeof card.candidateId === 'string' ? card.candidateId : '',
+        status: typeof card.status === 'string' ? card.status : 'error',
+        bestMatch: bestMatch[0] ?? null,
+        alternatives: normalizePurchaseOptions(
+          Array.isArray(card.alternatives) ? card.alternatives : [],
+        ),
+      };
+    });
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
