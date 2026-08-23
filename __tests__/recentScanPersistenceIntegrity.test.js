@@ -543,6 +543,40 @@ const MULTI_ITEM_RECORD = {
   source: 'scan',
 };
 
+/**
+ * Compare stored multi-item commerce by the properties that actually carry
+ * meaning, not by object identity with the raw stored literal.
+ *
+ * Hydration is allowed to canonicalize an offer — the single-item shelf has
+ * always done so, filling the commerce contract's optional fields with
+ * explicit nulls — and the Build 32 commerce branch extends that same pass to
+ * per-item cards so a stored unsafe URL cannot reach a reopened scan. What
+ * must never change is the association and ordering asserted here, and that
+ * holds whether or not that normalization is present.
+ */
+function assertCardsMatch(actual, expected, message) {
+  assert.equal(actual.length, expected.length, `${message}: card count`);
+  actual.forEach((card, i) => {
+    const want = expected[i];
+    assert.equal(card.candidateId, want.candidateId, `${message}: card ${i} candidateId (order preserved)`);
+    assert.equal(card.status, want.status, `${message}: card ${i} status`);
+    if (want.bestMatch) {
+      assert.ok(card.bestMatch, `${message}: card ${i} kept its best match`);
+      for (const key of ['title', 'retailer', 'price', 'currency', 'productUrl']) {
+        if (want.bestMatch[key] === undefined) continue;
+        assert.equal(card.bestMatch[key], want.bestMatch[key], `${message}: card ${i} bestMatch.${key}`);
+      }
+    } else {
+      assert.equal(card.bestMatch, null, `${message}: card ${i} invented no best match`);
+    }
+    assert.equal(card.alternatives.length, want.alternatives.length, `${message}: card ${i} alternatives count`);
+    card.alternatives.forEach((alt, j) => {
+      assert.equal(alt.productUrl, want.alternatives[j].productUrl, `${message}: card ${i} alt ${j} url`);
+      assert.equal(alt.retailer, want.alternatives[j].retailer, `${message}: card ${i} alt ${j} retailer`);
+    });
+  });
+}
+
 test('a multi-item-shaped record loads through this branch untouched', async () => {
   const storage = createMemoryStorage();
   storage.files.set(MANIFEST, JSON.stringify([MULTI_ITEM_RECORD]));
@@ -553,7 +587,7 @@ test('a multi-item-shaped record loads through this branch untouched', async () 
     loaded.multiItemCandidates, MULTI_ITEM_RECORD.multiItemCandidates,
     'candidateId and every candidate field survive save/hydrate without mutation',
   );
-  assert.deepEqual(
+  assertCardsMatch(
     loaded.multiItemCommerce, MULTI_ITEM_RECORD.multiItemCommerce,
     'item<->offer association is preserved exactly, including card order',
   );
@@ -585,7 +619,8 @@ test('a multi-item record survives a full write/read round trip on this branch',
   const multi = loaded.find((r) => r.id === 'scan_multi_1');
   assert.ok(multi, 'the multi-item record is not evicted or dropped by a single-item write');
   assert.deepEqual(multi.multiItemCandidates, MULTI_ITEM_RECORD.multiItemCandidates);
-  assert.deepEqual(multi.multiItemCommerce, MULTI_ITEM_RECORD.multiItemCommerce);
+  assertCardsMatch(multi.multiItemCommerce, MULTI_ITEM_RECORD.multiItemCommerce,
+    'a full manifest rewrite does not disturb item<->offer association');
 });
 
 test('single-item records are unaffected by multi-item fields being present', async () => {
