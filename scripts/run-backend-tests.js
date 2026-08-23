@@ -12,10 +12,11 @@
  * shell glob, for the same portability reason the Node runner gives: `**` is not
  * portable across cmd.exe / PowerShell / bash.
  *
- * `--allow-read` is required and load-bearing: several of these tests read their
- * own function's source to assert wiring (that `index.ts` calls a particular
- * validator, for instance). Without it Deno denies the read and the test fails
- * for a permissions reason that looks exactly like a real regression.
+ * `--allow-read`, `--allow-env`, and `--allow-run` are required and load-bearing:
+ * several tests read their own function source to assert wiring, exercise env
+ * flag overrides, and launch the nested `deno check` compile gate. Without
+ * those grants Deno fails the suite for permissions reasons that look exactly
+ * like product regressions.
  *
  * No network permission is granted. These suites are deterministic: no Supabase,
  * no provider call, no live model.
@@ -80,7 +81,13 @@ if (found.length === 0) {
   process.exit(1);
 }
 
-const result = spawnSync('deno', ['test', '--allow-read', ...found], {
+const result = spawnSync('deno', [
+  'test',
+  '--allow-read',
+  '--allow-env',
+  '--allow-run',
+  ...found,
+], {
   cwd: ROOT,
   stdio: 'inherit',
   env: process.env,
