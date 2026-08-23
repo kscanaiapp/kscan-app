@@ -30,6 +30,229 @@ human must run interactively. Because DAT artifacts stay unresolvable, the
 addendum's Meta Client Runtime Validation Phase **was not entered** — see
 `META_CLIENT_RUNTIME_VALIDATION_REPORT.md`.
 
+---
+
+# Independent Verification Pass — 2026-08-23 (later same day)
+
+A second agent re-entered this work with the brief *"verify first, do not assume
+the ledger is accurate."* Everything below was re-derived from live staging, the
+database, or a device — nothing was carried forward from the report that follows.
+
+**Verdict of this pass: PASS WITH CONDITIONS — ALL AGENT-REPAIRABLE GATES CLOSED;
+PRECISELY NAMED HUMAN/AUTHORITY/HARDWARE CONDITIONS REMAIN.**
+
+The prior pass's conclusions held up. Three of its ledger rows were nonetheless
+**stale in the task brief** that initiated this pass, which is itself worth
+recording:
+
+| Brief said | Actually true | How established |
+|---|---|---|
+| P2-05 migration "NOT YET APPLIED TO STAGING" | **Applied**, recorded as version `20260823170850` | `supabase_migrations.schema_migrations` |
+| `wearable-bridge` v7 | **v8** | `list_edge_functions` |
+| #192 / #193 open trackers | **both CLOSED** | `gh issue view` |
+
+## Gate ledger, independently re-verified
+
+| Gate | Status | How this pass verified it |
+|---|---|---|
+| **P2-05** | **CLOSED** | Migration body byte-identical to the committed file (md5 `cc816d602cb70aca6eae4c6ea7addc9f`); **24/24** schema assertions PASS on live staging, including `char_length` bounds, the 48 KB payload cap, revision 1..1000, RLS on all six tables, and **zero anon/authenticated grants** |
+| **P2-06** (`wearable-bridge`) | **CLOSED** | 600 KB / 2 MB / 9 MB → `413 PAYLOAD_TOO_LARGE` in **0.33–0.92 s** (was 160 s → 503). A 13-check negative matrix confirms no bypass: valid `pair.create` 200, invalid key 401, no key 401, GET 405, malformed JSON 400, unknown op 400, no-JWT 401, forged token 403, oversized in-body frame 400 |
+| **P2-06** (`scan-identify`) | **OPEN — narrowed** | Still hangs: 700 KB → 30 s client abort. Now bounded precisely — see below |
+| **#192** | **CLOSED** | Corroborated at row level, independent of the harness that produced it |
+| **P3-04** | **CLOSED** | 5 results → **5 distinct `local_id`**, across **both** save routes (`saved_scans.source` shows `meta_wearable` *and* `wearable`) |
+| **#191** | **BLOCKED** | Re-probed: all four DAT artifacts `401`; scopes `gist, read:org, repo, workflow`; `/user/packages` → `403 "You need at least read:packages scope"`; upstream repo `visibility=public`, `archived=false` |
+| **Drift guard** | **PASS + hardened** | Full run: layer A 6/6 deployed files byte-identical to committed, layer B 6/6 live probes. Negative control below |
+| **Mobile suite** | **PASS** | 6,248 executed / **6,190 pass** / **0 fail** / 58 skipped |
+| **Webapp suite** | **PASS** | Full `npm test` chain green through `test:wearable` (14/14) |
+| **Android build** | **PASS** | `BUILD SUCCESSFUL`, SHA-256 `5a11e1e61f2e2c64f3220eabfd971c9a5f2a23a159a85fbc9d2ddb02ebafe017` |
+| **ADB runtime** | **PASS — upgraded** | Now includes **on-device instrumentation**, not just cold launch. See below |
+| **APK security** | **PASS** | 0 hits; scanner validated by a positive control that planted and found `ghp_…`, `service_role`, `maven.pkg.github.com` |
+| **Physical hardware** | **NOT RUN** | No Meta device attached |
+
+### #192 corroboration, at the database
+
+The prior pass's "23/23 authenticated E2E" was accepted only after checking what
+it left behind on staging for QA user `692e19c8-…`:
+
+| Table | Rows | Detail |
+|---|---|---|
+| `wearable_pairings` | 5 | all `consumed` |
+| `wearable_sessions` | 5 | all revoked, reason `sign_out` |
+| `wearable_results` | 5 | revisions `1` and `2` present |
+| `wearable_actions` | 6 | `save:completed`, `open_on_phone:completed` |
+| `saved_scans` | 5 | **5 distinct `local_id`**, sources `meta_wearable` + `wearable` |
+
+Sign-out revocation and cross-route Save idempotency are therefore evidenced by
+durable state, not only by a transcript.
+
+## Defects found and fixed by this pass
+
+### 1. Migration version mismatch — would have blocked or duplicated the next `db push`
+
+The reconciliation migration is applied on staging as `20260823170850`, but the
+committed file was named `20260823141131`. Bodies byte-identical. `supabase db
+push` would have seen the local file as unapplied **and out of order** relative
+to two migrations already recorded above it. Renamed to match. (`fea5712`)
+
+### 2. Drift guard would have failed nightly on its own configuration
+
+`wearable-deploy-drift.yml` runs with `--require-live`, which correctly turns a
+missing secret into a hard failure — but it passed `SUPABASE_STAGING_QA_EMAIL` /
+`_PASSWORD`, secrets this repository does not provision. It already maintains
+three persistent synthetic staging accounts under `STAGING_SYNTHETIC_ACTIVE_*`
+(`docs/security/staging-synthetic-auth.md`). As written the nightly guard would
+have failed **every night on config rather than on drift**, and a guard that
+cries wolf about itself stops being read. Now accepts either name and says which
+to set. (`fea5712`)
+
+### 3. The Android instrumentation harness was dead — in both native modules
+
+Adding on-device coverage for the Meta module produced
+`tests="0" failures="0"` plus *"Instrumentation run failed due to Process
+crashed."* That reads as **green by absence**. A control run of the
+**pre-existing** `kscan-pii-native` suite crashed identically, proving the fault
+was the harness rather than the new test. Two independent causes:
+
+1. `androidx.test` pinned at 1.1.5 / 1.5.2 / 1.5.0 (2022) does not survive
+   API 37. Bumped to 1.2.1 / 1.6.2 / 1.6.1 (+ espresso 3.6.1).
+2. `kscan-pii-native` declared **no `testInstrumentationRunner`**, so AGP fell
+   back to `android.test.InstrumentationTestRunner` — the pre-AndroidX framework
+   runner, removed from the platform. Confirmed on device:
+   `am instrument … /android.test.InstrumentationTestRunner`.
+
+**`kscan-pii-native`'s on-device coverage of the fail-closed face masking that
+gates every camera capture had therefore never executed.** With the runner
+declared it runs — 16 tests, **3 failing**. Those three are pre-existing and were
+deliberately **not** edited to green; they are filed with stack frames as
+issue **#201**. (`4e69d6e`)
+
+## New evidence: the DAT-off engine proven on a real device
+
+§29's fail-closed contract had only ever been **SOURCE VERIFIED**. It is now
+**ADB RUNTIME VERIFIED** — 13/13 on `Pixel_8_Pro(AVD)` API 37, exercising the
+engine the factory actually resolves, through the real reflection lookup and the
+real `BuildConfig` flag:
+
+```
+PASS  buildIsActuallyDatOff                     PASS  noDeviceIsEverInvented
+PASS  factoryResolvesTheUnavailableEngine       PASS  noCameraOrDisplayIsEverInvented
+PASS  statusAdmitsTheSdkIsAbsent                PASS  everySessionActionRefuses
+PASS  initializeNeverReachesReady               PASS  everyCameraActionRefuses
+PASS  everyDisplayActionRefuses                 PASS  mockDeviceKitIsNotQuietlyAvailable
+PASS  disconnectIsABenignNoOpRatherThanAFakeSuccess
+PASS  observerAttachesAndDetachesWithoutLeaking
+PASS  repeatedResolutionReturnsTheSameEngineInstance
+```
+
+`buildIsActuallyDatOff` asserts unconditionally, so the suite can never quietly
+become a no-op; every capability assertion short-circuits on a DAT-on build
+rather than asserting the wrong contract.
+
+Lifecycle stress on the same build, no crash or ANR attributed to
+`com.kscanai.app`: cold launch 4,393 ms → home → foreground → rotation
+(activity recreation) → force-stop → relaunch 3,325 ms. No duplicate-listener or
+leak signals.
+
+## Drift guard — negative control (§35)
+
+Collapsing `suggested` → `retail` in `normalize.ts` was caught by **two
+independent layers**:
+
+```
+FAIL  P2-01 commerce grouping — 2 behavioural tests failed
+FAIL  wearable-scan/normalize.ts: deployed === committed
+      — deployed 0f9953e7c843 vs repo 322c45599e50
+DRIFT GUARD FAILED — 2 failing, exit 1
+```
+
+Reverting returned it to `DRIFT GUARD PASSED — 0 failing`, exit 0. The mutation
+was not committed. Separately, `--require-live` with no configuration correctly
+fails closed (`3 failing, 3 skipped`, exit 1).
+
+## P2-06 (`scan-identify`) — reduced to one named action
+
+The prior pass declined to repair it because the deployed copy is drifted from
+this branch. That is correct, and the boundary is now exact: **deployed
+`scan-identify` v45 is byte-reproducible from `fix/build32-commerce-telemetry-v127`
+@ `69f99c8`** (iOS line; `…-android` @ `a4bc4d5` is equivalent). Every deployed
+file is byte-identical to that tree; the repo carries three extra modules the
+CLI's dependency walk did not bundle.
+
+So the action is not "resolve branch drift" but:
+
+> Apply the same body-drain guard to `supabase/functions/scan-identify/index.ts`
+> on `fix/build32-commerce-telemetry-v127@69f99c8`, and deploy from **that**
+> tree — not from the Meta branch.
+
+The patch is the one already proven on `wearable-bridge`: wrap the handler so
+every exit path drains the request stream.
+
+```ts
+const MAX_DISCARD_BYTES = 16 * 1024 * 1024;
+
+async function discardBody(req: Request): Promise<void> {
+  if (!req.body || req.bodyUsed) return;
+  try {
+    const reader = req.body.getReader();
+    let seen = 0;
+    while (seen < MAX_DISCARD_BYTES) {
+      const { done, value } = await reader.read();
+      if (done) return;
+      seen += value?.byteLength ?? 0;
+    }
+    await reader.cancel();
+  } catch { /* peer gone, or consumed concurrently */ }
+}
+
+// Deno.serve(async (req) => { try { …existing handler… } finally { await discardBody(req); } })
+```
+
+**Why this pass did not deploy it.** `scan-identify` is the whole application's
+core scanner, and its authenticated success path cannot be exercised from here —
+the QA account exists but its credential lives only in GitHub secrets. Shipping
+the app's primary scanner while unable to prove a successful scan still succeeds
+is not a call an unattended agent should make. The change itself is safe by
+construction (the drain only runs on paths that are already exiting), and the
+mechanism is live-proven on `wearable-bridge`.
+
+## Runtime Validation Phase — not entered, by its own rule
+
+The addendum requires **all three** entry gates. Two are open:
+
+| Gate | State |
+|---|---|
+| ADB target | ✅ `Pixel_8_Pro(AVD)` API 37, cold-booted |
+| Meta DAT package access | ❌ four artifacts `401`, no `read:packages` |
+| Approved staging test account | ⚠️ account **exists** on staging; credential not reachable from this environment |
+
+Nothing in this pass is labelled MOCKDEVICEKIT VERIFIED or PHYSICAL META
+HARDWARE VERIFIED, and no DAT symbol was compiled or executed.
+
+## Remaining conditions, each one action
+
+1. **#191** — `gh auth refresh -h github.com -s read:packages` (needs an
+   interactive browser). Upstream repo is public; no Meta entitlement involved.
+2. **P2-06 (`scan-identify`)** — apply the drain above on
+   `fix/build32-commerce-telemetry-v127@69f99c8` and deploy from that tree.
+3. **Authenticated re-runs** — export `STAGING_SYNTHETIC_ACTIVE_EMAIL` /
+   `_PASSWORD`, or run the matrix in CI where those secrets already exist, so
+   drift-guard layer B2 stops skipping.
+4. **#201** — three newly-executable `kscan-pii-native` failures.
+5. **Physical Meta Ray-Ban hardware** — still the only path to
+   PHYSICAL META HARDWARE VERIFIED.
+
+## Evidence added by this pass
+
+| Level | Added |
+|---|---|
+| **LIVE STAGING VERIFIED** | P2-05 24/24 schema assertions; P2-06 bridge 13-check matrix; #192/P3-04 database corroboration; #191 four-artifact re-probe; drift guard layers A+B |
+| **ADB RUNTIME VERIFIED** | DAT-off engine 13/13 on device; lifecycle stress; instrumentation harness repair |
+| **UNIT TEST VERIFIED** | Mobile 6,190/0/58; webapp full chain; drift-guard negative control |
+| **BUILD VERIFIED** | `:app:assembleDebug`; both native modules' `connectedDebugAndroidTest` |
+| **NOT CLAIMED** | MockDeviceKit, real DAT compile, `PhotoData`, physical hardware |
+
+---
+
 ## Starting SHAs
 
 | Repo | Branch | SHA | Worktree |
@@ -668,19 +891,30 @@ HUMAN/AUTHORITY/HARDWARE CONDITIONS REMAIN**
 
 | Gate | Status | Evidence |
 |---|---|---|
-| P2-05 | **CLOSED** | Applied to `yzqjvdfgefveprobvvyw`; 21/21 constraints, zero anon/authenticated grants, 4 further divergences found and fixed |
+| P2-05 | **CLOSED** | Applied to `yzqjvdfgefveprobvvyw`; re-verified independently 2026-08-23: migration body md5-identical to source, **24/24** live schema assertions, zero anon/authenticated grants |
 | P2-06 (bridge) | **CLOSED** | v8 live: 600 KB 60 s hang → 413 in 0.47 s; 9 MB → 413 in 1.8 s; auth unchanged |
-| P2-06 (scan-identify) | **BLOCKED — BRANCH SOURCE AUTHORITY** | Deployed copy is 9 files drifted, 8 files ahead |
+| P2-06 (scan-identify) | **OPEN — one named action** | v45 proven byte-reproducible from `fix/build32-commerce-telemetry-v127@69f99c8`; apply the proven drain there and deploy from that tree |
 | #192 | **CLOSED** | Supported self-signup; 23/23 authenticated E2E |
 | P3-04 authenticated proof | **CLOSED** | 1 `saved_scans` row from 4 Saves; 1 row per result cross-route, both orders |
 | #191 | **BLOCKED** | 401 with and without the token; `read:packages` absent; upstream repo public |
 | Real DAT compile | **NOT RUN** | Artifacts unresolvable |
 | PhotoData | **NOT VERIFIED** | Isolated to `DatEngine.kt:469` |
 | MockDeviceKit | **NOT RUN** | Package unresolvable |
-| Drift CI | **PASS** | 20/20; negative control fails then restores |
+| Drift CI | **PASS + hardened** | Layers A 6/6 + B 6/6 live; negative control caught by 2 independent layers; nightly secret-name gap fixed (`fea5712`) |
 | Webapp architecture reconciliation | **COMPLETE** | Hybrid, native-led; Web Apps have no camera |
 | Mobile tests | **PASS** | 6,190 pass / 0 fail / 58 skip |
 | Android build | **PASS** | `BUILD SUCCESSFUL`, SHA-256 `c20dfd47…` |
-| Emulator runtime | **PASS (flag-off)** | Cold launch ok, no FATAL/ANR, lifecycle stress clean |
-| Artifact security | **PASS** | 0 hits, positive control 67 |
+| Emulator runtime | **PASS (flag-off) — upgraded** | Cold launch + lifecycle stress clean, **plus 13/13 on-device instrumentation** proving the DAT-off engine fabricates nothing (`4e69d6e`) |
+| Artifact security | **PASS** | 0 hits on APK SHA-256 `5a11e1e6...`; scanner validated by planted positive control |
 | Physical hardware | **NOT RUN** | No device attached |
+
+---
+
+## Addendum - instrumentation harness
+
+Discovered during the verification pass: neither native module's on-device tests
+could execute (`androidx.test` too old for API 37; `kscan-pii-native` had no
+`testInstrumentationRunner` and fell back to the removed framework runner). Both
+repaired in `4e69d6e`. Three pre-existing `kscan-pii-native` failures became
+visible as a result and are tracked as issue **#201** - deliberately not edited
+to green.
