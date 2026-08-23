@@ -1171,12 +1171,21 @@ export function useKScan() {
   }, []);
 
   // Dispatch once per detection result that has candidates to shop.
+  //
+  // Gated on commerceDeferred for the same reason the single-item dispatch
+  // above is: that marker is set only when the backend reports
+  // `commerce.deferred === true`, which only the v127 funnel branch does. With
+  // the funnel disabled the MODE B route does not exist server-side, so every
+  // per-item request would fall through to the image path, return
+  // 'no image provided', and render a "no strong match" state for a search
+  // that never ran — N wasted invocations and a false statement to the user.
   useEffect(() => {
     if (status !== 'result') return;
+    if (!analysis?.commerceDeferred) return;
     const candidates = analysis?.confirmationCandidates;
     if (!Array.isArray(candidates) || candidates.length === 0) return;
     hydrateMultiItemCommerce(candidates);
-  }, [status, analysis?.confirmationCandidates, hydrateMultiItemCommerce]);
+  }, [status, analysis?.commerceDeferred, analysis?.confirmationCandidates, hydrateMultiItemCommerce]);
 
   // Abort any in-flight multi-item hydration when the hook unmounts.
   useEffect(() => () => {
@@ -1186,6 +1195,8 @@ export function useKScan() {
 
   /** Explicit user retry for the whole multi-item shelf. MODE B only. */
   const retryMultiItemCommerce = useCallback(() => {
+    // Same v127 authority gate as the dispatch effect and as retryCommerce.
+    if (!analysis?.commerceDeferred) return;
     const candidates = analysis?.confirmationCandidates;
     if (!Array.isArray(candidates) || candidates.length === 0) return;
     hydrateMultiItemCommerce(candidates, { isRetry: true });

@@ -49,10 +49,14 @@ test('runAnalysis (the function that reaches PRIMARY_RESULT_READY) never calls m
 });
 
 test('hydrateMultiItemCommerce is dispatched from its own effect, gated on status === "result", not from inside runAnalysis', () => {
-  const dispatchEffectStart = useKScanSource.indexOf(
+  const commentStart = useKScanSource.indexOf(
     "// Dispatch once per detection result that has candidates to shop.",
   );
-  assert.ok(dispatchEffectStart > 0, 'multi-item commerce dispatch effect not found');
+  assert.ok(commentStart > 0, 'multi-item commerce dispatch effect not found');
+  // Anchor on the useEffect itself, not the comment above it: comment length
+  // must not decide whether this assertion can see the guard chain.
+  const dispatchEffectStart = useKScanSource.indexOf('useEffect(() => {', commentStart);
+  assert.ok(dispatchEffectStart > commentStart, 'dispatch effect body not found');
   const effectSlice = useKScanSource.slice(dispatchEffectStart, dispatchEffectStart + 400);
   assert.ok(effectSlice.includes("if (status !== 'result') return;"), 'dispatch effect must early-return before status is result');
   assert.ok(effectSlice.includes('hydrateMultiItemCommerce(candidates)'), 'dispatch call not found in the effect');
@@ -61,6 +65,33 @@ test('hydrateMultiItemCommerce is dispatched from its own effect, gated on statu
   // i.e. it is a sibling hook registration, not a step inside it.
   const runAnalysisStart = useKScanSource.indexOf('const runAnalysis = useCallback(');
   assert.ok(dispatchEffectStart > runAnalysisStart);
+});
+
+test('multi-item commerce is gated by the v127 activation authority, exactly like the single-item path', () => {
+  // commerceDeferred is set only when the backend reports
+  // `commerce.deferred === true`, which only the v127 funnel branch does. With
+  // the funnel off there is no MODE B route server-side, so an ungated
+  // dispatch would issue one wasted invocation per candidate and then render
+  // "no strong shopping match" for a search that never ran.
+  const dispatchEffectStart = useKScanSource.indexOf(
+    '// Dispatch once per detection result that has candidates to shop.',
+  );
+  assert.ok(dispatchEffectStart > 0, 'multi-item commerce dispatch effect not found');
+  const effectSlice = useKScanSource.slice(dispatchEffectStart, dispatchEffectStart + 1400);
+  assert.ok(
+    effectSlice.includes("if (!analysis?.commerceDeferred) return;"),
+    'multi-item dispatch must be gated on commerceDeferred, the v127 activation authority',
+  );
+
+  // The explicit retry must carry the same gate — otherwise a retry button
+  // reintroduces exactly the requests the dispatch gate prevents.
+  const retryStart = useKScanSource.indexOf('const retryMultiItemCommerce = useCallback(');
+  assert.ok(retryStart > 0, 'retryMultiItemCommerce not found');
+  const retrySlice = useKScanSource.slice(retryStart, retryStart + 500);
+  assert.ok(
+    retrySlice.includes("if (!analysis?.commerceDeferred) return;"),
+    'retryMultiItemCommerce must carry the same v127 gate as the dispatch effect',
+  );
 });
 
 test('saveMultiItemScan in app.js is gated the same way as the existing saveScan effect — post-result only', () => {
