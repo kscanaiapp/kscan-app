@@ -278,6 +278,15 @@ const SAFE_TEXT_NON_FASHION_MESSAGE =
 type AuthContext = {
   userId: string | null;
   isAuthenticated: boolean;
+  /**
+   * True when the verified Supabase user is an anonymous identity
+   * (auth.signInAnonymously()), read directly off the already-fetched
+   * getUser() result — no extra network call. Distinct from isAuthenticated:
+   * an anonymous identity IS an authenticated session (it has a valid,
+   * verifiable JWT and its own auth.uid()), it is just not a K Scan AI
+   * account eligible to spend paid-AI budget. See isEligiblePaidAIActor().
+   */
+  isAnonymous: boolean;
   hasProjectAccess: boolean;
   authError: boolean;
 };
@@ -1205,6 +1214,7 @@ async function resolveAuthContext(
     return {
       userId: null,
       isAuthenticated: false,
+      isAnonymous: false,
       hasProjectAccess,
       authError: false,
     };
@@ -1218,6 +1228,11 @@ async function resolveAuthContext(
   return {
     userId: authError || !user ? null : user.id,
     isAuthenticated: Boolean(!authError && user),
+    // Supabase populates this on the verified user record for a session
+    // created via auth.signInAnonymously() — already present on the same
+    // getUser() response used for isAuthenticated, so reading it costs
+    // nothing extra.
+    isAnonymous: Boolean((user as { is_anonymous?: boolean } | null)?.is_anonymous),
     hasProjectAccess,
     authError: Boolean(authError || !user),
   };
@@ -1982,12 +1997,13 @@ Deno.serve(async (req) => {
   const logUserId = userId ? userId.slice(0, 8) : 'anon';
 
   console.log(
-    '[scan-identify] request_start mode=%s source=%s auth=%s uid=%s projectAccess=%s',
+    '[scan-identify] request_start mode=%s source=%s auth=%s uid=%s projectAccess=%s supabaseAnon=%s',
     mode,
     source,
     auth.isAuthenticated ? 'authenticated' : 'anonymous',
     logUserId,
     String(auth.hasProjectAccess),
+    String(auth.isAnonymous),
   );
 
   // v127 flag resolution for the commerce-only route. Same env helpers the
@@ -2213,36 +2229,51 @@ Deno.serve(async (req) => {
     String(useMultiItemProvider),
   );
 
-  if (mode === 'text' && !auth.isAuthenticated) {
-    void captureCommerceOutcome({
-      requestMode: 'text',
-      sourceClass: typeof source === 'string' ? source : null,
-      appPlatform,
-      appVersion,
-      status: 'failed',
-      isFashion: false,
-      categoryRoute: null,
-      qualityBand: null,
-      commerceQueryDetailLevel: null,
-      providerOutcome: null,
-      providersTried: null,
-      primaryResultCount: 0,
-      fallbackUsed: false,
-      productsBeforeFilter: 0,
-      productsAfterFilter: 0,
-      productsBeforeDedupe: 0,
-      productsAfterDedupe: 0,
-      categoryMismatchRemovals: 0,
-      retailerCount: 0,
-      commerceDurationMs: null,
-      totalDurationMs: Date.now() - requestStartedAt,
-      failureReason: mapToFailureReason({ authRequired: true }),
-      textScanParityEnabled: false,
-    });
-    return json({ error: 'Not authenticated' }, 401);
-  }
+  // ── Build 32 paid-AI ingress authority (single, non-bypassable) ──────────
+  //
+  // The publishable/anon project key (surfaced here as auth.hasProjectAccess)
+  // proves the request targets this project. A Supabase anonymous identity
+  // (auth.isAnonymous) proves a session exists. Neither proves the caller is
+  // a K Scan AI account eligible to spend Gemini budget, so neither may admit
+  // a request into text or image identification. This is the ONLY authority
+  // that decides that question for this route, it runs before any quota
+  // check, commerce retrieval, or provider call, and it has no fallback: an
+  // actor that fails this check is rejected outright, never re-admitted by
+  // project-key presence, rate-limit headroom, or a verification error.
+  //
+  // (MODE B, the commerce-only request above, is unaffected — it never
+  // reaches Gemini and is out of scope for this authority.)
+  const isEligiblePaidAIActor = auth.isAuthenticated && !auth.isAnonymous;
 
-  if (isAnonymousImageAnalysis && !auth.hasProjectAccess) {
+  if (!isEligiblePaidAIActor) {
+    if (mode === 'text') {
+      void captureCommerceOutcome({
+        requestMode: 'text',
+        sourceClass: typeof source === 'string' ? source : null,
+        appPlatform,
+        appVersion,
+        status: 'failed',
+        isFashion: false,
+        categoryRoute: null,
+        qualityBand: null,
+        commerceQueryDetailLevel: null,
+        providerOutcome: null,
+        providersTried: null,
+        primaryResultCount: 0,
+        fallbackUsed: false,
+        productsBeforeFilter: 0,
+        productsAfterFilter: 0,
+        productsBeforeDedupe: 0,
+        productsAfterDedupe: 0,
+        categoryMismatchRemovals: 0,
+        retailerCount: 0,
+        commerceDurationMs: null,
+        totalDurationMs: Date.now() - requestStartedAt,
+        failureReason: mapToFailureReason({ authRequired: true }),
+        textScanParityEnabled: false,
+      });
+      return json({ error: 'Not authenticated' }, 401);
+    }
     return json(
       {
         ...normalized('failed', SAFE_FAILED_MESSAGE),
@@ -2250,10 +2281,6 @@ Deno.serve(async (req) => {
       },
       401,
     );
-  }
-
-  if (isAnonymousImageAnalysis && auth.authError) {
-    console.warn('[scan-identify] image_auth_fallback_to_analysis_only reason=user_jwt_unverified');
   }
 
   const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
