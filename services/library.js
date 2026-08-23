@@ -300,6 +300,10 @@ export function hydrateSavedScan(scan) {
     ...scan,
     ownerId: normalizeOwnerId(scan.ownerId),
     purchaseOptions: normalizePurchaseOptions(stored),
+    // Absent on every pre-Build-32 record; defaults to empty rather than
+    // undefined so a reader can always safely map/iterate.
+    multiItemCandidates: Array.isArray(scan.multiItemCandidates) ? scan.multiItemCandidates : [],
+    multiItemCommerce: Array.isArray(scan.multiItemCommerce) ? scan.multiItemCommerce : [],
   };
 }
 
@@ -499,6 +503,188 @@ export async function saveScan({ photoUri, analysis, source, actorRequest, owner
   } catch {
     await cleanupRejectedMedia([imageUri, thumbnailUri]);
     return null;
+  }
+}
+
+/**
+ * Save a multi-item detection result to the Style Library (Build 32).
+ *
+ * A deliberately SEPARATE path from `saveScan`, not a widened branch of it:
+ * `saveScan` and its callers stay exactly as they were for every existing
+ * (single-item) scan. `products`/`purchaseOptions` are always written empty
+ * here — this record's commerce lives entirely in `multiItemCommerce`, keyed
+ * per candidate by `candidateId`, so offers for one detected garment can
+ * never be read as another's.
+ *
+ * Mirrors `saveScan`'s media persistence, actor-authority re-check, and
+ * per-partition eviction exactly; only the record shape differs.
+ *
+ * @param {object} opts
+ * @param {string} opts.photoUri
+ * @param {object} opts.analysis - the multi-item detection analysis (result/metadata)
+ * @param {Array}  opts.candidates - OutfitConfirmationCandidate[] from the detection response
+ * @param {string} [opts.source]
+ * @param {object} opts.actorRequest
+ * @returns {SavedScan|null}
+ */
+export async function saveMultiItemScan({ photoUri, analysis, candidates, source, actorRequest, ownerId, entryPath }) {
+  const preAuthority = resolveWriteAuthority(actorRequest, ownerId);
+  if (!preAuthority.ok) return null;
+  if (!Array.isArray(candidates) || candidates.length === 0) return null;
+
+  let imageUri = null;
+  let thumbnailUri = null;
+  try {
+    const id = 'scan_' + Date.now() + '_' + Math.floor(Math.random() * 9999);
+
+    imageUri = await persistScanImage(photoUri, createMediaAssetId());
+    thumbnailUri = await generateThumbnail(photoUri, createMediaAssetId());
+
+    const authority = resolveWriteAuthority(actorRequest, ownerId);
+    if (!authority.ok) {
+      await cleanupRejectedMedia([imageUri, thumbnailUri]);
+      return null;
+    }
+    const owner = authority.ownerId;
+
+    /** @type {SavedScan} */
+    const scan = {
+      id,
+      createdAt: new Date().toISOString(),
+      ownerId: owner,
+      imageUri,
+      thumbnailUri,
+      attributes: {
+        category:          analysis?.metadata?.category   ?? '',
+        silhouette:        analysis?.metadata?.silhouette ?? '',
+        color_palette:     analysis?.metadata?.color      ?? '',
+        material_estimate: analysis?.metadata?.materialEstimate ?? analysis?.metadata?.material ?? null,
+        pattern:           analysis?.metadata?.pattern ?? null,
+        style_tags:        Array.isArray(analysis?.metadata?.styleTags) ? analysis.metadata.styleTags.slice() : [],
+        confidence_score:  typeof analysis?.metadata?.confidenceScore === 'number'
+          ? analysis.metadata.confidenceScore
+          : null,
+      },
+      ...(analysis?.identificationSnapshot
+        ? {
+            identificationSnapshot: {
+              ...analysis.identificationSnapshot,
+              source: {
+                ...analysis.identificationSnapshot.source,
+                entryPath: resolveEntryPath(entryPath, source),
+              },
+            },
+          }
+        : {}),
+      ...(analysis?.identificationSnapshotV2
+        ? { identificationSnapshotV2: analysis.identificationSnapshotV2 }
+        : {}),
+      result:   analysis?.result ?? '',
+      // Never pooled: a multi-item scan's shoppable state lives only in
+      // multiItemCommerce, keyed per candidateId.
+      products: [],
+      purchaseOptions: [],
+      // Canonical item identities, captured immediately at save time —
+      // commerce for them is attached later via attachScanMultiItemCommerce,
+      // exactly as attachScanPurchaseOptions does for the single-item shelf.
+      multiItemCandidates: candidates.map((candidate) => ({
+        id: String(candidate.id),
+        label: String(candidate.label ?? candidate.category ?? 'Item'),
+        category: String(candidate.category ?? ''),
+        subtype: String(candidate.subtype ?? ''),
+        ...(typeof candidate.confidenceScore === 'number' ? { confidenceScore: candidate.confidenceScore } : {}),
+      })),
+      multiItemCommerce: [],
+      source: source || 'scan',
+    };
+
+    const committed = await enqueueLibraryMutation(async () => {
+      if (!isActorRequestCurrent(actorRequest)) return false;
+
+      const existing = await readAllLibrary();
+      const updated  = [scan, ...existing];
+
+      const partition = updated.filter(item => normalizeOwnerId(item.ownerId) === owner);
+      const evicted = partition.slice(MAX_SCANS);
+
+      if (evicted.length > 0) {
+        const evictedSet = new Set(evicted);
+        const survivors = updated.filter(item => !evictedSet.has(item));
+        await unlinkUnreferencedMedia(
+          evicted.flatMap(item => [item.imageUri, item.thumbnailUri]).filter(Boolean),
+          survivors,
+        );
+        await persistLibrary(survivors);
+      } else {
+        await persistLibrary(updated);
+      }
+      return true;
+    });
+
+    if (!committed) {
+      await cleanupRejectedMedia([imageUri, thumbnailUri]);
+      return null;
+    }
+
+    if (owner) {
+      saveScanToCloud(scan).catch(() => null);
+    }
+    return scan;
+  } catch {
+    await cleanupRejectedMedia([imageUri, thumbnailUri]);
+    return null;
+  }
+}
+
+/**
+ * Attach multi-item commerce cards that arrived after the scan was already
+ * saved (Build 32). Mirrors `attachScanPurchaseOptions` exactly, but updates
+ * `multiItemCommerce` instead: replaced wholesale, never appended, so a
+ * duplicate hydration or retry cannot double a card. Each entry's offers are
+ * normalized through the same URL/field hygiene as the single-item shelf.
+ */
+export async function attachScanMultiItemCommerce(id, multiItemCommerce, { actorRequest } = {}) {
+  if (!id) return false;
+  if (!Array.isArray(multiItemCommerce) || multiItemCommerce.length === 0) return false;
+
+  const normalized = multiItemCommerce
+    .filter((card) => card && typeof card.candidateId === 'string' && card.candidateId)
+    .map((card) => {
+      const bestMatchArr = normalizePurchaseOptions(card.bestMatch ? [card.bestMatch] : []);
+      return {
+        candidateId: card.candidateId,
+        status: typeof card.status === 'string' ? card.status : 'error',
+        bestMatch: bestMatchArr[0] ?? null,
+        alternatives: normalizePurchaseOptions(Array.isArray(card.alternatives) ? card.alternatives : []),
+      };
+    });
+  if (normalized.length === 0) return false;
+
+  try {
+    return await enqueueLibraryMutation(async () => {
+      if (actorRequest !== undefined && !isActorRequestCurrent(actorRequest)) return false;
+
+      const existing = await readAllLibrary();
+      const index = existing.findIndex((item) => item && item.id === id);
+      if (index === -1) return false;
+
+      const target = existing[index];
+      if (actorRequest !== undefined) {
+        const owner = normalizeOwnerId(normalizeActorIdArg(actorRequest.actorId));
+        if (normalizeOwnerId(target.ownerId) !== owner) return false;
+      }
+
+      const updated = existing.slice();
+      updated[index] = { ...target, multiItemCommerce: normalized };
+      await persistLibrary(updated);
+
+      if (normalizeOwnerId(target.ownerId)) {
+        saveScanToCloud(updated[index]).catch(() => null);
+      }
+      return true;
+    });
+  } catch {
+    return false;
   }
 }
 

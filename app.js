@@ -31,6 +31,8 @@ import {
   selectPurchaseOptionsSnapshot,
   attachScanPurchaseOptions,
   purchaseOptionsFingerprint,
+  saveMultiItemScan,
+  attachScanMultiItemCommerce,
 } from './services/library';
 import { createActorRequest, isActorRequestCurrent } from './services/actorContext';
 import { setStyleChatHandoffContext } from './services/style-chat/styleChatHandoffContext';
@@ -274,6 +276,9 @@ export default function App() {
     analysis,
     commerceStatus,
     retryCommerce,
+    multiItemCommerce,
+    multiItemCommerceStatus,
+    retryMultiItemCommerce,
     error,
     nonFashionMessage,
     isAnalyzing,
@@ -376,6 +381,11 @@ export default function App() {
   // hasSavedRef: prevents saving the same result twice if the effect re-fires.
   // Reset to false when a new analysis starts (status → processing).
   const hasSavedRef = useRef(false);
+  // Build 32: separate save-once guard and saved-id for the multi-item path,
+  // independent of hasSavedRef/savedScanId above (single-item scans never set
+  // this; multi-item scans never set the other).
+  const hasSavedMultiItemRef = useRef(false);
+  const [savedMultiItemScanId, setSavedMultiItemScanId] = useState(null);
   const [savedToast, setSavedToast] = useState(false);
   const [savedScanId, setSavedScanId] = useState(null);
   const [scanRoomModalVisible, setScanRoomModalVisible] = useState(false);
@@ -399,6 +409,8 @@ export default function App() {
       setV2AnalyzingMinComplete(false);
       setSavedScanId(null);
       hasSavedRef.current = false; // arm save for the next result
+      setSavedMultiItemScanId(null);
+      hasSavedMultiItemRef.current = false;
       return;
     }
     // When processing succeeds, briefly show the HUD with real metadata
@@ -469,6 +481,48 @@ export default function App() {
     const actorRequest = createActorRequest();
     attachScanPurchaseOptions(savedScanId, options, { actorRequest }).catch(() => null);
   }, [status, savedScanId, analysis]);
+
+  // Build 32: save a multi-item detection result once, independent of the
+  // single-item save above (that one explicitly skips while
+  // confirmationCandidates exist — see its own effect). Fires as soon as the
+  // candidates are known; commerce for them attaches afterward, below.
+  useEffect(() => {
+    if (
+      status !== 'result' ||
+      !photo?.uri ||
+      !analysis?.confirmationCandidates?.length ||
+      hasSavedMultiItemRef.current
+    ) return;
+    hasSavedMultiItemRef.current = true;
+    let live = true;
+    const actorRequest = createActorRequest();
+    saveMultiItemScan({
+      photoUri: photo.uri,
+      analysis,
+      candidates: analysis.confirmationCandidates,
+      source: photo.source || 'scan',
+      actorRequest,
+    }).then(saved => {
+      if (live && saved && isActorRequestCurrent(actorRequest)) {
+        setSavedMultiItemScanId(saved.id);
+      }
+    });
+    return () => { live = false; };
+  }, [status, photo, analysis]);
+
+  // Build 32: attach multi-item commerce once hydration completes. Same
+  // shape as the single-item attach effect above — correct whether commerce
+  // lands before or after the record id is known, no timer.
+  const attachedMultiItemCommerceRef = useRef(null);
+  useEffect(() => {
+    if (status !== 'result' || !savedMultiItemScanId) return;
+    if (!Array.isArray(multiItemCommerce) || multiItemCommerce.length === 0) return;
+    const key = savedMultiItemScanId + ':' + multiItemCommerce.length + ':' + multiItemCommerceStatus;
+    if (attachedMultiItemCommerceRef.current === key) return;
+    attachedMultiItemCommerceRef.current = key;
+    const actorRequest = createActorRequest();
+    attachScanMultiItemCommerce(savedMultiItemScanId, multiItemCommerce, { actorRequest }).catch(() => null);
+  }, [status, savedMultiItemScanId, multiItemCommerce, multiItemCommerceStatus]);
 
   // When the scanner was opened from Elise, automatically return the structured
   // visual context to the originating session once analysis completes.
@@ -1088,6 +1142,12 @@ export default function App() {
             // keeps its pre-existing hidden-when-empty behavior.
             commerceStatus={analysis?.commerceDeferred ? commerceStatus : 'idle'}
             onRetryCommerce={retryCommerce}
+            // Build 32: only meaningful on this live-scan surface, same reason
+            // as commerceStatus above — a reopened Recent Scan renders from
+            // its own persisted snapshot instead (see app/library.tsx).
+            multiItemCommerce={multiItemCommerce}
+            multiItemCommerceStatus={multiItemCommerceStatus}
+            onRetryMultiItemCommerce={retryMultiItemCommerce}
             onDismiss={dismissResult}
             onSaveToLibrary={savedScanId ? () => router.push('/library') : undefined}
             saveActionLabel={savedScanId ? 'View Closet' : undefined}

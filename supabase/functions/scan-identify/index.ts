@@ -1498,6 +1498,16 @@ function isCommerceOnlyRequest(body: { requestMode?: unknown }): boolean {
 }
 
 /**
+ * Optional per-item correlation id for a MODE B request (Build 32 multi-item
+ * commerce). Pure passthrough: echoed on the response unchanged, never read
+ * by ranking, filtering, or provider selection. Absent on every pre-Build-32
+ * caller, so its absence changes nothing.
+ */
+function readCommerceOnlyCandidateId(body: { candidateId?: unknown }): string | undefined {
+  return safeString(body.candidateId);
+}
+
+/**
  * Hard privacy gate for MODE B.
  *
  * The commerce-only path must operate on structured evidence, so an image
@@ -2070,6 +2080,7 @@ Deno.serve(async (req) => {
         400,
       );
     }
+    const commerceOnlyCandidateId = readCommerceOnlyCandidateId(body);
 
     const gated = applyScannerQualityGate(evidence.identification, evidence.attributes, {
       commerceIdentityEnabled: commerceIdentityEnabledForCommerceOnly,
@@ -2127,6 +2138,7 @@ Deno.serve(async (req) => {
         purchaseOptions: [],
         recommendedProducts: [],
         commerce: { available: false, retryable: true, errorType: 'provider_error' },
+        ...(commerceOnlyCandidateId ? { candidateId: commerceOnlyCandidateId } : {}),
       }, 200);
     }
 
@@ -2159,6 +2171,7 @@ Deno.serve(async (req) => {
       purchaseOptions: products,
       recommendedProducts: products,
       canonicalProducts: canonical.products,
+      ...(commerceOnlyCandidateId ? { candidateId: commerceOnlyCandidateId } : {}),
       commerce: {
         available: products.length > 0,
         retryable: products.length === 0,

@@ -44,6 +44,13 @@ export type CommerceHydrationEvidence = {
   attributes?: Record<string, unknown> | null;
   searchQueries?: string[] | null;
   market?: { locale?: string | null; currency?: string | null; country?: string | null } | null;
+  /**
+   * Build 32: optional per-item correlation id (a multi-item detection
+   * candidateId). Pure passthrough — the backend echoes it unchanged and
+   * never reads it for ranking or query construction. Omit for the existing
+   * single-item flow; every pre-Build-32 caller already omits it.
+   */
+  candidateId?: string | null;
 };
 
 export type CommerceHydrationResult = {
@@ -56,6 +63,8 @@ export type CommerceHydrationResult = {
   provider?: string;
   errorType?: string;
   retryable: boolean;
+  /** Echoed back only when the request carried one. */
+  candidateId?: string;
 };
 
 const EMPTY_RESULT: CommerceHydrationResult = {
@@ -121,6 +130,10 @@ export function buildCommerceOnlyBody(
   const market = plainObject(evidence.market);
   if (market) body.market = market;
 
+  if (typeof evidence.candidateId === 'string' && evidence.candidateId.trim()) {
+    body.candidateId = evidence.candidateId.trim();
+  }
+
   if (options?.enrich) body.enrich = true;
 
   return body;
@@ -173,6 +186,7 @@ export function normalizeCommerceHydrationResponse(raw: unknown): CommerceHydrat
     provider: typeof commerce.provider === 'string' ? commerce.provider : undefined,
     errorType: typeof commerce.errorType === 'string' ? commerce.errorType : undefined,
     retryable: purchaseOptions.length === 0,
+    candidateId: typeof src.candidateId === 'string' ? src.candidateId : undefined,
   };
 }
 

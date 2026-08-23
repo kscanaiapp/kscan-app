@@ -72,6 +72,18 @@ export interface AnalysisCardProps {
   selectedCandidateId?: string | null;
   onSelectCandidate?: (candidateId: string) => void;
   onAnalyzeSelectedCandidate?: (candidateId: string) => void;
+  /**
+   * Build 32: persisted per-item commerce, restored on a reopened Recent
+   * Scan. Absent/empty on every pre-Build-32 saved scan and on any scan that
+   * was not a multi-item detection — the section simply does not render.
+   */
+  multiItemCandidates?: Array<{ id: string; label: string; category: string; subtype: string }>;
+  multiItemCommerce?: Array<{
+    candidateId: string;
+    status: string;
+    bestMatch: Product | null;
+    alternatives: Product[];
+  }>;
   /** Optional structured Scan Result Object (Part 2). When present, an additive
    *  ScanResultCard renders above the product shelf. Absent → UI unchanged. */
   scanResultObject?: ScanResultObject | null;
@@ -143,6 +155,8 @@ export function AnalysisCard({
   selectedCandidateId,
   onSelectCandidate,
   onAnalyzeSelectedCandidate,
+  multiItemCandidates = [],
+  multiItemCommerce = [],
   scanResultObject,
   secondhand,
   sneakerReference,
@@ -392,6 +406,44 @@ export function AnalysisCard({
                       <Text style={styles.scanRoomCtaText}>Find Matches</Text>
                     </TouchableOpacity>
                   ) : null}
+                </View>
+              ) : null}
+
+              {/* Build 32: restored per-item commerce cards on a reopened
+                  Recent Scan. Garment-organized, Best Match + Alternatives
+                  only. Absent on scans saved before Build 32 or with no
+                  attached commerce yet — section simply does not render. */}
+              {multiItemCandidates.length > 0 ? (
+                <View style={styles.candidatePanel} testID="multi-item-commerce-section">
+                  {multiItemCandidates.map((candidate) => {
+                    const card = multiItemCommerce.find((entry) => entry.candidateId === candidate.id);
+                    return (
+                      <View key={candidate.id} testID={`multi-item-commerce-card-${candidate.id}`}>
+                        {card?.bestMatch ? (
+                          <ProductShelf
+                            products={[card.bestMatch]}
+                            label={`${candidate.label} · Best Match`}
+                            testID={`multi-item-commerce-best-match-${candidate.id}`}
+                          />
+                        ) : (
+                          <ProductShelf
+                            products={[]}
+                            label={candidate.label}
+                            emptyTitle="No strong shopping match found."
+                            emptyBody="This item was identified, but no confident retailer match was returned."
+                            testID={`multi-item-commerce-no-match-${candidate.id}`}
+                          />
+                        )}
+                        {card && card.alternatives.length > 0 ? (
+                          <ProductShelf
+                            products={card.alternatives}
+                            label={`${candidate.label} · Alternatives`}
+                            testID={`multi-item-commerce-alternatives-${candidate.id}`}
+                          />
+                        ) : null}
+                      </View>
+                    );
+                  })}
                 </View>
               ) : null}
 
