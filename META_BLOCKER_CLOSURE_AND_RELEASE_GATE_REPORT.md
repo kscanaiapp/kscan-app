@@ -98,12 +98,34 @@ to two migrations already recorded above it. Renamed to match. (`fea5712`)
 
 `wearable-deploy-drift.yml` runs with `--require-live`, which correctly turns a
 missing secret into a hard failure — but it passed `SUPABASE_STAGING_QA_EMAIL` /
-`_PASSWORD`, secrets this repository does not provision. It already maintains
-three persistent synthetic staging accounts under `STAGING_SYNTHETIC_ACTIVE_*`
-(`docs/security/staging-synthetic-auth.md`). As written the nightly guard would
-have failed **every night on config rather than on drift**, and a guard that
-cries wolf about itself stops being read. Now accepts either name and says which
-to set. (`fea5712`)
+`_PASSWORD`, which no repository provisions. So the nightly guard would have
+failed **every night on config rather than on drift**, and a guard that cries
+wolf about itself stops being read. The guard now accepts either that name or
+`STAGING_SYNTHETIC_ACTIVE_*`, and names both in its skip message. (`fea5712`)
+
+**Correction, made in `4350fa4`.** My first attempt justified the fallback by
+claiming *this* repository already provisions `STAGING_SYNTHETIC_ACTIVE_*` via
+`docs/security/staging-synthetic-auth.md`. That was wrong, and checkable:
+
+```
+gh secret list -R kscanaiapp/kscan-glasses-webapp   -> empty, zero secrets
+gh secret list -R kscanaiapp/kscan-app              -> STAGING_SYNTHETIC_ACTIVE_*
+docs/security/staging-synthetic-auth.md             -> kscan-app only
+```
+
+Those secrets and that document live in **kscan-app**, and GitHub secrets do not
+cross repositories. Accepting the alternate name therefore does not by itself
+supply a credential — it swaps one absent name for two. The code change is still
+worth keeping, but the fix for the nightly failure is to **create the five
+secrets in this repository** before enabling the schedule; the workflow now says
+so explicitly and points at `workflow_dispatch` as the interim path.
+`--require-live` stays fail-closed: a guard that skips quietly is worse than one
+that is visibly unconfigured.
+
+The same commit also untracked `supabase/.temp/linked-project.json`, which
+`fea5712` had swept in via `git add -A supabase` — against this pass's explicit
+instruction not to commit it, and it is CLI scratch state that can carry access
+-token material. The file remains on disk, unchanged, and is now gitignored.
 
 ### 3. The Android instrumentation harness was dead — in both native modules
 
