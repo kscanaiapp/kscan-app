@@ -529,6 +529,41 @@ bypass was implemented** to work around it.
 
 ---
 
+## Commits / Push Confirmation
+
+**Mobile** - `kscanaiapp/kscan-app`, branch
+`feature/meta-physical-device-candidate-v1-mobile`. This branch had **never
+been pushed** before this session; this is its first push.
+
+| SHA | Commit |
+|---|---|
+| `9d39dbd` | `refactor(meta): extract testable privacy geometry and record capture provenance` |
+| `4143e03` | `feat(meta): add native Meta Wearables Device Access Toolkit adapter (DAT 0.9)` |
+| `af6dcbb` | `feat(meta): capture from the glasses when they are there, the phone when they are not` |
+| `466cc6a` | `fix(meta): import the Expo Coroutine infix builder so the adapter compiles` |
+| `693b4fb` | `docs(meta): finalize convergence report with SHAs and push confirmation` |
+
+`9d39dbd` preserves the uncommitted privacy-geometry work that was already in
+the tree at session start; it was not discarded.
+
+**Webapp** - `kscanaiapp/kscan-glasses-webapp`, branch
+`feature/meta-physical-device-candidate-v1`.
+
+| SHA | Commit |
+|---|---|
+| `8b67161` | `fix(meta): group wearable results by provenance instead of labelling all retail` |
+
+**Push confirmation** - local HEAD equals origin HEAD for both, trees clean:
+
+```
+WEBAPP local=8b671618360aa9806b089108facc9c8de89139eb  origin=8b671618360aa9806b089108facc9c8de89139eb
+MOBILE local=693b4fb (== origin/feature/meta-physical-device-candidate-v1-mobile)
+```
+
+No merge to `main`/`master`. No force push. Feature branches only.
+
+---
+
 ## Evidence Classification
 
 | Category | Status |
