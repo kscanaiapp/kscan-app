@@ -1162,3 +1162,27 @@ privacy attacks in this audit's reachable scope. What they did not survive was t
 that they had ever worked at all: before this audit, the Meta companion could not complete a
 single pairing against staging, and the wearable backend was discarding every live commerce
 result it was asked to return.
+
+---
+
+## Audit Repair Pass — 2026-08-23
+
+This addendum addresses exactly the four findings left **OPEN** in the final remediation
+ledger. It does not reclassify an external/platform condition as an application fix.
+
+| Finding | Repair outcome | Evidence / remaining condition |
+|---|---|---|
+| **P2-05** schema reconciliation | Migration authored and committed in the shared backend repo. | `20260823141131_reconcile_wearable_schema_with_staging.sql` reconciles the documented wearable constraints. It has not been applied: staging database source authority / database credentials were unavailable, so DDL was not guessed or pushed. **BLOCKED — STAGING DB AUTHORITY.** |
+| **P2-06** large request ingress failure | No function-code change is capable of repairing a pre-handler hosted ingress failure. | The documented 160s/503 behavior exceeds the hosted function idle-time limit; retain as **BLOCKED — HOSTED INGRESS / INFRASTRUCTURE** pending platform-owner investigation. |
+| **P2-07** ML Kit packaging-policy guard | Repaired. | The direct JS ML Kit wrapper was removed. The existing audited Android half of `kscan-pii-native` now supplies the native ML Kit detector, and the privacy path fails closed on missing/invalid native output. Full Android build and the full mobile suite pass. |
+| **P3-04** cross-client Save idempotency | Repaired and deployed. | `wearable-bridge` now checks `saved_scans.local_id` first, retains legacy metadata lookup, and re-reads on a uniqueness race. Staging `wearable-bridge` is ACTIVE v7. Authenticated multi-client execution remains blocked by **#192**; no synthetic identity was used. |
+
+### Direct staging follow-up
+
+The previously repaired P2-01 commerce-grouping logic had regressed in staging `wearable-scan`
+v8 while source still contained the correct normalization. It was redeployed from committed
+source as staging `wearable-scan` v9 and downloaded back for source equality verification.
+This is a deployment correction, not an additional audit finding.
+
+Detailed evidence and the stop conditions are recorded in
+`META_HYBRID_HOSTILE_AUDIT_4_FIX_REPAIR_REPORT.md`.
