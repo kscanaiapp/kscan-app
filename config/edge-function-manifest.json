@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-23T18:21:22.033Z",
-    "generatedFromGitSha": "a4bc4d50179514f043749435cb6ba0b8e06492e2"
+    "generatedAtUtc": "2026-08-23T18:28:16.696Z",
+    "generatedFromGitSha": "d4a4af39f3f66997b3e88016e1a71764e811088c"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -21,8 +21,8 @@
         ],
         "bundleFileCount": 38,
         "treeFileCount": 59,
-        "bundleHash": "de9dd27caf8299f6e2bab9d8f1c5a08b9bcfa38664e19de891314509588038b3",
-        "treeHash": "3193498f1c8585d93c12ecc50d47952cf8cab7bcdd6a72edafecc8bba2922426",
+        "bundleHash": "b7ba4c4248df3321de3e2358b381e7c5d9d34886538c69cdeeeb92ae85d59f65",
+        "treeHash": "193c73cdd54e46a56a8afec6ca1d1f9a6fe5936f314b08209b8a362cb59d3e3b",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -136,7 +136,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/commerceRelevanceQueries.ts",
-            "sha256": "316e7e201167e7d5554fda4888f35d07ccf1e5d5dabd2cd2859d7397645bf5d1",
+            "sha256": "2006bed2449550cca5ea77f7a05cac93631e6ed1eb0eefe915f855bf37ad9741",
             "bundle": true
           },
           {
@@ -146,7 +146,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/commerceRetrieval.v125.test.ts",
-            "sha256": "80efad99ecae4fe418fc848f8a98736a04c5ac2a50c1c4dee65482ce50b8547e",
+            "sha256": "5415d525b4712f0c882f86475fce65b80c0ff11b7c1a3641c30192c32d41aea1",
             "bundle": false
           },
           {
