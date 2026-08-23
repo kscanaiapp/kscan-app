@@ -43,6 +43,7 @@ import {
   shouldRunFallbackQuery,
   type CommerceRelevanceOptions,
 } from './qualityTuneCommerce.ts';
+import { agreementBandFromScore } from './commerceRelevanceAgreement.ts';
 import type { ScannerCategoryRoute } from './scannerCategoryRoute.ts';
 import type { CommerceIdentityEvidence } from './scannerQualityGate.ts';
 import type { CommerceQueryStrategy } from './commerceRetrievalConfig.ts';
@@ -851,6 +852,32 @@ export type FastCommerceResult = {
   };
   /** Bounded set of URLs worth a deferred enrichment hop. */
   enrichmentCandidates: EnrichmentCandidate[];
+  /**
+   * Filter/dedupe diagnostics — mirrors ScanCommerceResult's own
+   * `qualityTune` shape so MODE A and MODE B outcome telemetry share one
+   * normalized contract. Computed by the unchanged v124 filter this
+   * function already runs; simply not previously surfaced to the caller.
+   * Absent on a cache-hit response, since those stats were produced at
+   * cache-write time and were never stored alongside the cached products.
+   */
+  qualityTune?: {
+    fallbackUsed: boolean;
+    productsBeforeDedupe: number;
+    productsAfterDedupe: number;
+    categoryMismatchRemovals: number;
+    identityKeyTypesUsed: string[];
+    productsBeforeFilter?: number;
+    retailerCount?: number;
+    /**
+     * Accuracy-telemetry repair: the highest agreement score among ranked
+     * candidates, and its deterministic band. `stats.agreementScores` is
+     * already descending-order (built from `dedupedScored`, sorted by score
+     * before diversity reranking touches order) — this is its first element,
+     * not a new computation.
+     */
+    topAgreementScore?: number | null;
+    topAgreementBand?: string | null;
+  };
 };
 
 function providerOutcomeFor(
@@ -1076,6 +1103,7 @@ export async function getFastCommerceResults(
 
   // ── 3. Unchanged v124 ranking ─────────────────────────────────────────────
   let merged = pool.slice(0, MAX_RESULTS);
+  let qualityTune: FastCommerceResult['qualityTune'];
   if (resolved.qualityEnabled) {
     const filtered = filterAndDedupeProducts(
       merged,
@@ -1083,6 +1111,18 @@ export async function getFastCommerceResults(
       resolved.relevanceOpts,
     );
     merged = filtered.products.slice(0, MAX_RESULTS);
+    const topScore = filtered.stats.agreementScores?.[0];
+    qualityTune = {
+      fallbackUsed: false,
+      productsBeforeDedupe: filtered.stats.productsBeforeDedupe,
+      productsAfterDedupe: filtered.stats.productsAfterDedupe,
+      categoryMismatchRemovals: filtered.stats.categoryMismatchRemovals,
+      identityKeyTypesUsed: filtered.stats.identityKeyTypesUsed,
+      productsBeforeFilter: filtered.stats.productsBeforeFilter,
+      retailerCount: filtered.stats.retailerCount,
+      topAgreementScore: typeof topScore === 'number' ? topScore : null,
+      topAgreementBand: typeof topScore === 'number' ? agreementBandFromScore(topScore) : null,
+    };
   }
 
   const discoveryErrorType = shoppingSettled.errorType ?? poshmarkSettled.errorType;
@@ -1116,6 +1156,7 @@ export async function getFastCommerceResults(
       salvagedFromPartial: outcome.timedOutKeys.length > 0 && merged.length > 0,
     },
     enrichmentCandidates: selectEnrichmentCandidates(merged, input),
+    ...(qualityTune ? { qualityTune } : {}),
   };
 }
 
