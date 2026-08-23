@@ -2,13 +2,21 @@ import FaceDetection from '@react-native-ml-kit/face-detection';
 import { Directory, File, Paths } from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { ImageFormat, Skia } from '@shopify/react-native-skia';
+import { computeMaskRect, isLocalUri, validateFrame, type FaceFrame } from './metaWearablePrivacyGeometry';
 
 export const META_WEARABLE_PRIVACY_POLICY_VERSION = 'kscan.privacy.mobile.v1';
 const MAX_DIMENSION = 800;
 const JPEG_QUALITY = 82;
-const MASK_MARGIN_X = 0.16;
-const MASK_MARGIN_UP = 0.2;
-const MASK_MARGIN_DOWN = 0.1;
+
+/**
+ * Capture provenance recorded in the privacy policy attached to a scan.
+ *
+ * This is an attestation, not a label: it states which camera actually took
+ * the image. Reporting `phone_camera` for a photo taken by the glasses would
+ * make the stored policy record false, so the caller must pass the real
+ * source whenever it is not the phone.
+ */
+export type MetaWearableCaptureSource = 'phone_camera' | 'meta_glasses';
 
 export type MetaWearablePrivacyResult = {
   sanitizedUri: string;
@@ -22,7 +30,7 @@ export type MetaWearablePrivacyResult = {
     faceDetectionCompleted: true;
     faceMaskApplied: boolean;
     rawUpload: false;
-    source: 'phone_camera';
+    source: MetaWearableCaptureSource;
   };
 };
 
@@ -36,30 +44,9 @@ export class MetaWearablePrivacyError extends Error {
   }
 }
 
-type FaceFrame = { left: number; top: number; width: number; height: number };
-
-function isLocalUri(uri: unknown): uri is string {
-  return typeof uri === 'string' && /^(?:file|content):\/\//iu.test(uri);
-}
-
-function validateFrame(value: unknown, width: number, height: number): FaceFrame | null {
-  if (!value || typeof value !== 'object') return null;
-  const frame = value as Record<string, unknown>;
-  const left = Number(frame.left);
-  const top = Number(frame.top);
-  const faceWidth = Number(frame.width);
-  const faceHeight = Number(frame.height);
-  if (![left, top, faceWidth, faceHeight].every(Number.isFinite) || faceWidth <= 0 || faceHeight <= 0) return null;
-  if (left < -1 || top < -1 || left + faceWidth > width + 1 || top + faceHeight > height + 1) return null;
-  return { left, top, width: faceWidth, height: faceHeight };
-}
-
 function maskRect(frame: FaceFrame, width: number, height: number) {
-  const x = Math.max(0, frame.left - frame.width * MASK_MARGIN_X);
-  const y = Math.max(0, frame.top - frame.height * MASK_MARGIN_UP);
-  const right = Math.min(width, frame.left + frame.width * (1 + MASK_MARGIN_X));
-  const bottom = Math.min(height, frame.top + frame.height * (1 + MASK_MARGIN_DOWN));
-  return Skia.XYWHRect(x, y, Math.max(1, right - x), Math.max(1, bottom - y));
+  const rect = computeMaskRect(frame, width, height);
+  return Skia.XYWHRect(rect.x, rect.y, rect.width, rect.height);
 }
 
 async function decode(uri: string) {
@@ -108,6 +95,7 @@ async function renderMasks(uri: string, width: number, height: number, frames: F
 export async function sanitizeMetaWearableCapture(
   rawUri: string,
   dimensions?: { width?: number; height?: number },
+  options?: { source?: MetaWearableCaptureSource },
 ): Promise<MetaWearablePrivacyResult> {
   if (!isLocalUri(rawUri)) throw new MetaWearablePrivacyError('PRIVACY_INPUT_INVALID');
   const sourceWidth = Number(dimensions?.width);
@@ -163,7 +151,7 @@ export async function sanitizeMetaWearableCapture(
       faceDetectionCompleted: true,
       faceMaskApplied: validFrames.length > 0,
       rawUpload: false,
-      source: 'phone_camera',
+      source: options?.source ?? 'phone_camera',
     },
   };
 }
