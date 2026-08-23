@@ -43,9 +43,14 @@ import type { RecommendedProduct } from './shoppingProvider.ts';
 import {
   buildCommerceOutcomeRow,
   captureCommerceOutcome,
+  captureCommerceOutcomeNonBlocking,
   type CommerceOutcomeInput,
 } from './commerceOutcomeCapture.ts';
-import { FAILURE_REASON_WEAK_QUERY, mapToFailureReason } from './commerceRelevanceFailure.ts';
+import {
+  FAILURE_REASON_WEAK_QUERY,
+  mapFastCommerceFailureReason,
+  mapToFailureReason,
+} from './commerceRelevanceFailure.ts';
 
 // ── Fetch harness ────────────────────────────────────────────────────────────
 
@@ -578,6 +583,11 @@ Deno.test('INVARIANT 8: every provider failing yields an empty retryable shelf, 
     assert.deepEqual(result.products.length, 0);
     assert.ok(result.errorType !== undefined, 'no diagnostic for a total failure');
     assert.deepEqual(result.funnel.cacheHit, false);
+    assert.equal(mapFastCommerceFailureReason({
+      errorType: result.errorType,
+      productCount: result.products.length,
+      providerOutcomes: result.funnel.providers.map((provider) => provider.outcome),
+    }), 'provider_error', 'provider failures must not masquerade as genuine no-results telemetry');
     // A failed shelf must never be cached.
     const again = await getFastCommerceResults(fastInput('moto jacket allfail'));
     assert.deepEqual(again.funnel.cacheHit, false);
@@ -1343,12 +1353,12 @@ Deno.test('WIRING: the repaired MODE B block calls captureCommerceOutcome on bot
   const src = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
   const { start, block } = boundModeB(src);
 
-  const callCount = (block.match(/void captureCommerceOutcome\(\{/g) ?? []).length;
+  const callCount = (block.match(/captureCommerceOutcomeNonBlocking\(\{/g) ?? []).length;
   assert.equal(callCount, 2, `expected exactly 2 capture calls (provider-error + success), found ${callCount}`);
 
   // Each call must precede its own return, not follow it — a call placed
   // after `return` is dead code and would silently reintroduce the gap.
-  const providerErrorCapture = block.indexOf('void captureCommerceOutcome({');
+  const providerErrorCapture = block.indexOf('captureCommerceOutcomeNonBlocking({');
   const providerErrorReturn = block.indexOf(
     "commerce: { available: false, retryable: true, errorType: 'provider_error' }",
   );
@@ -1356,7 +1366,7 @@ Deno.test('WIRING: the repaired MODE B block calls captureCommerceOutcome on bot
     'the provider-error capture call must run before its return');
 
   const doneLogIndex = block.indexOf('commerce_only_done');
-  const secondCapture = block.indexOf('void captureCommerceOutcome({', providerErrorCapture + 1);
+  const secondCapture = block.indexOf('captureCommerceOutcomeNonBlocking({', providerErrorCapture + 1);
   assert.ok(secondCapture > doneLogIndex,
     'the success-path capture call must follow the commerce_only_done log line');
   const finalReturn = block.indexOf('return json({', secondCapture);
@@ -1729,4 +1739,48 @@ Deno.test('RUNTIME: MODE B derives weak_query, not commerce_primary_empty, for a
       (fastLikeWeak.errorType as string) !== 'timeout' && (fastLikeWeak.errorType as string) !== 'weak_query',
   });
   assert.equal(failureReason, FAILURE_REASON_WEAK_QUERY);
+});
+
+Deno.test('ACCURACY: MODE B distinguishes provider errors, genuine empty, timeout, non-fashion, and partial salvage', () => {
+  assert.equal(mapFastCommerceFailureReason({
+    errorType: 'http_error', productCount: 0, providerOutcomes: ['error', 'error'],
+  }), 'provider_error');
+  assert.equal(mapFastCommerceFailureReason({
+    errorType: 'no_results', productCount: 0, providerOutcomes: ['zero_result', 'zero_result'],
+  }), 'commerce_primary_empty');
+  assert.equal(mapFastCommerceFailureReason({
+    errorType: 'timeout', productCount: 0, providerOutcomes: ['timeout', 'zero_result'],
+  }), 'provider_timeout');
+  assert.equal(mapFastCommerceFailureReason({
+    errorType: 'non_fashion', productCount: 0, providerOutcomes: [],
+  }), 'non_fashion');
+  assert.equal(mapFastCommerceFailureReason({
+    errorType: null, productCount: 2, providerOutcomes: ['success', 'timeout'],
+  }), null, 'partial-result salvage must remain a successful commerce outcome');
+});
+
+Deno.test('NON-BLOCKING: delayed, rejected, and failed telemetry cannot alter commerce completion', async () => {
+  const input = baseOutcomeInput();
+  const commerceResponse = { status: 'completed', bestMatch: 'visible-product', alternatives: ['alt-product'] };
+
+  let releaseDelay!: (value: { attempted: boolean; ok: boolean; reason: string | null }) => void;
+  const delayed = new Promise<{ attempted: boolean; ok: boolean; reason: string | null }>((resolve) => {
+    releaseDelay = resolve;
+  });
+  const delayedStarted = performance.now();
+  captureCommerceOutcomeNonBlocking(input, () => delayed);
+  assert.ok(performance.now() - delayedStarted < 25, 'a simulated 5-second telemetry delay blocked commerce');
+  assert.deepEqual(commerceResponse, { status: 'completed', bestMatch: 'visible-product', alternatives: ['alt-product'] });
+  releaseDelay({ attempted: true, ok: true, reason: null });
+
+  captureCommerceOutcomeNonBlocking(input, () => Promise.reject(new Error('injected telemetry rejection')));
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.deepEqual(commerceResponse, { status: 'completed', bestMatch: 'visible-product', alternatives: ['alt-product'] });
+
+  captureCommerceOutcomeNonBlocking(input, () => Promise.resolve({
+    attempted: true, ok: false, reason: 'capture_insert_failed',
+  }));
+  await Promise.resolve();
+  assert.deepEqual(commerceResponse, { status: 'completed', bestMatch: 'visible-product', alternatives: ['alt-product'] });
 });

@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-23T17:08:13.214Z",
-    "generatedFromGitSha": "76a6fd015c95018b314db5799eeaae6d35b6dd71"
+    "generatedAtUtc": "2026-08-23T17:41:17.965Z",
+    "generatedFromGitSha": "dbfd66ff20f9e8e7b1eaffd5915811fbb5f4f142"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -21,8 +21,8 @@
         ],
         "bundleFileCount": 38,
         "treeFileCount": 59,
-        "bundleHash": "0df310623f932c6177ed0a3fd66f9c6e471097d2b49a6a05196c93f1f0bc2dee",
-        "treeHash": "118c06de980a98734ac78e48c674dde04c1ab5cc4359c5f3ba4c5cec73e94ce2",
+        "bundleHash": "de9dd27caf8299f6e2bab9d8f1c5a08b9bcfa38664e19de891314509588038b3",
+        "treeHash": "8d8d5774c1fdfdaabd7fa3c2973bd661a8213ece6e2a75a56a744d9b90a6bac2",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -71,7 +71,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/commerceFunnel.v127.test.ts",
-            "sha256": "591cc0f9d586d7db93044f54658204546284c08859b418b394208a39d26e0f28",
+            "sha256": "4ac3c50436075f4fa52b492bdfbce0572a6ca8faa42f8556dd561496c4d8867c",
             "bundle": false
           },
           {
@@ -91,7 +91,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/commerceOutcomeCapture.ts",
-            "sha256": "302fe92a8b1b2449952895f806433f2d58184f0e7f398565c16bb591467f2eee",
+            "sha256": "5b550375a38963838d057a3c19ea179f0a86b9f1d093d0fc0eaaece50ad83048",
             "bundle": true
           },
           {
@@ -131,7 +131,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/commerceRelevanceFailure.ts",
-            "sha256": "cfd3b7547220c70c6b3c27b04db3fdb450d8d33e4a2bc86be84e14272eab920c",
+            "sha256": "3fd92c59ab92600090409ff5f1e742f0c02cad42503fbb7a13304987f3efcd9f",
             "bundle": true
           },
           {
@@ -176,7 +176,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/index.ts",
-            "sha256": "1253258d64e70c6e35ff4760e1dc746e190e9b256d915b74e7506315f5726e65",
+            "sha256": "132888926b4a287b926ee967c1ed0c756eec2619e6fc0cd2c2897172720cc7f1",
             "bundle": true
           },
           {
@@ -246,7 +246,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/scanCommerceRouter.ts",
-            "sha256": "1b867de358bfbb0f5de0c3ed3a954df7a98f3323a792d3cbdee14f9cc38b9d49",
+            "sha256": "34d5f94fbb414e1d31cbf32b3e875d4e6d6f7be627a3528af951073b15f830d3",
             "bundle": true
           },
           {
