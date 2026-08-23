@@ -41,23 +41,14 @@ def mwdatVersion = (
 def mwdatToken = System.getenv('GITHUB_TOKEN') ?: project.findProperty('github_token')
 def mwdatActor = System.getenv('GITHUB_ACTOR') ?: (project.findProperty('github_actor') ?: 'kscan')
 
-if (mwdatEnabled) {
-  if (!mwdatToken) {
-    throw new GradleException(
-      'kscan.mwdat.enabled=true but no GitHub Packages credential was found. ' +
-      'Set GITHUB_TOKEN (or github_token in local.properties) to a token with the read:packages scope. ' +
-      'Without it com.meta.wearable:mwdat-* resolves HTTP 401.')
-  }
-  repositories {
-    maven {
-      url = uri('https://maven.pkg.github.com/facebook/meta-wearables-dat-android')
-      credentials {
-        username = mwdatActor
-        password = mwdatToken
-      }
-    }
-  }
-}
+// The credential gate (and the maven repository it guards) is applied AFTER
+// the `android {}` block below, not before it. Gradle evaluates a build
+// script top to bottom, so a GradleException thrown here would abort the
+// script before AGP's `android {}` DSL ever ran — and AGP's own project
+// evaluation would then separately fail with an unrelated-looking
+// "compileSdk not specified" error, masking the real cause with a confusing
+// second one. Ordering it last means AGP configuration always completes
+// first, so a missing-token failure is reported exactly once, clearly.
 
 android {
   namespace 'com.kscan.metawearable'
@@ -92,6 +83,24 @@ android {
   }
   kotlinOptions {
     jvmTarget = '17'
+  }
+}
+
+if (mwdatEnabled) {
+  if (!mwdatToken) {
+    throw new GradleException(
+      'kscan.mwdat.enabled=true but no GitHub Packages credential was found. ' +
+      'Set GITHUB_TOKEN (or github_token in local.properties) to a token with the read:packages scope. ' +
+      'Without it com.meta.wearable:mwdat-* resolves HTTP 401.')
+  }
+  repositories {
+    maven {
+      url = uri('https://maven.pkg.github.com/facebook/meta-wearables-dat-android')
+      credentials {
+        username = mwdatActor
+        password = mwdatToken
+      }
+    }
   }
 }
 
