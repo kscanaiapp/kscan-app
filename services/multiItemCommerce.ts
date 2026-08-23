@@ -55,9 +55,35 @@ export function splitBestMatchAndAlternatives(purchaseOptions: RankedScanProduct
   return { bestMatch, alternatives };
 }
 
+/**
+ * The one errorType that means commerce genuinely ran and found nothing.
+ *
+ * The backend already separates the two empty-shelf causes it can report
+ * (scanCommerceRouter: `merged.length > 0 ? undefined : discoveryErrorType ??
+ * 'no_results'`): `no_results` is "we searched, nothing matched", while
+ * `provider_error`, `no_key`, `disabled`, `timeout` and friends mean retrieval
+ * never completed. Only the first is a no-match.
+ */
+const GENUINE_NO_MATCH_ERROR_TYPES = new Set(['no_results']);
+
+/**
+ * An empty shelf is only a NO_MATCH when commerce actually looked.
+ *
+ * A MODE B provider failure answers 200 with an empty shelf and
+ * `commerce.errorType` set (scan-identify's `if (!fast)` branch), so mapping
+ * every empty result to 'no_match' told the user "No strong shopping match
+ * found" for a search that never ran — a config or provider outage rendered
+ * as a statement about the garment. An absent errorType keeps the previous
+ * treatment: nothing is newly reclassified on a backend that does not report.
+ */
 function toCardStatus(result: CommerceHydrationResult): ItemCommerceStatus {
   if (result.status === 'success') return 'ready';
-  if (result.status === 'empty') return 'no_match';
+  if (
+    result.status === 'empty' &&
+    (!result.errorType || GENUINE_NO_MATCH_ERROR_TYPES.has(result.errorType))
+  ) {
+    return 'no_match';
+  }
   return 'error';
 }
 

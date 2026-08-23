@@ -425,6 +425,19 @@ export function AnalysisCard({
                             label={`${candidate.label} · Best Match`}
                             testID={`multi-item-commerce-best-match-${candidate.id}`}
                           />
+                        ) : card?.status === 'error' ? (
+                          /* Commerce failed for this item rather than
+                             returning nothing — the stored card says so, so
+                             the reopened scan must not claim we looked and
+                             found no match. Matches the live surface's own
+                             error treatment (MultiItemCommerceSection). */
+                          <ProductShelf
+                            products={[]}
+                            label={candidate.label}
+                            emptyTitle="Purchase options couldn't be loaded."
+                            emptyBody="We couldn't reach our retail partners for this item when this scan was saved."
+                            testID={`multi-item-commerce-error-${candidate.id}`}
+                          />
                         ) : (
                           <ProductShelf
                             products={[]}

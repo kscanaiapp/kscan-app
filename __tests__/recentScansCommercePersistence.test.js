@@ -259,12 +259,14 @@ test('AnalysisCard renders purchase cards beneath the scan, above similar items'
 test('purchase cards reuse the established ProductShelf, not a second design', () => {
   // One card system. ProductShelf gained a label (v126) and a pending/error
   // state (v127 P1-B), not a fork — no second product-card component exists.
-  // Build 32 adds 3 more usages for the restored per-item commerce section
-  // (best match / no-match / alternatives, one candidate at a time) — still
-  // the same component, not a second design.
+  // Build 32 adds 4 more usages for the restored per-item commerce section
+  // (best match / commerce-failed / no-match / alternatives, one candidate at
+  // a time) — still the same component, not a second design. The failed and
+  // no-match states are separate usages because they make different claims:
+  // one says retrieval broke, the other says the garment had no match.
   assert.match(productShelfSource, /label = 'SIMILAR ITEMS'/);
   assert.match(analysisCardSource, /label="WHERE TO BUY"/);
-  assert.equal((analysisCardSource.match(/<ProductShelf/g) || []).length, 6);
+  assert.equal((analysisCardSource.match(/<ProductShelf/g) || []).length, 7);
   assert.equal(
     (analysisCardSource.match(/import\s*\{[^}]*ProductShelf[^}]*\}\s*from/g) || []).length,
     1,
