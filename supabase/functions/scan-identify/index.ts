@@ -130,6 +130,7 @@ import {
 } from './commerceFunnelConfig.ts';
 import { buildCanonicalCommerce } from './canonicalCommerce.ts';
 import {
+  mapFastCommerceFailureReason,
   mapToFailureReason,
 } from './commerceRelevanceFailure.ts';
 import {
@@ -138,6 +139,7 @@ import {
 } from './textScanCommerceParityConfig.ts';
 import {
   captureCommerceOutcome as persistCommerceOutcomeRow,
+  captureCommerceOutcomeNonBlocking,
 } from './commerceOutcomeCapture.ts';
 import {
   buildRoutedIdentifyPrompt,
@@ -2142,7 +2144,7 @@ Deno.serve(async (req) => {
       // 'deferred' response never reaches captureCommerceOutcome, so without
       // this call every MODE B provider error was previously invisible to
       // commerce telemetry.
-      void captureCommerceOutcome({
+      captureCommerceOutcomeNonBlocking({
         requestMode: 'commerce_only',
         sourceClass: null,
         appPlatform,
@@ -2173,7 +2175,7 @@ Deno.serve(async (req) => {
         // or agreement score to report — only that v124/v127 were active.
         commerceIdentityEnabled: commerceIdentityEnabledForCommerceOnly,
         commerceFunnelEnabled: true,
-      });
+      }, captureCommerceOutcome);
       return json({
         status: 'completed',
         purchaseOptions: [],
@@ -2232,20 +2234,19 @@ Deno.serve(async (req) => {
       // MODE B never runs a fallback query — getFastCommerceResults only ever
       // executes resolved.query, never resolved.fallbackQuery — so
       // fallbackUsed is always false here, not a placeholder.
-      const modeBFailureReason = mapToFailureReason({
-        weakQuery: fast.errorType === 'weak_query',
-        providerOutcome: fast.errorType === 'timeout' ? 'timeout' : null,
-        commercePrimaryEmpty: products.length === 0 &&
-          fast.errorType !== 'timeout' && fast.errorType !== 'weak_query',
+      const modeBFailureReason = mapFastCommerceFailureReason({
+        errorType: fast.errorType,
+        productCount: products.length,
+        providerOutcomes: fast.funnel.providers.map((provider) => provider.outcome),
       });
 
-      void captureCommerceOutcome({
+      captureCommerceOutcomeNonBlocking({
         requestMode: 'commerce_only',
         sourceClass: null,
         appPlatform,
         appVersion,
         status: 'completed',
-        isFashion: true,
+        isFashion: fast.errorType !== 'non_fashion',
         categoryRoute: route,
         qualityBand: gated.qualityBand,
         commerceQueryDetailLevel: gated.commerceQueryDetailLevel,
@@ -2271,7 +2272,7 @@ Deno.serve(async (req) => {
         topAgreementBand: qt?.topAgreementBand ?? null,
         commerceIdentityEnabled: commerceIdentityEnabledForCommerceOnly,
         commerceFunnelEnabled: true,
-      });
+      }, captureCommerceOutcome);
     }
 
     return json({

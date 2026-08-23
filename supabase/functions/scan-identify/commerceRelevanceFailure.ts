@@ -168,6 +168,32 @@ export function mapToFailureReason(input: {
   return null;
 }
 
+/**
+ * Map the bounded v127 fast-commerce outcome to the existing failure vocabulary.
+ * Provider timing outcomes are the authority here: the top-level errorType can
+ * be `no_results` even when a parallel provider failed, so using it alone
+ * falsely classifies provider failures as genuine empty shelves.
+ */
+export function mapFastCommerceFailureReason(input: {
+  errorType?: string | null;
+  productCount: number;
+  providerOutcomes?: readonly string[] | null;
+}): FailureReason | null {
+  const errorType = (input.errorType || '').toLowerCase();
+  if (errorType === 'weak_query') return FAILURE_REASON_WEAK_QUERY;
+  if (errorType === 'non_fashion') return FAILURE_REASON_NON_FASHION;
+  if (input.productCount > 0) return null;
+
+  const outcomes = Array.isArray(input.providerOutcomes)
+    ? input.providerOutcomes.map((outcome) => String(outcome).toLowerCase())
+    : [];
+  if (outcomes.includes('error')) return FAILURE_REASON_PROVIDER_ERROR;
+  if (outcomes.includes('timeout') || errorType === 'timeout') {
+    return FAILURE_REASON_PROVIDER_TIMEOUT;
+  }
+  return FAILURE_REASON_COMMERCE_PRIMARY_EMPTY;
+}
+
 export function isKnownFailureReason(value: unknown): value is FailureReason {
   return typeof value === 'string' && FAILURE_REASON_SET.has(value);
 }

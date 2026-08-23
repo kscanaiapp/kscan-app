@@ -270,4 +270,22 @@ export async function captureCommerceOutcome(
   };
 }
 
+/**
+ * Dispatch best-effort telemetry without allowing a slow or rejecting capture
+ * authority to join the commerce response path. The optional authority exists
+ * only so the deterministic harness can inject delay/rejection/failure cases.
+ */
+export function captureCommerceOutcomeNonBlocking(
+  input: CommerceOutcomeInput,
+  capture: (input: CommerceOutcomeInput) => ReturnType<typeof captureCommerceOutcome> = captureCommerceOutcome,
+): void {
+  try {
+    void capture(input).catch(() => {
+      console.warn('[scan-identify] commerce_outcome_capture_skip reason=capture_rejected');
+    });
+  } catch {
+    console.warn('[scan-identify] commerce_outcome_capture_skip reason=capture_rejected');
+  }
+}
+
 export { COMMERCE_OUTCOME_CAPTURE_VERSION };

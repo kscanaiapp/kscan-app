@@ -889,6 +889,7 @@ function providerOutcomeFor(
   if (errorType === 'disabled') return 'disabled';
   if (errorType === 'no_key') return 'no_key';
   if (errorType === 'timeout') return 'timeout';
+  if (errorType === 'no_results' || errorType === 'empty_query') return 'zero_result';
   if (errorType) return 'error';
   return count > 0 ? 'success' : 'zero_result';
 }
