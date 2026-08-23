@@ -38,8 +38,8 @@ It is named below as a remaining gate rather than reported as met.
 
 | Repo | Branch | HEAD | Remote state |
 |---|---|---|---|
-| `C:\Users\jsmit\kscan-glasses-webapp` | `feature/meta-physical-device-candidate-v1` | see Commits section | was at `ad7de55`, pushed |
-| `C:\src\KScan-meta-physical-device-v1` | `feature/meta-physical-device-candidate-v1-mobile` | see Commits section | was at `ad46eb1`, **local-only** |
+| `C:\Users\jsmit\kscan-glasses-webapp` | `feature/meta-physical-device-candidate-v1` | `8b67161` | pushed; was `ad7de55` |
+| `C:\src\KScan-meta-physical-device-v1` | `feature/meta-physical-device-candidate-v1-mobile` | `466cc6a`+ | **now pushed** (first ever push); was `ad46eb1`, local-only |
 
 `C:\src\KScan-glasses-ingestion-v1` was not merged or drawn from. Nothing in it
 was needed: the missing piece was the Meta boundary, which it does not contain.
