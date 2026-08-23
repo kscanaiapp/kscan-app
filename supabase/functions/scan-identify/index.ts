@@ -1905,6 +1905,8 @@ Deno.serve(async (req) => {
     searchQueries?: unknown;
     market?: unknown;
     enrich?: unknown;
+    // Build 32: optional per-item correlation id, echoed back unchanged.
+    candidateId?: unknown;
   } = {};
   try {
     body = await req.json();
