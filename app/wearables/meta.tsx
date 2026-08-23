@@ -35,7 +35,15 @@ import {
   getMetaWearablePrivacyReadiness,
   removeMetaWearableLocalAsset,
   sanitizeMetaWearableCapture,
+  type MetaWearableCaptureSource,
 } from '../../services/metaWearablePrivacy';
+import {
+  getMetaCapabilities,
+  initializeMetaAdapter,
+  isMetaAdapterLinked,
+  renderMetaResultOnGlasses,
+  startMetaGlassesCapture,
+} from '../../services/metaWearableDeviceNative';
 
 function safeCode(error: unknown): string {
   return error instanceof MetaWearableCompanionError ? error.code : 'WEARABLE_REQUEST_FAILED';
@@ -78,6 +86,7 @@ export default function MetaWearableCompanionScreen() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('Generate a pairing code to link this phone as the Meta glasses candidate session.');
   const [lastErrorCode, setLastErrorCode] = useState<string | null>(null);
+  const [glassesStatus, setGlassesStatus] = useState<string>('NOT_LINKED');
 
   const refreshSessions = useCallback(async () => {
     try {
@@ -91,6 +100,15 @@ export default function MetaWearableCompanionScreen() {
   useEffect(() => {
     void (async () => {
       setPhoneDeviceId(await getOrCreateMetaPhoneDeviceId());
+      // Bring the Meta adapter up once, early. This never throws and never
+      // blocks: a build without the DAT SDK simply reports no glasses and the
+      // screen keeps working on the phone camera.
+      if (isMetaAdapterLinked()) {
+        const ready = await initializeMetaAdapter();
+        setGlassesStatus(ready ? getMetaCapabilities().reason ?? 'READY' : 'INIT_FAILED');
+      } else {
+        setGlassesStatus('NOT_LINKED');
+      }
     })();
     void refreshSessions();
   }, [refreshSessions]);
@@ -154,19 +172,39 @@ export default function MetaWearableCompanionScreen() {
     let rawUri: string | null = null;
     let sanitizedUri: string | null = null;
     let compressedUri: string | null = null;
+    let glassesCapture: ReturnType<typeof startMetaGlassesCapture> = null;
     try {
-      const permission = await ImagePicker.requestCameraPermissionsAsync();
-      if (!permission.granted) throw new MetaWearableCompanionError('CAMERA_PERMISSION_DENIED');
-      setStatus('Opening phone camera…');
-      const picker = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1, exif: false });
-      if (picker.canceled || !picker.assets?.[0]?.uri) {
-        setStatus('Capture cancelled.');
-        return;
+      // Prefer the real glasses. `startMetaGlassesCapture` returns null when
+      // the DAT adapter is absent, unregistered, has no connected device, or
+      // lacks camera permission — in every one of those cases the phone camera
+      // is the correct capture surface, not an error.
+      let dimensions: { width?: number; height?: number } | undefined;
+      let captureSource: MetaWearableCaptureSource = 'phone_camera';
+
+      const glasses = startMetaGlassesCapture();
+      if (glasses) {
+        setStatus('Capturing from your Meta glasses…');
+        glassesCapture = glasses;
+        const shot = await glasses.promise;
+        rawUri = shot.uri;
+        dimensions = { width: shot.width, height: shot.height };
+        captureSource = 'meta_glasses';
+      } else {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (!permission.granted) throw new MetaWearableCompanionError('CAMERA_PERMISSION_DENIED');
+        setStatus('Opening phone camera…');
+        const picker = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1, exif: false });
+        if (picker.canceled || !picker.assets?.[0]?.uri) {
+          setStatus('Capture cancelled.');
+          return;
+        }
+        const asset = picker.assets[0];
+        rawUri = asset.uri;
+        dimensions = { width: asset.width, height: asset.height };
       }
-      const asset = picker.assets[0];
-      rawUri = asset.uri;
+
       setStatus('Running the on-device privacy check…');
-      const privacy = await sanitizeMetaWearableCapture(rawUri, { width: asset.width, height: asset.height });
+      const privacy = await sanitizeMetaWearableCapture(rawUri, dimensions, { source: captureSource });
       sanitizedUri = privacy.sanitizedUri;
       setStatus('Finding matches…');
       const compressed = await compressSanitizedImageForAnalysis(sanitizedUri, { width: 800, quality: 0.78 });
@@ -175,12 +213,18 @@ export default function MetaWearableCompanionScreen() {
       const scanned = await submitMetaWearableScan(session.wearableToken, compressed.base64, requestId);
       cacheMetaWearableResult(scanned.result);
       setResult(scanned.result);
+      // Only display-capable hardware gets a glance; on camera-first glasses
+      // this is a no-op and the phone stays the result surface.
+      void renderMetaResultOnGlasses(scanned.result);
       setStatus('StyleMatch ready.');
     } catch (error) {
       const code = safeCode(error);
       setLastErrorCode(code);
       setStatus(code.startsWith('PRIVACY_') ? 'Privacy check failed. Nothing was uploaded.' : 'The scan could not be completed.');
     } finally {
+      // Releasing the handle also guarantees a photo still in flight is
+      // discarded rather than delivered into a flow that has already ended.
+      glassesCapture?.cancel();
       if (compressedUri && compressedUri !== sanitizedUri) removeMetaWearableLocalAsset(compressedUri);
       if (sanitizedUri && sanitizedUri !== rawUri) removeMetaWearableLocalAsset(sanitizedUri);
       if (rawUri) removeMetaWearableLocalAsset(rawUri);
@@ -274,7 +318,8 @@ export default function MetaWearableCompanionScreen() {
         ) : (
           <View style={[styles.card, styles.requestCard]}>
             <Text style={styles.cardLabel}>SCAN</Text>
-            <Text style={styles.body}>Capture is phone-owned. The image stays local until face detection and solid masking succeed.</Text>
+            <Text style={styles.body}>Capture comes from your Meta glasses when they are connected and permitted, and from this phone otherwise. Either way the image stays local until face detection and solid masking succeed.</Text>
+            <Text style={styles.meta}>GLASSES ADAPTER · {glassesStatus}</Text>
             <ActionButton label={busy ? 'Processing…' : 'Open Camera'} disabled={busy} onPress={() => void capture()} />
           </View>
         )}
