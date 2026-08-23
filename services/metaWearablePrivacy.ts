@@ -1,12 +1,9 @@
-import FaceDetection from '@react-native-ml-kit/face-detection';
-import { Directory, File, Paths } from 'expo-file-system';
+import { File } from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
-import { ImageFormat, Skia } from '@shopify/react-native-skia';
-import { computeMaskRect, isLocalUri, validateFrame, type FaceFrame } from './metaWearablePrivacyGeometry';
+import { isLocalUri } from './metaWearablePrivacyGeometry';
 
 export const META_WEARABLE_PRIVACY_POLICY_VERSION = 'kscan.privacy.mobile.v1';
 const MAX_DIMENSION = 800;
-const JPEG_QUALITY = 82;
 
 /**
  * Capture provenance recorded in the privacy policy attached to a scan.
@@ -44,47 +41,15 @@ export class MetaWearablePrivacyError extends Error {
   }
 }
 
-function maskRect(frame: FaceFrame, width: number, height: number) {
-  const rect = computeMaskRect(frame, width, height);
-  return Skia.XYWHRect(rect.x, rect.y, rect.width, rect.height);
-}
-
-async function decode(uri: string) {
-  const data = await Skia.Data.fromURI(uri);
-  const image = Skia.Image.MakeImageFromEncoded(data);
-  if (!image) throw new MetaWearablePrivacyError('PRIVACY_DECODE_FAILED');
-  return image;
-}
-
-async function renderMasks(uri: string, width: number, height: number, frames: FaceFrame[]): Promise<string> {
-  const source = await decode(uri);
-  if (source.width() !== width || source.height() !== height) throw new MetaWearablePrivacyError('PRIVACY_DIMENSIONS_INVALID');
-  const surface = Skia.Surface.MakeOffscreen(width, height);
-  if (!surface) throw new MetaWearablePrivacyError('PRIVACY_RENDER_UNAVAILABLE');
-  const canvas = surface.getCanvas();
-  const full = Skia.XYWHRect(0, 0, width, height);
-  const imagePaint = Skia.Paint();
-  imagePaint.setAntiAlias(true);
-  canvas.drawImageRect(source, full, full, imagePaint, false);
-  const maskPaint = Skia.Paint();
-  maskPaint.setAntiAlias(false);
-  maskPaint.setColor(Skia.Color('#000000'));
-  for (const frame of frames) canvas.drawRect(maskRect(frame, width, height), maskPaint);
-  surface.flush();
-  const bytes = surface.makeImageSnapshot().encodeToBytes(ImageFormat.JPEG, JPEG_QUALITY);
-  if (!bytes?.length) throw new MetaWearablePrivacyError('PRIVACY_ENCODE_FAILED');
-  const directory = new Directory(Paths.cache, 'meta-wearable', 'sanitized');
-  directory.create({ idempotent: true, intermediates: true });
-  const target = new File(directory, `${globalThis.crypto?.randomUUID?.() ?? Date.now().toString(36)}.jpg`);
-  target.write(bytes);
-  const info = target.info();
-  if (!info.exists || !info.size) throw new MetaWearablePrivacyError('PRIVACY_OUTPUT_INVALID');
-  const verified = await decode(target.uri);
-  if (verified.width() !== width || verified.height() !== height) {
-    if (target.exists) target.delete();
-    throw new MetaWearablePrivacyError('PRIVACY_OUTPUT_INVALID');
+function loadNativePrivacyModule(): { detectAndMaskFaces?: (input: { imageUri: string }) => Promise<any> } | null {
+  try {
+    // Keep the native boundary lazy: an older binary cannot upload when the
+    // local module is absent, but it also must not crash while loading a screen.
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require('../modules/kscan-pii-native');
+  } catch {
+    return null;
   }
-  return target.uri;
 }
 
 /**
@@ -119,37 +84,50 @@ export async function sanitizeMetaWearableCapture(
     throw new MetaWearablePrivacyError('PRIVACY_RECONSTRUCTION_FAILED');
   }
 
-  let detected: unknown;
+  const native = loadNativePrivacyModule();
+  if (!native?.detectAndMaskFaces) throw new MetaWearablePrivacyError('PRIVACY_DETECTOR_FAILED');
+
+  let masked: any;
   try {
-    detected = await FaceDetection.detect(normalized.uri, {
-      performanceMode: 'accurate',
-      landmarkMode: 'none',
-      contourMode: 'none',
-      classificationMode: 'none',
-      minFaceSize: 0.1,
-      trackingEnabled: false,
-    });
+    masked = await native.detectAndMaskFaces({ imageUri: normalized.uri });
   } catch {
     throw new MetaWearablePrivacyError('PRIVACY_DETECTOR_FAILED');
   }
-  if (!Array.isArray(detected)) throw new MetaWearablePrivacyError('PRIVACY_DETECTOR_OUTPUT_INVALID');
-  const frames = detected.map((face) => validateFrame((face as { frame?: unknown })?.frame, normalized.width, normalized.height));
-  if (frames.some((frame) => frame === null)) throw new MetaWearablePrivacyError('PRIVACY_DETECTOR_OUTPUT_INVALID');
-  const validFrames = frames as FaceFrame[];
-  const sanitizedUri = validFrames.length
-    ? await renderMasks(normalized.uri, normalized.width, normalized.height, validFrames)
-    : normalized.uri;
+  if (!masked || typeof masked !== 'object') throw new MetaWearablePrivacyError('PRIVACY_DETECTOR_OUTPUT_INVALID');
+
+  const faceCount = Number(masked.facesDetected);
+  if (!Number.isInteger(faceCount) || faceCount < 0) throw new MetaWearablePrivacyError('PRIVACY_DETECTOR_OUTPUT_INVALID');
+
+  let sanitizedUri: string;
+  if (masked.status === 'no_faces') {
+    // The reconstructed JPEG is already metadata-free. No-face is a successful
+    // detector result, not a fallback from a failed detector.
+    sanitizedUri = normalized.uri;
+  } else if (masked.status === 'success'
+    && isLocalUri(masked.sanitizedUri)
+    && masked.inputWidth === normalized.width
+    && masked.inputHeight === normalized.height
+    && masked.outputWidth === normalized.width
+    && masked.outputHeight === normalized.height
+    && Number(masked.facesMasked) > 0) {
+    sanitizedUri = masked.sanitizedUri;
+  } else if (masked.status === 'failed' || masked.status === 'unsupported') {
+    throw new MetaWearablePrivacyError('PRIVACY_DETECTOR_FAILED');
+  } else {
+    throw new MetaWearablePrivacyError('PRIVACY_DETECTOR_OUTPUT_INVALID');
+  }
+
   return {
     sanitizedUri,
     width: normalized.width,
     height: normalized.height,
-    faceCount: validFrames.length,
+    faceCount,
     policy: {
       policyVersion: META_WEARABLE_PRIVACY_POLICY_VERSION,
       sanitized: true,
       metadataStripped: true,
       faceDetectionCompleted: true,
-      faceMaskApplied: validFrames.length > 0,
+      faceMaskApplied: faceCount > 0,
       rawUpload: false,
       source: options?.source ?? 'phone_camera',
     },
@@ -160,7 +138,7 @@ export function getMetaWearablePrivacyReadiness() {
   return {
     policyVersion: META_WEARABLE_PRIVACY_POLICY_VERSION,
     maxDimension: MAX_DIMENSION,
-    detector: 'ml-kit-face-detection',
+    detector: 'local-native-face-masker',
     maskMode: 'solid',
     failClosed: true,
   } as const;

@@ -1,0 +1,67 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'expo.modules.kscanpiinative'
+version = '1.0.0'
+
+android {
+  namespace "expo.modules.kscanpiinative"
+
+  defaultConfig {
+    versionCode 1
+    versionName "1.0.0"
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+
+  kotlinOptions {
+    jvmTarget = '17'
+  }
+
+  testOptions {
+    unitTests {
+      includeAndroidResources = true
+    }
+  }
+}
+
+dependencies {
+  // Bundled Google ML Kit face detection. This artifact ships the model in
+  // the APK and does not require a first-run download from Play Services.
+  implementation 'com.google.mlkit:face-detection:16.1.7'
+
+  // Bundled Google ML Kit pose detection (Build 2.5 Step 3, owner-authorized).
+  //
+  // BUNDLED, NOT PLAY-DELIVERED. Like the face artifact above, this ships the
+  // model inside the APK. The Play-Services-delivered alternatives — including
+  // subject segmentation — were rejected because their first run requires a
+  // model download, which breaks Mirror Selfie's offline requirement.
+  //
+  // BASE, NOT ACCURATE. `pose-detection-accurate` is a materially larger model
+  // for a precision this pipeline cannot use: regions are anatomical bands with
+  // 8% padding, so a few pixels of joint accuracy changes no crop.
+  //
+  // VERSION NOTE: Google still publishes pose detection under a -beta suffix.
+  // It is the only bundled, offline, first-party pose model available on
+  // Android, so the alternative is not a stable equivalent but no capability at
+  // all. The binary-size and latency impact of this line is UNMEASURED and must
+  // be measured on a physical build before release.
+  implementation 'com.google.mlkit:pose-detection:18.0.0-beta5'
+
+  if (project.findProject(':expo-modules-test-core')) {
+    testImplementation project(':expo-modules-test-core')
+  }
+  testImplementation 'junit:junit:4.13.2'
+  testImplementation 'org.robolectric:robolectric:4.10'
+  testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3'
+
+  androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+  androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+  androidTestImplementation 'androidx.test:runner:1.5.2'
+  androidTestImplementation 'androidx.test:rules:1.5.0'
+}

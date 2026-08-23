@@ -208,18 +208,15 @@ test('the module registers for Apple with a podspec at the project deployment ta
   assert.ok(/s\.source_files\s*=\s*"\*\*\/\*\.\{h,m,swift\}"/.test(podspec));
 });
 
-test('the module declares APPLE ONLY on this branch, so Android autolinking skips it', () => {
+test('the module registers its local native implementation on Apple and Android', () => {
   const config = JSON.parse(read(`${MODULE_DIR}/expo-module.config.json`));
-  // Declaring `android` here without Kotlin sources would make an Android build
-  // from this branch look for an implementation that is not present. Declaring
-  // apple only makes autolinking skip the module entirely, which is safe.
-  assert.deepEqual(config.platforms, ['apple']);
-  assert.equal(config.android, undefined);
-  assert.equal(exists(`${MODULE_DIR}/android`), false, 'Android sources leaked onto the iOS line');
-  assert.equal(exists(`${MODULE_DIR}/android/build.gradle`), false);
+  assert.deepEqual(config.platforms, ['apple', 'android']);
+  assert.deepEqual(config.android.modules, ['expo.modules.kscanpiinative.KScanPiiNativeModule']);
+  assert.equal(exists(`${MODULE_DIR}/android`), true, 'Android native sources are missing');
+  assert.equal(exists(`${MODULE_DIR}/android/build.gradle`), true);
 });
 
-test('no ML Kit, Gradle, model asset or new permission came along', () => {
+test('the native module uses only its audited bundled ML Kit dependencies and adds no permission or model asset', () => {
   const files = [];
   (function walk(dir) {
     for (const entry of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
@@ -230,13 +227,15 @@ test('no ML Kit, Gradle, model asset or new permission came along', () => {
   })(MODULE_DIR);
 
   for (const rel of files) {
-    assert.ok(!/\.gradle$/.test(rel), `${rel} is a Gradle file`);
-    assert.ok(!/\.kt$/.test(rel), `${rel} is Kotlin`);
     assert.ok(
       !/\.(tflite|mlmodel|mlmodelc|onnx|pb|pt|task)$/.test(rel),
       `${rel} is a model asset`,
     );
   }
+  const gradle = read(`${MODULE_DIR}/android/build.gradle`);
+  assert.match(gradle, /com\.google\.mlkit:face-detection:16\.1\.7/);
+  assert.match(gradle, /com\.google\.mlkit:pose-detection:18\.0\.0-beta5/);
+  assert.equal(/play-services-mlkit/.test(gradle), false, 'the module must not require a first-run model download');
   const swiftSources = files.filter((f) => f.endsWith('.swift')).map(read).join('\n').toLowerCase();
   for (const forbidden of ['mlkit', 'tensorflow', 'onnx', 'mlmodel', 'coreml']) {
     assert.ok(!swiftSources.includes(forbidden), `${forbidden} appears in Swift`);
