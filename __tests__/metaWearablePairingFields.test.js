@@ -114,3 +114,43 @@ test('the pairing frame is built from the clamps, not from a literal', () => {
     "the hard-coded empty appVersion is back — pair.create will fail on staging's CHECK constraint",
   );
 });
+
+// ---------------------------------------------------------------------------
+// Wearable device identity.
+//
+// The bridge enforces ONE live session per device_id — the
+// `wearable_sessions_one_active_device` unique index, plus a pair.poll that
+// revokes any existing session for the same device before issuing a new one.
+// That invariant is keyed entirely on the device id the client supplies.
+// createMetaPairingChallenge minted a FRESH random UUID on every call, so every
+// pairing looked like a brand-new pair of glasses: nothing was ever replaced,
+// and a user who paired five times held five simultaneously live 15-minute
+// wearable tokens, all shown identically as "Meta Glasses" and each needing its
+// own Remove.
+//
+// Verified against K Scan AI Staging: with a stable device id, a second
+// pair.create moves the first pairing row to status='expired'; with two random
+// ids both stay pending.
+// ---------------------------------------------------------------------------
+
+test('the wearable stand-in device id is persisted, not minted per pairing', () => {
+  const companion = fs.readFileSync(COMPANION_SRC, 'utf8');
+  assert.match(companion, /const wearableDeviceId = await getOrCreateMetaWearableDeviceId\(\);/);
+  assert.match(companion, /WEARABLE_DEVICE_ID_STORAGE_KEY = 'metaWearable:wearableDeviceId'/);
+});
+
+test('the wearable and phone device ids are stored under different keys', () => {
+  const companion = fs.readFileSync(COMPANION_SRC, 'utf8');
+  assert.match(companion, /PHONE_DEVICE_ID_STORAGE_KEY = 'metaWearable:phoneDeviceId'/);
+  assert.ok(
+    !/WEARABLE_DEVICE_ID_STORAGE_KEY = 'metaWearable:phoneDeviceId'/.test(companion),
+    'the wearable stand-in reuses the phone device id',
+  );
+});
+
+test('both identities go through the same persisting helper', () => {
+  const companion = fs.readFileSync(COMPANION_SRC, 'utf8');
+  const helperCalls = companion.match(/getOrCreateStoredDeviceId\(/g) ?? [];
+  // One definition plus one call per identity.
+  assert.equal(helperCalls.length, 3);
+});

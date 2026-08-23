@@ -45,6 +45,7 @@ import {
 
 export const META_WEARABLE_PROTOCOL_VERSION = 1;
 const PHONE_DEVICE_ID_STORAGE_KEY = 'metaWearable:phoneDeviceId';
+const WEARABLE_DEVICE_ID_STORAGE_KEY = 'metaWearable:wearableDeviceId';
 const PAIR_CHALLENGE_TTL_MS = 60_000;
 
 type WearableFunctionName = 'wearable-bridge' | 'wearable-scan' | 'wearable-save' | 'wearable-open-on-phone';
@@ -163,10 +164,33 @@ async function requirePhoneJwt(): Promise<void> {
  * correlation id in pair.approve / frame validation, never as a credential).
  */
 export async function getOrCreateMetaPhoneDeviceId(): Promise<string> {
-  const existing = await AsyncStorage.getItem(PHONE_DEVICE_ID_STORAGE_KEY);
+  return getOrCreateStoredDeviceId(PHONE_DEVICE_ID_STORAGE_KEY);
+}
+
+/**
+ * Stable per-install UUID standing in for the WEARABLE's backend identity.
+ *
+ * Must be stable, not minted per pairing. The bridge enforces one live session
+ * per device_id — `wearable_sessions_one_active_device`, plus a pair.poll that
+ * revokes any existing session for the same device before issuing a new one.
+ * That invariant is keyed entirely on this id, so minting a fresh UUID for
+ * every pairing (as this module did) quietly defeated it: each attempt looked
+ * like a brand-new pair of glasses, so nothing was replaced and the user
+ * accumulated one live 15-minute wearable token per pairing, all listed
+ * identically as "Meta Glasses" and each needing its own Remove.
+ *
+ * A real second device would supply its own identity; until then the phone
+ * keeps one stable stand-in so the backend's replacement rule works.
+ */
+export async function getOrCreateMetaWearableDeviceId(): Promise<string> {
+  return getOrCreateStoredDeviceId(WEARABLE_DEVICE_ID_STORAGE_KEY);
+}
+
+async function getOrCreateStoredDeviceId(storageKey: string): Promise<string> {
+  const existing = await AsyncStorage.getItem(storageKey);
   if (existing && /^[0-9a-f-]{36}$/iu.test(existing)) return existing;
   const created = Crypto.randomUUID();
-  await AsyncStorage.setItem(PHONE_DEVICE_ID_STORAGE_KEY, created);
+  await AsyncStorage.setItem(storageKey, created);
   return created;
 }
 
@@ -182,7 +206,7 @@ export async function getOrCreateMetaPhoneDeviceId(): Promise<string> {
 export async function createMetaPairingChallenge(
   hudDeviceName = 'K Scan Meta HUD candidate',
 ): Promise<MetaWearablePairingChallenge> {
-  const wearableDeviceId = Crypto.randomUUID();
+  const wearableDeviceId = await getOrCreateMetaWearableDeviceId();
   const requestId = Crypto.randomUUID();
   const now = Date.now();
   const frame = JSON.stringify({
