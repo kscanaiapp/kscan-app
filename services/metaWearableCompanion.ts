@@ -32,9 +32,16 @@
 // (bearer-equivalent body field), never a refresh token.
 
 import * as Crypto from 'expo-crypto';
+import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabaseClient';
+import { toPairingAppVersion, toPairingDeviceModel } from './metaWearablePairingFields';
 import { resolveAuthenticatedFunctionSession } from './authenticatedFunctionSession';
+import {
+  describeWearableCredentialFailure,
+  wearableCredentialFailure,
+  wearableInvokeHeaders,
+} from './metaWearableRequestCredentials';
 
 export const META_WEARABLE_PROTOCOL_VERSION = 1;
 const PHONE_DEVICE_ID_STORAGE_KEY = 'metaWearable:phoneDeviceId';
@@ -106,7 +113,24 @@ async function invokeWearableFn<T extends Record<string, unknown>>(
   functionName: WearableFunctionName,
   body: Record<string, unknown>,
 ): Promise<T> {
-  const { data, error } = await supabase.functions.invoke(functionName, { body });
+  // wearable-bridge authenticates on the `apikey` header alone and accepts only
+  // a modern publishable key — the app's legacy anon key is rejected with
+  // INVALID_CREDENTIALS before any operation runs. See
+  // services/metaWearableRequestCredentials.ts for the full contract. The
+  // Authorization header is untouched, so supabase-js keeps sending the
+  // signed-in user's JWT for the operations that require one.
+  const publishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  const credentialFailure = wearableCredentialFailure(publishableKey);
+  if (credentialFailure) {
+    throw new MetaWearableCompanionError(
+      credentialFailure,
+      describeWearableCredentialFailure(credentialFailure),
+    );
+  }
+  const { data, error } = await supabase.functions.invoke(functionName, {
+    body,
+    headers: wearableInvokeHeaders(publishableKey),
+  });
   if (error) {
     const code = await readInvokeErrorCode(error);
     throw new MetaWearableCompanionError(code ?? 'WEARABLE_REQUEST_FAILED');
@@ -169,7 +193,14 @@ export async function createMetaPairingChallenge(
     deviceId: wearableDeviceId,
     timestamp: now,
     expiresAt: now + PAIR_CHALLENGE_TTL_MS,
-    payload: { model: String(hudDeviceName || 'K Scan Meta HUD').slice(0, 80), appVersion: '' },
+    // Both fields land in CHECK-constrained columns that require at least one
+    // character. `appVersion: ''` (what this sent before) violated
+    // wearable_pairings_device_app_version_check, so every pair.create failed
+    // with a generic PAIR_CREATE_FAILED. See metaWearablePairingFields.ts.
+    payload: {
+      model: toPairingDeviceModel(hudDeviceName),
+      appVersion: toPairingAppVersion(Constants.expoConfig?.version),
+    },
   });
   const data = await invokeBridge<{ ticket?: Record<string, unknown> }>('pair.create', { frame });
   const ticket = data.ticket;
