@@ -11,6 +11,7 @@ import {
 // actual value lives only in the Supabase secrets store, resolved at request
 // time through readRequiredSecret (see elevenLabsClient.test.ts).
 const OWNER_APPROVED_MAPPING: Readonly<Record<string, readonly [string, string]>> = Object.freeze({
+  elise_default: ['feminine', 'ELEVENLABS_STYLIST_01_VOICE_ID'],
   stylist_portrait_01: ['feminine', 'ELEVENLABS_STYLIST_01_VOICE_ID'],
   stylist_portrait_02: ['masculine', 'ELEVENLABS_STYLIST_02_VOICE_ID'],
   stylist_portrait_03: ['feminine', 'ELEVENLABS_STYLIST_03_VOICE_ID'],
@@ -23,9 +24,10 @@ const OWNER_APPROVED_MAPPING: Readonly<Record<string, readonly [string, string]>
   stylist_portrait_10: ['feminine', 'ELEVENLABS_STYLIST_10_VOICE_ID'],
 });
 
-Deno.test('server allowlist maps all ten approved portrait IDs explicitly', () => {
-  assert.equal(APPROVED_SPEAKING_STYLIST_IDS.length, 10);
-  APPROVED_SPEAKING_STYLIST_IDS.forEach((id, index) => {
+Deno.test('server allowlist maps default Elise and all ten approved portrait IDs explicitly', () => {
+  assert.equal(APPROVED_SPEAKING_STYLIST_IDS.length, 11);
+  assert.equal(APPROVED_SPEAKING_STYLIST_IDS[0], 'elise_default');
+  APPROVED_SPEAKING_STYLIST_IDS.slice(1).forEach((id, index) => {
     assert.equal(id, `stylist_portrait_${String(index + 1).padStart(2, '0')}`);
   });
 });
@@ -44,9 +46,16 @@ Deno.test('resolveServerVoiceProfile remains a thin wrapper over the voice selec
   }
 });
 
-Deno.test('every configured stylist resolves to a secret name no other stylist shares', () => {
-  const secretNames = Object.values(OWNER_APPROVED_MAPPING).map(([, voiceSecretName]) => voiceSecretName);
-  assert.equal(new Set(secretNames).size, secretNames.length, 'secret names must be pairwise distinct');
+Deno.test('only the two canonical Elise IDs intentionally share a voice secret', () => {
+  const bySecret = new Map<string, string[]>();
+  for (const [stylistId, [, voiceSecretName]] of Object.entries(OWNER_APPROVED_MAPPING)) {
+    bySecret.set(voiceSecretName, [...(bySecret.get(voiceSecretName) ?? []), stylistId]);
+  }
+  const shared = [...bySecret.entries()].filter(([, stylistIds]) => stylistIds.length > 1);
+  assert.deepEqual(shared, [[
+    'ELEVENLABS_STYLIST_01_VOICE_ID',
+    ['elise_default', 'stylist_portrait_01'],
+  ]]);
 });
 
 Deno.test('masculine stylists resolve independently — sharing a profile does not mean sharing a voice secret', () => {
@@ -81,9 +90,13 @@ Deno.test('feminine stylists resolve independently — sharing a profile does no
   assert.equal(kim.voiceSecretName, 'ELEVENLABS_STYLIST_10_VOICE_ID');
 });
 
-Deno.test('server allowlist rejects silent and unsupported IDs', () => {
+Deno.test('default Elise resolves while intentionally silent and unsupported IDs remain rejected', () => {
+  assert.deepEqual(resolveServerVoiceSelection('elise_default'), {
+    profile: 'feminine',
+    voiceSecretName: 'ELEVENLABS_STYLIST_01_VOICE_ID',
+  });
   assert.throws(
-    () => resolveServerVoiceSelection('elise_default'),
+    () => resolveServerVoiceSelection('editorial_plum'),
     (error) => error instanceof StylistSpeechError && error.code === 'STYLIST_SILENT',
   );
   assert.throws(
@@ -91,7 +104,7 @@ Deno.test('server allowlist rejects silent and unsupported IDs', () => {
     (error) => error instanceof StylistSpeechError && error.code === 'STYLIST_UNSUPPORTED',
   );
   assert.throws(
-    () => resolveServerVoiceProfile('elise_default'),
+    () => resolveServerVoiceProfile('chrome_muse'),
     (error) => error instanceof StylistSpeechError && error.code === 'STYLIST_SILENT',
   );
 });
