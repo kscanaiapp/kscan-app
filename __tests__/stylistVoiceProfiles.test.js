@@ -48,9 +48,10 @@ test('all approved portraits retain stable IDs, order, and explicit voice profil
   });
 });
 
-test('abstract, missing, and unsupported avatar references remain silent', () => {
+test('default Elise speaks while intentionally silent and unsupported avatars stay silent', () => {
   assert.equal(STYLIST_ABSTRACT_PRESETS.length, 6);
-  for (const preset of STYLIST_ABSTRACT_PRESETS) {
+  assert.equal(getStylistVoiceProfile('elise_default'), 'feminine');
+  for (const preset of STYLIST_ABSTRACT_PRESETS.filter(({ id }) => id !== 'elise_default')) {
     assert.equal(preset.voiceProfile, 'silent');
   }
   assert.equal(getStylistVoiceProfile('stylist_portrait_11'), 'silent');

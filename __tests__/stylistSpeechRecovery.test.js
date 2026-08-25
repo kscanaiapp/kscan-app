@@ -60,8 +60,9 @@ test('authoritative registry is preserved and no parallel identity registry exis
   assert.equal(fs.existsSync(path.join(ROOT, 'services', 'avatars', 'types.ts')), false);
 });
 
-test('abstract avatars are silent and approved portraits have explicit profiles', () => {
-  for (const preset of STYLIST_ABSTRACT_PRESETS) {
+test('default Elise and approved portraits speak while the other abstract avatars stay silent', () => {
+  assert.equal(getStylistVoiceProfile('elise_default'), 'feminine');
+  for (const preset of STYLIST_ABSTRACT_PRESETS.filter(({ id }) => id !== 'elise_default')) {
     assert.equal(getStylistVoiceProfile(preset.id), 'silent');
   }
   STYLIST_PORTRAIT_PRESETS.forEach((preset, index) => {
