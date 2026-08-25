@@ -52,7 +52,7 @@ async function run() {
     speechRequestsIssued: 0,
     diagnosticEventCount: events.length,
     events,
-    pass: events.some((event) => event.failureKind === 'none' && event.providerStatus === 200),
+    pass: events.some((event) => event.failureKind === 'success' && event.providerStatus === 200),
   };
   process.stdout.write(`${JSON.stringify(evidence, null, 2)}\n`);
   process.exitCode = evidence.pass ? 0 : 1;
