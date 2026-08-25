@@ -3,7 +3,7 @@
 
 const STAGING_PROJECT_REF = 'yzqjvdfgefveprobvvyw';
 const STAGING_HOST = `${STAGING_PROJECT_REF}.supabase.co`;
-const STYLIST_ID = 'stylist_portrait_01';
+const STYLIST_ID = 'elise_default';
 const SPEECH_TEXT = 'K Scan speech test.';
 const FUNCTION_PATH = '/functions/v1/stylist-speech';
 const DIAGNOSTIC_MARKER = 'stylist_speech_provider';
@@ -206,8 +206,11 @@ async function run() {
     } catch { preferenceRestored = false; }
   }
 
-  await new Promise((resolve) => setTimeout(resolve, 5000));
-  const diagnostic = await queryDiagnostics(projectRef, managementToken, startIso);
+  let diagnostic = null;
+  for (let attempt = 0; attempt < 6 && !diagnostic; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+    diagnostic = await queryDiagnostics(projectRef, managementToken, startIso);
+  }
   const providerAttempted = Boolean(diagnostic && diagnostic.failureKind !== 'pre_dispatch');
   const evidence = {
     targetEnvironment: 'staging',

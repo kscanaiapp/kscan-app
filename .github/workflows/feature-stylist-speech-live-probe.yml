@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: kscan-build32-speech-control-diagnostics
+  group: kscan-build32-default-elise-speech-proof
   cancel-in-progress: false
 
 jobs:
@@ -20,18 +20,22 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: '20'
-      - name: Recover delayed diagnostics for the bounded control probe
+      - name: Run one bounded default Elise speech proof
         env:
           SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          SUPABASE_STAGING_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: node security/release/query-build32-speech-control-diagnostics.js > build32-speech-control-diagnostics.json
+          STAGING_SYNTHETIC_ACTIVE_EMAIL: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_EMAIL }}
+          STAGING_SYNTHETIC_ACTIVE_PASSWORD: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_PASSWORD }}
+        run: node security/release/run-build32-speech-control-probe.js > build32-default-elise-speech.json
       - name: Print sanitized evidence
         if: always()
-        run: test -s build32-speech-control-diagnostics.json && cat build32-speech-control-diagnostics.json
+        run: test -s build32-default-elise-speech.json && cat build32-default-elise-speech.json
       - name: Upload sanitized evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: build32-speech-control-diagnostics-${{ github.run_id }}
-          path: build32-speech-control-diagnostics.json
+          name: build32-default-elise-speech-${{ github.run_id }}
+          path: build32-default-elise-speech.json
           retention-days: 30
