@@ -61,6 +61,10 @@ export interface CompiledSpeechTimeline {
   totalDurationSeconds: number;
   source: 'character' | 'phoneme' | 'none';
   disposition: AlignmentDisposition;
+  /** Provider intervals examined by the single alignment interpreter. */
+  inputIntervalCount: number;
+  /** Valid provider intervals retained before visual-state coalescing. */
+  retainedIntervalCount: number;
   droppedIntervalCount: number;
   /** Wall-clock cost of compiling this timeline, for TIMELINE_COMPILE_MS. */
   compileMs: number;
