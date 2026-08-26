@@ -174,15 +174,15 @@ test('Reduce Motion suppresses visuals only, never the speech lifecycle', () => 
   assert.equal(report.legacy.resets.newUtterance, 1);
 });
 
-// -- Frozen: V10_VISIBLE is unavailable this phase ---------------------------
+// -- Historical mode parser is no longer a runtime authority ----------------
 
-test('V10_VISIBLE is closed by the phase gate and downgrades to shadow', () => {
+test('the historical mode parser cannot reactivate legacy rendering in StyleChat', () => {
   const mode = loadVisualMode();
   assert.equal(mode.V10_VISIBLE_MODE_AVAILABLE, false);
   assert.equal(mode.parseAvatarVisualMode('V10_VISIBLE'), 'V10_SHADOW');
-  assert.equal(mode.isAvatarEngineVisible('V10_VISIBLE'), false);
-  assert.equal(mode.isAvatarEngineActive('V10_SHADOW'), true);
-  assert.equal(mode.parseAvatarVisualMode('LEGACY'), 'LEGACY');
+  const header = executableSource('components/style-chat/StyleChatHeader.tsx');
+  assert.equal(/avatarVisualMode|isAvatarEngineActive|isAvatarEngineVisible/.test(header), false);
+  assert.equal(/deriveAvatarMouthState/.test(header), false);
 });
 
 // -- The two conditions V10 was hardened for ---------------------------------
@@ -433,31 +433,23 @@ test('the shadow report grows bounded and leaks no text', () => {
 
 // -- Host wiring --------------------------------------------------------------
 
-test('the header renders the legacy value and never the engine frame', () => {
+test('the header renders the V10 frame and has no legacy speaking path', () => {
   const header = executableSource('components/style-chat/StyleChatHeader.tsx');
 
-  // The rendered prop must still come from the legacy computation.
   assert.match(header, /mouthState=\{mouthState\}/);
-  assert.match(header, /deriveAvatarMouthState/);
-
-  // No engine value may reach the renderer this phase.
-  for (const pattern of [/computeFrame/, /AvatarRuntime/, /avatarEngineAdapter/, /isAvatarEngineVisible/]) {
-    assert.equal(pattern.test(header), false, `header must not consume ${pattern} while in shadow`);
-  }
+  assert.match(header, /getAvatarEngineAdapter\(\)\.computeFrame/);
+  assert.equal(/deriveAvatarMouthState|observeAvatarShadowFrame/.test(header), false);
 });
 
-test('the shadow observation runs in an effect, not on the render path', () => {
+test('the visible V10 frame is memoized from the authoritative store snapshot', () => {
   const header = executableSource('components/style-chat/StyleChatHeader.tsx');
-  const effectIndex = header.indexOf('useEffect');
-  const observeIndex = header.indexOf('observeAvatarShadowFrame');
-  assert.ok(effectIndex >= 0 && observeIndex > effectIndex, 'observation must sit inside useEffect');
-
-  // It must not be computed during render via useMemo alongside the legacy value.
-  const memoBlock = header.slice(header.indexOf('deriveAvatarMouthState'), observeIndex);
-  assert.equal(/observeAvatarShadowFrame/.test(memoBlock), false);
+  assert.match(header, /useMemo\(\(\)\s*=>/);
+  assert.match(header, /speech:\s*speechState/);
+  assert.match(header, /scopeMatches:\s*speechScopeMatches/);
+  assert.match(header, /playbackSeconds|speechState/);
 });
 
-test('shadow wiring adds no second subscription and no duplicate speech state', () => {
+test('visible convergence adds no second subscription and no duplicate speech state', () => {
   const header = executableSource('components/style-chat/StyleChatHeader.tsx');
 
   // Exactly one speech-state subscription, the pre-existing one.
@@ -465,20 +457,13 @@ test('shadow wiring adds no second subscription and no duplicate speech state', 
   assert.equal(subscriptions.length, 1, 'the header must subscribe to speech exactly once');
   assert.equal(/subscribeToAvatarSpeech/.test(header), false, 'no direct store subscription');
 
-  const bridgeText = executableSource('services/avatars/avatarShadowBridge.ts');
-  for (const pattern of [
-    /subscribeToAvatarSpeech/, /useAvatarSpeechState/, /AppState/, /addEventListener/,
-    /createAudioPlayer/, /speakAvatarMessage/, /setInterval/, /requestAnimationFrame/,
-  ]) {
-    assert.equal(pattern.test(bridgeText), false, `the observer must not introduce ${pattern}`);
-  }
+  assert.equal(/observeAvatarShadowFrame|emitAvatarShadowReport/.test(header), false);
 });
 
-test('shadow mode is inert when the engine is not active', () => {
+test('no visual-mode environment branch can resurrect the legacy renderer', () => {
   const header = executableSource('components/style-chat/StyleChatHeader.tsx');
-  // The effect must early-return before any engine work when the flag is LEGACY.
-  assert.match(header, /if\s*\(!engineActive\)\s*return;/);
-  assert.match(header, /isAvatarEngineActive\(\)/);
+  assert.equal(/EXPO_PUBLIC_AVATAR_VISUAL_MODE|engineActive|LEGACY|V10_SHADOW/.test(header), false);
+  assert.match(header, /getAvatarEngineAdapter\(\)\.computeFrame/);
 });
 
 // -- Capture surface ----------------------------------------------------------
@@ -581,14 +566,9 @@ test('report emission is development-only', () => {
   assert.equal(/console\./.test(formatterBody), false, 'the formatter must not log');
 });
 
-test('the header emits a sample at each utterance boundary in dev', () => {
+test('the visible header no longer emits or imports shadow comparison samples', () => {
   const header = executableSource('components/style-chat/StyleChatHeader.tsx');
-  assert.match(header, /emitAvatarShadowReport/);
-  assert.match(header, /previous === 'playing' && speechState\.phase !== 'playing'/);
-  // Capture must not run when the engine is inactive.
-  // tsc splits `if (x) return;` across two lines, so match tolerantly.
-  const emitBlock = header.slice(header.indexOf('previousPhaseRef'));
-  assert.match(emitBlock, /if\s*\(!engineActive\)\s*return;/);
+  assert.equal(/emitAvatarShadowReport|observeAvatarShadowFrame|previousPhaseRef/.test(header), false);
 });
 
 // -- Measurement-integrity regressions ---------------------------------------

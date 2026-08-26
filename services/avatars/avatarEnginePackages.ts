@@ -1,7 +1,8 @@
 import {
   STYLIST_AVATAR_PRESET_BY_ID,
-  STYLIST_SPEECH_CONFIG_BY_ID,
+  getStylistMouthMotionConfig,
   isRenderablePortraitPreset,
+  resolveStylistVisualAvatarId,
   type StylistSpeechConfiguration,
 } from '../../constants/stylistIdentity';
 import type {
@@ -52,10 +53,14 @@ function descriptor(
  */
 export function buildAvatarPackage(avatarId: string | null | undefined): AvatarPackage | null {
   if (!avatarId) return null;
-  const preset = STYLIST_AVATAR_PRESET_BY_ID.get(avatarId);
+  // Unknown ids fail closed. The system Elise alias is a known persisted id and
+  // resolves through the identity authority to its canonical visible portrait.
+  if (!STYLIST_AVATAR_PRESET_BY_ID.has(avatarId)) return null;
+  const visualAvatarId = resolveStylistVisualAvatarId(avatarId);
+  const preset = STYLIST_AVATAR_PRESET_BY_ID.get(visualAvatarId);
   if (!preset || !isRenderablePortraitPreset(preset)) return null;
 
-  const speech: StylistSpeechConfiguration | undefined = STYLIST_SPEECH_CONFIG_BY_ID.get(avatarId);
+  const speech: StylistSpeechConfiguration | undefined = getStylistMouthMotionConfig(visualAvatarId);
   const mouthSources = speech?.mouthStateSources;
   const mouthRegion = speech?.mouthRegion;
   const mouthUsable =
@@ -64,13 +69,13 @@ export function buildAvatarPackage(avatarId: string | null | undefined): AvatarP
   const pkg: AvatarPackage = {
     packageVersion: SUPPORTED_AVATAR_PACKAGE_VERSION,
     identity: {
-      avatarId,
-      // The app treats stylist identity and avatar identity as the same value;
-      // `speakAvatarMessage` refuses a request where they disagree.
-      stylistId: avatarId,
+      avatarId: visualAvatarId,
+      // Package identity is visual. Persisted speech identity may be the
+      // owner-approved `elise_default` alias and is reconciled by the host.
+      stylistId: visualAvatarId,
       visualPackageVersion: 1,
     },
-    base: descriptor(`${avatarId}:base`, preset.source),
+    base: descriptor(`${visualAvatarId}:base`, preset.source),
     registration: {
       // The registry carries no decoded pixel sizes. Uniform registration is
       // still REQUIRED so a package that does declare mismatched dimensions is
@@ -98,10 +103,10 @@ export function buildAvatarPackage(avatarId: string | null | undefined): AvatarP
         x: mouthRegion.x + mouthRegion.width / 2,
         y: mouthRegion.y + mouthRegion.height / 2,
       },
-      closed: descriptor(`${avatarId}:mouth:closed`, mouthSources.closed),
-      halfOpen: descriptor(`${avatarId}:mouth:halfOpen`, mouthSources.halfOpen),
-      open: descriptor(`${avatarId}:mouth:open`, mouthSources.open),
-      round: descriptor(`${avatarId}:mouth:round`, mouthSources.round),
+      closed: descriptor(`${visualAvatarId}:mouth:closed`, mouthSources.closed),
+      halfOpen: descriptor(`${visualAvatarId}:mouth:halfOpen`, mouthSources.halfOpen),
+      open: descriptor(`${visualAvatarId}:mouth:open`, mouthSources.open),
+      round: descriptor(`${visualAvatarId}:mouth:round`, mouthSources.round),
     };
   }
 
@@ -132,7 +137,7 @@ export function resolveAvatarPackage(avatarId: string | null | undefined): Avata
   if (cached) return cached;
   const built = buildAvatarPackage(id);
   const resolution: AvatarPackageResolution = {
-    avatarId: id,
+    avatarId: built?.identity.avatarId ?? id,
     package: built,
     validation: validateAvatarPackage(built),
   };

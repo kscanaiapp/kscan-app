@@ -30,7 +30,16 @@ export function compileSpeechTimeline(
   const elapsed = () => (now ? Math.max(0, now() - startedAt) : 0);
 
   if (normalized.source === 'none' || normalized.entries.length === 0) {
-    return freezeTimeline([], 0, normalized.source, normalized.disposition, normalized.dropped, elapsed());
+    return freezeTimeline(
+      [],
+      0,
+      normalized.source,
+      normalized.disposition,
+      normalized.inputCount,
+      normalized.entries.length,
+      normalized.dropped,
+      elapsed(),
+    );
   }
 
   const raw: SpeechTimelineInterval[] = normalized.entries.map((entry) => {
@@ -91,7 +100,16 @@ export function compileSpeechTimeline(
   }
 
   const total = out.length ? out[out.length - 1]!.endSeconds : 0;
-  return freezeTimeline(out, total, normalized.source, normalized.disposition, normalized.dropped, elapsed());
+  return freezeTimeline(
+    out,
+    total,
+    normalized.source,
+    normalized.disposition,
+    normalized.inputCount,
+    normalized.entries.length,
+    normalized.dropped,
+    elapsed(),
+  );
 }
 
 function freezeTimeline(
@@ -99,6 +117,8 @@ function freezeTimeline(
   totalDurationSeconds: number,
   source: CompiledSpeechTimeline['source'],
   disposition: CompiledSpeechTimeline['disposition'],
+  inputIntervalCount: number,
+  retainedIntervalCount: number,
   droppedIntervalCount: number,
   compileMs: number,
 ): CompiledSpeechTimeline {
@@ -109,6 +129,8 @@ function freezeTimeline(
     totalDurationSeconds,
     source,
     disposition,
+    inputIntervalCount,
+    retainedIntervalCount,
     droppedIntervalCount,
     compileMs,
   });

@@ -100,6 +100,22 @@ export const DEFAULT_STYLIST_IDENTITY: StylistIdentity = Object.freeze({
   avatarId: 'elise_default',
 });
 
+/**
+ * Owner-approved visible identity for the system Elise alias.
+ *
+ * Persistence keeps the stable `elise_default` value. Rendering, speech
+ * animation and V10 package resolution use the canonical portrait so there is
+ * one Elise face without rewriting stored user preferences.
+ */
+export const CANONICAL_ELISE_PORTRAIT_ID = 'stylist_portrait_01' as const;
+
+export function resolveStylistVisualAvatarId(avatarId: string | null | undefined): string {
+  const resolved = resolveAvatarId(avatarId);
+  return resolved === DEFAULT_STYLIST_IDENTITY.avatarId
+    ? CANONICAL_ELISE_PORTRAIT_ID
+    : resolved;
+}
+
 // ── Fix #6 — canonical per-portrait names and the single name resolver ──────
 //
 // Every shipped portrait has a default display name; a generic/abstract avatar
@@ -536,6 +552,28 @@ const SPEECH_CONFIG_ENTRIES: readonly [string, StylistSpeechConfiguration][] = O
 export const STYLIST_SPEECH_CONFIG_BY_ID: ReadonlyMap<string, StylistSpeechConfiguration> =
   createReadonlyMap(SPEECH_CONFIG_ENTRIES);
 
+// Elise's canonical visible portrait is speech-driven through the persisted
+// `elise_default` identity. Keep its artwork in the render contract so the
+// validated three-entry speech/voice registry remains unchanged.
+const FACIAL_MOTION_CONFIG_ENTRIES: readonly [string, StylistSpeechConfiguration][] = Object.freeze([
+  [
+    CANONICAL_ELISE_PORTRAIT_ID,
+    {
+      speakingMotionMode: 'mouth_states',
+      mouthRegion: { x: 0.41, y: 0.56, width: 0.18, height: 0.09 },
+      mouthStateSources: {
+        closed: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_01_mouth_closed.png') : 1,
+        halfOpen: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_01_mouth_half_open.png') : 1,
+        open: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_01_mouth_open.png') : 1,
+      },
+    },
+  ],
+]);
+
+/** Render-only mouth configuration outside the speech/voice registry. */
+export const STYLIST_FACIAL_MOTION_CONFIG_BY_ID: ReadonlyMap<string, StylistSpeechConfiguration> =
+  createReadonlyMap(FACIAL_MOTION_CONFIG_ENTRIES);
+
 // ── Optional static-portrait framing correction ───────────────────────────────
 //
 // Some bundled 1:1 portrait sources place the subject off-center within their
@@ -641,6 +679,14 @@ export function getStylistSpeechConfig(
 ): StylistSpeechConfiguration | undefined {
   if (!avatarId) return undefined;
   return STYLIST_SPEECH_CONFIG_BY_ID.get(avatarId);
+}
+
+/** Resolve approved mouth artwork without expanding the speech/voice registry. */
+export function getStylistMouthMotionConfig(
+  avatarId: string | null | undefined,
+): StylistSpeechConfiguration | undefined {
+  if (!avatarId) return undefined;
+  return STYLIST_SPEECH_CONFIG_BY_ID.get(avatarId) ?? STYLIST_FACIAL_MOTION_CONFIG_BY_ID.get(avatarId);
 }
 
 /**
