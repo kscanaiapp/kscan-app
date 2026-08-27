@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
+import { AppState, BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,7 +11,9 @@ import { AnimatedStylistAvatar } from '../stylist/AnimatedStylistAvatar';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useAvatarSpeechState } from '../../stores/avatarSpeechStore';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
-import { deriveAvatarMouthState } from '../../services/avatarSpeechMotion';
+import { resolveStylistVisualAvatarId } from '../../constants/stylistIdentity';
+import { getAvatarEngineAdapter } from '../../services/avatars/avatarEngineAdapter';
+import { resolveAvatarMotionEpoch } from '../../services/avatars/avatarMotionEpoch';
 
 interface StyleChatHeaderProps {
   showBadge?: boolean;
@@ -56,22 +58,39 @@ export function StyleChatHeader({
   const reducedMotion = useReducedMotion();
   const speechState = useAvatarSpeechState();
   const actorId = user?.id ?? null;
-  const isSpeaking =
+  const visualAvatarId = resolveStylistVisualAvatarId(identity.avatarId);
+  const speechScopeMatches =
     Boolean(actorId && sessionId) &&
     speechState.actorId === actorId &&
     speechState.sessionId === sessionId &&
     speechState.stylistId === identity.avatarId &&
-    speechState.avatarId === identity.avatarId &&
-    speechState.phase === 'playing';
+    speechState.avatarId === identity.avatarId;
+  const isSpeaking = speechScopeMatches && speechState.phase === 'playing';
   const mouthState = useMemo(() => {
-    if (!isSpeaking) return 'closed';
-    return deriveAvatarMouthState({
-      phase: speechState.phase,
-      playbackSeconds: speechState.playbackSeconds,
-      alignment: speechState.alignment,
-      reducedMotion,
-    });
-  }, [isSpeaking, speechState.phase, speechState.playbackSeconds, speechState.alignment, reducedMotion]);
+    return getAvatarEngineAdapter().computeFrame({
+      avatarId: visualAvatarId,
+      speech: speechState,
+      scopeMatches: speechScopeMatches,
+      reduceMotion: reducedMotion,
+      foreground: AppState.currentState === 'active',
+      motionEpoch: resolveAvatarMotionEpoch({
+        actorId,
+        sessionId: sessionId ?? null,
+        avatarId: visualAvatarId,
+      }),
+      hostNowMs: Date.now(),
+      ...(isThinking ? { semanticMode: 'thinking' as const } : {}),
+    }).mouthState;
+  }, [
+    visualAvatarId,
+    speechState,
+    speechScopeMatches,
+    reducedMotion,
+    actorId,
+    sessionId,
+    isThinking,
+  ]);
+
   const displayName = identity.displayName;
   const headerAccessibilityLabel = `${displayName}, ${ELISE_IDENTITY.role}`;
 
@@ -99,7 +118,7 @@ export function StyleChatHeader({
           importantForAccessibility="no-hide-descendants"
         >
           <AnimatedStylistAvatar
-            avatarId={identity.avatarId}
+            avatarId={visualAvatarId}
             size={67}
             state={avatarState}
             mouthState={mouthState}
