@@ -41,7 +41,7 @@ export type StylistAvatarPresetAbstract = {
   source?: never;
   selectable: true;
   persistable: true;
-  voiceProfile: 'silent';
+  voiceProfile: StylistVoiceProfile;
 };
 
 export type StylistAvatarPresetPortraitPlaceholder = {
@@ -154,7 +154,7 @@ const ABSTRACT_PRESET_DEFINITIONS: StylistAvatarPresetAbstract[] = [
     symbolColor: '#52103E',
     selectable: true,
     persistable: true,
-    voiceProfile: 'silent',
+    voiceProfile: 'feminine',
   },
   {
     id: 'editorial_plum',
