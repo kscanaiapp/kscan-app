@@ -17,7 +17,7 @@ const {
 } = loadVisualMode();
 
 const SARAH = 'stylist_portrait_05';
-const ELISE = 'stylist_portrait_02';
+const HENRY = 'stylist_portrait_02';
 
 /** The store fields the adapter reads, in the store's own shape. */
 function speechState(overrides = {}) {
@@ -89,13 +89,13 @@ test('an avatar whose package allows round lip sync may produce it', () => {
   for (const seconds of [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7]) {
     const { mouthState } = adapter.computeFrame(
       hostInput({
-        avatarId: ELISE,
-        speech: speechState({ avatarId: ELISE, alignment, playbackSeconds: seconds }),
+        avatarId: HENRY,
+        speech: speechState({ avatarId: HENRY, alignment, playbackSeconds: seconds }),
       }),
     );
     seen.add(mouthState);
   }
-  assert.ok(seen.has('round'), 'Elise ships round artwork and should be able to use it');
+  assert.ok(seen.has('round'), 'Henry ships round artwork and should be able to use it');
 });
 
 test('the renderer never receives an engine state it cannot draw', () => {
@@ -129,7 +129,7 @@ test('a store utterance belonging to another avatar does not animate this surfac
   const result = adapter.computeFrame(
     hostInput({
       avatarId: SARAH,
-      speech: speechState({ avatarId: ELISE, alignment: HELLO(), playbackSeconds: 0.4 }),
+      speech: speechState({ avatarId: HENRY, alignment: HELLO(), playbackSeconds: 0.4 }),
     }),
   );
   assert.equal(result.mouthState, 'closed');
@@ -176,12 +176,12 @@ test('an avatar switch reloads capabilities and rejects the previous frame', () 
 
   const switched = adapter.computeFrame(
     hostInput({
-      avatarId: ELISE,
-      speech: speechState({ avatarId: ELISE, alignment: HELLO(), playbackSeconds: 0.3 }),
+      avatarId: HENRY,
+      speech: speechState({ avatarId: HENRY, alignment: HELLO(), playbackSeconds: 0.3 }),
     }),
   );
-  assert.equal(switched.frame.avatarId, ELISE);
-  assert.equal(adapter.debugState().avatarId, ELISE);
+  assert.equal(switched.frame.avatarId, HENRY);
+  assert.equal(adapter.debugState().avatarId, HENRY);
 });
 
 test('a motion-epoch bump does not disturb speech authority', () => {

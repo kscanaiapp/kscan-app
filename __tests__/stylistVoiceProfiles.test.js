@@ -92,7 +92,8 @@ test('Home and StyleChat continue to consume the same identity preset', () => {
   assert.match(home, /useStylistIdentity\(\)/);
   assert.match(home, /identity=\{identity\}/);
   assert.match(header, /useStylistIdentity\(\)/);
-  assert.match(header, /avatarId=\{identity\.avatarId\}/);
+  assert.match(header, /resolveStylistVisualAvatarId\(identity\.avatarId\)/);
+  assert.match(header, /avatarId=\{visualAvatarId\}/);
   assert.doesNotMatch(home, /STYLIST_AVATAR_PRESET_BY_ID\.get/);
   assert.doesNotMatch(header, /STYLIST_AVATAR_PRESET_BY_ID\.get/);
 });

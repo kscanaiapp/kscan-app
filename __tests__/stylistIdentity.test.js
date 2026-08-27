@@ -82,7 +82,9 @@ const {
   STYLIST_NAME_MIN_LENGTH,
   getStylistAvatarFraming,
   CANONICAL_PORTRAIT_NAMES,
+  CANONICAL_ELISE_PORTRAIT_ID,
   resolveCanonicalStylistName,
+  resolveStylistVisualAvatarId,
   resolveStylistDisplayName,
 } = require('../constants/stylistIdentity.ts');
 
@@ -116,6 +118,14 @@ test('default stylist identity is stable and frozen', () => {
   assert.equal(DEFAULT_STYLIST_IDENTITY.displayName, 'Elise');
   assert.equal(DEFAULT_STYLIST_IDENTITY.avatarId, 'elise_default');
   assert.ok(Object.isFrozen(DEFAULT_STYLIST_IDENTITY));
+});
+
+test('ELISE_DEFAULT_VISUAL_AUTHORITY: the persisted default resolves only to canonical portrait 01', () => {
+  assert.equal(CANONICAL_ELISE_PORTRAIT_ID, 'stylist_portrait_01');
+  assert.equal(resolveStylistVisualAvatarId('elise_default'), 'stylist_portrait_01');
+  assert.equal(resolveCanonicalStylistName(resolveStylistVisualAvatarId('elise_default')), 'Elise');
+  assert.equal(resolveCanonicalStylistName('stylist_portrait_02'), 'Henry');
+  assert.notEqual(resolveStylistVisualAvatarId('elise_default'), 'stylist_portrait_02');
 });
 
 test('avatar preset registry contains six abstract presets and ten ready portrait presets', () => {
