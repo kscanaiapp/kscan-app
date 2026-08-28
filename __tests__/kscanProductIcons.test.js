@@ -422,14 +422,10 @@ test('preserve: permission card icons and profile avatar fallback unchanged', ()
   assert.match(HOME, /preferredName \? preferredName\.charAt\(0\)\.toUpperCase\(\) : '✦'/);
 });
 
-test('preserve: VoiceScan placeholder stays inactive and non-interactive', () => {
-  assert.match(HOME, /testID="home-luxury-voicescan-coming-soon"/);
-  assert.match(HOME, /VOICESCAN_ENABLED/);
-  assert.doesNotMatch(HOME, /voiceScanPill[\s\S]{0,400}?onPress/);
-  // Build 25 Phase 4: re-encoded from accessibilityRole="text" to a disabled
-  // button, so a screen reader announces unavailability, not just a sentence.
-  assert.match(HOME, /accessibilityRole="button"/);
-  assert.match(HOME, /accessibilityState=\{\{ disabled: inactive \}\}/);
-  assert.match(HOME, /accessibilityLabel="Voice Scan, coming soon"/);
-  assert.doesNotMatch(HOME, /importantForAccessibility="no-hide-descendants"/);
+test('Build 33: no VoiceScan placeholder or icon usage remains on production Home', () => {
+  // The voice-scan glyph stays registered in the icon set, but no production
+  // screen may render it while the feature is unimplemented.
+  assert.doesNotMatch(HOME, /voicescan/i);
+  assert.doesNotMatch(HOME, /name="voice-scan"/);
+  assert.doesNotMatch(HOME, /COMING SOON/);
 });

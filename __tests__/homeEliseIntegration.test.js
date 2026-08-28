@@ -134,27 +134,16 @@ test('TextScan navigation guard prevents rapid duplicates and releases on focus'
   assert.doesNotMatch(homeV1, /setTimeout\(\(\) => setTextScanNavigating\(false\)/);
 });
 
-test('Voice Scan pill remains non-interactive and shows Coming Soon', () => {
-  assert.match(homeV1, /testID="home-luxury-voicescan-coming-soon"/);
-  assert.match(homeV1, /VOICE SCAN/);
-  assert.match(homeV1, /COMING SOON/);
-  assert.doesNotMatch(homeV1, /onPress=\{[^}]*\}\s*\n\s*<VoiceScanPlaceholderPill/);
-
-  // Non-interactive, asserted directly: the pill's root is a View and the
-  // component body contains no press handler of any kind.
-  const pill = /function VoiceScanPlaceholderPill\([\s\S]*?\n\}/.exec(homeV1);
-  assert.ok(pill, 'the VoiceScan placeholder component must exist');
-  assert.match(pill[0], /<View\b/);
-  assert.doesNotMatch(pill[0], /onPress|onLongPress|Pressable|TouchableOpacity/);
-
-  // Build 25 Phase 4: announced as a disabled button rather than as prose, so a
-  // screen-reader user learns the feature is unavailable and not merely present.
-  // Previously accessibilityRole="text", which conveyed no unavailability.
-  assert.match(pill[0], /accessibilityRole="button"/);
-  assert.match(pill[0], /accessibilityState=\{\{ disabled: inactive \}\}/);
-  assert.match(pill[0], /accessibilityLabel="Voice Scan, coming soon"/);
-  // Never suppressed: a Coming Soon feature must stay discoverable.
-  assert.doesNotMatch(pill[0], /importantForAccessibility="no-hide-descendants"/);
+test('Build 33: the unfinished Voice Scan surface is absent from production Home', () => {
+  // Build 32 shipped a reviewer-visible "VOICE SCAN / COMING SOON" pill. Voice
+  // Scan is unimplemented, so App Review could read Home as an incomplete app.
+  // Build 33 removes the surface outright rather than dimming it.
+  assert.doesNotMatch(homeV1, /voicescan/i);
+  assert.doesNotMatch(homeV1, /VOICE SCAN/);
+  assert.doesNotMatch(homeV1, /COMING SOON/);
+  assert.doesNotMatch(homeV1, /VOICESCAN_ENABLED/);
+  // TextScan is a real, shipping entry point and must survive the removal.
+  assert.match(homeV1, /testID="home-luxury-textscan"/);
 });
 
 test('Android manifest removes mic, fine-location, and storage permissions from dependency merges', () => {

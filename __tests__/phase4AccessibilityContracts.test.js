@@ -141,12 +141,12 @@ test('semantics: the active Recent Scans / My Closet tab exposes selected state'
 
 const HOME = read('components', 'home', 'HomeLuxuryTechV1.tsx');
 
-test('semantics: VoiceScan stays discoverable but announces that it is unavailable', () => {
-  assert.match(HOME, /accessibilityLabel="Voice Scan, coming soon"/);
-  assert.match(HOME, /accessibilityState=\{\{ disabled: inactive \}\}/);
-  // Suppressing the control entirely is explicitly not the contract: a user who
-  // cannot see the dimmed pill should still learn the feature is coming.
-  assert.doesNotMatch(HOME, /importantForAccessibility="no-hide-descendants"/);
+test('Build 33: no Coming Soon affordance is announced on production Home', () => {
+  // Build 32 deliberately kept the Voice Scan pill discoverable to screen
+  // readers. Build 33 removes the unfinished feature from the review surface
+  // entirely, so there is nothing left to announce.
+  assert.doesNotMatch(HOME, /coming soon/i);
+  assert.doesNotMatch(HOME, /voicescan/i);
 });
 
 // ── ProductShelf / room picker semantics ─────────────────────────────────────

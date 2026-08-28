@@ -246,7 +246,6 @@ test('every pre-Build-5 Home section survives the insertion', () => {
     'home-luxury-feature-scan',
     'home-luxury-feature-library',
     'home-luxury-feature-dressing-rooms',
-    'home-luxury-voicescan-coming-soon',
     '<PrivacyFooter',
   ]) {
     assert.ok(home.includes(marker), `Home lost ${marker}`);

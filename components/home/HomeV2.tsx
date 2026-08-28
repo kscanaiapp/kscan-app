@@ -24,7 +24,7 @@ import {
   StatusPill,
 } from '../../components/luxury';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
-import { TEXTSCAN_UI_ENABLED, VOICESCAN_ENABLED } from '../../constants/featureFlags';
+import { TEXTSCAN_UI_ENABLED } from '../../constants/featureFlags';
 
 interface DestinationCardProps {
   title: string;
@@ -73,31 +73,6 @@ function DestinationCard({
       <Text style={[styles.destTitle, isDisabled && styles.destMuted]}>{title}</Text>
       <Text style={[styles.destBody, isDisabled && styles.destMuted]}>{body}</Text>
     </Pressable>
-  );
-}
-
-/**
- * Inactive VoiceScan placeholder pill.
- *
- * VoiceScan is planned but inactive for the current launch. Visible as a
- * future-facing "Coming Soon" affordance; tapping is a silent no-op.
- */
-function VoiceScanPlaceholderPill() {
-  const inactive = !VOICESCAN_ENABLED;
-  return (
-    <View
-      testID="home-v2-voicescan-coming-soon"
-      style={[styles.voiceScanPill, inactive && styles.voiceScanPillInactive]}
-      accessibilityRole="text"
-      accessibilityLabel="Voice Scan. Coming Soon."
-    >
-      <Text style={[styles.voiceScanPillTitle, inactive && styles.voiceScanPillTextMuted]}>
-        VOICE SCAN
-      </Text>
-      <Text style={[styles.voiceScanPillSubtitle, inactive && styles.voiceScanPillTextMuted]}>
-        COMING SOON
-      </Text>
-    </View>
   );
 }
 
@@ -187,7 +162,6 @@ export default function HomeV2() {
             style={styles.secondaryActionButton}
           />
         )}
-        <VoiceScanPlaceholderPill />
       </View>
 
       {/* Continue / Recent */}
@@ -321,41 +295,6 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     minWidth: undefined,
     height: 48,
-  },
-  voiceScanPill: {
-    alignSelf: 'stretch',
-    minHeight: 48,
-    borderRadius: LUXURY.buttons.secondary.borderRadius,
-    backgroundColor: LUXURY.buttons.secondary.backgroundColor,
-    borderWidth: LUXURY.buttons.secondary.borderWidth,
-    borderColor: LUXURY.buttons.secondary.borderColor,
-    paddingHorizontal: SPACING.xl,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.xs,
-  },
-  voiceScanPillInactive: {
-    opacity: 0.5,
-    borderColor: LUXURY.colors.border,
-  },
-  voiceScanPillTitle: {
-    ...LUXURY.typography.cta,
-    fontSize: LUXURY.buttons.secondary.fontSize,
-    letterSpacing: LUXURY.buttons.secondary.letterSpacing,
-    fontWeight: LUXURY.buttons.secondary.fontWeight,
-    color: LUXURY.buttons.secondary.color,
-    textAlign: 'center',
-  },
-  voiceScanPillSubtitle: {
-    ...LUXURY.typography.caption,
-    fontSize: 11,
-    letterSpacing: 0.5,
-    color: LUXURY.colors.graphite,
-    textAlign: 'center',
-    textTransform: 'uppercase',
-  },
-  voiceScanPillTextMuted: {
-    color: LUXURY.colors.stone,
   },
   recentSection: {
     marginBottom: SPACING.xxl,

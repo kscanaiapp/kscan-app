@@ -99,7 +99,6 @@ export default function OnboardingScreen() {
     setPreference: setPermissionPreference,
     isSaving: permissionSaving,
     savePreferences,
-    requestMicrophonePermission,
   } = usePermissionPreferences();
 
   const moveToTermsOnce = useCallback(() => {
@@ -701,7 +700,6 @@ export default function OnboardingScreen() {
         preferences={permissionPrefs}
         togglePreference={togglePermission}
         setPreference={setPermissionPreference}
-        requestMicrophonePermission={requestMicrophonePermission}
         isSaving={permissionSaving}
         onContinueToHome={handlePermissionsContinue}
         onNotNow={goToHome}
