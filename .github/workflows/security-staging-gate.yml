@@ -71,6 +71,10 @@ jobs:
       mobile_only: ${{ steps.classify.outputs.mobile_only }}
       classifications: ${{ steps.classify.outputs.classifications }}
       release_class: ${{ steps.classify.outputs.release_class }}
+      backend_deployment_required: ${{ steps.classify.outputs.backend_deployment_required }}
+      edge_deployment_required: ${{ steps.classify.outputs.edge_deployment_required }}
+      migration_validation_required: ${{ steps.classify.outputs.migration_validation_required }}
+      mobile_runtime_impact: ${{ steps.classify.outputs.mobile_runtime_impact }}
     steps:
       - name: Checkout merge candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -92,10 +96,18 @@ jobs:
           MOBILE_ONLY="$(python3 -c "import json; print(str(json.load(open('classification.json'))['mobileOnly']).lower())")"
           CLASSIFICATIONS="$(python3 -c "import json; print(','.join(json.load(open('classification.json'))['classifications']))")"
           RELEASE_CLASS="$(python3 -c "import json; print(json.load(open('classification.json'))['releaseClass'])")"
+          BACKEND_DEPLOYMENT_REQUIRED="$(python3 -c "import json; print(str(json.load(open('classification.json'))['backendDeploymentRequired']).lower())")"
+          EDGE_DEPLOYMENT_REQUIRED="$(python3 -c "import json; print(str(json.load(open('classification.json'))['edgeDeploymentRequired']).lower())")"
+          MIGRATION_VALIDATION_REQUIRED="$(python3 -c "import json; print(str(json.load(open('classification.json'))['migrationValidationRequired']).lower())")"
+          MOBILE_RUNTIME_IMPACT="$(python3 -c "import json; print(str(json.load(open('classification.json'))['mobileRuntimeImpact']).lower())")"
           echo "staging_impact=${STAGING_IMPACT}" >> "$GITHUB_OUTPUT"
           echo "mobile_only=${MOBILE_ONLY}" >> "$GITHUB_OUTPUT"
           echo "classifications=${CLASSIFICATIONS}" >> "$GITHUB_OUTPUT"
           echo "release_class=${RELEASE_CLASS}" >> "$GITHUB_OUTPUT"
+          echo "backend_deployment_required=${BACKEND_DEPLOYMENT_REQUIRED}" >> "$GITHUB_OUTPUT"
+          echo "edge_deployment_required=${EDGE_DEPLOYMENT_REQUIRED}" >> "$GITHUB_OUTPUT"
+          echo "migration_validation_required=${MIGRATION_VALIDATION_REQUIRED}" >> "$GITHUB_OUTPUT"
+          echo "mobile_runtime_impact=${MOBILE_RUNTIME_IMPACT}" >> "$GITHUB_OUTPUT"
           cat classification.json >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload classification artifact
@@ -156,9 +168,18 @@ jobs:
     # impossible instead of accidentally safe.
     #
     # Only the governing staging branch, or an explicit manual dispatch, may deploy.
+    #
+    # Gated on backendDeploymentRequired, not the blanket stagingImpact: this
+    # job's own steps below only ever `supabase link`/apply migrations/deploy
+    # functions, so it has nothing to do -- and nothing to prove -- on a diff
+    # that touches no supabase/functions/** or supabase/migrations/** file.
+    # stagingImpact stays true for a mobile-only PR on purpose (see
+    # classify-changed-surfaces.js), which previously meant a pure-mobile
+    # change still ran the real Supabase link/snapshot/deploy pipeline even
+    # though the deploy scripts always no-op once inside.
     if: |
       always() &&
-      needs.classify-changes.outputs.staging_impact == 'true' &&
+      needs.classify-changes.outputs.backend_deployment_required == 'true' &&
       (needs.migration-validation.result == 'success' || needs.migration-validation.result == 'skipped') &&
       (
         github.ref == 'refs/heads/staging/production-parity' ||
@@ -356,9 +377,16 @@ jobs:
     needs:
       - classify-changes
       - deploy-staging
+    # Same rationale as deploy-staging: gated on backendDeploymentRequired, not
+    # the blanket stagingImpact, since a mobile-only PR has nothing in staging
+    # for this check to validate. In practice deploy-staging.result is already
+    # 'skipped' rather than 'success' whenever backendDeploymentRequired is
+    # false, so this condition is redundant with that cascade today -- it is
+    # kept explicit so this job never depends on deploy-staging's internal
+    # gating remaining exactly as it is now.
     if: |
       always() &&
-      needs.classify-changes.outputs.staging_impact == 'true' &&
+      needs.classify-changes.outputs.backend_deployment_required == 'true' &&
       needs.deploy-staging.result == 'success'
     environment: staging
     steps:
@@ -387,9 +415,10 @@ jobs:
       - classify-changes
       - deploy-staging
       - staging-health
+    # Same rationale as deploy-staging/staging-health above.
     if: |
       always() &&
-      needs.classify-changes.outputs.staging_impact == 'true' &&
+      needs.classify-changes.outputs.backend_deployment_required == 'true' &&
       needs.deploy-staging.result == 'success' &&
       (needs.staging-health.result == 'success' || needs.staging-health.result == 'skipped')
     environment: staging
