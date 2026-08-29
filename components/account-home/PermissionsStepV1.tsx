@@ -26,7 +26,7 @@ interface PermissionsStepV1Props {
  *
  * Build 33: the Microphone and Notifications "Coming Soon" cards were removed.
  * Neither capability is implemented, and advertising them on a reviewer-visible
- * onboarding screen reads as an incomplete app. K Scan requests no microphone
+ * onboarding screen reads as an incomplete app. K Scan AI requests no microphone
  * permission on any platform; camera and photos remain point-of-use grants.
  */
 export function PermissionsStepV1({
