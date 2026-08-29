@@ -33,6 +33,15 @@ detectAndMaskFaces(input: NativeFaceMaskInput): Promise<NativeFaceMaskResult>
 cleanupSanitizedImage(uri: string): Promise<NativeCleanupResult>
 ```
 
+License-plate screening, **Android implemented; iOS not yet**. The TypeScript
+contract for both lives in `src/KScanPiiNative.types.ts`
+(`NativePlateMaskResult`, `NativePlateCapabilities`):
+
+```ts
+getPlateCapabilities(): Promise<NativePlateCapabilities>
+detectAndMaskPlates(input: NativePlateMaskInput): Promise<NativePlateMaskResult>
+```
+
 ## Activation status
 
 **Inactive.** This module is not imported by any current application screen,
@@ -47,6 +56,15 @@ will be built in a later integration branch.
 
 ## Non-goals
 
-This phase does not implement license-plate detection, OCR, facial recognition,
-identity matching, embeddings, camera integration, upload integration, backend
-transmission, release builds, or production activation.
+This phase does not implement OCR, facial recognition, identity matching,
+embeddings, camera integration, upload integration, backend transmission,
+release builds, or production activation.
+
+License-plate **region screening** is now implemented on Android
+(`AndroidPlateDetector`, bundled ML Kit text recognition). It is explicitly not
+OCR: the recognizer is used as a region proposer, and the recognized characters
+are never read, returned, logged or persisted. Selection is a geometry
+heuristic — aspect ratio, relative width, absolute height, relative area — whose
+thresholds live in `NativePrivacyConstants` and are UNTUNED against a measured
+corpus. Motorcycle and square-format plates fall outside the aspect band by
+design, and non-Latin scripts are not recognized at all.

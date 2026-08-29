@@ -53,6 +53,30 @@ dependencies {
   // be measured on a physical build before release.
   implementation 'com.google.mlkit:pose-detection:18.0.0-beta5'
 
+  // Bundled Google ML Kit text recognition, Latin script (Build 34 closet-media
+  // privacy: license-plate region screening).
+  //
+  // BUNDLED, NOT PLAY-DELIVERED. Like the two artifacts above, this ships the
+  // model inside the APK. The Play-Services-delivered twin
+  // (`play-services-mlkit-text-recognition`) is the same recognizer with the
+  // model fetched on first use, and it fails in exactly the situation this
+  // capability exists for: an offline device masking a photo before it is
+  // stored. Offline availability is a hard requirement of the privacy gate, so
+  // the size cost of bundling is accepted deliberately.
+  //
+  // LATIN ONLY. The Chinese, Devanagari, Japanese and Korean recognizers are
+  // separate artifacts and are NOT added. This pipeline never reads characters
+  // — it measures boxes — and Latin is what plate-shaped text in the supported
+  // markets is recognized under. A plate in a non-Latin script may therefore go
+  // unscreened. That is a stated gap, not a solved problem.
+  //
+  // WHAT IT IS USED FOR: region geometry, nothing else. See AndroidPlateDetector
+  // — the recognized strings are never read, returned, logged or persisted.
+  //
+  // The binary-size and latency impact of this line is UNMEASURED and must be
+  // measured on a physical build before release.
+  implementation 'com.google.mlkit:text-recognition:16.0.1'
+
   if (project.findProject(':expo-modules-test-core')) {
     testImplementation project(':expo-modules-test-core')
   }

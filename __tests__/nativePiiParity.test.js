@@ -276,10 +276,17 @@ test('Native-module access stays inside the audited privacy layer', () => {
   // access must flow through the audited privacy layer. Screens, hooks, and
   // non-privacy services must never touch the native symbols directly.
   const dirs = ['app', 'components', 'hooks', 'services'];
-  const forbidden = ['KScanPiiNative', 'detectAndMaskFaces', 'getPrivacyCapabilities', 'cleanupSanitizedImage'];
+  // B2A added plate screening; its native symbols are guarded exactly like
+  // the face ones so the new capability cannot be reached from a screen.
+  const forbidden = [
+    'KScanPiiNative', 'detectAndMaskFaces', 'getPrivacyCapabilities', 'cleanupSanitizedImage',
+    'detectAndMaskPlates', 'getPlateCapabilities',
+  ];
   const allowedPaths = [
     path.join(ROOT, 'services/privacy/onDeviceMasking/nativeAdapter.ts'),
     path.join(ROOT, 'services/privacy/nativeFaceEngine.ts'),
+    path.join(ROOT, 'services/privacy/nativePlateEngine.ts'),
+    path.join(ROOT, 'services/privacy/plateDetection.ts'),
     path.join(ROOT, 'services/privacy/privacyBoundary.ts'),
     path.join(ROOT, 'services/privacy/privacyProof.ts'),
     path.join(ROOT, 'services/privacyImageUpload.ts'),

@@ -61,7 +61,12 @@ function loadPrivacyUpload(expoMocks) {
   const nativeFaceEngine = loadTsModule('services/privacy/nativeFaceEngine.ts', {});
   const boundary = loadTsModule('services/privacy/privacyBoundary.ts', {
     './nativeFaceEngine': nativeFaceEngine,
-    './plateDetection': loadTsModule('services/privacy/plateDetection.ts'),
+    './plateDetection': loadTsModule('services/privacy/plateDetection.ts', {
+    // B2A: plateDetection now delegates to the native plate engine.
+    // Loaded for real with no native module present, so it reports
+    // 'not linked' exactly as a binary without the engine would.
+    './nativePlateEngine': loadTsModule('services/privacy/nativePlateEngine.ts', {}),
+  }),
     './privacyProof': loadTsModule('services/privacy/privacyProof.ts'),
     './privacyArtifactStore': artifactStore,
     './uriMaterializer': loadTsModule('services/privacy/uriMaterializer.ts', {

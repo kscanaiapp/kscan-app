@@ -71,7 +71,12 @@ function loadRealPrivacyChain() {
     },
     'expo-crypto': { randomUUID: () => '00000000-0000-4000-8000-000000000001' },
   });
-  const plateDetection = loadTsModule('services/privacy/plateDetection.ts');
+  const plateDetection = loadTsModule('services/privacy/plateDetection.ts', {
+    // B2A: plateDetection now delegates to the native plate engine.
+    // Loaded for real with no native module present, so it reports
+    // 'not linked' exactly as a binary without the engine would.
+    './nativePlateEngine': loadTsModule('services/privacy/nativePlateEngine.ts', {}),
+  });
   const nativeFaceEngine = loadTsModule('services/privacy/nativeFaceEngine.ts', {});
   const privacyProof = loadTsModule('services/privacy/privacyProof.ts');
   const uriMaterializer = loadTsModule('services/privacy/uriMaterializer.ts', {
@@ -106,7 +111,12 @@ test('dormant boundary: gate is closed and prepare blocks with typed plate failu
 });
 
 test('dormant boundary: face-only capability does not open the gate', async () => {
-  const plateDetection = loadTsModule('services/privacy/plateDetection.ts');
+  const plateDetection = loadTsModule('services/privacy/plateDetection.ts', {
+    // B2A: plateDetection now delegates to the native plate engine.
+    // Loaded for real with no native module present, so it reports
+    // 'not linked' exactly as a binary without the engine would.
+    './nativePlateEngine': loadTsModule('services/privacy/nativePlateEngine.ts', {}),
+  });
   const privacyProof = loadTsModule('services/privacy/privacyProof.ts');
   const openFaceEngine = {
     isNativeFaceEngineLinked: () => true,

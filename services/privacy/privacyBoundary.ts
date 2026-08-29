@@ -14,7 +14,7 @@ import {
   detectAndMaskFacesLocal,
   isNativeFaceEngineLinked,
 } from './nativeFaceEngine';
-import { PLATE_DETECTION_SUPPORTED, detectPlates } from './plateDetection';
+import { detectPlates, isPlateDetectionSupported } from './plateDetection';
 import {
   buildBlockedProof,
   buildProofFromResults,
@@ -76,7 +76,7 @@ export type PrivacyBoundaryResult =
  * therefore this returns false.
  */
 export function isImageDispatchAllowed(): boolean {
-  return PLATE_DETECTION_SUPPORTED && isNativeFaceEngineLinked();
+  return isPlateDetectionSupported() && isNativeFaceEngineLinked();
 }
 
 function blocked(
@@ -104,7 +104,7 @@ export async function prepareImageForDispatch(
   sourceUri: string,
 ): Promise<PrivacyBoundaryResult> {
   // Cheapest checks first: a missing capability blocks before any file work.
-  if (!PLATE_DETECTION_SUPPORTED) {
+  if (!isPlateDetectionSupported()) {
     return blocked(
       'PLATE_CAPABILITY_MISSING',
       'On-device license-plate detection is not available in this build.',
@@ -144,11 +144,29 @@ export async function prepareImageForDispatch(
     }
     sanitizedUri = faceResult.sanitizedUri;
 
+    // Plate screening masks INTO the face-sanitized artifact and returns a new
+    // one. When it finds nothing there is no second artifact and the
+    // face-sanitized output stands; when it does mask, ownership moves to the
+    // new URI and the superseded one is released here rather than leaking.
     const plateResult = await detectPlates({ imageUri: sanitizedUri });
     if (!plateResult.supported || !plateResult.performed || plateResult.failure) {
       return blocked(
         'PLATE_PROCESSING_FAILED',
         plateResult.failure?.reason ?? 'Plate detection did not complete.',
+      );
+    }
+    if (plateResult.maskedUri) {
+      const supersededUri = sanitizedUri;
+      sanitizedUri = plateResult.maskedUri;
+      await cleanupNativeSanitizedImage(supersededUri);
+      await deletePrivacyArtifact(supersededUri);
+    }
+    // A run that detected plate-shaped regions but obscured none of them has
+    // not satisfied the masking contract, so it must not reach a proof.
+    if (plateResult.regionsAccepted > 0 && plateResult.regionsMasked < plateResult.regionsAccepted) {
+      return blocked(
+        'PLATE_PROCESSING_FAILED',
+        'Plate regions were accepted but not fully masked.',
       );
     }
 

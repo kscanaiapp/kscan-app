@@ -64,7 +64,11 @@ export function buildProofFromResults(
     facesMasked: face.facesMasked,
     plateDetectionPerformed: plateCompleted,
     platesDetected: plate.regionsDetected,
-    platesMasked: plateCompleted ? plate.regionsAccepted : 0,
+    // B2A: masked count comes from what the engine actually OBSCURED, not from
+    // detection having completed. The previous form reported regionsAccepted
+    // whenever the screen ran, which would have claimed masking on a build
+    // that detected plates and never redacted them.
+    platesMasked: plateCompleted ? plate.regionsMasked : 0,
     // The native pipeline re-encodes to PNG from a decoded bitmap; metadata
     // survives only if the native run did not produce a sanitized output.
     metadataStripped: outputVerified,
