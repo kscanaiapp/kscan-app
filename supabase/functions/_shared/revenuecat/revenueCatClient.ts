@@ -49,6 +49,43 @@ function getKPlusEntitlementId(): string {
 }
 
 /**
+ * V2's grant_entitlement action does NOT auto-create the customer the way
+ * V1's promotional endpoint did -- granting to a customer RevenueCat has
+ * never seen returns 404 {"type":"resource_missing"} ("Could not find
+ * customer ID associated with this project"), confirmed live against
+ * staging. V2 has a separate, idempotent create-customer action
+ * (`POST /v2/projects/{project_id}/customers` with just `{id}`) that
+ * RevenueCat documents as safe to call for an already-existing customer
+ * (it does not reset attributes or history) -- called unconditionally
+ * before every grant rather than only after a 404, since the extra call
+ * is cheap relative to the account's rate limit and this keeps the retry
+ * logic simple (one linear attempt, no recursive retry-after-error path).
+ */
+async function ensureCustomerExists(
+  projectId: string,
+  secretApiKey: string,
+  appUserId: string,
+): Promise<boolean> {
+  try {
+    const response = await fetch(`${REVENUECAT_API_BASE}/projects/${encodeURIComponent(projectId)}/customers`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${secretApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ id: appUserId }),
+      signal: AbortSignal.timeout(8000),
+    });
+    // 201 = created; a 4xx here almost always means "customer already
+    // exists" (RevenueCat has no dedicated idempotent-create status) -- only
+    // a 5xx/network failure should block the grant attempt that follows.
+    return response.ok || response.status < 500;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Grants (or re-grants, idempotently) a time-limited promotional
  * entitlement in RevenueCat for the given app user id, expiring at the exact
  * timestamp K Scan already computed. Never called with a client-supplied
@@ -85,6 +122,11 @@ export async function syncPromotionalEntitlement(params: {
   const endTimeMs = Date.parse(params.expiresAt);
   if (Number.isNaN(endTimeMs)) {
     return { ok: false, status: 'failed_terminal', reason: 'invalid_expires_at' };
+  }
+
+  const customerReady = await ensureCustomerExists(projectId, secretApiKey, params.appUserId);
+  if (!customerReady) {
+    return { ok: false, status: 'failed_retryable', reason: 'customer_provisioning_failed' };
   }
 
   const entitlementId = getKPlusEntitlementId();

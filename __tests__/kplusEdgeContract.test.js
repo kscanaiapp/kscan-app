@@ -89,6 +89,12 @@ test('RevenueCat adapter grants via the V2 project-scoped endpoint with an expli
   assert.doesNotMatch(REVENUECAT_CLIENT_SOURCE, /\/v1\/subscribers/);
 });
 
+test('RevenueCat adapter provisions the V2 customer record before granting (V2 does not auto-create it)', () => {
+  assert.match(REVENUECAT_CLIENT_SOURCE, /ensureCustomerExists/);
+  assert.match(REVENUECAT_CLIENT_SOURCE, /projects\/\$\{encodeURIComponent\(projectId\)\}\/customers/);
+  assert.match(REVENUECAT_CLIENT_SOURCE, /customer_provisioning_failed/);
+});
+
 test('config.toml declares kplus-activate authenticated and kplus-reconcile-revenuecat unauthenticated', () => {
   const config = fs.readFileSync(path.join(ROOT, 'supabase', 'config.toml'), 'utf8');
   const activateBlock = config.split('[functions.kplus-activate]')[1]?.split('[functions.')[0] ?? '';

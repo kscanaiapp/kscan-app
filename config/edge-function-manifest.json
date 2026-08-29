@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-29T19:55:50.983Z",
-    "generatedFromGitSha": "573510f9c540eaee23e0d18dd56f9e936761ee78"
+    "generatedAtUtc": "2026-08-29T20:03:22.328Z",
+    "generatedFromGitSha": "93aefc71227d4e09d684275dad5ee9da52fa1103"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -805,8 +805,8 @@
         ],
         "bundleFileCount": 3,
         "treeFileCount": 3,
-        "bundleHash": "9bd1aeb91ee3c2cfc75f5924f9865c01858b640749aa6646c6986b3631f86129",
-        "treeHash": "9bd1aeb91ee3c2cfc75f5924f9865c01858b640749aa6646c6986b3631f86129",
+        "bundleHash": "3f2f769deb82a0211027da80e435e90be55d0582d2b1693ef6df411c1828b45a",
+        "treeHash": "3f2f769deb82a0211027da80e435e90be55d0582d2b1693ef6df411c1828b45a",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -815,7 +815,7 @@
           },
           {
             "path": "supabase/functions/_shared/revenuecat/revenueCatClient.ts",
-            "sha256": "4a3e758efc0017223fadd66f2f6b49ed80d38696ac31e4b8a811c2b023ca54ab",
+            "sha256": "b4ebc049af655b103ee90056012d9dafc984557f74a6626d30ec215d3c851069",
             "bundle": true
           },
           {
@@ -833,8 +833,8 @@
         ],
         "bundleFileCount": 3,
         "treeFileCount": 3,
-        "bundleHash": "5b863e57715c7673b0504c1c9d1f027d477bb422f76f91f819928ac471d81ded",
-        "treeHash": "5b863e57715c7673b0504c1c9d1f027d477bb422f76f91f819928ac471d81ded",
+        "bundleHash": "63204abc06b94609f597613f97ff8764916e1327d077353d7da2e55c7f817c52",
+        "treeHash": "63204abc06b94609f597613f97ff8764916e1327d077353d7da2e55c7f817c52",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -843,7 +843,7 @@
           },
           {
             "path": "supabase/functions/_shared/revenuecat/revenueCatClient.ts",
-            "sha256": "4a3e758efc0017223fadd66f2f6b49ed80d38696ac31e4b8a811c2b023ca54ab",
+            "sha256": "b4ebc049af655b103ee90056012d9dafc984557f74a6626d30ec215d3c851069",
             "bundle": true
           },
           {
