@@ -3,8 +3,17 @@ import { AccessibilityInfo, Animated, Modal, StyleSheet, Text, View } from 'reac
 import { PrimaryButton, SecondaryButton } from '../luxury';
 import { VoiceScanIcon } from '../icons/kscan';
 import { LUXURY, MOTION, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
-import { MODAL_MAX_WIDTH } from '../../services/responsiveLayout';
 import type { VoiceRecognitionState, VoiceUnavailableReason } from '../../services/voice/voiceTypes';
+
+// This component is shared verbatim between the iOS and Android Voice V1
+// branches (see services/voice/*'s "author once, cherry-pick" convention).
+// The two branches' K+-foundation lines have diverged enough that
+// services/responsiveLayout (used by KPlusEarlyAccessSheet on the iOS line)
+// does not exist on the Android line yet, so this sheet uses its own
+// literal rather than depending on infrastructure that is not guaranteed
+// present on both. 560 matches KPlusEarlyAccessSheet's MODAL_MAX_WIDTH on
+// iOS today, for visual consistency between the two K+ sheets.
+const SHEET_MAX_WIDTH = 560;
 
 export interface VoiceListeningSheetProps {
   visible: boolean;
@@ -166,7 +175,7 @@ export function VoiceListeningSheet({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <View style={styles.backdrop}>
-        <View style={[styles.card, { maxWidth: MODAL_MAX_WIDTH }]}>{renderContent()}</View>
+        <View style={[styles.card, { maxWidth: SHEET_MAX_WIDTH }]}>{renderContent()}</View>
       </View>
     </Modal>
   );
