@@ -65,13 +65,35 @@ Deno.test('syncPromotionalEntitlement never reaches the network without a secret
 
 Deno.test('syncPromotionalEntitlement rejects an unparseable expiresAt before any network call', async () => {
   await withEnv(
-    { REVENUECAT_SYNC_ENABLED: 'true', REVENUECAT_SECRET_API_KEY: 'sk_test_fixture' },
+    {
+      REVENUECAT_SYNC_ENABLED: 'true',
+      REVENUECAT_SECRET_API_KEY: 'sk_test_fixture',
+      REVENUECAT_PROJECT_ID: 'proj_test_fixture',
+    },
     async () => {
       const outcome = await syncPromotionalEntitlement({
         appUserId: 'test-user',
         expiresAt: 'not-a-date',
       });
       assertEquals(outcome.status, 'failed_terminal');
+      assertEquals(outcome.ok, false);
+    },
+  );
+});
+
+Deno.test('syncPromotionalEntitlement never reaches the network without a project id (V2 requires project scoping)', async () => {
+  await withEnv(
+    {
+      REVENUECAT_SYNC_ENABLED: 'true',
+      REVENUECAT_SECRET_API_KEY: 'sk_test_fixture',
+      REVENUECAT_PROJECT_ID: undefined,
+    },
+    async () => {
+      const outcome = await syncPromotionalEntitlement({
+        appUserId: 'test-user',
+        expiresAt: new Date().toISOString(),
+      });
+      assertEquals(outcome.status, 'failed_retryable');
       assertEquals(outcome.ok, false);
     },
   );

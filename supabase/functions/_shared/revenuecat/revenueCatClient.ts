@@ -11,9 +11,18 @@
  * dependency. Every function here returns a status instead of throwing for
  * ordinary HTTP/network failures, so a caller can record
  * external_sync_status and move on without rolling back a valid local grant.
+ *
+ * API version note: this calls RevenueCat's V2 REST API
+ * (`/v2/projects/{project_id}/customers/{customer_id}/actions/grant_entitlement`).
+ * The account's Secret API Keys are issued V2-only -- a V2 key returns
+ * `403 {"code":7723}` ("incompatible with RevenueCat API V1") against the
+ * legacy V1 promotional-entitlement endpoint this file used to call, and no
+ * V1-compatible key is obtainable for this account any longer. V2's grant
+ * endpoint requires `REVENUECAT_PROJECT_ID` (already provisioned as a
+ * secret, previously unused because V1 has no project scoping).
  */
 
-const REVENUECAT_API_BASE = 'https://api.revenuecat.com/v1';
+const REVENUECAT_API_BASE = 'https://api.revenuecat.com/v2';
 
 export type RevenueCatSyncOutcome =
   | { ok: true; status: 'synced'; externalCustomerId: string }
@@ -30,6 +39,11 @@ function getSecretApiKey(): string | null {
   return value ? value : null;
 }
 
+function getProjectId(): string | null {
+  const value = Deno.env.get('REVENUECAT_PROJECT_ID')?.trim();
+  return value ? value : null;
+}
+
 function getKPlusEntitlementId(): string {
   return Deno.env.get('REVENUECAT_KPLUS_ENTITLEMENT_ID')?.trim() || 'k_plus';
 }
@@ -42,13 +56,13 @@ function getKPlusEntitlementId(): string {
  * K Scan entitlement's user_id.
  *
  * Idempotency/duplication note (spec section 15): this call always passes
- * the SAME expires_at that K Scan's row already holds. RevenueCat's
- * promotional-entitlement endpoint treats a duration+end_time as a full
- * overwrite of that promotional grant, not an additive extension, so
- * calling this repeatedly with the same expires_at cannot extend the period,
- * create a second promotional period, or (per RevenueCat's own documented
- * behavior) touch a store-purchased entitlement, which is tracked
- * separately from promotional grants.
+ * the SAME expires_at that K Scan's row already holds. RevenueCat's V2
+ * grant_entitlement action grants the entitlement "unless one already
+ * exists" -- so a repeat call with the identical expires_at K Scan already
+ * recorded is a no-op against an existing grant, not an additive extension,
+ * and (per RevenueCat's own documented behavior) never touches a
+ * store-purchased entitlement, which is tracked separately from granted
+ * entitlements.
  */
 export async function syncPromotionalEntitlement(params: {
   appUserId: string;
@@ -63,13 +77,18 @@ export async function syncPromotionalEntitlement(params: {
     return { ok: false, status: 'failed_retryable', reason: 'missing_secret_api_key' };
   }
 
+  const projectId = getProjectId();
+  if (!projectId) {
+    return { ok: false, status: 'failed_retryable', reason: 'missing_project_id' };
+  }
+
   const endTimeMs = Date.parse(params.expiresAt);
   if (Number.isNaN(endTimeMs)) {
     return { ok: false, status: 'failed_terminal', reason: 'invalid_expires_at' };
   }
 
   const entitlementId = getKPlusEntitlementId();
-  const url = `${REVENUECAT_API_BASE}/subscribers/${encodeURIComponent(params.appUserId)}/entitlements/${encodeURIComponent(entitlementId)}/promotional`;
+  const url = `${REVENUECAT_API_BASE}/projects/${encodeURIComponent(projectId)}/customers/${encodeURIComponent(params.appUserId)}/actions/grant_entitlement`;
 
   let response: Response;
   try {
@@ -79,7 +98,7 @@ export async function syncPromotionalEntitlement(params: {
         Authorization: `Bearer ${secretApiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ duration: 'custom', end_time_ms: endTimeMs }),
+      body: JSON.stringify({ entitlement_id: entitlementId, expires_at: endTimeMs }),
       signal: AbortSignal.timeout(8000),
     });
   } catch (err) {

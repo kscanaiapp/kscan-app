@@ -80,9 +80,13 @@ test('RevenueCat adapter fails closed without a secret key and never treats sync
   assert.match(REVENUECAT_CLIENT_SOURCE, /AbortSignal\.timeout/);
 });
 
-test('RevenueCat adapter never mutates duration additively (overwrite semantics, not extension)', () => {
-  assert.match(REVENUECAT_CLIENT_SOURCE, /duration:\s*'custom'/);
-  assert.match(REVENUECAT_CLIENT_SOURCE, /end_time_ms:\s*endTimeMs/);
+test('RevenueCat adapter grants via the V2 project-scoped endpoint with an explicit expiry, never additive duration', () => {
+  assert.match(REVENUECAT_CLIENT_SOURCE, /REVENUECAT_PROJECT_ID/);
+  assert.match(REVENUECAT_CLIENT_SOURCE, /\/v2\//);
+  assert.match(REVENUECAT_CLIENT_SOURCE, /actions\/grant_entitlement/);
+  assert.match(REVENUECAT_CLIENT_SOURCE, /entitlement_id:\s*entitlementId/);
+  assert.match(REVENUECAT_CLIENT_SOURCE, /expires_at:\s*endTimeMs/);
+  assert.doesNotMatch(REVENUECAT_CLIENT_SOURCE, /\/v1\/subscribers/);
 });
 
 test('config.toml declares kplus-activate authenticated and kplus-reconcile-revenuecat unauthenticated', () => {
