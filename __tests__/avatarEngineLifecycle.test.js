@@ -11,7 +11,7 @@ const {
 const { AvatarRuntime, AvatarEngineMetricsCollector } = loadEngine();
 
 const SARAH = 'stylist_portrait_05';
-const ELISE = 'stylist_portrait_02';
+const HENRY = 'stylist_portrait_02';
 
 function newRuntime(avatarId = SARAH, capabilities = mouthOnlyCapabilities()) {
   const metrics = new AvatarEngineMetricsCollector();
@@ -170,7 +170,7 @@ test('loading an avatar never invents a motion epoch the host did not ask for', 
 test('switching avatars preserves the host epoch while clearing visual state', () => {
   const { runtime } = newRuntime();
   runtime.resetMotion(5);
-  runtime.loadAvatar({ avatarId: ELISE, capabilities: mouthOnlyCapabilities({ mouthRound: true }) });
+  runtime.loadAvatar({ avatarId: HENRY, capabilities: mouthOnlyCapabilities({ mouthRound: true }) });
 
   assert.equal(
     runtime.getDebugState().motionEpoch,
@@ -201,11 +201,11 @@ test('an avatar switch rejects the previous avatar frame', () => {
   speakInto(runtime, { generation: 1, alignment: HELLO() });
 
   const mismatched = runtime.update(
-    snapshot({ avatarId: ELISE, speechGeneration: 1, alignment: HELLO(), playbackPositionSeconds: 0.3 }),
+    snapshot({ avatarId: HENRY, speechGeneration: 1, alignment: HELLO(), playbackPositionSeconds: 0.3 }),
   );
   assert.equal(mismatched.diagnostics.reason, 'avatar-mismatch');
   assert.equal(mismatched.mouthState, 'closed');
-  assert.equal(mismatched.avatarId, ELISE);
+  assert.equal(mismatched.avatarId, HENRY);
   assert.ok(metrics.snapshot().counters.STALE_FRAME_REJECTIONS >= 1);
 });
 
@@ -214,11 +214,11 @@ test('switching avatars discards the timeline compiled for the old capabilities'
   runtime.beginSpeech({ generation: 1, alignment: HELLO() });
   assert.ok(runtime.getDebugState().timelineIntervals > 0);
 
-  // Elise ships a round mouth; Sarah does not. A timeline carries resolved
-  // mouth STATES, so reusing Sarah's across the switch would ask Elise's
+  // Henry ships a round mouth; Sarah does not. A timeline carries resolved
+  // mouth STATES, so reusing Sarah's across the switch would ask Henry's
   // package for shapes chosen against the wrong capability set.
   runtime.loadAvatar({
-    avatarId: ELISE,
+    avatarId: HENRY,
     capabilities: mouthOnlyCapabilities({ mouthRound: true }),
   });
   assert.equal(runtime.getDebugState().timelineIntervals, 0);

@@ -23,7 +23,7 @@ env:
 
 - waitForAnimationToEnd
 
-- assertVisible: "K-SCAN"
+- assertVisible: "K Scan AI"
 - assertVisible:
     id: "scan-button"
 

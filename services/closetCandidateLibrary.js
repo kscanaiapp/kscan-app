@@ -1,5 +1,5 @@
 /**
- * K Scan Closet CANDIDATE store — durable, actor-scoped, device-local staging.
+ * K Scan AI Closet CANDIDATE store — durable, actor-scoped, device-local staging.
  *
  * THE INVARIANT THIS MODULE EXISTS TO PROTECT:
  *

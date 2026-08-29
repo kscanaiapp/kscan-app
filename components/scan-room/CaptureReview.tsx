@@ -86,7 +86,7 @@ export function CaptureReview({
               style={styles.homeButton}
               accessibilityRole="button"
               accessibilityLabel="Go Home"
-              accessibilityHint="Returns to the K Scan home screen"
+              accessibilityHint="Returns to the K Scan AI home screen"
             >
               <Text style={styles.homeButtonText}>Home</Text>
             </Pressable>

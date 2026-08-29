@@ -36,7 +36,7 @@ export interface KScanHeaderProps {
 }
 
 /**
- * A premium editorial header for K Scan screens.
+ * A premium editorial header for K Scan AI screens.
  *
  * - Uses safe-area-aware top padding.
  * - Renders a serif title / brand mark for luxury moments.
@@ -46,7 +46,7 @@ export function KScanHeader({
   title,
   subtitle,
   showBrandMark = false,
-  brandLabel = 'K Scan',
+  brandLabel = 'K Scan AI',
   onBack,
   backLabel = 'Back',
   rightAction,

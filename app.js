@@ -362,9 +362,9 @@ export default function App() {
     <TouchableOpacity
       onPress={handleBrandPress}
       activeOpacity={QA_TOOLS_ENABLED ? 0.82 : 1}
-      accessibilityLabel="K-SCAN"
+      accessibilityLabel="K Scan AI"
     >
-      <Text style={styles.brandTitle}>K-SCAN</Text>
+      <Text style={styles.brandTitle}>K Scan AI</Text>
     </TouchableOpacity>
   );
 
@@ -687,7 +687,7 @@ export default function App() {
             style={styles.homeButtonV1}
             accessibilityRole="button"
             accessibilityLabel="Go Home"
-            accessibilityHint="Returns to the K Scan home screen"
+            accessibilityHint="Returns to the K Scan AI home screen"
           >
             <Text style={styles.homeButtonV1Text}>Home</Text>
           </Pressable>
@@ -818,7 +818,7 @@ export default function App() {
             <Text style={styles.nonFashionTitle}>NO FASHION SIGNAL DETECTED</Text>
             <Text style={styles.nonFashionBody}>
               {nonFashionMessage ||
-                "Point K-SCAN at apparel, footwear, or accessories and scan again."}
+                "Point K Scan AI at apparel, footwear, or accessories and scan again."}
             </Text>
           </View>
           {photo?.uri && dressingRoomsEnabled ? (
@@ -875,7 +875,7 @@ export default function App() {
             style={styles.homeButton}
             accessibilityRole="button"
             accessibilityLabel="Go Home"
-            accessibilityHint="Returns to the K Scan home screen"
+            accessibilityHint="Returns to the K Scan AI home screen"
           >
             <Text style={styles.homeButtonText}>Home</Text>
           </Pressable>

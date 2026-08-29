@@ -85,14 +85,14 @@ function verify() {
   );
   check(
     result,
-    infoPlist.NSCameraUsageDescription === 'K Scan uses your camera to photograph your outfit for style analysis.',
+    infoPlist.NSCameraUsageDescription === 'K Scan AI uses your camera to photograph your outfit for style analysis.',
     'Camera usage description is present and scoped',
   );
   check(result, !('NSMicrophoneUsageDescription' in infoPlist), 'No microphone usage description is declared');
   check(
     result,
     infoPlist.NSPhotoLibraryUsageDescription ===
-      'K Scan uses your photo library to let you upload style inspiration images to your Style Closet and Dressing Rooms.',
+      'K Scan AI uses your photo library to let you upload style inspiration images to your Style Closet and Dressing Rooms.',
     'Photo library usage description is present and scoped',
   );
   check(result, privacyManifests.NSPrivacyTracking === false, 'Privacy manifest declares no tracking');

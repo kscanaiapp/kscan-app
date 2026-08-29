@@ -16,7 +16,6 @@ import type {
 import { AVATAR_ENGINE_CONTRACT_VERSION } from '../contract';
 import { normalizeEngineConfig } from '../config';
 import { isValidGeneration, isValidMotionEpoch } from '../validation/generation';
-import { normalizeAlignment } from '../validation/alignment';
 import { compileSpeechTimeline } from '../speech/compileTimeline';
 import { TimelineCursor } from '../speech/TimelineCursor';
 import { fallbackMouthState } from '../speech/fallback';
@@ -377,13 +376,11 @@ export class AvatarRuntime {
   }
 
   private compileFor(generation: number, alignment: AvatarSpeechAlignment | null): void {
-    const normalized = normalizeAlignment(alignment);
-    this.metrics.countEvent('ALIGNMENT_INPUT_EVENTS', normalized.inputCount);
-    this.metrics.countEvent('ALIGNMENT_RETAINED_EVENTS', normalized.entries.length);
-    this.metrics.countEvent('ALIGNMENT_DISCARDED_EVENTS', normalized.dropped);
-
     this.timeline = compileSpeechTimeline(alignment, this.capabilities, this.config, this.now);
     this.timelineGeneration = generation;
+    this.metrics.countEvent('ALIGNMENT_INPUT_EVENTS', this.timeline.inputIntervalCount);
+    this.metrics.countEvent('ALIGNMENT_RETAINED_EVENTS', this.timeline.retainedIntervalCount);
+    this.metrics.countEvent('ALIGNMENT_DISCARDED_EVENTS', this.timeline.droppedIntervalCount);
     if (this.now) this.metrics.recordDuration('TIMELINE_COMPILE_MS', this.timeline.compileMs);
   }
 

@@ -67,7 +67,7 @@ env:
           visible:
             id: "scan-button"
           timeout: 6000
-      - assertVisible: "K-SCAN"
+      - assertVisible: "K Scan AI"
       - assertVisible:
           id: "scan-button"
       - takeScreenshot: "non-fashion-reset-to-camera"

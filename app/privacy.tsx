@@ -47,7 +47,7 @@ import {
 
 const PRIVACY_COPY = {
   saleRemote:
-    'When enabled, K Scan treats your account as opted out of data sale or sharing under applicable privacy laws.',
+    'When enabled, K Scan AI treats your account as opted out of data sale or sharing under applicable privacy laws.',
   saleLocal:
     'This preference is saved on this device only. Sign in to save it to your account across devices.',
   sensitiveRemote:
@@ -57,14 +57,14 @@ const PRIVACY_COPY = {
   aggregate:
     'Aggregated or deidentified trend reports are managed separately from transfers of user-linked personal information.',
   scans:
-    'Your saved scan information follows K Scan privacy settings. Account-linked scan details may be included when you request an export.',
+    'Your saved scan information follows K Scan AI privacy settings. Account-linked scan details may be included when you request an export.',
   minor:
     'Sale or sharing of personal information is disabled for users under 16 unless legally valid authorization is obtained.',
   trust: [
     'Private by design.',
     'Your data stays under your control.',
     'Raw scans and uploaded images are not sold to third-party data buyers.',
-    'K Scan is not designed for facial recognition or identifying people.',
+    'K Scan AI is not designed for facial recognition or identifying people.',
   ],
   deletion:
     'Your account will be deactivated immediately. You will have 30 days to restore it before your account and associated data are permanently deleted, subject to required legal retention.',
@@ -436,7 +436,7 @@ export default function PrivacyScreen() {
   const handleExport = async () => {
     try {
       await requestDataExport();
-      setMessage('This request has been submitted to K Scan for review.');
+      setMessage('This request has been submitted to K Scan AI for review.');
     } catch (error) {
       console.error('Data export request failed', error);
       setMessage("We couldn't submit your request right now. Please try again later.");
@@ -451,7 +451,7 @@ export default function PrivacyScreen() {
     try {
       await requestCorrection({ user_description: correctionText.trim() });
       setCorrectionText('');
-      setMessage('This request has been submitted to K Scan for review.');
+      setMessage('This request has been submitted to K Scan AI for review.');
     } catch (error) {
       console.error('Correction request failed', error);
       setMessage("We couldn't submit your request right now. Please try again later.");
@@ -616,7 +616,7 @@ export default function PrivacyScreen() {
                 title="Privacy & Data Choices"
                 subtitle={
                   preferenceSource === 'remote'
-                    ? 'These choices are linked to your K Scan account.'
+                    ? 'These choices are linked to your K Scan AI account.'
                     : 'On-device preferences — sign in to sync to your account.'
                 }
               />
@@ -655,7 +655,7 @@ export default function PrivacyScreen() {
             <SignatureStyleSettingsSection userKey={user ? `user:${user.id}` : null} />
 
             <TrustCenterCard
-              title="How K Scan Handles Your Data"
+              title="How K Scan AI Handles Your Data"
               subtitle="Private by design"
               items={PRIVACY_COPY.trust}
               details={[PRIVACY_COPY.scans, PRIVACY_COPY.aggregate]}

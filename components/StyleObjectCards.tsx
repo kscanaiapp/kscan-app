@@ -38,7 +38,7 @@ export function Header({
         <Text style={styles.backText}>{onBack ? '<' : ''}</Text>
       </TouchableOpacity>
       <View style={styles.headerCenter}>
-        <Text style={styles.brand}>K-SCAN</Text>
+        <Text style={styles.brand}>K Scan AI</Text>
         <Text style={styles.eyebrow}>{eyebrow}</Text>
         <Text style={styles.headerTitle} numberOfLines={2}>{title}</Text>
       </View>
@@ -212,7 +212,7 @@ export function ItemTile({
         </View>
       )}
       <View style={styles.itemBody}>
-        <Text style={styles.itemBrand} numberOfLines={1}>{item.brand || item.category || 'K-SCAN'}</Text>
+        <Text style={styles.itemBrand} numberOfLines={1}>{item.brand || item.category || 'K Scan AI'}</Text>
         <Text style={styles.itemSourceBadge}>{sourceBadge}</Text>
         <Text style={styles.itemTitle} numberOfLines={2}>
           {versionOk ? item.title || 'Untitled item' : 'Snapshot unavailable'}

@@ -42,7 +42,7 @@
   </queries>
   <application android:name=".MainApplication" android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:allowBackup="false" android:dataExtractionRules="@xml/data_extraction_rules" android:theme="@style/AppTheme" android:supportsRtl="true" android:enableOnBackInvokedCallback="false">
     <!-- Google Play foreground-service compliance: strip unused foreground services that
-         dependency library manifests merge in. K Scan runs NO foreground service.
+         dependency library manifests merge in. K Scan AI runs NO foreground service.
            - expo-location LocationTaskService (location): app only reads foreground position.
            - expo-audio AudioControlsService (mediaPlayback) + AudioRecordingService (microphone):
              stylist voice plays foreground-only (shouldPlayInBackground:false) with recording

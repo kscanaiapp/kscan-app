@@ -118,7 +118,7 @@ export function RoomItemDetailModal({
 
             <View style={styles.metaSection}>
               <Text style={styles.brandText} numberOfLines={1}>
-                {item.brand || item.category || 'K-SCAN'}
+                {item.brand || item.category || 'K Scan AI'}
               </Text>
               <Text style={styles.titleText} numberOfLines={3}>
                 {versionOk ? item.title || 'Untitled item' : 'Snapshot unavailable'}

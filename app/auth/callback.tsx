@@ -156,7 +156,7 @@ export default function AuthCallbackScreen() {
       <SafeAreaView style={styles.header}>
         <View style={styles.headerSide} />
         <View style={styles.headerCenter}>
-          <Text style={styles.brand}>K-SCAN</Text>
+          <Text style={styles.brand}>K Scan AI</Text>
           <Text style={styles.screenTitle}>SECURE CALLBACK</Text>
         </View>
         <View style={styles.headerSide} />

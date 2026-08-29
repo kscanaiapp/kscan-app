@@ -178,7 +178,7 @@ export function PersonalizeStylistModal({
                 PERSONALIZE YOUR STYLIST
               </Text>
               <Text style={styles.subtitle}>
-                Choose the name and avatar you see across K Scan.
+                Choose the name and avatar you see across K Scan AI.
               </Text>
 
               <View style={styles.nameSection}>

@@ -1,5 +1,6 @@
 import type { AvatarSpeechState } from '../../stores/avatarSpeechStore';
 import type { AvatarMouthState as LegacyAvatarMouthState } from '../avatarSpeechMotion';
+import { resolveStylistVisualAvatarId } from '../../constants/stylistIdentity';
 import type {
   AvatarSemanticMode,
   AvatarGazeTarget,
@@ -228,7 +229,9 @@ export class AvatarEngineHostAdapter {
     // actor/session/stylist scope matches AND the store agrees on the avatar.
     // Otherwise this surface is not the one speaking, and the engine is handed
     // an idle observation rather than someone else's utterance.
-    const owns = input.scopeMatches && speech.avatarId === avatarId;
+    const owns =
+      input.scopeMatches &&
+      resolveStylistVisualAvatarId(speech.avatarId) === avatarId;
     const phase = owns ? speech.phase : 'idle';
     const playing = phase === 'playing';
 

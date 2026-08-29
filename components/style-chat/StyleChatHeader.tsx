@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo } from 'react';
+import { AppState, BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,11 +11,9 @@ import { AnimatedStylistAvatar } from '../stylist/AnimatedStylistAvatar';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useAvatarSpeechState } from '../../stores/avatarSpeechStore';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
-import { deriveAvatarMouthState } from '../../services/avatarSpeechMotion';
-import { isAvatarEngineActive } from '../../services/avatars/avatarVisualMode';
+import { resolveStylistVisualAvatarId } from '../../constants/stylistIdentity';
+import { getAvatarEngineAdapter } from '../../services/avatars/avatarEngineAdapter';
 import { resolveAvatarMotionEpoch } from '../../services/avatars/avatarMotionEpoch';
-import { observeAvatarShadowFrame } from '../../services/avatars/avatarShadowBridge';
-import { emitAvatarShadowReport } from '../../services/avatars/avatarShadowReportFormat';
 
 interface StyleChatHeaderProps {
   showBadge?: boolean;
@@ -54,63 +52,38 @@ export function StyleChatHeader({
   const reducedMotion = useReducedMotion();
   const speechState = useAvatarSpeechState();
   const actorId = user?.id ?? null;
-  const isSpeaking =
+  const visualAvatarId = resolveStylistVisualAvatarId(identity.avatarId);
+  const speechScopeMatches =
     Boolean(actorId && sessionId) &&
     speechState.actorId === actorId &&
     speechState.sessionId === sessionId &&
     speechState.stylistId === identity.avatarId &&
-    speechState.avatarId === identity.avatarId &&
-    speechState.phase === 'playing';
+    speechState.avatarId === identity.avatarId;
+  const isSpeaking = speechScopeMatches && speechState.phase === 'playing';
   const mouthState = useMemo(() => {
-    if (!isSpeaking) return 'closed';
-    return deriveAvatarMouthState({
-      phase: speechState.phase,
-      playbackSeconds: speechState.playbackSeconds,
-      alignment: speechState.alignment,
-      reducedMotion,
-    });
-  }, [isSpeaking, speechState.phase, speechState.playbackSeconds, speechState.alignment, reducedMotion]);
-
-  // Avatar Engine V10 shadow observation.
-  //
-  // The legacy value above is computed, rendered and remains authoritative.
-  // V10 recalculates the SAME snapshot and records metrics, then its answer is
-  // discarded. Nothing below changes a pixel.
-  //
-  // It runs in an effect rather than during render for two reasons: the visible
-  // path must not pay for V10's calculation, and a shadow system must never sit
-  // between the host and what it draws. It also reuses the `speechState` this
-  // component already subscribed to, so no second subscription, no duplicated
-  // speech state and no second playback clock is introduced.
-  const engineActive = isAvatarEngineActive();
-  useEffect(() => {
-    if (!engineActive) return;
-    observeAvatarShadowFrame({
-      avatarId: identity.avatarId,
+    return getAvatarEngineAdapter().computeFrame({
+      avatarId: visualAvatarId,
       speech: speechState,
-      scopeMatches: isSpeaking,
+      scopeMatches: speechScopeMatches,
       reduceMotion: reducedMotion,
-      foreground: true,
+      foreground: AppState.currentState === 'active',
       motionEpoch: resolveAvatarMotionEpoch({
         actorId,
         sessionId: sessionId ?? null,
-        avatarId: identity.avatarId,
+        avatarId: visualAvatarId,
       }),
       hostNowMs: Date.now(),
-      legacyMouthState: mouthState,
-    });
-  }, [engineActive, identity.avatarId, speechState, isSpeaking, reducedMotion, actorId, sessionId, mouthState]);
-
-  // Development-only capture. An utterance ending is the natural boundary for a
-  // QA sample, so each one prints its dataset to the Metro / Xcode / logcat
-  // console with nothing to install and nothing to remember to call.
-  const previousPhaseRef = useRef(speechState.phase);
-  useEffect(() => {
-    const previous = previousPhaseRef.current;
-    previousPhaseRef.current = speechState.phase;
-    if (!engineActive) return;
-    if (previous === 'playing' && speechState.phase !== 'playing') emitAvatarShadowReport();
-  }, [engineActive, speechState.phase]);
+      ...(isThinking ? { semanticMode: 'thinking' as const } : {}),
+    }).mouthState;
+  }, [
+    visualAvatarId,
+    speechState,
+    speechScopeMatches,
+    reducedMotion,
+    actorId,
+    sessionId,
+    isThinking,
+  ]);
 
   const displayName = identity.displayName;
   const headerAccessibilityLabel = `${displayName}, ${ELISE_IDENTITY.role}`;
@@ -139,7 +112,7 @@ export function StyleChatHeader({
           importantForAccessibility="no-hide-descendants"
         >
           <AnimatedStylistAvatar
-            avatarId={identity.avatarId}
+            avatarId={visualAvatarId}
             size={67}
             state={avatarState}
             mouthState={mouthState}

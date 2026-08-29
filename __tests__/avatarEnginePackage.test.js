@@ -1,13 +1,16 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { loadEngine, loadPackages } = require('./fixtures/avatarEngineHarness');
+const { loadEngine, loadPackages, loadTsModule } = require('./fixtures/avatarEngineHarness');
 
 const { validateAvatarPackage, deriveCapabilitiesFromPackage } = loadEngine();
 const { buildAvatarPackage, resolveAvatarPackage, resetAvatarPackageCacheForTests } = loadPackages();
+const { resolveCanonicalStylistName, resolveStylistVisualAvatarId } =
+  loadTsModule('constants/stylistIdentity.ts');
 
 const SARAH = 'stylist_portrait_05';
-const ELISE = 'stylist_portrait_02';
+const ELISE = 'stylist_portrait_01';
+const HENRY = 'stylist_portrait_02';
 
 function approved(key) {
   return { key, approval: 'approved' };
@@ -84,7 +87,7 @@ test('a missing optional eye asset does not invalidate a usable mouth package', 
 test('a richer package reports round lip sync, blink, brows, expression and gaze', () => {
   const result = validateAvatarPackage(
     basePackage({
-      identity: { avatarId: ELISE, stylistId: ELISE, visualPackageVersion: 1 },
+      identity: { avatarId: HENRY, stylistId: HENRY, visualPackageVersion: 1 },
       mouth: mouthChannel({ round: approved('round') }),
       eyes: {
         region: { x: 0.3, y: 0.3, width: 0.4, height: 0.1 },
@@ -250,24 +253,49 @@ test('the real Sarah registry entry validates as a mouth-only package', () => {
   assert.equal(resolution.validation.capabilities.brows, false);
 });
 
-test('the real Elise registry entry adds round lip sync but still no calibrated eyes or brows', () => {
+test('canonical identity authority keeps Elise on portrait 01 and Henry on portrait 02', () => {
+  assert.equal(resolveStylistVisualAvatarId('elise_default'), ELISE);
+  assert.equal(resolveCanonicalStylistName(ELISE), 'Elise');
+  assert.equal(resolveCanonicalStylistName(HENRY), 'Henry');
+
+  // Negative swap controls: either stale V10 assignment breaks these literals.
+  assert.notEqual(resolveCanonicalStylistName(ELISE), 'Henry');
+  assert.notEqual(resolveCanonicalStylistName(HENRY), 'Elise');
+});
+
+test('the real Elise registry entry is a complete basic lip-sync package with no fabricated round state', () => {
   resetAvatarPackageCacheForTests();
   const resolution = resolveAvatarPackage(ELISE);
 
   assert.equal(resolution.validation.valid, true);
   assert.equal(resolution.validation.capabilities.basicLipSync, true);
-  assert.equal(resolution.validation.capabilities.roundLipSync, true);
-  // Eye and brow artwork exists for this portrait, but no eye or brow REGION is
-  // calibrated in the registry, so those channels must stay off rather than be
-  // composited at a guessed position.
+  assert.equal(resolution.validation.capabilities.roundLipSync, false);
   assert.equal(resolution.validation.capabilities.blink, false);
   assert.equal(resolution.validation.capabilities.brows, false);
   assert.equal(resolution.validation.capabilities.gaze, false);
 });
 
+test('the Elise default alias resolves to the canonical non-static portrait 01 package', () => {
+  resetAvatarPackageCacheForTests();
+  const resolution = resolveAvatarPackage('elise_default');
+  assert.equal(resolution.avatarId, ELISE);
+  assert.ok(resolution.package);
+  assert.equal(resolution.package.identity.avatarId, ELISE);
+  assert.equal(resolution.validation.valid, true);
+  assert.equal(resolution.validation.capabilities.basicLipSync, true);
+});
+
+test('Henry retains portrait 02 and its own round-mouth package', () => {
+  resetAvatarPackageCacheForTests();
+  const resolution = resolveAvatarPackage(HENRY);
+  assert.equal(resolution.package.identity.avatarId, HENRY);
+  assert.equal(resolution.validation.capabilities.basicLipSync, true);
+  assert.equal(resolution.validation.capabilities.roundLipSync, true);
+});
+
 test('a portrait without mouth assets resolves to a valid static package', () => {
   resetAvatarPackageCacheForTests();
-  const resolution = resolveAvatarPackage('stylist_portrait_01');
+  const resolution = resolveAvatarPackage('stylist_portrait_06');
   assert.ok(resolution.package);
   assert.equal(resolution.validation.valid, true);
   assert.equal(resolution.validation.capabilities.basicLipSync, false);
@@ -275,7 +303,7 @@ test('a portrait without mouth assets resolves to a valid static package', () =>
 
 test('an abstract preset or unknown id has no package and animates nothing', () => {
   resetAvatarPackageCacheForTests();
-  for (const id of ['elise_default', 'not_a_real_avatar', '', null]) {
+  for (const id of ['editorial_plum', 'not_a_real_avatar', '', null]) {
     const resolution = resolveAvatarPackage(id);
     assert.equal(resolution.package, null);
     assert.equal(resolution.validation.valid, false);

@@ -70,7 +70,7 @@ export function GlassesPrototypeScreen() {
   return (
     <SafeAreaView style={styles.root}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>K Scan Glasses</Text>
+        <Text style={styles.headerTitle}>K Scan AI Glasses</Text>
         <Text style={styles.headerSubtitle}>
           Prototype — user: glasses-prototype-user
         </Text>
