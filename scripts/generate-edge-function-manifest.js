@@ -77,7 +77,7 @@ function main() {
     console.error(
       `FAIL  Project reference mismatch.\n` +
         `      config.toml declares : ${projectRef}\n` +
-        `      approved production  : ${APPROVED_PROJECT_REF}`,
+        `      approved project ref : ${APPROVED_PROJECT_REF}`,
     );
     process.exit(2);
   }

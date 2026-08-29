@@ -9,14 +9,16 @@
  * identical to the canonical manifest.
  *
  * Order of operations (every step must pass before the next runs):
- *   1. the committed manifest exists and is current for this working tree
- *   2. supabase/config.toml declares the approved production project reference
- *   3. every governed function tree and deployable bundle matches the manifest
- *   4. the working tree has no uncommitted changes under supabase/functions
- *   5. the current Git SHA and per-function tree/bundle hashes are reported
- *   6. an explicit --confirm-deploy flag naming the function is supplied
+ *   1. this checkout declares itself the canonical backend deployment
+ *      authority (config/backend-authority.json) -- B34-DEF-001
+ *   2. the committed manifest exists and is current for this working tree
+ *   3. supabase/config.toml declares the approved project reference
+ *   4. every governed function tree and deployable bundle matches the manifest
+ *   5. the working tree has no uncommitted changes under supabase/functions
+ *   6. the current Git SHA and per-function tree/bundle hashes are reported
+ *   7. an explicit --confirm-deploy flag naming the function is supplied
  *
- * Without step 6 this script is a dry run and never spawns the CLI. That is the
+ * Without step 7 this script is a dry run and never spawns the CLI. That is the
  * intended default: seeing what WOULD deploy must never be able to deploy.
  *
  * Usage:
@@ -86,8 +88,51 @@ function gitOutput(args, fallback) {
   }
 }
 
+/**
+ * B34-DEF-001: refuses to proceed unless this checkout is the declared
+ * canonical backend deployment authority (config/backend-authority.json with
+ * role "backend-deployment-authority"). This is what makes it impossible for
+ * a mobile integration branch's copy of supabase/functions -- which carries
+ * no such marker -- to be mistaken for the real deploy authority: it fails
+ * here before Step 1 even runs, regardless of whether its manifest happens
+ * to be internally consistent.
+ */
+function assertDeploymentAuthority() {
+  const authorityPath = path.join(REPO_ROOT, 'config', 'backend-authority.json');
+  if (!fs.existsSync(authorityPath)) {
+    console.error(
+      'FAIL  config/backend-authority.json is missing from this checkout.\n' +
+        '      This wrapper only deploys from the declared canonical backend authority.\n' +
+        '      See docs/BACKEND_DEPLOYMENT_AUTHORITY.md (or its equivalent) for where that is.',
+    );
+    return false;
+  }
+  let authority;
+  try {
+    authority = JSON.parse(fs.readFileSync(authorityPath, 'utf8'));
+  } catch (error) {
+    console.error(`FAIL  config/backend-authority.json is not valid JSON: ${error.message}`);
+    return false;
+  }
+  if (authority.role !== 'backend-deployment-authority') {
+    console.error(
+      `FAIL  config/backend-authority.json declares role "${authority.role}", not ` +
+        '"backend-deployment-authority". This checkout is explicitly marked non-authoritative.',
+    );
+    return false;
+  }
+  console.log(`PASS  This checkout declares itself the backend deployment authority (${authority.canonicalBranch}).`);
+  return true;
+}
+
 function main() {
   const options = parseArgs(process.argv.slice(2));
+
+  console.log('── Step 1/7  deployment authority ──────────────────────────────');
+  if (!assertDeploymentAuthority()) {
+    console.error('\nABORTED  Nothing was deployed.');
+    process.exit(1);
+  }
 
   if (!fs.existsSync(MANIFEST_ABSOLUTE_PATH)) {
     console.error('FAIL  config/edge-function-manifest.json is missing. Nothing was deployed.');
@@ -106,30 +151,30 @@ function main() {
     process.exit(2);
   }
 
-  console.log('── Step 1/6  manifest currency ─────────────────────────────────');
+  console.log('\n── Step 2/7  manifest currency ─────────────────────────────────');
   if (!runGate('generate-edge-function-manifest.js', ['--check'])) {
     console.error('\nABORTED  Manifest is stale. Nothing was deployed.');
     process.exit(1);
   }
 
-  console.log('\n── Step 2/6  project reference ─────────────────────────────────');
+  console.log('\n── Step 3/7  project reference ─────────────────────────────────');
   const projectRef = readProjectRef(REPO_ROOT);
   if (projectRef !== manifest.parity.approvedProjectRef) {
     console.error(
-      `FAIL  config.toml project_id "${projectRef}" is not the approved production reference ` +
+      `FAIL  config.toml project_id "${projectRef}" is not the approved project reference ` +
         `"${manifest.parity.approvedProjectRef}".\n\nABORTED  Nothing was deployed.`,
     );
     process.exit(1);
   }
-  console.log(`PASS  Target project ${projectRef} matches the approved production reference.`);
+  console.log(`PASS  Target project ${projectRef} matches the approved project reference.`);
 
-  console.log('\n── Step 3/6  function tree parity ──────────────────────────────');
+  console.log('\n── Step 4/7  function tree parity ──────────────────────────────');
   if (!runGate('check-edge-function-parity.js')) {
     console.error('\nABORTED  Deployable source drifted from canonical. Nothing was deployed.');
     process.exit(1);
   }
 
-  console.log('\n── Step 4/6  working tree cleanliness ──────────────────────────');
+  console.log('\n── Step 5/7  working tree cleanliness ──────────────────────────');
   const dirty = gitOutput(['status', '--porcelain', '--', FUNCTIONS_ROOT], null);
   if (dirty === null) {
     console.error('FAIL  Git status unavailable; cannot prove the deployed source is committed.');
@@ -144,7 +189,7 @@ function main() {
   }
   console.log('PASS  No uncommitted changes under supabase/functions.');
 
-  console.log('\n── Step 5/6  provenance report ─────────────────────────────────');
+  console.log('\n── Step 6/7  provenance report ─────────────────────────────────');
   console.log(`  Git SHA    : ${gitOutput(['rev-parse', 'HEAD'], 'unknown')}`);
   console.log(`  Git branch : ${gitOutput(['rev-parse', '--abbrev-ref', 'HEAD'], 'unknown')}`);
   console.log(`  Project    : ${projectRef}`);
@@ -155,7 +200,7 @@ function main() {
     console.log(`    bundle hash ${fn.bundleHash}  (${fn.bundleFileCount} files)`);
   }
 
-  console.log('\n── Step 6/6  explicit deployment confirmation ──────────────────');
+  console.log('\n── Step 7/7  explicit deployment confirmation ──────────────────');
   const unconfirmed = targets.filter((name) => !options.confirm.includes(name));
   if (unconfirmed.length > 0) {
     console.log('DRY RUN — nothing was deployed.');

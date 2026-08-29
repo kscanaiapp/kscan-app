@@ -17,7 +17,7 @@
  *   - a required local module cannot be resolved from a function entry point
  *   - the aggregate bundle or tree hash differs
  *   - `supabase/config.toml` is missing, or its project_id is not the approved
- *     production reference
+ *     project reference
  *   - the manifest is stale with respect to the working tree
  *
  * Usage:

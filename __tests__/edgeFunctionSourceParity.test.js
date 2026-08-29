@@ -30,6 +30,7 @@ const {
   APPROVED_PROJECT_REF,
   GOVERNED_FUNCTIONS,
   buildParity,
+  extractSpecifiers,
   resolveBundle,
 } = require('../scripts/edge-function-manifest-lib.js');
 
@@ -72,6 +73,12 @@ function makeFixtureRepo(t, { gitInit = false } = {}) {
 
   fs.mkdirSync(path.join(root, 'config'), { recursive: true });
   fs.copyFileSync(MANIFEST_PATH, path.join(root, 'config', 'edge-function-manifest.json'));
+  // B34-DEF-001: the deploy wrapper's Step 1 refuses to run at all without a
+  // committed backend-authority marker declaring this checkout authoritative.
+  fs.writeFileSync(
+    path.join(root, 'config', 'backend-authority.json'),
+    JSON.stringify({ role: 'backend-deployment-authority', canonicalBranch: 'fixture' }, null, 2),
+  );
 
   fs.mkdirSync(path.join(root, 'supabase', 'functions'), { recursive: true });
   fs.copyFileSync(
@@ -110,11 +117,29 @@ test('committed manifest governs every governed function and the approved projec
 
   // Spelled out rather than derived from GOVERNED_FUNCTIONS: widening the gate
   // must fail this assertion first, so it stays a decision and not a side
-  // effect. style-outfit-generate joined in Build 3 Phase 4.
+  // effect. style-outfit-generate joined in Build 3 Phase 4. B34-DEF-001
+  // widened this from 3 to every function this branch's tree carries (this
+  // IS the canonical backend authority branch -- see
+  // docs/staging-rebuild/backend-authority-manifest.md and
+  // config/backend-authority.json).
   assert.deepEqual(manifest.parity.expectedFunctions, [
+    'handle-user-deletion',
+    'kickscrew-sneaker-description',
+    'nike-shoe-details',
+    'privacy-correction-request',
+    'privacy-data-export',
+    'process-account-deletions',
+    'product-search-deals',
+    'resend-restoration-email',
+    'restore-account',
     'scan-identify',
+    'search-vinted-secondhand',
+    'shared-room-image-url',
+    'staging-health',
     'style-outfit-generate',
     'stylechat-generate',
+    'stylist-speech',
+    'tryon-clothes-pro',
   ]);
   assert.equal(manifest.parity.approvedProjectRef, APPROVED_PROJECT_REF);
 
@@ -171,6 +196,31 @@ test('the deployable bundle pulls in the required shared modules', () => {
       );
     }
   }
+});
+
+// ── Specifier extraction does not misread prose or TypeScript type syntax ───
+
+test('extractSpecifiers: a "from" token quoted as a TS index-access key is not a specifier', () => {
+  const source = `
+    bucket: ReturnType<ReturnType<typeof createAdmin>['storage']['from']>,
+    import realSpec from 'npm:@supabase/supabase-js@2';
+  `;
+  assert.deepEqual(extractSpecifiers(source), ['npm:@supabase/supabase-js@2']);
+});
+
+test('extractSpecifiers: block-comment prose containing "from" + a quoted apostrophe is not a specifier', () => {
+  const source = `
+    /**
+     * never distinguishable from "doesn't exist at all".
+     */
+    import realSpec from 'npm:@supabase/supabase-js@2';
+  `;
+  assert.deepEqual(extractSpecifiers(source), ['npm:@supabase/supabase-js@2']);
+});
+
+test('extractSpecifiers: a real https remote specifier survives (not truncated at its own //)', () => {
+  const source = `import { z } from 'https://esm.sh/zod@3';`;
+  assert.deepEqual(extractSpecifiers(source), ['https://esm.sh/zod@3']);
 });
 
 // ── The gate passes on a synchronized tree ───────────────────────────────────
@@ -239,10 +289,11 @@ test('drift: an extra file in a governed function directory fails the gate', (t)
 test('drift: a non-approved project reference fails the gate', (t) => {
   const root = makeFixtureRepo(t);
   const configPath = path.join(root, 'supabase', 'config.toml');
-  fs.writeFileSync(
-    configPath,
-    fs.readFileSync(configPath, 'utf8').replace(APPROVED_PROJECT_REF, 'yzqjvdfgefveprobvvyw'),
-  );
+  // A fixture-only, obviously-fake ref -- must differ from APPROVED_PROJECT_REF
+  // regardless of which real project that constant currently approves.
+  const wrongRef = 'xxxxxxxxxxxxxxxxxxxxx';
+  assert.notEqual(wrongRef, APPROVED_PROJECT_REF);
+  fs.writeFileSync(configPath, fs.readFileSync(configPath, 'utf8').replace(APPROVED_PROJECT_REF, wrongRef));
 
   const drifted = runNode(root, CHECKER);
   assert.equal(drifted.status, 1);
@@ -309,7 +360,10 @@ test('deploy guard: uncommitted function source aborts the deploy', (t) => {
 test('deploy guard: refuses functions the manifest does not govern', (t) => {
   const root = makeFixtureRepo(t, { gitInit: true });
 
-  const blocked = runNode(root, DEPLOYER, ['--function', 'handle-user-deletion']);
+  // B34-DEF-001 widened GOVERNED_FUNCTIONS to every function this branch's
+  // tree carries, so a genuinely ungoverned name has to be synthetic now --
+  // there is no real function left in this tree to use as the example.
+  const blocked = runNode(root, DEPLOYER, ['--function', 'totally-ungoverned-fixture-function']);
   assert.equal(blocked.status, 2);
   assert.match(blocked.output, /Not governed by the parity manifest/);
 });
@@ -317,13 +371,38 @@ test('deploy guard: refuses functions the manifest does not govern', (t) => {
 test('deploy guard: a wrong project reference aborts before deployment', (t) => {
   const root = makeFixtureRepo(t, { gitInit: true });
   const configPath = path.join(root, 'supabase', 'config.toml');
+  // A fixture-only, obviously-fake ref -- must differ from APPROVED_PROJECT_REF
+  // regardless of which real project that constant currently approves.
+  const wrongRef = 'xxxxxxxxxxxxxxxxxxxxx';
+  assert.notEqual(wrongRef, APPROVED_PROJECT_REF);
+  fs.writeFileSync(configPath, fs.readFileSync(configPath, 'utf8').replace(APPROVED_PROJECT_REF, wrongRef));
+
+  const blocked = runNode(root, DEPLOYER);
+  assert.equal(blocked.status, 1);
+  assert.match(blocked.output, /ABORTED|not the approved project reference|Project reference mismatch/);
+  assert.ok(!/Deployment complete/.test(blocked.output));
+});
+
+test('deploy guard: refuses to run without a declared backend-authority marker', (t) => {
+  const root = makeFixtureRepo(t, { gitInit: true });
+  fs.rmSync(path.join(root, 'config', 'backend-authority.json'));
+
+  const blocked = runNode(root, DEPLOYER);
+  assert.equal(blocked.status, 1);
+  assert.match(blocked.output, /config\/backend-authority\.json is missing/);
+  assert.match(blocked.output, /ABORTED/);
+  assert.ok(!/Deployment complete/.test(blocked.output));
+});
+
+test('deploy guard: refuses to run when the marker declares this checkout non-authoritative', (t) => {
+  const root = makeFixtureRepo(t, { gitInit: true });
   fs.writeFileSync(
-    configPath,
-    fs.readFileSync(configPath, 'utf8').replace(APPROVED_PROJECT_REF, 'yzqjvdfgefveprobvvyw'),
+    path.join(root, 'config', 'backend-authority.json'),
+    JSON.stringify({ role: 'mobile-integration-non-authoritative' }, null, 2),
   );
 
   const blocked = runNode(root, DEPLOYER);
   assert.equal(blocked.status, 1);
-  assert.match(blocked.output, /ABORTED|not the approved production reference|Project reference mismatch/);
+  assert.match(blocked.output, /explicitly marked non-authoritative/);
   assert.ok(!/Deployment complete/.test(blocked.output));
 });

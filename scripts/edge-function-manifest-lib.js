@@ -45,11 +45,22 @@ const MANIFEST_VERSION = 'edge-function-manifest-v1';
 
 /**
  * The Supabase project the canonical trees are allowed to be deployed to.
- * Recorded from `supabase/config.toml` on the canonical (Android) line and
- * re-asserted by the gate, so a deploy from a checkout linked to a different
- * project reference fails before it can reach an unintended backend.
+ *
+ * B34-DEF-001: this constant was inherited unchanged from the mobile
+ * (Android) line, which deploys to production. That is wrong for THIS
+ * branch: `rebuild/staging-v2-backend` exists specifically to be the
+ * canonical staging backend authority (see
+ * docs/staging-rebuild/backend-authority-manifest.md — "Working branch
+ * rebuild/staging-v2-backend", "K Scan AI Staging in-place rebuild"), and
+ * its own `supabase/config.toml` has always declared the staging project
+ * ref. The two disagreeing is exactly the kind of cross-branch confusion
+ * this gate exists to catch — it was simply never caught here because
+ * nobody had run the gate on this branch since it diverged. Corrected to
+ * match this branch's actual, documented, deliberate deploy target.
+ * Production remains read-only and is never a deploy target from this
+ * branch or any automation in this repository.
  */
-const APPROVED_PROJECT_REF = 'wyyuqfdxucjksghsmhry';
+const APPROVED_PROJECT_REF = 'yzqjvdfgefveprobvvyw';
 
 /**
  * Functions whose source is governed by this gate.
@@ -67,21 +78,69 @@ const APPROVED_PROJECT_REF = 'wyyuqfdxucjksghsmhry';
  * the retired generic default — and nothing in the repository objected, because
  * the function was outside this list.
  *
+ * B34-DEF-001 extended this from 3 to every function this branch's own tree
+ * carries (excluding `_shared`, which is not itself a deployable function).
+ * This branch is the documented canonical backend authority (see
+ * docs/staging-rebuild/backend-authority-manifest.md); its whole purpose is
+ * to be the complete composite, not just the image-identification loop, so
+ * scoping its own gate down to 3 functions understated what it is meant to
+ * cover. `stylist-speech`, `handle-user-deletion`, and
+ * `process-account-deletions` are the three the Build 34 brief named as an
+ * explicit minimum; the remainder were already deployed from real
+ * committed source in this tree and had no reason to stay ungoverned.
+ * `staging-health` is included because it is a real deployed function with
+ * real source here, even though it is staging-only tooling never intended
+ * for production.
+ *
  * It is also required rather than optional: scripts/deploy-edge-functions.js
  * refuses to deploy any function absent from the manifest, so hosting the
  * versioned private Dressing Room contract here means governing it here.
  */
-const GOVERNED_FUNCTIONS = ['scan-identify', 'stylechat-generate', 'style-outfit-generate'];
+const GOVERNED_FUNCTIONS = [
+  'scan-identify',
+  'stylechat-generate',
+  'style-outfit-generate',
+  'stylist-speech',
+  'handle-user-deletion',
+  'process-account-deletions',
+  'privacy-correction-request',
+  'privacy-data-export',
+  'restore-account',
+  'resend-restoration-email',
+  'kickscrew-sneaker-description',
+  'nike-shoe-details',
+  'product-search-deals',
+  'search-vinted-secondhand',
+  'shared-room-image-url',
+  'tryon-clothes-pro',
+  'staging-health',
+];
 
 const FUNCTIONS_ROOT = path.join('supabase', 'functions');
 const CONFIG_RELATIVE_PATH = path.join('supabase', 'config.toml');
 
-/** Matches `from '<spec>'`, `import '<spec>'` and `import('<spec>')`. */
+/**
+ * Matches `from '<spec>'`, `import '<spec>'` and `import('<spec>')`.
+ *
+ * B34-DEF-001: the capture groups exclude newlines (`[^'"\n]+`, not
+ * `[^'"]+`). A real import/export specifier is always single-line, but the
+ * bare `[^'"]+` form does not know that -- a TypeScript index-access type
+ * like `['storage']['from']` contains the literal token `from` immediately
+ * followed by a closing quote, which the old pattern read as the START of an
+ * import specifier and then greedily consumed everything (including
+ * newlines) up to the next unrelated quote character anywhere later in the
+ * file. That produced a "specifier" that was actually several lines of
+ * unrelated source, silently corrupting the manifest for
+ * `process-account-deletions` and `shared-room-image-url` the moment they
+ * were added to GOVERNED_FUNCTIONS. Restricting the match to one line makes
+ * the false-positive fail to match at all (there is no real closing quote on
+ * that line), instead of matching a huge, wrong pseudo-specifier.
+ */
 const SPECIFIER_PATTERNS = [
-  /\bfrom\s*['"]([^'"]+)['"]/g,
-  /\bimport\s*['"]([^'"]+)['"]/g,
-  /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
-  /\bexport\s*\*\s*from\s*['"]([^'"]+)['"]/g,
+  /\bfrom\s*['"]([^'"\n]+)['"]/g,
+  /\bimport\s*['"]([^'"\n]+)['"]/g,
+  /\bimport\s*\(\s*['"]([^'"\n]+)['"]\s*\)/g,
+  /\bexport\s*\*\s*from\s*['"]([^'"\n]+)['"]/g,
 ];
 
 function toPosix(relativePath) {
@@ -96,12 +155,32 @@ function isLocalSpecifier(specifier) {
   return specifier.startsWith('./') || specifier.startsWith('../');
 }
 
+/**
+ * Strips `/* *\/` block comments before specifier extraction runs.
+ * B34-DEF-001: a JSDoc comment prose like `from "doesn't exist at all"`
+ * contains the literal token `from` followed by a quote, then an apostrophe
+ * a few characters later that SPECIFIER_PATTERNS reads as the closing quote
+ * -- extracting "doesn" as a bogus specifier. Real import/export statements
+ * are never themselves inside a block comment, so removing block-comment
+ * text first (replaced with matching-length whitespace, so line numbers
+ * anything downstream might report stay unaffected) is a safe, narrow way to
+ * stop prose from being read as source.
+ *
+ * Deliberately does NOT strip `//` line comments: a real remote specifier is
+ * routinely written as `'https://esm.sh/...'`, and a naive `//`-strip would
+ * truncate that legitimate specifier at the scheme's own double slash.
+ */
+function stripBlockComments(source) {
+  return source.replace(/\/\*[\s\S]*?\*\//g, (match) => match.replace(/[^\n]/g, ' '));
+}
+
 function extractSpecifiers(source) {
+  const withoutComments = stripBlockComments(source);
   const found = new Set();
   for (const pattern of SPECIFIER_PATTERNS) {
     pattern.lastIndex = 0;
     let match;
-    while ((match = pattern.exec(source)) !== null) found.add(match[1]);
+    while ((match = pattern.exec(withoutComments)) !== null) found.add(match[1]);
   }
   return [...found];
 }
@@ -246,6 +325,7 @@ module.exports = {
   MANIFEST_VERSION,
   aggregateHash,
   buildParity,
+  extractSpecifiers,
   listFilesRecursively,
   readProjectRef,
   resolveBundle,
