@@ -233,14 +233,14 @@ Required repair: Provide a disposable authenticated staging test identity/JWT, r
 
 ## DEFERRED P4-P10 BACKLOG
 
-P4 COUNT: 3  
+P4 COUNT: 4  
 P5 COUNT: 2  
 P6 COUNT: 1  
 P7 COUNT: 4  
 P8 COUNT: 1  
 P9 COUNT: 1  
 P10 COUNT: 1  
-TOTAL DEFERRED FINDINGS: 13
+TOTAL DEFERRED FINDINGS: 14
 
 | ID | Severity | Platform | System | Category | Short Description | User Impact | Future Scope |
 | -- | -- | -- | -- | -- | -- | -- | -- |
@@ -257,6 +257,7 @@ TOTAL DEFERRED FINDINGS: 13
 | B34-DEF-011 | P8 | Both | Privacy client | TECHNICAL DEBT | Deprecated isPrivacyBackendConfigured helper remains | None | Small |
 | B34-DEF-012 | P9 | Both | Speech tests | TEST DEBT | stylist-speech handler test differs only in formatting | Negligible | Small |
 | B34-DEF-013 | P10 | Both | Avatar V10 | FUTURE OPTIMIZATION | Blink/brow/gaze/body channels remain intentionally deferred | Static expression channels only | Large |
+| B34-DEF-014 | P4 | Both | Dependency toolchain | SECURITY HARDENING | npm audit reports a critical React DevTools transitive advisory plus other dependency findings | No demonstrated production-mobile reachability | Medium |
 
 ### FINDING B34-DEF-001
 
@@ -606,6 +607,33 @@ ESTIMATED CHANGE SCOPE: LARGE
 DEPENDENCIES: Asset production, design approval, device performance profiling.  
 RISKS OF FIXING: Visual artifacts, increased memory/CPU, or competing animation authority.  
 VALIDATION PLAN FOR FUTURE FIX: Asset validation, Reduce Motion, interruption/replacement, memory/performance, and device visual QA.  
+OWNER AUTHORIZATION REQUIRED: YES  
+FIXED DURING THIS PASS: NO
+
+### FINDING B34-DEF-014
+
+BACKLOG ID: B34-DEF-014  
+SEVERITY: P4  
+CATEGORY: SECURITY HARDENING  
+PLATFORM: Both  
+SYSTEM: JavaScript dependency/build toolchain  
+LOCATION: package-lock.json; react-native 0.81.5 → react-devtools-core 6.1.5 → shell-quote 1.8.3  
+BRANCH: Both integration branches  
+HEAD: Validated source heads listed above
+
+OBSERVATION: npm audit --omit=dev reports 26 findings on iOS and 28 on Android, including one critical shell-quote command-injection/DoS advisory and multiple high/moderate Expo/Metro toolchain advisories.  
+EVIDENCE: The critical node is node_modules/react-devtools-core/node_modules/shell-quote. npm explain traces it through React Native. Source inspection shows React Native loads react-devtools-core only inside the __DEV__ guard, and a repository search finds no shipped react-devtools-core code reference to shell-quote beyond package metadata.  
+REPRODUCTION OR INSPECTION METHOD: Run npm audit --omit=dev --json, npm explain shell-quote, and inspect node_modules/react-native/Libraries/Core/setUpReactDevTools.js.  
+CURRENT USER IMPACT: No production-mobile exploit path was demonstrated; the affected chain is development/tooling-scoped by the current import guard.  
+CURRENT ENGINEERING IMPACT: Developer/build environments retain vulnerable transitive packages, and the aggregate audit cannot be made clean within SDK 54 without broader dependency work.  
+RELEASE IMPACT: Non-blocking for this owner test candidate based on demonstrated reachability; remains an important controlled-upgrade item.  
+WHY THIS IS NOT P0-P3: Severity labels describe the upstream package, but current K Scan production reachability is not demonstrated. The critical dependency is behind __DEV__, no untrusted shell string path was found, and mobile runtime tests show no related defect.  
+ROOT CAUSE OR LIKELY ROOT CAUSE: React Native/Expo SDK 54 transitive dependency constraints; npm proposes Expo 57 for several aggregate fixes.  
+PROPOSED FUTURE FIX: Triage each advisory against actual build/runtime reachability, take compatible same-major fixes where available, and plan a controlled Expo/React Native upgrade for findings requiring a major version.  
+ESTIMATED CHANGE SCOPE: MEDIUM  
+DEPENDENCIES: Expo/React Native compatibility matrix and CI build hosts.  
+RISKS OF FIXING: Blind npm audit fix or forced overrides can break Metro, native autolinking, or the certified artifact baseline.  
+VALIDATION PLAN FOR FUTURE FIX: Re-run audit; prove dependency paths; clean install; Expo Doctor; complete JavaScript/Deno suites; iOS/Android native builds; staging device smoke tests.  
 OWNER AUTHORIZATION REQUIRED: YES  
 FIXED DURING THIS PASS: NO
 
