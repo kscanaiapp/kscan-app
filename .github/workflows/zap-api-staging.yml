@@ -12,15 +12,29 @@ name: Security - ZAP API Staging
 
 on:
   workflow_call:
+  # ZAP targets the deployed staging environment (SUPABASE_STAGING_URL /
+  # security/openapi/staging-api.yaml), not this workflow's own file diff, so
+  # any push/PR touching staging/production-parity is a legitimate reason to
+  # scan -- but push:branches:["**"] and an unfiltered pull_request base
+  # previously fired this on every branch and every PR in the repository.
+  # Scoped to the one branch ZAP actually has anything to say about; the
+  # reusable `workflow_call:` invocation from staging-release-certification.yml
+  # ignores these branch filters entirely, so that path is unaffected. Note:
+  # PROTECTED_BASE_BRANCHES below still lists master and the pre-merge-ruleset
+  # branches for the protected_pr classification -- those branches will no
+  # longer trigger this workflow via the direct pull_request event (a PR into
+  # them scans no content of theirs; ZAP only ever hits the shared staging
+  # URL), so that classification is now only reachable via
+  # staging/production-parity in practice.
   pull_request:
+    branches: [staging/production-parity]
     types:
       - opened
       - synchronize
       - reopened
       - ready_for_review
   push:
-    branches:
-      - "**"
+    branches: [staging/production-parity]
   workflow_dispatch:
 
 permissions:
