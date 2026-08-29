@@ -72,6 +72,12 @@ function makeFixtureRepo(t, { gitInit = false } = {}) {
 
   fs.mkdirSync(path.join(root, 'config'), { recursive: true });
   fs.copyFileSync(MANIFEST_PATH, path.join(root, 'config', 'edge-function-manifest.json'));
+  // B34-DEF-001: the deploy wrapper's Step 1 refuses to run at all without a
+  // committed backend-authority marker declaring this checkout authoritative.
+  fs.writeFileSync(
+    path.join(root, 'config', 'backend-authority.json'),
+    JSON.stringify({ role: 'backend-deployment-authority', canonicalBranch: 'fixture' }, null, 2),
+  );
 
   fs.mkdirSync(path.join(root, 'supabase', 'functions'), { recursive: true });
   fs.copyFileSync(
@@ -324,6 +330,40 @@ test('deploy guard: a wrong project reference aborts before deployment', (t) => 
 
   const blocked = runNode(root, DEPLOYER);
   assert.equal(blocked.status, 1);
-  assert.match(blocked.output, /ABORTED|not the approved production reference|Project reference mismatch/);
+  assert.match(blocked.output, /ABORTED|not the approved project reference|Project reference mismatch/);
   assert.ok(!/Deployment complete/.test(blocked.output));
+});
+
+test('deploy guard: refuses to run without a declared backend-authority marker', (t) => {
+  const root = makeFixtureRepo(t, { gitInit: true });
+  fs.rmSync(path.join(root, 'config', 'backend-authority.json'));
+
+  const blocked = runNode(root, DEPLOYER);
+  assert.equal(blocked.status, 1);
+  assert.match(blocked.output, /config\/backend-authority\.json is missing/);
+  assert.match(blocked.output, /ABORTED/);
+  assert.ok(!/Deployment complete/.test(blocked.output));
+});
+
+test('deploy guard: refuses to run when the marker declares this checkout non-authoritative', (t) => {
+  const root = makeFixtureRepo(t, { gitInit: true });
+  fs.writeFileSync(
+    path.join(root, 'config', 'backend-authority.json'),
+    JSON.stringify({ role: 'mobile-integration-non-authoritative' }, null, 2),
+  );
+
+  const blocked = runNode(root, DEPLOYER);
+  assert.equal(blocked.status, 1);
+  assert.match(blocked.output, /explicitly marked non-authoritative/);
+  assert.ok(!/Deployment complete/.test(blocked.output));
+});
+
+test('deploy guard: this checkout itself is correctly marked non-authoritative (B34-DEF-001)', () => {
+  const authority = JSON.parse(
+    fs.readFileSync(path.join(REPO_ROOT, 'config', 'backend-authority.json'), 'utf8'),
+  );
+  assert.notEqual(authority.role, 'backend-deployment-authority');
+  const blocked = runNode(REPO_ROOT, DEPLOYER);
+  assert.equal(blocked.status, 1);
+  assert.match(blocked.output, /ABORTED/);
 });
