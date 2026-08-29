@@ -1062,14 +1062,24 @@ test('deleteOwnedStorageObjects returns sanitized prefixes without full user id'
     [`${userId}/scans`]: [{ name: 'scan.jpg' }],
     [`${userId}/inspirations`]: [{ name: 'inspiration.jpg' }],
     [`${userId}/saved-scans`]: [{ name: 'saved.jpg' }],
+    // Build 34 Track B B1C added the cloud Closet prefix.
+    [`${userId}/closet`]: [{ name: 'item-primary.jpg' }],
   });
 
   const results = await deleteOwnedStorageObjects(storage.client, userId);
 
-  assert.equal(results.length, 3);
+  assert.equal(results.length, 4);
   for (const entry of results) {
     assert.ok(!entry.prefix.includes(userId), 'storage prefix must not contain full user id');
     assert.ok(entry.prefix.includes(shortUserId(userId)), 'storage prefix must contain partial user id');
+  }
+  // Every governed prefix must be represented, so adding one can never silently
+  // drop another from the sanitized output.
+  for (const suffix of ['/scans', '/inspirations', '/saved-scans', '/closet']) {
+    assert.ok(
+      results.some((entry) => entry.prefix.endsWith(suffix)),
+      `${suffix} must appear in the sanitized storage results`,
+    );
   }
 });
 
