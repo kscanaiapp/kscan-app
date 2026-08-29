@@ -123,6 +123,7 @@ const ROUTER_REQUIRE_MAP = {
   './poshmarkProvider.ts': poshmarkProvider,
   './qualityTuneConfig.ts': qualityTuneConfig,
   './qualityTuneCommerce.ts': qualityTuneCommerce,
+  './commerceRelevanceAgreement.ts': commerceRelevanceAgreement,
 };
 
 const router = loadModule(fn('scanCommerceRouter.ts'), ROUTER_REQUIRE_MAP);
