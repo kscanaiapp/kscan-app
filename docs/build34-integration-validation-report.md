@@ -2,7 +2,7 @@
 
 The canonical report is identical to the iOS integration branch copy and is intentionally duplicated so each isolated platform candidate carries the same audit record.
 
-See the full report in this file's counterpart on integration/ios-build34-full-upgrade at validated source HEAD 68c34063255383028dfe76becbd1ac2eac9a30d4. The shared findings, Android validated source HEAD e29d48e90d3f0aaba28a3b0cbcd880eefe8fa7cb, full test totals, unresolved B34-BLOCK-001, deferred counts (P4 3, P5 2, P6 1, P7 4, P8 1, P9 1, P10 1), production protection state, and final verdict are the same.
+See the full report in this file's counterpart on integration/ios-build34-full-upgrade at validated source HEAD 68c34063255383028dfe76becbd1ac2eac9a30d4. The shared findings, Android validated source HEAD e29d48e90d3f0aaba28a3b0cbcd880eefe8fa7cb, full test totals, unresolved B34-BLOCK-001, deferred counts (P4 4, P5 2, P6 1, P7 4, P8 1, P9 1, P10 1; 14 total), production protection state, and final verdict are the same. P4 includes the audited React DevTools/shell-quote dependency-toolchain hardening item; no production-mobile reachability was demonstrated and no dependency was changed.
 
 Final verdict: NOT READY — EXACT BLOCKING DEFECT.
 
