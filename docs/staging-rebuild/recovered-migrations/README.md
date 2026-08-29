@@ -8,7 +8,7 @@ anywhere, and nothing outside this directory was changed by this pass.**
 `supabase db push --linked --dry-run` from the canonical backend authority
 (`maintenance/b34-def001-backend-authority`, and any branch descending from
 it, including the K+ complimentary-access work) refuses to run against
-staging (`yzqjvdfgefveprobvvyw`, "K Scan AI Staging"). It reports 21 remote
+staging (`yzqjvdfgefveprobvvyw`, "K Scan AI Staging"). It reports 22 remote
 migration versions with no corresponding file in this branch's
 `supabase/migrations/`.
 
@@ -21,7 +21,7 @@ into a clean candidate). This investigation instead recovers the truth first.
 
 ## What was recovered, and how
 
-All 21 migrations' **exact executed SQL** was recovered directly from
+All 22 migrations' **exact executed SQL** was recovered directly from
 Postgres's own migration ledger:
 
 ```sql
@@ -54,7 +54,7 @@ cross-branch search) fills in origin/classification per migration.
 
 ## Headline findings so far (before the cross-branch search completes)
 
-- **6 of the 21 almost certainly belong to different repositories entirely**,
+- **4 of the 22 almost certainly belong to different repositories entirely**,
   not to `kscan-app`:
   - `20260819125404`, `20260819151224`, `20260823170850` (wearable_pairings /
     wearable_security_hardening / reconcile_wearable_schema_with_staging) —
@@ -106,6 +106,10 @@ Apple auth credential storage, RPC privilege hardening, wardrobe wear-event
 model, content-report AI-output support, stylist-preference columns, etc.)
 are still being searched across every local branch, every local worktree
 checkout, and GitHub PR/commit history before final classification.
+
+**See `LEDGER_INTEGRITY_CHECK.md` in this directory for the corrected,
+authoritative 22-row master table with source/ledger SHA-256 hashes for
+every entry, and `CLASSIFICATION.md` for the narrative classification.**
 
 ## Classification scheme (per migration, final table to follow)
 

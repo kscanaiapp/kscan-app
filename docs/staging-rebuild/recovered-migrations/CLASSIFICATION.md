@@ -1,4 +1,11 @@
-# Migration provenance — final classification (21/21 resolved)
+# Migration provenance — final classification (22/22 resolved)
+
+**Correction: the true count is 22, not 21** — see `LEDGER_INTEGRITY_CHECK.md`
+in this directory for the corrected master table, hashes, and assertions.
+The gap was a narrative miscount only: `scan_commerce_events_accuracy_telemetry`
+had been placed in a separate "bonus finding" section below instead of as a
+22nd table row; the underlying recovery work (all 22 versions queried,
+recovered, and written to `RECOVERED_*.sql`) was correct throughout.
 
 Read-only investigation, complete. No migration applied, no ledger row
 touched, `migration repair`/`db pull` never run. Every one of the 21 staging
@@ -68,8 +75,13 @@ the DDL itself is exactly what its real author wrote and reviewed elsewhere.
 
 ## Recommended canonicalization (not yet executed — awaiting owner decision)
 
-Every kscan-app-specific version (15, plus the 2 additive `saved_scans`
-ones = 17 of 21) has a fully-verified, exact original source. The safe,
+Every kscan-app-owned version (16 EXACT_SOURCE_RECOVERED, plus
+`saved_scans_wearable_source` SUPERSEDED and
+`widen_saved_scans_source_for_meta_wearable` LOGICALLY_RECOVERABLE = 18 of
+22 total) is fully accounted for. Of those, 16 have a byte-verifiable exact
+source; the 2 `saved_scans` ones have no standalone kscan-app source but
+their effect is confirmed superseded/present via kscan-glasses-webapp
+commit `9311442`. The safe,
 non-destructive path to make `supabase db push` succeed **without ever
 running `migration repair` or `db pull`** is simply to **add matching local
 files** — Supabase's CLI only compares local-file-by-version against the
