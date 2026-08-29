@@ -1,0 +1,28 @@
+{
+  "manifestVersion": "migration-provenance-manifest-v1",
+  "note": "B34-DEF-009. Records which supabase/migrations/*.sql files are recognized as the SAME logical migration under different historical filenames, so cross-branch filename drift is an explicit, approved decision instead of an unexplained duplicate. This manifest never causes an applied migration to be renamed or deleted -- see docs/migration-provenance.md.",
+  "normalization": "Lines are trimmed of trailing whitespace; blank lines and no-op semicolon-only lines are dropped; the remaining lines are hashed with SHA-256. This treats '20260716035943_add_purchase_options_to_saved_scans.sql' (Android) and '20260717201524_20260716035943_add_purchase_options_to_saved_scans.sql' (iOS) as logically identical despite the iOS copy carrying one extra trailing ';' line that raw SHA-256 would otherwise flag as a content mismatch.",
+  "logicalMigrations": [
+    {
+      "logicalId": "add_purchase_options_to_saved_scans",
+      "canonicalNormalizedHash": "9fc90bfd15b6e0fd2b00dfaf3d7b35940c8bd8ff3bd36a7268e37e8128e177f6",
+      "appliedLedgerVersion": "20260717201524",
+      "appliedLedgerName": "20260716035943_add_purchase_options_to_saved_scans",
+      "appliedOn": ["yzqjvdfgefveprobvvyw (staging)", "wyyuqfdxucjksghsmhry (production)"],
+      "aliases": [
+        {
+          "filename": "20260716035943_add_purchase_options_to_saved_scans.sql",
+          "platform": "android",
+          "status": "unapplied-in-either-environment",
+          "evidence": "Neither staging nor production's migration ledger contains a version '20260716035943' entry -- only '20260717201524' (which carries this same SQL under a different filename) is applied in both. Confirmed 2026-08-29 via list_migrations on both projects."
+        },
+        {
+          "filename": "20260717201524_20260716035943_add_purchase_options_to_saved_scans.sql",
+          "platform": "ios",
+          "status": "applied",
+          "evidence": "Matches the ledger version '20260717201524' applied on both staging and production."
+        }
+      ]
+    }
+  ]
+}

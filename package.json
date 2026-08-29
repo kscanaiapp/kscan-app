@@ -28,7 +28,9 @@
     "verify:edge-parity": "node scripts/check-edge-function-parity.js",
     "test:edge-parity": "node --test __tests__/edgeFunctionSourceParity.test.js",
     "deploy:edge-functions": "node scripts/deploy-edge-functions.js",
-    "test:backend": "node scripts/run-backend-tests.js"
+    "test:backend": "node scripts/run-backend-tests.js",
+    "verify:migration-provenance": "node scripts/check-migration-provenance.js",
+    "test:migration-provenance": "node --test __tests__/migrationProvenanceGate.test.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
