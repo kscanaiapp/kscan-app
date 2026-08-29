@@ -1,0 +1,6 @@
+{
+  "manifestVersion": "backend-authority-v1",
+  "role": "mobile-integration-non-authoritative",
+  "canonicalBranch": "rebuild/staging-v2-backend",
+  "note": "B34-DEF-001. This checkout (an iOS mobile integration branch) is explicitly NOT the canonical backend deployment authority, even though it carries its own copy of supabase/functions. scripts/deploy-edge-functions.js's Step 1 checks this file's role and refuses to run because it is not 'backend-deployment-authority'. See docs/BACKEND_DEPLOYMENT_AUTHORITY.md and, on the canonical branch, docs/staging-rebuild/backend-authority-manifest.md."
+}
