@@ -28,6 +28,8 @@ jobs:
       staging_head: ${{ steps.identity.outputs.staging_head }}
       release_class: ${{ steps.classify.outputs.release_class }}
       zap_configured: ${{ steps.config.outputs.zap_configured }}
+      full_certification_required: ${{ steps.scope.outputs.full_certification_required }}
+      skip_reason: ${{ steps.scope.outputs.skip_reason }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -52,7 +54,43 @@ jobs:
           if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then BASE_SHA="${CANDIDATE_SHA}^"; fi
           node security/scripts/classify-changed-surfaces.js "$BASE_SHA" "$CANDIDATE_SHA" > classification.json
           echo "release_class=$(node -p "require('./classification.json').releaseClass")" >> "$GITHUB_OUTPUT"
+          echo "backend_deployment_required=$(node -p "require('./classification.json').backendDeploymentRequired")" >> "$GITHUB_OUTPUT"
           cat classification.json >> "$GITHUB_STEP_SUMMARY"
+      # This workflow previously ran its full job graph -- including a live
+      # HIBP Management-API probe against api.supabase.com and both ZAP scans
+      # -- on every push to staging/production-parity regardless of content.
+      # A release-freeze / manual-candidate dispatch (workflow_dispatch with
+      # an explicit candidate_sha) always certifies in full: that path exists
+      # specifically to re-run a real certification of a named candidate on
+      # demand, so it must never be short-circuited by the change classifier.
+      # An automatic push that touches nothing backend/edge/migration-relevant
+      # (per classify-changed-surfaces.js's backendDeploymentRequired --
+      # staging-validation's own deploy-staging/staging-health/synthetic-tests
+      # jobs already skip themselves on that same field) skips the other
+      # heavyweight, staging-impacting checks this workflow runs directly:
+      # the live HIBP probe and both ZAP scans. final-verdict still produces a
+      # real, honest verdict either way -- never a bare PASS for a run that
+      # didn't actually certify anything.
+      - id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          CANDIDATE_SHA_INPUT: ${{ inputs.candidate_sha }}
+          BACKEND_DEPLOYMENT_REQUIRED: ${{ steps.classify.outputs.backend_deployment_required }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ -n "${CANDIDATE_SHA_INPUT:-}" ]; then
+            FULL=true
+            REASON="workflow_dispatch with an explicit candidate_sha (release-freeze / manual-candidate path) always certifies in full"
+          elif [ "$BACKEND_DEPLOYMENT_REQUIRED" = "true" ]; then
+            FULL=true
+            REASON="candidate touches supabase/functions or supabase/migrations (backendDeploymentRequired=true)"
+          else
+            FULL=false
+            REASON="candidate has no backend/edge/migration impact (backendDeploymentRequired=false) -- skipping the live HIBP probe, ZAP baseline, and ZAP API scans"
+          fi
+          echo "full_certification_required=${FULL}" >> "$GITHUB_OUTPUT"
+          echo "skip_reason=${REASON}" >> "$GITHUB_OUTPUT"
+          echo "Full certification required: ${FULL} (${REASON})" >> "$GITHUB_STEP_SUMMARY"
       - id: config
         env:
           ZAP_STAGING_URL: ${{ vars.ZAP_STAGING_URL }}
@@ -115,6 +153,10 @@ jobs:
   leaked-password-protection:
     name: Verify staging leaked-password protection
     needs: candidate
+    # This job makes a live Management-API call to api.supabase.com on every
+    # run. Skip it on an automatic push with no backend/edge/migration impact
+    # -- see the `scope` step in the candidate job above.
+    if: needs.candidate.outputs.full_certification_required == 'true'
     runs-on: ubuntu-latest
     outputs:
       result: ${{ steps.verify.outputs.result }}
@@ -186,14 +228,16 @@ jobs:
   zap-baseline:
     name: Candidate ZAP baseline
     needs: candidate
-    if: needs.candidate.outputs.zap_configured == 'true'
+    # Same rationale as leaked-password-protection above: a full ZAP run is
+    # not needed to certify a push with no backend/edge/migration impact.
+    if: needs.candidate.outputs.full_certification_required == 'true' && needs.candidate.outputs.zap_configured == 'true'
     uses: ./.github/workflows/zap-baseline-staging.yml
     secrets: inherit
 
   zap-api:
     name: Candidate ZAP API
     needs: candidate
-    if: needs.candidate.outputs.zap_configured == 'true'
+    if: needs.candidate.outputs.full_certification_required == 'true' && needs.candidate.outputs.zap_configured == 'true'
     uses: ./.github/workflows/zap-api-staging.yml
     secrets: inherit
 
@@ -213,6 +257,8 @@ jobs:
           fetch-depth: 0
       - id: verdict
         env:
+          FULL_CERTIFICATION_REQUIRED: ${{ needs.candidate.outputs.full_certification_required }}
+          SKIP_REASON: ${{ needs.candidate.outputs.skip_reason }}
           CANDIDATE_SHA: ${{ needs.candidate.outputs.sha }}
           CANDIDATE_TREE: ${{ needs.candidate.outputs.tree }}
           RELEASE_CLASS: ${{ needs.candidate.outputs.release_class }}
@@ -231,6 +277,38 @@ jobs:
           RUN_ID: ${{ github.run_id }}
         run: |
           set -uo pipefail
+          mkdir -p security/reports
+          # Change-aware short circuit: an automatic push with no backend/edge/
+          # migration impact never ran a real certification above (see the
+          # candidate job's `scope` step) -- report that plainly instead of
+          # deriving a verdict from a mix of skipped/no-op job results, which
+          # could misrepresent an unrun check as PASS. The manual release-freeze
+          # path (workflow_dispatch + explicit candidate_sha) always sets
+          # FULL_CERTIFICATION_REQUIRED=true and falls through to the real path
+          # below unconditionally.
+          if [ "${FULL_CERTIFICATION_REQUIRED:-}" != "true" ]; then
+            node <<'NODE'
+          const fs = require('fs');
+          const report = {
+            candidate_commit_sha: process.env.CANDIDATE_SHA,
+            candidate_tree_sha: process.env.CANDIDATE_TREE,
+            release_class: process.env.RELEASE_CLASS,
+            certification_run_id: process.env.RUN_ID,
+            certification_performed: false,
+            final_verdict: 'SKIPPED_NO_BACKEND_IMPACT',
+            promotion_eligible: false,
+            blocking_findings: [],
+            operational_failures: [],
+            report_only_findings: [],
+            skip_reason: process.env.SKIP_REASON || null,
+          };
+          fs.writeFileSync('security/reports/staging-certification.json', JSON.stringify(report, null, 2));
+          NODE
+            echo "verdict=SKIPPED_NO_BACKEND_IMPACT" >> "$GITHUB_OUTPUT"
+            echo "promotion_eligible=false" >> "$GITHUB_OUTPUT"
+            cat security/reports/staging-certification.json >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
           git fetch origin staging/production-parity --quiet
           node <<'NODE'
           const fs = require('fs');
