@@ -36,6 +36,10 @@ Blocking status is derived from which deployed Edge Function reads the name
 | `ASOS_ENABLED`, `ASOS_RAPIDAPI_BASE_URL`, `ASOS_RAPIDAPI_HOST`, `FARFETCH_ENABLED`, `FARFETCH_RAPIDAPI_BASE_URL`, `FARFETCH_RAPIDAPI_HOST`, `KICKSCREW_ENABLED`, `KICKSCREW_RAPIDAPI_BASE_URL`, `KICKSCREW_RAPIDAPI_HOST` | commerce providers | optional | RapidAPI | Those providers stay disabled. |
 | `SHOPPING_BRAVE_API_KEY`, `SHOPPING_SERPER_API_KEY` | shopping search | optional | Brave / Serper | Shopping search degraded. |
 | `USE_GATEWAY_WIRING` | LLM gateway routing | optional | internal | Gateway routing off. |
+| `REVENUECAT_SECRET_API_KEY` | `kplus-activate`, `kplus-reconcile-revenuecat` | optional | RevenueCat | K+ grant remains valid locally; `external_sync_status` stays `failed_retryable`/`pending`, never blocks activation. **Never place in an `EXPO_PUBLIC_*` var or client bundle.** |
+| `REVENUECAT_KPLUS_ENTITLEMENT_ID` | `kplus-activate`, `kplus-reconcile-revenuecat` | optional | internal | Defaults to `k_plus` if unset. |
+| `REVENUECAT_SYNC_ENABLED` | `kplus-activate`, `kplus-reconcile-revenuecat` | required to enable sync | internal flag | RevenueCat mirror stays off (`external_sync_status = 'not_required'`); local K+ grant is unaffected either way. |
+| `KPLUS_RECONCILE_INTERNAL_SECRET` | `kplus-reconcile-revenuecat` | required | internal | Reconciliation sweep endpoint refuses every request (401). |
 
 **Model-name hazard.** `STYLECHAT_GEMINI_MODEL` is set on both projects, but the
 `*_GEMINI_MODEL` family is exactly where a retired model id causes a 404 at call
@@ -67,6 +71,8 @@ For cross-checking that the two lists above are complete:
 | `product-search-deals`, `nike-shoe-details`, `kickscrew-sneaker-description`, `tryon-clothes-pro` | `RAPIDAPI_KEY` |
 | `process-account-deletions` | `DELETION_WORKER_DRY_RUN` |
 | `staging-health` | `KSCAN_DEPLOY_VERSION` |
+| `kplus-activate` | `REVENUECAT_KPLUS_ENTITLEMENT_ID`, `REVENUECAT_SECRET_API_KEY`, `REVENUECAT_SYNC_ENABLED`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL` |
+| `kplus-reconcile-revenuecat` | `KPLUS_RECONCILE_INTERNAL_SECRET`, `REVENUECAT_KPLUS_ENTITLEMENT_ID`, `REVENUECAT_SECRET_API_KEY`, `REVENUECAT_SYNC_ENABLED`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL` |
 | `_shared` | `ACCOUNT_RESTORATION_BASE_URL`, `KSCAN_ENVIRONMENT`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL` |
 
 `APIFY_VINTED_ACTOR_ID`, `APIFY_VINTED_INPUT_TEMPLATE`, `APIFY_VINTED_TIMEOUT_SECS`,

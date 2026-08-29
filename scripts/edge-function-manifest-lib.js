@@ -108,6 +108,8 @@ const GOVERNED_FUNCTIONS = [
   'restore-account',
   'resend-restoration-email',
   'kickscrew-sneaker-description',
+  'kplus-activate',
+  'kplus-reconcile-revenuecat',
   'nike-shoe-details',
   'product-search-deals',
   'search-vinted-secondhand',
