@@ -85,6 +85,8 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
     column: 'user_id',
     action: 'auth_delete_cascade',
   },
+  { table: 'user_entitlements', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  { table: 'kplus_activation_events', column: 'user_id', action: 'auth_delete_cascade', optional: true },
 ];
 
 export interface StorageResourceTemplate {

@@ -72,6 +72,8 @@
       "column": "user_id",
       "action": "auth_delete_cascade",
       "notes": "Five-session / wearable device registry. Soft-revoked at deletion request via revoke_user_sessions; Auth cascade removes rows at final purge."
-    }
+    },
+    { "table": "user_entitlements", "column": "user_id", "action": "auth_delete_cascade", "optional": true },
+    { "table": "kplus_activation_events", "column": "user_id", "action": "auth_delete_cascade", "optional": true }
   ]
 }

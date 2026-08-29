@@ -78,6 +78,18 @@ verify_jwt = true
 [functions.stylist-speech]
 verify_jwt = true
 
+# ── K+ entitlement boundary ──────────────────────────────────────────────────
+
+# User-facing activation. Always authenticated; identity is re-derived from
+# the verified JWT inside the function regardless of this platform-level gate.
+[functions.kplus-activate]
+verify_jwt = true
+
+# Owner/worker-invoked reconciliation sweep. Authenticates via the
+# x-kplus-reconcile-secret header, not a user JWT.
+[functions.kplus-reconcile-revenuecat]
+verify_jwt = false
+
 # ── Local shadow stack ───────────────────────────────────────────────────────
 #
 # Explicit non-default ports. Several other K Scan worktrees run their own local
