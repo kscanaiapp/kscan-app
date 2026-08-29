@@ -19,6 +19,9 @@ export interface StylistVoiceSelection {
 // each portrait actually presents, so a feminine-presenting stylist can never
 // be grouped under a masculine profile in diagnostics.
 const VOICE_ENTRIES = [
+  // The abstract default is the same canonical Elise identity as portrait 01,
+  // so both IDs intentionally resolve through the existing Elise voice secret.
+  ['elise_default', 'feminine', 'ELEVENLABS_STYLIST_01_VOICE_ID'], // Elise default
   ['stylist_portrait_01', 'feminine', 'ELEVENLABS_STYLIST_01_VOICE_ID'], // Elise
   ['stylist_portrait_02', 'masculine', 'ELEVENLABS_STYLIST_02_VOICE_ID'], // Henry
   ['stylist_portrait_03', 'feminine', 'ELEVENLABS_STYLIST_03_VOICE_ID'], // Janet
@@ -36,7 +39,6 @@ const VOICE_BY_STYLIST_ID = new Map<string, StylistVoiceSelection>(
 );
 
 const SILENT_STYLIST_IDS = new Set([
-  'elise_default',
   'editorial_plum',
   'chrome_muse',
   'deep_space',

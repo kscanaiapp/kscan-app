@@ -117,6 +117,7 @@ Deno.test('routes each configured stylist to its own server-side voice secret, n
   // per-stylist voice SECRET NAME, not a shared profile-level voice, and
   // that no literal voice ID ever reaches the provider client from here.
   const cases = [
+    ['elise_default', 'ELEVENLABS_STYLIST_01_VOICE_ID', 'feminine'],
     ['stylist_portrait_02', 'ELEVENLABS_STYLIST_02_VOICE_ID', 'masculine'],
     ['stylist_portrait_05', 'ELEVENLABS_STYLIST_05_VOICE_ID', 'feminine'],
     ['stylist_portrait_08', 'ELEVENLABS_STYLIST_08_VOICE_ID', 'masculine'],
@@ -228,9 +229,9 @@ Deno.test('rejects user, empty, hidden, and system-provider messages', async () 
   }
 });
 
-Deno.test('rejects silent, unsupported, and preference-mismatched stylists', async () => {
+Deno.test('rejects intentionally silent, unsupported, and preference-mismatched stylists', async () => {
   for (const [stylistId, preference, expectedCode, expectedStatus] of [
-    ['elise_default', { avatar_id: 'elise_default' }, 'STYLIST_SILENT', 422],
+    ['editorial_plum', { avatar_id: 'editorial_plum' }, 'STYLIST_SILENT', 422],
     ['unknown_avatar', { avatar_id: 'unknown_avatar' }, 'STYLIST_UNSUPPORTED', 422],
     ['stylist_portrait_06', { avatar_id: 'stylist_portrait_05' }, 'STYLIST_MISMATCH', 403],
   ] as const) {
@@ -240,7 +241,7 @@ Deno.test('rejects silent, unsupported, and preference-mismatched stylists', asy
   }
 });
 
-Deno.test('defaults a missing persisted preference to silent Elise', async () => {
+Deno.test('defaults a missing persisted preference to Elise and still rejects a mismatched request', async () => {
   const response = await handlerFor({ preference: null })(speechRequest());
   assert.equal(response.status, 403);
   assert.equal((await responseBody(response)).code, 'STYLIST_MISMATCH');

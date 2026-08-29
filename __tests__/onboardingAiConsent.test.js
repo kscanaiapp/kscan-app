@@ -33,7 +33,7 @@ test('AI statement uses the exact approved copy', () => {
 
 test('AI statement sits below the privacy paragraph and above the legal links', () => {
   const flat = flatten(termsBlock);
-  const privacyIndex = flat.indexOf('K Scan is not designed for facial recognition');
+  const privacyIndex = flat.indexOf('K Scan AI is not designed for facial recognition');
   const aiIndex = flat.indexOf(AI_STATEMENT);
   const linksIndex = flat.indexOf('Terms of Service');
 
@@ -113,7 +113,7 @@ test('existing terms, privacy and age copy is unchanged', () => {
   assert.ok(flat.includes('I acknowledge the Privacy Policy'));
   assert.ok(flat.includes('I confirm that I am 18 years of age or older.'));
   assert.ok(flat.includes(
-    'K Scan is not designed for facial recognition or identifying people. Raw scans and uploaded images are not sold to third-party data buyers.',
+    'K Scan AI is not designed for facial recognition or identifying people. Raw scans and uploaded images are not sold to third-party data buyers.',
   ));
 });
 

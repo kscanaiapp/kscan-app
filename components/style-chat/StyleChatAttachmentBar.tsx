@@ -413,7 +413,7 @@ export function StyleChatAttachmentBar({
       if (permission.status !== 'granted') {
         Alert.alert(
           'Camera Access Required',
-          'Allow K Scan to use the camera in Settings to take a photo. You can still choose from Photos or your Closet.',
+          'Allow K Scan AI to use the camera in Settings to take a photo. You can still choose from Photos or your Closet.',
           [{ text: 'OK' }],
         );
         return;
@@ -426,7 +426,7 @@ export function StyleChatAttachmentBar({
       if (result.canceled || !result.assets?.[0]?.uri) return;
       await deliverDirectImage(result.assets[0].uri, 'camera');
     } catch {
-      Alert.alert('Camera unavailable', 'K Scan could not open the camera. Try again or choose from Photos.');
+      Alert.alert('Camera unavailable', 'K Scan AI could not open the camera. Try again or choose from Photos.');
     } finally {
       setPickingImage(false);
     }
@@ -445,7 +445,7 @@ export function StyleChatAttachmentBar({
       if (permission.status !== 'granted') {
         Alert.alert(
           'Photo Access Required',
-          'Allow K Scan to access your photo library in Settings to choose a photo. You can still take a photo or add from your Closet.',
+          'Allow K Scan AI to access your photo library in Settings to choose a photo. You can still take a photo or add from your Closet.',
           [{ text: 'OK' }],
         );
         return;
@@ -459,7 +459,7 @@ export function StyleChatAttachmentBar({
       if (result.canceled || !result.assets?.[0]?.uri) return;
       await deliverDirectImage(result.assets[0].uri, 'photo_library');
     } catch {
-      Alert.alert('Photos unavailable', 'K Scan could not open your photo library. Try again.');
+      Alert.alert('Photos unavailable', 'K Scan AI could not open your photo library. Try again.');
     } finally {
       setPickingImage(false);
     }

@@ -109,6 +109,16 @@ interface SavedScan {
    *  those hydrate to [] and simply hide the purchase section. */
   purchaseOptions?: Product[];
   source: string;
+  /** Build 32: canonical multi-item identities and their per-item commerce,
+   *  written by saveMultiItemScan/attachScanMultiItemCommerce. Absent or
+   *  empty on every non-multi-item and pre-Build-32 scan. */
+  multiItemCandidates?: Array<{ id: string; label: string; category: string; subtype: string }>;
+  multiItemCommerce?: Array<{
+    candidateId: string;
+    status: string;
+    bestMatch: Product | null;
+    alternatives: Product[];
+  }>;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -183,7 +193,7 @@ async function requestPhotoLibraryPermission(): Promise<boolean> {
   if (hasUsablePhotoLibraryAccess(permission)) return true;
   Alert.alert(
     'Photo Access Required',
-    'Allow K Scan to access your photo library in Settings to upload inspiration.',
+    'Allow K Scan AI to access your photo library in Settings to upload inspiration.',
     [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -191,7 +201,7 @@ async function requestPhotoLibraryPermission(): Promise<boolean> {
         onPress: () => {
           void tryOpenPhotoLibrarySettings(() => Linking.openSettings()).then((opened) => {
             if (!opened) {
-              Alert.alert('Unable to Open Settings', 'Open Settings and allow photo access for K Scan.');
+              Alert.alert('Unable to Open Settings', 'Open Settings and allow photo access for K Scan AI.');
             }
           });
         },
@@ -1094,6 +1104,8 @@ export default function LibraryScreen() {
           }}
           products={selectedScan.products}
           purchaseOptions={selectedScan.purchaseOptions ?? []}
+          multiItemCandidates={selectedScan.multiItemCandidates ?? []}
+          multiItemCommerce={selectedScan.multiItemCommerce ?? []}
           scanImageUri={selectedScan.imageUri ?? null}
           scanSourceId={selectedScan.id}
           scanSourceType="style_library_scan"

@@ -148,13 +148,15 @@ Deno.test('cue mode still enforces the persisted stylist preference', async () =
   assert.equal(body.code, 'STYLIST_MISMATCH');
 });
 
-Deno.test('cue mode still refuses a silent stylist', async () => {
+Deno.test('cue mode speaks through the activated default Elise identity', async () => {
   const response = await cueHandler('elise_default')(
     cueRequest({ cue: 'entry', stylistId: 'elise_default' }),
   );
   const body = await response.json() as Record<string, unknown>;
-  assert.equal(response.status, 422);
-  assert.equal(body.code, 'STYLIST_SILENT');
+  assert.equal(response.status, 200);
+  assert.equal(body.voiceProfile, 'feminine');
+  assert.equal(spoken.text, APPROVED.entry);
+  assert.equal(spoken.voiceProfile, 'feminine');
 });
 
 Deno.test('an unapproved cue is refused by the handler', async () => {

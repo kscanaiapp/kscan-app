@@ -37,7 +37,7 @@ export function WelcomeStepV1({ onGetStarted, onAlreadyHaveAccount }: WelcomeSte
         source={require('../../assets/images/welcome-hero.png')}
         style={[styles.heroImage, { height: heroHeight }, presentationMotion]}
         resizeMode="cover"
-        accessibilityLabel="Welcome to K Scan"
+        accessibilityLabel="Welcome to K Scan AI"
       />
 
       <View style={styles.textBlock}>

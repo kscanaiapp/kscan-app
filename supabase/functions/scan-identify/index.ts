@@ -130,6 +130,7 @@ import {
 } from './commerceFunnelConfig.ts';
 import { buildCanonicalCommerce } from './canonicalCommerce.ts';
 import {
+  mapFastCommerceFailureReason,
   mapToFailureReason,
 } from './commerceRelevanceFailure.ts';
 import {
@@ -138,6 +139,7 @@ import {
 } from './textScanCommerceParityConfig.ts';
 import {
   captureCommerceOutcome as persistCommerceOutcomeRow,
+  captureCommerceOutcomeNonBlocking,
 } from './commerceOutcomeCapture.ts';
 import {
   buildRoutedIdentifyPrompt,
@@ -278,6 +280,15 @@ const SAFE_TEXT_NON_FASHION_MESSAGE =
 type AuthContext = {
   userId: string | null;
   isAuthenticated: boolean;
+  /**
+   * True when the verified Supabase user is an anonymous identity
+   * (auth.signInAnonymously()), read directly off the already-fetched
+   * getUser() result — no extra network call. Distinct from isAuthenticated:
+   * an anonymous identity IS an authenticated session (it has a valid,
+   * verifiable JWT and its own auth.uid()), it is just not a K Scan AI
+   * account eligible to spend paid-AI budget. See isEligiblePaidAIActor().
+   */
+  isAnonymous: boolean;
   hasProjectAccess: boolean;
   authError: boolean;
 };
@@ -1205,6 +1216,7 @@ async function resolveAuthContext(
     return {
       userId: null,
       isAuthenticated: false,
+      isAnonymous: false,
       hasProjectAccess,
       authError: false,
     };
@@ -1218,6 +1230,11 @@ async function resolveAuthContext(
   return {
     userId: authError || !user ? null : user.id,
     isAuthenticated: Boolean(!authError && user),
+    // Supabase populates this on the verified user record for a session
+    // created via auth.signInAnonymously() — already present on the same
+    // getUser() response used for isAuthenticated, so reading it costs
+    // nothing extra.
+    isAnonymous: Boolean((user as { is_anonymous?: boolean } | null)?.is_anonymous),
     hasProjectAccess,
     authError: Boolean(authError || !user),
   };
@@ -1480,6 +1497,16 @@ function sanitizeAttributes(raw: unknown): Record<string, unknown> | undefined {
 /** A commerce-only request is opt-in and explicit — never inferred. */
 function isCommerceOnlyRequest(body: { requestMode?: unknown }): boolean {
   return body.requestMode === 'commerce_only';
+}
+
+/**
+ * Optional per-item correlation id for a MODE B request (Build 32 multi-item
+ * commerce). Pure passthrough: echoed on the response unchanged, never read
+ * by ranking, filtering, or provider selection. Absent on every pre-Build-32
+ * caller, so its absence changes nothing.
+ */
+function readCommerceOnlyCandidateId(body: { candidateId?: unknown }): string | undefined {
+  return safeString(body.candidateId);
 }
 
 /**
@@ -1880,6 +1907,8 @@ Deno.serve(async (req) => {
     searchQueries?: unknown;
     market?: unknown;
     enrich?: unknown;
+    // Build 32: optional per-item correlation id, echoed back unchanged.
+    candidateId?: unknown;
   } = {};
   try {
     body = await req.json();
@@ -1982,12 +2011,13 @@ Deno.serve(async (req) => {
   const logUserId = userId ? userId.slice(0, 8) : 'anon';
 
   console.log(
-    '[scan-identify] request_start mode=%s source=%s auth=%s uid=%s projectAccess=%s',
+    '[scan-identify] request_start mode=%s source=%s auth=%s uid=%s projectAccess=%s supabaseAnon=%s',
     mode,
     source,
     auth.isAuthenticated ? 'authenticated' : 'anonymous',
     logUserId,
     String(auth.hasProjectAccess),
+    String(auth.isAnonymous),
   );
 
   // v127 flag resolution for the commerce-only route. Same env helpers the
@@ -2054,6 +2084,7 @@ Deno.serve(async (req) => {
         400,
       );
     }
+    const commerceOnlyCandidateId = readCommerceOnlyCandidateId(body);
 
     const gated = applyScannerQualityGate(evidence.identification, evidence.attributes, {
       commerceIdentityEnabled: commerceIdentityEnabledForCommerceOnly,
@@ -2106,11 +2137,51 @@ Deno.serve(async (req) => {
     if (!fast) {
       // Commerce failure is never a scan failure — the caller already has a
       // rendered scan result and simply gets an empty, retryable shelf.
+      //
+      // Best-effort scrubbed outcome persistence — never blocks the response.
+      // This is the deferred commerce attempt actually completing (with a
+      // genuine provider failure), not a fabricated outcome: MODE A's own
+      // 'deferred' response never reaches captureCommerceOutcome, so without
+      // this call every MODE B provider error was previously invisible to
+      // commerce telemetry.
+      captureCommerceOutcomeNonBlocking({
+        requestMode: 'commerce_only',
+        sourceClass: null,
+        appPlatform,
+        appVersion,
+        status: 'completed',
+        isFashion: true,
+        categoryRoute: route,
+        qualityBand: gated.qualityBand,
+        commerceQueryDetailLevel: gated.commerceQueryDetailLevel,
+        providerOutcome: 'error',
+        providersTried: null,
+        primaryResultCount: 0,
+        fallbackUsed: false,
+        productsBeforeFilter: 0,
+        productsAfterFilter: 0,
+        productsBeforeDedupe: 0,
+        productsAfterDedupe: 0,
+        categoryMismatchRemovals: 0,
+        retailerCount: 0,
+        commerceDurationMs: Date.now() - commerceOnlyStarted,
+        totalDurationMs: Date.now() - commerceOnlyStarted,
+        failureReason: mapToFailureReason({ providerOutcome: 'error' }),
+        textScanParityEnabled: false,
+        correlationHash: typeof commerceOnlyCandidateId === 'string'
+          ? commerceOnlyCandidateId.slice(0, 12)
+          : null,
+        // No fast result exists on this path, so there is no query strategy
+        // or agreement score to report — only that v124/v127 were active.
+        commerceIdentityEnabled: commerceIdentityEnabledForCommerceOnly,
+        commerceFunnelEnabled: true,
+      }, captureCommerceOutcome);
       return json({
         status: 'completed',
         purchaseOptions: [],
         recommendedProducts: [],
         commerce: { available: false, retryable: true, errorType: 'provider_error' },
+        ...(commerceOnlyCandidateId ? { candidateId: commerceOnlyCandidateId } : {}),
       }, 200);
     }
 
@@ -2138,11 +2209,78 @@ Deno.serve(async (req) => {
       Date.now() - commerceOnlyStarted,
     );
 
+    // Best-effort scrubbed outcome persistence — never blocks the response.
+    // Mirrors the image-mode capture below field-for-field (one normalized
+    // commerce-outcome contract for both MODE A and MODE B): qualityTune is
+    // absent on a cache hit, since those stats were computed at cache-write
+    // time and were never stored, so every count here falls back to the
+    // shelf actually returned to the caller — the same fallback idiom the
+    // image-mode call already uses when its own stats are unavailable.
+    {
+      const qt = fast.qualityTune;
+      const beforeFilter = qt?.productsBeforeFilter ?? products.length;
+      const beforeDedupe = qt?.productsBeforeDedupe ?? products.length;
+      const afterDedupe = qt?.productsAfterDedupe ?? products.length;
+      const mismatchRemovals = qt?.categoryMismatchRemovals ?? 0;
+      const retailerCount = qt?.retailerCount ?? new Set(
+        products
+          .map((p) =>
+            typeof (p as { source?: string }).source === 'string'
+              ? (p as { source: string }).source
+              : ''
+          )
+          .filter(Boolean),
+      ).size;
+      // MODE B never runs a fallback query — getFastCommerceResults only ever
+      // executes resolved.query, never resolved.fallbackQuery — so
+      // fallbackUsed is always false here, not a placeholder.
+      const modeBFailureReason = mapFastCommerceFailureReason({
+        errorType: fast.errorType,
+        productCount: products.length,
+        providerOutcomes: fast.funnel.providers.map((provider) => provider.outcome),
+      });
+
+      captureCommerceOutcomeNonBlocking({
+        requestMode: 'commerce_only',
+        sourceClass: null,
+        appPlatform,
+        appVersion,
+        status: 'completed',
+        isFashion: fast.errorType !== 'non_fashion',
+        categoryRoute: route,
+        qualityBand: gated.qualityBand,
+        commerceQueryDetailLevel: gated.commerceQueryDetailLevel,
+        providerOutcome: fast.provider,
+        providersTried: fast.providersTried,
+        primaryResultCount: products.length,
+        fallbackUsed: false,
+        productsBeforeFilter: beforeFilter,
+        productsAfterFilter: afterDedupe,
+        productsBeforeDedupe: beforeDedupe,
+        productsAfterDedupe: afterDedupe,
+        categoryMismatchRemovals: mismatchRemovals,
+        retailerCount,
+        commerceDurationMs: Date.now() - commerceOnlyStarted,
+        totalDurationMs: Date.now() - commerceOnlyStarted,
+        failureReason: modeBFailureReason,
+        textScanParityEnabled: false,
+        correlationHash: typeof commerceOnlyCandidateId === 'string'
+          ? commerceOnlyCandidateId.slice(0, 12)
+          : null,
+        queryStrategy: fast.queryStrategy ?? null,
+        topAgreementScore: qt?.topAgreementScore ?? null,
+        topAgreementBand: qt?.topAgreementBand ?? null,
+        commerceIdentityEnabled: commerceIdentityEnabledForCommerceOnly,
+        commerceFunnelEnabled: true,
+      }, captureCommerceOutcome);
+    }
+
     return json({
       status: 'completed',
       purchaseOptions: products,
       recommendedProducts: products,
       canonicalProducts: canonical.products,
+      ...(commerceOnlyCandidateId ? { candidateId: commerceOnlyCandidateId } : {}),
       commerce: {
         available: products.length > 0,
         retryable: products.length === 0,
@@ -2213,36 +2351,51 @@ Deno.serve(async (req) => {
     String(useMultiItemProvider),
   );
 
-  if (mode === 'text' && !auth.isAuthenticated) {
-    void captureCommerceOutcome({
-      requestMode: 'text',
-      sourceClass: typeof source === 'string' ? source : null,
-      appPlatform,
-      appVersion,
-      status: 'failed',
-      isFashion: false,
-      categoryRoute: null,
-      qualityBand: null,
-      commerceQueryDetailLevel: null,
-      providerOutcome: null,
-      providersTried: null,
-      primaryResultCount: 0,
-      fallbackUsed: false,
-      productsBeforeFilter: 0,
-      productsAfterFilter: 0,
-      productsBeforeDedupe: 0,
-      productsAfterDedupe: 0,
-      categoryMismatchRemovals: 0,
-      retailerCount: 0,
-      commerceDurationMs: null,
-      totalDurationMs: Date.now() - requestStartedAt,
-      failureReason: mapToFailureReason({ authRequired: true }),
-      textScanParityEnabled: false,
-    });
-    return json({ error: 'Not authenticated' }, 401);
-  }
+  // ── Build 32 paid-AI ingress authority (single, non-bypassable) ──────────
+  //
+  // The publishable/anon project key (surfaced here as auth.hasProjectAccess)
+  // proves the request targets this project. A Supabase anonymous identity
+  // (auth.isAnonymous) proves a session exists. Neither proves the caller is
+  // a K Scan AI account eligible to spend Gemini budget, so neither may admit
+  // a request into text or image identification. This is the ONLY authority
+  // that decides that question for this route, it runs before any quota
+  // check, commerce retrieval, or provider call, and it has no fallback: an
+  // actor that fails this check is rejected outright, never re-admitted by
+  // project-key presence, rate-limit headroom, or a verification error.
+  //
+  // (MODE B, the commerce-only request above, is unaffected — it never
+  // reaches Gemini and is out of scope for this authority.)
+  const isEligiblePaidAIActor = auth.isAuthenticated && !auth.isAnonymous;
 
-  if (isAnonymousImageAnalysis && !auth.hasProjectAccess) {
+  if (!isEligiblePaidAIActor) {
+    if (mode === 'text') {
+      void captureCommerceOutcome({
+        requestMode: 'text',
+        sourceClass: typeof source === 'string' ? source : null,
+        appPlatform,
+        appVersion,
+        status: 'failed',
+        isFashion: false,
+        categoryRoute: null,
+        qualityBand: null,
+        commerceQueryDetailLevel: null,
+        providerOutcome: null,
+        providersTried: null,
+        primaryResultCount: 0,
+        fallbackUsed: false,
+        productsBeforeFilter: 0,
+        productsAfterFilter: 0,
+        productsBeforeDedupe: 0,
+        productsAfterDedupe: 0,
+        categoryMismatchRemovals: 0,
+        retailerCount: 0,
+        commerceDurationMs: null,
+        totalDurationMs: Date.now() - requestStartedAt,
+        failureReason: mapToFailureReason({ authRequired: true }),
+        textScanParityEnabled: false,
+      });
+      return json({ error: 'Not authenticated' }, 401);
+    }
     return json(
       {
         ...normalized('failed', SAFE_FAILED_MESSAGE),
@@ -2250,10 +2403,6 @@ Deno.serve(async (req) => {
       },
       401,
     );
-  }
-
-  if (isAnonymousImageAnalysis && auth.authError) {
-    console.warn('[scan-identify] image_auth_fallback_to_analysis_only reason=user_jwt_unverified');
   }
 
   const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');

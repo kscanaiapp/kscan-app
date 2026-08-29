@@ -30,7 +30,7 @@ export function useShareOutfit() {
       // message body. Same canonical URL on both platforms.
       const payload =
         Platform.OS === 'ios'
-          ? { title: 'K Scan', message, url: KSCAN_SHARE_URL }
+          ? { title: 'K Scan AI', message, url: KSCAN_SHARE_URL }
           : { message };
       const result = await Share.share(payload);
       if (result.action === Share.sharedAction) {

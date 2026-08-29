@@ -290,7 +290,7 @@ export function ProductShelf({
   products,
   label = 'SIMILAR ITEMS',
   emptyTitle = 'No similar items yet.',
-  emptyBody = 'Try a clearer angle, closer crop, or simpler background so K Scan can surface product matches.',
+  emptyBody = 'Try a clearer angle, closer crop, or simpler background so K Scan AI can surface product matches.',
   testID,
   pending = false,
   hasError = false,

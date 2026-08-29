@@ -272,9 +272,27 @@ test('no ML Kit, Gradle, model asset or new permission came along', () => {
     for (const key of ORIENTATION_KEYS) delete rest[key];
     return rest;
   };
+  // Build 31 branding: "K Scan" -> "K Scan AI" legitimately edited the copy of
+  // these two existing usage-description strings (no new permission, nothing
+  // Vision-related). Normalize the baseline's copy to the renamed product
+  // name before comparing, so this test keeps proving what it actually
+  // guards: no NEW permission and no OTHER Info.plist drift.
+  const BRANDING_RENAME_USAGE_DESCRIPTIONS = new Set([
+    'NSCameraUsageDescription',
+    'NSPhotoLibraryUsageDescription',
+  ]);
+  const applyBrandingRename = (plist) => {
+    const rest = { ...(plist ?? {}) };
+    for (const key of BRANDING_RENAME_USAGE_DESCRIPTIONS) {
+      if (typeof rest[key] === 'string' && rest[key].startsWith('K Scan uses ')) {
+        rest[key] = `K Scan AI uses ${rest[key].slice('K Scan uses '.length)}`;
+      }
+    }
+    return rest;
+  };
   assert.deepEqual(
     stripOrientation(after.infoPlist),
-    stripOrientation(before.infoPlist),
+    applyBrandingRename(stripOrientation(before.infoPlist)),
     'the iOS Info.plist changed; the extraction module must add no permission',
   );
   for (const key of Object.keys(after.infoPlist ?? {})) {

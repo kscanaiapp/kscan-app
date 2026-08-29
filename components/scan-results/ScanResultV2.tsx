@@ -29,6 +29,8 @@ import { StyleMatchPanel } from './StyleMatchPanel';
 import { StyleAnalysisSection } from './StyleAnalysisSection';
 import { SimilarFindsShelf } from './SimilarFindsShelf';
 import { PurchaseOptionsPanel } from './PurchaseOptionsPanel';
+import { MultiItemCommerceSection } from './MultiItemCommerceSection';
+import type { ItemCommerceCard } from '../../services/multiItemCommerce';
 import { ScanResultActionRow } from './ScanResultActionRow';
 import { EmptyStateCard } from '../luxury/EmptyStateCard';
 import { mapLegacyToV2 } from './types';
@@ -102,6 +104,14 @@ interface ScanResultV2Props {
   commerceStatus?: 'idle' | 'pending' | 'success' | 'empty' | 'error';
   /** Present only when a failed deferred fetch is retryable. */
   onRetryCommerce?: () => void;
+  /**
+   * Build 32: one commerce card per detected multi-item candidate, populated
+   * independently of the single-selection commerceStatus/purchaseOptions
+   * above. Empty array leaves this section absent, same as omitting the prop.
+   */
+  multiItemCommerce?: ItemCommerceCard[];
+  multiItemCommerceStatus?: 'idle' | 'pending' | 'ready';
+  onRetryMultiItemCommerce?: () => void;
   selectedCandidateId?: string | null;
   onSelectCandidate?: (candidateId: string) => void;
   onAnalyzeSelectedCandidate?: (candidateId: string) => void;
@@ -128,6 +138,9 @@ export function ScanResultV2({
   onFindSimilar,
   commerceStatus = 'idle',
   onRetryCommerce,
+  multiItemCommerce,
+  multiItemCommerceStatus = 'idle',
+  onRetryMultiItemCommerce,
   selectedCandidateId,
   onSelectCandidate,
   onAnalyzeSelectedCandidate,
@@ -170,6 +183,11 @@ export function ScanResultV2({
     : [];
   const activeCandidateId = selectedCandidateId ?? confirmationCandidates[0]?.id ?? null;
   const isConfirmationStep = confirmationCandidates.length > 0;
+  const multiItemCommerceByCandidateId = React.useMemo(() => {
+    const map = new Map<string, ItemCommerceCard>();
+    for (const card of multiItemCommerce ?? []) map.set(card.candidateId, card);
+    return map;
+  }, [multiItemCommerce]);
 
   const runExit = () => {
     if (isExiting.current) return;
@@ -383,7 +401,7 @@ export function ScanResultV2({
             >
               {/* Header */}
               <View style={styles.header}>
-                <Text style={styles.brandTitle}>K SCAN</Text>
+                <Text style={styles.brandTitle}>K SCAN AI</Text>
                 <Text style={styles.statusLabel}>SCAN ANALYSIS COMPLETE</Text>
                 <TouchableOpacity
                   onPress={handleBack}
@@ -451,6 +469,18 @@ export function ScanResultV2({
                     })}
                   </View>
                 </View>
+              ) : null}
+
+              {/* Build 32: one commerce card per detected item, shown
+                  simultaneously — independent of the single-selection
+                  "Find Matches" flow above. */}
+              {isConfirmationStep ? (
+                <MultiItemCommerceSection
+                  candidates={confirmationCandidates}
+                  cardsByCandidateId={multiItemCommerceByCandidateId}
+                  status={multiItemCommerceStatus}
+                  onRetry={onRetryMultiItemCommerce}
+                />
               ) : null}
 
               {/* Style Match Summary */}

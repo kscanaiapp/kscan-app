@@ -15,20 +15,76 @@ test('edge source: CORS OPTIONS preflight is handled', () => {
 });
 
 test('edge source: text mode remains authenticated', () => {
-  assert.ok(EDGE_SOURCE.includes("mode === 'text' && !auth.isAuthenticated"), 'Text mode must keep auth gate');
+  assert.ok(EDGE_SOURCE.includes('isEligiblePaidAIActor'), 'Text mode must be gated by the paid-AI actor authority');
   assert.ok(EDGE_SOURCE.includes("auth.getUser()"), 'Must verify signed-in users with getUser');
   assert.ok(EDGE_SOURCE.includes("{ error: 'Not authenticated' }"), 'Must return auth error for protected paths');
 });
 
-test('edge source: image mode allows project-key analysis-only without user data', () => {
-  assert.ok(EDGE_SOURCE.includes('isAnonymousImageAnalysis'), 'Must identify anonymous image analysis path');
-  assert.ok(EDGE_SOURCE.includes('hasValidProjectAccess'), 'Must require project access for anonymous image analysis');
-  assert.ok(EDGE_SOURCE.includes("provider: 'anonymous_analysis_only'"), 'Must mark anonymous scans analysis-only');
-  assert.ok(EDGE_SOURCE.includes('commerceSkipped: true'), 'Must skip commerce for anonymous scans');
+// Build 32 P1-B regression guard (SEC-2026-001 / SEC-2026-002).
+//
+// A prior version of this suite required the OPPOSITE of what is asserted
+// below: it named and defended a "project-key analysis-only" path that let
+// any caller holding the public/publishable anon key reach paid Gemini image
+// inference with no user JWT at all, and let a freely-mintable Supabase
+// anonymous identity do the same. That path is a defect, not a feature — see
+// the launch security audit, SEC-2026-001 and SEC-2026-002 — and has been
+// removed. This test exists to make sure it cannot silently come back.
+test('edge source: paid image inference requires a real, non-anonymous K Scan AI account', () => {
+  // One authoritative rule, defined once, deciding actor eligibility for
+  // BOTH text and image identification. Not a per-mode duplicate.
+  const definitionCount = EDGE_SOURCE.split('const isEligiblePaidAIActor =').length - 1;
+  assert.equal(definitionCount, 1, 'isEligiblePaidAIActor must be defined exactly once');
   assert.ok(
-    EDGE_SOURCE.includes("mode === 'image' && auth.isAuthenticated"),
-    'Image metadata capture must remain authenticated-only',
+    EDGE_SOURCE.includes('const isEligiblePaidAIActor = auth.isAuthenticated && !auth.isAnonymous'),
+    'Eligibility must require both a verified session AND a non-anonymous identity',
   );
+
+  // The old defective rule must not exist in any form: a public/publishable
+  // key (hasProjectAccess) may no longer stand in for actor authorization,
+  // in this file or as a fallback alongside the new rule.
+  assert.equal(
+    EDGE_SOURCE.includes('isAnonymousImageAnalysis && !auth.hasProjectAccess'),
+    false,
+    'The old project-key-only authorization path must be removed, not kept as a fallback',
+  );
+  assert.equal(
+    /if\s*\(\s*!?isEligiblePaidAIActor\s*(&&|\|\|)\s*[^)]*hasProjectAccess/.test(EDGE_SOURCE),
+    false,
+    'hasProjectAccess must not be combined into the paid-AI actor decision, even as a fallback',
+  );
+
+  // No "verification error → continue anyway" fallback. A JWT that fails
+  // verification must be indistinguishable, for authorization purposes, from
+  // no JWT at all — both already produce isAuthenticated: false.
+  assert.equal(
+    EDGE_SOURCE.includes('image_auth_fallback_to_analysis_only'),
+    false,
+    'A JWT verification error must not fall back to an analysis-only path',
+  );
+
+  // Anonymous identity is read off the already-verified getUser() response —
+  // no second network call to determine eligibility.
+  assert.ok(
+    EDGE_SOURCE.includes('isAnonymous: boolean'),
+    'AuthContext must carry an explicit isAnonymous signal',
+  );
+  assert.ok(
+    EDGE_SOURCE.includes('is_anonymous'),
+    'isAnonymous must be read from the verified Supabase user record',
+  );
+
+  // The gate must run before any Gemini call, for either mode.
+  const gateIndex = EDGE_SOURCE.indexOf('const isEligiblePaidAIActor');
+  const geminiIndex = EDGE_SOURCE.indexOf('fetch(buildGeminiUrl(');
+  assert.ok(gateIndex !== -1 && geminiIndex !== -1 && gateIndex < geminiIndex,
+    'Actor eligibility must be decided before any Gemini call');
+
+  // MODE B (commerce-only, no bearer token by design) is a separate surface
+  // that never reaches Gemini and is unaffected by this authority — it must
+  // still be dispatched before this gate runs.
+  const modeBIndex = EDGE_SOURCE.indexOf('MODE B: commerce-only request');
+  assert.ok(modeBIndex !== -1 && modeBIndex < gateIndex,
+    'MODE B must remain dispatched before the paid-AI actor gate, and must not be folded into it');
 });
 
 // ── 2. Text Mode Contract ──
@@ -614,7 +670,7 @@ test('edge source: anonymous image scan uses anonymous guard, not DB user quota'
 });
 
 test('edge source: TextScan remains authenticated-only', () => {
-  assert.ok(EDGE_SOURCE.includes("mode === 'text' && !auth.isAuthenticated"), 'Text mode must keep auth gate');
+  assert.ok(EDGE_SOURCE.includes('isEligiblePaidAIActor'), 'Text mode must be gated by the paid-AI actor authority');
   assert.ok(EDGE_SOURCE.includes("{ error: 'Not authenticated' }"), 'Must return auth error for text mode');
 });
 

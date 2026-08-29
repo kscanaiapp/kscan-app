@@ -122,7 +122,7 @@ export default function HomeV2() {
       backgroundColor={LUXURY.colors.ivory}
       scrollable
       safeArea
-      accessibilityLabel="K Scan Home"
+      accessibilityLabel="K Scan AI Home"
     >
       <StatusBar style="dark" />
 
@@ -263,7 +263,7 @@ export default function HomeV2() {
       {/* Trust / Privacy Footer */}
       <PrivacyFooter
         onPrivacyPress={() => router.push('/privacy')}
-        trustCopy="Private by design. K Scan is not designed for facial recognition or identifying people."
+        trustCopy="Private by design. K Scan AI is not designed for facial recognition or identifying people."
         privacyTestID="home-v2-privacy-button"
       />
     </LuxuryScreen>

@@ -28,9 +28,9 @@
     },
     "info": {
       "en-US": {
-        "title": "K Scan",
+        "title": "K Scan AI",
         "subtitle": "AI fashion discovery",
-        "description": "K Scan helps you turn a camera scan of a look or clothing item into AI-assisted fashion analysis and retailer-neutral discovery results.\n\nUse the camera to capture an outfit, review style signals such as garment type, color, silhouette, texture, and styling context, then save scans locally on your device for later reference.\n\nThis release focuses on the core mobile experience: email/password account access, camera-based scan analysis, local saved scans, privacy controls, data export and correction request entry points, and in-app account deletion.\n\nK Scan is not a retailer or marketplace, does not authenticate products, and does not guarantee product availability, pricing, or exact matches.",
+        "description": "K Scan AI helps you turn a camera scan of a look or clothing item into AI-assisted fashion analysis and retailer-neutral discovery results.\n\nUse the camera to capture an outfit, review style signals such as garment type, color, silhouette, texture, and styling context, then save scans locally on your device for later reference.\n\nThis release focuses on the core mobile experience: email/password account access, camera-based scan analysis, local saved scans, privacy controls, data export and correction request entry points, and in-app account deletion.\n\nK Scan AI is not a retailer or marketplace, does not authenticate products, and does not guarantee product availability, pricing, or exact matches.",
         "keywords": [
           "fashion",
           "style",

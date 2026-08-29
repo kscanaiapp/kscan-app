@@ -90,11 +90,11 @@ export function EliseVisualSourceMenu({
             ]}
             accessibilityRole="button"
             accessibilityLabel="Scan with camera"
-            accessibilityHint="Open the canonical K Scan camera"
+            accessibilityHint="Open the canonical K Scan AI camera"
             accessibilityState={{ disabled: cameraDisabled }}
           >
             <Text style={styles.optionTitle}>Scan with camera</Text>
-            <Text style={styles.optionHint}>Use the K Scan camera</Text>
+            <Text style={styles.optionHint}>Use the K Scan AI camera</Text>
           </Pressable>
 
           <Pressable

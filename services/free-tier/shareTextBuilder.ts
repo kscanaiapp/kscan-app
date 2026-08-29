@@ -6,7 +6,7 @@
 
 import type { NormalizedItem, SuggestedOutfit, SavedOutfit } from './wardrobeUtilityTypes';
 
-export const SHARE_WATERMARK = 'Styled with K Scan';
+export const SHARE_WATERMARK = 'Styled with K Scan AI';
 
 /**
  * Canonical share URL. kscan.app is configured as an app link / universal
@@ -22,9 +22,9 @@ function describeItem(item: NormalizedItem): string {
 }
 
 export function buildItemShareText(item?: NormalizedItem | null): string {
-  if (!item) return 'Check out this look I saved in K Scan.';
+  if (!item) return 'Check out this look I saved in K Scan AI.';
   return (
-    'Check out this look I saved in K Scan: ' +
+    'Check out this look I saved in K Scan AI: ' +
     describeItem(item) +
     '\n\nWhat do you think of this outfit?\n' +
     SHARE_WATERMARK +
@@ -37,7 +37,7 @@ export function buildOutfitShareText(
   outfit?: SuggestedOutfit | SavedOutfit | null,
   items?: NormalizedItem[]
 ): string {
-  if (!outfit) return 'Check out this look I saved in K Scan.';
+  if (!outfit) return 'Check out this look I saved in K Scan AI.';
   const resolved =
     items && items.length > 0
       ? items

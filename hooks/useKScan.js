@@ -8,6 +8,7 @@ import { beginScannerV2Session } from '../services/scannerIdentificationV2';
 import { runScannerIdentification } from '../services/scannerScanRequest';
 import { mapScanIdentifyToAnalysis } from '../services/scanIdentificationMapper';
 import { fetchDeferredCommerce, mergeEnrichedOffers } from '../services/commerceHydration';
+import { fetchMultiItemCommerce } from '../services/multiItemCommerce';
 import {
   buildSecondhandSearchRequest,
   searchVintedSecondhand,
@@ -126,6 +127,11 @@ export function useKScan() {
   // through a positional useState slot table, so inserting a new state above an
   // existing one silently reassigns every slot after it.
   const [commerceStatus, setCommerceStatus] = useState('idle');
+  // Build 32: one commerce card per detected multi-item candidate, independent
+  // of the single-selection commerceStatus/analysis.purchaseOptions above.
+  // Declared last, same reason as commerceStatus — see the note there.
+  const [multiItemCommerce, setMultiItemCommerce] = useState([]);
+  const [multiItemCommerceStatus, setMultiItemCommerceStatus] = useState('idle');
 
   const isMountedRef = useRef(true);
   // Synchronous lock — read before state updates propagate, so rapid taps that
@@ -173,6 +179,11 @@ export function useKScan() {
   const commerceGenerationRef = useRef(0);
   const commerceRequestedRef = useRef(null);
   const commerceAbortRef = useRef(null);
+  // Build 32 multi-item commerce guards — independent generation/abort so a
+  // superseded detection's late offers can never overwrite a newer scan.
+  const multiItemCommerceGenerationRef = useRef(0);
+  const multiItemCommerceRequestedRef = useRef(null);
+  const multiItemCommerceAbortRef = useRef(null);
 
   const clearInFlight = useCallback((operationId) => {
     // Only the current attempt may clear the guard it created. Incrementing the
@@ -198,6 +209,14 @@ export function useKScan() {
     commerceAbortRef.current?.abort();
     commerceAbortRef.current = null;
     if (isMountedRef.current) setCommerceStatus('idle');
+    multiItemCommerceGenerationRef.current += 1;
+    multiItemCommerceRequestedRef.current = null;
+    multiItemCommerceAbortRef.current?.abort();
+    multiItemCommerceAbortRef.current = null;
+    if (isMountedRef.current) {
+      setMultiItemCommerce([]);
+      setMultiItemCommerceStatus('idle');
+    }
     scanInFlightRef.current = true;
     const operationId = ++operationIdRef.current;
     // Replace any previous controller for this hook instance; this is the
@@ -1111,11 +1130,85 @@ export function useKScan() {
     hydrateDeferredCommerce(analysis, { isRetry: true });
   }, [analysis, hydrateDeferredCommerce]);
 
+  // ── Build 32 multi-item commerce hydration ────────────────────────────────
+  //
+  // One MODE B request per eligible detected candidate, dispatched in
+  // parallel. No new Gemini call: every candidate already carries its own
+  // identification/attributes from the multi-item detection response.
+  // Independent of the single-selection hydrateDeferredCommerce above — a
+  // scan can show multi-item cards without the user ever picking one.
+  const hydrateMultiItemCommerce = useCallback(async (candidates, { isRetry = false } = {}) => {
+    if (!Array.isArray(candidates) || candidates.length === 0) return;
+
+    const generation = multiItemCommerceGenerationRef.current;
+    const flightKey = `${generation}`;
+    if (!isRetry && multiItemCommerceRequestedRef.current === flightKey) return;
+    if (isRetry && multiItemCommerceRequestedRef.current === `${flightKey}:active`) return;
+    multiItemCommerceRequestedRef.current = `${flightKey}:active`;
+
+    multiItemCommerceAbortRef.current?.abort();
+    const controller = new AbortController();
+    multiItemCommerceAbortRef.current = controller;
+
+    if (isMountedRef.current && multiItemCommerceGenerationRef.current === generation) {
+      setMultiItemCommerceStatus('pending');
+    }
+
+    let cardsByCandidate;
+    try {
+      cardsByCandidate = await fetchMultiItemCommerce(candidates, { signal: controller.signal });
+    } catch {
+      cardsByCandidate = new Map();
+    }
+
+    multiItemCommerceRequestedRef.current = flightKey;
+
+    // Stale-response protection: a late answer for a superseded scan is
+    // dropped rather than rendered over the current one.
+    if (!isMountedRef.current || multiItemCommerceGenerationRef.current !== generation) return;
+    setMultiItemCommerce(Array.from(cardsByCandidate.values()));
+    setMultiItemCommerceStatus('ready');
+  }, []);
+
+  // Dispatch once per detection result that has candidates to shop.
+  //
+  // Gated on commerceDeferred for the same reason the single-item dispatch
+  // above is: that marker is set only when the backend reports
+  // `commerce.deferred === true`, which only the v127 funnel branch does. With
+  // the funnel disabled the MODE B route does not exist server-side, so every
+  // per-item request would fall through to the image path, return
+  // 'no image provided', and render a "no strong match" state for a search
+  // that never ran — N wasted invocations and a false statement to the user.
+  useEffect(() => {
+    if (status !== 'result') return;
+    if (!analysis?.commerceDeferred) return;
+    const candidates = analysis?.confirmationCandidates;
+    if (!Array.isArray(candidates) || candidates.length === 0) return;
+    hydrateMultiItemCommerce(candidates);
+  }, [status, analysis?.commerceDeferred, analysis?.confirmationCandidates, hydrateMultiItemCommerce]);
+
+  // Abort any in-flight multi-item hydration when the hook unmounts.
+  useEffect(() => () => {
+    multiItemCommerceAbortRef.current?.abort();
+    multiItemCommerceAbortRef.current = null;
+  }, []);
+
+  /** Explicit user retry for the whole multi-item shelf. MODE B only. */
+  const retryMultiItemCommerce = useCallback(() => {
+    // Same v127 authority gate as the dispatch effect and as retryCommerce.
+    if (!analysis?.commerceDeferred) return;
+    const candidates = analysis?.confirmationCandidates;
+    if (!Array.isArray(candidates) || candidates.length === 0) return;
+    hydrateMultiItemCommerce(candidates, { isRetry: true });
+  }, [analysis, hydrateMultiItemCommerce]);
+
   return {
     status,
     photo,
     analysis,
     commerceStatus,
+    multiItemCommerce,
+    multiItemCommerceStatus,
     error,
     nonFashionMessage,
     selectedCandidateId,
@@ -1128,6 +1221,7 @@ export function useKScan() {
     selectConfirmationCandidate,
     analyzeSelectedCandidate,
     retryCommerce,
+    retryMultiItemCommerce,
     selectStaticFixture,
     uploadPhoto,
     selectGalleryPhoto,

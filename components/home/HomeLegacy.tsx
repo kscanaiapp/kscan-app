@@ -43,7 +43,7 @@ export default function HomeLegacy() {
       backgroundColor={LUXURY.colors.ivory}
       scrollable
       safeArea
-      accessibilityLabel="K Scan Home"
+      accessibilityLabel="K Scan AI Home"
     >
       <StatusBar style="dark" />
 
