@@ -88,6 +88,21 @@ export const TEXTSCAN_BACKEND_ENABLED =
  */
 export const VOICESCAN_ENABLED = false;
 
+// ── K+ entitlement boundary ──────────────────────────────────────────────────
+/**
+ * Master client rollout switch for the K+ product boundary (status row,
+ * upgrade surfaces, Voice Scan pill conversion). Independent of whether any
+ * individual K+-gated FEATURE (e.g. Voice Scan itself) is built --
+ * "does K+ exist as a concept the user can see" and "is a specific K+
+ * capability implemented" are deliberately separate questions. Defaults off.
+ */
+export function resolveKPlusEarlyAccessEnabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED,
+): boolean {
+  return value === 'true';
+}
+export const KPLUS_EARLY_ACCESS_ENABLED = resolveKPlusEarlyAccessEnabled();
+
 // ── Scan Results V2 UI rollout flags ─────────────────────────────────────────
 export const SCAN_RESULTS_V2_UI_ENABLED =
   process.env.EXPO_PUBLIC_SCAN_RESULTS_V2_UI === 'true';
