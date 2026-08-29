@@ -90,7 +90,7 @@ runs executed one at a time.
 | Source complete (both platforms) | YES |
 | JS/TS contract tests + negative controls | PASS (36/36 on each line) |
 | Autolinking wiring guard | PASS |
-| Android native compile | see PR body — attempted in this environment |
+| Android native compile | **PASS** — `./gradlew :kscan-pii-native:compileDebugKotlin` BUILD SUCCESSFUL (4m59s). Expo autolinking discovered `kscan-pii-native (1.0.0)`; the bundled ML Kit text artifact resolved; zero warnings or errors from this module. |
 | iOS native compile | **NOT RUN** — no Xcode (Windows host) |
 | Physical-device privacy proof | **NOT RUN** — no devices |
 
@@ -118,3 +118,13 @@ redaction. That requires the device gate.
    iOS podspec (missing the `exclude_files` archive-scope fix) and now a stale
    iOS half without plate screening. Harmless while that line never builds iOS
    for release; must be resolved at convergence.
+
+### Autolinking, proven at build time rather than asserted
+
+The Gradle run above is the §23 evidence, not an inference: Expo's autolinking
+step listed `kscan-pii-native (1.0.0)` among the linked modules and Gradle then
+executed `:kscan-pii-native:compileDebugKotlin` to completion. A source-only
+native module would have appeared in neither.
+
+The iOS half cannot be compiled on this Windows host, so its autolinking is
+asserted only structurally (config/podspec/registration guards), not observed.
