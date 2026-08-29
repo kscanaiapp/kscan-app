@@ -1,0 +1,32 @@
+-- RECOVERED FROM supabase_migrations.schema_migrations LEDGER (staging: yzqjvdfgefveprobvvyw)
+-- version: 20260808120214
+-- name: revoke_public_execute_on_saved_scans_trigger
+-- statement_count: 1
+-- This file was reconstructed read-only from the executed-statement ledger.
+-- It reflects exactly what ran, but original comments/formatting/filename
+-- may differ from whatever the true original migration source looked like.
+
+-- Close the one remaining client-reachable trigger function.
+--
+-- 20260808115735 revoked EXECUTE on public.set_saved_scans_updated_at() from anon
+-- and from authenticated, but the function also carried a grant to PUBLIC
+-- (proacl "=X/postgres"). Both client roles inherit EXECUTE from PUBLIC, so the
+-- role-specific revokes had no effective result: has_function_privilege() still
+-- reported true for anon and authenticated afterwards.
+--
+-- This is the mirror image of the drift documented in
+-- 20260803214253_harden_public_rpc_execution_grants_trigger_cleanup.sql: there a
+-- direct anon grant survived a PUBLIC-only revoke; here a PUBLIC grant survives
+-- role-specific revokes. Both have to be removed for a trigger function to be
+-- genuinely unreachable.
+--
+-- This is the only function in the public schema that grants EXECUTE to PUBLIC,
+-- verified against pg_proc.proacl via aclexplode before writing this migration.
+--
+-- Trigger execution never consults EXECUTE grants, so removing every client grant
+-- does not affect the saved_scans updated_at trigger. service_role EXECUTE is left
+-- in place to avoid unnecessary privilege churn.
+--
+-- Forward-only: the applied 20260808115735 migration is not edited.
+
+revoke execute on function public.set_saved_scans_updated_at() from public;
