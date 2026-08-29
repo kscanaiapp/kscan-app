@@ -37,7 +37,9 @@
     "verify:dependency-reachability": "node scripts/check-dependency-reachability.js",
     "test:dependency-reachability": "node --test __tests__/dependencyReachabilityGate.test.js",
     "verify:migration-provenance": "node scripts/check-migration-provenance.js",
-    "test:migration-provenance": "node --test __tests__/migrationProvenanceGate.test.js"
+    "test:migration-provenance": "node --test __tests__/migrationProvenanceGate.test.js",
+    "verify:native-config-parity": "node scripts/check-native-config-parity.js",
+    "test:native-config-parity": "node --test __tests__/nativeConfigParityGate.test.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
