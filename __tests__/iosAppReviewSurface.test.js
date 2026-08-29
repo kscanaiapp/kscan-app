@@ -81,16 +81,33 @@ test('the TextScan voice placeholder stays off in the production profile', () =>
 
 // -- Microphone posture ------------------------------------------------------
 
-test('no iOS microphone purpose string is declared', () => {
-  assert.equal(infoPlist.NSMicrophoneUsageDescription, undefined);
+test('the iOS microphone purpose string exists only for Voice Scan, and neither camera nor audio plugin injects its own', () => {
+  // Build 34 Voice Scan V1 is the first real, reachable microphone use in
+  // this app (see __tests__/voiceScanUiWiring.test.js and
+  // components/text-scan/VoiceScanButton.tsx). The two purpose strings are
+  // declared directly (not via expo-camera/expo-audio's own plugin props,
+  // which stay false so neither injects a competing/generic copy) and must
+  // describe Voice Scan specifically, not claim recording/upload of audio.
+  assert.equal(typeof infoPlist.NSMicrophoneUsageDescription, 'string');
+  assert.match(infoPlist.NSMicrophoneUsageDescription, /Voice Scan/);
+  assert.doesNotMatch(infoPlist.NSMicrophoneUsageDescription, /upload|store|record and save/i);
+  assert.equal(typeof infoPlist.NSSpeechRecognitionUsageDescription, 'string');
+  assert.match(infoPlist.NSSpeechRecognitionUsageDescription, /on-device/i);
+  // Must not make an affirmative upload claim -- "not uploaded" is the
+  // correct, desired reassurance, so this checks for the affirmative verb
+  // form rather than banning the word "upload" outright.
+  assert.doesNotMatch(infoPlist.NSSpeechRecognitionUsageDescription, /\b(is|are|will be)\s+uploaded\b/i);
   assert.equal(pluginProps('expo-camera').microphonePermission, false);
   assert.equal(pluginProps('expo-audio').microphonePermission, false);
 });
 
-test('no production code path can request microphone or recording permission', () => {
+test('no production code path uses the expo-audio recording API (distinct from Voice Scan\'s own native Speech-framework path)', () => {
   // Linked Expo/native frameworks contain AVAudioRecorder symbols; that is not
   // the same as a reachable product path. This asserts reachability, which is
-  // what determines whether iOS shows a cold-launch prompt.
+  // what determines whether iOS shows a cold-launch prompt. Voice Scan
+  // requests the microphone through its own native module
+  // (modules/kscan-voice-native), never through expo-audio's recording API --
+  // see the next test for Voice Scan's own reachability/gating proof.
   const FORBIDDEN = [
     'requestMicrophonePermissionsAsync',
     'getMicrophonePermissionsAsync',
@@ -132,6 +149,24 @@ test('no production code path can request microphone or recording permission', (
     }
   }
   assert.deepEqual(offenders, [], 'reachable microphone/recording API: ' + offenders.join(', '));
+});
+
+test('Voice Scan\'s microphone path is real but gated: flag-off renders nothing, and no permission request exists outside an explicit tap', () => {
+  const voiceScanButton = read('components', 'text-scan', 'VoiceScanButton.tsx');
+  const useVoiceScan = read('hooks', 'useVoiceScan.ts');
+  // Flag-gated: VOICESCAN_ENABLED off means the whole affordance renders null.
+  assert.match(voiceScanButton, /if \(!VOICESCAN_ENABLED\) return null;/);
+  // K+-gated via the shared gate, not a bespoke check.
+  assert.match(voiceScanButton, /<KPlusGate source="voice_scan_mic">/);
+  // Permission is requested only inside startSession, which only runs from
+  // the button's onPress -- see __tests__/voiceScanUiWiring.test.js for the
+  // full no-silent-mic proof (including its negative control) at the
+  // module level. This is the App-Review-surface-level cross-check.
+  const startSessionBody = useVoiceScan.slice(
+    useVoiceScan.indexOf('const startSession = useCallback('),
+    useVoiceScan.indexOf('const stopSession = useCallback('),
+  );
+  assert.match(startSessionBody, /requestVoiceRecordingPermission\(/);
 });
 
 // -- Elise spoken responses (must NOT be removed) ----------------------------

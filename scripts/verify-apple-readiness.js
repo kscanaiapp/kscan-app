@@ -139,7 +139,23 @@ function verify() {
     infoPlist.NSCameraUsageDescription === 'K Scan AI uses your camera to photograph your outfit for style analysis.',
     'Camera usage description is present and scoped',
   );
-  check(result, !('NSMicrophoneUsageDescription' in infoPlist), 'No microphone usage description is declared');
+  // Build 34 Voice Scan V1 is the first real, reachable microphone use in
+  // this app (gated behind VOICESCAN_ENABLED, default off, and K+) -- see
+  // __tests__/iosAppReviewSurface.test.js and voiceScanUiWiring.test.js for
+  // the reachability/gating proofs. The purpose strings must exist, name
+  // Voice Scan specifically, and never claim upload.
+  check(
+    result,
+    typeof infoPlist.NSMicrophoneUsageDescription === 'string' &&
+      /Voice Scan/.test(infoPlist.NSMicrophoneUsageDescription),
+    'Microphone usage description exists and is scoped to Voice Scan',
+  );
+  check(
+    result,
+    typeof infoPlist.NSSpeechRecognitionUsageDescription === 'string' &&
+      /on-device/i.test(infoPlist.NSSpeechRecognitionUsageDescription),
+    'Speech-recognition usage description exists and states on-device processing',
+  );
   check(
     result,
     infoPlist.NSPhotoLibraryUsageDescription ===
