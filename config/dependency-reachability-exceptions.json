@@ -1,0 +1,115 @@
+{
+  "manifestVersion": "dependency-reachability-exceptions-v1",
+  "generatedFromAudit": "npm audit --omit=dev --json, 2026-08-29, post shell-quote remediation",
+  "note": "B34-DEF-014. Every entry here is a documented, evidence-based exception for a build/dev-tool-only advisory that npm's severity label alone would otherwise flag as release-blocking. Removing a package from this file re-enables a hard failure for it. Adding a package here requires the same evidence standard: confirmed dependency path (npm explain) AND a grep of app/components/services/hooks/contexts/lib/supabase/functions confirming no direct import from shipped source.",
+  "resolvedByOverride": {
+    "shell-quote": {
+      "previousSeverity": "critical",
+      "advisories": [
+        "https://github.com/advisories/GHSA-w7jw-789q-3m8p",
+        "https://github.com/advisories/GHSA-395f-4hp3-45gv"
+      ],
+      "resolution": "npm 'overrides' pins shell-quote to ^1.10.0, removing it from the resolved graph entirely (was react-devtools-core@6.1.5 -> shell-quote@1.8.3). No Expo/React Native/React version change required.",
+      "verifiedRemoved": true
+    }
+  },
+  "exceptions": [
+    {
+      "packages": ["@expo/cli", "@expo/metro", "@expo/metro-config", "expo"],
+      "severity": "high",
+      "classification": "BUILD_DEV_ONLY",
+      "reachability": "Expo CLI / Metro bundler toolchain. Runs only during `expo start`, `expo prebuild`, and bundling; never ships inside the compiled Hermes bytecode delivered to a device.",
+      "evidence": "npm explain path terminates at node_modules/expo/node_modules/@expo/cli and node_modules/@expo/metro*; zero direct imports from app/components/services/hooks/contexts/lib/supabase/functions.",
+      "fixAvailable": "Only via expo@57 (isSemVerMajor) per npm audit fixAvailable — out of scope for this SDK 54 maintenance pass."
+    },
+    {
+      "packages": ["metro", "metro-config", "metro-transform-worker"],
+      "severity": "high",
+      "classification": "BUILD_DEV_ONLY",
+      "reachability": "React Native's own bundler, pulled in via @react-native/community-cli-plugin. Build/dev-server only.",
+      "evidence": "nodes: node_modules/@react-native/community-cli-plugin/node_modules/metro* and top-level node_modules/metro*; no direct app import.",
+      "fixAvailable": false
+    },
+    {
+      "packages": ["ws"],
+      "severity": "high",
+      "classification": "BUILD_DEV_ONLY",
+      "reachability": "WebSocket transport for the Metro/RN dev server (HMR) and react-devtools-core (the __DEV__-only inspector backend already documented in DEF-014's root cause). Never active in a release build.",
+      "evidence": "nodes include node_modules/react-devtools-core/node_modules/ws and node_modules/@react-native/community-cli-plugin/node_modules/ws.",
+      "fixAvailable": false
+    },
+    {
+      "packages": ["brace-expansion"],
+      "severity": "high",
+      "classification": "BUILD_DEV_ONLY",
+      "reachability": "Glob-matching helper transitively required by minimatch/test-exclude/chromium-edge-launcher/@react-native/codegen — all build-time or test-tooling consumers.",
+      "evidence": "nodes: @react-native/codegen, chromium-edge-launcher, minimatch, react-native, test-exclude — all under node_modules, no direct app import.",
+      "fixAvailable": true
+    },
+    {
+      "packages": ["image-size"],
+      "severity": "high",
+      "classification": "BUILD_DEV_ONLY",
+      "reachability": "Used by Metro's asset plugin to read image dimensions at bundle time, not at app runtime.",
+      "evidence": "No direct import from shipped source; only referenced under node_modules/image-size.",
+      "fixAvailable": true
+    },
+    {
+      "packages": ["js-yaml"],
+      "severity": "high",
+      "classification": "BUILD_DEV_ONLY",
+      "reachability": "YAML parsing for build/coverage tooling (@istanbuljs/load-nyc-config) and Expo config loading; not invoked by shipped app code.",
+      "evidence": "nodes: @istanbuljs/load-nyc-config/node_modules/js-yaml and top-level js-yaml; no direct app import.",
+      "fixAvailable": true
+    },
+    {
+      "packages": ["nanoid"],
+      "severity": "high",
+      "classification": "BUILD_DEV_ONLY",
+      "reachability": "Non-secure ID generator used internally by build tooling in this dependency graph; not imported by application code.",
+      "evidence": "Zero matches importing 'nanoid' from app/components/services/hooks/contexts/lib/supabase/functions.",
+      "fixAvailable": true
+    },
+    {
+      "packages": ["postcss"],
+      "severity": "high",
+      "classification": "BUILD_DEV_ONLY",
+      "reachability": "CSS transform used by react-native-web / bundler tooling at build time; not invoked at runtime by shipped app code.",
+      "evidence": "Zero matches importing 'postcss' from app/components/services/hooks/contexts/lib/supabase/functions.",
+      "fixAvailable": true
+    },
+    {
+      "packages": ["tar"],
+      "severity": "high",
+      "classification": "BUILD_DEV_ONLY",
+      "reachability": "Archive extraction used by install/prebuild-time tooling (e.g. autolinking asset fetch); not invoked at app runtime.",
+      "evidence": "Zero matches importing 'tar' from app/components/services/hooks/contexts/lib/supabase/functions.",
+      "fixAvailable": true
+    },
+    {
+      "packages": [
+        "@expo/config",
+        "@expo/config-plugins",
+        "@expo/prebuild-config",
+        "expo-asset",
+        "expo-constants",
+        "expo-linking",
+        "expo-router",
+        "xcode"
+      ],
+      "severity": "moderate",
+      "classification": "BUILD_DEV_ONLY",
+      "reachability": "Expo config/prebuild-plugin resolution chain (xcode manipulates the generated Xcode project at prebuild time only) and moderate-severity Expo module advisories inherited transitively from the same @expo/config chain.",
+      "evidence": "nodes all resolve under node_modules/@expo/* or node_modules/expo-*; no direct app import of 'xcode'.",
+      "fixAvailable": "mixed — tracked for the next scheduled SDK alignment pass, not this patch."
+    },
+    {
+      "packages": ["qs", "uuid", "undici", "body-parser", "@babel/core"],
+      "severity": "moderate-or-low",
+      "classification": "BUILD_DEV_ONLY",
+      "reachability": "Transitive dependencies of build/dev tooling (Babel transpilation, local dev/test HTTP tooling). No direct app import found.",
+      "evidence": "Zero matches importing these names from app/components/services/hooks/contexts/lib/supabase/functions.",
+      "fixAvailable": "mixed"
+    }
+  ]
+}
