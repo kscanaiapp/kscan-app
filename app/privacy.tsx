@@ -44,6 +44,10 @@ import {
   unblockDressingRoomUser,
   type DressingRoomBlockedUser,
 } from '../services/dressingRoomBlocks';
+import { KPLUS_EARLY_ACCESS_ENABLED } from '../constants/featureFlags';
+import { useKPlusEntitlement } from '../hooks/useKPlusEntitlement';
+import { KPlusEarlyAccessSheet } from '../components/kplus/KPlusEarlyAccessSheet';
+import { emitKPlusEvent } from '../services/kplus/kplusTelemetry';
 
 const PRIVACY_COPY = {
   saleRemote:
@@ -289,6 +293,39 @@ export default function PrivacyScreen() {
   const [blockedUsersError, setBlockedUsersError] = useState<string | null>(null);
   const [unblockingId, setUnblockingId] = useState<string | null>(null);
   const unblockInFlightRef = useRef(false);
+  const [kPlusSheetVisible, setKPlusSheetVisible] = useState(false);
+  const kPlusEntitlement = useKPlusEntitlement();
+
+  useEffect(() => {
+    if (isAuthenticated && KPLUS_EARLY_ACCESS_ENABLED) {
+      emitKPlusEvent('kplus_status_view', { source: 'profile' });
+    }
+  }, [isAuthenticated]);
+
+  const kPlusExpiryLabel = kPlusEntitlement.expiresAt
+    ? new Date(kPlusEntitlement.expiresAt).toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : null;
+  const kPlusPillLabel =
+    kPlusEntitlement.state === 'active'
+      ? 'Early Access Active'
+      : kPlusEntitlement.state === 'expired'
+        ? 'Complimentary access ended'
+        : kPlusEntitlement.state === 'eligible'
+          ? 'Early Access available'
+          : null;
+  const kPlusPillVariant: 'success' | 'neutral' | 'gold' =
+    kPlusEntitlement.state === 'active' ? 'gold' : kPlusEntitlement.state === 'expired' ? 'neutral' : 'neutral';
+  const kPlusStatusSubtitle =
+    kPlusEntitlement.state === 'active' && kPlusExpiryLabel
+      ? `Active through ${kPlusExpiryLabel}.`
+      : kPlusEntitlement.state === 'expired'
+        ? 'Complimentary access ended.'
+        : 'Complimentary for 6 months. No payment required.';
+  const kPlusActionLabel = kPlusEntitlement.state === 'eligible' ? 'Activate' : undefined;
 
   const saleSharingLocked = !canToggleSaleSharing(normalized.age_group);
   const accountDeletionPending = hasPendingDeletionProfile(profile);
@@ -475,6 +512,12 @@ export default function PrivacyScreen() {
         backLabel="Back"
       />
 
+      <KPlusEarlyAccessSheet
+        visible={kPlusSheetVisible}
+        onClose={() => setKPlusSheetVisible(false)}
+        source="profile"
+      />
+
       <Modal
         transparent
         visible={deletionConfirmVisible}
@@ -599,6 +642,21 @@ export default function PrivacyScreen() {
                   accessibilityLabel="Sign out"
                   accessibilityHint="Keep preferences on this device only"
                 />
+              </View>
+            ) : null}
+
+            {isAuthenticated && KPLUS_EARLY_ACCESS_ENABLED ? (
+              <View style={styles.sectionCard}>
+                <SectionHeader
+                  title="K+"
+                  subtitle={kPlusStatusSubtitle}
+                  actionLabel={kPlusActionLabel}
+                  actionVariant="pill"
+                  onAction={kPlusActionLabel ? () => setKPlusSheetVisible(true) : undefined}
+                />
+                {kPlusPillLabel ? (
+                  <StatusPill label={kPlusPillLabel} variant={kPlusPillVariant} />
+                ) : null}
               </View>
             ) : null}
 

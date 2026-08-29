@@ -34,6 +34,7 @@ import { clearStyleChatHandoffContext } from '../services/style-chat/styleChatHa
 import { resetStyleChatGreetingState } from '../services/style-chat/styleChatGreeting';
 import { advanceActorEpoch } from '../services/actorContext';
 import { clearTodayWeather } from '../services/weather/todayWeatherStore';
+import { resetKPlusEntitlementCache } from '../services/kplus/kplusEntitlementStore';
 import { buildSignupNameMetadata, type SignupNameInput } from '../services/userFirstName';
 
 /**
@@ -86,6 +87,9 @@ function resetActorScopedRuntimeState(nextActorId: string | null): void {
   resetStyleChatGreetingState();
   resetStylistIdentityStore();
   resetStylistVoicePreferenceState();
+  // K+ status is account-scoped: never let it survive a sign-out or leak
+  // into the next signed-in actor on this device.
+  resetKPlusEntitlementCache();
   // Defense in depth: the store already refuses to return a reading whose
   // actorId does not match the caller, so this cannot be the only thing keeping
   // weather from crossing accounts — it just stops the previous actor's reading

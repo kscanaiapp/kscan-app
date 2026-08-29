@@ -134,16 +134,22 @@ test('TextScan navigation guard prevents rapid duplicates and releases on focus'
   assert.doesNotMatch(homeV1, /setTimeout\(\(\) => setTextScanNavigating\(false\)/);
 });
 
-test('Voice Scan pill remains non-interactive and shows Coming Soon', () => {
+test('Voice Scan pill remains non-interactive and shows Coming Soon while the K+ boundary is off', () => {
+  // K+ Foundation build: VoiceScanPlaceholderPill now dispatches between
+  // VoiceScanComingSoonPill (this, the legacy non-interactive placeholder --
+  // still the default, since KPLUS_EARLY_ACCESS_ENABLED defaults off) and
+  // VoiceScanKPlusPill (an interactive K+ upgrade surface, see the wiring
+  // test below). This test targets the still-shipping default path.
   assert.match(homeV1, /testID="home-luxury-voicescan-coming-soon"/);
   assert.match(homeV1, /VOICE SCAN/);
   assert.match(homeV1, /COMING SOON/);
   assert.doesNotMatch(homeV1, /onPress=\{[^}]*\}\s*\n\s*<VoiceScanPlaceholderPill/);
+  assert.match(homeV1, /if \(KPLUS_EARLY_ACCESS_ENABLED\) \{\s*\n\s*return <VoiceScanKPlusPill/);
 
   // Non-interactive, asserted directly: the pill's root is a View and the
   // component body contains no press handler of any kind.
-  const pill = /function VoiceScanPlaceholderPill\([\s\S]*?\n\}/.exec(homeV1);
-  assert.ok(pill, 'the VoiceScan placeholder component must exist');
+  const pill = /function VoiceScanComingSoonPill\([\s\S]*?\n\}/.exec(homeV1);
+  assert.ok(pill, 'the VoiceScan Coming Soon placeholder component must exist');
   assert.match(pill[0], /<View\b/);
   assert.doesNotMatch(pill[0], /onPress|onLongPress|Pressable|TouchableOpacity/);
 

@@ -37,7 +37,8 @@ import { HomeStylistCard } from './HomeStylistCard';
 import { TodayWithEliseSection } from './TodayWithEliseSection';
 import { PersonalizeStylistModal } from '../stylist/PersonalizeStylistModal';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
-import { TEXTSCAN_UI_ENABLED, VOICESCAN_ENABLED } from '../../constants/featureFlags';
+import { TEXTSCAN_UI_ENABLED, VOICESCAN_ENABLED, KPLUS_EARLY_ACCESS_ENABLED } from '../../constants/featureFlags';
+import { KPlusGate } from '../kplus/KPlusGate';
 
 
 interface FeatureChipProps {
@@ -88,7 +89,26 @@ interface VoiceScanPlaceholderPillProps {
   style?: ViewStyle;
 }
 
-function VoiceScanPlaceholderPill({ style }: VoiceScanPlaceholderPillProps) {
+function VoiceScanPillGlyph({ muted }: { muted: boolean }) {
+  return (
+    <View accessible={false} importantForAccessibility="no" accessibilityElementsHidden>
+      <KScanIcon
+        name="voice-scan"
+        size={24}
+        variant="standard"
+        color={muted ? LUXURY.colors.graphite : LUXURY.colors.plum}
+      />
+    </View>
+  );
+}
+
+/**
+ * Legacy "Coming Soon" placeholder, kept as the fallback when the K+
+ * boundary is not rolled out (KPLUS_EARLY_ACCESS_ENABLED off). Purely
+ * decorative -- no tap handler, no microphone permission request, recording,
+ * backend call, or local state mutation.
+ */
+function VoiceScanComingSoonPill({ style }: VoiceScanPlaceholderPillProps) {
   const inactive = !VOICESCAN_ENABLED;
   return (
     <View
@@ -104,14 +124,7 @@ function VoiceScanPlaceholderPill({ style }: VoiceScanPlaceholderPillProps) {
         tinted by the pill's own muted colour rather than encoding the disabled
         state itself.
       */}
-      <View accessible={false} importantForAccessibility="no" accessibilityElementsHidden>
-        <KScanIcon
-          name="voice-scan"
-          size={24}
-          variant="standard"
-          color={inactive ? LUXURY.colors.graphite : LUXURY.colors.plum}
-        />
-      </View>
+      <VoiceScanPillGlyph muted={inactive} />
       <Text style={[styles.voiceScanPillTitle, inactive && styles.voiceScanPillTextMuted]}>
         VOICE SCAN
       </Text>
@@ -120,6 +133,42 @@ function VoiceScanPlaceholderPill({ style }: VoiceScanPlaceholderPillProps) {
       </Text>
     </View>
   );
+}
+
+/**
+ * K+ acquisition treatment for the Voice Scan pill. "Upgrade to K+" opens
+ * the shared K+ Early Access sheet for a non-member; "Included with K+" for
+ * an active member while Voice Scan itself remains unimplemented -- never
+ * opens a nonexistent feature.
+ */
+function VoiceScanKPlusPill({ style }: VoiceScanPlaceholderPillProps) {
+  return (
+    <KPlusGate source="voice_scan_pill">
+      {({ isActive, openUpgrade }) => (
+        <Pressable
+          testID="home-luxury-voicescan-kplus"
+          style={[styles.voiceScanPill, style]}
+          onPress={isActive ? undefined : openUpgrade}
+          disabled={isActive}
+          accessibilityRole="button"
+          accessibilityLabel={isActive ? 'Voice Scan, included with K+' : 'Voice Scan, upgrade to K+'}
+        >
+          <VoiceScanPillGlyph muted={false} />
+          <Text style={styles.voiceScanPillTitle}>VOICE SCAN</Text>
+          <Text style={styles.voiceScanPillSubtitle}>
+            {isActive ? 'INCLUDED WITH K+' : 'UPGRADE TO K+'}
+          </Text>
+        </Pressable>
+      )}
+    </KPlusGate>
+  );
+}
+
+function VoiceScanPlaceholderPill({ style }: VoiceScanPlaceholderPillProps) {
+  if (KPLUS_EARLY_ACCESS_ENABLED) {
+    return <VoiceScanKPlusPill style={style} />;
+  }
+  return <VoiceScanComingSoonPill style={style} />;
 }
 
 /**
