@@ -30,7 +30,9 @@
     "deploy:edge-functions": "node scripts/deploy-edge-functions.js",
     "test:backend": "node scripts/run-backend-tests.js",
     "verify:dependency-reachability": "node scripts/check-dependency-reachability.js",
-    "test:dependency-reachability": "node --test __tests__/dependencyReachabilityGate.test.js"
+    "test:dependency-reachability": "node --test __tests__/dependencyReachabilityGate.test.js",
+    "verify:migration-provenance": "node scripts/check-migration-provenance.js",
+    "test:migration-provenance": "node --test __tests__/migrationProvenanceGate.test.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
