@@ -21,6 +21,7 @@ export type VoiceStateMachineEvent =
   | { type: 'FINALIZED_WITH_TRANSCRIPT' }
   | { type: 'FINALIZED_EMPTY' }
   | { type: 'RECOGNIZER_ERROR' }
+  | { type: 'ACCEPT_DRAFT' }
   | { type: 'DISMISS' };
 
 export interface VoiceStateMachineResult {
@@ -106,6 +107,14 @@ export function reduceVoiceState(
 
     case 'RECOGNIZER_ERROR':
       return { state: 'error', unavailableReason: 'recognizer_error' };
+
+    case 'ACCEPT_DRAFT':
+      // The caller has copied the draft into the existing TextScan input --
+      // this is NOT submission (that is a separate, later, explicit tap on
+      // the existing Search/Submit button, entirely outside this machine).
+      // Only reachable from 'reviewing'.
+      if (current !== 'reviewing') return UNCHANGED(current);
+      return { state: 'idle', unavailableReason: null };
 
     case 'DISMISS':
       if (current !== 'error' && current !== 'unavailable' && current !== 'cancelled') return UNCHANGED(current);

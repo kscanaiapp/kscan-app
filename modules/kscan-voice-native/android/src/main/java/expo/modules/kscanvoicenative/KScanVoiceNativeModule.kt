@@ -305,10 +305,16 @@ class KScanVoiceNativeModule : Module() {
     // No JS-initiated stop was pending: the session ended on its own
     // (recognizer finalized speech, the 15s cap fired, or an error) --
     // notify JS via event so its state machine can leave "listening"
-    // without polling. This event never carries transcript text.
+    // without polling. When the session finalized WITH usable speech, this
+    // event is the only way JS ever learns the result, so it must carry it
+    // (mirrors exactly what a pending stopListening() promise would have
+    // resolved with).
     val payload = mutableMapOf<String, Any>("reason" to reason)
     if (errorCode != null) {
       payload["errorCode"] = errorCode
+    }
+    if (reason != "error" && transcript.isNotEmpty()) {
+      payload["result"] = mapOf("transcript" to transcript, "locale" to locale, "onDevice" to onDevice)
     }
     sendEvent("onSessionEnded", payload)
   }
