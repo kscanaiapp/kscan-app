@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-29T21:25:59.892Z",
-    "generatedFromGitSha": "a617dc364372ba1d46214d49521453426fb7212e"
+    "generatedAtUtc": "2026-08-29T22:11:07.227Z",
+    "generatedFromGitSha": "26af57b46872a3deccee69b8b8840decea36f52d"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -683,8 +683,8 @@
         ],
         "bundleFileCount": 3,
         "treeFileCount": 3,
-        "bundleHash": "aa34fdd3c1a3e0f2073f68dc3c795eafdf339013d9f678a01d423c9cc941af1b",
-        "treeHash": "aa34fdd3c1a3e0f2073f68dc3c795eafdf339013d9f678a01d423c9cc941af1b",
+        "bundleHash": "ed92bfdd185b16373d1fbed37de0140b77f8fe0115ca87f45554d63e4dcced46",
+        "treeHash": "ed92bfdd185b16373d1fbed37de0140b77f8fe0115ca87f45554d63e4dcced46",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -693,7 +693,7 @@
           },
           {
             "path": "supabase/functions/_shared/deletion/userDataResources.ts",
-            "sha256": "5915d0f2bceb8653618a1eb989bdcd62ac37d883633bd352752eb7d790ced10c",
+            "sha256": "aa3e99530a104104474f3f21c16d6f7756514ffe7a735526a4c402ee769079b9",
             "bundle": true
           },
           {
