@@ -77,12 +77,14 @@ jobs:
           echo "${META}"
           HOST="$(printf '%s' "${META}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["hostname"])')"
           echo "hostname=${HOST}" >> "$GITHUB_OUTPUT"
+          HEALTH_URL="$(node -e 'const { deriveHealthCheckUrl } = require("./security/scripts/validate-zap-target.js"); process.stdout.write(deriveHealthCheckUrl(process.argv[1]));' "${ZAP_STAGING_URL}")"
+          echo "health_url=${HEALTH_URL}" >> "$GITHUB_OUTPUT"
 
       - name: HTTPS health check (approved host only)
         id: health
         if: steps.vars.outputs.configured == 'true'
         env:
-          ZAP_STAGING_URL: ${{ vars.ZAP_STAGING_URL }}
+          HEALTH_URL: ${{ steps.validate_target.outputs.health_url }}
           APPROVED_HOST: ${{ steps.validate_target.outputs.hostname }}
         run: |
           set -euo pipefail
@@ -100,7 +102,7 @@ jobs:
             --output /dev/null \
             --dump-header "${HEADERS}" \
             --write-out '%{http_code}' \
-            --url "${ZAP_STAGING_URL}")"
+            --url "${HEALTH_URL}")"
           CURL_CODE=$?
           set -e
           END_MS="$(date +%s%3N)"
