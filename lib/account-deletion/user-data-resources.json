@@ -74,6 +74,13 @@
       "notes": "Five-session / wearable device registry. Soft-revoked at deletion request via revoke_user_sessions; Auth cascade removes rows at final purge."
     },
     { "table": "user_entitlements", "column": "user_id", "action": "auth_delete_cascade", "optional": true },
-    { "table": "kplus_activation_events", "column": "user_id", "action": "auth_delete_cascade", "optional": true }
+    { "table": "kplus_activation_events", "column": "user_id", "action": "auth_delete_cascade", "optional": true },
+    {
+      "table": "user_closet_items",
+      "column": "user_id",
+      "action": "auth_delete_cascade",
+      "optional": true,
+      "notes": "Build 34 Track B B1A cloud Closet facts (K+ only, staging). ON DELETE CASCADE FK to auth.users already removes these rows; this entry adds them to deletion coverage counting and post-purge residual verification. Deletion is intentionally independent of K+ status -- kplus_has_active_entitlement/has_active_k_plus are never consulted here."
+    }
   ]
 }
