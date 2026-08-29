@@ -78,15 +78,29 @@ export const TEXTSCAN_VOICE_PLACEHOLDER_ENABLED =
 export const TEXTSCAN_BACKEND_ENABLED =
   process.env.EXPO_PUBLIC_TEXTSCAN_BACKEND_ENABLED === 'true';
 
-// ── VoiceScan placeholder flag ───────────────────────────────────────────────
+// ── Voice Scan Commerce V1 ───────────────────────────────────────────────────
 /**
- * Master switch for VoiceScan interactivity. VoiceScan is planned but inactive
- * for the current launch; the flag is permanently false here so the UI only
- * renders a non-interactive "Coming Soon" placeholder. No microphone permission
- * request, recording, backend call, or local state mutation should occur while
- * this flag is false.
+ * Master switch for Voice Scan (Build 34 Commerce V1): the microphone
+ * affordance on the existing TextScan input, on-device speech recognition,
+ * and the review-before-submit flow into the existing TextScan/Commerce
+ * path. Same build-time-gated convention as every other staged rollout in
+ * this file -- default OFF, and only the exact string "true" opts in, so a
+ * missing, false, or malformed value all fail closed.
+ *
+ * While this is false: no microphone permission request, no listening
+ * session, no draft transcript, and the mic affordance does not render at
+ * all (VoiceScanButton returns null). Voice Scan is additionally gated
+ * behind K+ (see KPlusGate usage in VoiceScanButton) independent of this
+ * flag -- this is the "does the capability exist in this build at all"
+ * switch, not the product entitlement boundary.
  */
-export const VOICESCAN_ENABLED = false;
+export function resolveVoiceScanEnabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_VOICESCAN_ENABLED,
+): boolean {
+  return value === 'true';
+}
+
+export const VOICESCAN_ENABLED = resolveVoiceScanEnabled();
 
 // ── K+ entitlement boundary ──────────────────────────────────────────────────
 /**

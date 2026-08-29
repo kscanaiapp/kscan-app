@@ -26,6 +26,7 @@ import {
   TextScanInput,
   TextScanProductCard,
   TextScanSuggestionChip,
+  VoiceScanButton,
 } from '../../components/text-scan';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import {
@@ -199,6 +200,7 @@ export default function TextScanScreen() {
         placeholder="e.g., oversized wool coat in camel"
         style={styles.inputCard}
         accessibilityLabel="TextScan fashion query"
+        rightAccessory={<VoiceScanButton onTranscript={setQuery} disabled={isSubmitting} />}
       />
 
       <View style={styles.suggestionsRow}>
