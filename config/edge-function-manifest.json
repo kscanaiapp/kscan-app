@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-29T14:42:31.542Z",
-    "generatedFromGitSha": "da3a4f468515494fe9008ce938c067cbc36d4087"
+    "generatedAtUtc": "2026-08-29T15:58:42.970Z",
+    "generatedFromGitSha": "689dd7749ba8a422396ebff87579349664a1ebfe"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -10,6 +10,8 @@
     "expectedFunctions": [
       "handle-user-deletion",
       "kickscrew-sneaker-description",
+      "kplus-activate",
+      "kplus-reconcile-revenuecat",
       "nike-shoe-details",
       "privacy-correction-request",
       "privacy-data-export",
@@ -681,8 +683,8 @@
         ],
         "bundleFileCount": 3,
         "treeFileCount": 3,
-        "bundleHash": "0b040c7830ecc19f8f800c303d46f01561cab9ac2da5b24adde0f08b45226771",
-        "treeHash": "0b040c7830ecc19f8f800c303d46f01561cab9ac2da5b24adde0f08b45226771",
+        "bundleHash": "ca9f7503071347d1577cc47a99c643716a97391423cff6697bce4510af13a5a5",
+        "treeHash": "ca9f7503071347d1577cc47a99c643716a97391423cff6697bce4510af13a5a5",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -691,7 +693,7 @@
           },
           {
             "path": "supabase/functions/_shared/deletion/userDataResources.ts",
-            "sha256": "2033b085e3200828f2b6845056a010acf67890d92dcf0159ad07a0a398788a78",
+            "sha256": "f923bfa24e4f001cf5a7de5671401193bf59f3345df9fc9d1a56938e55827bbe",
             "bundle": true
           },
           {
@@ -791,6 +793,62 @@
           {
             "path": "supabase/functions/kickscrew-sneaker-description/index.ts",
             "sha256": "8297810749043cc4fd7f3a0f558be2400d8e53eb81dd55f726cbdc6202bf5ebe",
+            "bundle": true
+          }
+        ]
+      },
+      {
+        "name": "kplus-activate",
+        "entry": "supabase/functions/kplus-activate/index.ts",
+        "remoteSpecifiers": [
+          "npm:@supabase/supabase-js@2"
+        ],
+        "bundleFileCount": 3,
+        "treeFileCount": 3,
+        "bundleHash": "725a5fef38a15061df9c93a361d221a9ec0c6202a6dcccdd6093e8afedab990b",
+        "treeHash": "725a5fef38a15061df9c93a361d221a9ec0c6202a6dcccdd6093e8afedab990b",
+        "files": [
+          {
+            "path": "supabase/functions/_shared/deletion/common.ts",
+            "sha256": "34425a84ea83beb2d2a2ea53aebb533f26403b2d7136b653f0e6d63a74ffcf7c",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/revenuecat/revenueCatClient.ts",
+            "sha256": "f112f7d43e6871c081bc0812e95f653df0abe0ba0752e57a5e250a80d3ec67a3",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/kplus-activate/index.ts",
+            "sha256": "3779cca2c797935109716d1c56a14fb0a54108728aed88fe5a40960a01a0524d",
+            "bundle": true
+          }
+        ]
+      },
+      {
+        "name": "kplus-reconcile-revenuecat",
+        "entry": "supabase/functions/kplus-reconcile-revenuecat/index.ts",
+        "remoteSpecifiers": [
+          "npm:@supabase/supabase-js@2"
+        ],
+        "bundleFileCount": 3,
+        "treeFileCount": 3,
+        "bundleHash": "aa0a026c8acec8efdcc74bcf55a65f91f3acc0b45f1613a84d15592ba8a44745",
+        "treeHash": "aa0a026c8acec8efdcc74bcf55a65f91f3acc0b45f1613a84d15592ba8a44745",
+        "files": [
+          {
+            "path": "supabase/functions/_shared/deletion/common.ts",
+            "sha256": "34425a84ea83beb2d2a2ea53aebb533f26403b2d7136b653f0e6d63a74ffcf7c",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/revenuecat/revenueCatClient.ts",
+            "sha256": "f112f7d43e6871c081bc0812e95f653df0abe0ba0752e57a5e250a80d3ec67a3",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/kplus-reconcile-revenuecat/index.ts",
+            "sha256": "55c47e3af4faa96375ec18676b5bdb283b608682cbe519c91cbb675ee46056be",
             "bundle": true
           }
         ]

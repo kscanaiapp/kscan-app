@@ -125,6 +125,8 @@ test('committed manifest governs every governed function and the approved projec
   assert.deepEqual(manifest.parity.expectedFunctions, [
     'handle-user-deletion',
     'kickscrew-sneaker-description',
+    'kplus-activate',
+    'kplus-reconcile-revenuecat',
     'nike-shoe-details',
     'privacy-correction-request',
     'privacy-data-export',
