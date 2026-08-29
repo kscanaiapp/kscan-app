@@ -291,7 +291,10 @@ public class KScanVoiceNativeModule: Module {
     // No JS-initiated stop was pending: the session ended on its own (OS
     // finalized speech, the 15s cap fired, or a recognizer error) --
     // notify JS via event so its state machine can leave "listening"
-    // without polling. This event never carries transcript text.
+    // without polling. When the session finalized WITH usable speech, this
+    // event is the only way JS ever learns the result, so it must carry it
+    // (mirrors exactly what a pending stopListening() promise would have
+    // resolved with).
     let mappedReason: String
     switch reason {
     case .maxDurationReached: mappedReason = "max_duration_reached"
@@ -302,6 +305,14 @@ public class KScanVoiceNativeModule: Module {
     var payload: [String: Any] = ["reason": mappedReason]
     if let error = error {
       payload["errorCode"] = (error as NSError).domain
+    }
+    let trimmed = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+    if reason != .error && reason != .interrupted && !trimmed.isEmpty {
+      payload["result"] = [
+        "transcript": transcript,
+        "locale": locale as Any,
+        "onDevice": onDevice,
+      ]
     }
     sendEvent("onSessionEnded", payload)
   }

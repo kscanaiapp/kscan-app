@@ -151,6 +151,13 @@ test('RECOGNIZER_ERROR always resolves to the error state with a stable reason',
   }
 });
 
+test('ACCEPT_DRAFT (transcript copied into the existing TextScan input) only fires from reviewing, and is NOT submission', () => {
+  assert.equal(reduceVoiceState('reviewing', { type: 'ACCEPT_DRAFT' }).state, 'idle');
+  for (const state of ALL_STATES.filter((s) => s !== 'reviewing')) {
+    assert.equal(reduceVoiceState(state, { type: 'ACCEPT_DRAFT' }).state, state);
+  }
+});
+
 test('DISMISS returns to idle only from a resting error/unavailable/cancelled state', () => {
   for (const state of ['error', 'unavailable', 'cancelled']) {
     assert.equal(reduceVoiceState(state, { type: 'DISMISS' }).state, 'idle');
@@ -183,6 +190,7 @@ test('full reachability sweep: every (state, event) pair returns one of the eigh
     { type: 'FINALIZED_WITH_TRANSCRIPT' },
     { type: 'FINALIZED_EMPTY' },
     { type: 'RECOGNIZER_ERROR' },
+    { type: 'ACCEPT_DRAFT' },
     { type: 'DISMISS' },
   ];
   for (const state of ALL_STATES) {

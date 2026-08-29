@@ -38,8 +38,17 @@ export type KScanVoiceSessionEndedReason =
 
 export interface KScanVoiceSessionEndedEvent {
   reason: KScanVoiceSessionEndedReason;
-  /** Present only for reason "error"; never contains transcript content. */
+  /** Present only for reason "error". */
   errorCode?: string;
+  /**
+   * Present only when the session finalized with usable speech
+   * (reason "max_duration_reached" or "recognizer_finalized") and no
+   * JS-initiated stopListening() call was pending -- i.e. the OS ended the
+   * session on its own and this event is the only way JS learns the
+   * result. Absent for "error"/"interrupted", where there is nothing
+   * usable to hand back.
+   */
+  result?: KScanVoiceFinalResult;
 }
 
 export interface KScanVoicePartialTranscriptEvent {
