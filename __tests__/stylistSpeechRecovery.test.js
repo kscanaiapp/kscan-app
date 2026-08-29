@@ -266,11 +266,17 @@ test('client duplicate suppression prevents a second generation request for one 
   assert.equal(requests, 1);
 });
 
-test('permissions remain playback-only and device TTS is absent from production source', () => {
+test('stylist speech permissions remain playback-only and device TTS is absent from production source', () => {
+  // As of Build 34 Voice Scan V1, RECORD_AUDIO / NSMicrophoneUsageDescription
+  // are real, flag-gated permissions elsewhere in the app (see
+  // modules/kscan-voice-native, hooks/useVoiceScan.ts,
+  // __tests__/iosAppReviewSurface.test.js) -- so this no longer asserts
+  // their absence globally. What it still proves, unchanged: stylist
+  // speech (expo-audio) requests no microphone capability of its own.
   const appJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'app.json'), 'utf8'));
-  assert.ok(appJson.expo.android.blockedPermissions.includes('android.permission.RECORD_AUDIO'));
-  assert.ok(!appJson.expo.android.permissions.includes('android.permission.RECORD_AUDIO'));
-  assert.equal('NSMicrophoneUsageDescription' in appJson.expo.ios.infoPlist, false);
+  const audioPlugin = appJson.expo.plugins.find((entry) => Array.isArray(entry) && entry[0] === 'expo-audio');
+  assert.equal(audioPlugin?.[1]?.microphonePermission, false);
+  assert.equal(audioPlugin?.[1]?.recordAudioAndroid, false);
   const packageJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
   assert.equal(packageJson.dependencies['expo-audio'], '~1.1.1');
   assert.equal(packageJson.dependencies['expo-speech'], undefined);

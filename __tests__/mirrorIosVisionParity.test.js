@@ -272,6 +272,22 @@ test('no ML Kit, Gradle, model asset or new permission came along', () => {
     for (const key of ORIENTATION_KEYS) delete rest[key];
     return rest;
   };
+  // Build 34 Voice Scan V1 legitimately added these two on this isolated
+  // Voice candidate branch (see modules/kscan-voice-native and
+  // __tests__/iosAppReviewSurface.test.js's own permission/reachability
+  // proof) -- entirely unrelated to Vision/Mirror extraction, which this
+  // test actually guards. Excluded by name for the same reason orientation
+  // and the branding rename are: so any OTHER Info.plist drift, above all a
+  // permission added BY the Vision/Mirror module itself, still fails.
+  const VOICE_SCAN_USAGE_DESCRIPTIONS = new Set([
+    'NSMicrophoneUsageDescription',
+    'NSSpeechRecognitionUsageDescription',
+  ]);
+  const stripVoiceScan = (plist) => {
+    const rest = { ...(plist ?? {}) };
+    for (const key of VOICE_SCAN_USAGE_DESCRIPTIONS) delete rest[key];
+    return rest;
+  };
   // Build 31 branding: "K Scan" -> "K Scan AI" legitimately edited the copy of
   // these two existing usage-description strings (no new permission, nothing
   // Vision-related). Normalize the baseline's copy to the renamed product
@@ -291,11 +307,12 @@ test('no ML Kit, Gradle, model asset or new permission came along', () => {
     return rest;
   };
   assert.deepEqual(
-    stripOrientation(after.infoPlist),
+    stripVoiceScan(stripOrientation(after.infoPlist)),
     applyBrandingRename(stripOrientation(before.infoPlist)),
     'the iOS Info.plist changed; the extraction module must add no permission',
   );
   for (const key of Object.keys(after.infoPlist ?? {})) {
+    if (VOICE_SCAN_USAGE_DESCRIPTIONS.has(key)) continue;
     assert.equal(
       /UsageDescription$/.test(key) && !(key in (before.infoPlist ?? {})),
       false,
