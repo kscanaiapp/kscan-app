@@ -212,16 +212,22 @@ Push state: Recorded after final documentation commit.
 
 Original classification: P4 TEST DEBT  
 New classification: P1 RELEASE VALIDATION BLOCKER  
-New evidence: The mandatory brief requires positive staging runtime validation. No STAGING_USER_JWT or staging test-account credential is available; the repository smoke script explicitly requires one. Last-24-hour logs contain no qualifying scan/commerce/Elise/speech traffic. The linked TestSprite suite could not run because the account has insufficient credits.  
-Reproduction: List environment variable names (none qualify), run scripts/smoke-scan-identify.js without STAGING_USER_JWT, inspect staging logs, and run the linked TestSprite batch.  
+Corrected 2026-08-29 (Build 34 maintenance pass): the causality below was
+previously conflated with TestSprite credit availability. TestSprite credit
+unavailability is tracked separately as B34-DEF-005 (P5, CI/CD tooling) and
+is NOT part of why this is a P1 — an owner who has not funded TestSprite
+credits has not thereby produced a product defect. The blocker is, and has
+only ever really been, the missing authenticated staging identity.  
+New evidence: The mandatory brief requires positive staging runtime validation. No STAGING_USER_JWT or staging test-account credential is available; the repository smoke script explicitly requires one. Last-24-hour logs contain no qualifying scan/commerce/Elise/speech traffic.  
+Reproduction: List environment variable names (none qualify), run scripts/smoke-scan-identify.js without STAGING_USER_JWT, and inspect staging logs.  
 Why severity changed: This evidence gap directly prevents a mandatory readiness criterion from passing, even though it does not demonstrate a product-code failure.  
 Platform: iOS and Android  
 Branch: Both Build 34 integration branches  
 HEAD: Validated source heads listed at the top of this report  
 Location: staging runtime acceptance matrix; scripts/smoke-scan-identify.js; security/release/run-build32-speech-control-probe.js  
-Root cause: No owner-provided authenticated staging test identity is available in this environment, no Build 34 device artifact is authorized, and TestSprite has insufficient credits.  
+Root cause: No owner-provided authenticated staging test identity/JWT is available in this environment, and no Build 34 device artifact is authorized. (TestSprite's credit shortage is a separate, non-causal, optional-tooling gap — see B34-DEF-005 — and does not independently justify this classification.)  
 Release impact: The candidates cannot honestly be authorized as fully validated owner test builds under the governing brief.  
-Required repair: Provide a disposable authenticated staging test identity/JWT, restore TestSprite credits, run positive Scanner/commerce/Elise text/speech/V10 controls plus rapid replacement/interruption on the intended staging runtime, and attach the results. Owner authorization remains required before any EAS build.
+Required repair: Provide a disposable authenticated staging test identity/JWT, then run positive Scanner/commerce/Elise text/speech/V10 controls plus rapid replacement/interruption on the intended staging runtime, and attach the results. Owner authorization remains required before any EAS build. TestSprite may additionally be used if the owner chooses to fund it, but restoring its credits is not a required repair step for this blocker.
 
 ## UNRESOLVED P2
 
@@ -383,10 +389,10 @@ EVIDENCE: testsprite 0.5.0 and auth pass; project/test listing succeeds; run --a
 REPRODUCTION OR INSPECTION METHOD: Run TestSprite preflight, list the project/tests, then run the linked batch.  
 CURRENT USER IMPACT: None directly.  
 CURRENT ENGINEERING IMPACT: The required external verification loop cannot supply fresh evidence.  
-RELEASE IMPACT: Non-blocking by itself because local and direct negative controls ran; it contributes to the broader B34-BLOCK-001 evidence gap.  
+RELEASE IMPACT: Non-blocking. Corrected 2026-08-29: this finding does NOT contribute to B34-BLOCK-001's causality. B34-BLOCK-001 is caused solely by the missing authenticated staging identity/JWT; the owner not having purchased/restored TestSprite credits is unavailable optional tooling, not a product defect, and does not independently justify or contribute to any release-blocking classification.  
 WHY THIS IS NOT P0-P3: The failure is account/tooling availability, not a reproduced app defect.  
 ROOT CAUSE OR LIKELY ROOT CAUSE: Missing local TestSprite setup and zero available test credits.  
-PROPOSED FUTURE FIX: Install the project skill/config, fund the workspace, and connect the suite to the release gate.  
+PROPOSED FUTURE FIX: Install the project skill/config, fund the workspace, and connect the suite to the release gate. TestSprite may be used later if the owner chooses to fund it; it is not the governing acceptance mechanism for Build 34.  
 ESTIMATED CHANGE SCOPE: SMALL  
 DEPENDENCIES: TestSprite workspace owner.  
 RISKS OF FIXING: Incorrectly targeting production or consuming credits unintentionally.  
