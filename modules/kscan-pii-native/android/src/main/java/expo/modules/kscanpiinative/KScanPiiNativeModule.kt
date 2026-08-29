@@ -420,7 +420,7 @@ class KScanPiiNativeModule : Module() {
             )
         }
 
-        val paddingRatio = input.paddingRatio ?: NativePrivacyConstants.DEFAULT_PADDING_RATIO
+        val paddingRatio = input.paddingRatio ?: NativePrivacyConstants.DEFAULT_PLATE_PADDING_RATIO
 
         if (paddingRatio < NativePrivacyConstants.MIN_PADDING_RATIO ||
             paddingRatio > NativePrivacyConstants.MAX_PADDING_RATIO

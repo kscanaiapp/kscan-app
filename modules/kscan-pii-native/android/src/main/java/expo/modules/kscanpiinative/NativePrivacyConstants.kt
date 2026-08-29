@@ -121,6 +121,21 @@ object NativePrivacyConstants {
      */
     const val PLATE_MIN_AREA_RATIO = 0.0001
 
+    /**
+     * Plates get more padding than faces (DEFAULT_PADDING_RATIO = 0.15).
+     *
+     * ML Kit boxes the glyph RUN, not the plate, and frequently returns only
+     * part of a run -- a region code and a number can come back as two
+     * rectangles. The wider pad closes the plate border around the run and
+     * makes a split plate's two rectangles overlap enough for the existing
+     * IoU dedup in AndroidFaceBoxNormalizer to collapse them.
+     *
+     * Matches iOS's defaultPlatePaddingRatio exactly. The two platforms must
+     * mask comparable area for the same detection, or the "same privacy
+     * guarantee on both platforms" claim is false.
+     */
+    const val DEFAULT_PLATE_PADDING_RATIO = 0.25
+
     // Padding deliberately REUSES the face constants (DEFAULT_PADDING_RATIO and
     // the MIN/MAX bounds). ML Kit's box wraps the glyphs, and the glyphs are
     // what identify the vehicle, so the same proportional margin that covers a
