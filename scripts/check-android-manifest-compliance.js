@@ -41,13 +41,15 @@ const REQUIRED_PERMISSIONS = [
   'android.permission.VIBRATE',
   'android.permission.ACCESS_COARSE_LOCATION',
   'android.permission.MODIFY_AUDIO_SETTINGS',
+  // Voice Scan V1 (Build 34): real, flag-gated on-device speech recognition.
+  // See android/app/src/main/AndroidManifest.xml and modules/kscan-voice-native.
+  'android.permission.RECORD_AUDIO',
 ];
 
 // Hard-fail dangerous or release-unapproved permissions. Normal, non-dangerous
 // dependency permissions (for example ACCESS_NETWORK_STATE) are intentionally not
 // rejected by this focused Play-approval guard.
 const PROHIBITED_PERMISSIONS = [
-  'android.permission.RECORD_AUDIO',
   'android.permission.ACCESS_FINE_LOCATION',
   'android.permission.ACCESS_BACKGROUND_LOCATION',
   'android.permission.FOREGROUND_SERVICE',

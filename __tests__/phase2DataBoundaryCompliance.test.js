@@ -243,9 +243,12 @@ test('Phase 2 adds no permission, plugin or native capability', () => {
   const app = JSON.parse(read('app.json'));
   const config = app.expo ?? app;
 
+  // RECORD_AUDIO excluded from this Phase-2-scoped list as of Build 34
+  // Voice Scan V1: it is now a real, flag-gated permission added by a
+  // later, unrelated feature -- not a Phase 2 regression. See
+  // __tests__/androidPermissionBlocklist.test.js for its own coverage.
   const androidPermissions = config.android?.permissions ?? [];
   for (const forbidden of [
-    'android.permission.RECORD_AUDIO',
     'android.permission.ACCESS_FINE_LOCATION',
     'android.permission.ACCESS_BACKGROUND_LOCATION',
     'android.permission.READ_EXTERNAL_STORAGE',

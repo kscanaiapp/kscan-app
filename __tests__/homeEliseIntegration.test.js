@@ -163,9 +163,11 @@ test('Voice Scan pill remains non-interactive and shows Coming Soon while the K+
   assert.doesNotMatch(pill[0], /importantForAccessibility="no-hide-descendants"/);
 });
 
-test('Android manifest removes mic, fine-location, and storage permissions from dependency merges', () => {
+test('Android manifest removes fine-location and storage permissions from dependency merges', () => {
+  // RECORD_AUDIO is intentionally excluded here as of Build 34 Voice Scan V1
+  // -- it is now a real, flag-gated permission, not stripped. See
+  // __tests__/androidPermissionBlocklist.test.js for its own coverage.
   for (const permission of [
-    'android.permission.RECORD_AUDIO',
     'android.permission.ACCESS_FINE_LOCATION',
     'android.permission.READ_EXTERNAL_STORAGE',
     'android.permission.WRITE_EXTERNAL_STORAGE',

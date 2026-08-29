@@ -6,7 +6,6 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '..');
 
 const FORBIDDEN = [
-  'android.permission.RECORD_AUDIO',
   'android.permission.ACCESS_FINE_LOCATION',
   'android.permission.ACCESS_BACKGROUND_LOCATION',
   'android.permission.POST_NOTIFICATIONS',
@@ -24,6 +23,10 @@ const EXPECTED = [
   'android.permission.INTERNET',
   'android.permission.VIBRATE',
   'android.permission.ACCESS_COARSE_LOCATION',
+  // Voice Scan V1 (Build 34): real, flag-gated on-device speech recognition
+  // (VOICESCAN_ENABLED, default off, + K+). See modules/kscan-voice-native
+  // and hooks/useVoiceScan.ts -- nothing requests this outside that path.
+  'android.permission.RECORD_AUDIO',
 ];
 
 test('config plugin registers expanded Android permission blocklist', () => {
@@ -67,11 +70,33 @@ test('committed native manifests remove forbidden permissions', () => {
   }
 });
 
-test('image picker and audio plugins keep microphone disabled', () => {
+test('image picker and audio plugins keep microphone disabled (Voice Scan uses its own native module, not these plugins)', () => {
   const appJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'app.json'), 'utf8'));
   const camera = appJson.expo.plugins.find((entry) => Array.isArray(entry) && entry[0] === 'expo-camera');
   const audio = appJson.expo.plugins.find((entry) => Array.isArray(entry) && entry[0] === 'expo-audio');
   assert.equal(camera?.[1]?.microphonePermission, false);
   assert.equal(audio?.[1]?.microphonePermission, false);
   assert.equal(audio?.[1]?.recordAudioAndroid, false);
+});
+
+test('RECORD_AUDIO is declared normally (not stripped) in both the main and release manifests', () => {
+  const main = fs.readFileSync(path.join(ROOT, 'android/app/src/main/AndroidManifest.xml'), 'utf8');
+  const release = fs.readFileSync(path.join(ROOT, 'android/app/src/release/AndroidManifest.xml'), 'utf8');
+  assert.match(main, /<uses-permission android:name="android\.permission\.RECORD_AUDIO"\/>/);
+  assert.doesNotMatch(
+    main,
+    /android\.permission\.RECORD_AUDIO"\s+tools:node="remove"/,
+    'RECORD_AUDIO must not be stripped from the main manifest',
+  );
+  assert.doesNotMatch(
+    release,
+    /android\.permission\.RECORD_AUDIO"\s+tools:node="remove"/,
+    'RECORD_AUDIO must not be re-stripped from the release manifest',
+  );
+});
+
+test('the narrow RecognitionService package-visibility query exists, not QUERY_ALL_PACKAGES', () => {
+  const main = fs.readFileSync(path.join(ROOT, 'android/app/src/main/AndroidManifest.xml'), 'utf8');
+  assert.match(main, /<action android:name="android\.speech\.RecognitionService"\/>/);
+  assert.doesNotMatch(main, /QUERY_ALL_PACKAGES/);
 });

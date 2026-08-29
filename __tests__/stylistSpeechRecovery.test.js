@@ -266,10 +266,14 @@ test('client duplicate suppression prevents a second generation request for one 
   assert.equal(requests, 1);
 });
 
-test('permissions remain playback-only and device TTS is absent from production source', () => {
+test('stylist speech permissions remain playback-only and device TTS is absent from production source', () => {
+  // RECORD_AUDIO is no longer globally blocked as of Build 34 Voice Scan V1
+  // (a real, flag-gated, unrelated feature -- see
+  // __tests__/androidPermissionBlocklist.test.js). This test still proves
+  // stylist speech's own posture is unchanged: expo-audio stays
+  // microphone/recording-disabled, and iOS carries no speech-recognition
+  // purpose string on this (Android) branch's app.json.
   const appJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'app.json'), 'utf8'));
-  assert.ok(appJson.expo.android.blockedPermissions.includes('android.permission.RECORD_AUDIO'));
-  assert.ok(!appJson.expo.android.permissions.includes('android.permission.RECORD_AUDIO'));
   assert.equal('NSMicrophoneUsageDescription' in appJson.expo.ios.infoPlist, false);
   const packageJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
   assert.equal(packageJson.dependencies['expo-audio'], '~1.1.1');

@@ -338,18 +338,24 @@ test('voice recovery is scoped so a stale failure cannot appear on another reply
   assert.equal(presentation.isVoiceRetryInFlight({ ownsSpeechState: false, phase: 'requesting' }), false);
 });
 
-test('speech remains output-only and adds no microphone capability', () => {
+test('stylist speech remains output-only and requests no microphone capability of its own', () => {
+  // As of Build 34 Voice Scan V1, RECORD_AUDIO is a real, flag-gated
+  // permission elsewhere in the app (see modules/kscan-voice-native,
+  // hooks/useVoiceScan.ts) -- so this no longer asserts the permission is
+  // globally blocked. What it still proves, unchanged: stylist speech
+  // itself (expo-audio) neither declares nor uses microphone/recording
+  // capability, and never touches the Voice Scan native module.
   const appJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'app.json'), 'utf8'));
   const plugins = appJson.expo.plugins;
   const audio = plugins.find((entry) => Array.isArray(entry) && entry[0] === 'expo-audio');
   assert.equal(audio[1].microphonePermission, false);
   assert.equal(audio[1].recordAudioAndroid, false);
-  assert.ok(appJson.expo.android.blockedPermissions.includes('android.permission.RECORD_AUDIO'));
 
   const playback = fs.readFileSync(
     path.join(ROOT, 'services', 'avatars', 'stylistAudioPlayback.ts'), 'utf8');
   assert.match(playback, /allowsRecording: false/);
   assert.match(playback, /allowsBackgroundRecording: false/);
+  assert.doesNotMatch(playback, /kscan-voice-native|useVoiceScan/);
 });
 
 test('the ElevenLabs provider contract is unchanged', () => {

@@ -4,7 +4,11 @@
   <uses-permission android:name="android.permission.INTERNET"/>
   <uses-permission android:name="android.permission.VIBRATE"/>
   <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-  <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove"/>
+  <!-- Voice Scan V1 (Build 34): on-device speech recognition, requested only from an
+       explicit mic tap while VOICESCAN_ENABLED is on and K+ is active -- see
+       modules/kscan-voice-native and hooks/useVoiceScan.ts. Declaring it here does not
+       by itself prompt the user; nothing in this app requests it outside that path. -->
+  <uses-permission android:name="android.permission.RECORD_AUDIO"/>
   <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" tools:node="remove"/>
   <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" tools:node="remove"/>
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove"/>
@@ -38,6 +42,13 @@
       <action android:name="android.intent.action.VIEW"/>
       <category android:name="android.intent.category.BROWSABLE"/>
       <data android:scheme="https"/>
+    </intent>
+    <!-- Voice Scan V1: narrow package-visibility query so the app can find/bind
+         the on-device speech-recognition service, per Android 11+ (API 30+)
+         package visibility. Scoped to this one service intent, not a
+         manifest-wide broad-visibility permission. -->
+    <intent>
+      <action android:name="android.speech.RecognitionService"/>
     </intent>
   </queries>
   <application android:name=".MainApplication" android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:allowBackup="false" android:dataExtractionRules="@xml/data_extraction_rules" android:theme="@style/AppTheme" android:supportsRtl="true" android:enableOnBackInvokedCallback="false">

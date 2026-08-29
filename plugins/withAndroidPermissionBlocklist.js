@@ -1,7 +1,9 @@
 ﻿const { AndroidConfig, createRunOncePlugin } = require('expo/config-plugins');
 
 const FORBIDDEN_ANDROID_PERMISSIONS = [
-  'android.permission.RECORD_AUDIO',
+  // RECORD_AUDIO intentionally NOT blocked: Voice Scan V1 (Build 34) is a
+  // real, flag-gated capability -- see android/app/src/main/AndroidManifest.xml
+  // and modules/kscan-voice-native.
   'android.permission.ACCESS_FINE_LOCATION',
   'android.permission.ACCESS_BACKGROUND_LOCATION',
   // Foreground-service permissions: K Scan runs no foreground service. The location

@@ -127,6 +127,7 @@ const GOOD_MANIFEST = `<manifest xmlns:android="http://schemas.android.com/apk/r
   <uses-permission android:name="android.permission.VIBRATE"/>
   <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
   <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+  <uses-permission android:name="android.permission.RECORD_AUDIO"/>
   <application>
     <activity android:name=".MainActivity"/>
   </application>
@@ -143,9 +144,14 @@ const UNKNOWN_FGS_MANIFEST = `<manifest xmlns:android="http://schemas.android.co
   </application>
 </manifest>`;
 
+// ACCESS_FINE_LOCATION is the representative "leaked release-unapproved
+// permission" example (RECORD_AUDIO stopped being prohibited in Build 34:
+// Voice Scan V1 is a real, flag-gated capability now -- see
+// androidPermissionBlocklist.test.js). Any permission still in
+// PROHIBITED_PERMISSIONS demonstrates the same guard behavior.
 const LEAKED_PERMISSION_MANIFEST = GOOD_MANIFEST.replace(
   '<application>',
-  '<uses-permission android:name="android.permission.RECORD_AUDIO"/>\n  <application>',
+  '<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n  <application>',
 );
 
 test('guard FAILS on all three unused foreground services + FGS/background perms', () => {
@@ -172,10 +178,10 @@ test('guard FAILS on any foreground service type, including a previously unknown
   assert.match(stdout, /FAIL/);
 });
 
-test('guard FAILS on microphone or other release-unapproved permissions', () => {
+test('guard FAILS on release-unapproved permissions', () => {
   const { code, stdout } = runGuard(LEAKED_PERMISSION_MANIFEST);
   assert.equal(code, 1);
-  assert.match(stdout, /RECORD_AUDIO/);
+  assert.match(stdout, /ACCESS_FINE_LOCATION/);
 });
 
 test('guard FAILS when a required approved permission is missing', () => {
