@@ -33,7 +33,9 @@
     "verify:edge-parity": "node scripts/check-edge-function-parity.js",
     "test:edge-parity": "node --test __tests__/edgeFunctionSourceParity.test.js",
     "deploy:edge-functions": "node scripts/deploy-edge-functions.js",
-    "test:backend": "node scripts/run-backend-tests.js"
+    "test:backend": "node scripts/run-backend-tests.js",
+    "verify:dependency-reachability": "node scripts/check-dependency-reachability.js",
+    "test:dependency-reachability": "node --test __tests__/dependencyReachabilityGate.test.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
@@ -77,5 +79,8 @@
     "@elevenlabs/elevenlabs-js": "^2.58.0",
     "@types/react": "~19.1.10",
     "typescript": "~5.9.2"
+  },
+  "overrides": {
+    "shell-quote": "^1.10.0"
   }
 }
