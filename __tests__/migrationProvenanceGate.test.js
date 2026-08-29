@@ -14,7 +14,18 @@ const REPO_ROOT = path.resolve(__dirname, '..');
 const GATE_SCRIPT = path.join(REPO_ROOT, 'scripts', 'check-migration-provenance.js');
 const MANIFEST_PATH = path.join(REPO_ROOT, 'config', 'migration-provenance-manifest.json');
 const MIGRATIONS_DIR = path.join(REPO_ROOT, 'supabase', 'migrations');
-const CANONICAL_FILE = path.join(MIGRATIONS_DIR, '20260716035943_add_purchase_options_to_saved_scans.sql');
+
+// Which of the two historical aliases exists depends on platform (Android
+// carries the un-prefixed filename, iOS the ledger-prefixed one) -- resolve
+// whichever is actually present in this checkout rather than hardcoding one.
+const manifestForAliases = JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'));
+const presentAlias = manifestForAliases.logicalMigrations[0].aliases
+  .map((alias) => path.join(MIGRATIONS_DIR, alias.filename))
+  .find((absolutePath) => fs.existsSync(absolutePath));
+if (!presentAlias) {
+  throw new Error('No declared alias for add_purchase_options_to_saved_scans exists in this checkout.');
+}
+const CANONICAL_FILE = presentAlias;
 
 function runGate() {
   try {
