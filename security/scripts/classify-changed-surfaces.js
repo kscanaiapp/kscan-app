@@ -107,6 +107,29 @@ function main() {
   // BUILD/CI rather than API/MOBILE.
   const stagingImpact = releaseClass === 'RUNTIME_RELEASE';
 
+  // Orthogonal change-applicability fields, added alongside (never replacing)
+  // stagingImpact/releaseClass above, which existing consumers keep reading
+  // unchanged (security-staging-gate.yml's classify-changes job,
+  // staging-release-certification.yml's classify step, and
+  // stagingCertification.test.js's classifyFile/CONTROL_PLANE_PATTERNS
+  // assertions). stagingImpact/releaseClass answer "is this release content
+  // worth running staging validation for at all" -- a deliberately blunt,
+  // deny-list-shaped question (DEF-REL-005: any file outside the strict
+  // control-plane allow-list is RUNTIME_RELEASE, on purpose, so a build/
+  // dependency file can never accidentally skip staging deployment again).
+  // These new fields answer a narrower, orthogonal question: "does this diff
+  // actually require backend/edge/migration deployment authority" -- which a
+  // mobile-only PR (correctly RUNTIME_RELEASE/stagingImpact=true) does not.
+  // They are computed the same way deploy-changed-functions.js and
+  // apply-candidate-migrations.js actually select their targets: exclusively
+  // supabase/functions/** and supabase/migrations/** respectively. Neither
+  // script ever acts on server.js/services/** (the separate Render backend),
+  // so backendDeploymentRequired intentionally excludes them.
+  const edgeDeploymentRequired = allTags.has('SUPABASE FUNCTION');
+  const migrationValidationRequired = allTags.has('DATABASE MIGRATION');
+  const backendDeploymentRequired = edgeDeploymentRequired || migrationValidationRequired;
+  const mobileRuntimeImpact = allTags.has('MOBILE');
+
   const result = {
     baseRef,
     changedFileCount: files.length,
@@ -114,6 +137,10 @@ function main() {
     stagingImpact,
     mobileOnly: onlyMobile && !stagingImpact,
     releaseClass,
+    backendDeploymentRequired,
+    edgeDeploymentRequired,
+    migrationValidationRequired,
+    mobileRuntimeImpact,
     fileClassifications,
   };
 
