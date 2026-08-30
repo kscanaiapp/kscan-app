@@ -724,6 +724,42 @@ export function resolveClosetCrossDeviceRestoreEnabled(
 
 export const CLOSET_CROSS_DEVICE_RESTORE_V1 = resolveClosetCrossDeviceRestoreEnabled();
 
+// ── Closet historical migration (Build 34 / Track B / Phase B3) ────────────
+/**
+ * THE SINGLE B3 KILL SWITCH. Gates opportunistic enrollment of pre-existing,
+ * never-synced local Closet items into the EXISTING B2B outbound engine
+ * (services/closet/closetHistoricalMigrationEngine.ts). It does not gate any
+ * new sync/media/privacy behavior of its own — B3 only decides which items
+ * are handed to `markClosetItemForSync` / `runClosetSyncPass`, both unchanged
+ * from B2B.
+ *
+ * Default OFF, exact string "true" to opt in, matching every other rollout
+ * flag in this file.
+ *
+ * DELIBERATELY REQUIRES CLOSET_CLOUD_SYNC_V1 TOO (checked at the engine level,
+ * not nested here as a flag-of-a-flag): enrolling an item into a sync engine
+ * that is itself disabled would only populate the sidecar with `pending`
+ * entries nothing acts on. Independent of CLOSET_CROSS_DEVICE_RESTORE_V1 —
+ * migration (outbound enrollment) and restore (inbound hydration) are
+ * unrelated directions and a device may need either without the other.
+ *
+ * Historical migration additionally requires an ACTIVE K+ entitlement at the
+ * moment each attempt runs, evaluated fresh on every pass — the same pattern
+ * closetSyncEngine.ts#isClosetCloudSyncEligible and
+ * closetRestoreEngine.ts's own gate already establish.
+ *
+ * FLAG OFF IS NOT A DEGRADED MODE. The local Closet is fully functional with
+ * this off, exactly as it is today: historical items simply stay local-only,
+ * which was already every historical item's state before this phase existed.
+ */
+export function resolveClosetLegacyMigrationEnabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_CLOSET_LEGACY_MIGRATION_V1,
+): boolean {
+  return value === 'true';
+}
+
+export const CLOSET_LEGACY_MIGRATION_V1 = resolveClosetLegacyMigrationEnabled();
+
 // ── Mirror Selfie staging contract (Build 2.5 Step 1 + Step 2) ──────────────
 /**
  * Dedicated Mirror Selfie flag. Gates ONLY the reachability of the crop-staging
