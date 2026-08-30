@@ -53,6 +53,11 @@ const SANITIZED_URI = 'file:///app-cache/kscan-privacy/san-verified.png';
 const NAMESPACE = 'file:///app-cache/kscan-privacy/';
 
 function completedProof() {
+  // A SAFE result never has platesDetected > 0 under the Build 34 plate
+  // policy: any accepted plate-shaped region blocks upstream in
+  // privacyBoundary.ts before a proof reaches here. This fixture represents
+  // the realistic SAFE case — faces present and masked, no plate found —
+  // rather than an impossible "detected and masked a plate, still SAFE" state.
   return {
     proofVersion: 'privacy-proof-1.0.0',
     sanitizerVersion: 'native-face-mask-poc-1.0.0',
@@ -60,8 +65,8 @@ function completedProof() {
     facesDetected: 2,
     facesMasked: 2,
     plateDetectionPerformed: true,
-    platesDetected: 1,
-    platesMasked: 1,
+    platesDetected: 0,
+    platesMasked: 0,
     metadataStripped: true,
     outputVerified: true,
     processingCompleted: true,
@@ -151,13 +156,33 @@ test('SAFE never returns the caller original as a cloud-eligible artifact', asyn
   }
 });
 
-test('derivatives use the contract dimensions inherited from the Closet store', async () => {
+test('derivatives use the B1C cloud contract dimensions: primary 1440, thumbnail 160', async () => {
   const h = buildHarness();
   const mod = h.closetMediaPrivacy;
   await mod.sanitizeClosetMedia(SOURCE_URI);
   const widths = h.encodedFrom.map((e) => e.width);
   assert.deepEqual(widths, [mod.CLOSET_MEDIA_PRIMARY_WIDTH, mod.CLOSET_MEDIA_THUMBNAIL_WIDTH]);
   assert.equal(mod.CLOSET_MEDIA_PRIMARY_WIDTH, 1440);
+  // B1C's authoritative value (feature/backend-build34-closet-media-v1,
+  // services/closetMedia.ts CLOSET_MEDIA_THUMBNAIL_WIDTH). This module must
+  // conform to the backend's cloud contract, not to any client rendering
+  // choice — see the constant's own comment for the corrected reasoning.
+  assert.equal(mod.CLOSET_MEDIA_THUMBNAIL_WIDTH, 160);
+});
+
+test('the cloud thumbnail width is intentionally different from the local UI thumbnail', async () => {
+  // Proves the two concepts were kept separate rather than re-merged: this
+  // module's cloud derivative is 160w (B1C); the LOCAL Closet UI thumbnail in
+  // services/closetLibrary.js is untouched by this correction and remains
+  // whatever that file declares for on-device display.
+  const closetLibrary = fs.readFileSync(path.join(ROOT, 'services', 'closetLibrary.js'), 'utf8');
+  const localThumbWidth = Number(/const THUMB_WIDTH\s*=\s*(\d+)/.exec(closetLibrary)[1]);
+  const h = buildHarness();
+  assert.notEqual(
+    h.closetMediaPrivacy.CLOSET_MEDIA_THUMBNAIL_WIDTH,
+    localThumbWidth,
+    'the cloud derivative and the local UI asset are different concepts and are not required to match',
+  );
 });
 
 test('the verified intermediate is always released, even on the success path', async () => {
@@ -208,7 +233,8 @@ const BOUNDARY_TO_REASON = [
   ['PLATE_CAPABILITY_MISSING', 'plate_detector_unavailable'],
   ['FACE_ENGINE_UNAVAILABLE', 'face_detector_unavailable'],
   ['SOURCE_ACCESS_FAILED', 'decode_failed'],
-  ['FACE_PROCESSING_FAILED', 'detector_failed'],
+  ['FACE_PROCESSING_FAILED', 'face_sanitization_failed'],
+  ['PLATE_DETECTED', 'plate_detected'],
   ['PLATE_PROCESSING_FAILED', 'detector_failed'],
   ['VERIFICATION_FAILED', 'masking_failed'],
 ];
@@ -399,7 +425,8 @@ test('the module performs no upload and imports nothing network-capable', () => 
 
 test('blocked reasons are a closed machine-readable vocabulary, not raw exception text', async () => {
   const allowed = new Set([
-    'sanitizer_unavailable', 'face_detector_unavailable', 'plate_detector_unavailable',
+    'sanitizer_unavailable', 'face_detector_unavailable', 'face_sanitization_failed',
+    'plate_detector_unavailable', 'plate_detected',
     'detector_failed', 'masking_failed', 'metadata_strip_failed', 'unsupported_format',
     'decode_failed', 'memory_or_decode_failure', 'primary_failed', 'thumbnail_failed',
     'cancelled', 'unexpected_native_result',

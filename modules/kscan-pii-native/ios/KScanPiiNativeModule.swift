@@ -155,8 +155,8 @@ public class KScanPiiNativeModule: Module {
             detectorVersion: NativePrivacyConstants.detectorVersionVisionTextRectangles,
             sanitizerVersion: NativePrivacyConstants.plateSanitizerVersion,
             // Constant false, and reported rather than assumed. See
-            // NativePlateMaskResult.ocrPerformed.
-            ocrPerformed: false,
+            // NativePlateMaskResult.recognizedTextConsumed.
+            recognizedTextConsumed: false,
             // The input contract is the module's, not the capability's: the same
             // decoder, the same schemes, the same size ceilings, the same output
             // format. Reading these from the shared constants is what keeps the
@@ -495,7 +495,7 @@ public class KScanPiiNativeModule: Module {
                         detectorImplementation: NativePrivacyConstants.plateDetectorImplementation,
                         detectorVersion: NativePrivacyConstants.detectorVersionVisionTextRectangles,
                         sanitizerVersion: NativePrivacyConstants.plateSanitizerVersion,
-                        ocrPerformed: false,
+                        recognizedTextConsumed: false,
                         inputWidth: inputWidth,
                         inputHeight: inputHeight,
                         outputWidth: nil,
@@ -625,7 +625,7 @@ public class KScanPiiNativeModule: Module {
                             detectorImplementation: NativePrivacyConstants.plateDetectorImplementation,
                             detectorVersion: NativePrivacyConstants.detectorVersionVisionTextRectangles,
                             sanitizerVersion: NativePrivacyConstants.plateSanitizerVersion,
-                            ocrPerformed: false,
+                            recognizedTextConsumed: false,
                             inputWidth: inputWidth,
                             inputHeight: inputHeight,
                             outputWidth: outputWidth,
@@ -751,7 +751,7 @@ public class KScanPiiNativeModule: Module {
             detectorImplementation: NativePrivacyConstants.plateDetectorImplementation,
             detectorVersion: NativePrivacyConstants.detectorVersionVisionTextRectangles,
             sanitizerVersion: NativePrivacyConstants.plateSanitizerVersion,
-            ocrPerformed: false,
+            recognizedTextConsumed: false,
             inputWidth: inputWidth,
             inputHeight: inputHeight,
             outputWidth: nil,

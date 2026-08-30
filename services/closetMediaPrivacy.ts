@@ -45,16 +45,20 @@ import {
 // (content type + 5 MB ceiling), which is also what B1C recorded as the cloud
 // contract.
 //
-// THUMBNAIL WIDTH IS A KNOWN CROSS-LINE DIVERGENCE. This client line's
-// services/closetLibrary.js uses THUMB_WIDTH = 640, while the B1C backend
-// line's copy of the same file still reads 160 and B1C's cloud constant was
-// derived from that stale copy. 640 is used here because it is the value the
-// shipping client actually renders Closet thumbnails at, and because a 160px
-// cloud thumbnail would be visibly poor on modern displays. This is recorded
-// as a B2A finding: B1C's constant and ledger must be reconciled to one value
-// before B2B uploads anything. Nothing here invents a third number.
+// THIS THUMBNAIL WIDTH IS THE CLOUD-SYNC DERIVATIVE, NOT THE LOCAL UI ASSET.
+// B1C (feature/backend-build34-closet-media-v1, services/closetMedia.ts) is
+// the authority for what B2B may upload, and it declares 160 — this module
+// conforms to that, not to any client-side rendering choice.
+//
+// This client line's own services/closetLibrary.js separately renders the
+// LOCAL Closet UI thumbnail at 640, and that file is intentionally NOT
+// touched by this correction: it governs on-device display, a different
+// concept with a different lifecycle than the artifact this module hands to
+// B2B for cloud upload. A prior pass of this file used 640 here too, treating
+// the two as one concept; that was the defect — B1C's cloud contract must
+// not be reinterpreted to match a client rendering preference.
 export const CLOSET_MEDIA_PRIMARY_WIDTH = 1440;
-export const CLOSET_MEDIA_THUMBNAIL_WIDTH = 640;
+export const CLOSET_MEDIA_THUMBNAIL_WIDTH = 160;
 export const CLOSET_MEDIA_PRIMARY_QUALITY = 0.86;
 export const CLOSET_MEDIA_THUMBNAIL_QUALITY = 0.8;
 export const CLOSET_MEDIA_CONTENT_TYPE = 'image/jpeg';
@@ -70,7 +74,10 @@ export const CLOSET_MEDIA_SANITIZER_VERSION = 'closet-media-privacy-1.0.0';
 export type ClosetMediaBlockedReason =
   | 'sanitizer_unavailable'
   | 'face_detector_unavailable'
+  | 'face_sanitization_failed'
   | 'plate_detector_unavailable'
+  /** A plate-shaped region was found. Build 34 blocks rather than masks. */
+  | 'plate_detected'
   | 'detector_failed'
   | 'masking_failed'
   | 'metadata_strip_failed'
@@ -127,6 +134,9 @@ function mapBoundaryError(code: PrivacyBoundaryErrorCode): ClosetMediaBlockedRea
     case 'SOURCE_ACCESS_FAILED':
       return 'decode_failed';
     case 'FACE_PROCESSING_FAILED':
+      return 'face_sanitization_failed';
+    case 'PLATE_DETECTED':
+      return 'plate_detected';
     case 'PLATE_PROCESSING_FAILED':
       return 'detector_failed';
     case 'VERIFICATION_FAILED':

@@ -165,11 +165,15 @@ struct NativePlateMaskResult {
     let detectorImplementation: String
     let detectorVersion: String
     let sanitizerVersion: String
-    /// Always false on this path. Emitted rather than assumed so that a caller
-    /// making a privacy claim reads it from the result instead of from a
-    /// comment, and so that any future change to the detector has to change a
-    /// value someone is watching. See IOSPlateDetector's header.
-    let ocrPerformed: Bool
+    /// Always false on this path. Named to match the shared cross-platform
+    /// contract (recognizedTextConsumed, not ocrPerformed): on iOS
+    /// VNDetectTextRectanglesRequest never performs character recognition at
+    /// all, so both readings of the claim are true here, but the field name
+    /// must agree with Android, where recognition DOES run internally and
+    /// only "the text was never consumed" is the honest claim. Emitted rather
+    /// than assumed so that a caller making a privacy claim reads it from the
+    /// result instead of from a comment. See IOSPlateDetector's header.
+    let recognizedTextConsumed: Bool
     let inputWidth: Int?
     let inputHeight: Int?
     let outputWidth: Int?
@@ -200,7 +204,7 @@ struct NativePlateMaskResult {
             "detectorImplementation": detectorImplementation,
             "detectorVersion": detectorVersion,
             "sanitizerVersion": sanitizerVersion,
-            "ocrPerformed": ocrPerformed,
+            "recognizedTextConsumed": recognizedTextConsumed,
             "platesDetected": platesDetected,
             "platesAccepted": platesAccepted,
             "platesMasked": platesMasked,
@@ -234,7 +238,8 @@ struct NativePlateCapabilities {
     let detectorImplementation: String
     let detectorVersion: String
     let sanitizerVersion: String
-    let ocrPerformed: Bool
+    /// Same cross-platform field as NativePlateMaskResult; see its comment.
+    let recognizedTextConsumed: Bool
     let acceptedUriSchemes: [String]
     let acceptedMimeTypes: [String]
     let outputMimeType: String
@@ -273,7 +278,7 @@ struct NativePlateCapabilities {
             "detectorImplementation": detectorImplementation,
             "detectorVersion": detectorVersion,
             "sanitizerVersion": sanitizerVersion,
-            "ocrPerformed": ocrPerformed,
+            "recognizedTextConsumed": recognizedTextConsumed,
             "acceptedUriSchemes": acceptedUriSchemes,
             "acceptedMimeTypes": acceptedMimeTypes,
             "outputMimeType": outputMimeType,
