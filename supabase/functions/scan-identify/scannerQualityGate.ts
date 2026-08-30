@@ -11,6 +11,14 @@ import {
   normalizeSilhouette,
 } from '../_shared/scanHelpers.ts';
 import { isGenericFashionLabel } from './qualityTuneNormalize.ts';
+import {
+  type IdentityConfidence,
+  type IdentityGrade,
+  MAX_DISTINCTIVE_FEATURE_LEN,
+  MAX_DISTINCTIVE_FEATURES,
+  MAX_IDENTITY_VALUE_LEN,
+  normalizeIdentityConfidence,
+} from './commerceIdentityConfig.ts';
 
 // ── Score weights (named constants) ──────────────────────────────────────────
 
@@ -55,6 +63,39 @@ export type QualityGateResult = {
   commerceQueryDetailLevel: CommerceQueryDetailLevel;
   brandSuppressed: boolean;
   materialSuppressed: boolean;
+  /**
+   * v124 graded commercial identity evidence. Present only when the caller
+   * opts in via `options.commerceIdentityEnabled`; omitted otherwise so the
+   * flag-off result is identical to v123.
+   */
+  commerceIdentity?: CommerceIdentityEvidence;
+};
+
+/**
+ * v124 — graded commercial identity evidence preserved for ranking.
+ *
+ * This is deliberately a separate envelope rather than a relaxation of the
+ * existing anti-hallucination suppression: `identification.brand_guess` is
+ * still nulled exactly as before when unsupported, so the commerce query
+ * builder, result label, client contract, and quality score are unaffected.
+ * What changes is that the hypothesis is now *graded and retained* here
+ * instead of being destroyed, so the ranker can weigh it by evidence strength.
+ */
+export type CommerceIdentityEvidence = {
+  brand: string | null;
+  brandConfidence: IdentityConfidence | null;
+  brandGrade: IdentityGrade;
+  visibleBrandText: string | null;
+  logoDetected: boolean;
+  exactItemHypothesis: string | null;
+  exactMatchConfidence: IdentityConfidence | null;
+  exactMatchGrade: IdentityGrade;
+  distinctiveFeatures: string[];
+};
+
+export type ScannerQualityGateOptions = {
+  /** v124: compute and return graded commerce identity evidence. */
+  commerceIdentityEnabled?: boolean;
 };
 
 /** Static O(1) subtype families accepted per catalog category — module-load init. */
@@ -149,6 +190,114 @@ function hasBrandEvidence(id: Record<string, unknown>): boolean {
     return true;
   }
   return false;
+}
+
+/**
+ * v124 — bounded, machine-consumable commercial-identity extraction.
+ *
+ * Reads the *pre-suppression* identification so a hypothesis the existing gate
+ * is about to null is graded rather than lost. Rejection rules are unchanged:
+ * whatever `SPECULATIVE_BRAND_RE` already treats as noise stays INVALID here.
+ */
+function usableIdentityValue(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const t = collapseSpaces(raw);
+  if (!t || t.length > MAX_IDENTITY_VALUE_LEN) return null;
+  if (/^(unknown|n\/a|none|null|undefined)$/i.test(t)) return null;
+  if (isGenericFashionLabel(t)) return null;
+  return t;
+}
+
+function extractDistinctiveFeatures(id: Record<string, unknown>): string[] {
+  const raw = id.distinctive_features;
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const entry of raw) {
+    if (typeof entry !== 'string') continue;
+    const t = collapseSpaces(entry);
+    if (!t || t.length > MAX_DISTINCTIVE_FEATURE_LEN) continue;
+    if (LUXURY_FILLER_RE.test(t)) continue;
+    const key = t.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(t);
+    if (out.length >= MAX_DISTINCTIVE_FEATURES) break;
+  }
+  return out;
+}
+
+function gradeCommerceIdentity(id: Record<string, unknown>): CommerceIdentityEvidence {
+  const logoDetected = id.logo_detected === true;
+  const visibleBrandText = usableIdentityValue(id.visible_brand_text);
+  const directEvidence = logoDetected || !!visibleBrandText;
+
+  const distinctiveFeatures = extractDistinctiveFeatures(id);
+
+  // ── Exact item hypothesis ────────────────────────────────────────────────
+  const hypothesisRaw = usableIdentityValue(id.exact_item_hypothesis);
+  const hypothesisValid = hypothesisRaw && !SPECULATIVE_BRAND_RE.test(hypothesisRaw)
+    ? hypothesisRaw
+    : null;
+  const declaredExact = normalizeIdentityConfidence(id.exact_match_confidence);
+
+  // ── Brand hypothesis ─────────────────────────────────────────────────────
+  const brandRaw = usableIdentityValue(id.brand_guess) ?? visibleBrandText;
+  const brandSpeculative = !!brandRaw &&
+    (SPECULATIVE_BRAND_RE.test(brandRaw) || /style$/i.test(brandRaw));
+  const declaredBrand = normalizeIdentityConfidence(id.brand_confidence);
+
+  let brand: string | null = null;
+  let brandGrade: IdentityGrade = 'invalid';
+  let brandConfidence: IdentityConfidence | null = null;
+
+  if (brandRaw && !brandSpeculative) {
+    brand = brandRaw;
+    if (directEvidence) {
+      // Wordmark / logo / tag actually seen — the model cannot downgrade this.
+      brandGrade = 'verified';
+      brandConfidence = 'high';
+    } else if (
+      (declaredBrand === 'high' || declaredBrand === 'medium') &&
+      (distinctiveFeatures.length > 0 || !!hypothesisValid)
+    ) {
+      // Distinctive construction supports it, but no wordmark was read: cap at
+      // medium so the model cannot self-certify its way to verified weight.
+      brandGrade = 'plausible';
+      brandConfidence = 'medium';
+    } else {
+      brandGrade = 'weak';
+      brandConfidence = 'low';
+    }
+  }
+
+  // Exact-match grade never outranks the brand evidence that supports it.
+  let exactMatchGrade: IdentityGrade = 'invalid';
+  let exactMatchConfidence: IdentityConfidence | null = null;
+  if (hypothesisValid) {
+    if (brandGrade === 'verified' && declaredExact === 'high') {
+      exactMatchGrade = 'verified';
+      exactMatchConfidence = 'high';
+    } else if (declaredExact === 'high' || declaredExact === 'medium') {
+      exactMatchGrade = 'plausible';
+      exactMatchConfidence = 'medium';
+    } else {
+      exactMatchGrade = 'weak';
+      exactMatchConfidence = 'low';
+    }
+  }
+
+  return {
+    brand,
+    brandConfidence,
+    brandGrade,
+    visibleBrandText,
+    logoDetected,
+    exactItemHypothesis: hypothesisValid,
+    exactMatchConfidence,
+    exactMatchGrade,
+    distinctiveFeatures,
+  };
 }
 
 function isSupportedMaterial(raw: unknown): boolean {
@@ -308,6 +457,7 @@ export function buildQualityResultLabel(
 export function applyScannerQualityGate(
   identificationIn: Record<string, unknown> | null | undefined,
   attributesIn?: Record<string, unknown> | null,
+  options?: ScannerQualityGateOptions,
 ): QualityGateResult {
   const identification: Record<string, unknown> = identificationIn && typeof identificationIn === 'object'
     ? { ...identificationIn }
@@ -315,6 +465,12 @@ export function applyScannerQualityGate(
   const attributes: Record<string, unknown> | undefined = attributesIn && typeof attributesIn === 'object'
     ? { ...attributesIn }
     : undefined;
+
+  // v124: grade commercial identity from the *pre-suppression* identification.
+  // The suppression below is intentionally left untouched, so the quality
+  // score, result label, and commerce query construction are all unchanged.
+  const commerceIdentity: CommerceIdentityEvidence | undefined =
+    options?.commerceIdentityEnabled ? gradeCommerceIdentity(identification) : undefined;
 
   const conflicts: ConsistencyConflict[] = [];
   const suppressed: string[] = [];
@@ -532,6 +688,7 @@ export function applyScannerQualityGate(
     commerceQueryDetailLevel,
     brandSuppressed,
     materialSuppressed,
+    ...(commerceIdentity ? { commerceIdentity } : {}),
   };
 }
 

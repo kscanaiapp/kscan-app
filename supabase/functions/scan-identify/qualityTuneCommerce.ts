@@ -20,6 +20,8 @@ import type { RecommendedProduct } from './shoppingProvider.ts';
 import type { ScannerCategoryRoute } from './scannerCategoryRoute.ts';
 import { buildCategoryCommerceQueries } from './commerceRelevanceQueries.ts';
 import { scoreProductAgreement } from './commerceRelevanceAgreement.ts';
+import type { CommerceIdentityEvidence } from './scannerQualityGate.ts';
+import type { CommerceQueryStrategy } from './commerceRetrievalConfig.ts';
 import {
   applySoftDiversityRerank,
   selectByAgreementCoverage,
@@ -32,6 +34,8 @@ import {
 } from './commerceRelevanceFailure.ts';
 
 export type WeightedCommerceQueries = {
+  /** v125 — present only when identity-aware retrieval ran. */
+  strategy?: CommerceQueryStrategy;
   primary: string;
   fallback: string;
 };
@@ -54,6 +58,11 @@ export type CommerceRelevanceOptions = {
   enabled: true;
   categoryRoute: ScannerCategoryRoute;
   qualityBand?: 'high' | 'moderate' | 'low' | null;
+  /**
+   * v124 graded commercial identity evidence. Omitted → exact v122 ranking.
+   * Ranking-only: filtering, dedupe, coverage, and diversity are unchanged.
+   */
+  commerceIdentity?: CommerceIdentityEvidence;
 };
 
 const FILLER = new Set([
@@ -150,6 +159,11 @@ export function buildWeightedCommerceQueries(input: {
   /** v122 only — omit for exact v121 behavior */
   relevanceRoute?: ScannerCategoryRoute;
   qualityBand?: 'high' | 'moderate' | 'low' | null;
+  /**
+   * v125 only — omit for exact v124 query construction. Reaches only the
+   * category-template path; the legacy v120/v121 paths are untouched.
+   */
+  commerceIdentity?: CommerceIdentityEvidence;
 }): WeightedCommerceQueries {
   const id = input.identification || {};
   const attrs = input.attributes || {};
@@ -165,8 +179,9 @@ export function buildWeightedCommerceQueries(input: {
       materialAllowed: input.materialAllowed,
       brandAllowed: input.brandAllowed,
       originalText: input.originalText,
+      ...(input.commerceIdentity ? { commerceIdentity: input.commerceIdentity } : {}),
     });
-    return { primary: q.primary, fallback: q.fallback };
+    return { primary: q.primary, fallback: q.fallback, strategy: q.strategy };
   }
 
   const logo = id.logo_detected === true;
@@ -302,13 +317,21 @@ function productIdentityKey(p: RecommendedProduct): { key: string; type: string 
     : '';
   if (retailerId && sku) return { key: `sku:${retailerId}|${sku}`, type: 'retailer_sku' };
 
+  // Canonical URL is checked before the provider-id tier: every active
+  // provider synthesizes `id` by hashing the RAW productUrl (see
+  // shoppingProvider.ts/poshmarkProvider.ts `makeId`), so a trailing slash,
+  // path case difference, or extra query param produces a DIFFERENT `pid:`
+  // for what canonicalizeUrlForIdentity would correctly recognize as the same
+  // listing. Checking `pid:` first made this tier permanently unreachable
+  // whenever a URL exists — which is true for every offer these providers
+  // return — and let deterministic near-duplicates survive dedup.
+  const canon = canonicalizeUrlForIdentity(p.productUrl);
+  if (canon) return { key: `url:${canon}`, type: 'canonical_url' };
+
   const providerId = typeof p.id === 'string' && p.id.trim() ? p.id.trim().toLowerCase() : '';
   if (providerId && !providerId.startsWith('http')) {
     return { key: `pid:${providerId}`, type: 'provider_product_id' };
   }
-
-  const canon = canonicalizeUrlForIdentity(p.productUrl);
-  if (canon) return { key: `url:${canon}`, type: 'canonical_url' };
 
   const title = normalizeTitle(p.title);
   const retailer = retailerId || (typeof p.source === 'string' ? p.source.toLowerCase() : '');
@@ -320,14 +343,14 @@ function productIdentityKey(p: RecommendedProduct): { key: string; type: string 
   return { key: `fallback:${title || 'unknown'}`, type: 'weak_fallback' };
 }
 
-function hasUsableImage(p: RecommendedProduct): boolean {
+export function hasUsableImage(p: RecommendedProduct): boolean {
   const url = typeof p.imageUrl === 'string' ? p.imageUrl.trim() : '';
   if (!url) return false;
   if (!/^https?:\/\//i.test(url)) return false;
   return true;
 }
 
-function hasValidPurchaseUrl(p: RecommendedProduct): boolean {
+export function hasValidPurchaseUrl(p: RecommendedProduct): boolean {
   const url = typeof p.productUrl === 'string' ? p.productUrl.trim() : '';
   if (!url) return false;
   if (!/^https?:\/\//i.test(url)) return false;
@@ -480,7 +503,12 @@ export function filterAndDedupeProducts(
   if (relevance?.enabled) {
     // v122: agreement score → coverage selection → dedupe → soft diversity
     const scored: ScoredProduct[] = validShaped.map((p, originalIndex) => {
-      const ag = scoreProductAgreement(p, garmentIdentification, relevance.categoryRoute);
+      const ag = scoreProductAgreement(
+        p,
+        garmentIdentification,
+        relevance.categoryRoute,
+        relevance.commerceIdentity,
+      );
       return {
         product: p,
         agreementScore: ag.score,
