@@ -342,7 +342,12 @@ test('speech remains output-only and adds no microphone capability', () => {
   const appJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'app.json'), 'utf8'));
   const plugins = appJson.expo.plugins;
   const audio = plugins.find((entry) => Array.isArray(entry) && entry[0] === 'expo-audio');
-  assert.equal(audio[1].microphonePermission, false);
+  // "Output-only" is about RECORDING, not about the plist key. Voice Scan owns
+  // the app-wide NSMicrophoneUsageDescription, and Expo deletes that key when a
+  // permission plugin prop is `false` -- so asserting false here used to strip
+  // Voice Scan's usage string from the built plist. The output-only invariant
+  // is carried by recordAudioAndroid and the allowsRecording assertions below.
+  assert.equal(audio[1].microphonePermission, appJson.expo.ios.infoPlist.NSMicrophoneUsageDescription);
   assert.equal(audio[1].recordAudioAndroid, false);
   assert.ok(appJson.expo.android.blockedPermissions.includes('android.permission.RECORD_AUDIO'));
 
