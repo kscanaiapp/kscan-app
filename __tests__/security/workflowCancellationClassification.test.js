@@ -94,3 +94,35 @@ test('CASE 16 guard: candidateShaMismatch is still a BLOCKING key', () => {
   assert.ok(BLOCKING_KEYS.has('candidateShaMismatch'));
   assert.equal(evaluateLocal({ candidateShaMismatch: true }).finalVerdict, 'BLOCKED');
 });
+
+test('CASE 17 guard: a quarantined Edge Function still cannot pass certification evidence, unmoved by this refactor', () => {
+  const { certificationEvidenceFailures } = require('../../security/scripts/lib/certification-authority');
+  const observed = {
+    certification_workflow: 'Staging Release Certification',
+    certification_event: 'push',
+    certification_head_branch: 'staging/production-parity',
+    certification_head_sha: 'deadbeef',
+    candidate_sha: 'deadbeef',
+    certification_status: 'completed',
+    certification_run_id: '1',
+    candidate_tree_sha: 'treesha',
+    staging_head_sha: 'deadbeef',
+  };
+  const certification = {
+    certification_run_id: '1',
+    candidate_commit_sha: 'deadbeef',
+    candidate_tree_sha: 'treesha',
+    final_verdict: 'PASS',
+    promotion_eligible: true,
+    blocking_findings: [],
+    operational_failures: [],
+    quarantine_policy: 'BLOCKED', // a quarantined function was touched
+  };
+  const reasons = certificationEvidenceFailures(certification, observed);
+  assert.ok(reasons.includes('QUARANTINE_POLICY_NOT_PASSING'));
+});
+
+test('CASE 18 guard: a production project ref is still refused, unmoved by this refactor', () => {
+  const { assertNotProduction, PRODUCTION_REF, EnvironmentAuthorityError } = require('../../security/scripts/lib/environment-authority');
+  assert.throws(() => assertNotProduction(PRODUCTION_REF, 'test operation'), EnvironmentAuthorityError);
+});
