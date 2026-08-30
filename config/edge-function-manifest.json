@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-30T17:48:06.660Z",
-    "generatedFromGitSha": "4555f9a3821f945a8a6319cedb4ec670b3a6b600"
+    "generatedAtUtc": "2026-08-30T18:53:59.089Z",
+    "generatedFromGitSha": "6db4df59021c68d484148b37d2d9fcdafbbaddbd"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -356,8 +356,8 @@
         ],
         "bundleFileCount": 48,
         "treeFileCount": 67,
-        "bundleHash": "3bface403b4763cacfc33f877d166980194df01c5b1a4446ea9c831682a812b4",
-        "treeHash": "e827fab31f60aecf3f9089ad11222c13a356533d735442936fe0696a3c51d5c8",
+        "bundleHash": "39af8eccfbcb61608f06d95a350ddc5b357ea6bd85969d7759926db2594c1229",
+        "treeHash": "5952959c7ee8e162f5e40071ea8d6e741940947f5b66cfd819258de0c7e6b450",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -586,7 +586,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/index.ts",
-            "sha256": "2f53175a39ad6dff64a8817a7dac0599204c178e14467f8d12405d955b954df7",
+            "sha256": "105ad8fff07c4cb76a03b10634b8088872c25588434f3057d540dbbf3aee483d",
             "bundle": true
           },
           {
@@ -621,12 +621,12 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/packingHandler.ts",
-            "sha256": "4c844bf5fb69d31d9667ebc1162e50f7c1fe46f5daa32c3a7bd046ccb4bd9d84",
+            "sha256": "c1cf1762297c4c69a818f040f5df13fc3a88276913dd36d209f1c87be0a2b3a3",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylechat-generate/packingIntelligence.test.ts",
-            "sha256": "2336dfb28d58c50c7aa4a99d051c55ffb8e0783c33a1c6ee2df8d08ef7637aa4",
+            "sha256": "ee270ee8a3cdea8de6fdadab940cbf716c37e64a16f6b6421edc16882ccb54da",
             "bundle": false
           },
           {

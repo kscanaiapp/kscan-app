@@ -1,16 +1,28 @@
 // K+ Packing Intelligence V1 — request orchestration.
 //
 // Every dependency is INJECTED (entitlement check, Closet query, Signature
-// Style block, weather resolver, provider call). That is what lets the whole
-// Packing loop -- gate, retrieval, narrowing, prompt, validation, fallback --
-// be exercised deterministically from a test with no Supabase, no network and
-// no provider, the same discipline privateDressingRoomEliseHandler.ts follows.
+// Style resolver, weather resolver, quota reservation, provider call). That is
+// what lets the whole Packing loop -- gate, retrieval, narrowing, prompt,
+// validation, fallback -- be exercised deterministically from a test with no
+// Supabase, no network and no provider, the same discipline
+// privateDressingRoomEliseHandler.ts follows.
 //
 // ORDER IS LOAD-BEARING:
-//   K+ gate  ->  retrieval  ->  readiness  ->  narrowing  ->  provider
-// The entitlement check runs before any Closet read, and the readiness check
-// runs before any provider call, so a lapsed subscriber never reaches the
-// wardrobe and a sparse Closet never costs a generation.
+//   K+ gate -> retrieval -> readiness -> narrowing -> quota reservation ->
+//   provider
+// The entitlement check runs before any Closet read, the readiness check runs
+// before any provider call, and the daily quota is reserved LAST -- only once
+// every other gate has passed and a generation is actually about to happen.
+// So a lapsed subscriber never reaches the wardrobe, a sparse Closet never
+// costs a generation, AND an entitled caller with a sparse Closet is never
+// charged for a plan that was never going to be built (PACK-05).
+//
+// `hasActiveKPlus` is called EXACTLY ONCE, here, by this gate, and the answer
+// is never cached or reused elsewhere. A caller that memoizes this across a
+// request and reuses the cached answer for anything downstream reintroduces a
+// window where a lapsed entitlement is read as still active (PACK-06) --
+// there must be exactly one source of truth for "is this caller entitled",
+// asked at exactly one moment, immediately before it is acted on.
 
 import {
   PACKING_CONTRACT_VERSION,
@@ -102,17 +114,48 @@ export interface PackingHandlerResult {
   providerInvoked: boolean;
 }
 
+/**
+ * Outcome of reserving one unit of the shared Elise daily budget. A tri-state
+ * rather than a boolean so a caller cannot conflate "the RPC told us no" with
+ * "we could not ask the RPC" -- both must block the provider, but they are
+ * different failures with different messages (PACK-05).
+ */
+export type PackingQuotaReservation =
+  | { status: 'reserved' }
+  | { status: 'limit_reached' }
+  | { status: 'check_failed' };
+
 export interface PackingHandlerDeps {
   request: ParsedPackingRequest;
   requestId: string;
   actorId: string;
-  /** Resolved from has_active_k_plus(), never from a client flag. */
+  /**
+   * Resolved from has_active_k_plus(), never from a client flag. Called
+   * EXACTLY ONCE by this handler's own gate -- see the file header.
+   */
   hasActiveKPlus: () => Promise<boolean>;
   closet: PackingClosetDataSource;
-  /** Bounded Signature Style guidance block, or null. Advisory only. */
-  signatureStyleBlock: string | null;
+  /**
+   * Bounded Signature Style guidance, or null. Advisory only.
+   *
+   * LAZY, AND CALLED ONLY AFTER THE K+ GATE HAS PASSED. Signature Style is
+   * only ever useful right before a prompt is built, so there is no reason to
+   * resolve it any earlier -- and resolving it eagerly, before entitlement is
+   * known, is exactly the shape of mistake that made PACK-06 possible
+   * (something computed from an answer that might not still be true). A
+   * caller with no Signature Style authority to offer may omit this entirely.
+   */
+  resolveSignatureStyleBlock?: () => Promise<string | null>;
   /** B2M passes nothing; B3 injects the resolver. Absent means UNAVAILABLE. */
   resolveWeather?: () => Promise<PackingWeatherPromptContext | null>;
+  /**
+   * Reserves ONE unit of the shared Elise daily budget. Called EXACTLY ONCE,
+   * and only immediately before `callProvider` -- after K+, Closet retrieval
+   * and readiness have all already passed. A caller must never be charged for
+   * a generation that general mode, an unentitled 403, or any earlier gate
+   * was always going to produce instead (PACK-05).
+   */
+  reserveDailyGeneration: () => Promise<PackingQuotaReservation>;
   /** Returns already-parsed JSON from the provider, or throws. */
   callProvider: (systemText: string, userText: string) => Promise<unknown>;
   /** Injected so the pure path stays deterministic in tests. */
@@ -290,7 +333,19 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
     ? { provenance: weatherPrompt.provenance, summary: weatherPrompt.summary }
     : UNAVAILABLE_WEATHER;
   telemetry.weatherProvenance = weather.provenance;
-  telemetry.signatureStyleApplied = Boolean(deps.signatureStyleBlock);
+
+  // ── 5b. Signature Style (enrichment; resolved only now, past the K+ gate) ─
+  // Advisory and best-effort, exactly like weather: a failure here is never a
+  // Packing failure, the block is simply absent.
+  let signatureStyleBlock: string | null = null;
+  if (deps.resolveSignatureStyleBlock) {
+    try {
+      signatureStyleBlock = await deps.resolveSignatureStyleBlock();
+    } catch {
+      signatureStyleBlock = null;
+    }
+  }
+  telemetry.signatureStyleApplied = Boolean(signatureStyleBlock);
 
   // ── 6. Bounded fashion reasoning ──────────────────────────────────────────
   const userPrompt = buildPackingUserPrompt({
@@ -298,10 +353,55 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
     constraints,
     shortlist: selection.shortlist,
     weather: weatherPrompt,
-    signatureStyleBlock: deps.signatureStyleBlock,
+    signatureStyleBlock,
   });
   telemetry.promptChars = PACKING_SYSTEM_PROMPT.length + userPrompt.length;
 
+  // ── 6b. Daily quota reservation — LAST, because everything above this line
+  // can still end in general mode or a 403 at ZERO cost to the caller's
+  // budget. Only from this point on is a generation actually about to happen
+  // (PACK-05). Weather and Signature Style are enrichment: resolving them
+  // above this line, before we know whether a model call will occur, is safe
+  // because neither one spends anything from the caller's own budget.
+  const reservation = await deps.reserveDailyGeneration();
+  if (reservation.status === 'limit_reached') {
+    telemetry.event = 'packing_failed';
+    telemetry.failureClass = 'quota_limit_reached';
+    return finish(
+      200,
+      {
+        status: 'error',
+        contractVersion: PACKING_CONTRACT_VERSION,
+        requestId: deps.requestId,
+        message: "You've used today's Elise generations. Your packing plan will be here tomorrow.",
+        plan: null,
+        generalGuide: null,
+        errorCode: 'PACKING_LIMIT_REACHED',
+      },
+      telemetry,
+      false,
+    );
+  }
+  if (reservation.status === 'check_failed') {
+    telemetry.event = 'packing_failed';
+    telemetry.failureClass = 'quota_check_failed';
+    return finish(
+      500,
+      {
+        status: 'error',
+        contractVersion: PACKING_CONTRACT_VERSION,
+        requestId: deps.requestId,
+        message: 'I could not check your daily usage just now. Please try again.',
+        plan: null,
+        generalGuide: null,
+        errorCode: 'PACKING_USAGE_CHECK_FAILED',
+      },
+      telemetry,
+      false,
+    );
+  }
+
+  // ── 7. Provider call ───────────────────────────────────────────────────
   const providerStartedAt = now();
   let rawOutput: unknown;
   try {
@@ -318,7 +418,7 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
         contractVersion: PACKING_CONTRACT_VERSION,
         requestId: deps.requestId,
         // Retryable and honest. No partial plan, no invented items.
-        message: 'I could not finish your packing plan just now. Your trip details are saved — try again.',
+        message: 'I could not finish your packing plan just now. Your trip details are still here — try again.',
         plan: null,
         generalGuide: null,
         errorCode: 'PACKING_GENERATION_FAILED',
@@ -329,7 +429,7 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
   }
   telemetry.providerLatencyMs = now() - providerStartedAt;
 
-  // ── 7. Post-model validation: the ownership gate ──────────────────────────
+  // ── 8. Post-model validation: the ownership gate ──────────────────────────
   const planId = deps.makePlanId ? deps.makePlanId() : `plan-${deps.requestId}`;
   // Gaps are derived from the CLOSET CENSUS and the forecast, before the
   // model's output is even looked at, so nothing the model says can create,
@@ -376,7 +476,7 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
     );
   }
 
-  // ── 8. Deterministic sanity check on the validated plan ───────────────────
+  // ── 9. Deterministic sanity check on the validated plan ───────────────────
   // Structural nonsense only. Fashion coherence stays the model's job.
   const problems = inspectPackingPlan(validation.plan);
   if (problems.length > 0) {

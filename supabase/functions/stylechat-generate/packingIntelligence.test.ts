@@ -722,7 +722,10 @@ function handlerDeps(overrides: Partial<Parameters<typeof handlePackingRequest>[
     actorId: ACTOR,
     hasActiveKPlus: () => Promise.resolve(true),
     closet: { listClosetItems: () => Promise.resolve(mixedClosetRows()) },
-    signatureStyleBlock: null,
+    resolveSignatureStyleBlock: () => Promise.resolve(null),
+    // Always succeeds unless a test says otherwise -- most tests here are not
+    // about quota at all, and PACK-05's own tests override this explicitly.
+    reserveDailyGeneration: () => Promise.resolve({ status: 'reserved' as const }),
     callProvider: () => Promise.resolve({ outfits: [], packedItems: [] }),
     now: () => (clock += 10),
     makePlanId: () => 'plan-fixed',
@@ -1131,7 +1134,8 @@ Deno.test('handler: a packed item that is the only one of its role says so', asy
 Deno.test('security: an absent Signature Style never blocks or changes a plan', async () => {
   const withStyle = await handlePackingRequest(
     handlerDeps({
-      signatureStyleBlock: '[Wardrobe Signature Style] Frequent colors: black [/Wardrobe Signature Style]',
+      resolveSignatureStyleBlock: () =>
+        Promise.resolve('[Wardrobe Signature Style] Frequent colors: black [/Wardrobe Signature Style]'),
       callProvider: (_system, user) => {
         assertStringIncludes(user, 'Wardrobe Signature Style');
         assertStringIncludes(user, 'Any explicit constraint above outranks it');
@@ -1148,7 +1152,7 @@ Deno.test('security: an absent Signature Style never blocks or changes a plan', 
 
   const withoutStyle = await handlePackingRequest(
     handlerDeps({
-      signatureStyleBlock: null,
+      resolveSignatureStyleBlock: () => Promise.resolve(null),
       callProvider: (_system, user) => {
         assert(!user.includes('Wardrobe Signature Style'), 'no block, no mention');
         const ids = [...user.matchAll(/id=([0-9a-f-]{36})/g)].map((match) => match[1]);
@@ -1161,6 +1165,26 @@ Deno.test('security: an absent Signature Style never blocks or changes a plan', 
   );
   assertEquals(withoutStyle.body.status, 'success');
   assertEquals(withoutStyle.telemetry.signatureStyleApplied, false);
+});
+
+Deno.test('PACK-06/PACK-04: Signature Style is never resolved for an unentitled caller', async () => {
+  // Required test #8. Entitled-only was previously true only because index.ts
+  // happened to gate it with an eagerly-resolved boolean. Now that the resolver
+  // is lazy and owned by the handler, prove it structurally: an unentitled
+  // caller must never even INVOKE the resolver, regardless of what it would
+  // have returned.
+  let signatureStyleCalls = 0;
+  const result = await handlePackingRequest(
+    handlerDeps({
+      hasActiveKPlus: () => Promise.resolve(false),
+      resolveSignatureStyleBlock: () => {
+        signatureStyleCalls += 1;
+        return Promise.resolve('[Wardrobe Signature Style] should never be reached [/Wardrobe Signature Style]');
+      },
+    }),
+  );
+  assertEquals(result.body.status, 'not_entitled');
+  assertEquals(signatureStyleCalls, 0, 'Signature Style must not be computed for a refused caller');
 });
 
 Deno.test('privacy: no Closet image, uri or storage path can reach the prompt', async () => {
@@ -1411,38 +1435,265 @@ Deno.test('census: a REAL absence is still reported when the census is complete'
     'suppressing false gaps must not suppress true ones');
 });
 
-// ── 13. Gate ordering at the dispatch seam (audit repair PACK-03/04) ─────────
+// ── 13. Gate ordering at the dispatch seam (audit repair PACK-03/04, revised
+//        by PACK-05/06) ────────────────────────────────────────────────────
 //
-// handlePackingRequest's own gate order is proven by the handler tests above.
-// What those cannot see is the order index.ts spends the CALLER'S resources in,
-// because that lives inside Deno.serve. A lapsed subscriber must not lose a
-// daily Elise generation to a request that is about to be refused, so the
-// entitlement must be resolved before the daily counter is incremented.
+// PACK-03/04 originally proved this ordering with a source `indexOf()` check
+// against a `packingEntitled` boolean that gated the daily-charge RPC in
+// index.ts with a ternary. PACK-05/06 removed that boolean entirely: K+ is no
+// longer resolved or cached in index.ts at all, and the daily counter is no
+// longer conditionally called there either. Both decisions now live entirely
+// inside handlePackingRequest's own step order (K+ gate -> retrieval ->
+// readiness -> quota reservation -> provider), which is CONTROL FLOW, not
+// source text -- so it cannot be proven by indexOf() at all, and is instead
+// proven behaviorally in section 14 below.
+//
+// What remains here is intentionally a light supplementary check, not the
+// proof: that index.ts still wires K+ and quota as SEPARATE dependencies
+// (not a single conflated call), and that quota is not charged a second time
+// anywhere outside the dependency the handler controls.
 
-Deno.test('dispatch order: K+ is resolved before the daily quota is spent', async () => {
+Deno.test('dispatch wiring: K+ and the daily counter are two independent RPCs, not one', async () => {
   const source = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
-  const branch = source.slice(source.indexOf('classifyPackingRequest(body)'));
+  // Bounded to the packing branch itself, NOT to end-of-file: the ordinary
+  // chat path further down has its own unrelated has_active_k_plus() call for
+  // a different feature, and an unbounded slice would count it too.
+  const branch = source.slice(
+    source.indexOf('classifyPackingRequest(body)'),
+    source.indexOf("const sessionId = typeof body.sessionId === 'string'"),
+  );
   assert(branch.length > 0, 'the packing branch must exist');
 
   const burst = branch.indexOf('check_and_increment_stylechat_burst');
   const entitlement = branch.indexOf("rpc('has_active_k_plus'");
   const daily = branch.indexOf('increment_stylechat_daily_usage');
+  assert(burst > -1 && entitlement > -1 && daily > -1, 'all three RPCs must be present');
+  assert(burst < entitlement, 'burst still runs before anything entitlement-related');
 
-  assert(burst > -1 && entitlement > -1 && daily > -1, 'all three gates must be present');
-  // Burst first: rate limiting protects the backend, not the caller's budget.
-  assert(burst < entitlement, 'burst must precede the entitlement resolution');
-  // Then entitlement, and only then the counter that costs the user something.
-  assert(entitlement < daily, 'K+ must be resolved BEFORE the daily quota is charged');
+  // Exactly one call site for each -- no duplicate/eager charge path left
+  // over from the pre-PACK-05 ternary, and no second entitlement resolver.
+  const countOccurrences = (needle: string) =>
+    branch.split(needle).length - 1;
+  assertEquals(countOccurrences("rpc('has_active_k_plus'"), 1, 'K+ must be asked exactly once');
+  assertEquals(countOccurrences('increment_stylechat_daily_usage'), 1, 'quota must be charged from exactly one call site');
+
+  // Nothing in index.ts's packing branch may cache the entitlement answer.
+  // PACK-06's entire defect was a variable exactly like this one.
+  assert(!/packingEntitled|packingEntitlement/.test(branch),
+    'a cached/memoized entitlement variable must not reappear in index.ts');
 });
 
-Deno.test('dispatch order: the daily counter is only incremented when entitled', async () => {
+Deno.test('dispatch wiring: quota reservation is a plain dependency, not a conditional charge', async () => {
   const source = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
-  const branch = source.slice(source.indexOf('classifyPackingRequest(body)'));
+  const branch = source.slice(
+    source.indexOf('classifyPackingRequest(body)'),
+    source.indexOf("const sessionId = typeof body.sessionId === 'string'"),
+  );
+  // The daily-usage RPC must live inside the reserveDailyGeneration property
+  // handed to the handler, not behind an index.ts-local ternary/boolean --
+  // control of WHEN it fires belongs entirely to the handler's step order now.
+  const reserveKey = branch.indexOf('reserveDailyGeneration:');
   const daily = branch.indexOf('increment_stylechat_daily_usage');
-  // The increment must be guarded by the resolved entitlement rather than run
-  // unconditionally; a bare `await userClient.rpc('increment_...')` would charge
-  // every caller including the ones about to receive a 403.
-  const window = branch.slice(Math.max(0, daily - 200), daily);
-  assert(/packingEntitled\s*$|packingEntitled[\s\S]*\?/.test(window),
-    'the daily increment must be gated on the resolved entitlement');
+  assert(reserveKey > -1 && daily > -1, 'reserveDailyGeneration must exist and call the daily RPC');
+  assert(reserveKey < daily, 'the daily RPC must be nested inside reserveDailyGeneration');
+});
+
+// ── 14. Quota reservation timing and entitlement freshness (PACK-05/06/07) ──
+//
+// This section is the PRIMARY proof for PACK-05 and PACK-06, not the source
+// checks in section 13. Every claim below is exercised by actually running
+// handlePackingRequest with a counting spy on `reserveDailyGeneration`, so a
+// future change that reorders steps in a way indexOf() could not see (e.g. an
+// intermediate helper function) will still be caught here.
+
+function countingReservation(status: 'reserved' | 'limit_reached' | 'check_failed' = 'reserved') {
+  let calls = 0;
+  return {
+    reserveDailyGeneration: () => {
+      calls += 1;
+      return Promise.resolve({ status });
+    },
+    calls: () => calls,
+  };
+}
+
+Deno.test('quota: an unentitled caller consumes zero daily quota (required test 1)', async () => {
+  const reservation = countingReservation();
+  const result = await handlePackingRequest(
+    handlerDeps({
+      hasActiveKPlus: () => Promise.resolve(false),
+      reserveDailyGeneration: reservation.reserveDailyGeneration,
+    }),
+  );
+  assertEquals(result.body.status, 'not_entitled');
+  assertEquals(result.httpStatus, 403);
+  assertEquals(reservation.calls(), 0, 'not_entitled must never reserve a generation');
+});
+
+Deno.test('quota: sparse-Closet general mode consumes zero daily quota (required test 2)', async () => {
+  const reservation = countingReservation();
+  const result = await handlePackingRequest(
+    handlerDeps({
+      closet: { listClosetItems: () => Promise.resolve(mixedClosetRows().slice(0, 2)) },
+      reserveDailyGeneration: reservation.reserveDailyGeneration,
+    }),
+  );
+  assertEquals(result.body.status, 'general_mode');
+  assertEquals(result.telemetry.failureClass, 'sparse_closet');
+  assertEquals(reservation.calls(), 0, 'a sparse Closet must never reserve a generation');
+});
+
+Deno.test('quota: Closet-unavailable general mode consumes zero daily quota (required test 3)', async () => {
+  const reservation = countingReservation();
+  const result = await handlePackingRequest(
+    handlerDeps({
+      closet: { listClosetItems: () => Promise.reject(new Error('closet_query_failed')) },
+      reserveDailyGeneration: reservation.reserveDailyGeneration,
+    }),
+  );
+  assertEquals(result.body.status, 'general_mode');
+  assertEquals(result.telemetry.failureClass, 'closet_unavailable');
+  assertEquals(reservation.calls(), 0, 'an unreadable Closet must never reserve a generation');
+});
+
+Deno.test('quota: a successful generation reserves exactly one unit (required test 4)', async () => {
+  const reservation = countingReservation('reserved');
+  let providerCalls = 0;
+  const result = await handlePackingRequest(
+    handlerDeps({
+      reserveDailyGeneration: reservation.reserveDailyGeneration,
+      callProvider: (_system, user) => {
+        providerCalls += 1;
+        const ids = [...user.matchAll(/id=([0-9a-f-]{36})/g)].map((match) => match[1]);
+        return Promise.resolve({
+          outfits: [{ label: 'Day', itemIds: ids.slice(0, 2) }],
+          packedItems: ids.slice(0, 2).map((id) => ({ itemId: id })),
+        });
+      },
+    }),
+  );
+  assertEquals(result.body.status, 'success');
+  assertEquals(providerCalls, 1);
+  assertEquals(reservation.calls(), 1, 'a successful plan must reserve exactly one generation');
+});
+
+Deno.test('quota: limit reached prevents provider invocation (required test 5)', async () => {
+  let providerCalls = 0;
+  const result = await handlePackingRequest(
+    handlerDeps({
+      reserveDailyGeneration: () => Promise.resolve({ status: 'limit_reached' }),
+      callProvider: () => {
+        providerCalls += 1;
+        return Promise.resolve({ outfits: [], packedItems: [] });
+      },
+    }),
+  );
+  assertEquals(providerCalls, 0, 'the model must never be called once quota is exhausted');
+  assertEquals(result.body.status, 'error');
+  assertEquals(result.body.errorCode, 'PACKING_LIMIT_REACHED');
+  assertEquals(result.httpStatus, 200);
+  assertEquals(result.body.plan, null);
+  assertEquals(result.providerInvoked, false);
+  assertEquals(result.telemetry.failureClass, 'quota_limit_reached');
+});
+
+Deno.test('quota: a quota RPC error prevents provider invocation (required test 6)', async () => {
+  let providerCalls = 0;
+  const result = await handlePackingRequest(
+    handlerDeps({
+      reserveDailyGeneration: () => Promise.resolve({ status: 'check_failed' }),
+      callProvider: () => {
+        providerCalls += 1;
+        return Promise.resolve({ outfits: [], packedItems: [] });
+      },
+    }),
+  );
+  assertEquals(providerCalls, 0, 'a usage-check failure must fail closed, not open');
+  assertEquals(result.body.status, 'error');
+  assertEquals(result.body.errorCode, 'PACKING_USAGE_CHECK_FAILED');
+  assertEquals(result.httpStatus, 500);
+  assertEquals(result.body.plan, null);
+  assertEquals(result.providerInvoked, false);
+  assertEquals(result.telemetry.failureClass, 'quota_check_failed');
+});
+
+Deno.test('quota: reservation happens strictly after readiness, before the provider', async () => {
+  // Order-of-operations proof by side-effect log rather than source position:
+  // readiness must be decided (via the Closet read) before reservation runs,
+  // and reservation must run before the provider is ever touched.
+  const order: string[] = [];
+  const result = await handlePackingRequest(
+    handlerDeps({
+      closet: {
+        listClosetItems: () => {
+          order.push('closet');
+          return Promise.resolve(mixedClosetRows());
+        },
+      },
+      reserveDailyGeneration: () => {
+        order.push('quota');
+        return Promise.resolve({ status: 'reserved' as const });
+      },
+      callProvider: (_system, user) => {
+        order.push('provider');
+        const ids = [...user.matchAll(/id=([0-9a-f-]{36})/g)].map((match) => match[1]);
+        return Promise.resolve({
+          outfits: [{ label: 'Day', itemIds: ids.slice(0, 2) }],
+          packedItems: ids.slice(0, 2).map((id) => ({ itemId: id })),
+        });
+      },
+    }),
+  );
+  assertEquals(result.body.status, 'success');
+  assertEquals(order, ['closet', 'quota', 'provider']);
+});
+
+Deno.test('entitlement: a lapsed/revoked K+ can never degrade into general mode (required test 7)', async () => {
+  // PACK-06's exact race: a caller whose entitlement is no longer active must
+  // receive 403, never a Closet-derived response of any kind -- even when the
+  // Closet mock would obviously produce a rich personal plan if it were ever
+  // consulted. If this ever returns general_mode instead of not_entitled, an
+  // entitlement lapse is being silently reinterpreted as "your Closet is thin".
+  let closetRead = false;
+  let signatureStyleCalls = 0;
+  const reservation = countingReservation();
+  const result = await handlePackingRequest(
+    handlerDeps({
+      hasActiveKPlus: () => Promise.resolve(false),
+      closet: {
+        listClosetItems: () => {
+          closetRead = true;
+          return Promise.resolve(mixedClosetRows()); // rich enough to pass readiness
+        },
+      },
+      resolveSignatureStyleBlock: () => {
+        signatureStyleCalls += 1;
+        return Promise.resolve(null);
+      },
+      reserveDailyGeneration: reservation.reserveDailyGeneration,
+    }),
+  );
+  assertEquals(result.body.status, 'not_entitled');
+  assertEquals(result.httpStatus, 403);
+  assertEquals(result.body.errorCode, 'PACKING_REQUIRES_KPLUS');
+  assert(result.body.status !== 'general_mode', 'GENERAL MODE FALSELY RETURNED');
+  assertEquals(closetRead, false, 'the Closet must never be consulted for an unentitled caller');
+  assertEquals(signatureStyleCalls, 0);
+  assertEquals(reservation.calls(), 0);
+});
+
+Deno.test('copy: Packing error messages make no durable-persistence claim (required test 11)', async () => {
+  // PACK-07. V1 is in-memory only (section 12 above, and packingPlanStore.ts's
+  // own header). "Saved" implies durable storage V1 does not have; "still
+  // here" is the honest claim about the CURRENT in-memory session snapshot.
+  const handlerSource = await Deno.readTextFile(new URL('./packingHandler.ts', import.meta.url));
+  const clientSource = await Deno.readTextFile(
+    new URL('../../../services/packing/packingClient.ts', import.meta.url),
+  );
+  for (const [name, source] of [['packingHandler.ts', handlerSource], ['packingClient.ts', clientSource]] as const) {
+    assert(!/\bsaved\b/i.test(source), `${name} must not claim durable persistence ("saved")`);
+    assert(!/\bpersisted\b/i.test(source), `${name} must not claim durable persistence ("persisted")`);
+  }
+  assertStringIncludes(handlerSource, 'still here');
+  assertStringIncludes(clientSource, 'still here');
 });
