@@ -1851,7 +1851,7 @@ Deno.serve(async (req) => {
     }
     if (hasActiveKPlusForWardrobeContext) {
       try {
-        const profileResult = await getOrRecomputeStyleDnaProfile({ supabase: userClient, userId });
+        const profileResult = await getOrRecomputeStyleDnaProfile({ supabase: userClient });
         if (profileResult.ok && profileResult.profile) {
           serverStyleDnaProfile = profileResult.profile;
           serverStyleDnaAvailable = true;

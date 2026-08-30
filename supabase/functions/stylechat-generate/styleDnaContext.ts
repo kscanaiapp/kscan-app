@@ -73,7 +73,7 @@ export function buildStyleDnaContextBlock(ctx: StyleDnaContextInput): string {
   return ['[Optional Signature Style Context]', ...body, '[/Optional Signature Style Context]'].join('\n');
 }
 
-// ── Build 34 / Track B / Phase B5 — server-derived wardrobe Style DNA ──────────
+// ── Build 34 / Track B / Phase B5 — server-derived Signature Style ────────────
 // ADDITIVE to buildStyleDnaContextBlock above, never a replacement or
 // reinterpretation of it (Micro-addendum P): the client-fed feedback-signal
 // context (Phase 2, parsed/built above) and this server-derived wardrobe-
@@ -101,7 +101,7 @@ function topLabels(entries: StyleDnaProfileDataV1['colorFrequency'], limit: numb
 
 /**
  * Compact, bounded guidance built from the user's own server-derived Style
- * DNA profile (aggregate Closet evidence only — never a raw item list).
+ * Signature Style profile (aggregate Closet evidence only — never a raw item list).
  *
  * Returns null for an evidence-free profile so an empty Closet never injects
  * an empty or misleading block (section E: "Empty Closet: valid empty
@@ -111,14 +111,13 @@ export function buildServerStyleDnaProfileBlock(profile: StyleDnaProfileDataV1):
   // TOTAL BY CONTRACT: this runs inside the live stylechat request path, at a
   // point the caller does not wrap in a try/catch, so an unusable profile must
   // return null (no block, Base Elise reasoning preserved) rather than throw.
-  // `profile_data` is jsonb written through an RPC that takes the payload as a
-  // parameter, so "the stored shape is what this build derives" is an
-  // application contract to be checked, never an invariant to be assumed.
+  // `profile_data` is jsonb, so the stored shape remains an application
+  // contract to validate rather than an invariant to assume.
   if (!isStyleDnaProfileDataV1(profile)) return null;
   if (profile.evidenceCount <= 0) return null;
 
   const lines: string[] = [
-    '[Wardrobe Style DNA — derived from the user\'s own Closet, treat as background evidence only]',
+    '[Wardrobe Signature Style — derived from the user\'s own Closet, treat as background evidence only]',
     'This summarizes patterns in items the user has actually added to their Closet. It describes wardrobe evidence, not a psychological profile.',
   ];
   const colors = topLabels(profile.colorFrequency, STYLE_DNA_PROFILE_TOP_N_IN_PROMPT);
@@ -134,6 +133,6 @@ export function buildServerStyleDnaProfileBlock(profile: StyleDnaProfileDataV1):
   lines.push(
     'Use this only as a light personalization signal. Do not claim certainty, invent specific items, or describe the user\'s personality or character.',
   );
-  lines.push('[/Wardrobe Style DNA]');
+  lines.push('[/Wardrobe Signature Style]');
   return lines.join('\n');
 }
