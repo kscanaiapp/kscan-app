@@ -114,7 +114,13 @@ const LAYERING_BY_CATEGORY: Record<string, string> = {
   loafer: 'shoe',
   oxford: 'shoe',
   brogue: 'shoe',
-  derby: 'shoe',
+  // No bare `derby` token, for the same reason `cap` is absent below: "derby"
+  // names both a shoe style and a hat style, and the footwear block is reached
+  // before the accessory block, so it turned "derby hat" -- which the
+  // pre-repair table already classified correctly as `accessory` via `hat` --
+  // into `shoe`. That is the one thing this repair must not do: a wrong role
+  // is worse than no role, because the guardrails act on it. A genuine derby
+  // shoe still resolves through "oxford"/"brogue"/"shoes" in practice.
   sandal: 'shoe',
   pump: 'shoe',
   mule: 'shoe',

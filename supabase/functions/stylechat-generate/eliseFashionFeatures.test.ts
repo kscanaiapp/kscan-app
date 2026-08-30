@@ -68,3 +68,39 @@ Deno.test('DEF-CON-002: category/subcategory fallback contract is unchanged', ()
   assert.equal(inferLayeringRole(null, 'loafers'), 'shoe');
   assert.equal(inferLayeringRole('unknown-thing', 'jeans'), 'bottom');
 });
+
+// Cross-category collision guard. The table is matched by substring in
+// insertion order, so a newly-added token can out-rank the true head noun of a
+// two-word category and produce a CONFIDENTLY WRONG role. That is strictly
+// worse than null: a null role disables the section 29 guardrails, but a wrong
+// one arms them with a false fact. `derby hat` is the case that actually
+// regressed while this repair was being written -- the pre-repair table got it
+// right via `hat`, and a bare `derby: 'shoe'` token broke it.
+Deno.test('DEF-CON-002: an added footwear token never out-ranks the true head noun', () => {
+  assert.equal(inferLayeringRole('derby hat', null), 'accessory');
+  assert.equal(inferLayeringRole('bowler hat', null), 'accessory');
+  assert.equal(inferLayeringRole('oxford shirt', null), 'base');
+  assert.equal(inferLayeringRole('polo coat', null), 'outer');
+  assert.equal(inferLayeringRole('tank top', null), 'base');
+  assert.equal(inferLayeringRole('bootcut jeans', null), 'bottom');
+  assert.equal(inferLayeringRole('capris', null), null);
+});
+
+// The repair must not silently reclassify garments the old table already
+// answered. `sweatshirt` is the one deliberate exception: it previously
+// resolved to 'base' only by an accidental substring hit on `shirt`, and a
+// sweatshirt is a mid layer.
+Deno.test('DEF-CON-002: pre-existing classifications are unchanged, except sweatshirt', () => {
+  assert.equal(inferLayeringRole('sweatshirt', null), 'mid');
+  for (const [token, role] of [
+    ['coat', 'outer'], ['jacket', 'outer'], ['blazer', 'outer'],
+    ['sweater', 'mid'], ['hoodie', 'mid'], ['cardigan', 'mid'],
+    ['shirt', 'base'], ['blouse', 'base'], ['top', 'base'], ['tee', 'base'], ['tshirt', 'base'],
+    ['dress', 'one_piece'], ['jumpsuit', 'one_piece'],
+    ['pants', 'bottom'], ['trousers', 'bottom'], ['jeans', 'bottom'], ['skirt', 'bottom'], ['shorts', 'bottom'],
+    ['shoes', 'shoe'], ['sneakers', 'shoe'], ['boots', 'shoe'], ['heels', 'shoe'],
+    ['bag', 'accessory'], ['belt', 'accessory'], ['hat', 'accessory'], ['scarf', 'accessory'],
+  ] as Array<[string, string]>) {
+    assert.equal(inferLayeringRole(token, null), role, `${token} must still resolve to ${role}`);
+  }
+});
