@@ -14,7 +14,7 @@ real provider during this phase.** Read §3 first.
 | Provider | Why considered | Verified capability | Access state | Verdict |
 |---|---|---|---|---|
 | **AILabTools "Try On Clothes Pro"** (via RapidAPI, host `try-on-clothes-pro.p.rapidapi.com`) | Already integrated speculatively (Foundation 01's rejected `tryon-clothes-pro`), and the account behind `RAPIDAPI_KEY` already has working, billed access to sibling APIs (`nike-shoe-details`, `kickscrew-sneaker-description`) | Person + top_garment (required) + bottom_garment (optional) → async task; official docs fully fetched | **Key valid, account not subscribed to this listing** — empirically confirmed (§3) | Selected candidate; blocked on one owner action |
-| FASHN v1.6 | Frequently cited as a strong dedicated VTO API; explicit auto-detection of tops/bottoms/one-pieces (covers the `full_body`/dress gap AILabTools has) | $0.075/generation, 10–55s async, 864×1296 output, credit packs from $7.50 | No account, no key | Not tested — would require new account creation (prohibited without explicit permission) |
+| FASHN v1.6 | Frequently cited as a strong dedicated VTO API; explicit auto-detection of tops/bottoms/one-pieces, and also supports bottom-only garments (AILabTools cannot — §8) | $0.075/generation, 10–55s async, 864×1296 output, credit packs from $7.50 | No account, no key | Not tested — would require new account creation (prohibited without explicit permission) |
 | fal.ai (CatVTON / image-apps-v2 / Kling Kolors v1.5 / FLUX Try-On Pro, all hosted on one platform) | One platform, several VTO models, per-generation or per-compute pricing already public | CatVTON explicitly **research-only, no commercial clearance**; Kolors v1.5 $0.07/gen with commercial license; image-apps-v2 $0.04/image | No account, no key | Not tested — same reason. CatVTON specifically ruled out for commercial use regardless of access |
 | Replicate `cuuupid/idm-vton` | Cited as "very cheap" (~$0.025/run, 40 runs/$1), ~19s on A100 | Community-reported pricing, not vendor-published | No account, no key | Not tested |
 | Google Virtual Try-On (Vertex) | Recently added per fal.ai's own comparison article | Pricing not published in sources checked | No account, no key | Not tested |
@@ -154,21 +154,33 @@ provider or any other, because no real generation occurred.
 All categories: **NOT YET** — no evidence exists for any category with any
 provider.
 
-One category-shaped finding **is** available from the documented contract
-alone, independent of live testing, and is worth recording now:
+Two category-shaped findings **are** available from the documented contract
+alone, independent of live testing:
 
-- **`dress` / `full_body`:** AILabTools' `top_garment` parameter is
-  **required** and there is no `full_body`/dress parameter at all. Today's
-  default `supportedCategories` (`top`, `outerwear`, `blazer`, `dress`)
-  includes `dress`, which this specific vendor's contract cannot serve
-  correctly. `aiLabToolsProvider.ts` refuses `full_body` (and `bottom`, which
-  has the same required-`top_garment` problem) with `unsupported_category`
-  rather than sending a malformed request — see `unsupportedSlotReason()` and
-  its test coverage. **If this vendor becomes the shipping provider, `dress`
-  must be removed from `supportedCategories` in `app_config.vto_generation`
-  until a vendor with an explicit one-piece/full-body path is used** (FASHN's
-  documented auto-detection of "one-pieces" is the strongest public candidate
-  for that gap).
+- **`dress` / `full_body`: SUPPORTED — correction from the first write-up of
+  this document.** The initial pass here claimed AILabTools had no
+  full_body/dress path and would need `dress` pulled from
+  `supportedCategories`. That was wrong: the documented contract explicitly
+  covers it — *"If lower body clothing is not needed (e.g., when the upper
+  body garment is a dress), this value should be left empty"* (confirmed
+  verbatim, identically, across two independent AILabTools doc pages,
+  2026-08-30). A one-piece garment is submitted through `top_garment`, the
+  same field a top uses, with `bottom_garment` simply omitted.
+  `aiLabToolsProvider.ts` and its tests were corrected to match — `full_body`
+  is now treated identically to `top`. Today's default `supportedCategories`
+  (`top`, `outerwear`, `blazer`, `dress`) needed no change; it was already
+  right.
+- **`bottom`: genuinely unsupported.** `top_garment` is REQUIRED, and there is
+  no documented way to submit a bottom-only garment (pants/skirt) without
+  also supplying an unrelated top image the caller never chose.
+  `unsupportedSlotReason()` refuses it with `unsupported_category` before any
+  network call. This does not affect today's default `supportedCategories`,
+  which does not include pants/skirt.
+
+**No real generation has confirmed this mapping works in practice** — the
+correction above is a documentation-contract fix, not benchmark evidence.
+Category verdicts remain **NOT YET** for every category until real output
+exists to review.
 
 ## 9. Input contract
 
@@ -316,8 +328,10 @@ closes only with a real generation.
 
 - `supabase/functions/vto-generate/providers/aiLabToolsProvider.ts` (new) —
   the real adapter: multipart submit, async poll loop, failure mapping,
-  result re-encoding as a data URI. Serves `top` only; refuses `bottom` and
-  `full_body` up front (§8).
+  result re-encoding as a data URI. Originally shipped serving `top` only
+  and refusing `full_body`; **corrected later the same phase** (§8) to serve
+  `top` and `full_body` identically (both submit via `top_garment`), leaving
+  only `bottom` refused.
 - `supabase/functions/vto-generate/providers/aiLabToolsProvider.test.ts`
   (new) — 25 tests, documented above.
 - `supabase/functions/vto-generate/providers/index.ts` (modified) — registers
@@ -341,9 +355,10 @@ Foundation 01 file was modified.
 **BLOCKER**
 - Subscribe the RapidAPI account behind `RAPIDAPI_KEY` to the "Try On Clothes
   Pro" listing (owner action, RapidAPI dashboard) — OR select and credential
-  a different provider from §1 (FASHN is the strongest documented alternative
-  and additionally solves the `dress`/`full_body` gap this vendor cannot).
-  Either unblocks everything below.
+  a different provider from §1. Either unblocks everything below. (FASHN
+  remains a reasonable alternative for its bottom-only support, which
+  AILabTools genuinely lacks — see §8 — but no longer for `dress`, which
+  AILabTools does support.)
 - Remove/replace the `vto-provider-diag` stub in staging project
   `yzqjvdfgefveprobvvyw` (no delete tool available to this session).
 
@@ -354,8 +369,10 @@ Foundation 01 file was modified.
   (internal team photos with consent, a licensed test-image set, or synthetic
   face-safe alternatives).
 - Real latency/cost/failure-mode measurement.
-- If AILabTools is confirmed viable for `top`: pull `dress` out of
-  `supportedCategories` until a full-body-capable vendor is chosen for it.
+- Confirm the `top_garment`-with-`bottom_garment`-omitted one-piece mapping
+  actually produces a usable dress try-on once real generations are
+  possible — the contract note is verified, but no real output has ever
+  exercised it (§8).
 
 **LATER**
 - Face-masking research (unstarted; no simple existing primitive evaluated

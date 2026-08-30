@@ -20,13 +20,20 @@
  *   GET  /common/query-async-task-result?task_id=...
  *   -> { error_code, task_status: 0|1|2, output: { image_url }, usage }
  *
- * IMPORTANT CONTRACT GAP: `top_garment` is REQUIRED and there is no
- * `full_body`/dress parameter. This adapter can cleanly serve the `top`
- * slot only. `bottom` and `full_body` are mapped to `unsupported_category`
- * rather than sent malformed — see `unsupportedSlotReason`. Today's default
- * `supportedCategories` (top/outerwear/blazer/dress) already includes
- * `dress`, which this vendor cannot serve correctly; that mismatch is
- * flagged in the benchmark doc, not silently papered over here.
+ * ONE-PIECE / DRESS MAPPING (corrected 2026-08-30 after re-reading the
+ * documented contract, confirmed verbatim and identically across two
+ * independent doc pages): "If lower body clothing is not needed (e.g., when
+ * the upper body garment is a dress), this value should be left empty."
+ * `top_garment` is the documented, supported slot for a one-piece garment --
+ * `bottom_garment` is simply omitted. So `full_body` IS servable: it is
+ * submitted exactly like `top` (garment -> `top_garment`, no
+ * `bottom_garment`). Only `bottom` remains unservable, because
+ * `top_garment` is REQUIRED and there is no way to submit a bottom alone --
+ * see `unsupportedSlotReason`.
+ *
+ * A prior version of this adapter (and of docs/vto-provider-benchmark.md)
+ * incorrectly refused `full_body` outright, on an initial reading of the
+ * docs that missed this note. That was wrong; both were corrected together.
  */
 
 import type {
@@ -111,12 +118,19 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-/** Maps a slot this adapter cannot serve into a K Scan failure reason. */
+/**
+ * Maps a slot this adapter cannot serve into a K Scan failure reason.
+ *
+ * `top` and `full_body` are both submitted through `top_garment` -- the
+ * documented mechanism for a one-piece garment is exactly "use top_garment,
+ * leave bottom_garment empty" (see the module doc comment). Only `bottom` is
+ * genuinely unservable: `top_garment` is REQUIRED, so there is no way to
+ * submit a bottom-only garment without also supplying an unrelated top image
+ * the caller never chose.
+ */
 export function unsupportedSlotReason(slot: VtoProviderInput['slot']): string | null {
-  if (slot === 'top') return null;
-  return slot === 'bottom'
-    ? 'this provider requires a top_garment image and has no bottom-only path'
-    : 'this provider has no full_body/dress parameter';
+  if (slot === 'top' || slot === 'full_body') return null;
+  return 'this provider requires a top_garment image and has no bottom-only path';
 }
 
 

@@ -115,11 +115,19 @@ function callsTo(calls: Array<{ url: string; init: RequestInit }>, matcher: stri
 }
 
 // ── Slot support ──────────────────────────────────────────────────────────────
+//
+// Corrected 2026-08-30: the documented contract explicitly covers one-piece
+// garments -- "If lower body clothing is not needed (e.g., when the upper
+// body garment is a dress), this value should be left empty." -- confirmed
+// verbatim across two independent doc pages. `full_body` is therefore
+// servable via `top_garment` alone, identically to `top`. Only `bottom`
+// remains unservable: `top_garment` is REQUIRED, so a bottom-only garment
+// cannot be submitted without an unrelated top image the caller never chose.
 
-Deno.test('only the top slot is served; bottom and full_body are refused up front', () => {
+Deno.test('top and full_body are served; only bottom is refused up front', () => {
   assertEquals(unsupportedSlotReason('top'), null);
+  assertEquals(unsupportedSlotReason('full_body'), null);
   assert(unsupportedSlotReason('bottom'));
-  assert(unsupportedSlotReason('full_body'));
 });
 
 Deno.test('a bottom-slot request never reaches the network', async () => {
@@ -129,6 +137,20 @@ Deno.test('a bottom-slot request never reaches the network', async () => {
   assertEquals(outcome.ok, false);
   if (!outcome.ok) assertEquals(outcome.failure, 'unsupported_category');
   assertEquals(calls.length, 0);
+});
+
+Deno.test('a full_body (dress) request submits through top_garment with no bottom_garment field', async () => {
+  const { fn, calls } = scriptedFetch();
+  const provider = createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn, pollIntervalMs: 0 });
+  const outcome = await provider.generate(
+    { ...TOP_INPUT, slot: 'full_body', canonicalCategory: 'dress' },
+    { signal: signal() },
+  );
+  assertEquals(outcome.ok, true);
+  const submitCall = callsTo(calls, '/portrait/editing/try-on-clothes-pro')[0];
+  const form = submitCall.init.body as FormData;
+  assert(form.get('top_garment') instanceof Blob, 'the dress image goes in top_garment');
+  assertEquals(form.get('bottom_garment'), null, 'bottom_garment must be left empty, not sent as null/empty string');
 });
 
 // ── Request construction ─────────────────────────────────────────────────────
