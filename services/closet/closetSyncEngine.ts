@@ -281,7 +281,28 @@ async function syncOneItem(input: {
       await recordFailure(userId, clientId, tombstone.failureClass);
       return 'failed';
     }
-    await releaseClosetItemMedia(userId, entry.serverId);
+    const mediaRelease = await releaseClosetItemMedia(userId, entry.serverId);
+    if (!mediaRelease.ok) {
+      // The cloud row IS tombstoned — that is never rolled back; tombstoning
+      // is idempotent, so a later retry re-running it is harmless. Only the
+      // Storage cleanup failed, and Storage failures arrive through `error`,
+      // not exceptions, so a bare await here would have silently looked like
+      // success. Preserve pending_delete so a later pass retries the release
+      // instead of the sidecar entry — and the discoverability it provides —
+      // disappearing while the objects are still live.
+      await updateClosetSyncEntry(userId, clientId, (current) => {
+        const base = current ?? entry;
+        return {
+          ...base,
+          state: 'pending_delete',
+          attemptCount: base.attemptCount + 1,
+          lastAttemptAt: new Date().toISOString(),
+          lastFailureClass: 'retryable',
+        };
+      });
+      emitClosetCandidateEvent('closet_sync_retry', { outcome: 'retryable' });
+      return 'failed';
+    }
     // Evidence has served its purpose; the entry is removed so it stops being
     // discovered as work.
     await updateClosetSyncEntry(userId, clientId, () => null);

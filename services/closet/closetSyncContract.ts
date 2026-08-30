@@ -45,7 +45,23 @@ export type ClosetSyncFailureClass =
   /** Deterministic refusal (privacy block, contract violation). Never auto-retries. */
   | 'permanent'
   /** Server row moved on under us. Local wins; wait for B2C. */
-  | 'conflict';
+  | 'conflict'
+  /**
+   * An RLS/auth refusal (401/403/42501) that arrived during a pass this
+   * engine only ever runs AFTER its own check said K+ was active
+   * (executePass's entitlement gate). Most of the time this genuinely is
+   * just an ordinary K+ lapse/expiry race — the entitlement changed in the
+   * gap between that check and this write — and it resolves itself exactly
+   * like 'retryable' does on the next pass. It is classified separately
+   * PURELY FOR OBSERVABILITY: an unexpected authorization refusal (a stale
+   * client snapshot, an expired session token, a genuine RLS
+   * misconfiguration) must be distinguishable in lastFailureClass and
+   * telemetry from an ordinary network blip, not retry forever silently
+   * indistinguishable from one. It is retried with the identical backoff as
+   * 'retryable' and must NEVER be treated as 'permanent' — that would
+   * strand a legitimate K+ reactivation.
+   */
+  | 'unexpected_authorization';
 
 /**
  * One item's durable sync record. Account-bound by its position in the
@@ -187,10 +203,14 @@ export function classifySyncFailure(error: { code?: string; message?: string; st
   const status = Number(error.status ?? NaN);
   const message = String(error.message ?? '').toLowerCase();
 
-  // RLS refusal. On this table that means "not owned, or K+ is not active" —
-  // both resolve on their own (re-subscribe, re-auth), so this waits rather
-  // than permanently failing.
-  if (code === '42501' || status === 401 || status === 403) return 'retryable';
+  // RLS/auth refusal. On this table that means "not owned, or K+ is not
+  // active" — most commonly an ordinary lapse/expiry race that resolves on
+  // its own on the next pass, so this retries with backoff exactly like
+  // 'retryable' rather than permanently failing. It is its own class,
+  // 'unexpected_authorization', purely so this specific shape of failure is
+  // observable and distinguishable from a plain network blip — see the type
+  // definition for the full reasoning.
+  if (code === '42501' || status === 401 || status === 403) return 'unexpected_authorization';
   // Contract violation: a CHECK/length/enum the client would produce again.
   if (code.startsWith('23') && code !== '23505') return 'permanent';
   if (status === 400 || status === 422) return 'permanent';
