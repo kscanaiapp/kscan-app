@@ -218,6 +218,13 @@ function loadEnv({ actorId = 'user-a' } = {}) {
     afterClosetItemDeleted: async () => { syncCalls.push(['after_delete']); },
     resumeClosetSync: async (reason) => { syncCalls.push(['resume', reason]); },
   };
+  // Build 34 / Track B / Phase B2C — same no-op reasoning as closetSyncCoordinator
+  // above: this file proves LOCAL Closet state survives a failure regardless of
+  // cloud restore, so the restore trigger must be a fully inert, observable-only
+  // stub here too.
+  const closetRestoreEngine = {
+    resumeClosetRestore: async (reason) => { syncCalls.push(['resume_restore', reason]); },
+  };
 
   const hookModule = runModule('hooks/useCloset.js', (spec) => {
     if (spec === 'react') return driver.react;
@@ -227,6 +234,7 @@ function loadEnv({ actorId = 'user-a' } = {}) {
     if (spec === '../services/closetItemProjection') return projection;
     if (spec === '../services/actorContext') return actorContext;
     if (spec === '../services/closet/closetSyncCoordinator') return closetSyncCoordinator;
+    if (spec === '../services/closet/closetRestoreEngine') return closetRestoreEngine;
     if (spec === '../contexts/AuthSessionContext') return { useAuthSession: () => session };
     return {};
   });
