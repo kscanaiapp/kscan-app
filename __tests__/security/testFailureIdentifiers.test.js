@@ -2,6 +2,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { spawnSync } = require('node:child_process');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { parseFailureIdentifiers } = require('../../security/scripts/lib/test-failure-identifiers');
 
 // Fixtures below are trimmed, byte-faithful excerpts of REAL `node --test`
@@ -219,6 +223,91 @@ test at b.test.js:3:1
   const result = parseFailureIdentifiers(collision);
   assert.deepEqual(result, ['a.test.js :: shared broken name', 'b.test.js :: shared broken name']);
   assert.equal(result.length, 2, 'two distinct source files must never merge into one identifier');
+});
+
+// A second independent-audit round caught this before it shipped: the first
+// fix used Node's RAW ABSOLUTE `location:` path, but run-project-checks-
+// regression.js runs base from a throwaway os.tmpdir() worktree and head
+// from the real checkout - two different absolute directories by design on
+// every single run. An unmodified, unrelated pre-existing failure was
+// therefore misidentified as a *different* file at base vs. head, forcing
+// BLOCK_NEW_REGRESSION on essentially every real PR with any pre-existing
+// red test - worse than the collision it replaced.
+test('the SAME unmodified failure parsed from two different absolute cwds produces the SAME identifier (fixture)', () => {
+  const fixtureAt = (absoluteFile) => `TAP version 13
+# Subtest: shared broken name
+not ok 1 - shared broken name
+  ---
+  duration_ms: 0.5
+  type: 'test'
+  location: '${absoluteFile}:3:1'
+  failureType: 'testCodeFailure'
+  ...
+1..1`;
+
+  const baseCwd = path.join('tmp', 'project-checks-base-1788120215637');
+  const headCwd = path.join('src', 'KScan-staging-gate-rationalization-v2-20260830');
+  const baseAbsoluteFile = path.join(baseCwd, '__tests__', 'privacyPolicy.test.js');
+  const headAbsoluteFile = path.join(headCwd, '__tests__', 'privacyPolicy.test.js');
+
+  const baseIds = parseFailureIdentifiers(fixtureAt(baseAbsoluteFile), { cwd: baseCwd });
+  const headIds = parseFailureIdentifiers(fixtureAt(headAbsoluteFile), { cwd: headCwd });
+
+  assert.deepEqual(baseIds, headIds, 'the same logical file/test must produce the same identifier regardless of which absolute directory it ran from');
+});
+
+// The same proof end-to-end against a REAL node --test subprocess (not a
+// hand-typed fixture) - this is exactly the class of gap a hand-typed
+// fixture missed the first time, since the original fix's own tests never
+// exercised two different real working directories.
+test('the SAME unmodified failure run from two REAL different directories produces the SAME identifier (real node --test)', () => {
+  const dirA = fs.mkdtempSync(path.join(os.tmpdir(), 'cwd-relative-a-'));
+  const dirB = fs.mkdtempSync(path.join(os.tmpdir(), 'cwd-relative-b-'));
+  try {
+    const testSource = "const test = require('node:test');\nconst assert = require('node:assert/strict');\ntest('shared broken name', () => { assert.equal(1, 2); });\n";
+    fs.writeFileSync(path.join(dirA, 'same.test.js'), testSource);
+    fs.writeFileSync(path.join(dirB, 'same.test.js'), testSource);
+
+    // This test file is itself run under `node --test`, which sets
+    // NODE_TEST_CONTEXT=child-v8 in its own environment; inherited
+    // unchanged, node --test refuses to actually run a nested invocation
+    // ("run() is being called recursively within a test file. skipping
+    // running files.") and silently returns zero failures. That's a test-
+    // harness artifact of testing a script that itself shells out to
+    // `node --test`, not something the real orchestrator hits in
+    // production (it's always invoked directly, never nested under
+    // `--test`) - stripped here so this test can genuinely exercise a real
+    // subprocess rather than vacuously pass on an empty result.
+    const childEnv = { ...process.env };
+    delete childEnv.NODE_TEST_CONTEXT;
+
+    const args = ['--test', '--test-reporter=tap', '--test-reporter-destination=stdout', 'same.test.js'];
+    const runA = spawnSync(process.execPath, args, { encoding: 'utf8', cwd: dirA, env: childEnv });
+    const runB = spawnSync(process.execPath, args, { encoding: 'utf8', cwd: dirB, env: childEnv });
+
+    const idsA = parseFailureIdentifiers(runA.stdout, { cwd: dirA });
+    const idsB = parseFailureIdentifiers(runB.stdout, { cwd: dirB });
+
+    assert.deepEqual(idsA, idsB, 'an unmodified failing test must not appear as "different" purely because base/head ran from different absolute directories');
+    assert.deepEqual(idsA, ['same.test.js :: shared broken name']);
+  } finally {
+    fs.rmSync(dirA, { recursive: true, force: true });
+    fs.rmSync(dirB, { recursive: true, force: true });
+  }
+});
+
+test('omitting cwd falls back to the raw (absolute) path, for a caller that never compares across two working directories', () => {
+  const fixture = `TAP version 13
+# Subtest: x
+not ok 1 - x
+  ---
+  duration_ms: 0.5
+  type: 'test'
+  location: '/abs/path/x.test.js:3:1'
+  failureType: 'testCodeFailure'
+  ...
+1..1`;
+  assert.deepEqual(parseFailureIdentifiers(fixture), ['/abs/path/x.test.js :: x']);
 });
 
 test('TAP and spec reporters agree on the same suite', () => {

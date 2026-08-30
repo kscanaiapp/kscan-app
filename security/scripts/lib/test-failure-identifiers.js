@@ -45,7 +45,26 @@
  * so the leaf's own source file is read from there and prefixed onto its
  * identifier — this is why the leaf/aggregate lookahead below now captures
  * `location` alongside `failureType` instead of just the latter.
+ *
+ * CWD-RELATIVE, NOT ABSOLUTE (a second independent-audit round caught this
+ * before it shipped): Node resolves `location:` to an ABSOLUTE path from
+ * the process's cwd. run-project-checks-regression.js runs the base suite
+ * from a throwaway `os.tmpdir()` worktree and the head suite from the real
+ * checkout — two different absolute directories BY DESIGN, every single
+ * run. Prefixing with the raw absolute path therefore made every
+ * *unmodified* pre-existing failure look like a different file at base vs.
+ * head — worse than the original bug, since it fires on essentially every
+ * real PR with any unrelated pre-existing red test, not just an exact
+ * cross-file name collision. `parseFailureIdentifiers`/`parseTapFormat`/
+ * `parseSpecFormat` therefore take an optional `cwd` and relativize the
+ * extracted path against it (`path.relative`) before using it — the caller
+ * MUST pass its own run's cwd for the identifier to be stable across two
+ * differently-rooted runs of the same logical file. Omitting `cwd` falls
+ * back to the raw (absolute) path, which is only safe for a caller that
+ * never compares identifiers across two different working directories.
  */
+
+const path = require('node:path');
 
 const SPEC_OPEN_LINE = /^(\s*)▶ (.+)$/;
 const SPEC_RESULT_LINE = /^(\s*)[✖✔] (.+?) \(\d+(?:\.\d+)?ms\)\s*$/;
@@ -76,15 +95,21 @@ function qualify(stack, depth, ownName) {
 // (e.g. a Windows drive letter, `C:\...`).
 const LOCATION_LINE_COL = /^(.+):\d+:\d+$/;
 
-function fileFromLocation(location) {
+function fileFromLocation(location, cwd) {
   if (!location) return null;
   const match = location.match(LOCATION_LINE_COL);
-  return match ? match[1] : location;
+  const filePath = match ? match[1] : location;
+  if (!cwd) return filePath;
+  // Normalize to forward slashes so an identifier computed on Windows (this
+  // repo's primary dev environment) and one computed on Linux CI describe
+  // the same logical file identically, and so the separator itself can
+  // never be the reason two runs' identifiers fail to match.
+  return path.relative(cwd, filePath).split(path.sep).join('/');
 }
 
 const SPEC_RECAP_HEADING = /^\s*✖ failing tests:\s*$/;
 
-function parseSpecFormat(lines) {
+function parseSpecFormat(lines, cwd) {
   const identifiers = new Set();
   const stack = [];
   // The recap section below prints "test at <file>:<line>:<col>" once per
@@ -124,7 +149,7 @@ function parseSpecFormat(lines) {
     }
 
     if (SPEC_FAIL_MARK.test(line)) {
-      const file = fileFromLocation(recapLocations[recapIndex]);
+      const file = fileFromLocation(recapLocations[recapIndex], cwd);
       recapIndex += 1;
       const qualifiedName = qualify(stack, depth, name);
       identifiers.add(file ? `${file} :: ${qualifiedName}` : qualifiedName);
@@ -147,7 +172,7 @@ function extractSpecRecapLocations(lines) {
   return locations;
 }
 
-function parseTapFormat(lines) {
+function parseTapFormat(lines, cwd) {
   const identifiers = new Set();
   const stack = [];
 
@@ -190,7 +215,7 @@ function parseTapFormat(lines) {
     // back to the unqualified name rather than dropping the failure keeps
     // the existing fail-open-on-the-side-of-recording-it behavior for that
     // edge case.
-    const file = fileFromLocation(location);
+    const file = fileFromLocation(location, cwd);
     const qualifiedName = qualify(stack, depth, ownName);
     identifiers.add(file ? `${file} :: ${qualifiedName}` : qualifiedName);
   }
@@ -201,14 +226,20 @@ function parseTapFormat(lines) {
 /**
  * @param {string} rawOutput combined stdout of a `node --test` invocation,
  *   in either the spec or tap reporter format
+ * @param {object} [options]
+ * @param {string} [options.cwd] the absolute directory `node --test` was
+ *   run from. REQUIRED for a stable identifier when comparing failures
+ *   across two runs from different working directories (e.g. a base-SHA
+ *   worktree vs. the head checkout) — see the CWD-RELATIVE header note.
+ *   Omitted, the extracted file path is left absolute.
  * @returns {string[]} stable, deduplicated failing-test identifiers
  */
-function parseFailureIdentifiers(rawOutput) {
+function parseFailureIdentifiers(rawOutput, { cwd } = {}) {
   if (!rawOutput) return [];
   const lines = rawOutput.split(/\r?\n/);
 
   const isTap = lines.some((l) => l.startsWith('TAP version'));
-  const identifiers = isTap ? parseTapFormat(lines) : parseSpecFormat(lines);
+  const identifiers = isTap ? parseTapFormat(lines, cwd) : parseSpecFormat(lines, cwd);
 
   // A spec-format file with zero ▶/✖ lines at all (e.g. genuinely all
   // passing, or an unrecognized format) never falls back to TAP parsing —

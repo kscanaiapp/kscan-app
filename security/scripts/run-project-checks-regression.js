@@ -79,7 +79,13 @@ function runOneScript(scriptName, cwd) {
   const hasTapBanner = /^TAP version/m.test(stdout);
   const summaryMatch = stdout.match(TAP_SUMMARY_FAIL);
   const reportedFailCount = summaryMatch ? Number(summaryMatch[1]) : null;
-  const identifiers = parseFailureIdentifiers(stdout).map((id) => `${scriptName} :: ${id}`);
+  // cwd is required here, not optional: base runs from a throwaway
+  // os.tmpdir() worktree and head runs from the real checkout, so an
+  // identifier built from the raw absolute `location:` path would call an
+  // UNMODIFIED, unrelated pre-existing failure a "different file" purely
+  // because of which directory it happened to run from - see
+  // test-failure-identifiers.js's CWD-RELATIVE header note.
+  const identifiers = parseFailureIdentifiers(stdout, { cwd }).map((id) => `${scriptName} :: ${id}`);
 
   // Fail-closed cross-check: if the TAP summary itself claims failures but
   // the parser found none (or fewer), never silently report a clean run —
