@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-30T18:56:05.342Z",
-    "generatedFromGitSha": "0eef35ceedfe52afb0918bedcd2fa742b392d71d"
+    "generatedAtUtc": "2026-08-30T21:41:31.572Z",
+    "generatedFromGitSha": "0a36aeda5bb6c00da53b8baabf065c4751e4b864"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -355,9 +355,9 @@
           "npm:@supabase/supabase-js@2.105.4"
         ],
         "bundleFileCount": 41,
-        "treeFileCount": 59,
-        "bundleHash": "15ffd79a8cf2c4f6fbf581e2f0cb2bc99fa018dd97fab1f336af505bf5fe498e",
-        "treeHash": "356070e375fcdb872318519877f7cdd6e066b1221cb86da309026ed029821f69",
+        "treeFileCount": 60,
+        "bundleHash": "f67e180cab86d326553c680cb55a17f9d6e908b84840b0970a2ae2c3eed34e08",
+        "treeHash": "d0f350850a7feba635293bef84619dacc9b7f1fd874a394f5d2767f28db233db",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -446,17 +446,17 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseAdvicePrompt.ts",
-            "sha256": "97533abcf3875b8592210943b978131bf1144f536968fdee489b593dd6800be4",
+            "sha256": "03fd5e9ea2d63dc9ea6faecada80a7e81f89901dd5f0daaa0ea6b4f6b81fd018",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseAdviceTypes.ts",
-            "sha256": "9eba3684426594dd3e66d2c5b5eec68f3b14346f8191fef01039656a9b05a7c7",
+            "sha256": "6f06ff625c369683235ca368cab3367f9d1228598db1c8219f39f7cc38f2dadb",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseClosetCensus.ts",
-            "sha256": "c4ce3a52cf172d13bf91d10af3a145bf9e7b60ff2a94eab1ba7c68c9d60efbfe",
+            "sha256": "59eaa864f5da0d2cecba2c70d4b095667f2b922fbd84d3612195ff9923c4a749",
             "bundle": true
           },
           {
@@ -472,6 +472,11 @@
           {
             "path": "supabase/functions/stylechat-generate/eliseConciergeV1.test.ts",
             "sha256": "49f2a3aef566513ce120084e8d553ce30d3c27f71fdece21e0de22afd2fc08a9",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/eliseConciergeV1Hostile.test.ts",
+            "sha256": "6dc4132953369c74251d45673ac7dacd316c60ed8c2a11e7a488ab738bf117e3",
             "bundle": false
           },
           {
@@ -521,7 +526,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseOwnershipProseSafety.ts",
-            "sha256": "81a90581693b67ee1c1ded7bab18795be989c17a78e35d34258d2791ce3bdea9",
+            "sha256": "c293adee6968df2dbf3018f769271fff005139c290a38de158e3bfd08cfe2643",
             "bundle": true
           },
           {
@@ -566,7 +571,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseWardrobeGap.ts",
-            "sha256": "d5a7d1d7d31a9a4103b9f42d6c3988021ee13d131ebceb24ab71610834b6b77b",
+            "sha256": "568249511c4a291ace97d3592ef0002dc67756af393b8b1840f5e522b775e59d",
             "bundle": true
           },
           {
@@ -606,7 +611,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/index.ts",
-            "sha256": "205787308ac41a76deee2e9cafc3e8944157519940030aa5fe455529c0988535",
+            "sha256": "40c2fb3e77e93f7d3b40e7f3509754169ee785337c78956b117bbe0d1d64686c",
             "bundle": true
           },
           {

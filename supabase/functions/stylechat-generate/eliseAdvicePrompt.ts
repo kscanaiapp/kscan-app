@@ -233,6 +233,27 @@ export function buildEliseAdvicePromptBlock(input: {
  * 'none', which is what stops the client rendering Closet chrome on an answer
  * that has nothing to do with their Closet.
  */
+/**
+ * AUDIT-CON-005 -- what counts as "owned CLOSET evidence".
+ *
+ * `actorRelationship === 'owned'` alone is NOT the test. `roomItemRelationship`
+ * maps a Dressing Room row whose declared provenance is `owned_closet` or
+ * `physically_owned` to sourceType 'owned_room' with relationship 'owned', and
+ * `listOwnedRoomItems` is not K+ gated. Counting those made two things true
+ * that must not be:
+ *
+ *   * the premium Concierge surface rendered for a non-K+ actor, and
+ *   * a Dressing Room item was headed "From your Closet" -- a store the row is
+ *     not in. `user_closet_items` is the only authoritative owned-item source.
+ *
+ * The contract on `EliseWardrobeContextMode` already said this in words
+ * ("closet -- every represented candidate is owned CLOSET evidence"); this is
+ * the predicate that makes the code agree with it.
+ */
+function isOwnedClosetEvidence(candidate: EliseWardrobeCandidate): boolean {
+  return candidate.sourceType === 'closet' && candidate.actorRelationship === 'owned';
+}
+
 export function deriveWardrobeContextMode(
   shortlist: EliseScoredCandidate[],
   focused?: EliseFocusedItem,
@@ -247,15 +268,13 @@ export function deriveWardrobeContextMode(
   // would have told the client to hide all Closet presentation on precisely
   // the flagship case this feature exists for (section 55, Test A).
   const focusIsOwned =
-    focused?.candidate?.actorRelationship === 'owned' ||
+    (focused?.candidate ? isOwnedClosetEvidence(focused.candidate) : false) ||
     // An ambiguous text match resolved no single item, but it did prove the
     // user has owned items fitting the description -- that is Closet context.
     (focused?.resolution === 'closet_text_ambiguous' &&
-      (focused.ambiguousCandidates?.length ?? 0) > 0);
+      (focused.ambiguousCandidates ?? []).some(isOwnedClosetEvidence));
 
-  const ownedCount = shortlist.filter(
-    (s) => s.candidate.actorRelationship === 'owned',
-  ).length;
+  const ownedCount = shortlist.filter((s) => isOwnedClosetEvidence(s.candidate)).length;
 
   if (ownedCount === 0) return focusIsOwned ? 'closet' : 'none';
   // 'mixed' is the signal that the UI must label cards individually rather than

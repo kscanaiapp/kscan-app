@@ -110,7 +110,11 @@ import {
 import { runEliseAdvicePipeline } from './eliseAdvicePipeline.ts';
 import { buildClosetCensus, CENSUS_ROW_CAP } from './eliseClosetCensus.ts';
 import { enforceOwnershipProseSafety } from './eliseOwnershipProseSafety.ts';
-import type { EliseClosetCensus, EliseScoredCandidate } from './eliseAdviceTypes.ts';
+import type {
+  EliseClosetCensus,
+  EliseFocusedItem,
+  EliseScoredCandidate,
+} from './eliseAdviceTypes.ts';
 
 /**
  * C3 section 35. Neutral copy substituted when an ungrounded ownership claim is
@@ -1987,6 +1991,14 @@ Deno.serve(async (req) => {
    * whenever advice did not run, which is what keeps the guard off Base Elise.
    */
   let adviceShortlistForProseSafety: EliseScoredCandidate[] = [];
+  /**
+   * AUDIT-CON-003. The resolved focus, kept alongside the shortlist.
+   *
+   * The ranker removes the focused item from the shortlist by design, so
+   * without this the guard has no record that the one item the whole turn is
+   * about is owned -- and deletes true sentences that name it.
+   */
+  let adviceFocusForProseSafety: EliseFocusedItem | null = null;
   if (config.flags.adviceIntentsV1) {
     try {
       const wardrobeData: EliseWardrobeDataSource = {
@@ -2202,6 +2214,7 @@ Deno.serve(async (req) => {
         advicePromptBlock = adviceResult.promptBlock;
         adviceMetadata = adviceResult.adviceMetadata as unknown as Record<string, unknown>;
         adviceShortlistForProseSafety = adviceResult.shortlist;
+        adviceFocusForProseSafety = adviceResult.focused;
         emitEliseTelemetry(config, 'elise_advice_outcome', {
           requestId,
           adviceIntent: adviceResult.telemetry.adviceIntent,
@@ -2256,6 +2269,7 @@ Deno.serve(async (req) => {
       advicePromptBlock = null;
       adviceMetadata = null;
       adviceShortlistForProseSafety = [];
+      adviceFocusForProseSafety = null;
     }
   }
 
@@ -2817,16 +2831,29 @@ Deno.serve(async (req) => {
    * sentence into a different garment, because prose no system authored is a
    * worse outcome than the claim it replaced.
    *
-   * Runs only when Concierge is on AND a shortlist exists: with no wardrobe
-   * evidence there is nothing to check ownership language against, and guessing
-   * would suppress ordinary Base Elise answers.
+   * Runs only when Concierge is on AND authoritative wardrobe evidence exists:
+   * with none there is nothing to check ownership language against, and
+   * guessing would suppress ordinary Base Elise answers.
+   *
+   * AUDIT-CON-003. "Evidence" is the shortlist OR an owned focus, not the
+   * shortlist alone. A one-item Closet answering "what goes with my brown
+   * loafers?" produces an EMPTY shortlist -- the ranker removes the focus -- so
+   * gating on the shortlist left the flagship turn with no guard at all.
    */
   let assistantTextSafe = assistantText;
   let ownershipProseConflict = false;
-  if (config.flags.conciergeV1 && adviceShortlistForProseSafety.length > 0) {
+  const proseSafetyFocus = adviceFocusForProseSafety;
+  const proseSafetyOwnedFocus =
+    proseSafetyFocus?.candidate?.actorRelationship === 'owned' ||
+    (proseSafetyFocus?.ambiguousCandidates?.length ?? 0) > 0;
+  if (
+    config.flags.conciergeV1 &&
+    (adviceShortlistForProseSafety.length > 0 || proseSafetyOwnedFocus)
+  ) {
     const verdict = enforceOwnershipProseSafety({
       text: assistantText,
       shortlist: adviceShortlistForProseSafety,
+      focus: proseSafetyFocus,
       neutralFallback: CONCIERGE_NEUTRAL_OWNERSHIP_FALLBACK,
     });
     assistantTextSafe = verdict.safeText;
