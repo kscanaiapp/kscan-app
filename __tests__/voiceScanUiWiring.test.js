@@ -226,3 +226,75 @@ test('NEGATIVE CONTROL: a callback without session identity fails the stale-even
   assert.equal(hasBoundSession(iosVoiceNative), true);
   assert.equal(hasBoundSession(androidVoiceNative), true);
 });
+
+// ── Fix 217-A: iOS session thread confinement (source contract) ────────────
+//
+// This module can't be compiled in this environment (no Xcode), so the
+// thread-confinement contract is proven the same way the rest of this file
+// proves native behavior: by inspecting the actual shipped Swift source for
+// the exact constructs that make it true, not by running it.
+
+test('217-A: startListening/stopListening/cancelListening each run on the main queue', () => {
+  for (const fnName of ['startListening', 'stopListening', 'cancelListening']) {
+    const start = iosVoiceNative.indexOf(`AsyncFunction("${fnName}")`);
+    assert.notEqual(start, -1, `AsyncFunction("${fnName}") must exist`);
+    const nextBrace = iosVoiceNative.indexOf('.runOnQueue(.main)', start);
+    const nextAsyncFunction = iosVoiceNative.indexOf('AsyncFunction(', start + 1);
+    assert.ok(
+      nextBrace !== -1 && (nextAsyncFunction === -1 || nextBrace < nextAsyncFunction),
+      `${fnName} must be immediately followed by .runOnQueue(.main) before the next AsyncFunction`,
+    );
+  }
+});
+
+test('217-A: getCapabilities/requestPermissions are NOT forced onto a queue (narrow fix, stateless reads)', () => {
+  for (const fnName of ['getCapabilities', 'requestPermissions']) {
+    const start = iosVoiceNative.indexOf(`AsyncFunction("${fnName}")`);
+    const nextAsyncFunction = iosVoiceNative.indexOf('AsyncFunction(', start + 1);
+    const body = iosVoiceNative.slice(start, nextAsyncFunction === -1 ? undefined : nextAsyncFunction);
+    assert.doesNotMatch(body, /\.runOnQueue\(\.main\)/);
+  }
+});
+
+test('217-A: the SFSpeechRecognizer result callback hops to main before touching session state', () => {
+  const taskStart = iosVoiceNative.indexOf('recognitionTask = recognizer.recognitionTask(with: request)');
+  assert.notEqual(taskStart, -1);
+  const taskBody = iosVoiceNative.slice(taskStart, taskStart + 900);
+  const hopIndex = taskBody.indexOf('DispatchQueue.main.async');
+  const guardIndex = taskBody.indexOf('self.activeSessionId == sessionId');
+  const mutateIndex = taskBody.indexOf('self.latestPartialTranscript =');
+  assert.ok(hopIndex !== -1, 'the callback must hop to DispatchQueue.main.async');
+  assert.ok(guardIndex !== -1 && mutateIndex !== -1);
+  assert.ok(hopIndex < guardIndex, 'activeSessionId must be read AFTER hopping to main');
+  assert.ok(hopIndex < mutateIndex, 'latestPartialTranscript must be mutated AFTER hopping to main');
+});
+
+// ── Fix 217-D: iOS microphone permission permanence (source contract) ──────
+
+test('217-D: a completed microphone permission request never reports canAskAgain: true', () => {
+  const start = iosVoiceNative.indexOf('self.requestMicrophonePermission { micGranted in');
+  assert.notEqual(start, -1);
+  const body = iosVoiceNative.slice(start, iosVoiceNative.indexOf('\n  }\n\n  private func requestMicrophonePermission', start));
+  assert.match(body, /"canAskAgain":\s*false,/, 'a completed mic request must always resolve canAskAgain: false');
+  assert.doesNotMatch(
+    body,
+    /micStatusBeforeRequest/,
+    'REGRESSION: canAskAgain must not be inferred from the pre-request status -- undetermined-before + denied-now means the user just permanently denied it',
+  );
+});
+
+test('NEGATIVE CONTROL 217-D: the pre-fix inference would have reported canAskAgain: true for a permanent denial', () => {
+  // Reproduces the exact defective expression this fix replaced, evaluated
+  // against the case that matters: a first-ever ask (undetermined before)
+  // that the user denies. iOS never shows the system prompt again after
+  // this, yet the old formula said canAskAgain: true.
+  const micStatusBeforeRequest = 'undetermined';
+  const micGranted = false;
+  const buggyCanAskAgain = !micGranted && micStatusBeforeRequest === 'undetermined';
+  assert.equal(buggyCanAskAgain, true, 'sanity: reproduces the exact defect this fix removed');
+  assert.notEqual(
+    buggyCanAskAgain,
+    false,
+    'the pre-fix formula would have told JS another native prompt was possible after a permanent denial',
+  );
+});

@@ -73,6 +73,13 @@ public class KScanVoiceNativeModule: Module {
       self.requestPermissions(promise: promise)
     }
 
+    // These three are stateful over shared session fields (activeSessionId,
+    // latestPartialTranscript, pendingStopPromise, the engine/recognizer/timer
+    // pair). Expo's AsyncFunction does not guarantee a queue by default, so
+    // without this they could run concurrently with each other AND with the
+    // SFSpeechRecognizer result callback below -- pinning all three to the
+    // main queue, alongside that callback hopping to main, gives the session
+    // lifecycle one serialized authority instead of racing threads.
     AsyncFunction("startListening") { (options: [String: Any]?, promise: Promise) in
       self.startListening(
         locale: options?["locale"] as? String,
@@ -80,14 +87,17 @@ public class KScanVoiceNativeModule: Module {
         promise: promise
       )
     }
+    .runOnQueue(.main)
 
     AsyncFunction("stopListening") { (options: [String: Any], promise: Promise) in
       self.finishListening(sessionId: options["sessionId"] as? String, promise: promise)
     }
+    .runOnQueue(.main)
 
     AsyncFunction("cancelListening") { (options: [String: Any], promise: Promise) in
       self.cancelListening(sessionId: options["sessionId"] as? String, promise: promise)
     }
+    .runOnQueue(.main)
 
     OnCreate {
       self.backgroundObserver = NotificationCenter.default.addObserver(
@@ -131,12 +141,21 @@ public class KScanVoiceNativeModule: Module {
           promise.resolve(["granted": false, "canAskAgain": speechStatus == .notDetermined])
           return
         }
-        let micStatusBeforeRequest = AVAudioSession.sharedInstance().recordPermission
         self.requestMicrophonePermission { micGranted in
           DispatchQueue.main.async {
             promise.resolve([
               "granted": micGranted,
-              "canAskAgain": !micGranted && micStatusBeforeRequest == .undetermined,
+              // Once this completion has actually run, iOS has either just
+              // shown its one-time system prompt and recorded the user's
+              // answer, or is returning a previously-recorded answer without
+              // showing UI at all -- either way there is no further native
+              // prompt this app can ever trigger again for microphone access.
+              // A prior version inferred canAskAgain from the pre-request
+              // status being .undetermined, which is backwards: undetermined
+              // before + denied now means the user just permanently denied
+              // it through the one-time prompt, which is exactly the case
+              // that must route to Settings, not promise another ask.
+              "canAskAgain": false,
             ])
           }
         }
@@ -217,19 +236,27 @@ public class KScanVoiceNativeModule: Module {
     latestPartialTranscript = ""
 
     recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
-      guard let self = self else { return }
-      guard self.activeSessionId == sessionId else { return }
-      if let result = result {
-        self.latestPartialTranscript = result.bestTranscription.formattedString
-        self.sendEvent("onPartialTranscript", [
-          "sessionId": sessionId,
-          "transcript": self.latestPartialTranscript,
-        ])
-        if result.isFinal {
-          self.completeSession(sessionId: sessionId, reason: .recognizerFinalized, error: nil)
+      // SFSpeechRecognizer does not guarantee this handler runs on main, but
+      // every field it touches (activeSessionId, latestPartialTranscript,
+      // pendingStopPromise via completeSession, teardown state) is also
+      // touched by the main-queue-confined AsyncFunctions above. Hop to main
+      // before reading or mutating any of it so there is one serialized
+      // authority for the session lifecycle, not two threads racing it.
+      DispatchQueue.main.async {
+        guard let self = self else { return }
+        guard self.activeSessionId == sessionId else { return }
+        if let result = result {
+          self.latestPartialTranscript = result.bestTranscription.formattedString
+          self.sendEvent("onPartialTranscript", [
+            "sessionId": sessionId,
+            "transcript": self.latestPartialTranscript,
+          ])
+          if result.isFinal {
+            self.completeSession(sessionId: sessionId, reason: .recognizerFinalized, error: nil)
+          }
+        } else if let error = error {
+          self.completeSession(sessionId: sessionId, reason: .error, error: error)
         }
-      } else if let error = error {
-        self.completeSession(sessionId: sessionId, reason: .error, error: error)
       }
     }
 
