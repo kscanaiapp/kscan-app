@@ -113,6 +113,35 @@ export const EMPTY_CONCIERGE_RESULT: ConciergeResult = {
   gapCodes: [],
 };
 
+/**
+ * Derive the Closet owner id from the authenticated Style DNA user key.
+ *
+ * SHARED, NOT PLATFORM, AND SECURITY-RELEVANT. `userKey` is the
+ * `user:{supabaseUserId}` form the session screen already derives from the
+ * authenticated session -- the same key the Style DNA feedback surface gates
+ * on. This is the only accepted input: taking an owner id from anywhere less
+ * authenticated (a route param, a cached profile, a message field) would let a
+ * signed-out or wrongly-scoped render reach a Closet.
+ *
+ * Returns null for every shape it does not recognise, and null means no image
+ * resolution is attempted at all -- cards fall back to text. Failing closed is
+ * the only safe direction: a wrong owner id resolves ANOTHER ACCOUNT'S photos.
+ *
+ * It lives here rather than in the chat bubble so both platforms derive the
+ * owner identically and the rule is testable without mounting a view.
+ */
+export function conciergeOwnerIdFromUserKey(
+  userKey: string | null | undefined,
+): string | null {
+  if (typeof userKey !== 'string') return null;
+  const PREFIX = 'user:';
+  if (!userKey.startsWith(PREFIX)) return null;
+  const ownerId = userKey.slice(PREFIX.length).trim();
+  // An empty or whitespace-only remainder is not an identity. Returning it
+  // would produce an owner-scoped Closet read keyed on "".
+  return ownerId ? ownerId : null;
+}
+
 const RELATIONSHIPS: ConciergeRelationship[] = [
   'owned',
   'saved',

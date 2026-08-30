@@ -14,7 +14,10 @@ import { isEligibleForStyleFeedback } from '../../services/style-dna/styleDnaEli
 import * as FileSystem from 'expo-file-system';
 import { ELISE_CONCIERGE_V1 } from '../../constants/featureFlags';
 import { ConciergeEvidenceBlock } from '../concierge/ConciergeEvidenceBlock';
-import type { ConciergeResult } from '../../services/concierge/conciergeModel';
+import {
+  conciergeOwnerIdFromUserKey,
+  type ConciergeResult,
+} from '../../services/concierge/conciergeModel';
 
 interface StyleChatBubbleProps {
   message: StyleChatMessage;
@@ -143,18 +146,10 @@ export function StyleChatBubble({
   // stable persisted id, and only when we have an authenticated user key.
   const isGreeting = !isUser && uiBlocks.some((block) => block?.type === 'greeting');
 
-  /**
-   * Owner id for Concierge image resolution.
-   *
-   * `userKey` arrives from the session screen as `user:{supabaseUserId}`, the
-   * same authenticated key the Style DNA feedback surface already gates on.
-   * Stripping the prefix is all that is needed; deriving it from anything less
-   * authenticated would let a signed-out render reach a Closet.
-   */
-  const conciergeOwnerId =
-    typeof userKey === 'string' && userKey.startsWith('user:')
-      ? userKey.slice('user:'.length) || null
-      : null;
+  // Owner id for Concierge image resolution. Derived by the SHARED helper so
+  // iOS and Android cannot scope a Closet read differently, and so the rule is
+  // testable without mounting this view.
+  const conciergeOwnerId = conciergeOwnerIdFromUserKey(userKey);
 
   const showFeedback =
     STYLE_DNA_ENABLED &&

@@ -14,6 +14,7 @@ const path = require('node:path');
 const {
   buildConciergeResult,
   toConciergeRelationship,
+  conciergeOwnerIdFromUserKey,
   EMPTY_CONCIERGE_RESULT,
 } = require('../services/concierge/conciergeModel.ts');
 const {
@@ -416,6 +417,42 @@ test('the Concierge surface never reads message prose', () => {
       `${relative} must not read assistant prose`,
     );
   }
+});
+
+// ── owner scoping ────────────────────────────────────────────────────────────
+
+test('the owner id comes only from the authenticated user key', () => {
+  assert.equal(conciergeOwnerIdFromUserKey('user:abc-123'), 'abc-123');
+});
+
+test('an unrecognised user key shape fails CLOSED', () => {
+  // Every one of these must yield null, which means no image resolution runs
+  // and cards fall back to text. A non-null return here would scope a Closet
+  // read on something that is not an authenticated identity.
+  for (const input of [null, undefined, '', 'abc-123', 'User:abc', 'user:', 'user:   ', 42, {}]) {
+    assert.equal(
+      conciergeOwnerIdFromUserKey(input),
+      null,
+      `${JSON.stringify(input)} must not produce an owner id`,
+    );
+  }
+});
+
+test('the owner id is never taken from message or route data', () => {
+  // Structural: the bubble must derive the owner through the shared helper
+  // only, never by reading an id off the message it is rendering.
+  const source = fs.readFileSync(path.join(ROOT, 'components/style-chat/StyleChatBubble.tsx'), 'utf8');
+
+  // Exactly one assignment, and it is the shared helper. Asserting on the whole
+  // matched assignment rather than with a lookahead: `\s*` backtracks, so a
+  // negative lookahead after it silently passes on correct code.
+  const assignments = source.match(/const\s+conciergeOwnerId\s*=\s*[^;]+;/g) ?? [];
+  assert.equal(assignments.length, 1, 'expected exactly one conciergeOwnerId assignment');
+  assert.equal(assignments[0].includes('conciergeOwnerIdFromUserKey(userKey)'), true);
+
+  // And it must not be derived from the message being rendered.
+  assert.equal(/message\.[A-Za-z]*[Oo]wner/.test(source), false);
+  assert.equal(/message\.[A-Za-z]*[Uu]serId/.test(source), false);
 });
 
 test('the Concierge presentation flag is default-OFF and separate from transport', () => {
