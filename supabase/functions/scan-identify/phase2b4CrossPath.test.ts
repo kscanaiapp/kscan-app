@@ -259,13 +259,26 @@ Deno.test('inventory: every governed function is covered by the manifest closure
   const manifest = JSON.parse(readRepoFile('config/edge-function-manifest.json')) as {
     parity: { expectedFunctions: string[] };
   };
-  // style-outfit-generate joined the governed set in Build 3 Phase 4, when it
-  // became the host of the versioned private Dressing Room contract.
-  assertEquals(manifest.parity.expectedFunctions.sort(), [
-    'scan-identify',
-    'style-outfit-generate',
-    'stylechat-generate',
-  ]);
+  // The manifest must govern EVERY deployable Edge Function, not a frozen
+  // subset. This previously asserted a literal three-name list captured when
+  // style-outfit-generate joined the governed set in Build 3 Phase 4; the
+  // governed set has since grown to the whole deployable tree, so the literal
+  // failed against a correct manifest and, being the only inventory-closure
+  // assertion, would equally have passed a manifest that silently DROPPED a
+  // function. Deriving the expectation from the functions directory makes a
+  // newly added Edge Function that nobody governed fail this test on the
+  // commit that adds it.
+  const deployableFunctions = [...Deno.readDirSync(new URL('supabase/functions/', REPO_ROOT))]
+    .filter((entry) => entry.isDirectory && !entry.name.startsWith('_'))
+    .map((entry) => entry.name)
+    .sort();
+  assertEquals(manifest.parity.expectedFunctions.slice().sort(), deployableFunctions);
+
+  // The three functions this cross-path certification actually inventories
+  // must still be governed, whatever else joins them.
+  for (const governed of ['scan-identify', 'style-outfit-generate', 'stylechat-generate']) {
+    assert(manifest.parity.expectedFunctions.includes(governed), `${governed} is not governed`);
+  }
   assert(bundleClosure('scan-identify').length > 0);
   assert(bundleClosure('stylechat-generate').length > 0);
   assert(bundleClosure('style-outfit-generate').length > 0);
