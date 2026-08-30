@@ -35,7 +35,11 @@
  * either way, so dropping prose loses presentation, never evidence.
  */
 
-import type { EliseScoredCandidate } from './eliseAdviceTypes.ts';
+import type {
+  EliseFocusedItem,
+  EliseScoredCandidate,
+  EliseWardrobeCandidate,
+} from './eliseAdviceTypes.ts';
 
 /**
  * Literal ownership assertions. Present tense, second person, about a garment
@@ -98,22 +102,51 @@ function normalizeWord(value: string): string {
  * that is the entire point. An item the user photographed in a shop must not
  * license "you already have".
  */
-function ownedGarmentVocabulary(shortlist: EliseScoredCandidate[]): Set<string> {
+function addCandidateWords(
+  vocabulary: Set<string>,
+  candidate: EliseWardrobeCandidate,
+): void {
+  if (candidate.actorRelationship !== 'owned') return;
+  const fields = [candidate.category, candidate.subcategory, candidate.title];
+  for (const field of fields) {
+    if (typeof field !== 'string') continue;
+    for (const word of field.split(/[^A-Za-z0-9]+/)) {
+      const normalized = normalizeWord(word);
+      if (normalized.length > 2) vocabulary.add(normalized);
+    }
+  }
+}
+
+/**
+ * AUDIT-CON-001/003 -- the FOCUS is owned evidence too.
+ *
+ * `rankAndBoundCandidates` deliberately drops the focused item from the
+ * shortlist ("you do not recommend the thing you are building around"). Reading
+ * the vocabulary off the shortlist alone therefore omits the single item the
+ * whole turn is ABOUT, and the flagship sentence -- "the navy trousers you
+ * already have work with your brown loafers" -- gets destroyed for naming a
+ * garment the user demonstrably owns.
+ *
+ * Section 34 scopes this guard to removing FALSE claims. Deleting a true one is
+ * strictly worse than the failure it was built to prevent, because the customer
+ * loses correct advice and no system records that it happened.
+ *
+ * An ambiguous match contributes too: no single item resolved, but retrieval
+ * proved several OWNED items fit the description, so ownership language about
+ * that garment class is supported. A focus that is scanned, saved or shared
+ * contributes nothing -- `addCandidateWords` enforces that.
+ */
+function ownedGarmentVocabulary(
+  shortlist: EliseScoredCandidate[],
+  focus?: EliseFocusedItem | null,
+): Set<string> {
   const vocabulary = new Set<string>();
   for (const scored of shortlist) {
-    if (scored.candidate.actorRelationship !== 'owned') continue;
-    const fields = [
-      scored.candidate.category,
-      scored.candidate.subcategory,
-      scored.candidate.title,
-    ];
-    for (const field of fields) {
-      if (typeof field !== 'string') continue;
-      for (const word of field.split(/[^A-Za-z0-9]+/)) {
-        const normalized = normalizeWord(word);
-        if (normalized.length > 2) vocabulary.add(normalized);
-      }
-    }
+    addCandidateWords(vocabulary, scored.candidate);
+  }
+  if (focus?.candidate) addCandidateWords(vocabulary, focus.candidate);
+  for (const candidate of focus?.ambiguousCandidates ?? []) {
+    addCandidateWords(vocabulary, candidate);
   }
   return vocabulary;
 }
@@ -144,6 +177,13 @@ export function enforceOwnershipProseSafety(input: {
   text: string;
   shortlist: EliseScoredCandidate[];
   /**
+   * The resolved focus, when the pipeline produced one. Optional so every
+   * pre-existing caller keeps its exact behaviour; supplying it only ever
+   * WIDENS what the guard accepts as true, never what it accepts as owned --
+   * a non-owned focus still contributes no vocabulary.
+   */
+  focus?: EliseFocusedItem | null;
+  /**
    * Neutral copy used when nothing safe survives. Supplied by the caller so the
    * wording lives with the rest of the product copy rather than being invented
    * here.
@@ -155,7 +195,7 @@ export function enforceOwnershipProseSafety(input: {
     return { conflictDetected: false, safeText: text, conflictCodes: [] };
   }
 
-  const vocabulary = ownedGarmentVocabulary(input.shortlist);
+  const vocabulary = ownedGarmentVocabulary(input.shortlist, input.focus);
   const sentences = splitSentences(text);
   const kept: string[] = [];
   const conflictCodes = new Set<string>();

@@ -67,6 +67,31 @@ export function conciergeCardLabel(
 }
 
 /**
+ * The card's headline, including the fallback used when the evidence carried
+ * neither a title nor a category.
+ *
+ * AUDIT-CON-004. The fallback must not itself be an ownership claim. A card
+ * built from a SHARED or DISCOVERED candidate that happens to lack both fields
+ * previously read "Closet item" -- the words the section heading uses for the
+ * user's own clothes -- directly under a "Shared with you" or "Shopping option"
+ * chip. That is a false ownership statement produced by a placeholder, and it
+ * sits on the one surface the whole feature is trying to make trustworthy.
+ *
+ * Only an OWNED card may fall back to Closet wording; everything else gets a
+ * neutral noun that asserts nothing about who owns it. This lives beside the
+ * other relationship copy so both platforms cannot word it differently.
+ */
+export function conciergeCardTitle(card: {
+  title: string | null;
+  category: string | null;
+  relationship: ConciergeRelationship;
+}): string {
+  if (card.title) return card.title;
+  if (card.category) return card.category;
+  return card.relationship === 'owned' ? 'Closet item' : 'Item';
+}
+
+/**
  * Human copy for a scoped wardrobe gap.
  *
  * `evidenceIsExhaustive` decides between a statement and a hedge (section 27).

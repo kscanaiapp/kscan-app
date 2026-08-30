@@ -254,6 +254,16 @@ export interface EliseClosetCensus {
   countsByCategory: Record<string, number>;
   /** layering role -> row count, derived from category via the shared mapper. */
   countsByLayeringRole: Record<string, number>;
+  /**
+   * Rows the shared layering mapper could not classify into ANY role.
+   *
+   * EXHAUSTIVE OVER ROWS IS NOT EXHAUSTIVE OVER ROLES. `clothing_type` is a
+   * free-form, manual-entry field, so a Closet can be counted completely and
+   * still leave the mapper with nothing to say about some of it. While this is
+   * above zero the census knows the Closet is not empty but cannot prove which
+   * roles it fills, and no role may be reported as confirmed absent.
+   */
+  unclassifiedItems: number;
 }
 
 export interface EliseAdviceLook {

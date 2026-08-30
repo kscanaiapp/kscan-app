@@ -15,6 +15,7 @@ import { ELISE_ADVICE_LIMITS } from './eliseAdviceTypes.ts';
 import {
   censusConfirmedAbsentCategories,
   censusConfirmsRoleAbsent,
+  censusShowsRolePresent,
 } from './eliseClosetCensus.ts';
 
 /**
@@ -75,6 +76,17 @@ export function analyzeWardrobeGap(input: {
 
   const gapCodes: string[] = [];
   const categories: string[] = [];
+  /**
+   * AUDIT-CON-002. Per-code provenance, positionally aligned with `gapCodes`.
+   *
+   * `evidenceIsExhaustive` is a SINGLE boolean that the prompt reads as "you may
+   * state plainly that they do not have the listed pieces" and the UI renders as
+   * "Your Closet doesn't have ... yet." It is therefore a licence over the whole
+   * emitted set, and it can only be granted if EVERY code in that set was
+   * actually proven by the census. Tracking provenance per code is what stops a
+   * shortlist-derived finding riding out on a census-derived licence.
+   */
+  const censusProven: boolean[] = [];
   for (const gap of ROLE_GAPS) {
     if (gap.role === 'neutral') {
       const hasNeutral = input.shortlist.some((s) =>
@@ -83,6 +95,10 @@ export function analyzeWardrobeGap(input: {
       if (!hasNeutral && input.inventoryCount > 0) {
         gapCodes.push(gap.code);
         categories.push(gap.categoryHint);
+        // The neutral check reads colour families off the BOUNDED shortlist and
+        // never consults the census, so it can only ever be a statement about
+        // the pieces reviewed. It is never census-proven.
+        censusProven.push(false);
       }
       continue;
     }
@@ -95,12 +111,15 @@ export function analyzeWardrobeGap(input: {
     // checked: if the census counted items in this role, the role exists in the
     // Closet and simply did not rank -- that is a ranking outcome, not a gap,
     // and reporting it as one is precisely the false claim section 26 names.
-    if (census?.exhaustive && !censusConfirmsRoleAbsent(census, gap.role)) {
+    if (census?.exhaustive && censusShowsRolePresent(census, gap.role)) {
       continue;
     }
 
     gapCodes.push(gap.code);
     categories.push(gap.categoryHint);
+    // Suspected is not proven. The gap is reported either way, but only a
+    // census that PROVED the absence lets it be spoken as a fact.
+    censusProven.push(censusConfirmsRoleAbsent(census, gap.role));
   }
 
   const notes: string[] = [];
@@ -113,6 +132,7 @@ export function analyzeWardrobeGap(input: {
 
   let boundedCodes = gapCodes;
   let boundedCategories = categories;
+  let boundedProven = censusProven;
 
   if (input.conciergeV1) {
     // SMALL-CLOSET RESTRAINT (section 28).
@@ -124,7 +144,12 @@ export function analyzeWardrobeGap(input: {
     const closetSize = census?.exhaustive ? census.totalItems : input.inventoryCount;
     if (closetSize > 0 && closetSize < SMALL_CLOSET_ITEM_THRESHOLD) {
       const ordered = gapCodes
-        .map((code, index) => ({ code, category: categories[index], index }))
+        .map((code, index) => ({
+          code,
+          category: categories[index],
+          proven: censusProven[index] ?? false,
+          index,
+        }))
         .sort((a, b) => {
           const roleA = ROLE_GAPS.find((g) => g.code === a.code)?.role ?? '';
           const roleB = ROLE_GAPS.find((g) => g.code === b.code)?.role ?? '';
@@ -138,6 +163,7 @@ export function analyzeWardrobeGap(input: {
         .slice(0, SMALL_CLOSET_MAX_GAPS);
       boundedCodes = ordered.map((entry) => entry.code);
       boundedCategories = ordered.map((entry) => entry.category);
+      boundedProven = ordered.map((entry) => entry.proven);
       notes.push('small_closet_gap_restraint');
     }
   }
@@ -153,7 +179,14 @@ export function analyzeWardrobeGap(input: {
     // The single field every downstream consumer -- prompt, UI and prose guard
     // -- reads before choosing between "you don't own a jacket" and "from what
     // I can see in your Closet". Non-exhaustive evidence can never set it true.
-    gap.evidenceIsExhaustive = Boolean(census?.exhaustive) && !partialInventory;
+    //
+    // AUDIT-CON-002: and only when every SURVIVING gap code was census-proven.
+    // `.every` over an empty set is true, which is correct: a set with no claims
+    // in it needs no licence, and the flag is inert.
+    gap.evidenceIsExhaustive =
+      Boolean(census?.exhaustive) &&
+      !partialInventory &&
+      gap.gapCodes.every((_code, index) => boundedProven[index] === true);
     gap.confirmedAbsentCategories = gap.evidenceIsExhaustive
       ? censusConfirmedAbsentCategories(census, gap.categories)
       : [];

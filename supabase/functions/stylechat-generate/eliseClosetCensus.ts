@@ -81,6 +81,7 @@ export function buildClosetCensus(input: {
 
   const countsByCategory: Record<string, number> = {};
   const countsByLayeringRole: Record<string, number> = {};
+  let unclassifiedItems = 0;
 
   for (const row of rows) {
     // Prefer the specific garment type over the broad taxonomy bucket, matching
@@ -97,6 +98,11 @@ export function buildClosetCensus(input: {
     const role = inferLayeringRole(category, subtype);
     if (role) {
       countsByLayeringRole[role] = (countsByLayeringRole[role] ?? 0) + 1;
+    } else {
+      // A row the mapper cannot place. Counting these is what keeps the
+      // exhaustiveness claim honest: the page was complete, the CLASSIFICATION
+      // was not, and only the second of those licenses "you do not own X".
+      unclassifiedItems += 1;
     }
   }
 
@@ -117,6 +123,7 @@ export function buildClosetCensus(input: {
     totalItems: rows.length,
     countsByCategory: boundedCategories,
     countsByLayeringRole,
+    unclassifiedItems,
   };
 }
 
@@ -126,24 +133,54 @@ export function buildClosetCensus(input: {
  * Returns false whenever the census is non-exhaustive -- an unproven absence
  * must never be reported as a confirmed one. This is the single predicate every
  * "you do not own ..." claim has to pass.
+ *
+ * AUDIT-CON-001. It also returns false while ANY row went unclassified. A row
+ * the mapper could not place might be in the very role being asked about --
+ * `clothing_type` is free-form user text, so "clogs", "moccasins" or "wellies"
+ * are ordinary Closet entries, not edge cases. Reading "no role counted" as
+ * "role absent" there turns a taxonomy limitation into a confident, false
+ * statement about the customer's own wardrobe, which is the exact failure
+ * section 27 exists to prevent. Absence of classification is not classification
+ * of absence.
  */
 export function censusConfirmsRoleAbsent(
   census: EliseClosetCensus | null,
   role: string,
 ): boolean {
   if (!census || !census.exhaustive) return false;
+  if (census.unclassifiedItems > 0) return false;
   return !(census.countsByLayeringRole[role] > 0);
 }
 
 /**
+ * Does the census AFFIRMATIVELY show the Closet holds this layering role?
+ *
+ * The mirror image of `censusConfirmsRoleAbsent`, and deliberately not its
+ * negation: a counted row proves PRESENCE outright, while absence additionally
+ * requires that nothing went unclassified. Keeping the two predicates separate
+ * is what lets a gap be suppressed on proven presence without that same
+ * unproven state being read as proven absence.
+ */
+export function censusShowsRolePresent(
+  census: EliseClosetCensus | null,
+  role: string,
+): boolean {
+  if (!census) return false;
+  return census.countsByLayeringRole[role] > 0;
+}
+
+/**
  * Categories the census PROVES are absent, from a candidate list of interest.
- * Empty whenever the census is non-exhaustive.
+ * Empty whenever the census is non-exhaustive, and -- AUDIT-CON-001 -- whenever
+ * any row went unclassified, since such a row carries no category the caller
+ * can compare against.
  */
 export function censusConfirmedAbsentCategories(
   census: EliseClosetCensus | null,
   categoriesOfInterest: string[],
 ): string[] {
   if (!census || !census.exhaustive) return [];
+  if (census.unclassifiedItems > 0) return [];
   return categoriesOfInterest.filter(
     (category) => !(census.countsByCategory[category] > 0),
   );

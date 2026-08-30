@@ -23,7 +23,7 @@ import { useState } from 'react';
 import { View, Text, Image, Pressable, StyleSheet } from 'react-native';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import type { ConciergeCard, ConciergePresentation } from '../../services/concierge/conciergeModel';
-import { conciergeCardLabel } from '../../services/concierge/conciergeLabels';
+import { conciergeCardLabel, conciergeCardTitle } from '../../services/concierge/conciergeLabels';
 import type { ConciergeImageState } from '../../services/concierge/conciergeImageResolver';
 
 interface Props {
@@ -61,7 +61,10 @@ export function ConciergeClosetCard({ card, image, presentation, onPress }: Prop
   const label = conciergeCardLabel(card.relationship, presentation);
   const detail = detailLine(card);
   const showImage = image.status === 'ready' && !imageFailed;
-  const title = card.title ?? card.category ?? 'Closet item';
+  // AUDIT-CON-004. The fallback is relationship-aware: only an owned card may
+  // fall back to Closet wording. Shared with the labels authority so iOS and
+  // Android cannot word an ownership claim differently.
+  const title = conciergeCardTitle(card);
 
   const body = (
     <View style={[styles.card, card.isFocus && styles.cardFocus]}>
