@@ -96,6 +96,12 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   // Deletion is intentionally independent of K+ status -- has_active_k_plus()
   // is never consulted by the deletion pipeline.
   { table: 'user_closet_items', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  // Build 34 K+ Smart Watchlist V1 (K5-C2). Independent of the underlying
+  // saved_scans/purchase_options the Watch may have been created from --
+  // deleting the account removes both through their own registry entries,
+  // never one through the other (§60-§62 of the build brief).
+  { table: 'user_commerce_watches', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  { table: 'user_commerce_watch_events', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   // Build 34 Track B B4 server-derived Style DNA profile (K+-adjacent, but
   // deletion is independent of K+ status like every other entry here). ON
   // DELETE CASCADE to auth.users already removes this row; this entry adds it
