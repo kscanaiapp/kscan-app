@@ -232,3 +232,93 @@ export interface NativeExtractionCapabilities {
   maxPixels: number;
   extractorVersion: string;
 }
+
+// ── License-plate screening (Build 34 Track B, Phase B2A) ────────────────────
+//
+// Mirrors the face contract field-for-field, with plate counters instead of
+// face counters. Kept as a SEPARATE result type on purpose: reporting masked
+// plates through `facesDetected` would make the privacy engine misreport what
+// it actually did, and the two capabilities are claimed independently
+// downstream (faceMaskApplied vs plateMaskApplied).
+//
+// REGION GEOMETRY ONLY. The detector locates text-shaped regions. On iOS
+// (Vision VNDetectTextRectanglesRequest) no character is ever recognized at
+// all. On Android, the underlying ML Kit text recognizer DOES perform
+// character recognition to produce those regions — but the recognized
+// characters are never read, returned, logged, or persisted on any path.
+// `recognizedTextConsumed` is part of the contract, always false, so that
+// claim is auditable rather than merely documented — and precisely named, so
+// it never implies recognition never RAN, only that its output was never
+// touched.
+
+export interface NativePlateMaskInput {
+  imageUri: string;
+  paddingRatio?: number;
+}
+
+export type NativePlateStatus =
+  | 'success'
+  | 'no_plates'
+  | 'unsupported'
+  | 'failed';
+
+export interface NativePlateMaskResult {
+  status: NativePlateStatus;
+  platform: 'android' | 'ios';
+
+  detectorImplementation:
+    | 'mlkit_text_bundled'
+    | 'vision_text_rectangles'
+    | 'unavailable';
+
+  detectorVersion: string;
+  sanitizerVersion: string;
+
+  inputWidth?: number;
+  inputHeight?: number;
+  outputWidth?: number;
+  outputHeight?: number;
+
+  platesDetected: number;
+  platesAccepted: number;
+  platesMasked: number;
+  regionsChanged: number;
+  regionsAlreadyRedacted: number;
+
+  pixelsChanged: boolean;
+  sanitizedUri?: string;
+
+  /**
+   * Always false. Recognition may run internally on Android; the recognized
+   * text is never consumed — not read, returned, logged, or persisted.
+   */
+  recognizedTextConsumed: boolean;
+
+  inputChecksum?: string;
+  outputChecksum?: string;
+  checksumAlgorithm?: string;
+
+  detectionDurationMs?: number;
+  maskingDurationMs?: number;
+  encodingDurationMs?: number;
+  verificationDurationMs?: number;
+  totalDurationMs?: number;
+
+  warnings: string[];
+  /** Reuses the module's existing bounded code vocabulary — no second one. */
+  errorCode?: NativePrivacyErrorCode;
+  failureReason?: string;
+}
+
+export interface NativePlateCapabilities {
+  supported: boolean;
+  platform: 'android' | 'ios';
+  detectorImplementation:
+    | 'mlkit_text_bundled'
+    | 'vision_text_rectangles'
+    | 'unavailable';
+  detectorVersion: string;
+  sanitizerVersion: string;
+  /** Always false; asserted by the parity test, not just documented. */
+  recognizedTextConsumed: boolean;
+}

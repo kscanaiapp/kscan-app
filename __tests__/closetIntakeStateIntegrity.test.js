@@ -200,6 +200,25 @@ function loadEnv({ actorId = 'user-a' } = {}) {
 
   const session = { isAuthenticated: actorId !== null, user: actorId ? { id: actorId } : null };
 
+  // B2B's cloud-sync coordinator. Stubbed to no-ops rather than left to the
+  // `return {}` fallback below, which would hand back undefined for each
+  // named export and throw at the call site.
+  //
+  // NO-OPS ARE THE POINT OF THIS FILE, not a convenience: every test here
+  // asserts that LOCAL Closet state survives a failure, and cloud sync must
+  // be incapable of changing that outcome. A coordinator that did anything
+  // observable would mean the local guarantees depend on it, which is exactly
+  // what B2B must not do. `syncCalls` records the invocations so the ordering
+  // test below can still prove the hook calls it in the right places.
+  const syncCalls = [];
+  const closetSyncCoordinator = {
+    noteClosetItemSaved: async (ownerId, clientId) => { syncCalls.push(['saved', ownerId, clientId]); },
+    beforeClosetItemDeleted: async (ownerId, clientId) => { syncCalls.push(['before_delete', ownerId, clientId]); return null; },
+    revertClosetItemDeleteMark: async (ownerId, clientId) => { syncCalls.push(['revert_delete', ownerId, clientId]); },
+    afterClosetItemDeleted: async () => { syncCalls.push(['after_delete']); },
+    resumeClosetSync: async (reason) => { syncCalls.push(['resume', reason]); },
+  };
+
   const hookModule = runModule('hooks/useCloset.js', (spec) => {
     if (spec === 'react') return driver.react;
     if (spec === 'expo-router') return { useFocusEffect: driver.useFocusEffect };
@@ -207,11 +226,12 @@ function loadEnv({ actorId = 'user-a' } = {}) {
     if (spec === '../services/closetPromotion') return { promoteScanToCloset: async () => ({ ok: false }) };
     if (spec === '../services/closetItemProjection') return projection;
     if (spec === '../services/actorContext') return actorContext;
+    if (spec === '../services/closet/closetSyncCoordinator') return closetSyncCoordinator;
     if (spec === '../contexts/AuthSessionContext') return { useAuthSession: () => session };
     return {};
   });
 
-  return { m, closetLibrary, driver, hookModule, session, actorContext };
+  return { m, closetLibrary, driver, hookModule, session, actorContext, syncCalls };
 }
 
 /** Commit through the real store exactly as candidate promotion does. */
