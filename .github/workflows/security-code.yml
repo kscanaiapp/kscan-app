@@ -29,11 +29,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # __tests__/mirrorIosVisionParity.test.js does `git show <old-sha>:app.json`
-          # against a fixed historical commit to diff permission/entitlement drift.
-          # actions/checkout's default fetch-depth: 1 doesn't have that commit, so
-          # the test throws `fatal: path 'app.json' exists on disk, but not in
-          # <sha>` on every run here. Full history makes that lookup possible.
+          # Full history is required by two independent consumers in this job:
+          #  1. __tests__/mirrorIosVisionParity.test.js does
+          #     `git show <old-sha>:app.json` against a fixed historical commit
+          #     to diff permission/entitlement drift. actions/checkout's default
+          #     fetch-depth: 1 doesn't have that commit, so the test throws
+          #     `fatal: path 'app.json' exists on disk, but not in <sha>`.
+          #  2. NORMAL_PR-level regression checking (below) needs
+          #     `git worktree add <base_sha>` to actually resolve the PR's base
+          #     commit, not just the shallow tip actions/checkout fetches.
           fetch-depth: 0
 
       - name: Setup Node
@@ -45,11 +49,77 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Staging Gate V2 Section 3/4: an ordinary PR is judged against its own
+      # base SHA, not required to be absolute-green - a PR merely inheriting
+      # an unrelated pre-existing failure must not be blocked by it. A push
+      # (no PR base to diff against) or a PR/push targeting
+      # staging/production-parity or any integration/* branch still requires
+      # the full flat suite to pass outright, unchanged from today. See
+      # security/scripts/lib/enforcement-level.js.
+      #
+      # These two steps run BEFORE the Track B gates below on purpose: the
+      # regression report they produce is what lets
+      # security/scripts/evaluate-promotion-gate.js label a failed 'Project
+      # checks' run PROJECT_NEW_REGRESSION rather than the blanket
+      # static-scanner bucket. If a Track B gate aborted the job first, no
+      # report would exist and the promotion gate would fall back to
+      # PROJECT_CI_OPERATIONAL_FAILURE - still fail-closed (OPERATIONAL
+      # FAILURE is never promotable), but less precise.
+      - name: Determine enforcement level
+        id: enforcement
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          node -e "
+            const { determineEnforcementLevel } = require('./security/scripts/lib/enforcement-level');
+            const level = determineEnforcementLevel({
+              eventName: process.env.EVENT_NAME,
+              ref: process.env.REF,
+              baseRef: process.env.BASE_REF || undefined,
+            });
+            console.log('level=' + level);
+          " >> "$GITHUB_OUTPUT"
+          echo "base_sha=${BASE_SHA}" >> "$GITHUB_OUTPUT"
+          echo "head_sha=${HEAD_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Run base/head regression check (NORMAL_PR)
+        id: regression
+        if: github.event_name == 'pull_request' && steps.enforcement.outputs.level == 'NORMAL_PR'
+        run: |
+          node security/scripts/run-project-checks-regression.js             --base-sha "${{ steps.enforcement.outputs.base_sha }}"             --head-sha "${{ steps.enforcement.outputs.head_sha }}"             --output security/reports/project-checks-regression.json
+
+      - name: Upload Project checks regression report
+        if: always() && steps.regression.outcome != 'skipped'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: project-checks-regression-${{ github.run_number }}
+          path: security/reports/project-checks-regression.json
+          if-no-files-found: warn
+          retention-days: 30
+
       - name: Setup Deno
         uses: denoland/setup-deno@4606d5cc6fb3f673efd4f594850e3f4b3e9d29cd # v2.0.0
 
       # Track B integration gates. These are deliberately direct commands so
       # failures cannot be hidden behind a narrow npm-script selection.
+      #
+      # They stay ABSOLUTE at every enforcement level, including NORMAL_PR,
+      # and are deliberately NOT in run-project-checks-regression.js's
+      # DEFAULT_SCRIPTS. A typecheck error, an Edge Function parity break or a
+      # stale Edge Function manifest is a whole-tree invariant, not a test
+      # outcome a PR gets to inherit from its base - base-relative diffing
+      # would mean a PR could land while the tree does not typecheck merely
+      # because its base did not either. scripts/run-all-tests.js keeps its
+      # own committed config/test-failure-baseline.json semantics here,
+      # unchanged by this convergence: that file remains this line's
+      # full-suite pre-existing-failure mechanism and is not superseded by the
+      # base-SHA regression runner, which covers only the flat npm test:*
+      # scripts below.
       - name: Run full regression suite
         run: node scripts/run-all-tests.js
 
@@ -68,16 +138,25 @@ jobs:
       - name: Verify Edge Function manifest currency
         run: node scripts/generate-edge-function-manifest.js --check
 
+      # INTEGRATION / RELEASE_PROMOTION, or any push with no PR base to diff
+      # against: exactly today's flat, must-all-pass behavior. At NORMAL_PR
+      # level these same five scripts were already executed at both the base
+      # SHA and the head SHA by run-project-checks-regression.js above, which
+      # blocks on NEW failures only.
       - name: Run existing privacy unit tests
+        if: steps.regression.outcome == 'skipped'
         run: npm run test:privacy
 
       - name: Run existing auth privacy unit tests
+        if: steps.regression.outcome == 'skipped'
         run: npm run test:auth-privacy
 
       - name: Run existing verify-supabase helper unit tests
+        if: steps.regression.outcome == 'skipped'
         run: npm run test:verify-supabase
 
       - name: Run existing analyze-contract unit tests
+        if: steps.regression.outcome == 'skipped'
         run: npm run test:analyze-contract
 
       # security/scripts/evaluate-promotion-gate.js previously required a
@@ -87,6 +166,7 @@ jobs:
       # script, so the promotion gate could never find it. Running it here
       # closes the coverage gap rather than dropping the requirement.
       - name: Run existing security baseline comparison tests
+        if: steps.regression.outcome == 'skipped'
         run: npm run test:security
 
       - name: Write project-checks summary
@@ -99,7 +179,21 @@ jobs:
           FINDING_COUNTS: '{"job":"see-logs"}'
           REPORT_ONLY_VERDICT: EXISTING_TESTS_ENFORCED
           EXTRA_NOTES: |
-            Existing package.json scripts executed (no invented scripts):
+            Track B integration gates ran ABSOLUTELY at every enforcement level:
+            - scripts/run-all-tests.js (full suite vs config/test-failure-baseline.json)
+            - scripts/run-backend-tests.js (governed Deno backend suite)
+            - tsc --noEmit -p tsconfig.json
+            - deno check supabase/functions/stylechat-generate/index.ts
+            - scripts/check-edge-function-parity.js
+            - scripts/generate-edge-function-manifest.js --check
+            NORMAL_PR-level runs (a pull_request event, not targeting
+            staging/production-parity or integration/*) judge the flat
+            package.json scripts below against their own PR base SHA via
+            run-project-checks-regression.js - see the uploaded
+            project-checks-regression-<run> artifact. Every other trigger
+            (push, or a PR/push targeting an integration/* or
+            staging/production-parity branch) runs them flat and must pass
+            outright:
             - test:privacy
             - test:auth-privacy
             - test:verify-supabase
