@@ -74,6 +74,16 @@ export const CLOSET_CANDIDATE_EVENTS = [
   'closet_sync_failed',
   'closet_sync_conflict',
   'closet_sync_tombstoned',
+  // Build 34 / Track B / Phase B2C — inbound cross-device Closet restore
+  // (services/closet/closetRestoreEngine.ts). SHAPE AND OUTCOME ONLY, same
+  // discipline as the B2B events above: no client_id, no server item id, no
+  // owner/user id, no Storage path, no signed URL, no item title/brand/notes.
+  'closet_restore_started',
+  'closet_restore_page',
+  'closet_restore_completed',
+  'closet_restore_conflict',
+  'closet_restore_media_missing',
+  'closet_restore_failed',
 ] as const;
 
 export type ClosetCandidateEvent = typeof CLOSET_CANDIDATE_EVENTS[number];

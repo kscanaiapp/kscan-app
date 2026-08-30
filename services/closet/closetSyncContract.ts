@@ -91,6 +91,29 @@ export interface ClosetSyncEntry {
   lastFailureClass: ClosetSyncFailureClass | null;
   /** Conflict evidence handed to B2C. Never used to merge here. */
   conflictExpectedRowVersion: number | null;
+  /**
+   * Build 34 / Track B / Phase B2C. Which of the two inbound conflict shapes
+   * `lastFailureClass === 'conflict'` represents, when B2C is the one that
+   * detected it. Null for every B2B-detected conflict (B2B's own stale-write
+   * conflicts predate this field and need no finer classification) and for
+   * every non-conflict state. A closed, flat vocabulary by design — see
+   * closetRestoreContract.ts; B2C does not build a conflict history or a
+   * second conflict store, only this one evidence field alongside the
+   * existing conflictExpectedRowVersion.
+   */
+  conflictKind: 'remote_newer_local_dirty' | 'remote_tombstone_local_dirty' | null;
+  /**
+   * Build 34 / Track B / Phase B2C. The remote `media_uploaded_at` this
+   * device's restored-media cache was last populated from, for THIS item's
+   * deterministic Storage paths. Null when no restored cache exists yet.
+   *
+   * The only durable signal that can tell "the object at this item's
+   * (invariant) Storage path changed" from "nothing changed" — the primary/
+   * thumbnail paths are pinned to {userId}/closet/{id}-*.jpg and never change
+   * for a given item, so path equality can never detect a replacement. Not
+   * used by B2B, and never read by anything outbound.
+   */
+  cachedMediaUploadedAt: string | null;
 }
 
 export function createSyncEntry(overrides: Partial<ClosetSyncEntry> = {}): ClosetSyncEntry {
@@ -106,6 +129,8 @@ export function createSyncEntry(overrides: Partial<ClosetSyncEntry> = {}): Close
     lastAttemptAt: null,
     lastFailureClass: null,
     conflictExpectedRowVersion: null,
+    conflictKind: null,
+    cachedMediaUploadedAt: null,
     ...overrides,
   };
 }

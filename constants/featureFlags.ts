@@ -702,6 +702,41 @@ export function resolveClosetCloudSyncEnabled(
 
 export const CLOSET_CLOUD_SYNC_V1 = resolveClosetCloudSyncEnabled();
 
+// ── Closet cross-device restore (Build 34 / Track B / Phase B2C) ───────────
+/**
+ * THE SINGLE B2C KILL SWITCH. Gates remote discovery, inbound reconciliation,
+ * and private media hydration alike — deliberately not decomposed into a flag
+ * per stage, for the same reason CLOSET_CLOUD_SYNC_V1 is not: a half-enabled
+ * restore (facts on, media off; discovery on, reconciliation off) produces
+ * local states nothing downstream knows how to reason about.
+ *
+ * Default OFF, exact string "true" to opt in, matching every other rollout
+ * flag in this file.
+ *
+ * DELIBERATELY INDEPENDENT OF CLOSET_CLOUD_SYNC_V1. B2B (outbound) and B2C
+ * (inbound) read and write disjoint directions of the same sidecar, and a
+ * device may legitimately want one without the other — most notably a brand
+ * new device restoring an existing wardrobe before it has ever produced any
+ * outbound work of its own. Nesting this under the outbound flag would make
+ * that ordinary first-run case impossible to express.
+ *
+ * Cloud restore additionally requires an ACTIVE K+ entitlement at the moment
+ * each attempt runs (services/closet/closetRestoreEngine.ts), evaluated fresh
+ * on every pass so a K+ lapse or reactivation needs no special case — the same
+ * pattern closetSyncEngine.ts#isClosetCloudSyncEligible already established.
+ *
+ * FLAG OFF IS NOT A DEGRADED MODE. The local Closet is fully functional with
+ * this off, exactly as it is today: restore is a K+ enhancement layered on
+ * top, never a prerequisite for using the Closet on any device.
+ */
+export function resolveClosetCrossDeviceRestoreEnabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_CLOSET_CROSS_DEVICE_RESTORE_V1,
+): boolean {
+  return value === 'true';
+}
+
+export const CLOSET_CROSS_DEVICE_RESTORE_V1 = resolveClosetCrossDeviceRestoreEnabled();
+
 // ── Mirror Selfie staging contract (Build 2.5 Step 1 + Step 2) ──────────────
 /**
  * Dedicated Mirror Selfie flag. Gates ONLY the reachability of the crop-staging
