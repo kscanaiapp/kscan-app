@@ -14,6 +14,7 @@ import {
   normalizeSilhouette,
 } from './qualityTuneNormalize.ts';
 import type { RecommendedProduct } from './shoppingProvider.ts';
+import type { CommerceIdentityEvidence } from './scannerQualityGate.ts';
 
 // ── Positive weights ─────────────────────────────────────────────────────────
 
@@ -37,6 +38,37 @@ export const PENALTY_MISSING_IMAGE = -15;
 export const PENALTY_INVALID_PRICE_FORMAT = -5;
 export const PENALTY_NEGATIVE_PRICE = -10;
 
+// ── v124 identity weights ────────────────────────────────────────────────────
+//
+// Calibrated against the two safety rules in Fix #9 section I:
+//   - verified/plausible identity must be able to beat attribute verbosity
+//     (a generic title tops out near AGREEMENT_EXACT_CATEGORY + subtype + color
+//     + material, i.e. ~80-90), and
+//   - a weak, unsupported brand guess must be near-inert, so it cannot promote
+//     a candidate over stronger category/subtype agreement.
+// Exact model/family agreement therefore outweighs AGREEMENT_DOMINANT_COLOR by
+// design: repeating a colour adjective is not commercial identity.
+
+export const IDENTITY_BRAND_MATCH_VERIFIED = 30;
+export const IDENTITY_BRAND_MATCH_PLAUSIBLE = 18;
+export const IDENTITY_BRAND_MATCH_WEAK = 2;
+
+export const IDENTITY_EXACT_MATCH_VERIFIED = 30;
+export const IDENTITY_EXACT_MATCH_PLAUSIBLE = 18;
+export const IDENTITY_EXACT_MATCH_WEAK = 2;
+
+/** Credit when only some distinctive model tokens are present in the listing. */
+export const IDENTITY_PARTIAL_EXACT_MATCH_RATIO = 0.5;
+export const IDENTITY_PARTIAL_EXACT_MATCH_MIN_COVERAGE = 0.5;
+
+export const IDENTITY_DISTINCTIVE_FEATURE_MATCH = 4;
+export const IDENTITY_DISTINCTIVE_FEATURE_MAX = 8;
+
+/** Mismatch is only asserted against a brand the provider actually declared. */
+export const PENALTY_IDENTITY_BRAND_MISMATCH_VERIFIED = -20;
+export const PENALTY_IDENTITY_BRAND_MISMATCH_PLAUSIBLE = -6;
+export const PENALTY_IDENTITY_BRAND_MISMATCH_WEAK = 0;
+
 export const AGREEMENT_STRONG_THRESHOLD = 75;
 export const AGREEMENT_USABLE_THRESHOLD = 50;
 
@@ -46,6 +78,8 @@ export type AgreementScoreResult = {
   score: number;
   band: AgreementBand;
   clearCategoryConflict: boolean;
+  /** v124 — present only when identity evidence was supplied. */
+  identity?: IdentityScoreBreakdown;
 };
 
 const DEMO_HOST_HINTS = [
@@ -183,6 +217,169 @@ function clearSubtypeConflict(garmentCat: string, garmentSubtype: string, text: 
   return false;
 }
 
+// ── v124 commercial identity scoring ─────────────────────────────────────────
+
+/**
+ * Tokens that carry no commercial identity on their own. A model/family match
+ * has to rest on something more discriminating than the garment noun or a
+ * size/colour adjective, otherwise every listing in the category "matches".
+ */
+const GENERIC_IDENTITY_TOKENS: ReadonlySet<string> = new Set([
+  'the', 'and', 'of', 'with', 'in', 'for', 'a', 'an',
+  'jacket', 'coat', 'motorcycle', 'moto', 'biker', 'bomber', 'blazer', 'parka',
+  'dress', 'gown', 'skirt', 'shirt', 'blouse', 'top', 'sweater', 'knit', 'tee',
+  'pants', 'trousers', 'jeans', 'shorts', 'bag', 'handbag', 'tote', 'clutch',
+  'backpack', 'shoe', 'shoes', 'sneaker', 'sneakers', 'boot', 'boots', 'pump',
+  'pumps', 'heel', 'heels', 'loafer', 'loafers', 'sandal', 'sandals', 'flat',
+  'flats', 'belt', 'scarf', 'hat', 'watch',
+  'leather', 'suede', 'denim', 'wool', 'cotton', 'silk', 'satin', 'linen',
+  'black', 'white', 'red', 'blue', 'navy', 'green', 'brown', 'pink', 'grey',
+  'gray', 'beige', 'cream', 'tan',
+  'small', 'medium', 'large', 'mini', 'midi', 'maxi', 'high', 'low', 'mid',
+  'classic', 'new', 'women', 'womens', 'men', 'mens', 'unisex',
+]);
+
+function identityTokens(raw: string): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const tok of raw.toLowerCase().split(/[^a-z0-9]+/)) {
+    if (!tok) continue;
+    if (GENERIC_IDENTITY_TOKENS.has(tok)) continue;
+    if (seen.has(tok)) continue;
+    seen.add(tok);
+    out.push(tok);
+  }
+  return out;
+}
+
+/** Normalized brand string for comparison. Retailer identity is never used. */
+function normalizeBrandKey(raw: unknown): string {
+  if (typeof raw !== 'string') return '';
+  return collapseSpaces(raw.toLowerCase().replace(/[^a-z0-9 ]+/g, ' '));
+}
+
+/**
+ * Brand the *provider* declared for this listing. Never derived from the title:
+ * v124 grades evidence, it does not invent it.
+ */
+function providerBrandKey(product: RecommendedProduct): string {
+  const rec = product as unknown as Record<string, unknown>;
+  return normalizeBrandKey(rec.brand);
+}
+
+function brandKeysAgree(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  return a === b || a.includes(b) || b.includes(a);
+}
+
+function identityWeightForGrade(
+  grade: string,
+  verified: number,
+  plausible: number,
+  weak: number,
+): number {
+  if (grade === 'verified') return verified;
+  if (grade === 'plausible') return plausible;
+  if (grade === 'weak') return weak;
+  return 0;
+}
+
+export type IdentityScoreBreakdown = {
+  brandMatched: boolean;
+  brandMismatched: boolean;
+  exactMatchCoverage: number;
+  distinctiveMatches: number;
+  delta: number;
+};
+
+/**
+ * Deterministic identity delta for one listing.
+ *
+ * Retailer neutrality: `source` / `retailer` are never read here, and the
+ * provider that returned a listing has no bearing on its score.
+ */
+export function scoreCommercialIdentity(
+  product: RecommendedProduct,
+  identity: CommerceIdentityEvidence,
+): IdentityScoreBreakdown {
+  const text = productText(product);
+  const providerBrand = providerBrandKey(product);
+  const identityBrand = normalizeBrandKey(identity.brand);
+
+  let delta = 0;
+  let brandMatched = false;
+  let brandMismatched = false;
+
+  if (identityBrand && identity.brandGrade !== 'invalid') {
+    const titleHasBrand = text.includes(identityBrand);
+    if (brandKeysAgree(providerBrand, identityBrand) || titleHasBrand) {
+      brandMatched = true;
+      delta += identityWeightForGrade(
+        identity.brandGrade,
+        IDENTITY_BRAND_MATCH_VERIFIED,
+        IDENTITY_BRAND_MATCH_PLAUSIBLE,
+        IDENTITY_BRAND_MATCH_WEAK,
+      );
+    } else if (providerBrand) {
+      // Only an explicitly declared, different provider brand counts as a
+      // mismatch — an untitled generic listing is not evidence of conflict.
+      brandMismatched = true;
+      delta += identityWeightForGrade(
+        identity.brandGrade,
+        PENALTY_IDENTITY_BRAND_MISMATCH_VERIFIED,
+        PENALTY_IDENTITY_BRAND_MISMATCH_PLAUSIBLE,
+        PENALTY_IDENTITY_BRAND_MISMATCH_WEAK,
+      );
+    }
+  }
+
+  // Exact model / family agreement
+  let exactMatchCoverage = 0;
+  const hypothesis = typeof identity.exactItemHypothesis === 'string'
+    ? identity.exactItemHypothesis
+    : '';
+  if (hypothesis && identity.exactMatchGrade !== 'invalid') {
+    const full = identityWeightForGrade(
+      identity.exactMatchGrade,
+      IDENTITY_EXACT_MATCH_VERIFIED,
+      IDENTITY_EXACT_MATCH_PLAUSIBLE,
+      IDENTITY_EXACT_MATCH_WEAK,
+    );
+    const tokens = identityTokens(hypothesis);
+    if (tokens.length === 0) {
+      // No discriminating token — fall back to whole-phrase containment.
+      if (text.includes(hypothesis.toLowerCase())) {
+        exactMatchCoverage = 1;
+        delta += full;
+      }
+    } else {
+      const hits = tokens.filter((t) => text.includes(t)).length;
+      exactMatchCoverage = hits / tokens.length;
+      if (exactMatchCoverage >= 1) {
+        delta += full;
+      } else if (exactMatchCoverage >= IDENTITY_PARTIAL_EXACT_MATCH_MIN_COVERAGE) {
+        delta += Math.round(full * IDENTITY_PARTIAL_EXACT_MATCH_RATIO);
+      }
+    }
+  }
+
+  // Distinctive construction agreement — bounded so verbose titles cannot farm it.
+  let distinctiveMatches = 0;
+  for (const feature of identity.distinctiveFeatures) {
+    const tokens = identityTokens(feature);
+    if (!tokens.length) continue;
+    if (tokens.some((t) => text.includes(t))) distinctiveMatches += 1;
+  }
+  if (distinctiveMatches > 0) {
+    delta += Math.min(
+      distinctiveMatches * IDENTITY_DISTINCTIVE_FEATURE_MATCH,
+      IDENTITY_DISTINCTIVE_FEATURE_MAX,
+    );
+  }
+
+  return { brandMatched, brandMismatched, exactMatchCoverage, distinctiveMatches, delta };
+}
+
 export function agreementBandFromScore(score: number): AgreementBand {
   if (score >= AGREEMENT_STRONG_THRESHOLD) return 'strong';
   if (score >= AGREEMENT_USABLE_THRESHOLD) return 'usable';
@@ -202,6 +399,7 @@ export function scoreProductAgreement(
   product: RecommendedProduct,
   garment: Record<string, unknown>,
   _route?: ScannerCategoryRoute | null,
+  identity?: CommerceIdentityEvidence | null,
 ): AgreementScoreResult {
   let score = 0;
   const text = productText(product);
@@ -327,11 +525,19 @@ export function scoreProductAgreement(
   if (priceInfo.kind === 'negative') score += PENALTY_NEGATIVE_PRICE;
   // missing / zero → no penalty
 
+  // ── v124 commercial identity (omitted → exact v122 score) ──────────────────
+  let identityBreakdown: IdentityScoreBreakdown | undefined;
+  if (identity) {
+    identityBreakdown = scoreCommercialIdentity(product, identity);
+    score += identityBreakdown.delta;
+  }
+
   const clamped = clampAgreementScore(score);
   return {
     score: clamped,
     band: agreementBandFromScore(clamped),
     clearCategoryConflict,
+    ...(identityBreakdown ? { identity: identityBreakdown } : {}),
   };
 }
 
