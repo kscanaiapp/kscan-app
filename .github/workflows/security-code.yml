@@ -28,6 +28,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # __tests__/mirrorIosVisionParity.test.js does `git show <old-sha>:app.json`
+          # against a fixed historical commit to diff permission/entitlement drift.
+          # actions/checkout's default fetch-depth: 1 doesn't have that commit, so
+          # the test throws `fatal: path 'app.json' exists on disk, but not in
+          # <sha>` on every run here. Full history makes that lookup possible.
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
