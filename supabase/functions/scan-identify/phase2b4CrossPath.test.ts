@@ -215,10 +215,22 @@ type ManifestFunction = {
   files: Array<{ path: string; sha256: string; bundle?: boolean }>;
 };
 
+type EdgeFunctionManifest = {
+  parity: { expectedFunctions: string[]; functions: ManifestFunction[] };
+};
+
+function readManifest(): EdgeFunctionManifest {
+  return JSON.parse(readRepoFile('config/edge-function-manifest.json')) as EdgeFunctionManifest;
+}
+
+function governedFunctionNames(): string[] {
+  const names = readManifest().parity.expectedFunctions;
+  assertEquals([...new Set(names)].length, names.length, 'manifest has duplicate governed function names');
+  return [...names].sort();
+}
+
 function bundleClosure(functionName: string): string[] {
-  const manifest = JSON.parse(readRepoFile('config/edge-function-manifest.json')) as {
-    parity: { expectedFunctions: string[]; functions: ManifestFunction[] };
-  };
+  const manifest = readManifest();
   const fn = manifest.parity.functions.find((entry) => entry.name === functionName);
   assert(fn, `${functionName} is not governed by the Edge Function manifest`);
   // The BUNDLE closure, not the directory tree: tests and dead siblings are not
@@ -255,20 +267,156 @@ function inventoryOperations(functionName: string) {
   return found;
 }
 
-Deno.test('inventory: every governed function is covered by the manifest closure', () => {
-  const manifest = JSON.parse(readRepoFile('config/edge-function-manifest.json')) as {
-    parity: { expectedFunctions: string[] };
+type PrivilegeProfile = {
+  serviceRole: boolean;
+  dbRead: boolean;
+  dbWrite: boolean;
+  rpc: boolean;
+  authAdmin: boolean;
+  storage: boolean;
+  privilegedBackend: boolean;
+  actorBoundary: boolean;
+};
+
+/**
+ * Source-audited security footprint for every function governed by the
+ * manifest. This is intentionally a profile rather than a duplicate governed
+ * name list: governedFunctionNames() always comes from the manifest, while
+ * this record states the privileged behavior that review must account for.
+ */
+const GOVERNED_PRIVILEGE_INVENTORY: Record<string, PrivilegeProfile> = {
+  'handle-user-deletion': {
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: false, storage: false,
+    privilegedBackend: false, actorBoundary: true,
+  },
+  'kickscrew-sneaker-description': {
+    serviceRole: false, dbRead: false, dbWrite: false, rpc: false, authAdmin: false, storage: false,
+    privilegedBackend: true, actorBoundary: false,
+  },
+  'kplus-activate': {
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
+    privilegedBackend: true, actorBoundary: true,
+  },
+  'kplus-reconcile-revenuecat': {
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
+    privilegedBackend: true, actorBoundary: true,
+  },
+  'nike-shoe-details': {
+    serviceRole: false, dbRead: false, dbWrite: false, rpc: false, authAdmin: false, storage: false,
+    privilegedBackend: true, actorBoundary: false,
+  },
+  'privacy-correction-request': {
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: false, storage: false,
+    privilegedBackend: false, actorBoundary: true,
+  },
+  'privacy-data-export': {
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: false, storage: false,
+    privilegedBackend: false, actorBoundary: true,
+  },
+  'process-account-deletions': {
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: true,
+    privilegedBackend: true, actorBoundary: true,
+  },
+  'product-search-deals': {
+    serviceRole: false, dbRead: false, dbWrite: false, rpc: false, authAdmin: false, storage: false,
+    privilegedBackend: true, actorBoundary: false,
+  },
+  'resend-restoration-email': {
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
+    privilegedBackend: true, actorBoundary: false,
+  },
+  'restore-account': {
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
+    privilegedBackend: true, actorBoundary: true,
+  },
+  'scan-identify': {
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
+    privilegedBackend: true, actorBoundary: true,
+  },
+  'search-vinted-secondhand': {
+    serviceRole: false, dbRead: false, dbWrite: false, rpc: false, authAdmin: false, storage: false,
+    privilegedBackend: true, actorBoundary: false,
+  },
+  'shared-room-image-url': {
+    serviceRole: true, dbRead: true, dbWrite: false, rpc: false, authAdmin: false, storage: true,
+    privilegedBackend: false, actorBoundary: true,
+  },
+  'staging-health': {
+    serviceRole: true, dbRead: true, dbWrite: false, rpc: true, authAdmin: false, storage: false,
+    privilegedBackend: false, actorBoundary: false,
+  },
+  'style-outfit-generate': {
+    serviceRole: false, dbRead: true, dbWrite: false, rpc: true, authAdmin: false, storage: false,
+    privilegedBackend: true, actorBoundary: true,
+  },
+  'stylechat-generate': {
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: true,
+    privilegedBackend: true, actorBoundary: true,
+  },
+  'stylist-speech': {
+    serviceRole: false, dbRead: true, dbWrite: false, rpc: false, authAdmin: false, storage: false,
+    privilegedBackend: true, actorBoundary: true,
+  },
+  'tryon-clothes-pro': {
+    serviceRole: false, dbRead: false, dbWrite: false, rpc: false, authAdmin: false, storage: false,
+    privilegedBackend: true, actorBoundary: false,
+  },
+};
+
+function observedPrivilegeProfile(functionName: string): Omit<PrivilegeProfile, 'privilegedBackend' | 'actorBoundary'> {
+  const sources = bundleClosure(functionName).map(readRepoFile);
+  const source = sources.join('\n');
+  const touchesDatabase = (file: string) => /\.from\(\s*['\"`]|\/rest\/v1(?:\/|`|'|\")/.test(file);
+  const hasDirectRestWrite = (file: string) =>
+    !/\/rest\/v1\/rpc\//.test(file)
+    && /(?:\b(?:rest|serviceRest)\(\s*['\"`][^'\"`]+|\/rest\/v1\/[^\s'\"`]+)[\s\S]{0,320}?\bmethod\s*:\s*['\"](?:POST|PATCH|DELETE)['\"]/
+      .test(file);
+  return {
+    serviceRole: /\bSUPABASE_SERVICE_ROLE_KEY\b/.test(source),
+    dbRead: sources.some(touchesDatabase),
+    dbWrite: sources.some((file) =>
+      touchesDatabase(file)
+      && (/\.(?:insert|upsert|update|delete)\(/.test(file)
+        || hasDirectRestWrite(file))
+    ),
+    rpc: /\.rpc\(\s*['\"`]|\/rest\/v1\/rpc\/|\brpc\(\s*['\"`]/.test(source),
+    authAdmin: /\.auth\.admin\./.test(source),
+    storage: /\.storage\s*\.from\(|\/storage\/v1\//.test(source),
   };
-  // style-outfit-generate joined the governed set in Build 3 Phase 4, when it
-  // became the host of the versioned private Dressing Room contract.
-  assertEquals(manifest.parity.expectedFunctions.sort(), [
-    'scan-identify',
-    'style-outfit-generate',
-    'stylechat-generate',
-  ]);
-  assert(bundleClosure('scan-identify').length > 0);
-  assert(bundleClosure('stylechat-generate').length > 0);
-  assert(bundleClosure('style-outfit-generate').length > 0);
+}
+
+Deno.test('inventory: every manifest-governed function has a non-empty deployed closure', () => {
+  const manifest = readManifest();
+  const names = governedFunctionNames();
+  assert(names.length > 0, 'manifest contains no governed Edge Functions');
+  assertEquals(
+    manifest.parity.functions.map((fn) => fn.name).sort(),
+    names,
+    'each governed function must have exactly one manifest closure',
+  );
+  for (const name of names) {
+    assert(bundleClosure(name).length > 0, `${name} has an empty deployed bundle closure`);
+  }
+});
+
+Deno.test('inventory: every manifest-governed privilege footprint is source-accounted', () => {
+  const governed = governedFunctionNames();
+  assertEquals(
+    Object.keys(GOVERNED_PRIVILEGE_INVENTORY).sort(),
+    governed,
+    'a governed function was added, removed, or renamed without a source-audited privilege profile',
+  );
+  for (const name of governed) {
+    const expected = GOVERNED_PRIVILEGE_INVENTORY[name];
+    const observed = observedPrivilegeProfile(name);
+    for (const key of Object.keys(observed) as Array<keyof typeof observed>) {
+      assertEquals(
+        observed[key],
+        expected[key],
+        `${name} ${key} behavior changed without updating the governed privilege inventory`,
+      );
+    }
+  }
 });
 
 /**
@@ -282,9 +430,29 @@ Deno.test('inventory: every governed function is covered by the manifest closure
  */
 const SERVICE_ROLE_ALLOWLIST: Record<string, string> = {
   'supabase/functions/_shared/deletion/common.ts':
-    'Pre-existing account-active guard. Reads profiles/deletion_requests for an '
-    + 'ALREADY-authenticated userId; the actor comes from requireUser(), which uses the '
-    + 'anon key plus the caller JWT. No identification data, no body-supplied actor.',
+    'Shared account-lifecycle authority: authenticated actor/account-status checks, '
+    + 'lifecycle RPCs, session revocation, and the internal restoration-email handoff.',
+  'supabase/functions/_shared/privacyRequestRateLimit.ts':
+    'Shared authenticated privacy-request rate-limit RPC; receives only the already '
+    + 'verified caller id from its owning request handler.',
+  'supabase/functions/handle-user-deletion/index.ts':
+    'Authenticated deletion intake reads and mutates only the verified caller\'s '
+    + 'deletion request and profile state.',
+  'supabase/functions/kplus-reconcile-revenuecat/index.ts':
+    'Internal-secret-protected reconciliation worker invokes the bounded K+ '
+    + 'RevenueCat RPC batch.',
+  'supabase/functions/privacy-correction-request/index.ts':
+    'Authenticated correction intake writes the verified caller id, never a '
+    + 'body-supplied actor.',
+  'supabase/functions/privacy-data-export/index.ts':
+    'Authenticated export intake writes the verified caller id, never a '
+    + 'body-supplied actor.',
+  'supabase/functions/process-account-deletions/index.ts':
+    'Privileged deletion worker that performs the documented lifecycle purge, '
+    + 'Auth administration, and Storage cleanup.',
+  'supabase/functions/restore-account/index.ts':
+    'Single-use restoration-token authority that performs the associated Auth '
+    + 'unban after the restoration RPC succeeds.',
   'supabase/functions/scan-identify/index.ts':
     'Hosts the Scanner-domain artifact capture wrappers, both gated on '
     + 'shouldCaptureScanArtifacts(intent) so identify_for_style never reaches them.',
@@ -294,13 +462,19 @@ const SERVICE_ROLE_ALLOWLIST: Record<string, string> = {
   'supabase/functions/scan-identify/commerceOutcomeCapture.ts':
     'Scanner-domain commerce outcome row writer. Only reachable via the gated '
     + 'captureCommerceOutcome wrapper.',
+  'supabase/functions/shared-room-image-url/index.ts':
+    'Resolves an authorized room/share relationship before issuing a narrowly '
+    + 'scoped private Storage signed URL.',
+  'supabase/functions/staging-health/index.ts':
+    'Staging-only health probes read connectivity and small table-presence checks; '
+    + 'the public response exposes no data or credentials.',
 };
 
 Deno.test('inventory: service-role access is confined to the documented allowlist', () => {
   // A service-role client bypasses RLS, so the set of modules holding one is the
   // set of places actor isolation depends on code rather than on the database.
   const found: string[] = [];
-  for (const functionName of ['scan-identify', 'stylechat-generate']) {
+  for (const functionName of governedFunctionNames()) {
     for (const relative of bundleClosure(functionName)) {
       if (/SERVICE_ROLE/.test(readRepoFile(relative))) found.push(relative);
     }
