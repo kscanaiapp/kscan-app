@@ -84,10 +84,20 @@ test('the TextScan voice placeholder stays off in the production profile', () =>
 test('the iOS microphone purpose string exists only for Voice Scan, and neither camera nor audio plugin injects its own', () => {
   // Build 34 Voice Scan V1 is the first real, reachable microphone use in
   // this app (see __tests__/voiceScanUiWiring.test.js and
-  // components/text-scan/VoiceScanButton.tsx). The two purpose strings are
-  // declared directly (not via expo-camera/expo-audio's own plugin props,
-  // which stay false so neither injects a competing/generic copy) and must
+  // components/text-scan/VoiceScanButton.tsx). The two purpose strings must
   // describe Voice Scan specifically, not claim recording/upload of audio.
+  //
+  // The plugin props below used to be `false`, to stop expo-camera/expo-audio
+  // injecting a competing generic copy. That was the right goal and the wrong
+  // mechanism: Expo's createPermissionsPlugin treats `false` as DELETE, so the
+  // plugins removed NSMicrophoneUsageDescription from the BUILT plist even
+  // though it is declared here. This file reads app.json, so it could not see
+  // that -- it asserted the declaration existed while asserting the setting
+  // that erased it. Pinning both props to the same custom string keeps the
+  // original intent (no generic copy) without the deletion, and is independent
+  // of the order Expo applies the two plugins in.
+  // The generated plist is asserted directly in
+  // __tests__/voiceScanMicrophonePermission.test.js.
   assert.equal(typeof infoPlist.NSMicrophoneUsageDescription, 'string');
   assert.match(infoPlist.NSMicrophoneUsageDescription, /Voice Scan/);
   assert.doesNotMatch(infoPlist.NSMicrophoneUsageDescription, /upload|store|record and save/i);
@@ -97,8 +107,14 @@ test('the iOS microphone purpose string exists only for Voice Scan, and neither 
   // correct, desired reassurance, so this checks for the affirmative verb
   // form rather than banning the word "upload" outright.
   assert.doesNotMatch(infoPlist.NSSpeechRecognitionUsageDescription, /\b(is|are|will be)\s+uploaded\b/i);
-  assert.equal(pluginProps('expo-camera').microphonePermission, false);
-  assert.equal(pluginProps('expo-audio').microphonePermission, false);
+  for (const plugin of ['expo-camera', 'expo-audio']) {
+    assert.equal(
+      pluginProps(plugin).microphonePermission,
+      infoPlist.NSMicrophoneUsageDescription,
+      `${plugin} must carry the same custom microphone string, not false (which deletes it) `
+        + 'and not a generic default',
+    );
+  }
 });
 
 test('no production code path uses the expo-audio recording API (distinct from Voice Scan\'s own native Speech-framework path)', () => {
