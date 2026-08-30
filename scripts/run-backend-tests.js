@@ -17,6 +17,16 @@
  * validator, for instance). Without it Deno denies the read and the test fails
  * for a permissions reason that looks exactly like a real regression.
  *
+ * `--allow-env` is required for the same reason: the commerce funnel suites set
+ * and restore provider-key and feature-flag env vars to exercise flag-on and
+ * flag-off behaviour. Denied, they fail as `NotCapable`, which reads exactly
+ * like a behavioural regression and hides nine real invariants -- including the
+ * MODE B image-payload and provider-privacy checks.
+ *
+ * `--allow-run=deno` is scoped deliberately to the Deno binary alone. Exactly one
+ * test needs it: the typecheck gate that shells out to `deno check` to prove the
+ * Edge Function still compiles. Blanket `--allow-run` is not granted.
+ *
  * No network permission is granted. These suites are deterministic: no Supabase,
  * no provider call, no live model.
  *
@@ -80,7 +90,7 @@ if (found.length === 0) {
   process.exit(1);
 }
 
-const result = spawnSync('deno', ['test', '--allow-read', ...found], {
+const result = spawnSync('deno', ['test', '--allow-read', '--allow-env', '--allow-run=deno', ...found], {
   cwd: ROOT,
   stdio: 'inherit',
   env: process.env,
