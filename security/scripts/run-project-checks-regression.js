@@ -38,16 +38,42 @@ const DEFAULT_SCRIPTS = [
 const TAP_SUMMARY_FAIL = /^# fail (\d+)\s*$/m;
 
 /**
+ * `node --test` only recognizes `--test-reporter=...` as a flag when it
+ * appears BEFORE the file-path arguments — once it sees the first
+ * positional (file/glob) argument it stops parsing flags, so anything
+ * after that (including a well-formed `--flag=value`) is treated as
+ * another file pattern instead and is silently ignored (empirically
+ * verified: `npm run <script> -- --test-reporter=tap` — which appends the
+ * flag AFTER the file paths already baked into the script — produces the
+ * default spec-reporter output, not TAP). This resolves each script's
+ * command straight from `cwd`'s own package.json and re-emits it with the
+ * reporter flags correctly ordered first, rather than shelling through
+ * `npm run` at all.
+ */
+function resolveScriptFiles(scriptName, cwd) {
+  const pkg = JSON.parse(fs.readFileSync(path.join(cwd, 'package.json'), 'utf8'));
+  const command = pkg.scripts && pkg.scripts[scriptName];
+  if (!command) {
+    throw new Error(`no such script "${scriptName}" in ${cwd}/package.json`);
+  }
+  const match = command.match(/^node\s+--test\s+(.+)$/);
+  if (!match) {
+    throw new Error(`script "${scriptName}" is not a plain "node --test <files>" command: ${command}`);
+  }
+  return match[1].trim().split(/\s+/);
+}
+
+/**
  * Runs one npm test:* script in `cwd` and returns its parsed leaf failures,
  * prefixed with the script name so two scripts can never collide on an
  * identically-named test in different files (Node's TAP output for
  * explicit multi-file/multi-script invocations has no file-path wrapper).
  */
 function runOneScript(scriptName, cwd) {
-  const result = spawnSync('npm', ['run', scriptName, '--', '--test-reporter=tap', '--test-reporter-destination=stdout'], {
+  const files = resolveScriptFiles(scriptName, cwd);
+  const result = spawnSync(process.execPath, ['--test', '--test-reporter=tap', '--test-reporter-destination=stdout', ...files], {
     cwd,
     encoding: 'utf8',
-    shell: process.platform === 'win32',
   });
   const stdout = result.stdout || '';
   const hasTapBanner = /^TAP version/m.test(stdout);
