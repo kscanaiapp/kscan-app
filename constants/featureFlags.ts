@@ -654,6 +654,41 @@ export function resolveClosetBatchReviewV2Active(
   );
 }
 
+// ── Closet cloud sync (Build 34 / Track B / Phase B2B) ──────────────────────
+/**
+ * THE SINGLE B2B KILL SWITCH. One flag for the whole outbound Closet cloud
+ * sync capability — facts upsert, media upload, retry, and cloud tombstoning
+ * alike. Deliberately not decomposed into per-stage flags: a half-enabled sync
+ * engine (facts on, media off; upload on, delete off) produces cloud states
+ * nothing in B2B or B2C knows how to reason about, so the only supported
+ * configurations are all of it or none of it.
+ *
+ * Default OFF, exact string "true" to opt in, matching every other rollout flag
+ * in this file.
+ *
+ * DELIBERATELY NOT SUBORDINATE TO THE CLOSET_SEPARATION/DIRECT_INTAKE/STAGING
+ * CHAIN. Those gate the candidate INTAKE pipeline — how an item gets into the
+ * Closet. This gates what happens to a committed Closet item afterwards, which
+ * is orthogonal: an item committed long before that chain existed is just as
+ * syncable as one staged today.
+ *
+ * Cloud sync additionally requires an ACTIVE K+ entitlement at the moment each
+ * attempt runs (services/closet/closetSyncEngine.ts#isClosetCloudSyncEligible).
+ * That check is not expressible here because entitlement is runtime state, not
+ * a build-time constant.
+ *
+ * FLAG OFF IS NOT A DEGRADED MODE. The local Closet is fully functional with
+ * this off — it is exactly today's behaviour, because cloud sync is an
+ * enhancement and never a prerequisite for using the Closet.
+ */
+export function resolveClosetCloudSyncEnabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_CLOSET_CLOUD_SYNC_V1,
+): boolean {
+  return value === 'true';
+}
+
+export const CLOSET_CLOUD_SYNC_V1 = resolveClosetCloudSyncEnabled();
+
 // ── Mirror Selfie staging contract (Build 2.5 Step 1 + Step 2) ──────────────
 /**
  * Dedicated Mirror Selfie flag. Gates ONLY the reachability of the crop-staging
