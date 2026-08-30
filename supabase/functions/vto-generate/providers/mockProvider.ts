@@ -155,6 +155,7 @@ export function createMockVtoProvider(options: MockProviderOptions = {}): VtoPro
               mediaType: 'image/png',
               width: null,
               height: null,
+              billedUnits: null,
             },
           };
         case 'success':
@@ -166,6 +167,9 @@ export function createMockVtoProvider(options: MockProviderOptions = {}): VtoPro
               mediaType: MOCK_VTO_RESULT_MEDIA_TYPE,
               width: MOCK_VTO_RESULT_WIDTH,
               height: MOCK_VTO_RESULT_HEIGHT,
+              // The mock has no real vendor billing unit; null is honest,
+              // not a fabricated "1".
+              billedUnits: null,
             },
           };
       }
