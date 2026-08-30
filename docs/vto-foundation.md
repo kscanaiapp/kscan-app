@@ -237,8 +237,28 @@ Closet, marked owned, written to purchase history, or fed into Signature Style.
 
 ## 13. The prior experiment: `tryon-clothes-pro`
 
-**REJECTED**, and left exactly as it was (still undeployed, still on the
-perimeter guard's held-functions list).
+**REJECTED**, and now **RETIRED IN SOURCE**.
+
+> **Correction (2026-08-30, hostile VTO audit).** This section previously said
+> the function was "still undeployed". That was wrong, and the error mattered:
+> `tryon-clothes-pro` was live on staging (v48, ACTIVE) and reachable with the
+> app's **public anon key alone** — the platform's `verify_jwt` gate is
+> satisfied by the key that ships in every mobile binary, so it had no
+> effective authentication. A security pass deleted it from staging on
+> 2026-08-03 for exactly the reasons tabulated below; the 2026-08-29 staging
+> backend rebuild redeployed it, and this document's inherited "undeployed"
+> claim is why nobody re-checked. Proof: with the anon key and no user session,
+> `vto-generate` answers `401 authorization_failed` while
+> `tryon-clothes-pro` answered `400 "person_image is required..."` — its own
+> validation, meaning the request had already reached the handler.
+>
+> The function now refuses every request with `410 endpoint_retired` and reads
+> no credential and contacts no upstream. It is retired rather than hardened
+> because `vto-generate` already owns the authority chain and a second copy of
+> it would create two places for try-on authorization to be true.
+>
+> **Any status claim about a deployed function belongs to the platform, not to
+> a document.** Verify with `list_edge_functions` before repeating one.
 
 What it is: a 189-line Edge Function proxying `try-on-clothes-pro.p.rapidapi.com`
 with the shared `RAPIDAPI_KEY`, plus `services/tryOnClothesPro.ts`, a client
@@ -262,8 +282,10 @@ Why it is not the foundation:
 Reusing it would have meant rebuilding all ten. What *was* taken from it is
 knowledge, not code: RapidAPI hosts try-on models with a
 person-image + top/bottom-garment shape, which is why `VtoGarmentSlot`
-distinguishes top/bottom/full_body. It is not activated, not extended, and not
-deleted — deleting a governed, manifested function is a separate decision.
+distinguishes top/bottom/full_body. The slug and its manifest entry are kept so
+the governed inventory still accounts for it and a redeploy from any branch
+lands the refusal rather than the proxy — deleting a governed, manifested
+function is still a separate owner decision.
 
 ## 14. Cost and quota readiness
 
