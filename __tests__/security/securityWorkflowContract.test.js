@@ -92,9 +92,33 @@ test('contract-tests is gated off for docs-only classifications', () => {
   const jobBlock = stagingGate.content.slice(jobStart, jobEnd);
   assert.match(
     jobBlock,
-    /if:\s*needs\.classify-changes\.outputs\.classifications\s*!=\s*'DOCUMENTATION ONLY'/,
+    /classifications\s*!=\s*'DOCUMENTATION ONLY'/,
     'contract-tests must skip (not fail) for a purely documentation-only diff',
   );
+});
+
+// This workflow is reused via workflow_call from staging-release-
+// certification.yml on every push to staging/production-parity
+// (RELEASE_PROMOTION). A docs-only exemption that fired there too would
+// let absolute-green silently tolerate a skipped contract-tests result on
+// the release line itself - Section 10 explicitly forbids that.
+test('the docs-only exemption for contract-tests is qualified by enforcement level, not classification alone', () => {
+  const stagingGate = workflowFiles.find((file) => file.name === 'security-staging-gate.yml');
+  const jobStart = stagingGate.content.indexOf('\n  contract-tests:');
+  const jobEnd = stagingGate.content.indexOf('\n  staging-security-gate:');
+  const jobBlock = stagingGate.content.slice(jobStart, jobEnd);
+  assert.match(
+    jobBlock,
+    /enforcement_level\s*!=\s*'NORMAL_PR'/,
+    'the docs-only skip must be scoped to NORMAL_PR level only',
+  );
+  // classify-changes must actually compute and expose that level for the
+  // gate above to reference.
+  const classifyOutputsBlock = stagingGate.content.slice(
+    stagingGate.content.indexOf('classify-changes:'),
+    stagingGate.content.indexOf('\n    steps:'),
+  );
+  assert.match(classifyOutputsBlock, /enforcement_level:/, 'classify-changes must expose an enforcement_level output');
 });
 
 // The aggregation step must tolerate that skip - a job this workflow itself

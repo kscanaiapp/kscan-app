@@ -75,6 +75,7 @@ jobs:
       edge_deployment_required: ${{ steps.classify.outputs.edge_deployment_required }}
       migration_validation_required: ${{ steps.classify.outputs.migration_validation_required }}
       mobile_runtime_impact: ${{ steps.classify.outputs.mobile_runtime_impact }}
+      enforcement_level: ${{ steps.enforcement.outputs.level }}
     steps:
       - name: Checkout merge candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -109,6 +110,33 @@ jobs:
           echo "migration_validation_required=${MIGRATION_VALIDATION_REQUIRED}" >> "$GITHUB_OUTPUT"
           echo "mobile_runtime_impact=${MOBILE_RUNTIME_IMPACT}" >> "$GITHUB_OUTPUT"
           cat classification.json >> "$GITHUB_STEP_SUMMARY"
+
+      # Staging Gate V2 Section 3/10: this workflow is invoked both directly
+      # (a plain PR - NORMAL_PR) and via workflow_call from
+      # staging-release-certification.yml, which only ever fires on a push
+      # to staging/production-parity or a dispatch with a candidate SHA
+      # (RELEASE_PROMOTION). The enforcement level - not the classification
+      # alone - decides whether contract-tests below may skip: a docs-only
+      # diff never needs it at NORMAL_PR, but "docs-only" must never excuse
+      # it at INTEGRATION/RELEASE_PROMOTION, where every applicable check is
+      # required regardless of what changed (Section 10, absolute green).
+      - name: Determine enforcement level
+        id: enforcement
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          node -e "
+            const { determineEnforcementLevel } = require('./security/scripts/lib/enforcement-level');
+            const level = determineEnforcementLevel({
+              eventName: process.env.EVENT_NAME,
+              ref: process.env.REF,
+              baseRef: process.env.BASE_REF || undefined,
+            });
+            console.log('level=' + level);
+          " >> "$GITHUB_OUTPUT"
 
       - name: Upload classification artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -485,7 +513,15 @@ jobs:
     # docs-only PRs, not a missing check-run) - see the staging-security-gate
     # aggregation below, which was fixed in the same change to actually
     # tolerate that `skipped` result instead of treating it as a failure.
-    if: needs.classify-changes.outputs.classifications != 'DOCUMENTATION ONLY'
+    #
+    # The docs-only exemption applies ONLY at NORMAL_PR level (Section 10):
+    # this workflow is also invoked via workflow_call from
+    # staging-release-certification.yml on every push to
+    # staging/production-parity, where absolute-green means "docs-only"
+    # must never excuse skipping it.
+    if: >-
+      needs.classify-changes.outputs.enforcement_level != 'NORMAL_PR' ||
+      needs.classify-changes.outputs.classifications != 'DOCUMENTATION ONLY'
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
