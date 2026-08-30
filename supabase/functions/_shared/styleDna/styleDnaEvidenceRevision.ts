@@ -6,7 +6,7 @@
 // share a count but differ entirely in content (an edit that changes color,
 // brand, or category on an existing row never changes the count). The V1
 // fallback revision is the smallest deterministic representation that still
-// distinguishes "the same relevant evidence" from "changed relevant evidence"
+// distinguishes unchanged relevant evidence from evidence that has changed,
 // for the common cases this phase needs to handle correctly:
 //
 //   {MAX(updated_at) of non-tombstoned rows}:{COUNT(non-tombstoned rows)}

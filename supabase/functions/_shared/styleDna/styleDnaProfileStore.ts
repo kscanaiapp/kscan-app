@@ -22,9 +22,21 @@
 // discipline every other Track B server module in this repository follows.
 //
 // Deliberately takes an injected client rather than importing a concrete
-// Supabase SDK, so it is testable from Node without a Deno runtime and so a
-// caller can pass either an anon client (RLS-scoped: only ever sees the
-// caller's own rows, which is exactly correct here) or a service-role client.
+// Supabase SDK, so it is testable from Node without a Deno runtime.
+//
+// READS go straight through the caller's own JWT-scoped client: RLS already
+// restricts both `user_closet_items` (owner + active K+) and
+// `user_style_profiles` (owner only) to exactly the caller's own rows, so an
+// ordinary authenticated client is the correct and sufficient authority.
+//
+// THE WRITE goes through public.upsert_style_dna_profile(), a SECURITY
+// DEFINER RPC (see the B5 migration) -- the same pattern
+// public.has_active_k_plus() and public.grant_kplus_early_access() already
+// established. user_style_profiles intentionally grants no direct INSERT/
+// UPDATE to `authenticated` (Micro-addendum N: the client is never the
+// personalization write authority); the RPC derives the caller's identity
+// from auth.uid() itself, so no argument can ever forge another user's
+// profile write, and this module never needs a raw service-role key.
 
 import {
   computeClosetEvidenceRevision,
@@ -47,8 +59,8 @@ const CLOSET_FACTS_COLUMNS = 'updated_at,category,clothing_type,brand,primary_co
 export interface StyleDnaSupabaseClient {
   from(table: string): {
     select: (columns: string) => any;
-    upsert: (payload: Record<string, unknown>, options?: Record<string, unknown>) => any;
   };
+  rpc(fn: string, args: Record<string, unknown>): Promise<{ data: any; error: any }>;
 }
 
 function mapClosetRow(raw: Record<string, any>): StyleDnaClosetFactsRow {
@@ -123,30 +135,18 @@ export async function getOrRecomputeStyleDnaProfile(input: {
   }
 
   const profileData = deriveStyleDnaProfile(closetRows.map(mapClosetRow));
-  const derivedAt = new Date().toISOString();
-  const writeResult = await supabase.from(PROFILE_TABLE).upsert(
-    {
-      user_id: userId,
-      profile_version: STYLE_DNA_PROFILE_VERSION,
-      evidence_revision: evidenceRevision,
-      derived_at: derivedAt,
-      profile_data: profileData,
-    },
-    { onConflict: 'user_id' },
-  );
+  const writeResult = await supabase.rpc('upsert_style_dna_profile', {
+    p_profile_version: STYLE_DNA_PROFILE_VERSION,
+    p_evidence_revision: evidenceRevision,
+    p_profile_data: profileData,
+  });
   if (writeResult.error) return { ok: false, profile: null, failureReason: 'profile_write_failed' };
 
-  return {
-    ok: true,
-    recomputed: true,
-    profile: {
-      userId,
-      profileVersion: STYLE_DNA_PROFILE_VERSION,
-      evidenceRevision,
-      derivedAt,
-      profileData,
-    },
-  };
+  const writtenRows = Array.isArray(writeResult.data) ? writeResult.data : [writeResult.data];
+  const written = writtenRows[0];
+  if (!written) return { ok: false, profile: null, failureReason: 'profile_write_failed' };
+
+  return { ok: true, recomputed: true, profile: mapProfileRow(written) };
 }
 
 export { STYLE_DNA_EMPTY_EVIDENCE_REVISION };

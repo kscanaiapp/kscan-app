@@ -51,10 +51,16 @@ const store = loadTsModule('supabase/functions/_shared/styleDna/styleDnaProfileS
 
 // ── Fake Supabase client: enough surface for this module's two tables ──────
 
+// The RPC (public.upsert_style_dna_profile) derives its identity from
+// auth.uid() server-side, never from an argument. This fake mirrors that by
+// attributing every rpc() write to `options.userId` (the "logged in as"
+// identity), never to anything the store itself passes in — matching the
+// real RPC's forge-proof contract.
 function makeFakeClient(options = {}) {
   const closetRows = options.closetRows ?? [];
   let profileRow = options.profileRow ?? null;
   const writes = [];
+  const authedUserId = options.userId ?? 'user-A';
 
   function closetQuery() {
     const q = { userId: null };
@@ -85,13 +91,21 @@ function makeFakeClient(options = {}) {
     getProfileRow: () => profileRow,
     from: (table) => ({
       select: () => (table === 'user_closet_items' ? closetQuery() : profileQuery()),
-      upsert: (payload) => {
-        writes.push(payload);
-        if (options.writeError) return Promise.resolve({ data: null, error: options.writeError });
-        profileRow = payload;
-        return Promise.resolve({ data: payload, error: null });
-      },
     }),
+    rpc: (fn, args) => {
+      if (fn !== 'upsert_style_dna_profile') throw new Error(`Unexpected rpc: ${fn}`);
+      writes.push(args);
+      if (options.writeError) return Promise.resolve({ data: null, error: options.writeError });
+      const next = {
+        user_id: authedUserId,
+        profile_version: args.p_profile_version,
+        evidence_revision: args.p_evidence_revision,
+        derived_at: new Date().toISOString(),
+        profile_data: args.p_profile_data,
+      };
+      profileRow = next;
+      return Promise.resolve({ data: [next], error: null });
+    },
   };
 }
 
