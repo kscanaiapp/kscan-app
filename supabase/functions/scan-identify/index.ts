@@ -54,6 +54,8 @@ import {
 } from './shoppingProvider.ts';
 import {
   getScanCommerceResults,
+  getFastCommerceResults,
+  enrichCommerceOffers,
   type ScanCommerceResult,
 } from './scanCommerceRouter.ts';
 // Phase 2B.1 activation. Explicit `.ts` specifiers (Deno requirement) also put
@@ -115,6 +117,20 @@ import {
   COMMERCE_RELEVANCE_VERSION,
 } from './commerceRelevanceConfig.ts';
 import {
+  isCommerceIdentityEnabled,
+  COMMERCE_IDENTITY_VERSION,
+} from './commerceIdentityConfig.ts';
+import {
+  isCommerceRetrievalEnabled,
+  COMMERCE_RETRIEVAL_VERSION,
+} from './commerceRetrievalConfig.ts';
+import {
+  isCommerceFunnelEnabled,
+  COMMERCE_FUNNEL_VERSION,
+} from './commerceFunnelConfig.ts';
+import { buildCanonicalCommerce } from './canonicalCommerce.ts';
+import {
+  mapFastCommerceFailureReason,
   mapToFailureReason,
 } from './commerceRelevanceFailure.ts';
 import {
@@ -123,6 +139,7 @@ import {
 } from './textScanCommerceParityConfig.ts';
 import {
   captureCommerceOutcome as persistCommerceOutcomeRow,
+  captureCommerceOutcomeNonBlocking,
 } from './commerceOutcomeCapture.ts';
 import {
   buildRoutedIdentifyPrompt,
@@ -171,6 +188,17 @@ const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models
 const DEFAULT_MIME = 'image/jpeg';
 const ANON_SCAN_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const ANON_SCAN_RATE_LIMIT_MAX = 6;
+// MODE B (commerce-only) has no bearer-token requirement at all — verify_jwt
+// is off for this function and an attacker can simply omit the Authorization
+// header, so gating by auth state would not bound anything. This is the same
+// IP+UA fingerprint authority the anonymous image path already uses, applied
+// uniformly regardless of auth state, so it is the actual spend boundary
+// rather than a check an attacker can route around. The window matches the
+// image-scan limiter; the max is higher because one legitimate scan issues
+// roughly 2-3 MODE B calls (discovery, optional enrichment, an occasional
+// user retry) against potentially several scans in one session.
+const COMMERCE_ONLY_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const COMMERCE_ONLY_RATE_LIMIT_MAX = 40;
 const SCAN_IDENTIFY_IMAGE_DAILY_LIMIT_DEFAULT = 30;
 const SCAN_IDENTIFY_TEXT_DAILY_LIMIT_DEFAULT = 50;
 const PROJECT_ACCESS_CACHE_MS = 5 * 60 * 1000;
@@ -223,6 +251,17 @@ const IDENTIFICATION_ARRAY_KEYS = [
 const IDENTIFICATION_BOOLEAN_KEYS = ['logo_detected', 'non_fashion'] as const;
 const IDENTIFICATION_NUMBER_KEYS = ['confidence_score'] as const;
 
+/**
+ * v124 commerce-identity evidence keys. Additive and gated: when the identity
+ * flag is off these are dropped exactly as any unknown key was before, so the
+ * sanitized identification is byte-identical to v123.
+ */
+const IDENTIFICATION_IDENTITY_STRING_KEYS = [
+  'brand_confidence',
+  'exact_item_hypothesis',
+  'exact_match_confidence',
+] as const;
+
 const SAFE_FAILED_MESSAGE =
   "We couldn't complete this scan. Please try again in better light or retake the photo.";
 const NO_IMAGE_PROVIDED_MESSAGE =
@@ -241,6 +280,15 @@ const SAFE_TEXT_NON_FASHION_MESSAGE =
 type AuthContext = {
   userId: string | null;
   isAuthenticated: boolean;
+  /**
+   * True when the verified Supabase user is an anonymous identity
+   * (auth.signInAnonymously()), read directly off the already-fetched
+   * getUser() result — no extra network call. Distinct from isAuthenticated:
+   * an anonymous identity IS an authenticated session (it has a valid,
+   * verifiable JWT and its own auth.uid()), it is just not a K Scan AI
+   * account eligible to spend paid-AI budget. See isEligiblePaidAIActor().
+   */
+  isAnonymous: boolean;
   hasProjectAccess: boolean;
   authError: boolean;
 };
@@ -254,6 +302,9 @@ type ShoppingMeta = {
   similarityMatches?: number;
   commerceSkipped?: boolean;
   reason?: string;
+  /** v127: commerce was deferred to a follow-up commerce-only (MODE B) request. */
+  deferred?: boolean;
+  funnelVersion?: string;
 };
 
 type AnonymousRateEntry = {
@@ -268,6 +319,11 @@ type ProjectAccessCacheEntry = {
 
 const anonymousScanRateLimits = new Map<string, AnonymousRateEntry>();
 const projectAccessCache = new Map<string, ProjectAccessCacheEntry>();
+// A separate map from `anonymousScanRateLimits`: that one only ever sees
+// anonymous image scans, and MODE B is checked for every caller regardless of
+// auth state. Sharing the map would let commerce-only traffic exhaust an
+// anonymous user's scan budget, or vice versa.
+const commerceOnlyRateLimits = new Map<string, AnonymousRateEntry>();
 
 // ── Provider prompts (server-side only) ────────────────────────────────────────
 
@@ -739,12 +795,80 @@ const SELECTED_ITEM_RESPONSE_SCHEMA = {
   required: ['status', 'attributes', 'identification', 'recommendedProducts', 'userMessage'],
 } as const;
 
+/**
+ * v124 selected-item schema — the v123 contract plus optional commercial
+ * identity evidence.
+ *
+ * Strictly additive: every existing property and every entry in `required` is
+ * carried over unchanged, and all new fields are optional, so a response valid
+ * under the v123 schema stays valid here and older clients see no difference.
+ * Selected only when BACKEND_COMMERCE_IDENTITY_ENABLED is on.
+ */
+const SELECTED_ITEM_RESPONSE_SCHEMA_V124 = {
+  type: 'OBJECT',
+  properties: {
+    ...SELECTED_ITEM_RESPONSE_SCHEMA.properties,
+    identification: {
+      type: 'OBJECT',
+      properties: {
+        ...SELECTED_ITEM_RESPONSE_SCHEMA.properties.identification.properties,
+        // ── Commercial identity evidence (all optional) ──────────────────────
+        visible_brand_text: { type: 'STRING' },
+        logo_detected: { type: 'BOOLEAN' },
+        brand_guess: { type: 'STRING' },
+        brand_confidence: { type: 'STRING', enum: ['low', 'medium', 'high'] },
+        exact_item_hypothesis: { type: 'STRING' },
+        exact_match_confidence: { type: 'STRING', enum: ['low', 'medium', 'high'] },
+        distinctive_features: { type: 'ARRAY', items: { type: 'STRING' }, maxItems: 8 },
+        style_tags: { type: 'ARRAY', items: { type: 'STRING' }, maxItems: 6 },
+      },
+      required: [...SELECTED_ITEM_RESPONSE_SCHEMA.properties.identification.required],
+    },
+  },
+  required: [...SELECTED_ITEM_RESPONSE_SCHEMA.required],
+} as const;
+
+const SELECTED_ITEM_COMMERCE_IDENTITY_PROMPT = `
+Also perform a bounded commercial identity analysis of the same selected garment.
+This is for shopping match quality only. It never changes which garment you analyzed.
+
+Add these optional identification fields when — and only when — the image supports them:
+- visible_brand_text: brand wording, wordmark, or tag text you can actually read on the garment. Omit if none is legible.
+- logo_detected: true only when a brand logo or monogram is actually visible.
+- brand_guess: the brand you believe made this item.
+- brand_confidence: "high" | "medium" | "low"
+    high   = you can see a logo, wordmark, or tag identifying the brand.
+    medium = no readable wordmark, but distinctive construction, hardware, a recognizable
+             model/family detail, silhouette, or pattern makes the brand visually plausible.
+    low    = a weak hypothesis with little supporting visual evidence.
+- exact_item_hypothesis: the specific purchasable product or product family the item
+  appears to be, for example "L01 Motorcycle Jacket", "Speedy 30", "Air Jordan 1 High",
+  "Rockstud Pump". Omit this field entirely when the product family cannot be
+  responsibly inferred. Do not invent a model name to fill the field.
+- exact_match_confidence: "high" | "medium" | "low", graded the same way.
+- distinctive_features: up to 8 short, concrete, fashion-specific construction details that
+  would help distinguish this exact item from look-alikes, for example "asymmetric zipper",
+  "silver-tone hardware", "belted hem", "quilted construction", "chain strap",
+  "monogram pattern", "contrast stitching", "distinctive pocket layout".
+  Keep each entry a short noun phrase. No sentences, no marketing prose, no adjectives
+  such as luxury, designer, premium, vintage, or inspired.
+- style_tags: up to 6 short style descriptors.
+
+Rules:
+- Omitting a field is always better than guessing one. "low" is the correct grade for a
+  weak hypothesis; do not inflate it.
+- Never state or imply certainty you do not have.
+- Never identify a person, and never infer age, race, gender identity, body type, health,
+  religion, income, or any other protected trait — including from a brand or price signal.
+- Analyze only the selected garment. Ignore the person, face, body, background, and every
+  unselected garment.`;
+
 function buildSelectedItemPrompt(candidate: {
   candidateId: string;
   category: string;
   subtype?: string;
   bounds?: { x: number; y: number; width: number; height: number };
-}): string {
+}, commerceIdentityEnabled = false): string {
   const target = JSON.stringify(candidate);
   return `You are K Scan AI's selected-garment identification engine.
 
@@ -754,7 +878,11 @@ Analyze only that garment in the original parent image.
 Use its normalized bounds to locate it.
 Do not switch to a larger, more central, or more recognizable garment.
 Ignore the person, face, body, background, and every unselected garment.
-Do not guess a brand unless clearly visible on the selected garment.
+${
+    commerceIdentityEnabled
+      ? 'Report brand only as graded evidence, per the commercial identity section below.'
+      : 'Do not guess a brand unless clearly visible on the selected garment.'
+  }
 
 Return strict JSON only in the existing single-item response shape:
 - status must be completed
@@ -764,7 +892,10 @@ Return strict JSON only in the existing single-item response shape:
 - userMessage must concisely describe the selected garment
 - do not return detectedGarments
 
-If an attribute is uncertain, use "unknown" rather than switching garments.`;
+If an attribute is uncertain, use "unknown" rather than switching garments.${
+    commerceIdentityEnabled ? `
+${SELECTED_ITEM_COMMERCE_IDENTITY_PROMPT}` : ''
+  }`;
 }
 
 const TEXT_IDENTIFY_PROMPT = `You are K Scan AI's fashion identification engine.
@@ -1085,6 +1216,7 @@ async function resolveAuthContext(
     return {
       userId: null,
       isAuthenticated: false,
+      isAnonymous: false,
       hasProjectAccess,
       authError: false,
     };
@@ -1098,6 +1230,11 @@ async function resolveAuthContext(
   return {
     userId: authError || !user ? null : user.id,
     isAuthenticated: Boolean(!authError && user),
+    // Supabase populates this on the verified user record for a session
+    // created via auth.signInAnonymously() — already present on the same
+    // getUser() response used for isAuthenticated, so reading it costs
+    // nothing extra.
+    isAnonymous: Boolean((user as { is_anonymous?: boolean } | null)?.is_anonymous),
     hasProjectAccess,
     authError: Boolean(authError || !user),
   };
@@ -1197,36 +1334,66 @@ function buildRateLimitedResponse(): Record<string, unknown> {
   };
 }
 
+/** Shared sliding-window limiter body. Each caller owns its own map/budget. */
+function checkSlidingWindowRateLimit(
+  map: Map<string, AnonymousRateEntry>,
+  fingerprint: string,
+  windowMs: number,
+  max: number,
+): { allowed: boolean; retryAfterSeconds: number; count: number } {
+  const now = Date.now();
+  if (map.size > 1000) {
+    for (const [key, entry] of map.entries()) {
+      if (now - entry.windowStart > windowMs * 2) {
+        map.delete(key);
+      }
+    }
+  }
+
+  const current = map.get(fingerprint);
+  const entry = !current || now - current.windowStart >= windowMs
+    ? { windowStart: now, count: 0 }
+    : current;
+  entry.count += 1;
+  map.set(fingerprint, entry);
+
+  const retryAfterSeconds = Math.max(1, Math.ceil((entry.windowStart + windowMs - now) / 1000));
+  return { allowed: entry.count <= max, retryAfterSeconds, count: entry.count };
+}
+
 function checkAnonymousImageRateLimit(fingerprint: string): {
   allowed: boolean;
   retryAfterSeconds: number;
   count: number;
 } {
-  const now = Date.now();
-  if (anonymousScanRateLimits.size > 1000) {
-    for (const [key, entry] of anonymousScanRateLimits.entries()) {
-      if (now - entry.windowStart > ANON_SCAN_RATE_LIMIT_WINDOW_MS * 2) {
-        anonymousScanRateLimits.delete(key);
-      }
-    }
-  }
-
-  const current = anonymousScanRateLimits.get(fingerprint);
-  const entry = !current || now - current.windowStart >= ANON_SCAN_RATE_LIMIT_WINDOW_MS
-    ? { windowStart: now, count: 0 }
-    : current;
-  entry.count += 1;
-  anonymousScanRateLimits.set(fingerprint, entry);
-
-  const retryAfterSeconds = Math.max(
-    1,
-    Math.ceil((entry.windowStart + ANON_SCAN_RATE_LIMIT_WINDOW_MS - now) / 1000),
+  return checkSlidingWindowRateLimit(
+    anonymousScanRateLimits,
+    fingerprint,
+    ANON_SCAN_RATE_LIMIT_WINDOW_MS,
+    ANON_SCAN_RATE_LIMIT_MAX,
   );
-  return {
-    allowed: entry.count <= ANON_SCAN_RATE_LIMIT_MAX,
-    retryAfterSeconds,
-    count: entry.count,
-  };
+}
+
+/**
+ * Bound MODE B provider spend (P1-A repair).
+ *
+ * MODE B has no bearer-token requirement — `verify_jwt` is off for this
+ * function, so an attacker can omit the Authorization header entirely and
+ * gating by auth state would not bound anything. Checked for EVERY caller
+ * regardless of auth state, before any provider work, using the same IP+UA
+ * fingerprint authority the anonymous image path already uses.
+ */
+function checkCommerceOnlyRateLimit(fingerprint: string): {
+  allowed: boolean;
+  retryAfterSeconds: number;
+  count: number;
+} {
+  return checkSlidingWindowRateLimit(
+    commerceOnlyRateLimits,
+    fingerprint,
+    COMMERCE_ONLY_RATE_LIMIT_WINDOW_MS,
+    COMMERCE_ONLY_RATE_LIMIT_MAX,
+  );
 }
 
 function validateImageBase64(imageBase64: string): string | undefined {
@@ -1325,7 +1492,136 @@ function sanitizeAttributes(raw: unknown): Record<string, unknown> | undefined {
 /**
  * Build a sanitized identification object from raw model output.
  */
-function sanitizeIdentification(raw: unknown): Record<string, unknown> | undefined {
+// ── v127 MODE B helpers (commerce-only request) ─────────────────────────────
+
+/** A commerce-only request is opt-in and explicit — never inferred. */
+function isCommerceOnlyRequest(body: { requestMode?: unknown }): boolean {
+  return body.requestMode === 'commerce_only';
+}
+
+/**
+ * Optional per-item correlation id for a MODE B request (Build 32 multi-item
+ * commerce). Pure passthrough: echoed on the response unchanged, never read
+ * by ranking, filtering, or provider selection. Absent on every pre-Build-32
+ * caller, so its absence changes nothing.
+ */
+function readCommerceOnlyCandidateId(body: { candidateId?: unknown }): string | undefined {
+  return safeString(body.candidateId);
+}
+
+/**
+ * Hard privacy gate for MODE B.
+ *
+ * The commerce-only path must operate on structured evidence, so an image
+ * payload is not merely unnecessary here — accepting one would create a second
+ * route by which image bytes could reach the commerce stack. Any image-shaped
+ * field is a rejected request, not a silently ignored field, so a client bug
+ * cannot quietly start shipping images.
+ */
+const PROHIBITED_IMAGE_KEYS = [
+  'imageBase64',
+  'image',
+  'imageUrl',
+  'imageUri',
+  'photo',
+  'base64',
+  'evidence',
+];
+
+function rejectImagePayloadForCommerceOnly(
+  body: Record<string, unknown>,
+  path = '',
+  depth = 0,
+): string | null {
+  // Checked at every level, not only the top: `attributes` reaches the provider
+  // query without an allowlist, so a top-level-only sweep left
+  // `attributes.imageBase64` as a second route for image bytes to enter the
+  // commerce stack. Depth is bounded so a hostile body cannot cost time here.
+  if (depth > 4) return null;
+  for (const [key, value] of Object.entries(body)) {
+    if (value === undefined || value === null) continue;
+    const here = path ? `${path}.${key}` : key;
+    if (PROHIBITED_IMAGE_KEYS.includes(key)) return `image_payload_rejected:${here}`;
+    if (typeof value === 'object' && !Array.isArray(value)) {
+      const nested = rejectImagePayloadForCommerceOnly(
+        value as Record<string, unknown>,
+        here,
+        depth + 1,
+      );
+      if (nested) return nested;
+    }
+  }
+  return null;
+}
+
+/**
+ * Bound the free-text MODE B attributes carry.
+ *
+ * Keys are preserved — the ranker and the v125 query builder read named
+ * attributes, and an allowlist here would silently drop commerce signal on the
+ * deferred path only. Values are capped exactly as `searchQueries` already is,
+ * because named attribute values are concatenated into the outbound provider
+ * query and were the one uncapped caller-controlled text on this route.
+ */
+function boundCommerceAttributes(
+  raw: Record<string, unknown>,
+  depth = 0,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (typeof value === 'string') {
+      const bounded = safeString(value);
+      if (bounded !== undefined) out[key] = bounded;
+    } else if (typeof value === 'number' || typeof value === 'boolean') {
+      out[key] = value;
+    } else if (Array.isArray(value)) {
+      out[key] = value
+        .slice(0, MAX_ARRAY_ITEMS)
+        .map((entry) => (typeof entry === 'string' ? safeString(entry) : undefined))
+        .filter((entry): entry is string => entry !== undefined);
+    } else if (value && typeof value === 'object' && depth < 2) {
+      out[key] = boundCommerceAttributes(value as Record<string, unknown>, depth + 1);
+    }
+  }
+  return out;
+}
+
+type CommerceOnlyEvidence = {
+  identification: Record<string, unknown>;
+  attributes?: Record<string, unknown>;
+  searchQueries?: string[];
+  market?: { locale?: string | null; currency?: string | null; country?: string | null };
+};
+
+/** Read the structured evidence MODE B accepts. Nothing else is consumed. */
+function readCommerceOnlyEvidence(
+  body: { identification?: unknown; attributes?: unknown; searchQueries?: unknown; market?: unknown },
+): CommerceOnlyEvidence | null {
+  const identification = sanitizeIdentification(body.identification, true);
+  if (!identification) return null;
+
+  const attributes = body.attributes && typeof body.attributes === 'object' && !Array.isArray(body.attributes)
+    ? boundCommerceAttributes(body.attributes as Record<string, unknown>)
+    : undefined;
+  const searchQueries = safeStringArray(body.searchQueries) ?? undefined;
+
+  let market: CommerceOnlyEvidence['market'];
+  if (body.market && typeof body.market === 'object' && !Array.isArray(body.market)) {
+    const m = body.market as Record<string, unknown>;
+    market = {
+      locale: safeString(m.locale) ?? null,
+      currency: safeString(m.currency) ?? null,
+      country: safeString(m.country) ?? null,
+    };
+  }
+
+  return { identification, attributes, searchQueries, market };
+}
+
+function sanitizeIdentification(
+  raw: unknown,
+  allowCommerceIdentity = false,
+): Record<string, unknown> | undefined {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
   const src = raw as Record<string, unknown>;
   const out: Record<string, unknown> = {};
@@ -1333,6 +1629,12 @@ function sanitizeIdentification(raw: unknown): Record<string, unknown> | undefin
   for (const key of IDENTIFICATION_STRING_KEYS) {
     const v = safeString(src[key]);
     if (v) out[key] = v;
+  }
+  if (allowCommerceIdentity) {
+    for (const key of IDENTIFICATION_IDENTITY_STRING_KEYS) {
+      const v = safeString(src[key]);
+      if (v) out[key] = v;
+    }
   }
   for (const key of IDENTIFICATION_ARRAY_KEYS) {
     const v = safeStringArray(src[key]);
@@ -1599,6 +1901,14 @@ Deno.serve(async (req) => {
     scanId?: unknown;
     scan_id?: unknown;
     id?: unknown;
+    // v127 MODE B (commerce-only). No image field is read on this route.
+    identification?: unknown;
+    attributes?: unknown;
+    searchQueries?: unknown;
+    market?: unknown;
+    enrich?: unknown;
+    // Build 32: optional per-item correlation id, echoed back unchanged.
+    candidateId?: unknown;
   } = {};
   try {
     body = await req.json();
@@ -1701,13 +2011,302 @@ Deno.serve(async (req) => {
   const logUserId = userId ? userId.slice(0, 8) : 'anon';
 
   console.log(
-    '[scan-identify] request_start mode=%s source=%s auth=%s uid=%s projectAccess=%s',
+    '[scan-identify] request_start mode=%s source=%s auth=%s uid=%s projectAccess=%s supabaseAnon=%s',
     mode,
     source,
     auth.isAuthenticated ? 'authenticated' : 'anonymous',
     logUserId,
     String(auth.hasProjectAccess),
+    String(auth.isAnonymous),
   );
+
+  // v127 flag resolution for the commerce-only route. Same env helpers the
+  // inline path uses; resolved here because MODE B returns before the inline
+  // Gemini section where those locals are declared.
+  const commerceFunnelEnabled = isCommerceFunnelEnabled();
+  const qualityTuneEnabledForCommerceOnly = isQualityTuneEnabled();
+  const intelligenceEnabledForCommerceOnly = qualityTuneEnabledForCommerceOnly &&
+    isScannerIntelligenceEnabled();
+  const relevanceEnabledForCommerceOnly = intelligenceEnabledForCommerceOnly &&
+    isCommerceRelevanceEnabled();
+  const commerceIdentityEnabledForCommerceOnly = relevanceEnabledForCommerceOnly &&
+    isCommerceIdentityEnabled();
+  const commerceRetrievalEnabledForCommerceOnly = commerceIdentityEnabledForCommerceOnly &&
+    isCommerceRetrievalEnabled();
+
+  // ── v127 MODE B: commerce-only request ──────────────────────────────────
+  //
+  // Structured evidence in, ranked offers out. No image is accepted and none is
+  // required: this path exists precisely so the scan result can render before
+  // commerce has finished, and so a commerce retry never re-runs Gemini.
+  //
+  // It reuses the same query construction, ranking, filtering, and provider
+  // normalization as the inline path — there is exactly one commerce
+  // implementation, this mode only changes when it runs.
+  if (commerceFunnelEnabled && isCommerceOnlyRequest(body)) {
+    const commerceOnlyStarted = Date.now();
+
+    // Rate limit before anything else in this block: no provider call, no
+    // evidence parsing, no ranking work happens for a request this rejects.
+    const commerceOnlyFingerprint = await sha256Hex(getClientFingerprintMaterial(req));
+    const commerceOnlyRate = checkCommerceOnlyRateLimit(commerceOnlyFingerprint);
+    if (!commerceOnlyRate.allowed) {
+      console.warn(
+        '[scan-identify] commerce_only_rate_limited fingerprint=%s count=%d',
+        commerceOnlyFingerprint.slice(0, 12),
+        commerceOnlyRate.count,
+      );
+      return json(
+        {
+          status: 'failed',
+          error: 'commerce_only_rate_limited',
+          retryAfterSeconds: commerceOnlyRate.retryAfterSeconds,
+          purchaseOptions: [],
+          recommendedProducts: [],
+        },
+        429,
+      );
+    }
+
+    const rejected = rejectImagePayloadForCommerceOnly(body);
+    if (rejected) {
+      console.warn('[scan-identify] commerce_only_rejected reason=%s', rejected);
+      return json(
+        { status: 'failed', error: 'commerce_only_invalid', reason: rejected, purchaseOptions: [], recommendedProducts: [] },
+        400,
+      );
+    }
+
+    const evidence = readCommerceOnlyEvidence(body);
+    if (!evidence) {
+      return json(
+        { status: 'failed', error: 'commerce_only_invalid', reason: 'missing_identification', purchaseOptions: [], recommendedProducts: [] },
+        400,
+      );
+    }
+    const commerceOnlyCandidateId = readCommerceOnlyCandidateId(body);
+
+    const gated = applyScannerQualityGate(evidence.identification, evidence.attributes, {
+      commerceIdentityEnabled: commerceIdentityEnabledForCommerceOnly,
+    });
+    // Must match the inline MODE A call exactly (see the `commerceCategoryRoute`
+    // resolution on the image route): `selected_item` without a
+    // `selectedCandidate` returns 'general' unconditionally, and
+    // `identification` is not an input field, so routing by it silently
+    // collapsed every deferred query onto the general template while the
+    // flag-off path kept the category-specific one.
+    const route = resolveScannerCategoryRoute({
+      requestMode: 'legacy_single_item',
+      knownCategory: typeof gated.identification?.item_type === 'string'
+        ? gated.identification.item_type
+        : null,
+      knownSubtype: typeof gated.identification?.subtype === 'string'
+        ? gated.identification.subtype
+        : null,
+    });
+
+    const fast = await getFastCommerceResults({
+      mode: 'image',
+      identification: gated.identification,
+      attributes: gated.attributes,
+      searchQueries: evidence.searchQueries,
+      limit: 10,
+      market: evidence.market,
+      ...(intelligenceEnabledForCommerceOnly
+        ? {
+          qualityDetailLevel: gated.commerceQueryDetailLevel,
+          materialAllowed: !gated.materialSuppressed && gated.qualityBand !== 'low',
+          brandAllowed: !gated.brandSuppressed && hasBrandEvidenceForCommerce(gated.identification),
+        }
+        : {}),
+      ...(relevanceEnabledForCommerceOnly
+        ? { relevanceEnabled: true, relevanceRoute: route, qualityBand: gated.qualityBand }
+        : {}),
+      ...(commerceIdentityEnabledForCommerceOnly
+        ? {
+          commerceIdentityEnabled: true,
+          commerceIdentity: gated.commerceIdentity,
+          commerceRetrievalEnabled: commerceRetrievalEnabledForCommerceOnly,
+        }
+        : {}),
+    }).catch((err) => {
+      console.warn('[scan-identify] commerce_only provider error:', err);
+      return null;
+    });
+
+    if (!fast) {
+      // Commerce failure is never a scan failure — the caller already has a
+      // rendered scan result and simply gets an empty, retryable shelf.
+      //
+      // Best-effort scrubbed outcome persistence — never blocks the response.
+      // This is the deferred commerce attempt actually completing (with a
+      // genuine provider failure), not a fabricated outcome: MODE A's own
+      // 'deferred' response never reaches captureCommerceOutcome, so without
+      // this call every MODE B provider error was previously invisible to
+      // commerce telemetry.
+      captureCommerceOutcomeNonBlocking({
+        requestMode: 'commerce_only',
+        sourceClass: null,
+        appPlatform,
+        appVersion,
+        status: 'completed',
+        isFashion: true,
+        categoryRoute: route,
+        qualityBand: gated.qualityBand,
+        commerceQueryDetailLevel: gated.commerceQueryDetailLevel,
+        providerOutcome: 'error',
+        providersTried: null,
+        primaryResultCount: 0,
+        fallbackUsed: false,
+        productsBeforeFilter: 0,
+        productsAfterFilter: 0,
+        productsBeforeDedupe: 0,
+        productsAfterDedupe: 0,
+        categoryMismatchRemovals: 0,
+        retailerCount: 0,
+        commerceDurationMs: Date.now() - commerceOnlyStarted,
+        totalDurationMs: Date.now() - commerceOnlyStarted,
+        failureReason: mapToFailureReason({ providerOutcome: 'error' }),
+        textScanParityEnabled: false,
+        correlationHash: typeof commerceOnlyCandidateId === 'string'
+          ? commerceOnlyCandidateId.slice(0, 12)
+          : null,
+        // No fast result exists on this path, so there is no query strategy
+        // or agreement score to report — only that v124/v127 were active.
+        commerceIdentityEnabled: commerceIdentityEnabledForCommerceOnly,
+        commerceFunnelEnabled: true,
+      }, captureCommerceOutcome);
+      return json({
+        status: 'completed',
+        purchaseOptions: [],
+        recommendedProducts: [],
+        commerce: { available: false, retryable: true, errorType: 'provider_error' },
+        ...(commerceOnlyCandidateId ? { candidateId: commerceOnlyCandidateId } : {}),
+      }, 200);
+    }
+
+    // Optional bounded enrichment hop, requested explicitly by the client after
+    // first paint. Never runs on the first commerce response.
+    let products = fast.products;
+    let enrichment: Awaited<ReturnType<typeof enrichCommerceOffers>> | null = null;
+    if (body.enrich === true && fast.enrichmentCandidates.length > 0) {
+      enrichment = await enrichCommerceOffers(products, fast.enrichmentCandidates, {
+        includeBrand: commerceIdentityEnabledForCommerceOnly,
+      }).catch(() => null);
+      if (enrichment) products = enrichment.products;
+    }
+
+    const canonical = buildCanonicalCommerce(products);
+
+    console.log(
+      '[scan-identify] commerce_only_done v=%s cacheHit=%s discoveryMs=%d early=%s offers=%d enriched=%d totalMs=%d',
+      COMMERCE_FUNNEL_VERSION,
+      String(fast.funnel.cacheHit),
+      fast.funnel.discoveryMs,
+      String(fast.funnel.earlyExit),
+      products.length,
+      enrichment?.succeeded ?? 0,
+      Date.now() - commerceOnlyStarted,
+    );
+
+    // Best-effort scrubbed outcome persistence — never blocks the response.
+    // Mirrors the image-mode capture below field-for-field (one normalized
+    // commerce-outcome contract for both MODE A and MODE B): qualityTune is
+    // absent on a cache hit, since those stats were computed at cache-write
+    // time and were never stored, so every count here falls back to the
+    // shelf actually returned to the caller — the same fallback idiom the
+    // image-mode call already uses when its own stats are unavailable.
+    {
+      const qt = fast.qualityTune;
+      const beforeFilter = qt?.productsBeforeFilter ?? products.length;
+      const beforeDedupe = qt?.productsBeforeDedupe ?? products.length;
+      const afterDedupe = qt?.productsAfterDedupe ?? products.length;
+      const mismatchRemovals = qt?.categoryMismatchRemovals ?? 0;
+      const retailerCount = qt?.retailerCount ?? new Set(
+        products
+          .map((p) =>
+            typeof (p as { source?: string }).source === 'string'
+              ? (p as { source: string }).source
+              : ''
+          )
+          .filter(Boolean),
+      ).size;
+      // MODE B never runs a fallback query — getFastCommerceResults only ever
+      // executes resolved.query, never resolved.fallbackQuery — so
+      // fallbackUsed is always false here, not a placeholder.
+      const modeBFailureReason = mapFastCommerceFailureReason({
+        errorType: fast.errorType,
+        productCount: products.length,
+        providerOutcomes: fast.funnel.providers.map((provider) => provider.outcome),
+      });
+
+      captureCommerceOutcomeNonBlocking({
+        requestMode: 'commerce_only',
+        sourceClass: null,
+        appPlatform,
+        appVersion,
+        status: 'completed',
+        isFashion: fast.errorType !== 'non_fashion',
+        categoryRoute: route,
+        qualityBand: gated.qualityBand,
+        commerceQueryDetailLevel: gated.commerceQueryDetailLevel,
+        providerOutcome: fast.provider,
+        providersTried: fast.providersTried,
+        primaryResultCount: products.length,
+        fallbackUsed: false,
+        productsBeforeFilter: beforeFilter,
+        productsAfterFilter: afterDedupe,
+        productsBeforeDedupe: beforeDedupe,
+        productsAfterDedupe: afterDedupe,
+        categoryMismatchRemovals: mismatchRemovals,
+        retailerCount,
+        commerceDurationMs: Date.now() - commerceOnlyStarted,
+        totalDurationMs: Date.now() - commerceOnlyStarted,
+        failureReason: modeBFailureReason,
+        textScanParityEnabled: false,
+        correlationHash: typeof commerceOnlyCandidateId === 'string'
+          ? commerceOnlyCandidateId.slice(0, 12)
+          : null,
+        queryStrategy: fast.queryStrategy ?? null,
+        topAgreementScore: qt?.topAgreementScore ?? null,
+        topAgreementBand: qt?.topAgreementBand ?? null,
+        commerceIdentityEnabled: commerceIdentityEnabledForCommerceOnly,
+        commerceFunnelEnabled: true,
+      }, captureCommerceOutcome);
+    }
+
+    return json({
+      status: 'completed',
+      purchaseOptions: products,
+      recommendedProducts: products,
+      canonicalProducts: canonical.products,
+      ...(commerceOnlyCandidateId ? { candidateId: commerceOnlyCandidateId } : {}),
+      commerce: {
+        available: products.length > 0,
+        retryable: products.length === 0,
+        provider: fast.provider,
+        providersTried: fast.providersTried,
+        count: products.length,
+        ...(fast.errorType ? { errorType: fast.errorType } : {}),
+        enrichmentCandidates: fast.enrichmentCandidates,
+        enrichmentAttempted: enrichment?.attempted ?? 0,
+        enrichmentSucceeded: enrichment?.succeeded ?? 0,
+      },
+      funnel: {
+        version: COMMERCE_FUNNEL_VERSION,
+        cacheHit: fast.funnel.cacheHit,
+        cacheAgeMs: fast.funnel.cacheAgeMs,
+        cacheLookupMs: fast.funnel.cacheLookupMs,
+        discoveryMs: fast.funnel.discoveryMs,
+        earlyExit: fast.funnel.earlyExit,
+        deadlineMs: fast.funnel.deadlineMs,
+        salvagedFromPartial: fast.funnel.salvagedFromPartial,
+        providers: fast.funnel.providers,
+        enrichmentMs: enrichment?.durationMs ?? 0,
+        totalMs: Date.now() - commerceOnlyStarted,
+      },
+    }, 200);
+  }
 
   if (useMultiItemProvider && requestMode === 'selected_item' && !selectedCandidate) {
     console.warn(
@@ -1752,36 +2351,51 @@ Deno.serve(async (req) => {
     String(useMultiItemProvider),
   );
 
-  if (mode === 'text' && !auth.isAuthenticated) {
-    void captureCommerceOutcome({
-      requestMode: 'text',
-      sourceClass: typeof source === 'string' ? source : null,
-      appPlatform,
-      appVersion,
-      status: 'failed',
-      isFashion: false,
-      categoryRoute: null,
-      qualityBand: null,
-      commerceQueryDetailLevel: null,
-      providerOutcome: null,
-      providersTried: null,
-      primaryResultCount: 0,
-      fallbackUsed: false,
-      productsBeforeFilter: 0,
-      productsAfterFilter: 0,
-      productsBeforeDedupe: 0,
-      productsAfterDedupe: 0,
-      categoryMismatchRemovals: 0,
-      retailerCount: 0,
-      commerceDurationMs: null,
-      totalDurationMs: Date.now() - requestStartedAt,
-      failureReason: mapToFailureReason({ authRequired: true }),
-      textScanParityEnabled: false,
-    });
-    return json({ error: 'Not authenticated' }, 401);
-  }
+  // ── Build 32 paid-AI ingress authority (single, non-bypassable) ──────────
+  //
+  // The publishable/anon project key (surfaced here as auth.hasProjectAccess)
+  // proves the request targets this project. A Supabase anonymous identity
+  // (auth.isAnonymous) proves a session exists. Neither proves the caller is
+  // a K Scan AI account eligible to spend Gemini budget, so neither may admit
+  // a request into text or image identification. This is the ONLY authority
+  // that decides that question for this route, it runs before any quota
+  // check, commerce retrieval, or provider call, and it has no fallback: an
+  // actor that fails this check is rejected outright, never re-admitted by
+  // project-key presence, rate-limit headroom, or a verification error.
+  //
+  // (MODE B, the commerce-only request above, is unaffected — it never
+  // reaches Gemini and is out of scope for this authority.)
+  const isEligiblePaidAIActor = auth.isAuthenticated && !auth.isAnonymous;
 
-  if (isAnonymousImageAnalysis && !auth.hasProjectAccess) {
+  if (!isEligiblePaidAIActor) {
+    if (mode === 'text') {
+      void captureCommerceOutcome({
+        requestMode: 'text',
+        sourceClass: typeof source === 'string' ? source : null,
+        appPlatform,
+        appVersion,
+        status: 'failed',
+        isFashion: false,
+        categoryRoute: null,
+        qualityBand: null,
+        commerceQueryDetailLevel: null,
+        providerOutcome: null,
+        providersTried: null,
+        primaryResultCount: 0,
+        fallbackUsed: false,
+        productsBeforeFilter: 0,
+        productsAfterFilter: 0,
+        productsBeforeDedupe: 0,
+        productsAfterDedupe: 0,
+        categoryMismatchRemovals: 0,
+        retailerCount: 0,
+        commerceDurationMs: null,
+        totalDurationMs: Date.now() - requestStartedAt,
+        failureReason: mapToFailureReason({ authRequired: true }),
+        textScanParityEnabled: false,
+      });
+      return json({ error: 'Not authenticated' }, 401);
+    }
     return json(
       {
         ...normalized('failed', SAFE_FAILED_MESSAGE),
@@ -1789,10 +2403,6 @@ Deno.serve(async (req) => {
       },
       401,
     );
-  }
-
-  if (isAnonymousImageAnalysis && auth.authError) {
-    console.warn('[scan-identify] image_auth_fallback_to_analysis_only reason=user_jwt_unverified');
   }
 
   const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -2042,6 +2652,13 @@ Deno.serve(async (req) => {
   const relevanceEnabled = intelligenceEnabled && isCommerceRelevanceEnabled();
   // TextScan parity requires relevance ON; when OFF → exact repaired-v122 TextScan behavior.
   const textScanParityEnabled = relevanceEnabled && isTextScanCommerceParityEnabled();
+  // Commerce identity requires relevance ON; when OFF → exact repaired-v123 behavior.
+  // Ranking-only: it never changes the commerce query, provider order, or call count.
+  const commerceIdentityEnabled = relevanceEnabled && isCommerceIdentityEnabled();
+  // Retrieval enrichment consumes v124's graded evidence, so it requires
+  // identity ON. The reverse does not hold: v124 ON + v125 OFF is valid and is
+  // the state this repository ships by default.
+  const commerceRetrievalEnabled = commerceIdentityEnabled && isCommerceRetrievalEnabled();
 
   const requestModeForRoute = useMultiItemDetectionProvider
     ? 'multi_item_detection' as const
@@ -2077,7 +2694,7 @@ Deno.serve(async (req) => {
   const multiItemPrompt = withQualityAndRoute(MULTI_ITEM_IDENTIFY_PROMPT);
   const textIdentifyPrompt = withQualityAndRoute(TEXT_IDENTIFY_PROMPT);
   const selectedItemPrompt = selectedCandidate
-    ? withQualityAndRoute(buildSelectedItemPrompt(selectedCandidate))
+    ? withQualityAndRoute(buildSelectedItemPrompt(selectedCandidate, commerceIdentityEnabled))
     : '';
 
   const geminiBody = mode === 'text'
@@ -2120,7 +2737,11 @@ Deno.serve(async (req) => {
           ...(useMultiItemDetectionProvider
             ? { responseSchema: MULTI_ITEM_RESPONSE_SCHEMA }
             : useSelectedItemProvider
-            ? { responseSchema: SELECTED_ITEM_RESPONSE_SCHEMA }
+            ? {
+              responseSchema: commerceIdentityEnabled
+                ? SELECTED_ITEM_RESPONSE_SCHEMA_V124
+                : SELECTED_ITEM_RESPONSE_SCHEMA,
+            }
             : {}),
         },
       };
@@ -2385,7 +3006,10 @@ Deno.serve(async (req) => {
     }
 
     // Try the new rich identification shape first.
-    let identification = sanitizeIdentification(primaryGarmentFields.identification ?? parsed.identification);
+    let identification = sanitizeIdentification(
+      primaryGarmentFields.identification ?? parsed.identification,
+      commerceIdentityEnabled,
+    );
     let attributes: Record<string, unknown> | undefined;
     if (useMultiItemDetectionProvider && primaryGarmentFields.attributes) {
       attributes = primaryGarmentFields.attributes;
@@ -2399,7 +3023,10 @@ Deno.serve(async (req) => {
     // If the model returned only legacy attributes (no identification), derive a
     // minimal identification so catalog retrieval still gets a canonicalCategory.
     if (!identification && attributes && rawStatus === 'completed') {
-      identification = sanitizeIdentification(buildIdentificationFromAttributes(attributes));
+      identification = sanitizeIdentification(
+        buildIdentificationFromAttributes(attributes),
+        commerceIdentityEnabled,
+      );
     }
 
     // Quality-tune: deterministic taxonomy normalization + generic recovery.
@@ -2419,7 +3046,9 @@ Deno.serve(async (req) => {
             g.attributes as Record<string, unknown>,
           );
           if (intelligenceEnabled) {
-            const gated = applyScannerQualityGate(tuned.identification, tuned.attributes);
+            const gated = applyScannerQualityGate(tuned.identification, tuned.attributes, {
+              commerceIdentityEnabled,
+            });
             tuned = {
               ...tuned,
               identification: gated.identification,
@@ -2444,7 +3073,8 @@ Deno.serve(async (req) => {
           qualityInvalidPairsResolved += tuned.invalidPairResolved;
         }
         const primaryTuned = primaryGarmentResponseFields(detectedGarments);
-        identification = sanitizeIdentification(primaryTuned.identification) ?? identification;
+        identification = sanitizeIdentification(primaryTuned.identification, commerceIdentityEnabled) ??
+          identification;
         attributes = (primaryTuned.attributes as Record<string, unknown> | undefined) ?? attributes;
       } else if (identification || attributes) {
         let tuned = applyQualityTaxonomyTune(
@@ -2452,14 +3082,17 @@ Deno.serve(async (req) => {
           attributes as Record<string, unknown> | undefined,
         );
         if (intelligenceEnabled) {
-          intelligenceGate = applyScannerQualityGate(tuned.identification, tuned.attributes);
+          intelligenceGate = applyScannerQualityGate(tuned.identification, tuned.attributes, {
+            commerceIdentityEnabled,
+          });
           tuned = {
             ...tuned,
             identification: intelligenceGate.identification,
             attributes: intelligenceGate.attributes,
           };
         }
-        identification = sanitizeIdentification(tuned.identification) ?? identification;
+        identification = sanitizeIdentification(tuned.identification, commerceIdentityEnabled) ??
+          identification;
         if (tuned.attributes) attributes = tuned.attributes;
         qualityNormCorrectionCount = tuned.correctionCount;
         qualityNormRuleIds = tuned.ruleIds;
@@ -2777,6 +3410,13 @@ Deno.serve(async (req) => {
                 qualityBand: intelligenceGate.qualityBand,
               }
               : {}),
+            ...(commerceIdentityEnabled && intelligenceGate
+              ? {
+                commerceIdentityEnabled: true,
+                commerceIdentity: intelligenceGate.commerceIdentity,
+                commerceRetrievalEnabled,
+              }
+              : {}),
           }).catch((err) => {
             console.warn('[scan-identify] text commerce router error:', err);
             return {
@@ -2868,6 +3508,9 @@ Deno.serve(async (req) => {
                   hasBrandEvidenceForCommerce(identification as Record<string, unknown> | undefined),
               }
               : {}),
+            ...(commerceRetrievalEnabled && intelligenceGate?.commerceIdentity
+              ? { commerceIdentity: intelligenceGate.commerceIdentity }
+              : {}),
           })
           : null;
         const shoppingQuery = weightedText
@@ -2919,6 +3562,9 @@ Deno.serve(async (req) => {
                 enabled: true as const,
                 categoryRoute: commerceCategoryRoute,
                 qualityBand: intelligenceGate?.qualityBand ?? null,
+                ...(commerceIdentityEnabled && intelligenceGate?.commerceIdentity
+                  ? { commerceIdentity: intelligenceGate.commerceIdentity }
+                  : {}),
               }
               : undefined;
             const filtered = filterAndDedupeProducts(
@@ -3057,6 +3703,45 @@ Deno.serve(async (req) => {
         commerceSkipped: true,
         reason: 'anonymous_image_analysis',
       };
+    } else if (commerceFunnelEnabled) {
+      // ── v127 MODE A: commerce leaves the scan critical path ───────────────
+      //
+      // The scan result is complete once Gemini has answered. Holding this
+      // response open for provider latency is what made the scanner feel slow,
+      // so under v127 no provider promise is created here at all — not started
+      // and abandoned, not raced against a timeout, simply not on this route.
+      //
+      // The client renders immediately and issues a MODE B commerce-only
+      // request, which reuses this same commerce stack with a bounded fast
+      // deadline. Commerce is deferred, never cancelled.
+      console.log(
+        '[scan-identify] commerce_deferred v=%s mode=%s source=%s',
+        COMMERCE_FUNNEL_VERSION,
+        mode,
+        source,
+      );
+      // Commerce is deferred, so this response carries no offers. These must
+      // still be assigned: the response builder, the audit event, and the
+      // commerce telemetry below all dereference them unconditionally, and an
+      // unassigned binding here throws and is caught by the handler's outer
+      // catch — turning a successful scan into `failed` for every signed-in
+      // user the moment the funnel flag is enabled.
+      finalRecommendedProducts = [];
+      finalSimilarityMatches = [];
+      rankedProductsForAudit = [];
+      shoppingMeta = {
+        provider: 'deferred',
+        query: '',
+        count: 0,
+        providersTried: [],
+        catalogCount: 0,
+        similarityMatches: 0,
+        commerceSkipped: true,
+        // Explicit client contract: fetch commerce with a MODE B request.
+        deferred: true,
+        funnelVersion: COMMERCE_FUNNEL_VERSION,
+        reason: 'deferred_to_commerce_only_request',
+      };
     } else {
       // Image (camera) mode: live commerce first, then deterministic catalog
       // similarity scoring. The similarity matcher runs non-blocking and is
@@ -3091,6 +3776,13 @@ Deno.serve(async (req) => {
               relevanceEnabled: true,
               relevanceRoute: commerceCategoryRoute,
               qualityBand: intelligenceGate.qualityBand,
+            }
+            : {}),
+          ...(commerceIdentityEnabled && intelligenceGate
+            ? {
+              commerceIdentityEnabled: true,
+              commerceIdentity: intelligenceGate.commerceIdentity,
+              commerceRetrievalEnabled,
             }
             : {}),
         }).catch((err) => {
@@ -3376,6 +4068,26 @@ Deno.serve(async (req) => {
         console.log(
           '[scan-identify] commerce_relevance_version=%s enabled=true route=%s',
           COMMERCE_RELEVANCE_VERSION,
+          commerceCategoryRoute,
+        );
+      }
+      if (commerceIdentityEnabled) {
+        // Grades only — never the brand string, model hypothesis, or any
+        // free-text evidence, so this stays scrubbed of model-derived content.
+        console.log(
+          '[scan-identify] commerce_identity_version=%s enabled=true brand_grade=%s exact_grade=%s features=%d',
+          COMMERCE_IDENTITY_VERSION,
+          intelligenceGate?.commerceIdentity?.brandGrade ?? 'n/a',
+          intelligenceGate?.commerceIdentity?.exactMatchGrade ?? 'n/a',
+          intelligenceGate?.commerceIdentity?.distinctiveFeatures.length ?? 0,
+        );
+      }
+      if (commerceRetrievalEnabled) {
+        // Bounded strategy classification only — never the query string, which
+        // the existing privacy policy keeps out of logs.
+        console.log(
+          '[scan-identify] commerce_retrieval_version=%s enabled=true route=%s',
+          COMMERCE_RETRIEVAL_VERSION,
           commerceCategoryRoute,
         );
       }

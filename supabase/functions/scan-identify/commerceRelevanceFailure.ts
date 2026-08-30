@@ -34,6 +34,15 @@ export const FAILURE_REASON_PRODUCT_FILTER_EMPTY = 'product_filter_empty' as con
 export const FAILURE_REASON_PRODUCT_DEDUPE_REDUCTION = 'product_dedupe_reduction' as const;
 export const FAILURE_REASON_CATEGORY_MISMATCH_REMOVED = 'category_mismatch_removed' as const;
 export const FAILURE_REASON_UNEXPECTED_INTERNAL_ERROR = 'unexpected_internal_error' as const;
+/**
+ * v124/v127 telemetry repair. `isWeakQuery` already gates both commerce entry
+ * points (scanCommerceRouter.ts's getFastCommerceResults and
+ * getScanCommerceResults both return `errorType: 'weak_query'` and stop
+ * before any provider call) — this was already-deterministic state with no
+ * failure reason to carry it, so it fell into the generic commerce-empty
+ * bucket. Not a new query-quality model: exposes an existing gate's outcome.
+ */
+export const FAILURE_REASON_WEAK_QUERY = 'weak_query' as const;
 
 export const FAILURE_REASONS = [
   FAILURE_REASON_INVALID_REQUEST,
@@ -62,6 +71,7 @@ export const FAILURE_REASONS = [
   FAILURE_REASON_PRODUCT_DEDUPE_REDUCTION,
   FAILURE_REASON_CATEGORY_MISMATCH_REMOVED,
   FAILURE_REASON_UNEXPECTED_INTERNAL_ERROR,
+  FAILURE_REASON_WEAK_QUERY,
 ] as const;
 
 export type FailureReason = (typeof FAILURE_REASONS)[number];
@@ -101,6 +111,9 @@ export function mapToFailureReason(input: {
   productDedupeReduction?: boolean;
   categoryMismatchRemoved?: boolean;
   providerInvalidResult?: boolean;
+  /** getFastCommerceResults / getScanCommerceResults already return
+   *  `errorType: 'weak_query'` and stop before any provider call. */
+  weakQuery?: boolean;
 }): FailureReason | null {
   // 1. Request / auth / session
   if (input.authRequired) return FAILURE_REASON_AUTHENTICATION_REQUIRED;
@@ -133,6 +146,10 @@ export function mapToFailureReason(input: {
   if (cat === 'unexpected' || cat === 'internal') return FAILURE_REASON_UNEXPECTED_INTERNAL_ERROR;
 
   // 3. Commerce terminal
+  // Weak query is checked first: it is a pre-provider early exit, so it can
+  // never genuinely co-occur with a provider outcome — but if a caller passes
+  // both, the query never having been sent is the more specific truth.
+  if (input.weakQuery) return FAILURE_REASON_WEAK_QUERY;
   const provider = (input.providerOutcome || '').toLowerCase();
   if (provider === 'timeout' || provider === 'commerce_timeout' || provider === 'text_commerce_timeout') {
     return FAILURE_REASON_PROVIDER_TIMEOUT;
@@ -149,6 +166,32 @@ export function mapToFailureReason(input: {
   if (input.categoryMismatchRemoved) return FAILURE_REASON_CATEGORY_MISMATCH_REMOVED;
 
   return null;
+}
+
+/**
+ * Map the bounded v127 fast-commerce outcome to the existing failure vocabulary.
+ * Provider timing outcomes are the authority here: the top-level errorType can
+ * be `no_results` even when a parallel provider failed, so using it alone
+ * falsely classifies provider failures as genuine empty shelves.
+ */
+export function mapFastCommerceFailureReason(input: {
+  errorType?: string | null;
+  productCount: number;
+  providerOutcomes?: readonly string[] | null;
+}): FailureReason | null {
+  const errorType = (input.errorType || '').toLowerCase();
+  if (errorType === 'weak_query') return FAILURE_REASON_WEAK_QUERY;
+  if (errorType === 'non_fashion') return FAILURE_REASON_NON_FASHION;
+  if (input.productCount > 0) return null;
+
+  const outcomes = Array.isArray(input.providerOutcomes)
+    ? input.providerOutcomes.map((outcome) => String(outcome).toLowerCase())
+    : [];
+  if (outcomes.includes('error')) return FAILURE_REASON_PROVIDER_ERROR;
+  if (outcomes.includes('timeout') || errorType === 'timeout') {
+    return FAILURE_REASON_PROVIDER_TIMEOUT;
+  }
+  return FAILURE_REASON_COMMERCE_PRIMARY_EMPTY;
 }
 
 export function isKnownFailureReason(value: unknown): value is FailureReason {
