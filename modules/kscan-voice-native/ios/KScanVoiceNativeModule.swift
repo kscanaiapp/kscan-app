@@ -56,6 +56,7 @@ public class KScanVoiceNativeModule: Module {
   private var maxDurationTimer: Timer?
   private var latestPartialTranscript = ""
   private var sessionLocale: String?
+  private var activeSessionId: String?
   private var pendingStopPromise: Promise?
   private var backgroundObserver: NSObjectProtocol?
 
@@ -73,15 +74,19 @@ public class KScanVoiceNativeModule: Module {
     }
 
     AsyncFunction("startListening") { (options: [String: Any]?, promise: Promise) in
-      self.startListening(locale: options?["locale"] as? String, promise: promise)
+      self.startListening(
+        locale: options?["locale"] as? String,
+        sessionId: options?["sessionId"] as? String,
+        promise: promise
+      )
     }
 
-    AsyncFunction("stopListening") { (promise: Promise) in
-      self.finishListening(promise: promise)
+    AsyncFunction("stopListening") { (options: [String: Any], promise: Promise) in
+      self.finishListening(sessionId: options["sessionId"] as? String, promise: promise)
     }
 
-    AsyncFunction("cancelListening") { (promise: Promise) in
-      self.cancelListening(promise: promise)
+    AsyncFunction("cancelListening") { (options: [String: Any], promise: Promise) in
+      self.cancelListening(sessionId: options["sessionId"] as? String, promise: promise)
     }
 
     OnCreate {
@@ -126,9 +131,13 @@ public class KScanVoiceNativeModule: Module {
           promise.resolve(["granted": false, "canAskAgain": speechStatus == .notDetermined])
           return
         }
+        let micStatusBeforeRequest = AVAudioSession.sharedInstance().recordPermission
         self.requestMicrophonePermission { micGranted in
           DispatchQueue.main.async {
-            promise.resolve(["granted": micGranted, "canAskAgain": !micGranted])
+            promise.resolve([
+              "granted": micGranted,
+              "canAskAgain": !micGranted && micStatusBeforeRequest == .undetermined,
+            ])
           }
         }
       }
@@ -145,7 +154,11 @@ public class KScanVoiceNativeModule: Module {
 
   // MARK: - Start
 
-  private func startListening(locale: String?, promise: Promise) {
+  private func startListening(locale: String?, sessionId: String?, promise: Promise) {
+    guard let sessionId = sessionId, !sessionId.isEmpty else {
+      promise.reject(VoiceRecognizerException("Missing Voice Scan session identity."))
+      return
+    }
     guard recognitionTask == nil, audioEngine == nil else {
       promise.reject(VoiceAlreadyListeningException())
       return
@@ -200,23 +213,28 @@ public class KScanVoiceNativeModule: Module {
     audioEngine = engine
     recognitionRequest = request
     sessionLocale = resolvedLocale.identifier
+    activeSessionId = sessionId
     latestPartialTranscript = ""
 
     recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
       guard let self = self else { return }
+      guard self.activeSessionId == sessionId else { return }
       if let result = result {
         self.latestPartialTranscript = result.bestTranscription.formattedString
-        self.sendEvent("onPartialTranscript", ["transcript": self.latestPartialTranscript])
+        self.sendEvent("onPartialTranscript", [
+          "sessionId": sessionId,
+          "transcript": self.latestPartialTranscript,
+        ])
         if result.isFinal {
-          self.completeSession(reason: .recognizerFinalized, error: nil)
+          self.completeSession(sessionId: sessionId, reason: .recognizerFinalized, error: nil)
         }
       } else if let error = error {
-        self.completeSession(reason: .error, error: error)
+        self.completeSession(sessionId: sessionId, reason: .error, error: error)
       }
     }
 
     maxDurationTimer = Timer.scheduledTimer(withTimeInterval: Self.maxDurationSeconds, repeats: false) { [weak self] _ in
-      self?.completeSession(reason: .maxDurationReached, error: nil)
+      self?.completeSession(sessionId: sessionId, reason: .maxDurationReached, error: nil)
     }
 
     promise.resolve(nil)
@@ -224,8 +242,8 @@ public class KScanVoiceNativeModule: Module {
 
   // MARK: - Stop / cancel
 
-  private func finishListening(promise: Promise) {
-    guard recognitionTask != nil else {
+  private func finishListening(sessionId: String?, promise: Promise) {
+    guard recognitionTask != nil, activeSessionId == sessionId else {
       promise.reject(VoiceNotListeningException())
       return
     }
@@ -244,8 +262,8 @@ public class KScanVoiceNativeModule: Module {
     audioEngine?.inputNode.removeTap(onBus: 0)
   }
 
-  private func cancelListening(promise: Promise) {
-    guard recognitionTask != nil else {
+  private func cancelListening(sessionId: String?, promise: Promise) {
+    guard recognitionTask != nil, activeSessionId == sessionId else {
       promise.resolve(nil)
       return
     }
@@ -260,8 +278,8 @@ public class KScanVoiceNativeModule: Module {
 
   // MARK: - Session lifecycle
 
-  private func completeSession(reason: SessionEndReason, error: Error?) {
-    guard recognitionTask != nil else { return }
+  private func completeSession(sessionId: String, reason: SessionEndReason, error: Error?) {
+    guard recognitionTask != nil, activeSessionId == sessionId else { return }
 
     let transcript = latestPartialTranscript
     let locale = sessionLocale
@@ -302,7 +320,7 @@ public class KScanVoiceNativeModule: Module {
     case .error: mappedReason = "error"
     case .interrupted: mappedReason = "interrupted"
     }
-    var payload: [String: Any] = ["reason": mappedReason]
+    var payload: [String: Any] = ["sessionId": sessionId, "reason": mappedReason]
     if let error = error {
       payload["errorCode"] = (error as NSError).domain
     }
@@ -319,6 +337,9 @@ public class KScanVoiceNativeModule: Module {
 
   private func teardownSession(emitInterruptedEvent: Bool) {
     let wasListening = recognitionTask != nil
+    let interruptedSessionId = activeSessionId
+    let interruptedStop = pendingStopPromise
+    pendingStopPromise = nil
     maxDurationTimer?.invalidate()
     maxDurationTimer = nil
     recognitionTask?.cancel()
@@ -329,10 +350,12 @@ public class KScanVoiceNativeModule: Module {
     recognitionRequest = nil
     latestPartialTranscript = ""
     sessionLocale = nil
+    activeSessionId = nil
     try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
 
-    if emitInterruptedEvent && wasListening {
-      sendEvent("onSessionEnded", ["reason": "interrupted"])
+    interruptedStop?.reject(VoiceNotListeningException())
+    if emitInterruptedEvent && wasListening, let sessionId = interruptedSessionId {
+      sendEvent("onSessionEnded", ["sessionId": sessionId, "reason": "interrupted"])
     }
   }
 }

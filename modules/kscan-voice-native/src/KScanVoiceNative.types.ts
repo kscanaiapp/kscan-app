@@ -26,6 +26,13 @@ export interface KScanVoiceCapabilities {
 export interface KScanVoiceStartOptions {
   /** BCP-47 locale, e.g. "en-US". Defaults to the device locale natively. */
   locale?: string;
+  /** Opaque JS-generated identity used to reject stale native callbacks. */
+  sessionId: string;
+}
+
+export interface KScanVoiceSessionOptions {
+  /** Must match the currently active native session. */
+  sessionId: string;
 }
 
 /** Why a listening session ended without the caller calling stopListening(). */
@@ -37,6 +44,7 @@ export type KScanVoiceSessionEndedReason =
   | 'interrupted';
 
 export interface KScanVoiceSessionEndedEvent {
+  sessionId: string;
   reason: KScanVoiceSessionEndedReason;
   /** Present only for reason "error". */
   errorCode?: string;
@@ -52,6 +60,7 @@ export interface KScanVoiceSessionEndedEvent {
 }
 
 export interface KScanVoicePartialTranscriptEvent {
+  sessionId: string;
   transcript: string;
 }
 
@@ -88,10 +97,10 @@ export interface KScanVoiceNativeModuleType {
    * User-initiated stop: finalizes recognition and resolves with the final
    * result, or null if no usable speech was captured.
    */
-  stopListening(): Promise<KScanVoiceFinalResult | null>;
+  stopListening(options: KScanVoiceSessionOptions): Promise<KScanVoiceFinalResult | null>;
   /**
    * Abandons the current session without returning a transcript. Any
    * partial transcript captured so far is discarded, not returned.
    */
-  cancelListening(): Promise<void>;
+  cancelListening(options: KScanVoiceSessionOptions): Promise<void>;
 }

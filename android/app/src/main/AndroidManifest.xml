@@ -5,7 +5,7 @@
   <uses-permission android:name="android.permission.VIBRATE"/>
   <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
   <!-- Voice Scan V1 (Build 34): on-device speech recognition, requested only from an
-       explicit mic tap while VOICESCAN_ENABLED is on and K+ is active -- see
+       explicit mic tap while VOICESCAN_ENABLED is on and K+ is active; see
        modules/kscan-voice-native and hooks/useVoiceScan.ts. Declaring it here does not
        by itself prompt the user; nothing in this app requests it outside that path. -->
   <uses-permission android:name="android.permission.RECORD_AUDIO"/>

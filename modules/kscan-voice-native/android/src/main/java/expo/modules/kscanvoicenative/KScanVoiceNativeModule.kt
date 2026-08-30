@@ -15,12 +15,10 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
-import expo.modules.core.Promise as LegacyPromise
-import expo.modules.interfaces.permissions.Permissions
-import expo.modules.interfaces.permissions.PermissionsResponse
 import expo.modules.interfaces.permissions.PermissionsStatus
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.exception.CodedException
+import expo.modules.kotlin.functions.Queues
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import java.util.Locale
@@ -67,9 +65,12 @@ class KScanVoiceNativeModule : Module() {
   private var recognizer: SpeechRecognizer? = null
   private var latestPartialTranscript = ""
   private var sessionLocale: String? = null
+  private var activeSessionId: String? = null
   private var pendingStopPromise: Promise? = null
   private val handler = Handler(Looper.getMainLooper())
   private var maxDurationRunnable: Runnable? = null
+  @Volatile private var moduleDestroyed = false
+  private var lifecycleObserverRegistered = false
 
   private val context: Context
     get() = appContext.reactContext ?: throw VoiceRecognizerError("No Android context available.")
@@ -90,31 +91,46 @@ class KScanVoiceNativeModule : Module() {
 
     AsyncFunction("getCapabilities") {
       capabilitiesPayload()
-    }
+    }.runOnQueue(Queues.MAIN)
 
     AsyncFunction("requestPermissions") { promise: Promise ->
       requestPermissions(promise)
-    }
+    }.runOnQueue(Queues.MAIN)
 
     AsyncFunction("startListening") { options: Map<String, Any?>?, promise: Promise ->
-      startListening(options?.get("locale") as? String, promise)
-    }
+      startListening(
+        options?.get("locale") as? String,
+        options?.get("sessionId") as? String,
+        promise
+      )
+    }.runOnQueue(Queues.MAIN)
 
-    AsyncFunction("stopListening") { promise: Promise ->
-      finishListening(promise)
-    }
+    AsyncFunction("stopListening") { options: Map<String, Any?>, promise: Promise ->
+      finishListening(options["sessionId"] as? String, promise)
+    }.runOnQueue(Queues.MAIN)
 
-    AsyncFunction("cancelListening") { promise: Promise ->
-      cancelListening(promise)
-    }
+    AsyncFunction("cancelListening") { options: Map<String, Any?>, promise: Promise ->
+      cancelListening(options["sessionId"] as? String, promise)
+    }.runOnQueue(Queues.MAIN)
 
     OnCreate {
-      ProcessLifecycleOwner.get().lifecycle.addObserver(processLifecycleObserver)
+      handler.post {
+        if (!moduleDestroyed) {
+          ProcessLifecycleOwner.get().lifecycle.addObserver(processLifecycleObserver)
+          lifecycleObserverRegistered = true
+        }
+      }
     }
 
     OnDestroy {
-      ProcessLifecycleOwner.get().lifecycle.removeObserver(processLifecycleObserver)
-      teardownSession(emitInterruptedEvent = false)
+      moduleDestroyed = true
+      handler.post {
+        if (lifecycleObserverRegistered) {
+          ProcessLifecycleOwner.get().lifecycle.removeObserver(processLifecycleObserver)
+          lifecycleObserverRegistered = false
+        }
+        teardownSession(emitInterruptedEvent = false)
+      }
     }
   }
 
@@ -141,19 +157,15 @@ class KScanVoiceNativeModule : Module() {
       promise.resolve(mapOf("granted" to false, "canAskAgain" to false))
       return
     }
-    Permissions.askForPermissionsWithPermissionsManager(
-      permissionsManager,
-      object : LegacyPromise {
-        override fun resolve(value: Any?) {
-          val entry = (value as? Bundle)?.getBundle(Manifest.permission.RECORD_AUDIO)
-          val granted = entry?.getString(PermissionsResponse.STATUS_KEY) == PermissionsStatus.GRANTED.status
-          val canAskAgain = entry?.getBoolean(PermissionsResponse.CAN_ASK_AGAIN_KEY, true) ?: true
-          promise.resolve(mapOf("granted" to granted, "canAskAgain" to canAskAgain))
-        }
-
-        override fun reject(code: String, message: String?, cause: Throwable?) {
-          promise.resolve(mapOf("granted" to false, "canAskAgain" to false))
-        }
+    permissionsManager.askForPermissions(
+      { response ->
+        val entry = response[Manifest.permission.RECORD_AUDIO]
+        promise.resolve(
+          mapOf(
+            "granted" to (entry?.status == PermissionsStatus.GRANTED),
+            "canAskAgain" to (entry?.canAskAgain ?: false)
+          )
+        )
       },
       Manifest.permission.RECORD_AUDIO
     )
@@ -166,7 +178,11 @@ class KScanVoiceNativeModule : Module() {
 
   // ── Start ───────────────────────────────────────────────────────────────
 
-  private fun startListening(locale: String?, promise: Promise) {
+  private fun startListening(locale: String?, sessionId: String?, promise: Promise) {
+    if (sessionId.isNullOrBlank()) {
+      promise.reject(VoiceRecognizerError("Missing Voice Scan session identity."))
+      return
+    }
     if (recognizer != null) {
       promise.reject(VoiceAlreadyListeningException())
       return
@@ -183,6 +199,7 @@ class KScanVoiceNativeModule : Module() {
     val resolvedLocale = locale ?: Locale.getDefault().toLanguageTag()
     latestPartialTranscript = ""
     sessionLocale = resolvedLocale
+    activeSessionId = sessionId
 
     val speechRecognizer = SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
     recognizer = speechRecognizer
@@ -196,27 +213,29 @@ class KScanVoiceNativeModule : Module() {
       override fun onEvent(eventType: Int, params: Bundle?) {}
 
       override fun onError(error: Int) {
-        completeSession(reason = "error", errorCode = error.toString())
+        completeSession(sessionId = sessionId, reason = "error", errorCode = error.toString())
       }
 
       override fun onPartialResults(partialResults: Bundle?) {
+        if (activeSessionId != sessionId) return
         val text = partialResults
           ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
           ?.firstOrNull()
         if (!text.isNullOrEmpty()) {
           latestPartialTranscript = text
-          sendEvent("onPartialTranscript", mapOf("transcript" to text))
+          sendEvent("onPartialTranscript", mapOf("sessionId" to sessionId, "transcript" to text))
         }
       }
 
       override fun onResults(results: Bundle?) {
+        if (activeSessionId != sessionId) return
         val text = results
           ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
           ?.firstOrNull()
         if (!text.isNullOrEmpty()) {
           latestPartialTranscript = text
         }
-        completeSession(reason = "recognizer_finalized", errorCode = null)
+        completeSession(sessionId = sessionId, reason = "recognizer_finalized", errorCode = null)
       }
     })
 
@@ -236,7 +255,9 @@ class KScanVoiceNativeModule : Module() {
       return
     }
 
-    val timeoutRunnable = Runnable { completeSession(reason = "max_duration_reached", errorCode = null) }
+    val timeoutRunnable = Runnable {
+      completeSession(sessionId = sessionId, reason = "max_duration_reached", errorCode = null)
+    }
     maxDurationRunnable = timeoutRunnable
     handler.postDelayed(timeoutRunnable, MAX_DURATION_MS)
 
@@ -245,9 +266,9 @@ class KScanVoiceNativeModule : Module() {
 
   // ── Stop / cancel ───────────────────────────────────────────────────────
 
-  private fun finishListening(promise: Promise) {
+  private fun finishListening(sessionId: String?, promise: Promise) {
     val active = recognizer
-    if (active == null) {
+    if (active == null || activeSessionId != sessionId) {
       promise.reject(VoiceNotListeningException())
       return
     }
@@ -263,8 +284,8 @@ class KScanVoiceNativeModule : Module() {
     active.stopListening()
   }
 
-  private fun cancelListening(promise: Promise) {
-    if (recognizer == null) {
+  private fun cancelListening(sessionId: String?, promise: Promise) {
+    if (recognizer == null || activeSessionId != sessionId) {
       promise.resolve(null)
       return
     }
@@ -279,8 +300,8 @@ class KScanVoiceNativeModule : Module() {
 
   // ── Session lifecycle ───────────────────────────────────────────────────
 
-  private fun completeSession(reason: String, errorCode: String?) {
-    if (recognizer == null) return
+  private fun completeSession(sessionId: String, reason: String, errorCode: String?) {
+    if (recognizer == null || activeSessionId != sessionId) return
 
     val transcript = latestPartialTranscript.trim()
     val locale = sessionLocale
@@ -309,7 +330,7 @@ class KScanVoiceNativeModule : Module() {
     // event is the only way JS ever learns the result, so it must carry it
     // (mirrors exactly what a pending stopListening() promise would have
     // resolved with).
-    val payload = mutableMapOf<String, Any>("reason" to reason)
+    val payload = mutableMapOf<String, Any>("sessionId" to sessionId, "reason" to reason)
     if (errorCode != null) {
       payload["errorCode"] = errorCode
     }
@@ -321,6 +342,9 @@ class KScanVoiceNativeModule : Module() {
 
   private fun teardownSession(emitInterruptedEvent: Boolean) {
     val wasListening = recognizer != null
+    val interruptedSessionId = activeSessionId
+    val interruptedStop = pendingStopPromise
+    pendingStopPromise = null
     maxDurationRunnable?.let { handler.removeCallbacks(it) }
     maxDurationRunnable = null
     recognizer?.let {
@@ -330,9 +354,14 @@ class KScanVoiceNativeModule : Module() {
     recognizer = null
     latestPartialTranscript = ""
     sessionLocale = null
+    activeSessionId = null
 
-    if (emitInterruptedEvent && wasListening) {
-      sendEvent("onSessionEnded", mapOf("reason" to "interrupted"))
+    interruptedStop?.reject(VoiceNotListeningException())
+    if (emitInterruptedEvent && wasListening && interruptedSessionId != null) {
+      sendEvent(
+        "onSessionEnded",
+        mapOf("sessionId" to interruptedSessionId, "reason" to "interrupted")
+      )
     }
   }
 }
