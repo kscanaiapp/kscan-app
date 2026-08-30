@@ -57,28 +57,28 @@ export async function requestVoiceRecordingPermission(): Promise<{ granted: bool
   return requestVoicePermissions();
 }
 
-export async function beginVoiceListening(locale?: string): Promise<void> {
-  await startVoiceListening(locale ? { locale } : {});
+export async function beginVoiceListening(sessionId: string, locale?: string): Promise<void> {
+  await startVoiceListening(locale ? { locale, sessionId } : { sessionId });
 }
 
 /** Resolves with the final transcript for an explicit, JS-initiated stop. */
-export async function endVoiceListening(): Promise<VoiceNativeFinalResult | null> {
-  const result = await stopVoiceListening();
+export async function endVoiceListening(sessionId: string): Promise<VoiceNativeFinalResult | null> {
+  const result = await stopVoiceListening({ sessionId });
   return toNativeFinalResult(result);
 }
 
-export async function abandonVoiceListening(): Promise<void> {
-  await cancelVoiceListening();
+export async function abandonVoiceListening(sessionId: string): Promise<void> {
+  await cancelVoiceListening({ sessionId });
 }
 
 export interface VoiceNativeEventHandlers {
-  onPartialTranscript?: (transcript: string) => void;
+  onPartialTranscript?: (sessionId: string, transcript: string) => void;
   /**
    * Fires only when the OS ended the session on its own (15s cap, natural
    * end-of-speech) -- never as a result of an explicit stop/cancel call,
    * which resolve their own promise instead.
    */
-  onSessionEndedByNative?: (result: VoiceNativeFinalResult | null) => void;
+  onSessionEndedByNative?: (sessionId: string, result: VoiceNativeFinalResult | null) => void;
 }
 
 /** Subscribes to native session events; returns an unsubscribe function. */
@@ -89,7 +89,10 @@ export function subscribeToVoiceEvents(handlers: VoiceNativeEventHandlers): () =
     const onPartialTranscript = handlers.onPartialTranscript;
     subscriptions.push(
       KScanVoiceNativeModule.addListener('onPartialTranscript', (event: KScanVoicePartialTranscriptEvent) => {
-        onPartialTranscript(typeof event?.transcript === 'string' ? event.transcript : '');
+        onPartialTranscript(
+          typeof event?.sessionId === 'string' ? event.sessionId : '',
+          typeof event?.transcript === 'string' ? event.transcript : '',
+        );
       }),
     );
   }
@@ -98,7 +101,10 @@ export function subscribeToVoiceEvents(handlers: VoiceNativeEventHandlers): () =
     const onSessionEndedByNative = handlers.onSessionEndedByNative;
     subscriptions.push(
       KScanVoiceNativeModule.addListener('onSessionEnded', (event: KScanVoiceSessionEndedEvent) => {
-        onSessionEndedByNative(toNativeFinalResult(event?.result));
+        onSessionEndedByNative(
+          typeof event?.sessionId === 'string' ? event.sessionId : '',
+          toNativeFinalResult(event?.result),
+        );
       }),
     );
   }

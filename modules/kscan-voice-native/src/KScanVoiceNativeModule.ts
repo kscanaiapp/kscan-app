@@ -4,6 +4,7 @@ import type {
   KScanVoiceFinalResult,
   KScanVoicePartialTranscriptEvent,
   KScanVoiceSessionEndedEvent,
+  KScanVoiceSessionOptions,
   KScanVoiceStartOptions,
 } from './KScanVoiceNative.types';
 
@@ -17,8 +18,8 @@ declare class KScanVoiceNativeModuleClass extends NativeModule<KScanVoiceNativeE
   getCapabilities(): Promise<KScanVoiceCapabilities>;
   requestPermissions(): Promise<{ granted: boolean; canAskAgain: boolean }>;
   startListening(options: KScanVoiceStartOptions): Promise<void>;
-  stopListening(): Promise<KScanVoiceFinalResult | null>;
-  cancelListening(): Promise<void>;
+  stopListening(options: KScanVoiceSessionOptions): Promise<KScanVoiceFinalResult | null>;
+  cancelListening(options: KScanVoiceSessionOptions): Promise<void>;
 }
 
 const KScanVoiceNativeModule = requireNativeModule<KScanVoiceNativeModuleClass>('KScanVoiceNative');
