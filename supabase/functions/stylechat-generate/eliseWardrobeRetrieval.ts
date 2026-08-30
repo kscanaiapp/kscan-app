@@ -161,13 +161,21 @@ export async function retrieveAuthorizedWardrobeCandidates(input: {
             row,
             canonicalResourceIds: { scanId: id, itemId: id },
           });
-          // Saved scans that are closet-backed are owned when marked or default owned for actor.
-          candidate.actorRelationship = 'owned';
-          candidate.sourceType = 'closet';
+          // A saved scan is EVIDENCE THE USER PHOTOGRAPHED SOMETHING, never proof
+          // they own it -- the item may have been in a shop, on someone else, or
+          // in a screenshot. `scanned` is the relationship the rest of this
+          // subsystem already assigns to exactly this row class
+          // (attachmentProvenance.ts#relationshipForLookItem, and the
+          // "saved_scan attachment ... is scanned, never owned" case in
+          // attachmentOwnership.test.ts). Promoting it here produced the
+          // "You already have" ownership label for a merely-scanned item and
+          // conflated this source with the authoritative Track B Closet under a
+          // single `closet` counter. The relationship stays exactly what
+          // normalizeWardrobeCandidate was given.
           candidates.push(candidate);
           authorizedCount += 1;
-          pushCount(countsBySource, 'closet');
-          pushCount(ownershipSourceCounts, 'owned');
+          pushCount(countsBySource, 'saved_scan');
+          pushCount(ownershipSourceCounts, 'scanned');
         }
       } catch {
         partialFailure = true;
