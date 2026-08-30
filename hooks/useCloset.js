@@ -10,14 +10,23 @@ import {
 import { promoteScanToCloset } from '../services/closetPromotion';
 import { getClosetItemProjections } from '../services/closetItemProjection';
 import { createActorRequest, isActorRequestCurrent } from '../services/actorContext';
+import {
+  afterClosetItemDeleted,
+  beforeClosetItemDeleted,
+  noteClosetItemSaved,
+  revertClosetItemDeleteMark,
+  resumeClosetSync,
+} from '../services/closet/closetSyncCoordinator';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 
 /**
  * Closet inventory state for the Library "Closet" section.
  *
- * Device-local only in this testing pass: there is no cloud list, no image
- * upload, and no background sync. Any future cloud path must be a separate,
- * explicitly authorized change.
+ * The Closet itself is DEVICE-LOCAL AND ALWAYS AVAILABLE. Build 34 Track B
+ * Phase B2B adds OUTBOUND cloud sync as a K+ enhancement layered on top: every
+ * local mutation below still completes, and is still reported to the user,
+ * exactly as it did before, whether or not the cloud accepts anything. There
+ * is no cloud LIST and no download path — inbound restore is B2C.
  *
  * Actor safety mirrors useLibrary(): results are held in an actorKey-stamped
  * snapshot and a completion captured before an actor transition is discarded
@@ -52,6 +61,17 @@ export function useCloset() {
 
     setLoading(true);
     setLoadError(null);
+
+    // Opportunistic cloud resume, in the SAME focus effect as the local read
+    // rather than a second one: this is one of B2B's normal triggers (with
+    // save and delete), and it is what makes pending work from a previous
+    // session, an offline period, or a lapsed-then-reactivated K+ entitlement
+    // pick itself back up without any background scheduler.
+    //
+    // Never awaited and never able to affect what this screen renders — the
+    // local read below is the sole authority for that. The engine is
+    // single-flight, so this firing alongside a save trigger yields one pass.
+    void resumeClosetSync('closet_opened');
 
     // The snapshot is NOT blanked here. Cross-actor safety is already provided
     // by the actorKey stamp below — a snapshot belonging to another actor reads
@@ -147,6 +167,10 @@ export function useCloset() {
         // must not be shown to the new actor.
         if (result.ok && isActorRequestCurrent(actorRequest)) {
           await refresh();
+          // Local save is already committed and already reflected above. Cloud
+          // sync is started AFTER, and deliberately not awaited: the user is
+          // done, and a slow or failing network must not hold the UI.
+          void noteClosetItemSaved(actorId, result.item?.id);
         }
         return result;
       } finally {
@@ -170,6 +194,7 @@ export function useCloset() {
         });
         if (result.ok && isActorRequestCurrent(actorRequest)) {
           await refresh();
+          void noteClosetItemSaved(actorId, result.item?.id);
         }
         return result;
       } finally {
@@ -201,6 +226,7 @@ export function useCloset() {
         });
         if (result.ok && isActorRequestCurrent(actorRequest)) {
           await refresh();
+          void noteClosetItemSaved(actorId, id);
         }
         return result;
       } finally {
@@ -212,6 +238,21 @@ export function useCloset() {
 
   const remove = useCallback(
     async (id) => {
+      // MARKED BEFORE THE LOCAL DELETE, unlike save. deleteClosetItem is a hard
+      // delete: mark afterwards and a crash in between would destroy the only
+      // record that a synced cloud row still needs a tombstone. See
+      // services/closet/closetSyncCoordinator.ts for the full ordering rules.
+      const precondition = await beforeClosetItemDeleted(actorId, id);
+      if (!precondition.allowed) {
+        // NOT cloud-gating the local Closet: this item is known to have a
+        // synced cloud row, and the local write required to durably remember
+        // "the user wants this gone" could not be completed. Proceeding
+        // would hard-delete the local record while leaving the cloud row
+        // live with no trace anywhere that deletion was ever requested.
+        // Surfaced as an ordinary failed removal — retrying is the correct
+        // recovery, same as any other local write hiccup.
+        return false;
+      }
       const ok = await deleteClosetItem(id, { ownerId: actorId });
       if (ok) {
         setSnapshot((current) =>
@@ -219,6 +260,11 @@ export function useCloset() {
             ? { ...current, items: current.items.filter((item) => item.id !== id) }
             : current
         );
+        void afterClosetItemDeleted();
+      } else {
+        // The local delete did not happen, so the cloud row must not be
+        // tombstoned either.
+        await revertClosetItemDeleteMark(actorId, id, precondition.previous);
       }
       return ok;
     },

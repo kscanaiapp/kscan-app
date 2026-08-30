@@ -54,7 +54,10 @@ export function buildProofFromResults(
   plate: PlateDetectionResult,
 ): PrivacyProof {
   const faceSucceeded = face.status === 'success' || face.status === 'no_faces';
-  const outputVerified = face.status === 'success' && !!face.sanitizedUri;
+  // A `no_faces` run still produces a real re-encoded, metadata-stripped
+  // artifact (see nativeFaceEngine); it is verified output exactly like a
+  // `success` run, not a lesser case that should fail outputVerified.
+  const outputVerified = faceSucceeded && !!face.sanitizedUri;
   const plateCompleted = plate.supported && plate.performed && !plate.failure;
   return {
     proofVersion: PRIVACY_PROOF_VERSION,
@@ -64,7 +67,11 @@ export function buildProofFromResults(
     facesMasked: face.facesMasked,
     plateDetectionPerformed: plateCompleted,
     platesDetected: plate.regionsDetected,
-    platesMasked: plateCompleted ? plate.regionsAccepted : 0,
+    // B2A: masked count comes from what the engine actually OBSCURED, not from
+    // detection having completed. The previous form reported regionsAccepted
+    // whenever the screen ran, which would have claimed masking on a build
+    // that detected plates and never redacted them.
+    platesMasked: plateCompleted ? plate.regionsMasked : 0,
     // The native pipeline re-encodes to PNG from a decoded bitmap; metadata
     // survives only if the native run did not produce a sanitized output.
     metadataStripped: outputVerified,

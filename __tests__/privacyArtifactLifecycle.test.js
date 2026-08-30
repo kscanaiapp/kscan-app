@@ -155,7 +155,11 @@ test('boundary guarantees cleanup on cancellation-like rejection (finally path)'
     },
     './plateDetection': {
       PLATE_DETECTION_SUPPORTED: true,
-      detectPlates: async () => ({ supported: true, performed: true, regionsDetected: 0, regionsAccepted: 0, confidence: [], boundingBoxes: [], durationMs: 1 }),
+      // B2A: the boundary now asks the capability as a function, and the
+      // result carries regionsMasked so masking is distinguishable from
+      // detection having merely run. Zero regions found => nothing masked.
+      isPlateDetectionSupported: () => true,
+      detectPlates: async () => ({ supported: true, performed: true, regionsDetected: 0, regionsAccepted: 0, regionsMasked: 0, confidence: [], boundingBoxes: [], durationMs: 1 }),
     },
     './privacyProof': loadTsModule('services/privacy/privacyProof.ts'),
     './privacyArtifactStore': {
@@ -195,7 +199,11 @@ test('successful run transfers sanitized ownership and cleanup handle works', as
     },
     './plateDetection': {
       PLATE_DETECTION_SUPPORTED: true,
-      detectPlates: async () => ({ supported: true, performed: true, regionsDetected: 0, regionsAccepted: 0, confidence: [], boundingBoxes: [], durationMs: 1 }),
+      // B2A: the boundary now asks the capability as a function, and the
+      // result carries regionsMasked so masking is distinguishable from
+      // detection having merely run. Zero regions found => nothing masked.
+      isPlateDetectionSupported: () => true,
+      detectPlates: async () => ({ supported: true, performed: true, regionsDetected: 0, regionsAccepted: 0, regionsMasked: 0, confidence: [], boundingBoxes: [], durationMs: 1 }),
     },
     './privacyProof': loadTsModule('services/privacy/privacyProof.ts'),
     './privacyArtifactStore': {

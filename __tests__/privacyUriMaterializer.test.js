@@ -185,7 +185,12 @@ test('boundary removes the materialized original after processing', async () => 
       detectAndMaskFacesLocal: async () => null,
       cleanupNativeSanitizedImage: async () => null,
     },
-    './plateDetection': loadTsModule('services/privacy/plateDetection.ts'),
+    './plateDetection': loadTsModule('services/privacy/plateDetection.ts', {
+    // B2A: plateDetection now delegates to the native plate engine.
+    // Loaded for real with no native module present, so it reports
+    // 'not linked' exactly as a binary without the engine would.
+    './nativePlateEngine': loadTsModule('services/privacy/nativePlateEngine.ts', {}),
+  }),
     './privacyProof': loadTsModule('services/privacy/privacyProof.ts'),
     './privacyArtifactStore': store,
     './uriMaterializer': materializer,
