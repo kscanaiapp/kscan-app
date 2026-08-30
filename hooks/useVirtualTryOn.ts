@@ -6,15 +6,28 @@
  * split is deliberate: unmounting a screen must not be able to strand an
  * in-flight generation in a state nobody can clear, and a late result must be
  * rejectable after the component that started it is gone.
+ *
+ * SESSION-SCOPED PERSON PHOTO. The store's person photo outlives one sheet
+ * instance on purpose: closing the sheet (navigation away, unmount, the
+ * Close button) calls `leaveVtoSurface`, not a hard reset, so trying a
+ * second product in the same session reuses the same photo instead of
+ * asking the user to pick it again. On mount, if the store already holds a
+ * photo attached to a DIFFERENT product than this sheet's, the hook reattaches
+ * it to the current garment via `attachSessionPerson` -- same photo, fresh
+ * generation state, so a stale result from a different product can never
+ * render under this one.
  */
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useLayoutEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useSyncExternalStore } from 'react';
 
 import {
+  attachSessionPerson,
   cancelVtoGeneration,
-  dismissVto,
   getVtoSnapshot,
+  leaveVtoSurface,
+  resetVtoRequestState,
   retryVtoGeneration,
   setVtoPersonInput,
   startVtoGeneration,
@@ -41,7 +54,12 @@ export interface UseVirtualTryOnResult extends VtoSnapshot {
   generate: () => void;
   retry: () => void;
   cancel: () => void;
+  /** Closes the sheet's session; the person photo survives for reuse. */
   dismiss: () => void;
+  /** Explicitly drops the session photo and its cache files. Distinct from
+   *  `dismiss` -- this is the "start over with a different person" action,
+   *  not "I'm done looking for now". */
+  clearPerson: () => void;
 }
 
 const BUSY_STATUSES = new Set(['preparing', 'generating', 'validating_result']);
@@ -51,12 +69,24 @@ export function useVirtualTryOn(args: UseVirtualTryOnArgs): UseVirtualTryOnResul
   const argsRef = useRef(args);
   argsRef.current = args;
 
-  // Unmount tears the operation down rather than leaving a generation running
-  // against a screen that no longer exists. The provider request may still
-  // finish; it simply has no authority to update anything.
+  // Reconcile BEFORE paint: if a prior sheet in this session left a person
+  // photo attached to a different product, reattach it to this one here so
+  // the first frame never shows a mismatched garment/result.
+  useLayoutEffect(() => {
+    const current = getVtoSnapshot();
+    if (current.person && current.garment?.productRef !== argsRef.current.garment.productRef) {
+      attachSessionPerson(argsRef.current.garment, argsRef.current.origin);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [args.garment.productRef]);
+
+  // Unmount closes the session's SURFACE, not the session: any in-flight
+  // generation is torn down (the provider request may still finish; it just
+  // has no authority to update anything), but the chosen photo is kept for
+  // the next product this actor tries on.
   useEffect(() => {
     return () => {
-      dismissVto();
+      leaveVtoSurface();
     };
   }, []);
 
@@ -89,7 +119,11 @@ export function useVirtualTryOn(args: UseVirtualTryOnArgs): UseVirtualTryOnResul
   }, []);
 
   const dismiss = useCallback(() => {
-    dismissVto();
+    leaveVtoSurface();
+  }, []);
+
+  const clearPerson = useCallback(() => {
+    resetVtoRequestState();
   }, []);
 
   const isBusy = BUSY_STATUSES.has(snapshot.status);
@@ -105,5 +139,6 @@ export function useVirtualTryOn(args: UseVirtualTryOnArgs): UseVirtualTryOnResul
     retry,
     cancel,
     dismiss,
+    clearPerson,
   };
 }

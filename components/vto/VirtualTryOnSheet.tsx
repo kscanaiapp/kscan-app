@@ -148,9 +148,18 @@ export function VirtualTryOnSheet({
   }, [origin, vto]);
 
   const handleClose = useCallback(() => {
+    // Soft close: the session's person photo survives for the next product
+    // this actor tries on. leaveVtoSurface also runs on unmount, which this
+    // triggers via onClose -- calling it here too just makes the teardown
+    // happen before the close animation instead of after.
     vto.dismiss();
     onClose();
   }, [onClose, vto]);
+
+  const handleRemovePhoto = useCallback(() => {
+    selectionTick();
+    vto.clearPerson();
+  }, [vto]);
 
   const handleToggleCompare = useCallback(() => {
     selectionTick();
@@ -260,7 +269,7 @@ export function VirtualTryOnSheet({
               />
             ) : null}
 
-            {!isGenerating && vto.status !== 'success' ? (
+            {!vto.person && !isGenerating && vto.status !== 'success' ? (
               <View style={styles.guidanceBlock}>
                 {PHOTO_GUIDANCE.map((line) => (
                   <Text key={line} style={styles.guidance}>
@@ -275,20 +284,33 @@ export function VirtualTryOnSheet({
             ) : null}
 
             {vto.person && !isGenerating && vto.status !== 'success' ? (
-              <View style={styles.reviewRow} testID="vto-review">
-                <Image
-                  source={{ uri: vto.person.sanitizedUri }}
-                  style={styles.reviewThumb}
-                  accessibilityLabel="The photo you chose"
-                />
-                {garment.imageUrl ? (
+              <>
+                <View style={styles.reviewRow} testID="vto-review">
                   <Image
-                    source={{ uri: garment.imageUrl }}
+                    source={{ uri: vto.person.sanitizedUri }}
                     style={styles.reviewThumb}
-                    accessibilityLabel={`${garmentTitle} product image`}
+                    accessibilityLabel="The photo you chose"
                   />
-                ) : null}
-              </View>
+                  {garment.imageUrl ? (
+                    <Image
+                      source={{ uri: garment.imageUrl }}
+                      style={styles.reviewThumb}
+                      accessibilityLabel={`${garmentTitle} product image`}
+                    />
+                  ) : null}
+                </View>
+                {/* Reused across products in this session (hooks/useVirtualTryOn.ts) --
+                    this is the one explicit way to drop it instead of replacing it. */}
+                <Pressable
+                  onPress={handleRemovePhoto}
+                  accessibilityRole="button"
+                  accessibilityLabel="Remove this photo"
+                  style={styles.removePhotoLink}
+                  testID="vto-remove-photo"
+                >
+                  <Text style={styles.removePhotoText}>REMOVE PHOTO</Text>
+                </Pressable>
+              </>
             ) : null}
           </ScrollView>
 
@@ -393,6 +415,16 @@ const styles = StyleSheet.create({
     height: 128,
     borderRadius: RADIUS.md,
     backgroundColor: LUXURY.colors.champagne,
+  },
+  removePhotoLink: {
+    alignSelf: 'flex-start',
+    marginTop: SPACING.sm,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  removePhotoText: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
   },
   generatingBlock: {
     alignItems: 'center',

@@ -158,12 +158,57 @@ export function cancelVtoGeneration(): void {
 }
 
 /**
- * Leaves the VTO surface entirely. Distinct from cancel: cancel is a user
- * decision that leaves a cancelled state on screen, dismissal tears the whole
- * operation down and takes the media with it.
+ * Closes the VTO sheet WITHOUT ending the session: any in-flight generation
+ * is torn down (aborted, its result loses authority under the stale-result
+ * rule same as always), but the chosen person photo and its cache files
+ * survive. Reopening the sheet -- for the same product or a different one --
+ * finds the photo still there instead of asking the user to pick it again.
+ *
+ * This is the correct handler for "the sheet closed": a navigation away, the
+ * unmount that follows `sheetVisible={false}`, or the user tapping Close.
+ * None of those are "I am done with this session" -- only an actor
+ * transition or the explicit {@link resetVtoRequestState} clear are.
  */
-export function dismissVto(): void {
-  resetVtoRequestState();
+export function leaveVtoSurface(): void {
+  const current = snapshot;
+  const wasBusy =
+    current.status === 'preparing' || current.status === 'generating' || current.status === 'validating_result';
+  invalidate();
+  if (!wasBusy) return; // idle/ready/success/failed/cancelled are left exactly as they are.
+  emitVtoEvent('vto_request_cancelled', { origin: current.origin ?? undefined });
+  setSnapshot({
+    ...current,
+    status: current.person ? 'ready' : 'idle',
+    result: null,
+    failure: null,
+  });
+}
+
+/**
+ * Reuses the session's existing person photo for a NEW garment context (a
+ * different product's Try It On), without re-selecting or re-sanitizing
+ * anything. Returns 'no_session' when there is no photo to reuse -- the
+ * caller falls back to the ordinary guidance/selection flow in that case.
+ *
+ * Any result/failure left over from a PREVIOUS garment is dropped here: a
+ * generation made for product A must never render as if it belonged to
+ * product B just because the sheet reused the same photo.
+ */
+export function attachSessionPerson(
+  garment: VtoGarmentInput,
+  origin: VtoOrigin,
+): 'attached' | 'no_session' {
+  const current = snapshot;
+  if (!current.person) return 'no_session';
+  invalidate();
+  setSnapshot({
+    ...IDLE_VTO_SNAPSHOT,
+    status: 'ready',
+    origin,
+    person: current.person,
+    garment,
+  });
+  return 'attached';
 }
 
 export interface StartVtoOptions {

@@ -232,14 +232,121 @@ test('cancel ends in a defined state and drops the in-flight result', async () =
   assert.equal(h.store.getVtoSnapshot().result, null);
 });
 
-test('dismissal releases the person media and clears everything', async () => {
+// ── Session-scoped person photo (leaveVtoSurface / attachSessionPerson) ──────
+//
+// Closing the sheet is not the same as ending the session: the photo a user
+// picked survives so a second product in the same visit can reuse it.
+
+test('leaving the surface mid-generation cancels the request but keeps the photo', async () => {
   const h = createHarness();
   h.actorContext.advanceActorEpoch('user-a');
   h.store.setVtoPersonInput(PERSON, GARMENT, 'commerce_product');
 
   const run = h.store.startVtoGeneration(options(h));
   await flush();
-  h.store.dismissVto();
+  h.store.leaveVtoSurface();
+
+  const snapshot = h.store.getVtoSnapshot();
+  assert.equal(snapshot.status, 'ready', 'reopening should find a usable session, not idle');
+  assert.equal(snapshot.person, PERSON);
+  assert.equal(h.released.length, 0, 'the photo must NOT be deleted by a soft close');
+
+  h.pending[0].resolve(SUCCESS);
+  await run;
+  assert.equal(
+    h.store.getVtoSnapshot().status,
+    'ready',
+    'a result from a request the surface already left cannot resurrect',
+  );
+});
+
+test('leaving the surface with no in-flight request is a no-op on state', () => {
+  const h = createHarness();
+  h.actorContext.advanceActorEpoch('user-a');
+  h.store.setVtoPersonInput(PERSON, GARMENT, 'commerce_product');
+  const before = h.store.getVtoSnapshot();
+
+  h.store.leaveVtoSurface();
+
+  const after = h.store.getVtoSnapshot();
+  assert.equal(after.status, before.status);
+  assert.equal(after.person, before.person);
+  assert.equal(h.released.length, 0);
+});
+
+test('leaving the surface after a success keeps the result available on reopen', async () => {
+  const h = createHarness();
+  h.actorContext.advanceActorEpoch('user-a');
+  h.store.setVtoPersonInput(PERSON, GARMENT, 'commerce_product');
+  const run = h.store.startVtoGeneration(options(h));
+  await flush();
+  h.pending[0].resolve(SUCCESS);
+  await run;
+  assert.equal(h.store.getVtoSnapshot().status, 'success');
+
+  h.store.leaveVtoSurface();
+
+  const snapshot = h.store.getVtoSnapshot();
+  assert.equal(snapshot.status, 'success', 'a completed result is not an in-flight request');
+  assert.ok(snapshot.result);
+  assert.equal(h.released.length, 0);
+});
+
+test('attachSessionPerson reuses the photo for a different product, dropping the old result', async () => {
+  const h = createHarness();
+  h.actorContext.advanceActorEpoch('user-a');
+  h.store.setVtoPersonInput(PERSON, GARMENT, 'commerce_product');
+  const run = h.store.startVtoGeneration(options(h));
+  await flush();
+  h.pending[0].resolve(SUCCESS);
+  await run;
+  assert.equal(h.store.getVtoSnapshot().status, 'success');
+
+  const otherGarment = { ...GARMENT, productRef: 'prod_2' };
+  const outcome = h.store.attachSessionPerson(otherGarment, 'commerce_product');
+
+  assert.equal(outcome, 'attached');
+  const snapshot = h.store.getVtoSnapshot();
+  assert.equal(snapshot.status, 'ready');
+  assert.equal(snapshot.person, PERSON, 'same photo, not re-picked');
+  assert.equal(snapshot.garment, otherGarment);
+  assert.equal(snapshot.result, null, "product A's result must not appear under product B");
+  assert.equal(h.released.length, 0, 'reattaching must not delete the photo');
+});
+
+test('attachSessionPerson is a no-op signal when there is no session to reuse', () => {
+  const h = createHarness();
+  h.actorContext.advanceActorEpoch('user-a');
+  const outcome = h.store.attachSessionPerson(GARMENT, 'commerce_product');
+  assert.equal(outcome, 'no_session');
+  assert.equal(h.store.getVtoSnapshot().status, 'idle');
+});
+
+test('an in-flight generation superseded by attachSessionPerson cannot resurrect', async () => {
+  const h = createHarness();
+  h.actorContext.advanceActorEpoch('user-a');
+  h.store.setVtoPersonInput(PERSON, GARMENT, 'commerce_product');
+  const run = h.store.startVtoGeneration(options(h));
+  await flush();
+
+  const otherGarment = { ...GARMENT, productRef: 'prod_2' };
+  h.store.attachSessionPerson(otherGarment, 'commerce_product');
+
+  h.pending[0].resolve(SUCCESS);
+  await run;
+  const snapshot = h.store.getVtoSnapshot();
+  assert.equal(snapshot.garment, otherGarment);
+  assert.equal(snapshot.result, null, 'the superseded generation must not land under the new garment');
+});
+
+test('only the explicit clear (resetVtoRequestState) deletes the session photo', async () => {
+  const h = createHarness();
+  h.actorContext.advanceActorEpoch('user-a');
+  h.store.setVtoPersonInput(PERSON, GARMENT, 'commerce_product');
+
+  const run = h.store.startVtoGeneration(options(h));
+  await flush();
+  h.store.resetVtoRequestState();
 
   assert.equal(h.store.getVtoSnapshot().status, 'idle');
   assert.equal(h.store.getVtoSnapshot().person, null);
@@ -251,7 +358,7 @@ test('dismissal releases the person media and clears everything', async () => {
 
   h.pending[0].resolve(SUCCESS);
   await run;
-  assert.equal(h.store.getVtoSnapshot().status, 'idle', 'a dismissed request cannot resurrect');
+  assert.equal(h.store.getVtoSnapshot().status, 'idle', 'a cleared request cannot resurrect');
 });
 
 test('choosing a different photo deletes the previous one', () => {

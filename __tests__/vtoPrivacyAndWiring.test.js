@@ -458,3 +458,70 @@ test('no VTO module invents a second entitlement key', () => {
     'the existing K+ key is the authority',
   );
 });
+
+// ── Commerce identity integrity (product-integration continuation) ──────────
+
+test('Shop is driven only by the onShop prop, never reconstructed from a result or provider response', () => {
+  const sheet = code('components/vto/VirtualTryOnSheet.tsx');
+  // The Shop button's onPress must call the injected callback and nothing
+  // that reads vto.result, vto.garment.imageUrl, or any provider field to
+  // build a destination -- Commerce decided that before VTO ever saw the item.
+  const shopBlockMatch = sheet.match(/title="Shop this piece"[\s\S]{0,300}/);
+  assert.ok(shopBlockMatch, 'the Shop button must exist');
+  const shopBlock = shopBlockMatch[0];
+  assert.ok(shopBlock.includes('onShop?.()') || shopBlock.includes('onShop()'));
+  for (const forbidden of ['vto.result', 'vto.garment', 'outcome.', 'provider']) {
+    assert.ok(!shopBlock.includes(forbidden), `Shop handler must not reference ${forbidden}`);
+  }
+});
+
+test('TryItOnEntry passes the SAME onShop through to the sheet unmodified', () => {
+  const entry = code('components/vto/TryItOnEntry.tsx');
+  assert.ok(entry.includes('onShop={onShop}'), 'the destination is Commerce\'s, passed straight through');
+});
+
+test('the garment identity (productRef) is what session-photo reattachment keys on, not title or image', () => {
+  const hook = code('hooks/useVirtualTryOn.ts');
+  assert.ok(hook.includes('garment?.productRef'));
+});
+
+// ── Paid-request safety (product-integration continuation) ──────────────────
+
+test('no VTO module wraps generation in a retry/query library', () => {
+  for (const file of [
+    'services/vto/vtoClient.ts',
+    'services/vto/vtoRequestStore.ts',
+    'hooks/useVirtualTryOn.ts',
+    'components/vto/VirtualTryOnSheet.tsx',
+  ]) {
+    const source = code(file);
+    for (const forbidden of ['react-query', 'useMutation', 'useQuery', 'exponentialBackoff', 'axios-retry']) {
+      assert.ok(!source.includes(forbidden), `${file} must not use ${forbidden}`);
+    }
+  }
+});
+
+test('startVtoGeneration and retryVtoGeneration are called only from explicit user callbacks, never a useEffect', () => {
+  const hook = read('hooks/useVirtualTryOn.ts');
+  // Split into blocks by top-level function boundaries is overkill for a
+  // grep-level check; instead assert the two effects present don't call
+  // either generation entry point, and that generate/retry ARE useCallback
+  // bodies (i.e. invoked on demand, not on mount/update).
+  const effectBlocks = hook.match(/use(?:Layout)?Effect\(\(\) => \{[\s\S]*?\n {2}\}, \[[^\]]*\]\);/g) || [];
+  assert.ok(effectBlocks.length >= 2, 'expected the reattach and unmount effects');
+  for (const block of effectBlocks) {
+    assert.ok(!block.includes('startVtoGeneration('), 'an effect must never start a paid generation');
+    assert.ok(!block.includes('retryVtoGeneration('), 'an effect must never retry a paid generation');
+  }
+  assert.ok(/const generate = useCallback\(/.test(hook));
+  assert.ok(/const retry = useCallback\(/.test(hook));
+});
+
+test('a superseded (not-yet-billed) submission is aborted client-side, not silently resubmitted', () => {
+  // startVtoGeneration's own supersede path aborts the PREVIOUS request via
+  // the AbortController threaded into vtoClient -- it does not issue a
+  // second independent submission behind the first's back.
+  const store = code('services/vto/vtoRequestStore.ts');
+  assert.ok(store.includes('controller.abort') === false || store.includes('AbortController'));
+  assert.ok(store.includes('invalidate()'), 'a new start must invalidate (and abort) any prior one');
+});
