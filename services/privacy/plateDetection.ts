@@ -10,9 +10,18 @@
 // on-device TEXT-REGION detection (Apple Vision VNDetectTextRectanglesRequest;
 // Android bundled ML Kit text recognition, whose recognized characters are
 // discarded and never read) followed by a plate-shaped GEOMETRY filter. It
-// therefore screens for plate-LIKE regions, and it masks them. It is a
-// screen, not a guarantee, and `no_plates` means "nothing plate-shaped was
-// found", not "this image contains no plate".
+// therefore screens for plate-LIKE regions. It is a screen, not a guarantee,
+// and `no_plates` means "nothing plate-shaped was found", not "this image
+// contains no plate".
+//
+// BUILD 34 PLATE POLICY, READ BEFORE CHANGING THIS FILE: this module still
+// asks the native side to detect AND mask in one call (`maskedUri` below), but
+// its only sanctioned CONSUMER — services/privacy/privacyBoundary.ts — uses it
+// purely for DETECTION and discards `maskedUri` unconditionally whenever any
+// region was accepted. A geometry screen cannot reliably tell a plate from a
+// garment brand wordmark, so Build 34 blocks a detected image outright rather
+// than trusting the mask and returning it SAFE. Do not wire `maskedUri` into
+// any caller that treats a plate-positive run as safe to continue.
 //
 // FAIL CLOSED EVERYWHERE. Absent capability, a native throw, a detector error,
 // a masking error and an unverifiable output all resolve to a failure result.

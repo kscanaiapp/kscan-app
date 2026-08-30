@@ -231,5 +231,19 @@ test('no recognized plate text is returned, logged or persisted anywhere', () =>
     assert.ok(!suspicious.test(read(rel)), `${rel} appears to surface recognized plate text`);
   }
   const types = read('modules/kscan-pii-native/src/KScanPiiNative.types.ts');
-  assert.ok(types.includes('ocrPerformed'), 'the no-OCR claim must be an auditable contract field');
+  // NAMED PRECISELY: Android's recognizer does perform character recognition
+  // internally to produce the candidate regions, so a field literally called
+  // "ocrPerformed: false" would be false on that platform. The auditable claim
+  // this contract can actually make is that the recognized text is never
+  // consumed — read, returned, logged, or persisted — regardless of whether
+  // recognition ran under the hood.
+  assert.ok(
+    types.includes('recognizedTextConsumed'),
+    'the no-text-consumption claim must be an auditable contract field',
+  );
+  assert.doesNotMatch(
+    types,
+    /\bocrPerformed\b/,
+    'ocrPerformed would falsely claim recognition never ran on Android',
+  );
 });

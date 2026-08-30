@@ -92,7 +92,7 @@ export async function detectAndMaskPlatesLocal(
       regionsChanged: 0,
       regionsAlreadyRedacted: 0,
       pixelsChanged: false,
-      ocrPerformed: false,
+      recognizedTextConsumed: false,
       warnings: ['Native plate screening threw.'],
       errorCode: 'INTERNAL_ERROR',
       failureReason: 'Native plate screening threw.',

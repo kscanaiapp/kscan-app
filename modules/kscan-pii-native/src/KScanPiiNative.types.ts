@@ -241,10 +241,15 @@ export interface NativeExtractionCapabilities {
 // it actually did, and the two capabilities are claimed independently
 // downstream (faceMaskApplied vs plateMaskApplied).
 //
-// REGION GEOMETRY ONLY. The detector locates text-shaped regions and never
-// produces, returns, logs or persists a single recognized character —
-// `ocrPerformed` is part of the contract so that claim is auditable rather
-// than merely documented.
+// REGION GEOMETRY ONLY. The detector locates text-shaped regions. On iOS
+// (Vision VNDetectTextRectanglesRequest) no character is ever recognized at
+// all. On Android, the underlying ML Kit text recognizer DOES perform
+// character recognition to produce those regions — but the recognized
+// characters are never read, returned, logged, or persisted on any path.
+// `recognizedTextConsumed` is part of the contract, always false, so that
+// claim is auditable rather than merely documented — and precisely named, so
+// it never implies recognition never RAN, only that its output was never
+// touched.
 
 export interface NativePlateMaskInput {
   imageUri: string;
@@ -283,8 +288,11 @@ export interface NativePlateMaskResult {
   pixelsChanged: boolean;
   sanitizedUri?: string;
 
-  /** Always false. No character recognition is performed on any path. */
-  ocrPerformed: boolean;
+  /**
+   * Always false. Recognition may run internally on Android; the recognized
+   * text is never consumed — not read, returned, logged, or persisted.
+   */
+  recognizedTextConsumed: boolean;
 
   inputChecksum?: string;
   outputChecksum?: string;
@@ -312,5 +320,5 @@ export interface NativePlateCapabilities {
   detectorVersion: string;
   sanitizerVersion: string;
   /** Always false; asserted by the parity test, not just documented. */
-  ocrPerformed: boolean;
+  recognizedTextConsumed: boolean;
 }

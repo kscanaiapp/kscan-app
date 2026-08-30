@@ -8,6 +8,10 @@
 //
 // Until on-device license-plate detection exists, the gate is closed and
 // every image route fails closed by design.
+//
+// BUILD 34 PLATE POLICY: a detected plate-like region BLOCKS the image; it is
+// never masked and returned as SAFE. See the policy comment at the plate
+// screening call site in prepareImageForDispatch for why.
 
 import {
   cleanupNativeSanitizedImage,
@@ -37,6 +41,7 @@ export type PrivacyBoundaryErrorCode =
   | 'SOURCE_ACCESS_FAILED'
   | 'FACE_PROCESSING_FAILED'
   | 'PLATE_PROCESSING_FAILED'
+  | 'PLATE_DETECTED'
   | 'VERIFICATION_FAILED';
 
 export class PrivacyDispatchBlockedError extends Error {
@@ -79,15 +84,19 @@ export function isImageDispatchAllowed(): boolean {
   return isPlateDetectionSupported() && isNativeFaceEngineLinked();
 }
 
+export const PLATE_DETECTED_USER_MESSAGE =
+  'This image appears to contain a license plate. Cloud Closet sync is unavailable for this photo in this build.';
+
 function blocked(
   errorCode: PrivacyBoundaryErrorCode,
   reason: string,
+  userMessage: string = PRIVACY_DISPATCH_BLOCKED_MESSAGE,
 ): PrivacyBoundaryResult {
   return {
     status: 'BLOCKED',
     errorCode,
     reason,
-    userMessage: PRIVACY_DISPATCH_BLOCKED_MESSAGE,
+    userMessage,
     proof: buildBlockedProof(PIPELINE_SANITIZER_VERSION),
   };
 }
@@ -96,9 +105,10 @@ function blocked(
  * Full privacy preparation for one image source (content:// or file://).
  *
  * Order: capability gate → materialize into app-private cache → local face
- * detection + irreversible masking → local plate detection → proof. The
- * materialized original is always removed in finally. On any failure every
- * created artifact is removed and the result is BLOCKED.
+ * detection + irreversible masking → local plate detection (BLOCKS on any
+ * plate-like region; never masks and continues) → proof. The materialized
+ * original is always removed in finally. On any failure every created
+ * artifact is removed and the result is BLOCKED.
  */
 export async function prepareImageForDispatch(
   sourceUri: string,
@@ -144,10 +154,20 @@ export async function prepareImageForDispatch(
     }
     sanitizedUri = faceResult.sanitizedUri;
 
-    // Plate screening masks INTO the face-sanitized artifact and returns a new
-    // one. When it finds nothing there is no second artifact and the
-    // face-sanitized output stands; when it does mask, ownership moves to the
-    // new URI and the superseded one is released here rather than leaking.
+    // BUILD 34 PLATE POLICY: detect, never mask-and-continue.
+    //
+    // The plate screen is on-device text-region geometry (see
+    // plateDetection.ts), not a real plate classifier — it cannot reliably
+    // distinguish a license plate from a garment brand wordmark of similar
+    // shape. Masking on that signal and returning SAFE would risk silently
+    // redacting the exact fashion content K Scan exists to identify. For this
+    // build, ANY plate-like region blocks the image outright rather than
+    // trusting the mask: conservative rejection over a confident guess.
+    //
+    // The native call still detects AND masks in one pass (no native change
+    // in this correction), so a masked artifact may exist on a detected run.
+    // It is discarded unconditionally — it must never become the returned
+    // sanitizedUri, and must never be exposed to a caller as cloud-eligible.
     const plateResult = await detectPlates({ imageUri: sanitizedUri });
     if (!plateResult.supported || !plateResult.performed || plateResult.failure) {
       return blocked(
@@ -155,20 +175,19 @@ export async function prepareImageForDispatch(
         plateResult.failure?.reason ?? 'Plate detection did not complete.',
       );
     }
-    if (plateResult.maskedUri) {
-      const supersededUri = sanitizedUri;
-      sanitizedUri = plateResult.maskedUri;
-      await cleanupNativeSanitizedImage(supersededUri);
-      await deletePrivacyArtifact(supersededUri);
-    }
-    // A run that detected plate-shaped regions but obscured none of them has
-    // not satisfied the masking contract, so it must not reach a proof.
-    if (plateResult.regionsAccepted > 0 && plateResult.regionsMasked < plateResult.regionsAccepted) {
+    if (plateResult.regionsAccepted > 0) {
+      if (plateResult.maskedUri) {
+        await cleanupNativeSanitizedImage(plateResult.maskedUri);
+        await deletePrivacyArtifact(plateResult.maskedUri);
+      }
       return blocked(
-        'PLATE_PROCESSING_FAILED',
-        'Plate regions were accepted but not fully masked.',
+        'PLATE_DETECTED',
+        `A plate-shaped region was detected (${plateResult.regionsAccepted} accepted of ${plateResult.regionsDetected} candidates); this build blocks rather than masks.`,
+        PLATE_DETECTED_USER_MESSAGE,
       );
     }
+    // No plate-like region: the face-sanitized artifact stands unchanged.
+    // Nothing to swap, nothing superseded to release.
 
     const proof = buildProofFromResults(faceResult, plateResult);
     if (!proof.processingCompleted || !proof.outputVerified) {

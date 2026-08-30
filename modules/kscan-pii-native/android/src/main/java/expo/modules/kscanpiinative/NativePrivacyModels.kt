@@ -233,7 +233,16 @@ data class NativePlateMaskResult(
         // Written as a LITERAL, not a constructor field, so no present or
         // future code path in this module can set it true without also
         // changing this line and the audit that reads it.
-        putBoolean("ocrPerformed", false)
+        //
+        // NAMED PRECISELY: on Android this stage runs ML Kit TextRecognition,
+        // which DOES perform character recognition internally to produce the
+        // candidate regions -- "ocrPerformed: false" would have been false on
+        // this platform. What is true, and is the only claim this field makes,
+        // is that the recognized characters are never READ: Text.getText(),
+        // TextBlock.text, Line.text and Element.text are never called on any
+        // path, so no recognized string is ever consumed, logged, returned,
+        // or persisted.
+        putBoolean("recognizedTextConsumed", false)
         inputChecksum?.let { putString("inputChecksum", it) }
         outputChecksum?.let { putString("outputChecksum", it) }
         checksumAlgorithm?.let { putString("checksumAlgorithm", it) }
@@ -285,10 +294,11 @@ data class NativePlateCapabilities(
         putDouble("minWidthRatio", minWidthRatio)
         putInt("minHeightPx", minHeightPx)
         putDouble("minAreaRatio", minAreaRatio)
-        // Literal, not a field: the contract's auditable claim that no
-        // character recognition is performed on any path. Nothing in this
-        // module can set it true without editing this line.
-        putBoolean("ocrPerformed", false)
+        // Literal, not a field: the contract's auditable claim. NAMED
+        // PRECISELY -- see the identical comment on NativePlateMaskResult.
+        // Text recognition runs internally on Android; only whether the
+        // recognized text is ever consumed is asserted here.
+        putBoolean("recognizedTextConsumed", false)
     }
 }
 
