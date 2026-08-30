@@ -37,6 +37,7 @@ import { TodayWithEliseSection } from './TodayWithEliseSection';
 import { PersonalizeStylistModal } from '../stylist/PersonalizeStylistModal';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { TEXTSCAN_UI_ENABLED } from '../../constants/featureFlags';
+import { KPlusGate } from '../kplus/KPlusGate';
 
 
 interface FeatureChipProps {
@@ -398,7 +399,7 @@ export default function HomeLuxuryTechV1() {
         />
       </View>
 
-      {/* Secondary entries: TextScan when enabled */}
+      {/* Secondary entries: TextScan when enabled, Smart Watchlist (K+) */}
       <View style={styles.secondaryActionsRow}>
         {textScanEnabled && (
           <SecondaryButton
@@ -413,6 +414,19 @@ export default function HomeLuxuryTechV1() {
             style={styles.secondaryActionButton}
           />
         )}
+        <KPlusGate source="home_tile">
+          {({ isActive, openUpgrade }) => (
+            <SecondaryButton
+              testID="home-luxury-watchlist"
+              title="WATCHLIST"
+              icon={<KScanIcon name="watchlist" size={24} variant="standard" />}
+              onPress={() => (isActive ? router.push('/watchlist') : openUpgrade())}
+              accessibilityLabel="Open Smart Watchlist"
+              accessibilityHint="Track prices on listings you're not ready to buy yet"
+              style={styles.secondaryActionButton}
+            />
+          )}
+        </KPlusGate>
       </View>
 
       {/* Trust footer */}
