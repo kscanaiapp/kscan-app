@@ -53,6 +53,12 @@ export interface MockProviderOptions {
   sleep?: (ms: number, signal: AbortSignal) => Promise<void>;
 }
 
+/** Largest delay setTimeout represents faithfully. Anything above this
+ *  overflows to a 32-bit signed int and fires almost immediately -- which
+ *  silently turns "sleep forever" into "return at once", so it is clamped
+ *  rather than passed through. */
+const MAX_TIMEOUT_MS = 2_147_483_647;
+
 /** Abort-aware sleep. Rejects with an AbortError the moment the signal fires,
  *  which is exactly how a real fetch behaves under cancellation. */
 export function abortableSleep(ms: number, signal: AbortSignal): Promise<void> {
@@ -69,12 +75,24 @@ export function abortableSleep(ms: number, signal: AbortSignal): Promise<void> {
     const timer = setTimeout(() => {
       signal.removeEventListener('abort', onAbort);
       resolve();
-    }, ms);
+    }, Math.min(ms, MAX_TIMEOUT_MS));
     function onAbort() {
       clearTimeout(timer);
       reject(new DOMException('Aborted', 'AbortError'));
     }
     signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+/** A promise that settles only when the signal aborts. */
+export function neverSettle(signal: AbortSignal): Promise<never> {
+  return new Promise((_resolve, reject) => {
+    const abort = () => reject(new DOMException('Aborted', 'AbortError'));
+    if (signal.aborted) {
+      abort();
+      return;
+    }
+    signal.addEventListener('abort', abort, { once: true });
   });
 }
 
@@ -118,10 +136,13 @@ export function createMockVtoProvider(options: MockProviderOptions = {}): VtoPro
 
       switch (scenario) {
         case 'timeout':
-          // Never resolves on its own: the orchestrator's timeout must be
-          // what ends this, which is the behaviour worth testing.
-          await sleep(Number.MAX_SAFE_INTEGER, signal);
-          return { ok: false, failure: 'provider_timeout', detail: 'unreachable' };
+          // Genuinely never resolves: only the caller's abort ends this, so
+          // the orchestrator's own timeout is what gets exercised. It is NOT
+          // written as a very long sleep -- setTimeout overflows above 2^31-1
+          // and would fire at once, quietly turning this into an ordinary
+          // failure return that looks like the timeout path but is not.
+          await neverSettle(signal);
+          throw new DOMException('Aborted', 'AbortError');
         case 'rejected_input':
           return { ok: false, failure: 'provider_rejected_input', detail: 'mock_scenario' };
         case 'moderation':
