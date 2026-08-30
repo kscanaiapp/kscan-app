@@ -77,6 +77,11 @@ function isEnabled(): boolean {
   return readEnv('FARFETCH3_ENABLED')?.toLowerCase() === 'true';
 }
 
+/** Whether this adapter can actually be called right now (Watchlist capability check). */
+export function isFarfetch3Enabled(): boolean {
+  return isEnabled();
+}
+
 function getHost(): string {
   return readEnv('FARFETCH3_RAPIDAPI_HOST') || DEFAULT_HOST;
 }

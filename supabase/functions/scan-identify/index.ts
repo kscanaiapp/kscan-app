@@ -130,6 +130,7 @@ import {
   COMMERCE_FUNNEL_VERSION,
 } from './commerceFunnelConfig.ts';
 import { buildCanonicalCommerce } from './canonicalCommerce.ts';
+import { attachWatchCapability } from './watchlistCapability.ts';
 import {
   mapFastCommerceFailureReason,
   mapToFailureReason,
@@ -2152,6 +2153,10 @@ Deno.serve(async (req) => {
       if (enrichment) products = enrichment.products;
     }
 
+    // K5-C1: additive-only annotation. Same array, same order, same fields
+    // plus one — never a filter, and never allowed to change what Recent
+    // Scans persists (see watchlistCapability.ts).
+    products = attachWatchCapability(products);
     const canonical = buildCanonicalCommerce(products);
 
     console.log(
@@ -3872,6 +3877,12 @@ Deno.serve(async (req) => {
         similarityMatches: finalSimilarityMatches.length,
       };
     }
+
+    // K5-C1: additive-only annotation, applied once at the response boundary
+    // regardless of which branch above populated finalRecommendedProducts —
+    // see watchlistCapability.ts. Never a filter; never seen by ranking,
+    // dedupe, or the Recent Scans persistence decision.
+    finalRecommendedProducts = attachWatchCapability(finalRecommendedProducts);
 
     const legacyFinalResponse = withSafeImageArrays(
       {
