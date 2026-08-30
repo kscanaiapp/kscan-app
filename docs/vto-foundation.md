@@ -288,7 +288,22 @@ const W = 256, H = 320;
 Full generator: see the commit that introduced `providers/mockResultAsset.ts`.
 The asset is a placeholder, not a rendering of anyone.
 
-## 16. Deployment posture
+## 16. Known follow-ups
+
+- **K+ read multiplier.** `TryItOnEntry` is per product card, and each one
+  calls `useKPlusEntitlement`, whose effect issues a refresh per mounted
+  instance. A ten-item shelf therefore issues ten single-row, RLS-scoped
+  selects on mount; the store already invalidates all but the last, so this is
+  waste rather than a correctness problem. It costs nothing today because the
+  seam is gated on `VTO_UI_ENABLED` (default off) and does not mount at all.
+  The clean fix is a shelf-level context that resolves flag + K+ once and hands
+  per-item eligibility down as a prop — deliberately deferred rather than
+  restructuring the shared K+ authority for VTO's convenience.
+- **Comparison depth.** Original/Try-on is a toggle over media already in the
+  session. Side-by-side and swipe were left for a later phase; the result-view
+  seam is in place for them.
+
+## 17. Deployment posture
 
 - `vto-generate` is registered in `config.toml` with `verify_jwt = true` and in
   the governed edge-function manifest.

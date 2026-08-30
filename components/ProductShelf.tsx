@@ -33,6 +33,7 @@ import {
   normalizePersistedCommerceUrl,
   openPersistedCommerceUrl,
 } from '../services/dressingRoomCommerce';
+import { VTO_UI_ENABLED } from '../constants/featureFlags';
 import { TryItOnEntry } from './vto/TryItOnEntry';
 import type { VtoGarmentInput } from '../types/vto';
 
@@ -490,7 +491,7 @@ export function ProductShelf({
                     as it does today. Shopping authority is unchanged -- "Shop"
                     reuses this card's existing destination.
                 */}
-                {vtoGarment ? (
+                {VTO_UI_ENABLED && vtoGarment ? (
                   <TryItOnEntry
                     garment={vtoGarment}
                     garmentTitle={productTitle}

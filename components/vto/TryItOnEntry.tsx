@@ -94,15 +94,24 @@ export function TryItOnEntry({
           TRY IT ON
         </Text>
       </Pressable>
-      <VirtualTryOnSheet
-        visible={sheetVisible}
-        onClose={() => setSheetVisible(false)}
-        garment={garment}
-        garmentTitle={garmentTitle}
-        origin={origin}
-        onShop={onShop}
-        devScenario={devScenario}
-      />
+      {/*
+          Mounted only while open, deliberately. The sheet binds the
+          module-scoped VTO store and tears the operation down on unmount, so
+          an always-mounted copy per product card would mean any card
+          re-rendering could wipe an in-flight try-on started from another.
+          One card, one sheet, one operation.
+      */}
+      {sheetVisible ? (
+        <VirtualTryOnSheet
+          visible
+          onClose={() => setSheetVisible(false)}
+          garment={garment}
+          garmentTitle={garmentTitle}
+          origin={origin}
+          onShop={onShop}
+          devScenario={devScenario}
+        />
+      ) : null}
     </>
   );
 }
