@@ -1,7 +1,7 @@
 # Build 34 — Track B — Phase B3: Historical Closet Migration
 
 **Status:** SOURCE COMPLETE — FOCUSED + FULL REGRESSION GREEN — STAGING NOT YET RUN IN THIS ENVIRONMENT
-**Scope:** Enrolls pre-existing, never-synced local Closet items into the EXISTING B2B outbound sync engine. No new sync engine, no new backend table, no new backend endpoint, no Style DNA, no Elise.
+**Scope:** Enrolls pre-existing, never-synced local Closet items into the EXISTING B2B outbound sync engine. No new sync engine, no new backend table, no new backend endpoint, no Signature Style, no Elise.
 
 ---
 
@@ -126,6 +126,6 @@ Not run in this environment (no Supabase MCP staging credentials exercised for t
 
 ## 11. B3 handoff
 
-**Ready for B4 to consume:** a fully reconciled cloud Closet that now includes historical items, materializing through the exact same `user_closet_items` facts/media path B2B and B2C already proved on staging. B4's Style DNA derivation needs nothing new from B3 — it reads authoritative cloud evidence whenever it exists, migrated or not, and correctly derives an empty/partial profile from whatever subset has landed at any given moment (Track B addendum, "B3 does not require all historical items to finish before B4").
+**Ready for B4 to consume:** a fully reconciled cloud Closet that now includes historical items, materializing through the exact same `user_closet_items` facts/media path B2B and B2C already proved on staging. B4's Signature Style derivation needs nothing new from B3 — it reads authoritative cloud evidence whenever it exists, migrated or not, and correctly derives an empty/partial profile from whatever subset has landed at any given moment (Track B addendum, "B3 does not require all historical items to finish before B4").
 
 **B3 does not build:** any UI, any migration progress indicator, any user-visible "importing your Closet" state, or any historical-migration-specific telemetry beyond the three bounded, content-free events in §2. None of these were in scope.

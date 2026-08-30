@@ -1,7 +1,7 @@
 # Build 34 — Track B — Phase B2B: Closet Client Sync + Cloud Media Upload
 
 **Status:** SOURCE COMPLETE — STAGING VALIDATED — iOS B2A NATIVE GATE STILL OUTSTANDING
-**Scope:** OUTBOUND ONLY. No cross-device restore, no historical migration, no Style DNA, no Elise.
+**Scope:** OUTBOUND ONLY. No cross-device restore, no historical migration, no Signature Style, no Elise.
 
 ---
 

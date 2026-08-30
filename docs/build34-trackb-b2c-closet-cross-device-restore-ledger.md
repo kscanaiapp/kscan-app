@@ -1,7 +1,7 @@
 # Build 34 — Track B — Phase B2C: Closet Cross-Device Restore
 
 **Status:** SOURCE COMPLETE — STAGING VALIDATED — iOS TRACK B END-TO-END PRIVACY BLOCKED ON B2A's NATIVE/DEVICE GATE
-**Scope:** INBOUND ONLY. Remote discovery, reconciliation, and private media hydration into the existing local Closet. No conflict UI, no historical (pre-B2B) migration, no Style DNA, no Elise.
+**Scope:** INBOUND ONLY. Remote discovery, reconciliation, and private media hydration into the existing local Closet. No conflict UI, no historical (pre-B2B) migration, no Signature Style, no Elise.
 
 ---
 

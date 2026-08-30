@@ -89,7 +89,7 @@
       "column": "user_id",
       "action": "auth_delete_cascade",
       "optional": true,
-      "notes": "Build 34 Track B B4 server-derived Style DNA profile. ON DELETE CASCADE FK to auth.users already removes this row; this entry adds it to deletion coverage counting and post-purge residual verification. Deletion is intentionally independent of K+ status."
+      "notes": "Build 34 Track B B4 server-derived Signature Style profile. ON DELETE CASCADE FK to auth.users already removes this row; this entry adds it to deletion coverage counting and post-purge residual verification. Deletion is intentionally independent of K+ status."
     }
   ]
 }

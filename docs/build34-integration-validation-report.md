@@ -259,7 +259,7 @@ TOTAL DEFERRED FINDINGS: 14
 | B34-DEF-007 | P7 | Both | Dependencies | TECHNICAL DEBT | Deprecated transitive inflight/rimraf/glob/uuid packages remain | No current user impact | Medium |
 | B34-DEF-008 | P7 | Android | Gradle/Expo | TECHNICAL DEBT | Deprecated edge-to-edge property and Gradle 9 warnings remain | No current user impact | Small |
 | B34-DEF-009 | P7 | Both | Database | BACKEND | Equivalent migration SQL uses different filenames across branches | Reconciliation friction only | Small |
-| B34-DEF-010 | P7 | Both | Style DNA | OBSERVABILITY | Local feedback always records contextSource=style_chat | Reduced future attribution precision | Small |
+| B34-DEF-010 | P7 | Both | Signature Style | OBSERVABILITY | Local feedback always records contextSource=style_chat | Reduced future attribution precision | Small |
 | B34-DEF-011 | P8 | Both | Privacy client | TECHNICAL DEBT | Deprecated isPrivacyBackendConfigured helper remains | None | Small |
 | B34-DEF-012 | P9 | Both | Speech tests | TEST DEBT | stylist-speech handler test differs only in formatting | Negligible | Small |
 | B34-DEF-013 | P10 | Both | Avatar V10 | FUTURE OPTIMIZATION | Blink/brow/gaze/body channels remain intentionally deferred | Static expression channels only | Large |
@@ -514,7 +514,7 @@ BACKLOG ID: B34-DEF-010
 SEVERITY: P7  
 CATEGORY: OBSERVABILITY  
 PLATFORM: Both  
-SYSTEM: Style DNA feedback  
+SYSTEM: Signature Style feedback  
 LOCATION: services/style-dna/localStyleDnaFeedbackStore.ts  
 BRANCH: Both integration branches  
 HEAD: Validated source heads listed above

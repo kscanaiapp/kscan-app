@@ -122,7 +122,7 @@ The Track B audit identified a pre-existing Storage/deletion-resource drift invo
 
 ## Out of scope, confirmed not built
 
-Client sync, cloud media, local-record migration, privacy/export registration, deletion-drift repair, Style DNA, Elise, Voice, Scanner changes, feature flags, production deployment.
+Client sync, cloud media, local-record migration, privacy/export registration, deletion-drift repair, Signature Style, Elise, Voice, Scanner changes, feature flags, production deployment.
 
 ## Verdict
 
