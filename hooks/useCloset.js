@@ -62,6 +62,17 @@ export function useCloset() {
     setLoading(true);
     setLoadError(null);
 
+    // Opportunistic cloud resume, in the SAME focus effect as the local read
+    // rather than a second one: this is one of B2B's normal triggers (with
+    // save and delete), and it is what makes pending work from a previous
+    // session, an offline period, or a lapsed-then-reactivated K+ entitlement
+    // pick itself back up without any background scheduler.
+    //
+    // Never awaited and never able to affect what this screen renders — the
+    // local read below is the sole authority for that. The engine is
+    // single-flight, so this firing alongside a save trigger yields one pass.
+    void resumeClosetSync('closet_opened');
+
     // The snapshot is NOT blanked here. Cross-actor safety is already provided
     // by the actorKey stamp below — a snapshot belonging to another actor reads
     // as empty without being destroyed — and blanking first is what turned a
@@ -97,20 +108,6 @@ export function useCloset() {
   }, [actorId, actorKey]);
 
   useFocusEffect(hydrate);
-
-  // Opportunistic cloud resume on Closet open. This is one of B2B's normal
-  // triggers (alongside save and delete) and is what makes pending work from a
-  // previous session, an offline period, or a lapsed-then-reactivated K+
-  // entitlement pick itself back up without any background scheduler.
-  //
-  // Never awaited and never able to affect what this screen renders: the local
-  // read above is the authority for that. The engine is single-flight, so this
-  // firing alongside a save trigger produces one pass, not two.
-  useFocusEffect(
-    useCallback(() => {
-      void resumeClosetSync('closet_opened');
-    }, [actorId])
-  );
 
   /**
    * Re-read from disk under a fresh actor request.
