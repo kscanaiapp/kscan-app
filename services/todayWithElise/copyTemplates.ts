@@ -10,7 +10,7 @@
  * off/null, so every existing call site is byte-identical unless it opts in.
  */
 
-import { resolveGeneratedGreetingOpener } from './generatedGreeting';
+import { resolveGeneratedGreetingOpener } from './generatedGreeting.ts';
 
 export type TodayDaypart = 'morning' | 'afternoon' | 'evening';
 

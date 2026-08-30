@@ -21,8 +21,8 @@ import type {
   TodayWithEliseCardState,
   TodayWithEliseItemRef,
   TodayWithEliseSnapshot,
-} from '../../types/todayWithElise';
-import { TODAY_WITH_ELISE_PRIORITY_RANK } from '../../types/todayWithElise';
+} from '../../types/todayWithElise.ts';
+import { TODAY_WITH_ELISE_PRIORITY_RANK } from '../../types/todayWithElise.ts';
 
 function noneAction(): TodayWithEliseActionSpec {
   return {

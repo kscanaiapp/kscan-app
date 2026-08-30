@@ -19,13 +19,13 @@ import type {
   TodayWithEliseActionSpec,
   TodayWithEliseCardState,
   TodayWithEliseItemRef,
-} from '../../types/todayWithElise';
+} from '../../types/todayWithElise.ts';
 import {
   resolveDaypart,
   resolveTodayDeterministicCopy,
   type TodayCopyContext,
-} from './copyTemplates';
-import type { TodayClosetProjection } from './orchestrator';
+} from './copyTemplates.ts';
+import type { TodayClosetProjection } from './orchestrator.ts';
 
 /** Bounded label vocabulary. Deterministic templates only — never model text. */
 export const TODAY_ACTION_LABELS: Readonly<Record<string, string>> = Object.freeze({
