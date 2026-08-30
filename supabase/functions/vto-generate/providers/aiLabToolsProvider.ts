@@ -12,13 +12,23 @@
  * action (RapidAPI dashboard), not something this adapter or this session
  * does. See docs/vto-provider-benchmark.md.
  *
- * Contract (https://ailabtools.mintlify.app/docs/ai-portrait/editing/try-on-clothes-pro/api):
+ * Contract, empirically verified live (2026-08-30, staging, synthetic
+ * non-personal test images) against `try-on-clothes-pro.p.rapidapi.com`:
  *   POST /portrait/editing/try-on-clothes-pro  (multipart/form-data)
  *     task_type=async, person_image (file), top_garment (file, REQUIRED),
  *     bottom_garment (file, optional), resolution, restore_face
  *   -> { error_code, task_type: 'async', task_id }
- *   GET  /common/query-async-task-result?task_id=...
+ *   GET  /api/rapidapi/query-async-task-result?task_id=...
  *   -> { error_code, task_status: 0|1|2, output: { image_url }, usage }
+ *
+ * POLL PATH CORRECTED 2026-08-30: the path above (`/api/rapidapi/...`) is
+ * this RapidAPI listing's OWN path, discovered from its playground UI --
+ * NOT `/common/query-async-task-result`, the path AILabTools' direct
+ * (non-RapidAPI) API documentation uses. That mismatch is exactly why the
+ * original version of this adapter never got a real end-to-end proof: the
+ * submit call succeeded (real task_id) but every poll 404'd against a path
+ * this listing simply doesn't expose. A live submit+poll+result round trip
+ * now succeeds; see docs/vto-provider-benchmark.md for the transcript.
  *
  * ONE-PIECE / DRESS MAPPING (corrected 2026-08-30 after re-reading the
  * documented contract, confirmed verbatim and identically across two
@@ -51,7 +61,7 @@ interface SubmitFetcher {
 
 const RAPIDAPI_HOST = 'try-on-clothes-pro.p.rapidapi.com';
 const SUBMIT_URL = `https://${RAPIDAPI_HOST}/portrait/editing/try-on-clothes-pro`;
-const POLL_URL = `https://${RAPIDAPI_HOST}/common/query-async-task-result`;
+const POLL_URL = `https://${RAPIDAPI_HOST}/api/rapidapi/query-async-task-result`;
 
 /** Bounded: this is a 4096x4096px-capped, 5MB-capped upstream contract; a
  *  garment fetch far past that is either wrong data or an attempt to make
@@ -259,9 +269,19 @@ export function createAiLabToolsProvider(options: AiLabToolsAdapterOptions): Vto
         }
 
         const pollBody = await pollResponse.json().catch(() => null);
-        if (!pollResponse.ok) continue;
-
         const pollErrorCode = (pollBody as Record<string, unknown> | null)?.error_code;
+        // A non-2xx poll response with a parseable error_code is a REAL,
+        // terminal AILabTools processing error (proven live 2026-08-30: a
+        // 413 FILE_SIZE_EXCEEDS_LIMIT during processing) -- it must fail
+        // immediately, not be treated as transient. Only a non-2xx response
+        // with NO error body at all (an unexpected gateway hiccup) is worth
+        // retrying within the poll budget.
+        if (!pollResponse.ok) {
+          if (pollBody && typeof pollErrorCode === 'number' && pollErrorCode !== 0) {
+            return mapSubmitFailure(pollResponse.status, pollBody);
+          }
+          continue;
+        }
         if (typeof pollErrorCode === 'number' && pollErrorCode !== 0) {
           return mapSubmitFailure(pollResponse.status, pollBody);
         }

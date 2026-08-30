@@ -94,7 +94,7 @@ function scriptedFetch(script: Script = {}) {
         (script.submit ?? (() => jsonResponse({ error_code: 0, task_id: 't1' })))(),
       );
     }
-    if (url.includes('/common/query-async-task-result')) {
+    if (url.includes('/api/rapidapi/query-async-task-result')) {
       const handlers = Array.isArray(script.poll) ? script.poll : script.poll ? [script.poll] : [];
       if (handlers.length === 0) {
         return Promise.resolve(
@@ -195,11 +195,71 @@ Deno.test('the poll request carries the returned task_id as a query param', asyn
   const { fn, calls } = scriptedFetch({ submit: () => jsonResponse({ error_code: 0, task_id: 'task-abc-123' }) });
   const provider = createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn, pollIntervalMs: 0 });
   await provider.generate(TOP_INPUT, { signal: signal() });
-  const pollCall = callsTo(calls, '/common/query-async-task-result')[0];
+  const pollCall = callsTo(calls, '/api/rapidapi/query-async-task-result')[0];
   assertEquals(
     pollCall.url,
-    'https://try-on-clothes-pro.p.rapidapi.com/common/query-async-task-result?task_id=task-abc-123',
+    'https://try-on-clothes-pro.p.rapidapi.com/api/rapidapi/query-async-task-result?task_id=task-abc-123',
   );
+});
+
+Deno.test('LIVE-VERIFIED 2026-08-30: a real submit+poll+result round trip against the actual endpoints', async () => {
+  // Pinned from an actual live probe run against the real RapidAPI-hosted
+  // AILabTools endpoint on 2026-08-30 (synthetic non-personal test images).
+  // Path, response shapes, and the real 413 processing error below are
+  // transcribed from that run -- see docs/vto-provider-benchmark.md. This is
+  // the regression test for both the poll-path correction and the
+  // terminal-vs-transient poll-error fix it exposed.
+  const { fn, calls } = scriptedFetch({
+    submit: () =>
+      jsonResponse({
+        error_code: 0,
+        error_msg: '',
+        log_id: 'e2117b88-6b8a-9807-a775-190e183706fb',
+        request_id: 'e2117b88-6b8a-9807-a775-190e183706fb',
+        task_id: '1788109088348.1e968d25-86f6-cef9-9010-69b485b12ecd',
+        task_type: 'async',
+      }),
+    poll: () =>
+      jsonResponse(
+        {
+          error_code: 413,
+          error_code_str: 'FILE_SIZE_EXCEEDS_LIMIT',
+          error_detail: {
+            code: 'FILE_SIZE_EXCEEDS_LIMIT',
+            message:
+              'The image resolution is invalid,  please make sure that the largest length of image is smaller than 4096, and the smallest length of image is larger than 150. and the size of image ranges from 5kb to 5mb',
+            status_code: 413,
+            code_message: 'File size exceeds limit.',
+          },
+          error_msg:
+            'File size exceeds limit. - InvalidInputLength - The image resolution is invalid, ...',
+          log_id: '5877c371-9632-98b9-817d-9567955e1cee',
+          request_id: '5877c371-9632-98b9-817d-9567955e1cee',
+        },
+        413, // the real response's HTTP status -- non-2xx WITH a real error body
+      ),
+  });
+  const provider = createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn, pollIntervalMs: 0 });
+  const outcome = await provider.generate(TOP_INPUT, { signal: signal() });
+
+  assertEquals(outcome.ok, false);
+  if (!outcome.ok) assertEquals(outcome.failure, 'provider_rejected_input');
+  // The terminal error must be recognised on the FIRST poll, not after
+  // exhausting the poll budget (the bug this scenario caught: a non-2xx poll
+  // response was treated as transient and retried until provider_timeout).
+  assertEquals(callsTo(calls, '/api/rapidapi/query-async-task-result').length, 1);
+});
+
+Deno.test('a non-2xx poll response WITHOUT a parseable error body is still treated as transient', async () => {
+  const { fn } = scriptedFetch({
+    poll: [
+      () => jsonResponse({ error: 'gateway hiccup, no error_code' }, 502),
+      () => jsonResponse({ error_code: 0, task_status: 2, output: { image_url: RESULT_URL } }),
+    ],
+  });
+  const provider = createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn, pollIntervalMs: 0 });
+  const outcome = await provider.generate(TOP_INPUT, { signal: signal() });
+  assertEquals(outcome.ok, true);
 });
 
 // ── Async polling behaviour ──────────────────────────────────────────────────
@@ -216,7 +276,7 @@ Deno.test('queued and processing statuses keep polling; complete stops it', asyn
   const provider = createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn, pollIntervalMs: 0 });
   const outcome = await provider.generate(TOP_INPUT, { signal: signal() });
   assertEquals(outcome.ok, true);
-  assertEquals(callsTo(calls, '/common/query-async-task-result').length, 4);
+  assertEquals(callsTo(calls, '/api/rapidapi/query-async-task-result').length, 4);
 });
 
 Deno.test('a queue that never completes ends in provider_timeout, not a hang', async () => {
