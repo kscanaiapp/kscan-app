@@ -121,9 +121,26 @@ Coverage: empty Closet → valid empty profile; single/dominant/mixed color; bra
 
 ---
 
-## 10. Staging
+## 10. Staging (project `yzqjvdfgefveprobvvyw`)
 
-Not applied in this environment (no live Supabase MCP session against the staging project `yzqjvdfgefveprobvvyw` was run for this phase). The migration follows the exact structural precedent (`user_entitlements`) that was already staging-verified for B34's K+ foundation, and the account-deletion coverage addition follows the exact pattern already staging-verified for `user_closet_items`. Applying `20260830060000_user_style_profiles.sql` to staging and re-running the schema/RLS preflight B2B/B2C already used is the concrete next step before this phase can be considered staging-verified.
+`20260830060000_user_style_profiles.sql` was applied live via the governed Supabase MCP backend authority.
+
+**Schema preflight** (`list_tables`): `user_style_profiles` exists with `rls_enabled: true`, `rows: 0`, all 7 columns present with the exact CHECK constraints (`profile_version > 0`, `evidence_revision` length 1–200, `profile_data` object-typed), and the FK to `auth.users(id)` — byte-for-byte matching the migration.
+
+**Security advisors** (`get_advisors`, type `security`): 1 total lint on the project, unrelated to `user_style_profiles` (zero hits). No new advisory was introduced by this migration.
+
+**Runtime RLS validation**, as real authenticated fixture users (`set local role authenticated` + `request.jwt.claims`, so actual RLS applied, not a service-role bypass) under two deterministic UUIDs (`...b4a1`, `...b4a2`):
+
+| Case | Result |
+|---|---|
+| Service-role insert of one profile row per fixture user | Both rows created |
+| Fixture user A's own SELECT | Exactly 1 row, its own |
+| Fixture user B's own SELECT | Exactly 1 row, its own — never user A's (cross-account isolation) |
+| Fixture user A attempts `UPDATE ... SET profile_version = 99` | Refused: `insufficient_privilege` |
+| Fixture user A attempts a forged `INSERT` | Refused: `insufficient_privilege` |
+| `anon` role attempts any `SELECT` | Refused at the grant level: `permission denied for table user_style_profiles` (no `SELECT` grant to `anon` exists at all — a stricter refusal than an RLS-driven empty result) |
+
+**Fixture cleanup.** Final verification query: 0 residual `user_style_profiles` rows, 0 residual fixture `auth.users` rows.
 
 **Production (`wyyuqfdxucjksghsmhry`) was never contacted.**
 
