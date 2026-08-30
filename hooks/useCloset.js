@@ -17,6 +17,7 @@ import {
   revertClosetItemDeleteMark,
   resumeClosetSync,
 } from '../services/closet/closetSyncCoordinator';
+import { resumeClosetRestore } from '../services/closet/closetRestoreEngine';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 
 /**
@@ -72,6 +73,20 @@ export function useCloset() {
     // local read below is the sole authority for that. The engine is
     // single-flight, so this firing alongside a save trigger yields one pass.
     void resumeClosetSync('closet_opened');
+
+    // Build 34 / Track B / Phase B2C — inbound cross-device restore.
+    // Single-flight plus an anti-churn cooldown collapse rapid re-focus into
+    // one real pass. Unlike outbound sync, a completed pass CAN change what
+    // this screen should show (materialize/update/delete), so its completion
+    // re-reads the local Closet via `refresh` — referenced here rather than
+    // in this callback's own dependency list only because `refresh` is
+    // declared later in this hook; by the time this continuation actually
+    // runs (always after the full render that defines it), the reference is
+    // resolved. The re-read itself is still fully guarded by `isCurrent()`.
+    void resumeClosetRestore('closet_opened').then(() => {
+      if (!isCurrent()) return;
+      void refresh();
+    });
 
     // The snapshot is NOT blanked here. Cross-actor safety is already provided
     // by the actorKey stamp below — a snapshot belonging to another actor reads
