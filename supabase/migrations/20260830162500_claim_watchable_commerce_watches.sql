@@ -7,6 +7,13 @@
 -- a K+ capability (§26), and K+ can lapse after a Watch was created, so this
 -- is re-checked on every sweep rather than once at creation time.
 --
+-- BACKGROUND ELIGIBILITY (§55): only watches that actually need an alert
+-- loop are claimable here -- buy_under intent AND push_enabled. A passive
+-- "just watching" Watch is never background-refreshed; Tier 1 (user-open)
+-- refresh is sufficient for it, and continuously polling every passive
+-- Watch would be exactly the provider-fan-out cost the C0 audit flagged
+-- with nothing to show the user for it (nobody is waiting on an alert).
+--
 -- FOR UPDATE SKIP LOCKED: a second concurrent worker invocation (retry,
 -- overlap, manual + scheduled) claims a disjoint set rather than racing the
 -- same rows, without needing an explicit lease table for what is, in V1,
@@ -40,6 +47,8 @@ begin
     from public.user_commerce_watches
     where status = 'active'
       and deleted_at is null
+      and watch_intent = 'buy_under'
+      and push_enabled = true
       and (last_checked_at is null or last_checked_at < now() - make_interval(secs => p_min_interval_ms / 1000.0))
       and public.kplus_has_active_entitlement(user_id, 'k_plus')
     order by last_checked_at nulls first
