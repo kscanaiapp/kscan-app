@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-30T14:59:22.552Z",
-    "generatedFromGitSha": "0f4928223a956d671c654862fdb57337d852713c"
+    "generatedAtUtc": "2026-08-30T15:58:00.752Z",
+    "generatedFromGitSha": "dae8b653053b8a45a360f9307b966cf6cadff5d5"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -1141,10 +1141,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 13,
-        "treeFileCount": 16,
-        "bundleHash": "c10c68b3b294bf0ea2a048990e1b156197158fd69b4d717acf56ba65f3a1e860",
-        "treeHash": "9be2b3eb04df6c86336873455aaab8c10cd15454774481d4bbda80d541eeb5ae",
+        "bundleFileCount": 14,
+        "treeFileCount": 18,
+        "bundleHash": "55bf0c5c4027bdfb9c86d337b49ac255a738706e0345d7124ed7f3d05bb58e54",
+        "treeHash": "87cdce83b32a21b24bd9c3a6ebcc98ed3e9368eec8f59b0f83bf087738eb7840",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -1162,8 +1162,18 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/vto-generate/providers/aiLabToolsProvider.test.ts",
+            "sha256": "12b67c361d69d2fe5b5cf0564184a49b98bef707db40886b315f601cfd8247d4",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/vto-generate/providers/aiLabToolsProvider.ts",
+            "sha256": "f23985fb32cc2b9d07fc50729d796e59eb3ed2d17e3f1eacb16f3e47e6bd39a2",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/vto-generate/providers/index.ts",
-            "sha256": "11d2a9652a3f2c0ab6f4e913babaac1c686d5ae42a4c861d347d192dde575e94",
+            "sha256": "6f585ad6d3c65bb1c1e30d7ab2a0f22ed3715b1910229cfb2ac7821df8e8588c",
             "bundle": true
           },
           {
