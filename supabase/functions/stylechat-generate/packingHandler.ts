@@ -8,21 +8,26 @@
 // privateDressingRoomEliseHandler.ts follows.
 //
 // ORDER IS LOAD-BEARING:
-//   K+ gate -> retrieval -> readiness -> narrowing -> quota reservation ->
-//   provider
-// The entitlement check runs before any Closet read, the readiness check runs
-// before any provider call, and the daily quota is reserved LAST -- only once
-// every other gate has passed and a generation is actually about to happen.
-// So a lapsed subscriber never reaches the wardrobe, a sparse Closet never
-// costs a generation, AND an entitled caller with a sparse Closet is never
-// charged for a plan that was never going to be built (PACK-05).
+//   K+ precheck -> retrieval -> K+ confirmation -> readiness -> narrowing ->
+//   quota reservation -> provider
+// The precheck runs before any Closet read, so a subscriber who was never
+// entitled never reaches the wardrobe. The confirmation runs immediately
+// after retrieval and before that retrieval's result is interpreted, so a
+// subscriber whose entitlement lapses DURING the request is never mistaken
+// for one with a sparse Closet. The daily quota is reserved LAST -- only once
+// every other gate has passed and a generation is actually about to happen --
+// so a sparse Closet never costs a generation and neither does a caller
+// refused by either K+ check (PACK-05).
 //
-// `hasActiveKPlus` is called EXACTLY ONCE, here, by this gate, and the answer
-// is never cached or reused elsewhere. A caller that memoizes this across a
-// request and reuses the cached answer for anything downstream reintroduces a
-// window where a lapsed entitlement is read as still active (PACK-06) --
-// there must be exactly one source of truth for "is this caller entitled",
-// asked at exactly one moment, immediately before it is acted on.
+// K+ IS CHECKED TWICE, INDEPENDENTLY, NEITHER RESULT MEMOIZED. Closet
+// retrieval is itself RLS-gated on has_active_k_plus(): if entitlement lapses
+// in the async gap between the precheck and the query returning, the query
+// does not error, it silently comes back thin or empty -- which is
+// indistinguishable from an honestly sparse Closet unless something asks the
+// entitlement authority again, fresh, before deciding what the retrieval
+// result means (PACK-06). Caching the precheck's answer and reusing it for
+// the confirmation would defeat the entire point: the confirmation exists
+// specifically to catch an answer that changed since the precheck ran.
 
 import {
   PACKING_CONTRACT_VERSION,
@@ -130,15 +135,21 @@ export interface PackingHandlerDeps {
   requestId: string;
   actorId: string;
   /**
-   * Resolved from has_active_k_plus(), never from a client flag. Called
-   * EXACTLY ONCE by this handler's own gate -- see the file header.
+   * Resolved from has_active_k_plus(), never from a client flag.
+   *
+   * CALLED TWICE, INDEPENDENTLY -- once as the precheck before any Closet
+   * read, and again as the confirmation immediately after Closet retrieval,
+   * before that retrieval's result is classified as sparse, unavailable or
+   * ready. See the file header for why the second call exists. Neither
+   * answer may be cached or reused for the other; the function passed here
+   * must hit the real authority fresh on every call.
    */
   hasActiveKPlus: () => Promise<boolean>;
   closet: PackingClosetDataSource;
   /**
    * Bounded Signature Style guidance, or null. Advisory only.
    *
-   * LAZY, AND CALLED ONLY AFTER THE K+ GATE HAS PASSED. Signature Style is
+   * LAZY, AND CALLED ONLY AFTER BOTH K+ CHECKS HAVE PASSED. Signature Style is
    * only ever useful right before a prompt is built, so there is no reason to
    * resolve it any earlier -- and resolving it eagerly, before entitlement is
    * known, is exactly the shape of mistake that made PACK-06 possible
@@ -228,7 +239,7 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
     return { httpStatus, body, telemetry, providerInvoked };
   };
 
-  // ── 1. K+ gate, server-side, before any Closet read ───────────────────────
+  // ── 1. K+ precheck, server-side, before any Closet read ─────────────────
   // Fails closed: an error resolving the entitlement is not premium access.
   let entitled = false;
   try {
@@ -267,6 +278,40 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
   telemetry.candidateCount = retrieval.candidates.length;
   telemetry.retrievalLatencyMs = retrieval.retrievalLatencyMs;
   telemetry.censusComplete = retrieval.censusComplete;
+
+  // ── 2b. K+ confirmation — fresh, independent, taken BEFORE the retrieval
+  // result is interpreted ────────────────────────────────────────────────
+  // The precheck (step 1) only proves the caller was entitled before we asked
+  // the Closet anything. It says nothing about whether that is still true now
+  // that the (RLS-gated, awaited) query has actually come back. A lapse in
+  // that window returns fewer or zero rows with no error at all, which is
+  // exactly what a genuinely sparse Closet looks like -- so before this
+  // retrieval's row count is allowed to mean anything, the entitlement is
+  // asked again, live. Fails closed, exactly like the precheck.
+  let stillEntitled = false;
+  try {
+    stillEntitled = await deps.hasActiveKPlus();
+  } catch {
+    stillEntitled = false;
+  }
+  if (!stillEntitled) {
+    telemetry.event = 'packing_not_entitled';
+    telemetry.failureClass = 'entitlement_lapsed';
+    return finish(
+      403,
+      {
+        status: 'not_entitled',
+        contractVersion: PACKING_CONTRACT_VERSION,
+        requestId: deps.requestId,
+        message: 'Packing plans are part of K+.',
+        plan: null,
+        generalGuide: null,
+        errorCode: 'PACKING_REQUIRES_KPLUS',
+      },
+      telemetry,
+      false,
+    );
+  }
 
   if (retrieval.failed) {
     // A Closet we could not read is not an empty Closet, and must never be
@@ -334,7 +379,7 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
     : UNAVAILABLE_WEATHER;
   telemetry.weatherProvenance = weather.provenance;
 
-  // ── 5b. Signature Style (enrichment; resolved only now, past the K+ gate) ─
+  // ── 5b. Signature Style (enrichment; resolved only now, past BOTH K+ checks) ─
   // Advisory and best-effort, exactly like weather: a failure here is never a
   // Packing failure, the block is simply absent.
   let signatureStyleBlock: string | null = null;

@@ -1648,18 +1648,33 @@ Deno.test('quota: reservation happens strictly after readiness, before the provi
   assertEquals(order, ['closet', 'quota', 'provider']);
 });
 
-Deno.test('entitlement: a lapsed/revoked K+ can never degrade into general mode (required test 7)', async () => {
-  // PACK-06's exact race: a caller whose entitlement is no longer active must
-  // receive 403, never a Closet-derived response of any kind -- even when the
-  // Closet mock would obviously produce a rich personal plan if it were ever
-  // consulted. If this ever returns general_mode instead of not_entitled, an
-  // entitlement lapse is being silently reinterpreted as "your Closet is thin".
+// A stateful entitlement spy: returns the Nth scripted outcome on the Nth
+// call (clamped to the last entry), so a test can script exactly what the
+// PRECHECK sees vs. what the CONFIRMATION sees. 'throw' rejects instead of
+// resolving, for Case C (the confirmation RPC itself failing).
+function statefulEntitlementSpy(sequence: Array<boolean | 'throw'>) {
+  let calls = 0;
+  return {
+    hasActiveKPlus: (): Promise<boolean> => {
+      const outcome = sequence[Math.min(calls, sequence.length - 1)];
+      calls += 1;
+      if (outcome === 'throw') return Promise.reject(new Error('entitlement rpc down'));
+      return Promise.resolve(outcome);
+    },
+    calls: () => calls,
+  };
+}
+
+Deno.test('entitlement Case A: already unentitled is refused at the precheck, before any Closet read', async () => {
+  // The precheck alone is sufficient here: hasActiveKPlus never returns true,
+  // so there is no "confirmation" to reach -- only the first call ever fires.
   let closetRead = false;
   let signatureStyleCalls = 0;
+  const spy = statefulEntitlementSpy([false]);
   const reservation = countingReservation();
   const result = await handlePackingRequest(
     handlerDeps({
-      hasActiveKPlus: () => Promise.resolve(false),
+      hasActiveKPlus: spy.hasActiveKPlus,
       closet: {
         listClosetItems: () => {
           closetRead = true;
@@ -1676,10 +1691,129 @@ Deno.test('entitlement: a lapsed/revoked K+ can never degrade into general mode 
   assertEquals(result.body.status, 'not_entitled');
   assertEquals(result.httpStatus, 403);
   assertEquals(result.body.errorCode, 'PACKING_REQUIRES_KPLUS');
-  assert(result.body.status !== 'general_mode', 'GENERAL MODE FALSELY RETURNED');
+  assertEquals(spy.calls(), 1, 'the confirmation must never run once the precheck already refused');
   assertEquals(closetRead, false, 'the Closet must never be consulted for an unentitled caller');
   assertEquals(signatureStyleCalls, 0);
   assertEquals(reservation.calls(), 0);
+});
+
+Deno.test('entitlement Case B: a genuine mid-request lapse (true, then false) is refused, never general mode', async () => {
+  // THE ACTUAL RACE, simulated properly this time: the precheck sees an
+  // active subscription, the Closet is read, and ONLY THEN does entitlement
+  // disappear -- discovered by a second, independent, live call. If this ever
+  // surfaces as general_mode instead of a 403, a lapsed subscriber is being
+  // told "your Closet is thin" instead of "you lost K+".
+  let closetReads = 0;
+  let signatureStyleCalls = 0;
+  let providerCalls = 0;
+  const spy = statefulEntitlementSpy([true, false]);
+  const reservation = countingReservation();
+  const result = await handlePackingRequest(
+    handlerDeps({
+      hasActiveKPlus: spy.hasActiveKPlus,
+      closet: {
+        listClosetItems: () => {
+          closetReads += 1;
+          return Promise.resolve(mixedClosetRows()); // rich enough to pass readiness
+        },
+      },
+      resolveSignatureStyleBlock: () => {
+        signatureStyleCalls += 1;
+        return Promise.resolve(null);
+      },
+      reserveDailyGeneration: reservation.reserveDailyGeneration,
+      callProvider: () => {
+        providerCalls += 1;
+        return Promise.resolve({ outfits: [], packedItems: [] });
+      },
+    }),
+  );
+  assertEquals(spy.calls(), 2, 'both the precheck and the confirmation must actually run');
+  assertEquals(result.body.status, 'not_entitled');
+  assertEquals(result.httpStatus, 403);
+  assertEquals(result.body.errorCode, 'PACKING_REQUIRES_KPLUS');
+  assert(result.body.status !== 'general_mode', 'GENERAL MODE FALSELY RETURNED');
+  assertEquals(result.telemetry.failureClass, 'entitlement_lapsed');
+  assertEquals(closetReads, 1, 'the Closet is read once -- the precheck had already passed');
+  assertEquals(signatureStyleCalls, 0, 'a caller refused at confirmation gets no enrichment');
+  assertEquals(reservation.calls(), 0);
+  assertEquals(providerCalls, 0);
+});
+
+Deno.test('entitlement Case C: a confirmation-check RPC failure fails closed', async () => {
+  // The precheck's own live RPC succeeded and said yes; the SECOND call to the
+  // same authority throws (network blip, RPC outage, whatever). This must
+  // never be read as "still entitled" merely because the first answer was
+  // good -- an authority that cannot answer is not permission.
+  let providerCalls = 0;
+  const spy = statefulEntitlementSpy([true, 'throw']);
+  const reservation = countingReservation();
+  const result = await handlePackingRequest(
+    handlerDeps({
+      hasActiveKPlus: spy.hasActiveKPlus,
+      closet: { listClosetItems: () => Promise.resolve(mixedClosetRows()) },
+      reserveDailyGeneration: reservation.reserveDailyGeneration,
+      callProvider: () => {
+        providerCalls += 1;
+        return Promise.resolve({ outfits: [], packedItems: [] });
+      },
+    }),
+  );
+  assertEquals(spy.calls(), 2);
+  assertEquals(result.body.status, 'not_entitled');
+  assertEquals(result.httpStatus, 403);
+  assertEquals(result.body.errorCode, 'PACKING_REQUIRES_KPLUS');
+  assertEquals(reservation.calls(), 0);
+  assertEquals(providerCalls, 0);
+});
+
+Deno.test('entitlement Case D: entitlement confirmed twice, sparse Closet — general mode, zero quota', async () => {
+  // Both live checks say yes. From here normal Closet-readiness rules decide
+  // the outcome -- confirmation is not a second opinion on readiness, only on
+  // entitlement.
+  const spy = statefulEntitlementSpy([true, true]);
+  const reservation = countingReservation();
+  let providerCalls = 0;
+  const result = await handlePackingRequest(
+    handlerDeps({
+      hasActiveKPlus: spy.hasActiveKPlus,
+      closet: { listClosetItems: () => Promise.resolve(mixedClosetRows().slice(0, 2)) },
+      reserveDailyGeneration: reservation.reserveDailyGeneration,
+      callProvider: () => {
+        providerCalls += 1;
+        return Promise.resolve({ outfits: [], packedItems: [] });
+      },
+    }),
+  );
+  assertEquals(spy.calls(), 2);
+  assertEquals(result.body.status, 'general_mode');
+  assertEquals(result.telemetry.failureClass, 'sparse_closet');
+  assertEquals(reservation.calls(), 0, 'general mode must still cost nothing (PACK-05)');
+  assertEquals(providerCalls, 0);
+});
+
+Deno.test('entitlement Case D: entitlement confirmed twice, personal plan proceeds — exactly one quota unit', async () => {
+  const spy = statefulEntitlementSpy([true, true]);
+  const reservation = countingReservation();
+  let providerCalls = 0;
+  const result = await handlePackingRequest(
+    handlerDeps({
+      hasActiveKPlus: spy.hasActiveKPlus,
+      reserveDailyGeneration: reservation.reserveDailyGeneration,
+      callProvider: (_system, user) => {
+        providerCalls += 1;
+        const ids = [...user.matchAll(/id=([0-9a-f-]{36})/g)].map((match) => match[1]);
+        return Promise.resolve({
+          outfits: [{ label: 'Day', itemIds: ids.slice(0, 2) }],
+          packedItems: ids.slice(0, 2).map((id) => ({ itemId: id })),
+        });
+      },
+    }),
+  );
+  assertEquals(spy.calls(), 2);
+  assertEquals(result.body.status, 'success');
+  assertEquals(reservation.calls(), 1);
+  assertEquals(providerCalls, 1);
 });
 
 Deno.test('copy: Packing error messages make no durable-persistence claim (required test 11)', async () => {
