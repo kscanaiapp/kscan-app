@@ -19,6 +19,12 @@ export type EliseWardrobeDataSource = {
   listInspirationItems(actorId: string, limit: number): Promise<Record<string, unknown>[]>;
   listOwnedRoomItems(actorId: string, limit: number): Promise<Record<string, unknown>[]>;
   listSharedRoomItems?(actorId: string, limit: number): Promise<Record<string, unknown>[]>;
+  /**
+   * Build 34 / Track B / Phase B5. The authoritative cloud Closet
+   * (user_closet_items, B1A/B1C). Optional so every existing caller/test
+   * that predates Track B keeps working unchanged when it is absent.
+   */
+  listClosetItems?(actorId: string, limit: number): Promise<Record<string, unknown>[]>;
 };
 
 export interface EliseWardrobeRetrievalResult {
@@ -155,13 +161,21 @@ export async function retrieveAuthorizedWardrobeCandidates(input: {
             row,
             canonicalResourceIds: { scanId: id, itemId: id },
           });
-          // Saved scans that are closet-backed are owned when marked or default owned for actor.
-          candidate.actorRelationship = 'owned';
-          candidate.sourceType = 'closet';
+          // A saved scan is EVIDENCE THE USER PHOTOGRAPHED SOMETHING, never proof
+          // they own it -- the item may have been in a shop, on someone else, or
+          // in a screenshot. `scanned` is the relationship the rest of this
+          // subsystem already assigns to exactly this row class
+          // (attachmentProvenance.ts#relationshipForLookItem, and the
+          // "saved_scan attachment ... is scanned, never owned" case in
+          // attachmentOwnership.test.ts). Promoting it here produced the
+          // "You already have" ownership label for a merely-scanned item and
+          // conflated this source with the authoritative Track B Closet under a
+          // single `closet` counter. The relationship stays exactly what
+          // normalizeWardrobeCandidate was given.
           candidates.push(candidate);
           authorizedCount += 1;
-          pushCount(countsBySource, 'closet');
-          pushCount(ownershipSourceCounts, 'owned');
+          pushCount(countsBySource, 'saved_scan');
+          pushCount(ownershipSourceCounts, 'scanned');
         }
       } catch {
         partialFailure = true;
@@ -244,6 +258,45 @@ export async function retrieveAuthorizedWardrobeCandidates(input: {
       }
     })(),
   );
+
+  // Build 34 / Track B / Phase B5. The authoritative cloud Closet. Rows here
+  // are PHYSICALLY OWNED by construction (B1A facts a client can only write
+  // for its own account, RLS-gated), so this is the one source that never
+  // needs roomItemRelationship's provenance heuristics -- unlike a Dressing
+  // Room row, a Closet row has no "saved" or "scanned" ambiguity to resolve.
+  if (input.data.listClosetItems) {
+    tasks.push(
+      (async () => {
+        try {
+          const rows = await input.data.listClosetItems!(input.actorId, limit);
+          for (const row of rows) {
+            const id = typeof row.id === 'string' ? row.id : null;
+            if (!id || !isUuid(id)) {
+              rejectedCount += 1;
+              continue;
+            }
+            if (!ownerMatches(row, input.actorId)) {
+              rejectedCount += 1;
+              continue;
+            }
+            const candidate = normalizeWardrobeCandidate({
+              candidateId: `closet:${id}`,
+              sourceType: 'closet',
+              actorRelationship: 'owned',
+              row,
+              canonicalResourceIds: { itemId: id },
+            });
+            candidates.push(candidate);
+            authorizedCount += 1;
+            pushCount(countsBySource, 'closet');
+            pushCount(ownershipSourceCounts, 'owned');
+          }
+        } catch {
+          partialFailure = true;
+        }
+      })(),
+    );
+  }
 
   if (needShared && input.data.listSharedRoomItems) {
     tasks.push(

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -67,6 +67,7 @@ import { useClosetCandidates } from '../hooks/useClosetCandidates';
 import { routeClosetIntake } from '../services/closetIntakeRouting';
 import { createClosetBatchId } from '../services/closetCandidateSchema';
 import { ClosetIntakeModal } from '../components/closet/ClosetIntakeModal';
+import { ClosetItemEditModal } from '../components/closet/ClosetItemEditModal';
 import { MirrorSelfieExtractionModal } from '../components/closet/MirrorSelfieExtractionModal';
 import { ClosetCandidateStatusPanel } from '../components/closet/ClosetCandidateStatusPanel';
 import { isScanPromoted } from '../services/closetPromotion';
@@ -84,6 +85,8 @@ interface ScanAttributes {
   silhouette: string;
   color_palette: string;
   material_estimate: string | null;
+  /** Pattern (BUG-11). Null on scans saved before it was persisted. */
+  pattern?: string | null;
   style_tags: string[];
   confidence_score: number | null;
 }
@@ -106,6 +109,16 @@ interface SavedScan {
    *  those hydrate to [] and simply hide the purchase section. */
   purchaseOptions?: Product[];
   source: string;
+  /** Build 32: canonical multi-item identities and their per-item commerce,
+   *  written by saveMultiItemScan/attachScanMultiItemCommerce. Absent or
+   *  empty on every non-multi-item and pre-Build-32 scan. */
+  multiItemCandidates?: Array<{ id: string; label: string; category: string; subtype: string }>;
+  multiItemCommerce?: Array<{
+    candidateId: string;
+    status: string;
+    bestMatch: Product | null;
+    alternatives: Product[];
+  }>;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -143,6 +156,23 @@ function mirrorStagingProgressLabel(integration: {
   return `${successCount} of ${totalCropCount} garments were added to your review.`;
 }
 
+/**
+ * The Closet card's secondary line, or nothing when it would only repeat the
+ * title.
+ *
+ * A promoted item's title is built from its taxonomy — brand plus the most
+ * specific descriptor — so an item with neither a brand nor a subtype gets its
+ * bare category as a title. Rendering the category underneath it produced a
+ * card reading "Tops" over "Tops".
+ */
+function closetCardSubtitle(title: string, category: string | null): string | undefined {
+  const fallback = 'Owned item';
+  if (!category) return fallback;
+  return category.trim().toLowerCase() === String(title ?? '').trim().toLowerCase()
+    ? undefined
+    : category;
+}
+
 function formatDate(iso: string): string {
   try {
     const date = new Date(iso);
@@ -163,7 +193,7 @@ async function requestPhotoLibraryPermission(): Promise<boolean> {
   if (hasUsablePhotoLibraryAccess(permission)) return true;
   Alert.alert(
     'Photo Access Required',
-    'Allow K Scan to access your photo library in Settings to upload inspiration.',
+    'Allow K Scan AI to access your photo library in Settings to upload inspiration.',
     [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -171,7 +201,7 @@ async function requestPhotoLibraryPermission(): Promise<boolean> {
         onPress: () => {
           void tryOpenPhotoLibrarySettings(() => Linking.openSettings()).then((opened) => {
             if (!opened) {
-              Alert.alert('Unable to Open Settings', 'Open Settings and allow photo access for K Scan.');
+              Alert.alert('Unable to Open Settings', 'Open Settings and allow photo access for K Scan AI.');
             }
           });
         },
@@ -197,7 +227,10 @@ const SECTION_CHROME = {
     title: 'Your Closet',
     subtitle: 'YOUR OWNED WARDROBE',
     emptyTitle: 'Your Closet is empty',
-    emptyBody: 'Add items you own to build your Closet.',
+    // No emptyBody. The Closet's empty body depends on whether direct intake is
+    // available, so it is written at the call site. A static string here was a
+    // SECOND body for the same state that nothing rendered — the kind of
+    // duplicate copy this table exists to prevent.
   },
 } as const;
 
@@ -255,7 +288,33 @@ export default function LibraryScreen() {
   // and the status panel renders from it, so a staged photo appears immediately
   // rather than on the next focus.
   const closetCandidates = useClosetCandidates();
+
+  /**
+   * Promotion is the ONLY path that writes a committed Closet item from the
+   * candidate side, and the two hooks hold independent snapshots. Without this
+   * bridge the item lands on disk and the grid below never re-reads it, which
+   * reads to the user as "the item I just added is missing" — or, on a
+   * first-ever add, as an empty Closet.
+   *
+   * The re-read is additive: `refresh` cannot clear the grid, so a promotion
+   * whose follow-up read fails leaves the existing items alone.
+   */
+  const closetCandidatesWithCommitBridge = useMemo(
+    () => ({
+      ...closetCandidates,
+      promoteSelected: async (...args: Parameters<typeof closetCandidates.promoteSelected>) => {
+        const result = await closetCandidates.promoteSelected(...args);
+        await closet.refresh();
+        return result;
+      },
+    }),
+    [closetCandidates, closet.refresh]
+  );
   const [closetIntakeVisible, setClosetIntakeVisible] = useState(false);
+  // The item currently open for editing. Holding the id (not the object) means
+  // the sheet always prefills from the CURRENT snapshot, so a refresh that lands
+  // while the sheet is open cannot leave it editing a stale copy.
+  const [editingClosetItemId, setEditingClosetItemId] = useState<string | null>(null);
   const [mirrorSelfieVisible, setMirrorSelfieVisible] = useState(false);
   const [closetState, setClosetState] = useState<'idle' | 'saving' | 'saved'>('idle');
 
@@ -431,6 +490,26 @@ export default function LibraryScreen() {
         }
       : {};
 
+  /**
+   * Post-creation edit for a Closet item (BUG-16).
+   *
+   * The card itself opens the outfit builder, so editing gets its own control
+   * rather than a long-press: an item had no discoverable way to be corrected
+   * after it was saved. Only the metadata intake collects — name and category —
+   * is editable; the photo, the provenance and any underlying Recent Scan are
+   * not reachable from here.
+   */
+  const editingClosetItem =
+    closet.items.find((item: any) => item.id === editingClosetItemId) ?? null;
+
+  const handleSaveClosetItemEdit = async (
+    id: string,
+    patch: { title: string; category: string | null },
+  ) => {
+    const result = (await closet.update(id, patch)) as { ok: boolean; reason?: string };
+    return { ok: result.ok, reason: result.reason };
+  };
+
   const handleDeleteClosetItem = (id: string) => {
     Alert.alert(
       'Remove from Closet?',
@@ -542,6 +621,11 @@ export default function LibraryScreen() {
   // this the route could resolve to Recent Scans while the header still claimed
   // "Your Closet" — the alias that made scan history look like owned inventory.
   const chrome = CLOSET_SEPARATION_V1 ? SECTION_CHROME[section] : LEGACY_CHROME;
+  // This empty state only ever renders under the Recent Scans or the
+  // pre-separation chrome; the Closet writes its own, intake-dependent body.
+  const recentEmptyBody = CLOSET_SEPARATION_V1
+    ? SECTION_CHROME.recent.emptyBody
+    : LEGACY_CHROME.emptyBody;
 
   const scanPairs = scans.reduce<[SavedScan, SavedScan | null][]>((pairs, scan, i) => {
     if (i % 2 === 0) pairs.push([scan, scans[i + 1] ?? null]);
@@ -676,12 +760,32 @@ export default function LibraryScreen() {
               unchanged and remains the only owned-inventory view.
             */}
             {CLOSET_CANDIDATE_STAGING_ACTIVE ? (
-              <ClosetCandidateStatusPanel api={closetCandidates} />
+              <ClosetCandidateStatusPanel api={closetCandidatesWithCommitBridge} />
             ) : null}
             {closet.loading ? (
               <View style={styles.loadingWrap}>
                 <ActivityIndicator size="large" color={LUXURY.colors.plum} />
               </View>
+            ) : closet.error && closet.items.length === 0 ? (
+              /*
+                A Closet we could not READ is not an empty Closet. Saying
+                "empty" here would tell the user their items are gone and offer
+                "Add Item" as the remedy, when the items are on disk and the
+                remedy is to try the read again.
+              */
+              <EmptyStateCard
+                testID="closet-load-error-card"
+                title="We couldn't load your Closet"
+                subtitle={`${closet.error.message} Your items are safe — this was a problem reading them.`}
+                action={{
+                  label: 'Try Again',
+                  onPress: () => {
+                    void closet.refresh();
+                  },
+                  accessibilityLabel: 'Try loading your Closet again',
+                  testID: 'closet-load-error-retry-button',
+                }}
+              />
             ) : closet.items.length === 0 ? (
               <EmptyStateCard
                 title={chrome.emptyTitle}
@@ -712,10 +816,11 @@ export default function LibraryScreen() {
                       imageUrl={a.thumbnailUri ?? a.imageUri}
                       title={a.title}
                       accessibilityLabel={`${a.title} Closet item`}
-                      subtitle={a.category ?? 'Owned item'}
+                      subtitle={closetCardSubtitle(a.title, a.category)}
                       date={formatDate(a.createdAt)}
                       status="Closet"
                       onDelete={() => handleDeleteClosetItem(a.id)}
+                      onEdit={() => setEditingClosetItemId(a.id)}
                       {...closetOutfitAction(a.id)}
                       style={{ width: CARD_W }}
                     />
@@ -725,10 +830,11 @@ export default function LibraryScreen() {
                         imageUrl={b.thumbnailUri ?? b.imageUri}
                         title={b.title}
                         accessibilityLabel={`${b.title} Closet item`}
-                        subtitle={b.category ?? 'Owned item'}
+                        subtitle={closetCardSubtitle(b.title, b.category)}
                         date={formatDate(b.createdAt)}
                         status="Closet"
                         onDelete={() => handleDeleteClosetItem(b.id)}
+                        onEdit={() => setEditingClosetItemId(b.id)}
                         {...closetOutfitAction(b.id)}
                         style={{ width: CARD_W }}
                       />
@@ -758,7 +864,7 @@ export default function LibraryScreen() {
         ) : scans.length === 0 ? (
           <EmptyStateCard
             title={chrome.emptyTitle}
-            subtitle={chrome.emptyBody}
+            subtitle={recentEmptyBody}
             action={
               CLOSET_SEPARATION_V1
                 ? {
@@ -776,7 +882,11 @@ export default function LibraryScreen() {
           <View style={styles.singleCardRow}>
             <SavedLookCard
               testID="scan-card"
-              imageUrl={scans[0].thumbnailUri}
+              // The solo card spans both columns, so a card-sized thumbnail is
+              // the one derivative that cannot cover it. This is a single card,
+              // not a list cell — reading the full image here is cheap and is
+              // the only way the layout is not upscaling.
+              imageUrl={scans[0].imageUri ?? scans[0].thumbnailUri}
               title={scans[0].attributes.category || 'Scan'}
               accessibilityLabel={`${scans[0].attributes.category || 'Scan'} Recent Scan`}
               subtitle={scans[0].result}
@@ -794,7 +904,7 @@ export default function LibraryScreen() {
               <View key={a.id} style={styles.gridRow}>
                 <SavedLookCard
                   testID="scan-card"
-                  imageUrl={a.thumbnailUri}
+                  imageUrl={a.thumbnailUri ?? a.imageUri}
                   title={a.attributes.category || 'Scan'}
                   accessibilityLabel={`${a.attributes.category || 'Scan'} Recent Scan`}
                   subtitle={a.result}
@@ -807,7 +917,7 @@ export default function LibraryScreen() {
                 />
                 {b ? (
                   <SavedLookCard
-                    imageUrl={b.thumbnailUri}
+                    imageUrl={b.thumbnailUri ?? b.imageUri}
                     title={b.attributes.category || 'Scan'}
                     accessibilityLabel={`${b.attributes.category || 'Scan'} Recent Scan`}
                     subtitle={b.result}
@@ -932,6 +1042,18 @@ export default function LibraryScreen() {
       ) : null}
 
       {/*
+        Closet item editing (BUG-16). Not flag-gated: the Closet grid it belongs
+        to is already the committed-inventory surface, and an item that can be
+        created and deleted but never corrected is the defect this closes.
+      */}
+      <ClosetItemEditModal
+        visible={!!editingClosetItem}
+        item={editingClosetItem}
+        onClose={() => setEditingClosetItemId(null)}
+        onSave={handleSaveClosetItemEdit}
+      />
+
+      {/*
         Mirror Selfie extraction (Build 2.5 Step 3) and candidate staging
         (Build 2.5 Step 4).
 
@@ -978,9 +1100,12 @@ export default function LibraryScreen() {
             category: selectedScan.attributes.category,
             color: selectedScan.attributes.color_palette,
             silhouette: selectedScan.attributes.silhouette,
+            pattern: selectedScan.attributes.pattern ?? null,
           }}
           products={selectedScan.products}
           purchaseOptions={selectedScan.purchaseOptions ?? []}
+          multiItemCandidates={selectedScan.multiItemCandidates ?? []}
+          multiItemCommerce={selectedScan.multiItemCommerce ?? []}
           scanImageUri={selectedScan.imageUri ?? null}
           scanSourceId={selectedScan.id}
           scanSourceType="style_library_scan"
@@ -1094,6 +1219,8 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.sm,
   },
   subNavTab: {
+    minHeight: 44,
+    justifyContent: 'center',
     borderRadius: 18,
     borderWidth: 1,
     borderColor: LUXURY.colors.border,

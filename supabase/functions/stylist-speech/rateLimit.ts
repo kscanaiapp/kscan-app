@@ -1,6 +1,11 @@
 import { StylistSpeechError } from './types.ts';
 
-export const SPEECH_BURST_LIMIT = 3;
+// A burst ceiling, not an expected usage rate: 10/60s permits roughly one
+// spoken reply every 6 seconds during an unusually active conversation while
+// still bounding a runaway request loop. The original value of 3 predated the
+// client's retry/fail-soft repair and routinely blocked the fourth reply in
+// ordinary back-and-forth StyleChat use.
+export const SPEECH_BURST_LIMIT = 10;
 export const SPEECH_BURST_WINDOW_MS = 60_000;
 export const SPEECH_DAILY_LIMIT = 50;
 

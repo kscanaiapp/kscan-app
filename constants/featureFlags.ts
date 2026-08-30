@@ -88,6 +88,21 @@ export const TEXTSCAN_BACKEND_ENABLED =
  */
 export const VOICESCAN_ENABLED = false;
 
+// ── K+ entitlement boundary ──────────────────────────────────────────────────
+/**
+ * Master client rollout switch for the K+ product boundary (status row,
+ * upgrade surfaces, Voice Scan pill conversion). Independent of whether any
+ * individual K+-gated FEATURE (e.g. Voice Scan itself) is built --
+ * "does K+ exist as a concept the user can see" and "is a specific K+
+ * capability implemented" are deliberately separate questions. Defaults off.
+ */
+export function resolveKPlusEarlyAccessEnabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED,
+): boolean {
+  return value === 'true';
+}
+export const KPLUS_EARLY_ACCESS_ENABLED = resolveKPlusEarlyAccessEnabled();
+
 // ── Scan Results V2 UI rollout flags ─────────────────────────────────────────
 export const SCAN_RESULTS_V2_UI_ENABLED =
   process.env.EXPO_PUBLIC_SCAN_RESULTS_V2_UI === 'true';
@@ -442,10 +457,14 @@ export const ELISE_IDENTIFICATION_V2_ENABLED = resolveEliseIdentificationV2Enabl
  * Master switch for the AI Stylist expansion UI: Library MY LOOKS sub-nav,
  * owned-item manual Look builder, Style This / Style for Event flows, and
  * Dressing Room outfit decisions (voting, winner, "I'm wearing this").
- * Default false: the feature ships dark and stays inactive in the current
- * production configuration. Enable locally with
- * EXPO_PUBLIC_AI_STYLIST_ENABLED=true. It additionally respects the remote
- * non-core feature freeze via the 'aiStylist' key.
+ * Defaults to false when the variable is unset, but eas.json sets
+ * EXPO_PUBLIC_AI_STYLIST_ENABLED="true" on the preview, development, staging AND
+ * production profiles — so this surface is LIVE in a production build, not dark.
+ * (An earlier revision of this comment claimed it stayed inactive in production;
+ * that was stale and caused the outfit-decision surface to be mis-triaged as
+ * unreachable during the Build 25 hostile audit.) It additionally respects the
+ * remote non-core feature freeze via the 'aiStylist' key, which is enabled
+ * unless a freeze is actively published.
  */
 export const AI_STYLIST_UI_ENABLED =
   process.env.EXPO_PUBLIC_AI_STYLIST_ENABLED === 'true';
@@ -647,6 +666,112 @@ export function resolveClosetBatchReviewV2Active(
     batchReview === true
   );
 }
+
+// ── Closet cloud sync (Build 34 / Track B / Phase B2B) ──────────────────────
+/**
+ * THE SINGLE B2B KILL SWITCH. One flag for the whole outbound Closet cloud
+ * sync capability — facts upsert, media upload, retry, and cloud tombstoning
+ * alike. Deliberately not decomposed into per-stage flags: a half-enabled sync
+ * engine (facts on, media off; upload on, delete off) produces cloud states
+ * nothing in B2B or B2C knows how to reason about, so the only supported
+ * configurations are all of it or none of it.
+ *
+ * Default OFF, exact string "true" to opt in, matching every other rollout flag
+ * in this file.
+ *
+ * DELIBERATELY NOT SUBORDINATE TO THE CLOSET_SEPARATION/DIRECT_INTAKE/STAGING
+ * CHAIN. Those gate the candidate INTAKE pipeline — how an item gets into the
+ * Closet. This gates what happens to a committed Closet item afterwards, which
+ * is orthogonal: an item committed long before that chain existed is just as
+ * syncable as one staged today.
+ *
+ * Cloud sync additionally requires an ACTIVE K+ entitlement at the moment each
+ * attempt runs (services/closet/closetSyncEngine.ts#isClosetCloudSyncEligible).
+ * That check is not expressible here because entitlement is runtime state, not
+ * a build-time constant.
+ *
+ * FLAG OFF IS NOT A DEGRADED MODE. The local Closet is fully functional with
+ * this off — it is exactly today's behaviour, because cloud sync is an
+ * enhancement and never a prerequisite for using the Closet.
+ */
+export function resolveClosetCloudSyncEnabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_CLOSET_CLOUD_SYNC_V1,
+): boolean {
+  return value === 'true';
+}
+
+export const CLOSET_CLOUD_SYNC_V1 = resolveClosetCloudSyncEnabled();
+
+// ── Closet cross-device restore (Build 34 / Track B / Phase B2C) ───────────
+/**
+ * THE SINGLE B2C KILL SWITCH. Gates remote discovery, inbound reconciliation,
+ * and private media hydration alike — deliberately not decomposed into a flag
+ * per stage, for the same reason CLOSET_CLOUD_SYNC_V1 is not: a half-enabled
+ * restore (facts on, media off; discovery on, reconciliation off) produces
+ * local states nothing downstream knows how to reason about.
+ *
+ * Default OFF, exact string "true" to opt in, matching every other rollout
+ * flag in this file.
+ *
+ * DELIBERATELY INDEPENDENT OF CLOSET_CLOUD_SYNC_V1. B2B (outbound) and B2C
+ * (inbound) read and write disjoint directions of the same sidecar, and a
+ * device may legitimately want one without the other — most notably a brand
+ * new device restoring an existing wardrobe before it has ever produced any
+ * outbound work of its own. Nesting this under the outbound flag would make
+ * that ordinary first-run case impossible to express.
+ *
+ * Cloud restore additionally requires an ACTIVE K+ entitlement at the moment
+ * each attempt runs (services/closet/closetRestoreEngine.ts), evaluated fresh
+ * on every pass so a K+ lapse or reactivation needs no special case — the same
+ * pattern closetSyncEngine.ts#isClosetCloudSyncEligible already established.
+ *
+ * FLAG OFF IS NOT A DEGRADED MODE. The local Closet is fully functional with
+ * this off, exactly as it is today: restore is a K+ enhancement layered on
+ * top, never a prerequisite for using the Closet on any device.
+ */
+export function resolveClosetCrossDeviceRestoreEnabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_CLOSET_CROSS_DEVICE_RESTORE_V1,
+): boolean {
+  return value === 'true';
+}
+
+export const CLOSET_CROSS_DEVICE_RESTORE_V1 = resolveClosetCrossDeviceRestoreEnabled();
+
+// ── Closet historical migration (Build 34 / Track B / Phase B3) ────────────
+/**
+ * THE SINGLE B3 KILL SWITCH. Gates opportunistic enrollment of pre-existing,
+ * never-synced local Closet items into the EXISTING B2B outbound engine
+ * (services/closet/closetHistoricalMigrationEngine.ts). It does not gate any
+ * new sync/media/privacy behavior of its own — B3 only decides which items
+ * are handed to `markClosetItemForSync` / `runClosetSyncPass`, both unchanged
+ * from B2B.
+ *
+ * Default OFF, exact string "true" to opt in, matching every other rollout
+ * flag in this file.
+ *
+ * DELIBERATELY REQUIRES CLOSET_CLOUD_SYNC_V1 TOO (checked at the engine level,
+ * not nested here as a flag-of-a-flag): enrolling an item into a sync engine
+ * that is itself disabled would only populate the sidecar with `pending`
+ * entries nothing acts on. Independent of CLOSET_CROSS_DEVICE_RESTORE_V1 —
+ * migration (outbound enrollment) and restore (inbound hydration) are
+ * unrelated directions and a device may need either without the other.
+ *
+ * Historical migration additionally requires an ACTIVE K+ entitlement at the
+ * moment each attempt runs, evaluated fresh on every pass — the same pattern
+ * closetSyncEngine.ts#isClosetCloudSyncEligible and
+ * closetRestoreEngine.ts's own gate already establish.
+ *
+ * FLAG OFF IS NOT A DEGRADED MODE. The local Closet is fully functional with
+ * this off, exactly as it is today: historical items simply stay local-only,
+ * which was already every historical item's state before this phase existed.
+ */
+export function resolveClosetLegacyMigrationEnabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_CLOSET_LEGACY_MIGRATION_V1,
+): boolean {
+  return value === 'true';
+}
+
+export const CLOSET_LEGACY_MIGRATION_V1 = resolveClosetLegacyMigrationEnabled();
 
 // ── Mirror Selfie staging contract (Build 2.5 Step 1 + Step 2) ──────────────
 /**

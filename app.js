@@ -26,7 +26,14 @@ import {
 import { buildEliseVisualContext } from './services/style-chat/buildEliseVisualContext';
 import { supabase } from './services/supabaseClient';
 import { useKScan } from './hooks/useKScan';
-import { saveScan, selectPurchaseOptionsSnapshot } from './services/library';
+import {
+  saveScan,
+  selectPurchaseOptionsSnapshot,
+  attachScanPurchaseOptions,
+  purchaseOptionsFingerprint,
+  saveMultiItemScan,
+  attachScanMultiItemCommerce,
+} from './services/library';
 import { createActorRequest, isActorRequestCurrent } from './services/actorContext';
 import { setStyleChatHandoffContext } from './services/style-chat/styleChatHandoffContext';
 import { AnalysisCard } from './components/AnalysisCard';
@@ -267,6 +274,11 @@ export default function App() {
     status,
     photo,
     analysis,
+    commerceStatus,
+    retryCommerce,
+    multiItemCommerce,
+    multiItemCommerceStatus,
+    retryMultiItemCommerce,
     error,
     nonFashionMessage,
     isAnalyzing,
@@ -369,6 +381,11 @@ export default function App() {
   // hasSavedRef: prevents saving the same result twice if the effect re-fires.
   // Reset to false when a new analysis starts (status → processing).
   const hasSavedRef = useRef(false);
+  // Build 32: separate save-once guard and saved-id for the multi-item path,
+  // independent of hasSavedRef/savedScanId above (single-item scans never set
+  // this; multi-item scans never set the other).
+  const hasSavedMultiItemRef = useRef(false);
+  const [savedMultiItemScanId, setSavedMultiItemScanId] = useState(null);
   const [savedToast, setSavedToast] = useState(false);
   const [savedScanId, setSavedScanId] = useState(null);
   const [scanRoomModalVisible, setScanRoomModalVisible] = useState(false);
@@ -392,6 +409,8 @@ export default function App() {
       setV2AnalyzingMinComplete(false);
       setSavedScanId(null);
       hasSavedRef.current = false; // arm save for the next result
+      setSavedMultiItemScanId(null);
+      hasSavedMultiItemRef.current = false;
       return;
     }
     // When processing succeeds, briefly show the HUD with real metadata
@@ -438,6 +457,72 @@ export default function App() {
       });
     return () => { live = false; };
   }, [status, photo, analysis]);
+
+  // v127: attach commerce that arrived after the scan row was already written.
+  //
+  // The save above captures purchase options at save time, which under v127 is
+  // before providers have answered. This effect closes that window from the
+  // other side: it fires whenever purchase options exist and the record id is
+  // known, so it is correct whether commerce landed before or after the save
+  // completed — the id simply appears later in the second case, and there is no
+  // timer anywhere in this path.
+  const attachedCommerceRef = useRef(null);
+  useEffect(() => {
+    if (status !== 'result' || !savedScanId) return;
+    const options = selectPurchaseOptionsSnapshot(analysis);
+    if (!options.length) return;
+    // One attach per (record, shelf). Re-running for the same shelf would be
+    // harmless — the write replaces rather than appends — but it would still be
+    // a pointless write on every rerender. Keyed on shelf CONTENT, because
+    // enrichment upgrades offers in place and so leaves the count unchanged.
+    const key = savedScanId + ':' + purchaseOptionsFingerprint(options);
+    if (attachedCommerceRef.current === key) return;
+    attachedCommerceRef.current = key;
+    const actorRequest = createActorRequest();
+    attachScanPurchaseOptions(savedScanId, options, { actorRequest }).catch(() => null);
+  }, [status, savedScanId, analysis]);
+
+  // Build 32: save a multi-item detection result once, independent of the
+  // single-item save above (that one explicitly skips while
+  // confirmationCandidates exist — see its own effect). Fires as soon as the
+  // candidates are known; commerce for them attaches afterward, below.
+  useEffect(() => {
+    if (
+      status !== 'result' ||
+      !photo?.uri ||
+      !analysis?.confirmationCandidates?.length ||
+      hasSavedMultiItemRef.current
+    ) return;
+    hasSavedMultiItemRef.current = true;
+    let live = true;
+    const actorRequest = createActorRequest();
+    saveMultiItemScan({
+      photoUri: photo.uri,
+      analysis,
+      candidates: analysis.confirmationCandidates,
+      source: photo.source || 'scan',
+      actorRequest,
+    }).then(saved => {
+      if (live && saved && isActorRequestCurrent(actorRequest)) {
+        setSavedMultiItemScanId(saved.id);
+      }
+    });
+    return () => { live = false; };
+  }, [status, photo, analysis]);
+
+  // Build 32: attach multi-item commerce once hydration completes. Same
+  // shape as the single-item attach effect above — correct whether commerce
+  // lands before or after the record id is known, no timer.
+  const attachedMultiItemCommerceRef = useRef(null);
+  useEffect(() => {
+    if (status !== 'result' || !savedMultiItemScanId) return;
+    if (!Array.isArray(multiItemCommerce) || multiItemCommerce.length === 0) return;
+    const key = savedMultiItemScanId + ':' + multiItemCommerce.length + ':' + multiItemCommerceStatus;
+    if (attachedMultiItemCommerceRef.current === key) return;
+    attachedMultiItemCommerceRef.current = key;
+    const actorRequest = createActorRequest();
+    attachScanMultiItemCommerce(savedMultiItemScanId, multiItemCommerce, { actorRequest }).catch(() => null);
+  }, [status, savedMultiItemScanId, multiItemCommerce, multiItemCommerceStatus]);
 
   // When the scanner was opened from Elise, automatically return the structured
   // visual context to the originating session once analysis completes.
@@ -634,7 +719,7 @@ export default function App() {
             style={styles.homeButtonV1}
             accessibilityRole="button"
             accessibilityLabel="Go Home"
-            accessibilityHint="Returns to the K Scan home screen"
+            accessibilityHint="Returns to the K Scan AI home screen"
           >
             <Text style={styles.homeButtonV1Text}>Home</Text>
           </Pressable>
@@ -822,7 +907,7 @@ export default function App() {
             style={styles.homeButton}
             accessibilityRole="button"
             accessibilityLabel="Go Home"
-            accessibilityHint="Returns to the K Scan home screen"
+            accessibilityHint="Returns to the K Scan AI home screen"
           >
             <Text style={styles.homeButtonText}>Home</Text>
           </Pressable>
@@ -1051,6 +1136,18 @@ export default function App() {
             analysis={analysis}
             scanImageUri={photo?.uri ?? null}
             scanSourceId={photo?.qaFixtureName ?? null}
+            // v127 (P1-B): only meaningful on this live-scan surface — a
+            // reopened Recent Scan (app/library.tsx) renders AnalysisCard
+            // without this prop, so it stays 'idle' there and the section
+            // keeps its pre-existing hidden-when-empty behavior.
+            commerceStatus={analysis?.commerceDeferred ? commerceStatus : 'idle'}
+            onRetryCommerce={retryCommerce}
+            // Build 32: only meaningful on this live-scan surface, same reason
+            // as commerceStatus above — a reopened Recent Scan renders from
+            // its own persisted snapshot instead (see app/library.tsx).
+            multiItemCommerce={multiItemCommerce}
+            multiItemCommerceStatus={multiItemCommerceStatus}
+            onRetryMultiItemCommerce={retryMultiItemCommerce}
             onDismiss={dismissResult}
             onSaveToLibrary={savedScanId ? () => router.push('/library') : undefined}
             saveActionLabel={savedScanId ? 'View Closet' : undefined}
@@ -1083,6 +1180,12 @@ export default function App() {
             // Same snapshot shape that saveScan persists, so the live result and
             // the reopened Recent Scan render the identical purchase cards.
             purchaseOptions={selectPurchaseOptionsSnapshot(analysis)}
+            // v127 (P1-B): only meaningful on this live-scan surface — a
+            // reopened Recent Scan (app/library.tsx) renders AnalysisCard
+            // without this prop, so it stays 'idle' there and the section
+            // keeps its pre-existing hidden-when-empty behavior.
+            commerceStatus={analysis?.commerceDeferred ? commerceStatus : 'idle'}
+            onRetryCommerce={retryCommerce}
             confirmationCandidates={analysis?.confirmationCandidates ?? []}
             selectedCandidateId={selectedCandidateId}
             onSelectCandidate={selectConfirmationCandidate}

@@ -7,10 +7,16 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import type { Session, User } from '@supabase/supabase-js';
-import { supabase, takeAuthBootstrapStorageError } from '../services/supabaseClient';
+import {
+  clearPersistedAuthSessions,
+  hasPendingAuthSessionRecovery,
+  supabase,
+  takeAuthBootstrapStorageError,
+} from '../services/supabaseClient';
 import { AUTH_CALLBACK_URL } from '../services/authConfig';
-import { isSessionUsable } from '../services/routingGuard';
+import { AUTH_STATE, getSessionAuthState, isSessionUsable } from '../services/routingGuard';
 import { invalidateAllMemoryCache } from '../services/style-chat/styleMemoryCache';
 import { resetAttachmentStore } from '../services/style-chat/styleChatAttachmentStore';
 import { resetVisualContextStore } from '../services/style-chat/eliseVisualContextStore';
@@ -19,6 +25,7 @@ import {
   createAuthBootstrapGenerationGuard,
   createAuthActorBoundaryGuard,
   isHandledStaleRefreshTokenError,
+  isTerminalRefreshFailure,
 } from '../services/authSessionBootstrap';
 import { traceAuthLifecycle } from '../services/authLifecycleTrace';
 import { logError } from '../src/utils/errorLogger';
@@ -29,6 +36,8 @@ import { clearStyleChatHandoffContext } from '../services/style-chat/styleChatHa
 import { resetStyleChatGreetingState } from '../services/style-chat/styleChatGreeting';
 import { advanceActorEpoch } from '../services/actorContext';
 import { clearTodayWeather } from '../services/weather/todayWeatherStore';
+import { resetKPlusEntitlementCache } from '../services/kplus/kplusEntitlementStore';
+import { buildSignupNameMetadata, type SignupNameInput } from '../services/userFirstName';
 
 /**
  * Returned by signUp so the caller can distinguish between an immediate
@@ -41,6 +50,8 @@ export interface SignUpResult {
   confirmationRequired: boolean;
 }
 
+export type AuthState = (typeof AUTH_STATE)[keyof typeof AUTH_STATE];
+
 export interface AuthSessionContextValue {
   session: Session | null;
   user: User | null;
@@ -49,8 +60,18 @@ export interface AuthSessionContextValue {
   isAuthenticated: boolean;
   /** True during a background token refresh. Writes should be deferred. */
   isRefreshing: boolean;
+  /**
+   * Truthful launch/lifecycle state. AUTHENTICATED_RECOVERY_PENDING means the
+   * actor is not signed out but the session has not been server-validated yet —
+   * it must never be presented as a fully validated session.
+   */
+  authState: AuthState;
+  /** True when a stored session is awaiting renewal after a transient failure. */
+  isRecoveringSession: boolean;
+  /** Re-attempts a pending recovery, e.g. from an offline retry action. */
+  retrySessionRecovery: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<SignUpResult>;
+  signUp: (email: string, password: string, profile?: SignupNameInput) => Promise<SignUpResult>;
   signOut: () => Promise<void>;
 }
 
@@ -76,6 +97,9 @@ function resetActorScopedRuntimeState(nextActorId: string | null): void {
   resetStyleChatGreetingState();
   resetStylistIdentityStore();
   resetStylistVoicePreferenceState();
+  // K+ status is account-scoped: never let it survive a sign-out or leak
+  // into the next signed-in actor on this device.
+  resetKPlusEntitlementCache();
   // Defense in depth: the store already refuses to return a reading whose
   // actorId does not match the caller, so this cannot be the only thing keeping
   // weather from crossing accounts — it just stops the previous actor's reading
@@ -88,8 +112,12 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [recoveryPending, setRecoveryPending] = useState(false);
   const authEventGenerationGuardRef = useRef(createAuthBootstrapGenerationGuard());
   const authActorBoundaryGuardRef = useRef(createAuthActorBoundaryGuard());
+  // Seals the actor across an explicit logout so a result that resolves later —
+  // a refresh, a sign-in event — can never be applied to the actor who left.
+  const signedOutRef = useRef(false);
 
   useEffect(() => {
     let mounted = true;
@@ -107,6 +135,24 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
       });
       if (event === 'TOKEN_REFRESHED') {
         setIsRefreshing(false);
+      }
+      if (usableSession) {
+        // Any authoritative session ends a pending recovery.
+        setRecoveryPending(false);
+      }
+      if (event === 'SIGNED_IN') {
+        signedOutRef.current = false;
+      }
+      // A late TOKEN_REFRESHED/SIGNED_IN that resolves after a deliberate logout
+      // must never reauthenticate the actor who signed out.
+      if (signedOutRef.current && usableSession) {
+        traceAuthLifecycle('auth-state-event', {
+          authEvent: event,
+          ignoredAsStale: true,
+          outcome: 'ignored-after-signout',
+          sessionPresent: true,
+        });
+        return;
       }
       if (authActorBoundaryGuardRef.current.noteActor(usableSession?.user.id ?? null)) {
         // Any actor boundary invalidates pending generation and native playback
@@ -129,6 +175,7 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
 
         if (storageRecoveryError) {
           const handledStaleRefreshToken = isHandledStaleRefreshTokenError(storageRecoveryError);
+          const terminal = isTerminalRefreshFailure(storageRecoveryError);
           const bootstrapIsCurrent = authEventGenerationGuardRef.current.isBootstrapCurrent(
             startGeneration,
           );
@@ -141,27 +188,47 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
             void stopAvatarSpeechPlayback();
             resetActorScopedRuntimeState(null);
           }
+          // A transient failure leaves recoverable material in storage. The
+          // actor is awaiting renewal, not signed out, so nothing is cleared and
+          // Supabase's own retrying refresh owns the recovery.
+          const pendingRecovery = !terminal && hasPendingAuthSessionRecovery();
           traceAuthLifecycle('bootstrap-result', {
             ignoredAsStale: !bootstrapIsCurrent,
-            outcome: handledStaleRefreshToken ? 'stale-refresh-cleared' : 'error',
+            outcome: terminal
+              ? 'stale-refresh-cleared'
+              : pendingRecovery
+                ? 'recovery-pending'
+                : 'error',
             sessionPresent: false,
           });
-          if (mounted && bootstrapIsCurrent) setSession(null);
+          if (mounted && bootstrapIsCurrent) {
+            setRecoveryPending(pendingRecovery);
+            if (terminal || !pendingRecovery) setSession(null);
+          }
           return;
         }
 
         if (error) {
           const handledStaleRefreshToken = isHandledStaleRefreshTokenError(error);
+          const terminal = isTerminalRefreshFailure(error);
           if (!handledStaleRefreshToken) {
             logError('Unable to restore auth session', error);
           }
           const bootstrapIsCurrent = authEventGenerationGuardRef.current.isBootstrapCurrent(startGeneration);
+          const pendingRecovery = !terminal && hasPendingAuthSessionRecovery();
           traceAuthLifecycle('bootstrap-result', {
             ignoredAsStale: !bootstrapIsCurrent,
-            outcome: handledStaleRefreshToken ? 'stale-refresh-cleared' : 'error',
+            outcome: terminal
+              ? 'stale-refresh-cleared'
+              : pendingRecovery
+                ? 'recovery-pending'
+                : 'error',
             sessionPresent: false,
           });
-          if (mounted && bootstrapIsCurrent) setSession(null);
+          if (mounted && bootstrapIsCurrent) {
+            setRecoveryPending(pendingRecovery);
+            if (terminal || !pendingRecovery) setSession(null);
+          }
           return;
         }
 
@@ -177,16 +244,25 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
           sessionPresent: Boolean(bootSession),
           sessionUsable: Boolean(usableSession),
         });
-        if (mounted && bootstrapIsCurrent) setSession(usableSession);
+        if (mounted && bootstrapIsCurrent) {
+          setRecoveryPending(false);
+          setSession(usableSession);
+        }
       } catch (error) {
         logError('Unable to initialize auth session', error);
         const bootstrapIsCurrent = authEventGenerationGuardRef.current.isBootstrapCurrent(startGeneration);
+        // An unexpected bootstrap fault is not proof the actor is signed out.
+        // Recoverable material still in storage keeps them in recovery instead.
+        const pendingRecovery = hasPendingAuthSessionRecovery();
         traceAuthLifecycle('bootstrap-result', {
           ignoredAsStale: !bootstrapIsCurrent,
-          outcome: 'unexpected-error',
+          outcome: pendingRecovery ? 'recovery-pending' : 'unexpected-error',
           sessionPresent: false,
         });
-        if (mounted && bootstrapIsCurrent) setSession(null);
+        if (mounted && bootstrapIsCurrent) {
+          setRecoveryPending(pendingRecovery);
+          if (!pendingRecovery) setSession(null);
+        }
       } finally {
         try {
           await supabase.auth.startAutoRefresh();
@@ -208,16 +284,65 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
     };
   }, []);
 
+  /**
+   * iOS suspends JavaScript timers while the app is backgrounded, so Supabase's
+   * refresh ticker cannot be trusted to have run across a resume. Exactly one
+   * listener drives the SDK's own refresh owner: stop the ticker on background
+   * so no duplicate loop survives, and restart it on foreground — startAutoRefresh
+   * replaces any existing ticker and runs an immediate expiry check, so a stale
+   * access token is renewed through the single authoritative path.
+   *
+   * Nothing here clears session material: a foreground refresh that fails is a
+   * transient failure, and Supabase preserves a recoverable session itself.
+   */
+  useEffect(() => {
+    // Never act before hydration completes, or a foreground event could race
+    // the initial storage read.
+    if (loading) return;
+
+    let disposed = false;
+
+    const applyAppState = (nextState: AppStateStatus) => {
+      if (disposed || signedOutRef.current) return;
+      if (nextState === 'active') {
+        void supabase.auth
+          .startAutoRefresh()
+          .catch((error) => logError('Unable to resume auth session refresh', error));
+        return;
+      }
+      void supabase.auth
+        .stopAutoRefresh()
+        .catch((error) => logError('Unable to pause auth session refresh', error));
+    };
+
+    const subscription = AppState.addEventListener('change', applyAppState);
+
+    return () => {
+      disposed = true;
+      subscription.remove();
+    };
+  }, [loading]);
+
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string): Promise<SignUpResult> => {
+  const signUp = useCallback(async (
+    email: string,
+    password: string,
+    profile?: SignupNameInput,
+  ): Promise<SignUpResult> => {
+    // Carried in options.data so the name survives email confirmation: Supabase
+    // persists it on the user at sign-up, before any session exists.
+    const nameMetadata = buildSignupNameMetadata(profile ?? {});
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: AUTH_CALLBACK_URL },
+      options: {
+        emailRedirectTo: AUTH_CALLBACK_URL,
+        ...(Object.keys(nameMetadata).length > 0 ? { data: nameMetadata } : {}),
+      },
     });
     if (error) throw error;
     return {
@@ -227,25 +352,78 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const signOut = useCallback(async () => {
+    // Seal first: the actor boundary is invalidated before any await, so a
+    // refresh that resolves later cannot reauthenticate this actor and cannot
+    // re-persist their session.
+    signedOutRef.current = true;
     await stopAvatarSpeechPlayback();
     resetActorScopedRuntimeState(null);
     setSession(null);
-    await supabase.auth.signOut();
+    setRecoveryPending(false);
+
+    let signOutFailed = false;
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) signOutFailed = true;
+    } catch (error) {
+      signOutFailed = true;
+      logError('Sign-out request failed', error);
+    }
+
+    if (signOutFailed) {
+      // Supabase skips its own local cleanup when the global sign-out request
+      // fails, which would let the next launch restore a deliberately
+      // logged-out actor. Destroy the local material unconditionally.
+      try {
+        await clearPersistedAuthSessions();
+      } catch (error) {
+        logError('Unable to clear stored session after sign-out', error);
+      }
+    }
   }, []);
 
-  const value = useMemo<AuthSessionContextValue>(
-    () => ({
+  const retrySessionRecovery = useCallback(async () => {
+    if (signedOutRef.current) return;
+    try {
+      // Routed through the SDK so recovery keeps a single refresh owner.
+      await supabase.auth.startAutoRefresh();
+    } catch (error) {
+      logError('Unable to retry auth session recovery', error);
+    }
+  }, []);
+
+  const value = useMemo<AuthSessionContextValue>(() => {
+    const baseState = getSessionAuthState(session, undefined, { loading });
+    const authState: AuthState =
+      baseState === AUTH_STATE.UNAUTHENTICATED && recoveryPending
+        ? AUTH_STATE.RECOVERY_PENDING
+        : baseState;
+
+    return {
       session,
       user: session?.user ?? null,
       loading,
       isAuthenticated: !loading && isSessionUsable(session),
       isRefreshing,
+      authState,
+      // Precisely: no session to route on, but recoverable material is still
+      // stored. This is what holds the actor out of the login flow.
+      isRecoveringSession: !loading && !session && recoveryPending,
+      retrySessionRecovery,
       signIn,
       signUp,
       signOut,
-    }),
-    [session, loading, isRefreshing, signIn, signUp, signOut],
-  );
+    };
+  }, [
+    session,
+    loading,
+    isRefreshing,
+    recoveryPending,
+    retrySessionRecovery,
+    signIn,
+    signUp,
+    signOut,
+  ]);
 
   return (
     <AuthSessionContext.Provider value={value}>

@@ -28,6 +28,15 @@ export interface SavedLookCardProps {
   onDelete?: () => void;
   /** Optional view action label shown when onPress is provided. */
   viewLabel?: string;
+  /**
+   * Optional edit action. Rendered as its own control beside the view label so
+   * the card keeps a single primary tap target: on the Closet grid the card
+   * itself opens the outfit builder, which left editing with no affordance at
+   * all before this existed (BUG-16).
+   */
+  onEdit?: () => void;
+  /** Label for the edit action. */
+  editLabel?: string;
   /** Test ID for E2E. */
   testID?: string;
   /** Accessibility label describing the card. */
@@ -53,6 +62,8 @@ export function SavedLookCard({
   onPress,
   onDelete,
   viewLabel = 'View',
+  onEdit,
+  editLabel = 'Edit',
   testID,
   accessibilityLabel,
   style,
@@ -113,8 +124,22 @@ export function SavedLookCard({
           </View>
         ) : null}
         {date ? <Text style={styles.date}>{date}</Text> : null}
-        {onPress ? (
-          <Text style={styles.viewLabel}>{viewLabel}</Text>
+        {onPress || onEdit ? (
+          <View style={styles.actionRow}>
+            {onPress ? <Text style={styles.viewLabel}>{viewLabel}</Text> : null}
+            {onEdit ? (
+              <Pressable
+                onPress={onEdit}
+                style={styles.editButton}
+                accessibilityRole="button"
+                accessibilityLabel={`Edit ${title}`}
+                hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+                testID="saved-look-card-edit"
+              >
+                <Text style={styles.editLabel}>{editLabel}</Text>
+              </Pressable>
+            ) : null}
+          </View>
         ) : null}
       </View>
     </>
@@ -259,5 +284,27 @@ const styles = StyleSheet.create({
     fontSize: 11,
     letterSpacing: 1.4,
     marginTop: SPACING.sm,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  // 44pt minimum target: this sits inside a card that is itself pressable, so a
+  // near-miss must not silently open the outfit builder instead.
+  editButton: {
+    minHeight: 44,
+    minWidth: 44,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    marginTop: SPACING.sm,
+  },
+  editLabel: {
+    ...LUXURY.typography.ctaSecondary,
+    fontSize: 11,
+    letterSpacing: 1.4,
+    color: LUXURY.colors.plum,
   },
 });

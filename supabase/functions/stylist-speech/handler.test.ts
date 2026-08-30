@@ -56,8 +56,26 @@ function handlerFor(overrides: DataOverrides = {}, dependencyOverrides: Record<s
     generateSpeech: ({ text, voiceProfile }) => Promise.resolve({
       audioBase64: btoa(`${voiceProfile}:${text}`),
       alignment: null,
+      alignmentDiagnostics: { source: 'none', rawStatus: 'absent' },
     }),
     ...dependencyOverrides,
+  });
+}
+
+/** Captures the exact voiceSecretName (and voiceProfile) resolved for the request without dispatching. */
+function capturingHandler(overrides: DataOverrides, captured: { voiceSecretName?: string; voiceProfile?: string }) {
+  return createStylistSpeechHandler({
+    createDataAccess: () => dataAccess(overrides),
+    env: { get: () => 'test' },
+    generateSpeech: ({ text, voiceProfile, voiceSecretName }) => {
+      captured.voiceSecretName = voiceSecretName;
+      captured.voiceProfile = voiceProfile;
+      return Promise.resolve({
+        audioBase64: btoa(`${voiceProfile}:${text}`),
+        alignment: null,
+        alignmentDiagnostics: { source: 'none', rawStatus: 'absent' },
+      });
+    },
   });
 }
 
@@ -81,16 +99,78 @@ Deno.test('returns bound speech for an owned assistant message', async () => {
   assert.equal(body.stylistId, 'stylist_portrait_05');
   assert.equal(body.voiceProfile, 'feminine');
   assert.equal(atob(String(body.audioBase64)), 'feminine:Hello from K Scan.');
-  assert.deepEqual(Object.keys(body).sort(), ['alignment', 'audioBase64', 'messageId', 'mimeType', 'stylistId', 'voiceProfile']);
+  assert.equal(body.cue, null);
+  assert.deepEqual(Object.keys(body).sort(), ['alignment', 'alignmentDiagnostics', 'audioBase64', 'cue', 'messageId', 'mimeType', 'stylistId', 'voiceProfile']);
 });
 
 Deno.test('selects masculine voices from the fixed server allowlist', async () => {
   const response = await handlerFor(
-    { preference: { avatar_id: 'stylist_portrait_06' } },
-  )(speechRequest({ ...DEFAULT_BODY, stylistId: 'stylist_portrait_06' }));
+    { preference: { avatar_id: 'stylist_portrait_02' } },
+  )(speechRequest({ ...DEFAULT_BODY, stylistId: 'stylist_portrait_02' }));
   const body = await responseBody(response);
   assert.equal(response.status, 200);
   assert.equal(body.voiceProfile, 'masculine');
+});
+
+Deno.test('routes each configured stylist to its own server-side voice secret, never the client-supplied one', async () => {
+  // Henry, Sarah, and Mark: proves provider selection uses the resolved
+  // per-stylist voice SECRET NAME, not a shared profile-level voice, and
+  // that no literal voice ID ever reaches the provider client from here.
+  const cases = [
+    ['elise_default', 'ELEVENLABS_STYLIST_01_VOICE_ID', 'feminine'],
+    ['stylist_portrait_02', 'ELEVENLABS_STYLIST_02_VOICE_ID', 'masculine'],
+    ['stylist_portrait_05', 'ELEVENLABS_STYLIST_05_VOICE_ID', 'feminine'],
+    ['stylist_portrait_08', 'ELEVENLABS_STYLIST_08_VOICE_ID', 'masculine'],
+  ] as const;
+
+  for (const [stylistId, expectedSecretName, expectedProfile] of cases) {
+    const captured: { voiceSecretName?: string; voiceProfile?: string } = {};
+    const handler = capturingHandler({ preference: { avatar_id: stylistId } }, captured);
+    const response = await handler(speechRequest({ ...DEFAULT_BODY, stylistId }));
+    assert.equal(response.status, 200);
+    assert.equal(captured.voiceSecretName, expectedSecretName);
+    assert.equal(captured.voiceProfile, expectedProfile);
+  }
+});
+
+Deno.test('masculine stylists that share a profile still route to independently configured voice secrets', async () => {
+  const henry: { voiceSecretName?: string } = {};
+  const mark: { voiceSecretName?: string } = {};
+  const david: { voiceSecretName?: string } = {};
+
+  await capturingHandler({ preference: { avatar_id: 'stylist_portrait_02' } }, henry)(
+    speechRequest({ ...DEFAULT_BODY, stylistId: 'stylist_portrait_02' }),
+  );
+  await capturingHandler({ preference: { avatar_id: 'stylist_portrait_08' } }, mark)(
+    speechRequest({ ...DEFAULT_BODY, stylistId: 'stylist_portrait_08' }),
+  );
+  await capturingHandler({ preference: { avatar_id: 'stylist_portrait_09' } }, david)(
+    speechRequest({ ...DEFAULT_BODY, stylistId: 'stylist_portrait_09' }),
+  );
+
+  assert.notEqual(henry.voiceSecretName, mark.voiceSecretName);
+  assert.notEqual(henry.voiceSecretName, david.voiceSecretName);
+  assert.notEqual(mark.voiceSecretName, david.voiceSecretName);
+});
+
+Deno.test('feminine stylists that share a profile still route to independently configured voice secrets', async () => {
+  const elise: { voiceSecretName?: string } = {};
+  const marie: { voiceSecretName?: string } = {};
+  const kim: { voiceSecretName?: string } = {};
+
+  await capturingHandler({ preference: { avatar_id: 'stylist_portrait_01' } }, elise)(
+    speechRequest({ ...DEFAULT_BODY, stylistId: 'stylist_portrait_01' }),
+  );
+  await capturingHandler({ preference: { avatar_id: 'stylist_portrait_04' } }, marie)(
+    speechRequest({ ...DEFAULT_BODY, stylistId: 'stylist_portrait_04' }),
+  );
+  await capturingHandler({ preference: { avatar_id: 'stylist_portrait_10' } }, kim)(
+    speechRequest({ ...DEFAULT_BODY, stylistId: 'stylist_portrait_10' }),
+  );
+
+  assert.notEqual(elise.voiceSecretName, marie.voiceSecretName);
+  assert.notEqual(elise.voiceSecretName, kim.voiceSecretName);
+  assert.notEqual(marie.voiceSecretName, kim.voiceSecretName);
 });
 
 Deno.test('rejects missing and invalid authentication', async () => {
@@ -149,9 +229,9 @@ Deno.test('rejects user, empty, hidden, and system-provider messages', async () 
   }
 });
 
-Deno.test('rejects silent, unsupported, and preference-mismatched stylists', async () => {
+Deno.test('rejects intentionally silent, unsupported, and preference-mismatched stylists', async () => {
   for (const [stylistId, preference, expectedCode, expectedStatus] of [
-    ['elise_default', { avatar_id: 'elise_default' }, 'STYLIST_SILENT', 422],
+    ['editorial_plum', { avatar_id: 'editorial_plum' }, 'STYLIST_SILENT', 422],
     ['unknown_avatar', { avatar_id: 'unknown_avatar' }, 'STYLIST_UNSUPPORTED', 422],
     ['stylist_portrait_06', { avatar_id: 'stylist_portrait_05' }, 'STYLIST_MISMATCH', 403],
   ] as const) {
@@ -161,7 +241,7 @@ Deno.test('rejects silent, unsupported, and preference-mismatched stylists', asy
   }
 });
 
-Deno.test('defaults a missing persisted preference to silent Elise', async () => {
+Deno.test('defaults a missing persisted preference to Elise and still rejects a mismatched request', async () => {
   const response = await handlerFor({ preference: null })(speechRequest());
   assert.equal(response.status, 403);
   assert.equal((await responseBody(response)).code, 'STYLIST_MISMATCH');

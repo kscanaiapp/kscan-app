@@ -7,7 +7,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import {
-  getStylistSpeechConfig,
+  getStylistMouthMotionConfig,
   STYLIST_AVATAR_PRESET_BY_ID,
   type StylistAvatarPreset,
   type StylistAvatarPresetPortraitReady,
@@ -125,7 +125,7 @@ export function AnimatedStylistAvatar({
     () => (avatarId ? STYLIST_AVATAR_PRESET_BY_ID.get(avatarId) : undefined),
     [avatarId],
   );
-  const speechConfig = useMemo(() => getStylistSpeechConfig(avatarId), [avatarId]);
+  const speechConfig = useMemo(() => getStylistMouthMotionConfig(avatarId), [avatarId]);
   const effectiveState = reducedMotion ? 'static' : state;
   const isThinking = effectiveState === 'thinking';
   const isIdle = effectiveState === 'idle';
@@ -184,6 +184,7 @@ export function AnimatedStylistAvatar({
         avatarId={avatarId}
         size={size}
         accessibilityLabel={accessibilityLabel ?? preset.accessibilityLabel}
+        applyFraming={false}
       />
       <MouthStateLayer
         source={mouthSource}

@@ -115,6 +115,7 @@ function createSupabaseMock(options = {}) {
     profile = null,
     profilesById = {},
     authUser = null,
+    appleRevocationStatus = 'no_credential',
     authUsersById = {},
     updateResult = { data: [{ id: 'room-1' }], error: null },
     residualTables = {},
@@ -218,6 +219,18 @@ function createSupabaseMock(options = {}) {
           const user = authUsersById[value] ?? authUser;
           return { data: { user }, error: null };
         },
+      },
+    },
+    // B29-IOS-004: the pipeline now revokes the Sign in with Apple
+    // authorization before deleting the Auth user. These fixtures model a
+    // non-Apple account, whose settled 'no_credential' answer lets deletion
+    // proceed — the blocking statuses are exercised in
+    // manualDeletionAppleRevocation.test.js.
+    functions: {
+      async invoke(name, payload) {
+        calls.push({ type: 'functions.invoke', name });
+        void payload;
+        return { data: { status: appleRevocationStatus }, error: null };
       },
     },
   };
@@ -587,10 +600,60 @@ test('deleteDirectUserRows deletes explicit non-cascade resources by user id', a
 
   assert.deepEqual(
     calls.map((call) => call.table).sort(),
-    ['scan_intelligence_events', 'style_chat_burst_usage'],
+    ['privacy_request_rate_limits', 'scan_intelligence_events', 'style_chat_burst_usage'],
   );
   assert.ok(calls.every((call) => call.value === 'user-abc'));
   assert.ok(results.every((entry) => entry.status === 'deleted'));
+});
+
+// Regression: the Issue #47 rate-limit table stores `user_id` as a bare uuid
+// with NO foreign key to auth.users. Registering it as any `auth_delete_*`
+// action would claim a cascade the schema does not provide, leaving the rows
+// behind after account deletion. Only the migration's ~1% amortized sweep would
+// ever remove them, which is best-effort GC, not a deletion guarantee.
+test('privacy_request_rate_limits is purged directly, not left to a nonexistent auth cascade', () => {
+  const entry = USER_DATA_RESOURCES.find(
+    (resource) => resource.table === 'privacy_request_rate_limits',
+  );
+  assert.ok(entry, 'privacy_request_rate_limits must be in the deletion registry');
+  assert.equal(entry.column, 'user_id');
+  assert.equal(
+    entry.action,
+    'direct_delete_before_auth',
+    'the table has no FK to auth.users, so it cannot rely on an auth cascade',
+  );
+
+  const migration = fs.readFileSync(
+    path.join(__dirname, '..', 'supabase', 'migrations', '20260808103028_privacy_request_rate_limits.sql'),
+    'utf8',
+  );
+  assert.doesNotMatch(
+    migration,
+    /user_id[^,]*references\s+auth\.users/i,
+    'if a real FK is ever added, revisit the registry action instead of leaving both',
+  );
+});
+
+test('privacy_request_rate_limits is covered in both edge (.ts) and worker (.json) registries', () => {
+  const ROOT = path.resolve(__dirname, '..');
+  const mirror = fs.readFileSync(
+    path.join(ROOT, 'supabase', 'functions', '_shared', 'deletion', 'userDataResources.ts'),
+    'utf8',
+  );
+  const jsonReg = fs.readFileSync(
+    path.join(ROOT, 'lib', 'account-deletion', 'user-data-resources.json'),
+    'utf8',
+  );
+  assert.match(
+    mirror,
+    /table:\s*'privacy_request_rate_limits'[^}]*action:\s*'direct_delete_before_auth'/,
+    'edge mirror must not drift from the worker registry for this table',
+  );
+  assert.match(
+    jsonReg,
+    /"table":\s*"privacy_request_rate_limits"[\s\S]{0,200}?"action":\s*"direct_delete_before_auth"/,
+    'worker JSON registry must cover this table',
+  );
 });
 
 test('processDeletionRequest deletes storage and direct rows before auth user deletion', async () => {
@@ -1062,14 +1125,24 @@ test('deleteOwnedStorageObjects returns sanitized prefixes without full user id'
     [`${userId}/scans`]: [{ name: 'scan.jpg' }],
     [`${userId}/inspirations`]: [{ name: 'inspiration.jpg' }],
     [`${userId}/saved-scans`]: [{ name: 'saved.jpg' }],
+    // Build 34 Track B B1C added the cloud Closet prefix.
+    [`${userId}/closet`]: [{ name: 'item-primary.jpg' }],
   });
 
   const results = await deleteOwnedStorageObjects(storage.client, userId);
 
-  assert.equal(results.length, 3);
+  assert.equal(results.length, 4);
   for (const entry of results) {
     assert.ok(!entry.prefix.includes(userId), 'storage prefix must not contain full user id');
     assert.ok(entry.prefix.includes(shortUserId(userId)), 'storage prefix must contain partial user id');
+  }
+  // Every governed prefix must be represented, so adding one can never silently
+  // drop another from the sanitized output.
+  for (const suffix of ['/scans', '/inspirations', '/saved-scans', '/closet']) {
+    assert.ok(
+      results.some((entry) => entry.prefix.endsWith(suffix)),
+      `${suffix} must appear in the sanitized storage results`,
+    );
   }
 });
 
@@ -1142,4 +1215,101 @@ test('USER_DATA_RESOURCES covers all user-linked tables in migrations', () => {
   }
 
   assert.deepEqual(missing, [], 'Missing user-linked tables in USER_DATA_RESOURCES');
+});
+
+// ── P0 privacy regression: Closet facts deletion coverage (Build 34 Track B
+// B1B) ─────────────────────────────────────────────────────────────────────
+// public.user_closet_items (Track B B1A) has ON DELETE CASCADE to auth.users,
+// so rows are physically removed regardless of this registry entry. What was
+// missing was COVERAGE: the pre-purge inventory, the post-purge residual
+// verification, and the dry-run plan never counted it, so a cascade that
+// silently stopped firing (wrong table, dropped constraint, a future
+// migration that forgot the FK) would never be caught. These tests pin the
+// registry fix; they do not add any new deletion mechanism.
+
+test('USER_DATA_RESOURCES registers user_closet_items relying on the existing auth cascade', () => {
+  const resource = USER_DATA_RESOURCES.find((entry) => entry.table === 'user_closet_items');
+  assert.ok(resource, 'user_closet_items is missing from USER_DATA_RESOURCES');
+  assert.equal(resource.column, 'user_id');
+  assert.equal(resource.action, 'auth_delete_cascade');
+  assert.equal(resource.optional, true, 'staging-only table must be optional so older/other environments do not fail counting');
+  // Never direct_delete_before_auth: there is no explicit pre-auth-delete
+  // cleanup for this table, and there must not be -- the FK cascade already
+  // removes it, so a duplicate explicit delete would be redundant, not safer.
+  assert.notEqual(resource.action, 'direct_delete_before_auth');
+});
+
+test('deletion registry covers user_closet_items in both edge (.ts) and worker (.json) registries', () => {
+  const ROOT = path.resolve(__dirname, '..');
+  const tsReg = fs.readFileSync(path.join(ROOT, 'supabase', 'functions', '_shared', 'deletion', 'userDataResources.ts'), 'utf8');
+  const jsonReg = fs.readFileSync(path.join(ROOT, 'lib', 'account-deletion', 'user-data-resources.json'), 'utf8');
+  assert.match(tsReg, /\buser_closet_items\b/, 'edge registry must include user_closet_items');
+  assert.match(jsonReg, /\buser_closet_items\b/, 'worker registry must include user_closet_items');
+});
+
+test('Negative control: the migration-coverage check detects a missing user_closet_items entry', () => {
+  // Re-runs the exact "USER_DATA_RESOURCES covers all user-linked tables in
+  // migrations" scan above, but against a registry with user_closet_items
+  // stripped out -- proving the check can actually fail, not just pass by
+  // construction. No file on disk is touched; the filtered array is local.
+  const migrationsDir = path.join(__dirname, '..', 'supabase', 'migrations');
+  const files = fs.readdirSync(migrationsDir).filter((name) => name.endsWith('.sql'));
+  const withoutCloset = USER_DATA_RESOURCES.filter((resource) => resource.table !== 'user_closet_items');
+  const mappedTables = new Set(withoutCloset.map((resource) => resource.table));
+  const allowlist = new Set(['app_config', 'product_catalog', 'deletion_state_transitions']);
+  const missing = [];
+
+  for (const file of files) {
+    const content = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+    const blocks = content.split(/(?=create table (?:if not exists )?public\.)/i);
+    for (const block of blocks) {
+      const match = block.match(/^create table (?:if not exists )?public\.(\w+)\s*\(/i);
+      if (!match) continue;
+      const tableName = match[1];
+      if (allowlist.has(tableName)) continue;
+      const isUserLinked =
+        /\buser_id\s+uuid\b/i.test(block) ||
+        /\bid\s+uuid\b[\s\S]*?references\s+auth\.users\(id\)/i.test(block);
+      if (isUserLinked && !mappedTables.has(tableName)) {
+        missing.push({ file, table: tableName });
+      }
+    }
+  }
+
+  assert.ok(
+    missing.some((m) => m.table === 'user_closet_items'),
+    'removing the registry entry must reintroduce user_closet_items as a detected coverage gap',
+  );
+});
+
+test('Negative control: stripping {userId}/saved-scans from the edge registry text fails the parity assertion', () => {
+  // Same technique as above, applied to the pre-existing saved-scans parity
+  // test: proves that assertion actually distinguishes present-vs-absent
+  // rather than trivially passing. Operates on an in-memory string only.
+  const ROOT = path.resolve(__dirname, '..');
+  const tsReg = fs.readFileSync(path.join(ROOT, 'supabase', 'functions', '_shared', 'deletion', 'userDataResources.ts'), 'utf8');
+  // Strips every occurrence of the literal phrase (comments included), not
+  // just the quoted array entry -- the point is proving the detection
+  // technique itself distinguishes present-vs-absent, not modeling a
+  // realistic diff.
+  const stripped = tsReg.replaceAll('{userId}/saved-scans', '');
+  assert.match(tsReg, /\{userId\}\/saved-scans/, 'sanity: the real file must currently contain the prefix');
+  assert.doesNotMatch(stripped, /\{userId\}\/saved-scans/, 'the stripped copy must no longer contain the prefix');
+});
+
+test('account deletion pipeline never consults K+ entitlement state', () => {
+  // Static source check, same style as kplusEdgeContract.test.js: deletion
+  // must work identically for active/expired/revoked/never-activated K+.
+  const ROOT = path.resolve(__dirname, '..');
+  const workerSource = fs.readFileSync(
+    path.join(ROOT, 'supabase', 'functions', 'process-account-deletions', 'index.ts'),
+    'utf8',
+  );
+  const coreSource = fs.readFileSync(path.join(ROOT, 'lib', 'account-deletion', 'processorCore.mjs'), 'utf8');
+  for (const source of [workerSource, coreSource]) {
+    assert.doesNotMatch(source, /has_active_k_plus/);
+    assert.doesNotMatch(source, /kplus_has_active_entitlement/);
+    assert.doesNotMatch(source, /RevenueCat/i);
+    assert.doesNotMatch(source, /grant_reason/);
+  }
 });

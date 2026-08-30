@@ -26,6 +26,7 @@ const {
   createAuthBootstrapGenerationGuard,
   createAuthBootstrapStorage,
   isHandledStaleRefreshTokenError,
+  isTerminalRefreshFailure,
 } = loadTsModule(
   'services/authSessionBootstrap.ts',
 );
@@ -283,12 +284,17 @@ test('a transient network failure is retained, reported, and never classified as
     onRecoveryError: (error) => observedErrors.push(error),
   });
 
-  assert.equal(await wrapped.getItem(key), null, 'unusable expired session fails closed this launch');
-  assert.equal(await storage.getItem(key), raw, 'retryable session remains available for a later launch');
+  // Owner ruling: a refreshable session must survive a transient failure. The
+  // stored material is never discarded and every later read retries recovery,
+  // so the actor is never signed out for a network fault.
+  assert.equal(await wrapped.getItem(key), null, 'this read resolves empty');
+  assert.equal(await storage.getItem(key), raw, 'stored session is never discarded');
   assert.equal(await wrapped.getItem(key), null);
-  assert.equal(refreshCalls, 1);
+  assert.equal(refreshCalls, 2, 'each read retries; nothing is permanently hidden');
   assert.strictEqual(observedErrors[0], networkError);
   assert.equal(isHandledStaleRefreshTokenError(observedErrors[0]), false);
+  assert.equal(isTerminalRefreshFailure(observedErrors[0]), false);
+  assert.equal(wrapped.hasPendingSessionRecovery(), true, 'surfaced as recovery, not sign-out');
 });
 
 test('Supabase initial-session bootstrap emits no console.error for expected stale recovery', async () => {

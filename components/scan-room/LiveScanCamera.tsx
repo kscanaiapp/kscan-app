@@ -75,7 +75,7 @@ export function LiveScanCamera({
       style={styles.homeButton}
       accessibilityRole="button"
       accessibilityLabel="Go Home"
-      accessibilityHint="Returns to the K Scan home screen"
+      accessibilityHint="Returns to the K Scan AI home screen"
     >
       <Text style={styles.homeButtonText}>Home</Text>
     </Pressable>
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.sm,
-    minHeight: 36,
+    minHeight: 44,
     justifyContent: 'center',
   },
   controlPillWithIcon: {
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
     backgroundColor: LUXURY.colors.pearl,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
-    minHeight: 36,
+    minHeight: 44,
     justifyContent: 'center',
     alignItems: 'center',
     ...SHADOWS.editorialSmall,

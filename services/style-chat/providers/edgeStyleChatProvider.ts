@@ -17,11 +17,13 @@ import { getFriendlyStyleChatError } from '../styleChatErrors';
 import type { WeatherLocationInput } from '../../../constants/weatherStyling';
 import type { StyleDnaContext } from '../../style-dna/styleDnaContext';
 import type { StyleChatHandoffContext } from '../styleChatHandoffContext';
+import type { GenderStylingContext } from '../../../constants/genderStylingContext';
 import {
   STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
   type StyleChatAttachment,
 } from '../../../types/styleChatAttachments';
 import type { EliseAdviceMetadataClient } from '../../../types/eliseAdvice';
+import { ELISE_FASHION_CONTEXT_V2 } from '../../../types/fashionIdentificationV2';
 import { prepareContextForTransport } from '../eliseFashionContextV2';
 
 const EDGE_FN      = 'stylechat-generate';
@@ -327,6 +329,11 @@ export class EdgeStyleChatProvider {
     message: string;
     weatherLocation?: WeatherLocationInput | null;
     styleDnaContext?: StyleDnaContext | null;
+    /**
+     * Fix #5 — explicit, self-disclosed baseline styling context. A stable
+     * stored preference, not resolved fresh per send like weather/Style DNA.
+     */
+    genderStylingContext?: GenderStylingContext | null;
     activeContext?: StyleChatHandoffContext | null;
     sourceMessageId?: string | null;
     /** v2 (Closet Intelligence): READY resolved references only — never local ids. */
@@ -351,6 +358,7 @@ export class EdgeStyleChatProvider {
     // JSON.stringify and arrive at the backend missing required fields; refusing
     // it here keeps that from becoming a server-side validation failure.
     const fashionContext = toTransportableFashionContext(input.fashionContextV2);
+    const hasFashionContext = Boolean(fashionContext);
 
     try {
       const { data, error } = await supabase.functions.invoke<EdgeChatResult>(EDGE_FN, {
@@ -368,6 +376,12 @@ export class EdgeStyleChatProvider {
           // it stay valid; the Edge Function treats a missing field as pre-Phase 2.
           ...(input.styleDnaContext && input.styleDnaContext.enabled
             ? { styleDnaContext: input.styleDnaContext }
+            : {}),
+          // Additive/optional Fix #5 baseline styling context. Sent only when the
+          // user has an on-record answer; requests without it stay valid and the
+          // Edge Function treats a missing field as pre-Fix-#5 / unanswered.
+          ...(input.genderStylingContext
+            ? { genderStylingContext: input.genderStylingContext }
             : {}),
           // Additive/optional active scan/upload/TextScan context. Sent while the user
           // has a visible context card in StyleChat. Requests without it stay valid.
@@ -411,6 +425,18 @@ export class EdgeStyleChatProvider {
               ) {
                 return {
                   status: 'visual_collection_rejected',
+                  errorCode: body.errorCode,
+                  message: { sender: 'assistant', content: '', model: '', tokenEstimate: 0 },
+                  usage: DEFAULT_USAGE,
+                };
+              }
+              if (
+                hasFashionContext &&
+                typeof body.errorCode === 'string' &&
+                body.errorCode.startsWith('FASHION_CONTEXT_')
+              ) {
+                return {
+                  status: 'attachments_rejected',
                   errorCode: body.errorCode,
                   message: { sender: 'assistant', content: '', model: '', tokenEstimate: 0 },
                   usage: DEFAULT_USAGE,
@@ -460,9 +486,12 @@ export class EdgeStyleChatProvider {
         // Attachment-bearing sends must never degrade into an attachment-blind
         // answer: function-unavailable / 404 / 503 / network failures become an
         // explicit unsupported result so the caller preserves the draft.
-        if (hasAttachments || hasVisualCollection) {
+        if (hasAttachments || hasVisualCollection || hasFashionContext) {
           return {
-            status: hasAttachments ? 'attachments_unsupported' : 'visual_collection_unsupported',
+            status:
+              hasAttachments || hasFashionContext
+                ? 'attachments_unsupported'
+                : 'visual_collection_unsupported',
             message: { sender: 'assistant', content: '', model: '', tokenEstimate: 0 },
             usage: DEFAULT_USAGE,
           };
@@ -538,6 +567,24 @@ export class EdgeStyleChatProvider {
         }
       }
 
+      // A direct unsaved image is grounded by fashionContextV2 rather than a
+      // saved_scan reference. Require the backend's existing explicit ack so an
+      // older function can never produce an image-blind reply that looks valid.
+      if (hasFashionContext) {
+        const raw = data as unknown as Record<string, unknown>;
+        if (
+          raw.fashionContextVersion !== ELISE_FASHION_CONTEXT_V2 ||
+          raw.fashionContextAccepted !== true
+        ) {
+          if (__DEV__) console.warn('[EdgeStyleChatProvider] backend rejected fashion context');
+          return {
+            status: 'attachments_unsupported',
+            message: { sender: 'assistant', content: '', model: '', tokenEstimate: 0 },
+            usage: normalizeUsage(data.usage),
+          };
+        }
+      }
+
       // v2 actions: pass through only well-shaped entries (server validated).
       const rawActions = (data as unknown as Record<string, unknown>).actions;
       const actions: EdgeChatAction[] = Array.isArray(rawActions)
@@ -602,11 +649,14 @@ export class EdgeStyleChatProvider {
       } else if (__DEV__) {
         console.warn('[EdgeStyleChatProvider] unexpected client failure');
       }
-      if (hasAttachments || hasVisualCollection) {
+      if (hasAttachments || hasVisualCollection || hasFashionContext) {
         // Timeout/network with evidence: preserve the draft, never pretend
         // the model saw the collection or attachments.
         return {
-          status: hasAttachments ? 'attachments_unsupported' : 'visual_collection_unsupported',
+          status:
+            hasAttachments || hasFashionContext
+              ? 'attachments_unsupported'
+              : 'visual_collection_unsupported',
           message: { sender: 'assistant', content: '', model: '', tokenEstimate: 0 },
           usage: DEFAULT_USAGE,
         };

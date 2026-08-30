@@ -8,6 +8,14 @@ import {
   type SavedLookReturnContextV1,
 } from '../types/privateSavedLookHandoff';
 
+/**
+ * INTERNAL STATUS TOKENS — NOT USER COPY.
+ *
+ * These name what the service has and has not done, and are used for logs and
+ * contract assertions. They were previously rendered verbatim as screen
+ * headings, which is the commerce half of BUG-15; the handoff screen now reads
+ * from SAVED_LOOK_HANDOFF_COPY in services/privateSavedLookCopy.ts instead.
+ */
 export const MISSING_PIECE_HANDOFF_STATUS =
   'STRUCTURED MISSING-PIECE HANDOFF READY' as const;
 export const EXTERNAL_COMMERCE_STATUS = 'EXTERNAL COMMERCE DEFERRED' as const;

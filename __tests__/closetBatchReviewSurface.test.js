@@ -20,7 +20,11 @@ const vm = require('node:vm');
 
 const ROOT = path.resolve(__dirname, '..');
 const DAY_MS = 24 * 60 * 60 * 1000;
-const NOW = Date.parse('2026-07-28T12:00:00.000Z');
+// The projection reads the real clock (eligibility defaults nowMs to Date.now()),
+// so a frozen literal here silently rots: every "live" fixture below is minted
+// relative to NOW, and once wall-clock passed NOW + the candidate TTL they all
+// became `expired` and lost their selection controls.
+const NOW = Date.now();
 
 // ── Mini renderer ────────────────────────────────────────────────────────────
 
@@ -527,6 +531,7 @@ function mountLibrary(options = {}) {
     },
     '../services/closetCandidateSchema': { createClosetBatchId: () => 'batch_test' },
     '../components/closet/ClosetIntakeModal': { ClosetIntakeModal: 'ClosetIntakeModal' },
+    '../components/closet/ClosetItemEditModal': { ClosetItemEditModal: 'ClosetItemEditModal' },
     // Build 2.5 Step 3. Stubbed like its sibling: this harness renders the
     // Closet screen, and the Mirror sheet is gated off in every profile here.
     '../components/closet/MirrorSelfieExtractionModal': {
@@ -832,7 +837,7 @@ test('the production Library candidate mount point reaches batch review', () => 
   // render tests above fail with it.
   const library = readSource('app/library.tsx');
   assert.ok(
-    /CLOSET_CANDIDATE_STAGING_ACTIVE \? \(\s*<ClosetCandidateStatusPanel\s+api=\{closetCandidates\}\s*\/>\s*\) : null/.test(
+    /CLOSET_CANDIDATE_STAGING_ACTIVE \? \(\s*<ClosetCandidateStatusPanel\s+api=\{closetCandidates(?:WithCommitBridge)?\}\s*\/>\s*\) : null/.test(
       library,
     ),
     'the Library must keep mounting the candidate surface under the derived capability',

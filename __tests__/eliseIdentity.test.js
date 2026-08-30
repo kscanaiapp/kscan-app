@@ -269,7 +269,7 @@ test('StyleChat composer follows the selected stylist display name', () => {
 });
 
 test('accessible labels use dynamic Elise language', () => {
-  assert.match(styleChatAttachmentBar, /ELISE_IDENTITY\.attachAccessibilityLabel/);
+  assert.match(styleChatAttachmentBar, /`Add an attachment for \$\{resolvedStylistName\}`/);
   assert.match(styleChatBubble, /useStylistIdentity\(\)/);
   assert.match(styleChatBubble, /const stylistDisplayName = identity\.displayName/);
   assert.match(styleChatBubble, /importantForAccessibility="no-hide-descendants"/);

@@ -1,3 +1,8 @@
+import {
+  rateLimitedResponse,
+  reservePrivacyRequestRateLimit,
+} from '../_shared/privacyRequestRateLimit.ts';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -59,6 +64,11 @@ Deno.serve(async (req) => {
 
     if (!requestedChanges || typeof requestedChanges !== 'object' || Array.isArray(requestedChanges)) {
       return json({ error: 'requested_changes object is required' }, 400);
+    }
+
+    const rate = await reservePrivacyRequestRateLimit(user.id, 'privacy_correction');
+    if (!rate.allowed) {
+      return rateLimitedResponse(corsHeaders, rate.retry_after_seconds);
     }
 
     const response = await serviceRest('privacy_correction_requests', {

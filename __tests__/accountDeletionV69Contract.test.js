@@ -260,13 +260,21 @@ test('DELETE-SUBMISSION-DOES-NOT-UNLINK-MEDIA', () => {
 test('DELETE-SUBMISSION-COPY-IS-NONTERMINAL', () => {
   assert.match(PRIVACY_SRC, /Your account deletion request was submitted/);
   assert.match(PRIVACY_SRC, /Your account deletion request is already active/);
-  // Must never claim permanent deletion or full local removal.
-  assert.doesNotMatch(PRIVACY_SRC, /permanently deleted/i);
-  assert.doesNotMatch(PRIVACY_SRC, /account was deleted/i);
-  assert.doesNotMatch(PRIVACY_SRC, /all local data (was|has been) removed/i);
-  assert.doesNotMatch(PRIVACY_SRC, /all device data/i);
+
+  // Scoped to the post-submission status copy (confirmDeletion's setMessage
+  // and Alert.alert), not the whole screen: the pre-confirmation dialog may
+  // truthfully disclose the eventual legal consequence of an unrestored
+  // request, but the status shown once a request has been ACCEPTED must
+  // never imply deletion already completed.
+  const statusBlock =
+    PRIVACY_SRC.match(/const confirmDeletion = async \(\) => \{[\s\S]*?\n  \};/)?.[0] ?? '';
+  assert.ok(statusBlock.length > 100, 'confirmDeletion handler must be found');
+  assert.doesNotMatch(statusBlock, /permanently deleted/i);
+  assert.doesNotMatch(statusBlock, /account was deleted/i);
+  assert.doesNotMatch(statusBlock, /all local data (was|has been) removed/i);
+  assert.doesNotMatch(statusBlock, /all device data/i);
   // Restorability is surfaced.
-  assert.match(PRIVACY_SRC, /can be restored/i);
+  assert.match(statusBlock, /can be restored/i);
 });
 
 // ── 19. Duplicate submission ─────────────────────────────────────────────────

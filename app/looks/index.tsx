@@ -23,6 +23,7 @@ import {
 import { LUXURY, SPACING } from '../../constants/theme';
 import { AI_STYLIST_UI_ENABLED } from '../../constants/featureFlags';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
+import { usePrivateSavedLooksSummary } from '../../hooks/usePrivateSavedLooksSummary';
 import { useLooks } from '../../hooks/useStyleObjects';
 import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
 import type { Look } from '../../types/styleObjects';
@@ -64,8 +65,40 @@ function LooksContent() {
   });
   const { looks, loading, error, reload } = useLooks();
   const { isFeatureEnabled } = useFeatureFreeze();
+  const dressingRoomLooks = usePrivateSavedLooksSummary();
   const blocking = loading || !!error;
   const builderEnabled = AI_STYLIST_UI_ENABLED && isFeatureEnabled('aiStylist');
+
+  /**
+   * BUG-14: Looks saved in the private Dressing Room are a different, device-local
+   * entity from the cloud Looks listed here — so a user who saved one, saw the
+   * Saved Look confirmation, then opened MY LOOKS was told they had none. The
+   * Look was never lost; this screen simply could not see it. The two lists stay
+   * separate (different shapes, different detail screens), but this one now says
+   * the other exists and how to reach it.
+   */
+  const savedLookCount = dressingRoomLooks.count ?? 0;
+  const showDressingRoomLooks =
+    dressingRoomLooks.available && (savedLookCount > 0 || dressingRoomLooks.unreadable);
+  const dressingRoomLooksNotice = showDressingRoomLooks ? (
+    <InlineNotice
+      variant="info"
+      title="Saved in your Dressing Room"
+      body={
+        dressingRoomLooks.unreadable
+          ? "We couldn't check your Dressing Room Saved Looks just now. They are kept on this device and are unchanged."
+          : savedLookCount === 1
+            ? 'You have 1 Look saved on this device from your Dressing Room.'
+            : `You have ${savedLookCount} Looks saved on this device from your Dressing Room.`
+      }
+      action={{
+        label: 'Open Saved Looks',
+        onPress: () => router.push('/stylist/saved-looks'),
+        accessibilityLabel: 'Open your Dressing Room Saved Looks',
+      }}
+      testID="looks-dressing-room-entry"
+    />
+  ) : null;
 
   return (
     <LuxuryScreen safeArea={false} scrollable={false} backgroundColor={LUXURY.colors.ivory}>
@@ -103,6 +136,8 @@ function LooksContent() {
             onAction={builderEnabled ? () => router.push('/looks/create') : undefined}
             actionAccessibilityLabel="Create a Look"
           />
+
+          {dressingRoomLooksNotice}
 
           {looks.length === 0 ? (
             builderEnabled ? (

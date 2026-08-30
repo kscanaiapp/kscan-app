@@ -255,7 +255,7 @@ function equalsIgnoreCase(a: string, b: string): boolean {
  * Build a clean, deterministic scan display title.
  *
  * Priority:
- * 1. High-confidence brand + category + color  → {Color} {Brand} {Category}
+ * 1. High-confidence brand + category + color  → {Brand} {Color} {Category}
  * 2. High-confidence brand + category          → {Brand} {Category}
  * 3. Style descriptor + color + category       → {Style} {Color} {Category}
  * 4. Color + category                          → {Color} {Category}
@@ -264,7 +264,13 @@ function equalsIgnoreCase(a: string, b: string): boolean {
  * 7. Final fallback                            → Fashion Item
  */
 export function buildScanTitle(input: ScanTitleBuilderInput): string {
-  const category = normalizeCategory(input.displayCategory ?? input.primaryItem ?? '');
+  // Prefer the more fashion-specific field (primaryItem, e.g. Gemini's
+  // `subtype`: "polo shirt") over the broader upstream category
+  // (displayCategory, e.g. `item_type`: "top"). primaryItem is built upstream
+  // as `subtype ?? item_type`, so it is never LESS specific than
+  // displayCategory — this can only sharpen the title, never invent detail
+  // that was not already in the evidence.
+  const category = normalizeCategory(input.primaryItem ?? input.displayCategory ?? '');
   const color = normalizeColor(input.color ?? '');
   const rawTitle = cleanRawTitle(input.rawVisionTitle ?? '');
   const brand = normalizeBrand(input.brand ?? '');
@@ -279,9 +285,10 @@ export function buildScanTitle(input: ScanTitleBuilderInput): string {
   if (brand) forbiddenWords.add(brand.toLowerCase());
   const styleDescriptor = pickStyleDescriptor(styleDescriptors, forbiddenWords);
 
-  // 1. High-confidence brand + color + category.
+  // 1. High-confidence brand + color + category. Brand leads (fashion/retail
+  // convention: "Prada Yellow Polo Shirt", not "Yellow Prada Polo Shirt").
   if (brand && brandConfidence === 'high' && category && color) {
-    return titleCase(buildPhrase([color, brand, category]));
+    return titleCase(buildPhrase([brand, color, category]));
   }
 
   // 2. High-confidence brand + category.

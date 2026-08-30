@@ -4,6 +4,7 @@
  * Gemini attempt labels must remain free-form strings for provider-retry paths.
  */
 import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
 
 import {
   type GenerationRpcClient,
@@ -100,4 +101,30 @@ Deno.test('Gemini attempt labels include provider-retry suffixes as plain string
   const attemptLabel = 'initial';
   const providerRetryLabel: string = `${attemptLabel}-provider-retry`;
   assert.equal(providerRetryLabel, 'initial-provider-retry');
+});
+
+// ── Typecheck gate ──────────────────────────────────────────────────────────
+//
+// scan-identify has carried a "TYPECHECK GATE: the Edge Function compiles
+// clean" test since a deferred-branch defect shipped past `supabase functions
+// deploy` (which does not typecheck). stylechat-generate had no equivalent, and
+// the gap let a real regression through: Track B B5 declared its Style DNA
+// store's `rpc()` as returning a full Promise, which a real SupabaseClient does
+// not satisfy — TS2322 at the call site in index.ts, on a function whose own
+// dependency surface Track B changes more than any other. The same quirk was
+// already documented and solved one file away, in generationSafety.ts's
+// GenerationRpcClient.
+//
+// `--allow-run=deno` is already granted, and scoped to the Deno binary alone,
+// by scripts/run-backend-tests.js — for this exact test shape.
+Deno.test('TYPECHECK GATE: stylechat-generate compiles clean', async () => {
+  const cmd = new Deno.Command(Deno.execPath(), {
+    // The ABSOLUTE path, deliberately: this gate must hold regardless of the
+    // working directory the suite is invoked from.
+    args: ['check', fileURLToPath(new URL('./index.ts', import.meta.url))],
+    stdout: 'piped',
+    stderr: 'piped',
+  });
+  const { code, stderr } = await cmd.output();
+  assert.equal(code, 0, `deno check failed:\n${new TextDecoder().decode(stderr)}`);
 });

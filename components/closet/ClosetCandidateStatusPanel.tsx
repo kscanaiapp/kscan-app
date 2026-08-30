@@ -31,19 +31,31 @@ import {
 } from '../../services/closetCandidateErrors';
 import { ClosetCandidateManualClassifyModal } from './ClosetCandidateManualClassifyModal';
 
-/** Category / subtype / colour, in that order, skipping what is absent. */
+/**
+ * Category / subtype / colour, in that order, skipping what is absent — and
+ * skipping what has already been said. A plain top classifies as category "top"
+ * AND subtype "top", which read as "top · top · black" on the card.
+ */
 function describe(candidate: {
   category?: string | null;
   clothingType?: string | null;
   subtype?: string | null;
   primaryColor?: string | null;
 }): string | null {
-  const parts = [
+  const parts: string[] = [];
+  const seen = new Set<string>();
+  for (const part of [
     candidate.category,
     candidate.clothingType,
     candidate.subtype,
     candidate.primaryColor,
-  ].filter((part): part is string => typeof part === 'string' && part.trim().length > 0);
+  ]) {
+    if (typeof part !== 'string' || !part.trim()) continue;
+    const key = part.trim().toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    parts.push(part);
+  }
   return parts.length ? parts.join(' · ') : null;
 }
 
@@ -119,20 +131,54 @@ export function ClosetCandidateStatusPanel({
             )}
 
             <View style={styles.body}>
-              <Text style={styles.status}>{meta.progressLabel}</Text>
-              {detail ? <Text style={styles.detail}>{detail}</Text> : null}
-              {candidate.brand ? <Text style={styles.detail}>{candidate.brand}</Text> : null}
+              {/*
+                Bounded line counts here for the same reason as the Build 2 review
+                panel: this column shares row width with a fixed thumbnail and an
+                actions stack, so an unconstrained Text can be squeezed to a sliver
+                of width — at which point RN wraps it one word (or character) per
+                line, inflating the row to well over 1000dp tall and pushing every
+                sibling below it out of the scrollable viewport. The width budget
+                itself is restored by styles.actionButton below; these bounds are
+                the second line of defence, not the fix.
+              */}
+              <Text
+                style={styles.status}
+                numberOfLines={2}
+                testID={`closet-candidate-status-${candidate.candidateId}`}
+              >
+                {meta.progressLabel}
+              </Text>
+              {detail ? (
+                <Text style={styles.detail} numberOfLines={2}>
+                  {detail}
+                </Text>
+              ) : null}
+              {candidate.brand ? (
+                <Text style={styles.detail} numberOfLines={1}>
+                  {candidate.brand}
+                </Text>
+              ) : null}
               {/* Registry copy only. A raw backend error is never displayed. */}
               {candidate.errorCode ? (
-                <Text style={styles.error}>
+                <Text style={styles.error} numberOfLines={3}>
                   {closetCandidateErrorMessage(candidate.errorCode)}
                 </Text>
               ) : null}
             </View>
 
             <View style={styles.actions}>
+              {/*
+                style={styles.actionButton} on every button below: the shared
+                LuxuryButton secondary variant carries a 200dp minWidth intended
+                for full-size CTAs. Stacked in this row's compact actions column,
+                alongside the fixed thumbnail, they leave the middle body column
+                with no width budget at all (see the row-height note above) — this
+                override is scoped to just these three row buttons, not the shared
+                component or theme. Same mechanism as ClosetBatchReviewPanel.
+              */}
               {showManual ? (
                 <SecondaryButton
+                  style={styles.actionButton}
                   title="Add details"
                   onPress={() => {
                     setManualTarget({
@@ -149,20 +195,24 @@ export function ClosetCandidateStatusPanel({
               ) : null}
               {showRetry ? (
                 <SecondaryButton
+                  style={styles.actionButton}
                   title="Try again"
                   onPress={() => {
                     void retry(candidate.candidateId);
                   }}
                   accessibilityLabel="Try identifying this photo again"
+                  testID={`closet-candidate-retry-${candidate.candidateId}`}
                 />
               ) : null}
               {meta.canReject ? (
                 <SecondaryButton
+                  style={styles.actionButton}
                   title="Remove"
                   onPress={() => {
                     void remove(candidate.candidateId);
                   }}
                   accessibilityLabel="Remove this staged photo"
+                  testID={`closet-candidate-remove-${candidate.candidateId}`}
                 />
               ) : null}
             </View>
@@ -230,5 +280,13 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: SPACING.xs,
+  },
+  // Overrides the shared LuxuryButton secondary variant's 200dp minWidth for
+  // this row's compact context only — see the usage sites above. The button's
+  // 52dp height (and the shared 44dp minHeight floor) is untouched, so the
+  // effective touch target still clears the 48dp Android / 44pt iOS contract.
+  actionButton: {
+    minWidth: 0,
+    paddingHorizontal: SPACING.md,
   },
 });

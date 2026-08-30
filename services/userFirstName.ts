@@ -9,11 +9,16 @@ export interface ResolvedUserFirstName {
 
 const CONTROL_CHAR_RE = /[\x00-\x1F\x7F]/g;
 
+/** Trims, strips control characters, and collapses internal runs of whitespace. */
+function normalizeName(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  return value.replace(CONTROL_CHAR_RE, '').trim().replace(/\s+/g, ' ');
+}
+
 function pickFirstName(value: unknown): string | null {
-  if (typeof value !== 'string') return null;
-  const trimmed = value.replace(CONTROL_CHAR_RE, '').trim();
-  if (trimmed.length === 0) return null;
-  return trimmed.split(/\s+/)[0];
+  const normalized = normalizeName(value);
+  if (normalized.length === 0) return null;
+  return normalized.split(' ')[0];
 }
 
 /**
@@ -52,4 +57,51 @@ export function resolveUserFirstName(user: User | null | undefined): ResolvedUse
   if (fromDisplayName) return { firstName: fromDisplayName, source: 'display_name' };
 
   return { firstName: null, source: null };
+}
+
+/**
+ * Name to greet the user by.
+ *
+ * A style nickname is a whole display name, not a first name, so it is kept
+ * intact rather than reduced to its first token. When absent it falls back to
+ * the first-name chain, which is what OAuth identities resolve through.
+ */
+export function resolvePreferredName(user: User | null | undefined): string | null {
+  if (!user) return null;
+
+  const meta = user.user_metadata as Record<string, unknown> | undefined;
+  const nickname = normalizeName(meta?.style_nickname);
+  if (nickname.length > 0) return nickname;
+
+  return resolveUserFirstName(user).firstName;
+}
+
+export interface SignupNameInput {
+  fullName?: string | null;
+  styleNickname?: string | null;
+}
+
+/**
+ * Auth user_metadata for an email signup, matching the fields an OAuth identity
+ * provides so both paths resolve through the same greeting logic. Blank values
+ * are omitted so they never shadow a later-populated field.
+ */
+export function buildSignupNameMetadata({
+  fullName,
+  styleNickname,
+}: SignupNameInput): Record<string, string> {
+  const metadata: Record<string, string> = {};
+
+  const normalizedFullName = normalizeName(fullName);
+  if (normalizedFullName.length > 0) {
+    metadata.full_name = normalizedFullName;
+    metadata.first_name = normalizedFullName.split(' ')[0];
+  }
+
+  const normalizedNickname = normalizeName(styleNickname);
+  if (normalizedNickname.length > 0) {
+    metadata.style_nickname = normalizedNickname;
+  }
+
+  return metadata;
 }

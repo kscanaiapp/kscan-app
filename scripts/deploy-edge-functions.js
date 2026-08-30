@@ -21,6 +21,12 @@
  * Without step 7 this script is a dry run and never spawns the CLI. That is the
  * intended default: seeing what WOULD deploy must never be able to deploy.
  *
+ * B34-DEF-001: this mobile integration branch's copy of supabase/functions is
+ * NOT the canonical backend deployment authority -- see
+ * docs/BACKEND_DEPLOYMENT_AUTHORITY.md. Step 1 fails here by design; this
+ * branch intentionally has no config/backend-authority.json declaring
+ * itself authoritative.
+ *
  * Usage:
  *   node scripts/deploy-edge-functions.js                       # dry run, all governed functions
  *   node scripts/deploy-edge-functions.js --function scan-identify

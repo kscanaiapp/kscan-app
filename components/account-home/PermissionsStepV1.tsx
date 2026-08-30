@@ -9,7 +9,6 @@ interface PermissionsStepV1Props {
   preferences: PermissionPreferences;
   togglePreference: (key: PermissionKey) => void;
   setPreference: (key: PermissionKey, value: boolean) => void;
-  requestMicrophonePermission: () => Promise<{ granted: boolean; canAskAgain: boolean; error: string | null }>;
   isSaving: boolean;
   onContinueToHome: () => void;
   onNotNow: () => void;
@@ -22,19 +21,18 @@ interface PermissionsStepV1Props {
  * - Card-based permission rows with icons
  * - Essential vs Optional labels
  * - Visual-only Allow buttons for Camera/Photos
- * - Disabled Coming Soon toggles for Microphone/Notifications
+ * - Camera and Photos only; unimplemented permissions are not advertised
  * - Continue to Home CTA and Not now link
  *
- * VoiceScan is planned but inactive for the current launch. The Microphone
- * card is therefore rendered as a disabled "Coming Soon" placeholder and does
- * not request microphone permission or mutate local state. Camera, photos,
- * and notifications remain point-of-use or future launch surfaces.
+ * Build 33: the Microphone and Notifications "Coming Soon" cards were removed.
+ * Neither capability is implemented, and advertising them on a reviewer-visible
+ * onboarding screen reads as an incomplete app. K Scan AI requests no microphone
+ * permission on any platform; camera and photos remain point-of-use grants.
  */
 export function PermissionsStepV1({
   preferences,
   togglePreference,
   setPreference,
-  requestMicrophonePermission,
   isSaving,
   onContinueToHome,
   onNotNow,
@@ -76,31 +74,6 @@ export function PermissionsStepV1({
           onActionChange={() => togglePreference('photos')}
         />
 
-        {/* Microphone — VoiceScan is planned but inactive for this launch. */}
-        <PermissionCard
-          icon="◉"
-          title="Microphone"
-          badge="Coming Soon"
-          description="VoiceScan is coming soon and is not active in this build."
-          actionType="toggle"
-          actionValue={false}
-          onActionChange={() => {}}
-          disabled={true}
-          accessibilityLabel="Microphone permission, coming soon, disabled"
-        />
-
-        {/* Notifications */}
-        <PermissionCard
-          icon="◉"
-          title="Notifications"
-          badge="Coming Soon"
-          description="Notifications are coming soon and are not active in this build."
-          actionType="toggle"
-          actionValue={false}
-          onActionChange={() => {}}
-          disabled={true}
-          accessibilityLabel="Notifications permission, coming soon, disabled"
-        />
       </View>
 
       <View style={styles.actions}>
@@ -168,11 +141,7 @@ function PermissionCard({
             <Text
               style={[
                 styles.cardBadge,
-                badge === 'ESSENTIAL'
-                  ? styles.badgeEssential
-                  : badge === 'Coming Soon'
-                    ? styles.badgeComingSoon
-                    : styles.badgeOptional,
+                badge === 'ESSENTIAL' ? styles.badgeEssential : styles.badgeOptional,
               ]}
             >
               {badge}
@@ -306,10 +275,6 @@ const styles = StyleSheet.create({
   badgeOptional: {
     color: LUXURY.colors.goldText,
     backgroundColor: LUXURY.colors.goldLight,
-  },
-  badgeComingSoon: {
-    color: LUXURY.colors.stone,
-    backgroundColor: LUXURY.colors.border,
   },
   cardDescription: {
     ...LUXURY.typography.caption,

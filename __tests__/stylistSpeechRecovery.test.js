@@ -60,8 +60,9 @@ test('authoritative registry is preserved and no parallel identity registry exis
   assert.equal(fs.existsSync(path.join(ROOT, 'services', 'avatars', 'types.ts')), false);
 });
 
-test('abstract avatars are silent and approved portraits have explicit profiles', () => {
-  for (const preset of STYLIST_ABSTRACT_PRESETS) {
+test('default Elise and approved portraits speak while the other abstract avatars stay silent', () => {
+  assert.equal(getStylistVoiceProfile('elise_default'), 'feminine');
+  for (const preset of STYLIST_ABSTRACT_PRESETS.filter(({ id }) => id !== 'elise_default')) {
     assert.equal(getStylistVoiceProfile(preset.id), 'silent');
   }
   STYLIST_PORTRAIT_PRESETS.forEach((preset, index) => {
@@ -184,6 +185,11 @@ test('visible speaking state begins only after native playback reports playing',
   let clientRequest;
   const speech = transpileModule('services/avatarSpeech.ts', {
     '../stores/avatarSpeechStore': store,
+    // Inert: AppState binding is a subscription only and owns no speech state.
+    './avatars/speechAppState': {
+      ensureSpeechAppStateListener: () => {},
+      registerSpeechInterruptionHandler: () => {},
+    },
     './avatars/stylistSpeechClient': {
       requestStylistSpeech: async (request) => {
         clientRequest = request;
@@ -229,6 +235,11 @@ test('client duplicate suppression prevents a second generation request for one 
   let requests = 0;
   const speech = transpileModule('services/avatarSpeech.ts', {
     '../stores/avatarSpeechStore': store,
+    // Inert: AppState binding is a subscription only and owns no speech state.
+    './avatars/speechAppState': {
+      ensureSpeechAppStateListener: () => {},
+      registerSpeechInterruptionHandler: () => {},
+    },
     './avatars/stylistSpeechClient': {
       requestStylistSpeech: async (request) => {
         requests += 1;

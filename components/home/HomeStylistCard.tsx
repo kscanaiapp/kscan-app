@@ -109,8 +109,8 @@ export function HomeStylistCard({
             title="Start Chat"
             onPress={handleCta}
             disabled={disabled}
-            accessibilityLabel={`Start a new chat with ${displayName}`}
-            accessibilityHint="Creates a new styling conversation"
+            accessibilityLabel={`Start chatting with ${displayName}`}
+            accessibilityHint="Opens your most recent conversation, or starts one if you have none"
             style={styles.ctaButton}
             textStyle={styles.ctaButtonText}
           />

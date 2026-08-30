@@ -14,6 +14,7 @@ const STEPS = [
       '__tests__/routingGuard.test.js',
       '__tests__/processDeletionRequest.test.js',
       '__tests__/verifyAppleReadiness.test.js',
+      '__tests__/manualDeletionAppleRevocation.test.js',
     ],
   ],
   ['npm', ['run', 'verify:apple-readiness']],

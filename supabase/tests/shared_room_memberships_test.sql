@@ -31,11 +31,11 @@ values
   ('20000000-0000-0000-0000-000000000006', '10000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000001', 'delete-token', true, null, null, 10);
 
 insert into public.dressing_room_items (
-  id, dressing_room_id, source_type, snapshot_version, snapshot_payload, title, sort_order
+  id, dressing_room_id, created_by, source_type, snapshot_version, snapshot_payload, title, sort_order
 )
 values
-  ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'product_match', 1, '{}'::jsonb, 'Item 1', 0),
-  ('30000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', 'product_match', 1, '{}'::jsonb, 'Item 2', 1);
+  ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'product_match', 1, '{}'::jsonb, 'Item 1', 0),
+  ('30000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'product_match', 1, '{}'::jsonb, 'Item 2', 1);
 
 -- Schema, lifecycle, grants, and overload safety.
 select has_index(
@@ -108,9 +108,17 @@ select is(
 select is(
   (select count(*) from information_schema.role_table_grants
    where table_schema = 'public' and table_name = 'shared_room_memberships'
-     and grantee in ('anon', 'authenticated')),
+     and grantee = 'authenticated'
+     and privilege_type = 'SELECT'),
+  1::bigint,
+  'authenticated has the RLS-scoped SELECT needed by recipient-read policies'
+);
+select is(
+  (select count(*) from information_schema.role_table_grants
+   where table_schema = 'public' and table_name = 'shared_room_memberships'
+     and grantee = 'anon'),
   0::bigint,
-  'anon and authenticated have no direct table privilege'
+  'anon has no direct table privilege'
 );
 select is(
   (select count(*) from information_schema.role_table_grants
@@ -310,13 +318,21 @@ select is(
 );
 reset role;
 
--- Actual direct table operations are denied, not merely filtered by RLS.
+-- Recipient read is RLS-scoped; direct writes remain RPC-only.
 set local role authenticated;
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000002', true);
-select throws_ok(
-  $$select * from public.shared_room_memberships$$,
-  '42501', null, 'authenticated direct SELECT is denied'
+select is(
+  (select count(*) from public.shared_room_memberships),
+  1::bigint,
+  'authenticated direct SELECT returns only the caller membership'
 );
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000003', true);
+select is(
+  (select count(*) from public.shared_room_memberships),
+  0::bigint,
+  'authenticated direct SELECT cannot read another recipient membership'
+);
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000002', true);
 select throws_ok(
   $$insert into public.shared_room_memberships (share_id, recipient_user_id)
     values ('20000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000002')$$,

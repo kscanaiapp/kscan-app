@@ -21,7 +21,11 @@ const vm = require('node:vm');
 
 const ROOT = path.resolve(__dirname, '..');
 const DAY_MS = 24 * 60 * 60 * 1000;
-const NOW = Date.parse('2026-07-28T12:00:00.000Z');
+// The projection reads the real clock (eligibility defaults nowMs to Date.now()),
+// so a frozen literal here silently rots: every "live" fixture below is minted
+// relative to NOW, and once wall-clock passed NOW + the candidate TTL they all
+// became `expired` and lost their selection controls.
+const NOW = Date.now();
 
 // ── Mini renderer ────────────────────────────────────────────────────────────
 
@@ -276,6 +280,7 @@ function mountLibrary(options = {}) {
   } = options;
 
   const renderer = createRenderer();
+  const closetRefreshCalls = { count: 0 };
   const calls = {
     retry: [],
     remove: [],
@@ -504,6 +509,10 @@ function mountLibrary(options = {}) {
     },
     '../services/ownedClosetItems': { normalizeLocalSavedScan: (scan) => scan },
     '../services/style-chat/styleChatAttachmentStore': { setAttachmentHandoff: () => {} },
+    // `refresh` is part of the real useCloset contract and MUST be present here.
+    // Omitting it is what let BUG-13 through: a promotion committed the record
+    // and nothing re-read the committed manifest, and this harness could not
+    // observe the difference. The counter makes that seam assertable.
     '../hooks/useCloset': {
       useCloset: () => ({
         addFromScan: async () => ({ ok: true }),
@@ -511,7 +520,11 @@ function mountLibrary(options = {}) {
         busy: false,
         items: [],
         loading: false,
+        error: null,
         remove: async () => true,
+        refresh: async () => {
+          closetRefreshCalls.count += 1;
+        },
       }),
     },
     // iPad forward-port (certified b14566c): card geometry is derived
@@ -539,6 +552,7 @@ function mountLibrary(options = {}) {
     },
     '../services/closetCandidateSchema': { createClosetBatchId: () => 'batch_test' },
     '../components/closet/ClosetIntakeModal': { ClosetIntakeModal: 'ClosetIntakeModal' },
+    '../components/closet/ClosetItemEditModal': { ClosetItemEditModal: 'ClosetItemEditModal' },
     // Build 2.5 Step 3. Stubbed like its sibling: this harness renders the
     // Closet screen, and the Mirror sheet is gated off in every profile here.
     '../components/closet/MirrorSelfieExtractionModal': {
@@ -558,7 +572,15 @@ function mountLibrary(options = {}) {
   ).default;
 
   const tree = renderer.render(renderer.jsx(LibraryScreen, {}));
-  return { tree, calls, renderer, LibraryScreen, batchReview, promotionContract };
+  return {
+    tree,
+    calls,
+    renderer,
+    LibraryScreen,
+    batchReview,
+    promotionContract,
+    closetRefreshCalls,
+  };
 }
 
 // ── Reachability ─────────────────────────────────────────────────────────────
@@ -584,6 +606,28 @@ test('the production Library surface reaches the promotion action with a selecti
   action.props.onPress();
   assert.equal(calls.promoteSelected.length, 1, 'the action must reach the one hook api');
   assert.deepEqual(calls.promoteSelected[0], ['a', 'c'], 'the submitted snapshot is wrong');
+});
+
+test('BUG-13: promoting re-reads the committed Closet so the new item can appear', async () => {
+  // Promotion is the ONLY path that commits a Closet item from the candidate
+  // side, and the two hooks hold independent snapshots. Without this re-read the
+  // record lands on disk and the grid never shows it — "I added an item and my
+  // Closet is still empty".
+  const { tree, renderer, LibraryScreen, closetRefreshCalls } = mountLibrary({
+    candidates: [ready('a', 0), ready('b', 1)],
+  });
+
+  byTestId(tree, 'closet-batch-select-a')[0].props.onPress();
+  const withSelection = renderer.render(renderer.jsx(LibraryScreen, {}));
+  assert.equal(closetRefreshCalls.count, 0, 'nothing re-reads before a promotion');
+
+  await byTestId(withSelection, 'closet-batch-promote')[0].props.onPress();
+
+  assert.equal(
+    closetRefreshCalls.count,
+    1,
+    'the committed Closet must be re-read once the promotion settles',
+  );
 });
 
 test('while an operation is running the action is disabled and progress is shown', () => {
@@ -774,7 +818,7 @@ function stripComments(source) {
 test('the production Library candidate mount point still reaches batch review', () => {
   const library = readSource('app/library.tsx');
   assert.ok(
-    /CLOSET_CANDIDATE_STAGING_ACTIVE \? \(\s*<ClosetCandidateStatusPanel\s+api=\{closetCandidates\}\s*\/>\s*\) : null/.test(
+    /CLOSET_CANDIDATE_STAGING_ACTIVE \? \(\s*<ClosetCandidateStatusPanel\s+api=\{closetCandidates(?:WithCommitBridge)?\}\s*\/>\s*\) : null/.test(
       library,
     ),
     'the Library must keep mounting the candidate surface under the derived capability',

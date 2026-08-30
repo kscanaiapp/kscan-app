@@ -28,7 +28,11 @@ import {
   buildOutfitConfirmationCandidates,
   type OutfitConfirmationCandidate,
 } from './outfitConfirmation/outfitDetectionBridge';
-import { buildScannerV2Display, type ScannerV2Display } from './scannerV2Display';
+import {
+  buildScannerV2Display,
+  normalizePatternLabel,
+  type ScannerV2Display,
+} from './scannerV2Display';
 import type { FashionIdentificationResultV2 } from '../types/fashionIdentificationV2';
 import { SCAN_IDENTITY_DEBUG } from '../constants/build';
 
@@ -81,6 +85,13 @@ export type MappedFashionAnalysis = {
   products: RankedScanProduct[];
   /** Live commerce purchase options when the backend separates them. */
   purchaseOptions?: RankedScanProduct[];
+  /** v127: commerce was deferred to a follow-up commerce-only request. */
+  commerceDeferred?: boolean;
+  /** v127: structured evidence for that request. Never contains image data. */
+  commerceEvidence?: {
+    identification: Record<string, unknown>;
+    attributes: Record<string, unknown> | null;
+  };
   displayResult?: DisplayResult;
   /** Clean, deterministic display title for the scan result UI. */
   title?: string;
@@ -192,7 +203,13 @@ function applyV2Identity(
     next.itemType = display.subtype || display.category;
   }
   if (display.material.length) next.materialEstimate = display.material.join(', ');
-  if (display.pattern.length) next.pattern = display.pattern.join(', ');
+  // "unknown" is the model declining to answer, not a pattern. Dropped here so
+  // no surface has to know that, and so an absent pattern stays absent.
+  const patternLabel = display.pattern
+    .map((entry) => normalizePatternLabel(entry))
+    .filter(Boolean)
+    .join(', ');
+  if (patternLabel) next.pattern = patternLabel;
   if (display.visibleAttributes.length) next.styleTags = display.visibleAttributes;
   // Absent confidence stays absent. Writing 0 would assert certainty of
   // non-match, which is the opposite of "unknown".
@@ -263,7 +280,14 @@ export function mapScanIdentifyToAnalysis(
     const confirmationCandidates = buildOutfitConfirmationCandidates(resp.detectedGarments);
 
     // Conservative brand attribution: do not hallucinate brands.
-    const geminiBrand = resp.identification?.brand_guess ?? resp.identification?.visible_brand_text ?? null;
+    //
+    // Direct evidence must govern over a hypothesis. visible_brand_text is
+    // literally read off the garment; brand_guess is the model's inference
+    // and may be wrong even when a conflicting wordmark was legible in the
+    // same response (e.g. a guess drawn from silhouette/style resemblance
+    // while a different brand's tag was actually read). When both are
+    // present and disagree, the directly-read text is authoritative.
+    const geminiBrand = resp.identification?.visible_brand_text || resp.identification?.brand_guess || null;
     const { brand, confidence: brandConfidence } = deriveBrandConfidence(
       geminiBrand,
       resp.identification?.logo_detected,
@@ -323,6 +347,16 @@ export function mapScanIdentifyToAnalysis(
       purchaseOptions,
       displayResult: resp.displayResult,
     };
+    // v127: carry the deferral marker onto the analysis so the scan-result
+    // surface can distinguish "commerce not fetched yet" from "no results".
+    // Nothing downstream reads it unless the backend set it.
+    if (resp.commerceDeferred === true) {
+      analysis.commerceDeferred = true;
+      analysis.commerceEvidence = {
+        identification: (resp.identification ?? {}) as Record<string, unknown>,
+        attributes: (resp.attributes ?? null) as Record<string, unknown> | null,
+      };
+    }
     if (confirmationCandidates.length) {
       analysis.confirmationCandidates = confirmationCandidates;
     }

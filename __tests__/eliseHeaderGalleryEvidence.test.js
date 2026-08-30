@@ -146,6 +146,16 @@ function loadEvidenceModule(overrides = {}) {
   });
 
   const eliseDirectImageAttachment = {
+    stageSanitizedEliseDirectImage: async (sanitizedUri, source, previewUri) => ({
+      previewUri: previewUri ?? sanitizedUri,
+      preparedUri: sanitizedUri,
+      source,
+      operationId: 'header-operation-1',
+      candidateId: 'candidate-1',
+      candidateBatchId: 'batch-1',
+      candidateImageUri: 'file:///candidate-1.jpg',
+      candidateThumbnailUri: 'file:///candidate-1-thumb.jpg',
+    }),
     resolvePreparedDirectImageAttachment: async (prepared, options) => {
       calls.stage.push({ prepared, options });
       if (overrides.stagingFails) {
@@ -153,16 +163,12 @@ function loadEvidenceModule(overrides = {}) {
       }
       return {
         ok: true,
-        resolved: {
-          attachmentType: 'owned_item',
-          sourceType: 'saved_scan',
-          sourceId: 'saved-scan-uuid-1',
-          contractVersion: 'v2',
-        },
         summary: { title: options?.title ?? 'Photo', itemCount: 1 },
         prepared,
+        closetState: 'not_saved',
       };
     },
+    discardPreparedDirectImage: async () => {},
   };
 
   const mod = loadTsModule('services/style-chat/eliseVisualContextEvidence.ts', {
@@ -248,12 +254,12 @@ test('IMG-007: the structured identification becomes the visual context', async 
   assert.notEqual(fields.title, 'Uploaded photo');
 });
 
-test('IMG-007: the image receives authorized actor-owned remote backing', async () => {
+test('IMG-007: the image receives durable actor-owned candidate backing', async () => {
   const { mod, calls } = loadEvidenceModule();
   const result = await mod.prepareVisualContextEvidence({ sanitizedUri: 'file:///s.jpg' });
 
   assert.equal(result.ok, true);
-  assert.equal(result.savedScanId, 'saved-scan-uuid-1');
+  assert.equal(result.candidateId, 'candidate-1');
   assert.equal(calls.stage.length, 1, 'staging must run exactly once');
   // The real identification is persisted, not a placeholder.
   assert.equal(calls.stage[0].options.analysis.type, 'fashion');
@@ -346,14 +352,14 @@ test('IMG-007: the header gallery routes every selection through evidence prepar
   );
 });
 
-test('IMG-007: no upload entry becomes ready without a savedScanId', () => {
+test('IMG-007: no upload entry becomes ready without a candidate id', () => {
   // The single `status: 'ready'` transition in the upload job must be the one
   // that also carries the staged reference and the identified fields.
   const readyTransitions = HOOK_SOURCE.match(/status:\s*'ready'/g) ?? [];
   assert.equal(readyTransitions.length, 1, 'exactly one ready transition should exist');
   const readyIndex = HOOK_SOURCE.indexOf("status: 'ready'");
   const window = HOOK_SOURCE.slice(readyIndex - 400, readyIndex + 400);
-  assert.match(window, /savedScanId: evidence\.savedScanId/);
+  assert.match(window, /closetCandidateId: evidence\.candidateId/);
   assert.match(window, /\.\.\.evidence\.fields/);
 });
 
@@ -420,16 +426,11 @@ test('IMG-007: the visual-context type still forbids remote image references', (
 
 // ── 13–14. Existing paths keep working ───────────────────────────────────────
 
-test('IMG-007 regression: the direct composer attachment still stages a placeholder', () => {
+test('IMG-007 regression: direct attachment readiness never stages a placeholder identity', () => {
   const source = read('services/style-chat/eliseDirectImageAttachment.ts');
-  // The direct path deliberately skips scan-identify; the added `analysis`
-  // option must be optional so that behaviour is unchanged.
   assert.match(source, /analysis\?:/, 'the analysis override must be optional');
-  assert.match(
-    source,
-    /options\?\.analysis \?\? \{/,
-    'the placeholder analysis must remain the default',
-  );
+  assert.match(source, /createClosetCandidate/);
+  assert.doesNotMatch(source, /saveScanToCloud|ensureSavedScanMediaBacking/);
   assert.ok(
     !source.includes('identifyScanImage'),
     'the direct attachment path must still not call scan-identify',

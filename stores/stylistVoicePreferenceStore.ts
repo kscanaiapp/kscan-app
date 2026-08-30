@@ -75,7 +75,9 @@ export async function hydrateStylistVoicePreference(actorId: string | null): Pro
   try {
     const value = await AsyncStorage.getItem(await storageKey(actorId));
     if (hydrationGeneration !== generation || state.actorId !== actorId) return;
-    replaceState({ actorId, enabled: value === 'on', loading: false });
+    // Default on: a device with no recorded choice enables speech. Only an
+    // explicit 'off' write opts out — never inferred from absence.
+    replaceState({ actorId, enabled: value !== 'off', loading: false });
   } catch {
     if (hydrationGeneration !== generation || state.actorId !== actorId) return;
     replaceState({ actorId, enabled: false, loading: false });

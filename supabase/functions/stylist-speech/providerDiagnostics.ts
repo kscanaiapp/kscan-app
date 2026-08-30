@@ -13,6 +13,17 @@ export type SpeechFailureKind =
   | 'provider_rejection'
   | 'invalid_response';
 
+/**
+ * Build 29 alignment diagnostic addendum.
+ *
+ * WHY THESE UNIONS ARE RESTATED RATHER THAN IMPORTED: `elevenLabsClient.ts`
+ * already imports this module, so importing its `AlignmentDiagnosticSource`
+ * back would close an import cycle. The two spellings are structurally
+ * identical, so the compiler still rejects any drift at the call site.
+ */
+export type AlignmentDiagnosticSourceTag = 'normalized_alignment' | 'alignment' | 'none';
+export type AlignmentDiagnosticRawStatusTag = 'absent' | 'malformed' | 'valid';
+
 export interface SpeechDiagnostics {
   readonly event: 'stylist_speech_provider';
   readonly correlationId: string;
@@ -27,6 +38,17 @@ export interface SpeechDiagnostics {
   readonly modelId: string;
   readonly outputFormat: string;
   readonly voiceFingerprint: string;
+  /**
+   * Which provider field produced the alignment this response carries, and
+   * whether the losing field was absent or merely malformed. Null for every
+   * failure kind, which never reaches alignment parsing at all.
+   *
+   * PRIVACY: closed enum tags and a count. The alignment CONTENT — characters
+   * and their timings — never appears here.
+   */
+  readonly alignmentSource: AlignmentDiagnosticSourceTag | null;
+  readonly alignmentRawStatus: AlignmentDiagnosticRawStatusTag | null;
+  readonly alignmentEntryCount: number | null;
 }
 
 export interface DiagnosticsInput {
@@ -42,6 +64,9 @@ export interface DiagnosticsInput {
   readonly modelId: string;
   readonly outputFormat: string;
   readonly voiceId: string;
+  readonly alignmentSource?: AlignmentDiagnosticSourceTag | null;
+  readonly alignmentRawStatus?: AlignmentDiagnosticRawStatusTag | null;
+  readonly alignmentEntryCount?: number | null;
   /** Secret material that must never appear in the emitted diagnostics. */
   readonly redactSecrets?: readonly string[];
 }
@@ -104,6 +129,12 @@ export async function buildSpeechDiagnostics(
     modelId: input.modelId,
     outputFormat: input.outputFormat,
     voiceFingerprint: fingerprint,
+    alignmentSource: input.alignmentSource ?? null,
+    alignmentRawStatus: input.alignmentRawStatus ?? null,
+    alignmentEntryCount:
+      typeof input.alignmentEntryCount === 'number' && Number.isFinite(input.alignmentEntryCount)
+        ? input.alignmentEntryCount
+        : null,
   };
 }
 

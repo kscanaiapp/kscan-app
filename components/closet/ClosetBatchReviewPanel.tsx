@@ -244,8 +244,19 @@ export function ClosetBatchReviewPanel({
             )}
 
             <View style={styles.body}>
-              {/* Status is carried by words, never by colour alone. */}
-              <Text style={styles.status} testID={`closet-batch-status-${item.candidateId}`}>
+              {/*
+                Status is carried by words, never by colour alone. Bounded to 2
+                lines: this column shares row width with a fixed thumbnail and an
+                actions stack, so an unconstrained Text here can be squeezed to a
+                sliver of width — at which point RN wraps it one word (or
+                character) per line, inflating the row to well over 1000dp tall
+                and pushing every sibling below it out of the scrollable viewport.
+              */}
+              <Text
+                style={styles.status}
+                numberOfLines={2}
+                testID={`closet-batch-status-${item.candidateId}`}
+              >
                 {item.statusLabel}
               </Text>
               {/* The one actively promoting card, and only ever one. */}
@@ -285,6 +296,15 @@ export function ClosetBatchReviewPanel({
                 </TouchableOpacity>
               ) : null}
 
+              {/*
+                style={styles.actionButton} on every button below: the shared
+                LuxuryButton secondary variant carries a 200dp minWidth intended
+                for full-size CTAs. Two of these stacked in this row's compact
+                actions column, alongside the fixed thumbnail, leave the middle
+                body column with no width budget at all (see the row-height note
+                above) — this override is scoped to just these three row buttons,
+                not the shared component or theme.
+              */}
               {item.availableActions.includes('add_details') ? (
                 <SecondaryButton
                   title="Add details"
@@ -299,6 +319,7 @@ export function ClosetBatchReviewPanel({
                   }}
                   accessibilityLabel="Add a category for this photo yourself"
                   testID={`closet-batch-manual-${item.candidateId}`}
+                  style={styles.actionButton}
                 />
               ) : null}
               {item.availableActions.includes('retry') ? (
@@ -309,6 +330,7 @@ export function ClosetBatchReviewPanel({
                   }}
                   accessibilityLabel="Try identifying this photo again"
                   testID={`closet-batch-retry-${item.candidateId}`}
+                  style={styles.actionButton}
                 />
               ) : null}
               {item.availableActions.includes('remove') ? (
@@ -319,6 +341,7 @@ export function ClosetBatchReviewPanel({
                   }}
                   accessibilityLabel="Remove this photo from review"
                   testID={`closet-batch-remove-${item.candidateId}`}
+                  style={styles.actionButton}
                 />
               ) : null}
             </View>
@@ -437,6 +460,12 @@ const styles = StyleSheet.create({
   },
   actions: {
     gap: SPACING.xs,
+  },
+  // Overrides the shared LuxuryButton secondary variant's 200dp minWidth for
+  // this row's compact context only — see the usage sites above.
+  actionButton: {
+    minWidth: 0,
+    paddingHorizontal: SPACING.md,
   },
   checkbox: {
     paddingHorizontal: SPACING.sm,

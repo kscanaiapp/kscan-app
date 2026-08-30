@@ -1,3 +1,8 @@
+import {
+  rateLimitedResponse,
+  reservePrivacyRequestRateLimit,
+} from '../_shared/privacyRequestRateLimit.ts';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -57,6 +62,12 @@ Deno.serve(async (req) => {
 
   try {
     const user = await requireUser(req);
+
+    const rate = await reservePrivacyRequestRateLimit(user.id, 'privacy_export');
+    if (!rate.allowed) {
+      return rateLimitedResponse(corsHeaders, rate.retry_after_seconds);
+    }
+
     const manifest = {
       includes: [
         'profile account fields',

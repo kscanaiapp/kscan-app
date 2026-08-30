@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.xs,
   },
   reactionButton: {
-    minHeight: 36,
+    minHeight: 44,
     minWidth: 56,
     flexDirection: 'row',
     alignItems: 'center',

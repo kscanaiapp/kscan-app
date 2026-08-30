@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-29T20:03:22.328Z",
-    "generatedFromGitSha": "93aefc71227d4e09d684275dad5ee9da52fa1103"
+    "generatedAtUtc": "2026-08-30T14:45:48.106Z",
+    "generatedFromGitSha": "e771f2cbc498dc7d6bf9d5e5007e9cbc20e1e91b"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -35,10 +35,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 31,
-        "treeFileCount": 40,
-        "bundleHash": "04e2c0786f3504e155c580fb816f71387ecf4c61be89da31eb705ad1fd6e0b68",
-        "treeHash": "58ed02754b905522dbb31644845fb93b8e60fa1990a5c507455e4db33620c4a5",
+        "bundleFileCount": 39,
+        "treeFileCount": 61,
+        "bundleHash": "7d45e8878b3656461ab884b9066b8aaa14ffcf9a39baf6b960fc2348654746ce",
+        "treeHash": "16bad533ef8567d9a89609373c085d5747e354840eff24d9996c8d6fd612c66d",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -71,13 +71,43 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/scan-identify/canonicalCommerce.ts",
+            "sha256": "8d463cc9ee3a54d9a7ff8742880d5cad4e3dc3e8071e3083baea9c0f71e0b32a",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/scan-identify/closetMirrorEntryPath.test.ts",
             "sha256": "73277ee7d1d0fd7fd494851febe34b75458f3efb572335dd9be40d7d030bf6f8",
             "bundle": false
           },
           {
+            "path": "supabase/functions/scan-identify/commerceFastPath.ts",
+            "sha256": "4c9889b2cb1f5f34dbac5aa6863c4d357408074d8a53961c22b820d71ef03299",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/commerceFunnel.v127.test.ts",
+            "sha256": "9bbbaaab002879933e59eacf64f8cae64fc6e4e1011ad97eb45ea17adea6f20b",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/scan-identify/commerceFunnelConfig.ts",
+            "sha256": "a4625246aeb0f16a8189d89a2593e43a31df8bf897b765d0e2abc9aa32fac348",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/commerceIdentity.v124.test.ts",
+            "sha256": "4c44766f74dcea669dfbcee43936c8ac03b5b67fb4d02dac9504a40e7edbf89a",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/scan-identify/commerceIdentityConfig.ts",
+            "sha256": "95b7cff9563ab738c7259a5a057e6d708f00d0b38e84ab9863f699e7de25a9e4",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/scan-identify/commerceOutcomeCapture.ts",
-            "sha256": "5e4aee263402910e01f7cd7912c1e65c193d50ec4dfc7e0c09975a41bd345b8a",
+            "sha256": "5b550375a38963838d057a3c19ea179f0a86b9f1d093d0fc0eaaece50ad83048",
             "bundle": true
           },
           {
@@ -86,13 +116,18 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/scan-identify/commerceProviders.v126.test.ts",
+            "sha256": "868865cc6d22f6987df71c1e9df04ab702336b08f9846afe0fcc2d92738fa0bd",
+            "bundle": false
+          },
+          {
             "path": "supabase/functions/scan-identify/commerceRelevance.test.ts",
-            "sha256": "0ede65132745ef9f54255d43cedb64bbd05daa6cc6544889ce96c8d0be002827",
+            "sha256": "738521607ef28053e6308093c8d01f96f4419b31dd6d30e637103aab3d022c64",
             "bundle": false
           },
           {
             "path": "supabase/functions/scan-identify/commerceRelevanceAgreement.ts",
-            "sha256": "68cf5b7915d89669c105ef7aec9c96fc816695ffa1f25af1d3c188a92a99c662",
+            "sha256": "8f35aae44729df89632563bedb10bd7d6b5de5f224fdb4bfd4ef9911658b6815",
             "bundle": true
           },
           {
@@ -112,28 +147,68 @@
           },
           {
             "path": "supabase/functions/scan-identify/commerceRelevanceFailure.ts",
-            "sha256": "43f41679b1ad7593a56da54027d0be3a7f2207d96b8f5a74ae9928591f2fbc4f",
+            "sha256": "bba5af55a404e6ab16427469651c12315c926721c95c065d9732d4302188771e",
             "bundle": true
           },
           {
             "path": "supabase/functions/scan-identify/commerceRelevanceQueries.ts",
-            "sha256": "e211c89949dba7e4d5df7e6b7c5d68c6081633d7c505f2b81ae21c3f9a63f779",
+            "sha256": "2006bed2449550cca5ea77f7a05cac93631e6ed1eb0eefe915f855bf37ad9741",
             "bundle": true
           },
           {
-            "path": "supabase/functions/scan-identify/farfetchProvider.ts",
-            "sha256": "964d3e762e7f4270a2e6774f431ea446b49f406b9905bbcee1a7b94ed9e3cfbe",
+            "path": "supabase/functions/scan-identify/commerceResultCache.ts",
+            "sha256": "4f6c69f517b27eb0a528e53c10bceb762b73ad6cd2aed3e201f2b4d67c49c5bd",
             "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/commerceRetrieval.v125.test.ts",
+            "sha256": "5415d525b4712f0c882f86475fce65b80c0ff11b7c1a3641c30192c32d41aea1",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/scan-identify/commerceRetrievalConfig.ts",
+            "sha256": "f14e3f5b363834e39b8ccf353bfbc60ffe5101bf198456ef752f04238daee2a3",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/farfetch3Provider.test.ts",
+            "sha256": "f9edef272262e395924e2883a66f826ef01ca0cc1c5c07b48d393aa9e61f5f39",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/scan-identify/farfetch3Provider.ts",
+            "sha256": "cc85771f992fdbd5df100c849ba42611aa20864f87c0e617b41b5e3cb8908a9c",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/fashionDetectionProvider.test.ts",
+            "sha256": "7c3301ccbcc4d3f7ee44d78f6eef0fe776b3191c28ef465e82b06cfc2eaf7165",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/scan-identify/fashionDetectionProvider.ts",
+            "sha256": "f6652ea735a52e01b946d4845f96bae92a2c5560451eff6d6bd55bffa42aafca",
+            "bundle": false
           },
           {
             "path": "supabase/functions/scan-identify/index.ts",
-            "sha256": "dcc7732abce278e7b90e000e388932b3041a32bb608d5b2cabeeddfc4808efc6",
+            "sha256": "9393e0378159f8c65993039a1cc655e0fc9c99011191533d1c1a342cdd61899c",
             "bundle": true
           },
           {
+            "path": "supabase/functions/scan-identify/kicksCrewProvider.test.ts",
+            "sha256": "c1ada63ea145bca96e0e386e1bf6b29a44c11d1c92b41b1e3d1360865cad993e",
+            "bundle": false
+          },
+          {
             "path": "supabase/functions/scan-identify/kicksCrewProvider.ts",
-            "sha256": "2ede064d186a568a0d2653862ca95a275ed26668b6c619e62b30100852d97bbf",
+            "sha256": "dae9afc051889319ed5a5509619793cc6afef5309c1f9f151712b166816032e6",
             "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/multiItemCommerceCorrelation.test.ts",
+            "sha256": "40b6e559cb529c848e7ad117b4842c67c9c7e5c859f053bb3eadb9e1cb7f4a82",
+            "bundle": false
           },
           {
             "path": "supabase/functions/scan-identify/multiItemGarments.test.ts",
@@ -151,13 +226,23 @@
             "bundle": false
           },
           {
+            "path": "supabase/functions/scan-identify/poshmarkProvider.test.ts",
+            "sha256": "8cee7aebc13433de9164c6111ccdd7d74d7c6cc6731cd567298020a9395f5c84",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/scan-identify/poshmarkProvider.ts",
+            "sha256": "ce995624e7e76757d7d9407b169255ad27ce3484be192ba06aa3d11f387cb77f",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/scan-identify/qualityTune.test.ts",
             "sha256": "3921e646ea6a02497fe982fcd2fb68e58dd704031ba20e4f813d5e749bf0a301",
             "bundle": false
           },
           {
             "path": "supabase/functions/scan-identify/qualityTuneCommerce.ts",
-            "sha256": "b81fa7f36374740c0a8884f0ae446651f6f2c8c1d76788415a567c44296507de",
+            "sha256": "9be2434ba3cc4f7906f85767edf8ac0d6f4499a962b6e7ab252896569fa831ab",
             "bundle": true
           },
           {
@@ -177,13 +262,23 @@
           },
           {
             "path": "supabase/functions/scan-identify/scanCommerceRouter.ts",
-            "sha256": "eebe939ea6d4d1dd88c26b6eabf597da904e2cecc587065ed5bd7a2a3889940f",
+            "sha256": "34d5f94fbb414e1d31cbf32b3e875d4e6d6f7be627a3528af951073b15f830d3",
             "bundle": true
           },
           {
             "path": "supabase/functions/scan-identify/scanIntelligenceCapture.ts",
             "sha256": "9e6e3f3ddef8123ab97f2a700ddd7aefc581bcd1b6600d1b9aded32b2d19f074",
             "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/scanQuota.ts",
+            "sha256": "28c3524442bbf8bc79012514bcd1293222a2df991777c0329c1902f6f4a7d57d",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/scanQuotaFailClosed.test.ts",
+            "sha256": "98e636ef3d091d65f4699eccdcd0fef7a7c0d268cb07a1f0b8a3fc28d8414fbf",
+            "bundle": false
           },
           {
             "path": "supabase/functions/scan-identify/scannerCategoryRoute.ts",
@@ -202,7 +297,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/scannerQualityGate.ts",
-            "sha256": "504c61acb73580cb8a2aeab1b33f8b1f0507cdb76d890cb0e27a80282868048c",
+            "sha256": "3509ee6a85e15e7173c90a1cfac6c8950a96c36d2cd6c5b1cc967109df12b2be",
             "bundle": true
           },
           {
@@ -212,8 +307,18 @@
           },
           {
             "path": "supabase/functions/scan-identify/shoppingProvider.ts",
-            "sha256": "cac78839f76265e0687fa6512de2e473c86008107ceb42c361a08a84c18aa4c4",
+            "sha256": "33798bbcb357b70ec39ad9b25d68182117b239e47f481ea90cd2a33552f6bd8c",
             "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/similarClothesProvider.test.ts",
+            "sha256": "ce69bc94b7cde4bf2d908ec7d3e1091409fe165712ceb38f89b3405f2dc25581",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/scan-identify/similarClothesProvider.ts",
+            "sha256": "9f62df3b99b68c87df666defc55428bbed74571ed8aed58bc0f64c0e2e177ee1",
+            "bundle": false
           },
           {
             "path": "supabase/functions/scan-identify/similarityMatcher.ts",
@@ -249,10 +354,10 @@
           "npm:@supabase/supabase-js@2",
           "npm:@supabase/supabase-js@2.105.4"
         ],
-        "bundleFileCount": 34,
-        "treeFileCount": 49,
-        "bundleHash": "8d8911038840410bf9df1866a3afde7fa92e9464c77ff878d948aa1557932894",
-        "treeHash": "c6b5f5efe2d4f9b9ed6adb0b70f9b2d8065f6cefe1606d5b29ffab1a108e20c4",
+        "bundleFileCount": 38,
+        "treeFileCount": 55,
+        "bundleHash": "dd2b6a2c7e5636a17c940bbda531b6ec94cd4f871d2b03b30ef05d071bcf6db2",
+        "treeHash": "ff15183c62c0dcf0fef4a7d14d23b4052cefcaaa702a8800b7607c41668b0b37",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -262,6 +367,16 @@
           {
             "path": "supabase/functions/_shared/llmModelRouting.ts",
             "sha256": "4e39d7a549e1f6222e34ec7eddb89f8a6da8fffa4ba1509bf2495f7c1c6ef14c",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/styleDna/styleDnaProfileStore.ts",
+            "sha256": "f978cadf90cbc0d6207a16c92eea006f0f81f300b53b2728940afbf3ce25dec0",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/styleDna/styleDnaProfileTypes.ts",
+            "sha256": "7f034a224b323c984b7ae5a1acbc75c3a84f1cf14013481caddb2d08f4bba133",
             "bundle": true
           },
           {
@@ -351,7 +466,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseConfig.ts",
-            "sha256": "d4f78c097e1aea3c6e588476e1e8efbe65e3ac71db10942b378bfe7240f5ee1b",
+            "sha256": "fb52dad79921955358e6627129182725578ba9bd567ede929a1bd0ec6c0e215b",
             "bundle": true
           },
           {
@@ -436,7 +551,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseWardrobeRetrieval.ts",
-            "sha256": "a2bc85f382951cf0d731d97ea14baefdc435c3cc69996ff5c39538f0427371ed",
+            "sha256": "6e052f466b4b2e6a48bdba9e5aa7c60505f4e4aadd4af3c36f1a21abd72061e2",
             "bundle": true
           },
           {
@@ -450,18 +565,28 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/stylechat-generate/genderStylingContext.test.ts",
+            "sha256": "fb340f001919f0dea47b766079b52ea3c8855797c8b6c8ba004f0d11a70ea9a2",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/genderStylingContext.ts",
+            "sha256": "ad350ff8d32a01ba8285d49363c15ae9632de36bc2237e8c21b2217c555d31db",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/stylechat-generate/generationSafety.ts",
             "sha256": "1ba6e643be41679d8fa7752ee4e211c64ada5ad72b7ec5e40c1b35a2f4b8af14",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylechat-generate/generationSafetyTyping.test.ts",
-            "sha256": "191e16e1b331639528933de64ef3b6cc7ba223e3cdd76bfdc58818b857029ebd",
+            "sha256": "63ac76db06c3edcc2e93dbb9658afa433d6539c2a4f23fbac78d5077e4dddafa",
             "bundle": false
           },
           {
             "path": "supabase/functions/stylechat-generate/index.ts",
-            "sha256": "97018163046b595a5e5a5154e9847eef5ace75bc59220a2a74eb55d9628e7d12",
+            "sha256": "8fcad32e3698ec40bdb18a762398201f4e9964448718f380a52aa7d53dd51ba4",
             "bundle": true
           },
           {
@@ -481,12 +606,22 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/styleDnaContext.ts",
-            "sha256": "8c3c3a2d75cc8907e2fc39e4e1b4ede5e2f775e2d6c6c5ae4fe8d85381302e9a",
+            "sha256": "5cd059faf651f8865deb7bf84ff672e1c83609fb20d33a609cdf8d1105bd38d0",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/stylistIdentity.test.ts",
+            "sha256": "61acfda29b173a848c12bedf5ac664354ab1cb2f174ac620a3fde4b954184dd9",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/stylistIdentity.ts",
+            "sha256": "cc44a304861cb886be512a7531d091c5a88904e1ae6eac633f1b79aca0346bc8",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylechat-generate/telemetry.ts",
-            "sha256": "852113bea6bd6db4578f3fc1b34b42ac362c4577e15e180004d6072ee06a251d",
+            "sha256": "bb87a1ba79be1eac9c57889b9c1aa222ba87947cf3fb23dd954e0e4e8beef3a4",
             "bundle": true
           },
           {
@@ -560,29 +695,34 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2.105.4"
         ],
-        "bundleFileCount": 10,
-        "treeFileCount": 18,
-        "bundleHash": "944d1f20ac247448e2b3fb7f6db0737b57542c8fac942a5ea3a40c3cbf2b3fbd",
-        "treeHash": "b9d366025985ab704bca23f7f2c03f37ddc5c5c3b534769cf622272eee1357c4",
+        "bundleFileCount": 11,
+        "treeFileCount": 22,
+        "bundleHash": "5c3710d9fa54c69cece41c126362220d575115d66042c017d04b563e967fb020",
+        "treeHash": "62c713ba122022760542f4ceeb9ea63daf98344df10c95837fb6d70581c891af",
         "files": [
           {
+            "path": "supabase/functions/stylist-speech/e41SpeechLengthContract.test.ts",
+            "sha256": "ed0870bc22d58aeb34fdf85de0137e4fe620e56e32fa9336a4650ecbd431f0cc",
+            "bundle": false
+          },
+          {
             "path": "supabase/functions/stylist-speech/elevenLabsClient.test.ts",
-            "sha256": "c953d64b6140c9a3cb79313d9f51f4c0f48dcfd173bfef1e24dc5ef2c8b6f743",
+            "sha256": "5da175facc63260bf81fae4655513408da59feaab7c1bcc60a6fc489d2173cbd",
             "bundle": false
           },
           {
             "path": "supabase/functions/stylist-speech/elevenLabsClient.ts",
-            "sha256": "1e8c18d2b77c7c4af3508dc972bf897a5720d46528e67d5fcc382d47f263ea5e",
+            "sha256": "540e172ab91399d64bab428ac7781fa4ddb9de352e58ca2425139eb6c8006075",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylist-speech/handler.test.ts",
-            "sha256": "bdeb002e855f8830874bc21b07df53f2513cb936f85c3bccd2ecf038a2cf6d71",
+            "sha256": "86d1be1aab2a12107b13a4290ae6786db1641789aa02b7914826432a096b709b",
             "bundle": false
           },
           {
             "path": "supabase/functions/stylist-speech/handler.ts",
-            "sha256": "6ce730a666ca070de4483701ce85143df7dd9083bed0b7ff39fc63b25de0c2a3",
+            "sha256": "e03f27d57a156b6cc63d5235c65be8e44d83d772476c7feca6bfe0b83f4d26bb",
             "bundle": true
           },
           {
@@ -592,12 +732,12 @@
           },
           {
             "path": "supabase/functions/stylist-speech/providerDiagnostics.test.ts",
-            "sha256": "8e1b41130b6d86cdb4de97d980e955abf8178802cfeab3ab0f0e6cea81593201",
+            "sha256": "e6508ac44eb7a52e2112a458f18212e36afb15e31f4c306d6cc87a7c022cfd27",
             "bundle": false
           },
           {
             "path": "supabase/functions/stylist-speech/providerDiagnostics.ts",
-            "sha256": "d21081c1d5c9819ec426b80ba5c72433ee9c0be6d59ac07bb224d17141990312",
+            "sha256": "ada7639647fd81c1b01671260df16b15708d72cdfca3782841a2800eb0f632c1",
             "bundle": true
           },
           {
@@ -612,17 +752,17 @@
           },
           {
             "path": "supabase/functions/stylist-speech/rateLimit.test.ts",
-            "sha256": "940d175d1658954160c8a3b3971615c956f23d6a3624c133f3bdebcbe88f05a0",
+            "sha256": "01933a223ff05194e197ede083c85d93dab53687ddbe0480961b60750d6de8ba",
             "bundle": false
           },
           {
             "path": "supabase/functions/stylist-speech/rateLimit.ts",
-            "sha256": "d4f568150742302d38b841b8303398caf0831316d11665a4ee2e335bb76eb8a0",
+            "sha256": "92b1b3874e6f2ec62919d8f941e8633bc69060d49cb27217137753c7c4780b4f",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylist-speech/secretConfig.test.ts",
-            "sha256": "2ce147ca4139eabd0cf79d5c7c1baede6f71411b8e99d92f612e82e6638365a0",
+            "sha256": "f16195d2e456038b8155ff57ae3f413fd266cc12b999765a3bd605af758b683c",
             "bundle": false
           },
           {
@@ -631,28 +771,43 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/stylist-speech/speechCues.test.ts",
+            "sha256": "0370120bd554f7c30b919c596b1e27b4a8f5e00a20a03bbb05cb53908f135af9",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylist-speech/speechCues.ts",
+            "sha256": "933d4cb908176c746f5cb8b7f9f0a4e5d67a2b10aa075b73e8cac3cf2cd429d2",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylist-speech/speechLengthParity.test.ts",
+            "sha256": "11169ac27f71bea64e2a50e89535bc4e4e6d7d43e502c29abf46d4202963a4f5",
+            "bundle": false
+          },
+          {
             "path": "supabase/functions/stylist-speech/speechText.test.ts",
-            "sha256": "170aa553beadf2f97537a7989f51924f1aedb88fa2c8bdbe9b027e66875b1b9e",
+            "sha256": "c63e99278dacdf890b1743796d43bd4bce0c05cd6c27b106e3e81cf4202f7454",
             "bundle": false
           },
           {
             "path": "supabase/functions/stylist-speech/speechText.ts",
-            "sha256": "f58dc9c2dc0113eba0f27940e47793c16123652efc0d06363e0a4813cbafc1a5",
+            "sha256": "a0845fe320492c38e962c692388ba1ae6b0422c049bfef6181c7762d699d1e08",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylist-speech/types.ts",
-            "sha256": "849e45cbc7d00be5ac03124873bb0d8e63f848993d51cd053a6c21fde5d8361d",
+            "sha256": "60628e49799cb522eff90b354771b3eef75345d05c3a7d208c447366d7fac41a",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylist-speech/voiceProfiles.test.ts",
-            "sha256": "5f24168602ae5a9ac47977c46b719739cb22a054678146d6c076b495d2ff0284",
+            "sha256": "17bd81f720c8970b74dd110a7818dbe9ed9dc68899bce94aec334698081d4a82",
             "bundle": false
           },
           {
             "path": "supabase/functions/stylist-speech/voiceProfiles.ts",
-            "sha256": "5464ed9193f2846c9769c8ddce1ccf020c6001119d054600b16d6463a18f0a3d",
+            "sha256": "20e996831d13c3df011b0c245bcf8514ec3d88130353f93dad1c7e6c91730eeb",
             "bundle": true
           }
         ]
@@ -663,14 +818,19 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 1,
-        "treeFileCount": 1,
-        "bundleHash": "e15246f0d4a021c803025f623a769f8ec04aacaabde226d56a7a80ec605660ae",
-        "treeHash": "e15246f0d4a021c803025f623a769f8ec04aacaabde226d56a7a80ec605660ae",
+        "bundleFileCount": 2,
+        "treeFileCount": 2,
+        "bundleHash": "6d8442fc690990a2a67113d83b7b2a37bcad0ebb39fc63dd2de10a51bb814fc3",
+        "treeHash": "6d8442fc690990a2a67113d83b7b2a37bcad0ebb39fc63dd2de10a51bb814fc3",
         "files": [
           {
+            "path": "supabase/functions/_shared/privacyRequestRateLimit.ts",
+            "sha256": "22e1a4e8fcf40628b755167377a1c49e994c8efc7c9da710455a05336b25632f",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/handle-user-deletion/index.ts",
-            "sha256": "51f57af5fde09977a6f960a8140a1fa02b48db2bbfc21d89ce5db5b598223bf7",
+            "sha256": "bfcddfc0cd45523887f8028f1332e7cd4a30052e501229637af9707db179569e",
             "bundle": true
           }
         ]
@@ -683,8 +843,8 @@
         ],
         "bundleFileCount": 3,
         "treeFileCount": 3,
-        "bundleHash": "ca9f7503071347d1577cc47a99c643716a97391423cff6697bce4510af13a5a5",
-        "treeHash": "ca9f7503071347d1577cc47a99c643716a97391423cff6697bce4510af13a5a5",
+        "bundleHash": "3343e4717253d2033de0f56b3b2cf353463327132560be7a75b8a8917bd3d214",
+        "treeHash": "3343e4717253d2033de0f56b3b2cf353463327132560be7a75b8a8917bd3d214",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -693,7 +853,7 @@
           },
           {
             "path": "supabase/functions/_shared/deletion/userDataResources.ts",
-            "sha256": "f923bfa24e4f001cf5a7de5671401193bf59f3345df9fc9d1a56938e55827bbe",
+            "sha256": "f79d7cf1cd312d3930b00ee0d16fb5463223f371a4987d053004efa33f5bc6b1",
             "bundle": true
           },
           {
@@ -707,14 +867,19 @@
         "name": "privacy-correction-request",
         "entry": "supabase/functions/privacy-correction-request/index.ts",
         "remoteSpecifiers": [],
-        "bundleFileCount": 1,
-        "treeFileCount": 1,
-        "bundleHash": "c3b51398f5d9e8aa9a5154a0734a4bdd33bee4e4f5f4c05d8443c31672fb66a2",
-        "treeHash": "c3b51398f5d9e8aa9a5154a0734a4bdd33bee4e4f5f4c05d8443c31672fb66a2",
+        "bundleFileCount": 2,
+        "treeFileCount": 2,
+        "bundleHash": "73e9c232695a92789c3ab8f1ba85852750450b2b7ac33341beeac6554968d99d",
+        "treeHash": "73e9c232695a92789c3ab8f1ba85852750450b2b7ac33341beeac6554968d99d",
         "files": [
           {
+            "path": "supabase/functions/_shared/privacyRequestRateLimit.ts",
+            "sha256": "22e1a4e8fcf40628b755167377a1c49e994c8efc7c9da710455a05336b25632f",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/privacy-correction-request/index.ts",
-            "sha256": "0a639140cd0f7dcaec18ab1660e2825ad766812b8f24cf8715a5867fdf6c8a6e",
+            "sha256": "05da2ea7e8f7271b33116d5e118de6cf2c92f08ca6a243381eff5f336a94da43",
             "bundle": true
           }
         ]
@@ -723,14 +888,19 @@
         "name": "privacy-data-export",
         "entry": "supabase/functions/privacy-data-export/index.ts",
         "remoteSpecifiers": [],
-        "bundleFileCount": 1,
-        "treeFileCount": 1,
-        "bundleHash": "a7c57823272962448fd8a7396f3e0b316a13a4efbefda20b93950eb2d0ed58df",
-        "treeHash": "a7c57823272962448fd8a7396f3e0b316a13a4efbefda20b93950eb2d0ed58df",
+        "bundleFileCount": 2,
+        "treeFileCount": 2,
+        "bundleHash": "4541fd8fabcd6ccbdeb63e17552e8f4d888310b841c065cc5c4500fa2bdf3abb",
+        "treeHash": "4541fd8fabcd6ccbdeb63e17552e8f4d888310b841c065cc5c4500fa2bdf3abb",
         "files": [
           {
+            "path": "supabase/functions/_shared/privacyRequestRateLimit.ts",
+            "sha256": "22e1a4e8fcf40628b755167377a1c49e994c8efc7c9da710455a05336b25632f",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/privacy-data-export/index.ts",
-            "sha256": "ce04e601666905c4cba12c21384d7395d494b6871104fc29b1c962a4d9b6a7a0",
+            "sha256": "1742f74df4ba7ab9fe52d5934239ff778eead0c5c38cf2f71e33463bd500897d",
             "bundle": true
           }
         ]
@@ -950,11 +1120,11 @@
         "bundleFileCount": 1,
         "treeFileCount": 2,
         "bundleHash": "e3fcfecd587732fa5e49fdaf0da28b28265a46a3b9daa0ab6d92b244d0be9818",
-        "treeHash": "9f4b6be27f9c3b6c50c4751c88729aba3c43edec0d1608f2d25438ffff8fbbf9",
+        "treeHash": "58f426eac8fdef4d673564cabe50b7cfb2ccfdd52e19db111f7de8d1914eea85",
         "files": [
           {
             "path": "supabase/functions/staging-health/config.toml",
-            "sha256": "13007e0c327bbc4022e6adbcbd95989eef012f32e191726089b1b6591ac87a7a",
+            "sha256": "95bbe3cbb1a055eebd995f0c2a7eb8ba39ad4de8e62f26a0d34a77b95d7973cd",
             "bundle": false
           },
           {

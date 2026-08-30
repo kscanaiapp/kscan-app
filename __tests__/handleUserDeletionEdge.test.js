@@ -37,3 +37,12 @@ test('handle-user-deletion guards duplicate pending or processing requests', () 
   assert.match(source, /status=in\.\(pending,processing\)/);
   assert.match(source, /already_requested/);
 });
+
+test('handle-user-deletion reserves privacy rate limit only after already_requested short-circuit', () => {
+  const alreadyIdx = source.indexOf('already_requested');
+  const rateIdx = source.indexOf("reservePrivacyRequestRateLimit(user.id, 'account_deletion')");
+  assert.ok(alreadyIdx !== -1);
+  assert.ok(rateIdx !== -1);
+  assert.ok(alreadyIdx < rateIdx);
+  assert.match(source, /rateLimitedResponse/);
+});

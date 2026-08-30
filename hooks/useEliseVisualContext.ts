@@ -223,7 +223,7 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
             ...entry,
             ...evidence.fields,
             status: 'ready',
-            savedScanId: evidence.savedScanId,
+            closetCandidateId: evidence.candidateId,
             sanitizedPreviewUri: prepared.sanitizedUri,
             privacyPolicy: prepared.policy,
             // Present only on the V2 path. Absent leaves the legacy behaviour
@@ -299,7 +299,7 @@ export function useEliseVisualContext(sessionId: string, actorKey: string | null
         quality: 1,
       });
     } catch {
-      Alert.alert('Photos unavailable', 'K Scan could not open your photo library. Try again.');
+      Alert.alert('Photos unavailable', 'K Scan AI could not open your photo library. Try again.');
       return;
     } finally {
       pickerInFlightRef.current = false;

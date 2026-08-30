@@ -67,6 +67,9 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   { table: 'wardrobe_activity_log', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'style_chat_burst_usage', column: 'user_id', action: 'direct_delete_before_auth', optional: true },
   { table: 'scan_intelligence_events', column: 'user_id', action: 'direct_delete_before_auth', optional: true },
+  // Privacy-rights abuse rate limiter (Issue #47). `user_id` is a bare uuid with
+  // no FK to auth.users, so nothing cascades at the Auth delete; purge directly.
+  { table: 'privacy_request_rate_limits', column: 'user_id', action: 'direct_delete_before_auth', optional: true },
   { table: 'user_stylist_preferences', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   {
     table: 'dressing_room_collab_idempotency',
@@ -87,6 +90,17 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   },
   { table: 'user_entitlements', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'kplus_activation_events', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  // Build 34 Track B B1A cloud Closet facts (K+ only, staging). ON DELETE
+  // CASCADE to auth.users already removes these rows; this entry adds them to
+  // the worker's coverage counting and post-purge residual verification.
+  // Deletion is intentionally independent of K+ status -- has_active_k_plus()
+  // is never consulted by the deletion pipeline.
+  { table: 'user_closet_items', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  // Build 34 Track B B4 server-derived Style DNA profile (K+-adjacent, but
+  // deletion is independent of K+ status like every other entry here). ON
+  // DELETE CASCADE to auth.users already removes this row; this entry adds it
+  // to the worker's coverage counting and post-purge residual verification.
+  { table: 'user_style_profiles', column: 'user_id', action: 'auth_delete_cascade', optional: true },
 ];
 
 export interface StorageResourceTemplate {
@@ -94,8 +108,19 @@ export interface StorageResourceTemplate {
   prefixTemplates: string[];
 }
 
+// {userId}/saved-scans matches services/savedScanMedia.ts's upload path
+// (style-library-images/{userId}/saved-scans/{savedScanId}.jpg). Previously
+// absent here (though already present in the JSON-backed worker registry),
+// so the automated worker never purged saved-scan images on account deletion.
+//
+// {userId}/closet is Build 34 Track B B1C cloud Closet media
+// (style-library-images/{userId}/closet/{closetItemId}-primary.jpg and
+// -thumb.jpg). Both objects sit DIRECTLY under this prefix on purpose: the
+// enumerator below (listPrefixPaths / listStoragePrefix) is not recursive and
+// does not filter on metadata, so a nested {closetItemId}/ sub-folder would
+// yield an undeletable folder path and orphan the media permanently.
 export const STORAGE_RESOURCE_TEMPLATES: StorageResourceTemplate[] = [
-  { bucket: 'style-library-images', prefixTemplates: ['{userId}/scans', '{userId}/inspirations'] },
+  { bucket: 'style-library-images', prefixTemplates: ['{userId}/scans', '{userId}/inspirations', '{userId}/saved-scans', '{userId}/closet'] },
 ];
 
 export const STORAGE_RESOURCES = STORAGE_RESOURCE_TEMPLATES.map((resource) => ({

@@ -36,6 +36,17 @@ export interface EliseBackendFlags {
   sharedRoomEvidenceV1: boolean;
   /** DR-2: client may receive adviceMetadata when object-shaped. */
   adviceMetadataClientV1: boolean;
+  /**
+   * Build 34 / Track B / Phase B5. THE SINGLE B5 KILL SWITCH. Gates BOTH the
+   * Track B Closet wardrobe-retrieval source and the server-derived Style DNA
+   * context together, not decomposed per-stage (same reasoning as every other
+   * single-flag Track B phase). Independent of adviceIntentsV1/
+   * closetRetrievalV1, which continue to gate the pre-Track-B Dressing-Room-
+   * based retrieval unchanged. Additionally requires an ACTIVE K+ entitlement,
+   * checked server-side via has_active_k_plus() on every request — this flag
+   * alone never grants premium wardrobe context.
+   */
+  closetWardrobeContextV1: boolean;
 }
 
 export interface EliseBackendConfig {
@@ -126,6 +137,7 @@ export function readEliseBackendConfig(env: EnvReader): EliseBackendConfig {
       ),
       sharedRoomEvidenceV1: parseBooleanEnv(env, 'ELISE_SHARED_ROOM_EVIDENCE_V1_ENABLED', false),
       adviceMetadataClientV1: parseBooleanEnv(env, 'ELISE_ADVICE_METADATA_CLIENT_V1_ENABLED', false),
+      closetWardrobeContextV1: parseBooleanEnv(env, 'ELISE_CLOSET_WARDROBE_CONTEXT_V1_ENABLED', false),
     },
   };
 }

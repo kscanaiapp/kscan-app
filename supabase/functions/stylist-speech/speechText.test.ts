@@ -16,7 +16,7 @@ Deno.test('speech text normalizes whitespace and removes internal or markdown-on
   assert.equal(buildSpeechText('```json\n{"internal":true}\n```'), '');
 });
 
-Deno.test('speech text prefers the last complete sentence at the 700 character bound', () => {
+Deno.test('speech text prefers the last complete sentence at the character bound', () => {
   const first = `First look ${'works '.repeat(80)}.`;
   const second = ` Second thought ${'continues '.repeat(80)}.`;
   const result = buildSpeechText(first + second);

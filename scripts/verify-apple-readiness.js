@@ -9,6 +9,14 @@ function readJson(relativePath) {
   return JSON.parse(fs.readFileSync(path.join(ROOT, relativePath), 'utf8'));
 }
 
+function readTextIfExists(relativePath) {
+  try {
+    return fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
+  } catch {
+    return '';
+  }
+}
+
 function hasDependency(packageJson, name) {
   return Boolean(packageJson.dependencies?.[name] || packageJson.devDependencies?.[name]);
 }
@@ -38,6 +46,30 @@ function warn(result, condition, label, detail = '') {
 
 function getProductionSubmit(easJson) {
   return easJson.submit?.production?.ios ?? {};
+}
+
+// The manual deletion executor (lib/account-deletion/processorCore.mjs) is
+// the operative path this release ships. These two checks are structural,
+// text-based contracts over that file's source rather than a live import —
+// the file is an ES module and this script is CommonJS, and a text check is
+// also what lets the paired unit tests run a negative control against a
+// fixture string instead of mutating production source (see
+// __tests__/verifyAppleReadiness.test.js).
+function appleRevocationInvoked(deletionCoreSource) {
+  return deletionCoreSource.includes("functions.invoke('apple-revoke-credential'");
+}
+
+function appleRevocationOccursBeforeAuthDelete(deletionCoreSource) {
+  const revokeCallIndex = deletionCoreSource.indexOf('await requestAppleRevocation(');
+  const blockingGateIndex = deletionCoreSource.indexOf(
+    'isBlockingAppleRevocationStatus(appleRevocation.status)',
+  );
+  const authDeleteIndex = deletionCoreSource.indexOf('await supabase.auth.admin.deleteUser(');
+  return (
+    revokeCallIndex > -1 &&
+    blockingGateIndex > revokeCallIndex &&
+    authDeleteIndex > blockingGateIndex
+  );
 }
 
 function hasReviewInfo(storeConfig) {
@@ -104,14 +136,14 @@ function verify() {
   );
   check(
     result,
-    infoPlist.NSCameraUsageDescription === 'K Scan uses your camera to photograph your outfit for style analysis.',
+    infoPlist.NSCameraUsageDescription === 'K Scan AI uses your camera to photograph your outfit for style analysis.',
     'Camera usage description is present and scoped',
   );
   check(result, !('NSMicrophoneUsageDescription' in infoPlist), 'No microphone usage description is declared');
   check(
     result,
     infoPlist.NSPhotoLibraryUsageDescription ===
-      'K Scan uses your photo library to let you upload style inspiration images to your Style Closet and Dressing Rooms.',
+      'K Scan AI uses your photo library to let you upload style inspiration images to your Style Closet and Dressing Rooms.',
     'Photo library usage description is present and scoped',
   );
   check(result, privacyManifests.NSPrivacyTracking === false, 'Privacy manifest declares no tracking');
@@ -149,7 +181,7 @@ function verify() {
   );
 
   check(result, apple.version === '1.0.1', 'App Store metadata version is 1.0.1');
-  check(result, englishInfo.title === 'K Scan', 'App Store title is K Scan');
+  check(result, englishInfo.title === 'K Scan AI', 'App Store title is K Scan AI');
   check(result, englishInfo.subtitle === 'AI fashion discovery', 'App Store subtitle is scoped');
   check(result, englishInfo.privacyPolicyUrl === 'https://kscan.app/legal/privacy', 'Privacy URL is set');
   check(result, englishInfo.supportUrl === 'https://kscan.app/support', 'Support URL is set');
@@ -164,6 +196,49 @@ function verify() {
     'Apple Sign-In config plugin is present',
   );
   check(result, ios.usesAppleSignIn === true, 'Apple Sign-In entitlement is declared');
+
+  // Apple requires that deleting an account created with Sign in with Apple also
+  // revokes that authorization (TN3194). Revocation is only possible if the client
+  // captured the one-time authorization code at sign-in, and this gate previously
+  // could not tell whether that wiring was present — it passed either way, so a
+  // convergence that dropped the bridge would have shipped silently.
+  const credentialLinkSource = readTextIfExists('services/appleCredentialLink.ts');
+  const authScreenSource = readTextIfExists('app/auth/index.tsx');
+  const captureIndex = authScreenSource.indexOf('linkAppleCredential(credential.authorizationCode)');
+  const sessionIndex = authScreenSource.indexOf('signInWithIdToken');
+  check(
+    result,
+    credentialLinkSource.includes("functions.invoke('apple-credential-link'"),
+    'Apple credential-link client posts to the apple-credential-link function',
+  );
+  check(
+    result,
+    captureIndex > -1,
+    'Apple sign-in captures the authorization code for deletion revocation',
+  );
+  check(
+    result,
+    sessionIndex > -1 && captureIndex > sessionIndex,
+    'Apple authorization code is captured after the session is established',
+  );
+
+  // Apple also requires that deleting an account revokes its Sign in with
+  // Apple authorization (TN3194). The capture above is only half the
+  // obligation — these two checks confirm the manual deletion executor this
+  // release ships actually invokes revocation, and does so before the Auth
+  // user (and the credential row that cascades with it) is deleted.
+  const deletionCoreSource = readTextIfExists('lib/account-deletion/processorCore.mjs');
+  check(
+    result,
+    appleRevocationInvoked(deletionCoreSource),
+    'Manual deletion executor invokes apple-revoke-credential',
+  );
+  check(
+    result,
+    appleRevocationOccursBeforeAuthDelete(deletionCoreSource),
+    'Apple revocation is requested and gated before the Auth user is deleted',
+  );
+
   check(result, !hasDependency(packageJson, 'expo-media-library'), 'No media library dependency');
   check(result, !hasDependency(packageJson, 'expo-ads-admob'), 'No ads dependency');
   check(result, !hasDependency(packageJson, 'expo-tracking-transparency'), 'No App Tracking Transparency dependency');
@@ -202,4 +277,6 @@ if (require.main === module) {
 module.exports = {
   hasReviewInfo,
   verify,
+  appleRevocationInvoked,
+  appleRevocationOccursBeforeAuthDelete,
 };

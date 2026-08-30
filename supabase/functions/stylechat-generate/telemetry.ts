@@ -69,6 +69,10 @@ const ALLOWED_KEYS = new Set([
   'purchaseVerdict',
   'wardrobeGapCategoryCode',
   'multiLookCount',
+  // Build 34 / Track B / Phase B5 — bounded booleans only, never a profile
+  // value, a Closet field, or a K+ grant source/reason.
+  'kPlusActive',
+  'styleDnaAvailable',
 ]);
 
 const ALLOWED_STRING_VALUE = /^[A-Za-z0-9_.:\-|,]{0,160}$/;

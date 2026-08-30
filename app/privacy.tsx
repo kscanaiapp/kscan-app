@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -31,7 +31,6 @@ import {
   KScanHeader,
   PrimaryButton,
   SecondaryButton,
-  TertiaryButton,
   SectionHeader,
   StatusPill,
   InlineNotice,
@@ -41,10 +40,19 @@ import { supabase } from '../services/supabaseClient';
 import { LOCAL_PRIVACY_STORAGE_KEY } from '../services/privacyLocalStore';
 import { hasPendingDeletionProfile } from '../services/routingGuard';
 import { SignatureStyleSettingsSection } from '../components/style-chat/SignatureStyleSettingsSection';
+import { KPLUS_EARLY_ACCESS_ENABLED } from '../constants/featureFlags';
+import { useKPlusEntitlement } from '../hooks/useKPlusEntitlement';
+import { KPlusEarlyAccessSheet } from '../components/kplus/KPlusEarlyAccessSheet';
+import { emitKPlusEvent } from '../services/kplus/kplusTelemetry';
+import {
+  listDressingRoomBlockedUsers,
+  unblockDressingRoomUser,
+  type DressingRoomBlockedUser,
+} from '../services/dressingRoomBlocks';
 
 const PRIVACY_COPY = {
   saleRemote:
-    'When enabled, K Scan treats your account as opted out of data sale or sharing under applicable privacy laws.',
+    'When enabled, K Scan AI treats your account as opted out of data sale or sharing under applicable privacy laws.',
   saleLocal:
     'This preference is saved on this device only. Sign in to save it to your account across devices.',
   sensitiveRemote:
@@ -54,17 +62,17 @@ const PRIVACY_COPY = {
   aggregate:
     'Aggregated or deidentified trend reports are managed separately from transfers of user-linked personal information.',
   scans:
-    'Your saved scan information follows K Scan privacy settings. Account-linked scan details may be included when you request an export.',
+    'Your saved scan information follows K Scan AI privacy settings. Account-linked scan details may be included when you request an export.',
   minor:
     'Sale or sharing of personal information is disabled for users under 16 unless legally valid authorization is obtained.',
   trust: [
     'Private by design.',
     'Your data stays under your control.',
     'Raw scans and uploaded images are not sold to third-party data buyers.',
-    'K Scan is not designed for facial recognition or identifying people.',
+    'K Scan AI is not designed for facial recognition or identifying people.',
   ],
   deletion:
-    'You can request account deletion from this screen. Your request will be reviewed and processed through our account lifecycle workflow, generally within 30 days, subject to legal, security, and operational requirements.',
+    'Your account will be deactivated immediately. You will have 30 days to restore it before your account and associated data are permanently deleted, subject to required legal retention.',
 };
 
 const SYNC_STATUS_LABELS: Record<string, string> = {
@@ -171,6 +179,67 @@ function DataRequestCard({
   );
 }
 
+interface BlockedUsersCardProps {
+  loading: boolean;
+  error: string | null;
+  blockedUsers: DressingRoomBlockedUser[];
+  unblockingId: string | null;
+  onUnblock: (blockedUserId: string) => void;
+  onRetry: () => void;
+}
+
+function BlockedUsersCard({
+  loading,
+  error,
+  blockedUsers,
+  unblockingId,
+  onUnblock,
+  onRetry,
+}: BlockedUsersCardProps) {
+  return (
+    <View style={styles.dataCard}>
+      <SectionHeader
+        title="Blocked Users"
+        subtitle="Accounts you've blocked in Dressing Rooms"
+      />
+      {loading ? (
+        <ActivityIndicator size="small" color={LUXURY.colors.plum} />
+      ) : error ? (
+        <View>
+          <Text style={styles.blockedUsersError}>{error}</Text>
+          {/* Without this the list could only recover by leaving the screen:
+              it reloads on auth change only, and there is no pull-to-refresh. */}
+          <SecondaryButton
+            title="Retry"
+            onPress={onRetry}
+            accessibilityLabel="Retry loading blocked users"
+            accessibilityHint="Try loading your blocked users again"
+            testID="privacy-blocked-users-retry"
+          />
+        </View>
+      ) : blockedUsers.length === 0 ? (
+        <Text style={styles.blockedUsersEmpty}>You haven't blocked anyone.</Text>
+      ) : (
+        <View style={styles.blockedUsersList}>
+          {blockedUsers.map((entry) => (
+            <View key={entry.blockedUserId} style={styles.blockedUsersRow}>
+              <Text style={styles.blockedUsersLabel}>Blocked User</Text>
+              <SecondaryButton
+                title={unblockingId === entry.blockedUserId ? 'Unblocking…' : 'Unblock'}
+                onPress={() => onUnblock(entry.blockedUserId)}
+                disabled={unblockingId === entry.blockedUserId}
+                accessibilityLabel="Unblock user"
+                accessibilityHint="Removes this account from your blocked list"
+                testID={`privacy-unblock-${entry.blockedUserId}`}
+              />
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
 interface AccountDeletionCardProps {
   pending: boolean;
   disabled: boolean;
@@ -220,6 +289,44 @@ export default function PrivacyScreen() {
   const [deletionSubmitting, setDeletionSubmitting] = useState(false);
   const [deletionPending, setDeletionPending] = useState(false);
   const [deletionConfirmVisible, setDeletionConfirmVisible] = useState(false);
+  const [blockedUsers, setBlockedUsers] = useState<DressingRoomBlockedUser[]>([]);
+  const [blockedUsersLoading, setBlockedUsersLoading] = useState(false);
+  const [blockedUsersError, setBlockedUsersError] = useState<string | null>(null);
+  const [unblockingId, setUnblockingId] = useState<string | null>(null);
+  const unblockInFlightRef = useRef(false);
+  const [kPlusSheetVisible, setKPlusSheetVisible] = useState(false);
+  const kPlusEntitlement = useKPlusEntitlement();
+
+  useEffect(() => {
+    if (isAuthenticated && KPLUS_EARLY_ACCESS_ENABLED) {
+      emitKPlusEvent('kplus_status_view', { source: 'profile' });
+    }
+  }, [isAuthenticated]);
+
+  const kPlusExpiryLabel = kPlusEntitlement.expiresAt
+    ? new Date(kPlusEntitlement.expiresAt).toLocaleDateString(undefined, {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : null;
+  const kPlusPillLabel =
+    kPlusEntitlement.state === 'active'
+      ? 'Early Access Active'
+      : kPlusEntitlement.state === 'expired'
+        ? 'Complimentary access ended'
+        : kPlusEntitlement.state === 'eligible'
+          ? 'Early Access available'
+          : null;
+  const kPlusPillVariant: 'success' | 'neutral' | 'gold' =
+    kPlusEntitlement.state === 'active' ? 'gold' : kPlusEntitlement.state === 'expired' ? 'neutral' : 'neutral';
+  const kPlusStatusSubtitle =
+    kPlusEntitlement.state === 'active' && kPlusExpiryLabel
+      ? `Active through ${kPlusExpiryLabel}.`
+      : kPlusEntitlement.state === 'expired'
+        ? 'Complimentary access ended.'
+        : 'Complimentary for 6 months. No payment required.';
+  const kPlusActionLabel = kPlusEntitlement.state === 'eligible' ? 'Activate' : undefined;
 
   const saleSharingLocked = !canToggleSaleSharing(normalized.age_group);
   const accountDeletionPending = hasPendingDeletionProfile(profile);
@@ -237,6 +344,64 @@ export default function PrivacyScreen() {
 
   const syncChipLabel = SYNC_STATUS_LABELS[syncStatus] ?? syncStatus;
   const syncChipVariant = SYNC_STATUS_VARIANTS[syncStatus] ?? 'neutral';
+
+  const loadBlockedUsers = useCallback(async () => {
+    if (!isAuthenticated) {
+      setBlockedUsers([]);
+      return;
+    }
+    setBlockedUsersLoading(true);
+    setBlockedUsersError(null);
+    try {
+      const rows = await listDressingRoomBlockedUsers();
+      setBlockedUsers(rows);
+    } catch (err: any) {
+      setBlockedUsersError(
+        typeof err?.message === 'string' ? err.message : "We couldn't load your blocked users.",
+      );
+    } finally {
+      setBlockedUsersLoading(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    void loadBlockedUsers();
+  }, [loadBlockedUsers]);
+
+  const handleUnblock = useCallback(
+    (blockedUserId: string) => {
+      // Ref guard, not just the disabled prop: rapid taps could otherwise
+      // stack several confirmation dialogs before the first one resolves.
+      if (unblockInFlightRef.current) return;
+      unblockInFlightRef.current = true;
+
+      const release = () => {
+        unblockInFlightRef.current = false;
+        setUnblockingId(null);
+      };
+
+      Alert.alert('Unblock this user?', 'You will not automatically regain any prior shared Dressing Room access.', [
+        { text: 'Cancel', style: 'cancel', onPress: release },
+        {
+          text: 'Unblock',
+          onPress: async () => {
+            setUnblockingId(blockedUserId);
+            try {
+              await unblockDressingRoomUser(blockedUserId);
+              setBlockedUsers((current) =>
+                current.filter((entry) => entry.blockedUserId !== blockedUserId),
+              );
+            } catch {
+              Alert.alert("We couldn't unblock that user. Please try again.");
+            } finally {
+              release();
+            }
+          },
+        },
+      ], { onDismiss: release });
+    },
+    [],
+  );
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Your privacy preferences will continue to be stored on this device.', [
@@ -265,7 +430,7 @@ export default function PrivacyScreen() {
   };
 
   const confirmDeletion = async () => {
-    setDeletionConfirmVisible(false);
+    if (deletionSubmitting) return;
     setDeletionSubmitting(true);
     try {
       // The service normalizer owns the backend field names. `accepted` means an
@@ -274,6 +439,7 @@ export default function PrivacyScreen() {
       // later, restorable-window-gated step.
       const result = await submitAccountDeletionRequest(supabase, session);
       setDeletionPending(true);
+      setDeletionConfirmVisible(false);
       const confirmationMessage = result.alreadyRequested
         ? 'Your account deletion request is already active. You have been signed out.'
         : 'Your account deletion request was submitted. You have been signed out.';
@@ -311,6 +477,7 @@ export default function PrivacyScreen() {
       );
     } catch (error) {
       console.error('Account deletion request failed', error);
+      setDeletionConfirmVisible(false);
       setMessage("We couldn't submit your request right now. Please try again later.");
       setDeletionSubmitting(false);
     }
@@ -319,7 +486,7 @@ export default function PrivacyScreen() {
   const handleExport = async () => {
     try {
       await requestDataExport();
-      setMessage('This request has been submitted to K Scan for review.');
+      setMessage('This request has been submitted to K Scan AI for review.');
     } catch (error) {
       console.error('Data export request failed', error);
       setMessage("We couldn't submit your request right now. Please try again later.");
@@ -334,7 +501,7 @@ export default function PrivacyScreen() {
     try {
       await requestCorrection({ user_description: correctionText.trim() });
       setCorrectionText('');
-      setMessage('This request has been submitted to K Scan for review.');
+      setMessage('This request has been submitted to K Scan AI for review.');
     } catch (error) {
       console.error('Correction request failed', error);
       setMessage("We couldn't submit your request right now. Please try again later.");
@@ -358,11 +525,19 @@ export default function PrivacyScreen() {
         backLabel="Back"
       />
 
+      <KPlusEarlyAccessSheet
+        visible={kPlusSheetVisible}
+        onClose={() => setKPlusSheetVisible(false)}
+        source="profile"
+      />
+
       <Modal
         transparent
         visible={deletionConfirmVisible}
         animationType="fade"
-        onRequestClose={() => setDeletionConfirmVisible(false)}
+        onRequestClose={() => {
+          if (!deletionSubmitting) setDeletionConfirmVisible(false);
+        }}
       >
         <View style={styles.modalScrim}>
           <View style={styles.modalCard}>
@@ -370,20 +545,25 @@ export default function PrivacyScreen() {
             <Text style={styles.modalBody}>{PRIVACY_COPY.deletion}</Text>
             <View style={styles.modalActions}>
               <SecondaryButton
-                title="Cancel"
-                onPress={() => setDeletionConfirmVisible(false)}
+                title="CANCEL"
+                onPress={() => {
+                  if (!deletionSubmitting) setDeletionConfirmVisible(false);
+                }}
                 disabled={deletionSubmitting}
                 style={styles.modalButton}
+                textStyle={styles.modalButtonText}
                 accessibilityLabel="Cancel account deletion"
+                accessibilityHint="Closes this dialog without making any changes"
               />
-              <TertiaryButton
-                title="Delete"
+              <PrimaryButton
+                title="DELETE ACCOUNT"
                 onPress={confirmDeletion}
                 disabled={deletionSubmitting}
-                style={styles.modalButton}
-                textStyle={{ color: LUXURY.colors.error }}
-                accessibilityLabel="Confirm account deletion"
-                accessibilityHint="Permanently request account deletion"
+                loading={deletionSubmitting}
+                style={styles.modalDeleteButton}
+                textStyle={styles.modalButtonText}
+                accessibilityLabel="Delete account"
+                accessibilityHint="Permanently requests deletion of your account after a 30 day restoration window"
               />
             </View>
           </View>
@@ -478,6 +658,21 @@ export default function PrivacyScreen() {
               </View>
             ) : null}
 
+            {isAuthenticated && KPLUS_EARLY_ACCESS_ENABLED ? (
+              <View style={styles.sectionCard}>
+                <SectionHeader
+                  title="K+"
+                  subtitle={kPlusStatusSubtitle}
+                  actionLabel={kPlusActionLabel}
+                  actionVariant="pill"
+                  onAction={kPlusActionLabel ? () => setKPlusSheetVisible(true) : undefined}
+                />
+                {kPlusPillLabel ? (
+                  <StatusPill label={kPlusPillLabel} variant={kPlusPillVariant} />
+                ) : null}
+              </View>
+            ) : null}
+
             {saleSharingLocked ? (
               <InlineNotice
                 variant="warning"
@@ -492,7 +687,7 @@ export default function PrivacyScreen() {
                 title="Privacy & Data Choices"
                 subtitle={
                   preferenceSource === 'remote'
-                    ? 'These choices are linked to your K Scan account.'
+                    ? 'These choices are linked to your K Scan AI account.'
                     : 'On-device preferences — sign in to sync to your account.'
                 }
               />
@@ -531,7 +726,7 @@ export default function PrivacyScreen() {
             <SignatureStyleSettingsSection userKey={user ? `user:${user.id}` : null} />
 
             <TrustCenterCard
-              title="How K Scan Handles Your Data"
+              title="How K Scan AI Handles Your Data"
               subtitle="Private by design"
               items={PRIVACY_COPY.trust}
               details={[PRIVACY_COPY.scans, PRIVACY_COPY.aggregate]}
@@ -552,6 +747,19 @@ export default function PrivacyScreen() {
               onExport={handleExport}
               onCorrection={handleCorrection}
             />
+
+            {isAuthenticated ? (
+              <BlockedUsersCard
+                loading={blockedUsersLoading}
+                error={blockedUsersError}
+                blockedUsers={blockedUsers}
+                unblockingId={unblockingId}
+                onUnblock={handleUnblock}
+                onRetry={() => {
+                  void loadBlockedUsers();
+                }}
+              />
+            ) : null}
 
             <AccountDeletionCard
               pending={deletionPending || accountDeletionPending}
@@ -727,6 +935,30 @@ const styles = StyleSheet.create({
   correctionButton: {
     width: '100%',
   },
+  blockedUsersList: {
+    gap: SPACING.sm,
+  },
+  blockedUsersRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: SPACING.sm,
+  },
+  blockedUsersLabel: {
+    ...LUXURY.typography.body,
+    fontSize: 13,
+    color: LUXURY.colors.graphite,
+  },
+  blockedUsersEmpty: {
+    ...LUXURY.typography.body,
+    fontSize: 13,
+    color: LUXURY.colors.stone,
+  },
+  blockedUsersError: {
+    ...LUXURY.typography.body,
+    fontSize: 13,
+    color: LUXURY.colors.error,
+  },
   correctionBox: {
     gap: SPACING.sm,
   },
@@ -792,10 +1024,32 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   modalActions: {
-    flexDirection: 'row',
-    gap: SPACING.md,
+    flexDirection: 'column',
+    width: '100%',
+    gap: 12,
   },
   modalButton: {
-    flex: 1,
+    width: '100%',
+    minHeight: 52,
+    height: 52,
+    paddingHorizontal: SPACING.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalDeleteButton: {
+    width: '100%',
+    minHeight: 52,
+    height: 52,
+    paddingHorizontal: SPACING.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: LUXURY.colors.error,
+  },
+  modalButtonText: {
+    fontSize: 17,
+    fontWeight: '600',
+    textAlign: 'center',
+    letterSpacing: 0,
+    textTransform: 'none',
   },
 });

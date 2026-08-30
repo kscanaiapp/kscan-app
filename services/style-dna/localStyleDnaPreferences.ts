@@ -161,7 +161,7 @@ export async function setStyleDnaPreferences(
   userKey: string,
   update: Partial<LocalStyleDnaPreferences>,
 ): Promise<LocalStyleDnaPreferences> {
-  if (!userKey) throw new Error('Style DNA preferences require a userKey.');
+  if (!userKey) throw new Error('Signature Style preferences require a userKey.');
 
   advanceRevision(userKey);
   return enqueueWrite(userKey, async () => {

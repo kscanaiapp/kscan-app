@@ -24,7 +24,7 @@ jobs:
   project-checks:
     name: Project checks
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -37,6 +37,29 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@4606d5cc6fb3f673efd4f594850e3f4b3e9d29cd # v2.0.0
+
+      # Track B integration gates. These are deliberately direct commands so
+      # failures cannot be hidden behind a narrow npm-script selection.
+      - name: Run full regression suite
+        run: node scripts/run-all-tests.js
+
+      - name: Run governed backend Deno suite
+        run: node scripts/run-backend-tests.js
+
+      - name: Run TypeScript typecheck
+        run: npx tsc --noEmit -p tsconfig.json
+
+      - name: Typecheck StyleChat Edge Function
+        run: deno check supabase/functions/stylechat-generate/index.ts
+
+      - name: Verify Edge Function parity
+        run: node scripts/check-edge-function-parity.js
+
+      - name: Verify Edge Function manifest currency
+        run: node scripts/generate-edge-function-manifest.js --check
 
       - name: Run existing privacy unit tests
         run: npm run test:privacy

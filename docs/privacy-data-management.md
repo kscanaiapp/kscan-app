@@ -123,7 +123,7 @@ should be documented outside the mobile toggle.
 
 Raw scan and derived fashion metadata require a production storage map. The mobile copy and
 export manifest intentionally do not assume raw scans are retained. Derived fashion metadata
-linked to a user should be reviewed for export. Style DNA vectors or embeddings are not assumed
+linked to a user should be reviewed for export. Signature Style vectors or embeddings are not assumed
 exportable until legal review requires it.
 
 ## Minor users

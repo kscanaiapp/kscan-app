@@ -144,7 +144,7 @@ package files, env files, Supabase functions all untouched).
 - Saved scans have no brand/occasion/season fields today, so brand-, season-
   and occasion-driven features activate only for product-shelf items or
   future metadata.
-- Outfit feedback is intentionally separate from Style DNA feedback
+- Outfit feedback is intentionally separate from Signature Style feedback
   (`useStyleDnaFeedback`) to avoid touching sacred StyleChat files; a later
   merge could unify them.
 - Collections rename UX is a lightweight prototype (reuses the create input).

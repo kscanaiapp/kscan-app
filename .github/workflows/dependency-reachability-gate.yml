@@ -1,0 +1,47 @@
+# B34-DEF-014: bounded dependency-security gate.
+#
+# Deliberately narrow and separate from a full report-only security pipeline
+# (gitleaks/semgrep/osv/trivy, which is a distinct, out-of-scope concern for
+# this maintenance pass). This job FAILS the build on an unapproved
+# critical/high npm audit finding, or on reachability-path drift for a
+# package already documented as build/dev-tool-only in
+# config/dependency-reachability-exceptions.json. It never runs
+# `npm audit fix` / `npm audit fix --force`.
+
+name: Dependency Reachability Gate
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-reachability:
+    name: Dependency reachability gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run dependency reachability gate
+        run: npm run verify:dependency-reachability
+
+      - name: Run reachability gate negative-control tests
+        run: npm run test:dependency-reachability

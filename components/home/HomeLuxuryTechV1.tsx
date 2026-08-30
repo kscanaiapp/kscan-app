@@ -8,7 +8,6 @@ import {
   ScrollView,
   ActivityIndicator,
   Linking,
-  ViewStyle,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -21,6 +20,7 @@ import {
   createStyleChatSessionLaunchGuard,
   launchStyleChatSession,
 } from '../../services/style-chat/sessionLaunchGuard';
+import { resolvePreferredName } from '../../services/userFirstName';
 import type { StylePick } from '../../types/stylePicks';
 import {
   LuxuryScreen,
@@ -36,7 +36,7 @@ import { HomeStylistCard } from './HomeStylistCard';
 import { TodayWithEliseSection } from './TodayWithEliseSection';
 import { PersonalizeStylistModal } from '../stylist/PersonalizeStylistModal';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
-import { TEXTSCAN_UI_ENABLED, VOICESCAN_ENABLED } from '../../constants/featureFlags';
+import { TEXTSCAN_UI_ENABLED } from '../../constants/featureFlags';
 
 
 interface FeatureChipProps {
@@ -76,51 +76,6 @@ function FeatureChip({ icon, title, body, onPress, testID, accessibilityLabel, a
 }
 
 /**
- * Inactive VoiceScan placeholder pill.
- *
- * VoiceScan is planned but inactive for the current launch. This pill is
- * intentionally visible so users know the feature is coming, but it is a
- * silent no-op: no navigation, no microphone request, no backend call, and
- * no local state mutation.
- */
-interface VoiceScanPlaceholderPillProps {
-  style?: ViewStyle;
-}
-
-function VoiceScanPlaceholderPill({ style }: VoiceScanPlaceholderPillProps) {
-  const inactive = !VOICESCAN_ENABLED;
-  return (
-    <View
-      testID="home-luxury-voicescan-coming-soon"
-      style={[styles.voiceScanPill, inactive && styles.voiceScanPillInactive, style]}
-      accessibilityRole="text"
-      accessibilityLabel="Voice Scan. Coming Soon."
-    >
-      {/*
-        Decorative: the pill above already announces "Voice Scan. Coming Soon."
-        as one label, so the glyph must not add a second announcement. It is
-        tinted by the pill's own muted colour rather than encoding the disabled
-        state itself.
-      */}
-      <View accessible={false} importantForAccessibility="no" accessibilityElementsHidden>
-        <KScanIcon
-          name="voice-scan"
-          size={24}
-          variant="standard"
-          color={inactive ? LUXURY.colors.graphite : LUXURY.colors.plum}
-        />
-      </View>
-      <Text style={[styles.voiceScanPillTitle, inactive && styles.voiceScanPillTextMuted]}>
-        VOICE SCAN
-      </Text>
-      <Text style={[styles.voiceScanPillSubtitle, inactive && styles.voiceScanPillTextMuted]}>
-        COMING SOON
-      </Text>
-    </View>
-  );
-}
-
-/**
  * Bright luxury Home dashboard (HomeLuxuryTechV1).
  *
  * Matches the home-page-v1 mockup direction without fake commerce:
@@ -128,7 +83,7 @@ function VoiceScanPlaceholderPill({ style }: VoiceScanPlaceholderPillProps) {
  * - Start Scan primary CTA
  * - Unified "Your Stylist / Ask Elise" section
  * - Feature grid with Recent Scans routing to the canonical library
- * - TextScan / Voice Scan secondary entries
+ * - TextScan secondary entry
  * - Trust footer
  */
 export default function HomeLuxuryTechV1() {
@@ -136,7 +91,7 @@ export default function HomeLuxuryTechV1() {
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const { picks, isLoading: stylePicksLoading, error: stylePicksError } = useStylePicks();
   const { identity, isLoading: identityLoading, error: identityError, updateIdentity, resetIdentity } = useStylistIdentity();
-  const { createSession } = useStyleChatSessions();
+  const { createSession, getLatestSessionId } = useStyleChatSessions();
 
   const [personalizeVisible, setPersonalizeVisible] = useState(false);
   const [textScanNavigating, setTextScanNavigating] = useState(false);
@@ -158,10 +113,7 @@ export default function HomeLuxuryTechV1() {
   const scanEnabled = !featureFreezeLoading && isFeatureEnabled('scan');
   const styleChatEnabled = !featureFreezeLoading && isFeatureEnabled('styleChat');
 
-  const meta = user?.user_metadata as Record<string, string | undefined> | undefined;
-  const profileName =
-    (meta?.full_name ?? meta?.name ?? meta?.display_name ?? '').trim() || null;
-  const firstName = profileName?.split(' ')[0] ?? null;
+  const preferredName = resolvePreferredName(user);
 
   const hasStylePicks = picks.length > 0;
   // Nothing to show: not loading, no error, and no real picks. Render the
@@ -186,6 +138,12 @@ export default function HomeLuxuryTechV1() {
     const result = await launchStyleChatSession({
       guard,
       createSession,
+      // Home's stylist CTA continues the user's conversation; only a user with
+      // no conversation at all gets a new one. Creating unconditionally here
+      // stranded every prior conversation behind a fresh empty session, which
+      // read as the history having been lost. Explicitly starting another
+      // conversation remains available on the conversations list.
+      resolveExistingSessionId: getLatestSessionId,
       navigate: (sessionId) => router.push(`/style-chat/${sessionId}`),
       isCurrent: () => screenActiveRef.current && actorIdRef.current === launchActorId,
     });
@@ -197,7 +155,7 @@ export default function HomeLuxuryTechV1() {
       }
     }
     if (screenActiveRef.current) setIsCreatingSession(false);
-  }, [createSession]);
+  }, [createSession, getLatestSessionId]);
 
   const handlePersonalize = useCallback(() => {
     setPersonalizeVisible(true);
@@ -254,7 +212,7 @@ export default function HomeLuxuryTechV1() {
       backgroundColor={LUXURY.colors.ivory}
       scrollable
       safeArea
-      accessibilityLabel="K Scan Home"
+      accessibilityLabel="K Scan AI Home"
     >
       <StatusBar style="dark" />
 
@@ -274,7 +232,7 @@ export default function HomeLuxuryTechV1() {
             >
               <View style={styles.avatarCircle}>
                 <Text style={styles.avatarText}>
-                  {profileName ? profileName.charAt(0).toUpperCase() : '✦'}
+                  {preferredName ? preferredName.charAt(0).toUpperCase() : '✦'}
                 </Text>
               </View>
             </Pressable>
@@ -286,9 +244,9 @@ export default function HomeLuxuryTechV1() {
       {isAuthenticated && (
         <Text
           style={styles.greeting}
-          accessibilityLabel={`Welcome, ${firstName ?? 'K Scanner'}`}
+          accessibilityLabel={`Welcome, ${preferredName ?? 'K Scanner'}`}
         >
-          {`Welcome, ${firstName ?? 'K Scanner'}`}
+          {`Welcome, ${preferredName ?? 'K Scanner'}`}
         </Text>
       )}
 
@@ -325,7 +283,7 @@ export default function HomeLuxuryTechV1() {
             source={require('../../assets/images/home-hero-v1.png')}
             style={styles.heroImageActual}
             resizeMode="cover"
-            accessibilityLabel="K Scan home hero image"
+            accessibilityLabel="K Scan AI home hero image"
           />
         </View>
       </View>
@@ -440,7 +398,7 @@ export default function HomeLuxuryTechV1() {
         />
       </View>
 
-      {/* Secondary entries: TextScan if enabled, VoiceScan placeholder */}
+      {/* Secondary entries: TextScan when enabled */}
       <View style={styles.secondaryActionsRow}>
         {textScanEnabled && (
           <SecondaryButton
@@ -455,14 +413,13 @@ export default function HomeLuxuryTechV1() {
             style={styles.secondaryActionButton}
           />
         )}
-        <VoiceScanPlaceholderPill style={textScanEnabled ? styles.secondaryActionHalf : styles.secondaryActionFull} />
       </View>
 
       {/* Trust footer */}
       <PrivacyFooter
         onPrivacyPress={() => router.push('/privacy')}
         onDataPress={() => void Linking.openURL('https://kscan.app/legal/delete-account')}
-        trustCopy="Private by design. K Scan is not designed for facial recognition or identifying people."
+        trustCopy="Private by design. K Scan AI is not designed for facial recognition or identifying people."
         privacyTestID="home-luxury-privacy-button"
       />
 
@@ -657,46 +614,5 @@ const styles = StyleSheet.create({
     flex: 1,
     alignSelf: 'stretch',
     minWidth: undefined,
-  },
-  secondaryActionHalf: {
-    flex: 1,
-  },
-  secondaryActionFull: {
-    flex: 1,
-  },
-  voiceScanPill: {
-    alignSelf: 'stretch',
-    minHeight: 44,
-    borderRadius: LUXURY.buttons.secondary.borderRadius,
-    backgroundColor: LUXURY.buttons.secondary.backgroundColor,
-    borderWidth: LUXURY.buttons.secondary.borderWidth,
-    borderColor: LUXURY.buttons.secondary.borderColor,
-    paddingHorizontal: SPACING.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING.xs,
-  },
-  voiceScanPillInactive: {
-    opacity: 0.5,
-    borderColor: LUXURY.colors.border,
-  },
-  voiceScanPillTitle: {
-    ...LUXURY.typography.cta,
-    fontSize: LUXURY.buttons.secondary.fontSize,
-    letterSpacing: LUXURY.buttons.secondary.letterSpacing,
-    fontWeight: LUXURY.buttons.secondary.fontWeight,
-    color: LUXURY.buttons.secondary.color,
-    textAlign: 'center',
-  },
-  voiceScanPillSubtitle: {
-    ...LUXURY.typography.caption,
-    fontSize: 11,
-    letterSpacing: 0.5,
-    color: LUXURY.colors.graphite,
-    textAlign: 'center',
-    textTransform: 'uppercase',
-  },
-  voiceScanPillTextMuted: {
-    color: LUXURY.colors.stone,
   },
 });

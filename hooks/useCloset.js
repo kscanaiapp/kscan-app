@@ -1,21 +1,34 @@
 import { useState, useCallback, useRef } from 'react';
 import { useFocusEffect } from 'expo-router';
 import {
-  loadCloset,
+  loadClosetTyped,
+  CLOSET_LOAD_CODES,
   deleteClosetItem,
   createClosetItem,
+  updateClosetItem,
 } from '../services/closetLibrary';
 import { promoteScanToCloset } from '../services/closetPromotion';
 import { getClosetItemProjections } from '../services/closetItemProjection';
 import { createActorRequest, isActorRequestCurrent } from '../services/actorContext';
+import {
+  afterClosetItemDeleted,
+  beforeClosetItemDeleted,
+  noteClosetItemSaved,
+  revertClosetItemDeleteMark,
+  resumeClosetSync,
+} from '../services/closet/closetSyncCoordinator';
+import { resumeClosetRestore } from '../services/closet/closetRestoreEngine';
+import { resumeClosetHistoricalMigration } from '../services/closet/closetHistoricalMigrationEngine';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 
 /**
  * Closet inventory state for the Library "Closet" section.
  *
- * Device-local only in this testing pass: there is no cloud list, no image
- * upload, and no background sync. Any future cloud path must be a separate,
- * explicitly authorized change.
+ * The Closet itself is DEVICE-LOCAL AND ALWAYS AVAILABLE. Build 34 Track B
+ * Phase B2B adds OUTBOUND cloud sync as a K+ enhancement layered on top: every
+ * local mutation below still completes, and is still reported to the user,
+ * exactly as it did before, whether or not the cloud accepts anything. There
+ * is no cloud LIST and no download path — inbound restore is B2C.
  *
  * Actor safety mirrors useLibrary(): results are held in an actorKey-stamped
  * snapshot and a completion captured before an actor transition is discarded
@@ -33,6 +46,7 @@ export function useCloset() {
   const [snapshot, setSnapshot] = useState({ actorKey: null, items: [] });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [loadError, setLoadError] = useState(null);
   const { isAuthenticated, user } = useAuthSession();
   const actorId = isAuthenticated ? user?.id ?? null : null;
   const actorKey = actorId ? `user:${actorId}` : 'device-local';
@@ -48,17 +62,64 @@ export function useCloset() {
       isActorRequestCurrent(actorRequest);
 
     setLoading(true);
-    setSnapshot({ actorKey, items: [] });
+    setLoadError(null);
 
-    void loadCloset(actorId)
-      .then((items) => {
+    // Opportunistic cloud resume, in the SAME focus effect as the local read
+    // rather than a second one: this is one of B2B's normal triggers (with
+    // save and delete), and it is what makes pending work from a previous
+    // session, an offline period, or a lapsed-then-reactivated K+ entitlement
+    // pick itself back up without any background scheduler.
+    //
+    // Never awaited and never able to affect what this screen renders — the
+    // local read below is the sole authority for that. The engine is
+    // single-flight, so this firing alongside a save trigger yields one pass.
+    void resumeClosetSync('closet_opened');
+
+    // Build 34 / Track B / Phase B3 — historical Closet migration.
+    // Fire-and-forget, same as the outbound resume above: B3 only enrolls
+    // pre-existing local items into B2B's sidecar and hands off to B2B's own
+    // engine, which is what actually reads/writes cloud state. It never
+    // materializes, edits, or deletes a local item, so — unlike B2C's restore
+    // below — its completion never needs to trigger a local re-read.
+    void resumeClosetHistoricalMigration('closet_opened');
+
+    // Build 34 / Track B / Phase B2C — inbound cross-device restore.
+    // Single-flight plus an anti-churn cooldown collapse rapid re-focus into
+    // one real pass. Unlike outbound sync, a completed pass CAN change what
+    // this screen should show (materialize/update/delete), so its completion
+    // re-reads the local Closet via `refresh` — referenced here rather than
+    // in this callback's own dependency list only because `refresh` is
+    // declared later in this hook; by the time this continuation actually
+    // runs (always after the full render that defines it), the reference is
+    // resolved. The re-read itself is still fully guarded by `isCurrent()`.
+    void resumeClosetRestore('closet_opened').then(() => {
+      if (!isCurrent()) return;
+      void refresh();
+    });
+
+    // The snapshot is NOT blanked here. Cross-actor safety is already provided
+    // by the actorKey stamp below — a snapshot belonging to another actor reads
+    // as empty without being destroyed — and blanking first is what turned a
+    // failed read into a false "your Closet is empty".
+    void loadClosetTyped(actorId, { actorRequest })
+      .then((result) => {
         if (!isCurrent()) return;
-        setSnapshot({ actorKey, items: getClosetItemProjections(items) });
+        if (result.ok) {
+          setSnapshot({ actorKey, items: getClosetItemProjections(result.items) });
+        } else if (result.code !== CLOSET_LOAD_CODES.ACTOR_CHANGED) {
+          // A failure describes the READ, not the inventory. Whatever this actor
+          // already had on screen stays on screen, and the surface is told why
+          // so it can offer recovery instead of claiming emptiness.
+          setLoadError({ code: result.code, message: result.message });
+        }
         setLoading(false);
       })
       .catch(() => {
         if (!isCurrent()) return;
-        setSnapshot({ actorKey, items: [] });
+        setLoadError({
+          code: CLOSET_LOAD_CODES.READ_FAILED,
+          message: "We couldn't load your Closet.",
+        });
         setLoading(false);
       });
 
@@ -72,12 +133,41 @@ export function useCloset() {
 
   useFocusEffect(hydrate);
 
-  /** Re-read from disk under a fresh actor request. */
+  /**
+   * Re-read from disk under a fresh actor request.
+   *
+   * A refresh REFRESHES. It never clears: a read that fails leaves the items the
+   * actor already had intact and reports the failure instead, so an intake that
+   * could not be re-read cannot present as an emptied Closet.
+   */
   const refresh = useCallback(async () => {
     const actorRequest = createActorRequest();
-    const items = await loadCloset(actorId);
-    if (!isActorRequestCurrent(actorRequest)) return;
-    setSnapshot({ actorKey, items: getClosetItemProjections(items) });
+    const requestGeneration = ++requestGenerationRef.current;
+    let result;
+    try {
+      result = await loadClosetTyped(actorId, { actorRequest });
+    } catch {
+      result = {
+        ok: false,
+        items: [],
+        code: CLOSET_LOAD_CODES.READ_FAILED,
+        message: "We couldn't load your Closet.",
+      };
+    }
+    // Ordering guard: a slower earlier read must not land on top of a newer one.
+    if (
+      !isActorRequestCurrent(actorRequest) ||
+      requestGenerationRef.current !== requestGeneration
+    ) {
+      return result;
+    }
+    if (result.ok) {
+      setSnapshot({ actorKey, items: getClosetItemProjections(result.items) });
+      setLoadError(null);
+    } else if (result.code !== CLOSET_LOAD_CODES.ACTOR_CHANGED) {
+      setLoadError({ code: result.code, message: result.message });
+    }
+    return result;
   }, [actorId, actorKey]);
 
   /**
@@ -101,6 +191,10 @@ export function useCloset() {
         // must not be shown to the new actor.
         if (result.ok && isActorRequestCurrent(actorRequest)) {
           await refresh();
+          // Local save is already committed and already reflected above. Cloud
+          // sync is started AFTER, and deliberately not awaited: the user is
+          // done, and a slow or failing network must not hold the UI.
+          void noteClosetItemSaved(actorId, result.item?.id);
         }
         return result;
       } finally {
@@ -124,6 +218,39 @@ export function useCloset() {
         });
         if (result.ok && isActorRequestCurrent(actorRequest)) {
           await refresh();
+          void noteClosetItemSaved(actorId, result.item?.id);
+        }
+        return result;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [actorId, busy, refresh]
+  );
+
+  /**
+   * Edit a committed Closet item's own metadata.
+   *
+   * The store is the authority on WHO may write: updateClosetItem resolves the
+   * actor and matches the row against it, so a request for someone else's item
+   * comes back `not_found` rather than mutating anything. This hook adds only
+   * the UI-side guarantees — a single in-flight write, and a re-read from disk
+   * afterwards so the grid shows the persisted record rather than an optimistic
+   * guess about what was saved.
+   */
+  const update = useCallback(
+    async (id, patch) => {
+      if (busy) return { ok: false, reason: 'busy' };
+      setBusy(true);
+      const actorRequest = createActorRequest();
+      try {
+        const result = await updateClosetItem(id, patch, {
+          actorRequest,
+          ownerId: actorId,
+        });
+        if (result.ok && isActorRequestCurrent(actorRequest)) {
+          await refresh();
+          void noteClosetItemSaved(actorId, id);
         }
         return result;
       } finally {
@@ -135,6 +262,21 @@ export function useCloset() {
 
   const remove = useCallback(
     async (id) => {
+      // MARKED BEFORE THE LOCAL DELETE, unlike save. deleteClosetItem is a hard
+      // delete: mark afterwards and a crash in between would destroy the only
+      // record that a synced cloud row still needs a tombstone. See
+      // services/closet/closetSyncCoordinator.ts for the full ordering rules.
+      const precondition = await beforeClosetItemDeleted(actorId, id);
+      if (!precondition.allowed) {
+        // NOT cloud-gating the local Closet: this item is known to have a
+        // synced cloud row, and the local write required to durably remember
+        // "the user wants this gone" could not be completed. Proceeding
+        // would hard-delete the local record while leaving the cloud row
+        // live with no trace anywhere that deletion was ever requested.
+        // Surfaced as an ordinary failed removal — retrying is the correct
+        // recovery, same as any other local write hiccup.
+        return false;
+      }
       const ok = await deleteClosetItem(id, { ownerId: actorId });
       if (ok) {
         setSnapshot((current) =>
@@ -142,6 +284,11 @@ export function useCloset() {
             ? { ...current, items: current.items.filter((item) => item.id !== id) }
             : current
         );
+        void afterClosetItemDeleted();
+      } else {
+        // The local delete did not happen, so the cloud row must not be
+        // tombstoned either.
+        await revertClosetItemDeleteMark(actorId, id, precondition.previous);
       }
       return ok;
     },
@@ -149,5 +296,7 @@ export function useCloset() {
   );
 
   const items = snapshot.actorKey === actorKey ? snapshot.items : [];
-  return { items, loading, busy, addFromUri, addFromScan, remove, refresh };
+  // A failure is only this actor's failure while their own snapshot is showing.
+  const error = snapshot.actorKey === actorKey || snapshot.actorKey === null ? loadError : null;
+  return { items, loading, busy, error, addFromUri, addFromScan, update, remove, refresh };
 }

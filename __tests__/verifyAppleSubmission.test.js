@@ -11,7 +11,7 @@ test('Apple submission verifier runs the expected local release gates', () => {
     'npm run test:auth-privacy',
     'npm run test:verify-supabase',
     'npm run test:analyze-contract',
-    'node --test __tests__/routingGuard.test.js __tests__/processDeletionRequest.test.js __tests__/verifyAppleReadiness.test.js',
+    'node --test __tests__/routingGuard.test.js __tests__/processDeletionRequest.test.js __tests__/verifyAppleReadiness.test.js __tests__/manualDeletionAppleRevocation.test.js',
     'npm run verify:apple-readiness',
     'npx --yes eas-cli@latest metadata:lint',
   ]);

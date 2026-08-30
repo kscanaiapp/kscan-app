@@ -200,8 +200,23 @@ function isExpiredAt(candidate: { expiresAt?: unknown }, nowMs: number): boolean
 }
 
 /** Category / type / subtype / colour, in that order, skipping what is absent. */
+/**
+ * Join the present taxonomy values, dropping ones already said.
+ *
+ * Mirrors services/closetItemProjection.ts exactly — see the note there. A
+ * plain top is classified as category "top" AND subtype "top", which joined to
+ * "top · top · black" on every review card.
+ */
 function summarize(parts: readonly (string | null)[]): string | null {
-  const present = parts.filter((part): part is string => typeof part === 'string' && !!part);
+  const present: string[] = [];
+  const seen = new Set<string>();
+  for (const part of parts) {
+    if (typeof part !== 'string' || !part) continue;
+    const key = part.trim().toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    present.push(part);
+  }
   return present.length ? present.join(' · ') : null;
 }
 

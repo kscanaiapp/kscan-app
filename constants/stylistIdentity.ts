@@ -7,6 +7,10 @@
 // list, and the chat session screen.
 
 export type StylistIdentity = {
+  /** Resolved for display: the custom name if one is set, else the canonical
+   *  name for avatarId, else the safe default. This is what every consumer
+   *  (UI, greeting, model persona) already reads and continues to read
+   *  unchanged (Fix #6 resolves this value; it does not change its shape). */
   displayName: string;
   avatarId: string;
 };
@@ -37,7 +41,7 @@ export type StylistAvatarPresetAbstract = {
   source?: never;
   selectable: true;
   persistable: true;
-  voiceProfile: 'silent';
+  voiceProfile: StylistVoiceProfile;
 };
 
 export type StylistAvatarPresetPortraitPlaceholder = {
@@ -96,6 +100,54 @@ export const DEFAULT_STYLIST_IDENTITY: StylistIdentity = Object.freeze({
   avatarId: 'elise_default',
 });
 
+/**
+ * Owner-approved visible identity for the system Elise alias.
+ *
+ * Persistence keeps the stable `elise_default` value. Rendering, speech
+ * animation and V10 package resolution use the canonical portrait so there is
+ * one Elise face without rewriting stored user preferences.
+ */
+export const CANONICAL_ELISE_PORTRAIT_ID = 'stylist_portrait_01' as const;
+
+export function resolveStylistVisualAvatarId(avatarId: string | null | undefined): string {
+  const resolved = resolveAvatarId(avatarId);
+  return resolved === DEFAULT_STYLIST_IDENTITY.avatarId
+    ? CANONICAL_ELISE_PORTRAIT_ID
+    : resolved;
+}
+
+// ── Fix #6 — canonical per-portrait names and the single name resolver ──────
+//
+// Every shipped portrait has a default display name; a generic/abstract avatar
+// (including the system default) resolves to "Elise", the system identity — not
+// specific to stylist_portrait_01. A user's custom name (set via
+// PersonalizeStylistModal) always overrides the resolved default. THIS is the
+// one place that precedence is decided; every consumer (Home, StyleChatHeader,
+// greeting composition, the backend model persona) resolves through
+// normalizeStylistIdentity's already-resolved `displayName` rather than
+// re-implementing the rule.
+
+export const CANONICAL_PORTRAIT_NAMES: ReadonlyMap<string, string> = Object.freeze(
+  new Map([
+    ['stylist_portrait_01', 'Elise'],
+    ['stylist_portrait_02', 'Henry'],
+    ['stylist_portrait_03', 'Janet'],
+    ['stylist_portrait_04', 'Marie'],
+    ['stylist_portrait_05', 'Sarah'],
+    ['stylist_portrait_06', 'Vivian'],
+    ['stylist_portrait_07', 'Isabella'],
+    ['stylist_portrait_08', 'Michael'],
+    ['stylist_portrait_09', 'David'],
+    ['stylist_portrait_10', 'Kim'],
+  ]),
+);
+
+/** Canonical default name for a portrait; abstract presets/unknown ids fall back to the safe default. */
+export function resolveCanonicalStylistName(avatarId: string | null | undefined): string {
+  if (!avatarId) return DEFAULT_STYLIST_IDENTITY.displayName;
+  return CANONICAL_PORTRAIT_NAMES.get(avatarId) ?? DEFAULT_STYLIST_IDENTITY.displayName;
+}
+
 /** Maximum display-name length enforced by UI and persistence. */
 export const STYLIST_NAME_MAX_LENGTH = 24;
 
@@ -118,7 +170,7 @@ const ABSTRACT_PRESET_DEFINITIONS: StylistAvatarPresetAbstract[] = [
     symbolColor: '#52103E',
     selectable: true,
     persistable: true,
-    voiceProfile: 'silent',
+    voiceProfile: 'feminine',
   },
   {
     id: 'editorial_plum',
@@ -419,6 +471,24 @@ export interface StylistSpeechConfiguration {
     open: number;
     round?: number;
   };
+  /**
+   * Approved non-speaking portrait frames. Fix #4 may consume these from the
+   * authoritative native playback state; this registry never advances them.
+   */
+  expressionFrameSources?: {
+    confident: number;
+    engaged: number;
+    neutral: number;
+    thoughtful: number;
+    warm: number;
+    blink: number;
+    brows: number;
+    browsRaised: number;
+    eyesClosed: number;
+    eyesHalf: number;
+    eyesOpen: number;
+    focused: number;
+  };
 }
 
 const SPEECH_CONFIG_ENTRIES: readonly [string, StylistSpeechConfiguration][] = Object.freeze([
@@ -434,6 +504,21 @@ const SPEECH_CONFIG_ENTRIES: readonly [string, StylistSpeechConfiguration][] = O
         closed: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_mouth_closed.png') : 1,
         halfOpen: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_mouth_half_open.png') : 1,
         open: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_mouth_open.png') : 1,
+        round: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/round-mouth-02.png') : 1,
+      },
+      expressionFrameSources: {
+        confident: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_confident.png') : 1,
+        engaged: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_engaged.png') : 1,
+        neutral: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_neutral.png') : 1,
+        thoughtful: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_thoughtful.png') : 1,
+        warm: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_02_warm.png') : 1,
+        blink: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/blink-02.png') : 1,
+        brows: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/brows-02.png') : 1,
+        browsRaised: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/brows-raised-02.png') : 1,
+        eyesClosed: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/eyes-closed-02.png') : 1,
+        eyesHalf: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/eyes-half-02.png') : 1,
+        eyesOpen: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/eyes-open-02.png') : 1,
+        focused: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/focused-02.png') : 1,
       },
     },
   ],
@@ -466,6 +551,55 @@ const SPEECH_CONFIG_ENTRIES: readonly [string, StylistSpeechConfiguration][] = O
 /** Speech configuration keyed by existing avatar preset ID. */
 export const STYLIST_SPEECH_CONFIG_BY_ID: ReadonlyMap<string, StylistSpeechConfiguration> =
   createReadonlyMap(SPEECH_CONFIG_ENTRIES);
+
+// Elise's canonical visible portrait is speech-driven through the persisted
+// `elise_default` identity. Keep its artwork in the render contract so the
+// validated three-entry speech/voice registry remains unchanged.
+const FACIAL_MOTION_CONFIG_ENTRIES: readonly [string, StylistSpeechConfiguration][] = Object.freeze([
+  [
+    CANONICAL_ELISE_PORTRAIT_ID,
+    {
+      speakingMotionMode: 'mouth_states',
+      mouthRegion: { x: 0.41, y: 0.56, width: 0.18, height: 0.09 },
+      mouthStateSources: {
+        closed: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_01_mouth_closed.png') : 1,
+        halfOpen: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_01_mouth_half_open.png') : 1,
+        open: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_01_mouth_open.png') : 1,
+      },
+    },
+  ],
+]);
+
+/** Render-only mouth configuration outside the speech/voice registry. */
+export const STYLIST_FACIAL_MOTION_CONFIG_BY_ID: ReadonlyMap<string, StylistSpeechConfiguration> =
+  createReadonlyMap(FACIAL_MOTION_CONFIG_ENTRIES);
+
+// ── Optional static-portrait framing correction ───────────────────────────────
+//
+// Some bundled 1:1 portrait sources place the subject off-center within their
+// own frame, which a circular avatar mask then clips asymmetrically. This is a
+// presentation-only recenter (zoom + horizontal shift at render time) for the
+// static portrait; it intentionally does not apply to the mouth-state overlay
+// system, whose assets carry their own independently calibrated framing.
+
+export interface StylistAvatarFraming {
+  /** Horizontal recenter offset as a fraction of the rendered avatar size. */
+  offsetXRatio: number;
+}
+
+// The approved Henry base has its own headroom, so the picker uses the shared
+// size-by-size cover path without a presentation transform.
+const FRAMING_OVERRIDE_ENTRIES: readonly [string, StylistAvatarFraming][] = Object.freeze([]);
+
+export const STYLIST_AVATAR_FRAMING_BY_ID: ReadonlyMap<string, StylistAvatarFraming> =
+  createReadonlyMap(FRAMING_OVERRIDE_ENTRIES);
+
+export function getStylistAvatarFraming(
+  avatarId: string | null | undefined,
+): StylistAvatarFraming | undefined {
+  if (!avatarId) return undefined;
+  return STYLIST_AVATAR_FRAMING_BY_ID.get(avatarId);
+}
 
 /** Presets that are selectable in the personalization UI. */
 export const STYLIST_SELECTABLE_PRESETS: readonly StylistAvatarPreset[] = Object.freeze(
@@ -547,6 +681,14 @@ export function getStylistSpeechConfig(
   return STYLIST_SPEECH_CONFIG_BY_ID.get(avatarId);
 }
 
+/** Resolve approved mouth artwork without expanding the speech/voice registry. */
+export function getStylistMouthMotionConfig(
+  avatarId: string | null | undefined,
+): StylistSpeechConfiguration | undefined {
+  if (!avatarId) return undefined;
+  return STYLIST_SPEECH_CONFIG_BY_ID.get(avatarId) ?? STYLIST_FACIAL_MOTION_CONFIG_BY_ID.get(avatarId);
+}
+
 /**
  * Determine whether a preset is configured for speaking motion.
  * Abstract avatars and placeholders always return false.
@@ -595,16 +737,45 @@ export function sanitizeStylistName(value: unknown): {
 }
 
 /**
+ * THE single name resolver (Fix #6). customName wins whenever it sanitizes to a
+ * valid value; otherwise the canonical name for avatarId; otherwise the safe
+ * default. UI, greeting composition, and the backend model persona must all
+ * resolve through this precedence — never re-implement it independently.
+ *
+ * Callers decide what counts as "a custom name" (see normalizeStylistIdentity,
+ * which gates on the persisted display_name_customized flag) — this function
+ * itself only sanitizes and applies precedence, it does not read storage.
+ */
+export function resolveStylistDisplayName(
+  customName: string | null | undefined,
+  avatarId: string | null | undefined,
+): string {
+  if (typeof customName === 'string') {
+    const nameResult = sanitizeStylistName(customName);
+    if (nameResult.valid) return nameResult.value;
+  }
+  return resolveCanonicalStylistName(avatarId);
+}
+
+/**
  * Build a validated identity object from raw persisted data. This is the only
  * place raw storage rows should be normalized so every consumer receives the
  * same safe fallback.
+ *
+ * `display_name` stays a required historical column (existing consumers,
+ * migrations, and defaults are untouched). Whether it represents a genuine
+ * user choice is tracked by the separate `display_name_customized` boolean
+ * (added for Fix #6, default false) — only when that flag is true is the
+ * stored text treated as an explicit override; otherwise the canonical name
+ * for avatarId (or the safe default) is resolved instead. This is what keeps
+ * a pre-Fix-#6 row's historical 'Elise' from being mistaken for a deliberate
+ * customization once a different avatar's canonical name should apply.
  */
 export function normalizeStylistIdentity(raw: unknown): StylistIdentity {
   const fallback = DEFAULT_STYLIST_IDENTITY;
   if (!raw || typeof raw !== 'object') return fallback;
 
   const record = raw as Record<string, unknown>;
-  const nameResult = sanitizeStylistName(record.display_name ?? record.displayName);
   const avatarId = resolveAvatarId(
     typeof record.avatar_id === 'string'
       ? record.avatar_id
@@ -613,7 +784,12 @@ export function normalizeStylistIdentity(raw: unknown): StylistIdentity {
         : undefined,
   );
 
-  const displayName = nameResult.valid ? nameResult.value : fallback.displayName;
+  const isCustomized = record.display_name_customized === true;
+  const rawStoredName = record.display_name ?? record.displayName;
+  const customName =
+    isCustomized && typeof rawStoredName === 'string' ? rawStoredName : null;
+  const displayName = resolveStylistDisplayName(customName, avatarId);
+
   return displayName === fallback.displayName && avatarId === fallback.avatarId
     ? fallback
     : Object.freeze({ displayName, avatarId });

@@ -134,12 +134,16 @@ test('TextScan navigation guard prevents rapid duplicates and releases on focus'
   assert.doesNotMatch(homeV1, /setTimeout\(\(\) => setTextScanNavigating\(false\)/);
 });
 
-test('Voice Scan pill remains non-interactive and shows Coming Soon', () => {
-  assert.match(homeV1, /testID="home-luxury-voicescan-coming-soon"/);
-  assert.match(homeV1, /VOICE SCAN/);
-  assert.match(homeV1, /COMING SOON/);
-  assert.doesNotMatch(homeV1, /onPress=\{[^}]*\}\s*\n\s*<VoiceScanPlaceholderPill/);
-  assert.match(homeV1, /accessibilityRole="text"/);
+test('Build 33: the unfinished Voice Scan surface is absent from production Home', () => {
+  // Build 32 shipped a reviewer-visible "VOICE SCAN / COMING SOON" pill. Voice
+  // Scan is unimplemented, so App Review could read Home as an incomplete app.
+  // Build 33 removes the surface outright rather than dimming it.
+  assert.doesNotMatch(homeV1, /voicescan/i);
+  assert.doesNotMatch(homeV1, /VOICE SCAN/);
+  assert.doesNotMatch(homeV1, /COMING SOON/);
+  assert.doesNotMatch(homeV1, /VOICESCAN_ENABLED/);
+  // TextScan is a real, shipping entry point and must survive the removal.
+  assert.match(homeV1, /testID="home-luxury-textscan"/);
 });
 
 test('Android manifest removes mic, fine-location, and storage permissions from dependency merges', () => {
@@ -226,9 +230,15 @@ test('identity hook hydrates once per authenticated actor', () => {
   assert.match(useStylistIdentity, /resetStylistIdentityStore\(\)/);
 });
 
-test('Home sessions hook creates a new conversation without conditional resume copy', () => {
+test('Home sessions hook resumes the latest conversation without conditional resume copy', () => {
   assert.match(useStyleChatSessions, /listStyleChatSessions/);
-  assert.match(homeV1, /const \{ createSession \} = useStyleChatSessions\(\)/);
+  assert.match(homeV1, /const \{ createSession, getLatestSessionId \} = useStyleChatSessions\(\)/);
   assert.match(homeV1, /launchStyleChatSession/);
+  // Which conversation to resume is resolved server-side inside the launch
+  // guard. Deriving it from the locally loaded list raced with that list's
+  // load: before it arrived the card read "no sessions", flipped its copy, and
+  // started a new conversation on top of an existing one.
   assert.doesNotMatch(homeV1, /hasStyleChatSessions/);
+  assert.doesNotMatch(homeV1, /sessions\.length/);
+  assert.doesNotMatch(homeStylistCard, /hasSessions/);
 });
