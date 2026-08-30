@@ -272,10 +272,22 @@ test('stylist speech permissions remain playback-only and device TTS is absent f
   // modules/kscan-voice-native, hooks/useVoiceScan.ts,
   // __tests__/iosAppReviewSurface.test.js) -- so this no longer asserts
   // their absence globally. What it still proves, unchanged: stylist
-  // speech (expo-audio) requests no microphone capability of its own.
+  // speech (expo-audio) requests no RECORDING capability of its own.
+  //
+  // microphonePermission is NOT that proof and can no longer be `false`.
+  // NSMicrophoneUsageDescription is a single app-wide plist key owned by Voice
+  // Scan, and Expo's createPermissionsPlugin treats `false` as DELETE -- so
+  // pinning it false here erased Voice Scan's usage string from the built
+  // plist. Recording capability is proved by recordAudioAndroid below and by
+  // the allowsRecording:false assertions in stylistVoiceReliability.test.js.
   const appJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'app.json'), 'utf8'));
   const audioPlugin = appJson.expo.plugins.find((entry) => Array.isArray(entry) && entry[0] === 'expo-audio');
-  assert.equal(audioPlugin?.[1]?.microphonePermission, false);
+  assert.equal(
+    audioPlugin?.[1]?.microphonePermission,
+    appJson.expo.ios.infoPlist.NSMicrophoneUsageDescription,
+    "expo-audio must carry Voice Scan's microphone string verbatim, never false (which deletes it)",
+  );
+  assert.match(audioPlugin?.[1]?.microphonePermission, /Voice Scan/);
   assert.equal(audioPlugin?.[1]?.recordAudioAndroid, false);
   const packageJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
   assert.equal(packageJson.dependencies['expo-audio'], '~1.1.1');

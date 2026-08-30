@@ -56,6 +56,7 @@ public class KScanVoiceNativeModule: Module {
   private var maxDurationTimer: Timer?
   private var latestPartialTranscript = ""
   private var sessionLocale: String?
+  private var activeSessionId: String?
   private var pendingStopPromise: Promise?
   private var backgroundObserver: NSObjectProtocol?
 
@@ -72,17 +73,31 @@ public class KScanVoiceNativeModule: Module {
       self.requestPermissions(promise: promise)
     }
 
+    // These three are stateful over shared session fields (activeSessionId,
+    // latestPartialTranscript, pendingStopPromise, the engine/recognizer/timer
+    // pair). Expo's AsyncFunction does not guarantee a queue by default, so
+    // without this they could run concurrently with each other AND with the
+    // SFSpeechRecognizer result callback below -- pinning all three to the
+    // main queue, alongside that callback hopping to main, gives the session
+    // lifecycle one serialized authority instead of racing threads.
     AsyncFunction("startListening") { (options: [String: Any]?, promise: Promise) in
-      self.startListening(locale: options?["locale"] as? String, promise: promise)
+      self.startListening(
+        locale: options?["locale"] as? String,
+        sessionId: options?["sessionId"] as? String,
+        promise: promise
+      )
     }
+    .runOnQueue(.main)
 
-    AsyncFunction("stopListening") { (promise: Promise) in
-      self.finishListening(promise: promise)
+    AsyncFunction("stopListening") { (options: [String: Any], promise: Promise) in
+      self.finishListening(sessionId: options["sessionId"] as? String, promise: promise)
     }
+    .runOnQueue(.main)
 
-    AsyncFunction("cancelListening") { (promise: Promise) in
-      self.cancelListening(promise: promise)
+    AsyncFunction("cancelListening") { (options: [String: Any], promise: Promise) in
+      self.cancelListening(sessionId: options["sessionId"] as? String, promise: promise)
     }
+    .runOnQueue(.main)
 
     OnCreate {
       self.backgroundObserver = NotificationCenter.default.addObserver(
@@ -128,7 +143,20 @@ public class KScanVoiceNativeModule: Module {
         }
         self.requestMicrophonePermission { micGranted in
           DispatchQueue.main.async {
-            promise.resolve(["granted": micGranted, "canAskAgain": !micGranted])
+            promise.resolve([
+              "granted": micGranted,
+              // Once this completion has actually run, iOS has either just
+              // shown its one-time system prompt and recorded the user's
+              // answer, or is returning a previously-recorded answer without
+              // showing UI at all -- either way there is no further native
+              // prompt this app can ever trigger again for microphone access.
+              // A prior version inferred canAskAgain from the pre-request
+              // status being .undetermined, which is backwards: undetermined
+              // before + denied now means the user just permanently denied
+              // it through the one-time prompt, which is exactly the case
+              // that must route to Settings, not promise another ask.
+              "canAskAgain": false,
+            ])
           }
         }
       }
@@ -145,7 +173,11 @@ public class KScanVoiceNativeModule: Module {
 
   // MARK: - Start
 
-  private func startListening(locale: String?, promise: Promise) {
+  private func startListening(locale: String?, sessionId: String?, promise: Promise) {
+    guard let sessionId = sessionId, !sessionId.isEmpty else {
+      promise.reject(VoiceRecognizerException("Missing Voice Scan session identity."))
+      return
+    }
     guard recognitionTask == nil, audioEngine == nil else {
       promise.reject(VoiceAlreadyListeningException())
       return
@@ -200,23 +232,36 @@ public class KScanVoiceNativeModule: Module {
     audioEngine = engine
     recognitionRequest = request
     sessionLocale = resolvedLocale.identifier
+    activeSessionId = sessionId
     latestPartialTranscript = ""
 
     recognitionTask = recognizer.recognitionTask(with: request) { [weak self] result, error in
-      guard let self = self else { return }
-      if let result = result {
-        self.latestPartialTranscript = result.bestTranscription.formattedString
-        self.sendEvent("onPartialTranscript", ["transcript": self.latestPartialTranscript])
-        if result.isFinal {
-          self.completeSession(reason: .recognizerFinalized, error: nil)
+      // SFSpeechRecognizer does not guarantee this handler runs on main, but
+      // every field it touches (activeSessionId, latestPartialTranscript,
+      // pendingStopPromise via completeSession, teardown state) is also
+      // touched by the main-queue-confined AsyncFunctions above. Hop to main
+      // before reading or mutating any of it so there is one serialized
+      // authority for the session lifecycle, not two threads racing it.
+      DispatchQueue.main.async {
+        guard let self = self else { return }
+        guard self.activeSessionId == sessionId else { return }
+        if let result = result {
+          self.latestPartialTranscript = result.bestTranscription.formattedString
+          self.sendEvent("onPartialTranscript", [
+            "sessionId": sessionId,
+            "transcript": self.latestPartialTranscript,
+          ])
+          if result.isFinal {
+            self.completeSession(sessionId: sessionId, reason: .recognizerFinalized, error: nil)
+          }
+        } else if let error = error {
+          self.completeSession(sessionId: sessionId, reason: .error, error: error)
         }
-      } else if let error = error {
-        self.completeSession(reason: .error, error: error)
       }
     }
 
     maxDurationTimer = Timer.scheduledTimer(withTimeInterval: Self.maxDurationSeconds, repeats: false) { [weak self] _ in
-      self?.completeSession(reason: .maxDurationReached, error: nil)
+      self?.completeSession(sessionId: sessionId, reason: .maxDurationReached, error: nil)
     }
 
     promise.resolve(nil)
@@ -224,8 +269,8 @@ public class KScanVoiceNativeModule: Module {
 
   // MARK: - Stop / cancel
 
-  private func finishListening(promise: Promise) {
-    guard recognitionTask != nil else {
+  private func finishListening(sessionId: String?, promise: Promise) {
+    guard recognitionTask != nil, activeSessionId == sessionId else {
       promise.reject(VoiceNotListeningException())
       return
     }
@@ -244,8 +289,8 @@ public class KScanVoiceNativeModule: Module {
     audioEngine?.inputNode.removeTap(onBus: 0)
   }
 
-  private func cancelListening(promise: Promise) {
-    guard recognitionTask != nil else {
+  private func cancelListening(sessionId: String?, promise: Promise) {
+    guard recognitionTask != nil, activeSessionId == sessionId else {
       promise.resolve(nil)
       return
     }
@@ -260,8 +305,8 @@ public class KScanVoiceNativeModule: Module {
 
   // MARK: - Session lifecycle
 
-  private func completeSession(reason: SessionEndReason, error: Error?) {
-    guard recognitionTask != nil else { return }
+  private func completeSession(sessionId: String, reason: SessionEndReason, error: Error?) {
+    guard recognitionTask != nil, activeSessionId == sessionId else { return }
 
     let transcript = latestPartialTranscript
     let locale = sessionLocale
@@ -302,7 +347,7 @@ public class KScanVoiceNativeModule: Module {
     case .error: mappedReason = "error"
     case .interrupted: mappedReason = "interrupted"
     }
-    var payload: [String: Any] = ["reason": mappedReason]
+    var payload: [String: Any] = ["sessionId": sessionId, "reason": mappedReason]
     if let error = error {
       payload["errorCode"] = (error as NSError).domain
     }
@@ -319,6 +364,9 @@ public class KScanVoiceNativeModule: Module {
 
   private func teardownSession(emitInterruptedEvent: Bool) {
     let wasListening = recognitionTask != nil
+    let interruptedSessionId = activeSessionId
+    let interruptedStop = pendingStopPromise
+    pendingStopPromise = nil
     maxDurationTimer?.invalidate()
     maxDurationTimer = nil
     recognitionTask?.cancel()
@@ -329,10 +377,12 @@ public class KScanVoiceNativeModule: Module {
     recognitionRequest = nil
     latestPartialTranscript = ""
     sessionLocale = nil
+    activeSessionId = nil
     try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
 
-    if emitInterruptedEvent && wasListening {
-      sendEvent("onSessionEnded", ["reason": "interrupted"])
+    interruptedStop?.reject(VoiceNotListeningException())
+    if emitInterruptedEvent && wasListening, let sessionId = interruptedSessionId {
+      sendEvent("onSessionEnded", ["sessionId": sessionId, "reason": "interrupted"])
     }
   }
 }

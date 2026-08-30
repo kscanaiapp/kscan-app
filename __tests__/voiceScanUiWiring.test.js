@@ -21,6 +21,20 @@ const useVoiceScan = read('hooks', 'useVoiceScan.ts');
 const textScanInput = read('components', 'text-scan', 'TextScanInput.tsx');
 const textScanScreen = read('app', 'text-scan', 'index.tsx');
 const voiceNativeModule = read('services', 'voice', 'voiceNativeModule.ts');
+const voiceNativeTypes = read('modules', 'kscan-voice-native', 'src', 'KScanVoiceNative.types.ts');
+const iosVoiceNative = read('modules', 'kscan-voice-native', 'ios', 'KScanVoiceNativeModule.swift');
+const androidVoiceNative = read(
+  'modules',
+  'kscan-voice-native',
+  'android',
+  'src',
+  'main',
+  'java',
+  'expo',
+  'modules',
+  'kscanvoicenative',
+  'KScanVoiceNativeModule.kt',
+);
 
 // ── Flag gating ──────────────────────────────────────────────────────────
 
@@ -47,6 +61,13 @@ test('tapping the mic while K+ is inactive opens the existing upgrade sheet and 
     voiceScanButton.indexOf('const sheetVisible ='),
   );
   assert.match(handlePress, /if \(!isKPlusActive\) \{\s*openUpgrade\(\);\s*return;\s*\}/);
+});
+
+test('the actionable Voice Scan control keeps visible K+ identity in locked and active states', () => {
+  assert.match(voiceScanButton, />VOICE SCAN</);
+  assert.match(voiceScanButton, />K\+</);
+  assert.match(voiceScanButton, /UPGRADE TO K\+/);
+  assert.match(voiceScanButton, /INCLUDED · TAP TO SPEAK/);
 });
 
 // ── No silent mic: permission/listening only ever start from an explicit tap ──
@@ -134,7 +155,13 @@ test('NEGATIVE CONTROL: a mutant hook that auto-starts on mount is caught by the
 // ── Review is mandatory / convergence with the existing TextScan path ────
 
 test('a finalized transcript populates the EXISTING TextScan query field, never a second input/screen', () => {
-  assert.match(textScanScreen, /rightAccessory=\{<VoiceScanButton onTranscript=\{setQuery\} disabled=\{isSubmitting\} \/>\}/);
+  assert.match(textScanScreen, /rightAccessory=\{[\s\S]*<VoiceScanButton[\s\S]*setQuery\(transcript\)[\s\S]*setQuerySource\('voicescan'\)/);
+});
+
+test('a reviewed Voice transcript reaches the existing authenticated TextScan call with the fixed voicescan source', () => {
+  assert.match(textScanScreen, /querySource === 'voicescan'[\s\S]*buildVoiceSubmitOptions\(query\)/);
+  assert.match(textScanScreen, /analyzeTextWithEdge\(query, invokeOptions\)/);
+  assert.doesNotMatch(textScanScreen, /analyzeTextWithEdge\(query, \{ source: 'textscan' \}\)/);
 });
 
 test('VoiceScanButton never renders its own submit/search button -- it hands the transcript back and stops', () => {
@@ -175,4 +202,99 @@ test('the native bridge module never references Commerce/Elise/retailer/Supabase
   for (const forbidden of [/supabase/i, /scan-identify/, /commerce/i, /elise/i, /retailer/i]) {
     assert.doesNotMatch(voiceNativeModule, forbidden);
   }
+});
+
+test('rapid taps, entitlement loss, and unmount all invalidate the active session before native cleanup', () => {
+  assert.match(useVoiceScan, /stateRef\.current[\s\S]*includes\(stateRef\.current\)\) return;/);
+  assert.match(useVoiceScan, /isKPlusActiveRef\.current = isKPlusActive;[\s\S]*activeSessionIdRef\.current = null;[\s\S]*abandonVoiceListening\(sessionId\)/);
+  assert.match(useVoiceScan, /useEffect\(\(\) => \(\) => \{[\s\S]*activeSessionIdRef\.current = null;[\s\S]*abandonVoiceListening\(sessionId\)/);
+});
+
+test('native callbacks and stop/cancel calls are bound to one opaque session identity on both platforms', () => {
+  assert.match(voiceNativeTypes, /sessionId: string/);
+  assert.match(voiceNativeModule, /event\?\.sessionId/);
+  assert.match(iosVoiceNative, /activeSessionId == sessionId/);
+  assert.match(iosVoiceNative, /"sessionId": sessionId/);
+  assert.match(androidVoiceNative, /activeSessionId != sessionId/);
+  assert.match(androidVoiceNative, /"sessionId" to sessionId/);
+});
+
+test('NEGATIVE CONTROL: a callback without session identity fails the stale-event contract', () => {
+  const staleUnsafeEvent = 'sendEvent("onSessionEnded", ["reason": "interrupted"])';
+  const hasBoundSession = (source) => /sessionId/.test(source);
+  assert.equal(hasBoundSession(staleUnsafeEvent), false);
+  assert.equal(hasBoundSession(iosVoiceNative), true);
+  assert.equal(hasBoundSession(androidVoiceNative), true);
+});
+
+// ── Fix 217-A: iOS session thread confinement (source contract) ────────────
+//
+// This module can't be compiled in this environment (no Xcode), so the
+// thread-confinement contract is proven the same way the rest of this file
+// proves native behavior: by inspecting the actual shipped Swift source for
+// the exact constructs that make it true, not by running it.
+
+test('217-A: startListening/stopListening/cancelListening each run on the main queue', () => {
+  for (const fnName of ['startListening', 'stopListening', 'cancelListening']) {
+    const start = iosVoiceNative.indexOf(`AsyncFunction("${fnName}")`);
+    assert.notEqual(start, -1, `AsyncFunction("${fnName}") must exist`);
+    const nextBrace = iosVoiceNative.indexOf('.runOnQueue(.main)', start);
+    const nextAsyncFunction = iosVoiceNative.indexOf('AsyncFunction(', start + 1);
+    assert.ok(
+      nextBrace !== -1 && (nextAsyncFunction === -1 || nextBrace < nextAsyncFunction),
+      `${fnName} must be immediately followed by .runOnQueue(.main) before the next AsyncFunction`,
+    );
+  }
+});
+
+test('217-A: getCapabilities/requestPermissions are NOT forced onto a queue (narrow fix, stateless reads)', () => {
+  for (const fnName of ['getCapabilities', 'requestPermissions']) {
+    const start = iosVoiceNative.indexOf(`AsyncFunction("${fnName}")`);
+    const nextAsyncFunction = iosVoiceNative.indexOf('AsyncFunction(', start + 1);
+    const body = iosVoiceNative.slice(start, nextAsyncFunction === -1 ? undefined : nextAsyncFunction);
+    assert.doesNotMatch(body, /\.runOnQueue\(\.main\)/);
+  }
+});
+
+test('217-A: the SFSpeechRecognizer result callback hops to main before touching session state', () => {
+  const taskStart = iosVoiceNative.indexOf('recognitionTask = recognizer.recognitionTask(with: request)');
+  assert.notEqual(taskStart, -1);
+  const taskBody = iosVoiceNative.slice(taskStart, taskStart + 900);
+  const hopIndex = taskBody.indexOf('DispatchQueue.main.async');
+  const guardIndex = taskBody.indexOf('self.activeSessionId == sessionId');
+  const mutateIndex = taskBody.indexOf('self.latestPartialTranscript =');
+  assert.ok(hopIndex !== -1, 'the callback must hop to DispatchQueue.main.async');
+  assert.ok(guardIndex !== -1 && mutateIndex !== -1);
+  assert.ok(hopIndex < guardIndex, 'activeSessionId must be read AFTER hopping to main');
+  assert.ok(hopIndex < mutateIndex, 'latestPartialTranscript must be mutated AFTER hopping to main');
+});
+
+// ── Fix 217-D: iOS microphone permission permanence (source contract) ──────
+
+test('217-D: a completed microphone permission request never reports canAskAgain: true', () => {
+  const start = iosVoiceNative.indexOf('self.requestMicrophonePermission { micGranted in');
+  assert.notEqual(start, -1);
+  const body = iosVoiceNative.slice(start, iosVoiceNative.indexOf('\n  }\n\n  private func requestMicrophonePermission', start));
+  assert.match(body, /"canAskAgain":\s*false,/, 'a completed mic request must always resolve canAskAgain: false');
+  assert.doesNotMatch(
+    body,
+    /micStatusBeforeRequest/,
+    'REGRESSION: canAskAgain must not be inferred from the pre-request status -- undetermined-before + denied-now means the user just permanently denied it',
+  );
+});
+
+test('NEGATIVE CONTROL 217-D: the pre-fix inference would have reported canAskAgain: true for a permanent denial', () => {
+  // Reproduces the exact defective expression this fix replaced, evaluated
+  // against the case that matters: a first-ever ask (undetermined before)
+  // that the user denies. iOS never shows the system prompt again after
+  // this, yet the old formula said canAskAgain: true.
+  const micStatusBeforeRequest = 'undetermined';
+  const micGranted = false;
+  const buggyCanAskAgain = !micGranted && micStatusBeforeRequest === 'undetermined';
+  assert.equal(buggyCanAskAgain, true, 'sanity: reproduces the exact defect this fix removed');
+  assert.notEqual(
+    buggyCanAskAgain,
+    false,
+    'the pre-fix formula would have told JS another native prompt was possible after a permanent denial',
+  );
 });

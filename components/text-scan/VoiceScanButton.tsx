@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { KPlusGate } from '../kplus/KPlusGate';
 import { VoiceListeningSheet } from './VoiceListeningSheet';
 import { VoiceScanIcon } from '../icons/kscan';
@@ -67,9 +67,18 @@ function VoiceScanButtonInner({
         disabled={disabled}
         style={[styles.button, !isKPlusActive && styles.buttonLocked]}
         accessibilityRole="button"
-        accessibilityLabel={isKPlusActive ? 'Speak your search' : 'Voice Scan, upgrade to K+'}
+        accessibilityLabel={isKPlusActive ? 'Voice Scan, K+, included with K+. Tap to speak' : 'Voice Scan, K+, upgrade to K+'}
       >
         <VoiceScanIcon size={20} color={isKPlusActive ? LUXURY.colors.plum : LUXURY.colors.stone} />
+        <View style={styles.labelStack} pointerEvents="none">
+          <View style={styles.titleRow}>
+            <Text style={styles.label}>VOICE SCAN</Text>
+            <View style={styles.kplusBadge}>
+              <Text style={styles.kplusText}>K+</Text>
+            </View>
+          </View>
+          <Text style={styles.status}>{isKPlusActive ? 'INCLUDED · TAP TO SPEAK' : 'UPGRADE TO K+'}</Text>
+        </View>
       </Pressable>
       <VoiceListeningSheet
         visible={sheetVisible}
@@ -115,7 +124,7 @@ export function VoiceScanButton({ onTranscript, disabled }: VoiceScanButtonProps
 
 const styles = StyleSheet.create({
   button: {
-    width: 40,
+    minWidth: 142,
     height: 40,
     borderRadius: RADIUS.pill,
     alignItems: 'center',
@@ -123,8 +132,45 @@ const styles = StyleSheet.create({
     backgroundColor: LUXURY.colors.pearl,
     borderWidth: 1,
     borderColor: LUXURY.colors.border,
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 8,
   },
   buttonLocked: {
     opacity: 0.6,
+  },
+  labelStack: {
+    gap: 1,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  label: {
+    ...LUXURY.typography.caption,
+    fontSize: 8,
+    fontWeight: '700',
+    letterSpacing: 0.7,
+    color: LUXURY.colors.plumDeep,
+  },
+  kplusBadge: {
+    borderRadius: RADIUS.pill,
+    backgroundColor: LUXURY.colors.plumMuted,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+  },
+  kplusText: {
+    ...LUXURY.typography.caption,
+    fontSize: 7,
+    fontWeight: '800',
+    color: LUXURY.colors.plum,
+  },
+  status: {
+    ...LUXURY.typography.caption,
+    fontSize: 6,
+    fontWeight: '700',
+    letterSpacing: 0.25,
+    color: LUXURY.colors.stone,
   },
 });

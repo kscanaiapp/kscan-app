@@ -18,7 +18,7 @@
                                      "expo-camera",
                                      {
                                          "cameraPermission":  "K Scan AI uses your camera to photograph your outfit for style analysis.",
-                                         "microphonePermission":  false,
+                                         "microphonePermission":  "K Scan AI uses your microphone only while you are actively using Voice Scan, to let you speak a fashion search instead of typing it.",
                                          "recordAudioAndroid":  false
                                      }
                                  ],
@@ -44,7 +44,7 @@
                                  [
                                      "expo-audio",
                                      {
-                                         "microphonePermission":  false,
+                                         "microphonePermission":  "K Scan AI uses your microphone only while you are actively using Voice Scan, to let you speak a fashion search instead of typing it.",
                                          "recordAudioAndroid":  false
                                      }
                                  ]
