@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-30T13:42:38.193Z",
-    "generatedFromGitSha": "3a7e563e0d3dfea9db4c7b36dd832ef35c5d3755"
+    "generatedAtUtc": "2026-08-30T14:35:14.503Z",
+    "generatedFromGitSha": "e771f2cbc498dc7d6bf9d5e5007e9cbc20e1e91b"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -26,7 +26,8 @@
       "style-outfit-generate",
       "stylechat-generate",
       "stylist-speech",
-      "tryon-clothes-pro"
+      "tryon-clothes-pro",
+      "vto-generate"
     ],
     "functions": [
       {
@@ -1130,6 +1131,79 @@
           {
             "path": "supabase/functions/staging-health/index.ts",
             "sha256": "ac0f7dca696582b30006ab0f9c301a6add2f594aafc2b70952f6e91683401c6b",
+            "bundle": true
+          }
+        ]
+      },
+      {
+        "name": "vto-generate",
+        "entry": "supabase/functions/vto-generate/index.ts",
+        "remoteSpecifiers": [
+          "npm:@supabase/supabase-js@2"
+        ],
+        "bundleFileCount": 12,
+        "treeFileCount": 12,
+        "bundleHash": "33ad426a48953ec5aba9857ae6062bf9ef7205ee45348dd16dd004c1c2181f7a",
+        "treeHash": "33ad426a48953ec5aba9857ae6062bf9ef7205ee45348dd16dd004c1c2181f7a",
+        "files": [
+          {
+            "path": "supabase/functions/_shared/deletion/common.ts",
+            "sha256": "34425a84ea83beb2d2a2ea53aebb533f26403b2d7136b653f0e6d63a74ffcf7c",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/scanHelpers.ts",
+            "sha256": "4addf3a4199145bdea516aae7a858e788e00818753fc26eabd7441b1b26dee45",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/vto-generate/index.ts",
+            "sha256": "bb9395964b7c3e6931aa32da3282b3461ae447ba5db7f9b431f510462cd07d03",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/vto-generate/providers/index.ts",
+            "sha256": "11d2a9652a3f2c0ab6f4e913babaac1c686d5ae42a4c861d347d192dde575e94",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/vto-generate/providers/mockProvider.ts",
+            "sha256": "cd878a3b80d1ec3e475f18863995a47c938e9a5d30818347db25b7a5f78af04e",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/vto-generate/providers/mockResultAsset.ts",
+            "sha256": "e5bbb470d28744f343ebb34a70bf86ace04f5e0ed115fd776a3643a20e616a27",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/vto-generate/vtoContract.ts",
+            "sha256": "20283fc1e82a05770adae670ceec52b14442a9b1cd38a3d5660142186228fc86",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/vto-generate/vtoEligibility.ts",
+            "sha256": "1ac7c261dd43bf53f364d31527209016e9792c2bdec8ed1b64b085e4a73519d3",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/vto-generate/vtoEntitlement.ts",
+            "sha256": "dde9cb809c32a08a447562595a3ba756bc1cca8b25baf5c617b885af929a6263",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/vto-generate/vtoFeatureControl.ts",
+            "sha256": "63f337aac9cdf57e8efdc678e9f8a33a7951c8ba543c142f4efb2d87c4501526",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/vto-generate/vtoResultValidation.ts",
+            "sha256": "f8d4fabdb232cdbdf70ea587bad4907099440d67fe9c09f7b7939ea4579bf03f",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/vto-generate/vtoTelemetry.ts",
+            "sha256": "89e65ec753b39be354b9c9b1971b239aa13b19024a76a7bef7e51e24c8569da2",
             "bundle": true
           }
         ]

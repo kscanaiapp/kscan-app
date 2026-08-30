@@ -142,6 +142,7 @@ test('committed manifest governs every governed function and the approved projec
     'stylechat-generate',
     'stylist-speech',
     'tryon-clothes-pro',
+    'vto-generate',
   ]);
   assert.equal(manifest.parity.approvedProjectRef, APPROVED_PROJECT_REF);
 
