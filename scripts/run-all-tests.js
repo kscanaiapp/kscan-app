@@ -18,6 +18,7 @@
 const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
+const { evaluateFullSuiteResult } = require('./test-failure-parser-lib.js');
 
 const ROOT = path.resolve(process.argv[2] || '__tests__');
 const TEST_SUFFIX = '.test.js';
@@ -104,21 +105,18 @@ if (!Array.isArray(baseline.failures) || !baseline.failures.every((name) => type
   process.exit(1);
 }
 
-const observedFailures = [...new Set(
-  `${result.stdout || ''}\n${result.stderr || ''}`
-    .split(/\r?\n/)
-    .map((line) => line.match(/^✖ (.+?) \(\d+(?:\.\d+)?ms\)$/)?.[1])
-    .filter(Boolean),
-)];
-const knownFailures = new Set(baseline.failures);
-const unexpectedFailures = observedFailures.filter((name) => !knownFailures.has(name));
+const verdict = evaluateFullSuiteResult({
+  runnerExitCode: result.status,
+  rawOutput: `${result.stdout || ''}\n${result.stderr || ''}`,
+  knownFailures: baseline.failures,
+});
 
 console.error(`Known full-suite failure baseline: ${baseline.failures.length} identities.`);
-console.error(`Observed failures: ${observedFailures.length}; known: ${observedFailures.length - unexpectedFailures.length}; unexpected: ${unexpectedFailures.length}.`);
+console.error(`Observed failures: ${verdict.observedFailures.length}; known: ${verdict.observedFailures.length - verdict.unexpectedFailures.length}; unexpected: ${verdict.unexpectedFailures.length}.`);
 
-if (observedFailures.length === 0 || unexpectedFailures.length > 0) {
-  if (unexpectedFailures.length > 0) {
-    console.error(`Unexpected failing tests:\n${unexpectedFailures.map((name) => `- ${name}`).join('\n')}`);
+if (!verdict.ok) {
+  if (verdict.reason === 'unexpected_failures') {
+    console.error(`Unexpected failing tests:\n${verdict.unexpectedFailures.map((name) => `- ${name}`).join('\n')}`);
   } else {
     console.error('The test runner failed without a parseable test identity; refusing to mask it.');
   }
