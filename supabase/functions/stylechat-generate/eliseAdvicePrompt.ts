@@ -5,15 +5,47 @@
 import { escapePromptData } from './promptHardening.ts';
 import { ownershipLanguageLabel } from './eliseFashionFeatures.ts';
 import type {
+  EliseAdviceDisplayFacts,
   EliseAdviceIntent,
   EliseAdviceLook,
   EliseAdviceOutput,
   EliseFocusedItem,
   ElisePurchaseAdvice,
   EliseScoredCandidate,
+  EliseWardrobeCandidate,
+  EliseWardrobeContextMode,
   EliseWardrobeGap,
 } from './eliseAdviceTypes.ts';
-import { ELISE_ADVICE_CONTRACT_VERSION } from './eliseAdviceTypes.ts';
+import {
+  ELISE_ADVICE_CONTRACT_VERSION,
+  ELISE_ADVICE_CONTRACT_VERSION_V2,
+} from './eliseAdviceTypes.ts';
+
+/**
+ * C1 section 16 -- copy display facts off a SERVER-AUTHORIZED candidate.
+ *
+ * Every value is lifted from the candidate the deterministic pipeline already
+ * ranked; nothing is derived from model output and nothing is invented. A field
+ * the evidence does not carry stays null rather than being filled in, because a
+ * plausible-looking guess on a card the user reads as "my clothes" is worse
+ * than a blank.
+ */
+export function buildDisplayFacts(
+  candidate: EliseWardrobeCandidate,
+): EliseAdviceDisplayFacts {
+  return {
+    title: candidate.title,
+    category: candidate.category,
+    subtype: candidate.subcategory,
+    brand: candidate.brand,
+    // First colour only. The card shows one swatch, and picking "the primary"
+    // out of a multi-colour list is a judgement the evidence does not support.
+    primaryColor: candidate.colors[0] ?? null,
+    // The canonical id the client already stores for this row. It is how the
+    // app resolves a LOCAL image; it is not a new handle and grants nothing.
+    clientId: candidate.canonicalResourceIds.itemId ?? null,
+  };
+}
 
 export function buildEliseAdvicePromptBlock(input: {
   intent: EliseAdviceIntent;
@@ -22,6 +54,8 @@ export function buildEliseAdvicePromptBlock(input: {
   wardrobeGap: EliseWardrobeGap | null;
   purchaseAdvice: ElisePurchaseAdvice | null;
   looks: EliseAdviceLook[] | null;
+  /** Concierge capability. Off -> the pre-Concierge block, byte-identical. */
+  conciergeV1?: boolean;
 }): string {
   const lines: string[] = [
     '[Elise Closet-Aware Advice Grounding]',
@@ -36,6 +70,23 @@ export function buildEliseAdvicePromptBlock(input: {
     `- adviceIntent: ${escapePromptData(input.intent)}`,
   ];
 
+  if (input.conciergeV1) {
+    // C3 section 33 -- the FIRST defence, and the one meant to do the work. The
+    // guard downstream deletes sentences; this is what stops them being written.
+    lines.push(
+      'OWNERSHIP SEMANTICS (STRICT):',
+      '- NEVER describe an item as owned unless its evidence line says relationship=owned.',
+      '- relationship=saved means the user bookmarked it. They may not own it.',
+      '- relationship=scanned means the user photographed it. Photographing is not owning.',
+      '- relationship=shared means someone else owns it.',
+      '- relationship=discovered means it is a shopping suggestion, not a possession.',
+      '- relationship=unverified/unknown means ownership is UNKNOWN. Say nothing about owning it.',
+      '- If you want to mention a garment the user owns and no owned candidate below',
+      '  matches it, do not mention it. Absence of evidence is not evidence of absence,',
+      '  and it is never a licence to assume.',
+    );
+  }
+
   if (input.focused.candidate) {
     const f = input.focused.candidate;
     lines.push('[FOCUSED ITEM]');
@@ -46,6 +97,29 @@ export function buildEliseAdvicePromptBlock(input: {
         `language=${escapePromptData(ownershipLanguageLabel(f.actorRelationship))}`,
     );
     lines.push('[/FOCUSED ITEM]');
+  } else if (input.conciergeV1 && input.focused.resolution === 'closet_text_ambiguous') {
+    // C2 section 21. The user named something of theirs and several owned items
+    // fit. Reporting the tie -- rather than a winner -- is what stops the answer
+    // implying a specific item resolved when none did.
+    const tied = input.focused.ambiguousCandidates ?? [];
+    lines.push('[FOCUSED ITEM - AMBIGUOUS]');
+    lines.push(
+      `matchCount=${tied.length} ` +
+        `sharedCategory=${escapePromptData(input.focused.ambiguousSharedCategory ?? 'none')}`,
+    );
+    for (const candidate of tied) {
+      lines.push(
+        `- id=${escapePromptData(candidate.candidateId)} ` +
+          `category=${escapePromptData(candidate.category ?? 'unknown')} ` +
+          `colors=${escapePromptData(candidate.colors.join('|') || 'unknown')}`,
+      );
+    }
+    lines.push(
+      'HANDLING: Several owned items match what the user described. Do NOT pick one',
+      'silently and do NOT claim a specific item was identified. Either ask which one',
+      'they meant, or say plainly that several match and build around that GROUP.',
+    );
+    lines.push('[/FOCUSED ITEM - AMBIGUOUS]');
   } else {
     lines.push('[FOCUSED ITEM]');
     lines.push('none');
@@ -71,13 +145,48 @@ export function buildEliseAdvicePromptBlock(input: {
   lines.push('[/AUTHORIZED CANDIDATES]');
 
   if (input.wardrobeGap) {
-    lines.push('[WARDROBE GAP — SCOPED]');
+    const label = '— SCOPED';
+    lines.push(`[WARDROBE GAP ${label}]`);
     lines.push(
       `partialInventory=${input.wardrobeGap.partialInventory} ` +
         `codes=${escapePromptData(input.wardrobeGap.gapCodes.join(',') || 'none')} ` +
         `note=Based on the items currently available to Elise`,
     );
-    lines.push('[/WARDROBE GAP — SCOPED]');
+    if (input.conciergeV1) {
+      // C2 section 27. The prompt must be told WHICH claim the evidence can
+      // carry. Without this line the model cannot tell an exhaustive census
+      // from a bounded shortlist, and will phrase both as certainty.
+      if (input.wardrobeGap.evidenceIsExhaustive) {
+        lines.push(
+          'EVIDENCE=EXHAUSTIVE_CLOSET_CENSUS. These gaps were checked against the',
+          'entire Closet, so you may state plainly that they do not have the',
+          'listed pieces.',
+        );
+        if (input.wardrobeGap.confirmedAbsentCategories?.length) {
+          lines.push(
+            `confirmedAbsent=${escapePromptData(
+              input.wardrobeGap.confirmedAbsentCategories.join(','),
+            )}`,
+          );
+        }
+      } else {
+        lines.push(
+          'EVIDENCE=BOUNDED. These gaps come from the pieces available to this turn,',
+          'NOT from the whole Closet. Scope your language accordingly - say "based on',
+          'the pieces I reviewed" or similar. Do NOT say the user does not own something.',
+        );
+      }
+      if (input.wardrobeGap.notes.includes('small_closet_gap_restraint')) {
+        // Section 28: a small Closet is not a defective one.
+        lines.push(
+          'SMALL CLOSET: this Closet has few items, which is normal and not a problem.',
+          'Style what is present. Mention at most the single gap listed, and only if it',
+          'directly blocks what was asked. Do not audit the wardrobe for deficiencies',
+          'and do not push the user to add items.',
+        );
+      }
+    }
+    lines.push(`[/WARDROBE GAP ${label}]`);
   }
 
   if (input.purchaseAdvice) {
@@ -116,6 +225,44 @@ export function buildEliseAdvicePromptBlock(input: {
   return lines.join('\n');
 }
 
+/**
+ * C1 section 17 -- classify what wardrobe evidence actually participated.
+ *
+ * Derived from the SHORTLIST, not from entitlement and not from the flag: a K+
+ * user asking about the weather in Paris has an empty shortlist and gets
+ * 'none', which is what stops the client rendering Closet chrome on an answer
+ * that has nothing to do with their Closet.
+ */
+export function deriveWardrobeContextMode(
+  shortlist: EliseScoredCandidate[],
+  focused?: EliseFocusedItem,
+): EliseWardrobeContextMode {
+  // DEFECT DEF-CON-003. The FOCUS counts as wardrobe evidence.
+  //
+  // rankAndBoundCandidates deliberately removes the focused item from the
+  // shortlist -- you do not recommend the thing you are building around. So a
+  // one-item Closet answering "what goes with my brown loafers?" produces an
+  // EMPTY shortlist even though the answer is entirely about an owned item.
+  // Deriving the mode from the shortlist alone reported 'none' there, which
+  // would have told the client to hide all Closet presentation on precisely
+  // the flagship case this feature exists for (section 55, Test A).
+  const focusIsOwned =
+    focused?.candidate?.actorRelationship === 'owned' ||
+    // An ambiguous text match resolved no single item, but it did prove the
+    // user has owned items fitting the description -- that is Closet context.
+    (focused?.resolution === 'closet_text_ambiguous' &&
+      (focused.ambiguousCandidates?.length ?? 0) > 0);
+
+  const ownedCount = shortlist.filter(
+    (s) => s.candidate.actorRelationship === 'owned',
+  ).length;
+
+  if (ownedCount === 0) return focusIsOwned ? 'closet' : 'none';
+  // 'mixed' is the signal that the UI must label cards individually rather than
+  // filing them all under "From your Closet".
+  return ownedCount === shortlist.length ? 'closet' : 'mixed';
+}
+
 export function buildEliseAdviceMetadata(input: {
   intent: EliseAdviceIntent;
   focused: EliseFocusedItem;
@@ -123,12 +270,23 @@ export function buildEliseAdviceMetadata(input: {
   wardrobeGap: EliseWardrobeGap | null;
   purchaseAdvice: ElisePurchaseAdvice | null;
   looks: EliseAdviceLook[] | null;
+  /** Concierge capability. Off -> a byte-identical v1 payload. */
+  conciergeV1?: boolean;
 }): Omit<EliseAdviceOutput, 'text'> {
-  return {
+  const base: Omit<EliseAdviceOutput, 'text'> = {
     adviceIntent: input.intent,
     focusedItem: {
       evidenceId: input.focused.evidenceId,
       actorRelationship: input.focused.actorRelationship,
+      // DEFECT DEF-CON-004, v2 only. Without this the client cannot render the
+      // focus card, so the "FROM YOUR CLOSET / [brown loafers]" proof in
+      // section 4 was unbuildable: focusedItem carried an id and a
+      // relationship and nothing displayable, and the focus is excluded from
+      // `recommendations` by design. Same provenance rule as every other
+      // display fact -- copied off the server-authorized candidate.
+      ...(input.conciergeV1 && input.focused.candidate
+        ? { displayFacts: buildDisplayFacts(input.focused.candidate) }
+        : {}),
     },
     recommendations: input.shortlist.map((s) => ({
       candidateId: s.candidate.candidateId,
@@ -137,10 +295,34 @@ export function buildEliseAdviceMetadata(input: {
       recommendationRole: s.recommendationRole,
       score: s.score.total,
       reasonCodes: s.score.reasons.slice(0, 8),
+      // v2 ONLY. Adding the key unconditionally would change the v1 payload
+      // shape, and v1 is a shipped contract.
+      ...(input.conciergeV1 ? { displayFacts: buildDisplayFacts(s.candidate) } : {}),
     })),
     wardrobeGap: input.wardrobeGap,
     purchaseAdvice: input.purchaseAdvice,
     looks: input.looks,
-    contractVersion: ELISE_ADVICE_CONTRACT_VERSION,
+    contractVersion: input.conciergeV1
+      ? ELISE_ADVICE_CONTRACT_VERSION_V2
+      : ELISE_ADVICE_CONTRACT_VERSION,
+  };
+
+  if (!input.conciergeV1) return base;
+
+  return {
+    ...base,
+    wardrobeContextMode: deriveWardrobeContextMode(input.shortlist, input.focused),
+    focusAmbiguity:
+      input.focused.resolution === 'closet_text_ambiguous'
+        ? {
+          ambiguous: true,
+          // Ids only. The client already holds the display facts for these in
+          // `recommendations` when they ranked; it never needs prose here.
+          candidateIds: (input.focused.ambiguousCandidates ?? []).map(
+            (candidate) => candidate.candidateId,
+          ),
+          sharedCategory: input.focused.ambiguousSharedCategory ?? null,
+        }
+        : null,
   };
 }

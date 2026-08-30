@@ -5,6 +5,25 @@
 
 export const ELISE_ADVICE_CONTRACT_VERSION = 'elise_advice_v1';
 
+/**
+ * Build 34 / K+ Wardrobe Concierge V1 (C1).
+ *
+ * ADDITIVE successor to v1, not a replacement. v2 carries everything v1 did,
+ * byte-identically, plus the display facts and the wardrobe-context signal the
+ * customer-visible Concierge surface needs. A v1 client that receives a v2
+ * payload keeps working: every v2-only field is optional to it, and the prose
+ * remains authoritative for anyone who ignores the metadata entirely.
+ *
+ * The version is emitted as v2 ONLY when the Concierge capability is on for the
+ * request. Flag off → the payload is byte-identical to the pre-Concierge one,
+ * including its `elise_advice_v1` stamp.
+ */
+export const ELISE_ADVICE_CONTRACT_VERSION_V2 = 'elise_advice_v2';
+
+export type EliseAdviceContractVersion =
+  | typeof ELISE_ADVICE_CONTRACT_VERSION
+  | typeof ELISE_ADVICE_CONTRACT_VERSION_V2;
+
 export const ELISE_ADVICE_LIMITS = {
   /** Max rows fetched per source before ranking. */
   initialCandidatesPerSource: 40,
@@ -16,6 +35,14 @@ export const ELISE_ADVICE_LIMITS = {
   multiLookCount: 3,
   /** Max reason/warning codes per score. */
   maxReasonCodes: 8,
+  /**
+   * Max DISTINCT category rows returned by the deterministic Closet census.
+   * The census counts rows in the database and returns only (category, count)
+   * pairs, so this bounds the census RESULT, never the Closet it describes --
+   * that is the whole point of it (section 27: a bounded sample must never be
+   * spoken about as if it were the whole Closet).
+   */
+  censusCategories: 40,
 } as const;
 
 export type EliseAdviceIntent =
@@ -129,7 +156,20 @@ export interface EliseFocusedItem {
     | 'current_scan'
     | 'referenced_saved'
     | 'recent_evidence'
+    /** C2 section 20: a text phrase matched exactly one owned Closet item. */
+    | 'closet_text_match'
+    /**
+     * C2 section 21: a text phrase matched several credible owned items and the
+     * resolver deliberately declined to pick one. `candidate` is null in this
+     * state -- there is no resolved item -- and `ambiguousCandidates` carries
+     * the tie so the answer can reason at category level honestly.
+     */
+    | 'closet_text_ambiguous'
     | 'none';
+  /** Populated only for `closet_text_ambiguous`. Bounded. */
+  ambiguousCandidates?: EliseWardrobeCandidate[];
+  /** Shared category of the tie, when the tied items agree on one. */
+  ambiguousSharedCategory?: string | null;
 }
 
 export interface EliseWardrobeGap {
@@ -137,6 +177,17 @@ export interface EliseWardrobeGap {
   categories: string[];
   partialInventory: boolean;
   notes: string[];
+  /**
+   * C2 section 27. True only when a gap claim rests on an EXHAUSTIVE census of
+   * the authoritative Closet. False means the evidence was bounded, and the
+   * prompt/UI must scope the language rather than assert "you don't own X".
+   */
+  evidenceIsExhaustive?: boolean;
+  /**
+   * Categories the census PROVED are absent from the whole Closet. Only ever
+   * populated when `evidenceIsExhaustive` is true.
+   */
+  confirmedAbsentCategories?: string[];
 }
 
 export type ElisePurchaseAdvice = {
@@ -144,6 +195,66 @@ export type ElisePurchaseAdvice = {
   confidence: number;
   reasons: string[];
 };
+
+/**
+ * C1 section 16 -- the minimum facts a client needs to DISPLAY a validated
+ * wardrobe item without parsing prose.
+ *
+ * Every field here originates from server-authorized evidence that already
+ * passed actor scoping in retrieval. The model never authors these values: the
+ * pipeline copies them off the same EliseWardrobeCandidate the deterministic
+ * scorer ranked. `clientId` is the canonical resource id the client resolves a
+ * local image from -- it is the id the app already stores, not a new handle.
+ */
+export interface EliseAdviceDisplayFacts {
+  title: string | null;
+  category: string | null;
+  subtype: string | null;
+  brand: string | null;
+  primaryColor: string | null;
+  clientId: string | null;
+}
+
+/**
+ * C1 section 17 -- did AUTHORITATIVE wardrobe evidence actually participate in
+ * this turn?
+ *
+ * K+ being active is NOT the same question. A K+ user asking "what's the
+ * weather in Paris?" must not get Closet presentation, so the client gates the
+ * Concierge surface on this signal rather than on entitlement.
+ *
+ *   none   -- no authoritative wardrobe evidence reached the answer
+ *   closet -- every represented candidate is owned Closet evidence
+ *   mixed  -- owned Closet evidence plus other relationships (saved/scanned/
+ *             shared/discovered), which the UI must label individually
+ *
+ * The boolean the client actually gates on is `mode !== 'none'`; keeping one
+ * field rather than two avoids the two drifting apart.
+ */
+export type EliseWardrobeContextMode = 'none' | 'closet' | 'mixed';
+
+/**
+ * C2 sections 26/27 -- deterministic, EXHAUSTIVE category census of the
+ * authoritative Closet.
+ *
+ * This exists to separate two claims the shortlist alone cannot distinguish:
+ *
+ *   "not in the shortlist"  !=  "not in the Closet"
+ *
+ * The census is computed by counting rows, not by reading them: no item text
+ * reaches the prompt through it, and no sample stands in for the whole. When
+ * `exhaustive` is false the pipeline must scope its language ("based on the
+ * pieces I reviewed") instead of asserting absence.
+ */
+export interface EliseClosetCensus {
+  /** True only when this census counted the WHOLE Closet, not a bounded page. */
+  exhaustive: boolean;
+  totalItems: number;
+  /** category -> row count. Categories only; never titles, brands or colors. */
+  countsByCategory: Record<string, number>;
+  /** layering role -> row count, derived from category via the shared mapper. */
+  countsByLayeringRole: Record<string, number>;
+}
 
 export interface EliseAdviceLook {
   lookId: string;
@@ -158,6 +269,8 @@ export interface EliseAdviceOutput {
   focusedItem: {
     evidenceId: string | null;
     actorRelationship: string;
+    /** v2 (Concierge) only. Absent on v1 payloads and when no item resolved. */
+    displayFacts?: EliseAdviceDisplayFacts;
   };
   recommendations: Array<{
     candidateId: string;
@@ -166,11 +279,30 @@ export interface EliseAdviceOutput {
     recommendationRole: EliseRecommendationRole;
     score: number;
     reasonCodes: string[];
+    /** v2 (Concierge) only. Absent on v1 payloads. */
+    displayFacts?: EliseAdviceDisplayFacts;
   }>;
   wardrobeGap: EliseWardrobeGap | null;
   purchaseAdvice: ElisePurchaseAdvice | null;
   looks: EliseAdviceLook[] | null;
-  contractVersion: typeof ELISE_ADVICE_CONTRACT_VERSION;
+  /**
+   * v2 (Concierge) only. Absent on v1 payloads, which a client must read as
+   * 'none' -- never as "unknown, so assume Closet".
+   */
+  wardrobeContextMode?: EliseWardrobeContextMode;
+  /**
+   * v2 (Concierge) only. Present when the focus phrase matched more than one
+   * credible owned item and the pipeline deliberately did NOT pick one
+   * (section 21). The UI uses it to avoid implying a specific item resolved.
+   */
+  focusAmbiguity?: {
+    ambiguous: true;
+    /** Candidate ids that tied. Bounded; ids only, never prose. */
+    candidateIds: string[];
+    /** Shared category the tie collapsed to, when the tied items agree on one. */
+    sharedCategory: string | null;
+  } | null;
+  contractVersion: EliseAdviceContractVersion;
 }
 
 export interface EliseAdviceTelemetry {
@@ -187,6 +319,18 @@ export interface EliseAdviceTelemetry {
   multiLookCount: number;
   flagState: Record<string, boolean>;
   stableErrorClass: string | null;
+  /**
+   * C4 section 54 -- aggregate Concierge dimensions only. Every field here is a
+   * count, an enum or a bucket; none of them can carry item text, a Closet
+   * inventory, a Signature Style, a URI or a storage path.
+   */
+  wardrobeContextMode?: EliseWardrobeContextMode;
+  focusResolutionClass?: string;
+  focusAmbiguous?: boolean;
+  censusExhaustive?: boolean;
+  censusTotalItems?: number;
+  lookRoleRepairs?: number;
+  ownershipProseConflict?: boolean;
 }
 
 export interface EliseAdvicePipelineResult {
@@ -196,6 +340,8 @@ export interface EliseAdvicePipelineResult {
   wardrobeGap: EliseWardrobeGap | null;
   purchaseAdvice: ElisePurchaseAdvice | null;
   looks: EliseAdviceLook[] | null;
+  wardrobeContextMode: EliseWardrobeContextMode;
+  census: EliseClosetCensus | null;
   promptBlock: string;
   adviceMetadata: Omit<EliseAdviceOutput, 'text'>;
   telemetry: EliseAdviceTelemetry;

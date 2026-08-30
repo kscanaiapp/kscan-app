@@ -108,6 +108,18 @@ import {
   type ParsedFashionContextV2,
 } from './fashionContextV2.ts';
 import { runEliseAdvicePipeline } from './eliseAdvicePipeline.ts';
+import { buildClosetCensus, CENSUS_ROW_CAP } from './eliseClosetCensus.ts';
+import { enforceOwnershipProseSafety } from './eliseOwnershipProseSafety.ts';
+import type { EliseClosetCensus, EliseScoredCandidate } from './eliseAdviceTypes.ts';
+
+/**
+ * C3 section 35. Neutral copy substituted when an ungrounded ownership claim is
+ * removed and nothing safe survives. Deliberately says only what the validated
+ * structured metadata can back: there is wardrobe evidence, and the cards below
+ * are it. It names no garment, so it cannot itself become a false claim.
+ */
+const CONCIERGE_NEUTRAL_OWNERSHIP_FALLBACK =
+  'Here are options from the wardrobe evidence available for this look.';
 import type { EliseWardrobeDataSource } from './eliseWardrobeRetrieval.ts';
 import { ELISE_ADVICE_CONTRACT_VERSION, ELISE_ADVICE_LIMITS } from './eliseAdviceTypes.ts';
 
@@ -1300,6 +1312,34 @@ Deno.serve(async (req) => {
         if (error) throw error;
         return (data ?? null) as Record<string, unknown> | null;
       },
+      // C2 section 22. Present only when the Concierge capability is on; with
+      // the flag off the resolver has no such source and behaves exactly as it
+      // did before this train.
+      //
+      // K+ ENFORCEMENT IS RLS, NOT A BRANCH HERE. This block is built before
+      // the per-request has_active_k_plus() probe runs, and duplicating that
+      // probe earlier would add a round trip to every non-Concierge request.
+      // It is not needed: RLS on user_closet_items is itself gated on
+      // has_active_k_plus(), so a non-K+ session's own query returns zero rows
+      // and the resolver falls through to the legacy tables. The `user_id`
+      // filter is the second, independent actor scope.
+      ...(config.flags.conciergeV1
+        ? {
+          fetchClosetItem: async (id: string) => {
+            const { data, error } = await userClient
+              .from('user_closet_items')
+              .select(
+                'id,user_id,title,category,clothing_type,subtype,brand,primary_color,material',
+              )
+              .eq('id', id)
+              .eq('user_id', userId)
+              .is('deleted_at', null)
+              .maybeSingle();
+            if (error) throw error;
+            return (data ?? null) as Record<string, unknown> | null;
+          },
+        }
+        : {}),
       fetchDressingRoom: async (roomId) => {
         const { data, error } = await userClient
           .from('dressing_rooms')
@@ -1941,6 +1981,12 @@ Deno.serve(async (req) => {
   // ── E-4 closet-aware advice (flag-gated; fail-open on retrieval errors) ─────
   let advicePromptBlock: string | null = null;
   let adviceMetadata: Record<string, unknown> | null = null;
+  /**
+   * The scored shortlist, kept so the ownership prose guard can check generated
+   * text against the SAME owned evidence the metadata was built from. Empty
+   * whenever advice did not run, which is what keeps the guard off Base Elise.
+   */
+  let adviceShortlistForProseSafety: EliseScoredCandidate[] = [];
   if (config.flags.adviceIntentsV1) {
     try {
       const wardrobeData: EliseWardrobeDataSource = {
@@ -2083,11 +2129,46 @@ Deno.serve(async (req) => {
                     ...(typeof row.primary_color === 'string' ? [row.primary_color] : []),
                     ...(Array.isArray(row.secondary_colors) ? row.secondary_colors : []),
                   ],
+                  // C2 section 25. `subtype` is SELECTED above but the shared
+                  // normalizer only reads subcategory out of snapshot metadata,
+                  // so the column was being dropped on the floor and never
+                  // reached a display card. Routing it through the existing
+                  // snapshot/metadata convention recovers it without touching
+                  // the shared normalization authority, which section 25
+                  // explicitly puts out of scope for this train.
+                  snapshot_payload: { metadata: { subcategory: row.subtype ?? null } },
                 }));
+              },
+              // C2 sections 26/27. Two narrow columns for COUNTING only; no
+              // title, brand, colour or id is read, so nothing from this query
+              // can reach the prompt as item content. Same K+ gate and the same
+              // RLS backstop as the retrieval source above.
+              async listClosetCensusRows(actorId: string, rowCap: number) {
+                const { data } = await userClient
+                  .from('user_closet_items')
+                  .select('category, clothing_type, subtype')
+                  .eq('user_id', actorId)
+                  .is('deleted_at', null)
+                  .limit(Math.min(rowCap, CENSUS_ROW_CAP));
+                return (data ?? []) as Record<string, unknown>[];
               },
             }
           : {}),
       };
+
+      // C2 sections 26/27. Computed only when Concierge is on AND the census
+      // source exists (K+ active). A failure here degrades gap claims to
+      // bounded scope -- it never fails the turn and never silently upgrades
+      // a bounded answer into a confident one.
+      let closetCensus: EliseClosetCensus | null = null;
+      if (config.flags.conciergeV1 && wardrobeData.listClosetCensusRows) {
+        try {
+          const censusRows = await wardrobeData.listClosetCensusRows(userId, CENSUS_ROW_CAP);
+          closetCensus = buildClosetCensus({ rows: censusRows, rowCap: CENSUS_ROW_CAP });
+        } catch {
+          closetCensus = null;
+        }
+      }
 
       const adviceResult = await runEliseAdvicePipeline({
         message,
@@ -2101,7 +2182,9 @@ Deno.serve(async (req) => {
           wardrobeGapV1: config.flags.wardrobeGapV1,
           purchaseAdviceV1: config.flags.purchaseAdviceV1,
           multiLookV1: config.flags.multiLookV1,
+          conciergeV1: config.flags.conciergeV1,
         },
+        census: closetCensus,
         weatherSummary: weatherContext ? JSON.stringify(weatherContext).slice(0, 400) : null,
         // Prefer the richer, server-derived wardrobe-evidence summary (actual
         // aggregate facts) over the client-fed feedback-signal counts when
@@ -2118,6 +2201,7 @@ Deno.serve(async (req) => {
       if (adviceResult) {
         advicePromptBlock = adviceResult.promptBlock;
         adviceMetadata = adviceResult.adviceMetadata as unknown as Record<string, unknown>;
+        adviceShortlistForProseSafety = adviceResult.shortlist;
         emitEliseTelemetry(config, 'elise_advice_outcome', {
           requestId,
           adviceIntent: adviceResult.telemetry.adviceIntent,
@@ -2141,11 +2225,37 @@ Deno.serve(async (req) => {
           kPlusActive: hasActiveKPlusForWardrobeContext,
           styleDnaAvailable: serverStyleDnaAvailable,
         });
+
+        // Section 54. One Concierge event per turn, carrying only aggregate
+        // dimensions. Emitted even when the mode is 'none' -- knowing how often
+        // a Concierge-eligible turn used NO Closet context is the whole point
+        // of the signal, and dropping those would bias the measurement.
+        if (config.flags.conciergeV1) {
+          emitEliseTelemetry(config, 'concierge_turn_outcome', {
+            requestId,
+            adviceIntent: adviceResult.telemetry.adviceIntent,
+            wardrobeContextMode: adviceResult.telemetry.wardrobeContextMode ?? 'none',
+            ownedEvidenceUsed:
+              (adviceResult.telemetry.wardrobeContextMode ?? 'none') !== 'none',
+            focusResolutionClass: adviceResult.telemetry.focusResolutionClass ?? 'none',
+            focusAmbiguous: adviceResult.telemetry.focusAmbiguous ?? false,
+            censusExhaustive: adviceResult.telemetry.censusExhaustive ?? false,
+            censusTotalItems: adviceResult.telemetry.censusTotalItems ?? 0,
+            groundedCandidateCount: adviceResult.telemetry.groundedCandidateCount,
+            lookCount: adviceResult.telemetry.multiLookCount,
+            gapPresented: (adviceResult.wardrobeGap?.gapCodes.length ?? 0) > 0,
+            gapEvidenceExhaustive: adviceResult.wardrobeGap?.evidenceIsExhaustive ?? false,
+            kPlusActive: hasActiveKPlusForWardrobeContext,
+            retrievalLatencyMs: adviceResult.telemetry.retrievalLatencyMs,
+            stableErrorClass: adviceResult.telemetry.stableErrorClass,
+          });
+        }
       }
     } catch {
       // E-4 is fail-open: advice enrichment must never block core generation.
       advicePromptBlock = null;
       adviceMetadata = null;
+      adviceShortlistForProseSafety = [];
     }
   }
 
@@ -2697,6 +2807,40 @@ Deno.serve(async (req) => {
   // and best-effort Gemini text return status "success".
   // Additive, optional explanation. Included only on a real/best-effort success path with a
   // non-empty parsed explanation; older clients that ignore the field are unaffected.
+  /**
+   * C3 sections 33/35 -- ownership prose safety, the LAST line of defence.
+   *
+   * The prompt (section 33) and the server-authored structured metadata
+   * (section 32) are what actually keep ownership honest; this only catches an
+   * obvious claim that slipped past both. It deletes the offending sentence and
+   * falls back to neutral copy if nothing safe remains -- it never rewrites the
+   * sentence into a different garment, because prose no system authored is a
+   * worse outcome than the claim it replaced.
+   *
+   * Runs only when Concierge is on AND a shortlist exists: with no wardrobe
+   * evidence there is nothing to check ownership language against, and guessing
+   * would suppress ordinary Base Elise answers.
+   */
+  let assistantTextSafe = assistantText;
+  let ownershipProseConflict = false;
+  if (config.flags.conciergeV1 && adviceShortlistForProseSafety.length > 0) {
+    const verdict = enforceOwnershipProseSafety({
+      text: assistantText,
+      shortlist: adviceShortlistForProseSafety,
+      neutralFallback: CONCIERGE_NEUTRAL_OWNERSHIP_FALLBACK,
+    });
+    assistantTextSafe = verdict.safeText;
+    ownershipProseConflict = verdict.conflictDetected;
+    if (verdict.conflictDetected) {
+      // Section 54: garment CLASS codes only. Never the sentence, never a title.
+      emitEliseTelemetry(config, 'concierge_ownership_prose_conflict', {
+        requestId,
+        conflictCodes: verdict.conflictCodes.join('|').slice(0, 160),
+        shortlistSize: adviceShortlistForProseSafety.length,
+      });
+    }
+  }
+
   const responseMessage: {
     sender: 'assistant';
     content: string;
@@ -2705,7 +2849,7 @@ Deno.serve(async (req) => {
     why_this_works?: string;
   } = {
     sender: 'assistant',
-    content: assistantText,
+    content: assistantTextSafe,
     model: modelName,
     tokenEstimate: finalTokenEstimate,
   };
@@ -2760,6 +2904,19 @@ Deno.serve(async (req) => {
    * The value is the compact Today projection, never `WeatherStylingContext`
    * itself: no coordinates, no cache key, no raw provider payload.
    */
+  /**
+   * C1 section 15. The advertised version must be the version the payload IS.
+   *
+   * This used to be the v1 constant unconditionally, which was correct while v1
+   * was the only contract. Reading it off the metadata keeps the header and the
+   * body from disagreeing the moment Concierge stamps v2 -- a client that trusts
+   * the header would otherwise miss displayFacts on a payload that has them.
+   */
+  function adviceContractVersionForResponse(): string {
+    const declared = adviceMetadata?.contractVersion;
+    return typeof declared === 'string' ? declared : ELISE_ADVICE_CONTRACT_VERSION;
+  }
+
   function weatherContextResponseFields(): Record<string, unknown> {
     if (!weatherContext) return {};
     return {
@@ -2785,7 +2942,7 @@ Deno.serve(async (req) => {
       ...weatherContextResponseFields(),
       ...(adviceMetadata && config.flags.adviceMetadataClientV1
         ? {
-            adviceContractVersion: ELISE_ADVICE_CONTRACT_VERSION,
+            adviceContractVersion: adviceContractVersionForResponse(),
             adviceMetadata,
           }
         : {}),
@@ -2809,7 +2966,7 @@ Deno.serve(async (req) => {
     ...weatherContextResponseFields(),
     ...(adviceMetadata && config.flags.adviceMetadataClientV1
       ? {
-          adviceContractVersion: ELISE_ADVICE_CONTRACT_VERSION,
+          adviceContractVersion: adviceContractVersionForResponse(),
           adviceMetadata,
         }
       : {}),

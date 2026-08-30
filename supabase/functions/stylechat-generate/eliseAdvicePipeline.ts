@@ -6,6 +6,8 @@ import type { EliseVisualContextEnvelope } from './eliseVisualContextTypes.ts';
 import type {
   EliseAdvicePipelineResult,
   EliseAdviceIntent,
+  EliseClosetCensus,
+  EliseWardrobeContextMode,
 } from './eliseAdviceTypes.ts';
 import {
   classifyEliseAdviceIntent,
@@ -25,6 +27,7 @@ import {
 import {
   buildEliseAdviceMetadata,
   buildEliseAdvicePromptBlock,
+  deriveWardrobeContextMode,
 } from './eliseAdvicePrompt.ts';
 
 export interface EliseAdviceFlagState {
@@ -34,6 +37,11 @@ export interface EliseAdviceFlagState {
   wardrobeGapV1: boolean;
   purchaseAdviceV1: boolean;
   multiLookV1: boolean;
+  /**
+   * Build 34 / K+ Wardrobe Concierge V1. Off -> every Concierge behaviour in
+   * this pipeline is bypassed and the result is the pre-Concierge one.
+   */
+  conciergeV1?: boolean;
 }
 
 function extractOccasionTokens(message: string): string[] {
@@ -82,17 +90,22 @@ export async function runEliseAdvicePipeline(input: {
   flags: EliseAdviceFlagState;
   weatherSummary?: string | null;
   signatureStyleSummary?: string | null;
+  /**
+   * C2 sections 26/27. Deterministic Closet census, when the caller could
+   * compute one. Null is a normal state (no K+, flag off, query failed) and
+   * degrades gap claims to bounded scope rather than failing the turn.
+   */
+  census?: EliseClosetCensus | null;
 }): Promise<EliseAdvicePipelineResult | null> {
   const flags = input.flags;
   if (!flags.adviceIntentsV1) return null;
+  const conciergeV1 = Boolean(flags.conciergeV1);
 
   const noShopping = /\b(without\s+buying|no\s+shopping|closet\s+only)\b/i.test(input.message);
   const intent: EliseAdviceIntent = classifyEliseAdviceIntent(input.message, {
     preferClosetFirst: true,
     noShopping,
   });
-
-  const focused = resolveEliseFocusedItem({ envelope: input.envelope });
 
   let shortlist = [] as ReturnType<typeof rankAndBoundCandidates>;
   let retrievalLatencyMs = 0;
@@ -103,6 +116,15 @@ export async function runEliseAdvicePipeline(input: {
   let ownershipSourceCounts: Record<string, number> = {};
   let partialFailure = false;
   let inventoryCount = 0;
+
+  // C2 section 20. Retrieval runs BEFORE focus resolution because a possessive
+  // phrase ("my brown loafers") can only be matched against candidates the
+  // actor is already authorized for. Retrieval never consults the focus, so
+  // reordering these two is behaviour-preserving; scoring, which does consult
+  // it, still runs after both.
+  let authorizedCandidates: Awaited<
+    ReturnType<typeof retrieveAuthorizedWardrobeCandidates>
+  >['candidates'] = [];
 
   if (flags.closetRetrievalV1) {
     const retrieval = await retrieveAuthorizedWardrobeCandidates({
@@ -118,7 +140,18 @@ export async function runEliseAdvicePipeline(input: {
     ownershipSourceCounts = retrieval.ownershipSourceCounts;
     partialFailure = retrieval.partialFailure;
     inventoryCount = retrieval.candidates.length;
+    authorizedCandidates = retrieval.candidates;
+  }
 
+  const focused = resolveEliseFocusedItem({
+    envelope: input.envelope,
+    message: input.message,
+    authorizedCandidates,
+    conciergeV1,
+  });
+
+  if (flags.closetRetrievalV1) {
+    const retrieval = { candidates: authorizedCandidates };
     if (flags.compatibilityScoringV1) {
       const scoreStarted = Date.now();
       shortlist = rankAndBoundCandidates({
@@ -169,6 +202,8 @@ export async function runEliseAdvicePipeline(input: {
           shortlist,
           inventoryCount,
           partialFailure,
+          census: input.census ?? null,
+          conciergeV1,
         })
       : null;
 
@@ -179,7 +214,7 @@ export async function runEliseAdvicePipeline(input: {
 
   const looks =
     flags.multiLookV1 && (intent === 'multi_look_generation' || intent === 'build_outfit')
-      ? buildMultiLooks({ intent, shortlist, wardrobeGap })
+      ? buildMultiLooks({ intent, shortlist, wardrobeGap, conciergeV1 })
       : null;
 
   const promptBlock = buildEliseAdvicePromptBlock({
@@ -189,6 +224,7 @@ export async function runEliseAdvicePipeline(input: {
     wardrobeGap,
     purchaseAdvice,
     looks,
+    conciergeV1,
   });
 
   const adviceMetadata = buildEliseAdviceMetadata({
@@ -198,7 +234,12 @@ export async function runEliseAdvicePipeline(input: {
     wardrobeGap,
     purchaseAdvice,
     looks,
+    conciergeV1,
   });
+
+  const wardrobeContextMode: EliseWardrobeContextMode = conciergeV1
+    ? deriveWardrobeContextMode(shortlist, focused)
+    : 'none';
 
   return {
     intent,
@@ -207,6 +248,8 @@ export async function runEliseAdvicePipeline(input: {
     wardrobeGap,
     purchaseAdvice,
     looks,
+    wardrobeContextMode,
+    census: conciergeV1 ? (input.census ?? null) : null,
     promptBlock,
     adviceMetadata,
     telemetry: {
@@ -228,8 +271,16 @@ export async function runEliseAdvicePipeline(input: {
         wardrobeGapV1: flags.wardrobeGapV1,
         purchaseAdviceV1: flags.purchaseAdviceV1,
         multiLookV1: flags.multiLookV1,
+        conciergeV1,
       },
       stableErrorClass: partialFailure ? 'retrieval_partial_failure' : null,
+      // Section 54: aggregate dimensions only. Every value below is an enum, a
+      // boolean or a count -- none of them can carry item text.
+      wardrobeContextMode,
+      focusResolutionClass: focused.resolution,
+      focusAmbiguous: focused.resolution === 'closet_text_ambiguous',
+      censusExhaustive: input.census?.exhaustive ?? false,
+      censusTotalItems: input.census?.totalItems ?? 0,
     },
   };
 }

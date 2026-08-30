@@ -20,6 +20,16 @@ export function isUuid(value: string | null | undefined): boolean {
 export type EliseResourceDataSource = {
   fetchSavedScan(id: string): Promise<Record<string, unknown> | null>;
   fetchInspirationItem(id: string): Promise<Record<string, unknown> | null>;
+  /**
+   * Build 34 / K+ Wardrobe Concierge V1 (C2 section 22). The AUTHORITATIVE
+   * Track B Closet row (user_closet_items), which `closet_item` attachments
+   * actually point at.
+   *
+   * Optional so every pre-Concierge caller and test keeps working with it
+   * absent -- and so a non-K+ session simply has no such source, exactly as
+   * `listClosetItems` behaves in retrieval.
+   */
+  fetchClosetItem?(id: string): Promise<Record<string, unknown> | null>;
   fetchDressingRoom(roomId: string): Promise<Record<string, unknown> | null>;
   fetchDressingRoomItem(
     roomId: string,
@@ -107,7 +117,56 @@ export async function resolveClosetItem(
   itemId: string | null,
 ): Promise<EliseResourceResolution> {
   if (!itemId || !isUuid(itemId)) return { status: 'invalid_reference' };
-  let row: Record<string, unknown> | null;
+  // C2 section 22. The AUTHORITATIVE Closet is consulted FIRST.
+  //
+  // Before Concierge this resolver only knew the legacy inspiration_items and
+  // saved_scans tables, so a `closet_item` attachment naming a real Track B
+  // Closet row resolved `not_found` -- the customer-facing symptom being that
+  // tapping an actual Closet garment into Elise silently produced no context.
+  // Ordering matters: the authoritative table wins ties, and the legacy lookups
+  // below remain intact as the fallback for rows that predate it.
+  //
+  // This is the SAME resolver, with the same actor scoping and the same
+  // envelope -- not a bypass route.
+  let row: Record<string, unknown> | null = null;
+  if (data.fetchClosetItem) {
+    try {
+      const closetRow = await data.fetchClosetItem(itemId);
+      if (closetRow) {
+        if (!ownerMatches(closetRow, actorId)) return { status: 'unauthorized' };
+        const closetStorage = storageCanonical(closetRow);
+        return {
+          status: 'verified',
+          actorRelationship: 'owned',
+          sourceType: 'closet_item',
+          trust: 'server_verified',
+          canonicalIds: {
+            itemId,
+            sourceId: itemId,
+            storageBucket: closetStorage.bucket,
+            storagePath: closetStorage.path,
+          },
+          metadata: {
+            title: asString(closetRow.title),
+            // Prefer the specific garment type over the taxonomy bucket, the
+            // same preference retrieval and the census both apply.
+            category: asString(closetRow.clothing_type) ?? asString(closetRow.category),
+            colors: [
+              ...(asString(closetRow.primary_color) ? [asString(closetRow.primary_color)!] : []),
+            ],
+            materials: asString(closetRow.material) ? [asString(closetRow.material)!] : [],
+            silhouette: null,
+            brand: asString(closetRow.brand),
+          },
+        };
+      }
+    } catch {
+      // A Closet lookup failure must not deny an attachment that the legacy
+      // tables can still resolve, so fall through rather than returning here.
+      row = null;
+    }
+  }
+
   try {
     row = await data.fetchInspirationItem(itemId);
   } catch {

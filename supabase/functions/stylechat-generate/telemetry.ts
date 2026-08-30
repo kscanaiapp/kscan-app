@@ -5,7 +5,15 @@ export type EliseTelemetryEventName =
   | 'elise_context_normalization_outcome'
   | 'elise_speech_outcome'
   | 'elise_quota_outcome'
-  | 'elise_advice_outcome';
+  | 'elise_advice_outcome'
+  /**
+   * Build 34 / K+ Wardrobe Concierge V1 (section 54). Content-free by
+   * construction: every Concierge key added to the allowlist below is a count,
+   * an enum or a boolean, so no item title, brand, Closet inventory, Signature
+   * Style value, image URI or storage path can travel on these events.
+   */
+  | 'concierge_turn_outcome'
+  | 'concierge_ownership_prose_conflict';
 
 export type EliseTelemetryPayload = Record<string, unknown>;
 
@@ -73,6 +81,22 @@ const ALLOWED_KEYS = new Set([
   // value, a Closet field, or a K+ grant source/reason.
   'kPlusActive',
   'styleDnaAvailable',
+  // Build 34 / K+ Wardrobe Concierge V1 (section 54) — aggregate dimensions
+  // only. `conflictCodes` carries garment CLASS codes ("unsupported_owned_
+  // jacket"), never the sentence that was removed or the item that was named.
+  'wardrobeContextMode',
+  'focusResolutionClass',
+  'focusAmbiguous',
+  'censusExhaustive',
+  'censusTotalItems',
+  'lookCount',
+  'gapPresented',
+  'gapEvidenceExhaustive',
+  'ownedEvidenceUsed',
+  'conflictCodes',
+  'shortlistSize',
+  'latencyBucket',
+  'conciergeV1',
 ]);
 
 const ALLOWED_STRING_VALUE = /^[A-Za-z0-9_.:\-|,]{0,160}$/;

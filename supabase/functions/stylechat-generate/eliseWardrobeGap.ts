@@ -4,6 +4,7 @@
 
 import type {
   EliseAdviceIntent,
+  EliseClosetCensus,
   EliseFocusedItem,
   ElisePurchaseAdvice,
   EliseScoredCandidate,
@@ -11,6 +12,27 @@ import type {
   EliseAdviceLook,
 } from './eliseAdviceTypes.ts';
 import { ELISE_ADVICE_LIMITS } from './eliseAdviceTypes.ts';
+import {
+  censusConfirmedAbsentCategories,
+  censusConfirmsRoleAbsent,
+} from './eliseClosetCensus.ts';
+
+/**
+ * C2 section 28. Below this many authoritative items, a wardrobe-gap listing
+ * stops being useful information and becomes an audit of the user's
+ * deficiencies. The product goal is to style what is present, so a small Closet
+ * gets at most ONE gap -- the one that actually blocks the requested job -- and
+ * never a wall of "missing / missing / missing".
+ */
+const SMALL_CLOSET_ITEM_THRESHOLD = 8;
+const SMALL_CLOSET_MAX_GAPS = 1;
+
+/**
+ * Roles that a conventional outfit genuinely needs, most-blocking first. When a
+ * small Closet forces a single gap, it is drawn from the top of this list, so
+ * the one thing surfaced is the one most likely to matter.
+ */
+const ROLE_PRIORITY = ['shoe', 'bottom', 'base', 'outer', 'accessory'];
 
 const ROLE_GAPS: Array<{ code: string; role: string; categoryHint: string }> = [
   { code: 'missing_shoe', role: 'shoe', categoryHint: 'shoes' },
@@ -26,6 +48,19 @@ export function analyzeWardrobeGap(input: {
   shortlist: EliseScoredCandidate[];
   inventoryCount: number;
   partialFailure?: boolean;
+  /**
+   * C2 sections 26/27. The deterministic Closet census, when one was available.
+   *
+   * Its presence changes what a gap MEANS. Without it, a gap says only "this
+   * role is missing from the shortlist I looked at". With an exhaustive census
+   * it can say "this role is missing from the Closet" -- and only then.
+   */
+  census?: EliseClosetCensus | null;
+  /**
+   * Concierge capability. Off -> this function behaves exactly as it did before
+   * Concierge, so a flag-off request produces the pre-existing payload.
+   */
+  conciergeV1?: boolean;
 }): EliseWardrobeGap {
   const roles = new Set(
     input.shortlist
@@ -35,6 +70,8 @@ export function analyzeWardrobeGap(input: {
   if (input.focus.candidate?.layeringRole) {
     roles.add(input.focus.candidate.layeringRole);
   }
+
+  const census = input.conciergeV1 ? (input.census ?? null) : null;
 
   const gapCodes: string[] = [];
   const categories: string[] = [];
@@ -49,10 +86,21 @@ export function analyzeWardrobeGap(input: {
       }
       continue;
     }
-    if (!roles.has(gap.role)) {
-      gapCodes.push(gap.code);
-      categories.push(gap.categoryHint);
+    if (roles.has(gap.role)) continue;
+
+    // THE SHORTLIST/CLOSET DISTINCTION (section 26).
+    //
+    // Absent from the shortlist is where a gap STARTS being suspected. When an
+    // exhaustive census is available it is also where the suspicion gets
+    // checked: if the census counted items in this role, the role exists in the
+    // Closet and simply did not rank -- that is a ranking outcome, not a gap,
+    // and reporting it as one is precisely the false claim section 26 names.
+    if (census?.exhaustive && !censusConfirmsRoleAbsent(census, gap.role)) {
+      continue;
     }
+
+    gapCodes.push(gap.code);
+    categories.push(gap.categoryHint);
   }
 
   const notes: string[] = [];
@@ -63,12 +111,60 @@ export function analyzeWardrobeGap(input: {
   }
   notes.push('gap_scoped_to_authorized_candidates');
 
-  return {
-    gapCodes: gapCodes.slice(0, 6),
-    categories: categories.slice(0, 6),
+  let boundedCodes = gapCodes;
+  let boundedCategories = categories;
+
+  if (input.conciergeV1) {
+    // SMALL-CLOSET RESTRAINT (section 28).
+    //
+    // A three-item Closet is missing almost every role by definition. Listing
+    // them all turns a styling answer into a deficiency audit, which is the
+    // opposite of the product goal -- so a small Closet surfaces at most one
+    // gap, chosen by how much it actually blocks a conventional outfit.
+    const closetSize = census?.exhaustive ? census.totalItems : input.inventoryCount;
+    if (closetSize > 0 && closetSize < SMALL_CLOSET_ITEM_THRESHOLD) {
+      const ordered = gapCodes
+        .map((code, index) => ({ code, category: categories[index], index }))
+        .sort((a, b) => {
+          const roleA = ROLE_GAPS.find((g) => g.code === a.code)?.role ?? '';
+          const roleB = ROLE_GAPS.find((g) => g.code === b.code)?.role ?? '';
+          const rankA = ROLE_PRIORITY.indexOf(roleA);
+          const rankB = ROLE_PRIORITY.indexOf(roleB);
+          return (
+            (rankA === -1 ? ROLE_PRIORITY.length : rankA) -
+            (rankB === -1 ? ROLE_PRIORITY.length : rankB)
+          );
+        })
+        .slice(0, SMALL_CLOSET_MAX_GAPS);
+      boundedCodes = ordered.map((entry) => entry.code);
+      boundedCategories = ordered.map((entry) => entry.category);
+      notes.push('small_closet_gap_restraint');
+    }
+  }
+
+  const gap: EliseWardrobeGap = {
+    gapCodes: boundedCodes.slice(0, 6),
+    categories: boundedCategories.slice(0, 6),
     partialInventory,
     notes,
   };
+
+  if (input.conciergeV1) {
+    // The single field every downstream consumer -- prompt, UI and prose guard
+    // -- reads before choosing between "you don't own a jacket" and "from what
+    // I can see in your Closet". Non-exhaustive evidence can never set it true.
+    gap.evidenceIsExhaustive = Boolean(census?.exhaustive) && !partialInventory;
+    gap.confirmedAbsentCategories = gap.evidenceIsExhaustive
+      ? censusConfirmedAbsentCategories(census, gap.categories)
+      : [];
+    if (gap.evidenceIsExhaustive) {
+      notes.push('gap_confirmed_against_full_closet_census');
+    } else {
+      notes.push('gap_evidence_bounded_scope_language_required');
+    }
+  }
+
+  return gap;
 }
 
 export function buildPurchaseAdvice(input: {
@@ -160,10 +256,55 @@ export function buildPurchaseAdvice(input: {
   };
 }
 
+/**
+ * C2 section 29 -- roles that may appear at most ONCE in a single look.
+ *
+ * Deterministic code is not the stylist here. It supplies structural
+ * guardrails only: three tops is not a look, and two pairs of shoes is not a
+ * look, regardless of how well they scored. Everything above that floor --
+ * which top, which trouser, whether the combination is any good -- stays with
+ * the reasoning layer.
+ */
+const SINGLE_OCCUPANCY_ROLES = new Set(['base', 'mid', 'outer', 'bottom', 'shoe', 'one_piece']);
+
+/**
+ * Roles that cannot coexist: a one-piece already occupies the top and bottom of
+ * the body, so pairing it with either is not a wearable outfit.
+ */
+const ROLE_CONFLICTS: Record<string, string[]> = {
+  one_piece: ['base', 'bottom'],
+  base: ['one_piece'],
+  bottom: ['one_piece'],
+};
+
+function looksStructurallyValid(
+  picked: EliseScoredCandidate[],
+  candidate: EliseScoredCandidate,
+): boolean {
+  const role = candidate.candidate.layeringRole;
+  // An item whose role we do not know cannot be proven invalid, and refusing it
+  // would silently drop most of a Closet whose taxonomy is thin (section 24 --
+  // these axes are a known Phase A data limitation). Unknown roles pass.
+  if (!role) return true;
+
+  const takenRoles = picked
+    .map((entry) => entry.candidate.layeringRole)
+    .filter((value): value is string => Boolean(value));
+
+  if (SINGLE_OCCUPANCY_ROLES.has(role) && takenRoles.includes(role)) return false;
+
+  const conflicts = ROLE_CONFLICTS[role] ?? [];
+  if (conflicts.some((conflicting) => takenRoles.includes(conflicting))) return false;
+
+  return true;
+}
+
 export function buildMultiLooks(input: {
   intent: EliseAdviceIntent;
   shortlist: EliseScoredCandidate[];
   wardrobeGap: EliseWardrobeGap | null;
+  /** Concierge capability. Off -> pre-Concierge behaviour, unchanged. */
+  conciergeV1?: boolean;
 }): EliseAdviceLook[] | null {
   if (input.intent !== 'multi_look_generation' && input.intent !== 'build_outfit') {
     return null;
@@ -175,31 +316,43 @@ export function buildMultiLooks(input: {
   const used = new Set<string>();
 
   for (let i = 0; i < Math.min(ELISE_ADVICE_LIMITS.multiLookCount, labels.length); i += 1) {
-    const picks: string[] = [];
+    const picked: EliseScoredCandidate[] = [];
     for (const scored of input.shortlist) {
       if (used.has(scored.candidate.candidateId) && i > 0) continue;
-      if (picks.length >= 3) break;
+      if (picked.length >= 3) break;
+      if (input.conciergeV1 && !looksStructurallyValid(picked, scored)) continue;
       // Prefer owned first within each look.
       if (
         scored.candidate.actorRelationship === 'owned' ||
-        picks.length > 0 ||
+        picked.length > 0 ||
         i === labels.length - 1
       ) {
-        picks.push(scored.candidate.candidateId);
+        picked.push(scored);
         used.add(scored.candidate.candidateId);
       }
     }
-    // Fill remaining slots without inventing IDs.
+    // Fill remaining slots without inventing IDs. A slot that cannot be filled
+    // from real evidence stays empty: section 29 is explicit that a Closet
+    // which cannot make a conventional outfit must be used honestly rather than
+    // padded with a piece the user does not have.
     for (const scored of input.shortlist) {
-      if (picks.length >= 3) break;
-      if (!picks.includes(scored.candidate.candidateId)) {
-        picks.push(scored.candidate.candidateId);
+      if (picked.length >= 3) break;
+      if (picked.some((entry) => entry.candidate.candidateId === scored.candidate.candidateId)) {
+        continue;
       }
+      if (input.conciergeV1 && !looksStructurallyValid(picked, scored)) continue;
+      picked.push(scored);
     }
+
+    // A look of one item is not a look. Emitting it as one would present a
+    // ranking artefact as a styling decision, so it is dropped rather than
+    // padded -- the earlier looks already carry the real recommendation.
+    if (input.conciergeV1 && picked.length < 2 && i > 0) continue;
+
     looks.push({
       lookId: `look_${i + 1}`,
       label: labels[i],
-      candidateIds: picks.slice(0, 3),
+      candidateIds: picked.slice(0, 3).map((entry) => entry.candidate.candidateId),
       missingPieceCodes: (input.wardrobeGap?.gapCodes ?? []).slice(0, 2),
     });
   }
