@@ -63,6 +63,8 @@ export interface PushSendResult {
   attempted: boolean;
   ok: boolean;
   errorCode?: string;
+  /** True only when Expo's ticket says this token can never be delivered to again. */
+  tokenInvalid?: boolean;
 }
 
 /**
@@ -104,7 +106,8 @@ export async function sendWatchPush(
     const payload = await response.json().catch(() => null);
     const ticket = Array.isArray(payload?.data) ? payload.data[0] : null;
     if (ticket?.status === 'error') {
-      return { attempted: true, ok: false, errorCode: String(ticket.details?.error ?? 'ticket_error') };
+      const code = String(ticket.details?.error ?? 'ticket_error');
+      return { attempted: true, ok: false, errorCode: code, tokenInvalid: code === 'DeviceNotRegistered' };
     }
     return { attempted: true, ok: true };
   } catch {

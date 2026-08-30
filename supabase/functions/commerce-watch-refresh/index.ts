@@ -119,15 +119,15 @@ async function deliverPushIfArmed(
   if (!event || event.type !== 'target_price_reached' || !row.push_enabled) return;
 
   const tokenResponse = await rest(
-    `user_device_push_tokens?user_id=eq.${row.user_id}&revoked_at=is.null&select=push_token&order=last_used_at.desc.nullslast&limit=1`,
+    `user_device_push_tokens?user_id=eq.${row.user_id}&revoked_at=is.null&select=push_token,device_id&order=last_used_at.desc.nullslast&limit=1`,
     { method: 'GET' },
   );
   if (!tokenResponse.ok) return;
-  const tokens = (await tokenResponse.json()) as Array<{ push_token: string }>;
-  const token = tokens[0]?.push_token;
-  if (!token) return;
+  const tokens = (await tokenResponse.json()) as Array<{ push_token: string; device_id: string }>;
+  const tokenRow = tokens[0];
+  if (!tokenRow?.push_token) return;
 
-  const result = await sendWatchPush(token, {
+  const result = await sendWatchPush(tokenRow.push_token, {
     watchId: row.id,
     eventType: 'target_price_reached',
     displayTitle: row.display_title,
@@ -135,6 +135,11 @@ async function deliverPushIfArmed(
   });
   if (!result.ok) {
     logEvent('watchlist_push_delivery_failed', { watchId: row.id.slice(0, 8), errorCode: result.errorCode });
+    // A ticket-confirmed dead token is revoked immediately rather than left
+    // to accumulate silent future failures (§63 "stale push token").
+    if (result.tokenInvalid) {
+      await rpc('revoke_device_push_token', { p_user_id: row.user_id, p_device_id: tokenRow.device_id }).catch(() => null);
+    }
   }
 }
 
