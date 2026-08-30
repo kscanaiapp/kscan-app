@@ -31,33 +31,114 @@ const COLOR_FAMILIES: Record<string, string> = {
   purple: 'cool',
 };
 
+/**
+ * Category/subtype token -> layering role.
+ *
+ * DEFECT DEF-CON-002 (Build 34 / Concierge C2). This table previously held 26
+ * entries and recognised only the four most generic footwear words. "loafers"
+ * -- the flagship item of the Concierge train, and an ordinary Closet entry --
+ * mapped to NO role, and so did oxfords, brogues, sandals, pumps, mules, flats,
+ * trainers, chinos, leggings, tanks, polos, turtlenecks, vests, bombers,
+ * parkas, trenches, pullovers, gowns, rompers and every non-"bag" accessory.
+ *
+ * A null role is not inert. It silently disabled the section 29 look
+ * guardrails for those garments (an item with no role cannot be proven to
+ * conflict with another), and it made role-based gap reasoning treat a Closet
+ * full of loafers as having no footwear. The scoring module's whole
+ * category/role dimension degrades the same way.
+ *
+ * This is a data extension of the EXISTING mapper, not a change to the
+ * normalization contract: same function, same return type, same callers. It is
+ * deliberately NOT an attempt to solve the section 24 limitations (silhouette,
+ * formality, season, occasion), which stay out of scope for this train.
+ *
+ * Matching is substring-based on a lowercased token, so singular and plural
+ * both hit ("loafer" and "loafers" alike) and compounds resolve ("penny
+ * loafer", "chelsea boot"). Order matters only where one key is a substring of
+ * another, and the loop below returns the first hit -- so the more specific
+ * word must come first. `tshirt`/`t-shirt` precede `shirt` for that reason.
+ */
 const LAYERING_BY_CATEGORY: Record<string, string> = {
+  // Outerwear
   coat: 'outer',
   jacket: 'outer',
   blazer: 'outer',
+  trench: 'outer',
+  parka: 'outer',
+  anorak: 'outer',
+  windbreaker: 'outer',
+  bomber: 'outer',
+  peacoat: 'outer',
+  // Mid layers
   sweater: 'mid',
   hoodie: 'mid',
   cardigan: 'mid',
+  sweatshirt: 'mid',
+  pullover: 'mid',
+  jumper: 'mid',
+  fleece: 'mid',
+  vest: 'mid',
+  // Base layers. `tshirt` and `t-shirt` come before `shirt`, which is a
+  // substring of neither but would otherwise be reached first for "t shirt".
+  tshirt: 'base',
+  't-shirt': 'base',
+  turtleneck: 'base',
   shirt: 'base',
   blouse: 'base',
   top: 'base',
   tee: 'base',
-  tshirt: 'base',
+  tank: 'base',
+  camisole: 'base',
+  polo: 'base',
+  // One-piece
   dress: 'one_piece',
+  gown: 'one_piece',
   jumpsuit: 'one_piece',
+  romper: 'one_piece',
+  overall: 'one_piece',
+  // Bottoms
   pants: 'bottom',
   trousers: 'bottom',
   jeans: 'bottom',
   skirt: 'bottom',
   shorts: 'bottom',
+  chino: 'bottom',
+  legging: 'bottom',
+  joggers: 'bottom',
+  // Footwear
   shoes: 'shoe',
   sneakers: 'shoe',
+  trainer: 'shoe',
   boots: 'shoe',
   heels: 'shoe',
+  loafer: 'shoe',
+  oxford: 'shoe',
+  brogue: 'shoe',
+  derby: 'shoe',
+  sandal: 'shoe',
+  pump: 'shoe',
+  mule: 'shoe',
+  espadrille: 'shoe',
+  flats: 'shoe',
+  // Accessories
   bag: 'accessory',
+  purse: 'accessory',
+  tote: 'accessory',
+  clutch: 'accessory',
+  backpack: 'accessory',
   belt: 'accessory',
   hat: 'accessory',
+  // No bare `cap` token: it is a substring of "capris", which the bottoms block
+  // above would otherwise lose to a later accessory match on some inputs. A
+  // wrong role is worse than no role, because the guardrails act on it.
+  beanie: 'accessory',
   scarf: 'accessory',
+  glove: 'accessory',
+  watch: 'accessory',
+  necklace: 'accessory',
+  bracelet: 'accessory',
+  earring: 'accessory',
+  sunglasses: 'accessory',
 };
 
 function asString(value: unknown): string | null {
