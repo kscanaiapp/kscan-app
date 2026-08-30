@@ -80,6 +80,8 @@ export interface PackingPlanItem {
   primaryColor: string | null;
   layeringRole: string | null;
   reason: string | null;
+  /** Server-derived Closet fact ('Your only outer layer'), never a model claim. */
+  scarcitySignal: string | null;
   usedInOutfits: number;
 }
 
@@ -89,6 +91,17 @@ export interface PackingPlanOutfit {
   activity: PackingActivity | null;
   itemIds: string[];
   reason: string | null;
+}
+
+/**
+ * A requirement this trip has that the Closet cannot meet. NEVER a product,
+ * never a price, never a retailer -- and never rendered with owned-item
+ * styling, which is the whole point of keeping it a separate type.
+ */
+export interface PackingGap {
+  code: string;
+  label: string;
+  rationale: string;
 }
 
 export interface PackingPlanWeather {
@@ -111,6 +124,7 @@ export interface PackingPlan {
   weather: PackingPlanWeather;
   packedItems: PackingPlanItem[];
   outfits: PackingPlanOutfit[];
+  gaps: PackingGap[];
   assumptions: string[];
   constraints: {
     excludedItemIds: string[];

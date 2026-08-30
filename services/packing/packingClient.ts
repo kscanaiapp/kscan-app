@@ -15,6 +15,7 @@ import {
   PACKING_ACTIVITIES,
   PACKING_REQUEST_SCHEMA_VERSION,
   type PackingActivity,
+  type PackingGap,
   type PackingGeneralGuide,
   type PackingPlan,
   type PackingPlanItem,
@@ -102,6 +103,7 @@ function parseItem(value: unknown): PackingPlanItem | null {
     primaryColor: str(value.primaryColor, 60),
     layeringRole: str(value.layeringRole, 40),
     reason: str(value.reason, 160),
+    scarcitySignal: str(value.scarcitySignal, 60),
     usedInOutfits: int(value.usedInOutfits),
   };
 }
@@ -162,6 +164,7 @@ export function parsePackingPlan(value: unknown): PackingPlan | null {
   for (const item of packedItems) item.usedInOutfits = usage.get(item.itemId) ?? 0;
 
   const constraints = isRecord(value.constraints) ? value.constraints : {};
+  const gaps = parseGaps(value.gaps);
 
   return {
     contractVersion: str(value.contractVersion, 40) ?? '',
@@ -180,6 +183,7 @@ export function parsePackingPlan(value: unknown): PackingPlan | null {
     weather: parseWeather(value.weather),
     packedItems,
     outfits,
+    gaps,
     assumptions: strList(value.assumptions, MAX_ASSUMPTIONS, 200),
     constraints: {
       excludedItemIds: strList(constraints.excludedItemIds, 40, 80),
@@ -193,7 +197,7 @@ export function parsePackingPlan(value: unknown): PackingPlan | null {
       items: packedItems.length,
       outfits: outfits.length,
       shoes: packedItems.filter((item) => item.layeringRole === 'shoe').length,
-      gaps: 0,
+      gaps: gaps.length,
     },
   };
 }
@@ -212,6 +216,30 @@ export function parseGeneralGuide(value: unknown): PackingGeneralGuide | null {
   }
   if (sections.length === 0) return null;
   return { sections, notes: strList(value.notes, 5, 200) };
+}
+
+const MAX_GAPS = 3;
+
+/**
+ * A gap is a REQUIREMENT, and the client renders it in its own unowned
+ * treatment. Anything shaped like commerce is dropped rather than displayed:
+ * Packing V1 helps someone pack, and a payload that arrived carrying a price
+ * or a link is not a payload this screen will show.
+ */
+function parseGaps(value: unknown): PackingGap[] {
+  if (!Array.isArray(value)) return [];
+  const gaps: PackingGap[] = [];
+  for (const raw of value) {
+    if (!isRecord(raw)) continue;
+    const code = str(raw.code, 60);
+    const label = str(raw.label, 60);
+    const rationale = str(raw.rationale, 200);
+    if (!code || !label || !rationale) continue;
+    if (raw.price != null || raw.url != null || raw.productId != null) continue;
+    gaps.push({ code, label, rationale });
+    if (gaps.length >= MAX_GAPS) break;
+  }
+  return gaps;
 }
 
 const STATUSES: PackingStatus[] = ['success', 'general_mode', 'not_entitled', 'no_result', 'error'];

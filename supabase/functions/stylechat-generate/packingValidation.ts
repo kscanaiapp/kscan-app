@@ -14,6 +14,7 @@
 // it, never parsed back into it.
 
 import { escapePromptData } from './promptHardening.ts';
+import { deriveScarcitySignal, type PackingGap } from './packingGaps.ts';
 import type { EliseWardrobeCandidate } from './eliseAdviceTypes.ts';
 import {
   PACKING_ACTIVITIES,
@@ -38,6 +39,11 @@ export interface PackingPlanItem {
   primaryColor: string | null;
   layeringRole: string | null;
   reason: string | null;
+  /**
+   * A checkable fact about the Closet, not a model claim: present only when
+   * the owned-role census says this is the traveller's only item in its role.
+   */
+  scarcitySignal: string | null;
   /** Derived from the finished plan, never asserted by the model. */
   usedInOutfits: number;
 }
@@ -70,6 +76,11 @@ export interface PackingPlan {
   weather: PackingPlanWeather;
   packedItems: PackingPlanItem[];
   outfits: PackingPlanOutfit[];
+  /**
+   * Requirements this trip has that the traveller's Closet cannot meet.
+   * Never rendered with owned-item styling, and never a product.
+   */
+  gaps: PackingGap[];
   assumptions: string[];
   constraints: {
     excludedItemIds: string[];
@@ -176,6 +187,10 @@ export function validatePackingModelOutput(input: {
   trip: PackingTripInput;
   constraints: PackingConstraints;
   weather: PackingPlanWeather;
+  /** Owned-role census (packingCandidates). Drives scarcity signals. */
+  closetRoleCensus?: Record<string, number>;
+  /** Deterministically derived unmet requirements (packingGaps). */
+  gaps?: PackingGap[];
 }): PackingValidationResult {
   const telemetry: PackingValidationTelemetry = {
     modelItemRefs: 0,
@@ -312,6 +327,7 @@ export function validatePackingModelOutput(input: {
       primaryColor: candidate.colors[0] ?? null,
       layeringRole: candidate.layeringRole,
       reason: reasonByItem.get(itemId) ?? null,
+      scarcitySignal: deriveScarcitySignal(candidate.layeringRole, input.closetRoleCensus ?? {}),
       usedInOutfits: usageCount.get(itemId) ?? 0,
     });
   }
@@ -358,6 +374,7 @@ export function validatePackingModelOutput(input: {
   }
 
   const shoes = packedItems.filter((item) => item.layeringRole === 'shoe').length;
+  const gaps = input.gaps ?? [];
 
   return {
     ok: true,
@@ -378,6 +395,7 @@ export function validatePackingModelOutput(input: {
       weather: input.weather,
       packedItems,
       outfits: consistentOutfits,
+      gaps,
       assumptions,
       constraints: {
         excludedItemIds: input.constraints.excludeItemIds,
@@ -388,7 +406,7 @@ export function validatePackingModelOutput(input: {
         items: packedItems.length,
         outfits: consistentOutfits.length,
         shoes,
-        gaps: 0,
+        gaps: gaps.length,
       },
     },
   };
@@ -420,6 +438,16 @@ export function inspectPackingPlan(plan: PackingPlan): string[] {
 
   if (plan.counts.items !== plan.packedItems.length) problems.push('item_count_mismatch');
   if (plan.counts.outfits !== plan.outfits.length) problems.push('outfit_count_mismatch');
+  if (plan.counts.gaps !== plan.gaps.length) problems.push('gap_count_mismatch');
+
+  // A gap describes something the Closet does NOT contain. If one ever named
+  // a role the plan actually packed, the two halves are contradicting each
+  // other and the traveller would be told to buy what they just packed.
+  const packedRoles = new Set(plan.packedItems.map((item) => item.layeringRole));
+  for (const gap of plan.gaps) {
+    const role = gap.code.startsWith('missing_role_') ? gap.code.slice('missing_role_'.length) : null;
+    if (role && packedRoles.has(role)) problems.push('gap_contradicts_packed_item');
+  }
 
   return [...new Set(problems)];
 }

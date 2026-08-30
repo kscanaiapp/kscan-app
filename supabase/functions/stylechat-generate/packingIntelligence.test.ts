@@ -31,6 +31,7 @@ import {
 } from './packingValidation.ts';
 import { handlePackingRequest } from './packingHandler.ts';
 import { buildGeneralPackingGuide } from './packingGeneralMode.ts';
+import { derivePackingGaps, deriveScarcitySignal } from './packingGaps.ts';
 
 const ACTOR = '11111111-1111-4111-8111-111111111111';
 const OTHER_ACTOR = '22222222-2222-4222-8222-222222222222';
@@ -701,6 +702,7 @@ Deno.test('consistency: a deliberately broken plan fails the inspector', () => {
     weather: { provenance: 'UNAVAILABLE' as const, summary: null },
     packedItems: [],
     outfits: [{ outfitId: 'o1', label: 'Day', activity: null, itemIds: ['ghost'], reason: null }],
+    gaps: [],
     assumptions: [],
     constraints: { excludedItemIds: [], packLight: false, notes: [] },
     counts: { items: 0, outfits: 1, shoes: 0, gaps: 0 },
@@ -944,4 +946,182 @@ Deno.test('handler: a seasonal context is carried without ever being called a fo
     }),
   );
   assertEquals(result.body.plan!.weather.provenance, 'SEASONAL');
+});
+
+// ── 9. Wardrobe gaps and trust signals (B4) ──────────────────────────────────
+
+Deno.test('gaps: a gap is an unmet requirement the Closet genuinely cannot fill', () => {
+  const gaps = derivePackingGaps({
+    requiredRoles: ['base', 'bottom', 'shoe', 'outer'],
+    // Tops and trousers owned; no shoes and no outerwear.
+    closetRoleCensus: { base: 4, bottom: 2 },
+    weather: { provenance: 'UNAVAILABLE', summary: null },
+  });
+  const codes = gaps.map((gap) => gap.code);
+  assert(codes.includes('missing_role_shoe'));
+  assert(codes.includes('missing_role_outer'));
+  assert(!codes.includes('missing_role_base'));
+  assert(!codes.includes('missing_role_bottom'));
+  for (const gap of gaps) {
+    // Never a product, never a purchase argument.
+    assert(!/buy|shop|price|retail|store/i.test(`${gap.label} ${gap.rationale}`));
+  }
+});
+
+Deno.test('gaps: a role the shortlist dropped is NOT missing — the census decides', () => {
+  // The Closet owns outerwear; the shortlist bound simply did not include it.
+  const gaps = derivePackingGaps({
+    requiredRoles: ['base', 'bottom', 'shoe', 'outer'],
+    closetRoleCensus: { base: 4, bottom: 2, shoe: 1, outer: 1 },
+    weather: { provenance: 'UNAVAILABLE', summary: null },
+  });
+  assertEquals(gaps, []);
+});
+
+Deno.test('gaps: a dress is not required of someone who owns tops and bottoms', () => {
+  const gaps = derivePackingGaps({
+    requiredRoles: ['one_piece', 'base', 'bottom', 'shoe'],
+    closetRoleCensus: { base: 3, bottom: 2, shoe: 1 },
+    weather: { provenance: 'UNAVAILABLE', summary: null },
+  });
+  assertEquals(gaps, []);
+});
+
+Deno.test('gaps: unavailable weather can never produce a weather gap', () => {
+  const gaps = derivePackingGaps({
+    requiredRoles: ['base', 'bottom', 'shoe'],
+    closetRoleCensus: { base: 3, bottom: 2, shoe: 1 },
+    // A summary present but provenance UNAVAILABLE: not a claim about weather.
+    weather: { provenance: 'UNAVAILABLE', summary: 'highs 40F, rain on 4 of 5 days' },
+  });
+  assertEquals(gaps, [], 'not knowing the weather is not evidence of rain');
+});
+
+Deno.test('gaps: a real forecast of rain with no outerwear owned is a real gap', () => {
+  const gaps = derivePackingGaps({
+    requiredRoles: ['base', 'bottom', 'shoe'],
+    closetRoleCensus: { base: 3, bottom: 2, shoe: 1 },
+    weather: { provenance: 'FORECAST', summary: 'highs 62-68F, lows near 55F, rain on 3 of 5 days' },
+  });
+  assertEquals(gaps.length, 1);
+  assertEquals(gaps[0].code, 'missing_weather_layer');
+  assertStringIncludes(gaps[0].rationale, 'rain');
+});
+
+Deno.test('gaps: rain with outerwear owned is not a gap', () => {
+  const gaps = derivePackingGaps({
+    requiredRoles: ['base', 'bottom', 'shoe'],
+    closetRoleCensus: { base: 3, bottom: 2, shoe: 1, outer: 1 },
+    weather: { provenance: 'FORECAST', summary: 'highs 62F, lows near 55F, rain on 3 of 5 days' },
+  });
+  assertEquals(gaps, []);
+});
+
+Deno.test('gaps: the set is bounded so a bare Closet does not become a shopping list', () => {
+  const gaps = derivePackingGaps({
+    requiredRoles: ['base', 'bottom', 'shoe', 'outer', 'mid', 'one_piece'],
+    closetRoleCensus: {},
+    weather: { provenance: 'FORECAST', summary: 'lows near 20F, snow on 4 of 5 days' },
+  });
+  assert(gaps.length <= 3, 'gaps must stay bounded');
+});
+
+Deno.test('trust: "your only X" is emitted only when the census says exactly one', () => {
+  assertEquals(deriveScarcitySignal('outer', { outer: 1 }), 'Your only outer layer');
+  assertEquals(deriveScarcitySignal('outer', { outer: 2 }), null);
+  assertEquals(deriveScarcitySignal('outer', {}), null);
+  assertEquals(deriveScarcitySignal('shoe', { shoe: 1 }), 'Your only pair of shoes');
+  // No signal is invented for roles where scarcity is not meaningful.
+  assertEquals(deriveScarcitySignal('base', { base: 1 }), null);
+  assertEquals(deriveScarcitySignal(null, { outer: 1 }), null);
+});
+
+Deno.test('handler: a plan carries its gaps, and the counts agree with them', async () => {
+  const result = await handlePackingRequest(
+    handlerDeps({
+      // Tops, bottoms and shoes only — no outerwear, no mid layer.
+      closet: {
+        listClosetItems: () =>
+          Promise.resolve(
+            mixedClosetRows().filter((row) =>
+              ['shirt', 'trousers', 'jeans', 'shoes', 'boots'].includes(row.clothing_type as string),
+            ),
+          ),
+      },
+      callProvider: (_system, user) => {
+        const ids = [...user.matchAll(/id=([0-9a-f-]{36})/g)].map((match) => match[1]);
+        return Promise.resolve({
+          outfits: [{ label: 'Day', itemIds: ids.slice(0, 3) }],
+          packedItems: ids.slice(0, 3).map((id) => ({ itemId: id })),
+        });
+      },
+    }),
+  );
+  const plan = result.body.plan!;
+  assert(plan.gaps.length > 0, 'a Closet with no outerwear on a trip that wants it has a gap');
+  assertEquals(plan.counts.gaps, plan.gaps.length);
+  assertEquals(inspectPackingPlan(plan), []);
+  assertEquals(result.telemetry.gapCount, plan.gaps.length);
+});
+
+Deno.test('handler: a gap never names a role the plan actually packed', async () => {
+  const result = await handlePackingRequest(
+    handlerDeps({
+      callProvider: (_system, user) => {
+        const ids = [...user.matchAll(/id=([0-9a-f-]{36})/g)].map((match) => match[1]);
+        return Promise.resolve({
+          outfits: [{ label: 'Day', itemIds: ids.slice(0, 4) }],
+          packedItems: ids.slice(0, 4).map((id) => ({ itemId: id })),
+        });
+      },
+    }),
+  );
+  const plan = result.body.plan!;
+  const packedRoles = new Set(plan.packedItems.map((item) => item.layeringRole));
+  for (const gap of plan.gaps) {
+    const role = gap.code.startsWith('missing_role_') ? gap.code.slice('missing_role_'.length) : null;
+    if (role) assert(!packedRoles.has(role), `gap ${gap.code} contradicts a packed item`);
+  }
+  assertEquals(inspectPackingPlan(plan), []);
+});
+
+Deno.test('inspector: a gap contradicting a packed item is caught', async () => {
+  const result = await handlePackingRequest(
+    handlerDeps({
+      callProvider: (_system, user) => {
+        const ids = [...user.matchAll(/id=([0-9a-f-]{36})/g)].map((match) => match[1]);
+        return Promise.resolve({
+          outfits: [{ label: 'Day', itemIds: ids.slice(0, 3) }],
+          packedItems: ids.slice(0, 3).map((id) => ({ itemId: id })),
+        });
+      },
+    }),
+  );
+  const corrupted = structuredClone(result.body.plan!);
+  const packedRole = corrupted.packedItems[0].layeringRole!;
+  corrupted.gaps = [{ code: `missing_role_${packedRole}`, label: 'x', rationale: 'y' }];
+  corrupted.counts.gaps = 1;
+  assert(inspectPackingPlan(corrupted).includes('gap_contradicts_packed_item'));
+});
+
+Deno.test('handler: a packed item that is the only one of its role says so', async () => {
+  const result = await handlePackingRequest(
+    handlerDeps({
+      callProvider: (_system, user) => {
+        const ids = [...user.matchAll(/id=([0-9a-f-]{36})/g)].map((match) => match[1]);
+        return Promise.resolve({
+          outfits: [{ label: 'Day', itemIds: ids }],
+          packedItems: ids.map((id) => ({ itemId: id })),
+        });
+      },
+    }),
+  );
+  const plan = result.body.plan!;
+  // The mixed fixture owns exactly one jacket, so its outer layer is scarce.
+  const outer = plan.packedItems.find((item) => item.layeringRole === 'outer');
+  assert(outer, 'the fixture packs the jacket');
+  assertEquals(outer!.scarcitySignal, 'Your only outer layer');
+  // It owns two shirts, so no base-layer scarcity claim may be made.
+  const base = plan.packedItems.find((item) => item.layeringRole === 'base');
+  assertEquals(base?.scarcitySignal ?? null, null);
 });

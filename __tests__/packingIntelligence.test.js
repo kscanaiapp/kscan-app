@@ -254,3 +254,38 @@ function requireFlags() {
   );
   return factory({ env: {} });
 }
+
+// ── Gaps and trust signals (B4) ──────────────────────────────────────────────
+
+test('client: a gap carrying anything commerce-shaped is dropped, not displayed', () => {
+  assert.match(clientSource, /function parseGaps\(value: unknown\): PackingGap\[\]/);
+  assert.match(
+    clientSource,
+    /if \(raw\.price != null \|\| raw\.url != null \|\| raw\.productId != null\) continue;/,
+  );
+});
+
+test('client: the gap count is derived from the gaps that will render', () => {
+  assert.match(clientSource, /gaps: gaps\.length,/);
+});
+
+test('view: a gap is rendered with no photograph, no card and nothing to tap', () => {
+  const view = read('components/packing/PackingPlanView.tsx');
+  // Anchor on the section header, not the summary-stat label of the same name.
+  const start = view.indexOf('<SectionHeader title=\"POSSIBLE GAPS\" />');
+  const end = view.indexOf('ASSUMPTIONS');
+  assert.ok(start > -1 && end > start, 'the gaps section must exist and precede assumptions');
+  const section = view.slice(start, end);
+  assert.doesNotMatch(section, /ClosetItemCard/, 'a gap must not use the owned-item card');
+  assert.doesNotMatch(section, /resolveImage|Image /, 'a gap must not render imagery');
+  assert.doesNotMatch(section, /Pressable|onPress/, 'a gap is not an action');
+  assert.match(section, /packing-gap-/);
+});
+
+test('view: the scarcity badge renders only the server-derived signal', () => {
+  const view = read('components/packing/PackingPlanView.tsx');
+  assert.match(view, /item\.scarcitySignal \?/);
+  assert.match(view, /<Text style=\{styles\.itemScarcity\}>\{item\.scarcitySignal\}<\/Text>/);
+  // The client must not compute its own scarcity claim from what it can see.
+  assert.doesNotMatch(view, /Your only/, 'the copy is the servers, derived from the census');
+});

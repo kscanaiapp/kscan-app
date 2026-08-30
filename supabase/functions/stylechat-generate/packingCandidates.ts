@@ -91,6 +91,14 @@ export interface PackingCandidateSelection {
   uncoveredRoles: PackingLayeringRole[];
   requiredRoles: PackingLayeringRole[];
   rolesInShortlist: Record<string, number>;
+  /**
+   * Every layering role present in the USABLE OWNED set, with counts --
+   * not the shortlist. B4's gap derivation and the "your only X" trust
+   * signal both read this: a role that exists in the Closet but lost its
+   * place to the shortlist bound is not missing, and reporting it as
+   * missing would tell a traveller they lack a coat they own.
+   */
+  closetRoleCensus: Record<string, number>;
   /** False when the Closet cannot support an honest personalized plan. */
   personalPlanPossible: boolean;
 }
@@ -209,6 +217,13 @@ export function selectPackingCandidates(input: {
     usable.push(candidate);
   }
 
+  const closetRoleCensus: Record<string, number> = {};
+  for (const candidate of usable) {
+    const role = roleOf(candidate);
+    if (!role) continue;
+    closetRoleCensus[role] = (closetRoleCensus[role] ?? 0) + 1;
+  }
+
   const requiredRoles = resolveRequiredRoles(input.trip);
 
   const byRole = new Map<PackingLayeringRole, EliseWardrobeCandidate[]>();
@@ -294,6 +309,7 @@ export function selectPackingCandidates(input: {
     uncoveredRoles,
     requiredRoles,
     rolesInShortlist,
+    closetRoleCensus,
     personalPlanPossible: usable.length >= PACKING_LIMITS.minCandidatesForPersonalPlan,
   };
 }

@@ -22,6 +22,7 @@ import {
   type PackingClosetDataSource,
 } from './packingRetrieval.ts';
 import { selectPackingCandidates } from './packingCandidates.ts';
+import { derivePackingGaps } from './packingGaps.ts';
 import {
   PACKING_PROMPT_VERSION,
   PACKING_SYSTEM_PROMPT,
@@ -74,6 +75,7 @@ export interface PackingTelemetry {
   uncoveredRoleCount: number;
   packedItemCount: number;
   outfitCount: number;
+  gapCount: number;
   revisionCount: number;
   weatherProvenance: PackingPlanWeather['provenance'];
   signatureStyleApplied: boolean;
@@ -150,6 +152,7 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
     uncoveredRoleCount: 0,
     packedItemCount: 0,
     outfitCount: 0,
+    gapCount: 0,
     // Every excluded item and every constraint note is one prior refinement,
     // which is the only revision signal available without storing trip history.
     revisionCount: constraints.notes.length + (constraints.excludeItemIds.length > 0 ? 1 : 0),
@@ -324,6 +327,15 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
 
   // ── 7. Post-model validation: the ownership gate ──────────────────────────
   const planId = deps.makePlanId ? deps.makePlanId() : `plan-${deps.requestId}`;
+  // Gaps are derived from the CLOSET CENSUS and the forecast, before the
+  // model's output is even looked at, so nothing the model says can create,
+  // remove or reword one. A gap is an unmet requirement, never a suggestion.
+  const gaps = derivePackingGaps({
+    requiredRoles: selection.requiredRoles,
+    closetRoleCensus: selection.closetRoleCensus,
+    weather,
+  });
+
   const validation = validatePackingModelOutput({
     raw: rawOutput,
     planId,
@@ -331,6 +343,8 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
     trip,
     constraints,
     weather,
+    closetRoleCensus: selection.closetRoleCensus,
+    gaps,
   });
   telemetry.modelItemRefs = validation.telemetry.modelItemRefs;
   telemetry.rejectedItemRefs = validation.telemetry.rejectedItemRefs;
@@ -380,6 +394,7 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
   telemetry.event = 'packing_generated';
   telemetry.packedItemCount = validation.plan.packedItems.length;
   telemetry.outfitCount = validation.plan.outfits.length;
+  telemetry.gapCount = validation.plan.gaps.length;
 
   return finish(
     200,
@@ -409,6 +424,7 @@ export function formatPackingLog(telemetry: PackingTelemetry): string {
     `uncoveredRoles=${telemetry.uncoveredRoleCount}`,
     `packed=${telemetry.packedItemCount}`,
     `outfits=${telemetry.outfitCount}`,
+    `gaps=${telemetry.gapCount}`,
     `revisions=${telemetry.revisionCount}`,
     `weather=${telemetry.weatherProvenance}`,
     `signatureStyle=${telemetry.signatureStyleApplied}`,

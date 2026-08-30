@@ -10,9 +10,10 @@
 // that id. No Closet imagery is ever sent to the model, and a card with no
 // local photo degrades to a typographic tile rather than a broken image.
 //
-// A GAP IS NEVER STYLED LIKE SOMETHING OWNED. There are no gap rows in V1, and
-// the general-mode guide renders in a visibly different, unowned treatment for
-// exactly that reason.
+// A GAP IS NEVER STYLED LIKE SOMETHING OWNED. The POSSIBLE GAPS section has no
+// photograph, no card chrome, nothing to tap and no price -- a thing the
+// traveller does not have must never be able to read as a thing they do. The
+// general-mode guide uses the same unowned treatment for the same reason.
 
 import React, { useMemo } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -100,6 +101,10 @@ function ClosetItemCard({
           {subtitle}
         </Text>
       ) : null}
+      {!compact && item.scarcitySignal ? (
+        // A Closet fact the server counted, not a compliment the model paid.
+        <Text style={styles.itemScarcity}>{item.scarcitySignal}</Text>
+      ) : null}
       {!compact && item.usedInOutfits > 1 ? (
         // Derived from the rendered plan, never claimed by the model.
         <Text style={styles.itemReuse}>{`Works across ${item.usedInOutfits} looks`}</Text>
@@ -161,6 +166,12 @@ export function PackingPlanView({
           value={plan.counts.shoes}
           label={plan.counts.shoes === 1 ? 'PAIR OF SHOES' : 'PAIRS OF SHOES'}
         />
+        {plan.counts.gaps > 0 ? (
+          <SummaryStat
+            value={plan.counts.gaps}
+            label={plan.counts.gaps === 1 ? 'POSSIBLE GAP' : 'POSSIBLE GAPS'}
+          />
+        ) : null}
       </View>
 
       {message ? (
@@ -209,6 +220,24 @@ export function PackingPlanView({
           {outfit.reason ? <Text style={styles.outfitReason}>{outfit.reason}</Text> : null}
         </View>
       ))}
+
+      {plan.gaps.length > 0 ? (
+        <>
+          <SectionHeader title="POSSIBLE GAPS" />
+          <View testID="packing-gaps">
+            {plan.gaps.map((gap) => (
+              // Deliberately a different treatment from an owned item: no
+              // photograph, no card chrome, no price and nothing to tap. A gap
+              // is a thing the traveller does not have, and it must never be
+              // able to read as a thing they do.
+              <View key={gap.code} style={styles.gapRow} testID={`packing-gap-${gap.code}`}>
+                <Text style={styles.gapLabel}>{gap.label}</Text>
+                <Text style={styles.gapRationale}>{gap.rationale}</Text>
+              </View>
+            ))}
+          </View>
+        </>
+      ) : null}
 
       {plan.assumptions.length > 0 ? (
         <>
@@ -357,6 +386,27 @@ const styles = StyleSheet.create({
     ...LUXURY.typography.body,
     fontSize: 12,
     lineHeight: 17,
+    marginTop: SPACING.xxs,
+  },
+  itemScarcity: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.graphite,
+    marginTop: SPACING.xs,
+  },
+  gapRow: {
+    borderLeftWidth: 2,
+    borderLeftColor: LUXURY.colors.stone,
+    paddingLeft: SPACING.md,
+    paddingVertical: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  gapLabel: {
+    ...LUXURY.typography.bodyStrong,
+  },
+  gapRationale: {
+    ...LUXURY.typography.body,
+    fontSize: 13,
+    lineHeight: 19,
     marginTop: SPACING.xxs,
   },
   itemReuse: {
