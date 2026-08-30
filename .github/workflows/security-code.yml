@@ -32,7 +32,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: "20"
+          node-version: "24"
           cache: npm
 
       - name: Install dependencies
@@ -86,7 +86,7 @@ jobs:
         if: always()
         env:
           SCANNER_NAME: project-checks
-          SCANNER_VERSION: node-20 / npm-ci / existing package.json scripts
+          SCANNER_VERSION: node-24 / npm-ci / existing package.json scripts
           START_TIME: ${{ github.event.repository.updated_at }}
           END_TIME: ${{ github.event.head_commit.timestamp }}
           FINDING_COUNTS: '{"job":"see-logs"}'
