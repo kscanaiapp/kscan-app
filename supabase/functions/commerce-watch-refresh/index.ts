@@ -41,6 +41,7 @@ import { parseOfferPrice } from '../scan-identify/canonicalCommerce.ts';
 import { deriveWatchCapability, watchProviderForUrl } from '../scan-identify/watchlistCapability.ts';
 import { evaluateWatchRefresh, type WatchState } from './changeEngine.ts';
 import { refreshWatchObservation } from './watchRefreshObservation.ts';
+import { sendWatchPush } from './pushDelivery.ts';
 import {
   MIN_REFRESH_INTERVAL_MS,
   USER_REFRESH_BATCH_CAP,
@@ -100,6 +101,41 @@ interface WatchRow {
   consecutive_failures: number;
   last_checked_at: string | null;
   status: 'active' | 'paused' | 'deleted';
+  display_title: string;
+  push_enabled: boolean;
+}
+
+/**
+ * Push is sent only for the one alert condition V1 actually arms (§43: "Push
+ * notifications in V1 are driven primarily by explicit user alert
+ * conditions") and only when the user opted in per-Watch (push_enabled).
+ * Never blocks or fails the refresh cycle that triggered it — the price/
+ * event write already committed independently of delivery succeeding.
+ */
+async function deliverPushIfArmed(
+  row: WatchRow,
+  event: { type: string; priceAmount: number | null; currency: string | null } | null,
+): Promise<void> {
+  if (!event || event.type !== 'target_price_reached' || !row.push_enabled) return;
+
+  const tokenResponse = await rest(
+    `user_device_push_tokens?user_id=eq.${row.user_id}&revoked_at=is.null&select=push_token&order=last_used_at.desc.nullslast&limit=1`,
+    { method: 'GET' },
+  );
+  if (!tokenResponse.ok) return;
+  const tokens = (await tokenResponse.json()) as Array<{ push_token: string }>;
+  const token = tokens[0]?.push_token;
+  if (!token) return;
+
+  const result = await sendWatchPush(token, {
+    watchId: row.id,
+    eventType: 'target_price_reached',
+    displayTitle: row.display_title,
+    priceText: event.priceAmount != null ? `${event.currency ?? row.currency} ${event.priceAmount}` : null,
+  });
+  if (!result.ok) {
+    logEvent('watchlist_push_delivery_failed', { watchId: row.id.slice(0, 8), errorCode: result.errorCode });
+  }
 }
 
 function toWatchState(row: WatchRow): WatchState {
@@ -163,6 +199,8 @@ async function runRefreshCycle(row: WatchRow): Promise<{
     }
   }
 
+  await deliverPushIfArmed(row, result.event);
+
   return {
     watchId: row.id,
     refreshStatus: result.refreshStatus,
@@ -225,6 +263,10 @@ type UserActionBody = {
   };
   watchIntent?: unknown;
   targetPriceAmount?: unknown;
+  pushToken?: unknown;
+  platform?: unknown;
+  deviceId?: unknown;
+  enabled?: unknown;
 };
 
 function str(v: unknown, max = 2048): string | undefined {
@@ -385,6 +427,48 @@ async function handleRefresh(authUser: AuthUser, watchId: unknown): Promise<Resp
   return json({ refreshed });
 }
 
+async function handleRegisterPushToken(authUser: AuthUser, body: UserActionBody): Promise<Response> {
+  const pushToken = str(body.pushToken, 400);
+  const platform = body.platform === 'ios' || body.platform === 'android' ? body.platform : undefined;
+  const deviceId = str(body.deviceId, 200);
+  if (!pushToken || !platform || !deviceId) {
+    return json({ error: 'invalid_token_registration', code: 'invalid_token_registration' }, 400);
+  }
+
+  const response = await rpc('register_device_push_token', {
+    p_user_id: authUser.id,
+    p_push_token: pushToken,
+    p_platform: platform,
+    p_device_id: deviceId,
+  });
+  if (!response.ok) {
+    logEvent('watchlist_push_token_register_failed', { uid: shortUserId(authUser.id), status: response.status });
+    return json({ error: 'register_failed', code: 'register_failed' }, 502);
+  }
+  return json({ registered: true });
+}
+
+async function handleSetPushEnabled(authUser: AuthUser, body: UserActionBody): Promise<Response> {
+  if (typeof body.watchId !== 'string' || !isValidUuid(body.watchId)) {
+    return json({ error: 'invalid_watch_id', code: 'invalid_watch_id' }, 400);
+  }
+  const response = await rpc('set_watch_push_enabled', {
+    p_user_id: authUser.id,
+    p_watch_id: body.watchId,
+    p_enabled: body.enabled === true,
+  });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '');
+    if (detail.includes('P0002')) {
+      return json({ error: 'not_found', code: 'not_found' }, 404);
+    }
+    return json({ error: 'set_push_enabled_failed', code: 'set_push_enabled_failed' }, 502);
+  }
+  const rows = await response.json();
+  const watch = Array.isArray(rows) ? rows[0] : rows;
+  return json({ watch });
+}
+
 // ── Entry point ──────────────────────────────────────────────────────────-
 
 Deno.serve(async (req: Request) => {
@@ -426,6 +510,10 @@ Deno.serve(async (req: Request) => {
       return handleLifecycleAction(authUser, body.action, body.watchId);
     case 'refresh':
       return handleRefresh(authUser, body.watchId);
+    case 'register_push_token':
+      return handleRegisterPushToken(authUser, body);
+    case 'set_push_enabled':
+      return handleSetPushEnabled(authUser, body);
     default:
       return json({ error: 'unknown_action', code: 'unknown_action' }, 400);
   }

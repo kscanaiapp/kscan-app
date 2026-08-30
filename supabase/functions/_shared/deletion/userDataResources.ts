@@ -102,6 +102,7 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   // never one through the other (§60-§62 of the build brief).
   { table: 'user_commerce_watches', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'user_commerce_watch_events', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  { table: 'user_device_push_tokens', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   // Build 34 Track B B4 server-derived Style DNA profile (K+-adjacent, but
   // deletion is independent of K+ status like every other entry here). ON
   // DELETE CASCADE to auth.users already removes this row; this entry adds it
