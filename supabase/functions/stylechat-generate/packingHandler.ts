@@ -73,6 +73,8 @@ export interface PackingTelemetry {
   usableCandidateCount: number;
   shortlistCount: number;
   uncoveredRoleCount: number;
+  /** False when retrieval was truncated, so no absence claim was permitted. */
+  censusComplete: boolean;
   packedItemCount: number;
   outfitCount: number;
   gapCount: number;
@@ -150,6 +152,7 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
     usableCandidateCount: 0,
     shortlistCount: 0,
     uncoveredRoleCount: 0,
+    censusComplete: true,
     packedItemCount: 0,
     outfitCount: 0,
     gapCount: 0,
@@ -220,6 +223,7 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
   const telemetry = baseTelemetry();
   telemetry.candidateCount = retrieval.candidates.length;
   telemetry.retrievalLatencyMs = retrieval.retrievalLatencyMs;
+  telemetry.censusComplete = retrieval.censusComplete;
 
   if (retrieval.failed) {
     // A Closet we could not read is not an empty Closet, and must never be
@@ -334,6 +338,8 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
     requiredRoles: selection.requiredRoles,
     closetRoleCensus: selection.closetRoleCensus,
     weather,
+    // The census is only as complete as the retrieval that produced it.
+    censusComplete: retrieval.censusComplete,
   });
 
   const validation = validatePackingModelOutput({
@@ -344,6 +350,7 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
     constraints,
     weather,
     closetRoleCensus: selection.closetRoleCensus,
+    censusComplete: retrieval.censusComplete,
     gaps,
   });
   telemetry.modelItemRefs = validation.telemetry.modelItemRefs;
@@ -422,6 +429,7 @@ export function formatPackingLog(telemetry: PackingTelemetry): string {
     `usable=${telemetry.usableCandidateCount}`,
     `shortlist=${telemetry.shortlistCount}`,
     `uncoveredRoles=${telemetry.uncoveredRoleCount}`,
+    `censusComplete=${telemetry.censusComplete}`,
     `packed=${telemetry.packedItemCount}`,
     `outfits=${telemetry.outfitCount}`,
     `gaps=${telemetry.gapCount}`,

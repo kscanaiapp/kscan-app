@@ -38,7 +38,7 @@ commerce contract was modified.
 | Decision | Outcome |
 |---|---|
 | Outfit representation | Reused the existing wardrobe-candidate vocabulary (`EliseWardrobeCandidate`) and the layering roles `eliseFashionFeatures.inferLayeringRole` already derives. **No second garment taxonomy.** |
-| Active plan state | `style_chat_messages.ui_blocks` (actor-scoped, RLS-protected, restored on session resume) plus actor-bound session state. Classification: **EXTENDABLE** |
+| Active plan state | **In-memory, actor-bound session state only** (`services/packing/packingPlanStore.ts`). Nothing is persisted: no `ui_blocks`, no table, no resume. A plan does not survive an app restart, and is not restored with a StyleChat session. Classification: **NEW, NON-DURABLE** |
 | Persistence | **Option A.** No new table, no new durable personal-travel data class |
 | Weather seam | Open-Meteo, already this function's weather authority. Extended to destination + date range. **No new provider, no new credential** |
 | UI entry | A dedicated `/packing` route from a home FeatureChip. **No new navigation tab**, not a hidden chat command |
@@ -299,10 +299,11 @@ first, which is why CARRY-IN-3 had gone unnoticed.
    Its only output is item ids, every id comes from a server-built plan, and the
    server re-resolves them — but this is the single place the client influences
    what gets excluded.
-2. **`ui_blocks` is client-written.** A malicious client can write a fabricated
-   plan into its *own* session. Nothing cross-account follows (rendering needs
-   local Closet rows, and the next generation re-validates server-side), but the
-   blast radius deserves a second opinion.
+2. **There is no plan persistence at all.** V1 keeps the active plan in memory
+   only (see the state table above). This removes a whole risk class -- there is
+   no client-written `ui_blocks` record to forge -- but it also means any
+   downstream feature that assumes a plan can be re-read later is assuming
+   something that does not exist.
 3. **The destination string reaches Open-Meteo.** Intended and minimal, but it
    is a new outbound flow of user-entered text to a third party.
 4. **`layeringRole` is a heuristic.** A garment whose category words the

@@ -82,10 +82,21 @@ test('store: a write for a different actor resets rather than merging', () => {
   );
 });
 
+/** Source with comments removed, for guards that must assert about code. */
+function stripComments(source) {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+}
+
 test('store: exclusions are session intent and never a stored preference', () => {
   assert.match(storeSource, /never a wardrobe preference and never a Signature Style edit/i);
   // Nothing in the Packing store may write to a durable preference surface.
-  assert.doesNotMatch(storeSource, /AsyncStorage|supabase|styleDna|user_style_profiles/i);
+  //
+  // Matched against CODE, not prose. The store's header documents what it
+  // deliberately does NOT write, and a guard that cannot tell "writes
+  // AsyncStorage" from "never writes AsyncStorage" is matching the wrong thing.
+  assert.doesNotMatch(stripComments(storeSource), /AsyncStorage|supabase|styleDna|user_style_profiles/i);
 });
 
 test('auth boundary: Packing state is cleared by the one shared actor reset', () => {

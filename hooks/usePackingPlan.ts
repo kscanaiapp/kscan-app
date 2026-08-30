@@ -60,9 +60,11 @@ const EMPTY_SNAPSHOT: PackingSnapshot = {
 };
 
 function newSessionId(): string {
-  // The Packing task is carried on a StyleChat session id: the backend records
-  // burst/daily usage against the same Elise budget and the plan is written to
-  // that session's message stream. No new identity space.
+  // The Packing task is carried on a StyleChat session id so the backend records
+  // burst/daily usage against the same Elise budget. No new identity space.
+  //
+  // The id is NOT a persistence handle: nothing writes this session's message
+  // stream, and a plan is never restored from it. See packingPlanStore.ts.
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 }
 

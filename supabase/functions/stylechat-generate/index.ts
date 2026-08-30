@@ -1079,9 +1079,33 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { data: packingQuota, error: packingQuotaError } = await userClient.rpc(
-      'increment_stylechat_daily_usage',
-    );
+    // ── K+ BEFORE THE USER'S BUDGET IS SPENT ─────────────────────────────
+    // Resolved ONCE here and reused by the handler. The handler still runs its
+    // own gate before any Closet read -- this memo does not move that gate, it
+    // only makes sure the question is asked before we charge a generation.
+    //
+    // Ordering matters to a real person: a subscriber whose K+ lapsed taps
+    // "Pack for a trip", and must not lose one of that day's Elise generations
+    // to a request the server is about to refuse. Burst still precedes this,
+    // because rate limiting protects the backend rather than the caller.
+    let packingEntitlement: Promise<boolean> | null = null;
+    const resolvePackingEntitlement = (): Promise<boolean> => {
+      packingEntitlement ??= (async () => {
+        try {
+          const { data } = await userClient.rpc('has_active_k_plus', {});
+          return data === true;
+        } catch {
+          // Fails closed, exactly as the handler's own gate does.
+          return false;
+        }
+      })();
+      return packingEntitlement;
+    };
+    const packingEntitled = await resolvePackingEntitlement();
+
+    const { data: packingQuota, error: packingQuotaError } = packingEntitled
+      ? await userClient.rpc('increment_stylechat_daily_usage')
+      : { data: [{ limit_reached: false }], error: null };
     if (packingQuotaError) {
       console.error('[stylechat-generate] packing quota RPC error');
       return json({ error: 'Usage check failed' }, 500);
@@ -1109,10 +1133,7 @@ Deno.serve(async (req) => {
       actorId: userId,
       // Server-side entitlement, from the same authority RLS on
       // user_closet_items trusts. Never a client-supplied flag.
-      hasActiveKPlus: async () => {
-        const { data } = await userClient.rpc('has_active_k_plus', {});
-        return data === true;
-      },
+      hasActiveKPlus: resolvePackingEntitlement,
       closet: {
         async listClosetItems(actorId: string, limit: number) {
           const { data, error } = await userClient
@@ -1135,6 +1156,10 @@ Deno.serve(async (req) => {
       // server-authoritative store the chat path uses. A failure here is
       // never a Packing failure -- the block is simply absent.
       signatureStyleBlock: await (async () => {
+        // Advisory enrichment for an ENTITLED caller only. Recomputing a Style
+        // DNA profile for someone the K+ gate is about to refuse is work no one
+        // asked for and no one sees.
+        if (!packingEntitled) return null;
         if (!config.flags.closetWardrobeContextV1) return null;
         try {
           const profileResult = await getOrRecomputeStyleDnaProfile({ supabase: userClient });

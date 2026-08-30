@@ -48,6 +48,18 @@ export interface PackingRetrievalResult {
   retrievalLatencyMs: number;
   /** True when the query itself failed. Distinct from "the Closet is empty". */
   failed: boolean;
+  /**
+   * False when the query came back full, i.e. the Closet may hold garments this
+   * retrieval never saw.
+   *
+   * THIS IS THE DIFFERENCE BETWEEN "you own no shoes" AND "I did not see all of
+   * your Closet". The census the gap engine and the scarcity signals are built
+   * from is only as complete as this retrieval, and both of those make ABSENCE
+   * claims about the traveller's own property. When this is false, no absence
+   * may be asserted -- the same discipline `failed` already applies to a Closet
+   * that could not be read at all.
+   */
+  censusComplete: boolean;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -73,6 +85,7 @@ export async function retrievePackingClosetCandidates(input: {
       rejectedCount: 0,
       retrievalLatencyMs: Date.now() - started,
       failed: true,
+      censusComplete: false,
     };
   }
 
@@ -134,5 +147,10 @@ export async function retrievePackingClosetCandidates(input: {
     rejectedCount,
     retrievalLatencyMs: Date.now() - started,
     failed: false,
+    // A full page back means there is probably more Closet behind it. Assume
+    // incomplete rather than assume we saw everything: guessing wrong in this
+    // direction only costs a suppressed gap, guessing wrong the other way tells
+    // someone they do not own a coat they are wearing.
+    censusComplete: rows.length < limit,
   };
 }

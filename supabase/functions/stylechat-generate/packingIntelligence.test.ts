@@ -1316,3 +1316,133 @@ Deno.test('cost: the prompt stays bounded as the Closet grows', async () => {
   const [small, , large] = promptSizes;
   assert(large < small * 3, `prompt grew from ${small} to ${large} chars — context is not bounded`);
 });
+
+// ── 12. Census completeness (audit repair PACK-01) ───────────────────────────
+//
+// The gap engine and the scarcity signals both make ABSENCE claims about the
+// traveller's own wardrobe. Both are computed from closetRoleCensus, and that
+// census is only ever as complete as the retrieval that produced it. Before
+// this repair the retrieval window was 40 rows of `updated_at DESC`, so a
+// traveller with 150 recently-touched tops and two pairs of shoes was told
+// "Your Closet has no footwear yet" and handed a shortlist of 14 tops.
+
+/** The real data source: ordered by updated_at DESC, then LIMIT n. */
+function limitedClosetSource(rows: Record<string, unknown>[]) {
+  const ordered = [...rows].sort((a, b) =>
+    String(b.updated_at).localeCompare(String(a.updated_at)));
+  return { listClosetItems: (_actor: string, limit: number) =>
+    Promise.resolve(ordered.slice(0, limit)) };
+}
+
+function recencySkewedCloset(topCount: number): Record<string, unknown>[] {
+  const tops = Array.from({ length: topCount }, (_, index) =>
+    closetRow({ id: uuid(index + 1), client_id: `local-${index + 1}`,
+      title: `shirt ${index}`, clothing_type: 'shirt', subtype: 'oxford shirt',
+      updated_at: `2026-08-${String(20 - (index % 19)).padStart(2, '0')}T00:00:00Z` }));
+  // Genuinely owned, genuinely older.
+  const older = [
+    closetRow({ id: uuid(900), client_id: 'l900', title: 'sneakers', clothing_type: 'shoes', subtype: 'sneakers', updated_at: '2025-01-01T00:00:00Z' }),
+    closetRow({ id: uuid(901), client_id: 'l901', title: 'boots', clothing_type: 'boots', subtype: 'chelsea boots', updated_at: '2025-01-02T00:00:00Z' }),
+    closetRow({ id: uuid(902), client_id: 'l902', title: 'chinos', clothing_type: 'trousers', subtype: 'chinos', updated_at: '2025-01-03T00:00:00Z' }),
+    closetRow({ id: uuid(903), client_id: 'l903', title: 'jeans', clothing_type: 'jeans', subtype: 'straight jeans', updated_at: '2025-01-04T00:00:00Z' }),
+    closetRow({ id: uuid(904), client_id: 'l904', title: 'wool coat', clothing_type: 'coat', subtype: 'overcoat', updated_at: '2025-01-05T00:00:00Z' }),
+  ];
+  return [...tops, ...older];
+}
+
+Deno.test('census: a recency-skewed Closet no longer produces a false gap', async () => {
+  const rows = recencySkewedCloset(150);
+  const retrieval = await retrievePackingClosetCandidates({
+    actorId: ACTOR, data: limitedClosetSource(rows),
+  });
+  assert(retrieval.censusComplete, '155 rows is inside the census bound');
+
+  const selection = selectPackingCandidates({
+    candidates: retrieval.candidates, trip: parsedRequest().trip,
+    constraints: { excludeItemIds: [], packLight: false, notes: [] },
+  });
+  // The garments the traveller really owns must reach the shortlist.
+  assert(selection.rolesInShortlist['shoe'] > 0, 'owned shoes must be packable');
+  assert(selection.rolesInShortlist['bottom'] > 0, 'owned bottoms must be packable');
+
+  const gaps = derivePackingGaps({
+    requiredRoles: selection.requiredRoles,
+    closetRoleCensus: selection.closetRoleCensus,
+    weather: { provenance: 'UNAVAILABLE', summary: null },
+    censusComplete: retrieval.censusComplete,
+  });
+  assertEquals(gaps, [], 'nothing this traveller owns may be reported missing');
+});
+
+Deno.test('census: a truncated retrieval marks itself incomplete', async () => {
+  const rows = recencySkewedCloset(PACKING_LIMITS.maxClosetCandidates + 50);
+  const retrieval = await retrievePackingClosetCandidates({
+    actorId: ACTOR, data: limitedClosetSource(rows),
+  });
+  assertEquals(retrieval.candidates.length, PACKING_LIMITS.maxClosetCandidates);
+  assertEquals(retrieval.censusComplete, false, 'a full page means there may be more');
+});
+
+Deno.test('census: an incomplete census may never assert an absence', () => {
+  const gaps = derivePackingGaps({
+    requiredRoles: ['base', 'bottom', 'shoe', 'outer'],
+    closetRoleCensus: { base: 200 },
+    weather: { provenance: 'FORECAST', summary: 'highs 40-45F, lows near 38F, rain on 3 of 4 days' },
+    censusComplete: false,
+  });
+  assertEquals(gaps, [], 'not having seen the whole Closet is not evidence of absence');
+});
+
+Deno.test('census: an incomplete census may never assert "your only X" either', () => {
+  // The census counted exactly one shoe -- but only within the window it saw.
+  assertEquals(deriveScarcitySignal('shoe', { shoe: 1 }, false), null);
+  // With a complete census the same count is a checkable fact again.
+  assertEquals(deriveScarcitySignal('shoe', { shoe: 1 }, true), 'Your only pair of shoes');
+});
+
+Deno.test('census: a REAL absence is still reported when the census is complete', () => {
+  const gaps = derivePackingGaps({
+    requiredRoles: ['base', 'bottom', 'shoe'],
+    closetRoleCensus: { base: 6, bottom: 3 },
+    weather: { provenance: 'UNAVAILABLE', summary: null },
+    censusComplete: true,
+  });
+  assert(gaps.some((gap) => gap.code === 'missing_role_shoe'),
+    'suppressing false gaps must not suppress true ones');
+});
+
+// ── 13. Gate ordering at the dispatch seam (audit repair PACK-03/04) ─────────
+//
+// handlePackingRequest's own gate order is proven by the handler tests above.
+// What those cannot see is the order index.ts spends the CALLER'S resources in,
+// because that lives inside Deno.serve. A lapsed subscriber must not lose a
+// daily Elise generation to a request that is about to be refused, so the
+// entitlement must be resolved before the daily counter is incremented.
+
+Deno.test('dispatch order: K+ is resolved before the daily quota is spent', async () => {
+  const source = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
+  const branch = source.slice(source.indexOf('classifyPackingRequest(body)'));
+  assert(branch.length > 0, 'the packing branch must exist');
+
+  const burst = branch.indexOf('check_and_increment_stylechat_burst');
+  const entitlement = branch.indexOf("rpc('has_active_k_plus'");
+  const daily = branch.indexOf('increment_stylechat_daily_usage');
+
+  assert(burst > -1 && entitlement > -1 && daily > -1, 'all three gates must be present');
+  // Burst first: rate limiting protects the backend, not the caller's budget.
+  assert(burst < entitlement, 'burst must precede the entitlement resolution');
+  // Then entitlement, and only then the counter that costs the user something.
+  assert(entitlement < daily, 'K+ must be resolved BEFORE the daily quota is charged');
+});
+
+Deno.test('dispatch order: the daily counter is only incremented when entitled', async () => {
+  const source = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
+  const branch = source.slice(source.indexOf('classifyPackingRequest(body)'));
+  const daily = branch.indexOf('increment_stylechat_daily_usage');
+  // The increment must be guarded by the resolved entitlement rather than run
+  // unconditionally; a bare `await userClient.rpc('increment_...')` would charge
+  // every caller including the ones about to receive a 403.
+  const window = branch.slice(Math.max(0, daily - 200), daily);
+  assert(/packingEntitled\s*$|packingEntitled[\s\S]*\?/.test(window),
+    'the daily increment must be gated on the resolved entitlement');
+});
