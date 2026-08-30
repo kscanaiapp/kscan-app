@@ -20,6 +20,12 @@
 *.properties text eol=lf
 *.gradle text eol=lf
 *.pro text eol=lf
+# Edge Function config.toml files are hashed byte-for-byte by the Edge
+# Function manifest/parity gates (scripts/generate-edge-function-manifest.js).
+# Without an explicit eol pin, core.autocrlf=true checks them out CRLF on
+# Windows and the gates then report a false "deployable source does not match
+# the manifest" failure against an unmodified tree.
+*.toml text eol=lf
 
 # Truly binary — never touch
 *.png binary
