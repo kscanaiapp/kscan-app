@@ -57,3 +57,66 @@ export interface StyleDnaProfileRecord {
   derivedAt: string;
   profileData: StyleDnaProfileDataV1;
 }
+
+// ── Stored-shape validation (audit repair, Track B B4/B5) ────────────────────
+//
+// WHY THIS EXISTS: `user_style_profiles.profile_data` is a `jsonb` column whose
+// only database-level constraints are "is an object" and "<= 64 KiB". Its
+// WRITER is public.upsert_style_dna_profile(), a SECURITY DEFINER RPC granted
+// to `authenticated` that takes `p_profile_data` as a parameter -- so the exact
+// shape below is an application-layer contract, not something the database
+// enforces. Anything reading a stored profile back (the store, and through it
+// the Elise prompt builder) must therefore VALIDATE rather than assume.
+//
+// Before this guard, a stored row whose `profile_data` was missing a frequency
+// array (or carried a non-string label) made the prompt builder throw a
+// TypeError from inside stylechat-generate's request path, OUTSIDE the
+// try/catch that guards the profile fetch -- turning an optional
+// personalization signal into a total chat failure for that account. The
+// required behaviour is the opposite: an unusable profile is treated as no
+// profile, and Elise falls back to non-profile reasoning.
+
+/** One well-formed frequency entry: a non-empty string label and a finite,
+ *  non-negative count. Anything else is not usable evidence. */
+export function isStyleDnaFrequencyEntry(value: unknown): value is StyleDnaFrequencyEntry {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const entry = value as Record<string, unknown>;
+  return (
+    typeof entry.value === 'string' &&
+    entry.value.length > 0 &&
+    typeof entry.count === 'number' &&
+    Number.isFinite(entry.count) &&
+    entry.count >= 0
+  );
+}
+
+function isFrequencyList(value: unknown): value is StyleDnaFrequencyEntry[] {
+  return Array.isArray(value) && value.every(isStyleDnaFrequencyEntry);
+}
+
+/**
+ * Strict structural check for a stored `profile_data` payload.
+ *
+ * Deliberately total and allocation-free: it never throws, never coerces, and
+ * never repairs a partially-valid payload into a "mostly fine" one. A profile
+ * either matches the shape this build derives and can safely interpret, or it
+ * is not a profile as far as every reader is concerned.
+ */
+export function isStyleDnaProfileDataV1(value: unknown): value is StyleDnaProfileDataV1 {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const data = value as Record<string, unknown>;
+  if (
+    typeof data.evidenceCount !== 'number' ||
+    !Number.isFinite(data.evidenceCount) ||
+    data.evidenceCount < 0
+  ) {
+    return false;
+  }
+  return (
+    isFrequencyList(data.colorFrequency) &&
+    isFrequencyList(data.categoryFrequency) &&
+    isFrequencyList(data.garmentTypeFrequency) &&
+    isFrequencyList(data.brandFrequency) &&
+    isFrequencyList(data.materialFrequency)
+  );
+}

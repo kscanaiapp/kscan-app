@@ -45,6 +45,7 @@ import {
 import { deriveStyleDnaProfile } from './styleDnaProfileDerivation.ts';
 import {
   STYLE_DNA_PROFILE_VERSION,
+  isStyleDnaProfileDataV1,
   type StyleDnaClosetFactsRow,
   type StyleDnaProfileRecord,
 } from './styleDnaProfileTypes.ts';
@@ -75,7 +76,19 @@ function mapClosetRow(raw: Record<string, any>): StyleDnaClosetFactsRow {
   };
 }
 
-function mapProfileRow(raw: Record<string, any>): StyleDnaProfileRecord {
+/**
+ * Map one persisted row, or null when its `profile_data` is not a shape this
+ * build can interpret.
+ *
+ * `profile_data` is jsonb whose only DB constraints are "object" and "<= 64
+ * KiB"; its write path (public.upsert_style_dna_profile) takes the payload as
+ * a parameter. A stored row is therefore validated here rather than trusted,
+ * so a malformed/foreign-shaped payload degrades to "no profile" -- which the
+ * caller already handles by recomputing from the real Closet evidence -- and
+ * can never reach the prompt builder.
+ */
+function mapProfileRow(raw: Record<string, any>): StyleDnaProfileRecord | null {
+  if (!isStyleDnaProfileDataV1(raw?.profile_data)) return null;
   return {
     userId: raw.user_id,
     profileVersion: raw.profile_version,
@@ -146,7 +159,13 @@ export async function getOrRecomputeStyleDnaProfile(input: {
   const written = writtenRows[0];
   if (!written) return { ok: false, profile: null, failureReason: 'profile_write_failed' };
 
-  return { ok: true, recomputed: true, profile: mapProfileRow(written) };
+  // The row we just wrote is re-validated on the way back for the same reason
+  // the stored row is: what came back is whatever the database holds, not
+  // necessarily what this module sent.
+  const writtenRecord = mapProfileRow(written);
+  if (!writtenRecord) return { ok: false, profile: null, failureReason: 'profile_write_failed' };
+
+  return { ok: true, recomputed: true, profile: writtenRecord };
 }
 
 export { STYLE_DNA_EMPTY_EVIDENCE_REVISION };

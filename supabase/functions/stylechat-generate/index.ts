@@ -1863,10 +1863,17 @@ Deno.serve(async (req) => {
       }
     }
   }
-  const systemTextWithStyleDna =
-    serverStyleDnaProfile && serverStyleDnaProfile.profileData.evidenceCount > 0
-      ? `${systemTextWithClientStyleDna}\n\n${buildServerStyleDnaProfileBlock(serverStyleDnaProfile.profileData)}`
-      : systemTextWithClientStyleDna;
+  // buildServerStyleDnaProfileBlock is total and returns null for any profile
+  // it cannot safely render (see its own contract note). Branch on the BLOCK,
+  // not on a field of the payload: interpolating the function's result
+  // unconditionally would have put the literal string "null" into the system
+  // prompt on exactly the paths the null return exists to protect.
+  const serverStyleDnaBlock = serverStyleDnaProfile
+    ? buildServerStyleDnaProfileBlock(serverStyleDnaProfile.profileData)
+    : null;
+  const systemTextWithStyleDna = serverStyleDnaBlock
+    ? `${systemTextWithClientStyleDna}\n\n${serverStyleDnaBlock}`
+    : systemTextWithClientStyleDna;
 
   // ── E-4 closet-aware advice (flag-gated; fail-open on retrieval errors) ─────
   let advicePromptBlock: string | null = null;

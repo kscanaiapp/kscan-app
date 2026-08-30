@@ -24,9 +24,16 @@ function run(rel, requireMap = {}) {
 // pre-existing harness predates that and needs the real module wired in, not
 // a stub, since these tests exercise no server-derived-profile behavior that
 // would need faking.
+// The Track B B1A-B5 audit repair added a second real (equally pure) runtime
+// dependency: styleDnaProfileTypes.ts now exports isStyleDnaProfileDataV1, the
+// stored-shape guard that keeps a malformed profile from throwing inside a
+// live chat request. It is wired in here for the same reason promptHardening
+// is — it is the real module, not a stub.
 const promptHardening = run('supabase/functions/stylechat-generate/promptHardening.ts');
+const profileTypes = run('supabase/functions/_shared/styleDna/styleDnaProfileTypes.ts');
 const m = run('supabase/functions/stylechat-generate/styleDnaContext.ts', {
   './promptHardening.ts': promptHardening,
+  '../_shared/styleDna/styleDnaProfileTypes.ts': profileTypes,
 });
 
 test('old request (missing styleDnaContext) is a no-op', () => {

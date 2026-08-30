@@ -10,7 +10,10 @@
 //     weather, location, session, or product data is emitted into the prompt.
 
 import { escapePromptData } from './promptHardening.ts';
-import type { StyleDnaProfileDataV1 } from '../_shared/styleDna/styleDnaProfileTypes.ts';
+import {
+  isStyleDnaProfileDataV1,
+  type StyleDnaProfileDataV1,
+} from '../_shared/styleDna/styleDnaProfileTypes.ts';
 
 export interface StyleDnaContextInput {
   signalCount: number;
@@ -85,8 +88,13 @@ export function buildStyleDnaContextBlock(ctx: StyleDnaContextInput): string {
 const STYLE_DNA_PROFILE_TOP_N_IN_PROMPT = 5;
 
 function topLabels(entries: StyleDnaProfileDataV1['colorFrequency'], limit: number): string {
+  // Defensive on both axes: a missing array and a non-string label are the two
+  // ways a stored profile can differ from what this build derives, and neither
+  // may become a thrown TypeError inside a live chat request.
+  if (!Array.isArray(entries)) return '';
   return entries
     .slice(0, limit)
+    .filter((e) => e && typeof e.value === 'string' && e.value.length > 0)
     .map((e) => escapePromptData(e.value))
     .join(', ');
 }
@@ -100,7 +108,14 @@ function topLabels(entries: StyleDnaProfileDataV1['colorFrequency'], limit: numb
  * profile. Do not fabricate preferences").
  */
 export function buildServerStyleDnaProfileBlock(profile: StyleDnaProfileDataV1): string | null {
-  if (!profile || profile.evidenceCount <= 0) return null;
+  // TOTAL BY CONTRACT: this runs inside the live stylechat request path, at a
+  // point the caller does not wrap in a try/catch, so an unusable profile must
+  // return null (no block, Base Elise reasoning preserved) rather than throw.
+  // `profile_data` is jsonb written through an RPC that takes the payload as a
+  // parameter, so "the stored shape is what this build derives" is an
+  // application contract to be checked, never an invariant to be assumed.
+  if (!isStyleDnaProfileDataV1(profile)) return null;
+  if (profile.evidenceCount <= 0) return null;
 
   const lines: string[] = [
     '[Wardrobe Style DNA — derived from the user\'s own Closet, treat as background evidence only]',

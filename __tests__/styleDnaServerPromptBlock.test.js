@@ -43,9 +43,14 @@ function loadTsModule(rel, requireMap = {}) {
 }
 
 const promptHardening = loadTsModule(`${DIR}/promptHardening.ts`);
+// No longer a type-only import: the Track B B1A-B5 audit repair added
+// isStyleDnaProfileDataV1 to this module, and buildServerStyleDnaProfileBlock
+// now calls it to stay total against a malformed stored profile. The real
+// module is pure and Node-loadable, so it is wired in rather than stubbed.
+const profileTypes = loadTsModule('supabase/functions/_shared/styleDna/styleDnaProfileTypes.ts');
 const m = loadTsModule(`${DIR}/styleDnaContext.ts`, {
   './promptHardening.ts': promptHardening,
-  '../_shared/styleDna/styleDnaProfileTypes.ts': {}, // type-only import, erased
+  '../_shared/styleDna/styleDnaProfileTypes.ts': profileTypes,
 });
 
 function emptyProfile(overrides = {}) {
