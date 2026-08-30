@@ -877,3 +877,71 @@ Deno.test('general mode: the guide names categories, never a Closet item', () =>
   assert(guide.sections.length >= 2);
   assertStringIncludes(guide.notes.join(' '), 'not items from your Closet');
 });
+
+// ── 8. Weather enrichment reaching the plan (B3) ─────────────────────────────
+
+Deno.test('handler: a resolved forecast reaches the plan and suppresses the no-weather note', async () => {
+  const result = await handlePackingRequest(
+    handlerDeps({
+      resolveWeather: () =>
+        Promise.resolve({ provenance: 'FORECAST' as const, summary: 'highs 87-90F, rain on 2 of 5 days' }),
+      callProvider: (_system, user) => {
+        // The prompt must carry the forecast, labelled as one.
+        assertStringIncludes(user, 'WEATHER FORECAST');
+        const ids = [...user.matchAll(/id=([0-9a-f-]{36})/g)].map((match) => match[1]);
+        return Promise.resolve({
+          outfits: [{ label: 'Day', itemIds: ids.slice(0, 2) }],
+          packedItems: ids.slice(0, 2).map((id) => ({ itemId: id })),
+        });
+      },
+    }),
+  );
+  const plan = result.body.plan!;
+  assertEquals(plan.weather.provenance, 'FORECAST');
+  assertEquals(plan.weather.summary, 'highs 87-90F, rain on 2 of 5 days');
+  assert(
+    !plan.assumptions.some((line) => line.includes('Weather was not applied')),
+    'a plan that used a forecast must not claim weather was not applied',
+  );
+  assertEquals(result.telemetry.weatherProvenance, 'FORECAST');
+});
+
+Deno.test('handler: a weather resolver that throws is UNAVAILABLE, never a failed plan', async () => {
+  const result = await handlePackingRequest(
+    handlerDeps({
+      resolveWeather: () => Promise.reject(new Error('open-meteo down')),
+      callProvider: (_system, user) => {
+        assertStringIncludes(user, 'WEATHER: unavailable');
+        const ids = [...user.matchAll(/id=([0-9a-f-]{36})/g)].map((match) => match[1]);
+        return Promise.resolve({
+          outfits: [{ label: 'Day', itemIds: ids.slice(0, 2) }],
+          packedItems: ids.slice(0, 2).map((id) => ({ itemId: id })),
+        });
+      },
+    }),
+  );
+  assertEquals(result.body.status, 'success');
+  assertEquals(result.body.plan!.weather.provenance, 'UNAVAILABLE');
+  assertStringIncludes(result.body.plan!.assumptions[0], 'Weather was not applied');
+});
+
+Deno.test('handler: a seasonal context is carried without ever being called a forecast', async () => {
+  const result = await handlePackingRequest(
+    handlerDeps({
+      // Nothing in the shipped resolver can produce SEASONAL, but the handler
+      // must still carry it correctly if a future authority does.
+      resolveWeather: () =>
+        Promise.resolve({ provenance: 'SEASONAL' as const, summary: 'Warm and humid this time of year' }),
+      callProvider: (_system, user) => {
+        assert(!user.includes('WEATHER FORECAST'), 'seasonal must never be labelled a forecast');
+        assertStringIncludes(user, 'TYPICAL CONDITIONS FOR THIS TIME OF YEAR');
+        const ids = [...user.matchAll(/id=([0-9a-f-]{36})/g)].map((match) => match[1]);
+        return Promise.resolve({
+          outfits: [{ label: 'Day', itemIds: ids.slice(0, 2) }],
+          packedItems: ids.slice(0, 2).map((id) => ({ itemId: id })),
+        });
+      },
+    }),
+  );
+  assertEquals(result.body.plan!.weather.provenance, 'SEASONAL');
+});

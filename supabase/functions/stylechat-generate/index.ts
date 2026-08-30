@@ -123,6 +123,7 @@ import {
 } from './packingContract.ts';
 import { formatPackingLog, handlePackingRequest } from './packingHandler.ts';
 import { callPackingProvider } from './packingProvider.ts';
+import { resolvePackingWeather } from './packingWeather.ts';
 
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -1143,6 +1144,17 @@ Deno.serve(async (req) => {
           return null;
         }
       })(),
+      // B3 enrichment. Weather IMPROVES the answer; it never creates it.
+      // Anything this returns is bounded and provenance-labelled, and a null
+      // (no geocode, no forecast, beyond the horizon, timeout) is the normal
+      // case the B2M path already handles -- the plan is identical, and its
+      // assumptions say weather was not applied.
+      resolveWeather: () =>
+        resolvePackingWeather({
+          destination: parsedPacking.trip.destination,
+          startDate: parsedPacking.trip.startDate,
+          endDate: parsedPacking.trip.endDate,
+        }),
       callProvider: (systemText, userText) =>
         callPackingProvider({
           modelName,
