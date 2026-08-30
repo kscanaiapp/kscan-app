@@ -479,6 +479,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: classify-changes
+    # Staging Gate V2 Section 6: a docs-only PR does not need mobile
+    # contract/security tests run against it. This job stays a required
+    # check either way (it still reports a real `skipped` conclusion on
+    # docs-only PRs, not a missing check-run) - see the staging-security-gate
+    # aggregation below, which was fixed in the same change to actually
+    # tolerate that `skipped` result instead of treating it as a failure.
+    if: needs.classify-changes.outputs.classifications != 'DOCUMENTATION ONLY'
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -539,7 +546,15 @@ jobs:
           VERDICT="PASS"
           FAIL=0
 
-          if [ "$CONTRACT" != "success" ]; then
+          # A genuine contract-tests failure blocks; a `skipped` result
+          # (docs-only PR, per the job's own `if:` above) is exactly as
+          # legitimate a non-failure as MIGRATION's own `= "failure"` check
+          # below already treats a skip as - this used to compare
+          # `!= "success"`, which meant a `skipped` result (docs-only PR,
+          # or any other non-run outcome) always read as BLOCKED, the exact
+          # "docs-only PR shown security-red" failure class this refactor
+          # exists to fix.
+          if [ "$CONTRACT" = "failure" ]; then
             VERDICT="BLOCKED"
             FAIL=1
           fi

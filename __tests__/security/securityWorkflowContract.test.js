@@ -69,3 +69,46 @@ test('required security jobs are not conditionally skippable', () => {
     'no security job may be hard-disabled',
   );
 });
+
+// Staging Gate V2 Section 4: the base/head regression check needs the PR's
+// base commit to actually be present in the checkout, not just its shallow
+// tip.
+test('project-checks checkout uses full history (fetch-depth: 0)', () => {
+  const securityCode = workflowFiles.find((file) => file.name === 'security-code.yml');
+  const jobStart = securityCode.content.indexOf('project-checks:');
+  const jobEnd = securityCode.content.indexOf('\n  gitleaks:');
+  const jobBlock = securityCode.content.slice(jobStart, jobEnd === -1 ? undefined : jobEnd);
+  assert.match(jobBlock, /fetch-depth:\s*0/, 'project-checks must fetch full history for git worktree add <base_sha> to resolve');
+});
+
+// Staging Gate V2 Section 6: a docs-only PR should not require mobile
+// contract tests to run at all (still a real `skipped` conclusion, not a
+// missing check-run - branch protection is satisfied either way).
+test('contract-tests is gated off for docs-only classifications', () => {
+  const stagingGate = workflowFiles.find((file) => file.name === 'security-staging-gate.yml');
+  assert.ok(stagingGate, 'security-staging-gate.yml must exist');
+  const jobStart = stagingGate.content.indexOf('\n  contract-tests:');
+  const jobEnd = stagingGate.content.indexOf('\n  staging-security-gate:');
+  const jobBlock = stagingGate.content.slice(jobStart, jobEnd);
+  assert.match(
+    jobBlock,
+    /if:\s*needs\.classify-changes\.outputs\.classifications\s*!=\s*'DOCUMENTATION ONLY'/,
+    'contract-tests must skip (not fail) for a purely documentation-only diff',
+  );
+});
+
+// The aggregation step must tolerate that skip - a job this workflow itself
+// chooses not to run can never be "not success" in a way that blocks.
+test('staging-security-gate treats a skipped Contract tests result as passing, not blocking', () => {
+  const stagingGate = workflowFiles.find((file) => file.name === 'security-staging-gate.yml');
+  assert.doesNotMatch(
+    stagingGate.content,
+    /if\s*\[\s*"\$CONTRACT"\s*!=\s*"success"\s*\]/,
+    'CONTRACT must not be compared with != "success" - that reads a legitimate skip as a failure',
+  );
+  assert.match(
+    stagingGate.content,
+    /if\s*\[\s*"\$CONTRACT"\s*=\s*"failure"\s*\]/,
+    'CONTRACT should be compared the same tolerant way MIGRATION/HEALTH/SYNTHETIC already are',
+  );
+});
