@@ -122,6 +122,14 @@ export function useVoiceScan({
         },
         onSessionEndedByNative: (sessionId, result) => {
           if (sessionId !== activeSessionIdRef.current) return;
+          // The state machine only accepts SESSION_ENDED_BY_NATIVE from
+          // 'listening' (see reduceVoiceState); any other current state
+          // means the transition would be rejected (UNCHANGED). Checking
+          // that precondition here, before dispatching, guarantees
+          // applyFinalResult can never run for a rejected transition -- e.g.
+          // a late native callback that lands after a cancel already moved
+          // the machine to 'cancelled' must not repopulate a draft.
+          if (stateRef.current !== 'listening') return;
           // The 15s cap or natural end-of-speech fired without an explicit
           // stop() call. This NEVER auto-submits: it only ever reaches
           // 'finalizing' -> 'reviewing', same as a user-initiated stop.
@@ -150,25 +158,32 @@ export function useVoiceScan({
     const isCurrentEligibleAttempt = () =>
       activeSessionIdRef.current === sessionId && isKPlusActiveRef.current;
 
-    const capabilities = await fetchVoiceCapabilities();
-    if (!isCurrentEligibleAttempt()) return;
-    if (!isVoiceRecognitionAvailable(capabilities)) {
-      emitVoiceEvent('voice_on_device_unavailable', { source: sourceSurface, platform: getPlatform() });
-      dispatch({ type: 'ON_DEVICE_UNAVAILABLE' });
-      return;
-    }
-    emitVoiceEvent('voice_on_device_available', { source: sourceSurface, platform: getPlatform() });
-
-    const permission = await requestVoiceRecordingPermission();
-    if (!isCurrentEligibleAttempt()) return;
-    if (!permission.granted) {
-      emitVoiceEvent('voice_permission_denied', { source: sourceSurface, platform: getPlatform() });
-      dispatch({ type: 'PERMISSION_DENIED', permanent: !permission.canAskAgain });
-      return;
-    }
-    emitVoiceEvent('voice_permission_granted', { source: sourceSurface, platform: getPlatform() });
-
+    // The entire startup sequence is one guarded block: the caller fires
+    // this with `void voice.startSession();`, so any rejection anywhere in
+    // here -- capability query, permission request, or begin-listening --
+    // must resolve to a typed state transition, never escape as an
+    // unhandled rejection.
     try {
+      const capabilities = await fetchVoiceCapabilities();
+      if (!isCurrentEligibleAttempt()) return;
+      if (!isVoiceRecognitionAvailable(capabilities)) {
+        emitVoiceEvent('voice_on_device_unavailable', { source: sourceSurface, platform: getPlatform() });
+        activeSessionIdRef.current = null;
+        dispatch({ type: 'ON_DEVICE_UNAVAILABLE' });
+        return;
+      }
+      emitVoiceEvent('voice_on_device_available', { source: sourceSurface, platform: getPlatform() });
+
+      const permission = await requestVoiceRecordingPermission();
+      if (!isCurrentEligibleAttempt()) return;
+      if (!permission.granted) {
+        emitVoiceEvent('voice_permission_denied', { source: sourceSurface, platform: getPlatform() });
+        activeSessionIdRef.current = null;
+        dispatch({ type: 'PERMISSION_DENIED', permanent: !permission.canAskAgain });
+        return;
+      }
+      emitVoiceEvent('voice_permission_granted', { source: sourceSurface, platform: getPlatform() });
+
       await beginVoiceListening(sessionId);
       if (!isCurrentEligibleAttempt()) {
         await abandonVoiceListening(sessionId);
@@ -176,7 +191,15 @@ export function useVoiceScan({
       }
       dispatch({ type: 'LISTENING_STARTED' });
     } catch {
-      dispatch({ type: 'RECOGNIZER_ERROR' });
+      // A rejection anywhere above only matters if this is still the
+      // attempt the UI is showing. If it went stale in the meantime --
+      // cancelled, unmounted, K+ lost, or superseded by a newer tap -- some
+      // other path already owns (or already reset) the visible state, and
+      // reporting this failure now would clobber it.
+      if (isCurrentEligibleAttempt()) {
+        activeSessionIdRef.current = null;
+        dispatch({ type: 'RECOGNIZER_ERROR' });
+      }
     }
   }, [dispatch, isKPlusActive, sourceSurface]);
 
