@@ -103,6 +103,12 @@ function coerceEntry(raw: unknown): ClosetSyncEntry | null {
     conflictExpectedRowVersion: Number.isFinite(value.conflictExpectedRowVersion as number)
       ? (value.conflictExpectedRowVersion as number)
       : null,
+    conflictKind:
+      value.conflictKind === 'remote_newer_local_dirty' || value.conflictKind === 'remote_tombstone_local_dirty'
+        ? value.conflictKind
+        : null,
+    cachedMediaUploadedAt:
+      typeof value.cachedMediaUploadedAt === 'string' ? value.cachedMediaUploadedAt : null,
   });
 }
 
