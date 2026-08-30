@@ -10,11 +10,11 @@
  * build4ConfidenceAdapter — this module never invents a threshold.
  */
 
-import type { TodayWithEliseItemRef } from '../../types/todayWithElise';
+import type { TodayWithEliseItemRef } from '../../types/todayWithElise.ts';
 import {
   adaptBuild4ConfidenceField,
   type Build4ConfidenceAdapterResult,
-} from './build4ConfidenceAdapter';
+} from './build4ConfidenceAdapter.ts';
 
 export const TODAY_OWNED_PREFERRED_SLOTS = [
   'top',
