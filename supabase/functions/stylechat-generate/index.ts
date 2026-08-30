@@ -1824,7 +1824,7 @@ Deno.serve(async (req) => {
     : systemText;
   // Style DNA is additive and independent of weather: appended only when a valid,
   // above-threshold context is present. Absent/malformed leaves the prompt unchanged.
-  const systemTextWithClientStyleDna = styleDnaContext
+  const systemTextWithStyleDna = styleDnaContext
     ? `${systemTextWithWeather}\n\n${buildStyleDnaContextBlock(styleDnaContext)}`
     : systemTextWithWeather;
 
@@ -1871,9 +1871,23 @@ Deno.serve(async (req) => {
   const serverStyleDnaBlock = serverStyleDnaProfile
     ? buildServerStyleDnaProfileBlock(serverStyleDnaProfile.profileData)
     : null;
-  const systemTextWithStyleDna = serverStyleDnaBlock
-    ? `${systemTextWithClientStyleDna}\n\n${serverStyleDnaBlock}`
-    : systemTextWithClientStyleDna;
+  //
+  // NAMING IS LOAD-BEARING HERE. This must not reuse `systemTextWithStyleDna`,
+  // the name the client-fed Phase 2 block has carried since before Track B.
+  // The platform client branches append two further links to that same chain
+  // after it -- the first-use gender styling context (Fix #5) and the stylist
+  // persona block (Fix #6) -- and repoint the downstream consumers at the last
+  // one. Rebinding the shared name to a NEW value here made a three-way merge
+  // between the two lineages produce a file in which the gender block read
+  // `systemTextWithStyleDna` before its own declaration (a const TDZ
+  // ReferenceError on every StyleChat request) and in which the server block
+  // was computed but never consumed. A distinct name keeps the shared chain
+  // link byte-identical to its pre-Track-B form, so that merge either composes
+  // correctly or conflicts visibly at the consumption site below -- never
+  // silently drops one lineage's prompt blocks.
+  const systemTextWithServerStyleDna = serverStyleDnaBlock
+    ? `${systemTextWithStyleDna}\n\n${serverStyleDnaBlock}`
+    : systemTextWithStyleDna;
 
   // ── E-4 closet-aware advice (flag-gated; fail-open on retrieval errors) ─────
   let advicePromptBlock: string | null = null;
@@ -2111,14 +2125,14 @@ Deno.serve(async (req) => {
   }
 
   const systemTextForModelBase = config.flags.structuredGroundingV1 && structuredGroundingBlock
-    ? `${systemTextWithStyleDna}\n\n${structuredGroundingBlock}`
+    ? `${systemTextWithServerStyleDna}\n\n${structuredGroundingBlock}`
     : config.flags.contextNormalizationV1
     ? (visualContextPromptBlock
-      ? `${systemTextWithStyleDna}\n\n${visualContextPromptBlock}`
-      : systemTextWithStyleDna)
+      ? `${systemTextWithServerStyleDna}\n\n${visualContextPromptBlock}`
+      : systemTextWithServerStyleDna)
     : (activeContext
-      ? `${systemTextWithStyleDna}\n\n${buildActiveContextBlock(activeContext)}`
-      : systemTextWithStyleDna);
+      ? `${systemTextWithServerStyleDna}\n\n${buildActiveContextBlock(activeContext)}`
+      : systemTextWithServerStyleDna);
 
   const systemTextForModelWithAdvice =
     !config.flags.structuredGroundingV1 && advicePromptBlock
