@@ -1,0 +1,152 @@
+// Build 34 / Track B / Phase B4 — Style DNA profile store (read-or-recompute).
+//
+// The only writer of public.user_style_profiles. Implements Micro-addendum F:
+//
+//   Style DNA requested/needed
+//     -> compute current evidence revision cheaply (one bounded select)
+//     -> compare to stored evidence revision
+//     -> same       -> reuse existing profile, no write
+//     -> different  -> recompute once, persist new revision/profile
+//
+// This naturally debounces a batch of Closet writes (e.g. a B3 migration
+// pass) without a timer: the evidence revision only needs to be checked
+// against whatever the source Closet looks like at the moment a caller (B5)
+// actually asks, never against every intermediate mutation.
+//
+// NO CRON, NO WORKER, NO PER-ITEM RECOMPUTE. This module is called from
+// within a request (stylechat-generate), exactly like closetSyncEngine.ts's
+// "no background scheduler" discipline on the client side.
+//
+// THIS MODULE NEVER TRUSTS THE CALLING CLIENT FOR `userId`. Every caller is
+// expected to have already resolved `userId` from a verified JWT, the same
+// discipline every other Track B server module in this repository follows.
+//
+// Deliberately takes an injected client rather than importing a concrete
+// Supabase SDK, so it is testable from Node without a Deno runtime and so a
+// caller can pass either an anon client (RLS-scoped: only ever sees the
+// caller's own rows, which is exactly correct here) or a service-role client.
+
+import {
+  computeClosetEvidenceRevision,
+  STYLE_DNA_EMPTY_EVIDENCE_REVISION,
+} from './styleDnaEvidenceRevision.ts';
+import { deriveStyleDnaProfile } from './styleDnaProfileDerivation.ts';
+import {
+  STYLE_DNA_PROFILE_VERSION,
+  type StyleDnaClosetFactsRow,
+  type StyleDnaProfileRecord,
+} from './styleDnaProfileTypes.ts';
+
+const CLOSET_TABLE = 'user_closet_items';
+const PROFILE_TABLE = 'user_style_profiles';
+const CLOSET_FACTS_COLUMNS = 'updated_at,category,clothing_type,brand,primary_color,secondary_colors,material';
+
+/** The minimal query-builder surface this module needs. Matches the real
+ *  @supabase/supabase-js chainable shape closely enough that the real client
+ *  satisfies this interface unmodified. */
+export interface StyleDnaSupabaseClient {
+  from(table: string): {
+    select: (columns: string) => any;
+    upsert: (payload: Record<string, unknown>, options?: Record<string, unknown>) => any;
+  };
+}
+
+function mapClosetRow(raw: Record<string, any>): StyleDnaClosetFactsRow {
+  return {
+    updatedAt: raw.updated_at,
+    category: raw.category ?? null,
+    clothingType: raw.clothing_type ?? null,
+    brand: raw.brand ?? null,
+    primaryColor: raw.primary_color ?? null,
+    secondaryColors: Array.isArray(raw.secondary_colors) ? raw.secondary_colors : null,
+    material: Array.isArray(raw.material) ? raw.material : null,
+  };
+}
+
+function mapProfileRow(raw: Record<string, any>): StyleDnaProfileRecord {
+  return {
+    userId: raw.user_id,
+    profileVersion: raw.profile_version,
+    evidenceRevision: raw.evidence_revision,
+    derivedAt: raw.derived_at,
+    profileData: raw.profile_data,
+  };
+}
+
+export interface StyleDnaProfileResult {
+  ok: boolean;
+  profile: StyleDnaProfileRecord | null;
+  /** True when this call actually recomputed and persisted a new profile,
+   *  false when the stored profile was reused unchanged. Absent on failure. */
+  recomputed?: boolean;
+  /** Present only on failure. Never includes raw error detail — see
+   *  services/closetTelemetry.ts's own discipline for the same reasoning. */
+  failureReason?: 'closet_read_failed' | 'profile_read_failed' | 'profile_write_failed';
+}
+
+/**
+ * Read the current authoritative Style DNA profile for one user, recomputing
+ * it first if the underlying Closet evidence has changed since it was last
+ * derived.
+ */
+export async function getOrRecomputeStyleDnaProfile(input: {
+  supabase: StyleDnaSupabaseClient;
+  userId: string;
+}): Promise<StyleDnaProfileResult> {
+  const { supabase, userId } = input;
+
+  const closetResult = await supabase
+    .from(CLOSET_TABLE)
+    .select(CLOSET_FACTS_COLUMNS)
+    .eq('user_id', userId)
+    .is('deleted_at', null);
+  if (closetResult.error) return { ok: false, profile: null, failureReason: 'closet_read_failed' };
+
+  const closetRows: Record<string, any>[] = Array.isArray(closetResult.data) ? closetResult.data : [];
+  const evidenceRevision = computeClosetEvidenceRevision(closetRows.map((r) => r.updated_at));
+
+  const existingResult = await supabase
+    .from(PROFILE_TABLE)
+    .select('user_id,profile_version,evidence_revision,derived_at,profile_data')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (existingResult.error) return { ok: false, profile: null, failureReason: 'profile_read_failed' };
+
+  const existing = existingResult.data ? mapProfileRow(existingResult.data) : null;
+  if (
+    existing &&
+    existing.profileVersion === STYLE_DNA_PROFILE_VERSION &&
+    existing.evidenceRevision === evidenceRevision
+  ) {
+    // Same evidence -> same profile (Micro-addendum F). No write.
+    return { ok: true, profile: existing, recomputed: false };
+  }
+
+  const profileData = deriveStyleDnaProfile(closetRows.map(mapClosetRow));
+  const derivedAt = new Date().toISOString();
+  const writeResult = await supabase.from(PROFILE_TABLE).upsert(
+    {
+      user_id: userId,
+      profile_version: STYLE_DNA_PROFILE_VERSION,
+      evidence_revision: evidenceRevision,
+      derived_at: derivedAt,
+      profile_data: profileData,
+    },
+    { onConflict: 'user_id' },
+  );
+  if (writeResult.error) return { ok: false, profile: null, failureReason: 'profile_write_failed' };
+
+  return {
+    ok: true,
+    recomputed: true,
+    profile: {
+      userId,
+      profileVersion: STYLE_DNA_PROFILE_VERSION,
+      evidenceRevision,
+      derivedAt,
+      profileData,
+    },
+  };
+}
+
+export { STYLE_DNA_EMPTY_EVIDENCE_REVISION };

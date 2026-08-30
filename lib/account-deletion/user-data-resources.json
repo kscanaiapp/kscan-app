@@ -81,6 +81,13 @@
       "action": "auth_delete_cascade",
       "optional": true,
       "notes": "Build 34 Track B B1A cloud Closet facts (K+ only, staging). ON DELETE CASCADE FK to auth.users already removes these rows; this entry adds them to deletion coverage counting and post-purge residual verification. Deletion is intentionally independent of K+ status -- kplus_has_active_entitlement/has_active_k_plus are never consulted here."
+    },
+    {
+      "table": "user_style_profiles",
+      "column": "user_id",
+      "action": "auth_delete_cascade",
+      "optional": true,
+      "notes": "Build 34 Track B B4 server-derived Style DNA profile. ON DELETE CASCADE FK to auth.users already removes this row; this entry adds it to deletion coverage counting and post-purge residual verification. Deletion is intentionally independent of K+ status."
     }
   ]
 }

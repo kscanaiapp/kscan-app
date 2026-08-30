@@ -93,6 +93,11 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   // Deletion is intentionally independent of K+ status -- has_active_k_plus()
   // is never consulted by the deletion pipeline.
   { table: 'user_closet_items', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  // Build 34 Track B B4 server-derived Style DNA profile (K+-adjacent, but
+  // deletion is independent of K+ status like every other entry here). ON
+  // DELETE CASCADE to auth.users already removes this row; this entry adds it
+  // to the worker's coverage counting and post-purge residual verification.
+  { table: 'user_style_profiles', column: 'user_id', action: 'auth_delete_cascade', optional: true },
 ];
 
 export interface StorageResourceTemplate {
