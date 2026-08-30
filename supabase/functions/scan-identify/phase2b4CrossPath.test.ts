@@ -285,6 +285,10 @@ type PrivilegeProfile = {
  * this record states the privileged behavior that review must account for.
  */
 const GOVERNED_PRIVILEGE_INVENTORY: Record<string, PrivilegeProfile> = {
+  'commerce-watch-refresh': {
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
+    privilegedBackend: true, actorBoundary: true,
+  },
   'handle-user-deletion': {
     serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: false, storage: false,
     privilegedBackend: false, actorBoundary: true,

@@ -98,6 +98,7 @@ const APPROVED_PROJECT_REF = 'yzqjvdfgefveprobvvyw';
  */
 const GOVERNED_FUNCTIONS = [
   'scan-identify',
+  'commerce-watch-refresh',
   'stylechat-generate',
   'style-outfit-generate',
   'stylist-speech',

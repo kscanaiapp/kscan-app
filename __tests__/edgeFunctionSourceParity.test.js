@@ -123,6 +123,7 @@ test('committed manifest governs every governed function and the approved projec
   // docs/staging-rebuild/backend-authority-manifest.md and
   // config/backend-authority.json).
   assert.deepEqual(manifest.parity.expectedFunctions, [
+    'commerce-watch-refresh',
     'handle-user-deletion',
     'kickscrew-sneaker-description',
     'kplus-activate',

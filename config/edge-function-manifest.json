@@ -1,13 +1,14 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-30T19:13:46.285Z",
-    "generatedFromGitSha": "53689d8017e4ec5441261ffa443a45b214cd54f1"
+    "generatedAtUtc": "2026-08-30T19:37:11.461Z",
+    "generatedFromGitSha": "37e598c04af24d6cd9f5b7a74532d684db934ed6"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
     "approvedProjectRef": "yzqjvdfgefveprobvvyw",
     "expectedFunctions": [
+      "commerce-watch-refresh",
       "handle-user-deletion",
       "kickscrew-sneaker-description",
       "kplus-activate",
@@ -38,7 +39,7 @@
         "bundleFileCount": 40,
         "treeFileCount": 62,
         "bundleHash": "8d1f11f2f9ed9e5127ee12cc16b38d6e8c62484f66dd595779330c20c84975f0",
-        "treeHash": "8b0f772c7854b257cb3372de8809f2fb5ec4deb77313c5fe49eb04ae871117d0",
+        "treeHash": "053549d7382361d1f0fd1f2f6e17a881984ec2ab8f739270e900911f33393577",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -222,7 +223,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
-            "sha256": "2b75ec3eaf80e4560e9bd4a0926ab4a82299877974e4ec27f6d357bef8d43c6a",
+            "sha256": "18af58680bfef7e873713bc5ed7c701e71c698f630d887e0a93e91f640c257aa",
             "bundle": false
           },
           {
@@ -343,6 +344,74 @@
           {
             "path": "supabase/functions/scan-identify/v2Activation.ts",
             "sha256": "ac11ec3af8d726b09ccb41338a906c208e85923d481497bd3199bf6f35aa9062",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/watchlistCapability.ts",
+            "sha256": "fe85ca7b7258a7e00059e2c06103a2ff036cd034e4389e80a0f3446c89baa960",
+            "bundle": true
+          }
+        ]
+      },
+      {
+        "name": "commerce-watch-refresh",
+        "entry": "supabase/functions/commerce-watch-refresh/index.ts",
+        "remoteSpecifiers": [
+          "npm:@supabase/supabase-js@2"
+        ],
+        "bundleFileCount": 10,
+        "treeFileCount": 11,
+        "bundleHash": "241a7bc7c2d19010e14c37276d0ed432e1322f1dff81578fb8c70de6c541dc7f",
+        "treeHash": "09a506061baef646888f061d0a399c0fca6b01c2e830a4d50788144ba9e2f3dc",
+        "files": [
+          {
+            "path": "supabase/functions/_shared/deletion/common.ts",
+            "sha256": "34425a84ea83beb2d2a2ea53aebb533f26403b2d7136b653f0e6d63a74ffcf7c",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/commerce-watch-refresh/changeEngine.test.ts",
+            "sha256": "06920b8af846f468401ed369758396be81fd8eb4f80053585257ae0edf10868e",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/commerce-watch-refresh/changeEngine.ts",
+            "sha256": "bf27da1562b4a5716516032f2059718e2dc441b96ed39640137a069e12da68e8",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/commerce-watch-refresh/index.ts",
+            "sha256": "19a08d48dc5f75d02ba193cabc6ddf367c5cb00f57894e6ec90b81b69be0672f",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/commerce-watch-refresh/watchRefreshConfig.ts",
+            "sha256": "a64ab3d39d8bca2574caa2d4b0265ecc5cf478fe5d9c4d50205d0c2c3a09fa71",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/commerce-watch-refresh/watchRefreshObservation.ts",
+            "sha256": "eaa527a5179ebc174f0fdfa508c4faa505314c9b28526cd725aac7737cf77538",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/canonicalCommerce.ts",
+            "sha256": "8d463cc9ee3a54d9a7ff8742880d5cad4e3dc3e8071e3083baea9c0f71e0b32a",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/farfetch3Provider.ts",
+            "sha256": "e1d413142fcc771cf15b0db85c868218da720b077d994fdfdd49c3a36bd75e20",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/kicksCrewProvider.ts",
+            "sha256": "1c966ac9a6db4c189eb402d7fcbc84037254066bab5bf5102f3e314e839b952b",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/shoppingProvider.ts",
+            "sha256": "33798bbcb357b70ec39ad9b25d68182117b239e47f481ea90cd2a33552f6bd8c",
             "bundle": true
           },
           {
@@ -848,8 +917,8 @@
         ],
         "bundleFileCount": 3,
         "treeFileCount": 3,
-        "bundleHash": "3343e4717253d2033de0f56b3b2cf353463327132560be7a75b8a8917bd3d214",
-        "treeHash": "3343e4717253d2033de0f56b3b2cf353463327132560be7a75b8a8917bd3d214",
+        "bundleHash": "926e9195fa7c76aa133a42e99efbd4651cbcb2fbd028f6a3c3e355275e94a89f",
+        "treeHash": "926e9195fa7c76aa133a42e99efbd4651cbcb2fbd028f6a3c3e355275e94a89f",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -858,7 +927,7 @@
           },
           {
             "path": "supabase/functions/_shared/deletion/userDataResources.ts",
-            "sha256": "f79d7cf1cd312d3930b00ee0d16fb5463223f371a4987d053004efa33f5bc6b1",
+            "sha256": "c8551a61a7fda96da77d4c271ae987a7020fb0ccff161374f258c38c21371d04",
             "bundle": true
           },
           {
