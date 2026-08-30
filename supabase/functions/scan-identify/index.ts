@@ -97,6 +97,7 @@ import {
   type SanitizedDetectedGarment,
 } from './multiItemGarments.ts';
 import { isQualityTuneEnabled, QUALITY_TUNE_VERSION } from './qualityTuneConfig.ts';
+import { checkAuthenticatedScanQuota } from './scanQuota.ts';
 import { applyQualityTaxonomyTune } from './qualityTuneNormalize.ts';
 import {
   buildWeightedCommerceQueries,
@@ -199,8 +200,6 @@ const ANON_SCAN_RATE_LIMIT_MAX = 6;
 // user retry) against potentially several scans in one session.
 const COMMERCE_ONLY_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const COMMERCE_ONLY_RATE_LIMIT_MAX = 40;
-const SCAN_IDENTIFY_IMAGE_DAILY_LIMIT_DEFAULT = 30;
-const SCAN_IDENTIFY_TEXT_DAILY_LIMIT_DEFAULT = 50;
 const PROJECT_ACCESS_CACHE_MS = 5 * 60 * 1000;
 
 // Output sanitization caps — keep responses small and predictable.
@@ -264,6 +263,13 @@ const IDENTIFICATION_IDENTITY_STRING_KEYS = [
 
 const SAFE_FAILED_MESSAGE =
   "We couldn't complete this scan. Please try again in better light or retake the photo.";
+/**
+ * Shown when the quota system could not be consulted. Says "temporarily
+ * unavailable", never "limit reached": the user has hit no limit, and telling
+ * them they had would be both false and unactionable.
+ */
+const QUOTA_UNVERIFIED_MESSAGE =
+  "We couldn't verify your scan allowance just now. Please try again in a moment.";
 const NO_IMAGE_PROVIDED_MESSAGE =
   'No image provided. Please retake the photo and try again.';
 const INVALID_IMAGE_MESSAGE =
@@ -1259,58 +1265,6 @@ async function sha256Hex(value: string): Promise<string> {
     .join('');
 }
 
-function getScanIdentifyDailyLimit(mode: string): number {
-  const raw = readTrimmedEnv(
-    mode === 'text' ? 'SCAN_IDENTIFY_TEXT_DAILY_LIMIT' : 'SCAN_IDENTIFY_IMAGE_DAILY_LIMIT',
-  );
-  const parsed = raw !== undefined ? parseInt(raw, 10) : NaN;
-  return Number.isFinite(parsed) && parsed > 0
-    ? parsed
-    : (mode === 'text' ? SCAN_IDENTIFY_TEXT_DAILY_LIMIT_DEFAULT : SCAN_IDENTIFY_IMAGE_DAILY_LIMIT_DEFAULT);
-}
-
-async function checkAuthenticatedScanQuota(
-  catalogClient: unknown,
-  userId: string,
-  mode: string,
-  logUserId: string,
-): Promise<{ allowed: boolean; count: number; limit: number }> {
-  if (!catalogClient) {
-    console.warn(
-      '[scan-identify] quota_check_error user=%s mode=%s reason=missing_service_role_client',
-      logUserId,
-      mode,
-    );
-    return { allowed: true, count: 0, limit: 0 };
-  }
-
-  const dailyLimit = getScanIdentifyDailyLimit(mode);
-
-  try {
-    const { data, error } = await (catalogClient as any).rpc('check_and_increment_scan_identify_daily_usage', {
-      p_user_id: userId,
-      p_mode: mode,
-      p_daily_limit: dailyLimit,
-    });
-
-    if (error) throw error;
-
-    const row = Array.isArray(data) ? data[0] : data;
-    if (!row || typeof row.allowed !== 'boolean') {
-      throw new Error('malformed_rpc_response');
-    }
-
-    const allowed = row.allowed;
-    const count = typeof row.count === 'number' ? row.count : 0;
-    const limit = typeof row.limit === 'number' ? row.limit : dailyLimit;
-
-    return { allowed, count, limit };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.warn('[scan-identify] quota_check_error user=%s mode=%s error=%s', logUserId, mode, msg);
-    return { allowed: true, count: 0, limit: 0 };
-  }
-}
 
 function buildRateLimitedResponse(): Record<string, unknown> {
   return {
@@ -2554,15 +2508,66 @@ Deno.serve(async (req) => {
   }
 
   // ── 2b. Authenticated per-user daily quota check ─────────────────────────────
-  // Checked after mode/body validation and before any AI/commerce call.
-  // Quota failures return an HTTP 200 app-safe body so mobile clients treat it
-  // as a normal outcome rather than a network/system error.
-  // DB or configuration errors fail open so a quota rollout issue cannot
-  // break all scans.
+  // Checked after mode/body validation and before any AI/commerce call. This is
+  // the authorisation point for paid work: everything below it -- the Gemini
+  // call in step 3 and every commerce provider it feeds -- costs money.
+  //
+  // Quota outcomes return an HTTP 200 app-safe body so mobile clients treat
+  // them as a normal outcome rather than a network/system error.
+  //
+  // These used to fail OPEN: a missing service-role client or any RPC error
+  // returned allowed:true, so a quota outage authorised unmetered paid Gemini
+  // and paid commerce for every authenticated caller. Quota infrastructure
+  // being unreachable is not evidence that the user is under their limit, so it
+  // now stops the request before any paid call -- reported as a retryable
+  // failure, NOT as "limit reached", which would be a lie about the user.
 
   if (auth.isAuthenticated && userId) {
     const quota = await checkAuthenticatedScanQuota(catalogClient, userId, mode, logUserId);
-    if (!quota.allowed) {
+
+    if (quota.outcome === 'unverified') {
+      console.warn(
+        '[scan-identify] quota_unverified user=%s mode=%s reason=%s paid_work=blocked',
+        logUserId,
+        mode,
+        quota.reason,
+      );
+      void captureCommerceOutcome({
+        requestMode: mode === 'text' ? 'text' : 'legacy_single_item',
+        sourceClass: typeof source === 'string' ? source : null,
+        appPlatform,
+        appVersion,
+        status: 'failed',
+        isFashion: false,
+        categoryRoute: null,
+        qualityBand: null,
+        commerceQueryDetailLevel: null,
+        providerOutcome: null,
+        providersTried: null,
+        primaryResultCount: 0,
+        fallbackUsed: false,
+        productsBeforeFilter: 0,
+        productsAfterFilter: 0,
+        productsBeforeDedupe: 0,
+        productsAfterDedupe: 0,
+        categoryMismatchRemovals: 0,
+        retailerCount: 0,
+        commerceDurationMs: null,
+        totalDurationMs: Date.now() - requestStartedAt,
+        failureReason: mapToFailureReason({ quotaUnverified: true }),
+        textScanParityEnabled: false,
+      });
+      return json(
+        {
+          ...normalized('failed', QUOTA_UNVERIFIED_MESSAGE),
+          error: 'quota_unavailable',
+          retryable: true,
+        },
+        200,
+      );
+    }
+
+    if (quota.outcome === 'exceeded') {
       console.log(
         '[scan-identify] quota_rate_limited user=%s mode=%s count=%d limit=%d',
         logUserId,

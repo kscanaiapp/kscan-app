@@ -14,6 +14,14 @@ export const FAILURE_REASON_NON_FASHION = 'non_fashion' as const;
 export const FAILURE_REASON_AUTHENTICATION_REQUIRED = 'authentication_required' as const;
 export const FAILURE_REASON_AUTHENTICATION_INVALID = 'authentication_invalid' as const;
 export const FAILURE_REASON_QUOTA_EXCEEDED = 'quota_exceeded' as const;
+/**
+ * The quota system could not be consulted -- no service-role client, an RPC
+ * error, or a malformed RPC result. Deliberately NOT quota_exceeded: the user
+ * has not hit any limit, our own infrastructure failed. Conflating the two
+ * would tell a user they are out of scans and would hide a quota outage inside
+ * a metric that is expected to be non-zero.
+ */
+export const FAILURE_REASON_QUOTA_UNVERIFIED = 'quota_unverified' as const;
 export const FAILURE_REASON_SESSION_MISSING = 'session_missing' as const;
 export const FAILURE_REASON_SESSION_MISMATCH = 'session_mismatch' as const;
 export const FAILURE_REASON_DIGEST_MISSING = 'digest_missing' as const;
@@ -51,6 +59,7 @@ export const FAILURE_REASONS = [
   FAILURE_REASON_AUTHENTICATION_REQUIRED,
   FAILURE_REASON_AUTHENTICATION_INVALID,
   FAILURE_REASON_QUOTA_EXCEEDED,
+  FAILURE_REASON_QUOTA_UNVERIFIED,
   FAILURE_REASON_SESSION_MISSING,
   FAILURE_REASON_SESSION_MISMATCH,
   FAILURE_REASON_DIGEST_MISSING,
@@ -95,6 +104,8 @@ export function mapToFailureReason(input: {
   authRequired?: boolean;
   authInvalid?: boolean;
   quotaExceeded?: boolean;
+  /** Quota infrastructure unavailable/errored. Not a user limit. */
+  quotaUnverified?: boolean;
   sessionMissing?: boolean;
   sessionMismatch?: boolean;
   digestMissing?: boolean;
@@ -119,6 +130,7 @@ export function mapToFailureReason(input: {
   if (input.authRequired) return FAILURE_REASON_AUTHENTICATION_REQUIRED;
   if (input.authInvalid) return FAILURE_REASON_AUTHENTICATION_INVALID;
   if (input.quotaExceeded) return FAILURE_REASON_QUOTA_EXCEEDED;
+  if (input.quotaUnverified) return FAILURE_REASON_QUOTA_UNVERIFIED;
   if (input.sessionMissing) return FAILURE_REASON_SESSION_MISSING;
   if (input.sessionMismatch) return FAILURE_REASON_SESSION_MISMATCH;
   if (input.digestMissing) return FAILURE_REASON_DIGEST_MISSING;

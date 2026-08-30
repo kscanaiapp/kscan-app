@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-30T01:49:18.451Z",
-    "generatedFromGitSha": "144a5fe5df0d10515ce5d2da962c177e74ad062e"
+    "generatedAtUtc": "2026-08-30T01:59:24.624Z",
+    "generatedFromGitSha": "d02aa8407ae4417fdfd50b9ebac04c749bc329de"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -35,10 +35,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 38,
-        "treeFileCount": 59,
-        "bundleHash": "b7ba4c4248df3321de3e2358b381e7c5d9d34886538c69cdeeeb92ae85d59f65",
-        "treeHash": "bc2a7b43b6ac20382410785b9a419936345bfe04ca39c806918892654217ad76",
+        "bundleFileCount": 39,
+        "treeFileCount": 61,
+        "bundleHash": "d05a90262022250293df3e2eeaf79c018b55bc89434e4d3cd48f98b44871850f",
+        "treeHash": "92435ec3550230bdfe157663ba7edc5c83be6c74ed37b5b5325d9b2a0ea1e3a6",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -147,7 +147,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/commerceRelevanceFailure.ts",
-            "sha256": "3fd92c59ab92600090409ff5f1e742f0c02cad42503fbb7a13304987f3efcd9f",
+            "sha256": "bba5af55a404e6ab16427469651c12315c926721c95c065d9732d4302188771e",
             "bundle": true
           },
           {
@@ -192,7 +192,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/index.ts",
-            "sha256": "132888926b4a287b926ee967c1ed0c756eec2619e6fc0cd2c2897172720cc7f1",
+            "sha256": "835fb8ea79a79f5366aaaed9a7c306c056a31173ca1b12df270394203b1c4624",
             "bundle": true
           },
           {
@@ -269,6 +269,16 @@
             "path": "supabase/functions/scan-identify/scanIntelligenceCapture.ts",
             "sha256": "9e6e3f3ddef8123ab97f2a700ddd7aefc581bcd1b6600d1b9aded32b2d19f074",
             "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/scanQuota.ts",
+            "sha256": "28c3524442bbf8bc79012514bcd1293222a2df991777c0329c1902f6f4a7d57d",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/scanQuotaFailClosed.test.ts",
+            "sha256": "98e636ef3d091d65f4699eccdcd0fef7a7c0d268cb07a1f0b8a3fc28d8414fbf",
+            "bundle": false
           },
           {
             "path": "supabase/functions/scan-identify/scannerCategoryRoute.ts",
