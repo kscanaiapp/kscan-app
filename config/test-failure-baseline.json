@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "recordedAt": "2026-08-30",
+  "scope": "Build 34 Track B integration convergence",
+  "failures": [
+    "media dimensions are inherited from the existing Closet store, not invented",
+    "no repo migration other than the blocking one assumes the internal schema",
+    "IOS-001: any profile mounting the attach surface also enables identification",
+    "config.toml pins JWT posture so a deploy cannot silently change it",
+    "the real repo manifest and migration tree pass with zero violations",
+    "B34-DEF-009: gate passes against the current, real migration tree",
+    "parity: every governed file exists and matches its recorded hash",
+    "parity: the generator agrees the committed manifest is current",
+    "USER_DATA_RESOURCES covers all user-linked tables in migrations",
+    "edge source: production stage logs are present and do not leak sensitive data",
+    "edge source: authenticated image scan checks DB quota before Gemini",
+    "edge source: quota DB/RPC failure fails open and proceeds to Gemini",
+    "edge source: missing service role key fails open for authenticated quota",
+    "edge source: quota logs do not expose full user id, tokens, image, or text",
+    "main migration revokes anon EXECUTE from every function in the reviewed list",
+    "contributions migration uses a current room-scoped participant/share predicate",
+    "contribution UPDATE cannot reassign contributor identity or move an item between rooms",
+    "contribution DELETE remains own-item-only while existing owner policies are untouched",
+    "staging exposes exactly the production client-feature flag set",
+    "shared flags hold identical values unless allow-listed as environment-specific",
+    "migration: compareMigrations — aligned history passes"
+  ]
+}

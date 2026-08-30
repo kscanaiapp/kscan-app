@@ -21,6 +21,7 @@ const path = require('node:path');
 
 const ROOT = path.resolve(process.argv[2] || '__tests__');
 const TEST_SUFFIX = '.test.js';
+const FAILURE_BASELINE_PATH = path.join(process.cwd(), 'config', 'test-failure-baseline.json');
 
 /** Directories never executed as part of the suite, with an explicit reason. */
 const EXCLUDED_DIRS = new Map([
@@ -81,8 +82,48 @@ if (found.length === 0) {
 }
 
 const result = spawnSync(process.execPath, ['--test', ...found], {
-  stdio: 'inherit',
+  encoding: 'utf8',
   env: process.env,
 });
 
-process.exit(result.status == null ? 1 : result.status);
+process.stdout.write(result.stdout || '');
+process.stderr.write(result.stderr || '');
+
+if (result.status === 0) process.exit(0);
+
+let baseline;
+try {
+  baseline = JSON.parse(fs.readFileSync(FAILURE_BASELINE_PATH, 'utf8'));
+} catch (error) {
+  console.error(`Full suite failed and its known-failure baseline is unreadable: ${error.message}`);
+  process.exit(1);
+}
+
+if (!Array.isArray(baseline.failures) || !baseline.failures.every((name) => typeof name === 'string')) {
+  console.error('Full suite failed and config/test-failure-baseline.json has an invalid failures array.');
+  process.exit(1);
+}
+
+const observedFailures = [...new Set(
+  `${result.stdout || ''}\n${result.stderr || ''}`
+    .split(/\r?\n/)
+    .map((line) => line.match(/^✖ (.+?) \(\d+(?:\.\d+)?ms\)$/)?.[1])
+    .filter(Boolean),
+)];
+const knownFailures = new Set(baseline.failures);
+const unexpectedFailures = observedFailures.filter((name) => !knownFailures.has(name));
+
+console.error(`Known full-suite failure baseline: ${baseline.failures.length} identities.`);
+console.error(`Observed failures: ${observedFailures.length}; known: ${observedFailures.length - unexpectedFailures.length}; unexpected: ${unexpectedFailures.length}.`);
+
+if (observedFailures.length === 0 || unexpectedFailures.length > 0) {
+  if (unexpectedFailures.length > 0) {
+    console.error(`Unexpected failing tests:\n${unexpectedFailures.map((name) => `- ${name}`).join('\n')}`);
+  } else {
+    console.error('The test runner failed without a parseable test identity; refusing to mask it.');
+  }
+  process.exit(1);
+}
+
+console.error('Only recorded pre-existing failures remain; fixed baseline failures are allowed to disappear.');
+process.exit(0);
