@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-30T20:21:16.065Z",
-    "generatedFromGitSha": "1598052494dfb9bbcf70fc75b56e12e3b43bbf69"
+    "generatedAtUtc": "2026-08-30T21:48:47.632Z",
+    "generatedFromGitSha": "d0ba668771c3f25047781dcb33678740c427c9ac"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -364,10 +364,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 11,
-        "treeFileCount": 12,
-        "bundleHash": "d0ad361377de32c3652c7182079643e51ff71b4c614147adc35f5a588613ccd3",
-        "treeHash": "05abfb2e2ced9c11003d12ece0b519a4cb5029a51437f7e8df3a9c26d50b56a0",
+        "bundleFileCount": 12,
+        "treeFileCount": 14,
+        "bundleHash": "0e05af521bf47ab33c1906854853e3b0cae0249cbb5f470426d8a212becb6f56",
+        "treeHash": "090c5eefe2cc100854f2d858eb12553c8949ee990c07fa80d405ecdeecdcd6f4",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -386,12 +386,22 @@
           },
           {
             "path": "supabase/functions/commerce-watch-refresh/index.ts",
-            "sha256": "c236c4490b3768779ef1e362fc4fdba83f29c7c0be1af3ca8b2b6fb056673929",
+            "sha256": "7416b7611e8a510abf4a473d7072dabcbb85bf51eac0880c68f32ab3c0c80c0f",
             "bundle": true
           },
           {
             "path": "supabase/functions/commerce-watch-refresh/pushDelivery.ts",
             "sha256": "660fec7d6c9e7365c9af80a08666e1c337b09b089f0dbff2d8ea7011359a9648",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/commerce-watch-refresh/refreshQuery.test.ts",
+            "sha256": "a93265275e0ffbae98f917b7993833dddc1d56e0fdcc9fb412c1fa63bce32fc9",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/commerce-watch-refresh/refreshQuery.ts",
+            "sha256": "ce843cde3122eb7deca8e3b52f0b3996ed026d0ddbc1b1896b7e4f14caa1756d",
             "bundle": true
           },
           {
