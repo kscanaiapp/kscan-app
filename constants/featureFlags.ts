@@ -103,6 +103,26 @@ export function resolveKPlusEarlyAccessEnabled(
 }
 export const KPLUS_EARLY_ACCESS_ENABLED = resolveKPlusEarlyAccessEnabled();
 
+// ── Virtual Try-On ───────────────────────────────────────────────────────────
+/**
+ * Build-time rollout switch for VTO surfaces. This is the SHIPPING gate, not
+ * the kill switch: the operator-facing kill switch is the remote
+ * `vto_generation` row in app_config, and the server enforces it regardless
+ * of what any client believes (see services/vto/vtoFeatureControl.ts and
+ * supabase/functions/vto-generate). This flag only decides whether a build
+ * carries the UI at all. Defaults off.
+ */
+export function resolveVtoUiEnabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_VTO_UI_ENABLED,
+): boolean {
+  return value === 'true';
+}
+export const VTO_UI_ENABLED = resolveVtoUiEnabled();
+
+/** Remote control key for VTO. Read by clients for UX only; the server reads
+ *  the same key with the service role and its answer is the one that counts. */
+export const VTO_CONFIG_KEY = 'vto_generation';
+
 // ── Scan Results V2 UI rollout flags ─────────────────────────────────────────
 export const SCAN_RESULTS_V2_UI_ENABLED =
   process.env.EXPO_PUBLIC_SCAN_RESULTS_V2_UI === 'true';
