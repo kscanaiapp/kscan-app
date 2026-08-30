@@ -110,6 +110,20 @@ import {
 import { runEliseAdvicePipeline } from './eliseAdvicePipeline.ts';
 import type { EliseWardrobeDataSource } from './eliseWardrobeRetrieval.ts';
 import { ELISE_ADVICE_CONTRACT_VERSION, ELISE_ADVICE_LIMITS } from './eliseAdviceTypes.ts';
+// ── K+ Packing Intelligence V1 ─────────────────────────────────────────────
+// A versioned branch of THIS function rather than a new Edge Function: Packing
+// needs the JWT identity, the account-lifecycle gate, the shared Elise quota
+// RPCs, has_active_k_plus(), user_closet_items and the server-derived Signature
+// Style profile that all already live here. See packingContract.ts.
+import {
+  PACKING_CONTRACT_VERSION,
+  PACKING_LIMITS,
+  classifyPackingRequest,
+  parsePackingRequest,
+} from './packingContract.ts';
+import { formatPackingLog, handlePackingRequest } from './packingHandler.ts';
+import { callPackingProvider } from './packingProvider.ts';
+
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -986,12 +1000,162 @@ Deno.serve(async (req) => {
     ? body.requestId.trim().slice(0, 80)
     : makeRequestId();
   const actorHash = await stableActorHash(userId);
-
   // Kill switch is trim/case-insensitive; only an explicit "false" disables AI.
   const isAiDisabled = !config.flags.aiEnabled;
   const geminiKey = Deno.env.get('GEMINI_API_KEY');
   // Model name is trimmed but never lowercased; preserves exact operator config.
   const modelName = config.modelName;
+
+  // ── 3a. VERSIONED BRANCH — K+ Packing Intelligence V1 ─────────────────────
+  //
+  // Only the exact immutable top-level `schemaVersion` selects this path, and
+  // only while the kill switch is on. With the flag off the field is not a
+  // recognized schema at all, so the request falls through to the ordinary
+  // chat parser below and every existing StyleChat path is byte-for-byte
+  // unchanged -- including for a client that somehow sends the field.
+  //
+  // THE SERVER-SIDE ORDER BELOW IS THE SECURITY MODEL, not a convenience:
+  //   auth -> lifecycle (above) -> schema -> burst -> daily quota -> K+ ->
+  //   Closet -> readiness -> provider
+  // A malformed body cannot burn a generation, a burst-limited caller never
+  // reaches the Closet, and a lapsed K+ subscriber never reaches the provider.
+  if (config.flags.packingIntelligenceV1 && classifyPackingRequest(body) === 'packing') {
+    const parsedPacking = parsePackingRequest(body);
+    if (!parsedPacking.ok) {
+      return json(
+        { status: 'error', errorCode: parsedPacking.errorCode, message: parsedPacking.message },
+        400,
+      );
+    }
+
+    if (isAiDisabled || !geminiKey) {
+      return json({
+        status: 'error',
+        contractVersion: PACKING_CONTRACT_VERSION,
+        requestId,
+        message: 'Packing is temporarily unavailable. Please try again shortly.',
+        plan: null,
+        generalGuide: null,
+        errorCode: 'PACKING_UNAVAILABLE',
+      });
+    }
+
+    // Quotas are DELIBERATELY the shared Elise counters, not a second
+    // entitlement system: one budget per user (build plan section 61). Burst
+    // is checked first so a rate-limited caller does not spend daily quota.
+    const { data: packingBurst, error: packingBurstError } = await userClient.rpc(
+      'check_and_increment_stylechat_burst',
+      { p_limit: config.burstLimitPerMinute },
+    );
+    if (packingBurstError) {
+      if (
+        typeof packingBurstError.message === 'string' &&
+        /not available for Elise/i.test(packingBurstError.message)
+      ) {
+        return json(
+          { error: 'This account is scheduled for deletion.', errorCode: 'ACCOUNT_PENDING_DELETION' },
+          403,
+        );
+      }
+      console.error('[stylechat-generate] packing burst RPC error');
+      return json({ error: 'Usage check failed' }, 500);
+    }
+    const packingBurstRow = Array.isArray(packingBurst) ? packingBurst[0] : packingBurst;
+    // A malformed RPC payload must not read as permission. Fail closed.
+    if (!packingBurstRow || typeof packingBurstRow.allowed !== 'boolean') {
+      console.error('[stylechat-generate] packing usage_check_failed gate=burst reason=malformed_rpc_response');
+      return json({ error: 'Usage check failed' }, 500);
+    }
+    if (!packingBurstRow.allowed) {
+      return json({
+        status: 'error',
+        contractVersion: PACKING_CONTRACT_VERSION,
+        requestId,
+        message: 'You are packing faster than I can keep up. Try again in a moment.',
+        plan: null,
+        generalGuide: null,
+        errorCode: 'PACKING_BURST_LIMIT',
+      });
+    }
+
+    const { data: packingQuota, error: packingQuotaError } = await userClient.rpc(
+      'increment_stylechat_daily_usage',
+    );
+    if (packingQuotaError) {
+      console.error('[stylechat-generate] packing quota RPC error');
+      return json({ error: 'Usage check failed' }, 500);
+    }
+    const packingQuotaRow = Array.isArray(packingQuota) ? packingQuota[0] : packingQuota;
+    if (!packingQuotaRow || typeof packingQuotaRow.limit_reached !== 'boolean') {
+      console.error('[stylechat-generate] packing usage_check_failed gate=daily reason=malformed_rpc_response');
+      return json({ error: 'Usage check failed' }, 500);
+    }
+    if (packingQuotaRow.limit_reached) {
+      return json({
+        status: 'error',
+        contractVersion: PACKING_CONTRACT_VERSION,
+        requestId,
+        message: "You've used today's Elise generations. Your packing plan will be here tomorrow.",
+        plan: null,
+        generalGuide: null,
+        errorCode: 'PACKING_LIMIT_REACHED',
+      });
+    }
+
+    const packingResult = await handlePackingRequest({
+      request: parsedPacking,
+      requestId,
+      actorId: userId,
+      // Server-side entitlement, from the same authority RLS on
+      // user_closet_items trusts. Never a client-supplied flag.
+      hasActiveKPlus: async () => {
+        const { data } = await userClient.rpc('has_active_k_plus', {});
+        return data === true;
+      },
+      closet: {
+        async listClosetItems(actorId: string, limit: number) {
+          const { data, error } = await userClient
+            .from('user_closet_items')
+            .select(
+              'id, user_id, client_id, title, category, clothing_type, subtype, brand, primary_color, secondary_colors, material, updated_at, deleted_at',
+            )
+            .eq('user_id', actorId)
+            .is('deleted_at', null)
+            .order('updated_at', { ascending: false })
+            .limit(Math.min(limit, PACKING_LIMITS.maxClosetCandidates));
+          // A failed query must surface as a failure, never as an empty
+          // Closet: 'you own nothing' and 'I could not look' are different
+          // answers and only one of them is honest here.
+          if (error) throw new Error('closet_query_failed');
+          return (data ?? []) as Record<string, unknown>[];
+        },
+      },
+      // Signature Style is advisory and resolved through the SAME
+      // server-authoritative store the chat path uses. A failure here is
+      // never a Packing failure -- the block is simply absent.
+      signatureStyleBlock: await (async () => {
+        if (!config.flags.closetWardrobeContextV1) return null;
+        try {
+          const profileResult = await getOrRecomputeStyleDnaProfile({ supabase: userClient });
+          if (!profileResult.ok || !profileResult.profile) return null;
+          return buildServerStyleDnaProfileBlock(profileResult.profile.profileData);
+        } catch {
+          return null;
+        }
+      })(),
+      callProvider: (systemText, userText) =>
+        callPackingProvider({
+          modelName,
+          apiKey: geminiKey,
+          systemText,
+          userText,
+        }),
+    });
+
+    console.log(formatPackingLog(packingResult.telemetry));
+    return json(packingResult.body, packingResult.httpStatus);
+  }
+
 
   const sessionId = typeof body.sessionId === 'string' ? body.sessionId.trim() : '';
   const message   = typeof body.message   === 'string' ? body.message.trim()   : '';
