@@ -82,6 +82,13 @@ export interface VtoProviderMedia {
   mediaType: string;
   width: number | null;
   height: number | null;
+  /** The provider's own billed-unit count for this generation, when it
+   *  reports one (e.g. AILabTools' `usage.image_count`). Server-log only --
+   *  never returned to a client. Provider-neutral by name: an adapter fills
+   *  it in from whatever its vendor calls billing, so cost can be estimated
+   *  later without inventing a cost model now (spec 22/28). Optional: most
+   *  fixtures and a provider with no such concept simply omit it. */
+  billedUnits?: number | null;
 }
 
 export type VtoProviderOutcome =

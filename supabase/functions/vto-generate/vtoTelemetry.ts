@@ -32,6 +32,10 @@ export const VTO_LOG_FIELDS = [
   'outputBucket',
   'outputBytes',
   'stage',
+  /** The provider's own billed-unit count for one generation (e.g.
+   *  AILabTools' usage.image_count), when it reports one. Content-free: a
+   *  small integer, not anything about the request's content. */
+  'billedUnits',
 ] as const;
 
 export type VtoLogField = (typeof VTO_LOG_FIELDS)[number];

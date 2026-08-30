@@ -395,6 +395,7 @@ export async function handleVtoRequest(
     inputBucket: payloadBucket(personDataUri.length),
     outputBucket: dimensionBucket(validation.media.width, validation.media.height),
     outputBytes: validation.byteLength,
+    billedUnits: validation.media.billedUnits ?? undefined,
   });
 
   return json({

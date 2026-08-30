@@ -295,7 +295,11 @@ export function createAiLabToolsProvider(options: AiLabToolsAdapterOptions): Vto
           if (typeof imageUrl !== 'string' || !imageUrl) {
             return { ok: false, failure: 'invalid_output', detail: 'poll_missing_image_url' };
           }
-          const media = await fetchResultAsMedia(imageUrl, signal, doFetch);
+          const usage = (pollBody as Record<string, unknown> | null)?.usage as
+            | Record<string, unknown>
+            | undefined;
+          const billedUnits = typeof usage?.image_count === 'number' ? usage.image_count : null;
+          const media = await fetchResultAsMedia(imageUrl, signal, doFetch, billedUnits);
           return media;
         }
         // 0 (queued) / 1 (processing) / anything else: keep polling.
@@ -310,6 +314,7 @@ async function fetchResultAsMedia(
   imageUrl: string,
   signal: AbortSignal,
   fetchImpl: SubmitFetcher,
+  billedUnits: number | null,
 ): Promise<VtoProviderOutcome> {
   const fetched = await fetchWithTimeoutAndCap(imageUrl, RESULT_FETCH_TIMEOUT_MS, 8 * 1024 * 1024, signal, fetchImpl);
   if (!fetched.ok) {
@@ -320,6 +325,7 @@ async function fetchResultAsMedia(
     mediaType: fetched.mediaType,
     width: null,
     height: null,
+    billedUnits,
   };
   return { ok: true, media };
 }

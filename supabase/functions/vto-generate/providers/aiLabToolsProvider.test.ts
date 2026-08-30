@@ -422,6 +422,29 @@ Deno.test('the fetched result is inlined as a data URI the shared validator acce
   assertEquals(validation.ok, true, validation.ok ? '' : (validation as { detail: string }).detail);
 });
 
+Deno.test('a real usage.image_count from the poll response is threaded through as billedUnits', async () => {
+  // Pinned from the live transcript (docs/vto-provider-benchmark.md §3.6):
+  // {"task_status":2,"output":{"image_url":"..."},"usage":{"image_count":1}}
+  const { fn } = scriptedFetch({
+    poll: () =>
+      jsonResponse({ error_code: 0, task_status: 2, output: { image_url: RESULT_URL }, usage: { image_count: 1 } }),
+  });
+  const provider = createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn, pollIntervalMs: 0 });
+  const outcome = await provider.generate(TOP_INPUT, { signal: signal() });
+  assertEquals(outcome.ok, true);
+  if (!outcome.ok) return;
+  assertEquals(outcome.media.billedUnits, 1);
+});
+
+Deno.test('a poll response with no usage field leaves billedUnits null, not fabricated', async () => {
+  const { fn } = scriptedFetch();
+  const provider = createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn, pollIntervalMs: 0 });
+  const outcome = await provider.generate(TOP_INPUT, { signal: signal() });
+  assertEquals(outcome.ok, true);
+  if (!outcome.ok) return;
+  assertEquals(outcome.media.billedUnits, null);
+});
+
 Deno.test('the result URL itself is never returned to the caller', async () => {
   const signedResultUrl = 'https://cdn.example.com/result.png?sig=abcdef123456';
   const { fn } = scriptedFetch({
