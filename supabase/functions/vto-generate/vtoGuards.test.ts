@@ -19,6 +19,7 @@ import { isEntitlementRowActive, resolveVtoEntitlement } from './vtoEntitlement.
 import { evaluateServerVtoEligibility, toCanonicalVtoCategory } from './vtoEligibility.ts';
 import { validateVtoResultMedia } from './vtoResultValidation.ts';
 import { MOCK_VTO_RESULT_DATA_URI } from './providers/mockResultAsset.ts';
+import { MOCK_VTO_PROVIDER_ID, resolveVtoProvider } from './providers/index.ts';
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -78,6 +79,43 @@ Deno.test('feature control: a malformed category list falls back to the default'
     supportedCategories: ['top', 42, null],
   });
   assertEquals(config.supportedCategories, DEFAULT_VTO_SUPPORTED_CATEGORIES);
+});
+
+Deno.test('feature control: an enabled config that names NO provider does not fall back to the mock', () => {
+  // The registry refuses to substitute the mock for an unknown provider id,
+  // but that guard is one layer below the normalizer and cannot see a default
+  // chosen here. An operator who flips `enabled` without naming a provider --
+  // a partial write to this same JSON blob is exactly how a kill switch gets
+  // toggled -- must not get placeholder art presented as a real try-on.
+  const config = normalizeVtoFeatureConfig({ schemaVersion: 1, enabled: true, supportedCategories: ['top'] });
+  assertEquals(config.enabled, true);
+  assert(config.provider !== MOCK_VTO_PROVIDER_ID, 'must not silently select the mock');
+  const selection = resolveVtoProvider({ providerId: config.provider });
+  assertEquals(selection.ok, false);
+  if (selection.ok === false) assertEquals(selection.reason, 'provider_unavailable');
+});
+
+Deno.test('feature control: a blank or non-string provider is unconfigured, not the mock', () => {
+  for (const provider of ['', '   ', 12345, null, {}, ['mock']]) {
+    const config = normalizeVtoFeatureConfig({ schemaVersion: 1, enabled: true, provider });
+    assert(
+      config.provider !== MOCK_VTO_PROVIDER_ID,
+      `provider ${JSON.stringify(provider)} must not resolve to the mock`,
+    );
+    assertEquals(resolveVtoProvider({ providerId: config.provider }).ok, false);
+  }
+});
+
+Deno.test('feature control: the mock is still reachable when an operator names it explicitly', () => {
+  // The repair must not break local/dev use: an explicit 'mock' is a
+  // deliberate operator choice and stays supported.
+  const config = normalizeVtoFeatureConfig({ schemaVersion: 1, enabled: true, provider: 'mock' });
+  assertEquals(config.provider, MOCK_VTO_PROVIDER_ID);
+  assertEquals(resolveVtoProvider({ providerId: config.provider }).ok, true);
+});
+
+Deno.test('feature control: the fail-closed constant names no provider at all', () => {
+  assertEquals(resolveVtoProvider({ providerId: DISABLED_VTO_CONFIG.provider }).ok, false);
 });
 
 Deno.test('feature control: the mock latency knob is bounded', () => {
