@@ -88,7 +88,16 @@ begin
 
   if found
      and v_existing.profile_version = 1
-     and v_existing.evidence_revision = v_evidence_revision then
+     and v_existing.evidence_revision = v_evidence_revision
+     -- A legacy or otherwise corrupt row must never be echoed back merely
+     -- because its revision matches.  Rebuild it from Closet evidence below.
+     and jsonb_typeof(v_existing.profile_data) = 'object'
+     and jsonb_typeof(v_existing.profile_data -> 'evidenceCount') = 'number'
+     and jsonb_typeof(v_existing.profile_data -> 'colorFrequency') = 'array'
+     and jsonb_typeof(v_existing.profile_data -> 'categoryFrequency') = 'array'
+     and jsonb_typeof(v_existing.profile_data -> 'garmentTypeFrequency') = 'array'
+     and jsonb_typeof(v_existing.profile_data -> 'brandFrequency') = 'array'
+     and jsonb_typeof(v_existing.profile_data -> 'materialFrequency') = 'array' then
     return query
       select v_existing.user_id, v_existing.profile_version, v_existing.evidence_revision,
              v_existing.derived_at, v_existing.profile_data, false;

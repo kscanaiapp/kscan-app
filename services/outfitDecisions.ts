@@ -11,6 +11,7 @@
 // voter identities.
 
 import { supabase } from './supabaseClient';
+import { containsBlockedMessageContent } from './roomMessages';
 import type {
   OutfitDecisionDetail,
   OutfitDecisionGroup,
@@ -31,8 +32,15 @@ export const DECISION_QUESTION_PRESETS = [
   'Help me improve this.',
 ] as const;
 
-function safeError(error: any, fallback: string) {
-  return new Error(error?.message || fallback);
+// Database errors never reach the user verbatim. A PostgREST/Postgres message
+// (e.g. SQLSTATE 42501 "permission denied for function ...", or an RLS policy
+// violation naming a table) discloses schema and policy detail and is not
+// actionable copy. Callers render the thrown message directly, so only the
+// authored neutral fallback is returned — matching the same-named helper in
+// services/styleObjects.ts. Server-side enforcement is unchanged; only the
+// user-facing wording is neutralised.
+function safeError(_error: any, fallback: string) {
+  return new Error(fallback);
 }
 
 function mapGroup(row: any): OutfitDecisionGroup {
@@ -90,6 +98,9 @@ async function resolveOptionItemImages(items: OutfitDecisionOptionItem[]): Promi
  * shares keep the owner's chosen order, AI shares pass canonical variation
  * order. Returns the created decision group id.
  */
+export const DECISION_QUESTION_OBJECTIONABLE_ERROR =
+  "That question can't be shared. Please remove any offensive language and try again.";
+
 export async function shareLooksToRoom(input: {
   roomId: string;
   lookIds: string[];
@@ -100,6 +111,12 @@ export async function shareLooksToRoom(input: {
   if (!question) throw new Error('Add a question for your room.');
   if (question.length > DECISION_QUESTION_MAX_LENGTH) {
     throw new Error(`Questions must be ${DECISION_QUESTION_MAX_LENGTH} characters or fewer.`);
+  }
+  // Apple Guideline 1.2: the question is user-typed text shown to other room
+  // participants (and public link viewers), so it passes the same
+  // objectionable-content filter as room chat before it reaches the backend.
+  if (containsBlockedMessageContent(question)) {
+    throw new Error(DECISION_QUESTION_OBJECTIONABLE_ERROR);
   }
   if (!Array.isArray(input.lookIds) || input.lookIds.length < 1 || input.lookIds.length > 3) {
     throw new Error('Share between 1 and 3 Looks.');

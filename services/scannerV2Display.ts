@@ -33,6 +33,40 @@ export function safeText(value: unknown): string {
   return trimmed;
 }
 
+/**
+ * Values that carry no pattern information and must never render as one.
+ *
+ * The scanner prompt instructs the model to answer "unknown" when it cannot
+ * tell, and the shared normalizer does not strip that word for `pattern` the
+ * way it does for category and subtype. A garment labelled "Pattern: unknown"
+ * states a fact the scan never established, so absence is reported as absence.
+ */
+const NON_PATTERN_LABELS = new Set([
+  'unknown',
+  'none',
+  'n/a',
+  'na',
+  'null',
+  'undefined',
+  'not applicable',
+  'not specified',
+  'no pattern',
+  'other',
+]);
+
+/**
+ * A pattern value fit to show a user, or '' when there is nothing to say.
+ *
+ * Does NOT invent a pattern: a garment the model reported nothing for stays
+ * blank rather than becoming "solid", which would be a claim about the fabric
+ * rather than a claim about the scan.
+ */
+export function normalizePatternLabel(value: unknown): string {
+  const text = safeText(value);
+  if (!text) return '';
+  return NON_PATTERN_LABELS.has(text.toLowerCase()) ? '' : text;
+}
+
 /** Non-empty, de-duplicated strings, order preserved. */
 export function safeList(value: unknown): string[] {
   if (!Array.isArray(value)) return [];

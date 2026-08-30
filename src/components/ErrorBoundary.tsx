@@ -68,7 +68,7 @@ export default class ErrorBoundary extends React.Component<
             testID="error-boundary-screen"
             contentContainerStyle={styles.container}
           >
-            <Text style={styles.logo}>K SCAN</Text>
+            <Text style={styles.logo}>K SCAN AI</Text>
             <Text style={styles.title}>SOMETHING WENT WRONG</Text>
             <Text style={styles.message}>
               The scan session encountered an unexpected issue.

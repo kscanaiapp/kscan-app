@@ -21,6 +21,10 @@ export const STYLE_CHAT_COPY = {
     "You've reached today's Elise beta limit. Come back tomorrow for more styling help.",
   burstLimitNotice:
     'Elise is receiving messages too quickly. Please wait a moment and try again.',
+  // Voice is an enhancement over the written reply, which stays on screen. The
+  // notice is deliberately short and never names the provider or server error.
+  voiceFailedNotice: "Voice couldn't play.",
+  voiceRetryLabel: 'Try again',
   homeEntryLabel: 'ASK ELISE',
   homeEntrySubtitle:
     'Style a scan, compare Looks, or choose from a Dressing Room.',

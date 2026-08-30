@@ -59,6 +59,8 @@
     { "table": "wardrobe_activity_log", "column": "user_id", "action": "auth_delete_cascade", "optional": true },
     { "table": "style_chat_burst_usage", "column": "user_id", "action": "direct_delete_before_auth", "optional": true },
     { "table": "scan_intelligence_events", "column": "user_id", "action": "direct_delete_before_auth", "optional": true },
+    { "table": "privacy_request_rate_limits", "column": "user_id", "action": "direct_delete_before_auth", "optional": true,
+      "notes": "Privacy-rights abuse rate limiter (Issue #47). user_id is a bare uuid with no FK to auth.users, so the Auth delete cascades nothing and the migration's ~1% amortized sweep is best-effort, not a deletion guarantee. Purged directly before the Auth delete." },
     { "table": "user_stylist_preferences", "column": "user_id", "action": "auth_delete_cascade", "optional": true },
     { "table": "dressing_room_collab_idempotency", "column": "actor_id", "action": "auth_delete_cascade", "optional": true },
     { "table": "shared_room_memberships", "column": "recipient_user_id", "action": "auth_delete_cascade", "optional": true },

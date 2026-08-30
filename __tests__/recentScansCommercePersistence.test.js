@@ -243,9 +243,12 @@ test('reopened Recent Scan passes the hydrated snapshot to the card', () => {
 
 test('AnalysisCard renders purchase cards beneath the scan, above similar items', () => {
   assert.match(analysisCardSource, /purchaseOptions = \[\]/);
+  // v127 (P1-B): the length>=1 gate now lives inside resolvePurchaseShelfMode
+  // (see commerceShelfWiring.test.js for its executable behavior); this
+  // confirms the render call site is still driven by that exact function.
   assert.match(
     analysisCardSource,
-    /purchaseOptions\.length >= 1 \?[\s\S]*?<ProductShelf[\s\S]*?products=\{purchaseOptions\}/,
+    /purchaseShelfMode === 'options' \?[\s\S]*?<ProductShelf[\s\S]*?products=\{purchaseOptions\}/,
   );
   const purchaseAt = analysisCardSource.indexOf('products={purchaseOptions}');
   const similarAt = analysisCardSource.indexOf('products={products}');
@@ -254,10 +257,21 @@ test('AnalysisCard renders purchase cards beneath the scan, above similar items'
 });
 
 test('purchase cards reuse the established ProductShelf, not a second design', () => {
-  // One card system. ProductShelf gained a label, not a fork.
+  // One card system. ProductShelf gained a label (v126) and a pending/error
+  // state (v127 P1-B), not a fork — no second product-card component exists.
+  // Build 32 adds 4 more usages for the restored per-item commerce section
+  // (best match / commerce-failed / no-match / alternatives, one candidate at
+  // a time) — still the same component, not a second design. The failed and
+  // no-match states are separate usages because they make different claims:
+  // one says retrieval broke, the other says the garment had no match.
   assert.match(productShelfSource, /label = 'SIMILAR ITEMS'/);
   assert.match(analysisCardSource, /label="WHERE TO BUY"/);
-  assert.equal((analysisCardSource.match(/<ProductShelf/g) || []).length, 2);
+  assert.equal((analysisCardSource.match(/<ProductShelf/g) || []).length, 7);
+  assert.equal(
+    (analysisCardSource.match(/import\s*\{[^}]*ProductShelf[^}]*\}\s*from/g) || []).length,
+    1,
+    'a second ProductShelf-like import suggests a forked component',
+  );
 });
 
 test('live Scanner and reopened scan use the identical snapshot shape', () => {
@@ -293,8 +307,23 @@ test('purchase action opens the persisted URL via the canonical handler', () => 
 });
 
 test('ProductShelf reads the purchase URL from persisted aliases', () => {
-  assert.match(productShelfSource, /product\.purchaseUrl,[\s\S]*?product\.productUrl/);
-  assert.match(productShelfSource, /normalizePersistedCommerceUrl\(c\)/);
+  // Every persisted alias is still consulted...
+  for (const alias of [
+    'product\\.productUrl',
+    'product\\.purchaseUrl',
+    'product\\.affiliateUrl',
+    'product\\.product_url',
+    'product\\.purchase_url',
+    'product\\.url',
+    'product\\.link',
+  ]) {
+    assert.match(productShelfSource, new RegExp(alias));
+  }
+  // ...each is still scrubbed before it can be considered...
+  assert.match(productShelfSource, /normalizePersistedCommerceUrl\(candidate\)/);
+  // ...and the winner is chosen by the destination contract rather than by
+  // alias order, so a search-engine page can never outrank a retailer link.
+  assert.match(productShelfSource, /selectCommerceDestination\(/);
 });
 
 // ── 5. URL and image longevity ──────────────────────────────────────────────
@@ -369,8 +398,9 @@ test('a single option renders (one or many both supported)', () => {
     backendResponse({ recommendedProducts: [offer(1, 'AllSaints', 519)] }),
   );
   assert.equal(reopen(serializeScan(analysis)).purchaseOptions.length, 1);
-  // Gate admits a single option.
-  assert.match(analysisCardSource, /purchaseOptions\.length >= 1/);
+  // Gate admits a single option — proven behaviorally in
+  // commerceShelfWiring.test.js; this just confirms it is still wired here.
+  assert.match(analysisCardSource, /resolvePurchaseShelfMode\(\s*purchaseOptions\.length/);
 });
 
 test('non-commerce scan persists and reopens with no fake offers', () => {

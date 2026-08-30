@@ -90,6 +90,11 @@ export const COLORS = {
   error:     '#823038',
   errorSoft: '#F1E6E7',
   success:   '#6F8F73',
+  // Light sage tint of `success`, for DARK surfaces only — the mirror of
+  // errorSoft. `success` itself is 3.89:1 on the dark auth card and 3.59:1 on
+  // white, so it never carries status text on its own; this tint scores 9.14:1
+  // on the composited auth card. Do not use it on a light surface.
+  successSoft: '#C3D6C6',
   warning:   '#C6A15B',
 
   // ── StyleChat V6.3 — bright pearl surfaces / gloss plum actions (screen-scoped) ─

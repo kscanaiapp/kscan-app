@@ -15,6 +15,8 @@ import {
 import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { MODAL_MAX_WIDTH } from '../services/responsiveLayout';
 import { selectionTick } from '../services/haptics';
+import { selectCommerceDestination } from '../services/commerceDestination';
+import { PRODUCT_TITLE_UNAVAILABLE } from '../services/privateSavedLookCopy';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
 import { useDressingRooms } from '../hooks/useStyleObjects';
@@ -73,6 +75,18 @@ interface ProductShelfProps {
   emptyTitle?: string;
   emptyBody?: string;
   testID?: string;
+  /**
+   * v127 (P1-B): deferred commerce is still in flight. Only meaningful when
+   * `products` is empty — a non-empty shelf already has something to show and
+   * takes precedence, matching the caller-side "at least one option" gate.
+   */
+  pending?: boolean;
+  /** v127 (P1-B): deferred commerce failed. Same precedence as `pending`. */
+  hasError?: boolean;
+  errorTitle?: string;
+  errorBody?: string;
+  /** Present only when a failed fetch is retryable. */
+  onRetry?: () => void;
 }
 
 const CARD_WIDTH  = 144;
@@ -117,20 +131,21 @@ function getProductImageUrl(product: Product | null | undefined): string | null 
 
 function getPurchaseUrl(product: Product | null | undefined): string | null {
   if (!product) return null;
-  const candidates = [
-    product.purchaseUrl,
-    product.productUrl,
-    product.affiliateUrl,
-    product.product_url,
-    product.purchase_url,
-    product.url,
-    product.link,
-  ];
-  for (const c of candidates) {
-    const safeUrl = normalizePersistedCommerceUrl(c);
-    if (safeUrl) return safeUrl;
-  }
-  return null;
+  // Order is intentionally not the selector: a record can hold a retailer link
+  // in any of these keys and a search-engine page in any other, so the
+  // destination itself decides. Each candidate keeps the persisted-URL scrub
+  // (signed object paths, credential-shaped params) before it is considered.
+  return selectCommerceDestination(
+    [
+      product.productUrl,
+      product.purchaseUrl,
+      product.affiliateUrl,
+      product.product_url,
+      product.purchase_url,
+      product.url,
+      product.link,
+    ].map((candidate) => normalizePersistedCommerceUrl(candidate)),
+  );
 }
 
 function getRetailer(product: Product | null | undefined): string | null {
@@ -149,6 +164,20 @@ function formatPrice(product: Product | null | undefined): string | null {
 
 export function canAddProductToDressingRoom(product: Product | null | undefined) {
   return getProductTitle(product).length > 0 && isRemoteImageUrl(getProductImageUrl(product));
+}
+
+/**
+ * v127 (P1-B): which empty-shelf treatment to render when there are no
+ * products. Pulled out of the JSX branch so this exact precedence is
+ * independently testable — a pure decision, not a parallel copy of it.
+ *
+ * `pending` wins over `hasError`: a stale error from a settled attempt must
+ * not outlive a fresh dispatch (e.g. a retry) that is now in flight.
+ */
+export function resolveEmptyShelfMode(pending: boolean, hasError: boolean): 'pending' | 'error' | 'empty' {
+  if (pending) return 'pending';
+  if (hasError) return 'error';
+  return 'empty';
 }
 
 function ProductImagePlaceholder({ category }: { category: string }) {
@@ -261,8 +290,13 @@ export function ProductShelf({
   products,
   label = 'SIMILAR ITEMS',
   emptyTitle = 'No similar items yet.',
-  emptyBody = 'Try a clearer angle, closer crop, or simpler background so K Scan can surface product matches.',
+  emptyBody = 'Try a clearer angle, closer crop, or simpler background so K Scan AI can surface product matches.',
   testID,
+  pending = false,
+  hasError = false,
+  errorTitle = 'Could not load purchase options.',
+  errorBody = 'Check your connection and try again.',
+  onRetry,
 }: ProductShelfProps) {
   const [linkErrorVisible, setLinkErrorVisible] = useState(false);
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
@@ -271,6 +305,32 @@ export function ProductShelf({
   const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');
 
   if (!products || products.length === 0) {
+    const emptyMode = resolveEmptyShelfMode(pending, hasError);
+    if (emptyMode === 'pending') {
+      return (
+        <View testID={testID ? `${testID}-pending` : 'product-shelf-pending'} style={styles.emptyShelf}>
+          <ActivityIndicator color={LUXURY.colors.plum} />
+        </View>
+      );
+    }
+    if (emptyMode === 'error') {
+      return (
+        <View testID={testID ? `${testID}-error` : 'product-shelf-error'} style={styles.emptyShelf}>
+          <Text style={styles.emptyShelfTitle}>{errorTitle}</Text>
+          <Text style={styles.emptyShelfBody}>{errorBody}</Text>
+          {onRetry ? (
+            <TouchableOpacity
+              onPress={onRetry}
+              accessibilityRole="button"
+              accessibilityLabel="Retry loading purchase options"
+              testID={testID ? `${testID}-retry` : 'product-shelf-retry'}
+            >
+              <Text style={styles.retryText}>Retry</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      );
+    }
     return (
       <View testID={testID ? `${testID}-empty` : 'product-shelf-empty'} style={styles.emptyShelf}>
         <Text style={styles.emptyShelfTitle}>{emptyTitle}</Text>
@@ -314,7 +374,10 @@ export function ProductShelf({
           const purchaseUrl = getPurchaseUrl(p);
           const hasLink = !!purchaseUrl;
           const productKey = p.id ?? String(i);
-          const productTitle = getProductTitle(p) || 'Unknown Product';
+          // A product that arrives without a usable name is a gap in OUR data,
+          // not a mystery object. "Unknown Product" reads as an accusation about
+          // the item; this says what is actually true for the shopper.
+          const productTitle = getProductTitle(p) || PRODUCT_TITLE_UNAVAILABLE;
           const canSaveToRoom = canAddProductToDressingRoom(p);
           const imageCategory = normalizeImageCategory(p.imageCategory || p.category);
           const showImage = !!productImageUrl && !failedImages[productKey];
@@ -387,10 +450,24 @@ export function ProductShelf({
                   </Text>
                 ) : null}
                 {dressingRoomsEnabled ? (
+                  /*
+                    The label tracks the VISIBLE text. This control is not
+                    disabled when an item can't be saved — it still opens the
+                    sheet, which explains why — so it must not announce a
+                    disabled state it does not have, and it must not promise
+                    "Add to Dressing Room" while reading "Can't Save Yet".
+                  */
                   <TouchableOpacity
                     testID="add-to-dressing-room-button"
                     accessibilityRole="button"
-                    accessibilityLabel="Add to Dressing Room"
+                    accessibilityLabel={
+                      canSaveToRoom ? 'Add to Dressing Room' : "Can't save to a Dressing Room yet"
+                    }
+                    accessibilityHint={
+                      canSaveToRoom
+                        ? 'Choose a Dressing Room to save this item to'
+                        : 'Explains why this item cannot be saved yet'
+                    }
                     style={[
                       styles.addToRoomButton,
                       !canSaveToRoom ? styles.addToRoomButtonDisabled : null,
@@ -494,8 +571,17 @@ export function AddToRoomModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalBackdrop}>
-        <View style={styles.modalCard}>
-          <Text style={styles.modalTitle}>Add to Dressing Room</Text>
+        {/*
+          accessibilityViewIsModal keeps VoiceOver inside the card while it is
+          open instead of letting focus wander into the shelf behind it. On this
+          platform it is the load-bearing half of the modal contract. No
+          programmatic focus is moved: nothing here proved it was needed, and
+          forcing focus is the brittle part of modal a11y.
+        */}
+        <View style={styles.modalCard} accessibilityViewIsModal>
+          <Text style={styles.modalTitle} accessibilityRole="header">
+            Add to Dressing Room
+          </Text>
           <Text style={styles.modalItemName} numberOfLines={2}>
             {getProductTitle(product) || 'Catalog item'}
           </Text>
@@ -526,6 +612,11 @@ export function AddToRoomModal({
                       style={styles.roomChoice}
                       onPress={() => handleAdd(room.id)}
                       disabled={saving}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${room.title}, ${room.itemCount ?? 0} items`}
+                      accessibilityHint="Saves this item to that Dressing Room"
+                      accessibilityState={{ disabled: saving }}
+                      testID={`add-to-room-choice-${room.id}`}
                     >
                       <Text style={styles.roomChoiceTitle}>{room.title}</Text>
                       <Text style={styles.roomChoiceMeta}>{room.itemCount ?? 0} ITEMS</Text>
@@ -554,6 +645,10 @@ export function AddToRoomModal({
                 style={[styles.modalPrimaryButton, (!newRoomTitle.trim() || saving) && styles.modalButtonDisabled]}
                 onPress={handleCreateAndAdd}
                 disabled={!newRoomTitle.trim() || saving}
+                accessibilityRole="button"
+                accessibilityLabel="Create Dressing Room and add this item"
+                accessibilityState={{ disabled: !newRoomTitle.trim() || saving, busy: saving }}
+                testID="add-to-room-create"
               >
                 {saving ? (
                   <ActivityIndicator color={COLORS.textInverse} />
@@ -565,7 +660,16 @@ export function AddToRoomModal({
           ) : null}
 
           {message ? <Text style={styles.modalMessage}>{message}</Text> : null}
-          <TouchableOpacity style={styles.modalSecondaryButton} onPress={onClose} disabled={saving}>
+          <TouchableOpacity
+            style={styles.modalSecondaryButton}
+            onPress={onClose}
+            disabled={saving}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+            accessibilityHint="Closes without saving to a Dressing Room"
+            accessibilityState={{ disabled: saving }}
+            testID="add-to-room-close"
+          >
             <Text style={styles.modalSecondaryText}>CLOSE</Text>
           </TouchableOpacity>
         </View>
@@ -599,6 +703,13 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
     lineHeight: 18,
     textTransform: 'none',
+  },
+  retryText: {
+    ...LUXURY.typography.bodyStrong,
+    color: LUXURY.colors.plum,
+    textAlign: 'center',
+    marginTop: SPACING.md,
+    textDecorationLine: 'underline',
   },
   labelRow: {
     flexDirection: 'row',
@@ -883,7 +994,7 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
   },
   addToRoomButton: {
-    minHeight: 36,
+    minHeight: 44,
     borderRadius: RADIUS.pill,
     borderWidth: 1,
     borderColor: LUXURY.colors.plumMuted,

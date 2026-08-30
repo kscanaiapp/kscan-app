@@ -169,7 +169,18 @@ export async function updateStylistIdentity(input: Partial<StylistIdentity>): Pr
     // Reject placeholder/future avatar IDs before any network request. The
     // catch block below restores the previous identity and surfaces the error.
     assertPersistableAvatarId(nextIdentity.avatarId);
-    const saved = await saveStylistIdentity(nextIdentity, actorUserId ?? undefined);
+    // Fix #6: pass through whether THIS call actually provided a new name —
+    // not the resolved nextIdentity, which always has a concrete displayName
+    // string. An avatar-only update must omit displayName so the service
+    // leaves any existing custom name (and its customization flag) untouched
+    // rather than persisting whatever was merely being displayed.
+    const saved = await saveStylistIdentity(
+      {
+        avatarId: nextIdentity.avatarId,
+        ...(input.displayName !== undefined ? { displayName: nextIdentity.displayName } : {}),
+      },
+      actorUserId ?? undefined,
+    );
     if (activeUserId !== actorUserId || saveRequestVersion !== requestVersion) return false;
     const normalized = normalizeStylistIdentity(saved);
     let identityToSet: StylistIdentity = normalized;
@@ -211,7 +222,9 @@ export async function resetStylistIdentity(): Promise<boolean> {
   setStylistIdentityState({ isLoading: true, error: null });
 
   try {
-    await saveStylistIdentity(DEFAULT_STYLIST_IDENTITY, actorUserId ?? undefined);
+    await saveStylistIdentity(DEFAULT_STYLIST_IDENTITY, actorUserId ?? undefined, {
+      clearCustomDisplayName: true,
+    });
     if (activeUserId !== actorUserId || saveRequestVersion !== requestVersion) return false;
     setStylistIdentityState({
       identity: DEFAULT_STYLIST_IDENTITY,

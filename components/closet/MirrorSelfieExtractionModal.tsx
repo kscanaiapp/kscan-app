@@ -201,7 +201,7 @@ export function MirrorSelfieExtractionModal({
       if (permission.status !== 'granted') {
         Alert.alert(
           'Camera Access Required',
-          'Allow K Scan to use your camera in Settings to add items to your Closet.',
+          'Allow K Scan AI to use your camera in Settings to add items to your Closet.',
           [{ text: 'OK' }],
         );
         return;
@@ -227,7 +227,7 @@ export function MirrorSelfieExtractionModal({
       if (!hasUsablePhotoLibraryAccess(permission)) {
         Alert.alert(
           'Photo Access Required',
-          'Allow K Scan to access your photo library in Settings to add items to your Closet.',
+          'Allow K Scan AI to access your photo library in Settings to add items to your Closet.',
           [{ text: 'OK' }],
         );
         return;

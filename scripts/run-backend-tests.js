@@ -12,10 +12,11 @@
  * shell glob, for the same portability reason the Node runner gives: `**` is not
  * portable across cmd.exe / PowerShell / bash.
  *
- * `--allow-read` is required and load-bearing: several of these tests read their
- * own function's source to assert wiring (that `index.ts` calls a particular
- * validator, for instance). Without it Deno denies the read and the test fails
- * for a permissions reason that looks exactly like a real regression.
+ * `--allow-read`, `--allow-env`, and `--allow-run` are required and load-bearing:
+ * several tests read their own function source to assert wiring, exercise env
+ * flag overrides, and launch the nested `deno check` compile gate. Without
+ * those grants Deno fails the suite for permissions reasons that look exactly
+ * like product regressions.
  *
  * `--allow-env` is required for the same reason: the commerce funnel suites set
  * and restore provider-key and feature-flag env vars to exercise flag-on and

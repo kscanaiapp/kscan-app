@@ -419,12 +419,13 @@ test('preserve: permission card icons and profile avatar fallback unchanged', ()
   assert.match(permissions, /icon="◈"/);
   assert.doesNotMatch(permissions, /KScanIcon/);
   // Home profile button keeps its initial/sparkle avatar fallback.
-  assert.match(HOME, /profileName \? profileName\.charAt\(0\)\.toUpperCase\(\) : '✦'/);
+  assert.match(HOME, /preferredName \? preferredName\.charAt\(0\)\.toUpperCase\(\) : '✦'/);
 });
 
-test('preserve: VoiceScan placeholder stays inactive and non-interactive', () => {
-  assert.match(HOME, /testID="home-luxury-voicescan-coming-soon"/);
-  assert.match(HOME, /VOICESCAN_ENABLED/);
-  assert.match(HOME, /accessibilityRole="text"/);
-  assert.doesNotMatch(HOME, /voiceScanPill[\s\S]{0,400}?onPress/);
+test('Build 33: no VoiceScan placeholder or icon usage remains on production Home', () => {
+  // The voice-scan glyph stays registered in the icon set, but no production
+  // screen may render it while the feature is unimplemented.
+  assert.doesNotMatch(HOME, /voicescan/i);
+  assert.doesNotMatch(HOME, /name="voice-scan"/);
+  assert.doesNotMatch(HOME, /COMING SOON/);
 });

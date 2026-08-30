@@ -579,7 +579,7 @@ export const PRIVATE_WORKSPACE_COPY = Object.freeze({
   closetEmpty: 'Add something to your Closet to build an outfit around it.',
   noSession: 'Start a Dressing Room to build an outfit around a piece you own.',
   unrecoverable: "We couldn't restore your previous Dressing Room session.",
-  futureSchema: 'This session was created by a newer version of K Scan.',
+  futureSchema: 'This session was created by a newer version of K Scan AI.',
   recovered: 'We restored your Dressing Room session.',
   anchorMissing: "The piece you were building around isn't in your Closet anymore.",
   routeItemUnavailable: "That piece isn't in your Closet.",

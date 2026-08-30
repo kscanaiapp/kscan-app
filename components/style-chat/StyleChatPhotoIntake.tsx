@@ -111,7 +111,7 @@ export function StyleChatPhotoIntake({
     if (status !== 'granted') {
       Alert.alert(
         'Photo Access Required',
-        'Allow K Scan to access your photo library in Settings to upload a photo.',
+        'Allow K Scan AI to access your photo library in Settings to upload a photo.',
         [{ text: 'OK' }],
       );
       return;
@@ -210,6 +210,8 @@ export function StyleChatPhotoIntake({
   }, []);
 
   // Open picker automatically when the modal becomes visible from idle.
+  // This effect is the single picker owner. Retry actions only reset to idle;
+  // launching here and inside the button handler would race two native pickers.
   useEffect(() => {
     if (visible && step === 'idle' && !inFlightRef.current) {
       void startPicker();
@@ -342,7 +344,7 @@ export function StyleChatPhotoIntake({
                 title="Image"
                 body="This image couldn’t be processed. Please try a clearer photo of the item."
               />
-              <PrimaryButton title="Try Again" onPress={() => { resetState(); void startPicker(); }} accessibilityLabel="Try again" />
+              <PrimaryButton title="Try Again" onPress={resetState} accessibilityLabel="Try again" />
               <SecondaryButton title="Cancel" onPress={handleCancel} />
             </>
           ) : null}
@@ -359,7 +361,7 @@ export function StyleChatPhotoIntake({
                 onPress={() => setStep('manual_details')}
                 accessibilityLabel="Add details manually"
               />
-              <SecondaryButton title="Try Another Photo" onPress={() => { resetState(); void startPicker(); }} />
+              <SecondaryButton title="Try Another Photo" onPress={resetState} />
               <SecondaryButton title="Cancel" onPress={handleCancel} />
             </>
           ) : null}
@@ -378,7 +380,7 @@ export function StyleChatPhotoIntake({
                 accessibilityLabel="Save to closet and attach"
                 testID="save-and-attach-button"
               />
-              <SecondaryButton title="Try Another Photo" onPress={() => { resetState(); void startPicker(); }} />
+              <SecondaryButton title="Try Another Photo" onPress={resetState} />
               <SecondaryButton title="Cancel" onPress={handleCancel} />
             </ScrollView>
           ) : null}

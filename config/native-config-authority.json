@@ -1,0 +1,21 @@
+{
+  "manifestVersion": "native-config-authority-v1",
+  "note": "B34-DEF-002. Records, per platform, which of app.json/app.config vs the checked-in native project actually drives the shipped artifact -- so nobody has to guess, and so a parity gate can enforce it.",
+  "platforms": {
+    "android": {
+      "model": "NATIVE_AUTHORITATIVE",
+      "reason": "android/ is committed to this repository (git ls-files android/ returns tracked files) and carries Build 32's release-critical R8/minification and AAB configuration directly in native Gradle files. app.json's `android` block is not what produces the shipped artifact -- android/app/build.gradle and android/app/src/main/AndroidManifest.xml are. app.json is required to stay in sync with them; it does not drive them.",
+      "drivingFiles": ["android/app/build.gradle", "android/app/src/main/AndroidManifest.xml"]
+    },
+    "ios": {
+      "model": "CNG_AUTHORITATIVE",
+      "reason": "No ios/ directory is committed to this repository (git ls-files ios/ returns zero files, and it is absent from .gitignore -- it is simply never generated into source control). Build 33's App Review hardening (routing/location/microphone-absence, associated domains, privacy manifest entries) lives entirely as declarative fields under app.json's `ios` block, which Expo's Continuous Native Generation (CNG) expands into a fresh Info.plist/Xcode project at prebuild/build time. app.json IS the sole source of truth for iOS; there is no native file to fall out of sync with.",
+      "drivingFiles": ["app.json (ios block)"]
+    }
+  },
+  "crossPlatformInvariants": {
+    "note": "Fields that must agree across both platforms even though the platforms use different authority models.",
+    "bundleIdMustMatch": true,
+    "deepLinkHostMustMatch": true
+  }
+}

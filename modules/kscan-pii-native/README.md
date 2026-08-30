@@ -111,6 +111,24 @@ false, which is its state in every profile on this branch.
 
 ## Non-goals
 
-License-plate detection, OCR, facial recognition, identity matching, embeddings,
-garment classification, camera integration, upload integration, backend
-transmission, release builds, production activation.
+OCR, facial recognition, identity matching, embeddings, garment classification,
+camera integration, upload integration, backend transmission, release builds,
+production activation.
+
+License-plate detection was a non-goal until Build 34 Track B B2A added it; the
+line above previously said so and is corrected here rather than left false.
+
+## License-plate screening (B2A)
+
+`detectAndMaskPlates` screens for plate-LIKE regions and masks them. Stated
+precisely, because the name promises more than the mechanism delivers:
+
+- Detection is `VNDetectTextRectanglesRequest` — text REGION geometry. No
+  character is ever produced, so OCR remains a genuine non-goal above.
+- A plate-shaped aspect/size filter then selects which text regions to mask.
+- `no_plates` therefore means "nothing plate-shaped was found", NOT "this image
+  contains no plate". It is a screen, not a guarantee.
+- The error direction is deliberately toward over-masking. A garment wordmark,
+  a shop sign or a book spine within the accepted aspect band will be masked
+  too — a real product consequence in a wardrobe app, and the reason this
+  capability must be validated on physical devices before it gates uploads.

@@ -42,3 +42,10 @@ test('the deterministic profile is compact, aggregate-only, and bounded', () => 
   assert.match(migration, /'materialFrequency'/);
   assert.doesNotMatch(migration, /storage paths/i);
 });
+
+test('a malformed persisted profile cannot bypass trusted recomputation', () => {
+  assert.match(migration, /jsonb_typeof\(v_existing\.profile_data\) = 'object'/);
+  assert.match(migration, /jsonb_typeof\(v_existing\.profile_data -> 'evidenceCount'\) = 'number'/);
+  assert.match(migration, /jsonb_typeof\(v_existing\.profile_data -> 'materialFrequency'\) = 'array'/);
+  assert.match(migration, /Rebuild it from Closet evidence below/);
+});

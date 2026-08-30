@@ -5,14 +5,17 @@ import {
   Animated,
   Easing,
   Image,
+  KeyboardAvoidingView,
   Linking,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { goBackOrHome } from '../../services/navigationExit';
 import { StatusBar } from 'expo-status-bar';
@@ -83,7 +86,10 @@ function RoomCard({ room, style }: { room: DressingRoom; style?: any }) {
         </View>
       )}
       <View style={styles.cardBody}>
-        <Text style={styles.cardTitle} numberOfLines={1}>{room.title}</Text>
+        {/* Two lines before truncating — a short title like "QA Test Room"
+            must never clip at default settings, and this matches the
+            SharedRoomCard title's wrap policy just below (see BUG-07). */}
+        <Text style={styles.cardTitle} numberOfLines={2}>{room.title}</Text>
         {room.description ? (
           <Text style={styles.cardDescription} numberOfLines={2}>{room.description}</Text>
         ) : null}
@@ -358,11 +364,29 @@ function CreateRoomModal({
   onCreated: () => void;
 }) {
   const { user } = useAuthSession();
+  const insets = useSafeAreaInsets();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const savingRef = useRef(false);
+
+  // Reset the draft on every open, not on every individual dismissal path.
+  // This one effect covers Cancel, hardware/gesture dismissal, and
+  // successful creation — whatever path set `visible` back to false — so no
+  // dismissal route can leave stale title/description/error behind for the
+  // next open (BUG-04). A recoverable failure keeps the modal visible, so
+  // this effect does not re-fire and the current draft remains available
+  // for correction.
+  useEffect(() => {
+    if (visible) {
+      setTitle('');
+      setDescription('');
+      setError(null);
+      setSaving(false);
+      savingRef.current = false;
+    }
+  }, [visible]);
 
   const canSave = useMemo(() => title.trim().length > 0 && !saving, [title, saving]);
 
@@ -373,8 +397,6 @@ function CreateRoomModal({
     setError(null);
     try {
       await createDressingRoom({ userId: user?.id, title, description });
-      setTitle('');
-      setDescription('');
       onCreated();
       onClose();
     } catch (err: any) {
@@ -388,36 +410,56 @@ function CreateRoomModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.modalBackdrop}>
-        <View style={styles.modalCard}>
-          <Text style={styles.modalTitle}>New Dressing Room</Text>
-          <Text style={styles.modalSubtitle}>
-            Create a private board for a trip, event, sale watchlist, or styling project.
-          </Text>
-          <TextField label="Title" value={title} onChangeText={setTitle} placeholder="Vacation Capsule" maxLength={ROOM_TITLE_MAX_LENGTH} />
-          <TextField
-            label="Description"
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Optional notes, mood, trip, or event"
-            multiline
-          />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <PrimaryButton
-            title={saving ? 'Creating' : 'Create Room'}
-            onPress={handleSave}
-            disabled={!canSave}
-            loading={saving}
-            accessibilityLabel="Create new dressing room"
-          />
-          <SecondaryButton
-            title="Cancel"
-            onPress={onClose}
-            disabled={saving}
-            accessibilityLabel="Cancel create room"
-          />
+      {/* KeyboardAvoidingView + a scrollable content container: on both
+          platforms a Modal is a separate native window, so the app's own
+          softwareKeyboardLayoutMode/insets handling does not reach it. Without
+          this, the keyboard covers the Title/Description fields and the
+          Create Room / Cancel buttons (BUG-03). */}
+      <KeyboardAvoidingView
+        style={styles.modalKeyboardAvoider}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <View style={styles.modalBackdrop}>
+          <ScrollView
+            style={styles.modalScroll}
+            contentContainerStyle={[
+              styles.modalScrollContent,
+              { paddingBottom: Math.max(SPACING.xl, insets.bottom + SPACING.md) },
+            ]}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>New Dressing Room</Text>
+              <Text style={styles.modalSubtitle}>
+                Create a private board for a trip, event, sale watchlist, or styling project.
+              </Text>
+              <TextField label="Title" value={title} onChangeText={setTitle} placeholder="Vacation Capsule" maxLength={ROOM_TITLE_MAX_LENGTH} />
+              <TextField
+                label="Description"
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Optional notes, mood, trip, or event"
+                multiline
+              />
+              {error ? <Text style={styles.error}>{error}</Text> : null}
+              <PrimaryButton
+                title={saving ? 'Creating' : 'Create Room'}
+                onPress={handleSave}
+                disabled={!canSave}
+                loading={saving}
+                accessibilityLabel="Create new dressing room"
+              />
+              <SecondaryButton
+                title="Cancel"
+                onPress={onClose}
+                disabled={saving}
+                accessibilityLabel="Cancel create room"
+              />
+            </View>
+          </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -489,7 +531,7 @@ function DressingRoomsContent() {
             style={styles.homeButton}
             accessibilityRole="button"
             accessibilityLabel="Go Home"
-            accessibilityHint="Returns to the K Scan home screen"
+            accessibilityHint="Returns to the K Scan AI home screen"
           >
             <Text style={styles.homeButtonText}>HOME</Text>
           </Pressable>
@@ -621,7 +663,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surfaceCard,
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
-    minHeight: 36,
+    minHeight: 44,
     justifyContent: 'center',
     alignItems: 'center',
     ...SHADOWS.editorialSmall,
@@ -747,10 +789,19 @@ const styles = StyleSheet.create({
   skeletonLineNarrow: {
     width: '40%',
   },
+  modalKeyboardAvoider: {
+    flex: 1,
+  },
   modalBackdrop: {
     flex: 1,
-    justifyContent: 'flex-end',
     backgroundColor: COLORS.backdrop,
+  },
+  modalScroll: {
+    flex: 1,
+  },
+  modalScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'flex-end',
     padding: SPACING.xl,
   },
   modalCard: {

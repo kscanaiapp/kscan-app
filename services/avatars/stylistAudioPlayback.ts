@@ -18,10 +18,23 @@ export interface StylistAudioPlaybackCallbacks {
 
 export const STYLIST_AUDIO_START_TIMEOUT_MS = 10_000;
 
+/**
+ * Playback reads a fully written local file, so a bounded gap with no advancing
+ * position is a stall rather than buffering. The watchdog is an independent
+ * timer instead of a status-driven check because a native stall (an iOS audio
+ * interruption, an Android audio-focus pause) can stop status callbacks
+ * altogether, and `playbackState` does not describe the same lifecycle on both
+ * platforms: on iOS the player reports only 'readyToPlay', 'failed' or
+ * 'unknown', so the 'idle' branch below is unreachable there and an interrupted
+ * player would otherwise never be classified as failed.
+ */
+export const STYLIST_AUDIO_STALL_TIMEOUT_MS = 3_000;
+
 export async function playStylistAudio(
   uri: string,
   callbacks: StylistAudioPlaybackCallbacks,
   startTimeoutMs = STYLIST_AUDIO_START_TIMEOUT_MS,
+  stallTimeoutMs = STYLIST_AUDIO_STALL_TIMEOUT_MS,
 ): Promise<StylistAudioPlaybackHandle> {
   await setAudioModeAsync({
     playsInSilentMode: true,
@@ -37,6 +50,28 @@ export async function playStylistAudio(
   let disposed = false;
   let started = false;
   let startTimeout: ReturnType<typeof setTimeout> | null = null;
+  let stallTimeout: ReturnType<typeof setTimeout> | null = null;
+  let lastProgressSeconds = -1;
+
+  const clearStallTimeout = () => {
+    if (stallTimeout) {
+      clearTimeout(stallTimeout);
+      stallTimeout = null;
+    }
+  };
+
+  // Re-armed only by meaningful progress. Every timer, flag, and callback here
+  // belongs to this invocation's closure, so a superseded player's watchdog can
+  // never terminate a newer generation's playback.
+  const armStallTimeout = () => {
+    clearStallTimeout();
+    stallTimeout = setTimeout(() => {
+      stallTimeout = null;
+      if (disposed || !started) return;
+      dispose();
+      callbacks.onPlaybackError();
+    }, Math.max(1, stallTimeoutMs));
+  };
 
   const dispose = () => {
     if (disposed) return;
@@ -45,6 +80,7 @@ export async function playStylistAudio(
       clearTimeout(startTimeout);
       startTimeout = null;
     }
+    clearStallTimeout();
     subscription?.remove();
     subscription = null;
     try {
@@ -82,7 +118,15 @@ export async function playStylistAudio(
             clearTimeout(startTimeout);
             startTimeout = null;
           }
+          lastProgressSeconds = status.currentTime;
+          armStallTimeout();
           callbacks.onPlaybackStarted();
+        } else if (status.currentTime > lastProgressSeconds) {
+          // Only an advancing position counts as progress. A native player that
+          // keeps reporting `playing` at a frozen position is stalled, so the
+          // watchdog must not be re-armed by the status event alone.
+          lastProgressSeconds = status.currentTime;
+          armStallTimeout();
         }
         callbacks.onPlaybackProgress(status.currentTime);
       }

@@ -62,7 +62,10 @@ export function ScanResultHero({
     return (
       <EmptyStateCard
         title="No scan image available"
-        subtitle="Your scan analysis is ready."
+        // This branch needs BOTH the image and the category to be missing, so
+        // "Your scan analysis is ready" was telling the user the opposite of
+        // the state that put them here.
+        subtitle="The rest of your scan details are below."
         testID="scan-result-hero-empty"
       />
     );

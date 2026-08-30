@@ -38,7 +38,7 @@ for (const fixture of PRIVATE_OWNERSHIP_FIXTURES) {
     const slot = result.slots[0];
     assert.equal(slot.state, fixture.expectedState);
     assert.equal(slot.matchedItem?.id ?? null, fixture.expectedMatchedItemId);
-    assert.match(slot.confidenceExplanation, new RegExp(fixture.expectedConfidenceExplanation, 'i'));
+    assert.match(slot.diagnosticReason, new RegExp(fixture.expectedDiagnosticReason, 'i'));
     assert.equal(slot.commerceSuppressed, fixture.expectedCommerceSuppression);
     for (const action of fixture.expectedActions) assert.ok(slot.actions.includes(action), `missing ${action}`);
   });

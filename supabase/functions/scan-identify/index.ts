@@ -200,6 +200,8 @@ const ANON_SCAN_RATE_LIMIT_MAX = 6;
 // user retry) against potentially several scans in one session.
 const COMMERCE_ONLY_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const COMMERCE_ONLY_RATE_LIMIT_MAX = 40;
+const SCAN_IDENTIFY_IMAGE_DAILY_LIMIT_DEFAULT = 30;
+const SCAN_IDENTIFY_TEXT_DAILY_LIMIT_DEFAULT = 50;
 const PROJECT_ACCESS_CACHE_MS = 5 * 60 * 1000;
 
 // Output sanitization caps — keep responses small and predictable.

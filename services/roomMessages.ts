@@ -1,11 +1,8 @@
 import { supabase } from './supabaseClient';
-import {
-  DRESSING_ROOM_COLLABORATION_V1,
-  DRESSING_ROOM_MESSAGES_V1,
-  DRESSING_ROOM_THREADS_V1,
-} from '../constants/featureFlags';
+import { DRESSING_ROOM_THREADS_V1 } from '../constants/featureFlags';
 import {
   bumpCollabActorGeneration,
+  COLLAB_ACCESS_ERROR,
   createCollaborationMessage,
   createCollabRequestId,
   getCollabActorGeneration,
@@ -37,11 +34,18 @@ export const ROOM_MESSAGE_MAX_LENGTH = 1000;
 
 export const ROOM_MESSAGES_LOAD_ERROR = "We couldn't load messages. Please try again.";
 export const ROOM_MESSAGE_SEND_ERROR = "We couldn't send that message. Please try again.";
-export const ROOM_MESSAGES_ACCESS_ERROR = 'You no longer have access to this room.';
+// Neutral and truthful for every denial that reaches it — expired link,
+// revoked share, or a block in either direction. Never asserts a state change
+// the reader may not have experienced, and never discloses a block.
+export const ROOM_MESSAGES_ACCESS_ERROR = COLLAB_ACCESS_ERROR;
+export const ROOM_MESSAGES_MESSAGING_UNAVAILABLE =
+  'Messaging is unavailable in this Dressing Room.';
 export const ROOM_MESSAGES_STALE_ERROR = 'This room session is no longer active.';
 export const ROOM_MESSAGE_SIGN_IN_ERROR = 'Sign in to view and send room messages.';
 export const ROOM_MESSAGE_EMPTY_ERROR = 'Message cannot be empty.';
 export const ROOM_MESSAGE_TOO_LONG_ERROR = `Messages must be ${ROOM_MESSAGE_MAX_LENGTH} characters or fewer.`;
+export const ROOM_MESSAGE_OBJECTIONABLE_ERROR =
+  "That message can't be sent. Please remove any offensive language and try again.";
 export const ROOM_JOIN_ERROR = "We couldn't open that shared room. The link may be invalid or no longer active.";
 const ROOM_MESSAGES_REALTIME_UNAVAILABLE = 'Live message updates are not available yet.';
 
@@ -56,24 +60,8 @@ export type RoomMessage = {
   parentMessageId?: string | null;
 };
 
-type MessageRow = {
-  id: string;
-  room_id: string;
-  sender_id: string;
-  body: string;
-  created_at: string;
-  client_message_id?: string | null;
-  parent_message_id?: string | null;
-};
-
-const MESSAGE_COLUMNS = 'id, room_id, sender_id, body, created_at, client_message_id, parent_message_id';
-
-function collabMessagesEnabled() {
-  return DRESSING_ROOM_COLLABORATION_V1 && DRESSING_ROOM_MESSAGES_V1;
-}
-
 function threadsEnabled() {
-  return collabMessagesEnabled() && DRESSING_ROOM_THREADS_V1;
+  return DRESSING_ROOM_THREADS_V1;
 }
 
 function fromCollaborationMessage(message: CollaborationRoomMessage): RoomMessage {
@@ -119,23 +107,46 @@ async function getCurrentSessionUserId() {
   return userId;
 }
 
-function toRoomMessage(row: MessageRow, currentUserId: string | null): RoomMessage {
-  return {
-    id: row.id,
-    roomId: row.room_id,
-    senderId: row.sender_id,
-    body: row.body,
-    createdAt: row.created_at,
-    isMine: Boolean(currentUserId && row.sender_id === currentUserId),
-    clientMessageId: row.client_message_id ?? null,
-    parentMessageId: row.parent_message_id ?? null,
-  };
-}
-
 export function normalizeMessageBody(value?: string | null) {
   return String(value ?? '')
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
     .trim();
+}
+
+// Apple Guideline 1.2 (User-Generated Content) requires "a method for
+// filtering objectionable material" before it reaches other participants.
+// This is deliberately a small, fixed denylist of unambiguous slurs and
+// extreme profanity — not a general-purpose profanity filter, and it makes
+// no attempt to defeat spacing/leetspeak evasion. It exists to satisfy the
+// filtering requirement for the room chat, not to replace Report/Block.
+const BLOCKED_MESSAGE_TERMS = [
+  'nigger',
+  'nigga',
+  'chink',
+  'spic',
+  'kike',
+  'gook',
+  'wetback',
+  'beaner',
+  'towelhead',
+  'raghead',
+  'tranny',
+  'faggot',
+  'retard',
+  'cunt',
+  'whore',
+  'slut',
+  'kill yourself',
+  'kys',
+];
+
+const BLOCKED_MESSAGE_PATTERN = new RegExp(
+  `\\b(${BLOCKED_MESSAGE_TERMS.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`,
+  'i',
+);
+
+export function containsBlockedMessageContent(body: string): boolean {
+  return BLOCKED_MESSAGE_PATTERN.test(body);
 }
 
 export function validateMessageBody(value?: string | null) {
@@ -145,6 +156,9 @@ export function validateMessageBody(value?: string | null) {
   }
   if (body.length > ROOM_MESSAGE_MAX_LENGTH) {
     throw new Error(ROOM_MESSAGE_TOO_LONG_ERROR);
+  }
+  if (containsBlockedMessageContent(body)) {
+    throw new Error(ROOM_MESSAGE_OBJECTIONABLE_ERROR);
   }
   return body;
 }
@@ -156,28 +170,12 @@ export async function listRoomMessages(roomId: string): Promise<RoomMessage[]> {
     throw new Error(ROOM_MESSAGE_SIGN_IN_ERROR);
   }
 
-  if (collabMessagesEnabled()) {
-    const generation = getCollabActorGeneration();
-    const page = await listCollaborationMessages({ roomId: normalizedRoomId });
-    if (!isCurrentCollabGeneration(generation)) {
-      throw new Error(ROOM_MESSAGES_STALE_ERROR);
-    }
-    return page.messages.map(fromCollaborationMessage);
+  const generation = getCollabActorGeneration();
+  const page = await listCollaborationMessages({ roomId: normalizedRoomId });
+  if (!isCurrentCollabGeneration(generation)) {
+    throw new Error(ROOM_MESSAGES_STALE_ERROR);
   }
-
-  const { data, error } = await supabase
-    .from('dressing_room_messages')
-    .select(MESSAGE_COLUMNS)
-    .eq('room_id', normalizedRoomId)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: true });
-
-  if (error) {
-    devLog('list failed', error.code);
-    throw new Error(isPermissionError(error) ? ROOM_MESSAGES_ACCESS_ERROR : ROOM_MESSAGES_LOAD_ERROR);
-  }
-
-  return (data ?? []).map((row) => toRoomMessage(row as MessageRow, currentUserId));
+  return page.messages.map(fromCollaborationMessage);
 }
 
 export async function listRoomMessagesPage(input: {
@@ -195,15 +193,6 @@ export async function listRoomMessagesPage(input: {
   const currentUserId = await getCurrentSessionUserId();
   if (!currentUserId) {
     throw new Error(ROOM_MESSAGE_SIGN_IN_ERROR);
-  }
-  if (!collabMessagesEnabled()) {
-    const all = await listRoomMessages(normalizedRoomId);
-    return {
-      messages: all,
-      nextCursor: null,
-      newestCursor: null,
-      accessVersion: 0,
-    };
   }
   const generation = getCollabActorGeneration();
   const page = await listCollaborationMessages({
@@ -235,10 +224,6 @@ export async function catchUpRoomMessages(input: {
   const currentUserId = await getCurrentSessionUserId();
   if (!currentUserId) {
     throw new Error(ROOM_MESSAGE_SIGN_IN_ERROR);
-  }
-  if (!collabMessagesEnabled()) {
-    const all = await listRoomMessages(normalizedRoomId);
-    return { messages: all, newestCursor: null, accessVersion: 0 };
   }
   const generation = getCollabActorGeneration();
   const page = await catchUpCollaborationMessages({
@@ -286,40 +271,19 @@ export async function sendRoomMessage(
     throw new Error(ROOM_MESSAGE_SIGN_IN_ERROR);
   }
 
-  if (collabMessagesEnabled()) {
-    const parentMessageId = threadsEnabled()
-      ? options?.parentMessageId ?? null
-      : null;
-    const clientMessageId = options?.clientMessageId ?? createCollabRequestId();
-    const generation = getCollabActorGeneration();
-    const sent = await createCollaborationMessage({
-      roomId: normalizedRoomId,
-      text: normalizedBody,
-      clientMessageId,
-      parentMessageId,
-    });
-    if (!isCurrentCollabGeneration(generation)) {
-      throw new Error(ROOM_MESSAGES_STALE_ERROR);
-    }
-    return fromCollaborationMessage(sent);
+  const parentMessageId = threadsEnabled() ? options?.parentMessageId ?? null : null;
+  const clientMessageId = options?.clientMessageId ?? createCollabRequestId();
+  const generation = getCollabActorGeneration();
+  const sent = await createCollaborationMessage({
+    roomId: normalizedRoomId,
+    text: normalizedBody,
+    clientMessageId,
+    parentMessageId,
+  });
+  if (!isCurrentCollabGeneration(generation)) {
+    throw new Error(ROOM_MESSAGES_STALE_ERROR);
   }
-
-  const { data, error } = await supabase
-    .from('dressing_room_messages')
-    .insert({
-      room_id: normalizedRoomId,
-      sender_id: currentUserId,
-      body: normalizedBody,
-    })
-    .select(MESSAGE_COLUMNS)
-    .single();
-
-  if (error || !data) {
-    devLog('send failed', error?.code);
-    throw new Error(isPermissionError(error) ? ROOM_MESSAGES_ACCESS_ERROR : ROOM_MESSAGE_SEND_ERROR);
-  }
-
-  return toRoomMessage(data as MessageRow, currentUserId);
+  return fromCollaborationMessage(sent);
 }
 
 /**

@@ -299,7 +299,30 @@ test('mapAuthError: unknown error returns safe copy that does not blame credenti
   // password". That is what made a backend outage read as a rejected password,
   // so the contract is now the inverse: an unattributed failure must not
   // implicate the user's credentials.
+  assert.match(msg, /sign you in|try again/i);
   assert.doesNotMatch(msg, /password/i);
+  assert.doesNotMatch(msg, /email and password/i);
+});
+
+test('mapAuthError: unmatched backend failure is NOT reported as a bad password', () => {
+  const msg = mapAuthError('Internal Server Error (500)', 'sign-in');
+  assert.doesNotMatch(msg, /password/i);
+  assert.doesNotMatch(msg, /email and password/i);
+});
+
+test('mapAuthError: account_unavailable is not reported as a bad password', () => {
+  const msg = mapAuthError('account_unavailable', 'sign-in');
+  assert.doesNotMatch(msg, /password/i);
+  assert.match(msg, /not available/i);
+});
+
+test('mapAuthError: supabase configuration error is not reported as a bad password', () => {
+  const msg = mapAuthError(
+    'Supabase configuration error [missing_key]: EXPO_PUBLIC_SUPABASE_ANON_KEY is not set.',
+    'sign-in',
+  );
+  assert.doesNotMatch(msg, /password/i);
+  assert.match(msg, /configured/i);
 });
 
 test('mapAuthError: "rate limit" → rate-limit copy', () => {

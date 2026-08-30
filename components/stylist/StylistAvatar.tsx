@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Image, View, Text, StyleSheet } from 'react-native';
 import {
   DEFAULT_STYLIST_IDENTITY,
+  getStylistAvatarFraming,
   isRenderablePortraitPreset,
   STYLIST_AVATAR_PRESET_BY_ID,
   type StylistAvatarPreset,
@@ -13,7 +14,16 @@ interface StylistAvatarProps {
   avatarId?: string;
   size?: number;
   accessibilityLabel?: string;
+  /**
+   * Set false to render the portrait at its legacy framing. Used by the
+   * mouth-state speaking overlay, whose coordinates are calibrated against
+   * the unrecentered image.
+   */
+  applyFraming?: boolean;
 }
+
+/** Overscan factor for the recenter zoom; must clear the largest configured offsetXRatio with margin. */
+const FRAME_OVERSCAN = 1.28;
 
 const DEFAULT_ABSTRACT_PRESET = STYLIST_AVATAR_PRESET_BY_ID.get(
   DEFAULT_STYLIST_IDENTITY.avatarId,
@@ -106,11 +116,13 @@ function PortraitAvatar({
   fallback,
   size,
   label,
+  applyFraming = true,
 }: {
   preset: StylistAvatarPresetPortraitReady;
   fallback: StylistAvatarPresetAbstract;
   size: number;
   label: string;
+  applyFraming?: boolean;
 }) {
   const [loadFailed, setLoadFailed] = useState(false);
 
@@ -118,15 +130,41 @@ function PortraitAvatar({
     return <AbstractAvatar preset={fallback} size={size} label={label} />;
   }
 
+  const framing = applyFraming ? getStylistAvatarFraming(preset.id) : undefined;
+
+  if (!framing) {
+    return (
+      <Image
+        source={preset.source}
+        resizeMode="cover"
+        // Android bundled resources otherwise bypass Fresco's target-size decode.
+        // The shared `size` remains the hint on both platforms: Android receives
+        // native view pixels and iOS combines the point size with screen scale.
+        resizeMethod="resize"
+        onError={() => setLoadFailed(true)}
+        style={[
+          styles.container,
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            borderColor: fallback.accentColor,
+          },
+        ]}
+        accessibilityRole="image"
+        accessibilityLabel={label}
+      />
+    );
+  }
+
+  // Presentation-only recenter: overscan the bundled source slightly and shift
+  // it so the off-center subject lands in the middle of the circular frame.
+  // The asset itself is untouched.
+  const overscan = size * FRAME_OVERSCAN;
+  const inset = (overscan - size) / 2;
+
   return (
-    <Image
-      source={preset.source}
-      resizeMode="cover"
-      // Android bundled resources otherwise bypass Fresco's target-size decode.
-      // The shared `size` remains the hint on both platforms: Android receives
-      // native view pixels and iOS combines the point size with screen scale.
-      resizeMethod="resize"
-      onError={() => setLoadFailed(true)}
+    <View
       style={[
         styles.container,
         {
@@ -138,7 +176,21 @@ function PortraitAvatar({
       ]}
       accessibilityRole="image"
       accessibilityLabel={label}
-    />
+    >
+      <Image
+        source={preset.source}
+        resizeMode="cover"
+        resizeMethod="resize"
+        onError={() => setLoadFailed(true)}
+        style={{
+          width: overscan,
+          height: overscan,
+          marginLeft: -inset,
+          marginTop: -inset,
+          transform: [{ translateX: -framing.offsetXRatio * overscan }],
+        }}
+      />
+    </View>
   );
 }
 
@@ -146,6 +198,7 @@ export function StylistAvatar({
   avatarId,
   size = 64,
   accessibilityLabel,
+  applyFraming = true,
 }: StylistAvatarProps) {
   const preset = getPreset(avatarId);
   const fallback = getAbstractFallbackPreset(preset);
@@ -169,6 +222,7 @@ export function StylistAvatar({
         fallback={DEFAULT_ABSTRACT_PRESET}
         size={size}
         label={accessibilityLabel ?? preset.accessibilityLabel}
+        applyFraming={applyFraming}
       />
     );
   }

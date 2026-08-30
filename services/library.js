@@ -32,15 +32,28 @@ import { hydrateScanHistory } from './identificationSnapshot';
 
 const LIB_DIR      = FileSystem.documentDirectory + 'kscan_library/';
 const LIBRARY_PATH = LIB_DIR + 'kscan_library.json';
+// Staging and retention paths for the atomic manifest swap. Same idiom as
+// services/privateSavedLookStore.ts, which already governs a manifest of this
+// shape — Recent Scans is not getting a bespoke storage engine of its own.
+const LIBRARY_TEMP_PATH   = LIBRARY_PATH + '.tmp';
+const LIBRARY_BACKUP_PATH = LIBRARY_PATH + '.bak';
 const IMAGES_DIR   = LIB_DIR + 'images/';
 const THUMBS_DIR   = LIB_DIR + 'thumbnails/';
 const MAX_SCANS     = 25; // per partition, not per manifest
-const THUMB_WIDTH   = 160; // px — small square-ish card thumbnail
+// px. Sized in DEVICE PIXELS against the largest surface that renders it, not in
+// pt: the Library grid card is ~176pt wide and iOS ships at 3x, so a 160px
+// derivative was being upscaled 3x. Patterns are high-frequency detail —
+// stripes and plaid alias into mush at 160px and no amount of upscaling restores
+// them. 640 covers 176pt x 3.5. Must stay >= the candidate value in
+// services/closetCandidateMedia.js, which promotion copies from.
+const THUMB_WIDTH   = 640;
+const THUMB_COMPRESS = 0.88;
 const IMAGE_WIDTH   = 1440; // px — room-upload friendly, still compact
 
 // Serializes every manifest mutation so concurrent saves/deletes cannot
-// interleave a read-modify-write. Stage 1 does not redesign the write itself;
-// atomic manifest writes remain DEFERRED HARDENING.
+// interleave a read-modify-write. The write itself is now an atomic
+// stage-verify-swap (see persistLibrary), so serialization and durability are
+// no longer the same concern.
 let libraryMutationQueue = Promise.resolve();
 
 let mediaAssetCounter = 0;
@@ -83,14 +96,119 @@ async function ensureDirs() {
   } catch { /* non-fatal — directory may already exist */ }
 }
 
+/**
+ * Replace the manifest atomically.
+ *
+ * The previous implementation wrote the serialized array straight over
+ * LIBRARY_PATH. That is a whole-library hazard, not a one-record one: the
+ * manifest is a single JSON document, so a write interrupted midway (device
+ * out of space, process killed, I/O error) leaves truncated JSON on disk,
+ * readAllLibrary's JSON.parse throws, and the catch returns [] — every
+ * committed scan reads as gone, and the next successful save cements the loss.
+ * Reproduced deterministically; see recentScanPersistenceIntegrity.test.js.
+ *
+ * Staging + verify + swap makes the failure atomic instead: an interrupted
+ * write can only ever damage the temp file, and the live manifest is replaced
+ * by a rename once its replacement is known to be complete and readable. On a
+ * failed swap the retained backup is put back, so the caller's existing
+ * rollback path sees an intact library rather than a half-updated one.
+ *
+ * Throws on failure — deliberately. Every caller already treats a throw as
+ * "this write did not commit" and unwinds accordingly.
+ */
 async function persistLibrary(scans) {
   // Ensure LIB_DIR exists before writing (first-run safety)
   await FileSystem.makeDirectoryAsync(LIB_DIR, { intermediates: true }).catch(() => null);
-  await FileSystem.writeAsStringAsync(
-    LIBRARY_PATH,
-    JSON.stringify(scans),
-    { encoding: FileSystem.EncodingType.UTF8 }
-  );
+  const payload = JSON.stringify(scans);
+
+  // Stage. A stale temp from an earlier failure is never appended to or reused.
+  await FileSystem.deleteAsync(LIBRARY_TEMP_PATH, { idempotent: true }).catch(() => null);
+  await FileSystem.writeAsStringAsync(LIBRARY_TEMP_PATH, payload, {
+    encoding: FileSystem.EncodingType.UTF8,
+  });
+
+  // Verify before the swap. A short write that does not itself throw is the
+  // exact case a length-blind rename would promote into the live manifest.
+  const verified = await FileSystem.readAsStringAsync(LIBRARY_TEMP_PATH, {
+    encoding: FileSystem.EncodingType.UTF8,
+  }).catch(() => null);
+  if (verified !== payload) {
+    await FileSystem.deleteAsync(LIBRARY_TEMP_PATH, { idempotent: true }).catch(() => null);
+    throw new Error('kscan_library_manifest_unverified');
+  }
+
+  // Retain the current manifest as the recovery copy, then swap.
+  //
+  // Only a manifest that still READS is worth retaining. readAllLibrary
+  // already treats an unparseable live manifest as "unusable, fall back to
+  // the retained copy" — so promoting that same unusable file over the
+  // retained copy destroys the only good history we have. That is not
+  // hypothetical: with a corrupt live manifest and a good backup, one failed
+  // rename then restores the corrupt file and leaves no backup at all, and
+  // the next read reports an empty library. Retention is skipped rather than
+  // performed blindly; the existing (good) backup stays exactly where it is.
+  const current = await FileSystem.getInfoAsync(LIBRARY_PATH).catch(() => ({ exists: false }));
+  const currentIsUsable = current?.exists ? await manifestReads(LIBRARY_PATH) : false;
+  if (current?.exists && currentIsUsable) {
+    await FileSystem.deleteAsync(LIBRARY_BACKUP_PATH, { idempotent: true }).catch(() => null);
+    await FileSystem.moveAsync({ from: LIBRARY_PATH, to: LIBRARY_BACKUP_PATH });
+  } else if (current?.exists) {
+    // Unreadable: discard it instead of letting it displace the good backup.
+    await FileSystem.deleteAsync(LIBRARY_PATH, { idempotent: true }).catch(() => null);
+  }
+  try {
+    await FileSystem.moveAsync({ from: LIBRARY_TEMP_PATH, to: LIBRARY_PATH });
+  } catch (error) {
+    // Put the previous verified manifest back rather than leaving no manifest.
+    const backup = await FileSystem.getInfoAsync(LIBRARY_BACKUP_PATH).catch(() => ({ exists: false }));
+    if (backup?.exists) {
+      await FileSystem.moveAsync({ from: LIBRARY_BACKUP_PATH, to: LIBRARY_PATH }).catch(() => null);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Whether a manifest file on disk still parses as a scan array.
+ *
+ * The same usability bar readAllLibrary applies when it decides whether to
+ * trust a file or fall through to the retained copy. Never throws.
+ */
+async function manifestReads(uri) {
+  try {
+    return Array.isArray(JSON.parse(await FileSystem.readAsStringAsync(uri)));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Promote a staged or retained manifest when the primary is missing.
+ *
+ * Only reachable if the process died inside the swap window above. Returns
+ * whether a promotion happened; never throws.
+ */
+async function recoverMissingManifest() {
+  const primary = await FileSystem.getInfoAsync(LIBRARY_PATH).catch(() => ({ exists: false }));
+  if (primary?.exists) return false;
+  for (const candidate of [LIBRARY_TEMP_PATH, LIBRARY_BACKUP_PATH]) {
+    const info = await FileSystem.getInfoAsync(candidate).catch(() => ({ exists: false }));
+    if (!info?.exists) continue;
+    // Only promote a candidate that actually parses as a manifest.
+    try {
+      const raw = await FileSystem.readAsStringAsync(candidate);
+      if (!Array.isArray(JSON.parse(raw))) continue;
+    } catch {
+      continue;
+    }
+    try {
+      await FileSystem.moveAsync({ from: candidate, to: LIBRARY_PATH });
+      return true;
+    } catch {
+      // Try the next candidate.
+    }
+  }
+  return false;
 }
 
 /**
@@ -100,21 +218,34 @@ async function persistLibrary(scans) {
  */
 async function readAllLibrary() {
   try {
-    const info = await FileSystem.getInfoAsync(LIBRARY_PATH);
-    if (!info.exists) return [];
-    const raw = await FileSystem.readAsStringAsync(LIBRARY_PATH);
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
+    await recoverMissingManifest();
     // Per-record hydration (Phase 2B.2). Recent Scans legitimately holds V2, V1,
     // unversioned legacy and — after any past partial write — corrupt entries in
     // one array. The previous `.map()` let a single throwing record fall through
     // to the outer catch and return an EMPTY history, which reads to the user as
     // "all my scans are gone". Each record is now isolated: a failure drops only
     // that record, order is preserved, and nothing is rewritten on read.
-    const { records } = hydrateScanHistory(parsed, (scan) => (
-      scan && typeof scan === 'object' && !Array.isArray(scan) ? hydrateSavedScan(scan) : null
-    ));
-    return records;
+    //
+    // Document-level damage is a separate failure from record-level damage. A
+    // manifest that does not parse at all is not "no scans" — it is a manifest
+    // we cannot read, so the last verified copy is preferred over reporting an
+    // empty history. Reading never rewrites either file.
+    for (const path of [LIBRARY_PATH, LIBRARY_BACKUP_PATH]) {
+      const info = await FileSystem.getInfoAsync(path).catch(() => ({ exists: false }));
+      if (!info?.exists) continue;
+      let parsed;
+      try {
+        parsed = JSON.parse(await FileSystem.readAsStringAsync(path));
+      } catch {
+        continue; // corrupt document — fall through to the retained copy
+      }
+      if (!Array.isArray(parsed)) continue;
+      const { records } = hydrateScanHistory(parsed, (scan) => (
+        scan && typeof scan === 'object' && !Array.isArray(scan) ? hydrateSavedScan(scan) : null
+      ));
+      return records;
+    }
+    return [];
   } catch {
     return [];
   }
@@ -159,7 +290,10 @@ async function generateThumbnail(photoUri, assetId) {
     const result = await ImageManipulator.manipulateAsync(
       photoUri,
       [{ resize: { width: THUMB_WIDTH } }],
-      { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+      // q0.8 is fine on a 1440px image and wrong on a thumbnail: the same
+      // quantization covers far more of the frame, so a patterned weave picks up
+      // visible block artifacts exactly where the detail matters.
+      { compress: THUMB_COMPRESS, format: ImageManipulator.SaveFormat.JPEG }
     );
     // Move out of OS cache into app-owned persistent storage
     return await moveToFreshMediaPath(result.uri, THUMBS_DIR, assetId);
@@ -250,6 +384,28 @@ export function selectPurchaseOptionsSnapshot(analysis) {
 }
 
 /**
+ * Content fingerprint of a commerce snapshot, used to decide whether a shelf
+ * still needs to be written.
+ *
+ * Must not be reduced to a count: v127 enrichment replaces offers in place
+ * rather than appending, so an enriched shelf has the same length as the
+ * discovery shelf it upgraded. Keying on length alone therefore treats the
+ * better data as already-persisted and drops it. The fields here are exactly
+ * the ones enrichment can improve.
+ */
+export function purchaseOptionsFingerprint(options) {
+  if (!Array.isArray(options) || options.length === 0) return '';
+  return options
+    .map((option) => {
+      if (!option || typeof option !== 'object') return '';
+      return [option.productUrl, option.price, option.imageUrl, option.title]
+        .map((field) => (typeof field === 'string' ? field : ''))
+        .join('|');
+    })
+    .join('~');
+}
+
+/**
  * Re-normalize a persisted scan on read so legacy records (saved before the
  * commerce snapshot or before ownership existed), null, and malformed payloads
  * all hydrate into the canonical shape. Idempotent.
@@ -268,7 +424,41 @@ export function hydrateSavedScan(scan) {
     ...scan,
     ownerId: normalizeOwnerId(scan.ownerId),
     purchaseOptions: normalizePurchaseOptions(stored),
+    // Absent on every pre-Build-32 record; defaults to empty rather than
+    // undefined so a reader can always safely map/iterate.
+    multiItemCandidates: Array.isArray(scan.multiItemCandidates) ? scan.multiItemCandidates : [],
+    multiItemCommerce: normalizeStoredMultiItemCommerce(scan.multiItemCommerce),
   };
+}
+
+/**
+ * Read-path hygiene for stored per-item commerce.
+ *
+ * The single-item shelf has always been re-normalized on READ, not merely on
+ * write, because what is on disk is not necessarily what this build wrote:
+ * an older build, a partially-synced cloud record, or a damaged manifest can
+ * all put values here. Multi-item cards were being handed back exactly as
+ * stored, so an unsafe `productUrl` (`javascript:` and friends) that the write
+ * path would have stripped still reached a reopened scan and rendered as a
+ * tappable offer. Same data, same hazard — so the same normalizer, applied at
+ * the same point.
+ */
+function normalizeStoredMultiItemCommerce(stored) {
+  if (!Array.isArray(stored)) return [];
+  return stored
+    .filter((card) => card && typeof card === 'object' && !Array.isArray(card))
+    .map((card) => {
+      const bestMatch = normalizePurchaseOptions(card.bestMatch ? [card.bestMatch] : []);
+      return {
+        ...card,
+        candidateId: typeof card.candidateId === 'string' ? card.candidateId : '',
+        status: typeof card.status === 'string' ? card.status : 'error',
+        bestMatch: bestMatch[0] ?? null,
+        alternatives: normalizePurchaseOptions(
+          Array.isArray(card.alternatives) ? card.alternatives : [],
+        ),
+      };
+    });
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -385,6 +575,11 @@ export async function saveScan({ photoUri, analysis, source, actorRequest, owner
         silhouette:        analysis.metadata?.silhouette ?? '',
         color_palette:     analysis.metadata?.color      ?? '',
         material_estimate: analysis.metadata?.materialEstimate ?? analysis.metadata?.material ?? null,
+        // Pattern (BUG-11). The mapper has always produced this and the legacy
+        // attribute block silently dropped it, so a reopened scan could never
+        // show a pattern and the cloud consumers that read metadata.pattern
+        // always read null. Absent stays null — never invented.
+        pattern:           analysis.metadata?.pattern ?? null,
         style_tags:        Array.isArray(analysis.metadata?.styleTags) ? analysis.metadata.styleTags.slice() : [],
         confidence_score:  typeof analysis.metadata?.confidenceScore === 'number'
           ? analysis.metadata.confidenceScore
@@ -462,6 +657,244 @@ export async function saveScan({ photoUri, analysis, source, actorRequest, owner
   } catch {
     await cleanupRejectedMedia([imageUri, thumbnailUri]);
     return null;
+  }
+}
+
+/**
+ * Save a multi-item detection result to the Style Library (Build 32).
+ *
+ * A deliberately SEPARATE path from `saveScan`, not a widened branch of it:
+ * `saveScan` and its callers stay exactly as they were for every existing
+ * (single-item) scan. `products`/`purchaseOptions` are always written empty
+ * here — this record's commerce lives entirely in `multiItemCommerce`, keyed
+ * per candidate by `candidateId`, so offers for one detected garment can
+ * never be read as another's.
+ *
+ * Mirrors `saveScan`'s media persistence, actor-authority re-check, and
+ * per-partition eviction exactly; only the record shape differs.
+ *
+ * @param {object} opts
+ * @param {string} opts.photoUri
+ * @param {object} opts.analysis - the multi-item detection analysis (result/metadata)
+ * @param {Array}  opts.candidates - OutfitConfirmationCandidate[] from the detection response
+ * @param {string} [opts.source]
+ * @param {object} opts.actorRequest
+ * @returns {SavedScan|null}
+ */
+export async function saveMultiItemScan({ photoUri, analysis, candidates, source, actorRequest, ownerId, entryPath }) {
+  const preAuthority = resolveWriteAuthority(actorRequest, ownerId);
+  if (!preAuthority.ok) return null;
+  if (!Array.isArray(candidates) || candidates.length === 0) return null;
+
+  let imageUri = null;
+  let thumbnailUri = null;
+  try {
+    const id = 'scan_' + Date.now() + '_' + Math.floor(Math.random() * 9999);
+
+    imageUri = await persistScanImage(photoUri, createMediaAssetId());
+    thumbnailUri = await generateThumbnail(photoUri, createMediaAssetId());
+
+    const authority = resolveWriteAuthority(actorRequest, ownerId);
+    if (!authority.ok) {
+      await cleanupRejectedMedia([imageUri, thumbnailUri]);
+      return null;
+    }
+    const owner = authority.ownerId;
+
+    /** @type {SavedScan} */
+    const scan = {
+      id,
+      createdAt: new Date().toISOString(),
+      ownerId: owner,
+      imageUri,
+      thumbnailUri,
+      attributes: {
+        category:          analysis?.metadata?.category   ?? '',
+        silhouette:        analysis?.metadata?.silhouette ?? '',
+        color_palette:     analysis?.metadata?.color      ?? '',
+        material_estimate: analysis?.metadata?.materialEstimate ?? analysis?.metadata?.material ?? null,
+        pattern:           analysis?.metadata?.pattern ?? null,
+        style_tags:        Array.isArray(analysis?.metadata?.styleTags) ? analysis.metadata.styleTags.slice() : [],
+        confidence_score:  typeof analysis?.metadata?.confidenceScore === 'number'
+          ? analysis.metadata.confidenceScore
+          : null,
+      },
+      ...(analysis?.identificationSnapshot
+        ? {
+            identificationSnapshot: {
+              ...analysis.identificationSnapshot,
+              source: {
+                ...analysis.identificationSnapshot.source,
+                entryPath: resolveEntryPath(entryPath, source),
+              },
+            },
+          }
+        : {}),
+      ...(analysis?.identificationSnapshotV2
+        ? { identificationSnapshotV2: analysis.identificationSnapshotV2 }
+        : {}),
+      result:   analysis?.result ?? '',
+      // Never pooled: a multi-item scan's shoppable state lives only in
+      // multiItemCommerce, keyed per candidateId.
+      products: [],
+      purchaseOptions: [],
+      // Canonical item identities, captured immediately at save time —
+      // commerce for them is attached later via attachScanMultiItemCommerce,
+      // exactly as attachScanPurchaseOptions does for the single-item shelf.
+      multiItemCandidates: candidates.map((candidate) => ({
+        id: String(candidate.id),
+        label: String(candidate.label ?? candidate.category ?? 'Item'),
+        category: String(candidate.category ?? ''),
+        subtype: String(candidate.subtype ?? ''),
+        ...(typeof candidate.confidenceScore === 'number' ? { confidenceScore: candidate.confidenceScore } : {}),
+      })),
+      multiItemCommerce: [],
+      source: source || 'scan',
+    };
+
+    const committed = await enqueueLibraryMutation(async () => {
+      if (!isActorRequestCurrent(actorRequest)) return false;
+
+      const existing = await readAllLibrary();
+      const updated  = [scan, ...existing];
+
+      const partition = updated.filter(item => normalizeOwnerId(item.ownerId) === owner);
+      const evicted = partition.slice(MAX_SCANS);
+
+      if (evicted.length > 0) {
+        const evictedSet = new Set(evicted);
+        const survivors = updated.filter(item => !evictedSet.has(item));
+        await unlinkUnreferencedMedia(
+          evicted.flatMap(item => [item.imageUri, item.thumbnailUri]).filter(Boolean),
+          survivors,
+        );
+        await persistLibrary(survivors);
+      } else {
+        await persistLibrary(updated);
+      }
+      return true;
+    });
+
+    if (!committed) {
+      await cleanupRejectedMedia([imageUri, thumbnailUri]);
+      return null;
+    }
+
+    if (owner) {
+      saveScanToCloud(scan).catch(() => null);
+    }
+    return scan;
+  } catch {
+    await cleanupRejectedMedia([imageUri, thumbnailUri]);
+    return null;
+  }
+}
+
+/**
+ * Attach multi-item commerce cards that arrived after the scan was already
+ * saved (Build 32). Mirrors `attachScanPurchaseOptions` exactly, but updates
+ * `multiItemCommerce` instead: replaced wholesale, never appended, so a
+ * duplicate hydration or retry cannot double a card. Each entry's offers are
+ * normalized through the same URL/field hygiene as the single-item shelf.
+ */
+export async function attachScanMultiItemCommerce(id, multiItemCommerce, { actorRequest } = {}) {
+  if (!id) return false;
+  if (!Array.isArray(multiItemCommerce) || multiItemCommerce.length === 0) return false;
+
+  const normalized = multiItemCommerce
+    .filter((card) => card && typeof card.candidateId === 'string' && card.candidateId)
+    .map((card) => {
+      const bestMatchArr = normalizePurchaseOptions(card.bestMatch ? [card.bestMatch] : []);
+      return {
+        candidateId: card.candidateId,
+        status: typeof card.status === 'string' ? card.status : 'error',
+        bestMatch: bestMatchArr[0] ?? null,
+        alternatives: normalizePurchaseOptions(Array.isArray(card.alternatives) ? card.alternatives : []),
+      };
+    });
+  if (normalized.length === 0) return false;
+
+  try {
+    return await enqueueLibraryMutation(async () => {
+      if (actorRequest !== undefined && !isActorRequestCurrent(actorRequest)) return false;
+
+      const existing = await readAllLibrary();
+      const index = existing.findIndex((item) => item && item.id === id);
+      if (index === -1) return false;
+
+      const target = existing[index];
+      if (actorRequest !== undefined) {
+        const owner = normalizeOwnerId(normalizeActorIdArg(actorRequest.actorId));
+        if (normalizeOwnerId(target.ownerId) !== owner) return false;
+      }
+
+      const updated = existing.slice();
+      updated[index] = { ...target, multiItemCommerce: normalized };
+      await persistLibrary(updated);
+
+      if (normalizeOwnerId(target.ownerId)) {
+        saveScanToCloud(updated[index]).catch(() => null);
+      }
+      return true;
+    });
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Attach commerce that arrived after the scan was already saved (v127).
+ *
+ * v127 decouples commerce from scan completion, so the scan row is written
+ * before purchase options exist. This updates that SAME record rather than
+ * creating a second one — the record id is the join, and a scan whose id is not
+ * present is simply not updated.
+ *
+ * Ownership is enforced exactly as elsewhere: the write runs inside the
+ * serialized mutation queue and is rejected if the actor changed while commerce
+ * was in flight, so late commerce can never land on another actor's record.
+ *
+ * Idempotent by construction: purchase options are replaced, never appended, so
+ * a duplicate hydration or a retry cannot double the shelf.
+ */
+export async function attachScanPurchaseOptions(id, purchaseOptions, { actorRequest } = {}) {
+  if (!id) return false;
+  const normalized = normalizePurchaseOptions(
+    Array.isArray(purchaseOptions) ? purchaseOptions : [],
+  );
+  // Nothing to attach. Writing an empty array would clear a shelf that a
+  // previous hydration had legitimately filled.
+  if (normalized.length === 0) return false;
+
+  try {
+    return await enqueueLibraryMutation(async () => {
+      if (actorRequest !== undefined && !isActorRequestCurrent(actorRequest)) return false;
+
+      const existing = await readAllLibrary();
+      const index = existing.findIndex((item) => item && item.id === id);
+      if (index === -1) return false;
+
+      const target = existing[index];
+      if (actorRequest !== undefined) {
+        const owner = normalizeOwnerId(normalizeActorIdArg(actorRequest.actorId));
+        // A record belongs to exactly one partition; late commerce may not
+        // cross from the ownerless projection into an owned record or back.
+        if (normalizeOwnerId(target.ownerId) !== owner) return false;
+      }
+
+      const updated = existing.slice();
+      updated[index] = { ...target, purchaseOptions: normalized };
+      await persistLibrary(updated);
+
+      // Mirror the save path: cloud sync is fire-and-forget and its failure
+      // never rolls back the committed local write.
+      if (normalizeOwnerId(target.ownerId)) {
+        saveScanToCloud(updated[index]).catch(() => null);
+      }
+      return true;
+    });
+  } catch {
+    return false;
   }
 }
 

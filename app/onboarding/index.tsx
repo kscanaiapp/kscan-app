@@ -31,7 +31,12 @@ import {
   PermissionsStepV1,
 } from '../../components/account-home';
 import { LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/theme';
-import { TERMS_VERSION, PRIVACY_VERSION, AGE_VERSION } from '../../constants/legal';
+import {
+  TERMS_VERSION,
+  PRIVACY_VERSION,
+  AGE_VERSION,
+  AI_PROCESSING_VERSION,
+} from '../../constants/legal';
 import { validateAuthInput, mapAuthError } from '../../services/authValidation';
 import { recordLegalAcceptances } from '../../services/legalAcceptance';
 import { usePermissionPreferences } from '../../hooks/usePermissionPreferences';
@@ -82,6 +87,7 @@ export default function OnboardingScreen() {
   // Step 4: Terms
   const [termsChecked, setTermsChecked] = useState(false);
   const [privacyChecked, setPrivacyChecked] = useState(false);
+  const [aiConsentChecked, setAiConsentChecked] = useState(false);
   const [ageChecked, setAgeChecked] = useState(false);
   const [legalBusy, setLegalBusy] = useState(false);
   const [legalError, setLegalError] = useState<string | null>(null);
@@ -93,7 +99,6 @@ export default function OnboardingScreen() {
     setPreference: setPermissionPreference,
     isSaving: permissionSaving,
     savePreferences,
-    requestMicrophonePermission,
   } = usePermissionPreferences();
 
   const moveToTermsOnce = useCallback(() => {
@@ -236,7 +241,7 @@ export default function OnboardingScreen() {
     setCreateError(null);
     setCreateBusy(true);
     try {
-      const result = await signUp(trimmedEmail, password);
+      const result = await signUp(trimmedEmail, password, { fullName, styleNickname });
       if (result.confirmationRequired) {
         setConfirmationEmail(trimmedEmail);
         return;
@@ -248,7 +253,7 @@ export default function OnboardingScreen() {
     } finally {
       setCreateBusy(false);
     }
-  }, [email, password, confirmPassword, signUp, continueAuthenticatedFlow]);
+  }, [email, password, confirmPassword, fullName, styleNickname, signUp, continueAuthenticatedFlow]);
 
   // ── Google OAuth handler (used from onboarding auth-choice step) ─────────────
 
@@ -347,6 +352,7 @@ export default function OnboardingScreen() {
         termsVersion: TERMS_VERSION,
         privacyVersion: PRIVACY_VERSION,
         minimumAgeVersion: AGE_VERSION,
+        aiProcessingVersion: AI_PROCESSING_VERSION,
         appVersion: null, // app_version not wired — deferred until app metadata helper exists
       });
       if (result.ok) {
@@ -423,7 +429,7 @@ export default function OnboardingScreen() {
     return (
     <View style={styles.stepContent} testID="onboarding-create-account-screen">
       <Text style={styles.stepTitle}>Create Account</Text>
-      <Text style={styles.stepBody}>Join K Scan to save your style journey.</Text>
+      <Text style={styles.stepBody}>Join K Scan AI to save your style journey.</Text>
 
       <View style={styles.fieldGroup}>
         <Text style={styles.fieldLabel}>FULL NAME</Text>
@@ -580,9 +586,14 @@ export default function OnboardingScreen() {
       </View>
 
       <Text style={styles.privacyNote}>
-        K Scan is not designed for facial recognition or identifying people. Raw scans and
+        K Scan AI is not designed for facial recognition or identifying people. Raw scans and
         uploaded images are not sold to third-party data buyers. Camera access is used when you
         choose to scan. You can manage permissions in device settings.
+      </Text>
+
+      <Text style={styles.privacyNote} testID="onboarding-ai-processing-statement">
+        Images you choose to submit may be securely transmitted and processed using artificial
+        intelligence to provide scanning, styling, and shopping results.
       </Text>
 
       <View style={styles.legalLinks}>
@@ -630,6 +641,20 @@ export default function OnboardingScreen() {
       </Pressable>
 
       <Pressable
+        testID="onboarding-ai-consent-checkbox"
+        onPress={() => setAiConsentChecked((v) => !v)}
+        style={styles.checkboxRow}
+        accessibilityRole="checkbox"
+        accessibilityLabel="AI image processing consent checkbox"
+        accessibilityState={{ checked: aiConsentChecked }}
+      >
+        <View style={[styles.checkbox, aiConsentChecked && styles.checkboxChecked]}>
+          {aiConsentChecked && <Text style={styles.checkmark}>✓</Text>}
+        </View>
+        <Text style={styles.checkboxLabel}>I consent to AI image processing</Text>
+      </Pressable>
+
+      <Pressable
         testID="onboarding-age-checkbox"
         onPress={() => setAgeChecked((v) => !v)}
         style={styles.checkboxRow}
@@ -658,7 +683,7 @@ export default function OnboardingScreen() {
         title="Accept & Continue"
         onPress={handleAcceptAndContinue}
         loading={legalBusy}
-        disabled={!termsChecked || !privacyChecked || !ageChecked || legalBusy}
+        disabled={!termsChecked || !privacyChecked || !aiConsentChecked || !ageChecked || legalBusy}
         style={styles.wideButton}
       />
     </View>
@@ -675,7 +700,6 @@ export default function OnboardingScreen() {
         preferences={permissionPrefs}
         togglePreference={togglePermission}
         setPreference={setPermissionPreference}
-        requestMicrophonePermission={requestMicrophonePermission}
         isSaving={permissionSaving}
         onContinueToHome={handlePermissionsContinue}
         onNotNow={goToHome}
@@ -686,7 +710,7 @@ export default function OnboardingScreen() {
   const renderHomeHandoff = () => (
     <View style={styles.stepContent} testID="onboarding-home-handoff">
       <ActivityIndicator size="large" color={LUXURY.colors.plum} />
-      <Text style={styles.stepTitle}>Entering K Scan...</Text>
+      <Text style={styles.stepTitle}>Entering K Scan AI...</Text>
     </View>
   );
 

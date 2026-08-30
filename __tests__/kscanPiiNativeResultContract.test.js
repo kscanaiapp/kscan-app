@@ -193,14 +193,40 @@ test('the success path never fabricates failure metadata', () => {
   assert.match(successCall.argsText, /warnings:\s*\[\]/);
 });
 
-test('the noFaces path writes no output artifact', () => {
+test('the noFaces path still produces a verified, metadata-free artifact', () => {
+  // CONTRACT CHANGED IN B2A, DELIBERATELY.
+  //
+  // This previously asserted the opposite — that noFaces wrote no artifact and
+  // returned sanitizedUri: nil. That was unreachable while the plate gate held
+  // the whole boundary closed. With plate screening live it became a defect:
+  // the privacy boundary requires a sanitized artifact, so a face-free image
+  // (i.e. nearly every Closet garment photo) would have been BLOCKED outright.
+  //
+  // "Sanitized" means decoded and re-encoded from pixels, which is what removes
+  // EXIF/GPS/camera metadata; masking is orthogonal and simply has nothing to
+  // do here. So the artifact must exist, and it must be verified.
   const noFacesCall = calls.find((c) => /status:\s*\.noFaces/.test(c.argsText));
   assert.ok(noFacesCall, 'no call constructs status: .noFaces');
-  assert.match(noFacesCall.argsText, /outputWidth:\s*nil/);
-  assert.match(noFacesCall.argsText, /outputHeight:\s*nil/);
-  assert.match(noFacesCall.argsText, /sanitizedUri:\s*nil/);
-  // The pixel data is provably unchanged even without a materialized file.
-  assert.match(noFacesCall.argsText, /outputChecksum:\s*inputChecksum/);
+
+  assert.match(
+    noFacesCall.argsText,
+    /sanitizedUri:\s*"file:\/\/\\\(outputFile\.path\)"/,
+    'noFaces must return a real sanitized artifact URI',
+  );
+  // Dimensions and checksum come from the OUTPUT VERIFIER, not from the input:
+  // reporting input values for an output nobody verified is exactly the kind of
+  // fabricated attestation the failure-result test below also forbids.
+  assert.match(noFacesCall.argsText, /outputWidth:\s*outputWidth/);
+  assert.match(noFacesCall.argsText, /outputHeight:\s*outputHeight/);
+  assert.match(noFacesCall.argsText, /outputChecksum:\s*outputChecksum/);
+  assert.match(noFacesCall.argsText, /verificationDurationMs:\s*verificationDurationMs/);
+
+  // Nothing was drawn, so the engine must not claim it changed pixels or
+  // masked anything.
+  assert.match(noFacesCall.argsText, /pixelsChanged:\s*false/);
+  assert.match(noFacesCall.argsText, /facesDetected:\s*0/);
+  assert.match(noFacesCall.argsText, /facesMasked:\s*0/);
+  assert.match(noFacesCall.argsText, /maskingDurationMs:\s*nil/);
 });
 
 test('the shared failure-result call never reports a fabricated output artifact or partial stage timing', () => {

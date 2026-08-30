@@ -104,3 +104,18 @@ export async function submitContentReport(input: ContentReportInput): Promise<Co
     return { ok: false, serverAccepted: false, error: new Error('Report could not be sent.') };
   }
 }
+
+/**
+ * The single decision point for "may the UI claim the report was received?".
+ *
+ * `ok: true` is NOT sufficient on its own: it also covers the local-only
+ * outcome ({ ok: true, serverAccepted: false, localOnly: true }), returned
+ * when there is no authenticated session — the row never reached the
+ * server. Claiming receipt there tells the user their report was filed when
+ * nothing was submitted. Only server acceptance may produce a receipt
+ * confirmation; a duplicate (23505) still counts, because the original
+ * report is on file.
+ */
+export function isReportServerAccepted(result: ContentReportResult): boolean {
+  return result.ok === true && result.serverAccepted === true;
+}

@@ -19,9 +19,20 @@ export const ELEVENLABS_TIMING_ENDPOINT = 'https://api.elevenlabs.io/v1/text-to-
 
 export type ElevenLabsEnvironment = SecretEnvironment;
 
+/** Which provider field, if either, produced the alignment actually returned. */
+export type AlignmentDiagnosticSource = 'normalized_alignment' | 'alignment' | 'none';
+/** Raw status of whichever field won source selection, before this parse. */
+export type AlignmentDiagnosticRawStatus = 'absent' | 'malformed' | 'valid';
+
+export interface AlignmentDiagnostics {
+  source: AlignmentDiagnosticSource;
+  rawStatus: AlignmentDiagnosticRawStatus;
+}
+
 export interface ElevenLabsSpeechResult {
   audioBase64: string;
   alignment: SpeechAlignment | null;
+  alignmentDiagnostics: AlignmentDiagnostics;
 }
 
 function validateBase64(value: unknown): value is string {
@@ -69,9 +80,43 @@ function parseAlignment(value: unknown): SpeechAlignment | null {
   };
 }
 
+/**
+ * Build 29 alignment diagnostic addendum — classifies which provider field (if
+ * either) actually produced the alignment, purely for observability. This is
+ * diagnostic-only: it calls the existing, unmodified `parseAlignment` an extra
+ * time per field to classify the raw status and never changes which alignment
+ * (if any) is selected or how `parseAlignment` itself parses a field.
+ */
+function fieldRawStatus(value: unknown): AlignmentDiagnosticRawStatus {
+  if (value === undefined || value === null) return 'absent';
+  return parseAlignment(value) ? 'valid' : 'malformed';
+}
+
+function classifyAlignmentDiagnostics(
+  normalizedAlignmentField: unknown,
+  alignmentField: unknown,
+): AlignmentDiagnostics {
+  const normalizedStatus = fieldRawStatus(normalizedAlignmentField);
+  if (normalizedStatus === 'valid') return { source: 'normalized_alignment', rawStatus: 'valid' };
+  const alignmentStatus = fieldRawStatus(alignmentField);
+  if (alignmentStatus === 'valid') return { source: 'alignment', rawStatus: 'valid' };
+  // Neither field produced a usable alignment. A field that was present but
+  // rejected is the more actionable diagnostic, so it takes priority over
+  // reporting the pair as simply absent.
+  const rawStatus: AlignmentDiagnosticRawStatus =
+    normalizedStatus === 'malformed' || alignmentStatus === 'malformed' ? 'malformed' : 'absent';
+  return { source: 'none', rawStatus };
+}
+
 export async function requestElevenLabsSpeech(input: {
   text: string;
   voiceProfile: StylistSpeechVoiceProfile;
+  /**
+   * Name of the secret holding this stylist's ElevenLabs voice ID. The registry
+   * carries the NAME only; the value is resolved here through the same
+   * readRequiredSecret validation boundary and never leaves the server.
+   */
+  voiceSecretName: string;
   env: ElevenLabsEnvironment;
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
@@ -80,13 +125,7 @@ export async function requestElevenLabsSpeech(input: {
   correlationId?: string;
 }): Promise<ElevenLabsSpeechResult> {
   const apiKey = readRequiredSecret(input.env, 'ELEVENLABS_API_KEY', 'apiKey');
-  const voiceId = readRequiredSecret(
-    input.env,
-    input.voiceProfile === 'feminine'
-      ? 'ELEVENLABS_FEMININE_VOICE_ID'
-      : 'ELEVENLABS_MASCULINE_VOICE_ID',
-    'voiceId',
-  );
+  const voiceId = readRequiredSecret(input.env, input.voiceSecretName, 'voiceId');
   const modelId = readRequiredSecret(input.env, 'ELEVENLABS_MODEL_ID', 'model');
   const outputFormat = readRequiredSecret(input.env, 'ELEVENLABS_OUTPUT_FORMAT', 'outputFormat');
   const url = new URL(`${ELEVENLABS_TIMING_ENDPOINT}/${encodeURIComponent(voiceId)}/with-timestamps`);
@@ -103,6 +142,9 @@ export async function requestElevenLabsSpeech(input: {
     responseIsJson?: boolean | null;
     providerErrorStatus?: string | null;
     responseByteLength?: number | null;
+    alignmentSource?: AlignmentDiagnosticSource | null;
+    alignmentRawStatus?: AlignmentDiagnosticRawStatus | null;
+    alignmentEntryCount?: number | null;
   }): Promise<unknown> =>
     logSpeechDiagnostics(
       {
@@ -197,14 +239,25 @@ export async function requestElevenLabsSpeech(input: {
     const alignment =
       parseAlignment(parsed.normalized_alignment) ??
       parseAlignment(parsed.alignment);
+    const alignmentDiagnostics = classifyAlignmentDiagnostics(
+      parsed.normalized_alignment,
+      parsed.alignment,
+    );
 
+    // The classification is already computed for the response; logging it here
+    // is what makes it answerable from the function's own logs. Without this
+    // line the only record of which provider field drove the avatar's mouth
+    // lives in a response body nobody retains.
     await emit({
       failureKind: 'success',
       providerStatus: response.status,
       responseIsJson: true,
       responseByteLength: rawByteLength,
+      alignmentSource: alignmentDiagnostics.source,
+      alignmentRawStatus: alignmentDiagnostics.rawStatus,
+      alignmentEntryCount: alignment ? alignment.characters.length : 0,
     });
-    return { audioBase64: parsed.audio_base64, alignment };
+    return { audioBase64: parsed.audio_base64, alignment, alignmentDiagnostics };
   } finally {
     clearTimeout(timeout);
   }

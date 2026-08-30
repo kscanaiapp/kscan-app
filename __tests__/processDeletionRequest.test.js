@@ -115,6 +115,7 @@ function createSupabaseMock(options = {}) {
     profile = null,
     profilesById = {},
     authUser = null,
+    appleRevocationStatus = 'no_credential',
     authUsersById = {},
     updateResult = { data: [{ id: 'room-1' }], error: null },
     residualTables = {},
@@ -218,6 +219,18 @@ function createSupabaseMock(options = {}) {
           const user = authUsersById[value] ?? authUser;
           return { data: { user }, error: null };
         },
+      },
+    },
+    // B29-IOS-004: the pipeline now revokes the Sign in with Apple
+    // authorization before deleting the Auth user. These fixtures model a
+    // non-Apple account, whose settled 'no_credential' answer lets deletion
+    // proceed — the blocking statuses are exercised in
+    // manualDeletionAppleRevocation.test.js.
+    functions: {
+      async invoke(name, payload) {
+        calls.push({ type: 'functions.invoke', name });
+        void payload;
+        return { data: { status: appleRevocationStatus }, error: null };
       },
     },
   };
@@ -587,10 +600,60 @@ test('deleteDirectUserRows deletes explicit non-cascade resources by user id', a
 
   assert.deepEqual(
     calls.map((call) => call.table).sort(),
-    ['scan_intelligence_events', 'style_chat_burst_usage'],
+    ['privacy_request_rate_limits', 'scan_intelligence_events', 'style_chat_burst_usage'],
   );
   assert.ok(calls.every((call) => call.value === 'user-abc'));
   assert.ok(results.every((entry) => entry.status === 'deleted'));
+});
+
+// Regression: the Issue #47 rate-limit table stores `user_id` as a bare uuid
+// with NO foreign key to auth.users. Registering it as any `auth_delete_*`
+// action would claim a cascade the schema does not provide, leaving the rows
+// behind after account deletion. Only the migration's ~1% amortized sweep would
+// ever remove them, which is best-effort GC, not a deletion guarantee.
+test('privacy_request_rate_limits is purged directly, not left to a nonexistent auth cascade', () => {
+  const entry = USER_DATA_RESOURCES.find(
+    (resource) => resource.table === 'privacy_request_rate_limits',
+  );
+  assert.ok(entry, 'privacy_request_rate_limits must be in the deletion registry');
+  assert.equal(entry.column, 'user_id');
+  assert.equal(
+    entry.action,
+    'direct_delete_before_auth',
+    'the table has no FK to auth.users, so it cannot rely on an auth cascade',
+  );
+
+  const migration = fs.readFileSync(
+    path.join(__dirname, '..', 'supabase', 'migrations', '20260808103028_privacy_request_rate_limits.sql'),
+    'utf8',
+  );
+  assert.doesNotMatch(
+    migration,
+    /user_id[^,]*references\s+auth\.users/i,
+    'if a real FK is ever added, revisit the registry action instead of leaving both',
+  );
+});
+
+test('privacy_request_rate_limits is covered in both edge (.ts) and worker (.json) registries', () => {
+  const ROOT = path.resolve(__dirname, '..');
+  const mirror = fs.readFileSync(
+    path.join(ROOT, 'supabase', 'functions', '_shared', 'deletion', 'userDataResources.ts'),
+    'utf8',
+  );
+  const jsonReg = fs.readFileSync(
+    path.join(ROOT, 'lib', 'account-deletion', 'user-data-resources.json'),
+    'utf8',
+  );
+  assert.match(
+    mirror,
+    /table:\s*'privacy_request_rate_limits'[^}]*action:\s*'direct_delete_before_auth'/,
+    'edge mirror must not drift from the worker registry for this table',
+  );
+  assert.match(
+    jsonReg,
+    /"table":\s*"privacy_request_rate_limits"[\s\S]{0,200}?"action":\s*"direct_delete_before_auth"/,
+    'worker JSON registry must cover this table',
+  );
 });
 
 test('processDeletionRequest deletes storage and direct rows before auth user deletion', async () => {

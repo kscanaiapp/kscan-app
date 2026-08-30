@@ -59,6 +59,41 @@ export const CLOSET_CANDIDATE_EVENTS = [
   'mirror_candidate_staging_completed',
   'mirror_candidate_staging_partial',
   'mirror_candidate_staging_cancelled',
+  // Build 34 / Track B / Phase B2B — outbound Closet cloud sync
+  // (services/closet/closetSyncEngine.ts). SHAPE AND OUTCOME ONLY: whether a
+  // pass ran, how many items it looked at in coarse buckets, and how each item
+  // resolved. Deliberately NOT emissible here, and rejected by the property
+  // allowlist and SAFE_STRING scrub below even if a caller tried: the local
+  // client_id, the server item id, the owner/user id, any Storage path, any
+  // signed URL, any access token, and any item title/brand/notes.
+  'closet_sync_started',
+  'closet_facts_synced',
+  'closet_media_synced',
+  'closet_media_blocked',
+  'closet_sync_retry',
+  'closet_sync_failed',
+  'closet_sync_conflict',
+  'closet_sync_tombstoned',
+  // Build 34 / Track B / Phase B2C — inbound cross-device Closet restore
+  // (services/closet/closetRestoreEngine.ts). SHAPE AND OUTCOME ONLY, same
+  // discipline as the B2B events above: no client_id, no server item id, no
+  // owner/user id, no Storage path, no signed URL, no item title/brand/notes.
+  'closet_restore_started',
+  'closet_restore_page',
+  'closet_restore_completed',
+  'closet_restore_conflict',
+  'closet_restore_media_missing',
+  'closet_restore_failed',
+  // Build 34 / Track B / Phase B3 — historical Closet migration
+  // (services/closet/closetHistoricalMigrationEngine.ts). SHAPE AND OUTCOME
+  // ONLY, same discipline as the B2B/B2C events above: no client_id, no
+  // server item id, no owner/user id, no item title/brand/notes. B3 marks
+  // items and hands off to B2B's own engine, so no separate facts/media
+  // outcome events exist here — those remain the closet_sync_* /
+  // closet_facts_synced / closet_media_synced events already emitted above.
+  'closet_migration_started',
+  'closet_migration_batch_marked',
+  'closet_migration_completed',
 ] as const;
 
 export type ClosetCandidateEvent = typeof CLOSET_CANDIDATE_EVENTS[number];

@@ -221,11 +221,19 @@ grant execute on function public.revoke_user_sessions(uuid) to service_role;
 -- 5. Retry clears purge_started_at; claim requires pending_deletion profile
 -- ---------------------------------------------------------------------------
 
--- The lifecycle migration created this returning text. Postgres refuses to
--- change a return type through CREATE OR REPLACE, so the old signature is
--- dropped first. Production's live definition returns boolean, so dropping and
--- recreating here reproduces the production contract rather than changing it.
-drop function if exists public.schedule_deletion_retry_or_fail(uuid, text, text, text, integer);
+-- Postgres cannot CREATE OR REPLACE a function across a return-type change:
+-- the 20260722191013 definition below returns text, this one returns
+-- boolean. An explicit drop is required for a clean replay from an empty
+-- database (INFRA-02). No dependent view, trigger, other function, policy,
+-- or scheduled job references this function (reviewed 2026-08-06); grants
+-- are re-issued immediately below regardless.
+drop function if exists public.schedule_deletion_retry_or_fail(
+  uuid,
+  text,
+  text,
+  text,
+  integer
+);
 
 create or replace function public.schedule_deletion_retry_or_fail(
   p_request_id uuid,
@@ -320,12 +328,18 @@ $$;
 revoke all on function public.schedule_deletion_retry_or_fail(uuid, text, text, text, integer) from public;
 grant execute on function public.schedule_deletion_retry_or_fail(uuid, text, text, text, integer) to service_role;
 
--- The lifecycle migration named the third argument p_lease_interval. Postgres
--- refuses to rename an input parameter through CREATE OR REPLACE, so the old
--- signature is dropped first. Production's live identity arguments are
--- (p_worker_id text, p_limit integer, p_lease interval), so this reproduces the
--- production contract rather than changing it.
-drop function if exists public.claim_deletion_requests_for_purge(text, integer, interval);
+-- Postgres cannot CREATE OR REPLACE a function that renames an existing
+-- input parameter in place: the 20260722191013 definition below names its
+-- third parameter p_lease_interval, this one renames it to p_lease. An
+-- explicit drop is required for a clean replay from an empty database
+-- (INFRA-02). No dependent view, trigger, other function, policy, or
+-- scheduled job references this function (reviewed 2026-08-06); grants are
+-- re-issued immediately below regardless.
+drop function if exists public.claim_deletion_requests_for_purge(
+  text,
+  integer,
+  interval
+);
 
 create or replace function public.claim_deletion_requests_for_purge(
   p_worker_id text,

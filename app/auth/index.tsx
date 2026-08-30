@@ -29,6 +29,7 @@ import { supabase } from '../../services/supabaseClient';
 import { parseAuthCallbackUrl } from '../../services/authDeepLink';
 import { completeOAuthCallbackSession } from '../../services/oauthCallbackSession';
 import { traceAuthLifecycle } from '../../services/authLifecycleTrace';
+import { linkAppleCredential } from '../../services/appleCredentialLink';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -222,9 +223,18 @@ export default function AuthScreen() {
         return;
       }
 
+      // Hand the one-time authorization grant to the backend so account
+      // deletion can revoke this Apple authorization later (TN3194). Awaited so
+      // the code is spent while it is still valid, but never allowed to fail
+      // the sign-in that has already succeeded — the documented fallback for a
+      // missing token is that deletion still completes.
+      const linkOutcome = await linkAppleCredential(credential.authorizationCode);
+
       traceAuthLifecycle('apple-session-establishment', {
         outcome: 'accepted',
         sessionPresent: true,
+        // Status word only. The authorization code itself is never traced.
+        appleCredentialLink: linkOutcome,
       });
       return;
     } catch (err) {
@@ -293,7 +303,7 @@ export default function AuthScreen() {
                 <Text style={styles.cardBody}>
                   We sent a confirmation link to{' '}
                   <Text style={styles.emailHighlight}>{email.trim()}</Text>. Open the link to verify
-                  your account and K Scan will sign you in automatically.
+                  your account and K Scan AI will sign you in automatically.
                 </Text>
                 <Pressable style={styles.primaryButton} onPress={handleBackToSignIn}>
                   <Text style={styles.primaryButtonText}>SIGN IN</Text>
@@ -384,7 +394,7 @@ export default function AuthScreen() {
           <Text style={styles.cardBody}>
             {mode === 'sign-in'
               ? 'Sign in to save your privacy preferences across devices and access account management.'
-              : 'Create an account to sync your privacy preferences and manage your K Scan data.'}
+              : 'Create an account to sync your privacy preferences and manage your K Scan AI data.'}
           </Text>
 
           <Pressable

@@ -93,8 +93,25 @@ test('children activate only with parent', () => {
 // verifying the deployed stylechat-generate v84 response contract live
 // (granted, absent, and malformed location all proven end to end) and after
 // generated greeting's own activation.
-test('every profile enables the Today parent, generated greeting, and weather', () => {
-  for (const profileName of ['production', 'preview', 'development']) {
+//
+// FIX #2 (Build 29 clean repair): the owner has since decided the Home
+// "Today with Elise" card is redundant and must not appear in the shipping
+// (production/store) surface. This is a UI-reachability decision, not a
+// reversal of the weather/greeting authorization above — those child flags
+// stay enabled (and stay inert, per TODAY_WITH_ELISE_ACTIVE's AND-gate) so
+// the card reactivates with its full authorized configuration the moment the
+// parent flips back on. Internal preview/development builds are unaffected:
+// only the production profile's parent flag changed.
+test('production leaves the Today parent OFF; preview/development and the child flags are unchanged', () => {
+  const production = eas.build?.production;
+  assert.ok(production, 'expected an eas.json production profile');
+  assert.equal(
+    production.env?.EXPO_PUBLIC_TODAY_WITH_ELISE_V1,
+    'false',
+    'production must not render the redundant Today with Elise card',
+  );
+
+  for (const profileName of ['preview', 'development']) {
     const profile = eas.build?.[profileName];
     if (!profile) continue;
     const env = profile.env || {};
@@ -103,17 +120,35 @@ test('every profile enables the Today parent, generated greeting, and weather', 
       'true',
       `${profileName} does not set TODAY_WITH_ELISE_V1`,
     );
+  }
+
+  for (const profileName of ['production', 'preview', 'development']) {
+    const profile = eas.build?.[profileName];
+    if (!profile) continue;
+    const env = profile.env || {};
     assert.equal(
       env.EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1,
       'true',
-      `${profileName} must enable the owner-authorized GENERATED_GREETING`,
+      `${profileName} must keep the owner-authorized GENERATED_GREETING config, even while dormant`,
     );
     assert.equal(
       env.EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1,
       'true',
-      `${profileName} must enable the owner-authorized WEATHER`,
+      `${profileName} must keep the owner-authorized WEATHER config, even while dormant`,
     );
   }
+});
+
+test('with the parent off, Home renders none of the Today with Elise surface', () => {
+  const flags = loadFlags({
+    EXPO_PUBLIC_TODAY_WITH_ELISE_V1: eas.build.production.env.EXPO_PUBLIC_TODAY_WITH_ELISE_V1,
+    EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1:
+      eas.build.production.env.EXPO_PUBLIC_TODAY_WITH_ELISE_GENERATED_GREETING_V1,
+    EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1: eas.build.production.env.EXPO_PUBLIC_TODAY_WITH_ELISE_WEATHER_V1,
+  });
+  assert.equal(flags.TODAY_WITH_ELISE_ACTIVE, false);
+  assert.equal(flags.TODAY_WITH_ELISE_GENERATED_GREETING_ACTIVE, false);
+  assert.equal(flags.TODAY_WITH_ELISE_WEATHER_ACTIVE, false);
 });
 
 test('pure resolvers fail closed', () => {

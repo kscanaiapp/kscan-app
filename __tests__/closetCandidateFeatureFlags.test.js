@@ -284,7 +284,7 @@ test('the candidate surface is mounted only under the derived capability', () =>
   const library = fs.readFileSync(path.join(ROOT, 'app', 'library.tsx'), 'utf8');
   assert.ok(library.includes('CLOSET_CANDIDATE_STAGING_ACTIVE'));
   assert.ok(
-    /CLOSET_CANDIDATE_STAGING_ACTIVE \? \(\s*<ClosetCandidateStatusPanel\s+api=\{closetCandidates\}\s*\/>\s*\) : null/.test(
+    /CLOSET_CANDIDATE_STAGING_ACTIVE \? \(\s*<ClosetCandidateStatusPanel\s+api=\{closetCandidates(?:WithCommitBridge)?\}\s*\/>\s*\) : null/.test(
       library,
     ),
     'the candidate panel must be gated on the derived capability',
@@ -381,7 +381,7 @@ test('the library intake actually routes to candidate staging when the capabilit
 
   // The panel renders from the SAME hook instance the intake writes through.
   assert.ok(
-    /<ClosetCandidateStatusPanel\s+api=\{closetCandidates\}/.test(screen),
+    /<ClosetCandidateStatusPanel\s+api=\{closetCandidates(?:WithCommitBridge)?\}/.test(screen),
     'the panel must receive the screen’s candidate-hook instance',
   );
 });

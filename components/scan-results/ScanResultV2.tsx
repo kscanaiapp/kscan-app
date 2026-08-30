@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useResponsiveLayout } from '../../hooks/useResponsiveLayout';
+import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import {
   COLORS,
   LUXURY,
@@ -28,6 +29,8 @@ import { StyleMatchPanel } from './StyleMatchPanel';
 import { StyleAnalysisSection } from './StyleAnalysisSection';
 import { SimilarFindsShelf } from './SimilarFindsShelf';
 import { PurchaseOptionsPanel } from './PurchaseOptionsPanel';
+import { MultiItemCommerceSection } from './MultiItemCommerceSection';
+import type { ItemCommerceCard } from '../../services/multiItemCommerce';
 import { ScanResultActionRow } from './ScanResultActionRow';
 import { EmptyStateCard } from '../luxury/EmptyStateCard';
 import { mapLegacyToV2 } from './types';
@@ -35,11 +38,22 @@ import type { LegacyAnalysisData, ProductMatch, ScanResultV2 } from './types';
 import { SCAN_RESULTS_DEMO_UI_ENABLED } from '../../constants/featureFlags';
 import { ScanResultUtilityFooter } from '../free-tier/ScanResultUtilityFooter';
 import { getDemoScanResultV2 } from '../../data/scan-results-demo';
+import { resolvePurchaseShelfMode } from '../AnalysisCard';
 
 // Sheet metrics derive from the live window (see useResponsiveLayout inside
 // the component) so rotation and split-view resizes never animate from a
 // stale offset.
 const SIMILAR_SCROLL_TOP_OFFSET = 20;
+
+/**
+ * Height to reserve for the sticky action row BEFORE it has been measured.
+ *
+ * Two wrapped lines of 48pt buttons + the 8pt gap between them + the row's own
+ * 12pt top padding. Four actions wrap to two lines on a narrow screen, and this
+ * is the only frame where a too-small estimate is visible as the last item
+ * sitting behind the bar. Excludes the safe-area inset, which the caller adds.
+ */
+const ESTIMATED_ACTION_ROW_HEIGHT = 48 * 2 + SPACING.sm + SPACING.md;
 
 function isRenderableSimilarFind(product: ProductMatch | null | undefined): product is ProductMatch {
   if (!product) return false;
@@ -80,6 +94,24 @@ interface ScanResultV2Props {
   onAskStyleChat?: () => void;
   /** Called to scroll to / focus Similar Finds. */
   onFindSimilar?: () => void;
+  /**
+   * v127 (P1-B): deferred commerce lifecycle for the CURRENTLY DISPLAYED
+   * item. Undefined/'idle' leaves the Purchase Options panel exactly as it
+   * behaves without this prop — hidden when there is no data. 'pending'/
+   * 'error' additionally show the panel (with its own governed treatment)
+   * only while still empty; once options arrive they always win.
+   */
+  commerceStatus?: 'idle' | 'pending' | 'success' | 'empty' | 'error';
+  /** Present only when a failed deferred fetch is retryable. */
+  onRetryCommerce?: () => void;
+  /**
+   * Build 32: one commerce card per detected multi-item candidate, populated
+   * independently of the single-selection commerceStatus/purchaseOptions
+   * above. Empty array leaves this section absent, same as omitting the prop.
+   */
+  multiItemCommerce?: ItemCommerceCard[];
+  multiItemCommerceStatus?: 'idle' | 'pending' | 'ready';
+  onRetryMultiItemCommerce?: () => void;
   selectedCandidateId?: string | null;
   onSelectCandidate?: (candidateId: string) => void;
   onAnalyzeSelectedCandidate?: (candidateId: string) => void;
@@ -104,6 +136,11 @@ export function ScanResultV2({
   onAddToDressingRoom,
   onAskStyleChat,
   onFindSimilar,
+  commerceStatus = 'idle',
+  onRetryCommerce,
+  multiItemCommerce,
+  multiItemCommerceStatus = 'idle',
+  onRetryMultiItemCommerce,
   selectedCandidateId,
   onSelectCandidate,
   onAnalyzeSelectedCandidate,
@@ -146,6 +183,11 @@ export function ScanResultV2({
     : [];
   const activeCandidateId = selectedCandidateId ?? confirmationCandidates[0]?.id ?? null;
   const isConfirmationStep = confirmationCandidates.length > 0;
+  const multiItemCommerceByCandidateId = React.useMemo(() => {
+    const map = new Map<string, ItemCommerceCard>();
+    for (const card of multiItemCommerce ?? []) map.set(card.candidateId, card);
+    return map;
+  }, [multiItemCommerce]);
 
   const runExit = () => {
     if (isExiting.current) return;
@@ -197,6 +239,22 @@ export function ScanResultV2({
   // Build title from available metadata
   const title = v2Data?.title || 'Fashion Item';
 
+  // v127 (P1-B): the live commerce status/retry contract must be evaluated
+  // on THIS surface — it previously existed only on the AnalysisCard
+  // fallback, which SCAN_RESULTS_V2_UI_ENABLED makes unreachable in every
+  // governed profile. Same precedence as AnalysisCard, including the
+  // remote priceDiscovery kill-switch.
+  const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
+  const priceDiscoveryEnabled = !featureFreezeLoading && isFeatureEnabled('priceDiscovery');
+  const commerceOptionsCount = Array.isArray(v2Data?.purchaseOptions)
+    ? v2Data.purchaseOptions.length
+    : 0;
+  const purchaseShelfMode = resolvePurchaseShelfMode(
+    commerceOptionsCount,
+    priceDiscoveryEnabled,
+    commerceStatus,
+  );
+
   const renderableSimilarFinds = Array.isArray(v2Data?.similarFinds)
     ? v2Data.similarFinds.filter(isRenderableSimilarFind)
     : [];
@@ -204,6 +262,24 @@ export function ScanResultV2({
   const hasRenderableSimilarFinds = renderableSimilarFinds.length >= 2;
   const similarFindsTargetReady =
     hasRenderableSimilarFinds && similarFindsTarget?.key === similarFindsKey;
+
+  /**
+   * Will the sticky action row render anything?
+   *
+   * Mirrors this screen's own ScanResultActionRow props, and must keep
+   * mirroring them: the next-step prompt is framing FOR these actions, so a
+   * prompt shown without them asks a question the screen cannot answer. The
+   * confirmation step withholds every action except Find Matches, which is the
+   * case the Android line does not have.
+   */
+  const hasStickyActions =
+    (!isConfirmationStep &&
+      (typeof onSaveToLibrary === 'function' ||
+        typeof onAskStyleChat === 'function' ||
+        typeof onAddToDressingRoom === 'function')) ||
+    (confirmationCandidates.length > 0
+      ? typeof onAnalyzeSelectedCandidate === 'function'
+      : similarFindsTargetReady);
 
   const handleBack = () => {
     if (router.canGoBack()) {
@@ -256,7 +332,10 @@ export function ScanResultV2({
               >
                 <EmptyStateCard
                   title="Scan result unavailable"
-                  subtitle="Your scan data could not be loaded."
+                  // The body says what to expect next, not the title again.
+                  // "Your scan data could not be loaded" restated the heading
+                  // and left the user with nothing they did not already know.
+                  subtitle="Nothing was saved, so you can scan this item again."
                   action={{
                     label: 'Scan Again',
                     onPress: runExit,
@@ -301,19 +380,28 @@ export function ScanResultV2({
               contentContainerStyle={[
                 styles.cardInner,
                 {
-                  // Ensure the last scrollable content clears the absolute sticky
-                  // action row, including its measured height, safe-area inset,
-                  // and a small extra margin.
+                  // Clear the absolutely-positioned action row.
+                  //
+                  // The measured height ALREADY contains the row's own bottom
+                  // inset padding, so the inset is only added while no
+                  // measurement exists yet — adding it to a measured height
+                  // double-counts it and leaves a dead gap under the content.
+                  //
+                  // The pre-measurement estimate has to cover the row WRAPPED to
+                  // two lines, which is what four actions do on a narrow screen.
+                  // The old floor of 100 was under a single line plus its inset,
+                  // so the last item sat behind the bar until onLayout landed.
                   paddingBottom:
-                    Math.max(actionRowHeight, 100) +
-                    Math.max(insets.bottom, SPACING.md) +
+                    (actionRowHeight > 0
+                      ? actionRowHeight
+                      : ESTIMATED_ACTION_ROW_HEIGHT + Math.max(insets.bottom, SPACING.md)) +
                     SPACING.xl,
                 },
               ]}
             >
               {/* Header */}
               <View style={styles.header}>
-                <Text style={styles.brandTitle}>K SCAN</Text>
+                <Text style={styles.brandTitle}>K SCAN AI</Text>
                 <Text style={styles.statusLabel}>SCAN ANALYSIS COMPLETE</Text>
                 <TouchableOpacity
                   onPress={handleBack}
@@ -383,6 +471,18 @@ export function ScanResultV2({
                 </View>
               ) : null}
 
+              {/* Build 32: one commerce card per detected item, shown
+                  simultaneously — independent of the single-selection
+                  "Find Matches" flow above. */}
+              {isConfirmationStep ? (
+                <MultiItemCommerceSection
+                  candidates={confirmationCandidates}
+                  cardsByCandidateId={multiItemCommerceByCandidateId}
+                  status={multiItemCommerceStatus}
+                  onRetry={onRetryMultiItemCommerce}
+                />
+              ) : null}
+
               {/* Style Match Summary */}
               <View style={styles.section}>
                 <StyleMatchPanel
@@ -391,6 +491,7 @@ export function ScanResultV2({
                   color={v2Data.color}
                   silhouette={v2Data.silhouette}
                   material={v2Data.material}
+                  pattern={v2Data.pattern}
                   confidence={v2Data.confidence}
                   styleTags={v2Data.styleTags}
                 />
@@ -434,19 +535,36 @@ export function ScanResultV2({
                 </View>
               ) : null}
 
-              {/* Purchase Options */}
-              {Array.isArray(v2Data.purchaseOptions) && v2Data.purchaseOptions.length > 0 ? (
+              {/* Purchase Options — v127 (P1-B): pending/empty/error/retry
+                  must be visible on the LIVE result surface, not only on the
+                  unreachable AnalysisCard fallback. Options in hand always win. */}
+              {purchaseShelfMode === 'options' ? (
                 <View style={styles.section}>
                   <PurchaseOptionsPanel
                     purchaseOptions={v2Data.purchaseOptions}
                   />
                 </View>
+              ) : purchaseShelfMode === 'pending' || purchaseShelfMode === 'error' || purchaseShelfMode === 'empty' ? (
+                <View style={styles.section}>
+                  <PurchaseOptionsPanel
+                    purchaseOptions={[]}
+                    commerceStatus={purchaseShelfMode}
+                    onRetry={onRetryCommerce}
+                  />
+                </View>
               ) : null}
 
-              {/* Next-step framing above sticky actions */}
-              <Text style={styles.nextStepPrompt}>
-                What would you like to do with this look?
-              </Text>
+              {/* Next-step framing above sticky actions.
+                  Gated on there BEING sticky actions: every handler below is
+                  conditional (a feature freeze, the confirmation step, no active
+                  scan item, too few similar finds), and when they all resolve to
+                  undefined the row renders null — leaving this question with
+                  nothing to answer it. */}
+              {hasStickyActions ? (
+                <Text style={styles.nextStepPrompt}>
+                  What would you like to do with this look?
+                </Text>
+              ) : null}
 
               {/* Closet tools footer (flag-guarded; renders null by default) */}
               <ScanResultUtilityFooter result={v2Data} />

@@ -1,27 +1,27 @@
 {
   "manifestVersion": "backend-authority-v1",
-  "role": "backend-deployment-authority",
+  "role": "integration-convergence-non-authoritative",
   "canonicalBranch": "rebuild/staging-v2-backend",
   "approvedProjectRef": "yzqjvdfgefveprobvvyw",
-  "note": "B34-DEF-001. This file exists so tooling can tell, mechanically, whether a checkout is the canonical backend deployment authority rather than a mobile integration branch that happens to carry a copy of supabase/functions. Its presence with role=backend-deployment-authority is what scripts/deploy-edge-functions.js requires before it will run at all. Mobile branches (integration/ios-build34-full-upgrade, integration/android-build34-full-upgrade, and their descendants) intentionally do NOT carry this file, or carry docs/BACKEND_DEPLOYMENT_AUTHORITY.md's non-authoritative pointer instead -- see that doc for why.",
+  "note": "Build 34 Track B convergence source. It combines governed backend and mobile lineages for certification only; deployment tooling must refuse this checkout. The canonical backend deployment authority remains the declared branch above.",
   "governedFunctionCount": 19,
   "notGoverned": {
-    "note": "Functions deployed on staging that this authority's tree does not (and, for some, cannot) contain source for. Recorded so nobody mistakes 'not in this manifest' for 'safe to ignore'.",
+    "note": "Functions deployed on staging that this source tree does not govern.",
     "websitePrivacyStack": {
       "functions": ["privacy-controls", "public-sale-share-opt-out"],
-      "reason": "Documented in docs/staging-rebuild/backend-authority-manifest.md as the website privacy stack, deliberately untouched by the mobile-app backend rebuild. Source lives outside this repository's supabase/functions tree."
+      "reason": "Website privacy stack source lives outside this repository's supabase/functions tree."
     },
     "stagingToolingOutsideThisTree": {
       "functions": ["product-match"],
-      "reason": "Documented staging tooling; no corresponding source directory exists under supabase/functions in this branch."
+      "reason": "Staging tooling with no corresponding function source in this tree."
     },
     "appleCredentialFunctions": {
       "functions": ["apple-credential-link", "apple-revoke-credential"],
-      "reason": "Live staging deployment provenance (2026-08-29) shows these were deployed via a GitHub Actions checkout of this same repository (kscanaiapp/kscan-app), but neither exists in this branch's or either mobile branch's current supabase/functions tree. Origin commit/branch unconfirmed -- flagged for owner follow-up, not guessed at."
+      "reason": "Deployed staging source lineage remains documented but unconfirmed."
     },
     "wearableFunctions": {
       "functions": ["wearable-bridge", "wearable-save", "wearable-open-on-phone", "wearable-scan"],
-      "reason": "Deployed from a different repository entirely (kscan-glasses-webapp, confirmed via each function's entrypoint_path on staging). Not governed here by design."
+      "reason": "Governed by a different repository."
     }
   }
 }

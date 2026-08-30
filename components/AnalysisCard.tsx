@@ -18,6 +18,7 @@ import { SecondhandShelf } from './SecondhandShelf';
 import { SneakerMatchCard } from './SneakerMatchCard';
 import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
+import { reportAiOutput } from '../services/reportAiOutput';
 import {
   COLORS,
   LUXURY,
@@ -47,6 +48,7 @@ export interface AnalysisCardProps {
     category: string;
     color: string;
     silhouette: string;
+    pattern?: string | null;
     confidenceScore?: number;
     scanQualityNote?: string | null;
     stylingSuggestions?: string[];
@@ -56,10 +58,32 @@ export interface AnalysisCardProps {
    *  catalog similarity shelf. Rehydrated from the saved scan when a Recent
    *  Scan is reopened, so the cards survive app relaunch. */
   purchaseOptions?: Product[];
+  /**
+   * v127 (P1-B): deferred commerce lifecycle. Undefined/'idle' leaves the
+   * "WHERE TO BUY" section exactly as it behaves without this prop — hidden
+   * when `purchaseOptions` is empty. 'pending'/'error' additionally render
+   * inside the section only when `purchaseOptions` is STILL empty; once any
+   * options arrive the shelf renders them and this status is moot.
+   */
+  commerceStatus?: 'idle' | 'pending' | 'success' | 'empty' | 'error';
+  /** Present only when a failed deferred fetch is retryable. */
+  onRetryCommerce?: () => void;
   confirmationCandidates?: OutfitConfirmationCandidate[];
   selectedCandidateId?: string | null;
   onSelectCandidate?: (candidateId: string) => void;
   onAnalyzeSelectedCandidate?: (candidateId: string) => void;
+  /**
+   * Build 32: persisted per-item commerce, restored on a reopened Recent
+   * Scan. Absent/empty on every pre-Build-32 saved scan and on any scan that
+   * was not a multi-item detection — the section simply does not render.
+   */
+  multiItemCandidates?: Array<{ id: string; label: string; category: string; subtype: string }>;
+  multiItemCommerce?: Array<{
+    candidateId: string;
+    status: string;
+    bestMatch: Product | null;
+    alternatives: Product[];
+  }>;
   /** Optional structured Scan Result Object (Part 2). When present, an additive
    *  ScanResultCard renders above the product shelf. Absent → UI unchanged. */
   scanResultObject?: ScanResultObject | null;
@@ -99,15 +123,40 @@ function sanitizeText(value?: string) {
   return value?.trim() || EMPTY_VALUE;
 }
 
+/**
+ * Which treatment the "WHERE TO BUY" section gets. Pulled out of the JSX
+ * branch so this exact precedence is independently testable.
+ *
+ * Options in hand always win, regardless of status — a stale 'error' from
+ * before a successful retry must never hide options that already arrived.
+ * Pending/error render while the result is still unsettled; a completed
+ * zero-result search renders its own empty treatment rather than nothing.
+ */
+export function resolvePurchaseShelfMode(
+  purchaseOptionsCount: number,
+  priceDiscoveryEnabled: boolean,
+  commerceStatus: string,
+): 'options' | 'pending' | 'error' | 'empty' | 'hidden' {
+  if (!priceDiscoveryEnabled) return 'hidden';
+  if (purchaseOptionsCount >= 1) return 'options';
+  if (commerceStatus === 'pending') return 'pending';
+  if (commerceStatus === 'error') return 'error';
+  return 'empty';
+}
+
 export function AnalysisCard({
   result,
   metadata,
   products = [],
   purchaseOptions = [],
+  commerceStatus = 'idle',
+  onRetryCommerce,
   confirmationCandidates = [],
   selectedCandidateId,
   onSelectCandidate,
   onAnalyzeSelectedCandidate,
+  multiItemCandidates = [],
+  multiItemCommerce = [],
   scanResultObject,
   secondhand,
   sneakerReference,
@@ -127,6 +176,11 @@ export function AnalysisCard({
   const fromY = windowHeight * 0.36;
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const priceDiscoveryEnabled = !featureFreezeLoading && isFeatureEnabled('priceDiscovery');
+  const purchaseShelfMode = resolvePurchaseShelfMode(
+    purchaseOptions.length,
+    priceDiscoveryEnabled,
+    commerceStatus,
+  );
   const resaleValuationEnabled = !featureFreezeLoading && isFeatureEnabled('resaleValuation');
   const translateY    = useRef(new Animated.Value(fromY)).current;
   const opacity       = useRef(new Animated.Value(0)).current;
@@ -205,6 +259,9 @@ export function AnalysisCard({
   const category   = sanitizeText(meta.category);
   const color      = sanitizeText(meta.color);
   const silhouette = sanitizeText(meta.silhouette);
+  // Not sanitizeText: that substitutes an em dash for an absent value, which
+  // would render a "Pattern —" chip asserting the scan looked and found none.
+  const pattern    = typeof meta.pattern === 'string' ? meta.pattern.trim() : '';
   const confidenceScore = typeof meta.confidenceScore === 'number' ? meta.confidenceScore : undefined;
   const scanQualityNote = meta.scanQualityNote ?? undefined;
   const showLowConfidence = confidenceScore !== undefined && confidenceScore < 0.70;
@@ -270,9 +327,28 @@ export function AnalysisCard({
               {/* AI result body */}
               <Text style={styles.body}>{resultText}</Text>
 
+              {/* Offensive/unsafe AI-output reporting for the Scan Results
+                  surface. This paragraph is model-authored prose, so it needs
+                  the same in-app reporting route StyleChat already gives its
+                  assistant messages (components/style-chat/StyleChatBubble).
+                  Hidden when there is no analysis text to report. */}
+              {resultText && resultText !== EMPTY_VALUE ? (
+                <TouchableOpacity
+                  onPress={() => reportAiOutput('Scan Results', { itemId: scanSourceId ?? null })}
+                  style={styles.reportBtn}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel="Report this style analysis as offensive or unsafe"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  testID="analysis-card-report-ai"
+                >
+                  <Text style={styles.reportText}>Report Response</Text>
+                </TouchableOpacity>
+              ) : null}
+
               {/* Match summary */}
               <View style={styles.matchSummary}>
-                <Text style={styles.matchSummaryLabel}>K Scan understood:</Text>
+                <Text style={styles.matchSummaryLabel}>K Scan AI understood:</Text>
                 <Text style={styles.matchSummaryValue} numberOfLines={2}>
                   {category} · {color} · {silhouette}
                 </Text>
@@ -333,6 +409,57 @@ export function AnalysisCard({
                 </View>
               ) : null}
 
+              {/* Build 32: restored per-item commerce cards on a reopened
+                  Recent Scan. Garment-organized, Best Match + Alternatives
+                  only. Absent on scans saved before Build 32 or with no
+                  attached commerce yet — section simply does not render. */}
+              {multiItemCandidates.length > 0 ? (
+                <View style={styles.candidatePanel} testID="multi-item-commerce-section">
+                  {multiItemCandidates.map((candidate) => {
+                    const card = multiItemCommerce.find((entry) => entry.candidateId === candidate.id);
+                    return (
+                      <View key={candidate.id} testID={`multi-item-commerce-card-${candidate.id}`}>
+                        {card?.bestMatch ? (
+                          <ProductShelf
+                            products={[card.bestMatch]}
+                            label={`${candidate.label} · Best Match`}
+                            testID={`multi-item-commerce-best-match-${candidate.id}`}
+                          />
+                        ) : card?.status === 'error' ? (
+                          /* Commerce failed for this item rather than
+                             returning nothing — the stored card says so, so
+                             the reopened scan must not claim we looked and
+                             found no match. Matches the live surface's own
+                             error treatment (MultiItemCommerceSection). */
+                          <ProductShelf
+                            products={[]}
+                            label={candidate.label}
+                            emptyTitle="Purchase options couldn't be loaded."
+                            emptyBody="We couldn't reach our retail partners for this item when this scan was saved."
+                            testID={`multi-item-commerce-error-${candidate.id}`}
+                          />
+                        ) : (
+                          <ProductShelf
+                            products={[]}
+                            label={candidate.label}
+                            emptyTitle="No strong shopping match found."
+                            emptyBody="This item was identified, but no confident retailer match was returned."
+                            testID={`multi-item-commerce-no-match-${candidate.id}`}
+                          />
+                        )}
+                        {card && card.alternatives.length > 0 ? (
+                          <ProductShelf
+                            products={card.alternatives}
+                            label={`${candidate.label} · Alternatives`}
+                            testID={`multi-item-commerce-alternatives-${candidate.id}`}
+                          />
+                        ) : null}
+                      </View>
+                    );
+                  })}
+                </View>
+              ) : null}
+
               {/* Metadata chips */}
               <View style={styles.chipRow}>
                 <Animated.View style={{ opacity: chip1Opacity }}>
@@ -344,6 +471,14 @@ export function AnalysisCard({
                 <Animated.View style={{ opacity: chip3Opacity }}>
                   <MetadataChip label="Silhouette" value={silhouette} />
                 </Animated.View>
+                {/* Pattern (BUG-11). Rendered only when the scan established
+                    one — an absent pattern stays absent rather than becoming
+                    "solid", which would be a claim the scan never made. */}
+                {pattern ? (
+                  <Animated.View style={{ opacity: chip3Opacity }}>
+                    <MetadataChip label="Pattern" value={pattern} />
+                  </Animated.View>
+                ) : null}
               </View>
 
               {/* Low-confidence / scan quality guidance */}
@@ -443,11 +578,23 @@ export function AnalysisCard({
                   shows the same cards as the original result with no Scanner
                   navigation state involved. One option is enough to render;
                   zero hides the section rather than inventing offers. */}
-              {priceDiscoveryEnabled && purchaseOptions.length >= 1 ? (
+              {purchaseShelfMode === 'options' ? (
                 <ProductShelf
                   products={purchaseOptions}
                   label="WHERE TO BUY"
                   testID="purchase-options-shelf"
+                />
+              ) : purchaseShelfMode === 'pending' || purchaseShelfMode === 'error' || purchaseShelfMode === 'empty' ? (
+                // A completed zero-result search is a real answer, not the
+                // same as "never checked" — it still mounts the shelf so its
+                // own governed empty state renders instead of nothing at all.
+                <ProductShelf
+                  products={[]}
+                  label="WHERE TO BUY"
+                  testID="purchase-options-shelf"
+                  pending={purchaseShelfMode === 'pending'}
+                  hasError={purchaseShelfMode === 'error'}
+                  onRetry={onRetryCommerce}
                 />
               ) : null}
 
@@ -489,7 +636,13 @@ export function AnalysisCard({
                     source: 'library',
                   })}
                   relatedItems={normalizeItems(relatedSavedScans ?? [], 'library')}
-                  context="library"
+                  // This surface is the scan result — live, or the same result
+                  // reopened from Recent Scans. It was previously declared
+                  // "library", which conflated it with the Closet owned-item
+                  // lifecycle and pulled wardrobe-maintenance surfaces into the
+                  // scan-to-commerce funnel. A reopened Recent Scan is still
+                  // discovery, so it declares its real journey here.
+                  context="scan_result"
                 />
               ) : null}
             </ScrollView>
@@ -579,6 +732,22 @@ const styles = StyleSheet.create({
   body: {
     ...LUXURY.typography.body,
     marginTop: SPACING.lg,
+  },
+  // Mirrors the StyleChat bubble's report affordance so the two AI surfaces
+  // present the same control rather than inventing a second visual language.
+  reportBtn: {
+    marginTop: SPACING.sm,
+    alignSelf: 'flex-start',
+    paddingVertical: SPACING.xs,
+    minHeight: 32,
+    justifyContent: 'center',
+  },
+  reportText: {
+    ...LUXURY.typography.caption,
+    fontSize: 11,
+    color: LUXURY.colors.stone,
+    letterSpacing: 0.6,
+    textDecorationLine: 'underline',
   },
   matchSummary: {
     marginTop: SPACING.lg,

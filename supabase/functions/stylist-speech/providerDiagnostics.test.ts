@@ -9,7 +9,7 @@ import {
 } from './providerDiagnostics.ts';
 
 const API_KEY = 'sk_super_secret_key_value_1234567890';
-const FULL_VOICE_ID = 'NQMJRVvPew6HsaebYnZj';
+const FULL_VOICE_ID = 'ZZZFixtureVoiceId0001';
 
 function baseInput(overrides: Partial<DiagnosticsInput> = {}): DiagnosticsInput {
   return {
@@ -77,8 +77,17 @@ Deno.test('the emitted diagnostics line carries only bounded safe fields', async
   assert.equal(parsed.elapsedMs, 1718);
   assert.equal(parsed.voiceFingerprint, diagnostics.voiceFingerprint);
   assert.equal(parsed.voiceFingerprint.length, VOICE_FINGERPRINT_LENGTH);
+  // The alignment tags are closed enums plus a count. They are asserted as part
+  // of this allowlist — not exempted from it — so alignment CONTENT (characters
+  // and their timings) can never be added to the diagnostics line unnoticed.
+  assert.equal(parsed.alignmentSource, null);
+  assert.equal(parsed.alignmentRawStatus, null);
+  assert.equal(parsed.alignmentEntryCount, null);
   const keys = Object.keys(parsed).sort();
   assert.deepEqual(keys, [
+    'alignmentEntryCount',
+    'alignmentRawStatus',
+    'alignmentSource',
     'category',
     'correlationId',
     'elapsedMs',

@@ -7,6 +7,8 @@ import { prepareScannerEvidence, createEvidenceId } from '../services/scannerEvi
 import { beginScannerV2Session } from '../services/scannerIdentificationV2';
 import { runScannerIdentification } from '../services/scannerScanRequest';
 import { mapScanIdentifyToAnalysis } from '../services/scanIdentificationMapper';
+import { fetchDeferredCommerce, mergeEnrichedOffers } from '../services/commerceHydration';
+import { fetchMultiItemCommerce } from '../services/multiItemCommerce';
 import {
   buildSecondhandSearchRequest,
   searchVintedSecondhand,
@@ -118,6 +120,18 @@ export function useKScan() {
   // from the first synchronous guard activation until the attempt fully settles
   // (success, failure, timeout, abort, or picker cancellation).
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  // v127: commerce lifecycle is tracked separately from scan status so a
+  // pending shelf never drags the scan back into a loading state.
+  //
+  // Declared LAST on purpose: useKScanDuplicateGuard.test.js drives the hook
+  // through a positional useState slot table, so inserting a new state above an
+  // existing one silently reassigns every slot after it.
+  const [commerceStatus, setCommerceStatus] = useState('idle');
+  // Build 32: one commerce card per detected multi-item candidate, independent
+  // of the single-selection commerceStatus/analysis.purchaseOptions above.
+  // Declared last, same reason as commerceStatus — see the note there.
+  const [multiItemCommerce, setMultiItemCommerce] = useState([]);
+  const [multiItemCommerceStatus, setMultiItemCommerceStatus] = useState('idle');
 
   const isMountedRef = useRef(true);
   // Synchronous lock — read before state updates propagate, so rapid taps that
@@ -160,6 +174,17 @@ export function useKScan() {
     prevIsAnalyzingRef.current = isAnalyzing;
   }, [isAnalyzing]);
 
+  // v127 commerce hydration guards. Declared here so startInFlight can reset
+  // them; the hydration logic that consumes them lives further down.
+  const commerceGenerationRef = useRef(0);
+  const commerceRequestedRef = useRef(null);
+  const commerceAbortRef = useRef(null);
+  // Build 32 multi-item commerce guards — independent generation/abort so a
+  // superseded detection's late offers can never overwrite a newer scan.
+  const multiItemCommerceGenerationRef = useRef(0);
+  const multiItemCommerceRequestedRef = useRef(null);
+  const multiItemCommerceAbortRef = useRef(null);
+
   const clearInFlight = useCallback((operationId) => {
     // Only the current attempt may clear the guard it created. Incrementing the
     // operation ID here also prevents a late background completion from this
@@ -175,6 +200,23 @@ export function useKScan() {
 
   const startInFlight = useCallback(() => {
     if (scanInFlightRef.current) return null;
+    // v127: a new scan attempt supersedes commerce still in flight for the
+    // previous result. Bumping here (rather than at setStatus('result')) means
+    // a late answer for the old scan is already inert before the new one
+    // finishes, which is what makes the A-then-B overwrite case impossible.
+    commerceGenerationRef.current += 1;
+    commerceRequestedRef.current = null;
+    commerceAbortRef.current?.abort();
+    commerceAbortRef.current = null;
+    if (isMountedRef.current) setCommerceStatus('idle');
+    multiItemCommerceGenerationRef.current += 1;
+    multiItemCommerceRequestedRef.current = null;
+    multiItemCommerceAbortRef.current?.abort();
+    multiItemCommerceAbortRef.current = null;
+    if (isMountedRef.current) {
+      setMultiItemCommerce([]);
+      setMultiItemCommerceStatus('idle');
+    }
     scanInFlightRef.current = true;
     const operationId = ++operationIdRef.current;
     // Replace any previous controller for this hook instance; this is the
@@ -451,7 +493,13 @@ export function useKScan() {
 
         const isConfirmationResult =
           Array.isArray(data.confirmationCandidates) && data.confirmationCandidates.length > 0;
-        const secondhandRequest = isConfirmationResult ? null : buildSecondhandSearchRequest(data);
+        // Phase 3 provider cleanup: the Vinted/Apify backend has no configured
+        // credentials (APIFY_VINTED_ACTOR_ID / APIFY_API_TOKEN are unset in both
+        // App Staging and Production), so this call was firing on every scan and
+        // always resolving to SECONDHAND_RESULTS_UNAVAILABLE — a dead network
+        // round trip on every single scan for zero result. Disabled until Apify
+        // is actually configured; restore the call below when it is.
+        const secondhandRequest = null; // was: isConfirmationResult ? null : buildSecondhandSearchRequest(data);
         if (secondhandRequest) {
           searchVintedSecondhand(secondhandRequest)
             .then((secondhand) => {
@@ -969,10 +1017,198 @@ export function useKScan() {
     }
   }, [status, photo, selectedCandidateId, analyzeSelectedCandidate]);
 
+  // ── v127 deferred commerce hydration ──────────────────────────────────────
+  //
+  // When the backend defers commerce, the scan result is already on screen and
+  // the shelf hydrates afterwards. Three separate guards are needed and none
+  // substitutes for the others:
+  //
+  //   commerceGenerationRef  — which scan result the response belongs to, so a
+  //                            slow scan A cannot overwrite a newer scan B.
+  //   commerceRequestedRef   — single-flight, so a rerender cannot dispatch a
+  //                            second request for the same result.
+  //   isMountedRef           — no state write after unmount.
+  //
+  // The scan's own operationId cannot be reused: clearInFlight() increments it
+  // when the scan completes, so it is already stale by the time commerce runs.
+  const hydrateDeferredCommerce = useCallback(async (analysisWithEvidence, { isRetry = false } = {}) => {
+    const evidence = analysisWithEvidence?.commerceEvidence;
+    if (!evidence?.identification) return;
+
+    const generation = commerceGenerationRef.current;
+    const flightKey = `${generation}`;
+    // Single-flight per scan result. A retry is an explicit user action and is
+    // allowed to supersede a settled attempt, never to race a live one.
+    if (!isRetry && commerceRequestedRef.current === flightKey) return;
+    if (isRetry && commerceRequestedRef.current === `${flightKey}:active`) return;
+    commerceRequestedRef.current = `${flightKey}:active`;
+
+    commerceAbortRef.current?.abort();
+    const controller = new AbortController();
+    commerceAbortRef.current = controller;
+
+    // The scan result is already visible; only the shelf enters a pending state.
+    if (isMountedRef.current && commerceGenerationRef.current === generation) {
+      setCommerceStatus('pending');
+    }
+
+    const applyIfCurrent = (updater) => {
+      // Stale-response protection: a late answer for a superseded scan is
+      // dropped rather than rendered over the current one.
+      if (!isMountedRef.current) return false;
+      if (commerceGenerationRef.current !== generation) return false;
+      updater();
+      return true;
+    };
+
+    let result;
+    try {
+      result = await fetchDeferredCommerce(evidence, { signal: controller.signal });
+    } catch {
+      // fetchDeferredCommerce never throws, but a caller must not depend on it.
+      result = { status: 'error', purchaseOptions: [], enrichmentCandidates: [], retryable: true };
+    }
+
+    commerceRequestedRef.current = flightKey;
+
+    if (result.status === 'error') {
+      // Commerce failure is never scan failure: status stays 'result'.
+      applyIfCurrent(() => setCommerceStatus(result.retryable === false ? 'idle' : 'error'));
+      return;
+    }
+
+    const hydrated = applyIfCurrent(() => {
+      setCommerceStatus(result.status);
+      if (result.purchaseOptions.length > 0) {
+        setAnalysis((prev) => (prev ? { ...prev, purchaseOptions: result.purchaseOptions } : prev));
+      }
+    });
+    if (!hydrated) return;
+
+    // Bounded enrichment, after first paint. The backend serves the repeat
+    // discovery from its own cache, so this hop costs the enrichment call only.
+    if (result.purchaseOptions.length > 0 && result.enrichmentCandidates.length > 0) {
+      let enrichedResult;
+      try {
+        enrichedResult = await fetchDeferredCommerce(evidence, {
+          enrich: true,
+          signal: controller.signal,
+        });
+      } catch {
+        return;
+      }
+      if (enrichedResult.status === 'error' || !enrichedResult.purchaseOptions.length) return;
+      applyIfCurrent(() => {
+        setAnalysis((prev) => {
+          if (!prev) return prev;
+          const merged = mergeEnrichedOffers(
+            Array.isArray(prev.purchaseOptions) ? prev.purchaseOptions : [],
+            enrichedResult.purchaseOptions,
+          );
+          return { ...prev, purchaseOptions: merged };
+        });
+      });
+    }
+  }, []);
+
+  // Dispatch hydration once per deferred scan result.
+  useEffect(() => {
+    if (status !== 'result') return;
+    if (!analysis?.commerceDeferred) return;
+    hydrateDeferredCommerce(analysis);
+  }, [status, analysis?.commerceDeferred, analysis?.commerceEvidence, hydrateDeferredCommerce]);
+
+  // Abort any in-flight hydration when the hook unmounts.
+  useEffect(() => () => {
+    commerceAbortRef.current?.abort();
+    commerceAbortRef.current = null;
+  }, []);
+
+  /** Explicit user retry. Issues MODE B only — never re-runs Gemini. */
+  const retryCommerce = useCallback(() => {
+    if (!analysis?.commerceDeferred) return;
+    hydrateDeferredCommerce(analysis, { isRetry: true });
+  }, [analysis, hydrateDeferredCommerce]);
+
+  // ── Build 32 multi-item commerce hydration ────────────────────────────────
+  //
+  // One MODE B request per eligible detected candidate, dispatched in
+  // parallel. No new Gemini call: every candidate already carries its own
+  // identification/attributes from the multi-item detection response.
+  // Independent of the single-selection hydrateDeferredCommerce above — a
+  // scan can show multi-item cards without the user ever picking one.
+  const hydrateMultiItemCommerce = useCallback(async (candidates, { isRetry = false } = {}) => {
+    if (!Array.isArray(candidates) || candidates.length === 0) return;
+
+    const generation = multiItemCommerceGenerationRef.current;
+    const flightKey = `${generation}`;
+    if (!isRetry && multiItemCommerceRequestedRef.current === flightKey) return;
+    if (isRetry && multiItemCommerceRequestedRef.current === `${flightKey}:active`) return;
+    multiItemCommerceRequestedRef.current = `${flightKey}:active`;
+
+    multiItemCommerceAbortRef.current?.abort();
+    const controller = new AbortController();
+    multiItemCommerceAbortRef.current = controller;
+
+    if (isMountedRef.current && multiItemCommerceGenerationRef.current === generation) {
+      setMultiItemCommerceStatus('pending');
+    }
+
+    let cardsByCandidate;
+    try {
+      cardsByCandidate = await fetchMultiItemCommerce(candidates, { signal: controller.signal });
+    } catch {
+      cardsByCandidate = new Map();
+    }
+
+    multiItemCommerceRequestedRef.current = flightKey;
+
+    // Stale-response protection: a late answer for a superseded scan is
+    // dropped rather than rendered over the current one.
+    if (!isMountedRef.current || multiItemCommerceGenerationRef.current !== generation) return;
+    setMultiItemCommerce(Array.from(cardsByCandidate.values()));
+    setMultiItemCommerceStatus('ready');
+  }, []);
+
+  // Dispatch once per detection result that has candidates to shop.
+  //
+  // Gated on commerceDeferred for the same reason the single-item dispatch
+  // above is: that marker is set only when the backend reports
+  // `commerce.deferred === true`, which only the v127 funnel branch does. With
+  // the funnel disabled the MODE B route does not exist server-side, so every
+  // per-item request would fall through to the image path, return
+  // 'no image provided', and render a "no strong match" state for a search
+  // that never ran — N wasted invocations and a false statement to the user.
+  useEffect(() => {
+    if (status !== 'result') return;
+    if (!analysis?.commerceDeferred) return;
+    const candidates = analysis?.confirmationCandidates;
+    if (!Array.isArray(candidates) || candidates.length === 0) return;
+    hydrateMultiItemCommerce(candidates);
+  }, [status, analysis?.commerceDeferred, analysis?.confirmationCandidates, hydrateMultiItemCommerce]);
+
+  // Abort any in-flight multi-item hydration when the hook unmounts.
+  useEffect(() => () => {
+    multiItemCommerceAbortRef.current?.abort();
+    multiItemCommerceAbortRef.current = null;
+  }, []);
+
+  /** Explicit user retry for the whole multi-item shelf. MODE B only. */
+  const retryMultiItemCommerce = useCallback(() => {
+    // Same v127 authority gate as the dispatch effect and as retryCommerce.
+    if (!analysis?.commerceDeferred) return;
+    const candidates = analysis?.confirmationCandidates;
+    if (!Array.isArray(candidates) || candidates.length === 0) return;
+    hydrateMultiItemCommerce(candidates, { isRetry: true });
+  }, [analysis, hydrateMultiItemCommerce]);
+
   return {
     status,
     photo,
     analysis,
+    commerceStatus,
+    multiItemCommerce,
+    multiItemCommerceStatus,
     error,
     nonFashionMessage,
     selectedCandidateId,
@@ -984,6 +1220,8 @@ export function useKScan() {
     retry,
     selectConfirmationCandidate,
     analyzeSelectedCandidate,
+    retryCommerce,
+    retryMultiItemCommerce,
     selectStaticFixture,
     uploadPhoto,
     selectGalleryPhoto,

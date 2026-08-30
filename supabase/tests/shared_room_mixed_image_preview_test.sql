@@ -27,13 +27,13 @@ values
   ('20000000-0000-0000-0000-000000000006', '10000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000001', '60000000-0000-0000-0000-000000000006', true, null, now() - interval '1 hour');
 
 insert into public.dressing_room_items (
-  id, dressing_room_id, source_type, snapshot_version, snapshot_payload,
+  id, dressing_room_id, created_by, source_type, snapshot_version, snapshot_payload,
   title, storage_bucket, storage_path, created_at
 )
 values
-  ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'live_scan', 1, '{}'::jsonb, 'Mixed scan newest', 'style-library-images', '00000000-0000-0000-0000-000000000001/scans/mixed-new.jpg', '2026-07-18T04:00:00Z'),
-  ('30000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', 'live_scan', 1, '{}'::jsonb, 'Mixed scan duplicate', 'style-library-images', '00000000-0000-0000-0000-000000000001/inspirations/shared-object.jpg', '2026-07-18T02:00:00Z'),
-  ('30000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000003', 'live_scan', 1, '{}'::jsonb, 'Scanned only', 'style-library-images', '00000000-0000-0000-0000-000000000001/scans/only.jpg', '2026-07-18T01:00:00Z');
+  ('30000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'live_scan', 1, '{}'::jsonb, 'Mixed scan newest', 'style-library-images', '00000000-0000-0000-0000-000000000001/scans/mixed-new.jpg', '2026-07-18T04:00:00Z'),
+  ('30000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001', 'live_scan', 1, '{}'::jsonb, 'Mixed scan duplicate', 'style-library-images', '00000000-0000-0000-0000-000000000001/inspirations/shared-object.jpg', '2026-07-18T02:00:00Z'),
+  ('30000000-0000-0000-0000-000000000003', '10000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000001', 'live_scan', 1, '{}'::jsonb, 'Scanned only', 'style-library-images', '00000000-0000-0000-0000-000000000001/scans/only.jpg', '2026-07-18T01:00:00Z');
 
 insert into public.inspiration_items (
   id, user_id, storage_bucket, storage_path, source, content_type, width, height, created_at, deleted_at
@@ -58,12 +58,13 @@ values
   ('50000000-0000-0000-0000-000000000006', '10000000-0000-0000-0000-000000000005', '40000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000001', '2026-07-18T08:00:00Z', null);
 
 insert into public.dressing_room_items (
-  id, dressing_room_id, source_type, snapshot_version, snapshot_payload,
+  id, dressing_room_id, created_by, source_type, snapshot_version, snapshot_payload,
   title, storage_bucket, storage_path, created_at
 )
 select
   ('31000000-0000-0000-0000-' || lpad(n::text, 12, '0'))::uuid,
   '10000000-0000-0000-0000-000000000004'::uuid,
+  '00000000-0000-0000-0000-000000000001'::uuid,
   'live_scan', 1, '{}'::jsonb, 'Cap scan ' || n,
   'style-library-images',
   '00000000-0000-0000-0000-000000000001/scans/cap-scan-' || n || '.jpg',

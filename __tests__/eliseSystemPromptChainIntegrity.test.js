@@ -54,6 +54,8 @@ function referenceOffsets(name) {
 const CHAIN = [
   'systemTextWithWeather',
   'systemTextWithStyleDna',
+  'systemTextWithGenderContext',
+  'systemTextWithStylistName',
   'systemTextWithServerStyleDna',
   'systemTextForModelBase',
 ];
@@ -100,11 +102,21 @@ test('CHAIN: the client-fed Style DNA link keeps its long-standing name and mean
   );
 });
 
-test('CHAIN: the server-derived Track B link has its own name and extends the client-fed one', () => {
+test('CHAIN: each optional context is additive and the server-derived block follows first-use context', () => {
   assert.match(
     source,
-    /const systemTextWithServerStyleDna = serverStyleDnaBlock\s*\n\s*\?\s*`\$\{systemTextWithStyleDna\}[\s\S]{0,60}serverStyleDnaBlock\}`\s*\n\s*:\s*systemTextWithStyleDna;/,
-    'the server-derived block must be additive to the client-fed link, never a replacement',
+    /const systemTextWithGenderContext = genderStylingContext\s*\n\s*\?\s*`\$\{systemTextWithStyleDna\}[\s\S]{0,120}buildGenderStylingContextBlock\(genderStylingContext\)\}`\s*\n\s*:\s*systemTextWithStyleDna;/,
+    'gender context must extend the client-fed Signature Style link',
+  );
+  assert.match(
+    source,
+    /const systemTextWithStylistName\s*=\s*`\$\{systemTextWithGenderContext\}[\s\S]{0,60}buildStylistPersonaBlock\(stylistDisplayName\)\}`;/,
+    'stylist identity must extend first-use gender context',
+  );
+  assert.match(
+    source,
+    /const systemTextWithServerStyleDna = serverStyleDnaBlock\s*\n\s*\?\s*`\$\{systemTextWithStylistName\}[\s\S]{0,60}serverStyleDnaBlock\}`\s*\n\s*:\s*systemTextWithStylistName;/,
+    'the server-derived block must be additive to every earlier context, never a replacement',
   );
 });
 

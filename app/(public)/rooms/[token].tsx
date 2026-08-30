@@ -41,6 +41,7 @@ import {
   setItemReaction,
 } from '../../../services/styleObjects';
 import { joinSharedRoom, ROOM_JOIN_ERROR } from '../../../services/roomMessages';
+import { resolveCollaborationAccess } from '../../../services/dressingRoomCollaboration';
 import { ItemReactions, type ReactionCountsForItem } from '../../../components/dressing-rooms/ItemReactions';
 import { RoomMessagesPanel } from '../../../components/rooms/RoomMessagesPanel';
 import {
@@ -252,7 +253,7 @@ function SharedRoomPreviewCard({ preview }: SharedRoomPreviewCardProps) {
       ) : null}
 
       <Text style={styles.previewBody}>
-        This is a preview of a private K Scan Dressing Room. Access is controlled by the share
+        This is a preview of a private K Scan AI Dressing Room. Access is controlled by the share
         token. Only items the owner chose to share are visible here.
       </Text>
     </View>
@@ -376,7 +377,7 @@ function WebFallbackActions({
     <View style={styles.fallbackCard}>
       <View style={styles.fallbackCopy}>
         <StatusPill label="App-first link" variant="gold" />
-        <Text style={styles.fallbackTitle}>Open this Dressing Room in K Scan</Text>
+        <Text style={styles.fallbackTitle}>Open this Dressing Room in K Scan AI</Text>
         <Text style={styles.fallbackBody}>
           The native app is the primary room experience. This page is here when app links
           cannot hand off automatically.
@@ -388,7 +389,7 @@ function WebFallbackActions({
           title={openAppStatus === 'attempting' ? 'Opening App' : 'Open in App'}
           onPress={onOpenInApp}
           loading={openAppStatus === 'attempting'}
-          accessibilityLabel="Open this Dressing Room in the K Scan app"
+          accessibilityLabel="Open this Dressing Room in the K Scan AI app"
           testID="room-open-in-app-button"
         />
         <SecondaryButton
@@ -401,7 +402,7 @@ function WebFallbackActions({
           <TertiaryButton
             title="Get the App"
             onPress={onGetApp}
-            accessibilityLabel="Get the K Scan app"
+            accessibilityLabel="Get the K Scan AI app"
             testID="room-get-app-button"
           />
         ) : null}
@@ -419,7 +420,7 @@ function WebFallbackActions({
         <InlineNotice
           variant="warning"
           title="App did not open"
-          body="You can keep viewing the safe web preview here, or install K Scan on a supported device."
+          body="You can keep viewing the safe web preview here, or install K Scan AI on a supported device."
           style={styles.notice}
         />
       ) : null}
@@ -455,6 +456,7 @@ function SharedRoomChatSection({
   const { isAuthenticated } = useAuthSession();
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
+  const [roomOwnerId, setRoomOwnerId] = useState<string | null>(null);
   const joinInFlight = useRef(false);
   const mountedRef = useRef(true);
 
@@ -474,6 +476,14 @@ function SharedRoomChatSection({
       const joinedRoomId = await joinSharedRoom(token);
       if (mountedRef.current) {
         onJoined(joinedRoomId);
+      }
+      // Best-effort: used only to pick the right Block-user confirmation copy
+      // (participant-blocks-owner vs. participant-blocks-participant). A
+      // failure here never blocks entering the room, and RoomMessagesPanel
+      // simply falls back to the safer "you may leave this room" copy.
+      const access = await resolveCollaborationAccess(joinedRoomId).catch(() => null);
+      if (mountedRef.current) {
+        setRoomOwnerId(access && access.ok ? access.currentOwnerId : null);
       }
     } catch (err: any) {
       // err.message is a friendly string from services/roomMessages - never a
@@ -500,7 +510,7 @@ function SharedRoomChatSection({
   }
 
   if (roomId) {
-    return <RoomMessagesPanel roomId={roomId} />;
+    return <RoomMessagesPanel roomId={roomId} isOwner={false} roomOwnerId={roomOwnerId} />;
   }
 
   return (

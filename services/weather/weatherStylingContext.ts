@@ -15,8 +15,16 @@ import {
 
 export type WeatherPermissionRequestResult = 'granted' | 'denied' | 'unavailable';
 
+/**
+ * Observed status, which unlike a request result can be "never asked". Keeping
+ * `undetermined` distinct from `denied` is what stops an unanswered OS prompt
+ * from being recorded as a refusal the user never gave.
+ */
+export type WeatherPermissionStatus = WeatherPermissionRequestResult | 'undetermined';
+
 // Requests foreground permission only. Returns a coarse status; the caller maps it
-// to the persisted permission state.
+// to the persisted permission state. After an explicit request, anything other
+// than granted is a real refusal.
 export async function requestForegroundWeatherPermission(): Promise<WeatherPermissionRequestResult> {
   if (!WEATHER_STYLING_CONTEXT_ENABLED) return 'unavailable';
   try {
@@ -27,11 +35,18 @@ export async function requestForegroundWeatherPermission(): Promise<WeatherPermi
   }
 }
 
-export async function getForegroundPermissionStatus(): Promise<WeatherPermissionRequestResult> {
+export async function getForegroundPermissionStatus(): Promise<WeatherPermissionStatus> {
   if (!WEATHER_STYLING_CONTEXT_ENABLED) return 'unavailable';
   try {
-    const { status } = await Location.getForegroundPermissionsAsync();
-    return status === 'granted' ? 'granted' : 'denied';
+    const { status, canAskAgain } = await Location.getForegroundPermissionsAsync();
+    if (status === 'granted') return 'granted';
+    // Expo reports UNDETERMINED before the OS prompt has ever been answered.
+    // Reporting that as 'denied' would let the caller persist a refusal the user
+    // never made, permanently disabling a feature they were never asked about.
+    if (status === Location.PermissionStatus.UNDETERMINED) return 'undetermined';
+    // A non-granted status that can still be asked again has not been refused
+    // outright either — the OS is still willing to show the prompt.
+    return canAskAgain ? 'undetermined' : 'denied';
   } catch {
     return 'unavailable';
   }

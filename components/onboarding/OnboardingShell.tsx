@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, SPACING } from '../../constants/theme';
 import { FORM_MAX_WIDTH } from '../../services/responsiveLayout';
 import { OnboardingStepIndicator } from './OnboardingStepIndicator';
+import { getOnboardingBottomClearance } from '../../services/onboardingLayout';
 
 interface OnboardingShellProps {
   children: React.ReactNode;
@@ -45,7 +46,11 @@ export function OnboardingShell({
           styles.content,
           {
             paddingTop: insets.top + SPACING.lg,
-            paddingBottom: insets.bottom + SPACING.xl,
+            // Floored, not just insets.bottom: a cold-start frame (before
+            // native safe-area insets are measured) or a misreported zero
+            // inset must never let interactive content render flush with —
+            // or inside — the home indicator / system chrome (see BUG-01).
+            paddingBottom: getOnboardingBottomClearance(insets.bottom, SPACING.xl),
             paddingHorizontal: SPACING.lg,
           },
         ]}

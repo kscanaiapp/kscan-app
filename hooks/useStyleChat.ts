@@ -12,6 +12,7 @@ import type { WeatherLocationInput } from '../constants/weatherStyling';
 import { saveTodayWeather } from '../services/weather/todayWeatherStore';
 import type { StyleDnaContext } from '../services/style-dna/styleDnaContext';
 import type { StyleChatHandoffContext } from '../services/style-chat/styleChatHandoffContext';
+import type { GenderStylingContext } from '../constants/genderStylingContext';
 import { STYLE_CHAT_COPY, STYLE_CHAT_DAILY_MESSAGE_LIMIT } from '../constants/styleChat';
 import {
   buildAttachmentUiBlock,
@@ -61,8 +62,10 @@ export type SendAttachmentsInput = {
    * as they are when the response lands.
    */
   fashionContext?: unknown;
+  onSending?: () => void;
   /** Called only after a successful attachment-aware send. */
   onSent?: () => void;
+  onSendFailed?: () => void;
 };
 
 // v0.4: swap to EdgeStyleChatProvider without touching this hook's external API.
@@ -108,6 +111,11 @@ export interface UseStyleChatOptions {
   // Active scan/upload/TextScan context visible in the StyleChat UI. Passed to the
   // backend on every message so replies are grounded to the reference item.
   activeContext?: StyleChatHandoffContext | null;
+  // Fix #5 — explicit, self-disclosed baseline styling context. A stable stored
+  // value (not re-resolved per send like weather/Style DNA); null when the user
+  // has not answered or chose "prefer not to say" is still sent explicitly so
+  // the backend can distinguish "answered neutral" from "never asked."
+  genderStylingContext?: GenderStylingContext | null;
 }
 
 export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): UseStyleChatReturn {
@@ -118,6 +126,7 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
   const [isSending, setIsSending] = useState(false);
   const isSendingRef = useRef(false);
   const sendScopeVersionRef = useRef(0);
+  const activeAttachmentSendFailureRef = useRef<(() => void) | null>(null);
   const retryStateRef = useRef<ReturnType<typeof createStyleChatRetryState<SendAttachmentsInput>> | null>(null);
   if (!retryStateRef.current) {
     retryStateRef.current = createStyleChatRetryState<SendAttachmentsInput>();
@@ -129,6 +138,8 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
   getStyleDnaContextRef.current = opts?.getStyleDnaContext;
   const activeContextRef = useRef(opts?.activeContext);
   activeContextRef.current = opts?.activeContext;
+  const genderStylingContextRef = useRef(opts?.genderStylingContext);
+  genderStylingContextRef.current = opts?.genderStylingContext;
   const [error, setError] = useState<string | null>(null);
   const [messagesUsed, setMessagesUsed] = useState(0);
   const [messagesLimit, setMessagesLimit] = useState(STYLE_CHAT_DAILY_MESSAGE_LIMIT);
@@ -164,6 +175,8 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
     voiceProfile !== 'silent';
 
   useEffect(() => {
+    activeAttachmentSendFailureRef.current?.();
+    activeAttachmentSendFailureRef.current = null;
     const scopeVersion = sendScopeVersionRef.current + 1;
     sendScopeVersionRef.current = scopeVersion;
     isSendingRef.current = false;
@@ -174,6 +187,9 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
       if (sendScopeVersionRef.current === scopeVersion) {
         sendScopeVersionRef.current += 1;
       }
+      const failActiveAttachmentSend = activeAttachmentSendFailureRef.current;
+      activeAttachmentSendFailureRef.current = null;
+      failActiveAttachmentSend?.();
     };
   }, [actorId, sessionId]);
 
@@ -408,15 +424,19 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
       // must leave the composer draft (text + attachments) fully intact and
       // must never present an attachment-blind reply as attachment-aware.
       const sendAttachments = options?.attachments ?? null;
-      const hasAttachments = !!sendAttachments && sendAttachments.references.length > 0;
+      const hasAttachments =
+        !!sendAttachments &&
+        (sendAttachments.references.length > 0 || sendAttachments.fashionContext != null);
       const activeContextSnapshot = activeContextRef.current ?? null;
       const hasVisualCollection = Boolean(
         activeContextSnapshot?.visualCollection?.evidence?.length,
       );
       const requiresContextAcknowledgement = hasAttachments || hasVisualCollection;
-      const attachmentUiBlocks: StyleChatUiBlock[] = hasAttachments
+      const attachmentUiBlocks: StyleChatUiBlock[] =
+        hasAttachments && sendAttachments.drafts.some((draft) => Boolean(draft.resolved))
         ? [buildAttachmentUiBlock(sendAttachments.drafts) as unknown as StyleChatUiBlock]
         : [];
+      let attachmentSendSucceeded = false;
 
       const skipUserPersistence = options?.skipUserPersistence === true;
       // Attachment sends defer persistence until backend v2 acknowledgement,
@@ -482,12 +502,17 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         if (!isCurrentSend()) return;
         // Active scan/upload/TextScan context is held in a ref so it is included on
         // every send while the context card is visible, without recreating sendMessage.
+        if (hasAttachments) {
+          activeAttachmentSendFailureRef.current = sendAttachments?.onSendFailed ?? null;
+          sendAttachments?.onSending?.();
+        }
         const result = await provider.generateReply({
           sessionId,
           message: trimmed,
           weatherLocation,
           styleDnaContext,
           activeContext: activeContextSnapshot,
+          genderStylingContext: genderStylingContextRef.current ?? null,
           sourceMessageId: persistedUserMessageId,
           ...(hasAttachments
             ? {
@@ -629,7 +654,8 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
           setMessages(prev =>
             prev.map(m => (m.id === optimisticUser?.id ? savedUser : m)),
           );
-          if (hasAttachments) sendAttachments?.onSent?.();
+          if (hasAttachments) {
+        }
         }
 
         // optimistic assistant bubble, then persist.
@@ -688,6 +714,11 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         setMessages(prev =>
           prev.map(m => (m.id === optimisticAssistant.id ? savedAssistant : m)),
         );
+        if (hasAttachments) {
+          attachmentSendSucceeded = true;
+          activeAttachmentSendFailureRef.current = null;
+          sendAttachments?.onSent?.();
+        }
 
         if (canSpeakNewMessages) {
           void speakAvatarMessage({
@@ -724,6 +755,10 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         return false;
       } finally {
         if (isCurrentSend()) {
+          if (hasAttachments && !attachmentSendSucceeded) {
+            sendAttachments?.onSendFailed?.();
+          }
+          activeAttachmentSendFailureRef.current = null;
           isSendingRef.current = false;
           setIsSending(false);
         }

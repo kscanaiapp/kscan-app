@@ -229,16 +229,20 @@ const styles = StyleSheet.create({
     gap: SPACING.lg,
     alignItems: 'center',
   },
+  // The card is COLORS.surface — dark glass. TYPOGRAPHY carries light-surface
+  // inks, so every text style on this card states its own dark-surface colour.
   cardTitle: {
     ...TYPOGRAPHY.title,
     fontSize: 20,
     textAlign: 'center',
+    color: COLORS.textInverse,
   },
   cardBody: {
     ...TYPOGRAPHY.body,
     fontSize: 13,
     lineHeight: 20,
     textAlign: 'center',
+    color: COLORS.chrome,
   },
   primaryButton: {
     height: 52,

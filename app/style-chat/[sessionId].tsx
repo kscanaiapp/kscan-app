@@ -28,6 +28,7 @@ import { StyleChatInput } from '../../components/style-chat/StyleChatInput';
 import { StyleChatContextPreview } from '../../components/style-chat/StyleChatContextPreview';
 import { StyleChatStyleDnaCard } from '../../components/style-chat/StyleChatStyleDnaCard';
 import { useStyleChat } from '../../hooks/useStyleChat';
+import { useGenderStylingContext } from '../../hooks/useGenderStylingContext';
 import { getFriendlyStyleChatError } from '../../services/style-chat/styleChatErrors';
 import { deleteStyleChatSession } from '../../services/style-chat/styleChatRepository';
 import {
@@ -83,6 +84,9 @@ export default function StyleChatSessionScreen() {
   const { preferences: styleDnaPreferences, updatePreferences: updateStyleDnaPreferences } =
     useStyleDnaPreferences({ userKey });
   const weather = useWeatherStyling(sessionId ?? '');
+  // Fix #5 — already hydrated by the time a session screen mounts (the
+  // /style-chat index screen gates entry on this same hook's first-use card).
+  const genderStylingContext = useGenderStylingContext();
   // Phase 2: build a data-only Style Memory context per send. Reads the local profile
   // fresh each time and self-gates on EXPO_PUBLIC_STYLE_DNA_CONTEXT_ENABLED + the
   // >=3-signal threshold (returns null otherwise). Reading fresh means a reset — which
@@ -198,6 +202,7 @@ export default function StyleChatSessionScreen() {
     getWeatherLocation: weather.getWeatherLocation,
     getStyleDnaContext,
     activeContext: activeContextForGeneration,
+    genderStylingContext: genderStylingContext.value,
   });
 
   const [isDeleting, setIsDeleting] = useState(false);
@@ -478,7 +483,7 @@ export default function StyleChatSessionScreen() {
     hasAdditionalSendBlock:
       !canSend ||
       (attachmentsEnabled &&
-        chatAttachments.attachments.length > 0 &&
+        chatAttachments.hasActiveAttachments &&
         !chatAttachments.canSendWithAttachments),
   });
 
@@ -557,6 +562,7 @@ export default function StyleChatSessionScreen() {
       {attachmentsEnabled ? (
         <StyleChatAttachmentBar
           attachments={chatAttachments.attachments}
+          stylistDisplayName={stylistDisplayName}
           focusedDraftId={chatAttachments.focusedDraftId}
           onAddOwnedItem={(item, scan) => chatAttachments.addOwnedItem(item, scan)}
           onAddLook={(look) => chatAttachments.addLook(look)}
@@ -568,6 +574,11 @@ export default function StyleChatSessionScreen() {
           onRetry={(draftId, items, localScans) =>
             chatAttachments.retryAttachment(draftId, items, localScans)
           }
+          onSaveToCloset={(draftId) => {
+            void chatAttachments.saveDirectImageToCloset(draftId).then((result) => {
+              if (!result.ok) Alert.alert('Closet', result.message);
+            });
+          }}
           onFocus={chatAttachments.setFocusedAttachment}
           atAttachmentLimit={chatAttachments.atAttachmentLimit}
           atDirectImageLimit={chatAttachments.atDirectImageLimit}
@@ -590,7 +601,7 @@ export default function StyleChatSessionScreen() {
           }
           onSend={async text => {
             weather.markStylingIntent();
-            if (attachmentsEnabled && chatAttachments.attachments.length > 0) {
+            if (attachmentsEnabled && chatAttachments.hasActiveAttachments) {
               // Send rule: attachment-bearing sends require every attachment
               // ready; pending/failed chips block the send (remove to send
               // text only). The snapshot is immutable for this operation.
@@ -599,7 +610,9 @@ export default function StyleChatSessionScreen() {
               // Focus must be included when present — never send without it.
               if (
                 chatAttachments.focusedDraftId &&
-                !snapshot.references.length
+                !snapshot.drafts.some(
+                  (draft) => draft.draftId === chatAttachments.focusedDraftId,
+                )
               ) {
                 Alert.alert(
                   'Attachment',
@@ -625,11 +638,13 @@ export default function StyleChatSessionScreen() {
                   ...(snapshot.fashionContext
                     ? { fashionContext: snapshot.fashionContext }
                     : {}),
+                  onSending: () => chatAttachments.markSending(snapshot.drafts),
                   onSent: () => {
-                    chatAttachments.clearAttachments();
+                    chatAttachments.markSent(snapshot.drafts);
                     if (hasReadyEntry) clearVisualContext();
                     setComposerText('');
                   },
+                  onSendFailed: () => chatAttachments.markSendFailed(snapshot.drafts),
                 },
               });
               return;

@@ -53,6 +53,11 @@ export function PersonalizeStylistModal({
   const [voicePreferenceError, setVoicePreferenceError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submissionInFlightRef = useRef(false);
+  // Fix #6: distinguishes "the user actually edited the name field this
+  // session" from "draftName is merely pre-filled with the current resolved
+  // name." Picking a different avatar without touching the field must not
+  // re-persist the pre-fill as if it were a deliberate rename.
+  const nameEditedRef = useRef(false);
   const saving = isSaving || isSubmitting;
   const voicePreference = useVoiceResponsesPreference();
 
@@ -64,6 +69,7 @@ export function PersonalizeStylistModal({
       setVoicePreferenceError(null);
       setIsSubmitting(false);
       submissionInFlightRef.current = false;
+      nameEditedRef.current = false;
     }
   }, [visible, identity.displayName, identity.avatarId]);
 
@@ -83,6 +89,7 @@ export function PersonalizeStylistModal({
     const cleaned = text.replace(/[\x00-\x1F\x7F]/g, '').slice(0, STYLIST_NAME_MAX_LENGTH);
     setDraftName(cleaned);
     setNameError(validateName(cleaned));
+    nameEditedRef.current = true;
   }, [validateName]);
 
   const canSave = useMemo(() => {
@@ -107,7 +114,14 @@ export function PersonalizeStylistModal({
     submissionInFlightRef.current = true;
     setIsSubmitting(true);
     try {
-      await onSave({ displayName: trimmed, avatarId: draftAvatarId });
+      // Only include displayName when the user actually edited the field this
+      // session (Fix #6) — an avatar-only change must leave any existing
+      // custom name (or lack of one) untouched rather than re-saving whatever
+      // text happened to be pre-filled in the input.
+      await onSave({
+        avatarId: draftAvatarId,
+        ...(nameEditedRef.current ? { displayName: trimmed } : {}),
+      });
     } finally {
       submissionInFlightRef.current = false;
       setIsSubmitting(false);
@@ -164,7 +178,7 @@ export function PersonalizeStylistModal({
                 PERSONALIZE YOUR STYLIST
               </Text>
               <Text style={styles.subtitle}>
-                Choose the name and avatar you see across K Scan.
+                Choose the name and avatar you see across K Scan AI.
               </Text>
 
               <View style={styles.nameSection}>

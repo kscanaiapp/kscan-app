@@ -1125,10 +1125,14 @@ Deno.test('EARLY EXIT: unusable raw candidates do not close the gate while a rea
   const junk = Array.from({ length: junkCount }, (_, i) => junkProduct(i));
   assert.equal(junk.filter((p) => hasValidPurchaseUrl(p) && hasUsableImage(p)).length, 0);
 
+  type EarlyExitCandidate = ReturnType<typeof junkProduct> | ReturnType<typeof realProduct>;
+  type EarlyExitProviderResult = {
+    kind: 'fast-junk' | 'slow-real';
+    value: { products: EarlyExitCandidate[] };
+  };
+
   let slowProviderRan = false;
-  const outcome = await collectBounded<
-    { kind: 'fast-junk' | 'slow-real'; value: { products: RecommendedProduct[] } }
-  >(
+  const outcome = await collectBounded<EarlyExitProviderResult>(
     [
       {
         key: 'fast-junk',
@@ -1137,7 +1141,7 @@ Deno.test('EARLY EXIT: unusable raw candidates do not close the gate while a rea
       },
       {
         key: 'slow-real',
-        promise: new Promise((resolve) => {
+        promise: new Promise<EarlyExitProviderResult>((resolve) => {
           setTimeout(() => {
             slowProviderRan = true;
             resolve({ kind: 'slow-real' as const, value: { products: [realProduct(1), realProduct(2)] } });
@@ -1173,8 +1177,10 @@ Deno.test('EARLY EXIT: negative control — the pre-fix raw count DOES close the
 
   const junk = Array.from({ length: FAST_COMMERCE_SUFFICIENT_RESULTS }, (_, i) => ({ id: `junk-${i}` }));
 
+  type RawCountProviderResult = { value: { products: Array<{ id: string }> } };
+
   let slowProviderRan = false;
-  await collectBounded<{ value: { products: { id: string }[] } }>(
+  await collectBounded<RawCountProviderResult>(
     [
       {
         key: 'fast-junk',
@@ -1183,7 +1189,7 @@ Deno.test('EARLY EXIT: negative control — the pre-fix raw count DOES close the
       },
       {
         key: 'slow-real',
-        promise: new Promise((resolve) => {
+        promise: new Promise<RawCountProviderResult>((resolve) => {
           setTimeout(() => { slowProviderRan = true; resolve({ value: { products: [{ id: 'real' }] } }); }, 40);
         }),
         onTimeout: { value: { products: [] } },

@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   type LayoutChangeEvent,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 
 interface ScanResultActionRowProps {
@@ -102,7 +102,11 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(255, 253, 249, 0.96)',
+    // OPAQUE, deliberately. This was rgba(255, 253, 249, 0.96): 4% of whatever
+    // scrolled underneath came through, which over a dark garment photo reduced
+    // the button labels to low-contrast text on moving content. The colour is
+    // the same warm canvas, just without the alpha.
+    backgroundColor: LUXURY.colors.cream,
     borderTopWidth: 1,
     borderTopColor: LUXURY.colors.border,
     paddingHorizontal: SPACING.xl,

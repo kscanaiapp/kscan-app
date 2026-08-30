@@ -36,6 +36,7 @@ export type ScanResultV2 = {
   color?: string;
   silhouette?: string;
   material?: string;
+  pattern?: string;
   confidence?: number;
   matchLabel?: string;
   styleTags?: string[];
@@ -53,6 +54,7 @@ export type LegacyAnalysisData = {
     color?: string;
     silhouette?: string;
     material?: string;
+    pattern?: string;
     confidence?: number;
     styleTags?: string[];
     brand?: string | null;
@@ -148,6 +150,31 @@ function titleOf(p: Record<string, unknown>): string {
   );
 }
 
+/**
+ * Maps one raw commerce product record (backend `RankedScanProduct` shape)
+ * into the render-ready `PurchaseOption` shape. Extracted so a single-item
+ * shelf (`legacy.purchaseOptions`) and a per-item Build 32 commerce card can
+ * normalize offers identically instead of maintaining two copies of this.
+ */
+export function mapRawProductToPurchaseOption(
+  raw: Record<string, unknown>,
+  index = 0,
+): PurchaseOption {
+  return {
+    id: String(raw.id ?? `purchase-${index}`),
+    retailer:
+      typeof raw.retailer === 'string'
+        ? raw.retailer
+        : typeof raw.source === 'string'
+        ? raw.source
+        : 'Retailer',
+    title: titleOf(raw),
+    priceLabel: formatPriceLabel(raw.price, typeof raw.currency === 'string' ? raw.currency : undefined),
+    availabilityLabel: availabilityLabel(raw.availability),
+    productUrl: productUrlOf(raw),
+  };
+}
+
 /** Maps legacy analysis data into the V2 shape for forward-compat rendering. */
 export function mapLegacyToV2(
   legacy: LegacyAnalysisData | null | undefined,
@@ -215,22 +242,7 @@ export function mapLegacyToV2(
   const purchaseOptions: PurchaseOption[] | undefined = Array.isArray(legacy.purchaseOptions)
     ? legacy.purchaseOptions
       .filter((p) => p && typeof p === 'object')
-      .map((p, index) => {
-        const product = p as Record<string, unknown>;
-        return {
-          id: String(product.id ?? `purchase-${index}`),
-          retailer:
-            typeof product.retailer === 'string'
-              ? product.retailer
-              : typeof product.source === 'string'
-              ? product.source
-              : 'Retailer',
-          title: titleOf(product),
-          priceLabel: formatPriceLabel(product.price, typeof product.currency === 'string' ? product.currency : undefined),
-          availabilityLabel: availabilityLabel(product.availability),
-          productUrl: productUrlOf(product),
-        };
-      })
+      .map((p, index) => mapRawProductToPurchaseOption(p as Record<string, unknown>, index))
       .filter((p) => SCAN_RESULTS_DEMO_UI_ENABLED || !isDemoPurchaseOption(p))
     : undefined;
 
@@ -241,6 +253,7 @@ export function mapLegacyToV2(
     color: meta.color || undefined,
     silhouette: meta.silhouette || undefined,
     material: meta.material || undefined,
+    pattern: meta.pattern || undefined,
     confidence: typeof meta.confidence === 'number' ? meta.confidence : undefined,
     styleTags: meta.styleTags,
     styleAnalysis: analysisText || undefined,
