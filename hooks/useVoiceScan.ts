@@ -64,13 +64,17 @@ export function useVoiceScan({
   const [partialTranscript, setPartialTranscript] = useState('');
   const [draftTranscript, setDraftTranscript] = useState('');
   const draftRef = useRef('');
+  const stateRef = useRef<VoiceRecognitionState>('idle');
+  const isKPlusActiveRef = useRef(isKPlusActive);
+  const sessionCounterRef = useRef(0);
+  const activeSessionIdRef = useRef<string | null>(null);
 
   const dispatch = useCallback((event: VoiceStateMachineEvent) => {
-    setState((current) => {
-      const result = reduceVoiceState(current, event);
-      setUnavailableReason(result.unavailableReason);
-      return result.state;
-    });
+    const result = reduceVoiceState(stateRef.current, event);
+    stateRef.current = result.state;
+    setUnavailableReason(result.unavailableReason);
+    setState(result.state);
+    return result;
   }, []);
 
   // Draft/partial transcript always clears on landing in a resting/terminal
@@ -112,13 +116,18 @@ export function useVoiceScan({
   useEffect(
     () =>
       subscribeToVoiceEvents({
-        onPartialTranscript: (transcript) => setPartialTranscript(normalizeVoiceTranscript(transcript)),
-        onSessionEndedByNative: (result) => {
+        onPartialTranscript: (sessionId, transcript) => {
+          if (sessionId !== activeSessionIdRef.current) return;
+          setPartialTranscript(normalizeVoiceTranscript(transcript));
+        },
+        onSessionEndedByNative: (sessionId, result) => {
+          if (sessionId !== activeSessionIdRef.current) return;
           // The 15s cap or natural end-of-speech fired without an explicit
           // stop() call. This NEVER auto-submits: it only ever reaches
           // 'finalizing' -> 'reviewing', same as a user-initiated stop.
           dispatch({ type: 'SESSION_ENDED_BY_NATIVE' });
           applyFinalResult(result);
+          activeSessionIdRef.current = null;
         },
       }),
     [dispatch, applyFinalResult],
@@ -133,9 +142,16 @@ export function useVoiceScan({
       dispatch({ type: 'NOT_KPLUS' });
       return;
     }
+    if (!['idle', 'error', 'cancelled', 'unavailable'].includes(stateRef.current)) return;
     dispatch({ type: 'MIC_TAPPED' });
+    const sessionId = `voice-${Date.now()}-${++sessionCounterRef.current}`;
+    activeSessionIdRef.current = sessionId;
+
+    const isCurrentEligibleAttempt = () =>
+      activeSessionIdRef.current === sessionId && isKPlusActiveRef.current;
 
     const capabilities = await fetchVoiceCapabilities();
+    if (!isCurrentEligibleAttempt()) return;
     if (!isVoiceRecognitionAvailable(capabilities)) {
       emitVoiceEvent('voice_on_device_unavailable', { source: sourceSurface, platform: getPlatform() });
       dispatch({ type: 'ON_DEVICE_UNAVAILABLE' });
@@ -144,6 +160,7 @@ export function useVoiceScan({
     emitVoiceEvent('voice_on_device_available', { source: sourceSurface, platform: getPlatform() });
 
     const permission = await requestVoiceRecordingPermission();
+    if (!isCurrentEligibleAttempt()) return;
     if (!permission.granted) {
       emitVoiceEvent('voice_permission_denied', { source: sourceSurface, platform: getPlatform() });
       dispatch({ type: 'PERMISSION_DENIED', permanent: !permission.canAskAgain });
@@ -152,7 +169,11 @@ export function useVoiceScan({
     emitVoiceEvent('voice_permission_granted', { source: sourceSurface, platform: getPlatform() });
 
     try {
-      await beginVoiceListening();
+      await beginVoiceListening(sessionId);
+      if (!isCurrentEligibleAttempt()) {
+        await abandonVoiceListening(sessionId);
+        return;
+      }
       dispatch({ type: 'LISTENING_STARTED' });
     } catch {
       dispatch({ type: 'RECOGNIZER_ERROR' });
@@ -160,24 +181,29 @@ export function useVoiceScan({
   }, [dispatch, isKPlusActive, sourceSurface]);
 
   const stopSession = useCallback(async () => {
+    const sessionId = activeSessionIdRef.current;
+    if (!sessionId || stateRef.current !== 'listening') return;
     dispatch({ type: 'USER_STOP' });
     try {
-      const result = await endVoiceListening();
+      const result = await endVoiceListening(sessionId);
+      if (sessionId !== activeSessionIdRef.current) return;
       applyFinalResult(result);
+      activeSessionIdRef.current = null;
     } catch {
       dispatch({ type: 'RECOGNIZER_ERROR' });
     }
   }, [dispatch, applyFinalResult]);
 
   const cancelSession = useCallback(() => {
+    const sessionId = activeSessionIdRef.current;
+    activeSessionIdRef.current = null;
     dispatch({ type: 'USER_CANCEL' });
     emitVoiceEvent('voice_session_cancelled', { source: sourceSurface, platform: getPlatform() });
-    void abandonVoiceListening();
+    if (sessionId) void abandonVoiceListening(sessionId);
   }, [dispatch, sourceSurface]);
 
   const acceptDraft = useCallback((): string => {
     const value = draftRef.current;
-    emitVoiceEvent('voice_submit', { source: sourceSurface, destination: 'commerce' });
     dispatch({ type: 'ACCEPT_DRAFT' });
     return value;
   }, [dispatch, sourceSurface]);
@@ -185,6 +211,22 @@ export function useVoiceScan({
   const dismiss = useCallback(() => {
     dispatch({ type: 'DISMISS' });
   }, [dispatch]);
+
+  useEffect(() => {
+    isKPlusActiveRef.current = isKPlusActive;
+    if (isKPlusActive) return;
+    const sessionId = activeSessionIdRef.current;
+    if (!sessionId) return;
+    activeSessionIdRef.current = null;
+    dispatch({ type: 'USER_CANCEL' });
+    void abandonVoiceListening(sessionId);
+  }, [dispatch, isKPlusActive]);
+
+  useEffect(() => () => {
+    const sessionId = activeSessionIdRef.current;
+    activeSessionIdRef.current = null;
+    if (sessionId) void abandonVoiceListening(sessionId);
+  }, []);
 
   return {
     state,
