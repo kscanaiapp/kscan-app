@@ -59,6 +59,21 @@ export const CLOSET_CANDIDATE_EVENTS = [
   'mirror_candidate_staging_completed',
   'mirror_candidate_staging_partial',
   'mirror_candidate_staging_cancelled',
+  // Build 34 / Track B / Phase B2B — outbound Closet cloud sync
+  // (services/closet/closetSyncEngine.ts). SHAPE AND OUTCOME ONLY: whether a
+  // pass ran, how many items it looked at in coarse buckets, and how each item
+  // resolved. Deliberately NOT emissible here, and rejected by the property
+  // allowlist and SAFE_STRING scrub below even if a caller tried: the local
+  // client_id, the server item id, the owner/user id, any Storage path, any
+  // signed URL, any access token, and any item title/brand/notes.
+  'closet_sync_started',
+  'closet_facts_synced',
+  'closet_media_synced',
+  'closet_media_blocked',
+  'closet_sync_retry',
+  'closet_sync_failed',
+  'closet_sync_conflict',
+  'closet_sync_tombstoned',
 ] as const;
 
 export type ClosetCandidateEvent = typeof CLOSET_CANDIDATE_EVENTS[number];
