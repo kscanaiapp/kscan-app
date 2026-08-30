@@ -26,7 +26,17 @@ function loadNativeModule(): NativeModuleShape | null {
     // Lazy require so requireNativeModule() executes here, inside the guard.
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const mod = require('../../modules/kscan-pii-native/src/KScanPiiNativeModule');
-    cachedModule = (mod?.default ?? mod) as NativeModuleShape;
+    const resolved = (mod?.default ?? mod) as Partial<NativeModuleShape>;
+    // Presence of the module is not presence of this capability: an older or
+    // partial binary can link a module missing one of these functions (e.g. a
+    // plate-only build, or a build mid-migration). Require the complete face
+    // capability this boundary actually calls before claiming it is linked.
+    cachedModule =
+      typeof resolved?.getPrivacyCapabilities === 'function' &&
+      typeof resolved?.detectAndMaskFaces === 'function' &&
+      typeof resolved?.cleanupSanitizedImage === 'function'
+        ? (resolved as NativeModuleShape)
+        : null;
   } catch {
     cachedModule = null;
   }
@@ -61,7 +71,31 @@ export async function detectAndMaskFacesLocal(
 ): Promise<NativeFaceMaskResult | null> {
   const mod = loadNativeModule();
   if (!mod) return null;
-  return mod.detectAndMaskFaces(input);
+  try {
+    return await mod.detectAndMaskFaces(input);
+  } catch {
+    // A throwing native call is a failed run, never an absent one: returning
+    // null here would be indistinguishable from "not linked", and letting the
+    // rejection propagate would escape prepareImageForDispatch() entirely
+    // instead of becoming a BLOCKED result. Callers block on either, but the
+    // distinction matters for the reported reason.
+    return {
+      status: 'failed',
+      platform: 'android',
+      detectorImplementation: 'mlkit_bundled',
+      detectorVersion: 'unknown',
+      sanitizerVersion: 'unknown',
+      facesDetected: 0,
+      facesAccepted: 0,
+      facesMasked: 0,
+      regionsChanged: 0,
+      regionsAlreadyRedacted: 0,
+      pixelsChanged: false,
+      warnings: ['Native face detection threw.'],
+      errorCode: 'INTERNAL_ERROR',
+      failureReason: 'Native face detection threw.',
+    };
+  }
 }
 
 /** Best-effort native-side cleanup of a sanitized artifact. Never throws. */

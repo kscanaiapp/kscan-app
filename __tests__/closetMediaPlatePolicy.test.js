@@ -199,6 +199,29 @@ test('NO PII: a plain garment photo with no face and no plate reaches SAFE', asy
   assert.equal(result.proof.platesDetected, 0);
 });
 
+// REGRESSION: a real `no_faces` run (distinct from `success` with zero faces)
+// must still count as verified output. The native engine reports `no_faces`
+// as its own status — separate from `success` — for a garment photo where
+// face detection ran and found nothing; it still produces a real re-encoded,
+// metadata-stripped sanitized artifact. privacyProof.ts previously required
+// `status === 'success'` for outputVerified, which made every `no_faces` run
+// carry outputVerified: false and processingCompleted: false despite a real,
+// non-empty sanitizedUri sitting right there in the result.
+test('REGRESSION: a real "no_faces" status counts as verified output, not just "success"', async () => {
+  const faceEngine = fakeFaceEngine({ status: 'no_faces', facesDetected: 0, facesMasked: 0 });
+  const boundary = buildBoundary({
+    plateDetection: { isPlateDetectionSupported: () => true, detectPlates: async () => plateResultClean() },
+    faceEngine,
+    artifactStore: fakeArtifactStore(),
+  });
+  const result = await boundary.prepareImageForDispatch('file:///photos/garment-no-faces.jpg');
+  assert.equal(result.status, 'SANITIZED_AND_VERIFIED');
+  assert.equal(result.sanitizedUri, FACE_SANITIZED_URI);
+  assert.equal(result.proof.outputVerified, true);
+  assert.equal(result.proof.metadataStripped, true);
+  assert.equal(result.proof.processingCompleted, true);
+});
+
 // ── THE CORRECTION: plate detected -> BLOCKED, never masked into SAFE ───────
 
 test('PLATE: a detected plate-like region BLOCKS the run; no cloud-eligible artifact', async () => {

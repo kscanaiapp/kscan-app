@@ -183,19 +183,29 @@ async function encodeDerivative(
   const destination = createArtifactPath('sanitized', 'jpg');
   await FileSystem.moveAsync({ from: rendered.uri, to: destination });
 
-  const byteLength = await measure(destination);
-  if (byteLength <= 0) throw new Error('encoded artifact is empty');
-  if (byteLength > CLOSET_MEDIA_MAX_BYTES) {
+  // From here the derivative lives inside the privacy cache. sanitizeClosetMedia
+  // only learns about it once this function RETURNS one — its own cleanup
+  // handles primary/thumbnail by reference, so anything this function creates
+  // and then fails to return would otherwise be an orphaned artifact no outer
+  // path can reach. Every failure from here must clean up `destination` itself
+  // before rethrowing. This never touches sanitizedSourceUri or the caller's
+  // original image — only the derivative this call just wrote.
+  try {
+    const byteLength = await measure(destination);
+    if (byteLength <= 0) throw new Error('encoded artifact is empty');
+    if (byteLength > CLOSET_MEDIA_MAX_BYTES) {
+      throw new Error('encoded artifact exceeds the contract size ceiling');
+    }
+    return {
+      uri: destination,
+      width: rendered.width ?? width,
+      height: rendered.height ?? 0,
+      byteLength,
+    };
+  } catch (err) {
     await deletePrivacyArtifact(destination);
-    throw new Error('encoded artifact exceeds the contract size ceiling');
+    throw err;
   }
-
-  return {
-    uri: destination,
-    width: rendered.width ?? width,
-    height: rendered.height ?? 0,
-    byteLength,
-  };
 }
 
 function blockedResult(
