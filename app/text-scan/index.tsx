@@ -49,6 +49,8 @@ import {
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import { setStyleChatHandoffContext } from '../../services/style-chat/styleChatHandoffContext';
 import type { TextScanFilter } from '../../components/text-scan/ResultFilterTabs';
+import { buildVoiceSubmitOptions } from '../../services/voice/voiceSubmission';
+import { emitVoiceEvent } from '../../services/voice/voiceTelemetry';
 
 type ViewState = 'input' | 'processing' | 'results';
 
@@ -70,6 +72,7 @@ export default function TextScanScreen() {
   const [textScanError, setTextScanError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastSubmitAt, setLastSubmitAt] = useState(0);
+  const [querySource, setQuerySource] = useState<'textscan' | 'voicescan'>('textscan');
 
   const isQueryValid = query.trim().length >= MIN_QUERY_LENGTH;
 
@@ -141,7 +144,13 @@ export default function TextScanScreen() {
           return;
         }
 
-        const normalized = await analyzeTextWithEdge(query, { source: 'textscan' });
+        const invokeOptions = querySource === 'voicescan'
+          ? buildVoiceSubmitOptions(query)
+          : { source: 'textscan' as const };
+        if (querySource === 'voicescan') {
+          emitVoiceEvent('voice_submit', { source: 'text-scan', destination: 'commerce' });
+        }
+        const normalized = await analyzeTextWithEdge(query, invokeOptions);
         if (!cancelled) {
           if (typeof __DEV__ !== 'undefined' && __DEV__) {
             console.log(
@@ -170,7 +179,7 @@ export default function TextScanScreen() {
 
     runBackend();
     return () => { cancelled = true; };
-  }, [viewState]);
+  }, [viewState, query, querySource]);
 
   const retailProducts = TEXTSCAN_DEMO_PRODUCTS.filter((p) => p.type === 'retail');
   const resaleProducts = TEXTSCAN_DEMO_PRODUCTS.filter((p) => p.type === 'resale');
@@ -200,7 +209,15 @@ export default function TextScanScreen() {
         placeholder="e.g., oversized wool coat in camel"
         style={styles.inputCard}
         accessibilityLabel="TextScan fashion query"
-        rightAccessory={<VoiceScanButton onTranscript={setQuery} disabled={isSubmitting} />}
+        rightAccessory={
+          <VoiceScanButton
+            onTranscript={(transcript) => {
+              setQuery(transcript);
+              setQuerySource('voicescan');
+            }}
+            disabled={isSubmitting}
+          />
+        }
       />
 
       <View style={styles.suggestionsRow}>
@@ -208,7 +225,10 @@ export default function TextScanScreen() {
           <TextScanSuggestionChip
             key={suggestion}
             label={suggestion}
-            onPress={() => setQuery(suggestion)}
+            onPress={() => {
+              setQuery(suggestion);
+              setQuerySource('textscan');
+            }}
             accessibilityLabel={`Use suggestion: ${suggestion}`}
           />
         ))}
@@ -283,6 +303,7 @@ export default function TextScanScreen() {
 
   const handleScanAgain = () => {
     setQuery('');
+    setQuerySource('textscan');
     setTextScanResult(null);
     setTextScanError(null);
     setViewState('input');
