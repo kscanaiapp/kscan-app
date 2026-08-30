@@ -10,6 +10,15 @@
  * unexpected schemaVersion all resolve to disabled. Generation costs real
  * money and sends a user's photo to a third party: "we could not read the
  * switch" must never mean "proceed".
+ *
+ * AND FAILS CLOSED ON THE PROVIDER TOO. A config that is `enabled` but names
+ * no usable provider resolves to NO provider, not to the development mock.
+ * providers/index.ts already refuses to substitute the mock for an unknown
+ * provider id, but that guard sits one layer below this file and cannot see a
+ * default chosen here -- so a default of 'mock' here would have reintroduced
+ * exactly the silent fallback it exists to prevent, and served placeholder art
+ * to a real person as though it were a generation from their own photo. The
+ * mock is reachable only when an operator names it explicitly.
  */
 
 import { rest } from '../_shared/deletion/common.ts';
@@ -38,7 +47,10 @@ export interface VtoFeatureConfig {
 
 export const DISABLED_VTO_CONFIG: VtoFeatureConfig = Object.freeze({
   enabled: false,
-  provider: 'mock',
+  // Unconfigured, not 'mock'. A disabled config never reaches provider
+  // resolution today, but naming the development provider on the fail-closed
+  // constant is the kind of value that becomes load-bearing by accident.
+  provider: '',
   supportedCategories: DEFAULT_VTO_SUPPORTED_CATEGORIES,
   mockLatencyMs: null,
   mockScenario: null,
@@ -62,9 +74,13 @@ export function normalizeVtoFeatureConfig(payload: unknown): VtoFeatureConfig {
   if (raw.schemaVersion !== undefined && raw.schemaVersion !== 1) {
     return DISABLED_VTO_CONFIG;
   }
+  // No default. An absent, blank or non-string provider is 'unconfigured',
+  // which providers/index.ts resolves to `provider_unavailable` -- an operator
+  // who enables VTO without naming a provider gets a visible 503, not a
+  // silent mock generation.
   const provider = typeof raw.provider === 'string' && raw.provider.trim()
     ? raw.provider.trim()
-    : 'mock';
+    : '';
   const latency = typeof raw.mockLatencyMs === 'number' && Number.isFinite(raw.mockLatencyMs)
     ? Math.max(0, Math.min(60_000, Math.round(raw.mockLatencyMs)))
     : null;
