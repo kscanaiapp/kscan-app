@@ -6,8 +6,17 @@ name: Security - ZAP Baseline Staging
 
 on:
   workflow_call:
+  # ZAP targets the deployed staging environment (ZAP_STAGING_URL), not this
+  # workflow's own file diff, so any push/PR touching staging/production-parity
+  # is a legitimate reason to scan -- but with no branch filter at all this
+  # previously fired on every push and PR to every branch in the repository.
+  # Scoped to the one branch ZAP actually has anything to say about; the
+  # reusable `workflow_call:` invocation from staging-release-certification.yml
+  # ignores these branch filters entirely, so that path is unaffected.
   push:
+    branches: [staging/production-parity]
   pull_request:
+    branches: [staging/production-parity]
   workflow_dispatch:
 
 permissions:

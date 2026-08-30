@@ -81,6 +81,36 @@ jobs:
           echo "merge_sha=${SHA}" >> "$GITHUB_OUTPUT"
           echo "pull_request=${PR:-n/a}" >> "$GITHUB_OUTPUT"
 
+      # Staging Gate V2 Section 5: best-effort only - a NORMAL_PR-level
+      # "Project checks" run uploads this artifact from the Security - Code
+      # and Dependencies workflow (see security-code.yml); an
+      # INTEGRATION/RELEASE_PROMOTION-level run (or one that failed before
+      # the regression script ran at all) legitimately has none. Either way
+      # this step never fails the job - classifyProjectCheckFailure already
+      # fails closed to PROJECT_CI_OPERATIONAL_FAILURE when no report is
+      # found, exactly today's classification for an unexplained failure.
+      - name: Download Project checks regression report
+        id: project_check_report
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          SHA="${{ steps.sha.outputs.head_sha }}"
+          RUN_ID="$(gh run list --repo "${{ github.repository }}" --workflow=security-code.yml --json databaseId,headSha --jq ".[] | select(.headSha==\"${SHA}\") | .databaseId" | head -1)"
+          if [ -z "$RUN_ID" ]; then
+            echo "No Security - Code and Dependencies run found for ${SHA}."
+            exit 0
+          fi
+          mkdir -p /tmp/project-check-report
+          if gh run download "$RUN_ID" --repo "${{ github.repository }}" --dir /tmp/project-check-report --pattern 'project-checks-regression-*'; then
+            REPORT_PATH="$(find /tmp/project-check-report -name project-checks-regression.json | head -1)"
+            if [ -n "$REPORT_PATH" ]; then
+              echo "path=${REPORT_PATH}" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "No project-checks-regression artifact on run ${RUN_ID} (expected for INTEGRATION/RELEASE_PROMOTION-level runs, which use the flat suite instead)."
+          fi
+
       - name: Evaluate required security checks
         id: wait
         env:
@@ -91,7 +121,8 @@ jobs:
             --repo "${{ github.repository }}" \
             --sha "${{ steps.sha.outputs.head_sha }}" \
             --token "${{ github.token }}" \
-            --wait-seconds "${{ steps.sha.outputs.wait_seconds }}" || EC=$?
+            --wait-seconds "${{ steps.sha.outputs.wait_seconds }}" \
+            --project-check-report "${{ steps.project_check_report.outputs.path }}" || EC=$?
           if [ -f security/reports/promotion-verdict.json ]; then
             VERDICT="$(python3 -c "import json; print(json.load(open('security/reports/promotion-verdict.json', encoding='utf-8'))['finalVerdict'])")"
             echo "verdict=${VERDICT}" >> "$GITHUB_OUTPUT"

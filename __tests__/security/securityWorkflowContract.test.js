@@ -69,3 +69,70 @@ test('required security jobs are not conditionally skippable', () => {
     'no security job may be hard-disabled',
   );
 });
+
+// Staging Gate V2 Section 4: the base/head regression check needs the PR's
+// base commit to actually be present in the checkout, not just its shallow
+// tip.
+test('project-checks checkout uses full history (fetch-depth: 0)', () => {
+  const securityCode = workflowFiles.find((file) => file.name === 'security-code.yml');
+  const jobStart = securityCode.content.indexOf('project-checks:');
+  const jobEnd = securityCode.content.indexOf('\n  gitleaks:');
+  const jobBlock = securityCode.content.slice(jobStart, jobEnd === -1 ? undefined : jobEnd);
+  assert.match(jobBlock, /fetch-depth:\s*0/, 'project-checks must fetch full history for git worktree add <base_sha> to resolve');
+});
+
+// Staging Gate V2 Section 6: a docs-only PR should not require mobile
+// contract tests to run at all (still a real `skipped` conclusion, not a
+// missing check-run - branch protection is satisfied either way).
+test('contract-tests is gated off for docs-only classifications', () => {
+  const stagingGate = workflowFiles.find((file) => file.name === 'security-staging-gate.yml');
+  assert.ok(stagingGate, 'security-staging-gate.yml must exist');
+  const jobStart = stagingGate.content.indexOf('\n  contract-tests:');
+  const jobEnd = stagingGate.content.indexOf('\n  staging-security-gate:');
+  const jobBlock = stagingGate.content.slice(jobStart, jobEnd);
+  assert.match(
+    jobBlock,
+    /classifications\s*!=\s*'DOCUMENTATION ONLY'/,
+    'contract-tests must skip (not fail) for a purely documentation-only diff',
+  );
+});
+
+// This workflow is reused via workflow_call from staging-release-
+// certification.yml on every push to staging/production-parity
+// (RELEASE_PROMOTION). A docs-only exemption that fired there too would
+// let absolute-green silently tolerate a skipped contract-tests result on
+// the release line itself - Section 10 explicitly forbids that.
+test('the docs-only exemption for contract-tests is qualified by enforcement level, not classification alone', () => {
+  const stagingGate = workflowFiles.find((file) => file.name === 'security-staging-gate.yml');
+  const jobStart = stagingGate.content.indexOf('\n  contract-tests:');
+  const jobEnd = stagingGate.content.indexOf('\n  staging-security-gate:');
+  const jobBlock = stagingGate.content.slice(jobStart, jobEnd);
+  assert.match(
+    jobBlock,
+    /enforcement_level\s*!=\s*'NORMAL_PR'/,
+    'the docs-only skip must be scoped to NORMAL_PR level only',
+  );
+  // classify-changes must actually compute and expose that level for the
+  // gate above to reference.
+  const classifyOutputsBlock = stagingGate.content.slice(
+    stagingGate.content.indexOf('classify-changes:'),
+    stagingGate.content.indexOf('\n    steps:'),
+  );
+  assert.match(classifyOutputsBlock, /enforcement_level:/, 'classify-changes must expose an enforcement_level output');
+});
+
+// The aggregation step must tolerate that skip - a job this workflow itself
+// chooses not to run can never be "not success" in a way that blocks.
+test('staging-security-gate treats a skipped Contract tests result as passing, not blocking', () => {
+  const stagingGate = workflowFiles.find((file) => file.name === 'security-staging-gate.yml');
+  assert.doesNotMatch(
+    stagingGate.content,
+    /if\s*\[\s*"\$CONTRACT"\s*!=\s*"success"\s*\]/,
+    'CONTRACT must not be compared with != "success" - that reads a legitimate skip as a failure',
+  );
+  assert.match(
+    stagingGate.content,
+    /if\s*\[\s*"\$CONTRACT"\s*=\s*"failure"\s*\]/,
+    'CONTRACT should be compared the same tolerant way MIGRATION/HEALTH/SYNTHETIC already are',
+  );
+});
