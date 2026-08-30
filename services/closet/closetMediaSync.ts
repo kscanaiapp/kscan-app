@@ -275,19 +275,33 @@ export async function uploadClosetItemMedia(input: {
 }
 
 /**
- * Best-effort release of a tombstoned item's cloud objects.
+ * Release of a tombstoned item's cloud objects, with an OBSERVABLE result.
  *
  * Only ever the two exact deterministic paths derived from this user's id and
  * the item's server id — never a folder, never a prefix, never another item's
- * media. Failure is not propagated: the account-deletion worker (B1B) remains
- * the authority that guarantees eventual purge.
+ * media.
+ *
+ * `supabase.storage.remove()` reports failure through its returned `error`,
+ * not only through a thrown exception — a bare `await` that ignores the
+ * response therefore "succeeds" even when nothing was actually deleted. The
+ * caller (closetSyncEngine's delete handling) uses this result to decide
+ * whether the durable pending_delete evidence may be cleared: it must stay
+ * discoverable for a retry when `ok` is false, exactly the way a facts or
+ * media-upload failure already keeps its own retry evidence. The
+ * account-deletion worker (B1B) remains the backstop that guarantees eventual
+ * purge regardless — this only affects how soon an OUTBOUND delete's own
+ * cleanup is retried.
  */
-export async function releaseClosetItemMedia(userId: string, serverItemId: string): Promise<void> {
+export async function releaseClosetItemMedia(
+  userId: string,
+  serverItemId: string,
+): Promise<{ ok: boolean }> {
   try {
-    await supabase.storage
+    const { error } = await supabase.storage
       .from(CLOSET_MEDIA_BUCKET)
       .remove([buildClosetPrimaryPath(userId, serverItemId), buildClosetThumbnailPath(userId, serverItemId)]);
+    return { ok: !error };
   } catch {
-    /* best effort only */
+    return { ok: false };
   }
 }

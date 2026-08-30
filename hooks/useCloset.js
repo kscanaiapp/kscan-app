@@ -242,7 +242,17 @@ export function useCloset() {
       // delete: mark afterwards and a crash in between would destroy the only
       // record that a synced cloud row still needs a tombstone. See
       // services/closet/closetSyncCoordinator.ts for the full ordering rules.
-      const previousSyncEntry = await beforeClosetItemDeleted(actorId, id);
+      const precondition = await beforeClosetItemDeleted(actorId, id);
+      if (!precondition.allowed) {
+        // NOT cloud-gating the local Closet: this item is known to have a
+        // synced cloud row, and the local write required to durably remember
+        // "the user wants this gone" could not be completed. Proceeding
+        // would hard-delete the local record while leaving the cloud row
+        // live with no trace anywhere that deletion was ever requested.
+        // Surfaced as an ordinary failed removal — retrying is the correct
+        // recovery, same as any other local write hiccup.
+        return false;
+      }
       const ok = await deleteClosetItem(id, { ownerId: actorId });
       if (ok) {
         setSnapshot((current) =>
@@ -254,7 +264,7 @@ export function useCloset() {
       } else {
         // The local delete did not happen, so the cloud row must not be
         // tombstoned either.
-        await revertClosetItemDeleteMark(actorId, id, previousSyncEntry);
+        await revertClosetItemDeleteMark(actorId, id, precondition.previous);
       }
       return ok;
     },

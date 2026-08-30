@@ -96,7 +96,8 @@ function coerceEntry(raw: unknown): ClosetSyncEntry | null {
     lastFailureClass:
       value.lastFailureClass === 'retryable' ||
       value.lastFailureClass === 'permanent' ||
-      value.lastFailureClass === 'conflict'
+      value.lastFailureClass === 'conflict' ||
+      value.lastFailureClass === 'unexpected_authorization'
         ? value.lastFailureClass
         : null,
     conflictExpectedRowVersion: Number.isFinite(value.conflictExpectedRowVersion as number)
@@ -105,16 +106,42 @@ function coerceEntry(raw: unknown): ClosetSyncEntry | null {
   });
 }
 
+/**
+ * Best-effort preservation of an unreadable/malformed sidecar body.
+ *
+ * Section O: the sidecar now owns server ids, pending-delete evidence and row
+ * versions, so silently discarding a corrupt file is not free — the very next
+ * durable write (any save/edit/delete) would overwrite it with a fresh empty
+ * one, destroying the only trace that anything was ever recorded, including a
+ * pending_delete a cloud row is still waiting to be tombstoned by. This does
+ * not attempt to RECOVER the corrupt state (a JSON parse failure has no
+ * redundancy to recover from, and building one is a second persistence
+ * database, explicitly out of scope for this pass) — it only keeps the raw
+ * bytes somewhere a later investigation can find them, one snapshot deep.
+ * Never throws; a failure here must not block the degraded read it guards.
+ */
+async function quarantineCorruptSidecar(raw: string | null): Promise<void> {
+  if (raw === null) return;
+  try {
+    await FileSystem.writeAsStringAsync(`${SYNC_PATH}.corrupt`, raw, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+  } catch {
+    /* best effort only */
+  }
+}
+
 async function readFile(): Promise<SyncFile> {
+  let raw: string | null = null;
   try {
     const info = await FileSystem.getInfoAsync(SYNC_PATH);
     if (!info.exists) return emptyFile();
-    const raw = await FileSystem.readAsStringAsync(SYNC_PATH, {
+    raw = await FileSystem.readAsStringAsync(SYNC_PATH, {
       encoding: FileSystem.EncodingType.UTF8,
     });
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object' || !parsed.owners || typeof parsed.owners !== 'object') {
-      return emptyFile();
+      throw new Error('sidecar shape invalid');
     }
     const owners: SyncFile['owners'] = {};
     for (const [owner, entries] of Object.entries(parsed.owners as Record<string, unknown>)) {
@@ -128,9 +155,10 @@ async function readFile(): Promise<SyncFile> {
     }
     return { schemaVersion: CLOSET_SYNC_STATE_SCHEMA_VERSION, owners };
   } catch {
-    // A corrupt sidecar degrades to "nothing is known about any item", which
-    // is local_only for everything — the safe direction. It never fails a
-    // local Closet operation and never invents a synced state.
+    // A corrupt/unreadable sidecar degrades to "nothing is known about any
+    // item", which is local_only for everything — the safe direction. It
+    // never fails a local Closet operation and never invents a synced state.
+    await quarantineCorruptSidecar(raw);
     return emptyFile();
   }
 }
@@ -186,6 +214,19 @@ export async function updateClosetSyncEntry(
 }
 
 /**
+ * Result of attempting to durably record delete intent. A discriminated type
+ * rather than a bare nullable — see the note on markClosetItemPendingDelete
+ * for why `null` alone cannot be trusted here.
+ */
+export type ClosetDeleteMarkResult =
+  /** No cloud row exists (never synced, or already fully released). Nothing to protect. */
+  | { kind: 'no_evidence_needed' }
+  /** pending_delete was durably written. Safe to proceed with the local delete. */
+  | { kind: 'recorded'; entry: ClosetSyncEntry }
+  /** The write itself could not be completed. The caller must NOT delete locally. */
+  | { kind: 'persist_failed' };
+
+/**
  * Record that a synced item has been deleted locally, so the cloud tombstone
  * survives the local hard delete and an app restart.
  *
@@ -193,24 +234,60 @@ export async function updateClosetSyncEntry(
  * An item that was never synced (no entry, or no serverId) needs no cloud work
  * at all, so its entry is simply dropped — writing a pending_delete for a row
  * that does not exist would create permanent, unsatisfiable work.
+ *
+ * DELIBERATELY DOES NOT GO THROUGH updateClosetSyncEntry. That helper's
+ * `.catch(() => null)` makes "the mutate function legitimately returned null"
+ * (no evidence needed) indistinguishable from "the filesystem write itself
+ * threw" (evidence needed but LOST). For every other caller that ambiguity is
+ * harmless — worst case, stale bookkeeping is retried later. Here it is not:
+ * the caller uses this result to decide whether a HARD, irreversible local
+ * delete may proceed, so the two outcomes must be told apart. This function
+ * does its own read-decide-write atomically inside `enqueue` and reports
+ * exactly one of the three outcomes above; any exception anywhere in that
+ * sequence — including the internal read — becomes `persist_failed`, never a
+ * silent `no_evidence_needed`, because a read failure means we genuinely do
+ * not know whether a cloud row exists, and the safe direction when unsure is
+ * to block the delete, not to assume nothing needs protecting.
  */
 export async function markClosetItemPendingDelete(
   ownerId: string | null,
   clientId: string,
-): Promise<ClosetSyncEntry | null> {
-  return updateClosetSyncEntry(ownerId, clientId, (current) => {
-    if (!current || !current.serverId) return null;
-    return {
-      ...current,
-      state: 'pending_delete',
-      // A delete supersedes any prior failure: it is new work, eligible now,
-      // not a continuation of the backoff the previous operation had earned.
-      attemptCount: 0,
-      lastAttemptAt: null,
-      lastFailureClass: null,
-      conflictExpectedRowVersion: null,
-    };
-  });
+): Promise<ClosetDeleteMarkResult> {
+  try {
+    return await enqueue(async () => {
+      const file = await readFile();
+      const key = ownerKey(ownerId);
+      const partition = { ...(file.owners[key] ?? {}) };
+      const current = partition[clientId] ?? null;
+      if (!current || !current.serverId) {
+        // No disk write at all when there is nothing to change: a never-synced
+        // item (no entry) must be deletable even while the sidecar file itself
+        // is unwritable — there is genuinely nothing here for that failure to
+        // put at risk, so a write attempt must not manufacture a false
+        // persist_failed for it.
+        if (current) {
+          delete partition[clientId];
+          await writeFile({ ...file, owners: { ...file.owners, [key]: partition } });
+        }
+        return { kind: 'no_evidence_needed' } as const;
+      }
+      const next: ClosetSyncEntry = {
+        ...current,
+        state: 'pending_delete',
+        // A delete supersedes any prior failure: it is new work, eligible now,
+        // not a continuation of the backoff the previous operation had earned.
+        attemptCount: 0,
+        lastAttemptAt: null,
+        lastFailureClass: null,
+        conflictExpectedRowVersion: null,
+      };
+      partition[clientId] = next;
+      await writeFile({ ...file, owners: { ...file.owners, [key]: partition } });
+      return { kind: 'recorded', entry: next } as const;
+    });
+  } catch {
+    return { kind: 'persist_failed' };
+  }
 }
 
 /** Drop one account's entire partition. For sign-out/account-deletion paths. */
@@ -225,4 +302,10 @@ export async function purgeClosetSyncStateForOwner(ownerId: string | null): Prom
 }
 
 /** Test seam only. */
-export const __closetSyncStoreInternals = { SYNC_PATH, OWNERLESS_KEY, ownerKey, coerceEntry };
+export const __closetSyncStoreInternals = {
+  SYNC_PATH,
+  OWNERLESS_KEY,
+  ownerKey,
+  coerceEntry,
+  QUARANTINE_PATH: `${SYNC_PATH}.corrupt`,
+};

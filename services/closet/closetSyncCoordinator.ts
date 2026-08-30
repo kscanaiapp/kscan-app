@@ -38,6 +38,23 @@ import {
 import type { ClosetSyncEntry } from './closetSyncContract';
 
 /**
+ * Whether the local hard delete may proceed.
+ *
+ * `allowed: false` is NOT cloud-gating the local Closet — it is a failure of
+ * the local persistence transaction required to remember the user's
+ * destructive intent. A known-synced item (one with a serverId) whose
+ * pending_delete could not be durably written must not be hard-deleted: doing
+ * so would discard the local record while leaving the cloud row live and
+ * completely untracked, with no evidence anywhere that the user ever asked
+ * for it to go — B2C could later resurrect it as if it still existed. An
+ * item that was never synced, or that durably recorded the mark, is always
+ * `allowed: true`.
+ */
+export type ClosetDeletePrecondition =
+  | { allowed: true; previous: ClosetSyncEntry | null }
+  | { allowed: false; reason: 'durable_mark_failed' };
+
+/**
  * Call after a local create or edit has ALREADY succeeded.
  *
  * Fire-and-forget by design: the returned promise is for tests and for callers
@@ -55,22 +72,25 @@ export async function noteClosetItemSaved(ownerId: string | null, clientId: stri
 }
 
 /**
- * Capture delete evidence BEFORE the local hard delete removes the record.
+ * Capture delete evidence BEFORE the local hard delete removes the record,
+ * and report whether the local delete may actually proceed.
  *
- * Returns the entry as it was, so a failed local delete can be reverted. A
- * never-synced item returns null and needs no cloud work at all.
+ * The caller MUST check `.allowed` and refuse to call
+ * services/closetLibrary.js#deleteClosetItem when it is false — see
+ * ClosetDeletePrecondition for why. `previous` (the pre-mark entry) is
+ * carried through the `allowed: true` case so a later-refused local delete
+ * can be reverted via revertClosetItemDeleteMark.
  */
 export async function beforeClosetItemDeleted(
   ownerId: string | null,
   clientId: string,
-): Promise<ClosetSyncEntry | null> {
-  try {
-    const previous = await getClosetSyncEntry(ownerId, clientId);
-    await markClosetItemPendingDelete(ownerId, clientId);
-    return previous;
-  } catch {
-    return null;
+): Promise<ClosetDeletePrecondition> {
+  const previous = await getClosetSyncEntry(ownerId, clientId).catch(() => null);
+  const markResult = await markClosetItemPendingDelete(ownerId, clientId);
+  if (markResult.kind === 'persist_failed') {
+    return { allowed: false, reason: 'durable_mark_failed' };
   }
+  return { allowed: true, previous };
 }
 
 /**

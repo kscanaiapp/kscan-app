@@ -66,6 +66,13 @@ function loadTsSource(source, relativePath, requireMap = {}) {
 
 function makeFakeFileSystem(seed = {}) {
   const files = new Map(Object.entries(seed));
+  // Checked fresh on every call (not swapped in from outside) because
+  // ts.transpileModule's `import * as FileSystem` shallow-copies this
+  // object's properties at require time -- reassigning a property on `module`
+  // AFTER a test module has already loaded would not be observed by it. A
+  // mutable flag object read from inside the function body works regardless
+  // of when it's set.
+  const failWrites = { path: null, error: null };
   return {
     module: {
       documentDirectory: 'file:///doc/',
@@ -75,11 +82,17 @@ function makeFakeFileSystem(seed = {}) {
         if (!files.has(uri)) throw new Error(`ENOENT ${uri}`);
         return files.get(uri);
       },
-      writeAsStringAsync: async (uri, contents) => { files.set(uri, contents); },
+      writeAsStringAsync: async (uri, contents) => {
+        if (failWrites.path && uri.includes(failWrites.path)) {
+          throw failWrites.error ?? new Error('simulated durable write failure');
+        }
+        files.set(uri, contents);
+      },
       makeDirectoryAsync: async () => undefined,
       deleteAsync: async (uri) => { files.delete(uri); },
     },
     files,
+    failWrites,
   };
 }
 
@@ -235,6 +248,10 @@ function makeFakeSupabase(options = {}) {
             ? { data: { signedUrl: `https://signed.invalid/${objectPath}` }, error: null }
             : { data: null, error: { message: 'Object not found' } },
         remove: async (paths) => {
+          if (state.storageRemoveFails) {
+            // Storage reports a failed remove through `error`, not a throw.
+            return { data: null, error: { message: 'simulated remove failure' } };
+          }
           for (const p of paths) state.objects.delete(p);
           state.log.push({ op: 'remove', paths });
           return { error: null };
@@ -332,8 +349,14 @@ function buildHarness(options = {}) {
     './closetMediaSync': mediaSync,
   });
 
+  const coordinator = loadTsModule('services/closet/closetSyncCoordinator.ts', {
+    './closetSyncStore': store,
+    './closetSyncEngine': engine,
+    './closetSyncContract': contract,
+  });
+
   return {
-    contract, store, factsSync, mediaSync, engine,
+    contract, store, factsSync, mediaSync, engine, coordinator,
     supabase, state, telemetry, cleanupLog, fsFake,
     get sanitizeCalls() { return sanitizeCalls; },
     localItems,
@@ -660,7 +683,7 @@ test('DELETE: an item that never synced needs no cloud work and leaves no perman
   await h.engine.markClosetItemForSync('user-A', item.id);
   // Deleted before any sync ran: no serverId exists.
   const marked = await h.store.markClosetItemPendingDelete('user-A', item.id);
-  assert.equal(marked, null, 'no unsatisfiable pending_delete is written');
+  assert.equal(marked.kind, 'no_evidence_needed', 'no unsatisfiable pending_delete is written');
 });
 
 // ── 10. Account switch / 11. logout during operation ───────────────────────
@@ -1002,6 +1025,223 @@ test('DELETE: an item removed locally without an explicit mark is still tombston
   assert.ok(h.state.rows[0].deleted_at, 'local absence is treated as authoritative deletion');
 });
 
+// ── B2B REPAIR 1: the durable delete mark must actually be durable ─────────
+//
+// beforeClosetItemDeleted() previously discarded whatever
+// markClosetItemPendingDelete() reported and returned the pre-mark entry
+// regardless -- the caller (useCloset.js#remove) then proceeded to hard-delete
+// locally even when the sidecar write for a KNOWN-SYNCED item had thrown. That
+// is the exact resurrection path this section closes: cloud row exists, local
+// item deleted, zero durable evidence anywhere.
+
+test('DURABLE DELETE MARK: a synced item whose sidecar write fails MUST NOT be hard-deleted locally', async () => {
+  const item = localItem();
+  const h = buildHarness({ localItems: [item] });
+  await h.engine.markClosetItemForSync('user-A', item.id);
+  await h.engine.runClosetSyncPass();
+  assert.equal(h.state.rows.length, 1, 'the item is genuinely synced to the cloud');
+
+  // Inject a durable write failure on the sidecar path specifically.
+  h.fsFake.failWrites.path = 'kscan_closet_sync.json';
+
+  const precondition = await h.coordinator.beforeClosetItemDeleted('user-A', item.id);
+  assert.equal(precondition.allowed, false, 'a persist failure for a KNOWN-SYNCED item must refuse the delete');
+  assert.equal(precondition.reason, 'durable_mark_failed');
+
+  // The caller (useCloset.js) must not have called deleteClosetItem at all --
+  // simulate that contract directly: the local item is still here.
+  assert.equal(h.localItems.length, 1, 'the local item was never removed');
+
+  // No false tombstone success: the cloud row is untouched, still not deleted.
+  assert.equal(h.state.rows[0].deleted_at, null, 'no tombstone was ever attempted or claimed');
+});
+
+test('DURABLE DELETE MARK: an unsynced/local-only item deletes normally, needing no cloud metadata at all', async () => {
+  const item = localItem();
+  const h = buildHarness({ localItems: [item] });
+  // Deliberately never synced: no markClosetItemForSync, no pass run.
+  h.fsFake.failWrites.path = 'kscan_closet_sync.json'; // even with writes failing...
+  const precondition = await h.coordinator.beforeClosetItemDeleted('user-A', item.id);
+  assert.equal(precondition.allowed, true, '...a never-synced item has nothing to protect and may still delete');
+});
+
+test('NEGATIVE CONTROL — DURABLE DELETE MARK: discarding the mark result would let the delete proceed anyway', async () => {
+  const source = fs.readFileSync(path.join(ROOT, 'services', 'closet', 'closetSyncCoordinator.ts'), 'utf8');
+  const guard = "if (markResult.kind === 'persist_failed') {";
+  assert.ok(source.includes(guard), 'expected the persist_failed guard to be present');
+  // Reproduce the ORIGINAL defect: discard the mark result, always allow.
+  const mutated = source.replace(
+    /export async function beforeClosetItemDeleted[\s\S]*?\n}\n/,
+    `export async function beforeClosetItemDeleted(ownerId, clientId) {
+  const previous = await getClosetSyncEntry(ownerId, clientId).catch(() => null);
+  await markClosetItemPendingDelete(ownerId, clientId);
+  return { allowed: true, previous };
+}
+`,
+  );
+  assert.ok(!mutated.includes(guard), 'the mutation must actually remove the guard');
+
+  const contract = loadTsModule('services/closet/closetSyncContract.ts', {});
+  const store = loadTsModule('services/closet/closetSyncStore.ts', {
+    'expo-file-system/legacy': makeFakeFileSystem().module,
+    './closetSyncContract': contract,
+  });
+  const mutatedCoordinator = loadTsSource(mutated, 'services/closet/closetSyncCoordinator.ts', {
+    './closetSyncStore': store,
+    './closetSyncEngine': { isClosetCloudSyncEligible: () => true, markClosetItemForSync: async () => {}, runClosetSyncPass: async () => {} },
+    './closetSyncContract': contract,
+  });
+
+  // Force the underlying store write to fail.
+  const originalUpdate = store.updateClosetSyncEntry;
+  store.updateClosetSyncEntry = async () => { throw new Error('disk full'); };
+  const mutantResult = await mutatedCoordinator.beforeClosetItemDeleted('user-A', 'closet_x');
+  assert.equal(mutantResult.allowed, true, 'MUTANT: allows the delete despite the durable write having failed');
+  store.updateClosetSyncEntry = originalUpdate;
+});
+
+// ── B2B REPAIR 2: media delete failure must remain discoverable ────────────
+//
+// releaseClosetItemMedia() previously ignored the `error` Supabase Storage's
+// remove() reports through its RETURN VALUE (not an exception), so a failed
+// cleanup looked identical to a successful one -- and the sidecar entry was
+// cleared unconditionally right after, making the failure permanently
+// unrecoverable.
+
+test('MEDIA CLEANUP DISCOVERABILITY: Storage remove() failure keeps pending_delete; a later pass retries and clears it', async () => {
+  const item = localItem();
+  const h = buildHarness({ localItems: [item] });
+  await h.engine.markClosetItemForSync('user-A', item.id);
+  await h.engine.runClosetSyncPass();
+  assert.equal(h.state.rows[0].media_status, 'ready');
+  const serverId = h.state.rows[0].id;
+
+  // Tombstone succeeds; Storage remove() reports { error } (not a throw).
+  h.state.storageRemoveFails = true;
+  await h.store.markClosetItemPendingDelete('user-A', item.id);
+  h.localItems.length = 0;
+  await h.engine.runClosetSyncPass();
+
+  assert.ok(h.state.rows[0].deleted_at, 'the cloud tombstone IS established and never rolled back');
+  const entryAfterFailedCleanup = await h.store.getClosetSyncEntry('user-A', item.id);
+  assert.equal(entryAfterFailedCleanup.state, 'pending_delete', 'sidecar entry survives so a later pass retries cleanup');
+  assert.ok(h.state.objects.size > 0, 'the Storage objects are still live -- cleanup genuinely did not happen');
+
+  // Reconnect / retry: Storage succeeds this time.
+  h.state.storageRemoveFails = false;
+  await h.store.updateClosetSyncEntry('user-A', item.id, (c) => ({ ...c, lastAttemptAt: null }));
+  await h.engine.runClosetSyncPass();
+
+  assert.equal(h.state.objects.size, 0, 'the retry actually removed the objects');
+  assert.equal(await h.store.getClosetSyncEntry('user-A', item.id), null, 'evidence is cleared only once cleanup truly succeeded');
+  void serverId;
+});
+
+test('NEGATIVE CONTROL — MEDIA CLEANUP DISCOVERABILITY: ignoring the release result makes a failed cleanup undiscoverable', async () => {
+  const source = fs.readFileSync(path.join(ROOT, 'services', 'closet', 'closetSyncEngine.ts'), 'utf8');
+  const guard = 'const mediaRelease = await releaseClosetItemMedia(userId, entry.serverId);\n    if (!mediaRelease.ok) {';
+  assert.ok(source.includes(guard), 'expected the media-release-ok guard to be present');
+  const mutated = source.replace(
+    guard,
+    'await releaseClosetItemMedia(userId, entry.serverId);\n    if (false) {',
+  );
+  assert.ok(!mutated.includes(guard), 'the mutation must actually remove the guard');
+
+  const contract = loadTsModule('services/closet/closetSyncContract.ts', {});
+  const fsFake = makeFakeFileSystem();
+  const store = loadTsModule('services/closet/closetSyncStore.ts', {
+    'expo-file-system/legacy': fsFake.module,
+    './closetSyncContract': contract,
+  });
+  const { supabase, state } = makeFakeSupabase();
+  state.rows.push({
+    id: 'srv-del1', user_id: 'user-A', client_id: 'closet_del1', row_version: 1,
+    deleted_at: null, storage_bucket: 'style-library-images',
+    storage_path: 'user-A/closet/srv-del1-primary.jpg',
+    thumbnail_storage_path: 'user-A/closet/srv-del1-thumb.jpg',
+    media_status: 'ready', media_uploaded_at: new Date(0).toISOString(),
+  });
+  state.objects.set('user-A/closet/srv-del1-primary.jpg', 10);
+  state.objects.set('user-A/closet/srv-del1-thumb.jpg', 10);
+  state.storageRemoveFails = true;
+  await store.updateClosetSyncEntry('user-A', 'closet_del1', () => contract.createSyncEntry({
+    state: 'pending_delete', serverId: 'srv-del1', serverRowVersion: 1, mediaState: 'ready',
+  }));
+
+  const actorContext = { createActorRequest: () => ({ actorId: 'user-A', epoch: 1, requestId: 'r1' }), isActorRequestCurrent: () => true };
+  const mediaSync = loadTsModule('services/closet/closetMediaSync.ts', {
+    'expo-file-system/legacy': fsFake.module,
+    '../supabaseClient': { supabase },
+    '../closetMediaPrivacy': { sanitizeClosetMedia: async () => safeSanitizeResult([]) },
+    './closetSyncContract': contract,
+  });
+  const factsSync = loadTsModule('services/closet/closetFactsSync.ts', {
+    '../supabaseClient': { supabase }, './closetSyncContract': contract,
+  });
+  const mutatedEngine = loadTsSource(mutated, 'services/closet/closetSyncEngine.ts', {
+    '../../constants/featureFlags': { CLOSET_CLOUD_SYNC_V1: true },
+    '../actorContext': actorContext,
+    '../kplus/kplusEntitlementStore': { getKPlusEntitlementSnapshot: () => ({ state: 'active' }) },
+    '../closetLibrary': { loadCloset: async () => [] },
+    '../supabaseClient': { supabase },
+    '../closetTelemetry': { emitClosetCandidateEvent: () => {} },
+    './closetSyncContract': contract,
+    './closetSyncStore': store,
+    './closetFactsSync': factsSync,
+    './closetMediaSync': mediaSync,
+  });
+
+  await mutatedEngine.runClosetSyncPass();
+  assert.equal(state.objects.size, 2, 'MUTANT: the Storage objects are still live...');
+  assert.equal(
+    await store.getClosetSyncEntry('user-A', 'closet_del1'),
+    null,
+    'MUTANT: ...yet the sidecar entry was cleared anyway -- the failed cleanup is now undiscoverable',
+  );
+});
+
+// ── B2B REPAIR 3: unexpected authorization refusals must be observable ─────
+
+test('AUTH CLASSIFICATION: a 401/403/42501 during an already-K+-active pass is recorded as unexpected_authorization, and still resumes', async () => {
+  const item = localItem();
+  const h = buildHarness({
+    localItems: [item],
+    failures: { insert: { table: 'user_closet_items', error: { code: '42501', message: 'new row violates row-level security policy' } } },
+  });
+  await h.engine.markClosetItemForSync('user-A', item.id);
+  const result = await h.engine.runClosetSyncPass();
+  assert.equal(result.failed, 1);
+
+  const entry = await h.store.getClosetSyncEntry('user-A', item.id);
+  assert.equal(entry.lastFailureClass, 'unexpected_authorization', 'observable and distinguishable from a plain network blip');
+
+  // K+ reactivation must not be stranded by this classification: the SAME
+  // engine, once the refusal clears, resumes normally -- no permanent state.
+  delete h.state.failures.insert;
+  await h.store.updateClosetSyncEntry('user-A', item.id, (c) => ({ ...c, lastAttemptAt: null }));
+  const resumed = await h.engine.runClosetSyncPass();
+  assert.equal(resumed.synced, 1, 'resumes exactly like an ordinary retryable failure once the refusal clears');
+});
+
+// ── B2B REPAIR (review): sidecar corruption is quarantined, not silently lost ──
+
+test('SIDECAR CORRUPTION: a malformed sidecar degrades to empty (safe) but the raw bytes are preserved for investigation', async () => {
+  const fsFake = makeFakeFileSystem({
+    'file:///doc/kscan_closet/kscan_closet_sync.json': '{not valid json',
+  });
+  const contract = loadTsModule('services/closet/closetSyncContract.ts', {});
+  const store = loadTsModule('services/closet/closetSyncStore.ts', {
+    'expo-file-system/legacy': fsFake.module,
+    './closetSyncContract': contract,
+  });
+
+  const entries = await store.listClosetSyncEntries('user-A');
+  assert.equal(Object.keys(entries).length, 0, 'a corrupt sidecar degrades to "nothing is known", never a crash or an invented synced state');
+
+  const quarantined = fsFake.files.get(store.__closetSyncStoreInternals.QUARANTINE_PATH);
+  assert.equal(quarantined, '{not valid json', 'the unreadable body is preserved rather than silently destroyed by the next write');
+});
+
 test('ROW VERSION: a stale client write is refused, the local item is retained, evidence is recorded', async () => {
   const item = localItem();
   const h = buildHarness({ localItems: [item] });
@@ -1081,10 +1321,11 @@ test('RETRY: a permanent failure never becomes work again automatically', () => 
   assert.equal(contract.needsSyncWork(entry, '2026-01-01T00:00:00.000Z', Date.now()), false);
 });
 
-test('RETRY: RLS/entitlement refusals are retryable, contract violations are permanent', () => {
+test('RETRY: RLS/entitlement refusals are observable as unexpected_authorization (still retryable), contract violations are permanent', () => {
   const contract = loadTsModule('services/closet/closetSyncContract.ts', {});
-  assert.equal(contract.classifySyncFailure({ code: '42501' }), 'retryable', 'K+ lapse resolves on its own');
-  assert.equal(contract.classifySyncFailure({ status: 403 }), 'retryable');
+  assert.equal(contract.classifySyncFailure({ code: '42501' }), 'unexpected_authorization', 'K+ lapse resolves on its own, but must be distinguishable from a plain network blip');
+  assert.equal(contract.classifySyncFailure({ status: 403 }), 'unexpected_authorization');
+  assert.equal(contract.classifySyncFailure({ status: 401 }), 'unexpected_authorization');
   assert.equal(contract.classifySyncFailure({ code: '23514' }), 'permanent', 'CHECK violation would recur');
   assert.equal(contract.classifySyncFailure({ message: 'Network request failed' }), 'retryable');
   assert.equal(contract.classifySyncFailure(null), 'retryable', 'unknown fails toward retryable');
