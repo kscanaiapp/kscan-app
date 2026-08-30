@@ -104,8 +104,15 @@ export interface StorageResourceTemplate {
 // (style-library-images/{userId}/saved-scans/{savedScanId}.jpg). Previously
 // absent here (though already present in the JSON-backed worker registry),
 // so the automated worker never purged saved-scan images on account deletion.
+//
+// {userId}/closet is Build 34 Track B B1C cloud Closet media
+// (style-library-images/{userId}/closet/{closetItemId}-primary.jpg and
+// -thumb.jpg). Both objects sit DIRECTLY under this prefix on purpose: the
+// enumerator below (listPrefixPaths / listStoragePrefix) is not recursive and
+// does not filter on metadata, so a nested {closetItemId}/ sub-folder would
+// yield an undeletable folder path and orphan the media permanently.
 export const STORAGE_RESOURCE_TEMPLATES: StorageResourceTemplate[] = [
-  { bucket: 'style-library-images', prefixTemplates: ['{userId}/scans', '{userId}/inspirations', '{userId}/saved-scans'] },
+  { bucket: 'style-library-images', prefixTemplates: ['{userId}/scans', '{userId}/inspirations', '{userId}/saved-scans', '{userId}/closet'] },
 ];
 
 export const STORAGE_RESOURCES = STORAGE_RESOURCE_TEMPLATES.map((resource) => ({

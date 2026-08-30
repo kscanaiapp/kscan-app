@@ -12,7 +12,7 @@
   "storage": [
     {
       "bucket": "style-library-images",
-      "prefixTemplates": ["{userId}/scans", "{userId}/inspirations", "{userId}/saved-scans"]
+      "prefixTemplates": ["{userId}/scans", "{userId}/inspirations", "{userId}/saved-scans", "{userId}/closet"]
     }
   ],
   "tables": [

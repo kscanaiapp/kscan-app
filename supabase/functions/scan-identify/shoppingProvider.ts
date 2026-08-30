@@ -18,6 +18,21 @@ export interface RecommendedProduct {
   type: 'retail' | 'similar';
   imageUrl?: string;
   productUrl?: string;
+  /**
+   * v124 — product brand, when the provider actually declares one.
+   *
+   * Additive and always optional: never inferred from the title, never derived
+   * from `source` (which is retailer identity, not brand, and must stay out of
+   * ranking). Serper and Brave do not supply a brand field, so this stays
+   * undefined for those providers rather than being fabricated.
+   */
+  brand?: string;
+  /**
+   * v126 — retail vs. resale provenance, when the provider declares one.
+   * Provenance only: it must never carry a ranking bonus or penalty
+   * (retailer-neutrality is a hard rule — see scanCommerceRouter.ts).
+   */
+  commerceType?: 'retail' | 'resale';
 }
 
 export interface ShoppingResult {
@@ -67,6 +82,31 @@ const LOW_VALUE_HOSTS = [
   'wikipedia.org', 'wikimedia.org', 'reddit.com', 'quora.com',
   'youtube.com', 'pinterest.com', 'fandom.com',
 ];
+
+/**
+ * Search/aggregator intermediaries — a results or redirect page rather than a
+ * place to buy the item. This is deliberately NOT a retailer list: it names only
+ * the generic middlemen, so every actual retailer stays equally eligible and
+ * retailer neutrality is preserved.
+ */
+const AGGREGATOR_HOSTS = [
+  'google.com', 'google.co.uk', 'googleadservices.com', 'googleusercontent.com',
+  'shopping.google.com', 'bing.com', 'duckduckgo.com', 'search.yahoo.com',
+];
+
+/**
+ * Hosts that must never be reachable as a commerce destination. A product feed
+ * is untrusted input, so a URL pointing at localhost or RFC1918 space is treated
+ * as hostile rather than merely useless.
+ */
+function isPrivateHost(host: string): boolean {
+  if (host === 'localhost' || host.endsWith('.localhost') || host === '::1') return true;
+  if (/^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host)) return true;
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(host)) return true;
+  // Link-local, including the cloud metadata endpoint.
+  if (/^169\.254\./.test(host)) return true;
+  return false;
+}
 
 // ── Env access (Deno) ────────────────────────────────────────────────────────
 
@@ -127,7 +167,13 @@ export function normalizeUrl(url: unknown): string | undefined {
   } catch {
     return undefined;
   }
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return undefined;
+  // A commerce destination is opened in the user's browser straight from
+  // untrusted provider metadata, so anything but plain HTTPS is rejected here:
+  // javascript:, data:, file: and every other scheme, plus embedded credentials
+  // and internal network targets.
+  if (parsed.protocol !== 'https:') return undefined;
+  if (parsed.username || parsed.password) return undefined;
+  if (!parsed.hostname || isPrivateHost(parsed.hostname.toLowerCase())) return undefined;
   // Strip common tracking params for cleaner dedupe + privacy.
   const drop = ['gclid', 'fbclid', 'msclkid', 'mc_eid', 'mc_cid', '_hsenc', '_hsmi'];
   for (const key of [...parsed.searchParams.keys()]) {
@@ -263,14 +309,14 @@ function logProvider(
 
 // ── Serper (primary) ─────────────────────────────────────────────────────────
 
-async function callSerper(query: string, limit: number): Promise<{ products: RecommendedProduct[]; errorType?: string }> {
+async function callSerper(query: string, limit: number, timeoutMs = PROVIDER_TIMEOUT_MS): Promise<{ products: RecommendedProduct[]; errorType?: string }> {
   const key = readEnv('SHOPPING_SERPER_API_KEY');
   if (!key) {
     logProvider('serper', 0, 0, 0, 'no_key');
     return { products: [], errorType: 'no_key' };
   }
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), Math.min(timeoutMs, PROVIDER_TIMEOUT_MS));
   const started = Date.now();
   try {
     const res = await fetch(SERPER_URL, {
@@ -310,7 +356,10 @@ function mapSerperItems(items: unknown[], limit: number): RecommendedProduct[] {
     const it = raw as Record<string, unknown>;
     const title = str(it.title);
     if (!title) continue;
-    const productUrl = normalizeUrl(it.productLink) ?? normalizeUrl(it.link);
+    // Serper returns both the merchant offer link and the search-engine product
+    // page, and which key holds which is not guaranteed — so prefer whichever
+    // one actually resolves to a retailer.
+    const productUrl = selectRetailerDestination([it.productLink, it.link]);
     if (!productUrl) continue;
     const dedupeKey = productUrl.toLowerCase();
     if (seen.has(dedupeKey)) continue;
@@ -332,14 +381,14 @@ function mapSerperItems(items: unknown[], limit: number): RecommendedProduct[] {
 
 // ── Brave (fallback) ─────────────────────────────────────────────────────────
 
-async function callBrave(query: string, limit: number): Promise<{ products: RecommendedProduct[]; errorType?: string }> {
+async function callBrave(query: string, limit: number, timeoutMs = PROVIDER_TIMEOUT_MS): Promise<{ products: RecommendedProduct[]; errorType?: string }> {
   const key = readEnv('SHOPPING_BRAVE_API_KEY');
   if (!key) {
     logProvider('brave', 0, 0, 0, 'no_key');
     return { products: [], errorType: 'no_key' };
   }
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), Math.min(timeoutMs, PROVIDER_TIMEOUT_MS));
   const started = Date.now();
   try {
     const url = `${BRAVE_URL}?q=${encodeURIComponent(query)}&count=${limit}`;
@@ -375,6 +424,32 @@ async function callBrave(query: string, limit: number): Promise<{ products: Reco
 function isLowValueHost(host: string | undefined): boolean {
   if (!host) return false;
   return LOW_VALUE_HOSTS.some((bad) => host === bad || host.endsWith(`.${bad}`));
+}
+
+/** True when the URL lands on a search/aggregator intermediary, not a retailer. */
+export function isAggregatorDestination(url: string | undefined): boolean {
+  const host = hostnameOf(url);
+  if (!host) return false;
+  return AGGREGATOR_HOSTS.some((bad) => host === bad || host.endsWith(`.${bad}`));
+}
+
+/**
+ * Applies the destination priority contract to the URLs a single provider item
+ * offers: a verified retailer destination always beats a generic aggregator or
+ * redirect page, and the aggregator is kept only as a last-resort fallback.
+ *
+ * Selection is by URL, never by field name. Providers disagree about which key
+ * holds the merchant link versus the search-engine product page, and the same
+ * key can carry either one, so classifying the destination is the only check
+ * that stays correct across providers and schema changes.
+ */
+export function selectRetailerDestination(candidates: unknown[]): string | undefined {
+  const normalized: string[] = [];
+  for (const candidate of candidates) {
+    const url = normalizeUrl(candidate);
+    if (url && !normalized.includes(url)) normalized.push(url);
+  }
+  return normalized.find((url) => !isAggregatorDestination(url)) ?? normalized[0];
 }
 
 function mapBraveResults(results: unknown[], limit: number): RecommendedProduct[] {
@@ -422,7 +497,9 @@ function mapBraveResults(results: unknown[], limit: number): RecommendedProduct[
  * Serper is primary (retail cards); Brave is fallback (similar web links).
  * Controlled by the SHOPPING_ENABLED kill switch (enabled unless "false").
  */
-export async function getShoppingResults(input: { query: string; limit?: number }): Promise<ShoppingResult> {
+export async function getShoppingResults(
+  input: { query: string; limit?: number; timeoutMs?: number },
+): Promise<ShoppingResult> {
   const query = collapseSpaces(str(input.query));
   const limit = clampLimit(input.limit, DEFAULT_LIMIT);
 
@@ -435,6 +512,12 @@ export async function getShoppingResults(input: { query: string; limit?: number 
     return { products: [], provider: 'none', query, errorType: 'empty_query' };
   }
 
+  // v127: a caller-supplied deadline only ever shortens this provider's own
+  // ceiling, never extends it.
+  const providerTimeoutMs = typeof input.timeoutMs === 'number' && input.timeoutMs > 0
+    ? Math.min(input.timeoutMs, PROVIDER_TIMEOUT_MS)
+    : PROVIDER_TIMEOUT_MS;
+
   const cacheKey = query.toLowerCase();
   const cached = cacheGet(cacheKey);
   if (cached) {
@@ -442,7 +525,7 @@ export async function getShoppingResults(input: { query: string; limit?: number 
   }
 
   // 1. Serper primary.
-  const serper = await callSerper(query, limit);
+  const serper = await callSerper(query, limit, providerTimeoutMs);
   if (serper.products.length > 0) {
     const result: ShoppingResult = {
       products: serper.products.slice(0, limit),
@@ -455,7 +538,7 @@ export async function getShoppingResults(input: { query: string; limit?: number 
 
   // 2. Brave fallback (Serper failed / timed out / quota / no usable results).
   const braveLimit = clampLimit(Math.max(BRAVE_MIN, limit), DEFAULT_LIMIT);
-  const brave = await callBrave(query, braveLimit);
+  const brave = await callBrave(query, braveLimit, providerTimeoutMs);
   if (brave.products.length > 0) {
     const result: ShoppingResult = {
       products: brave.products.slice(0, braveLimit),
