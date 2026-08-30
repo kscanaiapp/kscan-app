@@ -61,7 +61,16 @@ export interface StyleDnaSupabaseClient {
   from(table: string): {
     select: (columns: string) => any;
   };
-  rpc(fn: string, args: Record<string, unknown>): Promise<{ data: any; error: any }>;
+  /**
+   * Supabase `.rpc()` returns a thenable PostgrestFilterBuilder, NOT a full
+   * Promise (it has no `.catch`, `.finally`, or `[Symbol.toStringTag]`).
+   * Declaring `Promise` here made a real SupabaseClient fail to satisfy this
+   * interface, so `deno check` on stylechat-generate/index.ts reported TS2322
+   * at the call site. `PromiseLike` is the shape the repository already
+   * settled on for exactly this quirk — see generationSafety.ts's
+   * GenerationRpcClient — and `await` behaves identically.
+   */
+  rpc(fn: string, args: Record<string, unknown>): PromiseLike<{ data: any; error: any }>;
 }
 
 function mapClosetRow(raw: Record<string, any>): StyleDnaClosetFactsRow {
