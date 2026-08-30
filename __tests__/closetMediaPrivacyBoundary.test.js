@@ -48,6 +48,36 @@ function loadTsModule(relativePath, requireMap = {}) {
   return mod.exports;
 }
 
+/** Loads a SOURCE STRING as if it were relativePath — used only by negative
+ * controls to run a deliberately mutated in-memory copy. The real file on
+ * disk is never touched. */
+function loadTsSource(source, relativePath, requireMap = {}) {
+  const filename = path.join(ROOT, relativePath);
+  const output = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2020,
+      esModuleInterop: true,
+    },
+  }).outputText;
+  const mod = { exports: {} };
+  const sandbox = {
+    __DEV__: false,
+    console,
+    exports: mod.exports,
+    module: mod,
+    Date, Math, Number, Object, Array, JSON, String, Boolean, Promise, Set, Error,
+    require: (id) => {
+      if (id in requireMap) return requireMap[id];
+      if (id.startsWith('node:')) return require(id);
+      throw new Error(`Unexpected require: ${id}`);
+    },
+  };
+  sandbox.globalThis = sandbox;
+  vm.runInNewContext(output, sandbox, { filename });
+  return mod.exports;
+}
+
 const SOURCE_URI = 'file:///photos/original-with-a-face.jpg';
 const SANITIZED_URI = 'file:///app-cache/kscan-privacy/san-verified.png';
 const NAMESPACE = 'file:///app-cache/kscan-privacy/';
@@ -328,19 +358,117 @@ test('a thumbnail failure blocks and removes the already-written primary', async
   assert.ok(h.deleted.includes(h.created[0]), 'the orphaned primary must be deleted');
 });
 
-test('an oversize derivative is rejected rather than uploaded', async () => {
+test('an oversize derivative is rejected rather than uploaded, and the orphaned file is deleted', async () => {
   const h = buildHarness({
     getInfoAsync: async () => ({ exists: true, size: 9 * 1024 * 1024 }),
   });
   const result = await h.closetMediaPrivacy.sanitizeClosetMedia(SOURCE_URI);
   assert.equal(result.status, 'BLOCKED');
   assert.equal(result.reason, 'primary_failed');
+  assert.equal(h.created.length, 1, 'the oversize derivative still got written to disk');
+  assert.ok(h.deleted.includes(h.created[0]), 'an oversize derivative must not be left orphaned in the privacy cache');
 });
 
-test('an empty encoded artifact is rejected', async () => {
+test('an empty encoded artifact is rejected, and the orphaned file is deleted', async () => {
   const h = buildHarness({ getInfoAsync: async () => ({ exists: true, size: 0 }) });
   const result = await h.closetMediaPrivacy.sanitizeClosetMedia(SOURCE_URI);
   assert.equal(result.status, 'BLOCKED');
+  assert.equal(h.created.length, 1, 'the zero-byte derivative still got written to disk');
+  assert.ok(
+    h.deleted.includes(h.created[0]),
+    'REGRESSION: a zero-length derivative must be cleaned up before rethrowing, not left as an orphan the outer cleanup can never reach (primary/thumbnail stay null in sanitizeClosetMedia when encodeDerivative throws before returning)',
+  );
+});
+
+test('REGRESSION: measurement throwing after the move still cleans up the orphaned derivative', async () => {
+  // Distinct from the zero-length case above: here FileSystem.getInfoAsync
+  // itself rejects (a real read/stat failure), rather than resolving with a
+  // usable-but-empty result. Before the fix, only the oversize branch called
+  // deletePrivacyArtifact; any other post-move failure — including this one —
+  // threw straight out of encodeDerivative with the file already moved into
+  // the privacy cache and no reference to it left for sanitizeClosetMedia's
+  // outer finally to clean up.
+  const h = buildHarness({
+    getInfoAsync: async () => {
+      throw new Error('stat failed');
+    },
+  });
+  const result = await h.closetMediaPrivacy.sanitizeClosetMedia(SOURCE_URI);
+  assert.equal(result.status, 'BLOCKED');
+  assert.equal(result.reason, 'primary_failed');
+  assert.equal(h.created.length, 1, 'the derivative was moved into the privacy cache before measurement ran');
+  assert.ok(h.deleted.includes(h.created[0]), 'a measurement failure must not leave the moved derivative orphaned');
+});
+
+test("NEGATIVE CONTROL: sanitizeClosetMedia's own finally cannot reach an orphan encodeDerivative fails to return", async () => {
+  // Proves the earlier tests are evidence, not decoration: encodeDerivative's
+  // own try/catch is REQUIRED. sanitizeClosetMedia only assigns its local
+  // `primary`/`thumbnail` from encodeDerivative's return value, so a version
+  // of encodeDerivative that throws BEFORE cleaning up leaves no reference
+  // anywhere for the outer finally to delete — this in-memory mutation
+  // reproduces exactly that (real source file untouched).
+  const source = fs.readFileSync(path.join(ROOT, 'services', 'closetMediaPrivacy.ts'), 'utf8');
+  const guardStart = source.indexOf('  try {\n    const byteLength = await measure(destination);');
+  assert.notEqual(guardStart, -1, 'expected encodeDerivative\'s post-move try to be present');
+  const guardEnd = source.indexOf('\n}', guardStart);
+  const unguarded =
+    source.slice(0, guardStart) +
+    `  const byteLength = await measure(destination);
+  if (byteLength <= 0) throw new Error('encoded artifact is empty');
+  if (byteLength > CLOSET_MEDIA_MAX_BYTES) {
+    await deletePrivacyArtifact(destination);
+    throw new Error('encoded artifact exceeds the contract size ceiling');
+  }
+  return {
+    uri: destination,
+    width: rendered.width ?? width,
+    height: rendered.height ?? 0,
+    byteLength,
+  };` +
+    source.slice(guardEnd);
+  assert.doesNotMatch(unguarded, /try \{\n    const byteLength/, 'the mutation must actually remove the cleanup try/catch');
+
+  const created = [];
+  const deleted = [];
+  const mutated = loadTsSource(unguarded, 'services/closetMediaPrivacy.ts', {
+    'expo-image-manipulator': {
+      manipulateAsync: async (uri, ops) => ({ uri: `file:///tmp/r.jpg`, width: ops[0].resize.width, height: 100 }),
+      SaveFormat: { JPEG: 'jpeg' },
+    },
+    'expo-file-system/legacy': {
+      getInfoAsync: async () => ({ exists: true, size: 0 }),
+      moveAsync: async () => {},
+    },
+    './privacy/privacyBoundary': {
+      prepareImageForDispatch: async () => ({
+        status: 'SANITIZED_AND_VERIFIED',
+        sanitizedUri: SANITIZED_URI,
+        proof: completedProof(),
+        cleanup: async () => {},
+      }),
+      isImageDispatchAllowed: () => true,
+    },
+    './privacy/privacyArtifactStore': {
+      ensurePrivacyArtifactDir: async () => NAMESPACE,
+      createArtifactPath: (kind, ext) => {
+        const p = `${NAMESPACE}${kind}-${created.length}.${ext}`;
+        created.push(p);
+        return p;
+      },
+      deletePrivacyArtifact: async (uri) => { if (uri) deleted.push(uri); return true; },
+    },
+  });
+
+  const result = await mutated.sanitizeClosetMedia(SOURCE_URI);
+  assert.equal(result.status, 'BLOCKED', 'the mutated version still blocks correctly');
+  assert.equal(created.length, 1, 'the mutated version still wrote the derivative to disk');
+  assert.equal(deleted.length, 0, 'without the guard, the orphaned derivative is NEVER cleaned up');
+
+  // The real, unmodified file does not have this gap.
+  const h = buildHarness({ getInfoAsync: async () => ({ exists: true, size: 0 }) });
+  const realResult = await h.closetMediaPrivacy.sanitizeClosetMedia(SOURCE_URI);
+  assert.equal(realResult.status, 'BLOCKED');
+  assert.ok(h.deleted.includes(h.created[0]), 'the real file cleans up the same orphan the mutation leaves behind');
 });
 
 test('a non-local or unsupported input is refused before any image work', async () => {
