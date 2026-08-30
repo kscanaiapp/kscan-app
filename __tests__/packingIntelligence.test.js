@@ -289,3 +289,167 @@ test('view: the scarcity badge renders only the server-derived signal', () => {
   // The client must not compute its own scarcity claim from what it can see.
   assert.doesNotMatch(view, /Your only/, 'the copy is the servers, derived from the census');
 });
+
+// ── Refinement (B5) ──────────────────────────────────────────────────────────
+
+const {
+  resolveRefinementIntent,
+} = requireRefinement();
+
+function planFixture() {
+  const item = (itemId, title, subtype, category, primaryColor) => ({
+    itemId,
+    clientId: `local-${itemId}`,
+    title,
+    category,
+    subtype,
+    brand: null,
+    primaryColor,
+    layeringRole: null,
+    reason: null,
+    scarcitySignal: null,
+    usedInOutfits: 1,
+  });
+  return {
+    contractVersion: 'packing_plan_v1',
+    planId: 'p1',
+    mode: 'personal',
+    trip: {
+      destination: 'Miami',
+      startDate: '2026-09-12',
+      endDate: '2026-09-16',
+      nights: 4,
+      tripType: 'leisure',
+      activities: [],
+    },
+    weather: { provenance: 'UNAVAILABLE', summary: null },
+    packedItems: [
+      item('id-boots', 'black chelsea boots', 'chelsea boots', 'boots', 'black'),
+      item('id-sneakers', 'white sneakers', 'sneakers', 'shoes', 'white'),
+      item('id-shirt', 'white oxford shirt', 'oxford shirt', 'shirt', 'white'),
+      item('id-jacket', 'black chore jacket', 'chore jacket', 'jacket', 'black'),
+    ],
+    outfits: [],
+    gaps: [],
+    assumptions: [],
+    constraints: { excludedItemIds: [], packLight: false, notes: [] },
+    counts: { items: 4, outfits: 0, shoes: 2, gaps: 0 },
+  };
+}
+
+test('refinement: an unambiguous removal becomes a hard exclusion', () => {
+  const intent = resolveRefinementIntent("Don't bring the boots.", planFixture());
+  assert.deepEqual(intent.excludeItemIds, ['id-boots']);
+  assert.equal(intent.note, "Don't bring the boots.");
+  assert.equal(intent.unmatchedRemoval, false);
+});
+
+test('refinement: singular and plural both resolve', () => {
+  assert.deepEqual(
+    resolveRefinementIntent('no boot please', planFixture()).excludeItemIds,
+    ['id-boots'],
+  );
+  assert.deepEqual(
+    resolveRefinementIntent('skip the sneakers', planFixture()).excludeItemIds,
+    ['id-sneakers'],
+  );
+});
+
+test('refinement: an ambiguous removal excludes nothing and defers to the model', () => {
+  // Two black items. Removing the wrong garment is worse than removing none.
+  const intent = resolveRefinementIntent('leave the black one behind', planFixture());
+  assert.deepEqual(intent.excludeItemIds, []);
+  assert.equal(intent.note, 'leave the black one behind');
+});
+
+test('refinement: a non-removal request is forwarded, never turned into a removal', () => {
+  const intent = resolveRefinementIntent('Give me another dinner outfit', planFixture());
+  assert.deepEqual(intent.excludeItemIds, []);
+  assert.equal(intent.unmatchedRemoval, false);
+  assert.equal(intent.note, 'Give me another dinner outfit');
+});
+
+test('refinement: a removal naming nothing in the plan still reaches the model', () => {
+  const intent = resolveRefinementIntent("don't bring the surfboard", planFixture());
+  assert.deepEqual(intent.excludeItemIds, []);
+  assert.equal(intent.unmatchedRemoval, true);
+  assert.equal(intent.note, "don't bring the surfboard");
+});
+
+test('refinement: stop words alone can never select a garment', () => {
+  for (const phrase of ['no', 'do not', 'leave it', 'remove the thing', 'skip this']) {
+    assert.deepEqual(
+      resolveRefinementIntent(phrase, planFixture()).excludeItemIds,
+      [],
+      `"${phrase}" must not select an arbitrary item`,
+    );
+  }
+});
+
+test('refinement: with no plan on screen nothing can be excluded', () => {
+  const intent = resolveRefinementIntent("don't bring the boots", null);
+  assert.deepEqual(intent.excludeItemIds, []);
+  assert.equal(intent.note, "don't bring the boots");
+});
+
+test('refinement: the note is bounded before it leaves the device', () => {
+  const intent = resolveRefinementIntent(`no boots ${'x'.repeat(600)}`, planFixture());
+  assert.ok(intent.note.length <= 300);
+});
+
+test('refinement: every excludable id came from the plan the server built', () => {
+  const plan = planFixture();
+  const planIds = new Set(plan.packedItems.map((item) => item.itemId));
+  for (const phrase of ['no boots', 'skip sneakers', 'drop the jacket', 'remove the shirt']) {
+    for (const itemId of resolveRefinementIntent(phrase, plan).excludeItemIds) {
+      assert.ok(planIds.has(itemId), 'the resolver may only ever choose among plan items');
+    }
+  }
+});
+
+test('hook: a refinement resolves intent, then regenerates through the one path', () => {
+  const hook = read('hooks/usePackingPlan.ts');
+  const start = hook.indexOf('const refineWith');
+  const end = hook.indexOf('const togglePackLight');
+  assert.ok(start > -1 && end > start);
+  const body = hook.slice(start, end);
+  assert.match(body, /resolveRefinementIntent\(note, current\.plan\)/);
+  assert.match(body, /excludePackingItem\(actorId, itemId\)/);
+  assert.match(body, /addPackingConstraintNote\(actorId, intent\.note\)/);
+  // The undecodable case must still reach the server, not be dropped.
+  assert.match(body, /await run\(/);
+});
+
+test('screen: the refine composer exists and routes through refineWith', () => {
+  const screen = read('app/packing/index.tsx');
+  assert.match(screen, /packing-refine-input/);
+  assert.match(screen, /packing\.refineWith\(note\)/);
+  assert.match(screen, /REFINE WITH ELISE/);
+  // It must be gated on an active entitlement, like every other new generation.
+  const start = screen.indexOf('packing-refine"');
+  assert.ok(start > -1);
+  assert.match(screen.slice(Math.max(0, start - 400), start), /\{isActive \?/);
+});
+
+/**
+ * Loads the pure refinement resolver without the Expo module graph. It imports
+ * only a type, so stripping the TS annotations is enough to run it, and the
+ * assertions above pin the behaviour the app actually ships.
+ */
+function requireRefinement() {
+  const source = read('services/packing/packingRefinement.ts');
+  const body = source
+    .replace(/^import[\s\S]*?;$/m, '')
+    .replace(/export interface [\s\S]*?\n}\n/g, '')
+    .replace(/export function/g, 'function')
+    .replace(/: PackingRefinementIntent/g, '')
+    .replace(/: PackingPlanItem/g, '')
+    .replace(/: PackingPlan \| null/g, '')
+    .replace(/: Set<string>/g, '')
+    .replace(/: string\[\]/g, '')
+    .replace(/: string/g, '')
+    .replace(/new Set<string>\(\)/g, 'new Set()');
+  // eslint-disable-next-line no-new-func
+  const factory = new Function(`${body}; return { resolveRefinementIntent };`);
+  return factory();
+}

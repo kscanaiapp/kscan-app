@@ -15,7 +15,7 @@
 // lapsed.
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { LuxuryScreen, KScanHeader, PrimaryButton, SecondaryButton } from '../../components/luxury';
 import { KPlusGate } from '../../components/kplus/KPlusGate';
@@ -39,6 +39,7 @@ export default function PackingScreen() {
   const { items: closetItems } = useCloset();
   const [editingTrip, setEditingTrip] = useState(false);
   const [stageIndex, setStageIndex] = useState(0);
+  const [refinement, setRefinement] = useState('');
 
   // The plan carries identity; the DEVICE carries the picture. Matching on the
   // local Closet id means no Closet image ever has to leave the phone for a
@@ -69,6 +70,13 @@ export default function PackingScreen() {
     }, 3_000);
     return () => clearInterval(timer);
   }, [busy]);
+
+  const handleRefine = useCallback(() => {
+    const note = refinement.trim();
+    if (!note) return;
+    setRefinement('');
+    void packing.refineWith(note);
+  }, [refinement, packing]);
 
   const handleSubmit = useCallback(
     (draft: PackingTripDraft) => {
@@ -174,6 +182,35 @@ export default function PackingScreen() {
                       />
                     ) : null}
                   </View>
+                  {isActive ? (
+                    // REFINE WITH ELISE. One Elise, one plan: the sentence goes
+                    // to the same generation path everything else does, and the
+                    // structured plan it returns is what the screen re-renders.
+                    // Nothing here edits the visible plan directly.
+                    <View style={styles.refineBlock} testID="packing-refine">
+                      <Text style={styles.refineLabel}>REFINE WITH ELISE</Text>
+                      <TextInput
+                        value={refinement}
+                        onChangeText={setRefinement}
+                        placeholder="Don't bring the boots"
+                        placeholderTextColor={LUXURY.colors.stone}
+                        style={styles.refineInput}
+                        maxLength={300}
+                        editable={!busy}
+                        onSubmitEditing={handleRefine}
+                        returnKeyType="send"
+                        accessibilityLabel="Tell Elise what to change about this plan"
+                        testID="packing-refine-input"
+                      />
+                      <SecondaryButton
+                        title="UPDATE MY PLAN"
+                        onPress={handleRefine}
+                        disabled={busy || !refinement.trim()}
+                        style={styles.cta}
+                        testID="packing-refine-submit"
+                      />
+                    </View>
+                  ) : null}
                   {!isActive ? (
                     <Text style={styles.body} testID="packing-entitlement-lapsed">
                       Your K+ access has ended. This plan stays here, but new plans and changes need
@@ -245,6 +282,24 @@ const styles = StyleSheet.create({
   linkLabel: {
     ...LUXURY.typography.caption,
     marginTop: SPACING.md,
+  },
+  refineBlock: {
+    marginTop: SPACING.xl,
+  },
+  refineLabel: {
+    ...LUXURY.typography.sectionLabel,
+    marginBottom: SPACING.sm,
+  },
+  refineInput: {
+    ...LUXURY.typography.body,
+    color: LUXURY.colors.ink,
+    backgroundColor: LUXURY.colors.pearl,
+    borderRadius: RADIUS.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: LUXURY.colors.border,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    minHeight: 48,
   },
   actionRow: {
     flexDirection: 'row',

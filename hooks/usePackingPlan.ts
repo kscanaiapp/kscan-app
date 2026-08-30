@@ -31,6 +31,7 @@ import {
   type PackingSnapshot,
 } from '../services/packing/packingPlanStore';
 import type { PackingTripDraft } from '../types/packing';
+import { resolveRefinementIntent } from '../services/packing/packingRefinement';
 
 export interface UsePackingPlanResult extends PackingSnapshot {
   available: boolean;
@@ -174,10 +175,23 @@ export function usePackingPlan(): UsePackingPlanResult {
     async (note: string) => {
       const current = actorId ? getPackingSnapshotFor(actorId) : EMPTY_SNAPSHOT;
       if (!available || !actorId || !current.trip || !note.trim()) return;
-      const notes = addPackingConstraintNote(actorId, note);
+
+      // A refinement that unambiguously names one item in the plan on screen
+      // becomes a HARD exclusion the server enforces in post-model
+      // validation -- so "don't bring the boots" removes the boots whether or
+      // not the model cooperates. Anything the resolver cannot decode still
+      // reaches the model as a constraint, so a refinement never silently
+      // does nothing.
+      const intent = resolveRefinementIntent(note, current.plan);
+      const notes = addPackingConstraintNote(actorId, intent.note);
+      let excludeItemIds = current.excludedItemIds;
+      for (const itemId of intent.excludeItemIds) {
+        excludeItemIds = excludePackingItem(actorId, itemId);
+      }
+
       await run(
         current.trip,
-        { excludeItemIds: current.excludedItemIds, notes, packLight: current.packLight },
+        { excludeItemIds, notes, packLight: current.packLight },
         current.sessionId ?? newSessionId(),
       );
     },
