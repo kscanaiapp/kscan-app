@@ -37,6 +37,7 @@ import { resetStyleChatGreetingState } from '../services/style-chat/styleChatGre
 import { advanceActorEpoch } from '../services/actorContext';
 import { clearTodayWeather } from '../services/weather/todayWeatherStore';
 import { resetKPlusEntitlementCache } from '../services/kplus/kplusEntitlementStore';
+import { resetPackingPlanState } from '../services/packing/packingPlanStore';
 import { buildSignupNameMetadata, type SignupNameInput } from '../services/userFirstName';
 
 /**
@@ -100,6 +101,12 @@ function resetActorScopedRuntimeState(nextActorId: string | null): void {
   // K+ status is account-scoped: never let it survive a sign-out or leak
   // into the next signed-in actor on this device.
   resetKPlusEntitlementCache();
+  // A Packing plan names garments from ONE account's Closet. It must not stay
+  // visible, refinable, or even readable after the actor changes -- and the
+  // trip itself (destination, dates, notes) is personal too. Cleared here
+  // rather than in a Packing-specific auth listener: this is the one place
+  // this project resets actor-scoped runtime state.
+  resetPackingPlanState();
   // Defense in depth: the store already refuses to return a reading whose
   // actorId does not match the caller, so this cannot be the only thing keeping
   // weather from crossing accounts — it just stops the previous actor's reading

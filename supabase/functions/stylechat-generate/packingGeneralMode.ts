@@ -80,7 +80,7 @@ export function buildGeneralPackingGuide(trip: PackingTripInput): PackingGeneral
   const notes = [
     tripLengthNote(trip),
     'These are general categories, not items from your Closet.',
-    'Add more of what you own to your Closet and K Scan can pack your next trip from your actual wardrobe.',
+    'Add more of what you own to your Closet and K Scan AI can pack your next trip from your actual wardrobe.',
   ];
 
   return { sections, notes };
