@@ -18,6 +18,7 @@ import {
   resumeClosetSync,
 } from '../services/closet/closetSyncCoordinator';
 import { resumeClosetRestore } from '../services/closet/closetRestoreEngine';
+import { resumeClosetHistoricalMigration } from '../services/closet/closetHistoricalMigrationEngine';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 
 /**
@@ -73,6 +74,14 @@ export function useCloset() {
     // local read below is the sole authority for that. The engine is
     // single-flight, so this firing alongside a save trigger yields one pass.
     void resumeClosetSync('closet_opened');
+
+    // Build 34 / Track B / Phase B3 — historical Closet migration.
+    // Fire-and-forget, same as the outbound resume above: B3 only enrolls
+    // pre-existing local items into B2B's sidecar and hands off to B2B's own
+    // engine, which is what actually reads/writes cloud state. It never
+    // materializes, edits, or deletes a local item, so — unlike B2C's restore
+    // below — its completion never needs to trigger a local re-read.
+    void resumeClosetHistoricalMigration('closet_opened');
 
     // Build 34 / Track B / Phase B2C — inbound cross-device restore.
     // Single-flight plus an anti-churn cooldown collapse rapid re-focus into

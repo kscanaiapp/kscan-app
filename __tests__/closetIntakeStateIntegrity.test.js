@@ -225,6 +225,13 @@ function loadEnv({ actorId = 'user-a' } = {}) {
   const closetRestoreEngine = {
     resumeClosetRestore: async (reason) => { syncCalls.push(['resume_restore', reason]); },
   };
+  // Build 34 / Track B / Phase B3 — same no-op reasoning as closetSyncCoordinator
+  // and closetRestoreEngine above: B3 only enrolls pre-existing local items into
+  // B2B's sidecar and never touches local Closet state itself, so it must be a
+  // fully inert, observable-only stub here too.
+  const closetHistoricalMigrationEngine = {
+    resumeClosetHistoricalMigration: async (reason) => { syncCalls.push(['resume_migration', reason]); },
+  };
 
   const hookModule = runModule('hooks/useCloset.js', (spec) => {
     if (spec === 'react') return driver.react;
@@ -235,6 +242,7 @@ function loadEnv({ actorId = 'user-a' } = {}) {
     if (spec === '../services/actorContext') return actorContext;
     if (spec === '../services/closet/closetSyncCoordinator') return closetSyncCoordinator;
     if (spec === '../services/closet/closetRestoreEngine') return closetRestoreEngine;
+    if (spec === '../services/closet/closetHistoricalMigrationEngine') return closetHistoricalMigrationEngine;
     if (spec === '../contexts/AuthSessionContext') return { useAuthSession: () => session };
     return {};
   });

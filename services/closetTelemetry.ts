@@ -84,6 +84,16 @@ export const CLOSET_CANDIDATE_EVENTS = [
   'closet_restore_conflict',
   'closet_restore_media_missing',
   'closet_restore_failed',
+  // Build 34 / Track B / Phase B3 — historical Closet migration
+  // (services/closet/closetHistoricalMigrationEngine.ts). SHAPE AND OUTCOME
+  // ONLY, same discipline as the B2B/B2C events above: no client_id, no
+  // server item id, no owner/user id, no item title/brand/notes. B3 marks
+  // items and hands off to B2B's own engine, so no separate facts/media
+  // outcome events exist here — those remain the closet_sync_* /
+  // closet_facts_synced / closet_media_synced events already emitted above.
+  'closet_migration_started',
+  'closet_migration_batch_marked',
+  'closet_migration_completed',
 ] as const;
 
 export type ClosetCandidateEvent = typeof CLOSET_CANDIDATE_EVENTS[number];
