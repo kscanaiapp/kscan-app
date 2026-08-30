@@ -4,7 +4,7 @@
   "canonicalBranch": "rebuild/staging-v2-backend",
   "approvedProjectRef": "yzqjvdfgefveprobvvyw",
   "note": "B34-DEF-001. This file exists so tooling can tell, mechanically, whether a checkout is the canonical backend deployment authority rather than a mobile integration branch that happens to carry a copy of supabase/functions. Its presence with role=backend-deployment-authority is what scripts/deploy-edge-functions.js requires before it will run at all. Mobile branches (integration/ios-build34-full-upgrade, integration/android-build34-full-upgrade, and their descendants) intentionally do NOT carry this file, or carry docs/BACKEND_DEPLOYMENT_AUTHORITY.md's non-authoritative pointer instead -- see that doc for why.",
-  "governedFunctionCount": 19,
+  "governedFunctionCount": 20,
   "notGoverned": {
     "note": "Functions deployed on staging that this authority's tree does not (and, for some, cannot) contain source for. Recorded so nobody mistakes 'not in this manifest' for 'safe to ignore'.",
     "websitePrivacyStack": {

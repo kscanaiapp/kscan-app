@@ -259,16 +259,42 @@ Deno.test('inventory: every governed function is covered by the manifest closure
   const manifest = JSON.parse(readRepoFile('config/edge-function-manifest.json')) as {
     parity: { expectedFunctions: string[] };
   };
-  // style-outfit-generate joined the governed set in Build 3 Phase 4, when it
-  // became the host of the versioned private Dressing Room contract.
+  // Spelled out rather than derived, for the same reason
+  // __tests__/edgeFunctionSourceParity.test.js spells it out: widening the
+  // governed set must fail an assertion first, so it stays a decision.
+  //
+  // This list had been left at the original three (scan-identify,
+  // stylechat-generate, style-outfit-generate) against a manifest that had
+  // long since grown to 19 entries -- pre-existing drift, not caused by
+  // adding vto-generate here. Brought back into agreement with the real
+  // manifest; 'vto-generate' is the newly-added entry.
   assertEquals(manifest.parity.expectedFunctions.sort(), [
+    'handle-user-deletion',
+    'kickscrew-sneaker-description',
+    'kplus-activate',
+    'kplus-reconcile-revenuecat',
+    'nike-shoe-details',
+    'privacy-correction-request',
+    'privacy-data-export',
+    'process-account-deletions',
+    'product-search-deals',
+    'resend-restoration-email',
+    'restore-account',
     'scan-identify',
+    'search-vinted-secondhand',
+    'shared-room-image-url',
+    'staging-health',
     'style-outfit-generate',
     'stylechat-generate',
+    'stylist-speech',
+    'tryon-clothes-pro',
+    'vto-generate',
   ]);
-  assert(bundleClosure('scan-identify').length > 0);
-  assert(bundleClosure('stylechat-generate').length > 0);
-  assert(bundleClosure('style-outfit-generate').length > 0);
+  // Every governed function must resolve a non-empty deployable bundle --
+  // a manifest entry with an empty closure gates nothing.
+  for (const name of manifest.parity.expectedFunctions) {
+    assert(bundleClosure(name).length > 0, `${name} must resolve a bundle`);
+  }
 });
 
 /**

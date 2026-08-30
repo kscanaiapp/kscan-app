@@ -116,6 +116,7 @@ const GOVERNED_FUNCTIONS = [
   'shared-room-image-url',
   'tryon-clothes-pro',
   'staging-health',
+  'vto-generate',
 ];
 
 const FUNCTIONS_ROOT = path.join('supabase', 'functions');

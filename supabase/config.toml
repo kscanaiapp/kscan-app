@@ -90,6 +90,16 @@ verify_jwt = true
 [functions.kplus-reconcile-revenuecat]
 verify_jwt = false
 
+# ── Virtual Try-On ───────────────────────────────────────────────────────────
+
+# Generation orchestration. Always authenticated; the function additionally
+# re-derives identity from the verified JWT, applies the shared account-active
+# guard, reads the app_config kill switch, and requires an active K+ grant
+# before any provider adapter is resolved. Unlike scan-identify there is no
+# token-less mode: a try-on always has a person attached to it.
+[functions.vto-generate]
+verify_jwt = true
+
 # ── Local shadow stack ───────────────────────────────────────────────────────
 #
 # Explicit non-default ports. Several other K Scan worktrees run their own local
