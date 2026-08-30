@@ -83,12 +83,40 @@ function main() {
   const onlyMobile = [...allTags].every((t) => t === 'MOBILE' || t === 'DOCUMENTATION ONLY' || t === 'BUILD/CI');
   const stagingImpact = !onlyDocs && [...allTags].some((t) => STAGING_IMPACT_TAGS.has(t));
 
+  // Orthogonal change-applicability fields, added alongside (never replacing)
+  // stagingImpact above, which every existing consumer keeps reading unchanged
+  // (security-staging-gate.yml's classify-changes job, and this script's own
+  // classifyFile/STAGING_IMPACT_TAGS assertions). stagingImpact answers "is
+  // this release content worth running staging validation for at all" -- a
+  // deliberately blunt question, true for a mobile-only diff.
+  //
+  // These fields answer a narrower one: "does this diff actually require
+  // backend/edge/migration deployment authority" -- which a mobile-only PR
+  // does not. They are computed the same way deploy-changed-functions.js and
+  // apply-candidate-migrations.js actually select their targets: exclusively
+  // supabase/functions/** and supabase/migrations/** respectively. Neither
+  // script ever acts on server.js/services/** (the separate Render backend),
+  // so backendDeploymentRequired intentionally excludes them.
+  //
+  // Because both source tags are already members of STAGING_IMPACT_TAGS,
+  // backendDeploymentRequired is a strict subset of stagingImpact: swapping a
+  // deploy gate from the latter to the former can only ever narrow what
+  // reaches a real staging write, never widen it.
+  const edgeDeploymentRequired = allTags.has('SUPABASE FUNCTION');
+  const migrationValidationRequired = allTags.has('DATABASE MIGRATION');
+  const backendDeploymentRequired = edgeDeploymentRequired || migrationValidationRequired;
+  const mobileRuntimeImpact = allTags.has('MOBILE');
+
   const result = {
     baseRef,
     changedFileCount: files.length,
     classifications: [...allTags].sort(),
     stagingImpact,
     mobileOnly: onlyMobile && !stagingImpact,
+    backendDeploymentRequired,
+    edgeDeploymentRequired,
+    migrationValidationRequired,
+    mobileRuntimeImpact,
     fileClassifications,
   };
 

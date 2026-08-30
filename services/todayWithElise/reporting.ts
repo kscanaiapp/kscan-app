@@ -14,12 +14,12 @@
  * completion and a refused commit all emit nothing.
  */
 
-import type { TodayWithEliseCardState } from '../../types/todayWithElise';
+import type { TodayWithEliseCardState } from '../../types/todayWithElise.ts';
 import {
   emitTodayWithEliseEvent,
   emitTodayWithEliseImpression,
-} from './analytics';
-import { resolveDaypart } from './copyTemplates';
+} from './analytics.ts';
+import { resolveDaypart } from './copyTemplates.ts';
 
 /** Analytics-safe descriptor for one committed card. Enums and booleans only. */
 export function todayEventPayload(

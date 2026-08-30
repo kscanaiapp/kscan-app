@@ -29,7 +29,7 @@
  * renders, accounts, or days in the first place.
  */
 
-import type { TodayDaypart } from './copyTemplates';
+import type { TodayDaypart } from './copyTemplates.ts';
 
 const CONTROL_CHAR_RE = /[\x00-\x1F\x7F]/g;
 
