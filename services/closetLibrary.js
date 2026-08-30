@@ -1197,6 +1197,132 @@ export async function deleteClosetItem(id, { ownerId } = {}) {
   }
 }
 
+// ── Cross-device restore materialization (Build 34, Track B, Phase B2C) ─────
+//
+// These three functions exist ONLY for services/closet/closetRestoreEngine.ts.
+// They are deliberately NOT general-purpose: no media derivation, no
+// dedup-by-lineage/candidate check, no id minting. The caller supplies the id
+// and the remote chronology outright, because a restored item's identity and
+// history belong to the cloud row it came from, not to this device. Every
+// mutation still runs inside the same serialized queue as ordinary local
+// writes, so restore can never race a concurrent local create/edit/delete.
+
+/**
+ * Create a local record for a remote Closet row this device has never seen.
+ *
+ * `id` is the cloud row's own `client_id` (== this local store's stable id by
+ * construction — see the B1A migration comment). If a record already exists
+ * at that id this is a no-op failure rather than an overwrite: materializing
+ * is for items with NO local presence, and the caller (the restore engine's
+ * pure classifier) is responsible for routing an existing item through
+ * `applyRestoredClosetItemFacts` instead.
+ *
+ * @param {object} opts
+ * @param {string} opts.id
+ * @param {string} opts.ownerId
+ * @param {object} opts.facts — local-shaped draft fields (see
+ *   services/closet/closetRestoreContract.ts#projectClosetRestoreRowForLocal)
+ * @param {string} opts.createdAt — the REMOTE row's created_at. Never `new
+ *   Date()`: restore time is not garment creation time (Addendum E).
+ * @param {string} opts.updatedAt — the REMOTE row's updated_at.
+ * @returns {Promise<{ok: boolean, item?: object, reason?: string}>}
+ */
+export async function materializeRestoredClosetItem({ id, ownerId, facts, createdAt, updatedAt }) {
+  const owner = typeof ownerId === 'string' && ownerId.trim() ? ownerId.trim() : null;
+  if (typeof id !== 'string' || !id) return { ok: false, reason: 'missing_id' };
+  if (!owner) return { ok: false, reason: 'missing_owner' };
+
+  return enqueueClosetMutation(async () => {
+    const items = await readAllCloset();
+    if (items.some((item) => item.id === id)) {
+      return { ok: false, reason: 'already_exists' };
+    }
+    const stampAt = typeof updatedAt === 'string' && updatedAt ? updatedAt : new Date().toISOString();
+    const record = buildClosetRecord({ ...facts, id }, owner, stampAt);
+    record.createdAt = typeof createdAt === 'string' && createdAt ? createdAt : stampAt;
+    record.updatedAt = stampAt;
+    // Facts before media (section 28): a brand-new restored item has no local
+    // media yet. Hydration, when it succeeds, calls applyRestoredClosetItemMedia
+    // separately — never as part of this write.
+    record.imageUri = null;
+    record.thumbnailUri = null;
+    await persistCloset([record, ...items]);
+    return { ok: true, item: record };
+  }).catch(() => ({ ok: false, reason: 'unexpected_error' }));
+}
+
+/**
+ * Overwrite an existing local item's taxonomy/facts from a remote row that
+ * has moved on (the CLEAN, "remote wins" reconciliation case).
+ *
+ * Identity, media references, and every provenance field are re-asserted from
+ * the CURRENT persisted record rather than the caller's patch — only the
+ * taxonomy fields the B1A contract owns and the remote chronology may change.
+ * `createdAt` is never touched: a remote-wins update is not a re-creation.
+ *
+ * @returns {Promise<{ok: boolean, item?: object, reason?: string}>}
+ */
+export async function applyRestoredClosetItemFacts(id, ownerId, facts, updatedAt) {
+  const owner = typeof ownerId === 'string' && ownerId.trim() ? ownerId.trim() : null;
+  if (!owner) return { ok: false, reason: 'missing_owner' };
+
+  return enqueueClosetMutation(async () => {
+    const items = await readAllCloset();
+    const index = items.findIndex((item) => item.id === id && (item.ownerId || null) === owner);
+    if (index === -1) return { ok: false, reason: 'not_found' };
+    const current = items[index];
+
+    const rebuilt = buildClosetRecord({ ...current, ...facts, id }, owner, current.createdAt);
+    rebuilt.createdAt = current.createdAt;
+    rebuilt.updatedAt = typeof updatedAt === 'string' && updatedAt ? updatedAt : new Date().toISOString();
+    // Untouched by a facts-only reconciliation.
+    rebuilt.imageUri = current.imageUri;
+    rebuilt.thumbnailUri = current.thumbnailUri;
+    rebuilt.sourceCandidateId = current.sourceCandidateId ?? null;
+    rebuilt.sourceLocalScanId = current.sourceLocalScanId ?? null;
+    rebuilt.sourceSavedScanId = current.sourceSavedScanId ?? null;
+    rebuilt.sourceLineageId = current.sourceLineageId ?? null;
+    rebuilt.clientRequestId = current.clientRequestId ?? null;
+
+    const updated = items.slice();
+    updated[index] = rebuilt;
+    await persistCloset(updated);
+    return { ok: true, item: rebuilt };
+  }).catch(() => ({ ok: false, reason: 'unexpected_error' }));
+}
+
+/**
+ * Attach hydrated media to an already-materialized item.
+ *
+ * DELIBERATELY DOES NOT TOUCH `updatedAt`. B2B's own outbound engine treats a
+ * changed `updatedAt` as "the user edited this, push it again" — media
+ * hydration is a purely local cache fill of an image the server already has,
+ * and must stay invisible to B2B's dirty-detection or a restore would create
+ * outbound work syncing a device's own downloaded copy back to the server it
+ * came from.
+ *
+ * @returns {Promise<{ok: boolean, item?: object, reason?: string}>}
+ */
+export async function applyRestoredClosetItemMedia(id, ownerId, { imageUri, thumbnailUri } = {}) {
+  const owner = typeof ownerId === 'string' && ownerId.trim() ? ownerId.trim() : null;
+  if (!owner) return { ok: false, reason: 'missing_owner' };
+
+  return enqueueClosetMutation(async () => {
+    const items = await readAllCloset();
+    const index = items.findIndex((item) => item.id === id && (item.ownerId || null) === owner);
+    if (index === -1) return { ok: false, reason: 'not_found' };
+
+    const next = { ...items[index] };
+    if (typeof imageUri === 'string' && imageUri) next.imageUri = imageUri;
+    if (typeof thumbnailUri === 'string' && thumbnailUri) next.thumbnailUri = thumbnailUri;
+
+    const updated = items.slice();
+    updated[index] = next;
+    await persistCloset(updated);
+    return { ok: true, item: next };
+  }).catch(() => ({ ok: false, reason: 'unexpected_error' }));
+}
+
 // ── Committed-media orphan sweep (Build 2, Phase 4) ──────────────────────────
 
 /**
