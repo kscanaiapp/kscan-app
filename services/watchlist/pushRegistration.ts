@@ -14,6 +14,15 @@ import { resolveAuthenticatedFunctionSession } from '../authenticatedFunctionSes
 
 const DEVICE_ID_STORAGE_KEY = 'kscan-watchlist-device-id';
 
+/** The stored id for this installation, or null if this device never registered. */
+async function readDeviceId(): Promise<string | null> {
+  try {
+    return await AsyncStorage.getItem(DEVICE_ID_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
 async function getOrCreateDeviceId(): Promise<string> {
   const existing = await AsyncStorage.getItem(DEVICE_ID_STORAGE_KEY);
   if (existing) return existing;
@@ -93,4 +102,38 @@ export async function requestWatchAlerts(watchId: string): Promise<RequestWatchA
   }
 
   return { ok: true };
+}
+
+/**
+ * DEF-WL-01 (hostile-audit repair): retires THIS device's push registration
+ * for the actor who is leaving.
+ *
+ * Called on the actor boundary (sign-out) BEFORE the Supabase session is
+ * destroyed, because the revocation is an authenticated call. Without it a
+ * departed actor's row stays deliverable and their Watch alerts — whose
+ * notification body carries the watched item's title and price — keep landing
+ * on a handset that now belongs to someone else. The server holds the same
+ * invariant independently (register_device_push_token retires any other live
+ * row for this device or token, and a partial unique index makes two live
+ * rows per token unrepresentable), so this is the cooperative half, not the
+ * only guard.
+ *
+ * Never throws and never blocks: sign-out must complete even if the network,
+ * the session, or storage is unavailable. Does nothing at all when this
+ * device never registered — it deliberately does not mint a device id.
+ */
+export async function revokeWatchAlertsForThisDevice(): Promise<void> {
+  try {
+    const deviceId = await readDeviceId();
+    if (!deviceId) return;
+    const session = await resolveAuthenticatedFunctionSession();
+    if (session.ok === false) return;
+    await supabase.functions.invoke('commerce-watch-refresh', {
+      body: { action: 'revoke_push_token', deviceId },
+    });
+  } catch {
+    // Intentionally silent: a failed revocation must never fail a sign-out.
+    // The server-side invariant still retires this row the moment the next
+    // actor registers on this device.
+  }
 }

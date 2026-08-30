@@ -792,7 +792,28 @@ export function WatchThisModal({
             `Want K Scan AI to alert you when this listing reaches your target price?`,
             [
               { text: 'Not now', style: 'cancel' },
-              { text: 'Alert me', onPress: () => void requestWatchAlerts(createdWatchId) },
+              {
+                text: 'Alert me',
+                // DEF-WL-06: the outcome is reported, not discarded. Arming
+                // alerts can fail after the OS permission is granted (no push
+                // token available on this build, registration rejected, no
+                // network); firing this and ignoring the result left the user
+                // believing an alert was armed when push_enabled stayed false.
+                onPress: () => {
+                  void (async () => {
+                    const alerts = await requestWatchAlerts(createdWatchId);
+                    if (alerts.ok) return;
+                    const denied = 'reason' in alerts && alerts.reason === 'permission_denied';
+                    Alert.alert(
+                      denied ? 'Notifications are off' : "Couldn't turn on alerts",
+                      denied
+                        ? "We won't send alerts for this Watch. You can still check the price any time in your Watchlist."
+                        : "We're still watching this listing, but we can't alert you on this device yet. Check the price any time in your Watchlist.",
+                      [{ text: 'OK' }],
+                    );
+                  })();
+                },
+              },
             ],
           );
         }, 950);

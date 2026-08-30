@@ -37,6 +37,7 @@ import { resetStyleChatGreetingState } from '../services/style-chat/styleChatGre
 import { advanceActorEpoch } from '../services/actorContext';
 import { clearTodayWeather } from '../services/weather/todayWeatherStore';
 import { resetKPlusEntitlementCache } from '../services/kplus/kplusEntitlementStore';
+import { revokeWatchAlertsForThisDevice } from '../services/watchlist/pushRegistration';
 import { buildSignupNameMetadata, type SignupNameInput } from '../services/userFirstName';
 
 /**
@@ -356,6 +357,13 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
     // refresh that resolves later cannot reauthenticate this actor and cannot
     // re-persist their session.
     signedOutRef.current = true;
+    // DEF-WL-01: retire this device's Watchlist push registration while the
+    // departing actor's session is still valid. A Watch alert's notification
+    // body carries the watched item and its price, so a registration left
+    // live after sign-out delivers that text to whoever holds the handset
+    // next. Awaited but never allowed to fail or stall sign-out (the helper
+    // swallows every error and no-ops when this device never registered).
+    await revokeWatchAlertsForThisDevice();
     await stopAvatarSpeechPlayback();
     resetActorScopedRuntimeState(null);
     setSession(null);
