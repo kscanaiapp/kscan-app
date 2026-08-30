@@ -6,16 +6,28 @@ const ts = require('typescript');
 const vm = require('node:vm');
 
 const ROOT = path.resolve(__dirname, '..');
-function run(rel) {
+function run(rel, requireMap = {}) {
   const out = ts.transpileModule(fs.readFileSync(path.join(ROOT, rel), 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true },
   }).outputText;
   const module = { exports: {} };
   vm.runInNewContext(out, { console, exports: module.exports, module,
-    require: () => { throw new Error('no requires expected'); } }, { filename: rel });
+    Date, Math, Number, Object, Array, JSON, String, Boolean, Map, Set,
+    require: (id) => {
+      if (id in requireMap) return requireMap[id];
+      throw new Error(`Unexpected require in ${rel}: ${id}`);
+    } }, { filename: rel });
   return module.exports;
 }
-const m = run('supabase/functions/stylechat-generate/styleDnaContext.ts');
+// Build 34 / Track B / Phase B5 added a real (pure, Deno/network-free)
+// dependency on promptHardening.ts for buildServerStyleDnaProfileBlock; this
+// pre-existing harness predates that and needs the real module wired in, not
+// a stub, since these tests exercise no server-derived-profile behavior that
+// would need faking.
+const promptHardening = run('supabase/functions/stylechat-generate/promptHardening.ts');
+const m = run('supabase/functions/stylechat-generate/styleDnaContext.ts', {
+  './promptHardening.ts': promptHardening,
+});
 
 test('old request (missing styleDnaContext) is a no-op', () => {
   assert.equal(m.parseStyleDnaContext(undefined), null);

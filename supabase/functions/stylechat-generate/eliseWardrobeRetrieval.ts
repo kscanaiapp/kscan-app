@@ -19,6 +19,12 @@ export type EliseWardrobeDataSource = {
   listInspirationItems(actorId: string, limit: number): Promise<Record<string, unknown>[]>;
   listOwnedRoomItems(actorId: string, limit: number): Promise<Record<string, unknown>[]>;
   listSharedRoomItems?(actorId: string, limit: number): Promise<Record<string, unknown>[]>;
+  /**
+   * Build 34 / Track B / Phase B5. The authoritative cloud Closet
+   * (user_closet_items, B1A/B1C). Optional so every existing caller/test
+   * that predates Track B keeps working unchanged when it is absent.
+   */
+  listClosetItems?(actorId: string, limit: number): Promise<Record<string, unknown>[]>;
 };
 
 export interface EliseWardrobeRetrievalResult {
@@ -244,6 +250,45 @@ export async function retrieveAuthorizedWardrobeCandidates(input: {
       }
     })(),
   );
+
+  // Build 34 / Track B / Phase B5. The authoritative cloud Closet. Rows here
+  // are PHYSICALLY OWNED by construction (B1A facts a client can only write
+  // for its own account, RLS-gated), so this is the one source that never
+  // needs roomItemRelationship's provenance heuristics -- unlike a Dressing
+  // Room row, a Closet row has no "saved" or "scanned" ambiguity to resolve.
+  if (input.data.listClosetItems) {
+    tasks.push(
+      (async () => {
+        try {
+          const rows = await input.data.listClosetItems!(input.actorId, limit);
+          for (const row of rows) {
+            const id = typeof row.id === 'string' ? row.id : null;
+            if (!id || !isUuid(id)) {
+              rejectedCount += 1;
+              continue;
+            }
+            if (!ownerMatches(row, input.actorId)) {
+              rejectedCount += 1;
+              continue;
+            }
+            const candidate = normalizeWardrobeCandidate({
+              candidateId: `closet:${id}`,
+              sourceType: 'closet',
+              actorRelationship: 'owned',
+              row,
+              canonicalResourceIds: { itemId: id },
+            });
+            candidates.push(candidate);
+            authorizedCount += 1;
+            pushCount(countsBySource, 'closet');
+            pushCount(ownershipSourceCounts, 'owned');
+          }
+        } catch {
+          partialFailure = true;
+        }
+      })(),
+    );
+  }
 
   if (needShared && input.data.listSharedRoomItems) {
     tasks.push(

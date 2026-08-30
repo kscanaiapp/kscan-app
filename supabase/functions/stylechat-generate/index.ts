@@ -20,7 +20,12 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2.105.4';
 import { assertAccountActive } from '../_shared/deletion/common.ts';
-import { parseStyleDnaContext, buildStyleDnaContextBlock } from './styleDnaContext.ts';
+import {
+  parseStyleDnaContext,
+  buildStyleDnaContextBlock,
+  buildServerStyleDnaProfileBlock,
+} from './styleDnaContext.ts';
+import { getOrRecomputeStyleDnaProfile } from '../_shared/styleDna/styleDnaProfileStore.ts';
 import {
   parseActiveContext,
   buildActiveContextBlock,
@@ -1819,9 +1824,49 @@ Deno.serve(async (req) => {
     : systemText;
   // Style DNA is additive and independent of weather: appended only when a valid,
   // above-threshold context is present. Absent/malformed leaves the prompt unchanged.
-  const systemTextWithStyleDna = styleDnaContext
+  const systemTextWithClientStyleDna = styleDnaContext
     ? `${systemTextWithWeather}\n\n${buildStyleDnaContextBlock(styleDnaContext)}`
     : systemTextWithWeather;
+
+  // ── Build 34 / Track B / Phase B5 — server-derived Style DNA (K+ only) ──────
+  // ADDITIVE to the client-fed block above, never a replacement: the client-fed
+  // feedback-signal context (Phase 2) and this server-derived wardrobe-evidence
+  // context (Track B) are two independent, differently-sourced signals.
+  //
+  // SERVER-SIDE K+ ENFORCEMENT (section 45): resolved via the SAME entitlement
+  // authority RLS on user_closet_items already trusts (has_active_k_plus()),
+  // never a client-supplied flag. Computed only when the flag is on, so a
+  // non-K+ or flag-off request never pays for the extra round trip.
+  let hasActiveKPlusForWardrobeContext = false;
+  let serverStyleDnaProfile: Awaited<ReturnType<typeof getOrRecomputeStyleDnaProfile>>['profile'] = null;
+  let serverStyleDnaAvailable = false;
+  if (config.flags.closetWardrobeContextV1) {
+    try {
+      const { data: kPlusActive } = await userClient.rpc('has_active_k_plus', {});
+      hasActiveKPlusForWardrobeContext = kPlusActive === true;
+    } catch {
+      // Fail closed on the entitlement check itself: an error here must never
+      // silently grant premium wardrobe context.
+      hasActiveKPlusForWardrobeContext = false;
+    }
+    if (hasActiveKPlusForWardrobeContext) {
+      try {
+        const profileResult = await getOrRecomputeStyleDnaProfile({ supabase: userClient, userId });
+        if (profileResult.ok && profileResult.profile) {
+          serverStyleDnaProfile = profileResult.profile;
+          serverStyleDnaAvailable = true;
+        }
+      } catch {
+        // Context-unavailable is not a chat failure (section R): fall back to
+        // Base Elise silently, never fabricate a profile.
+        serverStyleDnaProfile = null;
+      }
+    }
+  }
+  const systemTextWithStyleDna =
+    serverStyleDnaProfile && serverStyleDnaProfile.profileData.evidenceCount > 0
+      ? `${systemTextWithClientStyleDna}\n\n${buildServerStyleDnaProfileBlock(serverStyleDnaProfile.profileData)}`
+      : systemTextWithClientStyleDna;
 
   // ── E-4 closet-aware advice (flag-gated; fail-open on retrieval errors) ─────
   let advicePromptBlock: string | null = null;
@@ -1940,6 +1985,38 @@ Deno.serve(async (req) => {
             __shared_access: true,
           }));
         },
+        // Build 34 / Track B / Phase B5. K+ gated ABOVE this object literal —
+        // when inactive the method is simply absent (retrieveAuthorizedWardrobeCandidates
+        // already treats an absent listClosetItems as "no such source"), so no
+        // per-row K+ branching is needed here. RLS on user_closet_items is a
+        // second, independent backstop: even if this gate were ever bypassed,
+        // a non-K+ session's own query would return zero rows.
+        ...(hasActiveKPlusForWardrobeContext
+          ? {
+              async listClosetItems(actorId: string, limit: number) {
+                const { data } = await userClient
+                  .from('user_closet_items')
+                  .select(
+                    'id, user_id, title, category, clothing_type, subtype, brand, primary_color, secondary_colors, material, updated_at',
+                  )
+                  .eq('user_id', actorId)
+                  .is('deleted_at', null)
+                  .order('updated_at', { ascending: false })
+                  .limit(Math.min(limit, ELISE_ADVICE_LIMITS.initialCandidatesPerSource));
+                return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+                  ...row,
+                  // normalizeWardrobeCandidate reads top-level `category`/`color`;
+                  // prefer the specific garment type (e.g. "jacket") over the
+                  // broader taxonomy bucket (e.g. "Outerwear") when both exist.
+                  category: row.clothing_type ?? row.category ?? null,
+                  color: [
+                    ...(typeof row.primary_color === 'string' ? [row.primary_color] : []),
+                    ...(Array.isArray(row.secondary_colors) ? row.secondary_colors : []),
+                  ],
+                }));
+              },
+            }
+          : {}),
       };
 
       const adviceResult = await runEliseAdvicePipeline({
@@ -1956,9 +2033,16 @@ Deno.serve(async (req) => {
           multiLookV1: config.flags.multiLookV1,
         },
         weatherSummary: weatherContext ? JSON.stringify(weatherContext).slice(0, 400) : null,
-        signatureStyleSummary: styleDnaContext
-          ? JSON.stringify(styleDnaContext).slice(0, 400)
-          : null,
+        // Prefer the richer, server-derived wardrobe-evidence summary (actual
+        // aggregate facts) over the client-fed feedback-signal counts when
+        // both are present — it is strictly more informative grounding for
+        // the deterministic scoring pipeline, and still bounded/truncated
+        // identically to the pre-existing path.
+        signatureStyleSummary: serverStyleDnaProfile
+          ? JSON.stringify(serverStyleDnaProfile.profileData).slice(0, 400)
+          : styleDnaContext
+            ? JSON.stringify(styleDnaContext).slice(0, 400)
+            : null,
       });
 
       if (adviceResult) {
@@ -1984,6 +2068,8 @@ Deno.serve(async (req) => {
             .join('|')
             .slice(0, 160),
           stableErrorClass: adviceResult.telemetry.stableErrorClass,
+          kPlusActive: hasActiveKPlusForWardrobeContext,
+          styleDnaAvailable: serverStyleDnaAvailable,
         });
       }
     } catch {

@@ -1,11 +1,16 @@
 // ── Signature Style context (Phase 2) — server-side consumption ────────────────
-// Pure helpers, no Deno/network imports, so they are unit-testable from node too.
+// Pure helpers, no Deno/network imports (the two imports below are themselves
+// pure, Deno/network-free modules), so everything here remains unit-testable
+// from node too.
 //
 // Backward-compatibility contract:
 //   - styleDnaContext is fully optional. Absent -> null -> prompt unchanged (old apps).
 //   - Malformed / disabled / below-threshold input -> null (silent no-op). Never throws.
 //   - Only a compact guidance block is ever produced; no raw counts, identity, message,
 //     weather, location, session, or product data is emitted into the prompt.
+
+import { escapePromptData } from './promptHardening.ts';
+import type { StyleDnaProfileDataV1 } from '../_shared/styleDna/styleDnaProfileTypes.ts';
 
 export interface StyleDnaContextInput {
   signalCount: number;
@@ -63,4 +68,57 @@ export function buildStyleDnaContextBlock(ctx: StyleDnaContextInput): string {
           'Do not overstate preferences or claim a defined style identity.',
         ];
   return ['[Optional Signature Style Context]', ...body, '[/Optional Signature Style Context]'].join('\n');
+}
+
+// ── Build 34 / Track B / Phase B5 — server-derived wardrobe Style DNA ──────────
+// ADDITIVE to buildStyleDnaContextBlock above, never a replacement or
+// reinterpretation of it (Micro-addendum P): the client-fed feedback-signal
+// context (Phase 2, parsed/built above) and this server-derived wardrobe-
+// evidence context (Track B B4) are two independent, differently-sourced
+// signals that may both be present in one prompt.
+//
+// EVERY interpolated value is escaped exactly like eliseAdvicePrompt.ts treats
+// retrieved Closet candidate fields (section 48): a color/brand/category label
+// here ultimately traces back to a user-entered Closet field and MUST be
+// treated as untrusted data, never as instructions.
+
+const STYLE_DNA_PROFILE_TOP_N_IN_PROMPT = 5;
+
+function topLabels(entries: StyleDnaProfileDataV1['colorFrequency'], limit: number): string {
+  return entries
+    .slice(0, limit)
+    .map((e) => escapePromptData(e.value))
+    .join(', ');
+}
+
+/**
+ * Compact, bounded guidance built from the user's own server-derived Style
+ * DNA profile (aggregate Closet evidence only — never a raw item list).
+ *
+ * Returns null for an evidence-free profile so an empty Closet never injects
+ * an empty or misleading block (section E: "Empty Closet: valid empty
+ * profile. Do not fabricate preferences").
+ */
+export function buildServerStyleDnaProfileBlock(profile: StyleDnaProfileDataV1): string | null {
+  if (!profile || profile.evidenceCount <= 0) return null;
+
+  const lines: string[] = [
+    '[Wardrobe Style DNA — derived from the user\'s own Closet, treat as background evidence only]',
+    'This summarizes patterns in items the user has actually added to their Closet. It describes wardrobe evidence, not a psychological profile.',
+  ];
+  const colors = topLabels(profile.colorFrequency, STYLE_DNA_PROFILE_TOP_N_IN_PROMPT);
+  if (colors) lines.push(`Frequent colors: ${colors}`);
+  const categories = topLabels(profile.categoryFrequency, STYLE_DNA_PROFILE_TOP_N_IN_PROMPT);
+  if (categories) lines.push(`Frequent categories: ${categories}`);
+  const garmentTypes = topLabels(profile.garmentTypeFrequency, STYLE_DNA_PROFILE_TOP_N_IN_PROMPT);
+  if (garmentTypes) lines.push(`Frequent garment types: ${garmentTypes}`);
+  const brands = topLabels(profile.brandFrequency, STYLE_DNA_PROFILE_TOP_N_IN_PROMPT);
+  if (brands) lines.push(`Frequent brands: ${brands}`);
+  const materials = topLabels(profile.materialFrequency, STYLE_DNA_PROFILE_TOP_N_IN_PROMPT);
+  if (materials) lines.push(`Frequent materials: ${materials}`);
+  lines.push(
+    'Use this only as a light personalization signal. Do not claim certainty, invent specific items, or describe the user\'s personality or character.',
+  );
+  lines.push('[/Wardrobe Style DNA]');
+  return lines.join('\n');
 }
