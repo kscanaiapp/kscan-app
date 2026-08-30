@@ -11,6 +11,7 @@
  * results between tests.
  */
 import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
 import {
   COMMERCE_CACHE_TTL_MS,
   COMMERCE_FUNNEL_DEFAULT_ENABLED,
@@ -802,7 +803,13 @@ Deno.test('TYPECHECK GATE: the Edge Function compiles clean', async () => {
   // and `supabase functions deploy` does not typecheck, so nothing caught it.
   // This makes the type checker part of the suite.
   const cmd = new Deno.Command(Deno.execPath(), {
-    args: ['check', new URL('./index.ts', import.meta.url).pathname.replace(/^\//, '')],
+    // The ABSOLUTE path, deliberately: scripts/run-backend-tests.js invokes
+    // `deno test` with `cwd: <repo root>`, and a path built by stripping the
+    // leading slash off a `file://` URL (`home/user/.../index.ts`) resolves
+    // relative to that cwd — doubling the repo-root prefix and producing
+    // "Cannot find module 'file:///<root>/<root>/.../index.ts'". This gate
+    // must hold regardless of the invoking working directory.
+    args: ['check', fileURLToPath(new URL('./index.ts', import.meta.url))],
     stdout: 'piped',
     stderr: 'piped',
   });

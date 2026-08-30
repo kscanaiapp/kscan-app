@@ -151,7 +151,14 @@ function isLocalImageUri(uri: unknown): uri is string {
 }
 
 async function measure(uri: string): Promise<number> {
-  const info = await FileSystem.getInfoAsync(uri, { size: true });
+  // This module imports the LEGACY expo-file-system API (see the top-of-file
+  // note), whose InfoOptions is `{ md5?: boolean }` only -- `size` is not an
+  // opt-in there the way it is on the new API; the legacy FileInfo shape
+  // returns `size` unconditionally whenever `exists` is true. Passing
+  // `{ size: true }` against that type never changed what came back, but it
+  // does not typecheck, and this was the one call site in this file `tsc`
+  // had never actually been run against.
+  const info = await FileSystem.getInfoAsync(uri);
   if (!info.exists) return 0;
   const size = (info as { size?: number }).size;
   return typeof size === 'number' ? size : 0;
