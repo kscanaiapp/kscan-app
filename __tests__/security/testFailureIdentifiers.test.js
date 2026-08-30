@@ -145,19 +145,80 @@ test at sample.test.js:17:1
   'a' !== 'b'
 `;
 
-test('TAP: leaf failures are qualified with their describe/subtest ancestry, suite rollups are not counted', () => {
+test('TAP: leaf failures are qualified with their describe/subtest ancestry and source file, suite rollups are not counted', () => {
   const result = parseFailureIdentifiers(TAP_SIMPLE);
-  assert.deepEqual(result, ['outer suite > fails on purpose', 'top level failing test']);
+  assert.deepEqual(result, [
+    'sample.test.js :: outer suite > fails on purpose',
+    'sample.test.js :: top level failing test',
+  ]);
 });
 
 test('TAP: three levels of nesting still resolve to exactly the one leaf failure', () => {
   const result = parseFailureIdentifiers(TAP_DEEPLY_NESTED);
-  assert.deepEqual(result, ['deeply nested failure > middle > leaf failure']);
+  assert.deepEqual(result, ['sample2.test.js :: deeply nested failure > middle > leaf failure']);
 });
 
-test('spec reporter: closing rollup line for a ▶ block is not double-counted, and the bottom recap section is ignored', () => {
+test('spec reporter: closing rollup line for a ▶ block is not double-counted, and the bottom recap section supplies the file', () => {
   const result = parseFailureIdentifiers(SPEC_SIMPLE);
-  assert.deepEqual(result, ['outer suite > fails on purpose', 'top level failing test']);
+  assert.deepEqual(result, [
+    'sample.test.js :: outer suite > fails on purpose',
+    'sample.test.js :: top level failing test',
+  ]);
+});
+
+// The defect an independent hostile audit found and this fix closes: two
+// different tests sharing a name in two different files, run in one
+// `node --test a.test.js b.test.js` invocation (exactly what a multi-file
+// npm run test:* script does), must never collapse to the same identifier
+// - that would let a genuinely new failure in file B hide behind an
+// unrelated, already-resolved failure of the same name in file A.
+test('two identically-named tests in different files never collide into the same identifier (TAP)', () => {
+  const collision = `TAP version 13
+# Subtest: shared broken name
+not ok 1 - shared broken name
+  ---
+  duration_ms: 0.5
+  type: 'test'
+  location: 'a.test.js:3:1'
+  failureType: 'testCodeFailure'
+  ...
+# Subtest: shared broken name
+not ok 2 - shared broken name
+  ---
+  duration_ms: 0.5
+  type: 'test'
+  location: 'b.test.js:3:1'
+  failureType: 'testCodeFailure'
+  ...
+1..2`;
+  const result = parseFailureIdentifiers(collision);
+  assert.deepEqual(result, ['a.test.js :: shared broken name', 'b.test.js :: shared broken name']);
+  assert.equal(result.length, 2, 'two distinct source files must never merge into one identifier');
+});
+
+test('two identically-named tests in different files never collide into the same identifier (spec)', () => {
+  // Byte-faithful shape of real `node --test a.test.js b.test.js` output for
+  // two flat (non-nested) same-named failing tests: no ▶ wrapper at all,
+  // since neither is inside a describe block.
+  const collision = `✖ shared broken name (1.2366ms)
+✖ shared broken name (1.3731ms)
+ℹ tests 2
+ℹ pass 0
+ℹ fail 2
+
+✖ failing tests:
+
+test at a.test.js:3:1
+✖ shared broken name (1.2366ms)
+  AssertionError [ERR_ASSERTION]: 1 !== 2
+
+test at b.test.js:3:1
+✖ shared broken name (1.3731ms)
+  AssertionError [ERR_ASSERTION]: 1 !== 2
+`;
+  const result = parseFailureIdentifiers(collision);
+  assert.deepEqual(result, ['a.test.js :: shared broken name', 'b.test.js :: shared broken name']);
+  assert.equal(result.length, 2, 'two distinct source files must never merge into one identifier');
 });
 
 test('TAP and spec reporters agree on the same suite', () => {

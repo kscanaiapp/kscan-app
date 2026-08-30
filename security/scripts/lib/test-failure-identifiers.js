@@ -30,6 +30,21 @@
  * `--test-reporter=tap --test-reporter-destination=stdout` explicitly so it
  * never depends on ambiguous reporter-selection defaults; the spec-format
  * path here exists as a defensive fallback for any other caller.
+ *
+ * FILE DISAMBIGUATION (found by an independent hostile audit, reproduced
+ * before fixing): when `node --test` is given several files in one
+ * invocation — exactly what run-project-checks-regression.js does for a
+ * multi-file `npm run test:*` script like `test:privacy` — the TAP output
+ * does NOT wrap each file in its own top-level subtest. Two identically
+ * named tests in two different files are therefore indistinguishable from
+ * the `# Subtest:` nesting chain alone: a PR that fixes test "X" in file A
+ * while introducing a genuinely new, unrelated failure also named "X" in
+ * file B would net to zero identifier change and be silently scored
+ * PASS_PRE_EXISTING_BASE_FAILURE. Every TAP leaf/aggregate block carries its
+ * own `location: '<file>:<line>:<col>'` field regardless of nesting depth,
+ * so the leaf's own source file is read from there and prefixed onto its
+ * identifier — this is why the leaf/aggregate lookahead below now captures
+ * `location` alongside `failureType` instead of just the latter.
  */
 
 const SPEC_OPEN_LINE = /^(\s*)▶ (.+)$/;
@@ -38,6 +53,7 @@ const SPEC_FAIL_MARK = /^\s*✖ /;
 const TAP_SUBTEST_LINE = /^(\s*)# Subtest: (.+)$/;
 const TAP_RESULT_LINE = /^(\s*)(ok|not ok) \d+ - (.+?)\s*$/;
 const TAP_FAILURE_TYPE_FIELD = /^\s*failureType: '?([\w]+)'?\s*$/;
+const TAP_LOCATION_FIELD = /^\s*location: '(.+)'\s*$/;
 const TAP_BLOCK_OPEN = /^(\s*)---\s*$/;
 // The YAML diagnostic block closes with `...` (three literal dots), NOT a
 // second `---` — using the same fence for both left the scan unterminated,
@@ -54,17 +70,38 @@ function qualify(stack, depth, ownName) {
   return [...context, ownName].filter(Boolean).join(' > ');
 }
 
+// Strips the trailing `:<line>:<col>` off a TAP `location:` value, leaving
+// just the source file path. Greedy `.+` backtracking correctly finds the
+// LAST `:digits:digits` pair even when the path itself contains colons
+// (e.g. a Windows drive letter, `C:\...`).
+const LOCATION_LINE_COL = /^(.+):\d+:\d+$/;
+
+function fileFromLocation(location) {
+  if (!location) return null;
+  const match = location.match(LOCATION_LINE_COL);
+  return match ? match[1] : location;
+}
+
 const SPEC_RECAP_HEADING = /^\s*✖ failing tests:\s*$/;
 
 function parseSpecFormat(lines) {
   const identifiers = new Set();
   const stack = [];
+  // The recap section below prints "test at <file>:<line>:<col>" once per
+  // leaf failure, in the same top-to-bottom order the main body reports
+  // them — used only to recover the source file per failure (see the FILE
+  // DISAMBIGUATION header note); consumed in order, not correlated by name,
+  // since name is exactly what can collide across files.
+  const recapLocations = extractSpecRecapLocations(lines);
+  let recapIndex = 0;
 
   for (const line of lines) {
     // Past this point the spec reporter re-prints each failure's result
     // line a second time (flattened, without its original nesting) inside
-    // a human-readable recap section — not new information, and without
-    // context to correctly (re-)qualify it against the stack above.
+    // a human-readable recap section — not new information for identity
+    // purposes (recapLocations above already extracted what's needed from
+    // it), and without context to correctly (re-)qualify it against the
+    // stack above.
     if (SPEC_RECAP_HEADING.test(line)) break;
 
     const openMatch = line.match(SPEC_OPEN_LINE);
@@ -87,11 +124,27 @@ function parseSpecFormat(lines) {
     }
 
     if (SPEC_FAIL_MARK.test(line)) {
-      identifiers.add(qualify(stack, depth, name));
+      const file = fileFromLocation(recapLocations[recapIndex]);
+      recapIndex += 1;
+      const qualifiedName = qualify(stack, depth, name);
+      identifiers.add(file ? `${file} :: ${qualifiedName}` : qualifiedName);
     }
   }
 
   return identifiers;
+}
+
+const SPEC_TEST_AT_LINE = /^test at (.+)$/;
+
+function extractSpecRecapLocations(lines) {
+  const recapStart = lines.findIndex((l) => SPEC_RECAP_HEADING.test(l));
+  if (recapStart === -1) return [];
+  const locations = [];
+  for (let i = recapStart + 1; i < lines.length; i++) {
+    const match = lines[i].match(SPEC_TEST_AT_LINE);
+    if (match) locations.push(match[1].trim());
+  }
+  return locations;
 }
 
 function parseTapFormat(lines) {
@@ -115,6 +168,7 @@ function parseTapFormat(lines) {
     const ownName = resultMatch[3].trim();
 
     let failureType = null;
+    let location = null;
     const fenceMatch = lines[i + 1] && lines[i + 1].match(TAP_BLOCK_OPEN);
     if (fenceMatch && depthOf(fenceMatch[1]) > depth) {
       for (let j = i + 2; j < lines.length; j++) {
@@ -122,12 +176,23 @@ function parseTapFormat(lines) {
         if (closeMatch && depthOf(closeMatch[1]) === depthOf(fenceMatch[1])) break;
         const typeMatch = lines[j].match(TAP_FAILURE_TYPE_FIELD);
         if (typeMatch) failureType = typeMatch[1];
+        const locationMatch = lines[j].match(TAP_LOCATION_FIELD);
+        if (locationMatch) location = locationMatch[1];
       }
     }
 
     if (failureType === 'subtestsFailed') continue; // aggregate rollup, not a leaf
 
-    identifiers.add(qualify(stack, depth, ownName));
+    // Prefix with the leaf's own source file (see the FILE DISAMBIGUATION
+    // header note) so two identically-named tests in two different files
+    // can never collide into the same identifier. `location` is absent only
+    // in a failure mode this parser doesn't otherwise recognize; falling
+    // back to the unqualified name rather than dropping the failure keeps
+    // the existing fail-open-on-the-side-of-recording-it behavior for that
+    // edge case.
+    const file = fileFromLocation(location);
+    const qualifiedName = qualify(stack, depth, ownName);
+    identifiers.add(file ? `${file} :: ${qualifiedName}` : qualifiedName);
   }
 
   return identifiers;
@@ -153,4 +218,4 @@ function parseFailureIdentifiers(rawOutput) {
   return [...identifiers];
 }
 
-module.exports = { parseFailureIdentifiers, SPEC_RESULT_LINE, TAP_RESULT_LINE };
+module.exports = { parseFailureIdentifiers, fileFromLocation, SPEC_RESULT_LINE, TAP_RESULT_LINE };
