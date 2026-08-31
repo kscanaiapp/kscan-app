@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-31T01:20:06.504Z",
-    "generatedFromGitSha": "a6356b8a5ed2ece93c0aa1e0d17719a2f3397355"
+    "generatedAtUtc": "2026-08-31T04:47:38.702Z",
+    "generatedFromGitSha": "bc00111b532eaf9db2679aa28ee7889a5c588ba6"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -364,10 +364,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 12,
+        "bundleFileCount": 11,
         "treeFileCount": 14,
-        "bundleHash": "0e05af521bf47ab33c1906854853e3b0cae0249cbb5f470426d8a212becb6f56",
-        "treeHash": "090c5eefe2cc100854f2d858eb12553c8949ee990c07fa80d405ecdeecdcd6f4",
+        "bundleHash": "da4611fa6a0e63af33bec6a5091c2cad4e5d51f31eb2f03d1d0f89c8d1897bda",
+        "treeHash": "2910abf1037f86bafc8dfc4876b3a1520b85397c69eea26bcb21c1a51a24b1f1",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -386,7 +386,7 @@
           },
           {
             "path": "supabase/functions/commerce-watch-refresh/index.ts",
-            "sha256": "7416b7611e8a510abf4a473d7072dabcbb85bf51eac0880c68f32ab3c0c80c0f",
+            "sha256": "1ae087d42f97050e40a5c01f839908608dc1077ddfef2ea36351e4dce2491f7f",
             "bundle": true
           },
           {
@@ -401,8 +401,8 @@
           },
           {
             "path": "supabase/functions/commerce-watch-refresh/refreshQuery.ts",
-            "sha256": "ce843cde3122eb7deca8e3b52f0b3996ed026d0ddbc1b1896b7e4f14caa1756d",
-            "bundle": true
+            "sha256": "89c5f6ec2b6bfb784a83dafce91cc862eac0506480e2bfa3a785dd3ed481d9fe",
+            "bundle": false
           },
           {
             "path": "supabase/functions/commerce-watch-refresh/watchRefreshConfig.ts",
