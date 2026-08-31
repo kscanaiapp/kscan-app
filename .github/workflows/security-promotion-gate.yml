@@ -142,7 +142,11 @@ jobs:
           set -uo pipefail
           BASE="${{ github.base_ref }}"
           if [ -n "$BASE" ]; then
-            git fetch --no-tags --depth=0 origin "$BASE" || git fetch --no-tags origin "$BASE" || true
+            # Plain fetch: the checkout above is already fetch-depth 0, and
+            # `--depth=0` is not a valid git argument (it logs a fatal and is a
+            # no-op). A `fatal:` line in a security-critical step is exactly the
+            # noise that hides a real failure later.
+            git fetch --no-tags origin "$BASE" || true
             BASE_REF="origin/${BASE}"
           else
             BASE_REF="HEAD~1"
