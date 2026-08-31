@@ -28,6 +28,19 @@ export interface VtoGenerateArgs {
    *  logged, never attached to any other K Scan surface. */
   personDataUri: string;
   signal?: AbortSignal;
+  /**
+   * VTO-QUOTA-001. The attempt generation for this intent, echoed into the
+   * server's idempotency identity (supabase/functions/vto-generate/
+   * vtoReservation.ts#buildVtoIdempotencyKey).
+   *
+   * Two rapid taps carry the SAME generation and collapse to one paid job; an
+   * explicit user Retry carries a NEW one and is honoured as a new, separately
+   * counted intent. The server documented this mechanism from the start, but no
+   * client ever sent the field, so every attempt for a given (actor, product,
+   * photo) resolved to the literal 'default' and shared one key -- which is how
+   * an unbounded retry loop stayed invisible to the daily cap.
+   */
+  requestGeneration?: string;
   /** Development only. Ignored by the server unless that deployment has
    *  explicitly opted in via VTO_ALLOW_DEV_SCENARIOS. */
   devScenario?: string;
@@ -152,6 +165,7 @@ export async function requestVtoGeneration(
         commerceSource: args.garment.commerceSource,
       },
     };
+    if (args.requestGeneration) body.requestGeneration = args.requestGeneration;
     if (args.devScenario) body.devScenario = args.devScenario;
 
     const { data, error } = await invoke(VTO_EDGE_FUNCTION, {

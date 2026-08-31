@@ -297,6 +297,13 @@ export async function startVtoGeneration(options: StartVtoOptions): Promise<void
     garment: options.garment,
     personDataUri: payload.dataUri,
     signal: controller.signal,
+    // VTO-QUOTA-001. The RETRY COUNT is the attempt generation, deliberately
+    // rather than the monotonic store token: the token changes on every start,
+    // cancel and reset, which would give two rapid taps two different keys and
+    // defeat the server's duplicate suppression. retryCount changes only when a
+    // person explicitly asks for another attempt, which is exactly the boundary
+    // the server's idempotency identity is meant to draw.
+    requestGeneration: String(current.retryCount),
     devScenario: options.devScenario,
   }).catch(() => null);
 
