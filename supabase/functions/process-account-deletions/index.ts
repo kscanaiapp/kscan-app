@@ -252,6 +252,116 @@ async function collectReferencedStoragePaths(
   return referenced;
 }
 
+/**
+ * INT-KPLUS-010 -- scheduled orphan sweep for a purged owner's retained media.
+ *
+ * Account purge deliberately retains storage objects that a surviving
+ * dressing_room_items row still points at (rows cascade with their ROOM, not
+ * with the deleting user, so a transferred room keeps its images). Nothing ever
+ * revisited those objects once the last reference disappeared, so a deleted
+ * owner's media outlived every reference to it, permanently.
+ *
+ * Room/item teardown is a direct CLIENT-side table delete, and a client is not
+ * a trustworthy deletion authority for another user's media -- so the closure
+ * lives here, in the already-scheduled, secret-gated, kill-switched worker,
+ * rather than in a new function or a client hook.
+ *
+ * APPROVED POLICY: retain while referenced; eligible for deletion the moment the
+ * final reference is gone; no additional retention window. The reference check is
+ * collectReferencedStoragePaths -- the SAME function the purge path uses, reused
+ * unchanged, including its fail-CLOSED behaviour: if the reference set cannot be
+ * determined it throws, and this prefix is skipped rather than swept blind.
+ */
+async function sweepOrphanedOwnerMedia(
+  supabase: ReturnType<typeof createAdmin>,
+  options: { dryRun: boolean; limit?: number },
+): Promise<{
+  claimed: number;
+  removed: number;
+  stillReferenced: number;
+  cleared: number;
+  skipped: number;
+}> {
+  const summary = { claimed: 0, removed: 0, stillReferenced: 0, cleared: 0, skipped: 0 };
+
+  const claimResponse = await rpc('claim_retained_owner_media_for_sweep', {
+    p_limit: options.limit ?? 25,
+  });
+  if (!claimResponse.ok) {
+    logEvent('orphan_sweep_claim_failed', { status: claimResponse.status });
+    return summary;
+  }
+  const rows = (await claimResponse.json()) as Array<{
+    storage_bucket: string;
+    storage_prefix: string;
+  }>;
+  if (!Array.isArray(rows) || rows.length === 0) return summary;
+  summary.claimed = rows.length;
+
+  for (const row of rows) {
+    const bucketName = row.storage_bucket;
+    const prefix = row.storage_prefix;
+    try {
+      const bucket = supabase.storage.from(bucketName);
+      const paths = await listPrefixPaths(bucket, prefix);
+
+      if (paths.length === 0) {
+        // Nothing left under the prefix at all: the work item is done.
+        if (!options.dryRun) {
+          await rpc('settle_retained_owner_media', {
+            p_bucket: bucketName,
+            p_prefix: prefix,
+            p_remaining: 0,
+          });
+        }
+        summary.cleared += 1;
+        continue;
+      }
+
+      // The SAME reference check the purge path uses. Throws (fail-closed) if
+      // the reference set cannot be determined -- caught below, prefix skipped.
+      const referenced = await collectReferencedStoragePaths(supabase, prefix);
+      const orphaned = paths.filter((path) => !referenced.has(path));
+      const remaining = paths.length - orphaned.length;
+
+      if (orphaned.length > 0 && !options.dryRun) {
+        const removed = await bucket.remove(orphaned);
+        if (removed.error) throw new Error(removed.error.message);
+      }
+      summary.removed += orphaned.length;
+      summary.stillReferenced += remaining;
+
+      if (!options.dryRun) {
+        await rpc('settle_retained_owner_media', {
+          p_bucket: bucketName,
+          p_prefix: prefix,
+          p_remaining: remaining,
+        });
+      }
+      if (remaining === 0) summary.cleared += 1;
+
+      logEvent('orphan_sweep_prefix', {
+        bucket: bucketName,
+        // Never the raw prefix: it embeds the purged account's id.
+        prefixHash: prefix.length,
+        orphanedRemoved: options.dryRun ? 0 : orphaned.length,
+        stillReferenced: remaining,
+        dryRun: options.dryRun,
+      });
+    } catch (error) {
+      // Fail closed: leave the objects and the work item alone. The prefix is
+      // retried on a later sweep; nothing is deleted on uncertain information.
+      summary.skipped += 1;
+      logEvent('orphan_sweep_prefix_skipped', {
+        bucket: bucketName,
+        reason: error instanceof Error ? error.message.slice(0, 120) : 'unknown',
+      });
+    }
+  }
+
+  return summary;
+}
+
 async function deleteOwnedStorage(
   supabase: ReturnType<typeof createAdmin>,
   userId: string,
@@ -263,7 +373,13 @@ async function deleteOwnedStorage(
       const paths = await listPrefixPaths(bucket, prefix);
 
       if (paths.length === 0) {
-        results.push({ status: 'no_objects', count: 0 });
+        results.push({
+          status: 'no_objects',
+          count: 0,
+          retainedReferenced: 0,
+          bucket: resource.bucket,
+          prefix,
+        });
         continue;
       }
 
@@ -298,6 +414,11 @@ async function deleteOwnedStorage(
         status: 'removed',
         count: removable.length,
         retainedReferenced: retained,
+        // INT-KPLUS-010: the orphan sweep needs to know WHERE objects were
+        // retained, not merely how many. Without the address there is nothing
+        // to revisit once the last reference disappears.
+        bucket: resource.bucket,
+        prefix,
       });
     }
   }
@@ -440,6 +561,35 @@ async function processClaimedRequest(
   if (!(await heartbeat(requestId, workerId))) return { status: 'lost_lease' };
 
   const storage = await deleteOwnedStorage(supabase, userId);
+  if (!(await heartbeat(requestId, workerId))) return { status: 'lost_lease' };
+
+  // INT-KPLUS-010 -- register any prefix that finished the purge with objects
+  // still retained, so the scheduled orphan sweep can revisit it once the last
+  // surviving dressing-room reference is gone. A retained object with nothing
+  // pointing at it and no account to own it must not survive indefinitely.
+  //
+  // Best-effort: a bookkeeping failure must never fail a purge that already
+  // succeeded. A missed registration is picked up the next time this prefix is
+  // observed, and the objects stay retained (the safe direction) until then.
+  for (const entry of storage) {
+    const bucket = (entry as { bucket?: string }).bucket;
+    const prefix = (entry as { prefix?: string }).prefix;
+    const retainedCount = (entry as { retainedReferenced?: number }).retainedReferenced ?? 0;
+    if (!bucket || !prefix) continue;
+    try {
+      await rpc('record_retained_owner_media', {
+        p_request_id: requestId,
+        p_bucket: bucket,
+        p_prefix: prefix,
+        p_retained: retainedCount,
+      });
+    } catch {
+      logEvent('retained_media_registration_failed', {
+        requestIdPrefix: requestId.slice(0, 8),
+        prefixTemplate: prefix.replace(userId, '{userId}'),
+      });
+    }
+  }
   if (!(await heartbeat(requestId, workerId))) return { status: 'lost_lease' };
 
   await rpc('append_deletion_state_transition', {
@@ -636,8 +786,14 @@ Deno.serve(async (req) => {
         }
       }
 
+      // INT-KPLUS-010: report what the orphan sweep WOULD remove. dryRun: true
+      // means it lists and reference-checks but deletes nothing and settles
+      // nothing, so a dry run stays genuinely read-only.
+      const orphanSweepPlan = await sweepOrphanedOwnerMedia(supabase, { dryRun: true });
+
       logEvent('worker_dry_run', {
         ...summary,
+        orphanSweepPlan,
         killSwitchEnabled: enabled,
         dryRunFlag,
         envDryRun,
@@ -647,6 +803,7 @@ Deno.serve(async (req) => {
         killSwitchEnabled: enabled,
         dryRun: true,
         summary,
+        orphanSweepPlan,
         eligibleRequestIds: (Array.isArray(eligible) ? eligible : []).map((row: { id: string }) => row.id),
         plans,
         note: 'No claims, Auth deletions, or Storage deletions were performed.',
@@ -719,11 +876,31 @@ Deno.serve(async (req) => {
       }
     }
 
+    // INT-KPLUS-010 -- scheduled orphan sweep. Runs on the LIVE path only
+    // (kill switch on, dry-run off), after the purge loop, so a purge that just
+    // registered a retained prefix is picked up on the next invocation rather
+    // than being swept in the same breath it was written.
+    //
+    // Isolated from the purge outcome on purpose: a sweep failure must never
+    // turn a successful purge run into a failed one, and vice versa.
+    let orphanSweep = null;
+    try {
+      orphanSweep = await sweepOrphanedOwnerMedia(supabase, { dryRun: false });
+      if (orphanSweep.removed > 0 || orphanSweep.skipped > 0) {
+        logEvent('orphan_sweep_completed', orphanSweep);
+      }
+    } catch (error) {
+      logEvent('orphan_sweep_failed', {
+        reason: error instanceof Error ? error.message.slice(0, 200) : 'unknown',
+      });
+    }
+
     return json({
       mode: 'live',
       workerIdPrefix: workerId.slice(0, 16),
       claimed: claimedRows.length,
       results,
+      orphanSweep,
     });
   } catch (error) {
     if (error instanceof Response) return error;
