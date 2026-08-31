@@ -265,19 +265,66 @@ test('CONTROL E: a required SECURITY scanner missing is never waived by applicab
   }
 });
 
-test('CONTROL F: an unreadable/absent applicability contract makes EVERYTHING applicable', () => {
+test('CONTROL F: with no contract, UNCONDITIONAL checks are still strictly required', () => {
+  // This is the fail-closed property that matters. A missing scanner can never
+  // be excused by the absence of an applicability contract.
   for (const broken of [null, undefined, 'nonsense', 42, {}]) {
-    // A migration check absent with no usable contract must NOT be waived.
-    const verdict = verdictFor(allGreen({ 'Migration validation': null }), broken);
-    assert.equal(
-      verdict.finalVerdict,
-      'OPERATIONAL FAILURE',
-      `contract ${JSON.stringify(broken)} must fail closed`,
-    );
+    for (const scanner of ['Gitleaks', 'Semgrep Community Edition', 'OSV-Scanner', 'Trivy filesystem', 'npm audit', 'Project checks']) {
+      const verdict = verdictFor(allGreen({ [scanner]: null }), broken);
+      assert.equal(
+        verdict.finalVerdict,
+        'OPERATIONAL FAILURE',
+        `contract ${JSON.stringify(broken)} must not excuse a missing ${scanner}`,
+      );
+    }
   }
-  assert.equal(isCheckApplicable('Migration validation', null), true);
-  assert.equal(isCheckApplicable('Migration validation', {}), true);
+  assert.equal(isCheckApplicable('Gitleaks', null), true);
   assert.equal(isCheckApplicable('Anything Unlisted', { 'Migration validation': false }), true);
+});
+
+test('CONTROL F: with no contract, ONLY a named, justified set is tolerated', () => {
+  const { TOLERATED_WITHOUT_CONTRACT } = require(path.join(ROOT, 'security', 'scripts', 'evaluate-promotion-gate.js'));
+  assert.deepEqual(
+    [...TOLERATED_WITHOUT_CONTRACT].sort(),
+    [
+      'Migration validation',
+      'Staging health checks',
+      'Synthetic auth tests',
+      'ZAP API staging',
+      'ZAP Baseline (staging)',
+    ],
+    'the no-contract tolerance must be an explicit, reviewable set',
+  );
+  // Contract tests is applicable for nearly everything, so tolerating its
+  // absence without a contract would be a real weakening, not a fallback.
+  assert.ok(
+    !TOLERATED_WITHOUT_CONTRACT.includes('Contract tests'),
+    'Contract tests must stay required even with no contract',
+  );
+
+  const absent = {};
+  for (const name of TOLERATED_WITHOUT_CONTRACT) absent[name] = null;
+  assert.equal(verdictFor(allGreen(absent), null).finalVerdict, 'PASS');
+
+  // Everything outside that set stays mandatory in the same no-contract state.
+  const tolerated = new Set(TOLERATED_WITHOUT_CONTRACT);
+  for (const name of [...ALWAYS_REQUIRED_CHECKS, ...DEPLOYMENT_REQUIRED_CHECKS]) {
+    if (tolerated.has(name)) continue;
+    const v = verdictFor(allGreen({ ...absent, [name]: null }), null);
+    assert.notEqual(v.finalVerdict, 'PASS', `${name} must stay required without a contract`);
+  }
+});
+
+test('CONTROL F: a contract that says APPLICABLE still fails a skipped conditional check', () => {
+  // The tolerance above exists only when nothing knows. When the canonical
+  // contract asserts applicability, strictness is absolute -- this is what stops
+  // the no-contract fallback from becoming a way to launder a real skip.
+  const applicability = classify(['supabase/migrations/x.sql']).checkApplicability;
+  assert.equal(applicability['Migration validation'], true);
+  for (const state of ['skipped', null]) {
+    const verdict = verdictFor(allGreen({ 'Migration validation': state }), applicability);
+    assert.notEqual(verdict.finalVerdict, 'PASS', `Migration validation ${state} must not pass`);
+  }
 });
 
 test('CONTROL F: a classifier that cannot resolve its base FAILS, it does not return empty', () => {

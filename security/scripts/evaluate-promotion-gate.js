@@ -322,6 +322,56 @@ function classifyCheckFailure(name, conclusion, context = {}) {
  *                      accepted as a PASS for every check, which meant a
  *                      wrongly-skipped required job silently satisfied the gate.
  */
+/**
+ * Checks whose GitHub job carries an `if:` condition, so the workflow may
+ * legitimately emit them as `skipped` -- or not emit them at all.
+ *
+ * This is a property of the WORKFLOW, not of which required-list a check sits
+ * in. `Migration validation` lives in ALWAYS_REQUIRED_CHECKS but is
+ * conditionally emitted (`if: contains(classifications, 'DATABASE MIGRATION')`),
+ * so treating "conditionally emitted" as a synonym for "deployment-gated" was
+ * wrong: with no applicability contract available, a correctly-skipped
+ * Migration validation was read as an applicable-but-skipped operational
+ * failure.
+ *
+ * These are exactly the four keys the canonical contract carries. When a
+ * contract IS available it decides and this list is not consulted; this is only
+ * the no-contract fallback, and it restores the pre-existing documented
+ * tolerance for these four jobs and nothing else. Every unconditional scanner
+ * remains strictly required in all cases.
+ */
+const CONDITIONALLY_EMITTED_CHECKS = Object.freeze([
+  'Migration validation',
+  'Contract tests',
+  'Staging health checks',
+  'Synthetic auth tests',
+]);
+
+/**
+ * Checks whose ABSENCE OR SKIP is tolerated when no applicability contract is
+ * available at all (the push path, which is not the merge-gating path).
+ *
+ * Deliberately NOT the same list as CONDITIONALLY_EMITTED_CHECKS:
+ *
+ *  - The deployment-gated checks carry a long-standing documented self-skip
+ *    contract -- on a ref that performs no staging deployment they report
+ *    `skipped`, and that has always been accepted. That includes the two ZAP
+ *    checks, which are conditional in their own workflows.
+ *  - `Migration validation` is added because its condition is narrow and binary
+ *    (the diff either contains a migration or it does not), and it is emitted
+ *    only in the former case.
+ *  - `Contract tests` is deliberately EXCLUDED. Its condition excuses it only
+ *    for a documentation-only diff at NORMAL_PR, so it is applicable for very
+ *    nearly everything; tolerating its absence without a contract would be a
+ *    real weakening rather than a fallback.
+ *
+ * When a contract IS available it decides, and this set is not consulted.
+ */
+const TOLERATED_WITHOUT_CONTRACT = Object.freeze([
+  ...DEPLOYMENT_REQUIRED_CHECKS,
+  'Migration validation',
+]);
+
 const CHECK_STATE = Object.freeze({
   NOT_APPLICABLE: 'NOT_APPLICABLE',
   PENDING: 'PENDING',
@@ -377,7 +427,12 @@ function isCheckApplicable(name, applicability) {
  * absence is only ever forgiven when it was proven not to apply.
  */
 function resolveCheckState(name, run, applicable, hasContract = true) {
+  // No contract available: the conditionally-emitted jobs may legitimately be
+  // absent or skipped, exactly as before this repair existed.
+  const conditionalWithoutContract = !hasContract && TOLERATED_WITHOUT_CONTRACT.includes(name);
+
   if (!run) {
+    if (conditionalWithoutContract) return CHECK_STATE.NOT_APPLICABLE;
     // Applicable and not materialised yet: PENDING, not missing. The caller's
     // bounded wait converts a PENDING that outlives the deadline into an
     // OPERATIONAL FAILURE with named evidence.
@@ -399,7 +454,7 @@ function resolveCheckState(name, run, applicable, hasContract = true) {
     // accepted terminal state. Honouring it here is not a relaxation: with a
     // contract present, applicability decides, and an applicable check that is
     // skipped still fails below.
-    if (!hasContract && DEPLOYMENT_REQUIRED_CHECKS.includes(name)) {
+    if (conditionalWithoutContract) {
       return CHECK_STATE.NOT_APPLICABLE;
     }
   }
@@ -839,6 +894,8 @@ module.exports = {
   isCheckApplicable,
   CHECK_STATE,
   CONCLUSION_STATE,
+  CONDITIONALLY_EMITTED_CHECKS,
+  TOLERATED_WITHOUT_CONTRACT,
   writeVerdict,
   classifyCheckFailure,
   classifyProjectCheckFailure,

@@ -141,16 +141,28 @@ jobs:
         run: |
           set -uo pipefail
           BASE="${{ github.base_ref }}"
-          if [ -n "$BASE" ]; then
-            # Plain fetch: the checkout above is already fetch-depth 0, and
-            # `--depth=0` is not a valid git argument (it logs a fatal and is a
-            # no-op). A `fatal:` line in a security-critical step is exactly the
-            # noise that hides a real failure later.
-            git fetch --no-tags origin "$BASE" || true
-            BASE_REF="origin/${BASE}"
-          else
-            BASE_REF="HEAD~1"
+          if [ -z "$BASE" ]; then
+            # NO PULL-REQUEST BASE (a push event). There is no trustworthy base
+            # to classify against here, and guessing one is worse than declining:
+            # the previous `HEAD~1` fallback is the OTHER SIDE OF THE MERGE on a
+            # merge commit, so on a branch that had just merged its integration
+            # target it reported that target's migrations and Edge functions as
+            # this branch's own changes -- a WRONG applicability contract, which
+            # then failed a check the staging gate had correctly skipped.
+            #
+            # Emitting no contract is the safe outcome: the evaluator then falls
+            # back to its documented handling for the conditionally-emitted jobs
+            # and keeps every unconditional scanner strictly required.
+            echo "No pull-request base ref; not asserting an applicability contract."
+            echo "The evaluator will fall back to its no-contract handling."
+            exit 0
           fi
+          # Plain fetch: the checkout above is already fetch-depth 0, and
+          # `--depth=0` is not a valid git argument (it logs a fatal and is a
+          # no-op). A `fatal:` line in a security-critical step is exactly the
+          # noise that hides a real failure later.
+          git fetch --no-tags origin "$BASE" || true
+          BASE_REF="origin/${BASE}"
           echo "Classifying against ${BASE_REF}"
           if node security/scripts/classify-changed-surfaces.js "$BASE_REF" > /tmp/classification.json; then
             echo "path=/tmp/classification.json" >> "$GITHUB_OUTPUT"
