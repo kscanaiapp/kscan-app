@@ -171,10 +171,28 @@ Deno.test('entitlement: revoked and expired statuses are denied', () => {
   }
 });
 
-Deno.test('entitlement: a non-expiring active grant (staff/admin) is active', () => {
+Deno.test('entitlement: a NULL-expiry grant is NOT active (SEC-KPLUS-003)', () => {
+  // This test previously asserted the opposite -- that a null expiry meant a
+  // legitimate non-expiring staff/admin grant. That was a VTO-only fork.
+  // Canonical K+ has no such concept: public.kplus_has_active_entitlement
+  // requires `expires_at is not null and expires_at > now()`, and even
+  // grant_kplus_early_access derives "active" the same way. VTO was the sole
+  // surface that would have honoured a null-expiry row.
   const now = Date.parse('2026-08-30T00:00:00Z');
-  assertEquals(isEntitlementRowActive({ status: 'active', expires_at: null }, now), true);
-  assertEquals(isEntitlementRowActive({ status: 'active' }, now), true);
+  assertEquals(isEntitlementRowActive({ status: 'active', expires_at: null }, now), false);
+  assertEquals(isEntitlementRowActive({ status: 'active' }, now), false);
+});
+
+Deno.test('entitlement: a revoked grant is not active (SEC-KPLUS-003)', () => {
+  // Canonical additionally requires `revoked_at is null`; VTO never read it.
+  const now = Date.parse('2026-08-30T00:00:00Z');
+  assertEquals(
+    isEntitlementRowActive(
+      { status: 'active', expires_at: '2026-12-31T00:00:00Z', revoked_at: '2026-08-01T00:00:00Z' },
+      now,
+    ),
+    false,
+  );
 });
 
 Deno.test('entitlement: an unparseable expiry is denied rather than assumed valid', () => {

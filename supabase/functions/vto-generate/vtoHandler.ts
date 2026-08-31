@@ -54,6 +54,12 @@ import {
 import { evaluateServerVtoEligibility } from './vtoEligibility.ts';
 import { readVtoFeatureConfig } from './vtoFeatureControl.ts';
 import { resolveVtoEntitlement } from './vtoEntitlement.ts';
+import { assertSafeRemoteMediaUrl } from '../_shared/net/safeRemoteMedia.ts';
+import {
+  buildVtoIdempotencyKey,
+  completeVtoGeneration,
+  reserveVtoGeneration,
+} from './vtoReservation.ts';
 import { validateVtoResultMedia } from './vtoResultValidation.ts';
 import { dimensionBucket, logVtoEvent, payloadBucket } from './vtoTelemetry.ts';
 import { isMockVtoScenario, resolveVtoProvider } from './providers/index.ts';
@@ -170,6 +176,8 @@ export interface VtoHandlerDeps {
   readVtoFeatureConfig: typeof readVtoFeatureConfig;
   resolveVtoEntitlement: typeof resolveVtoEntitlement;
   resolveVtoProvider: typeof resolveVtoProvider;
+  reserveVtoGeneration: typeof reserveVtoGeneration;
+  completeVtoGeneration: typeof completeVtoGeneration;
   generationTimeoutMs: number;
   devScenariosAllowed: () => boolean;
 }
@@ -180,6 +188,8 @@ export const defaultVtoHandlerDeps: VtoHandlerDeps = {
   readVtoFeatureConfig,
   resolveVtoEntitlement,
   resolveVtoProvider,
+  reserveVtoGeneration,
+  completeVtoGeneration,
   generationTimeoutMs: GENERATION_TIMEOUT_MS,
   devScenariosAllowed: () => Deno.env.get('VTO_ALLOW_DEV_SCENARIOS') === 'true',
 };
@@ -264,9 +274,27 @@ export async function handleVtoRequest(
   const garment = (body.garment && typeof body.garment === 'object' && !Array.isArray(body.garment)
     ? body.garment
     : {}) as Record<string, unknown>;
+  // SEC-KPLUS-002 — the garment image URL is CALLER-SUPPLIED. Eligibility only
+  // checked `protocol === 'https:'`, which admits loopback, RFC1918, link-local
+  // and the cloud metadata endpoint. Validate network topology before this URL
+  // can reach a paid third-party provider. Retailer-neutral: this rejects
+  // addresses, never brands.
+  const garmentUrlCheck = assertSafeRemoteMediaUrl(garment.imageUrl);
+  if (!garmentUrlCheck.ok) {
+    return fail('invalid_garment_input', {
+      requestId,
+      uid,
+      origin,
+      stage: 'garment_url_safety',
+      // Reason only -- never the rejected URL itself.
+      providerDetail: garmentUrlCheck.reason,
+    });
+  }
+
   const eligibility = evaluateServerVtoEligibility({
     category: garment.category,
-    garmentImageUrl: garment.imageUrl,
+    // The NORMALIZED, validated URL, never the caller's raw string.
+    garmentImageUrl: garmentUrlCheck.url,
     productRef: garment.productRef,
     supportedCategories: config.supportedCategories,
   });
@@ -316,6 +344,65 @@ export async function handleVtoRequest(
     });
   }
 
+  // -- 8b. INT-KPLUS-007: entitlement must be CURRENT at the paid boundary ----
+  //
+  // The check at step 5 is separated from the provider call by the feature
+  // config read, eligibility, person-input parsing and provider resolution. K+
+  // can lapse or be revoked in that window, and the thing on the other side of
+  // it costs money. Re-read the canonical authority immediately before spending.
+  // Anything other than a definite 'active' -- expired, revoked, missing, or
+  // unreadable -- means NO provider work.
+  const entitlementAtBoundary = await deps.resolveVtoEntitlement(authUser.id);
+  if (entitlementAtBoundary.state === 'unknown') {
+    return fail('authorization_failed', {
+      requestId, uid, origin, stage: 'entitlement_recheck',
+    });
+  }
+  if (entitlementAtBoundary.state !== 'active') {
+    return fail('entitlement_required', {
+      requestId, uid, origin, stage: 'entitlement_recheck',
+    });
+  }
+
+  // -- 8c. SEC-KPLUS-004: reserve exactly one paid generation ----------------
+  //
+  // The identity is built from the actor, the canonical garment/product, a
+  // DIGEST of the person input (never its bytes) and the caller's request
+  // generation. Two rapid taps collapse to one paid job; an explicit user Retry
+  // carries a new generation and is honoured.
+  const idempotencyKey = await buildVtoIdempotencyKey({
+    userId: authUser.id,
+    productRef: String(garment.productRef ?? ''),
+    garmentImageUrl: eligibility.garmentImageUrl,
+    personDataUri,
+    requestGeneration: typeof body.requestGeneration === 'string' ? body.requestGeneration : null,
+  });
+  const reservation = await deps.reserveVtoGeneration(authUser.id, idempotencyKey);
+  if (reservation.outcome === 'unavailable') {
+    // Cannot account for the spend -> do not spend. Fail closed.
+    return fail('authorization_failed', {
+      requestId, uid, origin, stage: 'reservation_unavailable',
+    });
+  }
+  if (reservation.outcome === 'quota_exceeded') {
+    return fail('rate_limited', {
+      requestId, uid, origin, stage: 'reservation_quota',
+    });
+  }
+  if (reservation.outcome === 'duplicate') {
+    // A prior job for this exact intent is still in flight, or already
+    // succeeded. Either way: no second paid call.
+    logVtoEvent('vto_generate_duplicate_suppressed', {
+      requestId,
+      uid,
+      origin,
+      priorStatus: reservation.priorStatus ?? 'unknown',
+    });
+    return fail('rate_limited', {
+      requestId, uid, origin, stage: 'reservation_duplicate',
+    });
+  }
+
   logVtoEvent('vto_generate_start', {
     requestId,
     uid,
@@ -343,6 +430,11 @@ export async function handleVtoRequest(
     );
   } catch (err) {
     const aborted = err instanceof DOMException && err.name === 'AbortError';
+    // Settle so the actor's explicit Retry is not blocked by a lease it can no
+    // longer influence. The attempt still counts against the daily cap: the
+    // paid call was made, and counting only successes would let a failing
+    // provider be retried without bound.
+    await deps.completeVtoGeneration(authUser.id, idempotencyKey, 'failed', selection.provider.id);
     return fail(aborted ? 'provider_timeout' : 'generation_failed', {
       requestId,
       uid,
@@ -357,6 +449,7 @@ export async function handleVtoRequest(
   const latencyMs = Date.now() - startedAt;
 
   if (!outcome.ok) {
+    await deps.completeVtoGeneration(authUser.id, idempotencyKey, 'failed', selection.provider.id);
     return fail(outcome.failure, {
       requestId,
       uid,
@@ -373,6 +466,7 @@ export async function handleVtoRequest(
   // -- 10. A provider success is not yet a K Scan result ---------------------
   const validation = validateVtoResultMedia(outcome.media);
   if (!validation.ok) {
+    await deps.completeVtoGeneration(authUser.id, idempotencyKey, 'failed', selection.provider.id);
     return fail('invalid_output', {
       requestId,
       uid,
@@ -383,6 +477,8 @@ export async function handleVtoRequest(
       latencyMs,
     });
   }
+
+  await deps.completeVtoGeneration(authUser.id, idempotencyKey, 'succeeded', selection.provider.id);
 
   logVtoEvent('vto_generate_succeeded', {
     requestId,
