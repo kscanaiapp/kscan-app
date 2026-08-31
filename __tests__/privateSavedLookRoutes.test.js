@@ -64,7 +64,8 @@ test('Saved Looks leaf defaults OFF and activates only beneath every parent gate
 // storage can activate when any parent is off.
 test('every profile enables the Saved Looks leaf, which stays nested under its parents', () => {
   const eas = JSON.parse(read('eas.json'));
-  for (const [profile, config] of Object.entries(eas.build)) {
+  const { resolveEasBuildProfiles } = require('../scripts/resolve-eas-build-profiles');
+  for (const [profile, config] of Object.entries(resolveEasBuildProfiles(eas))) {
     assert.equal(
       config.env?.EXPO_PUBLIC_PRIVATE_DRESSING_ROOM_SAVED_LOOKS_V1,
       'true',

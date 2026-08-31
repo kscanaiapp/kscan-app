@@ -28,7 +28,8 @@ const ROOT = path.resolve(__dirname, '..');
 const read = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
 
 function easProfiles() {
-  return JSON.parse(read('eas.json')).build;
+  const { resolveEasBuildProfiles } = require('../scripts/resolve-eas-build-profiles');
+  return resolveEasBuildProfiles(JSON.parse(read('eas.json')));
 }
 
 /** True only when every governed profile ships the V2 result UI. */

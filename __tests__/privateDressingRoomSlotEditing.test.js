@@ -228,7 +228,8 @@ test('no second flag evaluator is introduced', () => {
 // on its own.
 test('both private flags are enabled, and interactions stay nested under the workspace', () => {
   const eas = JSON.parse(fs.readFileSync(path.join(ROOT, 'eas.json'), 'utf8'));
-  for (const [profile, config] of Object.entries(eas.build ?? {})) {
+  const { resolveEasBuildProfiles } = require('../scripts/resolve-eas-build-profiles');
+  for (const [profile, config] of Object.entries(resolveEasBuildProfiles(eas))) {
     assert.equal(config?.env?.EXPO_PUBLIC_PRIVATE_DRESSING_ROOM_V1, 'true', `${profile}: workspace flag`);
     assert.equal(
       config?.env?.EXPO_PUBLIC_PRIVATE_DRESSING_ROOM_INTERACTIONS_V1,

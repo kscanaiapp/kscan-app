@@ -145,7 +145,8 @@ test('the private flag is independent of the collaborative dressingRooms freeze'
 // configuration change, not a code change.
 test('production EAS profiles enable the private flag via the exact-string gate', () => {
   const eas = JSON.parse(fs.readFileSync(path.join(ROOT, 'eas.json'), 'utf8'));
-  for (const [profile, config] of Object.entries(eas.build ?? {})) {
+  const { resolveEasBuildProfiles } = require('../scripts/resolve-eas-build-profiles');
+  for (const [profile, config] of Object.entries(resolveEasBuildProfiles(eas))) {
     assert.equal(
       config?.env?.EXPO_PUBLIC_PRIVATE_DRESSING_ROOM_V1,
       'true',
