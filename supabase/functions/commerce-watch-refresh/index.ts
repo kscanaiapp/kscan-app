@@ -41,6 +41,7 @@ import { parseOfferPrice } from '../scan-identify/canonicalCommerce.ts';
 import { deriveWatchCapability, watchProviderForUrl } from '../scan-identify/watchlistCapability.ts';
 import { evaluateWatchRefresh, type WatchState } from './changeEngine.ts';
 import { refreshWatchObservation } from './watchRefreshObservation.ts';
+import { buildDueWatchPath } from './refreshQuery.ts';
 import { sendWatchPush } from './pushDelivery.ts';
 import {
   MIN_REFRESH_INTERVAL_MS,
@@ -397,16 +398,8 @@ async function handleRefresh(authUser: AuthUser, watchId: unknown): Promise<Resp
   }
 
   const staleCutoff = new Date(Date.now() - MIN_REFRESH_INTERVAL_MS).toISOString();
-  let path = `user_commerce_watches?user_id=eq.${authUser.id}&status=eq.active&deleted_at=is.null`;
-  if (typeof watchId === 'string' && isValidUuid(watchId)) {
-    path += `&id=eq.${watchId}`;
-  } else {
-    // §38: opening/re-rendering Watchlist must not repeatedly invoke
-    // providers -- watches checked inside the min interval are skipped, not
-    // re-fetched, regardless of how often the screen refreshes.
-    path += `&or=(last_checked_at.is.null,last_checked_at.lt.${staleCutoff})`;
-    path += `&limit=${USER_REFRESH_BATCH_CAP}`;
-  }
+  const singleWatchId = typeof watchId === 'string' && isValidUuid(watchId) ? watchId : null;
+  const path = buildDueWatchPath(authUser.id, staleCutoff, singleWatchId, USER_REFRESH_BATCH_CAP);
 
   const rowsResponse = await rest(path, { method: 'GET' });
   if (!rowsResponse.ok) {
@@ -414,16 +407,21 @@ async function handleRefresh(authUser: AuthUser, watchId: unknown): Promise<Resp
   }
   const rows = (await rowsResponse.json()) as WatchRow[];
 
-  if (typeof watchId === 'string' && isValidUuid(watchId) && rows.length === 0) {
-    // Distinguish "not due yet" versus "not found" only for the single-watch
-    // case, so a manual Refresh button can show "already fresh" honestly.
+  if (singleWatchId && rows.length === 0) {
+    // Distinguish "not due yet" / "not active" / "not found" for the
+    // single-watch case, so a manual Refresh button reports honestly instead
+    // of claiming freshness for a watch that is merely paused or absent.
     const existsResponse = await rest(
-      `user_commerce_watches?id=eq.${watchId}&user_id=eq.${authUser.id}&deleted_at=is.null&select=id,last_checked_at`,
+      `user_commerce_watches?id=eq.${singleWatchId}&user_id=eq.${authUser.id}&deleted_at=is.null&select=id,status,last_checked_at`,
       { method: 'GET' },
     );
     const existsRows = existsResponse.ok ? await existsResponse.json() : [];
-    if (Array.isArray(existsRows) && existsRows.length > 0) {
-      return json({ refreshed: [], skipped: [{ watchId, reason: 'too_recent' }] });
+    const existing = Array.isArray(existsRows) ? existsRows[0] : undefined;
+    if (existing) {
+      return json({
+        refreshed: [],
+        skipped: [{ watchId: singleWatchId, reason: existing.status === 'active' ? 'too_recent' : 'not_active' }],
+      });
     }
     return json({ error: 'not_found', code: 'not_found' }, 404);
   }
@@ -451,6 +449,29 @@ async function handleRegisterPushToken(authUser: AuthUser, body: UserActionBody)
     return json({ error: 'register_failed', code: 'register_failed' }, 502);
   }
   return json({ registered: true });
+}
+
+/**
+ * DEF-WL-01: sign-out / account-switch revocation. Retires THIS device's
+ * delivery route for the calling actor so a Watch alert can never be pushed
+ * to a handset the owner has left. Identity comes only from requireUser --
+ * the body supplies the device id, never a user id, and the RPC scopes its
+ * update to (that actor, that device).
+ */
+async function handleRevokePushToken(authUser: AuthUser, body: UserActionBody): Promise<Response> {
+  const deviceId = str(body.deviceId, 200);
+  if (!deviceId) {
+    return json({ error: 'invalid_token_registration', code: 'invalid_token_registration' }, 400);
+  }
+  const response = await rpc('revoke_device_push_token', {
+    p_user_id: authUser.id,
+    p_device_id: deviceId,
+  });
+  if (!response.ok) {
+    logEvent('watchlist_push_token_revoke_failed', { uid: shortUserId(authUser.id), status: response.status });
+    return json({ error: 'revoke_failed', code: 'revoke_failed' }, 502);
+  }
+  return json({ revoked: (await response.json()) === true });
 }
 
 async function handleSetPushEnabled(authUser: AuthUser, body: UserActionBody): Promise<Response> {
@@ -517,6 +538,8 @@ Deno.serve(async (req: Request) => {
       return handleRefresh(authUser, body.watchId);
     case 'register_push_token':
       return handleRegisterPushToken(authUser, body);
+    case 'revoke_push_token':
+      return handleRevokePushToken(authUser, body);
     case 'set_push_enabled':
       return handleSetPushEnabled(authUser, body);
     default:

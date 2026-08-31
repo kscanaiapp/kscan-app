@@ -37,17 +37,17 @@ import type {
   TodayWithEliseCardState,
   TodayWithEliseItemRef,
   TodayWithEliseSnapshot,
-} from '../../types/todayWithElise';
-import { evaluateTodayWithEliseCard } from './priorityEngine';
+} from '../../types/todayWithElise.ts';
+import { evaluateTodayWithEliseCard } from './priorityEngine.ts';
 import {
   evaluateTodayOwnedLookEligibility,
   type TodayEligibleSlotCandidate,
   type TodayLookEligibilityOutcome,
-} from './eligibility';
+} from './eligibility.ts';
 import {
   canCommitTodayCardResult,
   type TodayCardOrchestrationHandle,
-} from './actorInvalidation';
+} from './actorInvalidation.ts';
 
 /**
  * How old a private session may be and still be offered as "continue".

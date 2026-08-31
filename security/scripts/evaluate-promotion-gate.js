@@ -100,6 +100,13 @@ const OPERATIONAL_KEYS = new Set([
   'scannerCrash',
   'missingReport',
   'zapExit3',
+  // Staging Gate V2 Section 5/7: 'Project checks' is the repo's own test
+  // suite, not a static scanner - see classifyCheckFailure. A CI-side
+  // problem (npm ci failed, the base/head regression runner's own
+  // orchestrator crashed) or an explicitly cancelled check-run is an
+  // operational failure, not a security/product regression.
+  'projectChecksCiOperationalFailure',
+  'ciOperationalFailureCancelled',
 ]);
 
 const BLOCKING_KEYS = new Set([
@@ -113,7 +120,30 @@ const BLOCKING_KEYS = new Set([
   'newBlockingZapFinding',
   'candidateShaMismatch',
   'zapConfigurationMissingOnProtectedPr',
+  // Staging Gate V2 Section 5: a genuine new regression in 'Project checks'
+  // (this PR's own diff broke something) is a real product/security
+  // regression and blocks like any other - it is simply no longer
+  // mislabeled as a static-scanner operational failure.
+  'projectChecksNewRegression',
 ]);
+
+/**
+ * Classification vocabulary for why the 'Project checks' job failed
+ * (Staging Gate V2 spec, Section 5) - never a static-scanner label.
+ * PROJECT_PRE_EXISTING_BASE_FAILURE has no corresponding *_KEYS entry
+ * above: run-project-checks-regression.js only fails the job itself on a
+ * genuinely NEW regression or a CI operational failure, so a purely
+ * pre-existing-at-base outcome should never reach a failed check-run in
+ * the first place - PROJECT_PRE_EXISTING_BASE_FAILURE exists here only as
+ * a defensive, non-blocking label for that theoretically-unreachable case,
+ * so an unrecognized outcome is never silently folded into a blocking key.
+ */
+const PROJECT_CHECK_CLASSIFICATIONS = Object.freeze({
+  NEW_REGRESSION: 'PROJECT_NEW_REGRESSION',
+  PRE_EXISTING: 'PROJECT_PRE_EXISTING_BASE_FAILURE',
+  SECURITY_REGRESSION: 'PROJECT_SECURITY_REGRESSION',
+  CI_OPERATIONAL: 'PROJECT_CI_OPERATIONAL_FAILURE',
+});
 
 async function githubRequest(url, token) {
   const res = await fetch(url, {
@@ -172,12 +202,54 @@ async function fetchCheckRunsOnce(repo, sha, token, waitSeconds) {
   }
 }
 
-function classifyCheckFailure(name, conclusion) {
+const SECURITY_RELEVANT_IDENTIFIER = /security|auth|rls|privacy|secret|quarantine/i;
+
+/**
+ * Classifies why the 'Project checks' check-run failed, using the base/head
+ * regression report run-project-checks-regression.js writes when it runs
+ * (Staging Gate V2 Section 5) instead of the blanket static-scanner label
+ * every other failed check name still gets. Absent a report at all (the job
+ * failed before the regression runner could even produce one - e.g. `npm
+ * ci` itself died) is treated the same as an explicit CI_OPERATIONAL
+ * outcome: fail closed, never guess it was a real regression, but also
+ * never call plain CI breakage a security finding.
+ */
+function classifyProjectCheckFailure(projectCheckReport) {
+  const outcome = projectCheckReport && projectCheckReport.outcome;
+  if (outcome === 'NEW_REGRESSION') {
+    const newFailures = projectCheckReport.newFailures || [];
+    const classification = newFailures.some((id) => SECURITY_RELEVANT_IDENTIFIER.test(id))
+      ? PROJECT_CHECK_CLASSIFICATIONS.SECURITY_REGRESSION
+      : PROJECT_CHECK_CLASSIFICATIONS.NEW_REGRESSION;
+    return {
+      key: 'projectChecksNewRegression',
+      classification,
+      detail: `Project checks: new failures not present at base SHA - ${newFailures.join(', ')}`,
+    };
+  }
+  // Any other/absent outcome (including a report-less crash) is CI
+  // machinery, not a product or security regression.
+  return {
+    key: 'projectChecksCiOperationalFailure',
+    classification: PROJECT_CHECK_CLASSIFICATIONS.CI_OPERATIONAL,
+    detail: outcome
+      ? `Project checks: regression runner reported ${outcome}${projectCheckReport.detail ? ` (${projectCheckReport.detail})` : ''}`
+      : 'Project checks: failed with no regression report available',
+  };
+}
+
+function classifyCheckFailure(name, conclusion, context = {}) {
   if (conclusion === 'success' || conclusion === 'skipped') return null;
+  if (conclusion === 'cancelled') {
+    return { key: 'ciOperationalFailureCancelled', detail: `${name}: cancelled` };
+  }
   if (name.includes('ZAP') && (conclusion === 'failure' || conclusion === 'timed_out')) {
     return { key: 'zapOperationalFailure', detail: `${name}: ${conclusion}` };
   }
-  if (name === 'Project checks' || name === 'Gitleaks' || name === 'Semgrep Community Edition' || name === 'OSV-Scanner' || name === 'Trivy filesystem' || name === 'npm audit') {
+  if (name === 'Project checks') {
+    return classifyProjectCheckFailure(context.projectCheckReport);
+  }
+  if (name === 'Gitleaks' || name === 'Semgrep Community Edition' || name === 'OSV-Scanner' || name === 'Trivy filesystem' || name === 'npm audit') {
     return { key: 'staticScannerOperationalFailure', detail: `${name}: ${conclusion}` };
   }
   if (name === 'Migration validation') {
@@ -199,8 +271,16 @@ function classifyCheckFailure(name, conclusion) {
  * the wiring fix needs to prove is expressible as a `byName` Map here.
  *
  * @param {Map<string, {status: string, conclusion: string|null}>} byName
+ * @param {object} [projectCheckReport] the JSON report
+ *   run-project-checks-regression.js writes, if the caller downloaded it —
+ *   passed through to classifyCheckFailure so a failed 'Project checks' run
+ *   is labeled PROJECT_NEW_REGRESSION/PROJECT_CI_OPERATIONAL_FAILURE instead
+ *   of the generic static-scanner bucket. Absent entirely (report wasn't
+ *   downloaded, or the job failed before producing one), 'Project checks'
+ *   still classifies safely — see classifyProjectCheckFailure's fail-closed
+ *   default.
  */
-function resolveCheckRunVerdict({ repository, sha, byName }) {
+function resolveCheckRunVerdict({ repository, sha, byName, projectCheckReport }) {
   const missing = [];
   const pending = [];
   const failures = [];
@@ -222,7 +302,7 @@ function resolveCheckRunVerdict({ repository, sha, byName }) {
     results[name] = run.conclusion;
     if (run.conclusion !== 'success' && run.conclusion !== 'skipped') {
       failures.push(`${name}: ${run.conclusion}`);
-      const classified = classifyCheckFailure(name, run.conclusion);
+      const classified = classifyCheckFailure(name, run.conclusion, { projectCheckReport });
       if (classified) flags[classified.key] = true;
     }
   }
@@ -325,6 +405,9 @@ function evaluateLocal(input) {
     ['missingReport', input.missingReport],
     ['zapExit3', input.zapExit3],
     ['zapConfigurationMissingOnProtectedPr', input.zapConfigurationMissingOnProtectedPr],
+    ['projectChecksNewRegression', input.projectChecksNewRegression],
+    ['projectChecksCiOperationalFailure', input.projectChecksCiOperationalFailure],
+    ['ciOperationalFailureCancelled', input.ciOperationalFailureCancelled],
   ];
 
   for (const [key, value] of checks) {
@@ -424,6 +507,18 @@ async function main() {
   // This is a settle-wait for REST eventual consistency on a single check-run
   // fetch, not a wait for sibling workflows — see fetchCheckRunsOnce's doc.
   const waitSeconds = Number(getArg('--wait-seconds') || 30);
+  // Optional: the JSON artifact run-project-checks-regression.js wrote,
+  // downloaded by the calling workflow before this script runs. Absent is
+  // fine — see classifyProjectCheckFailure's fail-closed default.
+  const projectCheckReportPath = getArg('--project-check-report');
+  let projectCheckReport = null;
+  if (projectCheckReportPath && fs.existsSync(projectCheckReportPath)) {
+    try {
+      projectCheckReport = JSON.parse(fs.readFileSync(projectCheckReportPath, 'utf8'));
+    } catch {
+      projectCheckReport = null;
+    }
+  }
 
   if (!repo || !sha || !token) {
     console.error('Missing --repo, --sha, or --token');
@@ -433,7 +528,7 @@ async function main() {
   let verdict;
   try {
     const byName = await fetchCheckRunsOnce(repo, sha, token, waitSeconds);
-    verdict = resolveCheckRunVerdict({ repository: repo, sha, byName });
+    verdict = resolveCheckRunVerdict({ repository: repo, sha, byName, projectCheckReport });
   } catch (err) {
     // Task 10: API error, exact-SHA mismatch, or any other operational
     // problem still gets a written verdict — never a silent, artifact-less exit.
@@ -482,9 +577,13 @@ module.exports = {
   DEPLOYMENT_REQUIRED_CHECKS,
   DROPPED_CHECKS,
   REQUIRED_CHECKS: [...ALWAYS_REQUIRED_CHECKS, ...DEPLOYMENT_REQUIRED_CHECKS], // back-compat name
+  OPERATIONAL_KEYS,
+  BLOCKING_KEYS,
+  PROJECT_CHECK_CLASSIFICATIONS,
   evaluateLocal,
   resolveCheckRunVerdict,
   writeVerdict,
   classifyCheckFailure,
+  classifyProjectCheckFailure,
   TERMINAL_EXIT_CODE,
 };

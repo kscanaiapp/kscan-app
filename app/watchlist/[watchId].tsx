@@ -147,12 +147,20 @@ export default function WatchDetailScreen() {
 
   const currentPrice = formatCommercePrice(watch.currentPriceAmount, watch.currency);
   const startedPrice = formatCommercePrice(watch.initialPriceAmount, watch.currency);
+  // DEF-WL-05: keyed on lastStatus, never on lastCheckedAt. last_checked_at is
+  // stamped by the background claim and by every refresh cycle INCLUDING the
+  // ones that failed to resolve, so treating its presence as evidence the
+  // listing is live asserted "Still listed" after a timeout, a 429 or a
+  // provider outage. Only an observation that actually resolved may claim the
+  // listing is still there; a failed one says so plainly instead.
   const statusLine =
     watch.lastStatus === 'unavailable'
       ? 'No longer listed'
-      : watch.lastCheckedAt
+      : watch.lastStatus === 'available'
         ? 'Still listed'
-        : 'Not checked yet';
+        : watch.lastStatus === 'error'
+          ? "Couldn't check this listing"
+          : 'Not checked yet';
 
   return (
     <LuxuryScreen testID="watch-detail-screen">

@@ -42,7 +42,15 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const REPO_ROOT = path.resolve(__dirname, '..');
+// Root the gate reads from. Defaults to this repository. The override exists
+// so the negative-control tests can point the gate at an isolated fixture
+// tree instead of mutating this repository's own app.json in place -- doing
+// that made every concurrently-running test file that reads app.json
+// (oauthCallback, iosAppReviewSurface, ...) fail intermittently. CI still
+// invokes the gate with no override, so it still checks the real tree.
+const REPO_ROOT = process.env.NATIVE_CONFIG_PARITY_ROOT
+  ? path.resolve(process.env.NATIVE_CONFIG_PARITY_ROOT)
+  : path.resolve(__dirname, '..');
 const APP_JSON_PATH = path.join(REPO_ROOT, 'app.json');
 const AUTHORITY_PATH = path.join(REPO_ROOT, 'config', 'native-config-authority.json');
 const GRADLE_PATH = path.join(REPO_ROOT, 'android', 'app', 'build.gradle');

@@ -239,10 +239,19 @@ test('v1 requests: no contractVersion required; attachment-free prompt unchanged
   assert.match(indexSource, /select\('id,user_id,title,analysis_result,storage_bucket,storage_path,media_status'\)/);
   assert.match(indexSource, /select\('id,user_id,note,category,color,pattern,material,silhouette,garment_role,storage_bucket,storage_path'\)/);
   // Attachment resolution sits after the burst guard, before daily quota.
-  assert.ok(indexSource.indexOf('check_and_increment_stylechat_burst') <
-    indexSource.indexOf('4c. V2 attachment resolution'));
-  assert.ok(indexSource.indexOf('4c. V2 attachment resolution') <
-    indexSource.indexOf(".rpc('increment_stylechat_daily_usage')"));
+  //
+  // SCOPED TO THE CHAT PATH. index.ts now dispatches a versioned Packing branch
+  // ahead of the chat path, and that branch has its own burst and daily-quota
+  // calls. A whole-file indexOf would compare this assertion against whichever
+  // branch happens to appear first in the file, which is not the ordering this
+  // test is about.
+  const chatPath = indexSource.slice(
+    indexSource.indexOf("const sessionId = typeof body.sessionId === 'string'"));
+  assert.ok(chatPath.length > 0, 'the chat path must be locatable');
+  assert.ok(chatPath.indexOf('check_and_increment_stylechat_burst') <
+    chatPath.indexOf('4c. V2 attachment resolution'));
+  assert.ok(chatPath.indexOf('4c. V2 attachment resolution') <
+    chatPath.indexOf(".rpc('increment_stylechat_daily_usage')"));
 });
 
 test('client capability handling: unsupported v2 preserves the draft, never strips attachments', () => {

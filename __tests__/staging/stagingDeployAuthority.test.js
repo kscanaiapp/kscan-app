@@ -74,8 +74,11 @@ function ctxFor({ event, ref, baseRef, inputs }) {
     },
     inputs: inputs ?? {},
     needs: {
-      'classify-changes': { outputs: { staging_impact: 'true' } },
-      classify: { outputs: { staging_impact: 'true' } },
+      // backend_deployment_required replaced the blanket staging_impact as
+      // this job's gating field (mobile-only diffs have nothing to deploy);
+      // the branch/dispatch-authority assertions below are unaffected.
+      'classify-changes': { outputs: { backend_deployment_required: 'true' } },
+      classify: { outputs: { backend_deployment_required: 'true' } },
       'migration-validation': { result: 'success' },
     },
   };
@@ -85,7 +88,7 @@ function ctxFor({ event, ref, baseRef, inputs }) {
 // access, so normalise the condition text the same way GitHub resolves it.
 function conditionForEval() {
   return extractDeployCondition()
-    .replace(/needs\.classify-changes\.outputs\.staging_impact/g, 'needs.classify.outputs.staging_impact')
+    .replace(/needs\.classify-changes\.outputs\.backend_deployment_required/g, 'needs.classify.outputs.backend_deployment_required')
     .replace(/needs\.migration-validation\.result/g, 'needs.migrationvalidation.result');
 }
 
@@ -94,7 +97,7 @@ function evaluate(ctx) {
   const withNeeds = {
     ...ctx,
     needs: {
-      classify: { outputs: { staging_impact: 'true' } },
+      classify: { outputs: { backend_deployment_required: 'true' } },
       migrationvalidation: { result: 'success' },
     },
   };

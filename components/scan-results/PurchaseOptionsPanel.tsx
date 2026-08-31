@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,8 +10,14 @@ import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { SectionHeader } from '../luxury/SectionHeader';
 import { EmptyStateCard } from '../luxury/EmptyStateCard';
 import { InlineNotice } from '../luxury/InlineNotice';
-import type { PurchaseOption } from './types';
+import { canWatchPurchaseOption } from './types';
+import type { PurchaseOption, WatchCandidate } from './types';
 import { selectCommerceDestination } from '../../services/commerceDestination';
+// DEF-WL-07: the EXISTING Watch creation flow, reused rather than reimplemented.
+// ProductShelf keeps owning the modal and the createWatch call; this surface
+// only decides which rows may open it.
+import { WatchThisModal } from '../ProductShelf';
+import { KPlusGate } from '../kplus/KPlusGate';
 
 interface PurchaseOptionsPanelProps {
   purchaseOptions?: PurchaseOption[];
@@ -62,6 +68,9 @@ export function PurchaseOptionsPanel({
 }: PurchaseOptionsPanelProps) {
   const hasData = Array.isArray(purchaseOptions) && purchaseOptions.length > 0;
   const mode = resolvePurchaseOptionsPanelMode(hasData, commerceStatus);
+  // DEF-WL-07: the row whose Watch action is open, or null. Ephemeral view
+  // state -- nothing here is written back into the scan.
+  const [watchCandidate, setWatchCandidate] = useState<WatchCandidate | null>(null);
 
   return (
     <View style={styles.container} testID={testID ?? 'purchase-options-panel'}>
@@ -75,6 +84,8 @@ export function PurchaseOptionsPanel({
             const destination = selectCommerceDestination([option.productUrl]);
             const hasPrice = Boolean(option.priceLabel);
             const hasAvailability = Boolean(option.availabilityLabel);
+            // DEF-WL-07: server-authored eligibility, read not re-derived.
+            const canWatch = canWatchPurchaseOption(option);
 
             return (
               <View
@@ -123,6 +134,33 @@ export function PurchaseOptionsPanel({
                   ) : (
                     <Text style={styles.unavailableLabel}>Unavailable</Text>
                   )}
+                  {/* DEF-WL-07 (P1). The Watch affordance on the SHIPPED
+                      commerce surface. ScanResultV2 renders this panel
+                      directly for a single item and, via
+                      MultiItemCommerceSection, for every per-item card -- so
+                      placing it here reaches both without a second commerce
+                      architecture and without resurrecting AnalysisCard.
+                      Eligibility is server-authored and only read here. */}
+                  {canWatch ? (
+                    <KPlusGate source="watchlist">
+                      {({ isActive, openUpgrade }) => (
+                        <TouchableOpacity
+                          testID={`purchase-option-watch-${option.id}`}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Watch ${option.title ?? option.retailer}`}
+                          accessibilityHint="Get notified about price changes on this listing"
+                          style={styles.watchButton}
+                          activeOpacity={0.78}
+                          onPress={() => {
+                            if (isActive) setWatchCandidate(option.watchCandidate ?? null);
+                            else openUpgrade();
+                          }}
+                        >
+                          <Text style={styles.watchButtonText}>Watch</Text>
+                        </TouchableOpacity>
+                      )}
+                    </KPlusGate>
+                  ) : null}
                 </View>
               </View>
             );
@@ -150,6 +188,16 @@ export function PurchaseOptionsPanel({
           testID="purchase-options-empty"
         />
       )}
+
+      {/* DEF-WL-07: the existing Watchlist creation flow. `WatchCandidate` is a
+          structural subset of ProductShelf's `Product`, so the modal receives
+          the same canonical retailer/product-URL identity it does on the legacy
+          shelf and creates an identical watch. No second creation path. */}
+      <WatchThisModal
+        product={watchCandidate}
+        visible={!!watchCandidate}
+        onClose={() => setWatchCandidate(null)}
+      />
     </View>
   );
 }
@@ -210,6 +258,24 @@ const styles = StyleSheet.create({
   },
   outOfStock: {
     color: LUXURY.colors.stone,
+  },
+  // DEF-WL-07: a secondary action beside "View Options" -- deliberately the
+  // same geometry so the row keeps its existing rhythm.
+  watchButton: {
+    minHeight: 44,
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.plumMuted,
+    marginTop: SPACING.xs,
+  },
+  watchButtonText: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
+    textTransform: 'none',
+    letterSpacing: 0.5,
   },
   viewOptionsButton: {
     minHeight: 44,
