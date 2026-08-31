@@ -18,6 +18,11 @@ import { selectCommerceDestination } from '../../services/commerceDestination';
 // only decides which rows may open it.
 import { WatchThisModal } from '../ProductShelf';
 import { KPlusGate } from '../kplus/KPlusGate';
+// VTO-REACH-001: the EXISTING try-on entry point, reused rather than
+// reimplemented. TryItOnEntry keeps owning eligibility, the K+ conversation and
+// the sheet; this surface only decides which rows may offer it.
+import { VTO_UI_ENABLED } from '../../constants/featureFlags';
+import { TryItOnEntry } from '../vto/TryItOnEntry';
 
 interface PurchaseOptionsPanelProps {
   purchaseOptions?: PurchaseOption[];
@@ -160,6 +165,33 @@ export function PurchaseOptionsPanel({
                         </TouchableOpacity>
                       )}
                     </KPlusGate>
+                  ) : null}
+                  {/* VTO-REACH-001 (P2). The Try It On affordance on the
+                      SHIPPED commerce surface. eas.json sets
+                      EXPO_PUBLIC_SCAN_RESULTS_V2_UI=true in every governed
+                      profile, so ScanResultV2 renders this panel directly for
+                      a single item and, via MultiItemCommerceSection, for
+                      every per-item card -- while nothing in scan-results/
+                      renders ProductShelf. Placing it here reaches both
+                      without a second commerce architecture and without
+                      resurrecting AnalysisCard, exactly as DEF-WL-07 did for
+                      Watch.
+
+                      `vtoGarment` is the canonical identity for THIS row,
+                      derived by the same shared builder ProductShelf uses, so
+                      a try-on started here can only ever be anchored to the
+                      product the row is showing. TryItOnEntry itself renders
+                      nothing unless the item is genuinely eligible (or the
+                      only gap is K+), so an ineligible row looks exactly as it
+                      does today. */}
+                  {VTO_UI_ENABLED && option.vtoGarment ? (
+                    <TryItOnEntry
+                      garment={option.vtoGarment}
+                      garmentTitle={option.title ?? option.retailer}
+                      origin="commerce_product"
+                      onShop={destination ? () => Linking.openURL(destination) : undefined}
+                      testID={`purchase-option-try-it-on-${option.id}`}
+                    />
                   ) : null}
                 </View>
               </View>

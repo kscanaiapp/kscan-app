@@ -63,11 +63,23 @@ function loadTsModule(relativePath, requireMap = {}) {
   return mod.exports;
 }
 
+// VTO-REACH-001 added a try-on garment to the same mapper this file tests. The
+// REAL derivation is supplied rather than a stub: the point of this file is that
+// what the shipped surface actually builds is what gets asserted, and a stub
+// here would hide a regression in exactly the mapper under test.
+const vtoCommerceGarment = loadTsModule('services/vto/vtoCommerceGarment.ts', {
+  '../commerceDestination': loadTsModule('services/commerceDestination.ts', {}),
+  '../dressingRoomCommerce': loadTsModule('services/dressingRoomCommerce.ts', {}),
+  '../../types/vto': {},
+});
+
 const scanResultTypes = loadTsModule('components/scan-results/types.ts', {
   '../../services/scanTitleBuilder': { buildScanTitle: () => 'Title' },
   '../../constants/build': { SCAN_IDENTITY_DEBUG: false },
   '../../constants/featureFlags': { SCAN_RESULTS_DEMO_UI_ENABLED: false },
   '../../services/outfitConfirmation/outfitDetectionBridge': {},
+  '../../services/vto/vtoCommerceGarment': vtoCommerceGarment,
+  '../../types/vto': {},
 });
 const { mapRawProductToPurchaseOption, canWatchPurchaseOption } = scanResultTypes;
 
