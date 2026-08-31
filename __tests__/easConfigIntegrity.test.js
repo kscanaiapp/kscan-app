@@ -167,8 +167,89 @@ test('staging-certification produces a store-shaped bundle on the staging backen
   assert.equal(cert.ios.buildConfiguration, 'Release');
 });
 
-test('staging-certification cannot drift onto its own backend target', () => {
+// ── Build 34 certification feature matrix (owner rulings, P2-EAS-FLAGS) ──────
+//
+// Per-feature verification found K+ Early Access and Watchlist NOT closed
+// (K+: the deployed `kplus-activate` function on staging predates the
+// SEC-KPLUS-008 fix in ancestry — a possible lost repair, owner action
+// required; Watchlist: zero recorded or database evidence of the
+// scan-to-Watch-to-refresh path ever running end-to-end on staging). VTO,
+// Packing Intelligence, and Wardrobe Concierge were each proven fully closed
+// (ancestry + staging runtime + probe/fail-closed evidence) and are enabled
+// here. Voice Scan stays off (VOICESCAN_ENABLED is a hardcoded constant, not
+// an env flag, and is untouched).
+//
+// `staging-certification` may now define its OWN `env`, but only as a
+// narrow additive override on top of the inherited staging env (via
+// `extends`) — it must never redeclare the backend identity (Supabase URL /
+// anon key / EXPO_PUBLIC_ENVIRONMENT), and it must contain exactly the
+// approved matrix keys, nothing else.
+
+const { resolveEasBuildProfile } = require('../scripts/resolve-eas-build-profiles');
+
+const CERT_MATRIX_ENABLED = Object.freeze([
+  'EXPO_PUBLIC_VTO_UI_ENABLED',
+  'EXPO_PUBLIC_PACKING_INTELLIGENCE_V1',
+  'EXPO_PUBLIC_ELISE_CONCIERGE_V1',
+]);
+
+const CERT_MATRIX_EXCLUDED = Object.freeze([
+  'EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED',
+  'EXPO_PUBLIC_SMART_WATCHLIST_V1',
+]);
+
+const BACKEND_IDENTITY_KEYS = Object.freeze([
+  'EXPO_PUBLIC_SUPABASE_URL',
+  'EXPO_PUBLIC_SUPABASE_ANON_KEY',
+  'EXPO_PUBLIC_ENVIRONMENT',
+]);
+
+test('staging-certification defines an env, but only the approved matrix override keys', () => {
   const cert = eas.build['staging-certification'];
-  assert.equal(cert.env, undefined,
-    'staging-certification must not define env; the staging profile is the single source of its environment');
+  assert.ok(cert.env && typeof cert.env === 'object', 'staging-certification must define its matrix overrides');
+  assert.deepEqual(
+    Object.keys(cert.env).sort(),
+    [...CERT_MATRIX_ENABLED].sort(),
+    'staging-certification env must contain exactly the approved enabled-flag overrides, nothing else',
+  );
+  for (const key of BACKEND_IDENTITY_KEYS) {
+    assert.ok(!(key in cert.env), `staging-certification must not redeclare backend identity key ${key}`);
+  }
+});
+
+test('staging-certification cannot drift onto its own backend target', () => {
+  const resolved = resolveEasBuildProfile(eas, 'staging-certification');
+  assert.equal(
+    resolved.env.EXPO_PUBLIC_SUPABASE_URL,
+    staging.env.EXPO_PUBLIC_SUPABASE_URL,
+    'staging-certification must inherit the staging backend verbatim, unchanged by its matrix overrides',
+  );
+  assert.equal(resolved.env.EXPO_PUBLIC_ENVIRONMENT, 'staging');
+});
+
+test('the effective (extends-resolved) staging-certification matrix equals the approved rulings exactly', () => {
+  const resolved = resolveEasBuildProfile(eas, 'staging-certification');
+  for (const key of CERT_MATRIX_ENABLED) {
+    assert.equal(resolved.env[key], 'true', `${key} must be enabled in the effective staging-certification matrix`);
+  }
+  for (const key of CERT_MATRIX_EXCLUDED) {
+    assert.notEqual(
+      resolved.env[key],
+      'true',
+      `${key} must NOT be enabled in the effective staging-certification matrix (not closed server-side)`,
+    );
+  }
+});
+
+test('the ordinary staging profile is not broadened by the certification matrix', () => {
+  for (const key of CERT_MATRIX_ENABLED) {
+    assert.ok(!(key in staging.env), `${key} must not leak into the ordinary staging profile`);
+  }
+});
+
+test('the production profile is not broadened by the certification matrix', () => {
+  const production = eas.build.production;
+  for (const key of CERT_MATRIX_ENABLED) {
+    assert.ok(!(production.env && key in production.env), `${key} must not leak into the production profile`);
+  }
 });
