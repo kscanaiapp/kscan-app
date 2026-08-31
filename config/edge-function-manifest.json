@@ -1,7 +1,7 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-31T19:28:21.605Z",
+    "generatedAtUtc": "2026-08-31T19:53:03.640Z",
     "generatedFromGitSha": "1a33ebeee6a21299bc41e37a04793452632869b7"
   },
   "parity": {
@@ -1170,8 +1170,8 @@
         ],
         "bundleFileCount": 3,
         "treeFileCount": 3,
-        "bundleHash": "fb78a613f8bbb5ac76cde54f29f3304610cdb51285de299000d2247fb0bbf0f5",
-        "treeHash": "fb78a613f8bbb5ac76cde54f29f3304610cdb51285de299000d2247fb0bbf0f5",
+        "bundleHash": "7ea147d6acb1b4f47469c93e50b52f8aa7052de92ed52387253c1cd5f0c86aed",
+        "treeHash": "7ea147d6acb1b4f47469c93e50b52f8aa7052de92ed52387253c1cd5f0c86aed",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -1185,7 +1185,7 @@
           },
           {
             "path": "supabase/functions/kplus-activate/index.ts",
-            "sha256": "ff2fcf666193403ad8d3b93aae2bc9baa31d7c16525d37c398d0119ae6d084e7",
+            "sha256": "7059163d47b5bd7c3cc5556ab9d533419d1775545ac1d601e8242f108bc4c8a6",
             "bundle": true
           }
         ]
