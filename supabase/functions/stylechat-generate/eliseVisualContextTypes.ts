@@ -22,6 +22,25 @@ export type EliseEvidenceSourceType =
   | 'selected_scan_item'
   | 'text_scan'
   | 'recent_scan'
+  /**
+   * INT-KPLUS-001: the ONLY source type that may carry actorRelationship
+   * 'owned'. Backed by a live public.user_closet_items row belonging to the
+   * current actor -- the canonical Closet authority.
+   */
+  | 'user_closet_item'
+  /**
+   * A saved scan surfaced through the legacy `closet_item` transport. The user
+   * scanned/saved it; they do not necessarily own it.
+   */
+  | 'saved_scan'
+  /** A cloud inspiration upload. Saved, never owned. */
+  | 'inspiration_item'
+  /**
+   * LEGACY transport label only. Retained so existing clients keep resolving,
+   * but it is never the RESOLVED source type: the server re-labels it as
+   * user_closet_item / saved_scan / inspiration_item according to the row it
+   * actually found. It must never independently establish ownership.
+   */
   | 'closet_item'
   | 'owned_room_item'
   | 'shared_room_item'
@@ -30,7 +49,14 @@ export type EliseEvidenceSourceType =
   | 'unknown_legacy';
 
 export type EliseActorRelationship =
+  /**
+   * Reserved for a live public.user_closet_items row owned by the current
+   * actor. Saved scans, inspiration uploads, shared items and commerce results
+   * are NEVER 'owned' (INT-KPLUS-001).
+   */
   | 'owned'
+  /** Saved/kept by the actor (inspiration uploads) but not owned. */
+  | 'saved'
   | 'shared'
   | 'scanned'
   | 'uploaded'
