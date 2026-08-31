@@ -23,6 +23,7 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { goBackOrHome } from '../../services/navigationExit';
+import { captureActorScope, isActorScopeCurrent } from '../../services/actorScope';
 import { StatusBar } from 'expo-status-bar';
 
 import { FeatureFreezeFallback } from '../../components/FeatureFreezeFallback';
@@ -215,6 +216,12 @@ function StylistContent() {
       setSavedLookIdBySuggestion({});
       savedLookIdBySuggestionRef.current = {};
 
+      // INT-KPLUS-009 — capture the actor generation before the generation
+      // request. A response that resolves after the actor changed must render
+      // nothing and write no events under the new actor. Uses the same shared
+      // actor-epoch authority as StyleChat and Watchlist -- not a second
+      // mechanism, and not `isAuthenticated`, which stays true across A -> B.
+      const scope = captureActorScope();
       try {
         const anchorRef: OwnedItemRef | null =
           anchorItem && anchorItem.sourceId
@@ -229,6 +236,9 @@ function StylistContent() {
           excludeItems: excludedRefs,
           event: { occasion, dressCode, setting, note },
         });
+        // Stale actor: discard the whole result. No render, no telemetry, and
+        // therefore no Ask Elise handoff (which is driven off `result`).
+        if (!isActorScopeCurrent(scope)) return;
         setResult(response);
 
         if (response.status === 'success') {

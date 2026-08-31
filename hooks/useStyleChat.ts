@@ -22,6 +22,7 @@ import {
 import { createStyleChatRetryState } from '../services/style-chat/styleChatRetryState';
 import { classifyStyleChatOperationalFailure } from '../services/style-chat/styleChatOutcome';
 import { useAuthSession } from '../contexts/AuthSessionContext';
+import { captureActorScope, isActorScopeCurrent } from '../services/actorScope';
 import { useStylistIdentity } from './useStylistIdentity';
 import { useScreenReaderEnabled, useScreenReaderReady } from './useScreenReaderEnabled';
 import { getStylistVoiceProfile } from '../constants/stylistIdentity';
@@ -275,18 +276,29 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
     if (isSessionGreeted(actorId, sessionId) && !pendingSpeechMessageId) return;
 
     let cancelled = false;
+    // INT-KPLUS-002 — capture the actor GENERATION before any async work.
+    // `cancelled` only covers this effect re-running; it cannot reject a late
+    // greeting whose actor changed underneath it, and `actorId` alone cannot
+    // distinguish the first A of an A -> B -> A switch from the current one.
+    // Every mutation below is gated on this scope still being live.
+    const scope = captureActorScope();
+    const stale = () => cancelled || !isActorScopeCurrent(scope);
 
     async function insertGreeting() {
       try {
         if (messages.length === 0 && !isSessionGreeted(actorId!, sessionId)) {
           const result = await ensureSessionGreeting(actorId!, sessionId, greetingText);
+          // Actor-bound: this re-arms welcome speech in a store that the actor
+          // transition just cleared. It MUST be gated -- previously it ran
+          // before the staleness check and resurrected the previous actor's
+          // pending greeting speech.
+          if (stale()) return;
           // Retain one speech attempt across cancel/remount only when voice was
           // already eligible at insert. Voice-off welcomes must not speak later
           // merely because the preference was enabled afterward.
           if (result.inserted && result.message && canSpeakNewMessages) {
             noteInsertedGreetingForSpeech(actorId!, sessionId, result.message.id);
           }
-          if (cancelled) return;
 
           markSessionGreeted(actorId!, sessionId);
 
@@ -298,14 +310,18 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
             );
           }
         } else if (!isSessionGreeted(actorId!, sessionId)) {
+          if (stale()) return;
           markSessionGreeted(actorId!, sessionId);
         }
 
-        if (cancelled) return;
+        if (stale()) return;
         if (!canSpeakNewMessages) return;
 
         const speechMessageId = claimGreetingSpeechAttempt(actorId!, sessionId);
         if (!speechMessageId) return;
+        // Re-check immediately before speaking: claiming is itself a mutation
+        // and playback is actor-visible.
+        if (stale()) return;
 
         void speakAvatarMessage({
           actorId: actorId!,
@@ -392,7 +408,12 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
       void stopAvatarSpeechPlayback({ actorId, sessionId, avatarId: identity.avatarId });
       retryStateRef.current?.clear();
       const sendScopeVersion = sendScopeVersionRef.current;
-      const isCurrentSend = () => sendScopeVersionRef.current === sendScopeVersion;
+      // INT-KPLUS-002 — the send scope version resets on [actorId, sessionId],
+      // but the actor epoch is what rejects work started during an EARLIER
+      // generation of the same actor. Require both.
+      const sendActorScope = captureActorScope();
+      const isCurrentSend = () =>
+        sendScopeVersionRef.current === sendScopeVersion && isActorScopeCurrent(sendActorScope);
 
       // For the very first message in a new session, make sure the assistant
       // greeting is persisted before the user message when the transaction
@@ -403,6 +424,10 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
           const greetingResult = await waitForSessionGreeting(
             ensureSessionGreeting(actorId, sessionId, greetingText),
           );
+          // Gate BEFORE mutating: this used to mark the session greeted and
+          // push the greeting into `messages` even when the actor had already
+          // changed, because the only guard sat after the whole block.
+          if (!isCurrentSend()) return;
           if (greetingResult) {
             markSessionGreeted(actorId, sessionId);
           }
