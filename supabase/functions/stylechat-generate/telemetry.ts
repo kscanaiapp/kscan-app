@@ -13,7 +13,14 @@ export type EliseTelemetryEventName =
    * Style value, image URI or storage path can travel on these events.
    */
   | 'concierge_turn_outcome'
-  | 'concierge_ownership_prose_conflict';
+  | 'concierge_ownership_prose_conflict'
+  /**
+   * CON-ABSENCE-005. Fires when a Closet ABSENCE claim was removed for want of
+   * authoritative census provenance. Carries subject CLASS codes and a boolean
+   * only -- deliberately no count, because a count of what the Closet lacks is
+   * still a statement about its contents.
+   */
+  | 'concierge_absence_prose_conflict';
 
 export type EliseTelemetryPayload = Record<string, unknown>;
 
@@ -94,6 +101,12 @@ const ALLOWED_KEYS = new Set([
   'gapEvidenceExhaustive',
   'ownedEvidenceUsed',
   'conflictCodes',
+  /**
+   * CON-ABSENCE-005. Whether the turn had authoritative census provenance at
+   * all. A boolean about the SYSTEM's evidence, not about the Closet: it says
+   * whether we were allowed to speak, never what was in there.
+   */
+  'censusAvailable',
   'shortlistSize',
   'latencyBucket',
   'conciergeV1',
