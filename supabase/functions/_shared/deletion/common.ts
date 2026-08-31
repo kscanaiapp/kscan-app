@@ -110,7 +110,29 @@ export async function rpc(fnName: string, body: Record<string, unknown>) {
   return response;
 }
 
-export type AuthUser = { id: string; email?: string; accessToken: string };
+export type AuthUser = {
+  id: string;
+  email?: string;
+  accessToken: string;
+  /**
+   * True when the verified identity is an ANONYMOUS Supabase user
+   * (auth.signInAnonymously()). An anonymous identity IS authenticated -- it
+   * holds a valid, verifiable JWT with its own auth.uid() -- but it is not a
+   * K Scan AI account. Anything that spends money, grants entitlements, or
+   * limits paid-provider use must check this, not just `requireUser` success.
+   * Mirrors scan-identify's isEligiblePaidAIActor (SEC-KPLUS-005).
+   */
+  isAnonymous: boolean;
+};
+
+/**
+ * Accounts eligible for entitlement grants and paid-provider work.
+ * Fails closed: anything that is not a real, non-anonymous account is denied.
+ */
+export function isEligibleAccountActor(user: Pick<AuthUser, 'id' | 'isAnonymous'> | null | undefined): boolean {
+  if (!user || typeof user.id !== 'string' || !isValidUuid(user.id)) return false;
+  return user.isAnonymous !== true;
+}
 
 export async function requireUser(req: Request): Promise<AuthUser> {
   const { createClient } = await import('npm:@supabase/supabase-js@2');
@@ -140,7 +162,14 @@ export async function requireUser(req: Request): Promise<AuthUser> {
     throw json({ error: 'Authentication required' }, 401);
   }
 
-  return { id: user.id, email: user.email ?? undefined, accessToken };
+  return {
+    id: user.id,
+    email: user.email ?? undefined,
+    accessToken,
+    // Present on the same getUser() response already fetched above, so this
+    // costs no extra round trip.
+    isAnonymous: Boolean((user as { is_anonymous?: boolean }).is_anonymous),
+  };
 }
 
 // Deletion-request statuses that mean "this account is being deleted, or was

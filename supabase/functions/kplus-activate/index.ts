@@ -20,7 +20,16 @@
  * grant -- external_sync_status is simply left pending/failed_retryable for
  * the reconciliation function (kplus-reconcile-revenuecat) to retry later.
  */
-import { corsHeaders, json, logEvent, requireUser, rpc, shortUserId } from '../_shared/deletion/common.ts';
+import {
+  assertAccountActive,
+  corsHeaders,
+  isEligibleAccountActor,
+  json,
+  logEvent,
+  requireUser,
+  rpc,
+  shortUserId,
+} from '../_shared/deletion/common.ts';
 import { syncPromotionalEntitlement } from '../_shared/revenuecat/revenueCatClient.ts';
 
 interface GrantRow {
@@ -43,6 +52,30 @@ Deno.serve(async (req: Request) => {
   } catch (response) {
     if (response instanceof Response) return response;
     return json({ error: 'Authentication required' }, 401);
+  }
+
+  // SEC-KPLUS-005 — a verified JWT is not an eligible account.
+  //
+  // requireUser succeeds for an ANONYMOUS Supabase identity: it holds a valid
+  // token and its own auth.uid(), so it could previously self-grant K+ and
+  // thereby defeat K+ as the boundary that limits paid-provider work. K+ is an
+  // account entitlement; an anonymous session is not an account.
+  if (!isEligibleAccountActor(authUser)) {
+    logEvent('kplus_activation_denied_ineligible_actor', {
+      uid: shortUserId(authUser.id),
+      reason: 'anonymous_identity',
+    });
+    return json({ error: 'K+ requires a K Scan AI account.', code: 'ACCOUNT_REQUIRED' }, 403);
+  }
+
+  // A deactivated / mid-deletion account must not receive new entitlements.
+  // Throws a 403 ACCOUNT_DEACTIVATED Response, and fails closed if the lookup
+  // itself fails.
+  try {
+    await assertAccountActive(authUser.id);
+  } catch (response) {
+    if (response instanceof Response) return response;
+    return json({ error: 'ACCOUNT_DEACTIVATED', code: 'ACCOUNT_DEACTIVATED' }, 403);
   }
 
   const grantResponse = await rpc('grant_kplus_early_access', { p_user_id: authUser.id });

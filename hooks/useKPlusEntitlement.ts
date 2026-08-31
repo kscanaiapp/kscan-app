@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import {
   activateKPlus,
@@ -31,6 +32,22 @@ export function useKPlusEntitlement(): UseKPlusEntitlementResult {
   useEffect(() => {
     if (!KPLUS_EARLY_ACCESS_ENABLED || !isAuthenticated || !user?.id) return;
     void refreshKPlusEntitlement();
+  }, [isAuthenticated, user?.id]);
+
+  // INT-KPLUS-006 — re-read entitlement when the app comes back to the
+  // foreground. The store already downgrades a lapsed grant at read time, so
+  // the UI is never WRONG without this; but a session that was backgrounded
+  // across the expiry boundary (or across a server-side revocation) should
+  // reconcile with the server rather than sit on a locally-expired snapshot.
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  useEffect(() => {
+    if (!KPLUS_EARLY_ACCESS_ENABLED || !isAuthenticated || !user?.id) return;
+    const subscription = AppState.addEventListener('change', (next) => {
+      const cameForward = appStateRef.current.match(/inactive|background/) && next === 'active';
+      appStateRef.current = next;
+      if (cameForward) void refreshKPlusEntitlement();
+    });
+    return () => subscription.remove();
   }, [isAuthenticated, user?.id]);
 
   const refresh = useCallback(() => {
