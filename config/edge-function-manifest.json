@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-31T01:20:06.504Z",
-    "generatedFromGitSha": "a6356b8a5ed2ece93c0aa1e0d17719a2f3397355"
+    "generatedAtUtc": "2026-08-31T05:08:30.439Z",
+    "generatedFromGitSha": "bc00111b532eaf9db2679aa28ee7889a5c588ba6"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -1262,12 +1262,12 @@
         "remoteSpecifiers": [],
         "bundleFileCount": 1,
         "treeFileCount": 1,
-        "bundleHash": "2e0844b79befa5fb351a1c62d1fc8c423d2a8a4217222df3136168f86b4253fb",
-        "treeHash": "2e0844b79befa5fb351a1c62d1fc8c423d2a8a4217222df3136168f86b4253fb",
+        "bundleHash": "c4597218ca545717594c42dec8edbb92eef07a3063eae71b0f7f47d4149037de",
+        "treeHash": "c4597218ca545717594c42dec8edbb92eef07a3063eae71b0f7f47d4149037de",
         "files": [
           {
             "path": "supabase/functions/tryon-clothes-pro/index.ts",
-            "sha256": "e1161b74cc9df1ef68352de09f91723664fcb0e6364496ae10c157f3718c7cea",
+            "sha256": "06f0abb3c5324edbfc1c1a0ee3b3c522af712ac2cda16f5ec859b56ae8c2fa62",
             "bundle": true
           }
         ]

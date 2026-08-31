@@ -1,189 +1,53 @@
-// Try-On Clothes Pro — Edge Function
+// Try-On Clothes Pro — RETIRED.
 //
-// Accepts POST JSON  →  proxies a RapidAPI form-POST server-side.
-// Uses the shared RAPIDAPI_KEY secret.  The key never leaves this function;
-// it is never forwarded, logged in plaintext, or included in any response body.
+// REG-KPLUS-001 / GOV-KPLUS-002 (hostile-audit repair).
+//
+// This endpoint was the ORIGINAL virtual-try-on proxy. It accepted an
+// unauthenticated POST, read the shared RAPIDAPI_KEY, and called the paid
+// try-on provider directly. That is an anon-key bypass of every control VTO
+// now has: no authentication, no K+ entitlement, no kill switch, no quota, no
+// idempotency, and `Access-Control-Allow-Origin: *`. It was DELETED from the
+// staging project for exactly that reason, and its replacement is the governed
+// `vto-generate` function.
+//
+// The provider-capable source nonetheless survived into the Build 34 integration
+// branch, so the deletion was one `supabase functions deploy` away from being
+// undone. This file is now defence in depth: even if something deploys it, it
+// cannot spend money.
+//
+// The retired handler:
+//   - reads NO provider credential (RAPIDAPI_KEY is never referenced),
+//   - makes NO outbound provider call,
+//   - answers every request with 410 endpoint_retired.
+//
+// Do not reintroduce the proxy architecture here. Virtual try-on goes through
+// `vto-generate`, which authenticates the caller, requires active K+ at the
+// paid boundary, honours the feature kill switch, reserves quota, and validates
+// the garment URL before any provider is contacted.
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin':  '*',
+const RETIRED_HEADERS = {
+  // No credentials are accepted or issued, and the body carries no data, so a
+  // permissive origin here grants nothing. Kept only so a stale client receives
+  // the explanatory 410 instead of an opaque CORS error.
+  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Content-Type': 'application/json',
 };
 
-const RAPIDAPI_HOST    = 'try-on-clothes-pro.p.rapidapi.com';
-const RAPIDAPI_URL     = `https://${RAPIDAPI_HOST}/portrait/editing/try-on-clothes-pro`;
-const UPSTREAM_TIMEOUT = 20_000;
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function json(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-  });
-}
-
-// Rejects missing, non-string, and the literal string "undefined".
-function validImageField(value: unknown): value is string {
-  return typeof value === 'string' && value !== 'undefined' && value.trim().length > 0;
-}
-
-function optionalString(value: unknown): string | null {
-  if (typeof value !== 'string' || value === 'undefined' || value.trim().length === 0) return null;
-  return value.trim();
-}
-
-function optionalBoolean(value: unknown): boolean | null {
-  if (typeof value === 'boolean') return value;
-  if (value === 'true') return true;
-  if (value === 'false') return false;
-  return null;
-}
-
-// ─── Request parsing ─────────────────────────────────────────────────────────
-
-interface TryOnRequest {
-  personImage:   string;
-  topGarment:    string | null;
-  bottomGarment: string | null;
-  resolution:    string | null;
-  restoreFace:   boolean | null;
-}
-
-function parseRequest(raw: unknown): TryOnRequest | { validationError: string } {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-    return { validationError: 'Request body must be a JSON object' };
-  }
-
-  const body = raw as Record<string, unknown>;
-
-  if (!validImageField(body.person_image)) {
-    return { validationError: 'person_image is required and must be a non-empty string' };
-  }
-
-  const topGarment    = validImageField(body.top_garment)    ? body.top_garment    as string : null;
-  const bottomGarment = validImageField(body.bottom_garment) ? body.bottom_garment as string : null;
-
-  if (!topGarment && !bottomGarment) {
-    return { validationError: 'At least one of top_garment or bottom_garment is required' };
-  }
-
-  return {
-    personImage:   body.person_image as string,
-    topGarment,
-    bottomGarment,
-    resolution:    optionalString(body.resolution),
-    restoreFace:   optionalBoolean(body.restore_face),
-  };
-}
-
-// ─── Main handler ─────────────────────────────────────────────────────────────
-
-Deno.serve(async (req) => {
-  // ── CORS preflight ──────────────────────────────────────────────────────────
+Deno.serve((req: Request): Response => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: CORS_HEADERS });
+    return new Response('ok', { headers: RETIRED_HEADERS });
   }
 
-  if (req.method !== 'POST') {
-    return json({ error: 'Method not allowed' }, 405);
-  }
-
-  // ── Validate secret ─────────────────────────────────────────────────────────
-  const apiKey = Deno.env.get('RAPIDAPI_KEY');
-  if (!apiKey) {
-    console.error('[tryon-clothes-pro] RAPIDAPI_KEY secret is not configured');
-    return json({ error: 'Try-On API is not configured' }, 500);
-  }
-
-  // ── Parse + validate request body ───────────────────────────────────────────
-  const rawBody = await req.json().catch(() => null);
-  const parsed  = parseRequest(rawBody);
-
-  if ('validationError' in parsed) {
-    return json({ error: parsed.validationError }, 400);
-  }
-
-  // ── Build form body ──────────────────────────────────────────────────────────
-  const params = new URLSearchParams();
-  params.set('task_type',    'try_on');
-  params.set('person_image', parsed.personImage);
-  if (parsed.topGarment)    params.set('top_garment',    parsed.topGarment);
-  if (parsed.bottomGarment) params.set('bottom_garment', parsed.bottomGarment);
-  if (parsed.resolution)    params.set('resolution',     parsed.resolution);
-  if (parsed.restoreFace !== null) {
-    params.set('restore_face', String(parsed.restoreFace));
-  }
-
-  // ── Proxy POST to RapidAPI ───────────────────────────────────────────────────
-  const controller = new AbortController();
-  const timer      = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT);
-  const startedAt  = Date.now();
-
-  try {
-    const upstream = await fetch(RAPIDAPI_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type':    'application/x-www-form-urlencoded',
-        'x-rapidapi-host': RAPIDAPI_HOST,
-        'x-rapidapi-key':  apiKey,   // key stays server-side; never echoed
-      },
-      body:   params.toString(),
-      signal: controller.signal,
-    });
-
-    const elapsedMs = Date.now() - startedAt;
-
-    if (upstream.status === 400) {
-      const errBody = await upstream.json().catch(() => null);
-      console.warn('[tryon-clothes-pro] Bad request to upstream', elapsedMs, 'ms');
-      return json({ error: 'Bad request', detail: errBody }, 400);
-    }
-
-    if (upstream.status === 401 || upstream.status === 403) {
-      console.error('[tryon-clothes-pro] Auth failure', upstream.status, elapsedMs, 'ms');
-      return json({ error: 'Try-On API authentication failed' }, 502);
-    }
-
-    if (upstream.status === 429) {
-      console.warn('[tryon-clothes-pro] Rate limited by upstream', elapsedMs, 'ms');
-      return json({ error: 'Rate limited — retry later' }, 429);
-    }
-
-    if (upstream.status === 404) {
-      console.warn('[tryon-clothes-pro] Upstream endpoint not found', elapsedMs, 'ms');
-      return json({ error: 'Try-On endpoint not found' }, 404);
-    }
-
-    if (!upstream.ok) {
-      console.warn('[tryon-clothes-pro] Upstream error', upstream.status, elapsedMs, 'ms');
-      return json({ error: `Upstream returned ${upstream.status}` }, 502);
-    }
-
-    const payload = await upstream.json().catch(() => null);
-    if (payload === null) {
-      console.warn('[tryon-clothes-pro] Malformed JSON from upstream', elapsedMs, 'ms');
-      return json({ error: 'Malformed response from upstream' }, 502);
-    }
-
-    console.log('[tryon-clothes-pro] success', elapsedMs, 'ms');
-    return json(payload);
-
-  } catch (err) {
-    const elapsedMs = Date.now() - startedAt;
-    const isTimeout = err instanceof DOMException && err.name === 'AbortError';
-
-    console.warn(
-      '[tryon-clothes-pro]',
-      isTimeout ? 'upstream timeout' : 'fetch error',
-      elapsedMs, 'ms',
-    );
-
-    return json(
-      { error: isTimeout ? 'Upstream request timed out' : 'Failed to reach upstream' },
-      504,
-    );
-  } finally {
-    clearTimeout(timer);
-  }
+  return new Response(
+    JSON.stringify({
+      error: 'endpoint_retired',
+      code: 'endpoint_retired',
+      message:
+        'This endpoint has been retired. Virtual try-on is served by vto-generate, which requires an authenticated account with active K+.',
+      replacement: 'vto-generate',
+    }),
+    { status: 410, headers: RETIRED_HEADERS },
+  );
 });
