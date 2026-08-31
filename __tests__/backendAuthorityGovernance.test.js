@@ -49,6 +49,11 @@ test('governed functions and source directories agree in BOTH directions', () =>
 });
 
 test('the verifier reports no ERROR-level discrepancy on this checkout', () => {
+  // Environment-independent on purpose. Whether the canonical branch resolves
+  // depends on WHERE this runs -- it exists as a local ref in some checkouts and
+  // nowhere in a fresh CI clone -- and that is a repository-level owner action,
+  // not something this tree can fix. It is therefore a WARNING, and this test
+  // asserts the things that must hold in EVERY environment.
   const result = verify();
   const errors = result.findings.filter((f) => f.severity === 'error');
   assert.deepEqual(
@@ -56,6 +61,21 @@ test('the verifier reports no ERROR-level discrepancy on this checkout', () => {
     [],
     `unexpected authority errors: ${JSON.stringify(errors)}`,
   );
+});
+
+test('an unpublished canonical branch never blocks a NON-authoritative checkout', () => {
+  // Regression guard for a bug this repair's own CI run caught: the unresolvable
+  // branch was first raised as an ERROR, which turned a pre-existing repository
+  // condition into a red build on every fresh clone.
+  const { findings, info } = verify();
+  assert.equal(info.declaresDeploymentAuthority, false, 'this tree is non-authoritative');
+  for (const code of ['CANONICAL_BRANCH_UNRESOLVABLE', 'CANONICAL_BRANCH_LOCAL_ONLY']) {
+    const finding = findings.find((f) => f.code === code);
+    if (finding) {
+      assert.equal(finding.severity, 'warning', `${code} must not block a non-authoritative tree`);
+      assert.match(finding.message, /owner action/, 'it must name the owner action');
+    }
+  }
 });
 
 test('the verifier binds its answer to a git SHA and the manifest digest', () => {

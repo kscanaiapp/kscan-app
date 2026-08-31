@@ -115,11 +115,20 @@ function verify() {
     const local = git(['rev-parse', '--verify', `refs/heads/${authority.canonicalBranch}`]);
     info.canonicalBranchRemoteSha = remote;
     info.canonicalBranchLocalSha = local;
+    // SEVERITY. An unpublished canonical branch is a real gap -- it is the
+    // GOV-KPLUS-001 finding -- but it is an OWNER action, and it is a property
+    // of the repository, not of this checkout. Blocking a NON-authoritative
+    // tree on it would make every CI run red for a pre-existing condition that
+    // the tree cannot fix. So it is a WARNING here, and becomes a hard failure
+    // only when a checkout actually CLAIMS deployment authority (see
+    // AUTHORITY_REF_UNVERIFIABLE below), which is the case where the claim
+    // genuinely cannot be checked.
     if (!remote && !local) {
-      fail(
+      warn(
         'CANONICAL_BRANCH_UNRESOLVABLE',
-        `canonicalBranch "${authority.canonicalBranch}" resolves neither on origin nor locally. ` +
-          'The declared deployment authority cannot be verified by anyone.',
+        `canonicalBranch "${authority.canonicalBranch}" resolves neither on origin nor ` +
+          'locally. The declared deployment authority cannot be verified by anyone. ' +
+          'Publish it, or re-point canonicalBranch at a published ref (owner action).',
       );
     } else if (!remote) {
       warn(
