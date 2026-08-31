@@ -31,8 +31,8 @@ import {
   buildChangeSomethingIntent,
   buildTapToGetReadyIntent,
   shouldAcceptPrimaryActionTap,
-} from './actionRouting';
-import type { TodayWithEliseCardState } from '../../types/todayWithElise';
+} from './actionRouting.ts';
+import type { TodayWithEliseCardState } from '../../types/todayWithElise.ts';
 
 export const TODAY_HANDOFF_OUTCOMES = [
   'opened',
