@@ -201,7 +201,12 @@ test('CERT-CLIENT-002: a consumed campaign is never announced or counted as an a
   const sheet = fs2.readFileSync(
     require('node:path').join(ROOT, 'components', 'kplus', 'KPlusEarlyAccessSheet.tsx'), 'utf8');
   const consumedIdx = sheet.indexOf("outcome === 'campaign_consumed'");
-  const successIdx = sheet.indexOf("emitKPlusEvent('kplus_activation_success'");
+  // #258 (merged ahead of this repair) renamed the sheet's telemetry
+  // vocabulary repo-wide: kplus_activation_success -> kplus_activation_completed,
+  // kplus_activation_failure -> kplus_activation_failed. This test asserts
+  // against the current vocabulary, not the one CERT-CLIENT-002 was
+  // originally written against.
+  const successIdx = sheet.indexOf("emitKPlusEvent('kplus_activation_completed'");
   const announceIdx = sheet.indexOf("'K+ Early Access activated.'");
   assert.ok(consumedIdx > 0, 'campaign_consumed must be handled explicitly');
   assert.ok(consumedIdx < successIdx, 'it must short-circuit before the success event');
@@ -209,5 +214,5 @@ test('CERT-CLIENT-002: a consumed campaign is never announced or counted as an a
   // and it must actually return, not fall through
   const block = sheet.slice(consumedIdx, successIdx);
   assert.match(block, /return;/, 'the consumed branch must return');
-  assert.match(block, /kplus_activation_failure/, 'a consumed campaign is not a success event');
+  assert.match(block, /kplus_activation_failed/, 'a consumed campaign is not a success event');
 });
