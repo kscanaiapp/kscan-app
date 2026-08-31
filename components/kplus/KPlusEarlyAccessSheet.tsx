@@ -74,6 +74,10 @@ export function KPlusEarlyAccessSheet({ visible, onClose, source = 'unknown' }: 
   };
 
   const isActive = state === 'active';
+  // Section 14: an expired/campaign-consumed member is NOT the same as a
+  // fresh eligible signup -- showing them "Activate K+ Early Access" again
+  // implies a renewal flow that does not exist. Truthful, bounded, no CTA.
+  const isExpired = state === 'expired';
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -90,6 +94,19 @@ export function KPlusEarlyAccessSheet({ visible, onClose, source = 'unknown' }: 
                     : 'Your K+ Early Access is active.'}
                 </Text>
                 <Text style={styles.finePrint}>No automatic charges.</Text>
+              </>
+            ) : isExpired ? (
+              <>
+                <Text style={styles.eyebrow}>K+</Text>
+                <Text style={styles.title}>K+ Early Access period ended</Text>
+                <Text style={styles.body}>
+                  Your complimentary K+ Early Access has ended. There is no charge and nothing to
+                  cancel.
+                </Text>
+                <Text style={styles.finePrint}>
+                  If paid K+ becomes available later, you will see a separate purchase
+                  confirmation before anything is charged.
+                </Text>
               </>
             ) : (
               <>
@@ -113,7 +130,7 @@ export function KPlusEarlyAccessSheet({ visible, onClose, source = 'unknown' }: 
             {error ? <InlineNotice variant="error" body={error} style={styles.notice} /> : null}
 
             <View style={styles.actions}>
-              {isActive ? (
+              {isActive || isExpired ? (
                 <PrimaryButton title="Done" onPress={onClose} accessibilityLabel="Close" />
               ) : (
                 <>

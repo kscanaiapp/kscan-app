@@ -365,6 +365,24 @@ test('Packing shows the unlock CTA only when NOT active, and hides it once activ
 });
 
 // ---------------------------------------------------------------------------
+// Section 14/15: an expired member sees truthful, non-billing copy -- never
+// the eligible-signup "Activate K+ Early Access" pitch again.
+// ---------------------------------------------------------------------------
+
+test('the shared sheet renders a distinct, truthful expired state with no Activate CTA', () => {
+  const sheet = read('components/kplus/KPlusEarlyAccessSheet.tsx');
+  assert.match(sheet, /const isExpired = state === 'expired';/);
+  assert.match(sheet, /K\+ Early Access period ended/);
+  // The expired branch must render before the eligible/"Activate" branch,
+  // and the actions row must route expired to the same no-CTA "Done" path
+  // as active, never to the Activate button.
+  const expiredCopyIdx = sheet.indexOf('K+ Early Access period ended');
+  const activateButtonIdx = sheet.indexOf('title="Activate K+ Early Access"');
+  assert.ok(expiredCopyIdx > 0 && activateButtonIdx > expiredCopyIdx);
+  assert.match(sheet, /isActive \|\| isExpired \? \(/);
+});
+
+// ---------------------------------------------------------------------------
 // Section 22: feature_started/completed only for real, deterministic ops
 // ---------------------------------------------------------------------------
 
