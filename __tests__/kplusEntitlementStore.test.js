@@ -139,3 +139,75 @@ test('activateKPlus reports already_active on a second call once the store alrea
   assert.equal(store.getKPlusEntitlementSnapshot().state, 'active');
   assert.equal(await store.activateKPlus(), 'already_active');
 });
+
+// ── CERT-CLIENT-001 / CERT-CLIENT-002 ──────────────────────────────────────
+// Found by the Build 34 K+ entitlement / failure-state certification, live on
+// staging: a synthetic actor revoked with `revoked_at` alone was denied by
+// EVERY server authority (kplus_has_active_entitlement, has_active_k_plus,
+// the Closet RLS write gate) while the client resolved 'active'.
+
+test('CERT-CLIENT-001: a revoked_at-only revocation is NOT active on the client either', () => {
+  const revoked = {
+    entitlementKey: 'k_plus', status: 'active', grantReason: 'complimentary_early_access',
+    campaignKey: 'kplus_early_access_2026', grantedAt: pastIso(1),
+    expiresAt: futureIso(120),           // still in the future, as a real revocation leaves it
+    revokedAt: pastIso(0.04),            // the only signal that it is gone
+    externalSyncStatus: 'synced',
+  };
+  const store = loadStore({ fetchKPlusStatus: async () => ({ ok: true, row: revoked }) });
+  return store.refreshKPlusEntitlement().then(() => {
+    assert.notEqual(store.getKPlusEntitlementSnapshot().state, 'active',
+      'the client must not resolve active for a grant every server authority denies');
+    assert.equal(store.getKPlusEntitlementSnapshot().state, 'expired');
+  });
+});
+
+test('CERT-CLIENT-001: revocation does not change the answer for a genuinely active grant', () => {
+  const live = {
+    entitlementKey: 'k_plus', status: 'active', grantReason: 'complimentary_early_access',
+    campaignKey: 'kplus_early_access_2026', grantedAt: pastIso(1),
+    expiresAt: futureIso(120), revokedAt: null, externalSyncStatus: 'synced',
+  };
+  const store = loadStore({ fetchKPlusStatus: async () => ({ ok: true, row: live }) });
+  return store.refreshKPlusEntitlement().then(() => {
+    assert.equal(store.getKPlusEntitlementSnapshot().state, 'active');
+  });
+});
+
+test('CERT-CLIENT-001: activateKPlus also refuses to call a revoked grant active', async () => {
+  const revokedRow = {
+    entitlementKey: 'k_plus', status: 'active', grantReason: 'complimentary_early_access',
+    campaignKey: 'kplus_early_access_2026', grantedAt: pastIso(1),
+    expiresAt: futureIso(120), revokedAt: pastIso(0.04), externalSyncStatus: 'synced',
+  };
+  const store = loadStore({
+    fetchKPlusStatus: async () => ({ ok: true, row: null }),
+    activateKPlusEarlyAccess: async () => ({ ok: true, row: revokedRow }),
+  });
+  assert.equal(await store.activateKPlus(), 'campaign_consumed');
+  assert.notEqual(store.getKPlusEntitlementSnapshot().state, 'active');
+});
+
+test('CERT-CLIENT-001: the client SELECTS revoked_at, so the predicate has something to read', () => {
+  const fs2 = require('node:fs');
+  const clientSrc = fs2.readFileSync(
+    require('node:path').join(ROOT, 'services', 'kplus', 'kplusClient.ts'), 'utf8');
+  assert.match(clientSrc, /revoked_at/, 'the column must be requested, not just consulted');
+  assert.match(clientSrc, /revokedAt: raw\.revoked_at/);
+});
+
+test('CERT-CLIENT-002: a consumed campaign is never announced or counted as an activation', () => {
+  const fs2 = require('node:fs');
+  const sheet = fs2.readFileSync(
+    require('node:path').join(ROOT, 'components', 'kplus', 'KPlusEarlyAccessSheet.tsx'), 'utf8');
+  const consumedIdx = sheet.indexOf("outcome === 'campaign_consumed'");
+  const successIdx = sheet.indexOf("emitKPlusEvent('kplus_activation_success'");
+  const announceIdx = sheet.indexOf("'K+ Early Access activated.'");
+  assert.ok(consumedIdx > 0, 'campaign_consumed must be handled explicitly');
+  assert.ok(consumedIdx < successIdx, 'it must short-circuit before the success event');
+  assert.ok(consumedIdx < announceIdx, 'it must short-circuit before the success announcement');
+  // and it must actually return, not fall through
+  const block = sheet.slice(consumedIdx, successIdx);
+  assert.match(block, /return;/, 'the consumed branch must return');
+  assert.match(block, /kplus_activation_failure/, 'a consumed campaign is not a success event');
+});

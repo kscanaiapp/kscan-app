@@ -109,8 +109,18 @@ function resolveState(row: KPlusEntitlementRow | null): KPlusEntitlementSnapshot
   if (!row) {
     return { state: 'eligible', expiresAt: null, campaignKey: null, externalSyncStatus: null };
   }
+  // CERT-CLIENT-001 -- agree with the canonical server predicate, field for
+  // field: status = 'active' AND revoked_at IS NULL AND expires_at IS NOT NULL
+  // AND expires_at > now(). `revokedAt` was previously neither selected nor
+  // checked, so a revocation recorded as revoked_at alone -- which every
+  // server authority already denies, and which vtoEntitlement.ts calls out by
+  // name (SEC-KPLUS-003) -- still rendered as ACTIVE here. The client may fail
+  // closed EARLIER than the server; it must never resolve active later.
   const isActive =
-    row.status === 'active' && !!row.expiresAt && new Date(row.expiresAt).getTime() > Date.now();
+    row.status === 'active'
+    && !row.revokedAt
+    && !!row.expiresAt
+    && new Date(row.expiresAt).getTime() > Date.now();
   return {
     state: isActive ? 'active' : 'expired',
     expiresAt: row.expiresAt,
@@ -190,7 +200,10 @@ export async function activateKPlus(): Promise<ActivateOutcome> {
 
   const wasAlreadyKnown = snapshot.state === 'active' || snapshot.state === 'expired';
   setSnapshot(resolveState(result.row));
-  const nowActive = result.row.status === 'active' && !!result.row.expiresAt && new Date(result.row.expiresAt).getTime() > Date.now();
+  const nowActive = result.row.status === 'active'
+    && !result.row.revokedAt
+    && !!result.row.expiresAt
+    && new Date(result.row.expiresAt).getTime() > Date.now();
   if (!nowActive) return 'campaign_consumed';
   if (wasAlreadyKnown) return 'already_active';
   return 'granted';

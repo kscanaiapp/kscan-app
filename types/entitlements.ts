@@ -42,6 +42,9 @@ export interface KPlusEntitlementRow {
   campaignKey: string | null;
   grantedAt: string;
   expiresAt: string | null;
+  /** Set when the grant was revoked. Part of the canonical K+ predicate:
+   *  a non-null value means NOT active, whatever `status` still says. */
+  revokedAt: string | null;
   externalSyncStatus: KPlusExternalSyncStatus;
 }
 

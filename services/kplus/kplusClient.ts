@@ -27,6 +27,7 @@ interface RawEntitlementRow {
   campaign_key: string | null;
   granted_at: string;
   expires_at: string | null;
+  revoked_at: string | null;
   external_sync_status: string;
 }
 
@@ -38,6 +39,10 @@ function toEntitlementRow(raw: RawEntitlementRow): KPlusEntitlementRow {
     campaignKey: raw.campaign_key,
     grantedAt: raw.granted_at,
     expiresAt: raw.expires_at,
+    // CERT-CLIENT-001: revoked_at is part of the canonical K+ predicate. The
+    // client used to neither select nor carry it, so an operator revocation
+    // that set revoked_at without also rewriting status rendered as ACTIVE.
+    revokedAt: raw.revoked_at ?? null,
     externalSyncStatus: raw.external_sync_status as KPlusExternalSyncStatus,
   };
 }
@@ -57,7 +62,7 @@ export async function fetchKPlusStatus(): Promise<FetchKPlusStatusResult> {
 
   const { data, error } = await supabase
     .from('user_entitlements')
-    .select('entitlement_key, status, grant_reason, campaign_key, granted_at, expires_at, external_sync_status')
+    .select('entitlement_key, status, grant_reason, campaign_key, granted_at, expires_at, revoked_at, external_sync_status')
     .eq('entitlement_key', KPLUS_ENTITLEMENT_KEY)
     .maybeSingle();
 
@@ -96,6 +101,9 @@ export async function activateKPlusEarlyAccess(): Promise<ActivateKPlusResult> {
       campaignKey: data.campaignKey ?? null,
       grantedAt: data.grantedAt,
       expiresAt: data.expiresAt ?? null,
+      // The activation endpoint does not return revoked_at; a null here means
+      // "not reported by this response", and the next status read supplies it.
+      revokedAt: data.revokedAt ?? null,
       externalSyncStatus: data.externalSyncStatus ?? 'not_required',
     },
   };
