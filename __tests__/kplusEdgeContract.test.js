@@ -55,6 +55,42 @@ test('kplus-activate treats RevenueCat sync as best-effort and never blocks the 
   const afterSync = ACTIVATE_SOURCE.slice(ACTIVATE_SOURCE.indexOf('syncPromotionalEntitlement'));
   assert.match(afterSync, /return json\(\{/);
   assert.doesNotMatch(afterSync, /return json\(\{ error:.*outcome/);
+
+  // CERT-MUT-M5. The line above only rejected an error return that MENTIONS
+  // `outcome` on the same line, so the one-line rollback a regression would
+  // actually take --
+  //
+  //     if (!outcome.ok) {
+  //       return json({ error: 'Activation failed. Please try again.' }, 502);
+  //     }
+  //
+  // -- sailed straight through it, and this invariant (section 27: a
+  // RevenueCat failure must NEVER roll back or block a valid complimentary
+  // grant) had no test that could detect its violation. Count instead: once
+  // the mirror has been attempted there is exactly ONE remaining `return`, and
+  // it is the success payload. Any added early exit -- whatever it says --
+  // makes this fail.
+  // Slice from the CALL, not the import at the top of the file -- otherwise
+  // every ordinary pre-flight guard counts as a post-mirror return.
+  const callIdx = ACTIVATE_SOURCE.indexOf('await syncPromotionalEntitlement(');
+  assert.ok(callIdx > 0, 'the mirror must actually be called, not merely imported');
+  const afterCall = ACTIVATE_SOURCE.slice(callIdx);
+  const returnsAfterCall = afterCall.match(/return json\(/g) ?? [];
+  assert.equal(
+    returnsAfterCall.length,
+    1,
+    'exactly one return may follow the mirror attempt: the success payload',
+  );
+  assert.doesNotMatch(
+    afterCall,
+    /if\s*\(\s*!\s*outcome[.\s]/,
+    'nothing after the mirror attempt may branch on whether the mirror succeeded',
+  );
+  assert.match(
+    afterCall,
+    /return json\(\{[\s\S]{0,40}entitlementKey/,
+    'the single remaining return is the entitlement payload, not an error',
+  );
 });
 
 test('kplus-activate is POST-only with standard CORS handling', () => {

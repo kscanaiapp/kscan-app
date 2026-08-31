@@ -216,6 +216,19 @@ test('kplus-activate denies an anonymous identity BEFORE the grant RPC', () => {
   assert.ok(grantIdx > 0);
   assert.ok(denyIdx < grantIdx, 'the eligibility check must precede the grant');
   assert.match(ACTIVATE_SRC, /ACCOUNT_REQUIRED/);
+
+  // CERT-MUT-M1b. Presence and ORDER are not polarity. Dropping the `!` --
+  //     if (isEligibleAccountActor(authUser)) { ...403 ACCOUNT_REQUIRED... }
+  // -- leaves every assertion above satisfied while inverting the guard into
+  // "anonymous sessions may self-grant K+, real accounts may not". Anonymous
+  // sign-in is disabled on staging, so no live test can catch this either:
+  // this assertion is the only thing standing between that inversion and a
+  // green suite. The negation is therefore pinned explicitly.
+  assert.match(
+    ACTIVATE_SRC,
+    /if \(!isEligibleAccountActor\(authUser\)\) \{/,
+    'the guard must DENY ineligible actors, not admit them',
+  );
 });
 
 test('kplus-activate denies a deactivated account BEFORE the grant RPC', () => {
