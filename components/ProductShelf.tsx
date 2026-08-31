@@ -30,6 +30,7 @@ import {
 import type { ProductMatchSnapshotSource } from '../types/styleObjects';
 import { toSnapshotPrice, normalizeForSnapshot } from '../src/utils/productSnapshot';
 import { KPlusGate } from './kplus/KPlusGate';
+import { emitKPlusEvent } from '../services/kplus/kplusTelemetry';
 import { createWatch } from '../services/watchlist/watchlistClient';
 import { requestWatchAlerts } from '../services/watchlist/pushRegistration';
 import type { WatchIntent } from '../types/watchlist';
@@ -800,6 +801,9 @@ export function WatchThisModal({
     }
     setSaving(true);
     setMessage(null);
+    // Section 22: creating a Watch is a real, deterministic K+ feature
+    // operation. Instrumentation only.
+    emitKPlusEvent('kplus_feature_started', { source: 'watchlist', feature: 'watchlist' });
     const purchaseUrl = getPurchaseUrl(product);
     const result = await createWatch({
       listing: {
@@ -817,6 +821,7 @@ export function WatchThisModal({
     });
     setSaving(false);
     if (result.ok) {
+      emitKPlusEvent('kplus_feature_completed', { source: 'watchlist', feature: 'watchlist' });
       setMessage("You're watching this listing.");
       const createdWatchId = result.data.id;
       setTimeout(handleClose, 900);

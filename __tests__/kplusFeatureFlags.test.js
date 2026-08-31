@@ -1,8 +1,11 @@
 // K+ boundary FEATURE FLAG suite.
 //
 // Proves KPLUS_EARLY_ACCESS_ENABLED fails closed on anything but the exact
-// string 'true', and that VOICESCAN_ENABLED (an unrelated, hardcoded-false
-// mic-permission flag) is untouched by this build.
+// string 'true', and that VOICESCAN_ENABLED's own declaration (still
+// hardcoded false -- Voice Scan is not implemented) is untouched by this
+// build. Build 34 K+ Early Access shell (section 8) DOES now read this flag
+// from components/text-scan/TextScanFeatureRow.tsx, to hide the K+ Voice
+// Scan pill while Voice Scan itself is disabled -- see kplusSurfaceWiring.test.js.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -54,7 +57,7 @@ test('KPLUS_EARLY_ACCESS_ENABLED turns on only via EXPO_PUBLIC_KPLUS_EARLY_ACCES
   assert.equal(loadFlags({ EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED: 'false' }).KPLUS_EARLY_ACCESS_ENABLED, false);
 });
 
-test('VOICESCAN_ENABLED remains the unrelated, hardcoded-false mic-permission flag', () => {
+test('VOICESCAN_ENABLED remains hardcoded false -- Voice Scan is not implemented', () => {
   const flags = loadFlags({ EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED: 'true' });
   assert.equal(flags.VOICESCAN_ENABLED, false);
   assert.match(flagsSource, /export const VOICESCAN_ENABLED = false;/);

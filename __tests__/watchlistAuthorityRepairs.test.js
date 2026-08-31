@@ -201,7 +201,7 @@ test('the Home entry gates on availability, not on K+ entitlement alone', () => 
   // an unavailable feature shows no entry at all, rather than an upgrade prompt
   // for something that does not exist here.
   const gateIdx = HOME.indexOf('{watchlistEnabled && (');
-  const kplusIdx = HOME.indexOf('<KPlusGate source="home_tile">');
+  const kplusIdx = HOME.indexOf('<KPlusGate source="watchlist">');
   assert.ok(gateIdx > 0 && kplusIdx > gateIdx, 'availability must gate outside K+');
 });
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, View, Text, StyleSheet, ViewStyle } from 'react-native';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
-import { KPLUS_EARLY_ACCESS_ENABLED } from '../../constants/featureFlags';
+import { KPLUS_EARLY_ACCESS_ENABLED, VOICESCAN_ENABLED } from '../../constants/featureFlags';
 import { KPlusGate } from '../kplus/KPlusGate';
 
 export interface TextScanFeatureRowProps {
@@ -59,15 +59,19 @@ function FeatureBlockView({ feature }: { feature: FeatureBlock }) {
 }
 
 /**
- * The Voice Scan acquisition block. Legacy "Coming Soon" placeholder when
- * the K+ boundary isn't rolled out (KPLUS_EARLY_ACCESS_ENABLED off);
- * otherwise a live K+ upgrade surface -- "Upgrade to K+" opens the shared
- * K+ Early Access sheet, "Included with K+" for an active member while
- * Voice Scan itself remains unimplemented. Never opens a nonexistent
- * feature.
+ * The Voice Scan acquisition block.
+ *
+ * Build 34 K+ Early Access shell, section 8 (Voice Scan special case): the
+ * K+-branded pill must never render while Voice Scan's own implementation
+ * flag (VOICESCAN_ENABLED) is off, regardless of the K+ boundary rollout --
+ * a K+ entry point may not advertise a capability the build cannot execute.
+ * Legacy "Coming Soon" placeholder covers both "K+ boundary off" and
+ * "Voice Scan not implemented yet"; otherwise a live K+ upgrade surface --
+ * "Upgrade to K+" opens the shared K+ Early Access sheet, "Included with K+"
+ * for an active member.
  */
 function VoiceScanBlock() {
-  if (!KPLUS_EARLY_ACCESS_ENABLED) {
+  if (!VOICESCAN_ENABLED || !KPLUS_EARLY_ACCESS_ENABLED) {
     return (
       <FeatureBlockView
         feature={{ title: 'VOICE TO SEARCH', body: 'Future', badge: 'Coming Soon' }}
@@ -76,7 +80,7 @@ function VoiceScanBlock() {
   }
 
   return (
-    <KPlusGate source="voice_scan_pill">
+    <KPlusGate source="voice_scan">
       {({ isActive, openUpgrade }) => (
         <Pressable
           style={styles.block}

@@ -299,7 +299,7 @@ export default function PrivacyScreen() {
 
   useEffect(() => {
     if (isAuthenticated && KPLUS_EARLY_ACCESS_ENABLED) {
-      emitKPlusEvent('kplus_status_view', { source: 'profile' });
+      emitKPlusEvent('kplus_feature_exposed', { source: 'account', feature: 'account' });
     }
   }, [isAuthenticated]);
 
@@ -528,7 +528,7 @@ export default function PrivacyScreen() {
       <KPlusEarlyAccessSheet
         visible={kPlusSheetVisible}
         onClose={() => setKPlusSheetVisible(false)}
-        source="profile"
+        source="account"
       />
 
       <Modal
@@ -665,7 +665,18 @@ export default function PrivacyScreen() {
                   subtitle={kPlusStatusSubtitle}
                   actionLabel={kPlusActionLabel}
                   actionVariant="pill"
-                  onAction={kPlusActionLabel ? () => setKPlusSheetVisible(true) : undefined}
+                  onAction={
+                    kPlusActionLabel
+                      ? () => {
+                          emitKPlusEvent('kplus_feature_gate_opened', {
+                            source: 'account',
+                            feature: 'account',
+                            entitlement_state: kPlusEntitlement.state,
+                          });
+                          setKPlusSheetVisible(true);
+                        }
+                      : undefined
+                  }
                 />
                 {kPlusPillLabel ? (
                   <StatusPill label={kPlusPillLabel} variant={kPlusPillVariant} />

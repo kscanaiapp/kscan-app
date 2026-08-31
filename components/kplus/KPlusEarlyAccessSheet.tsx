@@ -9,6 +9,7 @@ import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { MODAL_MAX_WIDTH } from '../../services/responsiveLayout';
 import { useKPlusEntitlement } from '../../hooks/useKPlusEntitlement';
 import { emitKPlusEvent } from '../../services/kplus/kplusTelemetry';
+import type { KPlusSource } from '../../types/kplusSource';
 
 function formatExpiry(expiresAt: string | null): string {
   if (!expiresAt) return '';
@@ -26,8 +27,8 @@ function formatExpiry(expiresAt: string | null): string {
 export interface KPlusEarlyAccessSheetProps {
   visible: boolean;
   onClose: () => void;
-  /** Where the sheet was opened from, for telemetry only (bounded values). */
-  source?: string;
+  /** Where the sheet was opened from, for telemetry only (bounded source). */
+  source?: KPlusSource;
 }
 
 export function KPlusEarlyAccessSheet({ visible, onClose, source = 'unknown' }: KPlusEarlyAccessSheetProps) {
@@ -39,26 +40,44 @@ export function KPlusEarlyAccessSheet({ visible, onClose, source = 'unknown' }: 
     if (visible) {
       setError(null);
       refresh();
-      emitKPlusEvent('kplus_sheet_open', { source });
+      emitKPlusEvent('kplus_early_access_viewed', { source, feature: source, entitlement_state: state });
     }
+    // entitlement_state deliberately excluded from deps: this reports the
+    // state AT THE MOMENT the sheet became visible, not on every subsequent
+    // resolution of the same presentation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, refresh, source]);
 
   const handleActivate = async () => {
     setActivating(true);
     setError(null);
-    emitKPlusEvent('kplus_activation_start', { source });
+    emitKPlusEvent('kplus_activation_started', { source, feature: source, entitlement_state: state });
     const outcome = await activate();
     setActivating(false);
     if (outcome === 'failed') {
       setError('Something went wrong activating K+. Please try again.');
-      emitKPlusEvent('kplus_activation_failure', { source });
+      emitKPlusEvent('kplus_activation_failed', {
+        source,
+        feature: source,
+        entitlement_state: state,
+        activation_outcome: outcome,
+      });
       return;
     }
-    emitKPlusEvent('kplus_activation_success', { source, outcome });
+    emitKPlusEvent('kplus_activation_completed', {
+      source,
+      feature: source,
+      entitlement_state: state,
+      activation_outcome: outcome,
+    });
     AccessibilityInfo.announceForAccessibility?.('K+ Early Access activated.');
   };
 
   const isActive = state === 'active';
+  // Section 14: an expired/campaign-consumed member is NOT the same as a
+  // fresh eligible signup -- showing them "Activate K+ Early Access" again
+  // implies a renewal flow that does not exist. Truthful, bounded, no CTA.
+  const isExpired = state === 'expired';
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -75,6 +94,19 @@ export function KPlusEarlyAccessSheet({ visible, onClose, source = 'unknown' }: 
                     : 'Your K+ Early Access is active.'}
                 </Text>
                 <Text style={styles.finePrint}>No automatic charges.</Text>
+              </>
+            ) : isExpired ? (
+              <>
+                <Text style={styles.eyebrow}>K+</Text>
+                <Text style={styles.title}>K+ Early Access period ended</Text>
+                <Text style={styles.body}>
+                  Your complimentary K+ Early Access has ended. There is no charge and nothing to
+                  cancel.
+                </Text>
+                <Text style={styles.finePrint}>
+                  If paid K+ becomes available later, you will see a separate purchase
+                  confirmation before anything is charged.
+                </Text>
               </>
             ) : (
               <>
@@ -98,7 +130,7 @@ export function KPlusEarlyAccessSheet({ visible, onClose, source = 'unknown' }: 
             {error ? <InlineNotice variant="error" body={error} style={styles.notice} /> : null}
 
             <View style={styles.actions}>
-              {isActive ? (
+              {isActive || isExpired ? (
                 <PrimaryButton title="Done" onPress={onClose} accessibilityLabel="Close" />
               ) : (
                 <>
