@@ -545,8 +545,27 @@ test('the request payload carries no identity field for the server to trust', as
   await flush();
 
   const sent = Object.keys(h.pending[0].args).sort();
-  assert.deepEqual(sent, ['devScenario', 'garment', 'origin', 'personDataUri', 'requestId', 'signal']);
+  // VTO-QUOTA-001 added `requestGeneration`. It is deliberately NOT an identity
+  // field: it is an opaque attempt label (the retry count), bounded and
+  // character-restricted by the server and never used for authorization -- the
+  // actor still comes from the verified JWT alone. It is listed here so this
+  // assertion keeps being an exact-set check rather than being loosened.
+  assert.deepEqual(sent, [
+    'devScenario',
+    'garment',
+    'origin',
+    'personDataUri',
+    'requestGeneration',
+    'requestId',
+    'signal',
+  ]);
   for (const forbidden of ['userId', 'user_id', 'actorId', 'accessToken', 'provider']) {
     assert.equal(forbidden in h.pending[0].args, false, `${forbidden} must not be sent`);
   }
+  // The attempt label must never become a channel for identity.
+  assert.match(
+    String(h.pending[0].args.requestGeneration),
+    /^\d+$/,
+    'requestGeneration must be a plain attempt counter, not an identifier',
+  );
 });
