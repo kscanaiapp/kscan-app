@@ -138,6 +138,20 @@ jobs:
       - name: Resolve check applicability
         id: applicability
         continue-on-error: true
+        env:
+          # STAGING-DEPLOY-AUTH-001: the same context deploy-staging's own
+          # `if:` in security-staging-gate.yml checks, so classify-changed-
+          # surfaces.js can tell "this diff needs a backend deploy eventually"
+          # apart from "this event is authorized to deploy it now". Dedicated
+          # names, not the automatic GITHUB_EVENT_NAME/GITHUB_REF/GITHUB_BASE_REF,
+          # so the classifier's own test suite (which invokes it as a child
+          # process without these set) is unaffected -- see that function's
+          # doc comment.
+          STAGING_DEPLOY_AUTH_EVENT_NAME: ${{ github.event_name }}
+          STAGING_DEPLOY_AUTH_REF: ${{ github.ref }}
+          STAGING_DEPLOY_AUTH_BASE_REF: ${{ github.base_ref }}
+          STAGING_DEPLOY_AUTH_DISPATCH_CONFIRM: ${{ github.event.inputs.confirm_staging_deploy }}
+          STAGING_DEPLOY_AUTH_DISPATCH_PROJECT_REF: ${{ github.event.inputs.staging_project_ref }}
         run: |
           set -uo pipefail
           BASE="${{ github.base_ref }}"

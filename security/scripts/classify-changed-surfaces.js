@@ -159,6 +159,74 @@ function gitDiffFiles(baseRef) {
   return out.split('\n').map((l) => l.trim()).filter(Boolean);
 }
 
+/**
+ * ── STAGING-DEPLOY-AUTH-001 ────────────────────────────────────────────────
+ *
+ * backendDeploymentRequired answers "does this diff eventually need a
+ * backend/edge deployment" (SOURCE applicability). It does NOT answer "is
+ * THIS workflow invocation authorized to perform that deployment right now"
+ * (EVENT/RUNTIME applicability) -- conflating the two is what made
+ * 'Staging health checks'/'Synthetic auth tests' applicable on any PR that
+ * merely touches supabase/functions or supabase/migrations, even when it
+ * targets a branch (e.g. integration/*) that deploy-staging's own `if:` in
+ * security-staging-gate.yml never authorizes. The check-runs then report
+ * `skipped` (correctly -- deploy-staging itself never ran), which an
+ * "applicable" contract reads as OPERATIONAL FAILURE: an integration PR with
+ * real backend changes could never go green on source checks alone.
+ *
+ * This mirrors deploy-staging's own `if:` EXACTLY:
+ *   github.ref == 'refs/heads/staging/production-parity' ||
+ *   github.base_ref == 'staging/production-parity' ||
+ *   (github.event_name == 'workflow_dispatch' &&
+ *    inputs.confirm_staging_deploy == 'DEPLOY-TO-STAGING' &&
+ *    inputs.staging_project_ref == 'yzqjvdfgefveprobvvyw')
+ * __tests__/security/checkApplicability.test.js asserts that correspondence,
+ * same as the existing contract fields above.
+ *
+ * Deliberately keyed on dedicated STAGING_DEPLOY_AUTH_* env vars, never the
+ * automatic GITHUB_EVENT_NAME/GITHUB_REF/GITHUB_BASE_REF GitHub Actions sets
+ * on every run. This script's own test suite invokes the classifier as a
+ * child process; if it read the automatic vars it would silently pick up
+ * THIS TEST RUN's own ambient CI context (whatever workflow happens to be
+ * running the tests) instead of the synthetic scenario each test constructs.
+ * Absent these dedicated vars, authorization is UNKNOWN, and unknown
+ * resolves to true -- the fail-closed direction for this field: it can only
+ * make 'Staging health checks'/'Synthetic auth tests' MORE required, never
+ * waive them, so every caller that has not been updated to pass this context
+ * (including every existing test) keeps its prior behavior unchanged.
+ */
+const STAGING_AUTHORITY_BRANCH = 'staging/production-parity';
+const EXPECTED_STAGING_PROJECT_REF = 'yzqjvdfgefveprobvvyw';
+
+function normalizeBranchRef(ref) {
+  if (typeof ref !== 'string') return null;
+  const trimmed = ref.trim();
+  return trimmed ? trimmed.replace(/^refs\/heads\//, '') : null;
+}
+
+function isStagingDeploymentAuthorized(env) {
+  const source = env || {};
+  const eventName = source.STAGING_DEPLOY_AUTH_EVENT_NAME;
+  const ref = source.STAGING_DEPLOY_AUTH_REF;
+  const baseRef = source.STAGING_DEPLOY_AUTH_BASE_REF;
+  const dispatchConfirm = source.STAGING_DEPLOY_AUTH_DISPATCH_CONFIRM;
+  const dispatchProjectRef = source.STAGING_DEPLOY_AUTH_DISPATCH_PROJECT_REF;
+
+  const hasContext = Boolean(eventName || ref || baseRef);
+  if (!hasContext) return true;
+
+  if (normalizeBranchRef(ref) === STAGING_AUTHORITY_BRANCH) return true;
+  if (normalizeBranchRef(baseRef) === STAGING_AUTHORITY_BRANCH) return true;
+  if (
+    eventName === 'workflow_dispatch'
+    && dispatchConfirm === 'DEPLOY-TO-STAGING'
+    && dispatchProjectRef === EXPECTED_STAGING_PROJECT_REF
+  ) {
+    return true;
+  }
+  return false;
+}
+
 function classifyFile(filePath) {
   const tags = new Set();
   for (const classifier of CLASSIFIERS) {
@@ -248,13 +316,18 @@ function main() {
   // Absent from this map == unconditionally applicable. That is the safe
   // default: a check is required unless something here proves otherwise.
   const documentationOnly = onlyDocs;
+  // STAGING-DEPLOY-AUTH-001: SOURCE applicability (backendDeploymentRequired)
+  // is necessary but not sufficient for the two deployment-runtime checks --
+  // they also need EVENT/RUNTIME applicability, i.e. that deploy-staging is
+  // actually authorized to run for this event. See isStagingDeploymentAuthorized.
+  const stagingDeploymentAuthorized = isStagingDeploymentAuthorized(process.env);
   const checkApplicability = {
     // if: contains(classifications, 'DATABASE MIGRATION')
     'Migration validation': migrationValidationRequired,
-    // if: backend_deployment_required == 'true' && deploy-staging success
-    'Staging health checks': backendDeploymentRequired,
+    // if: backend_deployment_required == 'true' && <staging deploy authorized> && deploy-staging success
+    'Staging health checks': backendDeploymentRequired && stagingDeploymentAuthorized,
     // if: ... && deploy-staging success && staging-health success|skipped
-    'Synthetic auth tests': backendDeploymentRequired,
+    'Synthetic auth tests': backendDeploymentRequired && stagingDeploymentAuthorized,
     // if: enforcement_level != 'NORMAL_PR' || classifications != 'DOCUMENTATION ONLY'
     // Enforcement level is resolved separately and can only WIDEN applicability,
     // so documentation-only is the sole condition that can make this
@@ -270,6 +343,7 @@ function main() {
     documentationOnly,
     governanceSensitive: [...allTags].some((t) => GOVERNANCE_SENSITIVE_TAGS.has(t)),
     checkApplicability,
+    stagingDeploymentAuthorized,
     stagingImpact,
     mobileOnly: onlyMobile && !stagingImpact,
     backendDeploymentRequired,
@@ -298,4 +372,8 @@ module.exports = {
   STAGING_IMPACT_TAGS,
   GOVERNANCE_SENSITIVE_TAGS,
   ClassificationAuthorityError,
+  isStagingDeploymentAuthorized,
+  normalizeBranchRef,
+  STAGING_AUTHORITY_BRANCH,
+  EXPECTED_STAGING_PROJECT_REF,
 };

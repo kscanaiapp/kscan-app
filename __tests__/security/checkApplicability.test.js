@@ -38,14 +38,33 @@ const {
 } = require(path.join(ROOT, 'security', 'scripts', 'evaluate-promotion-gate.js'));
 
 /** Run the real classifier over a synthetic changed-file set. */
-function classify(files) {
+function classify(files, extraEnv = {}) {
   const out = execFileSync('node', [CLASSIFIER], {
     cwd: ROOT,
     encoding: 'utf8',
-    env: { ...process.env, CHANGED_FILES: files.join(',') },
+    env: { ...process.env, CHANGED_FILES: files.join(','), ...extraEnv },
   });
   return JSON.parse(out);
 }
+
+/** STAGING_DEPLOY_AUTH_* env vars for an unauthorized event -- a PR into an
+ *  integration/* branch, exactly PR #251's shape. */
+const UNAUTHORIZED_INTEGRATION_PR_AUTH_ENV = {
+  STAGING_DEPLOY_AUTH_EVENT_NAME: 'pull_request',
+  STAGING_DEPLOY_AUTH_REF: 'refs/pull/251/merge',
+  STAGING_DEPLOY_AUTH_BASE_REF: 'integration/backend-kplus-complimentary-staging-v1',
+  STAGING_DEPLOY_AUTH_DISPATCH_CONFIRM: '',
+  STAGING_DEPLOY_AUTH_DISPATCH_PROJECT_REF: '',
+};
+
+/** The authorized shape: a PR into staging/production-parity itself. */
+const AUTHORIZED_STAGING_PR_AUTH_ENV = {
+  STAGING_DEPLOY_AUTH_EVENT_NAME: 'pull_request',
+  STAGING_DEPLOY_AUTH_REF: 'refs/pull/251/merge',
+  STAGING_DEPLOY_AUTH_BASE_REF: 'staging/production-parity',
+  STAGING_DEPLOY_AUTH_DISPATCH_CONFIRM: '',
+  STAGING_DEPLOY_AUTH_DISPATCH_PROJECT_REF: '',
+};
 
 /** Build a byName map of check-runs. */
 function runs(spec) {
@@ -221,6 +240,136 @@ test('CONTROL A guard: Contract tests ABSENT for #243 is NOT waived', () => {
   const verdict = verdictFor(byName, applicability);
   assert.equal(verdict.finalVerdict, 'OPERATIONAL FAILURE');
   assert.ok(verdict.missingChecks.includes('Contract tests'));
+});
+
+// ── STAGING-DEPLOY-AUTH-001 — SOURCE applicability vs EVENT/RUNTIME applicability ──
+//
+// backendDeploymentRequired (a diff touches supabase/functions or
+// supabase/migrations) is necessary but not sufficient to make 'Staging
+// health checks'/'Synthetic auth tests' applicable: deploy-staging must also
+// be AUTHORIZED to run for this event (PR #251's exact defect -- an
+// integration/* PR with real backend changes, where deploy-staging's own
+// `if:` never fires, so those two checks correctly report `skipped` and an
+// "applicable" contract misread that as OPERATIONAL FAILURE).
+
+const BACKEND_FILES = ['supabase/functions/vto-generate/index.ts'];
+const BACKEND_AND_MIGRATION_FILES = [
+  ...BACKEND_FILES,
+  'supabase/migrations/20260901000000_thing.sql',
+];
+
+test('STAGING-DEPLOY-AUTH-001 A: integration PR + backend changes -> deploy not authorized -> runtime staging checks N/A, PASS on applicable source checks', () => {
+  const c = classify(BACKEND_FILES, UNAUTHORIZED_INTEGRATION_PR_AUTH_ENV);
+  assert.equal(c.backendDeploymentRequired, true, 'precondition: this diff does need a deploy eventually');
+  assert.equal(c.stagingDeploymentAuthorized, false, 'precondition: this event is not authorized to perform it');
+  assert.equal(c.checkApplicability['Staging health checks'], false);
+  assert.equal(c.checkApplicability['Synthetic auth tests'], false);
+
+  const byName = allGreen({ 'Staging health checks': 'skipped', 'Synthetic auth tests': 'skipped', 'Migration validation': null });
+  const verdict = verdictFor(byName, c.checkApplicability);
+  assert.equal(verdict.finalVerdict, 'PASS', JSON.stringify(verdict.failures));
+  assert.ok(verdict.notApplicableChecks.includes('Staging health checks'));
+  assert.ok(verdict.notApplicableChecks.includes('Synthetic auth tests'));
+});
+
+test('STAGING-DEPLOY-AUTH-001 B: authorized staging deployment + backend changes -> staging health/synthetic auth missing or skipped FAIL CLOSED', () => {
+  const c = classify(BACKEND_FILES, AUTHORIZED_STAGING_PR_AUTH_ENV);
+  assert.equal(c.stagingDeploymentAuthorized, true, 'precondition: this event IS authorized to deploy');
+  assert.equal(c.checkApplicability['Staging health checks'], true);
+  assert.equal(c.checkApplicability['Synthetic auth tests'], true);
+
+  for (const missingName of ['Staging health checks', 'Synthetic auth tests']) {
+    const missingRun = allGreen({ [missingName]: null });
+    const missingVerdict = verdictFor(missingRun, c.checkApplicability);
+    assert.equal(missingVerdict.finalVerdict, 'OPERATIONAL FAILURE', `${missingName} missing must fail closed`);
+    assert.ok(missingVerdict.missingChecks.includes(missingName));
+
+    const skippedRun = allGreen({ [missingName]: 'skipped' });
+    const skippedVerdict = verdictFor(skippedRun, c.checkApplicability);
+    assert.notEqual(skippedVerdict.finalVerdict, 'PASS', `${missingName} skipped-while-applicable must fail closed`);
+  }
+});
+
+test('STAGING-DEPLOY-AUTH-001 C: authorized staging deploy fails -> never PASS (BLOCKED, a real validation failure)', () => {
+  // 'Staging health checks: failure' is a genuine post-deploy regression, not
+  // CI machinery breaking -- classifyCheckFailure's stagingHealthCheckFailure
+  // key is in BLOCKING_KEYS, matching every other real (non-operational)
+  // failure this evaluator classifies. The invariant that matters here is
+  // "never PASS", not the exact BLOCKED/OPERATIONAL FAILURE label.
+  const c = classify(BACKEND_FILES, AUTHORIZED_STAGING_PR_AUTH_ENV);
+  const byName = allGreen({ 'Staging health checks': 'failure' });
+  const verdict = verdictFor(byName, c.checkApplicability);
+  assert.notEqual(verdict.finalVerdict, 'PASS', JSON.stringify(verdict.failures));
+  assert.equal(verdict.finalVerdict, 'BLOCKED');
+});
+
+test('STAGING-DEPLOY-AUTH-001 D: migration-bearing integration PR keeps Migration validation REQUIRED regardless of deploy authorization', () => {
+  const c = classify(BACKEND_AND_MIGRATION_FILES, UNAUTHORIZED_INTEGRATION_PR_AUTH_ENV);
+  assert.equal(c.migrationValidationRequired, true);
+  assert.equal(c.checkApplicability['Migration validation'], true, 'migration validation is a SOURCE check, not a deployment-runtime one');
+  assert.equal(c.checkApplicability['Staging health checks'], false, 'but deployment-runtime checks stay N/A, unauthorized');
+
+  const byName = allGreen({ 'Migration validation': null });
+  const verdict = verdictFor(byName, c.checkApplicability);
+  assert.equal(verdict.finalVerdict, 'OPERATIONAL FAILURE');
+  assert.ok(verdict.missingChecks.includes('Migration validation'));
+});
+
+test('STAGING-DEPLOY-AUTH-001 E: contract-sensitive integration PR keeps Contract tests REQUIRED regardless of deploy authorization', () => {
+  const c = classify(BACKEND_FILES, UNAUTHORIZED_INTEGRATION_PR_AUTH_ENV);
+  assert.equal(c.checkApplicability['Contract tests'], true);
+
+  const byName = allGreen({ 'Contract tests': null, 'Staging health checks': 'skipped', 'Synthetic auth tests': 'skipped' });
+  const verdict = verdictFor(byName, c.checkApplicability);
+  assert.equal(verdict.finalVerdict, 'OPERATIONAL FAILURE');
+  assert.ok(verdict.missingChecks.includes('Contract tests'));
+});
+
+test('STAGING-DEPLOY-AUTH-001: absent auth context (every existing/unaware caller) defaults to authorized, never less strict', () => {
+  const c = classify(BACKEND_FILES);
+  assert.equal(c.stagingDeploymentAuthorized, true);
+  assert.equal(c.checkApplicability['Staging health checks'], true);
+  assert.equal(c.checkApplicability['Synthetic auth tests'], true);
+});
+
+test('STAGING-DEPLOY-AUTH-001: workflow_dispatch with the exact confirm phrase and staging project ref is authorized', () => {
+  const c = classify(BACKEND_FILES, {
+    STAGING_DEPLOY_AUTH_EVENT_NAME: 'workflow_dispatch',
+    STAGING_DEPLOY_AUTH_REF: 'refs/heads/some-other-branch',
+    STAGING_DEPLOY_AUTH_BASE_REF: '',
+    STAGING_DEPLOY_AUTH_DISPATCH_CONFIRM: 'DEPLOY-TO-STAGING',
+    STAGING_DEPLOY_AUTH_DISPATCH_PROJECT_REF: 'yzqjvdfgefveprobvvyw',
+  });
+  assert.equal(c.stagingDeploymentAuthorized, true);
+});
+
+test('STAGING-DEPLOY-AUTH-001: workflow_dispatch missing the exact confirm phrase is NOT authorized', () => {
+  const c = classify(BACKEND_FILES, {
+    STAGING_DEPLOY_AUTH_EVENT_NAME: 'workflow_dispatch',
+    STAGING_DEPLOY_AUTH_REF: 'refs/heads/some-other-branch',
+    STAGING_DEPLOY_AUTH_BASE_REF: '',
+    STAGING_DEPLOY_AUTH_DISPATCH_CONFIRM: 'deploy-to-staging',
+    STAGING_DEPLOY_AUTH_DISPATCH_PROJECT_REF: 'yzqjvdfgefveprobvvyw',
+  });
+  assert.equal(c.stagingDeploymentAuthorized, false);
+});
+
+test('STAGING-DEPLOY-AUTH-001: a push directly to staging/production-parity is authorized', () => {
+  const c = classify(BACKEND_FILES, {
+    STAGING_DEPLOY_AUTH_EVENT_NAME: 'push',
+    STAGING_DEPLOY_AUTH_REF: 'refs/heads/staging/production-parity',
+    STAGING_DEPLOY_AUTH_BASE_REF: '',
+    STAGING_DEPLOY_AUTH_DISPATCH_CONFIRM: '',
+    STAGING_DEPLOY_AUTH_DISPATCH_PROJECT_REF: '',
+  });
+  assert.equal(c.stagingDeploymentAuthorized, true);
+});
+
+test('STAGING-DEPLOY-AUTH-001: a mobile-only integration PR (no backend deployment needed) never even reaches the authorization question', () => {
+  const c = classify(['app/x.tsx'], UNAUTHORIZED_INTEGRATION_PR_AUTH_ENV);
+  assert.equal(c.backendDeploymentRequired, false);
+  assert.equal(c.checkApplicability['Staging health checks'], false);
+  assert.equal(c.checkApplicability['Synthetic auth tests'], false);
 });
 
 // ── CONTROLS B–E — applicable checks must never be waived ───────────────────
