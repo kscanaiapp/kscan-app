@@ -70,6 +70,12 @@ const AUDITED_SURFACES = [
   { file: 'app/onboarding/index.tsx', allowedBareExceptions: [] },
   { file: 'app/privacy.tsx', allowedBareExceptions: [] },
   { file: 'app/dressing-rooms/index.tsx', allowedBareExceptions: [] },
+  // K+ Packing Intelligence V1 surfaces. Added with the feature so its copy
+  // is covered by this gate from its first commit rather than after a
+  // reviewer notices a bare product name in a shipped screen.
+  { file: 'app/packing/index.tsx', allowedBareExceptions: [] },
+  { file: 'components/packing/PackingPlanView.tsx', allowedBareExceptions: [] },
+  { file: 'components/packing/PackingTripForm.tsx', allowedBareExceptions: [] },
   { file: 'app/dressing-rooms/[id].tsx', allowedBareExceptions: [] },
   { file: 'app/(public)/rooms/[token].tsx', allowedBareExceptions: [] },
   { file: 'components/AnalysisCard.tsx', allowedBareExceptions: [] },

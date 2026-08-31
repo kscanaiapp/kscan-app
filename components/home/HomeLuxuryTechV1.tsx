@@ -36,7 +36,7 @@ import { HomeStylistCard } from './HomeStylistCard';
 import { TodayWithEliseSection } from './TodayWithEliseSection';
 import { PersonalizeStylistModal } from '../stylist/PersonalizeStylistModal';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
-import { TEXTSCAN_UI_ENABLED } from '../../constants/featureFlags';
+import { PACKING_INTELLIGENCE_V1, TEXTSCAN_UI_ENABLED } from '../../constants/featureFlags';
 import { KPlusGate } from '../kplus/KPlusGate';
 
 
@@ -113,6 +113,7 @@ export default function HomeLuxuryTechV1() {
     TEXTSCAN_UI_ENABLED && !featureFreezeLoading && isFeatureEnabled('textScan');
   const scanEnabled = !featureFreezeLoading && isFeatureEnabled('scan');
   const styleChatEnabled = !featureFreezeLoading && isFeatureEnabled('styleChat');
+  const packingEnabled = PACKING_INTELLIGENCE_V1;
 
   const preferredName = resolvePreferredName(user);
 
@@ -397,6 +398,21 @@ export default function HomeLuxuryTechV1() {
           accessibilityLabel="Open Dressing Rooms"
           accessibilityHint="Navigate to dressing rooms to compare outfits"
         />
+        {/* K+ Packing Intelligence. The chip is shown to everyone when the
+            feature is built in: the K+ gate lives on the screen itself, and
+            hiding the entry entirely would make a premium capability
+            undiscoverable to the people it is for. */}
+        {packingEnabled && (
+          <FeatureChip
+            icon={<KScanIcon name="style" size={24} variant="standard" />}
+            title="PACK FOR A TRIP"
+            body="Packed from what you already own."
+            onPress={() => router.push('/packing')}
+            testID="home-luxury-feature-packing"
+            accessibilityLabel="Pack for a trip"
+            accessibilityHint="Build a packing plan from the clothes in your Closet"
+          />
+        )}
       </View>
 
       {/* Secondary entries: TextScan when enabled, Smart Watchlist (K+) */}
