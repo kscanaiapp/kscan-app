@@ -21,7 +21,10 @@
  */
 import assert from 'node:assert/strict';
 
-import { enforceOwnershipProseSafety } from './eliseOwnershipProseSafety.ts';
+import {
+  enforceClosetAbsenceProseSafety,
+  enforceOwnershipProseSafety,
+} from './eliseOwnershipProseSafety.ts';
 import { normalizeWardrobeCandidate } from './eliseFashionFeatures.ts';
 import type { EliseScoredCandidate, EliseWardrobeCandidate } from './eliseAdviceTypes.ts';
 
@@ -196,4 +199,133 @@ Deno.test('conflict codes stay garment CLASS only -- never a title or a sentence
     assert.match(code, /^unsupported_owned_[a-z0-9]+$/);
     assert.doesNotMatch(code, /leather|bag|brown/i);
   }
+});
+
+// ── CON-ABSENCE-005: a Closet ABSENCE claim needs census provenance ─────────
+//
+// The hostile runtime case: a NON-K+ actor -- who has no Closet at all, because
+// RLS gates user_closet_items on has_active_k_plus() -- was told "I don't
+// currently have any outerwear items listed in your Closet". A factual claim
+// about a store the turn had no census of.
+//
+// The invariant: a factual assertion that the Closet/wardrobe LACKS something
+// requires authoritative Closet census provenance. Ordinary styling advice must
+// remain available without it, or Base Elise becomes useless for non-K+ users.
+
+const NO_CENSUS = { censusAvailable: false, presentSubjects: [] };
+const EMPTY_OUTERWEAR_CENSUS = { censusAvailable: true, presentSubjects: ['shirt', 'trousers'] };
+const HAS_OUTERWEAR_CENSUS = { censusAvailable: true, presentSubjects: ['outerwear', 'coat', 'shirt'] };
+
+function absence(text: string, evidence: unknown) {
+  return enforceClosetAbsenceProseSafety({
+    text,
+    evidence: evidence as never,
+    neutralFallback: NEUTRAL,
+  });
+}
+
+// A. No census -> absence rejected, across semantic forms.
+Deno.test('CON-ABSENCE-005: with NO census, every absence phrasing is rejected', () => {
+  for (const claim of [
+    // The exact sentence that shipped.
+    "I don't currently have any outerwear items listed in your Closet.",
+    'You don’t have any jackets in your Closet.',
+    "There aren't any jackets in your wardrobe.",
+    'Your Closet has no outerwear.',
+    "You're missing outerwear from your wardrobe.",
+    'You do not own a blazer.',
+    'You have no coats.',
+    'You lack a trench coat.',
+    "Your wardrobe doesn't contain a blazer.",
+    'Your wardrobe is missing outerwear.',
+    'A camel coat is not in your Closet.',
+    "I don't see any boots in your wardrobe.",
+    'You did not have a jacket.',
+  ]) {
+    const v = absence(claim, NO_CENSUS);
+    assert.equal(v.conflictDetected, true, `unguarded absence claim: ${claim}`);
+    assert.equal(v.safeText, NEUTRAL);
+  }
+});
+
+Deno.test('CON-ABSENCE-005: the conflict code says WHY, without leaking contents', () => {
+  const v = absence("I don't currently have any outerwear items listed in your Closet.", NO_CENSUS);
+  assert.ok(v.conflictCodes.includes('ungrounded_absent_outerwear'));
+  for (const code of v.conflictCodes) assert.match(code, /^[a-z_]+_[a-z0-9]+$/);
+});
+
+// B. No census -> ordinary advice still allowed. Base Elise must stay useful.
+Deno.test('CON-ABSENCE-005: general fashion advice survives without a census', () => {
+  for (const advice of [
+    'A lightweight jacket could work well with this outfit.',
+    'A jacket could complement this outfit.',
+    'Consider adding outerwear for colder weather.',
+    'A tailored wool overcoat works wonderfully for a smart dinner.',
+    'Pair it with dark trousers and a crisp shirt.',
+    // "have to" is advice, not a claim about holdings.
+    "You don't have to wear a jacket for this.",
+  ]) {
+    const v = absence(advice, NO_CENSUS);
+    assert.equal(v.conflictDetected, false, `advice wrongly suppressed: ${advice}`);
+    assert.equal(v.safeText, advice);
+  }
+});
+
+Deno.test('CON-ABSENCE-005: absence language naming nothing checkable is left alone', () => {
+  const v = absence("You're missing a little contrast here.", NO_CENSUS);
+  assert.equal(v.conflictDetected, false, 'this guard removes unprovable claims, not hedged phrasing');
+});
+
+// C. Authoritative census + category genuinely absent -> may pass.
+Deno.test('CON-ABSENCE-005: an exhaustive census that shows none PERMITS the claim', () => {
+  for (const claim of [
+    "You don't currently have outerwear in your Closet.",
+    'Your Closet has no outerwear.',
+    'You have no coats.',
+  ]) {
+    const v = absence(claim, EMPTY_OUTERWEAR_CENSUS);
+    assert.equal(v.conflictDetected, false, `grounded absence wrongly removed: ${claim}`);
+  }
+});
+
+// D. Authoritative census + category present -> the same claim must fail.
+Deno.test('CON-ABSENCE-005: a census that CONTRADICTS the claim rejects it', () => {
+  const v = absence("You don't currently have outerwear in your Closet.", HAS_OUTERWEAR_CENSUS);
+  assert.equal(v.conflictDetected, true, 'the census says the Closet holds outerwear');
+  assert.ok(v.conflictCodes.some((c) => c.startsWith('contradicted_absent_')));
+});
+
+Deno.test('CON-ABSENCE-005: a non-exhaustive census is NOT provenance', () => {
+  // censusAvailable folds in exhaustive + nothing-unclassified. A caller that
+  // could not establish those must pass false, and then nothing is provable.
+  const v = absence('Your Closet has no outerwear.', { censusAvailable: false, presentSubjects: ['shirt'] });
+  assert.equal(v.conflictDetected, true);
+});
+
+Deno.test('CON-ABSENCE-005: only the offending sentence goes, never the advice with it', () => {
+  const v = absence(
+    "You don't have any outerwear in your Closet. A tailored overcoat would finish this well.",
+    NO_CENSUS,
+  );
+  assert.equal(v.conflictDetected, true);
+  assert.doesNotMatch(v.safeText, /don.t have any outerwear/i);
+  assert.match(v.safeText, /A tailored overcoat would finish this well\./);
+});
+
+Deno.test('CON-ABSENCE-005: singular and plural subjects resolve the same', () => {
+  // The CON-PROSE-004 variant resolver is shared, so "shoes" cannot be a claim
+  // the ownership half can see and the absence half cannot.
+  for (const claim of ['You have no shoes.', 'You have no shoe.', 'You have no dresses.']) {
+    assert.equal(absence(claim, NO_CENSUS).conflictDetected, true, claim);
+  }
+});
+
+Deno.test('CON-ABSENCE-005: a free-form census token still matches the claim subject', () => {
+  // Census tokens are free-form manual entry ("Outerwear", "Coats"), so they go
+  // through the same resolver as the sentence rather than a raw string compare.
+  const v = absence('Your Closet has no outerwear.', {
+    censusAvailable: true,
+    presentSubjects: ['Outerwear'],
+  });
+  assert.equal(v.conflictDetected, true, 'a differently-cased census token must still contradict');
 });

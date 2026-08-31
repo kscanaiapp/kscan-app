@@ -109,7 +109,10 @@ import {
 } from './fashionContextV2.ts';
 import { runEliseAdvicePipeline } from './eliseAdvicePipeline.ts';
 import { buildClosetCensus, CENSUS_ROW_CAP } from './eliseClosetCensus.ts';
-import { enforceOwnershipProseSafety } from './eliseOwnershipProseSafety.ts';
+import {
+  enforceClosetAbsenceProseSafety,
+  enforceOwnershipProseSafety,
+} from './eliseOwnershipProseSafety.ts';
 import type {
   EliseClosetCensus,
   EliseFocusedItem,
@@ -2226,6 +2229,17 @@ Deno.serve(async (req) => {
    * about is owned -- and deletes true sentences that name it.
    */
   let adviceFocusForProseSafety: EliseFocusedItem | null = null;
+  /**
+   * CON-ABSENCE-005. The authoritative Closet census, kept for the ABSENCE half
+   * of the prose guard.
+   *
+   * Deliberately hoisted out of the advice block: the census was a local there,
+   * so the only layer that could have contradicted an ungrounded "you don't have
+   * X in your Closet" never saw it. Null means "no authoritative census this
+   * turn" -- which is the state a non-K+ actor is always in, and exactly when an
+   * absence claim must not be made.
+   */
+  let closetCensusForProseSafety: EliseClosetCensus | null = null;
   if (config.flags.adviceIntentsV1) {
     try {
       const wardrobeData: EliseWardrobeDataSource = {
@@ -2408,6 +2422,8 @@ Deno.serve(async (req) => {
           closetCensus = null;
         }
       }
+      // CON-ABSENCE-005: the same census object, visible to the prose guard.
+      closetCensusForProseSafety = closetCensus;
 
       const adviceResult = await runEliseAdvicePipeline({
         message,
@@ -3069,6 +3085,57 @@ Deno.serve(async (req) => {
    */
   let assistantTextSafe = assistantText;
   let ownershipProseConflict = false;
+
+  /**
+   * CON-ABSENCE-005 -- the ABSENCE half, and it runs FIRST.
+   *
+   * Order matters: absence sentences are removed before the ownership guard
+   * reads the text, so the ownership half never has to reason about a sentence
+   * that is already going. The two halves are independent claims, so one firing
+   * must not mask the other.
+   *
+   * GATING IS DELIBERATELY THE INVERSE of the ownership half below. That guard
+   * stands down when there is no owned evidence, because with none it would
+   * suppress ordinary Base Elise answers. An absence claim is the opposite: it
+   * is most dangerous when there is NO census, which is precisely a non-K+ turn.
+   * So this runs whenever Concierge is on, and its permission comes from the
+   * census rather than from the shortlist.
+   *
+   * Only counted-non-zero subjects are passed. Everything else the census needs
+   * to be honest about -- exhaustive, nothing unclassified -- is folded into
+   * `censusAvailable` here, so the guard can never disagree with
+   * `censusConfirmsRoleAbsent`.
+   */
+  let absenceProseConflict = false;
+  if (config.flags.conciergeV1) {
+    const census = closetCensusForProseSafety;
+    const censusAvailable = !!census && census.exhaustive === true && census.unclassifiedItems === 0;
+    const presentSubjects: string[] = [];
+    if (census) {
+      for (const source of [census.countsByCategory, census.countsByLayeringRole]) {
+        for (const [token, count] of Object.entries(source ?? {})) {
+          if (typeof count === 'number' && count > 0) presentSubjects.push(token);
+        }
+      }
+    }
+    const absenceVerdict = enforceClosetAbsenceProseSafety({
+      text: assistantTextSafe,
+      evidence: { censusAvailable, presentSubjects },
+      neutralFallback: CONCIERGE_NEUTRAL_OWNERSHIP_FALLBACK,
+    });
+    assistantTextSafe = absenceVerdict.safeText;
+    absenceProseConflict = absenceVerdict.conflictDetected;
+    if (absenceVerdict.conflictDetected) {
+      // Section 54: subject CLASS codes only. Never the sentence, never a title,
+      // and never a count -- a count would leak Closet contents off-device.
+      emitEliseTelemetry(config, 'concierge_absence_prose_conflict', {
+        requestId,
+        conflictCodes: absenceVerdict.conflictCodes.join('|').slice(0, 160),
+        censusAvailable,
+      });
+    }
+  }
+
   const proseSafetyFocus = adviceFocusForProseSafety;
   const proseSafetyOwnedFocus =
     proseSafetyFocus?.candidate?.actorRelationship === 'owned' ||
@@ -3078,7 +3145,10 @@ Deno.serve(async (req) => {
     (adviceShortlistForProseSafety.length > 0 || proseSafetyOwnedFocus)
   ) {
     const verdict = enforceOwnershipProseSafety({
-      text: assistantText,
+      // The absence-filtered text, not the raw model output: chaining is what
+      // stops the ownership half from resurrecting a sentence the absence half
+      // already removed.
+      text: assistantTextSafe,
       shortlist: adviceShortlistForProseSafety,
       focus: proseSafetyFocus,
       neutralFallback: CONCIERGE_NEUTRAL_OWNERSHIP_FALLBACK,
