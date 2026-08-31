@@ -281,18 +281,60 @@ test('CONTROL F: an unreadable/absent applicability contract makes EVERYTHING ap
 });
 
 test('CONTROL F: a classifier that cannot resolve its base FAILS, it does not return empty', () => {
-  let threw = false;
+  // Environment-independent by construction. In CI the checkout is a PR MERGE
+  // commit, so a bogus base legitimately resolves via the merge commit's first
+  // parent -- which IS the base by definition. Asserting "a bogus base always
+  // throws" therefore only held on a non-merge HEAD, and this test failed in CI
+  // for that reason on this repair's own first run.
+  //
+  // The real contract is: when NOTHING resolves -- no spelling of the ref, and
+  // no merge parent to fall back on -- the classifier must throw rather than
+  // report an empty diff. A throwaway single-commit repo makes that state
+  // reachable deterministically on any machine.
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'kscan-classify-base-'));
   try {
-    execFileSync('node', [CLASSIFIER, 'refs/heads/definitely-not-a-real-base-ref'], {
-      cwd: ROOT,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, CHANGED_FILES: '' },
-    });
-  } catch {
-    threw = true;
+    const git = (...args) => execFileSync('git', args, { cwd: tmp, stdio: ['ignore', 'pipe', 'pipe'] });
+    git('init', '-q');
+    git('config', 'user.email', 'test@example.invalid');
+    git('config', 'user.name', 'Base Resolution Test');
+    fs.writeFileSync(path.join(tmp, 'a.txt'), 'a');
+    git('add', '.');
+    git('commit', '-q', '-m', 'root');
+    // Single commit: no parents at all, so no merge-parent fallback exists.
+    const parents = execFileSync('git', ['rev-list', '--parents', '-n', '1', 'HEAD'], {
+      cwd: tmp, encoding: 'utf8',
+    }).trim().split(/\s+/);
+    assert.equal(parents.length, 1, 'fixture must be a root commit');
+
+    let threw = false;
+    try {
+      execFileSync('node', [CLASSIFIER, 'refs/heads/definitely-not-a-real-base-ref'], {
+        cwd: tmp,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    } catch {
+      threw = true;
+    }
+    assert.equal(threw, true, 'an unresolvable base must not silently classify an empty diff');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
   }
-  assert.equal(threw, true, 'an unresolvable base must not silently classify a different range');
+});
+
+test('CONTROL F: the merge-parent fallback is EXACT, not a guess', () => {
+  // It is used only when HEAD really is a merge commit, and then the first
+  // parent is the base tip by definition of a pull_request merge checkout.
+  const { resolveBaseRef } = require(path.join(ROOT, 'security', 'scripts', 'classify-changed-surfaces.js'));
+  const parents = execFileSync('git', ['rev-list', '--parents', '-n', '1', 'HEAD'], {
+    cwd: ROOT, encoding: 'utf8',
+  }).trim().split(/\s+/);
+  const resolved = resolveBaseRef('refs/heads/definitely-not-a-real-base-ref');
+  if (parents.length >= 3) {
+    assert.equal(resolved, parents[1], 'on a merge commit, resolve to the FIRST parent');
+  } else {
+    assert.equal(resolved, null, 'with no merge parent there is nothing to fall back to');
+  }
 });
 
 // ── Raw conclusion mapping ──────────────────────────────────────────────────
