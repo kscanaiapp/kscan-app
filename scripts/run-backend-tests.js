@@ -56,7 +56,7 @@ const TEST_SUFFIX = '.test.ts';
  * platform branches while nothing in the repository objected — precisely the
  * Phase 2A failure this list exists to prevent.
  */
-const GOVERNED = ['scan-identify', 'stylechat-generate', 'style-outfit-generate', 'commerce-watch-refresh', '_shared'];
+const GOVERNED = ['scan-identify', 'stylechat-generate', 'style-outfit-generate', 'commerce-watch-refresh', 'vto-generate', '_shared'];
 
 const requested = process.argv.slice(2);
 const targets = requested.length > 0 ? requested : GOVERNED;
