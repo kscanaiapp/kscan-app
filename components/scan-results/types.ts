@@ -2,6 +2,8 @@ import { buildScanTitle } from '../../services/scanTitleBuilder';
 import { SCAN_IDENTITY_DEBUG } from '../../constants/build';
 import { SCAN_RESULTS_DEMO_UI_ENABLED } from '../../constants/featureFlags';
 import type { OutfitConfirmationCandidate } from '../../services/outfitConfirmation/outfitDetectionBridge';
+import { buildVtoGarmentFromCommerceRecord } from '../../services/vto/vtoCommerceGarment';
+import type { VtoGarmentInput } from '../../types/vto';
 
 export type ProductMatch = {
   id: string;
@@ -54,6 +56,17 @@ export type PurchaseOption = {
   productUrl?: string;
   /** DEF-WL-07: ephemeral watch identity. Never persisted -- see WatchCandidate. */
   watchCandidate?: WatchCandidate;
+  /**
+   * VTO-REACH-001: ephemeral try-on identity for THIS row, derived from the
+   * same canonical record the row renders from -- so the garment a person
+   * tries on is the product they are looking at, not a re-discovered one.
+   *
+   * Built by the single shared derivation in services/vto/vtoCommerceGarment,
+   * the same one components/ProductShelf.tsx uses. Never persisted: the
+   * persisted-snapshot normalizer does not carry it, exactly as it does not
+   * carry watchCandidate.
+   */
+  vtoGarment?: VtoGarmentInput | null;
 };
 
 /**
@@ -263,6 +276,11 @@ export function mapRawProductToPurchaseOption(
     // intact here; it is the persisted normalizer that strips it, which is why
     // this surface must not source eligibility from there.
     watchCandidate: buildWatchCandidate(raw, productUrl, retailer),
+    // VTO-REACH-001: derived from the SAME canonical record, by the SAME
+    // shared derivation ProductShelf uses. Null when the record carries no
+    // stable product reference -- the panel then renders no try-on entry at
+    // all, rather than one anchored to nothing.
+    vtoGarment: buildVtoGarmentFromCommerceRecord(raw),
   };
 }
 

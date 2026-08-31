@@ -40,6 +40,7 @@ import {
 } from '../services/dressingRoomCommerce';
 import { VTO_UI_ENABLED } from '../constants/featureFlags';
 import { TryItOnEntry } from './vto/TryItOnEntry';
+import { buildVtoGarmentFromCommerceRecord } from '../services/vto/vtoCommerceGarment';
 import type { VtoGarmentInput } from '../types/vto';
 
 export interface Product {
@@ -186,32 +187,19 @@ export function canWatchProduct(product: Product | null | undefined): boolean {
 /**
  * Narrows a commerce candidate into the VTO garment contract.
  *
- * Lives here because this file already owns product-field resolution -- VTO
- * must not grow a second opinion about where a product's title, image or
- * category live. It reads existing fields only: no measurement, no fit data,
- * and no new catalog surface.
+ * VTO-REACH-001: the body of this moved to services/vto/vtoCommerceGarment.ts
+ * so the LIVE Scan Results V2 surface can build the identical garment. This
+ * shelf is not the shipped scan surface -- ScanResultV2 is -- and two
+ * derivations would be exactly how "Product A's try-on" becomes Product B's.
  *
- * Returns null when there is no stable reference to anchor a request to.
+ * Kept as a named export with its Product-shaped signature so every existing
+ * caller and test is unaffected. The field precedence is unchanged; it simply
+ * lives in one place now.
  */
 export function buildVtoGarmentFromProduct(
   product: Product | null | undefined,
 ): VtoGarmentInput | null {
-  if (!product) return null;
-  const imageUrl = getProductImageUrl(product);
-  // Any stable-enough handle for correlating a request with the candidate the
-  // user tapped. Never used for authorization.
-  const productRef =
-    (typeof product.id === 'string' && product.id.trim())
-    || getPurchaseUrl(product)
-    || imageUrl;
-  if (!productRef) return null;
-  return {
-    productRef,
-    imageUrl: imageUrl ?? '',
-    category: String(product.category || product.imageCategory || '').trim(),
-    brand: typeof product.brand === 'string' && product.brand.trim() ? product.brand.trim() : null,
-    commerceSource: getRetailer(product),
-  };
+  return buildVtoGarmentFromCommerceRecord(product as Record<string, unknown> | null | undefined);
 }
 
 /**
