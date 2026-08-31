@@ -25,6 +25,15 @@ export type EliseWardrobeDataSource = {
    * that predates Track B keeps working unchanged when it is absent.
    */
   listClosetItems?(actorId: string, limit: number): Promise<Record<string, unknown>[]>;
+  /**
+   * Build 34 / K+ Wardrobe Concierge V1 (C2 sections 26/27). A narrow census
+   * page: category columns only, for COUNTING. Separate from listClosetItems
+   * because the two answer different questions -- that one asks "what should I
+   * recommend?" and is deliberately bounded to a shortlist, this one asks "what
+   * does the user actually have?" and must be able to say when it does not
+   * know. Optional, so every pre-Concierge caller and test is unaffected.
+   */
+  listClosetCensusRows?(actorId: string, rowCap: number): Promise<Record<string, unknown>[]>;
 };
 
 export interface EliseWardrobeRetrievalResult {

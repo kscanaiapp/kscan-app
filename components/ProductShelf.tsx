@@ -38,6 +38,9 @@ import {
   normalizePersistedCommerceUrl,
   openPersistedCommerceUrl,
 } from '../services/dressingRoomCommerce';
+import { VTO_UI_ENABLED } from '../constants/featureFlags';
+import { TryItOnEntry } from './vto/TryItOnEntry';
+import type { VtoGarmentInput } from '../types/vto';
 
 export interface Product {
   id?:         string;
@@ -178,6 +181,37 @@ export function canAddProductToDressingRoom(product: Product | null | undefined)
 /** K5-C5: the Watch action only ever appears on a server-marked-eligible listing. */
 export function canWatchProduct(product: Product | null | undefined): boolean {
   return product?.watchCapability === 'refreshable_listing';
+}
+
+/**
+ * Narrows a commerce candidate into the VTO garment contract.
+ *
+ * Lives here because this file already owns product-field resolution -- VTO
+ * must not grow a second opinion about where a product's title, image or
+ * category live. It reads existing fields only: no measurement, no fit data,
+ * and no new catalog surface.
+ *
+ * Returns null when there is no stable reference to anchor a request to.
+ */
+export function buildVtoGarmentFromProduct(
+  product: Product | null | undefined,
+): VtoGarmentInput | null {
+  if (!product) return null;
+  const imageUrl = getProductImageUrl(product);
+  // Any stable-enough handle for correlating a request with the candidate the
+  // user tapped. Never used for authorization.
+  const productRef =
+    (typeof product.id === 'string' && product.id.trim())
+    || getPurchaseUrl(product)
+    || imageUrl;
+  if (!productRef) return null;
+  return {
+    productRef,
+    imageUrl: imageUrl ?? '',
+    category: String(product.category || product.imageCategory || '').trim(),
+    brand: typeof product.brand === 'string' && product.brand.trim() ? product.brand.trim() : null,
+    commerceSource: getRetailer(product),
+  };
 }
 
 /**
@@ -399,6 +433,7 @@ export function ProductShelf({
           const showImage = !!productImageUrl && !failedImages[productKey];
           const retailer = getRetailer(p);
           const priceText = formatPrice(p);
+          const vtoGarment = buildVtoGarmentFromProduct(p);
           const availability = typeof p.availability === 'string' ? p.availability.toLowerCase() : null;
           const isOutOfStock = availability === 'out_of_stock' || availability === 'out of stock';
           if (typeof __DEV__ !== 'undefined' && __DEV__ && !showImage) {
@@ -464,6 +499,22 @@ export function ProductShelf({
                   <Text style={styles.availabilityLabel} numberOfLines={1}>
                     Out of stock
                   </Text>
+                ) : null}
+                {/*
+                    VTO seam: additive only. TryItOnEntry renders nothing
+                    unless the item is genuinely eligible (or the only gap is
+                    K+), so a card whose item cannot be tried on looks exactly
+                    as it does today. Shopping authority is unchanged -- "Shop"
+                    reuses this card's existing destination.
+                */}
+                {VTO_UI_ENABLED && vtoGarment ? (
+                  <TryItOnEntry
+                    garment={vtoGarment}
+                    garmentTitle={productTitle}
+                    origin="commerce_product"
+                    onShop={hasLink ? () => handleLinkPress(purchaseUrl) : undefined}
+                    testID={`try-it-on-${productKey}`}
+                  />
                 ) : null}
                 {dressingRoomsEnabled ? (
                   /*

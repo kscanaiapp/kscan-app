@@ -56,7 +56,21 @@ const TEST_SUFFIX = '.test.ts';
  * platform branches while nothing in the repository objected — precisely the
  * Phase 2A failure this list exists to prevent.
  */
-const GOVERNED = ['scan-identify', 'stylechat-generate', 'style-outfit-generate', 'commerce-watch-refresh', '_shared'];
+/**
+ * `vto-generate` joined in VTO Alpha Foundation 01, and it was a decision: it
+ * is the only place a generation provider is ever called, it holds the
+ * identity / kill-switch / K+ / eligibility chain, and its guards are only
+ * meaningful if they actually run. Registering it here is what makes
+ * `npm run test:backend` cover them.
+ */
+const GOVERNED = [
+  'scan-identify',
+  'stylechat-generate',
+  'style-outfit-generate',
+  'commerce-watch-refresh',
+  'vto-generate',
+  '_shared',
+];
 
 const requested = process.argv.slice(2);
 const targets = requested.length > 0 ? requested : GOVERNED;

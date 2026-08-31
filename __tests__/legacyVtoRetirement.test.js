@@ -19,7 +19,16 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '..');
 const read = (...p) => fs.readFileSync(path.join(ROOT, ...p), 'utf8');
 
-const HANDLER_RAW = read('supabase', 'functions', 'tryon-clothes-pro', 'index.ts');
+// The retirement notice/refusal is split across two files: index.ts is the
+// Deno.serve entry point only, and retiredHandler.ts holds the actual refusal
+// as an exported function so it can be exercised as a function rather than
+// only asserted about as source text. Both together are "the handler" this
+// file certifies -- reading only index.ts would miss everything the split
+// moved out of it.
+const HANDLER_RAW = [
+  read('supabase', 'functions', 'tryon-clothes-pro', 'index.ts'),
+  read('supabase', 'functions', 'tryon-clothes-pro', 'retiredHandler.ts'),
+].join('\n');
 
 /**
  * Assertions below are about what the handler DOES, not what it documents.

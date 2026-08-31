@@ -370,6 +370,17 @@ const GOVERNED_PRIVILEGE_INVENTORY: Record<string, PrivilegeProfile> = {
     serviceRole: false, dbRead: false, dbWrite: false, rpc: false, authAdmin: false, storage: false,
     privilegedBackend: true, actorBoundary: false,
   },
+  // K4 VTO backend (PR #246: INT-KPLUS-007, SEC-KPLUS-002/003/004). Reserves
+  // and settles paid-generation quota via the reserve/complete RPCs
+  // (20260831130000_vto_generation_reservations.sql) and reads the canonical
+  // K+ entitlement row, both through the shared `rpc`/`rest` helpers in
+  // _shared/deletion/common.ts -- which is why this profile carries that
+  // module's full footprint (service role, REST, RPC and auth-admin) even
+  // though vto-generate itself only ever calls the two VTO-scoped RPCs.
+  'vto-generate': {
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
+    privilegedBackend: true, actorBoundary: true,
+  },
 };
 
 function observedPrivilegeProfile(functionName: string): Omit<PrivilegeProfile, 'privilegedBackend' | 'actorBoundary'> {

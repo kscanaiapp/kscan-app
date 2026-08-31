@@ -21,6 +21,7 @@ import { invalidateAllMemoryCache } from '../services/style-chat/styleMemoryCach
 import { resetAttachmentStore } from '../services/style-chat/styleChatAttachmentStore';
 import { resetVisualContextStore } from '../services/style-chat/eliseVisualContextStore';
 import { cleanupSanitizedImage } from '../services/privacyImageUpload';
+import { resetVtoRequestState } from '../services/vto/vtoRequestStore';
 import {
   createAuthBootstrapGenerationGuard,
   createAuthActorBoundaryGuard,
@@ -111,6 +112,12 @@ function resetActorScopedRuntimeState(nextActorId: string | null): void {
   // rather than in a Packing-specific auth listener: this is the one place
   // this project resets actor-scoped runtime state.
   resetPackingPlanState();
+  // Virtual Try-On holds the strongest media in the app: a photo the user
+  // chose of themselves, plus a visualization made from it. Both are dropped
+  // here, and the cache derivatives backing them are deleted -- an in-flight
+  // generation started by the previous actor also loses presentation
+  // authority at this line, before any of it can reach the next actor.
+  resetVtoRequestState();
   // Defense in depth: the store already refuses to return a reading whose
   // actorId does not match the caller, so this cannot be the only thing keeping
   // weather from crossing accounts — it just stops the previous actor's reading

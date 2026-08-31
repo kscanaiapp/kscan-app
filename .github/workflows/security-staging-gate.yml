@@ -72,6 +72,16 @@ jobs:
         id: classify
         env:
           GITHUB_BASE_REF: origin/${{ github.base_ref || 'staging/production-parity' }}
+          # STAGING-DEPLOY-AUTH-001: kept in sync with deploy-staging's own
+          # `if:` below, and with security-promotion-gate.yml's identical
+          # wiring -- see classify-changed-surfaces.js's
+          # isStagingDeploymentAuthorized doc comment for why these are
+          # dedicated names rather than the automatic GITHUB_* equivalents.
+          STAGING_DEPLOY_AUTH_EVENT_NAME: ${{ github.event_name }}
+          STAGING_DEPLOY_AUTH_REF: ${{ github.ref }}
+          STAGING_DEPLOY_AUTH_BASE_REF: ${{ github.base_ref }}
+          STAGING_DEPLOY_AUTH_DISPATCH_CONFIRM: ${{ github.event.inputs.confirm_staging_deploy }}
+          STAGING_DEPLOY_AUTH_DISPATCH_PROJECT_REF: ${{ github.event.inputs.staging_project_ref }}
         run: |
           set -euo pipefail
           node security/scripts/classify-changed-surfaces.js > classification.json

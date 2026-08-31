@@ -1,5 +1,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { EdgeStyleChatProvider } from '../services/style-chat/providers/edgeStyleChatProvider';
+import { ELISE_CONCIERGE_V1 } from '../constants/featureFlags';
+import { buildConciergeResult } from '../services/concierge/conciergeModel';
 import {
   getStyleChatSession,
   listStyleChatMessages,
@@ -705,6 +707,28 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
             type: 'stylechat_actions',
             actions: result.actions,
           } as unknown as StyleChatUiBlock);
+        }
+
+        // Build 34 / K+ Wardrobe Concierge V1 (C4, sections 18/41).
+        //
+        // Travels on the EXISTING ui_blocks jsonb column, exactly as
+        // `why_this_works` and `stylechat_actions` already do -- no new table,
+        // no new message store, no schema change, which is what section 18
+        // requires. It also makes the evidence survive a reload for free.
+        //
+        // Projected to the renderable model HERE rather than in the view, so
+        // the "does anything render at all?" decision is made once, from
+        // validated structured data, and the same result feeds both platforms.
+        // A payload that projects to 'none' contributes no block, so an answer
+        // with no wardrobe evidence keeps a completely unchanged bubble.
+        if (ELISE_CONCIERGE_V1) {
+          const conciergeResult = buildConciergeResult(result.adviceMetadata ?? null);
+          if (conciergeResult.presentation !== 'none') {
+            explanationBlocks.push({
+              type: 'concierge_evidence',
+              result: conciergeResult,
+            } as unknown as StyleChatUiBlock);
+          }
         }
 
         const optimisticAssistant: StyleChatMessage = {
