@@ -81,6 +81,15 @@ verify_jwt = true
 [functions.stylist-speech]
 verify_jwt = true
 
+# ── K+ Smart Watchlist ───────────────────────────────────────────────────────
+
+# Dual-mode: an x-watchlist-worker-secret header (Tier 2 background sweep) OR
+# a normal user Authorization bearer token (Tier 1 create/pause/resume/
+# delete/refresh). The function authenticates itself in both cases, the same
+# reason scan-identify's MODE B and the deletion worker functions do.
+[functions.commerce-watch-refresh]
+verify_jwt = false
+
 # ── K+ entitlement boundary ──────────────────────────────────────────────────
 
 # User-facing activation. Always authenticated; identity is re-derived from

@@ -7,7 +7,8 @@ export type KScanIconName =
   | 'visual-search'
   | 'save-organize'
   | 'voice-scan'
-  | 'style';
+  | 'style'
+  | 'watchlist';
 
 export type KScanIconVariant = 'compact' | 'standard';
 

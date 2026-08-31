@@ -6,6 +6,7 @@ export { VisualSearchIcon } from './VisualSearchIcon';
 export { SaveOrganizeIcon } from './SaveOrganizeIcon';
 export { VoiceScanIcon } from './VoiceScanIcon';
 export { StyleIcon } from './StyleIcon';
+export { WatchlistIcon } from './WatchlistIcon';
 export {
   KSCAN_ICON_STROKE,
   KSCAN_ICON_VIEWBOX,

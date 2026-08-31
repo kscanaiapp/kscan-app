@@ -14,6 +14,37 @@ export type ProductMatch = {
   productUrl?: string;
 };
 
+/**
+ * DEF-WL-07 (P1). The watch-relevant identity of the commerce candidate a
+ * purchase row was rendered from.
+ *
+ * PRESENTATION-ONLY, AND DELIBERATELY NOT THE PERSISTED SHAPE. Saved scans
+ * write `normalizePurchaseOptions()` output (services/dressingRoomCommerce.ts)
+ * into `saved_scans.purchase_options` -- a different type behind a strict field
+ * allowlist that has never carried `watchCapability` and still does not. This
+ * object is derived at render time from the live analysis record and is thrown
+ * away with the view, so Base Commerce persistence is byte/contract unchanged.
+ *
+ * Adding `watchCapability` to the persisted normalizer instead would let a
+ * reopened Recent Scan offer Watch on a listing the server would now refuse --
+ * capability is a live property of a listing, not a fact to freeze into a row.
+ */
+export type WatchCandidate = {
+  id?: string;
+  title?: string;
+  /** Canonical retailer product URL -- the watch's identity. */
+  productUrl?: string;
+  retailer?: string;
+  source?: string;
+  price?: string | number | null;
+  currency?: string;
+  imageUrl?: string;
+  type?: 'retail' | 'similar';
+  commerceType?: 'retail' | 'resale';
+  /** Server-authored (K5-C1). Only 'refreshable_listing' may be watched. */
+  watchCapability?: 'refreshable_listing' | 'unsupported';
+};
+
 export type PurchaseOption = {
   id: string;
   retailer: string;
@@ -21,7 +52,24 @@ export type PurchaseOption = {
   priceLabel?: string;
   availabilityLabel?: string;
   productUrl?: string;
+  /** DEF-WL-07: ephemeral watch identity. Never persisted -- see WatchCandidate. */
+  watchCandidate?: WatchCandidate;
 };
+
+/**
+ * DEF-WL-07: may this rendered row offer the Watch action?
+ *
+ * Mirrors ProductShelf's `canWatchProduct` rather than re-deciding: eligibility
+ * is server-authored and this surface only reads it. A row whose candidate is
+ * missing, unsupported, or has no canonical product URL to identify offers
+ * nothing -- a Watch with no URL identity is not a watch on anything.
+ */
+export function canWatchPurchaseOption(option: PurchaseOption | null | undefined): boolean {
+  const candidate = option?.watchCandidate;
+  if (!candidate) return false;
+  if (candidate.watchCapability !== 'refreshable_listing') return false;
+  return typeof candidate.productUrl === 'string' && candidate.productUrl.trim().length > 0;
+}
 
 export type ScanResultV2 = {
   id?: string;
@@ -150,6 +198,39 @@ function titleOf(p: Record<string, unknown>): string {
   );
 }
 
+function watchCapabilityOf(p: Record<string, unknown>): WatchCandidate['watchCapability'] {
+  const value = p.watchCapability ?? p.watch_capability;
+  return value === 'refreshable_listing' || value === 'unsupported' ? value : undefined;
+}
+
+/**
+ * DEF-WL-07: derives the ephemeral watch identity from a raw commerce record.
+ * Nothing here is invented -- every field is copied from the candidate, and an
+ * absent one stays absent so the eligibility predicate can refuse the row.
+ */
+function buildWatchCandidate(
+  raw: Record<string, unknown>,
+  productUrl: string | undefined,
+  retailer: string,
+): WatchCandidate | undefined {
+  const capability = watchCapabilityOf(raw);
+  if (!capability) return undefined;
+  return {
+    id: typeof raw.id === 'string' ? raw.id : undefined,
+    title: titleOf(raw),
+    productUrl,
+    retailer,
+    source: typeof raw.source === 'string' ? raw.source : undefined,
+    price: (raw.price as string | number | null | undefined) ?? null,
+    currency: typeof raw.currency === 'string' ? raw.currency : undefined,
+    imageUrl: imageUrlOf(raw),
+    type: raw.type === 'retail' || raw.type === 'similar' ? raw.type : undefined,
+    commerceType:
+      raw.commerceType === 'retail' || raw.commerceType === 'resale' ? raw.commerceType : undefined,
+    watchCapability: capability,
+  };
+}
+
 /**
  * Maps one raw commerce product record (backend `RankedScanProduct` shape)
  * into the render-ready `PurchaseOption` shape. Extracted so a single-item
@@ -160,18 +241,28 @@ export function mapRawProductToPurchaseOption(
   raw: Record<string, unknown>,
   index = 0,
 ): PurchaseOption {
+  const productUrl = productUrlOf(raw);
+  const retailer =
+    typeof raw.retailer === 'string'
+      ? raw.retailer
+      : typeof raw.source === 'string'
+      ? raw.source
+      : 'Retailer';
+
   return {
     id: String(raw.id ?? `purchase-${index}`),
-    retailer:
-      typeof raw.retailer === 'string'
-        ? raw.retailer
-        : typeof raw.source === 'string'
-        ? raw.source
-        : 'Retailer',
+    retailer,
     title: titleOf(raw),
     priceLabel: formatPriceLabel(raw.price, typeof raw.currency === 'string' ? raw.currency : undefined),
     availabilityLabel: availabilityLabel(raw.availability),
-    productUrl: productUrlOf(raw),
+    productUrl,
+    // DEF-WL-07: derived here, from the SAME canonical record this row is
+    // rendered from, so the Watch that results carries the retailer/product-URL
+    // identity the user is actually looking at. Read straight off the live
+    // analysis record -- `watchCapability` is server-authored and survives
+    // intact here; it is the persisted normalizer that strips it, which is why
+    // this surface must not source eligibility from there.
+    watchCandidate: buildWatchCandidate(raw, productUrl, retailer),
   };
 }
 

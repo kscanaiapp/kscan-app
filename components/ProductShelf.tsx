@@ -10,6 +10,7 @@ import {
   Modal,
   ActivityIndicator,
   TextInput,
+  Alert,
   type ImageStyle,
 } from 'react-native';
 import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
@@ -28,6 +29,10 @@ import {
 } from '../services/styleObjects';
 import type { ProductMatchSnapshotSource } from '../types/styleObjects';
 import { toSnapshotPrice, normalizeForSnapshot } from '../src/utils/productSnapshot';
+import { KPlusGate } from './kplus/KPlusGate';
+import { createWatch } from '../services/watchlist/watchlistClient';
+import { requestWatchAlerts } from '../services/watchlist/pushRegistration';
+import type { WatchIntent } from '../types/watchlist';
 import {
   formatCommercePrice,
   normalizePersistedCommerceUrl,
@@ -65,6 +70,10 @@ export interface Product {
   availability?: string | null;
   matchScore?: number;
   similarityPercentage?: number;
+  /** K5-C1, server-authored. Only 'refreshable_listing' may be watched. */
+  watchCapability?: 'refreshable_listing' | 'unsupported';
+  type?: 'retail' | 'similar';
+  commerceType?: 'retail' | 'resale';
 }
 
 interface ProductShelfProps {
@@ -164,6 +173,11 @@ function formatPrice(product: Product | null | undefined): string | null {
 
 export function canAddProductToDressingRoom(product: Product | null | undefined) {
   return getProductTitle(product).length > 0 && isRemoteImageUrl(getProductImageUrl(product));
+}
+
+/** K5-C5: the Watch action only ever appears on a server-marked-eligible listing. */
+export function canWatchProduct(product: Product | null | undefined): boolean {
+  return product?.watchCapability === 'refreshable_listing';
 }
 
 /**
@@ -301,6 +315,7 @@ export function ProductShelf({
   const [linkErrorVisible, setLinkErrorVisible] = useState(false);
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [watchModalProduct, setWatchModalProduct] = useState<Product | null>(null);
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');
 
@@ -379,6 +394,7 @@ export function ProductShelf({
           // the item; this says what is actually true for the shopper.
           const productTitle = getProductTitle(p) || PRODUCT_TITLE_UNAVAILABLE;
           const canSaveToRoom = canAddProductToDressingRoom(p);
+          const canWatch = canWatchProduct(p);
           const imageCategory = normalizeImageCategory(p.imageCategory || p.category);
           const showImage = !!productImageUrl && !failedImages[productKey];
           const retailer = getRetailer(p);
@@ -483,6 +499,29 @@ export function ProductShelf({
                     </Text>
                   </TouchableOpacity>
                 ) : null}
+                {canWatch ? (
+                  <KPlusGate source="watchlist">
+                    {({ isActive, openUpgrade }) => (
+                      <TouchableOpacity
+                        testID="watch-listing-button"
+                        accessibilityRole="button"
+                        accessibilityLabel="Watch this listing"
+                        accessibilityHint="Get notified about price changes on this item"
+                        style={styles.addToRoomButton}
+                        onPress={() => {
+                          selectionTick();
+                          if (isActive) setWatchModalProduct(p);
+                          else openUpgrade();
+                        }}
+                        activeOpacity={0.82}
+                      >
+                        <Text style={styles.addToRoomText} numberOfLines={2} ellipsizeMode="tail">
+                          Watch
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </KPlusGate>
+                ) : null}
               </View>
 
               {hasLink && (
@@ -505,6 +544,12 @@ export function ProductShelf({
           onClose={() => setSelectedProduct(null)}
         />
       ) : null}
+
+      <WatchThisModal
+        product={watchModalProduct}
+        visible={!!watchModalProduct}
+        onClose={() => setWatchModalProduct(null)}
+      />
     </View>
   );
 }
@@ -671,6 +716,189 @@ export function AddToRoomModal({
             testID="add-to-room-close"
           >
             <Text style={styles.modalSecondaryText}>CLOSE</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+/**
+ * K5-C5: minimal Watch-intent picker. Reachable only for a listing already
+ * marked `watchCapability === 'refreshable_listing'` server-side (§45) --
+ * this modal re-derives nothing about eligibility, it only collects intent.
+ * "Buy under $___" is the one threshold the user supplies (§25); the server
+ * still refuses to arm it without a confident currency read.
+ */
+export function WatchThisModal({
+  product,
+  visible,
+  onClose,
+}: {
+  product: Product | null;
+  visible: boolean;
+  onClose: () => void;
+}) {
+  const [intent, setIntent] = useState<WatchIntent>('just_watching');
+  const [targetText, setTargetText] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+
+  const handleClose = () => {
+    setIntent('just_watching');
+    setTargetText('');
+    setMessage(null);
+    onClose();
+  };
+
+  const handleSave = async () => {
+    if (!product || saving) return;
+    const targetPriceAmount =
+      intent === 'buy_under' ? Number(targetText.replace(/[^0-9.]/g, '')) : undefined;
+    if (intent === 'buy_under' && (!targetPriceAmount || !Number.isFinite(targetPriceAmount) || targetPriceAmount <= 0)) {
+      setMessage('Enter a target price to watch for.');
+      return;
+    }
+    setSaving(true);
+    setMessage(null);
+    const purchaseUrl = getPurchaseUrl(product);
+    const result = await createWatch({
+      listing: {
+        productUrl: purchaseUrl || '',
+        title: getProductTitle(product),
+        price: product.price != null ? String(product.price) : undefined,
+        source: getRetailer(product) || product.source || '',
+        imageUrl: getProductImageUrl(product) || undefined,
+        type: product.type ?? 'retail',
+        commerceType: product.commerceType,
+        watchCapability: product.watchCapability,
+      },
+      watchIntent: intent,
+      targetPriceAmount,
+    });
+    setSaving(false);
+    if (result.ok) {
+      setMessage("You're watching this listing.");
+      const createdWatchId = result.data.id;
+      setTimeout(handleClose, 900);
+      // §51-52: notification permission is requested contextually, ONLY
+      // here (a target price was just set) -- never at onboarding, K+
+      // activation, or Watchlist open. A "not now" leaves the Watch valid
+      // with push disabled; this never blocks or reverses the Watch itself.
+      if (intent === 'buy_under') {
+        setTimeout(() => {
+          Alert.alert(
+            'Alert me?',
+            `Want K Scan AI to alert you when this listing reaches your target price?`,
+            [
+              { text: 'Not now', style: 'cancel' },
+              {
+                text: 'Alert me',
+                // DEF-WL-06: the outcome is reported, not discarded. Arming
+                // alerts can fail after the OS permission is granted (no push
+                // token available on this build, registration rejected, no
+                // network); firing this and ignoring the result left the user
+                // believing an alert was armed when push_enabled stayed false.
+                onPress: () => {
+                  void (async () => {
+                    const alerts = await requestWatchAlerts(createdWatchId);
+                    if (alerts.ok) return;
+                    const denied = 'reason' in alerts && alerts.reason === 'permission_denied';
+                    Alert.alert(
+                      denied ? 'Notifications are off' : "Couldn't turn on alerts",
+                      denied
+                        ? "We won't send alerts for this Watch. You can still check the price any time in your Watchlist."
+                        : "We're still watching this listing, but we can't alert you on this device yet. Check the price any time in your Watchlist.",
+                      [{ text: 'OK' }],
+                    );
+                  })();
+                },
+              },
+            ],
+          );
+        }, 950);
+      }
+    } else {
+      setMessage(
+        'reason' in result && result.reason === 'kplus_required'
+          ? 'K+ is required to create a Watch.'
+          : "Couldn't create this Watch. Try again.",
+      );
+    }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleClose}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard} accessibilityViewIsModal>
+          <Text style={styles.modalTitle} accessibilityRole="header">
+            Watch this listing
+          </Text>
+          <Text style={styles.modalItemName} numberOfLines={2}>
+            {getProductTitle(product) || 'Catalog item'}
+          </Text>
+
+          <TouchableOpacity
+            testID="watch-intent-just-watching"
+            style={styles.roomChoice}
+            onPress={() => setIntent('just_watching')}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: intent === 'just_watching' }}
+          >
+            <Text style={styles.roomChoiceTitle}>{intent === 'just_watching' ? '● ' : '○ '}Just watching</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            testID="watch-intent-buy-under"
+            style={styles.roomChoice}
+            onPress={() => setIntent('buy_under')}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: intent === 'buy_under' }}
+          >
+            <Text style={styles.roomChoiceTitle}>{intent === 'buy_under' ? '● ' : '○ '}Buy under a price</Text>
+          </TouchableOpacity>
+
+          {intent === 'buy_under' ? (
+            <View style={styles.quickCreate}>
+              <Text style={styles.quickCreateLabel}>TARGET PRICE</Text>
+              <TextInput
+                testID="watch-target-price-input"
+                style={styles.quickCreateInput}
+                placeholder="150"
+                placeholderTextColor={COLORS.editorialTextMuted}
+                keyboardType="decimal-pad"
+                value={targetText}
+                onChangeText={setTargetText}
+                accessibilityLabel="Target price"
+              />
+            </View>
+          ) : null}
+
+          {message ? <Text style={styles.modalMessage}>{message}</Text> : null}
+
+          <View style={styles.newRoomControls}>
+            <TouchableOpacity
+              testID="watch-save-button"
+              style={[styles.modalPrimaryButton, saving && styles.modalButtonDisabled]}
+              onPress={handleSave}
+              disabled={saving}
+              accessibilityRole="button"
+              accessibilityLabel="Start watching"
+              accessibilityState={{ disabled: saving, busy: saving }}
+            >
+              {saving ? <ActivityIndicator color={COLORS.textInverse} /> : <Text style={styles.modalPrimaryText}>WATCH</Text>}
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            testID="watch-cancel-button"
+            style={styles.modalSecondaryButton}
+            onPress={handleClose}
+            disabled={saving}
+            accessibilityRole="button"
+            accessibilityLabel="Cancel"
+          >
+            <Text style={styles.modalSecondaryText}>CANCEL</Text>
           </TouchableOpacity>
         </View>
       </View>

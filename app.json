@@ -47,7 +47,8 @@
                                          "microphonePermission":  false,
                                          "recordAudioAndroid":  false
                                      }
-                                 ]
+                                 ],
+                                 "expo-notifications"
                              ],
                  "android":  {
                                  "package":  "com.kscanai.app",

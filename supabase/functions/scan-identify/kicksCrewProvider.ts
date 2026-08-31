@@ -78,6 +78,11 @@ function isEnabled(): boolean {
   return value.toLowerCase() === 'true';
 }
 
+/** Whether this adapter can actually be called right now (Watchlist capability check). */
+export function isKicksCrewEnabled(): boolean {
+  return isEnabled();
+}
+
 function getHost(): string {
   return readEnv('KICKSCREW_RAPIDAPI_HOST') || DEFAULT_HOST;
 }

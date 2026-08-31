@@ -285,6 +285,15 @@ type PrivilegeProfile = {
  * this record states the privileged behavior that review must account for.
  */
 const GOVERNED_PRIVILEGE_INVENTORY: Record<string, PrivilegeProfile> = {
+  // Watchlist V1's Tier 2 refresh worker. Contributed by this feature branch as
+  // a single row in the UPSTREAM inventory -- the mechanism, and every other
+  // entry, stays owned by the governed integration authority. A new Edge
+  // Function must appear here or the inventory test fails on the commit that
+  // adds it, which is exactly the intended contract.
+  'commerce-watch-refresh': {
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
+    privilegedBackend: true, actorBoundary: true,
+  },
   'handle-user-deletion': {
     serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: false, storage: false,
     privilegedBackend: false, actorBoundary: true,

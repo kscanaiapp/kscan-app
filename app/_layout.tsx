@@ -20,6 +20,7 @@ import { traceAuthLifecycle } from '../services/authLifecycleTrace';
 import ErrorBoundary from '../src/components/ErrorBoundary';
 import { logError } from '../src/utils/errorLogger';
 import { cleanupOrphanedStylistSpeechFiles } from '../services/avatars/stylistSpeechFiles';
+import { installWatchNotificationRouting } from '../services/watchlist/watchNotificationRouting';
 
 type GlobalErrorHandler = (error: Error, isFatal?: boolean) => void;
 
@@ -314,6 +315,18 @@ function AuthGate() {
 export default function Layout() {
   useEffect(() => {
     void cleanupOrphanedStylistSpeechFiles();
+  }, []);
+
+  // DEF-WL-03: the consumer for the Watchlist push payload. Without it a
+  // tapped price alert opened the app on its default route and a foreground
+  // alert was never presented. Routing is derived only from a validated
+  // watchId — never from the payload's URL-shaped field — and the destination
+  // screen still resolves ownership through its own RLS-scoped read.
+  useEffect(() => {
+    const handle = installWatchNotificationRouting((route) => {
+      router.push(route as never);
+    });
+    return () => handle.remove();
   }, []);
 
   return (
