@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-31T17:40:12.950Z",
-    "generatedFromGitSha": "755d31753cc61d37e12c6c224c99a52d8fa3109d"
+    "generatedAtUtc": "2026-08-31T18:03:59.442Z",
+    "generatedFromGitSha": "6bd9d090c8f127527068c704fad53a666836e396"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -451,8 +451,8 @@
         ],
         "bundleFileCount": 51,
         "treeFileCount": 75,
-        "bundleHash": "daee72c0ff2f89f22232771ff9ec2abb28fc51dddee7af098a0ea344f13b630f",
-        "treeHash": "6f73f90e3407f7aa64679f918edd15781caa1c1de6dc13523e14712dab0c8041",
+        "bundleHash": "fe8326c71b0e3104dba44dce296e8dd35b14d7faddd85110404daa49335fe2de",
+        "treeHash": "effeb7556d4626fc7b5ac57bf5af3d78ebf16fe94eb32b9b7f1f3fca4c88bb1a",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -581,7 +581,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseConfig.ts",
-            "sha256": "c99ea3eb2e7396d61e0f9bc6749936ee849d88af70b0d1db918ca16c23019a79",
+            "sha256": "27917420194581b2c295e87138a3cb925b63ecb2371d4ddf9773d3bb1c544bb7",
             "bundle": true
           },
           {
@@ -626,12 +626,12 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseOwnershipProseSafety.test.ts",
-            "sha256": "4a4bab236a72aaa24ef7321a32192c7549bb3198d0a6bbcca7cbd026cabca4e5",
+            "sha256": "6a38f23b7c86bad533572c6a8082c23c62d8100d88dba4f9c193aeca1bb365a1",
             "bundle": false
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseOwnershipProseSafety.ts",
-            "sha256": "fe9bd5a9b3d341a3d6f6a6553e77c787d588e842a853a5c9a933c14cff51e946",
+            "sha256": "b9643c8a44b8b0f7739fd566a1c8dea19ffd29bf350e12941f4d486718945067",
             "bundle": true
           },
           {
@@ -716,7 +716,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/index.ts",
-            "sha256": "b00a7fde43b72ca326ad39069dcf5be6e64e28ea66955901103f62775de175ab",
+            "sha256": "056b6eb00d64b5cbcba49e0be0c21166a6bbe3cff63ff7616b2f153cfb807622",
             "bundle": true
           },
           {
