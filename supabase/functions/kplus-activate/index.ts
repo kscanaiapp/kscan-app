@@ -96,9 +96,49 @@ Deno.serve(async (req: Request) => {
     return json({ error: 'Activation failed. Please try again.' }, 502);
   }
 
+  // SEC-KPLUS-008 -- ask the CANONICAL authority whether this actor currently
+  // holds K+, rather than re-deriving it from the two fields the grant RPC
+  // happens to return.
+  //
+  // grant_kplus_early_access returns entitlement_key/status/grant_reason/
+  // campaign_key/granted_at/expires_at -- it does NOT return revoked_at. So a
+  // REVOKED grant whose expires_at is still in the future was indistinguishable
+  // here from an active one, and both of the decisions below got it wrong:
+  // it was reported to the caller as `already_active`, and it was MIRRORED into
+  // RevenueCat as a live promotional entitlement. Proven on staging: a revoked
+  // synthetic actor's row came back external_sync_status = 'synced', minutes
+  // after revocation.
+  //
+  // public.kplus_has_active_entitlement is the same predicate Closet RLS,
+  // Packing, Watchlist refresh and VTO all use (status = 'active' AND
+  // revoked_at IS NULL AND expires_at IS NOT NULL AND expires_at > now()).
+  // Delegating to it is how vto-generate stopped drifting from canonical in
+  // SEC-KPLUS-003; the same reasoning applies here.
+  //
+  // Fails CLOSED: an unreadable answer means no mirror and no `already_active`
+  // claim. The local grant itself is already durable either way -- this only
+  // decides what we tell the caller and whether we touch the external mirror.
+  let currentlyActive = false;
+  try {
+    const activeResponse = await rpc('kplus_has_active_entitlement', {
+      p_user_id: authUser.id,
+      p_entitlement_key: grant.entitlement_key,
+    });
+    if (activeResponse.ok) {
+      currentlyActive = (await activeResponse.json()) === true;
+    } else {
+      logEvent('kplus_active_check_failed', {
+        uid: shortUserId(authUser.id),
+        status: activeResponse.status,
+      });
+    }
+  } catch {
+    logEvent('kplus_active_check_failed', { uid: shortUserId(authUser.id), status: 0 });
+  }
+
   const campaignStatus = grant.newly_granted
     ? 'granted'
-    : grant.expires_at && new Date(grant.expires_at) > new Date()
+    : currentlyActive
       ? 'already_active'
       : 'campaign_already_consumed';
 
@@ -110,8 +150,15 @@ Deno.serve(async (req: Request) => {
   // Best-effort RevenueCat mirror. Bounded (single attempt, 8s internal
   // timeout inside syncPromotionalEntitlement) -- never retried synchronously
   // and never allowed to change the HTTP response's success/failure.
+  //
+  // SEC-KPLUS-008: gated on the CANONICAL answer, not merely on an expiry being
+  // present. K Scan is the authority and RevenueCat is its mirror; a mirror
+  // that outlives a revocation is the authority running backwards. When the
+  // entitlement is not currently active this call makes no external request
+  // and writes no sync status, so a revoked row is left exactly as the
+  // revocation left it.
   let syncStatus: string = 'not_required';
-  if (grant.expires_at) {
+  if (currentlyActive && grant.expires_at) {
     const outcome = await syncPromotionalEntitlement({
       appUserId: authUser.id,
       expiresAt: grant.expires_at,
