@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-30T23:02:09.078Z",
-    "generatedFromGitSha": "6179628098d162b093511cf5d200c8c23dbe6d47"
+    "generatedAtUtc": "2026-08-31T00:27:25.021Z",
+    "generatedFromGitSha": "b203e9015fd46bbc4b591d4ad46bd2d2be2bf764"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -354,10 +354,10 @@
           "npm:@supabase/supabase-js@2",
           "npm:@supabase/supabase-js@2.105.4"
         ],
-        "bundleFileCount": 38,
-        "treeFileCount": 56,
-        "bundleHash": "a529ae97468577d481c08c193ae2f6be4fd0950dfe6ba3c565145b5484141177",
-        "treeHash": "56fb50f8df873038f53f24a2346020bd81aabea2cc25be49b68e01a872ecb42f",
+        "bundleFileCount": 48,
+        "treeFileCount": 68,
+        "bundleHash": "7ad5d72573e3106e8e4f8bce644506bd88d88102ea52ce52def9c45b47136656",
+        "treeHash": "d515e6300f9b2126dfe41cba7e68abbfa159ffd7c1403294f2777cabd82abac1",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -466,7 +466,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseConfig.ts",
-            "sha256": "fb52dad79921955358e6627129182725578ba9bd567ede929a1bd0ec6c0e215b",
+            "sha256": "426e722deb04f507531504fa08c76a3384c419f2e3fffb3351f960e22a545d03",
             "bundle": true
           },
           {
@@ -591,7 +591,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/index.ts",
-            "sha256": "8fcad32e3698ec40bdb18a762398201f4e9964448718f380a52aa7d53dd51ba4",
+            "sha256": "6f90986c33a93d0e20268e52a84cf80cf7b9abd5a0cdc928190241ff3f2d78b5",
             "bundle": true
           },
           {
@@ -602,6 +602,66 @@
           {
             "path": "supabase/functions/stylechat-generate/multimodal.ts",
             "sha256": "5a2add9b2fbbe324eed61a90e193424a3f24a276907dfa51d11816913fa01822",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/packingCandidates.ts",
+            "sha256": "2b4cbe9c65f2132e903af861e9f1d1404264c327a9ade4bf13dc5def09c188f5",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/packingContract.ts",
+            "sha256": "2ebf35656450cbbd78d93239316e99117262c4949014175209ac7bc8fd63e661",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/packingGaps.ts",
+            "sha256": "0d79348c0fc77c9af973df2a22cce13efec0a188f98cc14b129f8cabe1d9872e",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/packingGeneralMode.ts",
+            "sha256": "4b935fa534e42322dc0b581940f3d90df6eda29d6b28cb423e8fdd3e48f2051d",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/packingHandler.ts",
+            "sha256": "63e96690a7b5aa2a16f165fc0d0661f77eea87a9f2116695c25a152c99e3e147",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/packingIntelligence.test.ts",
+            "sha256": "6186e0a6ddccb10e962a4ceec5141faf93a7747f78d0e56ad933b63aadbbede4",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/packingPrompt.ts",
+            "sha256": "56357ef64fdc74bc7671e56b66d5f0fabf41d92cd31d5aa7dd1903157dbab054",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/packingProvider.ts",
+            "sha256": "6416f0f9a2321c0e5d27692e4a0ebf88b5e7a68c6135b962538c6743854f9942",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/packingRetrieval.ts",
+            "sha256": "dfe52474a9ee6998129c9744d2fc05bc95b5617693ac61d6769e7601a1f221af",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/packingValidation.ts",
+            "sha256": "8fb5878b172bcb470daf6b9dc40abd4bf88f255e07c0449df77760ba71761fb1",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/packingWeather.test.ts",
+            "sha256": "94e051df0138403bea829a7f2f9e1805f00f80c68f46822e07bbb4beef70c44b",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/packingWeather.ts",
+            "sha256": "34e86e5efff6346d9be91fbc6099b3739e67021a49c0ba8ab037bd9a0cad7da2",
             "bundle": true
           },
           {

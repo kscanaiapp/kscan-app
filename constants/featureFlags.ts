@@ -829,3 +829,32 @@ export function resolveMirrorSelfieV1Active(
     mirrorSelfie === true
   );
 }
+
+// ── K+ Packing Intelligence V1 (Build 34 / Phase B) ────────────────────────
+/**
+ * THE SINGLE PACKING KILL SWITCH on the client. Gates the Packing entry point,
+ * the Packing route and every Packing request together — not decomposed per
+ * stage, for the reason every other single-flag phase in this project gives: a
+ * half-enabled feature produces states nothing downstream knows how to reason
+ * about.
+ *
+ * Default OFF, exact string "true" to opt in, matching every other rollout flag
+ * in this file.
+ *
+ * DELIBERATELY INDEPENDENT OF THE CLOSET SYNC/RESTORE FLAGS. Those gate how a
+ * Closet item reaches the cloud; this gates a feature that READS the cloud
+ * Closet. Nesting Packing under them would say "you may not plan a trip because
+ * this device does not upload", which is not the relationship.
+ *
+ * NOT A PAYWALL. Packing additionally requires an ACTIVE K+ entitlement, which
+ * is runtime state and is enforced server-side on every request via
+ * has_active_k_plus(). This flag alone never grants premium access, and the
+ * client check is UX only.
+ */
+export function resolvePackingIntelligenceEnabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_PACKING_INTELLIGENCE_V1,
+): boolean {
+  return value === 'true';
+}
+
+export const PACKING_INTELLIGENCE_V1 = resolvePackingIntelligenceEnabled();

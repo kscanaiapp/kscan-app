@@ -47,6 +47,20 @@ export interface EliseBackendFlags {
    * alone never grants premium wardrobe context.
    */
   closetWardrobeContextV1: boolean;
+  /**
+   * K+ Packing Intelligence V1. THE SINGLE PACKING KILL SWITCH. Gates the
+   * whole versioned Packing branch of this function -- request dispatch,
+   * Closet retrieval, generation and refinement alike -- rather than being
+   * decomposed per stage, for the reason every other single-flag phase in
+   * this project gives: a half-enabled feature produces states nothing
+   * downstream knows how to reason about.
+   *
+   * Default OFF. Additionally requires an ACTIVE K+ entitlement, checked
+   * server-side via has_active_k_plus() on every request -- this flag alone
+   * never grants premium access. With it off, a Packing request is simply not
+   * a recognized schema and every existing StyleChat path is untouched.
+   */
+  packingIntelligenceV1: boolean;
 }
 
 export interface EliseBackendConfig {
@@ -138,6 +152,7 @@ export function readEliseBackendConfig(env: EnvReader): EliseBackendConfig {
       sharedRoomEvidenceV1: parseBooleanEnv(env, 'ELISE_SHARED_ROOM_EVIDENCE_V1_ENABLED', false),
       adviceMetadataClientV1: parseBooleanEnv(env, 'ELISE_ADVICE_METADATA_CLIENT_V1_ENABLED', false),
       closetWardrobeContextV1: parseBooleanEnv(env, 'ELISE_CLOSET_WARDROBE_CONTEXT_V1_ENABLED', false),
+      packingIntelligenceV1: parseBooleanEnv(env, 'ELISE_PACKING_INTELLIGENCE_V1_ENABLED', false),
     },
   };
 }
