@@ -16,6 +16,7 @@ import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { captureActorScope, isActorScopeCurrent } from '../services/actorScope';
 import { useKPlusEntitlement } from './useKPlusEntitlement';
+import { emitKPlusEvent } from '../services/kplus/kplusTelemetry';
 import { PACKING_INTELLIGENCE_V1 } from '../constants/featureFlags';
 import { requestPackingPlan } from '../services/packing/packingClient';
 import {
@@ -107,6 +108,11 @@ export function usePackingPlan(): UsePackingPlanResult {
         packLight: constraints.packLight,
       });
 
+      // Section 22: Packing plan request is a real, deterministic K+ feature
+      // operation with a clean completion point. Instrumentation only -- no
+      // effect on the request itself.
+      emitKPlusEvent('kplus_feature_started', { source: 'packing', feature: 'packing' });
+
       const result = await requestPackingPlan({
         sessionId,
         trip,
@@ -125,10 +131,12 @@ export function usePackingPlan(): UsePackingPlanResult {
 
       if (result.status === 'success' && result.plan) {
         applyPackingPlan({ actorId, plan: result.plan, message: result.message });
+        emitKPlusEvent('kplus_feature_completed', { source: 'packing', feature: 'packing' });
         return;
       }
       if (result.status === 'general_mode') {
         applyPackingGeneralGuide({ actorId, guide: result.generalGuide, message: result.message });
+        emitKPlusEvent('kplus_feature_completed', { source: 'packing', feature: 'packing' });
         return;
       }
       applyPackingFailure({

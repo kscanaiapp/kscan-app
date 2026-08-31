@@ -35,6 +35,7 @@ import { selectionTick, successPulse, warningPulse } from '../../services/haptic
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useVirtualTryOn } from '../../hooks/useVirtualTryOn';
 import { emitVtoEvent } from '../../services/vto/vtoTelemetry';
+import { emitKPlusEvent } from '../../services/kplus/kplusTelemetry';
 import type { VtoGarmentInput, VtoOrigin } from '../../types/vto';
 
 export interface VirtualTryOnSheetProps {
@@ -116,6 +117,37 @@ export function VirtualTryOnSheet({
   useEffect(() => {
     if (vto.status === 'success') successPulse();
     if (vto.status === 'failed') warningPulse();
+  }, [vto.status]);
+
+  // Section 22: VTO generation is a real, deterministic K+ feature operation.
+  // Instrumentation only, edge-triggered off the existing status machine so a
+  // re-render on the same status never re-fires either event -- reachable
+  // only through the K+ gate (useVtoAvailability requires the entitlement),
+  // so entitlement_state is always 'active' here.
+  const vtoStartedRef = useRef(false);
+  useEffect(() => {
+    if (isGenerating && !vtoStartedRef.current) {
+      vtoStartedRef.current = true;
+      emitKPlusEvent('kplus_feature_started', {
+        source: 'vto',
+        feature: 'vto',
+        entitlement_state: 'active',
+      });
+    }
+    if (!isGenerating) vtoStartedRef.current = false;
+  }, [isGenerating]);
+
+  const vtoCompletedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (vto.status === 'success' && vtoCompletedRef.current !== vto.status) {
+      vtoCompletedRef.current = vto.status;
+      emitKPlusEvent('kplus_feature_completed', {
+        source: 'vto',
+        feature: 'vto',
+        entitlement_state: 'active',
+      });
+    }
+    if (vto.status !== 'success') vtoCompletedRef.current = null;
   }, [vto.status]);
 
   // A new result replaces whatever the comparison toggle was showing.

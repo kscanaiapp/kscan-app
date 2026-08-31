@@ -58,7 +58,7 @@ export function TryItOnEntry({
   if (!available) {
     // Entitlement is the only gap. The shared K+ sheet owns this conversation.
     return (
-      <KPlusGate source="vto_try_it_on">
+      <KPlusGate source="vto">
         {({ openUpgrade }) => (
           <Pressable
             onPress={() => {

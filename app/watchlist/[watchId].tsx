@@ -231,7 +231,7 @@ export default function WatchDetailScreen() {
       <View style={styles.actionsRow}>
         <SecondaryButton title="REFRESH" onPress={handleRefresh} loading={busy} disabled={busy} testID="watch-detail-refresh" />
         {watch.status === 'paused' ? (
-          <KPlusGate source="watchlist_resume">
+          <KPlusGate source="watchlist">
             {({ openUpgrade }) => (
               <SecondaryButton
                 title="RESUME"

@@ -436,7 +436,7 @@ export default function HomeLuxuryTechV1() {
             in this build/environment. Gating on entitlement alone rendered a
             live tile pointing at a screen whose server seam is not deployed. */}
         {watchlistEnabled && (
-          <KPlusGate source="home_tile">
+          <KPlusGate source="watchlist">
             {({ isActive, openUpgrade }) => (
               <SecondaryButton
                 testID="home-luxury-watchlist"

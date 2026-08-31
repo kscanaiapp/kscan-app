@@ -30,8 +30,8 @@ test('Voice Scan pill shows the K+ acquisition copy, gated by KPLUS_EARLY_ACCESS
   assert.match(textScanFeatureRow, /KPlusGate/);
 });
 
-test('Voice Scan pill falls back to the legacy Coming Soon copy when the K+ boundary is off', () => {
-  assert.match(textScanFeatureRow, /if \(!KPLUS_EARLY_ACCESS_ENABLED\)/);
+test('Voice Scan pill falls back to the legacy Coming Soon copy when the K+ boundary or Voice Scan itself is off', () => {
+  assert.match(textScanFeatureRow, /if \(!VOICESCAN_ENABLED \|\| !KPLUS_EARLY_ACCESS_ENABLED\)/);
   assert.match(textScanFeatureRow, /Coming Soon/);
 });
 
@@ -41,8 +41,14 @@ test('Voice Scan pill never opens a nonexistent feature for an active K+ member'
   assert.match(block, /onPress=\{isActive \? undefined : openUpgrade\}/);
 });
 
-test('this build does not touch VOICESCAN_ENABLED reachability (unrelated mic-permission flag)', () => {
-  assert.doesNotMatch(textScanFeatureRow, /VOICESCAN_ENABLED/);
+test('Voice Scan K+ pill hides behind VOICESCAN_ENABLED, not just the K+ boundary flag (Build 34 K+ Early Access shell, section 8)', () => {
+  // A K+ entry point may not advertise a capability the build cannot
+  // execute. Superseded by the Build 34 K+ Early Access Discovery +
+  // Measurement Shell: the pill previously rendered whenever
+  // KPLUS_EARLY_ACCESS_ENABLED was on, regardless of whether Voice Scan
+  // itself was implemented.
+  const block = textScanFeatureRow.slice(textScanFeatureRow.indexOf('function VoiceScanBlock'));
+  assert.match(block, /if \(!VOICESCAN_ENABLED \|\| !KPLUS_EARLY_ACCESS_ENABLED\)/);
 });
 
 test('KPlusGate always renders the shared K+ Early Access sheet, never a feature-specific paywall', () => {
