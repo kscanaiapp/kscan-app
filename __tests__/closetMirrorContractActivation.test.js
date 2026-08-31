@@ -391,7 +391,8 @@ test('MIRROR FEATURE FLAG DEFAULT: false, and only the exact string "true" opts 
 // never a hardcoded literal that would defeat the kill switch.
 test('MIRROR PRODUCTION PROFILE ENABLEMENT: every profile opts in via the exact-string flag', () => {
   const eas = JSON.parse(fs.readFileSync(path.join(ROOT, 'eas.json'), 'utf8'));
-  for (const [profileName, profile] of Object.entries(eas.build ?? {})) {
+  const { resolveEasBuildProfiles } = require('../scripts/resolve-eas-build-profiles');
+  for (const [profileName, profile] of Object.entries(resolveEasBuildProfiles(eas))) {
     assert.equal(
       profile?.env?.EXPO_PUBLIC_MIRROR_SELFIE_V1,
       'true',

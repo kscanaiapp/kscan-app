@@ -94,12 +94,15 @@ const RELEASE_CHAIN = [
 
 // ══ PART A — release configuration, over EVERY profile that exists ══════════
 
+const { resolveEasBuildProfiles } = require('../scripts/resolve-eas-build-profiles');
+
 test('EVERY-BUILD-PROFILE carries the complete Recent Scans / Mirror chain', () => {
-  const profiles = Object.keys(eas.build ?? {});
+  const resolved = resolveEasBuildProfiles(eas);
+  const profiles = Object.keys(resolved);
   assert.ok(profiles.length > 0, 'eas.json declares no build profiles');
 
   for (const name of profiles) {
-    const env = eas.build[name].env ?? {};
+    const env = resolved[name].env ?? {};
     for (const key of RELEASE_CHAIN) {
       assert.equal(
         env[key],
@@ -112,7 +115,7 @@ test('EVERY-BUILD-PROFILE carries the complete Recent Scans / Mirror chain', () 
 });
 
 test('EVERY-BUILD-PROFILE resolves both surfaces active through the real resolver', () => {
-  for (const [name, profile] of Object.entries(eas.build ?? {})) {
+  for (const [name, profile] of Object.entries(resolveEasBuildProfiles(eas))) {
     const flags = loadFlags(profile.env ?? {});
     assert.equal(
       flags.CLOSET_SEPARATION_V1,

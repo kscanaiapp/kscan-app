@@ -120,7 +120,8 @@ test('MIRROR-ENTRY-RENDERS-WHEN-GLOBALLY-ACTIVE: the composed capability is real
     'the derived Mirror capability lost one of its parents',
   );
   const eas = JSON.parse(read('eas.json'));
-  for (const [profileName, profile] of Object.entries(eas.build ?? {})) {
+  const { resolveEasBuildProfiles } = require('../scripts/resolve-eas-build-profiles');
+  for (const [profileName, profile] of Object.entries(resolveEasBuildProfiles(eas))) {
     assert.equal(
       profile?.env?.EXPO_PUBLIC_MIRROR_SELFIE_V1,
       'true',

@@ -8,7 +8,7 @@ import { StyleChatFeedbackControls } from './StyleChatFeedbackControls';
 import { StyleChatVoiceRetry } from './StyleChatVoiceRetry';
 import { useStylistIdentity } from '../../hooks/useStylistIdentity';
 import { STYLE_DNA_ENABLED } from '../../services/style-dna/localStyleDnaFeedbackStore';
-import { reportAiOutput } from '../../services/reportAiOutput';
+import { useAiOutputReporting } from '../../contexts/AiOutputReportingContext';
 import { isSyntheticStyleChatFailure } from '../../services/style-chat/styleChatOutcome';
 import { isEligibleForStyleFeedback } from '../../services/style-dna/styleDnaEligibility';
 import * as FileSystem from 'expo-file-system';
@@ -133,6 +133,7 @@ export function StyleChatBubble({
   const content = typeof message.content === 'string' ? message.content : '';
   const uiBlocks = Array.isArray(message.uiBlocks) ? message.uiBlocks : [];
   const isSyntheticFailure = isSyntheticStyleChatFailure(message);
+  const { openAiOutputReport } = useAiOutputReporting();
   const assistantBlocks = !isUser ? parseAssistantContent(content) : [];
   const insets = useSafeAreaInsets();
   const safeRowPadding = insets.left || insets.right
@@ -306,7 +307,8 @@ export function StyleChatBubble({
         {message.sender === 'assistant' && !isSyntheticFailure && !isGreeting ? (
           <Pressable
             onPress={() =>
-              reportAiOutput('StyleChat', {
+              openAiOutputReport({
+                feature: 'StyleChat',
                 sessionId: message.sessionId,
                 messageId: message.id,
               })

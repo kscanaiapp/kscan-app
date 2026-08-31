@@ -146,3 +146,29 @@ test('every build profile is a plain object with an env map', () => {
     assert.ok(!Array.isArray(profile), `${name} must not be an array`);
   }
 });
+
+// ── Staging-certification artifact profile (Build 34 Android certification) ──
+//
+// The Build 34 staging certification requires a RELEASE-SHAPED AAB that is
+// INTENTIONALLY connected to the staging backend. Neither original profile can
+// produce it: `production` bakes the production Supabase project, and `staging`
+// produces an internal-distribution APK. This profile is the one governed way
+// to build that artifact. It must never define its own env: inheriting the
+// staging env verbatim (via `extends`) is what guarantees it can never drift
+// onto the production backend.
+
+test('staging-certification produces a store-shaped bundle on the staging backend', () => {
+  const cert = eas.build['staging-certification'];
+  assert.ok(cert, 'staging-certification profile must exist');
+  assert.equal(cert.extends, 'staging', 'must inherit the staging env verbatim');
+  assert.equal(cert.distribution, 'store');
+  assert.equal(cert.autoIncrement, true);
+  assert.equal(cert.android.buildType, 'app-bundle');
+  assert.equal(cert.ios.buildConfiguration, 'Release');
+});
+
+test('staging-certification cannot drift onto its own backend target', () => {
+  const cert = eas.build['staging-certification'];
+  assert.equal(cert.env, undefined,
+    'staging-certification must not define env; the staging profile is the single source of its environment');
+});

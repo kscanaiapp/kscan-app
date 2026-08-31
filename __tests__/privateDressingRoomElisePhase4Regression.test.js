@@ -80,7 +80,8 @@ test('the derived flag is the only thing callers read', () => {
 // resolver rather than against a frozen eas.json snapshot.
 test('the Phase 4 flag is enabled, and can never outrank its parents', () => {
   const eas = JSON.parse(read('eas.json'));
-  for (const [profile, config] of Object.entries(eas.build ?? {})) {
+  const { resolveEasBuildProfiles } = require('../scripts/resolve-eas-build-profiles');
+  for (const [profile, config] of Object.entries(resolveEasBuildProfiles(eas))) {
     assert.equal(
       config?.env?.EXPO_PUBLIC_PRIVATE_DRESSING_ROOM_ELISE_V1,
       'true',

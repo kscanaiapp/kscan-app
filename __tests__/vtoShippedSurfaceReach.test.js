@@ -77,7 +77,8 @@ const vtoCommerceGarment = loadTsModule('services/vto/vtoCommerceGarment.ts', {
 
 /** True only when every governed profile ships the V2 result UI. */
 function scanResultsV2LiveEverywhere() {
-  const profiles = Object.values(JSON.parse(read('eas.json')).build);
+  const { resolveEasBuildProfiles } = require('../scripts/resolve-eas-build-profiles');
+  const profiles = Object.values(resolveEasBuildProfiles(JSON.parse(read('eas.json'))));
   assert.ok(profiles.length > 0, 'eas.json must define at least one build profile');
   return profiles.every((p) => p.env?.EXPO_PUBLIC_SCAN_RESULTS_V2_UI === 'true');
 }
