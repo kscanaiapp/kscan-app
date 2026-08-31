@@ -4,7 +4,7 @@
   "canonicalBranch": "rebuild/staging-v2-backend",
   "approvedProjectRef": "yzqjvdfgefveprobvvyw",
   "note": "Build 34 Track B convergence source. It combines governed backend and mobile lineages for certification only; deployment tooling must refuse this checkout. The canonical backend deployment authority remains the declared branch above.",
-  "governedFunctionCount": 20,
+  "governedFunctionCount": 21,
   "notGoverned": {
     "note": "Functions deployed on staging that this source tree does not govern.",
     "websitePrivacyStack": {
@@ -38,5 +38,5 @@
     }
   },
   "canonicalBranchNote": "GOV-KPLUS-001: this ref must be resolvable from a fresh clone. It currently exists only as a LOCAL branch in some checkouts, which makes the declared canonical deployment authority unverifiable anywhere else. Publishing it (or re-pointing this field at a ref that is published) is an owner action; scripts/verify-backend-authority.js reports the gap rather than hiding it.",
-  "governedFunctionCountSource": "Must equal GOVERNED_FUNCTIONS.length in scripts/edge-function-manifest-lib.js. Verified by scripts/verify-backend-authority.js; it was 19 against 20 governed functions after commerce-watch-refresh was added and this file was not updated."
+  "governedFunctionCountSource": "Must equal GOVERNED_FUNCTIONS.length in scripts/edge-function-manifest-lib.js. Verified by scripts/verify-backend-authority.js; it was 19 against 20 governed functions after commerce-watch-refresh was added and this file was not updated. Now 21 after Build 34 K4 VTO backend convergence added vto-generate (tryon-clothes-pro remains governed as the retired stub)."
 }

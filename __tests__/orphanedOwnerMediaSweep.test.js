@@ -219,6 +219,11 @@ test('no new Edge Function is introduced (the governed set is unchanged)', () =>
     .readdirSync(path.join(ROOT, 'supabase', 'functions'))
     .filter((n) => !n.startsWith('_'))
     .filter((n) => fs.statSync(path.join(ROOT, 'supabase', 'functions', n)).isDirectory());
-  assert.equal(dirs.length, 20, 'the sweep must live in the existing worker, not a new function');
+  // 21 since Build 34 K4 VTO backend convergence added vto-generate as its own
+  // governed function (tryon-clothes-pro was already governed as the retired
+  // stub). That is a legitimate, separately-governed addition, not this
+  // sweep growing a function of its own -- which the directory-inclusion
+  // check below still proves.
+  assert.equal(dirs.length, 21, 'the sweep must live in the existing worker, not a new function');
   assert.ok(dirs.includes('process-account-deletions'));
 });
