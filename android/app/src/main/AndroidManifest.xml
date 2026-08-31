@@ -19,7 +19,7 @@
     <meta-data android:name="expo.modules.updates.ENABLED" android:value="false"/>
     <meta-data android:name="expo.modules.updates.EXPO_UPDATES_CHECK_ON_LAUNCH" android:value="ALWAYS"/>
     <meta-data android:name="expo.modules.updates.EXPO_UPDATES_LAUNCH_WAIT_MS" android:value="0"/>
-    <activity android:name=".MainActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode" android:launchMode="singleTask" android:windowSoftInputMode="adjustResize" android:theme="@style/AppTheme" android:screenOrientation="portrait" android:exported="true">
+    <activity android:name=".MainActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode" android:launchMode="singleTask" android:windowSoftInputMode="adjustResize" android:theme="@style/AppTheme" android:exported="true">
       <intent-filter>
         <action android:name="android.intent.action.MAIN"/>
         <category android:name="android.intent.category.LAUNCHER"/>
@@ -37,5 +37,10 @@
         <data android:scheme="https" android:host="kscan.app" android:pathPrefix="/rooms"/>
       </intent-filter>
     </activity>
+    <!-- Transitive from expo-camera's play-services-code-scanner dependency. K Scan
+         never calls the GmsBarcodeScanning API (no onBarcodeScanned/barcodeScannerSettings
+         usage anywhere in the app), so this delegate activity is unreachable; removed
+         rather than left forcing portrait (GOOGLE-ANDROID-002). -->
+    <activity android:name="com.google.mlkit.vision.codescanner.internal.GmsBarcodeScanningDelegateActivity" tools:node="remove"/>
   </application>
 </manifest>

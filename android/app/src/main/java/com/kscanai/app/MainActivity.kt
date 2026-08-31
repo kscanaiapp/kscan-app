@@ -13,7 +13,7 @@ import expo.modules.ReactActivityDelegateWrapper
 class MainActivity : ReactActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     // Set the theme to AppTheme BEFORE onCreate to support
-    // coloring the background, status bar, and navigation bar.
+    // coloring the background and navigation bar contrast under edge-to-edge.
     // This is required for expo-splash-screen.
     setTheme(R.style.AppTheme);
     super.onCreate(null)
