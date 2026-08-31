@@ -421,7 +421,16 @@ test('edge function logs metadata only (no closet contents, notes, or images)', 
 });
 
 test('no-result response inserts no shopping products', () => {
-  assert.match(indexSource, /couldn't build a complete option from your closet yet/);
+  // INT-KPLUS-001: this pool is saved scans + inspiration uploads, not the
+  // canonical Closet (public.user_closet_items), so the copy no longer calls it
+  // "your closet". The assertion here is that a no-result response carries a
+  // truthful message and no products -- not that it uses one exact old string.
+  assert.match(indexSource, /couldn't build a complete option from your saved items yet/);
+  assert.doesNotMatch(
+    indexSource,
+    /complete option from your closet/,
+    'the no-result copy must not claim the canonical Closet',
+  );
   assert.match(indexSource, /closetGaps: \[\]/);
   // Responses never carry commerce fields ("retailer" appears only in the
   // prompt/comments forbidding it).

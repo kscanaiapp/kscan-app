@@ -20,6 +20,10 @@ function mapRelationship(value: string | null | undefined): EliseActorRelationsh
       return 'owned';
     case 'shared':
       return 'shared';
+    case 'saved':
+      // INT-KPLUS-001: inspiration/saved items are saved, never owned. Without
+      // this case they collapsed to 'unknown' and lost their honest label.
+      return 'saved';
     case 'scanned':
     case 'uploaded':
       return 'scanned';
@@ -32,8 +36,15 @@ function mapRelationship(value: string | null | undefined): EliseActorRelationsh
 
 function evidenceToCandidate(evidence: EliseVisualEvidence): EliseWardrobeCandidate {
   const sourceType =
-    evidence.sourceType === 'closet_item'
+    // Canonical Closet only. The legacy 'closet_item' label is kept mapping to
+    // 'closet' for compatibility, but the server only ever emits it now as one
+    // of the three honest resolved types (INT-KPLUS-001).
+    evidence.sourceType === 'user_closet_item' || evidence.sourceType === 'closet_item'
       ? 'closet'
+      : evidence.sourceType === 'inspiration_item'
+      ? 'inspiration'
+      : evidence.sourceType === 'saved_scan'
+      ? 'saved_scan'
       : evidence.sourceType === 'owned_room_item'
       ? 'owned_room'
       : evidence.sourceType === 'shared_room_item'
