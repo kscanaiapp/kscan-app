@@ -1016,10 +1016,21 @@ Deno.serve(async (req) => {
   // unchanged -- including for a client that somehow sends the field.
   //
   // THE SERVER-SIDE ORDER BELOW IS THE SECURITY MODEL, not a convenience:
-  //   auth -> lifecycle (above) -> schema -> burst -> daily quota -> K+ ->
-  //   Closet -> readiness -> provider
+  //   auth -> lifecycle (above) -> schema -> burst -> K+ precheck -> Closet ->
+  //   K+ confirmation -> readiness -> daily quota reservation -> provider
   // A malformed body cannot burn a generation, a burst-limited caller never
-  // reaches the Closet, and a lapsed K+ subscriber never reaches the provider.
+  // reaches the Closet, a subscriber who was never entitled never reaches the
+  // Closet, a subscriber whose entitlement lapses DURING the request is
+  // caught by a second live check before their thin retrieval is read as an
+  // honestly sparse Closet, and an entitled caller whose Closet cannot
+  // support a personal plan is NEVER charged -- the daily counter is reserved
+  // by handlePackingRequest itself, immediately before (and only immediately
+  // before) the provider is called.
+  //
+  // K+ is checked before Closet access and freshly confirmed again after
+  // Closet retrieval. Neither result is memoized: index.ts wires one plain,
+  // uncached dependency, and the handler calls it twice, live, both times
+  // (PACK-05, PACK-06).
   if (config.flags.packingIntelligenceV1 && classifyPackingRequest(body) === 'packing') {
     const parsedPacking = parsePackingRequest(body);
     if (!parsedPacking.ok) {
@@ -1079,30 +1090,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { data: packingQuota, error: packingQuotaError } = await userClient.rpc(
-      'increment_stylechat_daily_usage',
-    );
-    if (packingQuotaError) {
-      console.error('[stylechat-generate] packing quota RPC error');
-      return json({ error: 'Usage check failed' }, 500);
-    }
-    const packingQuotaRow = Array.isArray(packingQuota) ? packingQuota[0] : packingQuota;
-    if (!packingQuotaRow || typeof packingQuotaRow.limit_reached !== 'boolean') {
-      console.error('[stylechat-generate] packing usage_check_failed gate=daily reason=malformed_rpc_response');
-      return json({ error: 'Usage check failed' }, 500);
-    }
-    if (packingQuotaRow.limit_reached) {
-      return json({
-        status: 'error',
-        contractVersion: PACKING_CONTRACT_VERSION,
-        requestId,
-        message: "You've used today's Elise generations. Your packing plan will be here tomorrow.",
-        plan: null,
-        generalGuide: null,
-        errorCode: 'PACKING_LIMIT_REACHED',
-      });
-    }
-
+    // K+ IS A FRESH, UNCACHED RPC. Nothing in index.ts resolves or caches this
+    // answer -- the same dependency below is called TWICE by
+    // handlePackingRequest itself: once before any Closet read, and again
+    // immediately after retrieval, before that retrieval's result is
+    // classified as sparse, unavailable or ready. PACK-06 removed a memoized
+    // promise that used to be computed here once and reused inside the
+    // handler for both purposes; reusing a cached "was entitled" answer for
+    // anything decided after an await (a Closet round trip, the daily
+    // charge, Signature Style) is exactly how a lapsed entitlement gets
+    // treated as still active.
     const packingResult = await handlePackingRequest({
       request: parsedPacking,
       requestId,
@@ -1110,8 +1107,13 @@ Deno.serve(async (req) => {
       // Server-side entitlement, from the same authority RLS on
       // user_closet_items trusts. Never a client-supplied flag.
       hasActiveKPlus: async () => {
-        const { data } = await userClient.rpc('has_active_k_plus', {});
-        return data === true;
+        try {
+          const { data } = await userClient.rpc('has_active_k_plus', {});
+          return data === true;
+        } catch {
+          // Fails closed, exactly as the handler's own gate does.
+          return false;
+        }
       },
       closet: {
         async listClosetItems(actorId: string, limit: number) {
@@ -1134,7 +1136,15 @@ Deno.serve(async (req) => {
       // Signature Style is advisory and resolved through the SAME
       // server-authoritative store the chat path uses. A failure here is
       // never a Packing failure -- the block is simply absent.
-      signatureStyleBlock: await (async () => {
+      //
+      // LAZY. The handler calls this itself, only after BOTH its K+ checks and
+      // its Closet readiness check have already passed -- so this can no
+      // longer run for a caller the gate is about to refuse, or for a Closet
+      // too sparse to reach a prompt at all. index.ts does not need to know
+      // (and no longer asks) whether the caller is entitled just to decide
+      // whether to wire this up; the handler's own ordering is what makes
+      // that true, not a flag threaded in from here (PACK-04, PACK-06).
+      resolveSignatureStyleBlock: async () => {
         if (!config.flags.closetWardrobeContextV1) return null;
         try {
           const profileResult = await getOrRecomputeStyleDnaProfile({ supabase: userClient });
@@ -1143,7 +1153,7 @@ Deno.serve(async (req) => {
         } catch {
           return null;
         }
-      })(),
+      },
       // B3 enrichment. Weather IMPROVES the answer; it never creates it.
       // Anything this returns is bounded and provenance-labelled, and a null
       // (no geocode, no forecast, beyond the horizon, timeout) is the normal
@@ -1155,6 +1165,30 @@ Deno.serve(async (req) => {
           startDate: parsedPacking.trip.startDate,
           endDate: parsedPacking.trip.endDate,
         }),
+      // Reserves ONE unit of the shared Elise daily budget. The handler calls
+      // this itself, exactly once, immediately before the provider -- never
+      // here, never eagerly. A malformed RPC payload fails closed exactly like
+      // burst's malformed-payload handling above (PACK-05).
+      reserveDailyGeneration: async () => {
+        try {
+          const { data, error } = await userClient.rpc('increment_stylechat_daily_usage');
+          if (error) {
+            console.error('[stylechat-generate] packing quota RPC error');
+            return { status: 'check_failed' };
+          }
+          const row = Array.isArray(data) ? data[0] : data;
+          if (!row || typeof row.limit_reached !== 'boolean') {
+            console.error(
+              '[stylechat-generate] packing usage_check_failed gate=daily reason=malformed_rpc_response',
+            );
+            return { status: 'check_failed' };
+          }
+          return row.limit_reached ? { status: 'limit_reached' } : { status: 'reserved' };
+        } catch {
+          console.error('[stylechat-generate] packing quota RPC error');
+          return { status: 'check_failed' };
+        }
+      },
       callProvider: (systemText, userText) =>
         callPackingProvider({
           modelName,

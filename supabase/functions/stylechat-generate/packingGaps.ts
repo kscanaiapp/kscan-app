@@ -66,6 +66,14 @@ export interface PackingGapInput {
   /** Every layering role present in the USABLE owned Closet, with counts. */
   closetRoleCensus: Record<string, number>;
   weather: { provenance: PackingWeatherProvenance; summary: string | null };
+  /**
+   * False when retrieval could not see the whole Closet. EVERY gap in this file
+   * is an absence claim about the traveller's own wardrobe, so an incomplete
+   * census produces no gaps at all rather than gaps that might be false.
+   * Defaults to true so a caller that has genuinely counted everything is
+   * unaffected.
+   */
+  censusComplete?: boolean;
   maxGaps?: number;
 }
 
@@ -74,6 +82,10 @@ const DEFAULT_MAX_GAPS = 3;
 export function derivePackingGaps(input: PackingGapInput): PackingGap[] {
   const gaps: PackingGap[] = [];
   const maxGaps = input.maxGaps ?? DEFAULT_MAX_GAPS;
+  // "I did not see all of your Closet" is not "you do not own one". A partial
+  // census can prove PRESENCE (a counted item is really owned) but never
+  // ABSENCE, and every gap below is an absence claim.
+  if (input.censusComplete === false) return [];
   const owns = (role: string): boolean => (input.closetRoleCensus[role] ?? 0) > 0;
 
   for (const role of input.requiredRoles) {
@@ -134,8 +146,13 @@ export function derivePackingGaps(input: PackingGapInput): PackingGap[] {
 export function deriveScarcitySignal(
   layeringRole: string | null,
   closetRoleCensus: Record<string, number>,
+  censusComplete = true,
 ): string | null {
   if (!layeringRole) return null;
+  // "Your only pair of shoes" is a COUNT claim, and a partial census cannot
+  // count. Saying it over an incomplete Closet would tell someone who owns ten
+  // pairs that they own one.
+  if (!censusComplete) return null;
   if ((closetRoleCensus[layeringRole] ?? 0) !== 1) return null;
   switch (layeringRole) {
     case 'outer':

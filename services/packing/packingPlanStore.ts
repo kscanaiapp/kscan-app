@@ -1,12 +1,24 @@
 // K+ Packing Intelligence V1 — active plan state.
 //
-// PERSISTENCE DECISION (build plan section 18, Option A/C). Packing V1 creates
-// NO new table and NO new durable personal-travel data class. The active plan
-// lives in actor-bound session state here, and is durably carried only by the
-// EXISTING StyleChat authority: a finished plan is written as a
-// style_chat_messages.ui_blocks entry, which is already actor-scoped,
-// RLS-protected and restored when the session is resumed. There is no second
-// persistence system.
+// PERSISTENCE DECISION (build plan section 18, Option A). Packing V1 creates NO
+// new table and NO new durable personal-travel data class.
+//
+// V1 IS IN-MEMORY ONLY, AND THAT IS THE WHOLE STORY. The active plan lives in
+// the actor-bound process state below and NOWHERE ELSE. Nothing in Packing
+// writes style_chat_messages, ui_blocks, AsyncStorage or any other durable
+// record, and there is no resume path that restores a plan.
+//
+// CONCRETELY, for anything built on top of this:
+//   - a plan does NOT survive an app restart or a process kill
+//   - a plan is NOT restored when a StyleChat session is resumed
+//   - the trip (destination, dates, notes) is likewise never written down
+//   - the ONLY durable consequence of generating a plan is the Elise quota
+//     counter the backend increments
+//
+// This is a deliberate V1 scope decision, not an omission: durable trip history
+// would be a new personal-data class and needs its own privacy, export and
+// deletion story. Persisting a plan is therefore a FUTURE change with owner
+// sign-off, not a gap to be quietly filled by a downstream feature.
 //
 // THE STORE IS ACTOR-BOUND, NOT JUST ACTOR-LABELLED. Every read requires the
 // caller to name the actor it is reading for, and a snapshot stamped with a

@@ -336,7 +336,7 @@ export async function requestPackingPlan(input: PackingRequestInput): Promise<Pa
   } catch {
     return {
       status: 'error',
-      message: 'Building your plan took too long. Your trip details are saved — try again.',
+      message: 'Building your plan took too long. Your trip details are still here — try again.',
       plan: null,
       generalGuide: null,
       errorCode: 'PACKING_TIMEOUT',

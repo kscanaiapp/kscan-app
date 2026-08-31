@@ -1,16 +1,33 @@
 // K+ Packing Intelligence V1 — request orchestration.
 //
 // Every dependency is INJECTED (entitlement check, Closet query, Signature
-// Style block, weather resolver, provider call). That is what lets the whole
-// Packing loop -- gate, retrieval, narrowing, prompt, validation, fallback --
-// be exercised deterministically from a test with no Supabase, no network and
-// no provider, the same discipline privateDressingRoomEliseHandler.ts follows.
+// Style resolver, weather resolver, quota reservation, provider call). That is
+// what lets the whole Packing loop -- gate, retrieval, narrowing, prompt,
+// validation, fallback -- be exercised deterministically from a test with no
+// Supabase, no network and no provider, the same discipline
+// privateDressingRoomEliseHandler.ts follows.
 //
 // ORDER IS LOAD-BEARING:
-//   K+ gate  ->  retrieval  ->  readiness  ->  narrowing  ->  provider
-// The entitlement check runs before any Closet read, and the readiness check
-// runs before any provider call, so a lapsed subscriber never reaches the
-// wardrobe and a sparse Closet never costs a generation.
+//   K+ precheck -> retrieval -> K+ confirmation -> readiness -> narrowing ->
+//   quota reservation -> provider
+// The precheck runs before any Closet read, so a subscriber who was never
+// entitled never reaches the wardrobe. The confirmation runs immediately
+// after retrieval and before that retrieval's result is interpreted, so a
+// subscriber whose entitlement lapses DURING the request is never mistaken
+// for one with a sparse Closet. The daily quota is reserved LAST -- only once
+// every other gate has passed and a generation is actually about to happen --
+// so a sparse Closet never costs a generation and neither does a caller
+// refused by either K+ check (PACK-05).
+//
+// K+ IS CHECKED TWICE, INDEPENDENTLY, NEITHER RESULT MEMOIZED. Closet
+// retrieval is itself RLS-gated on has_active_k_plus(): if entitlement lapses
+// in the async gap between the precheck and the query returning, the query
+// does not error, it silently comes back thin or empty -- which is
+// indistinguishable from an honestly sparse Closet unless something asks the
+// entitlement authority again, fresh, before deciding what the retrieval
+// result means (PACK-06). Caching the precheck's answer and reusing it for
+// the confirmation would defeat the entire point: the confirmation exists
+// specifically to catch an answer that changed since the precheck ran.
 
 import {
   PACKING_CONTRACT_VERSION,
@@ -73,6 +90,8 @@ export interface PackingTelemetry {
   usableCandidateCount: number;
   shortlistCount: number;
   uncoveredRoleCount: number;
+  /** False when retrieval was truncated, so no absence claim was permitted. */
+  censusComplete: boolean;
   packedItemCount: number;
   outfitCount: number;
   gapCount: number;
@@ -100,17 +119,54 @@ export interface PackingHandlerResult {
   providerInvoked: boolean;
 }
 
+/**
+ * Outcome of reserving one unit of the shared Elise daily budget. A tri-state
+ * rather than a boolean so a caller cannot conflate "the RPC told us no" with
+ * "we could not ask the RPC" -- both must block the provider, but they are
+ * different failures with different messages (PACK-05).
+ */
+export type PackingQuotaReservation =
+  | { status: 'reserved' }
+  | { status: 'limit_reached' }
+  | { status: 'check_failed' };
+
 export interface PackingHandlerDeps {
   request: ParsedPackingRequest;
   requestId: string;
   actorId: string;
-  /** Resolved from has_active_k_plus(), never from a client flag. */
+  /**
+   * Resolved from has_active_k_plus(), never from a client flag.
+   *
+   * CALLED TWICE, INDEPENDENTLY -- once as the precheck before any Closet
+   * read, and again as the confirmation immediately after Closet retrieval,
+   * before that retrieval's result is classified as sparse, unavailable or
+   * ready. See the file header for why the second call exists. Neither
+   * answer may be cached or reused for the other; the function passed here
+   * must hit the real authority fresh on every call.
+   */
   hasActiveKPlus: () => Promise<boolean>;
   closet: PackingClosetDataSource;
-  /** Bounded Signature Style guidance block, or null. Advisory only. */
-  signatureStyleBlock: string | null;
+  /**
+   * Bounded Signature Style guidance, or null. Advisory only.
+   *
+   * LAZY, AND CALLED ONLY AFTER BOTH K+ CHECKS HAVE PASSED. Signature Style is
+   * only ever useful right before a prompt is built, so there is no reason to
+   * resolve it any earlier -- and resolving it eagerly, before entitlement is
+   * known, is exactly the shape of mistake that made PACK-06 possible
+   * (something computed from an answer that might not still be true). A
+   * caller with no Signature Style authority to offer may omit this entirely.
+   */
+  resolveSignatureStyleBlock?: () => Promise<string | null>;
   /** B2M passes nothing; B3 injects the resolver. Absent means UNAVAILABLE. */
   resolveWeather?: () => Promise<PackingWeatherPromptContext | null>;
+  /**
+   * Reserves ONE unit of the shared Elise daily budget. Called EXACTLY ONCE,
+   * and only immediately before `callProvider` -- after K+, Closet retrieval
+   * and readiness have all already passed. A caller must never be charged for
+   * a generation that general mode, an unentitled 403, or any earlier gate
+   * was always going to produce instead (PACK-05).
+   */
+  reserveDailyGeneration: () => Promise<PackingQuotaReservation>;
   /** Returns already-parsed JSON from the provider, or throws. */
   callProvider: (systemText: string, userText: string) => Promise<unknown>;
   /** Injected so the pure path stays deterministic in tests. */
@@ -150,6 +206,7 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
     usableCandidateCount: 0,
     shortlistCount: 0,
     uncoveredRoleCount: 0,
+    censusComplete: true,
     packedItemCount: 0,
     outfitCount: 0,
     gapCount: 0,
@@ -182,7 +239,7 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
     return { httpStatus, body, telemetry, providerInvoked };
   };
 
-  // ── 1. K+ gate, server-side, before any Closet read ───────────────────────
+  // ── 1. K+ precheck, server-side, before any Closet read ─────────────────
   // Fails closed: an error resolving the entitlement is not premium access.
   let entitled = false;
   try {
@@ -220,6 +277,41 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
   const telemetry = baseTelemetry();
   telemetry.candidateCount = retrieval.candidates.length;
   telemetry.retrievalLatencyMs = retrieval.retrievalLatencyMs;
+  telemetry.censusComplete = retrieval.censusComplete;
+
+  // ── 2b. K+ confirmation — fresh, independent, taken BEFORE the retrieval
+  // result is interpreted ────────────────────────────────────────────────
+  // The precheck (step 1) only proves the caller was entitled before we asked
+  // the Closet anything. It says nothing about whether that is still true now
+  // that the (RLS-gated, awaited) query has actually come back. A lapse in
+  // that window returns fewer or zero rows with no error at all, which is
+  // exactly what a genuinely sparse Closet looks like -- so before this
+  // retrieval's row count is allowed to mean anything, the entitlement is
+  // asked again, live. Fails closed, exactly like the precheck.
+  let stillEntitled = false;
+  try {
+    stillEntitled = await deps.hasActiveKPlus();
+  } catch {
+    stillEntitled = false;
+  }
+  if (!stillEntitled) {
+    telemetry.event = 'packing_not_entitled';
+    telemetry.failureClass = 'entitlement_lapsed';
+    return finish(
+      403,
+      {
+        status: 'not_entitled',
+        contractVersion: PACKING_CONTRACT_VERSION,
+        requestId: deps.requestId,
+        message: 'Packing plans are part of K+.',
+        plan: null,
+        generalGuide: null,
+        errorCode: 'PACKING_REQUIRES_KPLUS',
+      },
+      telemetry,
+      false,
+    );
+  }
 
   if (retrieval.failed) {
     // A Closet we could not read is not an empty Closet, and must never be
@@ -286,7 +378,19 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
     ? { provenance: weatherPrompt.provenance, summary: weatherPrompt.summary }
     : UNAVAILABLE_WEATHER;
   telemetry.weatherProvenance = weather.provenance;
-  telemetry.signatureStyleApplied = Boolean(deps.signatureStyleBlock);
+
+  // ── 5b. Signature Style (enrichment; resolved only now, past BOTH K+ checks) ─
+  // Advisory and best-effort, exactly like weather: a failure here is never a
+  // Packing failure, the block is simply absent.
+  let signatureStyleBlock: string | null = null;
+  if (deps.resolveSignatureStyleBlock) {
+    try {
+      signatureStyleBlock = await deps.resolveSignatureStyleBlock();
+    } catch {
+      signatureStyleBlock = null;
+    }
+  }
+  telemetry.signatureStyleApplied = Boolean(signatureStyleBlock);
 
   // ── 6. Bounded fashion reasoning ──────────────────────────────────────────
   const userPrompt = buildPackingUserPrompt({
@@ -294,10 +398,55 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
     constraints,
     shortlist: selection.shortlist,
     weather: weatherPrompt,
-    signatureStyleBlock: deps.signatureStyleBlock,
+    signatureStyleBlock,
   });
   telemetry.promptChars = PACKING_SYSTEM_PROMPT.length + userPrompt.length;
 
+  // ── 6b. Daily quota reservation — LAST, because everything above this line
+  // can still end in general mode or a 403 at ZERO cost to the caller's
+  // budget. Only from this point on is a generation actually about to happen
+  // (PACK-05). Weather and Signature Style are enrichment: resolving them
+  // above this line, before we know whether a model call will occur, is safe
+  // because neither one spends anything from the caller's own budget.
+  const reservation = await deps.reserveDailyGeneration();
+  if (reservation.status === 'limit_reached') {
+    telemetry.event = 'packing_failed';
+    telemetry.failureClass = 'quota_limit_reached';
+    return finish(
+      200,
+      {
+        status: 'error',
+        contractVersion: PACKING_CONTRACT_VERSION,
+        requestId: deps.requestId,
+        message: "You've used today's Elise generations. Your packing plan will be here tomorrow.",
+        plan: null,
+        generalGuide: null,
+        errorCode: 'PACKING_LIMIT_REACHED',
+      },
+      telemetry,
+      false,
+    );
+  }
+  if (reservation.status === 'check_failed') {
+    telemetry.event = 'packing_failed';
+    telemetry.failureClass = 'quota_check_failed';
+    return finish(
+      500,
+      {
+        status: 'error',
+        contractVersion: PACKING_CONTRACT_VERSION,
+        requestId: deps.requestId,
+        message: 'I could not check your daily usage just now. Please try again.',
+        plan: null,
+        generalGuide: null,
+        errorCode: 'PACKING_USAGE_CHECK_FAILED',
+      },
+      telemetry,
+      false,
+    );
+  }
+
+  // ── 7. Provider call ───────────────────────────────────────────────────
   const providerStartedAt = now();
   let rawOutput: unknown;
   try {
@@ -314,7 +463,7 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
         contractVersion: PACKING_CONTRACT_VERSION,
         requestId: deps.requestId,
         // Retryable and honest. No partial plan, no invented items.
-        message: 'I could not finish your packing plan just now. Your trip details are saved — try again.',
+        message: 'I could not finish your packing plan just now. Your trip details are still here — try again.',
         plan: null,
         generalGuide: null,
         errorCode: 'PACKING_GENERATION_FAILED',
@@ -325,7 +474,7 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
   }
   telemetry.providerLatencyMs = now() - providerStartedAt;
 
-  // ── 7. Post-model validation: the ownership gate ──────────────────────────
+  // ── 8. Post-model validation: the ownership gate ──────────────────────────
   const planId = deps.makePlanId ? deps.makePlanId() : `plan-${deps.requestId}`;
   // Gaps are derived from the CLOSET CENSUS and the forecast, before the
   // model's output is even looked at, so nothing the model says can create,
@@ -334,6 +483,8 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
     requiredRoles: selection.requiredRoles,
     closetRoleCensus: selection.closetRoleCensus,
     weather,
+    // The census is only as complete as the retrieval that produced it.
+    censusComplete: retrieval.censusComplete,
   });
 
   const validation = validatePackingModelOutput({
@@ -344,6 +495,7 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
     constraints,
     weather,
     closetRoleCensus: selection.closetRoleCensus,
+    censusComplete: retrieval.censusComplete,
     gaps,
   });
   telemetry.modelItemRefs = validation.telemetry.modelItemRefs;
@@ -369,7 +521,7 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
     );
   }
 
-  // ── 8. Deterministic sanity check on the validated plan ───────────────────
+  // ── 9. Deterministic sanity check on the validated plan ───────────────────
   // Structural nonsense only. Fashion coherence stays the model's job.
   const problems = inspectPackingPlan(validation.plan);
   if (problems.length > 0) {
@@ -422,6 +574,7 @@ export function formatPackingLog(telemetry: PackingTelemetry): string {
     `usable=${telemetry.usableCandidateCount}`,
     `shortlist=${telemetry.shortlistCount}`,
     `uncoveredRoles=${telemetry.uncoveredRoleCount}`,
+    `censusComplete=${telemetry.censusComplete}`,
     `packed=${telemetry.packedItemCount}`,
     `outfits=${telemetry.outfitCount}`,
     `gaps=${telemetry.gapCount}`,

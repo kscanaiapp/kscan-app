@@ -23,8 +23,27 @@ export const PACKING_CONTRACT_VERSION = 'packing_plan_v1';
 export const PACKING_REQUEST_SCHEMA_VERSION = 'packing-plan-v1';
 
 export const PACKING_LIMITS = {
-  /** Authoritative Closet rows fetched before deterministic narrowing. */
-  maxClosetCandidates: 40,
+  /**
+   * Authoritative Closet rows fetched before deterministic narrowing.
+   *
+   * THIS IS A CENSUS BOUND, NOT A PROMPT BOUND. The prompt stays bounded by
+   * shortlistTarget (14) however large this is -- a 200-item Closet and a
+   * 25-item Closet produce the same ~1,228-token prompt. What this decides is
+   * how much of the Closet the server is allowed to KNOW ABOUT, and that is
+   * what closetRoleCensus (gap derivation, scarcity signals) and role coverage
+   * are computed from.
+   *
+   * At 40 the retrieval window was pure updated_at DESC, so a traveller with
+   * 150 recently-touched tops was told "Your Closet has no footwear yet" while
+   * owning two pairs of shoes, and their shortlist held 14 tops and no shoes.
+   * Coverage-before-truncation cannot recover a garment retrieval never fetched.
+   * Pre-model cost at 200 rows is 0.37ms, so the honest bound is also the cheap
+   * one.
+   *
+   * Beyond this bound the census is INCOMPLETE and is marked as such; an
+   * incomplete census may never assert an absence. See packingRetrieval.ts.
+   */
+  maxClosetCandidates: 200,
   /** Bounded shortlist handed to the model. */
   shortlistTarget: 14,
   shortlistHardMax: 18,

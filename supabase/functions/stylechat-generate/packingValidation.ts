@@ -189,6 +189,8 @@ export function validatePackingModelOutput(input: {
   weather: PackingPlanWeather;
   /** Owned-role census (packingCandidates). Drives scarcity signals. */
   closetRoleCensus?: Record<string, number>;
+  /** False when retrieval was truncated: no scarcity claim may then be made. */
+  censusComplete?: boolean;
   /** Deterministically derived unmet requirements (packingGaps). */
   gaps?: PackingGap[];
 }): PackingValidationResult {
@@ -327,7 +329,11 @@ export function validatePackingModelOutput(input: {
       primaryColor: candidate.colors[0] ?? null,
       layeringRole: candidate.layeringRole,
       reason: reasonByItem.get(itemId) ?? null,
-      scarcitySignal: deriveScarcitySignal(candidate.layeringRole, input.closetRoleCensus ?? {}),
+      scarcitySignal: deriveScarcitySignal(
+        candidate.layeringRole,
+        input.closetRoleCensus ?? {},
+        input.censusComplete !== false,
+      ),
       usedInOutfits: usageCount.get(itemId) ?? 0,
     });
   }

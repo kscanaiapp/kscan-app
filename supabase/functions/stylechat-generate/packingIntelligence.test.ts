@@ -722,7 +722,10 @@ function handlerDeps(overrides: Partial<Parameters<typeof handlePackingRequest>[
     actorId: ACTOR,
     hasActiveKPlus: () => Promise.resolve(true),
     closet: { listClosetItems: () => Promise.resolve(mixedClosetRows()) },
-    signatureStyleBlock: null,
+    resolveSignatureStyleBlock: () => Promise.resolve(null),
+    // Always succeeds unless a test says otherwise -- most tests here are not
+    // about quota at all, and PACK-05's own tests override this explicitly.
+    reserveDailyGeneration: () => Promise.resolve({ status: 'reserved' as const }),
     callProvider: () => Promise.resolve({ outfits: [], packedItems: [] }),
     now: () => (clock += 10),
     makePlanId: () => 'plan-fixed',
@@ -1131,7 +1134,8 @@ Deno.test('handler: a packed item that is the only one of its role says so', asy
 Deno.test('security: an absent Signature Style never blocks or changes a plan', async () => {
   const withStyle = await handlePackingRequest(
     handlerDeps({
-      signatureStyleBlock: '[Wardrobe Signature Style] Frequent colors: black [/Wardrobe Signature Style]',
+      resolveSignatureStyleBlock: () =>
+        Promise.resolve('[Wardrobe Signature Style] Frequent colors: black [/Wardrobe Signature Style]'),
       callProvider: (_system, user) => {
         assertStringIncludes(user, 'Wardrobe Signature Style');
         assertStringIncludes(user, 'Any explicit constraint above outranks it');
@@ -1148,7 +1152,7 @@ Deno.test('security: an absent Signature Style never blocks or changes a plan', 
 
   const withoutStyle = await handlePackingRequest(
     handlerDeps({
-      signatureStyleBlock: null,
+      resolveSignatureStyleBlock: () => Promise.resolve(null),
       callProvider: (_system, user) => {
         assert(!user.includes('Wardrobe Signature Style'), 'no block, no mention');
         const ids = [...user.matchAll(/id=([0-9a-f-]{36})/g)].map((match) => match[1]);
@@ -1161,6 +1165,26 @@ Deno.test('security: an absent Signature Style never blocks or changes a plan', 
   );
   assertEquals(withoutStyle.body.status, 'success');
   assertEquals(withoutStyle.telemetry.signatureStyleApplied, false);
+});
+
+Deno.test('PACK-06/PACK-04: Signature Style is never resolved for an unentitled caller', async () => {
+  // Required test #8. Entitled-only was previously true only because index.ts
+  // happened to gate it with an eagerly-resolved boolean. Now that the resolver
+  // is lazy and owned by the handler, prove it structurally: an unentitled
+  // caller must never even INVOKE the resolver, regardless of what it would
+  // have returned.
+  let signatureStyleCalls = 0;
+  const result = await handlePackingRequest(
+    handlerDeps({
+      hasActiveKPlus: () => Promise.resolve(false),
+      resolveSignatureStyleBlock: () => {
+        signatureStyleCalls += 1;
+        return Promise.resolve('[Wardrobe Signature Style] should never be reached [/Wardrobe Signature Style]');
+      },
+    }),
+  );
+  assertEquals(result.body.status, 'not_entitled');
+  assertEquals(signatureStyleCalls, 0, 'Signature Style must not be computed for a refused caller');
 });
 
 Deno.test('privacy: no Closet image, uri or storage path can reach the prompt', async () => {
@@ -1315,4 +1339,495 @@ Deno.test('cost: the prompt stays bounded as the Closet grows', async () => {
   // A 20x larger Closet must not produce a materially larger prompt.
   const [small, , large] = promptSizes;
   assert(large < small * 3, `prompt grew from ${small} to ${large} chars — context is not bounded`);
+});
+
+// ── 12. Census completeness (audit repair PACK-01) ───────────────────────────
+//
+// The gap engine and the scarcity signals both make ABSENCE claims about the
+// traveller's own wardrobe. Both are computed from closetRoleCensus, and that
+// census is only ever as complete as the retrieval that produced it. Before
+// this repair the retrieval window was 40 rows of `updated_at DESC`, so a
+// traveller with 150 recently-touched tops and two pairs of shoes was told
+// "Your Closet has no footwear yet" and handed a shortlist of 14 tops.
+
+/** The real data source: ordered by updated_at DESC, then LIMIT n. */
+function limitedClosetSource(rows: Record<string, unknown>[]) {
+  const ordered = [...rows].sort((a, b) =>
+    String(b.updated_at).localeCompare(String(a.updated_at)));
+  return { listClosetItems: (_actor: string, limit: number) =>
+    Promise.resolve(ordered.slice(0, limit)) };
+}
+
+function recencySkewedCloset(topCount: number): Record<string, unknown>[] {
+  const tops = Array.from({ length: topCount }, (_, index) =>
+    closetRow({ id: uuid(index + 1), client_id: `local-${index + 1}`,
+      title: `shirt ${index}`, clothing_type: 'shirt', subtype: 'oxford shirt',
+      updated_at: `2026-08-${String(20 - (index % 19)).padStart(2, '0')}T00:00:00Z` }));
+  // Genuinely owned, genuinely older.
+  const older = [
+    closetRow({ id: uuid(900), client_id: 'l900', title: 'sneakers', clothing_type: 'shoes', subtype: 'sneakers', updated_at: '2025-01-01T00:00:00Z' }),
+    closetRow({ id: uuid(901), client_id: 'l901', title: 'boots', clothing_type: 'boots', subtype: 'chelsea boots', updated_at: '2025-01-02T00:00:00Z' }),
+    closetRow({ id: uuid(902), client_id: 'l902', title: 'chinos', clothing_type: 'trousers', subtype: 'chinos', updated_at: '2025-01-03T00:00:00Z' }),
+    closetRow({ id: uuid(903), client_id: 'l903', title: 'jeans', clothing_type: 'jeans', subtype: 'straight jeans', updated_at: '2025-01-04T00:00:00Z' }),
+    closetRow({ id: uuid(904), client_id: 'l904', title: 'wool coat', clothing_type: 'coat', subtype: 'overcoat', updated_at: '2025-01-05T00:00:00Z' }),
+  ];
+  return [...tops, ...older];
+}
+
+Deno.test('census: a recency-skewed Closet no longer produces a false gap', async () => {
+  const rows = recencySkewedCloset(150);
+  const retrieval = await retrievePackingClosetCandidates({
+    actorId: ACTOR, data: limitedClosetSource(rows),
+  });
+  assert(retrieval.censusComplete, '155 rows is inside the census bound');
+
+  const selection = selectPackingCandidates({
+    candidates: retrieval.candidates, trip: parsedRequest().trip,
+    constraints: { excludeItemIds: [], packLight: false, notes: [] },
+  });
+  // The garments the traveller really owns must reach the shortlist.
+  assert(selection.rolesInShortlist['shoe'] > 0, 'owned shoes must be packable');
+  assert(selection.rolesInShortlist['bottom'] > 0, 'owned bottoms must be packable');
+
+  const gaps = derivePackingGaps({
+    requiredRoles: selection.requiredRoles,
+    closetRoleCensus: selection.closetRoleCensus,
+    weather: { provenance: 'UNAVAILABLE', summary: null },
+    censusComplete: retrieval.censusComplete,
+  });
+  assertEquals(gaps, [], 'nothing this traveller owns may be reported missing');
+});
+
+Deno.test('census: a truncated retrieval marks itself incomplete', async () => {
+  const rows = recencySkewedCloset(PACKING_LIMITS.maxClosetCandidates + 50);
+  const retrieval = await retrievePackingClosetCandidates({
+    actorId: ACTOR, data: limitedClosetSource(rows),
+  });
+  assertEquals(retrieval.candidates.length, PACKING_LIMITS.maxClosetCandidates);
+  assertEquals(retrieval.censusComplete, false, 'a full page means there may be more');
+});
+
+Deno.test('census: an incomplete census may never assert an absence', () => {
+  const gaps = derivePackingGaps({
+    requiredRoles: ['base', 'bottom', 'shoe', 'outer'],
+    closetRoleCensus: { base: 200 },
+    weather: { provenance: 'FORECAST', summary: 'highs 40-45F, lows near 38F, rain on 3 of 4 days' },
+    censusComplete: false,
+  });
+  assertEquals(gaps, [], 'not having seen the whole Closet is not evidence of absence');
+});
+
+Deno.test('census: an incomplete census may never assert "your only X" either', () => {
+  // The census counted exactly one shoe -- but only within the window it saw.
+  assertEquals(deriveScarcitySignal('shoe', { shoe: 1 }, false), null);
+  // With a complete census the same count is a checkable fact again.
+  assertEquals(deriveScarcitySignal('shoe', { shoe: 1 }, true), 'Your only pair of shoes');
+});
+
+Deno.test('census: a REAL absence is still reported when the census is complete', () => {
+  const gaps = derivePackingGaps({
+    requiredRoles: ['base', 'bottom', 'shoe'],
+    closetRoleCensus: { base: 6, bottom: 3 },
+    weather: { provenance: 'UNAVAILABLE', summary: null },
+    censusComplete: true,
+  });
+  assert(gaps.some((gap) => gap.code === 'missing_role_shoe'),
+    'suppressing false gaps must not suppress true ones');
+});
+
+// ── 13. Gate ordering at the dispatch seam (audit repair PACK-03/04, revised
+//        by PACK-05/06) ────────────────────────────────────────────────────
+//
+// PACK-03/04 originally proved this ordering with a source `indexOf()` check
+// against a `packingEntitled` boolean that gated the daily-charge RPC in
+// index.ts with a ternary. PACK-05/06 removed that boolean entirely: K+ is no
+// longer resolved or cached in index.ts at all, and the daily counter is no
+// longer conditionally called there either. Both decisions now live entirely
+// inside handlePackingRequest's own step order (K+ gate -> retrieval ->
+// readiness -> quota reservation -> provider), which is CONTROL FLOW, not
+// source text -- so it cannot be proven by indexOf() at all, and is instead
+// proven behaviorally in section 14 below.
+//
+// What remains here is intentionally a light supplementary check, not the
+// proof: that index.ts still wires K+ and quota as SEPARATE dependencies
+// (not a single conflated call), and that quota is not charged a second time
+// anywhere outside the dependency the handler controls.
+
+Deno.test('dispatch wiring: K+ and the daily counter are two independent RPCs, not one', async () => {
+  const source = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
+  // Bounded to the packing branch itself, NOT to end-of-file: the ordinary
+  // chat path further down has its own unrelated has_active_k_plus() call for
+  // a different feature, and an unbounded slice would count it too.
+  const branch = source.slice(
+    source.indexOf('classifyPackingRequest(body)'),
+    source.indexOf("const sessionId = typeof body.sessionId === 'string'"),
+  );
+  assert(branch.length > 0, 'the packing branch must exist');
+
+  const burst = branch.indexOf('check_and_increment_stylechat_burst');
+  const entitlement = branch.indexOf("rpc('has_active_k_plus'");
+  const daily = branch.indexOf('increment_stylechat_daily_usage');
+  assert(burst > -1 && entitlement > -1 && daily > -1, 'all three RPCs must be present');
+  assert(burst < entitlement, 'burst still runs before anything entitlement-related');
+
+  // Exactly one call site for each -- no duplicate/eager charge path left
+  // over from the pre-PACK-05 ternary, and no second entitlement resolver.
+  const countOccurrences = (needle: string) =>
+    branch.split(needle).length - 1;
+  assertEquals(countOccurrences("rpc('has_active_k_plus'"), 1, 'K+ must be asked exactly once');
+  assertEquals(countOccurrences('increment_stylechat_daily_usage'), 1, 'quota must be charged from exactly one call site');
+
+  // Nothing in index.ts's packing branch may cache the entitlement answer.
+  // PACK-06's entire defect was a variable exactly like this one.
+  assert(!/packingEntitled|packingEntitlement/.test(branch),
+    'a cached/memoized entitlement variable must not reappear in index.ts');
+});
+
+Deno.test('dispatch wiring: quota reservation is a plain dependency, not a conditional charge', async () => {
+  const source = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
+  const branch = source.slice(
+    source.indexOf('classifyPackingRequest(body)'),
+    source.indexOf("const sessionId = typeof body.sessionId === 'string'"),
+  );
+  // The daily-usage RPC must live inside the reserveDailyGeneration property
+  // handed to the handler, not behind an index.ts-local ternary/boolean --
+  // control of WHEN it fires belongs entirely to the handler's step order now.
+  const reserveKey = branch.indexOf('reserveDailyGeneration:');
+  const daily = branch.indexOf('increment_stylechat_daily_usage');
+  assert(reserveKey > -1 && daily > -1, 'reserveDailyGeneration must exist and call the daily RPC');
+  assert(reserveKey < daily, 'the daily RPC must be nested inside reserveDailyGeneration');
+});
+
+// ── 14. Quota reservation timing and entitlement freshness (PACK-05/06/07) ──
+//
+// This section is the PRIMARY proof for PACK-05 and PACK-06, not the source
+// checks in section 13. Every claim below is exercised by actually running
+// handlePackingRequest with a counting spy on `reserveDailyGeneration`, so a
+// future change that reorders steps in a way indexOf() could not see (e.g. an
+// intermediate helper function) will still be caught here.
+
+function countingReservation(status: 'reserved' | 'limit_reached' | 'check_failed' = 'reserved') {
+  let calls = 0;
+  return {
+    reserveDailyGeneration: () => {
+      calls += 1;
+      return Promise.resolve({ status });
+    },
+    calls: () => calls,
+  };
+}
+
+Deno.test('quota: an unentitled caller consumes zero daily quota (required test 1)', async () => {
+  const reservation = countingReservation();
+  const result = await handlePackingRequest(
+    handlerDeps({
+      hasActiveKPlus: () => Promise.resolve(false),
+      reserveDailyGeneration: reservation.reserveDailyGeneration,
+    }),
+  );
+  assertEquals(result.body.status, 'not_entitled');
+  assertEquals(result.httpStatus, 403);
+  assertEquals(reservation.calls(), 0, 'not_entitled must never reserve a generation');
+});
+
+Deno.test('quota: sparse-Closet general mode consumes zero daily quota (required test 2)', async () => {
+  const reservation = countingReservation();
+  const result = await handlePackingRequest(
+    handlerDeps({
+      closet: { listClosetItems: () => Promise.resolve(mixedClosetRows().slice(0, 2)) },
+      reserveDailyGeneration: reservation.reserveDailyGeneration,
+    }),
+  );
+  assertEquals(result.body.status, 'general_mode');
+  assertEquals(result.telemetry.failureClass, 'sparse_closet');
+  assertEquals(reservation.calls(), 0, 'a sparse Closet must never reserve a generation');
+});
+
+Deno.test('quota: Closet-unavailable general mode consumes zero daily quota (required test 3)', async () => {
+  const reservation = countingReservation();
+  const result = await handlePackingRequest(
+    handlerDeps({
+      closet: { listClosetItems: () => Promise.reject(new Error('closet_query_failed')) },
+      reserveDailyGeneration: reservation.reserveDailyGeneration,
+    }),
+  );
+  assertEquals(result.body.status, 'general_mode');
+  assertEquals(result.telemetry.failureClass, 'closet_unavailable');
+  assertEquals(reservation.calls(), 0, 'an unreadable Closet must never reserve a generation');
+});
+
+Deno.test('quota: a successful generation reserves exactly one unit (required test 4)', async () => {
+  const reservation = countingReservation('reserved');
+  let providerCalls = 0;
+  const result = await handlePackingRequest(
+    handlerDeps({
+      reserveDailyGeneration: reservation.reserveDailyGeneration,
+      callProvider: (_system, user) => {
+        providerCalls += 1;
+        const ids = [...user.matchAll(/id=([0-9a-f-]{36})/g)].map((match) => match[1]);
+        return Promise.resolve({
+          outfits: [{ label: 'Day', itemIds: ids.slice(0, 2) }],
+          packedItems: ids.slice(0, 2).map((id) => ({ itemId: id })),
+        });
+      },
+    }),
+  );
+  assertEquals(result.body.status, 'success');
+  assertEquals(providerCalls, 1);
+  assertEquals(reservation.calls(), 1, 'a successful plan must reserve exactly one generation');
+});
+
+Deno.test('quota: limit reached prevents provider invocation (required test 5)', async () => {
+  let providerCalls = 0;
+  const result = await handlePackingRequest(
+    handlerDeps({
+      reserveDailyGeneration: () => Promise.resolve({ status: 'limit_reached' }),
+      callProvider: () => {
+        providerCalls += 1;
+        return Promise.resolve({ outfits: [], packedItems: [] });
+      },
+    }),
+  );
+  assertEquals(providerCalls, 0, 'the model must never be called once quota is exhausted');
+  assertEquals(result.body.status, 'error');
+  assertEquals(result.body.errorCode, 'PACKING_LIMIT_REACHED');
+  assertEquals(result.httpStatus, 200);
+  assertEquals(result.body.plan, null);
+  assertEquals(result.providerInvoked, false);
+  assertEquals(result.telemetry.failureClass, 'quota_limit_reached');
+});
+
+Deno.test('quota: a quota RPC error prevents provider invocation (required test 6)', async () => {
+  let providerCalls = 0;
+  const result = await handlePackingRequest(
+    handlerDeps({
+      reserveDailyGeneration: () => Promise.resolve({ status: 'check_failed' }),
+      callProvider: () => {
+        providerCalls += 1;
+        return Promise.resolve({ outfits: [], packedItems: [] });
+      },
+    }),
+  );
+  assertEquals(providerCalls, 0, 'a usage-check failure must fail closed, not open');
+  assertEquals(result.body.status, 'error');
+  assertEquals(result.body.errorCode, 'PACKING_USAGE_CHECK_FAILED');
+  assertEquals(result.httpStatus, 500);
+  assertEquals(result.body.plan, null);
+  assertEquals(result.providerInvoked, false);
+  assertEquals(result.telemetry.failureClass, 'quota_check_failed');
+});
+
+Deno.test('quota: reservation happens strictly after readiness, before the provider', async () => {
+  // Order-of-operations proof by side-effect log rather than source position:
+  // readiness must be decided (via the Closet read) before reservation runs,
+  // and reservation must run before the provider is ever touched.
+  const order: string[] = [];
+  const result = await handlePackingRequest(
+    handlerDeps({
+      closet: {
+        listClosetItems: () => {
+          order.push('closet');
+          return Promise.resolve(mixedClosetRows());
+        },
+      },
+      reserveDailyGeneration: () => {
+        order.push('quota');
+        return Promise.resolve({ status: 'reserved' as const });
+      },
+      callProvider: (_system, user) => {
+        order.push('provider');
+        const ids = [...user.matchAll(/id=([0-9a-f-]{36})/g)].map((match) => match[1]);
+        return Promise.resolve({
+          outfits: [{ label: 'Day', itemIds: ids.slice(0, 2) }],
+          packedItems: ids.slice(0, 2).map((id) => ({ itemId: id })),
+        });
+      },
+    }),
+  );
+  assertEquals(result.body.status, 'success');
+  assertEquals(order, ['closet', 'quota', 'provider']);
+});
+
+// A stateful entitlement spy: returns the Nth scripted outcome on the Nth
+// call (clamped to the last entry), so a test can script exactly what the
+// PRECHECK sees vs. what the CONFIRMATION sees. 'throw' rejects instead of
+// resolving, for Case C (the confirmation RPC itself failing).
+function statefulEntitlementSpy(sequence: Array<boolean | 'throw'>) {
+  let calls = 0;
+  return {
+    hasActiveKPlus: (): Promise<boolean> => {
+      const outcome = sequence[Math.min(calls, sequence.length - 1)];
+      calls += 1;
+      if (outcome === 'throw') return Promise.reject(new Error('entitlement rpc down'));
+      return Promise.resolve(outcome);
+    },
+    calls: () => calls,
+  };
+}
+
+Deno.test('entitlement Case A: already unentitled is refused at the precheck, before any Closet read', async () => {
+  // The precheck alone is sufficient here: hasActiveKPlus never returns true,
+  // so there is no "confirmation" to reach -- only the first call ever fires.
+  let closetRead = false;
+  let signatureStyleCalls = 0;
+  const spy = statefulEntitlementSpy([false]);
+  const reservation = countingReservation();
+  const result = await handlePackingRequest(
+    handlerDeps({
+      hasActiveKPlus: spy.hasActiveKPlus,
+      closet: {
+        listClosetItems: () => {
+          closetRead = true;
+          return Promise.resolve(mixedClosetRows()); // rich enough to pass readiness
+        },
+      },
+      resolveSignatureStyleBlock: () => {
+        signatureStyleCalls += 1;
+        return Promise.resolve(null);
+      },
+      reserveDailyGeneration: reservation.reserveDailyGeneration,
+    }),
+  );
+  assertEquals(result.body.status, 'not_entitled');
+  assertEquals(result.httpStatus, 403);
+  assertEquals(result.body.errorCode, 'PACKING_REQUIRES_KPLUS');
+  assertEquals(spy.calls(), 1, 'the confirmation must never run once the precheck already refused');
+  assertEquals(closetRead, false, 'the Closet must never be consulted for an unentitled caller');
+  assertEquals(signatureStyleCalls, 0);
+  assertEquals(reservation.calls(), 0);
+});
+
+Deno.test('entitlement Case B: a genuine mid-request lapse (true, then false) is refused, never general mode', async () => {
+  // THE ACTUAL RACE, simulated properly this time: the precheck sees an
+  // active subscription, the Closet is read, and ONLY THEN does entitlement
+  // disappear -- discovered by a second, independent, live call. If this ever
+  // surfaces as general_mode instead of a 403, a lapsed subscriber is being
+  // told "your Closet is thin" instead of "you lost K+".
+  let closetReads = 0;
+  let signatureStyleCalls = 0;
+  let providerCalls = 0;
+  const spy = statefulEntitlementSpy([true, false]);
+  const reservation = countingReservation();
+  const result = await handlePackingRequest(
+    handlerDeps({
+      hasActiveKPlus: spy.hasActiveKPlus,
+      closet: {
+        listClosetItems: () => {
+          closetReads += 1;
+          return Promise.resolve(mixedClosetRows()); // rich enough to pass readiness
+        },
+      },
+      resolveSignatureStyleBlock: () => {
+        signatureStyleCalls += 1;
+        return Promise.resolve(null);
+      },
+      reserveDailyGeneration: reservation.reserveDailyGeneration,
+      callProvider: () => {
+        providerCalls += 1;
+        return Promise.resolve({ outfits: [], packedItems: [] });
+      },
+    }),
+  );
+  assertEquals(spy.calls(), 2, 'both the precheck and the confirmation must actually run');
+  assertEquals(result.body.status, 'not_entitled');
+  assertEquals(result.httpStatus, 403);
+  assertEquals(result.body.errorCode, 'PACKING_REQUIRES_KPLUS');
+  assert(result.body.status !== 'general_mode', 'GENERAL MODE FALSELY RETURNED');
+  assertEquals(result.telemetry.failureClass, 'entitlement_lapsed');
+  assertEquals(closetReads, 1, 'the Closet is read once -- the precheck had already passed');
+  assertEquals(signatureStyleCalls, 0, 'a caller refused at confirmation gets no enrichment');
+  assertEquals(reservation.calls(), 0);
+  assertEquals(providerCalls, 0);
+});
+
+Deno.test('entitlement Case C: a confirmation-check RPC failure fails closed', async () => {
+  // The precheck's own live RPC succeeded and said yes; the SECOND call to the
+  // same authority throws (network blip, RPC outage, whatever). This must
+  // never be read as "still entitled" merely because the first answer was
+  // good -- an authority that cannot answer is not permission.
+  let providerCalls = 0;
+  const spy = statefulEntitlementSpy([true, 'throw']);
+  const reservation = countingReservation();
+  const result = await handlePackingRequest(
+    handlerDeps({
+      hasActiveKPlus: spy.hasActiveKPlus,
+      closet: { listClosetItems: () => Promise.resolve(mixedClosetRows()) },
+      reserveDailyGeneration: reservation.reserveDailyGeneration,
+      callProvider: () => {
+        providerCalls += 1;
+        return Promise.resolve({ outfits: [], packedItems: [] });
+      },
+    }),
+  );
+  assertEquals(spy.calls(), 2);
+  assertEquals(result.body.status, 'not_entitled');
+  assertEquals(result.httpStatus, 403);
+  assertEquals(result.body.errorCode, 'PACKING_REQUIRES_KPLUS');
+  assertEquals(reservation.calls(), 0);
+  assertEquals(providerCalls, 0);
+});
+
+Deno.test('entitlement Case D: entitlement confirmed twice, sparse Closet — general mode, zero quota', async () => {
+  // Both live checks say yes. From here normal Closet-readiness rules decide
+  // the outcome -- confirmation is not a second opinion on readiness, only on
+  // entitlement.
+  const spy = statefulEntitlementSpy([true, true]);
+  const reservation = countingReservation();
+  let providerCalls = 0;
+  const result = await handlePackingRequest(
+    handlerDeps({
+      hasActiveKPlus: spy.hasActiveKPlus,
+      closet: { listClosetItems: () => Promise.resolve(mixedClosetRows().slice(0, 2)) },
+      reserveDailyGeneration: reservation.reserveDailyGeneration,
+      callProvider: () => {
+        providerCalls += 1;
+        return Promise.resolve({ outfits: [], packedItems: [] });
+      },
+    }),
+  );
+  assertEquals(spy.calls(), 2);
+  assertEquals(result.body.status, 'general_mode');
+  assertEquals(result.telemetry.failureClass, 'sparse_closet');
+  assertEquals(reservation.calls(), 0, 'general mode must still cost nothing (PACK-05)');
+  assertEquals(providerCalls, 0);
+});
+
+Deno.test('entitlement Case D: entitlement confirmed twice, personal plan proceeds — exactly one quota unit', async () => {
+  const spy = statefulEntitlementSpy([true, true]);
+  const reservation = countingReservation();
+  let providerCalls = 0;
+  const result = await handlePackingRequest(
+    handlerDeps({
+      hasActiveKPlus: spy.hasActiveKPlus,
+      reserveDailyGeneration: reservation.reserveDailyGeneration,
+      callProvider: (_system, user) => {
+        providerCalls += 1;
+        const ids = [...user.matchAll(/id=([0-9a-f-]{36})/g)].map((match) => match[1]);
+        return Promise.resolve({
+          outfits: [{ label: 'Day', itemIds: ids.slice(0, 2) }],
+          packedItems: ids.slice(0, 2).map((id) => ({ itemId: id })),
+        });
+      },
+    }),
+  );
+  assertEquals(spy.calls(), 2);
+  assertEquals(result.body.status, 'success');
+  assertEquals(reservation.calls(), 1);
+  assertEquals(providerCalls, 1);
+});
+
+Deno.test('copy: Packing error messages make no durable-persistence claim (required test 11)', async () => {
+  // PACK-07. V1 is in-memory only (section 12 above, and packingPlanStore.ts's
+  // own header). "Saved" implies durable storage V1 does not have; "still
+  // here" is the honest claim about the CURRENT in-memory session snapshot.
+  const handlerSource = await Deno.readTextFile(new URL('./packingHandler.ts', import.meta.url));
+  const clientSource = await Deno.readTextFile(
+    new URL('../../../services/packing/packingClient.ts', import.meta.url),
+  );
+  for (const [name, source] of [['packingHandler.ts', handlerSource], ['packingClient.ts', clientSource]] as const) {
+    assert(!/\bsaved\b/i.test(source), `${name} must not claim durable persistence ("saved")`);
+    assert(!/\bpersisted\b/i.test(source), `${name} must not claim durable persistence ("persisted")`);
+  }
+  assertStringIncludes(handlerSource, 'still here');
+  assertStringIncludes(clientSource, 'still here');
 });
