@@ -72,6 +72,14 @@ function deps(overrides: Partial<VtoHandlerDeps> = {}): Partial<VtoHandlerDeps> 
       ok: true as const,
       provider: createMockVtoProvider({ scenario: 'success', latencyMs: 0 }),
     }),
+    // SEC-KPLUS-004: the handler now reserves a paid generation before calling
+    // the provider and settles it afterwards. Stubbed to the granting outcome
+    // here so these tests keep exercising the authority chain they are about;
+    // the reservation's own behaviour (duplicate / quota / fail-closed) is
+    // covered in vtoPaidBoundary.test.ts.
+    reserveVtoGeneration: () =>
+      Promise.resolve({ outcome: 'reserved' as const, used: 1, dailyLimit: 10 }),
+    completeVtoGeneration: () => Promise.resolve(),
     generationTimeoutMs: 1_000,
     devScenariosAllowed: () => false,
     ...overrides,
@@ -134,7 +142,12 @@ Deno.test('P0: identity comes from the session, never from the body', async () =
     }),
   );
   assertEquals(response.status, 200);
-  assertEquals(seen, [USER_ID]);
+  // INT-KPLUS-007 added a second, later entitlement read immediately before the
+  // paid provider boundary, so there are now two. This test is about WHOSE id
+  // reaches the check, not how many times: every call must carry the session's
+  // id and never a body-supplied one.
+  assertEquals(seen.length, 2, 'entitlement is checked once up front and again at the paid boundary');
+  assertEquals([...new Set(seen)], [USER_ID]);
 });
 
 Deno.test('P0: a deactivated account is refused before any provider work', async () => {
