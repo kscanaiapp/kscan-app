@@ -82,6 +82,16 @@ export interface EliseBackendFlags {
    * There is deliberately no fourth control layer. Concierge does not re-gate
    * transport or re-gate the source; it composes with both. With this flag off
    * the advice payload is byte-identical to its pre-Concierge form.
+   *
+   * ONE EXCEPTION, and it is not a Concierge behaviour (CON-ABSENCE-005).
+   * Closet ABSENCE prose safety runs on every turn, flag or no flag. It emits
+   * no metadata, no chrome and no new claim; it can only REMOVE an assertion
+   * that the user's Closet lacks something, made by a turn with no census
+   * authority to know. Gating it here once left it inert in the only
+   * configuration that ships -- this flag defaults false -- so a flag-off Base
+   * Elise turn could still tell a customer what their Closet does not contain.
+   * A feature flag may decide whether a capability exists; it must not decide
+   * whether the assistant may state a falsehood.
    */
   conciergeV1: boolean;
 }

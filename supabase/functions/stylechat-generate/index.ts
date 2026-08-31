@@ -127,6 +127,16 @@ import type {
  */
 const CONCIERGE_NEUTRAL_OWNERSHIP_FALLBACK =
   'Here are options from the wardrobe evidence available for this look.';
+/**
+ * CON-ABSENCE-005. The fallback for a turn with NO authoritative Closet census.
+ *
+ * Deliberately claims nothing about the Closet in either direction: not that it
+ * holds something, not that it lacks something. The Concierge copy above cannot
+ * serve here because it promises "wardrobe evidence", which is exactly what a
+ * no-census turn does not have.
+ */
+const BASE_NEUTRAL_ADVICE_FALLBACK =
+  'Here are some options to consider for this look.';
 import type { EliseWardrobeDataSource } from './eliseWardrobeRetrieval.ts';
 import { ELISE_ADVICE_CONTRACT_VERSION, ELISE_ADVICE_LIMITS } from './eliseAdviceTypes.ts';
 // ── K+ Packing Intelligence V1 ─────────────────────────────────────────────
@@ -3098,8 +3108,20 @@ Deno.serve(async (req) => {
    * stands down when there is no owned evidence, because with none it would
    * suppress ordinary Base Elise answers. An absence claim is the opposite: it
    * is most dangerous when there is NO census, which is precisely a non-K+ turn.
-   * So this runs whenever Concierge is on, and its permission comes from the
-   * census rather than from the shortlist.
+   * Its permission comes from the census, never from the shortlist.
+   *
+   * AND IT IS UNCONDITIONAL. The first cut of this guard sat inside
+   * `if (config.flags.conciergeV1)`, which left it inert in the only
+   * configuration that actually ships: `ELISE_CONCIERGE_V1_ENABLED` defaults
+   * false and is unset on staging, so a flag-off Base Elise turn -- the exact
+   * turn CON-ABSENCE-005 was observed on -- still had no absence guard at all.
+   * A feature flag may decide whether Concierge BEHAVIOUR exists; it must not
+   * decide whether the assistant is allowed to state a falsehood about the
+   * customer's Closet. This runs on every turn.
+   *
+   * It adds no Concierge behaviour when the flag is off: no metadata, no chrome
+   * and no new claim. It can only ever REMOVE an assertion the turn had no
+   * authority to make.
    *
    * Only counted-non-zero subjects are passed. Everything else the census needs
    * to be honest about -- exhaustive, nothing unclassified -- is folded into
@@ -3107,7 +3129,7 @@ Deno.serve(async (req) => {
    * `censusConfirmsRoleAbsent`.
    */
   let absenceProseConflict = false;
-  if (config.flags.conciergeV1) {
+  {
     const census = closetCensusForProseSafety;
     const censusAvailable = !!census && census.exhaustive === true && census.unclassifiedItems === 0;
     const presentSubjects: string[] = [];
@@ -3121,7 +3143,13 @@ Deno.serve(async (req) => {
     const absenceVerdict = enforceClosetAbsenceProseSafety({
       text: assistantTextSafe,
       evidence: { censusAvailable, presentSubjects },
-      neutralFallback: CONCIERGE_NEUTRAL_OWNERSHIP_FALLBACK,
+      // The Concierge wording promises "wardrobe evidence", which is precisely
+      // what a no-census turn does not have -- using it there would replace one
+      // unsupported implication with another. A turn without census authority
+      // falls back to copy that claims nothing about the Closet either way.
+      neutralFallback: censusAvailable
+        ? CONCIERGE_NEUTRAL_OWNERSHIP_FALLBACK
+        : BASE_NEUTRAL_ADVICE_FALLBACK,
     });
     assistantTextSafe = absenceVerdict.safeText;
     absenceProseConflict = absenceVerdict.conflictDetected;

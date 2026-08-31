@@ -329,3 +329,53 @@ Deno.test('CON-ABSENCE-005: a free-form census token still matches the claim sub
   });
   assert.equal(v.conflictDetected, true, 'a differently-cased census token must still contradict');
 });
+
+// E. Base Elise regression — a whole no-census answer must survive intact.
+Deno.test('CON-ABSENCE-005: a full Base Elise answer is untouched without a census', () => {
+  // The shape a non-K+ turn actually returns: useful, specific, and making no
+  // claim about what the customer does or does not own. If this ever starts
+  // being sanitized, the guard has become a Base Elise outage.
+  const answer = [
+    'For a smart dinner, pair tailored trousers with a crisp button-down shirt.',
+    'A structured blazer instantly elevates the silhouette.',
+    'Finish with sleek leather loafers or ankle boots.',
+    'Consider adding outerwear for cooler weather.',
+    'A blazer is another option.',
+  ].join(' ');
+  const v = absence(answer, NO_CENSUS);
+  assert.equal(v.conflictDetected, false, 'Base Elise must not depend on K+ or on a census');
+  assert.equal(v.safeText, answer, 'the answer must survive byte-for-byte');
+});
+
+Deno.test('CON-ABSENCE-005: advice survives even NEXT TO a removed absence claim', () => {
+  const v = absence(
+    'You currently have no jackets. A lightweight jacket could work well here.',
+    NO_CENSUS,
+  );
+  assert.equal(v.conflictDetected, true);
+  assert.doesNotMatch(v.safeText, /currently have no jackets/i);
+  assert.match(v.safeText, /A lightweight jacket could work well here\./);
+});
+
+Deno.test('CON-ABSENCE-005: the three forbidden non-K+ claims are all rejected', () => {
+  // Verbatim from the closure contract.
+  for (const claim of [
+    "You don't have a blazer.",
+    'Your Closet is missing outerwear.',
+    'You currently have no jackets.',
+  ]) {
+    assert.equal(absence(claim, NO_CENSUS).conflictDetected, true, claim);
+  }
+});
+
+Deno.test('CON-ABSENCE-005: the three allowed non-K+ suggestions are all kept', () => {
+  for (const advice of [
+    'A lightweight jacket could work well here.',
+    'Consider adding outerwear for cooler weather.',
+    'A blazer is another option.',
+  ]) {
+    const v = absence(advice, NO_CENSUS);
+    assert.equal(v.conflictDetected, false, advice);
+    assert.equal(v.safeText, advice);
+  }
+});

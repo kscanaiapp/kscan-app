@@ -110,7 +110,10 @@ const ABSENCE_ASSERTIONS: RegExp[] = [
   // Second person, possession negated. `(?!\s+to\b)` keeps "you don't have to
   // wear a jacket" -- ordinary advice -- out of the claim class.
   /\byou\s+(?:do\s+not|don'?t|did\s+not|didn'?t)\s+(?:currently\s+|already\s+)?(?:seem\s+to\s+)?(?:own|have)\b(?!\s+to\b)/i,
-  /\byou\s+have\s+(?:no|none)\b/i,
+  // "you have no X" AND "you currently have no X" -- an adverb between subject
+  // and verb is the most ordinary thing in this register, and `you\s+have`
+  // silently missed every instance of it.
+  /\byou\s+(?:currently\s+|still\s+|really\s+)?have\s+(?:no|none)\b/i,
   // "you are missing" AND the contraction "you're missing" -- the apostrophe is
   // not whitespace, so `you\s+re` would never have matched the form people
   // actually write.
