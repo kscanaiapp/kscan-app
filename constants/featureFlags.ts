@@ -858,3 +858,25 @@ export function resolvePackingIntelligenceEnabled(
 }
 
 export const PACKING_INTELLIGENCE_V1 = resolvePackingIntelligenceEnabled();
+
+/**
+ * INT-KPLUS-005 — K+ Smart Watchlist V1 availability.
+ *
+ * The Watchlist Home entry previously derived from K+ entitlement ALONE, so it
+ * rendered as a live, tappable tile wherever K+ was active — including
+ * environments where the feature's own server seam (the commerce-watch-refresh
+ * Edge Function) is not deployed. K+ says "you are allowed to use this"; it does
+ * not say "this exists here". Conflating the two produces a dead entry that
+ * takes the user to a screen which cannot load.
+ *
+ * Opt-in by environment, matching PACKING_INTELLIGENCE_V1 and
+ * KPLUS_EARLY_ACCESS_ENABLED: the flag turns on only where the Watchlist
+ * backend has actually been deployed and verified.
+ */
+export function resolveSmartWatchlistEnabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_SMART_WATCHLIST_V1,
+): boolean {
+  return value === 'true';
+}
+
+export const SMART_WATCHLIST_V1 = resolveSmartWatchlistEnabled();

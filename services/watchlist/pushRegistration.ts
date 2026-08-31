@@ -105,6 +105,42 @@ export async function requestWatchAlerts(watchId: string): Promise<RequestWatchA
 }
 
 /**
+ * SEC-KPLUS-001 (hostile-audit repair): asserts that THIS device now belongs to
+ * the actor who just arrived, retiring every other actor's live push route on it.
+ *
+ * This is the half DEF-WL-01 could not reach. That repair retires a stale route
+ * as a side effect of REGISTERING, so it only fires if the new owner of the
+ * handset enables Watch alerts. Alerts are a contextual post-Watch-creation
+ * prompt, not onboarding — most arriving actors never register at all, and the
+ * departed actor's route stayed live and deliverable, carrying their watched
+ * item's title and price to a handset that is no longer theirs.
+ *
+ * Called on sign-IN rather than sign-out precisely because the departing side is
+ * the unreliable one: a force-quit, crash, reinstall, cleared storage or expired
+ * session all skip revokeWatchAlertsForThisDevice entirely. Arrival is
+ * observable; departure is not.
+ *
+ * Requires no notification permission, mints no device id, and registers
+ * nothing. Never throws and never blocks sign-in.
+ */
+export async function claimDeviceForCurrentActor(): Promise<void> {
+  try {
+    // Deliberately does NOT mint an id: a device that never registered for
+    // alerts has no route to retire.
+    const deviceId = await readDeviceId();
+    if (!deviceId) return;
+    const session = await resolveAuthenticatedFunctionSession();
+    if (session.ok === false) return;
+    await supabase.functions.invoke('commerce-watch-refresh', {
+      body: { action: 'claim_device', deviceId },
+    });
+  } catch {
+    // Silent: a failed claim must never fail or delay a sign-in. The server
+    // still retires the foreign route the moment this actor registers.
+  }
+}
+
+/**
  * DEF-WL-01 (hostile-audit repair): retires THIS device's push registration
  * for the actor who is leaving.
  *

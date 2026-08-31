@@ -41,7 +41,6 @@ import { parseOfferPrice } from '../scan-identify/canonicalCommerce.ts';
 import { deriveWatchCapability, watchProviderForUrl } from '../scan-identify/watchlistCapability.ts';
 import { evaluateWatchRefresh, type WatchState } from './changeEngine.ts';
 import { refreshWatchObservation } from './watchRefreshObservation.ts';
-import { buildDueWatchPath } from './refreshQuery.ts';
 import { sendWatchPush } from './pushDelivery.ts';
 import {
   MIN_REFRESH_INTERVAL_MS,
@@ -397,15 +396,27 @@ async function handleRefresh(authUser: AuthUser, watchId: unknown): Promise<Resp
     return json({ error: 'kplus_required', code: 'kplus_required' }, 403);
   }
 
-  const staleCutoff = new Date(Date.now() - MIN_REFRESH_INTERVAL_MS).toISOString();
   const singleWatchId = typeof watchId === 'string' && isValidUuid(watchId) ? watchId : null;
-  const path = buildDueWatchPath(authUser.id, staleCutoff, singleWatchId, USER_REFRESH_BATCH_CAP);
 
-  const rowsResponse = await rest(path, { method: 'GET' });
-  if (!rowsResponse.ok) {
+  // INT-KPLUS-008 — CLAIM the due rows, do not merely select them.
+  //
+  // last_checked_at is not written until runRefreshCycle finishes, so a plain
+  // staleness SELECT is not mutual exclusion: two concurrent manual refreshes
+  // of the same Watch both passed the filter, both called the provider, and
+  // both could emit an event and a push for one user intent. This RPC stamps
+  // last_checked_at as the claim itself under FOR UPDATE SKIP LOCKED -- the
+  // same discipline the Tier 2 background sweep already used -- so the loser
+  // of the race claims nothing and does no provider work.
+  const claimResponse = await rpc('claim_user_commerce_watches_for_refresh', {
+    p_user_id: authUser.id,
+    p_watch_id: singleWatchId,
+    p_limit: USER_REFRESH_BATCH_CAP,
+    p_min_interval_ms: MIN_REFRESH_INTERVAL_MS,
+  });
+  if (!claimResponse.ok) {
     return json({ error: 'lookup_failed', code: 'lookup_failed' }, 502);
   }
-  const rows = (await rowsResponse.json()) as WatchRow[];
+  const rows = (await claimResponse.json()) as WatchRow[];
 
   if (singleWatchId && rows.length === 0) {
     // Distinguish "not due yet" / "not active" / "not found" for the
@@ -474,6 +485,46 @@ async function handleRevokePushToken(authUser: AuthUser, body: UserActionBody): 
   return json({ revoked: (await response.json()) === true });
 }
 
+/**
+ * SEC-KPLUS-001 — assert current custody of this physical device.
+ *
+ * Retires every OTHER actor's live push route on this device. Requires no
+ * notification permission and registers nothing, so the client can call it on
+ * every actor transition whether or not the arriving actor ever wants alerts.
+ * That is the case register_push_token structurally cannot reach: a new owner
+ * who never enables Watch alerts previously left the departed actor's route
+ * live and deliverable.
+ *
+ * Reports how many routes were retired so the caller can observe and retry.
+ */
+async function handleClaimDevice(authUser: AuthUser, body: UserActionBody): Promise<Response> {
+  const deviceId = str(body.deviceId, 200);
+  if (!deviceId) {
+    return json({ error: 'invalid_token_registration', code: 'invalid_token_registration' }, 400);
+  }
+  const response = await rpc('claim_device_for_actor', {
+    p_user_id: authUser.id,
+    p_device_id: deviceId,
+  });
+  if (!response.ok) {
+    logEvent('watchlist_device_claim_failed', {
+      uid: shortUserId(authUser.id),
+      status: response.status,
+    });
+    return json({ error: 'claim_failed', code: 'claim_failed' }, 502);
+  }
+  const retired = await response.json().catch(() => 0);
+  if (typeof retired === 'number' && retired > 0) {
+    // Worth seeing: a device changed hands and the previous owner's sign-out
+    // revocation had not already retired their route.
+    logEvent('watchlist_device_claim_retired_foreign_routes', {
+      uid: shortUserId(authUser.id),
+      retired,
+    });
+  }
+  return json({ retired: typeof retired === 'number' ? retired : 0 });
+}
+
 async function handleSetPushEnabled(authUser: AuthUser, body: UserActionBody): Promise<Response> {
   if (typeof body.watchId !== 'string' || !isValidUuid(body.watchId)) {
     return json({ error: 'invalid_watch_id', code: 'invalid_watch_id' }, 400);
@@ -540,6 +591,8 @@ Deno.serve(async (req: Request) => {
       return handleRegisterPushToken(authUser, body);
     case 'revoke_push_token':
       return handleRevokePushToken(authUser, body);
+    case 'claim_device':
+      return handleClaimDevice(authUser, body);
     case 'set_push_enabled':
       return handleSetPushEnabled(authUser, body);
     default:
