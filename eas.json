@@ -162,6 +162,17 @@
         "EXPO_PUBLIC_MULTI_IMAGE_SCANNER_ENABLED": "true"
       }
     },
+    "staging-certification": {
+      "extends": "staging",
+      "distribution": "store",
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "ios": {
+        "buildConfiguration": "Release"
+      }
+    },
     "production": {
       "distribution": "store",
       "autoIncrement": true,
