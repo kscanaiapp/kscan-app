@@ -36,7 +36,7 @@ import { HomeStylistCard } from './HomeStylistCard';
 import { TodayWithEliseSection } from './TodayWithEliseSection';
 import { PersonalizeStylistModal } from '../stylist/PersonalizeStylistModal';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
-import { PACKING_INTELLIGENCE_V1, TEXTSCAN_UI_ENABLED } from '../../constants/featureFlags';
+import { PACKING_INTELLIGENCE_V1, SMART_WATCHLIST_V1, TEXTSCAN_UI_ENABLED } from '../../constants/featureFlags';
 import { KPlusGate } from '../kplus/KPlusGate';
 
 
@@ -114,6 +114,7 @@ export default function HomeLuxuryTechV1() {
   const scanEnabled = !featureFreezeLoading && isFeatureEnabled('scan');
   const styleChatEnabled = !featureFreezeLoading && isFeatureEnabled('styleChat');
   const packingEnabled = PACKING_INTELLIGENCE_V1;
+  const watchlistEnabled = SMART_WATCHLIST_V1;
 
   const preferredName = resolvePreferredName(user);
 
@@ -430,19 +431,25 @@ export default function HomeLuxuryTechV1() {
             style={styles.secondaryActionButton}
           />
         )}
-        <KPlusGate source="home_tile">
-          {({ isActive, openUpgrade }) => (
-            <SecondaryButton
-              testID="home-luxury-watchlist"
-              title="WATCHLIST"
-              icon={<KScanIcon name="watchlist" size={24} variant="standard" />}
-              onPress={() => (isActive ? router.push('/watchlist') : openUpgrade())}
-              accessibilityLabel="Open Smart Watchlist"
-              accessibilityHint="Track prices on listings you're not ready to buy yet"
-              style={styles.secondaryActionButton}
-            />
-          )}
-        </KPlusGate>
+        {/* INT-KPLUS-005: availability first, entitlement second. K+ says the
+            user is ALLOWED to use Watchlist; SMART_WATCHLIST_V1 says it EXISTS
+            in this build/environment. Gating on entitlement alone rendered a
+            live tile pointing at a screen whose server seam is not deployed. */}
+        {watchlistEnabled && (
+          <KPlusGate source="home_tile">
+            {({ isActive, openUpgrade }) => (
+              <SecondaryButton
+                testID="home-luxury-watchlist"
+                title="WATCHLIST"
+                icon={<KScanIcon name="watchlist" size={24} variant="standard" />}
+                onPress={() => (isActive ? router.push('/watchlist') : openUpgrade())}
+                accessibilityLabel="Open Smart Watchlist"
+                accessibilityHint="Track prices on listings you're not ready to buy yet"
+                style={styles.secondaryActionButton}
+              />
+            )}
+          </KPlusGate>
+        )}
       </View>
 
       {/* Trust footer */}

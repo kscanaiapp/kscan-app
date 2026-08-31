@@ -1,4 +1,15 @@
 /**
+ * NOTE (INT-KPLUS-008): buildDueWatchPath is no longer on the Tier 1 refresh
+ * path. A plain staleness SELECT is not mutual exclusion -- two concurrent
+ * manual refreshes both passed it -- so handleRefresh now claims through
+ * claim_user_commerce_watches_for_refresh instead.
+ *
+ * The module and its tests are retained deliberately: they still pin the
+ * owner-scoping and injection-safety of the query builder, which the
+ * single-watch "not due / not active / not found" lookup in handleRefresh
+ * continues to rely on the same conventions for.
+ */
+/**
  * refreshQuery.ts — the due-watch selection predicate for a Tier 1
  * (user-open, authenticated) refresh.
  *

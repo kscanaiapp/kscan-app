@@ -27,6 +27,11 @@ function loadStore(clientMock) {
   const mod = { exports: {} };
   const sandbox = {
     console,
+    // INT-KPLUS-006: the store schedules a notification at the entitlement's
+    // expiry boundary, so the sandbox needs real timers.
+    setTimeout,
+    clearTimeout,
+    Date,
     exports: mod.exports,
     module: mod,
     require: (specifier) => {
