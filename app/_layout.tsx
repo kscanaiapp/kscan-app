@@ -6,6 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthSessionProvider } from '../contexts/AuthSessionContext';
 import { FeatureFreezeProvider } from '../contexts/FeatureFreezeContext';
 import { PrivacyPreferencesProvider } from '../contexts/PrivacyPreferencesContext';
+import { AiOutputReportProvider } from '../contexts/AiOutputReportingContext';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { usePrivacyPreferences } from '../contexts/PrivacyPreferencesContext';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
@@ -333,11 +334,13 @@ export default function Layout() {
     <ErrorBoundary>
       <SafeAreaProvider>
         <AuthSessionProvider>
-          <PrivacyPreferencesProvider>
-            <FeatureFreezeProvider>
-              <AuthGate />
-            </FeatureFreezeProvider>
-          </PrivacyPreferencesProvider>
+          <AiOutputReportProvider>
+            <PrivacyPreferencesProvider>
+              <FeatureFreezeProvider>
+                <AuthGate />
+              </FeatureFreezeProvider>
+            </PrivacyPreferencesProvider>
+          </AiOutputReportProvider>
         </AuthSessionProvider>
       </SafeAreaProvider>
     </ErrorBoundary>

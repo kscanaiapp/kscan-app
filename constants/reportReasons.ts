@@ -32,6 +32,7 @@ export const REPORT_TARGET_TYPES = [
   'image',
   'profile',
   'user',
+  'ai_output',
 ] as const;
 
 export type ReportTargetType = (typeof REPORT_TARGET_TYPES)[number];
