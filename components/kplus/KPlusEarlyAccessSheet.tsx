@@ -64,6 +64,28 @@ export function KPlusEarlyAccessSheet({ visible, onClose, source = 'unknown' }: 
       });
       return;
     }
+    // CERT-CLIENT-002 -- 'campaign_consumed' is not an activation.
+    //
+    // The activate CTA is shown to anyone whose state is not 'active', which
+    // includes an expired and a revoked member. For them the store returns
+    // 'campaign_consumed': the campaign is spent, nothing was granted, and the
+    // sheet correctly keeps showing the non-active copy. But this handler
+    // treated every non-'failed' outcome as success -- so it announced "K+
+    // Early Access activated." to screen-reader users and counted a
+    // kplus_activation_completed in the funnel. The announcement is the only
+    // channel where that false claim was ever actually delivered, which is
+    // exactly why sighted QA would never have seen it.
+    if (outcome === 'campaign_consumed') {
+      setError('Your K+ Early Access is no longer active.');
+      emitKPlusEvent('kplus_activation_failed', {
+        source,
+        feature: source,
+        entitlement_state: state,
+        activation_outcome: outcome,
+      });
+      AccessibilityInfo.announceForAccessibility?.('K+ Early Access is no longer active.');
+      return;
+    }
     emitKPlusEvent('kplus_activation_completed', {
       source,
       feature: source,
