@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-31T18:03:59.442Z",
-    "generatedFromGitSha": "6bd9d090c8f127527068c704fad53a666836e396"
+    "generatedAtUtc": "2026-08-31T19:28:21.605Z",
+    "generatedFromGitSha": "1a33ebeee6a21299bc41e37a04793452632869b7"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -451,8 +451,8 @@
         ],
         "bundleFileCount": 51,
         "treeFileCount": 75,
-        "bundleHash": "fe8326c71b0e3104dba44dce296e8dd35b14d7faddd85110404daa49335fe2de",
-        "treeHash": "effeb7556d4626fc7b5ac57bf5af3d78ebf16fe94eb32b9b7f1f3fca4c88bb1a",
+        "bundleHash": "ed513942bfe0019a033ad5b09aabbcbc9de429c568a867fc9b01204f1f807ac3",
+        "treeHash": "f46434a43187c9da60ff0809641b4b348cc61a416317a6cfabe46fc1dc4ffde3",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -626,12 +626,12 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseOwnershipProseSafety.test.ts",
-            "sha256": "6a38f23b7c86bad533572c6a8082c23c62d8100d88dba4f9c193aeca1bb365a1",
+            "sha256": "32bfe5f5f8b5e260b656af97882126fe387bd0c8c60668b30aeaae2d7955d7e4",
             "bundle": false
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseOwnershipProseSafety.ts",
-            "sha256": "b9643c8a44b8b0f7739fd566a1c8dea19ffd29bf350e12941f4d486718945067",
+            "sha256": "aa5ae3afae6bbaf226ae2ffaf52981d424fa5da59b80950009ea45d3f8fe000a",
             "bundle": true
           },
           {

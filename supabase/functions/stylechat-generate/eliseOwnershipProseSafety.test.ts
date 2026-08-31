@@ -379,3 +379,94 @@ Deno.test('CON-ABSENCE-005: the three allowed non-K+ suggestions are all kept', 
     assert.equal(v.safeText, advice);
   }
 });
+
+/**
+ * CON-ABSENCE-006 -- adverb interposition, found EMPIRICALLY on live staging.
+ *
+ * The Build 34 K+ entitlement / failure-state certification drove the deployed
+ * stylechat-generate (integration 1a33ebe) with a non-K+ actor, an empty
+ * Closet, Concierge flag OFF and therefore NO census -- the exact configuration
+ * CON-ABSENCE-005 was reported on -- and Elise answered:
+ *
+ *   "Based on your available items, your wardrobe is CURRENTLY missing
+ *    foundational pieces across core bases, bottoms, layering pieces,
+ *    footwear, and accessories."
+ *
+ * #257 had already identified this defect class ("you CURRENTLY have no
+ * jackets" defeats `you\s+have`) and widened exactly ONE pattern for it. Every
+ * sibling kept the gap, so five of the seven assertion shapes still admitted
+ * any adverb between subject and verb. The subject vocabulary was never the
+ * problem -- "bottoms", "footwear" and "accessories" are all already census
+ * nouns; the sentence simply was not recognised as an assertion at all.
+ *
+ * Both directions, per section 34: the false claim must go, and ordinary advice
+ * that merely contains an adverb must survive untouched.
+ */
+Deno.test('CON-ABSENCE-006: the verbatim live-staging sentence is rejected without a census', () => {
+  const live =
+    'Based on your available items, your wardrobe is currently missing foundational pieces '
+    + 'across core bases, bottoms, layering pieces, footwear, and accessories.';
+  const v = absence(live, NO_CENSUS);
+  assert.equal(v.conflictDetected, true, 'the live sentence must be recognised as an absence claim');
+  assert.doesNotMatch(v.safeText, /currently missing/i);
+});
+
+Deno.test('CON-ABSENCE-006: an interposed adverb defeats no assertion shape', () => {
+  // One bare form and one adverbed form of every shape the guard covers. The
+  // bare forms already passed before this repair; the adverbed ones did not.
+  for (const claim of [
+    'You do not own outerwear.',
+    'You do not currently own outerwear.',
+    'You have no jackets.',
+    'You apparently have no jackets.',
+    'You are missing outerwear.',
+    'You are currently missing outerwear.',
+    'You lack outerwear.',
+    'You currently lack outerwear.',
+    'Your closet does not contain outerwear.',
+    'Your closet does not currently contain outerwear.',
+    'Your closet has no outerwear.',
+    'Your closet currently has no outerwear.',
+    'Your wardrobe is missing footwear.',
+    'Your wardrobe is currently missing footwear.',
+    'Your closet is still missing outerwear.',
+  ]) {
+    assert.equal(absence(claim, NO_CENSUS).conflictDetected, true, claim);
+  }
+});
+
+Deno.test('CON-ABSENCE-006: "is lacking" is the same claim as "is missing"', () => {
+  assert.equal(absence('Your wardrobe is lacking footwear.', NO_CENSUS).conflictDetected, true);
+  assert.equal(absence('Your closet is currently lacking outerwear.', NO_CENSUS).conflictDetected, true);
+});
+
+Deno.test('CON-ABSENCE-006: the adverb slot never turns ordinary advice into a false positive', () => {
+  // Every one of these contains an adverb, several contain a negation, and not
+  // one of them asserts anything about what the Closet holds.
+  for (const advice of [
+    'You do not have to wear a jacket.',
+    'A navy blazer is genuinely versatile for most wedding dress codes.',
+    'You can absolutely style a blazer with almost anything.',
+    'No two outfits have to look alike.',
+    'You have plenty of great options here.',
+    'I want you to have fun with this look.',
+    'If you scan the blazers you have, I can help you choose.',
+    'Layering works especially well in cooler weather.',
+  ]) {
+    const v = absence(advice, NO_CENSUS);
+    assert.equal(v.conflictDetected, false, advice);
+    assert.equal(v.safeText, advice, advice);
+  }
+});
+
+Deno.test('CON-ABSENCE-006: census authority still decides, in both directions', () => {
+  // A TRUE absence backed by an exhaustive census survives WITH the adverb.
+  const permitted = absence('Your wardrobe is currently missing outerwear.', EMPTY_OUTERWEAR_CENSUS);
+  assert.equal(permitted.conflictDetected, false);
+  assert.equal(permitted.safeText, 'Your wardrobe is currently missing outerwear.');
+  // The same adverbed shape CONTRADICTED by the census is still removed --
+  // widening the pattern must not have widened what counts as permission.
+  const refused = absence('Your wardrobe is currently missing outerwear.', HAS_OUTERWEAR_CENSUS);
+  assert.equal(refused.conflictDetected, true);
+  assert.doesNotMatch(refused.safeText, /currently missing outerwear/i);
+});

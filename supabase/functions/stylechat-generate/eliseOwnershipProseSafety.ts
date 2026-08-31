@@ -106,23 +106,50 @@ const GARMENT_NOUNS = [
  * dangerous when there is NO evidence at all, so this half must run exactly
  * where the other half stands down.
  */
+/**
+ * CON-ABSENCE-006. One optional interposed adverb, written once and shared.
+ *
+ * #257 found that an adverb between subject and verb ("you CURRENTLY have no
+ * jackets") defeated `you\s+have`, and widened that ONE pattern. The identical
+ * gap was left in every sibling below, and staging then produced the exact
+ * sentence this guard exists to stop -- "your wardrobe is CURRENTLY missing
+ * foundational pieces ... bottoms, footwear, and accessories" -- on a flag-off,
+ * non-K+, no-census turn, which is precisely the configuration CON-ABSENCE-005
+ * was reported on. Remembering the adverb slot separately at each site is how
+ * that happened, so it is not remembered separately any more.
+ *
+ * `\w+ly` carries the open class (currently, presently, apparently, largely);
+ * the short list carries the common adverbs that do not end in -ly. Exactly ONE
+ * adverb is admitted at each boundary -- enough for how people actually write,
+ * and bounded, so this can never become a wildcard that swallows an unrelated
+ * clause and turns ordinary advice into a false positive.
+ */
+const ABSENCE_ADVERB = String.raw`(?:(?:\w+ly|currently|still|really|now|already|also|yet|ever)\s+)?`;
+
+/** Compile one absence pattern, splicing the shared adverb slot into `<ADV>`. */
+function absencePattern(source: string): RegExp {
+  return new RegExp(source.split('<ADV>').join(ABSENCE_ADVERB), 'i');
+}
+
 const ABSENCE_ASSERTIONS: RegExp[] = [
   // Second person, possession negated. `(?!\s+to\b)` keeps "you don't have to
   // wear a jacket" -- ordinary advice -- out of the claim class.
-  /\byou\s+(?:do\s+not|don'?t|did\s+not|didn'?t)\s+(?:currently\s+|already\s+)?(?:seem\s+to\s+)?(?:own|have)\b(?!\s+to\b)/i,
+  absencePattern(String.raw`\byou\s+<ADV>(?:do\s+not|don'?t|did\s+not|didn'?t)\s+<ADV>(?:seem\s+to\s+)?(?:own|have)\b(?!\s+to\b)`),
   // "you have no X" AND "you currently have no X" -- an adverb between subject
   // and verb is the most ordinary thing in this register, and `you\s+have`
   // silently missed every instance of it.
-  /\byou\s+(?:currently\s+|still\s+|really\s+)?have\s+(?:no|none)\b/i,
+  absencePattern(String.raw`\byou\s+<ADV>(?:have|own)\s+<ADV>(?:no|none)\b`),
   // "you are missing" AND the contraction "you're missing" -- the apostrophe is
   // not whitespace, so `you\s+re` would never have matched the form people
   // actually write.
-  /\byou(?:\s*'re|\s+are)\s+missing\b/i,
-  /\byou\s+lack\b/i,
+  absencePattern(String.raw`\byou(?:\s*'re|\s+are)\s+<ADV>missing\b`),
+  absencePattern(String.raw`\byou\s+<ADV>lack\b`),
   // The store itself as subject.
-  /\byour\s+(?:closet|wardrobe)\s+(?:does\s+not|doesn'?t)\s+(?:contain|include|have|hold)\b/i,
-  /\byour\s+(?:closet|wardrobe)\s+(?:has|holds|contains)\s+(?:no|none)\b/i,
-  /\byour\s+(?:closet|wardrobe)\s+is\s+(?:missing|empty)\b/i,
+  absencePattern(String.raw`\byour\s+(?:closet|wardrobe)\s+<ADV>(?:does\s+not|doesn'?t)\s+<ADV>(?:contain|include|have|hold)\b`),
+  absencePattern(String.raw`\byour\s+(?:closet|wardrobe)\s+<ADV>(?:has|holds|contains)\s+<ADV>(?:no|none)\b`),
+  // `lacking` sits here for the same reason `missing` does: same assertion,
+  // same subject, differing only in the participle the model happened to pick.
+  absencePattern(String.raw`\byour\s+(?:closet|wardrobe)\s+is\s+<ADV>(?:missing|empty|lacking)\b`),
   // Scoped negation anywhere in the sentence, e.g. "there aren't any jackets in
   // your wardrobe", "nothing in your Closet", "not in your Closet".
   /\b(?:no|none|not\s+any|nothing|aren'?t\s+any|isn'?t\s+any)\b[^.!?]*\b(?:in|from)\s+your\s+(?:closet|wardrobe)\b/i,
