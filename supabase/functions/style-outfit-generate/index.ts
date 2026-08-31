@@ -99,7 +99,9 @@ function noResultResponse(requestId: string, reason: string): Response {
     contractVersion: FASHION_REASONING_CONTRACT_VERSION,
     status: 'no_result',
     reason,
-    message: "I couldn't build a complete option from your closet yet.",
+    // INT-KPLUS-001: this pool is saved scans + inspiration uploads, NOT the
+    // canonical Closet (public.user_closet_items). Say what it actually is.
+    message: "I couldn't build a complete option from your saved items yet.",
     outfits: [],
     closetGaps: [],
   });

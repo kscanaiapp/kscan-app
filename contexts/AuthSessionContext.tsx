@@ -37,7 +37,10 @@ import { resetStyleChatGreetingState } from '../services/style-chat/styleChatGre
 import { advanceActorEpoch } from '../services/actorContext';
 import { clearTodayWeather } from '../services/weather/todayWeatherStore';
 import { resetKPlusEntitlementCache } from '../services/kplus/kplusEntitlementStore';
-import { revokeWatchAlertsForThisDevice } from '../services/watchlist/pushRegistration';
+import {
+  claimDeviceForCurrentActor,
+  revokeWatchAlertsForThisDevice,
+} from '../services/watchlist/pushRegistration';
 import { resetPackingPlanState } from '../services/packing/packingPlanStore';
 import { buildSignupNameMetadata, type SignupNameInput } from '../services/userFirstName';
 
@@ -167,6 +170,14 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
         // before the new auth state can become visible to app consumers.
         void stopAvatarSpeechPlayback();
         resetActorScopedRuntimeState(usableSession?.user.id ?? null);
+        // SEC-KPLUS-001 — an ARRIVING actor claims custody of this device, so
+        // the departed actor's Watch-alert route stops being deliverable here
+        // even if their sign-out revocation never ran (force-quit, crash,
+        // reinstall, expired session) and even if this actor never enables
+        // alerts themselves. Fire-and-forget: never delays the auth transition.
+        if (usableSession?.user.id) {
+          void claimDeviceForCurrentActor();
+        }
       }
       setSession(usableSession);
       if (event === 'SIGNED_IN') {

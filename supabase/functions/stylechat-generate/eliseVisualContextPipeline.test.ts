@@ -17,8 +17,26 @@ const ITEM_ID = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const SHARED_ITEM = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
 const SHARED_ROOM = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
 
+/** Canonical Closet id (public.user_closet_items) — the ONLY owned source. */
+const OWNED_CLOSET_ID = '99999999-9999-4999-8999-999999999999';
+
 function mockData(overrides: Partial<EliseResourceDataSource> = {}): EliseResourceDataSource {
   return {
+    fetchUserClosetItem: async (id) =>
+      id === OWNED_CLOSET_ID
+        ? {
+          id: OWNED_CLOSET_ID,
+          user_id: ACTOR,
+          title: 'Navy blazer',
+          category: 'outerwear',
+          primary_color: 'navy',
+          secondary_colors: [],
+          material: ['wool'],
+          storage_bucket: 'style-library-images',
+          storage_path: `${ACTOR}/closet/${OWNED_CLOSET_ID}-primary.jpg`,
+          deleted_at: null,
+        }
+        : null,
     fetchSavedScan: async (id) =>
       id === SCAN_ID
         ? {
@@ -130,7 +148,33 @@ Deno.test('E-1 TextScan remains discovered and never owned', async () => {
 });
 
 Deno.test('E-1 Closet ownership is server-derived only', async () => {
+  // INT-KPLUS-001: ownership comes from a live public.user_closet_items row.
   const owned = await buildEliseVisualContextEnvelope({
+    rawActiveContext: {
+      source: 'upload',
+      visualCollection: {
+        evidence: [{
+          id: OWNED_CLOSET_ID,
+          order: 1,
+          title: 'Client title',
+          sourceType: 'closet_item',
+          itemId: OWNED_CLOSET_ID,
+          actorRelationship: 'owned',
+          confidence: 0.4,
+        }],
+      },
+    },
+    actorId: ACTOR,
+    sessionId: 'session-1',
+    dataSource: mockData(),
+  });
+  assert.equal(owned.envelope.evidence[0].actorRelationship, 'owned');
+  assert.equal(owned.envelope.evidence[0].sourceType, 'user_closet_item');
+  assert.equal(owned.envelope.evidence[0].trust, 'server_verified');
+
+  // An INSPIRATION row arriving under the legacy `closet_item` label used to be
+  // promoted to owned. It is saved, never owned.
+  const inspiration = await buildEliseVisualContextEnvelope({
     rawActiveContext: {
       source: 'upload',
       visualCollection: {
@@ -149,8 +193,8 @@ Deno.test('E-1 Closet ownership is server-derived only', async () => {
     sessionId: 'session-1',
     dataSource: mockData(),
   });
-  assert.equal(owned.envelope.evidence[0].actorRelationship, 'owned');
-  assert.equal(owned.envelope.evidence[0].trust, 'server_verified');
+  assert.equal(inspiration.envelope.evidence[0].actorRelationship, 'saved');
+  assert.equal(inspiration.envelope.evidence[0].sourceType, 'inspiration_item');
 
   const foreignId = '33333333-3333-4333-8333-333333333333';
   const foreign = await buildEliseVisualContextEnvelope({
