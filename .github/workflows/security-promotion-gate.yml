@@ -61,6 +61,11 @@ jobs:
           # than whatever ref this file itself lives on; on push/pull_request
           # it defaults to the triggering ref, which is already correct.
           ref: ${{ github.event.workflow_run.head_sha || '' }}
+          # CI-APPLICABILITY-001: the classifier diffs this branch against its
+          # merge base, so the full history is required. A shallow clone cannot
+          # resolve the base, and classify-changed-surfaces.js now fails closed
+          # rather than silently classifying the wrong range.
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -120,6 +125,36 @@ jobs:
             echo "No project-checks-regression artifact on run ${RUN_ID} (expected for INTEGRATION/RELEASE_PROMOTION-level runs, which use the flat suite instead)."
           fi
 
+      # ── CI-APPLICABILITY-001 ─────────────────────────────────────────────
+      # Resolve which required checks actually APPLY to this diff, using the
+      # same classifier the staging workflow's job-level `if:` conditions are
+      # derived from. Without this the gate cannot distinguish
+      #   "Migration validation legitimately did not run (no migrations)"
+      # from
+      #   "Migration validation should have run and is missing".
+      #
+      # Never fails the job: if this step produces nothing, the evaluator treats
+      # EVERY required check as applicable, which is strictly stricter.
+      - name: Resolve check applicability
+        id: applicability
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          BASE="${{ github.base_ref }}"
+          if [ -n "$BASE" ]; then
+            git fetch --no-tags --depth=0 origin "$BASE" || git fetch --no-tags origin "$BASE" || true
+            BASE_REF="origin/${BASE}"
+          else
+            BASE_REF="HEAD~1"
+          fi
+          echo "Classifying against ${BASE_REF}"
+          if node security/scripts/classify-changed-surfaces.js "$BASE_REF" > /tmp/classification.json; then
+            echo "path=/tmp/classification.json" >> "$GITHUB_OUTPUT"
+            python3 -c "import json;d=json.load(open('/tmp/classification.json'));print('classifications:',d['classifications']);print('applicability:',json.dumps(d.get('checkApplicability'),indent=1))"
+          else
+            echo "Classification FAILED - the evaluator will treat every required check as applicable (fail closed)."
+          fi
+
       - name: Evaluate required security checks
         id: wait
         env:
@@ -131,7 +166,7 @@ jobs:
             --sha "${{ steps.sha.outputs.head_sha }}" \
             --token "${{ github.token }}" \
             --wait-seconds "${{ steps.sha.outputs.wait_seconds }}" \
-            --project-check-report "${{ steps.project_check_report.outputs.path }}" || EC=$?
+            --project-check-report "${{ steps.project_check_report.outputs.path }}"             --applicability "${{ steps.applicability.outputs.path }}" || EC=$?
           if [ -f security/reports/promotion-verdict.json ]; then
             VERDICT="$(python3 -c "import json; print(json.load(open('security/reports/promotion-verdict.json', encoding='utf-8'))['finalVerdict'])")"
             echo "verdict=${VERDICT}" >> "$GITHUB_OUTPUT"

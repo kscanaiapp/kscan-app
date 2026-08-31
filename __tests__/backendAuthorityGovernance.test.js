@@ -145,9 +145,15 @@ test('the baseline comparison actually RUNS in a required CI job', () => {
   // check-run, so requiring that name could never block. It was closed by running
   // the real test inside 'Project checks', which IS required.
   const pkg = JSON.parse(read('package.json'));
-  assert.equal(
-    pkg.scripts['test:security'],
-    'node --test __tests__/security/baselineComparison.test.js',
+  // Pin the CONTENT of the script, not its exact string: CI-APPLICABILITY-001
+  // added checkApplicability.test.js to the same runner, and pinning the literal
+  // made a legitimate addition look like a regression.
+  const testSecurity = pkg.scripts['test:security'];
+  assert.match(testSecurity, /^node --test /);
+  assert.match(
+    testSecurity,
+    /__tests__\/security\/baselineComparison\.test\.js/,
+    'the baseline comparison must remain in the required runner',
   );
   const workflow = read('.github', 'workflows', 'security-code.yml');
   assert.match(workflow, /run: npm run test:security/, 'CI must invoke the comparison');
