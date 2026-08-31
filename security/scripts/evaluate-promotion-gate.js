@@ -166,7 +166,7 @@ async function githubRequest(url, token) {
  * waiting while the wiring is being proven); raise --wait-seconds once real
  * runs confirm the names above are correct.
  */
-async function fetchCheckRunsOnce(repo, sha, token, waitSeconds) {
+async function fetchCheckRunsOnce(repo, sha, token, waitSeconds, applicability) {
   const deadline = Date.now() + Math.max(0, waitSeconds) * 1000;
   const [owner, name] = repo.split('/');
   const url = `https://api.github.com/repos/${owner}/${name}/commits/${sha}/check-runs?per_page=100`;
@@ -193,8 +193,24 @@ async function fetchCheckRunsOnce(repo, sha, token, waitSeconds) {
       }
     }
 
+    // CI-APPLICABILITY-001. The wait used to require `byName.has(n)` -- i.e. it
+    // only waited for checks that had ALREADY appeared. Under the staging
+    // gate's serialized concurrency (`cancel-in-progress: false`) a required
+    // sibling workflow can still be QUEUED when this first evaluates, so its
+    // check-runs do not exist yet. Waiting only for already-present checks
+    // therefore returned immediately and the absent ones were reported as
+    // structurally missing.
+    //
+    // An APPLICABLE check that has not materialised now participates in the
+    // wait on equal terms with one that is queued or in progress. A
+    // NOT_APPLICABLE check is never waited for -- it is not coming.
     const allNames = [...ALWAYS_REQUIRED_CHECKS, ...DEPLOYMENT_REQUIRED_CHECKS];
-    const stillPending = allNames.some((n) => byName.has(n) && byName.get(n).status !== 'completed');
+    const stillPending = allNames.some((n) => {
+      if (!isCheckApplicable(n, applicability)) return false;
+      const run = byName.get(n);
+      if (!run) return true;
+      return run.status !== 'completed';
+    });
     if (!stillPending || Date.now() >= deadline) {
       return byName;
     }
@@ -280,41 +296,211 @@ function classifyCheckFailure(name, conclusion, context = {}) {
  *   still classifies safely — see classifyProjectCheckFailure's fail-closed
  *   default.
  */
-function resolveCheckRunVerdict({ repository, sha, byName, projectCheckReport }) {
+/**
+ * ── CI-APPLICABILITY-001: semantic check states ────────────────────────────
+ *
+ * The gate previously had ONE question per required check: "is there a
+ * check-run, and did it conclude success or skipped". That conflated four
+ * genuinely different situations, two of which are dangerous:
+ *
+ *   NOT APPLICABLE     the governing workflow condition proves this check does
+ *                      not apply to this diff (e.g. no migrations in the diff,
+ *                      so `Migration validation` legitimately never runs).
+ *                      Previously read as "missing" -> OPERATIONAL FAILURE, so
+ *                      a client-only PR could never go green.
+ *
+ *   PENDING            applicable, but not concluded yet -- INCLUDING not yet
+ *                      materialised as a check-run. Under the staging gate's
+ *                      serialized concurrency a sibling workflow can still be
+ *                      queued when this evaluates. Previously read as "missing".
+ *
+ *   FAILURE            applicable, concluded, and found a real regression.
+ *
+ *   OPERATIONAL_FAILURE applicable, but could not establish a result --
+ *                      cancelled, timed out, stale, startup failure, or SKIPPED
+ *                      DESPITE BEING APPLICABLE. `skipped` was previously
+ *                      accepted as a PASS for every check, which meant a
+ *                      wrongly-skipped required job silently satisfied the gate.
+ */
+const CHECK_STATE = Object.freeze({
+  NOT_APPLICABLE: 'NOT_APPLICABLE',
+  PENDING: 'PENDING',
+  SUCCESS: 'SUCCESS',
+  FAILURE: 'FAILURE',
+  OPERATIONAL_FAILURE: 'OPERATIONAL_FAILURE',
+});
+
+/**
+ * Every raw GitHub check conclusion, mapped explicitly.
+ *
+ * Deliberately an exhaustive table rather than `conclusion !== 'success'`
+ * logic: a conclusion this table does not know about must fail closed, not
+ * inherit whichever branch happens to be the permissive one. GitHub has added
+ * vocabulary before and will again.
+ */
+const CONCLUSION_STATE = Object.freeze({
+  success: CHECK_STATE.SUCCESS,
+  // `failure` is refined further by classifyCheckFailure: a failed
+  // 'Project checks' may be a real regression OR a CI operational failure.
+  failure: CHECK_STATE.FAILURE,
+  cancelled: CHECK_STATE.OPERATIONAL_FAILURE,
+  timed_out: CHECK_STATE.OPERATIONAL_FAILURE,
+  startup_failure: CHECK_STATE.OPERATIONAL_FAILURE,
+  stale: CHECK_STATE.OPERATIONAL_FAILURE,
+  // Requires a human decision. Never a pass.
+  action_required: CHECK_STATE.OPERATIONAL_FAILURE,
+  // No check contract in this repository defines neutral as a successful
+  // terminal state, so it fails closed.
+  neutral: CHECK_STATE.OPERATIONAL_FAILURE,
+  // Reached only when the check was APPLICABLE. A non-applicable skip is
+  // resolved to NOT_APPLICABLE before this table is consulted.
+  skipped: CHECK_STATE.OPERATIONAL_FAILURE,
+});
+
+/**
+ * Applicability for one check.
+ *
+ * Absent from the contract == applicable. A check is required unless the
+ * canonical classification proves otherwise; an unreadable or missing
+ * applicability contract therefore means EVERY check is applicable, which is
+ * the fail-closed direction (see loadApplicability).
+ */
+function isCheckApplicable(name, applicability) {
+  if (!applicability || typeof applicability !== 'object') return true;
+  const value = applicability[name];
+  if (value === undefined || value === null) return true;
+  return value !== false;
+}
+
+/**
+ * Resolve one check to a semantic state. Applicability is decided FIRST, so
+ * absence is only ever forgiven when it was proven not to apply.
+ */
+function resolveCheckState(name, run, applicable, hasContract = true) {
+  if (!run) {
+    // Applicable and not materialised yet: PENDING, not missing. The caller's
+    // bounded wait converts a PENDING that outlives the deadline into an
+    // OPERATIONAL FAILURE with named evidence.
+    return applicable ? CHECK_STATE.PENDING : CHECK_STATE.NOT_APPLICABLE;
+  }
+  if (run.status !== 'completed') {
+    return applicable ? CHECK_STATE.PENDING : CHECK_STATE.NOT_APPLICABLE;
+  }
+  if (run.conclusion === 'skipped') {
+    if (!applicable) {
+      // The governing condition proved it does not apply and GitHub emitted a
+      // skipped shell for it. Consistent, and legitimately not applicable.
+      return CHECK_STATE.NOT_APPLICABLE;
+    }
+    // No applicability contract available (e.g. the classifier step produced
+    // nothing, or a direct fixture call). The DEPLOYMENT_REQUIRED checks carry
+    // a long-standing documented self-skip contract -- on a ref that performs
+    // no staging deployment they report `skipped`, and that has always been an
+    // accepted terminal state. Honouring it here is not a relaxation: with a
+    // contract present, applicability decides, and an applicable check that is
+    // skipped still fails below.
+    if (!hasContract && DEPLOYMENT_REQUIRED_CHECKS.includes(name)) {
+      return CHECK_STATE.NOT_APPLICABLE;
+    }
+  }
+  const mapped = CONCLUSION_STATE[run.conclusion];
+  // Unknown/absent conclusion vocabulary fails closed.
+  return mapped || CHECK_STATE.OPERATIONAL_FAILURE;
+}
+
+function resolveCheckRunVerdict({
+  repository,
+  sha,
+  byName,
+  projectCheckReport,
+  applicability,
+  // Set by main() once the bounded convergence wait has elapsed. An applicable
+  // check still queued/in_progress at that point can no longer be called
+  // "still coming" -- it is an operational failure. Defaults false so a direct
+  // fixture call keeps the historical PENDING semantics.
+  treatUnresolvedAsOperational = false,
+}) {
   const missing = [];
   const pending = [];
+  const notApplicable = [];
   const failures = [];
   const flags = {};
   const results = {};
+  const states = {};
+  const hasContract = Boolean(applicability && typeof applicability === 'object');
 
   for (const name of [...ALWAYS_REQUIRED_CHECKS, ...DEPLOYMENT_REQUIRED_CHECKS]) {
     const run = byName.get(name);
-    if (!run) {
-      missing.push(name);
-      results[name] = 'missing';
+    const applicable = isCheckApplicable(name, applicability);
+    const state = resolveCheckState(name, run, applicable, hasContract);
+    states[name] = state;
+
+    if (state === CHECK_STATE.NOT_APPLICABLE) {
+      notApplicable.push(name);
+      results[name] = 'not_applicable';
       continue;
     }
-    if (run.status !== 'completed') {
-      pending.push(name);
-      results[name] = `pending (${run.status})`;
+    if (state === CHECK_STATE.PENDING) {
+      // An applicable check that never materialised is only reported as
+      // MISSING once the convergence window has expired. Before that it is
+      // simply not finished yet.
+      if (!run) {
+        // Never materialised. The bounded wait in fetchCheckRunsOnce is what
+        // absorbs TRANSIENT absence (a queued sibling workflow); by the time
+        // this resolves, an applicable check with no run at all is missing.
+        missing.push(name);
+        results[name] = 'missing (applicable, never started)';
+      } else {
+        pending.push(name);
+        results[name] = `pending (${run.status})`;
+      }
       continue;
     }
-    results[name] = run.conclusion;
-    if (run.conclusion !== 'success' && run.conclusion !== 'skipped') {
-      failures.push(`${name}: ${run.conclusion}`);
-      const classified = classifyCheckFailure(name, run.conclusion, { projectCheckReport });
-      if (classified) flags[classified.key] = true;
+
+    results[name] = run ? run.conclusion : state;
+    if (state === CHECK_STATE.SUCCESS) continue;
+
+    // FAILURE or OPERATIONAL_FAILURE.
+    const conclusion = run ? run.conclusion : 'absent';
+    failures.push(`${name}: ${conclusion}`);
+    const classified = classifyCheckFailure(name, conclusion, { projectCheckReport });
+    if (classified) {
+      flags[classified.key] = true;
+    } else {
+      // No established classifier for this (name, conclusion) pair -- e.g. a
+      // cancelled/stale/neutral conclusion, or vocabulary this repo has not
+      // seen. Fail closed as operational rather than letting an unflagged
+      // failure fall through to PASS.
+      flags.ciOperationalFailureCancelled = true;
     }
   }
+
+  // The legacy per-surface fields below feed evaluateLocal's existing rules,
+  // which predate the applicability model and only understand the old
+  // vocabulary. A check that does not apply is presented to them as 'skipped'
+  // -- exactly what they already treat as "did not run, nothing to judge".
+  // This is a translation, not a relaxation: a NOT_APPLICABLE state is only
+  // ever produced when the canonical contract proved the check does not apply.
+  const legacy = (name) => {
+    const value = results[name];
+    if (!value || value === 'not_applicable') return 'skipped';
+    return value;
+  };
 
   const base = {
     repository,
     headSha: sha,
     mergeSha: sha,
     staticScannerResults: results,
-    stagingDeploymentResult: results['Staging health checks'] || 'skipped',
-    zapBaselineResult: results['ZAP Baseline (staging)'] || 'skipped',
-    zapApiResult: results['ZAP API staging'] || 'skipped',
+    stagingDeploymentResult: legacy('Staging health checks'),
+    zapBaselineResult: legacy('ZAP Baseline (staging)'),
+    zapApiResult: legacy('ZAP API staging'),
+  };
+
+  const evidence = (verdict) => {
+    verdict.checkStates = states;
+    verdict.notApplicableChecks = notApplicable;
+    return verdict;
   };
 
   // Task 10: missing required checks are always an explicit operational
@@ -327,19 +513,38 @@ function resolveCheckRunVerdict({ repository, sha, byName, projectCheckReport })
     verdict.blockingReason = verdict.failures.join(', ');
     verdict.missingChecks = missing;
     verdict.pendingChecks = pending;
-    return verdict;
+    return evidence(verdict);
   }
 
-  // Genuinely still running (normal mid-sequence state under workflow_run
-  // triggering) — not a failure, not a pass, and NOT worth a 20-minute wait:
-  // the next upstream completion re-invokes this script.
+  // Still running. Two different situations:
+  //
+  //  - convergence window still open -> PENDING. Not a failure, not a pass.
+  //    On workflow_run the next upstream completion re-invokes this script; on
+  //    pull_request/push the caller's bounded wait is still counting down.
+  //
+  //  - window expired and an APPLICABLE check is still queued/in_progress ->
+  //    OPERATIONAL FAILURE. The gate must never PASS on a check that never
+  //    concluded, and must never sit at PENDING forever pretending a result is
+  //    still coming.
   if (pending.length > 0) {
+    if (treatUnresolvedAsOperational) {
+      const verdict = evaluateLocal({ ...base, missingRequiredArtifact: true });
+      verdict.finalVerdict = 'OPERATIONAL FAILURE';
+      verdict.failures = [...new Set([
+        ...(verdict.failures || []),
+        ...pending.map((n) => `unresolved check after convergence deadline: ${n}`),
+      ])];
+      verdict.blockingReason = verdict.failures.join(', ');
+      verdict.missingChecks = [];
+      verdict.pendingChecks = pending;
+      return evidence(verdict);
+    }
     const verdict = evaluateLocal(base);
     verdict.finalVerdict = 'PENDING';
     verdict.blockingReason = null;
     verdict.missingChecks = [];
     verdict.pendingChecks = pending;
-    return verdict;
+    return evidence(verdict);
   }
 
   const verdict = evaluateLocal({
@@ -357,7 +562,7 @@ function resolveCheckRunVerdict({ repository, sha, byName, projectCheckReport })
   }
   verdict.missingChecks = [];
   verdict.pendingChecks = [];
-  return verdict;
+  return evidence(verdict);
 }
 
 function evaluateLocal(input) {
@@ -525,10 +730,58 @@ async function main() {
     process.exit(2);
   }
 
+  // ── Applicability contract (CI-APPLICABILITY-001) ─────────────────────────
+  //
+  // The canonical classification produced by
+  // security/scripts/classify-changed-surfaces.js. It is the SAME authority the
+  // staging workflow's job-level `if:` conditions derive from, so the gate and
+  // the workflow cannot disagree about whether a check applies.
+  //
+  // FAIL CLOSED, in the only direction that is safe here: if the contract is
+  // absent, unreadable, malformed, or does not carry a checkApplicability
+  // object, `applicability` stays null and isCheckApplicable() then treats
+  // EVERY required check as applicable. A classifier failure can therefore only
+  // ever make the gate stricter -- never waive a check.
+  const applicabilityPath = getArg('--applicability');
+  let applicability = null;
+  let applicabilitySource = 'absent (all checks treated as applicable)';
+  if (applicabilityPath) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(applicabilityPath, 'utf8'));
+      if (parsed && typeof parsed.checkApplicability === 'object' && parsed.checkApplicability) {
+        applicability = parsed.checkApplicability;
+        applicabilitySource = applicabilityPath;
+      } else {
+        console.error(
+          `Applicability contract at ${applicabilityPath} has no checkApplicability object; `
+          + 'treating every required check as applicable (fail closed).',
+        );
+        applicabilitySource = 'malformed (all checks treated as applicable)';
+      }
+    } catch (error) {
+      console.error(
+        `Applicability contract at ${applicabilityPath} is unreadable (${error.message}); `
+        + 'treating every required check as applicable (fail closed).',
+      );
+      applicabilitySource = 'unreadable (all checks treated as applicable)';
+    }
+  }
+
   let verdict;
   try {
-    const byName = await fetchCheckRunsOnce(repo, sha, token, waitSeconds);
-    verdict = resolveCheckRunVerdict({ repository: repo, sha, byName, projectCheckReport });
+    const byName = await fetchCheckRunsOnce(repo, sha, token, waitSeconds, applicability);
+    verdict = resolveCheckRunVerdict({
+      repository: repo,
+      sha,
+      byName,
+      projectCheckReport,
+      applicability,
+      // fetchCheckRunsOnce returns either because everything applicable
+      // concluded, or because the window expired. Anything still unresolved at
+      // this point has outlived the wait.
+      treatUnresolvedAsOperational: true,
+    });
+    verdict.applicabilitySource = applicabilitySource;
   } catch (err) {
     // Task 10: API error, exact-SHA mismatch, or any other operational
     // problem still gets a written verdict — never a silent, artifact-less exit.
@@ -582,6 +835,10 @@ module.exports = {
   PROJECT_CHECK_CLASSIFICATIONS,
   evaluateLocal,
   resolveCheckRunVerdict,
+  resolveCheckState,
+  isCheckApplicable,
+  CHECK_STATE,
+  CONCLUSION_STATE,
   writeVerdict,
   classifyCheckFailure,
   classifyProjectCheckFailure,

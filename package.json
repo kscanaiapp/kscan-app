@@ -29,7 +29,7 @@
     "test:edge-parity": "node --test __tests__/edgeFunctionSourceParity.test.js",
     "deploy:edge-functions": "node scripts/deploy-edge-functions.js",
     "test:backend": "node scripts/run-backend-tests.js",
-    "test:security": "node --test __tests__/security/baselineComparison.test.js",
+    "test:security": "node --test __tests__/security/baselineComparison.test.js __tests__/security/checkApplicability.test.js",
     "test:staging-deploy": "node --test __tests__/staging/stagingDeployPipeline.test.js",
     "staging:preflight": "node scripts/staging-deploy-preflight.mjs",
     "staging:apply-migration": "node scripts/apply-staging-migration.mjs",
