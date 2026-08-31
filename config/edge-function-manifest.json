@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-31T04:47:38.702Z",
-    "generatedFromGitSha": "bc00111b532eaf9db2679aa28ee7889a5c588ba6"
+    "generatedAtUtc": "2026-08-31T09:26:22.329Z",
+    "generatedFromGitSha": "82e0873062feba0734af6edb9fb1b4463a7d194e"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -38,8 +38,8 @@
         ],
         "bundleFileCount": 40,
         "treeFileCount": 63,
-        "bundleHash": "8d1f11f2f9ed9e5127ee12cc16b38d6e8c62484f66dd595779330c20c84975f0",
-        "treeHash": "5b30bd12962e44101ec753a8e9e18dd82e8909f117b28e7ee75762b645934432",
+        "bundleHash": "1bc6749dd91c419308ce785af103052823ba47361163c55bdf74b25fe4bbc106",
+        "treeHash": "0e5548ee81251de83a1cff6100da0d1e2c5c67f0447539b816eb5bdbbda966ce",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -53,7 +53,7 @@
           },
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
-            "sha256": "34425a84ea83beb2d2a2ea53aebb533f26403b2d7136b653f0e6d63a74ffcf7c",
+            "sha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
             "bundle": true
           },
           {
@@ -366,12 +366,12 @@
         ],
         "bundleFileCount": 11,
         "treeFileCount": 14,
-        "bundleHash": "da4611fa6a0e63af33bec6a5091c2cad4e5d51f31eb2f03d1d0f89c8d1897bda",
-        "treeHash": "2910abf1037f86bafc8dfc4876b3a1520b85397c69eea26bcb21c1a51a24b1f1",
+        "bundleHash": "33a6aa91bb202d4f9b43de00df56710859999367496ac3ba95eb066923547bbf",
+        "treeHash": "669489390a756b268dc1281c62a85a286bb55c5acc4e1bb5f3af45293efb8bfb",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
-            "sha256": "34425a84ea83beb2d2a2ea53aebb533f26403b2d7136b653f0e6d63a74ffcf7c",
+            "sha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
             "bundle": true
           },
           {
@@ -449,13 +449,13 @@
           "npm:@supabase/supabase-js@2.105.4"
         ],
         "bundleFileCount": 48,
-        "treeFileCount": 68,
-        "bundleHash": "7ad5d72573e3106e8e4f8bce644506bd88d88102ea52ce52def9c45b47136656",
-        "treeHash": "d515e6300f9b2126dfe41cba7e68abbfa159ffd7c1403294f2777cabd82abac1",
+        "treeFileCount": 69,
+        "bundleHash": "6f73a690332feabd123088fe5cd2f79d1fb28259223c1ede5110c1d53e68ff13",
+        "treeHash": "efac0e0dcf544d4e689b9ae08acfefcda3349f444db23176164c3362ee5d03b2",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
-            "sha256": "34425a84ea83beb2d2a2ea53aebb533f26403b2d7136b653f0e6d63a74ffcf7c",
+            "sha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
             "bundle": true
           },
           {
@@ -585,7 +585,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseFocusResolution.ts",
-            "sha256": "1ffb215eadb6cde55f7aeb185f5846e5f926e996afa541f4fb57c4ee0bfc8fc8",
+            "sha256": "cefa8c1b77bdfc064b04d402e849c85ab6a0fe305739cbeac5bcfe6f2c795d15",
             "bundle": true
           },
           {
@@ -610,7 +610,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseResourceResolvers.ts",
-            "sha256": "f829a792661167e462b75f610767cee83b4ca157f428f546fb93d29bdff4352a",
+            "sha256": "81f7540873db0cf91b8f94011668e8e84c761c1050a8d6280e4cbf7d13faa339",
             "bundle": true
           },
           {
@@ -630,17 +630,17 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseVisualContextPipeline.test.ts",
-            "sha256": "f33c0af3d12ba9fe309a1b7f42a691f39760504ad8d38aa6e8ef9f8f76011df3",
+            "sha256": "13cc18ec728ca90d0c32a38e89e2d3931cdd4c6e9086726e4cb90e0ed6170d78",
             "bundle": false
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseVisualContextPipeline.ts",
-            "sha256": "1f605bbe7fa256a49daed994ad006e8a73955ecd3e3933a162c6bb2501a24b29",
+            "sha256": "cd04746148c53f1944159b93d60f6d2645bb8c5e70a2e1b839c38799d16e35ec",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseVisualContextTypes.ts",
-            "sha256": "7575dc5cdb1adaa331e8bcde1c5b0c8dd5d53ebe8604bc8d87b1688f2c8533a6",
+            "sha256": "e506ae5c83c4a27d4fa480ac26cfde7cffc9abbb4262e01a35a6ea4de6e7196c",
             "bundle": true
           },
           {
@@ -685,7 +685,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/index.ts",
-            "sha256": "6f90986c33a93d0e20268e52a84cf80cf7b9abd5a0cdc928190241ff3f2d78b5",
+            "sha256": "427a2e458526e2a3de73274505d9162d721c5b38cdd69b1477fd8b0cc3f0b10c",
             "bundle": true
           },
           {
@@ -697,6 +697,11 @@
             "path": "supabase/functions/stylechat-generate/multimodal.ts",
             "sha256": "5a2add9b2fbbe324eed61a90e193424a3f24a276907dfa51d11816913fa01822",
             "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/ownershipAuthority.test.ts",
+            "sha256": "8578821de6e124449b5b56fa78af430dfad4791be327874323ed0b56ab6ee6bd",
+            "bundle": false
           },
           {
             "path": "supabase/functions/stylechat-generate/packingCandidates.ts",
@@ -803,12 +808,12 @@
         ],
         "bundleFileCount": 6,
         "treeFileCount": 8,
-        "bundleHash": "b7339f46b44940f23f606ebca7bff9110818b5f166ad2c9bb7aea687df44ea72",
-        "treeHash": "f6b262bf873cc548cef6385ecfa389630042f598ad64d68e889ef54c32a15362",
+        "bundleHash": "4f2464847913e08e4f15f7bed1d193c87de696d5cfe4887c7704a61865c31862",
+        "treeHash": "b0172e422926d4bee9ef5fb4507b7a2298bb979d33ee3d58919fe370b03eda41",
         "files": [
           {
             "path": "supabase/functions/style-outfit-generate/index.ts",
-            "sha256": "1baa0ac9c439c023d53fcf2aa8d7216aed6beeec833967ffdb8e629f70500d75",
+            "sha256": "58365e0769f40b8eff2359130a2f57c4e698414e9a81c529a42a0f98306ada78",
             "bundle": true
           },
           {
@@ -843,7 +848,7 @@
           },
           {
             "path": "supabase/functions/style-outfit-generate/validation.ts",
-            "sha256": "dc12a93417747b5c5ec20a79a6fcb98aa21b0392ceb0b6b08cfc793c22fe0234",
+            "sha256": "907ab2a37f132201996d7ad1cfb63f1452dc77c6e33e9dd75b5b09ef0f20b027",
             "bundle": true
           }
         ]
@@ -1002,12 +1007,12 @@
         ],
         "bundleFileCount": 3,
         "treeFileCount": 3,
-        "bundleHash": "8d37504063987d138c418c2384ae9b483aa18900c07d03877ecf5e989fec3fb5",
-        "treeHash": "8d37504063987d138c418c2384ae9b483aa18900c07d03877ecf5e989fec3fb5",
+        "bundleHash": "ab7be956f912ad6820dd115287789e1d6eaec32a1904e13452f6c5f5f55b6a05",
+        "treeHash": "ab7be956f912ad6820dd115287789e1d6eaec32a1904e13452f6c5f5f55b6a05",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
-            "sha256": "34425a84ea83beb2d2a2ea53aebb533f26403b2d7136b653f0e6d63a74ffcf7c",
+            "sha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
             "bundle": true
           },
           {
@@ -1072,12 +1077,12 @@
         ],
         "bundleFileCount": 2,
         "treeFileCount": 2,
-        "bundleHash": "0c016d7df98babea4b76f1aec836db602a8cbcdd4cab37006cf0b794c4881a87",
-        "treeHash": "0c016d7df98babea4b76f1aec836db602a8cbcdd4cab37006cf0b794c4881a87",
+        "bundleHash": "f7e39200bfe4cb23b09529078fb31d229ae65f24c26ecc369e61b72b16f4396e",
+        "treeHash": "f7e39200bfe4cb23b09529078fb31d229ae65f24c26ecc369e61b72b16f4396e",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
-            "sha256": "34425a84ea83beb2d2a2ea53aebb533f26403b2d7136b653f0e6d63a74ffcf7c",
+            "sha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
             "bundle": true
           },
           {
@@ -1095,12 +1100,12 @@
         ],
         "bundleFileCount": 2,
         "treeFileCount": 2,
-        "bundleHash": "8fe98967217a7193e884794f5420c55fd684b1bab6739035237d63ebee8171fe",
-        "treeHash": "8fe98967217a7193e884794f5420c55fd684b1bab6739035237d63ebee8171fe",
+        "bundleHash": "6fa7c413b9e92ac04f1fa438bcf504c67ad08a21449e9c5130c21b56de914837",
+        "treeHash": "6fa7c413b9e92ac04f1fa438bcf504c67ad08a21449e9c5130c21b56de914837",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
-            "sha256": "34425a84ea83beb2d2a2ea53aebb533f26403b2d7136b653f0e6d63a74ffcf7c",
+            "sha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
             "bundle": true
           },
           {
@@ -1134,12 +1139,12 @@
         ],
         "bundleFileCount": 3,
         "treeFileCount": 3,
-        "bundleHash": "3f2f769deb82a0211027da80e435e90be55d0582d2b1693ef6df411c1828b45a",
-        "treeHash": "3f2f769deb82a0211027da80e435e90be55d0582d2b1693ef6df411c1828b45a",
+        "bundleHash": "fb78a613f8bbb5ac76cde54f29f3304610cdb51285de299000d2247fb0bbf0f5",
+        "treeHash": "fb78a613f8bbb5ac76cde54f29f3304610cdb51285de299000d2247fb0bbf0f5",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
-            "sha256": "34425a84ea83beb2d2a2ea53aebb533f26403b2d7136b653f0e6d63a74ffcf7c",
+            "sha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
             "bundle": true
           },
           {
@@ -1149,7 +1154,7 @@
           },
           {
             "path": "supabase/functions/kplus-activate/index.ts",
-            "sha256": "3779cca2c797935109716d1c56a14fb0a54108728aed88fe5a40960a01a0524d",
+            "sha256": "ff2fcf666193403ad8d3b93aae2bc9baa31d7c16525d37c398d0119ae6d084e7",
             "bundle": true
           }
         ]
@@ -1162,12 +1167,12 @@
         ],
         "bundleFileCount": 3,
         "treeFileCount": 3,
-        "bundleHash": "63204abc06b94609f597613f97ff8764916e1327d077353d7da2e55c7f817c52",
-        "treeHash": "63204abc06b94609f597613f97ff8764916e1327d077353d7da2e55c7f817c52",
+        "bundleHash": "8637cc7344e8a4930053ff64d1e80e3bd5fc54295463f95c402603a30571368e",
+        "treeHash": "8637cc7344e8a4930053ff64d1e80e3bd5fc54295463f95c402603a30571368e",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
-            "sha256": "34425a84ea83beb2d2a2ea53aebb533f26403b2d7136b653f0e6d63a74ffcf7c",
+            "sha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
             "bundle": true
           },
           {

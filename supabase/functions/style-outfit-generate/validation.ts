@@ -430,7 +430,7 @@ export function validateProviderOutfits(
     if (seenItemSets.has(setKey)) continue;
     seenItemSets.add(setKey);
 
-    const reason = cleanString(record.reason, REASON_MAX_CHARS) ?? 'A balanced combination from your closet.';
+    const reason = cleanString(record.reason, REASON_MAX_CHARS) ?? 'A balanced combination from your saved items.';
     // Never surface pseudo-precise scores: confidence is a coarse label only.
     const confidence =
       record.confidence === 'high' || record.confidence === 'medium' || record.confidence === 'low'

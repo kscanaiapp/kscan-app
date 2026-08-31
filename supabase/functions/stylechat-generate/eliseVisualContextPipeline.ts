@@ -114,9 +114,16 @@ function mapEvidenceSourceType(
   if (text === 'selected_scan_item') return 'selected_scan_item';
   if (text === 'text_scan' || text === 'text-scan') return 'text_scan';
   if (text === 'recent_scan' || text === 'recent-scan') return 'recent_scan';
-  if (text === 'closet_item' || text === 'saved_scan' || text === 'inspiration_item') {
-    return 'closet_item';
-  }
+  // INT-KPLUS-001: keep the caller's honest declaration instead of collapsing
+  // every closet-ish label into 'closet_item'. None of these can establish
+  // ownership on their own -- 'user_closet_item' and 'closet_item' alike are
+  // re-derived from the actual row by resolveClosetItem -- but preserving the
+  // distinction stops a saved scan from even being *described* as a Closet item
+  // on the way in.
+  if (text === 'saved_scan') return 'saved_scan';
+  if (text === 'inspiration_item') return 'inspiration_item';
+  if (text === 'user_closet_item') return 'user_closet_item';
+  if (text === 'closet_item') return 'closet_item';
   if (text === 'owned_room_item') return 'owned_room_item';
   if (text === 'shared_room_item') return 'shared_room_item';
   if (text === 'commerce_product' || text === 'product_match') return 'commerce_product';
@@ -140,14 +147,18 @@ function provisionalRelationship(
   if (sourceType === 'commerce_product' || sourceType === 'text_scan') return 'discovered';
   if (sourceType === 'shared_room_item') return 'shared';
   if (sourceType === 'uploaded_image') return 'uploaded';
+  if (sourceType === 'inspiration_item') return 'saved';
   if (
     sourceType === 'current_scan' ||
     sourceType === 'selected_scan_item' ||
-    sourceType === 'recent_scan'
+    sourceType === 'recent_scan' ||
+    sourceType === 'saved_scan'
   ) {
     return 'scanned';
   }
-  // closet / owned room stay unknown until server verification
+  // closet (legacy AND canonical) / owned room stay unknown until the server
+  // has actually read the row. A client may never provisionally claim 'owned'
+  // for itself (INT-KPLUS-001).
   return 'unknown';
 }
 

@@ -1486,6 +1486,23 @@ Deno.serve(async (req) => {
   // Runs after actor/session validation. Failures for optional context fail open.
   if (config.flags.contextNormalizationV1 && body.activeContext != null) {
     const eliseResourceData: EliseResourceDataSource = {
+      // INT-KPLUS-001 -- canonical Closet authority. This is the ONLY read that
+      // can establish actorRelationship 'owned'. RLS on user_closet_items already
+      // scopes to the caller; the explicit user_id filter and deleted_at guard are
+      // defense in depth so a policy change can never silently widen ownership.
+      fetchUserClosetItem: async (id) => {
+        const { data, error } = await userClient
+          .from('user_closet_items')
+          .select(
+            'id,user_id,title,category,clothing_type,subtype,brand,primary_color,secondary_colors,material,storage_bucket,storage_path,deleted_at',
+          )
+          .eq('id', id)
+          .eq('user_id', userId)
+          .is('deleted_at', null)
+          .maybeSingle();
+        if (error) throw error;
+        return (data ?? null) as Record<string, unknown> | null;
+      },
       fetchSavedScan: async (id) => {
         const { data, error } = await userClient
           .from('saved_scans')
