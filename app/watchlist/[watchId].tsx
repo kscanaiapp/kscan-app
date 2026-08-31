@@ -4,12 +4,17 @@
 // "cheaper elsewhere", any score. "Last checked" is load-bearing and must
 // never be hidden — refresh is daily-at-best and best-effort, so hiding
 // staleness is the fastest way to lose the user's trust.
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Linking, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import { goBackOrHome } from '../../services/navigationExit';
+import {
+  captureActorScope,
+  currentActorScopeKey,
+  isActorScopeCurrent,
+} from '../../services/actorScope';
 import {
   LuxuryScreen,
   KScanHeader,
@@ -55,24 +60,47 @@ const EVENT_LABEL: Record<CommerceWatchEvent['eventType'], string> = {
 
 export default function WatchDetailScreen() {
   const { watchId } = useLocalSearchParams<{ watchId: string }>();
-  const [watch, setWatch] = useState<CommerceWatch | null>(null);
-  const [events, setEvents] = useState<CommerceWatchEvent[]>([]);
+  // INT-KPLUS-003 — a Watch and its price-history events are actor-private.
+  // This screen previously had no actor awareness whatsoever: `load` keyed only
+  // on watchId, so after an A -> B account switch Actor A's watch, price and
+  // event history stayed on screen until something happened to re-focus it.
+  const actorScopeKey = currentActorScopeKey();
+  const [rawWatch, setWatch] = useState<CommerceWatch | null>(null);
+  const [rawEvents, setEvents] = useState<CommerceWatchEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Actor generation whose data is currently held in state. */
+  const loadedScopeKey = useRef<string | null>(null);
+
+  // Clear synchronously on the actor boundary — before any in-flight request
+  // can resolve — so nothing of the previous actor survives the switch.
+  useEffect(() => {
+    if (loadedScopeKey.current !== null && loadedScopeKey.current !== actorScopeKey) {
+      setWatch(null);
+      setEvents([]);
+      setError(null);
+      setLoading(true);
+      loadedScopeKey.current = null;
+    }
+  }, [actorScopeKey]);
 
   const load = useCallback(async () => {
     if (!watchId) return;
+    const scope = captureActorScope();
     setLoading(true);
     const [watchResult, eventsResult] = await Promise.all([
       fetchWatch(watchId),
       fetchWatchEvents(watchId),
     ]);
+    // Actor changed mid-flight: commit nothing.
+    if (!isActorScopeCurrent(scope)) return;
     if (watchResult.ok) setWatch(watchResult.data);
     else setError('Unable to load this Watch.');
     if (eventsResult.ok) setEvents(eventsResult.data);
+    loadedScopeKey.current = `${scope.actorId ?? 'anonymous'}#${scope.epoch}`;
     setLoading(false);
-  }, [watchId]);
+  }, [watchId, actorScopeKey]);
 
   useFocusEffect(
     useCallback(() => {
@@ -82,11 +110,22 @@ export default function WatchDetailScreen() {
 
   const handleRefresh = useCallback(async () => {
     if (!watchId) return;
+    const scope = captureActorScope();
     setBusy(true);
     await refreshWatches(watchId).catch(() => null);
+    if (!isActorScopeCurrent(scope)) return;
     await load();
+    if (!isActorScopeCurrent(scope)) return;
     setBusy(false);
   }, [watchId, load]);
+
+  // Never expose another actor's Watch, even for a single frame between the
+  // transition and the clearing effect. Shadowing the raw state here means
+  // every consumer below -- render, "view on retailer", pause/resume/delete --
+  // reads the actor-safe value without needing its own guard.
+  const isCurrentActorData = loadedScopeKey.current === actorScopeKey;
+  const watch = isCurrentActorData ? rawWatch : null;
+  const events = isCurrentActorData ? rawEvents : [];
 
   const handlePause = useCallback(async () => {
     if (!watchId) return;
