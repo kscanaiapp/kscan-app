@@ -64,7 +64,7 @@ function post(body: unknown, headers: Record<string, string> = {}): Request {
 
 function deps(overrides: Partial<VtoHandlerDeps> = {}): Partial<VtoHandlerDeps> {
   return {
-    requireUser: () => Promise.resolve({ id: USER_ID, accessToken: 'token' }),
+    requireUser: () => Promise.resolve({ id: USER_ID, accessToken: 'token', isAnonymous: false }),
     assertAccountActive: () => Promise.resolve(),
     readVtoFeatureConfig: () => Promise.resolve(ENABLED_CONFIG),
     resolveVtoEntitlement: () => Promise.resolve({ state: 'active' as const }),
