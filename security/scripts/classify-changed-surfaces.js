@@ -11,7 +11,7 @@
  * Outputs JSON to stdout with classifications and stagingImpact boolean.
  */
 
-const { execSync } = require('node:child_process');
+const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 
 const CLASSIFIERS = [
@@ -60,6 +60,64 @@ const STAGING_IMPACT_TAGS = new Set([
 class ClassificationAuthorityError extends Error {}
 
 /**
+ * True when `ref` names a real commit in this checkout.
+ *
+ * execFileSync, NOT execSync: this runs through no shell, so the `^{commit}`
+ * peel survives verbatim. Through cmd.exe on Windows `^` is the escape
+ * character and the suffix silently became `{commit}`, so every ref failed to
+ * resolve -- a portability trap worth not re-introducing.
+ */
+function refResolves(ref) {
+  try {
+    execFileSync('git', ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Resolve the base to diff against, trying only spellings of the SAME ref.
+ *
+ * actions/checkout does not always create a remote-tracking branch for a PR's
+ * base, so `origin/<base>` can be unresolvable even at fetch-depth 0. Previously
+ * that hit a silent `HEAD~1 HEAD` fallback which answered a DIFFERENT question;
+ * that fallback is gone.
+ *
+ * The merge-commit case here is not a guess. On a pull_request event
+ * actions/checkout checks out the MERGE commit, whose FIRST parent is by
+ * definition the base tip -- so `HEAD^1` is exactly the base, not an
+ * approximation of it. It is used only when HEAD really is a merge commit.
+ *
+ * Returns null when nothing resolves, and the caller fails closed.
+ */
+function resolveBaseRef(requested) {
+  const candidates = [];
+  if (requested) {
+    candidates.push(requested);
+    if (requested.startsWith('origin/')) candidates.push(requested.slice('origin/'.length));
+    else candidates.push(`origin/${requested}`);
+    candidates.push(`refs/remotes/${requested}`);
+  }
+  for (const candidate of candidates) {
+    if (refResolves(candidate)) return candidate;
+  }
+  // Merge commit -> first parent IS the base.
+  try {
+    const parents = execFileSync('git', ['rev-list', '--parents', '-n', '1', 'HEAD'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim().split(/\s+/);
+    if (parents.length >= 3) return parents[1];
+  } catch {
+    /* fall through */
+  }
+  return null;
+}
+
+/**
  * Resolve the changed-file set.
  *
  * --no-renames is deliberate. With rename detection on, `git diff --name-only`
@@ -73,19 +131,29 @@ class ClassificationAuthorityError extends Error {}
  * The previous silent fallback to `HEAD~1 HEAD` is REMOVED: it answered a
  * DIFFERENT question than the caller asked. If the base was unresolvable it
  * classified the last commit instead of the branch, which on a multi-commit
- * branch can report no migrations for a PR that contains one.
+ * branch can report no migrations for a PR that contains one. resolveBaseRef
+ * only ever tries other spellings of the SAME ref, or the merge commit's first
+ * parent -- which IS the base by definition, not an approximation.
  */
 function gitDiffFiles(baseRef) {
+  const resolved = resolveBaseRef(baseRef);
+  if (!resolved) {
+    throw new ClassificationAuthorityError(
+      `cannot resolve a base to diff against (requested "${baseRef}"). ` +
+      'Refusing to classify: an unresolvable base is not an empty diff, and an ' +
+      'empty diff would waive every check.',
+    );
+  }
   let out;
   try {
-    out = execSync(`git diff --no-renames --name-only ${baseRef}...HEAD`, {
+    out = execFileSync('git', ['diff', '--no-renames', '--name-only', `${resolved}...HEAD`], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
     });
   } catch (error) {
     const detail = error && error.message ? String(error.message).split('\n')[0] : 'unknown';
     throw new ClassificationAuthorityError(
-      `cannot resolve diff against base "${baseRef}": ${detail}`,
+      `cannot diff against resolved base "${resolved}": ${detail}`,
     );
   }
   return out.split('\n').map((l) => l.trim()).filter(Boolean);
@@ -225,6 +293,7 @@ if (require.main === module) {
 
 module.exports = {
   classifyFile,
+  resolveBaseRef,
   gitDiffFiles,
   STAGING_IMPACT_TAGS,
   GOVERNANCE_SENSITIVE_TAGS,

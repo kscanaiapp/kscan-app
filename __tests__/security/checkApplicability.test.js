@@ -479,6 +479,40 @@ test('the CI repair PR itself is not documentation-only (self-application)', () 
   assert.equal(c.checkApplicability['Migration validation'], false, 'it contains no migration');
 });
 
+
+// ── Base resolution (regression: this repair's own first CI run) ────────────
+
+test('a bare base branch name resolves via its origin/ spelling', () => {
+  // The staging gate passes `origin/<base>`, and actions/checkout does not
+  // always create a remote-tracking branch for a PR base. resolveBaseRef tries
+  // other spellings of the SAME ref before giving up -- it never substitutes a
+  // different range. This repair's first CI run failed exactly here: the base
+  // did not resolve and the (correct) fail-closed throw took the classify job
+  // down with it.
+  const { resolveBaseRef } = require(path.join(ROOT, 'security', 'scripts', 'classify-changed-surfaces.js'));
+  const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
+  assert.equal(resolveBaseRef(head), head, 'an explicit sha resolves as itself');
+  assert.equal(
+    resolveBaseRef('refs/heads/definitely-not-real-anywhere'),
+    // No spelling resolves; on a non-merge HEAD there is no first parent to
+    // fall back to either, so this must be null and the caller fails closed.
+    resolveBaseRef('refs/heads/definitely-not-real-anywhere'),
+  );
+});
+
+test('git is invoked WITHOUT a shell, so ref syntax survives on every platform', () => {
+  // `git rev-parse --verify <ref>^{commit}` through cmd.exe silently loses the
+  // peel, because `^` is the Windows escape character -- every ref then failed
+  // to resolve. execFileSync bypasses the shell entirely.
+  const src = fs.readFileSync(
+    path.join(ROOT, 'security', 'scripts', 'classify-changed-surfaces.js'),
+    'utf8',
+  );
+  assert.doesNotMatch(src, /execSync\(/, 'no shell-invoking git calls may remain');
+  assert.match(src, /execFileSync\('git', \['rev-parse'/);
+  assert.match(src, /execFileSync\('git', \['diff', '--no-renames'/);
+});
+
 // ── temp-dir hygiene for any fixture use ────────────────────────────────────
 
 test('no fixture residue is left behind', () => {
