@@ -61,6 +61,29 @@ export interface EliseBackendFlags {
    * a recognized schema and every existing StyleChat path is untouched.
    */
   packingIntelligenceV1: boolean;
+  /**
+   * Build 34 / K+ Wardrobe Concierge V1 (C1 section 14). THE SINGLE CONCIERGE
+   * CAPABILITY FLAG. Default OFF.
+   *
+   * Boundary against the two flags it is often confused with:
+   *
+   *   adviceMetadataClientV1  -- TRANSPORT. Whether adviceMetadata is allowed to
+   *                              reach the client at all. Predates Concierge and
+   *                              keeps its existing meaning unchanged.
+   *   closetWardrobeContextV1 -- SOURCE. Whether the authoritative Track B
+   *                              Closet participates in retrieval (plus the
+   *                              server-derived Style DNA context), K+ gated.
+   *   conciergeV1             -- CAPABILITY. Whether the new customer-visible
+   *                              Concierge behaviour exists: v2 display facts,
+   *                              the wardrobe-context signal, text->Closet focus
+   *                              resolution, census-backed gap authority,
+   *                              role-aware looks and ownership prose safety.
+   *
+   * There is deliberately no fourth control layer. Concierge does not re-gate
+   * transport or re-gate the source; it composes with both. With this flag off
+   * the advice payload is byte-identical to its pre-Concierge form.
+   */
+  conciergeV1: boolean;
 }
 
 export interface EliseBackendConfig {
@@ -153,6 +176,7 @@ export function readEliseBackendConfig(env: EnvReader): EliseBackendConfig {
       adviceMetadataClientV1: parseBooleanEnv(env, 'ELISE_ADVICE_METADATA_CLIENT_V1_ENABLED', false),
       closetWardrobeContextV1: parseBooleanEnv(env, 'ELISE_CLOSET_WARDROBE_CONTEXT_V1_ENABLED', false),
       packingIntelligenceV1: parseBooleanEnv(env, 'ELISE_PACKING_INTELLIGENCE_V1_ENABLED', false),
+      conciergeV1: parseBooleanEnv(env, 'ELISE_CONCIERGE_V1_ENABLED', false),
     },
   };
 }

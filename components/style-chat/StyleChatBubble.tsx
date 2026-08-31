@@ -11,6 +11,13 @@ import { STYLE_DNA_ENABLED } from '../../services/style-dna/localStyleDnaFeedbac
 import { reportAiOutput } from '../../services/reportAiOutput';
 import { isSyntheticStyleChatFailure } from '../../services/style-chat/styleChatOutcome';
 import { isEligibleForStyleFeedback } from '../../services/style-dna/styleDnaEligibility';
+import * as FileSystem from 'expo-file-system';
+import { ELISE_CONCIERGE_V1 } from '../../constants/featureFlags';
+import { ConciergeEvidenceBlock } from '../concierge/ConciergeEvidenceBlock';
+import {
+  conciergeOwnerIdFromUserKey,
+  type ConciergeResult,
+} from '../../services/concierge/conciergeModel';
 
 interface StyleChatBubbleProps {
   message: StyleChatMessage;
@@ -139,6 +146,11 @@ export function StyleChatBubble({
   // stable persisted id, and only when we have an authenticated user key.
   const isGreeting = !isUser && uiBlocks.some((block) => block?.type === 'greeting');
 
+  // Owner id for Concierge image resolution. Derived by the SHARED helper so
+  // iOS and Android cannot scope a Closet read differently, and so the rule is
+  // testable without mounting this view.
+  const conciergeOwnerId = conciergeOwnerIdFromUserKey(userKey);
+
   const showFeedback =
     STYLE_DNA_ENABLED &&
     !isSyntheticFailure &&
@@ -237,6 +249,28 @@ export function StyleChatBubble({
                   ? ((block as unknown as { actions: never[] }).actions)
                   : [];
                 return <StyleChatActionCards key={`actions-${i}`} actions={actions} />;
+              }
+
+              // Build 34 / K+ Wardrobe Concierge V1 (C4 section 41). Rendered
+              // from the server-validated structured model that was projected
+              // when the turn arrived -- never re-derived from the bubble text.
+              //
+              // The flag is re-checked at RENDER time, not only at write time:
+              // a block persisted while the capability was on must stop
+              // rendering the moment it is turned off, without needing the
+              // stored message to be rewritten.
+              if (block?.type === 'concierge_evidence') {
+                if (!ELISE_CONCIERGE_V1) return null;
+                const conciergeResult = (block as unknown as { result?: ConciergeResult }).result;
+                if (!conciergeResult || conciergeResult.presentation === 'none') return null;
+                return (
+                  <ConciergeEvidenceBlock
+                    key={`concierge-${i}`}
+                    result={conciergeResult}
+                    ownerId={conciergeOwnerId}
+                    fileSystem={FileSystem}
+                  />
+                );
               }
               return <StyleChatUiBlockView key={i} block={block} />;
             })}

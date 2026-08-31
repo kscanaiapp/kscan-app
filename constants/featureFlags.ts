@@ -518,6 +518,22 @@ export const ELISE_LEGACY_PHOTO_INTAKE_ENABLED =
  */
 export const ELISE_ADVICE_METADATA_CLIENT_V1 =
   process.env.EXPO_PUBLIC_ELISE_ADVICE_METADATA_CLIENT_V1 === 'true';
+
+/**
+ * Build 34 / K+ Wardrobe Concierge V1 (section 14). Default OFF.
+ *
+ * Gates the customer-visible Concierge PRESENTATION only: the "From your
+ * Closet" section, the owned-item cards and the look groups. It is the client
+ * half of the server's `conciergeV1`, and it is deliberately separate from
+ * ELISE_ADVICE_METADATA_CLIENT_V1, which continues to gate whether
+ * adviceMetadata is accepted from the response at all.
+ *
+ * Both must be on for anything to render: transport first, then presentation.
+ * A client with this on and transport off simply has no metadata to draw, which
+ * is the correct degradation rather than an error.
+ */
+export const ELISE_CONCIERGE_V1 =
+  process.env.EXPO_PUBLIC_ELISE_CONCIERGE_V1 === 'true';
 /**
  * DEVELOPMENT-ONLY starting route, for runtime QA harnesses.
  *
