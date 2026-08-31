@@ -125,6 +125,7 @@ const CONSUMERS = [
   ['app/stylist/index.tsx', 'INT-KPLUS-009 AI Stylist completion'],
   ['hooks/useWatchlist.ts', 'INT-KPLUS-003 Watchlist list'],
   ['app/watchlist/[watchId].tsx', 'INT-KPLUS-003 Watchlist detail'],
+  ['hooks/usePackingPlan.ts', 'Packing plan request'],
 ];
 
 for (const [rel, label] of CONSUMERS) {
@@ -173,6 +174,36 @@ test('the StyleChat greeting gates its speech-eligibility write behind the scope
     /if \(stale\(\)\) return;/,
     'noteInsertedGreetingForSpeech must be preceded by a staleness gate',
   );
+});
+
+test('Packing no longer uses a bare actorId comparison as its stale-work guard', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'hooks', 'usePackingPlan.ts'), 'utf8');
+  // The pre-fix guard compared getPackingSnapshot().actorId to a captured
+  // actorId string, which cannot reject a request from a stale A generation
+  // once an A -> B -> A cycle returns the id to matching. That comparison
+  // must be gone in favor of the epoch-based scope.
+  assert.doesNotMatch(
+    src,
+    /getPackingSnapshot\(\)\.actorId !== actorId/,
+    'Packing must not fall back to an actorId-only staleness comparison',
+  );
+});
+
+test('Packing discards a stale generation before applying any request outcome', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'hooks', 'usePackingPlan.ts'), 'utf8');
+  const applyPlanIdx = src.indexOf('applyPackingPlan({ actorId');
+  assert.ok(applyPlanIdx > 0, 'applyPackingPlan call site must exist');
+  const before = src.slice(Math.max(0, applyPlanIdx - 600), applyPlanIdx);
+  assert.match(
+    before,
+    /if \(!isActorScopeCurrent\(scope\)\) return;/,
+    'applyPackingPlan must be preceded by an actor-scope check',
+  );
+  // The guide/failure branches sit after the same guard, further down the
+  // same guarded block.
+  const guideIdx = src.indexOf('applyPackingGeneralGuide(');
+  const failureIdx = src.indexOf('applyPackingFailure(');
+  assert.ok(guideIdx > applyPlanIdx && failureIdx > guideIdx, 'all three outcomes must be inside the guarded region');
 });
 
 test('AI Stylist discards a stale generation before setResult and telemetry', () => {

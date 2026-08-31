@@ -116,7 +116,13 @@ test('auth boundary: Packing state is cleared by the one shared actor reset', ()
 
 test('hook: a completion that lands after an actor change is discarded', () => {
   const hook = read('hooks/usePackingPlan.ts');
-  assert.match(hook, /if \(getPackingSnapshot\(\)\.actorId !== actorId\) return;/);
+  // A bare actorId comparison cannot reject a response from a stale A
+  // generation once an A -> B -> A cycle returns the id to matching again —
+  // only the shared epoch-based scope (services/actorScope.ts) can. See
+  // __tests__/actorScopeAuthority.test.js for the full A -> B -> A proof.
+  assert.match(hook, /from '\.\.\/services\/actorScope'/);
+  assert.match(hook, /const scope = captureActorScope\(\);/);
+  assert.match(hook, /if \(!isActorScopeCurrent\(scope\)\) return;/);
 });
 
 test('hook: a new trip does not inherit the previous trip constraints', () => {
