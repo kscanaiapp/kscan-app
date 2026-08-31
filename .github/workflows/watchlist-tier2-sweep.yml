@@ -1,0 +1,128 @@
+# K+ Smart Watchlist — Tier 2 refresh sweep (STAGING ONLY, fail-closed).
+#
+# WHY THIS EXISTS. `commerce-watch-refresh` shipped with a complete, correctly
+# governed sweep endpoint that NOTHING ever called: no scheduler anywhere in the
+# repo invoked it, so every Watch sat un-refreshed forever. The worker was not
+# broken -- it was unreachable, the same defect class as DEF-WL-07.
+#
+# WHY A WORKFLOW AND NOT A NEW FRAMEWORK. This repo has no scheduler framework to
+# extend -- `process-account-deletions` has the same secret + app_config kill
+# switch shape and is likewise uninvoked. Rather than introduce a second
+# scheduling system, this reuses the one mechanism the repo already operates ops
+# on: a GitHub workflow, in the same style as staging-controlled-deploy.yml.
+#
+# THIS DOES NOT ACTIVATE ANYTHING. Three independent gates must ALL be satisfied
+# before a single row is claimed, and every one of them is off today:
+#   1. the `WATCHLIST_WORKER_SECRET` repository secret must exist -- absent, the
+#      job stops before making any request (see "Preflight" below);
+#   2. `SUPABASE_STAGING_FUNCTIONS_URL` must be configured -- absent, likewise;
+#   3. `app_config.watchlist_worker_enabled` must be `true` server-side -- the
+#      migration seeds it explicitly FALSE, so even a fully-configured run
+#      returns `{ enabled: false, claimed: 0 }` and changes nothing.
+# Gate 3 is the authority: it is enforced inside the function, so it holds even
+# if this workflow is invoked by hand.
+#
+# STAGING ONLY. The URL variable is staging-scoped by name and the schedule is
+# disabled; production activation is a separate, deliberate owner decision and
+# is intentionally not expressible from this file.
+#
+# THE SWEEP IS SELECTED BY THE HEADER, NOT BY A BODY ACTION. `Deno.serve` routes
+# to `runWorkerSweep()` on a valid `x-watchlist-worker-secret` and never reads an
+# action for that path, so the body is deliberately `{}` -- an invented
+# `{"action":"sweep"}` would be ignored and would imply a contract that does not
+# exist. The header name is `x-watchlist-worker-secret` (not `x-worker-secret`);
+# the wrong name authenticates as a normal caller and 401s.
+#
+# NO PROVIDER WORK RUNS HERE. This posts one authenticated request and reads the
+# response. Every retailer observation happens server-side inside the Edge
+# Function, which is also where retailer neutrality is enforced -- no retailer
+# name appears in this file.
+
+name: Watchlist Tier 2 Sweep (staging)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Must be RUN-SWEEP to proceed
+        required: true
+        default: ''
+        type: string
+  # Deliberately commented out, not merely disabled: the schedule is the last
+  # thing an owner turns on, after the secret exists and app_config is flipped.
+  # Uncommenting this alone still cannot refresh anything (gate 3 holds).
+  # schedule:
+  #   - cron: '17 */6 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: watchlist-tier2-sweep
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    name: Watchlist Tier 2 sweep
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name != 'workflow_dispatch' || inputs.confirm == 'RUN-SWEEP'
+    steps:
+      - name: Preflight — refuse to run unconfigured
+        id: preflight
+        env:
+          WORKER_SECRET: ${{ secrets.WATCHLIST_WORKER_SECRET }}
+          FUNCTIONS_URL: ${{ vars.SUPABASE_STAGING_FUNCTIONS_URL }}
+        run: |
+          set -euo pipefail
+          # Fail CLOSED and LOUD. An unconfigured sweep that exits 0 silently is
+          # indistinguishable from a sweep that ran and found nothing -- which is
+          # exactly how this feature came to look healthy while never running.
+          MISSING=""
+          [ -n "${WORKER_SECRET:-}" ] || MISSING="${MISSING} WATCHLIST_WORKER_SECRET(secret)"
+          [ -n "${FUNCTIONS_URL:-}" ] || MISSING="${MISSING} SUPABASE_STAGING_FUNCTIONS_URL(variable)"
+          if [ -n "${MISSING}" ]; then
+            echo "Watchlist Tier 2 sweep is NOT provisioned. Missing:${MISSING}"
+            echo "See docs/watchlist-tier2-operations.md for the exact owner provisioning steps."
+            exit 1
+          fi
+          case "${FUNCTIONS_URL}" in
+            https://*) ;;
+            *) echo "SUPABASE_STAGING_FUNCTIONS_URL must be an https origin"; exit 1 ;;
+          esac
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Invoke the governed sweep
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          WORKER_SECRET: ${{ secrets.WATCHLIST_WORKER_SECRET }}
+          FUNCTIONS_URL: ${{ vars.SUPABASE_STAGING_FUNCTIONS_URL }}
+        run: |
+          set -euo pipefail
+          BODY_FILE="$(mktemp)"
+          STATUS="$(curl --silent --show-error --fail-with-body \
+            --max-time 120 \
+            --request POST \
+            --header "content-type: application/json" \
+            --header "x-watchlist-worker-secret: ${WORKER_SECRET}" \
+            --data '{}' \
+            --output "${BODY_FILE}" \
+            --write-out '%{http_code}' \
+            "${FUNCTIONS_URL%/}/commerce-watch-refresh")" || CURL_FAILED=1
+
+          echo "HTTP ${STATUS}"
+          # The response body reports claimed/results counts only -- no watched
+          # item, price, retailer or user id -- so it is safe in a build log.
+          python3 -c "import json,sys; d=json.load(open(sys.argv[1])); print(json.dumps({k: d.get(k) for k in ('mode','enabled','claimed')}))" "${BODY_FILE}" \
+            || echo "(unparseable response body withheld)"
+
+          if [ "${CURL_FAILED:-0}" = "1" ] || [ "${STATUS}" != "200" ]; then
+            echo "Sweep request did not succeed."
+            exit 1
+          fi
+
+          # A disabled kill switch is a legitimate, expected outcome -- report it
+          # plainly rather than treating it as either success or failure noise.
+          if python3 -c "import json,sys; sys.exit(0 if json.load(open(sys.argv[1])).get('enabled') is False else 1)" "${BODY_FILE}"; then
+            echo "app_config.watchlist_worker_enabled is FALSE — nothing was claimed. This is the shipped default."
+          fi

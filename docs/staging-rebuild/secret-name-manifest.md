@@ -40,6 +40,7 @@ Blocking status is derived from which deployed Edge Function reads the name
 | `REVENUECAT_KPLUS_ENTITLEMENT_ID` | `kplus-activate`, `kplus-reconcile-revenuecat` | optional | internal | Defaults to `k_plus` if unset. |
 | `REVENUECAT_SYNC_ENABLED` | `kplus-activate`, `kplus-reconcile-revenuecat` | required to enable sync | internal flag | RevenueCat mirror stays off (`external_sync_status = 'not_required'`); local K+ grant is unaffected either way. |
 | `KPLUS_RECONCILE_INTERNAL_SECRET` | `kplus-reconcile-revenuecat` | required | internal | Reconciliation sweep endpoint refuses every request (401). |
+| `WATCHLIST_WORKER_SECRET` | `commerce-watch-refresh` | required to run the Tier 2 sweep | internal | The refresh sweep is unreachable: `requireWorkerSecret()` refuses without it, so every Watch stays un-refreshed. Absent on BOTH projects today — see `docs/watchlist-tier2-operations.md`. Enabling the sweep additionally requires `app_config.watchlist_worker_enabled`, seeded `false`. |
 
 **Model-name hazard.** `STYLECHAT_GEMINI_MODEL` is set on both projects, but the
 `*_GEMINI_MODEL` family is exactly where a retired model id causes a 404 at call
