@@ -54,6 +54,14 @@ const OWNERSHIP_ASSERTIONS: RegExp[] = [
   /\bfrom\s+your\s+closet\b/i,
   /\byou\s*'?\s*ve\s+got\b/i,
   /\bthat\s+you\s+own\b/i,
+  // CON-PROSE-001. "Wardrobe" is the word a person is most likely to use for
+  // the same idea, and none of the patterns above contain it -- so
+  // "the navy blazer is already in your wardrobe" asserted ownership as
+  // plainly as any of them and was not even examined. It reads as an ownership
+  // claim to the customer, so it is one here.
+  /\bin\s+your\s+wardrobe\b/i,
+  /\bfrom\s+your\s+wardrobe\b/i,
+  /\byour\s+wardrobe\s+(?:already\s+)?(?:has|includes|contains|holds)\b/i,
 ];
 
 /**
@@ -85,12 +93,50 @@ export interface EliseOwnershipProseVerdict {
   conflictCodes: string[];
 }
 
-function normalizeWord(value: string): string {
+/**
+ * CON-PROSE-004 -- every plausible stem, not one guessed stem.
+ *
+ * This used to commit to a SINGLE normalization, and its `-es` rule fired on
+ * words whose plural is merely `+s` over a stem already ending in `e`:
+ *
+ *   shoes -> sho      dresses -> dresse    totes -> tot
+ *   mules -> mul      tees    -> te        sunglasses -> sunglasse
+ *
+ * None of those are in GARMENT_NOUNS, so the guard could not see a claim about
+ * them AT ALL. "You already have brown shoes" -- the most natural way anyone
+ * would phrase it -- was never examined, for any actor, however little they
+ * owned. Six garment classes were structurally unguardable, two of them among
+ * the most common things a person owns.
+ *
+ * English morphology is not worth guessing at. Produce every candidate stem
+ * instead and let the caller match on any of them: over-generating a stem is
+ * harmless (the extra forms are not garment nouns and match nothing), while
+ * guessing wrong silently disables the guard.
+ */
+function wordVariants(value: string): string[] {
   const lower = value.toLowerCase().replace(/[^a-z0-9]/g, '');
-  if (lower.length > 3 && lower.endsWith('ies')) return `${lower.slice(0, -3)}y`;
-  if (lower.length > 3 && lower.endsWith('es') && !lower.endsWith('ses')) return lower.slice(0, -2);
-  if (lower.length > 2 && lower.endsWith('s') && !lower.endsWith('ss')) return lower.slice(0, -1);
-  return lower;
+  if (lower.length < 3) return lower ? [lower] : [];
+  const variants = new Set<string>([lower]);
+  if (lower.length > 3 && lower.endsWith('ies')) variants.add(`${lower.slice(0, -3)}y`);
+  if (lower.length > 3 && lower.endsWith('es')) variants.add(lower.slice(0, -2));
+  if (lower.length > 2 && lower.endsWith('s') && !lower.endsWith('ss')) {
+    variants.add(lower.slice(0, -1));
+  }
+  return [...variants];
+}
+
+/**
+ * The garment class a word names, or null when it names none.
+ *
+ * One word yields at most one class: the first variant that is a known garment
+ * noun. This is the ONLY place a word becomes a garment, so the vocabulary and
+ * the claim check can never disagree about what "shoes" is.
+ */
+function garmentClassOf(word: string): string | null {
+  for (const variant of wordVariants(word)) {
+    if (GARMENT_NOUNS.includes(variant)) return variant;
+  }
+  return null;
 }
 
 /**
@@ -102,18 +148,70 @@ function normalizeWord(value: string): string {
  * that is the entire point. An item the user photographed in a shop must not
  * license "you already have".
  */
+/**
+ * The garment classes a TITLE may license.
+ *
+ * CON-PROSE-002 -- a title is a NAME, not a taxonomy.
+ *
+ * Every word of the title used to be added to the vocabulary, so an owned
+ * "Leather Shoe Bag" licensed the word `shoe` and the sentence "you already
+ * have brown shoes" passed the guard for a customer who owns no shoes at all.
+ * The same holds for a "Suit Carrier", a "Garment Bag", a "Shoe Tree" -- any
+ * accessory whose name happens to contain another garment's noun.
+ *
+ * English noun phrases put the head noun last: "Leather Shoe Bag" IS a bag,
+ * "Brown Shoes" ARE shoes, "Shirt Dress" IS a dress. So only the LAST garment
+ * noun in the title is what the item actually is; earlier ones are modifiers
+ * describing it. Licensing only the head keeps the true claim ("you already
+ * have brown shoes" for an owned "Brown Shoes") and drops the false one.
+ *
+ * Words that are not garment nouns at all are still added: they are colours,
+ * materials and brands, and they can never be the subject of the ownership
+ * check, which only ever looks up GARMENT_NOUNS.
+ */
+function titleLicensedWords(title: string): string[] {
+  const words = title.split(/[^A-Za-z0-9]+/).filter(Boolean);
+  if (words.length === 0) return [];
+  // English noun phrases put the head LAST, and in this domain a title is such
+  // a phrase: "Navy Wool Trousers", "Leather Shoe Bag", "Cedar Shoe Tree". So
+  // the final word is what the item IS, and a garment noun anywhere before it
+  // is a modifier describing that thing -- never a thing the actor owns.
+  //
+  // Taking the last GARMENT noun instead would be wrong for the third example:
+  // a shoe tree is not a shoe. Taking the last word is right for all three, and
+  // when it is not a garment at all the title licenses no garment, which is the
+  // safe direction. Taxonomy (category/subcategory) remains the primary
+  // licensor, so a head-final miss cannot silently strip a claim the server's
+  // own classification supports.
+  const headIndex = words.length - 1;
+  const licensed: string[] = [];
+  words.forEach((word, index) => {
+    if (garmentClassOf(word) && index !== headIndex) return;
+    for (const variant of wordVariants(word)) {
+      if (variant.length > 2) licensed.push(variant);
+    }
+  });
+  return licensed;
+}
+
 function addCandidateWords(
   vocabulary: Set<string>,
   candidate: EliseWardrobeCandidate,
 ): void {
   if (candidate.actorRelationship !== 'owned') return;
-  const fields = [candidate.category, candidate.subcategory, candidate.title];
-  for (const field of fields) {
+  // Category and subcategory are TAXONOMY -- the server's own classification of
+  // what the item IS -- so they license directly. The title is a NAME and goes
+  // through the head-noun rule above.
+  for (const field of [candidate.category, candidate.subcategory]) {
     if (typeof field !== 'string') continue;
     for (const word of field.split(/[^A-Za-z0-9]+/)) {
-      const normalized = normalizeWord(word);
-      if (normalized.length > 2) vocabulary.add(normalized);
+      for (const variant of wordVariants(word)) {
+        if (variant.length > 2) vocabulary.add(variant);
+      }
     }
+  }
+  if (typeof candidate.title === 'string') {
+    for (const word of titleLicensedWords(candidate.title)) vocabulary.add(word);
   }
 }
 
@@ -207,8 +305,13 @@ export function enforceOwnershipProseSafety(input: {
       continue;
     }
 
-    const words = sentence.split(/[^A-Za-z0-9]+/).map(normalizeWord);
-    const namedGarments = words.filter((word) => GARMENT_NOUNS.includes(word));
+    // One word -> at most one garment class, via the SAME resolver the
+    // vocabulary was built with, so "shoes" here and "Shoes" in an owned item's
+    // title can never resolve differently.
+    const namedGarments = sentence
+      .split(/[^A-Za-z0-9]+/)
+      .map(garmentClassOf)
+      .filter((garment): garment is string => garment !== null);
 
     // Ownership language with no specific garment named is not a checkable
     // claim about an item ("you already have a good foundation"). Leaving it is
