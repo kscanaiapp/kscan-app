@@ -14,6 +14,7 @@
 
 import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import { useAuthSession } from '../contexts/AuthSessionContext';
+import { captureActorScope, isActorScopeCurrent } from '../services/actorScope';
 import { useKPlusEntitlement } from './useKPlusEntitlement';
 import { PACKING_INTELLIGENCE_V1 } from '../constants/featureFlags';
 import { requestPackingPlan } from '../services/packing/packingClient';
@@ -91,6 +92,12 @@ export function usePackingPlan(): UsePackingPlanResult {
       sessionId: string,
     ) => {
       if (!actorId) return;
+      // Capture the actor generation before the request. An A -> B -> A cycle
+      // returns the same actorId but a new epoch, so the epoch-based scope
+      // (not actorId alone) is what correctly rejects a response that resolves
+      // under a stale generation. Same shared authority as StyleChat/Watchlist/
+      // AI Stylist (services/actorScope.ts).
+      const scope = captureActorScope();
       beginPackingRequest({
         actorId,
         sessionId,
@@ -114,7 +121,7 @@ export function usePackingPlan(): UsePackingPlanResult {
       // result would render one account's Closet under another's session, so a
       // late completion across an actor boundary is discarded, exactly as
       // useCloset()/useLibrary() discard theirs.
-      if (getPackingSnapshot().actorId !== actorId) return;
+      if (!isActorScopeCurrent(scope)) return;
 
       if (result.status === 'success' && result.plan) {
         applyPackingPlan({ actorId, plan: result.plan, message: result.message });
