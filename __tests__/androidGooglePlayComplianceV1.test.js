@@ -368,3 +368,67 @@ test('no raw microphone audio is logged or persisted anywhere in the Voice path'
   assert.doesNotMatch(properties[1], /transcript|text|query|audio/i,
     'no content-bearing property may be allowlisted for voice telemetry');
 });
+
+
+test('the ONLY reachable microphone-request path is the JIT one in the Voice session', () => {
+  // usePermissionPreferences exports a SECOND microphone request --
+  // requestMicrophonePermission, a direct PermissionsAndroid.request that was
+  // written for onboarding. Build 33 removed the onboarding Microphone card,
+  // so it currently has no caller, and while VOICESCAN_ENABLED was a
+  // hardcoded false its internal guard made it inert regardless.
+  //
+  // Build 34 turns that flag on for the certification profile, so the guard no
+  // longer holds it shut -- only the absence of a caller does. Wiring it to
+  // onboarding would request the microphone at app setup rather than on the
+  // user's explicit Voice tap, which is exactly the posture Play review and
+  // this build's Data Safety answer both depend on NOT being true.
+  //
+  // So: assert it stays caller-less. If Voice ever legitimately needs a
+  // non-JIT path, that is a deliberate change that should fail here first.
+  const hook = readFile(path.join(REPO_ROOT, 'hooks', 'usePermissionPreferences.ts'));
+  assert.match(hook, /requestMicrophonePermission/, 'the second path still exists -- keep watching it');
+  assert.match(
+    hook,
+    /if \(Platform\.OS !== 'android' \|\| !VOICESCAN_ENABLED\)/,
+    'it must keep its own guard even though the guard is no longer sufficient',
+  );
+
+  const searchRoots = ['app', 'components', 'hooks', 'services'];
+  const callers = [];
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === 'node_modules') continue;
+        walk(full);
+        continue;
+      }
+      if (!/\.(ts|tsx)$/.test(entry.name)) continue;
+      const relative = path.relative(REPO_ROOT, full).replace(/\\/g, '/');
+      if (relative === 'hooks/usePermissionPreferences.ts') continue; // the definition itself
+      if (/requestMicrophonePermission/.test(fs.readFileSync(full, 'utf8'))) callers.push(relative);
+    }
+  };
+  for (const root of searchRoots) walk(path.join(REPO_ROOT, root));
+
+  assert.deepEqual(
+    callers,
+    [],
+    `requestMicrophonePermission is a NON-JIT microphone request and must stay caller-less; found: ${callers.join(', ')}`,
+  );
+});
+
+test('CONTROL G (negative): a new caller of the non-JIT microphone path would be caught', () => {
+  const fixture = ['app/onboarding/index.tsx'];
+  assert.throws(() => assert.deepEqual(fixture, []), 'the caller scan must reject a non-empty result');
+});
+
+test('the JIT path is the one Voice actually uses', () => {
+  // Positive half: Voice requests the microphone through the native module's
+  // own requestPermissions, called from startSession after an explicit tap.
+  const hook = readFile(path.join(REPO_ROOT, 'hooks', 'useVoiceScan.ts'));
+  assert.match(hook, /requestVoiceRecordingPermission/);
+  assert.doesNotMatch(hook, /PermissionsAndroid/, 'Voice must not open a second permission path of its own');
+  const startSession = hook.slice(hook.indexOf('const startSession'), hook.indexOf('const stopSession'));
+  assert.match(startSession, /await requestVoiceRecordingPermission\(\)/);
+});
