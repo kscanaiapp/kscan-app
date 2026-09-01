@@ -178,6 +178,26 @@
         "EXPO_PUBLIC_ELISE_CONCIERGE_V1": "true"
       }
     },
+    "testflight-staging": {
+      "extends": "staging",
+      "distribution": "store",
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "ios": {
+        "buildConfiguration": "Release"
+      },
+      "env": {
+        "EXPO_PUBLIC_TODAY_WITH_ELISE_V1": "false",
+        "EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED": "true",
+        "EXPO_PUBLIC_SMART_WATCHLIST_V1": "true",
+        "EXPO_PUBLIC_VOICESCAN_ENABLED": "true",
+        "EXPO_PUBLIC_FREE_TIER_UTILITY_ENABLED": "true",
+        "EXPO_PUBLIC_FREE_TIER_WISHLIST_INTENT_ENABLED": "true",
+        "EXPO_PUBLIC_FREE_TIER_OUTFIT_GENERATOR_ENABLED": "true"
+      }
+    },
     "production": {
       "distribution": "store",
       "autoIncrement": true,

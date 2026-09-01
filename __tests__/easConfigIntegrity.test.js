@@ -176,8 +176,21 @@ test('staging-certification produces a store-shaped bundle on the staging backen
 // scan-to-Watch-to-refresh path ever running end-to-end on staging). VTO,
 // Packing Intelligence, and Wardrobe Concierge were each proven fully closed
 // (ancestry + staging runtime + probe/fail-closed evidence) and are enabled
-// here. Voice Scan stays off (VOICESCAN_ENABLED is a hardcoded constant, not
-// an env flag, and is untouched).
+// here. Voice Scan stays off in THIS profile.
+//
+// Two of the notes above have since been superseded for the iOS
+// `testflight-staging` profile, and are left here because they remain the
+// correct rulings for the ANDROID certification artifact:
+//   - K+: the staging `kplus-activate` deployment was refreshed on
+//     2026-09-01 and now carries the SEC-KPLUS-008 repair (verified against
+//     the deployed source), so the "possible lost repair" is closed. The
+//     Android matrix still excludes K+ because that certification's evidence
+//     was gathered before the refresh.
+//   - Voice Scan: VOICESCAN_ENABLED is no longer a hardcoded constant — it is
+//     now env-resolved and fail-closed (constants/featureFlags.ts). It stays
+//     absent from this profile's env, so it remains OFF here; the resolver's
+//     default is off and __tests__/testflightStagingProfile.test.js asserts
+//     that EVERY profile except `testflight-staging` resolves it off.
 //
 // `staging-certification` may now define its OWN `env`, but only as a
 // narrow additive override on top of the inherited staging env (via

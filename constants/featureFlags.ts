@@ -80,13 +80,46 @@ export const TEXTSCAN_BACKEND_ENABLED =
 
 // ── VoiceScan placeholder flag ───────────────────────────────────────────────
 /**
- * Master switch for VoiceScan interactivity. VoiceScan is planned but inactive
- * for the current launch; the flag is permanently false here so the UI only
- * renders a non-interactive "Coming Soon" placeholder. No microphone permission
- * request, recording, backend call, or local state mutation should occur while
- * this flag is false.
+ * Master switch for VoiceScan interactivity.
+ *
+ * Previously a hardcoded `false`. It is now resolved from the environment so a
+ * single build profile can carry it without turning it on everywhere; the
+ * default is still off, and the resolver fails CLOSED on anything but the exact
+ * string 'true' (absent, '', 'TRUE', '1', 'yes' all resolve to false), matching
+ * resolveKPlusEarlyAccessEnabled and resolveSmartWatchlistEnabled.
+ *
+ * WHAT THIS FLAG DOES NOT DO — read before enabling it anywhere.
+ *
+ * There is no VoiceScan capture implementation in this tree. `expo-audio` is a
+ * dependency, but it is used ONLY for Elise's speech PLAYBACK
+ * (services/avatars/stylistAudioPlayback.ts); no recorder is ever constructed,
+ * no speech-to-text dependency is installed, and no transcription Edge Function
+ * exists. __tests__/iosAppReviewSurface.test.js asserts that absence
+ * deliberately, as an Apple-review guard.
+ *
+ * So turning this flag ON does not produce voice input. Its only two consumers
+ * are presentational:
+ *   - components/text-scan/TextScanFeatureRow.tsx — swaps the "Coming Soon"
+ *     card for a K+ acquisition card ("Upgrade to K+" / "Included with K+").
+ *   - hooks/usePermissionPreferences.ts — an Android-only permission row.
+ *
+ * Consequently this flag must stay OFF in `production`: an App Review build
+ * must not advertise a capability the binary cannot execute. It is enabled only
+ * in `testflight-staging`, per the owner's Build 34 ruling, for internal
+ * TestFlight validation of the K+ acquisition surface — NOT of voice capture.
+ *
+ * When VoiceScan capture is actually built, the microphone posture in app.json
+ * (expo-audio `microphonePermission: false`, no NSMicrophoneUsageDescription)
+ * and the guards in __tests__/iosAppReviewSurface.test.js must be revisited
+ * together with it. Do not add a microphone purpose string before there is a
+ * code path that requests the permission.
  */
-export const VOICESCAN_ENABLED = false;
+export function resolveVoiceScanEnabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_VOICESCAN_ENABLED,
+): boolean {
+  return value === 'true';
+}
+export const VOICESCAN_ENABLED = resolveVoiceScanEnabled();
 
 // ── K+ entitlement boundary ──────────────────────────────────────────────────
 /**
