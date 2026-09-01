@@ -54,7 +54,8 @@ const {
   validateVoiceTranscript,
   VOICE_EMPTY_TRANSCRIPT_MESSAGE,
 } = voiceTranscript;
-const { buildVoiceTranscript, resolveVoiceEngine, isVoiceRecognitionAvailable } = voiceRecognition;
+const { buildVoiceTranscript, resolveVoiceEngine, isVoiceRecognitionAvailable, isVoicePlatformProvisioned } =
+  voiceRecognition;
 const { emitVoiceEvent, setVoiceAnalyticsSink, resetVoiceAnalyticsSink, VOICE_EVENTS } = voiceTelemetry;
 const { buildVoiceSubmitOptions, VOICE_SUBMIT_SOURCE } = voiceSubmission;
 
@@ -195,6 +196,59 @@ test('isVoiceRecognitionAvailable: requires both supported AND onDeviceAvailable
   assert.equal(isVoiceRecognitionAvailable({ supported: true, onDeviceAvailable: true, platform: 'ios' }), true);
   assert.equal(isVoiceRecognitionAvailable({ supported: true, onDeviceAvailable: false, platform: 'ios' }), false);
   assert.equal(isVoiceRecognitionAvailable({ supported: false, onDeviceAvailable: true, platform: 'ios' }), false);
+});
+
+// ── native provisioning, separate from recognizer availability ─────────────
+//
+// Build 34 Android certification. An EAS profile's `env` is profile-level,
+// not platform-level, so enabling EXPO_PUBLIC_VOICESCAN_ENABLED for the
+// Android certification AAB also sets it for anything built from
+// `staging-certification` -- iOS included. On this lineage app.json declares
+// neither NSMicrophoneUsageDescription nor NSSpeechRecognitionUsageDescription
+// (expo-camera/expo-audio use microphonePermission:false, which DELETES the
+// key), and iOS terminates the app when those APIs run without a usage
+// string. This predicate is what keeps a flag-on iOS build from crashing.
+//
+// It is deliberately NOT folded into isVoiceRecognitionAvailable: that
+// function describes the RECOGNIZER and is correctly platform-neutral, and
+// the iOS lineage will legitimately flip this on once PR #222's plist work
+// is present.
+
+test('isVoicePlatformProvisioned: only platforms whose native permission config exists', () => {
+  assert.equal(isVoicePlatformProvisioned('android'), true);
+  assert.equal(isVoicePlatformProvisioned('ios'), false);
+  assert.equal(isVoicePlatformProvisioned('web'), false);
+  assert.equal(isVoicePlatformProvisioned('unknown'), false);
+});
+
+test('the provisioned-platform list matches what app.json actually declares', () => {
+  // Derived, not asserted as a constant: the day the iOS usage strings land,
+  // this test tells you to add 'ios' to the list instead of silently
+  // disagreeing with the artifact.
+  const appJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'app.json'), 'utf8')).expo;
+  const infoPlist = appJson.ios?.infoPlist ?? {};
+  const iosStringsPresent =
+    typeof infoPlist.NSMicrophoneUsageDescription === 'string' &&
+    typeof infoPlist.NSSpeechRecognitionUsageDescription === 'string';
+  assert.equal(
+    isVoicePlatformProvisioned('ios'),
+    iosStringsPresent,
+    iosStringsPresent
+      ? "app.json now declares the iOS microphone/speech usage strings -- add 'ios' to VOICE_NATIVE_PROVISIONED_PLATFORMS"
+      : "app.json declares no iOS microphone/speech usage strings, so 'ios' must not be provisioned",
+  );
+
+  // Android's side of the same statement: the native manifest is what decides
+  // there, and the certification manifest is what grants it.
+  const certificationManifest = fs.readFileSync(
+    path.join(ROOT, 'android', 'app', 'src', 'certification', 'AndroidManifest.xml'),
+    'utf8',
+  );
+  assert.match(
+    certificationManifest,
+    /android:name="android\.permission\.RECORD_AUDIO" tools:node="replace"/,
+    "'android' is provisioned only because the certification manifest grants RECORD_AUDIO",
+  );
 });
 
 // ── voiceSubmission: routing invariant ──────────────────────────────────────

@@ -37,6 +37,52 @@ export function isVoiceRecognitionAvailable(caps: VoiceNativeCapabilities): bool
 }
 
 /**
+ * Platforms whose NATIVE PERMISSION CONFIGURATION for Voice Scan is actually
+ * present in the artifact this repository builds.
+ *
+ * This is deliberately separate from `isVoiceRecognitionAvailable`, which
+ * describes the recognizer and is platform-neutral by design. This one
+ * describes *this repository's build configuration*, which is not.
+ *
+ * WHY IT EXISTS. `EXPO_PUBLIC_VOICESCAN_ENABLED` is set in the
+ * `staging-certification` EAS profile, and an EAS profile's `env` is
+ * profile-level, not platform-level -- the same profile also declares
+ * `ios.buildConfiguration`. So turning Voice on for the Android certification
+ * AAB necessarily turns the flag on for anything built from that profile,
+ * including iOS.
+ *
+ * On THIS lineage iOS is not ready for that. iOS is CNG_AUTHORITATIVE, so
+ * `app.json` IS the Info.plist, and it declares neither
+ * `NSMicrophoneUsageDescription` nor `NSSpeechRecognitionUsageDescription`
+ * (expo-camera and expo-audio are configured with `microphonePermission:
+ * false`, which actively DELETES the microphone key -- the Build 34 iOS
+ * lesson from PR #222). `SFSpeechRecognizer.requestAuthorization` and
+ * `AVAudioSession.requestRecordPermission` terminate the app when their usage
+ * string is missing, so a flag-on iOS build would crash on the first Voice
+ * tap. Note the capability probe alone would NOT catch it: `getCapabilities`
+ * only reads `supportsOnDeviceRecognition`, which needs no authorization, so
+ * the crash lands after the availability check passes.
+ *
+ * Adding those two strings to `app.json` would put them in EVERY iOS
+ * artifact, production included, and Apple reviews declared usage strings --
+ * that is a deliberate iOS-lineage decision, not a side effect of an Android
+ * certification build. So the guard lives here instead.
+ *
+ * TO ENABLE iOS: land the Info.plist strings on the iOS lineage, then add
+ * 'ios' here. This list is the single place that decision is expressed.
+ */
+export const VOICE_NATIVE_PROVISIONED_PLATFORMS: readonly VoiceRuntimePlatform[] = ['android'];
+
+/**
+ * Whether Voice Scan may render at all on this platform, given what this
+ * repository's native configuration actually provides. Fails closed: an
+ * unknown platform is never provisioned.
+ */
+export function isVoicePlatformProvisioned(platform: VoiceRuntimePlatform): boolean {
+  return VOICE_NATIVE_PROVISIONED_PLATFORMS.includes(platform);
+}
+
+/**
  * Which engine produced (or failed to produce) a transcript.
  *
  * `onDevice` must be the strict boolean `true` to credit either platform

@@ -4,6 +4,8 @@ import { KPlusGate } from '../kplus/KPlusGate';
 import { VoiceListeningSheet } from './VoiceListeningSheet';
 import { VoiceScanIcon } from '../icons/kscan';
 import { useVoiceScan } from '../../hooks/useVoiceScan';
+import { isVoicePlatformProvisioned } from '../../services/voice/voiceRecognition';
+import { getPlatform } from '../../services/voice/voiceNativeModule';
 import { VOICESCAN_ENABLED } from '../../constants/featureFlags';
 import { LUXURY, RADIUS } from '../../constants/theme';
 
@@ -107,6 +109,17 @@ function VoiceScanButtonInner({
  */
 export function VoiceScanButton({ onTranscript, disabled }: VoiceScanButtonProps) {
   if (!VOICESCAN_ENABLED) return null;
+
+  // The flag says the capability is BUILT; this says the running platform's
+  // native permission configuration actually exists in this artifact. They
+  // differ because an EAS profile's `env` is profile-level, not
+  // platform-level: enabling Voice for the Android certification AAB also
+  // sets the flag for anything else built from `staging-certification`. On
+  // this lineage iOS has no microphone/speech usage strings, and iOS
+  // terminates the app when those APIs are called without them -- so
+  // rendering the affordance there would crash on the first tap rather than
+  // degrade. See VOICE_NATIVE_PROVISIONED_PLATFORMS for how to enable iOS.
+  if (!isVoicePlatformProvisioned(getPlatform())) return null;
 
   return (
     // 'voice_scan' -- NOT the donor lineage's 'voice_scan_mic'. This lineage

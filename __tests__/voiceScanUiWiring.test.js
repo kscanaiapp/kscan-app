@@ -43,6 +43,19 @@ test('VoiceScanButton renders nothing at all when VOICESCAN_ENABLED is off', () 
   assert.match(fnBody, /if \(!VOICESCAN_ENABLED\) return null;/);
 });
 
+test('VoiceScanButton renders nothing on a platform whose native permission config is absent', () => {
+  // Without this the shared `staging-certification` profile would put a
+  // working-looking mic button into an iOS build with no usage strings, and
+  // iOS terminates the app when the speech/mic APIs are called without them.
+  const fnBody = voiceScanButton.slice(voiceScanButton.indexOf('export function VoiceScanButton'));
+  assert.match(fnBody, /if \(!isVoicePlatformProvisioned\(getPlatform\(\)\)\) return null;/);
+  // And it must run BEFORE any hook or gate that could request permission.
+  assert.ok(
+    fnBody.indexOf('isVoicePlatformProvisioned') < fnBody.indexOf('KPlusGate'),
+    'the platform guard must precede the K+ gate and any session start',
+  );
+});
+
 test('VoiceScanButton is the single K Scan entry point wired to Voice Scan (Home is untouched)', () => {
   assert.doesNotMatch(read('components', 'home', 'HomeLuxuryTechV1.tsx'), /VoiceScanButton|useVoiceScan/);
 });
