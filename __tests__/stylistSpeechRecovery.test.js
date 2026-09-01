@@ -268,9 +268,36 @@ test('client duplicate suppression prevents a second generation request for one 
 
 test('permissions remain playback-only and device TTS is absent from production source', () => {
   const appJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'app.json'), 'utf8'));
+  // Elise's speech subsystem is PLAYBACK-only, and this test still proves
+  // exactly that. What it no longer proves is the ABSENCE of a microphone
+  // anywhere in the app: Build 34 Voice Scan V1 is a real, deliberate
+  // microphone + on-device speech-recognition path (modules/kscan-voice-native,
+  // hooks/useVoiceScan.ts, components/text-scan/VoiceScanButton.tsx).
+  //
+  // The default/production Android posture is unchanged -- RECORD_AUDIO stays
+  // blocked here, and is granted only by the certification build-profile
+  // manifest (android/app/src/certification/AndroidManifest.xml).
   assert.ok(appJson.expo.android.blockedPermissions.includes('android.permission.RECORD_AUDIO'));
   assert.ok(!appJson.expo.android.permissions.includes('android.permission.RECORD_AUDIO'));
-  assert.equal('NSMicrophoneUsageDescription' in appJson.expo.ios.infoPlist, false);
+
+  // NSMicrophoneUsageDescription is a single app-wide key now OWNED by Voice
+  // Scan, so its absence can no longer stand in for "Elise does not record".
+  // Asserting it absent would also have forced the plugin props back to
+  // `false`, which Expo treats as DELETE -- the PR #222 defect. Elise's
+  // playback-only property is carried by the expo-audio props below, by
+  // allowsRecording in stylistVoiceReliability.test.js, and by the absence of
+  // any recording API in stylistAudioPlayback.ts.
+  const audioPlugin = appJson.expo.plugins.find(
+    (entry) => Array.isArray(entry) && entry[0] === 'expo-audio',
+  );
+  assert.equal(
+    audioPlugin?.[1]?.microphonePermission,
+    appJson.expo.ios.infoPlist.NSMicrophoneUsageDescription,
+    "expo-audio must carry Voice Scan's microphone string verbatim, never false (which deletes it)",
+  );
+  assert.match(audioPlugin?.[1]?.microphonePermission, /Voice Scan/);
+  assert.equal(audioPlugin?.[1]?.recordAudioAndroid, false);
+
   const packageJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
   assert.equal(packageJson.dependencies['expo-audio'], '~1.1.1');
   assert.equal(packageJson.dependencies['expo-speech'], undefined);

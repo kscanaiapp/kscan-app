@@ -267,9 +267,25 @@ test('no ML Kit, Gradle, model asset or new permission came along', () => {
     'UISupportedInterfaceOrientations',
     'UISupportedInterfaceOrientations~ipad',
   ];
+  // Build 34 Voice Scan V1 (modules/kscan-voice-native) legitimately owns the
+  // microphone and speech-recognition usage strings. They are excluded BY NAME
+  // for the same reason the orientation keys are: this test guards what the
+  // PII/VISION module (modules/kscan-pii-native, MODULE_DIR above) introduced,
+  // and Voice Scan is a different module with its own dedicated coverage
+  // (__tests__/voiceScanMicrophonePermission.test.js asserts these two keys in
+  // the GENERATED plist; __tests__/iosAppReviewSurface.test.js reviews their
+  // Apple-facing wording).
+  //
+  // Excluding by name, not by pattern: any OTHER new NS*UsageDescription --
+  // including one the vision module might add later -- still fails here
+  // exactly as before.
+  const VOICE_SCAN_KEYS = [
+    'NSMicrophoneUsageDescription',
+    'NSSpeechRecognitionUsageDescription',
+  ];
   const stripOrientation = (plist) => {
     const rest = { ...(plist ?? {}) };
-    for (const key of ORIENTATION_KEYS) delete rest[key];
+    for (const key of [...ORIENTATION_KEYS, ...VOICE_SCAN_KEYS]) delete rest[key];
     return rest;
   };
   // Build 31 branding: "K Scan" -> "K Scan AI" legitimately edited the copy of
@@ -296,6 +312,10 @@ test('no ML Kit, Gradle, model asset or new permission came along', () => {
     'the iOS Info.plist changed; the extraction module must add no permission',
   );
   for (const key of Object.keys(after.infoPlist ?? {})) {
+    // VOICE_SCAN_KEYS are excluded for the same reason as above: they belong to
+    // modules/kscan-voice-native, not to the vision module this file guards.
+    // Every other new NS*UsageDescription still fails here.
+    if (VOICE_SCAN_KEYS.includes(key)) continue;
     assert.equal(
       /UsageDescription$/.test(key) && !(key in (before.infoPlist ?? {})),
       false,

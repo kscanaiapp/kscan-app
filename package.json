@@ -76,6 +76,7 @@
     "expo-status-bar": "~3.0.9",
     "expo-web-browser": "~15.0.11",
     "express": "^4.22.1",
+    "kscan-voice-native": "file:./modules/kscan-voice-native",
     "metro-minify-terser": "^0.84.4",
     "metro-runtime": "^0.84.4",
     "react": "19.1.0",

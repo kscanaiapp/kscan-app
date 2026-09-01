@@ -247,21 +247,54 @@ test('app.json continues to declare the microphone BLOCKED, so no CNG surface re
   );
 });
 
-test('the audio plugins keep microphone capture disabled at the config layer', () => {
+test('the audio plugins keep ANDROID microphone capture disabled at the config layer', () => {
   // Build 34 lesson (project_build34_ios_voice_mic_permission): Expo's
-  // `microphonePermission: false` DELETES the platform permission a plugin
-  // would otherwise add. Voice Scan does not use expo-camera or expo-audio
-  // capture at all -- it uses the dedicated on-device recognizer module --
-  // so these must stay false, and Voice must not "fix" itself by flipping
-  // them, which would grant the microphone to every profile.
-  const plugins = JSON.parse(readFile(APP_JSON_PATH)).expo.plugins;
-  for (const plugin of plugins) {
+  // `microphonePermission: false` DELETES the iOS platform permission a plugin
+  // would otherwise add. This test used to pin BOTH props to false, which had
+  // the right goal and the wrong mechanism on the iOS half.
+  //
+  // What is unchanged and still asserted: neither expo-camera nor expo-audio
+  // may add ANDROID audio capture. `recordAudioAndroid` is the prop that does
+  // that, and it stays false on both -- so Voice Scan cannot "fix" itself by
+  // flipping a plugin and thereby grant RECORD_AUDIO to every Android profile.
+  // Android's microphone is granted ONLY by the certification build-profile
+  // manifest (asserted by the next test), and the default/production manifest
+  // still removes it.
+  //
+  // What changed: `microphonePermission` is the iOS-side prop, and it is now
+  // the shared Voice Scan usage string on both plugins. It must NOT be false,
+  // because false deletes the app-wide NSMicrophoneUsageDescription that Voice
+  // Scan's own native module depends on -- iOS terminates a process that calls
+  // AVAudioSession.requestRecordPermission without it. Pinning both plugins to
+  // the SAME string preserves the original intent (no plugin injects its own
+  // competing generic copy) and makes the result independent of plugin order.
+  const appJson = JSON.parse(readFile(APP_JSON_PATH));
+  const expectedIosString = appJson.expo.ios.infoPlist.NSMicrophoneUsageDescription;
+  assert.equal(typeof expectedIosString, 'string', 'Voice Scan must declare the iOS microphone string');
+
+  for (const plugin of appJson.expo.plugins) {
     if (!Array.isArray(plugin)) continue;
     const [name, options] = plugin;
     if (name !== 'expo-camera' && name !== 'expo-audio') continue;
-    assert.equal(options.microphonePermission, false, `${name} must keep microphonePermission false`);
-    assert.equal(options.recordAudioAndroid, false, `${name} must keep recordAudioAndroid false`);
+    assert.equal(
+      options.recordAudioAndroid,
+      false,
+      `${name} must keep recordAudioAndroid false -- no plugin may grant Android audio capture`,
+    );
+    assert.equal(
+      options.microphonePermission,
+      expectedIosString,
+      `${name} must carry Voice Scan's iOS microphone string verbatim, never false (which deletes it)`,
+    );
   }
+
+  // The Android half of the same statement, stated directly rather than
+  // inferred from the plugin props.
+  assert.ok(
+    appJson.expo.android.blockedPermissions.includes('android.permission.RECORD_AUDIO'),
+    'the default/production Android posture must still block RECORD_AUDIO',
+  );
+  assert.ok(!appJson.expo.android.permissions.includes('android.permission.RECORD_AUDIO'));
 });
 
 test('the certification manifest grants the microphone, and nothing else new', () => {
