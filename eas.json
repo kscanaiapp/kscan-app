@@ -171,6 +171,11 @@
       },
       "ios": {
         "buildConfiguration": "Release"
+      },
+      "env": {
+        "EXPO_PUBLIC_VTO_UI_ENABLED": "true",
+        "EXPO_PUBLIC_PACKING_INTELLIGENCE_V1": "true",
+        "EXPO_PUBLIC_ELISE_CONCIERGE_V1": "true"
       }
     },
     "production": {
