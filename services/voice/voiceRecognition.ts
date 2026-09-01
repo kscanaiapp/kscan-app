@@ -51,27 +51,34 @@ export function isVoiceRecognitionAvailable(caps: VoiceNativeCapabilities): bool
  * AAB necessarily turns the flag on for anything built from that profile,
  * including iOS.
  *
- * On THIS lineage iOS is not ready for that. iOS is CNG_AUTHORITATIVE, so
- * `app.json` IS the Info.plist, and it declares neither
- * `NSMicrophoneUsageDescription` nor `NSSpeechRecognitionUsageDescription`
- * (expo-camera and expo-audio are configured with `microphonePermission:
- * false`, which actively DELETES the microphone key -- the Build 34 iOS
- * lesson from PR #222). `SFSpeechRecognizer.requestAuthorization` and
- * `AVAudioSession.requestRecordPermission` terminate the app when their usage
- * string is missing, so a flag-on iOS build would crash on the first Voice
- * tap. Note the capability probe alone would NOT catch it: `getCapabilities`
- * only reads `supportsOnDeviceRecognition`, which needs no authorization, so
- * the crash lands after the availability check passes.
+ * WHAT THE HAZARD IS. iOS is CNG_AUTHORITATIVE, so `app.json` IS the
+ * Info.plist. `SFSpeechRecognizer.requestAuthorization` and
+ * `AVAudioSession.requestRecordPermission` TERMINATE the app when their usage
+ * string is missing, so a flag-on iOS build without those strings crashes on
+ * the first Voice tap. The capability probe alone would NOT catch it:
+ * `getCapabilities` only reads `supportsOnDeviceRecognition`, which needs no
+ * authorization, so the crash lands after the availability check passes.
  *
- * Adding those two strings to `app.json` would put them in EVERY iOS
- * artifact, production included, and Apple reviews declared usage strings --
- * that is a deliberate iOS-lineage decision, not a side effect of an Android
- * certification build. So the guard lives here instead.
+ * iOS WAS unprovisioned on this lineage, because expo-camera and expo-audio
+ * were configured with `microphonePermission: false` -- which Expo's
+ * createPermissionsPlugin treats as DELETE, actively removing the microphone
+ * key from the BUILT plist (the Build 34 iOS lesson from PR #222).
  *
- * TO ENABLE iOS: land the Info.plist strings on the iOS lineage, then add
- * 'ios' here. This list is the single place that decision is expressed.
+ * iOS IS NOW PROVISIONED. The Voice Scan recovery restored PR #222's repair
+ * onto this lineage: both usage strings are declared in `app.json`, and BOTH
+ * plugins carry the same custom microphone string rather than `false`, so
+ * neither deletes the key nor injects a competing generic copy. The generated
+ * plist is asserted directly in
+ * __tests__/voiceScanMicrophonePermission.test.js, and the two strings are
+ * reviewed for Apple-facing accuracy in __tests__/iosAppReviewSurface.test.js.
+ *
+ * This list stays the single place the per-platform decision is expressed, and
+ * `__tests__/voiceScanContract.test.js` DERIVES its expectation from app.json
+ * rather than asserting a constant -- so if the plist strings are ever removed
+ * again, the test says to drop the platform instead of silently disagreeing
+ * with the artifact.
  */
-export const VOICE_NATIVE_PROVISIONED_PLATFORMS: readonly VoiceRuntimePlatform[] = ['android'];
+export const VOICE_NATIVE_PROVISIONED_PLATFORMS: readonly VoiceRuntimePlatform[] = ['android', 'ios'];
 
 /**
  * Whether Voice Scan may render at all on this platform, given what this

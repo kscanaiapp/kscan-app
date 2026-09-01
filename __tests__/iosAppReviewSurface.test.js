@@ -81,10 +81,53 @@ test('the TextScan voice placeholder stays off in the production profile', () =>
 
 // -- Microphone posture ------------------------------------------------------
 
-test('no iOS microphone purpose string is declared', () => {
-  assert.equal(infoPlist.NSMicrophoneUsageDescription, undefined);
-  assert.equal(pluginProps('expo-camera').microphonePermission, false);
-  assert.equal(pluginProps('expo-audio').microphonePermission, false);
+test('the iOS microphone purpose string exists only for Voice Scan, and neither camera nor audio plugin injects its own', () => {
+  // FLIPPED by the Voice Scan recovery. This test previously asserted
+  // `NSMicrophoneUsageDescription === undefined` and both plugin props
+  // `false` -- correct only while Voice Scan was absent from this lineage.
+  // Build 34 Voice Scan V1 is the first real, reachable microphone use in
+  // this app (see __tests__/voiceScanUiWiring.test.js and
+  // components/text-scan/VoiceScanButton.tsx), so the strings must now EXIST
+  // and must describe Voice Scan specifically, not claim recording/upload.
+  //
+  // The plugin props used to be `false`, to stop expo-camera/expo-audio
+  // injecting a competing generic copy. That was the right goal and the wrong
+  // mechanism: Expo's createPermissionsPlugin treats `false` as DELETE, so the
+  // plugins removed NSMicrophoneUsageDescription from the BUILT plist even
+  // when it was declared. This file reads app.json, so it could not see that --
+  // it would assert the declaration existed while asserting the setting that
+  // erased it. Pinning both props to the same custom string keeps the original
+  // intent (no generic copy) without the deletion, and is independent of the
+  // order Expo applies the two plugins in.
+  //
+  // The GENERATED plist is asserted directly, via Expo config introspection,
+  // in __tests__/voiceScanMicrophonePermission.test.js -- app.json alone
+  // cannot prove this.
+  assert.equal(typeof infoPlist.NSMicrophoneUsageDescription, 'string');
+  assert.match(infoPlist.NSMicrophoneUsageDescription, /Voice Scan/);
+  assert.doesNotMatch(infoPlist.NSMicrophoneUsageDescription, /upload|store|record and save/i);
+  assert.equal(typeof infoPlist.NSSpeechRecognitionUsageDescription, 'string');
+  assert.match(infoPlist.NSSpeechRecognitionUsageDescription, /on-device/i);
+  // Must not make an affirmative upload claim -- "not uploaded" is the
+  // correct, desired reassurance, so this checks for the affirmative verb
+  // form rather than banning the word "upload" outright.
+  assert.doesNotMatch(infoPlist.NSSpeechRecognitionUsageDescription, /\b(is|are|will be)\s+uploaded\b/i);
+  for (const plugin of ['expo-camera', 'expo-audio']) {
+    assert.equal(
+      pluginProps(plugin).microphonePermission,
+      infoPlist.NSMicrophoneUsageDescription,
+      `${plugin} must carry the same custom microphone string, not false (which deletes it) `
+        + 'and not a generic default',
+    );
+  }
+});
+
+test('background audio is never enabled by the Voice Scan microphone posture', () => {
+  // Voice Scan is foreground push-to-talk. UIBackgroundModes "audio" would let
+  // the app keep the mic alive after backgrounding -- a different, far broader
+  // privacy claim than the one the usage strings make.
+  const modes = infoPlist.UIBackgroundModes ?? [];
+  assert.ok(!modes.includes('audio'), 'UIBackgroundModes must not include "audio"');
 });
 
 test('no production code path can request microphone or recording permission', () => {

@@ -139,7 +139,36 @@ function verify() {
     infoPlist.NSCameraUsageDescription === 'K Scan AI uses your camera to photograph your outfit for style analysis.',
     'Camera usage description is present and scoped',
   );
-  check(result, !('NSMicrophoneUsageDescription' in infoPlist), 'No microphone usage description is declared');
+  // Build 34 Voice Scan V1 introduced the first real, reachable microphone use
+  // in this app, so "no microphone string" is no longer the correct posture.
+  // What Apple cares about is that a declared purpose string is SPECIFIC and
+  // truthful about the feature that uses it -- a vague or absent-but-used
+  // string is the rejection risk, not the presence of an accurate one.
+  //
+  // Voice Scan is speech -> text -> the existing Text Scan path, with
+  // recognition performed on-device; raw audio never leaves the device and is
+  // never persisted. Both strings must say so and must not claim recording or
+  // upload. The GENERATED plist (not just this declaration) is asserted in
+  // __tests__/voiceScanMicrophonePermission.test.js.
+  check(
+    result,
+    typeof infoPlist.NSMicrophoneUsageDescription === 'string' &&
+      /Voice Scan/.test(infoPlist.NSMicrophoneUsageDescription) &&
+      !/upload|store|record and save/i.test(infoPlist.NSMicrophoneUsageDescription),
+    'Microphone usage description is present and scoped to Voice Scan',
+  );
+  check(
+    result,
+    typeof infoPlist.NSSpeechRecognitionUsageDescription === 'string' &&
+      /on-device/i.test(infoPlist.NSSpeechRecognitionUsageDescription) &&
+      !/\b(is|are|will be)\s+uploaded\b/i.test(infoPlist.NSSpeechRecognitionUsageDescription),
+    'Speech recognition usage description is present and states on-device processing',
+  );
+  check(
+    result,
+    !(infoPlist.UIBackgroundModes ?? []).includes('audio'),
+    'Background audio mode is not enabled (Voice Scan is foreground push-to-talk)',
+  );
   check(
     result,
     infoPlist.NSPhotoLibraryUsageDescription ===

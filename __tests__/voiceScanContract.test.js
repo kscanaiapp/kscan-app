@@ -210,15 +210,25 @@ test('isVoiceRecognitionAvailable: requires both supported AND onDeviceAvailable
 // string. This predicate is what keeps a flag-on iOS build from crashing.
 //
 // It is deliberately NOT folded into isVoiceRecognitionAvailable: that
-// function describes the RECOGNIZER and is correctly platform-neutral, and
-// the iOS lineage will legitimately flip this on once PR #222's plist work
-// is present.
+// function describes the RECOGNIZER and is correctly platform-neutral.
+//
+// UPDATE -- Voice Scan recovery. The comment above described the state while
+// iOS was unprovisioned. PR #222's plist repair has now been recovered onto
+// this lineage: app.json declares BOTH usage strings, and BOTH expo-camera and
+// expo-audio carry the same custom microphone string instead of `false`, so
+// neither deletes the key. iOS is therefore provisioned, exactly as the
+// "will legitimately flip this on" note anticipated.
+//
+// The flip is asserted by the DERIVED test below, which reads app.json rather
+// than a constant -- if the strings are ever removed again it fails and names
+// the platform to drop. This test keeps the parts that must NOT move: Android
+// stays provisioned, and every non-native platform stays fail-closed.
 
 test('isVoicePlatformProvisioned: only platforms whose native permission config exists', () => {
   assert.equal(isVoicePlatformProvisioned('android'), true);
-  assert.equal(isVoicePlatformProvisioned('ios'), false);
-  assert.equal(isVoicePlatformProvisioned('web'), false);
-  assert.equal(isVoicePlatformProvisioned('unknown'), false);
+  assert.equal(isVoicePlatformProvisioned('ios'), true);
+  assert.equal(isVoicePlatformProvisioned('web'), false, 'web has no native Voice module');
+  assert.equal(isVoicePlatformProvisioned('unknown'), false, 'unknown platforms must fail closed');
 });
 
 test('the provisioned-platform list matches what app.json actually declares', () => {
