@@ -68,10 +68,46 @@ untestable in a way that looks like a product bug on the device.
 | B1 | `ELISE_PACKING_INTELLIGENCE_V1_ENABLED` staging secret | ✅ **RESOLVED 2026-09-01** — set, effective `true` | — |
 | B2 | `ELISE_CONCIERGE_V1_ENABLED` staging secret | ✅ **RESOLVED 2026-09-01** — set, effective `true` | — |
 | B3 | `app_config.vto_generation.enabled` | ✅ **RESOLVED 2026-09-01** — `true` (JSON boolean) | — |
-| B4 | EAS file secret `GOOGLE_SERVICES_JSON` | **NOT PROVISIONED** (EAS project secret store is empty) | The AAB carries no Firebase config; Android can never obtain a push token. Watchlist push rows below cannot pass. |
-| B5 | Expo FCM V1 service-account key (`eas credentials --platform android`) | unconfirmed | Token obtainable, delivery impossible. |
+| B4 | EAS file secret `GOOGLE_SERVICES_JSON` | **STILL NOT PROVISIONED — OWNER ACTION REQUIRED** | The AAB carries no Firebase config; Android can never obtain a push token. Watchlist push rows below cannot pass. |
+| B5 | Expo FCM V1 service-account key (`eas credentials --platform android`) | **STILL UNCONFIRMED — OWNER ACTION REQUIRED** | Token obtainable, delivery impossible. |
 | B6 | A controlled, authenticated staging test account with **active K+** | see §3 | Every K+-gated row (Voice, Watchlist, VTO, Packing, Concierge) is unreachable. |
-| B7 | `WATCHLIST_WORKER_SECRET` staging secret | **ABSENT** | Tier-2 scheduled sweep authenticates on this and fails closed. Tier-1 in-app refresh is unaffected. |
+| B7 | `WATCHLIST_WORKER_SECRET` staging secret | ✅ **RESOLVED 2026-09-01** — provisioned on `yzqjvdfgefveprobvvyw` only | — |
+
+### Why B4/B5 could not be closed from this environment (2026-09-01)
+
+A follow-up pass attempted to close B4/B5. It could not: this environment has
+no Firebase/gcloud CLI authentication (`firebase login` requires an
+interactive OAuth flow this session cannot run), no cached service-account or
+`GOOGLE_APPLICATION_CREDENTIALS`, no `google-services.json` anywhere on disk
+or in the team's connected Drive, and no authenticated browser session to the
+Firebase console. `eas env:list` confirms the EAS project's file-secret store
+is empty for every environment. These two items are owner-only, exactly as
+the original handoff already stated — this just records that a real attempt
+was made and exactly what was tried, so the next pass does not repeat it.
+
+### WATCHLIST_WORKER_SECRET — provisioned 2026-09-01 (staging only)
+
+Generated locally (48 bytes, URL-safe, `secrets.token_urlsafe`) and set via
+`supabase secrets set --env-file` (never on a command line, never echoed,
+local copy shredded immediately after). Verified without ever reading the
+value back:
+
+- staging secret count moved 74 → 75 (exactly +1)
+- production (`wyyuqfdxucjksghsmhry`) secret count unchanged at 72;
+  `WATCHLIST_WORKER_SECRET` confirmed absent there
+- refusal path: `x-watchlist-worker-secret: definitely-wrong` against the live
+  `commerce-watch-refresh` endpoint → **HTTP 401**, proving the mechanism
+  reads and compares the secret rather than accepting anything
+
+This closes gate 1 of the three `docs/watchlist-tier2-operations.md` §1
+describes. Gate 3 (`app_config.watchlist_worker_enabled`) was **already**
+`true` on staging before this pass, from activity outside both certification
+tasks — not something either task set. Gate 2 (the sweep's `schedule:` block)
+remains commented out and was not touched; the GitHub repository secret
+mirror (ops doc step 2) was deliberately **not** created, since Objective 5's
+scope was the Supabase Edge Function secret only. The Tier-2 *scheduled*
+sweep therefore stays inert; Tier-1 in-app refresh was already unaffected by
+any of this.
 
 ### Runtime enablement performed 2026-09-01 (staging only)
 
