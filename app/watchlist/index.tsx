@@ -78,7 +78,7 @@ export default function WatchlistHomeScreen() {
   const { watches, loading, error, refreshing } = useWatchlist();
 
   return (
-    <LuxuryScreen scrollable={false} testID="watchlist-home-screen">
+    <LuxuryScreen testID="watchlist-home-screen">
       <StatusBar style="dark" />
       <KScanHeader
         title="Watchlist"

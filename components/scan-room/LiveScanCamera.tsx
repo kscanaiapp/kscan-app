@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { ScanButton } from '../ScanButton';
 import { ScanRoomHeader } from './ScanRoomHeader';
@@ -22,6 +23,7 @@ import {
   isPrivateImageUploadAvailable,
   PRIVATE_IMAGE_UPLOAD_UNAVAILABLE_MESSAGE,
 } from '../../services/privacyImageUpload';
+import { computeScanRoomViewfinderSize } from '../../services/scanRoomViewfinderLayout';
 
 interface LiveScanCameraProps {
   cameraRef: React.RefObject<any>;
@@ -62,12 +64,20 @@ export function LiveScanCamera({
   textScanEnabled = false,
   testID,
 }: LiveScanCameraProps) {
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const uploadAvailable = isPrivateImageUploadAvailable();
 
-  const viewfinderWidth = Math.min(screenWidth - SPACING.xl * 2, 420);
-  const viewfinderHeight = viewfinderWidth * 1.25; // 4:5
+  // Width-only sizing (Build 34) could size a viewfinder taller than the
+  // space left for the header/instructions/controls on short-height
+  // windows, especially iPad landscape. This constrains it by height too.
+  const { width: viewfinderWidth, height: viewfinderHeight } = computeScanRoomViewfinderSize({
+    windowWidth: screenWidth,
+    windowHeight: screenHeight,
+    insetTop: insets.top,
+    insetBottom: insets.bottom,
+  });
 
   const homeButton = onHome ? (
     <Pressable
