@@ -271,6 +271,30 @@ microphone, no cloud STT fallback, and no mock transcription fallback.
 | V-26 | Text Scan result parity | A spoken query and the same query typed produce equivalent results |
 | V-27 | Commerce result parity | Commerce behaviour is identical for both |
 | V-28 | Voice flag ON, **K+ inactive** | Tap opens the upgrade sheet. **No mic permission prompt, no session** |
+| V-29 | iOS built from the SAME `staging-certification` profile | Voice affordance **does not render at all**. See below |
+
+### Why V-29 exists
+
+`staging-certification` is a **shared** profile — an EAS profile's `env` is
+profile-level, not platform-level, and this one also declares
+`ios.buildConfiguration`. So `EXPO_PUBLIC_VOICESCAN_ENABLED=true` reaches iOS
+builds too.
+
+On this lineage iOS cannot survive that: iOS is CNG_AUTHORITATIVE, `app.json`
+IS the Info.plist, and it declares neither `NSMicrophoneUsageDescription` nor
+`NSSpeechRecognitionUsageDescription` (`microphonePermission: false` on
+expo-camera/expo-audio deletes the microphone key). iOS **terminates the app**
+when `SFSpeechRecognizer.requestAuthorization` or
+`AVAudioSession.requestRecordPermission` run without a usage string — and the
+capability probe would not have caught it, because `getCapabilities` only
+reads `supportsOnDeviceRecognition`, which needs no authorization. The crash
+would land *after* the availability check passed.
+
+`VOICE_NATIVE_PROVISIONED_PLATFORMS` (`services/voice/voiceRecognition.ts`)
+therefore lists `android` only, and `VoiceScanButton` returns null before the
+K+ gate on anything else. To enable iOS: land the two Info.plist strings on
+the iOS lineage (PR #222), then add `'ios'` to that list — the test derives
+its expectation from `app.json`, so it will tell you.
 
 **No raw microphone audio may be logged or persisted.** The Voice modules
 write nothing to `AsyncStorage`, `SecureStore`, the filesystem, or any table;
@@ -289,6 +313,7 @@ the telemetry allowlist cannot carry text (asserted in
 | `FOREGROUND_SERVICE_MICROPHONE` | removed | removed |
 | `<service>` elements | none | none |
 | package / signing | `com.kscanai.app`, EAS-managed | identical |
+| iOS from the same profile | Voice does not render (`VOICE_NATIVE_PROVISIONED_PLATFORMS`) | unchanged — no iOS plist key added |
 
 `app.json` continues to list `RECORD_AUDIO` under `blockedPermissions` and
 **not** under `permissions` — that is the statement about the default
