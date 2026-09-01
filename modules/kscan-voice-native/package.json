@@ -1,0 +1,15 @@
+{
+  "name": "kscan-voice-native",
+  "version": "1.0.0",
+  "description": "On-device-only speech-to-text adapter for K Scan AI Voice Scan V1. Recognition either runs on-device or is reported unavailable -- there is no cloud/network speech fallback.",
+  "main": "index.ts",
+  "types": "index.ts",
+  "sideEffects": false,
+  "license": "UNLICENSED",
+  "private": true,
+  "peerDependencies": {
+    "expo": "*",
+    "react": "*",
+    "react-native": "*"
+  }
+}

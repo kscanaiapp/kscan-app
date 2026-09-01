@@ -93,20 +93,54 @@ decision outside this feature's authority.
 
 ## 2. Android push — Firebase configuration
 
-**Status: OWNER CREDENTIAL REQUIRED. Nothing was fabricated.**
+**Status: WIRED IN SOURCE. OWNER CREDENTIAL REQUIRED to activate.**
+
+Build 34 Android certification closed the *mechanism*. The *credential* is still
+an owner action — nothing here fabricates one, and no build acquires FCM
+capability until the owner uploads the file secret in step 1.
 
 iOS is complete: `aps-environment` appears under
 `npx expo config --type introspect`, and `Notifications.getExpoPushTokenAsync()`
-resolves. Android **cannot obtain a push token at all** — the repository has:
-
-- no `google-services.json` (no such file is tracked),
-- no `googleServicesFile` key in `app.json`'s `expo.android` block,
-- no Google Services Gradle plugin (`com.google.gms` appears nowhere).
+resolves. Android previously could not obtain a push token at all, because the
+repository had no `google-services.json`, no `googleServicesFile` key, and no
+Google Services Gradle plugin.
 
 `services/watchlist/pushRegistration.ts` treats both platforms alike, so on
 Android the token request fails and the Watch is left with `push_enabled: false`.
-That is safe — a Watch is never blocked by push failing — but it means **Android
-users silently never receive a price alert**.
+That is safe — a Watch is never blocked by push failing — but it means Android
+users silently never receive a price alert.
+
+### Why this is wired natively, not through `app.json`
+
+Android is **NATIVE_AUTHORITATIVE** in this repository
+(`config/native-config-authority.json`): `android/` is committed and is what
+produces the shipped artifact. `expo.android.googleServicesFile` is a
+Continuous-Native-Generation field — it is consumed by `expo prebuild`, which
+this repository does not run for Android. Setting it would have produced a
+config that *looks* wired and an AAB with no Firebase configuration in it,
+which is the exact failure mode this document exists to prevent. (It would
+also have meant converting `app.json` to `app.config.js` and running
+`expo prebuild`, which would regenerate the native project and discard the
+Build 32 R8/AAB hardening that lives there.)
+
+So the file is materialised directly into the native project instead:
+
+```
+EAS file secret GOOGLE_SERVICES_JSON
+        │  EAS decrypts it and exports its PATH as $GOOGLE_SERVICES_JSON
+        ▼
+android/app/build.gradle   copies it to android/app/google-services.json
+        │                  then, only if that file now exists:
+        ▼
+apply plugin: 'com.google.gms.google-services'   (classpath in android/build.gradle)
+```
+
+If the secret is absent, the plugin is not applied, the build still succeeds,
+and the artifact honestly has no Firebase configuration. It never half-applies.
+
+`android/app/google-services.json` is git-ignored (`android/app/.gitignore`) and
+**must never be committed** — this repository is public, and the file carries the
+Firebase API key and app identifiers.
 
 ### Owner steps
 
@@ -116,8 +150,7 @@ users silently never receive a price alert**.
 2. **Do not commit the file.** Upload it as an EAS *file* secret:
 
    ```bash
-   eas secret:create --scope project --type file \
-     --name GOOGLE_SERVICES_JSON --value ./google-services.json
+   eas secret:create --scope project --type file --name GOOGLE_SERVICES_JSON --value ./google-services.json
    ```
 
    Expected secret name:
@@ -126,39 +159,79 @@ users silently never receive a price alert**.
    GOOGLE_SERVICES_JSON
    ```
 
-3. Wire the config field. `app.json` is static JSON and cannot read an
-   environment variable, so this requires converting to `app.config.js` (or
-   adding one alongside) and setting:
+   No `eas.json` change is needed: EAS injects project file secrets into every
+   build for the project and exports the decrypted path under that same name.
 
-   ```
-   expo.android.googleServicesFile = process.env.GOOGLE_SERVICES_JSON
-   ```
-
-   Expected config field: **`expo.android.googleServicesFile`**.
-
-4. Upload the FCM V1 service-account key to Expo so the push service can send:
+3. Upload the FCM V1 service-account key to Expo so the push service can send:
 
    ```bash
    eas credentials --platform android
    ```
 
-5. **Validation command** — the field must materialise in the resolved config:
+   Step 2 lets the app *obtain* a token; step 3 lets Expo's push service
+   *deliver* to it. Both are required — either alone produces silence.
 
-   ```bash
-   npx expo config --type introspect | grep -i googleServicesFile
+4. **Validation.** The build log prints the resolved state directly:
+
+   ```
+   kscan: googleServicesConfigured=true
    ```
 
-   and for the built artefact:
+   `false` means the secret did not reach the build. Locally, the same path can
+   be exercised without EAS:
 
    ```bash
-   npx expo prebuild --platform android --no-install \
-     && test -f android/app/google-services.json && echo "FCM config present"
+   GOOGLE_SERVICES_JSON=/absolute/path/to/google-services.json ./gradlew :app:bundleRelease
    ```
 
-Until step 3 lands, `__tests__/watchlistAndroidPushConfig.test.js` holds the
-line: it fails the moment anything claims Android Watchlist push is operational
-while the FCM path is absent, and it equally fails if `googleServicesFile` is
-wired without `GOOGLE_SERVICES_JSON` being recorded here. It is a consistency
-gate, not a green light.
+5. **On-device proof (the only thing that closes this).** Source configuration
+   cannot prove delivery. Android Watchlist push is not "ready" until a
+   Play-distributed artifact actually receives and routes a notification —
+   see the Voice/Watchlist rows in the physical certification package.
+
+`__tests__/watchlistAndroidPushConfig.test.js` holds the line either way: it
+fails if anything claims Android Watchlist push is operational while the FCM
+path is absent, and it fails if the native wiring exists without
+`GOOGLE_SERVICES_JSON` being recorded here. It is a consistency gate, not a
+green light.
 
 **iOS `aps` configuration is untouched by any of the above.**
+
+---
+
+## 3. Voice Scan certification permission proof
+
+**Status: SOURCE-WIRED. ARTIFACT VERIFICATION REQUIRED.**
+
+Voice Scan needs `android.permission.RECORD_AUDIO`, but only in the
+`staging-certification` AAB. It is carried by a build-type manifest selected
+by a governed Gradle selector, never by `app.json` — so the default and
+production artifacts keep requesting no microphone permission at all.
+
+| | default / production release | `staging-certification` release |
+|---|---|---|
+| `RECORD_AUDIO` | removed (`tools:node="remove"` in `src/main`) | granted |
+| selector `KSCAN_VOICE_CERTIFICATION` | unset | `"true"` |
+| manifest used | `android/app/src/release/AndroidManifest.xml` | `android/app/src/certification/AndroidManifest.xml` |
+| `FOREGROUND_SERVICE_MICROPHONE` | removed | removed |
+
+The declaration lives in `config/native-config-authority.json` under
+`platforms.android.buildProfileManifestExceptions`, and
+`scripts/check-native-config-parity.js` enforces it (with negative controls in
+`__tests__/nativeConfigParityGate.test.js` proving each rule bites).
+
+**What source cannot prove.** Manifest-merger precedence is a build-time
+behaviour. Before certification, inspect the *merged* manifest of both
+artifacts:
+
+```bash
+unzip -p app-release.aab base/manifest/AndroidManifest.xml > merged.pb && aapt2 dump xmltree --file base/manifest/AndroidManifest.xml app-release.aab | grep -i RECORD_AUDIO
+```
+
+Required results:
+
+- certification AAB — `RECORD_AUDIO` **present**, no `FOREGROUND_SERVICE_MICROPHONE`, no `<service>`
+- production AAB — `RECORD_AUDIO` **absent**
+
+A certification AAB whose merged manifest lacks `RECORD_AUDIO` must not be
+certified: Voice would render its affordance and never obtain permission.

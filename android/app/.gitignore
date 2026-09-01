@@ -1,0 +1,7 @@
+# Firebase Cloud Messaging configuration.
+#
+# NEVER commit this file. It is materialised at build time from the governed
+# EAS FILE SECRET named GOOGLE_SERVICES_JSON (see android/app/build.gradle and
+# docs/watchlist-tier2-operations.md). Committing it would put the Firebase
+# project's API key and app identifiers into a PUBLIC repository.
+google-services.json

@@ -19,6 +19,8 @@ export interface TextScanInputProps {
   style?: ViewStyle;
   inputStyle?: TextStyle;
   accessibilityLabel?: string;
+  /** Optional slot rendered in the footer, alongside the hint/counter -- the Voice Scan mic affordance uses this. */
+  rightAccessory?: React.ReactNode;
 }
 
 /**
@@ -34,6 +36,7 @@ export function TextScanInput({
   style,
   inputStyle,
   accessibilityLabel = 'TextScan search query',
+  rightAccessory,
 }: TextScanInputProps) {
   const isValid = value.trim().length >= minLength;
 
@@ -65,9 +68,12 @@ export function TextScanInput({
         <Text style={styles.hint}>
           {isValid ? 'Ready to scan' : `At least ${minLength} characters`}
         </Text>
-        <Text style={styles.counter}>
-          {value.length}/{maxLength}
-        </Text>
+        <View style={styles.footerEnd}>
+          <Text style={styles.counter}>
+            {value.length}/{maxLength}
+          </Text>
+          {rightAccessory}
+        </View>
       </View>
     </View>
   );
@@ -94,6 +100,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: SPACING.md,
+  },
+  footerEnd: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
   },
   hint: {
     ...LUXURY.typography.caption,

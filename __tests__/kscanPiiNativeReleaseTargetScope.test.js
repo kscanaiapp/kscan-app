@@ -98,9 +98,33 @@ test('every file that imports XCTest is captured by the Tests/ exclusion', () =>
   }
 });
 
-test('no other podspec exists in the repository outside this module', () => {
+// CONVERGENCE (Build 34 Android certification): a SECOND local Expo module,
+// modules/kscan-voice-native, was converged onto this lineage from the
+// accepted Voice Scan branch (PR #218), so this repository now legitimately
+// contains two podspecs.
+//
+// The original assertion pinned an exact single-element list. Its purpose was
+// never "there is exactly one module" -- it was "no podspec appears somewhere
+// unexpected, dragging an unreviewed native target into the build". Widening
+// it to a KNOWN set preserves that purpose: a third podspec, or one outside
+// modules/, still fails here.
+const KNOWN_PODSPECS = Object.freeze([
+  'modules/kscan-pii-native/ios/KScanPiiNative.podspec',
+  'modules/kscan-voice-native/ios/KScanVoiceNative.podspec',
+]);
+
+test('every podspec in the repository is a known, reviewed local module', () => {
   const podspecs = glob
     .sync('**/*.podspec', { cwd: ROOT, ignore: ['node_modules/**'], nodir: true })
-    .map(toPosix);
-  assert.deepEqual(podspecs, ['modules/kscan-pii-native/ios/KScanPiiNative.podspec']);
+    .map(toPosix)
+    .sort();
+  assert.deepEqual(podspecs, [...KNOWN_PODSPECS].sort());
+  for (const spec of podspecs) {
+    assert.ok(spec.startsWith('modules/'), `${spec} sits outside modules/ -- native targets must be local modules`);
+  }
+});
+
+test('CONTROL: an unexpected podspec would be caught', () => {
+  const withStray = [...KNOWN_PODSPECS, 'vendor/Sneaky.podspec'].sort();
+  assert.throws(() => assert.deepEqual(withStray, [...KNOWN_PODSPECS].sort()));
 });

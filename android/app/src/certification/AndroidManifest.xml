@@ -1,0 +1,69 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+      CERTIFICATION-ONLY release manifest (Build 34 Android Voice Scan).
+
+      This file is NOT part of any ordinary build. android/app/build.gradle
+      substitutes it for src/release/AndroidManifest.xml ONLY when the
+      governed selector `kscan.voiceCertification` (Gradle property) or
+      KSCAN_VOICE_CERTIFICATION (environment) is exactly "true". That
+      selector is set in exactly one place: the `staging-certification` EAS
+      build profile in eas.json. Every other build -- production, staging,
+      preview, development, and any local `gradlew bundleRelease` -- leaves
+      it unset and therefore uses src/release/AndroidManifest.xml, which
+      grants no microphone permission at all.
+
+      WHY A PROFILE-SPECIFIC MANIFEST INSTEAD OF app.json:
+      Android is NATIVE_AUTHORITATIVE here (config/native-config-authority.json),
+      so android/app/src/main/AndroidManifest.xml is what actually ships.
+      Adding RECORD_AUDIO to app.json + the main manifest would broaden the
+      PRODUCTION artifact the moment Voice Scan is merged, before Voice is
+      formally promoted. Voice Scan needs the permission only in the
+      certification AAB, so the grant lives only in the certification
+      variant of the manifest, and app.json continues to declare
+      RECORD_AUDIO blocked -- which remains true of the default/production
+      artifact.
+
+      WHAT THIS FILE MUST ALWAYS BE: a strict superset of
+      src/release/AndroidManifest.xml plus the Voice permission block below.
+      __tests__/androidVoiceCertificationManifest.test.js enforces that
+      relationship so the two files cannot drift.
+
+      WHAT THIS FILE MUST NEVER CONTAIN: a foreground-service microphone
+      permission, a <service> element of any kind, a background-capture
+      permission, or any change to package/applicationId/signing. The
+      microphone is requested just-in-time by the user's explicit tap
+      (hooks/useVoiceScan.ts -> KScanVoiceNativeModule.requestPermissions)
+      and released when the app leaves the foreground (ProcessLifecycleOwner
+      in KScanVoiceNativeModule.kt).
+    -->
+
+    <!-- Carried verbatim from src/release/AndroidManifest.xml. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" tools:node="remove"/>
+
+    <!--
+      Voice Scan certification grant. tools:node="replace" supersedes the
+      tools:node="remove" that src/main/AndroidManifest.xml applies to this
+      same permission; a build-type source set has higher manifest-merger
+      priority than main, so the merged certification manifest grants
+      RECORD_AUDIO while the default release manifest still removes it.
+      This is an artifact-verified claim: confirm it against the merged
+      manifest of the built AAB before certification (see
+      docs/watchlist-tier2-operations.md, "Voice Scan certification
+      permission proof").
+    -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="replace"/>
+
+    <!--
+      Explicitly denied even in the certification profile. Voice Scan is
+      strictly foreground and strictly just-in-time; there is no capture
+      path that could need any of these, and naming them here means a
+      library that later contributes one cannot slip it into the
+      certification artifact unnoticed.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" tools:node="remove"/>
+    <uses-permission android:name="android.permission.CAPTURE_AUDIO_OUTPUT" tools:node="remove"/>
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" tools:node="remove"/>
+
+</manifest>

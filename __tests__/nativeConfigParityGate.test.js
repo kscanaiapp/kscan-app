@@ -15,12 +15,19 @@ const REPO_ROOT = path.resolve(__dirname, '..');
 const GATE_SCRIPT = path.join(REPO_ROOT, 'scripts', 'check-native-config-parity.js');
 const APP_JSON_PATH = path.join(REPO_ROOT, 'app.json');
 
-// The four files the gate reads, relative to whichever root it is pointed at.
+// Every file the gate reads, relative to whichever root it is pointed at.
+// Build 34 added the build-profile manifest exception rules, so the fixture
+// root now also needs eas.json (selector-site check) and both manifests the
+// declared exception names -- otherwise a fixture run would fail for
+// "file missing" rather than for the mutation under test.
 const GATE_INPUTS = [
   'app.json',
+  'eas.json',
   path.join('config', 'native-config-authority.json'),
   path.join('android', 'app', 'build.gradle'),
   path.join('android', 'app', 'src', 'main', 'AndroidManifest.xml'),
+  path.join('android', 'app', 'src', 'release', 'AndroidManifest.xml'),
+  path.join('android', 'app', 'src', 'certification', 'AndroidManifest.xml'),
 ];
 
 function runGate(root = REPO_ROOT) {
@@ -108,5 +115,218 @@ test('B34-DEF-002 negative control: Android application ID mismatch fails the ga
     },
     runGate,
   );
+  assert.equal(exitCode, 1);
+});
+
+// ─────────── Build 34: governed build-profile manifest exception controls ───
+//
+// Android is NATIVE_AUTHORITATIVE, so app.json cannot express "this
+// permission exists in the staging-certification AAB only". The Voice Scan
+// certification microphone is carried by a build-type manifest instead
+// (android/app/src/certification/AndroidManifest.xml, selected by the
+// `kscan.voiceCertification` Gradle selector). That is a real hole in what
+// the old gate could see, so the gate gained rules for it -- and rules
+// without negative controls are how DEF-WL-07 happened. Each control below
+// reintroduces one specific way the exception could go wrong.
+//
+// NOTE ON SCOPE: none of these can prove what the manifest MERGER does. They
+// prove the source-level invariants. The merged manifest of the built AAB is
+// an artifact-verification obligation recorded in
+// config/native-config-authority.json (artifactVerificationRequired).
+
+const CERT_MANIFEST = path.join('android', 'app', 'src', 'certification', 'AndroidManifest.xml');
+const MAIN_MANIFEST = path.join('android', 'app', 'src', 'main', 'AndroidManifest.xml');
+
+/**
+ * Copies the gate's inputs into an isolated fixture root, lets the caller
+ * rewrite any of them, then runs the gate there. Same isolation rationale as
+ * withMutatedAppJson: node --test runs files concurrently, so mutating this
+ * repository's own config in place is observable by every other test file.
+ */
+function withMutatedFixture(mutate, run = runGate) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'native-config-parity-'));
+  try {
+    for (const relative of GATE_INPUTS) {
+      const source = path.join(REPO_ROOT, relative);
+      if (!fs.existsSync(source)) continue;
+      const destination = path.join(root, relative);
+      fs.mkdirSync(path.dirname(destination), { recursive: true });
+      fs.copyFileSync(source, destination);
+    }
+    mutate({
+      root,
+      read: (relative) => fs.readFileSync(path.join(root, relative), 'utf8'),
+      write: (relative, contents) => {
+        const destination = path.join(root, relative);
+        fs.mkdirSync(path.dirname(destination), { recursive: true });
+        fs.writeFileSync(destination, contents);
+      },
+      readJson: (relative) => JSON.parse(fs.readFileSync(path.join(root, relative), 'utf8')),
+      writeJson: (relative, value) =>
+        fs.writeFileSync(path.join(root, relative), JSON.stringify(value, null, 2)),
+    });
+    return run(root);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+test('the declared Voice certification exception is what the repository actually has', () => {
+  // Positive control for everything below: the real, unmutated tree passes,
+  // and the exception really is declared (so the controls are not passing
+  // vacuously against a tree with no exception at all).
+  assert.equal(runGate(), 0);
+  const authority = JSON.parse(
+    fs.readFileSync(path.join(REPO_ROOT, 'config', 'native-config-authority.json'), 'utf8'),
+  );
+  const exceptions = authority.platforms.android.buildProfileManifestExceptions.exceptions;
+  assert.equal(exceptions.length, 1, 'exactly one build-profile exception is approved');
+  assert.equal(exceptions[0].id, 'VOICE_SCAN_CERTIFICATION_MICROPHONE');
+  assert.deepEqual(exceptions[0].additionalGrantedPermissions, ['android.permission.RECORD_AUDIO']);
+  assert.deepEqual(exceptions[0].selectorSetByEasProfiles, ['staging-certification']);
+});
+
+test('negative control: the certification manifest granting an UNDECLARED permission fails the gate', () => {
+  const exitCode = withMutatedFixture(({ read, write }) => {
+    write(
+      CERT_MANIFEST,
+      read(CERT_MANIFEST).replace(
+        '</manifest>',
+        '<uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>\n</manifest>',
+      ),
+    );
+  });
+  assert.equal(exitCode, 1);
+});
+
+test('negative control: a microphone FOREGROUND SERVICE permission in the certification manifest fails the gate', () => {
+  // The single most important thing this profile must never acquire: a
+  // permission that would let the app capture audio while backgrounded.
+  const exitCode = withMutatedFixture(({ read, write }) => {
+    write(
+      CERT_MANIFEST,
+      read(CERT_MANIFEST).replace(
+        '<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" tools:node="remove"/>',
+        '<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>',
+      ),
+    );
+  });
+  assert.equal(exitCode, 1);
+});
+
+test('negative control: a <service> element in the certification manifest fails the gate', () => {
+  const exitCode = withMutatedFixture(({ read, write }) => {
+    write(
+      CERT_MANIFEST,
+      read(CERT_MANIFEST).replace(
+        '</manifest>',
+        '<application><service android:name=".VoiceService"/></application>\n</manifest>',
+      ),
+    );
+  });
+  assert.equal(exitCode, 1);
+});
+
+test('negative control: the certification manifest dropping a base-release declaration fails the gate', () => {
+  // Selecting the certification manifest REPLACES src/release wholesale, so
+  // silently losing one of its declarations is a real, invisible regression.
+  const exitCode = withMutatedFixture(({ read, write }) => {
+    write(
+      CERT_MANIFEST,
+      read(CERT_MANIFEST).replace(
+        '<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" tools:node="remove"/>',
+        '',
+      ),
+    );
+  });
+  assert.equal(exitCode, 1);
+});
+
+test('PRODUCTION NEGATIVE CONTROL: promoting RECORD_AUDIO into app.json permissions fails the gate', () => {
+  // This is the control that protects the whole design. The point of the
+  // exception mechanism is that production is NOT broadened; the moment the
+  // microphone is declared for every profile, the mechanism has been defeated
+  // and the gate must say so.
+  const exitCode = withMutatedFixture(({ readJson, writeJson }) => {
+    const config = readJson('app.json');
+    config.expo.android.permissions.push('android.permission.RECORD_AUDIO');
+    writeJson('app.json', config);
+  });
+  assert.equal(exitCode, 1);
+});
+
+test('PRODUCTION NEGATIVE CONTROL: un-blocking RECORD_AUDIO in app.json fails the gate', () => {
+  const exitCode = withMutatedFixture(({ readJson, writeJson }) => {
+    const config = readJson('app.json');
+    config.expo.android.blockedPermissions = config.expo.android.blockedPermissions.filter(
+      (permission) => permission !== 'android.permission.RECORD_AUDIO',
+    );
+    writeJson('app.json', config);
+  });
+  assert.equal(exitCode, 1);
+});
+
+test('PRODUCTION NEGATIVE CONTROL: granting RECORD_AUDIO in the MAIN manifest fails the gate', () => {
+  const exitCode = withMutatedFixture(({ read, write }) => {
+    write(
+      MAIN_MANIFEST,
+      read(MAIN_MANIFEST).replace(
+        '<uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove"/>',
+        '<uses-permission android:name="android.permission.RECORD_AUDIO"/>',
+      ),
+    );
+  });
+  assert.equal(exitCode, 1);
+});
+
+test('negative control: any profile other than staging-certification setting the selector fails the gate', () => {
+  // Flag-leak control at the native layer: the selector is what turns the
+  // microphone on, so it leaking into `production` is the native equivalent
+  // of an EXPO_PUBLIC flag leaking there.
+  const exitCode = withMutatedFixture(({ readJson, writeJson }) => {
+    const eas = readJson('eas.json');
+    eas.build.production.env.KSCAN_VOICE_CERTIFICATION = 'true';
+    writeJson('eas.json', eas);
+  });
+  assert.equal(exitCode, 1);
+});
+
+test('negative control: removing the selector from staging-certification fails the gate', () => {
+  // The inverse: a declared exception whose selector nothing sets would give
+  // a certification AAB with no microphone and a Voice flag that is on --
+  // the exact "looks enabled, cannot work" state this repo keeps catching.
+  const exitCode = withMutatedFixture(({ readJson, writeJson }) => {
+    const eas = readJson('eas.json');
+    delete eas.build['staging-certification'].env.KSCAN_VOICE_CERTIFICATION;
+    writeJson('eas.json', eas);
+  });
+  assert.equal(exitCode, 1);
+});
+
+test('negative control: an UNDECLARED build-profile manifest fails the gate', () => {
+  const exitCode = withMutatedFixture(({ write }) => {
+    write(
+      path.join('android', 'app', 'src', 'sneaky', 'AndroidManifest.xml'),
+      '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n' +
+        '  <uses-permission android:name="android.permission.READ_CONTACTS"/>\n' +
+        '</manifest>\n',
+    );
+  });
+  assert.equal(exitCode, 1);
+});
+
+test('negative control: a declared exception build.gradle never selects fails the gate', () => {
+  // A manifest nothing points at cannot take effect. Without this, the
+  // certification build could ship with no microphone while every source
+  // check reported the exception as configured.
+  const exitCode = withMutatedFixture(({ read, write }) => {
+    write(
+      path.join('android', 'app', 'build.gradle'),
+      read(path.join('android', 'app', 'build.gradle')).replace(
+        "manifest.srcFile 'src/certification/AndroidManifest.xml'",
+        '// selector removed by fixture',
+      ),
+    );
+  });
   assert.equal(exitCode, 1);
 });

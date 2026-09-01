@@ -175,7 +175,11 @@
       "env": {
         "EXPO_PUBLIC_VTO_UI_ENABLED": "true",
         "EXPO_PUBLIC_PACKING_INTELLIGENCE_V1": "true",
-        "EXPO_PUBLIC_ELISE_CONCIERGE_V1": "true"
+        "EXPO_PUBLIC_ELISE_CONCIERGE_V1": "true",
+        "EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED": "true",
+        "EXPO_PUBLIC_SMART_WATCHLIST_V1": "true",
+        "EXPO_PUBLIC_VOICESCAN_ENABLED": "true",
+        "KSCAN_VOICE_CERTIFICATION": "true"
       }
     },
     "production": {

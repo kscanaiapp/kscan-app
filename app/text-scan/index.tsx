@@ -26,6 +26,7 @@ import {
   TextScanInput,
   TextScanProductCard,
   TextScanSuggestionChip,
+  VoiceScanButton,
 } from '../../components/text-scan';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import {
@@ -48,6 +49,8 @@ import {
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import { setStyleChatHandoffContext } from '../../services/style-chat/styleChatHandoffContext';
 import type { TextScanFilter } from '../../components/text-scan/ResultFilterTabs';
+import { buildVoiceSubmitOptions } from '../../services/voice/voiceSubmission';
+import { emitVoiceEvent } from '../../services/voice/voiceTelemetry';
 
 type ViewState = 'input' | 'processing' | 'results';
 
@@ -69,6 +72,11 @@ export default function TextScanScreen() {
   const [textScanError, setTextScanError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastSubmitAt, setLastSubmitAt] = useState(0);
+  // Which surface produced the text currently in `query`. Only ever set to
+  // 'voicescan' by an accepted Voice transcript, and reset to 'textscan' by
+  // any other way the query can change -- so a voice label can never outlive
+  // the voice text it described.
+  const [querySource, setQuerySource] = useState<'textscan' | 'voicescan'>('textscan');
 
   const isQueryValid = query.trim().length >= MIN_QUERY_LENGTH;
 
@@ -140,7 +148,13 @@ export default function TextScanScreen() {
           return;
         }
 
-        const normalized = await analyzeTextWithEdge(query, { source: 'textscan' });
+        const invokeOptions = querySource === 'voicescan'
+          ? buildVoiceSubmitOptions(query)
+          : { source: 'textscan' as const };
+        if (querySource === 'voicescan') {
+          emitVoiceEvent('voice_submit', { source: 'text-scan', destination: 'commerce' });
+        }
+        const normalized = await analyzeTextWithEdge(query, invokeOptions);
         if (!cancelled) {
           if (typeof __DEV__ !== 'undefined' && __DEV__) {
             console.log(
@@ -199,6 +213,15 @@ export default function TextScanScreen() {
         placeholder="e.g., oversized wool coat in camel"
         style={styles.inputCard}
         accessibilityLabel="TextScan fashion query"
+        rightAccessory={
+          <VoiceScanButton
+            onTranscript={(transcript) => {
+              setQuery(transcript);
+              setQuerySource('voicescan');
+            }}
+            disabled={isSubmitting}
+          />
+        }
       />
 
       <View style={styles.suggestionsRow}>
@@ -206,7 +229,10 @@ export default function TextScanScreen() {
           <TextScanSuggestionChip
             key={suggestion}
             label={suggestion}
-            onPress={() => setQuery(suggestion)}
+            onPress={() => {
+              setQuery(suggestion);
+              setQuerySource('textscan');
+            }}
             accessibilityLabel={`Use suggestion: ${suggestion}`}
           />
         ))}
