@@ -81,6 +81,66 @@ def enableMinifyInReleaseBuilds = (findProperty('android.enableMinifyInReleaseBu
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+/**
+ * Governed certification selectors (Build 34 Android staging certification).
+ *
+ * Both default to FALSE. They are set in exactly one governed place -- the
+ * `staging-certification` profile's env in eas.json -- and nowhere else. An
+ * ordinary production/staging/preview build, and any local gradle
+ * invocation, leaves them unset and gets the unchanged release behaviour.
+ *
+ * They are deliberately read as an explicit string comparison against
+ * "true": a missing, empty, false, or malformed value all fail closed.
+ */
+def isCertificationSelectorEnabled(Object gradleProperty, String environmentValue) {
+    def resolved = gradleProperty != null ? gradleProperty.toString() : environmentValue
+    return resolved != null && resolved.trim().equalsIgnoreCase('true')
+}
+
+// Voice Scan certification: re-grants RECORD_AUDIO for the certification AAB
+// only. See android/app/src/certification/AndroidManifest.xml for the full
+// rationale and the invariants that file must hold.
+def kscanVoiceCertification = isCertificationSelectorEnabled(
+    findProperty('kscan.voiceCertification'),
+    System.getenv('KSCAN_VOICE_CERTIFICATION')
+)
+println "kscan: voiceCertification=${kscanVoiceCertification}"
+
+/**
+ * Firebase Cloud Messaging configuration, materialised from the governed EAS
+ * FILE SECRET named GOOGLE_SERVICES_JSON.
+ *
+ * google-services.json is NEVER committed (see android/app/.gitignore). EAS
+ * writes the decrypted file to a temporary path and exports that path as the
+ * GOOGLE_SERVICES_JSON environment variable; this block copies it into the
+ * app module where the Google Services Gradle plugin expects it. A local
+ * developer can do the same by exporting GOOGLE_SERVICES_JSON, or by placing
+ * the file at android/app/google-services.json themselves.
+ *
+ * When the secret is absent the plugin is simply not applied: the build
+ * succeeds and produces an artifact with no Firebase configuration, which is
+ * the honest state (Android push cannot deliver) rather than a build that
+ * looks configured and silently cannot send. Nothing else about the build
+ * changes, and no Firebase Analytics/Ads/Crashlytics product is added --
+ * only the messaging configuration expo-notifications already needs.
+ */
+def googleServicesTarget = file('google-services.json')
+def googleServicesSecretPath = System.getenv('GOOGLE_SERVICES_JSON')
+if (googleServicesSecretPath != null && !googleServicesSecretPath.trim().isEmpty()) {
+    def secretFile = file(googleServicesSecretPath.trim())
+    if (secretFile.exists() && secretFile.absolutePath != googleServicesTarget.absolutePath) {
+        copy {
+            from secretFile
+            into googleServicesTarget.parentFile
+            rename { 'google-services.json' }
+        }
+    } else if (!secretFile.exists()) {
+        logger.warn("kscan: GOOGLE_SERVICES_JSON is set but ${secretFile} does not exist; FCM will NOT be configured.")
+    }
+}
+def googleServicesConfigured = googleServicesTarget.exists()
+println "kscan: googleServicesConfigured=${googleServicesConfigured}"
+
 android {
     ndkVersion rootProject.ext.ndkVersion
 
@@ -131,6 +191,26 @@ android {
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
+    sourceSets {
+        release {
+            // Certification-only manifest swap. Off by default: the release
+            // build type keeps src/release/AndroidManifest.xml, which grants
+            // no microphone permission. Build type manifests outrank
+            // src/main, so the certification file's tools:node="replace" on
+            // RECORD_AUDIO supersedes main's tools:node="remove".
+            if (kscanVoiceCertification) {
+                manifest.srcFile 'src/certification/AndroidManifest.xml'
+            }
+        }
+    }
+}
+
+// Applied only when a real google-services.json is present. Keeping it
+// conditional is what lets an unconfigured build stay green instead of
+// failing with "File google-services.json is missing" -- and what keeps
+// production, which does not carry the secret, byte-identical to today.
+if (googleServicesConfigured) {
+    apply plugin: 'com.google.gms.google-services'
 }
 
 // Apply static values from `gradle.properties` to the `android.packagingOptions`

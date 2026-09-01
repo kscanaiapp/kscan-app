@@ -3,6 +3,8 @@
 // Google Play Console compliance repair (release 31 / 1.0.1 recommendations):
 //   GOOGLE-ANDROID-001 deprecated Android 15 edge-to-edge APIs/parameters
 //   GOOGLE-ANDROID-002 portrait/resizability restriction on large-screen devices
+//   GOOGLE-ANDROID-003 permission posture, incl. the Build 34 Voice Scan
+//                      certification microphone exception
 // Asserts against real source (regression) and, per each, includes a negative
 // control that reintroduces the violation into an in-memory copy to prove the
 // assertion actually bites rather than trivially passing on any input.
@@ -131,4 +133,302 @@ test('no K Scan-owned Android source declares windowOptOutEdgeToEdgeEnforcement'
   for (const file of [MANIFEST_PATH, STYLES_PATH, GRADLE_PROPS_PATH]) {
     assert.doesNotMatch(readFile(file), /windowOptOutEdgeToEdgeEnforcement/);
   }
+});
+
+
+// ── GOOGLE-ANDROID-003: permission posture (Build 34) ───────────────────────
+//
+// Voice Scan needs RECORD_AUDIO, but ONLY in the staging-certification AAB.
+// Encoding that as "the app may now request the microphone" would be exactly
+// the broadening this build is designed to avoid, so the accepted posture is
+// stated per artifact:
+//
+//   default / production release  -> NO microphone permission at all
+//   staging-certification release -> RECORD_AUDIO, just-in-time, foreground
+//                                    only, no service, no background capture
+//
+// Everything else stays denied in BOTH, including the permission families
+// Play treats as sensitive: foreground-service microphone, Bluetooth,
+// contacts, SMS, call log, fine/background location, and broad storage/media.
+
+const CERT_MANIFEST_PATH = path.join(
+  REPO_ROOT, 'android', 'app', 'src', 'certification', 'AndroidManifest.xml',
+);
+const RELEASE_MANIFEST_PATH = path.join(
+  REPO_ROOT, 'android', 'app', 'src', 'release', 'AndroidManifest.xml',
+);
+
+/** Comments describe what a manifest must NOT contain; only markup declares. */
+function withoutComments(xml) {
+  return xml.replace(/<!--[\s\S]*?-->/g, '');
+}
+
+/** Permissions a manifest actively grants (no tools:node="remove"). */
+function grantedPermissions(xml) {
+  return [...withoutComments(xml).matchAll(/<uses-permission([^>]*)\/>/g)]
+    .filter((match) => !/tools:node="remove"/.test(match[1]))
+    .map((match) => (match[1].match(/android:name="([^"]+)"/) || [])[1])
+    .filter(Boolean);
+}
+
+// Permission families that must never be granted by ANY K Scan manifest.
+// Matched as substrings so a variant (e.g. BLUETOOTH_ADVERTISE) is caught
+// without having to enumerate every constant Android has ever shipped.
+const FORBIDDEN_PERMISSION_PATTERNS = Object.freeze([
+  'FOREGROUND_SERVICE_MICROPHONE',
+  'CAPTURE_AUDIO_OUTPUT',
+  'BLUETOOTH',
+  'READ_CONTACTS',
+  'WRITE_CONTACTS',
+  'GET_ACCOUNTS',
+  '_SMS',
+  'CALL_LOG',
+  'PROCESS_OUTGOING_CALLS',
+  'CALL_PHONE',
+  'ACCESS_FINE_LOCATION',
+  'ACCESS_BACKGROUND_LOCATION',
+  'READ_EXTERNAL_STORAGE',
+  'WRITE_EXTERNAL_STORAGE',
+  'MANAGE_EXTERNAL_STORAGE',
+  'READ_MEDIA_',
+  'AD_ID',
+]);
+
+function assertNoForbiddenPermissions(label, xml) {
+  for (const permission of grantedPermissions(xml)) {
+    for (const pattern of FORBIDDEN_PERMISSION_PATTERNS) {
+      assert.ok(
+        !permission.includes(pattern),
+        `${label} grants "${permission}", which matches the forbidden family "${pattern}" (GOOGLE-ANDROID-003)`,
+      );
+    }
+  }
+}
+
+test('the DEFAULT/production manifests request no microphone permission', () => {
+  const main = withoutComments(readFile(MANIFEST_PATH));
+  assert.match(
+    main,
+    /<uses-permission[^>]*android:name="android\.permission\.RECORD_AUDIO"[^>]*tools:node="remove"[^>]*\/>/,
+    'src/main must keep RECORD_AUDIO removed -- this is what production ships',
+  );
+  assert.ok(
+    !grantedPermissions(readFile(MANIFEST_PATH)).includes('android.permission.RECORD_AUDIO'),
+    'src/main must never GRANT RECORD_AUDIO',
+  );
+  assert.ok(
+    !grantedPermissions(readFile(RELEASE_MANIFEST_PATH)).includes('android.permission.RECORD_AUDIO'),
+    'the default release manifest must never grant RECORD_AUDIO',
+  );
+});
+
+test('CONTROL D (negative): a microphone grant in the default release manifest is caught', () => {
+  const mutated = readFile(RELEASE_MANIFEST_PATH).replace(
+    '</manifest>',
+    '<uses-permission android:name="android.permission.RECORD_AUDIO"/>\n</manifest>',
+  );
+  assert.throws(() =>
+    assert.ok(
+      !grantedPermissions(mutated).includes('android.permission.RECORD_AUDIO'),
+      'must reject a microphone grant in the default release manifest',
+    ),
+  );
+});
+
+test('app.json continues to declare the microphone BLOCKED, so no CNG surface reintroduces it', () => {
+  const androidConfig = JSON.parse(readFile(APP_JSON_PATH)).expo.android;
+  assert.ok(
+    androidConfig.blockedPermissions.includes('android.permission.RECORD_AUDIO'),
+    'RECORD_AUDIO must remain in app.json blockedPermissions',
+  );
+  assert.ok(
+    !androidConfig.permissions.includes('android.permission.RECORD_AUDIO'),
+    'RECORD_AUDIO must never be declared in app.json android.permissions',
+  );
+});
+
+test('the audio plugins keep microphone capture disabled at the config layer', () => {
+  // Build 34 lesson (project_build34_ios_voice_mic_permission): Expo's
+  // `microphonePermission: false` DELETES the platform permission a plugin
+  // would otherwise add. Voice Scan does not use expo-camera or expo-audio
+  // capture at all -- it uses the dedicated on-device recognizer module --
+  // so these must stay false, and Voice must not "fix" itself by flipping
+  // them, which would grant the microphone to every profile.
+  const plugins = JSON.parse(readFile(APP_JSON_PATH)).expo.plugins;
+  for (const plugin of plugins) {
+    if (!Array.isArray(plugin)) continue;
+    const [name, options] = plugin;
+    if (name !== 'expo-camera' && name !== 'expo-audio') continue;
+    assert.equal(options.microphonePermission, false, `${name} must keep microphonePermission false`);
+    assert.equal(options.recordAudioAndroid, false, `${name} must keep recordAudioAndroid false`);
+  }
+});
+
+test('the certification manifest grants the microphone, and nothing else new', () => {
+  const certificationXml = readFile(CERT_MANIFEST_PATH);
+  const granted = grantedPermissions(certificationXml);
+  assert.deepEqual(
+    granted,
+    ['android.permission.RECORD_AUDIO'],
+    'the certification manifest may grant exactly one permission beyond the base manifest',
+  );
+});
+
+test('no manifest -- default or certification -- grants a forbidden permission family', () => {
+  assertNoForbiddenPermissions('src/main/AndroidManifest.xml', readFile(MANIFEST_PATH));
+  assertNoForbiddenPermissions('src/release/AndroidManifest.xml', readFile(RELEASE_MANIFEST_PATH));
+  assertNoForbiddenPermissions('src/certification/AndroidManifest.xml', readFile(CERT_MANIFEST_PATH));
+});
+
+test('CONTROL E (negative): a forbidden permission family is caught in every manifest checked', () => {
+  for (const manifestPath of [MANIFEST_PATH, RELEASE_MANIFEST_PATH, CERT_MANIFEST_PATH]) {
+    const mutated = readFile(manifestPath).replace(
+      '</manifest>',
+      '<uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>\n</manifest>',
+    );
+    assert.throws(
+      () => assertNoForbiddenPermissions('fixture', mutated),
+      `the forbidden-family check must bite on ${path.basename(path.dirname(manifestPath))}`,
+    );
+  }
+});
+
+test('no manifest declares a service, so there is no background-microphone surface at all', () => {
+  // A foreground-service microphone needs BOTH the permission and a service
+  // with foregroundServiceType="microphone". Neither exists; asserting the
+  // absence of the service closes the half the permission check does not.
+  for (const manifestPath of [MANIFEST_PATH, RELEASE_MANIFEST_PATH, CERT_MANIFEST_PATH]) {
+    const xml = withoutComments(readFile(manifestPath));
+    assert.doesNotMatch(xml, /<service[\s>]/, `${manifestPath} must declare no <service>`);
+    assert.doesNotMatch(xml, /foregroundServiceType/, `${manifestPath} must declare no foregroundServiceType`);
+  }
+});
+
+test('the Voice native module requests the microphone just-in-time and releases it on background', () => {
+  // Source proof for the two behavioural claims the Data Safety declaration
+  // and the Play permission review both rest on.
+  const kotlin = readFile(
+    path.join(REPO_ROOT, 'modules', 'kscan-voice-native', 'android', 'src', 'main',
+      'java', 'expo', 'modules', 'kscanvoicenative', 'KScanVoiceNativeModule.kt'),
+  );
+  // JIT: permission is requested from an explicit API call, never at startup.
+  assert.match(kotlin, /AsyncFunction\("requestPermissions"\)/);
+  assert.doesNotMatch(kotlin, /OnCreate[\s\S]{0,400}askForPermissions/,
+    'the microphone must never be requested during module creation');
+  // Release on background, independent of any single Activity.
+  assert.match(kotlin, /ProcessLifecycleOwner/);
+  assert.match(kotlin, /override fun onStop\(owner: LifecycleOwner\) \{\s*teardownSession/);
+  // The module's own manifest contributes no permission of its own.
+  const moduleManifest = readFile(
+    path.join(REPO_ROOT, 'modules', 'kscan-voice-native', 'android', 'src', 'main', 'AndroidManifest.xml'),
+  );
+  assert.doesNotMatch(moduleManifest, /uses-permission/,
+    'the Voice module must not contribute a permission of its own -- the app manifest decides');
+});
+
+test('Voice Scan uses on-device recognition only: no cloud recognizer, no network fallback', () => {
+  // This is the fact the Play Data Safety answer depends on. If it ever
+  // stops being true, "audio is not collected" stops being true with it.
+  const kotlin = readFile(
+    path.join(REPO_ROOT, 'modules', 'kscan-voice-native', 'android', 'src', 'main',
+      'java', 'expo', 'modules', 'kscanvoicenative', 'KScanVoiceNativeModule.kt'),
+  );
+  assert.match(kotlin, /createOnDeviceSpeechRecognizer/);
+  assert.match(kotlin, /isOnDeviceRecognitionAvailable/);
+  assert.match(kotlin, /EXTRA_PREFER_OFFLINE/);
+  // createSpeechRecognizer( may use a cloud-backed engine -- it must not
+  // appear except as part of createOnDeviceSpeechRecognizer(.
+  const cloudCalls = (kotlin.match(/(?<!OnDevice)SpeechRecognizer\.createSpeechRecognizer\(/g) || []);
+  assert.equal(cloudCalls.length, 0, 'no cloud-capable recognizer may be constructed');
+});
+
+test('CONTROL F (negative): a cloud recognizer would be caught', () => {
+  const mutated = 'val r = SpeechRecognizer.createSpeechRecognizer(context)';
+  const cloudCalls = (mutated.match(/(?<!OnDevice)SpeechRecognizer\.createSpeechRecognizer\(/g) || []);
+  assert.equal(cloudCalls.length, 1, 'the cloud-recognizer detector must actually match one');
+});
+
+test('no raw microphone audio is logged or persisted anywhere in the Voice path', () => {
+  const voiceSources = [
+    path.join(REPO_ROOT, 'hooks', 'useVoiceScan.ts'),
+    path.join(REPO_ROOT, 'services', 'voice', 'voiceTelemetry.ts'),
+    path.join(REPO_ROOT, 'services', 'voice', 'voiceNativeModule.ts'),
+    path.join(REPO_ROOT, 'services', 'voice', 'voiceTranscript.ts'),
+  ];
+  for (const file of voiceSources) {
+    const source = readFile(file);
+    assert.doesNotMatch(source, /AsyncStorage/, `${file} must not persist voice state`);
+    assert.doesNotMatch(source, /SecureStore|FileSystem\.write/, `${file} must not write voice data to disk`);
+  }
+  // The telemetry allowlist cannot carry text: 'transcript' is not a
+  // permitted property name, so a transcript passed by mistake is dropped.
+  const telemetry = readFile(path.join(REPO_ROOT, 'services', 'voice', 'voiceTelemetry.ts'));
+  const properties = telemetry.match(/VOICE_EVENT_PROPERTIES = \[([\s\S]*?)\]/);
+  assert.ok(properties, 'the telemetry property allowlist must exist');
+  assert.doesNotMatch(properties[1], /transcript|text|query|audio/i,
+    'no content-bearing property may be allowlisted for voice telemetry');
+});
+
+
+test('the ONLY reachable microphone-request path is the JIT one in the Voice session', () => {
+  // usePermissionPreferences exports a SECOND microphone request --
+  // requestMicrophonePermission, a direct PermissionsAndroid.request that was
+  // written for onboarding. Build 33 removed the onboarding Microphone card,
+  // so it currently has no caller, and while VOICESCAN_ENABLED was a
+  // hardcoded false its internal guard made it inert regardless.
+  //
+  // Build 34 turns that flag on for the certification profile, so the guard no
+  // longer holds it shut -- only the absence of a caller does. Wiring it to
+  // onboarding would request the microphone at app setup rather than on the
+  // user's explicit Voice tap, which is exactly the posture Play review and
+  // this build's Data Safety answer both depend on NOT being true.
+  //
+  // So: assert it stays caller-less. If Voice ever legitimately needs a
+  // non-JIT path, that is a deliberate change that should fail here first.
+  const hook = readFile(path.join(REPO_ROOT, 'hooks', 'usePermissionPreferences.ts'));
+  assert.match(hook, /requestMicrophonePermission/, 'the second path still exists -- keep watching it');
+  assert.match(
+    hook,
+    /if \(Platform\.OS !== 'android' \|\| !VOICESCAN_ENABLED\)/,
+    'it must keep its own guard even though the guard is no longer sufficient',
+  );
+
+  const searchRoots = ['app', 'components', 'hooks', 'services'];
+  const callers = [];
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === 'node_modules') continue;
+        walk(full);
+        continue;
+      }
+      if (!/\.(ts|tsx)$/.test(entry.name)) continue;
+      const relative = path.relative(REPO_ROOT, full).replace(/\\/g, '/');
+      if (relative === 'hooks/usePermissionPreferences.ts') continue; // the definition itself
+      if (/requestMicrophonePermission/.test(fs.readFileSync(full, 'utf8'))) callers.push(relative);
+    }
+  };
+  for (const root of searchRoots) walk(path.join(REPO_ROOT, root));
+
+  assert.deepEqual(
+    callers,
+    [],
+    `requestMicrophonePermission is a NON-JIT microphone request and must stay caller-less; found: ${callers.join(', ')}`,
+  );
+});
+
+test('CONTROL G (negative): a new caller of the non-JIT microphone path would be caught', () => {
+  const fixture = ['app/onboarding/index.tsx'];
+  assert.throws(() => assert.deepEqual(fixture, []), 'the caller scan must reject a non-empty result');
+});
+
+test('the JIT path is the one Voice actually uses', () => {
+  // Positive half: Voice requests the microphone through the native module's
+  // own requestPermissions, called from startSession after an explicit tap.
+  const hook = readFile(path.join(REPO_ROOT, 'hooks', 'useVoiceScan.ts'));
+  assert.match(hook, /requestVoiceRecordingPermission/);
+  assert.doesNotMatch(hook, /PermissionsAndroid/, 'Voice must not open a second permission path of its own');
+  const startSession = hook.slice(hook.indexOf('const startSession'), hook.indexOf('const stopSession'));
+  assert.match(startSession, /await requestVoiceRecordingPermission\(\)/);
 });

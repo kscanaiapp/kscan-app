@@ -28,9 +28,22 @@ const OPS_DOC = 'docs/watchlist-tier2-operations.md';
 
 // ─────────────────────────────────────────── Objective C: Android FCM path ──
 
+const APP_BUILD_GRADLE = 'android/app/build.gradle';
+const ROOT_BUILD_GRADLE = 'android/build.gradle';
+
 /**
  * Is the Android FCM path actually configured? Derived from the config, never
  * asserted as a constant, so this answers correctly the moment it changes.
+ *
+ * Build 34 added a THIRD mechanism, and it is the one this repository
+ * actually uses. Android is NATIVE_AUTHORITATIVE, so `expo prebuild` never
+ * runs for Android and `expo.android.googleServicesFile` — a CNG field —
+ * would be inert: it would report "configured" while producing an AAB with no
+ * Firebase configuration in it, which is precisely the silent-failure shape
+ * this whole file exists to prevent. The native project materialises the file
+ * from the governed EAS file secret instead, so that path counts as
+ * configured too. The two CNG branches are kept because a future migration to
+ * app.config.js would legitimately make them true again.
  */
 function androidFcmConfigured() {
   if (typeof androidConfig.googleServicesFile === 'string' && androidConfig.googleServicesFile.trim()) {
@@ -39,6 +52,14 @@ function androidFcmConfigured() {
   // app.config.js would be the mechanism if app.json (static) is replaced.
   for (const candidate of ['app.config.js', 'app.config.ts']) {
     if (exists(candidate) && /googleServicesFile/.test(read(candidate))) return true;
+  }
+  // Native (NATIVE_AUTHORITATIVE) wiring: the secret is copied into the app
+  // module and the plugin is applied only when the file really landed.
+  if (exists(APP_BUILD_GRADLE)) {
+    const gradle = read(APP_BUILD_GRADLE);
+    if (/GOOGLE_SERVICES_JSON/.test(gradle) && /com\.google\.gms\.google-services/.test(gradle)) {
+      return true;
+    }
   }
   return false;
 }
@@ -55,12 +76,106 @@ test('Objective C: the Android FCM path and its EAS secret name are declared tog
     'the ops doc must always name the expected EAS file secret so provisioning is a lookup, not a guess',
   );
   if (configured) {
+    const doc = read(OPS_DOC);
+    // Whichever mechanism is in use must be the one the doc describes. A doc
+    // that still prescribes the CNG field while the build uses the native
+    // path would send an operator to run `expo prebuild`, which regenerates
+    // the committed Android project.
     assert.match(
-      read(OPS_DOC),
-      /expo\.android\.googleServicesFile/,
-      'if the config field is wired, the ops doc must document it',
+      doc,
+      /NATIVE_AUTHORITATIVE|expo\.android\.googleServicesFile/,
+      'if FCM is wired, the ops doc must document the mechanism actually used',
+    );
+    assert.match(
+      doc,
+      new RegExp(androidConfig.package.replace(/\./g, '\\.')),
+      'the ops doc must name the exact Android package the Firebase app is registered against',
     );
   }
+});
+
+// ── Build 34: the native FCM path, and the ways it can be half-wired ────────
+
+test('Objective C: the FCM secret is materialised into the native project, not a CNG field', () => {
+  const gradle = read(APP_BUILD_GRADLE);
+  assert.match(gradle, /GOOGLE_SERVICES_JSON/, 'the governed EAS file secret must be read by the native build');
+  assert.match(
+    gradle,
+    /apply plugin: 'com\.google\.gms\.google-services'/,
+    'the Google Services plugin must be applied for the app to obtain an FCM token',
+  );
+  assert.match(
+    read(ROOT_BUILD_GRADLE),
+    /com\.google\.gms:google-services/,
+    'the plugin classpath must be declared at the root project',
+  );
+  // Android is NATIVE_AUTHORITATIVE: the CNG field would be inert here and
+  // its presence would mean someone believed prebuild runs for Android.
+  assert.equal(
+    androidConfig.googleServicesFile,
+    undefined,
+    'expo.android.googleServicesFile is a CNG field and must NOT be set while Android is NATIVE_AUTHORITATIVE',
+  );
+});
+
+test('Objective C: the plugin is applied CONDITIONALLY, so an unprovisioned build still succeeds', () => {
+  // An unconditional `apply plugin` fails the build with "File
+  // google-services.json is missing" for every developer and every profile
+  // without the secret -- including production, which must stay unchanged.
+  const gradle = read(APP_BUILD_GRADLE);
+  assert.match(
+    gradle,
+    /if \(googleServicesConfigured\) \{\s*apply plugin: 'com\.google\.gms\.google-services'/,
+    'the plugin must be applied only when a real google-services.json is present',
+  );
+  assert.match(gradle, /googleServicesConfigured=/, 'the build must state the resolved FCM configuration');
+});
+
+test('Objective C: no Firebase product beyond messaging configuration is introduced', () => {
+  // Play Data Safety and the app's own privacy posture both depend on this:
+  // enabling FCM must not smuggle in Analytics, Ads, or Crashlytics.
+  const gradle = read(APP_BUILD_GRADLE) + read(ROOT_BUILD_GRADLE);
+  for (const forbidden of [
+    'firebase-analytics',
+    'firebase-crashlytics',
+    'firebase-perf',
+    'play-services-ads',
+    'com.google.firebase.crashlytics',
+    'com.android.installreferrer',
+  ]) {
+    assert.ok(!gradle.includes(forbidden), `${forbidden} must not be added merely to enable FCM`);
+  }
+});
+
+test('Objective C SECURITY CONTROL: google-services.json is never committed', () => {
+  // This repository is public. The Firebase config carries the API key and
+  // app identifiers.
+  assert.ok(!exists('android/app/google-services.json'), 'google-services.json must not exist in the tree');
+  assert.ok(exists('android/app/.gitignore'), 'the app module must carry a .gitignore');
+  assert.match(
+    read('android/app/.gitignore'),
+    /google-services\.json/,
+    'google-services.json must be git-ignored so it cannot be committed by accident',
+  );
+});
+
+test('Objective C: the package identity and Play signing lineage are untouched by the FCM work', () => {
+  assert.equal(androidConfig.package, 'com.kscanai.app');
+  const gradle = read(APP_BUILD_GRADLE);
+  assert.match(gradle, /applicationId 'com\.kscanai\.app'/);
+  assert.match(gradle, /Release signing is managed by EAS Build/,
+    'release signing must still be delegated to EAS credentials, not redefined');
+  // Only the debug keystore may be declared in source. A `release` entry
+  // inside signingConfigs would take over signing from EAS credentials and
+  // break the Play signing lineage. Scoped to the signingConfigs block: a
+  // naive whole-file scan matches the unrelated `release` build type.
+  const signingBlock = gradle.slice(
+    gradle.indexOf('signingConfigs {'),
+    gradle.indexOf('buildTypes {'),
+  );
+  assert.ok(signingBlock.includes('debug {'), 'the signingConfigs block must be located');
+  assert.doesNotMatch(signingBlock, /\brelease\s*\{/,
+    'no release signingConfig may be introduced in source -- EAS owns Play signing');
 });
 
 test('Objective C NEGATIVE CONTROL: nothing may claim Android Watchlist push works while FCM is absent', () => {

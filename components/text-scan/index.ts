@@ -6,3 +6,4 @@ export { AttributeGrid } from './AttributeGrid';
 export { ResultFilterTabs } from './ResultFilterTabs';
 export { TextScanFeatureRow } from './TextScanFeatureRow';
 export { TextScanProductCard } from './TextScanProductCard';
+export { VoiceScanButton } from './VoiceScanButton';

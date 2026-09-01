@@ -9,6 +9,13 @@ buildscript {
     classpath('com.android.tools.build:gradle')
     classpath('com.facebook.react:react-native-gradle-plugin')
     classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')
+    // Google Services (Firebase Cloud Messaging) plugin. Declaring the
+    // classpath is inert on its own -- android/app/build.gradle applies the
+    // plugin ONLY when a real google-services.json has been materialised
+    // from the governed EAS file secret. No Firebase Analytics, Ads, or
+    // Crashlytics dependency is introduced anywhere; the messaging config
+    // is what expo-notifications needs to obtain an FCM token on Android.
+    classpath('com.google.gms:google-services:4.4.2')
   }
 }
 

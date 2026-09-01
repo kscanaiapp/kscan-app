@@ -20,6 +20,19 @@
  *   - Android: app.json's android.package/versionCode/permissions/
  *     blockedPermissions/intentFilters must match
  *     android/app/build.gradle and android/app/src/main/AndroidManifest.xml.
+ *   - Android build-profile manifest exceptions: Android being
+ *     NATIVE_AUTHORITATIVE means app.json cannot express a permission that
+ *     exists in ONE build profile only (Build 34's Voice Scan certification
+ *     microphone). Rather than weakening the parity rules above so such a
+ *     permission slips through unnoticed, every exception must be DECLARED
+ *     in config/native-config-authority.json's
+ *     platforms.android.buildProfileManifestExceptions, and this gate then
+ *     enforces the declaration: the exception manifest must be a strict
+ *     superset of its base manifest, may grant nothing beyond the declared
+ *     permissions, must keep every mustRemainRemovedEverywhere permission
+ *     removed, must never introduce a <service>, and the permissions it
+ *     grants must still be blocked in app.json + src/main -- which is what
+ *     keeps the DEFAULT/production artifact unbroadened.
  *   - iOS: every permission plugin that requires a usage-description string
  *     must have one declared in app.json's ios.infoPlist; bundleIdentifier
  *     and associatedDomains must be present.
@@ -158,6 +171,227 @@ function main() {
                 '<data> element in AndroidManifest.xml.',
             );
           }
+        }
+      }
+    }
+  }
+
+  // ---- Android build-profile manifest exceptions (governed, declared) ----
+  //
+  // Nothing here relaxes the checks above: the main manifest is still held to
+  // app.json exactly as before. This adds a SECOND, narrower set of rules for
+  // the one place app.json provably cannot describe -- a per-build-profile
+  // manifest -- so that such a file cannot exist unexamined.
+  const exceptionsBlock = authority.platforms.android?.buildProfileManifestExceptions;
+  const declaredExceptions = exceptionsBlock?.exceptions || [];
+
+  /**
+   * Groovy comments are documentation, not wiring. android/app/build.gradle
+   * explains the certification selector in prose that names the very
+   * property, env var, and manifest path the checks below look for, so a
+   * naive substring scan would report a selector as wired purely because it
+   * is *described*. Block comments and whole-line `//` comments are removed;
+   * trailing `//` is deliberately left alone so a URL inside a string
+   * literal cannot truncate a real line of build logic.
+   */
+  function stripGroovyComments(gradleSource) {
+    return gradleSource
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .split(/\r?\n/)
+      .filter((line) => !line.trim().startsWith('//'))
+      .join('\n');
+  }
+
+
+  /**
+   * XML comments are documentation, not declarations. The exception manifest
+   * documents what it must never contain (a <service>, a foreground-service
+   * microphone permission), and a naive scan reads that prose as the very
+   * violation it forbids. Strip comments before analysing structure.
+   */
+  function stripXmlComments(manifestXml) {
+    return manifestXml.replace(/<!--[\s\S]*?-->/g, '');
+  }
+
+  /** Permissions a manifest actively GRANTS (i.e. carries no tools:node="remove"). */
+  function grantedPermissions(manifestXml) {
+    return [...manifestXml.matchAll(/<uses-permission([^>]*)\/>/g)]
+      .filter((match) => !/tools:node="remove"/.test(match[1]))
+      .map((match) => (match[1].match(/android:name="([^"]+)"/) || [])[1])
+      .filter(Boolean);
+  }
+
+  /** Permissions a manifest explicitly REMOVES. */
+  function removedPermissions(manifestXml) {
+    return [...manifestXml.matchAll(/<uses-permission([^>]*)\/>/g)]
+      .filter((match) => /tools:node="remove"/.test(match[1]))
+      .map((match) => (match[1].match(/android:name="([^"]+)"/) || [])[1])
+      .filter(Boolean);
+  }
+
+  // An exception manifest that exists but is NOT declared is the dangerous
+  // case: it would ship permissions no gate ever looked at.
+  const sourceSetsDir = path.join(REPO_ROOT, 'android', 'app', 'src');
+  const declaredExceptionPaths = new Set(
+    declaredExceptions
+      .filter((exception) => exception.exceptionManifest)
+      .map((exception) => path.resolve(REPO_ROOT, exception.exceptionManifest)),
+  );
+  const KNOWN_SOURCE_SETS = ['main', 'debug', 'debugOptimized', 'release'];
+  if (fs.existsSync(sourceSetsDir)) {
+    checked.push('undeclared build-profile manifests under android/app/src');
+    for (const entry of fs.readdirSync(sourceSetsDir, { withFileTypes: true })) {
+      if (!entry.isDirectory() || KNOWN_SOURCE_SETS.includes(entry.name)) continue;
+      const candidate = path.join(sourceSetsDir, entry.name, 'AndroidManifest.xml');
+      if (fs.existsSync(candidate) && !declaredExceptionPaths.has(path.resolve(candidate))) {
+        failures.push(
+          `android/app/src/${entry.name}/AndroidManifest.xml is a build-profile manifest that is NOT declared in ` +
+            'config/native-config-authority.json buildProfileManifestExceptions -- an undeclared profile manifest ' +
+            'ships permissions no gate inspects.',
+        );
+      }
+    }
+  }
+
+  for (const exception of declaredExceptions) {
+    const label = exception.id || '(unnamed exception)';
+    checked.push(`build-profile manifest exception "${label}"`);
+
+    const baseRaw = exception.baseManifest ? readIfExists(path.join(REPO_ROOT, exception.baseManifest)) : null;
+    const exceptionRaw = exception.exceptionManifest
+      ? readIfExists(path.join(REPO_ROOT, exception.exceptionManifest))
+      : null;
+    const baseXml = baseRaw === null ? null : stripXmlComments(baseRaw);
+    const exceptionXml = exceptionRaw === null ? null : stripXmlComments(exceptionRaw);
+    if (!baseXml || !exceptionXml) {
+      failures.push(
+        `Exception "${label}" declares baseManifest "${exception.baseManifest}" and exceptionManifest ` +
+          `"${exception.exceptionManifest}", but at least one of them does not exist.`,
+      );
+      continue;
+    }
+
+    const exceptionGranted = grantedPermissions(exceptionXml);
+    const exceptionRemoved = new Set(removedPermissions(exceptionXml));
+    const baseGranted = new Set(grantedPermissions(baseXml));
+
+    // (a) Strict superset. Selecting this manifest REPLACES the base file
+    //     wholesale, so anything the base declared and this one omits is
+    //     silently lost from the certification artifact.
+    for (const permission of removedPermissions(baseXml)) {
+      if (!exceptionRemoved.has(permission)) {
+        failures.push(
+          `Exception "${label}" drops "${permission}", which ${exception.baseManifest} removes. The exception ` +
+            'manifest replaces the base manifest wholesale and must be a strict superset of it.',
+        );
+      }
+    }
+    for (const permission of baseGranted) {
+      if (!exceptionGranted.includes(permission)) {
+        failures.push(
+          `Exception "${label}" drops the granted permission "${permission}" declared by ${exception.baseManifest}.`,
+        );
+      }
+    }
+
+    // (b) It may grant NOTHING beyond what the authority declares.
+    const allowedExtra = new Set(exception.additionalGrantedPermissions || []);
+    for (const permission of exceptionGranted) {
+      if (baseGranted.has(permission) || allowedExtra.has(permission)) continue;
+      failures.push(
+        `Exception "${label}" grants "${permission}", which is neither in the base manifest nor declared in ` +
+          'additionalGrantedPermissions -- every profile-specific grant must be declared before it can ship.',
+      );
+    }
+
+    // (c) Permissions that must stay removed in EVERY profile.
+    for (const permission of exception.mustRemainRemovedEverywhere || []) {
+      if (!exceptionRemoved.has(permission)) {
+        failures.push(
+          `Exception "${label}" must keep "${permission}" at tools:node="remove" -- it is declared as ` +
+            'mustRemainRemovedEverywhere (background / foreground-service audio capture is never approved).',
+        );
+      }
+    }
+
+    // (d) A profile manifest may not introduce a service. A microphone
+    //     foreground service is precisely what this forbids.
+    if (/<service[\s>]/.test(exceptionXml)) {
+      failures.push(
+        `Exception "${label}" declares a <service> element; a build-profile manifest may not introduce services.`,
+      );
+    }
+
+    // (e) THE PRODUCTION NEGATIVE CONTROL. Everything the exception adds must
+    //     STILL be blocked in app.json and removed in src/main. That is what
+    //     proves the default/production artifact was not broadened.
+    const blockedInAppJson = new Set(appConfig.android?.blockedPermissions || []);
+    const declaredInAppJson = new Set(appConfig.android?.permissions || []);
+    for (const permission of allowedExtra) {
+      if (declaredInAppJson.has(permission)) {
+        failures.push(
+          `Exception "${label}" grants "${permission}", but app.json android.permissions ALSO declares it -- that ` +
+            'broadens the default/production artifact, which is exactly what the exception mechanism exists to avoid.',
+        );
+      }
+      if (!blockedInAppJson.has(permission)) {
+        failures.push(
+          `Exception "${label}" grants "${permission}", so app.json android.blockedPermissions must still list it ` +
+            '(the default artifact must keep requesting no such permission).',
+        );
+      }
+      if (manifest && !removedPermissions(stripXmlComments(manifest)).includes(permission)) {
+        failures.push(
+          `Exception "${label}" grants "${permission}", so android/app/src/main/AndroidManifest.xml must still ` +
+            'carry it at tools:node="remove".',
+        );
+      }
+    }
+
+    // (f) The selector must actually be read by the native build, and must be
+    //     set by exactly the EAS profiles the authority declares.
+    const gradleWiring = gradle ? stripGroovyComments(gradle) : null;
+    if (gradleWiring) {
+      if (exception.selectorGradleProperty && !gradleWiring.includes(exception.selectorGradleProperty)) {
+        failures.push(
+          `Exception "${label}" declares Gradle selector "${exception.selectorGradleProperty}", which ` +
+            'android/app/build.gradle never reads.',
+        );
+      }
+      if (exception.selectorEnvironmentVariable && !gradleWiring.includes(exception.selectorEnvironmentVariable)) {
+        failures.push(
+          `Exception "${label}" declares env selector "${exception.selectorEnvironmentVariable}", which ` +
+            'android/app/build.gradle never reads.',
+        );
+      }
+      if (exception.exceptionManifest) {
+        const manifestBasename = exception.exceptionManifest.split('/').slice(-2).join('/');
+        if (!gradleWiring.includes(manifestBasename)) {
+          failures.push(
+            `Exception "${label}" declares exceptionManifest "${exception.exceptionManifest}", but ` +
+              'android/app/build.gradle never selects it -- a manifest nothing points at cannot take effect.',
+          );
+        }
+      }
+    }
+
+    const easRaw = readIfExists(path.join(REPO_ROOT, 'eas.json'));
+    if (easRaw && exception.selectorEnvironmentVariable) {
+      const eas = JSON.parse(easRaw);
+      const expectedProfiles = new Set(exception.selectorSetByEasProfiles || []);
+      for (const [profileName, profile] of Object.entries(eas.build || {})) {
+        const setsSelector = Boolean(profile.env && exception.selectorEnvironmentVariable in profile.env);
+        if (setsSelector && !expectedProfiles.has(profileName)) {
+          failures.push(
+            `EAS profile "${profileName}" sets "${exception.selectorEnvironmentVariable}", but exception "${label}" ` +
+              `declares it for [${[...expectedProfiles].join(', ')}] only.`,
+          );
+        }
+        if (!setsSelector && expectedProfiles.has(profileName)) {
+          failures.push(
+            `Exception "${label}" declares EAS profile "${profileName}" as a selector site, but that profile does ` +
+              `not set "${exception.selectorEnvironmentVariable}".`,
+          );
         }
       }
     }

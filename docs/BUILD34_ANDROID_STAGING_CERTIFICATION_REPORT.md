@@ -15,6 +15,25 @@ Artifact class: STAGING_CERTIFICATION_ARTIFACT = TRUE / PRODUCTION_SUBMISSION_AR
 
 ---
 
+> ## ⚠️ PARTIALLY SUPERSEDED — 2026-08-31 (Build 34 Android certification convergence)
+>
+> This report is preserved as the audit record it was. Three of its
+> classifications are **no longer true of the certification candidate**:
+>
+> | Section | Said | Now |
+> |---|---|---|
+> | §L PERMISSIONS (MIC) | "ABSENT and must remain absent" | `RECORD_AUDIO` is granted **in the `staging-certification` artifact only**, via a governed build-type manifest. Default/production still request no microphone. |
+> | §N K+ Early Access | OFF | **ON** |
+> | §N Watchlist / VTO / Packing / Concierge / Voice | OFF | **ON** |
+>
+> Its P2-EAS-FLAGS owner decision has been taken: the flags are now enabled in
+> `staging-certification` and nowhere else.
+>
+> **Read `docs/build34-android-certification-handoff.md` for the current
+> device-stage package.** Everything in this report outside §L and §N stands.
+
+---
+
 ## A. SOURCE
 
 | Field | Value |
@@ -189,7 +208,7 @@ Play-distributed build (certificate fingerprints affect OAuth).
 | CAMERA | Declared; JIT |
 | PHOTO PICKER | System picker via expo-image-picker; **no READ_MEDIA_IMAGES/VIDEO declared or expected**; broad media permissions removed. Merged-manifest confirmation pending |
 | COARSE LOCATION | Declared (weather styling); FINE + BACKGROUND removed. Scanner does not require location (degrades) |
-| MIC | **ABSENT and must remain absent**: `VOICESCAN_ENABLED = false` hardcoded; RECORD_AUDIO `tools:node="remove"`; flag and native posture agree (§18). JIT request code exists but is unreachable while flag is false |
+| MIC | **SUPERSEDED — profile-specific as of the Voice convergence.** Default/production: still ABSENT (`RECORD_AUDIO` `tools:node="remove"` in `src/main`, still in `app.json` `blockedPermissions`). `staging-certification` only: GRANTED via `android/app/src/certification/AndroidManifest.xml`, selected by the `KSCAN_VOICE_CERTIFICATION` Gradle selector. JIT request only, foreground only, no `FOREGROUND_SERVICE_MICROPHONE`, no `<service>`, released on background. Declared in `config/native-config-authority.json` and enforced by `scripts/check-native-config-parity.js`. Merged-AAB confirmation still required — see handoff §8 |
 | NOTIFICATIONS | expo-notifications plugin; POST_NOTIFICATIONS runtime-requested where applicable |
 | Background execution | No FGS/WAKE_LOCK/exact-alarm/boot declarations in first-party source; merged-manifest check pending |
 
@@ -214,21 +233,25 @@ Play-distributed build (certificate fingerprints affect OAuth).
 | Elise | ✅ | ON (incl. visual attachments, identification V2) | ON |
 | Closet | ✅ | ON (separation, direct intake, staging, batch review) | ON |
 | Dressing Rooms | ✅ | ON (collab, messages, reactions, private rooms, saved looks) | ON |
-| K+ Early Access | ✅ | **OFF** — `EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED` not set in any profile; defaults off | Owner decision; complimentary contract (no charge wording verified in `KPlusEarlyAccessSheet`) |
-| Voice | ✅ (module) | **OFF** — `VOICESCAN_ENABLED=false` hardcoded; no mic permission | OFF until deliberately integrated |
-| VTO | ✅ | **OFF** (`EXPO_PUBLIC_VTO_UI_ENABLED` unset) + server kill switch | Owner decision |
-| Watchlist | ✅ | **OFF** (`EXPO_PUBLIC_SMART_WATCHLIST_V1` unset) | Owner decision |
-| Packing | ✅ | **OFF** (`EXPO_PUBLIC_PACKING_INTELLIGENCE_V1` unset) | Owner decision |
-| Wardrobe Concierge | ✅ | **OFF** (`EXPO_PUBLIC_ELISE_CONCIERGE_V1` unset) | Owner decision |
+| K+ Early Access | ✅ | **ON** (superseded) — `EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED=true` in `staging-certification` only. Staging `kplus-activate` is v13 with the SEC-KPLUS-008 repair, byte-identical to source | Owner decision; complimentary contract (no charge wording verified in `KPlusEarlyAccessSheet`) |
+| Voice | ✅ (converged from #218) | **ON** (superseded) — `EXPO_PUBLIC_VOICESCAN_ENABLED=true` + `KSCAN_VOICE_CERTIFICATION=true`, `staging-certification` only. On-device recognition, K+-gated at runtime | OFF until formally promoted; production native posture unchanged |
+| VTO | ✅ | **ON (client)** (superseded) — `EXPO_PUBLIC_VTO_UI_ENABLED=true`, `staging-certification` only. **Server kill switch `vto_generation.enabled` is still `false`** | Owner decision |
+| Watchlist | ✅ | **ON** (superseded) — `EXPO_PUBLIC_SMART_WATCHLIST_V1=true`, `staging-certification` only. **FIRST LIVE END-TO-END STAGING EXECUTION** — zero Watch rows exist | Owner decision |
+| Packing | ✅ | **ON (client)** (superseded) — `staging-certification` only. **Server gate `ELISE_PACKING_INTELLIGENCE_V1_ENABLED` is ABSENT on staging → off** | Owner decision |
+| Wardrobe Concierge | ✅ | **ON (client)** (superseded) — `staging-certification` only. **Server gate `ELISE_CONCIERGE_V1_ENABLED` is ABSENT on staging → off** | Owner decision |
 
-⚠️ **Owner decision required before building (P2-EAS-FLAGS)**: the governed
-staging(-certification) env does **not** enable the Build 34 K+ client
-flags. As configured, tonight's AAB will not render K+, VTO, Watchlist,
-Packing, or Concierge surfaces, so device certification of those features
-cannot happen from this artifact. If they are in scope, the owner must add
-those `EXPO_PUBLIC_*` values to the staging profile (a deliberate flag
-change this audit does not make on its own, per §43). Do not copy staging
-values to production.
+✅ **P2-EAS-FLAGS RESOLVED (2026-08-31).** The owner decision was taken: all
+Build 34 client flags are now enabled in `staging-certification` **and in no
+other profile**, so this artifact does render K+, VTO, Watchlist, Packing,
+Concierge, and Voice. Staging values were **not** copied to production, and
+`__tests__/easConfigIntegrity.test.js` now asserts exhaustively that no other
+profile carries any of them.
+
+⚠️ **Client flag ON does not mean server ON.** Three of these still have a
+server-side gate that is currently OFF on staging and must be closed by the
+owner before device certification: `vto_generation.enabled`,
+`ELISE_PACKING_INTELLIGENCE_V1_ENABLED`, and `ELISE_CONCIERGE_V1_ENABLED`.
+See `docs/build34-android-certification-handoff.md` §2.
 
 Billing: **no Play Billing, RevenueCat purchasing SDK, or Stripe in
 dependencies** — no unexpected digital monetization surface.
