@@ -182,6 +182,23 @@
         "KSCAN_VOICE_CERTIFICATION": "true"
       }
     },
+    "testflight-staging": {
+      "extends": "staging-certification",
+      "distribution": "store",
+      "autoIncrement": true,
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "ios": {
+        "buildConfiguration": "Release"
+      },
+      "env": {
+        "EXPO_PUBLIC_TODAY_WITH_ELISE_V1": "false",
+        "EXPO_PUBLIC_FREE_TIER_UTILITY_ENABLED": "true",
+        "EXPO_PUBLIC_FREE_TIER_WISHLIST_INTENT_ENABLED": "true",
+        "EXPO_PUBLIC_FREE_TIER_OUTFIT_GENERATOR_ENABLED": "true"
+      }
+    },
     "production": {
       "distribution": "store",
       "autoIncrement": true,

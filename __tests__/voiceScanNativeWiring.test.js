@@ -165,15 +165,40 @@ test('production never enables Voice Scan', () => {
   );
 });
 
-test('Voice Scan is enabled in exactly the certification profile, nowhere else', () => {
+// The allowlist below is deliberately an exact list rather than a predicate:
+// adding a profile that carries Voice Scan must be a reviewed edit here, not a
+// silent consequence of an eas.json change. It has done that job once already
+// — `testflight-staging` (the Build 34 staging-backed iOS TestFlight artifact)
+// was added afterwards and this assertion is what surfaced it.
+//
+// Both entries are certification-shaped: store distribution, Release, staging
+// backend, and — critically — both carry KSCAN_VOICE_CERTIFICATION alongside
+// the product flag, which the pairing test below enforces for every profile.
+const VOICE_ENABLED_PROFILES = Object.freeze(['staging-certification', 'testflight-staging']);
+
+test('Voice Scan is enabled in exactly the reviewed profiles, nowhere else', () => {
   const enabled = Object.keys(eas.build).filter(
     (name) => resolveEasBuildProfile(eas, name).env?.EXPO_PUBLIC_VOICESCAN_ENABLED === 'true',
   );
   assert.deepEqual(
-    enabled,
-    ['staging-certification'],
-    'exactly one profile may carry Voice Scan; add new ones deliberately',
+    enabled.sort(),
+    [...VOICE_ENABLED_PROFILES].sort(),
+    'a profile carrying Voice Scan must be added to VOICE_ENABLED_PROFILES deliberately',
   );
+});
+
+test('every Voice-enabled profile also carries the native selector', () => {
+  // The flag alone renders a mic affordance that can never obtain Android
+  // RECORD_AUDIO. Asserted across ALL profiles, so this holds for any future
+  // addition regardless of the allowlist above.
+  for (const name of Object.keys(eas.build)) {
+    const env = resolveEasBuildProfile(eas, name).env ?? {};
+    assert.equal(
+      env.EXPO_PUBLIC_VOICESCAN_ENABLED === 'true',
+      env.KSCAN_VOICE_CERTIFICATION === 'true',
+      `profile "${name}": the Voice flag and its native selector must travel together`,
+    );
+  }
 });
 
 test('the flag resolver fails closed on anything but the exact string "true"', () => {
