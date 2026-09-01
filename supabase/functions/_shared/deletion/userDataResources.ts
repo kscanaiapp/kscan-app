@@ -61,6 +61,8 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   { table: 'style_memory_events', column: 'user_id', action: 'auth_delete_cascade' },
   { table: 'style_chat_usage', column: 'user_id', action: 'auth_delete_cascade' },
   { table: 'style_chat_daily_usage', column: 'user_id', action: 'auth_delete_cascade' },
+  { table: 'elise_generation_operations', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  { table: 'image_scan_verdicts', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'scan_identify_usage_daily', column: 'user_id', action: 'auth_delete_cascade' },
   { table: 'content_reports', column: 'reporter_user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'content_reports', column: 'reported_user_id', action: 'auth_delete_set_null', optional: true },
@@ -73,6 +75,9 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   { table: 'wardrobe_wishlist_intents', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'wardrobe_wear_events', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'wardrobe_activity_log', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  // Build 29 Closet V2 / S5 wear-history line items. ON DELETE CASCADE FK to
+  // auth.users; each row also cascades with its parent wardrobe_wear_events row.
+  { table: 'wardrobe_wear_event_items', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'style_chat_burst_usage', column: 'user_id', action: 'direct_delete_before_auth', optional: true },
   { table: 'scan_intelligence_events', column: 'user_id', action: 'direct_delete_before_auth', optional: true },
   // Privacy-rights abuse rate limiter (Issue #47). `user_id` is a bare uuid with
@@ -123,6 +128,18 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   // them; listing them here is the same decision made for user_closet_items and
   // user_style_profiles above. Deletion is independent of K+ status.
   { table: 'vto_generation_requests', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  // Encrypted Sign in with Apple refresh-token store (IOS29-NEW-003), user_id
+  // primary key, ON DELETE CASCADE FK to auth.users. Normal deletion clears
+  // this row via Apple revocation BEFORE the Auth user is removed; the
+  // cascade is a safety net that should find nothing. Listed here so a
+  // revocation that was skipped or left the row behind is caught by
+  // post-purge residual verification rather than silently passing.
+  { table: 'apple_auth_credentials', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  // Provider-request quota/concurrency ledger and abuse/throttle audit trail
+  // (security/provider-edge-auth-hardening). ON DELETE CASCADE FK to
+  // auth.users.
+  { table: 'provider_request_reservations', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  { table: 'provider_security_events', column: 'user_id', action: 'auth_delete_cascade', optional: true },
 ];
 
 export interface StorageResourceTemplate {

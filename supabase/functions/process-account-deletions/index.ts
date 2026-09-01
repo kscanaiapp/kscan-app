@@ -16,6 +16,10 @@ import {
   STORAGE_RESOURCES,
   SHARED_ROOM_TRANSFER_POLICY,
 } from '../_shared/deletion/userDataResources.ts';
+import {
+  isBlockingAppleRevocationStatus,
+  requestAppleRevocation,
+} from '../_shared/deletion/appleRevocation.ts';
 
 /**
  * Internal protected worker for automatic account purges.
@@ -637,6 +641,22 @@ async function processClaimedRequest(
   }
   if (!(await heartbeat(requestId, workerId))) return { status: 'lost_lease' };
 
+  // P2-01 (Build 35 Patch 2) -- revoke the Sign in with Apple authorization
+  // before the Auth user (and its cascades, including apple_auth_credentials)
+  // are removed. Mirrors lib/account-deletion/processorCore.mjs's
+  // runHardDeletePipeline exactly: a settled status (revoked / already_gone /
+  // no_credential / unreadable) lets the purge continue; anything else
+  // (failed / not_configured / unrecognised) throws here, which the caller's
+  // existing catch routes into schedule_deletion_retry_or_fail -- the SAME
+  // durable retry/fail lifecycle every other purge-step error already uses.
+  // Nothing has been erased yet that a retry would need: this runs before the
+  // AUTH_DELETE_STARTED ledger transition and before the Auth delete itself.
+  const appleRevocation = await requestAppleRevocation(supabase, userId);
+  if (isBlockingAppleRevocationStatus(appleRevocation.status)) {
+    throw new Error(`apple_revocation_blocked:${appleRevocation.status}`);
+  }
+  if (!(await heartbeat(requestId, workerId))) return { status: 'lost_lease' };
+
   await rpc('append_deletion_state_transition', {
     p_request_id: requestId,
     p_subject_ref: subjectRef,
@@ -645,7 +665,7 @@ async function processClaimedRequest(
     p_actor_type: 'worker',
     p_actor_ref: workerId,
     p_reason_code: 'AUTH_DELETE_STARTED',
-    p_sanitized_metadata: { note: BACKOFF_NOTE },
+    p_sanitized_metadata: { note: BACKOFF_NOTE, appleAuthorizationRevocation: appleRevocation.status },
   });
 
   await revokeAllSessions(userId, null);
@@ -733,6 +753,8 @@ async function processClaimedRequest(
     roomsTransferred: rooms.filter((r) => r.action === 'transfer').length,
     policy: SHARED_ROOM_TRANSFER_POLICY,
     coverageTables: coverage.length,
+    // Status word only -- never a token, code, or Apple response body.
+    appleAuthorizationRevocation: appleRevocation.status,
   });
 
   return {
@@ -741,6 +763,7 @@ async function processClaimedRequest(
     rooms,
     storage,
     coverageCount: coverage.length,
+    appleAuthorizationRevocation: appleRevocation.status,
   };
 }
 

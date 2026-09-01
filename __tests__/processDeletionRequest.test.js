@@ -1230,7 +1230,31 @@ test('USER_DATA_RESOURCES covers all user-linked tables in migrations', () => {
   // deletion_state_transitions is an append-only audit-ledger table with no
   // user_id column (request_id/actor instead), so it is intentionally not a
   // USER_DATA_RESOURCES entry even once its migration lands.
-  const allowlist = new Set(['app_config', 'product_catalog', 'deletion_state_transitions']);
+  //
+  // Build 35 Patch 2 (P2-02): the wearable_* tables (wearable_pairings,
+  // wearable_sessions, wearable_results, wearable_actions,
+  // wearable_auth_attempts) are a differently-governed shared schema.
+  // supabase/migrations/20260819125404_wearable_pairings_sessions.sql's own
+  // header states "This file centralizes a historically-executed shared-
+  // database migration for CLI reconciliation purposes only. It does NOT
+  // transfer product ownership of the underlying feature/schema to
+  // kscan-app" (logical_owner: kscan-glasses-webapp), matching
+  // config/backend-authority.json's notGoverned.appleCredentialFunctions-
+  // style classification for the wearable Edge Functions. Their auth.users
+  // FK is ON DELETE CASCADE, so account deletion still physically removes
+  // these rows regardless of this app's registry; they are excluded from
+  // kscan-app's own coverage counting and residual verification because
+  // this app does not own that schema.
+  const allowlist = new Set([
+    'app_config',
+    'product_catalog',
+    'deletion_state_transitions',
+    'wearable_pairings',
+    'wearable_sessions',
+    'wearable_results',
+    'wearable_actions',
+    'wearable_auth_attempts',
+  ]);
   const missing = [];
 
   for (const file of files) {
@@ -1292,7 +1316,18 @@ test('Negative control: the migration-coverage check detects a missing user_clos
   const files = fs.readdirSync(migrationsDir).filter((name) => name.endsWith('.sql'));
   const withoutCloset = USER_DATA_RESOURCES.filter((resource) => resource.table !== 'user_closet_items');
   const mappedTables = new Set(withoutCloset.map((resource) => resource.table));
-  const allowlist = new Set(['app_config', 'product_catalog', 'deletion_state_transitions']);
+  // Mirrors the allowlist in the primary scan above (P2-02: differently-
+  // governed wearable_* schema).
+  const allowlist = new Set([
+    'app_config',
+    'product_catalog',
+    'deletion_state_transitions',
+    'wearable_pairings',
+    'wearable_sessions',
+    'wearable_results',
+    'wearable_actions',
+    'wearable_auth_attempts',
+  ]);
   const missing = [];
 
   for (const file of files) {
