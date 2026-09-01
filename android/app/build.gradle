@@ -107,6 +107,77 @@ def kscanVoiceCertification = isCertificationSelectorEnabled(
 println "kscan: voiceCertification=${kscanVoiceCertification}"
 
 /**
+ * Build 34 certification build-guards (fail closed).
+ *
+ * A supplied Build 34 Android artifact was independently audited and found
+ * to carry a stale native version code, with the Voice + Watchlist matrix
+ * enabled in eas.json but RECORD_AUDIO and Firebase resources absent from the merged
+ * artifact -- a build that looked configured and could not certify. These
+ * guards make that shape impossible to produce silently: any resolved
+ * mismatch between what the certification profile claims and what the
+ * native build actually wires throws a GradleException and stops the
+ * build, rather than shipping an artifact that only *looks* right.
+ *
+ * `EAS_BUILD_PROFILE` is exported by EAS Build for every build (native
+ * Gradle execution included, not just Metro/JS bundling); a local
+ * `./gradlew` invocation simply leaves it unset.
+ */
+def CERTIFICATION_PROFILE = 'staging-certification'
+def STAGING_SUPABASE_PROJECT_REF = 'yzqjvdfgefveprobvvyw'
+def PRODUCTION_SUPABASE_PROJECT_REF = 'wyyuqfdxucjksghsmhry'
+
+def easBuildProfile = System.getenv('EAS_BUILD_PROFILE')
+println "kscan: EAS_BUILD_PROFILE=${easBuildProfile}"
+
+// Objective A -- Voice invariant. EXPO_PUBLIC_VOICESCAN_ENABLED (the client
+// flag that renders the Voice affordance) and KSCAN_VOICE_CERTIFICATION (the
+// native selector that grants RECORD_AUDIO) are a governed pair: eas.json
+// sets both together for `staging-certification` and neither anywhere else
+// (__tests__/easConfigIntegrity.test.js enforces that at the config level).
+// This is the same invariant enforced again at the point the native build
+// actually consumes it, so a future profile cannot set one without the
+// other and still produce an artifact.
+def voiceScanEnabled = isCertificationSelectorEnabled(
+    findProperty('expo.public.voicescanEnabled'),
+    System.getenv('EXPO_PUBLIC_VOICESCAN_ENABLED')
+)
+println "kscan: voicescanEnabled=${voiceScanEnabled}"
+
+if (voiceScanEnabled != kscanVoiceCertification) {
+    throw new GradleException(
+        "kscan: Voice invariant violated -- EXPO_PUBLIC_VOICESCAN_ENABLED resolved " +
+        "${voiceScanEnabled} but KSCAN_VOICE_CERTIFICATION resolved ${kscanVoiceCertification}. " +
+        "The two must resolve identically: Voice client code/UI rendering without the " +
+        "certification microphone manifest (or the certification manifest granting " +
+        "RECORD_AUDIO with no client affordance to use it) is exactly the invalid state " +
+        "this guard exists to make impossible. Refusing to build."
+    )
+}
+
+// certification-only native selectors must never be active outside the
+// certification profile -- the eas.json-level leak controls already prove
+// no OTHER profile sets these keys, but this repeats the check against
+// whatever the native build actually resolved at execution time, so a
+// selector supplied out-of-band (a stray `-Pkscan.voiceCertification=true`,
+// a misconfigured CI secret) fails the same way a leaked eas.json key would.
+if (easBuildProfile != null && easBuildProfile != CERTIFICATION_PROFILE && kscanVoiceCertification) {
+    throw new GradleException(
+        "kscan: KSCAN_VOICE_CERTIFICATION resolved true under EAS_BUILD_PROFILE=" +
+        "${easBuildProfile}. The certification-only Voice native selector must be active " +
+        "under ${CERTIFICATION_PROFILE} only. Refusing to build."
+    )
+}
+
+if (easBuildProfile == CERTIFICATION_PROFILE && !(voiceScanEnabled && kscanVoiceCertification)) {
+    throw new GradleException(
+        "kscan: EAS_BUILD_PROFILE=${CERTIFICATION_PROFILE} requires both " +
+        "EXPO_PUBLIC_VOICESCAN_ENABLED and KSCAN_VOICE_CERTIFICATION to resolve true " +
+        "(got voicescanEnabled=${voiceScanEnabled}, voiceCertification=${kscanVoiceCertification}). " +
+        "Refusing to build the governed Build 34 certification artifact without the full Voice matrix."
+    )
+}
+
+/**
  * Firebase Cloud Messaging configuration, materialised from the governed EAS
  * FILE SECRET named GOOGLE_SERVICES_JSON.
  *
@@ -141,6 +212,75 @@ if (googleServicesSecretPath != null && !googleServicesSecretPath.trim().isEmpty
 def googleServicesConfigured = googleServicesTarget.exists()
 println "kscan: googleServicesConfigured=${googleServicesConfigured}"
 
+// Objective C -- Watchlist push must fail closed. The conditional
+// google-services.json apply above is intentionally lenient (an
+// unconfigured build must stay green for every profile that does not need
+// push), but a Watchlist-enabled certification artifact with no Firebase
+// configuration looks valid and can never deliver Android push -- exactly
+// the silent-failure shape this repair exists to close. This does NOT make
+// Firebase mandatory for any profile where Smart Watchlist is off, and it
+// does not touch production configuration.
+def smartWatchlistEnabled = isCertificationSelectorEnabled(
+    findProperty('expo.public.smartWatchlistV1'),
+    System.getenv('EXPO_PUBLIC_SMART_WATCHLIST_V1')
+)
+println "kscan: smartWatchlistEnabled=${smartWatchlistEnabled}"
+
+if (smartWatchlistEnabled && !googleServicesConfigured) {
+    throw new GradleException(
+        "Smart Watchlist is enabled but GOOGLE_SERVICES_JSON did not materialize; " +
+        "refusing to build an Android artifact without FCM configuration."
+    )
+}
+
+// Objective D -- the certification backend must be staging. This is an
+// assertion only: it never rewrites EXPO_PUBLIC_SUPABASE_URL and never
+// touches production configuration. It exists because `staging-certification`
+// inherits its backend via eas.json's `extends: staging` (see
+// __tests__/easConfigIntegrity.test.js), and this repeats that guarantee at
+// the point the native build actually resolves the environment, so a future
+// override or a misconfigured CI secret cannot silently point a
+// certification artifact at production, or at no backend at all.
+if (easBuildProfile == CERTIFICATION_PROFILE) {
+    def supabaseUrl = System.getenv('EXPO_PUBLIC_SUPABASE_URL')
+    println "kscan: EXPO_PUBLIC_SUPABASE_URL resolved for certification=${supabaseUrl != null}"
+    // Production is checked first and separately so that a certification
+    // build accidentally pointed at production gets its own explicit,
+    // actionable error instead of being folded into the generic
+    // "missing or unrecognised project" case below.
+    if (supabaseUrl != null && supabaseUrl.contains(PRODUCTION_SUPABASE_PROJECT_REF)) {
+        throw new GradleException(
+            "kscan: EAS_BUILD_PROFILE=${CERTIFICATION_PROFILE} resolved " +
+            "EXPO_PUBLIC_SUPABASE_URL to the PRODUCTION Supabase project " +
+            "(${PRODUCTION_SUPABASE_PROJECT_REF}). Refusing to build a certification " +
+            "artifact against production."
+        )
+    }
+    if (supabaseUrl == null || !supabaseUrl.trim().contains(STAGING_SUPABASE_PROJECT_REF)) {
+        throw new GradleException(
+            "kscan: EAS_BUILD_PROFILE=${CERTIFICATION_PROFILE} requires " +
+            "EXPO_PUBLIC_SUPABASE_URL to resolve to the staging Supabase project " +
+            "(${STAGING_SUPABASE_PROJECT_REF}), but it was missing or resolved to a " +
+            "different project. Refusing to build a certification artifact against an " +
+            "unverified backend."
+        )
+    }
+}
+
+// Objective E -- artifact-readable build provenance. The stale audited
+// artifact could not prove which source SHA or profile produced it. These
+// values are written into the artifact itself (string resources +
+// BuildConfig, wired into defaultConfig below) so provenance is
+// inspectable directly from the built APK/AAB, survives R8 (resValue
+// entries are resource-table strings, not code, and resource shrinking is
+// deliberately not enabled by this repair), and is never fabricated: a
+// local/non-EAS build honestly reports "local" / "unknown" rather than
+// inventing a profile or commit.
+def kscanBuildProfile = easBuildProfile ?: 'local'
+def kscanSourceCommitRaw = System.getenv('EAS_BUILD_GIT_COMMIT_HASH')
+def kscanSourceCommit = (kscanSourceCommitRaw != null && !kscanSourceCommitRaw.trim().isEmpty()) ? kscanSourceCommitRaw.trim() : 'unknown'
+println "kscan: buildProfile=${kscanBuildProfile} sourceCommit=${kscanSourceCommit}"
+
 android {
     ndkVersion rootProject.ext.ndkVersion
 
@@ -156,6 +296,17 @@ android {
         versionName "1.0.1"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
+
+        // Objective E: artifact-readable provenance. resValue writes real
+        // string resources (inspectable via `aapt2 dump strings` / the
+        // resource table on the built APK/AAB, not just from source) so
+        // provenance survives even if a reader has no BuildConfig to
+        // decompile. BuildConfig mirrors them for in-app/debug use, but per
+        // the governed requirement is not the only mechanism.
+        resValue "string", "kscan_build_profile", kscanBuildProfile
+        resValue "string", "kscan_source_commit", kscanSourceCommit
+        buildConfigField "String", "KSCAN_BUILD_PROFILE", "\"${kscanBuildProfile}\""
+        buildConfigField "String", "KSCAN_SOURCE_COMMIT", "\"${kscanSourceCommit}\""
     }
     signingConfigs {
         debug {
