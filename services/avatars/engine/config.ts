@@ -12,6 +12,7 @@ export const DEFAULT_AVATAR_ENGINE_CONFIG: Readonly<AvatarEngineConfig> = Object
   pauseThresholdMs: 160,
   microGapMergeMs: 24,
   noiseIntervalMs: 28,
+  minVisibleHoldMs: 90,
   fallbackCycleMs: 360,
   breathingCycleMs: 5200,
   breathingScaleAmplitude: 0.006,
@@ -38,6 +39,8 @@ export function normalizeEngineConfig(config?: Partial<AvatarEngineConfig>): Ava
     pauseThresholdMs: finiteRange(c.pauseThresholdMs, d.pauseThresholdMs, 40, 1000),
     microGapMergeMs: finiteRange(c.microGapMergeMs, d.microGapMergeMs, 0, 100),
     noiseIntervalMs: finiteRange(c.noiseIntervalMs, d.noiseIntervalMs, 0, 80),
+    // 0 disables the hold entirely, which is what the pre-Build-34 behaviour was.
+    minVisibleHoldMs: finiteRange(c.minVisibleHoldMs, d.minVisibleHoldMs, 0, 260),
     fallbackCycleMs: finiteRange(c.fallbackCycleMs, d.fallbackCycleMs, 180, 1200),
     breathingCycleMs: finiteRange(c.breathingCycleMs, d.breathingCycleMs, 2500, 10000),
     breathingScaleAmplitude: finiteRange(c.breathingScaleAmplitude, d.breathingScaleAmplitude, 0, 0.01),

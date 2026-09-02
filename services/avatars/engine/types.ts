@@ -118,6 +118,23 @@ export interface AvatarEngineConfig {
   pauseThresholdMs: number;
   microGapMergeMs: number;
   noiseIntervalMs: number;
+  /**
+   * Perceptual minimum hold, in PLAYBACK milliseconds.
+   *
+   * Provider alignment is per-character, so a compiled timeline changes visible
+   * mouth state roughly 9 times a second — about twice the rate at which a
+   * person's mouth visibly changes shape, and faster than the host can redraw
+   * it (expo-audio reports position every 80 ms). Roughly 40% of raw intervals
+   * were shorter than a single redraw, so what reached the screen was an
+   * aliased sample of a signal it could not resolve: flapping, not speech.
+   *
+   * A state must therefore be able to hold for this long to be worth showing.
+   * Changes that cannot are absorbed into the state already on screen. This
+   * removes changes; it never MOVES one — every surviving transition still
+   * happens at a real provider onset, so the mouth stays anchored to the
+   * native playback clock exactly as before.
+   */
+  minVisibleHoldMs: number;
   fallbackCycleMs: number;
   breathingCycleMs: number;
   breathingScaleAmplitude: number;

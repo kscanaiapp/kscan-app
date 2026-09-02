@@ -99,9 +99,11 @@ export function compileSpeechTimeline(
     }
   }
 
-  const total = out.length ? out[out.length - 1]!.endSeconds : 0;
+  const held = applyMinimumHold(out, cfg.minVisibleHoldMs / 1000);
+
+  const total = held.length ? held[held.length - 1]!.endSeconds : 0;
   return freezeTimeline(
-    out,
+    held,
     total,
     normalized.source,
     normalized.disposition,
@@ -110,6 +112,67 @@ export function compileSpeechTimeline(
     normalized.dropped,
     elapsed(),
   );
+}
+
+/**
+ * Perceptual minimum hold.
+ *
+ * Runs last, over intervals whose timing is already the provider's. It answers
+ * one question per transition: has the state currently on screen been visible
+ * long enough to read as a mouth shape rather than a flicker? If not, the
+ * transition is absorbed and the held state simply continues.
+ *
+ * Two properties this deliberately preserves:
+ *
+ *  - NO ONSET MOVES. A surviving interval keeps its provider start time, so
+ *    the mouth stays anchored to the native playback clock. The pass only ever
+ *    removes a boundary and extends the interval before it; it never invents
+ *    a timing the provider did not supply, and never shifts one earlier or
+ *    later. Audio/visual sync is therefore unchanged.
+ *  - TOTAL DURATION IS PRESERVED. The final interval still ends where the
+ *    provider's last interval ended, so the utterance finishes closed at the
+ *    same instant it did before.
+ *
+ * Held duration is measured from the held interval's own START, not from the
+ * absorbed interval, so a run of sub-perceptual changes cannot compound into
+ * an unbounded stare: the state releases at the first real onset past the
+ * floor.
+ */
+function applyMinimumHold(
+  intervals: SpeechTimelineInterval[],
+  minHoldSeconds: number,
+): SpeechTimelineInterval[] {
+  if (minHoldSeconds <= 0 || intervals.length < 2) return intervals;
+
+  const held: SpeechTimelineInterval[] = [];
+  let current: SpeechTimelineInterval = { ...intervals[0]! };
+  let emittedFirstChange = false;
+
+  for (let i = 1; i < intervals.length; i += 1) {
+    const next = intervals[i]!;
+    const visibleSoFar = next.startSeconds - current.startSeconds;
+    const sameShape = next.mouthState === current.mouthState;
+
+    // The FIRST shape change of an utterance is never absorbed. Applying the
+    // floor here would delay the moment Elise's mouth starts moving — measured
+    // at 320 ms instead of 80 ms on the governed long sample — which reads as
+    // the avatar lagging the audio, the exact failure this repair exists to
+    // avoid. Anti-flap is a mid-utterance concern; the opening beat is a
+    // latency concern, and latency wins.
+    const mustEmit = !emittedFirstChange && !sameShape;
+
+    if (!mustEmit && (sameShape || visibleSoFar < minHoldSeconds)) {
+      current.endSeconds = Math.max(current.endSeconds, next.endSeconds);
+      continue;
+    }
+
+    held.push(current);
+    current = { ...next };
+    emittedFirstChange = true;
+  }
+
+  held.push(current);
+  return held;
 }
 
 function freezeTimeline(
