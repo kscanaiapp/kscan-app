@@ -7,7 +7,6 @@ const {
   ROOT,
   loadEngine,
   loadTsModule,
-  loadVisualMode,
   loadAdapter,
   executableSource,
   characterAlignment,
@@ -174,12 +173,12 @@ test('Reduce Motion suppresses visuals only, never the speech lifecycle', () => 
   assert.equal(report.legacy.resets.newUtterance, 1);
 });
 
-// -- Historical mode parser is no longer a runtime authority ----------------
+// -- No legacy rendering path survives in the header -------------------------
 
-test('the historical mode parser cannot reactivate legacy rendering in StyleChat', () => {
-  const mode = loadVisualMode();
-  assert.equal(mode.V10_VISIBLE_MODE_AVAILABLE, false);
-  assert.equal(mode.parseAvatarVisualMode('V10_VISIBLE'), 'V10_SHADOW');
+test('no retired visual-mode gate can reactivate legacy rendering in StyleChat', () => {
+  // `avatarVisualMode.ts` has been deleted. The intent of this assertion
+  // outlives it: the header must never regrow a mode branch or a legacy mouth
+  // path, whether from that module or a replacement for it.
   const header = executableSource('components/style-chat/StyleChatHeader.tsx');
   assert.equal(/avatarVisualMode|isAvatarEngineActive|isAvatarEngineVisible/.test(header), false);
   assert.equal(/deriveAvatarMouthState/.test(header), false);
@@ -436,7 +435,10 @@ test('the shadow report grows bounded and leaks no text', () => {
 test('the header renders the V10 frame and has no legacy speaking path', () => {
   const header = executableSource('components/style-chat/StyleChatHeader.tsx');
 
-  assert.match(header, /mouthState=\{mouthState\}/);
+  // The claim is that the mouth prop is fed from the engine result, not that
+  // the intermediate binding is spelled `mouthState`. The header now reads the
+  // idle-presence channels off the same frame, so the result is an object.
+  assert.match(header, /mouthState=\{(?:visual\.)?mouthState\}/);
   assert.match(header, /getAvatarEngineAdapter\(\)\.computeFrame/);
   assert.equal(/deriveAvatarMouthState|observeAvatarShadowFrame/.test(header), false);
 });

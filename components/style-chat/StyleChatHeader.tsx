@@ -9,6 +9,7 @@ import { ELISE_IDENTITY } from '../../constants/elise';
 import { useStylistIdentity } from '../../hooks/useStylistIdentity';
 import { AnimatedStylistAvatar } from '../stylist/AnimatedStylistAvatar';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { useAvatarIdlePresence } from '../../hooks/useAvatarIdlePresence';
 import { useAvatarSpeechState } from '../../stores/avatarSpeechStore';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
 import { resolveStylistVisualAvatarId } from '../../constants/stylistIdentity';
@@ -66,12 +67,32 @@ export function StyleChatHeader({
     speechState.stylistId === identity.avatarId &&
     speechState.avatarId === identity.avatarId;
   const isSpeaking = speechScopeMatches && speechState.phase === 'playing';
-  const mouthState = useMemo(() => {
-    return getAvatarEngineAdapter().computeFrame({
+
+  // MOTION AUTHORITY, one owner per channel:
+  //
+  //   ambient scale   AnimatedStylistAvatar's own loop, always, never here.
+  //   head rotation   the engine, sole owner.
+  //   breathing       the engine, sole owner.
+  //
+  // The engine's two channels are a function of the clock it is handed, and
+  // that clock has exactly one driver at a time. While SPEAKING, playback
+  // progress re-renders this header ~12.5 times a second and drives it. While
+  // IDLE, nothing re-renders, so the ticker below drives it — and is disabled
+  // during speech precisely so the two never run at once.
+  const idleTick = useAvatarIdlePresence({ enabled: !reducedMotion && !isSpeaking });
+
+  // One engine call per render answers the mouth AND the idle presence
+  // channels. `headMotion` and `breathing` were already being calculated here
+  // and thrown away, which is why the avatar froze completely while speaking.
+  const visual = useMemo(() => {
+    const result = getAvatarEngineAdapter().computeFrame({
       avatarId: visualAvatarId,
       speech: speechState,
       scopeMatches: speechScopeMatches,
       reduceMotion: reducedMotion,
+      // Re-read per render. The ticker only runs while foregrounded, so a
+      // background transition stops advancing the clock and the next render
+      // hands the engine a foreground:false snapshot, which it fails closed on.
       foreground: AppState.currentState === 'active',
       motionEpoch: resolveAvatarMotionEpoch({
         actorId,
@@ -80,7 +101,14 @@ export function StyleChatHeader({
       }),
       hostNowMs: Date.now(),
       ...(isThinking ? { semanticMode: 'thinking' as const } : {}),
-    }).mouthState;
+    });
+    return {
+      mouthState: result.mouthState,
+      motion: {
+        headRotateDeg: result.frame.headMotion.rotateDeg,
+        breathingScale: result.frame.breathing.scale,
+      },
+    };
   }, [
     visualAvatarId,
     speechState,
@@ -89,6 +117,9 @@ export function StyleChatHeader({
     actorId,
     sessionId,
     isThinking,
+    // The ticker's only job: make this memo recompute so `Date.now()` above
+    // moves while idle. The value itself is never read.
+    idleTick,
   ]);
 
   const displayName = identity.displayName;
@@ -121,7 +152,8 @@ export function StyleChatHeader({
             avatarId={visualAvatarId}
             size={67}
             state={avatarState}
-            mouthState={mouthState}
+            mouthState={visual.mouthState}
+            motion={visual.motion}
             reducedMotion={reducedMotion}
             accessibilityLabel={`${displayName} avatar`}
           />

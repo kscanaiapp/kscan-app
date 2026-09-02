@@ -1,3 +1,18 @@
+/**
+ * STATUS: TEST INSTRUMENTATION ONLY — NOT A PRODUCTION MODULE.
+ *
+ * Nothing in the app imports this. StyleChat calls the engine adapter
+ * unconditionally and draws its frame; there is no shadow phase and no visual
+ * migration gate any more (`avatarVisualMode.ts` was deleted for saying
+ * otherwise). What survives here is the measurement surface that the engine's
+ * regression suite asserts against — the stall/hold/replay protections, the
+ * motion-epoch authority and the reset accounting in
+ * `__tests__/avatarShadowMode.test.js`.
+ *
+ * It is retained deliberately rather than deleted with the gate: removing it
+ * is a migration of those tests onto `adapter.metricsSnapshot()`, not a
+ * dead-code deletion, and doing it blind would drop live coverage.
+ */
 import type { AvatarShadowReport, ShadowUtteranceRecord } from './avatarShadowBridge';
 import { getAvatarShadowReport } from './avatarShadowBridge';
 
