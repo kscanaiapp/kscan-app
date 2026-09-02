@@ -14,6 +14,28 @@
       <category android:name="android.intent.category.BROWSABLE"/>
       <data android:scheme="https"/>
     </intent>
+    <!--
+      Android 11+ (API 30) package visibility filtering. Without a matching
+      <queries> entry, Linking.canOpenURL('mailto:...') resolves nothing and
+      returns false even when the device has a mail app installed.
+
+      The Dressing Room "Report & Hide" flow
+      (components/rooms/RoomMessagesPanel.tsx) reports through the
+      server-backed submitContentReport() path and hides the content locally.
+      Only when the server does NOT accept the report does it offer the
+      support-email fallback, and then tells the user the report "can also be
+      sent to K Scan AI support". Without this declaration that sentence is
+      false on every Android 11+ device: canOpenURL returns false, no mail app
+      opens, and the user is told otherwise.
+
+      Declared as ACTION_SENDTO + the mailto scheme -- the narrowest form that
+      matches an email client. It grants visibility of mail apps for intent
+      resolution only; it adds no permission and no other capability.
+    -->
+    <intent>
+      <action android:name="android.intent.action.SENDTO"/>
+      <data android:scheme="mailto"/>
+    </intent>
   </queries>
   <application android:name=".MainApplication" android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:allowBackup="false" android:dataExtractionRules="@xml/data_extraction_rules" android:theme="@style/AppTheme" android:supportsRtl="true" android:enableOnBackInvokedCallback="false">
     <meta-data android:name="expo.modules.updates.ENABLED" android:value="false"/>

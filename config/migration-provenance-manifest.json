@@ -23,6 +23,54 @@
           "evidence": "Matches the ledger version '20260717201524' applied on both staging and production."
         }
       ]
+    },
+    {
+      "logicalId": "dr3_collaborative_interactions",
+      "canonicalNormalizedHash": "e4c4d55e72f337ee5a1059e37cd0a29680e51a617259398f6edfe17a5a7567e3",
+      "appliedLedgerVersion": "20260721201218",
+      "appliedLedgerName": "dr3_collaborative_interactions",
+      "appliedOn": [
+        "yzqjvdfgefveprobvvyw (staging)",
+        "wyyuqfdxucjksghsmhry (production)"
+      ],
+      "aliases": [
+        {
+          "filename": "20260721170559_dr3_collaborative_interactions.sql",
+          "platform": "shared",
+          "status": "unapplied-in-either-environment",
+          "evidence": "Neither staging (yzqjvdfgefveprobvvyw) nor production (wyyuqfdxucjksghsmhry) carries a version '20260721170559' entry; both ledgers carry '20260721201218' under the same name, which holds this identical SQL. Confirmed 2026-09-02 via list_migrations on both projects."
+        },
+        {
+          "filename": "20260721201218_dr3_collaborative_interactions.sql",
+          "platform": "shared",
+          "status": "applied",
+          "evidence": "Matches the ledger version '20260721201218' applied on both staging and production."
+        }
+      ]
+    },
+    {
+      "logicalId": "dr4_collab_idempotency_room_scope",
+      "canonicalNormalizedHash": "a53bcd6ad96886affba3408be12d9e2744e2f5cc863900d8ae362a6c95df901c",
+      "appliedLedgerVersion": "20260721201347",
+      "appliedLedgerName": "dr4_collab_idempotency_room_scope",
+      "appliedOn": [
+        "yzqjvdfgefveprobvvyw (staging)",
+        "wyyuqfdxucjksghsmhry (production)"
+      ],
+      "aliases": [
+        {
+          "filename": "20260721183308_dr4_collab_idempotency_room_scope.sql",
+          "platform": "shared",
+          "status": "unapplied-in-either-environment",
+          "evidence": "Neither staging (yzqjvdfgefveprobvvyw) nor production (wyyuqfdxucjksghsmhry) carries a version '20260721183308' entry; both ledgers carry '20260721201347' under the same name, which holds this identical SQL. Confirmed 2026-09-02 via list_migrations on both projects."
+        },
+        {
+          "filename": "20260721201347_dr4_collab_idempotency_room_scope.sql",
+          "platform": "shared",
+          "status": "applied",
+          "evidence": "Matches the ledger version '20260721201347' applied on both staging and production."
+        }
+      ]
     }
   ]
 }
