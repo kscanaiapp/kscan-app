@@ -580,3 +580,43 @@ test('WATCH-INV-010 CONTROL: background refresh is server-governed end to end', 
     assert.doesNotMatch(src, /\.from\('user_device_push_tokens'\)/, `${rel} must not touch the token table directly`);
   }
 });
+
+// ═════════════════════════ WL-10 — accessibility of the controls ═══════════
+
+test('WL-10: the Watch action names the product it acts on', () => {
+  const shelf = read('components/ProductShelf.tsx');
+  const button = shelf.slice(shelf.indexOf('testID="watch-listing-button"'), shelf.indexOf('Watch\n', shelf.indexOf('testID="watch-listing-button"')));
+  assert.match(button, /accessibilityLabel=\{`Watch \$\{getProductTitle\(p\)\}`\}/,
+    'a shelf renders one of these per product; a static label is indistinguishable across rows');
+  assert.doesNotMatch(button, /accessibilityLabel="Watch this listing"/,
+    'the static label is the defect — it names no product');
+  assert.match(button, /accessibilityRole="button"/);
+});
+
+test('WL-10: a Watchlist row announces its state, not only its title and price', () => {
+  const screen = read('app/watchlist/index.tsx');
+  assert.match(
+    screen,
+    /accessibilityLabel=\{`\$\{watch\.displayTitle\}, \$\{price \?\? 'price unavailable'\}, \$\{pill\.label\}`\}/,
+    '"Target reached" / "No longer listed" must not be sighted-only',
+  );
+  // The pill the label reads must still be the one rendered, or the two drift.
+  assert.match(screen, /const pill = statusPillFor\(watch\);/);
+  assert.match(screen, /<StatusPill label=\{pill\.label\}/);
+});
+
+test('WL-10: every destructive or state-changing Watch control is labelled', () => {
+  const detail = read('app/watchlist/[watchId].tsx');
+  for (const id of ['watch-detail-refresh', 'watch-detail-pause', 'watch-detail-delete', 'watch-detail-open-retailer']) {
+    assert.ok(detail.includes(id), `${id} must exist`);
+  }
+  // These render their visible title as their accessible name; assert the title
+  // is a real word rather than an icon-only control.
+  for (const title of ['"REFRESH"', '"PAUSE"', '"DELETE"', '"VIEW ON RETAILER"']) {
+    assert.ok(detail.includes(`title=${title}`), `${title} must be a labelled control, not icon-only`);
+  }
+  // The empty state must be a real explanation, not a bare icon.
+  const home = read('app/watchlist/index.tsx');
+  assert.match(home, /title="Nothing on your Watchlist yet"/);
+  assert.match(home, /subtitle="When you find something/);
+});
