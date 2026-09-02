@@ -24,8 +24,27 @@ function readIntEnv(name: string, fallback: number): number {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
-/** Minimum time between two refreshes of the SAME watch, regardless of trigger. */
-export const MIN_REFRESH_INTERVAL_MS = readIntEnv('WATCHLIST_MIN_REFRESH_INTERVAL_MS', 10 * 60 * 1000);
+/**
+ * Minimum time between two refreshes of the SAME watch, regardless of trigger.
+ *
+ * WL-06 — this is not merely a politeness interval. Both claim RPCs stamp
+ * last_checked_at AS the claim and then exclude anything checked inside this
+ * window, so this value IS the mutual-exclusion window for one watch: it is the
+ * only thing preventing two concurrent cycles from calling the provider, writing
+ * observation state out of order, and each emitting an event and a push for one
+ * real change. There is no row_version or observed_at guard on the observation
+ * write behind it.
+ *
+ * That holds only while the window is longer than a cycle can last. Set below the
+ * provider deadline, the window collapses and stale-overwrite becomes reachable
+ * from an env var alone, so the floor is clamped rather than trusted.
+ */
+const PROVIDER_CALL_CEILING_MS = 60 * 1000;
+
+export const MIN_REFRESH_INTERVAL_MS = Math.max(
+  PROVIDER_CALL_CEILING_MS,
+  readIntEnv('WATCHLIST_MIN_REFRESH_INTERVAL_MS', 10 * 60 * 1000),
+);
 
 /** Tier 1 (user-open, authenticated): max watches refreshed in one request. */
 export const USER_REFRESH_BATCH_CAP = readIntEnv('WATCHLIST_USER_REFRESH_BATCH_CAP', 25);
@@ -37,9 +56,32 @@ export const WORKER_SWEEP_BATCH_CAP = readIntEnv('WATCHLIST_WORKER_SWEEP_BATCH_C
 /** Bounded provider concurrency within one refresh batch (§37). */
 export const REFRESH_CONCURRENCY = readIntEnv('WATCHLIST_REFRESH_CONCURRENCY', 4);
 
-/** Per-adapter-call deadline. Matches the existing enrichment adapters' own
- * PROVIDER_TIMEOUT_MS (4500ms) with headroom for the surrounding orchestration. */
+/**
+ * Per-adapter-call deadline.
+ *
+ * NOTE (WL-09): this is DOCUMENTATION, not an enforced control. Nothing imports
+ * it -- the real deadline is each adapter's own PROVIDER_TIMEOUT_MS (4000ms,
+ * enforced with an AbortController in farfetch3Provider.ts / kicksCrewProvider.ts),
+ * so setting WATCHLIST_REFRESH_CALL_DEADLINE_MS changes nothing. It is retained
+ * only because MIN_REFRESH_INTERVAL_MS's floor is reasoned against a bound on how
+ * long one cycle can last; an operator must not mistake it for a live control.
+ */
 export const REFRESH_CALL_DEADLINE_MS = readIntEnv('WATCHLIST_REFRESH_CALL_DEADLINE_MS', 6000);
+
+/**
+ * WL-08 — maximum ACTIVE (non-deleted) watches one actor may hold.
+ *
+ * A cost ceiling, not a product limit. Each active Watch is one paid listing
+ * re-read per refresh cycle and `create` itself costs no provider call, so
+ * without a bound a single K+ actor's provider exposure is unbounded in the
+ * number of rows they choose to create. Every other paid-provider function here
+ * carries a quota; this is the equivalent for Watchlist.
+ *
+ * Deliberately set far above any plausible real Watchlist so no genuine user can
+ * reach it, and env-overridable so an operator can retune it without a logic
+ * deploy. Choosing a product-facing limit remains an owner decision.
+ */
+export const MAX_ACTIVE_WATCHES_PER_ACTOR = readIntEnv('WATCHLIST_MAX_ACTIVE_WATCHES_PER_ACTOR', 200);
 
 /**
  * Consecutive failed-to-resolve cycles before a listing's last_status may

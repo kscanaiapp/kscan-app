@@ -40,6 +40,7 @@ import { normalizeUrl } from '../scan-identify/shoppingProvider.ts';
 import { parseOfferPrice } from '../scan-identify/canonicalCommerce.ts';
 import { deriveWatchCapability, watchProviderForUrl } from '../scan-identify/watchlistCapability.ts';
 import { evaluateWatchRefresh, type WatchState } from './changeEngine.ts';
+import { resolveObservedCurrency } from './watchCurrency.ts';
 import { refreshWatchObservation } from './watchRefreshObservation.ts';
 import { sendWatchPush } from './pushDelivery.ts';
 import {
@@ -48,6 +49,7 @@ import {
   WORKER_SWEEP_BATCH_CAP,
   REFRESH_CONCURRENCY,
   UNAVAILABLE_AFTER_CONSECUTIVE_FAILURES,
+  MAX_ACTIVE_WATCHES_PER_ACTOR,
 } from './watchRefreshConfig.ts';
 
 // ── Worker authentication (mirrors process-account-deletions) ──────────────
@@ -63,6 +65,42 @@ function requireWorkerSecret(req: Request): boolean {
   let mismatch = 0;
   for (let i = 0; i < a.length; i += 1) mismatch |= a[i] ^ b[i];
   return mismatch === 0;
+}
+
+/**
+ * WL-05 - drain the request body before answering on a path that never reads it.
+ *
+ * A Supabase Edge Function that returns a Response while `req.body` is still
+ * unread leaves the edge connection with an un-drained request stream. Bodies
+ * above the in-flight transport buffer (~0.5 MB) then stall until the platform
+ * idle timeout (~160s) and answer 503. This is not theory: it was reproduced and
+ * fixed on `wearable-bridge`, whose early-exit paths had exactly this shape.
+ *
+ * Three paths here answer without reading a body - method-not-allowed, the
+ * requireUser rejection, and the whole worker sweep (which is selected by a
+ * header and deliberately ignores the body). An unauthenticated caller can
+ * therefore hold an edge connection open for ~160s per request with a single
+ * oversized POST. Read-and-discard, never buffer, and never let a drain failure
+ * change the answer.
+ */
+async function drainRequestBody(req: Request): Promise<void> {
+  try {
+    if (!req.body || req.bodyUsed) return;
+    const reader = req.body.getReader();
+    let discarded = 0;
+    const MAX_DRAIN_BYTES = 16 * 1024 * 1024;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      discarded += value?.byteLength ?? 0;
+      if (discarded > MAX_DRAIN_BYTES) {
+        await reader.cancel().catch(() => undefined);
+        break;
+      }
+    }
+  } catch {
+    // The response is already decided; a drain failure must never change it.
+  }
 }
 
 // ── Small bounded concurrency helper (no cross-watch cache to share — §59) ─
@@ -176,21 +214,46 @@ async function runRefreshCycle(row: WatchRow): Promise<{
     observedAt,
   });
 
-  const patchResponse = await rest(`user_commerce_watches?id=eq.${row.id}&user_id=eq.${row.user_id}`, {
-    method: 'PATCH',
-    headers: { Prefer: 'return=minimal' },
-    body: JSON.stringify({
-      current_price_amount: result.newCurrentPriceAmount,
-      last_status: result.newLastStatus,
-      consecutive_failures: result.newConsecutiveFailures,
-      target_reached_at: result.newTargetReachedAt,
-      last_checked_at: observedAt,
-    }),
-  });
+  // WL-02 - `deleted_at=is.null` is load-bearing, not decoration. Without it
+  // this PATCH matched (and mutated) a watch the user deleted while the provider
+  // call was in flight: a tombstoned row kept acquiring fresh prices and a fresh
+  // last_checked_at.
+  const patchResponse = await rest(
+    `user_commerce_watches?id=eq.${row.id}&user_id=eq.${row.user_id}&deleted_at=is.null`,
+    {
+      method: 'PATCH',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        current_price_amount: result.newCurrentPriceAmount,
+        last_status: result.newLastStatus,
+        consecutive_failures: result.newConsecutiveFailures,
+        target_reached_at: result.newTargetReachedAt,
+        last_checked_at: observedAt,
+      }),
+    },
+  );
+
+  // WL-03 - this write IS the deduplication. There is no idempotency key on
+  // user_commerce_watch_events; the same $100 -> $90 transition stops re-firing
+  // only because current_price_amount (and target_reached_at) advanced here. If
+  // the advance did not commit, the next cycle observes the identical transition
+  // and would emit a SECOND event and a SECOND push for one real price change.
+  // So a failed observation write ends the cycle: nothing is recorded, nothing is
+  // announced, and the unchanged state is re-evaluated cleanly next time.
   if (!patchResponse.ok) {
     logEvent('watchlist_refresh_write_failed', { watchId: row.id.slice(0, 8), status: patchResponse.status });
+    return {
+      watchId: row.id,
+      refreshStatus: 'write_failed',
+      observedAt,
+      currentPrice: row.current_price_amount,
+      currency: row.currency,
+      event: null,
+      refreshMetadata: { ...outcome.metadata, errorCode: outcome.metadata.errorCode ?? 'observation_write_failed' },
+    };
   }
 
+  let eventRecorded = false;
   if (result.event) {
     const appendResponse = await rpc('append_user_commerce_watch_event', {
       p_watch_id: row.id,
@@ -199,12 +262,21 @@ async function runRefreshCycle(row: WatchRow): Promise<{
       p_price_amount: result.event.priceAmount,
       p_currency: result.event.currency,
     });
+    eventRecorded = appendResponse.ok;
     if (!appendResponse.ok) {
       logEvent('watchlist_event_append_failed', { watchId: row.id.slice(0, 8), status: appendResponse.status });
     }
   }
 
-  await deliverPushIfArmed(row, result.event);
+  // WL-02 - the alert is gated on the event having actually been recorded.
+  // append_user_commerce_watch_event refuses (P0002) when the watch is deleted,
+  // so this is also the liveness check: a Watch deleted mid-cycle no longer
+  // produces a late push whose tap opens a Watch that is gone. Section 39 still
+  // holds in the direction it was written - a DELIVERY failure never rolls back
+  // the event - but an event that was never written must not be announced.
+  if (eventRecorded) {
+    await deliverPushIfArmed(row, result.event);
+  }
 
   return {
     watchId: row.id,
@@ -212,7 +284,7 @@ async function runRefreshCycle(row: WatchRow): Promise<{
     observedAt,
     currentPrice: result.newCurrentPriceAmount,
     currency: row.currency,
-    event: result.event?.type ?? null,
+    event: eventRecorded ? (result.event?.type ?? null) : null,
     refreshMetadata: outcome.metadata,
   };
 }
@@ -307,9 +379,12 @@ async function handleCreate(authUser: AuthUser, body: UserActionBody): Promise<R
   const imageUrl = str(listing.imageUrl, 2048);
 
   const parsedPrice = parseOfferPrice(listing.price);
-  if (parsedPrice.value === null || !parsedPrice.currency) {
-    // §25: a watch cannot be armed (nor even created as "just watching" with
-    // a trustworthy starting price) without a confident currency read.
+  // WL-01 - the currency a Watch is STORED in decides every later comparison, so
+  // it is resolved by the same authority the refresh path uses, not by the shared
+  // substring scan that reads "CA$1,299.99" as USD. §25 already required a
+  // confident currency read; this makes the read actually confident.
+  const listingCurrency = resolveObservedCurrency(listing.price);
+  if (parsedPrice.value === null || !listingCurrency) {
     return json({ error: 'currency_required', code: 'currency_required' }, 422);
   }
 
@@ -324,6 +399,33 @@ async function handleCreate(authUser: AuthUser, body: UserActionBody): Promise<R
     targetPriceAmount = n;
   }
 
+  // WL-08 - bounded provider exposure. Every active Watch is one paid listing
+  // re-read per refresh cycle, and nothing else in this function limits how many
+  // an actor may hold: `create` performs no provider call, so a caller can mint
+  // Watches cheaply and then drain 25 provider calls per `refresh` request, for
+  // as many Watches as exist. Every other paid-provider function in this codebase
+  // carries a quota; this one carried none.
+  //
+  // This is a COST CEILING, not a product limit: the default is far above any
+  // plausible real Watchlist and is env-overridable, matching the batch-cap idiom
+  // in watchRefreshConfig.ts. Re-watching an existing listing is idempotent and
+  // is deliberately NOT blocked by it -- only genuinely new rows are counted, so
+  // a user at the ceiling can still retarget what they already watch.
+  const activeCountResponse = await rest(
+    `user_commerce_watches?user_id=eq.${authUser.id}&deleted_at=is.null&canonical_url=neq.${encodeURIComponent(safeUrl)}&select=id`,
+    { method: 'GET', headers: { Prefer: 'count=exact', Range: '0-0' } },
+  );
+  const activeCount = Number(
+    activeCountResponse.headers.get('content-range')?.split('/')?.[1] ?? Number.NaN,
+  );
+  if (Number.isFinite(activeCount) && activeCount >= MAX_ACTIVE_WATCHES_PER_ACTOR) {
+    logEvent('watchlist_create_ceiling_reached', {
+      uid: shortUserId(authUser.id),
+      activeCount,
+    });
+    return json({ error: 'watch_limit_reached', code: 'watch_limit_reached' }, 429);
+  }
+
   const createResponse = await rpc('create_user_commerce_watch', {
     p_user_id: authUser.id,
     p_source: provider,
@@ -332,7 +434,7 @@ async function handleCreate(authUser: AuthUser, body: UserActionBody): Promise<R
     p_display_title: title,
     p_display_image_url: imageUrl ?? null,
     p_initial_price_amount: parsedPrice.value,
-    p_currency: parsedPrice.currency,
+    p_currency: listingCurrency,
     p_watch_intent: watchIntent,
     p_target_price_amount: targetPriceAmount,
   });
@@ -550,9 +652,17 @@ async function handleSetPushEnabled(authUser: AuthUser, body: UserActionBody): P
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
-  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+  if (req.method !== 'POST') {
+    // WL-05 - every path that answers without reading the body drains it first.
+    await drainRequestBody(req);
+    return json({ error: 'Method not allowed' }, 405);
+  }
 
   if (requireWorkerSecret(req)) {
+    // The sweep is selected by the header and deliberately ignores the body
+    // (see .github/workflows/watchlist-tier2-sweep.yml), so nothing downstream
+    // will ever read it.
+    await drainRequestBody(req);
     try {
       return await runWorkerSweep();
     } catch (err) {
@@ -567,6 +677,10 @@ Deno.serve(async (req: Request) => {
   try {
     authUser = await requireUser(req);
   } catch (response) {
+    // requireUser rejects on the Authorization header alone and never touches
+    // the body -- the one unauthenticated path into this function, and so the
+    // one an anonymous caller could otherwise use to hold an edge connection.
+    await drainRequestBody(req);
     if (response instanceof Response) return response;
     return json({ error: 'Authentication required' }, 401);
   }
