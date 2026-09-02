@@ -103,14 +103,30 @@ test('CON-ABSENCE-005: specifically not behind conciergeV1, which defaults FALSE
   );
 });
 
-test('the OWNERSHIP half keeps its evidence gating — this repair is not a rewrite', () => {
-  // #256 deliberately made the two halves gate differently: ownership stands
-  // down without evidence (or it would suppress ordinary Base Elise answers),
-  // absence runs always. Widening the ownership half here would be a different,
-  // unreviewed change.
+test('the OWNERSHIP half is EVIDENCE-gated and no longer FLAG-gated (WC-003)', () => {
+  // SUPERSEDES the original form of this test, which required
+  // `config.flags.conciergeV1` in this condition.
+  //
+  // #256 gave two reasons for the asymmetry. The substantive one -- "ownership
+  // stands down without evidence, or it would suppress ordinary Base Elise
+  // answers" -- is about the EVIDENCE gate, and that gate is unchanged and
+  // still asserted below. The other was explicitly procedural: widening the
+  // flag gate "would be a different, unreviewed change".
+  //
+  // The Build 34 Concierge deep audit (2026-09-02) is that review, and it found
+  // the flag gate actively harmful. `ELISE_CONCIERGE_V1_ENABLED` defaults false
+  // and is the configuration that ships, while `listClosetItems` is gated on
+  // K+ and `closetWardrobeContextV1` -- NOT on Concierge. So the shipping flag
+  // set had owned Closet evidence and no ownership guard, and a K+ customer
+  // could be told "you already have a black blazer" about a blazer they do not
+  // own. That is the same shape as CON-ABSENCE-005, which this very file was
+  // created to close for the absence half.
   const [call] = findCalls(sourceFile(INDEX), 'enforceOwnershipProseSafety');
   const conditions = enclosingIfConditions(call).join(' | ');
-  assert.match(conditions, /conciergeV1/, 'the ownership guard must stay Concierge-gated');
+  assert.ok(
+    !/conciergeV1/.test(conditions),
+    'a capability flag must not decide whether a false ownership claim may reach the customer',
+  );
   assert.match(
     conditions,
     /adviceShortlistForProseSafety\.length > 0|proseSafetyOwnedFocus/,
@@ -173,10 +189,27 @@ test('census availability still folds in the census honesty conditions', () => {
   let block = call.parent;
   while (block && !ts.isBlock(block)) block = block.parent;
   const text = block.getText(file);
+  // SUPERSEDES the inline expression this used to pin. WC-002 moved those
+  // conditions into ONE exported predicate, `censusLicensesAbsenceClaims`,
+  // which the structured gap layer reads too -- so the two can no longer drift
+  // apart -- and added a third condition the inline form was missing: a
+  // category map truncated to its top-N slice cannot be read negatively
+  // either, because a dropped category looks exactly like one the customer
+  // owns none of. Pinning the old literal here would now require the WEAKER
+  // rule, so the assertion moves to the predicate and the predicate's own
+  // conditions are asserted where they live.
   assert.match(
     text,
-    /censusAvailable\s*=\s*!!census\s*&&\s*census\.exhaustive === true\s*&&\s*census\.unclassifiedItems === 0/,
-    'permission must require an exhaustive census with nothing unclassified — the same rule censusConfirmsRoleAbsent applies',
+    /censusAvailable\s*=\s*censusLicensesAbsenceClaims\(census\)/,
+    'permission must come from the single shared absence-licence predicate',
   );
+  const census = read('supabase/functions/stylechat-generate/eliseClosetCensus.ts');
+  const predicate = census.slice(
+    census.indexOf('export function censusLicensesAbsenceClaims'),
+    census.indexOf('export function censusConfirmsRoleAbsent'),
+  );
+  assert.match(predicate, /if \(!census\.exhaustive\) return false;/);
+  assert.match(predicate, /if \(census\.unclassifiedItems > 0\) return false;/);
+  assert.match(predicate, /if \(census\.categoriesTruncated\) return false;/);
   assert.match(text, /count > 0/, 'only counted-non-zero subjects may be treated as present');
 });

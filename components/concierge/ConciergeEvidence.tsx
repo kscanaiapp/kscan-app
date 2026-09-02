@@ -23,6 +23,7 @@
  * the answer look more structured than the evidence is.
  */
 
+import { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import type { ConciergeCard, ConciergeResult } from '../../services/concierge/conciergeModel';
@@ -45,7 +46,7 @@ interface Props {
   onCardPress?: (card: ConciergeCard) => void;
 }
 
-export function ConciergeEvidence({ result, images, onCardPress }: Props) {
+function ConciergeEvidenceImpl({ result, images, onCardPress }: Props) {
   // 'none' means no authoritative wardrobe evidence took part in this turn.
   // Base Elise prose stands alone, with no Closet chrome around it.
   if (result.presentation === 'none') return null;
@@ -68,7 +69,11 @@ export function ConciergeEvidence({ result, images, onCardPress }: Props) {
 
   return (
     <View style={styles.container}>
-      {sectionTitle ? <Text style={styles.sectionTitle}>{sectionTitle}</Text> : null}
+      {sectionTitle ? (
+        <Text style={styles.sectionTitle} accessibilityRole="header">
+          {sectionTitle}
+        </Text>
+      ) : null}
 
       {/* Section 21: several owned items matched and none was chosen. Said
           plainly, and without naming one of them. */}
@@ -113,11 +118,25 @@ export function ConciergeEvidence({ result, images, onCardPress }: Props) {
       ))}
 
       {/* Sections 27/28: at most a scoped, single note -- never a deficiency
-          audit, and never a certainty the evidence cannot support. */}
-      {gapCopy ? <Text style={styles.note}>{gapCopy}</Text> : null}
+          audit, and never a certainty the evidence cannot support.
+          `conciergeGapCopy` chooses between a statement and a hedge from
+          `evidenceIsExhaustive`, so the SCOPE of the claim is carried by the
+          words themselves rather than by a separate disclaimer that could drift
+          out of agreement with them. */}
+      {gapCopy ? (
+        <Text style={styles.note} testID="concierge-gap-note">
+          {gapCopy}
+        </Text>
+      ) : null}
     </View>
   );
 }
+
+/**
+ * Memoised for the same reason the card is: this renders inside a chat bubble
+ * in a scrolling list, and its props change only when a new answer arrives.
+ */
+export const ConciergeEvidence = memo(ConciergeEvidenceImpl);
 
 const styles = StyleSheet.create({
   container: {

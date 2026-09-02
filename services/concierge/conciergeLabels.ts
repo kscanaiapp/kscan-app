@@ -92,6 +92,46 @@ export function conciergeCardTitle(card: {
 }
 
 /**
+ * The spoken provenance of one card, for assistive technology.
+ *
+ * SECTION 50, AND THE REASON IT IS SEPARATE FROM `conciergeCardLabel`.
+ *
+ * The visible chip is quiet by design: under an all-owned "From your Closet"
+ * heading it is suppressed, because the heading already says it once and
+ * repeating it on every row is noise. A screen reader does not read the page
+ * that way. It reads the card, and a card with a suppressed chip carried NO
+ * provenance at all -- so the one signal this whole feature exists to make
+ * unmistakable was the signal a non-sighted customer did not get.
+ *
+ * This always states the relationship in words, from the SERVER's provenance
+ * and never from prose, so the spoken card and the drawn card make the same
+ * claim regardless of which one the heading happens to be carrying.
+ */
+export function conciergeCardAccessibilityLabel(
+  card: {
+    title: string | null;
+    category: string | null;
+    brand: string | null;
+    relationship: ConciergeRelationship;
+  },
+  presentation: ConciergePresentation,
+): string {
+  const name = conciergeCardTitle(card);
+  const parts = [name];
+  if (card.brand) parts.push(card.brand);
+
+  // Spoken provenance. `conciergeCardLabel` is reused wherever it has an
+  // answer, so the two can never word the same relationship differently; the
+  // only case it declines is the quiet one, which is spelled out here.
+  const spoken =
+    conciergeCardLabel(card.relationship, presentation) ??
+    (card.relationship === 'owned' ? 'In your Closet' : null);
+  if (spoken) parts.push(spoken);
+
+  return parts.join(', ');
+}
+
+/**
  * Human copy for a scoped wardrobe gap.
  *
  * `evidenceIsExhaustive` decides between a statement and a hedge (section 27).
