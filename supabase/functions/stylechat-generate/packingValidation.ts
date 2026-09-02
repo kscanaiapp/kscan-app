@@ -63,6 +63,12 @@ export interface PackingPlanOutfit {
 export interface PackingPlanWeather {
   provenance: PackingWeatherProvenance;
   summary: string | null;
+  /**
+   * The place the forecast is actually FOR (PK-002). Null when no forecast was
+   * resolved. Shown to the traveller so a silently-chosen wrong city -- the
+   * other Springfield, the country Georgia -- is visible and correctable.
+   */
+  resolvedLocation?: string | null;
 }
 
 export interface PackingPlan {

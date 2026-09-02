@@ -30,6 +30,8 @@ export const PACKING_PROMPT_VERSION = '1';
 export interface PackingWeatherPromptContext {
   provenance: 'FORECAST' | 'SEASONAL';
   summary: string;
+  /** The place the geocoder resolved, when it named one (PK-002). */
+  resolvedLocation?: string | null;
 }
 
 export const PACKING_SYSTEM_PROMPT = [
@@ -101,7 +103,11 @@ export function buildPackingUserPrompt(input: {
     // is never labelled one here either.
     lines.push(
       input.weather.provenance === 'FORECAST'
-        ? `WEATHER FORECAST: ${escapePromptData(input.weather.summary)}`
+        ? `WEATHER FORECAST${
+            input.weather.resolvedLocation
+              ? ` (for ${escapePromptData(input.weather.resolvedLocation)})`
+              : ''
+          }: ${escapePromptData(input.weather.summary)}`
         : `TYPICAL CONDITIONS FOR THIS TIME OF YEAR (not a forecast, do not present it as one): ${escapePromptData(input.weather.summary)}`,
     );
   } else {

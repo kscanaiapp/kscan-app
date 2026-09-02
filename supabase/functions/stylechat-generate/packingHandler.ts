@@ -191,7 +191,11 @@ function latencyBucket(ms: number): PackingTelemetry['latencyBucket'] {
   return 'very_slow';
 }
 
-const UNAVAILABLE_WEATHER: PackingPlanWeather = { provenance: 'UNAVAILABLE', summary: null };
+const UNAVAILABLE_WEATHER: PackingPlanWeather = {
+  provenance: 'UNAVAILABLE',
+  summary: null,
+  resolvedLocation: null,
+};
 
 export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<PackingHandlerResult> {
   const now = deps.now ?? (() => Date.now());
@@ -378,7 +382,11 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
     }
   }
   const weather: PackingPlanWeather = weatherPrompt
-    ? { provenance: weatherPrompt.provenance, summary: weatherPrompt.summary }
+    ? {
+        provenance: weatherPrompt.provenance,
+        summary: weatherPrompt.summary,
+        resolvedLocation: weatherPrompt.resolvedLocation ?? null,
+      }
     : UNAVAILABLE_WEATHER;
   telemetry.weatherProvenance = weather.provenance;
 

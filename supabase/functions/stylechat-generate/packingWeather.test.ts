@@ -267,3 +267,77 @@ Deno.test('forecast: a dry window says so rather than inventing rain', async () 
   assertStringIncludes(summary!, 'highs around 70F');
   assertStringIncludes(summary!, 'mostly dry');
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PK-002 — THE FORECAST MUST NAME THE PLACE IT IS ACTUALLY FOR
+//
+// `count=1` means the geocoder returns one candidate and it is used silently.
+// Probed against the live public endpoint: "Springfield" resolves to Missouri,
+// "Portland" to Oregon, and "Georgia" to the COUNTRY (41.99, 43.49) rather than
+// the US state. The traveller saw only the string they typed above a confident
+// forecast line, so a wrong city was undetectable while it drove real garment
+// choices. The resolved place is now carried through and shown.
+// ─────────────────────────────────────────────────────────────────────────────
+
+Deno.test('PK-002: the geocoder label is built from the PROVIDER fields, not the typed string', async () => {
+  const { impl } = stubFetch([
+    () =>
+      jsonResponse({
+        results: [
+          { latitude: 37.21533, longitude: -93.29824, name: 'Springfield', admin1: 'Missouri', country_code: 'US' },
+        ],
+      }),
+  ]);
+  // The traveller typed a bare "Springfield"; the provider chose Missouri.
+  const coords = await geocodeDestination('Springfield', impl);
+  assertEquals(coords?.label, 'Springfield, Missouri, US');
+});
+
+Deno.test('PK-002: a resolved forecast carries the place it is for', async () => {
+  clearPackingWeatherCache();
+  const { impl } = stubFetch([
+    () =>
+      jsonResponse({
+        results: [{ latitude: 42.0, longitude: 43.5, name: 'Georgia', country_code: 'GE' }],
+      }),
+    () => jsonResponse(FORECAST_OK),
+  ]);
+  // "Georgia" the country, not the US state -- the case a traveller is least
+  // able to spot and the one that changes a suitcase most.
+  const result = await resolvePackingWeather({
+    destination: 'Georgia',
+    startDate: '2026-09-02',
+    endDate: '2026-09-05',
+    fetchImpl: impl,
+    now,
+  });
+  assertEquals(result?.provenance, 'FORECAST');
+  assertEquals(result?.resolvedLocation, 'Georgia, GE');
+});
+
+Deno.test('PK-002: a geocode with no usable name resolves coordinates but claims no place', async () => {
+  clearPackingWeatherCache();
+  const { impl } = stubFetch([
+    () => jsonResponse({ results: [{ latitude: 51.5, longitude: -0.13 }] }),
+    () => jsonResponse(FORECAST_OK),
+  ]);
+  const result = await resolvePackingWeather({
+    destination: 'Nowhere In Particular',
+    startDate: '2026-09-02',
+    endDate: '2026-09-05',
+    fetchImpl: impl,
+    now,
+  });
+  // Never falls back to echoing the typed destination: that would manufacture
+  // exactly the false confirmation this finding is about.
+  assertEquals(result?.resolvedLocation, null);
+});
+
+Deno.test('PK-002: the UI names the resolved place on the forecast line, and only there', async () => {
+  const source = await Deno.readTextFile(
+    new URL('../../../components/packing/PackingPlanView.tsx', import.meta.url),
+  );
+  assertStringIncludes(source, 'plan.weather.resolvedLocation');
+  // UNAVAILABLE has no place to name, and must not gain one.
+  assertStringIncludes(source, "'Weather unavailable — planned from your trip and occasions'");
+});

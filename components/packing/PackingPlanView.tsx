@@ -44,13 +44,25 @@ function formatDateRange(startDate: string, endDate: string): string {
   return `${format(startDate)} – ${format(endDate)}`.toUpperCase();
 }
 
+/**
+ * PK-002. The forecast is named for the place the GEOCODER chose, not the string
+ * the traveller typed.
+ *
+ * `count=1` means one candidate comes back and is used silently: "Springfield"
+ * is Missouri, "Portland" is Oregon, and "Georgia" is the country, not the
+ * state. Showing only what the traveller typed above a confident forecast made
+ * a wrong city undetectable while it drove real garment choices. Naming the
+ * resolved place is the whole correction -- the traveller can now see that the
+ * forecast is for somewhere else and retype the destination.
+ */
 function weatherLine(plan: PackingPlan): string {
+  const at = plan.weather.resolvedLocation ? ` for ${plan.weather.resolvedLocation}` : '';
   switch (plan.weather.provenance) {
     case 'FORECAST':
       // Only this branch may use the word "forecast".
-      return `Forecast: ${plan.weather.summary ?? 'unavailable'}`;
+      return `Forecast${at}: ${plan.weather.summary ?? 'unavailable'}`;
     case 'SEASONAL':
-      return `Typical conditions: ${plan.weather.summary ?? 'unavailable'}`;
+      return `Typical conditions${at}: ${plan.weather.summary ?? 'unavailable'}`;
     default:
       return 'Weather unavailable — planned from your trip and occasions';
   }
