@@ -638,3 +638,65 @@ Deno.test('WC-006: hostile Closet text is data, never prompt structure', () => {
   assert.equal(injected.length, 1);
   assert.ok(injected[0].startsWith('- id='));
 });
+
+// -----------------------------------------------------------------------------
+// WC-009 -- the wardrobe source set is CLOSED.
+//
+// Sections 9/11/12: a Watchlist entry, a VTO result and a scan are all things
+// the customer has LOOKED at, not things they have. The strongest possible
+// guarantee here is structural rather than behavioural: those stores are not
+// wardrobe sources at all, so there is no row for a relationship mapper to get
+// wrong. That guarantee is only worth something if adding a source is a
+// decision rather than an accident, which is what this pins.
+// -----------------------------------------------------------------------------
+
+Deno.test('WC-009: only the five declared stores can reach the wardrobe pipeline', async () => {
+  const source = await Deno.readTextFile(new URL('./eliseWardrobeRetrieval.ts', import.meta.url));
+  const start = source.indexOf('export type EliseWardrobeDataSource = {');
+  const end = source.indexOf('};', start);
+  const contract = source.slice(start, end);
+
+  const methods = [...contract.matchAll(/^\s{2}(\w+)\??\(/gm)].map((m) => m[1]).sort();
+  assert.deepEqual(
+    methods,
+    [
+      'listClosetCensusRows',
+      'listClosetItems',
+      'listInspirationItems',
+      'listOwnedRoomItems',
+      'listSavedScans',
+      'listSharedRoomItems',
+    ],
+    'a new wardrobe source changes what Elise can call the customer an owner of',
+  );
+
+  // Watchlist, VTO and commerce are not among them, and naming them here makes
+  // that a checked fact rather than an observation about today's code.
+  for (const forbidden of ['watchlist', 'watch_list', 'vto', 'tryon', 'try_on', 'commerce']) {
+    assert.ok(
+      !contract.toLowerCase().includes(forbidden),
+      `${forbidden} must not be a wardrobe source: interest is not possession`,
+    );
+  }
+});
+
+Deno.test('WC-009: no source in the pipeline can emit a discovered candidate', async () => {
+  // `discovered` is commerce provenance. Concierge V1 has no commerce
+  // retrieval, so nothing can produce one -- which is why there is no
+  // gap-to-product binding to get wrong. If a source ever starts emitting one,
+  // sections 29-31 become live and this test is the place that says so.
+  const source = await Deno.readTextFile(new URL('./eliseWardrobeRetrieval.ts', import.meta.url));
+  const assigned = [...source.matchAll(/actorRelationship: '(\w+)'/g)].map((m) => m[1]);
+  assert.ok(assigned.length > 0);
+  assert.ok(
+    !assigned.includes('discovered'),
+    'a commerce candidate entering wardrobe retrieval activates the gap-to-product binding rules',
+  );
+  assert.deepEqual(
+    [...new Set(assigned)].sort(),
+    // 'unverified' is the deliberate default for a Dressing Room row whose
+    // provenance the mapper cannot place: presence in a room the actor owns is
+    // not physical ownership, and unknown must stay unknown.
+    ['owned', 'saved', 'scanned', 'shared', 'unverified'],
+  );
+});
