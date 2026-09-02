@@ -3,22 +3,28 @@
 // PERSISTENCE DECISION (build plan section 18, Option A). Packing V1 creates NO
 // new table and NO new durable personal-travel data class.
 //
-// V1 IS IN-MEMORY ONLY, AND THAT IS THE WHOLE STORY. The active plan lives in
-// the actor-bound process state below and NOWHERE ELSE. Nothing in Packing
-// writes style_chat_messages, ui_blocks, AsyncStorage or any other durable
-// record, and there is no resume path that restores a plan.
+// THE SERVER STILL STORES NOTHING. No table, no style_chat_messages row, no
+// ui_blocks, no trip history in Supabase. Generating a plan has exactly one
+// durable server-side consequence: the Elise quota counter the backend
+// increments.
 //
-// CONCRETELY, for anything built on top of this:
-//   - a plan does NOT survive an app restart or a process kill
-//   - a plan is NOT restored when a StyleChat session is resumed
-//   - the trip (destination, dates, notes) is likewise never written down
-//   - the ONLY durable consequence of generating a plan is the Elise quota
-//     counter the backend increments
+// ON THE DEVICE, ONE PLAN IS NOW CACHED (UX-4). packingPlanCache.ts stores the
+// most recent successful plan for the signed-in actor so someone can open their
+// list on a plane. This CHANGED a previously absolute claim and the change is
+// recorded here rather than left for a reader to discover:
+//   - a plan DOES now survive an app restart, for the same actor, for 30 days
+//   - it is device-local; it is never uploaded and never leaves the phone
+//   - it is cleared on EVERY actor boundary, by resetPackingPlanState below
+//   - a restored plan is marked `restoredFrom` and the screen says so; it is
+//     never presented as freshly generated
+//   - a plan is STILL not restored when a StyleChat session is resumed, and
+//     the session id is still not a persistence handle
 //
-// This is a deliberate V1 scope decision, not an omission: durable trip history
-// would be a new personal-data class and needs its own privacy, export and
-// deletion story. Persisting a plan is therefore a FUTURE change with owner
-// sign-off, not a gap to be quietly filled by a downstream feature.
+// This is a new device-local personal-data class and it carries the project's
+// existing unbuilt-local-purge gap (services/accountDeletion.js), exactly as
+// Recent Scans and Style DNA preferences already do. Server-side trip history
+// remains a FUTURE change needing owner sign-off, not something a downstream
+// feature may quietly add.
 //
 // THE STORE IS ACTOR-BOUND, NOT JUST ACTOR-LABELLED. Every read requires the
 // caller to name the actor it is reading for, and a snapshot stamped with a
@@ -28,6 +34,7 @@
 // AuthSessionContext) is the primary mechanism, and this is the backstop.
 
 import type { PackingGeneralGuide, PackingPlan, PackingTripDraft } from '../../types/packing';
+import { clearAllCachedPackingPlans } from './packingPlanCache';
 
 export interface PackingSnapshot {
   /** null while signed out, or immediately after an actor boundary. */
@@ -45,6 +52,15 @@ export interface PackingSnapshot {
   status: 'idle' | 'generating' | 'ready' | 'general' | 'failed';
   errorCode: string | null;
   retryable: boolean;
+  /**
+   * Epoch ms when this plan was GENERATED, set only when it was restored from
+   * the device cache rather than just returned by the server (UX-4). Null for a
+   * live plan. The screen uses it to say plainly that the traveller is looking
+   * at a stored plan and when it was made -- never to imply it is fresh.
+   */
+  restoredFrom: number | null;
+  /** Item ids the traveller has ticked off. Device-local; never sent anywhere. */
+  packedOff: string[];
 }
 
 const EMPTY: PackingSnapshot = {
@@ -60,6 +76,8 @@ const EMPTY: PackingSnapshot = {
   status: 'idle',
   errorCode: null,
   retryable: false,
+  restoredFrom: null,
+  packedOff: [],
 };
 
 let snapshot: PackingSnapshot = EMPTY;
@@ -136,6 +154,11 @@ export function applyPackingPlan(input: {
     excludedItemIds: input.plan.constraints.excludedItemIds,
     constraintNotes: input.plan.constraints.notes,
     packLight: input.plan.constraints.packLight,
+    // A freshly generated plan is not a restored one, and its checklist starts
+    // empty: ticks belonged to the plan they were made against, and this is a
+    // different plan with different items.
+    restoredFrom: null,
+    packedOff: [],
   });
 }
 
@@ -196,6 +219,60 @@ export function setPackingPackLight(actorId: string, packLight: boolean): void {
 }
 
 /**
+ * Show a plan restored from the device cache (UX-4).
+ *
+ * Deliberately REFUSES to overwrite anything live. A cache read is async and
+ * races an in-flight generation, and a stored plan silently replacing a newer
+ * one is exactly the stale-state failure this feature must not have. It fills
+ * an empty screen; it never competes for one.
+ */
+export function restoreCachedPackingPlan(input: {
+  actorId: string;
+  plan: PackingPlan;
+  message: string | null;
+  cachedAt: number;
+  packedOff: string[];
+}): boolean {
+  const current = getPackingSnapshotFor(input.actorId);
+  if (current.plan || current.generalGuide || current.status === 'generating') return false;
+  update(input.actorId, {
+    plan: input.plan,
+    generalGuide: null,
+    message: input.message,
+    status: 'ready',
+    errorCode: null,
+    retryable: false,
+    excludedItemIds: input.plan.constraints.excludedItemIds,
+    constraintNotes: input.plan.constraints.notes,
+    packLight: input.plan.constraints.packLight,
+    restoredFrom: input.cachedAt,
+    packedOff: input.packedOff,
+  });
+  return true;
+}
+
+/**
+ * Tick or untick one packed item.
+ *
+ * PURELY LOCAL. This is the traveller marking their own suitcase, not an edit
+ * to the plan and emphatically not an edit to the Closet: nothing here calls
+ * the server, and no ticked item is added to, removed from or altered in
+ * user_closet_items. Ownership state is not something a checkbox may change.
+ */
+export function togglePackedOff(actorId: string, itemId: string): string[] {
+  const current = getPackingSnapshotFor(actorId);
+  if (!current.plan) return current.packedOff;
+  // Only an item the CURRENT plan actually packs may be ticked, so a stale id
+  // cannot accumulate across regenerations.
+  if (!current.plan.packedItems.some((item) => item.itemId === itemId)) return current.packedOff;
+  const next = current.packedOff.includes(itemId)
+    ? current.packedOff.filter((id) => id !== itemId)
+    : [...current.packedOff, itemId];
+  update(actorId, { packedOff: next });
+  return next;
+}
+
+/**
  * Cleared on sign-out, sign-in and user change alike, from
  * AuthSessionContext.resetActorScopedRuntimeState -- the one place this project
  * resets actor-scoped runtime state. No second auth cache.
@@ -203,4 +280,10 @@ export function setPackingPackLight(actorId: string, packLight: boolean): void {
 export function resetPackingPlanState(): void {
   snapshot = EMPTY;
   emit();
+  // UX-4. The in-memory snapshot and the device cache are one actor boundary,
+  // not two. Fire-and-forget because this reset is synchronous and must not be
+  // delayed by storage -- correctness does not depend on it completing, since
+  // every cache read is scoped to the reading actor's own key and a survivor is
+  // therefore unaddressable rather than merely pending deletion.
+  void clearAllCachedPackingPlans();
 }

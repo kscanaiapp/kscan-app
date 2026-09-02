@@ -12,7 +12,7 @@
 // worth it — there is exactly one code path that can produce an authoritative
 // plan, so the structured state and the screen cannot drift apart.
 
-import { useCallback, useMemo, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { captureActorScope, isActorScopeCurrent } from '../services/actorScope';
 import { useKPlusEntitlement } from './useKPlusEntitlement';
@@ -28,10 +28,17 @@ import {
   excludePackingItem,
   getPackingSnapshot,
   getPackingSnapshotFor,
+  restoreCachedPackingPlan,
   setPackingPackLight,
   subscribeToPackingPlan,
+  togglePackedOff,
   type PackingSnapshot,
 } from '../services/packing/packingPlanStore';
+import {
+  readCachedPackingPlan,
+  writeCachedPackedOff,
+  writeCachedPackingPlan,
+} from '../services/packing/packingPlanCache';
 import type { PackingTripDraft } from '../types/packing';
 import { resolveRefinementIntent } from '../services/packing/packingRefinement';
 
@@ -44,6 +51,8 @@ export interface UsePackingPlanResult extends PackingSnapshot {
   removeItem: (itemId: string) => Promise<void>;
   refineWith: (note: string) => Promise<void>;
   togglePackLight: (packLight: boolean) => Promise<void>;
+  /** Tick/untick a packed item. Local only -- never touches the Closet. */
+  toggleItemPacked: (itemId: string) => void;
 }
 
 const EMPTY_SNAPSHOT: PackingSnapshot = {
@@ -59,6 +68,8 @@ const EMPTY_SNAPSHOT: PackingSnapshot = {
   status: 'idle',
   errorCode: null,
   retryable: false,
+  restoredFrom: null,
+  packedOff: [],
 };
 
 function newSessionId(): string {
@@ -131,6 +142,9 @@ export function usePackingPlan(): UsePackingPlanResult {
 
       if (result.status === 'success' && result.plan) {
         applyPackingPlan({ actorId, plan: result.plan, message: result.message });
+        // UX-4. Cached AFTER the actor-scope check above, so a plan that
+        // belongs to a departed actor is never written to this device at all.
+        void writeCachedPackingPlan({ actorId, plan: result.plan, message: result.message });
         emitKPlusEvent('kplus_feature_completed', { source: 'packing', feature: 'packing' });
         return;
       }
@@ -145,6 +159,39 @@ export function usePackingPlan(): UsePackingPlanResult {
         errorCode: result.errorCode,
         retryable: result.retryable,
       });
+    },
+    [actorId],
+  );
+
+  // UX-4. Offline restore. Runs once per actor and only fills an EMPTY screen:
+  // restoreCachedPackingPlan refuses to overwrite a live or generating plan, so
+  // a slow disk read can never replace a newer result. Re-checked against the
+  // actor epoch on completion for the same reason every other async path is.
+  const hydratedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!available || !actorId || hydratedFor.current === actorId) return;
+    hydratedFor.current = actorId;
+    const scope = captureActorScope();
+    void (async () => {
+      const cached = await readCachedPackingPlan(actorId);
+      if (!cached || !isActorScopeCurrent(scope)) return;
+      restoreCachedPackingPlan({
+        actorId,
+        plan: cached.plan,
+        message: cached.message,
+        cachedAt: cached.cachedAt,
+        packedOff: cached.packedOff,
+      });
+    })();
+  }, [available, actorId]);
+
+  const toggleItemPacked = useCallback(
+    (itemId: string) => {
+      if (!actorId) return;
+      const next = togglePackedOff(actorId, itemId);
+      // The tick is a local suitcase mark. It is mirrored into the cache so it
+      // survives a restart, and goes nowhere near the server or the Closet.
+      void writeCachedPackedOff(actorId, next);
     },
     [actorId],
   );
@@ -242,5 +289,6 @@ export function usePackingPlan(): UsePackingPlanResult {
     removeItem,
     refineWith,
     togglePackLight,
+    toggleItemPacked,
   };
 }

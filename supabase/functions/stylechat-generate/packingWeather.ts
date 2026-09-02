@@ -51,6 +51,17 @@ export interface PackingWeatherResult {
    */
   provenance: Exclude<PackingWeatherProvenance, 'UNAVAILABLE'>;
   summary: string;
+  /**
+   * The place the GEOCODER actually chose, e.g. "Springfield, Missouri, US".
+   *
+   * PK-002. `count=1` means one candidate comes back and it is used silently.
+   * "Springfield" resolves to Missouri, "Portland" to Oregon, and "Georgia" to
+   * the COUNTRY rather than the US state -- a different hemisphere's worth of
+   * packing advice. The traveller saw only the string they typed above a
+   * confident forecast line, so a wrong city was undetectable and drove real
+   * garment choices. Naming the resolved place is what makes it correctable.
+   */
+  resolvedLocation: string | null;
 }
 
 /**
@@ -105,7 +116,7 @@ async function fetchJson(
 export async function geocodeDestination(
   destination: string,
   fetchImpl: typeof fetch,
-): Promise<{ latitude: number; longitude: number } | null> {
+): Promise<{ latitude: number; longitude: number; label: string | null } | null> {
   const query = destination.trim();
   if (!query) return null;
 
@@ -122,7 +133,22 @@ export async function geocodeDestination(
   const longitude = typeof first?.longitude === 'number' ? first.longitude : NaN;
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
   if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null;
-  return { latitude: roundCoord(latitude), longitude: roundCoord(longitude) };
+  // Built from the provider's own fields, never from the typed string, so it
+  // can actually DISAGREE with what the traveller wrote -- which is the entire
+  // point of showing it.
+  const label = [
+    typeof first?.name === 'string' ? first.name : null,
+    typeof first?.admin1 === 'string' ? first.admin1 : null,
+    typeof first?.country_code === 'string' ? first.country_code : null,
+  ]
+    .filter((part): part is string => Boolean(part && part.trim()))
+    .join(', ')
+    .slice(0, 80);
+  return {
+    latitude: roundCoord(latitude),
+    longitude: roundCoord(longitude),
+    label: label || null,
+  };
 }
 
 const RAIN_CODES = new Set([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99]);
@@ -244,7 +270,7 @@ export async function resolvePackingWeather(input: {
     });
     if (!summary) return store(null);
 
-    return store({ provenance: 'FORECAST', summary });
+    return store({ provenance: 'FORECAST', summary, resolvedLocation: coords.label });
   } catch {
     return store(null);
   }

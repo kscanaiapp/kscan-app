@@ -172,8 +172,14 @@ test('view: only a real forecast may use the word forecast', () => {
   const start = view.indexOf('function weatherLine');
   const end = view.indexOf('function itemSubtitle');
   const body = view.slice(start, end);
-  assert.match(body, /case 'FORECAST':[\s\S]*Forecast: /);
-  assert.match(body, /case 'SEASONAL':[\s\S]*Typical conditions: /);
+  // PK-002 widened these two labels to name the place the forecast is actually
+  // for ("Forecast for Springfield, Missouri, US: ..."), because the geocoder
+  // picks one match silently and a wrong city was otherwise undetectable. The
+  // invariant this test exists for is unchanged and still asserted below: the
+  // word "forecast" may appear ONLY under the FORECAST branch. The interpolated
+  // `${at}` segment is the resolved place and is empty when none was resolved.
+  assert.match(body, /case 'FORECAST':[\s\S]*Forecast\$\{at\}: /);
+  assert.match(body, /case 'SEASONAL':[\s\S]*Typical conditions\$\{at\}: /);
   assert.doesNotMatch(
     body.slice(body.indexOf("case 'SEASONAL'")),
     /`Forecast/,

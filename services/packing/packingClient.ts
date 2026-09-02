@@ -78,7 +78,7 @@ function parseActivity(value: unknown): PackingActivity | null {
 }
 
 function parseWeather(value: unknown): PackingPlanWeather {
-  if (!isRecord(value)) return { provenance: 'UNAVAILABLE', summary: null };
+  if (!isRecord(value)) return { provenance: 'UNAVAILABLE', summary: null, resolvedLocation: null };
   const provenance = PROVENANCES.includes(value.provenance as PackingWeatherProvenance)
     ? (value.provenance as PackingWeatherProvenance)
     : 'UNAVAILABLE';
@@ -86,7 +86,10 @@ function parseWeather(value: unknown): PackingPlanWeather {
   // shown: an unlabelled weather line is exactly the thing that reads as a
   // forecast when it is not one.
   const summary = provenance === 'UNAVAILABLE' ? null : str(value.summary, 160);
-  return { provenance, summary };
+  // The resolved place is meaningless without a summary to attribute to it, so
+  // it lives and dies with one (PK-002).
+  const resolvedLocation = summary ? str(value.resolvedLocation, 80) : null;
+  return { provenance, summary, resolvedLocation };
 }
 
 function parseItem(value: unknown): PackingPlanItem | null {

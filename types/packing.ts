@@ -107,6 +107,13 @@ export interface PackingGap {
 export interface PackingPlanWeather {
   provenance: PackingWeatherProvenance;
   summary: string | null;
+  /**
+   * The place the forecast is actually FOR, as the geocoder resolved it
+   * (PK-002). Null when no forecast was resolved. The traveller types a
+   * destination; the provider silently picks one match, and "Springfield",
+   * "Portland" and "Georgia" all resolve somewhere they may not have meant.
+   */
+  resolvedLocation: string | null;
 }
 
 export interface PackingPlan {

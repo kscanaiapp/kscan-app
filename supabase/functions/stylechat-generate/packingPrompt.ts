@@ -30,6 +30,8 @@ export const PACKING_PROMPT_VERSION = '1';
 export interface PackingWeatherPromptContext {
   provenance: 'FORECAST' | 'SEASONAL';
   summary: string;
+  /** The place the geocoder resolved, when it named one (PK-002). */
+  resolvedLocation?: string | null;
 }
 
 export const PACKING_SYSTEM_PROMPT = [
@@ -47,6 +49,16 @@ export const PACKING_SYSTEM_PROMPT = [
   '9. Respond with JSON only, matching exactly:',
   '{"outfits":[{"label":"Dinner","activity":"dinner","itemIds":["<id>"],"reason":"..."}],"packedItems":[{"itemId":"<id>","reason":"..."}],"assumptions":["..."]}',
   '10. Every id in "outfits" must also appear in "packedItems". Do not pack an item you never use in an outfit unless it is a practical layer for the stated weather.',
+  // PK-001. The list is a SHORTLIST, not an inventory. Rule 1 already stops the
+  // model naming a garment it was not given; this stops the opposite and subtler
+  // failure: treating absence from the list as proof the traveller owns no such
+  // garment, and saying so. They may own many times what is shown here.
+  // (Phrasing note: avoid writing a quoted phrase after the word "from" here --
+  // the governed Edge manifest's dependency extractor reads that shape as an
+  // import specifier and the parity gate then reports a phantom dependency.)
+  // packingValidation.ts removes such a sentence regardless of this rule; a guard
+  // that has to fire often means the prompt was wrong, so it is fixed here too.
+  '11. The CLOSET ITEMS list is a SELECTION from a larger wardrobe, not a complete inventory. NEVER state or imply that the traveller does not own something, lacks something, or is missing something, and never say their closet has none of a thing. If an item you would want is not listed, simply plan without it and say nothing about them not owning it.',
 ].join('\n');
 
 function describeCandidate(candidate: EliseWardrobeCandidate, index: number): string {
@@ -94,7 +106,11 @@ export function buildPackingUserPrompt(input: {
     // is never labelled one here either.
     lines.push(
       input.weather.provenance === 'FORECAST'
-        ? `WEATHER FORECAST: ${escapePromptData(input.weather.summary)}`
+        ? `WEATHER FORECAST${
+            input.weather.resolvedLocation
+              ? ` (for ${escapePromptData(input.weather.resolvedLocation)})`
+              : ''
+          }: ${escapePromptData(input.weather.summary)}`
         : `TYPICAL CONDITIONS FOR THIS TIME OF YEAR (not a forecast, do not present it as one): ${escapePromptData(input.weather.summary)}`,
     );
   } else {
@@ -125,7 +141,12 @@ export function buildPackingUserPrompt(input: {
 
   lines.push('');
   lines.push(`Return at most ${PACKING_LIMITS.maxOutfits} outfits and at most ${PACKING_LIMITS.maxPackedItems} packed items.`);
-  lines.push('CLOSET ITEMS (the only garments that exist for this task):');
+  // The old wording called this list everything that existed for the task, which
+  // invited the model to reason about what the traveller does NOT own. It is
+  // only the set the model may
+  // CITE -- which is what rule 1 and the validation gate actually enforce -- and
+  // that is what it is now told (PK-001).
+  lines.push('CLOSET ITEMS (a selection from a larger wardrobe; the only items you may cite):');
   for (const [index, candidate] of shortlist.entries()) {
     lines.push(describeCandidate(candidate, index + 1));
   }
