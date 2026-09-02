@@ -81,9 +81,14 @@ test('Account/Profile K+ row never renders a "Manage Subscription" action (no su
 
 test('logout/account-switch resets K+ cache via the same actor-scoped reset every other domain uses', () => {
   assert.match(authSessionContext, /resetKPlusEntitlementCache/);
-  const fnBody = authSessionContext.slice(
-    authSessionContext.indexOf('function resetActorScopedRuntimeState'),
-    authSessionContext.indexOf('function resetActorScopedRuntimeState') + 1200,
-  );
+  // Bounded by the function's own closing brace, not by a character count: a
+  // fixed window silently starts excluding real lines as soon as anything is
+  // added to the reset (a comment is enough), which turns a passing wiring
+  // assertion into a false failure and, worse, could hide a genuine removal.
+  const start = authSessionContext.indexOf('function resetActorScopedRuntimeState');
+  assert.ok(start >= 0, 'the actor-scoped reset must exist');
+  const end = authSessionContext.indexOf('\n}', start);
+  assert.ok(end > start, 'the actor-scoped reset must be a closed function body');
+  const fnBody = authSessionContext.slice(start, end);
   assert.match(fnBody, /resetKPlusEntitlementCache\(\)/);
 });

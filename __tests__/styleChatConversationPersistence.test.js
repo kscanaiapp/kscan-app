@@ -244,7 +244,17 @@ function loadGreeting(client, repository) {
   });
 }
 
-const loadGuard = () => loadTsModule('services/style-chat/sessionLaunchGuard.ts');
+// ELISE-002: the launch seam now enforces the actor boundary itself. The REAL
+// actor authority is supplied here (not a stub) so these tests keep exercising
+// genuine epoch behaviour; they never change actor, so the guard is transparent
+// to them. The cross-actor cases live in
+// __tests__/eliseSessionLaunchActorBoundary.test.js.
+const loadGuard = () =>
+  loadTsModule('services/style-chat/sessionLaunchGuard.ts', {
+    '../actorScope': loadTsModule('services/actorScope.ts', {
+      './actorContext': require('../services/actorContext.js'),
+    }),
+  });
 
 function createHarness() {
   const backend = createBackend();

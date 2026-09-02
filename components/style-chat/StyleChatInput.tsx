@@ -33,6 +33,11 @@ interface StyleChatInputProps {
   onAttachPress?: () => void;
   /** When false (default), composer matches the pre-attach layout. */
   showAttachButton?: boolean;
+  /**
+   * Fired when the user reaches for the composer. The screen uses it to silence
+   * Elise; this component does not know about speech and must not.
+   */
+  onComposerFocus?: () => void;
 }
 
 export function StyleChatInput({
@@ -45,6 +50,7 @@ export function StyleChatInput({
   sendBusy = false,
   onAttachPress,
   showAttachButton = false,
+  onComposerFocus,
 }: StyleChatInputProps) {
   const [internalText, setInternalText] = useState('');
   const isControlled = typeof value === 'string';
@@ -103,6 +109,7 @@ export function StyleChatInput({
         style={[styles.input, isLandscape ? styles.inputLandscape : null]}
         value={text}
         onChangeText={handleTextChange}
+        onFocus={onComposerFocus}
         placeholder={`Ask ${stylistDisplayName} about this look, your Closet, or what to wear next`}
         placeholderTextColor={LUXURY.colors.stone}
         selectionColor={LUXURY.colors.gold}

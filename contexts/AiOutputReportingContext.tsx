@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -13,11 +21,16 @@ import {
 } from 'react-native';
 import {
   AI_OUTPUT_REPORT_REASONS,
+  bindAiOutputReportRequest,
   createAiOutputReportSubmissionGate,
+  isBoundAiOutputReportCurrent,
   submitAiOutputReport,
   type AiOutputReportReasonId,
   type AiOutputReportRequest,
+  type BoundAiOutputReportRequest,
 } from '../services/reportAiOutput';
+import { currentActorScopeKey } from '../services/actorScope';
+import { useAuthSession } from './AuthSessionContext';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../constants/theme';
 
 type AiOutputReportingContextValue = {
@@ -37,22 +50,40 @@ export function useAiOutputReporting(): AiOutputReportingContextValue {
 }
 
 export function AiOutputReportProvider({ children }: { children: ReactNode }) {
-  const [request, setRequest] = useState<AiOutputReportRequest | null>(null);
+  const [request, setRequest] = useState<BoundAiOutputReportRequest | null>(null);
   const [reasonId, setReasonId] = useState<AiOutputReportReasonId | null>(null);
   const [notes, setNotes] = useState('');
   const [state, setState] = useState<ReportState>('form');
   const submissionGateRef = useRef(createAiOutputReportSubmissionGate());
+  // This provider is mounted ABOVE the navigator, so it never unmounts on an
+  // account switch. Subscribing to the session is what makes the actor
+  // transition observable here at all; the epoch-bearing key below is what
+  // makes an A -> B -> A cycle observable too.
+  useAuthSession();
+  const actorScopeKey = currentActorScopeKey();
 
-  const close = useCallback(() => {
-    if (state === 'submitting') return;
+  const clearReport = useCallback(() => {
     setRequest(null);
     setReasonId(null);
     setNotes('');
     setState('form');
-  }, [state]);
+  }, []);
+
+  // ELISE-001 — an open report names a private session id and message id owned
+  // by the actor who opened it. Discard it the moment the actor generation
+  // changes, unconditionally: unlike close(), this must fire even mid-submit,
+  // because a report that survives the boundary is exactly the defect.
+  useEffect(() => {
+    clearReport();
+  }, [actorScopeKey, clearReport]);
+
+  const close = useCallback(() => {
+    if (state === 'submitting') return;
+    clearReport();
+  }, [clearReport, state]);
 
   const openAiOutputReport = useCallback((nextRequest: AiOutputReportRequest) => {
-    setRequest(nextRequest);
+    setRequest(bindAiOutputReportRequest(nextRequest));
     setReasonId(null);
     setNotes('');
     setState('form');
@@ -60,6 +91,12 @@ export function AiOutputReportProvider({ children }: { children: ReactNode }) {
 
   const submit = useCallback(async () => {
     if (!request || !reasonId) return;
+    // Re-validated here as well as inside the service: pressing Submit is the
+    // last moment the UI owns, and a stale binding must never reach the network.
+    if (!isBoundAiOutputReportCurrent(request)) {
+      clearReport();
+      return;
+    }
 
     setState('submitting');
     try {
@@ -72,7 +109,7 @@ export function AiOutputReportProvider({ children }: { children: ReactNode }) {
     } catch {
       setState('error');
     }
-  }, [notes, reasonId, request]);
+  }, [clearReport, notes, reasonId, request]);
 
   const retry = useCallback(() => setState('form'), []);
 

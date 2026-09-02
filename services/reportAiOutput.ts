@@ -1,4 +1,10 @@
 import { submitContentReport, type ContentReportResult } from './contentReports';
+import {
+  captureActorScope,
+  currentActorId,
+  isActorScopeCurrent,
+  type ActorScope,
+} from './actorScope';
 
 export type AiOutputReportFeature = 'StyleChat' | 'TextScan' | 'Scan Results';
 
@@ -8,6 +14,54 @@ export type AiOutputReportRequest = {
   messageId?: string | null;
   itemId?: string | null;
 };
+
+/**
+ * An open AI-output report, bound to the actor generation that opened it.
+ *
+ * ELISE-001. AiOutputReportProvider is mounted above the navigator, so an open
+ * report sheet outlives a sign-out / account switch. The request itself names a
+ * private session id and message id belonging to whoever opened it, and
+ * reporter_user_id is bound server-side by auth.uid() — so an unbound request
+ * lets the ARRIVING actor file a report against the DEPARTED actor's private
+ * Elise message.
+ *
+ * The epoch (not the actor id) is the discriminator: an A -> B -> A cycle
+ * returns the same id and must still be rejected.
+ */
+export type BoundAiOutputReportRequest = {
+  readonly request: AiOutputReportRequest;
+  readonly actorScope: ActorScope;
+  readonly actorId: string | null;
+};
+
+/** Capture the live actor generation for a report the user is about to compose. */
+export function bindAiOutputReportRequest(
+  request: AiOutputReportRequest,
+): BoundAiOutputReportRequest {
+  return {
+    request,
+    actorScope: captureActorScope(),
+    actorId: currentActorId(),
+  };
+}
+
+/** True only while the binding still names the live actor generation. */
+export function isBoundAiOutputReportCurrent(
+  bound: BoundAiOutputReportRequest | null | undefined,
+): boolean {
+  return Boolean(bound) && isActorScopeCurrent(bound!.actorScope);
+}
+
+function isBoundRequest(
+  value: AiOutputReportRequest | BoundAiOutputReportRequest,
+): value is BoundAiOutputReportRequest {
+  return (
+    value != null &&
+    typeof value === 'object' &&
+    'request' in value &&
+    'actorScope' in value
+  );
+}
 
 const MAX_IDENTIFIER_LENGTH = 200;
 const MAX_COMMENT_LENGTH = 1000;
@@ -43,7 +97,13 @@ export const AI_OUTPUT_REPORT_REASONS = [
 export type AiOutputReportReasonId = (typeof AI_OUTPUT_REPORT_REASONS)[number]['id'];
 
 export type AiOutputReportSubmissionInput = {
-  request: AiOutputReportRequest;
+  /**
+   * Prefer a BoundAiOutputReportRequest from bindAiOutputReportRequest(). A
+   * plain request is still accepted and is bound HERE, at submit time, so a
+   * caller that has not adopted the binding is never worse off than before —
+   * but it cannot detect an actor change that happened while the sheet was open.
+   */
+  request: AiOutputReportRequest | BoundAiOutputReportRequest;
   reasonId: AiOutputReportReasonId;
   notes?: string | null;
 };
@@ -77,9 +137,24 @@ export async function submitAiOutputReport(
     return { ok: false, serverAccepted: false, error: new Error('Invalid AI output report reason.') };
   }
 
-  const sessionId = normalizeIdentifier(input.request.sessionId);
-  const messageId = normalizeIdentifier(input.request.messageId);
-  const itemId = normalizeIdentifier(input.request.itemId);
+  const bound = isBoundRequest(input.request)
+    ? input.request
+    : bindAiOutputReportRequest(input.request);
+
+  // Gate BEFORE building anything: a stale binding means these identifiers
+  // belong to a different actor's private conversation.
+  if (!isBoundAiOutputReportCurrent(bound)) {
+    return {
+      ok: false,
+      serverAccepted: false,
+      error: new Error('The signed-in account changed. Please open this report again.'),
+    };
+  }
+
+  const request = bound.request;
+  const sessionId = normalizeIdentifier(request.sessionId);
+  const messageId = normalizeIdentifier(request.messageId);
+  const itemId = normalizeIdentifier(request.itemId);
   const targetId = messageId ?? itemId ?? sessionId;
 
   if (!targetId) {
@@ -87,7 +162,7 @@ export async function submitAiOutputReport(
   }
 
   const aiOutputContext: Record<string, string> = {
-    feature: input.request.feature,
+    feature: request.feature,
     reason_detail: reason.id,
   };
   if (sessionId) aiOutputContext.session_id = sessionId;
@@ -100,6 +175,9 @@ export async function submitAiOutputReport(
     reasonCategory: reason.reasonCategory,
     notes: normalizeNotes(input.notes),
     aiOutputContext,
+    // Re-checked against the LIVE session at insert time. The epoch gate above
+    // cannot see an actor change that lands during this call.
+    expectedActorId: bound.actorId,
   });
 }
 

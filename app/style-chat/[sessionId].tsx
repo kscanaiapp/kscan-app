@@ -18,13 +18,14 @@ import { StatusBar } from 'expo-status-bar';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { CONVERSATION_MAX_WIDTH } from '../../services/responsiveLayout';
 import { STYLE_CHAT_COPY } from '../../constants/styleChat';
-import { ELISE_IDENTITY, ELISE_LOADING_COPY, STYLE_MEMORY_COPY } from '../../constants/elise';
+import { ELISE_IDENTITY, STYLE_MEMORY_COPY } from '../../constants/elise';
 import {
   StyleChatHeader,
   useStyleChatHomeBackHandler,
 } from '../../components/style-chat/StyleChatHeader';
 import { StyleChatBubble } from '../../components/style-chat/StyleChatBubble';
 import { StyleChatInput } from '../../components/style-chat/StyleChatInput';
+import { StyleChatThinkingIndicator } from '../../components/style-chat/StyleChatThinkingIndicator';
 import { StyleChatContextPreview } from '../../components/style-chat/StyleChatContextPreview';
 import { StyleChatStyleDnaCard } from '../../components/style-chat/StyleChatStyleDnaCard';
 import { useStyleChat } from '../../hooks/useStyleChat';
@@ -37,6 +38,7 @@ import {
 } from '../../services/style-chat/styleChatHandoffContext';
 import type { StyleChatMessage } from '../../services/style-chat/types';
 import { useAuthSession } from '../../contexts/AuthSessionContext';
+import { captureActorScope, isActorScopeCurrent } from '../../services/actorScope';
 import { useEliseVisualContext } from '../../hooks/useEliseVisualContext';
 import { EliseVisualContextBar } from '../../components/style-chat/EliseVisualContextBar';
 import { EliseVisualSourceMenu } from '../../components/style-chat/EliseVisualSourceMenu';
@@ -64,7 +66,17 @@ import {
   setDraftComposerText,
   clearDraftAttachments,
 } from '../../services/style-chat/styleChatAttachmentStore';
+import {
+  persistStyleChatDraft,
+  readStyleChatDraft,
+} from '../../services/style-chat/styleChatDraftPersistence';
 import { stopAvatarSpeechPlayback } from '../../services/avatarSpeech';
+import { getAvatarSpeechState } from '../../stores/avatarSpeechStore';
+import {
+  planEliseSpeechInterruption,
+  type EliseSpeechInterruptionTrigger,
+} from '../../services/style-chat/eliseSpeechInterruption';
+import { selectionTick } from '../../services/haptics';
 import { getStyleChatComposerControls } from '../../services/style-chat/styleChatComposerControls';
 
 export default function StyleChatSessionScreen() {
@@ -106,22 +118,71 @@ export default function StyleChatSessionScreen() {
   const [visualSourceMenuVisible, setVisualSourceMenuVisible] = useState(false);
 
   useEffect(() => {
-    setComposerTextState(getDraftComposerText(stableSessionId, actorKey));
-  }, [stableSessionId, actorKey]);
+    const inMemory = getDraftComposerText(stableSessionId, actorKey);
+    setComposerTextState(inMemory);
+    // Memory is authoritative while the app is alive; the durable copy is only
+    // consulted when it has nothing — i.e. after a crash, force-quit or cold
+    // start. Gated on the actor scope so a late read cannot restore a departed
+    // actor's words into the arriving actor's composer.
+    if (inMemory || !user?.id) return;
+    let cancelled = false;
+    const scope = captureActorScope();
+    void readStyleChatDraft({ actorId: user.id, sessionId: stableSessionId })
+      .then((recovered) => {
+        if (cancelled || !recovered || !isActorScopeCurrent(scope)) return;
+        // Never clobber something typed while the read was in flight.
+        if (getDraftComposerText(stableSessionId, actorKey)) return;
+        setDraftComposerText(stableSessionId, recovered, actorKey);
+        setComposerTextState(recovered);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [stableSessionId, actorKey, user?.id]);
+
+  // Reaching for the composer silences Elise. Interrupting is an intentional
+  // user action, not a failure: the reply text is untouched, no error state is
+  // entered, and the single acknowledgement comes only when speech was actually
+  // audible for THIS actor and session — never as a buzz per keystroke.
+  const interruptSpeech = useCallback(
+    (trigger: EliseSpeechInterruptionTrigger, isComposerEmpty?: boolean) => {
+      const scope = {
+        actorId: user?.id ?? null,
+        sessionId: stableSessionId,
+        avatarId: identity.avatarId,
+      };
+      const plan = planEliseSpeechInterruption({
+        trigger,
+        state: getAvatarSpeechState(),
+        scope,
+        isComposerEmpty,
+      });
+      if (!plan.interrupt || !scope.actorId) return;
+      void stopAvatarSpeechPlayback({
+        actorId: scope.actorId,
+        sessionId: scope.sessionId,
+        avatarId: scope.avatarId,
+      });
+      if (plan.confirm) selectionTick();
+    },
+    [stableSessionId, user?.id, identity.avatarId],
+  );
 
   const setComposerText = useCallback(
     (next: string) => {
       setComposerTextState(next);
       setDraftComposerText(stableSessionId, next, actorKey);
-      if (next.trim().length > 0 && user?.id) {
-        void stopAvatarSpeechPlayback({
-          actorId: user.id,
-          sessionId: stableSessionId,
-          avatarId: identity.avatarId,
-        });
-      }
+      // Best-effort mirror for crash/force-quit recovery. Never awaited into a
+      // keystroke: a storage failure loses the recovery copy, not the character.
+      void persistStyleChatDraft({
+        actorId: user?.id ?? null,
+        sessionId: stableSessionId,
+        text: next,
+      });
+      interruptSpeech('typing', next.trim().length === 0);
     },
-    [stableSessionId, actorKey, user?.id, identity.avatarId],
+    [stableSessionId, actorKey, user?.id, interruptSpeech],
   );
 
   // Consume handoff context on mount and clear it when leaving the session.
@@ -362,15 +423,7 @@ export default function StyleChatSessionScreen() {
   );
 
   const ThinkingIndicator = isSending ? (
-    <View testID="style-chat-thinking-indicator" style={styles.thinking}>
-      <View style={styles.thinkingSpinner}>
-        <ActivityIndicator size="small" color={LUXURY.colors.plum} />
-      </View>
-      <View style={styles.thinkingCopy}>
-        <Text style={styles.thinkingText}>{ELISE_LOADING_COPY.thinking}</Text>
-        <Text style={styles.thinkingSubtext}>{ELISE_LOADING_COPY.thinkingSubtext}</Text>
-      </View>
-    </View>
+    <StyleChatThinkingIndicator stylistDisplayName={stylistDisplayName} />
   ) : null;
 
   const isLimitNotice = error === STYLE_CHAT_COPY.systemLimitNotice
@@ -593,6 +646,7 @@ export default function StyleChatSessionScreen() {
           stylistDisplayName={stylistDisplayName}
           value={composerText}
           onChangeText={setComposerText}
+          onComposerFocus={() => interruptSpeech('focus')}
           showAttachButton={visualAttachmentsEnabled && attachmentsEnabled}
           onAttachPress={
             visualAttachmentsEnabled && attachmentsEnabled
@@ -884,45 +938,6 @@ const styles = StyleSheet.create({
     ...LUXURY.typography.caption,
     color: LUXURY.colors.stone,
     marginTop: SPACING.sm,
-  },
-  thinking: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginHorizontal: SPACING.xl,
-    marginTop: SPACING.sm,
-    marginBottom: SPACING.md,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderRadius: RADIUS.lg,
-    borderWidth: 1,
-    borderColor: LUXURY.colors.hairline,
-    backgroundColor: LUXURY.colors.pearl,
-    gap: SPACING.sm,
-  },
-  thinkingSpinner: {
-    width: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  thinkingCopy: {
-    flex: 1,
-    minWidth: 0,
-  },
-  thinkingText: {
-    ...LUXURY.typography.bodyStrong,
-    color: LUXURY.colors.plum,
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  thinkingSubtext: {
-    ...LUXURY.typography.caption,
-    color: LUXURY.colors.stone,
-    fontSize: 11,
-    lineHeight: 16,
-    letterSpacing: 0.4,
-    marginTop: SPACING.xxs,
   },
   errorBanner: {
     flexDirection: 'row',

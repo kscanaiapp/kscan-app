@@ -44,6 +44,10 @@ export const STYLE_MEMORY_COPY = {
 export const ELISE_LOADING_COPY = {
   thinking: 'Elise is thinking…',
   thinkingSubtext: 'Reading the conversation before she answers.',
+  // Shown once a turn passes ELISE_THINKING_ESCALATION_MS. Deliberately honest
+  // about the extra work rather than repeating the optimistic first line.
+  thinkingLonger: 'Elise is taking a closer look…',
+  thinkingLongerSubtext: 'A more considered answer takes a little longer.',
   loadingSessions: 'Loading conversations…',
   loadingConversation: 'Loading conversation…',
   stylingFromCloset: 'Elise is putting together a few options…',

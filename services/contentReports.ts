@@ -20,6 +20,19 @@ export type ContentReportInput = {
    * non-AI report targets.
    */
   aiOutputContext?: Record<string, string> | null;
+  /**
+   * The actor this report was composed for. Optional and additive — omitting it
+   * preserves the exact previous behaviour for callers that have no actor
+   * boundary to defend.
+   *
+   * Supplied, it is compared against the LIVE session immediately before the
+   * insert, which is the only point where the comparison is authoritative:
+   * reporter_user_id is bound by the database default (auth.uid()), so a report
+   * composed by one actor and submitted after an account switch would otherwise
+   * be filed by the arriving actor against the departed actor's private target
+   * id. Mirrors requireUserId(expectedUserId) in styleChatRepository.
+   */
+  expectedActorId?: string | null;
 };
 
 export type ContentReportResult =
@@ -86,6 +99,19 @@ export async function submitContentReport(input: ContentReportInput): Promise<Co
     // Anonymous or unauthenticated users get local hide/block only.
     devLog('no authenticated session; report stored locally only');
     return { ok: true, serverAccepted: false, localOnly: true };
+  }
+
+  // Fail closed on an actor boundary crossed between composing and submitting.
+  // Deliberately NOT the local-only outcome: this is not "there is nobody to
+  // file as", it is "the person filing is not the person this report was
+  // composed for", and silently keeping it locally would still be wrong.
+  if (input.expectedActorId && session.user.id !== input.expectedActorId) {
+    devLog('actor changed while the report was open; refusing to submit');
+    return {
+      ok: false,
+      serverAccepted: false,
+      error: new Error('The signed-in account changed. Please open this report again.'),
+    };
   }
 
   const row: Record<string, unknown> = {
