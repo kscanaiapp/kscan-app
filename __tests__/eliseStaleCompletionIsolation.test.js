@@ -97,6 +97,7 @@ function createHarness(options = {}) {
     spoken: [],
     stoppedSpeech: [],
     greetingsInserted: 0,
+    providerCalls: [],
   };
 
   let actorId = options.actorId ?? ACTOR_A;
@@ -124,8 +125,12 @@ function createHarness(options = {}) {
     react: null, // filled in by the runtime below
     '../services/style-chat/providers/edgeStyleChatProvider': {
       EdgeStyleChatProvider: class {
-        async generateReply() {
-          await providerGate;
+        async generateReply(request) {
+          observed.providerCalls.push(request);
+          if (options.gateProvider !== false) await providerGate;
+          if (typeof options.respond === 'function') {
+            return options.respond(observed.providerCalls.length, request);
+          }
           return providerReply;
         }
       },
@@ -179,7 +184,12 @@ function createHarness(options = {}) {
       'services/style-chat/styleChatRetryState.ts',
       {},
     ),
-    '../services/style-chat/styleChatOutcome': { classifyStyleChatOperationalFailure: () => null },
+    '../services/style-chat/styleChatOutcome': {
+      classifyStyleChatOperationalFailure: (result) =>
+        result && result.status === 'error'
+          ? { message: 'Elise is unavailable right now.' }
+          : null,
+    },
     '../contexts/AuthSessionContext': { useAuthSession: () => ({ user: { id: actorId } }) },
     '../services/actorScope': actorScope,
     './useStylistIdentity': {
@@ -405,4 +415,113 @@ test('ELISE-NC-002: an A -> B -> A cycle still discards the first generation’s
     'a matching actor id from an earlier generation must still be stale',
   );
   assert.deepEqual(harness.observed.spoken, []);
+});
+
+// ── ELISE-NC-011 — retry must not duplicate the user's message ────────────────
+//
+// The user message is persisted BEFORE the provider is called, so a failed
+// generation leaves a real row behind. Retry must resend that same turn, not
+// append a second copy of what the user typed. The guard is retryLastMessage's
+// `skipUserPersistence: Boolean(failedSend.userMessageId)`.
+
+async function mountElise(harness, sessionId) {
+  const { createHookRuntime } = require('./helpers/hookRuntime');
+  const runtime = createHookRuntime();
+  const useStyleChat = harness.loadHook(runtime.react);
+  let api;
+  const render = () => {
+    runtime.beginRender();
+    api = useStyleChat(sessionId, {});
+    runtime.flushEffects();
+  };
+  render();
+  for (let i = 0; i < 20; i += 1) {
+    await settle(2);
+    if (!runtime.dirty) break;
+    runtime.clearDirty();
+    render();
+  }
+  return {
+    get api() {
+      return api;
+    },
+    render,
+    async flush(cycles = 8) {
+      for (let i = 0; i < cycles; i += 1) {
+        await settle(2);
+        if (runtime.dirty) {
+          runtime.clearDirty();
+          render();
+        }
+      }
+    },
+  };
+}
+
+test('ELISE-NC-011: retrying a failed generation resends the turn, it does not duplicate the user message', async () => {
+  const harness = createHarness({
+    gateProvider: false,
+    respond: (call) =>
+      call === 1
+        ? {
+            status: 'error',
+            message: { sender: 'assistant', content: '', model: '', tokenEstimate: 0 },
+            usage: { messagesUsed: 0, messagesLimit: 25 },
+          }
+        : {
+            status: 'success',
+            message: {
+              sender: 'assistant',
+              content: 'Try the navy blazer.',
+              model: 'gemini-2.5-flash',
+              tokenEstimate: 12,
+            },
+            usage: { messagesUsed: 1, messagesLimit: 25 },
+          },
+  });
+
+  const mounted = await mountElise(harness, SESSION_A);
+
+  const first = await mounted.api.sendMessage('What should I wear to a gallery opening?');
+  await mounted.flush();
+  assert.equal(first, false, 'an operational failure is not a successful send');
+
+  const userWritesAfterFailure = harness.observed.savedMessages.filter((m) => m.sender === 'user');
+  assert.equal(userWritesAfterFailure.length, 1, 'the failed turn persisted exactly one user row');
+
+  mounted.api.retryLastMessage();
+  await mounted.flush();
+
+  const userWrites = harness.observed.savedMessages.filter((m) => m.sender === 'user');
+  const assistantWrites = harness.observed.savedMessages.filter((m) => m.sender === 'assistant');
+
+  assert.equal(
+    userWrites.length,
+    1,
+    'retry must reuse the persisted user message, never append a second copy',
+  );
+  assert.equal(harness.observed.providerCalls.length, 2, 'retry did reach the provider again');
+  assert.equal(assistantWrites.length, 1, 'the successful retry persists one reply');
+});
+
+test('ELISE-NC-011: a double-tapped Send cannot start a second generation', async () => {
+  const harness = createHarness();
+  const mounted = await mountElise(harness, SESSION_A);
+
+  // Both taps land before any state update can disable the button.
+  const first = mounted.api.sendMessage('Style this.');
+  const second = mounted.api.sendMessage('Style this.');
+  await settle(3);
+  harness.releaseProvider();
+  const [firstResult, secondResult] = await Promise.all([first, second]);
+  await mounted.flush();
+
+  assert.equal(secondResult, false, 'the duplicate tap must be refused synchronously');
+  assert.equal(firstResult, true);
+  assert.equal(harness.observed.providerCalls.length, 1, 'only one generation may be started');
+  assert.equal(
+    harness.observed.savedMessages.filter((m) => m.sender === 'user').length,
+    1,
+    'a double tap must not persist the message twice',
+  );
 });
