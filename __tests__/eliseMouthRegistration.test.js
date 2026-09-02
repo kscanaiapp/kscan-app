@@ -208,6 +208,111 @@ test('the unregistered half-open file is rejected by that same measurement', () 
   );
 });
 
+/**
+ * ELISE-P3-02 — why the mouth layer does NOT crossfade between states.
+ *
+ * A brief opacity crossfade is the obvious way to soften a state change, and
+ * it was measured before being rejected. Blending two discrete photographic
+ * mouth frames does not produce an intermediate mouth shape: it superimposes
+ * two sets of teeth and two lip edges. The signature is a LOSS of local edge
+ * energy at the midpoint — real detail replaced by translucent ghosting —
+ * where a genuine intermediate shape would preserve it.
+ *
+ * This test asserts the artefact is still present. It is a tripwire, not a
+ * celebration: if properly registered artwork ever lands and blending stops
+ * ghosting, this test fails and the crossfade should be reconsidered.
+ */
+test('P3-02: blending two mouth frames ghosts, which is why the renderer snaps instead', () => {
+  const closed = readPng(path.join(ANIMATED, FRAMES.closed));
+  const open = readPng(path.join(ANIMATED, FRAMES.open));
+  const region = eliseRegion();
+
+  const energy = (img) => {
+    const x0 = Math.round(region.x * img.width);
+    const y0 = Math.round(region.y * img.height);
+    const x1 = Math.round((region.x + region.width) * img.width);
+    const y1 = Math.round((region.y + region.height) * img.height);
+    let sum = 0;
+    let n = 0;
+    for (let y = y0; y < y1 - 1; y += 1) {
+      for (let x = x0; x < x1 - 1; x += 1) {
+        const i = (y * img.width + x) * img.channels;
+        const right = (y * img.width + x + 1) * img.channels;
+        const down = ((y + 1) * img.width + x) * img.channels;
+        sum += Math.abs(img.data[i] - img.data[right]) + Math.abs(img.data[i] - img.data[down]);
+        n += 2;
+      }
+    }
+    return sum / n;
+  };
+
+  // A 50% blend, computed the way an opacity crossfade composites.
+  const blend = {
+    width: closed.width,
+    height: closed.height,
+    channels: closed.channels,
+    data: Buffer.alloc(closed.data.length),
+  };
+  for (let i = 0; i < closed.data.length; i += 1) {
+    blend.data[i] = (closed.data[i] + open.data[i]) >> 1;
+  }
+
+  const eClosed = energy(closed);
+  const eOpen = energy(open);
+  const eBlend = energy(blend);
+  const floor = Math.min(eClosed, eOpen);
+
+  assert.ok(
+    eBlend < floor * 0.95,
+    'blending no longer ghosts (edge energy held up) — revisit the crossfade decision for ELISE-P3-02: ' +
+      `closed=${eClosed.toFixed(2)} open=${eOpen.toFixed(2)} blend=${eBlend.toFixed(2)}`,
+  );
+});
+
+test('P3-02: a crossfade between states cannot move the overlay toward the base', () => {
+  // The seam is a tonal step between the OVERLAY and the BASE at the rectangle
+  // edge — measured off-line as 12.1/255 for closed and 15.6/255 for open.
+  // A crossfade only ever produces values BETWEEN the two overlays, so at best
+  // it lands on the better of the two endpoints and never below it. It is
+  // therefore structurally incapable of removing the step. Seam and transition
+  // snap are two separate defects, and a crossfade addresses only the second.
+  const closed = readPng(path.join(ANIMATED, FRAMES.closed));
+  const open = readPng(path.join(ANIMATED, FRAMES.open));
+  const region = eliseRegion();
+  const x0 = Math.round(region.x * closed.width);
+  const x1 = Math.round((region.x + region.width) * closed.width);
+  const y0 = Math.round(region.y * closed.height);
+
+  let outside = 0;
+  let checked = 0;
+  for (let y = y0; y < y0 + 6; y += 1) {
+    for (let x = x0; x < x1; x += 1) {
+      const i = (y * closed.width + x) * closed.channels;
+      for (let c = 0; c < 3; c += 1) {
+        const a = closed.data[i + c];
+        const b = open.data[i + c];
+        const blended = (a + b) >> 1;
+        if (blended < Math.min(a, b) || blended > Math.max(a, b)) outside += 1;
+        checked += 1;
+      }
+    }
+  }
+  assert.ok(checked > 0);
+  assert.equal(outside, 0, 'a blend produced a value outside its own endpoints');
+});
+
+test('the renderer does not animate mouth opacity', () => {
+  const source = fs.readFileSync(
+    path.join(ROOT, 'components', 'stylist', 'AnimatedStylistAvatar.tsx'),
+    'utf8',
+  );
+  const layer = source.slice(source.indexOf('function MouthStateLayer'), source.indexOf('function isReadyPortraitPreset'));
+  assert.doesNotMatch(layer, /opacity|Animated|useEffect|fade/i);
+  // ...and no native masking dependency was introduced to feather it.
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  assert.equal('@react-native-masked-view/masked-view' in (pkg.dependencies ?? {}), false);
+});
+
 test('the registry does not declare the unregistered half-open frame for Elise', () => {
   const source = fs.readFileSync(path.join(ROOT, 'constants', 'stylistIdentity.ts'), 'utf8');
   const block = source.slice(source.indexOf('FACIAL_MOTION_CONFIG_ENTRIES'));

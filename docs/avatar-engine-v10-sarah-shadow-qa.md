@@ -3,6 +3,13 @@
 > Historical protocol only. Build 32 visible convergence no longer imports the
 > shadow bridge from the StyleChat runtime; this document is retained as source
 > evidence for the V10 candidate measurements captured before convergence.
+>
+> **Build 34: the `EXPO_PUBLIC_AVATAR_VISUAL_MODE` variable referenced below no
+> longer exists.** `services/avatars/avatarVisualMode.ts` was deleted — it had
+> no production consumer and its own comments claimed V10 had "never rendered a
+> pixel in the real app" while V10 was in fact the live visible renderer.
+> Setting that variable now does nothing at all. The steps below cannot be run
+> as written and are kept only as a record of how the candidate was measured.
 
 Run this on a device against the real speech backend. It produces the dataset
 that decides whether V10 goes to visible Sarah or needs one focused timing fix.

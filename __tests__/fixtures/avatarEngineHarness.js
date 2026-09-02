@@ -138,10 +138,6 @@ function loadPackages() {
   return loadTsModule('services/avatars/avatarEnginePackages.ts');
 }
 
-function loadVisualMode() {
-  return loadTsModule('services/avatars/avatarVisualMode.ts');
-}
-
 // -- Alignment builders -------------------------------------------------------
 
 /** Character alignment in the exact shape the K Scan speech backend returns. */
@@ -206,7 +202,6 @@ module.exports = {
   loadEngine,
   loadAdapter,
   loadPackages,
-  loadVisualMode,
   characterAlignment,
   mouthOnlyCapabilities,
   snapshot,

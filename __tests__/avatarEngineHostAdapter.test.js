@@ -3,18 +3,11 @@ const assert = require('node:assert/strict');
 
 const {
   loadAdapter,
-  loadVisualMode,
   characterAlignment,
 } = require('./fixtures/avatarEngineHarness');
 
 const { AvatarEngineHostAdapter, getAvatarEngineAdapter, resetAvatarEngineAdapterForTests } =
   loadAdapter();
-const {
-  parseAvatarVisualMode,
-  isAvatarEngineActive,
-  isAvatarEngineVisible,
-  DEFAULT_AVATAR_VISUAL_MODE,
-} = loadVisualMode();
 
 const SARAH = 'stylist_portrait_05';
 const HENRY = 'stylist_portrait_02';
@@ -288,35 +281,14 @@ test('a disposed adapter keeps answering neutrally', () => {
   assert.equal(result.mouthState, 'closed');
 });
 
-// -- Visual migration mode ----------------------------------------------------
+// -- Adapter answers regardless of any host gate -----------------------------
 
-test('visual mode defaults to LEGACY and fails closed on anything unrecognized', () => {
-  assert.equal(DEFAULT_AVATAR_VISUAL_MODE, 'LEGACY');
-  for (const value of [undefined, null, '', 'true', 'V9_VISIBLE', 'on', 42, {}]) {
-    assert.equal(parseAvatarVisualMode(value), 'LEGACY');
-  }
-});
-
-test('visual mode gates only what draws, never whether speech happens', () => {
-  assert.equal(isAvatarEngineActive('LEGACY'), false);
-  assert.equal(isAvatarEngineActive('V10_SHADOW'), true);
-  assert.equal(isAvatarEngineActive('V10_VISIBLE'), true);
-
-  assert.equal(isAvatarEngineVisible('LEGACY'), false);
-  assert.equal(isAvatarEngineVisible('V10_SHADOW'), false, 'shadow mode must stay invisible');
-  // V10_VISIBLE is closed by the phase gate for the Sarah shadow phase, so the
-  // engine cannot render even when the mode is requested explicitly. See
-  // avatarShadowMode.test.js for the gate's own coverage.
-  assert.equal(isAvatarEngineVisible('V10_VISIBLE'), false);
-});
-
-test('shadow mode computes a frame without claiming the renderer', () => {
+test('the adapter computes a frame without claiming the renderer', () => {
   const adapter = newAdapter();
   const result = adapter.computeFrame(
     hostInput({ speech: speechState({ alignment: HELLO(), playbackSeconds: 0.3 }) }),
   );
   // The adapter always answers; the host decides whether that answer is drawn.
   assert.equal(result.applied, true);
-  assert.equal(isAvatarEngineVisible('V10_SHADOW'), false);
-  assert.ok(adapter.metricsSnapshot().frameCalcMs.count >= 1, 'shadow mode still records metrics');
+  assert.ok(adapter.metricsSnapshot().frameCalcMs.count >= 1, 'the adapter still records metrics');
 });
