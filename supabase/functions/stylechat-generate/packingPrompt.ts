@@ -51,8 +51,11 @@ export const PACKING_SYSTEM_PROMPT = [
   '10. Every id in "outfits" must also appear in "packedItems". Do not pack an item you never use in an outfit unless it is a practical layer for the stated weather.',
   // PK-001. The list is a SHORTLIST, not an inventory. Rule 1 already stops the
   // model naming a garment it was not given; this stops the opposite and subtler
-  // failure -- reasoning from 'not in this list' to 'the traveller does not own
-  // one' and saying so. The traveller may own many times what is shown here.
+  // failure: treating absence from the list as proof the traveller owns no such
+  // garment, and saying so. They may own many times what is shown here.
+  // (Phrasing note: avoid writing a quoted phrase after the word "from" here --
+  // the governed Edge manifest's dependency extractor reads that shape as an
+  // import specifier and the parity gate then reports a phantom dependency.)
   // packingValidation.ts removes such a sentence regardless of this rule; a guard
   // that has to fire often means the prompt was wrong, so it is fixed here too.
   '11. The CLOSET ITEMS list is a SELECTION from a larger wardrobe, not a complete inventory. NEVER state or imply that the traveller does not own something, lacks something, or is missing something, and never say their closet has none of a thing. If an item you would want is not listed, simply plan without it and say nothing about them not owning it.',
