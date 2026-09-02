@@ -92,6 +92,7 @@ import {
   type ProviderFailureKind,
 } from '../_shared/llmModelRouting.ts';
 import {
+  resolveGarmentDisplayIdentity,
   rawDetectedGarmentCount,
   sanitizeDetectedGarments,
   type SanitizedDetectedGarment,
@@ -3057,6 +3058,11 @@ Deno.serve(async (req) => {
             g.identification as Record<string, unknown>,
             g.attributes as Record<string, unknown>,
           );
+          // THIS garment's own gate result. `intelligenceGate` below is pinned
+          // to the primary garment on purpose — it shapes the single-item
+          // commerce query after the loop — so it must never be read as if it
+          // described garment i. See resolveGarmentDisplayIdentity (SCAN-003).
+          let ownGateLabel: string | undefined;
           if (intelligenceEnabled) {
             const gated = applyScannerQualityGate(tuned.identification, tuned.attributes, {
               commerceIdentityEnabled,
@@ -3066,19 +3072,26 @@ Deno.serve(async (req) => {
               identification: gated.identification,
               attributes: gated.attributes,
             };
+            ownGateLabel = gated.label;
             if (i === 0) intelligenceGate = gated;
           }
+          // Captured BEFORE `g.identification` is replaced: the gate may
+          // suppress a subtype for retrieval, and that must not erase the
+          // identity this garment's candidateId was minted from (SCAN-004).
+          const priorSubtype = g.subtype;
+          const priorCategory = g.category;
           g.identification = tuned.identification;
           if (tuned.attributes) g.attributes = tuned.attributes;
-          if (typeof tuned.identification.item_type === 'string' && tuned.identification.item_type) {
-            g.category = String(tuned.identification.item_type);
-            g.label = typeof tuned.identification.subtype === 'string' && tuned.identification.subtype
-              ? String(tuned.identification.subtype)
-              : (intelligenceGate?.label || g.category);
-          }
-          if (typeof tuned.identification.subtype === 'string') {
-            g.subtype = String(tuned.identification.subtype);
-          }
+          const identity = resolveGarmentDisplayIdentity({
+            tunedItemType: tuned.identification.item_type,
+            tunedSubtype: tuned.identification.subtype,
+            priorSubtype,
+            priorCategory,
+            ...(ownGateLabel ? { ownGateLabel } : {}),
+          });
+          g.category = identity.category;
+          g.subtype = identity.subtype;
+          g.label = identity.label;
           qualityNormCorrectionCount += tuned.correctionCount;
           qualityNormRuleIds.push(...tuned.ruleIds);
           qualityGenericLabelOccurrence += tuned.genericLabelOccurrence;
