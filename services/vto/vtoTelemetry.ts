@@ -26,6 +26,10 @@ export const VTO_EVENTS = [
   'vto_request_superseded',
   'vto_retry',
   'vto_result_compare_toggle',
+  // Surface-collapse events. Content-free: they say the sheet was collapsed or
+  // restored, never anything about the photo, the result, or the person.
+  'vto_minimized',
+  'vto_restored',
 ] as const;
 
 export type VtoEvent = (typeof VTO_EVENTS)[number];

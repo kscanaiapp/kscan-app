@@ -131,3 +131,90 @@ test('progress: stage labels name the real work and promise no fit judgement', (
     }
   }
 });
+
+// ── Task 3: minimizing must not kill the generation it reports on ──────────
+
+test('minimize: the sheet stays MOUNTED while collapsed', () => {
+  // This is the whole correctness question for background polling.
+  // useVirtualTryOn calls leaveVtoSurface on unmount, so rendering the sheet
+  // conditionally on `!minimized` would cancel the generation the pill claims
+  // is still running. Collapsing must go through Modal visibility instead.
+  const entry = code('components/vto/TryItOnEntry.tsx');
+  assert.match(
+    entry,
+    /<VirtualTryOnSheet\s+visible=\{!minimized\}/,
+    'collapse must be expressed as Modal visibility, not conditional mounting',
+  );
+  assert.doesNotMatch(
+    entry,
+    /\{\s*sheetVisible\s*&&\s*!minimized\s*\?\s*\(\s*<VirtualTryOnSheet/,
+    'the sheet must never be unmounted merely because it is collapsed',
+  );
+});
+
+test('minimize: collapsing calls no teardown action', () => {
+  const sheet = code('components/vto/VirtualTryOnSheet.tsx');
+  const handler = sheet.match(/const handleMinimize = useCallback\([\s\S]*?\}, \[[^\]]*\]\);/);
+  assert.ok(handler, 'handleMinimize must exist');
+  for (const teardown of ['vto.cancel', 'vto.dismiss', 'leaveVtoSurface', 'onClose', 'clearPerson']) {
+    assert.ok(
+      !handler[0].includes(teardown),
+      `minimize must not ${teardown}: the request has to survive the collapse`,
+    );
+  }
+});
+
+test('minimize: the observing hook holds no authority over the request', () => {
+  // The pill needs status, not control. A second surface calling
+  // leaveVtoSurface / attachSessionPerson on mount or unmount would fight
+  // useVirtualTryOn for ownership of the one module-scoped operation.
+  const hook = code('hooks/useVtoSessionStatus.ts');
+  assert.match(hook, /useSyncExternalStore\(subscribeToVto, getVtoSnapshot, getVtoSnapshot\)/);
+  for (const authority of [
+    'useEffect',
+    'leaveVtoSurface',
+    'attachSessionPerson',
+    'startVtoGeneration',
+    'cancelVtoGeneration',
+    'resetVtoRequestState',
+    'setVtoPersonInput',
+  ]) {
+    assert.ok(!hook.includes(authority), `the read-only hook must not use ${authority}`);
+  }
+});
+
+test('minimize: only the card that opened the try-on shows a pill', () => {
+  // TryItOnEntry renders once per product card. A pill keyed on session status
+  // alone would appear on every eligible card on screen.
+  const entry = code('components/vto/TryItOnEntry.tsx');
+  assert.match(
+    entry,
+    /\{sheetVisible && minimized \? \(\s*<VtoMinimizedPill/,
+    'the pill must be gated on this card owning the open sheet',
+  );
+});
+
+test('minimize: the pill is offered only while something is actually running', () => {
+  const sheet = code('components/vto/VirtualTryOnSheet.tsx');
+  assert.match(
+    sheet,
+    /const canMinimize = !!onMinimize && isGenerating;/,
+    'minimize is a wait-management affordance, not a second close button',
+  );
+});
+
+test('minimize: the pill reports ready only from a validated success', () => {
+  const entry = code('components/vto/TryItOnEntry.tsx');
+  assert.match(entry, /ready=\{session\.status === 'success'\}/);
+  const pillModule = loadTsModule('services/vto/vtoProgressStages.ts', { '../../types/vto': {} });
+  assert.equal(pillModule.VTO_PILL_RENDERING_LABEL, 'Try-On Rendering…');
+  assert.equal(pillModule.VTO_PILL_READY_LABEL, 'Try-On Ready');
+});
+
+test('minimize: swiping down while idle closes rather than pretending to collapse', () => {
+  const sheet = code('components/vto/VirtualTryOnSheet.tsx');
+  const release = sheet.match(/onPanResponderRelease:[\s\S]*?\},\n/);
+  assert.ok(release, 'the drag gesture must exist');
+  assert.ok(release[0].includes('canMinimize'), 'the gesture must branch on what is running');
+  assert.ok(release[0].includes('handleClose'), 'with nothing in flight it closes');
+});

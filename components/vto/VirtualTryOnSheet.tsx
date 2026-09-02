@@ -21,6 +21,7 @@ import {
   Animated,
   Image,
   Modal,
+  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -51,6 +52,13 @@ export interface VirtualTryOnSheetProps {
   origin: VtoOrigin;
   /** Opens the retailer page. Commerce keeps owning where "Shop" goes. */
   onShop?: () => void;
+  /**
+   * Collapses the sheet while a generation runs. Supplying this is what makes
+   * the surface minimizable. The owner MUST keep this component mounted while
+   * collapsed -- unmounting calls leaveVtoSurface and tears the running
+   * generation down, which is the whole thing minimize exists to avoid.
+   */
+  onMinimize?: () => void;
   devScenario?: string;
   testID?: string;
 }
@@ -64,6 +72,9 @@ const PHOTO_GUIDANCE = [
  *  is coarse (seconds, not frames), so 1s is ample and cheap. */
 const PROGRESS_TICK_MS = 1_000;
 
+/** Downward drag (px) past which the grabber collapses the sheet. */
+const MINIMIZE_SWIPE_THRESHOLD = 60;
+
 export function VirtualTryOnSheet({
   visible,
   onClose,
@@ -71,6 +82,7 @@ export function VirtualTryOnSheet({
   garmentTitle,
   origin,
   onShop,
+  onMinimize,
   devScenario,
   testID,
 }: VirtualTryOnSheetProps) {
@@ -83,8 +95,12 @@ export function VirtualTryOnSheet({
   const isGenerating = vto.status === 'preparing' || vto.status === 'generating'
     || vto.status === 'validating_result';
 
+  // Once per opened sheet. `visible` also goes false/true when the surface is
+  // minimized and restored, and a restore is not a new impression.
+  const impressionRef = useRef(false);
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || impressionRef.current) return;
+    impressionRef.current = true;
     emitVtoEvent('vto_entry_impression', { origin });
   }, [visible, origin]);
 
@@ -193,6 +209,37 @@ export function VirtualTryOnSheet({
     onClose();
   }, [onClose, vto]);
 
+  // Collapsing is NOT cancelling and NOT closing. It calls neither dismiss nor
+  // leaveVtoSurface: the request lives in the module-scoped store and keeps
+  // running while the owner keeps this component mounted.
+  const canMinimize = !!onMinimize && isGenerating;
+
+  const handleMinimize = useCallback(() => {
+    if (!onMinimize) return;
+    selectionTick();
+    emitVtoEvent('vto_minimized', { origin });
+    onMinimize();
+  }, [onMinimize, origin]);
+
+  // Swipe down on the grabber. While a generation runs this collapses; with
+  // nothing in flight there is nothing to keep alive, so it closes instead.
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_event, gesture) =>
+          gesture.dy > 12 && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.5,
+        onPanResponderRelease: (_event, gesture) => {
+          if (gesture.dy < MINIMIZE_SWIPE_THRESHOLD) return;
+          if (canMinimize) {
+            handleMinimize();
+            return;
+          }
+          handleClose();
+        },
+      }),
+    [canMinimize, handleMinimize, handleClose],
+  );
+
   const handleRemovePhoto = useCallback(() => {
     selectionTick();
     vto.clearPerson();
@@ -230,6 +277,18 @@ export function VirtualTryOnSheet({
     >
       <View style={styles.backdrop}>
         <View style={styles.sheet}>
+          {/* Drag affordance. The gesture is a convenience only -- the
+              Minimize and Close buttons carry the same actions for anyone
+              who cannot perform a swipe. */}
+          <View
+            {...panResponder.panHandlers}
+            style={styles.grabberArea}
+            accessible={false}
+            importantForAccessibility="no-hide-descendants"
+            testID="vto-grabber"
+          >
+            <View style={styles.grabber} />
+          </View>
           <View style={styles.header}>
             <Text style={styles.eyebrow}>SEE IT ON YOU</Text>
             <Text style={styles.title} numberOfLines={2}>
@@ -379,7 +438,16 @@ export function VirtualTryOnSheet({
 
           <View style={styles.actions}>
             {isGenerating ? (
-              <SecondaryButton title="Cancel" onPress={vto.cancel} testID="vto-cancel" />
+              <>
+                {canMinimize ? (
+                  <SecondaryButton
+                    title="Minimize"
+                    onPress={handleMinimize}
+                    testID="vto-minimize"
+                  />
+                ) : null}
+                <SecondaryButton title="Cancel" onPress={vto.cancel} testID="vto-cancel" />
+              </>
             ) : vto.status === 'success' ? (
               <>
                 <PrimaryButton
@@ -438,6 +506,19 @@ const styles = StyleSheet.create({
     borderTopRightRadius: RADIUS.xl,
     paddingTop: SPACING.lg,
     paddingBottom: SPACING.lg,
+  },
+  grabberArea: {
+    alignItems: 'center',
+    paddingBottom: SPACING.sm,
+    // A generous target: the drag zone should be easy to find without
+    // stealing scroll gestures from the body below it.
+    paddingTop: SPACING.xs,
+  },
+  grabber: {
+    width: 44,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: LUXURY.colors.hairline,
   },
   header: {
     paddingHorizontal: SPACING.lg,
