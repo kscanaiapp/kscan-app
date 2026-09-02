@@ -30,6 +30,7 @@ export const VTO_EVENTS = [
   // restored, never anything about the photo, the result, or the person.
   'vto_minimized',
   'vto_restored',
+  'vto_result_save_opened',
 ] as const;
 
 export type VtoEvent = (typeof VTO_EVENTS)[number];

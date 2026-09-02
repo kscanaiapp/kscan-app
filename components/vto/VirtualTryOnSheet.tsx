@@ -41,6 +41,7 @@ import {
   resolveVtoProgress,
   VTO_PROGRESS_STAGES,
 } from '../../services/vto/vtoProgressStages';
+import { VtoSaveToDressingRoom } from './VtoSaveToDressingRoom';
 import { VtoSilhouetteGuide } from './VtoSilhouetteGuide';
 import type { VtoGarmentInput, VtoOrigin } from '../../types/vto';
 
@@ -318,6 +319,17 @@ export function VirtualTryOnSheet({
                 <Text style={styles.aiLabel}>
                   AI VISUALIZATION — NOT A PHOTO, AND NOT A FIT PREDICTION
                 </Text>
+                {/* The ONE durable path out of a session-scoped result, and
+                    only on an explicit tap. Quarantined in its own component
+                    so this sheet keeps zero persistence imports. */}
+                <VtoSaveToDressingRoom
+                  dataUri={vto.result?.dataUri ?? null}
+                  requestId={vto.result?.requestId ?? null}
+                  category={garment.category}
+                  brand={garment.brand}
+                  productRef={garment.productRef}
+                  origin={origin}
+                />
                 {comparisonAvailable ? (
                   <Pressable
                     onPress={handleToggleCompare}

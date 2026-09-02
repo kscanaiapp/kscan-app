@@ -218,3 +218,157 @@ test('minimize: swiping down while idle closes rather than pretending to collaps
   assert.ok(release[0].includes('canMinimize'), 'the gesture must branch on what is running');
   assert.ok(release[0].includes('handleClose'), 'with nothing in flight it closes');
 });
+
+// ── Task 4: saving is explicit, or it does not happen ──────────────────────
+
+const resultExport = loadTsModule('services/vto/vtoResultExport.ts', {
+  'expo-file-system/legacy': {},
+});
+
+function fakeFileSystem(overrides = {}) {
+  const writes = [];
+  const deletes = [];
+  return {
+    writes,
+    deletes,
+    fs: {
+      cacheDirectory: 'file:///cache/',
+      EncodingType: { Base64: 'base64' },
+      makeDirectoryAsync: async () => undefined,
+      writeAsStringAsync: async (uri, contents, options) => {
+        writes.push({ uri, contents, options });
+      },
+      getInfoAsync: async () => ({ exists: true, isDirectory: false, size: 2048 }),
+      deleteAsync: async (uri) => {
+        deletes.push(uri);
+      },
+      ...overrides,
+    },
+  };
+}
+
+test('save: a data URI becomes a real cache file the Dressing Room can accept', async () => {
+  // The Dressing Room image contract accepts file/content/asset/ph URIs,
+  // storage refs, or public https. A `data:` URI resolves to kind 'none' and
+  // the save is refused -- which is why materialization exists at all.
+  const { fs: fake, writes } = fakeFileSystem();
+  const out = await resultExport.exportVtoResultToCache(
+    { dataUri: 'data:image/png;base64,AAAABBBB', requestId: 'req-1' },
+    { fileSystem: fake, now: () => 1700000000000 },
+  );
+  assert.match(out.localUri, /^file:\/\/\/cache\/kscan-vto-export\/vto-req-1-1700000000000\.png$/);
+  assert.equal(out.mediaType, 'image/png');
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0].contents, 'AAAABBBB', 'the base64 payload, not the whole data URI');
+  assert.equal(writes[0].options.encoding, 'base64');
+});
+
+test('save: only recognised still-image results are accepted', async () => {
+  const { fs: fake } = fakeFileSystem();
+  const rejected = [
+    'data:text/html;base64,PHNjcmlwdD4=',
+    'data:image/svg+xml;base64,PHN2Zz4=',
+    'data:image/gif;base64,R0lGOD',
+    'file:///cache/not-a-data-uri.jpg',
+    'https://example.com/image.jpg',
+    'data:image/png,notbase64',
+    '',
+    null,
+    undefined,
+    12345,
+  ];
+  for (const dataUri of rejected) {
+    await assert.rejects(
+      () => resultExport.exportVtoResultToCache({ dataUri }, { fileSystem: fake }),
+      (err) => err.name === 'VtoExportError' && err.code === 'unsupported_result',
+      `must refuse ${String(dataUri)}`,
+    );
+  }
+});
+
+test('save: a write that produced nothing usable is deleted, not handed onward', async () => {
+  // Failing open here would put a zero-byte file into somebody's Dressing Room.
+  const { fs: fake, deletes } = fakeFileSystem({
+    getInfoAsync: async () => ({ exists: true, isDirectory: false, size: 0 }),
+  });
+  await assert.rejects(
+    () => resultExport.exportVtoResultToCache(
+      { dataUri: 'data:image/jpeg;base64,AAAA', requestId: 'req-2' },
+      { fileSystem: fake },
+    ),
+    (err) => err.name === 'VtoExportError' && err.code === 'write_failed',
+  );
+  assert.equal(deletes.length, 1, 'the unusable file must be removed');
+});
+
+test('save: an abandoned save leaves nothing behind', async () => {
+  const { fs: fake, deletes } = fakeFileSystem();
+  await resultExport.discardVtoResultExport('file:///cache/kscan-vto-export/vto-x.png', {
+    fileSystem: fake,
+  });
+  assert.deepEqual(Array.from(deletes), ['file:///cache/kscan-vto-export/vto-x.png']);
+});
+
+test('save: the request id cannot escape the export directory', async () => {
+  // requestId reaches this from the store; a traversal-shaped value must not
+  // be able to steer the write out of the cache namespace.
+  const { fs: fake } = fakeFileSystem();
+  const out = await resultExport.exportVtoResultToCache(
+    { dataUri: 'data:image/png;base64,AAAA', requestId: '../../escaped/../x' },
+    { fileSystem: fake, now: () => 1 },
+  );
+  assert.ok(
+    out.localUri.startsWith('file:///cache/kscan-vto-export/vto-'),
+    `must stay in the export directory, got ${out.localUri}`,
+  );
+  assert.ok(!out.localUri.includes('..'), 'no traversal segments survive');
+});
+
+test('save: there is NO auto-save -- a file is written only from a press handler', () => {
+  // The privacy promise is that an unsaved result vanishes with the sheet.
+  // An effect-driven export would quietly break that while every existing
+  // test stayed green.
+  const bridge = code('components/vto/VtoSaveToDressingRoom.tsx');
+  assert.ok(!bridge.includes('useEffect'), 'no effect may trigger a save');
+  assert.match(
+    bridge,
+    /const handlePress = useCallback\(async \(\) => \{[\s\S]*?exportVtoResultToCache/,
+    'materialization must live inside the press handler',
+  );
+  assert.match(bridge, /onPress=\{\(\) => \{[\s\S]*?void handlePress\(\);/);
+});
+
+test('save: the bridge is the ONLY VTO file that touches durable storage', () => {
+  // The sheet, the entry point, the store and the client must stay clean, so
+  // an accidental persistence import cannot hide behind the new feature.
+  for (const file of [
+    'components/vto/VirtualTryOnSheet.tsx',
+    'components/vto/TryItOnEntry.tsx',
+    'components/vto/VtoMinimizedPill.tsx',
+    'components/vto/VtoSilhouetteGuide.tsx',
+    'hooks/useVtoSessionStatus.ts',
+    'services/vto/vtoProgressStages.ts',
+  ]) {
+    const source = read(file);
+    for (const dependency of ['AddScanToDressingRoomModal', 'addScanImageToDressingRoom']) {
+      assert.ok(!source.includes(dependency), `${file} must not reach the save surface`);
+    }
+  }
+  assert.ok(
+    read('components/vto/VtoSaveToDressingRoom.tsx').includes('AddScanToDressingRoomModal'),
+    'the bridge reuses the existing Dressing Room save surface',
+  );
+});
+
+test('save: the saved item reuses an existing Dressing Room source kind', () => {
+  // Widening a taxonomy guarded by the canonical-item contract is not this
+  // change's job; 'upload_inspiration' already maps to `inspiration_item`.
+  const bridge = code('components/vto/VtoSaveToDressingRoom.tsx');
+  assert.match(bridge, /sourceType: 'upload_inspiration'/);
+  const contract = loadTsModule('services/dressingRoomItemContract.ts', {
+    '../types/canonicalDressingRoomItem': {},
+    './dressingRoomCommerce': { collectRawPurchaseOptions: () => [], normalizePurchaseOptions: () => [] },
+    './dressingRoomDedupe': { computeDressingRoomDedupeKey: () => null },
+  });
+  assert.equal(contract.mapLegacySourceKind('upload_inspiration'), 'inspiration_item');
+});
