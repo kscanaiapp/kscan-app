@@ -85,6 +85,16 @@ if (found.length === 0) {
 const result = spawnSync(process.execPath, ['--test', ...found], {
   encoding: 'utf8',
   env: process.env,
+  // The governed suite's own TAP output routinely exceeds Node's 1MB
+  // spawnSync default per-stream buffer as the number of test files grows
+  // (409 files / 7,000+ tests already does). Past that limit spawnSync
+  // kills the child mid-write and returns a null status with a truncated
+  // stdout -- this script's own pass/fail parsing then runs on incomplete
+  // data, which can silently under-report real failures or, as happened
+  // here, fail the whole gate on a truncation artifact with no test
+  // actually failing. 256MB comfortably covers the suite's current and
+  // near-future output size.
+  maxBuffer: 256 * 1024 * 1024,
 });
 
 process.stdout.write(result.stdout || '');
