@@ -467,12 +467,66 @@ const VTO_ALLOWED_IMPORTS = {
   'components/vto/VirtualTryOnSheet.tsx': [
     '../../constants/theme', '../../hooks/useReducedMotion', '../../hooks/useVirtualTryOn',
     '../../services/haptics', '../../services/kplus/kplusTelemetry',
-    '../../services/responsiveLayout', '../../services/vto/vtoTelemetry',
-    '../../types/vto', '../luxury', 'react', 'react-native',
+    // CONVERGENCE #276 + #277. The UX lane added staged progress copy, a
+    // silhouette guide, an explicit Save-to-Dressing-Room affordance and a
+    // retailer link-out. Each is listed deliberately:
+    //   openExternalUrl      -- opens the retailer page the garment came from.
+    //                           A link-out is not an acquisition.
+    //   vtoProgressStages    -- pure copy/timing derivation over types/vto.
+    //   VtoSaveToDressingRoom-- the ONLY durable path, and it is user-initiated
+    //                           and Dressing-Room-scoped. A Dressing Room is not
+    //                           the Closet: this is still evidence, not ownership.
+    //   VtoSilhouetteGuide   -- presentational SVG overlay.
+    '../../services/openExternalUrl',
+    '../../services/responsiveLayout',
+    '../../services/vto/vtoProgressStages',
+    '../../services/vto/vtoTelemetry',
+    '../../types/vto', '../luxury',
+    './VtoSaveToDressingRoom', './VtoSilhouetteGuide',
+    'react', 'react-native',
   ],
   'components/vto/TryItOnEntry.tsx': [
-    '../../constants/theme', '../../hooks/useVtoAvailability', '../../services/haptics',
-    '../../types/vto', '../kplus/KPlusGate', './VirtualTryOnSheet', 'react', 'react-native',
+    '../../constants/theme', '../../hooks/useVtoAvailability',
+    // CONVERGENCE #277: minimize/restore needs the live session status, and the
+    // pill reports it. Neither reads or writes ownership state.
+    '../../hooks/useVtoSessionStatus',
+    '../../services/haptics', '../../services/vto/vtoTelemetry',
+    '../../types/vto', '../kplus/KPlusGate',
+    './VirtualTryOnSheet', './VtoMinimizedPill',
+    'react', 'react-native',
+  ],
+
+  // CONVERGENCE #276 + #277. The UX lane introduced six NEW VTO surfaces. They
+  // are enrolled here rather than left outside the allowlist, because a module
+  // this control does not name is a module it does not guard -- which is the
+  // exact failure mode (a denylist that forgot a file) that VTO-NC-010 was
+  // written to end. Enrolling them also subjects them to the forbidden-call
+  // scan below.
+  'components/vto/VtoSaveToDressingRoom.tsx': [
+    '../../constants/theme', '../../services/haptics',
+    '../../services/vto/vtoResultExport', '../../services/vto/vtoTelemetry',
+    '../../types/vto', '../AddScanToDressingRoomModal', '../luxury',
+    'react', 'react-native',
+  ],
+  'components/vto/VtoSilhouetteGuide.tsx': [
+    '../../constants/theme', 'react', 'react-native', 'react-native-svg',
+  ],
+  'components/vto/VtoMinimizedPill.tsx': [
+    '../../constants/theme', '../../services/vto/vtoProgressStages',
+    'react', 'react-native',
+  ],
+  'services/vto/vtoProgressStages.ts': [
+    '../../types/vto',
+  ],
+  // The one module allowed to touch the filesystem, and only to materialise a
+  // cache file the user explicitly asked to save. It never exports the person
+  // photo, and discardVtoResultExport removes the file if the save is
+  // abandoned. `expo-file-system/legacy` is therefore named here on purpose.
+  'services/vto/vtoResultExport.ts': [
+    'expo-file-system/legacy',
+  ],
+  'hooks/useVtoSessionStatus.ts': [
+    '../services/vto/vtoRequestStore', 'react',
   ],
 };
 
