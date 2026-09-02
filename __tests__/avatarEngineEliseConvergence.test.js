@@ -172,7 +172,12 @@ test('one-authority architecture: one compiler, one interpreter, one visible ren
   assert.equal(/normalizeAlignment/.test(runtime), false, 'runtime must not interpret alignment before the compiler');
   assert.equal((header.match(/useAvatarSpeechState\(\)/g) ?? []).length, 1);
   assert.equal((header.match(/getAvatarEngineAdapter\(\)\.computeFrame/g) ?? []).length, 1);
-  assert.equal((header.match(/mouthState:\s*mouthState|mouthState=\{mouthState\}/g) ?? []).length, 1);
+  // One visible mouth wiring. The binding may be destructured from a richer
+  // engine result — the header also consumes headMotion/breathing from the
+  // same frame — so the spelling is allowed to be `visual.mouthState`.
+  assert.equal((header.match(/mouthState=\{(?:visual\.)?mouthState\}/g) ?? []).length, 1);
+  // Exactly one frame is calculated per render and both channels come from it.
+  assert.equal((header.match(/result\.frame\.headMotion|result\.frame\.breathing/g) ?? []).length, 2);
   assert.equal(/deriveAvatarMouthState|buildMouthStateTimeline|avatarShadowBridge/.test(header), false);
 
   const activeLegacyImports = allSource

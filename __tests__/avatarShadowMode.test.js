@@ -436,7 +436,10 @@ test('the shadow report grows bounded and leaks no text', () => {
 test('the header renders the V10 frame and has no legacy speaking path', () => {
   const header = executableSource('components/style-chat/StyleChatHeader.tsx');
 
-  assert.match(header, /mouthState=\{mouthState\}/);
+  // The claim is that the mouth prop is fed from the engine result, not that
+  // the intermediate binding is spelled `mouthState`. The header now reads the
+  // idle-presence channels off the same frame, so the result is an object.
+  assert.match(header, /mouthState=\{(?:visual\.)?mouthState\}/);
   assert.match(header, /getAvatarEngineAdapter\(\)\.computeFrame/);
   assert.equal(/deriveAvatarMouthState|observeAvatarShadowFrame/.test(header), false);
 });

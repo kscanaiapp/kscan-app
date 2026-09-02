@@ -54,6 +54,13 @@ export function visemeToMouthState(viseme: AvatarViseme, caps: AvatarAssetCapabi
     case 'open':
       return caps.mouthOpen ? 'open' : caps.mouthHalfOpen ? 'halfOpen' : 'closed';
     case 'consonant':
-      return caps.mouthHalfOpen ? 'halfOpen' : caps.mouthOpen ? 'open' : 'closed';
+      // A consonant is a constriction. When a package owns a half-open frame
+      // that is the right shape; when it does not, the honest degradation is
+      // CLOSED, not open. Falling through to `open` would put the widest shape
+      // the package owns on the most frequent viseme in English, so a
+      // two-shape portrait would stand with its mouth wide for roughly 73% of
+      // an utterance. Degrading to closed instead leaves the open frame for
+      // vowels, which is what actually reads as speech.
+      return caps.mouthHalfOpen ? 'halfOpen' : 'closed';
   }
 }

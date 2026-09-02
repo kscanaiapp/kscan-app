@@ -1117,22 +1117,37 @@ test('StylistAvatar applies the recenter only for avatars with a framing overrid
   assert.doesNotMatch(legacyBranch, /transform:/);
 });
 
-test('AnimatedStylistAvatar opts the mouth-state speaking overlay out of the new framing so overlay alignment is unaffected', () => {
-  const mouthBranch = animatedStylistAvatar.match(
-    /<StylistAvatar[\s\S]*?\/>\s*<MouthStateLayer/,
-  )?.[0];
-  assert.ok(mouthBranch, 'expected the StylistAvatar call that precedes MouthStateLayer');
-  assert.match(mouthBranch, /applyFraming=\{false\}/);
+test('AnimatedStylistAvatar decides portrait framing per avatar, not per speech state, so the portrait cannot shift mid-utterance', () => {
+  // WHY THIS CHANGED (Elise speech/avatar realism audit):
+  //
+  // This previously required `applyFraming={false}` on a speaking-only branch
+  // and no `applyFraming` at all on two separate non-speaking branches. That
+  // shape had two costs. The three branches returned different ROOT elements,
+  // so React unmounted and remounted the portrait — and re-decoded its bundled
+  // image — at the start and end of every utterance. And it made framing a
+  // function of speech state: a portrait that ever carried a framing override
+  // AND mouth artwork would have been recentered while idle and unrecentered
+  // while speaking, i.e. it would visibly jump on every reply.
+  //
+  // The invariant that actually matters is preserved and strengthened: the
+  // recentre transform is still never applied underneath a mouth overlay,
+  // because overlay coordinates are calibrated against the unrecentered image.
+  // It is now keyed on whether the avatar HAS mouth artwork, which is constant
+  // for the lifetime of that avatar. `STYLIST_AVATAR_FRAMING_BY_ID` is empty
+  // today, so this is behaviour-preserving for every shipped portrait.
+  const calls = [...animatedStylistAvatar.matchAll(/<StylistAvatar[\s\S]*?\/>/g)].map((m) => m[0]);
+  assert.equal(calls.length, 1, 'the avatar must have a single StylistAvatar call site');
+  assert.match(calls[0], /applyFraming=\{!mouthCapable\}/);
 
-  // The two non-speaking fallback branches must NOT opt out of shared portrait framing.
-  const allMatches = [...animatedStylistAvatar.matchAll(/<StylistAvatar[\s\S]*?\/>/g)];
-  const fallbackBranches = allMatches
-    .filter((m) => !animatedStylistAvatar.slice(m.index, m.index + m[0].length + 40).includes('MouthStateLayer'))
-    .map((m) => m[0]);
-  assert.equal(fallbackBranches.length, 2, 'expected exactly two non-speaking StylistAvatar call sites');
-  for (const block of fallbackBranches) {
-    assert.doesNotMatch(block, /applyFraming/);
-  }
+  // The mouth overlay still renders after the portrait it registers against.
+  assert.match(animatedStylistAvatar, /<StylistAvatar[\s\S]*<MouthStateLayer/);
+
+  // ...and mouth capability is genuinely independent of the speaking state.
+  const capability = animatedStylistAvatar.match(/const mouthCapable =[\s\S]*?;\n/)?.[0];
+  assert.ok(capability, 'expected a mouthCapable derivation');
+  // It may read the registry's `speakingMotionMode`, but must not read the
+  // live speech state — that is what would make framing utterance-dependent.
+  assert.doesNotMatch(capability, /effectiveState|=== 'speaking'/);
 });
 
 // ── Fix #6: single-resolver coherence (UI / greeting / model / speech-ready) ──

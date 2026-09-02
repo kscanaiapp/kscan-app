@@ -66,8 +66,11 @@ export function StyleChatHeader({
     speechState.stylistId === identity.avatarId &&
     speechState.avatarId === identity.avatarId;
   const isSpeaking = speechScopeMatches && speechState.phase === 'playing';
-  const mouthState = useMemo(() => {
-    return getAvatarEngineAdapter().computeFrame({
+  // One engine call per render answers the mouth AND the idle presence
+  // channels. `headMotion` and `breathing` were already being calculated here
+  // and thrown away, which is why the avatar froze completely while speaking.
+  const visual = useMemo(() => {
+    const result = getAvatarEngineAdapter().computeFrame({
       avatarId: visualAvatarId,
       speech: speechState,
       scopeMatches: speechScopeMatches,
@@ -80,7 +83,14 @@ export function StyleChatHeader({
       }),
       hostNowMs: Date.now(),
       ...(isThinking ? { semanticMode: 'thinking' as const } : {}),
-    }).mouthState;
+    });
+    return {
+      mouthState: result.mouthState,
+      motion: {
+        headRotateDeg: result.frame.headMotion.rotateDeg,
+        breathingScale: result.frame.breathing.scale,
+      },
+    };
   }, [
     visualAvatarId,
     speechState,
@@ -121,7 +131,8 @@ export function StyleChatHeader({
             avatarId={visualAvatarId}
             size={67}
             state={avatarState}
-            mouthState={mouthState}
+            mouthState={visual.mouthState}
+            motion={visual.motion}
             reducedMotion={reducedMotion}
             accessibilityLabel={`${displayName} avatar`}
           />

@@ -465,9 +465,18 @@ export interface StylistSpeechConfiguration {
     height: number;
   };
   speakingMotionMode?: StylistSpeechMotionMode;
+  /**
+   * Only `closed` and `open` are required. A portrait declares a state ONLY
+   * when it owns an approved frame that is registered against its own base —
+   * same subject, same pose, same framing, differing at the mouth. Declaring a
+   * frame that is really a different photograph is worse than declaring
+   * nothing: the renderer clips it to the mouth rectangle and pastes a
+   * mismatched face over the portrait. Absent states degrade through the
+   * engine's capability derivation and `resolveMouthStateSource`.
+   */
   mouthStateSources?: {
     closed: number;
-    halfOpen: number;
+    halfOpen?: number;
     open: number;
     round?: number;
   };
@@ -560,10 +569,28 @@ const FACIAL_MOTION_CONFIG_ENTRIES: readonly [string, StylistSpeechConfiguration
     CANONICAL_ELISE_PORTRAIT_ID,
     {
       speakingMotionMode: 'mouth_states',
-      mouthRegion: { x: 0.41, y: 0.56, width: 0.18, height: 0.09 },
+      // Recalibrated against the artwork itself. The previous crop
+      // (y 0.56, height 0.09) sat on the NOSE: measured against
+      // stylist_portrait_01.jpg the closed-vs-open difference peaks at
+      // y = 0.746 and the mouth band is y 0.70..0.79, so the old rectangle
+      // was ~0.15 of the frame too high and animated her nostrils. Inside the
+      // corrected rectangle the closed/open frames differ by mean 41.5/255
+      // where the old one differed by 9.3/255 — i.e. the mouth motion was
+      // very nearly invisible. See __tests__/eliseMouthRegistration.test.js,
+      // which re-measures the shipped PNGs rather than trusting this comment.
+      mouthRegion: { x: 0.39, y: 0.7, width: 0.27, height: 0.09 },
       mouthStateSources: {
         closed: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_01_mouth_closed.png') : 1,
-        halfOpen: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_01_mouth_half_open.png') : 1,
+        // NO half-open frame is declared for Elise. The file
+        // `avatar_stylist_01_mouth_half_open.png` exists but is NOT a
+        // registered variant of this portrait: it is a different exposure of
+        // a differently posed, differently framed subject. Measured against
+        // the base portrait in regions that must not change between mouth
+        // frames, `closed` and `open` differ by 11-23/255 while that file
+        // differs by 39-56/255. Clipping it into the mouth rectangle pasted a
+        // stranger's chin over Elise's mouth on roughly every consonant.
+        // Consonants therefore degrade to `closed` through the engine's
+        // capability derivation until an approved, registered frame exists.
         open: /* @ts-ignore */ typeof require !== 'undefined' ? require('../assets/stylist-avatars/portraits/animated/avatar_stylist_01_mouth_open.png') : 1,
       },
     },

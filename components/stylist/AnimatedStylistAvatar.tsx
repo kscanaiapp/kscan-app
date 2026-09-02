@@ -18,11 +18,25 @@ import { StylistAvatar } from './StylistAvatar';
 
 export type AnimatedStylistAvatarState = 'idle' | 'thinking' | 'speaking' | 'static';
 
+/**
+ * Idle presence the engine already calculates and the renderer used to discard.
+ * Both channels transform the approved base only — no asset is warped and no
+ * facial feature is invented, so this is safe for every portrait including the
+ * ones with no eye or brow artwork.
+ */
+export interface AnimatedStylistAvatarMotion {
+  /** Degrees, engine-bounded to ±2. */
+  headRotateDeg?: number;
+  /** Multiplier, engine-bounded to 1 ± 0.01. */
+  breathingScale?: number;
+}
+
 export interface AnimatedStylistAvatarProps {
   avatarId?: string;
   size?: number;
   state?: AnimatedStylistAvatarState;
   mouthState?: AvatarMouthState;
+  motion?: AnimatedStylistAvatarMotion;
   reducedMotion?: boolean;
   accessibilityLabel?: string;
   style?: ViewStyle;
@@ -117,6 +131,7 @@ export function AnimatedStylistAvatar({
   size = DEFAULT_SIZE,
   state = 'idle',
   mouthState = 'closed',
+  motion,
   reducedMotion = false,
   accessibilityLabel,
   style,
@@ -128,15 +143,23 @@ export function AnimatedStylistAvatar({
   const speechConfig = useMemo(() => getStylistMouthMotionConfig(avatarId), [avatarId]);
   const effectiveState = reducedMotion ? 'static' : state;
   const isThinking = effectiveState === 'thinking';
-  const isIdle = effectiveState === 'idle';
-  const pulse = useLoopAnimation(isThinking || isIdle, {
+  const isStatic = effectiveState === 'static';
+
+  // The ambient loop runs while SPEAKING too. Suspending it during speech was
+  // what made Elise a photograph the moment she started talking: the mouth
+  // crop changed and nothing else on the face moved at all.
+  const pulse = useLoopAnimation(!isStatic, {
     min: 0.98,
     max: 1,
+    // Held constant across idle and speaking so entering or leaving an
+    // utterance does not restart the loop and jump the scale.
     duration: isThinking ? 1200 : 2800,
   });
 
-  const canRenderMouthStates =
-    effectiveState === 'speaking' &&
+  // A portrait's mouth capability does not depend on whether it is speaking
+  // right now, so the framing decision — and therefore the portrait's on-screen
+  // geometry — stays identical across the whole speech lifecycle.
+  const mouthCapable =
     preset != null &&
     isReadyPortraitPreset(preset) &&
     speechConfig?.speakingMotionMode === 'mouth_states' &&
@@ -144,56 +167,56 @@ export function AnimatedStylistAvatar({
     speechConfig.mouthStateSources != null &&
     speechConfig.mouthStateSources.closed != null;
 
-  // Presets without an approved, statically bundled mouth-state set remain
-  // visually neutral; a whole-face pulse is never presented as lip animation.
-  if (!canRenderMouthStates) {
-    return (
-      <Animated.View style={[{ transform: [{ scale: pulse }] }, style]}>
-        <StylistAvatar
-          avatarId={avatarId}
-          size={size}
-          accessibilityLabel={accessibilityLabel}
-        />
-      </Animated.View>
-    );
-  }
+  const mouthSource =
+    mouthCapable && effectiveState === 'speaking'
+      ? resolveMouthStateSource(speechConfig!.mouthStateSources!, mouthState)
+      : null;
 
-  const mouthSources = speechConfig!.mouthStateSources!;
-  const mouthSource = resolveMouthStateSource(mouthSources, mouthState);
-  if (mouthSource == null) {
-    // The asset set is incomplete (missing closed). Fall back to the static portrait.
-    return (
-      <Animated.View style={[{ transform: [{ scale: pulse }] }, style]}>
+  // Engine idle presence. Static numbers rather than an Animated.Value, so the
+  // natively driven ambient loop above is never mixed with a JS-driven node in
+  // one transform. Both are clamped here as well as in the engine: a renderer
+  // must not be the thing that trusts an out-of-range host value.
+  const headRotateDeg = clamp(motion?.headRotateDeg, 0, -3, 3);
+  const breathingScale = clamp(motion?.breathingScale, 1, 0.97, 1.03);
+  const engineMotionStyle: ViewStyle | null = isStatic
+    ? null
+    : { transform: [{ scale: breathingScale }, { rotate: `${headRotateDeg}deg` }] };
+
+  // One tree for every state. The previous implementation returned a different
+  // root element for speaking than for idle, so React unmounted and remounted
+  // the portrait — and its `<Image>` — at the start and end of every utterance.
+  return (
+    <Animated.View style={[{ transform: [{ scale: pulse }] }, style]}>
+      <View
+        style={[
+          styles.container,
+          engineMotionStyle,
+          { width: size, height: size, borderRadius: size / 2 },
+        ]}
+      >
         <StylistAvatar
           avatarId={avatarId}
           size={size}
           accessibilityLabel={accessibilityLabel}
+          applyFraming={!mouthCapable}
         />
-      </Animated.View>
-    );
-  }
-  return (
-    <View
-      style={[
-        styles.container,
-        { width: size, height: size, borderRadius: size / 2 },
-        style,
-      ]}
-    >
-      <StylistAvatar
-        avatarId={avatarId}
-        size={size}
-        accessibilityLabel={accessibilityLabel ?? preset.accessibilityLabel}
-        applyFraming={false}
-      />
-      <MouthStateLayer
-        source={mouthSource}
-        size={size}
-        mouthRegion={speechConfig!.mouthRegion!}
-      />
-      {isThinking ? <View style={[styles.thinkingRing, { borderRadius: size / 2 }]} /> : null}
-    </View>
+        {mouthSource != null ? (
+          <MouthStateLayer
+            source={mouthSource}
+            size={size}
+            mouthRegion={speechConfig!.mouthRegion!}
+          />
+        ) : null}
+        {isThinking ? <View style={[styles.thinkingRing, { borderRadius: size / 2 }]} /> : null}
+      </View>
+    </Animated.View>
   );
+}
+
+/** A non-finite or absent host value resolves to `neutral`, never to a bound. */
+function clamp(value: number | undefined, neutral: number, min: number, max: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return neutral;
+  return Math.min(max, Math.max(min, value));
 }
 
 const styles = StyleSheet.create({
