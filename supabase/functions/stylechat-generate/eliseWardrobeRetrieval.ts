@@ -14,6 +14,52 @@ import type {
 import { ELISE_ADVICE_LIMITS } from './eliseAdviceTypes.ts';
 import { intentAllowsCommerce, intentNeedsShared, intentPrefersOwned } from './eliseAdviceIntents.ts';
 
+/**
+ * WC-001. Turn a Supabase query result into rows, or FAIL LOUDLY.
+ *
+ * `supabase-js` does not throw on a query error: it resolves with
+ * `{ data: null, error }`. Every wardrobe source therefore used to end in
+ * `return data ?? []`, which collapses two completely different facts into one
+ * value:
+ *
+ *     "the query failed"        ->  []
+ *     "there is nothing there"  ->  []
+ *
+ * For the shortlist that is a degraded answer. For the CENSUS it is a factual
+ * lie: `buildClosetCensus({ rows: [] })` reports `exhaustive: true,
+ * totalItems: 0, unclassifiedItems: 0` -- a PROOF that the Closet is empty --
+ * which then licenses `evidenceIsExhaustive`, so the UI states "Your Closet
+ * doesn't have shoes yet." and the absence prose guard stops removing "you
+ * don't own a jacket". A transient database error becomes a confident
+ * falsehood about the customer's own possessions.
+ *
+ * Throwing is the entire repair, because every caller already handles it
+ * correctly: `retrieveAuthorizedWardrobeCandidates` records `partialFailure`
+ * (which forces `partialInventory` and denies the exhaustive licence), and the
+ * census call site degrades to `null` -- "no authoritative census this turn",
+ * the state in which no absence may be claimed at all.
+ *
+ * A genuine zero-row result is untouched: `{ data: [], error: null }` still
+ * returns `[]`, so an actually-empty Closet is still provably empty. Only the
+ * unreadable one stops pretending to be.
+ *
+ * Lives here rather than as a closure at the call site so it can be tested
+ * behaviourally, and so a new wardrobe source has one obvious thing to reach
+ * for instead of re-deriving `data ?? []`.
+ */
+export function wardrobeRowsOrThrow<T>(
+  result: { data: T[] | null; error: unknown },
+  source: string,
+): T[] {
+  if (result.error) {
+    // The message carries the SOURCE only. A database error string can contain
+    // row values, so it is deliberately not propagated into a thrown message
+    // that telemetry or a log line might later widen.
+    throw new Error(`wardrobe_source_unavailable:${source}`);
+  }
+  return result.data ?? [];
+}
+
 export type EliseWardrobeDataSource = {
   listSavedScans(actorId: string, limit: number): Promise<Record<string, unknown>[]>;
   listInspirationItems(actorId: string, limit: number): Promise<Record<string, unknown>[]>;

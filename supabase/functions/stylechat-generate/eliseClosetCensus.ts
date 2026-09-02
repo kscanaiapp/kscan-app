@@ -114,6 +114,11 @@ export function buildClosetCensus(input: {
     .slice(0, ELISE_ADVICE_LIMITS.censusCategories)) {
     boundedCategories[key] = value;
   }
+  // WC-002. Record when that bound actually BIT. A dropped category is a
+  // category the Closet holds and this map cannot show, so every consumer that
+  // reads a missing key as "the user owns none of these" has to be told.
+  const categoriesTruncated =
+    Object.keys(countsByCategory).length > ELISE_ADVICE_LIMITS.censusCategories;
 
   return {
     // Strictly fewer rows than the cap proves we saw the end of the table.
@@ -124,7 +129,33 @@ export function buildClosetCensus(input: {
     countsByCategory: boundedCategories,
     countsByLayeringRole,
     unclassifiedItems,
+    categoriesTruncated,
   };
+}
+
+/**
+ * Is this census safe to read NEGATIVELY -- i.e. may a missing key in
+ * `countsByCategory` be reported as "the customer owns none of these"?
+ *
+ * WC-002. Three independent conditions, and all of them are about the census's
+ * own honesty rather than about the Closet:
+ *
+ *   exhaustive            the row page reached the end of the table
+ *   unclassifiedItems=0   every row could be placed by the shared mapper
+ *   !categoriesTruncated  the category map is the whole set, not a top-N slice
+ *
+ * Exported so the prose guard's `censusAvailable` and the structured gap
+ * predicates cannot drift apart: there is one definition of "this census may
+ * license an absence claim", and it lives here.
+ */
+export function censusLicensesAbsenceClaims(
+  census: EliseClosetCensus | null | undefined,
+): boolean {
+  if (!census) return false;
+  if (!census.exhaustive) return false;
+  if (census.unclassifiedItems > 0) return false;
+  if (census.categoriesTruncated) return false;
+  return true;
 }
 
 /**
@@ -181,6 +212,11 @@ export function censusConfirmedAbsentCategories(
 ): string[] {
   if (!census || !census.exhaustive) return [];
   if (census.unclassifiedItems > 0) return [];
+  // WC-002. A truncated map cannot be read negatively at all: the requested
+  // category may be one of the ones the top-N slice dropped. Same discipline as
+  // the unclassified check directly above -- absence from a bounded RESULT is
+  // not absence from the Closet.
+  if (census.categoriesTruncated) return [];
   return categoriesOfInterest.filter(
     (category) => !(census.countsByCategory[category] > 0),
   );
