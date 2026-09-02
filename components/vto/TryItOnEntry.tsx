@@ -21,7 +21,10 @@ import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { selectionTick } from '../../services/haptics';
 import { KPlusGate } from '../kplus/KPlusGate';
 import { useVtoAvailability } from '../../hooks/useVtoAvailability';
+import { useVtoSessionStatus } from '../../hooks/useVtoSessionStatus';
+import { emitVtoEvent } from '../../services/vto/vtoTelemetry';
 import { VirtualTryOnSheet } from './VirtualTryOnSheet';
+import { VtoMinimizedPill } from './VtoMinimizedPill';
 import type { VtoGarmentInput, VtoOrigin } from '../../types/vto';
 
 export interface TryItOnEntryProps {
@@ -29,6 +32,8 @@ export interface TryItOnEntryProps {
   garmentTitle: string;
   origin?: VtoOrigin;
   onShop?: () => void;
+  /** Retailer size-guide page, when Commerce has one. Presentation only. */
+  sizeGuideUrl?: string | null;
   devScenario?: string;
   testID?: string;
 }
@@ -38,10 +43,15 @@ export function TryItOnEntry({
   garmentTitle,
   origin = 'commerce_product',
   onShop,
+  sizeGuideUrl,
   devScenario,
   testID,
 }: TryItOnEntryProps) {
   const [sheetVisible, setSheetVisible] = useState(false);
+  const [minimized, setMinimized] = useState(false);
+  // Read-only: observing the running generation must not claim authority over
+  // it. See hooks/useVtoSessionStatus.ts.
+  const session = useVtoSessionStatus();
   const { available, upgradeOpportunity } = useVtoAvailability({
     category: garment.category,
     imageUrl: garment.imageUrl,
@@ -50,8 +60,20 @@ export function TryItOnEntry({
 
   const openSheet = useCallback(() => {
     selectionTick();
+    setMinimized(false);
     setSheetVisible(true);
   }, []);
+
+  const closeSheet = useCallback(() => {
+    setMinimized(false);
+    setSheetVisible(false);
+  }, []);
+
+  const restoreSheet = useCallback(() => {
+    selectionTick();
+    emitVtoEvent('vto_restored', { origin });
+    setMinimized(false);
+  }, [origin]);
 
   if (!available && !upgradeOpportunity) return null;
 
@@ -103,13 +125,30 @@ export function TryItOnEntry({
       */}
       {sheetVisible ? (
         <VirtualTryOnSheet
-          visible
-          onClose={() => setSheetVisible(false)}
+          visible={!minimized}
+          onClose={closeSheet}
+          onMinimize={() => setMinimized(true)}
           garment={garment}
           garmentTitle={garmentTitle}
           origin={origin}
           onShop={onShop}
+          sizeGuideUrl={sizeGuideUrl}
           devScenario={devScenario}
+        />
+      ) : null}
+      {/*
+          MINIMIZED, NOT UNMOUNTED. The sheet above stays mounted while
+          collapsed and is merely made invisible, because useVirtualTryOn calls
+          leaveVtoSurface on unmount -- rendering it conditionally on
+          `!minimized` would cancel the very generation the pill is reporting
+          on. Only the owning card shows a pill: `sheetVisible` is per-card
+          state, so other product cards render nothing.
+      */}
+      {sheetVisible && minimized ? (
+        <VtoMinimizedPill
+          ready={session.status === 'success'}
+          onPress={restoreSheet}
+          testID={testID ? `${testID}-pill` : undefined}
         />
       ) : null}
     </>
