@@ -1,3 +1,5 @@
+import { captureActorScope, isActorScopeCurrent } from '../actorScope';
+
 export type StyleChatSessionLaunchGuard = {
   tryBegin: () => boolean;
   getPendingSessionId: () => string | null;
@@ -16,6 +18,12 @@ export async function launchStyleChatSession(input: {
   guard: StyleChatSessionLaunchGuard;
   createSession: () => Promise<{ id?: string | null }>;
   navigate: (sessionId: string) => void;
+  /**
+   * Optional ADDITIONAL caller condition (Home also requires its screen to
+   * still be active). The actor boundary is NOT delegated to this callback —
+   * see the scope check inside — because a caller that forgets it would
+   * silently lose the guarantee, which is exactly how ELISE-002 arose.
+   */
   isCurrent?: () => boolean;
   /**
    * Resolves the conversation to resume, or null when the user has none.
@@ -29,6 +37,11 @@ export async function launchStyleChatSession(input: {
 }): Promise<StyleChatSessionLaunchResult> {
   const { guard } = input;
   if (!guard.tryBegin()) return { status: 'ignored' };
+
+  // ELISE-002 — captured BEFORE the lookup / creation round trip below. The
+  // epoch (not the actor id) is the discriminator, so an A -> B -> A cycle is
+  // rejected too. Every exit from here on is gated on it.
+  const launchActorScope = captureActorScope();
 
   try {
     let sessionId = guard.getPendingSessionId();
@@ -44,6 +57,14 @@ export async function launchStyleChatSession(input: {
       if (!session?.id) throw new Error('StyleChat session creation returned no session ID.');
       sessionId = session.id;
       guard.rememberSession(sessionId);
+    }
+
+    // resetOnFocus() (not releaseForRetry()) on a cancel: the remembered id
+    // belongs to the departed actor and must never be reused by the arriving
+    // one, while the next tap must still be able to begin a fresh launch.
+    if (!isActorScopeCurrent(launchActorScope)) {
+      guard.resetOnFocus();
+      return { status: 'cancelled', sessionId };
     }
 
     if (input.isCurrent && !input.isCurrent()) {

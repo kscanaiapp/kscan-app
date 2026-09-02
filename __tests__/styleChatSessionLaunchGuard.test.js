@@ -7,18 +7,47 @@ const vm = require('node:vm');
 
 const ROOT = path.resolve(__dirname, '..');
 
-function loadGuard() {
-  const filename = path.join(ROOT, 'services/style-chat/sessionLaunchGuard.ts');
+function transpile(relativePath) {
+  const filename = path.join(ROOT, relativePath);
   const source = fs.readFileSync(filename, 'utf8');
-  const output = ts.transpileModule(source, {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2020,
-    },
-  }).outputText;
+  return {
+    filename,
+    output: ts.transpileModule(source, {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2020,
+      },
+    }).outputText,
+  };
+}
+
+function loadTsModule(relativePath, requireMap = {}) {
+  const { filename, output } = transpile(relativePath);
   const module = { exports: {} };
-  vm.runInNewContext(output, { exports: module.exports, module }, { filename });
+  vm.runInNewContext(
+    output,
+    {
+      exports: module.exports,
+      module,
+      require: (id) => {
+        if (id in requireMap) return requireMap[id];
+        throw new Error(`Unexpected require: ${id}`);
+      },
+    },
+    { filename },
+  );
   return module.exports;
+}
+
+// ELISE-002: the launch seam owns the actor boundary now, so it imports the
+// actor authority. The REAL one is supplied (not a stub) — these tests never
+// change actor, so every assertion below is unchanged by it.
+function loadGuard() {
+  return loadTsModule('services/style-chat/sessionLaunchGuard.ts', {
+    '../actorScope': loadTsModule('services/actorScope.ts', {
+      './actorContext': require('../services/actorContext.js'),
+    }),
+  });
 }
 
 test('guard blocks every rapid retry until navigation leaves the session list', () => {

@@ -29,9 +29,28 @@ function loadTsModule(relativePath, requireMap = {}) {
   return module.exports;
 }
 
-function loadService(submitContentReport) {
+// ELISE-001: reportAiOutput now binds every request to the live actor
+// generation, so the harness must supply the actor authority it reads. The
+// stub mirrors services/actorScope's contract (epoch-aware, fails closed);
+// the cross-actor behaviour it enables is proven in
+// __tests__/eliseAiOutputReportActorBinding.test.js.
+const TEST_ACTOR_ID = '11111111-1111-1111-1111-111111111111';
+
+function createActorScopeStub(actorId = TEST_ACTOR_ID) {
+  const scope = { actorId, epoch: 1, requestId: `${actorId}#1` };
+  return {
+    captureActorScope: () => scope,
+    isActorScopeCurrent: (candidate) =>
+      Boolean(candidate) && candidate.actorId === scope.actorId && candidate.epoch === scope.epoch,
+    currentActorId: () => actorId,
+    currentActorScopeKey: () => `${actorId}#1`,
+  };
+}
+
+function loadService(submitContentReport, actorScope = createActorScopeStub()) {
   return loadTsModule('services/reportAiOutput.ts', {
     './contentReports': { submitContentReport },
+    './actorScope': actorScope,
   });
 }
 
@@ -69,6 +88,10 @@ test('AI-output reporting: a selected reason submits the legitimate ai_output co
       session_id: 'session-1',
       message_id: 'assistant-message-1',
     },
+    // ELISE-001: the actor the report was composed for travels to the insert so
+    // it can be re-checked against the live session. It is NOT reporter_user_id
+    // (still bound server-side by auth.uid()); it is the fail-closed comparison.
+    expectedActorId: TEST_ACTOR_ID,
   });
   assert.equal('reporterUserId' in calls[0], false, 'the client must not be able to impersonate a reporter');
 });
