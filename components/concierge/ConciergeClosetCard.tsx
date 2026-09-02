@@ -19,11 +19,15 @@
  * URI resolved but the file turned out unusable.
  */
 
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { View, Text, Image, Pressable, StyleSheet } from 'react-native';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import type { ConciergeCard, ConciergePresentation } from '../../services/concierge/conciergeModel';
-import { conciergeCardLabel, conciergeCardTitle } from '../../services/concierge/conciergeLabels';
+import {
+  conciergeCardAccessibilityLabel,
+  conciergeCardLabel,
+  conciergeCardTitle,
+} from '../../services/concierge/conciergeLabels';
 import type { ConciergeImageState } from '../../services/concierge/conciergeImageResolver';
 
 interface Props {
@@ -53,7 +57,7 @@ function detailLine(card: ConciergeCard): string | null {
   return parts.length ? parts.join(' · ') : null;
 }
 
-export function ConciergeClosetCard({ card, image, presentation, onPress }: Props) {
+function ConciergeClosetCardImpl({ card, image, presentation, onPress }: Props) {
   // A URI that resolves but fails to decode must land in the same place as no
   // URI at all, so the fallback is driven by state rather than by `image` alone.
   const [imageFailed, setImageFailed] = useState(false);
@@ -65,6 +69,14 @@ export function ConciergeClosetCard({ card, image, presentation, onPress }: Prop
   // fall back to Closet wording. Shared with the labels authority so iOS and
   // Android cannot word an ownership claim differently.
   const title = conciergeCardTitle(card);
+  // Section 50. Always states the relationship in words, even when the visible
+  // chip is suppressed under an all-owned heading -- a screen reader reads the
+  // card, not the heading above it.
+  const spokenLabel = conciergeCardAccessibilityLabel(card, presentation);
+  // The chip's treatment is driven by the SERVER's provenance, never by prose:
+  // an owned piece is an affirmation, everything else is a qualification, and
+  // the two must not look alike at a glance.
+  const isOwned = card.relationship === 'owned';
 
   const body = (
     <View style={[styles.card, card.isFocus && styles.cardFocus]}>
@@ -99,8 +111,11 @@ export function ConciergeClosetCard({ card, image, presentation, onPress }: Prop
           </Text>
         ) : null}
         {label ? (
-          <View style={styles.labelChip}>
-            <Text style={styles.labelText} numberOfLines={1}>
+          <View style={[styles.labelChip, isOwned && styles.labelChipOwned]}>
+            <Text
+              style={[styles.labelText, isOwned && styles.labelTextOwned]}
+              numberOfLines={1}
+            >
               {label}
             </Text>
           </View>
@@ -109,18 +124,35 @@ export function ConciergeClosetCard({ card, image, presentation, onPress }: Prop
     </View>
   );
 
-  if (!onPress) return body;
+  // An inert card is still ONE object to assistive technology. Without this it
+  // was read as loose fragments -- title, then detail, then possibly nothing at
+  // all about who owns it.
+  if (!onPress) {
+    return (
+      <View accessible accessibilityRole="text" accessibilityLabel={spokenLabel}>
+        {body}
+      </View>
+    );
+  }
 
   return (
     <Pressable
       onPress={() => onPress(card)}
       accessibilityRole="button"
-      accessibilityLabel={label ? `${title}, ${label}` : title}
+      accessibilityLabel={spokenLabel}
     >
       {body}
     </Pressable>
   );
 }
+
+/**
+ * Memoised. These cards sit inside chat bubbles in a scrolling list, and a
+ * card's props change only when the server sends a new answer or its image
+ * resolves -- so re-rendering them on every list render is work with no
+ * possible visible effect, paid for in scroll smoothness.
+ */
+export const ConciergeClosetCard = memo(ConciergeClosetCardImpl);
 
 const THUMB = 56;
 
@@ -196,10 +228,19 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.sm,
     backgroundColor: LUXURY.colors.cream,
   },
+  // Owned reads as confirmation of something the customer already has; every
+  // other relationship reads as a qualification of something they do not.
+  labelChipOwned: {
+    backgroundColor: LUXURY.colors.champagne,
+  },
   labelText: {
     ...LUXURY.typography.caption,
     fontSize: 10,
     letterSpacing: 0.3,
     color: LUXURY.colors.graphite,
+  },
+  labelTextOwned: {
+    color: LUXURY.colors.plum,
+    fontWeight: '600',
   },
 });

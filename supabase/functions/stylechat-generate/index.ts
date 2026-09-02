@@ -108,7 +108,11 @@ import {
   type ParsedFashionContextV2,
 } from './fashionContextV2.ts';
 import { runEliseAdvicePipeline } from './eliseAdvicePipeline.ts';
-import { buildClosetCensus, CENSUS_ROW_CAP } from './eliseClosetCensus.ts';
+import {
+  buildClosetCensus,
+  censusLicensesAbsenceClaims,
+  CENSUS_ROW_CAP,
+} from './eliseClosetCensus.ts';
 import {
   enforceClosetAbsenceProseSafety,
   enforceOwnershipProseSafety,
@@ -138,6 +142,9 @@ const CONCIERGE_NEUTRAL_OWNERSHIP_FALLBACK =
 const BASE_NEUTRAL_ADVICE_FALLBACK =
   'Here are some options to consider for this look.';
 import type { EliseWardrobeDataSource } from './eliseWardrobeRetrieval.ts';
+// WC-001. One shared "a failed read is not an empty Closet" rule for every
+// wardrobe source below; see its contract note in eliseWardrobeRetrieval.ts.
+import { wardrobeRowsOrThrow } from './eliseWardrobeRetrieval.ts';
 import { ELISE_ADVICE_CONTRACT_VERSION, ELISE_ADVICE_LIMITS } from './eliseAdviceTypes.ts';
 // ── K+ Packing Intelligence V1 ─────────────────────────────────────────────
 // A versioned branch of THIS function rather than a new Edge Function: Packing
@@ -2254,14 +2261,14 @@ Deno.serve(async (req) => {
     try {
       const wardrobeData: EliseWardrobeDataSource = {
         async listSavedScans(actorId, limit) {
-          const { data } = await userClient
+          const data = wardrobeRowsOrThrow(await userClient
             .from('saved_scans')
             .select('id, user_id, title, analysis_result, storage_bucket, storage_path, created_at')
             .eq('user_id', actorId)
             .is('deleted_at', null)
             .order('created_at', { ascending: false })
-            .limit(Math.min(limit, ELISE_ADVICE_LIMITS.initialCandidatesPerSource));
-          return ((data ?? []) as Record<string, unknown>[]).map((row) => {
+            .limit(Math.min(limit, ELISE_ADVICE_LIMITS.initialCandidatesPerSource)), 'saved_scans');
+          return (data as Record<string, unknown>[]).map((row) => {
             const analysis =
               row.analysis_result && typeof row.analysis_result === 'object'
                 ? (row.analysis_result as Record<string, unknown>)
@@ -2277,31 +2284,31 @@ Deno.serve(async (req) => {
           });
         },
         async listInspirationItems(actorId, limit) {
-          const { data } = await userClient
+          const data = wardrobeRowsOrThrow(await userClient
             .from('inspiration_items')
             .select('id, user_id, category, color, material, pattern, silhouette, garment_role, created_at')
             .eq('user_id', actorId)
             .order('created_at', { ascending: false })
-            .limit(Math.min(limit, ELISE_ADVICE_LIMITS.initialCandidatesPerSource));
-          return (data ?? []) as Record<string, unknown>[];
+            .limit(Math.min(limit, ELISE_ADVICE_LIMITS.initialCandidatesPerSource)), 'inspiration_items');
+          return data as Record<string, unknown>[];
         },
         async listOwnedRoomItems(actorId, limit) {
-          const { data: rooms } = await userClient
+          const rooms = wardrobeRowsOrThrow(await userClient
             .from('dressing_rooms')
             .select('id')
             .eq('user_id', actorId)
-            .limit(20);
-          const roomIds = ((rooms ?? []) as Array<{ id: string }>).map((r) => r.id).filter(Boolean);
+            .limit(20), 'dressing_rooms');
+          const roomIds = (rooms as Array<{ id: string }>).map((r) => r.id).filter(Boolean);
           if (!roomIds.length) return [];
-          const { data } = await userClient
+          const data = wardrobeRowsOrThrow(await userClient
             .from('dressing_room_items')
             .select(
               'id, dressing_room_id, brand, category, price_amount, source_type, snapshot_payload, created_at',
             )
             .in('dressing_room_id', roomIds)
             .order('created_at', { ascending: false })
-            .limit(Math.min(limit, ELISE_ADVICE_LIMITS.initialCandidatesPerSource));
-          return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+            .limit(Math.min(limit, ELISE_ADVICE_LIMITS.initialCandidatesPerSource)), 'dressing_room_items');
+          return (data as Record<string, unknown>[]).map((row) => ({
             ...row,
             // Compat alias for older retrieval readers; authoritative column is dressing_room_id.
             room_id: row.dressing_room_id,
@@ -2342,23 +2349,27 @@ Deno.serve(async (req) => {
           }
           if (shareOwnerByRoom.size === 0) return [];
           const candidateRoomIds = [...shareOwnerByRoom.keys()];
-          const { data: rooms } = await userClient
+          // WC-001: uniform with every other wardrobe read. A failed room or
+          // item read is reported as `partialFailure`, not as "no shared
+          // pieces" -- the membership lookup above is the one deliberate
+          // exception, because there an error genuinely means "no access".
+          const rooms = wardrobeRowsOrThrow(await userClient
             .from('dressing_rooms')
             .select('id,user_id')
-            .in('id', candidateRoomIds);
-          const roomIds = ((rooms ?? []) as Array<{ id: string; user_id: string }>)
+            .in('id', candidateRoomIds), 'shared_dressing_rooms');
+          const roomIds = (rooms as Array<{ id: string; user_id: string }>)
             .filter((room) => shareOwnerByRoom.get(room.id) === room.user_id)
             .map((room) => room.id);
           if (!roomIds.length) return [];
-          const { data } = await userClient
+          const data = wardrobeRowsOrThrow(await userClient
             .from('dressing_room_items')
             .select(
               'id, dressing_room_id, brand, category, price_amount, source_type, snapshot_payload, created_at',
             )
             .in('dressing_room_id', roomIds)
             .order('created_at', { ascending: false })
-            .limit(Math.min(limit, 20));
-          return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+            .limit(Math.min(limit, 20)), 'shared_dressing_room_items');
+          return (data as Record<string, unknown>[]).map((row) => ({
             ...row,
             room_id: row.dressing_room_id,
             __shared_access: true,
@@ -2373,7 +2384,10 @@ Deno.serve(async (req) => {
         ...(hasActiveKPlusForWardrobeContext
           ? {
               async listClosetItems(actorId: string, limit: number) {
-                const { data } = await userClient
+                // WC-001: a failed read throws instead of returning [], so the
+                // turn records `partialFailure` rather than presenting an
+                // unreadable Closet as an empty one.
+                const data = wardrobeRowsOrThrow(await userClient
                   .from('user_closet_items')
                   .select(
                     'id, user_id, title, category, clothing_type, subtype, brand, primary_color, secondary_colors, material, updated_at',
@@ -2381,8 +2395,8 @@ Deno.serve(async (req) => {
                   .eq('user_id', actorId)
                   .is('deleted_at', null)
                   .order('updated_at', { ascending: false })
-                  .limit(Math.min(limit, ELISE_ADVICE_LIMITS.initialCandidatesPerSource));
-                return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+                  .limit(Math.min(limit, ELISE_ADVICE_LIMITS.initialCandidatesPerSource)), 'user_closet_items');
+                return (data as Record<string, unknown>[]).map((row) => ({
                   ...row,
                   // normalizeWardrobeCandidate reads top-level `category`/`color`;
                   // prefer the specific garment type (e.g. "jacket") over the
@@ -2407,13 +2421,18 @@ Deno.serve(async (req) => {
               // can reach the prompt as item content. Same K+ gate and the same
               // RLS backstop as the retrieval source above.
               async listClosetCensusRows(actorId: string, rowCap: number) {
-                const { data } = await userClient
+                // WC-001: THE critical one. An empty array here is read by
+                // `buildClosetCensus` as PROOF the Closet holds nothing, which
+                // licenses "Your Closet doesn't have shoes yet." Only a genuine
+                // zero-row result may say that, so an error throws and the
+                // caller degrades to "no authoritative census this turn".
+                const data = wardrobeRowsOrThrow(await userClient
                   .from('user_closet_items')
                   .select('category, clothing_type, subtype')
                   .eq('user_id', actorId)
                   .is('deleted_at', null)
-                  .limit(Math.min(rowCap, CENSUS_ROW_CAP));
-                return (data ?? []) as Record<string, unknown>[];
+                  .limit(Math.min(rowCap, CENSUS_ROW_CAP)), 'user_closet_census');
+                return data as Record<string, unknown>[];
               },
             }
           : {}),
@@ -2424,7 +2443,23 @@ Deno.serve(async (req) => {
       // bounded scope -- it never fails the turn and never silently upgrades
       // a bounded answer into a confident one.
       let closetCensus: EliseClosetCensus | null = null;
-      if (config.flags.conciergeV1 && wardrobeData.listClosetCensusRows) {
+      // WC-004. The K+ entitlement is named HERE, not merely implied by the
+      // presence of the census method above.
+      //
+      // Zero rows from `user_closet_items` is not an error -- RLS
+      // (`user_id = auth.uid() AND has_active_k_plus()`) simply returns nothing
+      // to an actor it does not admit. The census cannot tell that apart from
+      // an empty Closet, so it would report a NON-K+ actor's hidden Closet as
+      // provably empty and license "I don't see any outerwear in your Closet":
+      // the exact CON-ABSENCE-005 sentence, arriving through a different door.
+      //
+      // The entitlement is therefore a precondition of the CLAIM, not just of
+      // the query, and it is written where the claim is made.
+      if (
+        config.flags.conciergeV1 &&
+        hasActiveKPlusForWardrobeContext &&
+        wardrobeData.listClosetCensusRows
+      ) {
         try {
           const censusRows = await wardrobeData.listClosetCensusRows(userId, CENSUS_ROW_CAP);
           closetCensus = buildClosetCensus({ rows: censusRows, rowCap: CENSUS_ROW_CAP });
@@ -3131,7 +3166,13 @@ Deno.serve(async (req) => {
   let absenceProseConflict = false;
   {
     const census = closetCensusForProseSafety;
-    const censusAvailable = !!census && census.exhaustive === true && census.unclassifiedItems === 0;
+    // WC-002. One shared predicate with the structured gap layer, so the two
+    // cannot drift about what "this census may license an absence claim" means.
+    // It now also refuses a census whose CATEGORY MAP was truncated to its
+    // top-N slice: `presentSubjects` is read off that map, and a category the
+    // slice dropped would silently look like a category the customer owns none
+    // of -- turning a bounded result into "you don't own a scarf".
+    const censusAvailable = censusLicensesAbsenceClaims(census);
     const presentSubjects: string[] = [];
     if (census) {
       for (const source of [census.countsByCategory, census.countsByLayeringRole]) {
@@ -3168,10 +3209,32 @@ Deno.serve(async (req) => {
   const proseSafetyOwnedFocus =
     proseSafetyFocus?.candidate?.actorRelationship === 'owned' ||
     (proseSafetyFocus?.ambiguousCandidates?.length ?? 0) > 0;
-  if (
-    config.flags.conciergeV1 &&
-    (adviceShortlistForProseSafety.length > 0 || proseSafetyOwnedFocus)
-  ) {
+  /**
+   * WC-003. The ownership half is UNCONDITIONAL on the Concierge flag too,
+   * for the reason its sibling above already records.
+   *
+   * `ELISE_CONCIERGE_V1_ENABLED` defaults false, so the configuration that
+   * actually ships had no ownership guard at all -- while still having owned
+   * Closet evidence, because `listClosetItems` is gated on K+ and
+   * `closetWardrobeContextV1`, NOT on Concierge. A K+ actor on the shipping
+   * flag set could therefore be told "you already have a black blazer" about a
+   * blazer they do not own, with nothing between the model and the customer.
+   *
+   * The gate that matters is the EVIDENCE gate below, which is unchanged: with
+   * no owned candidate and no owned focus the guard still stands down, so an
+   * ordinary Base Elise turn is untouched. What is removed is only the
+   * capability flag, and for the same reason CON-ABSENCE-005 removed it: a
+   * feature flag may decide whether Concierge BEHAVIOUR exists; it must not
+   * decide whether the assistant is allowed to state a falsehood about the
+   * customer's Closet.
+   *
+   * The accepted cost is unchanged from the flag-on path: a TRUE claim about an
+   * owned garment that did not reach the bounded shortlist is dropped, and the
+   * answer degrades to model prose that survived, or to fixed neutral copy.
+   * Losing presentation is strictly better than asserting a possession the
+   * server never authorized.
+   */
+  if (adviceShortlistForProseSafety.length > 0 || proseSafetyOwnedFocus) {
     const verdict = enforceOwnershipProseSafety({
       // The absence-filtered text, not the raw model output: chaining is what
       // stops the ownership half from resurrecting a sentence the absence half

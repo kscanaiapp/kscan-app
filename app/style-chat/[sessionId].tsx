@@ -24,8 +24,16 @@ import {
   useStyleChatHomeBackHandler,
 } from '../../components/style-chat/StyleChatHeader';
 import { StyleChatBubble } from '../../components/style-chat/StyleChatBubble';
+// Build 34 / K+ Wardrobe Concierge -- staged wait copy for a wardrobe turn.
+import { ConciergeProgressCopy } from '../../components/concierge/ConciergeProgressCopy';
+import { shouldShowConciergeProgress } from '../../services/concierge/conciergeProgress';
+import { ELISE_CONCIERGE_V1 } from '../../constants/featureFlags';
+import { useKPlusEntitlement } from '../../hooks/useKPlusEntitlement';
 import { StyleChatInput } from '../../components/style-chat/StyleChatInput';
-import { StyleChatThinkingIndicator } from '../../components/style-chat/StyleChatThinkingIndicator';
+import {
+  StyleChatThinkingIndicator,
+  STYLE_CHAT_THINKING_COPY_STYLES,
+} from '../../components/style-chat/StyleChatThinkingIndicator';
 import { StyleChatContextPreview } from '../../components/style-chat/StyleChatContextPreview';
 import { StyleChatStyleDnaCard } from '../../components/style-chat/StyleChatStyleDnaCard';
 import { useStyleChat } from '../../hooks/useStyleChat';
@@ -115,11 +123,27 @@ export default function StyleChatSessionScreen() {
 
   const [handoffContext, setHandoffContext] = useState(() => getStyleChatHandoffContext());
   const [composerText, setComposerTextState] = useState(() => getDraftComposerText(stableSessionId, actorKey));
+  /**
+   * The message text of the send currently in flight, for the Concierge wait
+   * copy only. Cleared on every actor/session change alongside the rest of the
+   * per-conversation state, so one conversation's wait copy can never be chosen
+   * from another conversation's question.
+   */
+  const [sentMessageText, setSentMessageText] = useState('');
+  const kPlusEntitlement = useKPlusEntitlement();
   const [visualSourceMenuVisible, setVisualSourceMenuVisible] = useState(false);
 
   useEffect(() => {
     const inMemory = getDraftComposerText(stableSessionId, actorKey);
     setComposerTextState(inMemory);
+    // CONVERGENCE #282 + #284. The in-flight message belongs to the
+    // conversation it was sent from. Clearing it here is what stops a wardrobe
+    // question asked in one session (or by a previous account) choosing the
+    // wait copy shown in the next. It runs UNCONDITIONALLY, before the draft
+    // recovery below can return early: a conversation that already has a
+    // composer draft in memory must still drop the previous conversation's
+    // wait copy.
+    setSentMessageText('');
     // Memory is authoritative while the app is alive; the durable copy is only
     // consulted when it has nothing — i.e. after a crash, force-quit or cold
     // start. Gated on the actor scope so a late read cannot restore a departed
@@ -422,8 +446,58 @@ export default function StyleChatSessionScreen() {
     </View>
   );
 
+  /**
+   * Build 34 / K+ Wardrobe Concierge -- which wait copy this turn earns.
+   *
+   * A Concierge turn does real work before generation even starts (entitlement,
+   * Closet census, retrieval across several stores, deterministic scoring), and
+   * a single unchanging spinner over that window reads as "stuck" rather than
+   * "thinking".
+   *
+   * The staged copy is shown only when the client has POSITIVE grounds to
+   * expect a wardrobe turn -- capability on, entitlement active, and a message
+   * that reads as a question about their own wardrobe. It is a necessary
+   * condition, never a sufficient one: the server may still decline the
+   * wardrobe path, and when it does the answer simply arrives with no Closet
+   * evidence. No stage ever claims a RESULT, so neither outcome makes any line
+   * of it untrue. See services/concierge/conciergeProgress.ts.
+   *
+   * `sentMessageText` is the message actually SENT, captured at send time --
+   * not the composer, which the customer may already have started retyping.
+   */
+  const useConciergeWaitCopy =
+    isSending &&
+    shouldShowConciergeProgress({
+      conciergeEnabled: ELISE_CONCIERGE_V1,
+      kPlusActive: kPlusEntitlement.isActive,
+      message: sentMessageText,
+    });
+
+  /**
+   * CONVERGENCE #282 + #284. ONE indicator, two vocabularies.
+   *
+   * #282 replaced the inline thinking row with StyleChatThinkingIndicator,
+   * which owns the pulsing dots, the Reduce Motion fallback and the honest
+   * "taking longer" escalation. #284 added the Concierge's staged wait copy,
+   * explicitly designed to render inside the chat screen's existing thinking
+   * container so that a Concierge wait and an ordinary Elise wait are the same
+   * object with different words.
+   *
+   * Both hold: the Elise container stays, and the Concierge copy occupies its
+   * copy slot when the wait is a wardrobe one. Neither implementation was taken
+   * wholesale, and there is no second indicator to drift.
+   */
   const ThinkingIndicator = isSending ? (
-    <StyleChatThinkingIndicator stylistDisplayName={stylistDisplayName} />
+    <StyleChatThinkingIndicator
+      stylistDisplayName={stylistDisplayName}
+      copySlot={useConciergeWaitCopy ? (
+        <ConciergeProgressCopy
+          containerStyle={STYLE_CHAT_THINKING_COPY_STYLES.container}
+          titleStyle={STYLE_CHAT_THINKING_COPY_STYLES.title}
+          subtitleStyle={STYLE_CHAT_THINKING_COPY_STYLES.subtitle}
+        />
+      ) : undefined}
+    />
   ) : null;
 
   const isLimitNotice = error === STYLE_CHAT_COPY.systemLimitNotice
@@ -654,6 +728,10 @@ export default function StyleChatSessionScreen() {
               : undefined
           }
           onSend={async text => {
+            // Recorded before the send so the wait copy is chosen from the
+            // message that was actually sent, not from the composer -- which
+            // the customer may already be retyping in.
+            setSentMessageText(text);
             weather.markStylingIntent();
             if (attachmentsEnabled && chatAttachments.hasActiveAttachments) {
               // Send rule: attachment-bearing sends require every attachment

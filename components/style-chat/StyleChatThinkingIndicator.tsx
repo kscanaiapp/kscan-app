@@ -16,7 +16,7 @@
 //
 // No new dependencies: React Native's own Animated driver, native-driven.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
@@ -104,9 +104,28 @@ export function StyleChatThinkingIndicator({
   stylistDisplayName,
   /** Test seam: fixed elapsed time instead of a live timer. */
   elapsedMsOverride,
+  copySlot,
 }: {
   stylistDisplayName?: string;
   elapsedMsOverride?: number;
+  /**
+   * CONVERGENCE #282 + #284. Replaces the title/subtitle pair with a caller's
+   * own copy, keeping this container, its dots, its Reduce Motion behaviour and
+   * its layout.
+   *
+   * The Wardrobe Concierge narrates a longer wait in stages
+   * (components/concierge/ConciergeProgressCopy), and that component was
+   * written to render into "the chat screen's EXISTING thinking container and
+   * beside its existing spinner, so a Concierge wait and an ordinary Elise wait
+   * are visually the same object with different words". This slot is how that
+   * stays true now that the container is a component rather than inline JSX:
+   * one indicator, two vocabularies, instead of two indicators that drift.
+   *
+   * A slot occupant owns its own accessibility: the container drops its
+   * derived label and live region so the child's announcement is what a screen
+   * reader hears, rather than a stale Elise phrase masking it.
+   */
+  copySlot?: ReactNode;
 }) {
   const reducedMotion = useReducedMotion();
   const [phase, setPhase] = useState<EliseThinkingPhase>(() =>
@@ -132,15 +151,17 @@ export function StyleChatThinkingIndicator({
     <View
       testID="style-chat-thinking-indicator"
       style={styles.container}
-      accessibilityRole="progressbar"
-      accessibilityLiveRegion="polite"
-      accessibilityLabel={`${title} ${copy.subtitle}`}
+      accessibilityRole={copySlot ? undefined : 'progressbar'}
+      accessibilityLiveRegion={copySlot ? 'none' : 'polite'}
+      accessibilityLabel={copySlot ? undefined : `${title} ${copy.subtitle}`}
     >
       <PulsingDots animate={!reducedMotion} />
-      <View style={styles.copy}>
-        <Text style={styles.title}>{title}</Text>
-        <Text style={styles.subtitle}>{copy.subtitle}</Text>
-      </View>
+      {copySlot ?? (
+        <View style={styles.copy}>
+          <Text style={styles.title}>{title}</Text>
+          <Text style={styles.subtitle}>{copy.subtitle}</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -192,3 +213,16 @@ const styles = StyleSheet.create({
     marginTop: SPACING.xxs,
   },
 });
+
+/**
+ * CONVERGENCE #282 + #284. The copy styles this indicator uses for its own
+ * title and subtitle, exported so a `copySlot` occupant renders in exactly the
+ * same type as the Elise copy it replaces. ConciergeProgressCopy takes these
+ * as props for that reason -- "the chat screen's own copy styles, so the two
+ * indicators cannot diverge" -- and this is where they now live.
+ */
+export const STYLE_CHAT_THINKING_COPY_STYLES = {
+  container: styles.copy,
+  title: styles.title,
+  subtitle: styles.subtitle,
+} as const;

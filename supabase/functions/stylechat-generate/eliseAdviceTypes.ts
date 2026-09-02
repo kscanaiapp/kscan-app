@@ -264,6 +264,20 @@ export interface EliseClosetCensus {
    * roles it fills, and no role may be reported as confirmed absent.
    */
   unclassifiedItems: number;
+  /**
+   * WC-002. True when the Closet held MORE distinct categories than
+   * `ELISE_ADVICE_LIMITS.censusCategories`, so `countsByCategory` is the top-N
+   * slice rather than the whole set.
+   *
+   * EXHAUSTIVE OVER ROWS IS NOT EXHAUSTIVE OVER CATEGORIES either. The row page
+   * can be complete and every row classified, and a category the customer
+   * genuinely owns can still be missing from the map purely because 40 other
+   * categories outnumbered it. Reading "absent from the map" as "absent from
+   * the Closet" there is the same false claim as reading "absent from the
+   * shortlist" that way -- the map is a bounded RESULT, and a bounded result is
+   * never proof of absence.
+   */
+  categoriesTruncated: boolean;
 }
 
 export interface EliseAdviceLook {
