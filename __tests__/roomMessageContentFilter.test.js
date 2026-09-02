@@ -96,6 +96,9 @@ function loadRoomMessages() {
     './supabaseClient': { supabase },
     '../constants/featureFlags': { DRESSING_ROOM_THREADS_V1: false },
     './dressingRoomCollaboration': dressingRoomCollaboration,
+    // joinSharedRoom now also ensures the Shared-with-Me discovery record;
+    // these suites exercise the message paths, so the seam is stubbed.
+    './sharedRoomMemberships': { saveSharedRoomForCurrentUser: async () => ({ status: 'already_saved' }) },
   });
 
   return { mod, getSessionCalls, createCollaborationMessageCalls };

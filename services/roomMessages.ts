@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { DRESSING_ROOM_THREADS_V1 } from '../constants/featureFlags';
+import { saveSharedRoomForCurrentUser } from './sharedRoomMemberships';
 import {
   bumpCollabActorGeneration,
   COLLAB_ACCESS_ERROR,
@@ -293,6 +294,28 @@ export async function sendRoomMessage(
  * Membership is created server-side by the SECURITY DEFINER RPC, which validates
  * the token. Authentication is required (anonymous guests cannot join). The
  * share token is never logged.
+ *
+ * PARTICIPATION AND DISCOVERY ARE TWO RECORDS, and this is where they are tied
+ * together. join_room_via_share_token writes dressing_room_participants, which
+ * is what grants ACCESS (read, post, react). The room only APPEARS in an
+ * account's Dressing Rooms through shared_room_memberships, which is written by
+ * save_shared_room_for_me. Nothing on the server couples them.
+ *
+ * Before this, only the public route coupled them, as one best-effort capture
+ * per open cycle that was not retried on a transient failure. A join that
+ * succeeded after that capture failed left an account in the state proven on
+ * staging 2026-09-02: an active participant row, collaboration access `ok`, a
+ * message posted successfully -- and a Dressing Rooms screen showing NOTHING,
+ * because the discovery record did not exist. The room was reachable only by
+ * finding the original link again, which is a re-invite in all but name, and
+ * the durability contract says closing the app is never such an event.
+ *
+ * Ensuring the discovery record here grants no access the join did not already
+ * grant: save_shared_room_for_me validates the same token, requires the same
+ * live share, and consults the same block relation, so a caller who may join
+ * may always be listed. It is also idempotent and de-duplicated in flight, so
+ * the ordinary path where the public route already captured membership costs
+ * one `already_saved` round trip and changes nothing.
  */
 export async function joinSharedRoom(shareToken: string): Promise<string> {
   const normalizedToken = String(shareToken ?? '').trim();
@@ -312,6 +335,15 @@ export async function joinSharedRoom(shareToken: string): Promise<string> {
   if (error || !data) {
     devLog('join failed', error?.code);
     throw new Error(isPermissionError(error) ? ROOM_MESSAGES_ACCESS_ERROR : ROOM_JOIN_ERROR);
+  }
+
+  // Non-blocking and non-fatal: the join itself has already succeeded, and a
+  // failure to record discoverability must never present as a failure to join.
+  // A later open of the same link retries it, as does a later join.
+  try {
+    await saveSharedRoomForCurrentUser(normalizedToken);
+  } catch {
+    devLog('membership capture after join failed');
   }
 
   return String(data);
