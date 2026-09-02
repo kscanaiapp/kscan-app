@@ -109,11 +109,51 @@ test('NC-004: the request the client sends carries no personalization field', ()
   }
 });
 
+/**
+ * The gate-site pattern this firewall scans for.
+ *
+ * KPLUS-P2-002 — this was `source="([a-z]+)"`, which cannot match an
+ * underscore. Three of the eight bounded KPlusSource values contain one
+ * (`wardrobe_concierge`, `voice_scan`, `closet_intelligence`), so a K+ gate
+ * added to this core commerce surface under any of them produced NO match at
+ * all and left `gates` reading exactly `['watchlist']` — the control reported
+ * PASS over the precise change it exists to forbid. `[^"]*` matches any source
+ * attribute, including one outside the taxonomy entirely, so a new gate is
+ * always seen and then judged on its value rather than on whether the scanner
+ * happened to recognise its spelling.
+ */
+const KPLUS_GATE_SITE = /<KPlusGate\s+source="([^"]*)"/g;
+
+/** The bounded K+ source taxonomy, read from its single source of truth. */
+function kPlusSources() {
+  const src = fs.readFileSync(path.join(ROOT, 'types/kplusSource.ts'), 'utf8');
+  const start = src.indexOf('export const KPLUS_SOURCES');
+  assert.ok(start >= 0, 'KPLUS_SOURCES must exist in types/kplusSource.ts');
+  const end = src.indexOf('] as const;', start);
+  assert.ok(end > start, 'KPLUS_SOURCES must be a closed as-const array');
+  const values = [...src.slice(start, end).matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  assert.ok(values.length >= 2, 'the K+ source taxonomy must have been parsed, not silently empty');
+  return values;
+}
+
+test('NC-008: the gate scanner can actually see every legal K+ source', () => {
+  // A firewall built on a source-text scan is only as strong as its pattern.
+  // This asserts the pattern itself, so the control can never again silently
+  // stop matching the thing it is guarding against.
+  for (const source of kPlusSources()) {
+    const sample = `<KPlusGate source="${source}">`;
+    const seen = [...sample.matchAll(new RegExp(KPLUS_GATE_SITE.source, 'g'))].map((m) => m[1]);
+    assert.deepEqual(seen, [source],
+      `the NC-008 gate scanner does not match source="${source}" — a K+ gate added to a core ` +
+      'surface under that source would be invisible to this firewall');
+  }
+});
+
 test('NC-008: the only K+ surface in Scan Results is the Watch affordance', () => {
   const panel = fs.readFileSync(
     path.join(ROOT, 'components/scan-results/PurchaseOptionsPanel.tsx'), 'utf8',
   );
-  const gates = [...panel.matchAll(/<KPlusGate\s+source="([a-z]+)"/g)].map((m) => m[1]);
+  const gates = [...panel.matchAll(new RegExp(KPLUS_GATE_SITE.source, 'g'))].map((m) => m[1]);
   assert.deepEqual(gates, ['watchlist'],
     'K+ may gate the Smart Watchlist action and nothing else on this surface — never the ' +
     'products, the prices, the retailers, or the identification');
