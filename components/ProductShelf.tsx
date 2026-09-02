@@ -446,7 +446,10 @@ export function ProductShelf({
                 disabled={!hasLink}
                 accessibilityRole={hasLink ? 'link' : 'button'}
                 accessibilityLabel={hasLink ? `Open ${productTitle} product page` : `${productTitle} product image`}
-                accessibilityHint={hasLink ? 'Opens the retailer product page' : undefined}
+                // SCAN-009, same reason as PurchaseOptionsPanel: the
+                // destination is a direct retailer URL only when the provider
+                // supplied one, and an aggregator listing otherwise.
+                accessibilityHint={hasLink ? 'Opens this listing in your browser' : undefined}
               >
                 {showImage ? (
                   <CatalogProductImage
