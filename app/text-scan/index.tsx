@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   Keyboard,
+  type TextInput,
 } from 'react-native';
 import { router } from 'expo-router';
 import { goBackOrHome } from '../../services/navigationExit';
@@ -72,11 +73,23 @@ export default function TextScanScreen() {
   const [textScanError, setTextScanError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastSubmitAt, setLastSubmitAt] = useState(0);
-  // Which surface produced the text currently in `query`. Only ever set to
-  // 'voicescan' by an accepted Voice transcript, and reset to 'textscan' by
-  // any other way the query can change -- so a voice label can never outlive
-  // the voice text it described.
+  // Which surface produced the text currently in `query`. Set to 'voicescan'
+  // by an accepted Voice transcript and DELIBERATELY kept across the user's
+  // own edits of that transcript -- correcting a misheard brand is part of
+  // the Voice flow, not a switch to typing, so a corrected voice query must
+  // still be attributed to Voice. The label is dropped the moment the voice
+  // text itself is gone (field emptied, suggestion chip used, or Scan Again),
+  // so it can never outlive the text it described.
   const [querySource, setQuerySource] = useState<'textscan' | 'voicescan'>('textscan');
+  // Handle on the query field so Voice Scan can hand the user straight into
+  // the keyboard -- both when a transcript lands (immediately correctable)
+  // and when Voice degrades to manual entry (never a dead end).
+  const queryInputRef = useRef<TextInput>(null);
+  const focusQueryInput = useCallback(() => {
+    // Deferred a tick: on both platforms the field has to be mounted and the
+    // new value committed before focus lands the caret after the text.
+    requestAnimationFrame(() => queryInputRef.current?.focus());
+  }, []);
 
   const isQueryValid = query.trim().length >= MIN_QUERY_LENGTH;
 
@@ -207,7 +220,13 @@ export default function TextScanScreen() {
 
       <TextScanInput
         value={query}
-        onChangeText={setQuery}
+        inputRef={queryInputRef}
+        onChangeText={(text) => {
+          setQuery(text);
+          // Emptying the field ends the voice lineage: whatever is typed
+          // next is a typed query, not a corrected transcript.
+          if (text.trim().length === 0) setQuerySource('textscan');
+        }}
         minLength={MIN_QUERY_LENGTH}
         maxLength={MAX_QUERY_LENGTH}
         placeholder="e.g., oversized wool coat in camel"
@@ -219,6 +238,7 @@ export default function TextScanScreen() {
               setQuery(transcript);
               setQuerySource('voicescan');
             }}
+            onRequestManualEntry={focusQueryInput}
             disabled={isSubmitting}
           />
         }
@@ -307,6 +327,7 @@ export default function TextScanScreen() {
 
   const handleScanAgain = () => {
     setQuery('');
+    setQuerySource('textscan');
     setTextScanResult(null);
     setTextScanError(null);
     setViewState('input');

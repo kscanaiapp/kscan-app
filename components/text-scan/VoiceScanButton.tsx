@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { KPlusGate } from '../kplus/KPlusGate';
 import { VoiceListeningSheet } from './VoiceListeningSheet';
 import { VoiceScanIcon } from '../icons/kscan';
@@ -17,6 +18,14 @@ export interface VoiceScanButtonProps {
    * called with anything but a validated, on-device transcript.
    */
   onTranscript: (transcript: string) => void;
+  /**
+   * Called when Voice Scan hands the user back to manual typing -- either
+   * because recognition was unavailable/failed and the user chose "Use Text
+   * Instead", or because a transcript just landed in the query field. The
+   * caller is expected to focus its own existing query input so the pivot to
+   * the keyboard happens on the same screen, with no dead end.
+   */
+  onRequestManualEntry?: () => void;
   disabled?: boolean;
 }
 
@@ -24,6 +33,7 @@ interface VoiceScanButtonInnerProps {
   isKPlusActive: boolean;
   openUpgrade: () => void;
   onTranscript: (transcript: string) => void;
+  onRequestManualEntry?: () => void;
   disabled?: boolean;
 }
 
@@ -31,6 +41,7 @@ function VoiceScanButtonInner({
   isKPlusActive,
   openUpgrade,
   onTranscript,
+  onRequestManualEntry,
   disabled,
 }: VoiceScanButtonInnerProps) {
   const voice = useVoiceScan({ isKPlusActive, sourceSurface: 'text-scan' });
@@ -40,10 +51,17 @@ function VoiceScanButtonInner({
   // field, where the user can see and edit it before the existing Submit
   // action runs. Nothing here submits anything.
   useEffect(() => {
-    if (voice.state === 'reviewing') {
-      onTranscript(voice.acceptDraft());
-    }
-  }, [voice.state, voice.acceptDraft, onTranscript]);
+    if (voice.state !== 'reviewing') return;
+    onTranscript(voice.acceptDraft());
+    // A distinct success haptic marks the moment speech became editable
+    // text -- it bridges "I stopped talking" and "I can see/fix the words".
+    // Fire-and-forget: haptics are a nicety and must never affect the
+    // transcript path, so a rejection here is swallowed.
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    // Hand the user straight into the keyboard, cursor in the field, so a
+    // misheard brand or silhouette can be corrected without a tap first.
+    onRequestManualEntry?.();
+  }, [voice.state, voice.acceptDraft, onTranscript, onRequestManualEntry]);
 
   const handlePress = () => {
     if (disabled) return;
@@ -89,7 +107,13 @@ function VoiceScanButtonInner({
         partialTranscript={voice.partialTranscript}
         onStop={() => void voice.stopSession()}
         onCancel={voice.cancelSession}
-        onDismiss={voice.dismiss}
+        onDismiss={() => {
+          voice.dismiss();
+          // "Use Text Instead" must never be a dead end: dismissing the
+          // failure/unavailable sheet drops the user into the existing query
+          // field on this same screen, keyboard up.
+          onRequestManualEntry?.();
+        }}
       />
     </>
   );
@@ -107,18 +131,22 @@ function VoiceScanButtonInner({
  * the existing TextScanFeatureRow pill does -- there is no second,
  * Voice-specific paywall.
  */
-export function VoiceScanButton({ onTranscript, disabled }: VoiceScanButtonProps) {
+export function VoiceScanButton({ onTranscript, onRequestManualEntry, disabled }: VoiceScanButtonProps) {
   if (!VOICESCAN_ENABLED) return null;
 
   // The flag says the capability is BUILT; this says the running platform's
   // native permission configuration actually exists in this artifact. They
   // differ because an EAS profile's `env` is profile-level, not
   // platform-level: enabling Voice for the Android certification AAB also
-  // sets the flag for anything else built from `staging-certification`. On
-  // this lineage iOS has no microphone/speech usage strings, and iOS
-  // terminates the app when those APIs are called without them -- so
-  // rendering the affordance there would crash on the first tap rather than
-  // degrade. See VOICE_NATIVE_PROVISIONED_PLATFORMS for how to enable iOS.
+  // sets the flag for anything else built from `staging-certification`.
+  // iOS terminates the app when the Speech/AVAudioSession authorization APIs
+  // are called without their usage strings, and the capability probe does
+  // NOT catch that (supportsOnDeviceRecognition needs no authorization), so
+  // this list -- not the flag -- is what keeps the affordance off a platform
+  // whose plist is not provisioned. Both iOS strings are present on this
+  // lineage today, so iOS and Android are both provisioned; see
+  // VOICE_NATIVE_PROVISIONED_PLATFORMS, whose test derives the expectation
+  // from app.json rather than asserting a constant.
   if (!isVoicePlatformProvisioned(getPlatform())) return null;
 
   return (
@@ -132,6 +160,7 @@ export function VoiceScanButton({ onTranscript, disabled }: VoiceScanButtonProps
           isKPlusActive={isActive}
           openUpgrade={openUpgrade}
           onTranscript={onTranscript}
+          onRequestManualEntry={onRequestManualEntry}
           disabled={disabled}
         />
       )}

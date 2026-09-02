@@ -219,11 +219,17 @@ test('VoiceScanButton never renders its own submit/search button -- it hands the
 });
 
 test('reviewing state is consumed via acceptDraft, not auto-submitted', () => {
-  const effect = voiceScanButton.slice(
-    voiceScanButton.indexOf("useEffect(() => {\n    if (voice.state === 'reviewing')"),
-    voiceScanButton.indexOf('const handlePress ='),
-  );
+  // Anchored on the `reviewing` mention rather than one exact spelling of the
+  // guard, so an equivalent refactor (early-return vs if-block) cannot make
+  // this silently pass on an empty slice.
+  const start = voiceScanButton.search(/useEffect\(\(\) => \{[^]{0,120}?voice\.state[^]{0,40}?'reviewing'/);
+  assert.notEqual(start, -1, 'expected a useEffect that reacts to the reviewing state');
+  const effect = voiceScanButton.slice(start, voiceScanButton.indexOf('const handlePress ='));
+  assert.ok(effect.length > 0, 'the reviewing effect slice must not be empty');
   assert.match(effect, /onTranscript\(voice\.acceptDraft\(\)\)/);
+  // The transcript leaves this component and nothing else happens to it:
+  // no submit, no network call, no backend routing from the effect itself.
+  assert.doesNotMatch(effect, /submit|analyzeText|invoke|fetch\(/i);
 });
 
 // ── Listening UX ───────────────────────────────────────────────────────────
@@ -285,4 +291,81 @@ test('Android voice recognizer work and lifecycle registration stay on the main 
   );
   assert.match(androidVoiceNative, /OnCreate \{\s*handler\.post \{/);
   assert.match(androidVoiceNative, /OnDestroy \{[\s\S]*?handler\.post \{/);
+});
+
+// ── Correction UX: a misheard transcript must be fixable without friction ──
+//
+// On-device STT reliably mishears fashion vocabulary (brands, silhouettes),
+// so the review step is the safety valve for the whole feature. These guard
+// the properties that make correcting a transcript cost one keystroke rather
+// than a tap-hunt, and that a Voice failure never dead-ends the user.
+
+test('a landed transcript hands the user straight into the query field', () => {
+  const start = voiceScanButton.search(/useEffect\(\(\) => \{[^]{0,120}?voice\.state[^]{0,40}?'reviewing'/);
+  const effect = voiceScanButton.slice(start, voiceScanButton.indexOf('const handlePress ='));
+  assert.match(
+    effect,
+    /onRequestManualEntry\?\.\(\)/,
+    'the reviewing effect must ask the host screen to focus its query field',
+  );
+});
+
+test('"Use Text Instead" pivots to manual entry on the same screen, never a dead end', () => {
+  const dismiss = voiceScanButton.slice(voiceScanButton.indexOf('onDismiss={'));
+  assert.match(dismiss, /voice\.dismiss\(\)/, 'dismiss must still reset the voice session');
+  assert.match(
+    dismiss,
+    /onRequestManualEntry\?\.\(\)/,
+    'dismissing a failure state must drop the user into the text field, not just close the sheet',
+  );
+  // No navigation away from the TextScan screen as part of the failure path.
+  assert.doesNotMatch(dismiss, /router\.|navigate|goBack/);
+});
+
+test('the TextScan screen focuses its own query input for Voice, with no separate Edit affordance', () => {
+  assert.match(textScanScreen, /onRequestManualEntry=\{focusQueryInput\}/);
+  assert.match(textScanScreen, /queryInputRef\.current\?\.focus\(\)/);
+  assert.match(textScanInput, /ref=\{inputRef\}/, 'TextScanInput must forward a focus handle');
+  // The transcript lands in an already-editable field: there is no
+  // "tap Edit to change this" gate anywhere in the Voice review path.
+  assert.doesNotMatch(voiceScanButton, /['"]Edit['"]/);
+});
+
+test('haptics are fire-and-forget and can never gate or delay the transcript path', () => {
+  for (const [name, source] of [['VoiceScanButton', voiceScanButton], ['VoiceListeningSheet', voiceListeningSheet]]) {
+    if (!/Haptics\./.test(source)) continue;
+    assert.doesNotMatch(source, /await Haptics\./, `${name} must never await a haptic`);
+    for (const call of source.match(/Haptics\.\w+\([^)]*\)[^;]*/g) ?? []) {
+      assert.match(call, /\.catch\(/, `${name}: every haptic call must swallow its own failure: ${call}`);
+    }
+  }
+});
+
+test('the listening haptic is distinct from the transcript-ready haptic', () => {
+  assert.match(voiceListeningSheet, /Haptics\.impactAsync\(Haptics\.ImpactFeedbackStyle\.Light\)/);
+  assert.match(voiceScanButton, /Haptics\.notificationAsync\(Haptics\.NotificationFeedbackType\.Success\)/);
+});
+
+test('haptics never reach the pure voice services -- they stay in the UI layer', () => {
+  for (const file of ['voiceStateMachine.ts', 'voiceRecognition.ts', 'voiceTranscript.ts', 'voiceSubmission.ts']) {
+    assert.doesNotMatch(read('services', 'voice', file), /Haptics/, `${file} must stay free of UI feedback concerns`);
+  }
+  assert.doesNotMatch(useVoiceScan, /Haptics/, 'useVoiceScan must stay a pure orchestrator');
+});
+
+// ── Source attribution must not outlive the text it describes ──────────────
+
+test('the voicescan source tag survives user correction but not an emptied field', () => {
+  // Correcting a misheard brand is part of the Voice flow, so editing must
+  // NOT silently re-label the query as typed...
+  assert.doesNotMatch(
+    textScanScreen,
+    /onChangeText=\{setQuerySource\}/,
+    'editing must not be wired straight to a source reset',
+  );
+  // ...but an emptied field ends the voice lineage.
+  assert.match(textScanScreen, /if \(text\.trim\(\)\.length === 0\) setQuerySource\('textscan'\)/);
+  // And starting over never carries a stale voice label into a typed query.
+  const scanAgain = textScanScreen.slice(textScanScreen.indexOf('const handleScanAgain'));
+  assert.match(scanAgain.slice(0, 300), /setQuerySource\('textscan'\)/);
 });

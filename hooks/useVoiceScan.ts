@@ -213,6 +213,15 @@ export function useVoiceScan({
       applyFinalResult(result);
       activeSessionIdRef.current = null;
     } catch {
+      // Same staleness rule the success path above (and every branch of
+      // startSession) applies: only the attempt the UI is still showing may
+      // report. A stop can reject precisely BECAUSE it went stale -- cancel
+      // rejects the pending native stop promise with NOT_LISTENING -- and
+      // RECOGNIZER_ERROR is accepted by the reducer from ANY state, so an
+      // unguarded dispatch here would overwrite whatever owns the screen now
+      // (the user's own 'cancelled', or a newer session's 'listening').
+      if (sessionId !== activeSessionIdRef.current) return;
+      activeSessionIdRef.current = null;
       dispatch({ type: 'RECOGNIZER_ERROR' });
     }
   }, [dispatch, applyFinalResult]);

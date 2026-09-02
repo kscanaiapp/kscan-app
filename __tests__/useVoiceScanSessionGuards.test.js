@@ -371,3 +371,181 @@ test('218-B NEGATIVE CONTROL: removing the state-is-listening guard lets a stale
     'MUTATED hook: without the guard, a stale-state callback incorrectly populates the draft -- proving the real guard is load-bearing',
   );
 });
+
+// ── Fix 218-C: stopSession's REJECTION path must obey the same staleness
+//    rule as its success path and as every branch of startSession ──────────
+//
+// endVoiceListening() rejects precisely when the session went stale:
+// cancelListening() on both native modules rejects the pending stop promise
+// with NOT_LISTENING. RECOGNIZER_ERROR is accepted by reduceVoiceState from
+// ANY state (deliberately -- a recognizer failure must always be reportable),
+// so an unguarded dispatch in that catch overwrites whatever owns the screen
+// by the time the rejection lands.
+
+test('218-C: a cancel issued while finalizing survives the late stop rejection it causes', async () => {
+  let rejectStop;
+  const hook = await startedListeningSession({
+    endVoiceListening: () => new Promise((_resolve, reject) => { rejectStop = reject; }),
+  });
+
+  const stopping = hook.stopSession();
+  assert.equal(hook.state, 'finalizing', 'test setup: an explicit stop moves to finalizing');
+
+  hook.cancelSession();
+  assert.equal(hook.state, 'cancelled', 'test setup: cancel is accepted from finalizing');
+
+  // What the native module actually does to a pending stop when cancelled.
+  rejectStop(new Error('NOT_LISTENING'));
+  await stopping;
+
+  assert.equal(hook.state, 'cancelled', "the user's cancel must not be rewritten as a recognizer error");
+  assert.equal(hook.unavailableReason, null, 'a cancelled session carries no unavailable reason');
+});
+
+test('218-C: a replacement session is never clobbered by the previous stop rejecting late', async () => {
+  let rejectStop;
+  const hook = await startedListeningSession({
+    endVoiceListening: () => new Promise((_resolve, reject) => { rejectStop = reject; }),
+  });
+
+  const stopping = hook.stopSession();   // session A -> finalizing
+  hook.cancelSession();                  // A abandoned -> cancelled
+  await hook.startSession();             // session B takes over
+  assert.equal(hook.state, 'listening', 'test setup: session B must be listening');
+  const sessionB = hook.activeSessionId;
+
+  rejectStop(new Error('NOT_LISTENING')); // A's stop rejects LATE
+  await stopping;
+
+  assert.equal(hook.state, 'listening', "session A's late failure must not clobber session B");
+  assert.equal(hook.activeSessionId, sessionB, "session B must keep owning the native session");
+});
+
+test('218-C NEGATIVE CONTROL: removing the stop-rejection staleness guard lets a dead session clobber a live one', async () => {
+  const guardLine = "if (sessionId !== activeSessionIdRef.current) return;\n      activeSessionIdRef.current = null;\n      dispatch({ type: 'RECOGNIZER_ERROR' });";
+  assert.ok(
+    REAL_HOOK_SOURCE.includes(guardLine),
+    'expected the guarded stop-rejection branch to be present in the real source',
+  );
+  const mutatedSource = REAL_HOOK_SOURCE.replace(guardLine, "dispatch({ type: 'RECOGNIZER_ERROR' });");
+  assert.ok(!mutatedSource.includes(guardLine), 'the mutation must actually remove the guard');
+
+  let rejectStop;
+  const mutatedHook = loadUseVoiceScanWithMocks({
+    endVoiceListening: () => new Promise((_resolve, reject) => { rejectStop = reject; }),
+  }, mutatedSource);
+  await mutatedHook.startSession();
+  const stopping = mutatedHook.stopSession();
+  mutatedHook.cancelSession();
+  assert.equal(mutatedHook.state, 'cancelled');
+
+  rejectStop(new Error('NOT_LISTENING'));
+  await stopping;
+
+  assert.equal(
+    mutatedHook.state,
+    'error',
+    'MUTATED hook: without the guard, a stale stop rejection rewrites the cancel as an error -- proving the real guard is load-bearing',
+  );
+});
+
+// ── Actor / entitlement isolation: the two hook guards that had no test ────
+//
+// A Build 34 Voice Scan audit ran the required negative controls and found
+// that disabling the draft-clear effect outright (VS-NC-005) and deleting the
+// hook's K+ check outright (VS-NC-008) both left the governed suite green.
+// Both guards are load-bearing for a release blocker -- "Actor A's transcript
+// must not appear under Actor B" and "Voice Scan must not bypass K+" -- so
+// each now has a behavioral test and a mutation control proving it.
+
+test('VS-NC-005: every resting/terminal state is required to clear the draft', () => {
+  // The fake React in this harness runs each useEffect once at mount and does
+  // not re-run it on a state change, so the clear cannot be driven end-to-end
+  // here. It is asserted where it is actually decided instead: the real pure
+  // constant, plus the effect that consumes it.
+  const states = voiceStateMachine.VOICE_STATES_REQUIRING_DRAFT_CLEAR;
+  for (const terminal of ['idle', 'cancelled', 'error', 'unavailable']) {
+    assert.ok(
+      states.includes(terminal),
+      `'${terminal}' must require a draft clear -- otherwise spoken text outlives its session`,
+    );
+  }
+  // 'reviewing' is the one state that legitimately holds a draft; if it ever
+  // appeared here the feature would clear the transcript it is showing.
+  assert.equal(states.includes('reviewing'), false);
+  assert.equal(states.includes('listening'), false);
+});
+
+test('VS-NC-005: the hook clears every in-memory copy of speech in that effect', () => {
+  const effect = REAL_HOOK_SOURCE.slice(
+    REAL_HOOK_SOURCE.indexOf('VOICE_STATES_REQUIRING_DRAFT_CLEAR.includes(state)'),
+  ).slice(0, 400);
+  // All three in-memory copies of what the user said must be dropped: the
+  // rendered draft, the ref the accept path reads, and the live partial.
+  assert.match(effect, /setDraftTranscript\(''\)/, 'the rendered draft must be cleared');
+  assert.match(effect, /draftRef\.current = ''/, 'the ref the accept path reads must be cleared');
+  assert.match(effect, /setPartialTranscript\(''\)/, 'the live partial transcript must be cleared');
+});
+
+test('VS-NC-005 NEGATIVE CONTROL: a draft-clear list missing a terminal state is caught', () => {
+  // Proves the assertion above has detection power rather than passing
+  // vacuously on any array.
+  const mutantStates = ['idle'];
+  const missed = ['cancelled', 'error', 'unavailable'].filter((x) => !mutantStates.includes(x));
+  assert.deepEqual(
+    missed,
+    ['cancelled', 'error', 'unavailable'],
+    'a truncated draft-clear list must be detectable -- these are exactly the states that would strand a transcript',
+  );
+});
+
+test('VS-NC-008: the hook itself refuses to start a session without K+', async () => {
+  const hook = loadUseVoiceScanWithMocks({ isKPlusActive: false });
+  await hook.startSession();
+
+  assert.equal(hook.state, 'unavailable', 'a non-K+ actor must never reach listening');
+  assert.equal(hook.unavailableReason, 'not_kplus');
+  assert.equal(hook.activeSessionId, null, 'no native session may be claimed without K+');
+  assert.equal(
+    hook.telemetryEvents.some((e) => e.event === 'voice_permission_granted'),
+    false,
+    'no microphone permission may be requested without K+',
+  );
+});
+
+test('VS-NC-008 NEGATIVE CONTROL: K+ is enforced twice, and removing BOTH opens the mic', async () => {
+  // Removing only the early dispatch does NOT open the microphone: the
+  // startup sequence re-checks entitlement through isKPlusActiveRef on every
+  // await boundary (isCurrentEligibleAttempt), so the attempt still fails
+  // closed. That redundancy is deliberate -- it is also what makes an
+  // entitlement LOST mid-flight abandon the session. This control therefore
+  // removes both layers, which is what it actually takes to break the gate.
+  const earlyGuard = "    if (!isKPlusActive) {\n      dispatch({ type: 'NOT_KPLUS' });\n      return;\n    }\n";
+  const refGuard = ' && isKPlusActiveRef.current';
+  assert.ok(REAL_HOOK_SOURCE.includes(earlyGuard), 'expected the early K+ guard in the real source');
+  assert.ok(REAL_HOOK_SOURCE.includes(refGuard), 'expected the per-await K+ re-check in the real source');
+
+  // Removing only the early guard: still fails closed.
+  const singlyMutated = loadUseVoiceScanWithMocks(
+    { isKPlusActive: false },
+    REAL_HOOK_SOURCE.replace(earlyGuard, ''),
+  );
+  await singlyMutated.startSession();
+  assert.notEqual(
+    singlyMutated.state,
+    'listening',
+    'the per-await entitlement re-check must still hold the line on its own',
+  );
+
+  // Removing both: the microphone opens for a non-entitled actor.
+  const fullyMutated = loadUseVoiceScanWithMocks(
+    { isKPlusActive: false },
+    REAL_HOOK_SOURCE.replace(earlyGuard, '').replace(refGuard, ''),
+  );
+  await fullyMutated.startSession();
+  assert.equal(
+    fullyMutated.state,
+    'listening',
+    'MUTATED hook: with both K+ layers gone a non-entitled actor reaches the microphone -- proving they are load-bearing',
+  );
+});

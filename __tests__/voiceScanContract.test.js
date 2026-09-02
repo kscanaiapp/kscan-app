@@ -275,6 +275,20 @@ const ADVERSARIAL_TRANSCRIPTS = [
   'a'.repeat(2000),
   '设计师 时尚 连衣裙',
   'source: sql-endpoint',
+  // ORDINARY FASHION SPEECH. The attack-shaped strings above only catch a
+  // mutation keyed to one of their own words; a Build 34 audit showed a route
+  // switch keyed on the word "jacket" passing this sweep untouched. Voice
+  // Scan's real input is fashion vocabulary, so the sweep has to include it.
+  'black cropped leather jacket',
+  'oversized camel wool coat',
+  'Nike Air Max 90 white and red',
+  "Levi's 501 straight leg jeans",
+  'cream cable-knit cardigan',
+  'double-breasted navy blazer',
+  'black satin slip dress',
+  'Y2K low-rise cargo pants',
+  'green quilted Barbour-style jacket',
+  'white leather platform sneakers',
 ];
 
 test('buildVoiceSubmitOptions: transcript content NEVER changes the submission source, across adversarial inputs', () => {
@@ -303,6 +317,26 @@ test('NEGATIVE CONTROL: a mutant that lets transcript content pick the route is 
 
   assert.equal(sweepPasses(buildVoiceSubmitOptions), true, 'real implementation must pass the full sweep');
   assert.equal(sweepPasses(mutantBuildVoiceSubmitOptions), false, 'mutant must fail the sweep, proving it has detection power');
+});
+
+// A corpus can only ever catch a mutation keyed to a word it happens to
+// contain. This closes that gap structurally: the destination is fixed by the
+// Voice Scan surface, so the function must not READ its transcript argument at
+// all -- no corpus required.
+test('buildVoiceSubmitOptions: the destination is structurally independent of the transcript', () => {
+  const source = fs.readFileSync(path.join(ROOT, 'services', 'voice', 'voiceSubmission.ts'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+  const body = source.slice(source.indexOf('export function buildVoiceSubmitOptions'));
+  const paramName = body.match(/buildVoiceSubmitOptions\(\s*(\w+)/)?.[1];
+  assert.ok(paramName, 'expected a named transcript parameter');
+  assert.match(paramName, /^_/, 'the transcript parameter must be underscore-marked as deliberately unused');
+  const afterSignature = body.slice(body.indexOf('{'));
+  assert.equal(
+    afterSignature.includes(paramName),
+    false,
+    'the body must never reference the transcript -- the route is fixed by the surface, not by what was said',
+  );
 });
 
 // ── voiceTelemetry: content-free allowlist ──────────────────────────────────
