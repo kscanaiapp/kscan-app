@@ -101,6 +101,8 @@ export interface PackingTelemetry {
   modelItemRefs: number;
   rejectedItemRefs: number;
   constraintViolationsDropped: number;
+  /** Model sentences dropped for an absence claim the census cannot support. */
+  absenceClaimsDropped: number;
   promptChars: number;
   retrievalLatencyMs: number;
   selectionLatencyMs: number;
@@ -218,6 +220,7 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
     modelItemRefs: 0,
     rejectedItemRefs: 0,
     constraintViolationsDropped: 0,
+    absenceClaimsDropped: 0,
     promptChars: 0,
     retrievalLatencyMs: 0,
     selectionLatencyMs: 0,
@@ -501,6 +504,7 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
   telemetry.modelItemRefs = validation.telemetry.modelItemRefs;
   telemetry.rejectedItemRefs = validation.telemetry.rejectedItemRefs;
   telemetry.constraintViolationsDropped = validation.telemetry.constraintViolationsDropped;
+  telemetry.absenceClaimsDropped = validation.telemetry.absenceClaimsDropped;
 
   if (!validation.ok || !validation.plan) {
     telemetry.event = 'packing_failed';
@@ -584,6 +588,7 @@ export function formatPackingLog(telemetry: PackingTelemetry): string {
     `modelRefs=${telemetry.modelItemRefs}`,
     `rejectedRefs=${telemetry.rejectedItemRefs}`,
     `constraintDrops=${telemetry.constraintViolationsDropped}`,
+    `absenceDrops=${telemetry.absenceClaimsDropped}`,
     `promptChars=${telemetry.promptChars}`,
     `retrievalMs=${telemetry.retrievalLatencyMs}`,
     `selectionMs=${telemetry.selectionLatencyMs}`,

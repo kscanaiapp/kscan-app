@@ -15,6 +15,10 @@
 
 import { escapePromptData } from './promptHardening.ts';
 import { deriveScarcitySignal, type PackingGap } from './packingGaps.ts';
+import {
+  buildPackingAbsenceEvidence,
+  sanitizePackingProse,
+} from './packingProseSafety.ts';
 import type { EliseWardrobeCandidate } from './eliseAdviceTypes.ts';
 import {
   PACKING_ACTIVITIES,
@@ -102,6 +106,8 @@ export interface PackingValidationTelemetry {
   emptyOutfitsDropped: number;
   duplicateRefsDropped: number;
   constraintViolationsDropped: number;
+  /** Model sentences removed for asserting an absence the census cannot support. */
+  absenceClaimsDropped: number;
 }
 
 export interface PackingValidationResult {
@@ -201,6 +207,7 @@ export function validatePackingModelOutput(input: {
     emptyOutfitsDropped: 0,
     duplicateRefsDropped: 0,
     constraintViolationsDropped: 0,
+    absenceClaimsDropped: 0,
   };
 
   if (!isRecord(input.raw)) {
@@ -209,6 +216,24 @@ export function validatePackingModelOutput(input: {
 
   const authorized = buildAuthorizedIndex(input.shortlist);
   const excluded = new Set(input.constraints.excludeItemIds.map((id) => id.toLowerCase()));
+
+  // PK-001. The model saw a bounded shortlist and was told it was the whole
+  // world; anything it says about what the traveller does NOT own is therefore
+  // a claim about a Closet it never saw. Every free-text field below is checked
+  // against the same census authority the gaps and scarcity signals already
+  // use, so prose can no longer contradict the structured plan it sits beside.
+  const absenceEvidence = buildPackingAbsenceEvidence({
+    closetRoleCensus: input.closetRoleCensus,
+    censusComplete: input.censusComplete !== false,
+  });
+  /** Sanitize one model string, counting anything removed. Null means dropped. */
+  const safeProse = (value: unknown, max: number): string | null => {
+    const display = safeDisplayText(value, max);
+    if (!display) return null;
+    const verdict = sanitizePackingProse(display, absenceEvidence);
+    if (verdict.conflictCodes.length > 0) telemetry.absenceClaimsDropped += 1;
+    return verdict.text;
+  };
 
   const resolve = (raw: unknown): EliseWardrobeCandidate | null => {
     telemetry.modelItemRefs += 1;
@@ -272,7 +297,7 @@ export function validatePackingModelOutput(input: {
         : null;
 
     const label =
-      safeDisplayText(rawOutfit.label, MAX_LABEL_CHARS) ??
+      safeProse(rawOutfit.label, MAX_LABEL_CHARS) ??
       (activity ? PACKING_ACTIVITY_LABELS[activity] : `Look ${outfits.length + 1}`);
 
     for (const itemId of itemIds) usageCount.set(itemId, (usageCount.get(itemId) ?? 0) + 1);
@@ -282,7 +307,7 @@ export function validatePackingModelOutput(input: {
       label,
       activity,
       itemIds,
-      reason: safeDisplayText(rawOutfit.reason, MAX_REASON_CHARS),
+      reason: safeProse(rawOutfit.reason, MAX_REASON_CHARS),
     });
   }
 
@@ -300,7 +325,7 @@ export function validatePackingModelOutput(input: {
     if (!candidate) continue;
     const itemId = candidate.canonicalResourceIds.itemId!.toLowerCase();
     if (!reasonByItem.has(itemId)) {
-      reasonByItem.set(itemId, safeDisplayText(rawItem.reason, MAX_REASON_CHARS));
+      reasonByItem.set(itemId, safeProse(rawItem.reason, MAX_REASON_CHARS));
       orderedIds.push(itemId);
     } else {
       telemetry.duplicateRefsDropped += 1;
@@ -370,7 +395,7 @@ export function validatePackingModelOutput(input: {
   const rawAssumptions = Array.isArray(input.raw.assumptions) ? input.raw.assumptions : [];
   for (const rawAssumption of rawAssumptions) {
     if (assumptions.length >= MAX_ASSUMPTIONS) break;
-    const assumption = safeDisplayText(rawAssumption, MAX_ASSUMPTION_CHARS);
+    const assumption = safeProse(rawAssumption, MAX_ASSUMPTION_CHARS);
     if (assumption) assumptions.push(assumption);
   }
   if (input.weather.provenance === 'UNAVAILABLE') {

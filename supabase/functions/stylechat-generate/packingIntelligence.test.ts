@@ -1831,3 +1831,181 @@ Deno.test('copy: Packing error messages make no durable-persistence claim (requi
   assertStringIncludes(handlerSource, 'still here');
   assertStringIncludes(clientSource, 'still here');
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PK-001 — ABSENCE CLAIMS IN MODEL PROSE
+//
+// The structured plan was always grounded: gaps come from the census before the
+// model output is read, and scarcity is a counted fact. Three FREE-TEXT fields
+// were not -- assumptions, item reasons and outfit reasons -- and the prompt
+// both called the 14-item shortlist "the only garments that exist" and asked
+// the model to write assumptions. A model reasoning over a slice of a 200-item
+// Closet will say "you don't own a rain jacket", and that sentence reached the
+// traveller beside a "Your only outer layer" badge on the rain jacket it
+// denied. These prove the guard bites and, just as importantly, that it does
+// not eat ordinary packing prose.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** A deterministic three-role owned shortlist: outer + bottom + shoe. */
+async function proseShortlist(): Promise<PackingCandidate[]> {
+  return await candidatesFrom([
+    closetRow({ id: uuid(801), title: 'Rain Jacket', category: 'Outerwear', clothing_type: 'rain jacket', subtype: 'shell' }),
+    closetRow({ id: uuid(802), title: 'Dark Jeans', category: 'Bottoms', clothing_type: 'jeans', subtype: 'straight' }),
+    closetRow({ id: uuid(803), title: 'White Sneakers', category: 'Shoes', clothing_type: 'sneakers', subtype: 'low top' }),
+  ]);
+}
+
+function proseValidate(
+  raw: unknown,
+  shortlist: PackingCandidate[],
+  census: Record<string, number>,
+  censusComplete: boolean,
+) {
+  const parsed = parsedRequest();
+  return validatePackingModelOutput({
+    raw,
+    planId: 'plan-prose',
+    shortlist,
+    trip: parsed.trip,
+    constraints: parsed.constraints,
+    weather: { provenance: 'UNAVAILABLE', summary: null },
+    closetRoleCensus: census,
+    censusComplete,
+    gaps: [],
+  });
+}
+
+function proseOutput(shortlist: PackingCandidate[], overrides: Record<string, unknown> = {}) {
+  const ids = shortlist.map((c) => c.canonicalResourceIds.itemId!);
+  return {
+    outfits: [{ label: 'Day', activity: 'casual_day', itemIds: [ids[1], ids[2]], reason: 'Simple city day.' }],
+    packedItems: [
+      { itemId: ids[1], reason: 'Works everywhere.' },
+      { itemId: ids[2], reason: 'Carries both days.' },
+    ],
+    assumptions: ['Packed for mild city days.'],
+    ...overrides,
+  };
+}
+
+Deno.test('PK-001: an absence claim the census CONTRADICTS is removed from assumptions', async () => {
+  const shortlist = await proseShortlist();
+  // The census says this traveller owns outerwear. The model says they do not.
+  const result = proseValidate(
+    proseOutput(shortlist, {
+      assumptions: [
+        "You don't own a rain jacket, so I planned around showers.",
+        'Packed for mild city days.',
+      ],
+    }),
+    shortlist,
+    { outer: 1, bottom: 4, shoe: 2 },
+    true,
+  );
+  assert(result.ok && result.plan);
+  const joined = result.plan!.assumptions.join(' ');
+  assert(!/don'?t own a rain jacket/i.test(joined), `false absence survived: ${joined}`);
+  // The true sentence beside it is untouched -- this drops claims, not tone.
+  assertStringIncludes(joined, 'Packed for mild city days.');
+  assertEquals(result.telemetry.absenceClaimsDropped > 0, true);
+});
+
+Deno.test('PK-001: with an INCOMPLETE census no absence claim is provable, so none survives', async () => {
+  const shortlist = await proseShortlist();
+  const result = proseValidate(
+    proseOutput(shortlist, { assumptions: ['Your Closet has no outerwear for this trip.'] }),
+    shortlist,
+    { outer: 1, bottom: 4, shoe: 2 },
+    false,
+  );
+  assert(result.ok && result.plan);
+  assert(
+    !result.plan!.assumptions.some((a) => /no outerwear/i.test(a)),
+    'an ungrounded absence claim survived a truncated census',
+  );
+});
+
+Deno.test('PK-001: an absence the census PROVES (zero of that role) is still allowed to be said', async () => {
+  const shortlist = await proseShortlist();
+  // Nothing in the census is footwear, and the census is exhaustive -- so this
+  // is a checkable fact, and the guard must not remove it. A guard that eats
+  // true statements is worse than the failure it was built to prevent.
+  const result = proseValidate(
+    proseOutput(shortlist, { assumptions: ['Your Closet has no footwear yet, so no look is complete.'] }),
+    shortlist,
+    { outer: 1, bottom: 4 },
+    true,
+  );
+  assert(result.ok && result.plan);
+  assertStringIncludes(result.plan!.assumptions.join(' '), 'no footwear');
+  assertEquals(result.telemetry.absenceClaimsDropped, 0);
+});
+
+Deno.test('PK-001: item and outfit reasons are guarded on the same authority', async () => {
+  const shortlist = await proseShortlist();
+  const ids = shortlist.map((c) => c.canonicalResourceIds.itemId!);
+  const result = proseValidate(
+    {
+      outfits: [
+        {
+          label: 'Day',
+          activity: 'casual_day',
+          itemIds: [ids[1], ids[2]],
+          reason: "You have no boots, so these do the walking.",
+        },
+      ],
+      packedItems: [
+        { itemId: ids[1], reason: 'Works everywhere.' },
+        { itemId: ids[2], reason: "Since you don't own any loafers, these carry the trip." },
+      ],
+      assumptions: [],
+    },
+    shortlist,
+    { outer: 1, bottom: 4, shoe: 2 },
+    true,
+  );
+  assert(result.ok && result.plan);
+  const shoeItem = result.plan!.packedItems.find((i) => i.itemId === ids[2]);
+  assertEquals(shoeItem?.reason, null, 'a false absence claim survived in an item reason');
+  assertEquals(result.plan!.outfits[0].reason, null, 'a false absence claim survived in an outfit reason');
+  // The honest reason on the other item is untouched.
+  assertEquals(result.plan!.packedItems.find((i) => i.itemId === ids[1])?.reason, 'Works everywhere.');
+});
+
+Deno.test('PK-001: ordinary packing prose is never touched (no over-firing)', async () => {
+  const shortlist = await proseShortlist();
+  const ordinary = [
+    'A light layer for cooler evenings.',
+    "You don't have to bring a second jacket.",
+    'Consider adding a rain shell before you go.',
+    'Works across dinner and the travel day.',
+  ];
+  const result = proseValidate(
+    proseOutput(shortlist, { assumptions: ordinary }),
+    shortlist,
+    { outer: 1, mid: 2, bottom: 4, shoe: 2, base: 6 },
+    true,
+  );
+  assert(result.ok && result.plan);
+  // The server unshifts its own weather assumption when provenance is
+  // UNAVAILABLE, so this asserts every ordinary sentence SURVIVED rather than
+  // asserting the exact array.
+  for (const sentence of ordinary) {
+    assert(
+      result.plan!.assumptions.includes(sentence),
+      `ordinary prose was dropped: ${sentence}`,
+    );
+  }
+  assertEquals(result.telemetry.absenceClaimsDropped, 0);
+});
+
+Deno.test('PK-001: the prompt no longer presents the shortlist as the whole wardrobe', async () => {
+  const source = await Deno.readTextFile(new URL('./packingPrompt.ts', import.meta.url));
+  // The old framing invited exactly the inference the guard now has to catch.
+  assert(
+    !source.includes('the only garments that exist for this task'),
+    'the shortlist is still described to the model as everything that exists',
+  );
+  assertStringIncludes(source, 'a selection from a larger wardrobe');
+  assertStringIncludes(source, 'NEVER state or imply that the traveller does not own something');
+});
