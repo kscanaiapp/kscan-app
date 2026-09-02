@@ -579,8 +579,16 @@ export function RoomMessagesPanel({
       // Consequence copy follows the viewer's real relationship to the room,
       // resolved by the caller from authoritative room data.
       const title = 'Block this user?';
+      // The owner copy names the link explicitly on purpose. Blocking ends
+      // every identified path -- joining, reading items or messages, reacting,
+      // contributing, and the room's appearance in their Shared with Me -- but
+      // the public link preview is anonymous by construction: the client
+      // fetches it unauthenticated, so the server is never told who is asking
+      // and cannot apply a block to it. Promising more than that would be the
+      // same overstatement the contribution-block gap was, so the copy tells
+      // the owner what blocking does and what only Disable Shared Link does.
       const body = isOwner
-        ? 'They will no longer be able to access shared Dressing Rooms with you or send you Dressing Room messages. Existing messages may be retained for safety and recordkeeping.'
+        ? 'They will no longer be able to join, read, react in, or message shared Dressing Rooms with you. If you have shared a room link, disable it too: anyone still holding that link can open the room preview. Existing messages may be retained for safety and recordkeeping.'
         : targetIsRoomOwner
           ? 'You will leave this shared Dressing Room and will no longer receive or send Dressing Room messages with this user. Existing messages may be retained for safety and recordkeeping.'
           : 'You will leave this shared Dressing Room. Existing messages may be retained for safety and recordkeeping.';

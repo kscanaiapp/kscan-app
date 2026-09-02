@@ -454,9 +454,12 @@ async function deleteDirectUserRows(supabase, userId) {
   return core.deleteDirectUserRows(supabase, userId);
 }
 
-async function deleteOwnedStorageObjects(supabase, userId) {
+async function deleteOwnedStorageObjects(supabase, userId, options = {}) {
   const core = await loadCore();
-  return core.deleteOwnedStorageObjects(supabase, userId);
+  // options carries deletionRequestId, which opts this purge into registering
+  // retained media for the orphan sweep. Dropping it here silently disabled
+  // that registration for every caller that went through this bridge.
+  return core.deleteOwnedStorageObjects(supabase, userId, options);
 }
 
 async function getSharedRoomsForUser(supabase, userId) {

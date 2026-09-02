@@ -218,9 +218,16 @@ test('contributions flag alone enables item capabilities and collaborator status
 
 // ── Contributions migration (local, additive, owner-safe) ────────────────────
 
+// The contributions migration lives in supabase/migrations-deferred/: it is
+// deliberately excluded from the staging parity baseline because it drops and
+// recreates three RLS policies production already defines differently (see that
+// directory's README). These three guards kept reading the old
+// supabase/migrations/ path and had been throwing ENOENT ever since the move, so
+// the predicate behind the LIVE production contribution policies had no working
+// repo gate at all. Deferred is where the file is; deferred is where they read it.
 test('contributions migration uses a current room-scoped participant/share predicate', () => {
   const migration = fs.readFileSync(
-    path.join(ROOT, 'supabase/migrations/20260725100000_shared_room_item_contributions.sql'),
+    path.join(ROOT, 'supabase/migrations-deferred/20260725100000_shared_room_item_contributions.sql'),
     'utf8',
   );
   assert.doesNotMatch(migration, /\b(drop\s+table|truncate|delete\s+from)\b/i, 'additive only');
@@ -244,7 +251,7 @@ test('contributions migration uses a current room-scoped participant/share predi
 
 test('contribution UPDATE cannot reassign contributor identity or move an item between rooms', () => {
   const migration = fs.readFileSync(
-    path.join(ROOT, 'supabase/migrations/20260725100000_shared_room_item_contributions.sql'),
+    path.join(ROOT, 'supabase/migrations-deferred/20260725100000_shared_room_item_contributions.sql'),
     'utf8',
   );
   assert.match(migration, /before update of created_by, dressing_room_id/);
@@ -256,7 +263,7 @@ test('contribution UPDATE cannot reassign contributor identity or move an item b
 
 test('contribution DELETE remains own-item-only while existing owner policies are untouched', () => {
   const migration = fs.readFileSync(
-    path.join(ROOT, 'supabase/migrations/20260725100000_shared_room_item_contributions.sql'),
+    path.join(ROOT, 'supabase/migrations-deferred/20260725100000_shared_room_item_contributions.sql'),
     'utf8',
   );
   assert.match(migration, /for delete[\s\S]*created_by = \(select auth\.uid\(\)\)[\s\S]*can_contribute_to_dressing_room/);

@@ -31,6 +31,7 @@ const {
 function createStorageMock(filesByPrefix = {}, referencedPaths = []) {
   const removed = [];
   const listed = [];
+  const rpcCalls = [];
   const store = {};
   for (const [prefix, items] of Object.entries(filesByPrefix)) {
     store[prefix] = items.map((i) => ({ ...i }));
@@ -40,8 +41,13 @@ function createStorageMock(filesByPrefix = {}, referencedPaths = []) {
   return {
     removed,
     listed,
+    rpcCalls,
     referencedSet,
     client: {
+      async rpc(name, params) {
+        rpcCalls.push({ name, params });
+        return { data: null, error: null };
+      },
       from(table) {
         // Only dressing_room_items is queried by the reference check.
         const rows = table === 'dressing_room_items'
@@ -1482,4 +1488,118 @@ test('transferSharedRoomOwnership skips a blocked earliest participant for a lat
     (call) => call.type === 'update' && call.table === 'dressing_rooms',
   );
   assert.equal(transferCall.payload.user_id, eligibleId);
+});
+
+// -- DR-P3-005: the manual CLI must register retained media for the orphan
+// sweep, exactly as the automated worker does. deleteOwnedStorageObjects
+// deliberately preserves objects a surviving dressing_room_items row still
+// points at; without a work item, nothing ever revisits them once that final
+// reference disappears, so a CLI purge orphaned that media permanently.
+
+test('deleteOwnedStorageObjects registers retained media with the RAW storage prefix', async () => {
+  const userId = 'user-123';
+  const referenced = `${userId}/scans/shared-in-room.jpg`;
+  const storage = createStorageMock(
+    {
+      [`${userId}/scans`]: [{ name: 'shared-in-room.jpg' }, { name: 'private.jpg' }],
+    },
+    [referenced],
+  );
+
+  const results = await deleteOwnedStorageObjects(storage.client, userId, {
+    deletionRequestId: 'req-42',
+  });
+
+  const scansCall = storage.rpcCalls.find(
+    (call) => call.name === 'record_retained_owner_media' && call.params.p_prefix.endsWith('/scans'),
+  );
+  assert.ok(scansCall, 'the scans prefix must be registered for the sweep');
+  // The RAW prefix is what addresses the objects. A shortUserId-sanitized
+  // prefix would point the sweep at a path that does not exist, letting it
+  // clear the work item while the real objects stayed orphaned forever.
+  assert.equal(scansCall.params.p_prefix, `${userId}/scans`);
+  assert.equal(scansCall.params.p_request_id, 'req-42');
+  assert.equal(scansCall.params.p_retained, 1);
+
+  // Returned summaries still carry the sanitized prefix only.
+  const scansResult = results.find((r) => r.prefix.endsWith('/scans'));
+  assert.equal(scansResult.retainedRegistration, 'registered');
+  assert.ok(!scansResult.prefix.includes(userId), 'summary must not carry the full user id');
+});
+
+test('deleteOwnedStorageObjects registers a fully-retained prefix too', async () => {
+  const userId = 'user-123';
+  const referenced = `${userId}/scans/only.jpg`;
+  const storage = createStorageMock({ [`${userId}/scans`]: [{ name: 'only.jpg' }] }, [referenced]);
+
+  const results = await deleteOwnedStorageObjects(storage.client, userId, {
+    deletionRequestId: 'req-43',
+  });
+
+  const scansResult = results.find((r) => r.prefix.endsWith('/scans'));
+  assert.equal(scansResult.status, 'all_retained_referenced');
+  assert.equal(scansResult.retainedRegistration, 'registered');
+  const call = storage.rpcCalls.find((c) => c.params.p_prefix === `${userId}/scans`);
+  assert.equal(call.params.p_retained, 1);
+});
+
+test('deleteOwnedStorageObjects skips registration without a deletion request id', async () => {
+  const userId = 'user-123';
+  const storage = createStorageMock({ [`${userId}/scans`]: [{ name: 'a.jpg' }] }, []);
+
+  const results = await deleteOwnedStorageObjects(storage.client, userId);
+
+  assert.equal(storage.rpcCalls.length, 0);
+  const scansResult = results.find((r) => r.prefix.endsWith('/scans'));
+  assert.equal(scansResult.retainedRegistration, 'not_registered_no_request_id');
+});
+
+test('deleteOwnedStorageObjects survives a failed retained-media registration', async () => {
+  const userId = 'user-123';
+  const referenced = `${userId}/scans/kept.jpg`;
+  const storage = createStorageMock(
+    { [`${userId}/scans`]: [{ name: 'kept.jpg' }, { name: 'gone.jpg' }] },
+    [referenced],
+  );
+  storage.client.rpc = async () => ({ data: null, error: { message: 'rpc unavailable' } });
+
+  const results = await deleteOwnedStorageObjects(storage.client, userId, {
+    deletionRequestId: 'req-44',
+  });
+
+  // Bookkeeping failure must never fail a purge that already succeeded, and the
+  // retained object must still be preserved.
+  const removedPaths = storage.removed.flatMap((e) => e.paths);
+  assert.ok(!removedPaths.includes(referenced));
+  const scansResult = results.find((r) => r.prefix.endsWith('/scans'));
+  assert.equal(scansResult.retainedRegistration, 'registration_failed');
+});
+
+// -- DR-P4-001: Dressing Room blocks must be covered by deletion governance.
+// Both columns already cascade at the Auth delete, so no data survived; what
+// was missing was registry COVERAGE, which is what drives the worker's
+// post-purge residual verification. Section 94 of the audit brief lists user
+// blocks as a category that must be proven rather than assumed to cascade.
+test('dressing_room_user_blocks is covered in both edge (.ts) and worker (.json) registries', () => {
+  const ROOT = path.resolve(__dirname, '..');
+  const mirror = fs.readFileSync(
+    path.join(ROOT, 'supabase', 'functions', '_shared', 'deletion', 'userDataResources.ts'),
+    'utf8',
+  );
+  const jsonReg = fs.readFileSync(
+    path.join(ROOT, 'lib', 'account-deletion', 'user-data-resources.json'),
+    'utf8',
+  );
+  for (const column of ['blocker_user_id', 'blocked_user_id']) {
+    assert.match(
+      mirror,
+      new RegExp(`table:\\s*'dressing_room_user_blocks',\\s*column:\\s*'${column}'`),
+      `edge mirror must cover dressing_room_user_blocks.${column}`,
+    );
+    assert.match(
+      jsonReg,
+      new RegExp(`"table":\\s*"dressing_room_user_blocks",\\s*"column":\\s*"${column}"`),
+      `worker JSON registry must cover dressing_room_user_blocks.${column}`,
+    );
+  }
 });

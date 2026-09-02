@@ -102,7 +102,15 @@ test('blocking UI: consequence copy distinguishes owner, owner-target, and peer 
   // relationship rather than a constant.
   assert.match(panel, /const body = isOwner/);
   assert.match(panel, /targetIsRoomOwner/);
-  assert.match(panel, /They will no longer be able to access shared Dressing Rooms with you/);
+  // DR-P3-004. The owner copy previously read "no longer be able to access
+  // shared Dressing Rooms with you", which overstated the guarantee: the
+  // public link preview is fetched unauthenticated, so the server is never
+  // told who is asking and a block cannot reach it. Someone still holding the
+  // raw link keeps preview access until the owner disables the link. The copy
+  // now says what blocking actually does and points at the control that closes
+  // the remaining path; this assertion tracks the corrected contract.
+  assert.match(panel, /no longer be able to join, read, react in, or message shared Dressing Rooms with you/);
+  assert.match(panel, /disable it too/);
   assert.match(panel, /You will leave this shared Dressing Room and will no longer receive/);
 });
 
