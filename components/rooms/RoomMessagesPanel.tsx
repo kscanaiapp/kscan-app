@@ -240,6 +240,11 @@ export function RoomMessagesPanel({
   const [sendError, setSendError] = useState<string | null>(null);
   const [hiddenIds, setHiddenIds] = useState<Set<string> | null>(null);
   const [hiddenUserIds, setHiddenUserIds] = useState<Set<string> | null>(null);
+  // Room-identity request guards. Assigned during render, not in an effect, so
+  // a room change is visible to an in-flight request before React commits.
+  const loadRequestId = useRef(0);
+  const activeRoomIdRef = useRef(roomId);
+  activeRoomIdRef.current = roomId;
   const [replyTo, setReplyTo] = useState<RoomMessage | null>(null);
   const [olderCursor, setOlderCursor] = useState<MessageCursor | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -345,16 +350,28 @@ export function RoomMessagesPanel({
 
   const load = useCallback(async () => {
     if (!roomId) return;
+    // Room identity guard (DR-INV-006). The actor generation alone cannot
+    // separate Room A from Room B for one actor, so a late page for a room this
+    // panel has since left must be discarded rather than rendered under the
+    // room now on screen. Today every mount receives a stable roomId, so this
+    // is defence in depth for the panel being reused across rooms -- the same
+    // guard app/dressing-rooms/[id].tsx already applies to its own loads.
+    const requestedRoomId = roomId;
+    const requestId = ++loadRequestId.current;
+    const isCurrentRequest = () =>
+      mountedRef.current &&
+      requestId === loadRequestId.current &&
+      activeRoomIdRef.current === requestedRoomId;
     setLoading(true);
     setLoadError(null);
     setAccessRevoked(false);
     try {
       const [fetchedPage, hiddenContentIds, hiddenUserIdsResult] = await Promise.all([
-        listRoomMessagesPage({ roomId }),
+        listRoomMessagesPage({ roomId: requestedRoomId }),
         readHiddenContentIds().catch(() => [] as string[]),
         readHiddenUserIds().catch(() => [] as string[]),
       ]);
-      if (!mountedRef.current) return;
+      if (!isCurrentRequest()) return;
       setMessages(fetchedPage.messages);
       setOlderCursor(fetchedPage.nextCursor);
       newestCursorRef.current = fetchedPage.newestCursor;
@@ -366,7 +383,7 @@ export function RoomMessagesPanel({
       void revalidateAccess();
       void loadCounterparties();
     } catch (err: any) {
-      if (!mountedRef.current) return;
+      if (!isCurrentRequest()) return;
       clearInteractiveState();
       setHiddenIds(new Set());
       setHiddenUserIds(new Set());
@@ -378,23 +395,28 @@ export function RoomMessagesPanel({
         setCounterparties([]);
       }
     } finally {
-      if (mountedRef.current) setLoading(false);
+      if (isCurrentRequest()) setLoading(false);
     }
   }, [clearInteractiveState, loadCounterparties, revalidateAccess, roomId]);
 
   const loadOlder = useCallback(async () => {
     if (!olderCursor || loadingOlder) return;
+    const requestedRoomId = roomId;
     setLoadingOlder(true);
     try {
       const page = await listRoomMessagesPage({
-        roomId,
+        roomId: requestedRoomId,
         cursor: olderCursor,
         direction: 'older',
       });
+      // An older page that arrives after the panel moved on belongs to the room
+      // it was requested for, never to the one now on screen.
+      if (!mountedRef.current || activeRoomIdRef.current !== requestedRoomId) return;
       setMessages((current) => mergeRoomMessages(page.messages, current));
       setOlderCursor(page.nextCursor);
       accessVersionRef.current = page.accessVersion;
     } catch (err: any) {
+      if (!mountedRef.current || activeRoomIdRef.current !== requestedRoomId) return;
       const message = typeof err?.message === 'string' ? err.message : ROOM_MESSAGES_LOAD_ERROR;
       if (message === ROOM_MESSAGES_ACCESS_ERROR) {
         setAccessRevoked(true);
@@ -402,7 +424,9 @@ export function RoomMessagesPanel({
         setLoadError(message);
       }
     } finally {
-      setLoadingOlder(false);
+      if (mountedRef.current && activeRoomIdRef.current === requestedRoomId) {
+        setLoadingOlder(false);
+      }
     }
   }, [clearInteractiveState, loadingOlder, olderCursor, roomId]);
 
@@ -615,6 +639,13 @@ export function RoomMessagesPanel({
       currentUserIdRef.current = nextUserId;
       clearInteractiveState();
       setCounterparties([]);
+      // Report & Hide lists are per-account (services/ugcSafetyStore). Drop the
+      // departing actor's copy here rather than waiting for load() to replace
+      // it: null renders the loading state, so the arriving actor can never see
+      // their own messages filtered by somebody else's hide list, even for the
+      // one render between the auth transition and the reload.
+      setHiddenIds(null);
+      setHiddenUserIds(null);
       if (nextUserId) {
         void load();
       } else {

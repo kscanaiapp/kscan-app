@@ -119,6 +119,11 @@ function createSupabaseMock(options = {}) {
     authUsersById = {},
     updateResult = { data: [{ id: 'room-1' }], error: null },
     residualTables = {},
+    // Dressing Room account-level blocks, as [blockerId, blockedId] pairs.
+    blocks = [],
+    // Simulates an unreadable dressing_room_user_blocks relation so the
+    // fail-closed branch of the transfer guard can be exercised.
+    blocksError = null,
   } = options;
 
   function makeThenable(base) {
@@ -163,6 +168,31 @@ function createSupabaseMock(options = {}) {
                 count: residualTables[table] ?? data.length,
               };
               return makeThenable(base);
+            },
+            // Pair-block lookup used by validateTransferCandidate:
+            // .select(...).or('and(...),and(...)').limit(1)
+            or(expression) {
+              calls.push({ type: 'select.or', table, columns, expression });
+              return {
+                limit() {
+                  if (blocksError) return Promise.resolve({ data: null, error: blocksError });
+                  const ids = String(expression).match(
+                    /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
+                  ) ?? [];
+                  const wanted = new Set(ids.map((id) => id.toLowerCase()));
+                  const matched = blocks
+                    .filter(
+                      ([blocker, blocked]) =>
+                        wanted.has(String(blocker).toLowerCase()) &&
+                        wanted.has(String(blocked).toLowerCase()),
+                    )
+                    .map(([blocker, blocked]) => ({
+                      blocker_user_id: blocker,
+                      blocked_user_id: blocked,
+                    }));
+                  return Promise.resolve({ data: matched, error: null });
+                },
+              };
             },
             // Reference-check query used by deleteOwnedStorageObjects:
             // .select('storage_path').like('storage_path', '<prefix>%').range(...)
@@ -1312,4 +1342,144 @@ test('account deletion pipeline never consults K+ entitlement state', () => {
     assert.doesNotMatch(source, /RevenueCat/i);
     assert.doesNotMatch(source, /grant_reason/);
   }
+});
+
+// -- DR-P1-001: room ownership must never transfer to a blocked or departed
+// participant. The policy name is transfer_to_earliest_active_participant;
+// before this guard the worker read neither left_at nor the block relation, so
+// an owner who blocked a harasser and then deleted their account handed that
+// account the room, its items, its full message history and its retained
+// media. Proven against staging 2026-09-02 before the fix.
+
+test('transferSharedRoomOwnership refuses a participant who left the room', async () => {
+  const userId = '00000000-0000-0000-0000-000000000001';
+  const roomId = '11111111-1111-1111-1111-111111111111';
+  const departedId = '00000000-0000-0000-0000-000000000002';
+
+  const supabase = createSupabaseMock({
+    rooms: [{ id: roomId, title: 'Shared Closet' }],
+    participants: [
+      { user_id: departedId, created_at: '2026-01-01T00:00:00Z', left_at: '2026-02-01T00:00:00Z' },
+    ],
+    profilesById: { [departedId]: { id: departedId, account_status: 'active' } },
+    authUsersById: { [departedId]: { id: departedId, email: 'departed@example.com' } },
+  }).client;
+
+  const results = await transferSharedRoomOwnership(supabase, userId);
+
+  assert.equal(results.length, 1);
+  assert.equal(results[0].action, 'no_valid_recipient');
+  assert.equal(results[0].candidates[0].reason, 'participant_left_room');
+  assert.equal(
+    supabase.calls.filter((call) => call.type === 'update' && call.table === 'dressing_rooms').length,
+    0,
+  );
+});
+
+test('transferSharedRoomOwnership refuses a participant the departing owner blocked', async () => {
+  const userId = '00000000-0000-0000-0000-000000000001';
+  const roomId = '11111111-1111-1111-1111-111111111111';
+  const blockedId = '00000000-0000-0000-0000-000000000002';
+
+  const supabase = createSupabaseMock({
+    rooms: [{ id: roomId, title: 'Shared Closet' }],
+    participants: [{ user_id: blockedId, created_at: '2026-01-01T00:00:00Z', left_at: null }],
+    profilesById: { [blockedId]: { id: blockedId, account_status: 'active' } },
+    authUsersById: { [blockedId]: { id: blockedId, email: 'blocked@example.com' } },
+    blocks: [[userId, blockedId]],
+  }).client;
+
+  const results = await transferSharedRoomOwnership(supabase, userId);
+
+  assert.equal(results[0].action, 'no_valid_recipient');
+  assert.equal(results[0].candidates[0].reason, 'pair_blocked');
+});
+
+test('transferSharedRoomOwnership refuses a participant who blocked the departing owner', async () => {
+  const userId = '00000000-0000-0000-0000-000000000001';
+  const roomId = '11111111-1111-1111-1111-111111111111';
+  const blockerId = '00000000-0000-0000-0000-000000000002';
+
+  const supabase = createSupabaseMock({
+    rooms: [{ id: roomId, title: 'Shared Closet' }],
+    participants: [{ user_id: blockerId, created_at: '2026-01-01T00:00:00Z', left_at: null }],
+    profilesById: { [blockerId]: { id: blockerId, account_status: 'active' } },
+    authUsersById: { [blockerId]: { id: blockerId, email: 'blocker@example.com' } },
+    // Reverse direction: the block relation is symmetric by contract.
+    blocks: [[blockerId, userId]],
+  }).client;
+
+  const results = await transferSharedRoomOwnership(supabase, userId);
+
+  assert.equal(results[0].action, 'no_valid_recipient');
+  assert.equal(results[0].candidates[0].reason, 'pair_blocked');
+});
+
+test('transferSharedRoomOwnership fails closed when the block relation cannot be read', async () => {
+  const userId = '00000000-0000-0000-0000-000000000001';
+  const roomId = '11111111-1111-1111-1111-111111111111';
+  const participantId = '00000000-0000-0000-0000-000000000002';
+
+  const supabase = createSupabaseMock({
+    rooms: [{ id: roomId, title: 'Shared Closet' }],
+    participants: [{ user_id: participantId, created_at: '2026-01-01T00:00:00Z', left_at: null }],
+    profilesById: { [participantId]: { id: participantId, account_status: 'active' } },
+    authUsersById: { [participantId]: { id: participantId, email: 'participant@example.com' } },
+    blocksError: { code: '42501', message: 'permission denied for table dressing_room_user_blocks' },
+  }).client;
+
+  const results = await transferSharedRoomOwnership(supabase, userId);
+
+  assert.equal(results[0].action, 'no_valid_recipient');
+  assert.equal(results[0].candidates[0].reason, 'block_lookup_error');
+});
+
+test('transferSharedRoomOwnership tolerates an absent block table', async () => {
+  const userId = '00000000-0000-0000-0000-000000000001';
+  const roomId = '11111111-1111-1111-1111-111111111111';
+  const participantId = '00000000-0000-0000-0000-000000000002';
+
+  const supabase = createSupabaseMock({
+    rooms: [{ id: roomId, title: 'Shared Closet' }],
+    participants: [{ user_id: participantId, created_at: '2026-01-01T00:00:00Z', left_at: null }],
+    profilesById: { [participantId]: { id: participantId, account_status: 'active' } },
+    authUsersById: { [participantId]: { id: participantId, email: 'participant@example.com' } },
+    blocksError: { code: 'PGRST205', message: 'Could not find the table in the schema cache' },
+  }).client;
+
+  const results = await transferSharedRoomOwnership(supabase, userId);
+
+  assert.equal(results[0].action, 'transfer');
+});
+
+test('transferSharedRoomOwnership skips a blocked earliest participant for a later eligible one', async () => {
+  const userId = '00000000-0000-0000-0000-000000000001';
+  const roomId = '11111111-1111-1111-1111-111111111111';
+  const blockedId = '00000000-0000-0000-0000-000000000002';
+  const eligibleId = '00000000-0000-0000-0000-000000000003';
+
+  const supabase = createSupabaseMock({
+    rooms: [{ id: roomId, title: 'Shared Closet' }],
+    participants: [
+      { user_id: blockedId, created_at: '2026-01-01T00:00:00Z', left_at: '2026-02-01T00:00:00Z' },
+      { user_id: eligibleId, created_at: '2026-01-02T00:00:00Z', left_at: null },
+    ],
+    profilesById: {
+      [blockedId]: { id: blockedId, account_status: 'active' },
+      [eligibleId]: { id: eligibleId, account_status: 'active' },
+    },
+    authUsersById: {
+      [blockedId]: { id: blockedId, email: 'blocked@example.com' },
+      [eligibleId]: { id: eligibleId, email: 'eligible@example.com' },
+    },
+    blocks: [[userId, blockedId]],
+  }).client;
+
+  const results = await transferSharedRoomOwnership(supabase, userId);
+
+  assert.equal(results[0].action, 'transfer');
+  const transferCall = supabase.calls.find(
+    (call) => call.type === 'update' && call.table === 'dressing_rooms',
+  );
+  assert.equal(transferCall.payload.user_id, eligibleId);
 });

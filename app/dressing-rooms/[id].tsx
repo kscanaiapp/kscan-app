@@ -530,6 +530,11 @@ function DressingRoomDetailContent() {
   const noteChanged = normalizedDraftNote !== normalizedOriginalNote;
   const disableNoteSave = savingNote || noteTooLong || !noteChanged;
   const { isFeatureEnabled } = useFeatureFreeze();
+  // Server truth, re-derived from the loaded room on every render. Room
+  // administration (rename, note, share, delete) is owner-only by RLS; this
+  // is what stops the UI offering a control the backend will refuse, and
+  // what keeps a non-owner from being told their delete "failed to save".
+  const isRoomOwner = Boolean(user?.id && room?.userId && room.userId === user.id);
   const canShareRoom = Boolean(
     isFeatureEnabled('shareRooms') &&
     isAuthenticated &&
@@ -908,26 +913,30 @@ function DressingRoomDetailContent() {
                 <>
                   <View style={styles.noteCard}>
                     <Text style={room?.roomNote ? styles.noteText : styles.notePlaceholder}>
-                      {room?.roomNote || 'Add a note…'}
+                      {room?.roomNote || (isRoomOwner ? 'Add a note…' : 'No room note.')}
                     </Text>
                   </View>
                   {noteMessage ? <Text style={styles.noteMessage}>{noteMessage}</Text> : null}
-                  <SecondaryButton
-                    title={room?.roomNote ? 'Edit Note' : 'Add Note'}
-                    onPress={handleStartEditingNote}
-                    accessibilityLabel={room?.roomNote ? 'Edit room note' : 'Add room note'}
-                  />
+                  {isRoomOwner ? (
+                    <SecondaryButton
+                      title={room?.roomNote ? 'Edit Note' : 'Add Note'}
+                      onPress={handleStartEditingNote}
+                      accessibilityLabel={room?.roomNote ? 'Edit room note' : 'Add room note'}
+                    />
+                  ) : null}
                 </>
               )}
             </View>
 
             {/* Room management */}
             <View style={styles.actionGroup}>
-              <SecondaryButton
-                title="Edit Room"
-                onPress={() => setEditing(true)}
-                accessibilityLabel="Edit dressing room"
-              />
+              {isRoomOwner ? (
+                <SecondaryButton
+                  title="Edit Room"
+                  onPress={() => setEditing(true)}
+                  accessibilityLabel="Edit dressing room"
+                />
+              ) : null}
               {canShareRoom ? (
                 <>
                   <SecondaryButton
@@ -1084,15 +1093,19 @@ function DressingRoomDetailContent() {
             ) : null}
 
             <View style={styles.dangerZone}>
-              <TertiaryButton
-                title="Delete Room"
-                onPress={handleDeleteRoom}
-                textStyle={{ color: LUXURY.colors.error }}
-                accessibilityLabel="Delete dressing room"
-                accessibilityHint="Permanently remove this room and its items"
-              />
+              {isRoomOwner ? (
+                <TertiaryButton
+                  title="Delete Room"
+                  onPress={handleDeleteRoom}
+                  textStyle={{ color: LUXURY.colors.error }}
+                  accessibilityLabel="Delete dressing room"
+                  accessibilityHint="Permanently remove this room and its items"
+                />
+              ) : null}
               <Text style={styles.privacyFootnote}>
-                Private by design. Only invited people can see shared room previews.
+                {isRoomOwner
+                  ? 'Private by design. Only invited people can see shared room previews.'
+                  : 'This room is shared with you. Only its owner can rename, share, or delete it.'}
               </Text>
             </View>
           </ScrollView>

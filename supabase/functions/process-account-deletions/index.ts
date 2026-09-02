@@ -144,6 +144,44 @@ async function deleteDirectUserRows(
   return results;
 }
 
+// True when a Dressing Room block exists between the two accounts in EITHER
+// direction. Reads public.dressing_room_user_blocks with the service role
+// rather than calling internal.is_dressing_room_pair_blocked(): that helper
+// deliberately lives in the unexposed `internal` schema and holds no EXECUTE
+// grant for service_role, so this worker cannot invoke it.
+//
+// Fails CLOSED -- an unreadable block relation returns `true`. Handing a
+// blocked account somebody else's room is unrecoverable; declining to transfer
+// only falls back to the owner cascade the deleting owner already chose.
+// A genuinely absent table (pre-blocking environments) is not a read failure.
+async function isTransferPairBlocked(
+  supabase: ReturnType<typeof createAdmin>,
+  ownerUserId: string,
+  candidateUserId: string,
+): Promise<boolean> {
+  const result = await supabase
+    .from('dressing_room_user_blocks')
+    .select('blocker_user_id,blocked_user_id')
+    .or(
+      `and(blocker_user_id.eq.${ownerUserId},blocked_user_id.eq.${candidateUserId}),` +
+        `and(blocker_user_id.eq.${candidateUserId},blocked_user_id.eq.${ownerUserId})`,
+    )
+    .limit(1);
+  if (result.error) {
+    const code = String((result.error as { code?: string }).code ?? '').toUpperCase();
+    const message = String(result.error.message ?? '').toLowerCase();
+    const missing =
+      code === '42P01' ||
+      code === 'PGRST205' ||
+      message.includes('does not exist') ||
+      message.includes('could not find the table') ||
+      message.includes('schema cache');
+    if (missing) return false;
+    return true;
+  }
+  return Array.isArray(result.data) && result.data.length > 0;
+}
+
 async function transferSharedRooms(
   supabase: ReturnType<typeof createAdmin>,
   userId: string,
@@ -155,19 +193,26 @@ async function transferSharedRooms(
   for (const room of rooms) {
     const participantsResult = await supabase
       .from('dressing_room_participants')
-      .select('user_id,created_at')
+      // left_at is what "active participant" means in this schema, so the
+      // transfer policy (transfer_to_earliest_active_participant) has to read
+      // it. A row with left_at set was marked departed by
+      // block_dressing_room_user(); inheriting the room would hand it to
+      // exactly the account the departure was created to separate.
+      .select('user_id,created_at,left_at')
       .eq('dressing_room_id', room.id)
       .order('created_at', { ascending: true });
     if (participantsResult.error) throw new Error(participantsResult.error.message);
     let recipient: string | null = null;
     for (const p of participantsResult.data ?? []) {
       if (p.user_id === userId) continue;
+      if (p.left_at) continue;
       const profile = await supabase
         .from('profiles')
         .select('id,account_status')
         .eq('id', p.user_id)
         .maybeSingle();
       if (profile.data?.account_status === 'active') {
+        if (await isTransferPairBlocked(supabase, userId, p.user_id)) continue;
         const auth = await supabase.auth.admin.getUserById(p.user_id);
         if (auth.data?.user) {
           recipient = p.user_id;

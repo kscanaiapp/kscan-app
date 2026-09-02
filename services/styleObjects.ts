@@ -481,9 +481,21 @@ function safeError(_error: any, fallback: string) {
 }
 
 export async function listDressingRooms(): Promise<DressingRoom[]> {
+  // OWNED rooms only. `dressing_rooms` carries a second SELECT policy,
+  // "Recipients can select rooms via active shares", so an unfiltered select
+  // also returns every room that has been shared WITH this account. Those
+  // belong to Shared With Me (list_shared_rooms_for_me), not to the owned
+  // grid: without this filter a recipient saw someone else's room presented
+  // as one of their own, and opening it offered owner-only controls that the
+  // backend then correctly refused. The RLS policies remain the security
+  // boundary; this is the ownership semantics of *this* list.
+  const ownerId = await getCurrentSessionUserId();
+  if (!ownerId) return [];
+
   const { data, error } = await supabase
     .from('dressing_rooms')
     .select('*')
+    .eq('user_id', ownerId)
     .order('updated_at', { ascending: false });
   if (error) throw safeError(error, 'Unable to load Dressing Rooms.');
 
