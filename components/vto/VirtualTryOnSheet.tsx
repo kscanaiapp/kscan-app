@@ -36,6 +36,7 @@ import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useVirtualTryOn } from '../../hooks/useVirtualTryOn';
 import { emitVtoEvent } from '../../services/vto/vtoTelemetry';
 import { emitKPlusEvent } from '../../services/kplus/kplusTelemetry';
+import { VtoSilhouetteGuide } from './VtoSilhouetteGuide';
 import type { VtoGarmentInput, VtoOrigin } from '../../types/vto';
 
 export interface VirtualTryOnSheetProps {
@@ -303,6 +304,11 @@ export function VirtualTryOnSheet({
 
             {!vto.person && !isGenerating && vto.status !== 'success' ? (
               <View style={styles.guidanceBlock}>
+                {/* Framing guide: a drawing, not a detector. It runs no pose
+                    estimation and never grades or refuses a photo -- it only
+                    shows the shape a good try-on photo fills, at the one
+                    moment that is still cheap to influence. */}
+                <VtoSilhouetteGuide />
                 {PHOTO_GUIDANCE.map((line) => (
                   <Text key={line} style={styles.guidance}>
                     {line}
