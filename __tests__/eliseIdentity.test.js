@@ -123,7 +123,16 @@ test('StyleChat thinking state uses Elise-aware copy', () => {
   assert.doesNotMatch(styleChatThinkingIndicator, /StyleChat is thinking/);
   assert.doesNotMatch(styleChatSessionScreen, /StyleChat is thinking/);
   // The screen renders the stylist's own name into it rather than hard-coding one.
-  assert.match(styleChatSessionScreen, /StyleChatThinkingIndicator stylistDisplayName=\{stylistDisplayName\}/);
+  //
+  // CONVERGENCE #282 + #284: the element gained a `copySlot` for the Concierge's
+  // staged wait copy and is now written across several lines, so the match spans
+  // the opening tag rather than requiring the prop to sit on the same line as
+  // the component name. The property asserted is unchanged -- the name is passed
+  // through from the stylist identity, never hard-coded.
+  assert.match(
+    styleChatSessionScreen,
+    /<StyleChatThinkingIndicator[\s\S]{0,400}?stylistDisplayName=\{stylistDisplayName\}/,
+  );
 });
 
 // ── Action labels ────────────────────────────────────────────────────────────
