@@ -1230,7 +1230,31 @@ test('USER_DATA_RESOURCES covers all user-linked tables in migrations', () => {
   // deletion_state_transitions is an append-only audit-ledger table with no
   // user_id column (request_id/actor instead), so it is intentionally not a
   // USER_DATA_RESOURCES entry even once its migration lands.
-  const allowlist = new Set(['app_config', 'product_catalog', 'deletion_state_transitions']);
+  //
+  // Build 35 Patch 2 (P2-02): the wearable_* tables (wearable_pairings,
+  // wearable_sessions, wearable_results, wearable_actions,
+  // wearable_auth_attempts) are a differently-governed shared schema.
+  // supabase/migrations/20260819125404_wearable_pairings_sessions.sql's own
+  // header states "This file centralizes a historically-executed shared-
+  // database migration for CLI reconciliation purposes only. It does NOT
+  // transfer product ownership of the underlying feature/schema to
+  // kscan-app" (logical_owner: kscan-glasses-webapp), matching
+  // config/backend-authority.json's notGoverned.appleCredentialFunctions-
+  // style classification for the wearable Edge Functions. Their auth.users
+  // FK is ON DELETE CASCADE, so account deletion still physically removes
+  // these rows regardless of this app's registry; they are excluded from
+  // kscan-app's own coverage counting and residual verification because
+  // this app does not own that schema.
+  const allowlist = new Set([
+    'app_config',
+    'product_catalog',
+    'deletion_state_transitions',
+    'wearable_pairings',
+    'wearable_sessions',
+    'wearable_results',
+    'wearable_actions',
+    'wearable_auth_attempts',
+  ]);
   const missing = [];
 
   for (const file of files) {
@@ -1292,7 +1316,18 @@ test('Negative control: the migration-coverage check detects a missing user_clos
   const files = fs.readdirSync(migrationsDir).filter((name) => name.endsWith('.sql'));
   const withoutCloset = USER_DATA_RESOURCES.filter((resource) => resource.table !== 'user_closet_items');
   const mappedTables = new Set(withoutCloset.map((resource) => resource.table));
-  const allowlist = new Set(['app_config', 'product_catalog', 'deletion_state_transitions']);
+  // Mirrors the allowlist in the primary scan above (P2-02: differently-
+  // governed wearable_* schema).
+  const allowlist = new Set([
+    'app_config',
+    'product_catalog',
+    'deletion_state_transitions',
+    'wearable_pairings',
+    'wearable_sessions',
+    'wearable_results',
+    'wearable_actions',
+    'wearable_auth_attempts',
+  ]);
   const missing = [];
 
   for (const file of files) {
@@ -1336,6 +1371,14 @@ test('Negative control: stripping {userId}/saved-scans from the edge registry te
 test('account deletion pipeline never consults K+ entitlement state', () => {
   // Static source check, same style as kplusEdgeContract.test.js: deletion
   // must work identically for active/expired/revoked/never-activated K+.
+  //
+  // KPLUS-P2-001 legitimately introduced a RevenueCat reference into the
+  // automated worker (retireMirroredEntitlement, called unconditionally at
+  // the irreversible purge boundary to clear the RevenueCat mirror once
+  // K Scan's own resources are gone). That is a cleanup ACTION, not a read
+  // of K+ status used to decide whether or how to purge, so it is checked
+  // separately below instead of banned outright by the blanket assertion
+  // this test used before RevenueCat cleanup existed anywhere in the repo.
   const ROOT = path.resolve(__dirname, '..');
   const workerSource = fs.readFileSync(
     path.join(ROOT, 'supabase', 'functions', 'process-account-deletions', 'index.ts'),
@@ -1345,9 +1388,23 @@ test('account deletion pipeline never consults K+ entitlement state', () => {
   for (const source of [workerSource, coreSource]) {
     assert.doesNotMatch(source, /has_active_k_plus/);
     assert.doesNotMatch(source, /kplus_has_active_entitlement/);
-    assert.doesNotMatch(source, /RevenueCat/i);
     assert.doesNotMatch(source, /grant_reason/);
   }
+  // The manual/operational executor has no RevenueCat cleanup at all
+  // (KPLUS-P2-001 scoped the fix to the automated worker only) and must
+  // stay exactly as clean of it as before.
+  assert.doesNotMatch(coreSource, /RevenueCat/i);
+  // The automated worker does reference RevenueCat now (the KPLUS-P2-001
+  // mirror-cleanup call and its result handling). The three assertions
+  // above already prove nothing there reads K+/entitlement status to decide
+  // behavior -- has_active_k_plus, kplus_has_active_entitlement, and
+  // grant_reason all still fail to match, including in and around the
+  // RevenueCat call site.
+  assert.match(
+    workerSource,
+    /RevenueCat/i,
+    'KPLUS-P2-001 expects the worker to reference RevenueCat for mirror cleanup',
+  );
 });
 
 // -- DR-P1-001: room ownership must never transfer to a blocked or departed

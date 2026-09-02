@@ -167,3 +167,106 @@ export async function syncPromotionalEntitlement(params: {
     httpStatus: response.status,
   };
 }
+
+/**
+ * KPLUS-P2-001: outcome of retiring the mirrored K+ promotional entitlement
+ * for an account that K Scan has already purged. `already_retired` and
+ * `not_required` are both settled successes -- there is nothing left (or
+ * nothing was ever mirrored) to clean up, which is the goal state.
+ */
+export type RevenueCatCleanupOutcome =
+  | { ok: true; status: 'retired' }
+  | { ok: true; status: 'already_retired' }
+  | { ok: true; status: 'not_required'; reason: string }
+  | { ok: false; status: 'failed_retryable'; reason: string; httpStatus?: number }
+  | { ok: false; status: 'failed_terminal'; reason: string; httpStatus?: number };
+
+/** Settled outcomes: the mirror holds no live grant, or never could have. */
+export const REVENUECAT_CLEANUP_SETTLED_STATUSES: readonly string[] = Object.freeze([
+  'retired',
+  'already_retired',
+  'not_required',
+]);
+
+/** Anything not in the settled set (including an unrecognised value) blocks. */
+export function isBlockingRevenueCatCleanupStatus(status: unknown): boolean {
+  return !REVENUECAT_CLEANUP_SETTLED_STATUSES.includes(status as string);
+}
+
+/**
+ * Retires the mirrored K+ promotional entitlement for a purged account
+ * (KPLUS-P2-001). Called from the account-purge worker AFTER K Scan's own
+ * resources for that user are gone -- this only ever clears RevenueCat's
+ * copy of a grant K Scan already deleted locally; RevenueCat is never
+ * consulted or treated as entitlement authority here or anywhere else.
+ *
+ * Actor-bound: `appUserId` must be the Supabase auth user UUID the caller
+ * already resolved server-side (the deletion_requests row being purged),
+ * never a value read from a request body -- there is no client-reachable
+ * path to this function.
+ *
+ * Idempotent and safe to retry: RevenueCat returning 404 for a customer or
+ * entitlement it has no record of (never synced, or already retired by a
+ * prior attempt) is success, not an error. Every other non-2xx is reported
+ * as retryable or terminal, matching syncPromotionalEntitlement's policy,
+ * for the caller's own retry/dead-letter lifecycle to act on.
+ */
+export async function retireMirroredEntitlement(params: {
+  appUserId: string;
+}): Promise<RevenueCatCleanupOutcome> {
+  if (!isRevenueCatSyncEnabled()) {
+    return { ok: true, status: 'not_required', reason: 'sync_disabled' };
+  }
+
+  const secretApiKey = getSecretApiKey();
+  if (!secretApiKey) {
+    return { ok: false, status: 'failed_retryable', reason: 'missing_secret_api_key' };
+  }
+
+  const projectId = getProjectId();
+  if (!projectId) {
+    return { ok: false, status: 'failed_retryable', reason: 'missing_project_id' };
+  }
+
+  const entitlementId = getKPlusEntitlementId();
+  const url = `${REVENUECAT_API_BASE}/projects/${encodeURIComponent(projectId)}/customers/${encodeURIComponent(params.appUserId)}/actions/revoke_entitlement`;
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${secretApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ entitlement_id: entitlementId }),
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch (err) {
+    return {
+      ok: false,
+      status: 'failed_retryable',
+      reason: err instanceof Error ? `network_error:${err.name}` : 'network_error',
+    };
+  }
+
+  if (response.ok) {
+    return { ok: true, status: 'retired' };
+  }
+
+  // 404 covers both "RevenueCat never had this customer" (sync disabled or
+  // never ran for this account) and "entitlement already gone" (a prior
+  // purge attempt already retired it, or it expired on its own) -- either
+  // way nothing remains to clean up, which is this step's goal state.
+  if (response.status === 404) {
+    return { ok: true, status: 'already_retired' };
+  }
+
+  const retryable = response.status === 429 || response.status >= 500;
+  return {
+    ok: false,
+    status: retryable ? 'failed_retryable' : 'failed_terminal',
+    reason: `revenuecat_http_${response.status}`,
+    httpStatus: response.status,
+  };
+}

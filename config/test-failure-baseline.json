@@ -10,7 +10,6 @@
     "the real repo manifest and migration tree pass with zero violations",
     "parity: every governed file exists and matches its recorded hash",
     "parity: the generator agrees the committed manifest is current",
-    "USER_DATA_RESOURCES covers all user-linked tables in migrations",
     "edge source: production stage logs are present and do not leak sensitive data",
     "edge source: authenticated image scan checks DB quota before Gemini",
     "edge source: quota DB/RPC failure fails open and proceeds to Gemini",

@@ -16,6 +16,14 @@ import {
   STORAGE_RESOURCES,
   SHARED_ROOM_TRANSFER_POLICY,
 } from '../_shared/deletion/userDataResources.ts';
+import {
+  isBlockingAppleRevocationStatus,
+  requestAppleRevocation,
+} from '../_shared/deletion/appleRevocation.ts';
+import {
+  isBlockingRevenueCatCleanupStatus,
+  retireMirroredEntitlement,
+} from '../_shared/revenuecat/revenueCatClient.ts';
 
 /**
  * Internal protected worker for automatic account purges.
@@ -637,6 +645,22 @@ async function processClaimedRequest(
   }
   if (!(await heartbeat(requestId, workerId))) return { status: 'lost_lease' };
 
+  // P2-01 (Build 35 Patch 2) -- revoke the Sign in with Apple authorization
+  // before the Auth user (and its cascades, including apple_auth_credentials)
+  // are removed. Mirrors lib/account-deletion/processorCore.mjs's
+  // runHardDeletePipeline exactly: a settled status (revoked / already_gone /
+  // no_credential / unreadable) lets the purge continue; anything else
+  // (failed / not_configured / unrecognised) throws here, which the caller's
+  // existing catch routes into schedule_deletion_retry_or_fail -- the SAME
+  // durable retry/fail lifecycle every other purge-step error already uses.
+  // Nothing has been erased yet that a retry would need: this runs before the
+  // AUTH_DELETE_STARTED ledger transition and before the Auth delete itself.
+  const appleRevocation = await requestAppleRevocation(supabase, userId);
+  if (isBlockingAppleRevocationStatus(appleRevocation.status)) {
+    throw new Error(`apple_revocation_blocked:${appleRevocation.status}`);
+  }
+  if (!(await heartbeat(requestId, workerId))) return { status: 'lost_lease' };
+
   await rpc('append_deletion_state_transition', {
     p_request_id: requestId,
     p_subject_ref: subjectRef,
@@ -645,7 +669,7 @@ async function processClaimedRequest(
     p_actor_type: 'worker',
     p_actor_ref: workerId,
     p_reason_code: 'AUTH_DELETE_STARTED',
-    p_sanitized_metadata: { note: BACKOFF_NOTE },
+    p_sanitized_metadata: { note: BACKOFF_NOTE, appleAuthorizationRevocation: appleRevocation.status },
   });
 
   await revokeAllSessions(userId, null);
@@ -716,6 +740,24 @@ async function processClaimedRequest(
     );
   }
 
+  // KPLUS-P2-001 -- retire the RevenueCat K+ mirror now that the K Scan
+  // resources it shadowed are confirmed gone (user_entitlements cascaded
+  // above; the residual check just proved it). RevenueCat is never
+  // entitlement authority and this never gates on K+ status -- it only
+  // clears a promotional-entitlement mirror keyed by this same UUID so it
+  // cannot outlive the account it was granted to. appUserId is the DB-claimed
+  // userId this worker already resolved; nothing here accepts a client body.
+  //
+  // A blocking outcome throws into the SAME retry/dead-letter mechanism
+  // (schedule_deletion_retry_or_fail) as every other purge-step error. That
+  // is safe to re-run: every earlier step already tolerates an already-gone
+  // user (see auth_user_already_absent above), so a retry here repeats a
+  // no-op purge and simply retries this one call until it settles.
+  const revenueCatCleanup = await retireMirroredEntitlement({ appUserId: userId });
+  if (isBlockingRevenueCatCleanupStatus(revenueCatCleanup.status)) {
+    throw new Error(`revenuecat_cleanup_blocked:${revenueCatCleanup.status}`);
+  }
+
   const marked = await rpc('mark_deletion_request_purged', {
     p_request_id: requestId,
     p_worker_id: workerId,
@@ -733,6 +775,10 @@ async function processClaimedRequest(
     roomsTransferred: rooms.filter((r) => r.action === 'transfer').length,
     policy: SHARED_ROOM_TRANSFER_POLICY,
     coverageTables: coverage.length,
+    // Status word only -- never a token, code, or Apple response body.
+    appleAuthorizationRevocation: appleRevocation.status,
+    // Status word only -- never a RevenueCat customer/response body.
+    revenueCatCleanup: revenueCatCleanup.status,
   });
 
   return {
@@ -741,6 +787,8 @@ async function processClaimedRequest(
     rooms,
     storage,
     coverageCount: coverage.length,
+    appleAuthorizationRevocation: appleRevocation.status,
+    revenueCatCleanup: revenueCatCleanup.status,
   };
 }
 
