@@ -76,10 +76,22 @@ function createSwitchableClient(initialUserId) {
   };
 }
 
-function loadContentReports(mockClient) {
+/**
+ * CONVERGENCE #280 + #282. The Dressing Rooms deep audit partitioned
+ * services/ugcSafetyStore.ts by actor, so it now imports './actorScope'. This
+ * harness executes the real module, so it must supply that dependency or the
+ * store fails to load and every ELISE-001 assertion below silently stops
+ * running -- an actor-binding control that cannot execute is not a control.
+ *
+ * The SAME scope module the test binds reports with is threaded into the store,
+ * so the two modules agree on who the live actor is rather than disagreeing
+ * through two independent stubs.
+ */
+function loadContentReports(mockClient, actorScopeModule = createActorScopeStub().module) {
   const reportReasons = loadTsModule('constants/reportReasons.ts');
   const ugcSafetyStore = loadTsModule('services/ugcSafetyStore.ts', {
     '@react-native-async-storage/async-storage': { __esModule: true, default: {} },
+    './actorScope': actorScopeModule,
   });
   return loadTsModule('services/contentReports.ts', {
     './supabaseClient': { __esModule: true, supabase: mockClient },
@@ -116,9 +128,9 @@ function createActorScopeStub() {
 
 test('ELISE-001: a report bound to actor A is refused once actor B holds the session', async () => {
   const supa = createSwitchableClient(ACTOR_A);
-  const contentReports = loadContentReports(supa.client);
   const scope = createActorScopeStub();
   scope.setActor(ACTOR_A);
+  const contentReports = loadContentReports(supa.client, scope.module);
   const reportAiOutput = loadReportAiOutput(contentReports, scope.module);
 
   // Actor A opens the report sheet on their own Elise message.
@@ -174,9 +186,9 @@ test('ELISE-001: the live-session actor check refuses a mismatched expectedActor
 
 test('ELISE-001: the same actor still reports their own Elise message normally', async () => {
   const supa = createSwitchableClient(ACTOR_A);
-  const contentReports = loadContentReports(supa.client);
   const scope = createActorScopeStub();
   scope.setActor(ACTOR_A);
+  const contentReports = loadContentReports(supa.client, scope.module);
   const reportAiOutput = loadReportAiOutput(contentReports, scope.module);
 
   const bound = reportAiOutput.bindAiOutputReportRequest({
@@ -203,9 +215,9 @@ test('ELISE-001: the same actor still reports their own Elise message normally',
 
 test('ELISE-001: an A -> B -> A cycle is rejected by the epoch, not accepted by the id', async () => {
   const supa = createSwitchableClient(ACTOR_A);
-  const contentReports = loadContentReports(supa.client);
   const scope = createActorScopeStub();
   scope.setActor(ACTOR_A);
+  const contentReports = loadContentReports(supa.client, scope.module);
   const reportAiOutput = loadReportAiOutput(contentReports, scope.module);
 
   const bound = reportAiOutput.bindAiOutputReportRequest({
