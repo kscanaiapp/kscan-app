@@ -36,6 +36,10 @@ import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useVirtualTryOn } from '../../hooks/useVirtualTryOn';
 import { emitVtoEvent } from '../../services/vto/vtoTelemetry';
 import { emitKPlusEvent } from '../../services/kplus/kplusTelemetry';
+import {
+  resolveVtoProgress,
+  VTO_PROGRESS_STAGES,
+} from '../../services/vto/vtoProgressStages';
 import { VtoSilhouetteGuide } from './VtoSilhouetteGuide';
 import type { VtoGarmentInput, VtoOrigin } from '../../types/vto';
 
@@ -56,14 +60,9 @@ const PHOTO_GUIDANCE = [
   'Make sure the area the item would cover is visible.',
 ];
 
-/** Rotating status text while a generation runs. Deliberately NOT a
- *  percentage: we do not know how far along a provider is, and inventing a
- *  number that stalls at 90% is a worse experience than honest phrasing. */
-const GENERATING_STATUS = [
-  'Preparing your photo',
-  'Fitting the piece',
-  'Finishing the look',
-];
+/** How often the elapsed clock is re-read while generating. The stage model
+ *  is coarse (seconds, not frames), so 1s is ample and cheap. */
+const PROGRESS_TICK_MS = 1_000;
 
 export function VirtualTryOnSheet({
   visible,
@@ -77,7 +76,7 @@ export function VirtualTryOnSheet({
 }: VirtualTryOnSheetProps) {
   const vto = useVirtualTryOn({ garment, origin, devScenario });
   const reducedMotion = useReducedMotion();
-  const [statusIndex, setStatusIndex] = useState(0);
+  const [elapsedMs, setElapsedMs] = useState(0);
   const [showOriginal, setShowOriginal] = useState(false);
   const pulse = useRef(new Animated.Value(0.55)).current;
 
@@ -89,14 +88,19 @@ export function VirtualTryOnSheet({
     emitVtoEvent('vto_entry_impression', { origin });
   }, [visible, origin]);
 
+  // One clock for the whole preparing -> generating -> validating_result span,
+  // started when that span begins. The stage model consumes it; it is never
+  // used to decide that the generation FINISHED.
   useEffect(() => {
     if (!isGenerating) {
-      setStatusIndex(0);
+      setElapsedMs(0);
       return;
     }
+    const startedAt = Date.now();
+    setElapsedMs(0);
     const timer = setInterval(() => {
-      setStatusIndex((current) => (current + 1) % GENERATING_STATUS.length);
-    }, 2600);
+      setElapsedMs(Date.now() - startedAt);
+    }, PROGRESS_TICK_MS);
     return () => clearInterval(timer);
   }, [isGenerating]);
 
@@ -202,6 +206,11 @@ export function VirtualTryOnSheet({
     });
   }, [origin]);
 
+  // The stage shown is the LATER of the real status floor and the elapsed
+  // clock, and `complete` can only ever come from the store. See
+  // services/vto/vtoProgressStages.ts for the honesty rule.
+  const progress = resolveVtoProgress({ status: vto.status, elapsedMs });
+
   const comparisonAvailable = useMemo(
     () => vto.status === 'success' && !!vto.person?.sanitizedUri && !!vto.result,
     [vto.status, vto.person, vto.result],
@@ -266,18 +275,34 @@ export function VirtualTryOnSheet({
               </View>
             ) : null}
 
-            {isGenerating ? (
+            {progress.running ? (
               <View
                 style={styles.generatingBlock}
                 accessible
                 accessibilityRole="progressbar"
-                accessibilityLabel={GENERATING_STATUS[statusIndex]}
+                accessibilityLabel={`Step ${progress.index + 1} of ${progress.total}: ${progress.stage.label}`}
                 accessibilityLiveRegion="polite"
                 testID="vto-generating"
               >
                 <Animated.View style={[styles.pulse, { opacity: pulse }]} />
                 <ActivityIndicator size="large" color={LUXURY.colors.plum} />
-                <Text style={styles.generatingText}>{GENERATING_STATUS[statusIndex]}</Text>
+                <Text style={styles.generatingText}>{progress.stage.label}</Text>
+                {/* Named steps rather than a percentage: the provider reports no
+                    progress fraction, so a number would be invented. */}
+                <View style={styles.stepRow} accessible={false} importantForAccessibility="no">
+                  {VTO_PROGRESS_STAGES.map((stage, index) => (
+                    <View
+                      key={stage.key}
+                      style={[
+                        styles.stepDot,
+                        index <= progress.index ? styles.stepDotReached : null,
+                      ]}
+                    />
+                  ))}
+                </View>
+                <Text style={styles.stepCount}>
+                  {`STEP ${progress.index + 1} OF ${progress.total}`}
+                </Text>
               </View>
             ) : null}
 
@@ -478,6 +503,25 @@ const styles = StyleSheet.create({
   generatingText: {
     ...LUXURY.typography.body,
     marginTop: SPACING.md,
+  },
+  stepRow: {
+    flexDirection: 'row',
+    gap: SPACING.xs,
+    marginTop: SPACING.md,
+  },
+  stepDot: {
+    width: 28,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: LUXURY.colors.hairline,
+  },
+  stepDotReached: {
+    backgroundColor: LUXURY.colors.plum,
+  },
+  stepCount: {
+    ...LUXURY.typography.caption,
+    marginTop: SPACING.sm,
+    color: LUXURY.colors.stone,
   },
   resultBlock: {
     alignItems: 'center',
