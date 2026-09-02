@@ -68,6 +68,31 @@ const listeners = new Set<Listener>();
 /** Monotonic generation token. Incremented by every start, cancel, reset and
  *  actor transition, so anything issued before the bump is already stale. */
 let generation = 0;
+
+/**
+ * VTO-DUP-001. Monotonic INTENT sequence — the client half of the server's
+ * idempotency identity (vtoReservation.ts#buildVtoIdempotencyKey).
+ *
+ * This is deliberately NOT `generation` and no longer `retryCount`.
+ *
+ *   - `generation` changes on every start and cancel, so using it would give
+ *     two rapid taps two different keys and defeat duplicate suppression
+ *     entirely. That is why retryCount was chosen originally.
+ *   - `retryCount`, however, is reset to 0 by IDLE_VTO_SNAPSHOT whenever the
+ *     store moves to a new garment context. So the ordinary session
+ *     "try product A, look at product B, come back to A" replayed the exact
+ *     inputs of A's earlier key. The server saw a `succeeded` row for that key,
+ *     answered `duplicate`, and the user was shown
+ *     "You've reached the try-on limit for now." — a limit they had not
+ *     reached, for a generation that never ran.
+ *
+ * The sequence increments at every genuine INTENT boundary — a new photo, a
+ * new garment context, an explicit Retry — and NOT on a plain Generate tap. So
+ * two taps of one intent still collapse to one paid job, while every new
+ * intent is a new one. It is monotonic for the life of the process and reset
+ * only at the actor boundary, so it cannot walk backwards into a spent key.
+ */
+let intentSequence = 0;
 let activeController: AbortController | null = null;
 /** Cache derivatives owned by the operation currently in the store. Released
  *  whenever the store moves off them, so no person image outlives its use. */
@@ -107,6 +132,13 @@ function invalidate(): number {
   return generation;
 }
 
+/** Marks a NEW user intent. See intentSequence above for why this is a
+ *  different question from "a new request started". */
+function advanceIntent(): number {
+  intentSequence += 1;
+  return intentSequence;
+}
+
 function releaseOwnedMedia(): void {
   const uris = ownedUris;
   ownedUris = [];
@@ -124,6 +156,7 @@ function releaseOwnedMedia(): void {
  */
 export function resetVtoRequestState(): void {
   invalidate();
+  advanceIntent();
   releaseOwnedMedia();
   setSnapshot(IDLE_VTO_SNAPSHOT);
 }
@@ -132,6 +165,8 @@ export function resetVtoRequestState(): void {
  *  previous one. Selection alone starts nothing. */
 export function setVtoPersonInput(person: VtoPersonInput, garment: VtoGarmentInput, origin: VtoOrigin): void {
   invalidate();
+  // A different photo is a different intent, even for the same product.
+  advanceIntent();
   const previous = ownedUris;
   ownedUris = [person.sanitizedUri];
   if (previous.length > 0) void releaseVtoPersonInput(...previous);
@@ -201,6 +236,10 @@ export function attachSessionPerson(
   const current = snapshot;
   if (!current.person) return 'no_session';
   invalidate();
+  // VTO-DUP-001. A different garment context is a different intent. Without
+  // this, returning to a product already tried in this session rebuilt the
+  // exact key of the earlier attempt and was refused as a duplicate.
+  advanceIntent();
   setSnapshot({
     ...IDLE_VTO_SNAPSHOT,
     status: 'ready',
@@ -297,13 +336,11 @@ export async function startVtoGeneration(options: StartVtoOptions): Promise<void
     garment: options.garment,
     personDataUri: payload.dataUri,
     signal: controller.signal,
-    // VTO-QUOTA-001. The RETRY COUNT is the attempt generation, deliberately
-    // rather than the monotonic store token: the token changes on every start,
-    // cancel and reset, which would give two rapid taps two different keys and
-    // defeat the server's duplicate suppression. retryCount changes only when a
-    // person explicitly asks for another attempt, which is exactly the boundary
-    // the server's idempotency identity is meant to draw.
-    requestGeneration: String(current.retryCount),
+    // VTO-QUOTA-001 / VTO-DUP-001. The INTENT SEQUENCE is the attempt
+    // generation. See intentSequence above: neither the store token (changes
+    // per tap) nor retryCount (resets with every garment context) draws the
+    // boundary the server's idempotency identity needs.
+    requestGeneration: String(intentSequence),
     devScenario: options.devScenario,
   }).catch(() => null);
 
@@ -373,6 +410,9 @@ function applyFailure(
  *  person asked for it. */
 export async function retryVtoGeneration(options: StartVtoOptions): Promise<void> {
   const current = getVtoSnapshot();
+  // An explicit Retry is a new intent by definition -- that is the whole point
+  // of the affordance, and the server honours it as separately counted work.
+  advanceIntent();
   emitVtoEvent('vto_retry', { origin: options.origin, retryCount: current.retryCount + 1 });
   setSnapshot({ ...current, retryCount: current.retryCount + 1 });
   await startVtoGeneration(options);
@@ -380,6 +420,7 @@ export async function retryVtoGeneration(options: StartVtoOptions): Promise<void
 
 export const __vtoStoreInternals = {
   getGeneration: () => generation,
+  getIntentSequence: () => intentSequence,
   hasActiveController: () => activeController !== null,
   getOwnedUris: () => [...ownedUris],
 };

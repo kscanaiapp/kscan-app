@@ -78,16 +78,45 @@ const targets = requested.length > 0 ? requested : GOVERNED;
 const found = [];
 const missing = [];
 
+/**
+ * VTO-GATE-001. Discovery is RECURSIVE.
+ *
+ * It used to be a single readdirSync of each function's top level, which
+ * silently excluded every test in a subdirectory. `vto-generate/providers/`
+ * is exactly that case: aiLabToolsProvider.test.ts (the whole contract suite
+ * for the only real generation vendor) and mockProvider.test.ts were never
+ * executed by `npm run test:backend` at all, so their guards were asserted
+ * but never run by the gate that is supposed to enforce them.
+ *
+ * This is the same defect scripts/run-all-tests.js was rewritten to fix on
+ * the Node side -- see its header, which explains that a non-recursive
+ * pattern silently dropped `__tests__/glasses/`. The Node runner was
+ * repaired; this one kept the bug.
+ *
+ * `node_modules` is excluded for the same reason the Node runner excludes it.
+ */
+function walkForTests(dir) {
+  const out = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name === 'node_modules') continue;
+      out.push(...walkForTests(full));
+    } else if (entry.isFile() && entry.name.endsWith(TEST_SUFFIX)) {
+      out.push(full);
+    }
+  }
+  return out;
+}
+
 for (const name of targets) {
   const dir = path.join(FUNCTIONS_DIR, name);
   if (!fs.existsSync(dir)) {
     missing.push(name);
     continue;
   }
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-    if (entry.isFile() && entry.name.endsWith(TEST_SUFFIX)) {
-      found.push(path.relative(ROOT, path.join(dir, entry.name)));
-    }
+  for (const file of walkForTests(dir)) {
+    found.push(path.relative(ROOT, file));
   }
 }
 

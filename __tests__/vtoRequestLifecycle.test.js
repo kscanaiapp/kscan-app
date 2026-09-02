@@ -569,3 +569,112 @@ test('the request payload carries no identity field for the server to trust', as
     'requestGeneration must be a plain attempt counter, not an identifier',
   );
 });
+
+// ── VTO-DUP-001: an intent boundary is not a retry counter ───────────────────
+//
+// `requestGeneration` is the client's half of the server's idempotency
+// identity. It was `retryCount`, which IDLE_VTO_SNAPSHOT resets to 0 every time
+// the store moves to a new garment context -- so the ordinary session "try A,
+// look at B, come back to A" rebuilt the exact key of A's earlier attempt. The
+// server found a `succeeded` row, answered `duplicate`, and the person was told
+// "You've reached the try-on limit for now" for a limit they had not reached.
+
+const GARMENT_A = { ...GARMENT, productRef: 'prod_A', imageUrl: 'https://cdn.example.com/a.jpg' };
+const GARMENT_B = { ...GARMENT, productRef: 'prod_B', imageUrl: 'https://cdn.example.com/b.jpg' };
+
+async function generateOnce(h, garment) {
+  const run = h.store.startVtoGeneration({
+    garment, origin: 'commerce_product', generate: h.generate,
+  });
+  await flush();
+  const sent = h.pending[h.pending.length - 1];
+  sent.resolve(SUCCESS);
+  await run;
+  return String(sent.args.requestGeneration);
+}
+
+test('VTO-DUP-001: returning to a product tried earlier is a NEW intent', async () => {
+  const h = createHarness();
+  h.actorContext.advanceActorEpoch('user-a');
+  h.store.setVtoPersonInput(PERSON, GARMENT_A, 'commerce_product');
+
+  const first = await generateOnce(h, GARMENT_A);
+
+  // What hooks/useVirtualTryOn.ts does on mount when the sheet opens for a
+  // different product than the one the session photo is attached to.
+  h.store.attachSessionPerson(GARMENT_B, 'commerce_product');
+  await generateOnce(h, GARMENT_B);
+
+  h.store.attachSessionPerson(GARMENT_A, 'commerce_product');
+  const again = await generateOnce(h, GARMENT_A);
+
+  assert.notEqual(again, first, 'a new intent must not reuse a spent idempotency identity');
+});
+
+test('VTO-DUP-001: a different photo for the same product is a NEW intent', async () => {
+  const h = createHarness();
+  h.actorContext.advanceActorEpoch('user-a');
+  h.store.setVtoPersonInput(PERSON, GARMENT_A, 'commerce_product');
+  const first = await generateOnce(h, GARMENT_A);
+
+  h.store.setVtoPersonInput(
+    { ...PERSON, sanitizedUri: 'file:///cache/person-b.jpg' },
+    GARMENT_A,
+    'commerce_product',
+  );
+  const second = await generateOnce(h, GARMENT_A);
+  assert.notEqual(second, first);
+});
+
+test('VTO-DUP-001: an explicit Retry is a NEW intent', async () => {
+  const h = createHarness();
+  h.actorContext.advanceActorEpoch('user-a');
+  h.store.setVtoPersonInput(PERSON, GARMENT_A, 'commerce_product');
+  const first = await generateOnce(h, GARMENT_A);
+
+  const run = h.store.retryVtoGeneration({
+    garment: GARMENT_A, origin: 'commerce_product', generate: h.generate,
+  });
+  await flush();
+  const retryGeneration = String(h.pending[h.pending.length - 1].args.requestGeneration);
+  h.pending[h.pending.length - 1].resolve(SUCCESS);
+  await run;
+
+  assert.notEqual(retryGeneration, first);
+});
+
+test('VTO-DUP-001: two taps of ONE intent still share a key', async () => {
+  // The property the old design was protecting, and the reason the fix could
+  // not simply be "use the store's generation token". Two starts with no
+  // intervening intent boundary must present the SAME identity to the server,
+  // so the second collapses into the first rather than buying a second job.
+  const h = createHarness();
+  h.actorContext.advanceActorEpoch('user-a');
+  h.store.setVtoPersonInput(PERSON, GARMENT_A, 'commerce_product');
+
+  void h.store.startVtoGeneration(options(h, { garment: GARMENT_A }));
+  await flush();
+  void h.store.startVtoGeneration(options(h, { garment: GARMENT_A }));
+  await flush();
+
+  assert.equal(h.pending.length, 2, 'both taps reached the transport boundary');
+  assert.equal(
+    String(h.pending[0].args.requestGeneration),
+    String(h.pending[1].args.requestGeneration),
+    'two taps of one intent must not buy two generations',
+  );
+});
+
+test('VTO-DUP-001: the intent sequence never walks backwards', async () => {
+  const h = createHarness();
+  h.actorContext.advanceActorEpoch('user-a');
+  const seen = [];
+  for (const garment of [GARMENT_A, GARMENT_B, GARMENT_A, GARMENT_B]) {
+    if (h.store.getVtoSnapshot().person) h.store.attachSessionPerson(garment, 'commerce_product');
+    else h.store.setVtoPersonInput(PERSON, garment, 'commerce_product');
+    seen.push(Number(await generateOnce(h, garment)));
+  }
+  for (let i = 1; i < seen.length; i += 1) {
+    assert.ok(seen[i] > seen[i - 1], `intent ${seen[i]} must exceed ${seen[i - 1]}`);
+  }
+});

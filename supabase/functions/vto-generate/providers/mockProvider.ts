@@ -118,17 +118,22 @@ export function createMockVtoProvider(options: MockProviderOptions = {}): VtoPro
       // rejects a malformed request immediately, and the orchestrator's
       // error mapping should be exercised on that path too.
       if (!input.personDataUri.startsWith('data:image/')) {
-        return { ok: false, failure: 'provider_rejected_input', detail: 'person_not_image_data_uri' };
+        return {
+          ok: false, failure: 'provider_rejected_input', detail: 'person_not_image_data_uri', billable: false,
+        };
       }
       if (!input.garmentImageUrl.startsWith('https://')) {
-        return { ok: false, failure: 'invalid_garment_input', detail: 'garment_not_https' };
+        return { ok: false, failure: 'invalid_garment_input', detail: 'garment_not_https', billable: false };
       }
 
+      // VTO-QUOTA-003. These two model a gateway refusal BEFORE any work, so
+      // they are non-billable -- which is also what makes the mock able to
+      // exercise the orchestrator's release path at all.
       if (scenario === 'provider_unavailable') {
-        return { ok: false, failure: 'provider_unavailable', detail: 'mock_scenario' };
+        return { ok: false, failure: 'provider_unavailable', detail: 'mock_scenario', billable: false };
       }
       if (scenario === 'rate_limited') {
-        return { ok: false, failure: 'rate_limited', detail: 'mock_scenario' };
+        return { ok: false, failure: 'rate_limited', detail: 'mock_scenario', billable: false };
       }
 
       // Everything past here spends time, exactly like a generation call.

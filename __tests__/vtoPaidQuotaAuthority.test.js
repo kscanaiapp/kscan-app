@@ -132,16 +132,31 @@ test('an absent requestGeneration is omitted rather than sent as undefined', asy
   );
 });
 
-test('NEGATIVE CONTROL: the store passes its RETRY COUNT as the attempt generation', () => {
+test('NEGATIVE CONTROL: the store passes its INTENT SEQUENCE as the attempt generation', () => {
   const store = read('services/vto/vtoRequestStore.ts');
-  // The store token (`generation`) changes on every start/cancel/reset. Using it
-  // would give two rapid taps two different keys and defeat duplicate
-  // suppression -- the opposite defect. Only the retry count marks a deliberate
-  // new attempt, so that is what must be sent.
+  // UPDATED BY VTO-DUP-001 (Build 34 VTO deep audit). This test previously
+  // pinned `String(current.retryCount)`. That pin was protecting a real
+  // property -- the store token must not be used -- but it also froze a
+  // defect: retryCount is reset to 0 by IDLE_VTO_SNAPSHOT on every garment
+  // context change, so the ordinary session "try product A, look at B, come
+  // back to A" rebuilt the exact idempotency inputs of A's earlier attempt.
+  // The server answered `duplicate` and the person was told
+  // "You've reached the try-on limit for now" for a limit they had not
+  // reached. Proven in __tests__/vtoRequestLifecycle.test.js, which now covers
+  // the behaviour end to end rather than only its spelling.
+  //
+  // The property this control exists to defend is unchanged and still asserted
+  // below: NOT the per-tap store token. What replaced retryCount is a
+  // monotonic intent sequence that advances only at genuine intent boundaries.
   assert.match(
     store,
+    /requestGeneration:\s*String\(intentSequence\)/,
+    'vtoRequestStore must send the monotonic intent sequence as requestGeneration',
+  );
+  assert.doesNotMatch(
+    store,
     /requestGeneration:\s*String\(current\.retryCount\)/,
-    'vtoRequestStore must send the retry count as requestGeneration',
+    'retryCount resets per garment context and would replay a spent key',
   );
   assert.doesNotMatch(
     store,

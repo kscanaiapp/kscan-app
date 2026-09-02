@@ -502,3 +502,123 @@ Deno.test('the request id is echoed but is never trusted as an identifier', asyn
   // An over-long or malformed label is replaced, not echoed.
   assertEquals(body.requestId, 'unlabelled');
 });
+
+// ── VTO-QUOTA-003: a provider outage does not cost the user their day ────────
+//
+// The reservation is deliberately taken BEFORE the provider call, so a
+// reservation is a CLAIM on a paid generation, not evidence one occurred. The
+// handler previously settled every outcome the same way, which charged the
+// daily cap for RapidAPI 401/403 (the account-not-subscribed state the
+// AILabTools listing is in RIGHT NOW), 429, 5xx, and anything that failed
+// before the submit was sent.
+
+function settlementSpy() {
+  const settled: Array<{ how: 'complete' | 'release'; status?: string }> = [];
+  return {
+    settled,
+    completeVtoGeneration: (
+      _u: string, _k: string, status: 'succeeded' | 'failed',
+    ) => {
+      settled.push({ how: 'complete', status });
+      return Promise.resolve();
+    },
+    releaseVtoGeneration: () => {
+      settled.push({ how: 'release' });
+      return Promise.resolve();
+    },
+  };
+}
+
+Deno.test('VTO-QUOTA-003: a non-billable provider failure RELEASES the attempt', async () => {
+  for (const scenario of ['provider_unavailable', 'rate_limited'] as const) {
+    const spy = settlementSpy();
+    const response = await handleVtoRequest(
+      post(requestBody()),
+      deps({
+        resolveVtoProvider: () => ({
+          ok: true as const,
+          provider: createMockVtoProvider({ scenario, latencyMs: 0 }),
+        }),
+        completeVtoGeneration: spy.completeVtoGeneration,
+        releaseVtoGeneration: spy.releaseVtoGeneration,
+      }),
+    );
+    assertEquals(await failureCode(response), scenario);
+    assertEquals(spy.settled, [{ how: 'release' }], scenario);
+  }
+});
+
+Deno.test('VTO-QUOTA-003: a billable provider failure still COUNTS against the cap', async () => {
+  // The vendor accepted or ran the job. Refunding these would restore exactly
+  // the free unbounded-retry surface VTO-QUOTA-001 was written to close.
+  for (const scenario of ['rejected_input', 'moderation', 'invalid_output'] as const) {
+    const spy = settlementSpy();
+    await handleVtoRequest(
+      post(requestBody()),
+      deps({
+        resolveVtoProvider: () => ({
+          ok: true as const,
+          provider: createMockVtoProvider({ scenario, latencyMs: 0 }),
+        }),
+        completeVtoGeneration: spy.completeVtoGeneration,
+        releaseVtoGeneration: spy.releaseVtoGeneration,
+      }),
+    );
+    assertEquals(spy.settled, [{ how: 'complete', status: 'failed' }], scenario);
+  }
+});
+
+Deno.test('VTO-QUOTA-003: a timeout after submit is NOT refunded', async () => {
+  // The orchestrator cannot know whether a job that was accepted and then
+  // stopped responding was billed, so it must assume it was.
+  const spy = settlementSpy();
+  const response = await handleVtoRequest(
+    post(requestBody()),
+    deps({
+      resolveVtoProvider: () => ({
+        ok: true as const,
+        provider: createMockVtoProvider({ scenario: 'timeout', latencyMs: 0 }),
+      }),
+      generationTimeoutMs: 20,
+      completeVtoGeneration: spy.completeVtoGeneration,
+      releaseVtoGeneration: spy.releaseVtoGeneration,
+    }),
+  );
+  assertEquals(await failureCode(response), 'provider_timeout');
+  assertEquals(spy.settled, [{ how: 'complete', status: 'failed' }]);
+});
+
+Deno.test('VTO-QUOTA-003: a success is never released', async () => {
+  const spy = settlementSpy();
+  const response = await handleVtoRequest(
+    post(requestBody()),
+    deps({
+      completeVtoGeneration: spy.completeVtoGeneration,
+      releaseVtoGeneration: spy.releaseVtoGeneration,
+    }),
+  );
+  assertEquals(response.status, 200);
+  assertEquals(spy.settled, [{ how: 'complete', status: 'succeeded' }]);
+});
+
+Deno.test('VTO-QUOTA-003: an adapter that says nothing is treated as billable', async () => {
+  // The default direction matters: an adapter author who forgets the field
+  // must over-count, never under-count.
+  const spy = settlementSpy();
+  await handleVtoRequest(
+    post(requestBody()),
+    deps({
+      resolveVtoProvider: () => ({
+        ok: true as const,
+        provider: {
+          id: 'silent',
+          generate: () =>
+            Promise.resolve({ ok: false as const, failure: 'generation_failed' as const }),
+        },
+      }),
+      completeVtoGeneration: spy.completeVtoGeneration,
+      releaseVtoGeneration: spy.releaseVtoGeneration,
+    }),
+  );
+  assertEquals(spy.settled, [{ how: 'complete', status: 'failed' }]);
+});

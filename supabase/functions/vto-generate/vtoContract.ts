@@ -100,6 +100,23 @@ export type VtoProviderOutcome =
       /** Short, non-sensitive adapter note for server logs only. Never
        *  returned to a client and never a raw provider body. */
       detail?: string;
+      /**
+       * VTO-QUOTA-003. Did this failure happen on the paying side of the
+       * vendor boundary?
+       *
+       * `false` means the adapter can PROVE no generation was created -- it
+       * never sent the submit, or the submit was refused by the gateway
+       * (401/403/429/5xx) before any job existed. The orchestrator gives the
+       * user's daily attempt back in that case, because charging someone for
+       * an outage they did not cause is not a quota, it is a penalty.
+       *
+       * Absent or `true` means the vendor accepted or ran the job, so the
+       * attempt stays counted whatever K Scan thought of the answer. ABSENT
+       * DEFAULTS TO BILLABLE on purpose: an adapter that forgets to say
+       * over-counts, which is the safe direction -- the alternative is a free
+       * unbounded retry loop, which is what VTO-QUOTA-001 closed.
+       */
+      billable?: boolean;
     };
 
 export interface VtoProvider {

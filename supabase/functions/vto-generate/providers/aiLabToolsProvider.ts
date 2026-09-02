@@ -3,14 +3,22 @@
  * the already-provisioned RapidAPI account (`RAPIDAPI_KEY`, the same secret
  * `nike-shoe-details` and `kickscrew-sneaker-description` already use).
  *
- * PROVIDER STATE AT WRITE TIME: contract-complete, ACCOUNT NOT SUBSCRIBED.
- * An empirical probe against the live endpoint (2026-08-30, staging) returned
- * `403 {"message":"You are not subscribed to this API."}` — the key
- * authenticates against RapidAPI's gateway (proving the host/path/header
- * shape below is correct), but this specific marketplace listing has never
- * been subscribed on the account behind that key. Subscribing is an owner
- * action (RapidAPI dashboard), not something this adapter or this session
- * does. See docs/vto-provider-benchmark.md.
+ * PROVIDER STATE: ACTIVE AND BILLING. CORRECTED 2026-09-02 (VTO deep audit).
+ *
+ * This comment used to read "ACCOUNT NOT SUBSCRIBED", citing a
+ * `403 {"message":"You are not subscribed to this API."}` probe. That was true
+ * for part of one afternoon and went stale the same day: a re-check found the
+ * subscription ACTIVE, and a full real submit -> async task -> poll -> result
+ * round trip was run live against this listing, with real usage billed and the
+ * result served from `ailab-outputs.oss-accelerate.aliyuncs.com`. See
+ * docs/vto-provider-benchmark.md §3, which was rewritten at the time -- this
+ * file and providers/index.ts were not, and kept asserting the opposite.
+ *
+ * Why the correction matters more than tidiness: staging's
+ * `app_config.vto_generation` is `enabled: true` with
+ * `provider: 'ailabtools_tryon_clothes_pro'` RIGHT NOW. An engineer reading the
+ * old comment would conclude this path cannot possibly spend money. It can, and
+ * the first real client call will.
  *
  * Contract, empirically verified live (2026-08-30, staging, synthetic
  * non-personal test images) against `try-on-clothes-pro.p.rapidapi.com`:
@@ -46,6 +54,10 @@
  * docs that missed this note. That was wrong; both were corrected together.
  */
 
+import {
+  ALLOWED_MEDIA_CONTENT_TYPES,
+  assertSafeRemoteMediaUrl,
+} from '../../_shared/net/safeRemoteMedia.ts';
 import type {
   VtoProvider,
   VtoProviderInput,
@@ -88,6 +100,76 @@ function dataUriToBlob(dataUri: string): { blob: Blob; mediaType: string } | nul
   }
 }
 
+/**
+ * VTO-SSRF-001 / VTO-SSRF-002 — the ONLY way this adapter fetches remote bytes.
+ *
+ * DEFECT THIS REPLACES. The previous helper called `fetchImpl(url, {signal})`
+ * with no `redirect` option, so the runtime followed redirects transparently.
+ * Both of its call sites were therefore SSRF primitives:
+ *
+ *   - the GARMENT url is caller-supplied. vtoHandler validates it once with
+ *     assertSafeRemoteMediaUrl, but that check sees only the FIRST hop. A
+ *     public host that 302s to `http://169.254.169.254/…` (or any RFC1918
+ *     address) was followed, and the bytes were then uploaded to a paid third
+ *     party as `top_garment`. Proven by the regression test in
+ *     aiLabToolsProvider.test.ts.
+ *   - the RESULT url comes from the provider's own JSON, which this adapter is
+ *     not entitled to trust either (spec §29): a provider success is not a
+ *     licence to fetch whatever host it names.
+ *
+ * `resolveSafeRemoteMedia` in _shared/net already implements per-hop
+ * revalidation and had four passing tests -- and zero production callers. This
+ * follows the same rule at the point bytes are actually read, so one function
+ * closes both call sites:
+ *
+ *   1. every hop, including the first, must satisfy assertSafeRemoteMediaUrl;
+ *   2. redirects are followed MANUALLY and bounded;
+ *   3. the declared content type must be an image type we accept -- an HTML
+ *      error page is not a garment and must not be posted as one;
+ *   4. the body is read through a bounded reader, so a response that declares
+ *      no content-length cannot be streamed past the cap into memory.
+ */
+const MAX_MEDIA_REDIRECTS = 3;
+
+async function readBodyCapped(
+  response: Response,
+  maxBytes: number,
+): Promise<{ ok: true; bytes: Uint8Array<ArrayBuffer> } | { ok: false; reason: string }> {
+  const body = response.body;
+  if (!body) {
+    const buf = await response.arrayBuffer();
+    if (buf.byteLength > maxBytes) return { ok: false, reason: 'too_large' };
+    return { ok: true, bytes: new Uint8Array(buf) as Uint8Array<ArrayBuffer> };
+  }
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      total += value.byteLength;
+      // Stop reading the moment the cap is passed: a chunked response that
+      // declares no length must not be buffered in full before it is judged.
+      if (total > maxBytes) {
+        try { await reader.cancel(); } catch { /* already closed */ }
+        return { ok: false, reason: 'too_large' };
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return { ok: false, reason: 'fetch_error' };
+  }
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return { ok: true, bytes: out as Uint8Array<ArrayBuffer> };
+}
+
 async function fetchWithTimeoutAndCap(
   url: string,
   timeoutMs: number,
@@ -100,19 +182,57 @@ async function fetchWithTimeoutAndCap(
   outerSignal.addEventListener('abort', onOuterAbort, { once: true });
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetchImpl(url, { signal: controller.signal });
-    if (!response.ok) return { ok: false, reason: `http_${response.status}` };
-    const contentLength = response.headers.get('content-length');
-    if (contentLength && Number(contentLength) > maxBytes) {
-      return { ok: false, reason: 'too_large' };
+    const first = assertSafeRemoteMediaUrl(url);
+    if (!first.ok) return { ok: false, reason: `unsafe_${first.reason}` };
+    let current = first.url;
+
+    for (let hop = 0; hop <= MAX_MEDIA_REDIRECTS; hop += 1) {
+      let response: Response;
+      try {
+        response = await fetchImpl(current, {
+          // Manual, so a redirect target is revalidated here rather than
+          // followed blindly by the runtime.
+          redirect: 'manual',
+          signal: controller.signal,
+        });
+      } catch (err) {
+        const aborted = err instanceof DOMException && err.name === 'AbortError';
+        return { ok: false, reason: aborted ? 'timeout' : 'fetch_error' };
+      }
+
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get('location');
+        if (!location) return { ok: false, reason: 'redirect_without_location' };
+        let next: string;
+        try {
+          next = new URL(location, current).toString();
+        } catch {
+          return { ok: false, reason: 'unsafe_not_a_url' };
+        }
+        const checked = assertSafeRemoteMediaUrl(next);
+        // A redirect that escapes to a prohibited host is REJECTED, not followed.
+        if (!checked.ok) return { ok: false, reason: `unsafe_${checked.reason}` };
+        current = checked.url;
+        continue;
+      }
+
+      if (!response.ok) return { ok: false, reason: `http_${response.status}` };
+
+      const mediaType = response.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase()
+        || '';
+      if (!(ALLOWED_MEDIA_CONTENT_TYPES as readonly string[]).includes(mediaType)) {
+        return { ok: false, reason: 'content_type_not_allowed' };
+      }
+      const contentLength = response.headers.get('content-length');
+      if (contentLength && Number(contentLength) > maxBytes) {
+        return { ok: false, reason: 'too_large' };
+      }
+      const read = await readBodyCapped(response, maxBytes);
+      if (!read.ok) return { ok: false, reason: read.reason };
+      return { ok: true, bytes: read.bytes, mediaType };
     }
-    const buf = await response.arrayBuffer();
-    if (buf.byteLength > maxBytes) return { ok: false, reason: 'too_large' };
-    const mediaType = response.headers.get('content-type')?.split(';')[0]?.trim() || 'image/jpeg';
-    return { ok: true, bytes: new Uint8Array(buf) as Uint8Array<ArrayBuffer>, mediaType };
-  } catch (err) {
-    const aborted = err instanceof DOMException && err.name === 'AbortError';
-    return { ok: false, reason: aborted ? 'timeout' : 'fetch_error' };
+
+    return { ok: false, reason: 'too_many_redirects' };
   } finally {
     clearTimeout(timer);
     outerSignal.removeEventListener('abort', onOuterAbort);
@@ -152,15 +272,29 @@ export interface AiLabToolsAdapterOptions {
   pollMaxAttempts?: number;
 }
 
+/**
+ * VTO-QUOTA-003. `billable` on the gateway refusals below is not a guess.
+ *
+ * 401/403 is RapidAPI's own auth/subscription refusal -- the empirical probe
+ * that produced "You are not subscribed to this API." never created a task.
+ * 429 is the gateway's rate limiter, and 5xx is an upstream outage. In none of
+ * those does an AILabTools generation exist, so none of them may cost the user
+ * an attempt. A 4xx that is NOT one of those means the vendor looked at the
+ * request and rejected it, which is left billable.
+ */
 function mapSubmitFailure(httpStatus: number, body: unknown): VtoProviderOutcome & { ok: false } {
   if (httpStatus === 401 || httpStatus === 403) {
-    return { ok: false, failure: 'provider_unavailable', detail: `submit_http_${httpStatus}` };
+    return {
+      ok: false, failure: 'provider_unavailable', detail: `submit_http_${httpStatus}`, billable: false,
+    };
   }
   if (httpStatus === 429) {
-    return { ok: false, failure: 'rate_limited', detail: 'submit_http_429' };
+    return { ok: false, failure: 'rate_limited', detail: 'submit_http_429', billable: false };
   }
   if (httpStatus >= 500) {
-    return { ok: false, failure: 'provider_unavailable', detail: `submit_http_${httpStatus}` };
+    return {
+      ok: false, failure: 'provider_unavailable', detail: `submit_http_${httpStatus}`, billable: false,
+    };
   }
   const message =
     typeof (body as Record<string, unknown> | null)?.error_msg === 'string'
@@ -184,12 +318,15 @@ export function createAiLabToolsProvider(options: AiLabToolsAdapterOptions): Vto
     async generate(input: VtoProviderInput, { signal }: { signal: AbortSignal }): Promise<VtoProviderOutcome> {
       const unsupported = unsupportedSlotReason(input.slot);
       if (unsupported) {
-        return { ok: false, failure: 'unsupported_category', detail: unsupported };
+        // Refused before any network call: nothing was bought.
+        return { ok: false, failure: 'unsupported_category', detail: unsupported, billable: false };
       }
 
       const person = dataUriToBlob(input.personDataUri);
       if (!person) {
-        return { ok: false, failure: 'invalid_person_input', detail: 'person_data_uri_undecodable' };
+        return {
+          ok: false, failure: 'invalid_person_input', detail: 'person_data_uri_undecodable', billable: false,
+        };
       }
 
       const garment = await fetchWithTimeoutAndCap(
@@ -200,7 +337,10 @@ export function createAiLabToolsProvider(options: AiLabToolsAdapterOptions): Vto
         doFetch,
       );
       if (!garment.ok) {
-        return { ok: false, failure: 'invalid_garment_input', detail: `garment_fetch_${garment.reason}` };
+        // The garment never resolved, so the submit was never sent.
+        return {
+          ok: false, failure: 'invalid_garment_input', detail: `garment_fetch_${garment.reason}`, billable: false,
+        };
       }
 
       const form = new FormData();
@@ -222,10 +362,12 @@ export function createAiLabToolsProvider(options: AiLabToolsAdapterOptions): Vto
         });
       } catch (err) {
         const aborted = err instanceof DOMException && err.name === 'AbortError';
+        // The submit request itself threw: the vendor never received a job.
         return {
           ok: false,
           failure: aborted ? 'cancelled' : 'network_failure',
           detail: aborted ? 'submit_aborted' : 'submit_fetch_threw',
+          billable: false,
         };
       }
 

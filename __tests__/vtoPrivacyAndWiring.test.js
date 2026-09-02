@@ -433,6 +433,85 @@ test('a try-on writes no Closet, purchase, or style-preference record', () => {
   }
 });
 
+/**
+ * VTO-NC-010. The test above is a DENYLIST of six module-name substrings, and a
+ * denylist over a repo with ~30 Closet modules names the ones somebody happened
+ * to think of. `services/ownedClosetItems.ts` -- the one whose entire subject is
+ * ownership -- was not among them, and neither were closetLibrary,
+ * closetPromotion or privateSavedLookStore.
+ *
+ * The Build 34 VTO deep audit ran the ownership mutation the spec asks for
+ * (write an owned Closet item on a successful generation) and the suite stayed
+ * GREEN. So the invariant "a try-on is evidence, not ownership" was documented,
+ * asserted, and unenforced.
+ *
+ * This is the enforcing version: an ALLOWLIST. Every module a VTO surface
+ * imports is listed here, so ANY new dependency -- a Closet writer, a purchase
+ * recorder, a style-signal emitter, or something nobody has written yet --
+ * fails this test until a person deliberately adds it and says why.
+ */
+const VTO_ALLOWED_IMPORTS = {
+  'services/vto/vtoRequestStore.ts': [
+    '../../types/vto', '../actorContext', './vtoClient', './vtoEligibility',
+    './vtoFailures', './vtoPersonInput', './vtoTelemetry',
+  ],
+  'services/vto/vtoClient.ts': [
+    '../../types/vto', '../authenticatedFunctionSession', '../supabaseClient', './vtoFailures',
+  ],
+  'services/vto/vtoPersonInput.ts': [
+    '../../types/vto', '../privacyImageUpload', 'expo-image-picker',
+  ],
+  'hooks/useVirtualTryOn.ts': [
+    '../services/vto/vtoPersonInput', '../services/vto/vtoRequestStore', '../types/vto', 'react',
+  ],
+  'components/vto/VirtualTryOnSheet.tsx': [
+    '../../constants/theme', '../../hooks/useReducedMotion', '../../hooks/useVirtualTryOn',
+    '../../services/haptics', '../../services/kplus/kplusTelemetry',
+    '../../services/responsiveLayout', '../../services/vto/vtoTelemetry',
+    '../../types/vto', '../luxury', 'react', 'react-native',
+  ],
+  'components/vto/TryItOnEntry.tsx': [
+    '../../constants/theme', '../../hooks/useVtoAvailability', '../../services/haptics',
+    '../../types/vto', '../kplus/KPlusGate', './VirtualTryOnSheet', 'react', 'react-native',
+  ],
+};
+
+test('VTO-NC-010: no VTO surface may acquire a dependency nobody approved', () => {
+  for (const [file, allowed] of Object.entries(VTO_ALLOWED_IMPORTS)) {
+    const source = read(file);
+    const imported = [
+      ...new Set([...source.matchAll(/from\s+'([^']+)'/g)].map((m) => m[1])),
+    ].sort();
+    assert.deepEqual(
+      imported,
+      [...allowed].sort(),
+      `${file} imports changed. A try-on is evidence, not ownership: if this is a `
+        + 'deliberate new dependency, add it here and say why in the commit.',
+    );
+  }
+});
+
+test('VTO-NC-010: a successful generation reaches no ownership or persistence call', () => {
+  // The import allowlist above is the structural guard. This is the call-shape
+  // one, so a write smuggled in through an already-allowed module (or through a
+  // global) is caught too.
+  const forbiddenCalls = [
+    /addClosetItem/, /markOwned/, /setOwned/, /promoteToCloset/, /saveToCloset/,
+    /recordPurchase/, /saveLook/, /createLook/, /upsertStyleObject/,
+    /recordStyleMemory/, /AsyncStorage/, /\.from\(\s*['"]user_closet_items/,
+    /\.from\(\s*['"]saved_scans/, /\.storage\s*\./,
+  ];
+  for (const file of Object.keys(VTO_ALLOWED_IMPORTS)) {
+    const source = read(file);
+    for (const pattern of forbiddenCalls) {
+      assert.ok(
+        !pattern.test(source),
+        `${file} must not call ${pattern} -- a try-on is not an acquisition`,
+      );
+    }
+  }
+});
+
 test('the entry point renders through the shared K+ gate, not a VTO paywall', () => {
   const entry = code('components/vto/TryItOnEntry.tsx');
   assert.ok(entry.includes('KPlusGate'), 'the one shared K+ surface');

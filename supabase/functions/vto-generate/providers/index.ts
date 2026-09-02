@@ -14,15 +14,14 @@
  *   3. return media as a data URI so the orchestrator's validation seam and
  *      the ephemeral-media posture apply uniformly.
  *
- * `ailabtools_tryon_clothes_pro` (Build Prompt 02) is registered here but is
- * NOT reachable in practice: `RAPIDAPI_KEY` exists as a secret (shared with
- * nike-shoe-details / kickscrew-sneaker-description), but that RapidAPI
- * account has never been subscribed to this specific marketplace listing --
- * confirmed by an empirical 403 "You are not subscribed to this API." probe
- * against the live endpoint (2026-08-30, staging). Selecting it in
- * app_config.vto_generation.provider today will fail every request with
- * `provider_unavailable` until an owner subscribes the account on the
- * RapidAPI dashboard. See docs/vto-provider-benchmark.md.
+ * `ailabtools_tryon_clothes_pro` is registered here and IS REACHABLE AND
+ * BILLING. Corrected 2026-09-02 (VTO deep audit): this comment previously said
+ * the account "has never been subscribed" and that selecting it "will fail
+ * every request with provider_unavailable". Both were true for part of
+ * 2026-08-30 and stale by the end of it -- a live submit/poll/result round trip
+ * succeeded against this listing with real billed usage
+ * (docs/vto-provider-benchmark.md §3). Staging's app_config already names this
+ * provider with `enabled: true`, so the next real client call spends money.
  */
 
 import type { VtoProvider } from '../vtoContract.ts';
@@ -55,6 +54,23 @@ export type ResolveProviderOutcome =
  */
 export function resolveVtoProvider(selection: ProviderSelection): ResolveProviderOutcome {
   if (selection.providerId === MOCK_VTO_PROVIDER_ID) {
+    // VTO-MOCK-001. The mock needs a DEPLOYMENT PERMISSION, exactly as the real
+    // adapter needs a credential.
+    //
+    // The pre-existing guard was "an operator must name the mock explicitly" --
+    // and 20260830160000_vto_feature_control.sql SEEDS `"provider": "mock"` into
+    // app_config in every environment it is applied to. So in any environment
+    // that had never been retuned, enabling VTO was a ONE-FIELD flip
+    // (`enabled: true`) away from serving the placeholder vignette to a real
+    // person, labelled "AI VISUALIZATION", against their own K+ quota. "Named
+    // explicitly" was satisfied by a default nobody chose.
+    //
+    // Fails closed: absent or non-'true' means the mock is simply not a
+    // provider this deployment has, which resolveVtoProvider already reports as
+    // `provider_unavailable` -- a visible 503, never a silent substitution.
+    if (Deno.env.get('VTO_ALLOW_MOCK_PROVIDER') !== 'true') {
+      return { ok: false, reason: 'provider_unavailable' };
+    }
     return {
       ok: true,
       provider: createMockVtoProvider({
