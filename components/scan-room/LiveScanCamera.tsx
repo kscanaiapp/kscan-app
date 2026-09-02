@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { ScanButton } from '../ScanButton';
 import { ScanRoomHeader } from './ScanRoomHeader';
@@ -22,6 +23,7 @@ import {
   isPrivateImageUploadAvailable,
   PRIVATE_IMAGE_UPLOAD_UNAVAILABLE_MESSAGE,
 } from '../../services/privacyImageUpload';
+import { computeScanRoomViewfinderSize } from '../../services/scanRoomViewfinderLayout';
 
 interface LiveScanCameraProps {
   cameraRef: React.RefObject<any>;
@@ -62,12 +64,27 @@ export function LiveScanCamera({
   textScanEnabled = false,
   testID,
 }: LiveScanCameraProps) {
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const uploadAvailable = isPrivateImageUploadAvailable();
 
-  const viewfinderWidth = Math.min(screenWidth - SPACING.xl * 2, 420);
-  const viewfinderHeight = viewfinderWidth * 1.25; // 4:5
+  // Width-only sizing (Build 34) could produce a viewfinder taller than the
+  // room left for the header, instruction card, capture button and
+  // secondary controls on a short-height window -- landscape rotation is
+  // unrestricted on Android and this screen is not scrollable. This
+  // constrains the viewfinder by whichever of width or height is tighter;
+  // see services/scanRoomViewfinderLayout.js for the full budget.
+  const {
+    width: viewfinderWidth,
+    height: viewfinderHeight,
+    showInstructions,
+  } = computeScanRoomViewfinderSize({
+    windowWidth: screenWidth,
+    windowHeight: screenHeight,
+    insetTop: insets.top,
+    insetBottom: insets.bottom,
+  });
 
   const homeButton = onHome ? (
     <Pressable
@@ -144,13 +161,17 @@ export function LiveScanCamera({
         </View>
       </View>
 
-      {/* Instruction card */}
-      <View style={styles.instructionCard}>
-        <Text style={styles.instructionTitle}>Frame the item</Text>
-        <Text style={styles.instructionBody}>
-          Center the full piece for best results. Avoid faces and keep the item well-lit.
-        </Text>
-      </View>
+      {/* Instruction card -- dropped on a height-constrained window so the
+          capture button below stays reachable; see
+          services/scanRoomViewfinderLayout.js. */}
+      {showInstructions ? (
+        <View style={styles.instructionCard} testID="scan-room-instruction-card">
+          <Text style={styles.instructionTitle}>Frame the item</Text>
+          <Text style={styles.instructionBody}>
+            Center the full piece for best results. Avoid faces and keep the item well-lit.
+          </Text>
+        </View>
+      ) : null}
 
       {/* Controls */}
       <View style={styles.controls}>

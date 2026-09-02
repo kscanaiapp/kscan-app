@@ -4,7 +4,7 @@
 // controls (master build brief §47). Watching ≠ owning, so this is
 // deliberately not a third `library.tsx` section — it is its own route.
 import React from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { goBackOrHome } from '../../services/navigationExit';
@@ -112,11 +112,20 @@ export default function WatchlistHomeScreen() {
           />
         </View>
       ) : (
-        <View style={styles.list} testID="watchlist-list">
+        // LuxuryScreen keeps scrollable={false} so the header and the
+        // refreshing/error banners above stay pinned (matching Looks and
+        // Dressing Rooms); this ScrollView owns the row list itself, so a
+        // watchlist longer than one screenful stays reachable.
+        <ScrollView
+          style={styles.listScroll}
+          contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
+          testID="watchlist-list"
+        >
           {watches.map((watch) => (
             <WatchRow key={watch.id} watch={watch} />
           ))}
-        </View>
+        </ScrollView>
       )}
     </LuxuryScreen>
   );
@@ -144,9 +153,12 @@ const styles = StyleSheet.create({
     ...TYPOGRAPHY.caption,
     color: LUXURY.colors.plumMuted,
   },
-  list: {
+  listScroll: {
     flex: 1,
+  },
+  list: {
     paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.xxxl,
     gap: SPACING.sm,
   },
   row: {
