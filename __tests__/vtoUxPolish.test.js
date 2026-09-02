@@ -372,3 +372,109 @@ test('save: the saved item reuses an existing Dressing Room source kind', () => 
   });
   assert.equal(contract.mapLegacySourceKind('upload_inspiration'), 'inspiration_item');
 });
+
+// ── Task 5: the result is framed as inspiration, never as a fit answer ─────
+
+test('disclaimer: the sizing copy is present and complete under the result', () => {
+  const sheet = code('components/vto/VirtualTryOnSheet.tsx');
+  const lead = sheet.match(/const DISCLAIMER_LEAD = '([^']+)'/);
+  const link = sheet.match(/const DISCLAIMER_LINK = '([^']+)'/);
+  const tail = sheet.match(/const DISCLAIMER_TAIL = '([^']+)'/);
+  assert.ok(lead && link && tail, 'the three copy fragments must exist');
+  assert.equal(
+    `${lead[1]}${link[1]}${tail[1]}`,
+    'AI-generated visualization for inspiration only. Check the size guide for your exact fit.',
+  );
+  // It must render in the result block, not somewhere the user never reaches.
+  assert.match(sheet, /testID="vto-size-disclaimer"/);
+});
+
+test('disclaimer: the link appears only when a size guide URL actually exists', () => {
+  // A dead "size guide" link is worse than plain text: it promises a
+  // destination the product does not have.
+  const sheet = code('components/vto/VirtualTryOnSheet.tsx');
+  assert.match(
+    sheet,
+    /\{sizeGuideUrl \? \([\s\S]*?accessibilityRole="link"[\s\S]*?\) : \(\s*DISCLAIMER_LINK\s*\)\}/,
+    'the same sentence must render as plain text without a URL',
+  );
+});
+
+test('disclaimer: a retailer-supplied URL goes through the shared safety guard', () => {
+  // The URL originates in third-party commerce JSON. Handing it straight to
+  // Linking would let upstream choose the scheme as well as the destination.
+  const sheet = code('components/vto/VirtualTryOnSheet.tsx');
+  assert.match(sheet, /import \{ openExternalUrl \}/);
+  assert.match(sheet, /await openExternalUrl\(sizeGuideUrl\)/);
+  assert.ok(
+    !/Linking\.openURL/.test(sheet),
+    'the sheet must not call Linking directly',
+  );
+});
+
+test('disclaimer: sizing stays presentational and never becomes a provider input', () => {
+  // types/vto.ts is parity-checked against the Edge Function contract. A
+  // size-guide field there would drift the two halves and, worse, imply VTO
+  // reasons about fit.
+  const types = read('types/vto.ts');
+  assert.ok(!/sizeGuideUrl/.test(types), 'the provider contract must not carry it');
+  const sheet = code('components/vto/VirtualTryOnSheet.tsx');
+  assert.match(sheet, /sizeGuideUrl\?: string \| null;/, 'it is a component prop');
+  assert.match(
+    code('components/vto/TryItOnEntry.tsx'),
+    /sizeGuideUrl=\{sizeGuideUrl\}/,
+    'passed straight through, not derived',
+  );
+});
+
+test('disclaimer: no VTO surface claims to know the user\'s size', () => {
+  for (const file of [
+    'components/vto/VirtualTryOnSheet.tsx',
+    'components/vto/VtoSaveToDressingRoom.tsx',
+    'components/vto/VtoSilhouetteGuide.tsx',
+    'services/vto/vtoProgressStages.ts',
+  ]) {
+    const source = read(file).toLowerCase();
+    for (const forbidden of ['recommendedsize', 'sizerecommendation', 'your size is', 'true to size', 'measurement']) {
+      assert.ok(!source.includes(forbidden), `${file} must not claim: ${forbidden}`);
+    }
+  }
+});
+
+// ── Task 1: the framing guide is guidance, not gatekeeping ─────────────────
+
+test('silhouette: the guide renders before a photo is chosen', () => {
+  const sheet = code('components/vto/VirtualTryOnSheet.tsx');
+  const guidance = sheet.match(/\{!vto\.person && !isGenerating && vto\.status !== 'success' \? \([\s\S]*?<\/View>/);
+  assert.ok(guidance, 'the pre-selection block must exist');
+  assert.ok(
+    guidance[0].includes('<VtoSilhouetteGuide />'),
+    'the guide belongs in the pre-selection state, before the picker opens',
+  );
+});
+
+test('silhouette: it is a drawing, not a detector', () => {
+  // Shipping real pose estimation was explicitly out of scope; this pins that
+  // the overlay never grew into a gate that can refuse someone's photo.
+  const guide = code('components/vto/VtoSilhouetteGuide.tsx');
+  for (const forbidden of [
+    'poseDetection',
+    'detectPose',
+    'FaceDetector',
+    'MLKit',
+    'tensorflow',
+    'useCameraDevice',
+    'Camera',
+  ]) {
+    assert.ok(!guide.includes(forbidden), `the guide must not use ${forbidden}`);
+  }
+  assert.ok(!guide.includes('disabled'), 'it must not gate any control');
+});
+
+test('silhouette: the helper text is the documented nudge', () => {
+  const guideModule = read('components/vto/VtoSilhouetteGuide.tsx');
+  assert.ok(
+    guideModule.includes("'Stand back and face the camera for the best result.'"),
+    'the copy that actually moves input quality',
+  );
+});

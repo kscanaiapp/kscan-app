@@ -32,6 +32,8 @@ export interface TryItOnEntryProps {
   garmentTitle: string;
   origin?: VtoOrigin;
   onShop?: () => void;
+  /** Retailer size-guide page, when Commerce has one. Presentation only. */
+  sizeGuideUrl?: string | null;
   devScenario?: string;
   testID?: string;
 }
@@ -41,6 +43,7 @@ export function TryItOnEntry({
   garmentTitle,
   origin = 'commerce_product',
   onShop,
+  sizeGuideUrl,
   devScenario,
   testID,
 }: TryItOnEntryProps) {
@@ -129,6 +132,7 @@ export function TryItOnEntry({
           garmentTitle={garmentTitle}
           origin={origin}
           onShop={onShop}
+          sizeGuideUrl={sizeGuideUrl}
           devScenario={devScenario}
         />
       ) : null}

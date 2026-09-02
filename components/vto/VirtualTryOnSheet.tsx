@@ -33,6 +33,7 @@ import { InlineNotice, PrimaryButton, SecondaryButton, TertiaryButton } from '..
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { MODAL_MAX_WIDTH } from '../../services/responsiveLayout';
 import { selectionTick, successPulse, warningPulse } from '../../services/haptics';
+import { openExternalUrl } from '../../services/openExternalUrl';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useVirtualTryOn } from '../../hooks/useVirtualTryOn';
 import { emitVtoEvent } from '../../services/vto/vtoTelemetry';
@@ -60,6 +61,13 @@ export interface VirtualTryOnSheetProps {
    * generation down, which is the whole thing minimize exists to avoid.
    */
   onMinimize?: () => void;
+  /**
+   * Retailer size-guide page for this product, when Commerce has one.
+   * PRESENTATION ONLY -- deliberately not a field on VtoGarmentInput, which is
+   * the provider-facing contract and is parity-checked against the Edge
+   * Function. A try-on must never become a sizing input.
+   */
+  sizeGuideUrl?: string | null;
   devScenario?: string;
   testID?: string;
 }
@@ -73,6 +81,16 @@ const PHOTO_GUIDANCE = [
  *  is coarse (seconds, not frames), so 1s is ample and cheap. */
 const PROGRESS_TICK_MS = 1_000;
 
+/** Shown under every result. VTO visualizes; it never predicts fit, so the
+ *  disclaimer sends people to the retailer's own sizing information rather
+ *  than implying the picture answers that question. */
+const DISCLAIMER_LEAD = 'AI-generated visualization for inspiration only. Check the ';
+const DISCLAIMER_LINK = 'size guide';
+const DISCLAIMER_TAIL = ' for your exact fit.';
+
+const SIZE_GUIDE_UNAVAILABLE =
+  'This size guide could not be opened right now.';
+
 /** Downward drag (px) past which the grabber collapses the sheet. */
 const MINIMIZE_SWIPE_THRESHOLD = 60;
 
@@ -84,6 +102,7 @@ export function VirtualTryOnSheet({
   origin,
   onShop,
   onMinimize,
+  sizeGuideUrl,
   devScenario,
   testID,
 }: VirtualTryOnSheetProps) {
@@ -246,6 +265,14 @@ export function VirtualTryOnSheet({
     vto.clearPerson();
   }, [vto]);
 
+  // The URL is retailer-supplied, so it goes through the shared guard
+  // (https only, no credentials, no private hosts) rather than Linking direct.
+  const handleOpenSizeGuide = useCallback(async () => {
+    selectionTick();
+    const opened = await openExternalUrl(sizeGuideUrl);
+    if (!opened) Alert.alert('Size guide unavailable', SIZE_GUIDE_UNAVAILABLE, [{ text: 'OK' }]);
+  }, [sizeGuideUrl]);
+
   const handleToggleCompare = useCallback(() => {
     selectionTick();
     setShowOriginal((current) => {
@@ -318,6 +345,30 @@ export function VirtualTryOnSheet({
                 />
                 <Text style={styles.aiLabel}>
                   AI VISUALIZATION — NOT A PHOTO, AND NOT A FIT PREDICTION
+                </Text>
+                {/* Sizing is the single most common misreading of a try-on:
+                    the picture shows how a piece might look, never whether it
+                    fits. The link is rendered only when Commerce actually
+                    supplied a size guide; otherwise the same sentence reads
+                    as plain text rather than a dead link. */}
+                <Text style={styles.disclaimer} testID="vto-size-disclaimer">
+                  {DISCLAIMER_LEAD}
+                  {sizeGuideUrl ? (
+                    <Text
+                      style={styles.disclaimerLink}
+                      onPress={() => {
+                        void handleOpenSizeGuide();
+                      }}
+                      accessibilityRole="link"
+                      accessibilityHint="Opens the retailer size guide"
+                      testID="vto-size-guide-link"
+                    >
+                      {DISCLAIMER_LINK}
+                    </Text>
+                  ) : (
+                    DISCLAIMER_LINK
+                  )}
+                  {DISCLAIMER_TAIL}
                 </Text>
                 {/* The ONE durable path out of a session-scoped result, and
                     only on an explicit tap. Quarantined in its own component
@@ -629,6 +680,19 @@ const styles = StyleSheet.create({
     ...LUXURY.typography.caption,
     marginTop: SPACING.sm,
     textAlign: 'center',
+  },
+  disclaimer: {
+    ...LUXURY.typography.caption,
+    marginTop: SPACING.sm,
+    textAlign: 'center',
+    textTransform: 'none',
+    letterSpacing: 0.2,
+    lineHeight: 18,
+    color: LUXURY.colors.stone,
+  },
+  disclaimerLink: {
+    color: LUXURY.colors.plum,
+    textDecorationLine: 'underline',
   },
   compareToggle: {
     marginTop: SPACING.sm,
