@@ -455,7 +455,22 @@ jobs:
           set -euo pipefail
           START_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           echo "start_time=${START_TIME}" >> "$GITHUB_OUTPUT"
-          VERSION="$(osv-scanner --version | head -n 1)"
+          # CI-OSV-001: `osv-scanner --version | head -n 1` is a SIGPIPE race under
+          # `pipefail`. osv-scanner prints its version banner as several separate
+          # lines/writes; `head -n 1` reads the first, then closes its end of the
+          # pipe and exits. If osv-scanner is still writing a later line when that
+          # happens, it is killed by SIGPIPE (128+13=141), and pipefail promotes
+          # that 141 into this pipeline's exit status even though `head` itself
+          # succeeded. Proven on this exact commit: the push-triggered run of this
+          # workflow failed here with "Process completed with exit code 141" before
+          # any later line of this script had run, while the pull_request-triggered
+          # run of the SAME commit succeeded -- a timing-dependent failure, not a
+          # deterministic one. Fixed by capturing the full output with a single
+          # command substitution (which fully drains the subprocess, so there is no
+          # early-closing reader to race against) and taking the first line in pure
+          # bash, with no pipe at all.
+          VERSION_OUTPUT="$(osv-scanner --version)"
+          VERSION="${VERSION_OUTPUT%%$'\n'*}"
           echo "scanner_version=${VERSION}" >> "$GITHUB_OUTPUT"
 
           # OSV-Scanner v2.x: `scan source` + --lockfile + --output-file
