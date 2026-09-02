@@ -31,6 +31,45 @@ export interface PackingImageLookup {
   (clientId: string | null): string | null;
 }
 
+/**
+ * Layering role -> the section a traveller actually thinks in (UX-2).
+ *
+ * The role vocabulary is the Closet's own (inferLayeringRole); this only names
+ * it for a human. Ordered the way a suitcase is packed, not alphabetically.
+ * Anything unrecognised falls to "Other" rather than being dropped -- a packed
+ * item must always appear in exactly one section.
+ */
+const ROLE_SECTIONS: Array<{ role: string; label: string }> = [
+  { role: 'one_piece', label: 'DRESSES & JUMPSUITS' },
+  { role: 'base', label: 'TOPS' },
+  { role: 'mid', label: 'MID LAYERS' },
+  { role: 'outer', label: 'OUTERWEAR' },
+  { role: 'bottom', label: 'BOTTOMS' },
+  { role: 'shoe', label: 'SHOES' },
+  { role: 'accessory', label: 'ACCESSORIES' },
+];
+
+interface PackingChecklistSection {
+  key: string;
+  label: string;
+  items: PackingPlanItem[];
+}
+
+/** Group the packed items into suitcase sections, preserving plan order within each. */
+function groupByRole(items: PackingPlanItem[]): PackingChecklistSection[] {
+  const sections: PackingChecklistSection[] = [];
+  const claimed = new Set<string>();
+  for (const { role, label } of ROLE_SECTIONS) {
+    const matching = items.filter((item) => item.layeringRole === role);
+    if (matching.length === 0) continue;
+    for (const item of matching) claimed.add(item.itemId);
+    sections.push({ key: role, label, items: matching });
+  }
+  const rest = items.filter((item) => !claimed.has(item.itemId));
+  if (rest.length > 0) sections.push({ key: 'other', label: 'OTHER', items: rest });
+  return sections;
+}
+
 function formatDateRange(startDate: string, endDate: string): string {
   const format = (iso: string): string => {
     const parsed = new Date(`${iso}T00:00:00Z`);
@@ -141,24 +180,117 @@ function ClosetItemCard({
   );
 }
 
+/**
+ * One checklist row (UX-2).
+ *
+ * LOCAL ONLY. Ticking this marks the traveller's own suitcase. It calls nothing,
+ * writes nothing to user_closet_items, and cannot add, remove or alter an owned
+ * item -- ownership is not something a checkbox may change. The tick lives in
+ * actor-scoped state and is mirrored to the device cache so it survives a
+ * restart; it never leaves the phone.
+ *
+ * React.memo because a plan can carry 24 rows and every tick re-renders the
+ * list; without it each tap would re-render every row. The comparator is
+ * explicit about the only three things that can change a row.
+ */
+const PackingChecklistRow = React.memo(
+  function PackingChecklistRow({
+    item,
+    imageUri,
+    checked,
+    onToggle,
+  }: {
+    item: PackingPlanItem;
+    imageUri: string | null;
+    checked: boolean;
+    onToggle?: (itemId: string) => void;
+  }) {
+    const subtitle = itemSubtitle(item);
+    return (
+      <Pressable
+        onPress={onToggle ? () => onToggle(item.itemId) : undefined}
+        disabled={!onToggle}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked }}
+        // Names the garment and its evidence, so the row is not "checkbox" to a
+        // screen reader. "In your Closet" is a fact the server proved.
+        accessibilityLabel={`${item.title}${subtitle ? `, ${subtitle}` : ''}, in your Closet`}
+        accessibilityHint={checked ? 'Double tap to mark as not packed' : 'Double tap to mark as packed'}
+        testID={`packing-check-${item.itemId}`}
+        style={[styles.checkRow, checked && styles.checkRowDone]}
+      >
+        <View style={[styles.checkBox, checked && styles.checkBoxChecked]}>
+          {checked ? <Text style={styles.checkMark}>✓</Text> : null}
+        </View>
+        <View style={styles.checkThumb}>
+          {imageUri ? (
+            <Image source={{ uri: imageUri }} style={styles.itemImage} resizeMode="cover" />
+          ) : (
+            <Text style={styles.itemFallback}>{item.title.slice(0, 1).toUpperCase()}</Text>
+          )}
+        </View>
+        <View style={styles.checkBody}>
+          <Text style={[styles.checkTitle, checked && styles.checkTitleDone]} numberOfLines={1}>
+            {item.title}
+          </Text>
+          {subtitle ? (
+            <Text style={styles.checkSubtitle} numberOfLines={1}>
+              {subtitle}
+            </Text>
+          ) : null}
+          <View style={styles.badgeRow}>
+            {/* UX-3. Every item here was resolved by the server against this
+                actor's own user_closet_items row, so the badge states evidence
+                rather than decorating. A gap can never render this treatment --
+                gaps have their own section, no photograph and nothing to tap. */}
+            <Text style={styles.ownedBadge}>IN YOUR CLOSET</Text>
+            {item.scarcitySignal ? (
+              <Text style={styles.scarcityBadge}>{item.scarcitySignal}</Text>
+            ) : null}
+            {item.usedInOutfits > 1 ? (
+              <Text style={styles.reuseBadge}>{`${item.usedInOutfits} LOOKS`}</Text>
+            ) : null}
+          </View>
+        </View>
+      </Pressable>
+    );
+  },
+  (prev, next) =>
+    prev.checked === next.checked &&
+    prev.item === next.item &&
+    prev.imageUri === next.imageUri &&
+    prev.onToggle === next.onToggle,
+);
+
 export function PackingPlanView({
   plan,
   message,
   resolveImage,
   onRemoveItem,
   busy,
+  packedOff,
+  onToggleItemPacked,
 }: {
   plan: PackingPlan;
   message: string | null;
   resolveImage: PackingImageLookup;
   onRemoveItem?: (itemId: string) => void;
   busy?: boolean;
+  /** Item ids the traveller has ticked off. Device-local. */
+  packedOff?: string[];
+  onToggleItemPacked?: (itemId: string) => void;
 }) {
   const itemsById = useMemo(() => {
     const map = new Map<string, PackingPlanItem>();
     for (const item of plan.packedItems) map.set(item.itemId, item);
     return map;
   }, [plan.packedItems]);
+
+  const sections = useMemo(() => groupByRole(plan.packedItems), [plan.packedItems]);
+  const checked = useMemo(() => new Set(packedOff ?? []), [packedOff]);
+  // Counted from the items actually rendered, so the header can never claim a
+  // tick for an item this plan does not contain.
+  const checkedCount = plan.packedItems.filter((item) => checked.has(item.itemId)).length;
 
   return (
     <View testID="packing-plan">
@@ -193,21 +325,49 @@ export function PackingPlanView({
       ) : null}
 
       <SectionHeader title="PACK" />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.itemRow}
-        testID="packing-items"
-      >
-        {plan.packedItems.map((item) => (
-          <ClosetItemCard
-            key={item.itemId}
-            item={item}
-            imageUri={resolveImage(item.clientId)}
-            onRemove={busy ? undefined : onRemoveItem}
-          />
+      {/* UX-2. A vertical, grouped, tickable list rather than a horizontal strip
+          of cards: this is the surface someone uses standing over an open
+          suitcase, so it is ordered the way a suitcase is filled and every row
+          is a target. Not a FlatList -- the plan is bounded at 24 items by the
+          contract, so a plain map inside the screen's existing scroll view
+          avoids nesting a virtualized list inside another scroller, and each
+          row is memoized so one tick does not re-render the rest. */}
+      <Text style={styles.checkProgress} testID="packing-check-progress">
+        {`${checkedCount} of ${plan.packedItems.length} packed`}
+      </Text>
+      <View testID="packing-items">
+        {sections.map((section) => (
+          <View key={section.key} style={styles.checkSection}>
+            <Text style={styles.checkSectionLabel}>{section.label}</Text>
+            {section.items.map((item) => (
+              <PackingChecklistRow
+                key={item.itemId}
+                item={item}
+                imageUri={resolveImage(item.clientId)}
+                checked={checked.has(item.itemId)}
+                onToggle={onToggleItemPacked}
+              />
+            ))}
+          </View>
         ))}
-      </ScrollView>
+      </View>
+      {onRemoveItem && !busy ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.itemRow}
+          testID="packing-items-detail"
+        >
+          {plan.packedItems.map((item) => (
+            <ClosetItemCard
+              key={item.itemId}
+              item={item}
+              imageUri={resolveImage(item.clientId)}
+              onRemove={onRemoveItem}
+            />
+          ))}
+        </ScrollView>
+      ) : null}
 
       <SectionHeader title="LOOKS" />
       {plan.outfits.map((outfit) => (
@@ -333,6 +493,93 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     marginTop: SPACING.lg,
     marginBottom: SPACING.sm,
+  },
+  checkProgress: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+    marginBottom: SPACING.sm,
+  },
+  checkSection: {
+    marginBottom: SPACING.lg,
+  },
+  checkSectionLabel: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+    letterSpacing: 1,
+    marginBottom: SPACING.sm,
+  },
+  checkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.sm,
+    borderRadius: RADIUS.sm,
+    // 48pt minimum target: this is used one-handed over an open suitcase.
+    minHeight: 56,
+  },
+  checkRowDone: {
+    opacity: 0.55,
+  },
+  checkBox: {
+    width: 24,
+    height: 24,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkBoxChecked: {
+    backgroundColor: LUXURY.colors.plum,
+    borderColor: LUXURY.colors.plum,
+  },
+  checkMark: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.pearl,
+  },
+  checkThumb: {
+    width: 44,
+    height: 44,
+    borderRadius: RADIUS.sm,
+    overflow: 'hidden',
+    backgroundColor: LUXURY.colors.champagne,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkBody: {
+    flexShrink: 1,
+    flexGrow: 1,
+  },
+  checkTitle: {
+    ...LUXURY.typography.body,
+    color: LUXURY.colors.ink,
+  },
+  checkTitleDone: {
+    textDecorationLine: 'line-through',
+  },
+  checkSubtitle: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+    marginTop: SPACING.xxs,
+  },
+  ownedBadge: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
+    letterSpacing: 0.5,
+  },
+  scarcityBadge: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+  },
+  reuseBadge: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
   },
   summaryStat: {
     marginRight: SPACING.xl,

@@ -28,11 +28,55 @@ import { PACKING_INTELLIGENCE_V1 } from '../../constants/featureFlags';
 import type { PackingTripDraft } from '../../types/packing';
 
 /**
- * The visible stages correspond to real server-side work (Closet read, then
- * bounded reasoning). No percentages and no invented substeps: a fake progress
- * bar is a claim about internals we cannot make.
+ * The visible stages correspond to real server-side work, IN THE ORDER THE
+ * SERVER ACTUALLY DOES IT (packingHandler.ts): K+ gate, then the authoritative
+ * Closet read, then weather enrichment, then the bounded model call, then
+ * post-model ownership validation.
+ *
+ * The Closet comes BEFORE the forecast because that is the real sequence --
+ * showing a weather step first would be a tidier story and a false one.
+ *
+ * EVERY LABEL IS AN ATTEMPT, NEVER AN OUTCOME. "Checking the forecast" can be
+ * honestly said while the forecast is failing; "Found your forecast" could not.
+ * The client cannot observe weather resolution mid-flight -- the server resolves
+ * it internally and reports provenance only in the finished plan -- so the only
+ * honest pivot is at completion, where an UNAVAILABLE provenance renders
+ * "Weather unavailable" on the plan itself. Nothing here may claim success:
+ * the plan renders only on a validated `ready` status.
+ *
+ * Durations are the real per-stage budgets (geocode 1.5s + forecast 2s; the
+ * provider budget is far longer), so the sequence tracks reality rather than
+ * racing ahead of it. The last stage HOLDS -- it never completes on a timer,
+ * because only the response can end this.
+ *
+ * No percentage, no progress bar: a number here would be a claim about
+ * internals the client cannot see.
  */
-const LOADING_STAGES = ['Reviewing your Closet', 'Building your looks', 'Preparing your plan'];
+/**
+ * When a restored plan was generated, in the traveller's terms. Derived from the
+ * stored timestamp -- never guessed, and never rounded up into sounding fresher
+ * than it is.
+ */
+function formatCachedAt(cachedAt: number): string {
+  const ageMs = Date.now() - cachedAt;
+  const hours = Math.floor(ageMs / 3_600_000);
+  if (hours < 1) return 'in the last hour';
+  if (hours < 24) return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
+  const days = Math.floor(hours / 24);
+  return days === 1 ? 'yesterday' : `${days} days ago`;
+}
+
+const LOADING_STAGES: Array<{ label: (destination: string) => string; ms: number }> = [
+  { label: () => 'Reviewing your Closet', ms: 1_800 },
+  {
+    label: (destination) =>
+      destination ? `Checking the forecast for ${destination}` : 'Checking the forecast',
+    ms: 2_600,
+  },
+  { label: () => 'Building your looks', ms: 6_000 },
+  // Terminal stage: the ownership gate. Holds until the response lands.
+  { label: () => 'Checking every piece is yours', ms: Number.POSITIVE_INFINITY },
+];
 
 export default function PackingScreen() {
   const packing = usePackingPlan();
@@ -59,16 +103,38 @@ export default function PackingScreen() {
   );
 
   const busy = packing.status === 'generating';
+  // The trip currently being generated for. Bounded before it reaches a label so
+  // a long destination cannot deform the loading card.
+  const destinationLabel = (packing.trip?.destination ?? '').trim().slice(0, 40);
+  const currentStageLabel = (LOADING_STAGES[stageIndex] ?? LOADING_STAGES[0]).label(
+    destinationLabel,
+  );
 
   React.useEffect(() => {
     if (!busy) {
       setStageIndex(0);
       return;
     }
-    const timer = setInterval(() => {
-      setStageIndex((current) => Math.min(current + 1, LOADING_STAGES.length - 1));
-    }, 3_000);
-    return () => clearInterval(timer);
+    // One timer per stage rather than one repeating interval, so each step lasts
+    // as long as the work it names actually takes. The final stage has no timer
+    // at all: it ends when the response does, never on a clock.
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const advance = (index: number) => {
+      const stage = LOADING_STAGES[index];
+      if (!stage || !Number.isFinite(stage.ms)) return;
+      timer = setTimeout(() => {
+        if (cancelled) return;
+        setStageIndex(index + 1);
+        advance(index + 1);
+      }, stage.ms);
+    };
+    setStageIndex(0);
+    advance(0);
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, [busy]);
 
   const handleRefine = useCallback(() => {
@@ -129,9 +195,38 @@ export default function PackingScreen() {
               ) : null}
 
               {busy ? (
-                <View style={styles.loadingCard} testID="packing-loading">
+                <View
+                  style={styles.loadingCard}
+                  testID="packing-loading"
+                  accessibilityRole="progressbar"
+                  // Announced as it changes, so the stage is not sighted-only.
+                  accessibilityLiveRegion="polite"
+                  accessibilityLabel={`Building your packing plan. ${currentStageLabel}`}
+                >
                   <ActivityIndicator color={LUXURY.colors.plum} />
-                  <Text style={styles.loadingLabel}>{LOADING_STAGES[stageIndex]}</Text>
+                  <View style={styles.loadingStages}>
+                    {LOADING_STAGES.map((stage, index) => {
+                      const label = stage.label(destinationLabel);
+                      const done = index < stageIndex;
+                      const active = index === stageIndex;
+                      return (
+                        <Text
+                          key={label}
+                          style={[
+                            styles.loadingStage,
+                            done && styles.loadingStageDone,
+                            active && styles.loadingStageActive,
+                          ]}
+                          // The list is one announcement (above); the rows are
+                          // decorative detail and must not be read one by one.
+                          accessibilityElementsHidden
+                          importantForAccessibility="no-hide-descendants"
+                        >
+                          {`${done ? '✓' : active ? '›' : '·'}  ${label}`}
+                        </Text>
+                      );
+                    })}
+                  </View>
                 </View>
               ) : null}
 
@@ -154,10 +249,25 @@ export default function PackingScreen() {
 
               {packing.plan && !showForm ? (
                 <View>
+                  {packing.restoredFrom ? (
+                    // UX-4. A restored plan says so, plainly, and says when it
+                    // was made. It is never dressed up as a fresh result: the
+                    // Closet may have changed since, and the traveller is the
+                    // only one who can judge whether that matters.
+                    <Text
+                      style={styles.offlineBanner}
+                      testID="packing-offline-banner"
+                      accessibilityRole="text"
+                    >
+                      {`Showing your last plan, built ${formatCachedAt(packing.restoredFrom)}. Generate again for an up-to-date one.`}
+                    </Text>
+                  ) : null}
                   <PackingPlanView
                     plan={packing.plan}
                     message={packing.message}
                     resolveImage={resolveImage}
+                    packedOff={packing.packedOff}
+                    onToggleItemPacked={packing.toggleItemPacked}
                     // An expired entitlement stops new work; it does not strip
                     // the plan already on screen.
                     onRemoveItem={
@@ -270,14 +380,34 @@ const styles = StyleSheet.create({
     padding: SPACING.lg,
     marginTop: SPACING.lg,
   },
-  loadingLabel: {
+  loadingStages: {
+    flexShrink: 1,
+    gap: SPACING.xs,
+  },
+  loadingStage: {
     ...LUXURY.typography.body,
+    color: LUXURY.colors.stone,
+  },
+  loadingStageDone: {
+    color: LUXURY.colors.stone,
+  },
+  loadingStageActive: {
+    color: LUXURY.colors.ink,
   },
   errorCard: {
     backgroundColor: LUXURY.colors.champagne,
     borderRadius: RADIUS.md,
     padding: SPACING.lg,
     marginTop: SPACING.lg,
+  },
+  offlineBanner: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+    backgroundColor: LUXURY.colors.champagne,
+    borderRadius: RADIUS.sm,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    marginBottom: SPACING.md,
   },
   linkLabel: {
     ...LUXURY.typography.caption,
