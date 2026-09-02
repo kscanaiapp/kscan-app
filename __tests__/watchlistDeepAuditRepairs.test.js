@@ -240,7 +240,11 @@ test('WL-03: a failed observation write ends the cycle without event or push', (
   assert.ok(guardAt >= 0, 'the failed-write guard must exist');
   assert.ok(guardAt < appendAt && guardAt < pushAt, 'it must precede both the event append and the push');
   const guardBody = cycle.slice(guardAt, appendAt);
-  assert.match(guardBody, /return \{/, 'the cycle must RETURN on a failed write, not merely log and continue');
+  assert.match(
+    guardBody,
+    /if \(!patchResponse\.ok\) \{[\s\S]*?\n    return \{/,
+    'the cycle must RETURN on a failed write, not merely log and continue',
+  );
   assert.match(guardBody, /event: null/, 'and must report no event for that cycle');
 });
 
@@ -424,7 +428,11 @@ test('WL-07: deactivation suspends refresh — it never deletes Watch data', () 
 
 test('WL-08: an actor cannot hold an unbounded number of refreshable Watches', () => {
   assert.match(CONFIG, /export const MAX_ACTIVE_WATCHES_PER_ACTOR = readIntEnv\(/);
-  assert.match(INDEX, /MAX_ACTIVE_WATCHES_PER_ACTOR/, 'the ceiling must be enforced, not merely declared');
+  assert.match(
+    INDEX,
+    /if \(Number\.isFinite\(activeCount\) && activeCount >= MAX_ACTIVE_WATCHES_PER_ACTOR\) \{/,
+    'the ceiling must be enforced as written, not merely declared',
+  );
   assert.match(INDEX, /watch_limit_reached/, 'and refused truthfully');
   const create = INDEX.slice(INDEX.indexOf('async function handleCreate'), INDEX.indexOf('async function handleLifecycleAction'));
   assert.ok(
@@ -448,4 +456,127 @@ test('WL-08: the ceiling is an operational control, not an invented product limi
   const declared = CONFIG.match(/MAX_ACTIVE_WATCHES_PER_ACTOR = readIntEnv\('[^']+', (\d+)\)/);
   assert.ok(declared, 'the default must be readable');
   assert.ok(Number(declared[1]) >= 100, 'the default must sit far above any plausible real Watchlist');
+});
+
+// ═══════════ Controls the mutation pass proved were missing entirely ═══════
+//
+// Each of the four below was added because a deliberate defect survived every
+// existing test. They are not extra assurance on something already covered —
+// they are the difference between a guarded invariant and an unguarded one.
+
+test('CONTROL: no Watchlist guard may be disabled by a short-circuit', () => {
+  // `if (false && …)` / `&& false` neutralises a guard while leaving every
+  // source-text assertion about it passing. Two mutants survived exactly this
+  // way. Scoped to the Watchlist function so it cannot false-positive elsewhere.
+  for (const rel of [
+    `${FN_DIR}/index.ts`,
+    `${FN_DIR}/watchRefreshObservation.ts`,
+    `${FN_DIR}/watchRefreshConfig.ts`,
+    `${FN_DIR}/changeEngine.ts`,
+    `${FN_DIR}/watchCurrency.ts`,
+  ]) {
+    const src = read(rel);
+    assert.doesNotMatch(src, /\bif \(false\b/, `${rel} carries a disabled branch`);
+    assert.doesNotMatch(src, /&&\s*false\b/, `${rel} carries a short-circuited guard`);
+    assert.doesNotMatch(src, /\|\|\s*true\b/, `${rel} carries a forced-true guard`);
+  }
+});
+
+test('WATCH-INV-002 CONTROL: a Watch is readable only by the actor who owns it', () => {
+  // The single most important invariant in this feature had no source-level
+  // guard in the governed suite at all — it was only ever proven live. A
+  // policy widened to `using (true)` passed every existing test.
+  const cases = [
+    ['supabase/migrations/20260830150000_user_commerce_watches.sql', 'user_commerce_watches'],
+    ['supabase/migrations/20260830151500_user_commerce_watch_events_and_rpcs.sql', 'user_commerce_watch_events'],
+    ['supabase/migrations/20260830160000_user_device_push_tokens.sql', 'user_device_push_tokens'],
+  ];
+  for (const [migration, table] of cases) {
+    const sql = read(migration);
+    const policy = sql.slice(sql.indexOf(`on public.${table}`), sql.indexOf(`revoke all on public.${table}`));
+    assert.match(policy, /for select\s+to authenticated\s+using \(user_id = auth\.uid\(\)\)/,
+      `${table} SELECT must be narrowed to the owning actor`);
+    assert.doesNotMatch(policy, /using \(true\)/, `${table} must never expose an unscoped policy`);
+    // RLS without GRANT (and GRANT without RLS) have both bitten this codebase
+    // before, so assert the pair, not either half.
+    assert.ok(sql.includes(`alter table public.${table} enable row level security`),
+      `${table} must have RLS enabled`);
+    assert.ok(sql.includes(`revoke all on public.${table} from anon, authenticated, public`),
+      `${table} must revoke before it grants`);
+    assert.ok(sql.includes(`grant select on public.${table} to authenticated`),
+      `${table} must grant exactly SELECT to authenticated`);
+    assert.doesNotMatch(sql, new RegExp('grant [^;]*(insert|update|delete)[^;]* to authenticated', 'i'),
+      `${table} must expose no client write verb — every write goes through a service_role RPC`);
+  }
+});
+
+test('WATCH-INV-004 CONTROL: creating a Watch never depends on notification permission', () => {
+  const shelf = read('components/ProductShelf.tsx');
+  // ProductShelf renders more than one Modal, so the end anchor must be the
+  // first `return (` AFTER handleSave, not the first one in the file.
+  const saveAt = shelf.indexOf('const handleSave = async ()');
+  assert.ok(saveAt > 0, 'the Watch creation handler must be locatable');
+  const save = shelf.slice(saveAt, shelf.indexOf('return (', saveAt));
+  assert.ok(save.includes('await createWatch('), 'the slice must actually contain the creation call');
+
+  // The success branch must turn on the create result ALONE.
+  assert.match(save, /if \(result\.ok\) \{/, 'creation success must be decided by the create call only');
+  assert.doesNotMatch(save, /if \(result\.ok &&/, 'nothing may be conjoined to the creation outcome');
+
+  // requestWatchAlerts must be reachable only from the contextual prompt, and
+  // only after the Watch already exists.
+  const createAt = save.indexOf('await createWatch(');
+  const alertsAt = save.indexOf('requestWatchAlerts(');
+  assert.ok(createAt >= 0 && alertsAt > createAt, 'alerts may only be offered after the Watch exists');
+  assert.match(save, /Alert me\?/, 'the alert opt-in is a separate, contextual prompt');
+  assert.match(save, /'Not now'/, 'declining must be a first-class choice');
+
+  // A denial is reported, and the copy must confirm the Watch itself survives.
+  assert.match(save, /permission_denied/);
+  assert.match(save, /still watching this listing|check the price any time/i,
+    'a denied permission must leave the user with a working Watch, and say so');
+
+  // And the server contract agrees: push_enabled is never set at creation.
+  const pushColumn = read('supabase/migrations/20260830161500_watch_push_enabled.sql');
+  assert.match(pushColumn, /add column if not exists push_enabled boolean not null default false/);
+  // Comment lines stripped: the shipped create RPC explains the DEF-WL-02
+  // defect in prose (which mentions push_enabled); what matters is that no
+  // executable statement in it reads or writes the column.
+  const createRpcBody = read('supabase/migrations/20260830190500_watchlist_create_honours_changed_intent.sql')
+    .split('\n')
+    .filter((line) => !line.trim().startsWith('--'))
+    .join('\n');
+  assert.doesNotMatch(createRpcBody, /push_enabled/,
+    'creation must never set push_enabled — only the contextual opt-in may');
+});
+
+test('WATCH-INV-010 CONTROL: background refresh is server-governed end to end', () => {
+  // The mobile client must not hold the worker secret, provider credentials, or
+  // any refresh authority. Asserted over everything the app actually bundles.
+  const clientSurfaces = [
+    'services/watchlist/watchlistClient.ts',
+    'services/watchlist/pushRegistration.ts',
+    'services/watchlist/watchNotificationRouting.ts',
+    'hooks/useWatchlist.ts',
+    'app/watchlist/index.tsx',
+    'app/watchlist/[watchId].tsx',
+    'components/ProductShelf.tsx',
+  ];
+  for (const rel of clientSurfaces) {
+    const src = read(rel);
+    for (const forbidden of [
+      'WATCHLIST_WORKER_SECRET',
+      'x-watchlist-worker-secret',
+      'SERVICE_ROLE',
+      'RAPIDAPI',
+      'EXPO_PUSH_ACCESS_TOKEN',
+      'claim_watchable_commerce_watches',
+      'append_user_commerce_watch_event',
+    ]) {
+      assert.ok(!src.includes(forbidden), `${rel} must not carry ${forbidden}`);
+    }
+    // No client may write either Watch table directly; there is no policy for it.
+    assert.doesNotMatch(src, /\.from\('user_commerce_watches'\)[\s\S]{0,120}\.(insert|update|delete|upsert)\(/);
+    assert.doesNotMatch(src, /\.from\('user_device_push_tokens'\)/, `${rel} must not touch the token table directly`);
+  }
 });
