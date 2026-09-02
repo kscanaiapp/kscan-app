@@ -53,7 +53,19 @@ export function MultiItemCommerceSection({
             style={styles.item}
             testID={`multi-item-commerce-card-${candidate.id}`}
           >
-            <Text style={styles.itemLabel} numberOfLines={1}>
+            {/* A heading, not a caption. Every product link below belongs to
+                THIS garment, and a screen reader otherwise reads one flat run
+                of "View options for ..." across all detected items with no
+                announced boundary between them. The per-item notices carry
+                the garment name for the same reason: three stacked
+                "No strong shopping match found." notices are indistinguishable
+                by voice. */}
+            <Text
+              style={styles.itemLabel}
+              numberOfLines={1}
+              accessibilityRole="header"
+              accessibilityLabel={`${candidate.label}, purchase options`}
+            >
               {candidate.label}
             </Text>
 
@@ -61,19 +73,22 @@ export function MultiItemCommerceSection({
               <InlineNotice
                 variant="info"
                 body="Finding where to buy this…"
+                accessibilityLabel={`Finding where to buy ${candidate.label}`}
                 testID={`multi-item-commerce-pending-${candidate.id}`}
               />
             ) : itemStatus === 'error' ? (
               <InlineNotice
                 variant="error"
                 body="Couldn't load purchase options for this item."
-                action={onRetry ? { label: 'Retry', onPress: onRetry, testID: `multi-item-commerce-retry-${candidate.id}` } : undefined}
+                accessibilityLabel={`Couldn't load purchase options for ${candidate.label}`}
+                action={onRetry ? { label: 'Retry', onPress: onRetry, accessibilityLabel: `Retry purchase options for ${candidate.label}`, testID: `multi-item-commerce-retry-${candidate.id}` } : undefined}
                 testID={`multi-item-commerce-error-${candidate.id}`}
               />
             ) : itemStatus === 'no_match' || itemStatus === 'not_eligible' ? (
               <InlineNotice
                 variant="info"
                 body="No strong shopping match found."
+                accessibilityLabel={`No strong shopping match found for ${candidate.label}`}
                 testID={`multi-item-commerce-no-match-${candidate.id}`}
               />
             ) : (

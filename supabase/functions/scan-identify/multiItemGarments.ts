@@ -207,6 +207,55 @@ function sanitizeGarment(raw: unknown, index: number): SanitizedDetectedGarment 
   };
 }
 
+/**
+ * Resolve a detected garment's DISPLAY IDENTITY after quality normalization.
+ *
+ * SCAN-003 / SCAN-004. Two rules, both about the difference between an
+ * identity field and a commerce-facing field:
+ *
+ *  1. A garment's label may only ever be derived from that garment. The
+ *     scanner quality gate is applied per garment, but the primary garment's
+ *     gate result is (deliberately) the one retained for the commerce-shaping
+ *     fields read after the loop. Reading that shared value for a LABEL made
+ *     every later garment whose own subtype the gate suppressed inherit the
+ *     PRIMARY garment's label — a pair of sunglasses displayed to the user as
+ *     "Blue Crossbody Bag", on a card whose candidateId still said eyewear.
+ *
+ *  2. The gate suppresses a subtype for RETRIEVAL, which is correct — an
+ *     unsupported category/subtype pair should not narrow a commerce query.
+ *     It is not a statement that the garment has no subtype, so it must not
+ *     erase the identity the candidateId was minted from. The suppressed
+ *     value stays suppressed in `identification` (the commerce-facing copy);
+ *     only the identity fields fall back to what detection actually resolved.
+ *
+ * Pure and total: no gate, no suppression and no prior subtype all resolve to
+ * the category, exactly as before.
+ */
+export function resolveGarmentDisplayIdentity(input: {
+  /** `identification.item_type` after taxonomy tune + quality gate. */
+  tunedItemType: unknown;
+  /** `identification.subtype` after taxonomy tune + quality gate. */
+  tunedSubtype: unknown;
+  /** The subtype `sanitizeDetectedGarments` resolved for THIS garment. */
+  priorSubtype: string;
+  /** The category `sanitizeDetectedGarments` resolved for THIS garment. */
+  priorCategory: string;
+  /** THIS garment's own quality-gate label, when the gate ran. */
+  ownGateLabel?: string;
+}): { category: string; subtype: string; label: string } {
+  const tunedItemType = cleanString(input.tunedItemType);
+  const category = tunedItemType || input.priorCategory || 'unknown';
+
+  const tunedSubtype = cleanString(input.tunedSubtype);
+  const priorSubtype = cleanString(input.priorSubtype);
+  const subtype = tunedSubtype || priorSubtype || category;
+
+  const ownGateLabel = cleanString(input.ownGateLabel);
+  const label = tunedSubtype || priorSubtype || ownGateLabel || category;
+
+  return { category, subtype, label };
+}
+
 export function sanitizeDetectedGarments(raw: unknown): SanitizedDetectedGarment[] {
   if (!Array.isArray(raw)) return [];
   const out: SanitizedDetectedGarment[] = [];

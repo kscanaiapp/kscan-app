@@ -131,7 +131,16 @@ export function PurchaseOptionsPanel({
                       activeOpacity={0.78}
                       accessibilityRole="link"
                       accessibilityLabel={`View options for ${option.title ?? option.retailer}`}
-                      accessibilityHint="Opens the retailer product page"
+                      // SCAN-009. The visible CTA is deliberately hedged
+                      // ("View Options") because the destination is not
+                      // guaranteed to be the retailer's own site: the backend
+                      // prefers a direct retailer URL and falls back to the
+                      // aggregator the provider returned when there is none
+                      // (see selectRetailerDestination / isAggregatorDestination).
+                      // Measured live, 28 of 33 destinations were Google
+                      // Shopping listings. The hint must not promise what the
+                      // button does not, so it states what is always true.
+                      accessibilityHint="Opens this listing in your browser"
                       style={styles.viewOptionsButton}
                     >
                       <Text style={styles.viewOptionsText}>View Options</Text>

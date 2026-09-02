@@ -55,6 +55,7 @@ import {
   providerDeadlineMs,
 } from './commerceFunnelConfig.ts';
 import { collectBounded } from './commerceFastPath.ts';
+import { normalizeCategory } from '../_shared/scanHelpers.ts';
 import {
   buildCommerceCacheKey,
   commerceCacheGet,
@@ -506,6 +507,49 @@ function cleanQuery(raw: string): string {
  * A query is too weak if it is empty, shorter than 3 characters, has fewer
  * than 3 meaningful words with no brand signal, or is mostly generic words.
  */
+/**
+ * The canonical categories `normalizeCategory` resolves a garment noun to.
+ * Anything it echoes back unchanged (a colour, an adjective, a brand) is not
+ * a garment. Single source of truth: this set is exactly the return vocabulary
+ * of `normalizeCategory` in _shared/scanHelpers.ts, so a taxonomy addition
+ * there is picked up here without a second list to maintain.
+ */
+const CANONICAL_GARMENT_CATEGORIES: ReadonlySet<string> = new Set([
+  'blazer', 'outerwear', 'dress', 'pants', 'top', 'footwear', 'bag', 'accessory',
+]);
+
+/**
+ * Garment nouns `normalizeCategory` does not resolve to a canonical category.
+ *
+ * SCAN-007: the shared taxonomy in _shared/scanHelpers.ts has no mapping for
+ * skirt, jumpsuit, romper, vest, swimsuit, socks, tights, overalls or suit,
+ * among others. Extending it is a cross-feature change — TextScan, Elise,
+ * closet intake and catalog retrieval all read the same function — so it is
+ * recorded for owner decision rather than made here.
+ *
+ * This set exists ONLY to keep the weak-query gate from rejecting real
+ * garments while that gap stands. It is a retrievability test, not a
+ * taxonomy: nothing downstream reads it, it never labels a garment, and it
+ * never selects a query template or a catalog category.
+ */
+const UNMAPPED_GARMENT_NOUNS: ReadonlySet<string> = new Set([
+  'skirt', 'skirts', 'romper', 'rompers', 'jumpsuit', 'jumpsuits', 'bodysuit', 'bodysuits',
+  'vest', 'vests', 'waistcoat', 'waistcoats', 'kimono', 'kimonos', 'poncho', 'ponchos',
+  'swimsuit', 'swimsuits', 'bikini', 'bikinis', 'lingerie', 'socks', 'tights',
+  'mules', 'clogs', 'espadrilles', 'overalls', 'dungarees', 'cape', 'capes',
+  'shawl', 'shawls', 'turtleneck', 'turtlenecks', 'camisole', 'camisoles',
+  'eyewear', 'glasses', 'headband', 'headbands', 'bowtie', 'bowties',
+  'suit', 'suits', 'tuxedo', 'tuxedos',
+]);
+
+/** True when a single query token names a garment in the project's taxonomy. */
+function isGarmentNoun(word: string): boolean {
+  const lower = word.toLowerCase().replace(/^[^a-z]+|[^a-z]+$/g, '');
+  if (!lower) return false;
+  if (CANONICAL_GARMENT_CATEGORIES.has(normalizeCategory(lower))) return true;
+  return UNMAPPED_GARMENT_NOUNS.has(lower);
+}
+
 export function isWeakQuery(query: string): boolean {
   const cleaned = cleanQuery(query);
   if (!cleaned) return true;
@@ -515,14 +559,26 @@ export function isWeakQuery(query: string): boolean {
   const meaningful = words.filter((w) => !GENERIC_WORDS.has(w.toLowerCase()));
 
   if (meaningful.length < 3) {
-    // A brand + category/color is enough to be meaningful even with <3 words.
-    const hasBrand = words.some((w) => !GENERIC_WORDS.has(w.toLowerCase()));
-    const hasCategorySignal = words.some((w) =>
-      ['polo', 'blazer', 'handbag', 'sneakers', 'coat', 'dress', 'trench'].some((sig) =>
-        w.toLowerCase().includes(sig)
-      )
-    );
-    return !(hasBrand && hasCategorySignal);
+    // A concrete term + a named garment is enough to be meaningful even with
+    // <3 words: "white hoodie", "blue jeans", "brown loafers" are perfectly
+    // retrievable commerce queries.
+    //
+    // SCAN-006: this used to test the garment with a seven-token allowlist
+    // (polo / blazer / handbag / sneakers / coat / dress / trench), so every
+    // other category — hoodie, jeans, t-shirt, bag, boots, skirt, scarf,
+    // sunglasses — was rejected here, before any provider call, and the
+    // client rendered that as "No strong shopping match found." Measured live
+    // over the repo's QA fixtures, 6 of 13 detected garments (46%) were lost
+    // this way. It bites hardest on the multi-item detection path, whose
+    // candidates carry only item_type + subtype + primary_color and so very
+    // often produce exactly two meaningful words.
+    //
+    // The vocabulary is now the project's own taxonomy rather than a
+    // hand-written list. The gate itself is unchanged: an all-generic query
+    // ("stylish outfit") and a query naming no garment ("black navy") are
+    // rejected exactly as before.
+    if (meaningful.length === 0) return true;
+    return !words.some(isGarmentNoun);
   }
 
   const genericCount = words.length - meaningful.length;
