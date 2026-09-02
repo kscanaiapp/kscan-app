@@ -96,6 +96,7 @@
     "typescript": "~5.9.2"
   },
   "overrides": {
-    "shell-quote": "^1.10.0"
+    "shell-quote": "^1.10.0",
+    "browserslist": "4.28.8"
   }
 }
