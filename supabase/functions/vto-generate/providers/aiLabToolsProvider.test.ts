@@ -1,14 +1,15 @@
 /**
  * Real-adapter contract tests.
  *
- * The live account is not subscribed to this API (see the module doc
- * comment and docs/vto-provider-benchmark.md), so these run against an
- * injected fetch built from the exact response SHAPES documented at
+ * These never touch the network: they run against an injected fetch built from
+ * the exact response SHAPES documented at
  * https://ailabtools.mintlify.app/docs/ai-portrait/editing/try-on-clothes-pro/api
- * and confirmed reachable by the empirical 403 probe. They prove the adapter
- * builds the right request and parses the documented response correctly --
- * they are NOT evidence of generation quality, because no real generation
- * has occurred. Do not read passing tests here as "the provider works".
+ * and confirmed against a real live round trip (docs/vto-provider-benchmark.md
+ * §3). They prove the adapter builds the right request and parses the
+ * documented response correctly -- they are NOT evidence of generation
+ * QUALITY: exactly one real generation has ever been produced, from synthetic
+ * non-personal images. Do not read passing tests here as "the results are
+ * good".
  *
  * The harness dispatches by URL rather than call order: the adapter fetches
  * the garment image (any https URL), THEN submits, THEN polls (possibly
@@ -503,4 +504,203 @@ Deno.test('this adapter targets exactly the host proven reachable by the live pr
   // Changing the host/path here without re-running the probe would silently
   // invalidate the one piece of real evidence this adapter has.
   assertEquals(AILABTOOLS_PROVIDER_ID, 'ailabtools_tryon_clothes_pro');
+});
+
+// ── VTO-SSRF-001 / VTO-SSRF-002 ───────────────────────────────────────────────
+//
+// The adapter is the only place in VTO that fetches remote bytes, and it does
+// so from TWO untrusted sources: a caller-supplied garment URL and a
+// provider-supplied result URL. vtoHandler validates the FIRST hop of the
+// garment URL; nothing validated any later hop, and nothing validated the
+// result URL at all. Before the repair the helper called fetch() with no
+// `redirect` option, so the runtime followed a 302 into private address space
+// and the bytes were then uploaded to a paid third party as `top_garment`.
+//
+// These tests pin the repair at the point bytes are actually read, which is
+// what makes them regression tests rather than restatements of the guard's own
+// unit tests: _shared/net/safeRemoteMedia.ts already had four passing redirect
+// tests and ZERO production callers when the hole was open.
+
+function redirectResponse(location: string, status = 302): Response {
+  // `Response.redirect` refuses non-absolute and rejects some schemes, so the
+  // header is set directly -- a hostile origin is not bound by the fetch spec.
+  return new Response(null, { status, headers: { location } });
+}
+
+Deno.test('VTO-SSRF-001: a garment redirect into link-local space is refused, not followed', async () => {
+  const metadata = 'http://169.254.169.254/latest/meta-data/iam/security-credentials/';
+  const { fn, calls } = scriptedFetch({
+    garment: () => redirectResponse(metadata),
+    extra: { [metadata]: () => imageResponse(PNG_1x1) },
+  });
+  const provider = createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn });
+  const outcome = await provider.generate(TOP_INPUT, { signal: signal() });
+
+  assertEquals(outcome.ok, false);
+  if (!outcome.ok) assertEquals(outcome.failure, 'invalid_garment_input');
+  // The whole point: the server never contacted the metadata endpoint...
+  assertEquals(calls.filter((c) => c.url.includes('169.254.169.254')).length, 0);
+  // ...and nothing was submitted to the paid provider.
+  assertEquals(callsTo(calls, '/portrait/editing/').length, 0);
+});
+
+Deno.test('VTO-SSRF-001: every redirect hop is revalidated, not just the first', async () => {
+  const hop = 'https://cdn.other.example/next.jpg';
+  const priv = 'https://10.0.0.5/secret.jpg';
+  const { fn, calls } = scriptedFetch({
+    garment: () => redirectResponse(hop),
+    extra: {
+      [hop]: () => redirectResponse(priv),
+      [priv]: () => imageResponse(PNG_1x1),
+    },
+  });
+  const provider = createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn });
+  const outcome = await provider.generate(TOP_INPUT, { signal: signal() });
+
+  assertEquals(outcome.ok, false);
+  // A public first hop and a public second hop are both followed...
+  assertEquals(calls.filter((c) => c.url === hop).length, 1);
+  // ...and the private third is refused.
+  assertEquals(calls.filter((c) => c.url === priv).length, 0);
+});
+
+Deno.test('VTO-SSRF-001: fetches are issued with manual redirect handling', async () => {
+  const { fn, calls } = scriptedFetch();
+  const provider = createAiLabToolsProvider({
+    apiKey: 'k', fetchImpl: fn, pollIntervalMs: 0, pollMaxAttempts: 1,
+  });
+  await provider.generate(TOP_INPUT, { signal: signal() });
+  // If this regresses to the runtime's default `follow`, the two tests above
+  // become vacuous: their scripted hops would be resolved by the runtime, not
+  // by the adapter, and the guard would never run.
+  for (const call of calls.filter((c) => c.url === GARMENT_URL || c.url === RESULT_URL)) {
+    assertEquals(call.init.redirect, 'manual', `${call.url} must not follow redirects itself`);
+  }
+});
+
+Deno.test('VTO-SSRF-001: a redirect loop is bounded rather than followed forever', async () => {
+  const a = 'https://cdn.a.example/1.jpg';
+  const { fn, calls } = scriptedFetch({
+    garment: () => redirectResponse(a),
+    extra: { [a]: () => redirectResponse(a) },
+  });
+  const provider = createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn });
+  const outcome = await provider.generate(TOP_INPUT, { signal: signal() });
+  assertEquals(outcome.ok, false);
+  if (!outcome.ok) assertEquals(outcome.detail, 'garment_fetch_too_many_redirects');
+  assert(calls.length < 10, 'redirect following must be bounded');
+});
+
+Deno.test('VTO-SSRF-001: an HTML error page is not posted to the provider as a garment', async () => {
+  const { fn, calls } = scriptedFetch({
+    garment: () => new Response('<html>404</html>', {
+      status: 200, headers: { 'content-type': 'text/html; charset=utf-8' },
+    }),
+  });
+  const provider = createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn });
+  const outcome = await provider.generate(TOP_INPUT, { signal: signal() });
+  assertEquals(outcome.ok, false);
+  if (!outcome.ok) assertEquals(outcome.detail, 'garment_fetch_content_type_not_allowed');
+  assertEquals(callsTo(calls, '/portrait/editing/').length, 0);
+});
+
+Deno.test('VTO-SSRF-002: a provider result URL pointing at private space is refused', async () => {
+  const evil = 'https://127.0.0.1/result.png';
+  const { fn, calls } = scriptedFetch({
+    poll: () => jsonResponse({ error_code: 0, task_status: 2, output: { image_url: evil } }),
+    extra: { [evil]: () => imageResponse(PNG_1x1) },
+  });
+  const provider = createAiLabToolsProvider({
+    apiKey: 'k', fetchImpl: fn, pollIntervalMs: 0, pollMaxAttempts: 2,
+  });
+  const outcome = await provider.generate(TOP_INPUT, { signal: signal() });
+
+  assertEquals(outcome.ok, false);
+  // A provider success is not a licence to fetch whatever host it names.
+  if (!outcome.ok) assertEquals(outcome.failure, 'invalid_output');
+  assertEquals(calls.filter((c) => c.url === evil).length, 0);
+});
+
+Deno.test('VTO-SSRF-002: a result redirect escaping to a private host is refused', async () => {
+  const { fn, calls } = scriptedFetch({
+    result: () => redirectResponse('https://192.168.1.10/r.png'),
+    extra: { 'https://192.168.1.10/r.png': () => imageResponse(PNG_1x1) },
+  });
+  const provider = createAiLabToolsProvider({
+    apiKey: 'k', fetchImpl: fn, pollIntervalMs: 0, pollMaxAttempts: 2,
+  });
+  const outcome = await provider.generate(TOP_INPUT, { signal: signal() });
+  assertEquals(outcome.ok, false);
+  assertEquals(calls.filter((c) => c.url.includes('192.168.1.10')).length, 0);
+});
+
+Deno.test('a body with no content-length is still capped', async () => {
+  // A hostile origin can simply omit content-length. Before the repair the
+  // whole response was buffered via arrayBuffer() and only then measured.
+  const oversized = new Uint8Array(9 * 1024 * 1024);
+  oversized.set([0x89, 0x50, 0x4e, 0x47]);
+  const { fn } = scriptedFetch({
+    garment: () => new Response(
+      new ReadableStream({
+        start(controller) {
+          for (let i = 0; i < 9; i += 1) controller.enqueue(new Uint8Array(1024 * 1024));
+          controller.close();
+        },
+      }),
+      { status: 200, headers: { 'content-type': 'image/png' } },
+    ),
+  });
+  const provider = createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn });
+  const outcome = await provider.generate(TOP_INPUT, { signal: signal() });
+  assertEquals(outcome.ok, false);
+  if (!outcome.ok) assertEquals(outcome.detail, 'garment_fetch_too_large');
+});
+
+// ── VTO-QUOTA-003: the adapter tells the truth about what was bought ─────────
+
+Deno.test('VTO-QUOTA-003: a gateway refusal before any job is non-billable', async () => {
+  // 403 is the account's ACTUAL live state ("You are not subscribed to this
+  // API."), so this is the failure real users would hit first if VTO were
+  // enabled today -- and it must not cost them an attempt.
+  for (const status of [401, 403, 429, 500, 503]) {
+    const { fn } = scriptedFetch({
+      submit: () => jsonResponse({ message: 'You are not subscribed to this API.' }, status),
+    });
+    const provider = createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn });
+    const outcome = await provider.generate(TOP_INPUT, { signal: signal() });
+    assertEquals(outcome.ok, false);
+    if (!outcome.ok) assertEquals(outcome.billable, false, `http ${status}`);
+  }
+});
+
+Deno.test('VTO-QUOTA-003: failures before the submit is sent are non-billable', async () => {
+  // Unsupported slot — never touches the network at all.
+  const bottom = await createAiLabToolsProvider({ apiKey: 'k', fetchImpl: scriptedFetch().fn })
+    .generate({ ...TOP_INPUT, slot: 'bottom' }, { signal: signal() });
+  assertEquals(bottom.ok, false);
+  if (!bottom.ok) assertEquals(bottom.billable, false);
+
+  // Garment fetch failed — the submit was never built.
+  const { fn } = scriptedFetch({ garment: () => new Response('nope', { status: 404 }) });
+  const garmentFail = await createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn })
+    .generate(TOP_INPUT, { signal: signal() });
+  assertEquals(garmentFail.ok, false);
+  if (!garmentFail.ok) assertEquals(garmentFail.billable, false);
+});
+
+Deno.test('VTO-QUOTA-003: a failure AFTER a successful submit stays billable', async () => {
+  // A task_id came back, so AILabTools created a generation. Whatever happens
+  // next, the money is spent.
+  const { fn } = scriptedFetch({
+    poll: () => jsonResponse({ error_code: 0, task_status: 1 }),
+  });
+  const provider = createAiLabToolsProvider({
+    apiKey: 'k', fetchImpl: fn, pollIntervalMs: 0, pollMaxAttempts: 2,
+  });
+  const outcome = await provider.generate(TOP_INPUT, { signal: signal() });
+  assertEquals(outcome.ok, false);
+  if (!outcome.ok) {
+    assertEquals(outcome.failure, 'provider_timeout');
+    assertEquals(outcome.billable, undefined, 'absent means billable');
+  }
 });

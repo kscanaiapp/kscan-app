@@ -111,7 +111,19 @@ Deno.test('feature control: the mock is still reachable when an operator names i
   // deliberate operator choice and stays supported.
   const config = normalizeVtoFeatureConfig({ schemaVersion: 1, enabled: true, provider: 'mock' });
   assertEquals(config.provider, MOCK_VTO_PROVIDER_ID);
-  assertEquals(resolveVtoProvider({ providerId: config.provider }).ok, true);
+  // VTO-MOCK-001: naming it is now necessary but no longer sufficient -- the
+  // deployment must also permit the mock. Local/dev use is preserved by
+  // granting that permission, which is a deliberate act rather than a default.
+  const previous = Deno.env.get('VTO_ALLOW_MOCK_PROVIDER');
+  Deno.env.set('VTO_ALLOW_MOCK_PROVIDER', 'true');
+  try {
+    assertEquals(resolveVtoProvider({ providerId: config.provider }).ok, true);
+  } finally {
+    if (previous === undefined) Deno.env.delete('VTO_ALLOW_MOCK_PROVIDER');
+    else Deno.env.set('VTO_ALLOW_MOCK_PROVIDER', previous);
+  }
+  Deno.env.delete('VTO_ALLOW_MOCK_PROVIDER');
+  assertEquals(resolveVtoProvider({ providerId: config.provider }).ok, false);
 });
 
 Deno.test('feature control: the fail-closed constant names no provider at all', () => {

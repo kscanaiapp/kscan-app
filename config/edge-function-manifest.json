@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-08-31T19:53:03.640Z",
-    "generatedFromGitSha": "1a33ebeee6a21299bc41e37a04793452632869b7"
+    "generatedAtUtc": "2026-09-02T14:56:03.864Z",
+    "generatedFromGitSha": "6e7e0053184fbc3973765de51b92d4f5bba49d08"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -1038,8 +1038,8 @@
         ],
         "bundleFileCount": 3,
         "treeFileCount": 3,
-        "bundleHash": "436da11eb8ca0d9e028c72fabd1b9b9d037170b884c549df18774d932dceebab",
-        "treeHash": "436da11eb8ca0d9e028c72fabd1b9b9d037170b884c549df18774d932dceebab",
+        "bundleHash": "1e6ee8dbd6995be145a02d546d4cac9b76a204f58891245e6440b518d051d65d",
+        "treeHash": "1e6ee8dbd6995be145a02d546d4cac9b76a204f58891245e6440b518d051d65d",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -1048,7 +1048,7 @@
           },
           {
             "path": "supabase/functions/_shared/deletion/userDataResources.ts",
-            "sha256": "30f1b7294020726c46f8b8fa501180657da7801b7feb17d6cecf3bd52da6283d",
+            "sha256": "0d304afde27c1c658aaa61d82c41aab1c310122f4032c92ed4e3962613206624",
             "bundle": true
           },
           {
@@ -1347,8 +1347,8 @@
         ],
         "bundleFileCount": 16,
         "treeFileCount": 21,
-        "bundleHash": "69186d06c4b16cff2266ec351d963b17691cf6e88f20f49f98d44d2ca3eadc8c",
-        "treeHash": "e4445ec3055a07402f6c734a22d727bf73d1748699fc32e7b9f1c1ffea820400",
+        "bundleHash": "11485ba093520ca38195bb33ddbe7d37828451fd8cffe13281d2972e6ad8289e",
+        "treeHash": "e0c1a3872c8e42e26b4737020329dc3eaaab9d8e178087cede61e9c231dbb306",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -1372,27 +1372,27 @@
           },
           {
             "path": "supabase/functions/vto-generate/providers/aiLabToolsProvider.test.ts",
-            "sha256": "978088ea42ec369d0eb865be26ecb33e2f9dc350b3324c4c8f4bc3923f278ad5",
+            "sha256": "a35f5ce7271720c8aa530bc66102dede8f854c37eb272359a6e855a4e9ec8a0a",
             "bundle": false
           },
           {
             "path": "supabase/functions/vto-generate/providers/aiLabToolsProvider.ts",
-            "sha256": "d848eb79ee4eb22e3e9cdf0e29c76ea43e69ee240444c3cfa788f375eb9c09bc",
+            "sha256": "a2c5c24dfd290f8a56c0e2708764ada8a315f14d96a7f0f8e554b0d23df9eec5",
             "bundle": true
           },
           {
             "path": "supabase/functions/vto-generate/providers/index.ts",
-            "sha256": "6f585ad6d3c65bb1c1e30d7ab2a0f22ed3715b1910229cfb2ac7821df8e8588c",
+            "sha256": "a3d9ab71eab14f76071b393aad9850e4a2aa53d4768cc4b0bef00bdfb55a5efd",
             "bundle": true
           },
           {
             "path": "supabase/functions/vto-generate/providers/mockProvider.test.ts",
-            "sha256": "c03f1b10d5673eab97a9dd85d84eb6e75f78912476f3338d22d509cdc4aadc39",
+            "sha256": "77f86ecddce010aae1887dcb6ba4910d984273bfb391e7a21b5843457f6d974f",
             "bundle": false
           },
           {
             "path": "supabase/functions/vto-generate/providers/mockProvider.ts",
-            "sha256": "9e804ecf279d3267f99bafb4d53f297b7bd5916112adb72e18626fd8128b3fa5",
+            "sha256": "68add27c116924c56be4a475bd53acdad8ee4272ee159869928275f4a30ccf67",
             "bundle": true
           },
           {
@@ -1402,7 +1402,7 @@
           },
           {
             "path": "supabase/functions/vto-generate/vtoContract.ts",
-            "sha256": "ddfc866f224e229aa42912462b3ccc904b06a476faf450b8c8c4a736509d9d87",
+            "sha256": "94d9a7d88de848b988ab042151f21a9f4549e89179bec9a757673e21876691ee",
             "bundle": true
           },
           {
@@ -1422,17 +1422,17 @@
           },
           {
             "path": "supabase/functions/vto-generate/vtoGuards.test.ts",
-            "sha256": "e814f00e009b4ea5252de1bc628eb8dcab1a7f38805d21202bb4e46835fb2776",
+            "sha256": "daaf183a090ec5f08969b1030311aca627db8e8a496c8498ad781db3e5ce4171",
             "bundle": false
           },
           {
             "path": "supabase/functions/vto-generate/vtoHandler.test.ts",
-            "sha256": "652b99a8f43c16451373ef1168bfd0259789086dd7a291aa91710fedc18529e1",
+            "sha256": "5e463e5a830ba5132d6f5a5a9e6174041b09c439eeef9c8ade2fc956258f9db2",
             "bundle": false
           },
           {
             "path": "supabase/functions/vto-generate/vtoHandler.ts",
-            "sha256": "969c6e7fe00329634495f2ccebb6af4377be9c9e4b0cf9ff3e8682dc332759cd",
+            "sha256": "2a9f052cdb75cadcf8a6e057424752f06dc9d9df6b29fe12c8b9ad0f91756451",
             "bundle": true
           },
           {
@@ -1442,7 +1442,7 @@
           },
           {
             "path": "supabase/functions/vto-generate/vtoReservation.ts",
-            "sha256": "8d30bf042dadea5a3f098da50e8be1bf7056ab804fceb8dd0f5a8cecb742ed53",
+            "sha256": "32b395f1b55961c8c33044c878ba184ddd66c6c57af32cfc3bc6abf79c29d1b4",
             "bundle": true
           },
           {

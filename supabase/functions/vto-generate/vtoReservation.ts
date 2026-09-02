@@ -110,6 +110,37 @@ export async function reserveVtoGeneration(
 }
 
 /**
+ * VTO-QUOTA-003 — give back one PROVABLY non-billable attempt.
+ *
+ * Called instead of completeVtoGeneration when the adapter reported
+ * `billable: false`: the gateway refused (401/403/429/5xx) or the submit was
+ * never sent, so no generation exists to have paid for. Charging the daily cap
+ * for that is charging a person for an outage.
+ *
+ * Best-effort, like the settle below: if the release cannot be recorded the
+ * user is still told the truth about the failure, and the attempt simply stays
+ * counted. Failing loudly here would trade a small over-count for an error the
+ * user can do nothing about.
+ */
+export async function releaseVtoGeneration(
+  userId: string,
+  idempotencyKey: string,
+  provider?: string | null,
+  deps?: { rpc?: Rpc },
+): Promise<void> {
+  const call = deps?.rpc ?? rpc;
+  try {
+    await call('release_vto_generation', {
+      p_user_id: userId,
+      p_idempotency_key: idempotencyKey,
+      p_provider: provider ?? null,
+    });
+  } catch {
+    // Intentionally silent — see above.
+  }
+}
+
+/**
  * Settle a reservation. Best-effort by design: the paid call has already
  * happened, so a bookkeeping failure must not change what the user is told.
  * An unsettled row simply ages out of its lease.

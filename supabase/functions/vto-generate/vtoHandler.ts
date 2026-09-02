@@ -28,6 +28,14 @@
  * has been read. This is why parsing precedes authentication -- parsing is
  * cheap and total, and no parsed value is trusted for identity.
  *
+ * QUOTA AND BILLING ARE NOT THE SAME QUESTION. The reservation is taken
+ * BEFORE the provider call, because that is what makes a double tap collapse
+ * to one paid job. But a reservation is a claim on a paid call, not proof one
+ * happened: when the adapter reports `billable: false` (the vendor gateway
+ * refused, or the submit was never sent) the attempt is RELEASED rather than
+ * settled, so an outage the user did not cause does not consume their day.
+ * Anything from a successful submit onwards stays counted.
+ *
  * NO PERSISTENCE. This function writes no row and no Storage object. The
  * person image exists only for the life of this request; the result is
  * returned inline and never stored. VTO is visualization and evidence -- it
@@ -58,6 +66,7 @@ import { assertSafeRemoteMediaUrl } from '../_shared/net/safeRemoteMedia.ts';
 import {
   buildVtoIdempotencyKey,
   completeVtoGeneration,
+  releaseVtoGeneration,
   reserveVtoGeneration,
 } from './vtoReservation.ts';
 import { validateVtoResultMedia } from './vtoResultValidation.ts';
@@ -178,6 +187,7 @@ export interface VtoHandlerDeps {
   resolveVtoProvider: typeof resolveVtoProvider;
   reserveVtoGeneration: typeof reserveVtoGeneration;
   completeVtoGeneration: typeof completeVtoGeneration;
+  releaseVtoGeneration: typeof releaseVtoGeneration;
   generationTimeoutMs: number;
   devScenariosAllowed: () => boolean;
 }
@@ -190,6 +200,7 @@ export const defaultVtoHandlerDeps: VtoHandlerDeps = {
   resolveVtoProvider,
   reserveVtoGeneration,
   completeVtoGeneration,
+  releaseVtoGeneration,
   generationTimeoutMs: GENERATION_TIMEOUT_MS,
   devScenariosAllowed: () => Deno.env.get('VTO_ALLOW_DEV_SCENARIOS') === 'true',
 };
@@ -449,7 +460,16 @@ export async function handleVtoRequest(
   const latencyMs = Date.now() - startedAt;
 
   if (!outcome.ok) {
-    await deps.completeVtoGeneration(authUser.id, idempotencyKey, 'failed', selection.provider.id);
+    // VTO-QUOTA-003. An attempt is given back ONLY when the adapter can prove
+    // the vendor never created a generation -- a gateway 401/403/429/5xx, or a
+    // failure before the submit was sent. Absent or true means it stays
+    // counted, so a vendor that accepted the job is still paid for out of the
+    // daily cap and the unbounded-retry hole VTO-QUOTA-001 closed stays closed.
+    if (outcome.billable === false) {
+      await deps.releaseVtoGeneration(authUser.id, idempotencyKey, selection.provider.id);
+    } else {
+      await deps.completeVtoGeneration(authUser.id, idempotencyKey, 'failed', selection.provider.id);
+    }
     return fail(outcome.failure, {
       requestId,
       uid,

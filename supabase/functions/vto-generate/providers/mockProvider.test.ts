@@ -157,6 +157,20 @@ Deno.test('the timeout scenario never settles on its own', async () => {
   assertEquals(await pending, 'aborted');
 });
 
+/** VTO-MOCK-001. The mock now needs a deployment permission, so any test that
+ *  wants it must grant one -- which is the point: nothing gets the mock by
+ *  default any more, tests included. */
+function withMockAllowed<T>(fn: () => T): T {
+  const previous = Deno.env.get('VTO_ALLOW_MOCK_PROVIDER');
+  Deno.env.set('VTO_ALLOW_MOCK_PROVIDER', 'true');
+  try {
+    return fn();
+  } finally {
+    if (previous === undefined) Deno.env.delete('VTO_ALLOW_MOCK_PROVIDER');
+    else Deno.env.set('VTO_ALLOW_MOCK_PROVIDER', previous);
+  }
+}
+
 Deno.test('the registry refuses an unknown provider instead of falling back', () => {
   // Silently serving placeholder art when a real vendor is misconfigured
   // would be worse than an outage: nobody would notice.
@@ -164,13 +178,38 @@ Deno.test('the registry refuses an unknown provider instead of falling back', ()
     const outcome = resolveVtoProvider({ providerId: id });
     assertEquals(outcome.ok, false, id);
   }
-  assertEquals(resolveVtoProvider({ providerId: 'mock' }).ok, true);
+  withMockAllowed(() => {
+    assertEquals(resolveVtoProvider({ providerId: 'mock' }).ok, true);
+  });
+});
+
+Deno.test('VTO-MOCK-001: the mock is unreachable without a deployment opt-in', () => {
+  // The migration SEEDS provider:"mock" into app_config, so before this guard
+  // an environment that had never been retuned was one `enabled: true` away
+  // from serving the placeholder vignette as a real generation.
+  const previous = Deno.env.get('VTO_ALLOW_MOCK_PROVIDER');
+  Deno.env.delete('VTO_ALLOW_MOCK_PROVIDER');
+  try {
+    const outcome = resolveVtoProvider({ providerId: 'mock' });
+    assertEquals(outcome.ok, false);
+    if (!outcome.ok) assertEquals(outcome.reason, 'provider_unavailable');
+    // A half-hearted opt-in is not an opt-in.
+    for (const value of ['', 'false', 'TRUE', '1', 'yes']) {
+      Deno.env.set('VTO_ALLOW_MOCK_PROVIDER', value);
+      assertEquals(resolveVtoProvider({ providerId: 'mock' }).ok, false, value);
+    }
+  } finally {
+    if (previous === undefined) Deno.env.delete('VTO_ALLOW_MOCK_PROVIDER');
+    else Deno.env.set('VTO_ALLOW_MOCK_PROVIDER', previous);
+  }
 });
 
 Deno.test('an unrecognised scenario name degrades to success, never to a crash', () => {
   assertEquals(isMockVtoScenario('not-a-scenario'), false);
-  const outcome = resolveVtoProvider({ providerId: 'mock', scenario: 'nope' as never });
-  assertEquals(outcome.ok, true);
+  withMockAllowed(() => {
+    const outcome = resolveVtoProvider({ providerId: 'mock', scenario: 'nope' as never });
+    assertEquals(outcome.ok, true);
+  });
 });
 
 Deno.test('the provider is never handed a K Scan identity', () => {

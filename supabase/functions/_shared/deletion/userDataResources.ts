@@ -108,6 +108,13 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   // DELETE CASCADE to auth.users already removes this row; this entry adds it
   // to the worker's coverage counting and post-purge residual verification.
   { table: 'user_style_profiles', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  // Build 34 VTO paid-generation ledger (SEC-KPLUS-004). It holds NO person-image
+  // bytes -- idempotency_key is an opaque digest -- but the rows are user-scoped
+  // operational records, and the registry is what counts coverage and verifies
+  // residuals after a purge. ON DELETE CASCADE to auth.users already removes
+  // them; listing them here is the same decision made for user_closet_items and
+  // user_style_profiles above. Deletion is independent of K+ status.
+  { table: 'vto_generation_requests', column: 'user_id', action: 'auth_delete_cascade', optional: true },
 ];
 
 export interface StorageResourceTemplate {
