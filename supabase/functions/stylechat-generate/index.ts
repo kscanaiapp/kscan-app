@@ -2443,7 +2443,23 @@ Deno.serve(async (req) => {
       // bounded scope -- it never fails the turn and never silently upgrades
       // a bounded answer into a confident one.
       let closetCensus: EliseClosetCensus | null = null;
-      if (config.flags.conciergeV1 && wardrobeData.listClosetCensusRows) {
+      // WC-004. The K+ entitlement is named HERE, not merely implied by the
+      // presence of the census method above.
+      //
+      // Zero rows from `user_closet_items` is not an error -- RLS
+      // (`user_id = auth.uid() AND has_active_k_plus()`) simply returns nothing
+      // to an actor it does not admit. The census cannot tell that apart from
+      // an empty Closet, so it would report a NON-K+ actor's hidden Closet as
+      // provably empty and license "I don't see any outerwear in your Closet":
+      // the exact CON-ABSENCE-005 sentence, arriving through a different door.
+      //
+      // The entitlement is therefore a precondition of the CLAIM, not just of
+      // the query, and it is written where the claim is made.
+      if (
+        config.flags.conciergeV1 &&
+        hasActiveKPlusForWardrobeContext &&
+        wardrobeData.listClosetCensusRows
+      ) {
         try {
           const censusRows = await wardrobeData.listClosetCensusRows(userId, CENSUS_ROW_CAP);
           closetCensus = buildClosetCensus({ rows: censusRows, rowCap: CENSUS_ROW_CAP });

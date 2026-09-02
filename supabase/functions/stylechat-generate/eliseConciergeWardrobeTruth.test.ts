@@ -30,6 +30,7 @@ import { wardrobeRowsOrThrow } from './eliseWardrobeRetrieval.ts';
 import { analyzeWardrobeGap } from './eliseWardrobeGap.ts';
 import { enforceClosetAbsenceProseSafety } from './eliseOwnershipProseSafety.ts';
 import { normalizeWardrobeCandidate } from './eliseFashionFeatures.ts';
+import { buildDisplayFacts } from './eliseAdvicePrompt.ts';
 import type { EliseFocusedItem, EliseScoredCandidate } from './eliseAdviceTypes.ts';
 
 const ACTOR = '11111111-1111-4111-8111-111111111111';
@@ -346,4 +347,148 @@ Deno.test('WC-003: the absence guard remains unconditional too', async () => {
   assert.ok(blockStart > 0);
   const preamble = source.slice(blockStart, call);
   assert.ok(!preamble.includes('config.flags.conciergeV1'));
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WC-004 -- the K+ entitlement is a precondition of the CLAIM, not just of the
+// query.
+//
+// Zero rows from `user_closet_items` is not an error: RLS on staging is
+// `user_id = auth.uid() AND has_active_k_plus()`, so an actor it does not admit
+// simply sees nothing. The census cannot tell that apart from an empty Closet,
+// which is how a NON-K+ actor's hidden Closet becomes a provably empty one and
+// licenses "I don't see any outerwear in your Closet" -- the exact sentence
+// CON-ABSENCE-005 was reported on, reached through a different door.
+//
+// Found as a GUARD GAP: forcing `hasActiveKPlusForWardrobeContext = true` left
+// the entire backend suite green.
+// ─────────────────────────────────────────────────────────────────────────────
+
+Deno.test('WC-004: the K+ entitlement comes from the server RPC, never a constant', async () => {
+  const source = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
+  assert.ok(
+    source.includes("const { data: kPlusActive } = await userClient.rpc('has_active_k_plus', {});"),
+    'the wardrobe K+ authority must be read from the server RPC',
+  );
+  // It is compared strictly, and it is never assigned from anything else --
+  // not a request field, not a cached client flag, not a constant.
+  const assignments = [...source.matchAll(/hasActiveKPlusForWardrobeContext = ([^;]+);/g)]
+    .map((match) => match[1].trim())
+    .sort();
+  assert.deepEqual(assignments, ['false', 'false', 'kPlusActive === true']);
+  // And the entitlement check itself fails closed. Scoped to the WARDROBE
+  // probe: the Packing path has its own, separately governed, K+ call.
+  const probe = source.indexOf('hasActiveKPlusForWardrobeContext = kPlusActive === true;');
+  assert.ok(probe > 0);
+  const afterProbe = source.slice(probe, probe + 600);
+  assert.ok(afterProbe.includes('} catch {'));
+  assert.ok(afterProbe.includes('hasActiveKPlusForWardrobeContext = false;'));
+});
+
+Deno.test('WC-004: both authoritative Closet sources are K+ gated', async () => {
+  const source = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
+  const start = source.indexOf('...(hasActiveKPlusForWardrobeContext');
+  assert.ok(start > 0, 'the K+ spread gate on the Closet sources is missing');
+  const end = source.indexOf('let closetCensus: EliseClosetCensus | null = null;', start);
+  const gated = source.slice(start, end);
+  assert.ok(gated.includes('async listClosetItems('), 'listClosetItems must sit behind the K+ gate');
+  assert.ok(
+    gated.includes('async listClosetCensusRows('),
+    'listClosetCensusRows must sit behind the K+ gate',
+  );
+  // Neither may be declared a second time inside the ADVICE data source, which
+  // is what a copy-paste that escaped the K+ spread would look like. The
+  // Packing path legitimately declares its own `listClosetItems` against its
+  // own, separately governed entitlement gate, so the count is scoped rather
+  // than global.
+  const adviceStart = source.indexOf('const wardrobeData: EliseWardrobeDataSource = {');
+  const adviceBlock = source.slice(adviceStart, end);
+  assert.equal([...adviceBlock.matchAll(/async listClosetItems\(/g)].length, 1);
+  assert.equal([...adviceBlock.matchAll(/async listClosetCensusRows\(/g)].length, 1);
+  assert.ok(
+    adviceBlock.indexOf('async listClosetItems(') > adviceBlock.indexOf('...(hasActiveKPlusForWardrobeContext'),
+    'the Closet sources must sit AFTER the K+ spread gate opens',
+  );
+});
+
+Deno.test('WC-004: the census is built only under an affirmative entitlement', async () => {
+  const source = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
+  const at = source.indexOf('closetCensus = buildClosetCensus({');
+  assert.ok(at > 0, 'census construction not found');
+  const gateStart = source.lastIndexOf('      if (', at);
+  const gate = source.slice(gateStart, at);
+  assert.ok(
+    gate.includes('hasActiveKPlusForWardrobeContext'),
+    'a census that can license absence claims must require the entitlement explicitly',
+  );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WC-005 -- display facts are COPIED, never composed.
+//
+// Sections 22/36: preference context may rank and explain, it may not restate
+// what a garment IS. The existing coverage asserted that missing fields stay
+// null; nothing asserted that a PRESENT field is the candidate's own value, so
+// a fallback quietly substituted for the title would not have been noticed.
+// ─────────────────────────────────────────────────────────────────────────────
+
+Deno.test('WC-005: every display fact is the candidate own value, byte for byte', () => {
+  const candidate = normalizeWardrobeCandidate({
+    candidateId: 'closet:66666666-6666-4666-8666-666666666666',
+    sourceType: 'closet',
+    actorRelationship: 'owned',
+    row: {
+      id: '66666666-6666-4666-8666-666666666666',
+      user_id: ACTOR,
+      title: 'Black leather biker jacket',
+      category: 'jacket',
+      brand: 'Acne Studios',
+      color: ['black', 'silver'],
+      snapshot_payload: { metadata: { subcategory: 'biker' } },
+    },
+    canonicalResourceIds: { itemId: '66666666-6666-4666-8666-666666666666' },
+  });
+
+  const facts = buildDisplayFacts(candidate);
+  assert.equal(facts.title, 'Black leather biker jacket');
+  assert.equal(facts.category, 'jacket');
+  assert.equal(facts.subtype, 'biker');
+  assert.equal(facts.brand, 'Acne Studios');
+  assert.equal(facts.primaryColor, 'black');
+  assert.equal(facts.clientId, '66666666-6666-4666-8666-666666666666');
+
+  // A directional garment must not be softened into the tailoring a Signature
+  // Style prefers. Nothing in the fact set may be composed from anything but
+  // this candidate.
+  for (const value of Object.values(facts)) {
+    if (typeof value !== 'string') continue;
+    assert.ok(
+      [
+        candidate.title,
+        candidate.category,
+        candidate.subcategory,
+        candidate.brand,
+        ...candidate.colors,
+        candidate.canonicalResourceIds.itemId,
+      ].includes(value),
+      `display fact "${value}" is not a value the candidate carries`,
+    );
+  }
+});
+
+Deno.test('WC-005: a candidate with no title yields no title, not a plausible one', () => {
+  const candidate = normalizeWardrobeCandidate({
+    candidateId: 'closet:77777777-7777-4777-8777-777777777777',
+    sourceType: 'closet',
+    actorRelationship: 'owned',
+    row: {
+      id: '77777777-7777-4777-8777-777777777777',
+      user_id: ACTOR,
+      category: 'jacket',
+    },
+    canonicalResourceIds: { itemId: '77777777-7777-4777-8777-777777777777' },
+  });
+  const facts = buildDisplayFacts(candidate);
+  assert.equal(facts.title, null);
+  assert.equal(facts.category, 'jacket');
 });
