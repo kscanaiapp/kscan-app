@@ -20,6 +20,7 @@
 import { enrichFarfetchProductByUrl } from '../scan-identify/farfetch3Provider.ts';
 import { enrichKicksCrewProductByUrl } from '../scan-identify/kicksCrewProvider.ts';
 import { parseOfferPrice } from '../scan-identify/canonicalCommerce.ts';
+import { resolveObservedCurrency } from './watchCurrency.ts';
 import type { WatchObservation } from './changeEngine.ts';
 
 export type RefreshMetadata = {
@@ -78,11 +79,31 @@ export async function refreshWatchObservation(
     };
   }
 
-  const observedCurrency = parsed.currency ?? watch.currency;
-  if (observedCurrency !== watch.currency) {
+  // WL-01. `parsed.currency` cannot be trusted to identify the currency, and
+  // `?? watch.currency` -- the previous fallback -- actively defeated the guard
+  // it feeds: an unreadable currency was treated as agreement with the one the
+  // Watch already held. Both adapters format with
+  // Intl.NumberFormat('en-US', { style: 'currency', ... }), which renders CAD as
+  // "CA$", AUD as "A$", CNY as "CN¥" and CHF as "CHF ", none of which the shared
+  // { $, £, €, ¥ } substring scan reads correctly. A USD watch answered in CAD
+  // therefore compared 650 against 500 as if both were USD and could emit
+  // price_decreased / target_price_reached -- a push for a drop that never
+  // happened (§22, §72).
+  //
+  // resolveObservedCurrency derives its table from the same formatter, and
+  // returns null rather than guessing. Null is a MISMATCH here, never a match:
+  // the change engine leaves price, status and failure count untouched for
+  // currency_mismatch and raises no event, which is the correct answer to "a
+  // price came back and I cannot prove it is comparable".
+  const observedCurrency = resolveObservedCurrency(result.product.price);
+  if (observedCurrency === null || observedCurrency !== watch.currency) {
     return {
       observation: { status: 'currency_mismatch', priceAmount: parsed.value, currency: observedCurrency },
-      metadata: { provider: watch.source, latencyMs },
+      metadata: {
+        provider: watch.source,
+        latencyMs,
+        errorCode: observedCurrency === null ? 'unresolved_currency' : undefined,
+      },
     };
   }
 

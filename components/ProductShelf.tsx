@@ -548,7 +548,12 @@ export function ProductShelf({
                       <TouchableOpacity
                         testID="watch-listing-button"
                         accessibilityRole="button"
-                        accessibilityLabel="Watch this listing"
+                        // WL-10. A shelf renders one of these per product, so a
+                        // static label announces "Watch this listing" N times
+                        // with nothing to distinguish them: a screen-reader user
+                        // cannot tell which item they are about to watch. The
+                        // label must name the product the control acts on.
+                        accessibilityLabel={`Watch ${getProductTitle(p)}`}
                         accessibilityHint="Get notified about price changes on this item"
                         style={styles.addToRoomButton}
                         onPress={() => {

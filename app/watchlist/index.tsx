@@ -44,7 +44,11 @@ function WatchRow({ watch }: { watch: CommerceWatch }) {
       style={styles.row}
       onPress={() => router.push({ pathname: '/watchlist/[watchId]', params: { watchId: watch.id } })}
       accessibilityRole="button"
-      accessibilityLabel={`${watch.displayTitle}, ${price ?? 'price unavailable'}`}
+      // WL-10. The status pill is load-bearing — "Target reached" and "No longer
+      // listed" are the two states a user opens this screen to find — and it was
+      // rendered as a sighted-only visual. Announced with the row so the state is
+      // available without entering the detail screen.
+      accessibilityLabel={`${watch.displayTitle}, ${price ?? 'price unavailable'}, ${pill.label}`}
     >
       {watch.displayImageUrl ? (
         <Image source={{ uri: watch.displayImageUrl }} style={styles.thumb} resizeMode="cover" />
