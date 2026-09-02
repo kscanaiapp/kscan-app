@@ -50,6 +50,9 @@ const roomMessagesFilter = loadTsModule('services/roomMessages.ts', {
   './supabaseClient': { supabase: {} },
   '../constants/featureFlags': { DRESSING_ROOM_THREADS_V1: false },
   './dressingRoomCollaboration': {},
+  // joinSharedRoom now also ensures the Shared-with-Me discovery record;
+  // these suites exercise the message paths, so the seam is stubbed.
+  './sharedRoomMemberships': { saveSharedRoomForCurrentUser: async () => ({ status: 'already_saved' }) },
 });
 
 test('Ask My Room question is filtered before the share RPC is called', async () => {

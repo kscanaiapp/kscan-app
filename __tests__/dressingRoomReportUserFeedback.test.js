@@ -72,6 +72,9 @@ function loadContentReports(mockClient) {
   const reportReasons = loadTsModule('constants/reportReasons.ts');
   const ugcSafetyStore = loadTsModule('services/ugcSafetyStore.ts', {
     '@react-native-async-storage/async-storage': { __esModule: true, default: {} },
+    // The hidden-content store is actor-partitioned; these tests only use its
+    // pure isValidUuid export, so the actor seam is stubbed rather than driven.
+    './actorScope': { currentActorId: () => null },
   });
   return loadTsModule('services/contentReports.ts', {
     './supabaseClient': { __esModule: true, supabase: mockClient },

@@ -42,6 +42,7 @@ import {
 } from '../../../services/styleObjects';
 import { joinSharedRoom, ROOM_JOIN_ERROR } from '../../../services/roomMessages';
 import { resolveCollaborationAccess } from '../../../services/dressingRoomCollaboration';
+import { applyOptimisticReaction } from '../../../services/dressingRoomReactionOptimism';
 import { ItemReactions, type ReactionCountsForItem } from '../../../components/dressing-rooms/ItemReactions';
 import { RoomMessagesPanel } from '../../../components/rooms/RoomMessagesPanel';
 import {
@@ -954,15 +955,42 @@ export default function SharedRoomScreen() {
     if (!capabilities.canReact || !joinedRoomId || mutatingReactionItemId === itemId) return;
 
     const currentReaction = selectedReactions[itemId] ?? null;
+    const previousSelection = currentReaction;
+    const previousCounts = reactionCounts[itemId] ?? createEmptyReactionCounts();
+    const reactRoomId = joinedRoomId;
+    const reactToken = normalizedRouteToken;
+    const reactActorId = user?.id ?? null;
+    const optimistic = applyOptimisticReaction({
+      current: currentReaction,
+      tapped: reactionType,
+      counts: previousCounts as unknown as Record<string, number>,
+    });
+
+    // The share token identifies the room on this screen, so both it and the
+    // actor must still be the ones the tap started under.
+    const stillThisRoomAndActor = () =>
+      routeTokenRef.current === reactToken && (user?.id ?? null) === reactActorId;
+
     setMutatingReactionItemId(itemId);
+    setSelectedReactions((current) => ({ ...current, [itemId]: optimistic.nextSelection }));
+    setReactionCounts((current) => ({
+      ...current,
+      [itemId]: optimistic.nextCounts as unknown as ReactionCountsForItem,
+    }));
+
     try {
-      if (currentReaction === reactionType) {
-        await setItemReaction(itemId, reactionType, { roomId: joinedRoomId, active: false });
-      } else {
-        await setItemReaction(itemId, reactionType, { roomId: joinedRoomId, active: true });
-      }
+      await setItemReaction(itemId, reactionType, {
+        roomId: reactRoomId,
+        active: optimistic.active,
+      });
+      if (!stillThisRoomAndActor()) return;
       await refreshItemReactions([itemId]);
     } catch {
+      if (!stillThisRoomAndActor()) return;
+      // Truthful rollback: a revoked share or a block both surface here, and
+      // the reaction must not linger as though the server had accepted it.
+      setSelectedReactions((current) => ({ ...current, [itemId]: previousSelection }));
+      setReactionCounts((current) => ({ ...current, [itemId]: previousCounts }));
       Alert.alert('Unable to save reaction.', 'Please try again.');
     } finally {
       setMutatingReactionItemId((current) => (current === itemId ? null : current));
@@ -971,8 +999,11 @@ export default function SharedRoomScreen() {
     capabilities.canReact,
     joinedRoomId,
     mutatingReactionItemId,
+    normalizedRouteToken,
+    reactionCounts,
     refreshItemReactions,
     selectedReactions,
+    user?.id,
   ]);
 
   // ── Feature flag fallback ──────────────────────────────────────────────────

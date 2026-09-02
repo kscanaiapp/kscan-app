@@ -44,6 +44,14 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   { table: 'dressing_room_item_reactions', column: 'user_id', action: 'auth_delete_cascade' },
   { table: 'dressing_room_messages', column: 'sender_id', action: 'auth_delete_cascade' },
   { table: 'dressing_room_participants', column: 'user_id', action: 'auth_delete_cascade' },
+  // Dressing Room account-level blocks. Both columns are ON DELETE CASCADE to
+  // auth.users, so the rows already go at the Auth delete; these entries add
+  // them to the worker's coverage counting and post-purge residual
+  // verification, which is what the registry is for. Two entries because a
+  // block is a pair: one covers blocks this account created, the other blocks
+  // created against it, and a purge must leave neither behind.
+  { table: 'dressing_room_user_blocks', column: 'blocker_user_id', action: 'auth_delete_cascade', optional: true },
+  { table: 'dressing_room_user_blocks', column: 'blocked_user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'room_shares', column: 'owner_id', action: 'auth_delete_cascade' },
   { table: 'looks', column: 'user_id', action: 'auth_delete_cascade' },
   { table: 'look_items', column: null, action: 'parent_look_cascade', count: false },

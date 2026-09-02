@@ -89,6 +89,18 @@
       "action": "auth_delete_cascade"
     },
     {
+      "table": "dressing_room_user_blocks",
+      "column": "blocker_user_id",
+      "action": "auth_delete_cascade",
+      "optional": true
+    },
+    {
+      "table": "dressing_room_user_blocks",
+      "column": "blocked_user_id",
+      "action": "auth_delete_cascade",
+      "optional": true
+    },
+    {
       "table": "room_shares",
       "column": "owner_id",
       "action": "auth_delete_cascade"
