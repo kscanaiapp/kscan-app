@@ -42,9 +42,9 @@ is inherited verbatim and cannot drift onto production):
 | Elise | ON | `EXPO_PUBLIC_AI_STYLIST_ENABLED` (+ backend) |
 | Closet | ON | inherited staging env |
 | Dressing Rooms | ON | inherited staging env |
-| VTO | ON (client) | `EXPO_PUBLIC_VTO_UI_ENABLED` — **server kill switch still OFF, see §6** |
-| Packing Intelligence | ON (client) | `EXPO_PUBLIC_PACKING_INTELLIGENCE_V1` — **server gate OFF, see §6** |
-| Wardrobe Concierge | ON (client) | `EXPO_PUBLIC_ELISE_CONCIERGE_V1` — **server gate OFF, see §6** |
+| VTO | ON | `EXPO_PUBLIC_VTO_UI_ENABLED` + server kill switch `vto_generation.enabled=true` (2026-09-01) |
+| Packing Intelligence | ON | `EXPO_PUBLIC_PACKING_INTELLIGENCE_V1` + server gate `ELISE_PACKING_INTELLIGENCE_V1_ENABLED=true` (2026-09-01) |
+| Wardrobe Concierge | ON | `EXPO_PUBLIC_ELISE_CONCIERGE_V1` + server gate `ELISE_CONCIERGE_V1_ENABLED=true` (2026-09-01) |
 | K+ Early Access | ON | `EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED` |
 | Smart Watchlist | ON | `EXPO_PUBLIC_SMART_WATCHLIST_V1` |
 | Voice Scan | ON | `EXPO_PUBLIC_VOICESCAN_ENABLED` + native `KSCAN_VOICE_CERTIFICATION` |
@@ -65,22 +65,122 @@ untestable in a way that looks like a product bug on the device.
 
 | # | Item | Observed state | Effect if not done |
 |---|---|---|---|
-| B1 | `ELISE_PACKING_INTELLIGENCE_V1_ENABLED` staging secret | **ABSENT** → code default `false` | Packing client flag is ON, server refuses. Packing certification is impossible. |
-| B2 | `ELISE_CONCIERGE_V1_ENABLED` staging secret | **ABSENT** → code default `false` | Concierge client flag is ON, server refuses. Concierge certification is impossible. |
-| B3 | `app_config.vto_generation.enabled` | `false` | VTO renders and every generation is refused by the kill switch. Real-provider VTO cannot be exercised. |
-| B4 | EAS file secret `GOOGLE_SERVICES_JSON` | not provisioned | The AAB carries no Firebase config; Android can never obtain a push token. Watchlist push rows below cannot pass. |
-| B5 | Expo FCM V1 service-account key (`eas credentials --platform android`) | unconfirmed | Token obtainable, delivery impossible. |
+| B1 | `ELISE_PACKING_INTELLIGENCE_V1_ENABLED` staging secret | ✅ **RESOLVED 2026-09-01** — set, effective `true` | — |
+| B2 | `ELISE_CONCIERGE_V1_ENABLED` staging secret | ✅ **RESOLVED 2026-09-01** — set, effective `true` | — |
+| B3 | `app_config.vto_generation.enabled` | ✅ **RESOLVED 2026-09-01** — `true` (JSON boolean) | — |
+| B4 | EAS file secret `GOOGLE_SERVICES_JSON` | **STILL NOT PROVISIONED — OWNER ACTION REQUIRED** | The AAB carries no Firebase config; Android can never obtain a push token. Watchlist push rows below cannot pass. |
+| B5 | Expo FCM V1 service-account key (`eas credentials --platform android`) | **STILL UNCONFIRMED — OWNER ACTION REQUIRED** | Token obtainable, delivery impossible. |
 | B6 | A controlled, authenticated staging test account with **active K+** | see §3 | Every K+-gated row (Voice, Watchlist, VTO, Packing, Concierge) is unreachable. |
-| B7 | `WATCHLIST_WORKER_SECRET` staging secret | **ABSENT** | Tier-2 scheduled sweep authenticates on this and fails closed. Tier-1 in-app refresh is unaffected. |
+| B7 | `WATCHLIST_WORKER_SECRET` staging secret | ✅ **RESOLVED 2026-09-01** — provisioned on `yzqjvdfgefveprobvvyw` only | — |
 
-How B1/B2 were observed: `supabase secrets list --project-ref yzqjvdfgefveprobvvyw`
-returns a SHA-256 digest of each secret's value. Neither name appears at all.
-`supabase/functions/stylechat-generate/eliseConfig.ts` reads both with a
-`false` default, so absent means off. (The digest is a plain SHA-256 of the
-value, so `b5bea41b…67e12b` = `"true"` and `fcbcf165…24f8aa` = `"false"` —
-this is how the other `ELISE_*_ENABLED` gates were confirmed ON.)
+### Why B4/B5 could not be closed from this environment (2026-09-01)
+
+A follow-up pass attempted to close B4/B5. It could not: this environment has
+no Firebase/gcloud CLI authentication (`firebase login` requires an
+interactive OAuth flow this session cannot run), no cached service-account or
+`GOOGLE_APPLICATION_CREDENTIALS`, no `google-services.json` anywhere on disk
+or in the team's connected Drive, and no authenticated browser session to the
+Firebase console. `eas env:list` confirms the EAS project's file-secret store
+is empty for every environment. These two items are owner-only, exactly as
+the original handoff already stated — this just records that a real attempt
+was made and exactly what was tried, so the next pass does not repeat it.
+
+### WATCHLIST_WORKER_SECRET — provisioned 2026-09-01 (staging only)
+
+Generated locally (48 bytes, URL-safe, `secrets.token_urlsafe`) and set via
+`supabase secrets set --env-file` (never on a command line, never echoed,
+local copy shredded immediately after). Verified without ever reading the
+value back:
+
+- staging secret count moved 74 → 75 (exactly +1)
+- production (`wyyuqfdxucjksghsmhry`) secret count unchanged at 72;
+  `WATCHLIST_WORKER_SECRET` confirmed absent there
+- refusal path: `x-watchlist-worker-secret: definitely-wrong` against the live
+  `commerce-watch-refresh` endpoint → **HTTP 401**, proving the mechanism
+  reads and compares the secret rather than accepting anything
+
+This closes gate 1 of the three `docs/watchlist-tier2-operations.md` §1
+describes. Gate 3 (`app_config.watchlist_worker_enabled`) was **already**
+`true` on staging before this pass, from activity outside both certification
+tasks — not something either task set. Gate 2 (the sweep's `schedule:` block)
+remains commented out and was not touched; the GitHub repository secret
+mirror (ops doc step 2) was deliberately **not** created, since Objective 5's
+scope was the Supabase Edge Function secret only. The Tier-2 *scheduled*
+sweep therefore stays inert; Tier-1 in-app refresh was already unaffected by
+any of this.
+
+### Runtime enablement performed 2026-09-01 (staging only)
+
+Three gates were enabled on `yzqjvdfgefveprobvvyw`. Production
+(`wyyuqfdxucjksghsmhry`) was not read-modified, deployed to, or changed.
+
+| Gate | Before | After | Verified by |
+|---|---|---|---|
+| `ELISE_PACKING_INTELLIGENCE_V1_ENABLED` | absent | effective `true` | secret digest = SHA-256(`"true"`) |
+| `ELISE_CONCIERGE_V1_ENABLED` | absent | effective `true` | secret digest = SHA-256(`"true"`) |
+| `app_config.vto_generation.enabled` | `false` | `true` | direct row read-back |
+
+How the secret state is observable: `supabase secrets list` returns a plain
+SHA-256 of each secret's **value**, so a boolean gate is directly readable
+(`b5bea41b…67e12b` = `"true"`, `fcbcf165…24f8aa` = `"false"`). An absent name
+is the more dangerous state — it silently takes the code default.
+
+Runtime consumption was proven against the **deployed** bundle, not local
+source: `stylechat-generate` v119's `eliseConfig.ts` is byte-identical to this
+authority and reads exactly `ELISE_PACKING_INTELLIGENCE_V1_ENABLED` and
+`ELISE_CONCIERGE_V1_ENABLED` via `parseBooleanEnv(..., false)`, which maps
+`"true"` → `true`. Deployed `vto-generate` reads `app_config.vto_generation`
+and tests `raw.enabled === true` — a strict boolean identity check, which is
+why the row was written as a JSON boolean and not the string `"true"`; the
+latter would have left the switch silently closed. Both functions answered
+HTTP 401 to an unauthenticated POST after the change, confirming they are
+serving.
+
+The VTO row's other fields are unchanged: `provider`
+(`ailabtools_tryon_clothes_pro`), `schemaVersion`, `mockScenario`,
+`mockLatencyMs`, `supportedCategories`, `updatedAt`; field count still 7.
+
+**Gate admission is not runtime-proven.** Enabling the switch is not the same
+as exercising it. Both remaining halves need B6 — an authenticated K+ session —
+so Packing/Concierge response behaviour and VTO admission stay device
+obligations (§6).
 
 **Never place credentials in source or in any report, including this one.**
+
+### ⚠️ Deployed `stylechat-generate` is behind this authority on the absence guard
+
+Found while verifying the Concierge enablement. Deployed v119
+(2026-08-31T19:00Z) is byte-identical to this authority across 50 of 51 files;
+the exception is `eliseOwnershipProseSafety.ts`, which predates the
+**CON-ABSENCE-006** repair (`071d5c4`, "close the adverb gap in every
+Closet-absence assertion").
+
+The deployed patterns admit only a fixed adverb list at one boundary. Measured
+against the merged patterns:
+
+| Sentence | Deployed v119 catches? | This authority catches? |
+|---|---|---|
+| "your wardrobe is **currently** missing foundational pieces …" | ❌ no | ✅ yes |
+| "your closet is **lacking** bottoms" | ❌ no | ✅ yes |
+| "you **really** do not seem to own a blazer" | ❌ no | ✅ yes |
+| "you currently have no jackets" | ✅ yes | ✅ yes |
+
+The first row is the exact sentence CON-ABSENCE-006 records staging as having
+actually produced.
+
+**Scope, stated precisely.** This guard is **unconditional** — it runs on every
+Elise turn, deliberately *not* gated on `conciergeV1` (a feature flag may
+decide whether Concierge behaviour exists; it must not decide whether the
+assistant may state a falsehood about the customer's Closet). So this gap
+**pre-existed** the enablement above and already applied to all staging Elise
+traffic. Enabling Concierge does not create it, but it does widen the surface
+on which wardrobe-gap prose is generated, which is where the gap bites.
+
+**Not fixed here** — deploying `stylechat-generate` is a separate governed
+action outside the authorised scope of a gate-enablement task. Recommended
+before device certification of Concierge: deploy this authority's
+`stylechat-generate` to staging through the governed path and re-prove parity
+across all 51 files.
 
 ---
 
@@ -198,14 +298,14 @@ B7 regardless.
 
 | # | Row | Expected | Blocked by |
 |---|---|---|---|
-| VT-01 | Staging VTO kill switch enabled by owner, real provider exercised | Real generation returns a real image | B3 |
+| VT-01 | Real provider exercised (kill switch now ON) | Real generation returns a real image | B6 |
 | VT-02 | Provider success | Result rendered, attributed correctly, quota decremented |  |
 | VT-03 | Provider failure | Typed error, no charge claimed, no mock image presented as a real result |  |
 | VT-04 | Provider retry | Bounded; no runaway spend on the shared key |  |
 | VT-05 | Kill switch OFF | Server refuses regardless of what the client believes | — |
-| PK-01 | Packing server gate confirmed ON, then a packing request | Packing intelligence responds | B1 |
+| PK-01 | Packing server gate confirmed ON (2026-09-01), then a packing request | Packing intelligence responds | B6 |
 | PK-02 | Packing without K+ | Refused, upgrade offered |  |
-| CN-01 | Concierge server gate confirmed ON, then a concierge request | Concierge responds | B2 |
+| CN-01 | Concierge server gate confirmed ON (2026-09-01), then a concierge request | Concierge responds; **no ungrounded absence claim** (see §2 drift note) | B6 |
 | CN-02 | Concierge without K+ | Refused, upgrade offered |  |
 
 **Deployed-vs-source parity (checked 2026-08-31, `supabase functions download`):**
@@ -474,8 +574,9 @@ selects.
 3. Android push delivery and routing on a Play-distributed artifact — §9
 4. Watchlist end-to-end, first execution — §5
 5. Voice on-device behaviour on real Android 15 and 16 hardware — §7
-6. VTO real-provider success/failure/retry, pending B3 — §6
-7. Packing / Concierge server gates, pending B1 / B2 — §6
+6. VTO real-provider success/failure/retry — kill switch is now ON; pending B6 — §6
+7. Packing / Concierge response behaviour — server gates are now ON; pending B6 — §6
+8. Deployed `stylechat-generate` absence-guard drift — §2
 
 ## 15. KNOWN PRE-EXISTING, OUT OF THIS PR'S SCOPE
 
