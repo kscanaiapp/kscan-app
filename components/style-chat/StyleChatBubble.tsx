@@ -9,6 +9,10 @@ import { StyleChatVoiceRetry } from './StyleChatVoiceRetry';
 import { useStylistIdentity } from '../../hooks/useStylistIdentity';
 import { STYLE_DNA_ENABLED } from '../../services/style-dna/localStyleDnaFeedbackStore';
 import { useAiOutputReporting } from '../../contexts/AiOutputReportingContext';
+import {
+  isPendingUserMessage,
+  isStablePersistedId,
+} from '../../services/style-chat/styleChatMessageState';
 import { isSyntheticStyleChatFailure } from '../../services/style-chat/styleChatOutcome';
 import { isEligibleForStyleFeedback } from '../../services/style-dna/styleDnaEligibility';
 import * as FileSystem from 'expo-file-system';
@@ -105,9 +109,7 @@ function parseAssistantContent(content: string): AssistantContentBlock[] {
 // A message is a completed assistant response only when it has a stable,
 // backend-persisted id (Supabase UUID). Optimistic, still-in-flight bubbles use
 // `optimistic-…` ids and must not show feedback.
-function isStablePersistedId(id: string): boolean {
-  return typeof id === 'string' && id.length > 0 && !id.startsWith('optimistic-');
-}
+
 
 function findWhyThisWorks(message: StyleChatMessage): string | undefined {
   if (!Array.isArray(message.uiBlocks)) return undefined;
@@ -159,6 +161,8 @@ export function StyleChatBubble({
     isStablePersistedId(message.id) &&
     isEligibleForStyleFeedback({ message, userKey, isError });
 
+  const isPending = isPendingUserMessage(message);
+
   return (
     <View
       testID={isUser ? 'style-chat-message-user' : 'style-chat-message-assistant'}
@@ -172,11 +176,18 @@ export function StyleChatBubble({
         />
       ) : null}
       <View
-        style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAssistant]}
+        testID={isPending ? 'style-chat-message-user-pending' : undefined}
+        style={[
+          styles.bubble,
+          isUser ? styles.bubbleUser : styles.bubbleAssistant,
+          isPending ? styles.bubblePending : null,
+        ]}
         accessibilityRole="text"
         accessibilityLabel={
           isUser
-            ? `Your message: ${content}`
+            ? isPending
+              ? `Your message, sending: ${content}`
+              : `Your message: ${content}`
             : isGreeting
               ? `${stylistDisplayName}: ${content}`
               : `${stylistDisplayName} message: ${content}`
@@ -357,6 +368,12 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.lg,
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
+  },
+  // Optimistic user bubbles are dimmed until the server acknowledges them, so
+  // "shown" never silently reads as "accepted". A failed send removes the
+  // bubble and restores the text to the composer, so this state is transient.
+  bubblePending: {
+    opacity: 0.62,
   },
   bubbleUser: {
     backgroundColor: LUXURY.colors.plum,

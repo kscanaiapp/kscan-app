@@ -417,7 +417,15 @@ test('typing, send, navigation, avatar, preference, actor, and sign-out interrup
   const hook = fs.readFileSync(path.join(ROOT, 'hooks', 'useStyleChat.ts'), 'utf8');
   const preference = fs.readFileSync(path.join(ROOT, 'hooks', 'useVoiceResponsesPreference.ts'), 'utf8');
   const auth = fs.readFileSync(path.join(ROOT, 'contexts', 'AuthSessionContext.tsx'), 'utf8');
-  assert.match(screen, /next\.trim\(\)\.length > 0[\s\S]*stopAvatarSpeechPlayback/);
+  // Typing still interrupts, but the decision now goes through
+  // planEliseSpeechInterruption so that focusing the composer interrupts too and
+  // the haptic confirmation only fires for speech that was genuinely audible for
+  // this actor and session. The BEHAVIOUR of that decision is proven in
+  // __tests__/eliseSpeechInterruption.test.js; this only checks it is wired to
+  // both composer entry points and still reaches the one authoritative teardown.
+  assert.match(screen, /interruptSpeech\('typing', next\.trim\(\)\.length === 0\)/);
+  assert.match(screen, /onComposerFocus=\{\(\) => interruptSpeech\('focus'\)\}/);
+  assert.match(screen, /planEliseSpeechInterruption\(\{[\s\S]*stopAvatarSpeechPlayback/);
   assert.match(hook, /isSendingRef\.current = true[\s\S]*stopAvatarSpeechPlayback/);
   assert.match(hook, /return \(\) => \{[\s\S]*stopAvatarSpeechPlayback\(speechScope\)/);
   assert.match(hook, /identity\.avatarId[\s\S]*stopAvatarSpeechPlayback/);

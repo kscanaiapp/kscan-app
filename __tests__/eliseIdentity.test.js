@@ -16,6 +16,10 @@ const styleChatSessionScreen = fs.readFileSync(path.join(ROOT, 'app', 'style-cha
 const styleChatIndex = fs.readFileSync(path.join(ROOT, 'app', 'style-chat', 'index.tsx'), 'utf8');
 const styleChatSessionLaunchGuard = fs.readFileSync(path.join(ROOT, 'services', 'style-chat', 'sessionLaunchGuard.ts'), 'utf8');
 const styleChatActionCards = fs.readFileSync(path.join(ROOT, 'components', 'style-chat', 'StyleChatActionCards.tsx'), 'utf8');
+// The thinking state moved out of the screen into its own component when it
+// gained the pulsing indicator and the >5s escalation; the copy contract
+// asserted below followed it there.
+const styleChatThinkingIndicator = fs.readFileSync(path.join(ROOT, 'components', 'style-chat', 'StyleChatThinkingIndicator.tsx'), 'utf8');
 const styleChatInput = fs.readFileSync(path.join(ROOT, 'components', 'style-chat', 'StyleChatInput.tsx'), 'utf8');
 const styleChatAttachmentBar = fs.readFileSync(path.join(ROOT, 'components', 'style-chat', 'StyleChatAttachmentBar.tsx'), 'utf8');
 const styleChatBubble = fs.readFileSync(path.join(ROOT, 'components', 'style-chat', 'StyleChatBubble.tsx'), 'utf8');
@@ -110,9 +114,16 @@ test('session screen empty state replaces generic state with dynamic Elise intro
 });
 
 test('StyleChat thinking state uses Elise-aware copy', () => {
-  assert.match(styleChatSessionScreen, /\{ELISE_LOADING_COPY\.thinking\}/);
-  assert.match(styleChatSessionScreen, /\{ELISE_LOADING_COPY\.thinkingSubtext\}/);
+  assert.match(styleChatThinkingIndicator, /ELISE_LOADING_COPY\.thinking/);
+  assert.match(styleChatThinkingIndicator, /ELISE_LOADING_COPY\.thinkingSubtext/);
+  // The escalated state is Elise-aware too, and both come from the shared copy
+  // constants rather than being written inline in the component.
+  assert.match(styleChatThinkingIndicator, /ELISE_LOADING_COPY\.thinkingLonger/);
+  assert.match(styleChatThinkingIndicator, /ELISE_LOADING_COPY\.thinkingLongerSubtext/);
+  assert.doesNotMatch(styleChatThinkingIndicator, /StyleChat is thinking/);
   assert.doesNotMatch(styleChatSessionScreen, /StyleChat is thinking/);
+  // The screen renders the stylist's own name into it rather than hard-coding one.
+  assert.match(styleChatSessionScreen, /StyleChatThinkingIndicator stylistDisplayName=\{stylistDisplayName\}/);
 });
 
 // ── Action labels ────────────────────────────────────────────────────────────

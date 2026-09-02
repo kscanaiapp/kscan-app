@@ -19,6 +19,7 @@ import { AUTH_CALLBACK_URL } from '../services/authConfig';
 import { AUTH_STATE, getSessionAuthState, isSessionUsable } from '../services/routingGuard';
 import { invalidateAllMemoryCache } from '../services/style-chat/styleMemoryCache';
 import { resetAttachmentStore } from '../services/style-chat/styleChatAttachmentStore';
+import { clearStyleChatDrafts } from '../services/style-chat/styleChatDraftPersistence';
 import { resetVisualContextStore } from '../services/style-chat/eliseVisualContextStore';
 import { cleanupSanitizedImage } from '../services/privacyImageUpload';
 import { resetVtoRequestState } from '../services/vto/vtoRequestStore';
@@ -92,6 +93,11 @@ function resetActorScopedRuntimeState(nextActorId: string | null): void {
   advanceActorEpoch(nextActorId);
   invalidateAllMemoryCache();
   resetAttachmentStore();
+  // Durable composer drafts hold the previous actor's unsent words. Dropped
+  // here alongside the in-memory drafts; fire-and-forget, because a storage
+  // failure must never delay an auth transition -- and cannot leak either, since
+  // every read of that store requires the expected actor and fails closed.
+  void clearStyleChatDrafts();
   // Actor change (sign-in / sign-out / user update): drop any composer
   // attachment drafts, pending visual context, and un-consumed handoff so
   // this device's local image URIs and resolved references never cross
