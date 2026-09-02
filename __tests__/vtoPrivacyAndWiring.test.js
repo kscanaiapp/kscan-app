@@ -411,18 +411,7 @@ test('no VTO surface infers anything about the body', () => {
   }
 });
 
-// UPDATED for the Save-to-Dressing-Room bridge (VTO UX polish).
-//
-// The original invariant was "a try-on writes nothing durable, full stop".
-// That is no longer the product: a user who likes a result may explicitly
-// save it. The invariant is therefore tightened rather than dropped --
-// nothing is written AUTOMATICALLY, and exactly one file may write at all.
-//
-// The four files below stay completely free of persistence imports, so a
-// try-on still cannot leak into the Closet or a scan record by accident.
-// components/vto/VtoSaveToDressingRoom.tsx is the single quarantined path,
-// covered by `vtoUxPolish.test.js` for the no-auto-save rule.
-test('a try-on writes no Closet, purchase, or style-preference record on its own', () => {
+test('a try-on writes no Closet, purchase, or style-preference record', () => {
   const persistenceImports = [
     'services/library',
     'savedScansCloud',
