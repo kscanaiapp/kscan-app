@@ -21,6 +21,13 @@ export interface TextScanInputProps {
   accessibilityLabel?: string;
   /** Optional slot rendered in the footer, alongside the hint/counter -- the Voice Scan mic affordance uses this. */
   rightAccessory?: React.ReactNode;
+  /**
+   * Optional handle on the underlying TextInput so a caller can focus it
+   * imperatively. Voice Scan uses this to hand the user straight into the
+   * keyboard once a transcript lands (or once Voice Scan degrades to manual
+   * entry), instead of making them tap the field first.
+   */
+  inputRef?: React.RefObject<TextInput | null>;
 }
 
 /**
@@ -37,6 +44,7 @@ export function TextScanInput({
   inputStyle,
   accessibilityLabel = 'TextScan search query',
   rightAccessory,
+  inputRef,
 }: TextScanInputProps) {
   const isValid = value.trim().length >= minLength;
 
@@ -47,6 +55,7 @@ export function TextScanInput({
       accessibilityState={{ disabled }}
     >
       <TextInput
+        ref={inputRef}
         value={value}
         onChangeText={(text) => {
           if (text.length <= maxLength) {

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Modal, StyleSheet, Text, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { PrimaryButton, SecondaryButton } from '../luxury';
 import { VoiceScanIcon } from '../icons/kscan';
 import { LUXURY, MOTION, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
@@ -104,9 +105,16 @@ export function VoiceListeningSheet({
   const pulseScale = usePulse(visible && state === 'listening');
 
   useEffect(() => {
-    if (state === 'listening') {
-      AccessibilityInfo.announceForAccessibility?.('Listening. Tap Stop when you are done speaking.');
-    }
+    if (state !== 'listening') return;
+    AccessibilityInfo.announceForAccessibility?.('Listening. Tap Stop when you are done speaking.');
+    // A light impact at the moment the mic actually opens grounds the user
+    // in the physical act of speaking, so "is it listening yet?" never has
+    // to be answered by the animation alone. Deliberately Light (not the
+    // Success notification used when the transcript lands) so the two
+    // moments feel different. Fire-and-forget: haptics must never gate or
+    // delay recognition, and a device without a taptic engine simply
+    // no-ops.
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
   }, [state]);
 
   const renderContent = () => {
