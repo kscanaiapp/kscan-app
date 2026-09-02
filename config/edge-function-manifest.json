@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-02T19:26:53.627Z",
-    "generatedFromGitSha": "b8aef33fbcd3a2986a3aa970bdce4f4886127cc0"
+    "generatedAtUtc": "2026-09-02T20:00:51.637Z",
+    "generatedFromGitSha": "2fad19a072266c0e435b699a70ed1225b4f599af"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -472,7 +472,7 @@
         "bundleFileCount": 52,
         "treeFileCount": 77,
         "bundleHash": "cd691e2ea10e6fc764f07c857a45cf7685e167d93ae252d5ec49b42c59dbef9f",
-        "treeHash": "1ef9796fa04b6665caa7cb455cac8f8b83d0d846f926a5211128402ef1dc49a7",
+        "treeHash": "5b62fcfc51965230f04943f7eebed57bfb97c395e351611a46ec425c808ac390",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -596,7 +596,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseConciergeWardrobeTruth.test.ts",
-            "sha256": "3c232d54453f3f1e3f173c827665ccc3b69420920e35aa40716dafdcd3cbdd64",
+            "sha256": "c1e57e804a1c814bfee77d4bcb9d1c60527c9f55f14a9d84e390e1f0cea0af14",
             "bundle": false
           },
           {
