@@ -3647,23 +3647,55 @@ Deno.serve(async (req) => {
       }
       rankedProductsForAudit = finalRecommendedProducts;
     } else if (useMultiItemDetectionProvider) {
-      console.log(
-        '[scan-identify] commerce_skipped reason=multi_item_detection_only mode=%s source=%s',
-        mode,
-        source,
-      );
+      // Detection never runs commerce inline — that is what keeps the scan
+      // critical path off provider latency, and it does not change here.
+      //
+      // What DOES change (SCAN-001): when the v127 funnel is on, this response
+      // must still tell the client that commerce is *deferred*, not skipped.
+      // The client gates BOTH shelves it renders on this surface —
+      // `hydrateMultiItemCommerce` (one MODE B request per detected item) and
+      // `hydrateDeferredCommerce` (the Purchase Options panel) — on
+      // `commerce.deferred === true`. Without the marker neither dispatches,
+      // and the surface states "No strong shopping match found." and an empty
+      // purchase shelf for a search that never ran: a config fact rendered as
+      // a statement about the garment.
+      //
+      // Gated on the funnel for the same reason the client is: with the funnel
+      // off the MODE B route does not exist server-side, so every per-item
+      // request would fall through to the image path and return
+      // 'no image provided'. Funnel off therefore keeps today's behaviour
+      // byte-for-byte.
+      if (commerceFunnelEnabled) {
+        console.log(
+          '[scan-identify] commerce_deferred reason=multi_item_detection v=%s mode=%s source=%s',
+          COMMERCE_FUNNEL_VERSION,
+          mode,
+          source,
+        );
+      } else {
+        console.log(
+          '[scan-identify] commerce_skipped reason=multi_item_detection_only mode=%s source=%s',
+          mode,
+          source,
+        );
+      }
       finalRecommendedProducts = [];
       finalSimilarityMatches = [];
       rankedProductsForAudit = [];
       shoppingMeta = {
-        provider: 'none',
+        provider: commerceFunnelEnabled ? 'deferred' : 'none',
         query: '',
         count: 0,
         providersTried: [],
         catalogCount: 0,
         similarityMatches: 0,
         commerceSkipped: true,
-        reason: 'multi_item_detection_only',
+        ...(commerceFunnelEnabled
+          ? { deferred: true, funnelVersion: COMMERCE_FUNNEL_VERSION }
+          : {}),
+        reason: commerceFunnelEnabled
+          ? 'deferred_to_commerce_only_request'
+          : 'multi_item_detection_only',
       };
     } else if (isV2Request && !commerceDecision.run) {
       // Phase 2B.1 short-circuit. Deliberately gated on isV2Request: legacy
