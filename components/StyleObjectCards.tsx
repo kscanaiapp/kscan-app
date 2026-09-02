@@ -20,6 +20,7 @@ import {
 } from '../constants/theme';
 import type { DressingRoomItem, LookItem } from '../types/styleObjects';
 import { canRenderSnapshotVersion } from '../services/styleObjects';
+import { resolveRoomCommerceCard } from '../services/dressingRoomCommerceCard';
 
 export function Header({
   title,
@@ -157,7 +158,7 @@ export function TextField({
   );
 }
 
-export function ItemTile({
+function ItemTileBase({
   item,
   selected,
   onPress,
@@ -202,6 +203,10 @@ export function ItemTile({
     return label;
   }, [(item as DressingRoomItem).sourceType]);
 
+  // Commerce facts come from this item's own row and snapshot, so a tile can
+  // only ever price the product it is actually showing.
+  const commerce = useMemo(() => resolveRoomCommerceCard(item), [item]);
+
   const content = (
     <View style={[styles.itemTile, selected ? styles.itemSelected : null]}>
       {versionOk && item.imageUrl ? (
@@ -217,6 +222,12 @@ export function ItemTile({
         <Text style={styles.itemTitle} numberOfLines={2}>
           {versionOk ? item.title || 'Untitled item' : 'Snapshot unavailable'}
         </Text>
+        {versionOk && commerce.priceLabel ? (
+          <Text style={styles.itemPrice} numberOfLines={1} testID="room-item-tile-price">
+            {commerce.priceLabel}
+            {commerce.retailer ? ` · ${commerce.retailer}` : ''}
+          </Text>
+        ) : null}
         {onViewDetail ? (
           <TouchableOpacity style={styles.viewDetailButton} onPress={onViewDetail}>
             <Text style={styles.viewDetailText}>View Detail</Text>
@@ -236,6 +247,13 @@ export function ItemTile({
   if (!onPress) return content;
   return <Pressable onPress={onPress}>{content}</Pressable>;
 }
+
+/**
+ * Memoized: room grids re-render on every reaction tick and every selection
+ * change, and a tile now derives commerce facts from its snapshot. Without this
+ * the whole grid recomputes on state that touched one card.
+ */
+export const ItemTile = React.memo(ItemTileBase);
 
 const styles = StyleSheet.create({
   screen: {
@@ -451,6 +469,11 @@ const styles = StyleSheet.create({
   itemTitle: {
     ...LUXURY.typography.bodyStrong,
     color: LUXURY.colors.ink,
+  },
+  itemPrice: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
+    marginTop: SPACING.xs,
   },
   selectedMark: {
     ...LUXURY.typography.caption,

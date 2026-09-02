@@ -185,8 +185,12 @@ test('blocking UI: canMessage has a real consumer gating the composer', () => {
   assert.match(panel, /accessibilityState=\{\{ disabled: !composerEnabled \}\}/);
 });
 
+// The denial branch now also withdraws the optimistic row and hands the draft
+// back before it sets the copy, so the two statements are no longer adjacent.
+// The property under test is unchanged: a denied send says 'unavailable', never
+// a generic retry the user would repeat forever.
 test('blocking UI: a denied send reports unavailability, not a generic retry', () => {
-  assert.match(panel, /if \(!access\.canMessage\) \{\s*setSendError\(ROOM_MESSAGES_MESSAGING_UNAVAILABLE\);/);
+  assert.match(panel, /if \(!access\.canMessage\) \{[\s\S]{0,200}?setSendError\(ROOM_MESSAGES_MESSAGING_UNAVAILABLE\);/);
   assert.match(panel, /room-messages-unavailable-notice/);
 });
 

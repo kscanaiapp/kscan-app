@@ -201,7 +201,12 @@ test('shared cards derive access copy from the capability resolver', () => {
 
 test('owned room creation, empty state, grid sizing, safe area, and footer remain intact', () => {
   assert.match(screen, /createDressingRoom\(\{ userId: user\?\.id, title, description \}\)/);
-  assert.match(screen, /title="Start Your First Styling Room"/);
+  // The owned-rooms empty state is now DressingRoomsEmptyState: it leads with
+  // what a Dressing Room is FOR rather than naming the feature, and keeps a
+  // prominent create action. Same slot, same job, richer copy.
+  assert.match(screen, /<DressingRoomsEmptyState onCreate=\{\(\) => setCreating\(true\)\} \/>/);
+  assert.match(screen, /Create a Dressing Room to share looks, swap ideas, and shop together with friends\./);
+  assert.match(screen, /title="Create a Room"/);
   assert.match(screen, /router\.push\(`\/dressing-rooms\/\$\{room\.id\}`\)/);
   assert.match(screen, /gridItem:\s*\{\s*width: '50%'/);
   assert.match(screen, /<LuxuryScreen[\s\S]*?scrollable=\{false\}[\s\S]*?safeArea/);

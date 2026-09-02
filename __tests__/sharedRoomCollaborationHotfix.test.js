@@ -119,7 +119,12 @@ test('Room Chat retains one request id across a recoverable retry of the same lo
   );
   assert.match(panel, /pendingSendRef/);
   assert.match(panel, /pending\?\.logicalKey === logicalKey[\s\S]*pending\.clientMessageId/);
-  assert.match(panel, /sendRoomMessage\(roomId, draft, \{[\s\S]*clientMessageId/);
+  // The send now captures the room and the draft before showing an optimistic
+  // row, so it posts sendRoomId/previousDraft rather than reading the live
+  // props mid-flight. The idempotency property this test guards is unchanged
+  // and slightly stronger: a recoverable failure restores previousDraft, so the
+  // retry recomputes the same logicalKey and reuses the same clientMessageId.
+  assert.match(panel, /sendRoomMessage\(sendRoomId, previousDraft, \{[\s\S]*clientMessageId/);
   assert.match(panel, /pendingSendRef\.current = null/);
 });
 

@@ -66,6 +66,78 @@ const NAV_GUARD_MS = 800;
 const SHARED_ROOM_GLYPH = '✦';
 const OWNED_ROOM_GLYPH = '◇';
 
+/**
+ * First-run state for the owned-rooms grid.
+ *
+ * The previous version was a bare card that named the feature without saying
+ * what it is for. This one leads with the value, so the screen reads as an
+ * invitation rather than a dead end. The mark is composed from the two glyphs
+ * this screen already uses for owned and shared rooms (no new asset, no new
+ * dependency) and is hidden from assistive tech: it decorates, it does not
+ * inform. Motion honours the reduced-motion setting the shared cards already
+ * respect.
+ */
+function DressingRoomsEmptyState({ onCreate }: { onCreate: () => void }) {
+  const reducedMotion = useReducedMotion();
+  const enter = useRef(new Animated.Value(reducedMotion ? 1 : 0)).current;
+
+  useEffect(() => {
+    if (reducedMotion) {
+      enter.setValue(1);
+      return;
+    }
+    const animation = Animated.timing(enter, {
+      toValue: 1,
+      duration: MOTION.enterDuration,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [enter, reducedMotion]);
+
+  return (
+    <Animated.View
+      style={[
+        styles.emptyState,
+        {
+          opacity: enter,
+          transform: [
+            { translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) },
+          ],
+        },
+      ]}
+      testID="dressing-rooms-empty-state"
+    >
+      <View style={styles.emptyMark} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <View style={styles.emptyMarkRing} />
+        <Text style={styles.emptyMarkGlyph}>{OWNED_ROOM_GLYPH}</Text>
+        <Text style={styles.emptyMarkAccent}>{SHARED_ROOM_GLYPH}</Text>
+      </View>
+
+      <Text style={styles.emptyTitle} accessibilityRole="header">
+        Your first Dressing Room
+      </Text>
+      <Text style={styles.emptyBody}>
+        Create a Dressing Room to share looks, swap ideas, and shop together with friends.
+      </Text>
+
+      <View style={styles.emptyPoints}>
+        <Text style={styles.emptyPoint}>Collect scans, uploads, and saved products in one place</Text>
+        <Text style={styles.emptyPoint}>Invite people with a private link you can disable anytime</Text>
+        <Text style={styles.emptyPoint}>React and talk it through without leaving the room</Text>
+      </View>
+
+      <PrimaryButton
+        title="Create a Room"
+        onPress={onCreate}
+        accessibilityLabel="Create your first Dressing Room"
+        accessibilityHint="Opens the new Dressing Room form"
+      />
+    </Animated.View>
+  );
+}
+
 function RoomCard({ room, style }: { room: DressingRoom; style?: any }) {
   const cover = room.coverImageUrl || room.coverFallbackUrl;
   const itemCount = room.itemCount ?? 0;
@@ -576,15 +648,7 @@ function DressingRoomsContent() {
         ) : null}
 
         {!loading && !error && rooms.length === 0 ? (
-          <EmptyStateCard
-            title="Start Your First Styling Room"
-            subtitle="Create a private board to compare scans, notes, and looks."
-            action={{
-              label: 'Create Room',
-              onPress: () => setCreating(true),
-              accessibilityLabel: 'Create new dressing room',
-            }}
-          />
+          <DressingRoomsEmptyState onCreate={() => setCreating(true)} />
         ) : null}
 
         {!loading && !error && rooms.length > 0 ? (
@@ -646,6 +710,63 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: SPACING.xl,
+  },
+  emptyState: {
+    alignItems: 'center',
+    gap: SPACING.md,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.xl,
+    marginBottom: SPACING.lg,
+    borderRadius: RADIUS.xl,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: LUXURY.colors.hairline,
+    backgroundColor: LUXURY.colors.pearl,
+    ...SHADOWS.editorialRaised,
+  },
+  emptyMark: {
+    width: 96,
+    height: 96,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.xs,
+  },
+  emptyMarkRing: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 48,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.champagne,
+    backgroundColor: LUXURY.colors.ivory,
+  },
+  emptyMarkGlyph: {
+    fontSize: 34,
+    color: LUXURY.colors.plum,
+  },
+  emptyMarkAccent: {
+    position: 'absolute',
+    top: 14,
+    right: 16,
+    fontSize: 15,
+    color: LUXURY.colors.gold,
+  },
+  emptyTitle: {
+    ...LUXURY.typography.displayTitle,
+    color: LUXURY.colors.ink,
+    textAlign: 'center',
+  },
+  emptyBody: {
+    ...LUXURY.typography.body,
+    color: LUXURY.colors.stone,
+    textAlign: 'center',
+  },
+  emptyPoints: {
+    alignSelf: 'stretch',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.sm,
+  },
+  emptyPoint: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+    textAlign: 'center',
   },
   roomGrid: {
     flexDirection: 'row',

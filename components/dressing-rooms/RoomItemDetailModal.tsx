@@ -1,6 +1,7 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Image,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -20,6 +21,8 @@ import {
 import { MODAL_MAX_WIDTH } from '../../services/responsiveLayout';
 import { setStyleChatHandoffContext } from '../../services/style-chat/styleChatHandoffContext';
 import type { StyleChatHandoffSource } from '../../services/style-chat/styleChatHandoffContext';
+import { openPersistedCommerceUrl } from '../../services/dressingRoomCommerce';
+import { resolveRoomCommerceCard } from '../../services/dressingRoomCommerceCard';
 import type { DressingRoomItem } from '../../types/styleObjects';
 
 type Props = {
@@ -61,6 +64,24 @@ export function RoomItemDetailModal({
   onRemove,
   onToggleSelected,
 }: Props) {
+  const [linkError, setLinkError] = useState<string | null>(null);
+
+  // Derived from THIS item only (see services/dressingRoomCommerceCard): the
+  // card for Product A can describe nothing but Product A.
+  const commerce = useMemo(() => resolveRoomCommerceCard(item), [item]);
+
+  const handleOpenProduct = useCallback(async () => {
+    setLinkError(null);
+    // openPersistedCommerceUrl re-normalizes before opening, so a payload that
+    // changed shape since render still cannot hand the OS a non-https scheme.
+    const opened = await openPersistedCommerceUrl(commerce.productUrl, (url) =>
+      Linking.openURL(url),
+    );
+    if (!opened) {
+      setLinkError('That link is unavailable right now.');
+    }
+  }, [commerce.productUrl]);
+
   const handleAskStyleChat = useCallback(() => {
     if (!item) return;
     const source = mapSourceToHandoff(item.sourceType);
@@ -128,6 +149,59 @@ export function RoomItemDetailModal({
                 <Text style={styles.categoryText}>{item.category}</Text>
               ) : null}
             </View>
+
+            {commerce.hasCommerce ? (
+              <View style={styles.commerceSection} testID="room-item-commerce">
+                {commerce.priceLabel ? (
+                  <View style={styles.commerceRow}>
+                    <Text style={styles.commerceLabel}>Price</Text>
+                    <Text style={styles.commercePrice}>{commerce.priceLabel}</Text>
+                  </View>
+                ) : null}
+                {commerce.retailer ? (
+                  <View style={styles.commerceRow}>
+                    <Text style={styles.commerceLabel}>Retailer</Text>
+                    <Text style={styles.commerceValue} numberOfLines={2}>
+                      {commerce.retailer}
+                    </Text>
+                  </View>
+                ) : null}
+                {commerce.brand ? (
+                  <View style={styles.commerceRow}>
+                    <Text style={styles.commerceLabel}>Brand</Text>
+                    <Text style={styles.commerceValue} numberOfLines={2}>
+                      {commerce.brand}
+                    </Text>
+                  </View>
+                ) : null}
+                {commerce.productUrl ? (
+                  <>
+                    <TouchableOpacity
+                      style={styles.commerceLinkButton}
+                      onPress={() => {
+                        void handleOpenProduct();
+                      }}
+                      activeOpacity={0.84}
+                      accessibilityRole="link"
+                      accessibilityLabel={
+                        commerce.productUrlHost
+                          ? `View this item at ${commerce.productUrlHost}`
+                          : 'View this item at the retailer'
+                      }
+                      accessibilityHint="Opens the product page outside K Scan AI"
+                      testID="room-item-open-product"
+                    >
+                      <Text style={styles.commerceLinkText}>
+                        {commerce.productUrlHost
+                          ? `View at ${commerce.productUrlHost}`
+                          : 'View product'}
+                      </Text>
+                    </TouchableOpacity>
+                    {linkError ? <Text style={styles.commerceError}>{linkError}</Text> : null}
+                  </>
+                ) : null}
+              </View>
+            ) : null}
 
             {attributeChips.length > 0 ? (
               <View style={styles.chipsRow}>
@@ -225,6 +299,60 @@ const styles = StyleSheet.create({
   fallbackText: {
     ...LUXURY.typography.caption,
     color: LUXURY.colors.stone,
+  },
+  commerceSection: {
+    paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.md,
+    gap: SPACING.xs,
+  },
+  commerceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    // Rows wrap rather than clip at larger text sizes.
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: LUXURY.colors.hairline,
+  },
+  commerceLabel: {
+    ...LUXURY.typography.sectionLabel,
+    color: LUXURY.colors.stone,
+  },
+  commerceValue: {
+    ...LUXURY.typography.body,
+    color: LUXURY.colors.ink,
+    flexShrink: 1,
+    textAlign: 'right',
+  },
+  commercePrice: {
+    ...LUXURY.typography.body,
+    color: LUXURY.colors.plum,
+    fontWeight: '600',
+    flexShrink: 1,
+    textAlign: 'right',
+  },
+  commerceLinkButton: {
+    marginTop: SPACING.sm,
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    borderColor: LUXURY.colors.plum,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+  },
+  commerceLinkText: {
+    ...LUXURY.typography.ctaSecondary,
+    color: LUXURY.colors.plum,
+    textAlign: 'center',
+  },
+  commerceError: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.error,
+    marginTop: SPACING.xs,
   },
   badgeRow: {
     flexDirection: 'row',

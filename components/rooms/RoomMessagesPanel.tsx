@@ -68,6 +68,23 @@ const SAFETY_SECTION_SUBTITLE =
 /** Access revalidation cadence while a room screen is open and focused. */
 const ACCESS_REVALIDATE_MS = 30_000;
 
+/**
+ * Local id for a message that exists only on this device so far.
+ *
+ * Namespaced so it can never collide with a server uuid, and derived from the
+ * idempotency key the send already carries, so the optimistic row and the row
+ * the server eventually returns are the same logical message.
+ */
+const PENDING_ID_PREFIX = 'pending:';
+
+function pendingMessageId(clientMessageId: string) {
+  return `${PENDING_ID_PREFIX}${clientMessageId}`;
+}
+
+function isPendingMessage(message: RoomMessage) {
+  return message.id.startsWith(PENDING_ID_PREFIX);
+}
+
 function threadsEnabled() {
   return DRESSING_ROOM_THREADS_V1;
 }
@@ -114,10 +131,24 @@ function MessageRow({
   reportingUser: boolean;
 }) {
   const isReply = Boolean(message.parentMessageId);
+  // A message that exists only on this device so far. It is shown at reduced
+  // opacity with "Sending" in place of a timestamp, because it does not have a
+  // server time yet and must not appear to have been delivered.
+  const pending = isPendingMessage(message);
   return (
     <View
-      style={[styles.messageCard, isReply ? styles.replyCard : null]}
-      accessibilityLabel={isReply ? 'Reply message' : 'Room message'}
+      style={[
+        styles.messageCard,
+        isReply ? styles.replyCard : null,
+        pending ? styles.pendingCard : null,
+      ]}
+      accessibilityLabel={
+        pending
+          ? 'Room message, sending'
+          : isReply
+            ? 'Reply message'
+            : 'Room message'
+      }
     >
       <View style={styles.messageMetaRow}>
         <Text style={styles.messageSender}>
@@ -125,8 +156,12 @@ function MessageRow({
           {isReply ? ' · Reply' : ''}
         </Text>
         <View style={styles.messageMetaRight}>
-          <Text style={styles.messageTime}>{formatMessageTimestamp(message.createdAt)}</Text>
-          {replyEnabled && !isReply && onReply ? (
+          {pending ? (
+            <Text style={styles.messagePending}>Sending…</Text>
+          ) : (
+            <Text style={styles.messageTime}>{formatMessageTimestamp(message.createdAt)}</Text>
+          )}
+          {replyEnabled && !isReply && !pending && onReply ? (
             <TouchableOpacity
               onPress={() => onReply(message)}
               style={styles.inlineAction}
@@ -138,7 +173,7 @@ function MessageRow({
               <Text style={styles.replyButtonText}>Reply</Text>
             </TouchableOpacity>
           ) : null}
-          {!message.isMine ? (
+          {!message.isMine && !pending ? (
             <TouchableOpacity
               onPress={() => onReportUser(message)}
               disabled={reportingUser}
@@ -154,7 +189,7 @@ function MessageRow({
               </Text>
             </TouchableOpacity>
           ) : null}
-          {!message.isMine ? (
+          {!message.isMine && !pending ? (
             <TouchableOpacity
               onPress={() => onBlock(message)}
               disabled={blocking}
@@ -168,16 +203,18 @@ function MessageRow({
               <Text style={styles.reportButtonText}>{blocking ? 'Blocking…' : 'Block'}</Text>
             </TouchableOpacity>
           ) : null}
-          <TouchableOpacity
-            onPress={() => onReport(message)}
-            style={styles.inlineAction}
-            accessibilityRole="button"
-            accessibilityLabel="Report message"
-            accessibilityHint="Report and hide this message on this device"
-            testID={`room-message-report-${message.id}`}
-          >
-            <Text style={styles.reportButtonText}>Report</Text>
-          </TouchableOpacity>
+          {!pending ? (
+            <TouchableOpacity
+              onPress={() => onReport(message)}
+              style={styles.inlineAction}
+              accessibilityRole="button"
+              accessibilityLabel="Report message"
+              accessibilityHint="Report and hide this message on this device"
+              testID={`room-message-report-${message.id}`}
+            >
+              <Text style={styles.reportButtonText}>Report</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
       <Text style={styles.messageBody}>{message.body}</Text>
@@ -759,50 +796,109 @@ export function RoomMessagesPanel({
       pending?.logicalKey === logicalKey ? pending.clientMessageId : createCollabRequestId();
     pendingSendRef.current = { logicalKey, clientMessageId };
 
+    // Optimistic row. It appears immediately so the room feels like a
+    // conversation rather than a form, and it is bound to the room and the
+    // actor generation this send started in: a room switch or an account
+    // switch discards it instead of moving it, so an optimistic message can
+    // never surface in Room B or under the next account.
+    const sendRoomId = roomId;
+    const optimisticMessage: RoomMessage = {
+      id: pendingMessageId(clientMessageId),
+      roomId: sendRoomId,
+      senderId: currentUserIdRef.current ?? '',
+      body: normalizedDraft,
+      // Local clock, shown as "Sending…" rather than as a time, because this
+      // row has no server ordering yet. The server's created_at replaces it.
+      createdAt: new Date().toISOString(),
+      isMine: true,
+      clientMessageId,
+      parentMessageId,
+    };
+    const previousDraft = draft;
+
+    const stillThisSend = () =>
+      mountedRef.current &&
+      isCurrentCollabGeneration(sendGeneration) &&
+      activeRoomIdRef.current === sendRoomId;
+
+    /** Removes the optimistic row wherever the send did not complete. */
+    const rollbackOptimistic = () => {
+      setMessages((current) => current.filter((entry) => entry.id !== optimisticMessage.id));
+    };
+
+    setMessages((current) => mergeRoomMessages(current, [optimisticMessage]));
+    setDraft('');
+
     try {
       // Revalidate before the write. The backend is still the final authority
       // (create_dressing_room_message re-checks and raises 42501), but this
       // turns a permanent denial into truthful copy instead of a generic
       // "please try again" the user would retry forever.
       const access = await revalidateAccess();
-      if (!isCurrentCollabGeneration(sendGeneration) || !mountedRef.current) return;
-      if (!access.ok) return; // applyAccessRevoked already surfaced neutral copy
+      if (!stillThisSend()) {
+        rollbackOptimistic();
+        return;
+      }
+      if (!access.ok) {
+        // applyAccessRevoked already cleared state and surfaced neutral copy.
+        rollbackOptimistic();
+        setDraft(previousDraft);
+        return;
+      }
       if (!access.canMessage) {
+        rollbackOptimistic();
+        setDraft(previousDraft);
         setSendError(ROOM_MESSAGES_MESSAGING_UNAVAILABLE);
         return;
       }
 
-      const sent = await sendRoomMessage(roomId, draft, {
+      const sent = await sendRoomMessage(sendRoomId, previousDraft, {
         parentMessageId,
         clientMessageId,
       });
-      if (!isCurrentCollabGeneration(sendGeneration) || accessRevoked || !mountedRef.current) {
+      if (!stillThisSend() || accessRevoked) {
+        rollbackOptimistic();
         return;
       }
-      setMessages((current) => mergeRoomMessages(current, [sent]));
+      // Swap the local row for the server's: same logical message, but now
+      // with the server id and the server's ordering time.
+      setMessages((current) =>
+        mergeRoomMessages(
+          current.filter((entry) => entry.id !== optimisticMessage.id),
+          [sent],
+        ),
+      );
       newestCursorRef.current = {
         createdAt: sent.createdAt,
         id: sent.id,
         direction: 'newer',
       };
-      setDraft('');
       setReplyTo(null);
       if (pendingSendRef.current?.clientMessageId === clientMessageId) {
         pendingSendRef.current = null;
       }
     } catch (err: any) {
-      if (!isCurrentCollabGeneration(sendGeneration) || !mountedRef.current) {
+      if (!stillThisSend()) {
+        rollbackOptimistic();
         return;
       }
       const message = typeof err?.message === 'string' ? err.message : ROOM_MESSAGE_SEND_ERROR;
       if (message === ROOM_MESSAGES_STALE_ERROR) {
+        // clearInteractiveState drops every message, the optimistic row
+        // included, and restores nothing: the session is no longer this actor's.
         clearInteractiveState();
         return;
       }
       if (message === ROOM_MESSAGES_ACCESS_ERROR) {
+        // Same: applyAccessRevoked clears the transcript. The draft is not
+        // restored, because there is nowhere left to send it.
         applyAccessRevoked();
         return;
       }
+      // A recoverable failure: take the row back and hand the text back too,
+      // so a retry reuses the same idempotency key rather than losing the draft.
+      rollbackOptimistic();
+      setDraft(previousDraft);
       setSendError(message);
     } finally {
       sendInFlightRef.current = false;
@@ -1083,6 +1179,14 @@ const styles = StyleSheet.create({
   messageTime: {
     ...LUXURY.typography.caption,
     color: LUXURY.colors.stone,
+  },
+  pendingCard: {
+    opacity: 0.6,
+  },
+  messagePending: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+    fontStyle: 'italic',
   },
   messageMetaRight: {
     flexDirection: 'row',

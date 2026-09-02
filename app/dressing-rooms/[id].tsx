@@ -66,6 +66,8 @@ import {
   updateDressingRoomNote,
 } from '../../services/styleObjects';
 import { shouldOfferDisableSharedLink } from '../../services/roomShareState';
+import { resolveCollaborationAccess } from '../../services/dressingRoomCollaboration';
+import { applyOptimisticReaction } from '../../services/dressingRoomReactionOptimism';
 import {
   isActiveDressingRoomReactionType,
   type DressingRoomReactionType,
@@ -106,6 +108,12 @@ const DRESSING_ROOM_SAVE_ERROR = "We couldn't save that change. Please try again
 const DRESSING_ROOM_LOAD_ERROR = "We couldn't load this room. Please refresh and try again.";
 const DRESSING_ROOM_MISSING_ID_ERROR = 'This Dressing Room is unavailable.';
 const DRESSING_ROOM_SHARE_ERROR = "We couldn't update sharing right now. Please try again.";
+// Deliberately calm and non-accusatory, and deliberately identical whether the
+// owner removed this account, the share link was disabled, or the room was
+// deleted: the reader is not told which, and never that a block exists.
+const DRESSING_ROOM_ACCESS_REVOKED_TITLE = 'Room no longer available';
+const DRESSING_ROOM_ACCESS_REVOKED_BODY =
+  'You no longer have access to this Dressing Room.';
 const EMPTY_REACTION_COUNTS: ReactionCountsForItem = {
   love: 0,
   like: 0,
@@ -301,6 +309,10 @@ function DressingRoomDetailContent() {
   // so a loading/error state can't briefly show the wrong destructive
   // action (BUG-12).
   const [hasActiveShare, setHasActiveShare] = useState<boolean | null>(null);
+  // Distinct from `error`: a transient load failure is retryable, an
+  // authorization loss is not, and the two must never share copy or a Retry
+  // button that can only fail again.
+  const [accessLost, setAccessLost] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editing, setEditing] = useState(false);
   const [creatingLook, setCreatingLook] = useState(false);
@@ -373,6 +385,7 @@ function DressingRoomDetailContent() {
     }
     setLoading(true);
     setError(null);
+    setAccessLost(false);
     try {
       const detail = await getDressingRoomDetail(roomId);
       if (
@@ -425,6 +438,48 @@ function DressingRoomDetailContent() {
         activeRoomIdRef.current !== roomId
       ) return;
       console.error('Load dressing room failed', err);
+
+      // Ask the server which kind of failure this was. getDressingRoomDetail
+      // reports every failure with the same friendly string (safeError discards
+      // the Postgres code on purpose), so the only truthful way to tell "you
+      // were removed" from "the network dropped" is to re-resolve access.
+      // A transient failure here leaves the ordinary retryable error in place.
+      let lostAccess = false;
+      try {
+        const access = await resolveCollaborationAccess(roomId);
+        lostAccess =
+          access.ok === false &&
+          (access.reason === 'unauthorized' || access.reason === 'not_found');
+      } catch {
+        lostAccess = false;
+      }
+      // Re-validate after the extra await: the actor or the room may have
+      // changed while it was in flight.
+      if (
+        requestId !== roomLoadRequestId.current ||
+        activeActorIdRef.current !== requestedActorId ||
+        activeRoomIdRef.current !== roomId
+      ) return;
+
+      if (lostAccess) {
+        // Flush everything this screen could still paint. The revoked state
+        // must not be a frame around cached room content.
+        setAccessLost(true);
+        setRoom(null);
+        setItems([]);
+        setInspirations([]);
+        setSelectedIds([]);
+        setSelectedItem(null);
+        setItemDetailVisible(false);
+        setReactionCounts({});
+        setSelectedReactions({});
+        setHasActiveShare(null);
+        setNoteDraft('');
+        setEditingNote(false);
+        setError(null);
+        return;
+      }
+
       setError(DRESSING_ROOM_LOAD_ERROR);
     } finally {
       if (roomLoadInFlightKey.current === requestKey) {
@@ -738,20 +793,57 @@ function DressingRoomDetailContent() {
     if (!isAuthenticated || mutatingReactionItemId === itemId) return;
 
     const currentReaction = selectedReactions[itemId] ?? null;
+    // Snapshots taken before anything is shown, so a rejection restores exactly
+    // what was on screen rather than an approximation of it.
+    const previousSelection = currentReaction;
+    const previousCounts = reactionCounts[itemId] ?? createEmptyReactionCounts();
+    const reactRoomId = roomId;
+    const reactActorId = user?.id ?? null;
+    const optimistic = applyOptimisticReaction({
+      current: currentReaction,
+      tapped: reactionType,
+      counts: previousCounts as unknown as Record<string, number>,
+    });
+
+    const stillThisRoomAndActor = () =>
+      activeRoomIdRef.current === reactRoomId && activeActorIdRef.current === reactActorId;
+
     setMutatingReactionItemId(itemId);
+    setSelectedReactions((current) => ({ ...current, [itemId]: optimistic.nextSelection }));
+    setReactionCounts((current) => ({
+      ...current,
+      [itemId]: optimistic.nextCounts as unknown as ReactionCountsForItem,
+    }));
+
     try {
-      if (currentReaction === reactionType) {
-        await setItemReaction(itemId, reactionType, { roomId: roomId ?? undefined, active: false });
-      } else {
-        await setItemReaction(itemId, reactionType, { roomId: roomId ?? undefined, active: true });
-      }
+      await setItemReaction(itemId, reactionType, {
+        roomId: reactRoomId ?? undefined,
+        active: optimistic.active,
+      });
+      if (!stillThisRoomAndActor()) return;
+      // Reconcile against server truth: other participants may have reacted
+      // while this one was in flight.
       await refreshItemReactions([itemId]);
     } catch {
+      if (!stillThisRoomAndActor()) return;
+      // Truthful rollback. The server refused - a lost membership or a block
+      // both land here - so the reaction must not remain on screen as though
+      // it had been recorded.
+      setSelectedReactions((current) => ({ ...current, [itemId]: previousSelection }));
+      setReactionCounts((current) => ({ ...current, [itemId]: previousCounts }));
       Alert.alert('Unable to save reaction.', 'Please try again.');
     } finally {
       setMutatingReactionItemId((current) => (current === itemId ? null : current));
     }
-  }, [isAuthenticated, mutatingReactionItemId, refreshItemReactions, roomId, selectedReactions]);
+  }, [
+    isAuthenticated,
+    mutatingReactionItemId,
+    reactionCounts,
+    refreshItemReactions,
+    roomId,
+    selectedReactions,
+    user?.id,
+  ]);
 
   const handleUploadInspiration = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -820,18 +912,20 @@ function DressingRoomDetailContent() {
     );
   };
 
-  const blocking = loading || !!error;
+  const blocking = loading || !!error || accessLost;
 
   return (
     <LuxuryScreen
       scrollable={false}
       safeArea={false}
       backgroundColor={LUXURY.colors.ivory}
-      accessibilityLabel={`Dressing Room ${room?.title ?? 'detail'}`}
+      accessibilityLabel={
+        accessLost ? 'Dressing Room no longer available' : `Dressing Room ${room?.title ?? 'detail'}`
+      }
     >
       <StatusBar style="dark" />
       <KScanHeader
-        title={room?.title || 'Untitled Room'}
+        title={accessLost ? 'Dressing Room' : room?.title || 'Untitled Room'}
         subtitle="ROOM DETAIL"
         onBack={() => goBackOrHome(router)}
         backLabel="Back"
@@ -851,6 +945,24 @@ function DressingRoomDetailContent() {
         <View style={styles.centeredFill}>
           {loading ? (
             <ActivityIndicator size="large" color={LUXURY.colors.plum} />
+          ) : accessLost ? (
+            // No Retry: retrying an authorization loss can only fail again.
+            // One clear way out, and nothing from the room behind it.
+            <View style={styles.accessRevokedCard} testID="dressing-room-access-revoked">
+              <Text style={styles.accessRevokedGlyph} accessibilityElementsHidden>
+                ◇
+              </Text>
+              <Text style={styles.accessRevokedTitle} accessibilityRole="header">
+                {DRESSING_ROOM_ACCESS_REVOKED_TITLE}
+              </Text>
+              <Text style={styles.accessRevokedBody}>{DRESSING_ROOM_ACCESS_REVOKED_BODY}</Text>
+              <PrimaryButton
+                title="Return to Rooms"
+                onPress={() => router.replace('/dressing-rooms')}
+                accessibilityLabel="Return to your Dressing Rooms"
+                accessibilityHint="Goes back to the list of your Dressing Rooms"
+              />
+            </View>
           ) : (
             <InlineNotice
               variant="error"
@@ -1257,6 +1369,29 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingTop: SPACING.sm,
+  },
+  accessRevokedCard: {
+    alignItems: 'center',
+    gap: SPACING.md,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: SPACING.xl,
+    maxWidth: MODAL_MAX_WIDTH,
+    alignSelf: 'center',
+    width: '100%',
+  },
+  accessRevokedGlyph: {
+    fontSize: 40,
+    color: LUXURY.colors.champagne,
+  },
+  accessRevokedTitle: {
+    ...LUXURY.typography.displayTitle,
+    color: LUXURY.colors.ink,
+    textAlign: 'center',
+  },
+  accessRevokedBody: {
+    ...LUXURY.typography.body,
+    color: LUXURY.colors.stone,
+    textAlign: 'center',
   },
   homeButton: {
     borderRadius: RADIUS.pill,

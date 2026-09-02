@@ -43,11 +43,41 @@ test('canonical bucket and path remain database truth and signed URLs are resolv
   assert.doesNotMatch(service, /storage_path:\s*signedUrl/);
 });
 
-test('refresh failures remain controlled and do not erase the current room image state', () => {
+// The reload catch now has two paths. A TRANSIENT failure must still leave the
+// room on screen (the original property this test defends). An AUTHORIZATION
+// LOSS must do the opposite and flush everything, because the access-revoked
+// state must not be a frame around cached room content. Asserting on the whole
+// catch block could no longer tell the two apart, so each is checked in the
+// region it belongs to.
+function reloadCatchRegions() {
+  const reloadStart = roomScreen.indexOf('const reload = useCallback');
   const reloadCatch = roomScreen.slice(
-    roomScreen.indexOf('} catch (err: any) {', roomScreen.indexOf('const reload = useCallback')),
-    roomScreen.indexOf('} finally {', roomScreen.indexOf('const reload = useCallback')),
+    roomScreen.indexOf('} catch (err: any) {', reloadStart),
+    roomScreen.indexOf('} finally {', reloadStart),
   );
-  assert.match(reloadCatch, /setError\(DRESSING_ROOM_LOAD_ERROR\)/);
-  assert.doesNotMatch(reloadCatch, /setItems\(\[\]\)|setInspirations\(\[\]\)/);
+  const lostAccessAt = reloadCatch.indexOf('if (lostAccess) {');
+  const transientAt = reloadCatch.indexOf('setError(DRESSING_ROOM_LOAD_ERROR)');
+  return {
+    reloadCatch,
+    accessLostBranch: reloadCatch.slice(lostAccessAt, transientAt),
+    transientPath: reloadCatch.slice(transientAt),
+  };
+}
+
+test('refresh failures remain controlled and do not erase the current room image state', () => {
+  const { transientPath } = reloadCatchRegions();
+  assert.match(transientPath, /setError\(DRESSING_ROOM_LOAD_ERROR\)/);
+  assert.doesNotMatch(transientPath, /setItems\(\[\]\)|setInspirations\(\[\]\)/);
+});
+
+test('an authorization loss flushes room state instead of leaving it on screen', () => {
+  const { reloadCatch, accessLostBranch } = reloadCatchRegions();
+  assert.ok(accessLostBranch.length > 0, 'the access-loss branch must exist');
+  assert.match(accessLostBranch, /setAccessLost\(true\)/);
+  assert.match(accessLostBranch, /setItems\(\[\]\)/);
+  assert.match(accessLostBranch, /setInspirations\(\[\]\)/);
+  assert.match(accessLostBranch, /setRoom\(null\)/);
+  // And the flushes live ONLY there: one occurrence each in the whole catch.
+  assert.equal((reloadCatch.match(/setItems\(\[\]\)/g) || []).length, 1);
+  assert.equal((reloadCatch.match(/setInspirations\(\[\]\)/g) || []).length, 1);
 });
