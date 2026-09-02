@@ -700,3 +700,80 @@ Deno.test('WC-009: no source in the pipeline can emit a discovered candidate', a
     ['owned', 'saved', 'scanned', 'shared', 'unverified'],
   );
 });
+
+// -----------------------------------------------------------------------------
+// WC-010 / XF-NC-005 -- a DELETED Closet item is not owned.
+//
+// Build 34 cross-feature integration. Closet deletion is SOFT: the row stays in
+// `user_closet_items` with `deleted_at` set, and every reader is responsible for
+// excluding it. Five reads in this Edge Function can put a Closet row in front
+// of a customer -- Packing's candidate list, the Concierge retrieval source, the
+// census that licenses absence claims, and the two single-item resolvers -- and
+// each one carries `.is('deleted_at', null)` today, described in the source as
+// defense in depth behind RLS.
+//
+// It had no test. Dropping the filter from ALL FIVE left the whole backend suite
+// green, and the only thing that moved in the full governed suite was the Edge
+// manifest hash-drift gate -- which fires for any edit to a deployable file and
+// says nothing about deletion. So the invariant section 20 states, "a deleted
+// Closet item disappears from every ownership-dependent feature", was true by
+// habit rather than by proof.
+//
+// This is the proof. It is structural for the same reason WC-009 is: the
+// guarantee worth having is that admitting a deleted row has to be a decision
+// somebody makes on purpose, not something a refactor can do quietly.
+// -----------------------------------------------------------------------------
+
+Deno.test('WC-010: every Closet read excludes soft-deleted rows', async () => {
+  const source = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
+
+  // Each read is the chain from `.from('user_closet_items')` to whatever
+  // terminates it, so a missing guard is attributed to the read that lost it
+  // rather than to the file as a whole.
+  const TERMINATORS = ['.maybeSingle()', '.single()', '.limit(', ');'];
+  const reads: { index: number; chain: string }[] = [];
+  for (const match of source.matchAll(/\.from\('user_closet_items'\)/g)) {
+    const start = match.index ?? 0;
+    const rest = source.slice(start);
+    const end = TERMINATORS
+      .map((t) => rest.indexOf(t))
+      .filter((i) => i > 0)
+      .reduce((a, b) => Math.min(a, b), rest.length);
+    reads.push({ index: start, chain: rest.slice(0, end) });
+  }
+
+  assert.ok(
+    reads.length >= 5,
+    `expected the known Closet reads to still be present, found ${reads.length}. `
+      + 'If a read was removed, update this count deliberately; if the query shape '
+      + 'changed, this test must be re-cut rather than left matching nothing.',
+  );
+
+  for (const read of reads) {
+    const line = source.slice(0, read.index).split('\n').length;
+    assert.ok(
+      read.chain.includes(".is('deleted_at', null)"),
+      `the user_closet_items read at index.ts:${line} does not exclude soft-deleted rows. `
+        + 'A deleted item that reaches Packing, the Concierge shortlist or the census is '
+        + 'presented as something the customer owns, and in the census it also changes '
+        + 'what may be claimed absent.',
+    );
+  }
+});
+
+Deno.test('WC-010: the census read in particular excludes them', async () => {
+  // Singled out because its failure mode is the worst of the five: the census
+  // is what licenses "your Closet has no X". A deleted row counted there does
+  // not merely over-report the wardrobe, it suppresses a TRUE absence claim --
+  // Elise stops saying "you don't own trousers" because a pair the customer
+  // deleted is still being counted.
+  const source = await Deno.readTextFile(new URL('./index.ts', import.meta.url));
+  const start = source.indexOf('async listClosetCensusRows(');
+  assert.ok(start > 0, 'the census source was not found: re-anchor this test');
+  const body = source.slice(start, source.indexOf('},', start));
+  assert.ok(body.includes("from('user_closet_items')"));
+  assert.ok(
+    body.includes(".is('deleted_at', null)"),
+    'the census must count only live Closet rows',
+  );
+});
