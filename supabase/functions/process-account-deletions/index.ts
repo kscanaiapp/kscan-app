@@ -20,6 +20,10 @@ import {
   isBlockingAppleRevocationStatus,
   requestAppleRevocation,
 } from '../_shared/deletion/appleRevocation.ts';
+import {
+  isBlockingRevenueCatCleanupStatus,
+  retireMirroredEntitlement,
+} from '../_shared/revenuecat/revenueCatClient.ts';
 
 /**
  * Internal protected worker for automatic account purges.
@@ -736,6 +740,24 @@ async function processClaimedRequest(
     );
   }
 
+  // KPLUS-P2-001 -- retire the RevenueCat K+ mirror now that the K Scan
+  // resources it shadowed are confirmed gone (user_entitlements cascaded
+  // above; the residual check just proved it). RevenueCat is never
+  // entitlement authority and this never gates on K+ status -- it only
+  // clears a promotional-entitlement mirror keyed by this same UUID so it
+  // cannot outlive the account it was granted to. appUserId is the DB-claimed
+  // userId this worker already resolved; nothing here accepts a client body.
+  //
+  // A blocking outcome throws into the SAME retry/dead-letter mechanism
+  // (schedule_deletion_retry_or_fail) as every other purge-step error. That
+  // is safe to re-run: every earlier step already tolerates an already-gone
+  // user (see auth_user_already_absent above), so a retry here repeats a
+  // no-op purge and simply retries this one call until it settles.
+  const revenueCatCleanup = await retireMirroredEntitlement({ appUserId: userId });
+  if (isBlockingRevenueCatCleanupStatus(revenueCatCleanup.status)) {
+    throw new Error(`revenuecat_cleanup_blocked:${revenueCatCleanup.status}`);
+  }
+
   const marked = await rpc('mark_deletion_request_purged', {
     p_request_id: requestId,
     p_worker_id: workerId,
@@ -755,6 +777,8 @@ async function processClaimedRequest(
     coverageTables: coverage.length,
     // Status word only -- never a token, code, or Apple response body.
     appleAuthorizationRevocation: appleRevocation.status,
+    // Status word only -- never a RevenueCat customer/response body.
+    revenueCatCleanup: revenueCatCleanup.status,
   });
 
   return {
@@ -764,6 +788,7 @@ async function processClaimedRequest(
     storage,
     coverageCount: coverage.length,
     appleAuthorizationRevocation: appleRevocation.status,
+    revenueCatCleanup: revenueCatCleanup.status,
   };
 }
 

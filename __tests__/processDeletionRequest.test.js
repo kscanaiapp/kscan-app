@@ -1371,6 +1371,14 @@ test('Negative control: stripping {userId}/saved-scans from the edge registry te
 test('account deletion pipeline never consults K+ entitlement state', () => {
   // Static source check, same style as kplusEdgeContract.test.js: deletion
   // must work identically for active/expired/revoked/never-activated K+.
+  //
+  // KPLUS-P2-001 legitimately introduced a RevenueCat reference into the
+  // automated worker (retireMirroredEntitlement, called unconditionally at
+  // the irreversible purge boundary to clear the RevenueCat mirror once
+  // K Scan's own resources are gone). That is a cleanup ACTION, not a read
+  // of K+ status used to decide whether or how to purge, so it is checked
+  // separately below instead of banned outright by the blanket assertion
+  // this test used before RevenueCat cleanup existed anywhere in the repo.
   const ROOT = path.resolve(__dirname, '..');
   const workerSource = fs.readFileSync(
     path.join(ROOT, 'supabase', 'functions', 'process-account-deletions', 'index.ts'),
@@ -1380,9 +1388,23 @@ test('account deletion pipeline never consults K+ entitlement state', () => {
   for (const source of [workerSource, coreSource]) {
     assert.doesNotMatch(source, /has_active_k_plus/);
     assert.doesNotMatch(source, /kplus_has_active_entitlement/);
-    assert.doesNotMatch(source, /RevenueCat/i);
     assert.doesNotMatch(source, /grant_reason/);
   }
+  // The manual/operational executor has no RevenueCat cleanup at all
+  // (KPLUS-P2-001 scoped the fix to the automated worker only) and must
+  // stay exactly as clean of it as before.
+  assert.doesNotMatch(coreSource, /RevenueCat/i);
+  // The automated worker does reference RevenueCat now (the KPLUS-P2-001
+  // mirror-cleanup call and its result handling). The three assertions
+  // above already prove nothing there reads K+/entitlement status to decide
+  // behavior -- has_active_k_plus, kplus_has_active_entitlement, and
+  // grant_reason all still fail to match, including in and around the
+  // RevenueCat call site.
+  assert.match(
+    workerSource,
+    /RevenueCat/i,
+    'KPLUS-P2-001 expects the worker to reference RevenueCat for mirror cleanup',
+  );
 });
 
 // -- DR-P1-001: room ownership must never transfer to a blocked or departed

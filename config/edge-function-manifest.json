@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-02T20:00:51.637Z",
-    "generatedFromGitSha": "2fad19a072266c0e435b699a70ed1225b4f599af"
+    "generatedAtUtc": "2026-09-02T23:05:45.994Z",
+    "generatedFromGitSha": "6fcbbeb5db759c7c72cd286b419f7c592c80a72f"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -1066,11 +1066,16 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 3,
-        "treeFileCount": 3,
-        "bundleHash": "66ee24af0ea0adfb3644e3f41520e23bf0e37a77f1d93b39e882051fc8e6ecb6",
-        "treeHash": "66ee24af0ea0adfb3644e3f41520e23bf0e37a77f1d93b39e882051fc8e6ecb6",
+        "bundleFileCount": 5,
+        "treeFileCount": 5,
+        "bundleHash": "bcc17302024df348e17dc412de1581f07cc4209a92a79beb4002e2903e3ba37f",
+        "treeHash": "bcc17302024df348e17dc412de1581f07cc4209a92a79beb4002e2903e3ba37f",
         "files": [
+          {
+            "path": "supabase/functions/_shared/deletion/appleRevocation.ts",
+            "sha256": "c441a99e5fb00b1efaf96560f3719b9df271f9a0fbc537b29ec0c885c3f13655",
+            "bundle": true
+          },
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
             "sha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
@@ -1078,12 +1083,17 @@
           },
           {
             "path": "supabase/functions/_shared/deletion/userDataResources.ts",
-            "sha256": "2c4ed2bfe0c9758c7486abfc8a36f799860cafbd30b46503c99e5c7edff742ef",
+            "sha256": "b96bb285506a5ba7fff45e95a8e63cf1c59f5041c9bdbb289395181e7de182cd",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/revenuecat/revenueCatClient.ts",
+            "sha256": "83ba5ec496d881a201cfd8e5d0386636adfaa9a62093afc808178a900c096a7b",
             "bundle": true
           },
           {
             "path": "supabase/functions/process-account-deletions/index.ts",
-            "sha256": "8aa16ddff075bec47ca9dbcd3b8e5b52aa515331059552930aba51ffd2b30a2f",
+            "sha256": "962fbaadae0cf6fee5c9decc56dd64c7fe0c2567cbc2596057cc85ce275bf604",
             "bundle": true
           }
         ]
@@ -1200,8 +1210,8 @@
         ],
         "bundleFileCount": 3,
         "treeFileCount": 3,
-        "bundleHash": "7ea147d6acb1b4f47469c93e50b52f8aa7052de92ed52387253c1cd5f0c86aed",
-        "treeHash": "7ea147d6acb1b4f47469c93e50b52f8aa7052de92ed52387253c1cd5f0c86aed",
+        "bundleHash": "ed602058292b8cee6a6b806a22f5f49ecac658a9c36c6e992222a7f2b9dce5cd",
+        "treeHash": "ed602058292b8cee6a6b806a22f5f49ecac658a9c36c6e992222a7f2b9dce5cd",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -1210,7 +1220,7 @@
           },
           {
             "path": "supabase/functions/_shared/revenuecat/revenueCatClient.ts",
-            "sha256": "b4ebc049af655b103ee90056012d9dafc984557f74a6626d30ec215d3c851069",
+            "sha256": "83ba5ec496d881a201cfd8e5d0386636adfaa9a62093afc808178a900c096a7b",
             "bundle": true
           },
           {
@@ -1228,8 +1238,8 @@
         ],
         "bundleFileCount": 3,
         "treeFileCount": 3,
-        "bundleHash": "8637cc7344e8a4930053ff64d1e80e3bd5fc54295463f95c402603a30571368e",
-        "treeHash": "8637cc7344e8a4930053ff64d1e80e3bd5fc54295463f95c402603a30571368e",
+        "bundleHash": "c1779621932eecc7099f24400723e0da152ae67a67b477071d334191cab7d97c",
+        "treeHash": "c1779621932eecc7099f24400723e0da152ae67a67b477071d334191cab7d97c",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -1238,7 +1248,7 @@
           },
           {
             "path": "supabase/functions/_shared/revenuecat/revenueCatClient.ts",
-            "sha256": "b4ebc049af655b103ee90056012d9dafc984557f74a6626d30ec215d3c851069",
+            "sha256": "83ba5ec496d881a201cfd8e5d0386636adfaa9a62093afc808178a900c096a7b",
             "bundle": true
           },
           {
