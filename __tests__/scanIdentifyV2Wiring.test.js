@@ -166,8 +166,25 @@ test('the style-intent skip branch constructs no provider of any kind', () => {
 test('the legacy detection commerce skip is preserved', () => {
   // Legacy detection already skipped commerce before Phase 2B.1; activation
   // must not have replaced or bypassed that branch.
-  assert.match(indexSource, /reason: 'multi_item_detection_only'/);
+  //
+  // SCAN-001 updated the shape this asserts, not the property. The branch
+  // still exists and still runs no commerce inline, and the funnel-off reason
+  // string is still produced verbatim — but the reason is now selected by a
+  // ternary, because with the v127 funnel ON the response must report that
+  // commerce was DEFERRED to the client's MODE B requests rather than merely
+  // skipped. Without that marker neither client hydration effect dispatches
+  // and every detected item states "No strong shopping match found." for a
+  // search that never ran.
+  //
+  // Asserting `reason: 'multi_item_detection_only'` as adjacent literals only
+  // ever pinned the formatting; what this test means to protect is that the
+  // detection branch is still there, still skips, and still degrades to the
+  // pre-v127 reason when the funnel is off. That is what it now checks.
+  // The full contract is pinned behaviourally in
+  // supabase/functions/scan-identify/multiItemDetectionDeferral.test.ts.
   assert.match(indexSource, /\} else if \(useMultiItemDetectionProvider\) \{/);
+  assert.match(indexSource, /'multi_item_detection_only'/);
+  assert.match(indexSource, /commerceSkipped: true/);
 });
 
 test('the v2 commerce short-circuit cannot alter legacy behaviour', () => {
