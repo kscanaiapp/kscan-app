@@ -31,6 +31,24 @@
             ],
             "defaultArtifactPosture": "RECORD_AUDIO stays tools:node=\"remove\" in android/app/src/main/AndroidManifest.xml and stays in app.json android.blockedPermissions, so production and every non-certification profile request no microphone permission at all.",
             "artifactVerificationRequired": "Manifest-merger behaviour is not provable from source. The merged manifest of the built certification AAB must be inspected before certification, and the merged manifest of a production AAB must be inspected to prove RECORD_AUDIO is still absent."
+          },
+          {
+            "id": "VOICE_SCAN_PRODUCTION_READINESS_CAPABILITY",
+            "reason": "ANDROID-VOICE-01. A future, separately authorized production Voice Scan build needs the identical RECORD_AUDIO grant staging-certification already proves, without requiring another source-code repair to get it. This reaches the SAME manifest and SAME permission as VOICE_SCAN_CERTIFICATION_MICROPHONE above, through a second, non-public, generic native selector (KSCAN_VOICE_NATIVE_CAPABILITY) instead of the certification-only one -- so KSCAN_VOICE_CERTIFICATION keeps meaning exactly what it always meant (this is the staging-certification build) and is never silently reinterpreted to also mean 'production has Voice'.",
+            "baseManifest": "android/app/src/release/AndroidManifest.xml",
+            "exceptionManifest": "android/app/src/certification/AndroidManifest.xml",
+            "selectorGradleProperty": "kscan.voiceNativeCapability",
+            "selectorEnvironmentVariable": "KSCAN_VOICE_NATIVE_CAPABILITY",
+            "selectorSetByEasProfiles": [],
+            "additionalGrantedPermissions": [
+              "android.permission.RECORD_AUDIO"
+            ],
+            "mustRemainRemovedEverywhere": [
+              "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+              "android.permission.CAPTURE_AUDIO_OUTPUT"
+            ],
+            "defaultArtifactPosture": "RECORD_AUDIO stays tools:node=\"remove\" in android/app/src/main/AndroidManifest.xml and stays in app.json android.blockedPermissions. selectorSetByEasProfiles is deliberately empty: eas.json commits this selector to NO profile today, including production -- it is supplied out of band by the governed production release environment only at the moment of an explicitly authorized activation (see docs/build34-android-voice-production-readiness-runbook.md). Committing it to any profile's eas.json env would itself broaden that profile before authorization, which is exactly what this declaration must not do.",
+            "artifactVerificationRequired": "Manifest-merger behaviour is not provable from source. Before any production Voice release, the merged manifest of a production AAB built WITH KSCAN_VOICE_NATIVE_CAPABILITY=true set must be inspected to prove RECORD_AUDIO is present, and the merged manifest of an ordinary production AAB (selector unset, today's shipping state) must be inspected to prove it is still absent."
           }
         ]
       }

@@ -2,33 +2,51 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!--
-      CERTIFICATION-ONLY release manifest (Build 34 Android Voice Scan).
+      Voice-capable release manifest (Build 34 Android Voice Scan;
+      generalized by ANDROID-VOICE-01).
 
       This file is NOT part of any ordinary build. android/app/build.gradle
-      substitutes it for src/release/AndroidManifest.xml ONLY when the
-      governed selector `kscan.voiceCertification` (Gradle property) or
-      KSCAN_VOICE_CERTIFICATION (environment) is exactly "true". That
-      selector is set in exactly one place: the `staging-certification` EAS
-      build profile in eas.json. Every other build -- production, staging,
-      preview, development, and any local `gradlew bundleRelease` -- leaves
-      it unset and therefore uses src/release/AndroidManifest.xml, which
-      grants no microphone permission at all.
+      substitutes it for src/release/AndroidManifest.xml when EITHER governed
+      selector resolves exactly "true":
+
+        - `kscan.voiceCertification` (Gradle property) / KSCAN_VOICE_CERTIFICATION
+          (environment) -- set in exactly one committed place, the
+          `staging-certification` EAS build profile in eas.json. This
+          selector's meaning is specifically "this is the staging-certification
+          build" and is never reinterpreted to mean anything else.
+        - `kscan.voiceNativeCapability` (Gradle property) / KSCAN_VOICE_NATIVE_CAPABILITY
+          (environment) -- a non-public, generic "materialize native Voice
+          capability" selector that eas.json commits to NO profile (production
+          included). It is supplied out of band by a release operator only at
+          an explicitly authorized production Voice activation; see
+          docs/build34-android-voice-production-readiness-runbook.md.
+
+      Both selectors choose this SAME manifest because its content (grant
+      RECORD_AUDIO, forbid everything else) is identical either way -- only
+      android/app/build.gradle's guards differ in which EAS profile may set
+      which selector (staging-certification for the first, staging-certification
+      or production for the second). Every other build -- ordinary production,
+      staging, preview, development, and any local `gradlew bundleRelease` --
+      leaves both selectors unset and therefore uses
+      src/release/AndroidManifest.xml, which grants no microphone permission
+      at all.
 
       WHY A PROFILE-SPECIFIC MANIFEST INSTEAD OF app.json:
       Android is NATIVE_AUTHORITATIVE here (config/native-config-authority.json),
       so android/app/src/main/AndroidManifest.xml is what actually ships.
       Adding RECORD_AUDIO to app.json + the main manifest would broaden the
-      PRODUCTION artifact the moment Voice Scan is merged, before Voice is
-      formally promoted. Voice Scan needs the permission only in the
-      certification AAB, so the grant lives only in the certification
-      variant of the manifest, and app.json continues to declare
-      RECORD_AUDIO blocked -- which remains true of the default/production
-      artifact.
+      PRODUCTION artifact by default, before any Voice activation is
+      authorized. Voice Scan needs the permission only in a build that
+      explicitly requested it, so the grant lives only in this manifest
+      variant, and app.json continues to declare RECORD_AUDIO blocked --
+      which remains true of the default/production artifact.
 
       WHAT THIS FILE MUST ALWAYS BE: a strict superset of
       src/release/AndroidManifest.xml plus the Voice permission block below.
-      __tests__/androidVoiceCertificationManifest.test.js enforces that
-      relationship so the two files cannot drift.
+      scripts/check-native-config-parity.js (run via
+      __tests__/nativeConfigParityGate.test.js) enforces that relationship,
+      for both declared exceptions in
+      config/native-config-authority.json, so the manifests cannot drift.
 
       WHAT THIS FILE MUST NEVER CONTAIN: a foreground-service microphone
       permission, a <service> element of any kind, a background-capture

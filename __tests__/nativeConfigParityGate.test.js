@@ -180,10 +180,32 @@ test('the declared Voice certification exception is what the repository actually
     fs.readFileSync(path.join(REPO_ROOT, 'config', 'native-config-authority.json'), 'utf8'),
   );
   const exceptions = authority.platforms.android.buildProfileManifestExceptions.exceptions;
-  assert.equal(exceptions.length, 1, 'exactly one build-profile exception is approved');
-  assert.equal(exceptions[0].id, 'VOICE_SCAN_CERTIFICATION_MICROPHONE');
-  assert.deepEqual(exceptions[0].additionalGrantedPermissions, ['android.permission.RECORD_AUDIO']);
-  assert.deepEqual(exceptions[0].selectorSetByEasProfiles, ['staging-certification']);
+  // ANDROID-VOICE-01 added a second, generalized exception alongside the
+  // original certification-only one. Both grant the same permission through
+  // the same manifest; they differ only in which native selector reaches it
+  // and which EAS profiles that selector is approved for.
+  assert.equal(exceptions.length, 2, 'exactly two build-profile exceptions are approved');
+
+  const certification = exceptions.find((e) => e.id === 'VOICE_SCAN_CERTIFICATION_MICROPHONE');
+  assert.ok(certification, 'the original certification-only exception must still be declared');
+  assert.deepEqual(certification.additionalGrantedPermissions, ['android.permission.RECORD_AUDIO']);
+  assert.deepEqual(certification.selectorSetByEasProfiles, ['staging-certification']);
+
+  const capability = exceptions.find((e) => e.id === 'VOICE_SCAN_PRODUCTION_READINESS_CAPABILITY');
+  assert.ok(capability, 'the ANDROID-VOICE-01 generalized capability exception must be declared');
+  assert.equal(capability.selectorGradleProperty, 'kscan.voiceNativeCapability');
+  assert.equal(capability.selectorEnvironmentVariable, 'KSCAN_VOICE_NATIVE_CAPABILITY');
+  assert.deepEqual(capability.additionalGrantedPermissions, ['android.permission.RECORD_AUDIO']);
+  assert.deepEqual(
+    capability.selectorSetByEasProfiles,
+    [],
+    'no EAS profile may commit KSCAN_VOICE_NATIVE_CAPABILITY -- it is supplied out of band only',
+  );
+  assert.deepEqual(
+    capability.mustRemainRemovedEverywhere,
+    certification.mustRemainRemovedEverywhere,
+    'both exceptions must forbid the identical set of background/foreground-capture permissions',
+  );
 });
 
 test('negative control: the certification manifest granting an UNDECLARED permission fails the gate', () => {
@@ -298,6 +320,50 @@ test('negative control: removing the selector from staging-certification fails t
   const exitCode = withMutatedFixture(({ readJson, writeJson }) => {
     const eas = readJson('eas.json');
     delete eas.build['staging-certification'].env.KSCAN_VOICE_CERTIFICATION;
+    writeJson('eas.json', eas);
+  });
+  assert.equal(exitCode, 1);
+});
+
+test('negative control: an exception manifest that stops granting its declared permission fails the gate', () => {
+  // ANDROID-VOICE-01 (b2): additionalGrantedPermissions is a promise, not
+  // just an allowlist -- a manifest that no longer grants what it declares
+  // must fail exactly like one that grants something undeclared already did.
+  const exitCode = withMutatedFixture(({ read, write }) => {
+    write(
+      CERT_MANIFEST,
+      read(CERT_MANIFEST).replace(
+        '<uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="replace"/>',
+        '<!-- RECORD_AUDIO grant removed by negative control -->',
+      ),
+    );
+  });
+  assert.equal(exitCode, 1);
+});
+
+// ── ANDROID-VOICE-01: the generalized capability exception's own controls ──
+
+test('negative control: committing KSCAN_VOICE_NATIVE_CAPABILITY to the production profile fails the gate', () => {
+  // The whole point of selectorSetByEasProfiles being empty for this
+  // exception is that NO committed profile may carry the selector yet --
+  // production included, since that is exactly the future activation this
+  // repair must not perform itself.
+  const exitCode = withMutatedFixture(({ readJson, writeJson }) => {
+    const eas = readJson('eas.json');
+    eas.build.production.env = { ...(eas.build.production.env || {}), KSCAN_VOICE_NATIVE_CAPABILITY: 'true' };
+    writeJson('eas.json', eas);
+  });
+  assert.equal(exitCode, 1);
+});
+
+test('negative control: committing KSCAN_VOICE_NATIVE_CAPABILITY to staging-certification fails the gate', () => {
+  // Even the one profile that already has a working Voice-capable path (via
+  // the separate, unaffected KSCAN_VOICE_CERTIFICATION selector) is not an
+  // approved site for the NEW selector, because selectorSetByEasProfiles for
+  // VOICE_SCAN_PRODUCTION_READINESS_CAPABILITY is deliberately empty today.
+  const exitCode = withMutatedFixture(({ readJson, writeJson }) => {
+    const eas = readJson('eas.json');
+    eas.build['staging-certification'].env.KSCAN_VOICE_NATIVE_CAPABILITY = 'true';
     writeJson('eas.json', eas);
   });
   assert.equal(exitCode, 1);

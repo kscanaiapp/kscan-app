@@ -68,11 +68,18 @@ test('Objective A: the native build reads EAS_BUILD_PROFILE and EXPO_PUBLIC_VOIC
   );
 });
 
-test('Objective A: a Voice client flag / native selector mismatch throws GradleException', () => {
+test('Objective A: a Voice client flag / native capability mismatch throws GradleException', () => {
+  // ANDROID-VOICE-01 generalized this comparison from the raw
+  // kscanVoiceCertification selector to the derived
+  // voiceNativeCapabilityMaterialized signal (kscanVoiceCertification OR the
+  // new kscanVoiceNativeCapability), so a future production activation via
+  // the new selector is not itself a Voice-invariant violation. See the
+  // "ANDROID-VOICE-01" test block below for the generalized guard's own
+  // dedicated coverage.
   assert.match(
     gradle,
-    /if\s*\(voiceScanEnabled\s*!=\s*kscanVoiceCertification\)\s*\{[\s\S]{0,400}throw new GradleException/,
-    'EXPO_PUBLIC_VOICESCAN_ENABLED and KSCAN_VOICE_CERTIFICATION disagreeing must throw',
+    /if\s*\(voiceScanEnabled\s*!=\s*voiceNativeCapabilityMaterialized\)\s*\{[\s\S]{0,400}throw new GradleException/,
+    'EXPO_PUBLIC_VOICESCAN_ENABLED and native Voice capability disagreeing must throw',
   );
 });
 
@@ -94,50 +101,135 @@ test('Objective A: EAS_BUILD_PROFILE=staging-certification without the full Voic
 
 test('Objective A NEGATIVE CONTROL: removing the voice-invariant guard is detected', () => {
   const mutated = gradle.replace(
-    /if\s*\(voiceScanEnabled\s*!=\s*kscanVoiceCertification\)\s*\{[\s\S]{0,400}throw new GradleException/,
+    /if\s*\(voiceScanEnabled\s*!=\s*voiceNativeCapabilityMaterialized\)\s*\{[\s\S]{0,400}throw new GradleException/,
     'if (false) { throw new GradleException',
   );
   assert.notStrictEqual(mutated, gradle, 'the mutation must actually change the source (self-check)');
   assert.doesNotMatch(
     mutated,
-    /if\s*\(voiceScanEnabled\s*!=\s*kscanVoiceCertification\)\s*\{[\s\S]{0,400}throw new GradleException/,
+    /if\s*\(voiceScanEnabled\s*!=\s*voiceNativeCapabilityMaterialized\)\s*\{[\s\S]{0,400}throw new GradleException/,
     'the mutated source must no longer match the guard pattern',
   );
 });
 
-// Truth-table mirror of the three Objective A guards, so the invariant DESIGN
-// is proven correct independent of Groovy syntax.
+// Truth-table mirror of the (now four) Objective A / ANDROID-VOICE-01 native
+// guards, so the invariant DESIGN is proven correct independent of Groovy
+// syntax. materialized = kscanVoiceCertification OR kscanVoiceNativeCapability
+// mirrors android/app/build.gradle's own derived voiceNativeCapabilityMaterialized.
 const CERT_PROFILE = 'staging-certification';
-function voiceGuardViolation(easBuildProfile, voiceScanEnabled, kscanVoiceCertification) {
-  if (voiceScanEnabled !== kscanVoiceCertification) return 'mismatch';
+const PROD_PROFILE = 'production';
+const CAPABILITY_ALLOWED_PROFILES = [CERT_PROFILE, PROD_PROFILE];
+function voiceGuardViolation(easBuildProfile, voiceScanEnabled, kscanVoiceCertification, kscanVoiceNativeCapability = false) {
+  const materialized = kscanVoiceCertification || kscanVoiceNativeCapability;
+  if (voiceScanEnabled !== materialized) return 'mismatch';
   if (easBuildProfile != null && easBuildProfile !== CERT_PROFILE && kscanVoiceCertification) return 'leaked-selector';
   if (easBuildProfile === CERT_PROFILE && !(voiceScanEnabled && kscanVoiceCertification)) return 'incomplete-certification';
+  if (easBuildProfile != null && kscanVoiceNativeCapability && !CAPABILITY_ALLOWED_PROFILES.includes(easBuildProfile)) {
+    return 'leaked-capability';
+  }
   return null;
 }
 
 test('Objective A truth table: every profile/flag combination resolves to the intended pass/fail', () => {
   const cases = [
-    // [easBuildProfile, voiceScanEnabled, kscanVoiceCertification, expectedViolation]
-    [null, false, false, null],
-    [null, true, true, null],
-    [null, true, false, 'mismatch'],
-    [null, false, true, 'mismatch'],
-    ['staging', false, false, null],
-    ['production', false, false, null],
-    ['preview', false, false, null],
-    ['staging', true, true, 'leaked-selector'],
-    ['production', false, true, 'mismatch'], // guard order: the flag/selector mismatch check runs first
-    ['production', true, true, 'leaked-selector'],
-    [CERT_PROFILE, true, true, null],
-    [CERT_PROFILE, false, false, 'incomplete-certification'],
-    [CERT_PROFILE, true, false, 'mismatch'],
-    [CERT_PROFILE, false, true, 'mismatch'],
+    // [easBuildProfile, voiceScanEnabled, kscanVoiceCertification, kscanVoiceNativeCapability, expectedViolation]
+    [null, false, false, false, null],
+    [null, true, true, false, null],
+    [null, true, false, false, 'mismatch'],
+    [null, false, true, false, 'mismatch'],
+    ['staging', false, false, false, null],
+    ['production', false, false, false, null],
+    ['preview', false, false, false, null],
+    ['staging', true, true, false, 'leaked-selector'],
+    ['production', false, true, false, 'mismatch'], // guard order: the flag/selector mismatch check runs first
+    ['production', true, true, false, 'leaked-selector'],
+    [CERT_PROFILE, true, true, false, null],
+    [CERT_PROFILE, false, false, false, 'incomplete-certification'],
+    [CERT_PROFILE, true, false, false, 'mismatch'],
+    [CERT_PROFILE, false, true, false, 'mismatch'],
+    // ANDROID-VOICE-01: the new generalized capability selector.
+    ['production', true, false, true, null], // future authorized production Voice
+    // The certification profile's completeness guard is intentionally
+    // UNCHANGED and still names kscanVoiceCertification specifically (not
+    // the derived materialized signal) -- the new capability selector does
+    // NOT substitute for it, so staging-certification's own requirement is
+    // exactly what it always was.
+    [CERT_PROFILE, true, false, true, 'incomplete-certification'],
+    ['production', false, false, true, 'mismatch'], // capability on, runtime flag forgotten
+    ['preview', true, false, true, 'leaked-capability'], // unsupported profile, fails closed
+    ['staging', true, false, true, 'leaked-capability'],
+    ['development', true, false, true, 'leaked-capability'],
+    [null, true, false, true, null], // untracked local invocation is exempt, same as the legacy selector
   ];
-  for (const [profile, voice, selector, expected] of cases) {
+  for (const [profile, voice, certSelector, capabilitySelector, expected] of cases) {
     assert.equal(
-      voiceGuardViolation(profile, voice, selector),
+      voiceGuardViolation(profile, voice, certSelector, capabilitySelector),
       expected,
-      `profile=${profile} voice=${voice} selector=${selector}`,
+      `profile=${profile} voice=${voice} certSelector=${certSelector} capabilitySelector=${capabilitySelector}`,
+    );
+  }
+});
+
+// ── ANDROID-VOICE-01: generalized native Voice capability ─────────────────
+
+test('ANDROID-VOICE-01: the native build reads KSCAN_VOICE_NATIVE_CAPABILITY at execution time', () => {
+  assert.match(
+    gradle,
+    /System\.getenv\('KSCAN_VOICE_NATIVE_CAPABILITY'\)/,
+    'KSCAN_VOICE_NATIVE_CAPABILITY must be read from the environment',
+  );
+  assert.match(
+    gradle,
+    /def voiceNativeCapabilityMaterialized\s*=\s*kscanVoiceCertification\s*\|\|\s*kscanVoiceNativeCapability/,
+    'the derived materialization signal must OR the legacy and generalized selectors',
+  );
+});
+
+test('ANDROID-VOICE-01: the generalized capability selector active outside its approved profiles throws GradleException', () => {
+  assert.match(
+    gradle,
+    /kscanVoiceNativeCapability\s*&&\s*!VOICE_NATIVE_CAPABILITY_ALLOWED_PROFILES\.contains\(easBuildProfile\)\)\s*\{[\s\S]{0,400}throw new GradleException/,
+    'KSCAN_VOICE_NATIVE_CAPABILITY resolving true under an unapproved profile must throw',
+  );
+});
+
+test('ANDROID-VOICE-01: the approved profile list is exactly certification and production', () => {
+  assert.match(
+    gradle,
+    /def VOICE_NATIVE_CAPABILITY_ALLOWED_PROFILES\s*=\s*\[CERTIFICATION_PROFILE,\s*PRODUCTION_PROFILE\]/,
+  );
+  assert.match(gradle, /def PRODUCTION_PROFILE\s*=\s*'production'/);
+});
+
+test('ANDROID-VOICE-01: the legacy certification-only selector and its guard are untouched', () => {
+  // The whole point of generalizing via a SECOND selector is that
+  // KSCAN_VOICE_CERTIFICATION keeps its exact original meaning and behaviour.
+  assert.match(
+    gradle,
+    /easBuildProfile\s*!=\s*CERTIFICATION_PROFILE\s*&&\s*kscanVoiceCertification\)\s*\{[\s\S]{0,400}throw new GradleException/,
+    'the legacy leak guard, scoped to kscanVoiceCertification alone, must still exist unchanged',
+  );
+  assert.match(
+    gradle,
+    /easBuildProfile\s*==\s*CERTIFICATION_PROFILE\s*&&\s*!\(voiceScanEnabled\s*&&\s*kscanVoiceCertification\)\)\s*\{[\s\S]{0,400}throw new GradleException/,
+    'the legacy completeness guard, scoped to kscanVoiceCertification alone, must still exist unchanged',
+  );
+});
+
+test('ANDROID-VOICE-01 NEGATIVE CONTROL: removing the generalized leak guard is detected', () => {
+  const mutated = gradle.replace(
+    /if\s*\(easBuildProfile\s*!=\s*null\s*&&\s*kscanVoiceNativeCapability\s*&&\s*!VOICE_NATIVE_CAPABILITY_ALLOWED_PROFILES\.contains\(easBuildProfile\)\)\s*\{[\s\S]{0,400}throw new GradleException/,
+    'if (false) { throw new GradleException',
+  );
+  assert.notStrictEqual(mutated, gradle, 'the mutation must actually change the source (self-check)');
+});
+
+test('ANDROID-VOICE-01: eas.json commits the generalized selector to no profile, including production', () => {
+  const eas = JSON.parse(read(path.join(REPO_ROOT, 'eas.json')));
+  for (const [name, profile] of Object.entries(eas.build)) {
+    assert.ok(
+      !(profile.env && 'KSCAN_VOICE_NATIVE_CAPABILITY' in profile.env),
+      `profile "${name}" must not commit KSCAN_VOICE_NATIVE_CAPABILITY -- it is supplied out of band only`,
     );
   }
 });
@@ -370,7 +462,14 @@ test('Objective F: gradle.properties resolves minification to effectively true (
 
 test('CROSS-OBJECTIVE NEGATIVE CONTROL: none of the new certification-only Gradle variables leak outside their guarded blocks', () => {
   // Each of these is defined exactly once at the top level of the file.
-  for (const identifier of ['smartWatchlistEnabled', 'voiceScanEnabled', 'kscanBuildProfile', 'kscanSourceCommit']) {
+  for (const identifier of [
+    'smartWatchlistEnabled',
+    'voiceScanEnabled',
+    'kscanBuildProfile',
+    'kscanSourceCommit',
+    'kscanVoiceNativeCapability',
+    'voiceNativeCapabilityMaterialized',
+  ]) {
     const occurrences = gradle.split(new RegExp(`\\bdef ${identifier}\\b`)).length - 1;
     assert.equal(occurrences, 1, `${identifier} must be declared exactly once`);
   }
