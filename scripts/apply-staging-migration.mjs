@@ -21,6 +21,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import {
   assertStagingTarget,
   missingRequiredVars,
@@ -29,12 +30,14 @@ import {
   scanSqlForProhibited,
   sha256File,
   runSupabase,
+  readRemoteMigrationVersions,
   writeJsonArtifact,
   ensureArtifactsDir,
   gitHeadSha,
   STAGING_PROJECT_REF,
   fail,
 } from './lib/staging-helpers.mjs';
+import { loadLedgerReconciliation } from './staging-deploy-preflight.mjs';
 
 function requireApproval() {
   if (String(process.env.APPROVE_STAGING_MIGRATION || '').toUpperCase() !== 'YES') {
@@ -60,18 +63,29 @@ function resolveMigrationFile(version, explicitPath) {
   return match;
 }
 
-function remoteHasVersion(version) {
-  const sql = `select version, name from supabase_migrations.schema_migrations where version = '${version}'`;
-  const out = runSupabase(['db', 'query', sql, '--linked', '--output-format', 'json']);
-  const parsed = JSON.parse(out);
-  return (parsed.rows || []).length > 0;
+// Both of these read the SAME inventory, so they can never disagree about what
+// staging has applied -- and both fail closed rather than reporting an
+// unreadable ledger as an empty one. See readRemoteMigrationVersions().
+function listRemoteVersions() {
+  return readRemoteMigrationVersions(runSupabase);
 }
 
-function listRemoteVersions() {
-  const sql = 'select version from supabase_migrations.schema_migrations order by version';
-  const out = runSupabase(['db', 'query', sql, '--linked', '--output-format', 'json']);
-  const parsed = JSON.parse(out);
-  return (parsed.rows || []).map((r) => String(r.version));
+function remoteHasVersion(version, remote = listRemoteVersions()) {
+  return remote.includes(version);
+}
+
+/**
+ * The versions genuinely absent from staging: local files minus everything the
+ * ledger already carries, minus everything the reconciliation authority proves
+ * is present under another version identity (renumbered, consolidated,
+ * superseded). Without this the gate counts historical renumbering as pending
+ * work and can never see exactly one approved migration.
+ */
+function pendingVersions(local, remote) {
+  const remoteSet = new Set(remote);
+  const { reconciled } = loadLedgerReconciliation(STAGING_PROJECT_REF);
+  const reconciledLocal = new Set(reconciled.map((r) => r.localVersion));
+  return local.filter((m) => !remoteSet.has(m.version) && !reconciledLocal.has(m.version));
 }
 
 function main() {
@@ -104,14 +118,19 @@ function main() {
 
   runSupabase(['link', '--project-ref', STAGING_PROJECT_REF, '--yes']);
 
-  if (remoteHasVersion(version)) {
+  let remote;
+  try {
+    remote = listRemoteVersions();
+  } catch (err) {
+    fail(err.message);
+  }
+
+  if (remoteHasVersion(version, remote)) {
     fail(`Version ${version} is already recorded on staging — refusing re-apply`);
   }
 
   const local = listLocalMigrationVersions();
-  const remote = listRemoteVersions();
-  const remoteSet = new Set(remote);
-  const pending = local.filter((m) => !remoteSet.has(m.version));
+  const pending = pendingVersions(local, remote);
   if (pending.length !== 1 || pending[0].version !== version) {
     fail(
       `Expected exactly one approved pending migration ${version}; pending=[${pending.map((p) => p.version).join(', ')}]`,
@@ -146,9 +165,13 @@ function main() {
   }
 
   const afterRemote = listRemoteVersions();
-  const afterLocal = listLocalMigrationVersions().map((m) => m.version);
-  const remoteOnly = afterRemote.filter((v) => !afterLocal.includes(v));
-  const localOnly = afterLocal.filter((v) => !afterRemote.includes(v));
+  const afterLocalMigrations = listLocalMigrationVersions();
+  const afterLocal = afterLocalMigrations.map((m) => m.version);
+  const { reconciled } = loadLedgerReconciliation(STAGING_PROJECT_REF);
+  const reconciledLocal = new Set(reconciled.map((r) => r.localVersion));
+  const reconciledRemote = new Set(reconciled.flatMap((r) => r.remoteVersions ?? []));
+  const remoteOnly = afterRemote.filter((v) => !afterLocal.includes(v) && !reconciledRemote.has(v));
+  const localOnly = afterLocal.filter((v) => !afterRemote.includes(v) && !reconciledLocal.has(v));
 
   const artifact = {
     timestamp: new Date().toISOString(),
@@ -174,4 +197,9 @@ function main() {
   if (remoteOnly.length > 0) process.exit(1);
 }
 
-main();
+// Only run when invoked as a script; importing must not apply anything.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main();
+}
+
+export { pendingVersions, remoteHasVersion };

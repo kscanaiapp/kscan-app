@@ -163,6 +163,73 @@ export function runSupabase(args, { cwd = process.cwd() } = {}) {
   });
 }
 
+/**
+ * Normalizes the several JSON shapes the Supabase CLI has used for row output
+ * (`{rows: [...]}`, a bare array, `{result: [...]}`) into a plain array.
+ * Returns null when the payload cannot be understood at all -- which callers
+ * MUST distinguish from "zero rows", because the two mean opposite things.
+ */
+export function parseSupabaseRows(stdout) {
+  let parsed;
+  try {
+    parsed = JSON.parse(stdout);
+  } catch {
+    return null;
+  }
+  if (Array.isArray(parsed)) return parsed;
+  if (Array.isArray(parsed?.rows)) return parsed.rows;
+  if (Array.isArray(parsed?.result)) return parsed.result;
+  if (Array.isArray(parsed?.migrations)) return parsed.migrations;
+  return null;
+}
+
+/**
+ * Reads the applied migration ledger from the linked project.
+ *
+ * FAILS CLOSED ON AN EMPTY OR UNREADABLE RESULT. A provisioned Supabase project
+ * always has rows in supabase_migrations.schema_migrations, so "no rows" means
+ * the query shape changed or the read failed -- never that nothing is applied.
+ * Treating an unreadable ledger as an empty one inverts every downstream
+ * comparison: it makes the entire local migration set look pending, which is
+ * how a single-migration gate ends up reporting 154 pending migrations.
+ */
+export function readRemoteMigrationVersions(run = runSupabase) {
+  const attempts = [
+    () => run(['db', 'query', 'select version from supabase_migrations.schema_migrations order by version', '--linked', '--output-format', 'json']),
+    () => run(['migration', 'list', '--linked', '--output-format', 'json']),
+  ];
+
+  const errors = [];
+  for (const attempt of attempts) {
+    let rows;
+    try {
+      rows = parseSupabaseRows(attempt());
+    } catch (err) {
+      errors.push(err.message);
+      continue;
+    }
+    if (rows === null) {
+      errors.push('unrecognized JSON shape');
+      continue;
+    }
+    const versions = [
+      ...new Set(
+        rows
+          .map((row) => (row && typeof row === 'object' ? (row.version ?? row.remote) : row))
+          .filter((v) => v !== null && v !== undefined && String(v).trim() !== '')
+          .map((v) => String(v).trim()),
+      ),
+    ].sort();
+    if (versions.length > 0) return versions;
+    errors.push('zero rows');
+  }
+
+  throw new Error(
+    `Could not read the remote migration ledger (${errors.join('; ')}). ` +
+      'Refusing to treat an unreadable ledger as an empty one.',
+  );
+}
+
 export function ensureArtifactsDir(subdir = 'staging-deployments') {
   const dir = path.join(process.cwd(), 'artifacts', subdir);
   fs.mkdirSync(dir, { recursive: true });

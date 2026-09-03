@@ -371,3 +371,67 @@ test('the one genuinely unapplied staging migration is declared as such, and is 
     ),
   );
 });
+
+// ------------------------------------------- remote ledger read (fail-closed)
+
+test('parseSupabaseRows understands every JSON shape the CLI has used', async () => {
+  const { parseSupabaseRows } = await import(
+    pathToFileUrl(path.join(ROOT, 'scripts', 'lib', 'staging-helpers.mjs'))
+  );
+  assert.deepEqual(parseSupabaseRows(JSON.stringify({ rows: [{ version: '1' }] })), [{ version: '1' }]);
+  assert.deepEqual(parseSupabaseRows(JSON.stringify([{ version: '2' }])), [{ version: '2' }]);
+  assert.deepEqual(parseSupabaseRows(JSON.stringify({ result: [{ version: '3' }] })), [{ version: '3' }]);
+  assert.deepEqual(parseSupabaseRows(JSON.stringify({ migrations: [{ version: '4' }] })), [{ version: '4' }]);
+  // An unreadable payload is null, NOT an empty array: callers must be able to
+  // tell "could not read" apart from "read, and there is nothing".
+  assert.equal(parseSupabaseRows('not json at all'), null);
+  assert.equal(parseSupabaseRows(JSON.stringify({ unexpected: true })), null);
+});
+
+test('an unreadable or empty ledger throws instead of reporting "nothing is applied"', async () => {
+  const { readRemoteMigrationVersions } = await import(
+    pathToFileUrl(path.join(ROOT, 'scripts', 'lib', 'staging-helpers.mjs'))
+  );
+  // This is the defect that made apply-staging-migration report all 154 local
+  // migrations as pending: `parsed.rows` came back undefined, `|| []` turned
+  // that into "the remote ledger is empty", and every local version therefore
+  // looked unapplied. A provisioned project always has rows.
+  assert.throws(() => readRemoteMigrationVersions(() => JSON.stringify({ rows: [] })), /Refusing to treat an unreadable ledger as an empty one/);
+  assert.throws(() => readRemoteMigrationVersions(() => 'not json'), /Could not read the remote migration ledger/);
+  assert.throws(() => readRemoteMigrationVersions(() => { throw new Error('supabase: command not found'); }), /Could not read the remote migration ledger/);
+});
+
+test('the ledger reader falls back to `migration list` and de-duplicates', async () => {
+  const { readRemoteMigrationVersions } = await import(
+    pathToFileUrl(path.join(ROOT, 'scripts', 'lib', 'staging-helpers.mjs'))
+  );
+  let call = 0;
+  const versions = readRemoteMigrationVersions(() => {
+    call += 1;
+    if (call === 1) return JSON.stringify({ rows: [] }); // db query unusable
+    return JSON.stringify({ migrations: [{ version: '20260101000000' }, { remote: '20260102000000' }, { version: '20260101000000' }] });
+  });
+  assert.deepEqual(versions, ['20260101000000', '20260102000000']);
+});
+
+test('apply-staging-migration counts only genuinely pending versions', async () => {
+  const { pendingVersions } = await import(
+    pathToFileUrl(path.join(ROOT, 'scripts', 'apply-staging-migration.mjs'))
+  );
+  const { listLocalMigrationVersions } = await import(
+    pathToFileUrl(path.join(ROOT, 'scripts', 'lib', 'staging-helpers.mjs'))
+  );
+  const local = listLocalMigrationVersions(path.join(ROOT, 'supabase', 'migrations'));
+  const { reconciled } = await loadPreflight().then((m) => m.loadLedgerReconciliation(STAGING_REF));
+
+  // Simulate a ledger that carries everything except the reconciled-away local
+  // versions and the one genuinely unapplied migration.
+  const reconciledLocal = new Set(reconciled.map((r) => r.localVersion));
+  const remote = local
+    .map((m) => m.version)
+    .filter((v) => v !== '20260902150000' && !reconciledLocal.has(v));
+
+  const pending = pendingVersions(local, remote);
+  assert.equal(pending.length, 1, `expected one pending, got: ${pending.map((p) => p.version).join(', ')}`);
+  assert.equal(pending[0].version, '20260902150000');
+});
