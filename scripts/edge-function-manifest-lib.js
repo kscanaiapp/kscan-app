@@ -95,6 +95,19 @@ const APPROVED_PROJECT_REF = 'yzqjvdfgefveprobvvyw';
  * It is also required rather than optional: scripts/deploy-edge-functions.js
  * refuses to deploy any function absent from the manifest, so hosting the
  * versioned private Dressing Room contract here means governing it here.
+ *
+ * EDGE-02: `apple-credential-link` and `apple-revoke-credential` join here
+ * with real committed source for the first time. Both were deployed to
+ * staging and production from an unmerged branch (hotfix/ios-build29-apple-
+ * revocation / hotfix/prod-deletion-worker-apple-revocation) months before
+ * this repo tree had any local copy of their source, manifest entry, or
+ * dependency/privilege inventory -- the deletion worker's own Apple
+ * revocation step (supabase/functions/_shared/deletion/appleRevocation.ts)
+ * has depended on the deployed-only apple-revoke-credential by name
+ * (`functions.invoke('apple-revoke-credential', ...)`) since that seam was
+ * added. Recovered read-only from Git history (byte-identical across both
+ * origin-pushed hotfix branches) and cross-verified against the live
+ * Management API source on both projects before being added here.
  */
 const GOVERNED_FUNCTIONS = [
   'scan-identify',
@@ -104,6 +117,8 @@ const GOVERNED_FUNCTIONS = [
   'stylist-speech',
   'handle-user-deletion',
   'process-account-deletions',
+  'apple-credential-link',
+  'apple-revoke-credential',
   'privacy-correction-request',
   'privacy-data-export',
   'restore-account',

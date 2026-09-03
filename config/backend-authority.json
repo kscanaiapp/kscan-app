@@ -4,7 +4,7 @@
   "canonicalBranch": "rebuild/staging-v2-backend",
   "approvedProjectRef": "yzqjvdfgefveprobvvyw",
   "note": "Build 34 Track B convergence source. It combines governed backend and mobile lineages for certification only; deployment tooling must refuse this checkout. The canonical backend deployment authority remains the declared branch above.",
-  "governedFunctionCount": 21,
+  "governedFunctionCount": 23,
   "notGoverned": {
     "note": "Functions deployed on staging that this source tree does not govern.",
     "websitePrivacyStack": {
@@ -20,13 +20,6 @@
       ],
       "reason": "Staging tooling with no corresponding function source in this tree."
     },
-    "appleCredentialFunctions": {
-      "functions": [
-        "apple-credential-link",
-        "apple-revoke-credential"
-      ],
-      "reason": "Deployed staging source lineage remains documented but unconfirmed."
-    },
     "wearableFunctions": {
       "functions": [
         "wearable-bridge",
@@ -38,5 +31,5 @@
     }
   },
   "canonicalBranchNote": "GOV-KPLUS-001: this ref must be resolvable from a fresh clone. It currently exists only as a LOCAL branch in some checkouts, which makes the declared canonical deployment authority unverifiable anywhere else. Publishing it (or re-pointing this field at a ref that is published) is an owner action; scripts/verify-backend-authority.js reports the gap rather than hiding it.",
-  "governedFunctionCountSource": "Must equal GOVERNED_FUNCTIONS.length in scripts/edge-function-manifest-lib.js. Verified by scripts/verify-backend-authority.js; it was 19 against 20 governed functions after commerce-watch-refresh was added and this file was not updated. Now 21 after Build 34 K4 VTO backend convergence added vto-generate (tryon-clothes-pro remains governed as the retired stub)."
+  "governedFunctionCountSource": "Must equal GOVERNED_FUNCTIONS.length in scripts/edge-function-manifest-lib.js. Verified by scripts/verify-backend-authority.js; it was 19 against 20 governed functions after commerce-watch-refresh was added and this file was not updated. Was 21 after Build 34 K4 VTO backend convergence added vto-generate (tryon-clothes-pro remains governed as the retired stub). Now 23 (EDGE-02): apple-credential-link and apple-revoke-credential moved out of notGoverned.appleCredentialFunctions into governed status -- their deployed staging/production source lineage was GIT-PROVEN (commit e369fca9) and cross-verified against the live Supabase Management API source on both projects, closing the 'documented but unconfirmed' gap this file previously recorded for them."
 }

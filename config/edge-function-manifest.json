@@ -1,13 +1,15 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-03T02:12:24.267Z",
-    "generatedFromGitSha": "54729ef76c01be54a116e5e419dce874f8e209a8"
+    "generatedAtUtc": "2026-09-03T09:48:04.435Z",
+    "generatedFromGitSha": "18275eed3662a0fa8c9a828a18fdde14aedc02ca"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
     "approvedProjectRef": "yzqjvdfgefveprobvvyw",
     "expectedFunctions": [
+      "apple-credential-link",
+      "apple-revoke-credential",
       "commerce-watch-refresh",
       "handle-user-deletion",
       "kickscrew-sneaker-description",
@@ -40,7 +42,7 @@
         "bundleFileCount": 40,
         "treeFileCount": 66,
         "bundleHash": "4f12ca732bc09c628fbad6249ac136b34da1e315dd55cdf4e94dca932fef4e15",
-        "treeHash": "fd70cc816ed4ed22df53c06e6122a4ec900d69f316fe831af3a31105750d5566",
+        "treeHash": "c5bf08876d7c2214bae7c45ae1ab129348e7ef8c2c37543b494fffb3ac981175",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -234,7 +236,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
-            "sha256": "435d6055aa15efff922e260e020bd263809e62f7cfe77f395af4b814cb28fe5d",
+            "sha256": "97107a41d5217d3a262547e49b29ab708b24d0a117f4f76b308a6241ebb4a870",
             "bundle": false
           },
           {
@@ -1094,6 +1096,80 @@
           {
             "path": "supabase/functions/process-account-deletions/index.ts",
             "sha256": "962fbaadae0cf6fee5c9decc56dd64c7fe0c2567cbc2596057cc85ce275bf604",
+            "bundle": true
+          }
+        ]
+      },
+      {
+        "name": "apple-credential-link",
+        "entry": "supabase/functions/apple-credential-link/index.ts",
+        "remoteSpecifiers": [
+          "npm:@supabase/supabase-js@2"
+        ],
+        "bundleFileCount": 5,
+        "treeFileCount": 5,
+        "bundleHash": "c0edcc1978886460686a83ccf061d5ec6535a2585f35fec5a2816f3f284f3be1",
+        "treeHash": "c0edcc1978886460686a83ccf061d5ec6535a2585f35fec5a2816f3f284f3be1",
+        "files": [
+          {
+            "path": "supabase/functions/_shared/appleAuth/appleClientSecret.ts",
+            "sha256": "3b997e7cded566aebd3a95ec9e26dd0e47ece720d98ee69f2342cc81792bf675",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/appleAuth/appleRestApi.ts",
+            "sha256": "082e6b65b426803c306338fbff391ec143c76d99789f381d7ebb76940b2674b7",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/appleAuth/config.ts",
+            "sha256": "8177d44ae5618e81775a093098181e2f108982d053b422b49b055a0509e62a3e",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/appleAuth/credentialStore.ts",
+            "sha256": "0fa0c42392da256c6d1079eb02e049597326b6809751ee856e83dc6afaf3ee2a",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/apple-credential-link/index.ts",
+            "sha256": "16c942734b3f02cca9009bbeb408f0b4ce75679dba4354931e9d40a569195547",
+            "bundle": true
+          }
+        ]
+      },
+      {
+        "name": "apple-revoke-credential",
+        "entry": "supabase/functions/apple-revoke-credential/index.ts",
+        "remoteSpecifiers": [],
+        "bundleFileCount": 5,
+        "treeFileCount": 5,
+        "bundleHash": "26f8854aa1f781dc32b317872124a64e5c76942efe403e611c91ae9fbcbcd2d5",
+        "treeHash": "26f8854aa1f781dc32b317872124a64e5c76942efe403e611c91ae9fbcbcd2d5",
+        "files": [
+          {
+            "path": "supabase/functions/_shared/appleAuth/appleClientSecret.ts",
+            "sha256": "3b997e7cded566aebd3a95ec9e26dd0e47ece720d98ee69f2342cc81792bf675",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/appleAuth/appleRestApi.ts",
+            "sha256": "082e6b65b426803c306338fbff391ec143c76d99789f381d7ebb76940b2674b7",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/appleAuth/config.ts",
+            "sha256": "8177d44ae5618e81775a093098181e2f108982d053b422b49b055a0509e62a3e",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/appleAuth/credentialStore.ts",
+            "sha256": "0fa0c42392da256c6d1079eb02e049597326b6809751ee856e83dc6afaf3ee2a",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/apple-revoke-credential/index.ts",
+            "sha256": "07168a76c1be19285178493ae0e1a43dbc9a79dec36f056d70198ba15c5b626f",
             "bundle": true
           }
         ]

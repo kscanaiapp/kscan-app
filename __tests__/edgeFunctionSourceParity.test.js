@@ -121,8 +121,13 @@ test('committed manifest governs every governed function and the approved projec
   // widened this from 3 to every function this branch's tree carries (this
   // IS the canonical backend authority branch -- see
   // docs/staging-rebuild/backend-authority-manifest.md and
-  // config/backend-authority.json).
+  // config/backend-authority.json). apple-credential-link and
+  // apple-revoke-credential joined under EDGE-02: recovered from Git history
+  // (commit e369fca9) and cross-verified against the live deployed source on
+  // both Supabase projects before being governed here.
   assert.deepEqual(manifest.parity.expectedFunctions, [
+    'apple-credential-link',
+    'apple-revoke-credential',
     'commerce-watch-refresh',
     'handle-user-deletion',
     'kickscrew-sneaker-description',

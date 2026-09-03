@@ -221,9 +221,12 @@ test('no new Edge Function is introduced (the governed set is unchanged)', () =>
     .filter((n) => fs.statSync(path.join(ROOT, 'supabase', 'functions', n)).isDirectory());
   // 21 since Build 34 K4 VTO backend convergence added vto-generate as its own
   // governed function (tryon-clothes-pro was already governed as the retired
-  // stub). That is a legitimate, separately-governed addition, not this
-  // sweep growing a function of its own -- which the directory-inclusion
-  // check below still proves.
-  assert.equal(dirs.length, 21, 'the sweep must live in the existing worker, not a new function');
+  // stub). Now 23: EDGE-02 governed apple-credential-link and
+  // apple-revoke-credential, both already deployed to staging/production for
+  // months and now brought under local source authority (commit e369fca9).
+  // These are legitimate, separately-governed additions, not this sweep
+  // growing a function of its own -- which the directory-inclusion check
+  // below still proves.
+  assert.equal(dirs.length, 23, 'the sweep must live in the existing worker, not a new function');
   assert.ok(dirs.includes('process-account-deletions'));
 });

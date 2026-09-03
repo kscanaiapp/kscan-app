@@ -50,6 +50,18 @@ verify_jwt = false
 [functions.process-account-deletions]
 verify_jwt = false
 
+# Sign in with Apple revocation (TN3194, Guideline 5.1.1(v)). Credential
+# capture is user-facing and resolves the target account only from the
+# verified bearer JWT. Revocation is server-to-server: it authenticates the
+# caller itself via a constant-time compare against the service-role key and
+# accepts no user JWT at all, so no end user can trigger revocation for any
+# account including their own.
+[functions.apple-credential-link]
+verify_jwt = true
+
+[functions.apple-revoke-credential]
+verify_jwt = false
+
 # ── Privacy ──────────────────────────────────────────────────────────────────
 
 [functions.privacy-data-export]

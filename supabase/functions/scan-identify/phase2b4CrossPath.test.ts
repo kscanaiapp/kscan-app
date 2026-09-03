@@ -285,6 +285,22 @@ type PrivilegeProfile = {
  * this record states the privileged behavior that review must account for.
  */
 const GOVERNED_PRIVILEGE_INVENTORY: Record<string, PrivilegeProfile> = {
+  // EDGE-02: Sign in with Apple revocation pair, recovered from Git history
+  // (commit e369fca9) and cross-verified against the live deployed source on
+  // both projects. dbWrite is correctly false here even though both functions
+  // do write apple_auth_credentials rows: the write goes through a shared
+  // restClient() helper whose URL construction (index.ts) and its POST/DELETE
+  // method (credentialStore.ts) live in different bundle files, so neither
+  // single file matches this heuristic's same-file url+method pattern -- a
+  // known limitation of a per-file check, not a claim that no write occurs.
+  'apple-credential-link': {
+    serviceRole: true, dbRead: true, dbWrite: false, rpc: false, authAdmin: false, storage: false,
+    privilegedBackend: true, actorBoundary: true,
+  },
+  'apple-revoke-credential': {
+    serviceRole: true, dbRead: true, dbWrite: false, rpc: false, authAdmin: false, storage: false,
+    privilegedBackend: true, actorBoundary: true,
+  },
   // Watchlist V1's Tier 2 refresh worker. Contributed by this feature branch as
   // a single row in the UPSTREAM inventory -- the mechanism, and every other
   // entry, stays owned by the governed integration authority. A new Edge
@@ -449,6 +465,14 @@ Deno.test('inventory: every manifest-governed privilege footprint is source-acco
  * where it exists today and why.
  */
 const SERVICE_ROLE_ALLOWLIST: Record<string, string> = {
+  'supabase/functions/apple-credential-link/index.ts':
+    'verify_jwt = true; target account resolved only from the verified bearer '
+    + '(auth.getUser), never from the request body. Service role is used solely '
+    + 'to persist that verified caller\'s own encrypted Apple credential row.',
+  'supabase/functions/apple-revoke-credential/index.ts':
+    'verify_jwt = false; the function authenticates the caller itself via a '
+    + 'constant-time compare against SUPABASE_SERVICE_ROLE_KEY, so only a caller '
+    + 'that already holds full database authority reaches this function at all.',
   'supabase/functions/_shared/deletion/common.ts':
     'Shared account-lifecycle authority: authenticated actor/account-status checks, '
     + 'lifecycle RPCs, session revocation, and the internal restoration-email handoff.',
