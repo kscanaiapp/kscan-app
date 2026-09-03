@@ -41,6 +41,7 @@ Blocking status is derived from which deployed Edge Function reads the name
 | `REVENUECAT_SYNC_ENABLED` | `kplus-activate`, `kplus-reconcile-revenuecat` | required to enable sync | internal flag | RevenueCat mirror stays off (`external_sync_status = 'not_required'`); local K+ grant is unaffected either way. |
 | `KPLUS_RECONCILE_INTERNAL_SECRET` | `kplus-reconcile-revenuecat` | required | internal | Reconciliation sweep endpoint refuses every request (401). |
 | `WATCHLIST_WORKER_SECRET` | `commerce-watch-refresh` | required to run the Tier 2 sweep | internal | The refresh sweep is unreachable: `requireWorkerSecret()` refuses without it, so every Watch stays un-refreshed. Absent on BOTH projects today — see `docs/watchlist-tier2-operations.md`. Enabling the sweep additionally requires `app_config.watchlist_worker_enabled`, seeded `false`. |
+| `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY`, `APPLE_CLIENT_ID`, `APPLE_TOKEN_ENCRYPTION_KEY` | `apple-credential-link`, `apple-revoke-credential` | required | Apple Developer | Confirmed via `supabase secrets list` (names/digests only, EDGE-02, 2026-09-02): present on production (all set together, 2026-08-16), absent on staging. `resolveAppleConfig()` fails soft for `apple-credential-link` (`not_configured`, sign-in unaffected), but `not_configured` is a **blocking** status for `apple-revoke-credential` — on staging, any account that actually holds an `apple_auth_credentials` row (i.e. signed in with Apple and captured a credential) has its deletion permanently retried/dead-lettered at the revocation step rather than completing. Accounts with no stored credential are unaffected (`apple-revoke-credential` returns the non-blocking `no_credential` before ever reading Apple config). Not fixed here — setting a Supabase secret is outside EDGE-02's read-only scope; flagged for owner action. |
 
 **Model-name hazard.** `STYLECHAT_GEMINI_MODEL` is set on both projects, but the
 `*_GEMINI_MODEL` family is exactly where a retired model id causes a 404 at call
@@ -71,6 +72,8 @@ For cross-checking that the two lists above are complete:
 | `search-vinted-secondhand` | `APIFY_API_TOKEN`, `APIFY_VINTED_ACTOR_ID`, `APIFY_VINTED_INPUT_TEMPLATE`, `APIFY_VINTED_TIMEOUT_SECS`, `SECONDHAND_VINTED_ENABLED` |
 | `product-search-deals`, `nike-shoe-details`, `kickscrew-sneaker-description`, `tryon-clothes-pro` | `RAPIDAPI_KEY` |
 | `process-account-deletions` | `DELETION_WORKER_DRY_RUN` |
+| `apple-credential-link` | `APPLE_CLIENT_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY`, `APPLE_TEAM_ID`, `APPLE_TOKEN_ENCRYPTION_KEY`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL` |
+| `apple-revoke-credential` | `APPLE_CLIENT_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY`, `APPLE_TEAM_ID`, `APPLE_TOKEN_ENCRYPTION_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL` |
 | `staging-health` | `KSCAN_DEPLOY_VERSION` |
 | `kplus-activate` | `REVENUECAT_KPLUS_ENTITLEMENT_ID`, `REVENUECAT_SECRET_API_KEY`, `REVENUECAT_SYNC_ENABLED`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL` |
 | `kplus-reconcile-revenuecat` | `KPLUS_RECONCILE_INTERNAL_SECRET`, `REVENUECAT_KPLUS_ENTITLEMENT_ID`, `REVENUECAT_SECRET_API_KEY`, `REVENUECAT_SYNC_ENABLED`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_URL` |
