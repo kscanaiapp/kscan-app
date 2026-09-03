@@ -106,6 +106,36 @@ def kscanVoiceCertification = isCertificationSelectorEnabled(
 )
 println "kscan: voiceCertification=${kscanVoiceCertification}"
 
+// ANDROID-VOICE-01: generalized native Voice capability (non-public,
+// build-time only). Distinct from kscanVoiceCertification above on purpose --
+// that selector's own name and the guards below hard-lock it to the
+// staging-certification profile ONLY, and that meaning must not be silently
+// reinterpreted to also cover production. A release operator reading
+// KSCAN_VOICE_CERTIFICATION=true would reasonably understand it to mean
+// "this artifact is the staging-certification build"; having the same
+// variable also mean "production has Voice" would make that reading false.
+// This is a second, generic selector for the identical native effect
+// (RECORD_AUDIO + the already-compiled-in Voice bridge), usable by any
+// profile the guards below approve. Today that is staging-certification
+// (still reached only via kscanVoiceCertification above) and production
+// (reached only once a release operator explicitly sets this selector out of
+// band -- eas.json commits it to NO profile, production included; see
+// docs/build34-android-voice-production-readiness-runbook.md). Same
+// fail-closed reading convention as every other governed selector here.
+def kscanVoiceNativeCapability = isCertificationSelectorEnabled(
+    findProperty('kscan.voiceNativeCapability'),
+    System.getenv('KSCAN_VOICE_NATIVE_CAPABILITY')
+)
+println "kscan: voiceNativeCapability=${kscanVoiceNativeCapability}"
+
+// The single derived signal that actually gates native materialization
+// (the manifest swap further down): true when EITHER the legacy
+// certification-only selector or the generalized capability selector
+// resolves true. Guards below still police each raw selector separately --
+// this derived value never grants an artifact its OWN authority.
+def voiceNativeCapabilityMaterialized = kscanVoiceCertification || kscanVoiceNativeCapability
+println "kscan: voiceNativeCapabilityMaterialized=${voiceNativeCapabilityMaterialized}"
+
 /**
  * Build 34 certification build-guards (fail closed).
  *
@@ -123,6 +153,11 @@ println "kscan: voiceCertification=${kscanVoiceCertification}"
  * `./gradlew` invocation simply leaves it unset.
  */
 def CERTIFICATION_PROFILE = 'staging-certification'
+// ANDROID-VOICE-01: the one other profile the generalized native Voice
+// capability selector (kscanVoiceNativeCapability) may activate under. The
+// legacy kscanVoiceCertification selector is NOT affected by this constant --
+// its own guard below still names CERTIFICATION_PROFILE exclusively.
+def PRODUCTION_PROFILE = 'production'
 def STAGING_SUPABASE_PROJECT_REF = 'yzqjvdfgefveprobvvyw'
 def PRODUCTION_SUPABASE_PROJECT_REF = 'wyyuqfdxucjksghsmhry'
 
@@ -143,14 +178,16 @@ def voiceScanEnabled = isCertificationSelectorEnabled(
 )
 println "kscan: voicescanEnabled=${voiceScanEnabled}"
 
-if (voiceScanEnabled != kscanVoiceCertification) {
+if (voiceScanEnabled != voiceNativeCapabilityMaterialized) {
     throw new GradleException(
         "kscan: Voice invariant violated -- EXPO_PUBLIC_VOICESCAN_ENABLED resolved " +
-        "${voiceScanEnabled} but KSCAN_VOICE_CERTIFICATION resolved ${kscanVoiceCertification}. " +
-        "The two must resolve identically: Voice client code/UI rendering without the " +
-        "certification microphone manifest (or the certification manifest granting " +
-        "RECORD_AUDIO with no client affordance to use it) is exactly the invalid state " +
-        "this guard exists to make impossible. Refusing to build."
+        "${voiceScanEnabled} but native Voice capability resolved ${voiceNativeCapabilityMaterialized} " +
+        "(KSCAN_VOICE_CERTIFICATION=${kscanVoiceCertification}, " +
+        "KSCAN_VOICE_NATIVE_CAPABILITY=${kscanVoiceNativeCapability}). " +
+        "The two must resolve identically: Voice client code/UI rendering without a native " +
+        "manifest granting RECORD_AUDIO (or such a manifest granting RECORD_AUDIO with no " +
+        "client affordance to use it) is exactly the invalid state this guard exists to make " +
+        "impossible. Refusing to build."
     )
 }
 
@@ -174,6 +211,26 @@ if (easBuildProfile == CERTIFICATION_PROFILE && !(voiceScanEnabled && kscanVoice
         "EXPO_PUBLIC_VOICESCAN_ENABLED and KSCAN_VOICE_CERTIFICATION to resolve true " +
         "(got voicescanEnabled=${voiceScanEnabled}, voiceCertification=${kscanVoiceCertification}). " +
         "Refusing to build the governed Build 34 certification artifact without the full Voice matrix."
+    )
+}
+
+// ANDROID-VOICE-01 -- the generalized native Voice capability selector must
+// never be active outside its approved profiles. Same shape as the
+// certification-only leak guard above, widened to the profiles a native
+// Voice-capable artifact may legitimately come from. Production is approved
+// here ONLY because a future, separately authorized release explicitly sets
+// KSCAN_VOICE_NATIVE_CAPABILITY out of band -- eas.json's production env does
+// not and must not set it (see
+// docs/build34-android-voice-production-readiness-runbook.md). Every other
+// profile (staging, preview, development, or any future one) stays
+// unsupported and fails closed, exactly like the certification-only selector
+// leaking into any profile but its own.
+def VOICE_NATIVE_CAPABILITY_ALLOWED_PROFILES = [CERTIFICATION_PROFILE, PRODUCTION_PROFILE]
+if (easBuildProfile != null && kscanVoiceNativeCapability && !VOICE_NATIVE_CAPABILITY_ALLOWED_PROFILES.contains(easBuildProfile)) {
+    throw new GradleException(
+        "kscan: KSCAN_VOICE_NATIVE_CAPABILITY resolved true under EAS_BUILD_PROFILE=" +
+        "${easBuildProfile}, which is not an approved Voice-capable profile " +
+        "(${VOICE_NATIVE_CAPABILITY_ALLOWED_PROFILES.join(', ')}). Refusing to build."
     )
 }
 
@@ -344,12 +401,19 @@ android {
     }
     sourceSets {
         release {
-            // Certification-only manifest swap. Off by default: the release
-            // build type keeps src/release/AndroidManifest.xml, which grants
-            // no microphone permission. Build type manifests outrank
-            // src/main, so the certification file's tools:node="replace" on
-            // RECORD_AUDIO supersedes main's tools:node="remove".
-            if (kscanVoiceCertification) {
+            // Voice-capable manifest swap. Off by default: the release build
+            // type keeps src/release/AndroidManifest.xml, which grants no
+            // microphone permission. Fires when EITHER the legacy
+            // staging-certification-only selector or the generalized
+            // ANDROID-VOICE-01 native capability selector resolves true
+            // (voiceNativeCapabilityMaterialized, defined above) -- both
+            // select the SAME manifest, since its content (grant
+            // RECORD_AUDIO, forbid everything else) is identical either way;
+            // only the guards above differ in which EAS profile may set
+            // which selector. Build type manifests outrank src/main, so the
+            // certification file's tools:node="replace" on RECORD_AUDIO
+            // supersedes main's tools:node="remove".
+            if (voiceNativeCapabilityMaterialized) {
                 manifest.srcFile 'src/certification/AndroidManifest.xml'
             }
         }

@@ -304,6 +304,21 @@ function main() {
       );
     }
 
+    // (b2) The inverse of (b): everything additionalGrantedPermissions
+    // promises must actually be granted in the exception manifest. Without
+    // this, a selector could resolve true and select this manifest while the
+    // manifest itself no longer grants the permission the declaration
+    // claims -- exactly the "looks configured, cannot work" shape this
+    // repository's other gates exist to catch, just one level deeper.
+    for (const permission of allowedExtra) {
+      if (!exceptionGranted.includes(permission)) {
+        failures.push(
+          `Exception "${label}" declares "${permission}" in additionalGrantedPermissions, but the exception ` +
+            'manifest does not actually grant it.',
+        );
+      }
+    }
+
     // (c) Permissions that must stay removed in EVERY profile.
     for (const permission of exception.mustRemainRemovedEverywhere || []) {
       if (!exceptionRemoved.has(permission)) {
