@@ -138,17 +138,50 @@ revoke execute on function public.revalidate_elise_generation_context(uuid,uuid,
 -- to avoid unnecessary privilege churn.
 
 revoke execute on function public.enforce_minor_privacy_defaults() from authenticated;
-revoke execute on function public.handle_new_user_privacy() from authenticated;
 revoke execute on function public.normalize_dressing_room_note() from authenticated;
 revoke execute on function public.set_profiles_updated_at() from authenticated;
-revoke execute on function public.set_provider_request_limits_updated_at() from authenticated;
 revoke execute on function public.set_saved_scans_updated_at() from anon;
 revoke execute on function public.set_saved_scans_updated_at() from authenticated;
 revoke execute on function public.set_style_objects_updated_at() from authenticated;
 revoke execute on function public.set_updated_at() from authenticated;
 revoke execute on function public.set_user_stylist_preferences_updated_at() from anon;
 revoke execute on function public.set_user_stylist_preferences_updated_at() from authenticated;
-revoke execute on function public.update_privacy_settings_updated_at() from authenticated;
+
+-- MIG-04 portability repair (2026-09-02). handle_new_user_privacy,
+-- set_provider_request_limits_updated_at and update_privacy_settings_updated_at
+-- are, per 20260803214145_harden_public_rpc_execution_grants.sql:46-51, three
+-- trigger functions "the production backend contract does not define". A bare
+-- REVOKE on a non-existent function raises 42883 and aborts this entire
+-- migration -- not just these three statements -- so this file could never
+-- replay against production or a fresh database. Applied through the same
+-- catalogue-lookup pattern already established by 20260803214145/20260803214253
+-- for the identical problem: revoking only where the function is actually
+-- present keeps the security intent identical everywhere the function exists,
+-- while letting the file replay elsewhere. No behavioral change on staging,
+-- where all three functions exist today.
+do $$
+declare
+  v_target text;
+  v_targets constant text[] := array[
+    'handle_new_user_privacy',
+    'set_provider_request_limits_updated_at',
+    'update_privacy_settings_updated_at'
+  ];
+begin
+  foreach v_target in array v_targets loop
+    if exists (
+      select 1
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public'
+        and p.proname = v_target
+        and p.pronargs = 0
+    ) then
+      execute format('revoke execute on function public.%I() from authenticated', v_target);
+    end if;
+  end loop;
+end;
+$$;
 
 -- ── D. Repair: authenticated USAGE on the internal schema ──
 --
