@@ -15,7 +15,26 @@
  *   SUPABASE_STAGING_ANON_KEY
  *   DEPLOY_FUNCTIONS          (comma-separated; default empty = deploy nothing)
  *   APPROVED_MIGRATION_VERSION (optional single pending migration allow-list)
+ *
+ * MIGRATION RECONCILIATION AUTHORITY
+ *
+ * A version present locally but absent from the remote ledger is not automatically
+ * a missing migration: this project's history contains migrations that were applied
+ * under a different version stamp (renumber), split across several ledger rows
+ * (consolidation), or made unnecessary by other applied state (supersession). Those
+ * are declared, with evidence, in
+ *   config/migration-authority-manifest.json -> ledgerReconciliation
+ * keyed by project ref. This gate consults that authority so historical renumbering
+ * stops reading as deployment drift — and ONLY that. A version that is not declared
+ * there is still treated as genuinely pending and still requires
+ * APPROVED_MIGRATION_VERSION; an undeclared remote-only version still fails; a stale
+ * or self-contradictory declaration fails; an unknown project ref gets no
+ * reconciliation at all, so production fails closed.
  */
+
+import fs from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import {
   assertStagingTarget,
@@ -64,11 +83,120 @@ function getRemoteVersions() {
   return [...versions].sort();
 }
 
-function compareMigrations(local, remote, approvedVersion) {
+const VALID_RECONCILIATION_CLASSIFICATIONS = new Set([
+  'EXACT_CONTENT_RENUMBER',
+  'EQUIVALENT_RENUMBER',
+  'CONSOLIDATED_IN_REMOTE',
+  'SUPERSEDED_BY_LATER_MIGRATION',
+]);
+
+/**
+ * Loads the reconciliation authority for one project ref.
+ * An unknown ref (production included) resolves to an empty authority, so the
+ * gate keeps its original strict behaviour wherever nothing was ever proven.
+ */
+function loadLedgerReconciliation(projectRef, manifestPath) {
+  const file =
+    manifestPath ||
+    path.join(process.cwd(), 'config', 'migration-authority-manifest.json');
+  if (!fs.existsSync(file)) return { reconciled: [], genuinelyUnapplied: [] };
+  let manifest;
+  try {
+    manifest = JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch (err) {
+    throw new Error(`migration authority manifest is unparseable: ${err.message}`);
+  }
+  const env = manifest?.ledgerReconciliation?.environments?.[projectRef];
+  if (!env) return { reconciled: [], genuinelyUnapplied: [] };
+  return {
+    reconciled: Array.isArray(env.reconciled) ? env.reconciled : [],
+    genuinelyUnapplied: Array.isArray(env.genuinelyUnapplied) ? env.genuinelyUnapplied : [],
+  };
+}
+
+/**
+ * Validates the declared reconciliation against the real local tree and the real
+ * remote ledger. A declaration that has rotted (names a version that no longer
+ * exists on either side, claims a remote row twice, contradicts itself, or carries
+ * an unknown classification) is a blocker, not a licence.
+ */
+function validateReconciliation(reconciled, localSet, remoteSet) {
+  const problems = [];
+  const aliasedLocal = new Map();
+  const claimedRemote = new Map();
+
+  for (const item of reconciled) {
+    const label = `${item?.localVersion ?? '(no localVersion)'} (${item?.logicalName ?? 'unnamed'})`;
+
+    if (!item || typeof item.localVersion !== 'string' || !item.localVersion) {
+      problems.push(`reconciliation entry ${label}: localVersion is missing`);
+      continue;
+    }
+    if (!VALID_RECONCILIATION_CLASSIFICATIONS.has(item.classification)) {
+      problems.push(
+        `reconciliation entry ${label}: unknown classification "${item.classification}"`,
+      );
+    }
+    if (typeof item.evidence !== 'string' || item.evidence.trim() === '') {
+      problems.push(`reconciliation entry ${label}: evidence is required`);
+    }
+    if (!localSet.has(item.localVersion)) {
+      problems.push(
+        `reconciliation entry ${label}: localVersion is not present in supabase/migrations — stale authority`,
+      );
+    }
+    if (aliasedLocal.has(item.localVersion)) {
+      problems.push(`reconciliation entry ${label}: localVersion declared more than once`);
+    } else {
+      aliasedLocal.set(item.localVersion, item);
+    }
+
+    const remoteVersions = Array.isArray(item.remoteVersions) ? item.remoteVersions : [];
+    if (remoteVersions.length === 0 && item.classification !== 'SUPERSEDED_BY_LATER_MIGRATION') {
+      problems.push(
+        `reconciliation entry ${label}: only SUPERSEDED_BY_LATER_MIGRATION may declare no remoteVersions`,
+      );
+    }
+    for (const remoteVersion of remoteVersions) {
+      if (!remoteSet.has(remoteVersion)) {
+        problems.push(
+          `reconciliation entry ${label}: claims remote version ${remoteVersion}, which the remote ledger does not contain — stale authority`,
+        );
+        continue;
+      }
+      if (claimedRemote.has(remoteVersion)) {
+        problems.push(
+          `reconciliation entry ${label}: remote version ${remoteVersion} is already claimed by ${claimedRemote.get(remoteVersion)}`,
+        );
+      } else {
+        claimedRemote.set(remoteVersion, label);
+      }
+    }
+  }
+
+  return { problems, aliasedLocal, claimedRemote };
+}
+
+function compareMigrations(local, remote, approvedVersion, reconciliation = null) {
   const localSet = new Set(local.map((m) => m.version));
   const remoteSet = new Set(remote);
-  const remoteOnly = remote.filter((v) => !localSet.has(v));
-  const localOnly = local.filter((m) => !remoteSet.has(m.version));
+
+  const reconciled = reconciliation?.reconciled ?? [];
+  const { problems, aliasedLocal, claimedRemote } = validateReconciliation(
+    reconciled,
+    localSet,
+    remoteSet,
+  );
+
+  // A remote-only version is drift ONLY if no proven reconciliation accounts for it.
+  const remoteOnly = remote.filter((v) => !localSet.has(v) && !claimedRemote.has(v));
+  const reconciledRemote = remote.filter((v) => !localSet.has(v) && claimedRemote.has(v));
+
+  // A local-only version is pending ONLY if it is not itself reconciled.
+  const pending = local.filter((m) => !remoteSet.has(m.version) && !aliasedLocal.has(m.version));
+  const reconciledLocal = local.filter(
+    (m) => !remoteSet.has(m.version) && aliasedLocal.has(m.version),
+  );
 
   const duplicates = [];
   const seen = new Set();
@@ -82,39 +210,62 @@ function compareMigrations(local, remote, approvedVersion) {
     remoteCount: remote.length,
     commonCount: local.filter((m) => remoteSet.has(m.version)).length,
     remoteOnly,
-    localOnly: localOnly.map((m) => ({ version: m.version, name: m.name, path: m.path })),
+    localOnly: pending.map((m) => ({ version: m.version, name: m.name, path: m.path })),
+    reconciledLocal: reconciledLocal.map((m) => ({
+      version: m.version,
+      name: m.name,
+      classification: aliasedLocal.get(m.version).classification,
+      remoteVersions: aliasedLocal.get(m.version).remoteVersions ?? [],
+    })),
+    reconciledRemote,
+    reconciliationProblems: problems,
     duplicates,
     ok: true,
     blockers: [],
   };
 
+  if (problems.length > 0) {
+    result.ok = false;
+    for (const problem of problems) result.blockers.push(problem);
+  }
   if (remoteOnly.length > 0) {
     result.ok = false;
-    result.blockers.push(`remote-only migrations exist: ${remoteOnly.join(', ')}`);
+    result.blockers.push(
+      `remote-only migrations exist with no declared reconciliation: ${remoteOnly.join(', ')}`,
+    );
   }
   if (duplicates.length > 0) {
     result.ok = false;
     result.blockers.push(`duplicate local versions: ${duplicates.join(', ')}`);
   }
-  if (localOnly.length > 1) {
+  if (pending.length > 1) {
     result.ok = false;
-    result.blockers.push(`multiple pending migrations (${localOnly.length}); approve exactly one`);
+    result.blockers.push(
+      `multiple pending migrations (${pending.length}); approve exactly one: ${pending
+        .map((m) => m.version)
+        .join(', ')}`,
+    );
   }
-  if (localOnly.length === 1) {
-    const pending = localOnly[0];
+  if (pending.length === 1) {
+    const item = pending[0];
     if (!approvedVersion) {
       result.ok = false;
       result.blockers.push(
-        `pending migration ${pending.version} requires APPROVED_MIGRATION_VERSION=${pending.version}`,
+        `pending migration ${item.version} requires APPROVED_MIGRATION_VERSION=${item.version}`,
       );
-    } else if (approvedVersion !== pending.version) {
+    } else if (approvedVersion !== item.version) {
       result.ok = false;
       result.blockers.push(
-        `pending migration ${pending.version} does not match APPROVED_MIGRATION_VERSION=${approvedVersion}`,
+        `pending migration ${item.version} does not match APPROVED_MIGRATION_VERSION=${approvedVersion}`,
       );
     } else {
-      result.approvedPending = pending;
+      result.approvedPending = item;
     }
+  } else if (approvedVersion) {
+    result.ok = false;
+    result.blockers.push(
+      `APPROVED_MIGRATION_VERSION=${approvedVersion} was supplied but no migration is pending`,
+    );
   }
 
   return result;
@@ -155,6 +306,9 @@ function main() {
       blockers: [],
       remoteOnly: [],
       localOnly: [],
+      reconciledLocal: [],
+      reconciledRemote: [],
+      reconciliationProblems: [],
     };
   } else {
     try {
@@ -168,10 +322,17 @@ function main() {
     } catch (err) {
       fail(`Failed to read remote migration inventory: ${err.message}`);
     }
+    let reconciliation;
+    try {
+      reconciliation = loadLedgerReconciliation(identity.projectRef);
+    } catch (err) {
+      fail(err.message);
+    }
     migrationReport = compareMigrations(
       local,
       remote,
       process.env.APPROVED_MIGRATION_VERSION || '',
+      reconciliation,
     );
   }
 
@@ -204,7 +365,12 @@ function main() {
     if (!migrationReport.skipped) {
       console.log(`  remote migrations: ${migrationReport.remoteCount}`);
       console.log(`  remote-only: ${migrationReport.remoteOnly.length ? migrationReport.remoteOnly.join(', ') : 'none'}`);
-      console.log(`  local-only: ${migrationReport.localOnly.length ? migrationReport.localOnly.map((m) => m.version).join(', ') : 'none'}`);
+      console.log(`  local-only (pending): ${migrationReport.localOnly.length ? migrationReport.localOnly.map((m) => m.version).join(', ') : 'none'}`);
+      console.log(`  reconciled local: ${migrationReport.reconciledLocal?.length ?? 0}`);
+      console.log(`  reconciled remote: ${migrationReport.reconciledRemote?.length ?? 0}`);
+      for (const item of migrationReport.reconciledLocal ?? []) {
+        console.log(`    ${item.version} ${item.name} — ${item.classification} -> ${item.remoteVersions.join(', ') || '(none)'}`);
+      }
     }
     if (migrationReport.blockers?.length) {
       console.log('  blockers:');
@@ -217,6 +383,10 @@ function main() {
   }
 }
 
-main();
+// Only run the gate when invoked as a script; importing this module (tests,
+// tooling) must not execute the preflight or call process.exit.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main();
+}
 
-export { compareMigrations };
+export { compareMigrations, loadLedgerReconciliation, validateReconciliation };

@@ -1,32 +1,613 @@
 {
   "manifestVersion": "migration-authority-v1",
   "purpose": "Central shared-Supabase migration authority provenance registry. See docs/staging-rebuild/recovered-migrations/CENTRAL_MIGRATION_AUTHORITY.md.",
-  "knownSourceRepos": ["kscan-app", "kscan-glasses-webapp", "kscan-website"],
+  "knownSourceRepos": [
+    "kscan-app",
+    "kscan-glasses-webapp",
+    "kscan-website"
+  ],
   "entries": [
-    { "ledgerVersion": "20260805170417", "logicalName": "legal_acceptances_add_ai_processing", "sourceRepo": "kscan-app", "sourceCommit": "38787ae", "sourceOriginalFilename": "supabase/migrations/20260805120000_legal_acceptances_add_ai_processing.sql", "canonicalFilename": "supabase/migrations/20260805170417_legal_acceptances_add_ai_processing.sql", "ledgerSqlHash": "c61aa55d7e23909ebc75eb43a567dc32c6eea9cba18d589b7a87f75b256cb241", "canonicalSqlHash": "c61aa55d7e23909ebc75eb43a567dc32c6eea9cba18d589b7a87f75b256cb241", "logicalOwner": "kscan-app", "reasonCentralized": "native", "note": "MIG-01 7A (2026-09-02): renamed from 20260805120000, which collided with the unrelated 20260805120000_reconcile_deletion_requests_to_production_columns.sql (that file legitimately owns 20260805120000 -- confirmed applied to staging under that exact version/name). This migration's authored filename (20260805120000) was never actually applied to staging under that version -- confirmed via read-only list_migrations, staging has no 20260805120000/170417 row for this content at all. Production's ledger (read-only, confirmed 2026-09-02) DOES carry it, verbatim (exact byte match against production's supabase_migrations.schema_migrations.statements), as version 20260805170417 -- so the rename corrects the filename to its one real applied identity (production-only; absent from staging) rather than inventing a new one. Safe under the rename-safety rule: no ledger anywhere ever recorded this content under 20260805120000, so nothing double-applies." },
-    { "ledgerVersion": "20260806153233", "logicalName": "dressing_room_user_blocking", "sourceRepo": "kscan-app", "sourceCommit": "a66b757", "sourceOriginalFilename": "supabase/migrations/20260806153233_dressing_room_user_blocking.sql", "canonicalFilename": "supabase/migrations/20260806153233_dressing_room_user_blocking.sql", "ledgerSqlHash": "6954bc1575e91b307693b376d970837eaf4ffe198c88d7c3cd40841f42c099d1", "canonicalSqlHash": "2bac2cfee56c06d7345478aacadcd9f8fac5f256fdf4a375bd811940d6dd7fae", "logicalOwner": "kscan-app", "reasonCentralized": "native", "note": "MIG-02 (2026-09-02): canonicalSqlHash regenerated. Commit 3df3e0c (owner-authored, tested against 75 migrations on a disposable stack incl. pgTAP 54/54 + hostile audit 41/41) added an idempotent `create schema if not exists internal` + USAGE grant bootstrap after this file was already applied to staging, because replaying the repo migration set into an empty/production-derived database fails with 'schema \"internal\" does not exist' (3F000) -- staging only succeeded because it already had that schema from the out-of-repo 20260804090000_edge_function_errors migration. ledgerSqlHash is preserved as the historical hash of what staging's ledger actually recorded under this version; canonicalSqlHash reflects the current, approved, more-portable content. Production independently applied equivalent (bootstrap-inclusive) content under its OWN ledger version 20260808202108 (confirmed read-only via list_migrations 2026-09-02) -- same logical migration, two environments, two historical ledger identities, exactly the existing apple_auth_credentials/wearable_pairings_sessions pattern in this manifest. No file rename: 20260806153233 remains staging's correct applied identity." },
-    { "ledgerVersion": "20260808115552", "logicalName": "harden_trigger_function_search_path", "sourceRepo": "kscan-app", "sourceCommit": "fd35e91", "sourceOriginalFilename": "supabase/migrations/20260808115552_harden_trigger_function_search_path.sql", "canonicalFilename": "supabase/migrations/20260808115552_harden_trigger_function_search_path.sql", "ledgerSqlHash": "a23728727bb26d6311140e493ebcd3e861beddedf00d2acb6f6790bde7805e51", "canonicalSqlHash": "a23728727bb26d6311140e493ebcd3e861beddedf00d2acb6f6790bde7805e51", "logicalOwner": "kscan-app", "reasonCentralized": "native" },
-    { "ledgerVersion": "20260808115735", "logicalName": "enforce_rpc_privilege_boundary", "sourceRepo": "kscan-app", "sourceCommit": "fd35e91", "sourceOriginalFilename": "supabase/migrations/20260808115735_enforce_rpc_privilege_boundary.sql", "canonicalFilename": "supabase/migrations/20260808115735_enforce_rpc_privilege_boundary.sql", "ledgerSqlHash": "782cd25497a508cc35135297745696de07b27434021d490bfb4797c55c31ecd3", "canonicalSqlHash": "d8dfd177424325497162fb1caac9d93d9d2ce57c1a8b7324344a437630778262", "logicalOwner": "kscan-app", "reasonCentralized": "native", "note": "MIG-04 (2026-09-02): canonicalSqlHash regenerated. Section C's bare `revoke execute on function public.handle_new_user_privacy()/update_privacy_settings_updated_at()/set_provider_request_limits_updated_at() from authenticated` statements are unconditional REVOKEs on functions that -- per this repo's own prior-art comment in 20260803214145_harden_public_rpc_execution_grants.sql:46-51 -- 'the production backend contract does not define'. A bare REVOKE on a non-existent function raises 42883 and ABORTS THE WHOLE MIGRATION (same file, same comment), so this migration could never successfully replay against production or a fresh database -- not just those 3 statements, all 30+ statements in the file including section D's security-critical `internal` schema USAGE grant. A trailing reconciliation migration cannot fix this: if this file aborts, `supabase db push` never reaches a later file. Repaired in place (matching the exact catalogue-lookup do-block pattern already established and tested by 20260803214145/20260803214253 5 days earlier in this same repo) rather than as a new migration, per the historical-file rule's implicit exception for a hard promotion blocker with no viable alternative. ledgerSqlHash is preserved as the hash of what staging's ledger actually recorded; canonicalSqlHash reflects the guarded, portable content. Zero behavioral change on staging: all 3 functions exist there today, so the guarded revokes produce byte-identical resulting privileges to the original bare ones." },
-    { "ledgerVersion": "20260808120214", "logicalName": "revoke_public_execute_on_saved_scans_trigger", "sourceRepo": "kscan-app", "sourceCommit": "fd35e91", "sourceOriginalFilename": "supabase/migrations/20260808120214_revoke_public_execute_on_saved_scans_trigger.sql", "canonicalFilename": "supabase/migrations/20260808120214_revoke_public_execute_on_saved_scans_trigger.sql", "ledgerSqlHash": "6bc281670bbb369d8f57404e8f8ae15394825d9f13fe4d3b0d45715c0b68307e", "canonicalSqlHash": "6bc281670bbb369d8f57404e8f8ae15394825d9f13fe4d3b0d45715c0b68307e", "logicalOwner": "kscan-app", "reasonCentralized": "native" },
-    { "ledgerVersion": "20260808121216", "logicalName": "privacy_request_rate_limits", "sourceRepo": "kscan-app", "sourceCommit": "25e970d", "sourceOriginalFilename": "supabase/migrations/20260808103028_privacy_request_rate_limits.sql", "canonicalFilename": "supabase/migrations/20260808121216_privacy_request_rate_limits.sql", "ledgerSqlHash": "9ed715534625d0645148a384bcd9aed2654b1400f42602254c4bb614f47d4d4a", "canonicalSqlHash": "9ed715534625d0645148a384bcd9aed2654b1400f42602254c4bb614f47d4d4a", "logicalOwner": "kscan-app", "reasonCentralized": "native", "note": "Filename renamed to ledger version by 25e970d; Management API assigns its own version at apply time. MIG-03 (2026-09-02): the pre-rename original, 20260808103028_privacy_request_rate_limits.sql, still physically exists in supabase/migrations/ (25e970d added the ledger-named canonical copy rather than moving the original) and is directly read by two existing tests (__tests__/privacyRequestRateLimitContract.test.js, __tests__/processDeletionRequest.test.js), so it is kept in place rather than removed. Classified EQUIVALENT, not IDENTICAL: the two files' executable SQL is byte-for-byte identical, but this canonical copy carries a 13-line provenance-restoration header the original lacks, so their config/migration-provenance-manifest.json normalized hashes differ and the two cannot be declared aliases of one logicalId there. No promotion hazard either way: every statement in both files is idempotent (CREATE TABLE IF NOT EXISTS, CREATE INDEX IF NOT EXISTS, REVOKE/GRANT), so replaying one, the other, or both against any environment is a safe no-op." },
-    { "ledgerVersion": "20260810120000", "logicalName": "apple_auth_credentials", "sourceRepo": "kscan-app", "sourceCommit": "e369fca", "sourceOriginalFilename": "supabase/migrations/20260810120000_apple_auth_credentials.sql", "canonicalFilename": "supabase/migrations/20260810120000_apple_auth_credentials.sql", "ledgerSqlHash": "c8f8c1cd78ea5f08b0b1617e49804437236cbbd5937b259dbe23682d451d37f8", "canonicalSqlHash": "8ca168c2b5b12c7d034d51cf94e5e13f6ac688ddb3338ba2515b0f49163d0bc9", "logicalOwner": "kscan-app", "reasonCentralized": "native", "note": "Also pushed to origin/hotfix/ios-build29-apple-revocation. Hash differs from ledger due to statement-splitting formatting only; content verified equivalent." },
-    { "ledgerVersion": "20260812031312", "logicalName": "legal_acceptances_restore_ai_processing", "sourceRepo": "kscan-app", "sourceCommit": "e9afbad", "sourceOriginalFilename": "supabase/migrations/20260812031312_legal_acceptances_restore_ai_processing.sql", "canonicalFilename": "supabase/migrations/20260812031312_legal_acceptances_restore_ai_processing.sql", "ledgerSqlHash": "54207af4123c11f55c148684a16acd2ec17a9507784053ccfd25b38a957358bd", "canonicalSqlHash": "8cb5025275075295fc2e35c30bc05d028a5fd9ac15f8906823eb6859abf5e679", "logicalOwner": "kscan-app", "reasonCentralized": "native", "note": "Hash differs from ledger by trailing newline only." },
-    { "ledgerVersion": "20260813224918", "logicalName": "backfill_legacy_pending_deletion_requests", "sourceRepo": "kscan-app", "sourceCommit": "eacd64e", "sourceOriginalFilename": "supabase/migrations/20260813222000_backfill_legacy_pending_deletion_requests.sql", "canonicalFilename": "supabase/migrations/20260813224918_backfill_legacy_pending_deletion_requests.sql", "ledgerSqlHash": "ea6c9a5708fd56facbca2a1a214f34929ff44e780c07f226e012dd2c59ed72b2", "canonicalSqlHash": "a747b9ee3e2beced382149249b4f923912719af98c81eaf315c5408f3b3079cb", "logicalOwner": "kscan-app", "reasonCentralized": "native", "note": "Renamed to ledger version by 0fc7cfb. Ledger stores only the inner statement after Postgres unwrapped the do $$ ... $$ block." },
-    { "ledgerVersion": "20260814120000", "logicalName": "wardrobe_wear_event_items", "sourceRepo": "kscan-app", "sourceCommit": "5ce3e03", "sourceOriginalFilename": "supabase/migrations/20260814120000_wardrobe_wear_event_items.sql", "canonicalFilename": "supabase/migrations/20260814120000_wardrobe_wear_event_items.sql", "ledgerSqlHash": "a402f2b65f9953b9b6b21c8554bec4b288fff03b8806d6a17adb7ae05d6d2fa5", "canonicalSqlHash": "a612c53f34bcf7893056bdf953d4bddfcb74a5db86294a4d69f0117ad471379c", "logicalOwner": "kscan-app", "reasonCentralized": "native", "note": "Hash differs from ledger by comment/formatting only." },
-    { "ledgerVersion": "20260814140000", "logicalName": "harden_wardrobe_wear_anon_privileges", "sourceRepo": "kscan-app", "sourceCommit": "3d38744", "sourceOriginalFilename": "supabase/migrations/20260814140000_harden_wardrobe_wear_anon_privileges.sql", "canonicalFilename": "supabase/migrations/20260814140000_harden_wardrobe_wear_anon_privileges.sql", "ledgerSqlHash": "e5c09e0eef3fbd7396e397856525a2b6de60ed6e5598d43ec173c4c89339e783", "canonicalSqlHash": "d721570ec8ec904d3f9850cec94e94448d79b56a13f8f752116e94f2e2b67727", "logicalOwner": "kscan-app", "reasonCentralized": "native", "note": "Confirms this migration's own 'source of truth' comment was accurate." },
-    { "ledgerVersion": "20260814230933", "logicalName": "harden_wardrobe_wear_owner_links", "sourceRepo": "kscan-app", "sourceCommit": "02a51f2", "sourceOriginalFilename": "supabase/migrations/20260814230933_harden_wardrobe_wear_owner_links.sql", "canonicalFilename": "supabase/migrations/20260814230933_harden_wardrobe_wear_owner_links.sql", "ledgerSqlHash": "3a7546af1ed69d35096d855fe423646c8e2f80e9336071eafd54586b7b56f2f2", "canonicalSqlHash": "f6046d9fe1c73bb452d6eb7fa1def28f47aeb5887c3c1135fd9837097bc3bbb7", "logicalOwner": "kscan-app", "reasonCentralized": "native", "note": "02a51f2 is a same-day fix of an earlier draft (2c02541) with two destructive DROP CONSTRAINTs never executed on staging; do not use 2c02541." },
-    { "ledgerVersion": "20260815233353", "logicalName": "dressing_room_items_blocking", "sourceRepo": "kscan-app", "sourceCommit": "64104bf", "sourceOriginalFilename": "supabase/migrations/20260815140000_dressing_room_items_blocking.sql", "canonicalFilename": "supabase/migrations/20260815233353_dressing_room_items_blocking.sql", "ledgerSqlHash": "ad7d04ccd129d5b73caadd77a49efc060f11d1a0218207149f23a650c68f30c5", "canonicalSqlHash": "11b5fc6f590e208abdb5fc7d04e29cd6e60cb57645aea14cfb1f93f0a2d6818d", "logicalOwner": "kscan-app", "reasonCentralized": "native", "note": "Authored filename timestamp never renamed to ledger version." },
-    { "ledgerVersion": "20260815233457", "logicalName": "content_reports_ai_output", "sourceRepo": "kscan-app", "sourceCommit": "a536f23", "sourceOriginalFilename": "supabase/migrations/20260815120000_content_reports_ai_output.sql", "canonicalFilename": "supabase/migrations/20260815233457_content_reports_ai_output.sql", "ledgerSqlHash": "50a1f604a4e290b9f953982b43f3aa997714028397433e45a1dd59b8bd0eb7ef", "canonicalSqlHash": "3276062426813cc3ac91168a53cee8eb695015be89f4fdaf38178bd049878d1a", "logicalOwner": "kscan-app", "reasonCentralized": "native", "note": "Authored filename timestamp never renamed to ledger version." },
-    { "ledgerVersion": "20260816120000", "logicalName": "user_stylist_preferences_gender_context", "sourceRepo": "kscan-app", "sourceCommit": "0346506", "sourceOriginalFilename": "supabase/migrations/20260816120000_user_stylist_preferences_gender_context.sql", "canonicalFilename": "supabase/migrations/20260816120000_user_stylist_preferences_gender_context.sql", "ledgerSqlHash": "1d0e261ed939e869e86c585ff2c0dd1575d76b4e0d9f16cb06476ad11c6fd092", "canonicalSqlHash": "54c45e062c34fb794b89576618ec3e7bd5bd42546af6faf192ed3dff941404a0", "logicalOwner": "kscan-app", "reasonCentralized": "native", "note": "Hash differs from ledger by trailing newline only. MIG-03 (2026-09-02): this is the sole applied/canonical migration for gender_styling_context. A duplicate, independently-authored, never-applied sibling (20260817000001_add_user_stylist_preferences_gender_styling_context.sql, one day later, commit 26d5e4c) collided with it and was relocated to docs/staging-rebuild/recovered-migrations/SUPERSEDED_20260817000001_....sql because it raises an exception if replayed after this file. This file (20260816120000) is untouched and remains staging's correct applied identity." },
-    { "ledgerVersion": "20260818141056", "logicalName": "user_stylist_preferences_display_name_customized", "sourceRepo": "kscan-app", "sourceCommit": "6e97fcf", "sourceOriginalFilename": "supabase/migrations/20260818000001_add_user_stylist_preferences_display_name_customized.sql", "canonicalFilename": "supabase/migrations/20260818141056_user_stylist_preferences_display_name_customized.sql", "ledgerSqlHash": "b5ab770ebb53784c447e3266b597f3c2b82144fe8a24a307b612a0492ac45c4e", "canonicalSqlHash": "b5ab770ebb53784c447e3266b597f3c2b82144fe8a24a307b612a0492ac45c4e", "logicalOwner": "kscan-app", "reasonCentralized": "native", "note": "MIG-03 (2026-09-02): the pre-rename original, 20260818000001_add_user_stylist_preferences_display_name_customized.sql, still physically exists in supabase/migrations/ (never moved when this ledger-named canonical copy was added) and is directly read by __tests__/stylistIdentity.test.js, so it is kept in place rather than removed. Classified EQUIVALENT, not IDENTICAL: the two files' executable SQL is byte-for-byte identical, but this canonical copy carries a 13-line provenance-restoration header the original lacks, so their config/migration-provenance-manifest.json normalized hashes differ and the two cannot be declared aliases of one logicalId there. No promotion hazard: both statements (ADD COLUMN IF NOT EXISTS, COMMENT ON COLUMN) are idempotent, so replaying one, the other, or both against any environment is a safe no-op." },
-    { "ledgerVersion": "20260819125700", "logicalName": "saved_scans_wearable_source", "sourceRepo": "kscan-app", "sourceCommit": "none found", "sourceOriginalFilename": "none found in kscan-app or kscan-glasses-webapp", "canonicalFilename": "supabase/migrations/20260819125700_saved_scans_wearable_source.sql", "ledgerSqlHash": "22a9c1bb4998424bb59daac3a71a1c3a7b951e9bb1db71ff6d846dd2a621bc6d", "canonicalSqlHash": "0708da80cb5bd141f853dd3c7898227812d4e3e9ab21c2ab911a26af49f56e87", "logicalOwner": "kscan-app", "reasonCentralized": "native", "note": "No standalone source found; superseded same-day by 20260819144630. Alters a kscan-app-owned table (saved_scans)." },
-    { "ledgerVersion": "20260819144630", "logicalName": "widen_saved_scans_source_for_meta_wearable", "sourceRepo": "kscan-glasses-webapp", "sourceCommit": "9311442", "sourceOriginalFilename": "kscan-glasses-webapp: supabase/migrations/20260819000001_add_wearable_pairing_session.sql (bundled, not standalone)", "canonicalFilename": "supabase/migrations/20260819144630_widen_saved_scans_source_for_meta_wearable.sql", "ledgerSqlHash": "66e8dac9aab01f0941d9549d6e307362c8350dca52952f5cfeb012a20705a3c3", "canonicalSqlHash": "cdcd1610fc20d50e34a507ae8ad1e03619cbc4e66c82a782cb93527f05548c4e", "logicalOwner": "kscan-app", "reasonCentralized": "native", "note": "Alters a kscan-app-owned table (saved_scans) but authored inside kscan-glasses-webapp's own migration file." },
-    { "ledgerVersion": "20260819125404", "logicalName": "wearable_pairings_sessions", "sourceRepo": "kscan-glasses-webapp", "sourceCommit": "9311442", "sourceOriginalFilename": "kscan-glasses-webapp: supabase/migrations/20260819000001_add_wearable_pairing_session.sql (embedded ledger name: 20260815015710_wearable_pairings_sessions)", "canonicalFilename": "supabase/migrations/20260819125404_wearable_pairings_sessions.sql", "ledgerSqlHash": "ebc15fa4a49781d95da28089d3b2171c026e2a1f769916ef8ea491bc9bae0031", "canonicalSqlHash": "a7fad73aaa16e959dfa450136984085adb5451be7e7bf831e506ee2bc96e5ebd", "logicalOwner": "kscan-glasses-webapp", "reasonCentralized": "shared_supabase_central_migration_authority", "note": "kscan-glasses-webapp's own committed file diverges (no length CHECKs, has defaults); this is the ledger-executed version, later hardened by 20260823170850." },
-    { "ledgerVersion": "20260819151224", "logicalName": "wearable_security_hardening", "sourceRepo": "kscan-glasses-webapp", "sourceCommit": "none standalone", "sourceOriginalFilename": "none (content folded into fea5712's reconcile migration)", "canonicalFilename": "supabase/migrations/20260819151224_wearable_security_hardening.sql", "ledgerSqlHash": "b50384ede15f7d04faf0e2458ed9bbcbae344dc17d1fd433d34f73735c7827dc", "canonicalSqlHash": "9221c26407262825216230024d2b32da250df8640af862781a91036149399d56", "logicalOwner": "kscan-glasses-webapp", "reasonCentralized": "shared_supabase_central_migration_authority" },
-    { "ledgerVersion": "20260823170850", "logicalName": "reconcile_wearable_schema_with_staging", "sourceRepo": "kscan-glasses-webapp", "sourceCommit": "fea5712", "sourceOriginalFilename": "supabase/migrations/20260823170850_reconcile_wearable_schema_with_staging.sql", "canonicalFilename": "supabase/migrations/20260823170850_reconcile_wearable_schema_with_staging.sql", "ledgerSqlHash": "d5d4f83c6593094ca91860be3ec23dd6c19e49ccc43fbe5d2b75086241b2d417", "canonicalSqlHash": "501005b170300cffaa1d95cce1f48c8b1e6c30fe98ea9b84414f7cbcc71d0376", "logicalOwner": "kscan-glasses-webapp", "reasonCentralized": "shared_supabase_central_migration_authority" },
-    { "ledgerVersion": "20260823175314", "logicalName": "scan_commerce_events_accuracy_telemetry", "sourceRepo": "kscan-app", "sourceCommit": "dbfd66f", "sourceOriginalFilename": "supabase/migrations/20260823120000_scan_commerce_events_accuracy_telemetry.sql", "canonicalFilename": "supabase/migrations/20260823175314_scan_commerce_events_accuracy_telemetry.sql", "ledgerSqlHash": "25ce5e82f680d6e43766bf8ed1ac8f6bec95c590ff2c32dcf9da0a46205e227a", "canonicalSqlHash": "46b066889ea66162ddd868b40146fe14db9776586f323744201c5a85feb8ffec", "logicalOwner": "kscan-app", "reasonCentralized": "native", "note": "Source comment claims 'NOT APPLIED... later steps' yet is demonstrably live -- see CENTRAL_MIGRATION_AUTHORITY.md process finding. Comment intentionally left unmodified. MIG-03 (2026-09-02): the pre-rename original, 20260823120000_scan_commerce_events_accuracy_telemetry.sql, still physically exists in supabase/migrations/ (never moved when this ledger-named canonical copy was added), so it is kept in place rather than removed. Classified EQUIVALENT, not IDENTICAL: the two files' executable SQL is byte-for-byte identical, but this canonical copy carries a 13-line provenance-restoration header (replacing the original's longer design-rationale comment block) so their config/migration-provenance-manifest.json normalized hashes differ and the two cannot be declared aliases of one logicalId there. No promotion hazard: all five statements are ADD COLUMN IF NOT EXISTS / COMMENT ON COLUMN, idempotent, so replaying one, the other, or both against any environment is a safe no-op." },
-    { "ledgerVersion": "20260824175813", "logicalName": "create_investor_inquiries", "sourceRepo": "kscan-website", "sourceCommit": "none found", "sourceOriginalFilename": "none found in kscan-website (git log --all: zero hits)", "canonicalFilename": "supabase/migrations/20260824175813_create_investor_inquiries.sql", "ledgerSqlHash": "77f6e57c793ae30d9a715414b94700f4e34184f3dabf1859970b53c175c6b003", "canonicalSqlHash": "2889679adda853378a2cf737d89fcfd5b057b47bb69d05f441cedabd0d77a656", "logicalOwner": "kscan-website", "reasonCentralized": "shared_supabase_central_migration_authority" },
-    { "ledgerVersion": "20260830174616", "logicalName": "vto_feature_control", "sourceRepo": "kscan-app", "sourceCommit": "none found (authored filename never renamed)", "sourceOriginalFilename": "supabase/migrations/20260830160000_vto_feature_control.sql", "canonicalFilename": "supabase/migrations/20260830174616_vto_feature_control.sql", "ledgerSqlHash": "92586d3212098f720fa3784a9975a993461a35eafe2836e3e925a6aa23a9c48c", "canonicalSqlHash": "92586d3212098f720fa3784a9975a993461a35eafe2836e3e925a6aa23a9c48c", "logicalOwner": "kscan-app", "reasonCentralized": "native", "note": "MIG-01 7B (2026-09-02): renamed from 20260830160000, which collided with the unrelated 20260830160000_user_device_push_tokens.sql. Content-verified (read-only execute_sql against staging's supabase_migrations.schema_migrations) applied TWICE on staging, byte-identical both times: this version (20260830174616, first application) and again at 20260831135127 (second, redundant, harmless re-apply -- both the INSERT ... ON CONFLICT DO NOTHING and the DROP POLICY IF EXISTS / CREATE POLICY are idempotent). 20260830174616 chosen as canonical because it is the true first-applied identity; absent from production entirely (K+/VTO is not yet promoted)." },
-    { "ledgerVersion": "20260830212508", "logicalName": "user_device_push_tokens", "sourceRepo": "kscan-app", "sourceCommit": "none found (authored filename never renamed)", "sourceOriginalFilename": "supabase/migrations/20260830160000_user_device_push_tokens.sql", "canonicalFilename": "supabase/migrations/20260830212508_user_device_push_tokens.sql", "ledgerSqlHash": "cedca4a7cf8b13fe1789623875e73a55e50b74587ef2ed629b368bba928ce655", "canonicalSqlHash": "94dc8b945fb9017e8bde0853c2d800c58577b11794b65a5ee64f3fc97ad88479", "logicalOwner": "kscan-app", "reasonCentralized": "native", "note": "MIG-01 7B (2026-09-02): renamed from 20260830160000, which collided with the unrelated 20260830160000_vto_feature_control.sql. This single authored file bundles two logically-adjacent pieces (the table+RLS+grants, and the two register/revoke RPC functions) that staging's watchlist-audit reconciliation applied as TWO SEPARATE ledger entries: this version (20260830212508, table/index/RLS/grants -- ledgerSqlHash is this entry's statement text only, confirmed content match via read-only execute_sql) and 20260830212518 'watchlist_audit_push_token_rpcs' (the register_device_push_token/revoke_device_push_token functions, confirmed byte-identical to this file's pre-hardening RPC bodies). canonicalSqlHash necessarily differs: it covers the full file (table + RPCs + 3 `comment on table/column` statements that were never actually executed under any ledger version on staging -- documentation-only, no functional effect, harmless if replayed). The RPCs are subsequently hardened for actor isolation by the already-correctly-versioned 20260830190000_watchlist_push_token_actor_isolation.sql (ledger 20260830214752), unaffected by this rename. Absent from production entirely." }
-  ]
+    {
+      "ledgerVersion": "20260805170417",
+      "logicalName": "legal_acceptances_add_ai_processing",
+      "sourceRepo": "kscan-app",
+      "sourceCommit": "38787ae",
+      "sourceOriginalFilename": "supabase/migrations/20260805120000_legal_acceptances_add_ai_processing.sql",
+      "canonicalFilename": "supabase/migrations/20260805170417_legal_acceptances_add_ai_processing.sql",
+      "ledgerSqlHash": "c61aa55d7e23909ebc75eb43a567dc32c6eea9cba18d589b7a87f75b256cb241",
+      "canonicalSqlHash": "c61aa55d7e23909ebc75eb43a567dc32c6eea9cba18d589b7a87f75b256cb241",
+      "logicalOwner": "kscan-app",
+      "reasonCentralized": "native",
+      "note": "MIG-01 7A (2026-09-02): renamed from 20260805120000, which collided with the unrelated 20260805120000_reconcile_deletion_requests_to_production_columns.sql (that file legitimately owns 20260805120000 -- confirmed applied to staging under that exact version/name). This migration's authored filename (20260805120000) was never actually applied to staging under that version -- confirmed via read-only list_migrations, staging has no 20260805120000/170417 row for this content at all. Production's ledger (read-only, confirmed 2026-09-02) DOES carry it, verbatim (exact byte match against production's supabase_migrations.schema_migrations.statements), as version 20260805170417 -- so the rename corrects the filename to its one real applied identity (production-only; absent from staging) rather than inventing a new one. Safe under the rename-safety rule: no ledger anywhere ever recorded this content under 20260805120000, so nothing double-applies."
+    },
+    {
+      "ledgerVersion": "20260806153233",
+      "logicalName": "dressing_room_user_blocking",
+      "sourceRepo": "kscan-app",
+      "sourceCommit": "a66b757",
+      "sourceOriginalFilename": "supabase/migrations/20260806153233_dressing_room_user_blocking.sql",
+      "canonicalFilename": "supabase/migrations/20260806153233_dressing_room_user_blocking.sql",
+      "ledgerSqlHash": "6954bc1575e91b307693b376d970837eaf4ffe198c88d7c3cd40841f42c099d1",
+      "canonicalSqlHash": "2bac2cfee56c06d7345478aacadcd9f8fac5f256fdf4a375bd811940d6dd7fae",
+      "logicalOwner": "kscan-app",
+      "reasonCentralized": "native",
+      "note": "MIG-02 (2026-09-02): canonicalSqlHash regenerated. Commit 3df3e0c (owner-authored, tested against 75 migrations on a disposable stack incl. pgTAP 54/54 + hostile audit 41/41) added an idempotent `create schema if not exists internal` + USAGE grant bootstrap after this file was already applied to staging, because replaying the repo migration set into an empty/production-derived database fails with 'schema \"internal\" does not exist' (3F000) -- staging only succeeded because it already had that schema from the out-of-repo 20260804090000_edge_function_errors migration. ledgerSqlHash is preserved as the historical hash of what staging's ledger actually recorded under this version; canonicalSqlHash reflects the current, approved, more-portable content. Production independently applied equivalent (bootstrap-inclusive) content under its OWN ledger version 20260808202108 (confirmed read-only via list_migrations 2026-09-02) -- same logical migration, two environments, two historical ledger identities, exactly the existing apple_auth_credentials/wearable_pairings_sessions pattern in this manifest. No file rename: 20260806153233 remains staging's correct applied identity."
+    },
+    {
+      "ledgerVersion": "20260808115552",
+      "logicalName": "harden_trigger_function_search_path",
+      "sourceRepo": "kscan-app",
+      "sourceCommit": "fd35e91",
+      "sourceOriginalFilename": "supabase/migrations/20260808115552_harden_trigger_function_search_path.sql",
+      "canonicalFilename": "supabase/migrations/20260808115552_harden_trigger_function_search_path.sql",
+      "ledgerSqlHash": "a23728727bb26d6311140e493ebcd3e861beddedf00d2acb6f6790bde7805e51",
+      "canonicalSqlHash": "a23728727bb26d6311140e493ebcd3e861beddedf00d2acb6f6790bde7805e51",
+      "logicalOwner": "kscan-app",
+      "reasonCentralized": "native"
+    },
+    {
+      "ledgerVersion": "20260808115735",
+      "logicalName": "enforce_rpc_privilege_boundary",
+      "sourceRepo": "kscan-app",
+      "sourceCommit": "fd35e91",
+      "sourceOriginalFilename": "supabase/migrations/20260808115735_enforce_rpc_privilege_boundary.sql",
+      "canonicalFilename": "supabase/migrations/20260808115735_enforce_rpc_privilege_boundary.sql",
+      "ledgerSqlHash": "782cd25497a508cc35135297745696de07b27434021d490bfb4797c55c31ecd3",
+      "canonicalSqlHash": "d8dfd177424325497162fb1caac9d93d9d2ce57c1a8b7324344a437630778262",
+      "logicalOwner": "kscan-app",
+      "reasonCentralized": "native",
+      "note": "MIG-04 (2026-09-02): canonicalSqlHash regenerated. Section C's bare `revoke execute on function public.handle_new_user_privacy()/update_privacy_settings_updated_at()/set_provider_request_limits_updated_at() from authenticated` statements are unconditional REVOKEs on functions that -- per this repo's own prior-art comment in 20260803214145_harden_public_rpc_execution_grants.sql:46-51 -- 'the production backend contract does not define'. A bare REVOKE on a non-existent function raises 42883 and ABORTS THE WHOLE MIGRATION (same file, same comment), so this migration could never successfully replay against production or a fresh database -- not just those 3 statements, all 30+ statements in the file including section D's security-critical `internal` schema USAGE grant. A trailing reconciliation migration cannot fix this: if this file aborts, `supabase db push` never reaches a later file. Repaired in place (matching the exact catalogue-lookup do-block pattern already established and tested by 20260803214145/20260803214253 5 days earlier in this same repo) rather than as a new migration, per the historical-file rule's implicit exception for a hard promotion blocker with no viable alternative. ledgerSqlHash is preserved as the hash of what staging's ledger actually recorded; canonicalSqlHash reflects the guarded, portable content. Zero behavioral change on staging: all 3 functions exist there today, so the guarded revokes produce byte-identical resulting privileges to the original bare ones."
+    },
+    {
+      "ledgerVersion": "20260808120214",
+      "logicalName": "revoke_public_execute_on_saved_scans_trigger",
+      "sourceRepo": "kscan-app",
+      "sourceCommit": "fd35e91",
+      "sourceOriginalFilename": "supabase/migrations/20260808120214_revoke_public_execute_on_saved_scans_trigger.sql",
+      "canonicalFilename": "supabase/migrations/20260808120214_revoke_public_execute_on_saved_scans_trigger.sql",
+      "ledgerSqlHash": "6bc281670bbb369d8f57404e8f8ae15394825d9f13fe4d3b0d45715c0b68307e",
+      "canonicalSqlHash": "6bc281670bbb369d8f57404e8f8ae15394825d9f13fe4d3b0d45715c0b68307e",
+      "logicalOwner": "kscan-app",
+      "reasonCentralized": "native"
+    },
+    {
+      "ledgerVersion": "20260808121216",
+      "logicalName": "privacy_request_rate_limits",
+      "sourceRepo": "kscan-app",
+      "sourceCommit": "25e970d",
+      "sourceOriginalFilename": "supabase/migrations/20260808103028_privacy_request_rate_limits.sql",
+      "canonicalFilename": "supabase/migrations/20260808121216_privacy_request_rate_limits.sql",
+      "ledgerSqlHash": "9ed715534625d0645148a384bcd9aed2654b1400f42602254c4bb614f47d4d4a",
+      "canonicalSqlHash": "9ed715534625d0645148a384bcd9aed2654b1400f42602254c4bb614f47d4d4a",
+      "logicalOwner": "kscan-app",
+      "reasonCentralized": "native",
+      "note": "Filename renamed to ledger version by 25e970d; Management API assigns its own version at apply time. MIG-03 (2026-09-02): the pre-rename original, 20260808103028_privacy_request_rate_limits.sql, still physically exists in supabase/migrations/ (25e970d added the ledger-named canonical copy rather than moving the original) and is directly read by two existing tests (__tests__/privacyRequestRateLimitContract.test.js, __tests__/processDeletionRequest.test.js), so it is kept in place rather than removed. Classified EQUIVALENT, not IDENTICAL: the two files' executable SQL is byte-for-byte identical, but this canonical copy carries a 13-line provenance-restoration header the original lacks, so their config/migration-provenance-manifest.json normalized hashes differ and the two cannot be declared aliases of one logicalId there. No promotion hazard either way: every statement in both files is idempotent (CREATE TABLE IF NOT EXISTS, CREATE INDEX IF NOT EXISTS, REVOKE/GRANT), so replaying one, the other, or both against any environment is a safe no-op."
+    },
+    {
+      "ledgerVersion": "20260810120000",
+      "logicalName": "apple_auth_credentials",
+      "sourceRepo": "kscan-app",
+      "sourceCommit": "e369fca",
+      "sourceOriginalFilename": "supabase/migrations/20260810120000_apple_auth_credentials.sql",
+      "canonicalFilename": "supabase/migrations/20260810120000_apple_auth_credentials.sql",
+      "ledgerSqlHash": "c8f8c1cd78ea5f08b0b1617e49804437236cbbd5937b259dbe23682d451d37f8",
+      "canonicalSqlHash": "8ca168c2b5b12c7d034d51cf94e5e13f6ac688ddb3338ba2515b0f49163d0bc9",
+      "logicalOwner": "kscan-app",
+      "reasonCentralized": "native",
+      "note": "Also pushed to origin/hotfix/ios-build29-apple-revocation. Hash differs from ledger due to statement-splitting formatting only; content verified equivalent."
+    },
+    {
+      "ledgerVersion": "20260812031312",
+      "logicalName": "legal_acceptances_restore_ai_processing",
+      "sourceRepo": "kscan-app",
+      "sourceCommit": "e9afbad",
+      "sourceOriginalFilename": "supabase/migrations/20260812031312_legal_acceptances_restore_ai_processing.sql",
+      "canonicalFilename": "supabase/migrations/20260812031312_legal_acceptances_restore_ai_processing.sql",
+      "ledgerSqlHash": "54207af4123c11f55c148684a16acd2ec17a9507784053ccfd25b38a957358bd",
+      "canonicalSqlHash": "8cb5025275075295fc2e35c30bc05d028a5fd9ac15f8906823eb6859abf5e679",
+      "logicalOwner": "kscan-app",
+      "reasonCentralized": "native",
+      "note": "Hash differs from ledger by trailing newline only."
+    },
+    {
+      "ledgerVersion": "20260813224918",
+      "logicalName": "backfill_legacy_pending_deletion_requests",
+      "sourceRepo": "kscan-app",
+      "sourceCommit": "eacd64e",
+      "sourceOriginalFilename": "supabase/migrations/20260813222000_backfill_legacy_pending_deletion_requests.sql",
+      "canonicalFilename": "supabase/migrations/20260813224918_backfill_legacy_pending_deletion_requests.sql",
+      "ledgerSqlHash": "ea6c9a5708fd56facbca2a1a214f34929ff44e780c07f226e012dd2c59ed72b2",
+      "canonicalSqlHash": "a747b9ee3e2beced382149249b4f923912719af98c81eaf315c5408f3b3079cb",
+      "logicalOwner": "kscan-app",
+      "reasonCentralized": "native",
+      "note": "Renamed to ledger version by 0fc7cfb. Ledger stores only the inner statement after Postgres unwrapped the do $$ ... $$ block."
+    },
+    {
+      "ledgerVersion": "20260814120000",
+      "logicalName": "wardrobe_wear_event_items",
+      "sourceRepo": "kscan-app",
+      "sourceCommit": "5ce3e03",
+      "sourceOriginalFilename": "supabase/migrations/20260814120000_wardrobe_wear_event_items.sql",
+      "canonicalFilename": "supabase/migrations/20260814120000_wardrobe_wear_event_items.sql",
+      "ledgerSqlHash": "a402f2b65f9953b9b6b21c8554bec4b288fff03b8806d6a17adb7ae05d6d2fa5",
+      "canonicalSqlHash": "a612c53f34bcf7893056bdf953d4bddfcb74a5db86294a4d69f0117ad471379c",
+      "logicalOwner": "kscan-app",
+      "reasonCentralized": "native",
+      "note": "Hash differs from ledger by comment/formatting only."
+    },
+    {
+      "ledgerVersion": "20260814140000",
+      "logicalName": "harden_wardrobe_wear_anon_privileges",
+      "sourceRepo": "kscan-app",
+      "sourceCommit": "3d38744",
+      "sourceOriginalFilename": "supabase/migrations/20260814140000_harden_wardrobe_wear_anon_privileges.sql",
+      "canonicalFilename": "supabase/migrations/20260814140000_harden_wardrobe_wear_anon_privileges.sql",
+      "ledgerSqlHash": "e5c09e0eef3fbd7396e397856525a2b6de60ed6e5598d43ec173c4c89339e783",
+      "canonicalSqlHash": "d721570ec8ec904d3f9850cec94e94448d79b56a13f8f752116e94f2e2b67727",
+      "logicalOwner": "kscan-app",
+      "reasonCentralized": "native",
+      "note": "Confirms this migration's own 'source of truth' comment was accurate."
+    },
+    {
+      "ledgerVersion": "20260814230933",
+      "logicalName": "harden_wardrobe_wear_owner_links",
+      "sourceRepo": "kscan-app",
+      "sourceCommit": "02a51f2",
+      "sourceOriginalFilename": "supabase/migrations/20260814230933_harden_wardrobe_wear_owner_links.sql",
+      "canonicalFilename": "supabase/migrations/20260814230933_harden_wardrobe_wear_owner_links.sql",
+      "ledgerSqlHash": "3a7546af1ed69d35096d855fe423646c8e2f80e9336071eafd54586b7b56f2f2",
+      "canonicalSqlHash": "f6046d9fe1c73bb452d6eb7fa1def28f47aeb5887c3c1135fd9837097bc3bbb7",
+      "logicalOwner": "kscan-app",
+      "reasonCentralized": "native",
+      "note": "02a51f2 is a same-day fix of an earlier draft (2c02541) with two destructive DROP CONSTRAINTs never executed on staging; do not use 2c02541."
+    },
+    {
+      "ledgerVersion": "20260815233353",
+      "logicalName": "dressing_room_items_blocking",
+      "sourceRepo": "kscan-app",
+      "sourceCommit": "64104bf",
+      "sourceOriginalFilename": "supabase/migrations/20260815140000_dressing_room_items_blocking.sql",
+      "canonicalFilename": "supabase/migrations/20260815233353_dressing_room_items_blocking.sql",
+      "ledgerSqlHash": "ad7d04ccd129d5b73caadd77a49efc060f11d1a0218207149f23a650c68f30c5",
+      "canonicalSqlHash": "11b5fc6f590e208abdb5fc7d04e29cd6e60cb57645aea14cfb1f93f0a2d6818d",
+      "logicalOwner": "kscan-app",
+      "reasonCentralized": "native",
+      "note": "Authored filename timestamp never renamed to ledger version."
+    },
+    {
+      "ledgerVersion": "20260815233457",
+      "logicalName": "content_reports_ai_output",
+      "sourceRepo": "kscan-app",
+      "sourceCommit": "a536f23",
+      "sourceOriginalFilename": "supabase/migrations/20260815120000_content_reports_ai_output.sql",
+      "canonicalFilename": "supabase/migrations/20260815233457_content_reports_ai_output.sql",
+      "ledgerSqlHash": "50a1f604a4e290b9f953982b43f3aa997714028397433e45a1dd59b8bd0eb7ef",
+      "canonicalSqlHash": "3276062426813cc3ac91168a53cee8eb695015be89f4fdaf38178bd049878d1a",
+      "logicalOwner": "kscan-app",
+      "reasonCentralized": "native",
+      "note": "Authored filename timestamp never renamed to ledger version."
+    },
+    {
+      "ledgerVersion": "20260816120000",
+      "logicalName": "user_stylist_preferences_gender_context",
+      "sourceRepo": "kscan-app",
+      "sourceCommit": "0346506",
+      "sourceOriginalFilename": "supabase/migrations/20260816120000_user_stylist_preferences_gender_context.sql",
+      "canonicalFilename": "supabase/migrations/20260816120000_user_stylist_preferences_gender_context.sql",
+      "ledgerSqlHash": "1d0e261ed939e869e86c585ff2c0dd1575d76b4e0d9f16cb06476ad11c6fd092",
+      "canonicalSqlHash": "54c45e062c34fb794b89576618ec3e7bd5bd42546af6faf192ed3dff941404a0",
+      "logicalOwner": "kscan-app",
+      "reasonCentralized": "native",
+      "note": "Hash differs from ledger by trailing newline only. MIG-03 (2026-09-02): this is the sole applied/canonical migration for gender_styling_context. A duplicate, independently-authored, never-applied sibling (20260817000001_add_user_stylist_preferences_gender_styling_context.sql, one day later, commit 26d5e4c) collided with it and was relocated to docs/staging-rebuild/recovered-migrations/SUPERSEDED_20260817000001_....sql because it raises an exception if replayed after this file. This file (20260816120000) is untouched and remains staging's correct applied identity."
+    },
+    {
+      "ledgerVersion": "20260818141056",
+      "logicalName": "user_stylist_preferences_display_name_customized",
+      "sourceRepo": "kscan-app",
+      "sourceCommit": "6e97fcf",
+      "sourceOriginalFilename": "supabase/migrations/20260818000001_add_user_stylist_preferences_display_name_customized.sql",
+      "canonicalFilename": "supabase/migrations/20260818141056_user_stylist_preferences_display_name_customized.sql",
+      "ledgerSqlHash": "b5ab770ebb53784c447e3266b597f3c2b82144fe8a24a307b612a0492ac45c4e",
+      "canonicalSqlHash": "b5ab770ebb53784c447e3266b597f3c2b82144fe8a24a307b612a0492ac45c4e",
+      "logicalOwner": "kscan-app",
+      "reasonCentralized": "native",
+      "note": "MIG-03 (2026-09-02): the pre-rename original, 20260818000001_add_user_stylist_preferences_display_name_customized.sql, still physically exists in supabase/migrations/ (never moved when this ledger-named canonical copy was added) and is directly read by __tests__/stylistIdentity.test.js, so it is kept in place rather than removed. Classified EQUIVALENT, not IDENTICAL: the two files' executable SQL is byte-for-byte identical, but this canonical copy carries a 13-line provenance-restoration header the original lacks, so their config/migration-provenance-manifest.json normalized hashes differ and the two cannot be declared aliases of one logicalId there. No promotion hazard: both statements (ADD COLUMN IF NOT EXISTS, COMMENT ON COLUMN) are idempotent, so replaying one, the other, or both against any environment is a safe no-op."
+    },
+    {
+      "ledgerVersion": "20260819125700",
+      "logicalName": "saved_scans_wearable_source",
+      "sourceRepo": "kscan-app",
+      "sourceCommit": "none found",
+      "sourceOriginalFilename": "none found in kscan-app or kscan-glasses-webapp",
+      "canonicalFilename": "supabase/migrations/20260819125700_saved_scans_wearable_source.sql",
+      "ledgerSqlHash": "22a9c1bb4998424bb59daac3a71a1c3a7b951e9bb1db71ff6d846dd2a621bc6d",
+      "canonicalSqlHash": "0708da80cb5bd141f853dd3c7898227812d4e3e9ab21c2ab911a26af49f56e87",
+      "logicalOwner": "kscan-app",
+      "reasonCentralized": "native",
+      "note": "No standalone source found; superseded same-day by 20260819144630. Alters a kscan-app-owned table (saved_scans)."
+    },
+    {
+      "ledgerVersion": "20260819144630",
+      "logicalName": "widen_saved_scans_source_for_meta_wearable",
+      "sourceRepo": "kscan-glasses-webapp",
+      "sourceCommit": "9311442",
+      "sourceOriginalFilename": "kscan-glasses-webapp: supabase/migrations/20260819000001_add_wearable_pairing_session.sql (bundled, not standalone)",
+      "canonicalFilename": "supabase/migrations/20260819144630_widen_saved_scans_source_for_meta_wearable.sql",
+      "ledgerSqlHash": "66e8dac9aab01f0941d9549d6e307362c8350dca52952f5cfeb012a20705a3c3",
+      "canonicalSqlHash": "cdcd1610fc20d50e34a507ae8ad1e03619cbc4e66c82a782cb93527f05548c4e",
+      "logicalOwner": "kscan-app",
+      "reasonCentralized": "native",
+      "note": "Alters a kscan-app-owned table (saved_scans) but authored inside kscan-glasses-webapp's own migration file."
+    },
+    {
+      "ledgerVersion": "20260819125404",
+      "logicalName": "wearable_pairings_sessions",
+      "sourceRepo": "kscan-glasses-webapp",
+      "sourceCommit": "9311442",
+      "sourceOriginalFilename": "kscan-glasses-webapp: supabase/migrations/20260819000001_add_wearable_pairing_session.sql (embedded ledger name: 20260815015710_wearable_pairings_sessions)",
+      "canonicalFilename": "supabase/migrations/20260819125404_wearable_pairings_sessions.sql",
+      "ledgerSqlHash": "ebc15fa4a49781d95da28089d3b2171c026e2a1f769916ef8ea491bc9bae0031",
+      "canonicalSqlHash": "a7fad73aaa16e959dfa450136984085adb5451be7e7bf831e506ee2bc96e5ebd",
+      "logicalOwner": "kscan-glasses-webapp",
+      "reasonCentralized": "shared_supabase_central_migration_authority",
+      "note": "kscan-glasses-webapp's own committed file diverges (no length CHECKs, has defaults); this is the ledger-executed version, later hardened by 20260823170850."
+    },
+    {
+      "ledgerVersion": "20260819151224",
+      "logicalName": "wearable_security_hardening",
+      "sourceRepo": "kscan-glasses-webapp",
+      "sourceCommit": "none standalone",
+      "sourceOriginalFilename": "none (content folded into fea5712's reconcile migration)",
+      "canonicalFilename": "supabase/migrations/20260819151224_wearable_security_hardening.sql",
+      "ledgerSqlHash": "b50384ede15f7d04faf0e2458ed9bbcbae344dc17d1fd433d34f73735c7827dc",
+      "canonicalSqlHash": "9221c26407262825216230024d2b32da250df8640af862781a91036149399d56",
+      "logicalOwner": "kscan-glasses-webapp",
+      "reasonCentralized": "shared_supabase_central_migration_authority"
+    },
+    {
+      "ledgerVersion": "20260823170850",
+      "logicalName": "reconcile_wearable_schema_with_staging",
+      "sourceRepo": "kscan-glasses-webapp",
+      "sourceCommit": "fea5712",
+      "sourceOriginalFilename": "supabase/migrations/20260823170850_reconcile_wearable_schema_with_staging.sql",
+      "canonicalFilename": "supabase/migrations/20260823170850_reconcile_wearable_schema_with_staging.sql",
+      "ledgerSqlHash": "d5d4f83c6593094ca91860be3ec23dd6c19e49ccc43fbe5d2b75086241b2d417",
+      "canonicalSqlHash": "501005b170300cffaa1d95cce1f48c8b1e6c30fe98ea9b84414f7cbcc71d0376",
+      "logicalOwner": "kscan-glasses-webapp",
+      "reasonCentralized": "shared_supabase_central_migration_authority"
+    },
+    {
+      "ledgerVersion": "20260823175314",
+      "logicalName": "scan_commerce_events_accuracy_telemetry",
+      "sourceRepo": "kscan-app",
+      "sourceCommit": "dbfd66f",
+      "sourceOriginalFilename": "supabase/migrations/20260823120000_scan_commerce_events_accuracy_telemetry.sql",
+      "canonicalFilename": "supabase/migrations/20260823175314_scan_commerce_events_accuracy_telemetry.sql",
+      "ledgerSqlHash": "25ce5e82f680d6e43766bf8ed1ac8f6bec95c590ff2c32dcf9da0a46205e227a",
+      "canonicalSqlHash": "46b066889ea66162ddd868b40146fe14db9776586f323744201c5a85feb8ffec",
+      "logicalOwner": "kscan-app",
+      "reasonCentralized": "native",
+      "note": "Source comment claims 'NOT APPLIED... later steps' yet is demonstrably live -- see CENTRAL_MIGRATION_AUTHORITY.md process finding. Comment intentionally left unmodified. MIG-03 (2026-09-02): the pre-rename original, 20260823120000_scan_commerce_events_accuracy_telemetry.sql, still physically exists in supabase/migrations/ (never moved when this ledger-named canonical copy was added), so it is kept in place rather than removed. Classified EQUIVALENT, not IDENTICAL: the two files' executable SQL is byte-for-byte identical, but this canonical copy carries a 13-line provenance-restoration header (replacing the original's longer design-rationale comment block) so their config/migration-provenance-manifest.json normalized hashes differ and the two cannot be declared aliases of one logicalId there. No promotion hazard: all five statements are ADD COLUMN IF NOT EXISTS / COMMENT ON COLUMN, idempotent, so replaying one, the other, or both against any environment is a safe no-op."
+    },
+    {
+      "ledgerVersion": "20260824175813",
+      "logicalName": "create_investor_inquiries",
+      "sourceRepo": "kscan-website",
+      "sourceCommit": "none found",
+      "sourceOriginalFilename": "none found in kscan-website (git log --all: zero hits)",
+      "canonicalFilename": "supabase/migrations/20260824175813_create_investor_inquiries.sql",
+      "ledgerSqlHash": "77f6e57c793ae30d9a715414b94700f4e34184f3dabf1859970b53c175c6b003",
+      "canonicalSqlHash": "2889679adda853378a2cf737d89fcfd5b057b47bb69d05f441cedabd0d77a656",
+      "logicalOwner": "kscan-website",
+      "reasonCentralized": "shared_supabase_central_migration_authority"
+    },
+    {
+      "ledgerVersion": "20260830174616",
+      "logicalName": "vto_feature_control",
+      "sourceRepo": "kscan-app",
+      "sourceCommit": "none found (authored filename never renamed)",
+      "sourceOriginalFilename": "supabase/migrations/20260830160000_vto_feature_control.sql",
+      "canonicalFilename": "supabase/migrations/20260830174616_vto_feature_control.sql",
+      "ledgerSqlHash": "92586d3212098f720fa3784a9975a993461a35eafe2836e3e925a6aa23a9c48c",
+      "canonicalSqlHash": "92586d3212098f720fa3784a9975a993461a35eafe2836e3e925a6aa23a9c48c",
+      "logicalOwner": "kscan-app",
+      "reasonCentralized": "native",
+      "note": "MIG-01 7B (2026-09-02): renamed from 20260830160000, which collided with the unrelated 20260830160000_user_device_push_tokens.sql. Content-verified (read-only execute_sql against staging's supabase_migrations.schema_migrations) applied TWICE on staging, byte-identical both times: this version (20260830174616, first application) and again at 20260831135127 (second, redundant, harmless re-apply -- both the INSERT ... ON CONFLICT DO NOTHING and the DROP POLICY IF EXISTS / CREATE POLICY are idempotent). 20260830174616 chosen as canonical because it is the true first-applied identity; absent from production entirely (K+/VTO is not yet promoted)."
+    },
+    {
+      "ledgerVersion": "20260830212508",
+      "logicalName": "user_device_push_tokens",
+      "sourceRepo": "kscan-app",
+      "sourceCommit": "none found (authored filename never renamed)",
+      "sourceOriginalFilename": "supabase/migrations/20260830160000_user_device_push_tokens.sql",
+      "canonicalFilename": "supabase/migrations/20260830212508_user_device_push_tokens.sql",
+      "ledgerSqlHash": "cedca4a7cf8b13fe1789623875e73a55e50b74587ef2ed629b368bba928ce655",
+      "canonicalSqlHash": "94dc8b945fb9017e8bde0853c2d800c58577b11794b65a5ee64f3fc97ad88479",
+      "logicalOwner": "kscan-app",
+      "reasonCentralized": "native",
+      "note": "MIG-01 7B (2026-09-02): renamed from 20260830160000, which collided with the unrelated 20260830160000_vto_feature_control.sql. This single authored file bundles two logically-adjacent pieces (the table+RLS+grants, and the two register/revoke RPC functions) that staging's watchlist-audit reconciliation applied as TWO SEPARATE ledger entries: this version (20260830212508, table/index/RLS/grants -- ledgerSqlHash is this entry's statement text only, confirmed content match via read-only execute_sql) and 20260830212518 'watchlist_audit_push_token_rpcs' (the register_device_push_token/revoke_device_push_token functions, confirmed byte-identical to this file's pre-hardening RPC bodies). canonicalSqlHash necessarily differs: it covers the full file (table + RPCs + 3 `comment on table/column` statements that were never actually executed under any ledger version on staging -- documentation-only, no functional effect, harmless if replayed). The RPCs are subsequently hardened for actor isolation by the already-correctly-versioned 20260830190000_watchlist_push_token_actor_isolation.sql (ledger 20260830214752), unaffected by this rename. Absent from production entirely."
+    }
+  ],
+  "ledgerReconciliation": {
+    "section": "ledger-reconciliation-v1",
+    "purpose": "Records, per environment, which local migration VERSIONS are already represented in that environment's applied ledger under a different version identity (renumber), split across several ledger rows (consolidation), or made unnecessary by other applied state (supersession). Without this, scripts/staging-deploy-preflight.mjs compares bare version strings and reports historical renumbering as deployment drift. This never renames, deletes, reorders or re-applies a migration: it only records an explicit, evidence-backed decision that a version difference is not a missing capability. Anything NOT listed here is still treated as genuinely pending and blocks the gate.",
+    "classifications": [
+      "EXACT_CONTENT_RENUMBER",
+      "EQUIVALENT_RENUMBER",
+      "CONSOLIDATED_IN_REMOTE",
+      "SUPERSEDED_BY_LATER_MIGRATION"
+    ],
+    "environments": {
+      "yzqjvdfgefveprobvvyw": {
+        "label": "K Scan AI Staging",
+        "confirmedOn": "2026-09-03",
+        "method": "Local migration inventory diffed against supabase_migrations.schema_migrations, then every table, column, function and policy declared by each local-only file was probed directly on staging (to_regclass / pg_proc / information_schema.columns / pg_policies / pg_get_constraintdef). Exactly two declared objects were absent: public.release_vto_generation (recorded below as genuinelyUnapplied) and public.can_contribute_to_dressing_room (recorded above as superseded, dependency deferred).",
+        "reconciled": [
+          {
+            "localVersion": "20260720120000",
+            "logicalName": "scan_commerce_events",
+            "remoteVersions": [
+              "20260720115423"
+            ],
+            "classification": "EXACT_CONTENT_RENUMBER",
+            "evidence": "Repo carries both 20260720120000_scan_commerce_events.sql and the applied 20260720115423_scan_commerce_events.sql. Staging ledger holds 20260720115423 only. public.scan_commerce_events and its service-role policy are present. Confirmed 2026-09-03 via schema_migrations + to_regclass/pg_policies."
+          },
+          {
+            "localVersion": "20260721170559",
+            "logicalName": "dr3_collaborative_interactions",
+            "remoteVersions": [
+              "20260721201218"
+            ],
+            "classification": "EXACT_CONTENT_RENUMBER",
+            "evidence": "Already declared in config/migration-provenance-manifest.json as a byte-equivalent alias pair; both local files normalize to the same hash (40ed83f1758c5cfea28eaac83b7353e0). Staging ledger holds 20260721201218. All declared objects present."
+          },
+          {
+            "localVersion": "20260721183308",
+            "logicalName": "dr4_collab_idempotency_room_scope",
+            "remoteVersions": [
+              "20260721201347"
+            ],
+            "classification": "EXACT_CONTENT_RENUMBER",
+            "evidence": "Already declared in config/migration-provenance-manifest.json as a byte-equivalent alias pair; both local files normalize to c1947e55fed38a77064e5503183fba14. Staging ledger holds 20260721201347. set_dressing_room_item_reaction and create_dressing_room_message present."
+          },
+          {
+            "localVersion": "20260805170417",
+            "logicalName": "legal_acceptances_add_ai_processing",
+            "remoteVersions": [
+              "20260812031312"
+            ],
+            "classification": "SUPERSEDED_BY_LATER_MIGRATION",
+            "evidence": "Capability is the acceptance_type CHECK admitting 'ai_processing'. Staging constraint legal_acceptances_acceptance_type_check reads CHECK (acceptance_type = ANY (ARRAY['terms','privacy','minimum_age','ai_processing'])), applied by 20260812031312_legal_acceptances_restore_ai_processing. Confirmed 2026-09-03 via pg_get_constraintdef."
+          },
+          {
+            "localVersion": "20260808103028",
+            "logicalName": "privacy_request_rate_limits",
+            "remoteVersions": [
+              "20260808121216"
+            ],
+            "classification": "EXACT_CONTENT_RENUMBER",
+            "evidence": "Local 20260808103028 normalizes to 3f4655de9d1c1a05a2b0df809fa9d7b3, byte-identical to the SQL staging recorded under ledger version 20260808121216 (same md5 over the applied statements). Repo also carries the renumbered sibling file."
+          },
+          {
+            "localVersion": "20260809120000",
+            "logicalName": "contribution_block_enforcement",
+            "remoteVersions": [],
+            "classification": "SUPERSEDED_BY_LATER_MIGRATION",
+            "evidence": "Hardens public.can_contribute_to_dressing_room, introduced by supabase/migrations-deferred/20260725100000_shared_room_item_contributions.sql, which is deliberately DEFERRED and never applied to staging. Staging dressing_room_items carries only owner-scoped policies; 0 policies reference the predicate and the function does not exist. The safety property it adds (a blocked participant cannot insert items) holds a fortiori on staging because no participant can contribute at all. Confirmed 2026-09-03 via pg_policies + pg_proc. Do NOT apply: it would create an orphan function guarding nothing."
+          },
+          {
+            "localVersion": "20260818000001",
+            "logicalName": "add_user_stylist_preferences_display_name_customized",
+            "remoteVersions": [
+              "20260818141056"
+            ],
+            "classification": "EXACT_CONTENT_RENUMBER",
+            "evidence": "Local 20260818000001 normalizes to 26b9ff81e92d5e9ab87f7bdfd9fc3463, byte-identical to the SQL staging recorded under ledger version 20260818141056 (whose ledger NAME literally embeds the old version: \"20260818000001_add_user_stylist_preferences_display_name_customized\")."
+          },
+          {
+            "localVersion": "20260823120000",
+            "logicalName": "scan_commerce_events_accuracy_telemetry",
+            "remoteVersions": [
+              "20260823175314"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Declares public.scan_commerce_events.query_strategy, which is present on staging. Applied under ledger version 20260823175314 under the identical logical name; repo also carries the renumbered sibling file. Confirmed 2026-09-03 via information_schema.columns."
+          },
+          {
+            "localVersion": "20260830060000",
+            "logicalName": "user_style_profiles",
+            "remoteVersions": [
+              "20260830053104"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Same logical name. Table public.user_style_profiles, trigger fn set_user_style_profiles_updated_at and the owner-scoped RLS policy are all present on staging under ledger version 20260830053104."
+          },
+          {
+            "localVersion": "20260830070000",
+            "logicalName": "upsert_style_dna_profile_rpc",
+            "remoteVersions": [
+              "20260830113230",
+              "20260830113421"
+            ],
+            "classification": "CONSOLIDATED_IN_REMOTE",
+            "evidence": "The local file carries the RPC together with its column-ambiguity fix inline (see its own comment at line 37). Staging applied the same effect as two ledger rows: 20260830113230 upsert_style_dna_profile_rpc and 20260830113421 fix_upsert_style_dna_profile_column_ambiguity. public.upsert_style_dna_profile is present."
+          },
+          {
+            "localVersion": "20260830131956",
+            "logicalName": "signature_style_server_authority",
+            "remoteVersions": [
+              "20260830145412"
+            ],
+            "classification": "EXACT_CONTENT_RENUMBER",
+            "evidence": "Local 20260830131956 normalizes to 43f5069a7fbc780ad9b74f18989093c8, byte-identical to the SQL staging recorded under ledger version 20260830145412. public.recompute_signature_style present."
+          },
+          {
+            "localVersion": "20260830140000",
+            "logicalName": "fix_recompute_signature_style_column_ambiguity",
+            "remoteVersions": [
+              "20260830150440"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Same logical name, applied under ledger version 20260830150440. public.recompute_signature_style present and is the post-fix definition."
+          },
+          {
+            "localVersion": "20260830150000",
+            "logicalName": "user_commerce_watches",
+            "remoteVersions": [
+              "20260830211956"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Applied under ledger version 20260830211956, whose ledger NAME embeds the old version (\"watchlist_audit_20260830150000_user_commerce_watches\"). Table public.user_commerce_watches plus both authority trigger functions are present."
+          },
+          {
+            "localVersion": "20260830151500",
+            "logicalName": "user_commerce_watch_events_and_rpcs",
+            "remoteVersions": [
+              "20260830212244",
+              "20260830212316",
+              "20260830212326",
+              "20260830212412",
+              "20260830212444"
+            ],
+            "classification": "CONSOLIDATED_IN_REMOTE",
+            "evidence": "One local file; staging applied the same effect as five ledger rows (watch_events_table_v2, watch_events_rls_grants, append_watch_event_rpc, create_watch_rpc, lifecycle_rpcs). Table public.user_commerce_watch_events and all five RPCs (append/create/pause/resume/delete_user_commerce_watch) are present."
+          },
+          {
+            "localVersion": "20260830161500",
+            "logicalName": "watch_push_enabled",
+            "remoteVersions": [
+              "20260830212527"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Applied under ledger version 20260830212527, whose ledger NAME embeds the old version (\"watchlist_audit_20260830161500_watch_push_enabled\"). Column user_commerce_watches.push_enabled and fn set_watch_push_enabled are present."
+          },
+          {
+            "localVersion": "20260830162500",
+            "logicalName": "claim_watchable_commerce_watches",
+            "remoteVersions": [
+              "20260830212537"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Applied under ledger version 20260830212537, whose ledger NAME embeds the old version (\"watchlist_audit_20260830162500_claim_watchable_watches\"). public.claim_watchable_commerce_watches present."
+          },
+          {
+            "localVersion": "20260830190000",
+            "logicalName": "watchlist_push_token_actor_isolation",
+            "remoteVersions": [
+              "20260830214752"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Applied under ledger version 20260830214752 (watchlist_audit_repair_push_token_actor_isolation). public.register_device_push_token present."
+          },
+          {
+            "localVersion": "20260830190500",
+            "logicalName": "watchlist_create_honours_changed_intent",
+            "remoteVersions": [
+              "20260830214806"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Applied under ledger version 20260830214806 (watchlist_audit_repair_create_honours_changed_intent). public.create_user_commerce_watch present."
+          },
+          {
+            "localVersion": "20260830212508",
+            "logicalName": "user_device_push_tokens",
+            "remoteVersions": [
+              "20260830212518"
+            ],
+            "classification": "CONSOLIDATED_IN_REMOTE",
+            "evidence": "Version 20260830212508 itself is applied (as watchlist_audit_20260830160000_device_push_tokens). Staging additionally split this file’s RPCs into ledger row 20260830212518 watchlist_audit_push_token_rpcs. Both register_device_push_token and revoke_device_push_token are present."
+          },
+          {
+            "localVersion": "20260830174616",
+            "logicalName": "vto_feature_control",
+            "remoteVersions": [
+              "20260831135127"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Version 20260830174616 is applied. Staging additionally re-applied byte-identical content a second time under ledger version 20260831135127 (both normalize to a2775f19829cf39b303c38060164d801) — an idempotent duplicate replay, not new capability."
+          },
+          {
+            "localVersion": "20260831000100",
+            "logicalName": "watchlist_worker_enablement",
+            "remoteVersions": [
+              "20260831135148"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Same logical name, applied under ledger version 20260831135148. app_config-driven; no new schema objects declared."
+          },
+          {
+            "localVersion": "20260831120000",
+            "logicalName": "watchlist_device_ownership_claim",
+            "remoteVersions": [
+              "20260831135158"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Same logical name, applied under ledger version 20260831135158. public.claim_device_for_actor present."
+          },
+          {
+            "localVersion": "20260831120500",
+            "logicalName": "claim_user_commerce_watches_for_refresh",
+            "remoteVersions": [
+              "20260831135218"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Same logical name, applied under ledger version 20260831135218. public.claim_user_commerce_watches_for_refresh present."
+          },
+          {
+            "localVersion": "20260831130000",
+            "logicalName": "vto_generation_reservations",
+            "remoteVersions": [
+              "20260831135239"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Same logical name, applied under ledger version 20260831135239. Table public.vto_generation_requests plus reserve_vto_generation and complete_vto_generation are present, both SECURITY DEFINER with service_role-only EXECUTE."
+          },
+          {
+            "localVersion": "20260831140000",
+            "logicalName": "deleted_owner_retained_media",
+            "remoteVersions": [
+              "20260831135251"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Same logical name, applied under ledger version 20260831135251. Table public.deleted_owner_retained_media and all three lifecycle RPCs are present."
+          },
+          {
+            "localVersion": "20260831160000",
+            "logicalName": "vto_paid_quota_attempt_counting",
+            "remoteVersions": [
+              "20260831185314"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Same logical name, applied under ledger version 20260831185314. Column vto_generation_requests.attempts present and reserve_vto_generation carries the attempt-counting signature (p_user_id, p_idempotency_key, p_daily_limit, p_lease_minutes)."
+          },
+          {
+            "localVersion": "20260902120000",
+            "logicalName": "watchlist_device_route_and_account_state",
+            "remoteVersions": [
+              "20260902144906"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Same logical name, applied under ledger version 20260902144906. public.watchlist_actor_is_active present alongside the re-defined claim RPCs."
+          },
+          {
+            "localVersion": "20260902130000",
+            "logicalName": "reaction_counts_honour_dressing_room_block",
+            "remoteVersions": [
+              "20260902154435"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Same logical name, applied under ledger version 20260902154435. public.get_item_reaction_counts present."
+          }
+        ],
+        "genuinelyUnapplied": [
+          {
+            "localVersion": "20260902150000",
+            "logicalName": "vto_non_billable_attempt_release",
+            "classification": "GENUINELY_UNAPPLIED",
+            "evidence": "public.release_vto_generation(uuid, text, text) does not exist on staging (pg_proc, confirmed 2026-09-03), and no applied migration or later schema state provides the non-billable attempt release. Frozen vto-generate depends on it: vtoReservation.ts calls rpc('release_vto_generation', ...) and vtoHandler.ts takes that path when outcome.billable === false. This is a real pending migration and MUST still be approved through APPROVED_MIGRATION_VERSION."
+          }
+        ]
+      }
+    }
+  }
 }

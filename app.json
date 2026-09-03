@@ -25,7 +25,7 @@
                                  [
                                      "expo-image-picker",
                                      {
-                                         "photosPermission":  "K Scan AI uses your photo library to let you upload style inspiration images to your Style Closet and Dressing Rooms."
+                                         "photosPermission":  "K Scan AI uses your photo library so you can choose style inspiration images for your Style Closet and Dressing Rooms, and choose a photo of yourself to try items on with Virtual Try-On. Only the photos you pick are used."
                                      }
                                  ],
                                  "expo-router",
@@ -114,7 +114,7 @@
                                                "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait"],
                                                "UISupportedInterfaceOrientations~ipad": ["UIInterfaceOrientationPortrait", "UIInterfaceOrientationPortraitUpsideDown", "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight"],
                                                "NSCameraUsageDescription":  "K Scan AI uses your camera to photograph your outfit for style analysis.",
-                                               "NSPhotoLibraryUsageDescription":  "K Scan AI uses your photo library to let you upload style inspiration images to your Style Closet and Dressing Rooms.",
+                                               "NSPhotoLibraryUsageDescription":  "K Scan AI uses your photo library so you can choose style inspiration images for your Style Closet and Dressing Rooms, and choose a photo of yourself to try items on with Virtual Try-On. Only the photos you pick are used.",
                                                "NSLocationWhenInUseUsageDescription":  "K Scan AI uses your approximate location while you use the app to tailor StyleChat suggestions to your local weather. Your raw coordinates are not stored.",
                                                "NSMicrophoneUsageDescription":  "K Scan AI uses your microphone only while you are actively using Voice Scan, to let you speak a fashion search instead of typing it.",
                                                "NSSpeechRecognitionUsageDescription":  "K Scan AI uses on-device speech recognition to turn your spoken Voice Scan search into text. Your speech is processed on this device, not uploaded.",

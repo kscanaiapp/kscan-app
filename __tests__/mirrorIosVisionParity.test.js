@@ -306,9 +306,32 @@ test('no ML Kit, Gradle, model asset or new permission came along', () => {
     }
     return rest;
   };
+  // Build 34 VTO: NSPhotoLibraryUsageDescription's copy was legitimately
+  // rewritten to disclose Virtual Try-On, which sends a photo of the user to a
+  // third-party generation provider and was not covered by the old wording.
+  // Same key, same permission, new copy — exactly the branding-rename case
+  // above. The wording itself is pinned by
+  // __tests__/vtoPrivacyAndWiring.test.js ("the iOS photo-library purpose
+  // string discloses Virtual Try-On, and overclaims nothing"), so normalizing
+  // it here keeps THIS test proving what it guards: no NEW permission and no
+  // OTHER Info.plist drift. A key absent from `before` is still a failure.
+  const VTO_DISCLOSURE_KEY = 'NSPhotoLibraryUsageDescription';
+  const applyVtoDisclosureRewrite = (baseline, actual) => {
+    const rest = { ...(baseline ?? {}) };
+    if (
+      typeof rest[VTO_DISCLOSURE_KEY] === 'string' &&
+      typeof actual?.[VTO_DISCLOSURE_KEY] === 'string'
+    ) {
+      rest[VTO_DISCLOSURE_KEY] = actual[VTO_DISCLOSURE_KEY];
+    }
+    return rest;
+  };
   assert.deepEqual(
     stripOrientation(after.infoPlist),
-    applyBrandingRename(stripOrientation(before.infoPlist)),
+    applyVtoDisclosureRewrite(
+      applyBrandingRename(stripOrientation(before.infoPlist)),
+      stripOrientation(after.infoPlist),
+    ),
     'the iOS Info.plist changed; the extraction module must add no permission',
   );
   for (const key of Object.keys(after.infoPlist ?? {})) {
