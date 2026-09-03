@@ -489,7 +489,7 @@ test('WATCH-INV-002 CONTROL: a Watch is readable only by the actor who owns it',
   const cases = [
     ['supabase/migrations/20260830150000_user_commerce_watches.sql', 'user_commerce_watches'],
     ['supabase/migrations/20260830151500_user_commerce_watch_events_and_rpcs.sql', 'user_commerce_watch_events'],
-    ['supabase/migrations/20260830160000_user_device_push_tokens.sql', 'user_device_push_tokens'],
+    ['supabase/migrations/20260830212508_user_device_push_tokens.sql', 'user_device_push_tokens'],
   ];
   for (const [migration, table] of cases) {
     const sql = read(migration);

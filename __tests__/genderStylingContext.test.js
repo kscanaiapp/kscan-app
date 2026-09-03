@@ -25,11 +25,26 @@ const edgeProviderSource = fs.readFileSync(
   path.join(ROOT, 'services', 'style-chat', 'providers', 'edgeStyleChatProvider.ts'),
   'utf8',
 );
+// MIG-03 (2026-09-02): this test originally read
+// 20260817000001_add_user_stylist_preferences_gender_styling_context.sql, added
+// in the same commit as this test file (26d5e4c). That migration was never
+// actually applied to staging or production -- it was independent, duplicate
+// authorship of a column + CHECK constraint that
+// 20260816120000_user_stylist_preferences_gender_context.sql (Build 29 QA fix
+// #5, source commit 0346506) had already added and shipped to staging one day
+// earlier. Replaying 20260817000001 after its sibling raises an exception
+// (its do-block errors if the constraint already exists), so it has been
+// relocated out of supabase/migrations/ to
+// docs/staging-rebuild/recovered-migrations/SUPERSEDED_20260817000001_....sql
+// as part of the Build 34 migration-governance repair. Repointed at the
+// migration that is actually live -- every assertion below already held for
+// it unchanged (same column, same CHECK clause text, no RLS/grant/auth
+// change, 14-digit timestamp filename).
 const migrationPath = path.join(
   ROOT,
   'supabase',
   'migrations',
-  '20260817000001_add_user_stylist_preferences_gender_styling_context.sql',
+  '20260816120000_user_stylist_preferences_gender_context.sql',
 );
 const migrationSource = fs.readFileSync(migrationPath, 'utf8');
 

@@ -337,7 +337,7 @@ test('vto-generate is NOT cleared for automatic deployment', () => {
 });
 
 test('the VTO migration adds no table, bucket, or per-user storage', () => {
-  const migration = read('supabase/migrations/20260830160000_vto_feature_control.sql');
+  const migration = read('supabase/migrations/20260830174616_vto_feature_control.sql');
   for (const forbidden of ['create table', 'storage.buckets', 'storage.objects', 'vto_requests', 'vto_results']) {
     assert.ok(
       !migration.toLowerCase().includes(forbidden),
@@ -349,7 +349,7 @@ test('the VTO migration adds no table, bucket, or per-user storage', () => {
 });
 
 test('the VTO control policy widens app_config reads by exactly one key', () => {
-  const migration = read('supabase/migrations/20260830160000_vto_feature_control.sql');
+  const migration = read('supabase/migrations/20260830174616_vto_feature_control.sql');
   // A second, additive policy -- not a rewrite of the feature-freeze one,
   // which would be a way to silently change an unrelated grant.
   assert.ok(migration.includes('create policy "Allow public read for VTO feature control"'));

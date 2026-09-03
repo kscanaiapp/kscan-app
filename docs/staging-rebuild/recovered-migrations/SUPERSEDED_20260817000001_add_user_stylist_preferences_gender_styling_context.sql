@@ -1,3 +1,28 @@
+-- SUPERSEDED -- MIG-03 (2026-09-02). Never applied to staging or production
+-- (confirmed read-only via list_migrations on both projects) and NOT a
+-- replayable migration: relocated here, out of supabase/migrations/, from its
+-- original path supabase/migrations/20260817000001_add_user_stylist_preferences_
+-- gender_styling_context.sql, added by commit 26d5e4c one day AFTER
+-- 20260816120000_user_stylist_preferences_gender_context.sql already added the
+-- identical column + CHECK constraint and was applied to staging (2026-08-16,
+-- source commit 0346506) -- independent, duplicate authorship of the same
+-- feature, most likely from a branch that had not picked up 0346506 yet.
+--
+-- This file is UNSAFE to ever replay after its sibling: the do-block below
+-- RAISES AN EXCEPTION if the CHECK constraint already exists (see line ~22
+-- below), rather than skipping like 20260816120000's `if not exists` guard
+-- does. Applying both to any environment in filename order (816 then 817)
+-- would abort the whole migration run on this file. Kept here for historical
+-- reference only -- note its one genuine improvement over the file that
+-- shipped, an existing-invalid-row check before adding the constraint, which
+-- 20260816120000 does not have; if that validation is wanted going forward it
+-- needs a new, forward-only reconciliation migration, not revival of this
+-- file. See config/migration-authority-manifest.json's 20260816120000 entry
+-- and the Build 34 migration-governance repair PR description for the full
+-- reconciliation record.
+--
+-- Original header follows, unmodified:
+--
 -- Fix #5 (Build 29 clean repair): explicit, self-disclosed baseline styling
 -- context for first-use Elise personalization.
 --

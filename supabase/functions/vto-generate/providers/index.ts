@@ -58,7 +58,7 @@ export function resolveVtoProvider(selection: ProviderSelection): ResolveProvide
     // adapter needs a credential.
     //
     // The pre-existing guard was "an operator must name the mock explicitly" --
-    // and 20260830160000_vto_feature_control.sql SEEDS `"provider": "mock"` into
+    // and 20260830174616_vto_feature_control.sql SEEDS `"provider": "mock"` into
     // app_config in every environment it is applied to. So in any environment
     // that had never been retuned, enabling VTO was a ONE-FIELD flip
     // (`enabled: true`) away from serving the placeholder vignette to a real
