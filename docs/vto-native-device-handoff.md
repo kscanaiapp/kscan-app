@@ -1,11 +1,81 @@
 # Live VTO — Native Device Handoff
 
 **Nothing in this document is validated.** No native code in this program has
-been compiled, and none has run on any device. This is the specification a
-developer with a physical device and a real toolchain needs in order to
-produce the first device evidence — and the criteria by which the pose-model
-decision should be made when someone is in a position to measure rather than
-guess.
+been compiled, and none has run on any device or emulator/simulator. This is
+the specification a developer with a physical device and a real toolchain
+needs in order to produce the first device evidence — and the criteria by
+which the pose-model decision should be made when someone is in a position to
+measure rather than guess.
+
+## 0. Emulator-native validation lane — this session's environment findings
+
+A later authorization asked this program to compile and mount the native
+module in a simulator/emulator as an intermediate step short of a physical
+device (Section 1's plan already anticipated this: "Do not claim platform
+support from a simulator, an emulator, or a single flagship" — the emulator
+lane exists to get *architecture* evidence, not device-quality evidence,
+before a physical device is available). This session attempted that and
+could not proceed past the assessment step, for reasons specific to *this
+cloud sandbox*, recorded here so a future session does not repeat the
+exploration:
+
+| Check | Result |
+|---|---|
+| macOS host | Absent (Linux container: `uname -a` → `Linux ... x86_64 GNU/Linux`). Xcode requires macOS; this is not installable into a Linux host by any amount of session time. |
+| `xcodebuild`, `xcrun`, `swift` | Not found |
+| iOS Simulator | Not available — requires Xcode |
+| Android SDK (`$ANDROID_HOME`) | Not installed; unset |
+| `adb`, `emulator` binaries | Not found |
+| `/dev/kvm` | Absent — no hardware-accelerated virtualization, so even a fully provisioned Android SDK could not boot an AVD at usable speed inside this container |
+| Network reachability to `dl.google.com` (Android SDK components, Google's Maven — including the `expo-modules-core` Android AAR) | **403 from this session's egress proxy** — confirmed live, not assumed. Blocks even a compile-only Gradle attempt, independent of the KVM/emulator-binary gaps above. |
+| Network reachability to `repo1.maven.org` (Maven Central) | 200 — reachable, but does not host the Android dependencies this build needs |
+| Java, Gradle | Present (OpenJDK 21, Gradle 8.14.3) — necessary but not sufficient without the two blockers above |
+| `native/android/livevto` | Source files only; no `build.gradle`/`settings.gradle` exists yet, so there is no Gradle project to invoke even before the network/KVM gaps |
+
+**Conclusion for this session:** both platforms' "MANDATORY: compile the
+native module" step is **NOT AVAILABLE**, for reasons that are properties of
+this specific execution environment (no macOS host is possible here at all;
+Android is blocked by network policy and missing virtualization, not by
+missing effort). This is not evidence of a defect in the native scaffolding,
+and it is not the same claim as "physical-device blockers" — see
+`docs/vto-physical-device-blockers.md`, which is about what even a
+*successful* emulator run could never certify. This section is about why no
+emulator run was possible here at all.
+
+**What this session did instead**, staying within what is honestly
+achievable without a native compiler or runtime:
+
+- Extended `native/ios/LiveVTOPerceptionProvider.swift` and
+  `native/android/.../LiveVTOPerceptionProvider.kt` with the Section 4
+  two-mode `FrameSource` / `PerceptionProvider` shape
+  (`RealLocalPoseProvider` TODO stub + `NativeReplayPerceptionProvider`
+  reading the JSON fixture format below) — still unbuilt, still unverified
+  against a real compiler, same status as every other file under `native/`.
+- Added `packages/evaluation/src/trackingStateMachine.ts` — the
+  `trackingAcquired`/`trackingWeak`/`trackingLost`/`trackingRecovered`
+  reference logic the native code above will eventually port, tested in
+  Node against the existing synthetic golden sequences, with a boundary
+  test proving its emitted payloads cannot carry a forbidden key.
+- Added `packages/evaluation/src/nativeReplayFixture.ts` — the
+  `NATIVE_REPLAY_FIXTURE` JSON format `NativeReplayPerceptionProvider`
+  parses, plus a validator and round-trip tests.
+- Added a static-renderer test proving a JSON-round-tripped `BodyFrame` (a
+  stand-in for a native pipeline's export, since no native pipeline ran)
+  renders pixel-identically through the full pipeline — Section 11's
+  compatibility check, honestly scoped: it proves format compatibility, not
+  native execution.
+- Ran a static source audit (`grep` across every native and package source
+  file) for network primitives (`URLSession`, `HttpURLConnection`,
+  `fetch`, `XMLHttpRequest`, `axios`, sockets, …): none exist anywhere in
+  this codebase today. This is real but weak evidence — nothing runs yet,
+  so of course nothing calls the network. It is not a runtime capture and
+  must not be cited as one; see the emulator-native validation lane's
+  Section 7 for what a real offline/privacy test requires.
+
+A session with the required toolchain (a macOS host for iOS; an Android SDK,
+KVM-capable host, and unrestricted network egress to `dl.google.com` for
+Android) starts from these files rather than the bare TODO stubs this
+program began with.
 
 ## 1. Architecture
 

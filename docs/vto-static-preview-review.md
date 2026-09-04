@@ -1,7 +1,8 @@
 # Live VTO — Static Preview Visual Review Package #2
 
-**Human verdict: PENDING.** No human has reviewed this. Nothing below may be
-read as a PASS.
+**Human verdict: PASS**, recorded 2026-09-04 at `37470ca`. See
+`docs/vto-visual-verdicts.md` entry 2 for the full record, including the
+accepted limitations carried forward unchanged from "Still open" below.
 
 This package responds to the recorded **FAIL — DEFORMATION** verdict on
 package #1 at `ee298587` (see `docs/vto-visual-verdicts.md`). Four defects
@@ -173,16 +174,22 @@ measurements burned in), `-04-preview-unadjusted` (lighting comparison), and a
 
 ```
 LANDMARK:              Static preview review package #2 (topology repair)
-SHA:                   (fill in at review time)
-DATE:
+SHA:                   37470ca
+DATE:                  2026-09-04
 FIXTURES:              6 synthetic cases, 2 synthetic garments
-REVIEWER:
-VERDICT:               PASS | FAIL | HOLD        <-- not yet given
-PRIMARY BUCKET IF FAIL: ASSET | ANCHORS | DEFORMATION | COMPOSITING | LIGHTING | HARNESS
-ACCEPTED LIMITATIONS:
-REQUIRED CHANGES:
-NOTES:
+REVIEWER:              Human (program owner)
+VERDICT:               PASS
+PRIMARY BUCKET IF FAIL: n/a
+ACCEPTED LIMITATIONS:  Armpit gap (arms away/crossed); residual aspect
+                       deviation on stress bodies (1.155 broad / 0.864
+                       narrow); broad fixture deliberately outside realistic
+                       human range; boxy lower-torso taper. See "Still open"
+                       above — unchanged, none required for this PASS.
+REQUIRED CHANGES:      None for this gate.
+NOTES:                 Full record in docs/vto-visual-verdicts.md entry 2.
 ```
 
-PASS would mean semantic behavior is sound enough to continue. It would not
-mean photorealistic, and it would not mean customer-ready.
+PASS means semantic behavior is sound enough to continue. It does not mean
+photorealistic, and it does not mean customer-ready. It licenses continued
+isolated Phase 1 work; it does not itself authorize Phase 2 live garment
+rendering.
