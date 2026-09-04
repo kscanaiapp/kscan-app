@@ -465,3 +465,50 @@ test('apply-staging-migration counts only genuinely pending versions', async () 
   assert.equal(pending.length, 1, `expected one pending, got: ${pending.map((p) => p.version).join(', ')}`);
   assert.equal(pending[0].version, '20260902150000');
 });
+
+// -------------------------------------- controlled-deploy workflow gating
+
+test('the controlled-deploy workflow can deploy a function without also applying a migration', () => {
+  // approved-single-migration is skipped on every deploy-only run. GitHub
+  // propagates a skipped ancestor down the needs graph to any job whose `if`
+  // lacks a status function, so deploy-one-function must carry always() or the
+  // workflow can ONLY deploy as part of a run that also applies a migration --
+  // a plain redeploy silently skips deploy, health-check and synthetic-tests.
+  const workflow = fs.readFileSync(
+    path.join(ROOT, '.github', 'workflows', 'staging-controlled-deploy.yml'),
+    'utf8',
+  );
+
+  const deployBlock = workflow.slice(
+    workflow.indexOf('  deploy-one-function:'),
+    workflow.indexOf('  health-check:'),
+  );
+  assert.ok(deployBlock.length > 0, 'deploy-one-function job not found');
+
+  const ifStart = deployBlock.indexOf('    if:');
+  assert.ok(ifStart !== -1, 'deploy-one-function must carry an explicit if:');
+  const ifBlock = deployBlock.slice(ifStart, deployBlock.indexOf('    environment:', ifStart));
+
+  assert.match(ifBlock, /always\(\)/, 'deploy-one-function must be skip-tolerant');
+  // ...and must NOT have become unconditional in the process.
+  assert.match(ifBlock, /needs\.source-validation\.result == 'success'/);
+  assert.match(ifBlock, /needs\.preflight\.result == 'success'/);
+
+  // source-validation's own guard must keep accepting a skipped migration job.
+  const sourceBlock = workflow.slice(
+    workflow.indexOf('  source-validation:'),
+    workflow.indexOf('  deploy-one-function:'),
+  );
+  assert.match(sourceBlock, /always\(\)/);
+  assert.match(sourceBlock, /needs\.approved-single-migration\.result == 'skipped'/);
+});
+
+test('the controlled-deploy workflow still targets staging and never production', () => {
+  const workflow = fs.readFileSync(
+    path.join(ROOT, '.github', 'workflows', 'staging-controlled-deploy.yml'),
+    'utf8',
+  );
+  assert.match(workflow, /EXPECTED_STAGING_REF: yzqjvdfgefveprobvvyw/);
+  assert.match(workflow, /PRODUCTION_REF: wyyuqfdxucjksghsmhry/);
+  assert.match(workflow, /Production project ref is forbidden/);
+});

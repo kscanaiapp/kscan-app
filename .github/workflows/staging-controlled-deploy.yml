@@ -234,7 +234,18 @@ jobs:
     needs:
       - preflight
       - source-validation
-    if: needs.source-validation.result == 'success'
+    # `always()` is required, not cosmetic. approved-single-migration is skipped
+    # on every deploy-only run (no migration to apply), and GitHub propagates that
+    # skip down the needs graph to any job whose `if` lacks a status function --
+    # even though source-validation itself succeeded via its own always() guard.
+    # Without this, the workflow could ONLY deploy a function as part of a run
+    # that also applied a migration; a plain redeploy silently skipped deploy,
+    # health-check and synthetic-tests. The gate is unchanged: preflight AND
+    # source-validation must both have succeeded.
+    if: |
+      always() &&
+      needs.preflight.result == 'success' &&
+      needs.source-validation.result == 'success'
     environment: staging
     outputs:
       manifest_path: ${{ steps.deploy.outputs.manifest_path }}
