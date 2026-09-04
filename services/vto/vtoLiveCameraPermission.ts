@@ -9,11 +9,20 @@
  * The prompt belongs at exactly one place: the customer explicitly selecting
  * or entering LIVE, on a build where Live is otherwise eligible.
  *
- * NO PERMISSION LOOP. A denial is remembered for the life of the process and
- * `ensureLiveCameraPermission` will not re-prompt after the OS says the
- * customer cannot be asked again. Re-asking on every tap is the loop this
- * guard exists to prevent -- and a denial is not an error state anyway: Live
- * simply is not available, and AI Photo remains usable exactly as before.
+ * NO PERMISSION LOOP, INCLUDING A CONCURRENT ONE. A denial is remembered for
+ * the life of the process and `ensureLiveCameraPermission` will not re-prompt
+ * after the OS says the customer cannot be asked again. Re-asking on every tap
+ * is the loop this guard exists to prevent -- and a denial is not an error
+ * state anyway: Live simply is not available, and AI Photo remains usable
+ * exactly as before.
+ *
+ * VTO-HA-002. The refusal memo alone was not enough. It is only written after
+ * `requestPermissions()` RESOLVES, so two calls that both started while the
+ * first dialog was still open each saw `blockedFromAsking === false` and each
+ * raised a system dialog -- which is exactly the rapid-double-tap case, since
+ * the Live entry button stays enabled for as long as the prompt is up. An
+ * in-flight promise is therefore shared: a second caller arriving while a
+ * prompt is open awaits the SAME request instead of starting a second one.
  *
  * This module owns no UI and never navigates to Settings on its own.
  */
@@ -85,8 +94,13 @@ export async function readLiveCameraPermission(
  *  authority in any case. */
 let blockedFromAsking = false;
 
+/** The prompt currently on screen, if any. Shared so concurrent callers join
+ *  one dialog rather than stacking two -- see VTO-HA-002 in the header. */
+let inFlightPrompt: Promise<EnsureLiveCameraPermissionResult> | null = null;
+
 export function resetLiveCameraPermissionMemory(): void {
   blockedFromAsking = false;
+  inFlightPrompt = null;
 }
 
 export interface EnsureLiveCameraPermissionResult {
@@ -106,6 +120,24 @@ export interface EnsureLiveCameraPermissionResult {
  * to stay on AI Photo, not to retry.
  */
 export async function ensureLiveCameraPermission(
+  deps?: {
+    getPermissions?: PermissionReader;
+    requestPermissions?: PermissionReader;
+  },
+): Promise<EnsureLiveCameraPermissionResult> {
+  // A prompt is already on screen. Await it rather than raising a second one:
+  // the OS has one camera dialog and the customer answers it once.
+  if (inFlightPrompt) return inFlightPrompt;
+  const attempt = runEnsureLiveCameraPermission(deps);
+  inFlightPrompt = attempt;
+  try {
+    return await attempt;
+  } finally {
+    if (inFlightPrompt === attempt) inFlightPrompt = null;
+  }
+}
+
+async function runEnsureLiveCameraPermission(
   deps?: {
     getPermissions?: PermissionReader;
     requestPermissions?: PermissionReader;

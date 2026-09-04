@@ -80,6 +80,20 @@ export type LiveVtoEventName = (typeof LIVE_VTO_EVENTS)[number];
  * assertNoRawLiveData below, and exercised against a deliberately poisoned
  * payload in __tests__/vtoLivePrivacyBoundary.test.js -- a guard that has
  * never caught anything is not evidence that anything was caught.
+ *
+ * THE UNION IS NOW MECHANICAL, NOT MANUAL. This list must be a SUPERSET of
+ * both source lists at #291's own SHA, and
+ * __tests__/vtoLiveContractPromotion.test.js reads them out of
+ * kscan-live-vto/ on that ref and asserts it. It is a superset rather than an
+ * equality because the plural/byte spellings below ('frames', 'masks',
+ * 'imageBytes') are deliberate hardening the research lane does not carry.
+ *
+ * VTO-HA-001. That test did not exist when this list was first written, and
+ * the list was one key short of the union it claimed to be: 'lightingAnalysis'
+ * -- a LOCAL_ONLY_DURING_LIVE class in #291's privacy.ts -- was absent, so a
+ * payload carrying camera-derived scene analysis passed the guard and reached
+ * the reducer. Transcribing a security list by hand is how that happens; the
+ * repair is the test, not just the missing entry.
  */
 export const FORBIDDEN_LIVE_EVENT_PAYLOAD_KEYS = [
   'frame',
@@ -100,6 +114,9 @@ export const FORBIDDEN_LIVE_EVENT_PAYLOAD_KEYS = [
   'bodyImagery',
   'cameraDerivedGeometry',
   'captureReplayBuffer',
+  // #291 privacy.ts LOCAL_ONLY_DURING_LIVE. Camera-derived scene measurement:
+  // local during a live session exactly like the geometry classes above.
+  'lightingAnalysis',
 ] as const;
 export type ForbiddenLiveEventPayloadKey = (typeof FORBIDDEN_LIVE_EVENT_PAYLOAD_KEYS)[number];
 

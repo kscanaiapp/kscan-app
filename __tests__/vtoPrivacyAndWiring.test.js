@@ -692,12 +692,42 @@ const VTO_ALLOWED_LAZY_REQUIRES = {
   'services/vto/vtoLiveCameraPermission.ts': ['expo-camera'],
 };
 
+/**
+ * VTO-HA-005. Both scans below used to accept ONLY single-quoted literals:
+ * `/from\s+'([^']+)'/` and `/require\(\s*'([^']+)'/`. Five other ways of
+ * acquiring a dependency were therefore invisible to the control -- a double
+ * quote, a backtick, `import()`, and a computed specifier all passed a module
+ * straight through an allowlist that reported it as unchanged. A guard that a
+ * different quote character defeats is not a guard, and this one is what stands
+ * between a VTO surface and a Closet writer.
+ *
+ * The specifier matchers below accept all three quotings for both `require()`
+ * and dynamic `import()`, and a separate assertion refuses a NON-LITERAL
+ * argument outright: a computed specifier cannot be checked against an
+ * allowlist at all, so it is not allowed to exist in an enrolled module.
+ */
+const SPECIFIER = String.raw`\s*(?:'([^']+)'|"([^"]+)"|\`([^\`]+)\`)\s*`;
+const STATIC_IMPORT_RE = new RegExp(String.raw`from${SPECIFIER}`, 'g');
+const DYNAMIC_IMPORT_RE = new RegExp(String.raw`(?:require|import)\(${SPECIFIER}\)`, 'g');
+/** `require(` / `import(` whose argument is not a plain string literal. */
+const NON_LITERAL_IMPORT_RE = new RegExp(String.raw`(?:require|import)\(\s*(?!['"\`])[^)]`, 'g');
+
+/** All specifiers a matcher found, from whichever quote group matched. */
+function specifiers(source, regex) {
+  return [
+    ...new Set(
+      [...source.matchAll(regex)].map((m) => m[1] ?? m[2] ?? m[3]).filter(Boolean),
+    ),
+  ].sort();
+}
+
 test('VTO-NC-010: no VTO surface may acquire a dependency nobody approved', () => {
   for (const [file, allowed] of Object.entries(VTO_ALLOWED_IMPORTS)) {
-    const source = read(file);
-    const imported = [
-      ...new Set([...source.matchAll(/from\s+'([^']+)'/g)].map((m) => m[1])),
-    ].sort();
+    // Comments are stripped first. They were not before, because the scan only
+    // saw single quotes and prose rarely uses them; broadening to double quotes
+    // and backticks made an ordinary sentence like `a different question from
+    // "a new request started"` read as an import. A comment is not a dependency.
+    const imported = specifiers(code(file), STATIC_IMPORT_RE);
     assert.deepEqual(
       imported,
       [...allowed].sort(),
@@ -710,12 +740,11 @@ test('VTO-NC-010: no VTO surface may acquire a dependency nobody approved', () =
 test('VTO-NC-010: a lazily-required module is guarded exactly like a static import', () => {
   // Every VTO module in the allowlist is scanned, not just the two expected to
   // have requires -- so a NEW lazy require smuggled into any of them fails
-  // here instead of slipping past the `from '...'` scan above.
+  // here instead of slipping past the static-import scan above. Since
+  // VTO-HA-005 this covers dynamic import() and every quoting style, not only
+  // a single-quoted require().
   for (const file of Object.keys(VTO_ALLOWED_IMPORTS)) {
-    const source = code(file);
-    const required = [
-      ...new Set([...source.matchAll(/require\(\s*'([^']+)'/g)].map((m) => m[1])),
-    ].sort();
+    const required = specifiers(code(file), DYNAMIC_IMPORT_RE);
     const allowed = [...(VTO_ALLOWED_LAZY_REQUIRES[file] ?? [])].sort();
     assert.deepEqual(
       required,
@@ -724,6 +753,48 @@ test('VTO-NC-010: a lazily-required module is guarded exactly like a static impo
         + 'a dependency: add it to VTO_ALLOWED_LAZY_REQUIRES and say why.',
     );
   }
+});
+
+test('VTO-HA-005: an enrolled VTO module may not compute a module specifier', () => {
+  // `require(name)` cannot be checked against an allowlist, so the allowlist
+  // has to refuse it rather than silently report the module as clean.
+  for (const file of Object.keys(VTO_ALLOWED_IMPORTS)) {
+    const offenders = [...code(file).matchAll(NON_LITERAL_IMPORT_RE)].map((m) => m[0]);
+    assert.deepEqual(
+      offenders,
+      [],
+      `${file} builds a module specifier at runtime. A computed specifier is a `
+        + 'dependency this control cannot see; use a string literal.',
+    );
+  }
+});
+
+test('VTO-HA-005 NEGATIVE CONTROL: every dependency-acquisition form is now seen', () => {
+  // The guard is only as good as its matchers, so the matchers are themselves
+  // exercised against the exact evasions that used to work.
+  const evasions = {
+    "single quote require": ["const m = require('sneaky');", 'sneaky'],
+    'double quote require': ['const m = require("sneaky");', 'sneaky'],
+    'backtick require': ['const m = require(`sneaky`);', 'sneaky'],
+    'padded double quote': ['const m = require(  "sneaky"  );', 'sneaky'],
+    'dynamic import': ["const m = await import('sneaky');", 'sneaky'],
+  };
+  for (const [label, [source, expected]] of Object.entries(evasions)) {
+    assert.deepEqual(
+      specifiers(source, DYNAMIC_IMPORT_RE),
+      [expected],
+      `${label} evades the lazy-dependency scan.`,
+    );
+  }
+  for (const [label, source] of Object.entries({
+    'double quote import': 'import x from "sneaky";',
+    'backtick re-export': 'export * from `sneaky`;',
+  })) {
+    assert.deepEqual(specifiers(source, STATIC_IMPORT_RE), ['sneaky'], `${label} evades the static scan.`);
+  }
+  // And a computed specifier is caught by shape, since it cannot be resolved.
+  assert.equal([...'const m = require(name);'.matchAll(NON_LITERAL_IMPORT_RE)].length, 1);
+  assert.equal([..."const m = require('ok');".matchAll(NON_LITERAL_IMPORT_RE)].length, 0);
 });
 
 test('VTO-NC-010: a successful generation reaches no ownership or persistence call', () => {

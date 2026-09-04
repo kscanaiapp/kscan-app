@@ -43,6 +43,11 @@ export interface VtoLivePanelProps {
    *  it can never become a generative input, because the handoff refuses any
    *  frame that is not a PERSON_FRAME. */
   previewUri: string | null;
+  /** True while a Photoreal capture is already running. The control is disabled
+   *  rather than swallowing the tap: the hook refuses a concurrent request
+   *  (VTO-HA-003) and a button that ignores you without saying so is worse than
+   *  one that tells you it is busy. */
+  photorealPending: boolean;
   onEnter: () => void;
   onClose: () => void;
   onSwitchToAiPhoto: () => void;
@@ -75,6 +80,7 @@ export function VtoLivePanel({
   entered,
   photorealFailure,
   previewUri,
+  photorealPending,
   onEnter,
   onClose,
   onSwitchToAiPhoto,
@@ -164,15 +170,15 @@ export function VtoLivePanel({
 
       <View style={styles.actions}>
         <PrimaryButton
-          title="Create AI photo"
+          title={photorealPending ? 'Creating AI photo…' : 'Create AI photo'}
           onPress={onRequestPhotoreal}
-          disabled={!canCapture}
+          disabled={!canCapture || photorealPending}
           testID="vto-live-photoreal"
         />
         <SecondaryButton
           title="Capture preview"
           onPress={onCapturePreview}
-          disabled={!canCapture}
+          disabled={!canCapture || photorealPending}
           testID="vto-live-capture-preview"
         />
         <SecondaryButton
