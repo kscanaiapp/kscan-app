@@ -1,0 +1,14 @@
+{
+  "name": "@kscan-live-vto/realism",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Phase 3 (Visual Realism + Hybrid Generative Bridge) temporal segmentation contract, mask temporal-stability layer, and semantic occlusion primitives. Phase 3 build plan Sections 8-11, 18.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "UNLICENSED",
+  "dependencies": {},
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test dist/__tests__/*.test.js"
+  }
+}

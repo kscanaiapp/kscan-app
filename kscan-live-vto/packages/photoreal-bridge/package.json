@@ -1,0 +1,17 @@
+{
+  "name": "@kscan-live-vto/photoreal-bridge",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Phase 3 (Visual Realism + Hybrid Generative Bridge) Live-to-Photoreal intent contract, privacy state model, explicit still capture, no-raw-live-frame payload guard, and a test-only mock adapter to the existing governed vto-generate request shape. Phase 3 build plan Sections 20-27.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@kscan-live-vto/contract": "^0.1.0",
+    "@kscan-live-vto/garment-contract": "^0.1.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test dist/__tests__/*.test.js"
+  }
+}

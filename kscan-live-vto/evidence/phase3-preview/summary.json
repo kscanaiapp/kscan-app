@@ -1,0 +1,955 @@
+{
+  "generatedFrom": {
+    "gitSha": "727969f0b9f24f2f8476739e0b5ebb9b98acb8d9",
+    "rendererVersion": "0.2.0",
+    "deformationAlgorithm": "affine-mls@asset-pipeline-0.1.0"
+  },
+  "evidenceClass": "SYNTHETIC/PRECOMPUTED — MECHANICS EVIDENCE ONLY",
+  "segmentationEngine": "NOT YET IMPLEMENTED — PRECOMPUTED TEST MASKS ONLY, SEE docs/vto-phase3-native-blockers.md",
+  "baselineNote": "'01-static-baseline' already carries Package #2's existing gain-based lighting adjustment (Phase 1-2, unchanged). '04-lighting-adjusted' layers Phase 3's NEW gamma/exposure control on top of that, not a replacement for it.",
+  "cases": [
+    {
+      "caseId": "case-1-neutral-plain-tee",
+      "title": "CASE 1 — NEUTRAL POSE, PLAIN TEE",
+      "garment": "fixture-tee-plain-001",
+      "images": {
+        "source": {
+          "file": "case-1-neutral-plain-tee-00-person-fixture.png",
+          "bytes": 7601,
+          "width": 720,
+          "height": 960
+        },
+        "staticBaseline": {
+          "file": "case-1-neutral-plain-tee-01-static-baseline.png",
+          "bytes": 19718,
+          "width": 720,
+          "height": 960
+        },
+        "occlusionOnly": {
+          "file": "case-1-neutral-plain-tee-02-occlusion-only.png",
+          "bytes": 19718,
+          "width": 720,
+          "height": 960
+        },
+        "edgeImproved": {
+          "sameAs": "02-occlusion-only",
+          "note": "Phase 3 adds edge diagnostics only; see edgeDiagnostics below."
+        },
+        "lightingAdjusted": {
+          "file": "case-1-neutral-plain-tee-04-lighting-adjusted.png",
+          "bytes": 19710,
+          "width": 720,
+          "height": 960
+        },
+        "finalP3Composite": {
+          "file": "case-1-neutral-plain-tee-06-final-p3-composite.png",
+          "bytes": 20183,
+          "width": 720,
+          "height": 960
+        },
+        "shadowAdjusted": {
+          "sameAs": "06-final-p3-composite"
+        },
+        "diagnosticOverlay": {
+          "file": "case-1-neutral-plain-tee-07-diagnostic-overlay.png",
+          "bytes": 23949,
+          "width": 720,
+          "height": 960
+        }
+      },
+      "rigidGate": {
+        "passed": true,
+        "findings": [],
+        "measurements": {
+          "garmentShoulderSpanPx": 284.10771151350326,
+          "bodyShoulderSpanPx": 244.9204409599166,
+          "scaleRatio": 1.1600000000000001,
+          "hemBelowShoulderPx": 390.5371237562569,
+          "necklineToNeckBasePx": 6.707707614379114,
+          "necklineToleranceP": 134.70624252795415,
+          "garmentCentroidToTorsoCentroidPx": 31.5319218070911,
+          "torsoDiagonalPx": 375.1438763994422
+        }
+      },
+      "semanticScene": {
+        "contributingRegions": [],
+        "label": "n/a — no region populated for this case"
+      },
+      "edgeDiagnostics": {
+        "garmentLayerAlphaHistogram": {
+          "fullyOpaque": 123607,
+          "fullyTransparent": 564560,
+          "partial": 3033,
+          "total": 691200
+        },
+        "garmentLayerEdgePartialAlphaRatio": 0.023949778900821225,
+        "finalCompositeOpaqueBoundingBox": {
+          "minX": 0,
+          "minY": 0,
+          "maxX": 719,
+          "maxY": 959
+        }
+      },
+      "gammaExposureAdjustment": {
+        "gamma": 0.9944538284101428,
+        "clamped": false
+      },
+      "shadowRegions": [
+        {
+          "x": 318.384,
+          "y": 288,
+          "w": 83.23199999999999,
+          "h": 12.239999999999998,
+          "intensity": 0.1
+        },
+        {
+          "x": 237.60000000000002,
+          "y": 288,
+          "w": 29.375999999999994,
+          "h": 14.687999999999997,
+          "intensity": 0.07
+        },
+        {
+          "x": 453.024,
+          "y": 288,
+          "w": 29.375999999999994,
+          "h": 14.687999999999997,
+          "intensity": 0.07
+        }
+      ],
+      "productFidelity": {
+        "logoCanary": null,
+        "sampledColor": {
+          "before": {
+            "r": 179,
+            "g": 58,
+            "b": 60
+          },
+          "after": {
+            "r": 179,
+            "g": 58,
+            "b": 60
+          }
+        },
+        "hueDeltaDegrees": 0,
+        "preservesChannelBrightness80pct": true,
+        "silhouetteUnchanged": true
+      },
+      "foregroundOverGarmentPixels": 0,
+      "manifestFile": "case-1-neutral-plain-tee-manifest.json",
+      "status": "RENDERED"
+    },
+    {
+      "caseId": "case-2-logo-tee-canary",
+      "title": "CASE 2 — LOGO/TEXT TEE (CANARY)",
+      "garment": "fixture-tee-logo-002",
+      "images": {
+        "source": {
+          "file": "case-2-logo-tee-canary-00-person-fixture.png",
+          "bytes": 7601,
+          "width": 720,
+          "height": 960
+        },
+        "staticBaseline": {
+          "file": "case-2-logo-tee-canary-01-static-baseline.png",
+          "bytes": 30373,
+          "width": 720,
+          "height": 960
+        },
+        "occlusionOnly": {
+          "file": "case-2-logo-tee-canary-02-occlusion-only.png",
+          "bytes": 30373,
+          "width": 720,
+          "height": 960
+        },
+        "edgeImproved": {
+          "sameAs": "02-occlusion-only",
+          "note": "Phase 3 adds edge diagnostics only; see edgeDiagnostics below."
+        },
+        "lightingAdjusted": {
+          "file": "case-2-logo-tee-canary-04-lighting-adjusted.png",
+          "bytes": 30327,
+          "width": 720,
+          "height": 960
+        },
+        "finalP3Composite": {
+          "file": "case-2-logo-tee-canary-06-final-p3-composite.png",
+          "bytes": 30529,
+          "width": 720,
+          "height": 960
+        },
+        "shadowAdjusted": {
+          "sameAs": "06-final-p3-composite"
+        },
+        "diagnosticOverlay": {
+          "file": "case-2-logo-tee-canary-07-diagnostic-overlay.png",
+          "bytes": 34742,
+          "width": 720,
+          "height": 960
+        }
+      },
+      "rigidGate": {
+        "passed": true,
+        "findings": [],
+        "measurements": {
+          "garmentShoulderSpanPx": 284.10771151350326,
+          "bodyShoulderSpanPx": 244.9204409599166,
+          "scaleRatio": 1.1600000000000001,
+          "hemBelowShoulderPx": 390.5371237562569,
+          "necklineToNeckBasePx": 6.707707614379114,
+          "necklineToleranceP": 134.70624252795415,
+          "garmentCentroidToTorsoCentroidPx": 31.5319218070911,
+          "torsoDiagonalPx": 375.1438763994422
+        }
+      },
+      "semanticScene": {
+        "contributingRegions": [],
+        "label": "n/a — no region populated for this case"
+      },
+      "edgeDiagnostics": {
+        "garmentLayerAlphaHistogram": {
+          "fullyOpaque": 123607,
+          "fullyTransparent": 564560,
+          "partial": 3033,
+          "total": 691200
+        },
+        "garmentLayerEdgePartialAlphaRatio": 0.023949778900821225,
+        "finalCompositeOpaqueBoundingBox": {
+          "minX": 0,
+          "minY": 0,
+          "maxX": 719,
+          "maxY": 959
+        }
+      },
+      "gammaExposureAdjustment": {
+        "gamma": 1.045614971743763,
+        "clamped": false
+      },
+      "shadowRegions": [
+        {
+          "x": 318.384,
+          "y": 288,
+          "w": 83.23199999999999,
+          "h": 12.239999999999998,
+          "intensity": 0.1
+        },
+        {
+          "x": 237.60000000000002,
+          "y": 288,
+          "w": 29.375999999999994,
+          "h": 14.687999999999997,
+          "intensity": 0.07
+        },
+        {
+          "x": 453.024,
+          "y": 288,
+          "w": 29.375999999999994,
+          "h": 14.687999999999997,
+          "intensity": 0.07
+        }
+      ],
+      "productFidelity": {
+        "logoCanary": {
+          "horizontalScale": 1.3755281677755753,
+          "verticalScale": 1.3592376494370215,
+          "aspectRatioChange": 1.0119850405448239,
+          "shearIndicator": 0.00710027065253849,
+          "mirrored": false
+        },
+        "sampledColor": {
+          "before": {
+            "r": 38,
+            "g": 48,
+            "b": 65
+          },
+          "after": {
+            "r": 35,
+            "g": 44,
+            "b": 61
+          }
+        },
+        "hueDeltaDegrees": 1.4529914529914834,
+        "preservesChannelBrightness80pct": true,
+        "silhouetteUnchanged": true
+      },
+      "foregroundOverGarmentPixels": 0,
+      "manifestFile": "case-2-logo-tee-canary-manifest.json",
+      "status": "RENDERED"
+    },
+    {
+      "caseId": "case-3-forearm-crossing",
+      "title": "CASE 3 — FOREARM CROSSING",
+      "garment": "fixture-tee-plain-001",
+      "images": {
+        "source": {
+          "file": "case-3-forearm-crossing-00-person-fixture.png",
+          "bytes": 6866,
+          "width": 720,
+          "height": 960
+        },
+        "staticBaseline": {
+          "file": "case-3-forearm-crossing-01-static-baseline.png",
+          "bytes": 19057,
+          "width": 720,
+          "height": 960
+        },
+        "occlusionOnly": {
+          "file": "case-3-forearm-crossing-02-occlusion-only.png",
+          "bytes": 19181,
+          "width": 720,
+          "height": 960
+        },
+        "edgeImproved": {
+          "sameAs": "02-occlusion-only",
+          "note": "Phase 3 adds edge diagnostics only; see edgeDiagnostics below."
+        },
+        "lightingAdjusted": {
+          "file": "case-3-forearm-crossing-04-lighting-adjusted.png",
+          "bytes": 19181,
+          "width": 720,
+          "height": 960
+        },
+        "finalP3Composite": {
+          "file": "case-3-forearm-crossing-06-final-p3-composite.png",
+          "bytes": 19643,
+          "width": 720,
+          "height": 960
+        },
+        "shadowAdjusted": {
+          "sameAs": "06-final-p3-composite"
+        },
+        "diagnosticOverlay": {
+          "file": "case-3-forearm-crossing-07-diagnostic-overlay.png",
+          "bytes": 23552,
+          "width": 720,
+          "height": 960
+        }
+      },
+      "rigidGate": {
+        "passed": true,
+        "findings": [],
+        "measurements": {
+          "garmentShoulderSpanPx": 284.10771151350326,
+          "bodyShoulderSpanPx": 244.9204409599166,
+          "scaleRatio": 1.1600000000000001,
+          "hemBelowShoulderPx": 390.5371237562569,
+          "necklineToNeckBasePx": 6.707707614379114,
+          "necklineToleranceP": 134.70624252795415,
+          "garmentCentroidToTorsoCentroidPx": 31.5319218070911,
+          "torsoDiagonalPx": 375.1438763994422
+        }
+      },
+      "semanticScene": {
+        "contributingRegions": [
+          "forearm_hand"
+        ],
+        "label": "SEMANTIC MASK: PRECOMPUTED — MODEL NOT VALIDATED"
+      },
+      "edgeDiagnostics": {
+        "garmentLayerAlphaHistogram": {
+          "fullyOpaque": 122208,
+          "fullyTransparent": 565983,
+          "partial": 3009,
+          "total": 691200
+        },
+        "garmentLayerEdgePartialAlphaRatio": 0.024030283427969045,
+        "finalCompositeOpaqueBoundingBox": {
+          "minX": 0,
+          "minY": 0,
+          "maxX": 719,
+          "maxY": 959
+        }
+      },
+      "gammaExposureAdjustment": {
+        "gamma": 1.0107054138059266,
+        "clamped": false
+      },
+      "shadowRegions": [
+        {
+          "x": 318.384,
+          "y": 288,
+          "w": 83.23199999999999,
+          "h": 12.239999999999998,
+          "intensity": 0.1
+        },
+        {
+          "x": 237.60000000000002,
+          "y": 288,
+          "w": 29.375999999999994,
+          "h": 14.687999999999997,
+          "intensity": 0.07
+        },
+        {
+          "x": 453.024,
+          "y": 288,
+          "w": 29.375999999999994,
+          "h": 14.687999999999997,
+          "intensity": 0.07
+        }
+      ],
+      "productFidelity": {
+        "logoCanary": null,
+        "sampledColor": {
+          "before": {
+            "r": 185,
+            "g": 68,
+            "b": 56
+          },
+          "after": {
+            "r": 184,
+            "g": 67,
+            "b": 55
+          }
+        },
+        "hueDeltaDegrees": 0,
+        "preservesChannelBrightness80pct": true,
+        "silhouetteUnchanged": true
+      },
+      "foregroundOverGarmentPixels": 30037,
+      "manifestFile": "case-3-forearm-crossing-manifest.json",
+      "status": "RENDERED"
+    },
+    {
+      "caseId": "case-4-both-arms-torso",
+      "title": "CASE 4 — BOTH ARMS INTERACTING WITH TORSO",
+      "garment": "fixture-tee-plain-001",
+      "images": {
+        "source": {
+          "file": "case-4-both-arms-torso-00-person-fixture.png",
+          "bytes": 6879,
+          "width": 720,
+          "height": 960
+        },
+        "staticBaseline": {
+          "file": "case-4-both-arms-torso-01-static-baseline.png",
+          "bytes": 19386,
+          "width": 720,
+          "height": 960
+        },
+        "occlusionOnly": {
+          "file": "case-4-both-arms-torso-02-occlusion-only.png",
+          "bytes": 19292,
+          "width": 720,
+          "height": 960
+        },
+        "edgeImproved": {
+          "sameAs": "02-occlusion-only",
+          "note": "Phase 3 adds edge diagnostics only; see edgeDiagnostics below."
+        },
+        "lightingAdjusted": {
+          "file": "case-4-both-arms-torso-04-lighting-adjusted.png",
+          "bytes": 19293,
+          "width": 720,
+          "height": 960
+        },
+        "finalP3Composite": {
+          "file": "case-4-both-arms-torso-06-final-p3-composite.png",
+          "bytes": 19744,
+          "width": 720,
+          "height": 960
+        },
+        "shadowAdjusted": {
+          "sameAs": "06-final-p3-composite"
+        },
+        "diagnosticOverlay": {
+          "file": "case-4-both-arms-torso-07-diagnostic-overlay.png",
+          "bytes": 24826,
+          "width": 720,
+          "height": 960
+        }
+      },
+      "rigidGate": {
+        "passed": true,
+        "findings": [],
+        "measurements": {
+          "garmentShoulderSpanPx": 284.1077115135033,
+          "bodyShoulderSpanPx": 244.92044095991665,
+          "scaleRatio": 1.1600000000000001,
+          "hemBelowShoulderPx": 390.5371237562572,
+          "necklineToNeckBasePx": 6.707707614379132,
+          "necklineToleranceP": 134.70624252795417,
+          "garmentCentroidToTorsoCentroidPx": 31.531921807091216,
+          "torsoDiagonalPx": 375.1438763994422
+        }
+      },
+      "semanticScene": {
+        "contributingRegions": [
+          "forearm_hand",
+          "upper_arm"
+        ],
+        "label": "SEMANTIC MASK: PRECOMPUTED — MODEL NOT VALIDATED"
+      },
+      "edgeDiagnostics": {
+        "garmentLayerAlphaHistogram": {
+          "fullyOpaque": 122197,
+          "fullyTransparent": 565991,
+          "partial": 3012,
+          "total": 691200
+        },
+        "garmentLayerEdgePartialAlphaRatio": 0.02405577873795015,
+        "finalCompositeOpaqueBoundingBox": {
+          "minX": 0,
+          "minY": 0,
+          "maxX": 719,
+          "maxY": 959
+        }
+      },
+      "gammaExposureAdjustment": {
+        "gamma": 1.0105658752244402,
+        "clamped": false
+      },
+      "shadowRegions": [
+        {
+          "x": 324.10125430937603,
+          "y": 285.6097612767617,
+          "w": 83.16313363640299,
+          "h": 12.229872593588674,
+          "intensity": 0.1
+        },
+        {
+          "x": 243.38409519169082,
+          "y": 285.6097612767617,
+          "w": 29.351694224612814,
+          "h": 14.675847112306407,
+          "intensity": 0.07
+        },
+        {
+          "x": 458.6298528388515,
+          "y": 285.6097612767617,
+          "w": 29.351694224612814,
+          "h": 14.675847112306407,
+          "intensity": 0.07
+        }
+      ],
+      "productFidelity": {
+        "logoCanary": null,
+        "sampledColor": {
+          "before": {
+            "r": 185,
+            "g": 68,
+            "b": 56
+          },
+          "after": {
+            "r": 184,
+            "g": 67,
+            "b": 55
+          }
+        },
+        "hueDeltaDegrees": 0,
+        "preservesChannelBrightness80pct": true,
+        "silhouetteUnchanged": true
+      },
+      "foregroundOverGarmentPixels": 34033,
+      "manifestFile": "case-4-both-arms-torso-manifest.json",
+      "status": "RENDERED"
+    },
+    {
+      "caseId": "case-5-hair-over-shoulder",
+      "title": "CASE 5 — HAIR-OVER-SHOULDER SEMANTIC CASE",
+      "garment": "fixture-tee-plain-001",
+      "images": {
+        "source": {
+          "file": "case-5-hair-over-shoulder-00-person-fixture.png",
+          "bytes": 7620,
+          "width": 720,
+          "height": 960
+        },
+        "staticBaseline": {
+          "file": "case-5-hair-over-shoulder-01-static-baseline.png",
+          "bytes": 19815,
+          "width": 720,
+          "height": 960
+        },
+        "occlusionOnly": {
+          "file": "case-5-hair-over-shoulder-02-occlusion-only.png",
+          "bytes": 20842,
+          "width": 720,
+          "height": 960
+        },
+        "edgeImproved": {
+          "sameAs": "02-occlusion-only",
+          "note": "Phase 3 adds edge diagnostics only; see edgeDiagnostics below."
+        },
+        "lightingAdjusted": {
+          "file": "case-5-hair-over-shoulder-04-lighting-adjusted.png",
+          "bytes": 20824,
+          "width": 720,
+          "height": 960
+        },
+        "finalP3Composite": {
+          "file": "case-5-hair-over-shoulder-06-final-p3-composite.png",
+          "bytes": 21260,
+          "width": 720,
+          "height": 960
+        },
+        "shadowAdjusted": {
+          "sameAs": "06-final-p3-composite"
+        },
+        "diagnosticOverlay": {
+          "file": "case-5-hair-over-shoulder-07-diagnostic-overlay.png",
+          "bytes": 23961,
+          "width": 720,
+          "height": 960
+        }
+      },
+      "rigidGate": {
+        "passed": true,
+        "findings": [],
+        "measurements": {
+          "garmentShoulderSpanPx": 284.10771151350326,
+          "bodyShoulderSpanPx": 244.9204409599166,
+          "scaleRatio": 1.1600000000000001,
+          "hemBelowShoulderPx": 390.5371237562569,
+          "necklineToNeckBasePx": 6.707707614379114,
+          "necklineToleranceP": 134.70624252795415,
+          "garmentCentroidToTorsoCentroidPx": 31.5319218070911,
+          "torsoDiagonalPx": 375.1438763994422
+        }
+      },
+      "semanticScene": {
+        "contributingRegions": [
+          "hair"
+        ],
+        "label": "SEMANTIC MASK: PRECOMPUTED — MODEL NOT VALIDATED"
+      },
+      "edgeDiagnostics": {
+        "garmentLayerAlphaHistogram": {
+          "fullyOpaque": 123607,
+          "fullyTransparent": 564560,
+          "partial": 3033,
+          "total": 691200
+        },
+        "garmentLayerEdgePartialAlphaRatio": 0.023949778900821225,
+        "finalCompositeOpaqueBoundingBox": {
+          "minX": 0,
+          "minY": 0,
+          "maxX": 719,
+          "maxY": 959
+        }
+      },
+      "gammaExposureAdjustment": {
+        "gamma": 0.9946451595094744,
+        "clamped": false
+      },
+      "shadowRegions": [
+        {
+          "x": 318.384,
+          "y": 288,
+          "w": 83.23199999999999,
+          "h": 12.239999999999998,
+          "intensity": 0.1
+        },
+        {
+          "x": 237.60000000000002,
+          "y": 288,
+          "w": 29.375999999999994,
+          "h": 14.687999999999997,
+          "intensity": 0.07
+        },
+        {
+          "x": 453.024,
+          "y": 288,
+          "w": 29.375999999999994,
+          "h": 14.687999999999997,
+          "intensity": 0.07
+        }
+      ],
+      "productFidelity": {
+        "logoCanary": null,
+        "sampledColor": {
+          "before": {
+            "r": 179,
+            "g": 58,
+            "b": 60
+          },
+          "after": {
+            "r": 179,
+            "g": 58,
+            "b": 60
+          }
+        },
+        "hueDeltaDegrees": 0,
+        "preservesChannelBrightness80pct": true,
+        "silhouetteUnchanged": true
+      },
+      "foregroundOverGarmentPixels": 18845,
+      "manifestFile": "case-5-hair-over-shoulder-manifest.json",
+      "status": "RENDERED"
+    },
+    {
+      "caseId": "case-7-dark-scene-light-garment",
+      "title": "CASE 7 — LIGHTING MISMATCH: DARK SCENE / LIGHT GARMENT",
+      "garment": "fixture-tee-plain-light-p3",
+      "images": {
+        "source": {
+          "file": "case-7-dark-scene-light-garment-00-person-fixture.png",
+          "bytes": 7382,
+          "width": 720,
+          "height": 960
+        },
+        "staticBaseline": {
+          "file": "case-7-dark-scene-light-garment-01-static-baseline.png",
+          "bytes": 20806,
+          "width": 720,
+          "height": 960
+        },
+        "occlusionOnly": {
+          "file": "case-7-dark-scene-light-garment-02-occlusion-only.png",
+          "bytes": 20806,
+          "width": 720,
+          "height": 960
+        },
+        "edgeImproved": {
+          "sameAs": "02-occlusion-only",
+          "note": "Phase 3 adds edge diagnostics only; see edgeDiagnostics below."
+        },
+        "lightingAdjusted": {
+          "file": "case-7-dark-scene-light-garment-04-lighting-adjusted.png",
+          "bytes": 20721,
+          "width": 720,
+          "height": 960
+        },
+        "finalP3Composite": {
+          "file": "case-7-dark-scene-light-garment-06-final-p3-composite.png",
+          "bytes": 21592,
+          "width": 720,
+          "height": 960
+        },
+        "shadowAdjusted": {
+          "sameAs": "06-final-p3-composite"
+        },
+        "diagnosticOverlay": {
+          "file": "case-7-dark-scene-light-garment-07-diagnostic-overlay.png",
+          "bytes": 24960,
+          "width": 720,
+          "height": 960
+        }
+      },
+      "rigidGate": {
+        "passed": true,
+        "findings": [],
+        "measurements": {
+          "garmentShoulderSpanPx": 284.10771151350326,
+          "bodyShoulderSpanPx": 244.9204409599166,
+          "scaleRatio": 1.1600000000000001,
+          "hemBelowShoulderPx": 390.5371237562569,
+          "necklineToNeckBasePx": 6.707707614379114,
+          "necklineToleranceP": 134.70624252795415,
+          "garmentCentroidToTorsoCentroidPx": 31.5319218070911,
+          "torsoDiagonalPx": 375.1438763994422
+        }
+      },
+      "semanticScene": {
+        "contributingRegions": [],
+        "label": "n/a — no region populated for this case"
+      },
+      "edgeDiagnostics": {
+        "garmentLayerAlphaHistogram": {
+          "fullyOpaque": 123607,
+          "fullyTransparent": 564560,
+          "partial": 3033,
+          "total": 691200
+        },
+        "garmentLayerEdgePartialAlphaRatio": 0.023949778900821225,
+        "finalCompositeOpaqueBoundingBox": {
+          "minX": 0,
+          "minY": 0,
+          "maxX": 719,
+          "maxY": 959
+        }
+      },
+      "gammaExposureAdjustment": {
+        "gamma": 0.88,
+        "clamped": true
+      },
+      "shadowRegions": [
+        {
+          "x": 318.384,
+          "y": 288,
+          "w": 83.23199999999999,
+          "h": 12.239999999999998,
+          "intensity": 0.1
+        },
+        {
+          "x": 237.60000000000002,
+          "y": 288,
+          "w": 29.375999999999994,
+          "h": 14.687999999999997,
+          "intensity": 0.07
+        },
+        {
+          "x": 453.024,
+          "y": 288,
+          "w": 29.375999999999994,
+          "h": 14.687999999999997,
+          "intensity": 0.07
+        }
+      ],
+      "productFidelity": {
+        "logoCanary": null,
+        "sampledColor": {
+          "before": {
+            "r": 193,
+            "g": 186,
+            "b": 173
+          },
+          "after": {
+            "r": 200,
+            "g": 193,
+            "b": 181
+          }
+        },
+        "hueDeltaDegrees": 1.1052631578947327,
+        "preservesChannelBrightness80pct": true,
+        "silhouetteUnchanged": true
+      },
+      "foregroundOverGarmentPixels": 0,
+      "manifestFile": "case-7-dark-scene-light-garment-manifest.json",
+      "status": "RENDERED"
+    },
+    {
+      "caseId": "case-8-bright-scene-dark-garment",
+      "title": "CASE 8 — LIGHTING MISMATCH: BRIGHT SCENE / DARK GARMENT",
+      "garment": "fixture-tee-plain-dark-p3",
+      "images": {
+        "source": {
+          "file": "case-8-bright-scene-dark-garment-00-person-fixture.png",
+          "bytes": 7689,
+          "width": 720,
+          "height": 960
+        },
+        "staticBaseline": {
+          "file": "case-8-bright-scene-dark-garment-01-static-baseline.png",
+          "bytes": 18479,
+          "width": 720,
+          "height": 960
+        },
+        "occlusionOnly": {
+          "file": "case-8-bright-scene-dark-garment-02-occlusion-only.png",
+          "bytes": 18479,
+          "width": 720,
+          "height": 960
+        },
+        "edgeImproved": {
+          "sameAs": "02-occlusion-only",
+          "note": "Phase 3 adds edge diagnostics only; see edgeDiagnostics below."
+        },
+        "lightingAdjusted": {
+          "file": "case-8-bright-scene-dark-garment-04-lighting-adjusted.png",
+          "bytes": 18405,
+          "width": 720,
+          "height": 960
+        },
+        "finalP3Composite": {
+          "file": "case-8-bright-scene-dark-garment-06-final-p3-composite.png",
+          "bytes": 18574,
+          "width": 720,
+          "height": 960
+        },
+        "shadowAdjusted": {
+          "sameAs": "06-final-p3-composite"
+        },
+        "diagnosticOverlay": {
+          "file": "case-8-bright-scene-dark-garment-07-diagnostic-overlay.png",
+          "bytes": 22637,
+          "width": 720,
+          "height": 960
+        }
+      },
+      "rigidGate": {
+        "passed": true,
+        "findings": [],
+        "measurements": {
+          "garmentShoulderSpanPx": 284.10771151350326,
+          "bodyShoulderSpanPx": 244.9204409599166,
+          "scaleRatio": 1.1600000000000001,
+          "hemBelowShoulderPx": 390.5371237562569,
+          "necklineToNeckBasePx": 6.707707614379114,
+          "necklineToleranceP": 134.70624252795415,
+          "garmentCentroidToTorsoCentroidPx": 31.5319218070911,
+          "torsoDiagonalPx": 375.1438763994422
+        }
+      },
+      "semanticScene": {
+        "contributingRegions": [],
+        "label": "n/a — no region populated for this case"
+      },
+      "edgeDiagnostics": {
+        "garmentLayerAlphaHistogram": {
+          "fullyOpaque": 123607,
+          "fullyTransparent": 564560,
+          "partial": 3033,
+          "total": 691200
+        },
+        "garmentLayerEdgePartialAlphaRatio": 0.023949778900821225,
+        "finalCompositeOpaqueBoundingBox": {
+          "minX": 0,
+          "minY": 0,
+          "maxX": 719,
+          "maxY": 959
+        }
+      },
+      "gammaExposureAdjustment": {
+        "gamma": 1.14,
+        "clamped": true
+      },
+      "shadowRegions": [
+        {
+          "x": 318.384,
+          "y": 288,
+          "w": 83.23199999999999,
+          "h": 12.239999999999998,
+          "intensity": 0.1
+        },
+        {
+          "x": 237.60000000000002,
+          "y": 288,
+          "w": 29.375999999999994,
+          "h": 14.687999999999997,
+          "intensity": 0.07
+        },
+        {
+          "x": 453.024,
+          "y": 288,
+          "w": 29.375999999999994,
+          "h": 14.687999999999997,
+          "intensity": 0.07
+        }
+      ],
+      "productFidelity": {
+        "logoCanary": null,
+        "sampledColor": {
+          "before": {
+            "r": 35,
+            "g": 35,
+            "b": 43
+          },
+          "after": {
+            "r": 27,
+            "g": 27,
+            "b": 34
+          }
+        },
+        "hueDeltaDegrees": 0,
+        "preservesChannelBrightness80pct": false,
+        "silhouetteUnchanged": true
+      },
+      "foregroundOverGarmentPixels": 0,
+      "manifestFile": "case-8-bright-scene-dark-garment-manifest.json",
+      "status": "RENDERED"
+    }
+  ],
+  "temporalCases": [
+    {
+      "caseId": "case-6-mask-instability-dropout",
+      "title": "CASE 6 — MASK INSTABILITY / DROPOUT SEQUENCE (TEMPORAL)",
+      "contactSheet": {
+        "file": "case-6-mask-instability-dropout-contact-sheet.png",
+        "bytes": 6783,
+        "width": 1476,
+        "height": 244
+      },
+      "manifestFile": "case-6-mask-instability-dropout-manifest.json"
+    }
+  ]
+}

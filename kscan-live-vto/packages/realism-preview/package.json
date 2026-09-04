@@ -1,0 +1,20 @@
+{
+  "name": "@kscan-live-vto/realism-preview",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Phase 3 (Visual Realism + Hybrid Generative Bridge) renderer integration: semantic-occlusion foreground compositing, edge diagnostics, gamma/exposure lighting refinement, contact/collar shadow cues, and product-fidelity regression checks over @kscan-live-vto/static-renderer output. Phase 3 build plan Sections 6-7, 10-15, 18.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@kscan-live-vto/contract": "^0.1.0",
+    "@kscan-live-vto/garment-contract": "^0.1.0",
+    "@kscan-live-vto/asset-pipeline": "^0.1.0",
+    "@kscan-live-vto/realism": "^0.1.0",
+    "@kscan-live-vto/static-renderer": "^0.1.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test dist/__tests__/*.test.js"
+  }
+}

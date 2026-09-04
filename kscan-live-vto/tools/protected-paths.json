@@ -51,6 +51,12 @@
     "docs/vto-static-preview-review.md",
     "docs/vto-native-device-handoff.md",
     "docs/vto-physical-device-blockers.md",
+    "docs/vto-phase3-source-authority.md",
+    "docs/vto-phase3-hybrid-contract.md",
+    "docs/vto-phase3-native-blockers.md",
+    "docs/vto-phase3-visual-review.md",
+    "docs/vto-phase3-live-to-photoreal-ux-spec.md",
+    "docs/vto-phase3-end-report.md",
     ".github/workflows/live-vto-protected-paths.yml"
   ],
 
