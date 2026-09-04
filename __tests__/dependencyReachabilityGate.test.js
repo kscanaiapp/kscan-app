@@ -231,6 +231,38 @@ test('B34-DEF-014: a bounded retry is attempted before declaring the audit unava
   assert.equal(failed.attempts, 2);
 });
 
+test('B34-DEF-014: a hung audit is hard-bounded and fails closed', () => {
+  // execSync's `timeout` kills the SHELL while npm keeps running and keeps the
+  // stdout pipe open, so a wedged audit was not actually bounded -- it ran until
+  // the CI job timeout instead of failing closed. The runner spawns npm directly
+  // and SIGKILLs it, so the bound is real.
+  const hung = (command, options) => {
+    const { spawnSync } = require('node:child_process');
+    const result = spawnSync('sleep', ['30'], {
+      timeout: options.timeout,
+      killSignal: 'SIGKILL',
+      encoding: 'buffer',
+    });
+    if (result.error) {
+      const error = new Error(result.error.message);
+      error.stdout = result.stdout;
+      error.killed = true;
+      error.code = result.error.code;
+      throw error;
+    }
+    return result.stdout;
+  };
+
+  const started = Date.now();
+  const result = gate.runAudit({ exec: hung, attempts: 1, cwd: REPO_ROOT, timeout: 2000 });
+  const elapsed = Date.now() - started;
+
+  assert.equal(result.ok, false, 'a hung audit must never pass');
+  assert.equal(result.reason, 'AUDIT_UNAVAILABLE');
+  assert.match(result.detail, /timed out/);
+  assert.ok(elapsed < 15000, `the bound must actually fire well before the sleep ends (took ${elapsed}ms)`);
+});
+
 // ---------------------------------------- negative D: malformed audit output
 
 test('B34-DEF-014 negative control: malformed audit output fails the gate', () => {

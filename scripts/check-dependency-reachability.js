@@ -54,7 +54,7 @@
 
 'use strict';
 
-const { execSync } = require('node:child_process');
+const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -179,7 +179,46 @@ function parseAuditOutput(stdout) {
  * cost a retry, not a false red — but an audit that still cannot be
  * established after the retries fails closed.
  */
-function runAudit({ attempts = AUDIT_ATTEMPTS, exec = execSync, cwd = REPO_ROOT } = {}) {
+/**
+ * Default audit runner. Deliberately NOT execSync: execSync goes through a
+ * shell, and its `timeout` kills the shell while npm keeps running and keeps
+ * the stdout pipe open — so a hung audit is not actually bounded and the job
+ * runs until the CI timeout instead of failing closed. spawnSync with no shell
+ * signals npm itself, and SIGKILL means a wedged process cannot ignore it.
+ */
+function defaultAuditExec(command, options) {
+  const result = spawnSync('npm', ['audit', '--omit=dev', '--json'], {
+    cwd: options.cwd,
+    timeout: options.timeout,
+    killSignal: 'SIGKILL',
+    maxBuffer: options.maxBuffer,
+    shell: false,
+    encoding: 'buffer',
+  });
+
+  const timedOut = result.error && result.error.code === 'ETIMEDOUT';
+  if (result.error || result.status !== 0) {
+    const error = new Error(
+      timedOut
+        ? `npm audit exceeded ${options.timeout}ms and was killed`
+        : (result.error && result.error.message) || `npm audit exited with status ${result.status}`,
+    );
+    // npm audit exits non-zero whenever vulnerabilities are found, so stdout is
+    // still the report in the normal case; the caller tells the cases apart.
+    error.stdout = result.stdout;
+    error.killed = Boolean(timedOut);
+    if (timedOut) error.code = 'ETIMEDOUT';
+    throw error;
+  }
+  return result.stdout;
+}
+
+function runAudit({
+  attempts = AUDIT_ATTEMPTS,
+  exec = defaultAuditExec,
+  cwd = REPO_ROOT,
+  timeout = AUDIT_TIMEOUT_MS,
+} = {}) {
   let last = { ok: false, reason: 'AUDIT_UNAVAILABLE', detail: 'npm audit was never attempted' };
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     let stdout = null;
@@ -187,7 +226,7 @@ function runAudit({ attempts = AUDIT_ATTEMPTS, exec = execSync, cwd = REPO_ROOT 
       stdout = exec('npm audit --omit=dev --json', {
         cwd,
         maxBuffer: 1024 * 1024 * 64,
-        timeout: AUDIT_TIMEOUT_MS,
+        timeout,
       });
     } catch (error) {
       // npm audit exits non-zero whenever vulnerabilities are found — that is
@@ -201,7 +240,7 @@ function runAudit({ attempts = AUDIT_ATTEMPTS, exec = execSync, cwd = REPO_ROOT 
           ok: false,
           reason: 'AUDIT_UNAVAILABLE',
           detail: timedOut
-            ? `npm audit timed out after ${AUDIT_TIMEOUT_MS}ms: ${error.message}`
+            ? `npm audit timed out after ${timeout}ms: ${error.message}`
             : `npm audit could not run: ${error.message}`,
         };
         continue;
