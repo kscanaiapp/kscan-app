@@ -6,9 +6,7 @@
  */
 'use strict';
 
-function sqlQuote(value) {
-  return `'${String(value).replace(/'/g, "''")}'`;
-}
+import { sqlQuote } from './sql.mjs';
 
 export async function snapshotActorPersistence(runSql, userId) {
   const rows = await runSql(

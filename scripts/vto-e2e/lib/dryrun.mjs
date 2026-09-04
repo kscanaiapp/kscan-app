@@ -11,6 +11,7 @@ import { callVtoGenerate } from './client.mjs';
 import { computeVtoIdempotencyKey } from './idempotency.mjs';
 import { buildVtoFixtures, fixtureEvidence } from './fixtures.mjs';
 import { sanitizeVtoResponse } from './report.mjs';
+import { sqlQuote } from './sql.mjs';
 
 /** A public, pinned-commit, non-image URL: passes topology validation
  *  (public HTTPS host, default port, no credentials) but is not an image,
@@ -39,10 +40,6 @@ function baseBody({ garmentImageUrl, personDataUri, requestGeneration }) {
 
 function check(name, ok, detail) {
   return { name, ok, detail: detail ?? (ok ? 'pass' : 'unexpected result') };
-}
-
-function sqlQuote(value) {
-  return `'${String(value).replace(/'/g, "''")}'`;
 }
 
 async function vtoRequestRowCount(runSql, userId, idempotencyKey) {
