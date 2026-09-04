@@ -15,6 +15,88 @@ sequence built so far (`fixtures/sequences/`) is synthetic BodyFrame data,
 which this log does not cover (Section 31's consent requirement is scoped
 to real human footage; synthetic landmark generation involves no person).
 
+## Owner authorization — 2026-09-04 (RESOLVED — seven named files)
+
+```
+AUTHORIZED BY:        Justin Smith (K Scan AI owner)
+AUTHORIZATION DATE:   2026-09-04
+SCOPE CLAUSE:         "Authorization applies only to the exact files listed
+                      in this document."
+AUTHORIZED FILES:     tee-flatlay-001.jpg    tee-flatlay-002.jpg
+                      tee-logo-001.jpg       tee-studio-001.jpg
+                      sweater-studio-001.jpg top-ghost-001.jpg
+                      top-ghost-002.jpg
+PERMITTED USES:       .ksgarment asset preparation; garment masking /
+                      normalization; control-point annotation; static Live
+                      VTO renderer testing; internal VTO quality review;
+                      governed generative-VTO benchmark comparisons.
+NOT PERMITTED:        unrelated ML training; public redistribution; external
+                      publication; customer-facing use; adding unrelated
+                      retailer/catalog images not listed above.
+DELIVERY STATUS:      *** NOT DELIVERED — none of the seven files exists on
+                      disk, in the working tree, or in any git ref ***
+FORMAT STATUS:        BLOCKED — all seven are .jpg; the renderer has a
+                      PNG-only pure-Node codec and an empty dependency
+                      allow-list. See "Format" below.
+```
+
+The authorization is well-formed and its scope is now unambiguous. It is
+recorded in machine-readable form at
+`kscan-live-vto/fixtures/products/authorized-assets.json` and **enforced** by
+`kscan-live-vto/tools/validate-authorized-assets.js`, which refuses by exact
+filename anything the authorization does not name. That turns the scope
+clause into a check rather than a promise; `tests/guardrail/authorizedAssets.test.js`
+pins it, including that the recorded prohibitions cannot silently disappear.
+
+The set is well-composed for the job: two flat lay, two ghost mannequin, two
+clean studio — the three preferred shot classes — plus a directional/logo
+canary for the mirroring, orientation and stretch checks a plain garment
+cannot reveal. Nothing in it is model-worn. Seven exceeds the ~3 minimum.
+
+### Two blockers before ingestion can run
+
+**1. Delivery.** The files were named but the bytes were not transferred. An
+exhaustive search (filesystem, working tree, and every reachable git ref)
+found none of the seven, and no file matching their naming pattern. The only
+JPEGs in the repository remain the eight pre-existing `assets/qa_fixtures/`
+images, which this authorization does not cover.
+
+**2. Format.** All seven are `.jpg`. `packages/static-renderer` implements a
+pure-Node PNG codec over `node:zlib` and has no JPEG decoder;
+`tests/privacy/dependencyBoundary.test.js` pins the external runtime
+dependency allow-list to empty by design. Options, best first: deliver
+lossless PNG/TIFF exports of the same seven images (also better for asset
+work — JPEG blocking artifacts land exactly on garment edges, where masking
+and control-point placement are most sensitive); or write a baseline JPEG
+decoder in-workspace to keep the zero-dependency posture; or add a reviewed
+JPEG dependency with a Section 32 per-SDK record in the risk register.
+
+### Scope note — the repository's existing QA fixtures
+
+When asked how `assets/qa_fixtures/top.jpg` should be handled, the owner
+answered that K Scan holds the rights to it. That statement is recorded here.
+
+It does **not** place that file in scope. The authorization issued in the
+same exchange is explicitly self-limiting — "only the exact files listed" —
+and separately names adding unlisted catalog images as not permitted;
+`top.jpg` is not among the seven. The written authorization governs, so the
+eight `assets/qa_fixtures/` images remain **out of scope** and the gate
+refuses them. If the owner wants `top.jpg` included as a model-worn stress
+case, adding its filename to the authorization list is a one-line change —
+but it should be a deliberate one, not an inference drawn from an answer to a
+question whose precondition turned out to be false.
+
+### "Product images" does not unblock the generative-VTO benchmark
+
+That lane's own document states it is blocked on real *test-person* imagery —
+a photograph of a person to try a garment onto. Garment product images do not
+satisfy it. Person imagery additionally falls under this log's consent
+requirements (Section 31), which are stricter than a product-asset
+authorization and require a per-subject row before first use. The
+authorization's permitted-use list includes "governed generative-VTO
+benchmark comparisons", which these seven garment images support as the
+*garment* half of a benchmark pair; the *person* half is still missing.
+
 ## Real product-asset candidate records (bounded discovery, 2026-09-04)
 
 A bounded search of the repository for real product imagery usable as

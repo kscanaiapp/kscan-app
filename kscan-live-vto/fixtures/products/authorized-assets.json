@@ -1,0 +1,39 @@
+{
+  "_comment": "Machine-readable record of the owner's real product fixture authorization. This file is the ENFORCEMENT POINT for the authorization's own scope clause -- 'Authorization applies only to the exact files listed in this document'. tools/validate-authorized-assets.js refuses any asset not named here, so the scope limit is a mechanical check rather than a promise. Adding a filename here without a corresponding owner authorization is exactly the failure this file exists to prevent.",
+
+  "authorization": {
+    "authorizedBy": "Justin Smith",
+    "role": "K Scan AI owner",
+    "date": "2026-09-04",
+    "scopeClause": "Authorization applies only to the exact files listed in this document.",
+    "permittedUses": [
+      ".ksgarment asset preparation",
+      "garment masking / normalization",
+      "control-point annotation",
+      "static Live VTO renderer testing",
+      "internal VTO quality review",
+      "governed generative-VTO benchmark comparisons"
+    ],
+    "notPermitted": [
+      "unrelated ML training",
+      "public redistribution",
+      "external publication",
+      "customer-facing use",
+      "adding unrelated retailer/catalog images not listed above"
+    ]
+  },
+
+  "assets": [
+    { "fixtureId": "tee-flatlay-001", "file": "tee-flatlay-001.jpg", "shotClass": "flat-lay", "garment": "t-shirt", "priority": 1 },
+    { "fixtureId": "tee-flatlay-002", "file": "tee-flatlay-002.jpg", "shotClass": "flat-lay", "garment": "t-shirt", "priority": 1 },
+    { "fixtureId": "top-ghost-001", "file": "top-ghost-001.jpg", "shotClass": "ghost-mannequin", "garment": "top", "priority": 2 },
+    { "fixtureId": "top-ghost-002", "file": "top-ghost-002.jpg", "shotClass": "ghost-mannequin", "garment": "top", "priority": 2 },
+    { "fixtureId": "tee-studio-001", "file": "tee-studio-001.jpg", "shotClass": "clean-studio", "garment": "t-shirt", "priority": 3 },
+    { "fixtureId": "sweater-studio-001", "file": "sweater-studio-001.jpg", "shotClass": "clean-studio", "garment": "sweater", "priority": 3 },
+    { "fixtureId": "tee-logo-001", "file": "tee-logo-001.jpg", "shotClass": "unspecified", "garment": "t-shirt", "priority": 1, "directionalCanary": true, "note": "Expected to carry text/logo/directional pattern -- the mirroring, cropping, orientation and stretch canary. Shot class to be confirmed on delivery." }
+  ],
+
+  "_note_on_directory": "Authorized product imagery is delivered into fixtures/products/ and is TRACKED deliberately (like fixtures/garments/), not ignored. It is isolated-development-only and must never be bundled into a production build -- see docs/fixture-consent-log.md.",
+
+  "_note_on_format": "All seven authorized assets are named .jpg. packages/static-renderer implements a pure-Node PNG codec and has NO JPEG decoder, and tests/privacy/dependencyBoundary.test.js pins the external-runtime-dependency allow-list to empty. Ingestion therefore requires either lossless PNG/TIFF delivery of the same seven images, or a reviewed decision to add a JPEG decoding capability. See docs/fixture-consent-log.md."
+}
