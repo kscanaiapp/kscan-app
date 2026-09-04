@@ -50,6 +50,11 @@ on:
         required: false
         default: ''
         type: string
+      user_ids:
+        description: Comma-separated auth.users UUID(s) for cleanup mode incident targeting (optional — use when a specific orphaned actor id is already known from evidence, e.g. a prior run's crash log, rather than its run tag). Cleanup mode requires run_tag and/or user_ids.
+        required: false
+        default: ''
+        type: string
       commit_sha:
         description: Exact 40-hex commit SHA to fetch the committed garment fixture from (required for staging-full-certification)
         required: false
@@ -282,4 +287,4 @@ jobs:
           SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
           SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
           SUPABASE_STAGING_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
-        run: node scripts/vto-e2e/run.mjs --mode=cleanup --run-tag="${{ github.event.inputs.run_tag }}"
+        run: node scripts/vto-e2e/run.mjs --mode=cleanup --run-tag="${{ github.event.inputs.run_tag }}" --user-ids="${{ github.event.inputs.user_ids }}"

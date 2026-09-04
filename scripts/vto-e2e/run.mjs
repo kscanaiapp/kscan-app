@@ -7,6 +7,7 @@
  *   node scripts/vto-e2e/run.mjs --mode=staging-dryrun
  *   node scripts/vto-e2e/run.mjs --mode=staging-full-certification --commit-sha=<40-hex>
  *   node scripts/vto-e2e/run.mjs --mode=cleanup --run-tag=<tag>
+ *   node scripts/vto-e2e/run.mjs --mode=cleanup --user-ids=<uuid>[,<uuid>...]
  *
  * Modes (spec Phase 4.2):
  *   contract                    no live staging mutation; harness unit/
@@ -35,6 +36,7 @@ import { cleanupVtoActors, allActorsClean, summarizeCleanupStatus } from './lib/
 import { snapshotActorPersistence, diffPersistence } from './lib/persistence.mjs';
 import { writeReport } from './lib/report.mjs';
 import { gitHeadSha } from '../lib/staging-helpers.mjs';
+import { pathToFileURL } from 'node:url';
 
 /**
  * The commit the harness is actually RUNNING as — the certification
@@ -216,40 +218,69 @@ async function runStagingFullCertificationMode({ runTag, commitSha }) {
   };
 }
 
-async function runCleanupMode({ runTag }) {
-  if (!runTag) throw new Error('--run-tag=<tag> is required for cleanup mode');
-  // Cleanup-mode recovery: re-derive the same deterministic emails the
-  // original run would have provisioned, look each up, and remove exactly
-  // those rows if present. No broad sweep, ever.
-  const { buildActorPlan } = await import('./lib/actors.mjs');
-  const plan = buildActorPlan(runTag);
-  const ids = {};
-  for (const [role, actor] of Object.entries(plan)) {
-    const rows = await runSqlViaSupabaseCli(
-      `select id from auth.users where email = ${sqlQuote(actor.email)} limit 1;`,
-    );
-    const row = Array.isArray(rows) ? rows[0] : rows;
-    if (row?.id) ids[role] = row.id;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function runCleanupMode({ runTag, userIds = [] }) {
+  if (!runTag && userIds.length === 0) {
+    throw new Error('--run-tag=<tag> or --user-ids=<uuid[,uuid...]> is required for cleanup mode');
   }
+  for (const id of userIds) {
+    if (!UUID_PATTERN.test(id)) throw new Error(`--user-ids contains a value that is not a UUID: ${JSON.stringify(id)}`);
+  }
+  // Unlike the other two live-mutation modes, cleanup issues real DELETEs
+  // with no other structural staging/production check anywhere in its own
+  // call path — it must assert the target itself rather than rely solely on
+  // the workflow's env being correctly staging-scoped.
+  assertVtoStagingTarget();
+
+  const ids = {};
+  if (runTag) {
+    // Cleanup-mode recovery: re-derive the same deterministic emails the
+    // original run would have provisioned, look each up, and remove exactly
+    // those rows if present. No broad sweep, ever.
+    const { buildActorPlan } = await import('./lib/actors.mjs');
+    const plan = buildActorPlan(runTag);
+    for (const [role, actor] of Object.entries(plan)) {
+      const rows = await runSqlViaSupabaseCli(
+        `select id from auth.users where email = ${sqlQuote(actor.email)} limit 1;`,
+      );
+      const row = Array.isArray(rows) ? rows[0] : rows;
+      if (row?.id) ids[role] = row.id;
+    }
+  }
+  // Explicit, incident-driven targeting by exact known id — the same
+  // guarded cleanupActor path, still never a broad sweep, used when a
+  // specific orphaned actor id is already known from evidence (e.g. a prior
+  // run's crash log) rather than re-derivable from a run tag.
+  userIds.forEach((id, i) => { ids[`MANUAL_${i}`] = id; });
+
   const cleanupEvidence = await cleanupVtoActors(runSqlViaSupabaseCli, ids);
-  return { mode: 'cleanup', runTag, cleanupEvidence, ok: allActorsClean(cleanupEvidence) };
+  return {
+    mode: 'cleanup', runTag: runTag ?? null, userIds, cleanupEvidence, ok: allActorsClean(cleanupEvidence),
+  };
 }
 
 async function main() {
   const mode = getArg('--mode');
-  const runTag = getArg('--run-tag') || newRunTag();
+  const runTagArg = getArg('--run-tag');
   const commitSha = getArg('--commit-sha');
+  const userIdsArg = getArg('--user-ids');
+  const userIds = userIdsArg ? userIdsArg.split(',').map((s) => s.trim()).filter(Boolean) : [];
 
   let report;
   try {
     if (mode === 'contract') {
       report = await runContractMode();
     } else if (mode === 'staging-dryrun') {
-      report = await runStagingDryRunMode({ runTag });
+      report = await runStagingDryRunMode({ runTag: runTagArg || newRunTag() });
     } else if (mode === 'staging-full-certification') {
-      report = await runStagingFullCertificationMode({ runTag, commitSha });
+      report = await runStagingFullCertificationMode({ runTag: runTagArg || newRunTag(), commitSha });
     } else if (mode === 'cleanup') {
-      report = await runCleanupMode({ runTag });
+      // Deliberately NOT falling back to a freshly-generated tag here (unlike
+      // the two modes above): cleanup must fail closed on a missing target
+      // rather than silently look up a tag nothing was ever provisioned
+      // under and vacuously report ok:true having cleaned nothing.
+      report = await runCleanupMode({ runTag: runTagArg || null, userIds });
     } else {
       console.error(`Unknown or missing --mode (got ${JSON.stringify(mode)}). Expected one of: contract, staging-dryrun, staging-full-certification, cleanup.`);
       process.exit(2);
@@ -267,4 +298,13 @@ async function main() {
   process.exit(report.ok ? 0 : 1);
 }
 
-main();
+// Only run when invoked as a script; importing (e.g. from a contract-mode
+// test exercising runCleanupMode's own guard directly) must not dispatch
+// anything or touch process.argv/exit.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main();
+}
+
+export {
+  runContractMode, runStagingDryRunMode, runStagingFullCertificationMode, runCleanupMode, resolveAuthoritySha,
+};
