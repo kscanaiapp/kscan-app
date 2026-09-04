@@ -558,6 +558,17 @@ const VTO_ALLOWED_IMPORTS = {
     '../../services/vto/vtoTelemetry',
     '../../types/vto', '../luxury',
     './VtoSaveToDressingRoom', './VtoSilhouetteGuide',
+    // P3-C LIVE VTO INTEGRATION. The sheet gains a second visualization MODE,
+    // not a second entry point or a second generative path. Each of these is
+    // read-only with respect to ownership: the capability router and the
+    // garment eligibility check are pure decisions, the session hook speaks
+    // only the high-level native contract, and the three components are
+    // presentation. All of them are enrolled in this allowlist in their own
+    // right below, so they are guarded rather than merely reachable.
+    '../../hooks/useVtoLiveSession',
+    '../../services/vto/vtoLiveCapability',
+    '../../services/vto/vtoLiveGarment',
+    './VtoLiveErrorBoundary', './VtoLivePanel', './VtoModeSelector',
     'react', 'react-native',
   ],
   'components/vto/TryItOnEntry.tsx': [
@@ -565,6 +576,10 @@ const VTO_ALLOWED_IMPORTS = {
     // CONVERGENCE #277: minimize/restore needs the live session status, and the
     // pill reports it. Neither reads or writes ownership state.
     '../../hooks/useVtoSessionStatus',
+    // P3-C: the capability router is asked ONCE, here, and handed to the sheet.
+    // The entry point itself is unchanged -- still one Try It On, still gated
+    // by the same availability/K+ answer as before.
+    '../../hooks/useVtoLiveCapability',
     '../../services/haptics', '../../services/vto/vtoTelemetry',
     '../../types/vto', '../kplus/KPlusGate',
     './VirtualTryOnSheet', './VtoMinimizedPill',
@@ -603,14 +618,116 @@ const VTO_ALLOWED_IMPORTS = {
   'hooks/useVtoSessionStatus.ts': [
     '../services/vto/vtoRequestStore', 'react',
   ],
+
+  // ── P3-C LIVE VTO (feature-gated, default OFF) ────────────────────────────
+  // Enrolled for the same reason the #276/#277 surfaces were: a module this
+  // control does not name is a module it does not guard. Enrolling them also
+  // subjects every one of them to the forbidden-call scan below, which is what
+  // makes "Live writes no ownership state either" a checked claim rather than
+  // an assurance.
+  'types/vtoLive.ts': [],
+  'services/vto/vtoLiveCapability.ts': [
+    './liveVtoNativeModule',
+  ],
+  'services/vto/vtoLiveGarment.ts': [
+    '../../types/vto', '../../types/vtoLive', './vtoEligibility',
+  ],
+  'services/vto/liveVtoNativeModule.ts': [
+    '../../constants/featureFlags', '../../types/vtoLive', 'react-native',
+  ],
+  'services/vto/vtoLiveSession.ts': [
+    '../../types/vtoLive', './liveVtoNativeModule',
+  ],
+  'services/vto/vtoLiveHarness.ts': [
+    '../../constants/featureFlags', '../../types/vtoLive',
+    './liveVtoNativeModule', './vtoLiveCapability',
+  ],
+  // The Live -> Photoreal bridge. It imports the SAME privacy sanitizer the
+  // photo picker uses and nothing resembling a network client: the generation
+  // itself runs through the existing store/client/Edge Function, untouched.
+  'services/vto/vtoPhotorealHandoff.ts': [
+    '../../types/vto', '../../types/vtoLive', '../privacyImageUpload',
+    './vtoLiveHarness', './vtoPersonInput',
+  ],
+  'services/vto/vtoLiveCameraPermission.ts': [
+    './vtoLiveCapability',
+  ],
+  'hooks/useVtoLiveCapability.ts': [
+    '../constants/featureFlags', '../services/vto/liveVtoNativeModule',
+    '../services/vto/vtoLiveCameraPermission', '../services/vto/vtoLiveCapability',
+    '../services/vto/vtoLiveGarment', '../services/vto/vtoLiveHarness',
+    '../types/vto', 'react', 'react-native',
+  ],
+  'hooks/useVtoLiveSession.ts': [
+    '../services/vto/liveVtoNativeModule', '../services/vto/vtoLiveCameraPermission',
+    '../services/vto/vtoLiveHarness', '../services/vto/vtoLiveSession',
+    '../services/vto/vtoPhotorealHandoff', '../types/vto', '../types/vtoLive',
+    'react',
+  ],
+  'components/vto/VtoModeSelector.tsx': [
+    '../../constants/theme', '../../services/haptics', '../../types/vtoLive',
+    'react', 'react-native',
+  ],
+  'components/vto/VtoLivePanel.tsx': [
+    '../../constants/theme', '../../services/vto/vtoLiveSession',
+    '../../types/vtoLive', '../luxury', 'react', 'react-native',
+  ],
+  'components/vto/VtoLiveErrorBoundary.tsx': [
+    'react',
+  ],
 };
+
+/**
+ * The two lazy requires the allowlist's `from '...'` scan cannot see.
+ *
+ * Both are deliberate and both are load-bearing: `requireOptionalNativeModule`
+ * is what makes a MISSING Live native module a null rather than a throw, and
+ * expo-camera is required inside a function so the AI-Photo-only path never
+ * pulls the camera module into its bundle. Pinning them here means the set of
+ * dynamically-required modules is guarded to exactly the same standard as the
+ * static one, rather than being a hole in it.
+ */
+const VTO_ALLOWED_LAZY_REQUIRES = {
+  'services/vto/liveVtoNativeModule.ts': ['expo-modules-core'],
+  'services/vto/vtoLiveCameraPermission.ts': ['expo-camera'],
+};
+
+/**
+ * VTO-HA-005. Both scans below used to accept ONLY single-quoted literals:
+ * `/from\s+'([^']+)'/` and `/require\(\s*'([^']+)'/`. Five other ways of
+ * acquiring a dependency were therefore invisible to the control -- a double
+ * quote, a backtick, `import()`, and a computed specifier all passed a module
+ * straight through an allowlist that reported it as unchanged. A guard that a
+ * different quote character defeats is not a guard, and this one is what stands
+ * between a VTO surface and a Closet writer.
+ *
+ * The specifier matchers below accept all three quotings for both `require()`
+ * and dynamic `import()`, and a separate assertion refuses a NON-LITERAL
+ * argument outright: a computed specifier cannot be checked against an
+ * allowlist at all, so it is not allowed to exist in an enrolled module.
+ */
+const SPECIFIER = String.raw`\s*(?:'([^']+)'|"([^"]+)"|\`([^\`]+)\`)\s*`;
+const STATIC_IMPORT_RE = new RegExp(String.raw`from${SPECIFIER}`, 'g');
+const DYNAMIC_IMPORT_RE = new RegExp(String.raw`(?:require|import)\(${SPECIFIER}\)`, 'g');
+/** `require(` / `import(` whose argument is not a plain string literal. */
+const NON_LITERAL_IMPORT_RE = new RegExp(String.raw`(?:require|import)\(\s*(?!['"\`])[^)]`, 'g');
+
+/** All specifiers a matcher found, from whichever quote group matched. */
+function specifiers(source, regex) {
+  return [
+    ...new Set(
+      [...source.matchAll(regex)].map((m) => m[1] ?? m[2] ?? m[3]).filter(Boolean),
+    ),
+  ].sort();
+}
 
 test('VTO-NC-010: no VTO surface may acquire a dependency nobody approved', () => {
   for (const [file, allowed] of Object.entries(VTO_ALLOWED_IMPORTS)) {
-    const source = read(file);
-    const imported = [
-      ...new Set([...source.matchAll(/from\s+'([^']+)'/g)].map((m) => m[1])),
-    ].sort();
+    // Comments are stripped first. They were not before, because the scan only
+    // saw single quotes and prose rarely uses them; broadening to double quotes
+    // and backticks made an ordinary sentence like `a different question from
+    // "a new request started"` read as an import. A comment is not a dependency.
+    const imported = specifiers(code(file), STATIC_IMPORT_RE);
     assert.deepEqual(
       imported,
       [...allowed].sort(),
@@ -618,6 +735,66 @@ test('VTO-NC-010: no VTO surface may acquire a dependency nobody approved', () =
         + 'deliberate new dependency, add it here and say why in the commit.',
     );
   }
+});
+
+test('VTO-NC-010: a lazily-required module is guarded exactly like a static import', () => {
+  // Every VTO module in the allowlist is scanned, not just the two expected to
+  // have requires -- so a NEW lazy require smuggled into any of them fails
+  // here instead of slipping past the static-import scan above. Since
+  // VTO-HA-005 this covers dynamic import() and every quoting style, not only
+  // a single-quoted require().
+  for (const file of Object.keys(VTO_ALLOWED_IMPORTS)) {
+    const required = specifiers(code(file), DYNAMIC_IMPORT_RE);
+    const allowed = [...(VTO_ALLOWED_LAZY_REQUIRES[file] ?? [])].sort();
+    assert.deepEqual(
+      required,
+      allowed,
+      `${file} changed which modules it requires lazily. A lazy require is still `
+        + 'a dependency: add it to VTO_ALLOWED_LAZY_REQUIRES and say why.',
+    );
+  }
+});
+
+test('VTO-HA-005: an enrolled VTO module may not compute a module specifier', () => {
+  // `require(name)` cannot be checked against an allowlist, so the allowlist
+  // has to refuse it rather than silently report the module as clean.
+  for (const file of Object.keys(VTO_ALLOWED_IMPORTS)) {
+    const offenders = [...code(file).matchAll(NON_LITERAL_IMPORT_RE)].map((m) => m[0]);
+    assert.deepEqual(
+      offenders,
+      [],
+      `${file} builds a module specifier at runtime. A computed specifier is a `
+        + 'dependency this control cannot see; use a string literal.',
+    );
+  }
+});
+
+test('VTO-HA-005 NEGATIVE CONTROL: every dependency-acquisition form is now seen', () => {
+  // The guard is only as good as its matchers, so the matchers are themselves
+  // exercised against the exact evasions that used to work.
+  const evasions = {
+    "single quote require": ["const m = require('sneaky');", 'sneaky'],
+    'double quote require': ['const m = require("sneaky");', 'sneaky'],
+    'backtick require': ['const m = require(`sneaky`);', 'sneaky'],
+    'padded double quote': ['const m = require(  "sneaky"  );', 'sneaky'],
+    'dynamic import': ["const m = await import('sneaky');", 'sneaky'],
+  };
+  for (const [label, [source, expected]] of Object.entries(evasions)) {
+    assert.deepEqual(
+      specifiers(source, DYNAMIC_IMPORT_RE),
+      [expected],
+      `${label} evades the lazy-dependency scan.`,
+    );
+  }
+  for (const [label, source] of Object.entries({
+    'double quote import': 'import x from "sneaky";',
+    'backtick re-export': 'export * from `sneaky`;',
+  })) {
+    assert.deepEqual(specifiers(source, STATIC_IMPORT_RE), ['sneaky'], `${label} evades the static scan.`);
+  }
+  // And a computed specifier is caught by shape, since it cannot be resolved.
+  assert.equal([...'const m = require(name);'.matchAll(NON_LITERAL_IMPORT_RE)].length, 1);
+  assert.equal([..."const m = require('ok');".matchAll(NON_LITERAL_IMPORT_RE)].length, 0);
 });
 
 test('VTO-NC-010: a successful generation reaches no ownership or persistence call', () => {

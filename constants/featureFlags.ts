@@ -154,6 +154,67 @@ export const VTO_UI_ENABLED = resolveVtoUiEnabled();
  *  the same key with the service role and its answer is the one that counts. */
 export const VTO_CONFIG_KEY = 'vto_generation';
 
+/**
+ * Build-time gate for LIVE VTO, and deliberately NOT the same switch as
+ * EXPO_PUBLIC_VTO_UI_ENABLED.
+ *
+ * The two answer different questions and must never be conflated. The VTO
+ * flag above decides whether this build carries the governed generative
+ * ("AI Photo") surface at all -- that surface is shipped, tested, and today's
+ * whole customer experience. This flag decides whether the build additionally
+ * carries a LIVE mode, which depends on a native runtime that does not exist
+ * in any build yet (see docs/vto-live-integration-manifest.md).
+ *
+ * Reusing one flag for both would mean the day Live is switched on for a
+ * profile, the generative surface's rollout state changes with it -- and,
+ * worse, that turning Live OFF after a problem would take AI Photo down too.
+ *
+ * DEFAULT OFF, and only the exact string 'true' opts in, so a missing, false,
+ * or malformed value all fail closed -- the same convention every other
+ * staged rollout in this file uses.
+ *
+ * It is set in NO eas.json profile, production and staging included, and
+ * __tests__/vtoLiveFeatureGate.test.js asserts that. Turning it on does not
+ * by itself make Live reachable either: services/vto/vtoLiveCapability.ts
+ * additionally requires a present native module that passes its own runtime
+ * self-check, a supported platform, an eligible garment, and camera
+ * permission. Flag on with no native module yields the ordinary AI Photo
+ * experience, not a broken Live tab.
+ */
+export function resolveLiveVtoEnabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_LIVE_VTO_ENABLED,
+): boolean {
+  return value === 'true';
+}
+export const LIVE_VTO_ENABLED = resolveLiveVtoEnabled();
+
+/**
+ * Name of the optional native module a Live-capable build would register.
+ *
+ * Kept here rather than inline in the adapter so the value the app looks up
+ * and the value a future native module registers under have exactly one
+ * source, and so the absent-module test can assert against the real string.
+ */
+export const LIVE_VTO_NATIVE_MODULE_NAME = 'KScanLiveVto';
+
+/**
+ * Dev-only opt-in for the Live capability harness (services/vto/vtoLiveHarness.ts).
+ *
+ * IMPOSSIBLE IN A RELEASE BUILD. `__DEV__` is checked with an inline literal
+ * so the branch folds at build time, and it is evaluated BEFORE the variable
+ * is read -- the same shape DEV_INITIAL_ROUTE uses below. Absent from every
+ * EAS profile (asserted by test), so a production build has nothing to
+ * honour even if the variable were somehow present in its environment.
+ *
+ * The harness simulates high-level CAPABILITY states for UI work. It cannot
+ * inject camera frames, cannot present itself as native evidence, and cannot
+ * reach the real vto-generate backend.
+ */
+export const LIVE_VTO_HARNESS_ENABLED: boolean =
+  typeof __DEV__ !== 'undefined' && __DEV__ === true
+    ? process.env.EXPO_PUBLIC_LIVE_VTO_HARNESS === 'true'
+    : false;
+
 // ── Scan Results V2 UI rollout flags ─────────────────────────────────────────
 export const SCAN_RESULTS_V2_UI_ENABLED =
   process.env.EXPO_PUBLIC_SCAN_RESULTS_V2_UI === 'true';

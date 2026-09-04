@@ -21,6 +21,7 @@ import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { selectionTick } from '../../services/haptics';
 import { KPlusGate } from '../kplus/KPlusGate';
 import { useVtoAvailability } from '../../hooks/useVtoAvailability';
+import { useVtoLiveCapability } from '../../hooks/useVtoLiveCapability';
 import { useVtoSessionStatus } from '../../hooks/useVtoSessionStatus';
 import { emitVtoEvent } from '../../services/vto/vtoTelemetry';
 import { VirtualTryOnSheet } from './VirtualTryOnSheet';
@@ -52,10 +53,24 @@ export function TryItOnEntry({
   // Read-only: observing the running generation must not claim authority over
   // it. See hooks/useVtoSessionStatus.ts.
   const session = useVtoSessionStatus();
-  const { available, upgradeOpportunity } = useVtoAvailability({
-    category: garment.category,
-    imageUrl: garment.imageUrl,
-    productRef: garment.productRef,
+  const { available, upgradeOpportunity, liveRemoteEnabled, liveSupportedCategories } =
+    useVtoAvailability({
+      category: garment.category,
+      imageUrl: garment.imageUrl,
+      productRef: garment.productRef,
+    });
+
+  // The capability router is asked HERE, once, and its answer is handed to the
+  // sheet -- rather than the sheet asking again and the two possibly
+  // disagreeing about the same garment. It changes nothing about this entry
+  // point: the button below is still governed by `available` /
+  // `upgradeOpportunity` exactly as before, because a Live-capable build must
+  // not add a second Try It On, only a second mode behind the existing one.
+  const capability = useVtoLiveCapability({
+    garment,
+    aiPhotoAvailable: available,
+    liveRemoteEnabled,
+    liveSupportedCategories,
   });
 
   const openSheet = useCallback(() => {
@@ -134,6 +149,7 @@ export function TryItOnEntry({
           onShop={onShop}
           sizeGuideUrl={sizeGuideUrl}
           devScenario={devScenario}
+          capability={capability}
         />
       ) : null}
       {/*

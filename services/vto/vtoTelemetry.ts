@@ -31,6 +31,13 @@ export const VTO_EVENTS = [
   'vto_minimized',
   'vto_restored',
   'vto_result_save_opened',
+  // Live/AI Photo mode choice. Content-free: it records WHICH of the two
+  // visualization modes the customer selected and nothing about the person,
+  // the photo, the camera, or the session. Added deliberately rather than
+  // reusing 'vto_entry_impression', which means something else -- a mode
+  // toggle is not an entry impression, and logging it as one would put a
+  // false number in front of whoever reads this later.
+  'vto_mode_selected',
 ] as const;
 
 export type VtoEvent = (typeof VTO_EVENTS)[number];
@@ -46,6 +53,9 @@ export const VTO_EVENT_PROPERTIES = [
   'inputBucket',
   'outputBucket',
   'eligibility',
+  /** 'live' | 'ai_photo'. The mode name only -- never a capability reason,
+   *  a device identifier, or anything about why Live was or was not offered. */
+  'mode',
 ] as const;
 
 export type VtoEventProperty = (typeof VTO_EVENT_PROPERTIES)[number];
