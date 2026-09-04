@@ -45,6 +45,7 @@ added to a list without a justification.
 | `constants/featureFlags.ts` | The separate default-OFF Live gate, the native module name, and the dev-harness lock. Narrowly scoped app configuration directly required by the integration. | P3-C §6; amendment §4 (default-OFF feature value) |
 | `docs/vto-live-integration-manifest.md` | This file. | Amendment §7, §30 |
 | `docs/vto-integration-defect-ledger.md` | The required defect ledger. | Amendment §26 |
+| `docs/vto-hostile-audit-ledger.md` | The full-program hostile audit's own defect ledger (P0-P3 repairs, P4-P10 findings, A-T state matrix, human/device holds). Declared here rather than granted by widening a pattern: the guard refused it, which is the guard working. | Hostile audit brief §41; amendment §26 |
 | `scripts/check-vto-live-integration-scope.js` | The P3-C scope guard itself. | Amendment §7 |
 | `__tests__/vto*` | VTO-specific tests, including the strengthened VTO-NC-010 dependency guard. | P3-C §30, §31; amendment §4 |
 
