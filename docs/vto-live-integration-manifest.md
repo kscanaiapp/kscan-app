@@ -52,6 +52,7 @@ added to a list without a justification.
 | `docs/vto-phase4-*` | Phase 4's own source-authority, corpus-discovery, corpus-request, and defect-ledger documentation, required by the Phase 4 brief's own reporting sections. | Phase 4 brief §3, §7, §9, §50 |
 | `fixtures/vto-phase4/**` | Generated `.ksgarment` asset bundles (manifest + texture + alpha), every one derived from a SYNTHETIC (procedurally drawn) or already-committed AUTHORIZED_FIXTURE source — never uncommitted real retailer imagery. | Phase 4 brief §27 (local/generated development artifacts storage location) |
 | `evidence/vto-phase4-assets/**` | The batch-run report, Gate E economics report, and automated-correction log the Phase 4 brief requires as review evidence. | Phase 4 brief §27, §38, §45 |
+| `tsconfig.json` | One additive `exclude` entry (`vto-phase4-pipeline/**`), alongside the two that already exist for `supabase/functions/**` and `qa/**`, so the root TypeScript project does not try to compile Phase 4's isolated package against its own separate `node_modules`. | `docs/vto-phase4-defect-ledger.md` PHASE4-009 |
 
 ### Explicitly NOT authorized, and not touched
 
