@@ -19,6 +19,9 @@ const { spawnSync } = require('node:child_process');
 async function loadProvision() {
   return import('../scripts/vto-e2e/lib/provision.mjs');
 }
+async function loadActors() {
+  return import('../scripts/vto-e2e/lib/actors.mjs');
+}
 async function loadRun() {
   return import('../scripts/vto-e2e/run.mjs');
 }
@@ -468,6 +471,125 @@ test('Defect B: the harness\'s one SQL execution path uses `supabase db query` v
       /import\s*\{[^}]*\brunSupabase\b[^}]*\}\s*from/,
       `${file} must go through lib/sql.mjs, never import runSupabase directly`,
     );
+  }
+});
+
+// ── confirmActorEmail SQL contract (incident-derived: generated-column
+//    defect) ───────────────────────────────────────────────────────────
+// Live evidence: staging-dryrun run vto-dryrun-20260904T154802Z-c5446aa2
+// failed all three actors inside confirmActorEmail's `supabase db query
+// --linked` call with Postgres error `column "confirmed_at" can only be
+// updated to DEFAULT` — auth.users.confirmed_at is
+// `GENERATED ALWAYS AS LEAST(email_confirmed_at, phone_confirmed_at)` and
+// can never be assigned directly. These tests pin the corrected statement
+// shape at the real call site (a captured runSql, never a live connection)
+// and its negative-space: no generated-column assignment, ever.
+
+test('confirmActorEmail: the emitted SQL assigns EXACTLY ONE writable column (email_confirmed_at), assigns no generated column, retains the id-scoped predicate and the email_confirmed_at IS NULL guard, and remains safely quoted', async () => {
+  const { confirmActorEmail } = await loadActors();
+  const userId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+  let captured = null;
+  const runSql = async (sql) => { captured = sql; return []; };
+
+  await confirmActorEmail(runSql, userId);
+
+  assert.ok(captured, 'confirmActorEmail must call runSql exactly once');
+
+  const setClauseMatch = captured.match(/set\s+(.*?)\s+where/i);
+  assert.ok(setClauseMatch, `SQL must have a SET ... WHERE shape, got: ${captured}`);
+  const setClause = setClauseMatch[1];
+  assert.equal(setClause.split(',').length, 1, `SET clause must assign exactly one column, got: ${setClause}`);
+  assert.match(setClause, /^email_confirmed_at\s*=\s*now\(\)$/, 'the one writable column assigned must be email_confirmed_at');
+
+  // \b does not fire between `_` and a letter, so this correctly matches a
+  // bare `confirmed_at` reference without also matching inside the writable
+  // `email_confirmed_at` column this statement legitimately assigns.
+  assert.doesNotMatch(captured, /\bconfirmed_at\b\s*=/, 'must never assign the generated column confirmed_at directly');
+
+  assert.match(captured, new RegExp(`where id = '${userId}'`, 'i'), 'id-scoped predicate must remain present');
+  assert.match(captured, /email_confirmed_at is null/i, 'the email_confirmed_at IS NULL guard must remain present');
+
+  const quoteCount = (captured.match(/'/g) || []).length;
+  assert.equal(quoteCount % 2, 0, 'quotes must remain balanced — no literal left open');
+});
+
+test('confirmActorEmail: does not assign directly to the generated column confirmed_at', async () => {
+  const { confirmActorEmail } = await loadActors();
+  let captured = null;
+  const runSql = async (sql) => { captured = sql; return []; };
+
+  await confirmActorEmail(runSql, 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee');
+
+  assert.doesNotMatch(captured, /\bconfirmed_at\b/, 'the bare token confirmed_at must not appear anywhere in the emitted SQL');
+});
+
+test('confirmActorEmail: exact actor id scoping remains present — the predicate targets only the given user id, never a broader match or a second statement', async () => {
+  const { confirmActorEmail } = await loadActors();
+  const userId = 'f1f1f1f1-2222-3333-4444-555555555555';
+  const otherUserId = '00000000-0000-0000-0000-000000000000';
+  let captured = null;
+  const runSql = async (sql) => { captured = sql; return []; };
+
+  await confirmActorEmail(runSql, userId);
+
+  assert.match(captured, new RegExp(`id = '${userId}'`));
+  assert.doesNotMatch(captured, new RegExp(`id = '${otherUserId}'`));
+  assert.equal((captured.match(/\bwhere\b/gi) || []).length, 1, 'exactly one WHERE clause');
+  assert.equal((captured.match(/;/g) || []).length, 1, 'exactly one statement — never a stacked query');
+});
+
+test('confirmActorEmail: SQL remains safely quoted via the shared sqlQuote — a hostile/SQL-injection-shaped user id is neutralized as inert literal content (extends the existing sqlQuote injection control to this exact call site)', async () => {
+  const { confirmActorEmail } = await loadActors();
+  const { sqlQuote } = await loadSql();
+  const hostileId = "x'; drop table auth.users; --";
+  let captured = null;
+  const runSql = async (sql) => { captured = sql; return []; };
+
+  await confirmActorEmail(runSql, hostileId);
+
+  assert.ok(captured.includes(sqlQuote(hostileId)), 'must quote the id through the shared sqlQuote helper, not ad hoc');
+  const quoteCount = (captured.match(/'/g) || []).length;
+  assert.equal(quoteCount % 2, 0, 'quotes must remain balanced — no literal left open for the injected payload to escape into');
+  assert.ok(captured.includes(hostileId.replace(/'/g, "''")), 'the hostile payload must appear only as inert, escaped literal content');
+
+  // Replacing the one quoted literal with a placeholder must leave EXACTLY
+  // the expected fixed statement skeleton — proving the payload's own `;`
+  // and `--` never reach real statement syntax, only ever the inside of
+  // this one balanced literal (the "drop table" text remaining visible
+  // above is expected: it is inert data, not a second executable statement).
+  const skeleton = captured.replace(sqlQuote(hostileId), '<ID>');
+  assert.equal(skeleton, 'update auth.users set email_confirmed_at = now() where id = <ID> and email_confirmed_at is null;');
+});
+
+test('contract: no SQL the harness constructs anywhere references the generated column confirmed_at (repair spec addendum) — email_confirmed_at is the sole verification authority', () => {
+  const vtoE2eDir = path.join(__dirname, '..', 'scripts', 'vto-e2e');
+  const files = [];
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name.endsWith('.mjs')) files.push(full);
+    }
+  };
+  walk(vtoE2eDir);
+  assert.ok(files.length >= 5, 'sanity: the walk must actually find the harness source files');
+
+  // Scoped to SQL the harness actually sends (template literals), not every
+  // JS identifier in the tree — Supabase's own signup HTTP response JSON
+  // happens to name a field `confirmed_at` (read once, pre-existing, in
+  // signUpActor, to detect an already-confirmed signup); that is an
+  // unrelated third-party API field, not SQL this harness constructs
+  // against the generated DB column, and is intentionally not in scope here.
+  for (const file of files) {
+    const src = fs.readFileSync(file, 'utf8');
+    const sqlLiterals = src.match(/`[^`]*`/gs) ?? [];
+    for (const literal of sqlLiterals) {
+      assert.doesNotMatch(
+        literal,
+        /\bconfirmed_at\b/,
+        `${path.relative(path.join(__dirname, '..'), file)} constructs SQL referencing confirmed_at: ${literal}`,
+      );
+    }
   }
 });
 
