@@ -172,6 +172,36 @@ test('a genuinely missing migration cannot be laundered by approving a different
   assert.ok(result.blockers.some((b) => b.includes('does not match APPROVED_MIGRATION_VERSION')));
 });
 
+test('an approved version that is already applied is satisfied, not a failure', async () => {
+  const { compareMigrations } = await loadPreflight();
+  // The deploy job re-runs the preflight after the migration has been applied,
+  // still carrying APPROVED_MIGRATION_VERSION. That must not fail the deploy.
+  const result = compareMigrations(
+    localOf('20260101000000', '20260902150000'),
+    ['20260101000000', '20260902150000'],
+    '20260902150000',
+    reconciliation(),
+  );
+  assert.equal(result.ok, true, result.blockers.join('\n'));
+  assert.equal(result.approvedAlreadyApplied, '20260902150000');
+  assert.deepEqual(result.localOnly, []);
+});
+
+test('an approved version that is neither pending nor applied still fails', async () => {
+  const { compareMigrations } = await loadPreflight();
+  const result = compareMigrations(
+    localOf('20260101000000'),
+    ['20260101000000'],
+    '20269999999999',
+    reconciliation(),
+  );
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.blockers.some((b) => b.includes('neither pending nor present in the remote ledger')),
+    result.blockers.join('\n'),
+  );
+});
+
 test('unknown mismatch fails: an undeclared remote-only version still blocks', async () => {
   const { compareMigrations } = await loadPreflight();
   const result = compareMigrations(

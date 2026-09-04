@@ -262,10 +262,19 @@ function compareMigrations(local, remote, approvedVersion, reconciliation = null
       result.approvedPending = item;
     }
   } else if (approvedVersion) {
-    result.ok = false;
-    result.blockers.push(
-      `APPROVED_MIGRATION_VERSION=${approvedVersion} was supplied but no migration is pending`,
-    );
+    // Nothing pending. The deploy job re-runs this preflight AFTER the approved
+    // migration has been applied, carrying the same APPROVED_MIGRATION_VERSION
+    // through -- so an approved version the ledger already contains is a
+    // satisfied approval, not a failure. Only a version that is neither pending
+    // nor applied is wrong: that names a migration that does not exist.
+    if (remoteSet.has(approvedVersion)) {
+      result.approvedAlreadyApplied = approvedVersion;
+    } else {
+      result.ok = false;
+      result.blockers.push(
+        `APPROVED_MIGRATION_VERSION=${approvedVersion} is neither pending nor present in the remote ledger`,
+      );
+    }
   }
 
   return result;
