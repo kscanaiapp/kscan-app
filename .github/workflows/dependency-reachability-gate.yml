@@ -26,7 +26,11 @@ jobs:
   dependency-reachability:
     name: Dependency reachability gate
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # `npm audit` is a network call against the registry and has been observed
+    # taking several minutes. The gate now fails CLOSED when it cannot establish
+    # an audit, so the job needs headroom for a slow-but-working audit plus one
+    # bounded retry, rather than being killed mid-audit.
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -40,8 +44,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The single live audit for this job. Fails closed on an audit it cannot
+      # establish (AUDIT_UNAVAILABLE / _UNPARSEABLE / _UNEXPECTED_SHAPE), never
+      # reporting "could not verify" as "clean".
       - name: Run dependency reachability gate
+        env:
+          DEPENDENCY_AUDIT_ATTEMPTS: '3'
+          DEPENDENCY_AUDIT_TIMEOUT_MS: '420000'
         run: npm run verify:dependency-reachability
 
+      # Deterministic: fixture audit reports plus one unroutable-registry probe.
+      # No live audit, so these cannot flake on registry health.
       - name: Run reachability gate negative-control tests
         run: npm run test:dependency-reachability
