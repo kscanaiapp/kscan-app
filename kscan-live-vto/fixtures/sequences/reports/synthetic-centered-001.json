@@ -1,0 +1,44 @@
+{
+  "sequenceId": "synthetic-centered-001",
+  "category": "centered-subject",
+  "synthetic": true,
+  "frameCount": 90,
+  "trackingConfidence": {
+    "mean": 0.9200000000000014,
+    "min": 0.92,
+    "max": 0.92,
+    "sampleCount": 90
+  },
+  "droppedFrames": {
+    "expectedFrames": 90,
+    "observedFrames": 90,
+    "droppedFrameRatio": 0
+  },
+  "trackingEvents": [],
+  "landmarkJitter": {
+    "leftShoulder": {
+      "rmsDisplacement": 0.0020918339569181567,
+      "comparablePairs": 89
+    },
+    "rightShoulder": {
+      "rmsDisplacement": 0.0023253920726172567,
+      "comparablePairs": 89
+    },
+    "leftHip": {
+      "rmsDisplacement": 0.002133983084534735,
+      "comparablePairs": 89
+    },
+    "rightHip": {
+      "rmsDisplacement": 0.0026833500460726888,
+      "comparablePairs": 89
+    },
+    "leftWrist": {
+      "rmsDisplacement": 0.0023240451682283634,
+      "comparablePairs": 89
+    },
+    "rightWrist": {
+      "rmsDisplacement": 0.002258438511688893,
+      "comparablePairs": 89
+    }
+  }
+}

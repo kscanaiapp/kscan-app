@@ -1,0 +1,20 @@
+{
+  "name": "@kscan-live-vto/native-runtime-contract",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Phase 3-B compiler-independent native runtime contract: frame-source vocabulary, capture pipeline (clean vs preview) state machine and quality gate, performance/adaptive-quality/error-fallback event contract, cross-runtime golden fixtures, and the MediaPipe-to-BodyFrame mapping math. No native code is compiled or executed by this package -- see docs/vto-phase3b-native-build-handoff.md for why (Hard Build Gate: FAILED, this session).",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@kscan-live-vto/contract": "^0.1.0",
+    "@kscan-live-vto/garment-contract": "^0.1.0",
+    "@kscan-live-vto/realism": "^0.1.0",
+    "@kscan-live-vto/evaluation": "^0.1.0",
+    "@kscan-live-vto/photoreal-bridge": "^0.1.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test dist/__tests__/*.test.js"
+  }
+}

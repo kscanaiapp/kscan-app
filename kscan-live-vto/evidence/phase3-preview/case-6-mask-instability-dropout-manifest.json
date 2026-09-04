@@ -1,0 +1,120 @@
+{
+  "evidenceClass": "SYNTHETIC/PRECOMPUTED — MECHANICS EVIDENCE ONLY",
+  "caseId": "case-6-mask-instability-dropout",
+  "title": "CASE 6 — MASK INSTABILITY / DROPOUT SEQUENCE (TEMPORAL)",
+  "note": "Temporal case per Section 17: no single source frame applies. Legend: green border = trusted/live frame, amber = held (frozen/blended, within budget), red = failedSafe (held past the budget, decaying). Sequence: 4 good frames, 1 dropout frame, 4 recovery frames (maskDropoutSequence(4,1,4)), default MaskStabilityConfig.",
+  "frameCount": 9,
+  "frames": [
+    {
+      "index": 0,
+      "timestamp": 0,
+      "rawConfidence": 0.9,
+      "effectiveConfidence": 0.9,
+      "trusted": true,
+      "held": false,
+      "holdFramesUsed": 0,
+      "failedSafe": false
+    },
+    {
+      "index": 1,
+      "timestamp": 100,
+      "rawConfidence": 0.9,
+      "effectiveConfidence": 0.9,
+      "trusted": true,
+      "held": false,
+      "holdFramesUsed": 0,
+      "failedSafe": false
+    },
+    {
+      "index": 2,
+      "timestamp": 200,
+      "rawConfidence": 0.9,
+      "effectiveConfidence": 0.9,
+      "trusted": true,
+      "held": false,
+      "holdFramesUsed": 0,
+      "failedSafe": false
+    },
+    {
+      "index": 3,
+      "timestamp": 300,
+      "rawConfidence": 0.9,
+      "effectiveConfidence": 0.9,
+      "trusted": true,
+      "held": false,
+      "holdFramesUsed": 0,
+      "failedSafe": false
+    },
+    {
+      "index": 4,
+      "timestamp": 400,
+      "rawConfidence": 0,
+      "effectiveConfidence": 0.9,
+      "trusted": false,
+      "held": true,
+      "holdFramesUsed": 1,
+      "failedSafe": false
+    },
+    {
+      "index": 5,
+      "timestamp": 500,
+      "rawConfidence": 0.9,
+      "effectiveConfidence": 0.9,
+      "trusted": true,
+      "held": true,
+      "holdFramesUsed": 0,
+      "failedSafe": false
+    },
+    {
+      "index": 6,
+      "timestamp": 600,
+      "rawConfidence": 0.9,
+      "effectiveConfidence": 0.9,
+      "trusted": true,
+      "held": true,
+      "holdFramesUsed": 0,
+      "failedSafe": false
+    },
+    {
+      "index": 7,
+      "timestamp": 700,
+      "rawConfidence": 0.9,
+      "effectiveConfidence": 0.9,
+      "trusted": true,
+      "held": false,
+      "holdFramesUsed": 0,
+      "failedSafe": false
+    },
+    {
+      "index": 8,
+      "timestamp": 800,
+      "rawConfidence": 0.9,
+      "effectiveConfidence": 0.9,
+      "trusted": true,
+      "held": false,
+      "holdFramesUsed": 0,
+      "failedSafe": false
+    }
+  ],
+  "metrics": {
+    "temporalMaskChangeRate": [
+      0,
+      0,
+      0,
+      0.22666666666666666,
+      0.22666666666666666,
+      0,
+      0,
+      0
+    ],
+    "temporalMaskChangeRateSummary": {
+      "count": 8,
+      "min": 0,
+      "max": 0.22666666666666666,
+      "mean": 0.056666666666666664
+    },
+    "maskDropRecoveryFrames": [
+      3
+    ]
+  }
+}

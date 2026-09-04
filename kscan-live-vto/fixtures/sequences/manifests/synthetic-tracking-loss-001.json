@@ -1,0 +1,10 @@
+{
+  "sequenceId": "synthetic-tracking-loss-001",
+  "category": "tracking-loss",
+  "description": "Synthetic centered standing pose; tracking confidence collapses at frame 40 and does not recover within the sequence. Deterministic seed 7.",
+  "nominalFrameRateHz": 30,
+  "frameCount": 90,
+  "consent": null,
+  "synthetic": true,
+  "generator": { "fn": "generateCenteredStandingSequence", "seed": 7, "jitterAmplitude": 0.002, "trackingLossWindow": [40, 90] }
+}

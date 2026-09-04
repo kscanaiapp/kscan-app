@@ -1,0 +1,71 @@
+{
+  "_comment": "Section 8.2 mechanical non-mutation guardrail for the isolated Live VTO research program. PROTECTED entries are existing production/runtime paths in kscan-app that this program is authorized to READ but never MUTATE. ALLOWED_EXCEPTIONS are additive-only carve-outs inside otherwise-protected trees. The validator (validate-protected-paths.js) fails the check if any changed file in the diff matches a PROTECTED prefix and does not also match an ALLOWED_EXCEPTIONS prefix.",
+
+  "PROTECTED": [
+    "app/",
+    "app.js",
+    "app.json",
+    "components/",
+    "config.js",
+    "constants/",
+    "contexts/",
+    "data/",
+    "eas.json",
+    "hooks/",
+    "index.js",
+    "metro.config.js",
+    "package.json",
+    "package-lock.json",
+    "Procfile",
+    "qa/",
+    "render.yaml",
+    "scripts/",
+    "security/",
+    "server.js",
+    "services/",
+    "src/",
+    "supabase/",
+    "tsconfig.json",
+    "types/",
+    "android/",
+    "ios/",
+    "maestro/",
+    "__tests__/",
+    ".env.example",
+    ".easignore",
+    ".easignore.txt",
+    "KSCAN_Legal_PreLaunch_Checklist.md",
+    "docs/",
+    ".github/"
+  ],
+
+  "ALLOWED_EXCEPTIONS": [
+    "docs/source-authority.md",
+    "docs/vto-risk-register.md",
+    "docs/fixture-consent-log.md",
+    "docs/vto-visual-verdicts.md",
+    "docs/vto-phase1-status.md",
+    "docs/vto-phase1-end-report.md",
+    "docs/vto-phase2-end-report.md",
+    "docs/vto-integration-candidate.md",
+    "docs/vto-static-preview-review.md",
+    "docs/vto-native-device-handoff.md",
+    "docs/vto-physical-device-blockers.md",
+    "docs/vto-phase3-source-authority.md",
+    "docs/vto-phase3-hybrid-contract.md",
+    "docs/vto-phase3-native-blockers.md",
+    "docs/vto-phase3-visual-review.md",
+    "docs/vto-phase3-live-to-photoreal-ux-spec.md",
+    "docs/vto-phase3-end-report.md",
+    "docs/vto-phase3b-native-build-handoff.md",
+    "docs/vto-phase3b-native-renderer-conformance.md",
+    "docs/vto-phase3b-end-report.md",
+    ".github/workflows/live-vto-protected-paths.yml"
+  ],
+
+  "ALWAYS_ALLOWED_PREFIXES": [
+    "kscan-live-vto/"
+  ],
+
+  "_note_on_docs": "docs/ and .github/ are fully protected except for the specific net-new filenames listed in ALLOWED_EXCEPTIONS (the isolated program's own status/authority/risk documents and its one additive CI workflow file). This blocks the isolated program from editing any pre-existing documentation or CI/CD configuration, including the staging/production deploy workflows under .github/workflows/."
+}
