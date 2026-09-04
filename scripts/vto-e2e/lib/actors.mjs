@@ -98,6 +98,16 @@ export async function confirmActorEmail(runSql, userId) {
  *                so a lapsed grant is exactly this: was active, has since
  *                expired — never a second, separate "expired" status enum)
  *   'none'    -> deletes any row for this actor (NEVER_ENTITLED)
+ *
+ * grant_reason must be one of the values the product's own CHECK constraint
+ * permits (see supabase/migrations/20260829120000_kplus_entitlements.sql); a
+ * harness-invented value is rejected by Postgres and fails provisioning
+ * outright. 'complimentary_early_access' is the complimentary K+ grant path
+ * this certification targets, so the synthetic actor carries exactly the
+ * entitlement shape a real complimentary K+ user does. The value is inert to
+ * the decision under test either way: kplus_has_active_entitlement gates on
+ * entitlement_key, status, revoked_at and expires_at only, never on
+ * grant_reason.
  */
 export async function seedVtoEntitlement(runSql, userId, scenario) {
   if (scenario === 'none') {
@@ -110,7 +120,7 @@ export async function seedVtoEntitlement(runSql, userId, scenario) {
   await runSql(
     `insert into public.user_entitlements `
     + `(user_id, entitlement_key, status, grant_reason, granted_at, expires_at, revoked_at, external_sync_status) `
-    + `values (${sqlQuote(userId)}, 'k_plus', 'active', 'vto_e2e_harness', now(), ${expiresAt}, null, 'not_required') `
+    + `values (${sqlQuote(userId)}, 'k_plus', 'active', 'complimentary_early_access', now(), ${expiresAt}, null, 'not_required') `
     + `on conflict (user_id, entitlement_key) do update set `
     + `status = excluded.status, grant_reason = excluded.grant_reason, `
     + `expires_at = excluded.expires_at, revoked_at = null, updated_at = now();`,
