@@ -456,6 +456,7 @@ export function VirtualTryOnSheet({
                   entered={live.entered}
                   photorealFailure={live.photorealFailure}
                   previewUri={live.previewUri}
+                  photorealPending={live.photorealPending}
                   onEnter={() => {
                     void live.enterLive();
                   }}

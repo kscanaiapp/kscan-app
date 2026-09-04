@@ -18,6 +18,17 @@
  * machine and captures a CLEAN person frame; nothing else in this hook can
  * reach the generative path, and no timer, tracking event, or performance
  * signal is an input to it.
+ *
+ * EXPLICIT ONCE, NOT EXPLICIT REPEATEDLY. Both `enterLive` and
+ * `requestPhotoreal` await before they commit anything, and their controls stay
+ * enabled across that await, so each carries an in-flight guard (VTO-HA-002,
+ * VTO-HA-003). Without them a second tap during the first tap's await started a
+ * second Live session and, worse, a second GENERATION: `requestPhotoreal`
+ * captures a fresh frame and calls `adoptPerson`, and `setVtoPersonInput`
+ * advances the store's intent sequence -- so the two requests carried different
+ * server idempotency keys and were billed as two attempts, defeating the very
+ * duplicate-tap protection VTO-DUP-001/VTO-QUOTA-001 built for the AI Photo
+ * path (where one photo and two Generate taps collapse to one paid job).
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -62,6 +73,10 @@ export interface UseVtoLiveSessionResult {
    *  local display artifact ONLY: assertCleanPersonFrame refuses a PREVIEW at
    *  the generative handoff, and nothing persists it. */
   previewUri: string | null;
+  /** True while a Photoreal capture/sanitize is running. Surfaced so the
+   *  control can be disabled rather than silently swallowing taps -- a guard
+   *  the customer cannot see is a button that looks broken. */
+  photorealPending: boolean;
   /** Requests permission if needed, then starts the runtime. The ONLY path
    *  that can raise a camera dialog. */
   enterLive: () => Promise<void>;
@@ -79,6 +94,17 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
   const [photorealFailure, setPhotorealFailure] = useState<PhotorealFailureOutcome | null>(null);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const controllerRef = useRef<LiveVtoSessionController | null>(null);
+  /** Set synchronously, BEFORE the permission await, so a second tap during the
+   *  dialog cannot create a second controller and orphan the first. */
+  const enteringRef = useRef(false);
+  /** Same shape for the Photoreal action, where the cost of a second pass is a
+   *  second paid generation rather than a leaked subscription. */
+  const photorealInFlightRef = useRef(false);
+  /** productRef of the garment the RUNTIME has been told to load. Written where
+   *  the load actually happens (enterLive / the switch effect) and cleared on
+   *  teardown -- see VTO-HA-004 at the effect below. */
+  const loadedRef = useRef<string | null>(null);
+  const [photorealPending, setPhotorealPending] = useState(false);
   const onPhotorealPersonRef = useRef(args.onPhotorealPerson);
   onPhotorealPersonRef.current = args.onPhotorealPerson;
 
@@ -95,32 +121,41 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
   }, []);
 
   const enterLive = useCallback(async () => {
-    if (!descriptor || controllerRef.current) return;
+    // `controllerRef` alone was not enough: it is only assigned AFTER the
+    // permission await below, so two taps both passed it. See VTO-HA-002.
+    if (!descriptor || controllerRef.current || enteringRef.current) return;
+    enteringRef.current = true;
+    try {
+      const harness = getLiveVtoHarnessState();
+      const permission = harness
+        ? { state: harness.cameraPermission, prompted: false }
+        : await ensureLiveCameraPermission();
 
-    const harness = getLiveVtoHarnessState();
-    const permission = harness
-      ? { state: harness.cameraPermission, prompted: false }
-      : await ensureLiveCameraPermission();
+      if (permission.state !== 'granted') {
+        // Bounded, non-fatal: the caller keeps AI Photo on offer and we do not
+        // ask again. See services/vto/vtoLiveCameraPermission.ts.
+        setEntered(true);
+        setSnapshot((current) =>
+          markLiveVtoError(
+            current,
+            permission.state === 'denied' ? 'CAMERA_PERMISSION_DENIED' : 'CAMERA_UNAVAILABLE',
+          ),
+        );
+        return;
+      }
 
-    if (permission.state !== 'granted') {
-      // Bounded, non-fatal: the caller keeps AI Photo on offer and we do not
-      // ask again. See services/vto/vtoLiveCameraPermission.ts.
+      const controller = createLiveVtoSession(getLiveVtoNativeModule());
+      controllerRef.current = controller;
+      controller.subscribe(setSnapshot);
       setEntered(true);
-      setSnapshot((current) =>
-        markLiveVtoError(
-          current,
-          permission.state === 'denied' ? 'CAMERA_PERMISSION_DENIED' : 'CAMERA_UNAVAILABLE',
-        ),
-      );
-      return;
+      controller.start(descriptor);
+      // Recorded HERE, where the garment is actually loaded, rather than lazily
+      // inside the switch effect below -- see VTO-HA-004.
+      loadedRef.current = descriptor.productRef;
+      setSnapshot(controller.getSnapshot());
+    } finally {
+      enteringRef.current = false;
     }
-
-    const controller = createLiveVtoSession(getLiveVtoNativeModule());
-    controllerRef.current = controller;
-    controller.subscribe(setSnapshot);
-    setEntered(true);
-    controller.start(descriptor);
-    setSnapshot(controller.getSnapshot());
   }, [descriptor]);
 
   const exitLive = useCallback(() => {
@@ -132,25 +167,50 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
     // The preview is a session artifact and does not outlive the session.
     setPreviewUri(null);
     setSnapshot(INITIAL_LIVE_VTO_SESSION);
+    // A disposed runtime has no garment loaded. Clearing this is what makes the
+    // next enterLive record its own rather than inherit a stale one.
+    loadedRef.current = null;
+    photorealInFlightRef.current = false;
+    setPhotorealPending(false);
   }, []);
 
   // A garment change while Live is running is a switch, never a restart: the
   // runtime keeps the camera and swaps the asset, and the product identity
   // stays the one the customer was already looking at.
-  const loadedRef = useRef<string | null>(null);
+  //
+  // VTO-HA-004. This effect used to seed `loadedRef` itself on its first run
+  // WITH a controller, returning without switching. But its first run happens
+  // at mount, when there is no controller yet, and that run returns even
+  // earlier -- so the seeding run was actually the first product switch AFTER
+  // Live started, and that switch was swallowed. The runtime kept rendering the
+  // previous product's garment while the sheet, and any Photoreal generation,
+  // used the new one. `loadedRef` is now written where the garment is genuinely
+  // loaded (enterLive) and cleared where it is genuinely unloaded (exitLive),
+  // so this effect only has to compare.
   useEffect(() => {
     const controller = controllerRef.current;
     if (!controller || !descriptor) return;
-    if (loadedRef.current === null) {
-      loadedRef.current = descriptor.productRef;
-      return;
-    }
     if (loadedRef.current === descriptor.productRef) return;
     loadedRef.current = descriptor.productRef;
     controller.switchGarment(descriptor);
   }, [descriptor]);
 
   const requestPhotoreal = useCallback(async () => {
+    // A second tap while the first capture/sanitize is still running would
+    // capture a second frame and adopt it, which advances the store's intent
+    // sequence and therefore BILLS A SECOND GENERATION. See VTO-HA-003.
+    if (photorealInFlightRef.current) return;
+    photorealInFlightRef.current = true;
+    setPhotorealPending(true);
+    try {
+      await runPhotorealCapture();
+    } finally {
+      photorealInFlightRef.current = false;
+      setPhotorealPending(false);
+    }
+  }, []);
+
+  const runPhotorealCapture = useCallback(async () => {
     const controller = controllerRef.current;
     setPhotorealFailure(null);
 
@@ -209,6 +269,7 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
       photorealFailure,
       entered,
       previewUri,
+      photorealPending,
       enterLive,
       exitLive,
       requestPhotoreal,
@@ -221,6 +282,7 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
       photorealFailure,
       entered,
       previewUri,
+      photorealPending,
       enterLive,
       exitLive,
       requestPhotoreal,
