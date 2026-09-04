@@ -78,13 +78,14 @@ export async function signUpActor(base, publishableKey, email, password, fetchIm
  *  the real signup flow already created — never an insert, never a new
  *  identity.
  *
- *  Assigns ONLY this one writable column. Its sibling, Postgres-generated
- *  `LEAST(...)` confirmation column can never be assigned directly and is
- *  deliberately never named, read, or asserted on anywhere in this harness —
- *  email_confirmed_at alone is the verification authority (see PR
- *  description / __tests__/vtoE2eHarnessIntegrity.test.js for the exact
- *  error this repairs and why the generated column is expected to keep
- *  reading NULL for an email-only actor afterward). */
+ *  auth.users.confirmed_at is generated from the confirmation timestamps
+ *  and must never be assigned directly — Postgres rejects any direct
+ *  assignment to a generated column. This writes only email_confirmed_at
+ *  and lets PostgreSQL derive confirmed_at from it. email_confirmed_at is
+ *  the harness's sole verification authority; confirmed_at is never read
+ *  or asserted on here either way. See the PR description and
+ *  __tests__/vtoE2eHarnessIntegrity.test.js for the exact error this
+ *  repairs. */
 export async function confirmActorEmail(runSql, userId) {
   await runSql(`update auth.users set email_confirmed_at = now() where id = ${sqlQuote(userId)} and email_confirmed_at is null;`);
 }
