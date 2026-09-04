@@ -48,6 +48,10 @@ added to a list without a justification.
 | `docs/vto-hostile-audit-ledger.md` | The full-program hostile audit's own defect ledger (P0-P3 repairs, P4-P10 findings, A-T state matrix, human/device holds). Declared here rather than granted by widening a pattern: the guard refused it, which is the guard working. | Hostile audit brief §41; amendment §26 |
 | `scripts/check-vto-live-integration-scope.js` | The P3-C scope guard itself. | Amendment §7 |
 | `__tests__/vto*` | VTO-specific tests, including the strengthened VTO-NC-010 dependency guard. | P3-C §30, §31; amendment §4 |
+| `vto-phase4-pipeline/**` | Phase 4's garment-asset automation pipeline — an isolated, local/batch Node.js tool that turns a product source image into a `.ksgarment`-shaped asset or an explicit rejection. Not a runtime dependency of the app: nothing under `services/`, `components/`, `hooks/`, or `app/` imports from it, and it is not listed in the root `package.json`. | K Scan AI Live VTO Phase 4 brief §5, §27; `docs/vto-phase4-source-authority.md` |
+| `docs/vto-phase4-*` | Phase 4's own source-authority, corpus-discovery, corpus-request, and defect-ledger documentation, required by the Phase 4 brief's own reporting sections. | Phase 4 brief §3, §7, §9, §50 |
+| `fixtures/vto-phase4/**` | Generated `.ksgarment` asset bundles (manifest + texture + alpha), every one derived from a SYNTHETIC (procedurally drawn) or already-committed AUTHORIZED_FIXTURE source — never uncommitted real retailer imagery. | Phase 4 brief §27 (local/generated development artifacts storage location) |
+| `evidence/vto-phase4-assets/**` | The batch-run report, Gate E economics report, and automated-correction log the Phase 4 brief requires as review evidence. | Phase 4 brief §27, §38, §45 |
 
 ### Explicitly NOT authorized, and not touched
 

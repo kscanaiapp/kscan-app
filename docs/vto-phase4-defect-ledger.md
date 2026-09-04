@@ -122,6 +122,56 @@ re-verified (58/58 passing).
 
 ---
 
+### PHASE4-008 — new Phase 4 paths were outside the P3-C integration-scope guard's authorized boundary, failing CI
+
+```
+SEVERITY:    P3 (blocked CI on a correctly-functioning guard — not a security
+             or correctness defect in Phase 4 code itself, but a real gap
+             that had to be closed for this branch to be mergeable)
+STATUS:      FIXED
+LOCATION:    docs/vto-live-integration-manifest.md
+```
+
+**Defect.** `scripts/check-vto-live-integration-scope.js` (asserted by
+`__tests__/vtoLiveIntegrationScope.test.js`, run as part of the app's
+existing `node scripts/run-all-tests.js` suite and CI's "Security - Code
+and Dependencies" workflow) fails the branch's diff against a manifest of
+explicitly authorized paths. Phase 4 added four new top-level path groups
+(`vto-phase4-pipeline/**`, `docs/vto-phase4-*`, `fixtures/vto-phase4/**`,
+`evidence/vto-phase4-assets/**`) that the manifest — written for the prior
+P3-C lane — had no rows for, so CI's "Run full regression suite" step
+failed with exactly one unexpected failure: "guard: this branch's actual
+diff stays inside the boundary."
+
+**Why this is an issue.** This is the guard doing exactly its documented
+job (task section 51's own list of things Phase 4 must not break includes
+this class of protection), not a false positive — Phase 4 genuinely does
+add paths outside the previously-authorized boundary, and the manifest's
+own design (`docs/vto-live-integration-manifest.md`'s header) is explicit
+that "a path cannot become authorized by being added to a list without a
+justification." The correct fix is exactly what the guard's own failure
+message says: "add a row to the manifest with a real reason and source
+authority," not to weaken or bypass the guard.
+
+**Fix.** Added four rows to the manifest's authorized-mutation-boundary
+table, each with a specific reason and a citation to this Phase 4 brief's
+own sections (mirroring the existing rows' format exactly). Two of the new
+paths this session touched (`services/vto/vtoLiveCapability.ts`,
+`__tests__/vtoPhase4AssetEligibilityGate.test.js`) already matched
+existing patterns (`services/vto/**`, `__tests__/vto*`) and needed no new
+row.
+
+**Test.** `node scripts/check-vto-live-integration-scope.js
+origin/integration/backend-kplus-complimentary-staging-v1` now reports
+"PASS: every changed path is inside the authorized P3-C boundary" (129/129
+changed paths authorized, 0 outside). `__tests__/vtoLiveIntegrationScope.test.js`
+(10/10) and the full 7653-test regression suite (`node scripts/run-all-tests.js`,
+exit code 0, 0 unexpected failures against the known baseline) both re-verified.
+
+**Commit.** Included in this lane's follow-up commit (see PR #301).
+
+---
+
 ## P4–P10 (documented only, not required to fix)
 
 ### PHASE4-001 — whole-canvas rotation left opaque artifact corners in early synthetic test fixtures
