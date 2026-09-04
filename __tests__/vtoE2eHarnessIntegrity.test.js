@@ -16,6 +16,12 @@ const os = require('node:os');
 const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 
+async function loadProvision() {
+  return import('../scripts/vto-e2e/lib/provision.mjs');
+}
+async function loadRun() {
+  return import('../scripts/vto-e2e/run.mjs');
+}
 async function loadWorkflowGuard() {
   return import('../scripts/vto-e2e/lib/workflow-guard.mjs');
 }
@@ -462,5 +468,99 @@ test('Defect B: the harness\'s one SQL execution path uses `supabase db query` v
       /import\s*\{[^}]*\brunSupabase\b[^}]*\}\s*from/,
       `${file} must go through lib/sql.mjs, never import runSupabase directly`,
     );
+  }
+});
+
+// ── Provisioning robustness (incident-derived): a crash mid-provisioning
+//    must never lose track of an already-created auth.users row ──────────
+//
+// Live evidence: workflow run #7 (staging-dryrun, pre-repair commit f5ff48c)
+// crashed inside confirmActorEmail's `supabase db query --linked` call,
+// AFTER a real signup had already created an auth.users row, but
+// provisionVtoActors let that exception escape uncaught — which propagated
+// out of runStagingDryRunMode before its cleanup-guaranteeing try/finally
+// ever started, orphaning that synthetic user. These tests pin the fix.
+
+test('provisionVtoActors: a per-actor SQL failure after signup preserves that actor\'s userId and does not abort the other actors', async () => {
+  const { provisionVtoActors } = await loadProvision();
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => ({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ id: `fake-${crypto.randomUUID()}`, confirmed_at: null }),
+    });
+    let call = 0;
+    const runSql = async () => {
+      call += 1;
+      if (call === 1) throw new Error('simulated transient supabase db query failure');
+      return [];
+    };
+    const result = await provisionVtoActors({ base: 'https://x-staging.supabase.co', publishableKey: 'pk', runSql, runTag: 'integrity-test-tag' });
+
+    const roles = Object.keys(result.evidence);
+    assert.equal(roles.length, 3, 'all three roles must still be evaluated even though the first one\'s SQL call threw');
+
+    const failedRole = roles.find((r) => result.evidence[r].provisioningFailed);
+    assert.ok(failedRole, 'one role must be recorded as provisioningFailed rather than the whole function throwing');
+    assert.ok(result.evidence[failedRole].userId, 'the already-created auth.users id must still be recorded in evidence, not lost');
+    assert.ok(result.plan[failedRole].userId, 'actorIdsByRole(plan) must also be able to find it via plan[role].userId');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('provisionVtoActors: actorIdsByRole surfaces a provisioning-failed actor for cleanup exactly like a fully-succeeded one', async () => {
+  const { provisionVtoActors, actorIdsByRole } = await loadProvision();
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async () => ({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ id: `fake-${crypto.randomUUID()}`, confirmed_at: null }),
+    });
+    const runSql = async () => { throw new Error('every SQL call fails this run'); };
+    const result = await provisionVtoActors({ base: 'https://x-staging.supabase.co', publishableKey: 'pk', runSql, runTag: 'integrity-test-tag-2' });
+    const ids = actorIdsByRole(result.plan);
+    assert.equal(Object.keys(ids).length, 3, 'every actor got a real signup id even though every post-signup SQL call failed');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+// ── Cleanup mode: production guard + fail-closed targeting (incident-derived) ─
+
+test('runCleanupMode: refuses when neither --run-tag nor --user-ids is given, rather than silently no-oping', async () => {
+  const { runCleanupMode } = await loadRun();
+  await assert.rejects(
+    () => runCleanupMode({ runTag: null, userIds: [] }),
+    /run-tag.*user-ids|user-ids.*run-tag/i,
+  );
+});
+
+test('runCleanupMode: refuses a --user-ids value that is not a UUID', async () => {
+  const { runCleanupMode } = await loadRun();
+  await assert.rejects(
+    () => runCleanupMode({ runTag: null, userIds: ['not-a-uuid'] }),
+    /not a UUID/,
+  );
+});
+
+test('runCleanupMode: asserts the staging target itself before touching anything — production is impossible as an accidental target even if the caller\'s env is wrong', async () => {
+  const { runCleanupMode } = await loadRun();
+  const keys = ['SUPABASE_STAGING_PROJECT_REF', 'SUPABASE_STAGING_URL', 'SUPABASE_STAGING_PUBLISHABLE_KEY'];
+  const saved = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
+  try {
+    process.env.SUPABASE_STAGING_PROJECT_REF = 'wyyuqfdxucjksghsmhry'; // production ref, deliberately wrong
+    process.env.SUPABASE_STAGING_URL = 'https://wyyuqfdxucjksghsmhry.supabase.co';
+    process.env.SUPABASE_STAGING_PUBLISHABLE_KEY = 'not-a-real-key';
+    await assert.rejects(
+      () => runCleanupMode({ runTag: 'some-tag', userIds: [] }),
+      (err) => err.name === 'StagingGuardError',
+    );
+  } finally {
+    for (const k of keys) {
+      if (saved[k] === undefined) delete process.env[k]; else process.env[k] = saved[k];
+    }
   }
 });
