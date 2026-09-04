@@ -1,0 +1,236 @@
+# VTO backend E2E certification harness.
+#
+# `contract` runs automatically on every push/PR (no live staging mutation).
+# `staging-dryrun`, `staging-full-certification` and `cleanup` are
+# workflow_dispatch only, target the governed "staging" GitHub environment,
+# and never run on a normal PR/push — see scripts/vto-e2e/run.mjs for the
+# harness itself.
+
+name: VTO Backend E2E
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Harness mode to run
+        required: true
+        default: contract
+        type: choice
+        options:
+          - contract
+          - staging-dryrun
+          - staging-full-certification
+          - cleanup
+      confirm_paid_certification:
+        description: Must be YES to run staging-full-certification (the one authorized real-provider paid request)
+        required: false
+        default: 'NO'
+        type: choice
+        options:
+          - 'NO'
+          - 'YES'
+      run_tag:
+        description: Run tag to target for cleanup mode recovery (optional — omit for dryrun/full-certification, which generate their own)
+        required: false
+        default: ''
+        type: string
+      commit_sha:
+        description: Exact 40-hex commit SHA to fetch the committed garment fixture from (required for staging-full-certification)
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  # No live staging mutation. Runs on every push/PR, and on a manual dispatch
+  # with mode=contract (the default).
+  contract:
+    name: VTO E2E — contract
+    if: github.event_name != 'workflow_dispatch' || github.event.inputs.mode == 'contract'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run harness contract mode
+        run: node scripts/vto-e2e/run.mjs --mode=contract
+
+  # Real deployed vto-generate, real auth/entitlement/reservation/release
+  # wiring, zero-spend fixture. REAL PROVIDER SUBMIT stays 0. Mandatory
+  # before staging-full-certification may run.
+  staging-dryrun:
+    name: VTO E2E — staging dry run
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'staging-dryrun'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+    concurrency:
+      group: vto-e2e-certification
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link staging project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase link --project-ref "${{ vars.SUPABASE_STAGING_PROJECT_REF }}" --yes
+
+      - name: Run harness staging-dryrun mode
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          SUPABASE_STAGING_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
+        run: node scripts/vto-e2e/run.mjs --mode=staging-dryrun | tee vto-e2e-dryrun-report.json
+
+      - name: Upload dry-run report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: vto-e2e-dryrun-report-${{ github.run_number }}
+          path: vto-e2e-dryrun-report.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  # The ONE authorized real-provider happy path. Requires explicit
+  # confirm_paid_certification=YES in addition to mode selection — a single
+  # dropdown mistake must not be enough to spend money.
+  staging-full-certification:
+    name: VTO E2E — staging full certification (paid)
+    if: |
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.mode == 'staging-full-certification' &&
+      github.event.inputs.confirm_paid_certification == 'YES'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    concurrency:
+      group: vto-e2e-certification
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link staging project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase link --project-ref "${{ vars.SUPABASE_STAGING_PROJECT_REF }}" --yes
+
+      - name: Resolve commit SHA for the committed garment fixture
+        id: sha
+        run: |
+          set -euo pipefail
+          SHA="${{ github.event.inputs.commit_sha }}"
+          if [ -z "$SHA" ]; then
+            SHA="${{ github.sha }}"
+          fi
+          if ! [[ "$SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "commit_sha must be an exact 40-hex commit SHA, got: $SHA" >&2
+            exit 2
+          fi
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Run harness staging-full-certification mode
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          SUPABASE_STAGING_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
+        run: |
+          node scripts/vto-e2e/run.mjs \
+            --mode=staging-full-certification \
+            --commit-sha="${{ steps.sha.outputs.sha }}" \
+            | tee vto-e2e-fullcert-report.json
+
+      - name: Upload full-certification report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: vto-e2e-fullcert-report-${{ github.run_number }}
+          path: vto-e2e-fullcert-report.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  cleanup:
+    name: VTO E2E — cleanup
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'cleanup'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: staging
+    concurrency:
+      group: vto-e2e-certification
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link staging project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase link --project-ref "${{ vars.SUPABASE_STAGING_PROJECT_REF }}" --yes
+
+      - name: Run harness cleanup mode
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          SUPABASE_STAGING_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
+        run: node scripts/vto-e2e/run.mjs --mode=cleanup --run-tag="${{ github.event.inputs.run_tag }}"
