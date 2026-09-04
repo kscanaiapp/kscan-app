@@ -346,3 +346,106 @@ Observed, not proposed as work in this lane: npm's stated replacement is the
 bulk advisory endpoint, and the repo already runs OSV-Scanner and Trivy, both
 green. Either would remove a required check's hard dependency on a retiring
 third-party endpoint. Flagged as time-sensitive for that workflow's owner.
+
+## Entry 4 — 2026-09-04 (PASS recorded — emulator-native validation lane attempted)
+
+```
+CURRENT BRANCH:   claude/kscan-live-vto-phase1-phase2-lcqyg9
+HEAD:             550b5d2ab531aa255da404c45add77d2540ebc34
+```
+
+### Completed
+
+- **Human verdict recorded: PASS**, package #2, `37470ca`
+  (`docs/vto-visual-verdicts.md` entry 2, `docs/vto-static-preview-review.md`).
+  All four accepted limitations from the review carried forward unchanged
+  (armpit gap; residual aspect deviation on stress bodies; the broad fixture's
+  deliberately out-of-range proportions; a boxy lower-torso taper). PASS
+  licenses continued isolated Phase 1 work; it does not itself authorize
+  Phase 2 live garment rendering.
+- **Emulator-native validation lane, attempted end to end.** Authorized as
+  the next step after the PASS: compile/mount the native `LiveVTO` module in
+  an iOS simulator or Android emulator as an intermediate proof short of a
+  physical device. Neither platform's mandatory compile/mount step was
+  achievable in this session — see `docs/vto-native-device-handoff.md`
+  Section 0 for the full table of what was checked:
+  - **iOS:** no macOS host exists in this Linux cloud container. Structural —
+    Xcode cannot run here regardless of session length.
+  - **Android:** this session's egress proxy returned a live **403** for
+    `dl.google.com` (Android SDK / Google Maven, which also serves the
+    `expo-modules-core` Android AAR), and separately `/dev/kvm` is absent, so
+    even a fully provisioned SDK could not boot a hardware-accelerated
+    emulator. Independent, compounding blockers, not a defect in the code.
+  - This is an environment fact about this specific sandbox, honestly
+    reported, not a defect finding — no architecture or privacy-boundary
+    problem was observed in anything that *could* run.
+- **What was still delivered, real and tested, without a native compiler or
+  runtime:**
+  - `packages/evaluation/src/trackingStateMachine.ts` — the
+    `trackingAcquired`/`trackingWeak`/`trackingLost`/`trackingRecovered`
+    reference state machine the native code is meant to port, tested against
+    the existing synthetic golden sequences, with a boundary test proving its
+    emitted payloads can never carry a `FORBIDDEN_EVENT_PAYLOAD_KEYS` entry.
+  - `packages/evaluation/src/nativeReplayFixture.ts` — the
+    `NATIVE_REPLAY_FIXTURE` JSON format a native replay adapter would consume
+    entirely on the native side, plus a structural validator and round-trip
+    tests.
+  - `packages/static-renderer/src/__tests__/nativeBridgeCompat.test.ts` —
+    Section 11's compatibility check: a JSON-round-tripped `BodyFrame` (a
+    stand-in for a native pipeline export, since none ran) renders
+    pixel-identically through the full rigid+deformed pipeline. Proves format
+    compatibility, not native execution — labelled as such.
+  - `native/ios/LiveVTOPerceptionProvider.swift` and its Kotlin mirror — the
+    two-mode `FrameSource`/`PerceptionProvider` shape (`RealLocalPoseProvider`
+    TODO stub; `NativeReplayPerceptionProvider` parsing the fixture format
+    above). Still unbuilt and unverified against a real compiler, same status
+    as every other file under `native/`.
+  - `docs/vto-physical-device-blockers.md` — what even a *successful*
+    emulator run could never certify (real camera behavior, pose/segmentation
+    accuracy, real lighting, body diversity, latency, thermal state, CPU/GPU,
+    memory pressure, true frame rate, interruptions, device variance), kept
+    explicitly separate from this session's environment blockers above.
+  - A static source audit (grep for network primitives across every native
+    and package source file) found none anywhere in this codebase — real but
+    weak evidence, since nothing runs yet, and not a substitute for a runtime
+    network capture.
+- **Protected-path guard fix.** `docs/vto-physical-device-blockers.md`, being
+  a new root-level `docs/*.md` file, correctly tripped
+  "Validate no production paths touched" in CI (the guard treats `docs/` as
+  fully protected except for explicitly named exceptions). Fixed the same
+  mechanical way every prior program doc was: one filename added to
+  `protected-paths.json`'s `ALLOWED_EXCEPTIONS`, visible in the diff.
+  Re-verified green.
+
+### Findings
+
+No architecture or privacy-boundary defect. The emulator-native validation
+lane's own recommendation options (EMULATOR-NATIVE VALIDATED / CONTINUE
+EMULATOR REPAIR / HOLD — NATIVE ARCHITECTURE DEFECT / HOLD — PRIVACY BOUNDARY
+DEFECT) all presuppose an emulator or simulator that actually ran. None
+fits cleanly. Closest and most honest, read narrowly: **CONTINUE EMULATOR
+REPAIR**, meaning "this session's environment cannot host the required
+toolchain at all," not "a defect was found during testing."
+
+### Still open
+
+Same four items as package #2 (armpit gap, stress-body aspect deviation,
+out-of-range broad fixture, boxy taper) — unchanged, none were in scope this
+round. Additionally: the pose-model decision (`docs/vto-native-device-handoff.md`
+Section 2) remains unmade; `RealLocalPoseProvider` remains an unimplemented
+TODO on both platforms; no native compile has ever succeeded in any session.
+
+### Test status
+
+`kscan-live-vto` suite: 95 → **109/109**, all green. No test deleted or
+weakened. Protected-path guard: PASS, 199 files checked against
+`origin/master`.
+
+### Next critical path item
+
+A session with a macOS host (for iOS) or an Android SDK + KVM-capable host +
+unblocked network egress to `dl.google.com` (for Android) is required before
+the emulator-native validation lane's mandatory compile/mount step can be
+attempted at all. Independent of that, the P1-D3 asset pipeline (retailer
+image → `.ksgarment`) remains **BLOCKED — FIXTURE CORPUS REQUIRED**, and the
+pose-model decision remains unmade pending device measurement.
