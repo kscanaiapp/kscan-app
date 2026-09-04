@@ -18,6 +18,27 @@
  * services/privacyImageSanitizer.js is deliberately NOT used here: it is a
  * passthrough that returns its input unchanged, so it would give the
  * appearance of sanitation without performing any.
+ *
+ * WHY THERE IS NO PRE-PICKER PERMISSION GATE (VTO Android repair).
+ *
+ * launchImageLibraryAsync opens the OS photo picker -- Android's Photo Picker
+ * on 13+, and the SAF document picker below that. Both hand back exactly the
+ * one item the user tapped, and neither requires the app to hold a
+ * media-library permission: that is the entire point of a system picker.
+ *
+ * Asking first was not merely redundant on Android, it was closed. This app
+ * declares no READ_MEDIA_IMAGES, and app.json BLOCKS both
+ * READ_EXTERNAL_STORAGE and WRITE_EXTERNAL_STORAGE (deliberately -- see the
+ * privacy posture above). So there was no permission for the OS to grant,
+ * requestMediaLibraryPermissionsAsync() could not return 'granted', and every
+ * VTO person-photo selection terminated at 'permission_denied' before the
+ * picker ever opened -- with a dialog telling the user to fix it in Settings,
+ * where there was nothing to fix. Broadening the manifest to satisfy the gate
+ * would trade a working picker for a permission the feature does not need;
+ * removing the gate is the repair.
+ *
+ * The user still explicitly chooses the photo, and it is still re-encoded and
+ * still deleted -- dropping the gate changes who is asked, not what is done.
  */
 
 import * as ImagePicker from 'expo-image-picker';
@@ -44,16 +65,13 @@ export const VTO_PERSON_SANITIZER_MODE = 'metadata-stripped-reencode' as const;
 
 export type VtoPersonPickOutcome =
   | { ok: true; person: VtoPersonInput }
-  | { ok: false; reason: 'cancelled' | 'permission_denied' | 'invalid_person_input' };
+  | { ok: false; reason: 'cancelled' | 'invalid_person_input' };
 
-type Picker = Pick<
-  typeof ImagePicker,
-  'requestMediaLibraryPermissionsAsync' | 'launchImageLibraryAsync'
->;
+type Picker = Pick<typeof ImagePicker, 'launchImageLibraryAsync'>;
 
 /**
- * Opens the photo library and returns a sanitized, ephemeral person input.
- * Cancellation is a no-op outcome, never an error state.
+ * Opens the system photo picker and returns a sanitized, ephemeral person
+ * input. Cancellation is a no-op outcome, never an error state.
  */
 export async function pickVtoPersonInput(
   deps?: {
@@ -64,11 +82,7 @@ export async function pickVtoPersonInput(
   const picker = deps?.picker ?? ImagePicker;
   const prepare = deps?.prepare ?? prepareImageForPrivacyUpload;
 
-  const permission = await picker.requestMediaLibraryPermissionsAsync();
-  if (permission?.status !== 'granted') {
-    return { ok: false, reason: 'permission_denied' };
-  }
-
+  // Straight to the system picker: no pre-permission gate. See the header.
   const picked = await picker.launchImageLibraryAsync({
     mediaTypes: ['images'],
     quality: 1,

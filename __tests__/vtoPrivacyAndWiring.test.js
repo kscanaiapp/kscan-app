@@ -170,9 +170,11 @@ function personInputHarness(overrides = {}) {
   return { mod, cleaned };
 }
 
+// Deliberately exposes ONLY launchImageLibraryAsync. If the person-input path
+// ever reintroduces a pre-picker permission gate, it will throw here instead of
+// silently re-closing VTO on Android.
 function picker(result) {
   return {
-    requestMediaLibraryPermissionsAsync: () => Promise.resolve({ status: 'granted' }),
     launchImageLibraryAsync: () => Promise.resolve(result),
   };
 }
@@ -213,23 +215,96 @@ test('cancelling the picker is a no-op, not an error state', async () => {
   assert.equal(outcome.reason, 'cancelled');
 });
 
-test('a denied photo permission never reaches the sanitizer', async () => {
+test('the picker opens with no pre-permission gate (VTO Android repair)', async () => {
   const { mod } = personInputHarness();
-  let prepared = false;
+  let launched = false;
+  let permissionAsked = false;
   const outcome = await mod.pickVtoPersonInput({
     picker: {
-      requestMediaLibraryPermissionsAsync: () => Promise.resolve({ status: 'denied' }),
+      // Present but forbidden: a gate here is exactly the defect. On Android
+      // this app blocks READ/WRITE_EXTERNAL_STORAGE and declares no
+      // READ_MEDIA_IMAGES, so this call can never resolve to 'granted' and
+      // asking closed VTO permanently.
+      requestMediaLibraryPermissionsAsync: () => {
+        permissionAsked = true;
+        return Promise.resolve({ status: 'denied' });
+      },
       launchImageLibraryAsync: () => {
-        throw new Error('picker must not open');
+        launched = true;
+        return Promise.resolve({ canceled: false, assets: [{ uri: 'file:///photos/1.jpg' }] });
       },
     },
-    prepare: () => {
-      prepared = true;
-      return Promise.resolve({});
-    },
   });
-  assert.equal(outcome.reason, 'permission_denied');
-  assert.equal(prepared, false);
+  assert.equal(permissionAsked, false, 'no media-library permission may be requested before the picker');
+  assert.equal(launched, true, 'the system picker must open directly');
+  assert.equal(outcome.ok, true);
+  assert.equal(outcome.person.source, 'photo_library');
+});
+
+test("'permission_denied' is no longer a reachable person-input outcome", async () => {
+  const source = fs.readFileSync(
+    path.join(__dirname, '..', 'services', 'vto', 'vtoPersonInput.ts'),
+    'utf8',
+  );
+  // Strip block comments: the header explains the removed gate on purpose.
+  const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  assert.equal(
+    /requestMediaLibraryPermissionsAsync/.test(code),
+    false,
+    'the person-input path must not request a media-library permission',
+  );
+  assert.equal(
+    /permission_denied/.test(code),
+    false,
+    'the person-input path must not report a permission outcome it can never produce',
+  );
+});
+
+test('the iOS photo-library purpose string discloses Virtual Try-On, and overclaims nothing', () => {
+  const app = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'app.json'), 'utf8'));
+  const purpose = (app.expo || app).ios.infoPlist.NSPhotoLibraryUsageDescription;
+
+  // VTO sends a recognizable photo of the user to a third-party generation
+  // provider. Apple requires the purpose string to cover that use, and before
+  // this repair it named only style inspiration / Closet / Dressing Rooms.
+  assert.match(purpose, /Virtual Try-On/, 'VTO photo-library use must be disclosed');
+  assert.match(purpose, /Style Closet/);
+  assert.match(purpose, /Dressing Rooms/);
+  assert.match(purpose, /style inspiration/i);
+
+  // VTO earns none of these claims -- see docs/vto-foundation.md. A purpose
+  // string is a promise to the user and to App Review; it must not make one
+  // the pipeline does not keep.
+  for (const forbidden of [
+    /face[- ]mask/i,
+    /zero[- ]knowledge/i,
+    /on[- ]device only/i,
+    /only on your device/i,
+    /never leaves? your (device|phone)/i,
+    /anonymi[sz]ed/i,
+  ]) {
+    assert.equal(forbidden.test(purpose), false, `purpose string must not claim: ${forbidden}`);
+  }
+});
+
+test('VTO adds no media-library permission to the Android manifest', () => {
+  const app = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'app.json'), 'utf8'));
+  const android = (app.expo || app).android || {};
+  const granted = android.permissions || [];
+  const blocked = android.blockedPermissions || [];
+
+  for (const forbidden of [
+    'android.permission.READ_EXTERNAL_STORAGE',
+    'android.permission.WRITE_EXTERNAL_STORAGE',
+  ]) {
+    assert.equal(granted.includes(forbidden), false, `${forbidden} must not be requested`);
+    assert.ok(blocked.includes(forbidden), `${forbidden} must stay blocked`);
+  }
+  assert.equal(
+    granted.some((p) => String(p).includes('READ_MEDIA')),
+    false,
+    'the system photo picker needs no READ_MEDIA_* permission — do not add one for VTO',
+  );
 });
 
 test('an oversized payload is refused before transport', async () => {

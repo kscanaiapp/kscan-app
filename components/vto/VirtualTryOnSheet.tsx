@@ -204,14 +204,9 @@ export function VirtualTryOnSheet({
     // strictNullChecks off, and the explicit comparison is what narrows a
     // discriminated union under it.
     if (outcome.ok !== false) return;
-    if (outcome.reason === 'permission_denied') {
-      Alert.alert(
-        'Photo Access Required',
-        'Allow K Scan AI to access your photo library in Settings to try items on.',
-        [{ text: 'OK' }],
-      );
-      return;
-    }
+    // No 'permission_denied' branch: the system photo picker needs no
+    // media-library permission, so pickVtoPersonInput no longer asks for one
+    // and can no longer report one. See services/vto/vtoPersonInput.ts.
     if (outcome.reason === 'invalid_person_input') {
       Alert.alert('Photo Unavailable', 'That photo could not be prepared. Try another one.', [
         { text: 'OK' },

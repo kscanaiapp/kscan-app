@@ -234,7 +234,18 @@ jobs:
     needs:
       - preflight
       - source-validation
-    if: needs.source-validation.result == 'success'
+    # `always()` is required, not cosmetic. approved-single-migration is skipped
+    # on every deploy-only run (no migration to apply), and GitHub propagates that
+    # skip down the needs graph to any job whose `if` lacks a status function --
+    # even though source-validation itself succeeded via its own always() guard.
+    # Without this, the workflow could ONLY deploy a function as part of a run
+    # that also applied a migration; a plain redeploy silently skipped deploy,
+    # health-check and synthetic-tests. The gate is unchanged: preflight AND
+    # source-validation must both have succeeded.
+    if: |
+      always() &&
+      needs.preflight.result == 'success' &&
+      needs.source-validation.result == 'success'
     environment: staging
     outputs:
       manifest_path: ${{ steps.deploy.outputs.manifest_path }}
@@ -267,7 +278,13 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/deploy-staging-function.mjs | tee deploy-result.json
-          MANIFEST="$(python3 -c "import json; print(json.load(open('deploy-result.json')).get('manifestPath',''))")"
+          # deploy-staging-function.mjs prints one JSON document per phase
+          # (preflight, deploy, result), so deploy-result.json is a CONCATENATED
+          # stream. json.load() rejected it with "Extra data", which failed the
+          # job on a SUCCESSFUL deploy and skipped health-check and
+          # synthetic-tests. Take the last manifestPath in the stream; `|| true`
+          # keeps `set -e` from killing the step when there is none.
+          MANIFEST="$(grep -o '"manifestPath": *"[^"]*"' deploy-result.json | tail -1 | sed 's/.*: *"//; s/"$//' || true)"
           echo "manifest_path=${MANIFEST}" >> "$GITHUB_OUTPUT"
 
       - name: Upload deploy artifacts
@@ -288,6 +305,14 @@ jobs:
     needs:
       - preflight
       - deploy-one-function
+    # Same skip propagation as deploy-one-function: approved-single-migration is
+    # skipped on every deploy-only run, and that skip travels the whole needs
+    # chain to any job without a status function -- so without always() the
+    # deployed function is never probed. Requirements are unchanged and explicit.
+    if: |
+      always() &&
+      needs.preflight.result == 'success' &&
+      needs.deploy-one-function.result == 'success'
     environment: staging
     steps:
       - name: Probe deployed function
@@ -329,6 +354,11 @@ jobs:
     needs:
       - preflight
       - health-check
+    # See health-check above -- the skipped-ancestor propagation reaches here too.
+    if: |
+      always() &&
+      needs.preflight.result == 'success' &&
+      needs.health-check.result == 'success'
     environment: staging
     steps:
       - name: Checkout

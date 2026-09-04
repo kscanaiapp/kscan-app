@@ -172,7 +172,7 @@ function verify() {
   check(
     result,
     infoPlist.NSPhotoLibraryUsageDescription ===
-      'K Scan AI uses your photo library to let you upload style inspiration images to your Style Closet and Dressing Rooms.',
+      'K Scan AI uses your photo library so you can choose style inspiration images for your Style Closet and Dressing Rooms, and choose a photo of yourself to try items on with Virtual Try-On. Only the photos you pick are used.',
     'Photo library usage description is present and scoped',
   );
   check(result, privacyManifests.NSPrivacyTracking === false, 'Privacy manifest declares no tracking');
