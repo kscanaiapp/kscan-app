@@ -24,15 +24,23 @@ const {
   DEPLOYMENT_REQUIRED_CHECKS,
   DROPPED_CHECKS,
   resolveCheckRunVerdict,
+  reduceRunsForName,
+  buildByNameMap,
   writeVerdict,
   main: _mainNotExported, // documents intent: main() is process-level, not imported
 } = require('../../security/scripts/evaluate-promotion-gate');
 
 const SHA = '7fab2ad48f62a1ebf36899af8884e1ea91a0a61e';
+const FOREIGN_SHA = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 
 /** Builds a byName Map the same shape fetchCheckRunsOnce returns. */
 function checkRun(status, conclusion) {
   return { status, conclusion, head_sha: SHA, completed_at: status === 'completed' ? new Date().toISOString() : null };
+}
+
+/** Builds a single named check-run at an explicit completed_at, for ordering fixtures. */
+function checkRunAt(status, conclusion, completedAtIso, headSha = SHA) {
+  return { status, conclusion, head_sha: headSha, completed_at: status === 'completed' ? completedAtIso : null };
 }
 
 function allPassingByName() {
@@ -198,4 +206,140 @@ test('never-write-nothing: a thrown evaluator error still yields a verdict objec
   verdict.failures = [...(verdict.failures || []), 'evaluator error: GitHub API 500: boom'];
   assert.equal(verdict.finalVerdict, 'OPERATIONAL FAILURE');
   assert.ok(verdict.failures.some((f) => f.includes('boom')));
+});
+
+/**
+ * CI-APPLICABILITY-002: the duplicate-check masking defect.
+ *
+ * The old reduction in fetchCheckRunsOnce picked whichever same-named run had
+ * the greatest `completed_at`, and an unresolved run's `completed_at` is
+ * `null` -> coerces to the Unix epoch -> always loses that comparison against
+ * a genuine completed timestamp. A completed SUCCESS therefore always masked
+ * an applicable IN_PROGRESS/QUEUED duplicate of the very same check,
+ * regardless of which run actually started or finished more recently, and the
+ * gate could report PASS on a check that had not actually resolved.
+ *
+ * These fixtures drive reduceRunsForName / buildByNameMap directly (the
+ * layer the defect lived in) and then confirm the effect end-to-end through
+ * resolveCheckRunVerdict, which is untouched by this fix and still consumes
+ * an already-reduced byName Map.
+ */
+
+test('reduceRunsForName fixture: SUCCESS only -> satisfied', () => {
+  const run = checkRun('completed', 'success');
+  assert.equal(reduceRunsForName([run]), run);
+});
+
+test('reduceRunsForName fixture: SUCCESS + IN_PROGRESS -> the unresolved run wins (WAIT, not masked)', () => {
+  const success = checkRun('completed', 'success');
+  const inProgress = checkRun('in_progress', null);
+  const reduced = reduceRunsForName([success, inProgress]);
+  assert.equal(reduced, inProgress);
+  assert.notEqual(reduced.status, 'completed');
+});
+
+test('reduceRunsForName fixture: SUCCESS + QUEUED -> the unresolved run wins (WAIT, not masked)', () => {
+  const success = checkRun('completed', 'success');
+  const queued = checkRun('queued', null);
+  const reduced = reduceRunsForName([success, queued]);
+  assert.equal(reduced, queued);
+  assert.notEqual(reduced.status, 'completed');
+});
+
+test('reduceRunsForName fixture: SUCCESS + FAILURE -> the failure always wins (FAIL)', () => {
+  const success = checkRun('completed', 'success');
+  const failure = checkRun('completed', 'failure');
+  assert.equal(reduceRunsForName([success, failure]), failure);
+  // Order must not matter.
+  assert.equal(reduceRunsForName([failure, success]), failure);
+});
+
+test('reduceRunsForName fixture: FAILURE + PENDING -> the failure wins (unresolved/failing, never a silent pass)', () => {
+  const failure = checkRun('completed', 'failure');
+  const pending = checkRun('in_progress', null);
+  const reduced = reduceRunsForName([failure, pending]);
+  assert.equal(reduced, failure);
+  assert.equal(reduced.conclusion, 'failure');
+});
+
+test('reduceRunsForName fixture: two SUCCESS runs -> satisfied', () => {
+  const s1 = checkRunAt('completed', 'success', '2026-08-06T00:00:00.000Z');
+  const s2 = checkRunAt('completed', 'success', '2026-08-06T00:05:00.000Z');
+  const reduced = reduceRunsForName([s1, s2]);
+  assert.equal(reduced.conclusion, 'success');
+});
+
+test('reduceRunsForName fixture: older SUCCESS + newer IN_PROGRESS -> never masked regardless of chronology', () => {
+  const olderSuccess = checkRunAt('completed', 'success', '2026-08-06T00:00:00.000Z');
+  const newerInProgress = checkRun('in_progress', null); // no completed_at at all
+  const reduced = reduceRunsForName([olderSuccess, newerInProgress]);
+  assert.equal(reduced, newerInProgress);
+});
+
+test('reduceRunsForName fixture: newer SUCCESS + older IN_PROGRESS -> still never masked (the historical bug: epoch < any real timestamp)', () => {
+  const newerSuccess = checkRunAt('completed', 'success', '2026-08-06T00:10:00.000Z');
+  const olderInProgress = checkRun('in_progress', null);
+  const reduced = reduceRunsForName([newerSuccess, olderInProgress]);
+  assert.equal(reduced, olderInProgress);
+});
+
+test('buildByNameMap fixture: foreign SHA duplicate cannot satisfy the gate — throws rather than being silently dropped or reduced in', () => {
+  const ownRun = checkRun('completed', 'success');
+  const foreignRun = checkRunAt('completed', 'success', '2026-08-06T00:00:00.000Z', FOREIGN_SHA);
+  assert.throws(
+    () => buildByNameMap([ownRun, foreignRun], SHA),
+    /reports head_sha .* expected/,
+  );
+});
+
+test('buildByNameMap + resolveCheckState fixture: non-applicable duplicate stays NOT_APPLICABLE regardless of which duplicate the reduction picks', () => {
+  const { resolveCheckState, CHECK_STATE } = require('../../security/scripts/evaluate-promotion-gate');
+  const skipped = checkRun('completed', 'skipped');
+  const inProgress = checkRun('in_progress', null);
+  const byName = buildByNameMap([skipped, inProgress].map((r) => ({ ...r, name: 'Staging health checks' })), SHA);
+  const run = byName.get('Staging health checks');
+  // Applicability (not the reduction) decides: an explicitly non-applicable
+  // check stays NOT_APPLICABLE even though one of its duplicates is still
+  // unresolved.
+  const state = resolveCheckState('Staging health checks', run, false, true);
+  assert.equal(state, CHECK_STATE.NOT_APPLICABLE);
+});
+
+test('critical negative control: one completed SUCCESS + one applicable IN_PROGRESS same-name run -> NOT PASS', () => {
+  const runs = [];
+  for (const name of [...ALWAYS_REQUIRED_CHECKS, ...DEPLOYMENT_REQUIRED_CHECKS]) {
+    runs.push({ ...checkRun('completed', 'success'), name });
+  }
+  // A duplicate, still-running run of an already-"completed" required check —
+  // exactly the shape a serialized re-run or a slow retry produces.
+  runs.push({ ...checkRun('in_progress', null), name: 'OSV-Scanner' });
+
+  const byName = buildByNameMap(runs, SHA);
+  const verdict = resolveCheckRunVerdict({ repository: 'kscanaiapp/kscan-app', sha: SHA, byName });
+  assert.notEqual(verdict.finalVerdict, 'PASS');
+  assert.deepEqual(verdict.pendingChecks, ['OSV-Scanner']);
+
+  // And once the convergence deadline has elapsed, it is an explicit
+  // OPERATIONAL FAILURE — never a silent PASS and never a forever-PENDING.
+  const verdictAfterDeadline = resolveCheckRunVerdict({
+    repository: 'kscanaiapp/kscan-app',
+    sha: SHA,
+    byName,
+    treatUnresolvedAsOperational: true,
+  });
+  assert.equal(verdictAfterDeadline.finalVerdict, 'OPERATIONAL FAILURE');
+});
+
+test('end-to-end: SUCCESS + FAILURE duplicate of a required check blocks even though a completed success also exists', () => {
+  const runs = [];
+  for (const name of [...ALWAYS_REQUIRED_CHECKS, ...DEPLOYMENT_REQUIRED_CHECKS]) {
+    runs.push({ ...checkRun('completed', 'success'), name });
+  }
+  runs.push({ ...checkRunAt('completed', 'success', '2026-08-06T00:00:00.000Z'), name: 'Gitleaks' });
+  runs.push({ ...checkRunAt('completed', 'failure', '2026-08-06T00:05:00.000Z'), name: 'Gitleaks' });
+
+  const byName = buildByNameMap(runs, SHA);
+  const verdict = resolveCheckRunVerdict({ repository: 'kscanaiapp/kscan-app', sha: SHA, byName });
+  assert.notEqual(verdict.finalVerdict, 'PASS');
+  assert.ok(verdict.failures.some((f) => f.includes('Gitleaks')));
 });

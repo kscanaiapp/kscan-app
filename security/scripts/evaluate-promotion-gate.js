@@ -160,6 +160,83 @@ async function githubRequest(url, token) {
 }
 
 /**
+ * Reduces every check-run sharing one `name` to the single run that
+ * represents that name's semantic state (CI-APPLICABILITY-002).
+ *
+ * This is deliberately NOT "pick the run with the latest `completed_at`".
+ * An unresolved run's `completed_at` is `null`, which coerces to the Unix
+ * epoch — always earlier than any genuine completed timestamp — so a naive
+ * latest-completed-wins comparison discards the unresolved sibling every
+ * time, regardless of which run the API listed first or which one actually
+ * started more recently. Concretely: a completed SUCCESS run's
+ * `completed_at` is always `> new Date(0)`, so it always won the old
+ * reduction over an IN_PROGRESS/QUEUED duplicate of the very same check —
+ * in EITHER chronological direction — and the gate could report a check
+ * satisfied while an applicable duplicate of it had not actually finished.
+ * The same flaw let two completed runs (a SUCCESS and a FAILURE) resolve to
+ * whichever happened to finish later, rather than the failure always
+ * winning.
+ *
+ * The reduction instead reasons over the whole set sharing that name:
+ *  - a completed FAILURE is conclusive and wins over every other sibling,
+ *    completed or not, regardless of timestamps — a check must never be
+ *    reported satisfied (or left pending) while a real failure exists for
+ *    it;
+ *  - absent a failure, ANY sibling that has not completed yet (QUEUED,
+ *    IN_PROGRESS) means the check as a whole has not resolved yet — a
+ *    completed SUCCESS never gets to stand in for it;
+ *  - only when every sibling has completed and none failed is a completed
+ *    run (preferring an actual SUCCESS) used to represent the check.
+ */
+function reduceRunsForName(runs) {
+  if (!runs || runs.length === 0) return undefined;
+  if (runs.length === 1) return runs[0];
+
+  const completed = runs.filter((r) => r.status === 'completed');
+  const incomplete = runs.filter((r) => r.status !== 'completed');
+
+  const failedRun = completed.find((r) => r.conclusion === 'failure');
+  if (failedRun) return failedRun;
+
+  if (incomplete.length > 0) return incomplete[0];
+
+  const successRun = completed.find((r) => r.conclusion === 'success');
+  if (successRun) return successRun;
+
+  return completed.reduce((latest, r) => (
+    new Date(r.completed_at || 0) > new Date(latest.completed_at || 0) ? r : latest
+  ));
+}
+
+/**
+ * Groups raw check-runs by name and reduces each group with
+ * reduceRunsForName, after asserting every run reports the expected exact
+ * SHA (Task 9). A foreign-SHA duplicate throws rather than being silently
+ * dropped or allowed to participate in the reduction — the endpoint is
+ * already SHA-scoped, but a run reporting a different commit must never be
+ * mixed in with this candidate's own runs for the same name.
+ */
+function buildByNameMap(runs, sha) {
+  for (const run of runs) {
+    if (run.head_sha && run.head_sha !== sha) {
+      throw new Error(`check-run "${run.name}" reports head_sha ${run.head_sha}, expected ${sha}`);
+    }
+  }
+
+  const grouped = new Map();
+  for (const run of runs) {
+    if (!grouped.has(run.name)) grouped.set(run.name, []);
+    grouped.get(run.name).push(run);
+  }
+
+  const byName = new Map();
+  for (const [name, nameRuns] of grouped) {
+    byName.set(name, reduceRunsForName(nameRuns));
+  }
+  return byName;
+}
+
+/**
  * A short, bounded settle-wait for REST eventual consistency right after a
  * `workflow_run: completed` webhook fires — NOT a wait for sibling workflows
  * to start or finish. Defaults small on purpose (task: reduce diagnostic
@@ -175,23 +252,7 @@ async function fetchCheckRunsOnce(repo, sha, token, waitSeconds, applicability) 
   for (;;) {
     const data = await githubRequest(url, token);
     const runs = data.check_runs || [];
-
-    // Task 9: exact-SHA enforcement. The endpoint is already SHA-scoped, but a
-    // check-run's own `head_sha` is asserted explicitly so a GitHub API quirk
-    // can never let a different commit's result satisfy this gate.
-    for (const run of runs) {
-      if (run.head_sha && run.head_sha !== sha) {
-        throw new Error(`check-run "${run.name}" reports head_sha ${run.head_sha}, expected ${sha}`);
-      }
-    }
-
-    const byName = new Map();
-    for (const run of runs) {
-      const existing = byName.get(run.name);
-      if (!existing || new Date(run.completed_at || 0) > new Date(existing.completed_at || 0)) {
-        byName.set(run.name, run);
-      }
-    }
+    const byName = buildByNameMap(runs, sha);
 
     // CI-APPLICABILITY-001. The wait used to require `byName.has(n)` -- i.e. it
     // only waited for checks that had ALREADY appeared. Under the staging
@@ -891,6 +952,8 @@ module.exports = {
   evaluateLocal,
   resolveCheckRunVerdict,
   resolveCheckState,
+  reduceRunsForName,
+  buildByNameMap,
   isCheckApplicable,
   CHECK_STATE,
   CONCLUSION_STATE,
