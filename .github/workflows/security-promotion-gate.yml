@@ -45,11 +45,35 @@ permissions:
   checks: read
   actions: read
 
+env:
+  # CI-CONVERGENCE-001. The convergence CEILING, not an expected wait.
+  #
+  # Sized from the workflows themselves: the longest `timeout-minutes` any
+  # applicable required job carries (Project checks, 60m in security-code.yml)
+  # plus a 5-minute margin for queueing and runner startup. A required check
+  # that is still inside its own governed timeout is still legitimately
+  # RUNNING, and must read as WAIT — never as a converged verdict.
+  #
+  # The previous value was 300s, which the duplicate-aware reduction
+  # (CI-APPLICABILITY-002) exposed as a guaranteed premature OPERATIONAL
+  # FAILURE: on PR #290 itself Project checks, npm audit and Contract tests
+  # were all still running when it expired.
+  #
+  # evaluate-promotion-gate.js returns the moment the applicable set settles,
+  # or the moment a conclusive failure exists, so an ordinary run is unchanged
+  # — this only bounds the pathological case. Kept in agreement with the
+  # evaluator's own DEFAULT_CONVERGENCE_WAIT_SECONDS, and with the required
+  # jobs' real timeouts, by __tests__/security/promotionGateCheckRuns.test.js.
+  CONVERGENCE_WAIT_SECONDS: 3900
+
 jobs:
   security-promotion-gate:
     name: Security promotion gate
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Must exceed CONVERGENCE_WAIT_SECONDS (65m) so the evaluator's own
+    # bounded wait is what expires first, producing a named OPERATIONAL
+    # FAILURE verdict artifact rather than an opaque job timeout.
+    timeout-minutes: 70
     if: |
       github.event_name != 'workflow_run' ||
       github.event.workflow_run.conclusion != 'cancelled'
@@ -79,18 +103,23 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_run" ]; then
             SHA="${{ github.event.workflow_run.head_sha }}"
             PR="${{ github.event.workflow_run.pull_requests[0].number }}"
-            # workflow_run already means one required workflow just finished —
-            # only a short settle-wait is needed for the rest.
-            echo "wait_seconds=30" >> "$GITHUB_OUTPUT"
           elif [ -n "${{ github.event.pull_request.head.sha }}" ]; then
             SHA="${{ github.event.pull_request.head.sha }}"
             PR="${{ github.event.pull_request.number }}"
-            echo "wait_seconds=300" >> "$GITHUB_OUTPUT"
           else
             SHA="${{ github.sha }}"
             PR=""
-            echo "wait_seconds=300" >> "$GITHUB_OUTPUT"
           fi
+          # CI-CONVERGENCE-001: one budget for every trigger path.
+          #
+          # workflow_run previously used a 30-second settle-wait on the theory
+          # that "one required workflow just finished, so only the rest need a
+          # moment". That is the same stale assumption as the old 300s value:
+          # the OTHER required workflows may still be legitimately running for
+          # up to their own timeouts. Giving every path the same governed
+          # ceiling removes the branch and the landmine at once — and costs
+          # nothing, because the evaluator returns as soon as the set settles.
+          echo "wait_seconds=${CONVERGENCE_WAIT_SECONDS}" >> "$GITHUB_OUTPUT"
           echo "head_sha=${SHA}" >> "$GITHUB_OUTPUT"
           echo "merge_sha=${SHA}" >> "$GITHUB_OUTPUT"
           echo "pull_request=${PR:-n/a}" >> "$GITHUB_OUTPUT"

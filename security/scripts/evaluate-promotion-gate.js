@@ -237,45 +237,137 @@ function buildByNameMap(runs, sha) {
 }
 
 /**
- * A short, bounded settle-wait for REST eventual consistency right after a
- * `workflow_run: completed` webhook fires — NOT a wait for sibling workflows
- * to start or finish. Defaults small on purpose (task: reduce diagnostic
- * waiting while the wiring is being proven); raise --wait-seconds once real
- * runs confirm the names above are correct.
+ * CONVERGENCE BUDGET (CI-CONVERGENCE-001).
+ *
+ * How long this gate may legitimately wait for the required set to settle is
+ * a property of the WORKFLOWS, not a number chosen for comfort. The bound is
+ * the longest `timeout-minutes` any APPLICABLE REQUIRED job carries, plus a
+ * margin for queueing and runner startup.
+ *
+ * Inventory at the time of this repair:
+ *
+ *   Project checks              60   <- longest
+ *   ZAP Baseline (staging)      45
+ *   ZAP API staging             45
+ *   Semgrep Community Edition   30
+ *   Trivy filesystem            30
+ *   Gitleaks                    20
+ *   OSV-Scanner                 20
+ *   npm audit                   20
+ *   Migration validation        20
+ *   Contract tests              20
+ *   Synthetic auth tests        20
+ *   Staging health checks       15
+ *
+ * The previous ceiling was 300 seconds, justified by a comment claiming
+ * upstream completion "tops out around 2 minutes". That was only ever
+ * defensible under the OLD, broken reduction, which called a check converged
+ * the moment any completed run for its name existed -- so a still-running
+ * duplicate was invisible and the wait ended early by accident.
+ *
+ * CI-APPLICABILITY-002 made an unresolved duplicate count as unresolved, and
+ * that immediately exposed the stale assumption: five minutes is not a
+ * convergence budget, it is a guaranteed premature OPERATIONAL FAILURE. On
+ * PR #290 itself, Project checks (7m56s), npm audit and Contract tests
+ * (7m17s) were all still legitimately running when the 300s deadline expired.
+ *
+ * This is a CEILING, not a delay: the loop below returns the instant the
+ * applicable set has settled, and the instant a conclusive failure exists, so
+ * an ordinary run still finishes in the couple of minutes it always did.
+ *
+ * __tests__/security/promotionGateCheckRuns.test.js pins this against the
+ * real workflow files, so raising a required job's timeout past the envelope
+ * fails a test rather than silently restoring a premature deadline.
  */
-async function fetchCheckRunsOnce(repo, sha, token, waitSeconds, applicability) {
-  const deadline = Date.now() + Math.max(0, waitSeconds) * 1000;
-  const [owner, name] = repo.split('/');
-  const url = `https://api.github.com/repos/${owner}/${name}/commits/${sha}/check-runs?per_page=100`;
+const REQUIRED_CHECK_MAX_TIMEOUT_MINUTES = 60;
+const CONVERGENCE_QUEUE_MARGIN_MINUTES = 5;
+const DEFAULT_CONVERGENCE_WAIT_SECONDS =
+  (REQUIRED_CHECK_MAX_TIMEOUT_MINUTES + CONVERGENCE_QUEUE_MARGIN_MINUTES) * 60;
+
+/**
+ * Poll cadence. Responsive early (most runs settle in the first minutes),
+ * then backing off to a steady cap, so waiting the full ceiling costs ~2
+ * requests a minute rather than 12 — bounded, never a busy-loop.
+ */
+const POLL_INTERVAL_START_MS = 5_000;
+const POLL_INTERVAL_MAX_MS = 30_000;
+const POLL_INTERVAL_GROWTH = 1.5;
+
+/**
+ * Classifies the current required set for the WAIT loop, using exactly the
+ * semantics resolveCheckRunVerdict will later apply to the same map.
+ *
+ * Two things this deliberately does NOT do:
+ *
+ *  - It does not treat "absent" as "pending" unconditionally. The old loop
+ *    did (`if (!run) return true`), which was harmless at a 300-second
+ *    ceiling but would make a 65-minute ceiling wait the entire hour for a
+ *    deployment-gated check that, on this ref, is never coming.
+ *    resolveCheckState already encodes when an absent check is
+ *    NOT_APPLICABLE, and the verdict layer already honours that — so the
+ *    wait honours it too, instead of diverging from the verdict it feeds.
+ *    CI-APPLICABILITY-001 is preserved: an applicable check that has not
+ *    materialised yet is still PENDING and is still waited for.
+ *  - It does not keep waiting once a conclusive failure exists. Waiting
+ *    cannot un-fail a completed check, and the remaining budget is now an
+ *    hour rather than five minutes.
+ */
+function summarizeConvergence(byName, applicability) {
+  const hasContract = Boolean(applicability && typeof applicability === 'object');
+  const pending = [];
+  const conclusiveFailures = [];
+
+  for (const name of [...ALWAYS_REQUIRED_CHECKS, ...DEPLOYMENT_REQUIRED_CHECKS]) {
+    const applicable = isCheckApplicable(name, applicability);
+    if (!applicable) continue;
+    const state = resolveCheckState(name, byName.get(name), applicable, hasContract);
+    if (state === CHECK_STATE.PENDING) {
+      pending.push(name);
+    } else if (state === CHECK_STATE.FAILURE || state === CHECK_STATE.OPERATIONAL_FAILURE) {
+      conclusiveFailures.push(name);
+    }
+  }
+  return { pending, conclusiveFailures };
+}
+
+/**
+ * Polls the exact-SHA check-run set until it converges, a conclusive failure
+ * appears, or the convergence budget expires.
+ *
+ * `deps` exists so the convergence controls can be proven deterministically
+ * against a fake clock, rather than by waiting an hour inside a test.
+ */
+async function fetchCheckRunsOnce(repo, sha, token, waitSeconds, applicability, deps = {}) {
+  const now = deps.now ?? (() => Date.now());
+  const sleep = deps.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
+  const fetchRuns = deps.fetchRuns ?? (async () => {
+    const [owner, name] = repo.split('/');
+    const url = `https://api.github.com/repos/${owner}/${name}/commits/${sha}/check-runs?per_page=100`;
+    const data = await githubRequest(url, token);
+    return data.check_runs || [];
+  });
+
+  const deadline = now() + Math.max(0, waitSeconds) * 1000;
+  let interval = POLL_INTERVAL_START_MS;
 
   // Always fetch at least once, even if waitSeconds is 0.
   for (;;) {
-    const data = await githubRequest(url, token);
-    const runs = data.check_runs || [];
-    const byName = buildByNameMap(runs, sha);
+    const byName = buildByNameMap(await fetchRuns(), sha);
+    const { pending, conclusiveFailures } = summarizeConvergence(byName, applicability);
 
-    // CI-APPLICABILITY-001. The wait used to require `byName.has(n)` -- i.e. it
-    // only waited for checks that had ALREADY appeared. Under the staging
-    // gate's serialized concurrency (`cancel-in-progress: false`) a required
-    // sibling workflow can still be QUEUED when this first evaluates, so its
-    // check-runs do not exist yet. Waiting only for already-present checks
-    // therefore returned immediately and the absent ones were reported as
-    // structurally missing.
-    //
-    // An APPLICABLE check that has not materialised now participates in the
-    // wait on equal terms with one that is queued or in progress. A
-    // NOT_APPLICABLE check is never waited for -- it is not coming.
-    const allNames = [...ALWAYS_REQUIRED_CHECKS, ...DEPLOYMENT_REQUIRED_CHECKS];
-    const stillPending = allNames.some((n) => {
-      if (!isCheckApplicable(n, applicability)) return false;
-      const run = byName.get(n);
-      if (!run) return true;
-      return run.status !== 'completed';
-    });
-    if (!stillPending || Date.now() >= deadline) {
-      return byName;
-    }
-    await new Promise((r) => setTimeout(r, 5000));
+    // A completed failure cannot be undone by waiting: report it now rather
+    // than burning the rest of the budget on a verdict that cannot change.
+    if (conclusiveFailures.length > 0) return byName;
+    // Everything applicable has settled. PASS path, no artificial delay.
+    if (pending.length === 0) return byName;
+
+    // Budget exhausted. The caller turns whatever is still unresolved into an
+    // explicit OPERATIONAL FAILURE that names it — never a silent pass.
+    const remainingMs = deadline - now();
+    if (remainingMs <= 0) return byName;
+
+    await sleep(Math.min(interval, remainingMs));
+    interval = Math.min(Math.round(interval * POLL_INTERVAL_GROWTH), POLL_INTERVAL_MAX_MS);
   }
 }
 
@@ -619,10 +711,22 @@ function resolveCheckRunVerdict({
     return verdict;
   };
 
+  // CI-CONVERGENCE-001: a conclusively FAILED required check outranks
+  // anything still absent or in flight.
+  //
+  // fetchCheckRunsOnce short-circuits the moment a completed failure exists,
+  // so on that path the remaining checks are still comfortably inside their
+  // own timeouts — they were simply never waited for. Reporting them as
+  // "missing" or "unresolved after the convergence deadline" would be a false
+  // diagnosis of a run whose real blocker is the failure. Guarding both
+  // branches on `failures.length === 0` is never a relaxation: with a failure
+  // present the path below always yields BLOCKED or OPERATIONAL FAILURE, and
+  // the still-unsettled names are preserved as evidence rather than dropped.
+  //
   // Task 10: missing required checks are always an explicit operational
   // failure with named evidence — never a silent pass and never the 20-minute
   // timeout this fix removes.
-  if (missing.length > 0) {
+  if (failures.length === 0 && missing.length > 0) {
     const verdict = evaluateLocal({ ...base, missingRequiredArtifact: true });
     verdict.finalVerdict = 'OPERATIONAL FAILURE';
     verdict.failures = [...new Set([...(verdict.failures || []), ...missing.map((n) => `missing check: ${n}`)])];
@@ -642,7 +746,7 @@ function resolveCheckRunVerdict({
   //    OPERATIONAL FAILURE. The gate must never PASS on a check that never
   //    concluded, and must never sit at PENDING forever pretending a result is
   //    still coming.
-  if (pending.length > 0) {
+  if (failures.length === 0 && pending.length > 0) {
     if (treatUnresolvedAsOperational) {
       const verdict = evaluateLocal({ ...base, missingRequiredArtifact: true });
       verdict.finalVerdict = 'OPERATIONAL FAILURE';
@@ -676,8 +780,12 @@ function resolveCheckRunVerdict({
       : 'BLOCKED';
     verdict.blockingReason = verdict.failures.join(', ');
   }
-  verdict.missingChecks = [];
-  verdict.pendingChecks = [];
+  // Reached either because everything settled, or because a conclusive
+  // failure short-circuited the wait. Keep whatever had not settled as
+  // evidence instead of blanking it: "npm audit failed while Project checks
+  // was still running" is the honest description of the second case.
+  verdict.missingChecks = missing;
+  verdict.pendingChecks = pending;
   return evidence(verdict);
 }
 
@@ -824,10 +932,11 @@ async function main() {
   const repo = getArg('--repo') || process.env.GITHUB_REPOSITORY;
   const sha = getArg('--sha') || process.env.GITHUB_SHA;
   const token = getArg('--token') || process.env.GITHUB_TOKEN;
-  // Small on purpose during the wiring fix (task: reduce diagnostic waiting).
-  // This is a settle-wait for REST eventual consistency on a single check-run
-  // fetch, not a wait for sibling workflows — see fetchCheckRunsOnce's doc.
-  const waitSeconds = Number(getArg('--wait-seconds') || 30);
+  // CI-CONVERGENCE-001. The default is the governed convergence CEILING (see
+  // DEFAULT_CONVERGENCE_WAIT_SECONDS), not an expected wait: the poll loop
+  // returns as soon as the applicable required set settles, or as soon as a
+  // conclusive failure exists. An explicit --wait-seconds still overrides it.
+  const waitSeconds = Number(getArg('--wait-seconds') || DEFAULT_CONVERGENCE_WAIT_SECONDS);
   // Optional: the JSON artifact run-project-checks-regression.js wrote,
   // downloaded by the calling workflow before this script runs. Absent is
   // fine — see classifyProjectCheckFailure's fail-closed default.
@@ -954,6 +1063,13 @@ module.exports = {
   resolveCheckState,
   reduceRunsForName,
   buildByNameMap,
+  summarizeConvergence,
+  fetchCheckRunsOnce,
+  REQUIRED_CHECK_MAX_TIMEOUT_MINUTES,
+  CONVERGENCE_QUEUE_MARGIN_MINUTES,
+  DEFAULT_CONVERGENCE_WAIT_SECONDS,
+  POLL_INTERVAL_START_MS,
+  POLL_INTERVAL_MAX_MS,
   isCheckApplicable,
   CHECK_STATE,
   CONCLUSION_STATE,
