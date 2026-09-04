@@ -512,3 +512,44 @@ test('the controlled-deploy workflow still targets staging and never production'
   assert.match(workflow, /PRODUCTION_REF: wyyuqfdxucjksghsmhry/);
   assert.match(workflow, /Production project ref is forbidden/);
 });
+
+test('the deploy step reads manifestPath from a CONCATENATED JSON stream', () => {
+  // deploy-staging-function.mjs prints one JSON document per phase, so
+  // deploy-result.json is several documents back to back. `json.load()` on that
+  // raises "Extra data" and failed the job AFTER a successful deploy (staging
+  // vto-generate really did reach v8), which then skipped health-check and
+  // synthetic-tests and reported the whole run as a failure.
+  const workflow = fs.readFileSync(
+    path.join(ROOT, '.github', 'workflows', 'staging-controlled-deploy.yml'),
+    'utf8',
+  );
+  assert.equal(
+    /json\.load\(open\('deploy-result\.json'\)\)/.test(workflow),
+    false,
+    'a whole-file json.load cannot parse a multi-document stream',
+  );
+  assert.match(workflow, /grep -o '"manifestPath"/, 'the manifest must be extracted stream-safely');
+
+  // Behavioural check of the extraction itself against the real output shape.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'deploy-result-'));
+  const file = path.join(dir, 'deploy-result.json');
+  const wanted = '/runner/artifacts/staging-deployments/2026-09-04T00-21-23-041Z-vto-generate.json';
+  fs.writeFileSync(
+    file,
+    [
+      JSON.stringify({ phase: 'preflight', ok: true }, null, 2),
+      JSON.stringify({ phase: 'deploy', priorVersion: 7 }, null, 2),
+      JSON.stringify({ ok: true, manifestPath: wanted, manifest: { new_version: 8 } }, null, 2),
+    ].join('\n'),
+    'utf8',
+  );
+
+  const raw = fs.readFileSync(file, 'utf8');
+  const hits = [...raw.matchAll(/"manifestPath": *"([^"]*)"/g)];
+  assert.equal(hits.length, 1);
+  assert.equal(hits[hits.length - 1][1], wanted);
+
+  // And a result carrying no manifest must yield empty, not throw.
+  fs.writeFileSync(file, JSON.stringify({ ok: false }), 'utf8');
+  assert.deepEqual([...fs.readFileSync(file, 'utf8').matchAll(/"manifestPath": *"([^"]*)"/g)], []);
+});
