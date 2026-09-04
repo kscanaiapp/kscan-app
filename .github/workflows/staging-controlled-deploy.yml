@@ -305,6 +305,14 @@ jobs:
     needs:
       - preflight
       - deploy-one-function
+    # Same skip propagation as deploy-one-function: approved-single-migration is
+    # skipped on every deploy-only run, and that skip travels the whole needs
+    # chain to any job without a status function -- so without always() the
+    # deployed function is never probed. Requirements are unchanged and explicit.
+    if: |
+      always() &&
+      needs.preflight.result == 'success' &&
+      needs.deploy-one-function.result == 'success'
     environment: staging
     steps:
       - name: Probe deployed function
@@ -346,6 +354,11 @@ jobs:
     needs:
       - preflight
       - health-check
+    # See health-check above -- the skipped-ancestor propagation reaches here too.
+    if: |
+      always() &&
+      needs.preflight.result == 'success' &&
+      needs.health-check.result == 'success'
     environment: staging
     steps:
       - name: Checkout

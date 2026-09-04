@@ -503,6 +503,33 @@ test('the controlled-deploy workflow can deploy a function without also applying
   assert.match(sourceBlock, /needs\.approved-single-migration\.result == 'skipped'/);
 });
 
+test('the whole post-deploy chain is skip-tolerant, so a deploy is actually validated', () => {
+  // The skipped-ancestor propagation does not stop at deploy-one-function: with
+  // the migration job skipped, health-check and synthetic-tests were skipped too,
+  // so a deployed function was never probed and never smoke-tested while the run
+  // still reported "Deploy | success". Each downstream job needs its own status
+  // function AND must keep stating what it actually requires.
+  const workflow = fs.readFileSync(
+    path.join(ROOT, '.github', 'workflows', 'staging-controlled-deploy.yml'),
+    'utf8',
+  );
+  const block = (from, to) => workflow.slice(workflow.indexOf(from), workflow.indexOf(to));
+
+  const health = block('  health-check:', '  synthetic-tests:');
+  assert.match(health, /always\(\)/, 'health-check must be skip-tolerant');
+  assert.match(health, /needs\.deploy-one-function\.result == 'success'/, 'health-check must still require a successful deploy');
+
+  const synthetic = block('  synthetic-tests:', '  rollback-on-failure:');
+  assert.match(synthetic, /always\(\)/, 'synthetic-tests must be skip-tolerant');
+  assert.match(synthetic, /needs\.health-check\.result == 'success'/, 'synthetic-tests must still require a healthy deploy');
+
+  // Rollback must stay armed on a post-deploy failure.
+  const rollback = block('  rollback-on-failure:', '  publish-deployment-artifact:');
+  assert.match(rollback, /always\(\)/);
+  assert.match(rollback, /needs\.deploy-one-function\.result == 'success'/);
+  assert.match(rollback, /needs\.health-check\.result == 'failure'/);
+});
+
 test('the controlled-deploy workflow still targets staging and never production', () => {
   const workflow = fs.readFileSync(
     path.join(ROOT, '.github', 'workflows', 'staging-controlled-deploy.yml'),
