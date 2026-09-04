@@ -31,6 +31,8 @@ const {
   resolveCheckRunVerdict,
   resolveCheckState,
   isCheckApplicable,
+  summarizeConvergence,
+  buildByNameMap,
   CHECK_STATE,
   CONCLUSION_STATE,
   ALWAYS_REQUIRED_CHECKS,
@@ -605,18 +607,38 @@ test('an UNKNOWN conclusion fails closed', () => {
 // ── Timing / convergence ────────────────────────────────────────────────────
 
 test('TRANSIENT ABSENCE: the WAIT LOOP, not the resolver, absorbs a not-yet-started check', () => {
-  // Transient absence is handled where it belongs -- fetchCheckRunsOnce now
-  // keeps waiting while an APPLICABLE check has no check-run yet (it previously
-  // only waited for checks that already existed, so a queued sibling workflow
+  // Transient absence is handled where it belongs -- the WAIT LOOP keeps
+  // waiting while an APPLICABLE check has no check-run yet (it previously only
+  // waited for checks that already existed, so a queued sibling workflow
   // returned immediately and was reported structurally missing).
+  //
+  // CI-CONVERGENCE-001 moved that decision out of fetchCheckRunsOnce's body
+  // and into summarizeConvergence, so the wait and the verdict can no longer
+  // disagree about what "pending" means. These assertions therefore exercise
+  // the behaviour directly instead of pattern-matching the loop's source --
+  // a stronger pin, and one that survives the next refactor.
   const src = fs.readFileSync(
     path.join(ROOT, 'security', 'scripts', 'evaluate-promotion-gate.js'),
     'utf8',
   );
-  const waitFn = src.slice(src.indexOf('async function fetchCheckRunsOnce'), src.indexOf('function classifyCheckFailure'));
-  assert.match(waitFn, /isCheckApplicable\(n, applicability\)/, 'the wait must consult applicability');
-  assert.match(waitFn, /if \(!run\) return true;/, 'an applicable check with no run must keep the wait open');
-  assert.doesNotMatch(waitFn, /byName\.has\(n\) &&/, 'the old already-present-only condition must be gone');
+  assert.doesNotMatch(src, /byName\.has\(n\) &&/, 'the old already-present-only condition must be gone');
+
+  const waitProbe = buildByNameMap(
+    [...ALWAYS_REQUIRED_CHECKS, ...DEPLOYMENT_REQUIRED_CHECKS]
+      .filter((name) => name !== 'Contract tests') // never started yet
+      .map((name) => ({ name, status: 'completed', conclusion: 'success', head_sha: 'x'.repeat(40) })),
+    'x'.repeat(40),
+  );
+  assert.deepEqual(
+    summarizeConvergence(waitProbe, { 'Contract tests': true }).pending,
+    ['Contract tests'],
+    'an applicable check with no run yet must keep the wait open',
+  );
+  assert.deepEqual(
+    summarizeConvergence(waitProbe, { 'Contract tests': false }).pending,
+    [],
+    'the wait must consult applicability -- a check proven not to apply is never waited for',
+  );
 
   // A check that IS present but not concluded stays PENDING while the window is
   // open, and only escalates once the caller reports the wait elapsed.
