@@ -21,6 +21,7 @@
 'use strict';
 
 import crypto from 'node:crypto';
+import { sqlQuote } from './sql.mjs';
 
 export const ACTOR_ROLES = /** @type {const} */ (['ACTIVE_KPLUS', 'NEVER_ENTITLED', 'EXPIRED_KPLUS']);
 
@@ -70,10 +71,6 @@ export async function signUpActor(base, publishableKey, email, password, fetchIm
     return { ok: false, status: res.status, error: json?.error_description || json?.msg || json?.error || `signup failed with status ${res.status}` };
   }
   return { ok: true, status: res.status, userId, emailConfirmed: Boolean(json?.confirmed_at ?? json?.user?.confirmed_at) };
-}
-
-function sqlQuote(value) {
-  return `'${String(value).replace(/'/g, "''")}'`;
 }
 
 /** Only used when signup left the actor unconfirmed (staging's mailer

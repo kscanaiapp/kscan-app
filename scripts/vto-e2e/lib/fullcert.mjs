@@ -11,6 +11,7 @@ import { callVtoGenerate } from './client.mjs';
 import { buildFixture, PERSON_FIXTURE_WIDTH, PERSON_FIXTURE_HEIGHT } from './fixtures.mjs';
 import { sanitizeVtoResponse } from './report.mjs';
 import { computeVtoIdempotencyKey } from './idempotency.mjs';
+import { sqlQuote } from './sql.mjs';
 
 const CATEGORY = 'top';
 const PRODUCT_REF = 'vto-e2e-full-certification-product';
@@ -33,10 +34,6 @@ export function committedGarmentUrl(commitSha, repo = 'kscanaiapp/kscan-app') {
 
 function check(name, ok, detail) {
   return { name, ok, detail: detail ?? (ok ? 'pass' : 'unexpected result') };
-}
-
-function sqlQuote(value) {
-  return `'${String(value).replace(/'/g, "''")}'`;
 }
 
 /** Direct DB proof that the reservation this call took was settled

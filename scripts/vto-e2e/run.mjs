@@ -27,13 +27,27 @@
 'use strict';
 
 import { assertVtoStagingTarget, StagingGuardError } from './lib/staging-target.mjs';
-import { runSqlViaSupabaseCli } from './lib/sql.mjs';
+import { runSqlViaSupabaseCli, sqlQuote } from './lib/sql.mjs';
 import { provisionVtoActors, actorIdsByRole } from './lib/provision.mjs';
 import { runVtoStagingDryRun } from './lib/dryrun.mjs';
 import { runVtoFullCertification } from './lib/fullcert.mjs';
-import { cleanupVtoActors, allActorsClean } from './lib/cleanup.mjs';
+import { cleanupVtoActors, allActorsClean, summarizeCleanupStatus } from './lib/cleanup.mjs';
 import { snapshotActorPersistence, diffPersistence } from './lib/persistence.mjs';
 import { writeReport } from './lib/report.mjs';
+import { gitHeadSha } from '../lib/staging-helpers.mjs';
+
+/**
+ * The commit the harness is actually RUNNING as — the certification
+ * artifact's schema-required `authoritySha` (repair spec §7/§37). GITHUB_SHA
+ * is set by every GitHub Actions job automatically; gitHeadSha() (a plain
+ * `git rev-parse HEAD`) covers a manual/local invocation. Deliberately NOT
+ * the same value as staging-full-certification's --commit-sha, which pins
+ * only which commit the garment fixture ASSET is fetched from and may be
+ * overridden to an older commit while running current harness code.
+ */
+function resolveAuthoritySha() {
+  return process.env.GITHUB_SHA || gitHeadSha() || null;
+}
 
 function getArg(flag, fallback = null) {
   const idx = process.argv.indexOf(flag);
@@ -58,6 +72,7 @@ async function runContractMode() {
     const stream = run({ files: [
       new URL('../../__tests__/vtoE2eFixtures.test.js', import.meta.url).pathname,
       new URL('../../__tests__/vtoE2eContractControls.test.js', import.meta.url).pathname,
+      new URL('../../__tests__/vtoE2eHarnessIntegrity.test.js', import.meta.url).pathname,
     ] });
     let pass = 0;
     let fail = 0;
@@ -94,19 +109,40 @@ async function runStagingDryRunMode({ runTag }) {
     cleanupEvidence = await cleanupVtoActors(runSqlViaSupabaseCli, ids);
   }
 
+  const controls = dryRunResult?.results ?? [];
+  const providerSubmits = dryRunResult?.realProviderSubmits ?? 0;
+  const paidRequests = dryRunResult?.paidGenerations ?? 0;
+  const cleanupStatus = summarizeCleanupStatus(cleanupEvidence);
+  const ok = Boolean(controls.length > 0 && controls.every((r) => r.ok !== false))
+    && cleanupStatus.clean
+    && providerSubmits === 0
+    && paidRequests === 0;
+
   return {
+    // Certification artifact schema (repair spec §7/§37) — read by
+    // scripts/vto-e2e/validate-report.mjs and by any consumer treating this
+    // file, not the workflow conclusion, as the primary verdict.
+    runId: runTag,
+    projectRef: target.projectRef,
     mode: 'staging-dryrun',
+    authoritySha: resolveAuthoritySha(),
+    controls,
+    providerSubmits,
+    paidRequests,
+    cleanupStatus,
+    verdict: ok ? 'PASS' : 'FAIL',
+    // Legacy/internal detail, kept for evidence and backward compatibility.
     target,
     runTag,
     provisioning: provisioned.evidence,
-    results: dryRunResult?.results ?? [],
+    results: controls,
     fixturesEvidence: dryRunResult?.fixturesEvidence ?? null,
-    realProviderSubmits: dryRunResult?.realProviderSubmits ?? null,
-    paidGenerations: dryRunResult?.paidGenerations ?? null,
+    realProviderSubmits: providerSubmits,
+    paidGenerations: paidRequests,
     persistence: persistenceBefore && persistenceAfter ? diffPersistence(persistenceBefore, persistenceAfter) : null,
     cleanupEvidence,
-    cleanupClean: allActorsClean(cleanupEvidence),
-    ok: Boolean(dryRunResult?.results?.every((r) => r.ok !== false)) && allActorsClean(cleanupEvidence),
+    cleanupClean: cleanupStatus.clean,
+    ok,
   };
 }
 
@@ -143,12 +179,30 @@ async function runStagingFullCertificationMode({ runTag, commitSha }) {
     cleanupEvidence = await cleanupVtoActors(runSqlViaSupabaseCli, ids);
   }
 
+  const controls = certResult?.results ?? [];
+  // The ONE authorized real-provider happy path: exactly one real submit
+  // and one paid request when this mode actually ran a request, zero if it
+  // never got there (e.g. ACTIVE_KPLUS failed to authenticate).
+  const providerSubmits = certResult?.requestsSent ?? 0;
+  const paidRequests = certResult?.requestsSent ?? 0;
+  const cleanupStatus = summarizeCleanupStatus(cleanupEvidence);
+  const ok = certResult?.finalResultValidation === 'PASS' && cleanupStatus.clean;
+
   return {
+    runId: runTag,
+    projectRef: target.projectRef,
     mode: 'staging-full-certification',
+    authoritySha: resolveAuthoritySha(),
+    controls,
+    providerSubmits,
+    paidRequests,
+    cleanupStatus,
+    verdict: ok ? 'PASS' : 'FAIL',
+    // Legacy/internal detail, kept for evidence and backward compatibility.
     target,
     runTag,
     provisioning: provisioned.evidence,
-    results: certResult?.results ?? [],
+    results: controls,
     requestsSent: certResult?.requestsSent ?? 0,
     httpStatusClass: certResult?.httpStatusClass ?? null,
     totalRequestDurationBucket: certResult?.totalRequestDurationBucket ?? null,
@@ -157,8 +211,8 @@ async function runStagingFullCertificationMode({ runTag, commitSha }) {
     paidRetryAttempted: certResult?.paidRetryAttempted ?? false,
     persistence: persistenceBefore && persistenceAfter ? diffPersistence(persistenceBefore, persistenceAfter) : null,
     cleanupEvidence,
-    cleanupClean: allActorsClean(cleanupEvidence),
-    ok: certResult?.finalResultValidation === 'PASS',
+    cleanupClean: cleanupStatus.clean,
+    ok,
   };
 }
 
@@ -172,7 +226,7 @@ async function runCleanupMode({ runTag }) {
   const ids = {};
   for (const [role, actor] of Object.entries(plan)) {
     const rows = await runSqlViaSupabaseCli(
-      `select id from auth.users where email = '${actor.email.replace(/'/g, "''")}' limit 1;`,
+      `select id from auth.users where email = ${sqlQuote(actor.email)} limit 1;`,
     );
     const row = Array.isArray(rows) ? rows[0] : rows;
     if (row?.id) ids[role] = row.id;

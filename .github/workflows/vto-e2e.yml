@@ -5,6 +5,18 @@
 # workflow_dispatch only, target the governed "staging" GitHub environment,
 # and never run on a normal PR/push — see scripts/vto-e2e/run.mjs for the
 # harness itself.
+#
+# `defaults.run.shell: bash` below is load-bearing, not stylistic: GitHub
+# Actions' UNDECLARED default shell on Linux runners is `bash -e {0}` —
+# WITHOUT `-o pipefail`. A step shaped like `node run.mjs | tee report.json`
+# then exits with tee's status (near-always 0) instead of node's, so a
+# failed certification run can report SUCCESS. Naming `bash` here switches
+# every step in this workflow to `bash --noprofile --norc -eo pipefail {0}`,
+# which propagates the failure of any piped command. See
+# scripts/vto-e2e/lib/workflow-guard.mjs (exercised by
+# __tests__/vtoE2eHarnessIntegrity.test.js), which parses this file and
+# fails the contract-mode test suite if a certification-critical pipeline
+# is ever reintroduced without pipefail-safe shell semantics.
 
 name: VTO Backend E2E
 
@@ -46,6 +58,10 @@ on:
 
 permissions:
   contents: read
+
+defaults:
+  run:
+    shell: bash
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -107,13 +123,27 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: supabase link --project-ref "${{ vars.SUPABASE_STAGING_PROJECT_REF }}" --yes
 
+      - name: Generate run tag
+        id: runtag
+        run: |
+          TAG="vto-dryrun-$(date -u +%Y%m%dT%H%M%SZ)-$(node -e 'process.stdout.write(require("crypto").randomBytes(4).toString("hex"))')"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
       - name: Run harness staging-dryrun mode
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
           SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
           SUPABASE_STAGING_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
-        run: node scripts/vto-e2e/run.mjs --mode=staging-dryrun | tee vto-e2e-dryrun-report.json
+        run: node scripts/vto-e2e/run.mjs --mode=staging-dryrun --run-tag="${{ steps.runtag.outputs.tag }}" | tee vto-e2e-dryrun-report.json
+
+      - name: Validate dry-run report
+        env:
+          VTO_E2E_EXPECT_RUN_ID: ${{ steps.runtag.outputs.tag }}
+          VTO_E2E_EXPECT_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+          VTO_E2E_EXPECT_MODE: staging-dryrun
+          VTO_E2E_EXPECT_AUTHORITY_SHA: ${{ github.sha }}
+        run: node scripts/vto-e2e/validate-report.mjs vto-e2e-dryrun-report.json
 
       - name: Upload dry-run report
         if: always()
@@ -161,6 +191,12 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: supabase link --project-ref "${{ vars.SUPABASE_STAGING_PROJECT_REF }}" --yes
 
+      - name: Generate run tag
+        id: runtag
+        run: |
+          TAG="vto-fullcert-$(date -u +%Y%m%dT%H%M%SZ)-$(node -e 'process.stdout.write(require("crypto").randomBytes(4).toString("hex"))')"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
       - name: Resolve commit SHA for the committed garment fixture
         id: sha
         run: |
@@ -185,7 +221,20 @@ jobs:
           node scripts/vto-e2e/run.mjs \
             --mode=staging-full-certification \
             --commit-sha="${{ steps.sha.outputs.sha }}" \
+            --run-tag="${{ steps.runtag.outputs.tag }}" \
             | tee vto-e2e-fullcert-report.json
+
+      - name: Validate full-certification report
+        env:
+          VTO_E2E_EXPECT_RUN_ID: ${{ steps.runtag.outputs.tag }}
+          VTO_E2E_EXPECT_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+          VTO_E2E_EXPECT_MODE: staging-full-certification
+          # The workflow's OWN executing commit, not steps.sha.outputs.sha
+          # (which names only the commit the garment fixture asset is
+          # pinned to, and may legitimately differ if commit_sha was
+          # overridden to an older commit while running current code).
+          VTO_E2E_EXPECT_AUTHORITY_SHA: ${{ github.sha }}
+        run: node scripts/vto-e2e/validate-report.mjs vto-e2e-fullcert-report.json
 
       - name: Upload full-certification report
         if: always()
