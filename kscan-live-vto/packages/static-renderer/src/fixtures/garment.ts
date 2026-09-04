@@ -49,14 +49,22 @@ export interface SyntheticGarmentFixture {
  * it was wrong: at a 2.625 ratio the rigid stop gate correctly refused every
  * case with `garment_largely_outside_torso`, because a garment two and a half
  * shoulder-spans long cannot sit on a torso ~1.3 spans deep without being
- * squashed to 40% of its height. 1.35 is where a real hip-length tee's own
- * geometry sits, and it matches the shoulder→hem target that
- * attachment.ts's HIP_LENGTH_HEM_DROP produces.
+ * squashed to 40% of its height.
+ *
+ * Recalibrated for the v2 garment frame (review package #2). With
+ * SHOULDER_SEAM_OUTSET 0.08 and SHOULDER_SEAM_RISE 0.09, the neutral
+ * fixture's lateral scale is 1.3866 and its shoulder→hem axis is 390.7px, so
+ * a garment at this ratio maps with equal lateral and longitudinal scale —
+ * chest content keeps its aspect ratio rather than being squashed. Bodies
+ * with a different torso-to-shoulder ratio than the neutral fixture will
+ * still deform non-uniformly, and that is correct: a garment adapting to a
+ * short or long torso is the whole point. What is NOT acceptable is a
+ * constant compression applied to every body, which is what package #1 had.
  */
-export const GARMENT_LENGTH_RATIO = 1.35;
+export const GARMENT_LENGTH_RATIO = 1.3745;
 
 /**
- * T-shirt silhouette in normalized texture UV space, laid out on a 512x340
+ * T-shirt silhouette in normalized texture UV space, laid out on a 512x360
  * canvas so that (hem v - shoulder v) * height === GARMENT_LENGTH_RATIO *
  * (shoulder Δu * width). garmentProportionRatio() below asserts that
  * relationship holds rather than trusting these hand-placed numbers.
@@ -66,39 +74,46 @@ const SILHOUETTE_UV: readonly Point[] = [
   // The first version used 0.58 of the seam span and closed it with a single
   // apex vertex, which rendered as a deep V exposing most of the chest —
   // caught by looking at the image, not by any metric.
-  { x: 0.43, y: 0.075 }, // neck left
-  { x: 0.30, y: 0.100 }, // left shoulder seam
-  // Short sleeve: outer edge ~0.31 seam-spans beyond the seam. The first
-  // version put it 1.1 seam-spans out (sleeve span 2.17x the shoulder span),
-  // which is not a t-shirt, it is a cape.
-  { x: 0.175, y: 0.170 }, // left sleeve outer top
-  { x: 0.155, y: 0.360 }, // left sleeve outer bottom
-  { x: 0.255, y: 0.400 }, // left armpit
-  { x: 0.235, y: 0.735 }, // left waist
-  { x: 0.25, y: 0.935 }, // left hem
-  { x: 0.75, y: 0.935 }, // right hem
-  { x: 0.765, y: 0.735 }, // right waist
-  { x: 0.745, y: 0.400 }, // right armpit
-  { x: 0.845, y: 0.360 }, // right sleeve outer bottom
-  { x: 0.825, y: 0.170 }, // right sleeve outer top
-  { x: 0.70, y: 0.100 }, // right shoulder seam
-  { x: 0.57, y: 0.075 }, // neck right
+  { x: 0.43, y: 0.0766 }, // neck left
+  { x: 0.30, y: 0.1007 }, // left shoulder seam
+  // Short sleeve: outer edge ~0.275 seam-spans beyond the seam. Package #1
+  // put it 1.1 seam-spans out (a cape); package #2's first render was still
+  // 0.86 seam-spans, which with the new full-width chest hold rendered as a
+  // poncho that swallowed the arms. A tee's body is ~1.1x its shoulder-seam
+  // width, not 1.33x.
+  { x: 0.190, y: 0.1681 }, // left sleeve outer top
+  { x: 0.175, y: 0.3511 }, // left sleeve outer bottom
+  { x: 0.285, y: 0.3896 }, // left armpit
+  { x: 0.275, y: 0.7121 }, // left waist
+  { x: 0.29, y: 0.9047 }, // left hem
+  { x: 0.71, y: 0.9047 }, // right hem
+  { x: 0.725, y: 0.7121 }, // right waist
+  { x: 0.715, y: 0.3896 }, // right armpit
+  { x: 0.825, y: 0.3511 }, // right sleeve outer bottom
+  { x: 0.810, y: 0.1681 }, // right sleeve outer top
+  { x: 0.70, y: 0.1007 }, // right shoulder seam
+  { x: 0.57, y: 0.0766 }, // neck right
   // Crew neckline as a shallow arc rather than an apex.
-  { x: 0.545, y: 0.128 },
-  { x: 0.50, y: 0.150 },
-  { x: 0.455, y: 0.128 },
+  { x: 0.545, y: 0.1196 },
+  { x: 0.50, y: 0.1488 },
+  { x: 0.455, y: 0.1196 },
 ];
 
 const CONTROL_POINTS: readonly GarmentControlPoint[] = [
   { id: 'leftShoulder', u: 0.30, v: 0.118 },
   { id: 'rightShoulder', u: 0.70, v: 0.118 },
-  { id: 'leftSleeve', u: 0.19, v: 0.280 },
-  { id: 'rightSleeve', u: 0.81, v: 0.280 },
-  { id: 'leftTorso', u: 0.24, v: 0.560 },
-  { id: 'rightTorso', u: 0.76, v: 0.560 },
-  { id: 'waist', u: 0.50, v: 0.735 },
-  { id: 'leftHem', u: 0.25, v: 0.930 },
-  { id: 'rightHem', u: 0.75, v: 0.930 },
+  { id: 'leftSleeve', u: 0.205, v: 0.274 },
+  { id: 'rightSleeve', u: 0.795, v: 0.274 },
+  // Sleeve/body junction — anchors the torso side of the armpit so the
+  // articulated sleeve cannot drag the chest. Matches the silhouette's own
+  // armpit vertices.
+  { id: 'leftArmpit', u: 0.285, v: 0.3896 },
+  { id: 'rightArmpit', u: 0.715, v: 0.3896 },
+  { id: 'leftTorso', u: 0.28, v: 0.5436 },
+  { id: 'rightTorso', u: 0.72, v: 0.5436 },
+  { id: 'waist', u: 0.50, v: 0.7121 },
+  { id: 'leftHem', u: 0.29, v: 0.900 },
+  { id: 'rightHem', u: 0.71, v: 0.900 },
 ];
 
 /**
@@ -128,14 +143,14 @@ export interface GarmentFixtureSpec {
 export const PLAIN_TEE: GarmentFixtureSpec = {
   productId: 'fixture-tee-plain-001',
   width: 512,
-  height: 340,
+  height: 360,
   fabric: rgba(206, 74, 62, 255),
 };
 
 export const LOGO_TEE: GarmentFixtureSpec = {
   productId: 'fixture-tee-logo-002',
   width: 512,
-  height: 340,
+  height: 360,
   fabric: rgba(38, 46, 66, 255),
   // "K SCAN >" — letters catch a mirror flip, the arrow catches it at a glance.
   logoText: 'KSCAN >',

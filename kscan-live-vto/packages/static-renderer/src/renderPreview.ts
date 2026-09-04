@@ -50,6 +50,7 @@ import {
 import {
   cloneImage,
   createImage,
+  downsample,
   drawLine,
   drawMarker,
   drawText,
@@ -60,7 +61,20 @@ import {
 } from './raster';
 import { buildGridMesh, deformMesh, meshJacobianStats, rasterizeMesh, type GridMesh, type JacobianStats } from './warp';
 
-export const RENDERER_VERSION = '0.1.0';
+export const RENDERER_VERSION = '0.2.0';
+
+/**
+ * Supersampling factor for garment rasterization.
+ *
+ * Review package #1 failed partly on "hard garment-edge compositing". The
+ * garment silhouette comes from the asset's alpha, which is binary, so a
+ * 1:1 rasterization produces a stair-stepped boundary that reads as a
+ * sticker. Rendering the garment layer at 2x and box-downsampling gives
+ * correct coverage-based edge alpha. It is NOT a blur: the silhouette does
+ * not grow outward and interior detail is not softened, which matters
+ * because Section 15 forbids burying poor edges under aggressive blur.
+ */
+export const GARMENT_SUPERSAMPLE = 2;
 export const DEFORMATION_ALGORITHM = 'affine-mls@asset-pipeline-0.1.0';
 
 export interface KsGarmentAsset {
@@ -112,7 +126,7 @@ export function renderRigidStage(
   if (!anchorsOutcome.ok) return { ok: false, stage: 'anchors', reason: anchorsOutcome.reason };
   const anchors = anchorsOutcome.anchors;
 
-  const targets = computeControlPointTargets(asset.manifest, anchors);
+  const targets = computeControlPointTargets(asset.manifest, anchors, asset.texture.width, asset.texture.height);
   const placement = fitRigidPlacement(asset.manifest, asset.texture.width, asset.texture.height, targets);
   if (!placement.ok) return { ok: false, stage: 'rigid_placement', reason: placement.reason };
 
@@ -123,12 +137,17 @@ export function renderRigidStage(
   // between the two images is a difference in the MAPPING, never in the
   // rasterization.
   const grid = buildGridMesh(asset.manifest, asset.texture.width, asset.texture.height);
+  const ss = GARMENT_SUPERSAMPLE;
   const rigidMesh: GridMesh = {
     ...grid,
-    destination: grid.source.map((p) => applySimilarity(placement.transform, p)),
+    destination: grid.source.map((p) => {
+      const placed = applySimilarity(placement.transform, p);
+      return { x: placed.x * ss, y: placed.y * ss };
+    }),
   };
-  const rigidLayer = createImage(personImage.width, personImage.height, rgba(0, 0, 0, 0));
-  rasterizeMesh(rigidLayer, asset.texture, rigidMesh);
+  const rigidHiRes = createImage(personImage.width * ss, personImage.height * ss, rgba(0, 0, 0, 0));
+  rasterizeMesh(rigidHiRes, asset.texture, rigidMesh);
+  const rigidLayer = downsample(rigidHiRes, ss);
 
   const rigidComposite = compositeStaticPreview(personImage, rigidLayer, null, {
     restoreForeground: false,
@@ -239,6 +258,8 @@ export interface PreviewManifest {
   imageDimensions: { width: number; height: number };
   colorSpace: 'sRGB';
   feather: FeatherSpec;
+  /** Garment rasterization supersampling factor — the edge-quality treatment. */
+  supersample: number;
   rigidGate: RigidGateResult;
   knownLimitations: string[];
 }
@@ -246,6 +267,10 @@ export interface PreviewManifest {
 export interface DeformedStageResult {
   /** Final preview: deformed garment, foreground restored, lighting applied. */
   image: RgbaImage;
+  /** The deformed garment alone, pre-composite. Exposed so tests can measure
+   *  silhouette properties (hem straightness, shoulder coverage, edge alpha)
+   *  directly rather than inferring them from the composite. */
+  garmentLayer: RgbaImage;
   /** Identical pipeline with the lighting adjustment skipped (Section 18 requires both). */
   unadjustedImage: RgbaImage;
   /** Control image for Section 17: garment over the arm, i.e. the WRONG layer order. */
@@ -279,8 +304,18 @@ export function renderDeformedStage(
   const grid = buildGridMesh(asset.manifest, texW, texH);
   const mesh: GridMesh = { ...grid, destination: deformMesh(grid.source, pairs) };
 
-  const garmentLayer = createImage(personImage.width, personImage.height, rgba(0, 0, 0, 0));
-  rasterizeMesh(garmentLayer, asset.texture, mesh);
+  // Rasterize at GARMENT_SUPERSAMPLE and average down for real edge coverage.
+  // Metrics are computed on the mesh itself and on the downsampled layer, so
+  // supersampling changes edge quality without changing any measurement's
+  // meaning.
+  const ss = GARMENT_SUPERSAMPLE;
+  const hiResMesh: GridMesh = {
+    ...mesh,
+    destination: mesh.destination.map((p) => ({ x: p.x * ss, y: p.y * ss })),
+  };
+  const garmentHiRes = createImage(personImage.width * ss, personImage.height * ss, rgba(0, 0, 0, 0));
+  rasterizeMesh(garmentHiRes, asset.texture, hiResMesh);
+  const garmentLayer = downsample(garmentHiRes, ss);
 
   // Lighting is measured on the person's torso and applied to a COPY of the
   // garment layer, so the unadjusted layer survives for the comparison image.
@@ -337,6 +372,7 @@ export function renderDeformedStage(
     imageDimensions: { width: personImage.width, height: personImage.height },
     colorSpace: 'sRGB',
     feather,
+    supersample: GARMENT_SUPERSAMPLE,
     rigidGate: rigid.gate,
     knownLimitations: [
       'SYNTHETIC FIXTURE — NOT HUMAN. Validates rendering mechanics given known BodyFrames. Does not validate human pose perception, body diversity, or production segmentation quality.',
@@ -353,6 +389,7 @@ export function renderDeformedStage(
     ok: true,
     result: {
       image: adjustedComposite.image,
+      garmentLayer,
       unadjustedImage: unadjustedComposite.image,
       occlusionControlImage: occlusionControl,
       manifest,

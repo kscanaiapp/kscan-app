@@ -1,0 +1,254 @@
+{
+  "fixtureId": "synthetic-person-neutral",
+  "caseId": "case-2-logo-tee-canary",
+  "rendererVersion": "0.1.0",
+  "gitSha": "33113af1e8d74bdd480d950e086a5b132d33c71e",
+  "bodyFrame": {
+    "timestamp": 0,
+    "headCenter": {
+      "present": true,
+      "point": {
+        "u": 0.5,
+        "v": 0.16999999999999998
+      },
+      "confidence": 0.97
+    },
+    "noseOrHeadDirection": {
+      "present": true,
+      "point": {
+        "u": 0.5,
+        "v": 0.18478999999999998
+      },
+      "confidence": 0.97
+    },
+    "neckCenter": {
+      "present": true,
+      "point": {
+        "u": 0.5,
+        "v": 0.28800000000000003
+      },
+      "confidence": 0.97
+    },
+    "leftShoulder": {
+      "present": true,
+      "point": {
+        "u": 0.33,
+        "v": 0.3
+      },
+      "confidence": 0.97
+    },
+    "rightShoulder": {
+      "present": true,
+      "point": {
+        "u": 0.6699999999999999,
+        "v": 0.308
+      },
+      "confidence": 0.97
+    },
+    "leftElbow": {
+      "present": true,
+      "point": {
+        "u": 0.2948,
+        "v": 0.46499999999999997
+      },
+      "confidence": 0.93
+    },
+    "rightElbow": {
+      "present": true,
+      "point": {
+        "u": 0.7051999999999999,
+        "v": 0.46499999999999997
+      },
+      "confidence": 0.93
+    },
+    "leftWrist": {
+      "present": true,
+      "point": {
+        "u": 0.2816,
+        "v": 0.615
+      },
+      "confidence": 0.9
+    },
+    "rightWrist": {
+      "present": true,
+      "point": {
+        "u": 0.7183999999999999,
+        "v": 0.615
+      },
+      "confidence": 0.9
+    },
+    "chestCenter": {
+      "present": true,
+      "point": {
+        "u": 0.5,
+        "v": 0.402
+      },
+      "confidence": 0.9
+    },
+    "waistCenter": {
+      "present": true,
+      "point": {
+        "u": 0.5,
+        "v": 0.5459999999999999
+      },
+      "confidence": 0.88
+    },
+    "leftHip": {
+      "present": true,
+      "point": {
+        "u": 0.3674,
+        "v": 0.6
+      },
+      "confidence": 0.9
+    },
+    "rightHip": {
+      "present": true,
+      "point": {
+        "u": 0.6325999999999999,
+        "v": 0.6
+      },
+      "confidence": 0.9
+    },
+    "torsoCenter": {
+      "present": true,
+      "point": {
+        "u": 0.5,
+        "v": 0.45
+      },
+      "confidence": 0.94
+    },
+    "torsoWidth": 0.3401672791109953,
+    "torsoHeight": 0.296,
+    "torsoRotation": 0,
+    "trackingConfidence": 0.95
+  },
+  "garmentAssetVersion": "1",
+  "garmentDescriptorVersion": "1",
+  "deformationAlgorithm": "affine-mls@asset-pipeline-0.1.0",
+  "controlPointMetrics": {
+    "perPoint": [
+      {
+        "id": "leftShoulder",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "rightShoulder",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "leftSleeve",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "rightSleeve",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "leftTorso",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "rightTorso",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "waist",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "leftHem",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "rightHem",
+        "pixels": 0,
+        "normalized": 0
+      }
+    ],
+    "maxPixels": 0,
+    "meanPixels": 0,
+    "maxNormalized": 0
+  },
+  "deformationMetrics": {
+    "jacobian": {
+      "minDeterminant": 0.24596991340787694,
+      "maxDeterminant": 1.8365615813259883,
+      "medianDeterminant": 1.1698044180605476,
+      "foldoverCells": 0,
+      "cellCount": 713
+    },
+    "coverage": {
+      "torsoCoverage": 0.98672330528322,
+      "torsoPixels": 61913,
+      "coveredTorsoPixels": 61091,
+      "spillFraction": 0.3332423819086702,
+      "garmentPixels": 91624
+    },
+    "logo": {
+      "horizontalScale": 0.9368093443399248,
+      "verticalScale": 0.7216855284665823,
+      "aspectRatioChange": 1.2980852565111451,
+      "shearIndicator": 0.004465838149781578,
+      "mirrored": false
+    }
+  },
+  "maskProvenance": "none",
+  "lightingParameters": {
+    "applied": true,
+    "state": {
+      "meanLuminance": 0.36171796478451534,
+      "contrast": 0.038275556350936824,
+      "colorCast": {
+        "r": 0.902812517112973,
+        "g": 0.9858816261431466,
+        "b": 1.1113058567438803
+      },
+      "sampledPixels": 61913
+    },
+    "adjustment": {
+      "luminanceGain": 0.9446871859138062,
+      "contrastGain": 0.9291377781754684,
+      "hueShiftDegrees": -5.91058718915884,
+      "saturationScale": 0.9556705960813087,
+      "clampedFields": []
+    },
+    "guardrailNote": "Experimental guardrails, not product science: hue shift clamped to +/-15deg, saturation to +/-20%, luminance gain to 0.85-1.15."
+  },
+  "imageDimensions": {
+    "width": 720,
+    "height": 960
+  },
+  "colorSpace": "sRGB",
+  "feather": {
+    "radiusShoulderSpanFraction": 0.012,
+    "resolvedRadiusPx": 3
+  },
+  "rigidGate": {
+    "passed": true,
+    "findings": [],
+    "measurements": {
+      "garmentShoulderSpanPx": 274.3108938751066,
+      "bodyShoulderSpanPx": 244.9204409599166,
+      "scaleRatio": 1.12,
+      "hemBelowShoulderPx": 369.78394326679404,
+      "necklineToNeckBasePx": 15.360000000000014,
+      "necklineToleranceP": 134.70624252795415,
+      "garmentCentroidToTorsoCentroidPx": 43.11265714943697,
+      "torsoDiagonalPx": 375.1438763994422
+    }
+  },
+  "knownLimitations": [
+    "SYNTHETIC FIXTURE — NOT HUMAN. Validates rendering mechanics given known BodyFrames. Does not validate human pose perception, body diversity, or production segmentation quality.",
+    "BodyFrame is an input from the fixture generator, not the output of any pose model. No pose model ran.",
+    "No foreground mask supplied; occlusion not exercised in this case.",
+    "Headless evaluation renderer. NOT a native rasterization baseline — native goldens must be established on physical devices."
+  ]
+}

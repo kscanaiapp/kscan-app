@@ -1,8 +1,8 @@
 {
   "fixtureId": "synthetic-person-forearm-crossing",
   "caseId": "case-5-forearm-crossing",
-  "rendererVersion": "0.1.0",
-  "gitSha": "33113af1e8d74bdd480d950e086a5b132d33c71e",
+  "rendererVersion": "0.2.0",
+  "gitSha": "ee2985871d1408a994220a297c514a530030971c",
   "bodyFrame": {
     "timestamp": 0,
     "headCenter": {
@@ -148,6 +148,16 @@
         "normalized": 0
       },
       {
+        "id": "leftArmpit",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "rightArmpit",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
         "id": "leftTorso",
         "pixels": 0,
         "normalized": 0
@@ -179,18 +189,18 @@
   },
   "deformationMetrics": {
     "jacobian": {
-      "minDeterminant": 0.2184960923818705,
-      "maxDeterminant": 1.80578178801153,
-      "medianDeterminant": 1.159373385054249,
+      "minDeterminant": 0.6018646824956237,
+      "maxDeterminant": 2.0131049160444894,
+      "medianDeterminant": 1.7228266188433943,
       "foldoverCells": 0,
       "cellCount": 713
     },
     "coverage": {
-      "torsoCoverage": 0.98672330528322,
+      "torsoCoverage": 1,
       "torsoPixels": 61913,
-      "coveredTorsoPixels": 61091,
-      "spillFraction": 0.3244537331917905,
-      "garmentPixels": 90432
+      "coveredTorsoPixels": 61913,
+      "spillFraction": 0.49961610267435,
+      "garmentPixels": 123731
     },
     "logo": null
   },
@@ -225,17 +235,18 @@
     "radiusShoulderSpanFraction": 0.012,
     "resolvedRadiusPx": 3
   },
+  "supersample": 2,
   "rigidGate": {
     "passed": true,
     "findings": [],
     "measurements": {
-      "garmentShoulderSpanPx": 274.3108938751066,
+      "garmentShoulderSpanPx": 284.10771151350326,
       "bodyShoulderSpanPx": 244.9204409599166,
-      "scaleRatio": 1.12,
-      "hemBelowShoulderPx": 369.78394326679404,
-      "necklineToNeckBasePx": 15.360000000000014,
+      "scaleRatio": 1.1600000000000001,
+      "hemBelowShoulderPx": 390.5371237562569,
+      "necklineToNeckBasePx": 6.707707614379114,
       "necklineToleranceP": 134.70624252795415,
-      "garmentCentroidToTorsoCentroidPx": 43.11265714943697,
+      "garmentCentroidToTorsoCentroidPx": 31.5319218070911,
       "torsoDiagonalPx": 375.1438763994422
     }
   },

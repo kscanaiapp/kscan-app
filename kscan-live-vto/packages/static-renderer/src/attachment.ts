@@ -24,7 +24,7 @@
  */
 
 import { isLandmarkPresent, type BodyFrame, type Landmark } from '@kscan-live-vto/contract';
-import type { GarmentControlPointId, KsgarmentManifest } from '@kscan-live-vto/garment-contract';
+import type { GarmentControlPoint, GarmentControlPointId, KsgarmentManifest } from '@kscan-live-vto/garment-contract';
 import type { Point } from './raster';
 
 export interface BodyAnchors {
@@ -88,7 +88,66 @@ export function extractBodyAnchors(
  * fraction of shoulder span. A shirt seam is outboard of the joint; mapping
  * seam directly onto joint reads as a size too small.
  */
-export const SHOULDER_SEAM_OUTSET = 0.06;
+export const SHOULDER_SEAM_OUTSET = 0.08;
+
+/**
+ * How far ABOVE the shoulder joint the seam sits, as a fraction of shoulder
+ * span.
+ *
+ * Review package #1 failed partly on shoulder-cap undercoverage: the person's
+ * own clothing showed through as slivers at both shoulder tops. The cause is
+ * anatomical, not a rendering bug — `leftShoulder`/`rightShoulder` are joint
+ * centres, which sit *inside* the body, while a real shirt's seam lies on top
+ * of the deltoid, above and outboard of that centre. Placing the seam exactly
+ * on the joint therefore guarantees the shoulder cap is left bare.
+ */
+export const SHOULDER_SEAM_RISE = 0.09;
+
+/**
+ * Longitudinal position (0 = seam line, 1 = hem) below which the garment
+ * keeps its full shoulder width instead of following the body's taper.
+ *
+ * A tee hangs from the shoulders; it does not shrink-wrap the ribcage. Making
+ * width follow the shoulder→hip taper from t=0 compressed chest content
+ * horizontally, which is the other half of the logo-aspect defect. Holding
+ * full width across the chest band and tapering only below it preserves chest
+ * proportions while still letting the hem sit near the body.
+ */
+export const TORSO_WIDTH_HOLD_T = 0.55;
+
+/**
+ * How far the garment's longitudinal scale may diverge from its lateral scale
+ * before the hem is allowed to sit away from the body's hem target.
+ *
+ * A garment is a manufactured object of a fixed size. Forcing its hem onto
+ * `hips + hem drop` for every body means a long-torsoed person stretches it
+ * vertically without limit — on the narrow fixture that was a 1.50x
+ * longitudinal scale against a 1.06x lateral one, i.e. chest content
+ * distorted 42%, which is a worse artifact than a hem sitting slightly high.
+ *
+ * Beyond this bound the garment keeps its own proportions and the hem lands
+ * where its size puts it: a little short on a long torso, a little long on a
+ * short one. That is what real garments do. Within the bound the garment
+ * still adapts to the body, which is what makes it look worn rather than
+ * pasted.
+ */
+export const MAX_LONGITUDINAL_ASPECT_DEVIATION = 0.15;
+
+/**
+ * Approximate half-width of the upper arm, as a fraction of shoulder span.
+ *
+ * The sleeve control point marks the sleeve's OUTER edge, not the arm's
+ * centreline, so its target has to sit outboard of the arm axis by roughly
+ * the arm's half-width. Without this offset the sleeve target landed inboard
+ * of the armpit target while sitting outboard of it in the texture — an
+ * inverted ordering, which showed up immediately as negative-determinant
+ * (folded) mesh cells.
+ *
+ * An approximation, and labelled as one: BodyFrame carries no limb width.
+ * A real width estimate (from segmentation, once that exists) should replace
+ * this constant rather than tuning it further.
+ */
+export const UPPER_ARM_HALF_WIDTH = 0.11;
 
 /**
  * Hem drop below the hip landmark for a `hip`-length garment, as a fraction
@@ -103,71 +162,217 @@ export const SHOULDER_SEAM_OUTSET = 0.06;
  */
 export const HIP_LENGTH_HEM_DROP = 0.28;
 
-/** Sleeve end position along the shoulder→elbow vector for a short sleeve. */
-export const SHORT_SLEEVE_FRACTION = 0.62;
+/**
+ * REMOVED in the package-#1 topology repair. The sleeve end used to be placed
+ * at a fixed fraction of the way to the elbow, which stretched the sleeve to
+ * whatever length the arm happened to be — 1.24x on the neutral fixture — and
+ * fed that stretch back into the chest through the warp. The sleeve now keeps
+ * its own authored length and only rotates; see computeControlPointTargets.
+ */
 
 export type ControlPointTargets = Partial<Record<GarmentControlPointId, Point>>;
 
 /**
  * Semantic target for each control point the manifest declares.
  *
- * Every target is derived from body landmarks, never from the garment's own
- * geometry — that is what makes the garment follow the body rather than the
- * body appear to follow the garment.
+ * ── The defect this replaced (review package #1, FAIL — DEFORMATION) ───────
+ *
+ * The previous version derived each control point's target from whichever
+ * anatomical landmark had a similar-sounding name: `waist` → the body's
+ * `waistCenter`, `leftTorso` → the midpoint of shoulder→hip, and so on. That
+ * looks reasonable and is wrong, because a garment control point is a point
+ * on the GARMENT, identified by where it sits in the garment's own geometry —
+ * not a body part.
+ *
+ * Concretely: the fixture's `waist` control point sits at 76% of the
+ * garment's shoulder→hem length, while the body's `waistCenter` landmark sits
+ * at 82% of torso height, which is well ABOVE the hem. Pinning one to the
+ * other dragged the middle of the garment upward, which (a) compressed
+ * everything above it — the measured 0.67–0.78 vertical scale on chest
+ * content — and (b) pulled the centre of the hem up between the two corner
+ * hem points, producing the notch. One bad target, both symptoms.
+ *
+ * ── What it does now ───────────────────────────────────────────────────────
+ *
+ * Build a garment frame in body space and map the garment's own normalized
+ * coordinates into it:
+ *
+ *     origin     shoulder-seam midpoint (raised above the joint line)
+ *     down       towards the hem midpoint (hips + hem drop)
+ *     right      along the body's shoulder line
+ *     t          the control point's own longitudinal fraction, taken from
+ *                the manifest: (v - v_shoulder) / (v_hem - v_shoulder)
+ *     lateral    the control point's own lateral fraction, in seam-span units
+ *
+ * So longitudinal spacing is the garment's, distributed across the body's
+ * actual shoulder→hem distance, and lateral spacing is the garment's, scaled
+ * by the body's width. No control point is pinned to a same-named body part
+ * any more, because the garment's shape is the garment's, not the body's.
+ *
+ * Sleeves are the one deliberate exception — they articulate, see below.
  */
 export function computeControlPointTargets(
   manifest: KsgarmentManifest,
   anchors: BodyAnchors,
+  textureWidth: number,
+  textureHeight: number,
 ): ControlPointTargets {
-  const { leftShoulder, rightShoulder, leftHip, rightHip, waist, shoulderSpanPx, torsoHeightPx } = anchors;
+  const { leftShoulder, rightShoulder, leftHip, rightHip, shoulderSpanPx, torsoHeightPx } = anchors;
 
-  // Unit vector along the shoulder line (wearer's left → right) and the
-  // body's "down" direction, so a tilted body carries the garment with it.
-  const axisX = { x: (rightShoulder.x - leftShoulder.x) / shoulderSpanPx, y: (rightShoulder.y - leftShoulder.y) / shoulderSpanPx };
-  const axisY = { x: -axisX.y, y: axisX.x };
+  const cp = (id: GarmentControlPointId) => manifest.controlPoints.find((c) => c.id === id);
+  const cpLeftShoulder = cp('leftShoulder');
+  const cpRightShoulder = cp('rightShoulder');
+  const cpLeftHem = cp('leftHem');
+  const cpRightHem = cp('rightHem');
+  if (!cpLeftShoulder || !cpRightShoulder || !cpLeftHem || !cpRightHem) return {};
 
-  const along = (base: Point, u: number, v: number): Point => ({
-    x: base.x + axisX.x * u + axisY.x * v,
-    y: base.y + axisX.y * u + axisY.y * v,
-  });
+  // Unit vector along the shoulder line (wearer's left → right), so a tilted
+  // body carries the garment with it.
+  const rightDir = {
+    x: (rightShoulder.x - leftShoulder.x) / shoulderSpanPx,
+    y: (rightShoulder.y - leftShoulder.y) / shoulderSpanPx,
+  };
+  const upDir = { x: rightDir.y, y: -rightDir.x };
 
+  // Frame origin: the seam midpoint, above the joint line (see SHOULDER_SEAM_RISE).
+  const jointMid = { x: (leftShoulder.x + rightShoulder.x) / 2, y: (leftShoulder.y + rightShoulder.y) / 2 };
+  const rise = shoulderSpanPx * SHOULDER_SEAM_RISE;
+  const shoulderMid = { x: jointMid.x + upDir.x * rise, y: jointMid.y + upDir.y * rise };
+
+  // Frame end: the hem midpoint, below the hip line.
+  const hipMid = { x: (leftHip.x + rightHip.x) / 2, y: (leftHip.y + rightHip.y) / 2 };
+  const downFromHip = { x: -upDir.x, y: -upDir.y };
   const hemDrop = torsoHeightPx * HIP_LENGTH_HEM_DROP;
-  const targets: ControlPointTargets = {
-    leftShoulder: along(leftShoulder, -shoulderSpanPx * SHOULDER_SEAM_OUTSET, 0),
-    rightShoulder: along(rightShoulder, shoulderSpanPx * SHOULDER_SEAM_OUTSET, 0),
-    leftHem: along(leftHip, -shoulderSpanPx * 0.04, hemDrop),
-    rightHem: along(rightHip, shoulderSpanPx * 0.04, hemDrop),
-    leftTorso: {
-      x: leftShoulder.x + (leftHip.x - leftShoulder.x) * 0.5 - axisX.x * shoulderSpanPx * 0.02,
-      y: leftShoulder.y + (leftHip.y - leftShoulder.y) * 0.5 - axisX.y * shoulderSpanPx * 0.02,
-    },
-    rightTorso: {
-      x: rightShoulder.x + (rightHip.x - rightShoulder.x) * 0.5 + axisX.x * shoulderSpanPx * 0.02,
-      y: rightShoulder.y + (rightHip.y - rightShoulder.y) * 0.5 + axisX.y * shoulderSpanPx * 0.02,
-    },
-    waist,
+  const hemMid = { x: hipMid.x + downFromHip.x * hemDrop, y: hipMid.y + downFromHip.y * hemDrop };
+
+  const bodyAxisLength = Math.hypot(hemMid.x - shoulderMid.x, hemMid.y - shoulderMid.y);
+  if (bodyAxisLength < 1) return {};
+  const downDir = { x: (hemMid.x - shoulderMid.x) / bodyAxisLength, y: (hemMid.y - shoulderMid.y) / bodyAxisLength };
+
+  // Garment's own normalized coordinates.
+  const vShoulder = (cpLeftShoulder.v + cpRightShoulder.v) / 2;
+  const vHem = (cpLeftHem.v + cpRightHem.v) / 2;
+  const vSpan = vHem - vShoulder;
+  const uSpan = cpRightShoulder.u - cpLeftShoulder.u;
+  if (vSpan <= 0 || uSpan <= 0) return {};
+
+  const longitudinalOf = (v: number) => (v - vShoulder) / vSpan;
+  const lateralOf = (u: number) => (u - 0.5) / uSpan;
+
+  // Width profile. Full seam width across the chest band, tapering below it
+  // so the hem sits near the body — see TORSO_WIDTH_HOLD_T.
+  const seamSpanTarget = shoulderSpanPx * (1 + 2 * SHOULDER_SEAM_OUTSET);
+
+  // Longitudinal scale, bounded against the lateral scale so no body can
+  // stretch or squash chest content without limit — see
+  // MAX_LONGITUDINAL_ASPECT_DEVIATION.
+  const textureSeamSpanPx = uSpan * textureWidth;
+  const textureLengthPx = vSpan * textureHeight;
+  const lateralScaleForLength = seamSpanTarget / textureSeamSpanPx;
+  const fittedLongitudinalScale = bodyAxisLength / textureLengthPx;
+  const maxRatio = 1 + MAX_LONGITUDINAL_ASPECT_DEVIATION;
+  const boundedLongitudinalScale = Math.min(
+    lateralScaleForLength * maxRatio,
+    Math.max(lateralScaleForLength / maxRatio, fittedLongitudinalScale),
+  );
+  const axisLength = boundedLongitudinalScale * textureLengthPx;
+  const hipHalfWidth = Math.hypot(rightHip.x - leftHip.x, rightHip.y - leftHip.y) / 2;
+  const hemHalfWidthIntended = hipHalfWidth + shoulderSpanPx * 0.04;
+  const hemLateralUnits = Math.abs(lateralOf(cpLeftHem.u));
+  const widthAtHem = hemLateralUnits > 0 ? hemHalfWidthIntended / hemLateralUnits : seamSpanTarget;
+
+  const widthAt = (t: number): number => {
+    if (t <= TORSO_WIDTH_HOLD_T) return seamSpanTarget;
+    const k = Math.min(1, (t - TORSO_WIDTH_HOLD_T) / (1 - TORSO_WIDTH_HOLD_T));
+    return seamSpanTarget + (widthAtHem - seamSpanTarget) * k;
   };
 
-  // Sleeves follow the actual upper-arm direction when the elbow is tracked,
-  // so "arms away" moves the sleeve instead of tearing it off the shoulder.
-  // With no elbow, the sleeve falls straight down from the seam — a defined
-  // fallback, not a guess dressed up as tracking.
-  const sleeveEnd = (shoulder: Point, elbow: Point | null, outward: number): Point => {
-    if (elbow) {
-      return {
-        x: shoulder.x + (elbow.x - shoulder.x) * SHORT_SLEEVE_FRACTION,
-        y: shoulder.y + (elbow.y - shoulder.y) * SHORT_SLEEVE_FRACTION,
-      };
-    }
-    return along(shoulder, outward * shoulderSpanPx * 0.1, shoulderSpanPx * 0.34);
+  const place = (u: number, v: number): Point => {
+    const t = longitudinalOf(v);
+    const lateral = lateralOf(u) * widthAt(t);
+    const down = t * axisLength;
+    return {
+      x: shoulderMid.x + downDir.x * down + rightDir.x * lateral,
+      y: shoulderMid.y + downDir.y * down + rightDir.y * lateral,
+    };
   };
-  targets.leftSleeve = sleeveEnd(targets.leftShoulder!, anchors.leftElbow, -1);
-  targets.rightSleeve = sleeveEnd(targets.rightShoulder!, anchors.rightElbow, 1);
 
-  const declared = new Set(manifest.controlPoints.map((cp) => cp.id));
-  for (const key of Object.keys(targets) as GarmentControlPointId[]) {
-    if (!declared.has(key)) delete targets[key];
+  const targets: ControlPointTargets = {};
+  for (const point of manifest.controlPoints) {
+    if (point.id === 'leftSleeve' || point.id === 'rightSleeve') continue;
+    targets[point.id] = place(point.u, point.v);
   }
+
+  // ── Sleeves articulate ─────────────────────────────────────────────────────
+  //
+  // The sleeve is the one place the garment must follow a limb rather than the
+  // torso frame, so it is placed along the actual upper-arm direction. It
+  // ROTATES but does not STRETCH: the sleeve keeps its own authored length,
+  // scaled by the same factor as the rest of the garment. The previous version
+  // placed it at a fixed fraction of the way to the elbow, which stretched the
+  // sleeve by ~1.24x on the neutral fixture and pushed that stretch back into
+  // the chest through the warp.
+  const lateralScale = lateralScaleForLength;
+  const sleeveTarget = (
+    which: 'leftSleeve' | 'rightSleeve',
+    seamCp: GarmentControlPoint,
+    seamTargetPoint: Point | undefined,
+    joint: Point,
+    elbow: Point | null,
+    outward: number,
+  ): Point | undefined => {
+    const sleeveCp = cp(which);
+    if (!sleeveCp || !seamTargetPoint) return undefined;
+
+    const sleeveLengthTexture = Math.hypot(
+      (sleeveCp.u - seamCp.u) * textureWidth,
+      (sleeveCp.v - seamCp.v) * textureHeight,
+    );
+    const reach = sleeveLengthTexture * lateralScale;
+
+    // Direction: down the upper arm when the elbow is tracked. With no elbow,
+    // a defined fallback (down and slightly outward) rather than a guess
+    // dressed up as tracking.
+    let dirX: number;
+    let dirY: number;
+    if (elbow) {
+      const dx = elbow.x - joint.x;
+      const dy = elbow.y - joint.y;
+      const len = Math.hypot(dx, dy);
+      if (len < 1) return undefined;
+      dirX = dx / len;
+      dirY = dy / len;
+    } else {
+      const fx = -upDir.x + rightDir.x * outward * 0.35;
+      const fy = -upDir.y + rightDir.y * outward * 0.35;
+      const len = Math.hypot(fx, fy);
+      dirX = fx / len;
+      dirY = fy / len;
+    }
+
+    // Step outboard by the arm's half-width, so the sleeve's outer edge lands
+    // on the arm's outer edge rather than on its axis — see
+    // UPPER_ARM_HALF_WIDTH. Of the two perpendiculars, take the one pointing
+    // away from the body's midline.
+    const candidate = { x: dirY, y: -dirX };
+    const awayX = seamTargetPoint.x - shoulderMid.x;
+    const awayY = seamTargetPoint.y - shoulderMid.y;
+    const sign = candidate.x * awayX + candidate.y * awayY >= 0 ? 1 : -1;
+    const normalX = candidate.x * sign;
+    const normalY = candidate.y * sign;
+    const armOffset = shoulderSpanPx * UPPER_ARM_HALF_WIDTH;
+
+    return {
+      x: seamTargetPoint.x + dirX * reach + normalX * armOffset,
+      y: seamTargetPoint.y + dirY * reach + normalY * armOffset,
+    };
+  };
+
+  const leftSleeve = sleeveTarget('leftSleeve', cpLeftShoulder, targets.leftShoulder, leftShoulder, anchors.leftElbow, -1);
+  const rightSleeve = sleeveTarget('rightSleeve', cpRightShoulder, targets.rightShoulder, rightShoulder, anchors.rightElbow, 1);
+  if (leftSleeve) targets.leftSleeve = leftSleeve;
+  if (rightSleeve) targets.rightSleeve = rightSleeve;
+
   return targets;
 }
 

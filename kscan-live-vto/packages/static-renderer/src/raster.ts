@@ -247,3 +247,51 @@ export function drawText(image: RgbaImage, text: string, x: number, y: number, o
 export function luminanceOf(color: Rgba): number {
   return (0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b) / 255;
 }
+
+/**
+ * Box-downsamples an image by an integer factor, averaging in premultiplied
+ * alpha so partially-covered edge pixels blend correctly instead of pulling
+ * transparent black into the colour.
+ *
+ * This is how the garment layer gets genuinely anti-aliased edges (review
+ * package #1 failed partly on "hard garment-edge compositing"): rasterize the
+ * garment at `factor`x and average down, rather than blurring a hard edge
+ * afterwards. Blurring would soften the boundary AND grow the silhouette
+ * outward, and Section 15 is explicit that edge quality must not be buried
+ * under blur. Supersampling adds no softness of its own — it just samples
+ * coverage properly.
+ */
+export function downsample(image: RgbaImage, factor: number): RgbaImage {
+  if (factor <= 1) return cloneImage(image);
+  const width = Math.floor(image.width / factor);
+  const height = Math.floor(image.height / factor);
+  const out = createImage(width, height, rgba(0, 0, 0, 0));
+  const samples = factor * factor;
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let sumR = 0;
+      let sumG = 0;
+      let sumB = 0;
+      let sumA = 0;
+      for (let sy = 0; sy < factor; sy++) {
+        for (let sx = 0; sx < factor; sx++) {
+          const i = ((y * factor + sy) * image.width + (x * factor + sx)) * 4;
+          const a = image.data[i + 3]! / 255;
+          sumR += image.data[i]! * a;
+          sumG += image.data[i + 1]! * a;
+          sumB += image.data[i + 2]! * a;
+          sumA += a;
+        }
+      }
+      const o = (y * width + x) * 4;
+      if (sumA > 0) {
+        out.data[o] = sumR / sumA;
+        out.data[o + 1] = sumG / sumA;
+        out.data[o + 2] = sumB / sumA;
+        out.data[o + 3] = (sumA / samples) * 255;
+      }
+    }
+  }
+  return out;
+}

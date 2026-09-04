@@ -6,14 +6,43 @@ Phase 2 live gate, and any other designated hard visual gate along the
 way). The autonomous builder may not self-certify a visual gate — see
 `docs/vto-risk-register.md` RISK 9.
 
-## Status: no entries
+## Verdicts
 
-**Nothing has been rendered yet.** This session built contracts, math,
-and pipeline scaffolding (`docs/vto-phase1-status.md` has the full list)
-but no compositor, no renderer, and no native camera pipeline exist — see
-`kscan-live-vto/native/README.md`. There is no review package to submit
-and no gate to cross. This document exists now, empty, so the format is
-established before the first real review package is assembled.
+### 1 — Static preview review package #1 — FAIL
+
+```
+LANDMARK:              Static preview review package #1 (rigid + deformation +
+                       compositing + occlusion + lighting)
+SHA:                   ee298587
+DATE:                  2026-09-04
+FIXTURES:              6 synthetic cases, 2 synthetic garments
+REVIEWER:              Human (program owner)
+VERDICT:               FAIL
+PRIMARY BUCKET:        DEFORMATION
+REQUIRED CHANGES:      Repair the existing control-point/target topology
+                       responsible for:
+                         1. vertical chest/logo compression
+                         2. centre hem notch
+                         3. shoulder-cap undercoverage
+                         4. hard garment-edge compositing
+                       Preserve affine MLS unless evidence AFTER topology
+                       repair shows the deformation algorithm itself is
+                       defective. Re-render the same six cases, retain
+                       before/after artifacts and metrics, produce review
+                       package #2.
+ACCEPTED LIMITATIONS:  Synthetic fixtures, precomputed masks, headless
+                       evaluation renderer — all unchanged and not at issue.
+NOTES:                 Rigid attachment, mirroring, occlusion semantics and
+                       lighting restraint were not the failure. The named
+                       defects are all downstream of how control-point
+                       targets are derived.
+```
+
+Response: `docs/vto-static-preview-review.md` (package #2). Root cause found
+and recorded there — the `waist` target was pinned to the anatomical waist
+landmark while the garment's waist control point is a point at 76% of the
+garment's own length, which compressed everything above it and dragged the
+mid-hem upward. One defect, two symptoms.
 
 ## Entry format (Section 18)
 

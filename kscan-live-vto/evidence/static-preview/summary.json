@@ -1,7 +1,7 @@
 {
   "generatedFrom": {
-    "gitSha": "33113af1e8d74bdd480d950e086a5b132d33c71e",
-    "rendererVersion": "0.1.0",
+    "gitSha": "ee2985871d1408a994220a297c514a530030971c",
+    "rendererVersion": "0.2.0",
     "deformationAlgorithm": "affine-mls@asset-pipeline-0.1.0"
   },
   "segmentationEngine": "NOT YET IMPLEMENTED — PRECOMPUTED TEST MASK",
@@ -20,25 +20,25 @@
         },
         "rigid": {
           "file": "case-1-neutral-plain-tee-01-rigid.png",
-          "bytes": 17189,
+          "bytes": 20108,
           "width": 720,
           "height": 960
         },
         "rigidOverlay": {
           "file": "case-1-neutral-plain-tee-02-rigid-overlay.png",
-          "bytes": 21540,
+          "bytes": 23949,
           "width": 720,
           "height": 960
         },
         "preview": {
           "file": "case-1-neutral-plain-tee-03-preview-lighting-adjusted.png",
-          "bytes": 18123,
+          "bytes": 19718,
           "width": 720,
           "height": 960
         },
         "previewUnadjusted": {
           "file": "case-1-neutral-plain-tee-04-preview-unadjusted.png",
-          "bytes": 18206,
+          "bytes": 19748,
           "width": 720,
           "height": 960
         }
@@ -47,13 +47,13 @@
         "passed": true,
         "findings": [],
         "measurements": {
-          "garmentShoulderSpanPx": 274.3108938751066,
+          "garmentShoulderSpanPx": 284.10771151350326,
           "bodyShoulderSpanPx": 244.9204409599166,
-          "scaleRatio": 1.12,
-          "hemBelowShoulderPx": 369.78394326679404,
-          "necklineToNeckBasePx": 15.360000000000014,
+          "scaleRatio": 1.1600000000000001,
+          "hemBelowShoulderPx": 390.5371237562569,
+          "necklineToNeckBasePx": 6.707707614379114,
           "necklineToleranceP": 134.70624252795415,
-          "garmentCentroidToTorsoCentroidPx": 43.11265714943697,
+          "garmentCentroidToTorsoCentroidPx": 31.5319218070911,
           "torsoDiagonalPx": 375.1438763994422
         }
       },
@@ -62,12 +62,12 @@
       "metrics": {
         "controlPointMaxPx": 0,
         "controlPointMaxNormalized": 0,
-        "torsoCoverage": 0.98672330528322,
-        "spillFraction": 0.3332423819086702,
+        "torsoCoverage": 1,
+        "spillFraction": 0.505321273909778,
         "jacobian": {
-          "minDeterminant": 0.24596991340787694,
-          "maxDeterminant": 1.8365615813259883,
-          "medianDeterminant": 1.1698044180605476,
+          "minDeterminant": 0.7828857750627527,
+          "maxDeterminant": 2.004860988532624,
+          "medianDeterminant": 1.7481724715503457,
           "foldoverCells": 0,
           "cellCount": 713
         },
@@ -109,25 +109,25 @@
         },
         "rigid": {
           "file": "case-2-logo-tee-canary-01-rigid.png",
-          "bytes": 26447,
+          "bytes": 31352,
           "width": 720,
           "height": 960
         },
         "rigidOverlay": {
           "file": "case-2-logo-tee-canary-02-rigid-overlay.png",
-          "bytes": 30217,
+          "bytes": 34742,
           "width": 720,
           "height": 960
         },
         "preview": {
           "file": "case-2-logo-tee-canary-03-preview-lighting-adjusted.png",
-          "bytes": 21789,
+          "bytes": 30373,
           "width": 720,
           "height": 960
         },
         "previewUnadjusted": {
           "file": "case-2-logo-tee-canary-04-preview-unadjusted.png",
-          "bytes": 21954,
+          "bytes": 30820,
           "width": 720,
           "height": 960
         }
@@ -136,13 +136,13 @@
         "passed": true,
         "findings": [],
         "measurements": {
-          "garmentShoulderSpanPx": 274.3108938751066,
+          "garmentShoulderSpanPx": 284.10771151350326,
           "bodyShoulderSpanPx": 244.9204409599166,
-          "scaleRatio": 1.12,
-          "hemBelowShoulderPx": 369.78394326679404,
-          "necklineToNeckBasePx": 15.360000000000014,
+          "scaleRatio": 1.1600000000000001,
+          "hemBelowShoulderPx": 390.5371237562569,
+          "necklineToNeckBasePx": 6.707707614379114,
           "necklineToleranceP": 134.70624252795415,
-          "garmentCentroidToTorsoCentroidPx": 43.11265714943697,
+          "garmentCentroidToTorsoCentroidPx": 31.5319218070911,
           "torsoDiagonalPx": 375.1438763994422
         }
       },
@@ -151,20 +151,20 @@
       "metrics": {
         "controlPointMaxPx": 0,
         "controlPointMaxNormalized": 0,
-        "torsoCoverage": 0.98672330528322,
-        "spillFraction": 0.3332423819086702,
+        "torsoCoverage": 1,
+        "spillFraction": 0.505321273909778,
         "jacobian": {
-          "minDeterminant": 0.24596991340787694,
-          "maxDeterminant": 1.8365615813259883,
-          "medianDeterminant": 1.1698044180605476,
+          "minDeterminant": 0.7828857750627527,
+          "maxDeterminant": 2.004860988532624,
+          "medianDeterminant": 1.7481724715503457,
           "foldoverCells": 0,
           "cellCount": 713
         },
         "logo": {
-          "horizontalScale": 0.9368093443399248,
-          "verticalScale": 0.7216855284665823,
-          "aspectRatioChange": 1.2980852565111451,
-          "shearIndicator": 0.004465838149781578,
+          "horizontalScale": 1.3755281677755753,
+          "verticalScale": 1.3592376494370215,
+          "aspectRatioChange": 1.0119850405448239,
+          "shearIndicator": 0.00710027065253849,
           "mirrored": false
         },
         "foregroundOverGarmentPixels": 0,
@@ -204,25 +204,25 @@
         },
         "rigid": {
           "file": "case-3a-narrow-torso-01-rigid.png",
-          "bytes": 19716,
+          "bytes": 23455,
           "width": 720,
           "height": 960
         },
         "rigidOverlay": {
           "file": "case-3a-narrow-torso-02-rigid-overlay.png",
-          "bytes": 23781,
+          "bytes": 27036,
           "width": 720,
           "height": 960
         },
         "preview": {
           "file": "case-3a-narrow-torso-03-preview-lighting-adjusted.png",
-          "bytes": 21055,
+          "bytes": 25094,
           "width": 720,
           "height": 960
         },
         "previewUnadjusted": {
           "file": "case-3a-narrow-torso-04-preview-unadjusted.png",
-          "bytes": 21044,
+          "bytes": 25179,
           "width": 720,
           "height": 960
         }
@@ -231,13 +231,13 @@
         "passed": true,
         "findings": [],
         "measurements": {
-          "garmentShoulderSpanPx": 210.06062177800015,
+          "garmentShoulderSpanPx": 217.56278684150007,
           "bodyShoulderSpanPx": 187.55412658750012,
-          "scaleRatio": 1.12,
-          "hemBelowShoulderPx": 283.17156474839,
-          "necklineToNeckBasePx": 17.279999999999973,
+          "scaleRatio": 1.1599999999999997,
+          "hemBelowShoulderPx": 299.06384644345275,
+          "necklineToNeckBasePx": 1.1231999999999658,
           "necklineToleranceP": 103.15476962312508,
-          "garmentCentroidToTorsoCentroidPx": 16.652731983458345,
+          "garmentCentroidToTorsoCentroidPx": 24.51219040404696,
           "torsoDiagonalPx": 363.2112773579587
         }
       },
@@ -246,20 +246,20 @@
       "metrics": {
         "controlPointMaxPx": 0,
         "controlPointMaxNormalized": 0,
-        "torsoCoverage": 0.98643747347301,
-        "spillFraction": 0.3432450484239731,
+        "torsoCoverage": 1,
+        "spillFraction": 0.3953878993596249,
         "jacobian": {
-          "minDeterminant": 0.23471344316321086,
-          "maxDeterminant": 1.5750229658649404,
-          "medianDeterminant": 0.9925420221952442,
+          "minDeterminant": 0.7135430080318662,
+          "maxDeterminant": 1.3561262773640326,
+          "medianDeterminant": 1.1905253703454033,
           "foldoverCells": 0,
           "cellCount": 713
         },
         "logo": {
-          "horizontalScale": 0.7297408830296436,
-          "verticalScale": 0.7830990158530774,
-          "aspectRatioChange": 0.9318628529173829,
-          "shearIndicator": 0.011949655263816339,
+          "horizontalScale": 1.0533699697001107,
+          "verticalScale": 1.2185782373924843,
+          "aspectRatioChange": 0.8644253913102153,
+          "shearIndicator": 0.01652327725939391,
           "mirrored": false
         },
         "foregroundOverGarmentPixels": 0,
@@ -299,25 +299,25 @@
         },
         "rigid": {
           "file": "case-3b-broad-torso-01-rigid.png",
-          "bytes": 32930,
+          "bytes": 38608,
           "width": 720,
           "height": 960
         },
         "rigidOverlay": {
           "file": "case-3b-broad-torso-02-rigid-overlay.png",
-          "bytes": 37412,
+          "bytes": 42572,
           "width": 720,
           "height": 960
         },
         "preview": {
           "file": "case-3b-broad-torso-03-preview-lighting-adjusted.png",
-          "bytes": 22918,
+          "bytes": 35460,
           "width": 720,
           "height": 960
         },
         "previewUnadjusted": {
           "file": "case-3b-broad-torso-04-preview-unadjusted.png",
-          "bytes": 23343,
+          "bytes": 36032,
           "width": 720,
           "height": 960
         }
@@ -326,13 +326,13 @@
         "passed": true,
         "findings": [],
         "measurements": {
-          "garmentShoulderSpanPx": 347.07857365709,
+          "garmentShoulderSpanPx": 359.4742370019862,
           "bodyShoulderSpanPx": 309.8915836224018,
-          "scaleRatio": 1.1199999999999999,
-          "hemBelowShoulderPx": 467.87818659789747,
-          "necklineToNeckBasePx": 4.800000000000015,
+          "scaleRatio": 1.1600000000000004,
+          "hemBelowShoulderPx": 494.13665625390195,
+          "necklineToNeckBasePx": 23.095697178478954,
           "necklineToleranceP": 170.44037099232102,
-          "garmentCentroidToTorsoCentroidPx": 101.26851011807281,
+          "garmentCentroidToTorsoCentroidPx": 86.53553486106554,
           "torsoDiagonalPx": 408.3457358660674
         }
       },
@@ -341,20 +341,20 @@
       "metrics": {
         "controlPointMaxPx": 0,
         "controlPointMaxNormalized": 0,
-        "torsoCoverage": 0.985711166307285,
-        "spillFraction": 0.3282334120798378,
+        "torsoCoverage": 1,
+        "spillFraction": 0.5819626770728145,
         "jacobian": {
-          "minDeterminant": 0.21562661946233821,
-          "maxDeterminant": 2.1642619317390435,
-          "medianDeterminant": 1.3766528004868301,
+          "minDeterminant": 0.6087588453390879,
+          "maxDeterminant": 3.0445968741263183,
+          "medianDeterminant": 2.4450226370315122,
           "foldoverCells": 0,
           "cellCount": 713
         },
         "logo": {
-          "horizontalScale": 1.170778870393451,
-          "verticalScale": 0.6706352772142651,
-          "aspectRatioChange": 1.7457758489185355,
-          "shearIndicator": 0.004604454286762784,
+          "horizontalScale": 1.7398332196795416,
+          "verticalScale": 1.5058453538213814,
+          "aspectRatioChange": 1.1553863849726465,
+          "shearIndicator": 0.008426041240682355,
           "mirrored": false
         },
         "foregroundOverGarmentPixels": 0,
@@ -394,25 +394,25 @@
         },
         "rigid": {
           "file": "case-4-arms-away-01-rigid.png",
-          "bytes": 19192,
+          "bytes": 21775,
           "width": 720,
           "height": 960
         },
         "rigidOverlay": {
           "file": "case-4-arms-away-02-rigid-overlay.png",
-          "bytes": 23927,
+          "bytes": 26098,
           "width": 720,
           "height": 960
         },
         "preview": {
           "file": "case-4-arms-away-03-preview-lighting-adjusted.png",
-          "bytes": 18318,
+          "bytes": 22653,
           "width": 720,
           "height": 960
         },
         "previewUnadjusted": {
           "file": "case-4-arms-away-04-preview-unadjusted.png",
-          "bytes": 18476,
+          "bytes": 22729,
           "width": 720,
           "height": 960
         }
@@ -421,13 +421,13 @@
         "passed": true,
         "findings": [],
         "measurements": {
-          "garmentShoulderSpanPx": 274.3108938751066,
+          "garmentShoulderSpanPx": 284.10771151350326,
           "bodyShoulderSpanPx": 244.92044095991662,
-          "scaleRatio": 1.12,
-          "hemBelowShoulderPx": 369.78394326679415,
-          "necklineToNeckBasePx": 15.360000000000033,
+          "scaleRatio": 1.16,
+          "hemBelowShoulderPx": 390.5371237562571,
+          "necklineToNeckBasePx": 6.70770761437911,
           "necklineToleranceP": 134.70624252795415,
-          "garmentCentroidToTorsoCentroidPx": 43.112657149436906,
+          "garmentCentroidToTorsoCentroidPx": 31.53192180709104,
           "torsoDiagonalPx": 375.1438763994422
         }
       },
@@ -436,12 +436,12 @@
       "metrics": {
         "controlPointMaxPx": 0,
         "controlPointMaxNormalized": 0,
-        "torsoCoverage": 0.9932967210466807,
-        "spillFraction": 0.39941010440370733,
+        "torsoCoverage": 1,
+        "spillFraction": 0.5502753119960483,
         "jacobian": {
-          "minDeterminant": 0.5414893058391104,
-          "maxDeterminant": 2.112086675890701,
-          "medianDeterminant": 1.3425423101629315,
+          "minDeterminant": 1.1390475564780977,
+          "maxDeterminant": 3.1503386728585165,
+          "medianDeterminant": 1.9370643956104967,
           "foldoverCells": 0,
           "cellCount": 713
         },
@@ -483,31 +483,31 @@
         },
         "rigid": {
           "file": "case-5-forearm-crossing-01-rigid.png",
-          "bytes": 16964,
+          "bytes": 19611,
           "width": 720,
           "height": 960
         },
         "rigidOverlay": {
           "file": "case-5-forearm-crossing-02-rigid-overlay.png",
-          "bytes": 21339,
+          "bytes": 23552,
           "width": 720,
           "height": 960
         },
         "preview": {
           "file": "case-5-forearm-crossing-03-preview-lighting-adjusted.png",
-          "bytes": 25882,
+          "bytes": 31848,
           "width": 720,
           "height": 960
         },
         "previewUnadjusted": {
           "file": "case-5-forearm-crossing-04-preview-unadjusted.png",
-          "bytes": 25868,
+          "bytes": 31705,
           "width": 720,
           "height": 960
         },
         "occlusionControl": {
           "file": "case-5-forearm-crossing-05-occlusion-control-wrong-layer-order.png",
-          "bytes": 17058,
+          "bytes": 19057,
           "width": 720,
           "height": 960
         }
@@ -516,13 +516,13 @@
         "passed": true,
         "findings": [],
         "measurements": {
-          "garmentShoulderSpanPx": 274.3108938751066,
+          "garmentShoulderSpanPx": 284.10771151350326,
           "bodyShoulderSpanPx": 244.9204409599166,
-          "scaleRatio": 1.12,
-          "hemBelowShoulderPx": 369.78394326679404,
-          "necklineToNeckBasePx": 15.360000000000014,
+          "scaleRatio": 1.1600000000000001,
+          "hemBelowShoulderPx": 390.5371237562569,
+          "necklineToNeckBasePx": 6.707707614379114,
           "necklineToleranceP": 134.70624252795415,
-          "garmentCentroidToTorsoCentroidPx": 43.11265714943697,
+          "garmentCentroidToTorsoCentroidPx": 31.5319218070911,
           "torsoDiagonalPx": 375.1438763994422
         }
       },
@@ -531,17 +531,17 @@
       "metrics": {
         "controlPointMaxPx": 0,
         "controlPointMaxNormalized": 0,
-        "torsoCoverage": 0.98672330528322,
-        "spillFraction": 0.3244537331917905,
+        "torsoCoverage": 1,
+        "spillFraction": 0.49961610267435,
         "jacobian": {
-          "minDeterminant": 0.2184960923818705,
-          "maxDeterminant": 1.80578178801153,
-          "medianDeterminant": 1.159373385054249,
+          "minDeterminant": 0.6018646824956237,
+          "maxDeterminant": 2.0131049160444894,
+          "medianDeterminant": 1.7228266188433943,
           "foldoverCells": 0,
           "cellCount": 713
         },
         "logo": null,
-        "foregroundOverGarmentPixels": 13938,
+        "foregroundOverGarmentPixels": 17434,
         "lighting": {
           "applied": true,
           "state": {

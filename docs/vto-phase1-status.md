@@ -226,3 +226,75 @@ next unblocked engineering item is the P1-D3 asset pipeline — turning a real
 retailer image into a `.ksgarment` — which is what actually gates a Live
 integration, and which remains **BLOCKED — FIXTURE CORPUS REQUIRED** until an
 authorized real-asset corpus exists.
+
+---
+
+## Entry 3 — 2026-09-04 (FAIL verdict answered — topology repair, package #2)
+
+```
+CURRENT BRANCH:   claude/kscan-live-vto-phase1-phase2-lcqyg9
+VERDICT ANSWERED: FAIL — DEFORMATION at ee298587
+```
+
+### Completed
+
+Human review returned **FAIL — DEFORMATION** on static preview package #1,
+naming four defects. All four repaired in the control-point/target topology;
+**affine MLS itself was not modified and not replaced**, and post-repair
+evidence gives no reason to suspect it (control-point residual 0.00px, zero
+foldover).
+
+- **Defect 1 (vertical chest compression)** — root cause found: targets were
+  pinned to same-named body landmarks, so the garment's `waist` control point
+  (76% of the garment's length) was dragged onto the anatomical waist landmark
+  (82% of torso height, above the hem). Replaced with a body-space garment
+  frame that maps each control point by its own manifest coordinates. Neutral
+  logo aspect 1.298 → **1.012**.
+- **Defect 2 (centre hem notch)** — same root cause; gone.
+- **Defect 3 (shoulder-cap undercoverage)** — added `SHOULDER_SEAM_RISE`; the
+  seam now sits above the joint landmark as a real shirt does.
+- **Defect 4 (hard garment edge)** — 2× supersampled rasterization with
+  premultiplied box downsample. Not a blur.
+
+Supporting topology changes: sleeve targets rotate without stretching; new
+`leftArmpit`/`rightArmpit` control points anchor the torso side of the sleeve
+junction; `TORSO_WIDTH_HOLD_T` holds chest width above the taper;
+`MAX_LONGITUDINAL_ASPECT_DEVIATION` bounds longitudinal distortion on extreme
+bodies.
+
+**Tests: 86 → 95. 0 deleted, 0 weakened.** Nine new regression tests, one per
+repaired defect plus foldover and ordering invariants.
+
+### Findings
+
+1. **Adding the armpit anchor reintroduced mesh foldover** (4–8 cells) because
+   the articulated sleeve landed inboard of it while sitting outboard in the
+   texture. Fixed with an approximate upper-arm half-width offset, labelled as
+   an approximation because BodyFrame carries no limb width. Pinned by a test.
+2. **The first v2 render turned the tee into a poncho** — holding full chest
+   width exposed that the fixture body was 1.33 seam-spans wide, previously
+   masked by body-derived side targets. Caught by looking at the image; no
+   metric flagged it. Narrowed to ~1.1 seam-spans.
+
+### Still open
+
+Armpit gap with arms away/crossed; residual aspect deviation on the stress
+bodies (1.155 broad / 0.864 narrow); the broad fixture is deliberately outside
+a realistic human range; boxy lower torso (linear taper, no drape model).
+
+### Visual verdicts
+
+Package #1: **FAIL — DEFORMATION** (recorded). Package #2:
+`docs/vto-static-preview-review.md`, verdict **PENDING**.
+
+### Known limitations
+
+Unchanged: no camera, no device, no toolchain, no pose model, no segmentation
+model, no native compilation. Synthetic fixtures, precomputed masks, headless
+evaluation renderer whose pixels are not a native baseline.
+
+### Next critical path item
+
+Human review of package #2. Independent of it, the P1-D3 asset pipeline
+(retailer image → `.ksgarment`) remains what actually gates a Live
+integration, and remains **BLOCKED — FIXTURE CORPUS REQUIRED**.

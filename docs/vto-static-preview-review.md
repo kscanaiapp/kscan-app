@@ -1,114 +1,150 @@
-# Live VTO — Static Preview Visual Review Package #1
+# Live VTO — Static Preview Visual Review Package #2
 
 **Human verdict: PENDING.** No human has reviewed this. Nothing below may be
-read as a PASS. Section 19's rubric is reproduced here with the evidence a
-reviewer needs; the verdict line at the bottom is to be filled in by a person
-and recorded in `docs/vto-visual-verdicts.md`.
+read as a PASS.
+
+This package responds to the recorded **FAIL — DEFORMATION** verdict on
+package #1 at `ee298587` (see `docs/vto-visual-verdicts.md`). Four defects
+were named; all four were repaired, and the same six cases were re-rendered.
+Package #1's artifacts are retained beside the new ones for direct comparison.
 
 ```
 BRANCH:      claude/kscan-live-vto-phase1-phase2-lcqyg9
-RENDERER:    @kscan-live-vto/static-renderer 0.1.0
-DEFORMATION: affine-mls@asset-pipeline-0.1.0
-EVIDENCE:    kscan-live-vto/evidence/static-preview/ (PNG + JSON sidecar per case)
+RENDERER:    @kscan-live-vto/static-renderer 0.2.0  (was 0.1.0)
+DEFORMATION: affine-mls@asset-pipeline-0.1.0  — UNCHANGED
+BEFORE:      kscan-live-vto/evidence/static-preview-v1/
+AFTER:       kscan-live-vto/evidence/static-preview/
 REGENERATE:  cd kscan-live-vto && npm run build && node tools/render-static-review.js
 ```
 
+**Affine MLS was not modified, and not replaced.** The deformation function in
+`@kscan-live-vto/asset-pipeline` is byte-identical to package #1. Every repair
+below is in the control-point/target *topology* — what the warp is asked to
+do, not how it does it. Post-repair evidence gives no reason to suspect the
+algorithm: control-point residual is 0.00px, and mesh foldover is zero across
+all six cases.
+
 ## What this evidence is, and is not
 
-- **SYNTHETIC — NOT HUMAN.** Every person fixture is procedurally drawn.
-  *This validates rendering mechanics given known BodyFrames. It does not
-  validate human pose perception, body diversity, or production segmentation
-  quality.*
-- **No pose model ran.** The BodyFrame is an *input* emitted by the fixture
-  generator, which knows where every landmark is because it drew them.
-- **SEGMENTATION ENGINE: NOT YET IMPLEMENTED — PRECOMPUTED TEST MASK.** Case 5
-  proves the *compositor* can express correct occlusion. It says nothing about
-  automatic segmentation.
-- **Headless evaluation renderer.** Establishes semantic golden behavior
-  (anchoring, geometry, deformation, layering, mirroring, asset
-  interpretation). Its pixels are **not** the native rasterization baseline —
-  native goldens must be established on physical devices.
-- **MECHANICS EVIDENCE ONLY** on the garment side. Both garments are
-  synthetic. **REAL CATALOG ASSET VIABILITY: BLOCKED — FIXTURE CORPUS
-  REQUIRED.**
+Unchanged from package #1, and still binding:
 
-## Findings before the rubric — the stop gate did its job
+- **SYNTHETIC — NOT HUMAN.** *This validates rendering mechanics given known
+  BodyFrames. It does not validate human pose perception, body diversity, or
+  production segmentation quality.*
+- **No pose model ran.** BodyFrame is an input from the fixture generator.
+- **SEGMENTATION ENGINE: NOT YET IMPLEMENTED — PRECOMPUTED TEST MASK.**
+- **Headless evaluation renderer** — not the native rasterization baseline.
+- **MECHANICS EVIDENCE ONLY** for garments. **REAL CATALOG ASSET VIABILITY:
+  BLOCKED — FIXTURE CORPUS REQUIRED.**
 
-The first render of this pass **refused 5 of 6 cases** at the rigid stop gate
-with `garment_largely_outside_torso`, and that refusal was correct. It exposed
-two genuine geometry defects that no amount of deformation could have fixed:
+## The four defects
 
-| # | Defect | Measured | Fix |
-|---|---|---|---|
-| 1 | Garment silhouette disproportionately long | seam→hem was **2.625** shoulder-spans; the body's shoulder→hem target is **1.18** | Fixture re-proportioned to **1.348**; pinned by a test against `GARMENT_LENGTH_RATIO` |
-| 2 | Hem target too high on the body | `HIP_LENGTH_HEM_DROP` 0.12 put the hem 12% of a torso below the hip *joint* | Raised to **0.28** — a hip-length tee hangs about a quarter-torso below the hip landmark |
+### DEFECT 1 — vertical chest/logo compression → REPAIRED
 
-A third defect was caught by *looking at the image*, not by any metric, after
-the gate passed:
+**Root cause.** Targets were derived from whichever body landmark had a
+similar-sounding name. The fixture's `waist` control point sits at 76% of the
+*garment's* shoulder→hem length; the body's `waistCenter` landmark sits at 82%
+of *torso height*, well above the hem. Pinning one to the other dragged the
+garment's middle upward and compressed everything above it.
 
-| # | Defect | Measured | Fix |
-|---|---|---|---|
-| 3 | Neck opening 58% of seam span, closed with a single apex vertex — rendered as a deep V exposing most of the chest; sleeves extended 1.1 seam-spans past the seam (sleeve span 2.17× shoulder span) | visual | Crew neck at ~0.35 seam-span opening as a shallow arc; short sleeve at ~0.31 seam-spans |
+**Repair.** `computeControlPointTargets` now builds a garment frame in body
+space — origin at the shoulder-seam midpoint, down-axis toward the hem
+midpoint, width across the shoulder line — and maps each control point using
+its *own* normalized coordinates from the manifest. No control point is pinned
+to a same-named body part any more.
 
-This is the intended division of labor: the gate catches gross semantic
-errors, metrics catch geometric ones, and a human catches the rest.
+Three supporting changes fell out of the same analysis:
 
-## Case metrics
+- The sleeve target used to sit at a fixed fraction of the way to the elbow,
+  which stretched the sleeve by ~1.24× on the neutral fixture and fed that
+  stretch back into the chest. It now keeps its authored length and only
+  rotates onto the arm.
+- Chest width is held at full shoulder width above `TORSO_WIDTH_HOLD_T` and
+  tapers only below it. Tapering from t=0 compressed chest content
+  horizontally — the other half of the same defect.
+- `MAX_LONGITUDINAL_ASPECT_DEVIATION` (0.15) bounds how far the garment's
+  longitudinal scale may diverge from its lateral scale. Forcing the hem onto
+  `hips + drop` for every body meant a long torso stretched the garment
+  without limit (1.50× vs 1.06× lateral on the narrow fixture). Past the
+  bound the garment keeps its own proportions and the hem sits where its size
+  puts it — slightly short on a long torso, slightly long on a short one,
+  which is what real garments do.
 
-Control-point residual is **0.00 px in every case** — affine MLS interpolates
-its control points exactly, so this confirms the warp honors its anchors.
-No case shows any mesh foldover.
+**Result.** Neutral logo aspect **1.298 → 1.012**. Stress bodies **1.746 →
+1.155** (broad) and **0.932 → 0.864** (narrow).
 
-| Case | Gate | Rigid scale | Torso coverage | Jacobian [min, max] (median) | Logo aspect (h / v) |
-|---|---|---|---|---|---|
-| 1 — neutral + plain tee | PASS | 1.120 | 98.7% | [0.25, 1.84] (1.17) | — |
-| 2 — logo tee (canary) | PASS | 1.120 | 98.7% | [0.25, 1.84] (1.17) | **1.298** (0.94 / 0.72) |
-| 3a — narrow torso | PASS | 1.120 | 98.6% | [0.23, 1.58] (0.99) | **0.932** (0.73 / 0.78) |
-| 3b — broad torso | PASS | 1.120 | 98.6% | [0.22, 2.16] (1.38) | **1.746** (1.17 / 0.67) |
-| 4 — arms away | PASS | 1.120 | 99.3% | [0.54, 2.11] (1.34) | — |
-| 5 — forearm crossing | PASS | 1.120 | 98.7% | [0.22, 1.81] (1.16) | — |
+### DEFECT 2 — centre hem notch → REPAIRED
 
-**Reading the "spill" metric (32–40% across cases): not a defect.** The
-coverage denominator is the shoulder/hip quad, which by construction excludes
-the sleeves and the hem drop — so roughly a third of garment pixels landing
-outside it is structural. It is reported for completeness, not as a finding.
+Same root cause as Defect 1: the raised `waist` target pulled the middle of
+the hem up between the two corner hem points. With the waist target on the
+garment's own longitudinal axis the notch is gone. A test now measures the
+rendered silhouette directly — lowest garment pixel at the centre column vs
+the quarter columns — and fails if the centre sits more than 6% of a shoulder
+span high.
 
-**Lighting, case 1** (all inside the experimental guardrails, nothing clamped):
-scene mean luminance 0.362, contrast 0.038, colour cast r0.90/g0.99/b1.11 →
-luminance gain **0.945**, contrast gain **0.929**, hue shift **−5.9°**,
-saturation **0.956**. Every case ships an unadjusted counterpart
-(`*-04-preview-unadjusted.png`) so the adjustment's effect on product colour
-is directly inspectable.
+### DEFECT 3 — shoulder-cap undercoverage → REPAIRED
 
-**Occlusion, case 5:** 13,938 pixels where the real forearm correctly
-overrode garment pixels; the control and intended images differ substantially.
+`leftShoulder`/`rightShoulder` are joint centres, which sit *inside* the body,
+while a shirt's seam lies on top of the deltoid. Placing the seam exactly on
+the joint guaranteed a bare cap. Added `SHOULDER_SEAM_RISE` (0.09 of shoulder
+span) alongside the existing outset, raised to 0.08. A test probes above each
+joint and fails if the garment does not cover it.
 
-## Open defects a reviewer should judge
+### DEFECT 4 — hard garment-edge compositing → REPAIRED
 
-These are visible in the rendered images and are **not** fixed:
+The garment layer is now rasterized at **2× and box-downsampled in
+premultiplied alpha** (`GARMENT_SUPERSAMPLE`), giving coverage-based edge
+alpha. This is deliberately *not* a blur: Section 15 forbids burying edge
+quality under blur, and blurring would also grow the silhouette outward.
+Supersampling adds no softness of its own. A test asserts the layer contains
+partial-alpha pixels rather than a binary silhouette.
 
-1. **Vertical compression of chest content.** The logo's vertical scale is
-   0.72 / 0.78 / 0.67 across the three body types — consistently squashed,
-   while horizontal scale tracks body width as it should (0.94 / 0.73 / 1.17).
-   Hypothesis: the flat-lay asset's sleeve control points sit diagonally
-   outboard of the shoulder, while the arms-at-side targets sit almost
-   directly below it, so the warp compresses the chest region vertically to
-   reconcile them. This is a control-point *weighting//topology* question, not
-   an argument to swap deformation algorithms — Section 13 reserves that for
-   evidence that affine MLS itself fails, and it has not.
-2. **Hem notch.** The bottom edge dips in the middle in every case, because
-   the `waist` control point's target sits above the hem line and drags the
-   mid-hem upward. Candidate fixes: give `waist` a hem-relative target, or
-   exclude it from the warp below the torso band.
-3. **Shoulder-cap coverage.** The person's shoulder geometry pokes above the
-   garment's shoulder line, leaving visible slivers of their existing
-   clothing at both shoulder tops.
-4. **Hard garment edge.** Feathering is applied to the foreground mask only;
-   the garment silhouette itself composites with a hard edge, which reads as
-   "sticker" at the boundary.
-5. **Broad-torso fixture is deliberately extreme** (torso height 0.84× shoulder
-   span). It is a stress case, not a typical body, and its 1.746 logo aspect
-   should be read that way.
+## Before / after
+
+| Case | Torso coverage | Jacobian min | Foldover | Logo aspect (h / v) |
+|---|---|---|---|---|
+| 1 — neutral + plain tee | 98.7% → **100.0%** | 0.246 → **0.783** | 0 → 0 | — |
+| 2 — logo tee (canary) | 98.7% → **100.0%** | 0.246 → **0.783** | 0 → 0 | 1.298 → **1.012** (1.376 / 1.359) |
+| 3a — narrow torso | 98.6% → **100.0%** | 0.235 → **0.714** | 0 → 0 | 0.932 → **0.864** (1.053 / 1.219) |
+| 3b — broad torso | 98.6% → **100.0%** | 0.216 → **0.609** | 0 → 0 | 1.746 → **1.155** (1.740 / 1.506) |
+| 4 — arms away | 99.3% → **100.0%** | 0.541 → **1.139** | 0 → 0 | — |
+| 5 — forearm crossing | 98.7% → **100.0%** | 0.218 → **0.602** | 0 → 0 | — |
+
+Control-point residual remains **0.00 px** in every case. Mirroring remains
+correct (`mirrored: false`, shear 0.004). Jacobian minima roughly tripled —
+the warp is doing far less local compression than it was.
+
+## Two mistakes made and corrected during this repair
+
+Recorded because the process is part of the evidence:
+
+1. **Adding the armpit control point reintroduced foldover** (4–8 inverted
+   cells across four cases). With arms at the sides, the articulated sleeve
+   target landed *inboard* of the armpit target while sitting *outboard* of it
+   in the texture — an inverted ordering. Fixed by offsetting the sleeve target
+   outboard by an approximate upper-arm half-width
+   (`UPPER_ARM_HALF_WIDTH`, explicitly labelled an approximation because
+   BodyFrame carries no limb width). A test now pins foldover to zero across
+   all five body/pose variants.
+2. **The first v2 render made the garment a poncho.** Holding full chest width
+   exposed that the fixture's body was 1.33 shoulder-seam-spans wide, which
+   the old body-derived side targets had been hiding by pulling it in. Caught
+   by looking at the image, not by any metric. The fixture body was narrowed to
+   ~1.1 seam-spans, which is a real tee's proportion.
+
+## Still open — for the reviewer to weigh
+
+1. **Armpit gap.** With arms away from the body (case 4) and crossed (case 5),
+   a wedge of the person's own clothing shows between the sleeve underside and
+   the torso. The garment has no gusset geometry and the frame does not model
+   the sleeve/body join as a surface.
+2. **Residual aspect deviation on stress bodies** — 1.155 broad, 0.864 narrow.
+   Bounded and much reduced, but not eliminated. Some is the intended bound;
+   a few points come from local MLS blending near the sleeve.
+3. **The broad fixture is deliberately extreme** (torso 0.84× shoulder span,
+   outside a realistic human range). It is a stress case, not a typical body.
+4. **The tee reads as slightly boxy** through the lower torso — the taper
+   below `TORSO_WIDTH_HOLD_T` is linear and does not model drape.
 
 ## Section 19 rubric
 
@@ -116,52 +152,27 @@ Judge: attachment, scale, orientation, deformation, mirroring, layering,
 occlusion semantics, edge composition.
 
 Do **not** judge as Phase 1 blockers: skin realism, full lighting realism,
-actual MediaPipe tracking, real segmentation quality (fixture masks are in
-use), true fabric drape, physical fit.
+actual MediaPipe tracking, real segmentation quality, true fabric drape,
+physical fit.
 
-### CASE 1 — NEUTRAL + PLAIN TEE
-`case-1-neutral-plain-tee-03-preview-lighting-adjusted.png`
-Expected: neckline near neck base; shoulders near body shoulder anchors; hem
-plausibly located; no inversion/foldover; reasonable garment scale.
+| Case | Files |
+|---|---|
+| 1 — neutral + plain tee | `case-1-neutral-plain-tee-03-preview-lighting-adjusted.png` |
+| 2 — logo tee (canary) | `case-2-logo-tee-canary-03-preview-lighting-adjusted.png` |
+| 3 — body proportion | `case-3a-narrow-torso-*`, `case-3b-broad-torso-*` |
+| 4 — arms away | `case-4-arms-away-03-preview-lighting-adjusted.png` |
+| 5 — forearm crossing | `case-5-forearm-crossing-03-preview-lighting-adjusted.png` (intended) vs `…-05-occlusion-control-wrong-layer-order.png` (control) |
 
-### CASE 2 — LOGO TEE (CANARY)
-`case-2-logo-tee-canary-03-preview-lighting-adjusted.png`
-Expected: logo readable; not mirrored; upright; not grossly stretched;
-approximately chest-centred.
-Machine check: `mirrored: false`, shear indicator 0.004, aspect change 1.298.
-
-### CASE 3 — BODY-PROPORTION VARIATION
-`case-3a-narrow-torso-*`, `case-3b-broad-torso-*`
-Expected: garment width responds to body width; garment does not float away;
-sleeves remain connected.
-
-### CASE 4 — ARMS AWAY
-`case-4-arms-away-03-preview-lighting-adjusted.png`
-Expected: shoulder/sleeve geometry remains coherent; no severe mesh tearing.
-
-### CASE 5 — FOREARM CROSSING
-`case-5-forearm-crossing-03-preview-lighting-adjusted.png` (intended) vs
-`case-5-forearm-crossing-05-occlusion-control-wrong-layer-order.png` (control).
-Expected: arm appears in front of garment; edge follows the provided
-foreground mask; garment does not bleed significantly across the foreground
-limb. The control image shows the same composite with the foreground layer
-omitted — the arms disappear behind the garment — so the pair isolates exactly
-what the foreground layer contributes.
-
-### Global
-Correct layer order; no accidental mirroring; no obvious mesh inversion; no
-extreme alpha halo; lighting change remains restrained.
-
-### Diagnostic overlays
-`*-02-rigid-overlay.png` annotates every case with teal body anchors, amber
-garment control points, a white line from each control point to the semantic
-target it aimed at, and the gate's own measurements burned into the image.
+Every case also ships `-01-rigid`, `-02-rigid-overlay` (teal body anchors,
+amber garment control points, white line to each semantic target, gate
+measurements burned in), `-04-preview-unadjusted` (lighting comparison), and a
+`-manifest.json` sidecar. The identically-named files under
+`evidence/static-preview-v1/` are package #1's.
 
 ## Verdict
 
 ```
-LANDMARK:              Static preview review package #1 (rigid + deformation +
-                       compositing + occlusion + lighting)
+LANDMARK:              Static preview review package #2 (topology repair)
 SHA:                   (fill in at review time)
 DATE:
 FIXTURES:              6 synthetic cases, 2 synthetic garments
@@ -173,5 +184,5 @@ REQUIRED CHANGES:
 NOTES:
 ```
 
-PASS here would mean *semantic behavior is sound enough to continue*. It would
-not mean photorealistic, and it would not mean customer-ready.
+PASS would mean semantic behavior is sound enough to continue. It would not
+mean photorealistic, and it would not mean customer-ready.

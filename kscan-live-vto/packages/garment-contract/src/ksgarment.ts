@@ -25,10 +25,18 @@ import type {
  * (P2-C2: + leftTorso/rightTorso/waist/leftSleeve/rightSleeve). One id
  * space so a Phase-1 asset needs no migration to become Phase-2-ready —
  * it just starts with fewer points populated.
+ *
+ * `leftArmpit`/`rightArmpit` were added during the review-package-#2 topology
+ * repair. They are where the sleeve meets the body, and they exist to anchor
+ * the TORSO side of that junction: without them the articulated sleeve target
+ * was the nearest constraint to the chest and dragged chest content with it
+ * as the sleeve rotated onto the arm.
  */
 export const GARMENT_CONTROL_POINT_IDS = [
   'leftShoulder',
   'rightShoulder',
+  'leftArmpit',
+  'rightArmpit',
   'leftTorso',
   'rightTorso',
   'waist',

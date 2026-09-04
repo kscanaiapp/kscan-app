@@ -114,7 +114,7 @@ test('stop gate catches a swapped left/right TARGET assignment (the real inversi
   const garment = generateSyntheticGarment(PLAIN_TEE);
   const anchors = extractBodyAnchors(person.bodyFrame, person.image.width, person.image.height);
   assert.ok(anchors.ok);
-  const targets = computeControlPointTargets(garment.manifest, anchors.anchors);
+  const targets = computeControlPointTargets(garment.manifest, anchors.anchors, garment.texture.width, garment.texture.height);
 
   const swapped = { ...targets, leftShoulder: targets.rightShoulder, rightShoulder: targets.leftShoulder };
   const placement = fitRigidPlacement(garment.manifest, garment.texture.width, garment.texture.height, swapped);
@@ -135,7 +135,7 @@ test('stop gate catches an upside-down garment', () => {
   const garment = generateSyntheticGarment(PLAIN_TEE);
   const anchors = extractBodyAnchors(person.bodyFrame, person.image.width, person.image.height);
   assert.ok(anchors.ok);
-  const targets = computeControlPointTargets(garment.manifest, anchors.anchors);
+  const targets = computeControlPointTargets(garment.manifest, anchors.anchors, garment.texture.width, garment.texture.height);
   const placement = fitRigidPlacement(garment.manifest, garment.texture.width, garment.texture.height, targets);
   assert.ok(placement.ok);
 
@@ -161,7 +161,7 @@ test('stop gate catches a grossly mis-scaled garment', () => {
   const garment = generateSyntheticGarment(PLAIN_TEE);
   const anchors = extractBodyAnchors(person.bodyFrame, person.image.width, person.image.height);
   assert.ok(anchors.ok);
-  const targets = computeControlPointTargets(garment.manifest, anchors.anchors);
+  const targets = computeControlPointTargets(garment.manifest, anchors.anchors, garment.texture.width, garment.texture.height);
   const placement = fitRigidPlacement(garment.manifest, garment.texture.width, garment.texture.height, targets);
   assert.ok(placement.ok);
 
@@ -341,4 +341,183 @@ test('a rendered preview is not simply the untouched person image', () => {
     }
   }
   assert.ok(changed > 200, `only ${changed} sampled pixels changed — the garment may not be rendering`);
+});
+
+// ─── Review package #2: regressions for the four FAIL — DEFORMATION defects ──
+//
+// Each test below fails if one of the defects the human reviewer named at
+// ee298587 comes back.
+
+import {
+  MAX_LONGITUDINAL_ASPECT_DEVIATION,
+  SHOULDER_SEAM_RISE,
+  TORSO_WIDTH_HOLD_T,
+} from '../attachment';
+import { GARMENT_SUPERSAMPLE } from '../renderPreview';
+
+function renderNeutral(personOverrides: Record<string, unknown> = {}) {
+  const person = generateSyntheticPerson({ ...NEUTRAL_PERSON, ...personOverrides } as typeof NEUTRAL_PERSON);
+  const garment = generateSyntheticGarment(LOGO_TEE);
+  const input: RenderInput = {
+    fixtureId: person.spec.fixtureId,
+    caseId: 'regression',
+    personImage: person.image,
+    bodyFrame: person.bodyFrame,
+    descriptor: garment.descriptor,
+    asset: {
+      manifest: garment.manifest,
+      texture: garment.texture,
+      alphaMask: garment.alphaMask,
+      logoBoxTexturePx: garment.logoBoxTexturePx,
+    },
+    foregroundMask: person.foregroundMask,
+    maskProvenance: 'precomputed',
+    gitSha: 'test',
+  };
+  const rigid = renderRigidStage(input);
+  assert.ok(rigid.ok);
+  const deformed = renderDeformedStage(input, rigid.result);
+  assert.ok(deformed.ok);
+  return { person, garment, rigid: rigid.result, deformed: deformed.result };
+}
+
+test('DEFECT 1 — no control point is pinned to a same-named body landmark', () => {
+  // The package-#1 root cause: `waist` targeted the anatomical waistCenter,
+  // which sits well above the hem and dragged the garment's middle up. The
+  // waist target must now lie on the shoulder→hem axis at the garment's own
+  // longitudinal fraction, i.e. clearly BELOW the anatomical waist landmark.
+  const { rigid } = renderNeutral();
+  const waistTarget = rigid.targets.waist!;
+  const anatomicalWaist = rigid.anchors.waist;
+  assert.ok(waistTarget, 'waist target must exist');
+  assert.ok(
+    waistTarget.y > anatomicalWaist.y + 5,
+    `waist target y=${waistTarget.y.toFixed(1)} should sit below the anatomical waist landmark y=${anatomicalWaist.y.toFixed(1)}`,
+  );
+});
+
+test('DEFECT 1 — chest content keeps its aspect ratio on the neutral fixture', () => {
+  const { deformed } = renderNeutral();
+  const aspect = deformed.metrics.logo!.aspectRatioChange;
+  assert.ok(Math.abs(aspect - 1) < 0.06, `logo aspect ${aspect.toFixed(3)} should be ~1.0 on the neutral fixture`);
+});
+
+test('DEFECT 1 — longitudinal distortion stays inside the documented bound on extreme bodies', () => {
+  // Narrow (long torso) and broad (short torso) are the stress cases. The
+  // bound is on the attachment frame; the rendered logo picks up a little
+  // extra from local MLS blending near the sleeve, so allow a small margin
+  // over the raw constant rather than pretending the bound is exact.
+  const tolerance = MAX_LONGITUDINAL_ASPECT_DEVIATION + 0.06;
+  for (const [label, overrides] of [
+    ['narrow', { shoulderWidthNorm: 0.26, torsoHeightNorm: 0.33, seed: 23 }],
+    ['broad', { shoulderWidthNorm: 0.43, torsoHeightNorm: 0.27, seed: 41 }],
+  ] as const) {
+    const { deformed } = renderNeutral(overrides);
+    const aspect = deformed.metrics.logo!.aspectRatioChange;
+    assert.ok(
+      Math.abs(aspect - 1) <= tolerance,
+      `${label}: logo aspect ${aspect.toFixed(3)} exceeds the bound (1 +/- ${tolerance.toFixed(2)})`,
+    );
+  }
+});
+
+test('DEFECT 2 — the hem is level, with no centre notch', () => {
+  // Measures the rendered silhouette directly: the lowest garment pixel at the
+  // horizontal centre must not sit meaningfully higher than at the quarter
+  // points. The package-#1 notch was ~40px on this fixture.
+  const { deformed, rigid } = renderNeutral();
+  const layer = deformed.garmentLayer;
+  const lowestAt = (x: number): number => {
+    for (let y = layer.height - 1; y >= 0; y--) {
+      if (getPixel(layer, x, y).a > 128) return y;
+    }
+    return -1;
+  };
+  const centreX = Math.round((rigid.anchors.leftShoulder.x + rigid.anchors.rightShoulder.x) / 2);
+  const span = rigid.anchors.shoulderSpanPx;
+  const centre = lowestAt(centreX);
+  const left = lowestAt(Math.round(centreX - span * 0.25));
+  const right = lowestAt(Math.round(centreX + span * 0.25));
+  assert.ok(centre > 0 && left > 0 && right > 0, 'expected garment pixels at all three sample columns');
+  const notch = Math.max(left, right) - centre;
+  assert.ok(notch < span * 0.06, `hem notch of ${notch}px at the centre (shoulder span ${span.toFixed(0)}px)`);
+});
+
+test('DEFECT 3 — the garment covers the shoulder cap above the joint landmark', () => {
+  const { deformed, rigid } = renderNeutral();
+  const layer = deformed.garmentLayer;
+  const span = rigid.anchors.shoulderSpanPx;
+  // A point just above each shoulder joint, inside the cap the seam rise is
+  // meant to cover.
+  for (const [label, joint] of [
+    ['left', rigid.anchors.leftShoulder],
+    ['right', rigid.anchors.rightShoulder],
+  ] as const) {
+    const probeY = Math.round(joint.y - span * SHOULDER_SEAM_RISE * 0.5);
+    const probeX = Math.round(joint.x);
+    assert.ok(
+      getPixel(layer, probeX, probeY).a > 128,
+      `${label} shoulder cap is uncovered at (${probeX}, ${probeY})`,
+    );
+  }
+});
+
+test('DEFECT 4 — garment edges are anti-aliased, not binary', () => {
+  const { deformed } = renderNeutral();
+  const layer = deformed.garmentLayer;
+  let partial = 0;
+  for (let i = 0; i < layer.width * layer.height; i++) {
+    const a = layer.data[i * 4 + 3]!;
+    if (a > 8 && a < 247) partial += 1;
+  }
+  assert.ok(partial > 500, `only ${partial} partially-covered edge pixels — supersampling may not be applied`);
+  assert.ok(GARMENT_SUPERSAMPLE >= 2);
+  assert.equal(deformed.manifest.supersample, GARMENT_SUPERSAMPLE);
+});
+
+test('no fixture variant produces mesh foldover', () => {
+  // Adding the armpit control point briefly reintroduced foldover because the
+  // articulated sleeve landed inboard of it. This pins that closed across
+  // every body/pose the review package renders.
+  for (const overrides of [
+    {},
+    { shoulderWidthNorm: 0.26, torsoHeightNorm: 0.33, seed: 23 },
+    { shoulderWidthNorm: 0.43, torsoHeightNorm: 0.27, seed: 41 },
+    { armPose: 'away' as const, seed: 57 },
+    { armPose: 'crossed' as const, seed: 73 },
+  ]) {
+    const { deformed } = renderNeutral(overrides);
+    assert.equal(
+      deformed.metrics.jacobian.foldoverCells,
+      0,
+      `foldover with overrides ${JSON.stringify(overrides)}`,
+    );
+    assert.ok(deformed.metrics.jacobian.minDeterminant > 0);
+  }
+});
+
+test('the armpit control point anchors the torso side of the sleeve junction', () => {
+  const { garment, rigid } = renderNeutral();
+  const armpit = garment.manifest.controlPoints.find((c) => c.id === 'leftArmpit');
+  assert.ok(armpit, 'fixture should declare a leftArmpit control point');
+  assert.ok(rigid.targets.leftArmpit, 'leftArmpit should receive a target');
+  // It is placed by the torso frame, so it must sit inboard of the sleeve.
+  assert.ok(
+    rigid.targets.leftArmpit!.x > rigid.targets.leftSleeve!.x,
+    'armpit must sit inboard of the sleeve target, or the mesh ordering inverts',
+  );
+});
+
+test('the garment frame preserves lateral ordering across the chest band', () => {
+  assert.ok(TORSO_WIDTH_HOLD_T > 0.4 && TORSO_WIDTH_HOLD_T < 0.8);
+  const { garment, rigid } = renderNeutral();
+  // Both points sit above TORSO_WIDTH_HOLD_T, so the frame maps them with the
+  // same width and must preserve whichever is further outboard in the texture.
+  // (On this fixture the shirt body is very slightly wider than the shoulder
+  // seam, so the armpit is the outboard one — the invariant is the ordering,
+  // not which one wins.)
+  const cpOf = (id: string) => garment.manifest.controlPoints.find((c) => c.id === id)!;
+  const textureOrder = Math.sign(cpOf('leftArmpit').u - cpOf('leftShoulder').u);
+  const bodyOrder = Math.sign(rigid.targets.leftArmpit!.x - rigid.targets.leftShoulder!.x);
+  assert.equal(bodyOrder, textureOrder, 'lateral ordering inverted between texture and body');
 });
