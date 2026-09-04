@@ -51,6 +51,19 @@ async function vtoRequestRowCount(runSql, userId, idempotencyKey) {
   return Number(row?.n ?? 0);
 }
 
+/** The reservation's own recorded state, or null when no row exists. Used by
+ *  the duplicate-suppression control to PROVE the precondition it depends on
+ *  (an in_flight reservation) rather than assuming a prior request left one
+ *  behind — see runDuplicateSuppressionControl. */
+async function vtoReservationStatus(runSql, userId, idempotencyKey) {
+  const rows = await runSql(
+    `select status from public.vto_generation_requests `
+    + `where user_id = ${sqlQuote(userId)} and idempotency_key = ${sqlQuote(idempotencyKey)} limit 1;`,
+  );
+  const row = Array.isArray(rows) ? rows[0] : rows;
+  return typeof row?.status === 'string' ? row.status : null;
+}
+
 /** Calls release_vto_generation directly via the governed SQL session — the
  *  RPC is service_role-only and not reachable from a normal client request,
  *  so proving "second release is a no-op" and "foreign actor cannot release
@@ -69,6 +82,155 @@ async function callReleaseRpc(runSql, userId, idempotencyKey) {
 async function callReserveRpc(runSql, userId, idempotencyKey) {
   await runSql(
     `select * from public.reserve_vto_generation(${sqlQuote(userId)}, ${sqlQuote(idempotencyKey)}, 10, 5);`,
+  );
+}
+
+/** The requirements VTO-CERT-012 enforces, named so the control can report
+ *  exactly which one failed and so none can be quietly dropped: the list is
+ *  pinned by an integrity test, and every entry must be evaluated below. */
+export const REQ = Object.freeze({
+  SEEDED_IN_FLIGHT: 'reservation is in_flight before the HTTP request',
+  HTTP_429: 'HTTP 429',
+  CODE_RATE_LIMITED: 'error.code = rate_limited',
+  NO_PROVIDER_RESULT: 'suppressed response carries no provider result',
+  RESERVATION_SURVIVES: 'the prior reservation survives the suppression',
+  SINGLE_ROW: 'exactly one reservation row for the identity',
+  RIGHTFUL_RELEASE: 'rightful actor releases the pre-seeded reservation',
+  ROW_GONE: 'reservation row is gone after release',
+});
+
+export const DUPLICATE_CONTROL_REQUIREMENTS = Object.freeze(Object.values(REQ));
+
+export const DUPLICATE_CONTROL_NAME = 'rapid duplicate: one reservation authority, duplicate suppressed';
+
+/**
+ * VTO-CERT-012 — duplicate suppression, proved DETERMINISTICALLY.
+ *
+ * DEFECT THIS REPLACES (staging-dryrun run vto-dryrun-20260904T191038Z-3a3db107,
+ * authority 3c00804: 12/13 controls passed, this one failed). The previous
+ * control raced two independent HTTP requests carrying the same identity and
+ * required exactly one `invalid_garment_input` and exactly one `rate_limited`.
+ * The zero-spend fixture deliberately fails media validation and RELEASES its
+ * reservation on the way out, so whether the second request sees an in-flight
+ * row is a function of scheduling, not of correctness: it can fail a correct
+ * implementation and — with the opposite interleaving — pass a broken one.
+ * A nondeterministic control cannot be release authority in either direction.
+ *
+ * THE REPAIR. Make the PREREQUISITE deterministic while leaving the behaviour
+ * under test entirely on the real product path. The reservation this request
+ * must collide with is seeded ahead of time through the same governed
+ * reserve_vto_generation RPC the Edge function itself calls, and is PROVEN to
+ * be `in_flight` before a single normal, authenticated HTTP request is issued
+ * against the real deployed vto-generate. Nothing about the HTTP path is
+ * simulated, stubbed or bypassed.
+ *
+ * WHY 429 HERE CAN ONLY MEAN `reservation_duplicate`. `stage` is a log field,
+ * not part of the governed response body (vtoHandler.ts::fail emits only
+ * `{ requestId, status, error: { code, retryable } }`), and BOTH
+ * `reservation_duplicate` and `reservation_quota` surface as
+ * rate_limited/429 — so the code alone cannot separate them. The RPC ordering
+ * does: reserve_vto_generation checks the existing row FIRST and returns
+ * `duplicate` for an in-flight reservation inside its lease, before it ever
+ * counts the day's attempts against the cap. With a reservation proven
+ * `in_flight` immediately beforehand, `quota_exceeded` is unreachable for this
+ * request, so a rate_limited/429 is necessarily the duplicate branch.
+ *
+ * WHY IT ALSO PROVES KEY AGREEMENT. The seeded identity is computed by the
+ * harness's own mirror of buildVtoIdempotencyKey. If that mirror ever drifted
+ * from the server's derivation the seeded row would not be the one the request
+ * reserves under, the request would proceed to the adapter and return 422 —
+ * so this control fails closed on key drift rather than silently testing
+ * nothing.
+ *
+ * ZERO SPEND. A suppressed duplicate returns before provider resolution ever
+ * submits, so no provider work and no paid request can occur on this path;
+ * the control additionally asserts the response body carries no provider
+ * result. Injectable `postVtoGenerate` exists solely so
+ * __tests__/vtoE2eHarnessIntegrity.test.js can drive this exact function
+ * against a modelled backend and its broken mutations — the live harness
+ * always uses the real client.
+ */
+export async function runDuplicateSuppressionControl({
+  base, publishableKey, accessToken, userId, personDataUri, runTag, runSql,
+  postVtoGenerate = callVtoGenerate,
+}) {
+  const dupGen = `${runTag}-active-dup`;
+  // (1) A fresh identity used for nothing else in this run.
+  const dupKey = computeVtoIdempotencyKey({
+    userId, productRef: PRODUCT_REF, garmentImageUrl: ZERO_SPEND_GARMENT_URL, personDataUri, requestGeneration: dupGen,
+  });
+
+  let seededStatus = null;
+  let httpStatus = null;
+  let httpCode = null;
+  let carriedProviderResult = null;
+  let statusAfterHttp = null;
+  let rowsAfterHttp = null;
+  let released = null;
+  let rowsAfterRelease = null;
+
+  try {
+    // (2) Reserve that exact identity through the governed RPC path, and
+    // (3) prove the reservation is genuinely in_flight before any HTTP.
+    await callReserveRpc(runSql, userId, dupKey);
+    seededStatus = await vtoReservationStatus(runSql, userId, dupKey);
+
+    // (4) ONE normal authenticated request through the real vto-generate,
+    // under the SAME identity. Never simulated, never bypassed.
+    const res = await postVtoGenerate({
+      base, publishableKey, accessToken,
+      body: baseBody({ garmentImageUrl: ZERO_SPEND_GARMENT_URL, personDataUri, requestGeneration: dupGen }),
+    });
+    httpStatus = res.status;
+    httpCode = res.json?.error?.code ?? null;
+    // (8) A suppressed duplicate is refused before provider work: the body
+    // must carry no generation result at all.
+    carriedProviderResult = Boolean(res.json?.result);
+
+    // The suppression must be a REFUSAL, not a release: the prior
+    // reservation is still the one authority and there is still exactly one
+    // row for this identity.
+    statusAfterHttp = await vtoReservationStatus(runSql, userId, dupKey);
+    rowsAfterHttp = await vtoRequestRowCount(runSql, userId, dupKey);
+  } finally {
+    // (6) Release the pre-seeded reservation as the RIGHTFUL actor, and
+    // (7) verify the row is gone. Always attempted, so a failure earlier in
+    // the control can never leave residue behind for cleanup to trip on.
+    try {
+      released = await callReleaseRpc(runSql, userId, dupKey);
+      rowsAfterRelease = await vtoRequestRowCount(runSql, userId, dupKey);
+    } catch {
+      released = null;
+      rowsAfterRelease = null;
+    }
+  }
+
+  // (5) HTTP 429 + rate_limited, on a proven in_flight prerequisite. Every
+  // requirement is named and evaluated INDIVIDUALLY rather than collapsed
+  // into one boolean, so a failing run says which one was not met — and so
+  // a requirement silently disappearing from this control is itself
+  // detectable (see the DUPLICATE_CONTROL_REQUIREMENTS guard in
+  // __tests__/vtoE2eHarnessIntegrity.test.js).
+  const met = {
+    [REQ.SEEDED_IN_FLIGHT]: seededStatus === 'in_flight',
+    [REQ.HTTP_429]: httpStatus === 429,
+    [REQ.CODE_RATE_LIMITED]: httpCode === 'rate_limited',
+    [REQ.NO_PROVIDER_RESULT]: carriedProviderResult === false,
+    [REQ.RESERVATION_SURVIVES]: statusAfterHttp === 'in_flight',
+    [REQ.SINGLE_ROW]: rowsAfterHttp === 1,
+    [REQ.RIGHTFUL_RELEASE]: released === true,
+    [REQ.ROW_GONE]: rowsAfterRelease === 0,
+  };
+  const unmet = DUPLICATE_CONTROL_REQUIREMENTS.filter((name) => !met[name]);
+
+  return check(
+    DUPLICATE_CONTROL_NAME,
+    unmet.length === 0,
+    `seededStatus=${seededStatus ?? 'absent'} httpStatus=${httpStatus ?? 'none'} code=${httpCode ?? 'none'} `
+    + `providerResult=${carriedProviderResult} statusAfterHttp=${statusAfterHttp ?? 'absent'} rowsAfterHttp=${rowsAfterHttp} `
+    + `rightfulRelease=${released} rowsAfterRelease=${rowsAfterRelease} unmet=${JSON.stringify(unmet)} `
+    + '(an in_flight reservation makes reserve_vto_generation return duplicate before it counts quota, '
+    + 'so a 429 here is necessarily stage=reservation_duplicate, never reservation_quota)',
   );
 }
 
@@ -181,24 +343,19 @@ export async function runVtoStagingDryRun({ base, publishableKey, plan, tokens, 
     }
   }
 
-  // ── Rapid duplicate: same actor, same requestGeneration, same intent ───
-  if (tokens.ACTIVE_KPLUS) {
-    const dupGen = `${runTag}-active-dup`;
-    const dupBody = baseBody({ garmentImageUrl: ZERO_SPEND_GARMENT_URL, personDataUri, requestGeneration: dupGen });
-    const [dupA, dupB] = await Promise.all([
-      callVtoGenerate({ base, publishableKey, accessToken: tokens.ACTIVE_KPLUS, body: dupBody }),
-      callVtoGenerate({ base, publishableKey, accessToken: tokens.ACTIVE_KPLUS, body: dupBody }),
-    ]);
-    const codes = [dupA.json?.error?.code, dupB.json?.error?.code];
-    const oneReachedProvider = codes.filter((c) => c === 'invalid_garment_input').length === 1;
-    const oneSuppressed = codes.filter((c) => c === 'rate_limited').length === 1;
-    results.push(check(
-      'rapid duplicate: one reservation authority, duplicate suppressed',
-      oneReachedProvider && oneSuppressed,
-      `codes=${JSON.stringify(codes)}`,
-    ));
+  // ── Duplicate suppression: deterministic, pre-seeded in-flight reservation ─
+  if (tokens.ACTIVE_KPLUS && activeUserId) {
+    results.push(await runDuplicateSuppressionControl({
+      base,
+      publishableKey,
+      accessToken: tokens.ACTIVE_KPLUS,
+      userId: activeUserId,
+      personDataUri,
+      runTag,
+      runSql,
+    }));
   } else {
-    results.push(check('rapid duplicate: one reservation authority, duplicate suppressed', false, 'skipped — ACTIVE_KPLUS actor did not authenticate'));
+    results.push(check(DUPLICATE_CONTROL_NAME, false, 'skipped — ACTIVE_KPLUS actor did not authenticate'));
   }
 
   // ── Unsafe initial garment URL — rejected before any network access ────

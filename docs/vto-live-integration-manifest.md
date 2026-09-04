@@ -48,6 +48,7 @@ added to a list without a justification.
 | `docs/vto-hostile-audit-ledger.md` | The full-program hostile audit's own defect ledger (P0-P3 repairs, P4-P10 findings, A-T state matrix, human/device holds). Declared here rather than granted by widening a pattern: the guard refused it, which is the guard working. | Hostile audit brief §41; amendment §26 |
 | `scripts/check-vto-live-integration-scope.js` | The P3-C scope guard itself. | Amendment §7 |
 | `__tests__/vto*` | VTO-specific tests, including the strengthened VTO-NC-010 dependency guard. | P3-C §30, §31; amendment §4 |
+| `scripts/vto-e2e/lib/dryrun.mjs` | VTO-CERT-012: the zero-spend certification control matrix's duplicate-suppression control was nondeterministic (it raced two HTTP requests against a fixture that releases its own reservation), so it could fail a correct implementation and pass a broken one. Repaired to seed the reservation through the governed reserve RPC and prove it in_flight before one real request. Declared as an exact path rather than by widening to `scripts/vto-e2e/**`: the guard refused it, which is the guard working. | Owner-authorized narrow Control 12 repair; live evidence staging-dryrun run `vto-dryrun-20260904T191038Z-3a3db107` at authority `3c00804` (12/13 controls, 0 provider submits, 0 paid requests, 0 residual) |
 
 ### Explicitly NOT authorized, and not touched
 
