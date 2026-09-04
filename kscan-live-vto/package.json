@@ -1,0 +1,23 @@
+{
+  "name": "kscan-live-vto",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Isolated R&D workspace for the K Scan Live VTO Phase 1-2 program. Not a dependency of the kscan-app production package.json. See README.md for authority boundaries.",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "guard:protected-paths": "node tools/validate-protected-paths.js",
+    "build": "npm run build -w @kscan-live-vto/garment-contract && npm run build -w @kscan-live-vto/contract && npm run build -w @kscan-live-vto/body-model && npm run build -w @kscan-live-vto/asset-pipeline && npm run build -w @kscan-live-vto/evaluation",
+    "test": "npm run test -w @kscan-live-vto/garment-contract && npm run test -w @kscan-live-vto/contract && npm run test -w @kscan-live-vto/body-model && npm run test -w @kscan-live-vto/asset-pipeline && npm run test -w @kscan-live-vto/evaluation && npm run test:privacy",
+    "test:privacy": "node --test tests/privacy/*.test.js"
+  },
+  "devDependencies": {
+    "typescript": "5.9.2",
+    "@types/node": "20.19.9"
+  }
+}

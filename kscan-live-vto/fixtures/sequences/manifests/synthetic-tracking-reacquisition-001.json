@@ -1,0 +1,10 @@
+{
+  "sequenceId": "synthetic-tracking-reacquisition-001",
+  "category": "tracking-reacquisition",
+  "description": "Synthetic centered standing pose; tracking confidence collapses for frames 30-45 then recovers for the remainder of the sequence. Deterministic seed 7.",
+  "nominalFrameRateHz": 30,
+  "frameCount": 90,
+  "consent": null,
+  "synthetic": true,
+  "generator": { "fn": "generateCenteredStandingSequence", "seed": 7, "jitterAmplitude": 0.002, "trackingLossWindow": [30, 45] }
+}

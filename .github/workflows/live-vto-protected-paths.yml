@@ -1,0 +1,37 @@
+# Isolation guardrail for the isolated Live VTO research program
+# (research/live-vto-phase1-phase2-isolated line — see kscan-live-vto/README.md
+# and docs/source-authority.md).
+#
+# This workflow is additive-only: it does not build, deploy, or touch any
+# production/staging path itself. It exists purely to mechanically enforce
+# Section 8.2 of the Live VTO build plan — experimental commits must never
+# modify existing production/runtime paths. See
+# kscan-live-vto/tools/protected-paths.json for the allow/deny list.
+name: Live VTO — Protected Paths Guardrail
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-vto-protected-paths-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guardrail:
+    name: Validate no production paths touched
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run protected-path validator
+        run: node kscan-live-vto/tools/validate-protected-paths.js "origin/${{ github.base_ref }}"

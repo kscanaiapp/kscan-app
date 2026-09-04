@@ -1,0 +1,13 @@
+{
+  "name": "@kscan-live-vto/sandbox",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Dev-client-only Expo sandbox app for exercising the LiveVTO native module and the Phase 1 static preview pipeline. Not run, not `expo install`ed, and not added to app.json in this session — see README.md.",
+  "dependencies": {
+    "@kscan-live-vto/contract": "^0.1.0",
+    "@kscan-live-vto/garment-contract": "^0.1.0",
+    "@kscan-live-vto/body-model": "^0.1.0",
+    "@kscan-live-vto/asset-pipeline": "^0.1.0",
+    "@kscan-live-vto/evaluation": "^0.1.0"
+  }
+}

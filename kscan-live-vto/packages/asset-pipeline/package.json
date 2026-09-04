@@ -1,0 +1,16 @@
+{
+  "name": "@kscan-live-vto/asset-pipeline",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Garment asset pipeline (Section P1-D3), QC recording (P1-D5), and the P1-E2/P2-C2 control-point deformation math. Segmentation/shot-classification stages are wiring stubs pending real model integration on-device; the deformation math is a real, tested implementation.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@kscan-live-vto/garment-contract": "^0.1.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test dist/__tests__/*.test.js"
+  }
+}

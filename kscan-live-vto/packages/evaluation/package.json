@@ -1,0 +1,16 @@
+{
+  "name": "@kscan-live-vto/evaluation",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Replay / golden-sequence evaluation harness (Section 17): fixture manifest schema, metric collection, and the golden-sequence runner. Section 22/34's human visual gates consume this package's metric output as supplementary evidence, never as the sole gate.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@kscan-live-vto/contract": "^0.1.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test dist/__tests__/*.test.js"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "_status": "UNBUILT SCAFFOLDING — see native/README.md. Not registered in any app.json/Podfile/settings.gradle in this session.",
+  "platforms": ["ios", "android"],
+  "ios": {
+    "modules": ["LiveVTOModule"]
+  },
+  "android": {
+    "modules": ["app.kscan.livevto.LiveVTOModule"]
+  }
+}
