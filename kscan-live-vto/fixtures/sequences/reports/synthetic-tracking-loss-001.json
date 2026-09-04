@@ -1,0 +1,50 @@
+{
+  "sequenceId": "synthetic-tracking-loss-001",
+  "category": "tracking-loss",
+  "synthetic": true,
+  "frameCount": 90,
+  "trackingConfidence": {
+    "mean": 0.43666666666666554,
+    "min": 0.05,
+    "max": 0.92,
+    "sampleCount": 90
+  },
+  "droppedFrames": {
+    "expectedFrames": 90,
+    "observedFrames": 90,
+    "droppedFrameRatio": 0
+  },
+  "trackingEvents": [
+    {
+      "kind": "lost",
+      "timestamp": 1333.3333333333335,
+      "confidence": 0.05
+    }
+  ],
+  "landmarkJitter": {
+    "leftShoulder": {
+      "rmsDisplacement": 0.0022432787311385148,
+      "comparablePairs": 39
+    },
+    "rightShoulder": {
+      "rmsDisplacement": 0.002457744720821333,
+      "comparablePairs": 39
+    },
+    "leftHip": {
+      "rmsDisplacement": 0.002155346870874401,
+      "comparablePairs": 39
+    },
+    "rightHip": {
+      "rmsDisplacement": 0.0025041177566505445,
+      "comparablePairs": 39
+    },
+    "leftWrist": {
+      "rmsDisplacement": 0.0023952271795198757,
+      "comparablePairs": 39
+    },
+    "rightWrist": {
+      "rmsDisplacement": 0.0020623694809182584,
+      "comparablePairs": 39
+    }
+  }
+}

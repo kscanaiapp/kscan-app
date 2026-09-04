@@ -1,0 +1,16 @@
+{
+  "name": "@kscan-live-vto/contract",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Provider-neutral shared contracts for the Live VTO engine: BodyFrame, native-view command/event surface, privacy/device-capability state, guidance states. Section 10, 13, 14, 28 of the Live VTO build plan.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@kscan-live-vto/garment-contract": "^0.1.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test dist/__tests__/*.test.js"
+  }
+}

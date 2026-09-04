@@ -1,0 +1,55 @@
+{
+  "sequenceId": "synthetic-tracking-reacquisition-001",
+  "category": "tracking-reacquisition",
+  "synthetic": true,
+  "frameCount": 90,
+  "trackingConfidence": {
+    "mean": 0.7750000000000011,
+    "min": 0.05,
+    "max": 0.92,
+    "sampleCount": 90
+  },
+  "droppedFrames": {
+    "expectedFrames": 90,
+    "observedFrames": 90,
+    "droppedFrameRatio": 0
+  },
+  "trackingEvents": [
+    {
+      "kind": "lost",
+      "timestamp": 1000.0000000000001,
+      "confidence": 0.05
+    },
+    {
+      "kind": "reacquired",
+      "timestamp": 1500,
+      "confidence": 0.92
+    }
+  ],
+  "landmarkJitter": {
+    "leftShoulder": {
+      "rmsDisplacement": 0.002126711249883013,
+      "comparablePairs": 73
+    },
+    "rightShoulder": {
+      "rmsDisplacement": 0.002345653080939359,
+      "comparablePairs": 73
+    },
+    "leftHip": {
+      "rmsDisplacement": 0.002142052249794879,
+      "comparablePairs": 73
+    },
+    "rightHip": {
+      "rmsDisplacement": 0.002630805422144034,
+      "comparablePairs": 73
+    },
+    "leftWrist": {
+      "rmsDisplacement": 0.002374264819694597,
+      "comparablePairs": 73
+    },
+    "rightWrist": {
+      "rmsDisplacement": 0.002225867260895177,
+      "comparablePairs": 73
+    }
+  }
+}

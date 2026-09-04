@@ -1,0 +1,10 @@
+{
+  "sequenceId": "synthetic-centered-001",
+  "category": "centered-subject",
+  "description": "Synthetic centered standing pose, light landmark jitter, no tracking loss. Deterministic seed 7.",
+  "nominalFrameRateHz": 30,
+  "frameCount": 90,
+  "consent": null,
+  "synthetic": true,
+  "generator": { "fn": "generateCenteredStandingSequence", "seed": 7, "jitterAmplitude": 0.002 }
+}

@@ -1,0 +1,259 @@
+{
+  "fixtureId": "synthetic-person-arms-away",
+  "caseId": "case-4-arms-away",
+  "rendererVersion": "0.2.0",
+  "gitSha": "ee2985871d1408a994220a297c514a530030971c",
+  "bodyFrame": {
+    "timestamp": 0,
+    "headCenter": {
+      "present": true,
+      "point": {
+        "u": 0.5171974201160975,
+        "v": 0.17019348548793534
+      },
+      "confidence": 0.97
+    },
+    "noseOrHeadDirection": {
+      "present": true,
+      "point": {
+        "u": 0.5171974201160975,
+        "v": 0.18498348548793533
+      },
+      "confidence": 0.97
+    },
+    "neckCenter": {
+      "present": true,
+      "point": {
+        "u": 0.5124781280842382,
+        "v": 0.2881403894703159
+      },
+      "confidence": 0.97
+    },
+    "leftShoulder": {
+      "present": true,
+      "point": {
+        "u": 0.3420746943436704,
+        "v": 0.2963105635994856
+      },
+      "confidence": 0.97
+    },
+    "rightShoulder": {
+      "present": true,
+      "point": {
+        "u": 0.6816017538161662,
+        "v": 0.3119558164211138
+      },
+      "confidence": 0.97
+    },
+    "leftElbow": {
+      "present": true,
+      "point": {
+        "u": 0.17899468176575545,
+        "v": 0.41149364218480877
+      },
+      "confidence": 0.93
+    },
+    "rightElbow": {
+      "present": true,
+      "point": {
+        "u": 0.8354991439320905,
+        "v": 0.4262694255845581
+      },
+      "confidence": 0.93
+    },
+    "leftWrist": {
+      "present": true,
+      "point": {
+        "u": 0.049165760525144805,
+        "v": 0.3557478458828153
+      },
+      "confidence": 0.9
+    },
+    "rightWrist": {
+      "present": true,
+      "point": {
+        "u": 0.9695514316012124,
+        "v": 0.3764627383226587
+      },
+      "confidence": 0.9
+    },
+    "chestCenter": {
+      "present": true,
+      "point": {
+        "u": 0.5079188120534589,
+        "v": 0.4020890933177005
+      },
+      "confidence": 0.9
+    },
+    "waistCenter": {
+      "present": true,
+      "point": {
+        "u": 0.5021596760145797,
+        "v": 0.5460242981775546
+      },
+      "confidence": 0.88
+    },
+    "leftHip": {
+      "present": true,
+      "point": {
+        "u": 0.3674596655248843,
+        "v": 0.5970169475048618
+      },
+      "confidence": 0.9
+    },
+    "rightHip": {
+      "present": true,
+      "point": {
+        "u": 0.6325403344751157,
+        "v": 0.6029830524951383
+      },
+      "confidence": 0.9
+    },
+    "torsoCenter": {
+      "present": true,
+      "point": {
+        "u": 0.5059991000404991,
+        "v": 0.45006749493765186
+      },
+      "confidence": 0.94
+    },
+    "torsoWidth": 0.3401672791109952,
+    "torsoHeight": 0.296,
+    "torsoRotation": 0.03,
+    "trackingConfidence": 0.95
+  },
+  "garmentAssetVersion": "1",
+  "garmentDescriptorVersion": "1",
+  "deformationAlgorithm": "affine-mls@asset-pipeline-0.1.0",
+  "controlPointMetrics": {
+    "perPoint": [
+      {
+        "id": "leftShoulder",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "rightShoulder",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "leftSleeve",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "rightSleeve",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "leftArmpit",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "rightArmpit",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "leftTorso",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "rightTorso",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "waist",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "leftHem",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "rightHem",
+        "pixels": 0,
+        "normalized": 0
+      }
+    ],
+    "maxPixels": 0,
+    "meanPixels": 0,
+    "maxNormalized": 0
+  },
+  "deformationMetrics": {
+    "jacobian": {
+      "minDeterminant": 1.1390475564780977,
+      "maxDeterminant": 3.1503386728585165,
+      "medianDeterminant": 1.9370643956104967,
+      "foldoverCells": 0,
+      "cellCount": 713
+    },
+    "coverage": {
+      "torsoCoverage": 1,
+      "torsoPixels": 61910,
+      "coveredTorsoPixels": 61910,
+      "spillFraction": 0.5502753119960483,
+      "garmentPixels": 137662
+    },
+    "logo": null
+  },
+  "maskProvenance": "none",
+  "lightingParameters": {
+    "applied": true,
+    "state": {
+      "meanLuminance": 0.3633923702904785,
+      "contrast": 0.04481259244105029,
+      "colorCast": {
+        "r": 0.9031633464683025,
+        "g": 0.9858579464235672,
+        "b": 1.11097870710813
+      },
+      "sampledPixels": 61910
+    },
+    "adjustment": {
+      "luminanceGain": 0.9453569481161914,
+      "contrastGain": 0.9324062962205252,
+      "hueShiftDegrees": -5.8915004402763325,
+      "saturationScale": 0.9558137466979275,
+      "clampedFields": []
+    },
+    "guardrailNote": "Experimental guardrails, not product science: hue shift clamped to +/-15deg, saturation to +/-20%, luminance gain to 0.85-1.15."
+  },
+  "imageDimensions": {
+    "width": 720,
+    "height": 960
+  },
+  "colorSpace": "sRGB",
+  "feather": {
+    "radiusShoulderSpanFraction": 0.012,
+    "resolvedRadiusPx": 3
+  },
+  "supersample": 2,
+  "rigidGate": {
+    "passed": true,
+    "findings": [],
+    "measurements": {
+      "garmentShoulderSpanPx": 284.10771151350326,
+      "bodyShoulderSpanPx": 244.92044095991662,
+      "scaleRatio": 1.16,
+      "hemBelowShoulderPx": 390.5371237562571,
+      "necklineToNeckBasePx": 6.70770761437911,
+      "necklineToleranceP": 134.70624252795415,
+      "garmentCentroidToTorsoCentroidPx": 31.53192180709104,
+      "torsoDiagonalPx": 375.1438763994422
+    }
+  },
+  "knownLimitations": [
+    "SYNTHETIC FIXTURE — NOT HUMAN. Validates rendering mechanics given known BodyFrames. Does not validate human pose perception, body diversity, or production segmentation quality.",
+    "BodyFrame is an input from the fixture generator, not the output of any pose model. No pose model ran.",
+    "No foreground mask supplied; occlusion not exercised in this case.",
+    "Headless evaluation renderer. NOT a native rasterization baseline — native goldens must be established on physical devices."
+  ]
+}
