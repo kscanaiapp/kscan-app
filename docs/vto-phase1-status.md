@@ -305,29 +305,44 @@ Recorded per the directive to log this check's status without repairing it.
 `.github/workflows/master-required-checks.yml` is outside this lane's
 authorized scope and was not modified.
 
-`npm audit` is the only red check on this branch. It is **intermittent** and
-external to this diff:
+`npm audit` is the only red check on this branch, and it is **not this diff's
+failure**. It is also not merely flaky: npm's own output says the endpoint the
+check calls is being decommissioned.
+
+```
+npm notice This endpoint is being retired. Use the bulk advisory endpoint instead.
+           See the following docs for more info: https://api-docs.npmjs.com/#tag/Audit
+npm warn audit 400 Bad Request - POST https://registry.npmjs.org/-/npm/v1/security/audits/quick
+npm error audit endpoint returned an error
+```
 
 | Head | Result | Registry response |
 |---|---|---|
 | `ee29858` | fail | `400 Bad Request` |
 | `ee29858` (re-run, same commit) | **pass** | — |
 | `8b75915` | fail | `503 Service Unavailable` |
+| `8b75915` (re-run, same commit) | **pass** | — |
+| `d33e9f2` | fail | `400 Bad Request` + retirement notice |
 
-All three point at the same call, `POST
-https://registry.npmjs.org/-/npm/v1/security/audits/quick`. The step's guard
-(`node -e "... if(r.error) process.exit(2)"`) fires because npm writes an
-`error` object into `npm-audit.json` instead of a report; the step otherwise
-tolerates real vulnerability findings (`test "$CODE" = 0 -o "$CODE" = 1`), so
-only the transport failure fails the job. In the same job `npm ci` succeeded
-and reported 38 vulnerabilities, so dependency resolution was fine.
+An earlier revision of this entry called the failure "intermittent registry
+weather". The retirement notice makes that understated, and the correction is
+load-bearing: a decommissioning endpoint does not recover, so this check will
+eventually fail on every PR in the repo. Re-runs have flipped it green twice,
+which unblocks a given head by luck rather than by fixing anything.
 
-Passing and failing on the identical commit rules this out as a property of
-the diff. This branch touches neither the root `package-lock.json`, the root
+The step's guard (`node -e "... if(r.error) process.exit(2)"`) fires because
+npm writes an `error` object into `npm-audit.json` instead of a report; the
+step otherwise tolerates real vulnerability findings
+(`test "$CODE" = 0 -o "$CODE" = 1`), so only the transport failure fails the
+job. In the same job `npm ci` succeeded and reported 38 vulnerabilities, so
+dependency resolution was fine.
+
+Passing and failing on identical commits rules this out as a property of the
+diff. This branch touches neither the root `package-lock.json`, the root
 `package.json`, nor any workflow file — "Validate no production paths touched"
-(green) enforces that. The other 12 checks on `8b75915` are green.
+(green) enforces that. The other 12 checks are green.
 
-One re-run has been spent on this head. Observed, not proposed as work in this
-lane: a required check with a hard dependency on a third-party endpoint can
-block merges repo-wide on registry weather, and the repo already runs
-OSV-Scanner and Trivy, both green.
+Observed, not proposed as work in this lane: npm's stated replacement is the
+bulk advisory endpoint, and the repo already runs OSV-Scanner and Trivy, both
+green. Either would remove a required check's hard dependency on a retiring
+third-party endpoint. Flagged as time-sensitive for that workflow's owner.
