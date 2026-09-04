@@ -172,6 +172,51 @@ exit code 0, 0 unexpected failures against the known baseline) both re-verified.
 
 ---
 
+### PHASE4-009 — the root `tsc --noEmit` picked up `vto-phase4-pipeline/`'s isolated files, failing on its own separate dependencies
+
+```
+SEVERITY:    P3 (blocked CI's typecheck step; not a defect in Phase 4's own
+             code — its own tsconfig.json + `npx tsc -p tsconfig.json`
+             passes cleanly — but a real gap in how it interacts with the
+             app's root project checks)
+STATUS:      FIXED
+LOCATION:    tsconfig.json (repo root)
+```
+
+**Defect.** CI's "Project checks" job runs `npx tsc --noEmit -p tsconfig.json`
+at the repo root. The root `tsconfig.json` has no `include` list (it extends
+`expo/tsconfig.base`), so by default it type-checks every `.ts`/`.tsx` file
+in the repo except what its `exclude` list names — which, before this fix,
+named `supabase/functions/**` and `qa/**` (both isolated sub-projects with
+their own type environments) but not `vto-phase4-pipeline/**`. Compiling
+Phase 4's files under the ROOT project produced five real TypeScript
+errors: `Cannot find module 'jpeg-js'` (Phase 4's own dependency, installed
+only in `vto-phase4-pipeline/node_modules`, unreachable from the root) and
+four discriminated-union narrowing errors that only manifest under the
+root tsconfig's different compiler options.
+
+**Why this is an issue.** `vto-phase4-pipeline/` is deliberately isolated —
+its own `package.json`, `tsconfig.json`, `node_modules`, and `npm test` (see
+`vto-phase4-pipeline/README.md`) — exactly like `supabase/functions/**` and
+`qa/**` already are. It was never meant to be compiled as part of the root
+app project; the root tsconfig simply didn't know that yet, the same gap
+PHASE4-008 found in the integration-scope manifest.
+
+**Fix.** Added `"vto-phase4-pipeline/**"` to the root `tsconfig.json`'s
+`exclude` list, alongside the two existing entries it already follows the
+same pattern as.
+
+**Test.** `npx tsc --noEmit -p tsconfig.json` at the repo root now exits 0
+(previously 5 errors). The package's own typecheck
+(`cd vto-phase4-pipeline && npx tsc -p tsconfig.json --noEmit`) was already
+clean and remains so — this fix only stops the ROOT project from
+re-compiling files it was never meant to own. Full 7653-test regression
+suite re-verified (exit code 0, 0 unexpected failures).
+
+**Commit.** Included in this lane's follow-up commit (see PR #301).
+
+---
+
 ## P4–P10 (documented only, not required to fix)
 
 ### PHASE4-001 — whole-canvas rotation left opaque artifact corners in early synthetic test fixtures
