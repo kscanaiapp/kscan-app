@@ -1,0 +1,65 @@
+{
+  "version": "1.0",
+  "productId": "fixture-tee-logo-002",
+  "category": "Tops",
+  "subcategory": "crew-neck",
+  "silhouette": "regular",
+  "sleeveLength": "short",
+  "garmentLength": "hip",
+  "neckline": "crew",
+  "controlPoints": [
+    {
+      "id": "leftShoulder",
+      "u": 0.3,
+      "v": 0.118
+    },
+    {
+      "id": "rightShoulder",
+      "u": 0.7,
+      "v": 0.118
+    },
+    {
+      "id": "leftSleeve",
+      "u": 0.19,
+      "v": 0.28
+    },
+    {
+      "id": "rightSleeve",
+      "u": 0.81,
+      "v": 0.28
+    },
+    {
+      "id": "leftTorso",
+      "u": 0.24,
+      "v": 0.56
+    },
+    {
+      "id": "rightTorso",
+      "u": 0.76,
+      "v": 0.56
+    },
+    {
+      "id": "waist",
+      "u": 0.5,
+      "v": 0.735
+    },
+    {
+      "id": "leftHem",
+      "u": 0.25,
+      "v": 0.93
+    },
+    {
+      "id": "rightHem",
+      "u": 0.75,
+      "v": 0.93
+    }
+  ],
+  "meshDefinition": {
+    "type": "grid",
+    "width": 24,
+    "height": 32
+  },
+  "texture": "texture.png",
+  "alphaMask": "alpha.png",
+  "assetVersion": "1"
+}

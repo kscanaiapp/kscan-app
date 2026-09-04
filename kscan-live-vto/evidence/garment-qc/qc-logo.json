@@ -1,0 +1,23 @@
+{
+  "status": "AUTO",
+  "record": {
+    "productId": "fixture-tee-logo-002",
+    "shotClass": "A_FLAT_LAY",
+    "segmentation": 1,
+    "controlPointQuality": 1,
+    "normalization": 1,
+    "logoOrPattern": "detected",
+    "colorPreservation": null,
+    "manualAdjustment": false,
+    "verdict": "ACCEPTED",
+    "reason": "passed all thresholds automatically"
+  },
+  "correctionApplied": null,
+  "schemaValidation": {
+    "valid": true,
+    "issues": []
+  },
+  "syntheticFixture": true,
+  "evidenceClass": "MECHANICS EVIDENCE ONLY — synthetic garment. Says nothing about real retailer-catalog asset viability.",
+  "sheet": "qc-logo.png"
+}

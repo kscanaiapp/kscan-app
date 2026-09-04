@@ -1,0 +1,265 @@
+{
+  "fixtureId": "synthetic-person-narrow",
+  "caseId": "case-3a-narrow-torso",
+  "rendererVersion": "0.2.0",
+  "gitSha": "ee2985871d1408a994220a297c514a530030971c",
+  "bodyFrame": {
+    "timestamp": 0,
+    "headCenter": {
+      "present": true,
+      "point": {
+        "u": 0.42434610951398405,
+        "v": 0.17057488021831546
+      },
+      "confidence": 0.97
+    },
+    "noseOrHeadDirection": {
+      "present": true,
+      "point": {
+        "u": 0.42434610951398405,
+        "v": 0.18188488021831545
+      },
+      "confidence": 0.97
+    },
+    "neckCenter": {
+      "present": true,
+      "point": {
+        "u": 0.4322094988125707,
+        "v": 0.2884274109449215
+      },
+      "confidence": 0.97
+    },
+    "leftShoulder": {
+      "present": true,
+      "point": {
+        "u": 0.3031716316695559,
+        "v": 0.30528538307355224
+      },
+      "confidence": 0.97
+    },
+    "rightShoulder": {
+      "present": true,
+      "point": {
+        "u": 0.563646366080578,
+        "v": 0.30752444819050956
+      },
+      "confidence": 0.97
+    },
+    "leftElbow": {
+      "present": true,
+      "point": {
+        "u": 0.27659498055056697,
+        "v": 0.48800995041085915
+      },
+      "confidence": 0.93
+    },
+    "rightElbow": {
+      "present": true,
+      "point": {
+        "u": 0.6136132684182445,
+        "v": 0.47536122225183597
+      },
+      "confidence": 0.93
+    },
+    "leftWrist": {
+      "present": true,
+      "point": {
+        "u": 0.2730885440091813,
+        "v": 0.6533480165293862
+      },
+      "confidence": 0.9
+    },
+    "rightWrist": {
+      "present": true,
+      "point": {
+        "u": 0.6391105394387286,
+        "v": 0.6396107420636475
+      },
+      "confidence": 0.9
+    },
+    "chestCenter": {
+      "present": true,
+      "point": {
+        "u": 0.4404860492437951,
+        "v": 0.4124721932859764
+      },
+      "confidence": 0.9
+    },
+    "waistCenter": {
+      "present": true,
+      "point": {
+        "u": 0.4510416497937623,
+        "v": 0.5706742345325391
+      },
+      "confidence": 0.88
+    },
+    "leftHip": {
+      "present": true,
+      "point": {
+        "u": 0.3537267235959504,
+        "v": 0.633800915823035
+      },
+      "confidence": 0.9
+    },
+    "rightHip": {
+      "present": true,
+      "point": {
+        "u": 0.5562732764040497,
+        "v": 0.6261990841769649
+      },
+      "confidence": 0.9
+    },
+    "torsoCenter": {
+      "present": true,
+      "point": {
+        "u": 0.4440045827604508,
+        "v": 0.4652062070348305
+      },
+      "confidence": 0.94
+    },
+    "torsoWidth": 0.2604918424826391,
+    "torsoHeight": 0.32399999999999995,
+    "torsoRotation": -0.05,
+    "trackingConfidence": 0.95
+  },
+  "garmentAssetVersion": "1",
+  "garmentDescriptorVersion": "1",
+  "deformationAlgorithm": "affine-mls@asset-pipeline-0.1.0",
+  "controlPointMetrics": {
+    "perPoint": [
+      {
+        "id": "leftShoulder",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "rightShoulder",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "leftSleeve",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "rightSleeve",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "leftArmpit",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "rightArmpit",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "leftTorso",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "rightTorso",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "waist",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "leftHem",
+        "pixels": 0,
+        "normalized": 0
+      },
+      {
+        "id": "rightHem",
+        "pixels": 0,
+        "normalized": 0
+      }
+    ],
+    "maxPixels": 0,
+    "meanPixels": 0,
+    "maxNormalized": 0
+  },
+  "deformationMetrics": {
+    "jacobian": {
+      "minDeterminant": 0.7135430080318662,
+      "maxDeterminant": 1.3561262773640326,
+      "medianDeterminant": 1.1905253703454033,
+      "foldoverCells": 0,
+      "cellCount": 713
+    },
+    "coverage": {
+      "torsoCoverage": 1,
+      "torsoPixels": 51834,
+      "coveredTorsoPixels": 51834,
+      "spillFraction": 0.3953878993596249,
+      "garmentPixels": 85731
+    },
+    "logo": {
+      "horizontalScale": 1.0533699697001107,
+      "verticalScale": 1.2185782373924843,
+      "aspectRatioChange": 0.8644253913102153,
+      "shearIndicator": 0.01652327725939391,
+      "mirrored": false
+    }
+  },
+  "maskProvenance": "none",
+  "lightingParameters": {
+    "applied": true,
+    "state": {
+      "meanLuminance": 0.41747901699757545,
+      "contrast": 0.04461424241692521,
+      "colorCast": {
+        "r": 1.0738001192257538,
+        "g": 0.9997249716077579,
+        "b": 0.9264749091664881
+      },
+      "sampledPixels": 51834
+    },
+    "adjustment": {
+      "luminanceGain": 0.9669916067990302,
+      "contrastGain": 0.9323071212084626,
+      "hueShiftDegrees": 4.166993463841602,
+      "saturationScale": 0.968747549021188,
+      "clampedFields": []
+    },
+    "guardrailNote": "Experimental guardrails, not product science: hue shift clamped to +/-15deg, saturation to +/-20%, luminance gain to 0.85-1.15."
+  },
+  "imageDimensions": {
+    "width": 720,
+    "height": 960
+  },
+  "colorSpace": "sRGB",
+  "feather": {
+    "radiusShoulderSpanFraction": 0.012,
+    "resolvedRadiusPx": 2
+  },
+  "supersample": 2,
+  "rigidGate": {
+    "passed": true,
+    "findings": [],
+    "measurements": {
+      "garmentShoulderSpanPx": 217.56278684150007,
+      "bodyShoulderSpanPx": 187.55412658750012,
+      "scaleRatio": 1.1599999999999997,
+      "hemBelowShoulderPx": 299.06384644345275,
+      "necklineToNeckBasePx": 1.1231999999999658,
+      "necklineToleranceP": 103.15476962312508,
+      "garmentCentroidToTorsoCentroidPx": 24.51219040404696,
+      "torsoDiagonalPx": 363.2112773579587
+    }
+  },
+  "knownLimitations": [
+    "SYNTHETIC FIXTURE — NOT HUMAN. Validates rendering mechanics given known BodyFrames. Does not validate human pose perception, body diversity, or production segmentation quality.",
+    "BodyFrame is an input from the fixture generator, not the output of any pose model. No pose model ran.",
+    "No foreground mask supplied; occlusion not exercised in this case.",
+    "Headless evaluation renderer. NOT a native rasterization baseline — native goldens must be established on physical devices."
+  ]
+}

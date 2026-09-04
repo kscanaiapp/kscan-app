@@ -1,0 +1,16 @@
+{
+  "name": "@kscan-live-vto/body-model",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Temporal filtering (One Euro) and the ephemeral, non-persisted body proxy derived from BodyFrame. Section P1-B2 filtering, Section P2-B body proxy.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@kscan-live-vto/contract": "^0.1.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test dist/__tests__/*.test.js"
+  }
+}

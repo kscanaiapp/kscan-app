@@ -1,0 +1,20 @@
+{
+  "version": "1.0",
+  "productId": "fixture-shirt-001",
+  "category": "Tops",
+  "subcategory": "crew-neck",
+  "silhouette": "regular",
+  "sleeveLength": "short",
+  "garmentLength": "hip",
+  "neckline": "crew",
+  "controlPoints": [
+    { "id": "leftShoulder", "u": 0.2, "v": 0.1 },
+    { "id": "rightShoulder", "u": 0.8, "v": 0.1 },
+    { "id": "leftHem", "u": 0.2, "v": 0.9 },
+    { "id": "rightHem", "u": 0.8, "v": 0.9 }
+  ],
+  "meshDefinition": { "type": "grid", "width": 32, "height": 48 },
+  "texture": "texture.png",
+  "alphaMask": "alpha.png",
+  "assetVersion": "1"
+}

@@ -1,0 +1,569 @@
+{
+  "generatedFrom": {
+    "gitSha": "33113af1e8d74bdd480d950e086a5b132d33c71e",
+    "rendererVersion": "0.1.0",
+    "deformationAlgorithm": "affine-mls@asset-pipeline-0.1.0"
+  },
+  "segmentationEngine": "NOT YET IMPLEMENTED — PRECOMPUTED TEST MASK",
+  "fixtureClass": "SYNTHETIC — NOT HUMAN",
+  "cases": [
+    {
+      "caseId": "case-1-neutral-plain-tee",
+      "title": "CASE 1 — NEUTRAL + PLAIN TEE",
+      "garment": "fixture-tee-plain-001",
+      "images": {
+        "person": {
+          "file": "case-1-neutral-plain-tee-00-person-fixture.png",
+          "bytes": 7601,
+          "width": 720,
+          "height": 960
+        },
+        "rigid": {
+          "file": "case-1-neutral-plain-tee-01-rigid.png",
+          "bytes": 17189,
+          "width": 720,
+          "height": 960
+        },
+        "rigidOverlay": {
+          "file": "case-1-neutral-plain-tee-02-rigid-overlay.png",
+          "bytes": 21540,
+          "width": 720,
+          "height": 960
+        },
+        "preview": {
+          "file": "case-1-neutral-plain-tee-03-preview-lighting-adjusted.png",
+          "bytes": 18123,
+          "width": 720,
+          "height": 960
+        },
+        "previewUnadjusted": {
+          "file": "case-1-neutral-plain-tee-04-preview-unadjusted.png",
+          "bytes": 18206,
+          "width": 720,
+          "height": 960
+        }
+      },
+      "rigidGate": {
+        "passed": true,
+        "findings": [],
+        "measurements": {
+          "garmentShoulderSpanPx": 274.3108938751066,
+          "bodyShoulderSpanPx": 244.9204409599166,
+          "scaleRatio": 1.12,
+          "hemBelowShoulderPx": 369.78394326679404,
+          "necklineToNeckBasePx": 15.360000000000014,
+          "necklineToleranceP": 134.70624252795415,
+          "garmentCentroidToTorsoCentroidPx": 43.11265714943697,
+          "torsoDiagonalPx": 375.1438763994422
+        }
+      },
+      "status": "RENDERED",
+      "manifestFile": "case-1-neutral-plain-tee-manifest.json",
+      "metrics": {
+        "controlPointMaxPx": 0,
+        "controlPointMaxNormalized": 0,
+        "torsoCoverage": 0.98672330528322,
+        "spillFraction": 0.3332423819086702,
+        "jacobian": {
+          "minDeterminant": 0.24596991340787694,
+          "maxDeterminant": 1.8365615813259883,
+          "medianDeterminant": 1.1698044180605476,
+          "foldoverCells": 0,
+          "cellCount": 713
+        },
+        "logo": null,
+        "foregroundOverGarmentPixels": 0,
+        "lighting": {
+          "applied": true,
+          "state": {
+            "meanLuminance": 0.36171796478451534,
+            "contrast": 0.038275556350936824,
+            "colorCast": {
+              "r": 0.902812517112973,
+              "g": 0.9858816261431466,
+              "b": 1.1113058567438803
+            },
+            "sampledPixels": 61913
+          },
+          "adjustment": {
+            "luminanceGain": 0.9446871859138062,
+            "contrastGain": 0.9291377781754684,
+            "hueShiftDegrees": -5.91058718915884,
+            "saturationScale": 0.9556705960813087,
+            "clampedFields": []
+          },
+          "guardrailNote": "Experimental guardrails, not product science: hue shift clamped to +/-15deg, saturation to +/-20%, luminance gain to 0.85-1.15."
+        }
+      }
+    },
+    {
+      "caseId": "case-2-logo-tee-canary",
+      "title": "CASE 2 — LOGO TEE (CANARY)",
+      "garment": "fixture-tee-logo-002",
+      "images": {
+        "person": {
+          "file": "case-2-logo-tee-canary-00-person-fixture.png",
+          "bytes": 7601,
+          "width": 720,
+          "height": 960
+        },
+        "rigid": {
+          "file": "case-2-logo-tee-canary-01-rigid.png",
+          "bytes": 26447,
+          "width": 720,
+          "height": 960
+        },
+        "rigidOverlay": {
+          "file": "case-2-logo-tee-canary-02-rigid-overlay.png",
+          "bytes": 30217,
+          "width": 720,
+          "height": 960
+        },
+        "preview": {
+          "file": "case-2-logo-tee-canary-03-preview-lighting-adjusted.png",
+          "bytes": 21789,
+          "width": 720,
+          "height": 960
+        },
+        "previewUnadjusted": {
+          "file": "case-2-logo-tee-canary-04-preview-unadjusted.png",
+          "bytes": 21954,
+          "width": 720,
+          "height": 960
+        }
+      },
+      "rigidGate": {
+        "passed": true,
+        "findings": [],
+        "measurements": {
+          "garmentShoulderSpanPx": 274.3108938751066,
+          "bodyShoulderSpanPx": 244.9204409599166,
+          "scaleRatio": 1.12,
+          "hemBelowShoulderPx": 369.78394326679404,
+          "necklineToNeckBasePx": 15.360000000000014,
+          "necklineToleranceP": 134.70624252795415,
+          "garmentCentroidToTorsoCentroidPx": 43.11265714943697,
+          "torsoDiagonalPx": 375.1438763994422
+        }
+      },
+      "status": "RENDERED",
+      "manifestFile": "case-2-logo-tee-canary-manifest.json",
+      "metrics": {
+        "controlPointMaxPx": 0,
+        "controlPointMaxNormalized": 0,
+        "torsoCoverage": 0.98672330528322,
+        "spillFraction": 0.3332423819086702,
+        "jacobian": {
+          "minDeterminant": 0.24596991340787694,
+          "maxDeterminant": 1.8365615813259883,
+          "medianDeterminant": 1.1698044180605476,
+          "foldoverCells": 0,
+          "cellCount": 713
+        },
+        "logo": {
+          "horizontalScale": 0.9368093443399248,
+          "verticalScale": 0.7216855284665823,
+          "aspectRatioChange": 1.2980852565111451,
+          "shearIndicator": 0.004465838149781578,
+          "mirrored": false
+        },
+        "foregroundOverGarmentPixels": 0,
+        "lighting": {
+          "applied": true,
+          "state": {
+            "meanLuminance": 0.36171796478451534,
+            "contrast": 0.038275556350936824,
+            "colorCast": {
+              "r": 0.902812517112973,
+              "g": 0.9858816261431466,
+              "b": 1.1113058567438803
+            },
+            "sampledPixels": 61913
+          },
+          "adjustment": {
+            "luminanceGain": 0.9446871859138062,
+            "contrastGain": 0.9291377781754684,
+            "hueShiftDegrees": -5.91058718915884,
+            "saturationScale": 0.9556705960813087,
+            "clampedFields": []
+          },
+          "guardrailNote": "Experimental guardrails, not product science: hue shift clamped to +/-15deg, saturation to +/-20%, luminance gain to 0.85-1.15."
+        }
+      }
+    },
+    {
+      "caseId": "case-3a-narrow-torso",
+      "title": "CASE 3A — BODY PROPORTION: NARROW",
+      "garment": "fixture-tee-logo-002",
+      "images": {
+        "person": {
+          "file": "case-3a-narrow-torso-00-person-fixture.png",
+          "bytes": 7548,
+          "width": 720,
+          "height": 960
+        },
+        "rigid": {
+          "file": "case-3a-narrow-torso-01-rigid.png",
+          "bytes": 19716,
+          "width": 720,
+          "height": 960
+        },
+        "rigidOverlay": {
+          "file": "case-3a-narrow-torso-02-rigid-overlay.png",
+          "bytes": 23781,
+          "width": 720,
+          "height": 960
+        },
+        "preview": {
+          "file": "case-3a-narrow-torso-03-preview-lighting-adjusted.png",
+          "bytes": 21055,
+          "width": 720,
+          "height": 960
+        },
+        "previewUnadjusted": {
+          "file": "case-3a-narrow-torso-04-preview-unadjusted.png",
+          "bytes": 21044,
+          "width": 720,
+          "height": 960
+        }
+      },
+      "rigidGate": {
+        "passed": true,
+        "findings": [],
+        "measurements": {
+          "garmentShoulderSpanPx": 210.06062177800015,
+          "bodyShoulderSpanPx": 187.55412658750012,
+          "scaleRatio": 1.12,
+          "hemBelowShoulderPx": 283.17156474839,
+          "necklineToNeckBasePx": 17.279999999999973,
+          "necklineToleranceP": 103.15476962312508,
+          "garmentCentroidToTorsoCentroidPx": 16.652731983458345,
+          "torsoDiagonalPx": 363.2112773579587
+        }
+      },
+      "status": "RENDERED",
+      "manifestFile": "case-3a-narrow-torso-manifest.json",
+      "metrics": {
+        "controlPointMaxPx": 0,
+        "controlPointMaxNormalized": 0,
+        "torsoCoverage": 0.98643747347301,
+        "spillFraction": 0.3432450484239731,
+        "jacobian": {
+          "minDeterminant": 0.23471344316321086,
+          "maxDeterminant": 1.5750229658649404,
+          "medianDeterminant": 0.9925420221952442,
+          "foldoverCells": 0,
+          "cellCount": 713
+        },
+        "logo": {
+          "horizontalScale": 0.7297408830296436,
+          "verticalScale": 0.7830990158530774,
+          "aspectRatioChange": 0.9318628529173829,
+          "shearIndicator": 0.011949655263816339,
+          "mirrored": false
+        },
+        "foregroundOverGarmentPixels": 0,
+        "lighting": {
+          "applied": true,
+          "state": {
+            "meanLuminance": 0.41747901699757545,
+            "contrast": 0.04461424241692521,
+            "colorCast": {
+              "r": 1.0738001192257538,
+              "g": 0.9997249716077579,
+              "b": 0.9264749091664881
+            },
+            "sampledPixels": 51834
+          },
+          "adjustment": {
+            "luminanceGain": 0.9669916067990302,
+            "contrastGain": 0.9323071212084626,
+            "hueShiftDegrees": 4.166993463841602,
+            "saturationScale": 0.968747549021188,
+            "clampedFields": []
+          },
+          "guardrailNote": "Experimental guardrails, not product science: hue shift clamped to +/-15deg, saturation to +/-20%, luminance gain to 0.85-1.15."
+        }
+      }
+    },
+    {
+      "caseId": "case-3b-broad-torso",
+      "title": "CASE 3B — BODY PROPORTION: BROAD",
+      "garment": "fixture-tee-logo-002",
+      "images": {
+        "person": {
+          "file": "case-3b-broad-torso-00-person-fixture.png",
+          "bytes": 7817,
+          "width": 720,
+          "height": 960
+        },
+        "rigid": {
+          "file": "case-3b-broad-torso-01-rigid.png",
+          "bytes": 32930,
+          "width": 720,
+          "height": 960
+        },
+        "rigidOverlay": {
+          "file": "case-3b-broad-torso-02-rigid-overlay.png",
+          "bytes": 37412,
+          "width": 720,
+          "height": 960
+        },
+        "preview": {
+          "file": "case-3b-broad-torso-03-preview-lighting-adjusted.png",
+          "bytes": 22918,
+          "width": 720,
+          "height": 960
+        },
+        "previewUnadjusted": {
+          "file": "case-3b-broad-torso-04-preview-unadjusted.png",
+          "bytes": 23343,
+          "width": 720,
+          "height": 960
+        }
+      },
+      "rigidGate": {
+        "passed": true,
+        "findings": [],
+        "measurements": {
+          "garmentShoulderSpanPx": 347.07857365709,
+          "bodyShoulderSpanPx": 309.8915836224018,
+          "scaleRatio": 1.1199999999999999,
+          "hemBelowShoulderPx": 467.87818659789747,
+          "necklineToNeckBasePx": 4.800000000000015,
+          "necklineToleranceP": 170.44037099232102,
+          "garmentCentroidToTorsoCentroidPx": 101.26851011807281,
+          "torsoDiagonalPx": 408.3457358660674
+        }
+      },
+      "status": "RENDERED",
+      "manifestFile": "case-3b-broad-torso-manifest.json",
+      "metrics": {
+        "controlPointMaxPx": 0,
+        "controlPointMaxNormalized": 0,
+        "torsoCoverage": 0.985711166307285,
+        "spillFraction": 0.3282334120798378,
+        "jacobian": {
+          "minDeterminant": 0.21562661946233821,
+          "maxDeterminant": 2.1642619317390435,
+          "medianDeterminant": 1.3766528004868301,
+          "foldoverCells": 0,
+          "cellCount": 713
+        },
+        "logo": {
+          "horizontalScale": 1.170778870393451,
+          "verticalScale": 0.6706352772142651,
+          "aspectRatioChange": 1.7457758489185355,
+          "shearIndicator": 0.004604454286762784,
+          "mirrored": false
+        },
+        "foregroundOverGarmentPixels": 0,
+        "lighting": {
+          "applied": true,
+          "state": {
+            "meanLuminance": 0.2676836772000863,
+            "contrast": 0.027676774394714488,
+            "colorCast": {
+              "r": 0.9694082736435268,
+              "g": 1.0895908329485906,
+              "b": 0.9410008934078824
+            },
+            "sampledPixels": 73274
+          },
+          "adjustment": {
+            "luminanceGain": 0.9070734708800345,
+            "contrastGain": 0.9238383871973572,
+            "hueShiftDegrees": 2.658344838469951,
+            "saturationScale": 0.9800624137114754,
+            "clampedFields": []
+          },
+          "guardrailNote": "Experimental guardrails, not product science: hue shift clamped to +/-15deg, saturation to +/-20%, luminance gain to 0.85-1.15."
+        }
+      }
+    },
+    {
+      "caseId": "case-4-arms-away",
+      "title": "CASE 4 — ARMS AWAY",
+      "garment": "fixture-tee-plain-001",
+      "images": {
+        "person": {
+          "file": "case-4-arms-away-00-person-fixture.png",
+          "bytes": 7623,
+          "width": 720,
+          "height": 960
+        },
+        "rigid": {
+          "file": "case-4-arms-away-01-rigid.png",
+          "bytes": 19192,
+          "width": 720,
+          "height": 960
+        },
+        "rigidOverlay": {
+          "file": "case-4-arms-away-02-rigid-overlay.png",
+          "bytes": 23927,
+          "width": 720,
+          "height": 960
+        },
+        "preview": {
+          "file": "case-4-arms-away-03-preview-lighting-adjusted.png",
+          "bytes": 18318,
+          "width": 720,
+          "height": 960
+        },
+        "previewUnadjusted": {
+          "file": "case-4-arms-away-04-preview-unadjusted.png",
+          "bytes": 18476,
+          "width": 720,
+          "height": 960
+        }
+      },
+      "rigidGate": {
+        "passed": true,
+        "findings": [],
+        "measurements": {
+          "garmentShoulderSpanPx": 274.3108938751066,
+          "bodyShoulderSpanPx": 244.92044095991662,
+          "scaleRatio": 1.12,
+          "hemBelowShoulderPx": 369.78394326679415,
+          "necklineToNeckBasePx": 15.360000000000033,
+          "necklineToleranceP": 134.70624252795415,
+          "garmentCentroidToTorsoCentroidPx": 43.112657149436906,
+          "torsoDiagonalPx": 375.1438763994422
+        }
+      },
+      "status": "RENDERED",
+      "manifestFile": "case-4-arms-away-manifest.json",
+      "metrics": {
+        "controlPointMaxPx": 0,
+        "controlPointMaxNormalized": 0,
+        "torsoCoverage": 0.9932967210466807,
+        "spillFraction": 0.39941010440370733,
+        "jacobian": {
+          "minDeterminant": 0.5414893058391104,
+          "maxDeterminant": 2.112086675890701,
+          "medianDeterminant": 1.3425423101629315,
+          "foldoverCells": 0,
+          "cellCount": 713
+        },
+        "logo": null,
+        "foregroundOverGarmentPixels": 0,
+        "lighting": {
+          "applied": true,
+          "state": {
+            "meanLuminance": 0.3633923702904785,
+            "contrast": 0.04481259244105029,
+            "colorCast": {
+              "r": 0.9031633464683025,
+              "g": 0.9858579464235672,
+              "b": 1.11097870710813
+            },
+            "sampledPixels": 61910
+          },
+          "adjustment": {
+            "luminanceGain": 0.9453569481161914,
+            "contrastGain": 0.9324062962205252,
+            "hueShiftDegrees": -5.8915004402763325,
+            "saturationScale": 0.9558137466979275,
+            "clampedFields": []
+          },
+          "guardrailNote": "Experimental guardrails, not product science: hue shift clamped to +/-15deg, saturation to +/-20%, luminance gain to 0.85-1.15."
+        }
+      }
+    },
+    {
+      "caseId": "case-5-forearm-crossing",
+      "title": "CASE 5 — FOREARM CROSSING (OCCLUSION)",
+      "garment": "fixture-tee-plain-001",
+      "images": {
+        "person": {
+          "file": "case-5-forearm-crossing-00-person-fixture.png",
+          "bytes": 6866,
+          "width": 720,
+          "height": 960
+        },
+        "rigid": {
+          "file": "case-5-forearm-crossing-01-rigid.png",
+          "bytes": 16964,
+          "width": 720,
+          "height": 960
+        },
+        "rigidOverlay": {
+          "file": "case-5-forearm-crossing-02-rigid-overlay.png",
+          "bytes": 21339,
+          "width": 720,
+          "height": 960
+        },
+        "preview": {
+          "file": "case-5-forearm-crossing-03-preview-lighting-adjusted.png",
+          "bytes": 25882,
+          "width": 720,
+          "height": 960
+        },
+        "previewUnadjusted": {
+          "file": "case-5-forearm-crossing-04-preview-unadjusted.png",
+          "bytes": 25868,
+          "width": 720,
+          "height": 960
+        },
+        "occlusionControl": {
+          "file": "case-5-forearm-crossing-05-occlusion-control-wrong-layer-order.png",
+          "bytes": 17058,
+          "width": 720,
+          "height": 960
+        }
+      },
+      "rigidGate": {
+        "passed": true,
+        "findings": [],
+        "measurements": {
+          "garmentShoulderSpanPx": 274.3108938751066,
+          "bodyShoulderSpanPx": 244.9204409599166,
+          "scaleRatio": 1.12,
+          "hemBelowShoulderPx": 369.78394326679404,
+          "necklineToNeckBasePx": 15.360000000000014,
+          "necklineToleranceP": 134.70624252795415,
+          "garmentCentroidToTorsoCentroidPx": 43.11265714943697,
+          "torsoDiagonalPx": 375.1438763994422
+        }
+      },
+      "status": "RENDERED",
+      "manifestFile": "case-5-forearm-crossing-manifest.json",
+      "metrics": {
+        "controlPointMaxPx": 0,
+        "controlPointMaxNormalized": 0,
+        "torsoCoverage": 0.98672330528322,
+        "spillFraction": 0.3244537331917905,
+        "jacobian": {
+          "minDeterminant": 0.2184960923818705,
+          "maxDeterminant": 1.80578178801153,
+          "medianDeterminant": 1.159373385054249,
+          "foldoverCells": 0,
+          "cellCount": 713
+        },
+        "logo": null,
+        "foregroundOverGarmentPixels": 13938,
+        "lighting": {
+          "applied": true,
+          "state": {
+            "meanLuminance": 0.415799405313268,
+            "contrast": 0.10938938158837237,
+            "colorCast": {
+              "r": 1.009295837328934,
+              "g": 0.9836225854023045,
+              "b": 1.0070815772687614
+            },
+            "sampledPixels": 61913
+          },
+          "adjustment": {
+            "luminanceGain": 0.9663197621253072,
+            "contrastGain": 0.9646946907941862,
+            "hueShiftDegrees": 0.46743783032089414,
+            "saturationScale": 0.9964942162725933,
+            "clampedFields": []
+          },
+          "guardrailNote": "Experimental guardrails, not product science: hue shift clamped to +/-15deg, saturation to +/-20%, luminance gain to 0.85-1.15."
+        }
+      }
+    }
+  ]
+}

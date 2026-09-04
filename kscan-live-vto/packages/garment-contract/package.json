@@ -1,0 +1,13 @@
+{
+  "name": "@kscan-live-vto/garment-contract",
+  "private": true,
+  "version": "0.1.0",
+  "description": "GarmentDescriptor fashion-semantic contract and the .ksgarment versioned asset bundle schema. Section P1-D1 / P1-D4 of the Live VTO build plan.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test dist/__tests__/*.test.js"
+  }
+}
