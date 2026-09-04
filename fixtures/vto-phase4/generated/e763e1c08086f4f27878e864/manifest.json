@@ -1,0 +1,70 @@
+{
+  "assetId": "e763e1c08086f4f27878e864",
+  "pipelineVersion": "0.1.0",
+  "contractVersion": "1.0",
+  "assetVersion": "1",
+  "generatedAt": "2026-09-04T20:43:41.855Z",
+  "evidenceClass": "SYNTHETIC",
+  "productIdentity": {
+    "productRef": "p4-unsupported-multi",
+    "retailer": "phase4-synthetic-retailer",
+    "variantId": null,
+    "category": "top"
+  },
+  "source": {
+    "ref": "/home/user/kscan-app/vto-phase4-pipeline/fixtures-input/synthetic/unsupported-multi-object.png",
+    "sha256": "5ea709fdda264e2e5faeaeb6f49f5aaa2e3cf2d5b71fac9ab3d2cf109b0e5c65",
+    "width": 320,
+    "height": 360,
+    "format": "png"
+  },
+  "shotClassification": {
+    "shotClass": "UNSUPPORTED",
+    "confidence": 0.75,
+    "evidence": {
+      "backgroundUniformity": 88.128,
+      "coverage": 0.57,
+      "significantComponentCount": 5,
+      "largestComponentRatio": 0.829,
+      "skinRatio": 0,
+      "reason": "too_many_disconnected_regions"
+    }
+  },
+  "confidenceComponents": {
+    "shotClassification": 0.75,
+    "segmentation": 0,
+    "anchorCompleteness": 0,
+    "geometryValidity": 0,
+    "sourceQuality": 1,
+    "productFidelity": 0
+  },
+  "qa": null,
+  "eligibility": {
+    "live2d": false,
+    "live3d": false,
+    "reason": "MULTIPLE_GARMENTS"
+  },
+  "status": "REJECTED",
+  "rejection": {
+    "code": "MULTIPLE_GARMENTS",
+    "message": "shot classifier could not analyze this source: too_many_disconnected_regions",
+    "stage": "classification"
+  },
+  "ksgarment": null,
+  "anchorEvidence": [],
+  "correctionHistory": [],
+  "stageTimings": [
+    {
+      "stage": "classification",
+      "durationMs": 6,
+      "retryCount": 0,
+      "result": "ok"
+    },
+    {
+      "stage": "bundle_writing",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "ok"
+    }
+  ]
+}

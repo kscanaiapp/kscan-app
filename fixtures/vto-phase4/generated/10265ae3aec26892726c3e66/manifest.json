@@ -1,0 +1,243 @@
+{
+  "assetId": "10265ae3aec26892726c3e66",
+  "pipelineVersion": "0.1.0",
+  "contractVersion": "1.0",
+  "assetVersion": "1",
+  "generatedAt": "2026-09-04T20:43:41.802Z",
+  "evidenceClass": "SYNTHETIC",
+  "productIdentity": {
+    "productRef": "p4-medium-light",
+    "retailer": "phase4-synthetic-retailer",
+    "variantId": null,
+    "category": "top"
+  },
+  "source": {
+    "ref": "/home/user/kscan-app/vto-phase4-pipeline/fixtures-input/synthetic/medium-light.png",
+    "sha256": "c31f36d3e03e24782a8577524d32312bec44fdf0d13b09157e9219f4dca244d2",
+    "width": 320,
+    "height": 360,
+    "format": "png"
+  },
+  "shotClassification": {
+    "shotClass": "EASY",
+    "confidence": 0.6908872993080222,
+    "evidence": {
+      "backgroundUniformity": 11.923,
+      "coverage": 0.455,
+      "significantComponentCount": 1,
+      "largestComponentRatio": 0.933,
+      "skinRatio": 0,
+      "reason": "uniform_background_single_compact_foreground"
+    }
+  },
+  "confidenceComponents": {
+    "shotClassification": 0.6908872993080222,
+    "segmentation": 0,
+    "anchorCompleteness": 1,
+    "geometryValidity": 1,
+    "sourceQuality": 1,
+    "productFidelity": 1
+  },
+  "qa": {
+    "silhouette": {
+      "fillRatio": 0.571216478455028,
+      "compactness": 1.4821998259114608,
+      "maskToBboxAreaNote": "fillRatio/compactness are intrinsic self-consistency measures, not a comparison to an external reference mask"
+    },
+    "color": {
+      "computable": true,
+      "referenceClass": "REFERENCE_AVAILABLE",
+      "value": 0.5663427877624355,
+      "detail": "mean masked color delta from known synthetic fill color: 0.57"
+    },
+    "logo": {
+      "computable": false,
+      "referenceClass": "NO_REFERENCE",
+      "detail": "no independent ground truth for logo placement/appearance exists for this source"
+    },
+    "pattern": {
+      "computable": false,
+      "referenceClass": "NO_REFERENCE",
+      "detail": "no independent ground truth for pattern structure exists for this source"
+    },
+    "passed": true,
+    "failureReasons": []
+  },
+  "eligibility": {
+    "live2d": false,
+    "live3d": false,
+    "reason": "EXTRACTION_UNRELIABLE"
+  },
+  "status": "REJECTED",
+  "rejection": {
+    "code": "EXTRACTION_UNRELIABLE",
+    "message": "overall confidence 0.00 is below the eligibility threshold",
+    "stage": "qa"
+  },
+  "ksgarment": {
+    "version": "1.0",
+    "productId": "p4-medium-light",
+    "category": "top",
+    "subcategory": "unknown",
+    "silhouette": "unknown",
+    "sleeveLength": "unknown",
+    "garmentLength": "unknown",
+    "neckline": "unknown",
+    "controlPoints": [
+      {
+        "id": "leftShoulder",
+        "u": 0.26394052044609667,
+        "v": 0.07861635220125786
+      },
+      {
+        "id": "rightShoulder",
+        "u": 0.9033457249070632,
+        "v": 0.07861635220125786
+      },
+      {
+        "id": "leftHem",
+        "u": 0.3159851301115242,
+        "v": 0.9465408805031447
+      },
+      {
+        "id": "rightHem",
+        "u": 0.5910780669144982,
+        "v": 0.9465408805031447
+      },
+      {
+        "id": "waist",
+        "u": 0.5631970260223048,
+        "v": 0.5471698113207547
+      },
+      {
+        "id": "leftTorso",
+        "u": 0.2936802973977695,
+        "v": 0.5471698113207547
+      },
+      {
+        "id": "rightTorso",
+        "u": 0.8327137546468402,
+        "v": 0.5471698113207547
+      },
+      {
+        "id": "leftSleeve",
+        "u": 0.08178438661710037,
+        "v": 0.16666666666666666
+      },
+      {
+        "id": "rightSleeve",
+        "u": 0.9368029739776952,
+        "v": 0.16666666666666666
+      },
+      {
+        "id": "leftArmpit",
+        "u": 0.2899628252788104,
+        "v": 0.4119496855345912
+      },
+      {
+        "id": "rightArmpit",
+        "u": 0.79182156133829,
+        "v": 0.4119496855345912
+      }
+    ],
+    "meshDefinition": {
+      "type": "grid",
+      "width": 8,
+      "height": 10
+    },
+    "texture": "texture.png",
+    "alphaMask": "alpha.png",
+    "assetVersion": "1"
+  },
+  "anchorEvidence": [
+    {
+      "id": "leftShoulder",
+      "confidence": 1
+    },
+    {
+      "id": "rightShoulder",
+      "confidence": 1
+    },
+    {
+      "id": "leftHem",
+      "confidence": 1
+    },
+    {
+      "id": "rightHem",
+      "confidence": 1
+    },
+    {
+      "id": "waist",
+      "confidence": 1
+    },
+    {
+      "id": "leftTorso",
+      "confidence": 1
+    },
+    {
+      "id": "rightTorso",
+      "confidence": 1
+    },
+    {
+      "id": "leftSleeve",
+      "confidence": 0.751082251082251
+    },
+    {
+      "id": "rightSleeve",
+      "confidence": 0.751082251082251
+    },
+    {
+      "id": "leftArmpit",
+      "confidence": 0.3770363758089712
+    },
+    {
+      "id": "rightArmpit",
+      "confidence": 0.3770363758089712
+    }
+  ],
+  "correctionHistory": [],
+  "stageTimings": [
+    {
+      "stage": "classification",
+      "durationMs": 7,
+      "retryCount": 0,
+      "result": "ok"
+    },
+    {
+      "stage": "extraction",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "ok"
+    },
+    {
+      "stage": "canonicalization",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "ok"
+    },
+    {
+      "stage": "anchor_generation",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "ok"
+    },
+    {
+      "stage": "geometry_generation",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "ok"
+    },
+    {
+      "stage": "qa",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "ok"
+    },
+    {
+      "stage": "bundle_writing",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "ok"
+    }
+  ]
+}

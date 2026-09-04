@@ -1,0 +1,70 @@
+{
+  "assetId": "a4780b5cb4c47224b41141af",
+  "pipelineVersion": "0.1.0",
+  "contractVersion": "1.0",
+  "assetVersion": "1",
+  "generatedAt": "2026-09-04T20:43:42.806Z",
+  "evidenceClass": "AUTHORIZED_FIXTURE",
+  "productIdentity": {
+    "productRef": "qa-fixture-footwear",
+    "retailer": null,
+    "variantId": null,
+    "category": "footwear"
+  },
+  "source": {
+    "ref": "/home/user/kscan-app/assets/qa_fixtures/footwear.jpg",
+    "sha256": "8c4f330f9a966ca41ee4b1558849528bf094acfc5bfb195723c8033b8c61b3b5",
+    "width": 960,
+    "height": 641,
+    "format": "jpeg"
+  },
+  "shotClassification": {
+    "shotClass": "HARD",
+    "confidence": 0.95,
+    "evidence": {
+      "backgroundUniformity": 35.936,
+      "coverage": 0.732,
+      "significantComponentCount": 2,
+      "largestComponentRatio": 0.919,
+      "skinRatio": 0.423,
+      "reason": "skin_tone_presence_suggests_model_worn"
+    }
+  },
+  "confidenceComponents": {
+    "shotClassification": 0.95,
+    "segmentation": 0,
+    "anchorCompleteness": 0,
+    "geometryValidity": 0,
+    "sourceQuality": 1,
+    "productFidelity": 0
+  },
+  "qa": null,
+  "eligibility": {
+    "live2d": false,
+    "live3d": false,
+    "reason": "UNSUPPORTED_CATEGORY"
+  },
+  "status": "REJECTED",
+  "rejection": {
+    "code": "UNSUPPORTED_CATEGORY",
+    "message": "category \"footwear\" has no Live template-family mapping today",
+    "stage": "classification"
+  },
+  "ksgarment": null,
+  "anchorEvidence": [],
+  "correctionHistory": [],
+  "stageTimings": [
+    {
+      "stage": "classification",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "rejected"
+    },
+    {
+      "stage": "bundle_writing",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "ok"
+    }
+  ]
+}

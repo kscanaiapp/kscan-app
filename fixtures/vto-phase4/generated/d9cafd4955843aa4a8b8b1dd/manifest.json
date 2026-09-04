@@ -1,0 +1,76 @@
+{
+  "assetId": "d9cafd4955843aa4a8b8b1dd",
+  "pipelineVersion": "0.1.0",
+  "contractVersion": "1.0",
+  "assetVersion": "1",
+  "generatedAt": "2026-09-04T20:43:41.838Z",
+  "evidenceClass": "SYNTHETIC",
+  "productIdentity": {
+    "productRef": "p4-hard-synthetic-worn",
+    "retailer": "phase4-synthetic-retailer",
+    "variantId": null,
+    "category": "top"
+  },
+  "source": {
+    "ref": "/home/user/kscan-app/vto-phase4-pipeline/fixtures-input/synthetic/hard-synthetic-worn.png",
+    "sha256": "4d14224cd49c7c3c38d19db4ab5fe85f8f11d3f91606a7f3d04e5cefa340bfe2",
+    "width": 320,
+    "height": 360,
+    "format": "png"
+  },
+  "shotClassification": {
+    "shotClass": "HARD",
+    "confidence": 0.7165977106605985,
+    "evidence": {
+      "backgroundUniformity": 20.45,
+      "coverage": 0.504,
+      "significantComponentCount": 3,
+      "largestComponentRatio": 0.861,
+      "skinRatio": 0.167,
+      "reason": "skin_tone_presence_suggests_model_worn"
+    }
+  },
+  "confidenceComponents": {
+    "shotClassification": 0.7165977106605985,
+    "segmentation": 0,
+    "anchorCompleteness": 0,
+    "geometryValidity": 0,
+    "sourceQuality": 1,
+    "productFidelity": 0
+  },
+  "qa": null,
+  "eligibility": {
+    "live2d": false,
+    "live3d": false,
+    "reason": "OCCLUSION_TOO_HIGH"
+  },
+  "status": "REJECTED",
+  "rejection": {
+    "code": "OCCLUSION_TOO_HIGH",
+    "message": "HARD-class source with detected skin-tone presence — this pipeline has no validated model-worn extraction path (task section 16: reject early)",
+    "stage": "extraction"
+  },
+  "ksgarment": null,
+  "anchorEvidence": [],
+  "correctionHistory": [],
+  "stageTimings": [
+    {
+      "stage": "classification",
+      "durationMs": 6,
+      "retryCount": 0,
+      "result": "ok"
+    },
+    {
+      "stage": "extraction",
+      "durationMs": 1,
+      "retryCount": 0,
+      "result": "rejected"
+    },
+    {
+      "stage": "bundle_writing",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "ok"
+    }
+  ]
+}

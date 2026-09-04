@@ -1,0 +1,70 @@
+{
+  "assetId": "3abd05417d63d6505ff72505",
+  "pipelineVersion": "0.1.0",
+  "contractVersion": "1.0",
+  "assetVersion": "1",
+  "generatedAt": "2026-09-04T20:43:42.014Z",
+  "evidenceClass": "SYNTHETIC",
+  "productIdentity": {
+    "productRef": "p4-unsupported-category",
+    "retailer": "phase4-synthetic-retailer",
+    "variantId": null,
+    "category": "dress"
+  },
+  "source": {
+    "ref": "/home/user/kscan-app/vto-phase4-pipeline/fixtures-input/synthetic/unsupported-category-source.png",
+    "sha256": "26bdf8130586d29b69b9d149ea3f885807447ef2482c5382f2721a8cdf8aebf1",
+    "width": 320,
+    "height": 360,
+    "format": "png"
+  },
+  "shotClassification": {
+    "shotClass": "EASY",
+    "confidence": 0.9233333333333333,
+    "evidence": {
+      "backgroundUniformity": 0,
+      "coverage": 0.424,
+      "significantComponentCount": 1,
+      "largestComponentRatio": 1,
+      "skinRatio": 0,
+      "reason": "uniform_background_single_compact_foreground"
+    }
+  },
+  "confidenceComponents": {
+    "shotClassification": 0.9233333333333333,
+    "segmentation": 0,
+    "anchorCompleteness": 0,
+    "geometryValidity": 0,
+    "sourceQuality": 1,
+    "productFidelity": 0
+  },
+  "qa": null,
+  "eligibility": {
+    "live2d": false,
+    "live3d": false,
+    "reason": "UNSUPPORTED_CATEGORY"
+  },
+  "status": "REJECTED",
+  "rejection": {
+    "code": "UNSUPPORTED_CATEGORY",
+    "message": "category \"dress\" has no Live template-family mapping today",
+    "stage": "classification"
+  },
+  "ksgarment": null,
+  "anchorEvidence": [],
+  "correctionHistory": [],
+  "stageTimings": [
+    {
+      "stage": "classification",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "rejected"
+    },
+    {
+      "stage": "bundle_writing",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "ok"
+    }
+  ]
+}

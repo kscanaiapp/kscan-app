@@ -1,0 +1,70 @@
+{
+  "assetId": "69cf0062c118eaea5f240c2f",
+  "pipelineVersion": "0.1.0",
+  "contractVersion": "1.0",
+  "assetVersion": "1",
+  "generatedAt": "2026-09-04T20:43:42.847Z",
+  "evidenceClass": "AUTHORIZED_FIXTURE",
+  "productIdentity": {
+    "productRef": "qa-fixture-non-fashion",
+    "retailer": null,
+    "variantId": null,
+    "category": "non_fashion"
+  },
+  "source": {
+    "ref": "/home/user/kscan-app/assets/qa_fixtures/non_fashion.jpg",
+    "sha256": "5820e6a08b6c58e43f85072fb29d30e6489d4159cb52d4c9c50729a7475b4938",
+    "width": 525,
+    "height": 394,
+    "format": "jpeg"
+  },
+  "shotClassification": {
+    "shotClass": "MEDIUM",
+    "confidence": 0.8134275437272278,
+    "evidence": {
+      "backgroundUniformity": 30.712,
+      "coverage": 0.519,
+      "significantComponentCount": 3,
+      "largestComponentRatio": 0.863,
+      "skinRatio": 0.03,
+      "reason": "moderately_uniform_background_mostly_compact_foreground"
+    }
+  },
+  "confidenceComponents": {
+    "shotClassification": 0.8134275437272278,
+    "segmentation": 0,
+    "anchorCompleteness": 0,
+    "geometryValidity": 0,
+    "sourceQuality": 1,
+    "productFidelity": 0
+  },
+  "qa": null,
+  "eligibility": {
+    "live2d": false,
+    "live3d": false,
+    "reason": "UNSUPPORTED_CATEGORY"
+  },
+  "status": "REJECTED",
+  "rejection": {
+    "code": "UNSUPPORTED_CATEGORY",
+    "message": "category \"non_fashion\" has no Live template-family mapping today",
+    "stage": "classification"
+  },
+  "ksgarment": null,
+  "anchorEvidence": [],
+  "correctionHistory": [],
+  "stageTimings": [
+    {
+      "stage": "classification",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "rejected"
+    },
+    {
+      "stage": "bundle_writing",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "ok"
+    }
+  ]
+}

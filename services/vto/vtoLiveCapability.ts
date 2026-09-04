@@ -106,6 +106,18 @@ export interface VtoCapabilityInput {
   nativeCapability: LiveVtoNativeCapability;
   /** Can the Live runtime render THIS garment (services/vto/vtoLiveGarment.ts). */
   garmentLiveEligible: boolean;
+  /**
+   * Optional, additive signal from an offline garment-asset preparation
+   * pipeline (see vto-phase4-pipeline/, a local/batch tool -- not a runtime
+   * dependency of this app and not wired to any caller yet): whether that
+   * pipeline judged THIS specific product's Live asset usable. Absent
+   * (`undefined`) everywhere today, which preserves every existing caller's
+   * behavior exactly -- this field only ever narrows availability, and only
+   * when a caller explicitly passes `false`. A prepared asset existing is
+   * NOT the same thing as Live being reachable (task section 52): every
+   * other gate above still applies first.
+   */
+  garmentLiveAssetEligible?: boolean;
   /** Current camera permission. 'undetermined' is NOT disqualifying. */
   cameraPermission: VtoCameraPermissionState;
   platformOS: string;
@@ -133,6 +145,9 @@ function resolveLiveReason(input: VtoCapabilityInput): VtoLiveUnavailableReason 
   if (!isLiveVtoNativeCapable(native)) return 'runtime_unavailable';
 
   if (input.garmentLiveEligible !== true) return 'garment_unsupported';
+  // Additive: only an explicit `false` from the asset-eligibility signal
+  // disqualifies. `undefined` (every caller today) changes nothing.
+  if (input.garmentLiveAssetEligible === false) return 'garment_unsupported';
 
   // Only an explicit refusal (or a device with no camera) disqualifies.
   // 'undetermined' stays capable: the prompt happens on Live entry.
