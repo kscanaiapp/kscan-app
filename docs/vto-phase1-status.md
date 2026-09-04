@@ -298,3 +298,36 @@ evaluation renderer whose pixels are not a native baseline.
 Human review of package #2. Independent of it, the P1-D3 asset pipeline
 (retailer image → `.ksgarment`) remains what actually gates a Live
 integration, and remains **BLOCKED — FIXTURE CORPUS REQUIRED**.
+
+### External CI status — `npm audit` (record only)
+
+Recorded per the directive to log this check's status without repairing it.
+`.github/workflows/master-required-checks.yml` is outside this lane's
+authorized scope and was not modified.
+
+`npm audit` is the only red check on this branch. It is **intermittent** and
+external to this diff:
+
+| Head | Result | Registry response |
+|---|---|---|
+| `ee29858` | fail | `400 Bad Request` |
+| `ee29858` (re-run, same commit) | **pass** | — |
+| `8b75915` | fail | `503 Service Unavailable` |
+
+All three point at the same call, `POST
+https://registry.npmjs.org/-/npm/v1/security/audits/quick`. The step's guard
+(`node -e "... if(r.error) process.exit(2)"`) fires because npm writes an
+`error` object into `npm-audit.json` instead of a report; the step otherwise
+tolerates real vulnerability findings (`test "$CODE" = 0 -o "$CODE" = 1`), so
+only the transport failure fails the job. In the same job `npm ci` succeeded
+and reported 38 vulnerabilities, so dependency resolution was fine.
+
+Passing and failing on the identical commit rules this out as a property of
+the diff. This branch touches neither the root `package-lock.json`, the root
+`package.json`, nor any workflow file — "Validate no production paths touched"
+(green) enforces that. The other 12 checks on `8b75915` are green.
+
+One re-run has been spent on this head. Observed, not proposed as work in this
+lane: a required check with a hard dependency on a third-party endpoint can
+block merges repo-wide on registry weather, and the repo already runs
+OSV-Scanner and Trivy, both green.
