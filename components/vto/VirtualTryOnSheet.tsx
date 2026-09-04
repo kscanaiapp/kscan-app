@@ -44,6 +44,16 @@ import {
 } from '../../services/vto/vtoProgressStages';
 import { VtoSaveToDressingRoom } from './VtoSaveToDressingRoom';
 import { VtoSilhouetteGuide } from './VtoSilhouetteGuide';
+import { VtoLiveErrorBoundary } from './VtoLiveErrorBoundary';
+import { VtoLivePanel } from './VtoLivePanel';
+import { VtoModeSelector, type VtoSurfaceMode } from './VtoModeSelector';
+import { useVtoLiveSession } from '../../hooks/useVtoLiveSession';
+import { evaluateLiveGarmentEligibility } from '../../services/vto/vtoLiveGarment';
+import {
+  defaultVtoMode,
+  shouldOfferModeChoice,
+  type VtoCapability,
+} from '../../services/vto/vtoLiveCapability';
 import type { VtoGarmentInput, VtoOrigin } from '../../types/vto';
 
 export interface VirtualTryOnSheetProps {
@@ -69,6 +79,21 @@ export interface VirtualTryOnSheetProps {
    */
   sizeGuideUrl?: string | null;
   devScenario?: string;
+  /**
+   * The capability router's answer for this garment.
+   *
+   * OPTIONAL, AND ITS ABSENCE IS THE EXISTING BEHAVIOUR. When it is missing --
+   * or when it says anything other than "both modes are available" -- this
+   * sheet renders precisely the AI Photo experience it rendered before Live
+   * existed: no mode selector, no Live panel, no camera permission, no extra
+   * chrome. Live is not a state this sheet degrades into; it is a state it
+   * only enters when the router affirmatively says so.
+   *
+   * It is a prop rather than a hook call because TryItOnEntry has already
+   * resolved availability for this same garment, and asking twice would mean
+   * two answers that could disagree.
+   */
+  capability?: VtoCapability;
   testID?: string;
 }
 
@@ -104,6 +129,7 @@ export function VirtualTryOnSheet({
   onMinimize,
   sizeGuideUrl,
   devScenario,
+  capability,
   testID,
 }: VirtualTryOnSheetProps) {
   const vto = useVirtualTryOn({ garment, origin, devScenario });
@@ -111,6 +137,71 @@ export function VirtualTryOnSheet({
   const [elapsedMs, setElapsedMs] = useState(0);
   const [showOriginal, setShowOriginal] = useState(false);
   const pulse = useRef(new Animated.Value(0.55)).current;
+
+  // ── Live VTO ───────────────────────────────────────────────────────────────
+  // Everything below is inert unless the router affirmatively offers Live.
+  // `liveOffered` false -- the case on every build today -- means the rest of
+  // this component behaves exactly as it did before Live existed.
+  const liveOffered = capability ? shouldOfferModeChoice(capability) : false;
+  const [mode, setMode] = useState<VtoSurfaceMode>(() =>
+    capability ? defaultVtoMode(capability) : 'ai_photo',
+  );
+  const [liveCrashed, setLiveCrashed] = useState(false);
+
+  // If the capability answer changes under us (a garment swap, a kill switch
+  // arriving) and Live stops being on offer, the surface returns to AI Photo
+  // rather than sitting on a mode that no longer exists.
+  useEffect(() => {
+    if (!liveOffered && mode !== 'ai_photo') setMode('ai_photo');
+  }, [liveOffered, mode]);
+
+  const liveDescriptor = useMemo(() => {
+    if (!liveOffered) return null;
+    const eligibility = evaluateLiveGarmentEligibility({ garment });
+    return eligibility.eligible ? eligibility.descriptor : null;
+  }, [liveOffered, garment]);
+
+  // Called unconditionally to satisfy the rules of hooks. With a null
+  // descriptor it starts nothing, subscribes to nothing, and never loads the
+  // native module or the camera.
+  const live = useVtoLiveSession({
+    descriptor: liveDescriptor,
+    // The clean person frame joins the ORDINARY generative flow here: same
+    // store, same client, same Edge Function, same governance. The visible
+    // surface switches to the generative view while the Live session stays
+    // alive behind it, so a completed or failed generation can return to Live.
+    onPhotorealPerson: (person) => {
+      vto.adoptPerson(person);
+      vto.generate();
+      setMode('ai_photo');
+    },
+  });
+
+  const liveVisible = liveOffered && mode === 'live' && !liveCrashed;
+  const aiPhotoVisible = !liveVisible;
+
+  // A HIDDEN SHEET MAY NOT HOLD THE CAMERA. Minimizing keeps this component
+  // mounted on purpose (unmounting would kill the generation the pill reports
+  // on), so a Live session started earlier would otherwise keep running behind
+  // a collapsed surface. That is a privacy problem, not a battery one, so the
+  // session is torn down rather than merely paused; re-entering Live costs one
+  // tap and starts a fresh, visible session.
+  const liveEntered = live.entered;
+  useEffect(() => {
+    if (!visible && liveEntered) live.exitLive();
+  }, [visible, liveEntered, live]);
+
+  const handleSelectMode = useCallback((next: VtoSurfaceMode) => {
+    setMode(next);
+    emitVtoEvent('vto_mode_selected', { origin, mode: next });
+  }, [origin]);
+
+  // A Live render exception costs Live and nothing else -- see
+  // components/vto/VtoLiveErrorBoundary.tsx.
+  const handleLiveCrash = useCallback(() => {
+    setLiveCrashed(true);
+    setMode('ai_photo');
+  }, []);
 
   const isGenerating = vto.status === 'preparing' || vto.status === 'generating'
     || vto.status === 'validating_result';
@@ -323,6 +414,51 @@ export function VirtualTryOnSheet({
             contentContainerStyle={styles.body}
             showsVerticalScrollIndicator={false}
           >
+            {/* Rendered only when BOTH modes genuinely work. There is no
+                disabled Live tab and no "coming soon" state: when Live is
+                unavailable this is simply absent. */}
+            {liveOffered ? (
+              <VtoModeSelector mode={mode} onChange={handleSelectMode} />
+            ) : null}
+
+            {liveVisible ? (
+              <VtoLiveErrorBoundary
+                onFallback={handleLiveCrash}
+                fallback={
+                  <InlineNotice
+                    variant="error"
+                    title="Live isn’t available"
+                    body="You can still create an AI photo below."
+                    testID="vto-live-boundary-fallback"
+                    style={styles.notice}
+                  />
+                }
+              >
+                <VtoLivePanel
+                  session={live.session}
+                  entered={live.entered}
+                  photorealFailure={live.photorealFailure}
+                  onEnter={() => {
+                    void live.enterLive();
+                  }}
+                  onClose={() => {
+                    live.exitLive();
+                    setMode('ai_photo');
+                  }}
+                  onSwitchToAiPhoto={() => setMode('ai_photo')}
+                  onRequestPhotoreal={() => {
+                    void live.requestPhotoreal();
+                  }}
+                  onCapturePreview={() => {
+                    void live.capturePreview();
+                  }}
+                  onDismissPhotorealFailure={live.dismissPhotorealFailure}
+                />
+              </VtoLiveErrorBoundary>
+            ) : null}
+
+            {aiPhotoVisible ? (
+              <>
             {vto.status === 'success' && displayUri ? (
               <View style={styles.resultBlock}>
                 <Image
@@ -492,9 +628,16 @@ export function VirtualTryOnSheet({
                 </Pressable>
               </>
             ) : null}
+              </>
+            ) : null}
           </ScrollView>
 
           <View style={styles.actions}>
+            {/* The Live panel carries its own controls, so the generative
+                action row is rendered only for the AI Photo view. Close stays
+                below for both, as the one way out of the sheet. */}
+            {aiPhotoVisible ? (
+              <>
             {isGenerating ? (
               <>
                 {canMinimize ? (
@@ -540,6 +683,8 @@ export function VirtualTryOnSheet({
                 testID="vto-choose-photo"
               />
             )}
+              </>
+            ) : null}
             <TertiaryButton title="Close" onPress={handleClose} testID="vto-close" />
           </View>
         </View>

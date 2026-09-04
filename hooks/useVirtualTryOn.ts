@@ -38,7 +38,7 @@ import {
   pickVtoPersonInput,
   type VtoPersonPickOutcome,
 } from '../services/vto/vtoPersonInput';
-import type { VtoGarmentInput, VtoOrigin } from '../types/vto';
+import type { VtoGarmentInput, VtoOrigin, VtoPersonInput } from '../types/vto';
 
 export interface UseVirtualTryOnArgs {
   garment: VtoGarmentInput;
@@ -60,6 +60,20 @@ export interface UseVirtualTryOnResult extends VtoSnapshot {
    *  `dismiss` -- this is the "start over with a different person" action,
    *  not "I'm done looking for now". */
   clearPerson: () => void;
+  /**
+   * Adopts a person input this hook did not pick.
+   *
+   * The one caller is the Live -> Photoreal handoff, which produces a clean
+   * person frame through the SAME privacy sanitizer `selectPerson` uses
+   * (services/vto/vtoPhotorealHandoff.ts) and then hands it here so the
+   * generation runs down the ordinary governed path -- same store, same stale
+   * result rule, same client, same Edge Function, same entitlement, quota,
+   * reservation and idempotency. It exists so Live does not need a second
+   * generative path, which is exactly what a bypass would be.
+   *
+   * Additive: `selectPerson` and every existing caller are unchanged.
+   */
+  adoptPerson: (person: VtoPersonInput) => void;
 }
 
 const BUSY_STATUSES = new Set(['preparing', 'generating', 'validating_result']);
@@ -126,6 +140,10 @@ export function useVirtualTryOn(args: UseVirtualTryOnArgs): UseVirtualTryOnResul
     resetVtoRequestState();
   }, []);
 
+  const adoptPerson = useCallback((person: VtoPersonInput) => {
+    setVtoPersonInput(person, argsRef.current.garment, argsRef.current.origin);
+  }, []);
+
   const isBusy = BUSY_STATUSES.has(snapshot.status);
 
   return {
@@ -140,5 +158,6 @@ export function useVirtualTryOn(args: UseVirtualTryOnArgs): UseVirtualTryOnResul
     cancel,
     dismiss,
     clearPerson,
+    adoptPerson,
   };
 }

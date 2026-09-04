@@ -558,6 +558,17 @@ const VTO_ALLOWED_IMPORTS = {
     '../../services/vto/vtoTelemetry',
     '../../types/vto', '../luxury',
     './VtoSaveToDressingRoom', './VtoSilhouetteGuide',
+    // P3-C LIVE VTO INTEGRATION. The sheet gains a second visualization MODE,
+    // not a second entry point or a second generative path. Each of these is
+    // read-only with respect to ownership: the capability router and the
+    // garment eligibility check are pure decisions, the session hook speaks
+    // only the high-level native contract, and the three components are
+    // presentation. All of them are enrolled in this allowlist in their own
+    // right below, so they are guarded rather than merely reachable.
+    '../../hooks/useVtoLiveSession',
+    '../../services/vto/vtoLiveCapability',
+    '../../services/vto/vtoLiveGarment',
+    './VtoLiveErrorBoundary', './VtoLivePanel', './VtoModeSelector',
     'react', 'react-native',
   ],
   'components/vto/TryItOnEntry.tsx': [
@@ -565,6 +576,10 @@ const VTO_ALLOWED_IMPORTS = {
     // CONVERGENCE #277: minimize/restore needs the live session status, and the
     // pill reports it. Neither reads or writes ownership state.
     '../../hooks/useVtoSessionStatus',
+    // P3-C: the capability router is asked ONCE, here, and handed to the sheet.
+    // The entry point itself is unchanged -- still one Try It On, still gated
+    // by the same availability/K+ answer as before.
+    '../../hooks/useVtoLiveCapability',
     '../../services/haptics', '../../services/vto/vtoTelemetry',
     '../../types/vto', '../kplus/KPlusGate',
     './VirtualTryOnSheet', './VtoMinimizedPill',
@@ -603,6 +618,78 @@ const VTO_ALLOWED_IMPORTS = {
   'hooks/useVtoSessionStatus.ts': [
     '../services/vto/vtoRequestStore', 'react',
   ],
+
+  // ── P3-C LIVE VTO (feature-gated, default OFF) ────────────────────────────
+  // Enrolled for the same reason the #276/#277 surfaces were: a module this
+  // control does not name is a module it does not guard. Enrolling them also
+  // subjects every one of them to the forbidden-call scan below, which is what
+  // makes "Live writes no ownership state either" a checked claim rather than
+  // an assurance.
+  'types/vtoLive.ts': [],
+  'services/vto/vtoLiveCapability.ts': [
+    './liveVtoNativeModule',
+  ],
+  'services/vto/vtoLiveGarment.ts': [
+    '../../types/vto', '../../types/vtoLive', './vtoEligibility',
+  ],
+  'services/vto/liveVtoNativeModule.ts': [
+    '../../constants/featureFlags', '../../types/vtoLive', 'react-native',
+  ],
+  'services/vto/vtoLiveSession.ts': [
+    '../../types/vtoLive', './liveVtoNativeModule',
+  ],
+  'services/vto/vtoLiveHarness.ts': [
+    '../../constants/featureFlags', '../../types/vtoLive',
+    './liveVtoNativeModule', './vtoLiveCapability',
+  ],
+  // The Live -> Photoreal bridge. It imports the SAME privacy sanitizer the
+  // photo picker uses and nothing resembling a network client: the generation
+  // itself runs through the existing store/client/Edge Function, untouched.
+  'services/vto/vtoPhotorealHandoff.ts': [
+    '../../types/vto', '../../types/vtoLive', '../privacyImageUpload',
+    './vtoLiveHarness', './vtoPersonInput',
+  ],
+  'services/vto/vtoLiveCameraPermission.ts': [
+    './vtoLiveCapability',
+  ],
+  'hooks/useVtoLiveCapability.ts': [
+    '../constants/featureFlags', '../services/vto/liveVtoNativeModule',
+    '../services/vto/vtoLiveCameraPermission', '../services/vto/vtoLiveCapability',
+    '../services/vto/vtoLiveGarment', '../services/vto/vtoLiveHarness',
+    '../types/vto', 'react', 'react-native',
+  ],
+  'hooks/useVtoLiveSession.ts': [
+    '../services/vto/liveVtoNativeModule', '../services/vto/vtoLiveCameraPermission',
+    '../services/vto/vtoLiveHarness', '../services/vto/vtoLiveSession',
+    '../services/vto/vtoPhotorealHandoff', '../types/vto', '../types/vtoLive',
+    'react',
+  ],
+  'components/vto/VtoModeSelector.tsx': [
+    '../../constants/theme', '../../services/haptics', '../../types/vtoLive',
+    'react', 'react-native',
+  ],
+  'components/vto/VtoLivePanel.tsx': [
+    '../../constants/theme', '../../services/vto/vtoLiveSession',
+    '../../types/vtoLive', '../luxury', 'react', 'react-native',
+  ],
+  'components/vto/VtoLiveErrorBoundary.tsx': [
+    'react',
+  ],
+};
+
+/**
+ * The two lazy requires the allowlist's `from '...'` scan cannot see.
+ *
+ * Both are deliberate and both are load-bearing: `requireOptionalNativeModule`
+ * is what makes a MISSING Live native module a null rather than a throw, and
+ * expo-camera is required inside a function so the AI-Photo-only path never
+ * pulls the camera module into its bundle. Pinning them here means the set of
+ * dynamically-required modules is guarded to exactly the same standard as the
+ * static one, rather than being a hole in it.
+ */
+const VTO_ALLOWED_LAZY_REQUIRES = {
+  'services/vto/liveVtoNativeModule.ts': ['expo-modules-core'],
+  'services/vto/vtoLiveCameraPermission.ts': ['expo-camera'],
 };
 
 test('VTO-NC-010: no VTO surface may acquire a dependency nobody approved', () => {
@@ -616,6 +703,25 @@ test('VTO-NC-010: no VTO surface may acquire a dependency nobody approved', () =
       [...allowed].sort(),
       `${file} imports changed. A try-on is evidence, not ownership: if this is a `
         + 'deliberate new dependency, add it here and say why in the commit.',
+    );
+  }
+});
+
+test('VTO-NC-010: a lazily-required module is guarded exactly like a static import', () => {
+  // Every VTO module in the allowlist is scanned, not just the two expected to
+  // have requires -- so a NEW lazy require smuggled into any of them fails
+  // here instead of slipping past the `from '...'` scan above.
+  for (const file of Object.keys(VTO_ALLOWED_IMPORTS)) {
+    const source = code(file);
+    const required = [
+      ...new Set([...source.matchAll(/require\(\s*'([^']+)'/g)].map((m) => m[1])),
+    ].sort();
+    const allowed = [...(VTO_ALLOWED_LAZY_REQUIRES[file] ?? [])].sort();
+    assert.deepEqual(
+      required,
+      allowed,
+      `${file} changed which modules it requires lazily. A lazy require is still `
+        + 'a dependency: add it to VTO_ALLOWED_LAZY_REQUIRES and say why.',
     );
   }
 });

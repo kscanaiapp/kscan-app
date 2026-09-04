@@ -29,9 +29,22 @@ export type VtoOrigin = (typeof VTO_ORIGINS)[number];
  *  K Scan category by resolveVtoGarmentSlot -- never chosen by the UI. */
 export type VtoGarmentSlot = 'top' | 'bottom' | 'full_body';
 
-/** Person-image provenance. Alpha supports explicit user selection only --
- *  never a profile avatar, Elise avatar, Closet photo, or a previous result. */
-export type VtoPersonInputSource = 'photo_library';
+/**
+ * Person-image provenance. Explicit user selection only -- never a profile
+ * avatar, Elise avatar, Closet photo, or a previous result.
+ *
+ * 'live_capture' is the Live VTO clean person frame: a still the customer
+ * deliberately took by tapping Photoreal inside a Live session, captured by
+ * `capturePersonFrame()` and therefore free of any rendered garment. It is
+ * additive -- 'photo_library' behaves exactly as before -- and it is NOT a
+ * continuous or automatic source: the only producer is
+ * services/vto/vtoPhotorealHandoff.ts, which refuses any frame that is not a
+ * PERSON_FRAME. The composited Live preview can never appear here.
+ *
+ * Neither value reaches the server: services/vto/vtoClient.ts sends the image
+ * bytes and nothing about where they came from.
+ */
+export type VtoPersonInputSource = 'photo_library' | 'live_capture';
 
 // ─── Eligibility ──────────────────────────────────────────────────────────────
 

@@ -38,6 +38,19 @@ export interface UseVtoAvailabilityResult {
   upgradeOpportunity: boolean;
   eligibility: VtoEligibility;
   loading: boolean;
+  /**
+   * LIVE VTO's half of the same remote row, surfaced ADDITIVELY so the Live
+   * capability router can reuse the config read this hook already performs
+   * instead of issuing a second one.
+   *
+   * Deliberately raw: this is the operator switch, not a decision. Nothing
+   * here says Live is available -- services/vto/vtoLiveCapability.ts is the
+   * only place that question is answered, and it needs the native self-check,
+   * the garment and the permission state as well. Both fields are false/
+   * conservative whenever the config is unread, disabled, or unreadable.
+   */
+  liveRemoteEnabled: boolean;
+  liveSupportedCategories: readonly string[];
 }
 
 const UNAVAILABLE: VtoEligibility = { eligible: false, reason: 'feature_disabled' };
@@ -69,7 +82,14 @@ export function useVtoAvailability(args: UseVtoAvailabilityArgs): UseVtoAvailabi
   return useMemo(() => {
     const loading = VTO_UI_ENABLED && isAuthenticated && (config === null || kplusState === 'loading');
     if (!VTO_UI_ENABLED || !isAuthenticated || !config) {
-      return { available: false, upgradeOpportunity: false, eligibility: UNAVAILABLE, loading };
+      return {
+        available: false,
+        upgradeOpportunity: false,
+        eligibility: UNAVAILABLE,
+        loading,
+        liveRemoteEnabled: DISABLED_VTO_REMOTE_CONFIG.liveEnabled,
+        liveSupportedCategories: DISABLED_VTO_REMOTE_CONFIG.liveSupportedCategories,
+      };
     }
 
     const eligibility = evaluateVtoEligibility({
@@ -98,6 +118,8 @@ export function useVtoAvailability(args: UseVtoAvailabilityArgs): UseVtoAvailabi
       upgradeOpportunity: !eligibility.eligible && !loading && eligibleWithKPlus,
       eligibility,
       loading,
+      liveRemoteEnabled: config.liveEnabled === true,
+      liveSupportedCategories: config.liveSupportedCategories,
     };
   }, [args.category, args.imageUrl, args.productRef, config, hasKPlus, isAuthenticated, kplusState]);
 }
