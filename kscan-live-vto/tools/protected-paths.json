@@ -50,6 +50,7 @@
     "docs/vto-integration-candidate.md",
     "docs/vto-static-preview-review.md",
     "docs/vto-native-device-handoff.md",
+    "docs/vto-physical-device-blockers.md",
     ".github/workflows/live-vto-protected-paths.yml"
   ],
 
