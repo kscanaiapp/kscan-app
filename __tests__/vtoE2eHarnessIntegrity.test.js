@@ -593,6 +593,74 @@ test('contract: no SQL the harness constructs anywhere references the generated 
   }
 });
 
+// ── seedVtoEntitlement value contract (incident-derived: CHECK-constraint
+//    violation) ──────────────────────────────────────────────────────────
+// Live evidence: staging-dryrun run vto-dryrun-20260904T175502Z-3cb287c5
+// provisioned ACTIVE_KPLUS and EXPIRED_KPLUS as far as the entitlement seed,
+// then failed both because the harness sent grant_reason='vto_e2e_harness' —
+// a value it invented, which public.user_entitlements' own CHECK constraint
+// rejects. NEVER_ENTITLED (scenario 'none', which deletes instead of
+// inserting) was unaffected and authenticated fine, which is precisely why
+// only two of three actors died.
+//
+// The allowed set is read from the product's migration rather than copied
+// here, so this contract tracks the schema instead of drifting from it.
+
+function allowedValuesFromKplusMigration(column) {
+  const migration = fs.readFileSync(
+    path.join(__dirname, '..', 'supabase', 'migrations', '20260829120000_kplus_entitlements.sql'),
+    'utf8',
+  );
+  const clause = migration.match(new RegExp(`check\\s*\\(\\s*${column}\\s+in\\s*\\(([^)]*)\\)`, 'i'));
+  assert.ok(clause, `the product migration must define a CHECK constraint for ${column}`);
+  const values = [...clause[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  assert.ok(values.length > 0, `the CHECK for ${column} must enumerate at least one allowed value`);
+  return values;
+}
+
+test('seedVtoEntitlement: the seeded status and grant_reason are values the product schema actually permits (never a harness-invented literal)', async () => {
+  const { seedVtoEntitlement } = await loadActors();
+  const allowedStatuses = allowedValuesFromKplusMigration('status');
+  const allowedGrantReasons = allowedValuesFromKplusMigration('grant_reason');
+
+  for (const scenario of ['active', 'expired']) {
+    let captured = null;
+    const runSql = async (sql) => { captured = sql; return []; };
+    await seedVtoEntitlement(runSql, 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', scenario);
+
+    assert.ok(captured, `scenario ${scenario} must emit an entitlement statement`);
+    // Anchored on the stable entitlement_key literal: the two positional
+    // values after it are status and grant_reason.
+    const seeded = captured.match(/'k_plus',\s*'([^']+)',\s*'([^']+)'/);
+    assert.ok(seeded, `scenario ${scenario}: could not locate the seeded status/grant_reason — statement shape changed: ${captured}`);
+    const [, status, grantReason] = seeded;
+
+    assert.ok(
+      allowedStatuses.includes(status),
+      `scenario ${scenario}: status ${JSON.stringify(status)} is not permitted by the product CHECK (${allowedStatuses.join(', ')})`,
+    );
+    assert.ok(
+      allowedGrantReasons.includes(grantReason),
+      `scenario ${scenario}: grant_reason ${JSON.stringify(grantReason)} is not permitted by the product CHECK (${allowedGrantReasons.join(', ')})`,
+    );
+    // The exact literal that failed live, pinned so it cannot come back.
+    assert.doesNotMatch(captured, /vto_e2e_harness/, `scenario ${scenario}: the rejected harness-invented grant_reason must not reappear`);
+  }
+});
+
+test('seedVtoEntitlement: the expired scenario is a lapsed active grant (status active, expires_at in the past) — never a status the entitlement gate does not read', async () => {
+  const { seedVtoEntitlement } = await loadActors();
+  let captured = null;
+  const runSql = async (sql) => { captured = sql; return []; };
+  await seedVtoEntitlement(runSql, 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', 'expired');
+
+  // kplus_has_active_entitlement gates on expires_at > now(), so a lapsed
+  // grant must remain status='active' with a PAST expiry — flipping status
+  // instead would test a different rejection path than production uses.
+  assert.match(captured, /'k_plus',\s*'active',/);
+  assert.match(captured, /now\(\)\s*-\s*interval\s*'1 day'/);
+});
+
 // ── Provisioning robustness (incident-derived): a crash mid-provisioning
 //    must never lose track of an already-created auth.users row ──────────
 //
