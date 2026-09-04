@@ -180,16 +180,33 @@ export function VirtualTryOnSheet({
   const liveVisible = liveOffered && mode === 'live' && !liveCrashed;
   const aiPhotoVisible = !liveVisible;
 
-  // A HIDDEN SHEET MAY NOT HOLD THE CAMERA. Minimizing keeps this component
-  // mounted on purpose (unmounting would kill the generation the pill reports
-  // on), so a Live session started earlier would otherwise keep running behind
-  // a collapsed surface. That is a privacy problem, not a battery one, so the
-  // session is torn down rather than merely paused; re-entering Live costs one
-  // tap and starts a fresh, visible session.
+  // NOTHING INVISIBLE MAY HOLD THE CAMERA.
+  //
+  // Three ways the Live surface can stop being on screen while its runtime is
+  // still alive, and all three have to tear it down:
+  //
+  //   1. The sheet was MINIMIZED. It stays mounted on purpose -- unmounting
+  //      would kill the generation the pill is reporting on -- so a Live
+  //      session started earlier would otherwise keep running behind a
+  //      collapsed surface.
+  //   2. Live stopped being OFFERED mid-session: the operator kill switch
+  //      flipped, the actor's entitlement lapsed, or the garment changed to one
+  //      Live cannot render. The panel unmounts as soon as `liveOffered` goes
+  //      false, and without this the runtime would outlive the decision that
+  //      withdrew it.
+  //   3. The Live panel CRASHED and the boundary fell back to AI Photo.
+  //
+  // Merely switching to AI Photo is deliberately NOT in that list: a Photoreal
+  // generation is supposed to leave the session alive so the customer can
+  // return to Live afterwards.
+  //
+  // Tearing down rather than pausing, because this is a privacy question and
+  // not a battery one. Re-entering Live costs one tap.
   const liveEntered = live.entered;
+  const liveSurfaceWithdrawn = !visible || !liveOffered || liveCrashed;
   useEffect(() => {
-    if (!visible && liveEntered) live.exitLive();
-  }, [visible, liveEntered, live]);
+    if (liveSurfaceWithdrawn && liveEntered) live.exitLive();
+  }, [liveSurfaceWithdrawn, liveEntered, live]);
 
   const handleSelectMode = useCallback((next: VtoSurfaceMode) => {
     setMode(next);
@@ -438,6 +455,7 @@ export function VirtualTryOnSheet({
                   session={live.session}
                   entered={live.entered}
                   photorealFailure={live.photorealFailure}
+                  previewUri={live.previewUri}
                   onEnter={() => {
                     void live.enterLive();
                   }}

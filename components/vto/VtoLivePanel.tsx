@@ -24,7 +24,7 @@
  */
 
 import React from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 
 import { InlineNotice, PrimaryButton, SecondaryButton, TertiaryButton } from '../luxury';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
@@ -39,6 +39,10 @@ export interface VtoLivePanelProps {
   session: LiveVtoSessionSnapshot;
   entered: boolean;
   photorealFailure: PhotorealFailureOutcome | null;
+  /** The last composited preview the customer captured. LOCAL DISPLAY ONLY --
+   *  it can never become a generative input, because the handoff refuses any
+   *  frame that is not a PERSON_FRAME. */
+  previewUri: string | null;
   onEnter: () => void;
   onClose: () => void;
   onSwitchToAiPhoto: () => void;
@@ -70,6 +74,7 @@ export function VtoLivePanel({
   session,
   entered,
   photorealFailure,
+  previewUri,
   onEnter,
   onClose,
   onSwitchToAiPhoto,
@@ -141,6 +146,20 @@ export function VtoLivePanel({
         />
       ) : null}
 
+      {previewUri ? (
+        // The capture control's visible result. Without this the button would
+        // grab a frame and silently discard it, which is not a working control.
+        <Image
+          source={{ uri: previewUri }}
+          style={styles.preview}
+          resizeMode="contain"
+          accessible
+          accessibilityRole="image"
+          accessibilityLabel="The preview you captured"
+          testID="vto-live-preview"
+        />
+      ) : null}
+
       <Text style={styles.privacy}>{LIVE_VTO_PROCESSING_NOTE}</Text>
 
       <View style={styles.actions}>
@@ -202,6 +221,13 @@ const styles = StyleSheet.create({
   },
   notice: {
     marginTop: SPACING.sm,
+  },
+  preview: {
+    marginTop: SPACING.md,
+    width: '100%',
+    height: 220,
+    borderRadius: RADIUS.md,
+    backgroundColor: LUXURY.colors.champagne,
   },
   actions: {
     marginTop: SPACING.md,

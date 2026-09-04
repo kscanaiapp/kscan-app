@@ -56,6 +56,12 @@ export interface UseVtoLiveSessionResult {
   photorealIntent: PhotorealIntentState;
   photorealFailure: PhotorealFailureOutcome | null;
   entered: boolean;
+  /** Local URI of the most recent composited preview the customer captured, or
+   *  null. Held so the control has a visible result -- a capture button that
+   *  silently discards what it captured is not a working control. It is a
+   *  local display artifact ONLY: assertCleanPersonFrame refuses a PREVIEW at
+   *  the generative handoff, and nothing persists it. */
+  previewUri: string | null;
   /** Requests permission if needed, then starts the runtime. The ONLY path
    *  that can raise a camera dialog. */
   enterLive: () => Promise<void>;
@@ -71,6 +77,7 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
   const [entered, setEntered] = useState(false);
   const [photorealIntent, setPhotorealIntent] = useState<PhotorealIntentState>('LIVE_LOCAL');
   const [photorealFailure, setPhotorealFailure] = useState<PhotorealFailureOutcome | null>(null);
+  const [previewUri, setPreviewUri] = useState<string | null>(null);
   const controllerRef = useRef<LiveVtoSessionController | null>(null);
   const onPhotorealPersonRef = useRef(args.onPhotorealPerson);
   onPhotorealPersonRef.current = args.onPhotorealPerson;
@@ -122,6 +129,8 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
     setEntered(false);
     setPhotorealIntent(returnToLive());
     setPhotorealFailure(null);
+    // The preview is a session artifact and does not outlive the session.
+    setPreviewUri(null);
     setSnapshot(INITIAL_LIVE_VTO_SESSION);
   }, []);
 
@@ -183,7 +192,9 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
 
   const capturePreview = useCallback(async () => {
     const frame = await controllerRef.current?.capturePreview();
-    return frame?.localUri ?? null;
+    const uri = frame?.localUri ?? null;
+    setPreviewUri(uri);
+    return uri;
   }, []);
 
   const dismissPhotorealFailure = useCallback(() => {
@@ -197,6 +208,7 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
       photorealIntent,
       photorealFailure,
       entered,
+      previewUri,
       enterLive,
       exitLive,
       requestPhotoreal,
@@ -208,6 +220,7 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
       photorealIntent,
       photorealFailure,
       entered,
+      previewUri,
       enterLive,
       exitLive,
       requestPhotoreal,
