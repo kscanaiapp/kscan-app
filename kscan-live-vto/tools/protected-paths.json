@@ -57,6 +57,9 @@
     "docs/vto-phase3-visual-review.md",
     "docs/vto-phase3-live-to-photoreal-ux-spec.md",
     "docs/vto-phase3-end-report.md",
+    "docs/vto-phase3b-native-build-handoff.md",
+    "docs/vto-phase3b-native-renderer-conformance.md",
+    "docs/vto-phase3b-end-report.md",
     ".github/workflows/live-vto-protected-paths.yml"
   ],
 
