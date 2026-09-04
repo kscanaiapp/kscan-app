@@ -16,9 +16,14 @@ BASELINE HEAD:    688dc35e5bc19bed603eea9835d3f8f12afba3be (kscan-app master, se
 ### Completed
 
 - **Source authority** (`docs/source-authority.md`): full baseline of
-  VTO/camera/garment/privacy/feature-flag code, including the discovery
-  that the "existing generative VTO capability" this program builds on is
-  backend-plumbing-only — no client UI reaches it today.
+  VTO/camera/garment/privacy/feature-flag code, including the (incorrect —
+  see below) conclusion that the existing VTO was backend-plumbing-only.
+
+  > **CORRECTED 2026-09-04 (Entry 2).** That conclusion was drawn from
+  > `master` alone, which is not the VTO authority. A complete governed VTO
+  > client + backend exists on
+  > `integration/backend-kplus-complimentary-staging-v1` @ `4af92f4c`. See
+  > the AUDIT CORRECTION section of `docs/source-authority.md`.
 - **Isolation guardrails**: `kscan-live-vto/tools/protected-paths.json` +
   `validate-protected-paths.js` (mechanical check, verified passing) and
   `.github/workflows/live-vto-protected-paths.yml` (same check in CI).
@@ -147,3 +152,77 @@ the meantime, the next item any session (including this kind of sandbox)
 synthesizable BodyFrame-only categories (arm-crossing, arms-raised,
 torso-rotation, closer-farther-movement) — see
 `fixtures/sequences/README.md`.
+
+---
+
+## Entry 2 — 2026-09-04 (source-authority correction + first static preview)
+
+```
+CURRENT BRANCH:   claude/kscan-live-vto-phase1-phase2-lcqyg9
+MASTER BASELINE:  688dc35e5bc19bed603eea9835d3f8f12afba3be
+VTO AUTHORITY:    integration/backend-kplus-complimentary-staging-v1 @ 4af92f4c
+```
+
+### Completed
+
+- **Source-authority correction.** Entry 1's "VTO is backend-plumbing only"
+  conclusion was drawn from `master`, which is not the VTO authority. A
+  complete governed VTO — `components/vto/`, 10 `services/vto/` modules,
+  `types/vto.ts`, `supabase/functions/vto-generate/` with entitlement, quota,
+  idempotency and reservation controls, and 4 migrations — exists on the
+  integration branch, and the older `tryon-clothes-pro` proxy is a *retired
+  handler that refuses*. `docs/source-authority.md` now records both
+  authorities, a 5-way reachability classification, and an itemized list of
+  what the first audit got wrong.
+- **Headless static preview renderer** (`packages/static-renderer`, 20 tests):
+  pure-Node PNG codec, raster primitives, semantic attachment contract, rigid
+  placement + stop gate, affine-MLS mesh warp and rasterizer, compositor with
+  feathered foreground restoration, lighting estimator with guardrails, and
+  the Section 14 metric set.
+- **Actual rendered images.** Six cases in
+  `kscan-live-vto/evidence/static-preview/`, with JSON sidecar manifests,
+  regenerable deterministically.
+- **Asset QC tool** (`tools/garment-qc.js`) emitting annotated inspection
+  sheets and AUTO / MANUAL_CORRECTION / REJECTED records.
+- **Docs:** `docs/vto-static-preview-review.md` (review package, verdict
+  PENDING), `docs/vto-native-device-handoff.md` (architecture, pose-model
+  criteria and candidates, first-device-test procedure, evidence return
+  protocol), `docs/vto-integration-candidate.md` (integration surface map
+  against the real VTO client — documentation only).
+
+**Tests: 66 baseline → 86 final. 0 deleted, 0 weakened.**
+
+### Findings
+
+1. **The rigid stop gate earned its place immediately.** It refused 5 of 6
+   cases on the first run, exposing a garment silhouette 2.625 shoulder-spans
+   long against a 1.18-span target, plus a hem-drop constant that put the hem
+   too high. Both fixed and pinned by a test.
+2. **A third defect was caught only by looking at the image** — a neck opening
+   58% of seam span cut as a V, and sleeves 2.17× shoulder span. No metric
+   flagged it. This is the argument for the human visual gate in one example.
+3. **Consistent vertical compression of chest content** (logo v-scale
+   0.67–0.78 across body types) — characterized, hypothesis recorded, not
+   silently "fixed" by swapping deformation algorithms.
+4. Open, unfixed, and listed for the reviewer: hem notch, shoulder-cap
+   coverage, hard garment edge.
+
+### Visual verdicts
+
+Still none. `docs/vto-static-preview-review.md` is the first package ready for
+a human; `docs/vto-visual-verdicts.md` remains empty until someone reviews it.
+
+### Known limitations (unchanged where unchanged)
+
+No camera, no device, no Xcode/Android toolchain, no pose model, no
+segmentation model, no native compilation, no human review. Every person and
+garment fixture is synthetic; every mask is precomputed. The renderer is an
+evaluation renderer and its pixels are not a native baseline.
+
+### Next critical path item
+
+Human review of `docs/vto-static-preview-review.md`. Independent of that, the
+next unblocked engineering item is the P1-D3 asset pipeline — turning a real
+retailer image into a `.ksgarment` — which is what actually gates a Live
+integration, and which remains **BLOCKED — FIXTURE CORPUS REQUIRED** until an
+authorized real-asset corpus exists.

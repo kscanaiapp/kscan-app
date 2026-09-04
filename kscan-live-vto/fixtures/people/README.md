@@ -25,3 +25,20 @@ substitutes either. The evaluation package's synthetic BodyFrame generator
 (`packages/evaluation/src/syntheticFixtures.ts`) lives entirely outside
 this directory for exactly that reason: it produces landmark coordinates,
 never imagery, and is clearly marked non-substitutive in its own header.
+
+---
+
+## Update — synthetic person fixtures (2026-09-04)
+
+Section 9 of the static-preview pass authorizes **synthetic** person fixtures
+for validating rendering mechanics. Those now exist, but they are *generated
+in code*, not stored here: see
+`packages/static-renderer/src/fixtures/person.ts`
+(`generateSyntheticPerson`), which draws a procedural torso and emits the
+exactly-known `BodyFrame` and foreground mask alongside it.
+
+Rendered copies appear under `evidence/static-preview/*-00-person-fixture.png`
+and are labelled **SYNTHETIC — NOT HUMAN** everywhere they are cited.
+
+This directory's rule is unchanged: it holds real human footage, of which
+there is none, and none may be added without a consent-log row first.

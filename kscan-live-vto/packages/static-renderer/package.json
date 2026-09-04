@@ -1,0 +1,18 @@
+{
+  "name": "@kscan-live-vto/static-renderer",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Headless deterministic static preview renderer (Section 6 of the Live VTO Phase 1 pass): PersonImage + BodyFrame + GarmentDescriptor + .ksgarment -> PreviewImage + PreviewManifest + PreviewMetrics. Engineering/evaluation renderer only — NOT the native rasterization baseline.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@kscan-live-vto/contract": "^0.1.0",
+    "@kscan-live-vto/garment-contract": "^0.1.0",
+    "@kscan-live-vto/asset-pipeline": "^0.1.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test dist/__tests__/*.test.js"
+  }
+}

@@ -48,6 +48,8 @@
     "docs/vto-phase1-end-report.md",
     "docs/vto-phase2-end-report.md",
     "docs/vto-integration-candidate.md",
+    "docs/vto-static-preview-review.md",
+    "docs/vto-native-device-handoff.md",
     ".github/workflows/live-vto-protected-paths.yml"
   ],
 
