@@ -143,6 +143,15 @@ device captures.
 
 ## 2. Pose-model decision — NOT YET MADE
 
+> **Reaffirmed 2026-09-04.** No provider was selected in the
+> authority-hardening pass either, and none can be defensibly selected without
+> device measurement. What *is* settled is the interface seam — `BodyFrame` as
+> the only shape downstream code sees, `PerceptionProvider` as the adapter
+> boundary. The decision criteria below stand; see
+> `docs/vto-phase1-end-report.md` for how they are currently framed and for
+> the explicit note that no benchmark number in this section is a measured
+> K Scan fact.
+
 The planning documents named MediaPipe. That is not a reason to choose it.
 The decision should be made against measurements from the first device runs.
 

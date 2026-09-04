@@ -211,6 +211,65 @@ in root `app.js`/`hooks/useKScan.js`, three parallel analyze backends, dead
 `data/catalog.json` image URLs, privacy-preferences model, feature-freeze
 convention, native config) was verified against `master` and stands.
 
+## Guardrail authority model — verified 2026-09-04
+
+The isolated program's non-mutation guardrail
+(`kscan-live-vto/tools/protected-paths.json`) protects by **path prefix**, and
+this section records the verification that the prefixes actually cover the
+current VTO authority surface.
+
+```
+ISOLATED BRANCH BASE:        claude/kscan-live-vto-phase1-phase2-lcqyg9
+MASTER BASE SHA:             688dc35e5bc19bed603eea9835d3f8f12afba3be
+CURRENT VTO AUTHORITY BRANCH: integration/backend-kplus-complimentary-staging-v1
+CURRENT VTO AUTHORITY SHA:   f5ff48c8f764ab3158d1385ea2518e58265f3456
+                             (was 4af92f4c when this document was first
+                             corrected — the integration line has advanced)
+MERGE BASE (isolated↔master):        688dc35e5bc19bed603eea9835d3f8f12afba3be
+MERGE BASE (master↔VTO authority):   NONE — see below
+```
+
+**The two lines share no common ancestor.** `git merge-base origin/master
+<integration>` exits 1, and `git merge-base --is-ancestor` is false in both
+directions. `master` and the VTO authority branch are unrelated histories, not
+a fork and a trunk.
+
+That fact has a consequence worth stating explicitly, because it invites a
+wrong inference. This branch diffs against `origin/master`, and **six of the
+seven VTO authority paths do not exist on `master` at all**:
+
+| Path | On `master` | On VTO authority | Matched protected prefix | Guardrail verdict |
+|---|---|---|---|---|
+| `components/vto/` | absent | 5 files | `components/` | **blocked** |
+| `hooks/useVirtualTryOn.ts` | absent | 1 file | `hooks/` | **blocked** |
+| `hooks/useVtoAvailability.ts` | absent | 1 file | `hooks/` | **blocked** |
+| `services/vto/` | absent | 10 files | `services/` | **blocked** |
+| `types/vto.ts` | absent | 1 file | `types/` | **blocked** |
+| `supabase/functions/vto-generate/` | absent | 18 files | `supabase/` | **blocked** |
+| `eas.json` | present | present | `eas.json` (exact) | **blocked** |
+
+Because a file's absence from the diff base could be read as "the guardrail
+isn't protecting it," the semantics are now pinned by a regression test:
+`kscan-live-vto/tests/guardrail/protectedPathSemantics.test.js`. It feeds
+**synthetic path strings** — including deliberately invented filenames that
+exist on no branch, such as `components/vto/SomeFileThatDoesNotExist.tsx` — to
+the validator's own `classifyPath()` and asserts each is blocked. No
+production file is created, modified, or read to run it.
+
+The same test also pins three properties that would otherwise silently rot: a
+`docs/` file not on the exception list is blocked (this is the check that
+correctly fired when `docs/vto-physical-device-blockers.md` was first added
+without its entry); `.github/workflows/master-required-checks.yml` and the
+staging deploy workflows stay blocked while the one additive Live VTO workflow
+does not; and no `ALLOWED_EXCEPTIONS` entry is a bare directory prefix, since
+that list is matched by exact string equality and a trailing slash would be a
+carve-out that silently never matches.
+
+**No claim is made that these paths were ever unprotected.** The prefixes
+`components/`, `hooks/`, `services/`, `types/`, `supabase/` and `eas.json`
+have been in `PROTECTED` since the guardrail was created; this section records
+positive verification, not a discovered gap.
+
 ## What was NOT verified (and deliberately so)
 
 - **Deployment state** of `vto-generate` on staging or production, and the

@@ -83,6 +83,28 @@ function isProtected(file) {
   return config.PROTECTED.some((p) => matchesPrefix(file, p));
 }
 
+/**
+ * The single decision this guardrail makes about one path, exposed so it can
+ * be exercised with SYNTHETIC path input rather than only through a real git
+ * diff.
+ *
+ * This matters because protection here is PREFIX-based, not
+ * existence-based. The current VTO authority lives on
+ * integration/backend-kplus-complimentary-staging-v1, whose history shares
+ * NO common ancestor with master (`git merge-base` exits 1). Six of the
+ * seven VTO authority paths therefore do not exist on the master baseline
+ * this branch diffs against. A reader could reasonably assume that means
+ * they are unprotected. They are not: `components/vto/...` is blocked by the
+ * `components/` prefix whether or not that file exists on any branch, and
+ * tests/guardrail/protectedPathSemantics.test.js pins exactly that.
+ */
+function classifyPath(file) {
+  if (isAlwaysAllowed(file)) return 'allowed:workspace';
+  if (isExplicitException(file)) return 'allowed:exception';
+  if (isProtected(file)) return 'blocked';
+  return 'allowed:unprotected';
+}
+
 function main() {
   const baseRef = resolveBaseRef();
   const files = changedFiles(baseRef);
@@ -111,4 +133,8 @@ function main() {
   console.log('[protected-paths] PASS — no protected paths touched.');
 }
 
-main();
+if (require.main === module) {
+  main();
+}
+
+module.exports = { classifyPath, isProtected, isAlwaysAllowed, isExplicitException, matchesPrefix, config };
