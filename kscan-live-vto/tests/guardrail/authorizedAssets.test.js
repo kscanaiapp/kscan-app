@@ -18,7 +18,13 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 
-const { isAuthorized, manifest } = require(path.resolve(__dirname, '..', '..', 'tools', 'validate-authorized-assets.js'));
+const {
+  isAuthorized,
+  isAcceptedFormat,
+  manifest,
+  FORMAT_POLICY,
+  REAL_PRODUCTS_DIR,
+} = require(path.resolve(__dirname, '..', '..', 'tools', 'validate-authorized-assets.js'));
 
 /** Verbatim from the owner authorization dated 2026-09-04. */
 const OWNER_AUTHORIZED_FILES = [
@@ -90,6 +96,45 @@ test('the authorization record preserves the owner\'s permitted and not-permitte
 
   assert.ok(permittedUses.some((u) => /ksgarment/i.test(u)));
   assert.ok(permittedUses.length >= 6);
+});
+
+test('the canonical fixture directory is fixtures/real-products, not fixtures/products', () => {
+  assert.ok(REAL_PRODUCTS_DIR.endsWith(path.join('fixtures', 'real-products')));
+  assert.ok(!REAL_PRODUCTS_DIR.endsWith(path.join('fixtures', 'products')));
+});
+
+test('format policy accepts PNG only for this corpus', () => {
+  assert.deepEqual(FORMAT_POLICY.acceptedExtensions, ['.png']);
+  assert.equal(isAcceptedFormat('tee-flatlay-001.png'), true);
+  assert.equal(isAcceptedFormat('tee-flatlay-001.jpg'), false);
+  assert.equal(isAcceptedFormat('tee-flatlay-001.jpeg'), false);
+  assert.equal(isAcceptedFormat('tee-flatlay-001.tiff'), false);
+  assert.equal(isAcceptedFormat('tee-flatlay-001.webp'), false);
+});
+
+test('a same-stem .png is NOT authorized merely because the .jpg with that stem is', () => {
+  // This is the specific inference the authorization forbids: "Do not infer
+  // that tee-flatlay-001.jpg authorizes tee-flatlay-001.png."
+  for (const jpgName of OWNER_AUTHORIZED_FILES) {
+    const pngName = jpgName.replace(/\.jpg$/, '.png');
+    assert.equal(
+      isAuthorized(pngName),
+      false,
+      `${pngName} must not be authorized by ${jpgName}'s authorization — extensions are never translated`,
+    );
+  }
+});
+
+test('the authorized filenames themselves are still exactly what the owner wrote (still .jpg)', () => {
+  // This pins that no automated process has speculatively renamed the
+  // authorization to .png ahead of the owner supplying exact PNG filenames.
+  for (const file of manifest.assets.map((a) => a.file)) {
+    assert.match(file, /\.jpg$/, `${file}: authorized-assets.json must record exactly what the owner authorized, unmodified`);
+  }
+});
+
+test('top.jpg (assets/qa_fixtures) remains excluded regardless of ownership statements made elsewhere', () => {
+  assert.equal(isAuthorized('top.jpg'), false);
 });
 
 test('shot-class coverage is recorded, so the corpus composition can be judged before ingestion', () => {

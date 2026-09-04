@@ -35,14 +35,16 @@ NOT PERMITTED:        unrelated ML training; public redistribution; external
                       retailer/catalog images not listed above.
 DELIVERY STATUS:      *** NOT DELIVERED — none of the seven files exists on
                       disk, in the working tree, or in any git ref ***
-FORMAT STATUS:        BLOCKED — all seven are .jpg; the renderer has a
-                      PNG-only pure-Node codec and an empty dependency
-                      allow-list. See "Format" below.
+FORMAT DECISION:      PNG ONLY (2026-09-05) — see "Format" below.
+                      The seven filenames remain exactly as authorized
+                      (.jpg); they are not renamed to .png by inference.
 ```
 
 The authorization is well-formed and its scope is now unambiguous. It is
 recorded in machine-readable form at
-`kscan-live-vto/fixtures/products/authorized-assets.json` and **enforced** by
+`kscan-live-vto/fixtures/real-products/authorized-assets.json` (canonical
+path — an earlier `fixtures/products/` path was renamed on 2026-09-05 and
+must not be reintroduced) and **enforced** by
 `kscan-live-vto/tools/validate-authorized-assets.js`, which refuses by exact
 filename anything the authorization does not name. That turns the scope
 clause into a check rather than a promise; `tests/guardrail/authorizedAssets.test.js`
@@ -61,15 +63,27 @@ found none of the seven, and no file matching their naming pattern. The only
 JPEGs in the repository remain the eight pre-existing `assets/qa_fixtures/`
 images, which this authorization does not cover.
 
-**2. Format.** All seven are `.jpg`. `packages/static-renderer` implements a
-pure-Node PNG codec over `node:zlib` and has no JPEG decoder;
+**2. Format — decided 2026-09-05: PNG only, for this corpus.** All seven were
+authorized as `.jpg`; `packages/static-renderer` implements a pure-Node PNG
+codec over `node:zlib` and has no JPEG decoder, and
 `tests/privacy/dependencyBoundary.test.js` pins the external runtime
-dependency allow-list to empty by design. Options, best first: deliver
-lossless PNG/TIFF exports of the same seven images (also better for asset
-work — JPEG blocking artifacts land exactly on garment edges, where masking
-and control-point placement are most sensitive); or write a baseline JPEG
-decoder in-workspace to keep the zero-dependency posture; or add a reviewed
-JPEG dependency with a Section 32 per-SDK record in the risk register.
+dependency allow-list to empty by design. Rather than build a decoder or add
+a dependency, the decision for this corpus is closed: **fixtures will be
+supplied as PNG. No JPEG decoder will be implemented, no TIFF support will be
+added, no image-decoding dependency will be added, and nothing will be
+auto-converted.** If a future production ingestion path needs JPEG support,
+that is a separate architecture decision made deliberately, not a side
+effect of this corpus.
+
+This does **not** retroactively authorize `tee-flatlay-001.png` because
+`tee-flatlay-001.jpg` was authorized — extensions are never translated by
+inference, in this document or in the validator. **The owner must supply the
+exact PNG filenames**, added explicitly to `authorized-assets.json`'s asset
+list. Until that happens, Gate B stays **HOLD — OWNER FIXTURE CORPUS
+REQUIRED**, and delivery of the currently-authorized `.jpg`-named files would
+still fail the format check even though the filenames would match — the
+validator reports "authorized and present but wrong format" as its own
+category, distinct from "ready for pipeline".
 
 ### Scope note — the repository's existing QA fixtures
 
@@ -92,10 +106,19 @@ That lane's own document states it is blocked on real *test-person* imagery —
 a photograph of a person to try a garment onto. Garment product images do not
 satisfy it. Person imagery additionally falls under this log's consent
 requirements (Section 31), which are stricter than a product-asset
-authorization and require a per-subject row before first use. The
-authorization's permitted-use list includes "governed generative-VTO
-benchmark comparisons", which these seven garment images support as the
-*garment* half of a benchmark pair; the *person* half is still missing.
+authorization and require a per-subject row before first use — no customer
+imagery, and no arbitrary employee/developer photo without that consent on
+record. The authorization's permitted-use list includes "governed
+generative-VTO benchmark comparisons", which these seven garment images
+support as the *garment* half of a benchmark pair; the *person* half is a
+separate, unresolved requirement, kept explicitly distinct rather than
+implied as "mostly done":
+
+```
+GARMENT FIXTURES:     PENDING BYTES  (authorized; 0/7 delivered)
+PERSON FIXTURES:      NOT AUTHORIZED / NOT PROVIDED
+GENERATIVE BENCHMARK: BLOCKED
+```
 
 ## Real product-asset candidate records (bounded discovery, 2026-09-04)
 
