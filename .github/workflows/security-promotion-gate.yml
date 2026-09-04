@@ -232,10 +232,10 @@ jobs:
           fi
           # PASS and PENDING both exit 0 from the evaluator itself. PENDING on
           # the workflow_run path means another required workflow hasn't
-          # finished yet and this job runs again on its completion; on the
-          # push/pull_request path (the one that actually fires here) the
-          # 5-minute wait above should already have resolved everything, so a
-          # PENDING result there is itself worth surfacing, not silently OK.
+          # finished yet and this job runs again on its completion. On every
+          # path the evaluator has already spent the full CONVERGENCE_WAIT_SECONDS
+          # budget (CI-CONVERGENCE-001) without the applicable set settling, so
+          # a PENDING result is itself worth surfacing, not silently OK.
           exit ${EC:-0}
 
       - name: Publish promotion gate summary
