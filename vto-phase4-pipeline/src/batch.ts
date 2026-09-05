@@ -239,6 +239,7 @@ async function processAmbiguousEntry(entry: Phase4ProductInput): Promise<BatchIt
     shotClassification: { shotClass: 'UNSUPPORTED', confidence: 0, evidence: { reason: 'variant_ambiguous_skip_classification' } },
     confidenceComponents,
     confidenceExplanation: explainConfidence(confidenceComponents),
+    segmentationEvidence: null,
     qa: null,
     eligibility: resolveEligibility(confidenceComponents, rejection),
     rejection,
@@ -315,6 +316,7 @@ async function processVariant(
       shotClassification: { shotClass: 'UNSUPPORTED', confidence: 0, evidence: {} },
       confidenceComponents,
       confidenceExplanation: explainConfidence(confidenceComponents),
+      segmentationEvidence: null,
       qa: null,
       eligibility: resolveEligibility(confidenceComponents, rejection),
       rejection,
@@ -326,7 +328,7 @@ async function processVariant(
     return { productRef: representative.productRef, variantId: representative.variantId, variantAmbiguous: false, selectedImageRef: null, evaluatedImages: [], manifest, systemError: null, persistResult: null, retryCount, totalDurationMs: Date.now() - start };
   }
 
-  const selection = selectBestSourceImage(decodedCandidates);
+  const selection = selectBestSourceImage(decodedCandidates, { variantAuthoritative: representative.variantAuthoritative });
   const runResult = runPipelineForImage(representative, selection.selected.ref, selection.selected.decoded, {
     fidelityHints: options.hintsByRef?.get(selection.selected.ref),
   });

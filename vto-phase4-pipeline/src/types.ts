@@ -279,6 +279,13 @@ export interface Phase4AssetManifest {
    * is exactly what §22 forbids.
    */
   confidenceExplanation: ConfidenceExplanation;
+  /**
+   * Phase 4.2 §20/§35: measured extraction evidence, so "mask fragmentation"
+   * is a number in the artifact rather than a guess made later. Null when
+   * segmentation never ran (HARD sources, or a stage rejection before
+   * extraction).
+   */
+  segmentationEvidence: SegmentationEvidence | null;
   qa: ProductFidelityQaResult | null;
   eligibility: EligibilityResult;
   status: AssetStatus;
@@ -289,6 +296,19 @@ export interface Phase4AssetManifest {
   stageTimings: StageTiming[];
   /** Diagnostic only — see `SourceAdequacyEvidence`. Never used to gate eligibility. */
   sourceAdequacy: SourceAdequacyEvidence;
+}
+
+export interface SegmentationEvidence {
+  /** EVERY connected foreground component, including single-pixel compression speckle. */
+  componentCount: number;
+  /** Components at or above 1% of image area — the meaningful "how many things are here" measure (see P42-001). */
+  significantComponentCount: number;
+  /** maskPixelCount / bboxPixelCount. */
+  fillRatio: number;
+  maskPixelCount: number;
+  bboxPixelCount: number;
+  /** How many of the 4 image edges the garment region touches. */
+  edgesTouched: number;
 }
 
 export interface AnchorCandidate {

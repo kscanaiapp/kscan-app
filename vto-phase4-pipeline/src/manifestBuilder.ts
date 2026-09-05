@@ -10,6 +10,7 @@ import type {
   Phase4AssetManifest,
   ProductFidelityQaResult,
   Rejection,
+  SegmentationEvidence,
   ShotClassificationResult,
   SourceAdequacyEvidence,
   StageTiming,
@@ -60,6 +61,7 @@ export function buildAssetManifest(params: {
   shotClassification: ShotClassificationResult;
   confidenceComponents: ConfidenceComponents;
   confidenceExplanation: ConfidenceExplanation;
+  segmentationEvidence: SegmentationEvidence | null;
   qa: ProductFidelityQaResult | null;
   eligibility: EligibilityResult;
   rejection: Rejection | null;
@@ -96,6 +98,7 @@ export function buildAssetManifest(params: {
     shotClassification: params.shotClassification,
     confidenceComponents: params.confidenceComponents,
     confidenceExplanation: params.confidenceExplanation,
+    segmentationEvidence: params.segmentationEvidence,
     qa: params.qa,
     eligibility: params.eligibility,
     status,

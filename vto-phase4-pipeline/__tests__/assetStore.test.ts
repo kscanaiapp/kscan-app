@@ -22,6 +22,7 @@ function makeManifest(overrides: Partial<Phase4AssetManifest> = {}): Phase4Asset
     shotClassification: { shotClass: 'EASY', confidence: 1, evidence: {} },
     confidenceComponents: { shotClassification: 1, segmentation: 1, anchorCompleteness: 1, geometryValidity: 1, sourceQuality: 1, productFidelity: 1 },
     confidenceExplanation: explainConfidence({ shotClassification: 1, segmentation: 1, anchorCompleteness: 1, geometryValidity: 1, sourceQuality: 1, productFidelity: 1 }),
+    segmentationEvidence: null,
     qa: null,
     eligibility: { live2d: true, live3d: false, reason: null },
     status: 'CURRENT',

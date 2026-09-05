@@ -241,6 +241,17 @@ export function runPipelineForImage(
     productFidelity: qa ? (qa.passed ? 1 : 0) : 0,
   };
 
+  const segmentationEvidence =
+    segmentation && segmentation.ok
+      ? {
+          componentCount: segmentation.componentCount,
+          significantComponentCount: segmentation.significantComponentCount,
+          fillRatio: segmentation.fillRatio,
+          maskPixelCount: segmentation.maskPixelCount,
+          bboxPixelCount: segmentation.bboxPixelCount,
+          edgesTouched: Object.values(segmentation.touchesEdge).filter(Boolean).length,
+        }
+      : null;
   const confidenceExplanation = explainEligibilityConfidence(confidenceComponents);
   const eligibility = resolveEligibility(confidenceComponents, rejection);
   // A confidence-gate failure (no explicit stage rejection, but eligibility
@@ -299,6 +310,7 @@ export function runPipelineForImage(
     shotClassification: shotResult,
     confidenceComponents,
     confidenceExplanation,
+    segmentationEvidence,
     qa,
     eligibility,
     rejection,
