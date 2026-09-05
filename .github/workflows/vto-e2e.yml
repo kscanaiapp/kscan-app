@@ -94,6 +94,126 @@ jobs:
       - name: Run harness contract mode
         run: node scripts/vto-e2e/run.mjs --mode=contract
 
+  # ── The VTO mutation boundary, ENFORCED ─────────────────────────────────
+  #
+  # This job is the one execution point in the repository that declares
+  # itself a VTO lane, and it is deliberately here rather than in a general
+  # PR workflow.
+  #
+  # scripts/check-vto-live-integration-scope.js has two halves. Its STATIC
+  # half -- manifest justification, matcher, protected-path refusal -- is a
+  # policy control about the whole repository and keeps running on every
+  # branch inside 'Project checks' (scripts/run-all-tests.js). Its LIVE half
+  # diffs a branch against the VTO integration base and refuses anything the
+  # manifest does not authorize, which is only a meaningful question on a
+  # lane derived from that base. It used to run everywhere, because it
+  # DISCOVERED its base ref by taking the first of three candidates that
+  # existed -- and every branch in this repository contains the VTO
+  # integration commit, so every unrelated branch was judged against the VTO
+  # manifest and failed for its own work.
+  #
+  # The signal is explicit and fails closed: with KSCAN_VTO_SCOPE_ENFORCE=1
+  # set, KSCAN_VTO_SCOPE_BASE_REF is mandatory and a missing, empty or
+  # unresolvable base is an ERROR, never a skip and never a pass.
+  # __tests__/vtoScopeGuardEnforcementMode.test.js asserts that this job
+  # still declares both variables and still runs the guard, so the wiring
+  # cannot be quietly deleted.
+  #
+  # Lane membership is not left to a branch name alone. The applicability
+  # step below also enforces on any pull request whose OWN diff touches a
+  # VTO-owned path, so a VTO change cannot escape the boundary by being
+  # committed on a branch that is not called one.
+  #
+  # PULL REQUESTS ONLY, and that is a correctness requirement rather than a
+  # cost saving. The base authority of a change is the branch it is proposed
+  # INTO, and that only exists on a pull request. A push is proposed into
+  # nothing, so any base picked for it is a guess -- which is the whole defect
+  # being repaired. This job's first revision did exactly that: on push it
+  # fell back to the integration branch and failed this very branch for the
+  # notifications work it had legitimately inherited from its real base.
+  # Enforcement therefore lives on the pull request, which is also the point
+  # where merging is gated.
+  scope-guard:
+    name: VTO scope guard (enforced)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The live diff needs the base commit itself, not a shallow tip.
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      # Decides whether this pull request is a VTO lane. The base authority is
+      # always the branch it is proposed into -- never a guess.
+      - name: Classify this lane
+        id: lane
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+          VTO_BASE_AUTHORITY: integration/backend-kplus-complimentary-staging-v1
+        run: |
+          set -euo pipefail
+
+          BASE="origin/${BASE_REF}"
+
+          LANE=general
+          case "$HEAD_REF" in
+            *vto*|*VTO*) LANE=vto ;;
+          esac
+          if [ "$BASE_REF" = "$VTO_BASE_AUTHORITY" ]; then
+            LANE=vto
+          fi
+
+          # A pull request that mutates a VTO-owned path is a VTO lane no
+          # matter what its branch is called.
+          #
+          # `grep -E ... || true` rather than `grep -Eq`: under `pipefail`,
+          # -q exits at the first match and SIGPIPEs git, so the pipeline
+          # would report 141 exactly when a VTO path WAS found -- silently
+          # inverting the control it implements.
+          if [ "$LANE" = "general" ] && git rev-parse --verify --quiet "${BASE}^{commit}" >/dev/null; then
+            VTO_TOUCHES="$(git diff --name-only "${BASE}...HEAD" | grep -E '^(services/vto/|components/vto/|types/vto|hooks/useVto|hooks/useVirtualTryOn|supabase/functions/vto-generate/|vto-phase4-pipeline/|fixtures/vto-phase4/|evidence/vto-phase4|docs/vto-|scripts/vto-e2e/|__tests__/vto)' || true)"
+            if [ -n "$VTO_TOUCHES" ]; then
+              LANE=vto
+              echo "VTO-owned paths in this diff:"
+              echo "$VTO_TOUCHES"
+            fi
+          fi
+
+          echo "lane=${LANE}" >> "$GITHUB_OUTPUT"
+          echo "base=${BASE}" >> "$GITHUB_OUTPUT"
+          echo "Lane: ${LANE} (base authority: ${BASE})"
+
+      - name: Enforce the VTO mutation boundary
+        if: steps.lane.outputs.lane == 'vto'
+        env:
+          KSCAN_VTO_SCOPE_ENFORCE: '1'
+          KSCAN_VTO_SCOPE_BASE_REF: ${{ steps.lane.outputs.base }}
+        run: node scripts/check-vto-live-integration-scope.js
+
+      # The same boundary through the guard's own test file, so the two live
+      # assertions are proven to RUN here -- not merely to be skippable
+      # everywhere else.
+      - name: Enforce the VTO mutation boundary through the guard's tests
+        if: steps.lane.outputs.lane == 'vto'
+        env:
+          KSCAN_VTO_SCOPE_ENFORCE: '1'
+          KSCAN_VTO_SCOPE_BASE_REF: ${{ steps.lane.outputs.base }}
+        run: node --test __tests__/vtoLiveIntegrationScope.test.js
+
+      - name: Report NOT APPLICABLE
+        if: steps.lane.outputs.lane != 'vto'
+        run: |
+          echo "This ref is not a VTO lane: the live mutation-boundary diff does not apply."
+          echo "The static boundary controls still ran in 'Project checks'."
+
   # Real deployed vto-generate, real auth/entitlement/reservation/release
   # wiring, zero-spend fixture. REAL PROVIDER SUBMIT stays 0. Mandatory
   # before staging-full-certification may run.
