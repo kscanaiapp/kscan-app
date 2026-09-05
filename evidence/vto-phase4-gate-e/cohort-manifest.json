@@ -1,0 +1,22 @@
+{
+  "schema": "vto-phase4-gate-e-cohort-manifest/1",
+  "generatedAt": "2026-09-05T14:48:45.890Z",
+  "cohortFrozen": false,
+  "cohortSize": 0,
+  "items": [],
+  "reasonNotFrozen": "GATE E PRECONDITION HOLD. Two independent blockers: (1) RIGHTS — no retailer/commerce source could be established as CLEARED for automated evaluation (section 7); every source classified UNKNOWN. (2) CAPABILITY — 100% of imagery returned by the authorized commerce path is WebP, which the frozen pipeline cannot decode (PNG/JPEG only). No real product was admitted to a cohort, so no cohort identity exists to freeze.",
+  "authority": {
+    "currentIntegrationSha": "265fe3624bb34fd951b4efe5979fa712a4fce2be",
+    "integrationBranch": "integration/backend-kplus-complimentary-staging-v1",
+    "phase4MergeSha": "265fe3624bb34fd951b4efe5979fa712a4fce2be",
+    "phase4HeadSha": "a38e20cb0ea635ec536751b68e594df4458ae51a",
+    "pipelineTreeSha": "ab399fd7b06b5ff0c003cc74cec57bbbc3b34657",
+    "pipelineVersion": "0.1.0",
+    "garmentContractVersion": "1.0"
+  },
+  "seeAlso": [
+    "docs/vto-phase4-gate-e-rights.md",
+    "docs/vto-phase4-gate-e-access-probe.md",
+    "docs/vto-phase4-gate-e-freeze.md"
+  ]
+}
