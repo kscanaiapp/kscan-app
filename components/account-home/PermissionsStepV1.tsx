@@ -1,14 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Pressable, Switch, StyleSheet } from 'react-native';
 import { PrimaryButton, TertiaryButton } from '../../components/luxury';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
+import { openNotificationSettings } from '../../services/watchlist/pushRegistration';
 
 import type { PermissionKey, PermissionPreferences } from '../../hooks/usePermissionPreferences';
+import type { EnableDeviceNotificationsResult } from '../../services/watchlist/pushRegistration';
 
 interface PermissionsStepV1Props {
   preferences: PermissionPreferences;
   togglePreference: (key: PermissionKey) => void;
   setPreference: (key: PermissionKey, value: boolean) => void;
+  requestNotificationPermission: () => Promise<EnableDeviceNotificationsResult>;
   isSaving: boolean;
   onContinueToHome: () => void;
   onNotNow: () => void;
@@ -33,11 +36,51 @@ export function PermissionsStepV1({
   preferences,
   togglePreference,
   setPreference,
+  requestNotificationPermission,
   isSaving,
   onContinueToHome,
   onNotNow,
 }: PermissionsStepV1Props) {
-  const { camera, photos } = preferences;
+  const { camera, photos, notifications } = preferences;
+  const [notificationsBusy, setNotificationsBusy] = useState(false);
+  const [notificationsStatus, setNotificationsStatus] = useState<
+    'idle' | 'denied_can_retry' | 'denied_needs_settings' | 'unavailable'
+  >('idle');
+
+  const handleNotificationsToggle = async (nextValue: boolean) => {
+    if (!nextValue) {
+      // Turning the device switch off only clears the locally reflected
+      // state. Registration is what arms delivery; there is no "disable all"
+      // call from onboarding, and per-Watch alerts are a separate concept.
+      setPreference('notifications', false);
+      setNotificationsStatus('idle');
+      return;
+    }
+
+    setNotificationsBusy(true);
+    setNotificationsStatus('idle');
+    try {
+      const result = await requestNotificationPermission();
+      if (result.ok) {
+        setNotificationsStatus('idle');
+      } else if (result.reason === 'permission_denied') {
+        setNotificationsStatus(result.canAskAgain ? 'denied_can_retry' : 'denied_needs_settings');
+      } else {
+        setNotificationsStatus('unavailable');
+      }
+    } finally {
+      setNotificationsBusy(false);
+    }
+  };
+
+  const notificationsDescription =
+    notificationsStatus === 'denied_needs_settings'
+      ? 'Notifications are turned off in device Settings.'
+      : notificationsStatus === 'denied_can_retry'
+        ? 'Permission was not granted. You can try again.'
+        : notificationsStatus === 'unavailable'
+          ? 'Unavailable right now — tap to retry.'
+          : 'Get notified when a watched item hits your target price.';
 
   return (
     <View style={styles.stepContent} testID="onboarding-permissions-screen-v1">
@@ -73,6 +116,31 @@ export function PermissionsStepV1({
           actionValue={photos}
           onActionChange={() => togglePreference('photos')}
         />
+
+        {/* Notifications — permanent core permission surface. Visibility is
+            unconditional: no environment, K+, RevenueCat, PostHog,
+            FeatureFreeze, or remote-config gate may hide it. Off by default;
+            the user must affirmatively enable it. */}
+        <PermissionCard
+          icon="◉"
+          title="Notifications"
+          badge="OPTIONAL"
+          description={notificationsDescription}
+          actionType="toggle"
+          actionValue={notifications}
+          onActionChange={(value) => void handleNotificationsToggle(value)}
+          disabled={notificationsBusy}
+          accessibilityLabel="Notifications permission toggle"
+        />
+        {notificationsStatus === 'denied_needs_settings' ? (
+          <Pressable
+            testID="onboarding-notifications-open-settings-v1"
+            onPress={() => void openNotificationSettings()}
+            accessibilityRole="button"
+          >
+            <Text style={styles.settingsLink}>Open Settings to enable notifications</Text>
+          </Pressable>
+        ) : null}
 
       </View>
 
@@ -319,6 +387,14 @@ const styles = StyleSheet.create({
   },
   allowButtonTextDisabled: {
     color: LUXURY.colors.stone,
+  },
+  settingsLink: {
+    ...LUXURY.typography.caption,
+    fontSize: 12,
+    textDecorationLine: 'underline',
+    color: LUXURY.colors.plum,
+    textAlign: 'center',
+    marginTop: -SPACING.sm,
   },
   cardDisabled: {
     opacity: 0.5,

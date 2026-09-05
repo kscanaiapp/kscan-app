@@ -59,12 +59,25 @@ function buildNotification(event: WatchPushEvent): { title: string; body: string
   }
 }
 
+/**
+ * Android product channel for Watch alerts. Must match the channel the client
+ * creates (services/watchlist/pushRegistration.ts) or Android silently falls
+ * back to the default channel and the configured importance/sound/vibration
+ * policy is never applied.
+ */
+export const ANDROID_NOTIFICATION_CHANNEL_ID = 'price-alerts';
+
 export interface PushSendResult {
   attempted: boolean;
   ok: boolean;
   errorCode?: string;
   /** True only when Expo's ticket says this token can never be delivered to again. */
   tokenInvalid?: boolean;
+  /**
+   * Expo ticket id for an ACCEPTED send. Acceptance is not delivery: this id
+   * is the key a receipt lookup uses to learn the terminal outcome.
+   */
+  ticketId?: string;
 }
 
 /**
@@ -96,6 +109,15 @@ export async function sendWatchPush(
           body: notification.body,
           // Only an internal id -- see the file header. The client resolves
           // everything else from its own RLS-scoped read of this Watch.
+          // NOTIF-07: without an explicit channelId Android delivers every
+          // Watch alert on the default channel, ignoring the product
+          // channel's importance/sound/vibration policy entirely. iOS ignores
+          // this field.
+          channelId: ANDROID_NOTIFICATION_CHANNEL_ID,
+          // NOTIF-19: this is an alert notification, not a silent/background
+          // data push. Sound + badge are the authorized presentation; no
+          // content-available/background capability is requested.
+          sound: 'default',
           data: { watchId: event.watchId, eventType: event.eventType, deepLink: `kscan://watchlist/${event.watchId}` },
         },
       ]),
@@ -109,7 +131,12 @@ export async function sendWatchPush(
       const code = String(ticket.details?.error ?? 'ticket_error');
       return { attempted: true, ok: false, errorCode: code, tokenInvalid: code === 'DeviceNotRegistered' };
     }
-    return { attempted: true, ok: true };
+    // NOTIF-12: an accepted ticket is NOT proof of device delivery -- it only
+    // means Expo queued it. The ticket id is what a receipt lookup is keyed
+    // on, so it is retained rather than discarded; callers must treat
+    // `ok: true` as "accepted", never as "delivered".
+    const ticketId = typeof ticket?.id === 'string' ? ticket.id : undefined;
+    return { attempted: true, ok: true, ticketId };
   } catch {
     return { attempted: true, ok: false, errorCode: 'network_error' };
   }

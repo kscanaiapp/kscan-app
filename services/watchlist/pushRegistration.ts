@@ -7,12 +7,58 @@
  * brief §51-52. A denied permission leaves the Watch valid with
  * push_enabled left false; this module never blocks Watch creation.
  */
-import { Platform } from 'react-native';
+import { Platform, Linking } from 'react-native';
+import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../supabaseClient';
 import { resolveAuthenticatedFunctionSession } from '../authenticatedFunctionSession';
 
 const DEVICE_ID_STORAGE_KEY = 'kscan-watchlist-device-id';
+
+/** Product notification channel id (Android 8+). Used for every Watch alert send. */
+export const ANDROID_NOTIFICATION_CHANNEL_ID = 'price-alerts';
+
+/**
+ * NOTIF-14: the Expo project id is read explicitly from the resolved Expo
+ * config rather than left to implicit discovery, which silently fails in
+ * bare/EAS builds and yields no token. Never hard-codes a second identifier:
+ * if this is missing the caller must treat push as unavailable.
+ */
+export function getExplicitEasProjectId(): string | null {
+  const fromExtra = Constants.expoConfig?.extra?.eas?.projectId;
+  const fromEasConfig = (Constants as unknown as { easConfig?: { projectId?: string } }).easConfig
+    ?.projectId;
+  const projectId = fromExtra ?? fromEasConfig ?? null;
+  return typeof projectId === 'string' && projectId.length > 0 ? projectId : null;
+}
+
+/**
+ * NOTIF-07: product-specific Android channel. Created before the first token
+ * is requested so the very first delivered alert already lands on the right
+ * channel with the intended importance/sound/vibration/badge policy.
+ */
+export async function configureAndroidNotificationChannel(): Promise<void> {
+  if (Platform.OS !== 'android') return;
+  const Notifications = await import('expo-notifications');
+  await Notifications.setNotificationChannelAsync(ANDROID_NOTIFICATION_CHANNEL_ID, {
+    name: 'Price Alerts',
+    importance: Notifications.AndroidImportance.DEFAULT,
+    sound: 'default',
+    vibrationPattern: [0, 250, 250, 250],
+    showBadge: true,
+  });
+}
+
+/** NOTIF-11: recovery route when permission can no longer be requested. */
+export function openNotificationSettings(): Promise<void> {
+  return Linking.openSettings();
+}
+
+/** Current OS notification permission state, for reflecting real UI state. */
+export async function getNotificationPermissionStatus() {
+  const Notifications = await import('expo-notifications');
+  return Notifications.getPermissionsAsync();
+}
 
 /** The stored id for this installation, or null if this device never registered. */
 async function readDeviceId(): Promise<string | null> {
@@ -64,9 +110,22 @@ export async function requestWatchAlerts(watchId: string): Promise<RequestWatchA
     return { ok: false, reason: 'permission_denied' };
   }
 
+  if (Platform.OS === 'android') {
+    try {
+      await configureAndroidNotificationChannel();
+    } catch {
+      // Presentation quality only; never blocks a granted permission.
+    }
+  }
+
+  const projectId = getExplicitEasProjectId();
+  if (!projectId) {
+    return { ok: false, reason: 'token_failed' };
+  }
+
   let expoPushToken: string;
   try {
-    const tokenResponse = await Notifications.getExpoPushTokenAsync();
+    const tokenResponse = await Notifications.getExpoPushTokenAsync({ projectId });
     expoPushToken = tokenResponse.data;
   } catch {
     return { ok: false, reason: 'token_failed' };
@@ -172,4 +231,156 @@ export async function revokeWatchAlertsForThisDevice(): Promise<void> {
     // The server-side invariant still retires this row the moment the next
     // actor registers on this device.
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Device-level notification enablement (onboarding Permissions surface).
+//
+// Deliberately SEPARATE from requestWatchAlerts: enabling notifications for
+// the device must never enable any individual Watch's alert. Device push
+// registration and per-Watch alert preference remain distinct concepts.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type EnableDeviceNotificationsFailureReason =
+  | 'unsupported_platform'
+  | 'permission_denied'
+  | 'missing_project_id'
+  | 'token_failed'
+  | 'backend_unavailable';
+
+/**
+ * Flat by design (not a discriminated union): `reason` is simply undefined on
+ * success. Callers check `ok` first.
+ */
+export interface EnableDeviceNotificationsResult {
+  ok: boolean;
+  reason?: EnableDeviceNotificationsFailureReason;
+  canAskAgain: boolean;
+}
+
+/**
+ * Requests the real OS notification permission, acquires an Expo push token
+ * with the explicit project id, and registers THIS device for the
+ * authenticated actor. Enables no Watch alert.
+ *
+ * Every failure mode is distinguishable so the caller can render an honest
+ * state — denied vs. temporarily unavailable — and never a false "enabled".
+ */
+export async function enableDeviceNotifications(): Promise<EnableDeviceNotificationsResult> {
+  if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
+    return { ok: false, reason: 'unsupported_platform', canAskAgain: false };
+  }
+
+  const Notifications = await import('expo-notifications');
+
+  const existing = await Notifications.getPermissionsAsync();
+  let granted = existing.granted;
+  let canAskAgain = existing.canAskAgain;
+  if (!granted && existing.canAskAgain) {
+    const requested = await Notifications.requestPermissionsAsync();
+    granted = requested.granted;
+    canAskAgain = requested.canAskAgain;
+  }
+  if (!granted) {
+    return { ok: false, reason: 'permission_denied', canAskAgain };
+  }
+
+  if (Platform.OS === 'android') {
+    try {
+      await configureAndroidNotificationChannel();
+    } catch {
+      // Presentation only; a granted permission still stands.
+    }
+  }
+
+  const projectId = getExplicitEasProjectId();
+  if (!projectId) {
+    return { ok: false, reason: 'missing_project_id', canAskAgain: true };
+  }
+
+  let expoPushToken: string;
+  try {
+    const tokenResponse = await Notifications.getExpoPushTokenAsync({ projectId });
+    expoPushToken = tokenResponse.data;
+  } catch {
+    return { ok: false, reason: 'token_failed', canAskAgain: true };
+  }
+  if (!expoPushToken) {
+    return { ok: false, reason: 'token_failed', canAskAgain: true };
+  }
+
+  const deviceId = await getOrCreateDeviceId();
+
+  const session = await resolveAuthenticatedFunctionSession();
+  if (session.ok === false) {
+    return { ok: false, reason: 'backend_unavailable', canAskAgain: true };
+  }
+
+  try {
+    const registerResult = await supabase.functions.invoke('commerce-watch-refresh', {
+      body: {
+        action: 'register_push_token',
+        pushToken: expoPushToken,
+        platform: Platform.OS,
+        deviceId,
+      },
+    });
+    if (registerResult.error) {
+      return { ok: false, reason: 'backend_unavailable', canAskAgain: true };
+    }
+  } catch {
+    return { ok: false, reason: 'backend_unavailable', canAskAgain: true };
+  }
+
+  return { ok: true, canAskAgain: true };
+}
+
+/**
+ * Token-refresh lifecycle. The push service can roll the underlying device
+ * token while the app runs; the old one stops delivering. Re-registers the
+ * new Expo token for a device that already opted in. A device that never
+ * registered mints nothing.
+ */
+export async function attachPushTokenRefreshListener(): Promise<() => void> {
+  const Notifications = await import('expo-notifications');
+  const subscription = Notifications.addPushTokenListener(() => {
+    void (async () => {
+      const deviceId = await readDeviceId();
+      if (!deviceId) return;
+      const projectId = getExplicitEasProjectId();
+      if (!projectId) return;
+      try {
+        const session = await resolveAuthenticatedFunctionSession();
+        if (session.ok === false) return;
+        const tokenResponse = await Notifications.getExpoPushTokenAsync({ projectId });
+        await supabase.functions.invoke('commerce-watch-refresh', {
+          body: {
+            action: 'register_push_token',
+            pushToken: tokenResponse.data,
+            platform: Platform.OS,
+            deviceId,
+          },
+        });
+      } catch {
+        // Best effort. The next send's DeviceNotRegistered receipt retires
+        // the stale route server-side regardless.
+      }
+    })();
+  });
+  return () => subscription.remove();
+}
+
+/**
+ * NOTIF-15 foreground receive. Fires while the app is open. Never navigates
+ * — only a tap may route (see watchNotificationRouting) — so this cannot
+ * duplicate navigation with the response listener.
+ */
+export async function attachNotificationReceivedListener(
+  onReceived: (data: unknown) => void,
+): Promise<() => void> {
+  const Notifications = await import('expo-notifications');
+  const subscription = Notifications.addNotificationReceivedListener((event) => {
+    onReceived(event.request.content.data);
+  });
+  return () => subscription.remove();
 }

@@ -1,4 +1,8 @@
 import { useState, useCallback, useRef } from 'react';
+import {
+  enableDeviceNotifications,
+  type EnableDeviceNotificationsResult,
+} from '../services/watchlist/pushRegistration';
 import { Platform, PermissionsAndroid } from 'react-native';
 
 import { VOICESCAN_ENABLED } from '../constants/featureFlags';
@@ -43,6 +47,7 @@ export interface UsePermissionPreferencesReturn {
   savePreferences: () => Promise<SavePreferencesResult>;
   resetPreferences: () => void;
   requestMicrophonePermission: () => Promise<MicrophonePermissionResult>;
+  requestNotificationPermission: () => Promise<EnableDeviceNotificationsResult>;
 }
 
 const DEFAULT_PREFERENCES: PermissionPreferences = {
@@ -131,6 +136,14 @@ export function usePermissionPreferences(): UsePermissionPreferencesReturn {
     }
   }, []);
 
+  const requestNotificationPermission = useCallback(async (): Promise<EnableDeviceNotificationsResult> => {
+    const result = await enableDeviceNotifications();
+    // Reflect the REAL outcome only -- never optimistically flip this on
+    // before the OS/registration result is known, and never on failure.
+    setPreference('notifications', result.ok);
+    return result;
+  }, [setPreference]);
+
   return {
     preferences,
     status,
@@ -142,5 +155,6 @@ export function usePermissionPreferences(): UsePermissionPreferencesReturn {
     savePreferences,
     resetPreferences,
     requestMicrophonePermission,
+    requestNotificationPermission,
   };
 }

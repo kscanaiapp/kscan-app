@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-03T09:48:04.435Z",
-    "generatedFromGitSha": "18275eed3662a0fa8c9a828a18fdde14aedc02ca"
+    "generatedAtUtc": "2026-09-05T19:30:38.472Z",
+    "generatedFromGitSha": "4365cebfccfd59843dd3f0a7418c07cb8e9ff843"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -384,8 +384,8 @@
         ],
         "bundleFileCount": 12,
         "treeFileCount": 15,
-        "bundleHash": "42068cdc99fa5fe6b56888d0cfe61bef208184c2b09ec94b1ea3352debe69546",
-        "treeHash": "9fd96f21447241a783f13047636ca9402941736a147cccca884efd8b29faac49",
+        "bundleHash": "361d99a2edc0e69a0d904c0bd6ff58ec964e0027a84f9e89ac611142362a46a5",
+        "treeHash": "c217391709239ac65b4075b2f23b6300ceeac854ae33b2658dc72df672e461ae",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -404,12 +404,12 @@
           },
           {
             "path": "supabase/functions/commerce-watch-refresh/index.ts",
-            "sha256": "1c899f96437a3ca86d4c5f052fe8a64746e1508536ae2d8cd640affeb7fa89c3",
+            "sha256": "914dba0ad0dc317045b79888be7c41c79b1716dd919ba970d8c5cf56e34e2d4b",
             "bundle": true
           },
           {
             "path": "supabase/functions/commerce-watch-refresh/pushDelivery.ts",
-            "sha256": "660fec7d6c9e7365c9af80a08666e1c337b09b089f0dbff2d8ea7011359a9648",
+            "sha256": "f6fa42466c7ed673559c319aa6e4e973b50a4213cedc3a49512c0d97ed87fb35",
             "bundle": true
           },
           {

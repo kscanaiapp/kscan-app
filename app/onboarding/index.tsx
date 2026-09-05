@@ -99,6 +99,7 @@ export default function OnboardingScreen() {
     setPreference: setPermissionPreference,
     isSaving: permissionSaving,
     savePreferences,
+    requestNotificationPermission,
   } = usePermissionPreferences();
 
   const moveToTermsOnce = useCallback(() => {
@@ -700,6 +701,7 @@ export default function OnboardingScreen() {
         preferences={permissionPrefs}
         togglePreference={togglePermission}
         setPreference={setPermissionPreference}
+        requestNotificationPermission={requestNotificationPermission}
         isSaving={permissionSaving}
         onContinueToHome={handlePermissionsContinue}
         onNotNow={goToHome}

@@ -290,6 +290,33 @@ if (smartWatchlistEnabled && !googleServicesConfigured) {
     )
 }
 
+// NOTIF-02 -- extend the same fail-closed rule to the SHIPPING profile now
+// that notifications are activated in onboarding.
+//
+// The invariant this enforces:
+//   PUSH ENABLED => GOOGLE_SERVICES_JSON MATERIALIZED => PLUGIN APPLIED
+//                => FCM CONFIG PRESENT
+//
+// Before this, `production` inherited the lenient path above: a release AAB
+// built without the EAS file secret was green, shipped, asked the user for
+// POST_NOTIFICATIONS, and could never deliver a single Android push. That is
+// the silent-failure shape the certification guard already refuses -- there
+// is no reason the artifact that reaches real users should be held to a
+// weaker standard than the one that reaches the certification lane.
+//
+// Scope: production only. Debug/dev-client/preview builds stay lenient so a
+// developer without the secret can still build.
+if (easBuildProfile == PRODUCTION_PROFILE && !googleServicesConfigured) {
+    throw new GradleException(
+        "kscan: EAS_BUILD_PROFILE=${PRODUCTION_PROFILE} but GOOGLE_SERVICES_JSON did not " +
+        "materialize, so the Google Services plugin was not applied and the artifact has no " +
+        "FCM configuration. The shipping build advertises notifications and requests " +
+        "POST_NOTIFICATIONS, so it must not ship unable to deliver Android push. " +
+        "Provide the governed EAS file secret GOOGLE_SERVICES_JSON for the production " +
+        "environment and rebuild."
+    )
+}
+
 // Objective D -- the certification backend must be staging. This is an
 // assertion only: it never rewrites EXPO_PUBLIC_SUPABASE_URL and never
 // touches production configuration. It exists because `staging-certification`

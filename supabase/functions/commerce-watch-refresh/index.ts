@@ -156,29 +156,54 @@ async function deliverPushIfArmed(
 ): Promise<void> {
   if (!event || event.type !== 'target_price_reached' || !row.push_enabled) return;
 
+  // NOTIF-06: every live device, not just the most recently used one. A user
+  // with a phone and a tablet was previously alerted on exactly one of them,
+  // silently, with no way to tell which. Each token is delivered and retired
+  // INDEPENDENTLY so one dead route cannot suppress a live sibling.
   const tokenResponse = await rest(
-    `user_device_push_tokens?user_id=eq.${row.user_id}&revoked_at=is.null&select=push_token,device_id&order=last_used_at.desc.nullslast&limit=1`,
+    `user_device_push_tokens?user_id=eq.${row.user_id}&revoked_at=is.null&select=push_token,device_id&order=last_used_at.desc.nullslast`,
     { method: 'GET' },
   );
   if (!tokenResponse.ok) return;
   const tokens = (await tokenResponse.json()) as Array<{ push_token: string; device_id: string }>;
-  const tokenRow = tokens[0];
-  if (!tokenRow?.push_token) return;
+  const liveTokens = (tokens ?? []).filter((t) => Boolean(t?.push_token));
+  if (liveTokens.length === 0) return;
 
-  const result = await sendWatchPush(tokenRow.push_token, {
+  const payload = {
     watchId: row.id,
-    eventType: 'target_price_reached',
+    eventType: 'target_price_reached' as const,
     displayTitle: row.display_title,
     priceText: event.priceAmount != null ? `${event.currency ?? row.currency} ${event.priceAmount}` : null,
-  });
-  if (!result.ok) {
-    logEvent('watchlist_push_delivery_failed', { watchId: row.id.slice(0, 8), errorCode: result.errorCode });
-    // A ticket-confirmed dead token is revoked immediately rather than left
-    // to accumulate silent future failures (§63 "stale push token").
-    if (result.tokenInvalid) {
-      await rpc('revoke_device_push_token', { p_user_id: row.user_id, p_device_id: tokenRow.device_id }).catch(() => null);
-    }
-  }
+  };
+
+  await Promise.all(
+    liveTokens.map(async (tokenRow) => {
+      // One token's failure is contained here: no throw escapes, and no
+      // sibling delivery is skipped because of it.
+      try {
+        const result = await sendWatchPush(tokenRow.push_token, payload);
+        if (!result.ok) {
+          logEvent('watchlist_push_delivery_failed', {
+            watchId: row.id.slice(0, 8),
+            errorCode: result.errorCode,
+          });
+          // A ticket-confirmed dead token is revoked immediately rather than
+          // left to accumulate silent future failures (§63 "stale push token").
+          if (result.tokenInvalid) {
+            await rpc('revoke_device_push_token', {
+              p_user_id: row.user_id,
+              p_device_id: tokenRow.device_id,
+            }).catch(() => null);
+          }
+        }
+      } catch (error) {
+        logEvent('watchlist_push_delivery_failed', {
+          watchId: row.id.slice(0, 8),
+          errorCode: error instanceof Error ? error.name : 'unknown',
+        });
+      }
+    }),
+  );
 }
 
 function toWatchState(row: WatchRow): WatchState {
@@ -543,12 +568,45 @@ async function handleRefresh(authUser: AuthUser, watchId: unknown): Promise<Resp
   return json({ refreshed });
 }
 
+/**
+ * NOTIF-10: Expo push tokens have exactly one shape. Accepting any 1–400
+ * character string let a caller write arbitrary text into the delivery
+ * registry, which is both a junk-data vector and a way to make a route that
+ * can never deliver and never reports DeviceNotRegistered.
+ */
+const EXPO_PUSH_TOKEN_PATTERN = /^Expo(nent)?PushToken\[[A-Za-z0-9._%+-]{1,180}\]$/;
+
+function isValidExpoPushToken(token: string | undefined): token is string {
+  return typeof token === 'string' && EXPO_PUSH_TOKEN_PATTERN.test(token);
+}
+
+/**
+ * NOTIF-10: every push mutation must be refused for an actor whose account is
+ * not active (pending deletion, locked, or already purged). requireUser only
+ * proves the JWT is valid — it says nothing about account state, so a token
+ * minted before a deletion request stayed able to arm and re-arm delivery.
+ * Mirrors the eligibility the claim/refresh RPCs already enforce server-side.
+ */
+async function isEligibleAccountActor(userId: string): Promise<boolean> {
+  try {
+    const response = await rpc('watchlist_actor_is_active', { p_user_id: userId });
+    if (!response.ok) return false;
+    return (await response.json()) === true;
+  } catch {
+    return false;
+  }
+}
+
 async function handleRegisterPushToken(authUser: AuthUser, body: UserActionBody): Promise<Response> {
   const pushToken = str(body.pushToken, 400);
   const platform = body.platform === 'ios' || body.platform === 'android' ? body.platform : undefined;
   const deviceId = str(body.deviceId, 200);
-  if (!pushToken || !platform || !deviceId) {
+  if (!isValidExpoPushToken(pushToken) || !platform || !deviceId) {
     return json({ error: 'invalid_token_registration', code: 'invalid_token_registration' }, 400);
+  }
+
+  if (!(await isEligibleAccountActor(authUser.id))) {
+    return json({ error: 'account_not_eligible', code: 'account_not_eligible' }, 403);
   }
 
   const response = await rpc('register_device_push_token', {
@@ -630,6 +688,13 @@ async function handleClaimDevice(authUser: AuthUser, body: UserActionBody): Prom
 async function handleSetPushEnabled(authUser: AuthUser, body: UserActionBody): Promise<Response> {
   if (typeof body.watchId !== 'string' || !isValidUuid(body.watchId)) {
     return json({ error: 'invalid_watch_id', code: 'invalid_watch_id' }, 400);
+  }
+  // NOTIF-10: arming delivery requires an eligible account. Disarming does
+  // not -- `enabled: false` must stay reachable for an account in the
+  // deletion grace period, exactly as revoke/claim do, so no actor can be
+  // trapped with alerts they cannot turn off.
+  if (body.enabled === true && !(await isEligibleAccountActor(authUser.id))) {
+    return json({ error: 'account_not_eligible', code: 'account_not_eligible' }, 403);
   }
   const response = await rpc('set_watch_push_enabled', {
     p_user_id: authUser.id,

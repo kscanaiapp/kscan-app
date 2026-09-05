@@ -48,7 +48,14 @@
                                          "recordAudioAndroid":  false
                                      }
                                  ],
-                                 "expo-notifications"
+                                 [
+                                     "expo-notifications",
+                                     {
+                                         "mode":  "production",
+                                         "icon":  "./assets/notification-icon.png",
+                                         "color":  "#3F0B2F"
+                                     }
+                                 ]
                              ],
                  "android":  {
                                  "package":  "com.kscanai.app",
@@ -58,7 +65,8 @@
                                                      "android.permission.CAMERA",
                                                      "android.permission.INTERNET",
                                                      "android.permission.VIBRATE",
-                                                     "android.permission.ACCESS_COARSE_LOCATION"
+                                                     "android.permission.ACCESS_COARSE_LOCATION",
+                                                     "android.permission.POST_NOTIFICATIONS"
                                                  ],
                                  "blockedPermissions":  [
                                                             "android.permission.RECORD_AUDIO",
