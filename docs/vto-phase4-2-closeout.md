@@ -394,6 +394,32 @@ DEPENDENCY REACHABILITY  NOT RUN — ENVIRONMENT.
 CI ON FINAL HEAD       SUCCESS 31 · SKIPPED 13 · FAILED 0 · PENDING 0
 ```
 
+### CI flakiness, disclosed in full (§21)
+
+Reaching green on the final head required re-running failed jobs. Each was
+verified as an operational failure before any retry; none was a security
+finding.
+
+| Run | Failure | Verification |
+|---|---|---|
+| frozen commit, earlier | `ZAP Baseline (staging)` operational: spider got 404 on the staging Supabase root (an API host, not a website), crashed, produced no report; `Security promotion gate` then failed with `blockingReason: zapOperationalFailure` | The identical code had passed ZAP minutes earlier |
+| final head `4c15dca5` | `Project checks` — one unexpected test, `deploy guard: a wrong project reference aborts before deployment`; the two `Security promotion gate` runs and `Security summary` cascaded from it (`blockingReason: projectChecksCiOperationalFailure`) | That test passes 23/23 locally on three consecutive runs; the preceding commit `6230e779` (docs-only delta) passed; and **the two parallel `Security - Code and Dependencies` runs on the SAME commit `4c15dca5` disagreed — one success, one failure**. Same code, same commit, different outcomes. |
+| full-suite, local | `closetPromotionCoordinator` deadline test | Passed 37/37 on three isolated runs and on the next full-suite run |
+
+Three distinct tests across three runs. All three are real-clock or
+subprocess/temp-dir sensitive (`git init` in a temp dir plus a spawned node
+process, in the deploy-guard case), and none is touched by this branch, whose
+diff is confined to `vto-phase4-pipeline/`, `docs/`, `evidence/vto-phase4-2/`
+and `.gitignore`.
+
+**Stated plainly because repeated retries can mask a genuine defect.** The
+same-commit disagreement above is the strongest available evidence that these
+are infrastructure non-determinism rather than a regression, and it is
+recorded so the hostile audit can weigh it rather than discover a red-then-
+green history on its own. A pre-existing flaky-test baseline in
+`scripts/run-all-tests.js` already tracks 19 known failure identities; these
+three are outside it and may be worth adding.
+
 The P42-006 Windows contamination trap recurred during this closeout's
 full-suite run (10 stray harness temp files appeared in the repo root) and was
 **correctly ignored** by the .gitignore fix — `git status --porcelain -uall`
