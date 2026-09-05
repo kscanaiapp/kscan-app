@@ -23,6 +23,24 @@ export interface SegmentationResult {
    * P42-001, for why the distinction is load-bearing.
    */
   significantComponentCount: number;
+  /**
+   * Largest NON-winner connected component, as a fraction of the winner's
+   * own area. Audit P42-A-001: `significantComponentCount` alone measures
+   * significance against the FRAME, so a detached sleeve/strap sitting just
+   * below `SIGNIFICANT_COMPONENT_AREA_FRACTION` of image area contributed
+   * exactly nothing while being silently dropped from the emitted asset.
+   * This measures it against the GARMENT instead, which is the scale that
+   * decides whether the asset is materially incomplete.
+   */
+  largestNonWinnerComponentRatio: number;
+  /**
+   * Aggregate area of every component that is significant by NEITHER measure
+   * (i.e. true compression speckle), relative to the winner. This is the
+   * A8 speck-AREA ceiling input: it stays ~0.02 on real JPEG/WebP speckle
+   * (measured: 1196 components -> 0.024) and only approaches 1 when the
+   * foreground really is confetti.
+   */
+  insignificantFragmentRatio: number;
 }
 
 export interface SegmentationFailure {
@@ -31,6 +49,44 @@ export interface SegmentationFailure {
 }
 
 const MIN_COMPONENT_PIXELS = 64;
+
+/**
+ * Audit P42-A-001 (amendment A8). A component counts as SIGNIFICANT if it is
+ * material against the FRAME (the pre-existing 1%-of-image rule, unchanged)
+ * OR material against the GARMENT.
+ *
+ * The garment-relative arm closes a proven cliff: a detached garment part at
+ * 0.99% of image area scored `significantComponentCount = 1` and cost the
+ * segmentation confidence EXACTLY ZERO, while being dropped from the emitted
+ * asset (only `winner` is written into the mask). A shirt missing a sleeve
+ * was therefore emitted as LIVE2D_ELIGIBLE.
+ *
+ * CALIBRATION (§26 — derived, not invented). Measured on the committed
+ * 490-product characterization evidence:
+ *   - EASY sources carry a median non-winner foreground of 0.0002 of the
+ *     total foreground (p90 0.019). Compression speckle is 2-3 orders of
+ *     magnitude below this threshold: 1196 single-pixel components on a
+ *     48,792px garment is 0.00002 per component.
+ *   - A detached part large enough to matter measures >= 0.02 of the winner.
+ * The two populations are separated by ~1000x, so 0.02 sits in a wide gap
+ * rather than on a knife edge. `phase42AuditRepairs.test.ts` pins the gap.
+ */
+export const SIGNIFICANT_COMPONENT_GARMENT_FRACTION = 0.02;
+
+/**
+ * A8 speck-AREA ceiling. When the aggregate area of components significant
+ * by NEITHER measure reaches this multiple of the winner's area, the mask is
+ * confetti and `significantComponentCount === 1` must stop meaning "clean".
+ * Set far above every measured real value (worst observed real speckle load
+ * is 0.024) so it is a genuine backstop and never fires on compression
+ * noise — which is exactly what P42-001 exists to tolerate.
+ */
+export const INSIGNIFICANT_FRAGMENT_CEILING = 0.5;
+
+function isSignificantComponent(c: ComponentStats, img: RgbaImage, winner: ComponentStats): boolean {
+  if (c.size / (img.width * img.height) >= SIGNIFICANT_COMPONENT_AREA_FRACTION) return true;
+  return c.id !== winner.id && c.size / winner.size >= SIGNIFICANT_COMPONENT_GARMENT_FRACTION;
+}
 
 /**
  * Deterministic background-based extraction (task section 17's permitted
@@ -59,6 +115,8 @@ export function segmentGarment(
     maxX: Math.min(img.width, winner.maxX + margin + 1),
     maxY: Math.min(img.height, winner.maxY + margin + 1),
   };
+
+  const largestNonWinner = components.reduce((m, c) => (c.id === winner.id ? m : Math.max(m, c.size)), 0);
 
   const bboxW = bbox.maxX - bbox.minX;
   const bboxH = bbox.maxY - bbox.minY;
@@ -101,7 +159,10 @@ export function segmentGarment(
     },
     background,
     componentCount: components.length,
-    significantComponentCount: components.filter((c) => c.size / (img.width * img.height) >= SIGNIFICANT_COMPONENT_AREA_FRACTION).length,
+    significantComponentCount: components.filter((c) => isSignificantComponent(c, img, winner)).length,
+    largestNonWinnerComponentRatio: largestNonWinner / winner.size,
+    insignificantFragmentRatio:
+      components.filter((c) => c.id !== winner.id && !isSignificantComponent(c, img, winner)).reduce((a, c) => a + c.size, 0) / winner.size,
   };
 }
 

@@ -1,4 +1,30 @@
 # VTO Phase 4.2 — Final Build Report
+> ## SUPERSEDED IN PART BY THE HOSTILE AUDIT
+>
+> This document predates the Phase 4.2 hostile audit. Where it and
+> `docs/vto-phase4-2-hostile-audit-ledger.md` disagree, **the ledger governs.**
+>
+> **PHASE 4.2 HOSTILE AUDIT: PASS - CANDIDATE TRUSTWORTHY, MEASUREMENT HOLDS REMAIN**
+>
+> Claims downgraded by the audit, which must NOT be restored:
+>
+> | Claim | Status after audit |
+> |---|---|
+> | ~10% addressability | **QUALIFIED** - not a natural / catalog-wide estimate |
+> | deterministic segmentation sufficient | **QUALIFIED** - self-referential synthetic ground truth, n=17 |
+> | >=1,000-product corpus | **NOT MET** |
+> | 70% repair rate | **NOT MEASURED** (provider quota) |
+> | Gate E | **PENDING** |
+> | Human QA | **PENDING** |
+>
+> **Why ~10% is qualified.** All 490 products came from the realized `plain`
+> stratum: of 21 declared strata, 28 successful provider requests were ALL
+> `plain` queries and the other 17 strata returned only HTTP 429, contributing
+> zero products. The figure is plain-tee addressability under deep paging. It
+> is real, and it may not steer strategy as a catalog or market ceiling.
+>
+> Audit findings P42-A-001 through P42-A-006 were repaired on the audit
+> branch; **P0-P3 REMAINING: 0**.
 
 Phase 4.2 §71/§72/§73. Catalog Addressability & Asset Factory Expansion.
 
@@ -10,7 +36,10 @@ Phase 4.2 §71/§72/§73. Catalog Addressability & Asset Factory Expansion.
 TOTAL PRODUCTS CHARACTERIZED:            490
 TOTAL AUTHORITATIVE IMAGES:              490
 
-NATURAL HERO-IMAGE ADDRESSABLE:          49 / 490 = 10.0%
+HERO-IMAGE ADDRESSABLE (QUALIFIED):      49 / 490 = 10.0%
+                                         (single realized stratum: `plain`;
+                                          NOT a natural-feed estimate - see
+                                          hostile-audit ledger P42-A-004)
 
 PRODUCT-LEVEL ADDRESSABLE
 AFTER ALL AUTHORITATIVE IMAGES:          49 / 490 = 10.0%
@@ -47,9 +76,14 @@ Scan's own app contract. Product-level addressability therefore *equals*
 hero addressability, exactly.
 
 **The second finding matters more.** A flawless Easy/Medium pipeline cannot
-exceed **10.0%** of this catalog, because 88.8% of products offer only HARD
-imagery and Phase 4 has no HARD path by design. The binding constraint on
-Live2D coverage is **source photography, not segmentation quality**.
+exceed **10.0%** *of this corpus*, because 88.8% of its products offer only
+HARD imagery and Phase 4 has no HARD path by design. The binding constraint
+on Live2D coverage is **source photography, not segmentation quality**.
+
+**QUALIFIED (hostile audit P42-A-004).** That corpus is a single realized
+`plain` stratum - 17 of 21 declared strata were rate-limited to zero - so
+10.0% is plain-tee addressability under deep paging, NOT a catalog-wide or
+market-wide ceiling. It may not steer strategy in that stronger form.
 
 ---
 
@@ -147,8 +181,9 @@ addressable-alternate **0**; rescued **0**. Coverage before 10.0%, after
 10.0%. Zero is a property of the source; the rescue path is implemented,
 wired, and proven end-to-end on synthetic two-image products.
 
-**NATURAL CATALOG CEILING:** 10.0%. A perfect Easy/Medium pipeline cannot
-exceed it under this source.
+**CORPUS CEILING (QUALIFIED):** 10.0% for the realized `plain` stratum. A
+perfect Easy/Medium pipeline cannot exceed it *under this corpus*. Not a
+catalog-wide ceiling - see hostile-audit ledger P42-A-004.
 
 **HARD SUBDIVISION:** TRACTABLE 8 (1.8%) · INTRACTABLE 423 (97.2%) ·
 UNKNOWN 4 (0.9%). Planning diagnostic only; no HARD image is eligible, and
@@ -234,7 +269,9 @@ traversal, no measurable cost.
 binding constraint: 100k SKUs needs ≥5,000 provider requests against a
 measured ~28-request limit. No infrastructure prices are asserted (§49).
 
-**P0-P3 FOUND:** 4 (1×P1, 1×P2, 2×P3) — all fixed. **P0-P3 REMAINING: 0.**
+**P0-P3 FOUND (build lane):** 4 (1×P1, 1×P2, 2×P3) — all fixed. The
+subsequent HOSTILE AUDIT found a further 6 (4×P2, 2×P3), all repaired on
+`audit/vto-phase4-2-hostile-20260905`. **P0-P3 REMAINING ACROSS BOTH LANES: 0.**
 **P4-P6 FIXED:** 1 (P42-005, evidence-tooling). **P7-P10:** 4 documented
 only. Full ledger: `docs/vto-phase4-2-defect-ledger.md`.
 
