@@ -370,12 +370,42 @@ untouched by this lane.
 
 ## FULL REGRESSION AND CI
 
-See the FREEZE section for the exact SHA these were run against.
+```
+FULL REPO SUITE        exit 0 — observed failures 13, known baseline 13,
+                       UNEXPECTED 0
+PHASE 4.2 + PHASE 4    161/161 pass
+PIPELINE TYPECHECK     exit 0
+ROOT TYPECHECK         exit 0
+SCOPE GUARD            pass (evidence path already declared)
+EDGE PARITY            exit 0
+EDGE MANIFEST          pass
+VTO REGRESSION         pass (within full suite)
+SECURITY BASELINE      pass
+PRIVACY                pass
+MIGRATION PROVENANCE   exit 0
+DEPENDENCY REACHABILITY  NOT RUN — ENVIRONMENT.
+                       scripts/check-dependency-reachability.js calls
+                       spawnSync('npm') without a shell, which cannot resolve
+                       npm.cmd on Windows, so it fails closed with
+                       AUDIT_UNAVAILABLE locally. It runs normally in CI, where
+                       it passes on this branch. Reported, never silently
+                       skipped.
+
+CI ON FINAL HEAD       SUCCESS 31 · SKIPPED 13 · FAILED 0 · PENDING 0
+```
+
+The P42-006 Windows contamination trap recurred during this closeout's
+full-suite run (10 stray harness temp files appeared in the repo root) and was
+**correctly ignored** by the .gitignore fix — `git status --porcelain -uall`
+showed only the intended new document. The fix is now validated in practice,
+not just by construction.
 
 ## FREEZE
 
 ```
-PHASE 4.2 FINAL SHA          (recorded at hand-off, below)
+CODE FREEZE SHA              69237a26 (last commit touching code, tests or
+                             evidence; later commits are documentation-only)
+PHASE 4.2 FINAL HEAD         PR #303 head
 PIPELINE VERSION             0.1.0                (manifestBuilder.PIPELINE_VERSION)
 DECODER VERSION              @jsquash/webp 1.5.0 · pngjs 7.0.0 · jpeg-js 0.4.4
 ASSET CONTRACT VERSION       KSGARMENT_SCHEMA_VERSION (garmentContract.ts)
