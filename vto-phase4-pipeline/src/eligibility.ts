@@ -1,3 +1,4 @@
+import { explainConfidence, type ConfidenceExplanation } from './confidenceExplain';
 import type { ConfidenceComponents, EligibilityResult, Rejection } from './types';
 
 /**
@@ -6,20 +7,6 @@ import type { ConfidenceComponents, EligibilityResult, Rejection } from './types
  * component scores are combined.
  */
 export const ELIGIBILITY_CONFIDENCE_THRESHOLD = 0.5;
-
-/**
- * The six component scores, in a fixed order. Named explicitly so that a
- * component which is missing entirely (rather than merely low) is still
- * examined by `overallConfidence` instead of being skipped.
- */
-const CONFIDENCE_COMPONENT_KEYS = [
-  'shotClassification',
-  'segmentation',
-  'anchorCompleteness',
-  'geometryValidity',
-  'sourceQuality',
-  'productFidelity',
-] as const satisfies readonly (keyof ConfidenceComponents)[];
 
 /**
  * Overall confidence is the MIN of the component scores, not their average,
@@ -39,13 +26,18 @@ const CONFIDENCE_COMPONENT_KEYS = [
  * previous `Math.min` of the same values.
  */
 export function overallConfidence(components: ConfidenceComponents): number {
-  let min = 1;
-  for (const key of CONFIDENCE_COMPONENT_KEYS) {
-    const raw: unknown = components?.[key];
-    const score = typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 && raw <= 1 ? raw : 0;
-    if (score < min) min = score;
-  }
-  return min;
+  return explainConfidence(components).overall;
+}
+
+/**
+ * Phase 4.2 §22-§23: the same computation as `overallConfidence`, but
+ * returning WHICH component(s) held the minimum and what each one measured.
+ * Delegating both to `explainConfidence` is deliberate — it makes it
+ * structurally impossible for the reported limiting component to disagree
+ * with the value the gate actually applied.
+ */
+export function explainEligibilityConfidence(components: ConfidenceComponents): ConfidenceExplanation {
+  return explainConfidence(components);
 }
 
 /**

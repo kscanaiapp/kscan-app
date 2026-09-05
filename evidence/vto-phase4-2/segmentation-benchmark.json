@@ -1,0 +1,550 @@
+{
+  "schema": "vto-phase4-2-segmentation-benchmark/1",
+  "generatedAt": "2026-09-05T18:06:56.839Z",
+  "groundTruthSource": "Synthetic generator garmentPolygon, rasterized with the same fillPolygon that drew the garment. §31: no IoU is computed for real product photos, because no ground-truth mask exists for them (NO_REFERENCE).",
+  "externalSegmentationCalls": 0,
+  "pathsEvaluated": [
+    {
+      "id": "deterministic-background-subtraction",
+      "version": "phase4-segmentation@0.1.0",
+      "kind": "deterministic"
+    }
+  ],
+  "localModel": {
+    "installed": false,
+    "reason": "No local segmentation model is installed (VTO_PHASE4_LOCAL_SEG_MODEL_MANIFEST is unset). PATH B is not evaluated. See docs/vto-phase4-2-segmentation-benchmark.md for the measured headroom evidence behind that decision."
+  },
+  "overall": {
+    "deterministic-background-subtraction": {
+      "cases": 17,
+      "segmented": 14,
+      "segmentationFailures": 3,
+      "iouMin": 0.0018,
+      "iouP25": 0.9349,
+      "iouMedian": 1,
+      "iouP75": 1,
+      "iouMax": 1,
+      "iouAtLeast099": 9,
+      "iouBelow05": 2,
+      "meanIou": 0.8435,
+      "meanPrecision": 0.9881,
+      "meanRecall": 0.8543,
+      "meanBoundaryAgreement": 0.714,
+      "meanMaskCompleteness": 0.8663,
+      "meanDurationMs": 6
+    }
+  },
+  "byIntentLabelShotClass": {
+    "EASY": {
+      "deterministic-background-subtraction": {
+        "cases": 10,
+        "segmented": 8,
+        "segmentationFailures": 2,
+        "iouMin": 0.0826,
+        "iouP25": 1,
+        "iouMedian": 1,
+        "iouP75": 1,
+        "iouMax": 1,
+        "iouAtLeast099": 7,
+        "iouBelow05": 1,
+        "meanIou": 0.8853,
+        "meanPrecision": 1,
+        "meanRecall": 0.8853,
+        "meanBoundaryAgreement": 0.8794,
+        "meanMaskCompleteness": 0.8853,
+        "meanDurationMs": 5.4
+      }
+    },
+    "MEDIUM": {
+      "deterministic-background-subtraction": {
+        "cases": 5,
+        "segmented": 4,
+        "segmentationFailures": 1,
+        "iouMin": 0.0018,
+        "iouP25": 0.0018,
+        "iouMedian": 0.8558,
+        "iouP75": 0.9989,
+        "iouMax": 1,
+        "iouAtLeast099": 2,
+        "iouBelow05": 1,
+        "meanIou": 0.7141,
+        "meanPrecision": 0.9803,
+        "meanRecall": 0.731,
+        "meanBoundaryAgreement": 0.5407,
+        "meanMaskCompleteness": 0.7507,
+        "meanDurationMs": 6.8
+      }
+    },
+    "HARD": {
+      "deterministic-background-subtraction": {
+        "cases": 2,
+        "segmented": 2,
+        "segmentationFailures": 0,
+        "iouMin": 0.9349,
+        "iouP25": 0.9349,
+        "iouMedian": 0.9349,
+        "iouP75": 0.9349,
+        "iouMax": 0.9349,
+        "iouAtLeast099": 0,
+        "iouBelow05": 0,
+        "meanIou": 0.9349,
+        "meanPrecision": 0.9564,
+        "meanRecall": 0.9765,
+        "meanBoundaryAgreement": 0.3987,
+        "meanMaskCompleteness": 1.021,
+        "meanDurationMs": 7
+      }
+    }
+  },
+  "byClassifiedShotClass": {
+    "EASY": {
+      "deterministic-background-subtraction": {
+        "cases": 9,
+        "segmented": 9,
+        "segmentationFailures": 0,
+        "iouMin": 0.8558,
+        "iouP25": 1,
+        "iouMedian": 1,
+        "iouP75": 1,
+        "iouMax": 1,
+        "iouAtLeast099": 8,
+        "iouBelow05": 0,
+        "meanIou": 0.9839,
+        "meanPrecision": 0.9912,
+        "meanRecall": 0.9914,
+        "meanBoundaryAgreement": 0.907,
+        "meanMaskCompleteness": 1.0001,
+        "meanDurationMs": 7.78
+      }
+    },
+    "MEDIUM": {
+      "deterministic-background-subtraction": {
+        "cases": 1,
+        "segmented": 1,
+        "segmentationFailures": 0,
+        "iouMin": 1,
+        "iouP25": 1,
+        "iouMedian": 1,
+        "iouP75": 1,
+        "iouMax": 1,
+        "iouAtLeast099": 1,
+        "iouBelow05": 0,
+        "meanIou": 1,
+        "meanPrecision": 1,
+        "meanRecall": 1,
+        "meanBoundaryAgreement": 1,
+        "meanMaskCompleteness": 1,
+        "meanDurationMs": 3
+      }
+    },
+    "HARD": {
+      "deterministic-background-subtraction": {
+        "cases": 4,
+        "segmented": 3,
+        "segmentationFailures": 1,
+        "iouMin": 0.0018,
+        "iouP25": 0.0018,
+        "iouMedian": 0.9349,
+        "iouP75": 0.9349,
+        "iouMax": 0.9349,
+        "iouAtLeast099": 0,
+        "iouBelow05": 1,
+        "meanIou": 0.6238,
+        "meanPrecision": 0.9709,
+        "meanRecall": 0.6516,
+        "meanBoundaryAgreement": 0.2658,
+        "meanMaskCompleteness": 0.6813,
+        "meanDurationMs": 5.75
+      }
+    },
+    "UNSUPPORTED": {
+      "deterministic-background-subtraction": {
+        "cases": 3,
+        "segmented": 1,
+        "segmentationFailures": 2,
+        "iouMin": 0.0826,
+        "iouP25": 0.0826,
+        "iouMedian": 0.0826,
+        "iouP75": 0.0826,
+        "iouMax": 0.0826,
+        "iouAtLeast099": 0,
+        "iouBelow05": 1,
+        "meanIou": 0.0826,
+        "meanPrecision": 1,
+        "meanRecall": 0.0826,
+        "meanBoundaryAgreement": 0.0352,
+        "meanMaskCompleteness": 0.0826,
+        "meanDurationMs": 2
+      }
+    }
+  },
+  "addressablePathNote": "byClassifiedShotClass EASY+MEDIUM is the decision-relevant population: only images the classifier admits reach segmentation at all. Images classified UNSUPPORTED/HARD are rejected before extraction, so their IoU cannot change any pipeline outcome.",
+  "classifierAgreement": [
+    {
+      "caseId": "easy-plain-light",
+      "labelled": "EASY",
+      "classified": "EASY"
+    },
+    {
+      "caseId": "easy-plain-dark",
+      "labelled": "EASY",
+      "classified": "EASY"
+    },
+    {
+      "caseId": "easy-logo",
+      "labelled": "EASY",
+      "classified": "EASY"
+    },
+    {
+      "caseId": "easy-stripes-h",
+      "labelled": "EASY",
+      "classified": "EASY"
+    },
+    {
+      "caseId": "easy-stripes-v",
+      "labelled": "EASY",
+      "classified": "UNSUPPORTED"
+    },
+    {
+      "caseId": "easy-softknit",
+      "labelled": "EASY",
+      "classified": "UNSUPPORTED"
+    },
+    {
+      "caseId": "easy-structured",
+      "labelled": "EASY",
+      "classified": "EASY"
+    },
+    {
+      "caseId": "easy-offwhite-bg",
+      "labelled": "EASY",
+      "classified": "EASY"
+    },
+    {
+      "caseId": "easy-lowres",
+      "labelled": "EASY",
+      "classified": "MEDIUM"
+    },
+    {
+      "caseId": "easy-lightgarment-on-white",
+      "labelled": "EASY",
+      "classified": "UNSUPPORTED"
+    },
+    {
+      "caseId": "medium-noisy-bg",
+      "labelled": "MEDIUM",
+      "classified": "EASY"
+    },
+    {
+      "caseId": "medium-noisier-bg",
+      "labelled": "MEDIUM",
+      "classified": "EASY"
+    },
+    {
+      "caseId": "medium-tilt",
+      "labelled": "MEDIUM",
+      "classified": "EASY"
+    },
+    {
+      "caseId": "medium-tilt-noise",
+      "labelled": "MEDIUM",
+      "classified": "HARD"
+    },
+    {
+      "caseId": "medium-softknit-noise",
+      "labelled": "MEDIUM",
+      "classified": "HARD"
+    },
+    {
+      "caseId": "hard-modelworn",
+      "labelled": "HARD",
+      "classified": "HARD"
+    },
+    {
+      "caseId": "hard-modelworn-noise",
+      "labelled": "HARD",
+      "classified": "HARD"
+    }
+  ],
+  "perCase": [
+    {
+      "caseId": "easy-plain-light",
+      "shotClass": "EASY",
+      "classifiedShotClass": "EASY",
+      "pathId": "deterministic-background-subtraction",
+      "segmented": true,
+      "metrics": {
+        "iou": 1,
+        "precision": 1,
+        "recall": 1,
+        "boundaryAgreement": 1,
+        "maskCompleteness": 1,
+        "truePositives": 48792,
+        "falsePositives": 0,
+        "falseNegatives": 0
+      },
+      "durationMs": 15
+    },
+    {
+      "caseId": "easy-plain-dark",
+      "shotClass": "EASY",
+      "classifiedShotClass": "EASY",
+      "pathId": "deterministic-background-subtraction",
+      "segmented": true,
+      "metrics": {
+        "iou": 1,
+        "precision": 1,
+        "recall": 1,
+        "boundaryAgreement": 1,
+        "maskCompleteness": 1,
+        "truePositives": 48792,
+        "falsePositives": 0,
+        "falseNegatives": 0
+      },
+      "durationMs": 5
+    },
+    {
+      "caseId": "easy-logo",
+      "shotClass": "EASY",
+      "classifiedShotClass": "EASY",
+      "pathId": "deterministic-background-subtraction",
+      "segmented": true,
+      "metrics": {
+        "iou": 1,
+        "precision": 1,
+        "recall": 1,
+        "boundaryAgreement": 1,
+        "maskCompleteness": 1,
+        "truePositives": 48792,
+        "falsePositives": 0,
+        "falseNegatives": 0
+      },
+      "durationMs": 8
+    },
+    {
+      "caseId": "easy-stripes-h",
+      "shotClass": "EASY",
+      "classifiedShotClass": "EASY",
+      "pathId": "deterministic-background-subtraction",
+      "segmented": true,
+      "metrics": {
+        "iou": 1,
+        "precision": 1,
+        "recall": 1,
+        "boundaryAgreement": 1,
+        "maskCompleteness": 1,
+        "truePositives": 48792,
+        "falsePositives": 0,
+        "falseNegatives": 0
+      },
+      "durationMs": 5
+    },
+    {
+      "caseId": "easy-stripes-v",
+      "shotClass": "EASY",
+      "classifiedShotClass": "UNSUPPORTED",
+      "pathId": "deterministic-background-subtraction",
+      "segmented": true,
+      "metrics": {
+        "iou": 0.08263649778652238,
+        "precision": 1,
+        "recall": 0.08263649778652238,
+        "boundaryAgreement": 0.03524229074889868,
+        "maskCompleteness": 0.08263649778652238,
+        "truePositives": 4032,
+        "falsePositives": 0,
+        "falseNegatives": 44760
+      },
+      "durationMs": 3
+    },
+    {
+      "caseId": "easy-softknit",
+      "shotClass": "EASY",
+      "classifiedShotClass": "UNSUPPORTED",
+      "pathId": "deterministic-background-subtraction",
+      "segmented": false,
+      "metrics": null,
+      "durationMs": 1
+    },
+    {
+      "caseId": "easy-structured",
+      "shotClass": "EASY",
+      "classifiedShotClass": "EASY",
+      "pathId": "deterministic-background-subtraction",
+      "segmented": true,
+      "metrics": {
+        "iou": 1,
+        "precision": 1,
+        "recall": 1,
+        "boundaryAgreement": 1,
+        "maskCompleteness": 1,
+        "truePositives": 48792,
+        "falsePositives": 0,
+        "falseNegatives": 0
+      },
+      "durationMs": 6
+    },
+    {
+      "caseId": "easy-offwhite-bg",
+      "shotClass": "EASY",
+      "classifiedShotClass": "EASY",
+      "pathId": "deterministic-background-subtraction",
+      "segmented": true,
+      "metrics": {
+        "iou": 1,
+        "precision": 1,
+        "recall": 1,
+        "boundaryAgreement": 1,
+        "maskCompleteness": 1,
+        "truePositives": 48792,
+        "falsePositives": 0,
+        "falseNegatives": 0
+      },
+      "durationMs": 6
+    },
+    {
+      "caseId": "easy-lowres",
+      "shotClass": "EASY",
+      "classifiedShotClass": "MEDIUM",
+      "pathId": "deterministic-background-subtraction",
+      "segmented": true,
+      "metrics": {
+        "iou": 1,
+        "precision": 1,
+        "recall": 1,
+        "boundaryAgreement": 1,
+        "maskCompleteness": 1,
+        "truePositives": 30430,
+        "falsePositives": 0,
+        "falseNegatives": 0
+      },
+      "durationMs": 3
+    },
+    {
+      "caseId": "easy-lightgarment-on-white",
+      "shotClass": "EASY",
+      "classifiedShotClass": "UNSUPPORTED",
+      "pathId": "deterministic-background-subtraction",
+      "segmented": false,
+      "metrics": null,
+      "durationMs": 2
+    },
+    {
+      "caseId": "medium-noisy-bg",
+      "shotClass": "MEDIUM",
+      "classifiedShotClass": "EASY",
+      "pathId": "deterministic-background-subtraction",
+      "segmented": true,
+      "metrics": {
+        "iou": 1,
+        "precision": 1,
+        "recall": 1,
+        "boundaryAgreement": 1,
+        "maskCompleteness": 1,
+        "truePositives": 48792,
+        "falsePositives": 0,
+        "falseNegatives": 0
+      },
+      "durationMs": 6
+    },
+    {
+      "caseId": "medium-noisier-bg",
+      "shotClass": "MEDIUM",
+      "classifiedShotClass": "EASY",
+      "pathId": "deterministic-background-subtraction",
+      "segmented": true,
+      "metrics": {
+        "iou": 0.9988944847070385,
+        "precision": 0.9988944847070385,
+        "recall": 1,
+        "boundaryAgreement": 1,
+        "maskCompleteness": 1.0011067388096409,
+        "truePositives": 48792,
+        "falsePositives": 54,
+        "falseNegatives": 0
+      },
+      "durationMs": 8
+    },
+    {
+      "caseId": "medium-tilt",
+      "shotClass": "MEDIUM",
+      "classifiedShotClass": "EASY",
+      "pathId": "deterministic-background-subtraction",
+      "segmented": true,
+      "metrics": {
+        "iou": 0.8558469467318335,
+        "precision": 0.9223060212321187,
+        "recall": 0.9223438268568618,
+        "boundaryAgreement": 0.16299559471365638,
+        "maskCompleteness": 1.000040990326283,
+        "truePositives": 45003,
+        "falsePositives": 3791,
+        "falseNegatives": 3789
+      },
+      "durationMs": 11
+    },
+    {
+      "caseId": "medium-tilt-noise",
+      "shotClass": "MEDIUM",
+      "classifiedShotClass": "HARD",
+      "pathId": "deterministic-background-subtraction",
+      "segmented": true,
+      "metrics": {
+        "iou": 0.0018035743564518774,
+        "precision": 1,
+        "recall": 0.0018035743564518774,
+        "boundaryAgreement": 0,
+        "maskCompleteness": 0.0018035743564518774,
+        "truePositives": 88,
+        "falsePositives": 0,
+        "falseNegatives": 48704
+      },
+      "durationMs": 6
+    },
+    {
+      "caseId": "medium-softknit-noise",
+      "shotClass": "MEDIUM",
+      "classifiedShotClass": "HARD",
+      "pathId": "deterministic-background-subtraction",
+      "segmented": false,
+      "metrics": null,
+      "durationMs": 3
+    },
+    {
+      "caseId": "hard-modelworn",
+      "shotClass": "HARD",
+      "classifiedShotClass": "HARD",
+      "pathId": "deterministic-background-subtraction",
+      "segmented": true,
+      "metrics": {
+        "iou": 0.9348559767679147,
+        "precision": 0.9563995503452706,
+        "recall": 0.9764715527135596,
+        "boundaryAgreement": 0.3986784140969163,
+        "maskCompleteness": 1.0209870470568945,
+        "truePositives": 47644,
+        "falsePositives": 2172,
+        "falseNegatives": 1148
+      },
+      "durationMs": 7
+    },
+    {
+      "caseId": "hard-modelworn-noise",
+      "shotClass": "HARD",
+      "classifiedShotClass": "HARD",
+      "pathId": "deterministic-background-subtraction",
+      "segmented": true,
+      "metrics": {
+        "iou": 0.9348559767679147,
+        "precision": 0.9563995503452706,
+        "recall": 0.9764715527135596,
+        "boundaryAgreement": 0.3986784140969163,
+        "maskCompleteness": 1.0209870470568945,
+        "truePositives": 47644,
+        "falsePositives": 2172,
+        "falseNegatives": 1148
+      },
+      "durationMs": 7
+    }
+  ]
+}

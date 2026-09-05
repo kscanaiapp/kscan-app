@@ -145,7 +145,15 @@ async function assembleCohort(anonKey: string, targetCount: number): Promise<{ p
         category: 'top',
         title: null, // deliberately NOT carrying the real product title into a record that flows into committed evidence
         brand: null,
-        images: [{ ref: p.product_photos![0], origin: 'https-fetch' }],
+        // Phase 4.2 §11/§12: pass EVERY authoritative image candidate, not
+        // `product_photos[0]`. Passing only the hero made Phase 4.1's result
+        // hero-only BY CONSTRUCTION: `batch.processVariant` already loads all
+        // candidates and `imageSelection.selectBestSourceImage` already ranks
+        // them, so the rescue path existed and was simply never fed. It stays
+        // dormant while the provider returns one photo per product (measured:
+        // 490/490) and fires the moment a source carries an addressable
+        // alternate.
+        images: p.product_photos!.map((ref) => ({ ref, origin: 'https-fetch' as const })),
         evidenceClass: 'READ_ONLY_REAL_PRODUCT',
       });
       if (products.length >= targetCount) break outer;

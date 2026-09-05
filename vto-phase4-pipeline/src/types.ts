@@ -1,3 +1,4 @@
+import type { ConfidenceExplanation } from './confidenceExplain';
 import type { GarmentControlPoint, KsgarmentManifest, LiveSupportedTemplateFamily } from './garmentContract';
 
 /**
@@ -75,6 +76,15 @@ export type RejectionCode =
   | 'CROP_INCOMPLETE'
   | 'OCCLUSION_TOO_HIGH'
   | 'EXTRACTION_UNRELIABLE'
+  /**
+   * Audit P42-A-003 (amendment A3). A HARD-class source the pipeline
+   * REFUSED to extract by policy — extraction was never attempted, so
+   * `sourceAdequacy: UNKNOWN` is the expected and correct outcome. This is
+   * NOT an extraction algorithm failure and must not be triaged as one.
+   * `EXTRACTION_UNRELIABLE` now means only what its name says: extraction
+   * WAS attempted and its result could not be trusted.
+   */
+  | 'EXTRACTION_REFUSED_BY_POLICY'
   | 'ANCHORS_INCOMPLETE'
   | 'GEOMETRY_INVALID'
   | 'PRODUCT_FIDELITY_FAILED'
@@ -88,6 +98,7 @@ export const TERMINAL_REJECTION_CODES: readonly RejectionCode[] = [
   'CROP_INCOMPLETE',
   'OCCLUSION_TOO_HIGH',
   'EXTRACTION_UNRELIABLE',
+  'EXTRACTION_REFUSED_BY_POLICY',
   'ANCHORS_INCOMPLETE',
   'GEOMETRY_INVALID',
   'PRODUCT_FIDELITY_FAILED',
@@ -271,6 +282,20 @@ export interface Phase4AssetManifest {
 
   shotClassification: ShotClassificationResult;
   confidenceComponents: ConfidenceComponents;
+  /**
+   * Phase 4.2 §22-§23: which component(s) held the minimum, what each one
+   * measured, and whether any were malformed. Present on EVERY manifest,
+   * accepted or rejected — a confidence decision that cannot be attributed
+   * is exactly what §22 forbids.
+   */
+  confidenceExplanation: ConfidenceExplanation;
+  /**
+   * Phase 4.2 §20/§35: measured extraction evidence, so "mask fragmentation"
+   * is a number in the artifact rather than a guess made later. Null when
+   * segmentation never ran (HARD sources, or a stage rejection before
+   * extraction).
+   */
+  segmentationEvidence: SegmentationEvidence | null;
   qa: ProductFidelityQaResult | null;
   eligibility: EligibilityResult;
   status: AssetStatus;
@@ -281,6 +306,19 @@ export interface Phase4AssetManifest {
   stageTimings: StageTiming[];
   /** Diagnostic only — see `SourceAdequacyEvidence`. Never used to gate eligibility. */
   sourceAdequacy: SourceAdequacyEvidence;
+}
+
+export interface SegmentationEvidence {
+  /** EVERY connected foreground component, including single-pixel compression speckle. */
+  componentCount: number;
+  /** Components at or above 1% of image area — the meaningful "how many things are here" measure (see P42-001). */
+  significantComponentCount: number;
+  /** maskPixelCount / bboxPixelCount. */
+  fillRatio: number;
+  maskPixelCount: number;
+  bboxPixelCount: number;
+  /** How many of the 4 image edges the garment region touches. */
+  edgesTouched: number;
 }
 
 export interface AnchorCandidate {
