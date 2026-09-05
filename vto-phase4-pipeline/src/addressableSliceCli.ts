@@ -239,7 +239,14 @@ async function main() {
   });
 
   // ── §20: EXTRACTION_UNRELIABLE broken down ──
-  const extractionUnreliable = rows.filter((r) => r.result === 'REJECTED:EXTRACTION_UNRELIABLE');
+  // Audit P42-A-003 (A3): the HARD pre-extraction POLICY refusal now emits
+  // EXTRACTION_REFUSED_BY_POLICY. Historical evidence (Phase 4.1 Gate E, and
+  // the Phase 4.2 closeout 29-case breakdown) is NOT rewritten and still
+  // carries the old conflated code, so this breakdown accepts BOTH or it
+  // would silently report 0 for every new run.
+  const extractionUnreliable = rows.filter(
+    (r) => r.result === 'REJECTED:EXTRACTION_UNRELIABLE' || r.result === 'REJECTED:EXTRACTION_REFUSED_BY_POLICY',
+  );
   const extractionUnreliableBreakdown = {
     total: extractionUnreliable.length,
     byGate: countBy(extractionUnreliable.map((r) => r.attributionGate ?? 'unknown')),

@@ -138,9 +138,14 @@ function stageCause(code: RejectionCode, message: string): RejectionCause {
   switch (code) {
     case 'OCCLUSION_TOO_HIGH':
       return 'STAGE_HARD_NO_EXTRACTION_PATH';
+    case 'EXTRACTION_REFUSED_BY_POLICY':
+      return 'STAGE_HARD_NON_UNIFORM_BACKGROUND';
     case 'EXTRACTION_UNRELIABLE':
-      // Reachable at the extraction stage only for a HARD, non-uniform-background
-      // source; the confidence-gate route is handled separately by the caller.
+      // LEGACY evidence only. Historical runs (Phase 4.1 Gate E, and the
+      // Phase 4.2 closeout's 29-case breakdown) emitted this code for the
+      // HARD policy refusal too; those committed files are NOT rewritten, so
+      // this mapping must keep working when they are replayed. New runs emit
+      // EXTRACTION_REFUSED_BY_POLICY for that path — see the case above.
       return 'STAGE_HARD_NON_UNIFORM_BACKGROUND';
     case 'GARMENT_NOT_PRIMARY':
       return 'STAGE_NO_GARMENT_REGION';

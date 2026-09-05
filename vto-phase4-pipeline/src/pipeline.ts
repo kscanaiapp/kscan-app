@@ -9,7 +9,7 @@ import { TEMPLATE_FAMILY_BY_CANONICAL, validateKsgarmentManifest } from './garme
 import { buildAssetManifest, buildKsgarmentManifest } from './manifestBuilder';
 import { buildMeshDefinition } from './mesh';
 import type { RgbaImage } from './pixels';
-import { segmentGarment } from './segmentation';
+import { INSIGNIFICANT_FRAGMENT_CEILING, segmentGarment } from './segmentation';
 import { computeSourceAdequacy } from './sourceAdequacy';
 import { classifyShot } from './shotClassifier';
 import type {
@@ -112,7 +112,12 @@ export function runPipelineForImage(
     if (segmentation === null) {
       const skinTriggered = Number(shotResult.evidence.skinRatio ?? 0) >= 0.06;
       rejection = {
-        code: skinTriggered ? 'OCCLUSION_TOO_HIGH' : 'EXTRACTION_UNRELIABLE',
+        // Audit P42-A-003 (A3): this is a POLICY refusal — classifyExtractionGate
+        // returned null for a HARD source, so extraction never ran. Emitting
+        // EXTRACTION_UNRELIABLE here made a refusal indistinguishable from a
+        // genuine extraction failure and caused correctionTriage to label 27
+        // of 29 such cases POTENTIALLY_CORRECTABLE, which they are not.
+        code: skinTriggered ? 'OCCLUSION_TOO_HIGH' : 'EXTRACTION_REFUSED_BY_POLICY',
         message: skinTriggered
           ? 'HARD-class source with detected skin-tone presence — this pipeline has no validated model-worn extraction path (task section 16: reject early)'
           : 'HARD-class source with a non-uniform background — background-color-based extraction is not defensible here',
@@ -234,7 +239,7 @@ export function runPipelineForImage(
     // and HARD sources never reach this line at all (classifyExtractionGate
     // returns null for HARD before extraction), so this cannot make any HARD
     // source eligible — see vtoPhase42Repairs.test.ts.
-    segmentation: segmentation && segmentation.ok ? clamp01(segmentation.fillRatio * (1 - Math.min(1, (segmentation.significantComponentCount - 1) * 0.05))) : 0,
+    segmentation: segmentation && segmentation.ok ? segmentationConfidence(segmentation) : 0,
     anchorCompleteness: requiredAnchorAverage(anchorCandidates),
     geometryValidity: ksgarment ? clamp01(1 - Math.abs(appliedRotationDegrees) / 40) : 0,
     sourceQuality: clamp01((decoded.image.width * decoded.image.height) / (300 * 300)),
@@ -246,6 +251,8 @@ export function runPipelineForImage(
       ? {
           componentCount: segmentation.componentCount,
           significantComponentCount: segmentation.significantComponentCount,
+          largestNonWinnerComponentRatio: segmentation.largestNonWinnerComponentRatio,
+          insignificantFragmentRatio: segmentation.insignificantFragmentRatio,
           fillRatio: segmentation.fillRatio,
           maskPixelCount: segmentation.maskPixelCount,
           bboxPixelCount: segmentation.bboxPixelCount,
@@ -333,6 +340,25 @@ function classifyExtractionGate(
 ): ReturnType<typeof segmentGarment> | null {
   if (shotClass === 'HARD') return null;
   return segmentGarment(image, edgeMarginFractionOverride ?? 0.02, segmentationThresholdOverride);
+}
+
+/**
+ * Audit P42-A-001 (amendment A8). Unchanged from Phase 4.2 in the case that
+ * repair was built for — compression speckle is significant by neither
+ * measure, so a speckled clean garment still scores `fillRatio` exactly.
+ *
+ * Two things changed, both in the fail-closed direction:
+ *  1. `significantComponentCount` now also counts a component that is
+ *     material relative to the GARMENT (see segmentation.ts). A detached
+ *     sleeve just under 1% of FRAME area used to cost exactly nothing while
+ *     being dropped from the emitted asset.
+ *  2. `INSIGNIFICANT_FRAGMENT_CEILING` is the A8 speck-AREA ceiling: past it
+ *     the foreground is confetti and `significantComponentCount === 1` may
+ *     no longer read as "one clean thing". Below it, nothing changes.
+ */
+function segmentationConfidence(segmentation: Extract<ReturnType<typeof segmentGarment>, { ok: true }>): number {
+  if (segmentation.insignificantFragmentRatio >= INSIGNIFICANT_FRAGMENT_CEILING) return 0;
+  return clamp01(segmentation.fillRatio * (1 - Math.min(1, (segmentation.significantComponentCount - 1) * 0.05)));
 }
 
 function requiredAnchorAverage(candidates: ReturnType<typeof generateAnchors>): number {

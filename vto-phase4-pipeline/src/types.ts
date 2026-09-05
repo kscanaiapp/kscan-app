@@ -76,6 +76,15 @@ export type RejectionCode =
   | 'CROP_INCOMPLETE'
   | 'OCCLUSION_TOO_HIGH'
   | 'EXTRACTION_UNRELIABLE'
+  /**
+   * Audit P42-A-003 (amendment A3). A HARD-class source the pipeline
+   * REFUSED to extract by policy — extraction was never attempted, so
+   * `sourceAdequacy: UNKNOWN` is the expected and correct outcome. This is
+   * NOT an extraction algorithm failure and must not be triaged as one.
+   * `EXTRACTION_UNRELIABLE` now means only what its name says: extraction
+   * WAS attempted and its result could not be trusted.
+   */
+  | 'EXTRACTION_REFUSED_BY_POLICY'
   | 'ANCHORS_INCOMPLETE'
   | 'GEOMETRY_INVALID'
   | 'PRODUCT_FIDELITY_FAILED'
@@ -89,6 +98,7 @@ export const TERMINAL_REJECTION_CODES: readonly RejectionCode[] = [
   'CROP_INCOMPLETE',
   'OCCLUSION_TOO_HIGH',
   'EXTRACTION_UNRELIABLE',
+  'EXTRACTION_REFUSED_BY_POLICY',
   'ANCHORS_INCOMPLETE',
   'GEOMETRY_INVALID',
   'PRODUCT_FIDELITY_FAILED',
