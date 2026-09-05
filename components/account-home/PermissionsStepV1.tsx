@@ -24,13 +24,19 @@ interface PermissionsStepV1Props {
  * - Card-based permission rows with icons
  * - Essential vs Optional labels
  * - Visual-only Allow buttons for Camera/Photos
- * - Camera and Photos only; unimplemented permissions are not advertised
  * - Continue to Home CTA and Not now link
  *
- * Build 33: the Microphone and Notifications "Coming Soon" cards were removed.
- * Neither capability is implemented, and advertising them on a reviewer-visible
- * onboarding screen reads as an incomplete app. K Scan AI requests no microphone
- * permission on any platform; camera and photos remain point-of-use grants.
+ * Build 33 removed the Microphone and Notifications "Coming Soon" cards
+ * rather than activating them. Notifications is now a real, actionable
+ * toggle (Build 34). Microphone is restored as a live but PASSIVE status
+ * card: Voice Scan (components/text-scan/VoiceScanButton.tsx) is the sole
+ * governed microphone-permission authority, and its OS prompt must stay
+ * strictly just-in-time -- fired only by an explicit tap on the Voice Scan
+ * mic button mid-search, never from onboarding. This card only describes
+ * that behavior; its action area is informational and calls no permission
+ * API of any kind (see __tests__/androidGooglePlayComplianceV1.test.js and
+ * __tests__/iosAppReviewSurface.test.js, which assert this file never
+ * imports or invokes a microphone/recording permission function).
  */
 export function PermissionsStepV1({
   preferences,
@@ -117,6 +123,22 @@ export function PermissionsStepV1({
           onActionChange={() => togglePreference('photos')}
         />
 
+        {/* Microphone — live capability surface, PASSIVE by design. This
+            card never calls a permission API and registers no press
+            handler on its action area (see actionType="status" below).
+            Voice Scan (components/text-scan/VoiceScanButton.tsx) remains
+            the ONLY place that requests the real OS microphone/speech
+            permission, just-in-time, after an explicit tap. */}
+        <PermissionCard
+          icon="◎"
+          title="Microphone"
+          badge="OPTIONAL"
+          description="Use Voice Scan to speak a fashion search instead of typing. Microphone access is requested only when you tap Voice Scan."
+          actionType="status"
+          statusLabel="ON USE"
+          accessibilityLabel="Microphone is used by Voice Scan, requested only when you tap Voice Scan"
+        />
+
         {/* Notifications — permanent core permission surface. Visibility is
             unconditional: no environment, K+, RevenueCat, PostHog,
             FeatureFreeze, or remote-config gate may hide it. Off by default;
@@ -172,9 +194,15 @@ interface PermissionCardProps {
   title: string;
   badge: string;
   description: string;
-  actionType: 'allow' | 'toggle';
-  actionValue: boolean;
-  onActionChange: (value: boolean) => void;
+  // 'status' is a passive, non-interactive action area: no Pressable, no
+  // Switch, no onPress/onValueChange of any kind. It exists for a card that
+  // must describe a real capability without itself being able to trigger
+  // any permission request -- see the Microphone card above.
+  actionType: 'allow' | 'toggle' | 'status';
+  actionValue?: boolean;
+  onActionChange?: (value: boolean) => void;
+  /** Label shown in the passive status pill. Only used when actionType === 'status'. */
+  statusLabel?: string;
   recommendation?: string;
   disabled?: boolean;
   accessibilityLabel?: string;
@@ -186,8 +214,9 @@ function PermissionCard({
   badge,
   description,
   actionType,
-  actionValue,
+  actionValue = false,
   onActionChange,
+  statusLabel,
   recommendation,
   disabled = false,
   accessibilityLabel,
@@ -222,9 +251,16 @@ function PermissionCard({
         </View>
 
         <View style={styles.cardAction}>
-          {actionType === 'allow' ? (
+          {actionType === 'status' ? (
+            // Deliberately a bare View + Text: no Pressable, no onPress, no
+            // touchable ancestor of any kind. There is nothing here for a
+            // future edit to silently wire a permission call onto.
+            <View style={styles.statusPill} accessibilityRole="text">
+              <Text style={styles.statusPillText}>{statusLabel ?? 'ON USE'}</Text>
+            </View>
+          ) : actionType === 'allow' ? (
             <Pressable
-              onPress={() => !disabled && onActionChange(!actionValue)}
+              onPress={() => !disabled && onActionChange?.(!actionValue)}
               disabled={disabled}
               style={({ pressed }) => [
                 styles.allowButton,
@@ -387,6 +423,18 @@ const styles = StyleSheet.create({
   },
   allowButtonTextDisabled: {
     color: LUXURY.colors.stone,
+  },
+  statusPill: {
+    borderRadius: RADIUS.pill,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    backgroundColor: LUXURY.colors.goldLight,
+  },
+  statusPillText: {
+    ...LUXURY.typography.cta,
+    fontSize: 10,
+    letterSpacing: 0.6,
+    color: LUXURY.colors.goldText,
   },
   settingsLink: {
     ...LUXURY.typography.caption,
