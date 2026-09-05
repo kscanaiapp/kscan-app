@@ -12,7 +12,8 @@
     "test": "npm run build && node --test dist/__tests__/*.test.js",
     "pipeline:run": "npm run build && node dist/src/cli.js",
     "gate-e:real-cohort": "npm run build && node dist/src/gateECohortCli.js",
-    "catalog:characterize": "npm run build && node dist/src/catalogCharacterizationCli.js"
+    "catalog:characterize": "npm run build && node dist/src/catalogCharacterizationCli.js",
+    "seg:benchmark": "npm run build && node dist/src/segmentationBenchmarkCli.js"
   },
   "dependencies": {
     "@jsquash/webp": "1.5.0",
