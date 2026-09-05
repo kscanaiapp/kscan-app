@@ -31,3 +31,19 @@ There is no `moduleAvailable` field anywhere in the merged contract -- module pr
 **Resolution (per amendment B3):** the Kotlin module's `getCapability()` returns `{capable, runtimeReady, runtimeVersion}` -- the real, merged, tested field names -- not the mission's illustrative ones. Both `capable` and `runtimeReady` are `false` at N1-A: no device-eligibility check has been implemented yet, and claiming `capable: true` with nothing behind it would repeat exactly the "registration is not capability" mistake `liveVtoNativeModule.ts`'s own header comment warns against. `capable` becomes a real, evidenced device check no earlier than the gate that actually implements one (not yet decided which -- likely N1-E/N1-F, alongside the perception/camera capability checks).
 
 **Outcome:** resolved in the merged contract's favor, no test or app-layer change needed. Recorded so a later session doesn't "fix" the native module back toward the mission's illustrative shape.
+
+## N1-ENV-003 (P2, build infrastructure) -- literal `--` inside XML manifest comments breaks every local Gradle Android build
+
+**Found:** N1-A, first `./gradlew :app:assembleDebug` attempt in this worktree.
+
+**Reproduction:** `./gradlew :app:processDebugMainManifest --stacktrace` -> `com.android.manifmerger.ManifestMerger2$MergeFailureException: Error parsing android/app/src/main/AndroidManifest.xml` -> `Caused by: org.xml.sax.SAXParseException; lineNumber: 31; columnNumber: 55; The string "--" is not permitted within comments.`
+
+**Root cause:** the XML 1.0 spec forbids the two-character string `--` anywhere inside a comment body, not only at its `<!--`/`-->` boundaries. Android's manifest-merger parses with a strict validating Xerces SAX parser that enforces this as a fatal error rather than tolerating it (many lenient XML/HTML tools do tolerate it, which is presumably why this survived unnoticed). `android/app/src/main/AndroidManifest.xml` line 31 (the mailto `<queries>` rationale comment) and six more occurrences across `android/app/src/certification/AndroidManifest.xml`'s Voice Scan comment block all used `--` as a prose parenthetical dash -- the same style used throughout this codebase's `.ts`/`.js` comments, where it is perfectly legal.
+
+**Scope:** blocks the `main` and `certification` manifest variants of every local Gradle Android build (`assembleDebug`, `bundleRelease`, etc.) on any machine, regardless of which module or lane is being worked on. Not specific to N1 or to the new native module -- discovered only because N1-A was the first lane in the visible history to attempt a genuine from-scratch local Gradle build through to final packaging (prior verification was consistently EAS-cloud-shaped; see the environment doc).
+
+**Repair:** replaced each literal `--` with a comma or semicolon, preserving the comments' meaning exactly. No permission, activity, intent-filter, or `tools:node` directive touched in either file.
+
+**Regression:** `./gradlew :app:processDebugMainManifest` -- BUILD SUCCESSFUL (was FAILED) after the fix, both manifests.
+
+**Outcome:** fixed, committed (`510cbdb`), declared in the integration manifest's authorized boundary (new rows for both `AndroidManifest.xml` paths -- neither was covered by any existing pattern).

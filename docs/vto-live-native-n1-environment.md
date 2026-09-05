@@ -55,6 +55,20 @@ Resolved build config: compileSdk 36, minSdk 24, targetSdk 36, buildTools 36.0.0
 
 Also worth a decision before N1-G regardless of the above: `development`'s `developmentClient` is currently `false` (builds a debug-flavored internal APK, not an actual Expo Dev Client) and its Supabase target is **production**, same as `preview`/`production` -- only `staging`/`staging-certification` point at staging.
 
+## Local machine setup required for a from-scratch local Gradle build
+
+Two gaps found only by actually attempting `./gradlew :app:assembleDebug` end to end (neither is visible from a tool-presence precheck):
+
+1. **`android/app/debug.keystore` missing.** Deliberately gitignored (`.gitignore:41`) and never committed (git history shows an explicit "Initial K Scan app import without secrets" policy) -- every machine generates its own. Zero security relevance: Android's debug-signing convention is a single, universally-standard keystore (alias `androiddebugkey`, password `android`) used identically across every Android developer machine, since a debug-signed artifact can never reach a store. Generated locally with:
+   ```
+   keytool -genkeypair -v -storetype PKCS12 -keystore android/app/debug.keystore \
+     -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
+     -storepass android -keypass android -dname "CN=Android Debug,O=Android,C=US"
+   ```
+2. See the defect ledger (N1-ENV-003) for the manifest-comment XML defect that blocked the build before this.
+
+Both point the same direction: **this appears to be the first fully-local, from-scratch `./gradlew assembleDebug` run of this project on this toolchain** -- prior verification in the memory trail is consistently EAS-cloud-build-shaped, never a raw local Gradle build reaching final packaging.
+
 ## Local test-build configuration (not committed)
 
 N1's own local verification builds use a gitignored `.env.local` (confirmed via `git check-ignore`) rather than any eas.json edit:
