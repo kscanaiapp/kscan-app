@@ -216,6 +216,47 @@ population, so the decision's basis fails loudly if PATH A erodes.
 
 ---
 
+## P42-006 — This lane's own commit picked up stray harness temp files
+
+| | |
+|---|---|
+| **ID** | P42-006 |
+| **Severity** | **P3** — repository contamination introduced by this lane; no runtime or data impact, but it broke a governed gate and would have shipped junk paths |
+| **Location** | commit `9d74739` (this branch) |
+| **Commit** | fix in the follow-up commit; entries added to `.gitignore` |
+
+**Observed failure.** CI's scope guard failed on this branch —
+`this lane touched a path the manifest does not authorize` — while the same
+guard passed locally at the same SHA.
+
+**Root cause.** Running the full repository suite locally executes the VTO
+E2E harness, which writes an absolute Windows temp path. Under git-bash on
+Windows that path materializes as a **literal filename in the repository
+root** (the `:` becomes U+F03A), so four files named
+`C<U+F03A>UsersjsmitAppDataLocalTempvto-e2e-a{1,2}-<uuid>.json` appeared at
+the top level. A subsequent `git add -A` committed them.
+
+They were **zero-byte** (all four hash to git's canonical empty blob
+`e69de29`), which is why Gitleaks and the security scanners passed — there
+was no content to find. The failure was structural, not a secret leak.
+
+The local/CI divergence had a simple cause: locally I ran the guard *before*
+the contaminating `git add -A`, so the paths were untracked and invisible to
+a diff-based check; CI ran it against the pushed commit that contained them.
+
+**Fix.** Removed the four files from the index and added two `.gitignore`
+patterns so a local full-suite run cannot contaminate a branch again.
+
+**Negative control / regression.** The guard itself is the regression: it
+refused the paths, which is the guard working exactly as intended. Re-running
+it against the corrected tree yields `changed: 38, unauthorized: 0`.
+
+**Note for the audit.** This is recorded rather than quietly amended because
+it is a defect this lane introduced, and because it is a reusable Windows
+trap for any future lane that runs the full suite locally before committing.
+
+---
+
 ## Documented only (P7-P10)
 
 **P42-D01 — `sourceQuality` is a raw pixel-count proxy.** `clamp01(w*h /
@@ -262,7 +303,7 @@ Severity P7 (external constraint).
 P0 FOUND      0
 P1 FOUND      1   (P42-004)   FIXED
 P2 FOUND      1   (P42-001)   FIXED
-P3 FOUND      2   (P42-002, P42-003)   FIXED
+P3 FOUND      3   (P42-002, P42-003, P42-006)   FIXED
 
 P0-P3 REMAINING OPEN:  0
 P4-P6 FIXED:           1   (P42-005)
