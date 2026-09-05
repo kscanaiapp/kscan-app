@@ -39,7 +39,7 @@ async function main() {
   writeFileSync(join(evidenceRoot, 'gate-e-economics.md'), renderGateEMarkdown(gateE, batchResult.items));
 
   console.log('[phase4] running correction demonstration...');
-  runCorrectionDemo(batchResult.items, synthetic.hintsByRef, evidenceRoot);
+  await runCorrectionDemo(batchResult.items, synthetic.hintsByRef, evidenceRoot);
 
   console.log('[phase4] done.');
   console.log(`  batch report:    ${join(evidenceRoot, 'batch-run-report.json')}`);
@@ -47,14 +47,14 @@ async function main() {
   console.log(`  generated assets: ${generatedOutputRoot}`);
 }
 
-function runCorrectionDemo(items: BatchItemResult[], hintsByRef: Map<string, import('./fidelity').FidelityReferenceHints>, evidenceRoot: string) {
+async function runCorrectionDemo(items: BatchItemResult[], hintsByRef: Map<string, import('./fidelity').FidelityReferenceHints>, evidenceRoot: string) {
   const correctionsPath = join(evidenceRoot, 'corrections.jsonl');
   if (!existsSync(correctionsPath)) writeFileSync(correctionsPath, '');
 
   // Demo 1: a MEDIUM item that classified as EXTRACTION_UNRELIABLE/HARD-adjacent gets a SHOT_CLASS_OVERRIDE retry.
   const hardCandidate = items.find((i) => i.manifest?.rejection?.code === 'OCCLUSION_TOO_HIGH' || i.manifest?.rejection?.code === 'EXTRACTION_UNRELIABLE');
   if (hardCandidate && hardCandidate.selectedImageRef && hardCandidate.manifest) {
-    const loaded = loadSourceImage({ ref: hardCandidate.selectedImageRef, origin: 'local-fixture' });
+    const loaded = await loadSourceImage({ ref: hardCandidate.selectedImageRef, origin: 'local-fixture' });
     if (loaded.ok) {
       const productStub = {
         productRef: hardCandidate.productRef,

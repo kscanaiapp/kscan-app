@@ -9,6 +9,7 @@ import { buildAssetManifest, buildKsgarmentManifest } from './manifestBuilder';
 import { buildMeshDefinition } from './mesh';
 import type { RgbaImage } from './pixels';
 import { segmentGarment } from './segmentation';
+import { computeSourceAdequacy } from './sourceAdequacy';
 import { classifyShot } from './shotClassifier';
 import type {
   ConfidenceComponents,
@@ -232,6 +233,18 @@ export function runPipelineForImage(
   stageStart = Date.now();
   timer.run('bundle_writing', () => null);
 
+  // Source-adequacy diagnostic (addendum §A8-§A9) — a SEPARATE axis from
+  // eligibility/rejection. Measured from the segmentation-stage bounding
+  // box in ORIGINAL source-pixel coordinates (before canonicalization crop
+  // or rotation) whenever segmentation succeeded, independent of whether
+  // this item was later rejected downstream — "was the extracted garment
+  // region big enough" is knowable as soon as a region was extracted at
+  // all, and answering it must never depend on whether QA/anchors also
+  // happened to pass.
+  const garmentBoundingWidthPx = segmentation && segmentation.ok ? segmentation.bbox.maxX - segmentation.bbox.minX : null;
+  const garmentBoundingHeightPx = segmentation && segmentation.ok ? segmentation.bbox.maxY - segmentation.bbox.minY : null;
+  const sourceAdequacy = computeSourceAdequacy(decoded.image.width, decoded.image.height, garmentBoundingWidthPx, garmentBoundingHeightPx);
+
   const manifest = buildAssetManifest({
     productRef: product.productRef,
     retailer: product.retailer,
@@ -251,6 +264,7 @@ export function runPipelineForImage(
     ksgarment,
     anchorEvidence: anchorCandidates.map((c) => ({ id: c.point.id, confidence: c.confidence })),
     stageTimings: timer.all(),
+    sourceAdequacy,
   });
 
   return { manifest, texture: canonicalTexture, alphaMask: canonicalAlpha };

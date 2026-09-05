@@ -46,12 +46,12 @@ test('groupByVariant: multiple images of the same (null) variant are not ambiguo
   assert.equal(groups[0].ambiguous, false);
 });
 
-test('selectBestSourceImage prefers EASY over HARD regardless of candidate order', () => {
+test('selectBestSourceImage prefers EASY over HARD regardless of candidate order', async () => {
   const easy = generateSyntheticGarment({ seed: 1, backgroundColor: WHITE, garmentColor: BLUE });
   const hard = generateSyntheticGarment({ seed: 2, backgroundColor: WHITE, garmentColor: BLUE, addSkinBlob: true });
   const candidates = [
-    { ref: 'hard.png', decoded: decodeImageBytes(encodePng(hard.image)) },
-    { ref: 'easy.png', decoded: decodeImageBytes(encodePng(easy.image)) },
+    { ref: 'hard.png', decoded: await decodeImageBytes(encodePng(hard.image)) },
+    { ref: 'easy.png', decoded: await decodeImageBytes(encodePng(easy.image)) },
   ];
   const result = selectBestSourceImage(candidates);
   assert.equal(result.selected.ref, 'easy.png');

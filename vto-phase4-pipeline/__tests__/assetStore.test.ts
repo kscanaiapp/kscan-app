@@ -28,6 +28,7 @@ function makeManifest(overrides: Partial<Phase4AssetManifest> = {}): Phase4Asset
     anchorEvidence: [],
     correctionHistory: [],
     stageTimings: [],
+    sourceAdequacy: { classification: 'UNKNOWN', sourceWidth: 10, sourceHeight: 10, shortSidePx: 10, longSidePx: 10, garmentBoundingWidthPx: null, garmentBoundingHeightPx: null, garmentOccupancyRatio: null, reason: 'test fixture' },
     ...overrides,
   };
 }
