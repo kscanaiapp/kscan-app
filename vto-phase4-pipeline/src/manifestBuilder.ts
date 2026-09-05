@@ -1,3 +1,4 @@
+import type { ConfidenceExplanation } from './confidenceExplain';
 import { KSGARMENT_SCHEMA_VERSION, type GarmentControlPoint, type KsgarmentManifest, type MeshDefinition } from './garmentContract';
 import { deterministicAssetId } from './hashing';
 import type {
@@ -58,6 +59,7 @@ export function buildAssetManifest(params: {
   sourceFormat: 'png' | 'jpeg' | 'webp';
   shotClassification: ShotClassificationResult;
   confidenceComponents: ConfidenceComponents;
+  confidenceExplanation: ConfidenceExplanation;
   qa: ProductFidelityQaResult | null;
   eligibility: EligibilityResult;
   rejection: Rejection | null;
@@ -93,6 +95,7 @@ export function buildAssetManifest(params: {
     },
     shotClassification: params.shotClassification,
     confidenceComponents: params.confidenceComponents,
+    confidenceExplanation: params.confidenceExplanation,
     qa: params.qa,
     eligibility: params.eligibility,
     status,

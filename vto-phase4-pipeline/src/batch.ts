@@ -3,6 +3,7 @@ import { selectBestSourceImage, type ImageCandidateEvaluation } from './imageSel
 import { persistAsset, type PersistResult } from './assetStore';
 import { runPipelineForImage } from './pipeline';
 import { loadSourceImage, type LoadResult } from './sourceLoad';
+import { explainConfidence } from './confidenceExplain';
 import { resolveEligibility } from './eligibility';
 import { buildAssetManifest } from './manifestBuilder';
 import { groupByVariant } from './variantResolution';
@@ -237,6 +238,7 @@ async function processAmbiguousEntry(entry: Phase4ProductInput): Promise<BatchIt
     sourceFormat: loaded && loaded.ok ? loaded.decoded.format : 'png',
     shotClassification: { shotClass: 'UNSUPPORTED', confidence: 0, evidence: { reason: 'variant_ambiguous_skip_classification' } },
     confidenceComponents,
+    confidenceExplanation: explainConfidence(confidenceComponents),
     qa: null,
     eligibility: resolveEligibility(confidenceComponents, rejection),
     rejection,
@@ -312,6 +314,7 @@ async function processVariant(
       sourceFormat: 'png',
       shotClassification: { shotClass: 'UNSUPPORTED', confidence: 0, evidence: {} },
       confidenceComponents,
+      confidenceExplanation: explainConfidence(confidenceComponents),
       qa: null,
       eligibility: resolveEligibility(confidenceComponents, rejection),
       rejection,

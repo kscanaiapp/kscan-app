@@ -1,7 +1,8 @@
 import { generateAnchors, requiredAnchorsPresent, toControlPoints } from './anchors';
 import { canonicalizeMedium } from './canonicalize';
 import type { DecodedSource } from './codec';
-import { resolveEligibility, overallConfidence } from './eligibility';
+import { explainEligibilityConfidence, resolveEligibility, overallConfidence } from './eligibility';
+import { ELIGIBILITY_CONFIDENCE_THRESHOLD } from './eligibility';
 import type { FidelityReferenceHints } from './fidelity';
 import { computeProductFidelity } from './fidelity';
 import { TEMPLATE_FAMILY_BY_CANONICAL, validateKsgarmentManifest } from './garmentContract';
@@ -218,6 +219,7 @@ export function runPipelineForImage(
     productFidelity: qa ? (qa.passed ? 1 : 0) : 0,
   };
 
+  const confidenceExplanation = explainEligibilityConfidence(confidenceComponents);
   const eligibility = resolveEligibility(confidenceComponents, rejection);
   // A confidence-gate failure (no explicit stage rejection, but eligibility
   // still resolved to ineligible — see eligibility.ts's threshold check)
@@ -227,7 +229,23 @@ export function runPipelineForImage(
   // that is truly ineligible but carries `rejection: null` would silently
   // vanish from both (see docs/vto-phase4-defect-ledger.md, PHASE4-007).
   if (!rejection && !eligibility.live2d && eligibility.reason) {
-    rejection = { code: eligibility.reason, message: `overall confidence ${overallConfidence(confidenceComponents).toFixed(2)} is below the eligibility threshold`, stage: 'qa' };
+    // Phase 4.2 §22-§23: never emit a bare "aggregate confidence failed".
+    // The message names the limiting component(s) and their measured
+    // values, and flags malformed components explicitly, so a rejection is
+    // actionable from the manifest alone without re-running the pipeline.
+    const limiters = confidenceExplanation.limitingComponents
+      .map((key) => {
+        const detail = confidenceExplanation.components.find((c) => c.key === key)!;
+        return detail.malformedReason ? `${key}=MALFORMED(${detail.malformedReason}:${detail.observed})` : `${key}=${detail.observed}`;
+      })
+      .join(', ');
+    rejection = {
+      code: eligibility.reason,
+      message:
+        `overall confidence ${confidenceExplanation.overall.toFixed(3)} < threshold ${ELIGIBILITY_CONFIDENCE_THRESHOLD}; ` +
+        `limiting component(s): ${limiters}`,
+      stage: 'qa',
+    };
   }
 
   stageStart = Date.now();
@@ -258,6 +276,7 @@ export function runPipelineForImage(
     sourceFormat: decoded.format,
     shotClassification: shotResult,
     confidenceComponents,
+    confidenceExplanation,
     qa,
     eligibility,
     rejection,

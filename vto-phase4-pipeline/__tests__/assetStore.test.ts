@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { persistAsset, scanExistingManifests } from '../src/assetStore';
+import { explainConfidence } from '../src/confidenceExplain';
 import { computeAssetId } from '../src/manifestBuilder';
 import type { Phase4AssetManifest } from '../src/types';
 
@@ -20,6 +21,7 @@ function makeManifest(overrides: Partial<Phase4AssetManifest> = {}): Phase4Asset
     source: { ref: 'x', sha256: sourceSha256, width: 10, height: 10, format: 'png' },
     shotClassification: { shotClass: 'EASY', confidence: 1, evidence: {} },
     confidenceComponents: { shotClassification: 1, segmentation: 1, anchorCompleteness: 1, geometryValidity: 1, sourceQuality: 1, productFidelity: 1 },
+    confidenceExplanation: explainConfidence({ shotClassification: 1, segmentation: 1, anchorCompleteness: 1, geometryValidity: 1, sourceQuality: 1, productFidelity: 1 }),
     qa: null,
     eligibility: { live2d: true, live3d: false, reason: null },
     status: 'CURRENT',

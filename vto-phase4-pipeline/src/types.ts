@@ -1,3 +1,4 @@
+import type { ConfidenceExplanation } from './confidenceExplain';
 import type { GarmentControlPoint, KsgarmentManifest, LiveSupportedTemplateFamily } from './garmentContract';
 
 /**
@@ -271,6 +272,13 @@ export interface Phase4AssetManifest {
 
   shotClassification: ShotClassificationResult;
   confidenceComponents: ConfidenceComponents;
+  /**
+   * Phase 4.2 §22-§23: which component(s) held the minimum, what each one
+   * measured, and whether any were malformed. Present on EVERY manifest,
+   * accepted or rejected — a confidence decision that cannot be attributed
+   * is exactly what §22 forbids.
+   */
+  confidenceExplanation: ConfidenceExplanation;
   qa: ProductFidelityQaResult | null;
   eligibility: EligibilityResult;
   status: AssetStatus;
