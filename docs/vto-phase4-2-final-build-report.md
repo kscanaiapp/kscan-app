@@ -114,7 +114,7 @@ START INTEGRATION SHA:  4365cebfccfd59843dd3f0a7418c07cb8e9ff843
 #302 MERGE SHA:         4365cebfccfd59843dd3f0a7418c07cb8e9ff843
 BRANCH:                 feature/vto-phase4-2-catalog-addressability
 PR:                     #303 (draft)
-CODE FREEZE SHA:        6b63790bd63e6c697ba26ad9d2c785188bbb3b5e
+CODE FREEZE SHA:        03114538aa6fbc0654d5ddda5feb96c64d0064a3
 FINAL HEAD:             PR #303 head (documentation-only commits after)
 ```
 
@@ -335,9 +335,11 @@ pattern.
 ## FREEZE (§68)
 
 ```
-CODE FREEZE SHA                6b63790bd63e6c697ba26ad9d2c785188bbb3b5e
+CODE FREEZE SHA                03114538aa6fbc0654d5ddda5feb96c64d0064a3
                                (last commit containing any code, test,
-                               evidence or gate change)
+                               evidence or gate change — the P42-006
+                               contamination fix; the earlier 6b63790 was
+                               superseded by it)
 FINAL HEAD                     see PR #303 head — commits after the code
                                freeze are documentation-only, recording
                                this SHA. No src/, __tests__/ or evidence/
