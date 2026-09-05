@@ -1,6 +1,7 @@
 import { createImage, cropImage, getPixel, setPixel, type RgbaImage } from './pixels';
 import { computeForegroundMask, estimateBackgroundColor, type BackgroundEstimate } from './background';
 import { labelConnectedComponents, largestComponent, type ComponentStats } from './components';
+import { SIGNIFICANT_COMPONENT_AREA_FRACTION } from './sourcePreflight';
 
 export interface SegmentationResult {
   ok: true;
@@ -12,7 +13,16 @@ export interface SegmentationResult {
   fillRatio: number;
   touchesEdge: { top: boolean; bottom: boolean; left: boolean; right: boolean };
   background: BackgroundEstimate;
+  /** EVERY connected foreground component, including single-pixel compression speckle. Diagnostic only — see `significantComponentCount`. */
   componentCount: number;
+  /**
+   * Components at or above `SIGNIFICANT_COMPONENT_AREA_FRACTION` of image
+   * area. This — not `componentCount` — is the meaningful measure of "how
+   * many things are in this picture", and is the same notion the shot
+   * classifier already uses. See docs/vto-phase4-2-defect-ledger.md,
+   * P42-001, for why the distinction is load-bearing.
+   */
+  significantComponentCount: number;
 }
 
 export interface SegmentationFailure {
@@ -91,6 +101,7 @@ export function segmentGarment(
     },
     background,
     componentCount: components.length,
+    significantComponentCount: components.filter((c) => c.size / (img.width * img.height) >= SIGNIFICANT_COMPONENT_AREA_FRACTION).length,
   };
 }
 

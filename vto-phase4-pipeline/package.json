@@ -2,7 +2,7 @@
   "name": "@kscan/vto-phase4-pipeline",
   "version": "0.1.0",
   "private": true,
-  "description": "K Scan AI Live VTO Phase 4 — catalog garment-asset automation pipeline. Isolated local/batch tooling, not a runtime dependency of the kscan-app RN bundle.",
+  "description": "K Scan AI Live VTO Phase 4 \u2014 catalog garment-asset automation pipeline. Isolated local/batch tooling, not a runtime dependency of the kscan-app RN bundle.",
   "license": "UNLICENSED",
   "engines": {
     "node": ">=20"
@@ -11,7 +11,8 @@
     "build": "tsc -p tsconfig.json",
     "test": "npm run build && node --test dist/__tests__/*.test.js",
     "pipeline:run": "npm run build && node dist/src/cli.js",
-    "gate-e:real-cohort": "npm run build && node dist/src/gateECohortCli.js"
+    "gate-e:real-cohort": "npm run build && node dist/src/gateECohortCli.js",
+    "catalog:characterize": "npm run build && node dist/src/catalogCharacterizationCli.js"
   },
   "dependencies": {
     "@jsquash/webp": "1.5.0",

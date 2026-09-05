@@ -212,7 +212,29 @@ export function runPipelineForImage(
   // --- confidence components (always computed, even on rejection, for defect-analysis evidence) ---
   const confidenceComponents: ConfidenceComponents = {
     shotClassification: shotResult.confidence,
-    segmentation: segmentation && segmentation.ok ? clamp01(segmentation.fillRatio * (1 - Math.min(1, (segmentation.componentCount - 1) * 0.05))) : 0,
+    // P42-001 (Phase 4.2 §42/§43): this penalty previously used
+    // `componentCount` — EVERY connected foreground component, including
+    // single-pixel speckle from lossy compression. Measured on the real
+    // 490-product corpus, 21 of the 49 addressable (EASY/MEDIUM) images
+    // carried >= 21 components, at which point `(n-1)*0.05` saturates and
+    // the segmentation score is forced to EXACTLY 0 — dragging the MIN-based
+    // overall confidence to 0 and rejecting the item as
+    // EXTRACTION_UNRELIABLE no matter how good the mask actually was. One
+    // measured example carried 4487 components with a single SIGNIFICANT
+    // one and largestComponentRatio 0.61; another had 114 components, 1
+    // significant, and largestComponentRatio 0.9977 — a near-perfect
+    // single-garment extraction scored 0.
+    //
+    // The fix uses the SIGNIFICANT component count (>= 1% of image area) —
+    // the same notion `shotClassifier.ts` has always used via
+    // SIGNIFICANT_COMPONENT_AREA_FRACTION, so this removes an internal
+    // inconsistency rather than introducing a new threshold. Genuine
+    // multi-object scenes still lose confidence; JPEG/WebP speckle no longer
+    // does. `fillRatio` continues to penalize fragmented or sparse masks,
+    // and HARD sources never reach this line at all (classifyExtractionGate
+    // returns null for HARD before extraction), so this cannot make any HARD
+    // source eligible — see vtoPhase42Repairs.test.ts.
+    segmentation: segmentation && segmentation.ok ? clamp01(segmentation.fillRatio * (1 - Math.min(1, (segmentation.significantComponentCount - 1) * 0.05))) : 0,
     anchorCompleteness: requiredAnchorAverage(anchorCandidates),
     geometryValidity: ksgarment ? clamp01(1 - Math.abs(appliedRotationDegrees) / 40) : 0,
     sourceQuality: clamp01((decoded.image.width * decoded.image.height) / (300 * 300)),

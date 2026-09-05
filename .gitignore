@@ -123,3 +123,6 @@ product-search-response.json
 
 # Raw portrait source files (processed JPEGs are bundled)
 assets/stylist-avatars/portraits/raw/
+
+# Phase 4.2: transient Commerce corpus cache — holds real image URLs, never committed (§57).
+vto-phase4-pipeline/.corpus-cache/
