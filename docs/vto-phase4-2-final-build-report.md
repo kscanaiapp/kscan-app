@@ -305,6 +305,29 @@ Run locally against the final candidate. Real exit codes, not piped ones.
 UNEXPECTED FAILURES: 0
 ```
 
+**A second flake, in CI, disclosed.** On one run of the frozen commit, `ZAP
+Baseline (staging)` failed **operationally** — not on a finding:
+
+```
+Job spider error accessing URL https://yzqjvdfgefveprobvvyw.supabase.co
+    status code returned : 404 expected 200
+Unexpected error Cannot invoke "HttpMessage.getResponseHeader()" because "msg" is null
+Failed to access summary file /home/zap/zap_out.json
+Operational failure: zap-baseline-report.json missing
+```
+
+`Security promotion gate` then failed *because* of it —
+`{"finalVerdict":"OPERATIONAL FAILURE","blockingReason":"zapOperationalFailure"}`
+— so the three red checks were one root cause. The staging Supabase root
+returns 404 (it is an API host, not a website), the spider crashed, and no
+report was produced. Re-running the failed jobs on the same commit produced
+**31 pass / 13 skipping / 0 failures**. The identical code had also passed ZAP
+minutes earlier, which is what establishes non-determinism rather than
+regression. This branch contains no staging, security, or workflow change.
+
+Recorded because a red-then-green CI history is exactly the kind of thing a
+hostile audit should be told about rather than left to discover.
+
 **One observed flake, disclosed.** On one full-suite run,
 `closetPromotionCoordinator.test.js` → *"a deadline that elapses DURING the
 committed write still recovers as success"* failed, then passed 37/37 on three
