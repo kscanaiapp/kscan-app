@@ -142,3 +142,49 @@ make:
 If authority exists, it lives outside this repository — in the external
 `kscan.app/legal/*` documents or in unrecorded agreements — and could not be
 verified from the code or docs available here.
+
+---
+
+## Owner direction (Phase 4.1 addendum §A1, 2026-09-05, second session)
+
+Everything above this line is the unmodified original finding — nothing in
+it was resolved, retracted, or found to be wrong. It stays the accurate
+record of what this lane's own review of repository records could and
+could not establish.
+
+The project owner has since given explicit direction for this specific
+transient, internal-evaluation lane:
+
+```
+LEGAL / TERMS DOCUMENTATION:  DEFERRED UNTIL BUILD COMPLETION
+ENGINEERING GATE E BLOCKER:   NO
+```
+
+This is **not** a claim that rights are affirmatively cleared, and this
+document's own classification table above is not revised to say
+`CLEARED`. The correct record, precisely as directed, is:
+
+```
+OWNER DIRECTED TRANSIENT INTERNAL EVALUATION TO PROCEED
+USING THE EXISTING COMMERCE PATH.
+
+FINAL LEGAL / TERMS / RIGHTS REVIEW:
+DEFERRED TO LAUNCH READINESS.
+```
+
+The owner's direction also names a separate re-gate that remains required
+before any of the following, regardless of this direction:
+
+- generated retailer-derived garment assets are permanently persisted;
+- those assets are distributed through a production CDN;
+- those assets are served to customers in Live VTO;
+- a materially different retailer/image source is introduced.
+
+The Phase 4.1 real-catalog cohort run (`docs/vto-phase4-gate-e-results.md`)
+proceeded under this direction, and stayed within the transient lifecycle
+this document's own analysis assumed would eventually be required: fetch →
+local processing → metrics/temporary review → delete source bytes. No
+image byte was retained; no derived asset (texture/alpha) was written to
+disk for any real product (`persist: false` — see the Phase 4.1 freeze
+record). This lane makes no legal conclusion beyond relaying the owner's
+stated project direction verbatim.

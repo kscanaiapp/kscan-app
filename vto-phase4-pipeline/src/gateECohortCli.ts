@@ -89,22 +89,50 @@ async function fetchStratum(anonKey: string, stratum: QueryStratum, limit: numbe
   }
 }
 
+/**
+ * Queries EVERY stratum unconditionally (never stops early once a running
+ * total hits the target) — section 16/addendum §A8 require representative
+ * coverage across visual characteristics, and stopping mid-list once a
+ * numeric target is reached would silently starve whichever strata happen
+ * to be queried last. Each stratum's own de-duplicated results are
+ * collected separately, then combined by ROUND-ROBIN (one from each
+ * stratum in turn) so that if the combined total exceeds `targetCount`,
+ * the trim falls evenly across every stratum rather than favoring
+ * whichever ones were queried first.
+ */
 async function assembleCohort(anonKey: string, targetCount: number): Promise<{ products: Phase4ProductInput[]; visualByRef: Map<string, string>; queryByRef: Map<string, string>; multiPhotoObserved: number }> {
   const seen = new Set<string>();
-  const products: Phase4ProductInput[] = [];
-  const visualByRef = new Map<string, string>();
-  const queryByRef = new Map<string, string>();
-  let sequence = 0;
+  const perStratum: { stratum: QueryStratum; products: RawCommerceProduct[] }[] = [];
   let multiPhotoObserved = 0;
 
   for (const stratum of QUERY_STRATA) {
-    if (products.length >= targetCount) break;
     const { products: raw } = await fetchStratum(anonKey, stratum, 20);
+    const deduped: RawCommerceProduct[] = [];
     for (const p of raw) {
       if (!p.product_id || seen.has(p.product_id)) continue;
       if (!p.product_photos || p.product_photos.length === 0) continue;
       seen.add(p.product_id);
       if (p.product_photos.length > 1) multiPhotoObserved++;
+      deduped.push(p);
+    }
+    perStratum.push({ stratum, products: deduped });
+    // Small pacing gap between queries — courteous to the shared staging function/upstream provider, not a rate-limit workaround.
+    await new Promise((r) => setTimeout(r, 150));
+  }
+
+  const products: Phase4ProductInput[] = [];
+  const visualByRef = new Map<string, string>();
+  const queryByRef = new Map<string, string>();
+  let sequence = 0;
+  let round = 0;
+  // Round-robin: take index `round` from each stratum's list, one pass per round, until either
+  // every stratum is exhausted or the target is reached.
+  outer: while (products.length < targetCount) {
+    let anyTaken = false;
+    for (const { stratum, products: raw } of perStratum) {
+      if (round >= raw.length) continue;
+      anyTaken = true;
+      const p = raw[round];
       sequence++;
       const productRef = `real-${String(sequence).padStart(4, '0')}`;
       visualByRef.set(productRef, stratum.visual);
@@ -117,13 +145,13 @@ async function assembleCohort(anonKey: string, targetCount: number): Promise<{ p
         category: 'top',
         title: null, // deliberately NOT carrying the real product title into a record that flows into committed evidence
         brand: null,
-        images: [{ ref: p.product_photos[0], origin: 'https-fetch' }],
+        images: [{ ref: p.product_photos![0], origin: 'https-fetch' }],
         evidenceClass: 'READ_ONLY_REAL_PRODUCT',
       });
-      if (products.length >= targetCount) break;
+      if (products.length >= targetCount) break outer;
     }
-    // Small pacing gap between queries — courteous to the shared staging function/upstream provider, not a rate-limit workaround.
-    await new Promise((r) => setTimeout(r, 150));
+    if (!anyTaken) break; // every stratum exhausted
+    round++;
   }
 
   return { products, visualByRef, queryByRef, multiPhotoObserved };
@@ -179,7 +207,19 @@ async function main() {
   const formatAttempted: Record<string, number> = {};
   const formatPassed: Record<string, number> = {};
   const formatFailed: Record<string, number> = {};
-  const decodeDurationByFormat: Record<string, number[]> = {};
+  // NOTE (evidence-tooling correction, not a pipeline change): `StageTiming`
+  // (pipeline.ts) only records stages the PIPELINE itself times —
+  // classification through bundle_writing. Source fetch+decode happens
+  // upstream of the pipeline entirely (sourceLoad.ts, inside batch.ts's
+  // loadWithRetry) and is never given its own StageTiming entry, so it
+  // cannot be read off `manifest.stageTimings`. Derived instead as
+  // `item.totalDurationMs - sum(manifest.stageTimings)` — this combines
+  // NETWORK FETCH and WASM DECODE into one number (they cannot be
+  // separated from data already collected without re-instrumenting and
+  // re-running the frozen pipeline, which freeze discipline forbids
+  // mid-baseline) and is reported as such, never mislabeled as pure decode
+  // time.
+  const sourceAcquisitionDurationByFormat: Record<string, number[]> = {};
   for (const item of items) {
     // The format is only knowable post-decode (from the manifest) or, for a DECODE_FAILED/UNSUPPORTED_IMAGE_FORMAT
     // system error, from the systemError's own `format` field when available (AVIF), else unknown.
@@ -187,11 +227,10 @@ async function main() {
       const fmt = item.manifest.source.format;
       formatAttempted[fmt] = (formatAttempted[fmt] ?? 0) + 1;
       formatPassed[fmt] = (formatPassed[fmt] ?? 0) + 1;
-      const acqTiming = item.manifest.stageTimings.find((t) => t.stage === 'source_acquisition');
-      if (acqTiming) {
-        decodeDurationByFormat[fmt] = decodeDurationByFormat[fmt] ?? [];
-        decodeDurationByFormat[fmt].push(acqTiming.durationMs);
-      }
+      const pipelineStagesMs = item.manifest.stageTimings.reduce((sum, t) => sum + t.durationMs, 0);
+      const acquisitionMs = Math.max(0, item.totalDurationMs - pipelineStagesMs);
+      sourceAcquisitionDurationByFormat[fmt] = sourceAcquisitionDurationByFormat[fmt] ?? [];
+      sourceAcquisitionDurationByFormat[fmt].push(acquisitionMs);
     } else if (item.systemError && (item.systemError.code === 'DECODE_FAILED' || item.systemError.code === 'UNSUPPORTED_IMAGE_FORMAT')) {
       const fmt = item.systemError.format ?? 'unknown';
       formatAttempted[fmt] = (formatAttempted[fmt] ?? 0) + 1;
@@ -205,9 +244,9 @@ async function main() {
     const failed = formatFailed[fmt] ?? 0;
     decodeReliability[fmt] = { attempted, passed, failed, passRatePct: attempted > 0 ? Math.round((passed / attempted) * 1000) / 10 : 0 };
   }
-  const decodePerformanceByFormat: Record<string, ReturnType<typeof distributionOf>> = {};
-  for (const [fmt, durations] of Object.entries(decodeDurationByFormat)) {
-    decodePerformanceByFormat[fmt] = distributionOf(durations);
+  const sourceAcquisitionPerformanceByFormat: Record<string, ReturnType<typeof distributionOf>> = {};
+  for (const [fmt, durations] of Object.entries(sourceAcquisitionDurationByFormat)) {
+    sourceAcquisitionPerformanceByFormat[fmt] = distributionOf(durations);
   }
 
   // ── Shot-class distribution (addendum §A11) ──
@@ -283,7 +322,8 @@ async function main() {
       sourceAdequacyCounts: adequacyCounts,
     },
     decodeReliability,
-    decodePerformanceByFormatMs: decodePerformanceByFormat,
+    sourceAcquisitionPerformanceByFormatMs: sourceAcquisitionPerformanceByFormat,
+    sourceAcquisitionNote: 'Combines network fetch + WASM decode (both happen before the pipeline\'s own StageTimer starts) — see code comment in gateECohortCli.ts. Not pure decode time.',
     performance: {
       totalDurationMsDistribution: distributionOf(totalDurations),
       perStageDurationMsDistribution: perStageDistribution,

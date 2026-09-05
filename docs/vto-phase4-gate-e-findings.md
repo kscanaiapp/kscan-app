@@ -63,7 +63,17 @@ exactly the previous `Math.min`.
 
 ---
 
-### GATE-E-INT-002 — No per-item error isolation, no SYSTEM_ERROR state — P2 — OPEN, DEFERRED
+### GATE-E-INT-002 — No per-item error isolation, no SYSTEM_ERROR state — P2 — REPAIRED IN PHASE 4.1
+
+**Update (Phase 4.1, 2026-09-05, second session):** the "not repaired here,
+deliberately" note below described this session's own certification-pass
+scope, not a permanent decision. It was the addendum's Primary Repair B,
+repaired as designed: `SystemError` (types.ts), `runIsolated` (batch.ts),
+`INVALID_INPUT` pre-validation. Proven both by unit tests (a genuinely
+throwing item, injected via a malformed image ref, isolated with 4/4
+terminal records preserved) and by the real 220-product cohort run itself,
+which produced 0 system errors and 220/220 terminal records with no batch
+abort. The original finding below is preserved for context.
 
 **Location** `vto-phase4-pipeline/src/batch.ts`
 
@@ -136,7 +146,7 @@ CLEARED, the app's terms and privacy documents live outside the repository,
 and the provider-integration checklist has no legal gate at all. This is the
 binding constraint on the whole lane and it is not an engineering problem.
 
-## Recommended next lane
+## Recommended next lane (original, first session)
 
 **Phase 4.1**, sequenced so the cheap disqualifier runs first:
 
@@ -150,3 +160,100 @@ binding constraint on the whole lane and it is not an engineering problem.
    run the baseline the frozen pipeline was built to measure.
 
 Steps 2 and 3 are wasted effort until step 1 lands.
+
+---
+
+## Phase 4.1 findings (2026-09-05, second session, from the real 220-product baseline)
+
+Steps 1-3 above all happened this lane (step 1 via owner direction rather
+than a resolved legal authority — see `docs/vto-phase4-gate-e-rights.md`'s
+appended note). This section documents what the real baseline itself
+found. Full metrics: `docs/vto-phase4-gate-e-results.md`.
+
+### P0-P3
+
+None found during the real baseline run. Zero system errors across 220
+real products is itself the strongest available evidence that Primary
+Repairs A and B hold under real conditions, not just synthetic tests.
+
+### P4-P10 (documented only — none repaired in this certification dataset)
+
+- **P5 (carried forward, now with real evidence) — EASY-classified real
+  sources still fail downstream at a 0/4 rate this baseline.** All four
+  measured `ADEQUATE` source-adequacy; two failed
+  `EXTRACTION_UNRELIABLE` (an aggregate confidence-gate miss — the specific
+  dragging component is not diagnosed, since `ConfidenceComponents` is not
+  currently in committed real-cohort evidence, only the aggregate
+  rejection code) and two failed a genuine `PRODUCT_FIDELITY_FAILED` QA
+  check. Recommended first Phase 4.2 diagnostic step: extend
+  `real-cohort-results.jsonl`'s schema to include the full
+  `ConfidenceComponents` breakdown (not just the rejection code) so the
+  next real run can attribute EXTRACTION_UNRELIABLE failures to a specific
+  component rather than the aggregate. This is instrumentation, not a
+  pipeline behavior change — safe to add without touching frozen pipeline
+  logic.
+- **P6 — no per-component confidence breakdown in committed real-cohort
+  evidence.** Related to P5 above; noted separately because it is a
+  general evidence-completeness gap, not specific to the EASY-failure
+  finding.
+- **P7 — `product-search-deals` returns exactly one photo per product for
+  100% of 220 real products (`multiPhotoObserved: 0`).** The pipeline's
+  multi-image selection logic (`imageSelection.ts`) remains verified only
+  against synthetic fixtures — this Commerce path has never actually
+  exercised it with real data. Not a defect; a corpus-source limitation
+  worth tracking if a future source does return multiple images per
+  product.
+- **P8 — no retailer breakdown is possible.** `store_name` was `undefined`
+  for every one of 220+220 real products across both cohort-assembly
+  passes this lane. Carried forward from the original access-probe
+  finding; still true with a much larger sample.
+
+### Economic bottlenecks (now measurable, unlike the first session)
+
+Ranked in `docs/vto-phase4-gate-e-results.md`'s "Top 3 bottlenecks"
+section. Summary: (1) shot-class mix (95% HARD) is the dominant,
+corpus-level bottleneck; (2) EASY-source downstream failure rate is a
+smaller-N but structurally important secondary finding; (3) human fidelity
+review has never occurred for any accepted asset.
+
+### Corpus limitations
+
+Confirmed and quantified what the original session could only describe
+qualitatively: the authorized Commerce path's imagery is overwhelmingly
+model-worn (95% HARD), single-photo-per-product (0% multi-image), and
+carries no retailer attribution. A future corpus-expansion lane should
+prioritize finding a source with a higher flat-lay/studio-shot share over
+simply fetching more products from this same source — more of the same
+95%-HARD mix would not change the qualitative picture (task section 15).
+
+### Rights limitations
+
+No longer a hard blocker for THIS transient, internal-evaluation lane
+(owner direction, addendum §A1) — but the underlying finding
+(`docs/vto-phase4-gate-e-rights.md`'s original review) is unchanged and
+the owner's own direction names a real re-gate still required before
+persisting, distributing, or serving any retailer-derived asset. Not
+resolved; deferred by explicit, recorded decision.
+
+## Recommended next lane (updated, second session)
+
+1. **HUMAN QA** — a bounded fidelity review of the 3 accepted real assets
+   (and ideally a larger accepted sample from an expanded run) is the
+   single highest-value next step: it is the one carry-forward gate this
+   lane could not touch and every other recommendation below is
+   secondary until it happens.
+2. **CORPUS EXPANSION** (not more of the same source) — investigate
+   whether a different/additional Commerce source with a lower HARD share
+   is available through existing, already-authorized app infrastructure.
+   This is the largest lever on raw eligible-asset volume.
+3. **PHASE 4.2 PIPELINE REPAIR** — root-cause the EASY-source downstream
+   failure rate (P5 above), starting with the confidence-component
+   instrumentation gap (P6).
+4. **NATIVE RUNTIME CERTIFICATION** (parallel, addendum §A18) — the Android
+   emulator and physical device the owner made available were correctly
+   left untouched by this lane (Gate E and native-runtime certification
+   are separate gates per task section 61/addendum §37), but nothing about
+   this lane's findings blocks starting that lane in parallel.
+
+Unlike the first session, none of these steps are blocked on each other —
+they can proceed independently or in parallel, at the owner's discretion.

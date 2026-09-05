@@ -142,3 +142,122 @@ exists for this workstation.
 ```
 COMPUTE COST / SKU: NOT CALCULATED — NO AUTHORITATIVE PRICING BASIS
 ```
+
+---
+
+## Phase 4.1 continuation (2026-09-05, second session)
+
+Everything above this line describes the first Gate E session, which
+stopped at PRECONDITION HOLD before reaching a real baseline. This section
+covers what changed and how the real cohort was actually assembled and
+run, per task section 20's addendum.
+
+### Source authority re-verification
+
+Re-verified before touching any code: `gh pr view 302` — base
+`265fe3624b...` still equals `git rev-parse origin/integration/...` — no
+drift since the first session. CI on PR #302 was green (all checks
+SUCCESS/SKIPPED, `mergeStateStatus: CLEAN`). Continued on the existing
+branch/PR rather than opening a parallel one, per addendum §2.
+
+### Order of operations
+
+1. Verify source authority (above).
+2. Confirm GATE-E-INT-001 still present and re-verify its regression matrix
+   against the full addendum §A4 list (already complete — no gap found).
+3. Select and implement Primary Repair A (WebP decode) — timeboxed decoder
+   evaluation (`docs/vto-phase4-gate-e-decoder-selection.md`), Node-
+   compatibility fixes, resource-safety guard, full decode test matrix.
+4. Implement Primary Repair B (batch fail-soft isolation) — `SystemError`
+   taxonomy, `runIsolated`, `INVALID_INPUT` pre-validation, isolation +
+   completeness-invariant + idempotency tests.
+5. Add source-adequacy diagnostic, padded-thumbnail coverage, correction
+   triage — the addendum's remaining infrastructure requirements.
+6. Commit the repair as one engineering commit (`f6a1bc0`).
+7. Run the pre-baseline test gate (§21) — 87/87 pipeline tests, root
+   typecheck, VTO regression, scope guard, edge parity/manifest, security/
+   migration-provenance/dependency-reachability/staging-guard/privacy
+   gates — all PASS, 0 unexpected failures.
+8. Re-freeze the pipeline (`docs/vto-phase4-gate-e-freeze.md`).
+9. Run the real cohort.
+
+### Real-cohort assembly and a disclosed evaluation-harness defect
+
+`gateECohortCli.ts` queries `product-search-deals` (staging, the same
+zero-database-access, read-only path verified in the first session) across
+21 stratified `category: 'top'` queries covering all seven visual
+characteristics section 16/addendum §A8 ask for.
+
+**First assembly pass** (disclosed, not hidden): the query loop stopped
+querying FURTHER strata as soon as the running product count reached the
+220 target. Because early strata (plain/logo/patterned/dark) alone
+supplied enough unique products, the later strata in query order
+(light/softknit/structured) were never queried at all — the resulting
+220-product cohort covered only 4 of 7 visual characteristics
+(`visualDistribution: {"plain":79,"logo":57,"patterned":60,"dark":24}`,
+zero from the other three). This is a defect in the Gate E evaluation
+harness (`gateECohortCli.ts`), not the frozen pipeline — `vto-phase4-
+pipeline/src/**` was not touched. Result: 220 products, 2 eligible (0.9%),
+0 system errors.
+
+Discovered by inspecting the resulting `visualDistribution` immediately
+after this first run and noticing three requested strata were entirely
+absent. Fixed by querying every stratum unconditionally (never stopping
+early) and combining results by round-robin (one product from each
+stratum per pass) rather than a straight per-stratum-in-order concatenation
+— so a final trim to the target count falls evenly across all strata
+rather than favoring whichever were queried first.
+
+**Second (corrected) assembly pass**: re-run with the fix, still N=220
+(the target was unchanged), now covering all 7 strata
+(`structured:40, plain:44, softknit:30, logo:33, patterned:33, dark:20,
+light:20`). Result: 220 products, 3 eligible (1.4%), 0 system errors —
+qualitatively the same finding (shot-class mix dominates, WebP decode
+100% reliable) as the first pass, now on a representative sample. **The
+corrected run is what `docs/vto-phase4-gate-e-results.md` reports.** The
+first (unbalanced) run's raw numbers are disclosed here rather than
+silently discarded, per section 49's anti-gaming discipline — re-running
+after finding a genuine sampling-harness bug is not the same as re-running
+until a favorable number appears, and the qualitative conclusion did not
+change between the two runs.
+
+This is why N was not pushed higher than 220 toward the 300 upper bound:
+the shot-class-mix finding (94% HARD in the first pass, 95% in the second,
+independently assembled) was already stable before the fix, and stayed
+stable after it — a third or fourth run at higher N was assessed as
+unlikely to change the qualitative picture, consistent with task section
+15's own "if the signal is already clear, spend effort on a noisier cell
+instead" guidance.
+
+### Transience discipline this session
+
+`runBatch(..., { persist: false })` — the pipeline's own `assetStore.ts`
+writer was never invoked for any real product; no `texture.png`/`alpha.png`
+was written to disk for any of the 220 (or the first pass's 220) real
+products, accepted or rejected. Each product's image bytes existed only
+in-process memory during fetch+decode+pipeline-evaluation and were
+discarded when that item's processing completed — no explicit "delete"
+step was needed because nothing was ever written. Only the committed
+evidence files (`evidence/vto-phase4-gate-e/real-cohort-*`) persist
+anything, and they contain hashes/dimensions/formats/classifications/
+timings only — no image bytes, no product titles, no store names, no raw
+URLs (grep-verified against all three real-cohort evidence files before
+committing).
+
+### Decode-timing report bug (evaluation tooling, not the pipeline)
+
+`decodePerformanceByFormatMs` came out empty `{}` in the first
+`gateECohortCli.ts` run: `Phase4AssetManifest.stageTimings` only records
+stages the PIPELINE itself times (classification through bundle_writing —
+see `pipeline.ts`'s `StageTimer`), never `source_acquisition` — that stage
+happens entirely upstream, inside `sourceLoad.ts`/`batch.ts`'s
+`loadWithRetry`, before `runPipelineForImage` is ever called. Fixed by
+deriving `item.totalDurationMs - sum(manifest.stageTimings)` instead,
+explicitly labeled as combining network fetch AND WASM decode (they cannot
+be separated from data already collected without re-instrumenting and
+re-running the frozen pipeline, which freeze discipline forbids
+mid-baseline) — reported as `sourceAcquisitionPerformanceByFormatMs`, never
+mislabeled as pure decode time. Patched into the already-collected
+`real-cohort-summary.json` from the existing `real-cohort-results.jsonl`
+(each record already carried `runtimeMs.total` and `runtimeMs.stages`) —
+no re-fetch was needed to fix this specific bug.

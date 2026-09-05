@@ -1,122 +1,126 @@
-# VTO Phase 4 — Gate E: Pipeline Freeze Record
+# VTO Phase 4 — Gate E: Pipeline Freeze Record (Phase 4.1 re-freeze)
 
-Task section 11. Records the exact pipeline state Gate E would have measured.
+Task section 11 / addendum §23. Supersedes the prior freeze record (which
+recorded a HOLD state with no real baseline). This is the freeze the real
+cohort baseline actually runs against.
 
 ## Status
 
 ```
-PIPELINE FREEZE:  RECORDED
-BASELINE RUN:     NOT STARTED
-PIPELINE CHANGED AFTER FREEZE:  NO
+PIPELINE FREEZE:   RECORDED
+BASELINE RUN:      REAL COHORT (see docs/vto-phase4-gate-e-results.md)
+PIPELINE CHANGED AFTER FREEZE: NO
 ```
-
-The freeze is recorded for reproducibility even though no real-product
-baseline ran (see `docs/vto-phase4-gate-e-rights.md` and
-`docs/vto-phase4-gate-e-access-probe.md`). A future Phase 4.1 or a re-attempted
-Gate E can use this record to tell **pipeline improvement** apart from
-**cohort changed**.
 
 ## Source authority
 
 ```
-CURRENT INTEGRATION SHA   265fe3624bb34fd951b4efe5979fa712a4fce2be
-INTEGRATION BRANCH        integration/backend-kplus-complimentary-staging-v1
-PHASE 4 MERGE SHA         265fe3624bb34fd951b4efe5979fa712a4fce2be   (merge of PR #301)
-PHASE 4 HEAD SHA          a38e20cb0ea635ec536751b68e594df4458ae51a   (PR #301 head, as certified)
-PR #301 STATE             MERGED 2026-09-05T14:20:43Z
+CURRENT INTEGRATION SHA      265fe3624bb34fd951b4efe5979fa712a4fce2be
+INTEGRATION BRANCH           integration/backend-kplus-complimentary-staging-v1
+PHASE 4 MERGE SHA            265fe3624bb34fd951b4efe5979fa712a4fce2be (PR #301)
+PHASE 4.1 REPAIR COMMIT      f6a1bc0de1aaec2394141bf13d56faf89e4f4068
+PR                           #302 (continued, not a new parallel PR)
 ```
 
-PR #301 is merged and its merge commit **is** the current head of the
-integration branch, so the section 4 precondition is satisfied: Phase 4 is on
-current integration authority.
+Re-verified at the start of this lane: PR #302's base
+(`265fe3624b...`) still equals the current integration head — no drift.
 
 ## Frozen component versions
 
 ```
-PIPELINE TREE SHA               ab399fd7b06b5ff0c003cc74cec57bbbc3b34657
-LAST COMMIT TOUCHING PIPELINE   144714f72124b30daa3b741377ab642c84658d91
-PIPELINE VERSION                0.1.0        (src/manifestBuilder.ts PIPELINE_VERSION)
-GARMENT CONTRACT VERSION        1.0          (src/garmentContract.ts KSGARMENT_SCHEMA_VERSION)
+PIPELINE TREE SHA (vto-phase4-pipeline/)   3a09006afbd56bbc3312ca67a2c79c943817180b
+PIPELINE VERSION                            0.1.0   (unchanged — see below)
+GARMENT CONTRACT VERSION                    1.0     (unchanged)
+DECODER                                     @jsquash/webp 1.5.0 (new this lane)
 ```
 
-The pipeline carries one package version and one contract version rather than
-per-stage version constants. Stage identity is therefore pinned by module
-path plus the pipeline tree SHA above:
+### Why `PIPELINE_VERSION` was NOT bumped
 
-| Stage | Module |
-|---|---|
-| IMAGE SELECTION | `src/imageSelection.ts` |
-| SHOT CLASSIFICATION | `src/shotClassifier.ts` |
-| SEGMENTATION / EXTRACTION | `src/segmentation.ts` |
-| CANONICALIZATION | `src/canonicalize.ts` |
-| ANCHOR LOGIC | `src/anchors.ts` |
-| CONFIDENCE LOGIC | `src/eligibility.ts` |
-| FIDELITY LOGIC | `src/fidelity.ts` |
-| REJECTION LOGIC | `src/types.ts` (reason set), enforced across stages |
-| SOURCE ACQUISITION / DECODE | `src/sourceLoad.ts`, `src/codec.ts` |
-| VARIANT RESOLUTION | `src/variantResolution.ts` |
-| BATCH RUNNER | `src/batch.ts` |
+`manifestBuilder.ts`'s own comment: "Bump deliberately when this pipeline's
+algorithms change in a way that should invalidate prior assets." This
+lane's changes are additive infrastructure, not algorithm changes:
 
-Decode capability, which turned out to be the binding constraint:
+- WebP decode adds a new INPUT format; the normalized `RgbaImage` pixel
+  contract is unchanged, and every downstream stage (classification,
+  segmentation, canonicalization, anchors, fidelity) is unmodified and
+  format-agnostic exactly as before.
+- Batch isolation (`runIsolated`, the `SystemError` terminal state) is
+  orchestration-level — it changes what happens when an item CANNOT be
+  evaluated, never how an evaluated item is scored.
+- `sourceAdequacy` is a new diagnostic field, deliberately never
+  consulted by eligibility/rejection logic.
+
+No previously-generated `.ksgarment` asset is invalidated by any change in
+this lane — the version-bump trigger does not apply.
+
+## Frozen stage versions (module path @ pipeline tree SHA above, unchanged from the original freeze except where noted)
+
+| Stage | Module | Changed this lane? |
+|---|---|---|
+| IMAGE SELECTION | `src/imageSelection.ts` | No — verified deterministic/variant-safe/idempotent/fail-closed (addendum §A14), not modified |
+| SHOT CLASSIFICATION | `src/shotClassifier.ts` | No |
+| SEGMENTATION / EXTRACTION | `src/segmentation.ts` | No |
+| CANONICALIZATION | `src/canonicalize.ts` | No |
+| ANCHOR LOGIC | `src/anchors.ts` | No |
+| CONFIDENCE LOGIC | `src/eligibility.ts` | No (GATE-E-INT-001 repair predates this freeze, already verified behavior-preserving) |
+| FIDELITY LOGIC | `src/fidelity.ts` | No |
+| REJECTION LOGIC | `src/types.ts` (reason set) | `SOURCE_INVALID` removed from `RejectionCode` (its cases are now `SystemError`s, not rejections — see below); every other rejection code unchanged |
+| SOURCE ACQUISITION / DECODE | `src/sourceLoad.ts`, `src/codec.ts` | **Yes** — WebP decode + resource-safety guard + `https-fetch` origin (this lane's Primary Repair A) |
+| BATCH ORCHESTRATION | `src/batch.ts` | **Yes** — fail-soft per-item isolation (this lane's Primary Repair B) |
+| SOURCE-ADEQUACY DIAGNOSTIC | `src/sourceAdequacy.ts` | **New** — diagnostic only, never gates eligibility |
 
 ```
-SUPPORTED SOURCE FORMATS   PNG (pngjs 7.0.0), JPEG (jpeg-js 0.4.4)
-UNSUPPORTED                WebP, AVIF, everything else
-MIN_DIMENSION              40px  (src/sourceLoad.ts)
-ELIGIBILITY_CONFIDENCE_THRESHOLD   0.5  (src/eligibility.ts)
+SUPPORTED SOURCE FORMATS      PNG (pngjs 7.0.0), JPEG (jpeg-js 0.4.4), WebP (@jsquash/webp 1.5.0)
+IDENTIFIED-BUT-UNSUPPORTED    AVIF -> SYSTEM_ERROR:UNSUPPORTED_IMAGE_FORMAT (addendum §A3)
+MIN_DIMENSION                 40px  (unchanged)
+MAX_DIMENSION_PX              8192px   (new — resource-safety guard, addendum §A5)
+MAX_TOTAL_PIXELS              64,000,000px (new — resource-safety guard, addendum §A5)
+ELIGIBILITY_CONFIDENCE_THRESHOLD  0.5  (unchanged)
 ```
 
-## Pre-freeze certification repair
+## Pre-baseline test gate (addendum §21) — run immediately before the real cohort
 
-Section 10 requires a hostile integrity pass before freeze, and permits
-repairing a P0–P3 correctness defect found there under a separate, explicitly
-recorded certification-repair commit.
+```
+Phase 4 pipeline tests        87/87 PASS
+Phase 4 isolated typecheck    PASS
+root typecheck                PASS
+VTO regression (4 suites)     PASS
+scope guard                   PASS (37 changed paths, 37 within boundary)
+edge parity                   PASS
+edge manifest check           PASS
+security baseline             PASS
+migration provenance          PASS
+dependency reachability       PASS
+staging v2 write guard        PASS
+privacy                       PASS
 
-One defect was repaired: **GATE-E-INT-001**, the eligibility gate failing
-open on malformed confidence components. See
-`docs/vto-phase4-gate-e-findings.md` for the full finding.
+UNEXPECTED FAILURES: 0
+```
 
-The repair is **behaviour-preserving for all well-formed inputs**, proven two
-ways:
-
-1. The pre-existing suite passes unchanged (58/58 before, 59/59 after with the
-   new regression test).
-2. The full 27-record synthetic + authorized-fixture corpus was re-run and
-   **every per-item outcome is identical** — same shot class, same
-   eligibility, same rejection reason for all 27 records; headline rates
-   unchanged at 33.3% automatic success / 66.7% rejection.
-
-This is a correctness repair, not a tune. No threshold, classifier,
-segmentation rule, rejection reason, image-selection rule, or category scope
-was changed. The regenerated evidence files were reverted so the Phase 4
-lane's own committed record is preserved.
-
-A second defect (**GATE-E-INT-002**, batch error isolation) was found and
-**deliberately not repaired** here — the fix requires adding a `SYSTEM_ERROR`
-terminal state, which changes the result contract. Section 10 says not to
-redesign the system; that work belongs to Phase 4.1.
-
-## Freeze discipline
-
-Because no real product ever entered a baseline, section 12's no-tuning rule
-was never placed under pressure. Recorded for completeness:
+## Freeze discipline going forward
 
 ```
 CONFIDENCE THRESHOLDS CHANGED      NO
 SHOT CLASSIFICATION CHANGED        NO
 SEGMENTATION CHANGED               NO
 CV MODEL ADDED                     NO
-REJECTION REASONS ADJUSTED         NO
+REJECTION REASONS ADJUSTED         NO (one code, SOURCE_INVALID, was
+                                    RETIRED — its cases became SystemErrors —
+                                    but this was decided and committed
+                                    BEFORE any real product entered the
+                                    baseline, per the freeze-then-run
+                                    sequencing this document itself records)
 IMAGE SELECTION CHANGED            NO
 GARMENT CATEGORIES BROADENED       NO
 RETAILER EXCEPTIONS ADDED          NO
 FIDELITY RULES WEAKENED            NO
-IMAGE DECODER ADDED                NO
+IMAGE DECODER ADDED                YES — this IS the authorized Primary
+                                    Repair A this lane exists to make,
+                                    completed and tested BEFORE the real
+                                    cohort was assembled or run
 ```
 
-The last line is the consequential one. Adding a WebP decoder would have made
-the real corpus ingestible, and this lane deliberately did **not** do it:
-Phase 4's own recorded policy is to reject unsupported formats rather than add
-a third decoder ad hoc, and adding decode capability mid-certification is new
-engineering rather than a certification repair. It is the primary Phase 4.1
-recommendation instead.
+Once `gateECohortCli.ts` began fetching the real cohort, no further change
+was made to `vto-phase4-pipeline/src/**`. The real-cohort results in
+`docs/vto-phase4-gate-e-results.md` measure exactly the pipeline recorded
+above — nothing tuned mid-run or after seeing outcomes.
