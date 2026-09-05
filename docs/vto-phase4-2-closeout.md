@@ -1,4 +1,30 @@
 # VTO Phase 4.2 — Final Measurement & Closeout
+> ## SUPERSEDED IN PART BY THE HOSTILE AUDIT
+>
+> This document predates the Phase 4.2 hostile audit. Where it and
+> `docs/vto-phase4-2-hostile-audit-ledger.md` disagree, **the ledger governs.**
+>
+> **PHASE 4.2 HOSTILE AUDIT: PASS - CANDIDATE TRUSTWORTHY, MEASUREMENT HOLDS REMAIN**
+>
+> Claims downgraded by the audit, which must NOT be restored:
+>
+> | Claim | Status after audit |
+> |---|---|
+> | ~10% addressability | **QUALIFIED** - not a natural / catalog-wide estimate |
+> | deterministic segmentation sufficient | **QUALIFIED** - self-referential synthetic ground truth, n=17 |
+> | >=1,000-product corpus | **NOT MET** |
+> | 70% repair rate | **NOT MEASURED** (provider quota) |
+> | Gate E | **PENDING** |
+> | Human QA | **PENDING** |
+>
+> **Why ~10% is qualified.** All 490 products came from the realized `plain`
+> stratum: of 21 declared strata, 28 successful provider requests were ALL
+> `plain` queries and the other 17 strata returned only HTTP 429, contributing
+> zero products. The figure is plain-tee addressability under deep paging. It
+> is real, and it may not steer strategy as a catalog or market ceiling.
+>
+> Audit findings P42-A-001 through P42-A-006 were repaired on the audit
+> branch; **P0-P3 REMAINING: 0**.
 
 Closeout lane on PR #303. No architecture work, no new model, no HARD
 extraction, no hostile audit.
@@ -302,7 +328,8 @@ named component.
 Unchanged — no contradictory evidence appeared this closeout.
 
 ```
-PRODUCT-LEVEL IMAGE ADDRESSABILITY    ~10.0%  (49 / 490)
+PRODUCT-LEVEL IMAGE ADDRESSABILITY    ~10.0%  (49 / 490)  QUALIFIED:
+                                      realized `plain` stratum only
 IMAGES PER PRODUCT                    1       (490 / 490)
 MULTI-IMAGE RESCUE                    0       under the current Commerce contract
 HARD-ONLY PRODUCTS                    88.8%
@@ -313,7 +340,9 @@ PRIMARY LIMIT                         source photography / Commerce image contra
 ```
 
 This finding is retained regardless of Easy/Medium pipeline quality: a
-flawless addressable pipeline still cannot exceed ~10% of this catalog.
+flawless addressable pipeline still cannot exceed ~10% *of this corpus*. The
+hostile audit (P42-A-004) established that corpus is a single realized
+`plain` stratum, so this is NOT a catalog-wide ceiling.
 
 ## §19 SOURCE DIVERSIFICATION vs HARD R&D — RECOMMENDATION ONLY
 
