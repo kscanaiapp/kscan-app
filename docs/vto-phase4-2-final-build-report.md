@@ -280,6 +280,86 @@ Vinted photo-array collapse (P42-D03):  OPEN — leading §61 recommendation
 
 ---
 
+## REPOSITORY GATES (§67)
+
+Run locally against the final candidate. Real exit codes, not piped ones.
+
+| Gate | Result |
+|---|---|
+| Full repo suite (`scripts/run-all-tests.js`) | **exit 0** — observed failures 13, known baseline 13, **UNEXPECTED 0** |
+| Phase 4.2 + Phase 4 pipeline tests | **153/153 pass** |
+| Pipeline typecheck (`tsc -p vto-phase4-pipeline`) | **exit 0** |
+| Root typecheck (`tsc -p tsconfig.json`) | **exit 0** |
+| VTO regression (`__tests__/vto*`) | included in full suite, no unexpected failures |
+| Scope guard (`vtoLiveIntegrationScope`) | **10/10 pass** after declaring the two new paths |
+| Edge parity (`verify:edge-parity`) | **exit 0** |
+| Edge manifest / source parity | **23/23 pass** |
+| Security baseline + applicability | **71/71 pass** |
+| Privacy | **5/5 pass** |
+| Migration provenance | **exit 0 — PASS** |
+| Migration version collisions | **exit 0 — PASS** |
+| Dependency reachability | **could not run locally** — see below |
+
+```
+UNEXPECTED FAILURES: 0
+```
+
+**Dependency reachability.** The gate fails closed with
+`AUDIT_UNAVAILABLE — npm audit could not run: spawnSync npm ENOENT`. Cause:
+`scripts/check-dependency-reachability.js` invokes `spawnSync('npm', ...)`
+without a shell, which cannot resolve `npm.cmd` on Windows. This is
+environmental and pre-existing — it is not caused by this branch, whose
+entire diff is confined to `vto-phase4-pipeline/`, `docs/`,
+`evidence/vto-phase4-2/` and one additive `.gitignore` line, none of which
+can affect root dependency auditing. It runs normally in CI on Linux. The
+gate failing closed rather than reporting a clean tree it could not verify is
+correct behaviour and is recorded, not worked around.
+
+**A note on the scope guard.** It initially **refused** this lane's new
+evidence paths. That is the guard working, and the response was to declare
+them explicitly with rationale — following the existing precedent of naming
+an exact evidence path rather than widening `evidence/**` — not to loosen a
+pattern.
+
+---
+
+## FREEZE (§68)
+
+```
+FINAL SHA                      see PR #303 head at hand-off
+BRANCH                         feature/vto-phase4-2-catalog-addressability
+BASE (integration)             4365cebfccfd59843dd3f0a7418c07cb8e9ff843
+
+PIPELINE VERSION               0.1.0        (manifestBuilder.PIPELINE_VERSION)
+ASSET CONTRACT VERSION         KSGARMENT_SCHEMA_VERSION (garmentContract.ts)
+SHOT CLASSIFIER VERSION        SHOT_CLASSIFIER_THRESHOLDS — UNCHANGED by 4.2
+CONFIDENCE VERSION             confidenceExplain.ts + eligibility.ts
+                               ELIGIBILITY_CONFIDENCE_THRESHOLD = 0.5 (unchanged)
+                               segmentation term: significant-component based (P42-001)
+FIDELITY VERSION               fidelity.ts — UNCHANGED by 4.2
+SEGMENTATION ROUTER VERSION    n/a — single path; classifyExtractionGate unchanged
+SEGMENTATION PATH              deterministic-background-subtraction
+                               phase4-segmentation@0.1.0
+LOCAL MODEL                    NONE INSTALLED
+MODEL CHECKSUM                 n/a
+DECODER VERSION                @jsquash/webp 1.5.0 (WASM), pngjs 7.0.0,
+                               jpeg-js 0.4.4 — UNCHANGED by 4.2
+VARIANT SAFETY                 VARIANT_COLOR_CONSISTENCY_MAX_DISTANCE = 40
+                               (calibrated; gap-bounded by test)
+```
+
+No tuning was performed after the final evidence was produced. The hostile
+audit receives this exact candidate.
+
+**One freeze caveat, stated plainly:** the blocked measurements
+(`slice:run`) have not been produced against this frozen candidate. When a
+provider quota window opens, running them produces *new* evidence about the
+same frozen code — it does not re-tune it. If any repair proves necessary as
+a result, that is a new candidate and a new freeze, and should be treated as
+such.
+
+---
+
 ## WHAT WAS ACTUALLY BUILT
 
 Not diagnostics alone (§69 is explicit that those are insufficient), though
