@@ -1,0 +1,168 @@
+{
+  "schema": "vto-phase4-gate-e-real-cohort-summary/1",
+  "generatedAt": "2026-09-05T15:55:05.258Z",
+  "startedAt": "2026-09-05T15:54:24.770Z",
+  "legalRightsStatus": "OWNER DIRECTED TRANSIENT INTERNAL EVALUATION TO PROCEED USING THE EXISTING COMMERCE PATH. FINAL LEGAL/TERMS/RIGHTS REVIEW: DEFERRED TO LAUNCH READINESS. Not a claim rights are affirmatively cleared — see docs/vto-phase4-gate-e-rights.md.",
+  "cohort": {
+    "totalReal": 220,
+    "target": 220,
+    "evidenceTier": "ELIGIBLE_FOR_GATE_E_PASS_HOLD_FAIL_CONSIDERATION",
+    "strataQueried": 21,
+    "multiPhotoProductsObserved": 0,
+    "visualDistribution": {
+      "plain": 44,
+      "logo": 33,
+      "patterned": 33,
+      "dark": 20,
+      "light": 20,
+      "softknit": 30,
+      "structured": 40
+    }
+  },
+  "automaticResults": {
+    "live2dEligible": 3,
+    "live2dEligiblePct": 1.4,
+    "rejected": 217,
+    "rejectedPct": 98.6,
+    "systemErrors": 0,
+    "systemErrorsPct": 0
+  },
+  "easyMediumAutoSuccess": {
+    "total": 10,
+    "eligible": 3,
+    "pct": 30
+  },
+  "shotClassDistribution": {
+    "HARD": 209,
+    "UNSUPPORTED": 1,
+    "MEDIUM": 6,
+    "EASY": 4
+  },
+  "rejectionByCode": {
+    "OCCLUSION_TOO_HIGH": 182,
+    "EXTRACTION_UNRELIABLE": 29,
+    "GARMENT_NOT_PRIMARY": 1,
+    "ANCHORS_INCOMPLETE": 2,
+    "PRODUCT_FIDELITY_FAILED": 3
+  },
+  "systemErrorByCode": {},
+  "correctionTriage": {
+    "NOT_ECONOMICALLY_CORRECTABLE": 186,
+    "POTENTIALLY_CORRECTABLE": 31
+  },
+  "sourceResolution": {
+    "shortSidePxDistribution": {
+      "count": 220,
+      "min": 194,
+      "median": 628,
+      "p75": 659,
+      "p95": 659,
+      "max": 659
+    },
+    "shortSideBucketCounts": {
+      "512-767": 161,
+      "256-383": 22,
+      "384-511": 27,
+      "<256": 10
+    },
+    "sourceAdequacyCounts": {
+      "UNKNOWN": 210,
+      "ADEQUATE": 10
+    }
+  },
+  "decodeReliability": {
+    "webp": {
+      "attempted": 220,
+      "passed": 220,
+      "failed": 0,
+      "passRatePct": 100
+    }
+  },
+  "sourceAcquisitionPerformanceByFormatMs": {
+    "webp": {
+      "count": 220,
+      "min": 124,
+      "median": 860,
+      "p75": 1128,
+      "p95": 1792,
+      "max": 12847
+    }
+  },
+  "sourceAcquisitionNote": "Combines network fetch + WASM decode (both happen before the pipeline's own StageTimer starts) — see code comment in gateECohortCli.ts. Not pure decode time.",
+  "performance": {
+    "totalDurationMsDistribution": {
+      "count": 220,
+      "min": 143,
+      "median": 910,
+      "p75": 1196,
+      "p95": 1861,
+      "max": 12888
+    },
+    "perStageDurationMsDistribution": {
+      "classification": {
+        "count": 220,
+        "min": 3,
+        "median": 42,
+        "p75": 57,
+        "p95": 114,
+        "max": 218
+      },
+      "extraction": {
+        "count": 219,
+        "min": 0,
+        "median": 0,
+        "p75": 0,
+        "p95": 0,
+        "max": 1
+      },
+      "bundle_writing": {
+        "count": 220,
+        "min": 0,
+        "median": 0,
+        "p75": 0,
+        "p95": 0,
+        "max": 1
+      },
+      "canonicalization": {
+        "count": 10,
+        "min": 0,
+        "median": 0,
+        "p75": 0,
+        "p95": 2,
+        "max": 2
+      },
+      "anchor_generation": {
+        "count": 10,
+        "min": 0,
+        "median": 0,
+        "p75": 1,
+        "p95": 35,
+        "max": 35
+      },
+      "geometry_generation": {
+        "count": 8,
+        "min": 0,
+        "median": 0,
+        "p75": 0,
+        "p95": 0,
+        "max": 0
+      },
+      "qa": {
+        "count": 8,
+        "min": 0,
+        "median": 0,
+        "p75": 29,
+        "p95": 71,
+        "max": 71
+      }
+    }
+  },
+  "retention": {
+    "sourceImagesTemporarilyProcessed": 220,
+    "sourceImagesRetained": 0,
+    "sourceImagesDeleted": 220,
+    "derivedMetadataRetained": true,
+    "derivedAssetsWrittenToDisk": false
+  },
+  "externalCvOrGenerativeCalls": 0
+}

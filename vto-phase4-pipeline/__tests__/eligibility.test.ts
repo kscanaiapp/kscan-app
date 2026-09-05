@@ -44,3 +44,64 @@ test('resolveEligibility: a single critical-failure component blocks eligibility
   const criticalFailure: ConfidenceComponents = { ...perfect, productFidelity: 0 };
   assert.equal(resolveEligibility(criticalFailure, null).live2d, false);
 });
+
+// ── Gate E certification repair (GATE-E-INT-001) ─────────────────────────────
+// The eligibility gate must fail CLOSED on any confidence component that is
+// not a finite number in [0,1]. `Math.min` propagates NaN, and `NaN < 0.5` is
+// false, so a naive threshold comparison silently returns "eligible" for an
+// asset whose confidence could not be computed. Gate E section 10 asks these
+// questions directly ("Can a missing confidence component accidentally pass?
+// Can NaN, infinity, negative, string, null, or undefined confidence values
+// pass?"); the answer must be no for every one of them.
+test('overallConfidence/resolveEligibility fail closed on malformed confidence components', () => {
+  const good: ConfidenceComponents = {
+    shotClassification: 0.9,
+    segmentation: 0.9,
+    anchorCompleteness: 0.9,
+    geometryValidity: 0.9,
+    sourceQuality: 0.9,
+    productFidelity: 0.9,
+  };
+
+  // Control: well-formed components are unaffected by the hardening.
+  assert.equal(overallConfidence(good), 0.9);
+  assert.equal(resolveEligibility(good, null).live2d, true);
+
+  const malformed: [string, unknown][] = [
+    ['NaN', NaN],
+    ['undefined', undefined],
+    ['null', null],
+    ['+Infinity', Infinity],
+    ['-Infinity', -Infinity],
+    ['negative', -1],
+    ['above one', 1.5],
+    ['numeric string', '0.9'],
+    ['non-numeric string', 'abc'],
+    ['object', {}],
+  ];
+
+  for (const [label, value] of malformed) {
+    const components = { ...good, productFidelity: value } as unknown as ConfidenceComponents;
+    assert.equal(overallConfidence(components), 0, `${label} must score 0, not pass through`);
+    const result = resolveEligibility(components, null);
+    assert.equal(result.live2d, false, `${label} confidence must not be LIVE2D_ELIGIBLE`);
+    assert.equal(result.reason, 'EXTRACTION_UNRELIABLE');
+  }
+
+  // A component that is missing from the object entirely must also fail closed.
+  const missing = { ...good } as Partial<ConfidenceComponents>;
+  delete missing.productFidelity;
+  assert.equal(overallConfidence(missing as ConfidenceComponents), 0);
+  assert.equal(resolveEligibility(missing as ConfidenceComponents, null).live2d, false);
+
+  // An empty object supplies no constraints at all — it must not be eligible.
+  assert.equal(resolveEligibility({} as ConfidenceComponents, null).live2d, false);
+
+  // An eligible asset never carries a rejection reason, and a rejected asset
+  // never retains eligible state, regardless of confidence.
+  const rejection = { code: 'OCCLUSION_TOO_HIGH', message: 'm', stage: 'qa' } as const;
+  const rejected = resolveEligibility(good, rejection);
+  assert.equal(rejected.live2d, false);
+  assert.equal(rejected.reason, 'OCCLUSION_TOO_HIGH');
+  assert.equal(resolveEligibility(good, null).reason, null);
+});

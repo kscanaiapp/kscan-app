@@ -24,9 +24,9 @@ function product(overrides: Partial<Phase4ProductInput> = {}): Phase4ProductInpu
   };
 }
 
-test('applyCorrection ELIGIBILITY_OVERRIDE is REFUSED against a real PRODUCT_FIDELITY_FAILED (task section 37)', () => {
+test('applyCorrection ELIGIBILITY_OVERRIDE is REFUSED against a real PRODUCT_FIDELITY_FAILED (task section 37)', async () => {
   const { image } = generateSyntheticGarment({ seed: 1, backgroundColor: WHITE, garmentColor: BLUE });
-  const decoded = decodeImageBytes(encodePng(image));
+  const decoded = await decodeImageBytes(encodePng(image));
   const p = product();
   const runResult = runPipelineForImage(p, 'ref', decoded, { fidelityHints: { knownFillColor: [0, 0, 0] } });
   assert.equal(runResult.manifest.rejection?.code, 'PRODUCT_FIDELITY_FAILED');
@@ -42,9 +42,9 @@ test('applyCorrection ELIGIBILITY_OVERRIDE is REFUSED against a real PRODUCT_FID
   assert.equal(outcome.manifest.eligibility.live2d, false, 'a fidelity failure must never be silently overridden to eligible');
 });
 
-test('applyCorrection ELIGIBILITY_OVERRIDE succeeds for a non-fidelity, confidence-only rejection', () => {
+test('applyCorrection ELIGIBILITY_OVERRIDE succeeds for a non-fidelity, confidence-only rejection', async () => {
   const { image } = generateSyntheticGarment({ seed: 2, backgroundColor: WHITE, garmentColor: BLUE, addSkinBlob: true });
-  const decoded = decodeImageBytes(encodePng(image));
+  const decoded = await decodeImageBytes(encodePng(image));
   const p = product();
   const runResult = runPipelineForImage(p, 'ref', decoded);
   assert.equal(runResult.manifest.rejection?.code, 'OCCLUSION_TOO_HIGH');
@@ -60,9 +60,9 @@ test('applyCorrection ELIGIBILITY_OVERRIDE succeeds for a non-fidelity, confiden
   assert.equal(outcome.manifest.eligibility.live2d, true);
 });
 
-test('applyCorrection SHOT_CLASS_OVERRIDE re-runs the real pipeline (not a field patch) and can change the outcome', () => {
+test('applyCorrection SHOT_CLASS_OVERRIDE re-runs the real pipeline (not a field patch) and can change the outcome', async () => {
   const { image } = generateSyntheticGarment({ seed: 3, backgroundColor: WHITE, garmentColor: BLUE, addSkinBlob: true });
-  const decoded = decodeImageBytes(encodePng(image));
+  const decoded = await decodeImageBytes(encodePng(image));
   const p = product();
   const original = runPipelineForImage(p, 'ref', decoded).manifest;
   assert.equal(original.shotClassification.shotClass, 'HARD');
@@ -79,9 +79,9 @@ test('applyCorrection SHOT_CLASS_OVERRIDE re-runs the real pipeline (not a field
   assert.equal(outcome.manifest.correctionHistory[0].type, 'SHOT_CLASS_OVERRIDE');
 });
 
-test('correction log entries are always labeled automated, never presented as human time', () => {
+test('correction log entries are always labeled automated, never presented as human time', async () => {
   const { image } = generateSyntheticGarment({ seed: 4, backgroundColor: WHITE, garmentColor: BLUE });
-  const decoded = decodeImageBytes(encodePng(image));
+  const decoded = await decodeImageBytes(encodePng(image));
   const p = product();
   const runResult = runPipelineForImage(p, 'ref', decoded, { fidelityHints: { knownFillColor: BLUE } });
   const outcome = applyCorrection(runResult.manifest, p, 'ref', decoded, {

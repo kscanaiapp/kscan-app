@@ -1,0 +1,99 @@
+{
+  "schema": "vto-phase4-gate-e-summary/1",
+  "generatedAt": "2026-09-05T14:48:45.905Z",
+  "verdict": "GATE E PRECONDITION HOLD — REAL PRODUCT EVALUATION AUTHORITY NOT ESTABLISHED",
+  "authority": {
+    "currentIntegrationSha": "265fe3624bb34fd951b4efe5979fa712a4fce2be",
+    "integrationBranch": "integration/backend-kplus-complimentary-staging-v1",
+    "phase4MergeSha": "265fe3624bb34fd951b4efe5979fa712a4fce2be",
+    "phase4HeadSha": "a38e20cb0ea635ec536751b68e594df4458ae51a",
+    "pipelineTreeSha": "ab399fd7b06b5ff0c003cc74cec57bbbc3b34657",
+    "pipelineVersion": "0.1.0",
+    "garmentContractVersion": "1.0"
+  },
+  "preconditions": {
+    "sourceAuthority": "PASS",
+    "commerceAccessMechanics": "PASS",
+    "usableRealProductCorpus": "FAIL",
+    "evaluationRightsAuthority": "FAIL",
+    "pipelineIntegrityPrecheck": "PASS_AFTER_REPAIR",
+    "pipelineFreeze": "RECORDED",
+    "cohortFreeze": "NOT_REACHED"
+  },
+  "realProducts": {
+    "evaluated": 0,
+    "live2dEligible": 0,
+    "rejected": 0,
+    "systemErrors": 0,
+    "evidenceVolume": "NONE — no real product evaluated"
+  },
+  "accessProbe": {
+    "authorizedPathExercised": "product-search-deals (staging, ACTIVE v61, zero DB access)",
+    "queriesIssued": 10,
+    "productsReturned": 99,
+    "imagesFetched": 99,
+    "fetchErrors": 0,
+    "formatDistribution": {
+      "WEBP": 99
+    },
+    "pipelineDecodableCount": 0,
+    "pipelineDecodableRate": 0,
+    "pipelineSupportedFormats": [
+      "PNG",
+      "JPEG"
+    ],
+    "shortSideDimensionPx": {
+      "min": 194,
+      "p50": 632,
+      "p95": 659,
+      "max": 659
+    },
+    "minDimensionRequiredPx": 40,
+    "formatNegotiable": false
+  },
+  "rights": {
+    "clearedSources": 0,
+    "restrictedSources": 0,
+    "unknownSources": "all real retailer/commerce imagery"
+  },
+  "defects": [
+    {
+      "id": "GATE-E-INT-001",
+      "severity": "P2",
+      "status": "REPAIRED_PRE_FREEZE",
+      "title": "Eligibility gate fails OPEN on malformed confidence components"
+    },
+    {
+      "id": "GATE-E-INT-002",
+      "severity": "P2",
+      "status": "OPEN_DEFERRED_TO_PHASE_4_1",
+      "title": "No per-item error isolation and no SYSTEM_ERROR terminal state in the batch runner"
+    }
+  ],
+  "retention": {
+    "sourceImagesTemporarilyProcessed": 99,
+    "sourceImagesRetained": 0,
+    "sourceImagesDeleted": 99,
+    "derivedMetadataRetained": true,
+    "retentionAuthority": "none required — no source bytes retained"
+  },
+  "invariants": {
+    "externalCvOrGenerativeCalls": 0,
+    "unauthorizedSourceImagesCommitted": 0,
+    "productionMutation": false,
+    "stagingMutation": false,
+    "liveEnabled": false,
+    "pipelineChangedAfterFreeze": false,
+    "phase5Started": false
+  },
+  "carriedForward": {
+    "p3aHumanVisualVerdict": "PENDING",
+    "case8ColorFidelityDisposition": "PENDING",
+    "nativeLiveRuntime": "NOT VALIDATED",
+    "physicalDevice": "NOT VALIDATED",
+    "realPersonLiveVto": "NOT VALIDATED",
+    "humanProductFidelityReview": "PENDING",
+    "humanCorrectionMinutes": "NOT MEASURED",
+    "computeCostPerSku": "NOT CALCULATED"
+  }
+}

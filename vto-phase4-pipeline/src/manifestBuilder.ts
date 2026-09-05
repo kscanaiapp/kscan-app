@@ -10,6 +10,7 @@ import type {
   ProductFidelityQaResult,
   Rejection,
   ShotClassificationResult,
+  SourceAdequacyEvidence,
   StageTiming,
 } from './types';
 
@@ -54,7 +55,7 @@ export function buildAssetManifest(params: {
   sourceSha256: string;
   sourceWidth: number;
   sourceHeight: number;
-  sourceFormat: 'png' | 'jpeg';
+  sourceFormat: 'png' | 'jpeg' | 'webp';
   shotClassification: ShotClassificationResult;
   confidenceComponents: ConfidenceComponents;
   qa: ProductFidelityQaResult | null;
@@ -65,6 +66,7 @@ export function buildAssetManifest(params: {
   stageTimings: StageTiming[];
   correctionHistory?: CorrectionLogRef[];
   status?: AssetStatus;
+  sourceAdequacy: SourceAdequacyEvidence;
 }): Phase4AssetManifest {
   const assetId = computeAssetId(params.productRef, params.variantId, params.sourceSha256);
   const status: AssetStatus = params.status ?? (params.rejection ? 'REJECTED' : 'CURRENT');
@@ -97,6 +99,7 @@ export function buildAssetManifest(params: {
     rejection: params.rejection,
     ksgarment: params.ksgarment,
     anchorEvidence: params.anchorEvidence,
+    sourceAdequacy: params.sourceAdequacy,
     correctionHistory: params.correctionHistory ?? [],
     stageTimings: params.stageTimings,
   };

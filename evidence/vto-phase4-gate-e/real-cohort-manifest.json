@@ -1,0 +1,1549 @@
+{
+  "schema": "vto-phase4-gate-e-real-cohort-manifest/1",
+  "generatedAt": "2026-09-05T15:55:05.258Z",
+  "cohortFrozen": true,
+  "cohortSize": 220,
+  "evidenceTier": "ELIGIBLE_FOR_GATE_E_PASS_HOLD_FAIL_CONSIDERATION",
+  "items": [
+    {
+      "productRef": "real-0001",
+      "visualStratum": "plain",
+      "sourceHash": "cc77706d7568c9c824f5caeb7fc14a53b8d2be6714c32c3b9a25bcd88f70327e",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0002",
+      "visualStratum": "plain",
+      "sourceHash": "f966fbb064bb7406c330b14c01529a0b05bbae7ae71f002d81d5f5b04df16d1b",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0003",
+      "visualStratum": "plain",
+      "sourceHash": "4d442de3acb6eac5c2135616169033ab82b6210ea69cc8818584abf9192f3b6f",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0004",
+      "visualStratum": "plain",
+      "sourceHash": "9687b2c2f14bc58c2aa8eefab96c8546130e73b197abad7016a4d223cebd89ce",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0005",
+      "visualStratum": "logo",
+      "sourceHash": "eea90e19018dd98b58c7186df3abec9ca34aceb9bf1dc18b2aa5f5f99a27607f",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0006",
+      "visualStratum": "logo",
+      "sourceHash": "fe7a8bf5adba02206896dcfd435e91020621f4fd7cea113cbb6452fe16b2a9c0",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0007",
+      "visualStratum": "logo",
+      "sourceHash": "36a24b79db977b0b71eab2f9b35e3fbe22eb6cd1cf9147ea4ee86a1868879f44",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0008",
+      "visualStratum": "patterned",
+      "sourceHash": "3bd2759370ca8b636b68534101a04c91fbfd23ae128510dd9a680e565df599cc",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0009",
+      "visualStratum": "patterned",
+      "sourceHash": "911f0aa8cc03876f4f52cb62db1dc883c61677a9e4993423aed35a4fb5c6d8b6",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0010",
+      "visualStratum": "patterned",
+      "sourceHash": "6cd6c01286ef74ab6fe5cf17a7a328af76092e2e555483899d8881e89c38ee06",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0011",
+      "visualStratum": "dark",
+      "sourceHash": "f892678858f6cfbe73a2c680f9d59dc71abf2398892db5836813989b9f11c64c",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0012",
+      "visualStratum": "dark",
+      "sourceHash": "015e5c56fd6a805dcd867c134c7bd892fd18f99afdbf8f92bd66b0a6f4249881",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0013",
+      "visualStratum": "light",
+      "sourceHash": "db20d002f36a8fd2b9d9eafbffefe107b95c10af915ec9f22c08d157b777fb5b",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0014",
+      "visualStratum": "light",
+      "sourceHash": "05ddbeb995d223a17eb0288887698266781d487b3eef5cc1ffb17cd574d1e892",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0015",
+      "visualStratum": "softknit",
+      "sourceHash": "c71afe236fb79809496cb8bf55a557ede866ae05c77d33510efa6c3cac1bce35",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0016",
+      "visualStratum": "softknit",
+      "sourceHash": "016eb215167c912570e87c5c429ef3f0208ced40bcab6439566d0b7d0d1daf59",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0017",
+      "visualStratum": "softknit",
+      "sourceHash": "005dd2086daf6eb33ab1c8584b7ddd525e50c21930c364e54d8c7b19e4744a00",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0018",
+      "visualStratum": "structured",
+      "sourceHash": "8a6db7b602d10de911dbe306f1b86a82331c18469b03cf19989c779a714dab46",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0019",
+      "visualStratum": "structured",
+      "sourceHash": "9bd142c006de80ecb5b70362e168b1ff19c959a72150eef44c366e6508317a8c",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0020",
+      "visualStratum": "structured",
+      "sourceHash": "2cf51b32cc243e33b24188d8d79fa6790d3be2d691f6d6117420662ee2e64f13",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0021",
+      "visualStratum": "structured",
+      "sourceHash": "1ad4c9ffd64da38e9b7af74ec3591b818c14fa0559ad4aafd5724e4faa439acd",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0022",
+      "visualStratum": "plain",
+      "sourceHash": "a59d53623d915bf73f8de8cf82cb4f49f3f9dbc6cf5bf269b87161c3ae3af08f",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0023",
+      "visualStratum": "plain",
+      "sourceHash": "2f5f7a547f24cf66ae2fa24ee101954e2c94826d43be8da13d6b8b8d7ad63d31",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0024",
+      "visualStratum": "plain",
+      "sourceHash": "30659b1d838ea7a277bbc532c335d7eae4dd65b92e9d9edfd121b1b44ac03841",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0025",
+      "visualStratum": "plain",
+      "sourceHash": "4c61b7012662c2feeb518715c98d8d48c0f5b009435ffa00c4654248d7fc7f45",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0026",
+      "visualStratum": "logo",
+      "sourceHash": "86a92e47bb50a485094fe95381f2e8d01c1ce004416cafa3dc100a42400bd934",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0027",
+      "visualStratum": "logo",
+      "sourceHash": "f39d8488b48cd871b637a8f24241a0d23083af853d93b6eefe8767d4b43856ac",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0028",
+      "visualStratum": "logo",
+      "sourceHash": "76330064b37866156774b94907a4c6cd931c5be778c322fad53bc7fd689aea4a",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0029",
+      "visualStratum": "patterned",
+      "sourceHash": "34ffc3f7eab3296d1983af390d53c4653b1d9447a6bda3d532756f5e7345a9aa",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0030",
+      "visualStratum": "patterned",
+      "sourceHash": "be525eafa9d0d5c7f5a073f4e66725b00822a4ede660e84f913d1fc4169d9fe5",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0031",
+      "visualStratum": "patterned",
+      "sourceHash": "a6992ecb68ca9b0eb11e40b2f0f68cadb0fb6b016bc93e00badc420263ef6400",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0032",
+      "visualStratum": "dark",
+      "sourceHash": "cc77706d7568c9c824f5caeb7fc14a53b8d2be6714c32c3b9a25bcd88f70327e",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0033",
+      "visualStratum": "dark",
+      "sourceHash": "6c852d1f0f6f8c1f9564501e2cc6cf9a7c38495ffd31a6bb1600a491ff21d196",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0034",
+      "visualStratum": "light",
+      "sourceHash": "57a288c13838dbd9d40c4bdd1e0cea6445e6cd05aa1bbabbf1b15890bdb13a0b",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0035",
+      "visualStratum": "light",
+      "sourceHash": "bf8fc2ebd1b2aeaf121e7b44b8ec028198f94b8a0707571314180c11acc287f4",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0036",
+      "visualStratum": "softknit",
+      "sourceHash": "404144307efdcd44ff474e31ca2ff79e4306dcc60c4037c411f0dd7fd7fa3fc5",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0037",
+      "visualStratum": "softknit",
+      "sourceHash": "8ec69ee0c68f43ed63a60491ce4580aa656c242153343080cf1c984144eedd27",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0038",
+      "visualStratum": "softknit",
+      "sourceHash": "4f89d8715ee6a471897401dfe4267deb729d47439de09abd6ef92accf261f32a",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0039",
+      "visualStratum": "structured",
+      "sourceHash": "2162f309da6dbdaa37054b8aa2bd9a47082462b83b573d442fb565fd6ae83d71",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0040",
+      "visualStratum": "structured",
+      "sourceHash": "753492d5e0ad0a4ba1329af4c596ac8d26638cdfbb68f1bb0b8c5ffe181f8ca2",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0041",
+      "visualStratum": "structured",
+      "sourceHash": "9acf4a67f215da9809e62518c48180b5766572113f1520f064ebe0f61641e643",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0042",
+      "visualStratum": "structured",
+      "sourceHash": "79fa426d927f32352db42a4ffc361a470fb8ecff588e251592d97740aaf559df",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0043",
+      "visualStratum": "plain",
+      "sourceHash": "23c8b8ebaafef98e545d86f1507dc0ac22b9cd6c838693f9217b151e8bc57036",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0044",
+      "visualStratum": "plain",
+      "sourceHash": "46b4361a0e2247cb083523d6f5db180f7c97d1a0cd636e74e03289cbb86dc75f",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0045",
+      "visualStratum": "plain",
+      "sourceHash": "282bf7c75893a9eabcd6f2e61150119c6c719db7112af4b8ae6e74ac0bc18688",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0046",
+      "visualStratum": "plain",
+      "sourceHash": "2b0133cb4c73d46413175d47320535728d4c10cf3108250633957cc113120c12",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0047",
+      "visualStratum": "logo",
+      "sourceHash": "921b45d1f72e5838227581177a339ac9f6f2a2ea051224baa9a835354e951864",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0048",
+      "visualStratum": "logo",
+      "sourceHash": "c326f3a3bc6bfd98f5a8a11a742e7cb4ff83764915d270afb376e0597465c85f",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0049",
+      "visualStratum": "logo",
+      "sourceHash": "063462d3ef95c563c34ddc47bc01c254c3370d44eac5c61a7edbde3bdb45ef4b",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0050",
+      "visualStratum": "patterned",
+      "sourceHash": "0b96960ae39c8ed7b0cf8b6c7ce084a3df5b91515fbe90508cc75614d82ae98a",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0051",
+      "visualStratum": "patterned",
+      "sourceHash": "9b93edca9ad07bfd347ace255ec0356fd368b261e23eae693199601eab088907",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0052",
+      "visualStratum": "patterned",
+      "sourceHash": "be88480e19948c7745a5d4e9582f46f8d4ccc2db9f8325500f405f5f899684f2",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0053",
+      "visualStratum": "dark",
+      "sourceHash": "611ec84b116577dc7518218b7f6fb2c45dbc6a32496cd974abe38a9b48246cac",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0054",
+      "visualStratum": "dark",
+      "sourceHash": "dc24afff1c5bec24f76d7955aa758e68cf3ac56576f86e8aa50d7d38a3bc849d",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0055",
+      "visualStratum": "light",
+      "sourceHash": "a8366600bfc7f4807dc7cffb0b48be23680c246621b689a2cdeb347b3a034691",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0056",
+      "visualStratum": "light",
+      "sourceHash": "dc3a0bfa4daaf4743ab40b0d467d112a23d5293fcd56e1bce778c145182aa7d6",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0057",
+      "visualStratum": "softknit",
+      "sourceHash": "75f11506e730934662001dac30e301117e034d6a6b8a418b6e46b6cd6218c550",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0058",
+      "visualStratum": "softknit",
+      "sourceHash": "21e844038c6357210b22009c0a8a3eca680b86e7f57b2b706347bf653f4fb0b4",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0059",
+      "visualStratum": "softknit",
+      "sourceHash": "6ff0658a14fd58d6d6da90d7632a647064b3c805cb3f1805d7482825f674cfaf",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0060",
+      "visualStratum": "structured",
+      "sourceHash": "b9b5e908a857cf5fc45ed0be3ffe0ac87f5fb0ed29e37507d306ba2c81a58aac",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0061",
+      "visualStratum": "structured",
+      "sourceHash": "d7f8e35a7d95c937cc09977dc8bb1f64616fcb391970b50b96b146836277d702",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0062",
+      "visualStratum": "structured",
+      "sourceHash": "1b8671c41c88a90d37a1cdcb8b5cdf4eff127031f60ca2ade1505c621466878b",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0063",
+      "visualStratum": "structured",
+      "sourceHash": "95e822a1e5a139b0db1860d463e6b163398edd46c564dda2ec3574665090b62b",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0064",
+      "visualStratum": "plain",
+      "sourceHash": "b50094dce6df5c584b1924ead9f18ab3d8d67a6861846ae4127ce0e3f6d6d1ea",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0065",
+      "visualStratum": "plain",
+      "sourceHash": "0f1e78b1cf2debfbc1f488128abda9a4a2f78f43c0fb9d881793f7e9545f8156",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0066",
+      "visualStratum": "plain",
+      "sourceHash": "464db85f84b67b23f5d7689964e8f662ea112af449e1832a26fd33f3f1adc46c",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0067",
+      "visualStratum": "plain",
+      "sourceHash": "6f1fa536448011e888fe18a94850df00a72c5529cb7c958d9197d518e2012a71",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0068",
+      "visualStratum": "logo",
+      "sourceHash": "dc361ec408651a4d094f009a74cd1dc7fc969b7266d2394f7f31579a435ba41a",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0069",
+      "visualStratum": "logo",
+      "sourceHash": "ee6667a03ffe99d389b75109a4fe97bd36a30e917b6f445d8971397f1b886f95",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0070",
+      "visualStratum": "logo",
+      "sourceHash": "ad3061a30e53130199b3ba15560a94f29789977bc853acc9873e2099b30e1e1a",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0071",
+      "visualStratum": "patterned",
+      "sourceHash": "45edecef6bffc8f966fead57f694c5b1a23d105e3a295e9c2607a1e44826271d",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0072",
+      "visualStratum": "patterned",
+      "sourceHash": "d597753d85ba9773902118684d8159020b7e7a1cc3ae630d9f15ef080a4dd2c9",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0073",
+      "visualStratum": "patterned",
+      "sourceHash": "20ba1818090ed5311f896694f848e6abd59bd8fe5ce3c22bdb38f1170d296c6a",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0074",
+      "visualStratum": "dark",
+      "sourceHash": "ff06deb9d9ce48285d1db83e211acc3a1d9f418badead777c921c6140a0a0f19",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0075",
+      "visualStratum": "dark",
+      "sourceHash": "b8d0c614cc545c2330c77f0094e9cc22621c48c409a1a58d2fcf18d6840468f2",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0076",
+      "visualStratum": "light",
+      "sourceHash": "e55e43da32adbf0ffa4e6f626672f77139b19699edd32aff8c149d26951ead23",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0077",
+      "visualStratum": "light",
+      "sourceHash": "88eea472b6095464128b179deb4e55535e8c55903a15c52ab7fcb827c90495f6",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0078",
+      "visualStratum": "softknit",
+      "sourceHash": "08c372f3f7c2dad70625f4fc66ae12d513d46150456f6269771a24570b73732e",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0079",
+      "visualStratum": "softknit",
+      "sourceHash": "d87fee19732b5b8b3a3d7bcf3995ba8ae5073d58f3d64825ad1735f6c392aff6",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0080",
+      "visualStratum": "softknit",
+      "sourceHash": "33e633b2d9ee24ce9891337f6864559d4599b8b8616b1e1e65326d2bc1f15734",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0081",
+      "visualStratum": "structured",
+      "sourceHash": "68cd36447e3aae1d3a9ce044fa425999134d7e5ca6537c7e068f22107ef6926d",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0082",
+      "visualStratum": "structured",
+      "sourceHash": "8cd79f313fc464e20116f3b67e3f70462c744270a690007ce19bbd1f575022cf",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0083",
+      "visualStratum": "structured",
+      "sourceHash": "436d587845e66611250f586d001e57a03cc6c4ef965390d04c72f9c6c74c1697",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0084",
+      "visualStratum": "structured",
+      "sourceHash": "9ca2e253310a44a32b338e2dfa547f821bb918ab8893c7c16b949422edd98542",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0085",
+      "visualStratum": "plain",
+      "sourceHash": "70011683c3b205f49f1c8e044a255dd332b60686ee81bdc495e791fea52857d6",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0086",
+      "visualStratum": "plain",
+      "sourceHash": "9923d7a53c8b5b3e3b0ea56bbe1a7c77e9c8bf122ab11232d5d1cf03010bc22b",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0087",
+      "visualStratum": "plain",
+      "sourceHash": "d91b1aef42a8b37eb2c4facba95d1a574355d746710367ecc9b44d93ba22e93b",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0088",
+      "visualStratum": "plain",
+      "sourceHash": "99098d75b2f39d4a7494dcce5ab640c0a7468b5ee6f071d02d126a44085149fc",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0089",
+      "visualStratum": "logo",
+      "sourceHash": "a364fc6814f90c0ea7e83f4224259fa449dca9c037c5f88d0468a349e359aa93",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0090",
+      "visualStratum": "logo",
+      "sourceHash": "939b67d2951c7dd0dcc5fed24a55a570ff50168cf88719b836179fd020eb54c6",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0091",
+      "visualStratum": "logo",
+      "sourceHash": "2e13ebd0cb88a56c535f4394894cf4ae049e978eb81e596c314ba9dc8db799b4",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0092",
+      "visualStratum": "patterned",
+      "sourceHash": "3f6382f5d6cd9205baee412b1fcb390df44b3801bc5fc976194858569b0bf40c",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0093",
+      "visualStratum": "patterned",
+      "sourceHash": "22a1e172ad771e59409408e1db7e50231f2878a2b0aef5e7ef7f2167d2996bff",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0094",
+      "visualStratum": "patterned",
+      "sourceHash": "25b01c52ddd464f4ce61426c3e018c8060ae6019bde25222369ee9429283d2e2",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0095",
+      "visualStratum": "dark",
+      "sourceHash": "a68bad2ba834845f16be2d04b058c434e939e0a27eb8c2c162d476ab3c224cd4",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0096",
+      "visualStratum": "dark",
+      "sourceHash": "8cf7db1e633c0c11f574b9c9d98d7837560df95ee119c7983d3a21d9ff1c0ea6",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0097",
+      "visualStratum": "light",
+      "sourceHash": "d16b8e5e5de50249ae081b1d33a86110c3911cd2232754696a13dfbc0247c883",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0098",
+      "visualStratum": "light",
+      "sourceHash": "add6c291f11df731c6d2147c2953ab9169c593dc37af53e216d496111eee7734",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0099",
+      "visualStratum": "softknit",
+      "sourceHash": "91802ebd6a6124dc41677fbe01ee38d459a33f2479c6c4db2156355a63fa589c",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0100",
+      "visualStratum": "softknit",
+      "sourceHash": "35bdfabaf7a600a840b8544b2fbdb375ab3615b1e3894ade6b8aa836b846c910",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0101",
+      "visualStratum": "softknit",
+      "sourceHash": "1b14aa4a383710166934796436e5b42fc0171d587d45d04fb9a9565a96802352",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0102",
+      "visualStratum": "structured",
+      "sourceHash": "25286edfccfc751979729125a897607841c6a86b3b4f0b65267ff2212faa5c14",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0103",
+      "visualStratum": "structured",
+      "sourceHash": "cbe244d2098e397587b2ab71f99c0dd70b6cce4ea3d97d777bac7a1556c19c38",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0104",
+      "visualStratum": "structured",
+      "sourceHash": "23551bcc1d610d4c3909edc774428bf25e533bbc2ed8e909101c0ac85d58e59c",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0105",
+      "visualStratum": "structured",
+      "sourceHash": "80e853e37e9fcecb7cd351d49f712d103d8537ab69e698b967cf2c7e4399a983",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0106",
+      "visualStratum": "plain",
+      "sourceHash": "b3df2948e571cf278a72d3f8e118572f6ded4db5f66535bcb4401ff66ee21986",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0107",
+      "visualStratum": "plain",
+      "sourceHash": "673d9f9f875398ef2604afdc872022a66a6ea9bd31d80533595bd6071704760a",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0108",
+      "visualStratum": "plain",
+      "sourceHash": "6ea110e32207c47428787209497a660896f226f88bfcba4f6b220577a1578f4c",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0109",
+      "visualStratum": "plain",
+      "sourceHash": "a60a8c2838bb73e90e38e8e36f88fd8f98f7e3b344d31184af7171aba6e61776",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0110",
+      "visualStratum": "logo",
+      "sourceHash": "e658dede8d3c8d8d696e0f5415bd62b65a78086d1945380986b0a22d95943878",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0111",
+      "visualStratum": "logo",
+      "sourceHash": "fbc16273b4b6f2ae084803cc1acdf81045951c2adcc8947b20956c04e2951a20",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0112",
+      "visualStratum": "logo",
+      "sourceHash": "cab74c94daa854f605da49ae6fdf45eebac3a55f0ece0fa8d34f167e21aeda1d",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0113",
+      "visualStratum": "patterned",
+      "sourceHash": "9519d6143f3c08623f94bac7266e4b03067152cc2163b1a4a64f2ce23e426393",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0114",
+      "visualStratum": "patterned",
+      "sourceHash": "ef7c55d5f8709563f27eb44910ee22629988aa3859549e8a5745a919b3a1e18c",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0115",
+      "visualStratum": "patterned",
+      "sourceHash": "807388a51df801cb5262fd1c65cc80d8e9aeb8f9db1c1d2e712f4e6aa355e411",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0116",
+      "visualStratum": "dark",
+      "sourceHash": "62cfc7827df6ecb305b8f7e7b336a9b51ee3907589530877d92cda5497c36aab",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0117",
+      "visualStratum": "dark",
+      "sourceHash": "9d5a0dd79a1cb4136a278f41cb8b4fa91c554c6706429d11a761d6c683581631",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0118",
+      "visualStratum": "light",
+      "sourceHash": "46b4361a0e2247cb083523d6f5db180f7c97d1a0cd636e74e03289cbb86dc75f",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0119",
+      "visualStratum": "light",
+      "sourceHash": "fdaa589b6d8f14d5339f43aa11c600c23d0944ed7fbff490911d49b46339da07",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0120",
+      "visualStratum": "softknit",
+      "sourceHash": "2ef39092eb96f30e61cfdd7f7bb71dd55aa6eed7110018f337174b9d382c9718",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0121",
+      "visualStratum": "softknit",
+      "sourceHash": "6413d5d83f5b62874eecb6c5f96d7c631f89ced7090111e708a8d4f6348f8d0a",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0122",
+      "visualStratum": "softknit",
+      "sourceHash": "e8934f0370dfb5183feb835f6353eb620f5b46c43eb713f2f8ed611c257b4aed",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0123",
+      "visualStratum": "structured",
+      "sourceHash": "549eddbb10aa9d3dec2ba64da796b49ef984c13c9526a9e7e293eb5e5164f1f9",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0124",
+      "visualStratum": "structured",
+      "sourceHash": "faa7806ac721f5427aab648a3d2eee17f72f663b99bc5f12a31f0f3ab704306c",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0125",
+      "visualStratum": "structured",
+      "sourceHash": "d0a4e6bca5c68b38b04519276ec7f6588d9e7e46a9b37757d327129039343e29",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0126",
+      "visualStratum": "structured",
+      "sourceHash": "f8bc76d52f2ebaecf06d5572ee38fa5cd1498268a85eeb14ecd1c41aef5ecbb0",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0127",
+      "visualStratum": "plain",
+      "sourceHash": "90b0814b8f1c3ccc3618cd7065adeabde54a5bde3ddbbadfea248504cce99f9e",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0128",
+      "visualStratum": "plain",
+      "sourceHash": "b12a9e04957e3e200f2cd9599a12b30acee4dd0b746b8c9b3c66b98fe0123d87",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0129",
+      "visualStratum": "plain",
+      "sourceHash": "f06b1d050c2bcb5dcb7320c3986e124658cb1c16cd111f92897a20315c5eb39e",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0130",
+      "visualStratum": "plain",
+      "sourceHash": "6d29c60605d81a4cc13557b6790d04b3b60945e08b92e7648468b2986e1ab832",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0131",
+      "visualStratum": "logo",
+      "sourceHash": "1c9cbc1c29ad6b30c0c5e331b3971ecb427e35c4ab3644bf9c4afed4548e4aa7",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0132",
+      "visualStratum": "logo",
+      "sourceHash": "e7d7913ac18af0f8c204333bf864aa70651aefb0ed26bafb38915722181b66e2",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0133",
+      "visualStratum": "logo",
+      "sourceHash": "f74393080b353975f2cb65df378f69141bc819a6abd09c40d205a2cf79aebdfb",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0134",
+      "visualStratum": "patterned",
+      "sourceHash": "34c1ce8826040f45164e13adb164f853db7fa5382c9888c78a8a2d21a2305770",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0135",
+      "visualStratum": "patterned",
+      "sourceHash": "3f45a5aa6f57b2bb5f56f64a3078557569e3817588649694c769639a1ce1f42f",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0136",
+      "visualStratum": "patterned",
+      "sourceHash": "f0f0cc627fc07e169738fd0eb32017f6272643bf044b56a7fa3ae2bbe70fbbd8",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0137",
+      "visualStratum": "dark",
+      "sourceHash": "ebd95c738c0017ce10f36d7f14fc0a3ced50b73158a53283bea522fffcad382d",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0138",
+      "visualStratum": "dark",
+      "sourceHash": "8b2e10bddf4f3655fb4884426943b616a207cf5b1a3a79314cef0391d222fece",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0139",
+      "visualStratum": "light",
+      "sourceHash": "3a2be76d65eb804c486fd56f91df2e625c6e7a4dea915dc5f222c60c7b435a8a",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0140",
+      "visualStratum": "light",
+      "sourceHash": "48a01b23ffb1a64f1c52b029848a6e4c568f21b722da8190fe14e97ae81ba604",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0141",
+      "visualStratum": "softknit",
+      "sourceHash": "dfd33589e12b4d3d69a9e4ab2bc93d8ef2168b59bb998b8202ecd1703bab02bf",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0142",
+      "visualStratum": "softknit",
+      "sourceHash": "686587a3865b19eda2c0cb54e479efd6a8d817e44ddc5733152c295670d2c3af",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0143",
+      "visualStratum": "softknit",
+      "sourceHash": "769626f8e477c4616ece0bd567733d8bf72f2608ee4ca379221df5e2814da107",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0144",
+      "visualStratum": "structured",
+      "sourceHash": "a16906198f5d3aa55c97fca3c7be095b0ea40821304ab57e6673c166489adc58",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0145",
+      "visualStratum": "structured",
+      "sourceHash": "19019e23c19b134139632fb9ef9d45808abbc4549456d9b150350d8ab306fc38",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0146",
+      "visualStratum": "structured",
+      "sourceHash": "5573ab1970be1f78d4e5f06aaad4181fe58d336a4f23801dcfa1332531420ad5",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0147",
+      "visualStratum": "structured",
+      "sourceHash": "977f4cf8fec41eac3799775244a84969c05bbab4098910d6b0c17040ffaa784c",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0148",
+      "visualStratum": "plain",
+      "sourceHash": "f268880610a86ba020ccf3753606ad9643d73dd20dae89d73740cc196842886c",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0149",
+      "visualStratum": "plain",
+      "sourceHash": "e55e43da32adbf0ffa4e6f626672f77139b19699edd32aff8c149d26951ead23",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0150",
+      "visualStratum": "plain",
+      "sourceHash": "fd96d6645e83fbea5adba9f68be870f7c8847d49fc02eb9308053507ad7db076",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0151",
+      "visualStratum": "plain",
+      "sourceHash": "78de33b688791e264ed0a9b2de089395045dd3d7f382dc78ee54538417de9254",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0152",
+      "visualStratum": "logo",
+      "sourceHash": "b0aa4397c3da4ef1d72556d104581de2860ebadf96d374815e89f2ac220c68c6",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0153",
+      "visualStratum": "logo",
+      "sourceHash": "31847a5d8218fb8ac80cbf5247721714c5ffb6587f1cbd2e7e5c4744f485735d",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0154",
+      "visualStratum": "logo",
+      "sourceHash": "1eb1698b21e19635cad8003626a7e1b227a719eb048ac8d305b2d434a2e69500",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0155",
+      "visualStratum": "patterned",
+      "sourceHash": "3bbe34de2829b167a54582c0a1d3b65fc6104b671ab95f2d713c97e55d349836",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0156",
+      "visualStratum": "patterned",
+      "sourceHash": "320769ce76b8c2d5dcad2990db9ed36da73a3f0dd31f09c82f725ef9ab5ba31d",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0157",
+      "visualStratum": "patterned",
+      "sourceHash": "271850ad68789a9013cbf91e8796356515448a1be3e1cdf7d000d18106efaf40",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0158",
+      "visualStratum": "dark",
+      "sourceHash": "875e2a31821ecce1c362cd78772f167dbd92fea0afd380c912b6cd7a13f31435",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0159",
+      "visualStratum": "dark",
+      "sourceHash": "59694fa00296f7122c7b6dcf2ef22a281f1410ce5e32e19cb354ea817eecec4d",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0160",
+      "visualStratum": "light",
+      "sourceHash": "a0627ab160e9d93f41f55bb9e92ab4595c3035a3f44b1625a0ba9f92f41b6492",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0161",
+      "visualStratum": "light",
+      "sourceHash": "391a85174235ad48cc2dcdc946f355eb5a5add4767b1e0ddc4d373685d429300",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0162",
+      "visualStratum": "softknit",
+      "sourceHash": "943cd8523aae7c24196d4ad7c020ece50f66e698935b5bbf2a728e1a29d30b9e",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0163",
+      "visualStratum": "softknit",
+      "sourceHash": "cf58658f9030800f41cceb77fd58f3b93d0a4d7a04c479e89a627dbc2d56fa1d",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0164",
+      "visualStratum": "softknit",
+      "sourceHash": "7be80341bcaaa559bb006b26aab9af5b03afd87b7c5bbe09c0f49c366be7ab36",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0165",
+      "visualStratum": "structured",
+      "sourceHash": "8763abff680e8e31507472768c138164203f86771c9b7846bdef76318cfb8502",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0166",
+      "visualStratum": "structured",
+      "sourceHash": "56ba9a6b44d7cddceebf26a45ce28d5a9c277cec27a61ad1e7ae40aacad7030b",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0167",
+      "visualStratum": "structured",
+      "sourceHash": "00a37d68d9f3eff733df6bc37999ea7f77a0991a786ab534deccf72a59a28de2",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0168",
+      "visualStratum": "structured",
+      "sourceHash": "694448b94e11a1ee52a7eca025ddb342fb9eaaf01085708b9269b7fa77bbcfd2",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0169",
+      "visualStratum": "plain",
+      "sourceHash": "4b68c62a57cbe2e4e71f00aa3d3bc830e9b8076ea37cb166730420381fcb99ed",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0170",
+      "visualStratum": "plain",
+      "sourceHash": "bd58caa38dd16ad269a4abd630f8e0f42db4c66b17fa80c13569b524b916ba6d",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0171",
+      "visualStratum": "plain",
+      "sourceHash": "0039e4c83022e488c5654614f8d53c63bd7278660fdb6c1820225960717a3862",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0172",
+      "visualStratum": "plain",
+      "sourceHash": "c479092224c0a89e0f5e037d80e2f9153a7cced940313ea5a73c2fc8e528a9cb",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0173",
+      "visualStratum": "logo",
+      "sourceHash": "08655f37733b8b768fb04258653ea403ceb5dce6314dcd3bea2cd35c571f7284",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0174",
+      "visualStratum": "logo",
+      "sourceHash": "681f7da5c37d83fc77b38d0faa4a4b56f2297a9bd8a6cb974de6787ab1b9b558",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0175",
+      "visualStratum": "logo",
+      "sourceHash": "51ec1f2470ab2000b75f43595de9553553b00ede8a870113d37dd012c893e344",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0176",
+      "visualStratum": "patterned",
+      "sourceHash": "a11aa2d37910cba949f611068532c01651f583aba247ecf3ba911f5c46d39dd9",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0177",
+      "visualStratum": "patterned",
+      "sourceHash": "3d0a773f6808bde94171364c2e775a1b9afc063be45332a31bfe3fc54a1c69a1",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0178",
+      "visualStratum": "patterned",
+      "sourceHash": "c46a610a195ae3b5f969bc1440be96f70b939684ba6c187a5acc3d3d7f5a061c",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0179",
+      "visualStratum": "dark",
+      "sourceHash": "98035aca5923f607d1adacfc996903e10d472feb22e0b0a862eb4a217f44d278",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0180",
+      "visualStratum": "dark",
+      "sourceHash": "95f864945822a5d1b21c05bb289cd85104a5bcd73d7b32cc709778b71c8da9c7",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0181",
+      "visualStratum": "light",
+      "sourceHash": "b5c9f7a57e5c91d93f16051fbd24d64231e63c97258f92b7aa6170aaeda376b5",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0182",
+      "visualStratum": "light",
+      "sourceHash": "617caad918adc0364d324e01c55403dc774d4f8b41a42903de87a29a8c3b98f4",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0183",
+      "visualStratum": "softknit",
+      "sourceHash": "758f16e79073b0dca2158da9cb6c2fff1483b11e32da85c8a947713e964799a8",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0184",
+      "visualStratum": "softknit",
+      "sourceHash": "0de9c01e1a363e044d02c96bba0e310f3de6b099a8aca0b278df1a6183e91758",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0185",
+      "visualStratum": "softknit",
+      "sourceHash": "c71afe236fb79809496cb8bf55a557ede866ae05c77d33510efa6c3cac1bce35",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0186",
+      "visualStratum": "structured",
+      "sourceHash": "c82956cd7be4d36dee736e17ef7a1a5675602fb6187b995694c44d248a183995",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0187",
+      "visualStratum": "structured",
+      "sourceHash": "2ce3933df0b4a01cce4347285fe9bea07712642a3fbe0e89b3dcef8a41c47cf9",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0188",
+      "visualStratum": "structured",
+      "sourceHash": "3eb8035c147b511b6cf43539d2ef75dbd302c1d936687ea8f89d4fe4ec03b998",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0189",
+      "visualStratum": "structured",
+      "sourceHash": "a1a25311b47a0fd5775b24d67f66725a8f904192dbb776159ff41c0b945e1687",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0190",
+      "visualStratum": "plain",
+      "sourceHash": "086fedc5c731bb8e960fcef2c0d80d9ec2a1e549a16fa5d0fc5c6c662dc4210e",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0191",
+      "visualStratum": "plain",
+      "sourceHash": "979daf041f7b64940691111703a9a4687c97628e17b40868e9503280a6c0cebb",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0192",
+      "visualStratum": "plain",
+      "sourceHash": "90d046a7a50af2c0ec178404eedf3ecc8cb33072dbbc8fcbbee9a98041e11f87",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0193",
+      "visualStratum": "plain",
+      "sourceHash": "d6865668c8e55f2ae1a931d1b88d2799a17ab64ce6b56ec8a1d4167318850bdf",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0194",
+      "visualStratum": "logo",
+      "sourceHash": "5ee82e27ba8ba83f60474f1b7d707f84d4b0af494841b5665b143ab3ad6d1b31",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0195",
+      "visualStratum": "logo",
+      "sourceHash": "37c1311239498a04de68b9abcd598ebbeaae8500096a35515412d45332dad38f",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0196",
+      "visualStratum": "logo",
+      "sourceHash": "0862e8803586a810fe622b8548eeba44001c860d20ed10e06835a461cd37afd3",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0197",
+      "visualStratum": "patterned",
+      "sourceHash": "0c009cd37391c1088b9fee7276b699bd45c4f671d3450e38041bbdc0c449d284",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0198",
+      "visualStratum": "patterned",
+      "sourceHash": "61afa3f15806bc20d9268c8eb6fccfd5f227395f6ac561299fe974498bc27f09",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0199",
+      "visualStratum": "patterned",
+      "sourceHash": "87d18bac86cf3fec912e6381834f8b9d4938a64f2f7ea20377694a8898f6b61e",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0200",
+      "visualStratum": "dark",
+      "sourceHash": "c63244f21c0c997a21709dbef9e2bb8367460b79592e59f4dfc65054812127c6",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0201",
+      "visualStratum": "dark",
+      "sourceHash": "7a117675e3eefec6632a69e2032ff745a9d5209434714893184693aea7636e6b",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0202",
+      "visualStratum": "light",
+      "sourceHash": "10f2b72b66ea34681a907a045fb156286a3cb0e18e5766de52a8f4a80af0ea64",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0203",
+      "visualStratum": "light",
+      "sourceHash": "f1f2665cabd92d2c3fcabeceb4a7e7f2ba6dcd03701af10bc43a1cdaaef7c447",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0204",
+      "visualStratum": "softknit",
+      "sourceHash": "52737cc1fbb4290c6df2338fb7ca22d7b230a1317094f622557f036c7e50619a",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0205",
+      "visualStratum": "softknit",
+      "sourceHash": "8e47a49c05d4cf3874019b24f786ed346ecd4e11c364837159abded8ee4e3abb",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0206",
+      "visualStratum": "softknit",
+      "sourceHash": "9bd26f8404bcd3810c79dcbb92375fe27f92afd0bdcfb181eccd81b9b3622bec",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0207",
+      "visualStratum": "structured",
+      "sourceHash": "de8ca02de15389c0ae7d5b85fe81307427a26f86e75a432927cb9e89f52655dd",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0208",
+      "visualStratum": "structured",
+      "sourceHash": "4738a70f2db8b52abb905e9ca43c9c1bb017bbef428f6d26385a4151e8aa4e8d",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0209",
+      "visualStratum": "structured",
+      "sourceHash": "b4c3885fc3baee14b098fa0e3d8115612347af39ffe5cc01aac24c64ac73b5a3",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0210",
+      "visualStratum": "structured",
+      "sourceHash": "962e486bade83700e58177b2f8e3242642f969ef84c10ac0d02f0ad687384b48",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0211",
+      "visualStratum": "plain",
+      "sourceHash": "6f0cf432efc3f87b054e7884585dd96967887be90d61b885022e02d562751e45",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0212",
+      "visualStratum": "plain",
+      "sourceHash": "0f1e78b1cf2debfbc1f488128abda9a4a2f78f43c0fb9d881793f7e9545f8156",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0213",
+      "visualStratum": "plain",
+      "sourceHash": "54db43dbf0b8e56b4eaf004351fb65668393ee642099d5db75f1ecbe09effea2",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0214",
+      "visualStratum": "plain",
+      "sourceHash": "e6f772239911fc6f857ea6600560b5f64eac977ffe48f8b9103b008805f91368",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0215",
+      "visualStratum": "logo",
+      "sourceHash": "dda90e680d88fbfd79ef96f101bcce32671927c94804a6e7ba9f893dc1b705e7",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0216",
+      "visualStratum": "logo",
+      "sourceHash": "6d9a2c93a923dc7709dbe68cddf8625192f63050bb0ed614466553224453d8c4",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0217",
+      "visualStratum": "logo",
+      "sourceHash": "21ae895f7850c181216dadb3b089e9b5389b5dec9ee949f4d0cfa300fb6d0e98",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0218",
+      "visualStratum": "patterned",
+      "sourceHash": "dc636a6c3e9ec22b3f700edf139114778a7068063076dbf70226ab3b568a2108",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0219",
+      "visualStratum": "patterned",
+      "sourceHash": "efed58e1c117223df7b6d9203667741b7de8fbc8159ce0fa9326068f7675c607",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    },
+    {
+      "productRef": "real-0220",
+      "visualStratum": "patterned",
+      "sourceHash": "6d21716e5c30affdfcb6337b44cfa7d00f55cab7d1779e96b6853fcdbbd772f2",
+      "fetchTimestamp": "2026-09-05T15:55:05.258Z",
+      "pipelineVersion": "0.1.0"
+    }
+  ]
+}

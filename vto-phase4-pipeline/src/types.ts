@@ -18,10 +18,17 @@ import type { GarmentControlPoint, KsgarmentManifest, LiveSupportedTemplateFamil
  * pixel color.
  */
 export interface Phase4SourceImageRef {
-  /** Local file path (fixtures) or https URL (future real-corpus use). */
+  /** Local file path (fixtures) or an https URL (real-corpus use — Phase 4.1). */
   ref: string;
-  /** How this image was actually obtained, for provenance-only reporting. */
-  origin: 'local-fixture';
+  /**
+   * How this image was actually obtained, for provenance-only reporting.
+   * `https-fetch` sources are validated against `remoteMediaGuard.ts` (a
+   * faithful, cited port of `supabase/functions/_shared/net/
+   * safeRemoteMedia.ts` — see that module's header) before any bytes are
+   * requested; see `docs/vto-phase4-corpus-discovery.md` §4 for why this
+   * could not simply be imported across the Deno/Node boundary.
+   */
+  origin: 'local-fixture' | 'https-fetch';
 }
 
 export interface Phase4ProductInput {
@@ -62,7 +69,6 @@ export interface ShotClassificationResult {
 
 export type RejectionCode =
   | 'UNSUPPORTED_CATEGORY'
-  | 'SOURCE_INVALID'
   | 'SOURCE_TOO_SMALL'
   | 'MULTIPLE_GARMENTS'
   | 'GARMENT_NOT_PRIMARY'
@@ -121,6 +127,82 @@ export interface StageTiming {
   durationMs: number;
   retryCount: number;
   result: 'ok' | 'rejected' | 'error';
+}
+
+/**
+ * Gate E certification repair (GATE-E-INT-002, Phase 4.1 addendum §10-§13):
+ * an engineering-observable failure to even PRODUCE a manifest, distinct
+ * from a `Rejection` (a real, evaluated catalog-quality verdict). A source
+ * that cannot be fetched, cannot be decoded, or that trips an unhandled
+ * exception must terminate as `SYSTEM_ERROR:<code>` — never silently as
+ * `REJECTED:EXTRACTION_UNRELIABLE` and never as `LIVE2D_ELIGIBLE` (task
+ * section 7 of the addendum). Deliberately four codes, not "dozens":
+ *
+ *  - SOURCE_FETCH_FAILED: the source bytes could not be obtained at all
+ *    (network failure, 4xx/5xx, blocked by the SSRF guard, missing local
+ *    fixture, unsupported origin).
+ *  - DECODE_FAILED: bytes were obtained but could not be turned into
+ *    pixels — corrupt/truncated/zero-byte input, an unrecognized format
+ *    with no matching signature at all, or a resource-safety refusal
+ *    (oversized dimensions/pixel count — addendum §9/A5). Decode-stage
+ *    resource limits are folded in here rather than given their own code,
+ *    per the addendum's "do not invent dozens of unnecessary error codes".
+ *  - UNSUPPORTED_IMAGE_FORMAT: bytes were obtained and the format is
+ *    positively IDENTIFIED (a real signature matched, e.g. AVIF's `ftyp`
+ *    box) but this pipeline deliberately does not decode it — addendum
+ *    §A3. Distinct from DECODE_FAILED because the format is known, not
+ *    corrupt; `format` carries which one.
+ *  - PIPELINE_EXCEPTION: any other unexpected throw once decode has
+ *    already succeeded (a defect in classification/segmentation/
+ *    canonicalization/anchors/QA/persistence) — the batch-isolation
+ *    catch-all (addendum §11).
+ *  - INVALID_INPUT: the product RECORD itself is malformed before any
+ *    image is even considered (e.g. no productRef).
+ */
+export type SystemErrorCode =
+  | 'SOURCE_FETCH_FAILED'
+  | 'DECODE_FAILED'
+  | 'UNSUPPORTED_IMAGE_FORMAT'
+  | 'PIPELINE_EXCEPTION'
+  | 'INVALID_INPUT';
+
+export interface SystemError {
+  code: SystemErrorCode;
+  /** Sanitized diagnostic only (task §13 of the addendum) — never raw image bytes, base64, or a full provider response. */
+  message: string;
+  stage: PipelineStage;
+  /** Populated only for UNSUPPORTED_IMAGE_FORMAT. */
+  format?: string;
+}
+
+/**
+ * Source-adequacy diagnostic (Phase 4.1 addendum §A8-§A9) — deliberately a
+ * SEPARATE axis from `EligibilityResult`/`Rejection`/`SystemError`. A
+ * garment can be extracted and canonicalized correctly by a fully-working
+ * pipeline and still originate from a source photo whose texture
+ * resolution is visibly inadequate at torso scale; that is a corpus/source
+ * limitation, not a pipeline defect, and reporting it as a segmentation or
+ * pipeline failure would misattribute the bottleneck (addendum §A19).
+ *
+ * The thresholds below are an explicitly PROVISIONAL diagnostic starting
+ * point (same posture as `ELIGIBILITY_CONFIDENCE_THRESHOLD` in
+ * eligibility.ts) — see `sourceAdequacy.ts`. They are never used to gate
+ * eligibility, rejection, or system-error classification.
+ */
+export type SourceAdequacyClass = 'ADEQUATE' | 'QUESTIONABLE' | 'INADEQUATE' | 'UNKNOWN';
+
+export interface SourceAdequacyEvidence {
+  classification: SourceAdequacyClass;
+  sourceWidth: number;
+  sourceHeight: number;
+  shortSidePx: number;
+  longSidePx: number;
+  /** Post-crop garment-region dimensions, when a bounding box was measurable (i.e. segmentation succeeded). Null otherwise -> classification UNKNOWN. */
+  garmentBoundingWidthPx: number | null;
+  garmentBoundingHeightPx: number | null;
+  /** garmentBounding area / source area, when measurable. */
+  garmentOccupancyRatio: number | null;
+  reason: string;
 }
 
 /** Reference-truth-aware metric: computable only when a ground truth exists. */
@@ -184,7 +266,7 @@ export interface Phase4AssetManifest {
     sha256: string;
     width: number;
     height: number;
-    format: 'png' | 'jpeg';
+    format: 'png' | 'jpeg' | 'webp';
   };
 
   shotClassification: ShotClassificationResult;
@@ -197,6 +279,8 @@ export interface Phase4AssetManifest {
   anchorEvidence: { id: string; confidence: number }[];
   correctionHistory: CorrectionLogRef[];
   stageTimings: StageTiming[];
+  /** Diagnostic only — see `SourceAdequacyEvidence`. Never used to gate eligibility. */
+  sourceAdequacy: SourceAdequacyEvidence;
 }
 
 export interface AnchorCandidate {
