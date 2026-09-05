@@ -54,6 +54,7 @@ added to a list without a justification.
 | `evidence/vto-phase4-assets/**` | The batch-run report, Gate E economics report, and automated-correction log the Phase 4 brief requires as review evidence. | Phase 4 brief §27, §38, §45 |
 | `evidence/vto-phase4-gate-e/**` | The Gate E (real catalog economics) certification evidence set the Gate E brief requires by exact path: `cohort-manifest.json`, `results.jsonl`, `summary.json`, plus the access-probe image-format census. Derived metadata only — content hashes, formats, dimensions, byte counts and host names. No source image bytes, no product titles, no store names: retailer-imagery rights are UNKNOWN, so nothing beyond the hash/diagnostic class permitted by the brief is retained. Declared as its own row rather than by widening `evidence/**`. | K Scan AI Live VTO Phase 4 Gate E brief §50 (required machine-readable evidence), §19-§20 (retention limits); `docs/vto-phase4-gate-e-rights.md` |
 | `tsconfig.json` | One additive `exclude` entry (`vto-phase4-pipeline/**`), alongside the two that already exist for `supabase/functions/**` and `qa/**`, so the root TypeScript project does not try to compile Phase 4's isolated package against its own separate `node_modules`. | `docs/vto-phase4-defect-ledger.md` PHASE4-009 |
+| `.github/workflows/vto-e2e.yml` | The VTO lane's own certification workflow, and now the single execution point where this boundary is enforced (job `scope-guard`, see "How the boundary is enforced" below). The guard refused this file when the enforcement wiring was added, which is the guard working — so it is declared here with a justification rather than let through. Declared as an EXACT path, never as `.github/workflows/**`: `security-code.yml`, `staging-controlled-deploy.yml` and every other workflow stay refused, and `__tests__/vtoLiveIntegrationScope.test.js` asserts that they do. | VTO scope-guard CI blocker repair §7 (wire the enforcement signal into the authoritative VTO workflow; do not make normal PR workflows declare themselves VTO lanes) |
 | `scripts/vto-e2e/lib/dryrun.mjs` | VTO-CERT-012: the zero-spend certification control matrix's duplicate-suppression control was nondeterministic (it raced two HTTP requests against a fixture that releases its own reservation), so it could fail a correct implementation and pass a broken one. Repaired to seed the reservation through the governed reserve RPC and prove it in_flight before one real request. Declared as an exact path rather than by widening to `scripts/vto-e2e/**`: the guard refused it, which is the guard working. | Owner-authorized narrow Control 12 repair; live evidence staging-dryrun run `vto-dryrun-20260904T191038Z-3a3db107` at authority `3c00804` (12/13 controls, 0 provider submits, 0 paid requests, 0 residual) |
 
 ### Explicitly NOT authorized, and not touched
@@ -64,6 +65,87 @@ Elise, analytics infrastructure, unrelated hooks/services/components,
 deployment workflows, release credentials, and staging/production backend
 configuration. `eas.json` was **read and not modified** — the Live flag is
 default-OFF by absence, which needs no profile entry.
+
+---
+
+## How the boundary is enforced, and on which lanes
+
+`scripts/check-vto-live-integration-scope.js` has two halves, and they bind
+different things.
+
+**The static half** — the manifest parser (every row needs a path, a reason
+and a source authority), the matcher, the protected-path refusals, and the
+research-workspace dependency check — is a policy control about this
+repository. It is true on every branch, so it runs on every branch, inside
+`Project checks` (`scripts/run-all-tests.js` →
+`__tests__/vtoLiveIntegrationScope.test.js`). Nothing about it is
+lane-specific and nothing about it is optional.
+
+**The live half** — diffing a branch against the base authority above and
+refusing every changed path this table does not authorize — is only a
+meaningful question on a lane derived from, and answerable to, that base.
+
+That distinction used to be missing. The guard chose its base ref by trying
+`origin/integration/backend-kplus-complimentary-staging-v1`, then the local
+branch, then `f2ef091`, and diffing against the first that resolved. Every
+branch in this repository contains that commit, so every branch was judged
+against this manifest, and every branch doing unrelated work failed for it.
+That is not the boundary being strict; it is the boundary being pointed at
+lanes it was never about.
+
+Lane membership is therefore **declared, never discovered**:
+
+```
+KSCAN_VTO_SCOPE_ENFORCE=1                 this execution is a VTO lane
+KSCAN_VTO_SCOPE_BASE_REF=<approved base>  the base authority to judge against
+```
+
+| SIGNAL | LIVE DIFF | STATIC CONTROLS |
+| --- | --- | --- |
+| absent, `0`, or `false` | reported `NOT APPLICABLE`, with the reason | run, and must pass |
+| `1` or `true`, base ref resolves | **runs**; any unauthorized path FAILS | run, and must pass |
+| `1` or `true`, base ref missing or empty | **FAILS** | run |
+| `1` or `true`, base ref unresolvable | **FAILS** | run |
+| set to anything else (`ture`, `yes`, …) | **FAILS** | run |
+
+Enforcement fails closed in every direction. "The base ref could not be
+resolved, so we are fine" is specifically not available: it would let a real
+VTO lane escape its own mutation boundary by breaking one ref, and an
+unrecognised value of the enforcement variable is refused rather than read as
+OFF so that a typo cannot disarm the guard silently. A base ref named on the
+command line still works for local use (`node
+scripts/check-vto-live-integration-scope.js origin/integration/...`) and is
+fail-closed the same way.
+
+**Where enforcement happens: `.github/workflows/vto-e2e.yml`, job
+`scope-guard` ("VTO scope guard (enforced)").** That job classifies the ref
+and, on a VTO lane, runs both the guard CLI and
+`__tests__/vtoLiveIntegrationScope.test.js` with the signal declared — so the
+two live assertions are proven to *execute*, not merely to be skippable. A
+pull request is a VTO lane when its branch name carries `vto`, when it
+targets the integration branch named under **Base authority** above, or when
+its own diff touches a VTO-owned path regardless of what the branch is
+called. `__tests__/vtoScopeGuardEnforcementMode.test.js` asserts that the
+integration branch the workflow compares against and the one recorded above
+cannot drift apart.
+
+That job runs on **pull requests only**, and that is a correctness
+requirement rather than a cost saving. The base authority of a change is the
+branch it is proposed *into*, and that only exists on a pull request. A push
+is proposed into nothing, so any base chosen for it is a guess — which is the
+defect being repaired. The first revision of this wiring made exactly that
+mistake: on a push it fell back to the integration branch and failed a branch
+for work it had legitimately inherited from its real base. Merging is gated
+on the pull request, so that is where the boundary is enforced.
+
+The general PR workflow (`.github/workflows/security-code.yml`, `Project
+checks`) deliberately does **not** declare the signal. It runs on every
+branch, so declaring enforcement there would restore exactly the failure this
+separation exists to remove.
+
+`__tests__/vtoScopeGuardEnforcementMode.test.js` proves both modes, every
+fail-closed branch, that enforcement can never resolve to a skip, that the
+discovery list cannot return, and that the CI wiring above is still present.
 
 ---
 
