@@ -114,7 +114,8 @@ START INTEGRATION SHA:  4365cebfccfd59843dd3f0a7418c07cb8e9ff843
 #302 MERGE SHA:         4365cebfccfd59843dd3f0a7418c07cb8e9ff843
 BRANCH:                 feature/vto-phase4-2-catalog-addressability
 PR:                     #303 (draft)
-FINAL SHA:              6b63790bd63e6c697ba26ad9d2c785188bbb3b5e
+CODE FREEZE SHA:        6b63790bd63e6c697ba26ad9d2c785188bbb3b5e
+FINAL HEAD:             PR #303 head (documentation-only commits after)
 ```
 
 Precondition history, including the initial `PHASE 4.2 PRECONDITION HOLD` and
@@ -326,7 +327,13 @@ pattern.
 ## FREEZE (§68)
 
 ```
-FINAL SHA                      6b63790bd63e6c697ba26ad9d2c785188bbb3b5e
+CODE FREEZE SHA                6b63790bd63e6c697ba26ad9d2c785188bbb3b5e
+                               (last commit containing any code, test,
+                               evidence or gate change)
+FINAL HEAD                     see PR #303 head — commits after the code
+                               freeze are documentation-only, recording
+                               this SHA. No src/, __tests__/ or evidence/
+                               file changes after 6b63790.
 BRANCH                         feature/vto-phase4-2-catalog-addressability
 BASE (integration)             4365cebfccfd59843dd3f0a7418c07cb8e9ff843
 
