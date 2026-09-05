@@ -1,0 +1,70 @@
+{
+  "assetId": "c09957bffb4f1298813f6809",
+  "pipelineVersion": "0.1.0",
+  "contractVersion": "1.0",
+  "assetVersion": "1",
+  "generatedAt": "2026-09-04T20:43:42.466Z",
+  "evidenceClass": "AUTHORIZED_FIXTURE",
+  "productIdentity": {
+    "productRef": "qa-fixture-dress",
+    "retailer": null,
+    "variantId": null,
+    "category": "dress"
+  },
+  "source": {
+    "ref": "/home/user/kscan-app/assets/qa_fixtures/dress.jpg",
+    "sha256": "d9e10c855e41543a906ad0c202a9403b9cea7d3d75a198ab11fecdf9710fdded",
+    "width": 423,
+    "height": 503,
+    "format": "jpeg"
+  },
+  "shotClassification": {
+    "shotClass": "HARD",
+    "confidence": 0.6130579125794869,
+    "evidence": {
+      "backgroundUniformity": 86.789,
+      "coverage": 0.937,
+      "significantComponentCount": 1,
+      "largestComponentRatio": 0.999,
+      "skinRatio": 0.063,
+      "reason": "skin_tone_presence_suggests_model_worn"
+    }
+  },
+  "confidenceComponents": {
+    "shotClassification": 0.6130579125794869,
+    "segmentation": 0,
+    "anchorCompleteness": 0,
+    "geometryValidity": 0,
+    "sourceQuality": 1,
+    "productFidelity": 0
+  },
+  "qa": null,
+  "eligibility": {
+    "live2d": false,
+    "live3d": false,
+    "reason": "UNSUPPORTED_CATEGORY"
+  },
+  "status": "REJECTED",
+  "rejection": {
+    "code": "UNSUPPORTED_CATEGORY",
+    "message": "category \"dress\" has no Live template-family mapping today",
+    "stage": "classification"
+  },
+  "ksgarment": null,
+  "anchorEvidence": [],
+  "correctionHistory": [],
+  "stageTimings": [
+    {
+      "stage": "classification",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "rejected"
+    },
+    {
+      "stage": "bundle_writing",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "ok"
+    }
+  ]
+}

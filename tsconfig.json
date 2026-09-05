@@ -5,6 +5,7 @@
   "extends": "expo/tsconfig.base",
   "exclude": [
     "supabase/functions/**",
-    "qa/**"
+    "qa/**",
+    "vto-phase4-pipeline/**"
   ]
 }

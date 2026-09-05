@@ -1,0 +1,70 @@
+{
+  "assetId": "a886d03c03ec43f871406e55",
+  "pipelineVersion": "0.1.0",
+  "contractVersion": "1.0",
+  "assetVersion": "1",
+  "generatedAt": "2026-09-04T20:43:42.408Z",
+  "evidenceClass": "AUTHORIZED_FIXTURE",
+  "productIdentity": {
+    "productRef": "qa-fixture-outerwear",
+    "retailer": null,
+    "variantId": null,
+    "category": "outerwear"
+  },
+  "source": {
+    "ref": "/home/user/kscan-app/assets/qa_fixtures/outerwear.jpg",
+    "sha256": "0cf370dcccf7de4b9a0d41ed0a87ca6545e55ba99aaaab95d01cb2e4fe7b7ea0",
+    "width": 836,
+    "height": 1012,
+    "format": "jpeg"
+  },
+  "shotClassification": {
+    "shotClass": "HARD",
+    "confidence": 0.55,
+    "evidence": {
+      "backgroundUniformity": 115.506,
+      "coverage": 0.707,
+      "significantComponentCount": 1,
+      "largestComponentRatio": 0.998,
+      "skinRatio": 0,
+      "reason": "non_uniform_background_or_fragmented_foreground"
+    }
+  },
+  "confidenceComponents": {
+    "shotClassification": 0.55,
+    "segmentation": 0,
+    "anchorCompleteness": 0,
+    "geometryValidity": 0,
+    "sourceQuality": 1,
+    "productFidelity": 0
+  },
+  "qa": null,
+  "eligibility": {
+    "live2d": false,
+    "live3d": false,
+    "reason": "UNSUPPORTED_CATEGORY"
+  },
+  "status": "REJECTED",
+  "rejection": {
+    "code": "UNSUPPORTED_CATEGORY",
+    "message": "category \"outerwear\" has no Live template-family mapping today",
+    "stage": "classification"
+  },
+  "ksgarment": null,
+  "anchorEvidence": [],
+  "correctionHistory": [],
+  "stageTimings": [
+    {
+      "stage": "classification",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "rejected"
+    },
+    {
+      "stage": "bundle_writing",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "ok"
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "assetId": "142fbcb47a1a2497aae92b13",
+  "pipelineVersion": "0.1.0",
+  "contractVersion": "1.0",
+  "assetVersion": "1",
+  "generatedAt": "2026-09-04T20:43:42.181Z",
+  "evidenceClass": "AUTHORIZED_FIXTURE",
+  "productIdentity": {
+    "productRef": "qa-fixture-top",
+    "retailer": null,
+    "variantId": null,
+    "category": "top"
+  },
+  "source": {
+    "ref": "/home/user/kscan-app/assets/qa_fixtures/top.jpg",
+    "sha256": "592ede7f86ecdc99d93e6e7785123e61f4e385b79e19a727636986caf51d3677",
+    "width": 960,
+    "height": 960,
+    "format": "jpeg"
+  },
+  "shotClassification": {
+    "shotClass": "HARD",
+    "confidence": 0.95,
+    "evidence": {
+      "backgroundUniformity": 116.314,
+      "coverage": 0.089,
+      "significantComponentCount": 2,
+      "largestComponentRatio": 0.492,
+      "skinRatio": 0.422,
+      "reason": "skin_tone_presence_suggests_model_worn"
+    }
+  },
+  "confidenceComponents": {
+    "shotClassification": 0.95,
+    "segmentation": 0,
+    "anchorCompleteness": 0,
+    "geometryValidity": 0,
+    "sourceQuality": 1,
+    "productFidelity": 0
+  },
+  "qa": null,
+  "eligibility": {
+    "live2d": false,
+    "live3d": false,
+    "reason": "OCCLUSION_TOO_HIGH"
+  },
+  "status": "REJECTED",
+  "rejection": {
+    "code": "OCCLUSION_TOO_HIGH",
+    "message": "HARD-class source with detected skin-tone presence — this pipeline has no validated model-worn extraction path (task section 16: reject early)",
+    "stage": "extraction"
+  },
+  "ksgarment": null,
+  "anchorEvidence": [],
+  "correctionHistory": [],
+  "stageTimings": [
+    {
+      "stage": "classification",
+      "durationMs": 34,
+      "retryCount": 0,
+      "result": "ok"
+    },
+    {
+      "stage": "extraction",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "rejected"
+    },
+    {
+      "stage": "bundle_writing",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "ok"
+    }
+  ]
+}

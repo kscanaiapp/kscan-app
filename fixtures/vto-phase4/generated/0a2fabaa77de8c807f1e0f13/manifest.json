@@ -1,0 +1,70 @@
+{
+  "assetId": "0a2fabaa77de8c807f1e0f13",
+  "pipelineVersion": "0.1.0",
+  "contractVersion": "1.0",
+  "assetVersion": "1",
+  "generatedAt": "2026-09-04T20:43:42.672Z",
+  "evidenceClass": "AUTHORIZED_FIXTURE",
+  "productIdentity": {
+    "productRef": "qa-fixture-accessory",
+    "retailer": null,
+    "variantId": null,
+    "category": "accessory"
+  },
+  "source": {
+    "ref": "/home/user/kscan-app/assets/qa_fixtures/accessory.jpg",
+    "sha256": "2ec5f6763298d21b070e195b52cd8ec2a6343389f2bdfa1a291df5738e736fce",
+    "width": 960,
+    "height": 640,
+    "format": "jpeg"
+  },
+  "shotClassification": {
+    "shotClass": "HARD",
+    "confidence": 0.55,
+    "evidence": {
+      "backgroundUniformity": 40.639,
+      "coverage": 0.489,
+      "significantComponentCount": 3,
+      "largestComponentRatio": 0.747,
+      "skinRatio": 0.032,
+      "reason": "non_uniform_background_or_fragmented_foreground"
+    }
+  },
+  "confidenceComponents": {
+    "shotClassification": 0.55,
+    "segmentation": 0,
+    "anchorCompleteness": 0,
+    "geometryValidity": 0,
+    "sourceQuality": 1,
+    "productFidelity": 0
+  },
+  "qa": null,
+  "eligibility": {
+    "live2d": false,
+    "live3d": false,
+    "reason": "UNSUPPORTED_CATEGORY"
+  },
+  "status": "REJECTED",
+  "rejection": {
+    "code": "UNSUPPORTED_CATEGORY",
+    "message": "category \"accessory\" has no Live template-family mapping today",
+    "stage": "classification"
+  },
+  "ksgarment": null,
+  "anchorEvidence": [],
+  "correctionHistory": [],
+  "stageTimings": [
+    {
+      "stage": "classification",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "rejected"
+    },
+    {
+      "stage": "bundle_writing",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "ok"
+    }
+  ]
+}

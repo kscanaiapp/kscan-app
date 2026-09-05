@@ -1,0 +1,70 @@
+{
+  "assetId": "6bfc0b78a6f401a21fcc5f9d",
+  "pipelineVersion": "0.1.0",
+  "contractVersion": "1.0",
+  "assetVersion": "1",
+  "generatedAt": "2026-09-04T20:43:42.541Z",
+  "evidenceClass": "AUTHORIZED_FIXTURE",
+  "productIdentity": {
+    "productRef": "qa-fixture-bottom-jeans",
+    "retailer": null,
+    "variantId": null,
+    "category": "bottom"
+  },
+  "source": {
+    "ref": "/home/user/kscan-app/assets/qa_fixtures/bottom_jeans.jpg",
+    "sha256": "04c0ca5bed1bee26e83be98b9a992619b0777811a7fb8a99fe955939334bbd8c",
+    "width": 564,
+    "height": 628,
+    "format": "jpeg"
+  },
+  "shotClassification": {
+    "shotClass": "HARD",
+    "confidence": 0.6717120925035224,
+    "evidence": {
+      "backgroundUniformity": 41.42,
+      "coverage": 0.291,
+      "significantComponentCount": 1,
+      "largestComponentRatio": 0.994,
+      "skinRatio": 0.122,
+      "reason": "skin_tone_presence_suggests_model_worn"
+    }
+  },
+  "confidenceComponents": {
+    "shotClassification": 0.6717120925035224,
+    "segmentation": 0,
+    "anchorCompleteness": 0,
+    "geometryValidity": 0,
+    "sourceQuality": 1,
+    "productFidelity": 0
+  },
+  "qa": null,
+  "eligibility": {
+    "live2d": false,
+    "live3d": false,
+    "reason": "UNSUPPORTED_CATEGORY"
+  },
+  "status": "REJECTED",
+  "rejection": {
+    "code": "UNSUPPORTED_CATEGORY",
+    "message": "category \"bottom\" has no Live template-family mapping today",
+    "stage": "classification"
+  },
+  "ksgarment": null,
+  "anchorEvidence": [],
+  "correctionHistory": [],
+  "stageTimings": [
+    {
+      "stage": "classification",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "rejected"
+    },
+    {
+      "stage": "bundle_writing",
+      "durationMs": 0,
+      "retryCount": 0,
+      "result": "ok"
+    }
+  ]
+}

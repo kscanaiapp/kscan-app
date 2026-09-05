@@ -1,0 +1,160 @@
+{
+  "evidenceClassCounts": {
+    "SYNTHETIC": 20,
+    "AUTHORIZED_FIXTURE": 7
+  },
+  "totalItems": 27,
+  "variantAmbiguousCount": 2,
+  "fullyAutomaticSuccessCount": 9,
+  "fullyAutomaticSuccessRate": 0.3333333333333333,
+  "rejectionCount": 18,
+  "rejectionRate": 0.6666666666666666,
+  "rejectionByCode": {
+    "EXTRACTION_UNRELIABLE": 5,
+    "OCCLUSION_TOO_HIGH": 2,
+    "MULTIPLE_GARMENTS": 1,
+    "VARIANT_AMBIGUOUS": 2,
+    "SOURCE_TOO_SMALL": 1,
+    "UNSUPPORTED_CATEGORY": 7
+  },
+  "byShotClass": {
+    "EASY": {
+      "total": 15,
+      "accepted": 9,
+      "rejected": 6,
+      "successRate": 0.6
+    },
+    "MEDIUM": {
+      "total": 1,
+      "accepted": 0,
+      "rejected": 1,
+      "successRate": 0
+    },
+    "HARD": {
+      "total": 7,
+      "accepted": 0,
+      "rejected": 7,
+      "successRate": 0
+    },
+    "UNSUPPORTED": {
+      "total": 4,
+      "accepted": 0,
+      "rejected": 4,
+      "successRate": 0
+    }
+  },
+  "byGarmentFamily": {
+    "simple-top (only mapped family today)": {
+      "total": 14,
+      "accepted": 9
+    },
+    "n/a (rejected before geometry)": {
+      "total": 13,
+      "accepted": 0
+    }
+  },
+  "byEvidenceClass": {
+    "SYNTHETIC": {
+      "total": 20,
+      "accepted": 9,
+      "rejected": 11
+    },
+    "AUTHORIZED_FIXTURE": {
+      "total": 7,
+      "accepted": 0,
+      "rejected": 7
+    }
+  },
+  "productFidelity": {
+    "passRate": 1,
+    "fillRatioDistribution": {
+      "count": 14,
+      "min": 0.5709359145215216,
+      "median": 0.5961731140490213,
+      "p95": 0.6936739726786555,
+      "max": 0.6936739726786555,
+      "mean": 0.5956896377006936
+    },
+    "compactnessDistribution": {
+      "count": 14,
+      "min": 1.3335854231336717,
+      "median": 1.3446622499724994,
+      "p95": 1.4821998259114608,
+      "max": 1.4821998259114608,
+      "mean": 1.3856118621024471
+    },
+    "metricsWithReferenceCount": 18,
+    "metricsWithoutReferenceCount": 24
+  },
+  "runtime": {
+    "totalDurationMsDistribution": {
+      "count": 27,
+      "min": 1,
+      "median": 56,
+      "p95": 168,
+      "max": 226,
+      "mean": 66.11111111111111
+    },
+    "perStageDurationMsDistribution": {
+      "classification": {
+        "count": 24,
+        "min": 0,
+        "median": 6,
+        "p95": 22,
+        "max": 34,
+        "mean": 6.5
+      },
+      "extraction": {
+        "count": 16,
+        "min": 0,
+        "median": 0,
+        "p95": 1,
+        "max": 1,
+        "mean": 0.0625
+      },
+      "canonicalization": {
+        "count": 14,
+        "min": 0,
+        "median": 0,
+        "p95": 0,
+        "max": 0,
+        "mean": 0
+      },
+      "anchor_generation": {
+        "count": 14,
+        "min": 0,
+        "median": 0,
+        "p95": 0,
+        "max": 0,
+        "mean": 0
+      },
+      "geometry_generation": {
+        "count": 14,
+        "min": 0,
+        "median": 0,
+        "p95": 0,
+        "max": 0,
+        "mean": 0
+      },
+      "qa": {
+        "count": 14,
+        "min": 0,
+        "median": 0,
+        "p95": 0,
+        "max": 0,
+        "mean": 0
+      },
+      "bundle_writing": {
+        "count": 24,
+        "min": 0,
+        "median": 0,
+        "p95": 0,
+        "max": 0,
+        "mean": 0
+      }
+    },
+    "retryCountTotal": 0
+  },
+  "manualCorrectionMinutes": "NOT_MEASURED",
+  "sampleSizeCaveat": "across SYNTHETIC + AUTHORIZED_FIXTURE evidence only — not statistically sufficient for a production Gate E PASS; see docs/vto-phase4-corpus-request.md."
+}
