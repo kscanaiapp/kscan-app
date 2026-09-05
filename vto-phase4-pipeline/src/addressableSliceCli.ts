@@ -43,7 +43,26 @@ function loadCorpus(cachePath: string): CachedCorpus {
     console.error('[slice] This runner deliberately does NOT query the provider itself: the provider rate limit is a scarce resource (measured: HTTP 429 after ~28 requests), and re-querying for every analysis pass would waste it.');
     process.exit(1);
   }
-  return JSON.parse(readFileSync(cachePath, 'utf-8')) as CachedCorpus;
+  let parsed: Partial<CachedCorpus> & { schema?: string };
+  try {
+    parsed = JSON.parse(readFileSync(cachePath, 'utf-8')) as Partial<CachedCorpus> & { schema?: string };
+  } catch (err) {
+    console.error('[slice] corpus cache at ' + cachePath + ' is not readable JSON: ' + (err as Error).message);
+    process.exit(1);
+  }
+
+  // Fail CLOSED on an unusable cache. A cache with no products would otherwise
+  // run a zero-item batch and write a summary full of zeros — an "empty
+  // success" that reads exactly like a real measurement of a catalog with no
+  // addressable products. A closeout that could not measure must say so.
+  if (!Array.isArray(parsed.products) || parsed.products.length === 0) {
+    console.error('[slice] corpus cache at ' + cachePath + ' contains no products' + (parsed.schema ? ' (schema: ' + parsed.schema + ')' : '') + '.');
+    console.error('[slice] Refusing to emit a zero-filled summary that would be indistinguishable from a real measurement.');
+    console.error('[slice] Repopulate it with `npm run catalog:characterize` (CATALOG_CORPUS_CACHE set) when provider quota permits.');
+    process.exit(2);
+  }
+
+  return parsed as CachedCorpus;
 }
 
 /**
@@ -97,7 +116,15 @@ async function main() {
     title: null,
     brand: null,
     // §11/§12: every authoritative candidate, not just the hero.
-    images: p.imageUrls.map((ref) => ({ ref, origin: 'https-fetch' as const })),
+    // Origin is inferred from the ref rather than hardcoded, so the same
+    // runner serves (a) the cached real-Commerce corpus, whose refs are
+    // https URLs, and (b) a local fixture set — which is what makes the
+    // cache/runner contract testable without spending provider quota, and
+    // what an OWNER_AUTHORED_GARMENT_CORPUS (§41) would use.
+    images: p.imageUrls.map((ref) => ({
+      ref,
+      origin: /^https?:\/\//i.test(ref) ? ('https-fetch' as const) : ('local-fixture' as const),
+    })),
     evidenceClass: 'READ_ONLY_REAL_PRODUCT',
   }));
   const visualByRef = new Map(corpus.products.map((p) => [p.productRef, p.visual]));
@@ -147,6 +174,7 @@ async function main() {
       overallConfidence: m?.confidenceExplanation.overall ?? null,
       segmentationEvidence: m?.segmentationEvidence ?? null,
       attributionCause: attribution?.cause ?? null,
+      attributionCriterionId: attribution?.criterionId ?? null,
       attributionGate: attribution?.gate ?? null,
       attribution: attribution?.attribution ?? null,
       attributionRationale: attribution?.rationale ?? null,
@@ -216,6 +244,7 @@ async function main() {
     total: extractionUnreliable.length,
     byGate: countBy(extractionUnreliable.map((r) => r.attributionGate ?? 'unknown')),
     byCause: countBy(extractionUnreliable.map((r) => r.attributionCause ?? 'unknown')),
+    byCriterion: countBy(extractionUnreliable.map((r) => r.attributionCriterionId ?? 'unknown')),
     byShotClass: countBy(extractionUnreliable.map((r) => r.shotClass ?? 'unknown')),
     byAttribution: countBy(extractionUnreliable.map((r) => r.attribution ?? 'unknown')),
   };
@@ -278,6 +307,8 @@ async function main() {
     extractionUnreliableBreakdown,
     attributionDistribution: countBy(rows.map((r) => r.attribution ?? 'none')),
     causeDistribution: countBy(rows.map((r) => r.attributionCause ?? 'none')),
+    criterionDistribution: countBy(rows.map((r) => r.attributionCriterionId ?? 'none')),
+    denominatorRegistry: 'evidence/vto-phase4-2/repair-denominator-registry.json',
     baselineCoverage: {
       baselineCases: PHASE41_EASY_MEDIUM_BASELINE.length,
       reIdentified: rows.filter((r) => r.baselineCase !== null).length,
@@ -296,7 +327,10 @@ async function main() {
     },
   };
 
-  const evidenceRoot = join(repoRoot(), 'evidence', 'vto-phase4-2');
+  // Evidence root is overridable so tests (and any dry run) cannot write
+  // SYNTHETIC results into the committed real-evidence directory, where they
+  // would be indistinguishable from a genuine closeout measurement.
+  const evidenceRoot = process.env.SLICE_EVIDENCE_ROOT ?? join(repoRoot(), 'evidence', 'vto-phase4-2');
   mkdirSync(evidenceRoot, { recursive: true });
   writeFileSync(join(evidenceRoot, 'addressable-slice-summary.json'), JSON.stringify(summary, null, 2));
   writeFileSync(join(evidenceRoot, 'addressable-slice-results.jsonl'), rows.map((r) => JSON.stringify(r)).join('\n') + '\n');

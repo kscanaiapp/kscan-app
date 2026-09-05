@@ -46,11 +46,25 @@ export type RejectionCause =
   | 'STAGE_VARIANT_AMBIGUOUS'
   | 'UNATTRIBUTED';
 
-export type FailureAttribution = 'PIPELINE_DRIVEN' | 'SOURCE_DRIVEN' | 'NOT_APPLICABLE';
+export type FailureAttribution = 'PIPELINE_DRIVEN' | 'SOURCE_DRIVEN' | 'CONTRACT_DRIVEN' | 'NOT_APPLICABLE';
+
+/**
+ * Pre-registered criterion ids from
+ * `evidence/vto-phase4-2/repair-denominator-registry.json` (§A/§8). Every
+ * classification must cite one, so a class is never a judgement call made
+ * after the numerator is known.
+ */
+export type AttributionCriterionId =
+  | 'PD-1' | 'PD-2' | 'PD-3' | 'PD-4' | 'PD-5'
+  | 'SD-1' | 'SD-2' | 'SD-3' | 'SD-4' | 'SD-5' | 'SD-6'
+  | 'CD-1' | 'CD-2' | 'CD-3'
+  | 'NONE';
 
 export interface RejectionAttributionResult {
   code: RejectionCode | null;
   cause: RejectionCause;
+  /** The pre-registered criterion this classification cites. */
+  criterionId: AttributionCriterionId;
   /** Which of the two structurally different paths produced the code. */
   gate: 'confidence' | 'stage' | 'none';
   attribution: FailureAttribution;
@@ -59,6 +73,15 @@ export interface RejectionAttributionResult {
   /** Why this attribution, in words. */
   rationale: string;
 }
+
+const CONFIDENCE_CRITERION_BY_COMPONENT: Record<string, AttributionCriterionId> = {
+  segmentation: 'PD-1',
+  anchorCompleteness: 'PD-4',
+  geometryValidity: 'PD-3',
+  shotClassification: 'PD-2',
+  sourceQuality: 'PD-2',
+  productFidelity: 'PD-2',
+};
 
 const CONFIDENCE_CAUSE_BY_COMPONENT: Record<string, RejectionCause> = {
   segmentation: 'CONFIDENCE_SEGMENTATION',
@@ -74,14 +97,36 @@ const CONFIDENCE_CAUSE_BY_COMPONENT: Record<string, RejectionCause> = {
  * work inside the authorized Phase 4.2 surfaces could repair. Everything
  * else, for an addressable source, is the implementation's responsibility.
  */
+/** Registry criterion for each stage cause. §8 requires a cited criterion, never judgement. */
+const STAGE_CRITERION: Partial<Record<RejectionCause, AttributionCriterionId>> = {
+  STAGE_HARD_NO_EXTRACTION_PATH: 'SD-2',
+  STAGE_HARD_NON_UNIFORM_BACKGROUND: 'SD-1',
+  STAGE_NO_GARMENT_REGION: 'SD-3',
+  STAGE_CROP_INCOMPLETE: 'SD-5',
+  STAGE_MULTIPLE_GARMENTS: 'SD-5',
+  STAGE_SOURCE_TOO_SMALL: 'SD-4',
+  STAGE_PRODUCT_FIDELITY_FAILED: 'SD-6',
+  STAGE_PATTERN_UNRECOVERABLE: 'SD-6',
+  STAGE_UNSUPPORTED_CATEGORY: 'CD-2',
+  STAGE_VARIANT_AMBIGUOUS: 'CD-1',
+  STAGE_ANCHORS_INCOMPLETE: 'PD-4',
+  STAGE_GEOMETRY_INVALID: 'PD-3',
+};
+
+/** Causes the registry classes as CONTRACT_DRIVEN rather than source or pipeline. */
+const CONTRACT_DRIVEN_CAUSES: ReadonlySet<RejectionCause> = new Set<RejectionCause>([
+  'STAGE_UNSUPPORTED_CATEGORY',
+  'STAGE_VARIANT_AMBIGUOUS',
+]);
+
 const SOURCE_DRIVEN_CAUSES: ReadonlySet<RejectionCause> = new Set<RejectionCause>([
   'STAGE_HARD_NO_EXTRACTION_PATH',
   'STAGE_HARD_NON_UNIFORM_BACKGROUND',
   'STAGE_MULTIPLE_GARMENTS',
   'STAGE_CROP_INCOMPLETE',
   'STAGE_SOURCE_TOO_SMALL',
-  'STAGE_UNSUPPORTED_CATEGORY',
-  'STAGE_VARIANT_AMBIGUOUS',
+  'STAGE_PRODUCT_FIDELITY_FAILED',
+  'STAGE_PATTERN_UNRECOVERABLE',
 ]);
 
 /** Addressability per the EXISTING contract (§14) — not a widened definition. */
@@ -145,6 +190,7 @@ export function attributeRejection(
     return {
       code: null,
       cause: 'UNATTRIBUTED',
+      criterionId: 'NONE',
       gate: 'none',
       attribution: 'NOT_APPLICABLE',
       detail: { eligible: manifest.eligibility?.live2d ?? false },
@@ -185,6 +231,7 @@ export function attributeRejection(
     return {
       code: rejection.code,
       cause,
+      criterionId: malformed ? 'PD-2' : (CONFIDENCE_CRITERION_BY_COMPONENT[limiter] ?? 'PD-2'),
       gate: 'confidence',
       attribution,
       detail,
@@ -195,8 +242,16 @@ export function attributeRejection(
   }
 
   const cause = stageCause(rejection.code, rejection.message);
+  const contractDriven = CONTRACT_DRIVEN_CAUSES.has(cause);
   const sourceDriven = SOURCE_DRIVEN_CAUSES.has(cause);
-  const attribution: FailureAttribution = !addressable || sourceDriven ? 'SOURCE_DRIVEN' : 'PIPELINE_DRIVEN';
+  // Order matters: a contract cause is neither the pipeline's fault nor the
+  // photograph's, and collapsing it into either would misstate where the
+  // limit actually lives (§8's three-way taxonomy).
+  const attribution: FailureAttribution = contractDriven
+    ? 'CONTRACT_DRIVEN'
+    : !addressable || sourceDriven
+      ? 'SOURCE_DRIVEN'
+      : 'PIPELINE_DRIVEN';
 
   const detail: Record<string, string | number | boolean | null> = {
     stage: rejection.stage,
@@ -215,6 +270,7 @@ export function attributeRejection(
   return {
     code: rejection.code,
     cause,
+    criterionId: STAGE_CRITERION[cause] ?? 'NONE',
     gate: 'stage',
     attribution,
     detail,

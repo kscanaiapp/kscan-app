@@ -254,3 +254,61 @@ test('§24: a malformed confidence component is attributed as MALFORMED, not as 
   assert.equal(attribution.cause, 'CONFIDENCE_MALFORMED_COMPONENT');
   assert.equal(attribution.attribution, 'PIPELINE_DRIVEN');
 });
+
+// ── §A/§8: classification must cite a pre-registered criterion ───────────
+
+test('§8: every attribution cites a pre-registered criterion id, never bare judgement', () => {
+  const cases: RgbaImage[] = [
+    generateSyntheticGarment({ seed: 401, backgroundColor: WHITE, garmentColor: BLUE, addSkinBlob: true }).image,
+    generateSyntheticGarment({ seed: 402, backgroundColor: WHITE, garmentColor: BLUE, scatterExtraObjects: true }).image,
+    generateSyntheticGarment({ seed: 403, canvasWidth: 200, canvasHeight: 180, backgroundColor: WHITE, garmentColor: BLUE }).image,
+  ];
+  const valid = new Set(['PD-1','PD-2','PD-3','PD-4','PD-5','SD-1','SD-2','SD-3','SD-4','SD-5','SD-6','CD-1','CD-2','CD-3','NONE']);
+  for (const [i, img] of cases.entries()) {
+    const result = runPipelineForImage(product(), 'c.png', asDecoded(img), { fidelityHints: { knownFillColor: BLUE } });
+    const a = attributeRejection(result.manifest, computeSourcePreflight(img));
+    assert.ok(valid.has(a.criterionId), 'case ' + i + ' cited an unregistered criterion: ' + a.criterionId);
+    if (result.manifest.rejection) {
+      assert.notEqual(a.criterionId, 'NONE', 'a real rejection must cite a real criterion, got NONE for case ' + i);
+    }
+  }
+});
+
+test('§8: the criterion class prefix always agrees with the attribution class', () => {
+  const img = generateSyntheticGarment({ seed: 404, backgroundColor: WHITE, garmentColor: BLUE, addSkinBlob: true }).image;
+  const result = runPipelineForImage(product(), 'h.png', asDecoded(img), {});
+  const a = attributeRejection(result.manifest, computeSourcePreflight(img));
+
+  const expectedPrefix =
+    a.attribution === 'PIPELINE_DRIVEN' ? 'PD-' : a.attribution === 'SOURCE_DRIVEN' ? 'SD-' : a.attribution === 'CONTRACT_DRIVEN' ? 'CD-' : null;
+  if (expectedPrefix) {
+    assert.ok(a.criterionId.startsWith(expectedPrefix), a.attribution + ' must cite a ' + expectedPrefix + ' criterion, got ' + a.criterionId);
+  }
+});
+
+test('§8: an unsupported category is CONTRACT_DRIVEN (CD-2), not blamed on the pipeline or the photo', () => {
+  const img = generateSyntheticGarment({ seed: 405, backgroundColor: WHITE, garmentColor: BLUE }).image;
+  const result = runPipelineForImage(
+    { ...product(), category: 'footwear' },
+    'f.png',
+    asDecoded(img),
+    {},
+  );
+  assert.equal(result.manifest.rejection?.code, 'UNSUPPORTED_CATEGORY');
+
+  const a = attributeRejection(result.manifest, computeSourcePreflight(img));
+  assert.equal(a.attribution, 'CONTRACT_DRIVEN');
+  assert.equal(a.criterionId, 'CD-2');
+});
+
+test('§A: PRODUCT_FIDELITY maps to SOURCE_DRIVEN (SD-6) — no PD-5 criterion is registered', () => {
+  const img = generateSyntheticGarment({ seed: 406, backgroundColor: WHITE, garmentColor: BLUE }).image;
+  const result = runPipelineForImage(product(), 'fid.png', asDecoded(img), {
+    fidelityHints: { knownFillColor: [10, 200, 10] },
+  });
+  assert.equal(result.manifest.rejection?.code, 'PRODUCT_FIDELITY_FAILED');
+
+  const a = attributeRejection(result.manifest, computeSourcePreflight(img));
+  assert.equal(a.criterionId, 'SD-6');
+  assert.equal(a.attribution, 'SOURCE_DRIVEN', 'fidelity must not silently enlarge the pipeline-driven numerator');
+});

@@ -1,0 +1,143 @@
+{
+  "schema": "vto-phase4-2-repair-denominator-registry/1",
+  "pinnedAt": "2026-09-05",
+  "pinnedAtSha": "44242b95bf17cfeeb07c1fa1cebd8776d3a55c50",
+  "purpose": "Phase 4.2 closeout §A — the repair-rate denominator and its classification criteria are pinned HERE, before any closeout run, so the denominator cannot be re-derived after the numerator is known. A closeout run must classify using these criteria by id; it may not invent a class or re-argue one.",
+  "rules": {
+    "ambiguousDefaultsTo": "PIPELINE_DRIVEN",
+    "ambiguousRationale": "The conservative direction: it ENLARGES the denominator and makes the 70% target harder, so an honest mistake cannot inflate the rate.",
+    "zeroDenominator": "0/0 is UNDEFINED, not 100%. Report 'NO PIPELINE-DRIVEN FAILURES REMAIN' separately from any ratio.",
+    "productFidelityMapping": "PRODUCT_FIDELITY failures map to SOURCE_DRIVEN unless a distinct criterion is registered here. None is registered.",
+    "postRunReDerivation": "FORBIDDEN. If a criterion is found to be wrong, amend this registry in its own commit, state why, and re-run the entire evidence set."
+  },
+  "criteria": [
+    {
+      "id": "PD-1",
+      "class": "PIPELINE_DRIVEN",
+      "name": "compression-component confidence defect",
+      "test": "Addressable source; confidence gate rejected it; the limiting component is `segmentation` and the pre-repair penalty was driven by raw connected-component count rather than significant-component count."
+    },
+    {
+      "id": "PD-2",
+      "class": "PIPELINE_DRIVEN",
+      "name": "incorrect confidence aggregation",
+      "test": "Addressable source; every stage gate passed; the internal confidence score alone rejected it."
+    },
+    {
+      "id": "PD-3",
+      "class": "PIPELINE_DRIVEN",
+      "name": "preprocessing defect",
+      "test": "Addressable source; failure traced to decode, normalization, padding handling, or crop handling performed by this pipeline."
+    },
+    {
+      "id": "PD-4",
+      "class": "PIPELINE_DRIVEN",
+      "name": "anchor derivation defect",
+      "test": "Addressable source; segmentation produced a usable mask; ANCHORS_INCOMPLETE or an anchor-limited confidence miss followed."
+    },
+    {
+      "id": "PD-5",
+      "class": "PIPELINE_DRIVEN",
+      "name": "incorrect fidelity rejection",
+      "test": "Addressable source; fidelity rejected it AND a registered distinct criterion establishes the fidelity logic itself was wrong. NOT satisfied by a fidelity failure alone — see rules.productFidelityMapping."
+    },
+    {
+      "id": "SD-1",
+      "class": "SOURCE_DRIVEN",
+      "name": "model-worn",
+      "test": "Shot class HARD via skin-tone presence; Phase 4 has no model-worn extraction path by design."
+    },
+    {
+      "id": "SD-2",
+      "class": "SOURCE_DRIVEN",
+      "name": "occlusion",
+      "test": "OCCLUSION_TOO_HIGH at the extraction stage."
+    },
+    {
+      "id": "SD-3",
+      "class": "SOURCE_DRIVEN",
+      "name": "missing garment region",
+      "test": "No reliable garment region found (GARMENT_NOT_PRIMARY from segmentation failure)."
+    },
+    {
+      "id": "SD-4",
+      "class": "SOURCE_DRIVEN",
+      "name": "thumbnail inadequate",
+      "test": "SOURCE_TOO_SMALL, or source adequacy INADEQUATE with resolution as the measured limiter."
+    },
+    {
+      "id": "SD-5",
+      "class": "SOURCE_DRIVEN",
+      "name": "unsupported visual source",
+      "test": "Shot class UNSUPPORTED, or MULTIPLE_GARMENTS / CROP_INCOMPLETE — properties of the photograph, not of the implementation."
+    },
+    {
+      "id": "SD-6",
+      "class": "SOURCE_DRIVEN",
+      "name": "product fidelity",
+      "test": "PRODUCT_FIDELITY_FAILED or PATTERN_UNRECOVERABLE without a registered PD-5 criterion."
+    },
+    {
+      "id": "CD-1",
+      "class": "CONTRACT_DRIVEN",
+      "name": "variant ambiguity",
+      "test": "VARIANT_AMBIGUOUS, or an alternate-image substitution refused on variant-safety grounds."
+    },
+    {
+      "id": "CD-2",
+      "class": "CONTRACT_DRIVEN",
+      "name": "unsupported category",
+      "test": "UNSUPPORTED_CATEGORY — no Live template family maps to this product's canonical category."
+    },
+    {
+      "id": "CD-3",
+      "class": "CONTRACT_DRIVEN",
+      "name": "insufficient Commerce image surface",
+      "test": "The product exposes no addressable image candidate because the Commerce contract carries only one image per product. Measured 490/490 on this feed."
+    }
+  ],
+  "historicalDenominator": {
+    "corpus": "Phase 4.1 Gate E real cohort, N=220",
+    "evidencePath": "evidence/vto-phase4-gate-e/real-cohort-results.jsonl",
+    "identityBasis": "source sha256; product refs are run-local and URLs were never committed",
+    "addressableProducts": 10,
+    "addressableEligible": 3,
+    "addressableFailures": 7,
+    "pipelineDrivenFailures": 4,
+    "sourceDrivenFailures": 3,
+    "contractDrivenFailures": 0,
+    "cases": [
+      { "baselineProductRef": "real-0067", "sourceSha256": "6f1fa536448011e888fe18a94850df00a72c5529cb7c958d9197d518e2012a71", "shotClass": "EASY", "outcome": "REJECTED:EXTRACTION_UNRELIABLE", "class": "PIPELINE_DRIVEN", "criterionId": "PD-2", "note": "Confidence-gate miss on an addressable source; Phase 4.1 could not name the limiting component at all." },
+      { "baselineProductRef": "real-0129", "sourceSha256": "f06b1d050c2bcb5dcb7320c3986e124658cb1c16cd111f92897a20315c5eb39e", "shotClass": "EASY", "outcome": "REJECTED:EXTRACTION_UNRELIABLE", "class": "PIPELINE_DRIVEN", "criterionId": "PD-2", "note": "Same." },
+      { "baselineProductRef": "real-0050", "sourceSha256": "0b96960ae39c8ed7b0cf8b6c7ce084a3df5b91515fbe90508cc75614d82ae98a", "shotClass": "MEDIUM", "outcome": "REJECTED:ANCHORS_INCOMPLETE", "class": "PIPELINE_DRIVEN", "criterionId": "PD-4", "note": "Segmentation succeeded; anchors did not." },
+      { "baselineProductRef": "real-0148", "sourceSha256": "f268880610a86ba020ccf3753606ad9643d73dd20dae89d73740cc196842886c", "shotClass": "MEDIUM", "outcome": "REJECTED:ANCHORS_INCOMPLETE", "class": "PIPELINE_DRIVEN", "criterionId": "PD-4", "note": "Same." },
+      { "baselineProductRef": "real-0120", "sourceSha256": "2ef39092eb96f30e61cfdd7f7bb71dd55aa6eed7110018f337174b9d382c9718", "shotClass": "EASY", "outcome": "REJECTED:PRODUCT_FIDELITY_FAILED", "class": "SOURCE_DRIVEN", "criterionId": "SD-6", "note": "No PD-5 criterion is registered, so fidelity maps to SOURCE_DRIVEN per rules.productFidelityMapping." },
+      { "baselineProductRef": "real-0171", "sourceSha256": "0039e4c83022e488c5654614f8d53c63bd7278660fdb6c1820225960717a3862", "shotClass": "EASY", "outcome": "REJECTED:PRODUCT_FIDELITY_FAILED", "class": "SOURCE_DRIVEN", "criterionId": "SD-6", "note": "Same." },
+      { "baselineProductRef": "real-0161", "sourceSha256": "391a85174235ad48cc2dcdc946f355eb5a5add4767b1e0ddc4d373685d429300", "shotClass": "MEDIUM", "outcome": "REJECTED:PRODUCT_FIDELITY_FAILED", "class": "SOURCE_DRIVEN", "criterionId": "SD-6", "note": "Same." }
+    ],
+    "smallNCaveat": "Denominator is 4, far below the §B floor of 20. A repair rate computed over 4 cases cannot alone support ENGINEERING PASS; the verdict then rests on the qualitative items (four EASY dispositions, previously-eligible check, explainability)."
+  },
+  "extractionUnreliableBreakdown": {
+    "corpus": "Phase 4.1 Gate E real cohort, N=220",
+    "total": 29,
+    "byShotClass": { "HARD": 27, "EASY": 2, "MEDIUM": 0 },
+    "bySourceAdequacy": { "UNKNOWN": 27, "ADEQUATE": 2 },
+    "interpretation": "27 of 29 were HARD sources refused at the EXTRACTION STAGE (non-uniform background, no model-worn path) — segmentation never ran, which is why their source adequacy is UNKNOWN. Those are SOURCE_DRIVEN by criterion SD-1/SD-2. Only 2 of 29 were confidence-gate misses on addressable sources (PD-2). The bucket was never predominantly a pipeline problem.",
+    "measuredFrom": "evidence/vto-phase4-gate-e/real-cohort-results.jsonl"
+  },
+  "p42001PriorPenalty": {
+    "corpus": "Phase 4.2 characterization, N=490",
+    "evidencePath": "evidence/vto-phase4-2/catalog-characterization.jsonl",
+    "addressableProducts": 49,
+    "addressableEasyMediumImages": 49,
+    "previouslyPenalizedRawComponentCountGte21": 21,
+    "previouslyPenalizedPct": 42.9,
+    "ofWhichSignificantComponentCountIs1": 17,
+    "ofWhichSignificantComponentCountLte3": 20,
+    "penalizedTotalComponentCount": { "min": 27, "median": 114, "max": 4487 },
+    "penalizedSignificantComponentCount": { "min": 1, "median": 1, "max": 4 },
+    "preRepairSegmentationScore": "exactly 0.0 for all 21, because (n-1)*0.05 saturates at n>=21",
+    "postRepairSegmentationScore": "fillRatio * (1 - (significant-1)*0.05); for the 17 cases with significant==1 the penalty term is 1.0, so the score becomes fillRatio unmodified",
+    "conversionToEligibility": "NOT MEASURED — requires running extraction, anchors, geometry and QA against the source pixels, which requires the corpus cache."
+  }
+}

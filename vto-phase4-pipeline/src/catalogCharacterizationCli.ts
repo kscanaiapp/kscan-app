@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { join } from 'node:path';
 import { classifyHardTractability, type HardTractability } from './hardTractability';
@@ -141,58 +141,134 @@ async function fetchPage(
 }
 
 /**
- * Assembles a large corpus by paging each stratum, then interleaving the
- * strata ROUND-ROBIN. Both halves matter: every stratum is paged
- * unconditionally (never stopping early once a running total is reached,
- * which silently starves whichever strata are queried last), and the
- * combine step takes one product from each stratum per round so any trim
- * falls evenly rather than favouring the strata queried first.
+ * Phase 4.2 closeout §5/§6 — PAGE-GRANULAR, RESUMABLE CORPUS ASSEMBLY.
+ *
+ * The original implementation accumulated every page in memory and wrote the
+ * cache only after the whole assembly finished. When the provider rate limit
+ * hit mid-run, the pages already paid for were lost with it — which is
+ * exactly what happened on the first 490-product run, and why the closeout
+ * measurement could not be re-run without spending quota again.
+ *
+ * The cache is now keyed PER PAGE. Every successful page is persisted the
+ * moment it arrives, so a 429 can never discard work already funded. A
+ * re-run skips pages already cached and fetches only what is missing.
+ *
+ * This is tooling resilience, not quota evasion: it strictly REDUCES the
+ * number of provider requests made, honours the same bounded backoff, and
+ * never retries a limit harder.
  */
-async function assembleLargeCorpus(
-  anonKey: string,
-  targetCount: number,
-  pagesPerStratum: number,
-): Promise<{ products: AssembledProduct[]; queryLog: QueryLogEntry[]; rawSeen: number; skippedNoPhotos: number }> {
-  const queryLog: QueryLogEntry[] = [];
+
+interface PageCacheEntry {
+  visual: string;
+  query: string;
+  offset: number;
+  fetchedAt: string;
+  /** Raw provider records, reduced to the two fields this lane uses. */
+  products: { product_id: string; product_photos: string[] }[];
+}
+
+interface CorpusCacheFile {
+  schema: 'vto-phase4-2-corpus-cache/2';
+  updatedAt: string;
+  /** Keyed by stratum + offset so a page is fetched at most once, ever. */
+  pages: Record<string, PageCacheEntry>;
+  queryLog: QueryLogEntry[];
+  /** Derived, written alongside the pages so addressableSliceCli can consume the cache directly. */
+  products: AssembledProduct[];
+  rawSeen: number;
+  skippedNoPhotos: number;
+}
+
+function pageKey(stratum: QueryStratum, offset: number): string {
+  return stratum.visual + '|' + stratum.query + '|' + offset;
+}
+
+function emptyCache(): CorpusCacheFile {
+  return {
+    schema: 'vto-phase4-2-corpus-cache/2',
+    updatedAt: new Date().toISOString(),
+    pages: {},
+    queryLog: [],
+    products: [],
+    rawSeen: 0,
+    skippedNoPhotos: 0,
+  };
+}
+
+function loadCache(cachePath: string): CorpusCacheFile {
+  if (!cachePath || !existsSync(cachePath)) return emptyCache();
+  try {
+    const parsed = JSON.parse(readFileSync(cachePath, 'utf-8')) as Partial<CorpusCacheFile>;
+    if (parsed.schema !== 'vto-phase4-2-corpus-cache/2' || !parsed.pages) {
+      console.warn('[catalog] cache at ' + cachePath + ' is not schema v2 — starting a fresh page cache (the old file is left untouched).');
+      return emptyCache();
+    }
+    return Object.assign(emptyCache(), parsed) as CorpusCacheFile;
+  } catch (err) {
+    console.warn('[catalog] cache unreadable (' + (err as Error).message + ') — starting fresh.');
+    return emptyCache();
+  }
+}
+
+function writeCache(cachePath: string, cache: CorpusCacheFile): void {
+  if (!cachePath) return;
+  cache.updatedAt = new Date().toISOString();
+  mkdirSync(dirname(cachePath), { recursive: true });
+  // Write-then-rename so a crash mid-write cannot corrupt a cache that
+  // represents provider quota already spent.
+  const tmp = cachePath + '.tmp';
+  writeFileSync(tmp, JSON.stringify(cache, null, 2));
+  renameSync(tmp, cachePath);
+}
+
+/**
+ * Derives the product list from the cached pages. Deduplicates by
+ * `product_id` (stable provider identity), preserves stratum accounting, and
+ * interleaves strata ROUND-ROBIN so any trim to `targetCount` falls evenly
+ * rather than favouring whichever strata were queried first.
+ */
+function deriveProducts(cache: CorpusCacheFile, targetCount: number): { products: AssembledProduct[]; skippedNoPhotos: number } {
+  const byStratum = new Map<string, { visual: string; products: { product_id: string; product_photos: string[] }[] }>();
   const seen = new Set<string>();
-  const perStratum: { stratum: QueryStratum; products: RawCommerceProduct[] }[] = [];
-  let rawSeen = 0;
   let skippedNoPhotos = 0;
 
-  for (const stratum of QUERY_STRATA) {
-    const collected: RawCommerceProduct[] = [];
-    for (let page = 0; page < pagesPerStratum; page++) {
-      const raw = await fetchPage(anonKey, stratum, page * PROVIDER_MAX_LIMIT, queryLog);
-      if (raw.length === 0) break; // exhausted, or the provider asked us to stop
-      for (const p of raw) {
-        rawSeen++;
-        if (!p.product_id || seen.has(p.product_id)) continue;
-        if (!p.product_photos || p.product_photos.length === 0) {
-          skippedNoPhotos++;
-          continue;
-        }
-        seen.add(p.product_id);
-        collected.push(p);
+  // Deterministic order: stratum declaration order, then ascending offset.
+  const entries = Object.values(cache.pages).sort((a, b) => {
+    const ai = QUERY_STRATA.findIndex((s) => s.visual === a.visual && s.query === a.query);
+    const bi = QUERY_STRATA.findIndex((s) => s.visual === b.visual && s.query === b.query);
+    if (ai !== bi) return ai - bi;
+    return a.offset - b.offset;
+  });
+
+  for (const page of entries) {
+    const key = page.visual + '|' + page.query;
+    const bucket = byStratum.get(key) ?? { visual: page.visual, products: [] };
+    for (const p of page.products) {
+      if (!p.product_id || seen.has(p.product_id)) continue;
+      if (!p.product_photos || p.product_photos.length === 0) {
+        skippedNoPhotos++;
+        continue;
       }
-      await new Promise((r) => setTimeout(r, QUERY_PACING_MS));
+      seen.add(p.product_id);
+      bucket.products.push(p);
     }
-    perStratum.push({ stratum, products: collected });
-    console.log('[catalog] stratum ' + stratum.visual + '/' + stratum.query + ': ' + collected.length + ' unique');
+    byStratum.set(key, bucket);
   }
 
+  const buckets = Array.from(byStratum.values());
   const products: AssembledProduct[] = [];
   let sequence = 0;
   let round = 0;
   outer: while (products.length < targetCount) {
     let anyTaken = false;
-    for (const { stratum, products: raw } of perStratum) {
-      if (round >= raw.length) continue;
+    for (const bucket of buckets) {
+      if (round >= bucket.products.length) continue;
       anyTaken = true;
       sequence++;
       products.push({
         productRef: 'cat-' + String(sequence).padStart(5, '0'),
-        visual: stratum.visual,
-        imageUrls: raw[round].product_photos as string[],
+        visual: bucket.visual,
+        imageUrls: bucket.products[round].product_photos,
       });
       if (products.length >= targetCount) break outer;
     }
@@ -200,7 +276,101 @@ async function assembleLargeCorpus(
     round++;
   }
 
-  return { products, queryLog, rawSeen, skippedNoPhotos };
+  return { products, skippedNoPhotos };
+}
+
+function persist(cachePath: string, cache: CorpusCacheFile, targetCount: number): void {
+  const derived = deriveProducts(cache, targetCount);
+  cache.products = derived.products;
+  cache.skippedNoPhotos = derived.skippedNoPhotos;
+  writeCache(cachePath, cache);
+}
+
+async function assembleLargeCorpus(
+  anonKey: string,
+  targetCount: number,
+  pagesPerStratum: number,
+  cachePath: string,
+): Promise<{
+  products: AssembledProduct[];
+  queryLog: QueryLogEntry[];
+  rawSeen: number;
+  skippedNoPhotos: number;
+  newRequests: number;
+  cachedPagesReused: number;
+  rateLimited: boolean;
+}> {
+  const cache = loadCache(cachePath);
+  const cachedPagesAtStart = Object.keys(cache.pages).length;
+  if (cachedPagesAtStart > 0) {
+    console.log('[catalog] resuming from ' + cachedPagesAtStart + ' cached page(s) — those cost 0 provider requests.');
+  }
+
+  let newRequests = 0;
+  let rateLimited = false;
+
+  for (const stratum of QUERY_STRATA) {
+    for (let page = 0; page < pagesPerStratum; page++) {
+      const offset = page * PROVIDER_MAX_LIMIT;
+      const key = pageKey(stratum, offset);
+
+      const cached = cache.pages[key];
+      if (cached) {
+        // Already funded. A page that legitimately returned zero products marks
+        // the end of this stratum, and is cached as such, so stop here too.
+        if (cached.products.length === 0) break;
+        continue;
+      }
+      // Once the provider starts refusing, stop issuing requests rather than
+      // walking every remaining stratum into a 429.
+      if (rateLimited) break;
+
+      const logBefore = cache.queryLog.length;
+      const raw = await fetchPage(anonKey, stratum, offset, cache.queryLog);
+      newRequests += cache.queryLog.length - logBefore;
+
+      const lastEntry = cache.queryLog[cache.queryLog.length - 1];
+      if (lastEntry && lastEntry.httpStatus === 429) {
+        rateLimited = true;
+        console.log('[catalog] provider rate limit reached — stopping. ' + Object.keys(cache.pages).length + ' page(s) remain cached and will not be re-fetched.');
+        persist(cachePath, cache, targetCount);
+        break;
+      }
+
+      cache.rawSeen += raw.length;
+      cache.pages[key] = {
+        visual: stratum.visual,
+        query: stratum.query,
+        offset,
+        fetchedAt: new Date().toISOString(),
+        products: raw
+          .filter((p) => typeof p.product_id === 'string')
+          .map((p) => ({ product_id: p.product_id as string, product_photos: p.product_photos ?? [] })),
+      };
+      // Persist IMMEDIATELY: this page is paid for, and a later 429 must not
+      // be able to discard it.
+      persist(cachePath, cache, targetCount);
+
+      if (raw.length === 0) break; // stratum exhausted
+      await new Promise((r) => setTimeout(r, QUERY_PACING_MS));
+    }
+    if (rateLimited) break;
+  }
+
+  const derived = deriveProducts(cache, targetCount);
+  cache.products = derived.products;
+  cache.skippedNoPhotos = derived.skippedNoPhotos;
+  writeCache(cachePath, cache);
+
+  return {
+    products: derived.products,
+    queryLog: cache.queryLog,
+    rawSeen: cache.rawSeen,
+    skippedNoPhotos: derived.skippedNoPhotos,
+    newRequests,
+    cachedPagesReused: cachedPagesAtStart,
+    rateLimited,
+  };
 }
 
 // ── Image-level characterization ─────────────────────────────────────────
@@ -385,45 +555,37 @@ async function main() {
   // ── Corpus cache ──────────────────────────────────────────────────────
   // The provider enforces a hard rate limit (measured: HTTP 429 after ~28
   // requests — see catalog-characterization-query-log.json), so an assembled
-  // corpus is a genuinely scarce resource and re-querying to re-run analysis
-  // would waste it. The cache holds image URLs, so it is written OUTSIDE the
-  // repository by default and must never be committed (§57): committed
-  // evidence still carries hashes/dimensions/classes only.
-  let products: AssembledProduct[];
-  let queryLog: QueryLogEntry[];
-  let rawSeen: number;
-  let skippedNoPhotos: number;
-  let corpusSource: 'provider' | 'cache';
+  // corpus is genuinely scarce. `assembleLargeCorpus` now owns the cache
+  // entirely and works at PAGE granularity: it skips pages already cached,
+  // persists each new page the moment it arrives, and stops issuing requests
+  // once the provider starts refusing. Re-running is therefore cheap and
+  // strictly reduces provider load.
+  //
+  // The cache holds image URLs, so it is written OUTSIDE the repository and
+  // must never be committed (§57); committed evidence carries only hashes,
+  // dimensions, formats and classifications.
+  const assembled = await assembleLargeCorpus(anonKey, targetCount, pagesPerStratum, cachePath);
+  const products = assembled.products;
+  const queryLog = assembled.queryLog;
+  const rawSeen = assembled.rawSeen;
+  const skippedNoPhotos = assembled.skippedNoPhotos;
+  const corpusSource: 'provider' | 'cache' | 'cache+provider' =
+    assembled.newRequests === 0 ? 'cache' : assembled.cachedPagesReused > 0 ? 'cache+provider' : 'provider';
 
-  if (cachePath && existsSync(cachePath) && process.env.CATALOG_REFRESH !== '1') {
-    const cached = JSON.parse(readFileSync(cachePath, 'utf-8')) as {
-      products: AssembledProduct[];
-      queryLog: QueryLogEntry[];
-      rawSeen: number;
-      skippedNoPhotos: number;
-    };
-    products = cached.products.slice(0, targetCount);
-    queryLog = cached.queryLog;
-    rawSeen = cached.rawSeen;
-    skippedNoPhotos = cached.skippedNoPhotos;
-    corpusSource = 'cache';
-    console.log('[catalog] loaded ' + products.length + ' products from corpus cache (' + cachePath + '). Set CATALOG_REFRESH=1 to re-query the provider.');
-  } else {
-    console.log('[catalog] assembling corpus: target ' + targetCount + ', ' + pagesPerStratum + ' pages x ' + QUERY_STRATA.length + ' strata, limit ' + PROVIDER_MAX_LIMIT + '/page...');
-    const assembled = await assembleLargeCorpus(anonKey, targetCount, pagesPerStratum);
-    products = assembled.products;
-    queryLog = assembled.queryLog;
-    rawSeen = assembled.rawSeen;
-    skippedNoPhotos = assembled.skippedNoPhotos;
-    corpusSource = 'provider';
-    if (cachePath && products.length > 0) {
-      mkdirSync(dirname(cachePath), { recursive: true });
-      writeFileSync(cachePath, JSON.stringify({ products, queryLog, rawSeen, skippedNoPhotos }, null, 2));
-      console.log('[catalog] corpus cached to ' + cachePath + ' (transient, never committed).');
+  if (products.length === 0) {
+    console.error('[catalog] no products available: the cache is empty and the provider returned nothing usable.');
+    if (assembled.rateLimited) {
+      console.error('[catalog] the provider rate-limited this run (HTTP 429). No page was obtained, so there is nothing to characterize.');
+      console.error('[catalog] Re-run when the quota window reopens; any pages already cached will not be re-fetched.');
     }
+    process.exit(2);
   }
   const assembleMs = Date.now() - assembleStart;
-  console.log('[catalog] assembled ' + products.length + ' unique products in ' + (assembleMs / 1000).toFixed(1) + 's across ' + queryLog.length + ' provider requests.');
+  console.log(
+    '[catalog] corpus ready: ' + products.length + ' unique products in ' + (assembleMs / 1000).toFixed(1) + 's — ' +
+      assembled.newRequests + ' new provider request(s), ' + assembled.cachedPagesReused + ' cached page(s) reused' +
+      (assembled.rateLimited ? ' (stopped early: provider rate limit)' : ''),
+  );
 
   const characterizeStart = Date.now();
   console.log('[catalog] characterizing every authoritative image candidate (concurrency ' + concurrency + ')...');
@@ -500,6 +662,9 @@ async function main() {
       pagesPerStratumRequested: pagesPerStratum,
       providerMaxLimitPerRequest: PROVIDER_MAX_LIMIT,
       corpusSource,
+      newProviderRequests: assembled.newRequests,
+      cachedPagesReused: assembled.cachedPagesReused,
+      rateLimitedThisRun: assembled.rateLimited,
       visualDistribution: countBy(characterized.map((p) => p.visual)),
       assembleDurationMs: assembleMs,
       characterizeDurationMs: characterizeMs,
