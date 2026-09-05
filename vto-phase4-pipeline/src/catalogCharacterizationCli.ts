@@ -52,9 +52,17 @@ interface QueryStratum {
 /**
  * Top-category only (garmentContract.ts maps only 'top' to a Live template
  * family), stratified across the visual characteristics the corpus request
- * asked for. Identical stratum list to the Phase 4.1 Gate E run so the two
- * corpora remain comparable; scale comes from offset paging (§7), not from
- * changing what is asked for.
+ * asked for. Identical stratum LIST to the Phase 4.1 Gate E run; scale comes
+ * from offset paging (§7), not from changing what is asked for.
+ *
+ * AUDIT CORRECTION (P42-A-004, hostile-audit A7): an identical stratum list
+ * does NOT make the two corpora comparable, and this comment previously
+ * claimed it did. In the 2026-09-05 run the provider rate limit closed after
+ * 28 successful requests, ALL of them `plain` queries; the other 17 strata
+ * returned only HTTP 429 and contributed ZERO products, while Phase 4.1's
+ * 220-run realized all 7 visual classes. Any run that does not reach the
+ * non-`plain` strata yields a single-stratum draw and must be reported as
+ * one — see docs/vto-phase4-2-addressability.md §5.1.
  */
 const QUERY_STRATA: QueryStratum[] = [
   { visual: 'plain', query: 'mens plain crew neck t-shirt' },
@@ -218,7 +226,30 @@ function writeCache(cachePath: string, cache: CorpusCacheFile): void {
   // represents provider quota already spent.
   const tmp = cachePath + '.tmp';
   writeFileSync(tmp, JSON.stringify(cache, null, 2));
-  renameSync(tmp, cachePath);
+  // Audit P42-A-006 (§23). MEASURED on win32/node 24: renameSync over an
+  // existing destination is atomic, BUT throws EPERM whenever any other
+  // handle holds the destination open — a concurrent reader, an editor, or
+  // (routinely) an antivirus scanner touching the file just written. Under
+  // two concurrent writers, 51 of 800 renames failed this way.
+  //
+  // This runner calls writeCache after every funded page, so an unguarded
+  // throw would abort a run and forfeit provider quota already spent —
+  // the exact outcome the write-then-rename was introduced to prevent.
+  // Bounded retry, then surface the error; never silently drop the write.
+  let lastErr: unknown = null;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      renameSync(tmp, cachePath);
+      return;
+    } catch (err) {
+      lastErr = err;
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code !== 'EPERM' && code !== 'EACCES' && code !== 'EBUSY') throw err;
+      const until = Date.now() + 20 * (attempt + 1);
+      while (Date.now() < until) { /* brief synchronous backoff — this path is rare and must not reorder writes */ }
+    }
+  }
+  throw lastErr;
 }
 
 /**

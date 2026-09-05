@@ -85,9 +85,18 @@ here rather than with segmentation.
 
 ## 4. Natural feed vs engineering corpus (§9)
 
-**Natural Commerce distribution** — what K Scan actually receives, measured
-over 490 products with no selection applied beyond the standard stratified
-garment queries:
+> **AUDIT CORRECTION (P42-A-004, hostile-audit amendment A7).** The heading
+> below previously read *“Natural Commerce distribution — what K Scan actually
+> receives … with no selection applied beyond the standard stratified garment
+> queries.”* That is **false of the realized corpus** and is corrected here.
+> Selection *was* applied — not by design, but by quota. See §5.1: 17 of the 21
+> declared strata returned **only HTTP 429 and contributed zero products**, so
+> all 490 products came from the four `plain` queries. This is a
+> **single-visual-stratum engineering draw**, not a natural feed measurement,
+> and it may not be used as a market or catalog claim.
+
+**Realized corpus distribution (single stratum: `plain`)** — measured over the
+490 products the provider actually returned before the rate limit closed:
 
 ```
 HERO SHOT CLASS
@@ -108,6 +117,40 @@ EASY/MEDIUM image. These are a *subset selected because they are candidates*,
 and are never used to restate the natural distribution.
 
 The two must not be conflated, and are reported separately throughout.
+
+## 5.1 Realized stratum coverage (AUDIT ADDITION — P42-A-004 / A7)
+
+The 21 declared strata are **not** the 21 strata that produced data. From the
+committed query log (`catalog-characterization-query-log.json`, 47 requests):
+
+```
+VISUAL STRATUM   REQUESTS   HTTP 200   HTTP 429   RECORDS RETURNED
+plain                  30         28          2                536
+structured              4          0          4                  0
+logo                    3          0          3                  0
+patterned               3          0          3                  0
+softknit                3          0          3                  0
+dark                    2          0          2                  0
+light                   2          0          2                  0
+                                                     -------------
+                                    ALL 490 PRODUCTS FROM `plain`
+```
+
+Every successful request belonged to a `plain` query. The quota died before
+any other visual stratum returned a single record, so `visualDistribution:
+{ plain: 490 }` in the summary is **an artifact of rate-limit timing, not a
+property of the catalog**.
+
+Consequences, stated plainly:
+
+- **ENGINEERING-SAMPLED DISTRIBUTION** — 100% `plain` (4 near-identical
+  queries: mens/womens plain crew, v-neck, cotton, fitted tee). All
+  Phase 4.2 addressability figures rest on this.
+- **NATURAL FEED ESTIMATE** — **NOT DERIVABLE** from this corpus. A
+  single-visual-stratum draw cannot estimate the feed. Phase 4.1's 220-run
+  is the only multi-stratum evidence available, and it measured 4.5%.
+- The ≈10% figure must be reported as *plain-tee addressability under
+  deep paging*, never as a catalog or market ceiling.
 
 ## 5. Corpus scale, and where it stopped (§7)
 
@@ -132,10 +175,27 @@ It is an external quota constraint, not an engineering result. Two things
 mitigate it:
 
 - 490 products is 2.2× the Phase 4.1 baseline, and its addressable slice
-  (49 products) is **4.9× larger** than Phase 4.1's (10) — because offset
-  paging reaches deeper into result sets where more flat-lay and studio
-  photography lives. Phase 4.1's single-page-per-stratum draw measured 4.5%
-  addressable; the deeper draw measures 10.0%.
+  (49 products) is **4.9× larger** than Phase 4.1's (10). The 4.5% → 10.0%
+  change was previously attributed to offset paging alone (“deeper into result
+  sets where more flat-lay and studio photography lives”).
+
+  **AUDIT CORRECTION (P42-A-004).** That attribution is **confounded and is
+  not established**. Two variables moved together, not one:
+
+  | | Phase 4.1 Gate E (220) | Phase 4.2 (490) |
+  |---|---|---|
+  | paging depth | 1 page per stratum | up to 12 pages |
+  | realized strata | **all 7 visual classes** (plain 44, logo 33, patterned 33, structured 40, softknit 30, dark 20, light 20) | **`plain` only** (490) |
+  | addressable | 4.5% | 10.0% |
+
+  Plain tees are the garment type most likely to be shot flat-lay or
+  product-only; logo, patterned, softknit and structured garments are more
+  often model-worn. The corpus therefore shifted toward exactly the visual
+  class that inflates EASY/MEDIUM, at the same time as paging deepened. The
+  measured 10.0% is real **for plain tees**; how much of the rise is paging
+  depth and how much is composition **cannot be separated from this
+  evidence**, and re-measuring requires a quota window that reaches the other
+  17 strata.
 - The runner now writes a transient corpus cache, so a future quota window
   extends the corpus rather than re-spending quota to re-measure it.
 
