@@ -305,6 +305,14 @@ Run locally against the final candidate. Real exit codes, not piped ones.
 UNEXPECTED FAILURES: 0
 ```
 
+**One observed flake, disclosed.** On one full-suite run,
+`closetPromotionCoordinator.test.js` → *"a deadline that elapses DURING the
+committed write still recovers as success"* failed, then passed 37/37 on three
+consecutive isolated runs and on the next full-suite run. It is a real-clock
+deadline test that flakes under full-suite load — pre-existing, unrelated to
+this lane (which touches no closet or promotion code), and recorded rather
+than quietly re-run until green.
+
 **Dependency reachability.** The gate fails closed with
 `AUDIT_UNAVAILABLE — npm audit could not run: spawnSync npm ENOENT`. Cause:
 `scripts/check-dependency-reachability.js` invokes `spawnSync('npm', ...)`
