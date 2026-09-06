@@ -34,9 +34,19 @@ New local Expo module `modules/kscan-live-vto-native` (Android only; iOS deferre
 
 **Compile evidence:** `./gradlew projects` -- BUILD SUCCESSFUL, `:kscan-live-vto-native` present in the project graph alongside `:kscan-voice-native`, autolinked with zero manual `settings.gradle` edits. `./gradlew :app:assembleDebug` run for full-app compile + runtime evidence (see environment doc for toolchain versions).
 
-**Runtime evidence:** temporary diagnostic route `app/dev-n1-diagnostic.tsx`, reached via the app's own existing `EXPO_PUBLIC_DEV_INITIAL_ROUTE` dev harness (no product code touched), calls the real `describeLiveVtoNativeCapability()` adapter path and logs/renders the result. Local test build points at **staging** Supabase, never production. Full runtime capture (device boot -> module registers -> JS calls `getCapability()` -> Kotlin responds -> `capable:false, runtimeReady:false` observed) is the specific remaining item for this gate -- tracked as in-progress, not claimed complete until the log line is actually captured.
+**Runtime evidence -- captured, gate CLOSED.** Temporary diagnostic route `app/dev-n1-diagnostic.tsx`, reached via the app's own existing `EXPO_PUBLIC_DEV_INITIAL_ROUTE` dev harness (no product code touched), calls the real `describeLiveVtoNativeCapability()` adapter path. On the `Pixel_8_Pro` emulator (`sdk_gphone16k_x86_64`), device log:
+```
+LOG  [N1-A-PROBE] {"present":true,"capable":false,"runtimeReady":false,"runtimeVersion":"n1-a","provenance":"native","reason":null}
+```
+`present:true` + `provenance:"native"` proves `requireOptionalNativeModule('KScanLiveVto')` genuinely found the compiled module (not the dev harness); `capable:false, runtimeReady:false, runtimeVersion:"n1-a"` are the exact values `KScanLiveVtoNativeModule.kt` returns, proving the round trip crossed the real JS/Kotlin boundary rather than being asserted from source. Full detail: `evidence/vto-live-native-n1/n1a-getcapability-roundtrip.json`.
 
-### N1-B through N1-G
+**N1-A GATE: PASS.** Module compiles (Gradle), registers (project graph + autolinking), JS finds it (`present:true`), `getCapability()` reaches Kotlin and returns truthful values. Local build/runtime notes: emulator dev-server default (`10.0.2.2:8081`) reached an unrelated Metro instance (a separate `node.exe` bound to port 8081, owned by another application on this machine) rather than this session's own Metro (moved to port 8082) -- resolved by writing `debug_http_host=10.0.2.2:8082` directly into the app's `SharedPreferences` via `adb shell run-as` (the same mechanism the in-app Dev Menu's "Change Bundle Location" writes to); worth fixing properly (e.g. a project-level Metro port convention) before this becomes a recurring N1 friction point. Also had to rebuild once with `-PreactNativeArchitectures=x86_64` -- the default all-ABI debug APK (271MB) didn't fit the emulator's free storage (635MB/5.8GB, 90% full) for the atomic install swap.
+
+### N1-B -- first native render
+
+See the gate status appended below as work proceeds.
+
+### N1-C through N1-G
 
 Not started. Each gate's own hard requirements (mission sections 8-48) apply unchanged; this document will be extended gate by gate rather than restating the mission text.
 

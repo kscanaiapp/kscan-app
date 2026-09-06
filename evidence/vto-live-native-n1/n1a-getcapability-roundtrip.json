@@ -1,0 +1,17 @@
+{
+  "gate": "N1-A",
+  "claim": "native module compiles, registers, and JS-to-Kotlin getCapability() round trip is real",
+  "capturedAt": "2026-09-06T12:15:41.779Z",
+  "device": "emulator-5554 (Pixel_8_Pro AVD, sdk_gphone16k_x86_64)",
+  "buildCommit": "8500400",
+  "apk": "android/app/build/outputs/apk/debug/app-debug.apk (x86_64, -PreactNativeArchitectures=x86_64)",
+  "capturePath": "app/dev-n1-diagnostic.tsx -> services/vto/liveVtoNativeModule.ts#describeLiveVtoNativeCapability() -> expo-modules-core requireOptionalNativeModule('KScanLiveVto') -> modules/kscan-live-vto-native Kotlin Function(\"getCapability\")",
+  "capturedLogLine": "LOG  [N1-A-PROBE] {\"present\":true,\"capable\":false,\"runtimeReady\":false,\"runtimeVersion\":\"n1-a\",\"provenance\":\"native\",\"reason\":null}",
+  "verification": {
+    "present_true": "requireOptionalNativeModule found the module -- registration/autolinking genuinely worked, not asserted from source",
+    "provenance_native": "not 'simulated' -- proves the real adapter path ran, not services/vto/vtoLiveHarness.ts (EXPO_PUBLIC_LIVE_VTO_HARNESS was not set for this build)",
+    "capable_false_runtimeReady_false": "matches the Kotlin module's actual returned values exactly -- honest at N1-A, nothing beyond registration exists yet",
+    "runtimeVersion_n1-a": "exact string from KScanLiveVtoNativeModule.kt's RUNTIME_VERSION constant, confirming this value crossed the JS/Kotlin boundary rather than being a stale/cached JS-side guess"
+  },
+  "notes": "The app briefly navigated to /dev-n1-diagnostic via the existing EXPO_PUBLIC_DEV_INITIAL_ROUTE harness (no product code touched), then the auth guard redirected to /onboarding (no session present, expected) -- the probe's useEffect fired and logged before that redirect completed."
+}
