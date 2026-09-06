@@ -21,7 +21,15 @@ enum GoldenFixtures {
   struct RawCase {
     let id: String
     let note: String?
-    let landmarks: [String: [Any]]
+    /// `Any` per value, not `[Any]`: a landmark's JSON value is either a
+    /// 2-element coordinate array OR the JSON literal `null` (absent),
+    /// which `JSONSerialization` represents as `NSNull`, not by omitting
+    /// the key. Typing this as `[String: [Any]]` would require EVERY value
+    /// in the dictionary to cast to `[Any]` for the cast to succeed at
+    /// all -- one `null` landmark would silently fail the WHOLE
+    /// dictionary's cast, making every OTHER landmark in that case look
+    /// absent too. `decodeLandmark` below does the real per-value decoding.
+    let landmarks: [String: Any]
     let expectedFailure: String?
     let expectedGateFindings: [String]?
   }
@@ -48,7 +56,7 @@ enum GoldenFixtures {
         RawCase(
           id: entry["id"] as? String ?? "",
           note: entry["note"] as? String,
-          landmarks: (entry["landmarks"] as? [String: [Any]]) ?? [:],
+          landmarks: (entry["landmarks"] as? [String: Any]) ?? [:],
           expectedFailure: entry["expectedFailure"] as? String,
           expectedGateFindings: entry["expectedGateFindings"] as? [String])
       }
@@ -58,12 +66,14 @@ enum GoldenFixtures {
   }
 
   /// Golden landmark encoding (a 2-element [u,v] array, or JSON `null` for
-  /// absent, with "NaN"/"Infinity"/"-Infinity" strings where JSON has no
-  /// literal) -> the Core package's own `Landmark`. Mirrors
+  /// absent -- which arrives here as `NSNull`, not `nil`, since it came
+  /// through a `[String: Any]` dictionary rather than an optional-typed
+  /// Swift value -- with "NaN"/"Infinity"/"-Infinity" strings where JSON
+  /// has no literal) -> the Core package's own `Landmark`. Mirrors
   /// `run-reference-oracle.mjs`'s `toLandmark` and Android's
   /// `GoldenBodyFrames.kt` decoding exactly.
-  static func decodeLandmark(_ raw: [Any]?) -> Landmark {
-    guard let raw = raw, raw.count == 2 else { return .absent }
+  static func decodeLandmark(_ value: Any?) -> Landmark {
+    guard let value = value, !(value is NSNull), let raw = value as? [Any], raw.count == 2 else { return .absent }
     func decode(_ v: Any) -> Float {
       if let n = v as? NSNumber { return n.floatValue }
       if let s = v as? String {
