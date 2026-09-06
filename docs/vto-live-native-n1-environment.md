@@ -157,3 +157,22 @@ Two carried decisions, unchanged and still owed before N1-E leans on EAS:
 internal APK, not an Expo Dev Client), and its Supabase target is
 **production**, same as `preview`/`production` — only `staging` and
 `staging-certification` point at staging. Neither was altered here.
+
+## N1-E APK provenance (amendment/mission section 33)
+
+| | |
+|---|---|
+| Source SHA | `a421075913d6130c45b6804782209e24cced5155` |
+| Contains | N1-A, N1-B, N1-C, N1-D, N1-E |
+| Build | `./gradlew :app:assembleDebug -PreactNativeArchitectures=arm64-v8a` |
+| Artifact | `android/app/build/outputs/apk/debug/app-debug.apk` |
+| Size | 183,831,681 bytes |
+| sha256 | `a188016895e020e05af4dba46fc79389156acfe8c10dca03ed8c5bff842a5066` |
+| versionCode / version | 23 / 1.0.1 |
+| Installed on physical device | **YES** -- Samsung SM-S936U, `adb install -r`, Success |
+| Installed on emulator | Not re-verified for N1-E (physical device was the primary and sufficient authority) |
+
+Built arm64-v8a-only to match the physical device's real ABI exactly (the
+dual-ABI x86_64+arm64-v8a build from N1-D remains valid for a build
+covering both emulator and device; this one is scoped to the device that
+actually ran N1-E).
