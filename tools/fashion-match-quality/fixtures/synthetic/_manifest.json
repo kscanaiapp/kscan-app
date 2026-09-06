@@ -1,0 +1,73 @@
+{
+  "fixtureCount": 10,
+  "countByTier": {
+    "SYNTHETIC": 10
+  },
+  "countByCaptureProfile": {
+    "ios-current-v1": 8,
+    "android-current-v1": 2
+  },
+  "entries": [
+    {
+      "fixtureId": "synthetic-accessory-06",
+      "corpusTier": "SYNTHETIC",
+      "captureProfile": "ios-current-v1",
+      "contentHash": "78df50c8d38bfe386caad50e6080b81f93613858b0650dd395f6a60d70469900"
+    },
+    {
+      "fixtureId": "synthetic-bag-04",
+      "corpusTier": "SYNTHETIC",
+      "captureProfile": "ios-current-v1",
+      "contentHash": "9f3bdd6ed8a1c637543b0e785e29e74da5d94ce03f20c8d165baacec42e9ff09"
+    },
+    {
+      "fixtureId": "synthetic-blazer-07",
+      "corpusTier": "SYNTHETIC",
+      "captureProfile": "ios-current-v1",
+      "contentHash": "e4d848a64f9a1213f5663725059652ee42107d23ee7275d5171d69d28e4da5dd"
+    },
+    {
+      "fixtureId": "synthetic-dress-00",
+      "corpusTier": "SYNTHETIC",
+      "captureProfile": "ios-current-v1",
+      "contentHash": "46212b83ecde9fc3591726c7869e6d9b132b2750c60ab7161815500f1473a30d"
+    },
+    {
+      "fixtureId": "synthetic-dress-00-android",
+      "corpusTier": "SYNTHETIC",
+      "captureProfile": "android-current-v1",
+      "contentHash": "d84f0007ef78b7a03dab876267e49a35527cc3f54219261da29ef7f544292d85"
+    },
+    {
+      "fixtureId": "synthetic-footwear-03",
+      "corpusTier": "SYNTHETIC",
+      "captureProfile": "ios-current-v1",
+      "contentHash": "b7bb49abf52abbbbcf1dbcf4e3d0c61530526504a687d6f088d1941b036abf5b"
+    },
+    {
+      "fixtureId": "synthetic-outerwear-05",
+      "corpusTier": "SYNTHETIC",
+      "captureProfile": "ios-current-v1",
+      "contentHash": "40c7f4315d7faeeae37989f6a1e4aca40741ce960bb87c8521ef172a1689bd5e"
+    },
+    {
+      "fixtureId": "synthetic-pants-02",
+      "corpusTier": "SYNTHETIC",
+      "captureProfile": "ios-current-v1",
+      "contentHash": "e2dc9498be25da7de1fc4998894b4075bd979bed0e4e503ce090cc3b1f15f91c"
+    },
+    {
+      "fixtureId": "synthetic-top-01",
+      "corpusTier": "SYNTHETIC",
+      "captureProfile": "ios-current-v1",
+      "contentHash": "94d6eb9d786edf5363a03a66ad499bf9ca4633031917d41b6f9bd249df10b212"
+    },
+    {
+      "fixtureId": "synthetic-top-01-android",
+      "corpusTier": "SYNTHETIC",
+      "captureProfile": "android-current-v1",
+      "contentHash": "8269031f6421651c97fde4924be57a6e0b6e5c119113a10caba2937f486b48b2"
+    }
+  ],
+  "manifestHash": "f52225a0fbb07a91ab84a173faef2ef04e57778e1c67c84c227755b002eb214e"
+}

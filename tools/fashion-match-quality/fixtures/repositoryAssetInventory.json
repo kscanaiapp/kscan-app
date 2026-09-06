@@ -1,0 +1,268 @@
+{
+  "scannedAt": "2026-09-06",
+  "method": "filesystem walk for *.{jpg,jpeg,png,webp} under a path/name containing fixture|golden|mock|sample|testdata; tools/ (this lab) excluded",
+  "totalFound": 65,
+  "assets": [
+    {
+      "path": "__tests__/fixtures/image-upload/large-jpeg.jpg",
+      "sizeBytes": 200450
+    },
+    {
+      "path": "__tests__/fixtures/image-upload/multi-image-01.jpg",
+      "sizeBytes": 450
+    },
+    {
+      "path": "__tests__/fixtures/image-upload/multi-image-02.jpg",
+      "sizeBytes": 450
+    },
+    {
+      "path": "__tests__/fixtures/image-upload/multi-image-03.jpg",
+      "sizeBytes": 450
+    },
+    {
+      "path": "__tests__/fixtures/image-upload/multi-item-outfit.jpg",
+      "sizeBytes": 450
+    },
+    {
+      "path": "__tests__/fixtures/image-upload/screenshot.png",
+      "sizeBytes": 70
+    },
+    {
+      "path": "__tests__/fixtures/image-upload/small-jpeg.jpg",
+      "sizeBytes": 450
+    },
+    {
+      "path": "assets/qa_fixtures/accessory.jpg",
+      "sizeBytes": 146638
+    },
+    {
+      "path": "assets/qa_fixtures/bottom_jeans.jpg",
+      "sizeBytes": 95686
+    },
+    {
+      "path": "assets/qa_fixtures/bottom_skirt.jpg",
+      "sizeBytes": 206614
+    },
+    {
+      "path": "assets/qa_fixtures/dress.jpg",
+      "sizeBytes": 40008
+    },
+    {
+      "path": "assets/qa_fixtures/footwear.jpg",
+      "sizeBytes": 180294
+    },
+    {
+      "path": "assets/qa_fixtures/non_fashion.jpg",
+      "sizeBytes": 24483
+    },
+    {
+      "path": "assets/qa_fixtures/outerwear.jpg",
+      "sizeBytes": 318631
+    },
+    {
+      "path": "assets/qa_fixtures/top.jpg",
+      "sizeBytes": 51879
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/081350cef7f5c83e05c3e6c1/alpha.png",
+      "sizeBytes": 1704
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/081350cef7f5c83e05c3e6c1/texture.png",
+      "sizeBytes": 2154
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/0d8457806743020e03b1d211/alpha.png",
+      "sizeBytes": 1704
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/0d8457806743020e03b1d211/texture.png",
+      "sizeBytes": 2154
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/0f426842032e82744f83945b/alpha.png",
+      "sizeBytes": 1704
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/0f426842032e82744f83945b/texture.png",
+      "sizeBytes": 2136
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/10265ae3aec26892726c3e66/alpha.png",
+      "sizeBytes": 2149
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/10265ae3aec26892726c3e66/texture.png",
+      "sizeBytes": 229922
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/24b5a636d6a7b35915e11d3b/alpha.png",
+      "sizeBytes": 2032
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/24b5a636d6a7b35915e11d3b/texture.png",
+      "sizeBytes": 227026
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/4c1ba2acbfd62ac73f370a0e/alpha.png",
+      "sizeBytes": 2078
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/4c1ba2acbfd62ac73f370a0e/texture.png",
+      "sizeBytes": 229949
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/5469a77cf9469c145a3e3f8e/alpha.png",
+      "sizeBytes": 1413
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/5469a77cf9469c145a3e3f8e/texture.png",
+      "sizeBytes": 1737
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/594beb1a735b8b2482917b2d/alpha.png",
+      "sizeBytes": 1704
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/594beb1a735b8b2482917b2d/texture.png",
+      "sizeBytes": 2185
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/7b784832c70815b2ebd7e377/alpha.png",
+      "sizeBytes": 2028
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/7b784832c70815b2ebd7e377/texture.png",
+      "sizeBytes": 226613
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/85f7aae08e054c70447aa0c3/alpha.png",
+      "sizeBytes": 1704
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/85f7aae08e054c70447aa0c3/texture.png",
+      "sizeBytes": 2089
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/8a971bf09e3886df037230f0/alpha.png",
+      "sizeBytes": 2072
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/8a971bf09e3886df037230f0/texture.png",
+      "sizeBytes": 228305
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/9389a7aa967fa4507db689ea/alpha.png",
+      "sizeBytes": 1704
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/9389a7aa967fa4507db689ea/texture.png",
+      "sizeBytes": 2136
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/aa5ce3150cb7593c5fb95d5e/alpha.png",
+      "sizeBytes": 1704
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/aa5ce3150cb7593c5fb95d5e/texture.png",
+      "sizeBytes": 2136
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/e69e8c939e63e66c04022102/alpha.png",
+      "sizeBytes": 1704
+    },
+    {
+      "path": "fixtures/vto-phase4/generated/e69e8c939e63e66c04022102/texture.png",
+      "sizeBytes": 2349
+    },
+    {
+      "path": "scripts/vto-e2e/fixtures/garment.png",
+      "sizeBytes": 199027
+    },
+    {
+      "path": "vto-phase4-pipeline/fixtures-input/synthetic/easy-logo.png",
+      "sizeBytes": 2251
+    },
+    {
+      "path": "vto-phase4-pipeline/fixtures-input/synthetic/easy-patterned-stripes.png",
+      "sizeBytes": 2426
+    },
+    {
+      "path": "vto-phase4-pipeline/fixtures-input/synthetic/easy-plain-dark.png",
+      "sizeBytes": 2219
+    },
+    {
+      "path": "vto-phase4-pipeline/fixtures-input/synthetic/easy-plain-light.png",
+      "sizeBytes": 2219
+    },
+    {
+      "path": "vto-phase4-pipeline/fixtures-input/synthetic/easy-softknit.png",
+      "sizeBytes": 1863
+    },
+    {
+      "path": "vto-phase4-pipeline/fixtures-input/synthetic/easy-structured.png",
+      "sizeBytes": 2219
+    },
+    {
+      "path": "vto-phase4-pipeline/fixtures-input/synthetic/hard-synthetic-worn.png",
+      "sizeBytes": 2293
+    },
+    {
+      "path": "vto-phase4-pipeline/fixtures-input/synthetic/medium-dark.png",
+      "sizeBytes": 292197
+    },
+    {
+      "path": "vto-phase4-pipeline/fixtures-input/synthetic/medium-light.png",
+      "sizeBytes": 288208
+    },
+    {
+      "path": "vto-phase4-pipeline/fixtures-input/synthetic/medium-logo.png",
+      "sizeBytes": 290942
+    },
+    {
+      "path": "vto-phase4-pipeline/fixtures-input/synthetic/medium-patterned.png",
+      "sizeBytes": 292989
+    },
+    {
+      "path": "vto-phase4-pipeline/fixtures-input/synthetic/medium-plain.png",
+      "sizeBytes": 286770
+    },
+    {
+      "path": "vto-phase4-pipeline/fixtures-input/synthetic/multi-image-a-easy.png",
+      "sizeBytes": 2219
+    },
+    {
+      "path": "vto-phase4-pipeline/fixtures-input/synthetic/multi-image-b-medium.png",
+      "sizeBytes": 273277
+    },
+    {
+      "path": "vto-phase4-pipeline/fixtures-input/synthetic/too-small.png",
+      "sizeBytes": 77
+    },
+    {
+      "path": "vto-phase4-pipeline/fixtures-input/synthetic/unsupported-category-source.png",
+      "sizeBytes": 2219
+    },
+    {
+      "path": "vto-phase4-pipeline/fixtures-input/synthetic/unsupported-multi-object.png",
+      "sizeBytes": 2279
+    },
+    {
+      "path": "vto-phase4-pipeline/fixtures-input/synthetic/variant-ambiguous-black.png",
+      "sizeBytes": 2219
+    },
+    {
+      "path": "vto-phase4-pipeline/fixtures-input/synthetic/variant-ambiguous-white.png",
+      "sizeBytes": 2153
+    },
+    {
+      "path": "vto-phase4-pipeline/fixtures-input/synthetic/variant-authoritative-black.png",
+      "sizeBytes": 2219
+    },
+    {
+      "path": "vto-phase4-pipeline/fixtures-input/synthetic/variant-authoritative-white.png",
+      "sizeBytes": 2153
+    }
+  ],
+  "verdict": "INVENTORY ONLY - not incorporated as APPROVED_REAL corpus ground truth. assets/qa_fixtures/*.jpg are category-labeled by filename only (accessory, bottom_jeans, bottom_skirt, dress, footwear, non_fashion, outerwear, top) with no SKU/brand/retailer-PDP provenance, and are consumed by scripts/qa-fixtures.js which performs a LIVE call - this lab does not execute that script (spend envelope is $0). fixtures/vto-phase4/generated/**, scripts/vto-e2e/fixtures/**, and vto-phase4-pipeline/fixtures-input/** are synthetic VTO garment-texture assets for virtual try-on rendering, not product-identification ground truth, and are unrelated to Scanner match quality. None of these assets satisfy spec section 15 ground-truth integrity for a headline accuracy metric as-is; they would need owner annotation (brand/SKU/category/silhouette/material ground truth) before promotion to corpus/real/."
+}

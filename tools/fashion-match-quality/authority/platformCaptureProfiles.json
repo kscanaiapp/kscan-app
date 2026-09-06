@@ -1,0 +1,41 @@
+{
+  "mappedAt": "2026-09-06",
+  "sourceSha": "909df8646a690b55c5af6b7b8c80193df64a2ec8",
+  "method": "grep for Platform.OS across services/ and hooks/useKScan.js in the traced capture->upload path, plus direct read of hooks/useKScan.js and services/privacyImageUpload.ts",
+  "finding": "IDENTICAL_JS_LEVEL_PIPELINE",
+  "summary": "No Platform.OS branch was found anywhere in the traced capture -> preprocess -> upload path (hooks/useKScan.js capturePhoto/selectGalleryPhoto, services/privacyImageUpload.ts, services/scanIdentification.ts). Both platforms run through the same Expo cross-platform APIs (expo-camera CameraView, expo-image-picker, expo-image-manipulator) with the same numeric parameters. iOS and Android therefore receive byte-for-byte-equivalent JS-level preprocessing instructions. This is proven from source, not assumed.",
+  "ios": {
+    "profileId": "ios-current-v1",
+    "captureApi": "expo-camera CameraView.takePictureAsync({ quality: 0.7 }) [camera] or expo-image-picker launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1, allowsEditing: false, allowsMultipleSelection: false }) [gallery]",
+    "imageFormat": "JPEG (expo-camera default output; re-encoded to JPEG explicitly at the privacy-preprocessing stage)",
+    "resizeDimensionsPrivacyPass": "maxDimension 1024px (longest edge), quality 0.82",
+    "resizeDimensionsAnalysisPass": "width 896px, quality 0.75, base64 true",
+    "orientationHandling": "NOT_FOUND (no explicit orientation-correction call observed in the traced path; expo-image-manipulator applies EXIF orientation during resize per its own documented behavior, but this repository does not add extra orientation logic)",
+    "exifHandling": "not explicitly requested or stripped by name; EXIF metadata is dropped as a side effect of re-encoding through ImageManipulator.manipulateAsync (a fresh JPEG derivative carries no source EXIF block)",
+    "metadataStripping": "confirmed via services/privacyImageUpload.ts honestPolicy() -> metadataStripped:true after the manipulateAsync re-encode",
+    "cropping": "none in the traced path (allowsEditing:false on gallery picker; no crop transform passed to manipulateAsync)",
+    "rotation": "NOT_FOUND (no explicit rotate transform passed to manipulateAsync in the traced calls)",
+    "colorHandling": "NOT_FOUND (no explicit color-space transform found)",
+    "platformOSBranches": "NONE FOUND in hooks/useKScan.js, services/privacyImageUpload.ts, services/scanIdentification.ts",
+    "nativeModuleDifferences": "NOT_PROVEN from JS source alone. expo-camera and expo-image-manipulator wrap AVFoundation (iOS) vs Camera2/CameraX (Android) natively; any pixel-level difference in JPEG encoder behavior between the two native stacks is outside what static JS-source tracing can prove. Documented as a boundary of this discovery pass, not as 'no difference exists'.",
+    "uploadEncoding": "data:image/jpeg;base64,<...> string sent as imageBase64 in the scan-identify POST body"
+  },
+  "android": {
+    "profileId": "android-current-v1",
+    "captureApi": "identical call sites to iOS - expo-camera CameraView.takePictureAsync({ quality: 0.7 }) [camera] or expo-image-picker launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1, allowsEditing: false, allowsMultipleSelection: false }) [gallery]",
+    "imageFormat": "JPEG (identical to iOS)",
+    "resizeDimensionsPrivacyPass": "maxDimension 1024px (longest edge), quality 0.82 (identical to iOS)",
+    "resizeDimensionsAnalysisPass": "width 896px, quality 0.75, base64 true (identical to iOS)",
+    "orientationHandling": "NOT_FOUND (same code path as iOS - no Android-specific branch)",
+    "exifHandling": "same re-encode-strips-EXIF behavior as iOS; no Android-specific EXIF logic found",
+    "metadataStripping": "same honestPolicy() result as iOS",
+    "cropping": "none in the traced path (same code path as iOS)",
+    "rotation": "NOT_FOUND (same code path as iOS)",
+    "colorHandling": "NOT_FOUND (same code path as iOS)",
+    "platformOSBranches": "NONE FOUND (same files as iOS)",
+    "nativeModuleDifferences": "NOT_PROVEN from JS source alone, same caveat as iOS - Camera2/CameraX vs AVFoundation encoder behavior is not visible to static JS tracing.",
+    "uploadEncoding": "identical to iOS"
+  },
+  "platformDifferences": "NONE PROVEN AT THE JS/PARAMETER LEVEL. The capture quality, resize dimensions, compression quality, format, and upload encoding are identical constants shared by both platforms through Expo's cross-platform camera/image APIs. Any real-world quality difference between an iOS and an Android capture of the same garment would originate below the JS layer (native camera sensor/ISP behavior, native JPEG encoder, on-device HDR/portrait processing before the frame ever reaches takePictureAsync) - none of which is visible to source-code tracing and none of which this build fabricates evidence for.",
+  "captureCeilingNote": "Per spec section 11/12: this build implements capture-profile IDENTIFIERS and a deterministic, descriptor-level degradation transform (captureProfiles/profiles.js) that encodes the REAL resize/quality constants above so fixtures can be tagged and stratified by profile. It does NOT build a native-image emulator and does NOT fabricate paired iOS/Android photographs; real pixel-level parity evidence requires an owner-supplied paired corpus (see FINAL REPORT 'RECOMMENDED REAL CORPUS')."
+}
