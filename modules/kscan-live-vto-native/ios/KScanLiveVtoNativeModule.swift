@@ -9,14 +9,15 @@ import ExpoModulesCore
 ///
 /// SCOPE. This reproduces N1's ACTUAL shipped diagnostic surface -- the one
 /// `RuntimeBoundaryTest.theBridgeSurfaceIsPinned` mechanically pins on
-/// Android -- not the aspirational full `LiveVtoNativeModule` TS interface
+/// Android -- not the full aspirational `LiveVtoNativeModule` TS interface
 /// (`start`/`pause`/`resume`/`stop`/`loadGarment`/`switchGarment`/
-/// `capturePersonFrame`/`capturePreview`/`requestPhotorealCapture`/
-/// `dispose`). Neither platform has implemented that command surface yet --
-/// it is bound up with front-camera work, which is explicitly out of scope
-/// for this catch-up lane (see `docs/vto-live-bridge-contract.md`,
-/// "SHARED CONTRACT QUESTION" section). Building it here would be
-/// leapfrogging Android, not catching up to it.
+/// `requestPhotorealCapture`/`dispose` remain unimplemented on both
+/// platforms). N1-G (2026-09-06) implements the two capture commands
+/// (`capturePersonFrame`/`capturePreview`) as MODULE-level functions,
+/// matching how `services/vto/vtoLiveSession.ts` already calls them on the
+/// real `LiveVtoNativeModule` interface (no view ref involved) -- see
+/// `LiveVtoRenderView.capturePersonFrame()`/`.capturePreview()` for the
+/// clean-frame-vs-composited-frame distinction.
 ///
 /// `getCapability()` is synchronous (`Function`, not `AsyncFunction`) for the
 /// same reason as Android: the merged application adapter
@@ -40,6 +41,25 @@ public class KScanLiveVtoNativeModule: Module {
         "runtimeReady": false,
         "runtimeVersion": Self.runtimeVersion,
       ]
+    }
+
+    // N1-G: capturePersonFrame()/capturePreview() -- the two ALREADY-GOVERNED
+    // application-contract commands (types/vtoLive.ts's LIVE_VTO_COMMANDS;
+    // services/vto/liveVtoNativeModule.ts's LiveVtoNativeModule interface;
+    // services/vto/vtoLiveSession.ts's already-tested capture() calls
+    // exactly these two names on the MODULE, not a view ref). Declared at
+    // module level, unlike the diagnostic Props/AsyncFunctions in the View
+    // block below, because that is how the real application contract calls
+    // them. Returns a LiveVtoCapturedFrame-shaped dictionary: a captureId
+    // and a local file:// URI, never pixel bytes across the bridge -- see
+    // LiveVtoRenderView.swift's own capture methods for the clean-frame vs.
+    // composited-frame source distinction.
+    AsyncFunction("capturePersonFrame") { () throws -> [String: Any] in
+      try LiveVtoRenderView.capturePersonFrame()
+    }
+
+    AsyncFunction("capturePreview") { () throws -> [String: Any] in
+      try LiveVtoRenderView.capturePreview()
     }
 
     // Diagnostic-only native view, not part of the P3-C application contract

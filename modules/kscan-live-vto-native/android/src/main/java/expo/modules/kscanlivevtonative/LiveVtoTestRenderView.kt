@@ -170,6 +170,7 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
   private var perceptionSession: LiveVtoPerceptionSession? = null
   private var perceptionDriver: LiveVtoPerceptionDriver? = null
   private var perceptionBitmap: Bitmap? = null
+  private var perceptionSourceBitmap: Bitmap? = null
 
   /**
    * Starts/stops the real perception pipeline: bundled synthetic replay
@@ -191,6 +192,11 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
       val testFrame = context.assets.open("perception/synthetic-test-frame.png").use {
         android.graphics.BitmapFactory.decodeStream(it)
       }
+      // N1-G: the "clean person frame" source for capturePersonFrame() in
+      // this mode -- there is no real camera in `perception` mode, so this
+      // is the SAME bundled synthetic image perception itself runs
+      // inference against, never the garment texture (`perceptionBitmap`).
+      perceptionSourceBitmap = testFrame
       val provider = LiveVtoMediaPipePoseProvider(context)
       val gatePassCount = java.util.concurrent.atomic.AtomicLong(0)
       val gateFailCount = java.util.concurrent.atomic.AtomicLong(0)
@@ -236,6 +242,7 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
     perceptionSession?.dispose()
     perceptionSession = null
     perceptionBitmap = null
+    perceptionSourceBitmap = null
   }
 
   @Volatile private var perceptionEvent: ReplayEvent? = null
@@ -436,6 +443,8 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
     stopReplay()
     stopPerception()
     stopCamera()
+    if (activeInstance?.get() === this) activeInstance = null
+    clearCaptureFiles()
     super.onDetachedFromWindow()
   }
 
@@ -681,4 +690,124 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
     super.dispatchDraw(canvas)
     if (camera) drawCameraOverlay(canvas)
   }
+
+  // ── N1-G capture (capturePersonFrame / capturePreview) ──────────────────
+  //
+  // Module-level bridge (KScanLiveVtoNativeModule.kt) calls
+  // `LiveVtoTestRenderView.currentInstance()` to reach whichever view is
+  // mounted -- unlike the diagnostic Props/AsyncFunctions above, which are
+  // View-scoped (called through a JS view ref), `capturePersonFrame`/
+  // `capturePreview` are declared on the MODULE in `types/vtoLive.ts`'s
+  // already-governed `LiveVtoNativeModule` interface
+  // (services/vto/liveVtoNativeModule.ts) and called as
+  // `nativeModule.capturePersonFrame()` with no view ref at all -- exactly
+  // matching `services/vto/vtoLiveSession.ts`'s existing, already-tested
+  // `capture()` implementation, which this method must satisfy.
+  override fun onAttachedToWindow() {
+    super.onAttachedToWindow()
+    activeInstance = java.lang.ref.WeakReference(this)
+  }
+
+  /**
+   * The clean-frame source for `capturePersonFrame()` -- NEVER the garment
+   * bitmap (`cameraBitmap`/`perceptionBitmap`), NEVER the composited mesh
+   * (see `captureCompositedFrame()` for that). Priority mirrors whichever
+   * pipeline is actually running:
+   *   - `camera`: the latest published camera frame,
+   *     `cameraController.frameSlot.peek()` -- non-destructive (`peek`,
+   *     not `consume`) so this never steals a frame the perception tick
+   *     was about to drain. Real physical-camera evidence remains
+   *     `PENDING-RUNTIME` (see docs/vto-live-native-n1-camera.md's
+   *     `HOLD -- ANDROID CAMERA RUNTIME`): this method is wired to the
+   *     SAME `cameraController` the live pipeline uses, but on the
+   *     certified test device that pipeline currently produces zero
+   *     frames, so `peek()` returns null and this method honestly returns
+   *     null rather than fabricating a result.
+   *   - `perception`: the bundled synthetic test frame perception itself
+   *     runs inference against -- there is no camera concept in this mode.
+   *   - `replay`/`active`/no mode: no person-frame concept exists in those
+   *     modes at all (purely canned-pose rendering); returns null.
+   */
+  fun captureCleanFrame(): CapturedFrameResult? {
+    val source: Bitmap = when {
+      camera -> (cameraController?.frameSlot?.peek() as? BitmapPerceptionInputFrame)?.bitmap
+      perception -> perceptionSourceBitmap
+      else -> null
+    } ?: return null
+    return saveCapturedBitmap(source, "PERSON_FRAME")
+  }
+
+  /**
+   * The composited-preview source for `capturePreview()`: rasterizes
+   * whatever is CURRENTLY on screen via `View.draw(Canvas)` -- the same
+   * standard Android "screenshot this view" technique, working uniformly
+   * across every mode (camera overlay, replay, perception, static)
+   * without needing mode-specific compositing logic of its own. This is
+   * why `capturePreview` can never accidentally return a clean frame:
+   * it does not read any of the same source fields `captureCleanFrame`
+   * does at all.
+   */
+  fun captureCompositedFrame(): CapturedFrameResult? {
+    if (width <= 0 || height <= 0) return null
+    val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    draw(Canvas(bmp))
+    return saveCapturedBitmap(bmp, "PREVIEW")
+  }
+
+  /**
+   * Data retention (mission section 19): captures are written to this
+   * app's own cache directory (`cacheDir/live-vto-captures/<uuid>.png`),
+   * never external/shared storage, never included in logs. Lifetime is
+   * bounded to the life of this view instance: `onDetachedFromWindow`
+   * deletes the entire directory, so a capture the caller has not yet
+   * consumed (uploaded, displayed, or otherwise persisted elsewhere)
+   * before the Live session ends is deleted along with the session, not
+   * kept indefinitely as a stray temp file.
+   */
+  private fun saveCapturedBitmap(source: Bitmap, kind: String): CapturedFrameResult {
+    val captureId = java.util.UUID.randomUUID().toString()
+    val dir = java.io.File(context.cacheDir, CAPTURE_CACHE_SUBDIR).apply { mkdirs() }
+    val file = java.io.File(dir, "$captureId.png")
+    java.io.FileOutputStream(file).use { out -> source.compress(Bitmap.CompressFormat.PNG, 100, out) }
+    return CapturedFrameResult(
+      captureId = captureId,
+      kind = kind,
+      localUri = android.net.Uri.fromFile(file).toString(),
+      width = source.width,
+      height = source.height,
+    )
+  }
+
+  private fun clearCaptureFiles() {
+    try {
+      java.io.File(context.cacheDir, CAPTURE_CACHE_SUBDIR).deleteRecursively()
+    } catch (t: Throwable) {
+      Log.e(TAG, "N1-G capture cleanup failed (ignored)", t)
+    }
+  }
+
+  companion object {
+    private const val CAPTURE_CACHE_SUBDIR = "live-vto-captures"
+
+    /**
+     * N1-G: exactly one `LiveVtoTestRenderView` is mounted at a time by
+     * construction (mission section 14 extended to capture) -- a
+     * `WeakReference` so a leaked/forgotten reference here can never keep
+     * a destroyed view alive, and so a stale reference from a previous
+     * session correctly resolves to null rather than resurrecting it.
+     */
+    @Volatile private var activeInstance: java.lang.ref.WeakReference<LiveVtoTestRenderView>? = null
+
+    fun currentInstance(): LiveVtoTestRenderView? = activeInstance?.get()
+  }
 }
+
+/** A handle to a frame this module captured, matching `LiveVtoCapturedFrame` in types/vtoLive.ts exactly. */
+data class CapturedFrameResult(
+  val captureId: String,
+  /** "PERSON_FRAME" or "PREVIEW" -- see `LIVE_VTO_CAPTURED_FRAME_KINDS` in types/vtoLive.ts. */
+  val kind: String,
+  val localUri: String,
+  val width: Int,
+  val height: Int,
+)

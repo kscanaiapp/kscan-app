@@ -108,15 +108,25 @@ class RuntimeBoundaryTest {
     assertEquals(
       "the native bridge surface changed -- review the privacy boundary before updating this list",
       sortedSetOf(
-        "active", "camera", "getCameraStatsJson", "getCapability", "getGeometrySnapshotJson",
-        "getPerceptionStatsJson", "getReplayStatsJson", "perception", "replay",
+        "active", "camera", "capturePersonFrame", "capturePreview", "getCameraStatsJson", "getCapability",
+        "getGeometrySnapshotJson", "getPerceptionStatsJson", "getReplayStatsJson", "perception", "replay",
       ),
       declared,
     )
 
-    // No member may be named in a way that suggests it carries frame data.
+    // No member may be named in a way that suggests it carries frame data --
+    // EXCEPT the two already-governed P3-C contract names (N1-G,
+    // 2026-09-06): `capturePersonFrame`/`capturePreview` come from
+    // types/vtoLive.ts's LIVE_VTO_COMMANDS, already promoted and tested
+    // long before this lane, and `LiveVtoCapturedFrame`'s own doc comment
+    // is explicit that it is "a local URI, not bytes: nothing pixel-shaped
+    // crosses the command/event boundary." This is a deliberate, reviewed,
+    // two-name exception -- every OTHER member name (present or future)
+    // still gets the full check below.
+    val governedFrameNamedExceptions = setOf("capturepersonframe")
     for (name in declared) {
       val lowered = name.lowercase()
+      if (lowered in governedFrameNamedExceptions) continue
       for (banned in listOf("frame", "bitmap", "image", "pixel", "mask", "landmark", "mesh", "texture", "buffer")) {
         assertTrue(
           "bridge member '" + name + "' suggests it carries frame data",

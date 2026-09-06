@@ -86,14 +86,23 @@ final class LiveVtoRuntimeBoundaryTests: XCTestCase {
     }
 
     let expected: Set<String> = [
-      "active", "camera", "getCameraStatsJson", "getCapability", "getGeometrySnapshotJson",
-      "getPerceptionStatsJson", "getReplayStatsJson", "perception", "replay",
+      "active", "camera", "capturePersonFrame", "capturePreview", "getCameraStatsJson", "getCapability",
+      "getGeometrySnapshotJson", "getPerceptionStatsJson", "getReplayStatsJson", "perception", "replay",
     ]
     XCTAssertEqual(declared, expected, "the native bridge surface changed -- review the privacy boundary before updating this list")
 
+    // EXCEPT the two already-governed P3-C contract names (N1-G,
+    // 2026-09-06): `capturePersonFrame`/`capturePreview` come from
+    // types/vtoLive.ts's LIVE_VTO_COMMANDS, already promoted and tested
+    // long before this lane, and `LiveVtoCapturedFrame`'s own doc comment
+    // is explicit that it is "a local URI, not bytes: nothing pixel-shaped
+    // crosses the command/event boundary." Deliberate, reviewed, two-name
+    // exception -- matches Android's RuntimeBoundaryTest.kt exactly.
+    let governedFrameNamedExceptions: Set<String> = ["capturepersonframe"]
     let banned = ["frame", "bitmap", "image", "pixel", "mask", "landmark", "mesh", "texture", "buffer"]
     for name in declared {
       let lowered = name.lowercased()
+      if governedFrameNamedExceptions.contains(lowered) { continue }
       for word in banned {
         XCTAssertFalse(lowered.contains(word), "bridge member '\(name)' suggests it carries frame data")
       }

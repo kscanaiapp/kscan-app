@@ -155,6 +155,11 @@ public final class LiveVtoRenderView: ExpoView {
   private var perceptionSession: LiveVtoPerceptionSession?
   private var perceptionDriver: LiveVtoPerceptionDriver?
   private var perceptionImage: CGImage?
+  /// N1-G: the "clean person frame" source for capturePersonFrame() in this
+  /// mode -- there is no real camera in `perception` mode, so this is the
+  /// SAME bundled synthetic image perception itself runs inference against,
+  /// never the garment image (`perceptionImage`).
+  private var perceptionSourceImage: UIImage?
 
   /// Starts/stops the real perception pipeline: bundled synthetic replay
   /// frame -> real MediaPipe inference -> BodyFrame adapter -> existing
@@ -178,6 +183,7 @@ public final class LiveVtoRenderView: ExpoView {
         loadError = "perception synthetic test frame not found"
         return
       }
+      perceptionSourceImage = testFrame
       let provider = LiveVtoMediaPipePoseProvider()
       let frameSource = LiveVtoStaticImageFrameSource(image: testFrame)
       let session = LiveVtoPerceptionSession(
@@ -209,6 +215,7 @@ public final class LiveVtoRenderView: ExpoView {
     perceptionSession?.dispose()
     perceptionSession = nil
     perceptionImage = nil
+    perceptionSourceImage = nil
   }
 
   /// Bounded perception telemetry for gate evidence. Aggregate counters only.
@@ -380,12 +387,22 @@ public final class LiveVtoRenderView: ExpoView {
 
   public override func didMoveToWindow() {
     super.didMoveToWindow()
+    if window != nil {
+      // N1-G: module-level capturePersonFrame()/capturePreview() (unlike
+      // the diagnostic Props/AsyncFunctions above, which are View-scoped)
+      // need to reach whichever LiveVtoRenderView is CURRENTLY mounted --
+      // exactly one exists at a time by construction (mission section 14
+      // extended to capture).
+      Self.currentInstance = self
+    }
     // Lifecycle safety: a view torn down mid-replay must not leave a
     // background thread producing geometry into an orphaned session.
     if window == nil {
       stopReplay()
       stopPerception()
       stopCamera()
+      if Self.currentInstance === self { Self.currentInstance = nil }
+      clearCaptureFiles()
     }
   }
 
@@ -397,7 +414,116 @@ public final class LiveVtoRenderView: ExpoView {
     cameraPerceptionDriver?.stop()
     cameraPerceptionSession?.dispose()
     cameraController?.stop()
+    if LiveVtoRenderView.currentInstance === self { LiveVtoRenderView.currentInstance = nil }
   }
+
+  // MARK: - N1-G capture (capturePersonFrame / capturePreview)
+
+  /// Exactly one `LiveVtoRenderView` is mounted at a time by construction.
+  /// `weak` so a leaked/forgotten reference here can never keep a
+  /// destroyed view alive, and so a stale reference from a previous
+  /// session correctly resolves to nil rather than resurrecting it.
+  private static weak var currentInstance: LiveVtoRenderView?
+
+  static func capturePersonFrame() throws -> [String: Any] {
+    guard let view = currentInstance else {
+      throw LiveVtoCaptureError.noActiveSession
+    }
+    guard let result = view.captureCleanFrame() else {
+      throw LiveVtoCaptureError.captureUnavailable
+    }
+    return result.asDictionary
+  }
+
+  static func capturePreview() throws -> [String: Any] {
+    guard let view = currentInstance else {
+      throw LiveVtoCaptureError.noActiveSession
+    }
+    guard let result = view.captureCompositedFrame() else {
+      throw LiveVtoCaptureError.captureUnavailable
+    }
+    return result.asDictionary
+  }
+
+  /// The clean-frame source for `capturePersonFrame()` -- NEVER the
+  /// garment image (`cameraImage`/`perceptionImage`), NEVER the composited
+  /// mesh (see `captureCompositedFrame()`). Priority mirrors whichever
+  /// pipeline is actually running:
+  ///   - `camera`: the latest published camera frame,
+  ///     `cameraController.frameSlot.peek()` -- non-destructive (`peek`,
+  ///     not `consume`) so this never steals a frame the perception tick
+  ///     was about to drain. Real physical-camera evidence remains
+  ///     PENDING-RUNTIME on iOS (no iPhone this session, same as Android's
+  ///     documented HOLD) -- this method is wired to the SAME
+  ///     `cameraController` the live pipeline uses; if it has never
+  ///     published a frame, `peek()` returns nil and this method honestly
+  ///     returns nil rather than fabricating a result.
+  ///   - `perception`: the bundled synthetic test image perception itself
+  ///     runs inference against -- there is no camera concept in this mode.
+  ///   - `replay`/`active`/no mode: no person-frame concept exists in
+  ///     those modes at all (purely canned-pose rendering); returns nil.
+  private func captureCleanFrame() -> LiveVtoCapturedFrameResult? {
+    let source: UIImage?
+    if camera {
+      guard let frame = cameraController?.frameSlot.peek() as? LiveVtoStaticImageFrame else { return nil }
+      source = frame.image
+    } else if perception {
+      source = perceptionSourceImage
+    } else {
+      source = nil
+    }
+    guard let image = source else { return nil }
+    return saveCapturedImage(image, kind: "PERSON_FRAME")
+  }
+
+  /// The composited-preview source for `capturePreview()`: rasterizes
+  /// whatever is CURRENTLY on screen the same way any UIView is
+  /// snapshotted, working uniformly across every mode without needing
+  /// mode-specific compositing logic of its own. This is why
+  /// `capturePreview` can never accidentally return a clean frame: it does
+  /// not read any of the same source fields `captureCleanFrame` does.
+  private func captureCompositedFrame() -> LiveVtoCapturedFrameResult? {
+    guard bounds.width > 0, bounds.height > 0 else { return nil }
+    let renderer = UIGraphicsImageRenderer(bounds: bounds)
+    let image = renderer.image { context in
+      layer.render(in: context.cgContext)
+    }
+    return saveCapturedImage(image, kind: "PREVIEW")
+  }
+
+  /// Data retention (mission section 19): captures are written to this
+  /// app's own caches directory (`Caches/live-vto-captures/<uuid>.png`),
+  /// never a shared/photo-library location, never included in logs.
+  /// Lifetime is bounded to the life of this view instance:
+  /// `didMoveToWindow`'s detach path deletes the entire directory, so a
+  /// capture the caller has not yet consumed (uploaded, displayed, or
+  /// otherwise persisted elsewhere) before the Live session ends is
+  /// deleted along with the session, not kept indefinitely as a stray
+  /// temp file.
+  private func saveCapturedImage(_ image: UIImage, kind: String) -> LiveVtoCapturedFrameResult? {
+    guard let data = image.pngData() else { return nil }
+    let captureId = UUID().uuidString
+    let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+      .appendingPathComponent(Self.captureCacheSubdir, isDirectory: true)
+    do {
+      try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+      let file = dir.appendingPathComponent("\(captureId).png")
+      try data.write(to: file, options: .atomic)
+      return LiveVtoCapturedFrameResult(
+        captureId: captureId, kind: kind, localUri: file.absoluteString,
+        width: Int(image.size.width * image.scale), height: Int(image.size.height * image.scale))
+    } catch {
+      return nil
+    }
+  }
+
+  private func clearCaptureFiles() {
+    let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+      .appendingPathComponent(Self.captureCacheSubdir, isDirectory: true)
+    try? FileManager.default.removeItem(at: dir)
+  }
+
+  private static let captureCacheSubdir = "live-vto-captures"
 
   // MARK: - N1-B static compute
 
@@ -675,4 +801,24 @@ public final class LiveVtoRenderView: ExpoView {
       drawText(context, "no mesh: \(lastSnapshot?.failure ?? lastSnapshot?.gateFindings.description ?? "unknown")", at: CGPoint(x: 20, y: 40), color: .red)
     }
   }
+}
+
+/// A handle to a frame this module captured, matching `LiveVtoCapturedFrame`
+/// in types/vtoLive.ts exactly.
+struct LiveVtoCapturedFrameResult {
+  let captureId: String
+  /// "PERSON_FRAME" or "PREVIEW" -- see `LIVE_VTO_CAPTURED_FRAME_KINDS` in types/vtoLive.ts.
+  let kind: String
+  let localUri: String
+  let width: Int
+  let height: Int
+
+  var asDictionary: [String: Any] {
+    ["captureId": captureId, "kind": kind, "localUri": localUri, "width": width, "height": height]
+  }
+}
+
+enum LiveVtoCaptureError: Error {
+  case noActiveSession
+  case captureUnavailable
 }

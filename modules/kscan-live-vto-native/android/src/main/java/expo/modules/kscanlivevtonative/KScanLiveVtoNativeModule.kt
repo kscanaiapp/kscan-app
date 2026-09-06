@@ -1,5 +1,6 @@
 package expo.modules.kscanlivevtonative
 
+import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
@@ -37,6 +38,48 @@ class KScanLiveVtoNativeModule : Module() {
         "capable" to false,
         "runtimeReady" to false,
         "runtimeVersion" to RUNTIME_VERSION
+      )
+    }
+
+    // N1-G: capturePersonFrame()/capturePreview() -- the two ALREADY-GOVERNED
+    // application-contract commands (types/vtoLive.ts's LIVE_VTO_COMMANDS;
+    // services/vto/liveVtoNativeModule.ts's LiveVtoNativeModule interface;
+    // services/vto/vtoLiveSession.ts's already-tested capture() calls
+    // exactly these two names on the MODULE, not a view ref). Declared at
+    // module level, unlike the diagnostic Props/AsyncFunctions in the View
+    // block below, because that is how the real application contract calls
+    // them. Each reaches whichever LiveVtoTestRenderView instance is
+    // currently mounted via LiveVtoTestRenderView.currentInstance() --
+    // exactly one Live VTO view exists at a time by construction (mission
+    // section 14). Returns a LiveVtoCapturedFrame-shaped map: a captureId
+    // and a local file:// URI, never pixel bytes across the bridge (mission
+    // section 6/17) -- see LiveVtoTestRenderView.kt's own capture methods
+    // for the clean-frame vs. composited-frame source distinction.
+    AsyncFunction("capturePersonFrame") {
+      val view = LiveVtoTestRenderView.currentInstance()
+        ?: throw CodedException("NO_ACTIVE_SESSION", "capturePersonFrame called with no active Live VTO view", null)
+      val result = view.captureCleanFrame()
+        ?: throw CodedException("CAPTURE_UNAVAILABLE", "no clean person frame is currently available to capture", null)
+      mapOf(
+        "captureId" to result.captureId,
+        "kind" to result.kind,
+        "localUri" to result.localUri,
+        "width" to result.width,
+        "height" to result.height,
+      )
+    }
+
+    AsyncFunction("capturePreview") {
+      val view = LiveVtoTestRenderView.currentInstance()
+        ?: throw CodedException("NO_ACTIVE_SESSION", "capturePreview called with no active Live VTO view", null)
+      val result = view.captureCompositedFrame()
+        ?: throw CodedException("CAPTURE_UNAVAILABLE", "no composited preview is currently available to capture", null)
+      mapOf(
+        "captureId" to result.captureId,
+        "kind" to result.kind,
+        "localUri" to result.localUri,
+        "width" to result.width,
+        "height" to result.height,
       )
     }
 
