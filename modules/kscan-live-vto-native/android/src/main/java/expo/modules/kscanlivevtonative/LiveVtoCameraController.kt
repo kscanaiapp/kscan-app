@@ -12,6 +12,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 
 private const val TAG = "KScanLiveVtoCamera"
 
@@ -58,6 +59,19 @@ class LiveVtoCameraController(
   private var cameraProvider: ProcessCameraProvider? = null
   private var analysisExecutor: ExecutorService? = null
 
+  /**
+   * `ProcessCameraProvider.getInstance(context)` is asynchronous, but
+   * `start()`/`stop()` are ordinary synchronous calls from an Expo `Prop`
+   * setter (main thread). Nothing stops a caller from calling `stop()`
+   * while a prior `start()`'s future is still pending -- without this
+   * guard, that in-flight callback would run `bind()` (and transition back
+   * to `RUNNING`) AFTER `stop()` had already torn things down, which is
+   * exactly the "stop while starting" scenario mission section 15 requires
+   * be safe. Incremented by `stop()`; the pending callback checks it before
+   * doing anything.
+   */
+  private val generation = AtomicInteger(0)
+
   fun start() {
     if (state == CameraControllerState.STARTING || state == CameraControllerState.RUNNING) return
     if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
@@ -65,13 +79,15 @@ class LiveVtoCameraController(
       return
     }
     transition(CameraControllerState.STARTING, null)
+    val myGeneration = generation.get()
     val providerFuture = ProcessCameraProvider.getInstance(context)
     providerFuture.addListener(
       {
+        if (generation.get() != myGeneration) return@addListener // stop() ran while this future was pending
         try {
           val provider = providerFuture.get()
           cameraProvider = provider
-          bind(provider)
+          bind(provider, myGeneration)
         } catch (t: Throwable) {
           Log.e(TAG, "camera provider bind failed", t)
           transition(CameraControllerState.ERROR, t.message ?: t.toString())
@@ -81,7 +97,7 @@ class LiveVtoCameraController(
     )
   }
 
-  private fun bind(provider: ProcessCameraProvider) {
+  private fun bind(provider: ProcessCameraProvider, myGeneration: Int) {
     // N1-F binds its OWN use cases exclusively -- `unbindAll()` releases
     // whatever a previous Live VTO session left bound (safe: this class is
     // the only owner of camera use cases across `start`/`stop`/`dispose`
@@ -133,6 +149,7 @@ class LiveVtoCameraController(
 
   fun stop() {
     if (state == CameraControllerState.IDLE || state == CameraControllerState.STOPPED) return
+    generation.incrementAndGet() // invalidate any in-flight start() future before touching anything else
     try {
       cameraProvider?.unbindAll()
     } catch (t: Throwable) {
