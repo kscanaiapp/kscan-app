@@ -1,0 +1,83 @@
+name: Live VTO iOS Native Catch-Up
+
+# Narrowly scoped to this catch-up lane (mission section 9, Tier 3): "ONE
+# dedicated workflow supporting this iOS catch-up pass." No deployment or
+# submission step exists here or is authorized -- EAS build/submit are
+# explicitly out of scope for this lane (see docs/vto-live-bridge-contract.md).
+#
+# Two jobs, cheapest-first (mission section 38 -- do not do expensive Apple
+# compilation on every commit; this workflow itself IS the logical milestone
+# checkpoint for this lane's single combined pass):
+#   swift-test  -- SwiftPM host tests for the pure-logic Core package. No
+#                  CocoaPods, no MediaPipe download, no Xcode project --
+#                  proves the geometry/deformation/replay/backpressure/
+#                  adapter math independent of the rest of the toolchain.
+#   pod-lint    -- compiles the FULL module (Core + Module + View + Drivers +
+#                  Perception, including the real MediaPipeTasksVision
+#                  dependency) via `pod lib lint`, the standard way to prove
+#                  a podspec actually builds under Xcode without needing a
+#                  full host app project.
+on:
+  push:
+    branches:
+      - 'feature/live-vto-ios-native-catchup'
+    paths:
+      - 'modules/kscan-live-vto-native/**'
+      - '.github/workflows/live-vto-ios-native-catchup.yml'
+  pull_request:
+    paths:
+      - 'modules/kscan-live-vto-native/**'
+      - '.github/workflows/live-vto-ios-native-catchup.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  swift-test:
+    name: SwiftPM host tests (LiveVtoCore)
+    runs-on: macos-14
+    defaults:
+      run:
+        working-directory: modules/kscan-live-vto-native
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Swift toolchain version
+        run: swift --version
+
+      - name: swift test
+        run: swift test --enable-code-coverage
+
+      - name: Summarize LiveVtoCore coverage
+        if: always()
+        run: |
+          BUILD_DIR=$(swift build --show-bin-path)
+          xcrun llvm-cov report \
+            "$BUILD_DIR/LiveVtoCorePackageTests.xctest/Contents/MacOS/LiveVtoCorePackageTests" \
+            -instr-profile "$BUILD_DIR/codecov/default.profdata" \
+            --ignore-filename-regex="Tests/" || echo "coverage summary unavailable (non-fatal)"
+
+  pod-lint:
+    name: pod lib lint (full module incl. MediaPipeTasksVision)
+    runs-on: macos-14
+    needs: swift-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: CocoaPods version
+        run: pod --version
+
+      - name: pod lib lint
+        working-directory: modules/kscan-live-vto-native/ios
+        # --allow-warnings: this podspec is not published to trunk and never
+        # will be (s.source is a placeholder git URL, matching the
+        # KScanVoiceNative/KScanPiiNative precedent) -- trunk-publish-quality
+        # warnings are expected and not a signal about THIS lane's code.
+        # --skip-import-validation avoids needing a full host-app target just
+        # to prove the module and its real dependency compile together.
+        run: |
+          pod lib lint KScanLiveVtoNative.podspec \
+            --allow-warnings \
+            --skip-import-validation \
+            --verbose

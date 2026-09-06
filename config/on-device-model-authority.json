@@ -43,6 +43,28 @@
       "status": "approved",
       "approvedBy": "N1-E mission (real local perception), owner-directed; CI governance added by the PR #308 CI-green repair",
       "approvedAtSha": "a421075913d6130c45b6804782209e24cced5155"
+    },
+    {
+      "id": "live-vto-pose-landmarker-lite-ios",
+      "path": "modules/kscan-live-vto-native/ios/Assets/models/pose_landmarker_lite.task",
+      "feature": "LIVE_VTO",
+      "purpose": "live_vto_pose",
+      "purposeDetail": "iOS native-runtime catch-up: on-device pose estimation, same purpose as the Android record above. Produces BodyFrame landmarks that drive the native garment deformation/renderer entirely on device.",
+      "provider": "MediaPipe Tasks Vision",
+      "model": "pose_landmarker_lite",
+      "providerSdk": "MediaPipeTasksVision 1.0.0 (CocoaPods)",
+      "sha256": "59929e1d1ee95287735ddd833b19cf4ac46d29bc7afddbbf6753c459690d574a",
+      "sizeBytes": 5777746,
+      "execution": "on_device",
+      "runtimeDownload": false,
+      "networkInference": false,
+      "frameworkLicense": "Apache-2.0",
+      "modelLicense": "Apache-2.0",
+      "licenseEvidence": "docs/vto-live-native-n1-perception.md",
+      "licenseEvidenceNote": "Same governed model file as live-vto-pose-landmarker-lite (Android) -- byte-identical, sha256 verified equal at copy time (see docs/vto-live-bridge-contract.md). License terms already verified there; not re-verified independently for this record since it is the same artifact.",
+      "status": "approved",
+      "approvedBy": "iOS Live VTO native runtime catch-up lane, owner-directed",
+      "approvedAtSha": "PENDING_HEAD_SHA_OF_THIS_PR"
     }
   ]
 }
