@@ -51,14 +51,16 @@ const INVESTIGATION_CEILING_PX = 2.0;
  * perception frame, which mission sections 11 and D13 forbid outright.
  */
 const DOCUMENTED_REFERENCE_DEFECTS = [
-  {
-    cases: ['nan-shoulder', 'infinite-hip'],
-    kind: 'refusal_disagreement',
-    ledger: 'N1-ENV-008',
-    nativeBehaviour: 'refuses with non_finite_landmark',
-    referenceBehaviour: 'renders NaN geometry and its rigid gate reports passed:true, findings:[]',
-    nativeIsStricter: true,
-  },
+  // N1-ENV-008 REPAIRED at reference SHA e7c5d72 (branch
+  // fix/p3a-nonfinite-geometry-fail-closed off 266ab1a). The reference now
+  // rejects a non-finite landmark at toPixels (same failure path as an
+  // absent one) and evaluateRigidGate independently reports
+  // 'non_finite_measurement' if non-finite geometry ever reaches it by any
+  // other path. Both runtimes now refuse nan-shoulder/infinite-hip, so
+  // there is nothing left to document here -- kept as an empty list with
+  // this note, rather than deleted, so a future regression in EITHER
+  // runtime has a place to land instead of silently becoming an
+  // unexplained divergence.
 ];
 
 function documentedDefectFor(caseId, kind) {

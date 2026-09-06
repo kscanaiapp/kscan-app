@@ -178,3 +178,31 @@ Android's `Canvas.drawBitmapMesh(bitmap, meshWidth, meshHeight, verts, ...)` use
 **Negative control:** `theSnapshotMeshShapeMatchesTheVertexArrayItPublishes` asserts both directions — that the published cell counts imply exactly the published vertex count, and that the vertex grid is the manifest's own. The comparison tool independently reports `mesh_grid_shape_differs` as a semantic divergence if the two runtimes ever disagree on grid shape.
 
 **Prior evidence affected:** the on-device N1-B log recorded `meshVertexCount: 99`. That number was wrong and is superseded; every conformance figure in this ledger and in the conformance document was regenerated after the fix.
+
+## N1-ENV-008 — REPAIRED (was: found, not repaired, in prior N1-C session)
+
+**Status change:** the N1-E mission directive authorized a narrow cross-boundary repair of the P3-A reference implementation itself (previously deferred as "owed in the reference repo, not here"). Repaired.
+
+**Repair location:** `kscan-live-vto-reference-oracle` checkout, branch `fix/p3a-nonfinite-geometry-fail-closed`, based on the original oracle SHA `266ab1a`, commit `e7c5d72`. This is a real branch pushed to the same `kscanaiapp/kscan-app` remote (the reference package's disjoint research history), not merged into any integration line and not touched by this lane's own PR #308.
+
+**Repair (two layers):**
+1. `toPixels` now rejects a non-finite `(x, y)` at the earliest boundary, treating it as absent -- reuses the existing `missing_shoulders`/`missing_hips` failure path.
+2. `evaluateRigidGate` independently checks all six of its own measurements for finiteness and adds a new finding, `non_finite_measurement`, if any is not -- defense in depth for the gate's own stated job, so it does not depend on every future caller getting the upstream check right.
+
+**Negative control:** `nonFiniteGeometry.test.ts`, 4 new tests -- reproduces the exact originally-reported symptom (poisoned all-NaN anchors passed directly to `evaluateRigidGate`, bypassing `extractBodyAnchors` entirely) and proves it now fails closed; also proves the two boundary-rejection paths resolve to the correct existing reasons, and that valid finite geometry is byte-for-byte unaffected.
+
+**Reference package regression:** 36/36 tests passing (32 pre-existing + 4 new). No pre-existing assertion changed.
+
+**N1-C conformance re-validation against the repaired reference** (full 42 fixture/case pairs, 308 control points, 1600 mesh vertices, re-run in full):
+
+| | before repair (`72fbc013`) | after repair (`93a2a03`) |
+|---|---|---|
+| Control-point delta, max | 5.628e-3 px | **5.628e-3 px (unchanged)** |
+| Mesh vertex delta, max | 1.044e-4 px | **1.044e-4 px (unchanged)** |
+| Scale / rotation / bounds delta, max | unchanged | **unchanged** |
+| Refusal disagreements | 4 of 14 | **0 of 14** |
+| Documented reference defects | 4 (N1-ENV-008) | **0** |
+
+Every valid-case measurement is byte-identical before and after -- expected, since the repair only changes behavior on non-finite input, which no valid golden exercises. The two previously-disagreeing refusal cases (`nan-shoulder`, `infinite-hip`, both fixtures) now agree: both runtimes refuse, native with `non_finite_landmark`, reference with `missing_shoulders`/`missing_hips` respectively. `tools/compare-conformance.mjs`'s `DOCUMENTED_REFERENCE_DEFECTS` list is now empty, with a note explaining why it is kept rather than deleted.
+
+**Outcome:** the concrete demonstration that "conformance to a reference is not evidence the reference is correct" (amendment D4) now has a closed loop: the divergence was found, attributed to the reference rather than laundered into a tolerance, fixed at its actual source, and the fix was proven not to disturb a single valid measurement.

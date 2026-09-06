@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-09-06T13:32:46.581Z",
+  "generatedAt": "2026-09-06T14:36:04.830Z",
   "reference": {
     "checkout": "C:/src/kscan-live-vto-reference-oracle/kscan-live-vto",
-    "headSha": "266ab1a8538ed73b91a50e58f7089ae41b784c2b",
-    "attachmentSourceSha": "3149a5e74004becf74371d3ff9b5945d6165f260",
-    "attachmentDistSha": "72fbc01303a56134e3837b563fa14feca71607e6",
+    "headSha": "e7c5d72d51a270ed0bf021fec5ad19369c1256cc",
+    "attachmentSourceSha": "5a18f5a20cab862cefda4240164c436b1d0f1fa2",
+    "attachmentDistSha": "93a2a03ab482d8b5d9bc5a4d9f2a0f87d786fd44",
     "dirty": ""
   },
   "attachmentModule": "C:\\src\\kscan-live-vto-reference-oracle\\kscan-live-vto\\packages\\static-renderer\\dist\\attachment.js",

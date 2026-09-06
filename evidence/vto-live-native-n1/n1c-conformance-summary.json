@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-06T14:02:04.716Z",
+  "generatedAt": "2026-09-06T14:36:49.343Z",
   "investigationCeilingPx": 2,
   "investigationCeilingIsNotAPassTolerance": true,
   "comparedCases": 42,
@@ -76,8 +76,8 @@
   },
   "refusalAgreement": {
     "compared": 14,
-    "disagreements": 4,
-    "documentedReferenceDefectDisagreements": 4,
+    "disagreements": 0,
+    "documentedReferenceDefectDisagreements": 0,
     "unexplainedDisagreements": 0,
     "rows": [
       {
@@ -118,16 +118,16 @@
       {
         "fixture": "n1b-fixture",
         "case": "nan-shoulder",
-        "reference": null,
+        "reference": "missing_shoulders",
         "native": "non_finite_landmark",
-        "agree": false
+        "agree": true
       },
       {
         "fixture": "n1b-fixture",
         "case": "infinite-hip",
-        "reference": null,
+        "reference": "missing_hips",
         "native": "non_finite_landmark",
-        "agree": false
+        "agree": true
       },
       {
         "fixture": "n1c-asym-fixture",
@@ -167,16 +167,16 @@
       {
         "fixture": "n1c-asym-fixture",
         "case": "nan-shoulder",
-        "reference": null,
+        "reference": "missing_shoulders",
         "native": "non_finite_landmark",
-        "agree": false
+        "agree": true
       },
       {
         "fixture": "n1c-asym-fixture",
         "case": "infinite-hip",
-        "reference": null,
+        "reference": "missing_hips",
         "native": "non_finite_landmark",
-        "agree": false
+        "agree": true
       }
     ]
   },
@@ -336,40 +336,7 @@
     ]
   },
   "semanticDivergences": [],
-  "documentedReferenceDefects": [
-    {
-      "key": "n1b-fixture|nan-shoulder",
-      "kind": "documented_reference_defect",
-      "reference": "(rendered)",
-      "native": "non_finite_landmark",
-      "ledger": "N1-ENV-008",
-      "why": "renders NaN geometry and its rigid gate reports passed:true, findings:[]"
-    },
-    {
-      "key": "n1b-fixture|infinite-hip",
-      "kind": "documented_reference_defect",
-      "reference": "(rendered)",
-      "native": "non_finite_landmark",
-      "ledger": "N1-ENV-008",
-      "why": "renders NaN geometry and its rigid gate reports passed:true, findings:[]"
-    },
-    {
-      "key": "n1c-asym-fixture|nan-shoulder",
-      "kind": "documented_reference_defect",
-      "reference": "(rendered)",
-      "native": "non_finite_landmark",
-      "ledger": "N1-ENV-008",
-      "why": "renders NaN geometry and its rigid gate reports passed:true, findings:[]"
-    },
-    {
-      "key": "n1c-asym-fixture|infinite-hip",
-      "kind": "documented_reference_defect",
-      "reference": "(rendered)",
-      "native": "non_finite_landmark",
-      "ledger": "N1-ENV-008",
-      "why": "renders NaN geometry and its rigid gate reports passed:true, findings:[]"
-    }
-  ],
+  "documentedReferenceDefects": [],
   "referenceDefectPolicy": [
     {
       "cases": [

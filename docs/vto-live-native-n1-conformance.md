@@ -38,10 +38,10 @@ comments, or documentation — N1-ENV-006 is the concrete argument for why.
 
 | | |
 |---|---|
-| Reference checkout | `kscan-live-vto` @ `266ab1a8538ed73b91a50e58f7089ae41b784c2b` |
-| Reference working tree | clean (`git status --porcelain` empty for `packages/static-renderer`) |
-| `attachment.ts` blob | `3149a5e74004becf74371d3ff9b5945d6165f260` |
-| `attachment.js` blob (executed) | `72fbc01303a56134e3837b563fa14feca71607e6` |
+| Reference checkout | `kscan-live-vto`, branch `fix/p3a-nonfinite-geometry-fail-closed` @ `e7c5d72` (based on `266ab1a8538ed73b91a50e58f7089ae41b784c2b`) |
+| Reference working tree | clean (`git status --porcelain` empty for `packages/static-renderer`, one unrelated pre-existing untracked scratch file) |
+| `attachment.js` blob (executed) | `93a2a03ab482d8b5d9bc5a4d9f2a0f87d786fd44` |
+| Prior reference SHA (superseded) | `266ab1a`, `attachment.js` blob `72fbc01303a56134e3837b563fa14feca71607e6` -- had N1-ENV-008 (all-NaN geometry passed the rigid gate); repaired, see the defect ledger |
 | Native implementation | `modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoGarmentAttachment.kt` |
 
 Ported algorithms, each read from `dist/attachment.js`:
@@ -62,8 +62,10 @@ out-of-tree measurement tool, by explicit path.
 > ledger. Numerical agreement with the oracle proves the native runtime
 > computes what the reference computes. It does not prove the reference is
 > visually right, and nothing in this document should be read as claiming
-> it does. N1-ENV-008 below is a concrete demonstration that the reference
-> is not automatically correct.
+> it does. N1-ENV-008 (defect ledger) was a concrete demonstration that the
+> reference was not automatically correct on non-finite input -- it has
+> since been repaired at its source (reference SHA `e7c5d72`) and every
+> valid-case measurement below was re-verified unchanged by that repair.
 
 ## Golden BodyFrame set
 
@@ -257,30 +259,42 @@ rather than clustering by control-point role.
 
 ## Documented divergences where native does NOT match the reference
 
-Printed and recorded on every run, classified as
-`documented_reference_defect` — never suppressed.
+**Currently: none.** `tools/compare-conformance.mjs`'s
+`DOCUMENTED_REFERENCE_DEFECTS` list is empty as of reference SHA `e7c5d72`
+and kept (not deleted) so a future regression in either runtime has a place
+to land instead of silently becoming an unexplained divergence.
 
-**N1-ENV-008 — the reference's own rigid stop gate passes all-NaN geometry.**
+**N1-ENV-008 — REPAIRED. Historical: the reference's own rigid stop gate
+used to pass all-NaN geometry.**
 
-Given a landmark of NaN or Infinity, the reference does not refuse. NaN
-propagates through every stage (`NaN < 1` is false, so the degenerate-span
-check never fires), the placement comes out entirely NaN, and
-`evaluateRigidGate` then returns `passed: true` with **zero findings** —
-because each of its five comparisons against NaN is also false. The gate
-whose stated job is "is the garment semantically attached to this body at
-all" certifies all-NaN geometry as correctly attached.
+Given a landmark of NaN or Infinity, the reference (at the original oracle
+SHA `266ab1a`) did not refuse. NaN propagated through every stage
+(`NaN < 1` is false, so the degenerate-span check never fired), the
+placement came out entirely NaN, and `evaluateRigidGate` returned
+`passed: true` with **zero findings** — because each of its five
+comparisons against NaN is also false. The gate whose stated job is "is
+the garment semantically attached to this body at all" was certifying
+all-NaN geometry as correctly attached.
 
-The native runtime refuses with `non_finite_landmark` instead. Matching the
-reference here to improve a conformance number would mean shipping a runtime
-that renders undefined geometry whenever a perception provider emits a bad
-frame, which mission sections 11 and D13 forbid outright.
+The native runtime refused with `non_finite_landmark` instead of copying
+this. Rather than leave the divergence permanently documented, the N1-E
+mission authorized a narrow cross-boundary repair of the reference itself
+(branch `fix/p3a-nonfinite-geometry-fail-closed`, commit `e7c5d72`, based
+on `266ab1a` — full detail in the defect ledger). The reference now fails
+closed the same way native does, and re-running all 42 fixture/case pairs
+against the repaired reference reproduced every valid-case measurement in
+this document byte-for-byte while the refusal-agreement count went from
+10-of-14 to 14-of-14.
 
-This also motivates a distinction the reference does not make: **absent** and
-**present-but-garbage** are different failures. A provider reporting a
-landmark as unobserved is working correctly; one reporting NaN is broken. At
-N1-E that is the difference between "occluded, wait" and "this provider is
-faulty, stop", so `missing_shoulders` and `non_finite_landmark` are separate
-reasons rather than one.
+This also motivates a distinction the reference did not originally make,
+and still expresses differently: **absent** and **present-but-garbage**
+are different failures. A provider reporting a landmark as unobserved is
+working correctly; one reporting NaN is broken. At N1-E that is the
+difference between "occluded, wait" and "this provider is faulty, stop",
+so native keeps `missing_shoulders` and `non_finite_landmark` as separate
+reasons; the reference's repair reuses its existing `missing_shoulders`/
+`missing_hips` reasons for both (see the ledger for why that was still the
+right minimal repair).
 
 ## Non-oracle assertions
 
