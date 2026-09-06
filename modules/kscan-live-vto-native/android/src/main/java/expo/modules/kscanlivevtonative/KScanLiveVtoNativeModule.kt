@@ -39,6 +39,30 @@ class KScanLiveVtoNativeModule : Module() {
         "runtimeVersion" to RUNTIME_VERSION
       )
     }
+
+    // N1-B: diagnostic-only native view, not part of the P3-C application
+    // contract. Renders one bundled governed .ksgarment fixture through a
+    // canned BodyFrame -- inert until `active` is set true. See
+    // LiveVtoTestRenderView.kt and docs/vto-live-native-runtime-n1.md.
+    View(LiveVtoTestRenderView::class) {
+      Prop("active") { view: LiveVtoTestRenderView, active: Boolean -> view.active = active }
+
+      AsyncFunction("getLastN1BResult") { view: LiveVtoTestRenderView ->
+        val result = view.lastResult ?: return@AsyncFunction null
+        mapOf(
+          "assetId" to result.assetId,
+          "gatePassed" to result.gatePassed,
+          "gateFindings" to result.gateFindings,
+          "scale" to result.scale,
+          "rotationRadians" to result.rotationRadians,
+          "controlPointTargets" to result.controlPointTargets.mapValues { listOf(it.value.first, it.value.second) },
+          "bounds" to mapOf("minX" to result.boundsMinX, "minY" to result.boundsMinY, "maxX" to result.boundsMaxX, "maxY" to result.boundsMaxY),
+          "canvasWidth" to result.canvasWidth,
+          "canvasHeight" to result.canvasHeight,
+          "error" to result.error,
+        )
+      }
+    }
   }
 
   companion object {
