@@ -18,7 +18,7 @@ memory, on 2026-09-06:
 | Verification method | `curl https://dl.google.com/dl/android/maven2/com/google/mediapipe/tasks-vision/maven-metadata.xml` — the actual Google Maven index, not a cached version number. `<latest>1.0.0</latest>`, `lastUpdated 20260727204405`. The long-running `0.10.x` line culminated in a stable `1.0.0` — **this postdates the version this assistant would otherwise have assumed from training; do not trust an older number from memory or an old prompt.** |
 | Model | `pose_landmarker_lite.task` |
 | Model source | `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/latest/pose_landmarker_lite.task` |
-| Model sha256 | `59929e1d1ee95287735ddd833b19cf4ac46d29bc7afddbbf6753c459690d574` |
+| Model sha256 | `59929e1d1ee95287735ddd833b19cf4ac46d29bc7afddbbf6753c459690d574a` |
 | Bundled location | `modules/kscan-live-vto-native/android/src/main/assets/models/pose_landmarker_lite.task` |
 | Framework license | Apache License, Version 2.0 — confirmed directly from the published POM (`tasks-vision-1.0.0.pom`, `<licenses>` block), not asserted from documentation prose |
 | Model/weights license | Apache 2.0, per the MediaPipe project's own top-level licensing (the bundled `META-INF/NOTICE` in `tasks-core-1.0.0.aar` carries the Apache 2.0 text plus third-party attributions). Framework and model license were checked as **separate** items, per mission section 10 — not assumed identical without verification. |
