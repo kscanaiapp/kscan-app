@@ -82,6 +82,22 @@ class KScanLiveVtoNativeModule : Module() {
       AsyncFunction("getPerceptionStatsJson") { view: LiveVtoTestRenderView ->
         view.readPerceptionStatsJson()
       }
+
+      // N1-F. JS issues one bounded command -- start/stop the LIVE front
+      // camera. Exactly like `perception`, it never receives a frame, a
+      // raw camera buffer, or a BodyFrame: CameraX, the SAME real MediaPipe
+      // inference, the SAME BodyFrame adapter, and the SAME geometry
+      // compute all run natively, off the UI thread (mission sections 7,
+      // 23, 26).
+      Prop("camera") { view: LiveVtoTestRenderView, camera: Boolean -> view.camera = camera }
+
+      // Aggregate camera+perception counters only -- the camera boundary's
+      // own produced/dropped/consumed counts alongside the same bounded
+      // perception counters `getPerceptionStatsJson` exposes. Never a
+      // frame, never a landmark, never a BodyFrame.
+      AsyncFunction("getCameraStatsJson") { view: LiveVtoTestRenderView ->
+        view.readCameraStatsJson()
+      }
     }
   }
 

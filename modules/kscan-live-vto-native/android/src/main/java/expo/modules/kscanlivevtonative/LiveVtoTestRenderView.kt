@@ -7,6 +7,9 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.view.View
+import android.view.ViewGroup
+import androidx.camera.view.PreviewView
+import androidx.lifecycle.LifecycleOwner
 
 import android.util.Log
 import expo.modules.kotlin.AppContext
@@ -253,11 +256,157 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
       ",\"maxGeometrySlotDepth\":" + stats.maxGeometrySlotDepth + "}"
   }
 
+  // ── N1-F camera-live ──────────────────────────────────────────────────────
+  private var cameraController: LiveVtoCameraController? = null
+  private var cameraPerceptionSession: LiveVtoPerceptionSession? = null
+  private var cameraPerceptionDriver: LiveVtoPerceptionDriver? = null
+  private var cameraBitmap: Bitmap? = null
+  private var previewView: PreviewView? = null
+  @Volatile private var cameraControllerState: CameraControllerState = CameraControllerState.IDLE
+  @Volatile private var cameraControllerError: String? = null
+
+  /**
+   * Starts/stops the SAME real perception pipeline `perception` already
+   * proved (MediaPipe -> BodyFrameAdapter -> rigid gate -> deformation ->
+   * renderer), sourced from a LIVE front camera instead of the bundled
+   * synthetic frame (mission section 7). Deliberately a SEPARATE session/
+   * driver pair from `perception`'s, mirroring this file's own established
+   * pattern of one independent prop+session+driver per phase (N1-D's
+   * `replay`, N1-E's `perception`) rather than retrofitting a shared
+   * abstraction onto an already-tested path.
+   */
+  var camera: Boolean = false
+    set(value) {
+      field = value
+      if (value) startCamera() else stopCamera()
+      invalidate()
+    }
+
+  private fun startCamera() {
+    if (cameraController != null) return
+    val activity = appContext.currentActivity
+    val lifecycleOwner = activity as? LifecycleOwner
+    if (lifecycleOwner == null) {
+      loadError = "camera start refused: current Activity is not a LifecycleOwner"
+      return
+    }
+    try {
+      val (manifest, bitmap, dims) = loadFixture("n1b-fixture")
+      cameraBitmap = bitmap
+
+      val pv = PreviewView(context)
+      previewView = pv
+      addView(pv, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+
+      val controller = LiveVtoCameraController(
+        context = context,
+        lifecycleOwner = lifecycleOwner,
+        previewView = pv,
+        onStateChanged = { state, reason ->
+          cameraControllerState = state
+          cameraControllerError = reason
+          Log.d(TAG, "N1-F camera controller state: $state" + (reason?.let { " reason=$it" } ?: ""))
+          postInvalidate()
+        },
+      )
+      cameraController = controller
+
+      val provider = LiveVtoMediaPipePoseProvider(context)
+      val session = LiveVtoPerceptionSession(
+        provider, RENDER_CANVAS_W, RENDER_CANVAS_H,
+        onEvent = { event ->
+          perceptionEvent = event
+          postInvalidate()
+        },
+      )
+      if (!session.load(manifest, dims.first, dims.second)) {
+        loadError = "camera perception load refused: ${session.currentState()}"
+        return
+      }
+      session.start()
+      cameraPerceptionSession = session
+      cameraPerceptionDriver = LiveVtoPerceptionDriver(session, { controller.latestFrame() }).also { it.start() }
+      // The camera producer (CameraX's own analyzer callback) starts only
+      // once the perception session is READY to receive frames -- starting
+      // it first would let camera-produced frames pile up against a slot
+      // nothing is draining yet, which `LatestStateSlot` would count as
+      // drops that never represented real backpressure.
+      controller.start()
+    } catch (t: Throwable) {
+      loadError = t.message ?: t.toString()
+      Log.e(TAG, "N1-F camera start failed", t)
+    }
+  }
+
+  private fun stopCamera() {
+    cameraPerceptionDriver?.stop()
+    cameraPerceptionDriver = null
+    cameraPerceptionSession?.dispose()
+    cameraPerceptionSession = null
+    cameraController?.stop()
+    cameraController = null
+    cameraBitmap = null
+    previewView?.let { removeView(it) }
+    previewView = null
+  }
+
+  /**
+   * Bounded end-to-end telemetry for gate evidence: the camera boundary's
+   * own produced/dropped counters (mission section 8's CAMERA PRODUCED /
+   * MAX PENDING) alongside the SAME perception counters `perception`
+   * already exposes for the downstream stages. Never a frame, a landmark,
+   * or a BodyFrame.
+   */
+  fun readCameraStatsJson(): String? {
+    val controller = cameraController ?: return null
+    val session = cameraPerceptionSession
+    val stats = session?.stats()
+    return "{\"controllerState\":\"" + cameraControllerState.name + "\"" +
+      ",\"controllerError\":" + (cameraControllerError?.let { "\"" + it.replace("\"", "'") + "\"" } ?: "null") +
+      ",\"cameraProduced\":" + controller.frameSlot.publishedCount +
+      ",\"cameraConsumedByPerceptionTick\":" + controller.frameSlot.consumedCount +
+      ",\"cameraDroppedBeforePerceptionTick\":" + controller.frameSlot.droppedCount +
+      ",\"perceptionState\":\"" + (session?.currentState()?.name ?: "NONE") + "\"" +
+      ",\"submittedToPerception\":" + (stats?.submittedToPerception ?: 0) +
+      ",\"inferred\":" + (stats?.inferred ?: 0) +
+      ",\"droppedBeforePerception\":" + (stats?.droppedBeforePerception ?: 0) +
+      ",\"refused\":" + (stats?.refused ?: 0) +
+      ",\"rendered\":" + (stats?.rendered ?: 0) +
+      ",\"droppedBeforeRender\":" + (stats?.droppedBeforeRender ?: 0) + "}"
+  }
+
+  private fun drawCameraOverlay(canvas: Canvas) {
+    val session = cameraPerceptionSession
+    val bitmap = cameraBitmap
+    if (session == null || bitmap == null) return
+    val snapshot = session.consumeForRender() ?: session.geometrySlot.peek()
+    val verts = snapshot?.meshVertices
+    canvas.save()
+    val fitScale = min(width / RENDER_CANVAS_W, height / RENDER_CANVAS_H)
+    canvas.scale(fitScale, fitScale)
+    if (verts != null) {
+      canvas.drawBitmapMesh(bitmap, snapshot.meshWidth, snapshot.meshHeight, verts, 0, null, 0, Paint().apply { isAntiAlias = true })
+    }
+    canvas.restore()
+    canvas.drawText(
+      "camera=" + cameraControllerState.name + " " + (session.stats().let { "produced=" + it.produced + " inferred=" + it.inferred + " rendered=" + it.rendered + " refused=" + it.refused }),
+      20f, 30f, Paint().apply { color = Color.CYAN; textSize = 18f },
+    )
+    if (verts == null) {
+      canvas.drawText(
+        "no mesh: gatePassed=" + snapshot?.gatePassed + " findings=" + snapshot?.gateFindings,
+        20f, 55f, Paint().apply { color = Color.RED; textSize = 16f },
+      )
+    }
+    if (session.currentState() == ReplayState.PLAYING) postInvalidateOnAnimation()
+  }
+
   override fun onDetachedFromWindow() {
     // Lifecycle safety: a view torn down mid-replay must not leave a daemon
     // thread producing geometry into an orphaned session.
     stopReplay()
     stopPerception()
+    stopCamera()
     super.onDetachedFromWindow()
   }
 
@@ -437,6 +586,14 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
 
   override fun onDraw(canvas: Canvas) {
     super.onDraw(canvas)
+    if (camera) {
+      // The live camera feed is a CHILD view (`PreviewView`), drawn during
+      // `dispatchDraw` -- painting an opaque background here would only be
+      // immediately covered by it. Nothing else to do in `onDraw` for this
+      // mode; the mesh overlay is drawn in `dispatchDraw`, AFTER the camera
+      // child, so it composites on top rather than being drawn under it.
+      return
+    }
     val bg = Paint().apply { color = Color.rgb(32, 32, 36) }
     canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), bg)
 
@@ -481,5 +638,18 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
       canvas.drawText("no mesh: ${lastSnapshot?.failure ?: lastSnapshot?.gateFindings}", 20f, 40f, p)
     }
     canvas.restore()
+  }
+
+  /**
+   * `camera` mode's ONLY child is the live `PreviewView`. Drawing the mesh
+   * here -- after `super.dispatchDraw` renders that child -- is what makes
+   * the garment composite ON TOP of the live video instead of underneath
+   * it (a `ViewGroup` draws its own `onDraw` content BEFORE its children,
+   * never after, so the mesh cannot be drawn there for this mode; see
+   * `onDraw`'s early return above).
+   */
+  override fun dispatchDraw(canvas: Canvas) {
+    super.dispatchDraw(canvas)
+    if (camera) drawCameraOverlay(canvas)
   }
 }

@@ -43,4 +43,14 @@ dependencies {
   // provenance record (framework license, model license, checksum, ABI
   // support, min SDK).
   implementation 'com.google.mediapipe:tasks-vision:1.0.0'
+
+  // N1-F camera input. Pinned to the latest STABLE CameraX release line,
+  // verified against Google's own Maven metadata at integration time
+  // (2026-09-06) -- 1.6.2 is `<release>`; 1.7.0-alpha/beta/rc lines exist
+  // but are deliberately not used here. All four artifacts release in
+  // lockstep and must stay on the same version.
+  implementation 'androidx.camera:camera-core:1.6.2'
+  implementation 'androidx.camera:camera-camera2:1.6.2'
+  implementation 'androidx.camera:camera-lifecycle:1.6.2'
+  implementation 'androidx.camera:camera-view:1.6.2'
 }
