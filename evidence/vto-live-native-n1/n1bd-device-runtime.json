@@ -1,0 +1,113 @@
+{
+  "gate": "N1-B / N1-C / N1-D",
+  "evidenceClass": "EMULATOR",
+  "physicalDevice": {
+    "attached": false,
+    "note": "No physical Android device was attached at any point in this lane (adb devices -l empty). Amendment D2's mandatory physical-device screenshot is OUTSTANDING."
+  },
+  "emulator": {
+    "avd": "Pixel_8_Pro",
+    "product": "sdk_gphone16k_x86_64",
+    "abi": "x86_64",
+    "note": "Secondary authority. Visual capture additionally blocked by the app's own auth routing guard, which was deliberately not weakened to obtain a screenshot."
+  },
+  "apk": {
+    "buildCommand": "./gradlew :app:assembleDebug -PreactNativeArchitectures=x86_64",
+    "note": "An x86_64+arm64-v8a APK (sha256 79d224a6e21b328dfaa71cf233b44999a3d6c31f4efe9d255b92b2b0ae2dde7c, 207372047 bytes) was also produced from 171739e and is the physical-device-installable artifact; the emulator could not fit it (INSTALL_FAILED_INSUFFICIENT_STORAGE, /data 88% full), so the x86_64-only variant was used for emulator evidence."
+  },
+  "n1a_capability_roundtrip": {
+    "present": true,
+    "capable": false,
+    "runtimeReady": false,
+    "runtimeVersion": "n1-a",
+    "provenance": "native"
+  },
+  "n1b_on_device_geometry": {
+    "fixtureId": "p4-multi-image-product",
+    "bodyFrameId": "neutral-frontal",
+    "activeAssetId": "p4-multi-image-product",
+    "assetVersion": "1",
+    "failure": null,
+    "gatePassed": true,
+    "gateFindings": [],
+    "scale": 0.98258805,
+    "rotationRadians": 0.0,
+    "controlPoints": {
+      "leftArmpit": [
+        294.6579,
+        356.07584
+      ],
+      "leftHem": [
+        281.08798,
+        548.1718
+      ],
+      "leftShoulder": [
+        259.28473,
+        253.24799
+      ],
+      "leftSleeve": [
+        231.66437,
+        283.3104
+      ],
+      "leftTorso": [
+        288.76236,
+        412.57465
+      ],
+      "rightArmpit": [
+        424.35953,
+        356.07584
+      ],
+      "rightHem": [
+        437.9555,
+        548.1718
+      ],
+      "rightShoulder": [
+        459.7327,
+        253.24799
+      ],
+      "rightSleeve": [
+        487.35306,
+        283.3104
+      ],
+      "rightTorso": [
+        430.25507,
+        412.57465
+      ],
+      "waist": [
+        359.5087,
+        412.57465
+      ]
+    },
+    "bounds": {
+      "minX": 231.66437,
+      "minY": 253.24799,
+      "maxX": 487.35306,
+      "maxY": 548.1718
+    },
+    "canvasWidth": 720.0,
+    "canvasHeight": 960.0,
+    "textureWidth": 271,
+    "textureHeight": 302,
+    "meshWidth": 7,
+    "meshHeight": 9,
+    "meshVertexCount": 80,
+    "validationProblems": []
+  },
+  "n1d_replay_on_device": {
+    "stateSequence": [
+      "LOADING",
+      "READY",
+      "PLAYING",
+      "EOF"
+    ],
+    "produced": 121,
+    "rendered": 0,
+    "dropped": 120,
+    "maxSlotDepth": 1,
+    "refused": 0,
+    "sourceFrames": 121,
+    "wallClockSeconds": 4.32,
+    "driverPeriodMs": 33,
+    "interpretation": "The diagnostic view never reached the screen (the auth routing guard redirected away), so onDraw never consumed a snapshot. The native replay clock nevertheless ran the whole 121-frame source to EOF at its own cadence (121 x 33ms = 3.99s expected vs 4.32s measured). produced=121 with rendered=0 and slot depth bounded at 1 is the strongest available on-device demonstration that production is independent of render and that the latest-state slot drops rather than queues: the renderer was entirely absent and the producer neither stalled nor accumulated a backlog."
+  }
+}

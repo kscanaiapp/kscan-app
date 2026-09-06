@@ -80,3 +80,71 @@ EXPO_PUBLIC_DEV_INITIAL_ROUTE=/dev-n1-diagnostic
 ```
 
 Deliberately targets **staging**, never production, for any N1 local test build. `EXPO_PUBLIC_DEV_INITIAL_ROUTE` is the app's own pre-existing, `__DEV__`-gated, EAS-profile-absent QA harness (`constants/featureFlags.ts`) -- reused as-is, not a new mechanism.
+
+## Device authority for N1-B / N1-C / N1-D (amendment D19)
+
+| Class | Status |
+|---|---|
+| `PHYSICAL_DEVICE` | **NOT AVAILABLE.** `adb devices -l` empty throughout. |
+| `EMULATOR` | USED. `Pixel_8_Pro` / `sdk_gphone16k_x86_64`, x86_64. |
+| `CI` | Not used for N1 runtime evidence. |
+| `EAS_BUILD` | Not used for N1-D. Local Gradle is the compile authority. |
+
+Physical-device runtime authority remains PRIMARY and remains unsatisfied.
+The mandatory N1-B physical-device screenshot (amendment D2) is
+**OUTSTANDING** and is the single reason N1-B is not fully closed.
+
+Two independent blockers on emulator visual capture, recorded so a later
+session does not repeat the attempt:
+
+1. **Auth routing guard.** The `__DEV__` diagnostic route is pushed only
+   after the auth gate settles to `allow` (`app/_layout.tsx`), and the
+   emulator has no authenticated session. Deep-linking `kscan://dev-n1-diagnostic`
+   mounts the route long enough for its native views to load and compute
+   (their logs are captured), then the guard redirects to onboarding. The
+   guard is behaving correctly and was deliberately NOT weakened — it is a
+   security surface, and defeating it to obtain evidence would be a worse
+   outcome than the missing screenshot.
+2. **Emulator storage.** `/data` sits at 88–90% full. The dual-ABI
+   (x86_64 + arm64-v8a) APK fails to install with
+   `INSTALL_FAILED_INSUFFICIENT_STORAGE`; an x86_64-only build installs.
+   The dual-ABI artifact is the one that matters for a physical device.
+
+**What was captured on device instead**, and it is not nothing: the app
+computes the same geometry numbers off-device conformance measured
+(`evidence/vto-live-native-n1/n1bd-device-runtime.json`), and the native
+replay clock runs the full 121-frame source to EOF with
+`produced=121, rendered=0, dropped=120, maxSlotDepth=1` — the renderer was
+absent for the entire run and the producer neither stalled nor accumulated
+a backlog.
+
+## APK provenance (amendment D22)
+
+| | |
+|---|---|
+| Source SHA | `171739e39d618b1d84e11b0ee462066f4d7a1437` |
+| Contains | N1-A, N1-B, N1-C, N1-D |
+| Build | `./gradlew :app:assembleDebug -PreactNativeArchitectures=x86_64,arm64-v8a` |
+| Artifact | `android/app/build/outputs/apk/debug/app-debug.apk` |
+| Size | 207,372,047 bytes |
+| sha256 | `79d224a6e21b328dfaa71cf233b44999a3d6c31f4efe9d255b92b2b0ae2dde7c` |
+| versionCode / version | 23 / 1.0.1 |
+| Installed on physical device | **NO — no device attached** |
+| Installed on emulator | YES (x86_64-only variant; see storage note above) |
+
+The APK is not committed (binary, 200MB, gitignored build output). Rebuild
+it from the SHA above with the exact command given.
+
+## EAS continuity (amendment D21)
+
+| | |
+|---|---|
+| EAS auth | Authenticated, orgs `ams2dad` + `k-scan` (both Owner) |
+| Android `development` profile | present; `developmentClient: false`, `distribution: internal`, `buildType: apk` |
+| N1-E checkpoint build available | YES — the profile exists and auth is live; no EAS build was run in this lane |
+
+Two carried decisions, unchanged and still owed before N1-E leans on EAS:
+`development` sets `developmentClient: false` (so it produces a debug-flavoured
+internal APK, not an Expo Dev Client), and its Supabase target is
+**production**, same as `preview`/`production` — only `staging` and
+`staging-certification` point at staging. Neither was altered here.

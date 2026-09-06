@@ -91,7 +91,14 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
         // Bounded state event only. Never a frame, never a BodyFrame,
         // never geometry -- amendment D24.
         replayEvent = event
-        Log.d(TAG, "N1-D replay state: ${'$'}{event.state}")
+        // Bounded state log. Aggregate counters are appended at terminal
+        // states so replay evidence does not depend on a JS probe
+        // surviving long enough to poll -- amendment D24 allows state
+        // and performance summaries, and this is both.
+        val terminal = event.state == ReplayState.EOF || event.state == ReplayState.STOPPED ||
+          event.state == ReplayState.ERROR || event.state == ReplayState.DISPOSED
+        val detail = if (terminal) " " + (readReplayStatsJson() ?: "") else ""
+        Log.d(TAG, "N1-D replay state: " + event.state.name + detail)
         postInvalidate()
       }
       val source = InterpolatedPoseReplaySource(

@@ -44,11 +44,116 @@ LOG  [N1-A-PROBE] {"present":true,"capable":false,"runtimeReady":false,"runtimeV
 
 ### N1-B -- first native render
 
-See the gate status appended below as work proceeds.
+**PASS on geometry conformance. Physical-device visual evidence OUTSTANDING.**
 
-### N1-C through N1-G
+Native renderer (`LiveVtoTestRenderView`, `Canvas.drawBitmapMesh`), governed
+garment fixture bundled in the APK, P3-A geometry stages 1-5 ported, oracle
+conformance measured per control point.
 
-Not started. Each gate's own hard requirements (mission sections 8-48) apply unchanged; this document will be extended gate by gate rather than restating the mission text.
+- Fixture: `081350cef7f5c83e05c3e6c1` -- real, ACCEPTED, SYNTHETIC Phase 4
+  asset, texture 271x302, mesh 8x10 vertices, 11 control points.
+- BodyFrame: golden `neutral-frontal`. Canvas 720x960.
+- Reference oracle: `kscan-live-vto` @ `266ab1a`, clean tree,
+  `attachment.js` blob `72fbc013`.
+- **Max control-point divergence on this fixture and pose: 6.2e-5 px.**
+  Full per-point table: `docs/vto-live-native-n1-conformance.md`.
+- Scale 0.98258805 native vs 0.98258823 oracle. Rotation 0.0 vs 0.0.
+- Rigid gate: `passed:true, findings:[]`. Snapshot validation: no problems.
+
+On-device (emulator) confirmation of the same numbers, captured from
+logcat, is in `evidence/vto-live-native-n1/`. The device computes what the
+JVM conformance harness computes.
+
+**Outstanding, and the reason N1-B is not fully closed:** the mandatory
+physical-device screenshot (amendment D2). No physical Android device has
+been attached at any point in this lane. See "Device authority" below.
+
+Three geometry defects were found and repaired during the port
+(N1-ENV-004/005/006), all by running against the oracle rather than by
+source review.
+
+### N1-C -- deformation conformance
+
+**PASS on measured conformance.**
+
+- Golden BodyFrame set: 13 valid poses + 8 refusal cases,
+  `modules/kscan-live-vto-native/goldens/bodyframes.json`, read by BOTH
+  runtimes.
+- Asymmetric orientation fixture `n1c-asym-fixture`, verified to share zero
+  pixels with its own horizontal mirror.
+- 42 (fixture, case) pairs, 308 control points, 1600 mesh vertices.
+
+| Measurement | Median | Max |
+|---|---|---|
+| Control-point delta | 2.68e-5 px | 5.63e-3 px |
+| Mesh vertex delta | 2.51e-5 px | 1.04e-4 px |
+| Scale delta | 1.85e-7 | 2.94e-6 |
+| Rotation delta | 0 rad | 6.31e-8 rad |
+| Bounds delta | 5.88e-5 px | 5.20e-3 px |
+
+Unexplained semantic divergences: **0**. Left/right orientation
+divergences: **0**. Over the 2 px investigation ceiling: **0**.
+
+**FROZEN TOLERANCE: 0.05 px** per control point -- an order of magnitude
+above the observed maximum, ~40x tighter than the investigation ceiling,
+and explicitly not set equal to the largest observed error. Rationale and
+the float32-vs-float64 root cause: the conformance document.
+
+Two further defects found here: N1-ENV-007 (the native runtime invented
+hips where the reference refuses) and N1-ENV-010/011 (the deformation stage
+was a placeholder that did not render as a garment, and the mesh grid
+convention was off by one). N1-ENV-008 records a defect in the REFERENCE
+that the native runtime deliberately does not match.
+
+### N1-D -- native replay
+
+**PASS on architecture and lifecycle.**
+
+Explicit state machine, native replay clock independent of render cadence,
+non-vacuous backpressure, safe dispose, safe mid-replay product switching,
+enforced privacy boundary. Full detail and the frozen thread topology:
+`docs/vto-live-native-n1-runtime-architecture.md`.
+
+| | Produced | Rendered | Dropped | Max slot depth |
+|---|---|---|---|---|
+| Deterministic, consume every 10th | 601 | 60 | 540 | 1 |
+| Free-running producer vs 5 ms consumer, 250 ms | 7471 | 45 | 7425 | 1 |
+
+N1-ENV-009 was found and repaired by its own test (entering ERROR left
+renderable geometry in the latest-state slot).
+
+### N1-E through N1-G
+
+Not started. Preparation only -- no N1-D code depends on real inference.
+Each gate's own hard requirements apply unchanged.
+
+## Device authority
+
+| Class | Status |
+|---|---|
+| `PHYSICAL_DEVICE` | **NOT AVAILABLE.** `adb devices -l` empty throughout this lane. |
+| `EMULATOR` | USED. `Pixel_8_Pro` / `sdk_gphone16k_x86_64`. Secondary authority. |
+| `CI` | Not used for N1 runtime evidence. |
+| `EAS_BUILD` | Not used for N1-D; local Gradle is the compile authority. |
+
+Evidence is labelled by class everywhere it appears and never merged into a
+generic PASS claim.
+
+**Emulator visual capture is additionally blocked** by the app's own
+routing guard: the `__DEV__` diagnostic route is pushed only after the auth
+gate settles to `allow`, and the emulator has no authenticated session. The
+guard is behaving correctly and was deliberately NOT weakened to obtain a
+screenshot -- it is a security surface, and defeating it for evidence would
+be a worse outcome than the missing screenshot. The native views do mount
+and compute (their probes and logs are captured); it is the on-screen
+capture that the guard prevents.
+
+As a substitute that is honest about what it is,
+`tools/render-snapshot.mjs` rasterizes the exact mesh vertex array
+`Canvas.drawBitmapMesh` consumes, for all 20 review cases
+(`evidence/vto-live-native-n1/renders/`). These are **not** device
+screenshots and must never be cited as physical-device evidence. They did
+their job: N1-ENV-010 was found by looking at one.
 
 ## Evidence index
 
