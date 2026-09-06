@@ -47,20 +47,15 @@ class KScanLiveVtoNativeModule : Module() {
     View(LiveVtoTestRenderView::class) {
       Prop("active") { view: LiveVtoTestRenderView, active: Boolean -> view.active = active }
 
-      AsyncFunction("getLastN1BResult") { view: LiveVtoTestRenderView ->
-        val result = view.lastResult ?: return@AsyncFunction null
-        mapOf(
-          "assetId" to result.assetId,
-          "gatePassed" to result.gatePassed,
-          "gateFindings" to result.gateFindings,
-          "scale" to result.scale,
-          "rotationRadians" to result.rotationRadians,
-          "controlPointTargets" to result.controlPointTargets.mapValues { listOf(it.value.first, it.value.second) },
-          "bounds" to mapOf("minX" to result.boundsMinX, "minY" to result.boundsMinY, "maxX" to result.boundsMaxX, "maxY" to result.boundsMaxY),
-          "canvasWidth" to result.canvasWidth,
-          "canvasHeight" to result.canvasHeight,
-          "error" to result.error,
-        )
+      // DIAGNOSTIC ONLY. Returns a single geometry snapshot on demand, as
+      // a JSON string, for gate evidence. This is deliberately NOT a
+      // per-frame channel: amendment D24 forbids high-frequency geometry
+      // (and any frame/landmark payload) crossing the bridge, and N1-D's
+      // replay pipeline emits bounded state events instead. Guarded by a
+      // one-shot rate limiter so it cannot be turned into a frame pump by
+      // a caller polling it.
+      AsyncFunction("getGeometrySnapshotJson") { view: LiveVtoTestRenderView ->
+        view.readDiagnosticSnapshotJson()
       }
     }
   }

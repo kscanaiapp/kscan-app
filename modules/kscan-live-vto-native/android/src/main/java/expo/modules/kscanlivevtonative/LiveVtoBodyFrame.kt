@@ -1,6 +1,6 @@
 package expo.modules.kscanlivevtonative
 
-import android.graphics.PointF
+
 import kotlin.math.atan2
 
 /**
@@ -22,7 +22,7 @@ import kotlin.math.atan2
  * every BodyFrame at this gate is canned (see NEUTRAL_BODY_FRAME below).
  */
 sealed class Landmark {
-  data class Present(val point: PointF, val confidence: Float) : Landmark()
+  data class Present(val point: Vec2, val confidence: Float) : Landmark()
   object Absent : Landmark()
 
   val isPresent: Boolean get() = this is Present
@@ -51,7 +51,7 @@ data class BodyFrame(
 ) {
   companion object {
     private fun present(u: Float, v: Float, confidence: Float = 1f) =
-      Landmark.Present(PointF(u, v), confidence)
+      Landmark.Present(Vec2(u, v), confidence)
 
     /**
      * Canned test pose. Values match the fixture generator's own base pose
@@ -117,8 +117,8 @@ data class BodyFrame(
   }
 }
 
-fun Landmark.pointOrNull(): PointF? = (this as? Landmark.Present)?.point
+fun Landmark.pointOrNull(): Vec2? = (this as? Landmark.Present)?.point
 
 /** Normalized [0,1] BodyFrame coordinates -> a pixel-space render canvas. */
-fun PointF.toCanvasPx(canvasWidth: Float, canvasHeight: Float): PointF =
-  PointF(x * canvasWidth, y * canvasHeight)
+fun Vec2.toCanvasPx(canvasWidth: Float, canvasHeight: Float): Vec2 =
+  Vec2(x * canvasWidth, y * canvasHeight)

@@ -6,11 +6,10 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.PointF
+
 import android.util.Log
 import expo.modules.kotlin.AppContext
 import expo.modules.kotlin.views.ExpoView
-import org.json.JSONObject
 import kotlin.math.max
 import kotlin.math.min
 
@@ -21,6 +20,9 @@ private const val TAG = "KScanLiveVtoN1B"
  *  comparable without a rescale step. Drawn scaled-to-fit the real view. */
 private const val RENDER_CANVAS_W = 720f
 private const val RENDER_CANVAS_H = 960f
+
+/** Amendment D24: at most one distinct diagnostic snapshot per second across the bridge. */
+private const val DIAGNOSTIC_SNAPSHOT_MIN_INTERVAL_NANOS = 1_000_000_000L
 
 /**
  * N1-B: renders one governed .ksgarment fixture (bundled under
@@ -38,8 +40,10 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
   private var meshWidth = 0
   private var meshHeight = 0
   private var loadError: String? = null
-  var lastResult: N1BRenderResult? = null
+  var lastSnapshot: GeometrySnapshot? = null
     private set
+  private var cachedSnapshotJson: String? = null
+  private var cachedSnapshotAtNanos: Long = 0L
 
   var active: Boolean = false
     set(value) {
@@ -51,55 +55,61 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
   private fun loadAndCompute() {
     try {
       val assets = context.assets
-      val manifestJson = assets.open("n1b-fixture/manifest.json").use { it.readBytes() }.toString(Charsets.UTF_8)
-      val ksgarmentJson = JSONObject(manifestJson).getJSONObject("ksgarment")
-      val manifest = KsgarmentManifest.parse(ksgarmentJson)
+      val manifestText = assets.open("n1b-fixture/manifest.json").use { it.readBytes() }.toString(Charsets.UTF_8)
+      val manifest = KsgarmentManifest.parseAssetManifest(manifestText)
 
       val textureBitmap = assets.open("n1b-fixture/${manifest.texture}").use { android.graphics.BitmapFactory.decodeStream(it) }
       val alphaBitmap = assets.open("n1b-fixture/${manifest.alphaMask}").use { android.graphics.BitmapFactory.decodeStream(it) }
       garmentBitmap = combineTextureAndAlpha(textureBitmap, alphaBitmap)
 
-      val bodyFrame = BodyFrame.neutral()
-      val anchors = extractBodyAnchors(bodyFrame, RENDER_CANVAS_W, RENDER_CANVAS_H)
-        ?: throw IllegalStateException("canned BodyFrame missing required shoulder landmarks")
-      val targets = computeControlPointTargets(anchors, manifest, textureBitmap.width, textureBitmap.height)
-      val placement = fitRigidPlacement(manifest, targets, textureBitmap.width, textureBitmap.height)
-      val gate = evaluateRigidGate(anchors, manifest, placement, textureBitmap.width, textureBitmap.height)
-
-      meshWidth = manifest.meshDefinition.width
-      meshHeight = manifest.meshDefinition.height
-      meshVerts = if (gate.passed) {
-        buildDeformedMeshVertices(manifest, targets.targets)
-      } else {
-        null // refuse to deform on a failed gate -- see evaluateRigidGate's doc comment
-      }
-
-      val bounds = computeBounds(targets.targets.values)
-      lastResult = N1BRenderResult(
-        assetId = manifest.productId,
-        gatePassed = gate.passed,
-        gateFindings = gate.findings,
-        scale = placement.scale,
-        rotationRadians = placement.rotationRadians,
-        controlPointTargets = targets.targets.mapKeys { it.key.id }.mapValues { Pair(it.value.x, it.value.y) },
-        boundsMinX = bounds.first.x, boundsMinY = bounds.first.y,
-        boundsMaxX = bounds.second.x, boundsMaxY = bounds.second.y,
-        canvasWidth = RENDER_CANVAS_W, canvasHeight = RENDER_CANVAS_H,
-        error = null,
+      // Exactly the same pure pipeline the conformance goldens run
+      // (amendment D8) -- the view computes nothing of its own.
+      val snapshot = LiveVtoGeometryPipeline.compute(
+        manifest = manifest,
+        frame = BodyFrame.neutral(),
+        bodyFrameId = "neutral-frontal",
+        canvasWidth = RENDER_CANVAS_W,
+        canvasHeight = RENDER_CANVAS_H,
+        textureWidth = textureBitmap.width,
+        textureHeight = textureBitmap.height,
       )
-      Log.d(TAG, "N1-B render computed: $lastResult")
+      meshWidth = snapshot.meshWidth
+      meshHeight = snapshot.meshHeight
+      meshVerts = snapshot.meshVertices
+      lastSnapshot = snapshot
+      Log.d(TAG, "N1-B geometry snapshot: ${describeSnapshot(snapshot)}")
     } catch (t: Throwable) {
       loadError = t.message ?: t.toString()
-      lastResult = N1BRenderResult.error(loadError!!)
+      lastSnapshot = null
       Log.e(TAG, "N1-B render failed", t)
     }
   }
 
-  private fun computeBounds(points: Collection<PointF>): Pair<PointF, PointF> {
+  /**
+   * Diagnostic snapshot read, rate-limited (amendment D24).
+   *
+   * A caller that polls this cannot turn it into a per-frame geometry
+   * channel: reads inside the window return the SAME cached string rather
+   * than a fresh computation, and the bridge sees at most one distinct
+   * snapshot per window regardless of call rate. Returns null before the
+   * first compute.
+   */
+  fun readDiagnosticSnapshotJson(): String? {
+    val snapshot = lastSnapshot ?: return null
+    val now = System.nanoTime()
+    val cached = cachedSnapshotJson
+    if (cached != null && now - cachedSnapshotAtNanos < DIAGNOSTIC_SNAPSHOT_MIN_INTERVAL_NANOS) return cached
+    val encoded = GeometrySnapshotJson.encode(snapshot, includeMesh = false)
+    cachedSnapshotJson = encoded
+    cachedSnapshotAtNanos = now
+    return encoded
+  }
+
+  private fun computeBounds(points: Collection<Vec2>): Pair<Vec2, Vec2> {
     var minX = Float.MAX_VALUE; var minY = Float.MAX_VALUE
     var maxX = -Float.MAX_VALUE; var maxY = -Float.MAX_VALUE
     for (p in points) { minX = min(minX, p.x); minY = min(minY, p.y); maxX = max(maxX, p.x); maxY = max(maxY, p.y) }
-    return Pair(PointF(minX, minY), PointF(maxX, maxY))
+    return Pair(Vec2(minX, minY), Vec2(maxX, maxY))
   }
 
   /**
@@ -163,26 +173,8 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
       canvas.drawBitmapMesh(bitmap, meshWidth, meshHeight, verts, 0, null, 0, Paint().apply { isAntiAlias = true })
     } else {
       val p = Paint().apply { color = Color.RED; textSize = 24f }
-      canvas.drawText("rigid gate failed: ${lastResult?.gateFindings}", 20f, 40f, p)
+      canvas.drawText("no mesh: ${lastSnapshot?.failure ?: lastSnapshot?.gateFindings}", 20f, 40f, p)
     }
     canvas.restore()
-  }
-}
-
-data class N1BRenderResult(
-  val assetId: String,
-  val gatePassed: Boolean,
-  val gateFindings: List<String>,
-  val scale: Float,
-  val rotationRadians: Float,
-  val controlPointTargets: Map<String, Pair<Float, Float>>,
-  val boundsMinX: Float, val boundsMinY: Float, val boundsMaxX: Float, val boundsMaxY: Float,
-  val canvasWidth: Float, val canvasHeight: Float,
-  val error: String?,
-) {
-  companion object {
-    fun error(message: String) = N1BRenderResult(
-      "", false, emptyList(), 0f, 0f, emptyMap(), 0f, 0f, 0f, 0f, RENDER_CANVAS_W, RENDER_CANVAS_H, message
-    )
   }
 }

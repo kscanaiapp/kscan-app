@@ -1,6 +1,5 @@
 package expo.modules.kscanlivevtonative
 
-import org.json.JSONObject
 
 /**
  * Native re-declaration of the .ksgarment contract -- same field set as
@@ -62,17 +61,21 @@ data class KsgarmentManifest(
      * the P1-E1 minimum control points, an unsupported schema version, or a
      * non-grid mesh, rather than rendering a partial/wrong garment.
      */
-    fun parse(json: JSONObject): KsgarmentManifest {
-      val version = json.getString("version")
+    fun parse(json: Map<String, Any?>): KsgarmentManifest {
+      val version = LiveVtoJson.str(json["version"])
       if (version != KSGARMENT_SCHEMA_VERSION) {
         throw LiveVtoGarmentValidationException("unsupported ksgarment schema version: $version")
       }
-      val controlPointsJson = json.getJSONArray("controlPoints")
       val controlPoints = mutableListOf<GarmentControlPoint>()
-      for (i in 0 until controlPointsJson.length()) {
-        val cp = controlPointsJson.getJSONObject(i)
-        val id = GarmentControlPointId.fromId(cp.getString("id")) ?: continue
-        controlPoints.add(GarmentControlPoint(id, cp.getDouble("u").toFloat(), cp.getDouble("v").toFloat()))
+      for (entry in LiveVtoJson.arr(json["controlPoints"])) {
+        val cp = LiveVtoJson.obj(entry)
+        val id = GarmentControlPointId.fromId(LiveVtoJson.str(cp["id"])) ?: continue
+        val u = LiveVtoJson.num(cp["u"]).toFloat()
+        val v = LiveVtoJson.num(cp["v"]).toFloat()
+        if (!u.isFinite() || !v.isFinite()) {
+          throw LiveVtoGarmentValidationException("non-finite control point coordinate: ${id.id}")
+        }
+        controlPoints.add(GarmentControlPoint(id, u, v))
       }
       val presentIds = controlPoints.map { it.id }.toSet()
       val missing = MINIMUM_CONTROL_POINTS_FOR_ATTACHMENT - presentIds
@@ -81,21 +84,31 @@ data class KsgarmentManifest(
           "manifest missing required control points: ${missing.joinToString { it.id }}"
         )
       }
-      val meshJson = json.getJSONObject("meshDefinition")
-      if (meshJson.getString("type") != "grid") {
-        throw LiveVtoGarmentValidationException("unsupported meshDefinition.type: ${meshJson.getString("type")}")
+      val mesh = LiveVtoJson.obj(json["meshDefinition"])
+      val meshType = LiveVtoJson.str(mesh["type"])
+      if (meshType != "grid") {
+        throw LiveVtoGarmentValidationException("unsupported meshDefinition.type: $meshType")
+      }
+      val meshWidth = LiveVtoJson.num(mesh["width"]).toInt()
+      val meshHeight = LiveVtoJson.num(mesh["height"]).toInt()
+      if (meshWidth < 1 || meshHeight < 1) {
+        throw LiveVtoGarmentValidationException("degenerate meshDefinition: ${meshWidth}x${meshHeight}")
       }
       return KsgarmentManifest(
         version = version,
-        productId = json.getString("productId"),
-        category = json.getString("category"),
+        productId = LiveVtoJson.str(json["productId"]),
+        category = LiveVtoJson.str(json["category"]),
         controlPoints = controlPoints,
-        meshDefinition = MeshDefinition(meshJson.getInt("width"), meshJson.getInt("height")),
-        texture = json.getString("texture"),
-        alphaMask = json.getString("alphaMask"),
-        assetVersion = json.getString("assetVersion"),
+        meshDefinition = MeshDefinition(meshWidth, meshHeight),
+        texture = LiveVtoJson.str(json["texture"]),
+        alphaMask = LiveVtoJson.str(json["alphaMask"]),
+        assetVersion = LiveVtoJson.str(json["assetVersion"]),
       )
     }
+
+    /** Reads the full generated-asset manifest and returns its `ksgarment` block. */
+    fun parseAssetManifest(text: String): KsgarmentManifest =
+      parse(LiveVtoJson.obj(LiveVtoJson.obj(LiveVtoJson.parse(text))["ksgarment"]))
   }
 }
 

@@ -20,4 +20,19 @@ android {
   lintOptions {
     abortOnError false
   }
+  testOptions {
+    unitTests {
+      // Left false deliberately. The geometry stack has NO Android
+      // dependencies (see LiveVtoVec2.kt / LiveVtoJson.kt), so these tests
+      // exercise the real production code, not stubs that quietly return
+      // zero. If a future change reintroduces an Android type into the
+      // geometry path, these tests fail loudly instead of passing vacuously.
+      returnDefaultValues false
+      includeAndroidResources false
+    }
+  }
+}
+
+dependencies {
+  testImplementation 'junit:junit:4.13.2'
 }
