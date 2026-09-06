@@ -342,12 +342,25 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
       session.start()
       cameraPerceptionSession = session
       cameraPerceptionDriver = LiveVtoPerceptionDriver(session, { controller.latestFrame() }).also { it.start() }
-      // The camera producer (CameraX's own analyzer callback) starts only
-      // once the perception session is READY to receive frames -- starting
-      // it first would let camera-produced frames pile up against a slot
-      // nothing is draining yet, which `LatestStateSlot` would count as
-      // drops that never represented real backpressure.
-      controller.start()
+      // N1-G camera diagnostic cycle (2026-09-06, amendment G1 hypothesis
+      // (c)): `pv` was JUST added to the view hierarchy on this same call
+      // stack, so it has not necessarily been through its first
+      // measure/layout pass yet -- `PreviewView.surfaceProvider` cannot
+      // hand CameraX a correctly-sized `SurfaceRequest` before that
+      // happens. Bind only after a real layout pass reports a non-zero
+      // size, rather than assuming `addView` alone makes the view ready
+      // the instant this function returns. `controller.start()` itself
+      // stays exactly the same call, only its timing changes.
+      // `View.post` queues onto the UI thread's own message queue, which is
+      // also what drives measure/layout -- by the time this runs, `pv` has
+      // been through at least one real layout pass (an OnGlobalLayoutListener
+      // attempt here did not reliably fire on this device/RN view-hierarchy
+      // combination; `post` is the simpler, well-established primitive).
+      // `cameraController` may already be null if `stopCamera()` ran before
+      // this runs.
+      pv.post {
+        if (cameraController === controller) controller.start()
+      }
     } catch (t: Throwable) {
       loadError = t.message ?: t.toString()
       Log.e(TAG, "N1-F camera start failed", t)

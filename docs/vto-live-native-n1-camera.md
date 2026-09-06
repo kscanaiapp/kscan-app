@@ -293,8 +293,31 @@ a category this module DOES control). Per mission section 34's hard-problem
 ceiling ("do not endlessly tune symptoms"), no further repair cycles were
 spent chasing it this session.
 
+- Cycle 4 (N1-G amendment G1, one bounded pass, 2026-09-06): deferred
+  `LiveVtoCameraController.start()` until `PreviewView` has been through a
+  real layout pass (`View.post`, after an `OnGlobalLayoutListener` attempt
+  did not reliably fire in this RN native-view hierarchy) — kept
+  permanently as a correctness improvement, but it did NOT change the
+  symptom either. This same pass captured the **confirmed error code**,
+  replacing "ordering suspected" with a named, reproducible failure:
+  `E Camera2-FrameProcessorBase: FrameProcessorBase: Error waiting for new
+  frames: Connection timed out (-110)`, repeating every ~2s, logged by PID
+  2240 (`cameraserver`, the SYSTEM camera service — not this app's
+  process). `-110` is `ETIMEDOUT`. CameraX's own error tracking
+  (`Camera2CameraController` state dumps) shows `last camera error = null`
+  throughout — CameraX itself never observes a configuration failure; the
+  camera framework's frame-delivery wait times out **below** CameraX,
+  between `cameraserver` and the vendor HAL/driver. This is evidence the
+  earlier "CameraX/HAL ordering race" description underspecified: the
+  failure is not a race CameraX loses, it is the system camera service
+  never receiving frames from the driver after a session it believes is
+  correctly configured — a hardware/firmware/driver-level fault on this
+  specific device, upstream of anything an app process (CameraX, camera2,
+  or otherwise) can observe or repair.
+
 ```
 HOLD -- ANDROID CAMERA RUNTIME
+Confirmed error: Camera2-FrameProcessorBase ETIMEDOUT (-110), cameraserver (PID 2240)
 ```
 
 Everything downstream of the camera boundary (BodyFrame adapter, rigid
