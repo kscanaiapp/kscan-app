@@ -59,7 +59,7 @@ for contract (1) to be built, jointly, on both platforms.
 
 ## 2. Commands (the real, pinned surface)
 
-Both platforms expose the SAME 7 bridge members, mechanically pinned by a
+Both platforms expose the SAME 9 bridge members, mechanically pinned by a
 source-scanning test on each side (Android: `RuntimeBoundaryTest.kt`; iOS:
 `LiveVtoRuntimeBoundaryTests.swift`):
 
@@ -72,17 +72,26 @@ source-scanning test on each side (Android: `RuntimeBoundaryTest.kt`; iOS:
 | `getReplayStatsJson` | `AsyncFunction` (View) | View | Bounded aggregate replay counters |
 | `perception` | `Prop` (View) | View | Start/stop the N1-E real-perception pipeline |
 | `getPerceptionStatsJson` | `AsyncFunction` (View) | View | Bounded aggregate perception counters |
+| `camera` | `Prop` (View) | View | Start/stop the N1-F LIVE front-camera pipeline (CameraX / AVFoundation feeding the SAME perception/geometry/render stack `perception` already proved) |
+| `getCameraStatsJson` | `AsyncFunction` (View) | View | Bounded aggregate camera+perception counters |
 
 No `Events()` channel exists on either platform at this gate — every
 transition Android emits internally (`ReplayEvent`) stays inside the native
 process; the bridge only exposes pull-based, rate-limited, aggregate reads.
-iOS reproduces this exactly: `LiveVtoRenderView`'s replay/perception
+iOS reproduces this exactly: `LiveVtoRenderView`'s replay/perception/camera
 sessions fire `ReplayEvent` callbacks that only trigger a `setNeedsDisplay()`,
 never a bridge `sendEvent`.
 
 **Banned substrings** (both platforms' boundary tests enforce this on every
 member name): `frame`, `bitmap`, `image`, `pixel`, `mask`, `landmark`, `mesh`,
-`texture`, `buffer`. None of the 7 names above contain any of them.
+`texture`, `buffer`. None of the 9 names above contain any of them.
+
+**N1-F note:** `camera`/`getCameraStatsJson` are diagnostic-only additions in
+the SAME style as `perception`/`replay` — NOT the aspirational ten
+`LIVE_VTO_COMMANDS` §0 describes (`start`/`capturePersonFrame`/etc.), which
+remain unimplemented on both platforms. Full camera-lane design (mirror
+decision, backpressure design, known constraints, evidence tiers):
+`docs/vto-live-native-n1-camera.md` (Android + iOS).
 
 ---
 
@@ -289,11 +298,16 @@ does not touch that categorical prohibition.
 | Bridge payload allowlist | `ReplayEvent.ALLOWED_PAYLOAD_KEYS` mechanically pinned | `ReplayEvent.allowedPayloadKeys` (Swift `Set<String>`), identical 4 keys (`state`, `fixtureId`, `sourceId`, `error`), asserted by `LiveVtoReplayRuntimeTests.testReplayEventsCarryOnlyBoundedStateAndNoFrameData` |
 | Bridge member naming | banned substrings (section 2) | identical banned-substring list, checked by `LiveVtoRuntimeBoundaryTests.testTheBridgeSurfaceIsPinned` |
 | Rate-limited diagnostic read | 1 distinct read/sec (`DIAGNOSTIC_SNAPSHOT_MIN_INTERVAL_NANOS`) | identical bound (`diagnosticSnapshotMinInterval = 1.0` sec) |
-| No person imagery | perception exercises a bundled procedurally-generated synthetic test image, never a live camera frame | same bundled PNG, byte-identical copy |
+| No person imagery (`perception`/`replay`/`active` modes) | exercises a bundled procedurally-generated synthetic test image, never a live camera frame | same bundled PNG, byte-identical copy |
+| Camera frames never cross the bridge (`camera` mode, N1-F) | the live front-camera frame stays inside `LiveVtoCameraController`/`LiveVtoMediaPipePoseProvider`/the geometry pipeline; only bounded aggregate counters (`getCameraStatsJson`) reach JS, same banned-substring enforcement as every other member | identical design (`LiveVtoCameraController`/`LiveVtoMediaPipePoseProvider`), same `getCameraStatsJson` shape |
 
 All of the above is **PASS(STATIC)** evidence — proven by reading source, not
 by observing a running process. See the FINAL REPORT for which claims, if
-any, reach PASS(RUNTIME).
+any, reach PASS(RUNTIME). N1-F specifically introduces the first REAL live
+camera frames into this runtime (mission section 7) — the "no person
+imagery" guarantee for `perception`/`replay`/`active` is unaffected (those
+modes are still synthetic-only), and the camera path's privacy guarantee is
+"never crosses the bridge," not "never exists," see the row above.
 
 ---
 

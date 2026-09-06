@@ -1,5 +1,31 @@
 import UIKit
 import ExpoModulesCore
+import AVFoundation
+
+/// A plain `UIView` whose entire backing layer IS an
+/// `AVCaptureVideoPreviewLayer` -- the standard UIKit pattern for hosting a
+/// live camera preview, and the iOS structural equivalent of Android's
+/// `androidx.camera.view.PreviewView`.
+private final class LiveVtoCameraPreviewContainerView: UIView {
+  override class var layerClass: AnyClass { AVCaptureVideoPreviewLayer.self }
+  var previewLayer: AVCaptureVideoPreviewLayer { layer as! AVCaptureVideoPreviewLayer } // swiftlint:disable:this force_cast
+}
+
+/// A `UIView`'s own `draw(_:)` paints into its OWN layer, which composites
+/// BELOW any of its subviews/sublayers -- so the garment mesh cannot be
+/// drawn in `LiveVtoRenderView`'s own `draw(_:)` for camera mode (that
+/// would render UNDER the camera preview subview, not on top of it). This
+/// tiny forwarding view exists ONLY to be added as a SIBLING subview
+/// stacked ABOVE the camera preview container, so its own `draw(_:)`
+/// composites on top of the live video -- the iOS structural equivalent of
+/// Android's `dispatchDraw`-after-`super.dispatchDraw` ordering trick.
+private final class LiveVtoMeshOverlayView: UIView {
+  var onDraw: ((CGContext, CGRect) -> Void)?
+  override func draw(_ rect: CGRect) {
+    guard let context = UIGraphicsGetCurrentContext() else { return }
+    onDraw?(context, rect)
+  }
+}
 
 /// Logical render canvas size -- matches the P3-A reference oracle's fixture
 /// canvas (720x960), the SAME constant Android's `LiveVtoTestRenderView`
@@ -214,6 +240,142 @@ public final class LiveVtoRenderView: ExpoView {
       + ",\"refused\":\(s.refused)}"
   }
 
+  // MARK: - N1-F camera-live
+
+  private var cameraController: LiveVtoCameraController?
+  private var cameraPerceptionSession: LiveVtoPerceptionSession?
+  private var cameraPerceptionDriver: LiveVtoPerceptionDriver?
+  private var cameraImage: CGImage?
+  private var cameraPreviewContainer: LiveVtoCameraPreviewContainerView?
+  private var cameraMeshOverlay: LiveVtoMeshOverlayView?
+  private var cameraControllerState: CameraControllerState = .idle
+  private var cameraControllerError: String?
+
+  /// Starts/stops the SAME real perception pipeline `perception` already
+  /// proved (MediaPipe -> BodyFrameAdapter -> rigid gate -> deformation ->
+  /// renderer), sourced from a LIVE front camera instead of the bundled
+  /// synthetic frame (mission section 7). Deliberately a SEPARATE session/
+  /// driver pair from `perception`'s, mirroring this file's own established
+  /// pattern of one independent prop+session+driver per phase.
+  public var camera: Bool = false {
+    didSet {
+      if camera { startCamera() } else { stopCamera() }
+      setNeedsDisplay()
+    }
+  }
+
+  private func startCamera() {
+    if cameraController != nil { return }
+    do {
+      let (manifest, image, dims) = try loadFixture("n1b-fixture")
+      cameraImage = image
+
+      let previewContainer = LiveVtoCameraPreviewContainerView(frame: bounds)
+      previewContainer.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+      insertSubview(previewContainer, at: 0)
+      cameraPreviewContainer = previewContainer
+
+      let overlay = LiveVtoMeshOverlayView(frame: bounds)
+      overlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+      overlay.backgroundColor = .clear
+      overlay.isOpaque = false
+      overlay.onDraw = { [weak self] context, rect in self?.drawCameraOverlay(context, rect: rect) }
+      addSubview(overlay) // added after the preview container -> stacks above it
+      cameraMeshOverlay = overlay
+
+      let controller = LiveVtoCameraController(previewLayer: previewContainer.previewLayer) { [weak self] state, reason in
+        DispatchQueue.main.async {
+          self?.cameraControllerState = state
+          self?.cameraControllerError = reason
+          self?.cameraMeshOverlay?.setNeedsDisplay()
+        }
+      }
+      cameraController = controller
+
+      let provider = LiveVtoMediaPipePoseProvider()
+      let session = LiveVtoPerceptionSession(
+        provider: provider, canvasWidth: Float(renderCanvasW), canvasHeight: Float(renderCanvasH),
+        onEvent: { [weak self] _ in DispatchQueue.main.async { self?.cameraMeshOverlay?.setNeedsDisplay() } })
+      guard session.load(manifest, textureWidth: dims.0, textureHeight: dims.1) else {
+        loadError = "camera perception load refused: \(session.currentState())"
+        return
+      }
+      session.start()
+      cameraPerceptionSession = session
+      let driver = LiveVtoPerceptionDriver(session: session, frameSource: { [weak controller] in controller?.latestFrame() })
+      cameraPerceptionDriver = driver
+      driver.start()
+      // The camera producer (AVCaptureVideoDataOutput's own delegate
+      // callback) starts only once the perception session is READY to
+      // receive frames -- starting it first would let camera-produced
+      // frames pile up against a slot nothing is draining yet, which
+      // `LatestStateSlot` would count as drops that never represented real
+      // backpressure.
+      controller.start()
+    } catch {
+      loadError = "\(error)"
+    }
+  }
+
+  private func stopCamera() {
+    cameraPerceptionDriver?.stop()
+    cameraPerceptionDriver = nil
+    cameraPerceptionSession?.dispose()
+    cameraPerceptionSession = nil
+    cameraController?.stop()
+    cameraController = nil
+    cameraPreviewContainer?.removeFromSuperview()
+    cameraPreviewContainer = nil
+    cameraMeshOverlay?.removeFromSuperview()
+    cameraMeshOverlay = nil
+    cameraImage = nil
+  }
+
+  /// Bounded end-to-end telemetry for gate evidence: the camera boundary's
+  /// own produced/dropped counters alongside the SAME perception counters
+  /// `perception` already exposes for the downstream stages. Never a frame,
+  /// a landmark, or a BodyFrame.
+  public func readCameraStatsJson() -> String? {
+    guard let controller = cameraController else { return nil }
+    let session = cameraPerceptionSession
+    let s = session?.stats()
+    let errorJson = cameraControllerError.map { "\"" + $0.replacingOccurrences(of: "\"", with: "'") + "\"" } ?? "null"
+    return "{\"controllerState\":\"\(cameraControllerState.rawValue)\""
+      + ",\"controllerError\":\(errorJson)"
+      + ",\"cameraProduced\":\(controller.frameSlot.publishedCount)"
+      + ",\"cameraConsumedByPerceptionTick\":\(controller.frameSlot.consumedCount)"
+      + ",\"cameraDroppedBeforePerceptionTick\":\(controller.frameSlot.droppedCount)"
+      + ",\"perceptionState\":\"\(session?.currentState().rawValue ?? "NONE")\""
+      + ",\"submittedToPerception\":\(s?.submittedToPerception ?? 0)"
+      + ",\"inferred\":\(s?.inferred ?? 0)"
+      + ",\"droppedBeforePerception\":\(s?.droppedBeforePerception ?? 0)"
+      + ",\"refused\":\(s?.refused ?? 0)"
+      + ",\"rendered\":\(s?.rendered ?? 0)"
+      + ",\"droppedBeforeRender\":\(s?.droppedBeforeRender ?? 0)}"
+  }
+
+  private func drawCameraOverlay(_ context: CGContext, rect: CGRect) {
+    guard let session = cameraPerceptionSession, let image = cameraImage else { return }
+    let fitScale = min(rect.width / renderCanvasW, rect.height / renderCanvasH)
+    let snapshot = session.consumeForRender() ?? session.geometrySlot.peek()
+    context.saveGState()
+    context.scaleBy(x: fitScale, y: fitScale)
+    if let verts = snapshot?.meshVertices, let snapshot = snapshot {
+      drawMesh(context, image: image, meshCellsWide: snapshot.meshWidth, meshCellsHigh: snapshot.meshHeight, verts: verts, textureWidth: snapshot.textureWidth, textureHeight: snapshot.textureHeight)
+    }
+    context.restoreGState()
+    let st = session.stats()
+    drawText(
+      context, "camera=\(cameraControllerState.rawValue) produced=\(st.produced) inferred=\(st.inferred) rendered=\(st.rendered) refused=\(st.refused)",
+      at: CGPoint(x: 20, y: 24), color: UIColor.cyan)
+    if snapshot?.meshVertices == nil {
+      drawText(
+        context, "no mesh: \(snapshot?.failure ?? snapshot?.gateFindings.description ?? "unknown")",
+        at: CGPoint(x: 20, y: 48), color: UIColor.red)
+    }
+    if session.currentState() == .playing { cameraMeshOverlay?.setNeedsDisplay() }
+  }
+
   // MARK: - Lifecycle
 
   public override func didMoveToWindow() {
@@ -223,6 +385,7 @@ public final class LiveVtoRenderView: ExpoView {
     if window == nil {
       stopReplay()
       stopPerception()
+      stopCamera()
     }
   }
 
@@ -231,6 +394,9 @@ public final class LiveVtoRenderView: ExpoView {
     replaySession?.dispose()
     perceptionDriver?.stop()
     perceptionSession?.dispose()
+    cameraPerceptionDriver?.stop()
+    cameraPerceptionSession?.dispose()
+    cameraController?.stop()
   }
 
   // MARK: - N1-B static compute
@@ -461,6 +627,12 @@ public final class LiveVtoRenderView: ExpoView {
 
   public override func draw(_ rect: CGRect) {
     super.draw(rect)
+    if camera {
+      // The live camera feed and the mesh overlay are both separate child
+      // views (see `startCamera()`), stacked above this view's own layer --
+      // this view's own `draw(_:)` has nothing to paint for this mode.
+      return
+    }
     guard let context = UIGraphicsGetCurrentContext() else { return }
     context.setFillColor(UIColor(red: 32 / 255, green: 32 / 255, blue: 36 / 255, alpha: 1).cgColor)
     context.fill(rect)

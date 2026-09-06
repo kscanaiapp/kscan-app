@@ -51,7 +51,7 @@ final class LiveVtoRuntimeBoundaryTests: XCTestCase {
   func testTheNativeRuntimeHasNoNetworkSurface() throws {
     let forbidden = ["URLSession", "URLRequest(", "CFNetwork", "Alamofire", "NWConnection", "NSURLConnection", "Socket("]
     var offenders: [String] = []
-    for dir in ["ios/Core", "ios/Drivers", "ios/Perception"] {
+    for dir in ["ios/Core", "ios/Drivers", "ios/Perception", "ios/Camera"] {
       for file in try swiftFiles(under: dir) {
         let lines = (try? String(contentsOf: file, encoding: .utf8))?.components(separatedBy: "\n") ?? []
         for (i, line) in lines.enumerated() {
@@ -85,7 +85,10 @@ final class LiveVtoRuntimeBoundaryTests: XCTestCase {
       }
     }
 
-    let expected: Set<String> = ["active", "getCapability", "getGeometrySnapshotJson", "getPerceptionStatsJson", "getReplayStatsJson", "perception", "replay"]
+    let expected: Set<String> = [
+      "active", "camera", "getCameraStatsJson", "getCapability", "getGeometrySnapshotJson",
+      "getPerceptionStatsJson", "getReplayStatsJson", "perception", "replay",
+    ]
     XCTAssertEqual(declared, expected, "the native bridge surface changed -- review the privacy boundary before updating this list")
 
     let banned = ["frame", "bitmap", "image", "pixel", "mask", "landmark", "mesh", "texture", "buffer"]
