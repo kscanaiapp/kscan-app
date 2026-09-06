@@ -42,7 +42,22 @@ export interface BodyAnchors {
 
 function toPixels(landmark: Landmark, width: number, height: number): Point | null {
   if (!isLandmarkPresent(landmark)) return null;
-  return { x: landmark.point.u * width, y: landmark.point.v * height };
+  const x = landmark.point.u * width;
+  const y = landmark.point.v * height;
+  // N1-ENV-008 repair: a landmark reporting `present: true` with a NaN or
+  // Infinite coordinate is not "absent" and is not a valid position either.
+  // Every downstream comparison in this file (`< 1`, `<= 0`, `> tolerance`)
+  // evaluates to `false` against NaN, which is exactly why the rigid stop
+  // gate previously reported `passed: true, findings: []` on fully-NaN
+  // geometry -- the gate whose entire purpose is "is this garment
+  // semantically attached to this body at all" was certifying undefined
+  // geometry as attached. Treating a non-finite coordinate the same as an
+  // absent one reuses the existing, already-correct `missing_shoulders` /
+  // `missing_hips` failure path rather than inventing a new one, and it
+  // stops the defect at the earliest possible boundary -- before any
+  // arithmetic, not after.
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+  return { x, y };
 }
 
 export type AnchorFailure = 'missing_shoulders' | 'missing_hips' | 'degenerate_shoulder_span';
@@ -469,7 +484,8 @@ export type RigidGateFinding =
   | 'upside_down'
   | 'gross_scale_error'
   | 'neckline_outside_upper_torso'
-  | 'garment_largely_outside_torso';
+  | 'garment_largely_outside_torso'
+  | 'non_finite_measurement';
 
 export interface RigidGateResult {
   passed: boolean;
@@ -561,6 +577,27 @@ export function evaluateRigidGate(
     garmentCentroid.y - torsoCentroid.y,
   );
   if (garmentCentroidToTorsoCentroidPx > torsoDiagonalPx * 0.5) findings.push('garment_largely_outside_torso');
+
+  // N1-ENV-008 repair, second layer. `toPixels` now rejects a non-finite
+  // BodyFrame landmark at the boundary, but this gate's whole reason to
+  // exist is to be the LAST stop before deformation -- it must not trust
+  // that every upstream caller got that right. Every check above is a
+  // numeric comparison, and EVERY numeric comparison against NaN evaluates
+  // to `false`: `<= 0` is false, `< 0.55 || > 1.8` is false, `> tolerance`
+  // is false. That is precisely how the original defect produced
+  // `passed: true, findings: []` on fully-undefined geometry -- silence
+  // was mistaken for a clean result. An explicit finite check is the only
+  // way this function can tell "no defect found" apart from "defects are
+  // unmeasurable," and those are not the same thing.
+  const measurementsAreFinite = [
+    garmentShoulderSpanPx,
+    scaleRatio,
+    hemBelowShoulderPx,
+    necklineToNeckBasePx,
+    garmentCentroidToTorsoCentroidPx,
+    torsoDiagonalPx,
+  ].every(Number.isFinite);
+  if (!measurementsAreFinite) findings.push('non_finite_measurement');
 
   return {
     passed: findings.length === 0,
