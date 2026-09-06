@@ -8,15 +8,24 @@ name: Live VTO iOS Native Catch-Up
 # Two jobs, cheapest-first (mission section 38 -- do not do expensive Apple
 # compilation on every commit; this workflow itself IS the logical milestone
 # checkpoint for this lane's single combined pass):
-#   swift-test  -- SwiftPM host tests for the pure-logic Core package. No
-#                  CocoaPods, no MediaPipe download, no Xcode project --
-#                  proves the geometry/deformation/replay/backpressure/
-#                  adapter math independent of the rest of the toolchain.
-#   pod-lint    -- compiles the FULL module (Core + Module + View + Drivers +
-#                  Perception, including the real MediaPipeTasksVision
-#                  dependency) via `pod lib lint`, the standard way to prove
-#                  a podspec actually builds under Xcode without needing a
-#                  full host app project.
+#   swift-test    -- SwiftPM host tests for the pure-logic Core package. No
+#                    CocoaPods, no MediaPipe download, no Xcode project --
+#                    proves the geometry/deformation/replay/backpressure/
+#                    adapter math independent of the rest of the toolchain.
+#   ios-app-build -- compiles the FULL module (Core + Module + View +
+#                    Drivers + Perception, including the real
+#                    MediaPipeTasksVision dependency) as part of the REAL
+#                    app via `expo prebuild` + `pod install` + `xcodebuild`.
+#                    `pod lib lint` was tried first and is NOT viable for an
+#                    Expo autolinked module: ExpoModulesCore has no published
+#                    CocoaPods-trunk spec at all (it is resolved from the
+#                    LOCAL expo-modules-core npm package via Expo's own
+#                    autolinking, which only exists inside a real app
+#                    Podfile) -- `pod lib lint` fails at dependency
+#                    resolution before it ever reaches this module's own
+#                    code, on every Expo local module in this repo, not
+#                    just this one. Building through the real app's own
+#                    generated Podfile is the correct equivalent.
 on:
   push:
     branches:
@@ -58,26 +67,67 @@ jobs:
             -instr-profile "$BUILD_DIR/codecov/default.profdata" \
             --ignore-filename-regex="Tests/" || echo "coverage summary unavailable (non-fatal)"
 
-  pod-lint:
-    name: pod lib lint (full module incl. MediaPipeTasksVision)
+  ios-app-build:
+    name: iOS app build (expo prebuild + pod install + xcodebuild)
     runs-on: macos-14
     needs: swift-test
     steps:
       - uses: actions/checkout@v4
 
-      - name: CocoaPods version
-        run: pod --version
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
-      - name: pod lib lint
-        working-directory: modules/kscan-live-vto-native/ios
-        # --allow-warnings: this podspec is not published to trunk and never
-        # will be (s.source is a placeholder git URL, matching the
-        # KScanVoiceNative/KScanPiiNative precedent) -- trunk-publish-quality
-        # warnings are expected and not a signal about THIS lane's code.
-        # --skip-import-validation avoids needing a full host-app target just
-        # to prove the module and its real dependency compile together.
+      - name: npm ci
+        run: npm ci
+
+      - name: CocoaPods / Xcode versions
         run: |
-          pod lib lint KScanLiveVtoNative.podspec \
-            --allow-warnings \
-            --skip-import-validation \
-            --verbose
+          pod --version
+          xcodebuild -version
+
+      # --no-install: this repo's Podfile needs the real ExpoModulesCore
+      # autolinking resolution, which the next step's `pod install` performs
+      # with full network access to CocoaPods trunk (for MediaPipeTasksVision)
+      # AND the local npm packages (for ExpoModulesCore, kscan-live-vto-native,
+      # kscan-voice-native, kscan-pii-native) in one pass.
+      - name: expo prebuild --platform ios
+        run: npx expo prebuild --platform ios --no-install
+
+      - name: pod install
+        working-directory: ios
+        run: pod install --repo-update
+
+      - name: Confirm the new module and its dependency are actually linked
+        working-directory: ios
+        run: |
+          grep -q "KScanLiveVtoNative" Podfile.lock || (echo "::error::KScanLiveVtoNative did not autolink into Podfile.lock" && exit 1)
+          grep -q "MediaPipeTasksVision" Podfile.lock || (echo "::error::MediaPipeTasksVision was not resolved into Podfile.lock" && exit 1)
+          echo "Confirmed both dependencies resolved:"
+          grep -E "KScanLiveVtoNative|MediaPipeTasksVision" Podfile.lock
+
+      - name: Discover workspace and scheme
+        id: discover
+        working-directory: ios
+        run: |
+          WORKSPACE=$(ls -d *.xcworkspace | head -1)
+          echo "workspace=$WORKSPACE" >> "$GITHUB_OUTPUT"
+          SCHEME=$(xcodebuild -workspace "$WORKSPACE" -list -json | python3 -c 'import json,sys; print(json.load(sys.stdin)["workspace"]["schemes"][0])')
+          echo "scheme=$SCHEME" >> "$GITHUB_OUTPUT"
+          echo "Using workspace=$WORKSPACE scheme=$SCHEME"
+
+      # Simulator SDK, Debug config: no code signing required, and this is
+      # the real app target -- a genuine compile of KScanLiveVtoNativeModule,
+      # LiveVtoRenderView, the Drivers, and LiveVtoMediaPipePoseProvider
+      # against the real ExpoModulesCore and MediaPipeTasksVision headers,
+      # not a standalone lint of the podspec in isolation.
+      - name: xcodebuild (simulator, Debug, no codesign)
+        working-directory: ios
+        run: |
+          xcodebuild build \
+            -workspace "${{ steps.discover.outputs.workspace }}" \
+            -scheme "${{ steps.discover.outputs.scheme }}" \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            -destination "generic/platform=iOS Simulator" \
+            CODE_SIGNING_ALLOWED=NO
