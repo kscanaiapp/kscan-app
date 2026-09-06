@@ -44,7 +44,7 @@ LOG  [N1-A-PROBE] {"present":true,"capable":false,"runtimeReady":false,"runtimeV
 
 ### N1-B -- first native render
 
-**PASS on geometry conformance. Physical-device visual evidence OUTSTANDING.**
+**PASS. Geometry conformance AND physical-device visual evidence both complete.**
 
 Native renderer (`LiveVtoTestRenderView`, `Canvas.drawBitmapMesh`), governed
 garment fixture bundled in the APK, P3-A geometry stages 1-5 ported, oracle
@@ -60,17 +60,24 @@ conformance measured per control point.
 - Scale 0.98258805 native vs 0.98258823 oracle. Rotation 0.0 vs 0.0.
 - Rigid gate: `passed:true, findings:[]`. Snapshot validation: no problems.
 
-On-device (emulator) confirmation of the same numbers, captured from
-logcat, is in `evidence/vto-live-native-n1/`. The device computes what the
-JVM conformance harness computes.
+On-device (physical device: Samsung SM-S936U, Android 16 / API 36,
+arm64-v8a) confirmation of the same numbers, captured from logcat, is in
+`evidence/vto-live-native-n1/`. The device computes what the JVM
+conformance harness computes.
 
-**Outstanding, and the reason N1-B is not fully closed:** the mandatory
-physical-device screenshot (amendment D2). No physical Android device has
-been attached at any point in this lane. See "Device authority" below.
+**N1-B PHYSICAL-DEVICE SCREENSHOT: COMPLETE.** `evidence/vto-live-native-n1/n1b-physical-device-screenshot.png`
+(full) and `n1b-physical-device-render-closeup.png` (cropped) show a
+correctly-shaped garment silhouette with visible landmark markers, captured
+on the physical device above. Getting there surfaced N1-ENV-012 (P0): the
+renderer's `onDraw` was never actually being invoked by the Android View
+system, on ANY device or emulator, since N1-B's inception -- every prior
+geometry number was correct and nothing had ever painted a pixel. See the
+defect ledger for the full root cause and repair.
 
-Three geometry defects were found and repaired during the port
-(N1-ENV-004/005/006), all by running against the oracle rather than by
-source review.
+Four geometry/rendering defects were found and repaired during this gate
+(N1-ENV-004/005/006/012), the first three by running against the oracle
+rather than by source review, the fourth by the mandatory physical-device
+screenshot this gate's own amendment required.
 
 ### N1-C -- deformation conformance
 
@@ -131,7 +138,7 @@ Each gate's own hard requirements apply unchanged.
 
 | Class | Status |
 |---|---|
-| `PHYSICAL_DEVICE` | **NOT AVAILABLE.** `adb devices -l` empty throughout this lane. |
+| `PHYSICAL_DEVICE` | **AVAILABLE, USED.** Samsung SM-S936U, Android 16 (API 36), arm64-v8a. |
 | `EMULATOR` | USED. `Pixel_8_Pro` / `sdk_gphone16k_x86_64`. Secondary authority. |
 | `CI` | Not used for N1 runtime evidence. |
 | `EAS_BUILD` | Not used for N1-D; local Gradle is the compile authority. |

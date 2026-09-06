@@ -81,42 +81,51 @@ EXPO_PUBLIC_DEV_INITIAL_ROUTE=/dev-n1-diagnostic
 
 Deliberately targets **staging**, never production, for any N1 local test build. `EXPO_PUBLIC_DEV_INITIAL_ROUTE` is the app's own pre-existing, `__DEV__`-gated, EAS-profile-absent QA harness (`constants/featureFlags.ts`) -- reused as-is, not a new mechanism.
 
-## Device authority for N1-B / N1-C / N1-D (amendment D19)
+## Device authority for N1-B / N1-C / N1-D / N1-E (amendment D19)
 
 | Class | Status |
 |---|---|
-| `PHYSICAL_DEVICE` | **NOT AVAILABLE.** `adb devices -l` empty throughout. |
-| `EMULATOR` | USED. `Pixel_8_Pro` / `sdk_gphone16k_x86_64`, x86_64. |
+| `PHYSICAL_DEVICE` | **AVAILABLE, USED (as of N1-E).** Samsung SM-S936U, Android 16 (API 36), arm64-v8a. |
+| `EMULATOR` | USED for N1-B/C/D. `Pixel_8_Pro` / `sdk_gphone16k_x86_64`, x86_64. |
 | `CI` | Not used for N1 runtime evidence. |
-| `EAS_BUILD` | Not used for N1-D. Local Gradle is the compile authority. |
+| `EAS_BUILD` | Not used for N1-D/E. Local Gradle is the compile authority. |
 
-Physical-device runtime authority remains PRIMARY and remains unsatisfied.
-The mandatory N1-B physical-device screenshot (amendment D2) is
-**OUTSTANDING** and is the single reason N1-B is not fully closed.
-
-Two independent blockers on emulator visual capture, recorded so a later
-session does not repeat the attempt:
+**The N1-B mandatory physical-device screenshot (amendment D2) is now
+COMPLETE**, captured against the physical device above. This was blocked
+throughout N1-B/C/D by the same two emulator obstacles described below
+(recorded for history, since a later reader may still hit them on the
+emulator); the physical device arrived in N1-E and both were worked around
+directly on it instead:
 
 1. **Auth routing guard.** The `__DEV__` diagnostic route is pushed only
-   after the auth gate settles to `allow` (`app/_layout.tsx`), and the
-   emulator has no authenticated session. Deep-linking `kscan://dev-n1-diagnostic`
-   mounts the route long enough for its native views to load and compute
-   (their logs are captured), then the guard redirects to onboarding. The
-   guard is behaving correctly and was deliberately NOT weakened — it is a
-   security surface, and defeating it to obtain evidence would be a worse
-   outcome than the missing screenshot.
+   after the auth gate settles to `allow` (`app/_layout.tsx`). On the
+   emulator (no session) this always redirected before a render was
+   visible. On the physical device, an authenticated session had persisted
+   through an app reinstall via Android's own backup/restore mechanism
+   (not created or entered by this session -- no credentials were typed,
+   no account was created), which let the guard settle to `allow` and the
+   diagnostic route stay mounted. The guard itself was never weakened on
+   either device; it is a security surface.
 2. **Emulator storage.** `/data` sits at 88–90% full. The dual-ABI
    (x86_64 + arm64-v8a) APK fails to install with
-   `INSTALL_FAILED_INSUFFICIENT_STORAGE`; an x86_64-only build installs.
-   The dual-ABI artifact is the one that matters for a physical device.
+   `INSTALL_FAILED_INSUFFICIENT_STORAGE` there; an x86_64-only build
+   installs. The physical device took the real dual-ABI-equivalent
+   (arm64-v8a-only, matching its actual ABI) artifact directly.
 
-**What was captured on device instead**, and it is not nothing: the app
-computes the same geometry numbers off-device conformance measured
+**What the emulator captured instead, before the physical device arrived**
+(kept as historical record, not superseded): the app computed the same
+geometry numbers off-device conformance measured
 (`evidence/vto-live-native-n1/n1bd-device-runtime.json`), and the native
-replay clock runs the full 121-frame source to EOF with
-`produced=121, rendered=0, dropped=120, maxSlotDepth=1` — the renderer was
-absent for the entire run and the producer neither stalled nor accumulated
-a backlog.
+replay clock ran the full 121-frame source to EOF with
+`produced=121, rendered=0, dropped=120, maxSlotDepth=1`.
+
+**What the physical device then revealed** that the emulator's log-only
+evidence could not: `rendered=0` was not just because the diagnostic
+screen never stayed mounted long enough on the emulator -- the renderer's
+`onDraw` was never being invoked by the Android View system AT ALL, on
+any device, since N1-B's inception (N1-ENV-012, defect ledger). The
+physical-device screenshot is what caught it; the emulator's logcat-only
+evidence, however complete its numbers looked, could not have.
 
 ## APK provenance (amendment D22)
 

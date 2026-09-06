@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.view.View
 
 import android.util.Log
 import expo.modules.kotlin.AppContext
@@ -35,6 +36,41 @@ private const val DIAGNOSTIC_SNAPSHOT_MIN_INTERVAL_NANOS = 1_000_000_000L
  */
 @SuppressLint("ViewConstructor")
 class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView(context, appContext) {
+
+  init {
+    // N1-ENV-012 (P0). ROOT CAUSE (confirmed by direct onDraw
+    // instrumentation, not by inference): `ExpoView` extends `LinearLayout`
+    // -- a ViewGroup -- and Android's `ViewGroup` constructor calls
+    // `setWillNotDraw(true)` by default, on the assumption that a group
+    // normally draws nothing of its own and only composites its children.
+    // This class overrides `onDraw(Canvas)` to paint directly, but never
+    // told the View system to expect that, so `onDraw` was never invoked
+    // AT ALL -- not the background fill, not the landmark markers, not the
+    // error text, not the mesh. Every one of those is a plain Canvas
+    // primitive; none of them is specific to `drawBitmapMesh`, which is
+    // why an earlier hypothesis (hardware-acceleration incompatibility with
+    // the mesh-warp draw path specifically) was wrong and is corrected here
+    // rather than left uncorrected in a comment.
+    //
+    // FOUND BY the mandatory physical-device screenshot (amendment D2) --
+    // it is the concrete reason that requirement exists. Geometry
+    // conformance (amendment D8) measures the SAME pipeline this view
+    // draws from and was correct throughout; "does this View actually
+    // paint anything on a real device" is a different question, and nothing
+    // in the numeric harness could ever have caught this, on any device or
+    // emulator, since N1-B's inception.
+    //
+    // Fix: explicitly opt back into onDraw being called.
+    setWillNotDraw(false)
+    // Cheap insurance, not the fix: `drawBitmapMesh` has a documented
+    // history of hardware-acceleration edge cases on some Android versions.
+    // Software-backed Canvas costs nothing on a View this small and this
+    // infrequently redrawn, and removes an entire class of "it depends on
+    // the GPU driver" risk from a diagnostic surface that exists to be
+    // trustworthy evidence.
+    setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+  }
+
   private var garmentBitmap: Bitmap? = null
   private var meshVerts: FloatArray? = null
   private var meshWidth = 0
@@ -282,8 +318,10 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
       canvas.drawText("N1-B render error: $err", 20f, 60f, p)
       return
     }
-    val bitmap = garmentBitmap ?: return
+    val bitmap = garmentBitmap
     val verts = meshVerts
+    Log.d(TAG, "N1-B onDraw: viewW=$width viewH=$height bitmap=${bitmap?.let { it.width.toString()+"x"+it.height } ?: "null"} bitmapConfig=${bitmap?.config} verts=${verts?.size ?: "null"} meshW=$meshWidth meshH=$meshHeight")
+    if (bitmap == null) return
 
     canvas.save()
     val scaleX = width / RENDER_CANVAS_W
