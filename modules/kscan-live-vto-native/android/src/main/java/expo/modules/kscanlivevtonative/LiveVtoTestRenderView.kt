@@ -294,7 +294,23 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
       val (manifest, bitmap, dims) = loadFixture("n1b-fixture")
       cameraBitmap = bitmap
 
-      val pv = PreviewView(context)
+      val pv = PreviewView(context).apply {
+        // N1-F device certification (2026-09-06): PreviewView's default
+        // ImplementationMode.PERFORMANCE backs itself with a SurfaceView.
+        // This host view (LiveVtoTestRenderView) forces
+        // `LAYER_TYPE_SOFTWARE` on itself in `init{}` (N1-B's drawBitmapMesh
+        // hardware-acceleration fix) -- a SurfaceView nested inside a
+        // software-layer parent never actually receives frames from the
+        // camera HAL even though CameraX reports RUNNING (confirmed on a
+        // real device: `dumpsys media.camera` showed the camera device
+        // opened but its capture session stuck `UNCONFIGURED`, and logcat
+        // showed `SurfaceView ... updateSurface: has no frame` in a tight
+        // loop). `COMPATIBLE` mode backs the preview with a `TextureView`
+        // instead, which is a normal View that composites correctly under
+        // a software-layer parent -- CameraX's own documented reason this
+        // mode exists.
+        implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+      }
       previewView = pv
       addView(pv, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
 

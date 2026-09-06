@@ -49,6 +49,12 @@ dependencies {
   // (2026-09-06) -- 1.6.2 is `<release>`; 1.7.0-alpha/beta/rc lines exist
   // but are deliberately not used here. All four artifacts release in
   // lockstep and must stay on the same version.
+  //
+  // N1-F device certification (2026-09-06) tried downgrading to 1.5.3 (the
+  // previous stable minor line) as a bisection step against a real-device
+  // finding -- see docs/vto-live-native-n1-camera.md's "Known device-level
+  // finding" section -- and it did NOT change the symptom, so this stays
+  // on the current stable release rather than an unjustified downgrade.
   implementation 'androidx.camera:camera-core:1.6.2'
   implementation 'androidx.camera:camera-camera2:1.6.2'
   implementation 'androidx.camera:camera-lifecycle:1.6.2'

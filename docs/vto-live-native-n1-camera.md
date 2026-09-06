@@ -240,6 +240,95 @@ available.
   but a genuine product-behavior gap versus a hypothetical landscape-
   capable Live VTO screen.
 
+## Known device-level finding: front camera opens but never streams (Samsung SM-S936U, Android 16)
+
+Physical-device certification (2026-09-06) reached a real HOLD-class finding
+after three bounded, evidence-producing repair cycles (mission section 34's
+ceiling for camera-ownership-class problems), none of which changed the
+symptom:
+
+**Symptom, reproduced every attempt across a clean app reinstall and
+multiple fresh relaunches:** `LiveVtoCameraController` transitions to
+`RUNNING` (`bindToLifecycle` never throws), but zero camera frames are ever
+produced (`cameraProduced: 0` indefinitely) and the preview stays a black
+rectangle. `adb shell dumpsys media.camera` shows the camera device genuinely
+opened (`Device 1 is open`) but its capture session stuck permanently at
+`Device status: UNCONFIGURED` / `No input stream configured. No output
+streams configured.` `adb logcat` shows a tight, endless
+`SurfaceView ... updateSurface: has no frame` loop and a system-level
+`Camera2-FrameProcessorBase: Error waiting for new frames: Connection timed
+out (-110)`.
+
+**Root-cause narrowing, by direct evidence, not guesswork:**
+- Not a competing app: `dumpsys media.camera`'s active-client list showed
+  only `com.kscanai.app` holding the camera at the time of failure.
+- Not `PreviewView`'s `SurfaceView`-backed default (cycle 1): switching
+  `implementationMode` to `COMPATIBLE` (`TextureView`) did not change the
+  symptom. **Kept** as the permanent implementation anyway — it is the more
+  broadly-compatible choice for a `PreviewView` embedded the way this
+  module embeds it, independent of this specific bug.
+- Not the CameraX 1.6.2 release specifically (cycle 2): downgrading all
+  four `androidx.camera:*` artifacts to 1.5.3 (the prior stable minor line)
+  did not change the symptom. Reverted to 1.6.2 (the current stable
+  release) since the downgrade bought nothing.
+- Not the dual Preview+ImageAnalysis stream combination (cycle 3): binding
+  `Preview` ALONE (temporarily, reverted after the test) still produced
+  zero frames and the same `UNCONFIGURED` session.
+- A detailed `logcat` trace across the bind sequence shows CameraX
+  submitting the initial repeating-request session configuration
+  (`UseCaseCameraState#updateState:... streams = [Stream-3, Stream-4]...
+  Update RepeatingRequest:...`) chronologically BEFORE the camera device's
+  own `Camera open completed` callback fires, immediately followed by the
+  vendor HAL tearing down its internal 3A (auto-exposure) session
+  (`FastAecDestroy`) and releasing sensor/CSIPHY subdevice handles
+  (`ReleaseAllCache`/`ReleaseOneSubDevice`). This is consistent with a
+  session-configuration-vs-device-open ordering race in CameraX's
+  `camera2-pipe` implementation against this device's specific
+  Snapdragon/Samsung CamX camera HAL, which the HAL does not recover from.
+
+**Classification:** this is a genuine CameraX-library/vendor-HAL interaction
+issue on this specific piece of hardware, not a defect in this module's own
+Kotlin code (the three bisection cycles above each independently ruled out
+a category this module DOES control). Per mission section 34's hard-problem
+ceiling ("do not endlessly tune symptoms"), no further repair cycles were
+spent chasing it this session.
+
+```
+HOLD -- ANDROID CAMERA RUNTIME
+```
+
+Everything downstream of the camera boundary (BodyFrame adapter, rigid
+gate, deformation, renderer, the bounded backpressure design, the
+permission flow this session ALSO fixed -- see below) remains unverified
+against a real live feed as a direct consequence, not because those stages
+have their own defect. `N1-B`/`N1-D`/`N1-E` (static fixture, deterministic
+replay, and synthetic-frame MediaPipe perception) all continued to run
+correctly and concurrently on this same device throughout every attempt,
+which is itself useful evidence: the camera framework issue is isolated to
+the camera pipeline specifically, not a device-wide MediaPipe/rendering
+regression.
+
+**A real, separate, and successfully REPAIRED defect found in the same
+session:** `services/vto/vtoLiveCameraPermission.ts`'s `loadExpoCamera()`
+read `getCameraPermissionsAsync`/`requestCameraPermissionsAsync` off the
+`expo-camera` package root, which does not exist in the installed
+`expo-camera@17.0.10` (verified directly against its `build/index.js`:
+those two functions are private module internals, exported only via the
+`Camera` legacy namespace object and the `useCameraPermissions` hook). This
+made `ensureLiveCameraPermission()` -- the ONLY permission path Live VTO
+uses -- silently and permanently return `{state: 'unavailable', prompted:
+false}` on every call, on a real device, before this fix. Confirmed fixed
+on-device: after reading `Camera.getCameraPermissionsAsync`/
+`Camera.requestCameraPermissionsAsync` instead, the SAME device produced a
+real OS permission grant (`{state: 'granted', prompted: true}`). This bug
+was NOT specific to N1-F or to this diagnostic screen -- it affected the
+real, shipped Live VTO permission flow on every platform build using this
+expo-camera version, and would have made Live VTO permanently
+non-functional (always reporting the camera as unavailable) the moment
+anyone tried to use it for real. `components/scan-room/LiveScanCamera.tsx`
+(the main Scan feature) was unaffected because it correctly uses the
+`useCameraPermissions` hook, not the broken top-level functions.
+
 ## Evidence tiers (mission section 13/19 — do not upgrade one tier into another)
 
 ```
@@ -255,13 +344,20 @@ EMULATOR — module mounts/lifecycle:   PENDING-RUNTIME
                                         the SAME blocker N1-B..N1-E already documented and
                                         which mission section 13 says should not be retried
                                         the same way; not re-attempted this session)
-DEVICE — real camera, real person,
-  logo/left-right canaries, tracking
-  loss/reacquire, thermal, resource
-  stress:                             PENDING-RUNTIME (no physical Android device attached
-                                       this session; emulator evidence for any of these would
-                                       not be REAL-PERSON evidence per mission section 13 even
-                                       if the auth-guard blocker above were worked around)
+DEVICE (Samsung SM-S936U, Android 16) --
+  camera opens, permission grant/deny,
+  lifecycle, teardown, N1-B/D/E (static/
+  replay/synthetic-perception) all
+  continue working normally:          DEVICE-PASS
+DEVICE -- live front-camera streaming
+  (Preview and/or ImageAnalysis
+  actually producing frames):         FAIL -- see "Known device-level finding" below.
+                                       Real person/logo/left-right/tracking canaries are
+                                       consequently PENDING-RUNTIME: they need a live video
+                                       feed to exercise at all, and none is produced on this
+                                       device. This is not a "no device" gap -- a real Samsung
+                                       SM-S936U was used; the camera pipeline itself does not
+                                       stream on it.
 
 iOS
 SWIFT SOURCE:                         written this session (ios/Camera/*.swift,

@@ -17,9 +17,10 @@
  * `perception` props.
  */
 import { useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { requireNativeViewManager } from 'expo-modules-core';
 import { describeLiveVtoNativeCapability } from '../services/vto/liveVtoNativeModule';
+import { ensureLiveCameraPermission } from '../services/vto/vtoLiveCameraPermission';
 
 const NativeLiveVtoView = requireNativeViewManager<any>('KScanLiveVto');
 
@@ -28,9 +29,13 @@ export default function DevN1Diagnostic() {
   const [geometryResult, setGeometryResult] = useState<string>('running...');
   const [replayResult, setReplayResult] = useState<string>('running...');
   const [perceptionResult, setPerceptionResult] = useState<string>('running...');
+  const [cameraPermissionState, setCameraPermissionState] = useState<string>('not requested');
+  const [cameraOn, setCameraOn] = useState(false);
+  const [cameraStatsResult, setCameraStatsResult] = useState<string>('not started');
   const staticRef = useRef<any>(null);
   const replayRef = useRef<any>(null);
   const perceptionRef = useRef<any>(null);
+  const cameraRef = useRef<any>(null);
 
   useEffect(() => {
     try {
@@ -122,6 +127,50 @@ export default function DevN1Diagnostic() {
     };
   }, []);
 
+  // N1-F: request the SAME governed permission flow the real Live entry path
+  // uses (services/vto/vtoLiveCameraPermission.ts) -- this diagnostic screen
+  // does not invent its own permission mechanism. `camera` is only ever set
+  // true once the OS has actually granted it; the native side ALSO fails
+  // closed on its own if permission is somehow not granted (mission section
+  // 16), so this is belt-and-suspenders, not the only guard.
+  const requestCameraPermission = async () => {
+    const result = await ensureLiveCameraPermission();
+    // eslint-disable-next-line no-console
+    console.log('[N1-F-PERMISSION-PROBE]', JSON.stringify(result));
+    setCameraPermissionState(`${result.state} (prompted=${result.prompted})`);
+  };
+
+  // N1-F: aggregate camera+perception counters, sampled while the live
+  // camera pipeline runs. Same bounded-poll pattern as N1-D/N1-E.
+  useEffect(() => {
+    if (!cameraOn) return;
+    let cancelled = false;
+    const sample = async (label: string) => {
+      if (cancelled) return;
+      try {
+        const json = await cameraRef.current?.getCameraStatsJson?.();
+        // eslint-disable-next-line no-console
+        console.log(`[N1-F-PROBE-${label}]`, json);
+        if (!cancelled) setCameraStatsResult(String(json));
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.log(`[N1-F-PROBE-${label}]`, `threw: ${String(error)}`);
+      }
+    };
+    const timers = [
+      setTimeout(() => sample('1s'), 1000),
+      setTimeout(() => sample('3s'), 3000),
+      setTimeout(() => sample('6s'), 6000),
+      setTimeout(() => sample('10s'), 10000),
+    ];
+    const interval = setInterval(() => sample('poll'), 2000);
+    return () => {
+      cancelled = true;
+      timers.forEach(clearTimeout);
+      clearInterval(interval);
+    };
+  }, [cameraOn]);
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.label}>N1-A capability</Text>
@@ -144,6 +193,24 @@ export default function DevN1Diagnostic() {
         <NativeLiveVtoView ref={perceptionRef} perception style={styles.nativeView} />
       </View>
       <Text testID="n1-e-probe-result" style={styles.result}>{perceptionResult}</Text>
+
+      <Text style={styles.label}>N1-F live front camera (real device only)</Text>
+      <Pressable testID="n1-f-request-permission" style={styles.button} onPress={requestCameraPermission}>
+        <Text style={styles.buttonText}>Request camera permission</Text>
+      </Pressable>
+      <Text testID="n1-f-permission-result" style={styles.result}>{cameraPermissionState}</Text>
+      <Pressable
+        testID="n1-f-toggle-camera"
+        style={[styles.button, !cameraPermissionState.startsWith('granted') && styles.buttonDisabled]}
+        disabled={!cameraPermissionState.startsWith('granted')}
+        onPress={() => setCameraOn((v) => !v)}
+      >
+        <Text style={styles.buttonText}>{cameraOn ? 'Stop camera' : 'Start camera'}</Text>
+      </Pressable>
+      <View style={styles.viewFrame}>
+        {cameraOn ? <NativeLiveVtoView ref={cameraRef} camera style={styles.nativeView} /> : null}
+      </View>
+      <Text testID="n1-f-probe-result" style={styles.result}>{cameraStatsResult}</Text>
     </ScrollView>
   );
 }
@@ -154,4 +221,7 @@ const styles = StyleSheet.create({
   result: { color: '#eee', fontSize: 9, fontFamily: 'monospace' },
   viewFrame: { height: 300, backgroundColor: '#000', marginBottom: 6 },
   nativeView: { flex: 1 },
+  button: { backgroundColor: '#2a5', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 6, marginTop: 6, alignItems: 'center' },
+  buttonDisabled: { backgroundColor: '#444' },
+  buttonText: { color: '#fff', fontWeight: '600' },
 });
