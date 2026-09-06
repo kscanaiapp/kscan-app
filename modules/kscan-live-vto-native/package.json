@@ -1,0 +1,15 @@
+{
+  "name": "kscan-live-vto-native",
+  "version": "1.0.0",
+  "description": "Native Android (N2: iOS) Live VTO runtime module -- N1 scaffold. Registers as KScanLiveVto; see services/vto/liveVtoNativeModule.ts for the application-side optional-lookup adapter this module is discovered through.",
+  "main": "index.ts",
+  "types": "index.ts",
+  "sideEffects": false,
+  "license": "UNLICENSED",
+  "private": true,
+  "peerDependencies": {
+    "expo": "*",
+    "react": "*",
+    "react-native": "*"
+  }
+}

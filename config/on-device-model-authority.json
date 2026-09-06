@@ -1,0 +1,48 @@
+{
+  "manifestVersion": "on-device-model-authority-v1",
+  "note": "PR #308 CI repair. This registry REPLACES a blanket 'no model asset may exist anywhere' rule (__tests__/mirrorExtractionContainment.test.js) that predated Live VTO. That rule was written for the Mirror Selfie containment contract, where the only correct answer is an OS-resident runtime (ML Kit's bundled pose detector on Android, Apple Vision on iOS) and a checked-in model would mean somebody vendored one by hand. Live VTO N1-E then introduced a REQUIRED bundled on-device model: the approved architecture is offline inference with no runtime download and no cloud inference, which is impossible to satisfy without shipping the weights. A blanket prohibition and a mandatory bundled model cannot both be right, so the prohibition becomes an explicit, byte-bound, fail-closed allowlist. Nothing is broadened: an unlisted model asset still fails, a listed model whose bytes changed fails, and `modelFreeModules` below makes the Mirror module's original prohibition CATEGORICAL rather than incidental.",
+  "policy": {
+    "defaultPosture": "DENY",
+    "denyReason": "Any tracked file matching modelAssetExtensions is a violation unless an approvedModels record names its exact path AND its sha256 matches the committed bytes.",
+    "modelAssetExtensions": [
+      "tflite",
+      "mlmodel",
+      "mlmodelc",
+      "onnx",
+      "pb",
+      "pt",
+      "task"
+    ],
+    "extensionListProvenance": "Copied verbatim from the regex the superseded blanket test used (/\\.(tflite|mlmodel|mlmodelc|onnx|pb|pt|task)$/) so this repair cannot silently narrow what counts as a model asset. Adding a format here widens detection; removing one is a weakening and must be justified in its own change.",
+    "wildcardsAllowed": false,
+    "wildcardRationale": "Approval is per-artifact and byte-bound. A glob such as '**/*.task' or a directory-level approval would let any future model land unreviewed, which is exactly the failure mode the superseded blanket rule existed to prevent.",
+    "modelFreeModules": [
+      "modules/kscan-pii-native"
+    ],
+    "modelFreeModulesRationale": "STRENGTHENING, not a carve-out. The Mirror Selfie / Closet PII module must use OS-resident runtimes only -- see __tests__/mirrorIosVisionParity.test.js and __tests__/closetMediaPrivacyAutolinking.test.js, which already forbid a vendored model inside this module. Listing it here means a model asset under this prefix fails EVEN IF someone adds an approvedModels record for it: the registry cannot be used to authorize one. Under the superseded blanket rule this protection was only incidental (everything was banned); here it is stated and separately enforced."
+  },
+  "approvedModels": [
+    {
+      "id": "live-vto-pose-landmarker-lite",
+      "path": "modules/kscan-live-vto-native/android/src/main/assets/models/pose_landmarker_lite.task",
+      "feature": "LIVE_VTO",
+      "purpose": "live_vto_pose",
+      "purposeDetail": "N1-E on-device pose estimation. Produces BodyFrame landmarks that drive the native garment deformation/renderer entirely on device.",
+      "provider": "MediaPipe Tasks Vision",
+      "model": "pose_landmarker_lite",
+      "providerSdk": "com.google.mediapipe:tasks-vision:1.0.0",
+      "sha256": "59929e1d1ee95287735ddd833b19cf4ac46d29bc7afddbbf6753c459690d574a",
+      "sizeBytes": 5777746,
+      "execution": "on_device",
+      "runtimeDownload": false,
+      "networkInference": false,
+      "frameworkLicense": "Apache-2.0",
+      "modelLicense": "Apache-2.0",
+      "licenseEvidence": "docs/vto-live-native-n1-perception.md",
+      "licenseEvidenceNote": "Framework license read from the published tasks-vision-1.0.0.pom <licenses> block; model/weights license from the MediaPipe project's own NOTICE bundled in tasks-core-1.0.0.aar. Verified as SEPARATE items at N1-E integration time and recorded there with the method used. This registry deliberately does NOT re-verify licences at CI time: a guard that reaches the network to check a licence would be an internet-dependent test and would fail closed for the wrong reason on an offline runner.",
+      "status": "approved",
+      "approvedBy": "N1-E mission (real local perception), owner-directed; CI governance added by the PR #308 CI-green repair",
+      "approvedAtSha": "a421075913d6130c45b6804782209e24cced5155"
+    }
+  ]
+}

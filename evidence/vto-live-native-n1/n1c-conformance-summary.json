@@ -1,0 +1,353 @@
+{
+  "generatedAt": "2026-09-06T14:36:49.343Z",
+  "investigationCeilingPx": 2,
+  "investigationCeilingIsNotAPassTolerance": true,
+  "comparedCases": 42,
+  "comparedControlPoints": 308,
+  "controlPointDeltaPx": {
+    "median": 0.000026769322835818886,
+    "max": 0.005628047894751931,
+    "worstCase": {
+      "fixture": "n1b-fixture",
+      "case": "impossible-coordinate",
+      "id": "rightSleeve",
+      "euclidean": 0.005628047894751931
+    },
+    "overCeilingCount": 0,
+    "overCeiling": []
+  },
+  "perControlPointMaxPx": {
+    "leftArmpit": {
+      "median": 0.00002580201429737848,
+      "max": 0.0008660458219442094
+    },
+    "leftHem": {
+      "median": 0.00006213056900334514,
+      "max": 0.00523244646583053
+    },
+    "leftShoulder": {
+      "median": 0.00002610863650694796,
+      "max": 0.0012141182211688507
+    },
+    "leftSleeve": {
+      "median": 0.00002704784802116035,
+      "max": 0.0009602621468134962
+    },
+    "leftTorso": {
+      "median": 0.00003311404215622849,
+      "max": 0.00274668782526036
+    },
+    "rightArmpit": {
+      "median": 0.000018832718321759586,
+      "max": 0.0015340596164578066
+    },
+    "rightHem": {
+      "median": 0.000059521863474270236,
+      "max": 0.005205769575975337
+    },
+    "rightShoulder": {
+      "median": 0.00001160181347349097,
+      "max": 0.0012141182211688507
+    },
+    "rightSleeve": {
+      "median": 0.00002083259834132262,
+      "max": 0.005628047894751931
+    },
+    "rightTorso": {
+      "median": 0.00003422902705392325,
+      "max": 0.0027175919606730087
+    },
+    "waist": {
+      "median": 0.00003126074133351977,
+      "max": 0.003058634398005191
+    }
+  },
+  "scaleDelta": {
+    "median": 1.8529411727197242e-7,
+    "max": 0.0000029411764899123227
+  },
+  "rotationDeltaRadians": {
+    "median": 0,
+    "max": 6.312686415266278e-8
+  },
+  "boundsDeltaPx": {
+    "median": 0.000058823529343499104,
+    "max": 0.005198315251618624
+  },
+  "refusalAgreement": {
+    "compared": 14,
+    "disagreements": 0,
+    "documentedReferenceDefectDisagreements": 0,
+    "unexplainedDisagreements": 0,
+    "rows": [
+      {
+        "fixture": "n1b-fixture",
+        "case": "missing-left-shoulder",
+        "reference": "missing_shoulders",
+        "native": "missing_shoulders",
+        "agree": true
+      },
+      {
+        "fixture": "n1b-fixture",
+        "case": "missing-right-shoulder",
+        "reference": "missing_shoulders",
+        "native": "missing_shoulders",
+        "agree": true
+      },
+      {
+        "fixture": "n1b-fixture",
+        "case": "missing-left-hip",
+        "reference": "missing_hips",
+        "native": "missing_hips",
+        "agree": true
+      },
+      {
+        "fixture": "n1b-fixture",
+        "case": "missing-hips",
+        "reference": "missing_hips",
+        "native": "missing_hips",
+        "agree": true
+      },
+      {
+        "fixture": "n1b-fixture",
+        "case": "degenerate-shoulders",
+        "reference": "degenerate_shoulder_span",
+        "native": "degenerate_shoulder_span",
+        "agree": true
+      },
+      {
+        "fixture": "n1b-fixture",
+        "case": "nan-shoulder",
+        "reference": "missing_shoulders",
+        "native": "non_finite_landmark",
+        "agree": true
+      },
+      {
+        "fixture": "n1b-fixture",
+        "case": "infinite-hip",
+        "reference": "missing_hips",
+        "native": "non_finite_landmark",
+        "agree": true
+      },
+      {
+        "fixture": "n1c-asym-fixture",
+        "case": "missing-left-shoulder",
+        "reference": "missing_shoulders",
+        "native": "missing_shoulders",
+        "agree": true
+      },
+      {
+        "fixture": "n1c-asym-fixture",
+        "case": "missing-right-shoulder",
+        "reference": "missing_shoulders",
+        "native": "missing_shoulders",
+        "agree": true
+      },
+      {
+        "fixture": "n1c-asym-fixture",
+        "case": "missing-left-hip",
+        "reference": "missing_hips",
+        "native": "missing_hips",
+        "agree": true
+      },
+      {
+        "fixture": "n1c-asym-fixture",
+        "case": "missing-hips",
+        "reference": "missing_hips",
+        "native": "missing_hips",
+        "agree": true
+      },
+      {
+        "fixture": "n1c-asym-fixture",
+        "case": "degenerate-shoulders",
+        "reference": "degenerate_shoulder_span",
+        "native": "degenerate_shoulder_span",
+        "agree": true
+      },
+      {
+        "fixture": "n1c-asym-fixture",
+        "case": "nan-shoulder",
+        "reference": "missing_shoulders",
+        "native": "non_finite_landmark",
+        "agree": true
+      },
+      {
+        "fixture": "n1c-asym-fixture",
+        "case": "infinite-hip",
+        "reference": "missing_hips",
+        "native": "non_finite_landmark",
+        "agree": true
+      }
+    ]
+  },
+  "meshDeltaPx": {
+    "comparedCases": 20,
+    "comparedVertices": 1600,
+    "median": 0.000025132812051677582,
+    "max": 0.00010438805555740029,
+    "worstCase": {
+      "fixture": "n1b-fixture",
+      "case": "long-torso",
+      "vertices": 80,
+      "median": 0.000025620067253161714,
+      "max": 0.00010438805555740029
+    },
+    "rows": [
+      {
+        "fixture": "n1b-fixture",
+        "case": "neutral-frontal",
+        "vertices": 80,
+        "median": 0.000024526130327736964,
+        "max": 0.00008201876959342379
+      },
+      {
+        "fixture": "n1b-fixture",
+        "case": "arms-slightly-out",
+        "vertices": 80,
+        "median": 0.000025935328295277615,
+        "max": 0.00007653609408324063
+      },
+      {
+        "fixture": "n1b-fixture",
+        "case": "left-shoulder-raised",
+        "vertices": 80,
+        "median": 0.000024058372212168496,
+        "max": 0.000055167856477519503
+      },
+      {
+        "fixture": "n1b-fixture",
+        "case": "right-shoulder-raised",
+        "vertices": 80,
+        "median": 0.00001925012370997091,
+        "max": 0.00007684203049107946
+      },
+      {
+        "fixture": "n1b-fixture",
+        "case": "torso-rotated-left",
+        "vertices": 80,
+        "median": 0.00003159919032923434,
+        "max": 0.0000804600326814095
+      },
+      {
+        "fixture": "n1b-fixture",
+        "case": "torso-rotated-right",
+        "vertices": 80,
+        "median": 0.00003747898463068294,
+        "max": 0.00008712864465666587
+      },
+      {
+        "fixture": "n1b-fixture",
+        "case": "narrow-torso",
+        "vertices": 80,
+        "median": 0.000037142053621398775,
+        "max": 0.00008734851850907052
+      },
+      {
+        "fixture": "n1b-fixture",
+        "case": "wide-torso",
+        "vertices": 80,
+        "median": 0.00002464555685019345,
+        "max": 0.0000968305411405963
+      },
+      {
+        "fixture": "n1b-fixture",
+        "case": "short-torso",
+        "vertices": 80,
+        "median": 0.000018462912888965817,
+        "max": 0.00007329968793270286
+      },
+      {
+        "fixture": "n1b-fixture",
+        "case": "long-torso",
+        "vertices": 80,
+        "median": 0.000025620067253161714,
+        "max": 0.00010438805555740029
+      },
+      {
+        "fixture": "n1c-asym-fixture",
+        "case": "neutral-frontal",
+        "vertices": 80,
+        "median": 0.000024526130327736964,
+        "max": 0.00008201876959342379
+      },
+      {
+        "fixture": "n1c-asym-fixture",
+        "case": "arms-slightly-out",
+        "vertices": 80,
+        "median": 0.000025935328295277615,
+        "max": 0.00007653609408324063
+      },
+      {
+        "fixture": "n1c-asym-fixture",
+        "case": "left-shoulder-raised",
+        "vertices": 80,
+        "median": 0.000024058372212168496,
+        "max": 0.000055167856477519503
+      },
+      {
+        "fixture": "n1c-asym-fixture",
+        "case": "right-shoulder-raised",
+        "vertices": 80,
+        "median": 0.00001925012370997091,
+        "max": 0.00007684203049107946
+      },
+      {
+        "fixture": "n1c-asym-fixture",
+        "case": "torso-rotated-left",
+        "vertices": 80,
+        "median": 0.00003159919032923434,
+        "max": 0.0000804600326814095
+      },
+      {
+        "fixture": "n1c-asym-fixture",
+        "case": "torso-rotated-right",
+        "vertices": 80,
+        "median": 0.00003747898463068294,
+        "max": 0.00008712864465666587
+      },
+      {
+        "fixture": "n1c-asym-fixture",
+        "case": "narrow-torso",
+        "vertices": 80,
+        "median": 0.000037142053621398775,
+        "max": 0.00008734851850907052
+      },
+      {
+        "fixture": "n1c-asym-fixture",
+        "case": "wide-torso",
+        "vertices": 80,
+        "median": 0.00002464555685019345,
+        "max": 0.0000968305411405963
+      },
+      {
+        "fixture": "n1c-asym-fixture",
+        "case": "short-torso",
+        "vertices": 80,
+        "median": 0.000018462912888965817,
+        "max": 0.00007329968793270286
+      },
+      {
+        "fixture": "n1c-asym-fixture",
+        "case": "long-torso",
+        "vertices": 80,
+        "median": 0.000025620067253161714,
+        "max": 0.00010438805555740029
+      }
+    ]
+  },
+  "semanticDivergences": [],
+  "documentedReferenceDefects": [],
+  "referenceDefectPolicy": [
+    {
+      "cases": [
+        "nan-shoulder",
+        "infinite-hip"
+      ],
+      "kind": "refusal_disagreement",
+      "ledger": "N1-ENV-008",
+      "nativeBehaviour": "refuses with non_finite_landmark",
+      "referenceBehaviour": "renders NaN geometry and its rigid gate reports passed:true, findings:[]",
+      "nativeIsStricter": true
+    }
+  ]
+}

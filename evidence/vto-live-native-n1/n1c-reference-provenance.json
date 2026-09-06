@@ -1,0 +1,21 @@
+{
+  "generatedAt": "2026-09-06T14:36:04.830Z",
+  "reference": {
+    "checkout": "C:/src/kscan-live-vto-reference-oracle/kscan-live-vto",
+    "headSha": "e7c5d72d51a270ed0bf021fec5ad19369c1256cc",
+    "attachmentSourceSha": "5a18f5a20cab862cefda4240164c436b1d0f1fa2",
+    "attachmentDistSha": "93a2a03ab482d8b5d9bc5a4d9f2a0f87d786fd44",
+    "dirty": ""
+  },
+  "attachmentModule": "C:\\src\\kscan-live-vto-reference-oracle\\kscan-live-vto\\packages\\static-renderer\\dist\\attachment.js",
+  "canvas": {
+    "width": 720,
+    "height": 960
+  },
+  "goldensSchema": "kscan-live-vto-native/goldens/1.0",
+  "caseCount": 21,
+  "fixtures": [
+    "n1b-fixture",
+    "n1c-asym-fixture"
+  ]
+}
