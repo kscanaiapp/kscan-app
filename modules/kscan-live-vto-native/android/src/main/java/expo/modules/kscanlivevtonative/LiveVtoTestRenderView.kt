@@ -52,6 +52,94 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
       invalidate()
     }
 
+  // ── N1-D replay ─────────────────────────────────────────────────────────
+  private var replaySession: LiveVtoReplaySession? = null
+  private var replayDriver: LiveVtoReplayDriver? = null
+  private var replayBitmaps = mutableMapOf<String, Bitmap>()
+  @Volatile private var replayEvent: ReplayEvent? = null
+  @Volatile private var replayBitmap: Bitmap? = null
+
+  /**
+   * Starts/stops the native replay clock. All production and deformation
+   * runs on the driver's own thread; this view only draws whatever snapshot
+   * is currently in the session's latest-state slot.
+   */
+  var replay: Boolean = false
+    set(value) {
+      field = value
+      if (value) startReplay() else stopReplay()
+      invalidate()
+    }
+
+  private fun loadFixture(name: String): Triple<KsgarmentManifest, Bitmap, Pair<Int, Int>> {
+    val assets = context.assets
+    val manifest = KsgarmentManifest.parseAssetManifest(
+      assets.open("$name/manifest.json").use { it.readBytes() }.toString(Charsets.UTF_8)
+    )
+    val texture = assets.open("$name/${manifest.texture}").use { android.graphics.BitmapFactory.decodeStream(it) }
+    val alpha = assets.open("$name/${manifest.alphaMask}").use { android.graphics.BitmapFactory.decodeStream(it) }
+    val combined = replayBitmaps.getOrPut(name) { combineTextureAndAlpha(texture, alpha) }
+    return Triple(manifest, combined, Pair(texture.width, texture.height))
+  }
+
+  private fun startReplay() {
+    if (replayDriver != null) return
+    try {
+      val (manifest, bitmap, dims) = loadFixture("n1b-fixture")
+      replayBitmap = bitmap
+      val session = LiveVtoReplaySession(RENDER_CANVAS_W, RENDER_CANVAS_H) { event ->
+        // Bounded state event only. Never a frame, never a BodyFrame,
+        // never geometry -- amendment D24.
+        replayEvent = event
+        Log.d(TAG, "N1-D replay state: ${'$'}{event.state}")
+        postInvalidate()
+      }
+      val source = InterpolatedPoseReplaySource(
+        id = "n1d-neutral-armraise-neutral",
+        keyframes = listOf(BodyFrame.neutral(), BodyFrame.armsSlightlyOut(), BodyFrame.neutral()),
+        framesPerSegment = 60,
+      )
+      if (!session.load(source, manifest, dims.first, dims.second)) {
+        loadError = "replay load refused"
+        return
+      }
+      session.start()
+      replaySession = session
+      replayDriver = LiveVtoReplayDriver(session).also { it.start() }
+    } catch (t: Throwable) {
+      loadError = t.message ?: t.toString()
+      Log.e(TAG, "N1-D replay start failed", t)
+    }
+  }
+
+  private fun stopReplay() {
+    replayDriver?.stop()
+    replayDriver = null
+    replaySession?.dispose()
+    replaySession = null
+    replayBitmap = null
+  }
+
+  override fun onDetachedFromWindow() {
+    // Lifecycle safety: a view torn down mid-replay must not leave a daemon
+    // thread producing geometry into an orphaned session.
+    stopReplay()
+    super.onDetachedFromWindow()
+  }
+
+  /** Bounded replay telemetry for gate evidence. Aggregate counters only. */
+  fun readReplayStatsJson(): String? {
+    val session = replaySession ?: return null
+    val stats = session.stats()
+    return "{\"state\":\"" + session.currentState().name + "\"" +
+      ",\"fixtureId\":\"" + (session.currentFixtureId() ?: "") + "\"" +
+      ",\"produced\":" + stats.produced +
+      ",\"rendered\":" + stats.rendered +
+      ",\"dropped\":" + stats.dropped +
+      ",\"maxSlotDepth\":" + stats.maxSlotDepth +
+      ",\"refused\":" + stats.refused + "}"
+  }
+
   private fun loadAndCompute() {
     try {
       val assets = context.assets
@@ -140,11 +228,46 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
     return out
   }
 
+  /**
+   * The replay draw path. Reads the freshest published snapshot and draws
+   * it. Computes NO geometry: amendment D10 forbids running deformation
+   * inside the draw callback, and the snapshot it consumes was produced on
+   * the replay thread.
+   */
+  private fun drawReplay(canvas: Canvas) {
+    val session = replaySession
+    val bitmap = replayBitmap
+    if (session == null || bitmap == null) {
+      canvas.drawText("replay not started", 20f, 40f, Paint().apply { color = Color.YELLOW; textSize = 24f })
+      return
+    }
+    val snapshot = session.consumeForRender() ?: session.slot.peek()
+    val verts = snapshot?.meshVertices
+    canvas.save()
+    canvas.scale(min(width / RENDER_CANVAS_W, height / RENDER_CANVAS_H), min(width / RENDER_CANVAS_W, height / RENDER_CANVAS_H))
+    if (verts != null) {
+      canvas.drawBitmapMesh(bitmap, snapshot.meshWidth, snapshot.meshHeight, verts, 0, null, 0, Paint().apply { isAntiAlias = true })
+    }
+    canvas.restore()
+    val stats = session.stats()
+    canvas.drawText(
+      session.currentState().name + "  produced=" + stats.produced + " rendered=" + stats.rendered + " dropped=" + stats.dropped,
+      20f, 30f, Paint().apply { color = Color.GREEN; textSize = 22f },
+    )
+    // Redraw on the UI thread's own cadence -- deliberately NOT synchronised
+    // to production, which is the whole point of the latest-state slot.
+    if (session.currentState() == ReplayState.PLAYING) postInvalidateOnAnimation()
+  }
+
   override fun onDraw(canvas: Canvas) {
     super.onDraw(canvas)
     val bg = Paint().apply { color = Color.rgb(32, 32, 36) }
     canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), bg)
 
+    if (replay) {
+      drawReplay(canvas)
+      return
+    }
     if (!active) return
     val err = loadError
     if (err != null) {

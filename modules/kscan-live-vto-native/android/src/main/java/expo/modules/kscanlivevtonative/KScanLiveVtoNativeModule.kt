@@ -57,6 +57,17 @@ class KScanLiveVtoNativeModule : Module() {
       AsyncFunction("getGeometrySnapshotJson") { view: LiveVtoTestRenderView ->
         view.readDiagnosticSnapshotJson()
       }
+
+      // N1-D. JS issues bounded commands only -- start/stop replay. It never
+      // receives a frame, a BodyFrame, or per-frame geometry: the replay
+      // pipeline stays entirely native once started (mission section 16).
+      Prop("replay") { view: LiveVtoTestRenderView, replay: Boolean -> view.replay = replay }
+
+      // Aggregate counters for gate evidence. Bounded: produced/rendered/
+      // dropped/depth and the session state, never anything per frame.
+      AsyncFunction("getReplayStatsJson") { view: LiveVtoTestRenderView ->
+        view.readReplayStatsJson()
+      }
     }
   }
 

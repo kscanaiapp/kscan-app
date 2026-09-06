@@ -114,6 +114,22 @@ data class BodyFrame(
         trackingConfidence = 1f,
       )
     }
+
+    /**
+     * The `arms-slightly-out` golden pose, re-declared here so the on-device
+     * replay sequence and the JVM conformance goldens interpolate between
+     * the SAME two keyframes. Kept in sync by
+     * BodyFrameKeyframeParityTest -- if the golden file changes and this
+     * does not, the build fails rather than the device quietly replaying a
+     * different sequence than the one that was measured.
+     */
+    fun armsSlightlyOut(timestampMs: Long = System.currentTimeMillis()): BodyFrame =
+      neutral(timestampMs).copy(
+        leftElbow = present(0.26f, 0.44f),
+        rightElbow = present(0.74f, 0.44f),
+        leftWrist = present(0.22f, 0.58f),
+        rightWrist = present(0.78f, 0.58f),
+      )
   }
 }
 
