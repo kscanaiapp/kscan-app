@@ -13,7 +13,7 @@ import Foundation
 /// thread.
 ///
 /// Values are immutable; every operation returns a new instance.
-public struct Vec2: Equatable {
+public struct Vec2: Equatable, Hashable {
   public let x: Float
   public let y: Float
 
