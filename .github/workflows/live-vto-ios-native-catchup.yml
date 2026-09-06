@@ -69,7 +69,12 @@ jobs:
 
   ios-app-build:
     name: iOS app build (expo prebuild + pod install + xcodebuild)
-    runs-on: macos-14
+    # macos-14's default Xcode is 15.4; this repo's React Native version
+    # requires Xcode >= 16.1 (confirmed by a real `pod install` failure:
+    # "React Native requires XCode >= 16.1. Found 15.4."). macos-15 defaults
+    # to a current Xcode that satisfies this. swift-test stays on macos-14
+    # since SwiftPM alone never hit this requirement.
+    runs-on: macos-15
     needs: swift-test
     steps:
       - uses: actions/checkout@v4
