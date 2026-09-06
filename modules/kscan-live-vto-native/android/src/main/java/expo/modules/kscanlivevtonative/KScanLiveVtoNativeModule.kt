@@ -83,6 +83,87 @@ class KScanLiveVtoNativeModule : Module() {
       )
     }
 
+    // Part B (2026-09-06): the session lifecycle commands
+    // types/vtoLive.ts's LIVE_VTO_COMMANDS already governs and
+    // services/vto/vtoLiveSession.ts's LiveVtoSessionController (already
+    // implemented, already tested) already calls -- start/pause/resume/stop/
+    // loadGarment/switchGarment/dispose. Declared SYNCHRONOUS (`Function`,
+    // not `AsyncFunction`) to match the real TS interface exactly: per
+    // services/vto/liveVtoNativeModule.ts's own LiveVtoNativeModule type and
+    // vtoLiveSession.ts's sendLiveVtoCommand doc comment, these are
+    // "fire-and-forget by contract: the runtime reports what actually
+    // happened through events, not return values." A rejected command (an
+    // invalid transition, or no active view) throws; the JS controller
+    // already wraps every one of these calls in sendLiveVtoCommand's
+    // try/catch and turns a throw into the correct bounded error state
+    // itself -- this module does not need to pre-guess which JS state that
+    // becomes.
+    Events("liveVtoEvent")
+
+    fun currentViewOrThrow(): LiveVtoTestRenderView {
+      val view = LiveVtoTestRenderView.currentInstance()
+        ?: throw CodedException("NO_ACTIVE_SESSION", "session command called with no active Live VTO view", null)
+      // Idempotent: (re)armed on every command so a view that outlives a
+      // previous module instance (should not happen in practice, since both
+      // are Expo-managed, but costs nothing to keep current) always emits
+      // through the live Module, never a stale closure.
+      view.sessionEventSink = { type, payload ->
+        sendEvent("liveVtoEvent", mapOf("type" to type, "timestamp" to System.currentTimeMillis(), "payload" to payload))
+      }
+      return view
+    }
+
+    fun garmentDescriptorOrThrow(raw: Map<String, Any?>?): LiveVtoGarmentDescriptor =
+      LiveVtoGarmentDescriptor.fromBridgeMap(raw)
+        ?: throw CodedException("GARMENT_UNSUPPORTED", "loadGarment/switchGarment descriptor is missing a required field or has an unsupported templateFamily", null)
+
+    Function("start") {
+      if (!currentViewOrThrow().startSession()) {
+        throw CodedException("RUNTIME_INITIALIZATION_FAILED", "start() is not valid from the session's current state", null)
+      }
+    }
+
+    Function("pause") {
+      if (!currentViewOrThrow().pauseSession()) {
+        throw CodedException("INVALID_STATE", "pause() is only valid while the session is RUNNING", null)
+      }
+    }
+
+    Function("resume") {
+      if (!currentViewOrThrow().resumeSession()) {
+        throw CodedException("INVALID_STATE", "resume() is only valid while the session is PAUSED", null)
+      }
+    }
+
+    Function("stop") {
+      if (!currentViewOrThrow().stopSession()) {
+        throw CodedException("INVALID_STATE", "stop() is refused after dispose()", null)
+      }
+    }
+
+    Function("loadGarment") { descriptor: Map<String, Any?>? ->
+      val parsed = garmentDescriptorOrThrow(descriptor)
+      if (!currentViewOrThrow().loadGarmentSession(parsed)) {
+        throw CodedException("GARMENT_UNSUPPORTED", "loadGarment() is not valid from the session's current state", null)
+      }
+    }
+
+    Function("switchGarment") { descriptor: Map<String, Any?>? ->
+      val parsed = garmentDescriptorOrThrow(descriptor)
+      if (!currentViewOrThrow().switchGarmentSession(parsed)) {
+        throw CodedException("GARMENT_UNSUPPORTED", "switchGarment() is only valid while the session is RUNNING, PAUSED or READY", null)
+      }
+    }
+
+    Function("dispose") {
+      // Idempotent and never throws (matches types/vtoLive.ts's
+      // LiveVtoSessionController.dispose() contract exactly): calling
+      // dispose on a view that never started a session, or twice, is a
+      // safe no-op, not an error.
+      LiveVtoTestRenderView.currentInstance()?.disposeSession()
+      Unit
+    }
+
     // N1-B: diagnostic-only native view, not part of the P3-C application
     // contract. Renders one bundled governed .ksgarment fixture through a
     // canned BodyFrame -- inert until `active` is set true. See

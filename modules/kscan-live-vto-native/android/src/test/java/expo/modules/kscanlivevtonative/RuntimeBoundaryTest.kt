@@ -108,8 +108,9 @@ class RuntimeBoundaryTest {
     assertEquals(
       "the native bridge surface changed -- review the privacy boundary before updating this list",
       sortedSetOf(
-        "active", "camera", "capturePersonFrame", "capturePreview", "getCameraStatsJson", "getCapability",
-        "getGeometrySnapshotJson", "getPerceptionStatsJson", "getReplayStatsJson", "perception", "replay",
+        "active", "camera", "capturePersonFrame", "capturePreview", "dispose", "getCameraStatsJson", "getCapability",
+        "getGeometrySnapshotJson", "getPerceptionStatsJson", "getReplayStatsJson", "loadGarment", "pause",
+        "perception", "replay", "resume", "start", "stop", "switchGarment",
       ),
       declared,
     )

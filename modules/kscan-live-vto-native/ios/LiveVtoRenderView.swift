@@ -294,6 +294,7 @@ public final class LiveVtoRenderView: ExpoView {
         DispatchQueue.main.async {
           self?.cameraControllerState = state
           self?.cameraControllerError = reason
+          self?.handleCameraControllerStateForSession(state)
           self?.cameraMeshOverlay?.setNeedsDisplay()
         }
       }
@@ -400,7 +401,13 @@ public final class LiveVtoRenderView: ExpoView {
     if window == nil {
       stopReplay()
       stopPerception()
-      stopCamera()
+      // A destroyed view can never resume a session -- disposeSession() is
+      // idempotent (a no-op if the session was never started) and bumps the
+      // generation so any late camera/garment-load completion the teardown
+      // triggers is already invalidated by the time it would arrive. Also
+      // tears down the camera (see disposeSession()), so no separate
+      // stopCamera() call is needed here.
+      disposeSession()
       if Self.currentInstance === self { Self.currentInstance = nil }
       clearCaptureFiles()
     }
@@ -445,6 +452,27 @@ public final class LiveVtoRenderView: ExpoView {
     return result.asDictionary
   }
 
+  /// Resolves the currently-mounted view for a Part B session command and
+  /// (re)arms its event sink -- the SAME `currentInstance` lookup
+  /// `capturePersonFrame`/`capturePreview` already use, no separate
+  /// registry. Called by `KScanLiveVtoNativeModule.currentSessionView()`,
+  /// which cannot touch `currentInstance` directly since it is `private`.
+  static func currentSessionView(eventSink: @escaping (String, [String: Any]) -> Void) throws -> LiveVtoRenderView {
+    guard let view = currentInstance else {
+      throw LiveVtoSessionCommandError.noActiveSession
+    }
+    view.sessionEventSink = eventSink
+    return view
+  }
+
+  /// `dispose()` never throws (matches `LiveVtoSessionController.dispose()`
+  /// in services/vto/vtoLiveSession.ts exactly) -- a view that never started
+  /// a session, or one already disposed, or no active view at all, are all
+  /// safe no-ops.
+  static func disposeCurrentSession() {
+    currentInstance?.disposeSession()
+  }
+
   /// The clean-frame source for `capturePersonFrame()` -- NEVER the
   /// garment image (`cameraImage`/`perceptionImage`), NEVER the composited
   /// mesh (see `captureCompositedFrame()`). Priority mirrors whichever
@@ -463,6 +491,8 @@ public final class LiveVtoRenderView: ExpoView {
   ///   - `replay`/`active`/no mode: no person-frame concept exists in
   ///     those modes at all (purely canned-pose rendering); returns nil.
   private func captureCleanFrame() -> LiveVtoCapturedFrameResult? {
+    guard beginCaptureIfSessionActive() else { return nil }
+    defer { endCaptureIfSessionActive() }
     let source: UIImage?
     if camera {
       guard let frame = cameraController?.frameSlot.peek() as? LiveVtoStaticImageFrame else { return nil }
@@ -483,6 +513,8 @@ public final class LiveVtoRenderView: ExpoView {
   /// `capturePreview` can never accidentally return a clean frame: it does
   /// not read any of the same source fields `captureCleanFrame` does.
   private func captureCompositedFrame() -> LiveVtoCapturedFrameResult? {
+    guard beginCaptureIfSessionActive() else { return nil }
+    defer { endCaptureIfSessionActive() }
     guard bounds.width > 0, bounds.height > 0 else { return nil }
     let renderer = UIGraphicsImageRenderer(bounds: bounds)
     let image = renderer.image { context in
@@ -524,6 +556,178 @@ public final class LiveVtoRenderView: ExpoView {
   }
 
   private static let captureCacheSubdir = "live-vto-captures"
+
+  // MARK: - Part B (2026-09-06): session control surface
+  //
+  // Field-for-field port of Android's `LiveVtoTestRenderView.kt` session
+  // block -- see that file's comment header for the full rationale. In
+  // short: the module-level bridge resolves `currentInstance` exactly as it
+  // already does for capture (no view ref anywhere in the real
+  // `LiveVtoNativeModule`/`LiveVtoSessionController` contract, both already
+  // implemented and tested on the JS side); this layer reuses the SAME
+  // `cameraController`/`cameraPerceptionSession`/`cameraPerceptionDriver`
+  // fields the diagnostic `camera` Prop already owns via the SAME
+  // `startCamera()`/`stopCamera()`, adding only the session state machine,
+  // the generation/epoch guard, and event emission. A session that was
+  // never started (`sessionState == .created`, the default) leaves
+  // capture's existing N1-G behaviour completely unchanged.
+  private var sessionState: LiveVtoSessionState = .created
+  private var sessionGeneration: Int32 = 0
+  private var loadedGarment: LiveVtoGarmentDescriptor?
+  private var capturePriorSessionState: LiveVtoSessionState = .created
+  /// Deliberately its OWN field, not a reuse of `garmentImage` (N1-B's
+  /// static-diagnostic image): the two modes are not mutually exclusive on
+  /// a single view instance, and sharing a field would let one silently
+  /// stomp the other's state. Currently unread -- Part B does not add a new
+  /// render path -- held only as real evidence the load genuinely decoded
+  /// an image, not merely returned early.
+  private var sessionGarmentImage: CGImage?
+
+  /// Set by the module the first time a session command reaches this
+  /// instance. Cleared on dispose so a destroyed session cannot keep
+  /// emitting events through a stale closure.
+  var sessionEventSink: ((_ type: String, _ payload: [String: Any]) -> Void)?
+
+  func sessionSnapshotState() -> LiveVtoSessionState { sessionState }
+
+  private func emitSessionEvent(_ type: String, _ payload: [String: Any] = [:]) {
+    sessionEventSink?(type, payload)
+  }
+
+  /// Session-state gate for capture. Bypassed entirely (returns true, no
+  /// state change) while a session was never started -- see the header
+  /// above. Once engaged, enforces single-flight and refuses a capture that
+  /// would outlive a disposed/stopped session.
+  private func beginCaptureIfSessionActive() -> Bool {
+    if sessionState == .created { return true }
+    capturePriorSessionState = sessionState
+    let result = LiveVtoSessionMachine.apply(sessionState, .capture)
+    guard result.accepted else { return false }
+    sessionState = result.next
+    return true
+  }
+
+  private func endCaptureIfSessionActive() {
+    guard sessionState == .capturing else { return }
+    sessionState = LiveVtoSessionMachine.complete(sessionState, .captureFinished, resumeTo: capturePriorSessionState).next
+  }
+
+  /// Drives `.starting` -> `.running`/`.error` off the SAME
+  /// `CameraControllerState` `startCamera()` already reports -- see
+  /// Android's `handleCameraControllerStateForSession` for why
+  /// `bindToLifecycle`/AVFoundation's own successful start is the correct
+  /// signal even under the carried camera HOLD (a downstream tracking-
+  /// quality fact, not a native start() failure). Guarded by
+  /// `sessionState == .starting` rather than a separate generation
+  /// parameter: both this callback (dispatched via `DispatchQueue.main`) and
+  /// every session command run on the main thread, so a stop/dispose that
+  /// already moved the state off `.starting` has already made a late
+  /// running/error completion here a no-op by construction.
+  private func handleCameraControllerStateForSession(_ state: CameraControllerState) {
+    guard sessionState == .starting else { return }
+    switch state {
+    case .running:
+      sessionState = LiveVtoSessionMachine.complete(sessionState, .runtimeReady).next
+      emitSessionEvent("ready")
+    case .error, .permissionDenied:
+      sessionState = LiveVtoSessionMachine.complete(sessionState, .runtimeFailed).next
+      emitSessionEvent("fatalError", [
+        "state": state == .permissionDenied ? "CAMERA_PERMISSION_DENIED" : "RUNTIME_INITIALIZATION_FAILED",
+        "recoverable": true,
+      ])
+    default:
+      break
+    }
+  }
+
+  func startSession() -> Bool {
+    let result = LiveVtoSessionMachine.apply(sessionState, .start)
+    guard result.accepted else { return false }
+    sessionState = result.next
+    sessionGeneration += 1
+    startCamera()
+    return true
+  }
+
+  func stopSession() -> Bool {
+    let before = sessionState
+    let result = LiveVtoSessionMachine.apply(sessionState, .stop)
+    guard result.accepted else { return false }
+    sessionState = result.next
+    if before == .created || before == .stopped { return true } // idempotent no-op
+    sessionGeneration += 1 // invalidate any in-flight start/garment-load for the prior epoch
+    stopCamera()
+    sessionState = LiveVtoSessionMachine.complete(sessionState, .stopped).next
+    return true
+  }
+
+  func pauseSession() -> Bool {
+    let result = LiveVtoSessionMachine.apply(sessionState, .pause)
+    guard result.accepted else { return false }
+    sessionState = result.next
+    cameraPerceptionDriver?.stop()
+    return true
+  }
+
+  func resumeSession() -> Bool {
+    let result = LiveVtoSessionMachine.apply(sessionState, .resume)
+    guard result.accepted else { return false }
+    sessionState = result.next
+    cameraPerceptionDriver?.start()
+    return true
+  }
+
+  @discardableResult
+  func disposeSession() -> Bool {
+    let result = LiveVtoSessionMachine.apply(sessionState, .dispose)
+    sessionGeneration += 1
+    stopCamera()
+    sessionState = result.next
+    loadedGarment = nil
+    sessionEventSink = nil
+    return result.accepted
+  }
+
+  func loadGarmentSession(_ descriptor: LiveVtoGarmentDescriptor) -> Bool {
+    let result = LiveVtoSessionMachine.apply(sessionState, .loadGarment)
+    guard result.accepted else { return false }
+    return performGarmentLoad(descriptor, loadingState: result.next, resumeTo: .ready)
+  }
+
+  func switchGarmentSession(_ descriptor: LiveVtoGarmentDescriptor) -> Bool {
+    let resumeTarget = sessionState // RUNNING or PAUSED -- captured before the state moves to garmentLoading
+    let result = LiveVtoSessionMachine.apply(sessionState, .switchGarment)
+    guard result.accepted else { return false }
+    return performGarmentLoad(descriptor, loadingState: result.next, resumeTo: resumeTarget)
+  }
+
+  /// Bounded scope decision (Part B, 2026-09-06) -- matches Android's own:
+  /// no live product-catalog -> native-asset resolver exists anywhere in
+  /// this codebase yet, so every supported `templateFamily` resolves to the
+  /// SAME governed bundled fixture the diagnostic view already renders.
+  /// `productRef`/`imageUrl`/`canonicalCategory` are validated and carried
+  /// in the `garmentLoaded` event for identity, but do not yet address a
+  /// distinct asset. The state machine, generation guard, and event
+  /// contract around this call are real and exercised regardless of that
+  /// bound.
+  private func performGarmentLoad(_ descriptor: LiveVtoGarmentDescriptor, loadingState: LiveVtoSessionState, resumeTo: LiveVtoSessionState) -> Bool {
+    sessionState = loadingState
+    let myGeneration = sessionGeneration
+    do {
+      let (manifest, image, _) = try loadFixture("n1b-fixture")
+      guard sessionGeneration == myGeneration else { return true } // superseded; drop silently
+      sessionGarmentImage = image
+      loadedGarment = descriptor
+      sessionState = LiveVtoSessionMachine.complete(sessionState, .garmentLoaded, resumeTo: resumeTo).next
+      emitSessionEvent("garmentLoaded", ["productRef": descriptor.productRef, "assetVersion": manifest.assetVersion])
+      return true
+    } catch {
+      guard sessionGeneration == myGeneration else { return true }
+      sessionState = LiveVtoSessionMachine.complete(sessionState, .garmentLoadFailed, resumeTo: resumeTo).next
+      emitSessionEvent("fatalError", ["state": "GARMENT_UNSUPPORTED", "recoverable": false])
+      return false
+    }
+  }
 
   // MARK: - N1-B static compute
 
@@ -821,4 +1025,14 @@ struct LiveVtoCapturedFrameResult {
 enum LiveVtoCaptureError: Error {
   case noActiveSession
   case captureUnavailable
+}
+
+/// Part B: a rejected session command (invalid transition, or no active
+/// view). Mirrors Android's `CodedException` throws from the module's
+/// lifecycle `Function`s -- the JS controller already wraps every one of
+/// these calls in `sendLiveVtoCommand`'s try/catch and turns a throw into
+/// the correct bounded error state itself.
+enum LiveVtoSessionCommandError: Error {
+  case noActiveSession
+  case rejected(String)
 }

@@ -19,10 +19,36 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { requireNativeViewManager } from 'expo-modules-core';
-import { describeLiveVtoNativeCapability } from '../services/vto/liveVtoNativeModule';
+import { describeLiveVtoNativeCapability, getLiveVtoNativeModule } from '../services/vto/liveVtoNativeModule';
 import { ensureLiveCameraPermission } from '../services/vto/vtoLiveCameraPermission';
+import { buildPhotorealPersonInput } from '../services/vto/vtoPhotorealHandoff';
+import { useVirtualTryOn } from '../hooks/useVirtualTryOn';
+import type { LiveVtoCapturedFrame } from '../types/vtoLive';
+import type { VtoGarmentInput } from '../types/vto';
 
 const NativeLiveVtoView = requireNativeViewManager<any>('KScanLiveVto');
+
+/**
+ * G3 (2026-09-06): bounded real-staging Photoreal provider E2E proof. Reuses
+ * the EXISTING vto-e2e harness's own committed, non-personal, synthetic test
+ * garment asset (scripts/vto-e2e/fixtures/garment.png, see
+ * garment.fixture.json for its seed/hash evidence) via the SAME public
+ * raw.githubusercontent.com committed-asset pattern
+ * scripts/vto-e2e/lib/fullcert.mjs#committedGarmentUrl already uses -- not a
+ * new fixture. productRef is a clearly-marked diagnostic identity, never a
+ * real commerce product. `origin: 'dev_harness'` is the SAME VtoOrigin value
+ * the backend harness's own real paid full-certification call already uses
+ * (types/vto.ts's VTO_ORIGINS) -- a taxonomy label the server accepts for a
+ * real generation, not a bypass or a fake-mode flag.
+ */
+const G3_COMMIT_SHA = '03896d4961639ab95e8d8805128bc777e41502d8';
+const G3_TEST_GARMENT: VtoGarmentInput = {
+  productRef: 'live-vto-g3-diagnostic-product',
+  imageUrl: `https://raw.githubusercontent.com/kscanaiapp/kscan-app/${G3_COMMIT_SHA}/scripts/vto-e2e/fixtures/garment.png`,
+  category: 'top',
+  brand: null,
+  commerceSource: null,
+};
 
 export default function DevN1Diagnostic() {
   const [capabilityResult, setCapabilityResult] = useState<string>('running...');
@@ -171,6 +197,102 @@ export default function DevN1Diagnostic() {
     };
   }, [cameraOn]);
 
+  // G3 (2026-09-06). Bounded real-staging Photoreal provider E2E proof,
+  // reusing the EXISTING N1-G native capture (capturePersonFrame/
+  // capturePreview -- module-level, no view ref) and the EXISTING JS
+  // handoff/store chain (buildPhotorealPersonInput -> adoptPerson ->
+  // startVtoGeneration -> the SAME vtoClient.ts/vto-generate AI Photo uses).
+  // No new provider adapter, no shadow Edge Function: this only WIRES
+  // together contract functions that already exist and are already tested.
+  //
+  // A physical camera is not required: `capturePersonFrame()` in `perception`
+  // mode (the N1-E view above) reads the bundled synthetic test frame
+  // perception itself runs inference against -- the SAME mechanism N1-G
+  // already proved -- so this is unaffected by the carried Android camera
+  // HOLD (docs/vto-live-native-n1-camera.md).
+  //
+  // IMPORTANT: capturePersonFrame()/capturePreview() are MODULE-level calls
+  // that resolve to whichever native view attached MOST RECENTLY (a single
+  // weak-referenced "current instance" registry -- see
+  // LiveVtoTestRenderView.currentInstance()/LiveVtoRenderView.currentInstance
+  // -- there is no view ref involved by design, matching the real app's
+  // liveVtoNativeModule.ts contract). This screen mounts N1-B/N1-D/N1-E as
+  // three ALWAYS-ON views; N1-E (perception) is the last of those three to
+  // attach, so it is the active instance UNLESS "Start camera" below has
+  // been toggled on (which mounts a fourth, later-attaching view). Do not
+  // toggle the camera on before running G3 capture.
+  const vto = useVirtualTryOn({ garment: G3_TEST_GARMENT, origin: 'dev_harness' });
+  const [g3PersonFrame, setG3PersonFrame] = useState<LiveVtoCapturedFrame | null>(null);
+  const [g3CaptureResult, setG3CaptureResult] = useState('not captured');
+  const [g3NegativeControlResult, setG3NegativeControlResult] = useState('not run');
+  const g3PhotorealInFlightRef = useRef(false);
+
+  const g3CapturePersonFrame = async () => {
+    try {
+      const nativeModule = getLiveVtoNativeModule();
+      const frame = await nativeModule?.capturePersonFrame();
+      setG3PersonFrame(frame ?? null);
+      const line = frame
+        ? `captured kind=${frame.kind} id=${frame.captureId} ${frame.width}x${frame.height}`
+        : 'null (is the perception view the active native instance? camera toggle steals it)';
+      // eslint-disable-next-line no-console
+      console.log('[G3-CAPTURE-PROBE]', line);
+      setG3CaptureResult(line);
+    } catch (error) {
+      setG3CaptureResult(`threw: ${String(error)}`);
+    }
+  };
+
+  // Negative control: a REAL native capturePreview() result (kind=PREVIEW),
+  // fed into the REAL buildPhotorealPersonInput -- must be refused by
+  // assertCleanPersonFrame, proving Preview cannot enter the Photoreal
+  // adapter even when the input is genuine native output, not a hand-built
+  // test double.
+  const g3RunNegativeControl = async () => {
+    try {
+      const nativeModule = getLiveVtoNativeModule();
+      const preview = await nativeModule?.capturePreview();
+      if (!preview) {
+        setG3NegativeControlResult('capturePreview returned null (no active native instance)');
+        return;
+      }
+      const outcome = await buildPhotorealPersonInput(preview);
+      // `=== false` rather than `!outcome.ok`: matches the discriminated-union
+      // narrowing idiom vtoRequestStore.ts already uses (this tsconfig does
+      // not enable strictNullChecks).
+      setG3NegativeControlResult(
+        outcome.ok === false
+          ? `PASS: refused, code=${outcome.failure.code}`
+          : 'FAIL: a PREVIEW frame was accepted by buildPhotorealPersonInput (should have been refused)',
+      );
+    } catch (error) {
+      setG3NegativeControlResult(`threw: ${String(error)}`);
+    }
+  };
+
+  // The bounded real call. VTO-HA-003-style in-flight guard: a second tap
+  // while one handoff+generation is running is dropped rather than starting
+  // a second billed attempt.
+  const g3RequestPhotoreal = async () => {
+    if (g3PhotorealInFlightRef.current) return;
+    if (!g3PersonFrame) {
+      setG3CaptureResult('capture a PERSON_FRAME first');
+      return;
+    }
+    g3PhotorealInFlightRef.current = true;
+    try {
+      const outcome = await buildPhotorealPersonInput(g3PersonFrame);
+      if (outcome.ok === false) {
+        setG3CaptureResult(`handoff refused: ${outcome.failure.code}`);
+        return;
+      }
+      vto.adoptPerson(outcome.person);
+      vto.generate();
+    } finally {
+      g3PhotorealInFlightRef.current = false;
+    }
+  };
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.label}>N1-A capability</Text>
@@ -193,6 +315,29 @@ export default function DevN1Diagnostic() {
         <NativeLiveVtoView ref={perceptionRef} perception style={styles.nativeView} />
       </View>
       <Text testID="n1-e-probe-result" style={styles.result}>{perceptionResult}</Text>
+
+      <Text style={styles.label}>
+        G3: real staging Photoreal E2E (sign in as a real K+ staging actor FIRST via the normal app login;
+        do NOT toggle &quot;Start camera&quot; below before this)
+      </Text>
+      <Pressable testID="g3-capture-person-frame" style={styles.button} onPress={g3CapturePersonFrame}>
+        <Text style={styles.buttonText}>1. Capture PERSON_FRAME (perception)</Text>
+      </Pressable>
+      <Text testID="g3-capture-result" style={styles.result}>{g3CaptureResult}</Text>
+      <Pressable testID="g3-negative-control" style={styles.button} onPress={g3RunNegativeControl}>
+        <Text style={styles.buttonText}>2. Negative control: capturePreview -&gt; handoff (expect refusal)</Text>
+      </Pressable>
+      <Text testID="g3-negative-control-result" style={styles.result}>{g3NegativeControlResult}</Text>
+      <Pressable testID="g3-request-photoreal" style={styles.button} onPress={g3RequestPhotoreal}>
+        <Text style={styles.buttonText}>3. Request Photoreal (REAL STAGING PROVIDER CALL)</Text>
+      </Pressable>
+      <Text testID="g3-vto-status" style={styles.result}>
+        {`status=${vto.status} failure=${vto.failure?.code ?? 'none'} result=${
+          vto.result
+            ? `provider=${vto.result.provider} ${vto.result.width}x${vto.result.height} latencyMs=${vto.result.latencyMs}`
+            : 'none'
+        }`}
+      </Text>
 
       <Text style={styles.label}>N1-F live front camera (real device only)</Text>
       <Pressable testID="n1-f-request-permission" style={styles.button} onPress={requestCameraPermission}>

@@ -62,6 +62,70 @@ public class KScanLiveVtoNativeModule: Module {
       try LiveVtoRenderView.capturePreview()
     }
 
+    // Part B (2026-09-06): the session lifecycle commands
+    // types/vtoLive.ts's LIVE_VTO_COMMANDS already governs and
+    // services/vto/vtoLiveSession.ts's LiveVtoSessionController (already
+    // implemented, already tested) already calls -- start/pause/resume/stop/
+    // loadGarment/switchGarment/dispose. Declared SYNCHRONOUS (`Function`,
+    // not `AsyncFunction`) to match the real TS interface exactly: per
+    // vtoLiveSession.ts's sendLiveVtoCommand doc comment, these are
+    // "fire-and-forget by contract: the runtime reports what actually
+    // happened through events, not return values." A rejected command
+    // throws; the JS controller already wraps every one of these calls in
+    // sendLiveVtoCommand's try/catch and turns a throw into the correct
+    // bounded error state itself.
+    Events("liveVtoEvent")
+
+    Function("start") { () throws -> Void in
+      guard try currentSessionView().startSession() else {
+        throw LiveVtoSessionCommandError.rejected("start() is not valid from the session's current state")
+      }
+    }
+
+    Function("pause") { () throws -> Void in
+      guard try currentSessionView().pauseSession() else {
+        throw LiveVtoSessionCommandError.rejected("pause() is only valid while the session is RUNNING")
+      }
+    }
+
+    Function("resume") { () throws -> Void in
+      guard try currentSessionView().resumeSession() else {
+        throw LiveVtoSessionCommandError.rejected("resume() is only valid while the session is PAUSED")
+      }
+    }
+
+    Function("stop") { () throws -> Void in
+      guard try currentSessionView().stopSession() else {
+        throw LiveVtoSessionCommandError.rejected("stop() is refused after dispose()")
+      }
+    }
+
+    Function("loadGarment") { (descriptor: [String: Any]?) throws -> Void in
+      guard let parsed = LiveVtoGarmentDescriptor.fromBridgeMap(descriptor) else {
+        throw LiveVtoSessionCommandError.rejected("loadGarment descriptor is missing a required field or has an unsupported templateFamily")
+      }
+      guard try currentSessionView().loadGarmentSession(parsed) else {
+        throw LiveVtoSessionCommandError.rejected("loadGarment() is not valid from the session's current state")
+      }
+    }
+
+    Function("switchGarment") { (descriptor: [String: Any]?) throws -> Void in
+      guard let parsed = LiveVtoGarmentDescriptor.fromBridgeMap(descriptor) else {
+        throw LiveVtoSessionCommandError.rejected("switchGarment descriptor is missing a required field or has an unsupported templateFamily")
+      }
+      guard try currentSessionView().switchGarmentSession(parsed) else {
+        throw LiveVtoSessionCommandError.rejected("switchGarment() is only valid while the session is RUNNING, PAUSED or READY")
+      }
+    }
+
+    Function("dispose") { () -> Void in
+      // Idempotent and never throws (matches types/vtoLive.ts's
+      // LiveVtoSessionController.dispose() contract exactly): calling
+      // dispose on a view that never started a session, or twice, is a
+      // safe no-op, not an error.
+      LiveVtoRenderView.disposeCurrentSession()
+    }
+
     // Diagnostic-only native view, not part of the P3-C application contract
     // -- reproduces exactly Android's `View(LiveVtoTestRenderView::class)`
     // surface. Renders one bundled governed .ksgarment fixture through a
@@ -132,4 +196,14 @@ public class KScanLiveVtoNativeModule: Module {
   /// diagnostic field, not part of any pinned contract, so a captured log
   /// can tell which platform's module actually answered.
   private static let runtimeVersion = "n1-a-ios"
+
+  /// Resolves the currently-mounted `LiveVtoRenderView` (mirrors
+  /// `capturePersonFrame`'s own `currentInstance` lookup) and (re)arms its
+  /// session event sink to emit through THIS module instance. Idempotent --
+  /// safe to call on every command, matches Android's `currentViewOrThrow()`.
+  private func currentSessionView() throws -> LiveVtoRenderView {
+    try LiveVtoRenderView.currentSessionView { [weak self] type, payload in
+      self?.sendEvent("liveVtoEvent", ["type": type, "timestamp": Date().timeIntervalSince1970 * 1000, "payload": payload])
+    }
+  }
 }

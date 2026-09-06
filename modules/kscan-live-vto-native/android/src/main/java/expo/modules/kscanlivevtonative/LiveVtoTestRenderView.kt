@@ -329,6 +329,7 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
           cameraControllerState = state
           cameraControllerError = reason
           Log.d(TAG, "N1-F camera controller state: $state" + (reason?.let { " reason=$it" } ?: ""))
+          handleCameraControllerStateForSession(state)
           postInvalidate()
         },
       )
@@ -442,7 +443,11 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
     // thread producing geometry into an orphaned session.
     stopReplay()
     stopPerception()
-    stopCamera()
+    // A destroyed view can never resume a session -- disposeSession() is
+    // idempotent (a no-op if the session was never started), and bumps the
+    // generation so any late camera/garment-load completion the teardown
+    // below triggers is already invalidated by the time it would arrive.
+    disposeSession()
     if (activeInstance?.get() === this) activeInstance = null
     clearCaptureFiles()
     super.onDetachedFromWindow()
@@ -729,12 +734,17 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
    *     modes at all (purely canned-pose rendering); returns null.
    */
   fun captureCleanFrame(): CapturedFrameResult? {
-    val source: Bitmap = when {
-      camera -> (cameraController?.frameSlot?.peek() as? BitmapPerceptionInputFrame)?.bitmap
-      perception -> perceptionSourceBitmap
-      else -> null
-    } ?: return null
-    return saveCapturedBitmap(source, "PERSON_FRAME")
+    if (!beginCaptureIfSessionActive()) return null
+    try {
+      val source: Bitmap = when {
+        camera -> (cameraController?.frameSlot?.peek() as? BitmapPerceptionInputFrame)?.bitmap
+        perception -> perceptionSourceBitmap
+        else -> null
+      } ?: return null
+      return saveCapturedBitmap(source, "PERSON_FRAME")
+    } finally {
+      endCaptureIfSessionActive()
+    }
   }
 
   /**
@@ -748,10 +758,15 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
    * does at all.
    */
   fun captureCompositedFrame(): CapturedFrameResult? {
-    if (width <= 0 || height <= 0) return null
-    val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-    draw(Canvas(bmp))
-    return saveCapturedBitmap(bmp, "PREVIEW")
+    if (!beginCaptureIfSessionActive()) return null
+    try {
+      if (width <= 0 || height <= 0) return null
+      val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+      draw(Canvas(bmp))
+      return saveCapturedBitmap(bmp, "PREVIEW")
+    } finally {
+      endCaptureIfSessionActive()
+    }
   }
 
   /**
@@ -783,6 +798,207 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
       java.io.File(context.cacheDir, CAPTURE_CACHE_SUBDIR).deleteRecursively()
     } catch (t: Throwable) {
       Log.e(TAG, "N1-G capture cleanup failed (ignored)", t)
+    }
+  }
+
+  // ── Part B (2026-09-06): session control surface ─────────────────────────
+  //
+  // The module-level bridge (KScanLiveVtoNativeModule.kt) resolves
+  // `currentInstance()` exactly as it already does for capture, and calls
+  // start/pause/resume/stop/loadGarment/switchGarment/dispose here -- there
+  // is still no view ref anywhere in the real application contract
+  // (types/vtoLive.ts's LiveVtoNativeModule / services/vto/vtoLiveSession.ts's
+  // LiveVtoSessionController, both ALREADY implemented and ALREADY tested on
+  // the JS side). This layer does not invent a second camera/perception
+  // pipeline: `startSession()`/`stopSession()` drive the SAME
+  // `cameraController`/`cameraPerceptionSession`/`cameraPerceptionDriver`
+  // fields the diagnostic `camera` Prop already owns, via the SAME
+  // `startCamera()`/`stopCamera()` -- only the session state machine, the
+  // generation/epoch guard, and event emission are new. A session that was
+  // never started (`sessionState == CREATED`, the default) leaves capture's
+  // existing N1-G behaviour completely unchanged, so the diagnostic screen's
+  // `perception`-mode capture (used by G3) is unaffected by any of this.
+  @Volatile private var sessionState: LiveVtoSessionState = LiveVtoSessionState.CREATED
+  private val sessionGeneration = java.util.concurrent.atomic.AtomicInteger(0)
+  @Volatile private var loadedGarment: LiveVtoGarmentDescriptor? = null
+  private var capturePriorSessionState: LiveVtoSessionState = LiveVtoSessionState.CREATED
+  /** Deliberately its OWN field, not a reuse of `garmentBitmap` (N1-B's
+   *  static-diagnostic bitmap): the two modes are not mutually exclusive on
+   *  a single view instance, and sharing a field would let one silently
+   *  stomp the other's state. Currently unread -- Part B does not add a new
+   *  render path -- held only as real evidence the load genuinely decoded
+   *  a bitmap, not merely returned early. */
+  private var sessionGarmentBitmap: Bitmap? = null
+
+  /** Set by the module the first time a session command reaches this
+   *  instance. Cleared on dispose so a destroyed session cannot keep
+   *  emitting events through a stale closure. */
+  var sessionEventSink: ((type: String, payload: Map<String, Any?>) -> Unit)? = null
+
+  fun sessionSnapshotState(): LiveVtoSessionState = sessionState
+
+  private fun emitSessionEvent(type: String, payload: Map<String, Any?> = emptyMap()) {
+    sessionEventSink?.invoke(type, payload)
+  }
+
+  /** Session-state gate for capture. Bypassed entirely (returns true, no
+   *  state change) while a session was never started -- see the header
+   *  above. Once engaged, enforces single-flight (mission section 15:
+   *  "Photoreal submission single-flight") and refuses a capture that would
+   *  outlive a disposed/stopped session. */
+  private fun beginCaptureIfSessionActive(): Boolean {
+    if (sessionState == LiveVtoSessionState.CREATED) return true
+    capturePriorSessionState = sessionState
+    val result = LiveVtoSessionMachine.apply(sessionState, LiveVtoSessionCommand.CAPTURE)
+    if (!result.accepted) return false
+    sessionState = result.next
+    return true
+  }
+
+  private fun endCaptureIfSessionActive() {
+    if (sessionState != LiveVtoSessionState.CAPTURING) return
+    sessionState = LiveVtoSessionMachine.complete(
+      sessionState, LiveVtoSessionCompletion.CAPTURE_FINISHED, resumeTo = capturePriorSessionState,
+    ).next
+  }
+
+  /**
+   * Drives STARTING -> RUNNING/ERROR off the SAME `CameraControllerState`
+   * `startCamera()` already reports (mission's confirmed HOLD evidence: on
+   * this device class `bindToLifecycle` succeeds -- CameraControllerState
+   * reaches RUNNING -- even though the camera HAL never delivers a frame
+   * afterward; that downstream fact belongs to tracking quality, which is
+   * the JS `TRACKING_LOST` state, not a native start() failure). Guarded by
+   * `sessionState == STARTING` rather than a separate generation parameter:
+   * both this callback and every session command run on the main thread
+   * (Expo dispatches View-touching Function calls there, and CameraX's own
+   * listener is posted via `ContextCompat.getMainExecutor`), so a stop/
+   * dispose that already moved the state off STARTING has already made a
+   * late RUNNING/ERROR here a no-op by construction -- exactly the
+   * stop-while-starting race this mission carries forward from the
+   * ALREADY-FOUND CameraX precedent (`LiveVtoCameraController`'s own
+   * `generation` field protects the layer below this one; this is the
+   * layer above it).
+   */
+  private fun handleCameraControllerStateForSession(state: CameraControllerState) {
+    if (sessionState != LiveVtoSessionState.STARTING) return
+    when (state) {
+      CameraControllerState.RUNNING -> {
+        sessionState = LiveVtoSessionMachine.complete(sessionState, LiveVtoSessionCompletion.RUNTIME_READY).next
+        emitSessionEvent("ready")
+      }
+      CameraControllerState.ERROR, CameraControllerState.PERMISSION_DENIED -> {
+        sessionState = LiveVtoSessionMachine.complete(sessionState, LiveVtoSessionCompletion.RUNTIME_FAILED).next
+        emitSessionEvent(
+          "fatalError",
+          mapOf(
+            "state" to (if (state == CameraControllerState.PERMISSION_DENIED) "CAMERA_PERMISSION_DENIED" else "RUNTIME_INITIALIZATION_FAILED"),
+            "recoverable" to true,
+          ),
+        )
+      }
+      else -> {}
+    }
+  }
+
+  fun startSession(): Boolean {
+    val result = LiveVtoSessionMachine.apply(sessionState, LiveVtoSessionCommand.START)
+    if (!result.accepted) return false
+    sessionState = result.next
+    sessionGeneration.incrementAndGet()
+    startCamera()
+    return true
+  }
+
+  fun stopSession(): Boolean {
+    val before = sessionState
+    val result = LiveVtoSessionMachine.apply(sessionState, LiveVtoSessionCommand.STOP)
+    if (!result.accepted) return false
+    sessionState = result.next
+    if (before == LiveVtoSessionState.CREATED || before == LiveVtoSessionState.STOPPED) return true // idempotent no-op
+    sessionGeneration.incrementAndGet() // invalidate any in-flight start/garment-load for the prior epoch
+    stopCamera()
+    sessionState = LiveVtoSessionMachine.complete(sessionState, LiveVtoSessionCompletion.STOPPED).next
+    return true
+  }
+
+  fun pauseSession(): Boolean {
+    val result = LiveVtoSessionMachine.apply(sessionState, LiveVtoSessionCommand.PAUSE)
+    if (!result.accepted) return false
+    sessionState = result.next
+    // Stops the driver (production/consumption loop) without tearing down
+    // the camera or perception session -- resumeSession() restarts the SAME
+    // driver rather than rebuilding the pipeline.
+    cameraPerceptionDriver?.stop()
+    return true
+  }
+
+  fun resumeSession(): Boolean {
+    val result = LiveVtoSessionMachine.apply(sessionState, LiveVtoSessionCommand.RESUME)
+    if (!result.accepted) return false
+    sessionState = result.next
+    cameraPerceptionDriver?.start()
+    return true
+  }
+
+  fun disposeSession(): Boolean {
+    val result = LiveVtoSessionMachine.apply(sessionState, LiveVtoSessionCommand.DISPOSE)
+    sessionGeneration.incrementAndGet()
+    stopCamera()
+    sessionState = result.next
+    loadedGarment = null
+    sessionEventSink = null
+    return result.accepted
+  }
+
+  fun loadGarmentSession(descriptor: LiveVtoGarmentDescriptor): Boolean {
+    val result = LiveVtoSessionMachine.apply(sessionState, LiveVtoSessionCommand.LOAD_GARMENT)
+    if (!result.accepted) return false
+    return performGarmentLoad(descriptor, result.next, LiveVtoSessionState.READY)
+  }
+
+  fun switchGarmentSession(descriptor: LiveVtoGarmentDescriptor): Boolean {
+    val resumeTarget = sessionState // RUNNING or PAUSED -- captured before the state moves to GARMENT_LOADING
+    val result = LiveVtoSessionMachine.apply(sessionState, LiveVtoSessionCommand.SWITCH_GARMENT)
+    if (!result.accepted) return false
+    return performGarmentLoad(descriptor, result.next, resumeTarget)
+  }
+
+  /**
+   * Bounded scope decision (Part B, 2026-09-06): no live product-catalog ->
+   * native-asset resolver exists anywhere in this codebase yet --
+   * docs/vto-live-bridge-contract.md section 12.6 already documented
+   * `loadGarment`/`switchGarment` themselves as future work, and the
+   * research pipeline that produces a real `.ksgarment`
+   * (`vto-phase4-pipeline/`) is an offline batch tool, not a runtime
+   * dependency of this app. Rather than inventing a network fetch or a new
+   * asset-factory here, every supported `templateFamily` resolves to the
+   * SAME governed bundled fixture the diagnostic view already renders;
+   * `productRef`/`imageUrl`/`canonicalCategory` are validated and carried in
+   * the `garmentLoaded` event for identity, but do not yet address a
+   * distinct asset. The state machine, generation guard, and event contract
+   * around this call are real and exercised regardless of that bound.
+   */
+  private fun performGarmentLoad(
+    descriptor: LiveVtoGarmentDescriptor,
+    loadingState: LiveVtoSessionState,
+    resumeTo: LiveVtoSessionState,
+  ): Boolean {
+    sessionState = loadingState
+    val myGeneration = sessionGeneration.get()
+    try {
+      val (manifest, bitmap, _) = loadFixture("n1b-fixture")
+      if (sessionGeneration.get() != myGeneration) return true // superseded by a stop/dispose/newer load; drop silently
+      sessionGarmentBitmap = bitmap
+      loadedGarment = descriptor
+      sessionState = LiveVtoSessionMachine.complete(sessionState, LiveVtoSessionCompletion.GARMENT_LOADED, resumeTo).next
+      emitSessionEvent("garmentLoaded", mapOf("productRef" to descriptor.productRef, "assetVersion" to manifest.assetVersion))
+      return true
+    } catch (t: Throwable) {
+      if (sessionGeneration.get() != myGeneration) return true
+      sessionState = LiveVtoSessionMachine.complete(sessionState, LiveVtoSessionCompletion.GARMENT_LOAD_FAILED, resumeTo).next
+      emitSessionEvent("fatalError", mapOf("state" to "GARMENT_UNSUPPORTED", "recoverable" to false))
+      return false
     }
   }
 
