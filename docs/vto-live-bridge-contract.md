@@ -59,7 +59,7 @@ for contract (1) to be built, jointly, on both platforms.
 
 ## 2. Commands (the real, pinned surface)
 
-Both platforms expose the SAME 7 bridge members, mechanically pinned by a
+Both platforms expose the SAME 9 bridge members, mechanically pinned by a
 source-scanning test on each side (Android: `RuntimeBoundaryTest.kt`; iOS:
 `LiveVtoRuntimeBoundaryTests.swift`):
 
@@ -72,17 +72,26 @@ source-scanning test on each side (Android: `RuntimeBoundaryTest.kt`; iOS:
 | `getReplayStatsJson` | `AsyncFunction` (View) | View | Bounded aggregate replay counters |
 | `perception` | `Prop` (View) | View | Start/stop the N1-E real-perception pipeline |
 | `getPerceptionStatsJson` | `AsyncFunction` (View) | View | Bounded aggregate perception counters |
+| `camera` | `Prop` (View) | View | Start/stop the N1-F LIVE front-camera pipeline (CameraX / AVFoundation feeding the SAME perception/geometry/render stack `perception` already proved) |
+| `getCameraStatsJson` | `AsyncFunction` (View) | View | Bounded aggregate camera+perception counters |
 
 No `Events()` channel exists on either platform at this gate — every
 transition Android emits internally (`ReplayEvent`) stays inside the native
 process; the bridge only exposes pull-based, rate-limited, aggregate reads.
-iOS reproduces this exactly: `LiveVtoRenderView`'s replay/perception
+iOS reproduces this exactly: `LiveVtoRenderView`'s replay/perception/camera
 sessions fire `ReplayEvent` callbacks that only trigger a `setNeedsDisplay()`,
 never a bridge `sendEvent`.
 
 **Banned substrings** (both platforms' boundary tests enforce this on every
 member name): `frame`, `bitmap`, `image`, `pixel`, `mask`, `landmark`, `mesh`,
-`texture`, `buffer`. None of the 7 names above contain any of them.
+`texture`, `buffer`. None of the 9 names above contain any of them.
+
+**N1-F note:** `camera`/`getCameraStatsJson` are diagnostic-only additions in
+the SAME style as `perception`/`replay` — NOT the aspirational ten
+`LIVE_VTO_COMMANDS` §0 describes (`start`/`capturePersonFrame`/etc.), which
+remain unimplemented on both platforms. Full camera-lane design (mirror
+decision, backpressure design, known constraints, evidence tiers):
+`docs/vto-live-native-n1-camera.md` (Android + iOS).
 
 ---
 
@@ -289,11 +298,16 @@ does not touch that categorical prohibition.
 | Bridge payload allowlist | `ReplayEvent.ALLOWED_PAYLOAD_KEYS` mechanically pinned | `ReplayEvent.allowedPayloadKeys` (Swift `Set<String>`), identical 4 keys (`state`, `fixtureId`, `sourceId`, `error`), asserted by `LiveVtoReplayRuntimeTests.testReplayEventsCarryOnlyBoundedStateAndNoFrameData` |
 | Bridge member naming | banned substrings (section 2) | identical banned-substring list, checked by `LiveVtoRuntimeBoundaryTests.testTheBridgeSurfaceIsPinned` |
 | Rate-limited diagnostic read | 1 distinct read/sec (`DIAGNOSTIC_SNAPSHOT_MIN_INTERVAL_NANOS`) | identical bound (`diagnosticSnapshotMinInterval = 1.0` sec) |
-| No person imagery | perception exercises a bundled procedurally-generated synthetic test image, never a live camera frame | same bundled PNG, byte-identical copy |
+| No person imagery (`perception`/`replay`/`active` modes) | exercises a bundled procedurally-generated synthetic test image, never a live camera frame | same bundled PNG, byte-identical copy |
+| Camera frames never cross the bridge (`camera` mode, N1-F) | the live front-camera frame stays inside `LiveVtoCameraController`/`LiveVtoMediaPipePoseProvider`/the geometry pipeline; only bounded aggregate counters (`getCameraStatsJson`) reach JS, same banned-substring enforcement as every other member | identical design (`LiveVtoCameraController`/`LiveVtoMediaPipePoseProvider`), same `getCameraStatsJson` shape |
 
 All of the above is **PASS(STATIC)** evidence — proven by reading source, not
 by observing a running process. See the FINAL REPORT for which claims, if
-any, reach PASS(RUNTIME).
+any, reach PASS(RUNTIME). N1-F specifically introduces the first REAL live
+camera frames into this runtime (mission section 7) — the "no person
+imagery" guarantee for `perception`/`replay`/`active` is unaffected (those
+modes are still synthetic-only), and the camera path's privacy guarantee is
+"never crosses the bridge," not "never exists," see the row above.
 
 ---
 
@@ -310,3 +324,126 @@ any, reach PASS(RUNTIME).
   not prove anything actually rendered a pixel — still applies, which is why
   this lane still treats a real-device screenshot as a required (not
   optional) PAINT gate, currently `PENDING-RUNTIME` (see FINAL REPORT).
+
+---
+
+## 12. Capture (N1-G) — `capturePersonFrame` / `capturePreview`
+
+Unlike every member in §2 (diagnostic-only, View-scoped), these two are the
+first REAL members of the aspirational application contract (§0) to be
+implemented — `types/vtoLive.ts`'s `LIVE_VTO_COMMANDS`, already promoted
+and already called by `services/vto/vtoLiveSession.ts`'s `capture()` (both
+platforms match this exactly: no view ref, called directly on the module
+object returned by `requireOptionalNativeModule('KScanLiveVto')`).
+
+### 12.1 Contract shape (unchanged from `types/vtoLive.ts`)
+
+```ts
+type LiveVtoCapturedFrameKind = 'PERSON_FRAME' | 'PREVIEW';
+interface LiveVtoCapturedFrame {
+  captureId: string;
+  kind: LiveVtoCapturedFrameKind;
+  localUri: string;      // file:// URI -- never bytes, never base64
+  width: number | null;
+  height: number | null;
+}
+```
+`capturePersonFrame(): Promise<LiveVtoCapturedFrame>` and
+`capturePreview(): Promise<LiveVtoCapturedFrame>` reject (never resolve
+`null`/an error object) on failure — `NO_ACTIVE_SESSION` (no Live view is
+currently mounted) or `CAPTURE_UNAVAILABLE` (a view is mounted but has no
+clean/composited source available yet, e.g. camera mode with zero frames
+published). `vtoLiveSession.ts`'s `capture()` already catches both cases
+and resolves `null` to its own caller either way — this document records
+the two REASONS a rejection happens, `vtoLiveSession.ts` does not
+distinguish between them today.
+
+### 12.2 The clean-frame rule, and where it is enforced
+
+`assertCleanPersonFrame()` (types/vtoLive.ts) is the ONLY gate: a capture
+is safe to hand to Photoreal generation if and only if `kind ===
+'PERSON_FRAME'`. This document adds the corresponding NATIVE-side
+guarantee the JS-side gate depends on: `capturePersonFrame()` and
+`capturePreview()` read from DISJOINT source fields on both platforms --
+neither method's implementation touches any field the other reads
+(Android: `LiveVtoTestRenderView.captureCleanFrame()` reads
+`cameraController.frameSlot`/`perceptionSourceBitmap`, never
+`cameraBitmap`/`perceptionBitmap` (the garment) or the mesh;
+`captureCompositedFrame()` rasterizes the View via `draw(Canvas)` and
+never touches the clean-frame fields at all. iOS: the same split between
+`captureCleanFrame()` (`cameraController.frameSlot`/`perceptionSourceImage`)
+and `captureCompositedFrame()` (`layer.render(in:)`), field-for-field).
+There is no shared helper, no dimension comparison, no "does this look
+composited" heuristic — the two paths are structurally incapable of
+converging on the same pixels by construction, not by convention.
+
+### 12.3 Clean-frame source per mode (both platforms, identical priority)
+
+| Mode | `capturePersonFrame()` source | Notes |
+|---|---|---|
+| `camera` | latest published camera frame (`frameSlot.peek()`, non-destructive) | Real physical-camera evidence `PENDING-RUNTIME` — see `docs/vto-live-native-n1-camera.md`'s `HOLD -- ANDROID CAMERA RUNTIME`; this method is wired to the same controller and returns null honestly (not a fabricated result) while that HOLD stands |
+| `perception` | the bundled synthetic test image perception itself infers against | No camera concept in this mode |
+| `replay` / `active` / none | — | No person-frame concept exists in these modes; returns null |
+
+`capturePreview()` has no per-mode table: it rasterizes whatever is
+currently on screen (`View.draw`/`layer.render(in:)`) uniformly, which is
+exactly why it can never accidentally converge with the clean-frame path
+(§12.2).
+
+### 12.4 Capture atomicity and lifecycle invariants
+
+- **One session owns capture, same as camera ownership** (mission section
+  14): both platforms register the currently-mounted view in a
+  process-wide, `weak`-referenced static slot
+  (`LiveVtoTestRenderView.currentInstance()` / `LiveVtoRenderView
+  .currentInstance`) that the module-level `capturePersonFrame`/
+  `capturePreview` functions read. `weak` on both platforms: a
+  leaked/forgotten reference can never keep a destroyed view alive, and a
+  stale reference from a torn-down session resolves to nil/null rather
+  than resurrecting it -- this is the capture-specific instance of "late
+  native callbacks cannot resurrect disposed sessions."
+- **Stop/unmount invalidates the registry entry synchronously**: both
+  platforms clear the registry in their detach path
+  (`onDetachedFromWindow` / `didMoveToWindow` with `window == nil`) BEFORE
+  any pending capture on that instance could complete, and again
+  defensively in `deinit`/finalization. A capture call arriving after
+  detach sees `NO_ACTIVE_SESSION`, never a torn-down view.
+- **Switch-during-capture atomicity**: `captureCleanFrame()`/
+  `captureCompositedFrame()` each read their source bitmap/image and the
+  currently-loaded garment/mesh state SYNCHRONOUSLY, in one call, on
+  whichever thread the bridge invokes them on -- there is no
+  intermediate `await` between reading the garment state and rasterizing,
+  so a `switchGarment` that completes strictly before or strictly after a
+  capture call is well-defined; one that raced INSIDE a single capture
+  call is not possible because there is no suspension point inside it for
+  a concurrent switch to land in.
+- **One-shot privacy boundary**: neither method has a "keep capturing"
+  mode -- each call captures exactly one frame, synchronously, on demand.
+  There is no periodic/background variant of either function anywhere in
+  the bridge surface (mechanically enforced by §2's pinned-surface tests,
+  now extended to include these two names).
+
+### 12.5 Data retention (mission section 19)
+
+Both platforms write to their own app-private cache location only, never
+shared/external/photo-library storage, never logged:
+- Android: `context.cacheDir/live-vto-captures/<uuid>.png`
+- iOS: `FileManager.default.urls(for: .cachesDirectory, ...)[0]/live-vto-captures/<uuid>.png`
+
+Lifetime is bounded to the mounted view's lifetime: the SAME detach path
+that clears the instance registry (§12.4) also deletes the entire
+`live-vto-captures` directory. A capture the caller has not yet consumed
+(uploaded via the governed Photoreal handoff, displayed, or otherwise
+persisted elsewhere) before the Live session ends is deleted with the
+session, not kept as a stray temp file.
+
+### 12.6 What this section does NOT cover
+
+`start`/`pause`/`resume`/`stop`/`loadGarment`/`switchGarment`/
+`requestPhotorealCapture`/`dispose` remain unimplemented on both platforms
+(§0/§2 unchanged). `capturePersonFrame`/`capturePreview` work against
+whichever diagnostic mode (`camera`/`perception`) is already active via the
+Props in §2 -- there is currently no native-module-level `start()` that
+the real `vtoLiveSession.ts` flow expects to call first. Closing that gap
+is future work, not part of N1-G's scope (K Scan AI Live VTO N1-G mission,
+§29 scope fence).

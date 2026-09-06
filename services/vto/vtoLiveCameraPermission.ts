@@ -48,8 +48,20 @@ function loadExpoCamera(): {
   requestCameraPermissionsAsync?: PermissionReader;
 } | null {
   try {
+    // N1-F device certification (2026-09-06): expo-camera 17.0.10 does NOT
+    // export `getCameraPermissionsAsync`/`requestCameraPermissionsAsync` at
+    // the package root -- only `useCameraPermissions` (a hook) and the
+    // legacy `Camera` namespace object carry them (expo-camera's own
+    // build/index.js: `export const Camera = { getCameraPermissionsAsync,
+    // requestCameraPermissionsAsync, ... }`). Reaching for the package root
+    // here silently returned `undefined` for both functions, which made
+    // every call fail closed to 'unavailable' -- verified on a real Android
+    // device: `ensureLiveCameraPermission()` never actually reached
+    // `requestCameraPermissionsAsync()` (prompted: false, always). Fixed by
+    // reading the `Camera` namespace, which is the one place both functions
+    // are genuinely still exported.
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    return require('expo-camera');
+    return require('expo-camera')?.Camera ?? null;
   } catch {
     return null;
   }

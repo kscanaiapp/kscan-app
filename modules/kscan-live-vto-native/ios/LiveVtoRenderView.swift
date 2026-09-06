@@ -1,5 +1,31 @@
 import UIKit
 import ExpoModulesCore
+import AVFoundation
+
+/// A plain `UIView` whose entire backing layer IS an
+/// `AVCaptureVideoPreviewLayer` -- the standard UIKit pattern for hosting a
+/// live camera preview, and the iOS structural equivalent of Android's
+/// `androidx.camera.view.PreviewView`.
+private final class LiveVtoCameraPreviewContainerView: UIView {
+  override class var layerClass: AnyClass { AVCaptureVideoPreviewLayer.self }
+  var previewLayer: AVCaptureVideoPreviewLayer { layer as! AVCaptureVideoPreviewLayer } // swiftlint:disable:this force_cast
+}
+
+/// A `UIView`'s own `draw(_:)` paints into its OWN layer, which composites
+/// BELOW any of its subviews/sublayers -- so the garment mesh cannot be
+/// drawn in `LiveVtoRenderView`'s own `draw(_:)` for camera mode (that
+/// would render UNDER the camera preview subview, not on top of it). This
+/// tiny forwarding view exists ONLY to be added as a SIBLING subview
+/// stacked ABOVE the camera preview container, so its own `draw(_:)`
+/// composites on top of the live video -- the iOS structural equivalent of
+/// Android's `dispatchDraw`-after-`super.dispatchDraw` ordering trick.
+private final class LiveVtoMeshOverlayView: UIView {
+  var onDraw: ((CGContext, CGRect) -> Void)?
+  override func draw(_ rect: CGRect) {
+    guard let context = UIGraphicsGetCurrentContext() else { return }
+    onDraw?(context, rect)
+  }
+}
 
 /// Logical render canvas size -- matches the P3-A reference oracle's fixture
 /// canvas (720x960), the SAME constant Android's `LiveVtoTestRenderView`
@@ -129,6 +155,11 @@ public final class LiveVtoRenderView: ExpoView {
   private var perceptionSession: LiveVtoPerceptionSession?
   private var perceptionDriver: LiveVtoPerceptionDriver?
   private var perceptionImage: CGImage?
+  /// N1-G: the "clean person frame" source for capturePersonFrame() in this
+  /// mode -- there is no real camera in `perception` mode, so this is the
+  /// SAME bundled synthetic image perception itself runs inference against,
+  /// never the garment image (`perceptionImage`).
+  private var perceptionSourceImage: UIImage?
 
   /// Starts/stops the real perception pipeline: bundled synthetic replay
   /// frame -> real MediaPipe inference -> BodyFrame adapter -> existing
@@ -152,6 +183,7 @@ public final class LiveVtoRenderView: ExpoView {
         loadError = "perception synthetic test frame not found"
         return
       }
+      perceptionSourceImage = testFrame
       let provider = LiveVtoMediaPipePoseProvider()
       let frameSource = LiveVtoStaticImageFrameSource(image: testFrame)
       let session = LiveVtoPerceptionSession(
@@ -183,6 +215,7 @@ public final class LiveVtoRenderView: ExpoView {
     perceptionSession?.dispose()
     perceptionSession = nil
     perceptionImage = nil
+    perceptionSourceImage = nil
   }
 
   /// Bounded perception telemetry for gate evidence. Aggregate counters only.
@@ -214,15 +247,169 @@ public final class LiveVtoRenderView: ExpoView {
       + ",\"refused\":\(s.refused)}"
   }
 
+  // MARK: - N1-F camera-live
+
+  private var cameraController: LiveVtoCameraController?
+  private var cameraPerceptionSession: LiveVtoPerceptionSession?
+  private var cameraPerceptionDriver: LiveVtoPerceptionDriver?
+  private var cameraImage: CGImage?
+  private var cameraPreviewContainer: LiveVtoCameraPreviewContainerView?
+  private var cameraMeshOverlay: LiveVtoMeshOverlayView?
+  private var cameraControllerState: CameraControllerState = .idle
+  private var cameraControllerError: String?
+
+  /// Starts/stops the SAME real perception pipeline `perception` already
+  /// proved (MediaPipe -> BodyFrameAdapter -> rigid gate -> deformation ->
+  /// renderer), sourced from a LIVE front camera instead of the bundled
+  /// synthetic frame (mission section 7). Deliberately a SEPARATE session/
+  /// driver pair from `perception`'s, mirroring this file's own established
+  /// pattern of one independent prop+session+driver per phase.
+  public var camera: Bool = false {
+    didSet {
+      if camera { startCamera() } else { stopCamera() }
+      setNeedsDisplay()
+    }
+  }
+
+  private func startCamera() {
+    if cameraController != nil { return }
+    do {
+      let (manifest, image, dims) = try loadFixture("n1b-fixture")
+      cameraImage = image
+
+      let previewContainer = LiveVtoCameraPreviewContainerView(frame: bounds)
+      previewContainer.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+      insertSubview(previewContainer, at: 0)
+      cameraPreviewContainer = previewContainer
+
+      let overlay = LiveVtoMeshOverlayView(frame: bounds)
+      overlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+      overlay.backgroundColor = .clear
+      overlay.isOpaque = false
+      overlay.onDraw = { [weak self] context, rect in self?.drawCameraOverlay(context, rect: rect) }
+      addSubview(overlay) // added after the preview container -> stacks above it
+      cameraMeshOverlay = overlay
+
+      let controller = LiveVtoCameraController(previewLayer: previewContainer.previewLayer) { [weak self] state, reason in
+        DispatchQueue.main.async {
+          self?.cameraControllerState = state
+          self?.cameraControllerError = reason
+          self?.handleCameraControllerStateForSession(state)
+          self?.cameraMeshOverlay?.setNeedsDisplay()
+        }
+      }
+      cameraController = controller
+
+      let provider = LiveVtoMediaPipePoseProvider()
+      let session = LiveVtoPerceptionSession(
+        provider: provider, canvasWidth: Float(renderCanvasW), canvasHeight: Float(renderCanvasH),
+        onEvent: { [weak self] _ in DispatchQueue.main.async { self?.cameraMeshOverlay?.setNeedsDisplay() } })
+      guard session.load(manifest, textureWidth: dims.0, textureHeight: dims.1) else {
+        loadError = "camera perception load refused: \(session.currentState())"
+        return
+      }
+      session.start()
+      cameraPerceptionSession = session
+      let driver = LiveVtoPerceptionDriver(session: session, frameSource: { [weak controller] in controller?.latestFrame() })
+      cameraPerceptionDriver = driver
+      driver.start()
+      // The camera producer (AVCaptureVideoDataOutput's own delegate
+      // callback) starts only once the perception session is READY to
+      // receive frames -- starting it first would let camera-produced
+      // frames pile up against a slot nothing is draining yet, which
+      // `LatestStateSlot` would count as drops that never represented real
+      // backpressure.
+      controller.start()
+    } catch {
+      loadError = "\(error)"
+    }
+  }
+
+  private func stopCamera() {
+    cameraPerceptionDriver?.stop()
+    cameraPerceptionDriver = nil
+    cameraPerceptionSession?.dispose()
+    cameraPerceptionSession = nil
+    cameraController?.stop()
+    cameraController = nil
+    cameraPreviewContainer?.removeFromSuperview()
+    cameraPreviewContainer = nil
+    cameraMeshOverlay?.removeFromSuperview()
+    cameraMeshOverlay = nil
+    cameraImage = nil
+  }
+
+  /// Bounded end-to-end telemetry for gate evidence: the camera boundary's
+  /// own produced/dropped counters alongside the SAME perception counters
+  /// `perception` already exposes for the downstream stages. Never a frame,
+  /// a landmark, or a BodyFrame.
+  public func readCameraStatsJson() -> String? {
+    guard let controller = cameraController else { return nil }
+    let session = cameraPerceptionSession
+    let s = session?.stats()
+    let errorJson = cameraControllerError.map { "\"" + $0.replacingOccurrences(of: "\"", with: "'") + "\"" } ?? "null"
+    return "{\"controllerState\":\"\(cameraControllerState.rawValue)\""
+      + ",\"controllerError\":\(errorJson)"
+      + ",\"cameraProduced\":\(controller.frameSlot.publishedCount)"
+      + ",\"cameraConsumedByPerceptionTick\":\(controller.frameSlot.consumedCount)"
+      + ",\"cameraDroppedBeforePerceptionTick\":\(controller.frameSlot.droppedCount)"
+      + ",\"perceptionState\":\"\(session?.currentState().rawValue ?? "NONE")\""
+      + ",\"submittedToPerception\":\(s?.submittedToPerception ?? 0)"
+      + ",\"inferred\":\(s?.inferred ?? 0)"
+      + ",\"droppedBeforePerception\":\(s?.droppedBeforePerception ?? 0)"
+      + ",\"refused\":\(s?.refused ?? 0)"
+      + ",\"rendered\":\(s?.rendered ?? 0)"
+      + ",\"droppedBeforeRender\":\(s?.droppedBeforeRender ?? 0)}"
+  }
+
+  private func drawCameraOverlay(_ context: CGContext, rect: CGRect) {
+    guard let session = cameraPerceptionSession, let image = cameraImage else { return }
+    let fitScale = min(rect.width / renderCanvasW, rect.height / renderCanvasH)
+    let snapshot = session.consumeForRender() ?? session.geometrySlot.peek()
+    context.saveGState()
+    context.scaleBy(x: fitScale, y: fitScale)
+    if let verts = snapshot?.meshVertices, let snapshot = snapshot {
+      drawMesh(context, image: image, meshCellsWide: snapshot.meshWidth, meshCellsHigh: snapshot.meshHeight, verts: verts, textureWidth: snapshot.textureWidth, textureHeight: snapshot.textureHeight)
+    }
+    context.restoreGState()
+    let st = session.stats()
+    drawText(
+      context, "camera=\(cameraControllerState.rawValue) produced=\(st.produced) inferred=\(st.inferred) rendered=\(st.rendered) refused=\(st.refused)",
+      at: CGPoint(x: 20, y: 24), color: UIColor.cyan)
+    if snapshot?.meshVertices == nil {
+      drawText(
+        context, "no mesh: \(snapshot?.failure ?? snapshot?.gateFindings.description ?? "unknown")",
+        at: CGPoint(x: 20, y: 48), color: UIColor.red)
+    }
+    if session.currentState() == .playing { cameraMeshOverlay?.setNeedsDisplay() }
+  }
+
   // MARK: - Lifecycle
 
   public override func didMoveToWindow() {
     super.didMoveToWindow()
+    if window != nil {
+      // N1-G: module-level capturePersonFrame()/capturePreview() (unlike
+      // the diagnostic Props/AsyncFunctions above, which are View-scoped)
+      // need to reach whichever LiveVtoRenderView is CURRENTLY mounted --
+      // exactly one exists at a time by construction (mission section 14
+      // extended to capture).
+      Self.currentInstance = self
+    }
     // Lifecycle safety: a view torn down mid-replay must not leave a
     // background thread producing geometry into an orphaned session.
     if window == nil {
       stopReplay()
       stopPerception()
+      // A destroyed view can never resume a session -- disposeSession() is
+      // idempotent (a no-op if the session was never started) and bumps the
+      // generation so any late camera/garment-load completion the teardown
+      // triggers is already invalidated by the time it would arrive. Also
+      // tears down the camera (see disposeSession()), so no separate
+      // stopCamera() call is needed here.
+      disposeSession()
+      if Self.currentInstance === self { Self.currentInstance = nil }
+      clearCaptureFiles()
     }
   }
 
@@ -231,6 +418,315 @@ public final class LiveVtoRenderView: ExpoView {
     replaySession?.dispose()
     perceptionDriver?.stop()
     perceptionSession?.dispose()
+    cameraPerceptionDriver?.stop()
+    cameraPerceptionSession?.dispose()
+    cameraController?.stop()
+    if LiveVtoRenderView.currentInstance === self { LiveVtoRenderView.currentInstance = nil }
+  }
+
+  // MARK: - N1-G capture (capturePersonFrame / capturePreview)
+
+  /// Exactly one `LiveVtoRenderView` is mounted at a time by construction.
+  /// `weak` so a leaked/forgotten reference here can never keep a
+  /// destroyed view alive, and so a stale reference from a previous
+  /// session correctly resolves to nil rather than resurrecting it.
+  private static weak var currentInstance: LiveVtoRenderView?
+
+  static func capturePersonFrame() throws -> [String: Any] {
+    guard let view = currentInstance else {
+      throw LiveVtoCaptureError.noActiveSession
+    }
+    guard let result = view.captureCleanFrame() else {
+      throw LiveVtoCaptureError.captureUnavailable
+    }
+    return result.asDictionary
+  }
+
+  static func capturePreview() throws -> [String: Any] {
+    guard let view = currentInstance else {
+      throw LiveVtoCaptureError.noActiveSession
+    }
+    guard let result = view.captureCompositedFrame() else {
+      throw LiveVtoCaptureError.captureUnavailable
+    }
+    return result.asDictionary
+  }
+
+  /// Resolves the currently-mounted view for a Part B session command and
+  /// (re)arms its event sink -- the SAME `currentInstance` lookup
+  /// `capturePersonFrame`/`capturePreview` already use, no separate
+  /// registry. Called by `KScanLiveVtoNativeModule.currentSessionView()`,
+  /// which cannot touch `currentInstance` directly since it is `private`.
+  static func currentSessionView(eventSink: @escaping (String, [String: Any]) -> Void) throws -> LiveVtoRenderView {
+    guard let view = currentInstance else {
+      throw LiveVtoSessionCommandError.noActiveSession
+    }
+    view.sessionEventSink = eventSink
+    return view
+  }
+
+  /// `dispose()` never throws (matches `LiveVtoSessionController.dispose()`
+  /// in services/vto/vtoLiveSession.ts exactly) -- a view that never started
+  /// a session, or one already disposed, or no active view at all, are all
+  /// safe no-ops.
+  static func disposeCurrentSession() {
+    currentInstance?.disposeSession()
+  }
+
+  /// The clean-frame source for `capturePersonFrame()` -- NEVER the
+  /// garment image (`cameraImage`/`perceptionImage`), NEVER the composited
+  /// mesh (see `captureCompositedFrame()`). Priority mirrors whichever
+  /// pipeline is actually running:
+  ///   - `camera`: the latest published camera frame,
+  ///     `cameraController.frameSlot.peek()` -- non-destructive (`peek`,
+  ///     not `consume`) so this never steals a frame the perception tick
+  ///     was about to drain. Real physical-camera evidence remains
+  ///     PENDING-RUNTIME on iOS (no iPhone this session, same as Android's
+  ///     documented HOLD) -- this method is wired to the SAME
+  ///     `cameraController` the live pipeline uses; if it has never
+  ///     published a frame, `peek()` returns nil and this method honestly
+  ///     returns nil rather than fabricating a result.
+  ///   - `perception`: the bundled synthetic test image perception itself
+  ///     runs inference against -- there is no camera concept in this mode.
+  ///   - `replay`/`active`/no mode: no person-frame concept exists in
+  ///     those modes at all (purely canned-pose rendering); returns nil.
+  private func captureCleanFrame() -> LiveVtoCapturedFrameResult? {
+    guard beginCaptureIfSessionActive() else { return nil }
+    defer { endCaptureIfSessionActive() }
+    let source: UIImage?
+    if camera {
+      guard let frame = cameraController?.frameSlot.peek() as? LiveVtoStaticImageFrame else { return nil }
+      source = frame.image
+    } else if perception {
+      source = perceptionSourceImage
+    } else {
+      source = nil
+    }
+    guard let image = source else { return nil }
+    return saveCapturedImage(image, kind: "PERSON_FRAME")
+  }
+
+  /// The composited-preview source for `capturePreview()`: rasterizes
+  /// whatever is CURRENTLY on screen the same way any UIView is
+  /// snapshotted, working uniformly across every mode without needing
+  /// mode-specific compositing logic of its own. This is why
+  /// `capturePreview` can never accidentally return a clean frame: it does
+  /// not read any of the same source fields `captureCleanFrame` does.
+  private func captureCompositedFrame() -> LiveVtoCapturedFrameResult? {
+    guard beginCaptureIfSessionActive() else { return nil }
+    defer { endCaptureIfSessionActive() }
+    guard bounds.width > 0, bounds.height > 0 else { return nil }
+    let renderer = UIGraphicsImageRenderer(bounds: bounds)
+    let image = renderer.image { context in
+      layer.render(in: context.cgContext)
+    }
+    return saveCapturedImage(image, kind: "PREVIEW")
+  }
+
+  /// Data retention (mission section 19): captures are written to this
+  /// app's own caches directory (`Caches/live-vto-captures/<uuid>.png`),
+  /// never a shared/photo-library location, never included in logs.
+  /// Lifetime is bounded to the life of this view instance:
+  /// `didMoveToWindow`'s detach path deletes the entire directory, so a
+  /// capture the caller has not yet consumed (uploaded, displayed, or
+  /// otherwise persisted elsewhere) before the Live session ends is
+  /// deleted along with the session, not kept indefinitely as a stray
+  /// temp file.
+  private func saveCapturedImage(_ image: UIImage, kind: String) -> LiveVtoCapturedFrameResult? {
+    guard let data = image.pngData() else { return nil }
+    let captureId = UUID().uuidString
+    let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+      .appendingPathComponent(Self.captureCacheSubdir, isDirectory: true)
+    do {
+      try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+      let file = dir.appendingPathComponent("\(captureId).png")
+      try data.write(to: file, options: .atomic)
+      return LiveVtoCapturedFrameResult(
+        captureId: captureId, kind: kind, localUri: file.absoluteString,
+        width: Int(image.size.width * image.scale), height: Int(image.size.height * image.scale))
+    } catch {
+      return nil
+    }
+  }
+
+  private func clearCaptureFiles() {
+    let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+      .appendingPathComponent(Self.captureCacheSubdir, isDirectory: true)
+    try? FileManager.default.removeItem(at: dir)
+  }
+
+  private static let captureCacheSubdir = "live-vto-captures"
+
+  // MARK: - Part B (2026-09-06): session control surface
+  //
+  // Field-for-field port of Android's `LiveVtoTestRenderView.kt` session
+  // block -- see that file's comment header for the full rationale. In
+  // short: the module-level bridge resolves `currentInstance` exactly as it
+  // already does for capture (no view ref anywhere in the real
+  // `LiveVtoNativeModule`/`LiveVtoSessionController` contract, both already
+  // implemented and tested on the JS side); this layer reuses the SAME
+  // `cameraController`/`cameraPerceptionSession`/`cameraPerceptionDriver`
+  // fields the diagnostic `camera` Prop already owns via the SAME
+  // `startCamera()`/`stopCamera()`, adding only the session state machine,
+  // the generation/epoch guard, and event emission. A session that was
+  // never started (`sessionState == .created`, the default) leaves
+  // capture's existing N1-G behaviour completely unchanged.
+  private var sessionState: LiveVtoSessionState = .created
+  private var sessionGeneration: Int32 = 0
+  private var loadedGarment: LiveVtoGarmentDescriptor?
+  private var capturePriorSessionState: LiveVtoSessionState = .created
+  /// Deliberately its OWN field, not a reuse of `garmentImage` (N1-B's
+  /// static-diagnostic image): the two modes are not mutually exclusive on
+  /// a single view instance, and sharing a field would let one silently
+  /// stomp the other's state. Currently unread -- Part B does not add a new
+  /// render path -- held only as real evidence the load genuinely decoded
+  /// an image, not merely returned early.
+  private var sessionGarmentImage: CGImage?
+
+  /// Set by the module the first time a session command reaches this
+  /// instance. Cleared on dispose so a destroyed session cannot keep
+  /// emitting events through a stale closure.
+  var sessionEventSink: ((_ type: String, _ payload: [String: Any]) -> Void)?
+
+  func sessionSnapshotState() -> LiveVtoSessionState { sessionState }
+
+  private func emitSessionEvent(_ type: String, _ payload: [String: Any] = [:]) {
+    sessionEventSink?(type, payload)
+  }
+
+  /// Session-state gate for capture. Bypassed entirely (returns true, no
+  /// state change) while a session was never started -- see the header
+  /// above. Once engaged, enforces single-flight and refuses a capture that
+  /// would outlive a disposed/stopped session.
+  private func beginCaptureIfSessionActive() -> Bool {
+    if sessionState == .created { return true }
+    capturePriorSessionState = sessionState
+    let result = LiveVtoSessionMachine.apply(sessionState, .capture)
+    guard result.accepted else { return false }
+    sessionState = result.next
+    return true
+  }
+
+  private func endCaptureIfSessionActive() {
+    guard sessionState == .capturing else { return }
+    sessionState = LiveVtoSessionMachine.complete(sessionState, .captureFinished, resumeTo: capturePriorSessionState).next
+  }
+
+  /// Drives `.starting` -> `.running`/`.error` off the SAME
+  /// `CameraControllerState` `startCamera()` already reports -- see
+  /// Android's `handleCameraControllerStateForSession` for why
+  /// `bindToLifecycle`/AVFoundation's own successful start is the correct
+  /// signal even under the carried camera HOLD (a downstream tracking-
+  /// quality fact, not a native start() failure). Guarded by
+  /// `sessionState == .starting` rather than a separate generation
+  /// parameter: both this callback (dispatched via `DispatchQueue.main`) and
+  /// every session command run on the main thread, so a stop/dispose that
+  /// already moved the state off `.starting` has already made a late
+  /// running/error completion here a no-op by construction.
+  private func handleCameraControllerStateForSession(_ state: CameraControllerState) {
+    guard sessionState == .starting else { return }
+    switch state {
+    case .running:
+      sessionState = LiveVtoSessionMachine.complete(sessionState, .runtimeReady).next
+      emitSessionEvent("ready")
+    case .error, .permissionDenied:
+      sessionState = LiveVtoSessionMachine.complete(sessionState, .runtimeFailed).next
+      emitSessionEvent("fatalError", [
+        "state": state == .permissionDenied ? "CAMERA_PERMISSION_DENIED" : "RUNTIME_INITIALIZATION_FAILED",
+        "recoverable": true,
+      ])
+    default:
+      break
+    }
+  }
+
+  func startSession() -> Bool {
+    let result = LiveVtoSessionMachine.apply(sessionState, .start)
+    guard result.accepted else { return false }
+    sessionState = result.next
+    sessionGeneration += 1
+    startCamera()
+    return true
+  }
+
+  func stopSession() -> Bool {
+    let before = sessionState
+    let result = LiveVtoSessionMachine.apply(sessionState, .stop)
+    guard result.accepted else { return false }
+    sessionState = result.next
+    if before == .created || before == .stopped { return true } // idempotent no-op
+    sessionGeneration += 1 // invalidate any in-flight start/garment-load for the prior epoch
+    stopCamera()
+    sessionState = LiveVtoSessionMachine.complete(sessionState, .stopped).next
+    return true
+  }
+
+  func pauseSession() -> Bool {
+    let result = LiveVtoSessionMachine.apply(sessionState, .pause)
+    guard result.accepted else { return false }
+    sessionState = result.next
+    cameraPerceptionDriver?.stop()
+    return true
+  }
+
+  func resumeSession() -> Bool {
+    let result = LiveVtoSessionMachine.apply(sessionState, .resume)
+    guard result.accepted else { return false }
+    sessionState = result.next
+    cameraPerceptionDriver?.start()
+    return true
+  }
+
+  @discardableResult
+  func disposeSession() -> Bool {
+    let result = LiveVtoSessionMachine.apply(sessionState, .dispose)
+    sessionGeneration += 1
+    stopCamera()
+    sessionState = result.next
+    loadedGarment = nil
+    sessionEventSink = nil
+    return result.accepted
+  }
+
+  func loadGarmentSession(_ descriptor: LiveVtoGarmentDescriptor) -> Bool {
+    let result = LiveVtoSessionMachine.apply(sessionState, .loadGarment)
+    guard result.accepted else { return false }
+    return performGarmentLoad(descriptor, loadingState: result.next, resumeTo: .ready)
+  }
+
+  func switchGarmentSession(_ descriptor: LiveVtoGarmentDescriptor) -> Bool {
+    let resumeTarget = sessionState // RUNNING or PAUSED -- captured before the state moves to garmentLoading
+    let result = LiveVtoSessionMachine.apply(sessionState, .switchGarment)
+    guard result.accepted else { return false }
+    return performGarmentLoad(descriptor, loadingState: result.next, resumeTo: resumeTarget)
+  }
+
+  /// Bounded scope decision (Part B, 2026-09-06) -- matches Android's own:
+  /// no live product-catalog -> native-asset resolver exists anywhere in
+  /// this codebase yet, so every supported `templateFamily` resolves to the
+  /// SAME governed bundled fixture the diagnostic view already renders.
+  /// `productRef`/`imageUrl`/`canonicalCategory` are validated and carried
+  /// in the `garmentLoaded` event for identity, but do not yet address a
+  /// distinct asset. The state machine, generation guard, and event
+  /// contract around this call are real and exercised regardless of that
+  /// bound.
+  private func performGarmentLoad(_ descriptor: LiveVtoGarmentDescriptor, loadingState: LiveVtoSessionState, resumeTo: LiveVtoSessionState) -> Bool {
+    sessionState = loadingState
+    let myGeneration = sessionGeneration
+    do {
+      let (manifest, image, _) = try loadFixture("n1b-fixture")
+      guard sessionGeneration == myGeneration else { return true } // superseded; drop silently
+      sessionGarmentImage = image
+      loadedGarment = descriptor
+      sessionState = LiveVtoSessionMachine.complete(sessionState, .garmentLoaded, resumeTo: resumeTo).next
+      emitSessionEvent("garmentLoaded", ["productRef": descriptor.productRef, "assetVersion": manifest.assetVersion])
+      return true
+    } catch {
+      guard sessionGeneration == myGeneration else { return true }
+      sessionState = LiveVtoSessionMachine.complete(sessionState, .garmentLoadFailed, resumeTo: resumeTo).next
+      emitSessionEvent("fatalError", ["state": "GARMENT_UNSUPPORTED", "recoverable": false])
+      return false
+    }
   }
 
   // MARK: - N1-B static compute
@@ -461,6 +957,12 @@ public final class LiveVtoRenderView: ExpoView {
 
   public override func draw(_ rect: CGRect) {
     super.draw(rect)
+    if camera {
+      // The live camera feed and the mesh overlay are both separate child
+      // views (see `startCamera()`), stacked above this view's own layer --
+      // this view's own `draw(_:)` has nothing to paint for this mode.
+      return
+    }
     guard let context = UIGraphicsGetCurrentContext() else { return }
     context.setFillColor(UIColor(red: 32 / 255, green: 32 / 255, blue: 36 / 255, alpha: 1).cgColor)
     context.fill(rect)
@@ -503,4 +1005,34 @@ public final class LiveVtoRenderView: ExpoView {
       drawText(context, "no mesh: \(lastSnapshot?.failure ?? lastSnapshot?.gateFindings.description ?? "unknown")", at: CGPoint(x: 20, y: 40), color: .red)
     }
   }
+}
+
+/// A handle to a frame this module captured, matching `LiveVtoCapturedFrame`
+/// in types/vtoLive.ts exactly.
+struct LiveVtoCapturedFrameResult {
+  let captureId: String
+  /// "PERSON_FRAME" or "PREVIEW" -- see `LIVE_VTO_CAPTURED_FRAME_KINDS` in types/vtoLive.ts.
+  let kind: String
+  let localUri: String
+  let width: Int
+  let height: Int
+
+  var asDictionary: [String: Any] {
+    ["captureId": captureId, "kind": kind, "localUri": localUri, "width": width, "height": height]
+  }
+}
+
+enum LiveVtoCaptureError: Error {
+  case noActiveSession
+  case captureUnavailable
+}
+
+/// Part B: a rejected session command (invalid transition, or no active
+/// view). Mirrors Android's `CodedException` throws from the module's
+/// lifecycle `Function`s -- the JS controller already wraps every one of
+/// these calls in `sendLiveVtoCommand`'s try/catch and turns a throw into
+/// the correct bounded error state itself.
+enum LiveVtoSessionCommandError: Error {
+  case noActiveSession
+  case rejected(String)
 }

@@ -29,7 +29,17 @@ public final class LiveVtoPerceptionDriver {
   public static let defaultProducerPeriodSeconds: TimeInterval = 0.033
 
   private let session: LiveVtoPerceptionSession
-  private let frameSource: () -> PerceptionInputFrame
+  /// N1-F: nullable, not `() -> PerceptionInputFrame`. A pull-based frame
+  /// source that is itself fed by a push-based producer running at a
+  /// DIFFERENT cadence (`AVCaptureVideoDataOutput`'s delegate callback, see
+  /// `LiveVtoCameraController`) has ticks where nothing new has arrived
+  /// since the last one. Returning `nil` there means the producer correctly
+  /// submits NOTHING that tick -- neither reprocessing a stale frame nor
+  /// blocking -- matching Android's identical change to its own
+  /// `LiveVtoPerceptionDriver.kt`. `LiveVtoStaticImageFrameSource` is
+  /// unaffected: it never returns nil, so existing perception/replay
+  /// behaviour is unchanged.
+  private let frameSource: () -> PerceptionInputFrame?
   private let producerPeriodSeconds: TimeInterval
 
   private let producerQueue = DispatchQueue(label: LiveVtoPerceptionDriver.producerThreadName, qos: .userInitiated)
@@ -41,7 +51,7 @@ public final class LiveVtoPerceptionDriver {
   private var perceptionLoopRunning = false
 
   public init(
-    session: LiveVtoPerceptionSession, frameSource: @escaping () -> PerceptionInputFrame,
+    session: LiveVtoPerceptionSession, frameSource: @escaping () -> PerceptionInputFrame?,
     producerPeriodSeconds: TimeInterval = LiveVtoPerceptionDriver.defaultProducerPeriodSeconds
   ) {
     self.session = session
@@ -71,7 +81,7 @@ public final class LiveVtoPerceptionDriver {
     guard running, generation == myGeneration else { runningLock.unlock(); return }
     runningLock.unlock()
 
-    _ = session.submitFrame(frameSource())
+    if let frame = frameSource() { _ = session.submitFrame(frame) }
 
     runningLock.lock()
     guard running, generation == myGeneration else { runningLock.unlock(); return }

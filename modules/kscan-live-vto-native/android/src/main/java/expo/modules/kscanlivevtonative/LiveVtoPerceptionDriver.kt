@@ -32,7 +32,19 @@ private const val TAG = "KScanLiveVtoPerception"
  */
 class LiveVtoPerceptionDriver(
   private val session: LiveVtoPerceptionSession,
-  private val frameSource: () -> PerceptionInputFrame,
+  /**
+   * N1-F: nullable, not `() -> PerceptionInputFrame`. A pull-based frame
+   * source that is itself fed by a push-based producer running at a
+   * DIFFERENT cadence (CameraX's `ImageAnalysis` callback, see
+   * `LiveVtoCameraController`) has ticks where nothing new has arrived
+   * since the last one. Returning null on those ticks means the producer
+   * correctly submits NOTHING that tick -- neither reprocessing a stale
+   * frame nor blocking -- which is exactly mission section 8's
+   * "latest-useful-frame semantics... stale-frame dropping" applied to
+   * this boundary too. `StaticBitmapFrameSource` is unaffected: it never
+   * returns null, so N1-D/N1-E's existing behaviour is unchanged.
+   */
+  private val frameSource: () -> PerceptionInputFrame?,
   private val producerPeriodMillis: Long = DEFAULT_PRODUCER_PERIOD_MS,
 ) {
   private val running = AtomicBoolean(false)
@@ -48,7 +60,8 @@ class LiveVtoPerceptionDriver(
     producerExecutor = pExec
     producerTask = pExec.scheduleWithFixedDelay({
       try {
-        session.submitFrame(frameSource())
+        val frame = frameSource()
+        if (frame != null) session.submitFrame(frame)
       } catch (t: Throwable) {
         Log.e(TAG, "frame producer tick failed", t)
       }
