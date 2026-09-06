@@ -1,0 +1,99 @@
+{
+  "artifact": "ACTIONABLE_RESULT_SCHEMA",
+  "actionable_result_version": "actionable-result-v1",
+  "source_sha": "909df8646a690b55c5af6b7b8c80193df64a2ec8",
+  "authored": "2026-09-06",
+
+  "method": "Derived by reading the shipped result card and its upstream normalizer, not by assuming the usual title/price/image/retailer set. The shipped card was identified from eas.json, which sets EXPO_PUBLIC_SCAN_RESULTS_V2_UI=true in all four governed profiles (preview, development, staging, production), so app.js:1134 renders ScanResultV2 and the tappable row is a PurchaseOptionsPanel row.",
+
+  "shipped_card": {
+    "component": "components/scan-results/PurchaseOptionsPanel.tsx",
+    "row_render_range": "86-207",
+    "evidence_class": "PROVEN",
+    "note": "components/ProductShelf.tsx is the LEGACY shelf and is not imported by anything under components/scan-results/. It remains reachable on the reopened Recent Scan surface only."
+  },
+
+  "minimum_renderable": {
+    "required_fields": [
+      {
+        "field": "productUrl",
+        "type": "string",
+        "enforced_at": "services/commerceHydration.ts:151",
+        "code": "if (!productUrl || !title) continue;",
+        "evidence_class": "PROVEN"
+      },
+      {
+        "field": "title",
+        "type": "string",
+        "enforced_at": "services/commerceHydration.ts:151",
+        "evidence_class": "PROVEN"
+      }
+    ],
+    "panel_level_gates": [
+      {
+        "gate": "purchaseOptions.length > 0",
+        "enforced_at": "components/scan-results/PurchaseOptionsPanel.tsx:74",
+        "evidence_class": "PROVEN"
+      },
+      {
+        "gate": "priceDiscoveryEnabled",
+        "enforced_at": "components/AnalysisCard.tsx:135 (resolvePurchaseShelfMode) — a remote kill switch that hides the shelf regardless of data",
+        "evidence_class": "PROVEN"
+      }
+    ]
+  },
+
+  "minimum_actionable": {
+    "requirement": "productUrl must additionally survive validation, not merely be present.",
+    "validator": "services/commerceDestination.ts:56-69 isSafeCommerceUrl",
+    "rules": [
+      "protocol must be https:",
+      "no URL username or password",
+      "hostname must exist and must not be a private/loopback/link-local host"
+    ],
+    "applied_at": "components/scan-results/PurchaseOptionsPanel.tsx:89 (selectCommerceDestination([option.productUrl]))",
+    "failure_behaviour": "the row still renders but the CTA is replaced by an inert 'Unavailable' label (PurchaseOptionsPanel.tsx:128-150). In practice a URL-less entry was already dropped upstream at commerceHydration.ts:151, so the two paths disagree about which layer removes it.",
+    "evidence_class": "PROVEN"
+  },
+
+  "explicitly_NOT_required": [
+    {
+      "field": "imageUrl",
+      "finding": "The shipped purchase row renders NO product image at all — retailer, title, price and availability text plus the CTA. Image bytes are therefore not on the TTFAR critical path for the primary shelf.",
+      "evidence_class": "PROVEN",
+      "source": "components/scan-results/PurchaseOptionsPanel.tsx:86-207"
+    },
+    { "field": "retailer", "fallback": "'Retailer'", "source": "components/scan-results/types.ts:258-263", "evidence_class": "PROVEN" },
+    { "field": "id", "fallback": "`purchase-${index}`", "source": "components/scan-results/types.ts:266", "evidence_class": "PROVEN" },
+    { "field": "price / currency", "fallback": "the price line is omitted", "source": "components/scan-results/PurchaseOptionsPanel.tsx:90,113", "evidence_class": "PROVEN" },
+    { "field": "availability", "fallback": "the availability label is omitted", "source": "components/scan-results/PurchaseOptionsPanel.tsx:91,116", "evidence_class": "PROVEN" },
+    { "field": "brand", "fallback": "not read by the shipped row", "evidence_class": "PROVEN" }
+  ],
+
+  "secondary_surface": {
+    "component": "components/scan-results/SimilarFindsShelf.tsx -> components/luxury/ProductCard.tsx",
+    "gate": "ScanResultV2.tsx:58-76 isRenderableSimilarFind, then ScanResultV2.tsx:262 requires renderableSimilarFinds.length >= 2",
+    "consequence": "a single valid similar find renders nothing at all",
+    "evidence_class": "PROVEN",
+    "divergence": "SimilarFindsShelf.tsx:70 gates onPress on raw truthiness of product.productUrl rather than on isSafeCommerceUrl, so an http:// or private-host URL renders a fully pressable card whose tap silently does nothing (openExternalUrl returns false and the boolean is discarded with `void`). Recorded as an adjacent defect, not repaired by this lane."
+  },
+
+  "actionability_blockers_checked": {
+    "does_image_load_block_actionability": {
+      "answer": "NO",
+      "evidence_class": "PROVEN",
+      "reason": "The primary row has no image. On the secondary ProductCard, hasImage only selects <Image> vs a placeholder (ProductCard.tsx:51-70); onPress at :102-113 is independent of it."
+    },
+    "do_secondary_fields_block_the_card": {
+      "answer": "NO",
+      "evidence_class": "PROVEN",
+      "reason": "Every non-required field has a fallback or is simply omitted from the row."
+    }
+  },
+
+  "canonical_minimum": {
+    "productUrl": "https URL passing isSafeCommerceUrl",
+    "title": "non-empty string",
+    "_comment": "Two fields. That is the entire actionable-result contract for the shipped shelf."
+  }
+}
