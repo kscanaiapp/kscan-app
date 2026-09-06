@@ -35,4 +35,12 @@ android {
 
 dependencies {
   testImplementation 'junit:junit:4.13.2'
+
+  // N1-E perception provider. Pinned to an exact version, verified current
+  // at integration time (Google Maven metadata, checked 2026-09-06) --
+  // NOT copied from an old prompt or a cached memory of an earlier release
+  // line. See docs/vto-live-native-n1-perception.md for the full
+  // provenance record (framework license, model license, checksum, ABI
+  // support, min SDK).
+  implementation 'com.google.mediapipe:tasks-vision:1.0.0'
 }

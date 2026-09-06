@@ -68,6 +68,20 @@ class KScanLiveVtoNativeModule : Module() {
       AsyncFunction("getReplayStatsJson") { view: LiveVtoTestRenderView ->
         view.readReplayStatsJson()
       }
+
+      // N1-E. JS issues one bounded command -- start/stop real local
+      // perception. It NEVER receives a frame, a raw landmark array, or a
+      // BodyFrame: real MediaPipe inference, the BodyFrame adapter, and
+      // the geometry compute all run natively, off the UI thread (mission
+      // sections 6, 23, 26).
+      Prop("perception") { view: LiveVtoTestRenderView, perception: Boolean -> view.perception = perception }
+
+      // Aggregate perception counters only -- produced/submitted/inferred/
+      // refused/rendered/dropped(x2)/depth(x2) and the session state.
+      // Never a landmark, never a BodyFrame, never a frame.
+      AsyncFunction("getPerceptionStatsJson") { view: LiveVtoTestRenderView ->
+        view.readPerceptionStatsJson()
+      }
     }
   }
 

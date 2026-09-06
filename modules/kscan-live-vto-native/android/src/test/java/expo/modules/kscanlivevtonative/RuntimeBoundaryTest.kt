@@ -34,6 +34,8 @@ class RuntimeBoundaryTest {
       "LiveVtoTestRenderView.kt",   // owns Canvas / Bitmap / ExpoView
       "KScanLiveVtoNativeModule.kt", // owns the Expo module definition
       "LiveVtoReplayDriver.kt",      // owns the executor; logs via android.util.Log
+      "LiveVtoMediaPipePoseProvider.kt", // N1-E: owns the real MediaPipe SDK call and Bitmap-backed input frame
+      "LiveVtoPerceptionDriver.kt",       // N1-E: owns the perception executor threads; Bitmap frame source
     )
     val offenders = mutableListOf<String>()
     for (file in mainSources()) {
@@ -103,7 +105,7 @@ class RuntimeBoundaryTest {
 
     assertEquals(
       "the native bridge surface changed -- review the privacy boundary before updating this list",
-      sortedSetOf("active", "getCapability", "getGeometrySnapshotJson", "getReplayStatsJson", "replay"),
+      sortedSetOf("active", "getCapability", "getGeometrySnapshotJson", "getPerceptionStatsJson", "getReplayStatsJson", "perception", "replay"),
       declared,
     )
 

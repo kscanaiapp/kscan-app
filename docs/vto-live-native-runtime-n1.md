@@ -129,9 +129,21 @@ enforced privacy boundary. Full detail and the frozen thread topology:
 N1-ENV-009 was found and repaired by its own test (entering ERROR left
 renderable geometry in the latest-state slot).
 
-### N1-E through N1-G
+### N1-E -- real local perception
 
-Not started. Preparation only -- no N1-D code depends on real inference.
+**PASS on real-model execution and architecture. Gate calibration (rigid-gate pass on a real detection) remains open.**
+
+Provider: MediaPipe Tasks Vision Pose Landmarker, `com.google.mediapipe:tasks-vision:1.0.0` (verified current, not assumed), model `pose_landmarker_lite.task` bundled locally (sha256 `59929e1d...`). Full provenance, architecture, and evidence: `docs/vto-live-native-n1-perception.md`.
+
+Real, on-device, physical-device execution confirmed: `PoseLandmarker.detect()` genuinely invoked hundreds of times, returning a real 33-landmark BlazePose result (confidence ~0.9999) against a bundled procedurally-generated synthetic test image (no person imagery). Mapped through `LiveVtoBodyFrameAdapter` (0 adapter-level refusals) and `LiveVtoGeometryPipeline` (unchanged from N1-C) to a real `GeometrySnapshot`, published to the render slot.
+
+Non-vacuous backpressure measured on real hardware with genuine (not simulated) inference latency: 295 produced / 144 inferred / 150 dropped in ~10s, slot depth bounded at 1. Network: 0 bytes attributable to MediaPipe across two independent measurement windows (294 and 218 real inferences) -- including empirical verification of a live third-party report of undocumented MediaPipe telemetry, which was NOT observed in this integration's actual bundled version.
+
+**Open:** the rigid gate consistently rejects the real detected placement on `garment_largely_outside_torso` for the current bundled test image / `n1b-fixture` pairing (N1-ENV-014) -- a real, measured calibration finding, not a pipeline defect (scale and orientation checks pass cleanly; N1-C's own conformance goldens are unaffected). A future test-frame or fixture-pairing refinement is owed before a real detection can be shown reaching a drawn mesh on screen.
+
+### N1-F / N1-G
+
+Not started. Preparation only -- no N1-E code depends on live camera input.
 Each gate's own hard requirements apply unchanged.
 
 ## Device authority

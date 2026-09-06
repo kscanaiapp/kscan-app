@@ -6,14 +6,15 @@
  * EAS profile -- this route is inert in any build that matters. Exists to
  * capture native-runtime evidence (docs/vto-live-native-runtime-n1.md)
  * without touching the real auth-gated Scan Results -> ProductShelf ->
- * TryItOnEntry path. Kept across gates (N1-A, N1-B, now N1-D) rather than
- * recreated per gate -- tracked in the N1 defect ledger, not left silent.
+ * TryItOnEntry path. Kept across gates (N1-A, N1-B, N1-D, now N1-E) rather
+ * than recreated per gate -- tracked in the N1 defect ledger, not left silent.
  *
  * Everything this screen reads across the bridge is bounded: one geometry
- * snapshot on demand (rate-limited native-side), and aggregate replay
- * counters. No frames, no BodyFrames, no per-frame geometry -- amendment
- * D24. The replay pipeline itself runs entirely native; JS only sets the
- * `replay` prop.
+ * snapshot on demand (rate-limited native-side), and aggregate replay /
+ * perception counters. No frames, no BodyFrames, no per-frame geometry, no
+ * landmark array -- amendment D24 / mission section 26. The replay and
+ * perception pipelines run entirely native; JS only sets the `replay` /
+ * `perception` props.
  */
 import { useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -26,8 +27,10 @@ export default function DevN1Diagnostic() {
   const [capabilityResult, setCapabilityResult] = useState<string>('running...');
   const [geometryResult, setGeometryResult] = useState<string>('running...');
   const [replayResult, setReplayResult] = useState<string>('running...');
+  const [perceptionResult, setPerceptionResult] = useState<string>('running...');
   const staticRef = useRef<any>(null);
   const replayRef = useRef<any>(null);
+  const perceptionRef = useRef<any>(null);
 
   useEffect(() => {
     try {
@@ -90,6 +93,35 @@ export default function DevN1Diagnostic() {
     };
   }, []);
 
+  // N1-E: aggregate perception counters, sampled while real MediaPipe
+  // inference runs against the bundled synthetic frame. Same bounded-poll
+  // pattern as N1-D -- fixed-size payload regardless of inference rate.
+  useEffect(() => {
+    let cancelled = false;
+    const sample = async (label: string) => {
+      if (cancelled) return;
+      try {
+        const json = await perceptionRef.current?.getPerceptionStatsJson?.();
+        // eslint-disable-next-line no-console
+        console.log(`[N1-E-PROBE-${label}]`, json);
+        if (!cancelled) setPerceptionResult(String(json));
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.log(`[N1-E-PROBE-${label}]`, `threw: ${String(error)}`);
+      }
+    };
+    const timers = [
+      setTimeout(() => sample('1s'), 1000),
+      setTimeout(() => sample('3s'), 3000),
+      setTimeout(() => sample('6s'), 6000),
+      setTimeout(() => sample('10s'), 10000),
+    ];
+    return () => {
+      cancelled = true;
+      timers.forEach(clearTimeout);
+    };
+  }, []);
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.label}>N1-A capability</Text>
@@ -106,6 +138,12 @@ export default function DevN1Diagnostic() {
         <NativeLiveVtoView ref={replayRef} replay style={styles.nativeView} />
       </View>
       <Text testID="n1-d-probe-result" style={styles.result}>{replayResult}</Text>
+
+      <Text style={styles.label}>N1-E real local perception (MediaPipe Pose Landmarker)</Text>
+      <View style={styles.viewFrame}>
+        <NativeLiveVtoView ref={perceptionRef} perception style={styles.nativeView} />
+      </View>
+      <Text testID="n1-e-probe-result" style={styles.result}>{perceptionResult}</Text>
     </ScrollView>
   );
 }

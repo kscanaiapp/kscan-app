@@ -233,3 +233,23 @@ This is the concrete argument amendment D2 makes for requiring a real screenshot
 **Not JVM-unit-testable:** this defect required an instantiated Android `View` inside a real (or Robolectric) Android runtime to observe at all -- the existing JVM unit test suite runs the geometry stack with zero Android dependencies by design (amendment D8/D10), and deliberately has no Android `View` instance to exercise. The negative control for this class of defect is therefore the physical-device screenshot itself, not a new JVM test; a Robolectric harness that could exercise `onDraw` invocation is a reasonable follow-up but is new test infrastructure, not a repair to this defect.
 
 **N1-B PHYSICAL-DEVICE SCREENSHOT: COMPLETE.** The requirement carried as PENDING since N1-B is now satisfied.
+
+## N1-ENV-013 (informational, verified, not a defect) — MediaPipe Tasks 1.0.0 shows no measurable telemetry traffic in this integration
+
+**Context:** a live, unresolved GitHub issue (google-ai-edge/mediapipe#6291) reports MediaPipe Tasks versions 0.10.21-0.10.35 sending undocumented performance/utilization telemetry to Google. Per the mission's "verify current facts, do not trust old material" instruction, this was checked directly against this integration's actual bundled version (`tasks-vision:1.0.0`) rather than accepted or dismissed on the issue's word alone.
+
+**Method:** `dumpsys netstats detail` byte-count deltas for the app's own UID, physical device, across two independent before/after windows bracketing real provider initialization and real inference: one ~35s window (294 real inferences, all `NoPose`), one ~12s window (218 real inferences, all `Success`).
+
+**Result:** `0` bytes received, `0` bytes transmitted, in both windows. No traffic attributable to MediaPipe was observed in this configuration.
+
+**Outcome:** recorded as a verified, current finding specific to this integration -- not a general claim that the reported issue is wrong for every version or usage pattern, and not treated as permission to skip re-checking this on a future MediaPipe version bump. See `docs/vto-live-native-n1-perception.md` for the full measurement detail.
+
+## N1-ENV-014 (informational, measured, not a defect) — the rigid gate rejects two independent real-perception test frames on `garment_largely_outside_torso`
+
+**Context:** N1-E, first real end-to-end run (real MediaPipe detection -> `LiveVtoBodyFrameAdapter` -> `LiveVtoGeometryPipeline`) against a bundled synthetic test frame.
+
+**What:** every real detection against two independently-drawn synthetic humanoid test images was mapped successfully by the adapter (0 adapter-level refusals) and reached `evaluateRigidGate`, which consistently rejected the placement with exactly one finding: `garment_largely_outside_torso`. `scale` (1.08-1.15) and rotation were well-behaved in every case -- no `left_right_inversion`, `upside_down`, or `gross_scale_error` ever fired.
+
+**Root cause / classification:** NOT a defect in perception, the adapter, or the geometry pipeline -- all three are functioning exactly as designed and as already conformance-tested (N1-C's goldens, unaffected and unchanged by this work). This is the rigid gate correctly measuring that the bundled `n1b-fixture` garment's own calibration and this specific synthetic test frame's real, MediaPipe-detected body proportions do not currently produce a centroid the gate's tolerance accepts. Two independently-drawn images producing the same single finding, with every other check passing cleanly, points at a proportion mismatch between this one test asset and this one garment fixture -- not at the shared pipeline both already-passing conformance goldens and this new path both go through.
+
+**Resolution:** none applied -- per mission section 34 ("measure, do not invent pass numbers") this is recorded as real, measured calibration data for a future synthetic test-frame or fixture-pairing refinement, not smoothed over by loosening the gate or replacing the test asset until it happens to pass. The full REAL_MODEL EXECUTED checklist (mission section 14) is independently satisfied regardless of this gate's verdict -- see `docs/vto-live-native-n1-perception.md`.

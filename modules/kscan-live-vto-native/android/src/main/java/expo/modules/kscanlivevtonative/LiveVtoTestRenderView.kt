@@ -163,10 +163,101 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
     replayBitmap = null
   }
 
+  // ── N1-E perception ───────────────────────────────────────────────────────
+  private var perceptionSession: LiveVtoPerceptionSession? = null
+  private var perceptionDriver: LiveVtoPerceptionDriver? = null
+  private var perceptionBitmap: Bitmap? = null
+
+  /**
+   * Starts/stops the real perception pipeline: bundled synthetic replay
+   * frame -> real MediaPipe inference -> BodyFrame adapter -> existing
+   * geometry pipeline -> renderer. Mirrors `replay`'s prop pattern exactly.
+   */
+  var perception: Boolean = false
+    set(value) {
+      field = value
+      if (value) startPerception() else stopPerception()
+      invalidate()
+    }
+
+  private fun startPerception() {
+    if (perceptionDriver != null) return
+    try {
+      val (manifest, bitmap, dims) = loadFixture("n1b-fixture")
+      perceptionBitmap = bitmap
+      val testFrame = context.assets.open("perception/synthetic-test-frame.png").use {
+        android.graphics.BitmapFactory.decodeStream(it)
+      }
+      val provider = LiveVtoMediaPipePoseProvider(context)
+      val gatePassCount = java.util.concurrent.atomic.AtomicLong(0)
+      val gateFailCount = java.util.concurrent.atomic.AtomicLong(0)
+      val session = LiveVtoPerceptionSession(
+        provider, RENDER_CANVAS_W, RENDER_CANVAS_H,
+        onEvent = { event ->
+          perceptionEvent = event
+          val terminal = event.state == ReplayState.ERROR || event.state == ReplayState.STOPPED || event.state == ReplayState.DISPOSED
+          val detail = if (terminal) " " + (readPerceptionStatsJson() ?: "") else ""
+          Log.d(TAG, "N1-E perception state: " + event.state.name + detail)
+          postInvalidate()
+        },
+        onSnapshotComputed = { snapshot ->
+          // DIAGNOSTIC ONLY (not part of the bounded bridge surface): logs
+          // an aggregate gate-pass/fail tally every 50 computed snapshots,
+          // so a hostile-audit reader can tell from logcat alone whether
+          // the rigid gate is passing at all for this synthetic test frame,
+          // rather than only ever seeing "rendered=N" (which counts a
+          // successfully-consumed snapshot regardless of gate outcome).
+          val total = if (snapshot.gatePassed) gatePassCount.incrementAndGet() else gateFailCount.incrementAndGet()
+          if (total % 50 == 0L || total == 1L) {
+            Log.d(TAG, "N1-E gate tally: passed=" + gatePassCount.get() + " failed=" + gateFailCount.get() +
+              " lastGateFindings=" + snapshot.gateFindings + " lastScale=" + snapshot.scale)
+          }
+        },
+      )
+      if (!session.load(manifest, dims.first, dims.second)) {
+        loadError = "perception load refused: ${session.currentState()}"
+        return
+      }
+      session.start()
+      perceptionSession = session
+      perceptionDriver = LiveVtoPerceptionDriver(session, { BitmapPerceptionInputFrame(testFrame) }).also { it.start() }
+    } catch (t: Throwable) {
+      loadError = t.message ?: t.toString()
+      Log.e(TAG, "N1-E perception start failed", t)
+    }
+  }
+
+  private fun stopPerception() {
+    perceptionDriver?.stop()
+    perceptionDriver = null
+    perceptionSession?.dispose()
+    perceptionSession = null
+    perceptionBitmap = null
+  }
+
+  @Volatile private var perceptionEvent: ReplayEvent? = null
+
+  /** Bounded perception telemetry for gate evidence. Aggregate counters only -- amendment/mission section 26. */
+  fun readPerceptionStatsJson(): String? {
+    val session = perceptionSession ?: return null
+    val stats = session.stats()
+    return "{\"state\":\"" + session.currentState().name + "\"" +
+      ",\"produced\":" + stats.produced +
+      ",\"submittedToPerception\":" + stats.submittedToPerception +
+      ",\"inferred\":" + stats.inferred +
+      ",\"droppedBeforePerception\":" + stats.droppedBeforePerception +
+      ",\"refused\":" + stats.refused +
+      ",\"rendered\":" + stats.rendered +
+      ",\"droppedBeforeRender\":" + stats.droppedBeforeRender +
+      ",\"maxInputSlotDepth\":" + stats.maxInputSlotDepth +
+      ",\"maxGeometrySlotDepth\":" + stats.maxGeometrySlotDepth + "}"
+  }
+
   override fun onDetachedFromWindow() {
     // Lifecycle safety: a view torn down mid-replay must not leave a daemon
     // thread producing geometry into an orphaned session.
     stopReplay()
+    stopPerception()
     super.onDetachedFromWindow()
   }
 
@@ -302,11 +393,57 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
     if (session.currentState() == ReplayState.PLAYING) postInvalidateOnAnimation()
   }
 
+  /**
+   * The N1-E perception draw path. Reads the freshest snapshot the
+   * perception session's inference thread published and draws it -- this
+   * function computes nothing, runs no inference, and touches no provider
+   * (amendment/mission section 23: perception stays off the UI thread).
+   */
+  private fun drawPerception(canvas: Canvas) {
+    val session = perceptionSession
+    val bitmap = perceptionBitmap
+    if (session == null || bitmap == null) {
+      canvas.drawText("perception not started", 20f, 40f, Paint().apply { color = Color.YELLOW; textSize = 24f })
+      return
+    }
+    val snapshot = session.consumeForRender() ?: session.geometrySlot.peek()
+    val verts = snapshot?.meshVertices
+    canvas.save()
+    val fitScale = min(width / RENDER_CANVAS_W, height / RENDER_CANVAS_H)
+    canvas.scale(fitScale, fitScale)
+    if (verts != null) {
+      canvas.drawBitmapMesh(bitmap, snapshot.meshWidth, snapshot.meshHeight, verts, 0, null, 0, Paint().apply { isAntiAlias = true })
+    }
+    canvas.restore()
+    val stats = session.stats()
+    canvas.drawText(
+      session.currentState().name + " produced=" + stats.produced + " inferred=" + stats.inferred +
+        " refused=" + stats.refused + " rendered=" + stats.rendered,
+      20f, 30f, Paint().apply { color = Color.CYAN; textSize = 20f },
+    )
+    canvas.drawText(
+      "droppedPerception=" + stats.droppedBeforePerception + " droppedRender=" + stats.droppedBeforeRender,
+      20f, 55f, Paint().apply { color = Color.CYAN; textSize = 20f },
+    )
+    if (verts == null) {
+      canvas.drawText(
+        "no mesh: gatePassed=" + snapshot?.gatePassed + " findings=" + snapshot?.gateFindings + " failure=" + snapshot?.failure +
+          " scale=" + snapshot?.scale + " bounds=" + snapshot?.boundsMin + ".." + snapshot?.boundsMax,
+        20f, 80f, Paint().apply { color = Color.RED; textSize = 16f },
+      )
+    }
+    if (session.currentState() == ReplayState.PLAYING) postInvalidateOnAnimation()
+  }
+
   override fun onDraw(canvas: Canvas) {
     super.onDraw(canvas)
     val bg = Paint().apply { color = Color.rgb(32, 32, 36) }
     canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), bg)
 
+    if (perception) {
+      drawPerception(canvas)
+      return
+    }
     if (replay) {
       drawReplay(canvas)
       return
