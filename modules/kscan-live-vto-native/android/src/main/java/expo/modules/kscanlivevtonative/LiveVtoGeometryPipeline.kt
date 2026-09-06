@@ -60,8 +60,8 @@ object LiveVtoGeometryPipeline {
       canvasHeight = canvasHeight,
       textureWidth = textureWidth,
       textureHeight = textureHeight,
-      meshWidth = manifest.meshDefinition.width,
-      meshHeight = manifest.meshDefinition.height,
+      meshWidth = manifest.meshDefinition.width - 1,
+      meshHeight = manifest.meshDefinition.height - 1,
       meshVertices = null,
       failure = reason,
     )
@@ -83,7 +83,9 @@ object LiveVtoGeometryPipeline {
 
     // Deformation only runs behind a passing rigid gate: "deformation cannot
     // repair incorrect semantic anchoring" (P3-A attachment.ts).
-    val meshVertices = if (gate.passed) buildDeformedMeshVertices(manifest, targets.targets) else null
+    val meshVertices = if (gate.passed) {
+      LiveVtoDeformation.buildDeformedMesh(manifest, targets.targets, textureWidth, textureHeight)
+    } else null
 
     var minX = Float.MAX_VALUE; var minY = Float.MAX_VALUE
     var maxX = -Float.MAX_VALUE; var maxY = -Float.MAX_VALUE
@@ -112,8 +114,8 @@ object LiveVtoGeometryPipeline {
       canvasHeight = canvasHeight,
       textureWidth = textureWidth,
       textureHeight = textureHeight,
-      meshWidth = manifest.meshDefinition.width,
-      meshHeight = manifest.meshDefinition.height,
+      meshWidth = manifest.meshDefinition.width - 1,
+      meshHeight = manifest.meshDefinition.height - 1,
       meshVertices = meshVertices,
       failure = null,
     )

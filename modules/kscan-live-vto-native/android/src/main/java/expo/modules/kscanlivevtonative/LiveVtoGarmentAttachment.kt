@@ -349,32 +349,3 @@ fun evaluateRigidGate(anchors: BodyAnchors, manifest: KsgarmentManifest, placeme
 
   return RigidGateResult(findings.isEmpty(), findings)
 }
-
-/**
- * N1-B simplified stage 5: inverse-distance-weighted interpolation of every
- * mesh-grid vertex's texture-space position from the (up to 11) computed
- * control-point correspondences. Not the reference's affine-MLS warp --
- * documented as a known simplification, not claimed as N1-C's deformation
- * parity.
- */
-fun buildDeformedMeshVertices(manifest: KsgarmentManifest, targets: Map<GarmentControlPointId, Vec2>): FloatArray {
-  val mesh = manifest.meshDefinition
-  val verts = FloatArray((mesh.width + 1) * (mesh.height + 1) * 2)
-  val controlSrc = manifest.controlPoints.mapNotNull { cp -> targets[cp.id]?.let { Pair(Vec2(cp.u, cp.v), it) } }
-  var idx = 0
-  for (row in 0..mesh.height) {
-    val v = row.toFloat() / mesh.height
-    for (col in 0..mesh.width) {
-      val u = col.toFloat() / mesh.width
-      var sumW = 0f; var sx = 0f; var sy = 0f
-      for ((src, dst) in controlSrc) {
-        val d = hypot((u - src.x).toDouble(), (v - src.y).toDouble()).toFloat()
-        val w = 1f / (d * d + 1e-4f)
-        sumW += w; sx += dst.x * w; sy += dst.y * w
-      }
-      verts[idx++] = if (sumW > 0f) sx / sumW else 0f
-      verts[idx++] = if (sumW > 0f) sy / sumW else 0f
-    }
-  }
-  return verts
-}

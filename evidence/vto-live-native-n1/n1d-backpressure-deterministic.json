@@ -1,0 +1,1 @@
+{"mode":"deterministic-slow-consumer","sourceFrames":601,"produced":601,"rendered":60,"dropped":540,"maxSlotDepth":1,"refused":0,"consumeEveryNthFrame":10,"accountingInvariant":"produced == rendered + dropped + depth","accountingHolds":true}

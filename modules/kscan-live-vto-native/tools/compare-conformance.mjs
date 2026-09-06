@@ -74,6 +74,10 @@ function readJsonl(name) {
 }
 
 const native = new Map(readJsonl('native-snapshots.jsonl').map((r) => [`${r.fixture}|${r.case}`, r]));
+for (const meshRow of readJsonl('native-meshes.jsonl')) {
+  const entry = native.get(`${meshRow.fixture}|${meshRow.case}`);
+  if (entry) entry.meshRow = meshRow;
+}
 const reference = new Map(readJsonl('reference-snapshots.jsonl').map((r) => [`${r.fixture}|${r.case}`, r]));
 
 const median = (xs) => {
@@ -88,6 +92,7 @@ const semanticDivergences = [];
 const refusalRows = [];
 const placementRows = [];
 const documentedDefects = [];
+const meshRows = [];
 
 for (const [key, ref] of reference) {
   const nat = native.get(key);
@@ -171,6 +176,40 @@ for (const [key, ref] of reference) {
   );
   placementRows.push({ fixture, case: caseId, scaleDelta, rotationDelta, boundsDelta, refScale: r.scale, natScale: n.scale });
 
+  // ── Mesh deformation. The control points can agree perfectly while the
+  //    surface between them is wrong -- N1-ENV-010 is exactly that failure,
+  //    so deformation is measured, not inferred from the control points.
+  const natMesh = nat.meshRow?.snapshot?.meshVertices ?? null;
+  const refMesh = r.mesh;
+  if (refMesh && natMesh) {
+    const refCells = { w: refMesh.columns - 1, h: refMesh.rows - 1 };
+    const natCells = { w: nat.meshRow.snapshot.meshWidth, h: nat.meshRow.snapshot.meshHeight };
+    if (refCells.w !== natCells.w || refCells.h !== natCells.h) {
+      semanticDivergences.push({
+        key,
+        kind: 'mesh_grid_shape_differs',
+        reference: refCells,
+        native: natCells,
+      });
+    } else if (refMesh.vertices.length !== natMesh.length) {
+      semanticDivergences.push({
+        key,
+        kind: 'mesh_vertex_count_differs',
+        reference: refMesh.vertices.length / 2,
+        native: natMesh.length / 2,
+      });
+    } else {
+      let maxDelta = 0;
+      const deltas = [];
+      for (let i = 0; i < natMesh.length; i += 2) {
+        const d = Math.hypot(natMesh[i] - refMesh.vertices[i], natMesh[i + 1] - refMesh.vertices[i + 1]);
+        deltas.push(d);
+        if (d > maxDelta) maxDelta = d;
+      }
+      meshRows.push({ fixture, case: caseId, vertices: deltas.length, median: median(deltas), max: maxDelta });
+    }
+  }
+
   // ── Orientation: a sign flip is a defect regardless of magnitude.
   const refLeftFirst = r.controlPoints.leftShoulder[0] < r.controlPoints.rightShoulder[0];
   const natLeftFirst = n.controlPoints.leftShoulder[0] < n.controlPoints.rightShoulder[0];
@@ -225,6 +264,14 @@ const summary = {
     unexplainedDisagreements: refusalRows.filter((r) => !r.agree).length - documentedDefects.length,
     rows: refusalRows,
   },
+  meshDeltaPx: {
+    comparedCases: meshRows.length,
+    comparedVertices: meshRows.reduce((a, r) => a + r.vertices, 0),
+    median: median(meshRows.flatMap((r) => [r.median])),
+    max: meshRows.length ? Math.max(...meshRows.map((r) => r.max)) : null,
+    worstCase: meshRows.length ? meshRows.reduce((a, b) => (b.max > a.max ? b : a)) : null,
+    rows: meshRows,
+  },
   semanticDivergences,
   documentedReferenceDefects: documentedDefects,
   referenceDefectPolicy: DOCUMENTED_REFERENCE_DEFECTS,
@@ -249,6 +296,7 @@ console.log(`control-point delta px  median=${summary.controlPointDeltaPx.median
 console.log(`scale delta             median=${summary.scaleDelta.median}  max=${summary.scaleDelta.max}`);
 console.log(`rotation delta (rad)    median=${summary.rotationDeltaRadians.median}  max=${summary.rotationDeltaRadians.max}`);
 console.log(`bounds delta px         median=${summary.boundsDeltaPx.median}  max=${summary.boundsDeltaPx.max}`);
+console.log(`mesh delta px           median=${summary.meshDeltaPx.median}  max=${summary.meshDeltaPx.max}  (${summary.meshDeltaPx.comparedVertices} vertices over ${summary.meshDeltaPx.comparedCases} cases)`);
 console.log(`refusal disagreements   ${summary.refusalAgreement.disagreements} of ${summary.refusalAgreement.compared}`);
 console.log(`semantic divergences    ${semanticDivergences.length} (unexplained)`);
 console.log(`documented ref defects  ${documentedDefects.length} (native deliberately stricter)`);

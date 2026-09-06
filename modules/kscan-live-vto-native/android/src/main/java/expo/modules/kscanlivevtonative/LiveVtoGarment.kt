@@ -91,8 +91,10 @@ data class KsgarmentManifest(
       }
       val meshWidth = LiveVtoJson.num(mesh["width"]).toInt()
       val meshHeight = LiveVtoJson.num(mesh["height"]).toInt()
-      if (meshWidth < 1 || meshHeight < 1) {
-        throw LiveVtoGarmentValidationException("degenerate meshDefinition: ${meshWidth}x${meshHeight}")
+      // width/height are VERTEX counts (the reference divides by count-1),
+      // so a grid needs at least 2 in each axis to define a single cell.
+      if (meshWidth < 2 || meshHeight < 2) {
+        throw LiveVtoGarmentValidationException("degenerate meshDefinition: ${meshWidth}x${meshHeight} vertices")
       }
       return KsgarmentManifest(
         version = version,

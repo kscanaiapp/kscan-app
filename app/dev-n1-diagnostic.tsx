@@ -6,20 +6,28 @@
  * EAS profile -- this route is inert in any build that matters. Exists to
  * capture native-runtime evidence (docs/vto-live-native-runtime-n1.md)
  * without touching the real auth-gated Scan Results -> ProductShelf ->
- * TryItOnEntry path. Kept across gates (N1-A, now N1-B) rather than
+ * TryItOnEntry path. Kept across gates (N1-A, N1-B, now N1-D) rather than
  * recreated per gate -- tracked in the N1 defect ledger, not left silent.
+ *
+ * Everything this screen reads across the bridge is bounded: one geometry
+ * snapshot on demand (rate-limited native-side), and aggregate replay
+ * counters. No frames, no BodyFrames, no per-frame geometry -- amendment
+ * D24. The replay pipeline itself runs entirely native; JS only sets the
+ * `replay` prop.
  */
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { requireNativeViewManager } from 'expo-modules-core';
 import { describeLiveVtoNativeCapability } from '../services/vto/liveVtoNativeModule';
 
-const NativeN1BView = requireNativeViewManager<any>('KScanLiveVto');
+const NativeLiveVtoView = requireNativeViewManager<any>('KScanLiveVto');
 
 export default function DevN1Diagnostic() {
   const [capabilityResult, setCapabilityResult] = useState<string>('running...');
-  const [n1bResult, setN1bResult] = useState<string>('running...');
-  const n1bRef = useRef<any>(null);
+  const [geometryResult, setGeometryResult] = useState<string>('running...');
+  const [replayResult, setReplayResult] = useState<string>('running...');
+  const staticRef = useRef<any>(null);
+  const replayRef = useRef<any>(null);
 
   useEffect(() => {
     try {
@@ -36,38 +44,76 @@ export default function DevN1Diagnostic() {
     }
   }, []);
 
+  // N1-B: one geometry snapshot, read once the static view has computed.
   useEffect(() => {
     const timer = setTimeout(async () => {
       try {
-        const result = await n1bRef.current?.getLastN1BResult?.();
-        const line = JSON.stringify(result);
+        const json = await staticRef.current?.getGeometrySnapshotJson?.();
         // eslint-disable-next-line no-console
-        console.log('[N1-B-PROBE]', line);
-        setN1bResult(line);
+        console.log('[N1-B-PROBE]', json);
+        setGeometryResult(String(json));
       } catch (error) {
         const line = `threw: ${String(error)}`;
         // eslint-disable-next-line no-console
         console.log('[N1-B-PROBE]', line);
-        setN1bResult(line);
+        setGeometryResult(line);
       }
-    }, 400);
+    }, 1200);
     return () => clearTimeout(timer);
   }, []);
 
+  // N1-D: aggregate replay counters, sampled a few times while the native
+  // replay clock runs. Sampling here is a diagnostic read of counters, not
+  // a frame channel -- the payload is fixed-size regardless of frame rate.
+  useEffect(() => {
+    let cancelled = false;
+    const sample = async (label: string) => {
+      if (cancelled) return;
+      try {
+        const json = await replayRef.current?.getReplayStatsJson?.();
+        // eslint-disable-next-line no-console
+        console.log(`[N1-D-PROBE-${label}]`, json);
+        if (!cancelled) setReplayResult(String(json));
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.log(`[N1-D-PROBE-${label}]`, `threw: ${String(error)}`);
+      }
+    };
+    const timers = [
+      setTimeout(() => sample('1s'), 1000),
+      setTimeout(() => sample('3s'), 3000),
+      setTimeout(() => sample('6s'), 6000),
+    ];
+    return () => {
+      cancelled = true;
+      timers.forEach(clearTimeout);
+    };
+  }, []);
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.label}>N1-A diagnostic</Text>
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text style={styles.label}>N1-A capability</Text>
       <Text testID="n1-a-probe-result" style={styles.result}>{capabilityResult}</Text>
-      <Text style={styles.label}>N1-B diagnostic</Text>
-      <NativeN1BView ref={n1bRef} active style={styles.n1bView} />
-      <Text testID="n1-b-probe-result" style={styles.result}>{n1bResult}</Text>
-    </View>
+
+      <Text style={styles.label}>N1-B static render (governed fixture, canned pose)</Text>
+      <View style={styles.viewFrame}>
+        <NativeLiveVtoView ref={staticRef} active style={styles.nativeView} />
+      </View>
+      <Text testID="n1-b-probe-result" style={styles.result}>{geometryResult}</Text>
+
+      <Text style={styles.label}>N1-D native replay</Text>
+      <View style={styles.viewFrame}>
+        <NativeLiveVtoView ref={replayRef} replay style={styles.nativeView} />
+      </View>
+      <Text testID="n1-d-probe-result" style={styles.result}>{replayResult}</Text>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 },
-  label: { fontSize: 14, opacity: 0.6 },
-  result: { fontSize: 12, textAlign: 'center' },
-  n1bView: { width: 270, height: 360, backgroundColor: '#202024' },
+  container: { padding: 12, backgroundColor: '#101014' },
+  label: { color: '#9ad', fontSize: 13, marginTop: 12, marginBottom: 4, fontWeight: '600' },
+  result: { color: '#eee', fontSize: 9, fontFamily: 'monospace' },
+  viewFrame: { height: 300, backgroundColor: '#000', marginBottom: 6 },
+  nativeView: { flex: 1 },
 });

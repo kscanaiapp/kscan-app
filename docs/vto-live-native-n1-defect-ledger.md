@@ -89,3 +89,92 @@ There is no `moduleAvailable` field anywhere in the merged contract -- module pr
 **Regression:** on-device result now matches the oracle within ~0.5px on every one of the 11 control points (see `evidence/vto-live-native-n1/n1b-first-render-roundtrip.json`), gate `passed:true, findings:[]`.
 
 **Outcome:** fixed. The reusable lesson: for a disjoint-history reference package, `git show <sha>:path` on the COMPILED output (`dist/*.js`), not just the `.d.ts`, is required before claiming a port is faithful -- type signatures and doc comments describe the contract, not the arithmetic.
+
+## N1-ENV-007 (P2, native renderer) — the native runtime invented hips where the reference refuses
+
+**Found:** N1-C, first cross-runtime comparison over the golden refusal cases. Invisible until the absence paths were actually exercised: every N1-B evidence run used a pose with both hips present.
+
+**What:** `extractBodyAnchors` substituted a shoulder-derived estimate when a hip landmark was absent:
+
+```kotlin
+val leftHip = frame.leftHip.pointOrNull()?.toCanvasPx(...)
+  ?: Vec2(leftShoulder.x, leftShoulder.y + shoulderSpanPx * 1.1f)
+```
+
+The P3-A reference instead returns `{ok: false, reason: 'missing_hips'}` and the whole placement fails.
+
+**Root cause:** the fallback was written as defensive robustness. It is the opposite. Hips set `hemMidBody`, `hipHalfWidth`, `hemHalfWidthIntended` and `torsoHeightPx` — the entire lower half of the garment's placement. Substituting an estimate means the runtime renders a garment onto a body half that was never observed, and reports it as a successful render, with nothing downstream able to tell the difference. The reference's own `bodyFrame.ts` states the rule this violated: "Never substitute a guessed (0,0) or a stale value here — represent absence explicitly and let consumers decide."
+
+**Repair:** `extractBodyAnchors` now returns a discriminated `AnchorResult`, mirroring the reference's own `{ok:true,anchors} | {ok:false,reason}`, and fails closed with `missing_hips`. `neckCenter` keeps its fallback — that one is in the reference too, and neckline is a gate tolerance, not a placement input.
+
+**Negative control:** goldens `missing-left-hip` and `missing-hips`. Both now refuse, and the comparison tool asserts the native and reference refusal decisions agree.
+
+**Regression:** refusal agreement 10 of 14, with the remaining 4 being N1-ENV-008 only.
+
+**Outcome:** fixed. The general lesson: a fallback that lets a pipeline continue is only robustness if the substituted value is *knowable*. Here it was not, and "robustness" meant "renders confidently onto guessed anatomy".
+
+## N1-ENV-008 (P1, REFERENCE implementation — not repaired here) — the reference's rigid stop gate passes all-NaN geometry
+
+**Found:** N1-C, comparing the `nan-shoulder` and `infinite-hip` goldens across runtimes. Native refused; the reference did not.
+
+**Reproduction:** run `tools/run-reference-oracle.mjs` over the golden set and read the `nan-shoulder` record:
+
+```
+failure=null  gatePassed=true  findings=[]  scale=NaN  leftShoulder=[NaN,NaN]  rightHem=[NaN,NaN]
+```
+
+**Root cause:** a NaN landmark is `present`, so `toPixels` returns `{x: NaN, y: NaN}` rather than null, and no absence check fires. `shoulderSpanPx` becomes NaN, and the guard `if (shoulderSpanPx < 1)` does not trip, because every comparison with NaN is false. NaN then propagates through every stage. `evaluateRigidGate` inherits the same property: all five of its checks are comparisons (`<= 0`, `< 0.55 || > 1.8`, `> tolerance`), and each is false against NaN, so it returns `passed: true, findings: []`. The gate whose entire purpose is to answer "is this garment semantically attached to this body at all" certifies fully-undefined geometry as correctly attached.
+
+**Scope:** the P3-A static reference renderer, not this repository. It is reachable from any perception provider that can emit a NaN — which is most of them, on a degenerate frame.
+
+**Decision:** the native runtime deliberately does NOT match this. It refuses with `non_finite_landmark`, checked at the boundary before any arithmetic. Matching the reference to improve a conformance number would mean shipping a runtime that renders undefined geometry on a faulty perception frame, which mission sections 11 and D13 forbid.
+
+The divergence is recorded in `compare-conformance.mjs`'s `DOCUMENTED_REFERENCE_DEFECTS`, printed on every run, and classified as `documented_reference_defect` in the summary. It is never suppressed and never folded into the "agreeing" count.
+
+**Follow-up owed (not this lane):** the reference implementation should reject non-finite landmarks at `toPixels`. Raised here rather than fixed because the reference is a disjoint, unmerged history this lane has no authority over, and because amendment D4's point stands on its own — conformance to a reference is not evidence the reference is correct.
+
+## N1-ENV-009 (P2, native replay) — entering ERROR left renderable geometry in the latest-state slot
+
+**Found:** N1-D, by `switchingToAnInvalidGarmentFailsClosedWithoutCorruptingTheSession` — the test failed on the first run, which is what it exists for.
+
+**Reproduction:** start replay, produce frames, then `selectGarment` with invalid texture dimensions. Session correctly transitions to `ERROR`, but `slot.depth` was still 1.
+
+**Root cause:** the error path transitioned state and returned without clearing the slot. A renderer that `peek()`s rather than `consume()`s — which the draw path does, so it can redraw the same state on a UI-driven repaint — would keep drawing the last good frame indefinitely while the session behind it was broken. A stale render that is pixel-identical to a working one, with no signal anywhere that anything failed.
+
+**Repair:** the `transition` helper clears the slot on entry to `ERROR`.
+
+**Second defect, introduced by the first repair and caught immediately:** the initial fix also cleared on `STOPPED` and `EOF`. That broke two passing tests — the frame-index synchronization test (the final frame vanished before it could be consumed) and the backpressure accounting invariant `produced == rendered + dropped + depth` (a frame was discarded that was counted as neither). Both failures were correct: EOF is a *normal* terminal state and the final frame is the right thing to leave on screen (mission section 20's documented retention contract), and `stop()` already clears explicitly, so routing it through `transition` double-counted. Narrowed to `ERROR` only, with the EOF retention contract documented at the point it is enforced.
+
+**Negative controls:** `switchingToAnInvalidGarmentFailsClosedWithoutCorruptingTheSession` (ERROR clears), `garmentMovesOverTimeAndStaysSynchronisedWithTheFrameIndex` (EOF retains), `producerOutrunningConsumerDropsStaleFramesAndStaysBounded` (accounting invariant holds).
+
+**Outcome:** fixed. Worth recording because the over-broad first fix was only caught by tests that already existed for other reasons — the accounting invariant in particular was written to make backpressure non-vacuous, and it turned out to be the thing that detected an unrelated frame being silently dropped.
+
+## N1-ENV-010 (P1, native renderer) — the deformation stage was a placeholder that did not render a garment
+
+**Found:** N1-C, by rasterizing the frozen mesh for visual review (`tools/render-snapshot.mjs`). Invisible to every numeric gate that existed at the time, and that is the whole point of the finding.
+
+**What:** N1-B shipped stage 5 as an inverse-distance-weighted interpolation of the mesh grid from the 11 control-point targets, labelled in its own doc comment as a deliberate simplification and not claimed as parity. The label was honest; the consequence was not understood. Rendered, the result is not a garment: the neckline caves inward, the sleeves pinch to points, the hem forms a deep V, and the silhouette reads as a starfish.
+
+**Why nothing caught it:** control-point placement (stage 2) and mesh deformation (stage 5) are different stages. Every conformance number measured stage 2. All 308 control points agreed with the oracle to 5.63e-3 px while the surface *between* them was wrong. A gate built only on control points cannot see this, which is exactly the case amendment D2 makes for a render being mandatory rather than supplementary: "does the supposedly-correct geometry actually look like a garment?" is a question the numbers cannot answer.
+
+**Root cause:** the real algorithm — affine moving-least-squares (`deformVertex` in `@kscan-live-vto/asset-pipeline`) — had not been ported. IDW is not an approximation of MLS; it is a different function, with cusps at each control point and collapse between them.
+
+**Repair:** `LiveVtoDeformation.kt`, a line-for-line port of `dist/affineMlsDeformation.js` at reference SHA `266ab1a`, including the exact-interpolation short circuit, the single-control-point translation case, the weighted centroids, the normal equations, and the identity fallback for a singular `S`. Computed in `Double` rather than `Float`: the normal equations accumulate coordinate products weighted by `1/distance^2`, so intermediate magnitudes span many orders of magnitude and float32 loses meaningful precision in `S` before it is inverted; only the final coordinate is narrowed.
+
+**Regression:** the reference oracle runner now emits the reference's OWN deformed mesh, and the comparison measures it. Cross-runtime mesh delta over 1600 vertices / 20 cases: **median 2.51e-5 px, max 1.04e-4 px.** Plus oracle-independent properties in `DeformationTest`: exactness at every control point, exact reproduction of a known affine map everywhere (not just at control points — this is what catches a transposed matrix), pure translation, the singular-configuration fallback, and that the mesh actually tracks the pose rather than degenerating to the rigid placement.
+
+**Outcome:** fixed. The reusable lesson is narrower than "render things": a conformance suite measures the stages it samples. Stage-2 agreement was cited as evidence about a pipeline whose stage 5 had never been compared to anything.
+
+## N1-ENV-011 (P2, native renderer) — `meshDefinition.width` is a VERTEX count, not a cell count
+
+**Found:** N1-C, while porting the deformation — reading the reference's `buildGridMesh` rather than assuming its convention.
+
+**What:** the reference builds its grid as `for (row < rows) for (col < columns)` with `x = (col / (columns - 1)) * textureWidth`, i.e. `meshDefinition.width`/`height` are counts of VERTICES. The native port treated them as counts of CELLS and looped `0..width`, producing a 9x11 grid of 99 vertices where the reference produces 8x10 = 80, with every sample at a different position.
+
+Android's `Canvas.drawBitmapMesh(bitmap, meshWidth, meshHeight, verts, ...)` uses the opposite convention: `meshWidth`/`meshHeight` are CELL counts requiring `(meshWidth + 1) * (meshHeight + 1)` vertices. The two line up only once the distinction is made explicitly, which is why the mistake produced a plausible-looking mesh rather than an obvious crash.
+
+**Repair:** `LiveVtoDeformation.gridSourceVertices` follows the reference exactly, and the snapshot publishes `meshWidth = manifest.width - 1`, `meshHeight = manifest.height - 1` — Canvas cell counts — so the array it publishes and the shape it declares are consistent by construction. Manifest validation now rejects a grid smaller than 2x2 vertices, which previously would have divided by zero.
+
+**Negative control:** `theSnapshotMeshShapeMatchesTheVertexArrayItPublishes` asserts both directions — that the published cell counts imply exactly the published vertex count, and that the vertex grid is the manifest's own. The comparison tool independently reports `mesh_grid_shape_differs` as a semantic divergence if the two runtimes ever disagree on grid shape.
+
+**Prior evidence affected:** the on-device N1-B log recorded `meshVertexCount: 99`. That number was wrong and is superseded; every conformance figure in this ledger and in the conformance document was regenerated after the fix.

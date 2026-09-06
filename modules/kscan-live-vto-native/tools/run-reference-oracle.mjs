@@ -73,6 +73,8 @@ function referenceProvenance() {
 }
 
 const attachment = await import(pathToFileURL(attachmentPath).href);
+const warpPath = resolve(referenceRoot, 'packages/static-renderer/dist/warp.js');
+const warp = await import(pathToFileURL(warpPath).href);
 
 /** Golden landmark encoding -> the reference's own Landmark discriminated union. */
 function toLandmark(raw) {
@@ -147,6 +149,23 @@ function computeReferenceSnapshot(manifest, frame, dims) {
     scale: fit.transform.scale,
     rotationRadians: fit.transform.rotationRadians,
     controlPoints: Object.fromEntries(points.sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, p]) => [k, [p.x, p.y]])),
+    // The reference's OWN deformed mesh, so deformation -- not just
+    // control-point placement -- is cross-runtime comparable.
+    mesh: (() => {
+      if (!gate.passed) return null;
+      const grid = warp.buildGridMesh(manifest, dims.width, dims.height);
+      const pairs = [];
+      for (const cp of manifest.controlPoints) {
+        const target = targets[cp.id];
+        if (target) pairs.push({ source: { x: cp.u * dims.width, y: cp.v * dims.height }, target });
+      }
+      const destination = warp.deformMesh(grid.source, pairs);
+      return {
+        columns: grid.columns,
+        rows: grid.rows,
+        vertices: destination.flatMap((p) => [p.x, p.y]),
+      };
+    })(),
     bounds: { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) },
     measurements: gate.measurements,
   };

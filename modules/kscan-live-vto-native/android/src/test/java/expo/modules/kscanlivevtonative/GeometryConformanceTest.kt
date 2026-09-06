@@ -52,6 +52,34 @@ class GeometryConformanceTest {
     }
     File(outDir(), "native-snapshots.jsonl").writeText(out.toString())
     assertTrue("expected native snapshots to be written", File(outDir(), "native-snapshots.jsonl").length() > 0)
+
+    // A second file carrying the MESH VERTICES for a review set. These are
+    // what `Canvas.drawBitmapMesh` actually consumes, so rasterizing them
+    // offline (tools/render-snapshot.mjs) shows exactly the geometry the
+    // device draws -- the answer to "does the supposedly-correct geometry
+    // actually look like a garment?" that numbers alone cannot give.
+    // Kept separate because mesh arrays are large and the conformance
+    // comparison does not need them.
+    val reviewCases = listOf(
+      "neutral-frontal", "left-shoulder-raised", "right-shoulder-raised",
+      "torso-rotated-left", "torso-rotated-right", "wide-torso", "narrow-torso",
+      "long-torso", "short-torso", "arms-slightly-out",
+    )
+    val meshes = StringBuilder()
+    for (fixtureName in listOf("n1b-fixture", "n1c-asym-fixture")) {
+      val (manifest, dims) = GoldenBodyFrames.fixture(fixtureName)
+      for (case in cases.filter { it.id in reviewCases }) {
+        val snapshot = LiveVtoGeometryPipeline.compute(
+          manifest, case.frame, case.id, CANVAS_W, CANVAS_H, dims.first, dims.second,
+        )
+        val row = "{" + jsonString("fixture") + ":" + jsonString(fixtureName) +
+          "," + jsonString("case") + ":" + jsonString(case.id) +
+          "," + jsonString("snapshot") + ":" +
+          GeometrySnapshotJson.encode(snapshot, includeMesh = true) + "}"
+        meshes.append(row).append("\n")
+      }
+    }
+    File(outDir(), "native-meshes.jsonl").writeText(meshes.toString())
   }
 
   @Test
@@ -332,4 +360,7 @@ class GeometryConformanceTest {
       }
     }
   }
+  /** Minimal JSON string quoting, so the mesh emitter needs no nested escapes. */
+  private fun jsonString(v: String): String = "\"" + v + "\""
+
 }

@@ -1,0 +1,1 @@
+{"mode":"free-running-producer-thread-vs-5ms-consumer","wallClockMs":250,"produced":2557,"rendered":18,"dropped":2538,"maxSlotDepth":1,"producerToRendererRatio":142.05555555555554}
