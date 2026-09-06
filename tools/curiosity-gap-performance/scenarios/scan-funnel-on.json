@@ -1,0 +1,184 @@
+{
+  "scenario_id": "scan-funnel-on",
+  "scenario_version": "scenario-v1",
+  "title": "Image scan, commerce funnel v127 ENABLED (the App Staging configuration)",
+  "architecture_note": "MODE A returns identification with NO commerce (index.ts:3763-3801). The client paints, then dispatches a SECOND request with requestMode:'commerce_only' (MODE B). The first actionable commerce result therefore costs TWO sequential round trips.",
+  "flag_state": {
+    "BACKEND_COMMERCE_FUNNEL_V127_ENABLED": "true",
+    "provenance": "docs/BUILD34_SCANNER_SCAN_RESULTS_DEEP_AUDIT.md:35 (App Staging secret digest). Source default is FALSE at commerceFunnelConfig.ts:32.",
+    "evidence_class": "OBSERVED"
+  },
+  "first_result_terminal": "client.paint_commerce",
+  "completion_terminal": "client.paint_enriched",
+
+  "stages": [
+    { "id": "client.commit", "deps": [], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "zero" },
+      "source": "hooks/useKScan.js:390 runAnalysis — sync guards + startInFlight()" },
+
+    { "id": "client.frame_yield", "deps": ["client.commit"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "param", "param": "client_frame_yield_ms" },
+      "source": "hooks/useKScan.js:547 await new Promise(r => requestAnimationFrame(r)) — one frame so the HUD paints before compression blocks JS" },
+
+    { "id": "client.digest_source", "deps": ["client.frame_yield"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "param", "param": "client_digest_ms" },
+      "source": "hooks/useKScan.js:566 await digestPrefix(photo.uri) — expo-crypto SHA-256 over the source file" },
+
+    { "id": "client.compress", "deps": ["client.digest_source"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "param", "param": "client_compress_ms" },
+      "source": "hooks/useKScan.js:575 -> services/imageUtils.js:43 ImageManipulator.manipulateAsync([{resize:{width:896}}], {compress:0.65, format:JPEG, base64:true})" },
+
+    { "id": "client.sanitize", "deps": ["client.compress"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "zero" },
+      "source": "hooks/useKScan.js:578 -> services/privacyImageSanitizer.js:26 sanitizeImageBeforeUpload — PROVEN PASSTHROUGH, ends in `return input`. Costs nothing and does nothing." },
+
+    { "id": "client.digest_compressed", "deps": ["client.sanitize"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "param", "param": "client_digest_ms" },
+      "source": "hooks/useKScan.js:587 second digestPrefix, this time over the base64 payload" },
+
+    { "id": "client.evidence", "deps": ["client.digest_compressed"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "zero" },
+      "source": "hooks/useKScan.js:620 prepareScannerEvidence — synchronous" },
+
+    { "id": "client.auth_session", "deps": ["client.evidence"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "param", "param": "client_auth_session_ms" },
+      "source": "services/scanIdentification.ts:488 await supabase.auth.getSession()" },
+
+    { "id": "net.upload_a", "deps": ["client.auth_session"], "evidence_class": "MODELED", "blocks_first_result": true,
+      "where": "network", "duration": { "kind": "upload" },
+      "source": "services/scanIdentification.ts:553 supabase.functions.invoke — JSON body carrying raw base64" },
+
+    { "id": "server.a.account_gate", "deps": ["net.upload_a"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "server", "duration": { "kind": "param", "param": "server_account_gate_ms" },
+      "source": "index.ts:1832 assertAccountActiveIfAuthenticated — TWO serial awaits (requireUser JWT verify, then assertAccountActive DB read). Runs BEFORE body parse." },
+
+    { "id": "server.a.body_parse", "deps": ["server.a.account_gate"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "server", "duration": { "kind": "param", "param": "server_body_parse_ms" },
+      "source": "index.ts:1872 body = await req.json() — body fully drained here" },
+
+    { "id": "server.a.auth_context", "deps": ["server.a.body_parse"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "server", "duration": { "kind": "param", "param": "server_auth_context_ms" },
+      "source": "index.ts:1966 resolveAuthContext — TWO more serial round trips (index.ts:1223 hasValidProjectAccess, then index.ts:1239 auth.getUser)" },
+
+    { "id": "server.a.fingerprint", "deps": ["server.a.auth_context"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "server", "duration": { "kind": "param", "param": "server_fingerprint_ms" },
+      "source": "index.ts:2498 await sha256Hex(getClientFingerprintMaterial(req))" },
+
+    { "id": "server.a.quota", "deps": ["server.a.fingerprint"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "server", "duration": { "kind": "param", "param": "server_quota_ms" },
+      "source": "index.ts:2534 checkAuthenticatedScanQuota -> scanQuota.ts:83 rpc('check_and_increment_scan_identify_daily_usage'). Fails closed." },
+
+    { "id": "server.a.gemini", "deps": ["server.a.quota"], "evidence_class": "OBSERVED", "blocks_first_result": true,
+      "where": "server", "duration": { "kind": "param", "param": "gemini_ms" },
+      "timeout_ms": 14000,
+      "retry": { "max_attempts": 2, "base_delay_ms": 250, "max_delay_ms": 2000, "failed_attempt_param": "gemini_failed_attempt_ms" },
+      "source": "index.ts:2656 :generateContent (NOT :streamGenerateContent). index.ts:185 DEFAULT_GEMINI_TIMEOUT_MS=14_000. index.ts:2770 ONE AbortController covers the whole attempt loop, so retries consume the same 14s budget rather than extending it. llmModelRouting.ts:33 SCANNER_MAX_ATTEMPTS=2." },
+
+    { "id": "server.a.garments", "deps": ["server.a.gemini"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "server", "duration": { "kind": "param", "param": "server_cpu_small_ms" },
+      "source": "multiItemGarments.ts sanitizeDetectedGarments — <=5 garments, synchronous" },
+
+    { "id": "server.a.quality", "deps": ["server.a.garments"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "server", "duration": { "kind": "param", "param": "server_cpu_small_ms" },
+      "source": "applyQualityTaxonomyTune -> scannerQualityGate.ts:457 applyScannerQualityGate — synchronous, no I/O" },
+
+    { "id": "server.a.serialize", "deps": ["server.a.quality"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "server", "duration": { "kind": "param", "param": "server_serialize_ms" },
+      "source": "index.ts:1091 json() -> new Response(JSON.stringify(body)) — single buffered body, no stream" },
+
+    { "id": "net.download_a", "deps": ["server.a.serialize"], "evidence_class": "MODELED", "blocks_first_result": true,
+      "where": "network", "duration": { "kind": "download", "bytes": 24000 } },
+
+    { "id": "client.parse_map", "deps": ["net.download_a"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "param", "param": "client_parse_ms" },
+      "source": "hooks/useKScan.js:659 mapScanIdentifyToAnalysis — synchronous" },
+
+    { "id": "client.floor_min_analysis", "deps": ["client.commit"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "fixed", "ms": 600, "evidence_class": "PROVEN" },
+      "source": "hooks/useKScan.js:31 MIN_ANALYSIS_MS=600, enforced at :465. An artificial FLOOR measured from scan commit, not a duration." },
+
+    { "id": "client.floor_analyzing_display", "deps": ["client.commit"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "fixed", "ms": 1500, "evidence_class": "PROVEN" },
+      "source": "components/scan-room/AnalyzingScan.tsx:28 MIN_DISPLAY_MS=1500, armed at :62 from startTime set at mount (:51). SHIPPED: eas.json sets EXPO_PUBLIC_SCAN_ROOM_V2_UI=true in all four profiles including production." },
+
+    { "id": "client.paint_identification", "deps": ["client.parse_map", "client.floor_min_analysis", "client.floor_analyzing_display"],
+      "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "param", "param": "client_render_ms" },
+      "source": "hooks/useKScan.js:488-492 setAnalysis + setStatus('result'); app.js:1024-1038 holds the reveal until v2AnalyzingMinComplete" },
+
+    { "id": "client.modeb_dispatch", "deps": ["client.paint_identification"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "param", "param": "client_effect_dispatch_ms" },
+      "source": "hooks/useKScan.js:1115-1119 — the deferred-commerce effect fires only after the identification state commits" },
+
+    { "id": "net.upload_b", "deps": ["client.modeb_dispatch"], "evidence_class": "MODELED", "blocks_first_result": true,
+      "where": "network", "duration": { "kind": "upload_small", "bytes": 2048, "setup_round_trips": 0 },
+      "source": "MODE B carries no image: index.ts PROHIBITED_IMAGE_KEYS makes an image-shaped field a REJECTED request, so this body cannot grow." },
+
+    { "id": "server.b.account_gate", "deps": ["net.upload_b"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "server", "duration": { "kind": "param", "param": "server_account_gate_ms" },
+      "source": "index.ts:1832 — the same serial account gate runs again on the second request" },
+
+    { "id": "server.b.auth_context", "deps": ["server.b.account_gate"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "server", "duration": { "kind": "param", "param": "server_auth_context_ms" },
+      "source": "index.ts:1966 — auth resolution repeats in full on MODE B" },
+
+    { "id": "server.b.ratelimit", "deps": ["server.b.auth_context"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "server", "duration": { "kind": "param", "param": "server_fingerprint_ms" },
+      "source": "index.ts:2009 sha256Hex fingerprint; COMMERCE_ONLY_RATE_LIMIT_MAX=40 per 10 min (index.ts:204)" },
+
+    { "id": "server.b.query_build", "deps": ["server.b.ratelimit"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "server", "duration": { "kind": "param", "param": "server_cpu_small_ms" },
+      "source": "commerceRelevanceQueries.ts — all exports synchronous; isWeakQuery gate in scanCommerceRouter.ts:1005" },
+
+    { "id": "server.b.cache_check", "deps": ["server.b.query_build"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "server", "duration": { "kind": "zero" },
+      "source": "scanCommerceRouter.ts:1035 read of commerceResultCache — an in-memory per-isolate Map, so a hit is free but survives only as long as the isolate" },
+
+    { "id": "server.b.discovery", "deps": ["server.b.cache_check"], "evidence_class": "MODELED", "blocks_first_result": true,
+      "where": "server",
+      "duration": { "kind": "fanin", "children": ["provider_serper_ms", "provider_poshmark_ms"], "sufficient_after_children": 1 },
+      "timeout_ms": 1900,
+      "source": "scanCommerceRouter.ts:1071-1119 via commerceFastPath.ts:53 collectBounded. Children concurrent, fail-soft (commerceFastPath.ts:112-117). FAST_COMMERCE_DEADLINE_MS=1900, FAST_COMMERCE_SUFFICIENT_RESULTS=3. sufficient_after_children:1 reflects the OBSERVED `early=true` on live successful requests (audit doc:180); set to 2 to model the blocking-fan-in worst case." },
+
+    { "id": "server.b.rank", "deps": ["server.b.discovery"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "server", "duration": { "kind": "param", "param": "server_cpu_small_ms" },
+      "source": "qualityTuneCommerce.ts:449 filterAndDedupeProducts — synchronous and WHOLE-ARRAY: global sort (:531), one shared cross-provider dedupe set (:498), coverage bands and diversity caps that read the entire selected set. Cannot emit incrementally." },
+
+    { "id": "server.b.serialize", "deps": ["server.b.rank"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "server", "duration": { "kind": "param", "param": "server_serialize_ms" } },
+
+    { "id": "net.download_b", "deps": ["server.b.serialize"], "evidence_class": "MODELED", "blocks_first_result": true,
+      "where": "network", "duration": { "kind": "download", "bytes": 12000 } },
+
+    { "id": "client.hydrate", "deps": ["net.download_b"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "param", "param": "client_parse_ms" },
+      "source": "services/commerceHydration.ts:148-152 — drops any entry lacking productUrl or title" },
+
+    { "id": "client.paint_commerce", "deps": ["client.hydrate"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "param", "param": "client_render_ms" },
+      "source": "hooks/useKScan.js:1083 setAnalysis(prev => ({...prev, purchaseOptions})) -> PurchaseOptionsPanel row with a validated destination. THIS IS THE FIRST ACTIONABLE RESULT." },
+
+    { "id": "client.enrich_dispatch", "deps": ["client.paint_commerce"], "evidence_class": "PROVEN", "blocks_first_result": false,
+      "where": "client", "duration": { "kind": "param", "param": "client_effect_dispatch_ms" },
+      "source": "hooks/useKScan.js:1101-1110 — enrichment merges into an already-rendered shelf" },
+
+    { "id": "net.upload_c", "deps": ["client.enrich_dispatch"], "evidence_class": "MODELED", "blocks_first_result": false,
+      "where": "network", "duration": { "kind": "upload_small", "bytes": 4096, "setup_round_trips": 0 } },
+
+    { "id": "server.c.enrichment", "deps": ["net.upload_c"], "evidence_class": "MODELED", "blocks_first_result": false,
+      "where": "server",
+      "duration": { "kind": "fanin", "children": ["provider_farfetch_ms", "provider_kickscrew_ms"] },
+      "timeout_ms": 6000,
+      "source": "scanCommerceRouter.ts:1295-1313 collectBounded, ENRICHMENT_DEADLINE_MS=6000, MAX_ENRICHMENT_CANDIDATES=2. NOTE: per-child timeouts are hard-coded 4000ms inside the providers (farfetch3Provider.ts:45, kicksCrewProvider.ts:43) and are NOT derived from the remaining budget — providerDeadlineMs is not applied here." },
+
+    { "id": "server.c.serialize", "deps": ["server.c.enrichment"], "evidence_class": "PROVEN", "blocks_first_result": false,
+      "where": "server", "duration": { "kind": "param", "param": "server_serialize_ms" } },
+
+    { "id": "net.download_c", "deps": ["server.c.serialize"], "evidence_class": "MODELED", "blocks_first_result": false,
+      "where": "network", "duration": { "kind": "download", "bytes": 8000 } },
+
+    { "id": "client.paint_enriched", "deps": ["net.download_c"], "evidence_class": "PROVEN", "blocks_first_result": false,
+      "where": "client", "duration": { "kind": "param", "param": "client_render_ms" },
+      "source": "hooks/useKScan.js:1101-1110 — COMPLETION TERMINAL" }
+  ]
+}

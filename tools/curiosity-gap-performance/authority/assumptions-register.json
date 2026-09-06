@@ -1,0 +1,311 @@
+{
+  "artifact": "ASSUMPTIONS_REGISTER",
+  "assumptions_version": "assumptions-v1",
+  "source_sha": "909df8646a690b55c5af6b7b8c80193df64a2ec8",
+  "benchmark_status": "INTERNAL ENGINEERING ANALYSIS ONLY. SIMULATED TTFAR IS NOT A MEASUREMENT OF REAL-WORLD K SCAN SPEED.",
+  "rule": "Every parameter the structural model consumes is declared here with its evidence class. A parameter absent from this register cannot be supplied to the model — lib/model.js throws rather than defaulting, because a silent default is how an invented number becomes a conclusion.",
+
+  "observed_evidence_source": {
+    "document": "docs/BUILD34_SCANNER_SCAN_RESULTS_DEEP_AUDIT.md",
+    "committed_at": "996f624",
+    "measured_against_sha": "6e7e0053184fbc3973765de51b92d4f5bba49d08",
+    "ancestry": "PROVEN ancestor of the lab base SHA (git merge-base --is-ancestor -> true, 151 commits behind).",
+    "validity_check": {
+      "client_image_path_changed_since": false,
+      "client_image_path_files": ["hooks/useKScan.js", "services/imageUtils.js", "app.js", "services/scanIdentification.ts"],
+      "note": "git diff 6e7e005..909df86 shows ZERO changes to these files, so client-side OBSERVED timing remains structurally applicable at the lab base.",
+      "server_scan_path_changed_since": true,
+      "server_changed_files": ["supabase/functions/scan-identify/index.ts (+77)", "multiItemGarments.ts (+49)", "scanCommerceRouter.ts (+72)"],
+      "stale_consequence": "The SCAN-006 weak-query repair landed between the measured SHA and the lab base. It moved garments that previously short-circuited at discoveryMs=0 into the real provider path, so the OBSERVED commerce OUTCOME MIX (6/13 weak_query) is STALE at the lab base. The OBSERVED per-request latency bands are not invalidated by that change, but MORE requests are now exposed to them."
+    }
+  },
+
+  "parameters": [
+    {
+      "parameter": "gemini_ms",
+      "value_or_range": { "low": 4909, "mid": 6100, "high": 7256 },
+      "unit": "ms",
+      "source": "docs/BUILD34_SCANNER_SCAN_RESULTS_DEEP_AUDIT.md:288 — `gemini_success elapsedMs=…` across 8 live App Staging scans",
+      "evidence": "OBSERVED",
+      "confidence": "HIGH",
+      "if_wrong_by_3x_does_conclusion_survive": "YES",
+      "why": "The conclusion is that identification dominates the first-result path. At 1/3 of the low value (1.6 s) Gemini is still the single largest server term; at 3x the high value it exceeds the 14 s timeout and the request fails outright. The ordering conclusion is robust across the whole range."
+    },
+    {
+      "parameter": "gemini_failed_attempt_ms",
+      "value_or_range": { "low": 500, "mid": 1500, "high": 4000 },
+      "unit": "ms",
+      "source": "No measurement exists. A failed attempt's cost is bounded only by the shared 14 s AbortController (index.ts:2770).",
+      "evidence": "MODELED",
+      "confidence": "LOW",
+      "if_wrong_by_3x_does_conclusion_survive": "YES",
+      "why": "Retry cost only matters in the retry-exposed sweep. The structural conclusion — that retries consume the SAME 14 s budget rather than extending it, because one AbortController wraps the whole attempt loop — is PROVEN and independent of this magnitude."
+    },
+    {
+      "parameter": "server_account_gate_ms",
+      "value_or_range": { "low": 40, "mid": 90, "high": 200 },
+      "unit": "ms",
+      "source": "MODELED decomposition of the OBSERVED ~260 ms server pre-Gemini aggregate (audit doc:287). The AGGREGATE is OBSERVED; this per-stage split is not.",
+      "evidence": "MODELED",
+      "confidence": "MEDIUM",
+      "if_wrong_by_3x_does_conclusion_survive": "YES",
+      "why": "Even at 3x the high value the four-round-trip serial prefix stays an order of magnitude below the identification term. The finding it supports — that the prefix is SERIAL and repeats in full on MODE B — is PROVEN structure, not a magnitude claim."
+    },
+    {
+      "parameter": "server_body_parse_ms",
+      "value_or_range": { "low": 3, "mid": 10, "high": 40 },
+      "unit": "ms",
+      "source": "MODELED share of the OBSERVED ~260 ms pre-Gemini aggregate. Scales with payload size (the body carries the base64 image).",
+      "evidence": "MODELED",
+      "confidence": "LOW",
+      "if_wrong_by_3x_does_conclusion_survive": "YES"
+    },
+    {
+      "parameter": "server_auth_context_ms",
+      "value_or_range": { "low": 40, "mid": 90, "high": 200 },
+      "unit": "ms",
+      "source": "MODELED share of the OBSERVED ~260 ms pre-Gemini aggregate; two serial network round trips (index.ts:1223, index.ts:1239).",
+      "evidence": "MODELED",
+      "confidence": "MEDIUM",
+      "if_wrong_by_3x_does_conclusion_survive": "YES"
+    },
+    {
+      "parameter": "server_fingerprint_ms",
+      "value_or_range": { "low": 1, "mid": 5, "high": 20 },
+      "unit": "ms",
+      "source": "MODELED. A single sha256 over request headers.",
+      "evidence": "MODELED",
+      "confidence": "MEDIUM",
+      "if_wrong_by_3x_does_conclusion_survive": "YES"
+    },
+    {
+      "parameter": "server_quota_ms",
+      "value_or_range": { "low": 25, "mid": 65, "high": 180 },
+      "unit": "ms",
+      "source": "MODELED share of the OBSERVED ~260 ms aggregate; one Postgres RPC (scanQuota.ts:83).",
+      "evidence": "MODELED",
+      "confidence": "MEDIUM",
+      "if_wrong_by_3x_does_conclusion_survive": "YES"
+    },
+    {
+      "parameter": "server_cpu_small_ms",
+      "value_or_range": { "low": 1, "mid": 5, "high": 25 },
+      "unit": "ms",
+      "source": "MODELED. Covers the synchronous no-I/O stages: sanitizeDetectedGarments, the quality gate, query construction, ranking. PROVEN to contain no I/O; magnitude unmeasured.",
+      "evidence": "MODELED",
+      "confidence": "MEDIUM",
+      "if_wrong_by_3x_does_conclusion_survive": "YES",
+      "why": "At 3x the high value (75 ms) these stages are still under 2% of the first-result path in every scenario run."
+    },
+    {
+      "parameter": "server_serialize_ms",
+      "value_or_range": { "low": 1, "mid": 5, "high": 20 },
+      "unit": "ms",
+      "source": "MODELED. JSON.stringify over a bounded response (MAX_ARRAY_ITEMS=12, <=5 garments, MAX_RESULTS=10).",
+      "evidence": "MODELED",
+      "confidence": "MEDIUM",
+      "if_wrong_by_3x_does_conclusion_survive": "YES"
+    },
+    {
+      "parameter": "similarity_ms",
+      "value_or_range": { "low": 50, "mid": 200, "high": 900 },
+      "unit": "ms",
+      "source": "MODELED, but hard-bounded by the PROVEN SIMILARITY_TIMEOUT_MS=300 race (index.ts:187, index.ts:4305), so the high value is clamped by the model.",
+      "evidence": "MODELED",
+      "confidence": "MEDIUM",
+      "if_wrong_by_3x_does_conclusion_survive": "YES",
+      "why": "The timeout clamp makes the contribution at most 300 ms regardless. What matters is the PROVEN fact that it runs SERIALLY AFTER commerce despite having no data dependency on it."
+    },
+    {
+      "parameter": "provider_serper_ms",
+      "value_or_range": { "low": 400, "mid": 900, "high": 1900 },
+      "unit": "ms",
+      "source": "MODELED. No per-provider measurement exists. Calibration anchor: the audit OBSERVED the whole fast fan-out at discoveryMs 1037-1447 with early=true (audit doc:180), which bounds the FIRST-delivering child, not either child individually.",
+      "evidence": "MODELED",
+      "confidence": "MEDIUM",
+      "if_wrong_by_3x_does_conclusion_survive": "PARTIALLY",
+      "why": "The conclusion that the fast path is deadline-bound survives: at 3x the high value every child exceeds FAST_COMMERCE_DEADLINE_MS=1900 and the group times out, which is exactly the OBSERVED 4/13 timeout outcome. At 1/3 the low value the group completes comfortably and the deadline stops binding. So the sweep, not a point value, is the reportable result."
+    },
+    {
+      "parameter": "provider_poshmark_ms",
+      "value_or_range": { "low": 500, "mid": 1200, "high": 4000 },
+      "unit": "ms",
+      "source": "MODELED, with a documented tail anchor: commerceFunnelConfig.ts:40-43 records that Phase 3 measurement showed 'Poshmark alone ranging to 13.9s'. That is second-hand OBSERVED evidence embedded in a source comment, not a log this lane read, so the parameter itself stays MODELED.",
+      "evidence": "MODELED",
+      "confidence": "LOW",
+      "if_wrong_by_3x_does_conclusion_survive": "YES",
+      "why": "The documented 13.9 s tail is itself ~3.5x the high value and is precisely why FAST_COMMERCE_DEADLINE_MS exists. The tail-risk conclusion strengthens, not weakens, as this parameter grows."
+    },
+    {
+      "parameter": "provider_farfetch_ms",
+      "value_or_range": { "low": 1500, "mid": 3000, "high": 4000 },
+      "unit": "ms",
+      "source": "Anchored on the source comment at commerceFunnelConfig.ts:78-81 ('Farfetch3 (~3.0s)'), hard-bounded by farfetch3Provider.ts:45 PROVIDER_TIMEOUT_MS=4000 (PROVEN).",
+      "evidence": "MODELED",
+      "confidence": "MEDIUM",
+      "if_wrong_by_3x_does_conclusion_survive": "YES",
+      "why": "Enrichment is off the first-result path in the funnel-on architecture (PROVEN), so this parameter cannot change TTFAR at all there."
+    },
+    {
+      "parameter": "provider_kickscrew_ms",
+      "value_or_range": { "low": 1300, "mid": 2600, "high": 4000 },
+      "unit": "ms",
+      "source": "Anchored on commerceFunnelConfig.ts:78-81 ('KicksCrew (~2.6s)'), hard-bounded by kicksCrewProvider.ts:43 PROVIDER_TIMEOUT_MS=4000 (PROVEN).",
+      "evidence": "MODELED",
+      "confidence": "MEDIUM",
+      "if_wrong_by_3x_does_conclusion_survive": "YES"
+    },
+    {
+      "parameter": "legacy_discovery_ms",
+      "value_or_range": { "low": 900, "mid": 2000, "high": 4500 },
+      "unit": "ms",
+      "source": "MODELED. The legacy path uses Promise.all over BOTH providers with NO early exit (scanCommerceRouter.ts:1428), so this is max(serper, poshmark) clamped by GLOBAL_DISCOVERY_DEADLINE_MS=4500 (PROVEN).",
+      "evidence": "MODELED",
+      "confidence": "MEDIUM",
+      "if_wrong_by_3x_does_conclusion_survive": "YES",
+      "why": "The outer 3000 ms race clamps it regardless, which is itself the finding."
+    },
+    {
+      "parameter": "legacy_enrich_farfetch_ms",
+      "value_or_range": { "low": 800, "mid": 3000, "high": 4000 },
+      "unit": "ms",
+      "source": "MODELED. Group D runs serially after discovery with NO deadline of its own (scanCommerceRouter.ts:1470); bounded only by the provider's own 4000 ms abort.",
+      "evidence": "MODELED",
+      "confidence": "LOW",
+      "if_wrong_by_3x_does_conclusion_survive": "YES"
+    },
+    {
+      "parameter": "legacy_enrich_kickscrew_ms",
+      "value_or_range": { "low": 0, "mid": 2600, "high": 4000 },
+      "unit": "ms",
+      "source": "MODELED. Only runs when isSneaker (scanCommerceRouter.ts:1481), hence a low of 0.",
+      "evidence": "MODELED",
+      "confidence": "LOW",
+      "if_wrong_by_3x_does_conclusion_survive": "YES"
+    },
+    {
+      "parameter": "client_frame_yield_ms",
+      "value_or_range": { "low": 8, "mid": 17, "high": 50 },
+      "unit": "ms",
+      "source": "MODELED. One requestAnimationFrame at 120/60/20 fps. PENDING_RUNTIME — no device measurement in this lane.",
+      "evidence": "MODELED",
+      "confidence": "MEDIUM",
+      "if_wrong_by_3x_does_conclusion_survive": "YES"
+    },
+    {
+      "parameter": "client_digest_ms",
+      "value_or_range": { "low": 10, "mid": 40, "high": 150 },
+      "unit": "ms",
+      "source": "MODELED. expo-crypto SHA-256; runs TWICE per scan (useKScan.js:566 and :587). PENDING_RUNTIME.",
+      "evidence": "MODELED",
+      "confidence": "LOW",
+      "if_wrong_by_3x_does_conclusion_survive": "YES",
+      "why": "Even at 3x the high value (450 ms x2) the pair stays below the PROVEN 1500 ms client display floor, so it cannot become the binding term on its own."
+    },
+    {
+      "parameter": "client_compress_ms",
+      "value_or_range": { "low": 80, "mid": 300, "high": 1200 },
+      "unit": "ms",
+      "source": "MODELED. expo-image-manipulator decode + resize + JPEG encode + base64. PENDING_RUNTIME — this is the single largest unmeasured client term and the one most worth measuring on a device.",
+      "evidence": "MODELED",
+      "confidence": "LOW",
+      "if_wrong_by_3x_does_conclusion_survive": "PARTIALLY",
+      "why": "At 3x the high value (3.6 s) client preprocessing would rival the identification call and the conclusion 'identification dominates' would need qualifying. This is the assumption most deserving of a real device measurement, and it is recorded as such in the blocker ledger."
+    },
+    {
+      "parameter": "client_auth_session_ms",
+      "value_or_range": { "low": 1, "mid": 15, "high": 200 },
+      "unit": "ms",
+      "source": "MODELED. supabase.auth.getSession() is usually a local read but can refresh over the network. PENDING_RUNTIME.",
+      "evidence": "MODELED",
+      "confidence": "LOW",
+      "if_wrong_by_3x_does_conclusion_survive": "YES"
+    },
+    {
+      "parameter": "client_parse_ms",
+      "value_or_range": { "low": 2, "mid": 12, "high": 60 },
+      "unit": "ms",
+      "source": "MODELED. JSON parse plus a synchronous mapper. PENDING_RUNTIME.",
+      "evidence": "MODELED",
+      "confidence": "MEDIUM",
+      "if_wrong_by_3x_does_conclusion_survive": "YES"
+    },
+    {
+      "parameter": "client_render_ms",
+      "value_or_range": { "low": 8, "mid": 33, "high": 120 },
+      "unit": "ms",
+      "source": "MODELED. One to a few React commit frames. PENDING_RUNTIME.",
+      "evidence": "MODELED",
+      "confidence": "MEDIUM",
+      "if_wrong_by_3x_does_conclusion_survive": "YES"
+    },
+    {
+      "parameter": "client_effect_dispatch_ms",
+      "value_or_range": { "low": 1, "mid": 10, "high": 50 },
+      "unit": "ms",
+      "source": "MODELED. useEffect scheduling latency after a state commit. PENDING_RUNTIME.",
+      "evidence": "MODELED",
+      "confidence": "MEDIUM",
+      "if_wrong_by_3x_does_conclusion_survive": "YES"
+    },
+    {
+      "parameter": "uplink_mbps",
+      "value_or_range": { "sweep": [0.5, 1, 2, 5, 10, 25, 50] },
+      "unit": "Mbps",
+      "source": "MODELED_REFERENCE_INPUT. A deliberate sweep spanning congested cellular to good Wi-Fi. No K Scan network measurement exists.",
+      "evidence": "MODELED",
+      "confidence": "N/A_SWEEP",
+      "if_wrong_by_3x_does_conclusion_survive": "N/A",
+      "why": "Reported as a threshold, never as a point value. The reportable output is the bandwidth below which upload becomes a dominant TTFAR term for a given payload."
+    },
+    {
+      "parameter": "downlink_mbps",
+      "value_or_range": { "sweep": [1, 2, 5, 10, 25, 50] },
+      "unit": "Mbps",
+      "source": "MODELED_REFERENCE_INPUT.",
+      "evidence": "MODELED",
+      "confidence": "N/A_SWEEP",
+      "if_wrong_by_3x_does_conclusion_survive": "N/A"
+    },
+    {
+      "parameter": "rtt_ms",
+      "value_or_range": { "sweep": [20, 50, 100, 200, 400] },
+      "unit": "ms",
+      "source": "MODELED_REFERENCE_INPUT.",
+      "evidence": "MODELED",
+      "confidence": "N/A_SWEEP",
+      "if_wrong_by_3x_does_conclusion_survive": "N/A",
+      "why": "RTT matters disproportionately in the funnel-ON architecture because it is paid TWICE — once per round trip — before the first actionable commerce result."
+    },
+    {
+      "parameter": "compressed_image_bytes",
+      "value_or_range": { "derived": "per platform profile, from tools/curiosity-gap-performance/platformProfiles/*.json" },
+      "unit": "bytes",
+      "source": "Derived. Source geometry is PROVEN (read from the committed fixture JPEG headers); the quality-0.65 bytes-per-pixel coefficient is MODELED from the OBSERVED bpp range of those same fixtures.",
+      "evidence": "MODELED",
+      "confidence": "MEDIUM",
+      "if_wrong_by_3x_does_conclusion_survive": "PARTIALLY",
+      "why": "The base64 expansion arithmetic on top of it is exact and PROVEN. A 3x error in the compressed size moves the bandwidth dominance threshold by 3x, which is why the result is reported as a threshold curve rather than a single number."
+    },
+    {
+      "parameter": "envelope_bytes",
+      "value_or_range": { "fixed": 320 },
+      "unit": "bytes",
+      "source": "PROVEN structure, MODELED size: the legacy body carries 9 allowlisted scalar fields (scanIdentification.ts:494-504). 320 bytes is a generous allowance for their JSON encoding.",
+      "evidence": "MODELED",
+      "confidence": "HIGH",
+      "if_wrong_by_3x_does_conclusion_survive": "YES",
+      "why": "The envelope is ~0.1% of a payload dominated by base64 image bytes."
+    },
+    {
+      "parameter": "retry_attempts_extra",
+      "value_or_range": { "sweep": [0, 1] },
+      "unit": "attempts",
+      "source": "PROVEN ceiling: llmModelRouting.ts:33 SCANNER_MAX_ATTEMPTS=2, so at most ONE extra attempt exists.",
+      "evidence": "PROVEN",
+      "confidence": "HIGH",
+      "if_wrong_by_3x_does_conclusion_survive": "N/A",
+      "why": "The ceiling is a source constant; it cannot be wrong."
+    }
+  ]
+}
