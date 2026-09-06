@@ -134,16 +134,22 @@ test('TextScan navigation guard prevents rapid duplicates and releases on focus'
   assert.doesNotMatch(homeV1, /setTimeout\(\(\) => setTextScanNavigating\(false\)/);
 });
 
-test('Build 33: the unfinished Voice Scan surface is absent from production Home', () => {
-  // Build 32 shipped a reviewer-visible "VOICE SCAN / COMING SOON" pill. Voice
-  // Scan is unimplemented, so App Review could read Home as an incomplete app.
-  // Build 33 removes the surface outright rather than dimming it.
-  assert.doesNotMatch(homeV1, /voicescan/i);
-  assert.doesNotMatch(homeV1, /VOICE SCAN/);
+test('Build 34: Voice Scan is a real K+ pill on Home, never the retired Build 32 "Coming Soon" placeholder', () => {
+  // Build 32 shipped a reviewer-visible "VOICE SCAN / COMING SOON" pill for an
+  // unimplemented feature; Build 33 removed it outright (see
+  // __tests__/iosAppReviewSurface.test.js). Voice Scan is now real and
+  // K+-gated (components/home/HomeVoiceScanPill.tsx), so Home may reference
+  // it again -- what must never come back is the placeholder itself.
+  assert.match(homeV1, /<HomeVoiceScanPill/);
   assert.doesNotMatch(homeV1, /COMING SOON/);
-  assert.doesNotMatch(homeV1, /VOICESCAN_ENABLED/);
-  // TextScan is a real, shipping entry point and must survive the removal.
+  // TextScan is a real, shipping entry point and must survive alongside it.
   assert.match(homeV1, /testID="home-luxury-textscan"/);
+});
+
+test('the Voice Scan pill sits directly above TEXTSCAN, and TextScan remains untouched by it', () => {
+  const pillIndex = homeV1.indexOf('<HomeVoiceScanPill');
+  const textScanIndex = homeV1.indexOf('testID="home-luxury-textscan"');
+  assert.ok(pillIndex > 0 && pillIndex < textScanIndex, 'the Voice Scan pill must precede TEXTSCAN in render order');
 });
 
 test('Android manifest removes mic, fine-location, and storage permissions from dependency merges', () => {

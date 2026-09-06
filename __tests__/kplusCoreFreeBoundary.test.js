@@ -48,6 +48,7 @@ const EXPECTED_GATE_SITES = [
   'app/watchlist/[watchId].tsx -> watchlist',
   'components/ProductShelf.tsx -> watchlist',
   'components/home/HomeLuxuryTechV1.tsx -> watchlist',
+  'components/home/HomeVoiceScanPill.tsx -> voice_scan',
   'components/scan-results/PurchaseOptionsPanel.tsx -> watchlist',
   'components/text-scan/TextScanFeatureRow.tsx -> voice_scan',
   'components/text-scan/VoiceScanButton.tsx -> voice_scan',
