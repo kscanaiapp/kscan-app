@@ -3,6 +3,11 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { Stack, router, useNavigationContainerRef, usePathname } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import {
+  bridgeAllTelemetrySinks,
+  PostHogAnalyticsProvider,
+  syncPostHogIdentity,
+} from '../services/analytics/posthogClient';
 import { AuthSessionProvider } from '../contexts/AuthSessionContext';
 import { FeatureFreezeProvider } from '../contexts/FeatureFreezeContext';
 import { PrivacyPreferencesProvider } from '../contexts/PrivacyPreferencesContext';
@@ -313,6 +318,24 @@ function AuthGate() {
   return <Stack screenOptions={{ headerShown: false }} />;
 }
 
+function PostHogBridge() {
+  const { session } = useAuthSession();
+
+  useEffect(() => {
+    bridgeAllTelemetrySinks();
+  }, []);
+
+  useEffect(() => {
+    // Always resets before establishing a different identity — covers
+    // logout, account deletion, and an actor switch alike, since all three
+    // land here as session.user.id becoming null (then, for a switch, a
+    // different id). See syncPostHogIdentityWith for the isolation guarantee.
+    syncPostHogIdentity(session?.user?.id ?? null);
+  }, [session?.user?.id]);
+
+  return null;
+}
+
 export default function Layout() {
   useEffect(() => {
     void cleanupOrphanedStylistSpeechFiles();
@@ -331,19 +354,22 @@ export default function Layout() {
   }, []);
 
   return (
-    <ErrorBoundary>
-      <SafeAreaProvider>
-        <AuthSessionProvider>
-          <AiOutputReportProvider>
-            <PrivacyPreferencesProvider>
-              <FeatureFreezeProvider>
-                <AuthGate />
-              </FeatureFreezeProvider>
-            </PrivacyPreferencesProvider>
-          </AiOutputReportProvider>
-        </AuthSessionProvider>
-      </SafeAreaProvider>
-    </ErrorBoundary>
+    <PostHogAnalyticsProvider>
+      <ErrorBoundary>
+        <SafeAreaProvider>
+          <AuthSessionProvider>
+            <AiOutputReportProvider>
+              <PrivacyPreferencesProvider>
+                <FeatureFreezeProvider>
+                  <PostHogBridge />
+                  <AuthGate />
+                </FeatureFreezeProvider>
+              </PrivacyPreferencesProvider>
+            </AiOutputReportProvider>
+          </AuthSessionProvider>
+        </SafeAreaProvider>
+      </ErrorBoundary>
+    </PostHogAnalyticsProvider>
   );
 }
 
