@@ -25,6 +25,7 @@ import {
   normalizePersistedCommerceUrl,
   normalizePurchaseOptions,
 } from './dressingRoomCommerce';
+import { resolvePersistedRetailerIdentity } from './commerce/retailerIdentity';
 import type { CanonicalPurchaseOption } from '../types/canonicalDressingRoomItem';
 import type { DressingRoomItem, LookItem } from '../types/styleObjects';
 
@@ -111,10 +112,25 @@ export function resolveRoomCommerceCard(
     (primary ? formatCommercePrice(primary.price, primary.currency) : null);
 
   const brand = cleanLabel(item.brand);
-  // Retailer is only claimed when the snapshot recorded one. normalizePurchase
-  // Options falls back to brand for that field, so a retailer identical to the
-  // brand is reported as brand alone rather than asserting a storefront.
-  const optionRetailer = cleanLabel(primary?.retailer);
+  // Retailer is only claimed when the snapshot recorded one. The pre-repair
+  // normalizePurchaseOptions fell back to brand for that field, so a retailer
+  // identical to the brand is reported as brand alone rather than asserting a
+  // storefront.
+  //
+  // Closure §6: before that exact-match guard runs, the row's own governed
+  // merchant URL gets the deterministic say. A legacy row whose stored
+  // retailer is really a brand, but whose purchase URL lands on a registered
+  // retailer domain, resolves to that retailer -- the place Shop actually
+  // opens. When no registered domain contradicts the stored label, nothing
+  // changes and the exact-match guard below still applies.
+  const persistedIdentity = resolvePersistedRetailerIdentity({
+    retailer: primary?.retailer ?? undefined,
+    productUrl: primary?.productUrl ?? (item as Partial<DressingRoomItem>).productUrl ?? undefined,
+  });
+  const optionRetailer =
+    persistedIdentity.sourceAuthority === 'domain'
+      ? persistedIdentity.displayName
+      : cleanLabel(primary?.retailer);
   const retailer =
     optionRetailer && optionRetailer.toLowerCase() !== (brand ?? '').toLowerCase()
       ? optionRetailer

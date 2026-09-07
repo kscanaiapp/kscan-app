@@ -42,7 +42,7 @@ import { VTO_UI_ENABLED } from '../constants/featureFlags';
 import { TryItOnEntry } from './vto/TryItOnEntry';
 import { buildVtoGarmentFromCommerceRecord } from '../services/vto/vtoCommerceGarment';
 import type { VtoGarmentInput } from '../types/vto';
-import { resolveRetailerIdentity } from '../services/commerce/retailerIdentity';
+import { resolvePersistedRetailerIdentity } from '../services/commerce/retailerIdentity';
 import { RetailerIdentity } from './commerce/RetailerIdentity';
 import { openCommerceOffer } from '../services/commerce/commerceExit';
 
@@ -435,7 +435,12 @@ export function ProductShelf({
           const canWatch = canWatchProduct(p);
           const imageCategory = normalizeImageCategory(p.imageCategory || p.category);
           const showImage = !!productImageUrl && !failedImages[productKey];
-          const retailerIdentity = resolveRetailerIdentity(p);
+          // Closure §6: this shelf renders reopened (persisted) commerce as well
+          // as live results, and a row written before the seller-truth repair
+          // can carry a brand in its stored retailer field. The persisted-aware
+          // resolver lets the row's own governed merchant domain correct that;
+          // it changes nothing when no registered domain contradicts the label.
+          const retailerIdentity = resolvePersistedRetailerIdentity(p);
           const priceText = formatPrice(p);
           const vtoGarment = buildVtoGarmentFromProduct(p);
           const availability = typeof p.availability === 'string' ? p.availability.toLowerCase() : null;

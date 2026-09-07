@@ -146,3 +146,58 @@ export function resolveRetailerIdentity(offer: RetailerIdentityInput | null | un
     sourceAuthority: 'unknown',
   };
 }
+
+/**
+ * Read-path identity for PERSISTED commerce snapshots (Build 35 closure §6).
+ *
+ * Additive to -- never a replacement for -- `resolveRetailerIdentity`, whose
+ * approved contract (declared seller field wins) is unchanged. This variant
+ * exists because rows written before the seller-truth repair can carry a
+ * BRAND in their stored `retailer` field: `normalizePurchaseOptions` used to
+ * fall back to `record.brand`, and `savedScansCloud`/Dressing Room read those
+ * stored rows back verbatim. Nothing rewrites history, so the bad label
+ * outlives the fix.
+ *
+ * The one deterministic correction available is the row's own governed
+ * purchase URL. When that URL is safe, is not an aggregator, and lands on a
+ * domain in the committed registry, the registry identity is what the Shop
+ * action will actually open -- so it outranks a stored free-text label that
+ * contradicts it. A label that agrees with the domain is left alone.
+ *
+ * Deliberately NOT done here: no brand comparison, no title/image similarity,
+ * no fuzzy or LLM matching, and no correction at all when the domain is
+ * unregistered or the destination is an aggregator -- in those cases the
+ * stored value stands, because nothing deterministic contradicts it. A
+ * legacy row whose URL this cannot resolve keeps its stored label and is a
+ * documented legacy limitation, not a silently guessed one.
+ */
+export function resolvePersistedRetailerIdentity(
+  offer: RetailerIdentityInput | null | undefined,
+): RetailerIdentity {
+  const stored = resolveRetailerIdentity(offer);
+  if (!offer || typeof offer !== 'object') return stored;
+
+  const url = typeof offer.productUrl === 'string' ? offer.productUrl : null;
+  const safeUrl = url ? isSafeCommerceUrl(url) : null;
+  if (!safeUrl || isAggregatorDestination(safeUrl)) return stored;
+
+  let hostname: string | null = null;
+  try {
+    hostname = new URL(safeUrl).hostname;
+  } catch {
+    return stored;
+  }
+  const entry = findRetailerByDomain(hostname);
+  if (!entry) return stored;
+  // The stored label already resolves to this same retailer: nothing to correct.
+  if (stored.retailerKey === entry.retailerKey) return stored;
+
+  return {
+    retailerKey: entry.retailerKey,
+    displayName: entry.displayName,
+    logoAsset: entry.logoAsset,
+    fallbackMonogram: entry.fallbackMonogram,
+    commerceType: offerCommerceType(offer) ?? entry.commerceType,
+    sourceAuthority: 'domain',
+  };
+}

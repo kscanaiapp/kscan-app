@@ -33,12 +33,34 @@ for (const rel of SURFACES) {
 }
 
 for (const rel of ['components/ProductShelf.tsx', 'components/scan-results/PurchaseOptionsPanel.tsx', 'components/SecondhandShelf.tsx', 'app/watchlist/[watchId].tsx']) {
-  test(`${rel} resolves retailer identity via resolveRetailerIdentity`, () => {
+  test(`${rel} resolves retailer identity through the shared resolver module`, () => {
     const source = read(rel);
     assert.match(source, /from '.*commerce\/retailerIdentity'/);
-    assert.match(source, /resolveRetailerIdentity\(/);
+    assert.match(source, /resolve(Persisted)?RetailerIdentity\(/);
   });
 }
+
+/**
+ * Closure §6: the two surfaces that render REOPENED (persisted) commerce
+ * must use the persisted-aware resolver, so a row written before the
+ * seller-truth repair can be corrected by its own governed merchant domain.
+ * The other surfaces render live/server-derived data and keep the approved
+ * live resolver.
+ */
+for (const rel of ['components/ProductShelf.tsx', 'components/scan-results/PurchaseOptionsPanel.tsx', 'services/dressingRoomCommerceCard.ts']) {
+  test(`${rel} uses the persisted-aware resolver for stored commerce snapshots`, () => {
+    const source = read(rel);
+    assert.match(source, /resolvePersistedRetailerIdentity\(/);
+  });
+}
+
+test('Watchlist keeps the live resolver — its stored source is server-derived and was never affected by the legacy defect', () => {
+  for (const rel of ['app/watchlist/index.tsx', 'app/watchlist/[watchId].tsx']) {
+    const source = read(rel);
+    assert.match(source, /resolveRetailerIdentity\(/);
+    assert.doesNotMatch(source, /resolvePersistedRetailerIdentity\(/);
+  }
+});
 
 test('app/watchlist/index.tsx resolves each row\'s identity individually (not a single shelf-wide constant)', () => {
   const source = read('app/watchlist/index.tsx');

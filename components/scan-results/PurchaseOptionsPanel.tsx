@@ -13,7 +13,7 @@ import { InlineNotice } from '../luxury/InlineNotice';
 import { canWatchPurchaseOption } from './types';
 import type { PurchaseOption, WatchCandidate } from './types';
 import { selectCommerceDestination } from '../../services/commerceDestination';
-import { resolveRetailerIdentity } from '../../services/commerce/retailerIdentity';
+import { resolvePersistedRetailerIdentity } from '../../services/commerce/retailerIdentity';
 import { RetailerIdentity } from '../commerce/RetailerIdentity';
 import { openCommerceOffer } from '../../services/commerce/commerceExit';
 import { buildWhereToBuySummary } from '../../services/commerce/whereToBuy';
@@ -90,6 +90,7 @@ export function PurchaseOptionsPanel({
           productUrl: option.productUrl,
           commerceType: option.watchCandidate?.commerceType,
         })),
+        resolvePersistedRetailerIdentity,
       )
     : [];
 
@@ -107,7 +108,11 @@ export function PurchaseOptionsPanel({
             const hasAvailability = Boolean(option.availabilityLabel);
             // DEF-WL-07: server-authored eligibility, read not re-derived.
             const canWatch = canWatchPurchaseOption(option);
-            const retailerIdentity = resolveRetailerIdentity({
+            // Closure §6: reopened Recent/Saved scans render through this
+            // same panel, so a row written before the seller-truth repair can
+            // carry a brand in its stored retailer field. The persisted-aware
+            // resolver lets the row's governed merchant domain correct that.
+            const retailerIdentity = resolvePersistedRetailerIdentity({
               retailer: option.retailer,
               productUrl: option.productUrl,
               commerceType: option.watchCandidate?.commerceType,

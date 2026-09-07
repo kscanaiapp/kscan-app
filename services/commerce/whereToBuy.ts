@@ -26,12 +26,21 @@ export interface WhereToBuyRow {
  * (unknown) are counted separately under a null-keyed row rather than
  * silently dropped or merged into a real retailer's count.
  */
-export function buildWhereToBuySummary(offers: readonly RetailerIdentityInput[]): WhereToBuyRow[] {
+export function buildWhereToBuySummary(
+  offers: readonly RetailerIdentityInput[],
+  /**
+   * Which identity resolver to use. Defaults to the live/approved one. A
+   * surface that renders PERSISTED snapshots passes
+   * `resolvePersistedRetailerIdentity` so the summary and the rows above it
+   * cannot disagree about the same offer (closure §6).
+   */
+  resolve: (offer: RetailerIdentityInput) => ReturnType<typeof resolveRetailerIdentity> = resolveRetailerIdentity,
+): WhereToBuyRow[] {
   const rows: WhereToBuyRow[] = [];
   const indexByKey = new Map<string, number>();
 
   for (const offer of offers ?? []) {
-    const identity = resolveRetailerIdentity(offer);
+    const identity = resolve(offer);
     // Group by registry key when known; otherwise by the exact declared
     // display name (still real, just unregistered) so two different
     // unregistered retailers are never merged together. A fully unknown

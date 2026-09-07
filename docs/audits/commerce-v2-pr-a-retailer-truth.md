@@ -110,3 +110,54 @@ All in `__tests__/commerce/retailerIdentity.test.js` and
 - MONOGRAM FALLBACK: PASS
 - RETAILER NEUTRALITY: PASS (registry presence/order has no ranking effect — proved by §80 negative control)
 - RANKING UNCHANGED: PASS
+
+---
+
+## 7. Fixture-edit evidence (closure §7)
+
+Four fixture expectations in `__tests__/fixtures/commerce/offers.js` were
+changed from `commerceType: null` to `commerceType: 'retail'` during PR A.
+This section is the required owner-verdict evidence for those edits.
+
+**Order of events matters, and is stated plainly:** the implementation was
+changed FIRST, for a stated semantic reason, and the fixtures were then
+brought into line with the corrected rule. The first draft of
+`resolveRetailerIdentity` returned a single frozen `UNKNOWN_IDENTITY`
+constant on the unresolved-retailer path, which zeroed *every* output field
+— including `commerceType`. That discarded a fact the offer itself had
+declared. The resolver was corrected to carry the declared `commerceType`
+through on all paths (see the `declaredCommerceType` comment in
+`services/commerce/retailerIdentity.ts`), and these four fixtures then
+followed. No expectation was edited merely to match whatever the code
+happened to emit.
+
+| Scenario ID | Input `commerceType` | Old expected | New expected | Semantic rule | Why the old expectation was wrong | Negative control |
+|---|---|---|---|---|---|---|
+| `unknown_retailer_unmapped_domain` | `'retail'` (declared on the offer) | `null` | `'retail'` | A declared retail/resale fact is about the TRANSACTION and survives an unresolved seller | Conflated "we cannot name the seller" with "we do not know whether this is retail or resale" — two independent facts | `unknown_retailer_no_url` (no declared `commerceType` → stays `null`) |
+| `aggregator_destination_no_declared_field` | `'retail'` (declared) | `null` | `'retail'` | Same rule; refusing the aggregator domain affects the SELLER only | The aggregator refusal is a retailer-identity decision; it says nothing about the transaction type the offer declared | `brand_only_never_becomes_retailer` (no declared `commerceType` → stays `null`) |
+| `shared_host_unmapped` | `'retail'` (declared) | `null` | `'retail'` | Same rule; an unregistered host blocks naming the seller, not reading the declared type | Dropping the declared value would have been a silent loss of provider truth | `unknown_retailer_no_url` |
+| `unsafe_destination_domain_fallback_refused` | `'retail'` (declared) | `null` | `'retail'` | Same rule; rejecting an unsafe URL is a safety decision about the destination | Safety rejection must not also erase an unrelated declared fact | `brand_only_never_becomes_retailer` |
+
+### The three required proofs
+
+Verified behaviourally (see `__tests__/commerce/retailerIdentity.test.js`
+and the checks below):
+
+1. **DECLARED `commerceType` may be honored as presentation truth.**
+   `{retailer:'Farfetch', commerceType:'retail'}` → `retail`.
+   A declared value also OUTRANKS the registry: `{retailer:'Farfetch',
+   commerceType:'resale'}` → `resale`, not the registry's `retail`.
+2. **UNKNOWN `commerceType` remains unknown.**
+   `{retailer:'Some Boutique'}` (unregistered, nothing declared) → `null`.
+   `{}` → `null`. Nothing manufactures a type out of nothing.
+3. **Retailer identity does not fabricate `commerceType` — with one
+   documented, bounded exception the owner should see explicitly.** For the
+   five REGISTERED retailers only, the registry supplies its own stable
+   classification when the offer declared none (`{retailer:'Poshmark'}` →
+   `resale`, because Poshmark is a resale marketplace as a whole). This is a
+   committed, reviewable registry fact (`commerceType` on each registry
+   entry, documented there as "only when stable/known for this retailer as a
+   whole"), not an inference from the offer. An UNREGISTERED retailer never
+   gains a classification this way. If the owner prefers strict declared-only
+   semantics, deleting the `?? entry.commerceType` fallback in
+   `resolveRetailerIdentity` is a one-line change with no other consumer.
