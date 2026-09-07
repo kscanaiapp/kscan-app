@@ -24,11 +24,14 @@ function transpile(rel) {
   }).outputText;
 }
 
-function run(rel, requireMap = {}, extraGlobals = {}) {
+function run(rel, requireMap = {}, extraGlobals = {}, cache = new Map()) {
+  if (cache.has(rel)) return cache.get(rel);
   const module = { exports: {} };
+  cache.set(rel, module.exports);
   const sandbox = {
     console,
     URL,
+    Intl,
     setTimeout,
     clearTimeout,
     exports: module.exports,
@@ -36,12 +39,19 @@ function run(rel, requireMap = {}, extraGlobals = {}) {
     require: (id) => {
       if (id in requireMap) return requireMap[id];
       if (id.startsWith('node:')) return require(id);
+      // A module's own sibling imports are resolved for real, so the module
+      // under test runs against its actual dependencies rather than a stub.
+      if (id.startsWith('./')) {
+        const sibling = path.posix.join(path.posix.dirname(rel), id.slice(2));
+        return run(sibling, requireMap, extraGlobals, cache);
+      }
       throw new Error('Unexpected require: ' + id);
     },
     ...extraGlobals,
   };
   sandbox.globalThis = sandbox;
   vm.runInNewContext(transpile(rel), sandbox, { filename: rel });
+  cache.set(rel, module.exports);
   return module.exports;
 }
 
