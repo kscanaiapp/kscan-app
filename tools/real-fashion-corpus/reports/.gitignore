@@ -1,0 +1,6 @@
+# Generated evaluation artifacts. Reports are reproducible from the corpus plus
+# the pinned source SHA, and their filenames carry a content hash, so committing
+# every run would add churn without adding evidence. Commit a specific report
+# deliberately (git add -f) when one needs to be cited.
+*.json
+!.gitignore
