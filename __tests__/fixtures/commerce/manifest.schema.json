@@ -1,0 +1,120 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "kscan-commerce-corpus-manifest-v1",
+  "title": "Commerce Evaluation Corpus Manifest",
+  "description": "Schema for __tests__/fixtures/commerce/manifest.json. Validated by tools/commerce-corpus/lib/validateManifest.js.",
+  "type": "object",
+  "required": ["commerceCorpusVersion", "generatedBy", "scenarios"],
+  "additionalProperties": false,
+  "properties": {
+    "commerceCorpusVersion": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Breaking schema changes require a version increment (spec section 44)."
+    },
+    "generatedBy": {
+      "type": "string",
+      "description": "Free-text provenance note. Not a runtime dependency."
+    },
+    "scenarios": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/scenario" }
+    }
+  },
+  "definitions": {
+    "scenario": {
+      "type": "object",
+      "required": [
+        "scenarioId",
+        "category",
+        "description",
+        "inputFixture",
+        "expectedOutcome",
+        "tags",
+        "evidenceClass"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "scenarioId": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+          "description": "Stable, human-legible, kebab-case identifier. Tests reference this, never an array index."
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "retailer-identity",
+            "domain-resolution",
+            "product-image",
+            "price-currency",
+            "price-claim-negative",
+            "retail-resale",
+            "watchability",
+            "watch-offer-identity",
+            "shop-offer-identity",
+            "affiliate-attribution",
+            "product-identity",
+            "safe-grouping",
+            "must-not-group",
+            "where-to-buy",
+            "retailer-concentration",
+            "multi-item",
+            "failure",
+            "scale",
+            "accessibility-data",
+            "customer-claim-safety",
+            "mutation-negative-control"
+          ]
+        },
+        "description": { "type": "string", "minLength": 1 },
+        "inputFixture": {
+          "type": "string",
+          "description": "Path relative to __tests__/fixtures/commerce/, using a '#/pointer' style suffix to locate the record inside a grouped fixture file, e.g. 'retailer-identity/brand-retailer-provider.json#nike-farfetch-provider-x'."
+        },
+        "expectedOutcome": {
+          "type": "object",
+          "description": "Structured, category-appropriate expected result. Shape varies by category; validated by category-specific checks, not by this schema.",
+          "minProperties": 1
+        },
+        "tags": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "retailer-truth",
+              "brand-retailer",
+              "retail",
+              "resale",
+              "currency",
+              "watchable",
+              "not-watchable",
+              "safe-url",
+              "unsafe-url",
+              "attribution",
+              "exact-group",
+              "must-not-group",
+              "missing-logo",
+              "unknown-retailer",
+              "multi-item",
+              "scale",
+              "failure",
+              "pr-a-support",
+              "pr-b-support",
+              "pr-c-support"
+            ]
+          }
+        },
+        "evidenceClass": {
+          "type": "string",
+          "enum": ["OBSERVED-SHAPE", "SOURCE-SHAPE", "SYNTHETIC"]
+        },
+        "mutationOf": {
+          "type": "string",
+          "description": "Only present on mutation-negative-control scenarios: the scenarioId of the well-formed scenario this one deliberately corrupts."
+        }
+      }
+    }
+  }
+}
