@@ -15,6 +15,8 @@
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
+import { formatOfferPrice, normalizeCurrencyCode } from './offerCurrency.ts';
+
 export type KicksCrewProduct = {
   id: string;
   title: string;
@@ -23,6 +25,8 @@ export type KicksCrewProduct = {
   source: 'KicksCrew';
   retailer: 'KicksCrew';
   price?: string;
+  /** RP-110: the provider's own declared currency. Absent when it declared none. */
+  currency?: string;
   type: 'retail';
   imageUrl?: string;
   image_url?: string;
@@ -98,10 +102,15 @@ export function isKicksCrewProductUrl(url: string | undefined): boolean {
   return url.startsWith(KICKSCREW_ORIGIN);
 }
 
-function lowestVariantPrice(variants: unknown): { amount: number; currency: string } | undefined {
+/**
+ * RP-110: the currency belongs to the variant that won on price, and it is null
+ * when that variant declared none. The previous `let currency = 'USD'` seed made
+ * every currency-less variant read as a dollar price.
+ */
+function lowestVariantPrice(variants: unknown): { amount: number; currency: string | null } | undefined {
   if (!Array.isArray(variants)) return undefined;
   let best: number | undefined;
-  let currency = 'USD';
+  let currency: string | null = null;
   for (const v of variants) {
     if (!v || typeof v !== 'object') continue;
     const record = v as Record<string, unknown>;
@@ -109,20 +118,14 @@ function lowestVariantPrice(variants: unknown): { amount: number; currency: stri
     if (!Number.isFinite(parsed) || parsed <= 0) continue;
     if (best === undefined || parsed < best) {
       best = parsed;
-      currency = str(record.price_currency) || currency;
+      currency = normalizeCurrencyCode(record.price_currency);
     }
   }
   return best !== undefined ? { amount: best, currency } : undefined;
 }
 
-function formatPrice(amount: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency.toUpperCase() })
-      .format(amount)
-      .slice(0, MAX_PRICE_LEN);
-  } catch {
-    return `$${amount.toFixed(2)}`.slice(0, MAX_PRICE_LEN);
-  }
+function formatPrice(amount: number, currency: string | null): string | undefined {
+  return formatOfferPrice(amount, currency)?.slice(0, MAX_PRICE_LEN);
 }
 
 function extractImageUrl(product: Record<string, unknown>): string | undefined {
@@ -172,6 +175,7 @@ function mapProduct(data: Record<string, unknown>, productUrl: string): KicksCre
   const brand = str(product.vendor) || undefined;
   const lowest = lowestVariantPrice(product.variants);
   const price = lowest ? formatPrice(lowest.amount, lowest.currency) : undefined;
+  const currency = lowest?.currency ?? undefined;
   const imageUrl = extractImageUrl(product);
   const sku = extractSku(product);
   const id = sku || str(product.id) || productUrl;
@@ -184,6 +188,7 @@ function mapProduct(data: Record<string, unknown>, productUrl: string): KicksCre
     source: 'KicksCrew',
     retailer: 'KicksCrew',
     price,
+    ...(currency ? { currency } : {}),
     type: 'retail',
     imageUrl,
     image_url: imageUrl,

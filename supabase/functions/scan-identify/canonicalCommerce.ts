@@ -13,6 +13,7 @@
  */
 
 import type { RecommendedProduct } from './shoppingProvider.ts';
+import { normalizeCurrencyCode } from './offerCurrency.ts';
 
 export type CanonicalOffer = {
   offerId: string;
@@ -149,7 +150,9 @@ function toOffer(product: RecommendedProduct, observedAt: string): CanonicalOffe
     providerProductId: str(rec.providerProductId) ?? str(rec.productId) ?? null,
     price: str(product.price),
     priceValue: parsed.value,
-    currency: parsed.currency ?? str(rec.currency),
+    // RP-110: a currency the provider declared outranks one merely inferred from
+    // a symbol in the price string, and an unrecognised code is not a currency.
+    currency: normalizeCurrencyCode(rec.currency) ?? parsed.currency,
     availability: str(rec.availability),
     condition: str(rec.condition),
     size: str(rec.size) ?? str(rec.variant),

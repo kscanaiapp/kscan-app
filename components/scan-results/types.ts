@@ -132,22 +132,53 @@ export type LegacyAnalysisData = {
   sneakerReference?: any[];
 };
 
+/**
+ * RP-110: an amount is rendered in the currency the provider DECLARED, or bare.
+ *
+ * This previously resolved an unknown currency to USD (`String(currency ||
+ * 'USD')`) and fell back to a bare `$`, so a listing whose currency no provider
+ * ever declared was shown to the user as dollars.
+ *
+ * Behaviourally identical to `formatCommercePrice` in
+ * services/dressingRoomCommerce.ts, which is the canonical statement of this
+ * rule. It is restated here rather than imported because this module's import
+ * set is fixed by the VTO mutation boundary -- a new edge out of
+ * components/scan-results/types.ts requires editing a VTO-owned test, which
+ * would misclassify an unrelated lane as a VTO lane (.github/workflows/
+ * vto-e2e.yml). The duplication is therefore deliberate and is not allowed to
+ * drift: commerceCurrencyTruth.test.js runs both formatters over the same table
+ * of inputs and fails the moment they disagree, which is the control the five
+ * divergent USD-defaulting formatters RP-110 removed never had.
+ */
 function formatPriceLabel(price: unknown, currency?: string | null): string | undefined {
   if (price === null || price === undefined) return undefined;
-  if (typeof price === 'number' && Number.isFinite(price) && price > 0) {
-    const ccy = String(currency || 'USD').toUpperCase();
+
+  const code =
+    typeof currency === 'string' && /^[a-z]{3}$/i.test(currency.trim())
+      ? currency.trim().toUpperCase()
+      : null;
+  const numeric =
+    typeof price === 'number'
+      ? price
+      : typeof price === 'string' && /^\d+(?:\.\d+)?$/.test(price.trim().replace(/,/g, ''))
+        ? Number(price.trim().replace(/,/g, ''))
+        : null;
+
+  if (numeric !== null) {
+    if (!Number.isFinite(numeric) || numeric <= 0) return undefined;
+    // No declared currency: the bare amount. Never a '$', never a locale guess.
+    if (!code) return numeric.toFixed(2);
     try {
-      return new Intl.NumberFormat('en-US', { style: 'currency', currency: ccy }).format(price);
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency: code }).format(numeric);
     } catch {
-      return `$${price.toFixed(2)}`;
+      return `${code} ${numeric.toFixed(2)}`;
     }
   }
-  if (typeof price === 'string') {
-    const trimmed = price.trim();
-    if (!trimmed || trimmed === '0' || trimmed === '$0.00' || trimmed === '0.00') return undefined;
-    return trimmed;
-  }
-  return undefined;
+
+  if (typeof price !== 'string') return undefined;
+  const trimmed = price.trim();
+  if (!trimmed || trimmed === '0' || trimmed === '$0.00' || trimmed === '0.00') return undefined;
+  return trimmed;
 }
 
 function valueLooksDemo(value: unknown): boolean {

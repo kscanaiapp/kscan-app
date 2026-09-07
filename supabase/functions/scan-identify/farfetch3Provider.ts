@@ -17,6 +17,8 @@
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
+import { formatOfferPrice, normalizeCurrencyCode } from './offerCurrency.ts';
+
 export type Farfetch3Product = {
   id: string;
   title: string;
@@ -25,6 +27,8 @@ export type Farfetch3Product = {
   source: 'Farfetch';
   retailer: 'Farfetch';
   price?: string;
+  /** RP-110: the provider's own declared currency. Absent when it declared none. */
+  currency?: string;
   type: 'retail';
   imageUrl?: string;
   image_url?: string;
@@ -104,17 +108,15 @@ export function isFarfetchProductUrl(url: string | undefined): boolean {
   return /-item-\d+\.aspx$/i.test(parsed.pathname);
 }
 
+/**
+ * RP-110: Farfetch is a multi-currency storefront, so a missing `isoCode` in the
+ * Apollo payload is precisely the case where guessing is most wrong. An amount
+ * with no declared currency is published bare, never as dollars.
+ */
 function formatPrice(raw: unknown, currencyCode: unknown): string | undefined {
   const amount = typeof raw === 'number' && Number.isFinite(raw) ? raw : undefined;
-  if (amount === undefined || amount <= 0) return undefined;
-  const currency = str(currencyCode) || 'USD';
-  try {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency.toUpperCase() })
-      .format(amount)
-      .slice(0, MAX_PRICE_LEN);
-  } catch {
-    return `${amount.toFixed(2)} ${currency}`.slice(0, MAX_PRICE_LEN);
-  }
+  if (amount === undefined) return undefined;
+  return formatOfferPrice(amount, currencyCode)?.slice(0, MAX_PRICE_LEN);
 }
 
 function extractImageUrl(images: unknown): string | undefined {
@@ -174,6 +176,7 @@ function mapProduct(data: Record<string, unknown>, productUrl: string): Farfetch
   if (isoMatch) currencyCode = isoMatch[1];
 
   const price = formatPrice(value?.raw, currencyCode);
+  const currency = normalizeCurrencyCode(currencyCode) ?? undefined;
   const imageUrl = extractImageUrl(data.images);
   const id = str(data.internalProductId) || str(data.id) || makeId(productUrl);
 
@@ -185,6 +188,7 @@ function mapProduct(data: Record<string, unknown>, productUrl: string): Farfetch
     source: 'Farfetch',
     retailer: 'Farfetch',
     price,
+    ...(currency ? { currency } : {}),
     type: 'retail',
     imageUrl,
     image_url: imageUrl,
