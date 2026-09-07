@@ -98,6 +98,7 @@ export default function OnboardingScreen() {
     preferences: permissionPrefs,
     setPreference: setPermissionPreference,
     requestNotificationPermission,
+    disableNotificationDelivery,
   } = usePermissionPreferences();
 
   const moveToTermsOnce = useCallback(() => {
@@ -702,6 +703,7 @@ export default function OnboardingScreen() {
         preferences={permissionPrefs}
         setPreference={setPermissionPreference}
         requestNotificationPermission={requestNotificationPermission}
+        disableNotificationDelivery={disableNotificationDelivery}
         onContinueToHome={goToHome}
         onNotNow={goToHome}
       />

@@ -7,12 +7,20 @@ import { KPlusGate } from '../kplus/KPlusGate';
 import { VOICESCAN_ENABLED } from '../../constants/featureFlags';
 
 import type { PermissionKey, PermissionPreferences } from '../../hooks/usePermissionPreferences';
-import type { EnableDeviceNotificationsResult } from '../../services/watchlist/pushRegistration';
+import type {
+  DisableDeviceNotificationsResult,
+  EnableDeviceNotificationsResult,
+} from '../../services/watchlist/pushRegistration';
 
 interface PermissionsStepV1Props {
   preferences: PermissionPreferences;
   setPreference: (key: PermissionKey, value: boolean) => void;
   requestNotificationPermission: () => Promise<EnableDeviceNotificationsResult>;
+  /**
+   * RP-104. Revokes THIS device's backend push-delivery route. The switch may
+   * only settle to OFF once this succeeds.
+   */
+  disableNotificationDelivery: () => Promise<DisableDeviceNotificationsResult>;
   onContinueToHome: () => void;
   onNotNow: () => void;
 }
@@ -42,33 +50,50 @@ export function PermissionsStepV1({
   preferences,
   setPreference,
   requestNotificationPermission,
+  disableNotificationDelivery,
   onContinueToHome,
   onNotNow,
 }: PermissionsStepV1Props) {
   const { notifications } = preferences;
   const [notificationsBusy, setNotificationsBusy] = useState(false);
   const [notificationsStatus, setNotificationsStatus] = useState<
-    'idle' | 'denied_can_retry' | 'denied_needs_settings' | 'unavailable'
+    'idle' | 'denied_can_retry' | 'denied_needs_settings' | 'unavailable' | 'disable_failed'
   >('idle');
 
   const handleNotificationsToggle = async (nextValue: boolean) => {
-    if (!nextValue) {
-      // Turning the device switch off only clears the locally reflected
-      // state. Registration is what arms delivery; there is no "disable all"
-      // call from onboarding, and per-Watch alerts are a separate concept.
-      setPreference('notifications', false);
-      setNotificationsStatus('idle');
-      return;
-    }
-
+    // Both directions are real, bounded network work, so both enter the busy
+    // state and the switch stays uninteractive until the outcome is known.
     setNotificationsBusy(true);
     setNotificationsStatus('idle');
     try {
+      if (!nextValue) {
+        // RP-104. Turning the switch off must actually stop delivery. It used
+        // to clear local state only, leaving this device's backend push route
+        // live -- the UI said OFF while K Scan AI could still push to the
+        // handset. The switch now settles to OFF only after the route is
+        // revoked; `disableNotificationDelivery` is what writes that state.
+        //
+        // Scoped to the application delivery route: this revokes nothing at
+        // the OS level and no copy below claims that it does.
+        const result = await disableNotificationDelivery();
+        if (!result.ok) {
+          // Never present a durable OFF that was not achieved. The switch is
+          // left where it was -- ON, still a live push destination -- with a
+          // retryable failure state.
+          setNotificationsStatus('disable_failed');
+        }
+        return;
+      }
+
       const result = await requestNotificationPermission();
       if (result.ok) {
         setNotificationsStatus('idle');
       } else if (result.reason === 'permission_denied') {
         setNotificationsStatus(result.canAskAgain ? 'denied_can_retry' : 'denied_needs_settings');
+      } else if (result.reason === 'superseded') {
+        // A newer explicit OFF won. Nothing to report: the switch already
+        // reflects the decision the user actually ended on.
+        setNotificationsStatus('idle');
       } else {
         setNotificationsStatus('unavailable');
       }
@@ -77,14 +102,17 @@ export function PermissionsStepV1({
     }
   };
 
-  const notificationsDescription =
-    notificationsStatus === 'denied_needs_settings'
+  const notificationsDescription = notificationsBusy
+    ? 'Updating your notification settings…'
+    : notificationsStatus === 'denied_needs_settings'
       ? 'Notifications are turned off in device Settings.'
       : notificationsStatus === 'denied_can_retry'
         ? 'Permission was not granted. You can try again.'
         : notificationsStatus === 'unavailable'
           ? 'Unavailable right now — tap to retry.'
-          : 'Get notified when a watched item hits your target price.';
+          : notificationsStatus === 'disable_failed'
+            ? 'Could not turn K Scan AI notifications off just now — tap to try again.'
+            : 'Get notified when a watched item hits your target price.';
 
   return (
     <View style={styles.stepContent} testID="onboarding-permissions-screen-v1">
