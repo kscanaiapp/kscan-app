@@ -1,0 +1,902 @@
+{
+  "artifact": "PERFORMANCE_BASELINE",
+  "baseline_id": "baseline-v1",
+  "benchmark_status": "INTERNAL ENGINEERING ANALYSIS ONLY. SIMULATED TTFAR IS NOT A MEASUREMENT OF REAL-WORLD K SCAN SPEED.",
+  "generated_offline": true,
+  "network_calls_made": 0,
+  "provider_spend_usd": 0,
+  "source_sha": "909df8646a690b55c5af6b7b8c80193df64a2ec8",
+  "source_binding_hash": "3aaa80038736b843ca6b346cf82871b497144e13985ee456c95c6139c94cc768",
+  "trace_schema_version": "trace-schema-v1",
+  "ttfar_definition_version": "ttfar-start-v1",
+  "actionable_result_version": "actionable-result-v1",
+  "scenario_version": "scenario-v1",
+  "platform_profile_version": "platform-profile-v1",
+  "model_version": "model-v1",
+  "structural_findings": {
+    "transport_supports_progressive_delivery": false,
+    "transport_evidence": "PROVEN — index.ts:1091 json() returns one buffered new Response(JSON.stringify(body)); zero non-test hits for ReadableStream|text/event-stream|TransformStream|streamGenerateContent across scan-identify/ and _shared/",
+    "client_awaits_full_body": true,
+    "client_awaits_full_result_set": true,
+    "client_re_sorts_results": false,
+    "client_re_sort_evidence": "PROVEN — services/commerceHydration.ts:243-262 states backend ordering is preserved exactly; zero .sort( in the client result path",
+    "image_load_blocks_actionability": false,
+    "secondary_fields_block_card": false,
+    "ranking_requires_complete_candidate_set": true,
+    "ranking_evidence": "PROVEN — qualityTuneCommerce.ts:531 global sort, :498 shared cross-provider dedupe set, commerceRelevanceDiversity.ts:96-124 retailer counts over the whole selected set",
+    "slowest_provider_gates_complete_response_funnel_off": true,
+    "slowest_provider_gates_first_result_funnel_on": "BOUNDED_BY_DEADLINE",
+    "serial_prefix_round_trips_before_useful_work": 4,
+    "serial_prefix_repeats_on_mode_b": true,
+    "client_artificial_floor_ms": 1500,
+    "client_artificial_floor_evidence": "PROVEN — AnalyzingScan.tsx:28 MIN_DISPLAY_MS=1500 stacked over useKScan.js:31 MIN_ANALYSIS_MS=600; both measured from scan commit so the binding floor is 1500",
+    "round_trips_to_first_actionable_commerce_result": {
+      "funnel_on": 2,
+      "funnel_off": 1
+    },
+    "privacy_preprocessing_is_passthrough": true,
+    "platform_code_paths_identical": true,
+    "platform_evidence": "PROVEN — zero Platform.OS / Platform.select on the scanner client path"
+  },
+  "modeled_timing_findings": {
+    "disclaimer": "Every number in this block is MODELED unless its evidence_class says otherwise. None is a measurement of K Scan.",
+    "scenarios": {
+      "scan-funnel-on": {
+        "low": {
+          "first_result_ms": 5944.67,
+          "first_result_chain": [
+            "client.commit",
+            "client.frame_yield",
+            "client.digest_source",
+            "client.compress",
+            "client.sanitize",
+            "client.digest_compressed",
+            "client.evidence",
+            "client.auth_session",
+            "net.upload_a",
+            "server.a.account_gate",
+            "server.a.body_parse",
+            "server.a.auth_context",
+            "server.a.fingerprint",
+            "server.a.quota",
+            "server.a.gemini",
+            "server.a.garments",
+            "server.a.quality",
+            "server.a.serialize",
+            "net.download_a",
+            "client.parse_map",
+            "client.paint_identification",
+            "client.modeb_dispatch",
+            "net.upload_b",
+            "server.b.account_gate",
+            "server.b.auth_context",
+            "server.b.ratelimit",
+            "server.b.query_build",
+            "server.b.cache_check",
+            "server.b.discovery",
+            "server.b.rank",
+            "server.b.serialize",
+            "net.download_b",
+            "client.hydrate",
+            "client.paint_commerce"
+          ],
+          "first_result_evidence": "MODELED",
+          "complete_response_ms": 7467.62,
+          "complete_response_chain": [
+            "client.commit",
+            "client.frame_yield",
+            "client.digest_source",
+            "client.compress",
+            "client.sanitize",
+            "client.digest_compressed",
+            "client.evidence",
+            "client.auth_session",
+            "net.upload_a",
+            "server.a.account_gate",
+            "server.a.body_parse",
+            "server.a.auth_context",
+            "server.a.fingerprint",
+            "server.a.quota",
+            "server.a.gemini",
+            "server.a.garments",
+            "server.a.quality",
+            "server.a.serialize",
+            "net.download_a",
+            "client.parse_map",
+            "client.paint_identification",
+            "client.modeb_dispatch",
+            "net.upload_b",
+            "server.b.account_gate",
+            "server.b.auth_context",
+            "server.b.ratelimit",
+            "server.b.query_build",
+            "server.b.cache_check",
+            "server.b.discovery",
+            "server.b.rank",
+            "server.b.serialize",
+            "net.download_b",
+            "client.hydrate",
+            "client.paint_commerce",
+            "client.enrich_dispatch",
+            "net.upload_c",
+            "server.c.enrichment",
+            "server.c.serialize",
+            "net.download_c",
+            "client.paint_enriched"
+          ],
+          "complete_response_evidence": "MODELED",
+          "timed_out_stages": [],
+          "request_body_bytes": 48494
+        },
+        "mid": {
+          "first_result_ms": 8412.27,
+          "first_result_chain": [
+            "client.commit",
+            "client.frame_yield",
+            "client.digest_source",
+            "client.compress",
+            "client.sanitize",
+            "client.digest_compressed",
+            "client.evidence",
+            "client.auth_session",
+            "net.upload_a",
+            "server.a.account_gate",
+            "server.a.body_parse",
+            "server.a.auth_context",
+            "server.a.fingerprint",
+            "server.a.quota",
+            "server.a.gemini",
+            "server.a.garments",
+            "server.a.quality",
+            "server.a.serialize",
+            "net.download_a",
+            "client.parse_map",
+            "client.paint_identification",
+            "client.modeb_dispatch",
+            "net.upload_b",
+            "server.b.account_gate",
+            "server.b.auth_context",
+            "server.b.ratelimit",
+            "server.b.query_build",
+            "server.b.cache_check",
+            "server.b.discovery",
+            "server.b.rank",
+            "server.b.serialize",
+            "net.download_b",
+            "client.hydrate",
+            "client.paint_commerce"
+          ],
+          "first_result_evidence": "MODELED",
+          "complete_response_ms": 11473.22,
+          "complete_response_chain": [
+            "client.commit",
+            "client.frame_yield",
+            "client.digest_source",
+            "client.compress",
+            "client.sanitize",
+            "client.digest_compressed",
+            "client.evidence",
+            "client.auth_session",
+            "net.upload_a",
+            "server.a.account_gate",
+            "server.a.body_parse",
+            "server.a.auth_context",
+            "server.a.fingerprint",
+            "server.a.quota",
+            "server.a.gemini",
+            "server.a.garments",
+            "server.a.quality",
+            "server.a.serialize",
+            "net.download_a",
+            "client.parse_map",
+            "client.paint_identification",
+            "client.modeb_dispatch",
+            "net.upload_b",
+            "server.b.account_gate",
+            "server.b.auth_context",
+            "server.b.ratelimit",
+            "server.b.query_build",
+            "server.b.cache_check",
+            "server.b.discovery",
+            "server.b.rank",
+            "server.b.serialize",
+            "net.download_b",
+            "client.hydrate",
+            "client.paint_commerce",
+            "client.enrich_dispatch",
+            "net.upload_c",
+            "server.c.enrichment",
+            "server.c.serialize",
+            "net.download_c",
+            "client.paint_enriched"
+          ],
+          "complete_response_evidence": "MODELED",
+          "timed_out_stages": [],
+          "request_body_bytes": 120746
+        },
+        "high": {
+          "first_result_ms": 13133.95,
+          "first_result_chain": [
+            "client.commit",
+            "client.frame_yield",
+            "client.digest_source",
+            "client.compress",
+            "client.sanitize",
+            "client.digest_compressed",
+            "client.evidence",
+            "client.auth_session",
+            "net.upload_a",
+            "server.a.account_gate",
+            "server.a.body_parse",
+            "server.a.auth_context",
+            "server.a.fingerprint",
+            "server.a.quota",
+            "server.a.gemini",
+            "server.a.garments",
+            "server.a.quality",
+            "server.a.serialize",
+            "net.download_a",
+            "client.parse_map",
+            "client.paint_identification",
+            "client.modeb_dispatch",
+            "net.upload_b",
+            "server.b.account_gate",
+            "server.b.auth_context",
+            "server.b.ratelimit",
+            "server.b.query_build",
+            "server.b.cache_check",
+            "server.b.discovery",
+            "server.b.rank",
+            "server.b.serialize",
+            "net.download_b",
+            "client.hydrate",
+            "client.paint_commerce"
+          ],
+          "first_result_evidence": "MODELED",
+          "complete_response_ms": 17336.9,
+          "complete_response_chain": [
+            "client.commit",
+            "client.frame_yield",
+            "client.digest_source",
+            "client.compress",
+            "client.sanitize",
+            "client.digest_compressed",
+            "client.evidence",
+            "client.auth_session",
+            "net.upload_a",
+            "server.a.account_gate",
+            "server.a.body_parse",
+            "server.a.auth_context",
+            "server.a.fingerprint",
+            "server.a.quota",
+            "server.a.gemini",
+            "server.a.garments",
+            "server.a.quality",
+            "server.a.serialize",
+            "net.download_a",
+            "client.parse_map",
+            "client.paint_identification",
+            "client.modeb_dispatch",
+            "net.upload_b",
+            "server.b.account_gate",
+            "server.b.auth_context",
+            "server.b.ratelimit",
+            "server.b.query_build",
+            "server.b.cache_check",
+            "server.b.discovery",
+            "server.b.rank",
+            "server.b.serialize",
+            "net.download_b",
+            "client.hydrate",
+            "client.paint_commerce",
+            "client.enrich_dispatch",
+            "net.upload_c",
+            "server.c.enrichment",
+            "server.c.serialize",
+            "net.download_c",
+            "client.paint_enriched"
+          ],
+          "complete_response_evidence": "MODELED",
+          "timed_out_stages": [],
+          "request_body_bytes": 241170
+        }
+      },
+      "scan-funnel-off": {
+        "low": {
+          "first_result_ms": 7195.39,
+          "first_result_chain": [
+            "client.commit",
+            "client.frame_yield",
+            "client.digest_source",
+            "client.compress",
+            "client.sanitize",
+            "client.digest_compressed",
+            "client.evidence",
+            "client.auth_session",
+            "net.upload_a",
+            "server.account_gate",
+            "server.body_parse",
+            "server.auth_context",
+            "server.fingerprint",
+            "server.quota",
+            "server.gemini",
+            "server.garments",
+            "server.commerce_inline",
+            "server.similarity",
+            "server.serialize",
+            "net.download_a",
+            "client.parse_map",
+            "client.paint_result"
+          ],
+          "first_result_evidence": "MODELED",
+          "complete_response_ms": 7195.39,
+          "complete_response_chain": [
+            "client.commit",
+            "client.frame_yield",
+            "client.digest_source",
+            "client.compress",
+            "client.sanitize",
+            "client.digest_compressed",
+            "client.evidence",
+            "client.auth_session",
+            "net.upload_a",
+            "server.account_gate",
+            "server.body_parse",
+            "server.auth_context",
+            "server.fingerprint",
+            "server.quota",
+            "server.gemini",
+            "server.garments",
+            "server.commerce_inline",
+            "server.similarity",
+            "server.serialize",
+            "net.download_a",
+            "client.parse_map",
+            "client.paint_result"
+          ],
+          "complete_response_evidence": "MODELED",
+          "timed_out_stages": [],
+          "request_body_bytes": 48494
+        },
+        "mid": {
+          "first_result_ms": 10448.99,
+          "first_result_chain": [
+            "client.commit",
+            "client.frame_yield",
+            "client.digest_source",
+            "client.compress",
+            "client.sanitize",
+            "client.digest_compressed",
+            "client.evidence",
+            "client.auth_session",
+            "net.upload_a",
+            "server.account_gate",
+            "server.body_parse",
+            "server.auth_context",
+            "server.fingerprint",
+            "server.quota",
+            "server.gemini",
+            "server.garments",
+            "server.commerce_inline",
+            "server.similarity",
+            "server.serialize",
+            "net.download_a",
+            "client.parse_map",
+            "client.paint_result"
+          ],
+          "first_result_evidence": "MODELED",
+          "complete_response_ms": 10448.99,
+          "complete_response_chain": [
+            "client.commit",
+            "client.frame_yield",
+            "client.digest_source",
+            "client.compress",
+            "client.sanitize",
+            "client.digest_compressed",
+            "client.evidence",
+            "client.auth_session",
+            "net.upload_a",
+            "server.account_gate",
+            "server.body_parse",
+            "server.auth_context",
+            "server.fingerprint",
+            "server.quota",
+            "server.gemini",
+            "server.garments",
+            "server.commerce_inline",
+            "server.similarity",
+            "server.serialize",
+            "net.download_a",
+            "client.parse_map",
+            "client.paint_result"
+          ],
+          "complete_response_evidence": "MODELED",
+          "timed_out_stages": [
+            {
+              "stage": "server.commerce_inline",
+              "timeout_ms": 7600,
+              "clamped_to": 3000
+            }
+          ],
+          "request_body_bytes": 120746
+        },
+        "high": {
+          "first_result_ms": 13785.67,
+          "first_result_chain": [
+            "client.commit",
+            "client.frame_yield",
+            "client.digest_source",
+            "client.compress",
+            "client.sanitize",
+            "client.digest_compressed",
+            "client.evidence",
+            "client.auth_session",
+            "net.upload_a",
+            "server.account_gate",
+            "server.body_parse",
+            "server.auth_context",
+            "server.fingerprint",
+            "server.quota",
+            "server.gemini",
+            "server.garments",
+            "server.commerce_inline",
+            "server.similarity",
+            "server.serialize",
+            "net.download_a",
+            "client.parse_map",
+            "client.paint_result"
+          ],
+          "first_result_evidence": "MODELED",
+          "complete_response_ms": 13785.67,
+          "complete_response_chain": [
+            "client.commit",
+            "client.frame_yield",
+            "client.digest_source",
+            "client.compress",
+            "client.sanitize",
+            "client.digest_compressed",
+            "client.evidence",
+            "client.auth_session",
+            "net.upload_a",
+            "server.account_gate",
+            "server.body_parse",
+            "server.auth_context",
+            "server.fingerprint",
+            "server.quota",
+            "server.gemini",
+            "server.garments",
+            "server.commerce_inline",
+            "server.similarity",
+            "server.serialize",
+            "net.download_a",
+            "client.parse_map",
+            "client.paint_result"
+          ],
+          "complete_response_evidence": "MODELED",
+          "timed_out_stages": [
+            {
+              "stage": "server.commerce_inline",
+              "timeout_ms": 12500,
+              "clamped_to": 3000
+            },
+            {
+              "stage": "server.similarity",
+              "timeout_ms": 900,
+              "clamped_to": 300
+            }
+          ],
+          "request_body_bytes": 241170
+        }
+      }
+    },
+    "payload_bytes": {
+      "ios": {
+        "low": {
+          "compressed_image_bytes": 36127,
+          "base64_bytes": 48172,
+          "base64_expansion_ratio": 1.3334071470091622,
+          "json_envelope_bytes": 320,
+          "request_body_bytes": 48494,
+          "post_resize": {
+            "width": 896,
+            "height": 672
+          },
+          "pixels": 602112,
+          "bytes_per_pixel": 0.06,
+          "bpp_band": "low",
+          "evidence": {
+            "resize_target": "PROVEN (services/imageUtils.js:45, width 896)",
+            "base64_expansion": "PROVEN (exact arithmetic, 4/3 with padding)",
+            "bytes_per_pixel": "MODELED (anchored on the OBSERVED bpp range of the committed qa_fixtures)",
+            "overall": "MODELED"
+          }
+        },
+        "mid": {
+          "compressed_image_bytes": 90317,
+          "base64_bytes": 120424,
+          "base64_expansion_ratio": 1.3333480961502264,
+          "json_envelope_bytes": 320,
+          "request_body_bytes": 120746,
+          "post_resize": {
+            "width": 896,
+            "height": 672
+          },
+          "pixels": 602112,
+          "bytes_per_pixel": 0.15,
+          "bpp_band": "mid",
+          "evidence": {
+            "resize_target": "PROVEN (services/imageUtils.js:45, width 896)",
+            "base64_expansion": "PROVEN (exact arithmetic, 4/3 with padding)",
+            "bytes_per_pixel": "MODELED (anchored on the OBSERVED bpp range of the committed qa_fixtures)",
+            "overall": "MODELED"
+          }
+        },
+        "high": {
+          "compressed_image_bytes": 180634,
+          "base64_bytes": 240848,
+          "base64_expansion_ratio": 1.3333480961502264,
+          "json_envelope_bytes": 320,
+          "request_body_bytes": 241170,
+          "post_resize": {
+            "width": 896,
+            "height": 672
+          },
+          "pixels": 602112,
+          "bytes_per_pixel": 0.3,
+          "bpp_band": "high",
+          "evidence": {
+            "resize_target": "PROVEN (services/imageUtils.js:45, width 896)",
+            "base64_expansion": "PROVEN (exact arithmetic, 4/3 with padding)",
+            "bytes_per_pixel": "MODELED (anchored on the OBSERVED bpp range of the committed qa_fixtures)",
+            "overall": "MODELED"
+          }
+        }
+      },
+      "android": {
+        "low": {
+          "compressed_image_bytes": 36127,
+          "base64_bytes": 48172,
+          "base64_expansion_ratio": 1.3334071470091622,
+          "json_envelope_bytes": 320,
+          "request_body_bytes": 48494,
+          "post_resize": {
+            "width": 896,
+            "height": 672
+          },
+          "pixels": 602112,
+          "bytes_per_pixel": 0.06,
+          "bpp_band": "low",
+          "evidence": {
+            "resize_target": "PROVEN (services/imageUtils.js:45, width 896)",
+            "base64_expansion": "PROVEN (exact arithmetic, 4/3 with padding)",
+            "bytes_per_pixel": "MODELED (anchored on the OBSERVED bpp range of the committed qa_fixtures)",
+            "overall": "MODELED"
+          }
+        },
+        "mid": {
+          "compressed_image_bytes": 90317,
+          "base64_bytes": 120424,
+          "base64_expansion_ratio": 1.3333480961502264,
+          "json_envelope_bytes": 320,
+          "request_body_bytes": 120746,
+          "post_resize": {
+            "width": 896,
+            "height": 672
+          },
+          "pixels": 602112,
+          "bytes_per_pixel": 0.15,
+          "bpp_band": "mid",
+          "evidence": {
+            "resize_target": "PROVEN (services/imageUtils.js:45, width 896)",
+            "base64_expansion": "PROVEN (exact arithmetic, 4/3 with padding)",
+            "bytes_per_pixel": "MODELED (anchored on the OBSERVED bpp range of the committed qa_fixtures)",
+            "overall": "MODELED"
+          }
+        },
+        "high": {
+          "compressed_image_bytes": 180634,
+          "base64_bytes": 240848,
+          "base64_expansion_ratio": 1.3333480961502264,
+          "json_envelope_bytes": 320,
+          "request_body_bytes": 241170,
+          "post_resize": {
+            "width": 896,
+            "height": 672
+          },
+          "pixels": 602112,
+          "bytes_per_pixel": 0.3,
+          "bpp_band": "high",
+          "evidence": {
+            "resize_target": "PROVEN (services/imageUtils.js:45, width 896)",
+            "base64_expansion": "PROVEN (exact arithmetic, 4/3 with padding)",
+            "bytes_per_pixel": "MODELED (anchored on the OBSERVED bpp range of the committed qa_fixtures)",
+            "overall": "MODELED"
+          }
+        }
+      }
+    },
+    "network_exposure": {
+      "uplink_sweep_mbps": [
+        {
+          "uplink_mbps": 0.5,
+          "first_result_ms": 10180.5
+        },
+        {
+          "uplink_mbps": 1,
+          "first_result_ms": 9198.15
+        },
+        {
+          "uplink_mbps": 2,
+          "first_result_ms": 8706.98
+        },
+        {
+          "uplink_mbps": 5,
+          "first_result_ms": 8412.27
+        },
+        {
+          "uplink_mbps": 10,
+          "first_result_ms": 8314.04
+        },
+        {
+          "uplink_mbps": 25,
+          "first_result_ms": 8255.09
+        },
+        {
+          "uplink_mbps": 50,
+          "first_result_ms": 8235.45
+        }
+      ],
+      "rtt_sweep_ms": [
+        {
+          "rtt_ms": 20,
+          "first_result_ms": 8252.27
+        },
+        {
+          "rtt_ms": 50,
+          "first_result_ms": 8312.27
+        },
+        {
+          "rtt_ms": 100,
+          "first_result_ms": 8412.27
+        },
+        {
+          "rtt_ms": 200,
+          "first_result_ms": 8612.27
+        },
+        {
+          "rtt_ms": 400,
+          "first_result_ms": 9012.27
+        }
+      ],
+      "upload_dominance": {
+        "low": {
+          "threshold_mbps": 0.1489779539109631,
+          "payload_bytes": 48494,
+          "other_path_ms": 8412.27,
+          "share_of_budget": 0.25,
+          "evidence_class": "MODELED",
+          "interpretation": "below ~0.15 Mbps uplink, upload contributes at least 25% of this path"
+        },
+        "mid": {
+          "threshold_mbps": 0.37094263255110227,
+          "payload_bytes": 120746,
+          "other_path_ms": 8412.27,
+          "share_of_budget": 0.25,
+          "evidence_class": "MODELED",
+          "interpretation": "below ~0.37 Mbps uplink, upload contributes at least 25% of this path"
+        },
+        "high": {
+          "threshold_mbps": 0.7408960519797702,
+          "payload_bytes": 241170,
+          "other_path_ms": 8412.27,
+          "share_of_budget": 0.25,
+          "evidence_class": "MODELED",
+          "interpretation": "below ~0.74 Mbps uplink, upload contributes at least 25% of this path"
+        }
+      }
+    },
+    "provider_exposure": {
+      "poshmark": [
+        {
+          "ms": 400,
+          "first_result_ms": 7912.27,
+          "timed_out": []
+        },
+        {
+          "ms": 900,
+          "first_result_ms": 8412.27,
+          "timed_out": []
+        },
+        {
+          "ms": 1500,
+          "first_result_ms": 8412.27,
+          "timed_out": []
+        },
+        {
+          "ms": 1900,
+          "first_result_ms": 8412.27,
+          "timed_out": []
+        },
+        {
+          "ms": 3000,
+          "first_result_ms": 8412.27,
+          "timed_out": []
+        },
+        {
+          "ms": 6000,
+          "first_result_ms": 8412.27,
+          "timed_out": []
+        },
+        {
+          "ms": 13900,
+          "first_result_ms": 8412.27,
+          "timed_out": []
+        }
+      ],
+      "serper": [
+        {
+          "ms": 400,
+          "first_result_ms": 7912.27,
+          "timed_out": []
+        },
+        {
+          "ms": 900,
+          "first_result_ms": 8412.27,
+          "timed_out": []
+        },
+        {
+          "ms": 1500,
+          "first_result_ms": 8712.27,
+          "timed_out": []
+        },
+        {
+          "ms": 1900,
+          "first_result_ms": 8712.27,
+          "timed_out": []
+        },
+        {
+          "ms": 3000,
+          "first_result_ms": 8712.27,
+          "timed_out": []
+        },
+        {
+          "ms": 6000,
+          "first_result_ms": 8712.27,
+          "timed_out": []
+        }
+      ]
+    },
+    "identification_exposure": [
+      {
+        "ms": 1000,
+        "first_result_ms": 3312.27,
+        "timed_out": []
+      },
+      {
+        "ms": 2500,
+        "first_result_ms": 4812.27,
+        "timed_out": []
+      },
+      {
+        "ms": 4909,
+        "first_result_ms": 7221.27,
+        "timed_out": []
+      },
+      {
+        "ms": 6100,
+        "first_result_ms": 8412.27,
+        "timed_out": []
+      },
+      {
+        "ms": 7256,
+        "first_result_ms": 9568.27,
+        "timed_out": []
+      },
+      {
+        "ms": 10000,
+        "first_result_ms": 12312.27,
+        "timed_out": []
+      },
+      {
+        "ms": 14000,
+        "first_result_ms": 16312.27,
+        "timed_out": []
+      },
+      {
+        "ms": 20000,
+        "first_result_ms": 16312.27,
+        "timed_out": [
+          "server.a.gemini"
+        ]
+      }
+    ],
+    "timeout_exposure": [
+      "scan-funnel-off/mid:server.commerce_inline",
+      "scan-funnel-off/high:server.commerce_inline",
+      "scan-funnel-off/high:server.similarity"
+    ],
+    "retry_exposure": {
+      "max_extra_attempts": 1,
+      "evidence": "PROVEN — llmModelRouting.ts:33 SCANNER_MAX_ATTEMPTS=2",
+      "structural_note": "PROVEN — index.ts:2770 arms ONE AbortController for the whole attempt loop, so a retry consumes the same 14s budget rather than extending it. Retries cannot make the request longer than 14s; they can only make it more likely to be truncated."
+    },
+    "first_result_critical_path": [
+      "client.commit",
+      "client.frame_yield",
+      "client.digest_source",
+      "client.compress",
+      "client.sanitize",
+      "client.digest_compressed",
+      "client.evidence",
+      "client.auth_session",
+      "net.upload_a",
+      "server.a.account_gate",
+      "server.a.body_parse",
+      "server.a.auth_context",
+      "server.a.fingerprint",
+      "server.a.quota",
+      "server.a.gemini",
+      "server.a.garments",
+      "server.a.quality",
+      "server.a.serialize",
+      "net.download_a",
+      "client.parse_map",
+      "client.paint_identification",
+      "client.modeb_dispatch",
+      "net.upload_b",
+      "server.b.account_gate",
+      "server.b.auth_context",
+      "server.b.ratelimit",
+      "server.b.query_build",
+      "server.b.cache_check",
+      "server.b.discovery",
+      "server.b.rank",
+      "server.b.serialize",
+      "net.download_b",
+      "client.hydrate",
+      "client.paint_commerce"
+    ],
+    "complete_response_critical_path": [
+      "client.commit",
+      "client.frame_yield",
+      "client.digest_source",
+      "client.compress",
+      "client.sanitize",
+      "client.digest_compressed",
+      "client.evidence",
+      "client.auth_session",
+      "net.upload_a",
+      "server.a.account_gate",
+      "server.a.body_parse",
+      "server.a.auth_context",
+      "server.a.fingerprint",
+      "server.a.quota",
+      "server.a.gemini",
+      "server.a.garments",
+      "server.a.quality",
+      "server.a.serialize",
+      "net.download_a",
+      "client.parse_map",
+      "client.paint_identification",
+      "client.modeb_dispatch",
+      "net.upload_b",
+      "server.b.account_gate",
+      "server.b.auth_context",
+      "server.b.ratelimit",
+      "server.b.query_build",
+      "server.b.cache_check",
+      "server.b.discovery",
+      "server.b.rank",
+      "server.b.serialize",
+      "net.download_b",
+      "client.hydrate",
+      "client.paint_commerce",
+      "client.enrich_dispatch",
+      "net.upload_c",
+      "server.c.enrichment",
+      "server.c.serialize",
+      "net.download_c",
+      "client.paint_enriched"
+    ]
+  }
+}

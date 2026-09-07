@@ -1,0 +1,106 @@
+{
+  "scenario_id": "scan-funnel-off",
+  "scenario_version": "scenario-v1",
+  "title": "Image scan, commerce funnel v127 DISABLED (the source default)",
+  "architecture_note": "Commerce runs INLINE inside the single scan-identify response, wrapped in a 3000 ms Promise.race (index.ts:3810). The identification and the commerce shelf therefore arrive together in one body: TTFAR and complete-response COINCIDE. That coupling is the whole point of the contrast with scan-funnel-on.",
+  "flag_state": {
+    "BACKEND_COMMERCE_FUNNEL_V127_ENABLED": "false",
+    "provenance": "commerceFunnelConfig.ts:32 COMMERCE_FUNNEL_DEFAULT_ENABLED = false — this is what ships absent an env override.",
+    "evidence_class": "PROVEN"
+  },
+  "first_result_terminal": "client.paint_result",
+  "completion_terminal": "client.paint_result",
+  "terminals_coincide": true,
+  "terminals_coincide_reason": "With commerce inline there is no partial paint: the client awaits one buffered body containing identification AND commerce, so nothing becomes actionable before everything does.",
+
+  "stages": [
+    { "id": "client.commit", "deps": [], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "zero" }, "source": "hooks/useKScan.js:390 runAnalysis" },
+
+    { "id": "client.frame_yield", "deps": ["client.commit"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "param", "param": "client_frame_yield_ms" },
+      "source": "hooks/useKScan.js:547" },
+
+    { "id": "client.digest_source", "deps": ["client.frame_yield"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "param", "param": "client_digest_ms" }, "source": "hooks/useKScan.js:566" },
+
+    { "id": "client.compress", "deps": ["client.digest_source"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "param", "param": "client_compress_ms" },
+      "source": "services/imageUtils.js:43 manipulateAsync resize width 896, JPEG quality 0.65, base64:true" },
+
+    { "id": "client.sanitize", "deps": ["client.compress"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "zero" }, "source": "services/privacyImageSanitizer.js:26 — PROVEN passthrough" },
+
+    { "id": "client.digest_compressed", "deps": ["client.sanitize"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "param", "param": "client_digest_ms" }, "source": "hooks/useKScan.js:587" },
+
+    { "id": "client.evidence", "deps": ["client.digest_compressed"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "zero" }, "source": "hooks/useKScan.js:620" },
+
+    { "id": "client.auth_session", "deps": ["client.evidence"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "param", "param": "client_auth_session_ms" },
+      "source": "services/scanIdentification.ts:488" },
+
+    { "id": "net.upload_a", "deps": ["client.auth_session"], "evidence_class": "MODELED", "blocks_first_result": true,
+      "where": "network", "duration": { "kind": "upload" } },
+
+    { "id": "server.account_gate", "deps": ["net.upload_a"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "server", "duration": { "kind": "param", "param": "server_account_gate_ms" }, "source": "index.ts:1832" },
+
+    { "id": "server.body_parse", "deps": ["server.account_gate"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "server", "duration": { "kind": "param", "param": "server_body_parse_ms" }, "source": "index.ts:1872" },
+
+    { "id": "server.auth_context", "deps": ["server.body_parse"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "server", "duration": { "kind": "param", "param": "server_auth_context_ms" }, "source": "index.ts:1966" },
+
+    { "id": "server.fingerprint", "deps": ["server.auth_context"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "server", "duration": { "kind": "param", "param": "server_fingerprint_ms" }, "source": "index.ts:2498" },
+
+    { "id": "server.quota", "deps": ["server.fingerprint"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "server", "duration": { "kind": "param", "param": "server_quota_ms" }, "source": "index.ts:2534" },
+
+    { "id": "server.gemini", "deps": ["server.quota"], "evidence_class": "OBSERVED", "blocks_first_result": true,
+      "where": "server", "duration": { "kind": "param", "param": "gemini_ms" },
+      "timeout_ms": 14000,
+      "retry": { "max_attempts": 2, "base_delay_ms": 250, "max_delay_ms": 2000, "failed_attempt_param": "gemini_failed_attempt_ms" },
+      "source": "index.ts:2656 / index.ts:185 / index.ts:2770" },
+
+    { "id": "server.garments", "deps": ["server.gemini"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "server", "duration": { "kind": "param", "param": "server_cpu_small_ms" } },
+
+    { "id": "server.commerce_inline", "deps": ["server.garments"], "evidence_class": "MODELED", "blocks_first_result": true,
+      "where": "server",
+      "duration": { "kind": "fanin", "concurrent": false,
+        "children": ["legacy_discovery_ms", "legacy_enrich_farfetch_ms", "legacy_enrich_kickscrew_ms"] },
+      "timeout_ms": 3000,
+      "source": "index.ts:3810 Promise.race([getScanCommerceResults(...), setTimeout(3000)]) wrapping scanCommerceRouter.ts:1428 Promise.all over BOTH providers (GLOBAL_DISCOVERY_DEADLINE_MS=4500, no early exit) followed by TWO SERIAL enrichment hops at :1470 and :1481 which have NO deadline of their own. concurrent:false because those hops are sequential. The outer 3000 ms race abandons — but does not cancel — whatever is still running.",
+      "structural_hazard": "The outer race (3000) is SHORTER than the inner discovery budget (4500), and the serial enrichment hops are unbounded except by their providers' own 4000 ms aborts. Two of the three timeout layers therefore can never be reached by the caller." },
+
+    { "id": "server.similarity", "deps": ["server.commerce_inline"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "server", "duration": { "kind": "param", "param": "similarity_ms" }, "timeout_ms": 300,
+      "source": "index.ts:3907 runs SERIALLY AFTER commerce, raced at index.ts:4305 against SIMILARITY_TIMEOUT_MS=300 (index.ts:187). It has no data dependency on commerce results — see the opportunity report." },
+
+    { "id": "server.serialize", "deps": ["server.similarity"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "server", "duration": { "kind": "param", "param": "server_serialize_ms" },
+      "source": "index.ts:4195 return json(finalResponse, 200)" },
+
+    { "id": "net.download_a", "deps": ["server.serialize"], "evidence_class": "MODELED", "blocks_first_result": true,
+      "where": "network", "duration": { "kind": "download", "bytes": 36000 } },
+
+    { "id": "client.parse_map", "deps": ["net.download_a"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "param", "param": "client_parse_ms" }, "source": "hooks/useKScan.js:659" },
+
+    { "id": "client.floor_min_analysis", "deps": ["client.commit"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "fixed", "ms": 600, "evidence_class": "PROVEN" },
+      "source": "hooks/useKScan.js:31 MIN_ANALYSIS_MS" },
+
+    { "id": "client.floor_analyzing_display", "deps": ["client.commit"], "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "fixed", "ms": 1500, "evidence_class": "PROVEN" },
+      "source": "components/scan-room/AnalyzingScan.tsx:28 MIN_DISPLAY_MS" },
+
+    { "id": "client.paint_result", "deps": ["client.parse_map", "client.floor_min_analysis", "client.floor_analyzing_display"],
+      "evidence_class": "PROVEN", "blocks_first_result": true,
+      "where": "client", "duration": { "kind": "param", "param": "client_render_ms" },
+      "source": "hooks/useKScan.js:488-492 — identification AND commerce commit in the same setState. FIRST ACTIONABLE RESULT and COMPLETION TERMINAL are the same event." }
+  ]
+}
