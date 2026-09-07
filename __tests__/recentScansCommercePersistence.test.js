@@ -286,7 +286,12 @@ test('purchase action opens the persisted URL via the canonical handler', () => 
   const reopened = reopen(serializeScan(analysis));
 
   // ProductShelf resolves the URL from data only.
-  assert.match(productShelfSource, /openPersistedCommerceUrl\(url/);
+  // Commerce V2 (Build 35 §28): the Shop tap now routes through the shared
+  // commerce-exit contract (openCommerceOffer) instead of calling
+  // openPersistedCommerceUrl directly -- same persisted-URL safety gate,
+  // same Linking.openURL opener, one governed path instead of one per card.
+  assert.match(productShelfSource, /openCommerceOffer\(/);
+  assert.match(productShelfSource, /validate: normalizePersistedCommerceUrl/);
   assert.match(productShelfSource, /Linking\.openURL\(safeUrl\)/);
   assert.match(productShelfSource, /onPress=\{\(\) => handleLinkPress\(purchaseUrl\)\}/);
   // No callback/navigation prop is threaded into the shelf.

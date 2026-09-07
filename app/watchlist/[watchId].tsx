@@ -26,7 +26,7 @@ import {
 } from '../../components/luxury';
 import { KPlusGate } from '../../components/kplus/KPlusGate';
 import { LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/theme';
-import { formatCommercePrice, openPersistedCommerceUrl } from '../../services/dressingRoomCommerce';
+import { formatCommercePrice, normalizePersistedCommerceUrl } from '../../services/dressingRoomCommerce';
 import {
   fetchWatch,
   fetchWatchEvents,
@@ -36,6 +36,9 @@ import {
   refreshWatches,
 } from '../../services/watchlist/watchlistClient';
 import type { CommerceWatch, CommerceWatchEvent } from '../../types/watchlist';
+import { resolveRetailerIdentity } from '../../services/commerce/retailerIdentity';
+import { RetailerIdentity } from '../../components/commerce/RetailerIdentity';
+import { openCommerceOffer } from '../../services/commerce/commerceExit';
 
 function relativeTime(iso: string | null): string {
   if (!iso) return 'Not checked yet';
@@ -169,7 +172,16 @@ export default function WatchDetailScreen() {
 
   const handleOpenRetailer = useCallback(() => {
     if (!watch) return;
-    void openPersistedCommerceUrl(watch.canonicalUrl, (safeUrl) => Linking.openURL(safeUrl));
+    // §62: opens the exact governed listing URL already stored on the
+    // Watch -- never reconstructed from the retailer name. canonicalUrl is
+    // PERSISTED data, so this uses the stricter persisted-URL safety gate
+    // (normalizePersistedCommerceUrl), not the live-URL one.
+    void openCommerceOffer(
+      { productUrl: watch.canonicalUrl, retailer: watch.source },
+      'watchlist_detail',
+      (safeUrl) => Linking.openURL(safeUrl),
+      { action: 'shop', validate: normalizePersistedCommerceUrl },
+    );
   }, [watch]);
 
   if (loading || !watch) {
@@ -213,7 +225,7 @@ export default function WatchDetailScreen() {
         <Text style={styles.title} numberOfLines={3}>
           {watch.displayTitle}
         </Text>
-        <Text style={styles.retailer}>{watch.source.toUpperCase()}</Text>
+        <RetailerIdentity identity={resolveRetailerIdentity({ retailer: watch.source })} mode="watchlist" />
 
         <Text style={styles.currentPrice}>{currentPrice ?? 'Price unavailable'}</Text>
         {startedPrice ? <Text style={styles.startedPrice}>Started watching at {startedPrice}</Text> : null}
@@ -273,7 +285,6 @@ const styles = StyleSheet.create({
   hero: { paddingHorizontal: SPACING.lg, alignItems: 'flex-start', gap: 4 },
   heroImage: { width: '100%', height: 220, borderRadius: RADIUS.lg, marginBottom: SPACING.sm, backgroundColor: LUXURY.colors.ivory },
   title: { ...TYPOGRAPHY.title, color: LUXURY.colors.plum },
-  retailer: { ...TYPOGRAPHY.caption, color: LUXURY.colors.plumMuted, letterSpacing: 0.5 },
   currentPrice: { ...TYPOGRAPHY.headline, color: LUXURY.colors.plum, marginTop: SPACING.xs },
   startedPrice: { ...TYPOGRAPHY.caption, color: LUXURY.colors.plumMuted },
   intentPill: { marginTop: SPACING.sm },
