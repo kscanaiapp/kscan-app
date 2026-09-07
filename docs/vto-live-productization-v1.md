@@ -388,3 +388,98 @@ Stated plainly so nothing is inferred from silence:
   bridge surface, with this lane's supersessions marked in place.
 - `modules/kscan-live-vto-native/goldens/tracking-quality-scenarios.json` — the
   tracking contract, executable.
+
+---
+
+## 12. Decision memos
+
+Four decisions this lane made that a reviewer should be able to disagree with
+on the record.
+
+### 12.1 Occlusion: no segmentation was added
+
+**Decision:** leave `setOutputSegmentationMasks(false)` exactly where it is.
+
+The bundled MediaPipe Pose Landmarker **can** emit a segmentation mask — the
+capability exists and is deliberately switched off, so this is not "there is no
+local segmentation authority", it is "there is one and we are not turning it
+on".
+
+Turning it on is neither free nor verifiable here. It adds real per-frame mask
+generation to a pipeline whose device behaviour is entirely unmeasured and
+whose one measured device already carries a camera hold; and *consuming* a mask
+means a new masked-compositing path in the renderer whose visual correctness
+cannot be judged without a phone. §46 forbids performance work without device
+evidence — shipping an unvalidatable performance **regression** is the same rule
+read backwards.
+
+**What was done instead**, which is §30's own stated fallback:
+
+- **z-order preserved and asserted** — the camera preview is inserted beneath
+  the view's own drawing, the view opts back into `onDraw`, and mesh draws
+  correspond one-to-one with the four modes;
+- **replay tests for the likely occlusion cases** — arm across torso (both
+  sides), arms overhead, arms absent, partial torso turn, and every golden
+  degradation case;
+- **the invariant that actually matters without a mask**: when an arm moves,
+  the **torso** control points are bit-identical and only the **sleeves**
+  articulate. A limb drawn under the garment is a survivable limitation; a
+  garment that swims whenever the customer gestures reads as a broken renderer.
+
+That test's first version asserted *nothing* should move and failed
+immediately — `LiveVtoGarmentAttachment` says in its own words that "sleeves
+are the one family that does not follow the torso frame". The corrected version
+asserts both halves, the second as a negative control so a refactor that froze
+the sleeves could not pass by making the first trivially true.
+
+**Occlusion QUALITY verdict: PENDING-RUNTIME.** Journey C5 collects it.
+
+### 12.2 Photoreal: HOLD — PROVIDER, zero attempts
+
+**Decision:** make no provider call. **Attempts: 0 of the 3 permitted. Billable
+attempts: 0. Spend: $0.**
+
+Two independent reasons, either sufficient:
+
+1. **No credential path exists from this environment.** There is no `.env`, and
+   no `SUPABASE_STAGING_*` variable is set. The harness cannot authenticate, so
+   there was nothing to attempt.
+2. **The paid path is owner-gated by design.** `vto-e2e.yml`'s
+   `staging-full-certification` job requires a `workflow_dispatch` with
+   `confirm_paid_certification: YES`. Triggering that is an owner act, and §27
+   forbids authorizing new spend.
+
+§27's instruction where cost cannot be determined safely is to **stop and
+record OWNER ACTION — SPEND AUTHORITY REQUIRED**, which is what this is.
+
+**What was proven instead, at the contract level:** the refusal set (§52) is
+executed in `__tests__/vtoLivePilotNegativeControls.test.js` — a composited
+`PREVIEW` refused at the gate, every malformed handle refused, every failure
+code returning a usable Live session, no provider identity reachable in
+customer copy, and no network client anywhere in the handoff. Prior evidence
+already established client → staging → provider as **CONNECTED**, with the last
+provider outcome `submit_http_429`. A successful generation remains
+**NOT YET PROVEN**.
+
+### 12.3 Pilot assets: BLOCKED — SOURCE MATERIAL
+
+**Decision:** the governed pilot set stays at two assets.
+
+§20 permits expansion only from source imagery that already exists in the
+repository or in approved project inputs and can pass through the *existing*
+governed asset factory. No such material exists. Third-party retailer imagery
+may not be newly bundled into a distributable binary without owner
+authorization, and fabricating assets or hand-authoring them outside the
+factory is forbidden outright.
+
+`vtoLivePilotNegativeControls.test.js` pins the count at two with the full
+rights record an addition would need, so a later expansion is a deliberate act
+rather than a quiet append.
+
+### 12.4 Staging build flag: reverted, escalated
+
+Covered in full in §8. The short version: the correct home for the flag is
+`staging-certification`, two governed gates say that list is owner-ratified,
+and §36's own instruction is to fail closed when authority cannot be resolved.
+The rule that governs *where* Live may point is in place and proven able to
+fail; the activation itself is a three-line owner edit.
