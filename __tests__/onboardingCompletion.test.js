@@ -42,6 +42,14 @@ function loadService({ initial = {}, remotelyComplete = false } = {}) {
           },
         };
       }
+      if (id === '../constants/legal') {
+        return {
+          TERMS_VERSION: '1.0',
+          PRIVACY_VERSION: '1.0',
+          AGE_VERSION: '1.0',
+          AI_PROCESSING_VERSION: 'v1',
+        };
+      }
       throw new Error(`Unexpected require: ${id}`);
     },
   }, { filename });
@@ -52,13 +60,25 @@ function loadService({ initial = {}, remotelyComplete = false } = {}) {
   };
 }
 
-test('local onboarding completion remains the fast path without a remote read', async () => {
-  const service = loadService({
-    initial: { 'onboardingComplete:private-user': 'true' },
-  });
+test('current version-bound onboarding completion remains the fast path without a remote read', async () => {
+  const service = loadService();
+  service.storage.set(
+    'onboardingComplete:private-user',
+    service.CURRENT_ONBOARDING_COMPLETION_MARKER,
+  );
 
   assert.equal(await service.resolveOnboardingCompletion('private-user'), true);
   assert.equal(service.getRemoteChecks(), 0);
+});
+
+test('legacy boolean completion cannot bypass the current AI-processing acceptance', async () => {
+  const service = loadService({
+    initial: { 'onboardingComplete:private-user': 'true' },
+    remotelyComplete: false,
+  });
+
+  assert.equal(await service.resolveOnboardingCompletion('private-user'), false);
+  assert.equal(service.getRemoteChecks(), 1);
 });
 
 test('remote legal evidence restores the local completion flag after app data is cleared', async () => {
@@ -66,7 +86,10 @@ test('remote legal evidence restores the local completion flag after app data is
 
   assert.equal(await service.resolveOnboardingCompletion('private-user'), true);
   assert.equal(service.getRemoteChecks(), 1);
-  assert.equal(service.storage.get('onboardingComplete:private-user'), 'true');
+  assert.equal(
+    service.storage.get('onboardingComplete:private-user'),
+    service.CURRENT_ONBOARDING_COMPLETION_MARKER,
+  );
 });
 
 test('a new OAuth identity without remote legal evidence stays incomplete', async () => {
