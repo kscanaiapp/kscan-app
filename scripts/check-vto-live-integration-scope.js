@@ -54,7 +54,9 @@
  * resolve is an error, not a skip.
  *
  * Exit codes:
- *   0  every changed path is authorized, OR this is not a VTO enforcement lane
+ *   0  every VTO-OWNED changed path is authorized (see VTO_OWNED_PREFIXES --
+ *      paths outside VTO ownership are reported as NOT JUDGED, never as
+ *      approved), OR this is not a VTO enforcement lane
  *      and the live diff reported NOT APPLICABLE (the static manifest controls
  *      ran and passed either way)
  *   1  the diff reached outside the authorized boundary, the manifest is
@@ -115,6 +117,99 @@ function parseAuthorizedPatterns(markdown) {
   }
 
   return { patterns, problems };
+}
+
+/**
+ * WHICH CHANGED PATHS THIS MANIFEST GOVERNS.
+ *
+ * The manifest is the VTO lane's mutation boundary. It is not, and was never
+ * meant to be, an ownership claim over the whole repository -- but that is
+ * what enforcing it against a WHOLE diff amounts to as soon as the diff is not
+ * a single lane's.
+ *
+ * Declaring lane membership (KSCAN_VTO_SCOPE_ENFORCE) fixed the case of a
+ * NON-VTO branch being judged. It did not fix the MIXED case. An integration
+ * branch merges a VTO lane together with unrelated lanes, so it touches VTO
+ * paths and is therefore, correctly, a VTO lane -- and was then told that the
+ * research labs, the commerce work and the onboarding repairs it also carries
+ * were "paths the integration manifest does not authorize". Every one of those
+ * lanes is reviewed on its own terms; none of them is answerable to THIS
+ * boundary.
+ *
+ * The unit of enforcement is therefore the VTO-OWNED SUBSET of the diff, not
+ * the diff. A path is judged when it belongs to VTO; anything else is reported
+ * as NOT JUDGED and passes this guard without the guard claiming it is
+ * correct -- only that it is somebody else's question.
+ *
+ * This is deliberately NOT lane inference. Nothing here reads a branch name,
+ * and there is no bypass: a mixed PR is judged exactly as hard on its VTO
+ * paths as a pure VTO lane is. One unauthorized VTO path fails the guard
+ * whether it arrives alone or alongside a thousand unrelated files.
+ *
+ * WHAT THIS GIVES UP, STATED PLAINLY. Under the old whole-diff rule, a VTO
+ * lane that also edited an unrelated production file -- `app/onboarding/index.tsx`,
+ * say -- was refused unless that file earned a manifest row. It no longer is.
+ * That reach is what made the guard unusable for integration, and the owner
+ * ruling of 2026-09-07 scopes it out on purpose: the VTO manifest governs VTO
+ * paths, and other paths answer to their own gates and reviews. The manifest
+ * keeps several rows for non-VTO paths a past VTO lane legitimately touched
+ * (`app/_layout.tsx`, `package.json`, the Android manifests, the analytics
+ * client). Those rows are still valid history and still parse; they are simply
+ * no longer the thing standing between an unrelated file and the repository.
+ *
+ * The list below is EXACT PREFIXES, never inference, and it is the single
+ * definition -- `.github/workflows/vto-e2e.yml` classifies the lane by calling
+ * `isVtoOwnedPath` from this module rather than keeping a second copy of the
+ * pattern that could drift out of agreement with it.
+ */
+const VTO_OWNED_PREFIXES = Object.freeze([
+  'services/vto/',
+  'components/vto/',
+  'types/vto',
+  'hooks/useVto',
+  'hooks/useVirtualTryOn',
+  'supabase/functions/vto-generate/',
+  'vto-phase4-pipeline/',
+  'fixtures/vto-phase4/',
+  'evidence/vto-phase4',
+  'evidence/vto-live-native-n1/',
+  'docs/vto-',
+  'scripts/vto-e2e/',
+  '__tests__/vto',
+  // The Live VTO native runtime and the governance it introduced. Judged for
+  // the same reason as the rest: this lane owns them, so this boundary is the
+  // one that answers for them.
+  'modules/kscan-live-vto-native/',
+  'config/on-device-model-authority.json',
+  'scripts/check-on-device-model-authority.js',
+  '__tests__/onDeviceModelAuthority.test.js',
+  'app/dev-n1-diagnostic.tsx',
+  // The guard's own machinery, claimed deliberately. Both already carry
+  // manifest rows, so this costs nothing today and means a future edit to the
+  // boundary -- or to the one workflow that enforces it -- is judged BY the
+  // boundary instead of arriving as an unexamined "not VTO-owned" path.
+  'scripts/check-vto-live-integration-scope.js',
+  '.github/workflows/vto-e2e.yml',
+]);
+
+/** True when this changed path belongs to the VTO lane. Prefix match, no inference. */
+function isVtoOwnedPath(changedPath) {
+  return VTO_OWNED_PREFIXES.some((prefix) => changedPath.startsWith(prefix));
+}
+
+/**
+ * Splits a diff into the part this manifest governs and the part it does not.
+ * Pure: it reads no environment and runs no git, so every branch of it is
+ * unit-testable against synthetic path lists.
+ */
+function partitionByVtoOwnership(changedPaths) {
+  const vtoOwned = [];
+  const notJudged = [];
+  for (const changedPath of changedPaths) {
+    if (isVtoOwnedPath(changedPath)) vtoOwned.push(changedPath);
+    else notJudged.push(changedPath);
+  }
+  return { vtoOwned, notJudged };
 }
 
 /**
@@ -324,18 +419,23 @@ function main() {
     process.exit(1);
   }
 
-  const { authorized, unauthorized } = classifyChangedPaths(changedPaths, patterns);
+  // Only the VTO-owned subset is this manifest's question. See
+  // VTO_OWNED_PREFIXES above for why, and for what that deliberately gives up.
+  const { vtoOwned, notJudged } = partitionByVtoOwnership(changedPaths);
+  const { authorized, unauthorized } = classifyChangedPaths(vtoOwned, patterns);
 
   console.log('─'.repeat(64));
   console.log(`Base ref:              ${baseRef}`);
   console.log(`Authorized patterns:   ${patterns.length}`);
   console.log(`Changed paths:         ${changedPaths.length}`);
+  console.log(`VTO-owned (judged):    ${vtoOwned.length}`);
+  console.log(`Not VTO-owned:         ${notJudged.length}`);
   console.log(`Within boundary:       ${authorized.length}`);
   console.log(`Outside boundary:      ${unauthorized.length}`);
   console.log('─'.repeat(64));
 
   if (unauthorized.length > 0) {
-    console.error('FAIL: this lane touched paths the integration manifest does not authorize:');
+    console.error('FAIL: this lane touched VTO paths the integration manifest does not authorize:');
     for (const changedPath of unauthorized) console.error(`  - ${changedPath}`);
     console.error('');
     console.error(`Either revert them, or add a row to ${MANIFEST} with a real reason and`);
@@ -343,7 +443,17 @@ function main() {
     process.exit(1);
   }
 
-  console.log('PASS: every changed path is inside the authorized P3-C boundary.');
+  if (notJudged.length > 0) {
+    // Named, never silent. A path this guard did not judge must not be able to
+    // read afterwards as a path this guard approved.
+    console.log(
+      `NOT JUDGED: ${notJudged.length} changed path(s) are outside VTO ownership, so the VTO`,
+    );
+    console.log('mutation boundary does not answer for them. They are governed by their own');
+    console.log('lanes\' reviews and gates, not by this manifest.');
+  }
+
+  console.log('PASS: every VTO-owned changed path is inside the authorized P3-C boundary.');
   process.exit(0);
 }
 
@@ -351,6 +461,9 @@ module.exports = {
   parseAuthorizedPatterns,
   matchesPattern,
   classifyChangedPaths,
+  isVtoOwnedPath,
+  partitionByVtoOwnership,
+  VTO_OWNED_PREFIXES,
   readEnforcementSignal,
   resolveScopeMode,
   diffChangedPaths,
