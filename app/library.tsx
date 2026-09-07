@@ -70,6 +70,10 @@ import { ClosetIntakeModal } from '../components/closet/ClosetIntakeModal';
 import { ClosetItemEditModal } from '../components/closet/ClosetItemEditModal';
 import { MirrorSelfieExtractionModal } from '../components/closet/MirrorSelfieExtractionModal';
 import { ClosetCandidateStatusPanel } from '../components/closet/ClosetCandidateStatusPanel';
+import { ClosetInventoryBar } from '../components/closet/ClosetInventoryBar';
+import { ClosetSyncStatusRow } from '../components/closet/ClosetSyncStatusRow';
+import { useClosetInventory } from '../hooks/useClosetInventory';
+import { useClosetSyncStatus } from '../hooks/useClosetSyncStatus';
 import { isScanPromoted } from '../services/closetPromotion';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -78,6 +82,18 @@ import { isScanPromoted } from '../services/closetPromotion';
 // resizes reflow the grids without any domain state changing.
 const CARD_GAP = SPACING.md;
 const H_PAD = SPACING.xl;
+
+/**
+ * How many Closet cards are eagerly mounted at once (Closet Experience V1).
+ *
+ * The Closet grid is inside this screen's ScrollView, so it cannot become a
+ * FlatList without nesting two virtualized lists. This cap is the alternative:
+ * a 1000-item Closet mounts 60 cards, not 1000, and therefore never asks the
+ * image layer for a thousand decodes in one pass. 60 is three full 2-up screens
+ * on the tallest supported device, so the window is not visible as a limit
+ * during ordinary scrolling.
+ */
+const CLOSET_PAGE_SIZE = 60;
 
 // ── SavedScan interface ───────────────────────────────────────────────────────
 interface ScanAttributes {
@@ -315,6 +331,24 @@ export default function LibraryScreen() {
   // the sheet always prefills from the CURRENT snapshot, so a refresh that lands
   // while the sheet is open cannot leave it editing a stale copy.
   const [editingClosetItemId, setEditingClosetItemId] = useState<string | null>(null);
+
+  // ── Closet Experience V1 (PR A1) ───────────────────────────────────────────
+  // Query state (search / filter / sort) and the cloud status pill. Both are
+  // READ-ONLY lenses over what `useCloset()` already loaded — neither can
+  // create, edit or delete an owned item.
+  const closetInventory = useClosetInventory(closet.items as any);
+  // Re-read the sidecar whenever the inventory could have changed. Passing the
+  // item count rather than the array keeps this to a value comparison.
+  const closetSyncStatus = useClosetSyncStatus(closet.items.length);
+
+  // How many Closet cards are eagerly mounted. Reset whenever the QUERY changes
+  // so a new search starts at the top of its own result set rather than
+  // inheriting a window the previous query had grown.
+  const [closetVisibleCount, setClosetVisibleCount] = useState(CLOSET_PAGE_SIZE);
+  const closetQueryKey = `${closetInventory.search}|${closetInventory.category ?? ''}|${closetInventory.origin}|${closetInventory.sort}`;
+  useEffect(() => {
+    setClosetVisibleCount(CLOSET_PAGE_SIZE);
+  }, [closetQueryKey]);
   const [mirrorSelfieVisible, setMirrorSelfieVisible] = useState(false);
   const [closetState, setClosetState] = useState<'idle' | 'saving' | 'saved'>('idle');
 
@@ -632,8 +666,23 @@ export default function LibraryScreen() {
     return pairs;
   }, []);
 
-  const closetPairs = closet.items.reduce<[any, any | null][]>((pairs, item, i) => {
-    if (i % 2 === 0) pairs.push([item, closet.items[i + 1] ?? null]);
+  // ── Closet Experience V1 (PR A1) ───────────────────────────────────────────
+  // The grid renders the QUERIED view, never `closet.items` directly. The
+  // summary above it is still computed over the full inventory, so a search
+  // narrows what is listed without ever changing what the user is told they own.
+  const closetVisible = closetInventory.view.items;
+
+  // LARGE-CLOSET GUARD (section 34). This grid lives inside the screen's
+  // ScrollView, so a FlatList here would nest two virtualized lists — the RN
+  // anti-pattern that breaks windowing outright. Instead the eagerly-rendered
+  // window is CAPPED and extended on demand, which is what actually matters:
+  // a 1000-item Closet mounts CLOSET_PAGE_SIZE cards, not 1000, so it can never
+  // ask the image layer for a thousand decodes at once.
+  const closetPage = closetVisible.slice(0, closetVisibleCount);
+  const closetHasMore = closetVisible.length > closetPage.length;
+
+  const closetPairs = closetPage.reduce<[any, any | null][]>((pairs, item, i) => {
+    if (i % 2 === 0) pairs.push([item, closetPage[i + 1] ?? null]);
     return pairs;
   }, []);
 
@@ -762,6 +811,38 @@ export default function LibraryScreen() {
             {CLOSET_CANDIDATE_STAGING_ACTIVE ? (
               <ClosetCandidateStatusPanel api={closetCandidatesWithCommitBridge} />
             ) : null}
+
+            {/*
+              Closet Experience V1 (PR A1) — cloud status and the wardrobe
+              controls. Both are read-only.
+
+              The status row renders nothing while entitlement is RESOLVING or
+              when cloud sync does not apply, so a free/loading actor sees the
+              Closet exactly as before (section 12).
+
+              The control bar appears only once there is an inventory to
+              control: search and filter chips over an empty Closet are chrome
+              that cannot do anything, and section 24 says the zero-item Closet
+              is a product state, not a degraded list.
+            */}
+            <ClosetSyncStatusRow status={closetSyncStatus} />
+            {!closet.loading && closet.items.length > 0 ? (
+              <ClosetInventoryBar
+                summary={closetInventory.summary}
+                search={closetInventory.search}
+                onSearchChange={closetInventory.setSearch}
+                category={closetInventory.category}
+                onCategoryChange={closetInventory.setCategory}
+                origin={closetInventory.origin}
+                onOriginChange={closetInventory.setOrigin}
+                sort={closetInventory.sort}
+                onSortChange={closetInventory.setSort}
+                visibleItems={closetInventory.view.visibleItems}
+                isNarrowed={closetInventory.isNarrowed}
+                onClear={closetInventory.clear}
+              />
+            ) : null}
+
             {closet.loading ? (
               <View style={styles.loadingWrap}>
                 <ActivityIndicator size="large" color={LUXURY.colors.plum} />
@@ -790,9 +871,17 @@ export default function LibraryScreen() {
               <EmptyStateCard
                 title={chrome.emptyTitle}
                 subtitle={
+                  /*
+                    THE ZERO-ITEM CLOSET IS A PRODUCT STATE (section 24). It has
+                    to say three things: what the Closet is, how to put the first
+                    item in, and — the one that protects the product's core
+                    invariant — that scanning and saving do NOT put anything here.
+                    A user who believes their scans are already their wardrobe
+                    will read an empty Closet as a bug.
+                  */
                   CLOSET_DIRECT_INTAKE_ACTIVE
-                    ? 'Add items you own with Add Item, or add one from a recent scan.'
-                    : 'Open a recent scan and choose Add to Closet.'
+                    ? 'Your Closet is the wardrobe you own. Scanning or saving an item does not add it here — use Add Item, or open a recent scan and choose Add to Closet.'
+                    : 'Your Closet is the wardrobe you own. Scanning or saving an item does not add it here — open a recent scan and choose Add to Closet.'
                 }
                 action={
                   CLOSET_DIRECT_INTAKE_ACTIVE
@@ -806,6 +895,24 @@ export default function LibraryScreen() {
                       }
                     : undefined
                 }
+              />
+            ) : closetVisible.length === 0 ? (
+              /*
+                NARROWED TO NOTHING — NOT AN EMPTY CLOSET. The user owns items;
+                this query just does not match any of them. Saying "Your Closet
+                is empty" here would be the same class of lie as the load-error
+                card above refuses to tell.
+              */
+              <EmptyStateCard
+                testID="closet-no-matches-card"
+                title="No items match"
+                subtitle={`None of your ${closetInventory.summary.totalItems} K Scan Closet items match this search or filter.`}
+                action={{
+                  label: 'Clear filters',
+                  onPress: closetInventory.clear,
+                  accessibilityLabel: 'Clear search and filters',
+                  testID: 'closet-no-matches-clear-button',
+                }}
               />
             ) : (
               <View style={styles.grid}>
@@ -843,6 +950,14 @@ export default function LibraryScreen() {
                     )}
                   </View>
                 ))}
+                {closetHasMore ? (
+                  <SecondaryButton
+                    title={`Show more (${closetVisible.length - closetPage.length} left)`}
+                    onPress={() => setClosetVisibleCount((n) => n + CLOSET_PAGE_SIZE)}
+                    testID="closet-show-more-button"
+                    accessibilityLabel={`Show more Closet items. ${closetVisible.length - closetPage.length} not shown.`}
+                  />
+                ) : null}
               </View>
             )}
           </>
