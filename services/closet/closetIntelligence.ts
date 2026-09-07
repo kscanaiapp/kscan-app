@@ -108,8 +108,20 @@ export type ClosetIntelligence = {
   /** Records added in the trailing window. Descriptive only. */
   recentlyAddedCount: number;
   recentlyAddedWindowDays: number;
-  /** Records carrying no structured taxonomy at all. */
+  /** Records carrying no structured taxonomy at all (`taxonomyUnknown`). */
   unclassifiedItems: number;
+  /**
+   * Records with no CATEGORY.
+   *
+   * Deliberately distinct from `unclassifiedItems`, and it is this one the
+   * absence licence depends on. An item can carry a colour and a size — so it
+   * is not "taxonomy unknown" — while still having no category, and
+   * `categoryCounts` is keyed on category alone. Conflating the two produced a
+   * contract that licensed absence claims over a Closet with eight
+   * uncategorized items in it, which is precisely the weaker second authority
+   * section 65 forbids.
+   */
+  uncategorizedItems: number;
   duplicateCandidates: readonly ClosetDuplicateCandidate[];
   duplicateDetection: ClosetDuplicateDetectionState;
 
@@ -124,7 +136,8 @@ export type ClosetIntelligence = {
    *
    *   - the whole Closet was read (this contract is computed over the complete
    *     local array, never a page), AND
-   *   - no record went unclassified, AND
+   *   - every record carries a category, so none could be the one being asked
+   *     about, AND
    *   - the category list is complete rather than a top-N slice
    *
    * When false, absence of a category proves nothing: a record the taxonomy
@@ -262,12 +275,21 @@ export function computeClosetIntelligence(
     recentlyAddedCount,
     recentlyAddedWindowDays: CLOSET_RECENTLY_ADDED_WINDOW_DAYS,
     unclassifiedItems,
+    uncategorizedItems: summary.uncategorizedCount,
     duplicateCandidates: duplicates.candidates,
     duplicateDetection: duplicates.detection,
     // Same three conditions as censusLicensesAbsenceClaims, adapted to a local
-    // read: exhaustive (always true here — the whole array was read), no
-    // unclassified record, and a complete category list.
-    licensesAbsenceClaims: total > 0 && unclassifiedItems === 0 && !categoriesTruncated,
+    // read: exhaustive (always true here — the whole array was read), every
+    // record placed in a category, and a complete category list.
+    //
+    // The middle condition is UNCATEGORIZED, not taxonomyUnknown. An item with
+    // a colour but no category is not "taxonomy unknown", yet it is exactly the
+    // item that might belong to the category being asked about. Reading a
+    // missing key as "the user owns none of these" while such an item exists is
+    // how a taxonomy limitation becomes a confident, false statement about
+    // someone's wardrobe.
+    licensesAbsenceClaims:
+      total > 0 && summary.uncategorizedCount === 0 && !categoriesTruncated,
   };
 }
 

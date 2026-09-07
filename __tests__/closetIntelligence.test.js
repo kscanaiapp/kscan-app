@@ -247,6 +247,31 @@ test('ABSENCE: ONE unclassified record revokes the licence for the whole Closet'
   );
 });
 
+test('ABSENCE (regression): an item with NO CATEGORY revokes the licence, even when it carries other taxonomy', () => {
+  // The defect this locks. `licensesAbsenceClaims` originally keyed off
+  // `taxonomyUnknown`, which is FALSE for an item that has a colour and a size
+  // but no category. Running the contract over the seeded 48-item evaluation
+  // Closet exposed it: five uncategorized items, and the contract still said
+  // absence claims were licensed. A consumer would then have read "no Shoes key"
+  // as "you own no shoes" while five unplaced items sat in the Closet, any of
+  // which could have been a shoe. That is the weaker second absence authority
+  // section 65 exists to prevent.
+  const partial = {
+    ...item({ id: 'partial', category: null, primaryColor: 'navy', size: 'M' }),
+    // Not "taxonomy unknown" — it genuinely carries taxonomy. Just no category.
+    taxonomyUnknown: false,
+  };
+  const out = intel.computeClosetIntelligence([item({ category: 'Tops' }), partial], {}, NOW);
+
+  assert.equal(out.unclassifiedItems, 0, 'this item is not taxonomy-unknown');
+  assert.equal(out.uncategorizedItems, 1, 'but it has no category');
+  assert.equal(
+    out.licensesAbsenceClaims,
+    false,
+    'an uncategorized item might be the very thing being asked about',
+  );
+});
+
 test('ABSENCE: an empty Closet licenses nothing', () => {
   const out = intel.computeClosetIntelligence([], {}, NOW);
   assert.equal(out.totalItems, 0);

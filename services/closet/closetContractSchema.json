@@ -97,6 +97,7 @@
         "recentlyAddedCount",
         "recentlyAddedWindowDays",
         "unclassifiedItems",
+        "uncategorizedItems",
         "duplicateCandidates",
         "duplicateDetection",
         "licensesAbsenceClaims"
@@ -127,7 +128,16 @@
         },
         "recentlyAddedCount": { "type": "integer", "minimum": 0 },
         "recentlyAddedWindowDays": { "type": "integer", "const": 30 },
-        "unclassifiedItems": { "type": "integer", "minimum": 0 },
+        "unclassifiedItems": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Records carrying no structured taxonomy at all (taxonomyUnknown)."
+        },
+        "uncategorizedItems": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Records with NO CATEGORY. Distinct from unclassifiedItems, and it is this one licensesAbsenceClaims depends on: an item can carry a colour and a size (so it is not taxonomy-unknown) while still having no category, and categoryCounts is keyed on category alone."
+        },
         "duplicateCandidates": {
           "type": "array",
           "description": "Exact stable product identity only. Fuzzy title similarity, image similarity, perceptual hashing and colour similarity are forbidden. Always empty in V1 — a Closet record carries no product id, SKU or GTIN.",
@@ -148,7 +158,7 @@
         },
         "licensesAbsenceClaims": {
           "type": "boolean",
-          "description": "May a consumer read a MISSING category key as 'the user owns none of these'? False whenever any record went unclassified. Absence of classification is not classification of absence. Mirrors censusLicensesAbsenceClaims in supabase/functions/stylechat-generate/eliseClosetCensus.ts."
+          "description": "May a consumer read a MISSING category key as 'the user owns none of these'? False whenever any record has no category. Absence of classification is not classification of absence. Mirrors censusLicensesAbsenceClaims in supabase/functions/stylechat-generate/eliseClosetCensus.ts."
         }
       }
     }
