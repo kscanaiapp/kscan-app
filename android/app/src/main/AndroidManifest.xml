@@ -28,7 +28,7 @@
       false on every Android 11+ device: canOpenURL returns false, no mail app
       opens, and the user is told otherwise.
 
-      Declared as ACTION_SENDTO + the mailto scheme -- the narrowest form that
+      Declared as ACTION_SENDTO + the mailto scheme, the narrowest form that
       matches an email client. It grants visibility of mail apps for intent
       resolution only; it adds no permission and no other capability.
     -->
