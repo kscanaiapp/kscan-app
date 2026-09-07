@@ -31,6 +31,7 @@ import {
   selectPurchaseOptionsSnapshot,
   attachScanPurchaseOptions,
   purchaseOptionsFingerprint,
+  multiItemCommerceFingerprint,
   saveMultiItemScan,
   attachScanMultiItemCommerce,
 } from './services/library';
@@ -517,7 +518,10 @@ export default function App() {
   useEffect(() => {
     if (status !== 'result' || !savedMultiItemScanId) return;
     if (!Array.isArray(multiItemCommerce) || multiItemCommerce.length === 0) return;
-    const key = savedMultiItemScanId + ':' + multiItemCommerce.length + ':' + multiItemCommerceStatus;
+    // Mirror the single-item attachment rule: same count can still mean a
+    // different price, retailer, currency, or ranked offer. The fingerprint is
+    // intentionally order-sensitive because this shelf preserves backend rank.
+    const key = savedMultiItemScanId + ':' + multiItemCommerceFingerprint(multiItemCommerce);
     if (attachedMultiItemCommerceRef.current === key) return;
     attachedMultiItemCommerceRef.current = key;
     const actorRequest = createActorRequest();

@@ -472,13 +472,26 @@ test('PERSISTENCE: the attach key is content-derived, so enrichment still persis
 
 test('PERSISTENCE: the fingerprint distinguishes an enriched shelf of equal length', () => {
   const src = fs.readFileSync(path.join(ROOT, 'services', 'library.js'), 'utf8');
-  const start = src.indexOf('export function purchaseOptionsFingerprint');
-  assert.ok(start > 0, 'no fingerprint helper');
-  const end = src.indexOf('\n}', src.indexOf('.join(', start));
-  // Execute the real helper rather than asserting on its text.
+  const fingerprintStart = src.indexOf('export function purchaseOptionsFingerprint');
+  const canonicalStart = src.indexOf('function canonicalCommerceOptions');
+  const multiStart = src.indexOf('export function multiItemCommerceFingerprint');
+  const fingerprintEnd = src.indexOf('\n}', fingerprintStart) + 2;
+  const canonicalEnd = src.indexOf('\n}', canonicalStart) + 2;
+  assert.ok(fingerprintStart > 0, 'no purchase-options fingerprint helper');
+  assert.ok(canonicalStart > 0, 'no canonical commerce helper');
+  assert.ok(multiStart > canonicalStart, 'no multi-item fingerprint helper');
+  // Execute the production fingerprint body with an identity normalizer. The
+  // full normalization contract is exercised by the actual persistence suite;
+  // this fixture isolates equal-length enrichment detection.
+  const helpers = [
+    src.slice(canonicalStart, canonicalEnd),
+    src.slice(fingerprintStart, fingerprintEnd)
+      .replace('export function purchaseOptionsFingerprint', 'function purchaseOptionsFingerprint'),
+  ].join('\n');
   const fingerprint = new Function(
-    'return ' + src.slice(start + 'export '.length, end + 2),
-  )();
+    'normalizePurchaseOptions',
+    `${helpers}\nreturn purchaseOptionsFingerprint;`,
+  )((options) => Array.isArray(options) ? options : []);
 
   const discovery = [
     { title: 'Moto Jacket', productUrl: 'https://s.test/a', price: '$450', imageUrl: '' },

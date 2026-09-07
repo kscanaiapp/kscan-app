@@ -190,6 +190,7 @@ test('attachScanMultiItemCommerce keeps each candidate\'s offers under its own c
   const bootCard = reopened.multiItemCommerce.find((c) => c.candidateId === 'g2');
 
   assert.equal(jacketCard.bestMatch.retailer, 'AllSaints');
+  assert.equal(jacketCard.bestMatch.currency, 'USD', 'known offer currency survives persistence');
   assert.equal(jacketCard.alternatives[0].retailer, 'Schott');
   assert.equal(bootCard.status, 'no_match');
   assert.equal(bootCard.bestMatch, null, 'no fabricated Best Match for the no-match item');
@@ -260,4 +261,77 @@ test('a partial attach (one candidate only) leaves the record valid, not half-co
   assert.equal(reopened.multiItemCandidates.length, 2, 'both identities remain — g2 was detected too');
   assert.equal(reopened.multiItemCommerce.length, 1, 'only g1 has a commerce card yet');
   assert.equal(reopened.multiItemCommerce[0].candidateId, 'g1');
+});
+
+test('RP-111: same-sized changed commerce replaces the saved shelf while identical content is suppressed', async () => {
+  const storage = createMemoryStorage();
+  const library = loadLibrary(storage);
+  const saved = await library.saveMultiItemScan({
+    photoUri: 'memory://capture.jpg', analysis: MULTI_ITEM_ANALYSIS, candidates: CANDIDATES, source: 'camera',
+  });
+  const initial = [
+    { candidateId: 'g1', status: 'ready', bestMatch: offer('j1', 'AllSaints', 519), alternatives: [offer('j2', 'Schott', 890)] },
+    { candidateId: 'g2', status: 'no_match', bestMatch: null, alternatives: [] },
+  ];
+  const refreshed = [
+    { candidateId: 'g1', status: 'ready', bestMatch: { ...offer('j1-new', 'Mr Porter', 519), currency: 'EUR', productUrl: 'https://shop.example.com/j1-new' }, alternatives: [offer('j2', 'Schott', 890)] },
+    { candidateId: 'g2', status: 'no_match', bestMatch: null, alternatives: [] },
+  ];
+
+  const initialFingerprint = library.multiItemCommerceFingerprint(initial);
+  assert.equal(initialFingerprint, library.multiItemCommerceFingerprint([...initial]), 'identical canonical content has one key');
+  assert.notEqual(initialFingerprint, library.multiItemCommerceFingerprint(refreshed),
+    'same count with retailer, URL, or currency changes must be fresh');
+
+  await library.attachScanMultiItemCommerce(saved.id, initial);
+  await library.attachScanMultiItemCommerce(saved.id, refreshed);
+  const reopened = (await library.loadLibrary(null)).find((scan) => scan.id === saved.id);
+  assert.equal(reopened.multiItemCommerce[0].bestMatch.retailer, 'Mr Porter');
+  assert.equal(reopened.multiItemCommerce[0].bestMatch.currency, 'EUR');
+
+  const appSource = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
+  assert.match(appSource, /multiItemCommerceFingerprint\(multiItemCommerce\)/,
+    'the attachment effect must use the content key before writing');
+  assert.match(appSource, /savedMultiItemScanId\s*\+\s*':'\s*\+\s*multiItemCommerceFingerprint/,
+    'the attachment key must remain scoped to the saved scan id');
+  assert.match(appSource, /attachedMultiItemCommerceRef\.current === key/,
+    'the attachment effect must still suppress repeated identical content');
+});
+
+test('RP-111: the multi-item fingerprint is order-sensitive and ignores volatile metadata', () => {
+  const library = loadLibrary(createMemoryStorage());
+  const current = [
+    { candidateId: 'g1', status: 'ready', bestMatch: offer('j1', 'AllSaints', 519), alternatives: [offer('j2', 'Schott', 890)] },
+    { candidateId: 'g2', status: 'error', bestMatch: null, alternatives: [] },
+  ];
+  const volatileOnly = current.map((card) => ({
+    ...card,
+    requestId: 'new-request',
+    bestMatch: card.bestMatch ? { ...card.bestMatch, providerDebug: 'changed' } : null,
+  }));
+  const repriced = current.map((card) => card.candidateId === 'g1'
+    ? { ...card, bestMatch: { ...card.bestMatch, price: 699 } }
+    : card);
+  const recurrency = current.map((card) => card.candidateId === 'g1'
+    ? { ...card, bestMatch: { ...card.bestMatch, currency: 'EUR' } }
+    : card);
+  const replacedProduct = current.map((card) => card.candidateId === 'g1'
+    ? { ...card, bestMatch: { ...card.bestMatch, id: 'j1-replacement', title: 'Replacement offer' } }
+    : card);
+  const movedDestination = current.map((card) => card.candidateId === 'g1'
+    ? { ...card, bestMatch: { ...card.bestMatch, retailer: 'Mr Porter', productUrl: 'https://mrporter.example/j1' } }
+    : card);
+  const reordered = [...current].reverse();
+  const statusChanged = [{ ...current[0], status: 'error' }, current[1]];
+
+  const fingerprint = library.multiItemCommerceFingerprint(current);
+  assert.equal(fingerprint, library.multiItemCommerceFingerprint(volatileOnly));
+  assert.notEqual(fingerprint, library.multiItemCommerceFingerprint(replacedProduct));
+  assert.notEqual(fingerprint, library.multiItemCommerceFingerprint(repriced));
+  assert.notEqual(fingerprint, library.multiItemCommerceFingerprint(recurrency));
+  assert.notEqual(fingerprint, library.multiItemCommerceFingerprint(movedDestination));
+  assert.notEqual(fingerprint, library.multiItemCommerceFingerprint(current.slice(0, 1)));
+  assert.notEqual(fingerprint, library.multiItemCommerceFingerprint(reordered),
+    'ranked shelf order is user-visible and must stay part of freshness');
+  assert.notEqual(fingerprint, library.multiItemCommerceFingerprint(statusChanged));
 });

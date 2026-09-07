@@ -395,14 +395,40 @@ export function selectPurchaseOptionsSnapshot(analysis) {
  */
 export function purchaseOptionsFingerprint(options) {
   if (!Array.isArray(options) || options.length === 0) return '';
-  return options
-    .map((option) => {
-      if (!option || typeof option !== 'object') return '';
-      return [option.productUrl, option.price, option.imageUrl, option.title]
-        .map((field) => (typeof field === 'string' ? field : ''))
-        .join('|');
-    })
-    .join('~');
+  return JSON.stringify(canonicalCommerceOptions(options));
+}
+
+function canonicalCommerceOptions(options) {
+  return normalizePurchaseOptions(options).map((option) => ({
+    productId: option.productId ?? null,
+    retailer: option.retailer ?? null,
+    productUrl: option.productUrl ?? option.affiliateUrl ?? null,
+    title: option.title ?? null,
+    price: option.price ?? null,
+    currency: option.currency ?? null,
+    imageUrl: option.imageUrl ?? null,
+    availability: option.availability ?? null,
+  }));
+}
+
+/**
+ * Content fingerprint for a ranked multi-item commerce shelf.
+ *
+ * Candidate/card order is intentionally preserved: Scanner shows this order as
+ * the provider-ranked shopping order, so a re-rank is fresh user-visible data.
+ * The content itself is normalized through the same single-item helper, making
+ * volatile provider metadata irrelevant while price currency remains material.
+ */
+export function multiItemCommerceFingerprint(cards) {
+  if (!Array.isArray(cards) || cards.length === 0) return '';
+  return JSON.stringify(cards
+    .filter((card) => card && typeof card === 'object' && typeof card.candidateId === 'string' && card.candidateId)
+    .map((card) => ({
+      candidateId: card.candidateId,
+      status: typeof card.status === 'string' ? card.status : 'error',
+      bestMatch: canonicalCommerceOptions(card.bestMatch ? [card.bestMatch] : [])[0] ?? null,
+      alternatives: canonicalCommerceOptions(Array.isArray(card.alternatives) ? card.alternatives : []),
+    })));
 }
 
 /**
