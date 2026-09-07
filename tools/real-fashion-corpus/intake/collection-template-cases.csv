@@ -1,0 +1,36 @@
+# K SCAN AI - REAL FASHION MATCH CORPUS: CASE (CAPTURE) COLLECTION TEMPLATE
+# One row per PHOTOGRAPH. Several rows may share one garment_id - that is
+# the point: same garment, different device or different lighting.
+#
+# PRIVACY: prefer hanger, flat-lay, mannequin or garment-only captures.
+# If a person is visible, human_present must be yes AND consent_status must
+# be EXPLICIT_COLLECTOR_CONSENT. Never photograph unrelated people.
+#
+# You do not type a file hash. Ingestion reads the actual file and records
+# its hash, size and EXIF status itself.
+#
+# difficulty_strata is semicolon-separated. Allowed: VISIBLE_LOGO; NO_VISIBLE_LOGO; DARK_GARMENT; LIGHT_GARMENT; MID_TONE_GARMENT; SOLID_COLOR; PATTERNED; HIGH_TEXTURE; MINIMAL_TEXTURE; COMMON_SILHOUETTE; UNUSUAL_SILHOUETTE; SAME_BRAND_ADJACENT_STYLE; COLORWAY_SIBLING; MATERIAL_VARIANT; VISUALLY_SIMILAR_DISTINCT_PRODUCT
+#
+# Lines starting with # are ignored. Do not delete the header row.
+#
+# COLUMN GUIDE:
+#   case_id (REQUIRED) | C0001, C0002, ... unique per capture
+#   garment_id (REQUIRED) | which garment this photographed
+#   device_platform (REQUIRED) | one of: ios, android
+#   device_model (REQUIRED) | e.g. iPhone 15 Pro
+#   capture_profile (REQUIRED) | one of: ios-current-v1, android-current-v1, profile-neutral
+#   capture_type (REQUIRED) | one of: HANGER, FLAT_LAY, MANNEQUIN, GARMENT_ONLY, WORN | prefer HANGER / FLAT_LAY / MANNEQUIN / GARMENT_ONLY
+#   capture_environment (REQUIRED) | one of: INDOOR_ARTIFICIAL, INDOOR_NATURAL, INDOOR_MIXED, OUTDOOR_DAYLIGHT, OUTDOOR_OVERCAST, LOW_LIGHT, RETAIL_FLOOR
+#   captured_on (REQUIRED) | YYYY-MM-DD
+#   captured_width (REQUIRED)
+#   captured_height (REQUIRED)
+#   format (REQUIRED) | one of: jpeg, png
+#   human_present (REQUIRED) | yes/no - is a person visible in the frame
+#   consent_status (optional) | EXPLICIT_COLLECTOR_CONSENT when a person is visible
+#   asset_path (REQUIRED) | path inside the mounted asset root, e.g. G001/C0001-ios.jpg
+#   paired_case_id (optional) | the other platform capture of the SAME garment
+#   input_hard_negative_of (optional) | a DIFFERENT garment_id this capture is easy to confuse with
+#   difficulty_strata (optional) | semicolon-separated, from the documented list
+#   notes (optional)
+#
+case_id,garment_id,device_platform,device_model,capture_profile,capture_type,capture_environment,captured_on,captured_width,captured_height,format,human_present,consent_status,asset_path,paired_case_id,input_hard_negative_of,difficulty_strata,notes
