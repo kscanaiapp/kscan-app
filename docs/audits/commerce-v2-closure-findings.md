@@ -242,7 +242,47 @@ observation authority, not a 24h/48h rule.
 
 ---
 
-## 6. TextScan currency defect
+## 6. TextScan currency defect — FIXED
+
+**P1 — CURRENCY TRUTH — CLOSED.** Owner widened the diff fence after this was
+reported; the fix below was then applied exactly as specified, with no
+scope beyond it. `services/textScanEdge.ts` is the one path added to this
+lane's allowed set.
+
+**What changed:** the local `formatPrice` is deleted. `normalizeProductPrice`'s
+numeric branch now delegates to `formatCommercePrice` — the canonical client
+currency authority — instead of restating the rule.
+
+| Input | Before | After |
+|---|---|---|
+| `29.99`, no currency | `$29.99` (invented USD) | `29.99` |
+| `29.99`, `'USD'` | `USD29.99` (code as symbol) | `$29.99` |
+| `29.99`, `'eur'` | `eur29.99` | `€29.99` |
+| `1200`, `'JPY'` | `JPY1200.00` | `¥1,200` (no minor units) |
+| `29.99`, `'US Dollar'` | `US Dollar29.99` | `29.99` (free text is not a currency) |
+| `0` / `-5` | `$0.00` / `$-5.00` | no price rendered |
+
+The provider-formatted **string** branch is deliberately unchanged: a
+provider's own price string still passes through verbatim (`'$2,590'` stays
+`'$2,590'`). That is this path's intended behaviour, and it is the one place
+textScanEdge differs from `formatCommercePrice`, so it is asserted explicitly
+rather than left implicit.
+
+**Regression coverage, verified to fail against the pre-fix code:**
+- `__tests__/textScanCanonicalPath.test.js` — five tests driving the real
+  shipped path (`analyzeTextWithEdge` with a mocked Supabase): undeclared
+  currency renders bare, declared ISO codes render as real currencies,
+  free-form currency text is refused, provider strings pass through, zero and
+  negative prices render nothing. Four of the five fail against the old code.
+- `__tests__/commerceCurrencyTruth.test.js` — a structural pin (no `'$'`
+  fallback, no local rule, must delegate) plus an anti-drift table pinning the
+  numeric branch to `formatCommercePrice` across 8 amounts × 12 currencies.
+  The structural pin fails against the old code.
+
+This makes textScanEdge the **third** client formatter held to the RP-110
+authority, alongside `formatCommercePrice` and `formatPriceLabel`.
+
+### Original report (retained for the record)
 
 **P1 — CURRENCY TRUTH**
 
@@ -267,10 +307,11 @@ observation authority, not a 24h/48h rule.
   existing anti-drift table to cover this third client formatter, so it can
   never diverge again.
 - **DIFF-FENCE IMPACT:** `services/textScanEdge.ts` is the TextScan edge
-  client, outside this closure lane's allowed paths.
+  client, outside this closure lane's originally allowed paths.
 
-**OWNER FENCE-WIDENING REQUIRED** — verified and specified here, deliberately
-not modified. No broader TextScan audit was performed.
+**OWNER FENCE-WIDENING: GRANTED.** The fix above was then applied. No broader
+TextScan audit was performed and no other TextScan behaviour was touched —
+the only production change is the price formatter delegation.
 
 ---
 

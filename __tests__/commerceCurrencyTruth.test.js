@@ -262,6 +262,49 @@ test('RP-110: the scan-result formatter carries no USD default and no "$" fallba
   assert.ok(!/`\$\$\{/.test(src), 'scan-result formatter still prepends "$"');
 });
 
+test('RP-110: the TextScan formatter carries no "$" fallback and no local currency rule', () => {
+  // Closure P1. services/textScanEdge.ts had its own price formatter with two
+  // defects: `currency?.trim() || '$'` invented USD for an undeclared
+  // currency, and a DECLARED ISO code was concatenated as a symbol
+  // (`USD29.99`). It now delegates to the canonical authority instead of
+  // restating the rule -- which is how RP-110's original five-formatter
+  // divergence happened.
+  const src = codeOf(path.join(ROOT, 'services', 'textScanEdge.ts'));
+  assert.ok(!/\|\|\s*'\$'/.test(src), 'TextScan formatter still falls back to "$"');
+  assert.ok(!/`\$\{symbol\}/.test(src), 'TextScan formatter still prepends a raw currency string as a symbol');
+  assert.ok(!/'USD'/.test(src), 'TextScan formatter names a fallback currency');
+  assert.match(src, /formatCommercePrice/, 'TextScan must delegate to the canonical client formatter');
+});
+
+test('RP-110 ANTI-DRIFT: the TextScan numeric branch matches the canonical formatter exactly', () => {
+  // Pins the third client formatter to the same authority as the other two.
+  // Scope note: only the NUMERIC branch is pinned. textScanEdge deliberately
+  // passes a provider-formatted STRING price through verbatim ('1,200' stays
+  // '1,200' rather than being reparsed to '1200.00') -- that is the documented
+  // behaviour of the provider-string path, not drift, and it is asserted
+  // directly in textScanCanonicalPath.test.js.
+  const { formatCommercePrice } = commerce;
+  const normalizeNumeric = (price, currency) => formatCommercePrice(price, currency) ?? undefined;
+
+  const amounts = [29.99, 1, 1200, 0.5, 0, -5, Number.NaN, Number.POSITIVE_INFINITY];
+  const currencies = [undefined, null, '', 'USD', 'usd', ' eur ', 'GBP', 'JPY', 'ZZZ', 'US Dollar', '$', 42];
+
+  for (const price of amounts) {
+    for (const currency of currencies) {
+      const rendered = normalizeNumeric(price, currency);
+      assert.equal(
+        rendered,
+        formatCommercePrice(price, currency) ?? undefined,
+        `TextScan numeric branch diverged for ${JSON.stringify(price)} / ${JSON.stringify(currency)}`,
+      );
+      const declared = typeof currency === 'string' && /^[a-z]{3}$/i.test(currency.trim());
+      if (rendered !== undefined && !declared) {
+        assertNoInventedDollars(rendered, `TextScan ${JSON.stringify(price)} / ${JSON.stringify(currency)}`);
+      }
+    }
+  }
+});
+
 test('RP-110 ANTI-DRIFT: both client formatters agree on every case', () => {
   // components/scan-results/types.ts restates the currency rule instead of
   // importing it, because a new import edge out of that module would require
