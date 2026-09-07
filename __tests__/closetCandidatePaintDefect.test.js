@@ -619,6 +619,30 @@ function mountLibrary(options = {}) {
       }),
     },
     '../components/closet/ClosetReviewRow': { ClosetReviewRow: 'ClosetReviewRow' },
+
+    // Closet Intelligence V1 (PR B). Deterministic derived facts on the Closet
+    // header. Not exercised by these suites; the contract's own behaviour is
+    // covered for real in __tests__/closetIntelligence.test.js.
+    '../hooks/useClosetIntelligence': {
+      useClosetIntelligence: () => ({
+        contractVersion: 1,
+        totalItems: 0,
+        categoryCounts: [],
+        distinctCategoryCount: 0,
+        reviewRequiredCount: 0,
+        classificationCoverage: { field: 'category', populated: 0, total: 0, percent: 0, meetsFilterFloor: false },
+        fieldCoverage: [],
+        recentlyAddedCount: 0,
+        recentlyAddedWindowDays: 30,
+        unclassifiedItems: 0,
+        duplicateCandidates: [],
+        duplicateDetection: 'unavailable_no_stable_identifier',
+        licensesAbsenceClaims: false,
+      }),
+    },
+    '../components/closet/ClosetIntelligencePanel': {
+      ClosetIntelligencePanel: 'ClosetIntelligencePanel',
+    },
     '../components/closet/MirrorSelfieExtractionModal': {
       MirrorSelfieExtractionModal: 'MirrorSelfieExtractionModal',
     },

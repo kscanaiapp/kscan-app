@@ -1,0 +1,161 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "kscan://closet/contract/v1",
+  "title": "K Scan AI Closet — machine-readable contract",
+  "description": "The canonical shape of an owned Closet item and of the deterministic intelligence derived from a Closet. Generated from source truth: services/closetLibrary.js (CLOSET_ITEM_TAXONOMY_FIELDS and buildClosetRecord), services/closetItemProjection.ts (the read projection) and services/closet/closetIntelligence.ts. THIS FILE IS THE PROGRAM BRIDGE (section 19): downstream evaluation instruments validate their Closet fixtures against it, so a fixture cannot silently stop describing a real Closet. It contains no invented or future field.",
+  "contractVersion": 1,
+  "intelligenceContractVersion": 1,
+  "sourceOfTruth": {
+    "writeModel": "services/closetLibrary.js#buildClosetRecord",
+    "taxonomyFieldList": "services/closetLibrary.js#CLOSET_ITEM_TAXONOMY_FIELDS",
+    "readProjection": "services/closetItemProjection.ts#getClosetItemProjection",
+    "intelligence": "services/closet/closetIntelligence.ts#computeClosetIntelligence",
+    "cloudTable": "public.user_closet_items (supabase/migrations/20260829203657_user_closet_items.sql)"
+  },
+  "definitions": {
+    "closetItem": {
+      "type": "object",
+      "description": "One owned Closet item, as a screen or a downstream consumer may read it. Ownership is created ONLY by an explicit user action through createClosetItem; scanning, saving, viewing, a purchase link, a Dressing Room, Virtual Try-On, the Watchlist and an Elise conversation never create one.",
+      "required": ["id", "title", "category", "origin"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Device-local stable id. Reused as the cloud sync idempotency key (user_closet_items.client_id). Never regenerated."
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Display label. Defaults to the literal 'Closet item' when no name was supplied. A DISPLAY STRING ONLY: nothing may parse it to recover taxonomy."
+        },
+        "category": { "type": ["string", "null"], "maxLength": 80 },
+        "clothingType": { "type": ["string", "null"], "maxLength": 80 },
+        "subtype": { "type": ["string", "null"], "maxLength": 80 },
+        "brand": { "type": ["string", "null"], "maxLength": 120 },
+        "primaryColor": { "type": ["string", "null"], "maxLength": 60 },
+        "secondaryColors": {
+          "type": "array",
+          "maxItems": 8,
+          "items": { "type": "string", "maxLength": 60 }
+        },
+        "material": {
+          "type": "array",
+          "maxItems": 8,
+          "items": { "type": "string", "maxLength": 60 }
+        },
+        "size": { "type": ["string", "null"], "maxLength": 40 },
+        "notes": { "type": ["string", "null"], "maxLength": 500 },
+        "origin": {
+          "type": "string",
+          "enum": ["direct_intake", "recent_scan"],
+          "description": "How the user put this item in the Closet. NOT an ownership qualifier — both values are owned items."
+        },
+        "imageUri": { "type": ["string", "null"] },
+        "thumbnailUri": { "type": ["string", "null"] },
+        "createdAt": {
+          "type": ["string", "null"],
+          "description": "When the CLOSET RECORD was created. This is NOT a purchase date and must never be presented as one."
+        },
+        "updatedAt": { "type": ["string", "null"] },
+        "displaySummary": {
+          "type": ["string", "null"],
+          "description": "Derived: category, type, subtype and colour joined, de-duplicated. Presentation only."
+        },
+        "taxonomyUnknown": {
+          "type": "boolean",
+          "description": "True when the record carries no structured taxonomy at all. Distinguishes 'this build does not store brands' from 'this garment has no brand'."
+        }
+      }
+    },
+    "fieldCoverage": {
+      "type": "object",
+      "required": ["field", "populated", "total", "percent", "meetsFilterFloor"],
+      "additionalProperties": false,
+      "properties": {
+        "field": { "type": "string" },
+        "populated": { "type": "integer", "minimum": 0 },
+        "total": { "type": "integer", "minimum": 0 },
+        "percent": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "meetsFilterFloor": {
+          "type": "boolean",
+          "description": "True when coverage is at or above 70% — the floor at which a field may be exposed as a primary filter."
+        }
+      }
+    },
+    "closetIntelligence": {
+      "type": "object",
+      "description": "Deterministic facts about the items RECORDED IN K SCAN AI. Never a claim about the user's complete physical wardrobe, purchase behaviour, fit, spending or revenue.",
+      "required": [
+        "contractVersion",
+        "totalItems",
+        "categoryCounts",
+        "distinctCategoryCount",
+        "reviewRequiredCount",
+        "classificationCoverage",
+        "fieldCoverage",
+        "recentlyAddedCount",
+        "recentlyAddedWindowDays",
+        "unclassifiedItems",
+        "duplicateCandidates",
+        "duplicateDetection",
+        "licensesAbsenceClaims"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "contractVersion": { "type": "integer", "const": 1 },
+        "totalItems": { "type": "integer", "minimum": 0 },
+        "categoryCounts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["value", "label", "count"],
+            "additionalProperties": false,
+            "properties": {
+              "value": { "type": "string" },
+              "label": { "type": "string" },
+              "count": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        "distinctCategoryCount": { "type": "integer", "minimum": 0 },
+        "reviewRequiredCount": { "type": "integer", "minimum": 0 },
+        "classificationCoverage": { "$ref": "#/definitions/fieldCoverage" },
+        "fieldCoverage": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/fieldCoverage" }
+        },
+        "recentlyAddedCount": { "type": "integer", "minimum": 0 },
+        "recentlyAddedWindowDays": { "type": "integer", "const": 30 },
+        "unclassifiedItems": { "type": "integer", "minimum": 0 },
+        "duplicateCandidates": {
+          "type": "array",
+          "description": "Exact stable product identity only. Fuzzy title similarity, image similarity, perceptual hashing and colour similarity are forbidden. Always empty in V1 — a Closet record carries no product id, SKU or GTIN.",
+          "items": {
+            "type": "object",
+            "required": ["itemIds", "identityKind", "identityValue"],
+            "additionalProperties": false,
+            "properties": {
+              "itemIds": { "type": "array", "items": { "type": "string" }, "minItems": 2 },
+              "identityKind": { "type": "string" },
+              "identityValue": { "type": "string" }
+            }
+          }
+        },
+        "duplicateDetection": {
+          "type": "string",
+          "enum": ["unavailable_no_stable_identifier", "evaluated"]
+        },
+        "licensesAbsenceClaims": {
+          "type": "boolean",
+          "description": "May a consumer read a MISSING category key as 'the user owns none of these'? False whenever any record went unclassified. Absence of classification is not classification of absence. Mirrors censusLicensesAbsenceClaims in supabase/functions/stylechat-generate/eliseClosetCensus.ts."
+        }
+      }
+    }
+  },
+  "type": "object",
+  "properties": {
+    "item": { "$ref": "#/definitions/closetItem" },
+    "intelligence": { "$ref": "#/definitions/closetIntelligence" }
+  }
+}
