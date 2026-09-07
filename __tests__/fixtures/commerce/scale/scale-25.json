@@ -1,0 +1,45 @@
+{
+  "commerceCorpusFixtureVersion": 1,
+  "category": "scale",
+  "records": [
+    {
+      "scenarioId": "scale-25-offers",
+      "description": "25 deterministically generated offers exercising a realistic mix of Retail/Resale, known/unknown retailer, logo authority, watch eligibility, known/unknown currency, and exact-group/must-not-group candidates.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["scale","pr-c-support"],
+      "seed": "kscan-commerce-corpus-v1:25",
+      "generator": "tools/commerce-corpus/generateScaleCorpus.js",
+      "input": {
+      "offers": [
+        {"offerId":"scale-offer-000","sourceIndex":0,"retailer":"Farfetch","brand":"New Balance","title":"New Balance Item scale-offer-000","commerceType":"retail","logoAuthority":true,"watchCapability":"refreshable_listing","currency":"GBP","price":285.59,"productId":"UNIQ-scale-offer-000"},
+        {"offerId":"scale-offer-001","sourceIndex":1,"retailer":"KicksCrew","brand":"Acne Studios","title":"Acne Studios Item scale-offer-001","commerceType":"retail","logoAuthority":true,"watchCapability":"refreshable_listing","currency":null,"price":389.53,"productId":"UNIQ-scale-offer-001"},
+        {"offerId":"scale-offer-002","sourceIndex":2,"retailer":"Nordstrom","brand":"Acne Studios","title":"Acne Studios Item scale-offer-002","commerceType":"retail","logoAuthority":true,"watchCapability":"unsupported","currency":"GBP","price":155.36,"productId":"UNIQ-scale-offer-002"},
+        {"offerId":"scale-offer-003","sourceIndex":3,"retailer":"Zara","brand":"Patagonia","title":"Patagonia Item scale-offer-003","commerceType":"retail","logoAuthority":true,"watchCapability":"unsupported","currency":null,"price":305.01,"productId":"UNIQ-scale-offer-003"},
+        {"offerId":"scale-offer-004","sourceIndex":4,"retailer":"Zara","brand":"Levi's","title":"Levi's Item scale-offer-004","commerceType":"retail","logoAuthority":true,"watchCapability":"unsupported","currency":"GBP","price":187.77,"productId":"UNIQ-scale-offer-004"},
+        {"offerId":"scale-offer-005","sourceIndex":5,"retailer":"KicksCrew","brand":"Everlane","title":"Everlane Signature Item (Style 1)","commerceType":"retail","logoAuthority":true,"watchCapability":"refreshable_listing","currency":"USD","price":241.93,"productId":"UNIQ-scale-offer-005"},
+        {"offerId":"scale-offer-006","sourceIndex":6,"retailer":"Poshmark","brand":"Everlane","title":"Everlane Item scale-offer-006","commerceType":"resale","logoAuthority":true,"watchCapability":"unsupported","currency":"USD","price":384.53,"productId":"UNIQ-scale-offer-006"},
+        {"offerId":"scale-offer-007","sourceIndex":7,"retailer":null,"brand":"Ganni","title":"Ganni Item scale-offer-007","commerceType":"resale","logoAuthority":false,"watchCapability":"unsupported","currency":"EUR","price":138.12,"productId":"SHARED-1"},
+        {"offerId":"scale-offer-008","sourceIndex":8,"retailer":null,"brand":"Ganni","title":"Ganni Item scale-offer-008","commerceType":"retail","logoAuthority":false,"watchCapability":"unsupported","currency":"USD","price":31.7,"productId":"UNIQ-scale-offer-008"},
+        {"offerId":"scale-offer-009","sourceIndex":9,"retailer":"Farfetch","brand":"Everlane","title":"Everlane Item scale-offer-009","commerceType":"retail","logoAuthority":false,"watchCapability":"refreshable_listing","currency":"USD","price":183.32,"productId":"UNIQ-scale-offer-009"},
+        {"offerId":"scale-offer-010","sourceIndex":10,"retailer":"Poshmark","brand":"Levi's","title":"Levi's Signature Item (Style 2)","commerceType":"resale","logoAuthority":true,"watchCapability":"unsupported","currency":"GBP","price":158.63,"productId":"UNIQ-scale-offer-010"},
+        {"offerId":"scale-offer-011","sourceIndex":11,"retailer":"KicksCrew","brand":"Everlane","title":"Everlane Item scale-offer-011","commerceType":"retail","logoAuthority":true,"watchCapability":"refreshable_listing","currency":"EUR","price":95.19,"productId":"UNIQ-scale-offer-011"},
+        {"offerId":"scale-offer-012","sourceIndex":12,"retailer":"Nordstrom","brand":"Ganni","title":"Ganni Item scale-offer-012","commerceType":"resale","logoAuthority":true,"watchCapability":"unsupported","currency":"GBP","price":453.62,"productId":"UNIQ-scale-offer-012"},
+        {"offerId":"scale-offer-013","sourceIndex":13,"retailer":"Zara","brand":"Ganni","title":"Ganni Item scale-offer-013","commerceType":"retail","logoAuthority":true,"watchCapability":"unsupported","currency":"EUR","price":435.23,"productId":"UNIQ-scale-offer-013"},
+        {"offerId":"scale-offer-014","sourceIndex":14,"retailer":"SSENSE","brand":"Patagonia","title":"Patagonia Item scale-offer-014","commerceType":"retail","logoAuthority":true,"watchCapability":"unsupported","currency":"USD","price":92.73,"productId":"SHARED-2"},
+        {"offerId":"scale-offer-015","sourceIndex":15,"retailer":"Farfetch","brand":"New Balance","title":"New Balance Signature Item (Style 3)","commerceType":"retail","logoAuthority":true,"watchCapability":"refreshable_listing","currency":null,"price":429.11,"productId":"UNIQ-scale-offer-015"},
+        {"offerId":"scale-offer-016","sourceIndex":16,"retailer":"Zara","brand":"Patagonia","title":"Patagonia Item scale-offer-016","commerceType":"retail","logoAuthority":true,"watchCapability":"unsupported","currency":null,"price":238.9,"productId":"UNIQ-scale-offer-016"},
+        {"offerId":"scale-offer-017","sourceIndex":17,"retailer":"Farfetch","brand":"New Balance","title":"New Balance Item scale-offer-017","commerceType":"retail","logoAuthority":true,"watchCapability":"refreshable_listing","currency":null,"price":386.28,"productId":"UNIQ-scale-offer-017"},
+        {"offerId":"scale-offer-018","sourceIndex":18,"retailer":"Farfetch","brand":"Acne Studios","title":"Acne Studios Item scale-offer-018","commerceType":"retail","logoAuthority":true,"watchCapability":"refreshable_listing","currency":"EUR","price":199.65,"productId":"UNIQ-scale-offer-018"},
+        {"offerId":"scale-offer-019","sourceIndex":19,"retailer":"Zara","brand":"Everlane","title":"Everlane Item scale-offer-019","commerceType":"retail","logoAuthority":true,"watchCapability":"unsupported","currency":"USD","price":276.4,"productId":"UNIQ-scale-offer-019"},
+        {"offerId":"scale-offer-020","sourceIndex":20,"retailer":"Farfetch","brand":"Patagonia","title":"Patagonia Signature Item (Style 4)","commerceType":"retail","logoAuthority":true,"watchCapability":"refreshable_listing","currency":"EUR","price":202.23,"productId":"UNIQ-scale-offer-020"},
+        {"offerId":"scale-offer-021","sourceIndex":21,"retailer":"Zara","brand":"New Balance","title":"New Balance Item scale-offer-021","commerceType":"retail","logoAuthority":true,"watchCapability":"unsupported","currency":"GBP","price":464.74,"productId":"SHARED-3"},
+        {"offerId":"scale-offer-022","sourceIndex":22,"retailer":"Nordstrom","brand":"Ganni","title":"Ganni Item scale-offer-022","commerceType":"retail","logoAuthority":true,"watchCapability":"unsupported","currency":"EUR","price":396.04,"productId":"UNIQ-scale-offer-022"},
+        {"offerId":"scale-offer-023","sourceIndex":23,"retailer":"KicksCrew","brand":"New Balance","title":"New Balance Item scale-offer-023","commerceType":"retail","logoAuthority":true,"watchCapability":"refreshable_listing","currency":"USD","price":38.91,"productId":"UNIQ-scale-offer-023"},
+        {"offerId":"scale-offer-024","sourceIndex":24,"retailer":"Zappos","brand":"Acne Studios","title":"Acne Studios Item scale-offer-024","commerceType":"retail","logoAuthority":true,"watchCapability":"unsupported","currency":"EUR","price":199.42,"productId":"UNIQ-scale-offer-024"}
+      ]
+    },
+      "expected": {"orderPreserved":true,"sourceOrderField":"sourceIndex","composition":{"totalOffers":25,"knownRetailer":23,"unknownRetailer":2,"logoAuthority":22,"noLogoAuthority":3,"retail":21,"resale":4,"watchable":10,"notWatchable":15,"knownCurrency":20,"unknownCurrency":5}},
+      "notes": "Generated output, not hand-authored. Re-running generateScaleCorpus.js against the same seed reproduces this file byte-for-byte; see __tests__/commerce-corpus/scaleCorpus.test.js."
+    }
+  ]
+}

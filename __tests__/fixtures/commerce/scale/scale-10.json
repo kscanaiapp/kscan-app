@@ -1,0 +1,30 @@
+{
+  "commerceCorpusFixtureVersion": 1,
+  "category": "scale",
+  "records": [
+    {
+      "scenarioId": "scale-10-offers",
+      "description": "10 deterministically generated offers exercising a realistic mix of Retail/Resale, known/unknown retailer, logo authority, watch eligibility, known/unknown currency, and exact-group/must-not-group candidates.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["scale","pr-c-support"],
+      "seed": "kscan-commerce-corpus-v1:10",
+      "generator": "tools/commerce-corpus/generateScaleCorpus.js",
+      "input": {
+      "offers": [
+        {"offerId":"scale-offer-000","sourceIndex":0,"retailer":"Farfetch","brand":"New Balance","title":"New Balance Item scale-offer-000","commerceType":"retail","logoAuthority":true,"watchCapability":"refreshable_listing","currency":"GBP","price":110.36,"productId":"UNIQ-scale-offer-000"},
+        {"offerId":"scale-offer-001","sourceIndex":1,"retailer":"SSENSE","brand":"Ganni","title":"Ganni Item scale-offer-001","commerceType":"resale","logoAuthority":true,"watchCapability":"unsupported","currency":"GBP","price":289.19,"productId":"UNIQ-scale-offer-001"},
+        {"offerId":"scale-offer-002","sourceIndex":2,"retailer":"Zara","brand":"Everlane","title":"Everlane Item scale-offer-002","commerceType":"retail","logoAuthority":true,"watchCapability":"unsupported","currency":"EUR","price":170.58,"productId":"UNIQ-scale-offer-002"},
+        {"offerId":"scale-offer-003","sourceIndex":3,"retailer":"Nordstrom","brand":"Ganni","title":"Ganni Item scale-offer-003","commerceType":"retail","logoAuthority":false,"watchCapability":"unsupported","currency":"GBP","price":386.77,"productId":"UNIQ-scale-offer-003"},
+        {"offerId":"scale-offer-004","sourceIndex":4,"retailer":null,"brand":"Ganni","title":"Ganni Item scale-offer-004","commerceType":"retail","logoAuthority":false,"watchCapability":"unsupported","currency":null,"price":479.4,"productId":"UNIQ-scale-offer-004"},
+        {"offerId":"scale-offer-005","sourceIndex":5,"retailer":"SSENSE","brand":"Levi's","title":"Levi's Signature Item (Style 1)","commerceType":"retail","logoAuthority":true,"watchCapability":"unsupported","currency":"GBP","price":96.2,"productId":"UNIQ-scale-offer-005"},
+        {"offerId":"scale-offer-006","sourceIndex":6,"retailer":"SSENSE","brand":"Acne Studios","title":"Acne Studios Item scale-offer-006","commerceType":"retail","logoAuthority":true,"watchCapability":"unsupported","currency":"GBP","price":287.17,"productId":"UNIQ-scale-offer-006"},
+        {"offerId":"scale-offer-007","sourceIndex":7,"retailer":"Zara","brand":"Acne Studios","title":"Acne Studios Item scale-offer-007","commerceType":"retail","logoAuthority":true,"watchCapability":"unsupported","currency":"GBP","price":306.25,"productId":"SHARED-1"},
+        {"offerId":"scale-offer-008","sourceIndex":8,"retailer":"Zappos","brand":"Acne Studios","title":"Acne Studios Item scale-offer-008","commerceType":"retail","logoAuthority":true,"watchCapability":"unsupported","currency":"EUR","price":264.73,"productId":"UNIQ-scale-offer-008"},
+        {"offerId":"scale-offer-009","sourceIndex":9,"retailer":"SSENSE","brand":"Acne Studios","title":"Acne Studios Item scale-offer-009","commerceType":"retail","logoAuthority":true,"watchCapability":"unsupported","currency":"USD","price":291.2,"productId":"UNIQ-scale-offer-009"}
+      ]
+    },
+      "expected": {"orderPreserved":true,"sourceOrderField":"sourceIndex","composition":{"totalOffers":10,"knownRetailer":9,"unknownRetailer":1,"logoAuthority":8,"noLogoAuthority":2,"retail":9,"resale":1,"watchable":1,"notWatchable":9,"knownCurrency":9,"unknownCurrency":1}},
+      "notes": "Generated output, not hand-authored. Re-running generateScaleCorpus.js against the same seed reproduces this file byte-for-byte; see __tests__/commerce-corpus/scaleCorpus.test.js."
+    }
+  ]
+}

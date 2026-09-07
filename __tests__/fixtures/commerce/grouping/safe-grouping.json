@@ -1,0 +1,35 @@
+{
+  "commerceCorpusFixtureVersion": 1,
+  "category": "safe-grouping",
+  "records": [
+    {
+      "scenarioId": "group-safe-same-url-exact-dedup",
+      "description": "Two raw listing entries with the IDENTICAL (retailer, productUrl, price, size, variant, productId) tuple must collapse into ONE purchase option. This is a real, currently-shipped exact-identity mechanism — not a proposal.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["exact-group", "pr-c-support"],
+      "input": {
+        "rawEntries": [
+          { "retailer": "Farfetch", "productUrl": "https://www.farfetch.com/shopping/item/12345.aspx", "price": "340", "size": "M", "variant": "black", "productId": "FF-12345" },
+          { "retailer": "Farfetch", "productUrl": "https://www.farfetch.com/shopping/item/12345.aspx", "price": "340", "size": "M", "variant": "black", "productId": "FF-12345" }
+        ]
+      },
+      "expected": { "outputOptionCount": 1, "groupingBasis": "exact-fingerprint-match", "groupedFieldsMatched": ["retailer", "productUrl", "price", "size", "variant", "productId"] },
+      "notes": "services/dressingRoomCommerce.ts optionFingerprint() (~line 174-183) + normalizePurchaseOptions()'s `seen` Set dedup (~line 189-260): this is real, shipped, exact-identity-based collapsing of literal duplicate listings — the one form of 'grouping' this app safely performs in production today. It is OFFER de-duplication (same exact listing seen twice), not cross-retailer PRODUCT grouping — see group-safe-hypothetical-cross-retailer-exact-id below for why that distinction matters."
+    },
+    {
+      "scenarioId": "group-safe-hypothetical-cross-retailer-exact-id",
+      "description": "IF a governed, cross-retailer-comparable exact product identifier existed (it does not, in production, today — see Finding F2), grouping two DIFFERENT retailers' offers under one product by that exact ID would be safe. This fixture demonstrates what safe cross-retailer grouping WOULD look like, using a clearly-labeled hypothetical field, so Commerce V2 has a concrete target shape to build toward without this corpus fabricating that the capability exists now.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["exact-group", "pr-c-support"],
+      "input": {
+        "hypotheticalTrustedProductId": "GTIN-00012345678905",
+        "offers": [
+          { "retailer": "Farfetch", "hypotheticalTrustedProductId": "GTIN-00012345678905", "price": 340, "currency": "USD" },
+          { "retailer": "SSENSE", "hypotheticalTrustedProductId": "GTIN-00012345678905", "price": 355, "currency": "USD" }
+        ]
+      },
+      "expected": { "groupingPermitted": true, "groupingBasis": "hypothetical-exact-cross-retailer-id-not-real-today", "offerCount": 2 },
+      "notes": "SYNTHETIC BOUNDARY DEMONSTRATION ONLY. Field name 'hypotheticalTrustedProductId' is deliberately not a real field name from any production type, to avoid this fixture being mistaken for evidence that GTIN-based grouping exists. This is the counterexample to must-not-group's canonicalProductKey-shaped cases: the difference between a SAFE grouping mechanism and the UNSAFE one that exists in source (Finding F2) is exact-ID-based vs. fuzzy-title-based matching."
+    }
+  ]
+}

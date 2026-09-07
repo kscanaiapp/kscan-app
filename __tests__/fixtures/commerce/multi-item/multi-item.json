@@ -1,0 +1,192 @@
+{
+  "commerceCorpusFixtureVersion": 1,
+  "category": "multi-item",
+  "records": [
+    {
+      "scenarioId": "mi-three-garments-independent",
+      "description": "Three detected garments (jacket, skirt, boots) each produce their own independent commerce card; no card's data is shared or merged across candidates.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["multi-item", "pr-c-support"],
+      "input": {
+        "candidates": [
+          { "candidateId": "cand-jacket-1" },
+          { "candidateId": "cand-skirt-1" },
+          { "candidateId": "cand-boots-1" }
+        ],
+        "cards": {
+          "cand-jacket-1": {
+            "candidateId": "cand-jacket-1",
+            "status": "ready",
+            "bestMatch": {
+              "id": "offer-jacket-best",
+              "title": "Wool Blend Bomber Jacket",
+              "retailer": "Nordstrom",
+              "productUrl": "https://www.nordstrom.com/s/wool-bomber-jacket/9000001",
+              "price": "$220.00",
+              "currency": "USD"
+            },
+            "alternatives": [],
+            "retryable": false
+          },
+          "cand-skirt-1": {
+            "candidateId": "cand-skirt-1",
+            "status": "ready",
+            "bestMatch": {
+              "id": "offer-skirt-best",
+              "title": "Pleated Midi Skirt",
+              "retailer": "Zappos",
+              "productUrl": "https://www.zappos.com/p/pleated-midi-skirt/product/9000002",
+              "price": "$58.00",
+              "currency": "USD"
+            },
+            "alternatives": [],
+            "retryable": false
+          },
+          "cand-boots-1": {
+            "candidateId": "cand-boots-1",
+            "status": "ready",
+            "bestMatch": {
+              "id": "offer-boots-best",
+              "title": "Leather Combat Boots",
+              "retailer": "Farfetch",
+              "productUrl": "https://www.farfetch.com/shopping/women/leather-combat-boots-item-9000003.aspx",
+              "price": "$310.00",
+              "currency": "USD"
+            },
+            "alternatives": [],
+            "retryable": false
+          }
+        }
+      },
+      "expected": {
+        "cardsByCandidateId": {
+          "cand-jacket-1": { "bestMatchRetailer": "Nordstrom" },
+          "cand-skirt-1": { "bestMatchRetailer": "Zappos" },
+          "cand-boots-1": { "bestMatchRetailer": "Farfetch" }
+        },
+        "sharedCommerceArrayAcrossGarments": false,
+        "eachCardTracesOnlyToOwnCandidateId": true
+      },
+      "notes": "services/multiItemCommerce.ts:106-142 (fetchMultiItemCommerce) returns a Map<candidateId, ItemCommerceCard> — each candidate's card is built independently from its own Promise.allSettled entry (lines 128-140), so no shared commerce array exists across garments."
+    },
+    {
+      "scenarioId": "mi-negative-control-cross-item-leak",
+      "description": "Negative control: if candidate cand-jacket-1's bestMatch.productUrl were ever rendered under candidate cand-skirt-1's Shop action, that must be treated as a bug, since the real Map-keyed-by-candidateId return shape makes this impossible when implemented correctly.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["multi-item", "pr-c-support"],
+      "input": {
+        "candidates": [
+          { "candidateId": "cand-jacket-1" },
+          { "candidateId": "cand-skirt-1" },
+          { "candidateId": "cand-boots-1" }
+        ],
+        "cards": {
+          "cand-jacket-1": {
+            "candidateId": "cand-jacket-1",
+            "status": "ready",
+            "bestMatch": {
+              "id": "offer-jacket-best-2",
+              "title": "Wool Blend Bomber Jacket",
+              "retailer": "Nordstrom",
+              "productUrl": "https://www.nordstrom.com/s/wool-bomber-jacket/9000004",
+              "price": "$225.00",
+              "currency": "USD"
+            },
+            "alternatives": [],
+            "retryable": false
+          },
+          "cand-skirt-1": {
+            "candidateId": "cand-skirt-1",
+            "status": "ready",
+            "bestMatch": {
+              "id": "offer-skirt-best-2",
+              "title": "Pleated Midi Skirt",
+              "retailer": "Zappos",
+              "productUrl": "https://www.zappos.com/p/pleated-midi-skirt/product/9000005",
+              "price": "$59.00",
+              "currency": "USD"
+            },
+            "alternatives": [],
+            "retryable": false
+          },
+          "cand-boots-1": {
+            "candidateId": "cand-boots-1",
+            "status": "ready",
+            "bestMatch": {
+              "id": "offer-boots-best-2",
+              "title": "Leather Combat Boots",
+              "retailer": "Farfetch",
+              "productUrl": "https://www.farfetch.com/shopping/women/leather-combat-boots-item-9000006.aspx",
+              "price": "$315.00",
+              "currency": "USD"
+            },
+            "alternatives": [],
+            "retryable": false
+          }
+        },
+        "assertionUnderTest": "if candidate cand-jacket-1's bestMatch.productUrl (https://www.nordstrom.com/s/wool-bomber-jacket/9000004) were rendered under candidate cand-skirt-1's Shop action instead of https://www.zappos.com/p/pleated-midi-skirt/product/9000005, that is a bug"
+      },
+      "expected": {
+        "crossItemLeakageAllowed": false,
+        "eachShopActionMustUseOwnCandidatesBestMatchProductUrl": true
+      },
+      "notes": "services/multiItemCommerce.ts:106-142 — the per-candidateId Map return shape (line 128: `out.set(candidate.id, {...})`) is the real mechanism that should prevent this leak; this fixture encodes the required negative-control property a test can assert against, not an observed failure."
+    },
+    {
+      "scenarioId": "mi-partial-failure-isolated",
+      "description": "Three candidates where the middle one errors; the other two candidates' ready cards with real bestMatch data are entirely unaffected by that error.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["multi-item", "pr-c-support", "failure"],
+      "input": {
+        "candidates": [
+          { "candidateId": "cand-jacket-2" },
+          { "candidateId": "cand-skirt-2" },
+          { "candidateId": "cand-boots-2" }
+        ],
+        "cards": {
+          "cand-jacket-2": {
+            "candidateId": "cand-jacket-2",
+            "status": "ready",
+            "bestMatch": {
+              "id": "offer-jacket-best-3",
+              "title": "Denim Trucker Jacket",
+              "retailer": "Nordstrom",
+              "productUrl": "https://www.nordstrom.com/s/denim-trucker-jacket/9000007",
+              "price": "$98.00",
+              "currency": "USD"
+            },
+            "alternatives": [],
+            "retryable": false
+          },
+          "cand-skirt-2": {
+            "candidateId": "cand-skirt-2",
+            "status": "error",
+            "bestMatch": null,
+            "alternatives": [],
+            "retryable": true
+          },
+          "cand-boots-2": {
+            "candidateId": "cand-boots-2",
+            "status": "ready",
+            "bestMatch": {
+              "id": "offer-boots-best-3",
+              "title": "Suede Chelsea Boots",
+              "retailer": "SSENSE",
+              "productUrl": "https://www.ssense.com/en-us/women/product/suede-chelsea-boots/9000008",
+              "price": "$275.00",
+              "currency": "USD"
+            },
+            "alternatives": [],
+            "retryable": false
+          }
+        }
+      },
+      "expected": {
+        "cand-jacket-2": { "status": "ready", "unaffectedByOtherCandidateError": true },
+        "cand-skirt-2": { "status": "error", "retryable": true },
+        "cand-boots-2": { "status": "ready", "unaffectedByOtherCandidateError": true }
+      },
+      "notes": "services/multiItemCommerce.ts:9-13,102-104,112-126 — Promise.allSettled dispatches one commerce request per candidate in parallel; one candidate's failure never blocks or removes another candidate's card."
+    }
+  ]
+}

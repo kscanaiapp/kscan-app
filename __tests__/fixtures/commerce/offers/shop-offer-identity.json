@@ -1,0 +1,54 @@
+{
+  "commerceCorpusFixtureVersion": 1,
+  "category": "shop-offer-identity",
+  "records": [
+    {
+      "scenarioId": "shop-id-per-offer-independent",
+      "description": "Two offers, each with its own distinct productUrl. Tapping Shop on offer A must open offer A's URL; tapping Shop on offer B must open offer B's URL. Neither offer's safe URL may be substituted for the other's.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["safe-url", "retailer-truth", "pr-c-support"],
+      "input": {
+        "offers": [
+          {
+            "offerId": "offer-a",
+            "retailer": "Zappos",
+            "productUrl": "https://www.zappos.com/p/example-shoe/product/1111111/color/3"
+          },
+          {
+            "offerId": "offer-b",
+            "retailer": "SSENSE",
+            "productUrl": "https://www.ssense.com/en-us/men/product/example/jacket/2222222"
+          }
+        ]
+      },
+      "expected": {
+        "shopDestinations": [
+          { "fromOfferId": "offer-a", "opensUrl": "https://www.zappos.com/p/example-shoe/product/1111111/color/3" },
+          { "fromOfferId": "offer-b", "opensUrl": "https://www.ssense.com/en-us/men/product/example/jacket/2222222" }
+        ],
+        "crossOfferUrlLeakage": false
+      },
+      "notes": "services/commerceDestination.ts:77-85 (selectCommerceDestination picks from THAT record's own candidate URLs only — an unsafe/malformed candidate is skipped individually, never causing fallback to a different offer's URL)."
+    },
+    {
+      "scenarioId": "shop-id-unsafe-candidate-does-not-borrow-sibling-url",
+      "description": "Offer A's only URL is unsafe (http, not https) while sibling offer B has a perfectly good https URL. Shop on offer A must be suppressed entirely — it must NOT silently open offer B's URL just because a safe URL exists somewhere in the list.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["safe-url", "unsafe-url", "pr-c-support"],
+      "input": {
+        "offers": [
+          { "offerId": "offer-a", "retailer": "Example Retailer", "productUrl": "http://example-retailer.test/item/1" },
+          { "offerId": "offer-b", "retailer": "Nordstrom", "productUrl": "https://www.nordstrom.com/s/example-item/1234567" }
+        ]
+      },
+      "expected": {
+        "shopDestinations": [
+          { "fromOfferId": "offer-a", "opensUrl": null, "shopSuppressed": true },
+          { "fromOfferId": "offer-b", "opensUrl": "https://www.nordstrom.com/s/example-item/1234567", "shopSuppressed": false }
+        ],
+        "crossOfferUrlLeakage": false
+      },
+      "notes": "services/commerceDestination.ts:56-69 (isSafeCommerceUrl requires https); selectCommerceDestination operates per-record on that record's OWN candidates array, never pooling candidates across sibling offers."
+    }
+  ]
+}

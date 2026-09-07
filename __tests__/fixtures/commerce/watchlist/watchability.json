@@ -1,0 +1,119 @@
+{
+  "commerceCorpusFixtureVersion": 1,
+  "category": "watchability",
+  "records": [
+    {
+      "scenarioId": "watch-elig-refreshable-farfetch",
+      "description": "A real retail offer whose URL matches the registered, enabled Farfetch provider is watch-eligible.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["watchable"],
+      "input": {
+        "id": "offer-farfetch-001",
+        "title": "Marc Jacobs Sac de Jour Bag",
+        "source": "farfetch",
+        "retailer": "Farfetch",
+        "price": "$1,290.00",
+        "currency": "USD",
+        "productUrl": "https://www.farfetch.com/shopping/women/marc-jacobs-sac-a-main-item-14568802.aspx",
+        "type": "retail",
+        "watchCapability": "refreshable_listing"
+      },
+      "expected": {
+        "watchable": true,
+        "watchActionOffered": true
+      },
+      "notes": "supabase/functions/scan-identify/watchlistCapability.ts:54-61,77-86 (WATCH_PROVIDER_REGISTRY, deriveWatchCapability) — farfetch is one of exactly two registered providers with a real re-read-by-identity adapter; isWatchableListing() (types/watchlist.ts:60-62) returns true only when watchCapability === 'refreshable_listing'."
+    },
+    {
+      "scenarioId": "watch-elig-unsupported-serper",
+      "description": "A real retail offer from a generic Serper-sourced URL is not watch-eligible, even though it is a genuine retail offer, because its provider has no re-observation-by-identity adapter.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["not-watchable"],
+      "input": {
+        "id": "offer-serper-001",
+        "title": "Running Shoes",
+        "source": "serper",
+        "retailer": "Zappos",
+        "price": "$89.99",
+        "currency": "USD",
+        "productUrl": "https://www.zappos.com/p/running-shoes/product/7654321",
+        "type": "retail",
+        "watchCapability": "unsupported"
+      },
+      "expected": {
+        "watchable": false,
+        "watchActionOffered": false,
+        "isRealRetailOffer": true
+      },
+      "notes": "supabase/functions/scan-identify/watchlistCapability.ts:42-61 — watch eligibility is gated by the provider registry (only farfetch and kickscrew), not by whether the offer is a genuine retail purchase. A real Zappos/Serper offer is still 'unsupported' because Serper has no refresh-by-identity path (watchlistCapability.ts:47-49)."
+    },
+    {
+      "scenarioId": "watch-elig-capability-missing",
+      "description": "A listing record that predates the watchCapability field entirely (field absent, not merely falsy) must not be treated as watchable — absence is never inferred as eligibility.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["not-watchable"],
+      "input": {
+        "id": "offer-legacy-001",
+        "title": "Denim Jacket",
+        "source": "serper",
+        "retailer": "Nordstrom",
+        "price": "$120.00",
+        "currency": "USD",
+        "productUrl": "https://www.nordstrom.com/s/denim-jacket/2345678",
+        "type": "retail"
+      },
+      "expected": {
+        "watchable": false,
+        "watchActionOffered": false,
+        "reasoning": "watchCapability field absent, not defaulted to refreshable_listing or unsupported"
+      },
+      "notes": "types/watchlist.ts:60-62 — isWatchableListing() does a strict `listing?.watchCapability === 'refreshable_listing'` check; an absent field fails that strict equality and yields false, exactly like an explicit 'unsupported' value. Never inferred as watchable from absence."
+    },
+    {
+      "scenarioId": "watch-elig-similar-type-rejected",
+      "description": "A record where type is 'similar' (a similar-style web link, not a real offer) nonetheless carries watchCapability: 'refreshable_listing' by data error; the client-side eligibility check does not independently re-verify type==='retail', it trusts the server-set watchCapability field completely — this is a documented tension/gap between the two independent check functions, not an observed real-world case.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["watchable"],
+      "input": {
+        "id": "offer-similar-001",
+        "title": "Similar Style: Leather Tote",
+        "source": "brave",
+        "retailer": "SSENSE",
+        "price": "$210.00",
+        "currency": "USD",
+        "productUrl": "https://www.ssense.com/en-us/women/product/similar-leather-tote/1122334",
+        "type": "similar",
+        "watchCapability": "refreshable_listing"
+      },
+      "expected": {
+        "watchable": true,
+        "watchActionOffered": true,
+        "computedFrom": "watchCapability field only, type field not re-checked downstream"
+      },
+      "notes": "SYNTHETIC — this exact inconsistent-data combination was never observed; it is reasoned about by composing two real, independently-verified functions: deriveWatchCapability (watchlistCapability.ts:77-86) checks type === 'retail' before ever producing 'refreshable_listing', so a real server response could never produce this combination server-side. But isWatchableListing (types/watchlist.ts:60-62) only reads watchCapability and never re-checks type, so IF a 'similar' record somehow carried watchCapability: 'refreshable_listing' (e.g. stale cache, a future bug, a malformed manual test record), the client would still compute watchable: true. This documents a tension/gap between the two independent checks, not a real production path."
+    },
+    {
+      "scenarioId": "watch-elig-resale-poshmark-unsupported",
+      "description": "A Poshmark resale offer is not watch-eligible because Poshmark, like every provider except Farfetch and KicksCrew, has no re-observation-by-identity adapter.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["not-watchable", "resale"],
+      "input": {
+        "id": "offer-poshmark-005",
+        "title": "Cashmere Sweater",
+        "source": "poshmark",
+        "retailer": "Poshmark",
+        "price": "$55.00",
+        "currency": "USD",
+        "productUrl": "https://poshmark.com/listing/cashmere-sweater-64f1a2b3c4d5e6f7a8b9c0d5",
+        "type": "retail",
+        "commerceType": "resale",
+        "watchCapability": "unsupported"
+      },
+      "expected": {
+        "watchable": false,
+        "watchActionOffered": false
+      },
+      "notes": "no real resale provider is watch-eligible today; a 'watchable Resale' case would require a SYNTHETIC hypothetical future provider, which Section 22 permits ('watchable Resale if current contract permits') — the current contract does not permit it, so this fixture demonstrates the negative instead. Grounded in watchlistCapability.ts:47-49,54-61 (Poshmark is explicitly named as having no refresh-by-identity path, and is absent from WATCH_PROVIDER_REGISTRY)."
+    }
+  ]
+}
