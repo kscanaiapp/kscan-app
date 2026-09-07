@@ -550,7 +550,68 @@ every other command: `RUNNING`/`PAUSED` only, single-flight (a second
 capture while one is in flight is refused, not queued), and refused outright
 once `STOPPED`/`DISPOSED`.
 
-### 13.5 Garment loading: a bounded scope decision
+### 13.5 Garment loading: CLOSED -- governed product → Live-asset resolver
+
+Superseded (2026-09-06, same day as the rest of Part B). The bounded-scope
+decision below is kept for history; the resolver it named as future work now
+exists.
+
+`services/vto/vtoLiveGarmentRegistry.ts` is the governed Live asset
+registry: it re-declares identity fields (`assetKey`/`assetId`/
+`assetVersion`/`productRef`/`eligibility`/`qa`) from the two REAL, already-
+bundled Phase-4-generated manifests (`n1b-fixture`, `n1c-asym-fixture`),
+keyed by their own `productIdentity.productRef` — the SAME field Phase 4
+already carries for exactly this purpose, so no second product-id system or
+asset format was invented. `services/vto/vtoLiveGarment.ts`'s
+`resolveLiveGarment(productRef)` is the resolver contract:
+`ELIGIBLE(asset) | INELIGIBLE(reason) | NOT_FOUND | ERROR`. NOT_FOUND is the
+expected, truthful outcome for the overwhelming majority of real
+productRef values — Commerce's `productRef` is an ephemeral per-scan
+correlation handle, not a stable catalog SKU, and Phase 4 has only ever
+addressed a small synthetic corpus plus a bounded real-catalog benchmark
+(Gate E: 3/220 real products LIVE2D_ELIGIBLE). `evaluateLiveGarmentEligibility`/
+`isLiveGarmentEligible` remain as backward-compatible boolean-shaped
+adapters over the resolver for their one existing call site
+(`components/vto/VirtualTryOnSheet.tsx`).
+
+`LiveVtoGarmentDescriptor` (`types/vtoLive.ts` and both native
+re-declarations) gained three REQUIRED fields: `assetKey` (an allowlisted
+bundled-fixture directory name — `n1b-fixture`/`n1c-asym-fixture` today),
+`assetId`, and `assetVersion`. Native's `fromBridgeMap`/`.parse` (Android
+`LiveVtoSessionState.kt`, iOS `LiveVtoSessionState.swift`) now REFUSE any
+descriptor without a valid, allowlisted `assetKey` — the exact four-field
+placeholder shape this section used to describe no longer parses at all.
+`performGarmentLoad` (`LiveVtoTestRenderView.kt` / `LiveVtoRenderView.swift`)
+loads `descriptor.assetKey` instead of a hardcoded fixture name, reusing
+`loadFixture()`'s existing per-name decode cache unchanged, and asserts
+`assetIdentityMatches` (a new pure function, `LiveVtoGarment.kt`/`.swift`)
+post-load: the loaded manifest's `assetVersion` must equal what the
+resolver committed to. `assetKey` is never a caller-supplied filesystem
+path — it is checked against the allowlist before any asset-manager/bundle
+file access, closing the path-traversal surface at the parse boundary. The
+diagnostic `active`/`replay`/`perception`/`camera` view properties are
+UNCHANGED and remain a separate, still-available explicit-fixture path —
+they call `loadFixture("n1b-fixture")` directly, never through this
+descriptor.
+
+The existing generation-guard/state-machine plumbing this section already
+described (§13.3) is UNCHANGED: selecting a different `name` for
+`loadFixture` within the same guarded block is the entire runtime change,
+so the stale-callback protection already carried through Part B extends to
+asset identity by construction, without needing to be re-verified.
+
+Two productRefs resolving to two DIFFERENT real assets is proven
+mechanically: `__tests__/vtoLiveGarmentResolver.test.js` (resolver ELIGIBLE/
+INELIGIBLE/NOT_FOUND/ERROR matrix, "product A resolves asset A, product B
+resolves asset B") and `__tests__/vtoLiveGarmentRegistryParity.test.js`
+(reads the real bundled `manifest.json`/`texture.png`/`alpha.png` off disk
+on both platforms, proves the registry matches reality, proves Android/iOS
+copies are byte-identical, and pins the two fixtures' `texture.png`
+sha256 values as genuinely different bytes — not the same asset committed
+twice under two names).
+
+<details>
+<summary>Original bounded-scope decision (superseded, kept for history)</summary>
 
 There is no live product-catalog → native-asset resolver anywhere in this
 codebase (confirmed by research): `vto-phase4-pipeline/` is an offline
@@ -568,6 +629,8 @@ honestly in the `garmentLoaded` event for identity — nothing about them is
 fabricated — but a distinct visual asset per product is not yet addressed.
 This is real, bounded, and documented here rather than silently assumed;
 closing it (a real catalog → `.ksgarment` resolver) is future work.
+
+</details>
 
 ### 13.6 Events emitted
 

@@ -151,3 +151,20 @@ public struct KsgarmentManifest: Equatable {
     return try parse(ksgarment)
   }
 }
+
+/// Post-load asset-identity cross-check: the manifest actually loaded from
+/// `descriptor.assetKey`'s folder must be the SAME version the caller
+/// requested. Extracted as a pure function (zero UIKit/Foundation-only, same
+/// as the rest of this file) specifically so it is unit-testable via
+/// SwiftPM -- see LiveVtoGarmentDescriptorTests.swift -- even though
+/// `loadFixture()` itself (real bundle file I/O) is not. Mirrors Android's
+/// `assetIdentityMatches` in LiveVtoGarment.kt exactly, including NOT
+/// comparing `manifest.productId` to `descriptor.productRef` -- those are
+/// different identity spaces by design (services/vto/vtoLiveGarmentRegistry.ts's
+/// header): `productRef` is Commerce's correlation handle, `productId` is the
+/// ksgarment manifest's own (Phase-4-assigned) identity, and the resolver's
+/// registry lookup is what ties them together, not a runtime string-equality
+/// requirement.
+public func assetIdentityMatches(_ manifest: KsgarmentManifest, _ descriptor: LiveVtoGarmentDescriptor) -> Bool {
+  manifest.assetVersion == descriptor.assetVersion
+}

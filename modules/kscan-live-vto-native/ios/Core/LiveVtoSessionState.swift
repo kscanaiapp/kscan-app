@@ -157,19 +157,50 @@ public enum LiveVtoSessionMachine {
 /// Native mirror of `LiveVtoGarmentDescriptor` in types/vtoLive.ts.
 /// Re-declared, not imported -- same reasoning as `LiveVtoGarment.swift`'s
 /// re-declaration of the `.ksgarment` contract.
+///
+/// `assetKey`/`assetId`/`assetVersion` (added alongside the governed asset
+/// resolver, services/vto/vtoLiveGarment.ts's `resolveLiveGarment`) are now
+/// REQUIRED, not optional -- matching Android's own
+/// `LiveVtoSessionState.kt`. Before this, `performGarmentLoad`
+/// (LiveVtoRenderView.swift) resolved EVERY validated descriptor to the SAME
+/// bundled fixture ("n1b-fixture", hardcoded) -- see
+/// docs/vto-live-bridge-contract.md §13.5. `assetKey` is what closes that:
+/// checked here against [supportedAssetKeys] -- an ALLOWLIST of real bundled
+/// directory names, never a caller-supplied filesystem path. A descriptor
+/// missing a valid, allowlisted `assetKey` is refused here exactly like a
+/// missing `productRef` always was; the diagnostic `active`/`replay`/
+/// `perception`/`camera` view properties remain a SEPARATE, still-available
+/// explicit-fixture path (they call `loadFixture("n1b-fixture")` directly,
+/// never through this descriptor).
 public struct LiveVtoGarmentDescriptor: Equatable {
   public static let supportedTemplateFamilies: Set<String> = ["t-shirt", "simple-top", "sweater"]
+
+  /// Allowlisted bundled-asset directory names. Mirrors
+  /// services/vto/vtoLiveGarmentRegistry.ts's LIVE_VTO_ASSET_KEY_ALLOWLIST
+  /// and Android's own `LiveVtoGarmentDescriptor.SUPPORTED_ASSET_KEYS` --
+  /// re-declared, not imported, same reasoning as the rest of this file's
+  /// re-declared TS contract.
+  public static let supportedAssetKeys: Set<String> = ["n1b-fixture", "n1c-asym-fixture"]
 
   public let productRef: String
   public let imageUrl: String
   public let canonicalCategory: String
   public let templateFamily: String
+  public let assetKey: String
+  public let assetId: String
+  public let assetVersion: String
 
-  public init(productRef: String, imageUrl: String, canonicalCategory: String, templateFamily: String) {
+  public init(
+    productRef: String, imageUrl: String, canonicalCategory: String, templateFamily: String,
+    assetKey: String, assetId: String, assetVersion: String
+  ) {
     self.productRef = productRef
     self.imageUrl = imageUrl
     self.canonicalCategory = canonicalCategory
     self.templateFamily = templateFamily
+    self.assetKey = assetKey
+    self.assetId = assetId
+    self.assetVersion = assetVersion
   }
 
   /// Parses and validates an Expo-bridged `[String: Any]` command argument.
@@ -180,8 +211,14 @@ public struct LiveVtoGarmentDescriptor: Equatable {
       let imageUrl = raw?["imageUrl"] as? String, !imageUrl.isEmpty,
       let canonicalCategory = raw?["canonicalCategory"] as? String, !canonicalCategory.isEmpty,
       let templateFamily = raw?["templateFamily"] as? String,
-      supportedTemplateFamilies.contains(templateFamily)
+      supportedTemplateFamilies.contains(templateFamily),
+      let assetKey = raw?["assetKey"] as? String,
+      supportedAssetKeys.contains(assetKey),
+      let assetId = raw?["assetId"] as? String, !assetId.isEmpty,
+      let assetVersion = raw?["assetVersion"] as? String, !assetVersion.isEmpty
     else { return nil }
-    return LiveVtoGarmentDescriptor(productRef: productRef, imageUrl: imageUrl, canonicalCategory: canonicalCategory, templateFamily: templateFamily)
+    return LiveVtoGarmentDescriptor(
+      productRef: productRef, imageUrl: imageUrl, canonicalCategory: canonicalCategory, templateFamily: templateFamily,
+      assetKey: assetKey, assetId: assetId, assetVersion: assetVersion)
   }
 }

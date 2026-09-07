@@ -701,20 +701,29 @@ public final class LiveVtoRenderView: ExpoView {
     return performGarmentLoad(descriptor, loadingState: result.next, resumeTo: resumeTarget)
   }
 
-  /// Bounded scope decision (Part B, 2026-09-06) -- matches Android's own:
-  /// no live product-catalog -> native-asset resolver exists anywhere in
-  /// this codebase yet, so every supported `templateFamily` resolves to the
-  /// SAME governed bundled fixture the diagnostic view already renders.
-  /// `productRef`/`imageUrl`/`canonicalCategory` are validated and carried
-  /// in the `garmentLoaded` event for identity, but do not yet address a
-  /// distinct asset. The state machine, generation guard, and event
-  /// contract around this call are real and exercised regardless of that
-  /// bound.
+  /// Governed asset resolution (closes the Part B bounded-scope decision,
+  /// docs/vto-live-bridge-contract.md §13.5, matching Android's own
+  /// `LiveVtoTestRenderView.performGarmentLoad`). `descriptor.assetKey` is
+  /// the ALLOWLISTED bundled-fixture directory the TS resolver
+  /// (services/vto/vtoLiveGarment.ts's `resolveLiveGarment`) selected for
+  /// THIS productRef -- already validated against
+  /// `LiveVtoGarmentDescriptor.supportedAssetKeys` in `fromBridgeMap` before
+  /// this method is ever reached, so `loadFixture` below is never called
+  /// with a caller-supplied path. `loadFixture` is reused verbatim
+  /// (including its existing `combinedImageCache`, keyed by name) -- no new
+  /// caching layer was needed. A post-load `assetIdentityMatches` check
+  /// catches a bundled folder whose manifest disagrees with the version the
+  /// resolver committed to, and fails exactly like every other load failure
+  /// here: closed, via the existing garmentLoadFailed/fatalError path.
   private func performGarmentLoad(_ descriptor: LiveVtoGarmentDescriptor, loadingState: LiveVtoSessionState, resumeTo: LiveVtoSessionState) -> Bool {
     sessionState = loadingState
     let myGeneration = sessionGeneration
     do {
-      let (manifest, image, _) = try loadFixture("n1b-fixture")
+      let (manifest, image, _) = try loadFixture(descriptor.assetKey)
+      guard assetIdentityMatches(manifest, descriptor) else {
+        throw LiveVtoGarmentValidationError(
+          "asset version mismatch for \(descriptor.assetKey): requested \(descriptor.assetVersion), manifest reports \(manifest.assetVersion)")
+      }
       guard sessionGeneration == myGeneration else { return true } // superseded; drop silently
       sessionGarmentImage = image
       loadedGarment = descriptor
