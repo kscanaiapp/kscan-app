@@ -52,6 +52,7 @@ const commerce = run('services/commerceDestination.ts');
 const RETAILER = 'https://www.nordstrom.com/s/wool-coat/7412589';
 const GOOGLE_PRODUCT = 'https://www.google.com/shopping/product/1234567890';
 const GOOGLE_SEARCH = 'https://www.google.com/search?tbm=shop&q=wool%20coat';
+const commerceCurrency = run('supabase/functions/scan-identify/commerceCurrency.ts');
 
 test('BUG-02: a verified retailer destination is preferred over a Google intermediary', () => {
   // Aggregator listed first: order must not decide the winner.
@@ -129,7 +130,7 @@ function loadProvider() {
   let ENV = { SHOPPING_SERPER_API_KEY: 'k' };
   return run(
     'supabase/functions/scan-identify/shoppingProvider.ts',
-    {},
+    { './commerceCurrency.ts': commerceCurrency },
     {
       AbortController: globalThis.AbortController,
       fetch: async () => {
@@ -173,7 +174,7 @@ test('DATA BOUNDARY: the retailer provider receives only the search query', asyn
   const ENV = { SHOPPING_SERPER_API_KEY: 'serper-test-key' };
   const scoped = run(
     'supabase/functions/scan-identify/shoppingProvider.ts',
-    {},
+    { './commerceCurrency.ts': commerceCurrency },
     {
       AbortController: globalThis.AbortController,
       Deno: { env: { get: (k) => ENV[k] } },
