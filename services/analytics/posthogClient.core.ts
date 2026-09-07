@@ -82,6 +82,7 @@ function createClient(): PostHog | null {
       disableRemoteFeatureFlags: true,
       preloadFeatureFlags: false,
       disableSurveys: true,
+      disableGeoip: true,
       // No consent authority exists yet (see module header) — this ships as
       // an unconditional first-party posture once configured, pending
       // legal/privacy review. Not coupled to any existing preference.

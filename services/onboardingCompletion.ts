@@ -1,7 +1,19 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { hasCurrentLegalAcceptances } from './legalAcceptance';
+import {
+  AGE_VERSION,
+  AI_PROCESSING_VERSION,
+  PRIVACY_VERSION,
+  TERMS_VERSION,
+} from '../constants/legal';
 
 const STORAGE_KEY_PREFIX = 'onboardingComplete';
+export const CURRENT_ONBOARDING_COMPLETION_MARKER = [
+  `terms:${TERMS_VERSION}`,
+  `privacy:${PRIVACY_VERSION}`,
+  `minimum_age:${AGE_VERSION}`,
+  `ai_processing:${AI_PROCESSING_VERSION}`,
+].join('|');
 type CompletionListener = (userId: string) => void;
 
 const completionListeners = new Set<CompletionListener>();
@@ -23,7 +35,7 @@ export async function markOnboardingComplete(userId: string): Promise<void> {
     }
     return;
   }
-  await AsyncStorage.setItem(getKey(userId), 'true');
+  await AsyncStorage.setItem(getKey(userId), CURRENT_ONBOARDING_COMPLETION_MARKER);
   completionListeners.forEach((listener) => listener(userId));
 }
 
@@ -42,13 +54,14 @@ export function subscribeOnboardingCompletion(listener: CompletionListener): () 
 export async function isOnboardingComplete(userId: string): Promise<boolean> {
   if (!userId) return false;
   const value = await AsyncStorage.getItem(getKey(userId));
-  return value === 'true';
+  return value === CURRENT_ONBOARDING_COMPLETION_MARKER;
 }
 
 /**
- * Uses the local fast path, then restores it from the owner-scoped immutable
- * legal ledger after a reinstall/app-data clear. This does not infer completion
- * for a brand-new OAuth identity.
+ * Uses a version-bound local fast path, then restores it from the owner-scoped
+ * immutable legal ledger after a reinstall/app-data clear or when a legacy
+ * boolean marker is found. This does not infer completion for a brand-new OAuth
+ * identity and cannot let a prior policy version bypass a newer acknowledgment.
  */
 export async function resolveOnboardingCompletion(userId: string): Promise<boolean> {
   if (!userId) return false;

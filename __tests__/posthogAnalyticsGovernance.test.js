@@ -49,6 +49,13 @@ test('isPostHogConfigured requires both key and host to be non-empty', () => {
   );
 });
 
+test('GeoIP enrichment is explicitly disabled instead of inheriting the stateful SDK default', () => {
+  assert.match(
+    clientSource,
+    /new PostHog\(resolveApiKey\(\),\s*\{[\s\S]*?disableGeoip:\s*true/,
+  );
+});
+
 test('every exported function no-ops when posthog is null', () => {
   for (const name of [
     'forwardTelemetryToPostHog',

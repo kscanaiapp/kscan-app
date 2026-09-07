@@ -20,6 +20,7 @@ const pushDelivery = read('supabase/functions/commerce-watch-refresh/pushDeliver
 const watchRefresh = read('supabase/functions/commerce-watch-refresh/index.ts');
 const permissionsStep = read('components/account-home/PermissionsStepV1.tsx');
 const permissionsHook = read('hooks/usePermissionPreferences.ts');
+const rootLayout = read('app/_layout.tsx');
 const androidManifest = read('android/app/src/main/AndroidManifest.xml');
 const buildGradle = read('android/app/build.gradle');
 
@@ -93,6 +94,13 @@ test('NOTIF-14: every token acquisition passes an explicit projectId', () => {
   for (const call of calls) {
     assert.match(call, /projectId/, `implicit project-id discovery in: ${call}`);
   }
+});
+
+test('NOTIF-16: the shipping app installs and removes the push-token refresh listener', () => {
+  assert.match(pushRegistration, /export async function attachPushTokenRefreshListener/);
+  assert.match(pushRegistration, /addPushTokenListener/);
+  assert.match(rootLayout, /attachPushTokenRefreshListener\(\)/);
+  assert.match(rootLayout, /removeListener\?\.\(\)/);
 });
 
 // ─── NOTIF-06: multi-device delivery ────────────────────────────────────────

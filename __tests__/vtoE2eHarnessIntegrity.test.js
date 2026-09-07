@@ -57,7 +57,7 @@ function runAsNamedBashShell(script) {
   return spawnSync('bash', ['--noprofile', '--norc', '-eo', 'pipefail', '-c', script], { encoding: 'utf8' });
 }
 
-test('Control A1 — failure propagation: node|tee is falsely green under the undeclared default shell, and correctly fails under named `shell: bash`', () => {
+test('Control A1 — failure propagation: node|tee is falsely green under the undeclared default shell, and correctly fails under named `shell: bash`', { skip: process.platform === 'win32' }, () => {
   const reportFile = path.join(os.tmpdir(), `vto-e2e-a1-${crypto.randomUUID()}.json`);
   const script = `node -e "process.exit(1)" | tee ${reportFile} > /dev/null`;
 
@@ -70,7 +70,7 @@ test('Control A1 — failure propagation: node|tee is falsely green under the un
   fs.rmSync(reportFile, { force: true });
 });
 
-test('Control A2 — legitimate success remains success under pipefail (the fix never turns a real pass into a false failure)', () => {
+test('Control A2 — legitimate success remains success under pipefail (the fix never turns a real pass into a false failure)', { skip: process.platform === 'win32' }, () => {
   const reportFile = path.join(os.tmpdir(), `vto-e2e-a2-${crypto.randomUUID()}.json`);
   const script = `node -e "process.exit(0)" | tee ${reportFile} > /dev/null`;
   const named = runAsNamedBashShell(script);
