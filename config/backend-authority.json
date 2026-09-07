@@ -28,6 +28,16 @@
         "wearable-scan"
       ],
       "reason": "Governed by a different repository."
+    },
+    "stagingDiagnosticResidue": {
+      "functions": [
+        "vto-provider-diag",
+        "rapidapi-key-diag",
+        "rapidapi-current-audit"
+      ],
+      "reason": "RP-108 (2026-09-07): temporary diagnostic slugs left on staging by the 2026-08-30 VTO provider benchmark. They have no source in this tree and never did, so they are not governed here — but they WERE deployed on staging and this file did not name them, which meant a read of it under-counted the live surface by three. Recorded so a fresh clone can account for every slug staging actually carries. vto-provider-diag is documented in docs/vto-provider-benchmark.md §3.7, where it was redeployed as an inert 410 stub; rapidapi-key-diag and rapidapi-current-audit were undocumented anywhere in the repository before this entry.",
+      "posture": "vto-provider-diag: verify_jwt=true. rapidapi-key-diag and rapidapi-current-audit: verify_jwt=false, i.e. invokable without a caller JWT. All three were read from the Management API read-only during RP-108; none was invoked, redeployed or deleted by that lane.",
+      "ownerAction": "Remove all three slugs from staging (yzqjvdfgefveprobvvyw). This is an owner action: RP-108 has no authority to delete Edge Functions, and the Supabase MCP surface exposes no delete_edge_function tool. They are absent from production."
     }
   },
   "canonicalBranchNote": "GOV-KPLUS-001: this ref must be resolvable from a fresh clone. It currently exists only as a LOCAL branch in some checkouts, which makes the declared canonical deployment authority unverifiable anywhere else. Publishing it (or re-pointing this field at a ref that is published) is an owner action; scripts/verify-backend-authority.js reports the gap rather than hiding it.",
