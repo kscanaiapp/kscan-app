@@ -42,6 +42,23 @@ export interface RecommendedProduct {
    * downstream must keep saying that rather than substituting a default.
    */
   currency?: string;
+  /**
+   * The retailer's own SKU for this listing, when the provider declares one.
+   *
+   * Provenance only, exactly like `brand` and `commerceType`: it must never
+   * carry a ranking bonus or penalty, and it is never inferred from a title,
+   * URL, or synthesized `id`. Only KicksCrew supplies one today; every other
+   * provider leaves it undefined rather than fabricating one.
+   *
+   * Deliberately NOT named `sku`: `qualityTuneCommerce.productIdentityKey`
+   * reads a `sku` field as a dedupe identity (`retailer_sku` tier), and
+   * whether a KicksCrew SKU is product-unique or shared across colorways is
+   * unproven. Populating `sku` would silently activate that tier and could
+   * drop a legitimately different colourway as a duplicate. Lighting that
+   * tier up is a separate, evidence-gated decision -- see
+   * docs/audits/commerce-v2-closure-findings.md §3.
+   */
+  retailerSku?: string;
 }
 
 export interface ShoppingResult {

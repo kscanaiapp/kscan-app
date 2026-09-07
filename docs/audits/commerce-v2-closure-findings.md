@@ -114,7 +114,7 @@ already answered no) but **"do providers return identifiers K Scan drops?"**
 
 | Provider | Identifier present upstream? | Identifier retained? | Trust level | Cross-retailer value? | Action |
 |---|---|---|---|---|---|
-| **KicksCrew** | **YES** — `product.variants[0].sku`, read by `extractSku()` (`kicksCrewProvider.ts:146-151`) | **Collapsed, not retained as an identifier** — `const id = sku \|\| product.id \|\| productUrl` (`:181`). `KicksCrewProduct` declares no `sku` field, so downstream a real SKU is indistinguishable from a URL fallback | **High** — a sneaker SKU is a manufacturer style code | **HIGH** — the one genuinely cross-retailer key found | Preserve as a typed `sku` field |
+| **KicksCrew** | **YES** — `product.variants[0].sku`, read by `extractSku()` (`kicksCrewProvider.ts:146-151`) | ~~Collapsed into `id`~~ → **NOW RETAINED** as typed `retailerSku` (see update below). `id` precedence unchanged | **High as a retailer-scoped SKU.** Whether it is product-unique or a style code shared across colourways is **unproven** — correction to this row's original claim that it is a manufacturer style code | **POTENTIALLY HIGH**, unconfirmed — a sneaker style code would be cross-retailer, a per-variant SKU would not | **DONE** — preserved as `retailerSku`; dedupe tier deliberately left dormant |
 | **Farfetch3** | **YES** — `data.internalProductId` (`farfetch3Provider.ts:181`) | Collapsed into `id` the same way | High within Farfetch | **LOW** — retailer-scoped, not a shared product key | Preserve as retailer-scoped id |
 | **Poshmark** | **YES** — `item.listingId` (`poshmarkProvider.ts:196`) | Collapsed into `id` | High for the listing | **NONE** — identifies a listing, not a product | Preserve as listing id only |
 | **Vinted** | **YES** — `record.id / itemId / item_id` (`search-vinted-secondhand/index.ts:181`) | Collapsed into `id` | High for the listing | **NONE** | Preserve as listing id only |
@@ -141,11 +141,57 @@ the semantics that would make it usable. Only the KicksCrew SKU has genuine
 cross-retailer value.
 
 **This makes the next identity lane ADAPTER ENRICHMENT, not a new data
-source.** The minimal, honest scope: add optional typed `sku` /
-`retailerProductId` fields to `RecommendedProduct`, populate them where the
-adapter already extracts the value, and let the existing
-`productIdentityKey` tier light up. That is a provider-truth change, not a
-matching algorithm, and it is explicitly NOT built in this closure pass.
+source.**
+
+### Update — KicksCrew SKU retention IMPLEMENTED (owner-directed)
+
+The KicksCrew half of that lane has since been built: the SKU is now carried
+as a typed `retailerSku` field on `KicksCrewProduct`, on `RecommendedProduct`
+(the backend contract), and through `normalizeToRecommendedProduct`'s
+response allowlist — the boundary that was silently discarding it, exactly as
+it once discarded `brand` before v124. `id` keeps its precedence byte for
+byte, since it is the dedupe/persistence key everywhere downstream.
+
+**Correction to the recommendation above.** It originally said to name the
+field `sku` and "let the existing `productIdentityKey` tier light up". That
+would have been wrong, and building it proved why:
+
+- `productIdentityKey`'s `retailer_sku` tier requires `retailerId && sku` —
+  and `retailerId` **falls back to `p.source`**, which is always `'KicksCrew'`
+  for these offers. A field named `sku` therefore activates the tier
+  immediately and unconditionally.
+- That tier is a **dedupe identity**. Two KicksCrew listings sharing a SKU
+  collapse to one.
+- Whether `variants[0].sku` is product-unique or a style code shared across
+  colourways is **unproven** — this lane cannot call the API. If it is a style
+  code, activating the tier drops a legitimately different colourway as a
+  duplicate: a silent offer-selection regression.
+
+So the field is named `retailerSku` — which is also the name this repo's own
+identity vocabulary already uses (`OFFER_SIGNAL_FIELDS` in
+`tools/canonical-product-identity/schema/identitySchema.js`, where it is
+deliberately distinct from `manufacturerStyleCode`). The identifier is
+preserved; the dedupe tier stays dormant.
+
+`__tests__/commerce/retailerSkuRetention.test.js` pins both halves against
+the real `filterAndDedupeProducts`:
+
+- adding `retailerSku` changes neither which offers survive dedupe nor their
+  order, and carries no ranking bonus;
+- two distinct listings sharing a `retailerSku` both survive;
+- a **design control** asserts that the same data under the name `sku`
+  collapses those two listings to one — so the naming decision rests on a
+  demonstrated hazard, not on an assertion.
+
+**To light the tier up later** (a separate, evidence-gated decision): prove
+SKU granularity against real KicksCrew responses, then either rename the
+field to `sku` or teach `productIdentityKey` to read `retailerSku`. Do not do
+it before that evidence exists.
+
+Remaining, still NOT built: Farfetch `internalProductId` and the
+Poshmark/Vinted listing ids (all retailer- or listing-scoped, no
+cross-retailer value per the table above), and the Serper identifier
+question, which stays PENDING-RUNTIME.
 
 **GROUPED COMMERCE remains DEFERRED** — one high-value identifier from a
 single sneaker adapter is not a cross-retailer substrate. Re-evaluate after
