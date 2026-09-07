@@ -27,6 +27,7 @@ import ErrorBoundary from '../src/components/ErrorBoundary';
 import { logError } from '../src/utils/errorLogger';
 import { cleanupOrphanedStylistSpeechFiles } from '../services/avatars/stylistSpeechFiles';
 import { installWatchNotificationRouting } from '../services/watchlist/watchNotificationRouting';
+import { attachPushTokenRefreshListener } from '../services/watchlist/pushRegistration';
 
 type GlobalErrorHandler = (error: Error, isFatal?: boolean) => void;
 
@@ -339,6 +340,29 @@ function PostHogBridge() {
 export default function Layout() {
   useEffect(() => {
     void cleanupOrphanedStylistSpeechFiles();
+  }, []);
+
+  useEffect(() => {
+    let disposed = false;
+    let removeListener: (() => void) | null = null;
+
+    void attachPushTokenRefreshListener()
+      .then((remove) => {
+        if (disposed) {
+          remove();
+          return;
+        }
+        removeListener = remove;
+      })
+      .catch(() => {
+        // Push refresh support is best-effort and must not break app startup.
+      });
+
+    return () => {
+      disposed = true;
+      removeListener?.();
+      removeListener = null;
+    };
   }, []);
 
   // DEF-WL-03: the consumer for the Watchlist push payload. Without it a
