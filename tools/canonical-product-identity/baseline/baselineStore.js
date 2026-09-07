@@ -105,6 +105,11 @@ function readBaseline(filePath) {
 function assertBaselinesComparable(baselineA, baselineB) {
   const reasons = [];
   if (baselineA.corpusHash !== baselineB.corpusHash) reasons.push('corpus_hash_mismatch');
+  // Explicit, named check (Addendum A.5 test #30 "comparison across corpus
+  // tiers fails") - not merely relying on corpusHash differing, since the
+  // tier distinction (SYNTHETIC vs APPROVED_REAL) is the specific thing a
+  // reader needs surfaced, not just "some hash didn't match".
+  if (baselineA.corpusTier !== baselineB.corpusTier) reasons.push('corpus_tier_mismatch');
   if (baselineA.resolverVersion !== baselineB.resolverVersion) reasons.push('resolver_version_mismatch');
   if (baselineA.generatorVersion !== baselineB.generatorVersion) reasons.push('generator_version_mismatch');
   if (baselineA.normalizationVersion !== baselineB.normalizationVersion) reasons.push('normalization_version_mismatch');
