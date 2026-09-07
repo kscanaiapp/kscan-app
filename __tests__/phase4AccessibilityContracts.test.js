@@ -141,12 +141,14 @@ test('semantics: the active Recent Scans / My Closet tab exposes selected state'
 
 const HOME = read('components', 'home', 'HomeLuxuryTechV1.tsx');
 
-test('Build 33: no Coming Soon affordance is announced on production Home', () => {
+test('Build 33/34: no Coming Soon affordance is announced on production Home', () => {
   // Build 32 deliberately kept the Voice Scan pill discoverable to screen
-  // readers. Build 33 removes the unfinished feature from the review surface
-  // entirely, so there is nothing left to announce.
+  // readers while the feature was unimplemented; Build 33 removed it rather
+  // than dimming it. Build 34's HomeVoiceScanPill is a real, K+-gated
+  // feature, not the retired placeholder, so it may announce itself again --
+  // what must never come back is "Coming Soon" language for something the
+  // app cannot do.
   assert.doesNotMatch(HOME, /coming soon/i);
-  assert.doesNotMatch(HOME, /voicescan/i);
 });
 
 // ── ProductShelf / room picker semantics ─────────────────────────────────────

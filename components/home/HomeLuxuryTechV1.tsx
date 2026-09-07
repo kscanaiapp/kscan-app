@@ -33,6 +33,7 @@ import {
 } from '../../components/luxury';
 import { KScanIcon } from '../icons/kscan';
 import { HomeStylistCard } from './HomeStylistCard';
+import { HomeVoiceScanPill } from './HomeVoiceScanPill';
 import { TodayWithEliseSection } from './TodayWithEliseSection';
 import { PersonalizeStylistModal } from '../stylist/PersonalizeStylistModal';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
@@ -416,6 +417,11 @@ export default function HomeLuxuryTechV1() {
         )}
       </View>
 
+      {/* Voice Scan pill: full-width, directly above TEXTSCAN. Visibility is
+          the VoiceScan build-capability flag alone; K+ entitlement only
+          decides whether the rendered pill is ENTITLED or LOCKED. */}
+      <HomeVoiceScanPill style={styles.voiceScanPill} />
+
       {/* Secondary entries: TextScan when enabled, Smart Watchlist (K+) */}
       <View style={styles.secondaryActionsRow}>
         {textScanEnabled && (
@@ -641,6 +647,9 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     color: LUXURY.colors.graphite,
     textAlign: 'center',
+  },
+  voiceScanPill: {
+    marginBottom: SPACING.md,
   },
   secondaryActionsRow: {
     flexDirection: 'row',

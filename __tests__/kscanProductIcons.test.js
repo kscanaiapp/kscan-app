@@ -422,10 +422,15 @@ test('preserve: permission card icons and profile avatar fallback unchanged', ()
   assert.match(HOME, /preferredName \? preferredName\.charAt\(0\)\.toUpperCase\(\) : '✦'/);
 });
 
-test('Build 33: no VoiceScan placeholder or icon usage remains on production Home', () => {
-  // The voice-scan glyph stays registered in the icon set, but no production
-  // screen may render it while the feature is unimplemented.
-  assert.doesNotMatch(HOME, /voicescan/i);
+test('Build 34: the live VoiceScan pill uses the dedicated VoiceScanIcon component, not a bare KScanIcon name, and never falls back to Coming Soon', () => {
+  // Build 32's retired placeholder rendered <KScanIcon name="voice-scan">
+  // directly on Home; Build 34's real pill (components/home/HomeVoiceScanPill.tsx)
+  // renders the dedicated VoiceScanIcon component instead, so this guards
+  // against the old bare-name pattern reappearing, not against Voice Scan
+  // existing on Home at all.
   assert.doesNotMatch(HOME, /name="voice-scan"/);
   assert.doesNotMatch(HOME, /COMING SOON/);
+  const pill = read('components', 'home', 'HomeVoiceScanPill.tsx');
+  assert.match(pill, /import \{ VoiceScanIcon \} from '\.\.\/icons\/kscan';/);
+  assert.doesNotMatch(pill, /name="voice-scan"/);
 });

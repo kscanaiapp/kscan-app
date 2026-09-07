@@ -3,14 +3,27 @@
  *
  * Build 32 shipped reviewer-visible "Coming Soon" affordances (a VOICE SCAN
  * pill on Home; disabled Microphone and Notifications cards in onboarding).
- * None of those features are implemented. Advertising them on the screens an
+ * None of those features were implemented. Advertising them on the screens an
  * App Review tester lands on first invites a Guideline 2.1 incomplete-app
- * reading, so Build 33 removes the surfaces rather than dimming them.
+ * reading, so Build 33 removed the surfaces rather than dimming them.
+ *
+ * FLIPPED for the live Home variant by the VoiceScan K+ pill (Build 34):
+ * Voice Scan is now a real, working, K+-gated feature (see
+ * __tests__/voiceScanUiWiring.test.js and
+ * components/home/HomeVoiceScanPill.tsx), not the unimplemented Build 32
+ * placeholder. The Guideline 2.1 concern was "advertising a capability the
+ * app cannot execute" -- it was never "a feature may not require an
+ * entitlement". A pill that is absent when the build cannot execute Voice
+ * Scan at all (VOICESCAN_ENABLED off), and that behaves like every other
+ * genuine K+ entry point (KPlusGate, the shared K+ Early Access sheet, no
+ * "Coming Soon" placeholder) when the build can, does not re-trigger the
+ * original finding. HomeV2 and HomeLegacy are unrouted and untouched by that
+ * feature, so they keep the original absence contract as a drift guard.
  *
  * Two distinctions this file exists to protect, because a naive "voice" or
  * "audio" grep gets both wrong:
  *
- *   VOICE SCAN            unimplemented  -> must be absent from production UI
+ *   VOICE SCAN            real, K+-gated -> must never be a "Coming Soon" stub
  *   Elise spoken response shipping       -> must be preserved
  *
  * These are source-contract tests (no renderer), consistent with the rest of
@@ -38,11 +51,13 @@ const pluginProps = (name) => {
 // -- Unfinished feature surfaces ---------------------------------------------
 
 // app/index.tsx renders HomeLuxuryTechV1 unconditionally, so it is the live
-// production Home. The other two are unrouted but hardened against flag drift.
-const HOME_VARIANTS = ['HomeLuxuryTechV1.tsx', 'HomeV2.tsx', 'HomeLegacy.tsx'];
+// production Home. The other two are unrouted; they never gained the Voice
+// Scan K+ pill, so they keep the original Build 33 absence contract as a
+// drift guard against a flag change ever reintroducing the old placeholder.
+const UNROUTED_HOME_VARIANTS = ['HomeV2.tsx', 'HomeLegacy.tsx'];
 
-for (const variant of HOME_VARIANTS) {
-  test('no Voice Scan surface remains in ' + variant, () => {
+for (const variant of UNROUTED_HOME_VARIANTS) {
+  test('no Voice Scan surface remains in unrouted variant ' + variant, () => {
     const source = read('components', 'home', variant);
     assert.doesNotMatch(source, /voice\s*scan/i);
     assert.doesNotMatch(source, /VOICESCAN_ENABLED/);
@@ -50,6 +65,21 @@ for (const variant of HOME_VARIANTS) {
     assert.doesNotMatch(source, /name="voice-scan"/);
   });
 }
+
+test('the live Home variant never falls back to the retired "Coming Soon" placeholder', () => {
+  const source = read('components', 'home', 'HomeLuxuryTechV1.tsx');
+  assert.doesNotMatch(source, /COMING SOON/);
+});
+
+test('the live Home variant gates its Voice Scan pill on the VoiceScan build-capability flag, not just K+', () => {
+  const pill = read('components', 'home', 'HomeVoiceScanPill.tsx');
+  const guard = pill.slice(
+    pill.indexOf('export function HomeVoiceScanPill'),
+    pill.indexOf('return (', pill.indexOf('export function HomeVoiceScanPill')),
+  );
+  assert.match(guard, /if \(!VOICESCAN_ENABLED\) return null;/);
+  assert.match(guard, /isVoicePlatformProvisioned\(getPlatform\(\)\)/);
+});
 
 test('the production route still renders the hardened Home variant', () => {
   // If this ever stops being HomeLuxuryTechV1, the variant coverage above is

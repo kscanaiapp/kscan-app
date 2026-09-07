@@ -134,16 +134,22 @@ test('TextScan navigation guard prevents rapid duplicates and releases on focus'
   assert.doesNotMatch(homeV1, /setTimeout\(\(\) => setTextScanNavigating\(false\)/);
 });
 
-test('Build 33: the unfinished Voice Scan surface is absent from production Home', () => {
-  // Build 32 shipped a reviewer-visible "VOICE SCAN / COMING SOON" pill. Voice
-  // Scan is unimplemented, so App Review could read Home as an incomplete app.
-  // Build 33 removes the surface outright rather than dimming it.
-  assert.doesNotMatch(homeV1, /voicescan/i);
-  assert.doesNotMatch(homeV1, /VOICE SCAN/);
+test('Build 34: Voice Scan is a real K+ pill on Home, never the retired Build 32 "Coming Soon" placeholder', () => {
+  // Build 32 shipped a reviewer-visible "VOICE SCAN / COMING SOON" pill for an
+  // unimplemented feature; Build 33 removed it outright (see
+  // __tests__/iosAppReviewSurface.test.js). Voice Scan is now real and
+  // K+-gated (components/home/HomeVoiceScanPill.tsx), so Home may reference
+  // it again -- what must never come back is the placeholder itself.
+  assert.match(homeV1, /<HomeVoiceScanPill/);
   assert.doesNotMatch(homeV1, /COMING SOON/);
-  assert.doesNotMatch(homeV1, /VOICESCAN_ENABLED/);
-  // TextScan is a real, shipping entry point and must survive the removal.
+  // TextScan is a real, shipping entry point and must survive alongside it.
   assert.match(homeV1, /testID="home-luxury-textscan"/);
+});
+
+test('the Voice Scan pill sits directly above TEXTSCAN, and TextScan remains untouched by it', () => {
+  const pillIndex = homeV1.indexOf('<HomeVoiceScanPill');
+  const textScanIndex = homeV1.indexOf('testID="home-luxury-textscan"');
+  assert.ok(pillIndex > 0 && pillIndex < textScanIndex, 'the Voice Scan pill must precede TEXTSCAN in render order');
 });
 
 test('Android manifest removes mic, fine-location, and storage permissions from dependency merges', () => {
@@ -241,4 +247,87 @@ test('Home sessions hook resumes the latest conversation without conditional res
   assert.doesNotMatch(homeV1, /hasStyleChatSessions/);
   assert.doesNotMatch(homeV1, /sessions\.length/);
   assert.doesNotMatch(homeStylistCard, /hasSessions/);
+});
+
+// ── Canonical stylist card: the three required user actions ─────────────────
+//
+// "Start Chat" and "Personalize" are already asserted in stylistIdentity.test.js.
+// The header action was not asserted anywhere, so the card could have lost its
+// route into the existing conversation list without a single test noticing.
+
+test('the stylist card keeps all three user actions, including Chat with <name>', () => {
+  assert.match(homeStylistCard, /Chat with \{displayName\}/);
+  assert.match(homeStylistCard, /accessibilityLabel=\{`Chat with \$\{displayName\}`\}/);
+  assert.match(homeStylistCard, /onPersonalize/);
+  assert.match(homeStylistCard, /Personalize/);
+  assert.match(homeStylistCard, /title="Start Chat"/);
+  // The name shown is the personalized identity with the shipped default as a
+  // fallback -- never a hardcoded stylist name.
+  assert.match(
+    homeStylistCard,
+    /identity\.displayName \|\| DEFAULT_STYLIST_IDENTITY\.displayName/,
+  );
+});
+
+// ── The stale generic Home surface stays unreachable ────────────────────────
+//
+// This is the regression that was actually reported: a generic
+// "YOUR AI STYLIST / Ask StyleChat" card with an initial-letter avatar in
+// place of the canonical stylist card and its animated portrait. The canonical
+// implementation is present and correct, so this guard exists to keep it that
+// way -- the runtime Home chain must never reference the stale surface again.
+//
+// Scanned as CODE, not as text. The Home files legitimately explain what they
+// deliberately do NOT render, and a naive search would report that discipline
+// as a violation of itself. House convention (vtoLiveIntegrationScope,
+// notificationsClosureConvergence) is to strip comments first.
+
+test('no runtime Home surface references the stale generic stylist card', () => {
+  const stripComments = (source) =>
+    source
+      .replace(/\{\/\*[\s\S]*?\*\/\}/g, ' ')
+      .replace(/\/\*[\s\S]*?\*\//g, ' ')
+      .replace(/(^|[^:])\/\/.*$/gm, '$1');
+
+  // The complete runtime Home chain: the route, the barrel it imports through,
+  // the Home composition, and the stylist card itself.
+  const chain = {
+    'app/index.tsx': path.join(ROOT, 'app', 'index.tsx'),
+    'components/home/index.ts': path.join(ROOT, 'components', 'home', 'index.ts'),
+    'components/home/HomeLuxuryTechV1.tsx': path.join(ROOT, 'components', 'home', 'HomeLuxuryTechV1.tsx'),
+    'components/home/HomeStylistCard.tsx': path.join(ROOT, 'components', 'home', 'HomeStylistCard.tsx'),
+  };
+
+  const FORBIDDEN = [
+    /StylistGreetingCard/,
+    /YOUR AI STYLIST/i,
+    /Ask StyleChat/i,
+    /avatars\/AnimatedAvatar/,
+  ];
+
+  for (const [label, file] of Object.entries(chain)) {
+    const code = stripComments(fs.readFileSync(file, 'utf8'));
+    for (const pattern of FORBIDDEN) {
+      assert.doesNotMatch(code, pattern, `${label} must not reference the stale generic Home surface`);
+    }
+  }
+
+  // The route mounts the canonical Home directly, with no legacy fallback.
+  const route = stripComments(fs.readFileSync(chain['app/index.tsx'], 'utf8'));
+  assert.match(route, /<HomeLuxuryTechV1 \/>/);
+  assert.doesNotMatch(route, /HomeLegacy|HomeV2/);
+
+  // And the canonical card renders the animated portrait rather than an
+  // initial-letter placeholder, which is what the regression showed.
+  assert.match(homeStylistCard, /<AnimatedStylistAvatar/);
+  assert.match(homeStylistCard, /avatarId=\{identity\.avatarId\}/);
+
+  // The detector is proven to detect. A comment-stripper that ate too much
+  // would pass over a real reintroduction and report nothing, which is
+  // indistinguishable from success.
+  assert.match(stripComments('const x = <StylistGreetingCard />;'), /StylistGreetingCard/);
+  assert.doesNotMatch(
+    stripComments('// StylistGreetingCard is deliberately not used here'),
+    /StylistGreetingCard/,
+  );
 });
