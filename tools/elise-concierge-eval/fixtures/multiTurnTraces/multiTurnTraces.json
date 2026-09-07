@@ -1,0 +1,71 @@
+{
+  "fixtureSetVersion": "MULTI_TURN_TRACE_FIXTURES_V1",
+  "note": "MULTI_TURN_SUPPORTED: YES per authority/eliseSourceMap.json (contextMessages.ts persists and windows conversation history). These traces are FIXTURE CONTRACTS for continuity evaluation; the harness evaluates continuity against SYNTHESIZED assistant turns (never real production output), consistent with the instrument-validation framing.",
+  "multiTurnTraces": [
+    {
+      "id": "mtt_standing_dislike_persists",
+      "closetId": "closet_balanced",
+      "signatureStyleId": "sig_explicit_dislikes",
+      "turns": [
+        { "role": "user", "content": "Just so you know, I never wear black." },
+        { "role": "assistant", "content": "Noted -- I will avoid black pieces going forward." },
+        { "role": "user", "content": "Build me an outfit for work." }
+      ],
+      "continuityCheck": "The turn-1 standing dislike of black (Level 2, spec section 14) must still govern the turn-3 recommendation even though the user did not restate it.",
+      "constraintUnderTest": "no_black",
+      "expectedPersistence": true
+    },
+    {
+      "id": "mtt_one_turn_override_expires",
+      "closetId": "closet_balanced",
+      "signatureStyleId": "sig_explicit_dislikes",
+      "turns": [
+        { "role": "user", "content": "I don't wear heels, ever." },
+        { "role": "assistant", "content": "Got it, no heels." },
+        { "role": "user", "content": "Actually, heels are fine just for this one outfit tonight." },
+        { "role": "assistant", "content": "Sure -- here's an outfit with heels for tonight." },
+        { "role": "user", "content": "What about a different outfit for tomorrow?" }
+      ],
+      "continuityCheck": "The turn-3 explicit override of the standing no_heels constraint is a ONE-TURN override (spec section 14). By turn 5 the standing constraint must resume; a heel recommendation in turn 5 is a precedence-contract violation.",
+      "constraintUnderTest": "no_heels",
+      "expectedPersistence": true,
+      "overrideTurnIndex": 2
+    },
+    {
+      "id": "mtt_focus_continuity",
+      "closetId": "closet_balanced",
+      "signatureStyleId": "sig_strong_classic",
+      "turns": [
+        { "role": "user", "content": "What goes with my brown loafers?" },
+        { "role": "assistant", "content": "Your navy trousers and white oxford shirt both pair well with the brown loafers." },
+        { "role": "user", "content": "What about a jacket for that?" }
+      ],
+      "continuityCheck": "The pronoun 'that' in turn 3 must resolve to the brown-loafers-anchored outfit established in turn 1, not reset to an unfocused general request.",
+      "focusItemId": "item_brown_loafers"
+    },
+    {
+      "id": "mtt_preference_learned_mid_conversation",
+      "closetId": "closet_large",
+      "signatureStyleId": "sig_weak_minimal",
+      "turns": [
+        { "role": "user", "content": "I tend to like warmer tones -- browns, oranges, that kind of thing." },
+        { "role": "assistant", "content": "Good to know, I will lean toward warmer tones." },
+        { "role": "user", "content": "Recommend a top for tomorrow." }
+      ],
+      "continuityCheck": "A Level 3 soft preference stated in turn 1 should personalize turn 3, but only as a light signal (spec section 38) -- it must not be reported back as a certain, defined preference ('you love warm tones') beyond what one hedge statement supports.",
+      "constraintUnderTest": "warm_tone_soft_preference"
+    },
+    {
+      "id": "mtt_ambiguity_then_clarify",
+      "closetId": "closet_similar_item_ambiguity",
+      "signatureStyleId": "sig_strong_classic",
+      "turns": [
+        { "role": "user", "content": "What goes with my brown loafers?" },
+        { "role": "assistant", "content": "You have two pairs of brown loafers -- the Cole Haan leather pair and the Clarks suede pair. Which one did you mean?" },
+        { "role": "user", "content": "The Cole Haan ones." }
+      ],
+      "continuityCheck": "After the turn-3 clarification, the resolved focus item must be item_amb_brown_loafers_a (Cole Haan) specifically -- a subsequent response naming item_amb_brown_loafers_b (Clarks) as the resolved item is a focus-continuity failure.",
+      "focusItemId": "item_amb_brown_loafers_a"
+    }
+  ]
+}

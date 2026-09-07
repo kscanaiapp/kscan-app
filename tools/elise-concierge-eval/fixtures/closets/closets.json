@@ -1,0 +1,189 @@
+{
+  "fixtureSetVersion": "CLOSET_FIXTURES_V1",
+  "closets": [
+    {
+      "id": "closet_minimal",
+      "kind": "minimal",
+      "kPlusActive": true,
+      "notes": "Smallest realistic Closet. Triggers small-closet gap restraint (spec section 28 / SMALL_CLOSET_ITEM_THRESHOLD=8 in eliseWardrobeGap.ts) and includes the mandatory blue-cotton-t-shirt no-contamination fixture item (spec section 36).",
+      "items": [
+        { "id": "item_blue_cotton_tshirt", "category": "tops", "subcategory": "t-shirt", "colors": ["blue"], "colorFamilies": ["blue"], "materials": ["cotton"], "brand": null, "title": "Blue Cotton T-Shirt", "formality": "casual", "layeringRole": "base", "seasons": ["summer", "spring"] },
+        { "id": "item_dark_denim_jeans", "category": "bottoms", "subcategory": "jeans", "colors": ["indigo"], "colorFamilies": ["blue", "neutral"], "materials": ["denim"], "brand": null, "title": "Dark Denim Jeans", "formality": "casual", "layeringRole": "bottom", "seasons": ["all"] },
+        { "id": "item_white_sneakers", "category": "shoes", "subcategory": "sneaker", "colors": ["white"], "colorFamilies": ["neutral"], "materials": ["canvas"], "brand": null, "title": "White Sneakers", "formality": "casual", "layeringRole": "shoe", "seasons": ["all"] }
+      ],
+      "doesNotOwn": ["black blazer", "brown loafers", "red dress", "neutral wool sweater", "heels"]
+    },
+    {
+      "id": "closet_balanced",
+      "kind": "balanced",
+      "kPlusActive": true,
+      "notes": "One item per common role, moderate size. Also the primary owns-a-black-blazer fixture for D01/D03 tests.",
+      "items": [
+        { "id": "item_black_blazer", "category": "outerwear", "subcategory": "blazer", "colors": ["black"], "colorFamilies": ["neutral"], "materials": ["wool blend"], "brand": "Theory", "title": "Black Blazer", "formality": "business", "layeringRole": "outer", "seasons": ["fall", "winter", "spring"] },
+        { "id": "item_white_oxford_shirt", "category": "tops", "subcategory": "shirt", "colors": ["white"], "colorFamilies": ["neutral"], "materials": ["cotton"], "brand": null, "title": "White Oxford Shirt", "formality": "business_casual", "layeringRole": "base", "seasons": ["all"] },
+        { "id": "item_navy_trousers", "category": "bottoms", "subcategory": "trouser", "colors": ["navy"], "colorFamilies": ["blue", "neutral"], "materials": ["wool"], "brand": null, "title": "Navy Trousers", "formality": "business_casual", "layeringRole": "bottom", "seasons": ["fall", "winter", "spring"] },
+        { "id": "item_brown_loafers", "category": "shoes", "subcategory": "loafer", "colors": ["brown"], "colorFamilies": ["brown", "neutral"], "materials": ["leather"], "brand": null, "title": "Brown Loafers", "formality": "business_casual", "layeringRole": "shoe", "seasons": ["all"] },
+        { "id": "item_grey_crewneck_sweater", "category": "tops", "subcategory": "sweater", "colors": ["grey"], "colorFamilies": ["neutral"], "materials": ["wool"], "brand": null, "title": "Grey Crewneck Sweater", "formality": "casual", "layeringRole": "mid", "seasons": ["fall", "winter"] },
+        { "id": "item_black_leather_belt", "category": "accessories", "subcategory": "belt", "colors": ["black"], "colorFamilies": ["neutral"], "materials": ["leather"], "brand": null, "title": "Black Leather Belt", "formality": "business_casual", "layeringRole": "accessory", "seasons": ["all"] },
+        { "id": "item_denim_jacket", "category": "outerwear", "subcategory": "jacket", "colors": ["blue"], "colorFamilies": ["blue"], "materials": ["denim"], "brand": null, "title": "Denim Jacket", "formality": "casual", "layeringRole": "outer", "seasons": ["spring", "fall"] },
+        { "id": "item_white_tshirt", "category": "tops", "subcategory": "t-shirt", "colors": ["white"], "colorFamilies": ["neutral"], "materials": ["cotton"], "brand": null, "title": "White T-Shirt", "formality": "casual", "layeringRole": "base", "seasons": ["all"] },
+        { "id": "item_black_jeans", "category": "bottoms", "subcategory": "jeans", "colors": ["black"], "colorFamilies": ["neutral"], "materials": ["denim"], "brand": null, "title": "Black Jeans", "formality": "casual", "layeringRole": "bottom", "seasons": ["all"] },
+        { "id": "item_white_sneakers_2", "category": "shoes", "subcategory": "sneaker", "colors": ["white"], "colorFamilies": ["neutral"], "materials": ["leather"], "brand": null, "title": "White Leather Sneakers", "formality": "casual", "layeringRole": "shoe", "seasons": ["all"] }
+      ],
+      "doesNotOwn": ["red dress", "heels", "swim trunks", "tuxedo"]
+    },
+    {
+      "id": "closet_large",
+      "kind": "large",
+      "kPlusActive": true,
+      "notes": "Broad wardrobe across every layering role and both formal and casual registers; exercises census categoriesTruncated / large-shortlist bounding.",
+      "items": [
+        { "id": "item_l_black_blazer", "category": "outerwear", "subcategory": "blazer", "colors": ["black"], "colorFamilies": ["neutral"], "materials": ["wool"], "brand": null, "title": "Black Blazer", "formality": "business", "layeringRole": "outer", "seasons": ["fall", "winter"] },
+        { "id": "item_l_camel_coat", "category": "outerwear", "subcategory": "coat", "colors": ["camel"], "colorFamilies": ["brown", "neutral"], "materials": ["wool"], "brand": null, "title": "Camel Wool Coat", "formality": "business_casual", "layeringRole": "outer", "seasons": ["winter"] },
+        { "id": "item_l_bomber_jacket", "category": "outerwear", "subcategory": "bomber", "colors": ["green"], "colorFamilies": ["green"], "materials": ["nylon"], "brand": null, "title": "Olive Bomber Jacket", "formality": "casual", "layeringRole": "outer", "seasons": ["fall", "spring"] },
+        { "id": "item_l_white_shirt", "category": "tops", "subcategory": "shirt", "colors": ["white"], "colorFamilies": ["neutral"], "materials": ["cotton"], "brand": null, "title": "White Dress Shirt", "formality": "business", "layeringRole": "base", "seasons": ["all"] },
+        { "id": "item_l_blue_oxford", "category": "tops", "subcategory": "shirt", "colors": ["blue"], "colorFamilies": ["blue"], "materials": ["cotton"], "brand": null, "title": "Blue Oxford Shirt", "formality": "business_casual", "layeringRole": "base", "seasons": ["all"] },
+        { "id": "item_l_grey_tee", "category": "tops", "subcategory": "t-shirt", "colors": ["grey"], "colorFamilies": ["neutral"], "materials": ["cotton"], "brand": null, "title": "Grey T-Shirt", "formality": "casual", "layeringRole": "base", "seasons": ["all"] },
+        { "id": "item_l_black_turtleneck", "category": "tops", "subcategory": "turtleneck", "colors": ["black"], "colorFamilies": ["neutral"], "materials": ["wool"], "brand": null, "title": "Black Turtleneck", "formality": "business_casual", "layeringRole": "mid", "seasons": ["winter"] },
+        { "id": "item_l_navy_suit_trousers", "category": "bottoms", "subcategory": "trouser", "colors": ["navy"], "colorFamilies": ["blue", "neutral"], "materials": ["wool"], "brand": null, "title": "Navy Suit Trousers", "formality": "business", "layeringRole": "bottom", "seasons": ["all"] },
+        { "id": "item_l_khaki_chinos", "category": "bottoms", "subcategory": "chino", "colors": ["khaki"], "colorFamilies": ["brown", "neutral"], "materials": ["cotton"], "brand": null, "title": "Khaki Chinos", "formality": "business_casual", "layeringRole": "bottom", "seasons": ["all"] },
+        { "id": "item_l_dark_jeans", "category": "bottoms", "subcategory": "jeans", "colors": ["indigo"], "colorFamilies": ["blue"], "materials": ["denim"], "brand": null, "title": "Dark Wash Jeans", "formality": "casual", "layeringRole": "bottom", "seasons": ["all"] },
+        { "id": "item_l_oxford_shoes", "category": "shoes", "subcategory": "oxford", "colors": ["black"], "colorFamilies": ["neutral"], "materials": ["leather"], "brand": null, "title": "Black Oxford Shoes", "formality": "business", "layeringRole": "shoe", "seasons": ["all"] },
+        { "id": "item_l_brown_loafers", "category": "shoes", "subcategory": "loafer", "colors": ["brown"], "colorFamilies": ["brown", "neutral"], "materials": ["leather"], "brand": null, "title": "Brown Loafers", "formality": "business_casual", "layeringRole": "shoe", "seasons": ["all"] },
+        { "id": "item_l_white_sneakers", "category": "shoes", "subcategory": "sneaker", "colors": ["white"], "colorFamilies": ["neutral"], "materials": ["leather"], "brand": null, "title": "White Sneakers", "formality": "casual", "layeringRole": "shoe", "seasons": ["all"] },
+        { "id": "item_l_leather_belt", "category": "accessories", "subcategory": "belt", "colors": ["black"], "colorFamilies": ["neutral"], "materials": ["leather"], "brand": null, "title": "Black Leather Belt", "formality": "business_casual", "layeringRole": "accessory", "seasons": ["all"] },
+        { "id": "item_l_silk_tie", "category": "accessories", "subcategory": "tie", "colors": ["burgundy"], "colorFamilies": ["red", "neutral"], "materials": ["silk"], "brand": null, "title": "Burgundy Silk Tie", "formality": "business", "layeringRole": "accessory", "seasons": ["all"] },
+        { "id": "item_l_wool_scarf", "category": "accessories", "subcategory": "scarf", "colors": ["grey"], "colorFamilies": ["neutral"], "materials": ["wool"], "brand": null, "title": "Grey Wool Scarf", "formality": "business_casual", "layeringRole": "accessory", "seasons": ["winter"] },
+        { "id": "item_l_swim_trunks", "category": "swimwear", "subcategory": "trunks", "colors": ["blue"], "colorFamilies": ["blue"], "materials": ["polyester"], "brand": null, "title": "Blue Swim Trunks", "formality": "casual", "layeringRole": "bottom", "seasons": ["summer"] },
+        { "id": "item_l_linen_shirt", "category": "tops", "subcategory": "shirt", "colors": ["white"], "colorFamilies": ["neutral"], "materials": ["linen"], "brand": null, "title": "White Linen Shirt", "formality": "casual", "layeringRole": "base", "seasons": ["summer"] },
+        { "id": "item_l_wool_sweater", "category": "tops", "subcategory": "sweater", "colors": ["oatmeal"], "colorFamilies": ["neutral"], "materials": ["wool"], "brand": null, "title": "Oatmeal Wool Sweater", "formality": "business_casual", "layeringRole": "mid", "seasons": ["fall", "winter"] },
+        { "id": "item_l_rain_jacket", "category": "outerwear", "subcategory": "jacket", "colors": ["yellow"], "colorFamilies": ["yellow"], "materials": ["nylon"], "brand": null, "title": "Yellow Rain Jacket", "formality": "casual", "layeringRole": "outer", "seasons": ["spring", "fall"] }
+      ],
+      "doesNotOwn": ["tuxedo", "cowboy boots", "wedding dress"]
+    },
+    {
+      "id": "closet_formal_heavy",
+      "kind": "formal_heavy",
+      "kPlusActive": true,
+      "notes": "Almost entirely business/business_casual formality. Used for occasion-fit and style-conflict (D07) tests against a casual request.",
+      "items": [
+        { "id": "item_fh_navy_suit_jacket", "category": "outerwear", "subcategory": "blazer", "colors": ["navy"], "colorFamilies": ["blue", "neutral"], "materials": ["wool"], "brand": null, "title": "Navy Suit Jacket", "formality": "business", "layeringRole": "outer", "seasons": ["all"] },
+        { "id": "item_fh_grey_suit_jacket", "category": "outerwear", "subcategory": "blazer", "colors": ["grey"], "colorFamilies": ["neutral"], "materials": ["wool"], "brand": null, "title": "Grey Suit Jacket", "formality": "business", "layeringRole": "outer", "seasons": ["all"] },
+        { "id": "item_fh_white_dress_shirt", "category": "tops", "subcategory": "shirt", "colors": ["white"], "colorFamilies": ["neutral"], "materials": ["cotton"], "brand": null, "title": "White Dress Shirt", "formality": "business", "layeringRole": "base", "seasons": ["all"] },
+        { "id": "item_fh_light_blue_shirt", "category": "tops", "subcategory": "shirt", "colors": ["light blue"], "colorFamilies": ["blue"], "materials": ["cotton"], "brand": null, "title": "Light Blue Dress Shirt", "formality": "business", "layeringRole": "base", "seasons": ["all"] },
+        { "id": "item_fh_navy_suit_trousers", "category": "bottoms", "subcategory": "trouser", "colors": ["navy"], "colorFamilies": ["blue", "neutral"], "materials": ["wool"], "brand": null, "title": "Navy Suit Trousers", "formality": "business", "layeringRole": "bottom", "seasons": ["all"] },
+        { "id": "item_fh_oxford_shoes", "category": "shoes", "subcategory": "oxford", "colors": ["black"], "colorFamilies": ["neutral"], "materials": ["leather"], "brand": null, "title": "Black Oxford Shoes", "formality": "business", "layeringRole": "shoe", "seasons": ["all"] },
+        { "id": "item_fh_silk_tie", "category": "accessories", "subcategory": "tie", "colors": ["navy"], "colorFamilies": ["blue", "neutral"], "materials": ["silk"], "brand": null, "title": "Navy Silk Tie", "formality": "business", "layeringRole": "accessory", "seasons": ["all"] },
+        { "id": "item_fh_leather_belt", "category": "accessories", "subcategory": "belt", "colors": ["black"], "colorFamilies": ["neutral"], "materials": ["leather"], "brand": null, "title": "Black Leather Belt", "formality": "business", "layeringRole": "accessory", "seasons": ["all"] }
+      ],
+      "doesNotOwn": ["sneakers", "hoodie", "athletic shorts", "graphic tee"]
+    },
+    {
+      "id": "closet_casual_heavy",
+      "kind": "casual_heavy",
+      "kPlusActive": true,
+      "notes": "Almost entirely casual formality. Mirror of closet_formal_heavy for the opposite style-conflict direction.",
+      "items": [
+        { "id": "item_ch_grey_hoodie", "category": "tops", "subcategory": "hoodie", "colors": ["grey"], "colorFamilies": ["neutral"], "materials": ["cotton"], "brand": null, "title": "Grey Hoodie", "formality": "casual", "layeringRole": "mid", "seasons": ["fall", "winter"] },
+        { "id": "item_ch_graphic_tee", "category": "tops", "subcategory": "t-shirt", "colors": ["black"], "colorFamilies": ["neutral"], "materials": ["cotton"], "brand": null, "title": "Black Graphic Tee", "formality": "casual", "layeringRole": "base", "seasons": ["all"] },
+        { "id": "item_ch_white_tee", "category": "tops", "subcategory": "t-shirt", "colors": ["white"], "colorFamilies": ["neutral"], "materials": ["cotton"], "brand": null, "title": "White T-Shirt", "formality": "casual", "layeringRole": "base", "seasons": ["all"] },
+        { "id": "item_ch_joggers", "category": "bottoms", "subcategory": "jogger", "colors": ["black"], "colorFamilies": ["neutral"], "materials": ["cotton"], "brand": null, "title": "Black Joggers", "formality": "casual", "layeringRole": "bottom", "seasons": ["all"] },
+        { "id": "item_ch_denim_shorts", "category": "bottoms", "subcategory": "short", "colors": ["blue"], "colorFamilies": ["blue"], "materials": ["denim"], "brand": null, "title": "Denim Shorts", "formality": "casual", "layeringRole": "bottom", "seasons": ["summer"] },
+        { "id": "item_ch_sneakers", "category": "shoes", "subcategory": "sneaker", "colors": ["white"], "colorFamilies": ["neutral"], "materials": ["canvas"], "brand": null, "title": "White Canvas Sneakers", "formality": "casual", "layeringRole": "shoe", "seasons": ["all"] },
+        { "id": "item_ch_flip_flops", "category": "shoes", "subcategory": "sandal", "colors": ["black"], "colorFamilies": ["neutral"], "materials": ["rubber"], "brand": null, "title": "Black Flip Flops", "formality": "casual", "layeringRole": "shoe", "seasons": ["summer"] },
+        { "id": "item_ch_baseball_cap", "category": "accessories", "subcategory": "hat", "colors": ["navy"], "colorFamilies": ["blue", "neutral"], "materials": ["cotton"], "brand": null, "title": "Navy Baseball Cap", "formality": "casual", "layeringRole": "accessory", "seasons": ["all"] }
+      ],
+      "doesNotOwn": ["blazer", "dress shirt", "oxford shoes", "silk tie", "suit"]
+    },
+    {
+      "id": "closet_monochrome",
+      "kind": "monochrome",
+      "kPlusActive": true,
+      "notes": "Every item is black, white, or grey. Used for color-pairing and D02 invented-preference ('since you love bold colors') tests.",
+      "items": [
+        { "id": "item_mc_black_tee", "category": "tops", "subcategory": "t-shirt", "colors": ["black"], "colorFamilies": ["neutral"], "materials": ["cotton"], "brand": null, "title": "Black T-Shirt", "formality": "casual", "layeringRole": "base", "seasons": ["all"] },
+        { "id": "item_mc_white_shirt", "category": "tops", "subcategory": "shirt", "colors": ["white"], "colorFamilies": ["neutral"], "materials": ["cotton"], "brand": null, "title": "White Shirt", "formality": "business_casual", "layeringRole": "base", "seasons": ["all"] },
+        { "id": "item_mc_grey_sweater", "category": "tops", "subcategory": "sweater", "colors": ["grey"], "colorFamilies": ["neutral"], "materials": ["wool"], "brand": null, "title": "Grey Sweater", "formality": "casual", "layeringRole": "mid", "seasons": ["fall", "winter"] },
+        { "id": "item_mc_black_trousers", "category": "bottoms", "subcategory": "trouser", "colors": ["black"], "colorFamilies": ["neutral"], "materials": ["wool"], "brand": null, "title": "Black Trousers", "formality": "business_casual", "layeringRole": "bottom", "seasons": ["all"] },
+        { "id": "item_mc_white_sneakers", "category": "shoes", "subcategory": "sneaker", "colors": ["white"], "colorFamilies": ["neutral"], "materials": ["leather"], "brand": null, "title": "White Sneakers", "formality": "casual", "layeringRole": "shoe", "seasons": ["all"] },
+        { "id": "item_mc_black_coat", "category": "outerwear", "subcategory": "coat", "colors": ["black"], "colorFamilies": ["neutral"], "materials": ["wool"], "brand": null, "title": "Black Wool Coat", "formality": "business_casual", "layeringRole": "outer", "seasons": ["winter"] }
+      ],
+      "doesNotOwn": ["red dress", "bold print shirt", "yellow jacket", "orange scarf"]
+    },
+    {
+      "id": "closet_colorful",
+      "kind": "colorful",
+      "kPlusActive": true,
+      "notes": "Vibrant, varied color palette. Mirror of closet_monochrome for the opposite D02/color-pairing direction.",
+      "items": [
+        { "id": "item_cf_red_dress", "category": "dresses", "subcategory": "dress", "colors": ["red"], "colorFamilies": ["red"], "materials": ["cotton"], "brand": null, "title": "Red Dress", "formality": "business_casual", "layeringRole": "one_piece", "seasons": ["spring", "summer"] },
+        { "id": "item_cf_yellow_jacket", "category": "outerwear", "subcategory": "jacket", "colors": ["yellow"], "colorFamilies": ["yellow"], "materials": ["cotton"], "brand": null, "title": "Yellow Jacket", "formality": "casual", "layeringRole": "outer", "seasons": ["spring", "fall"] },
+        { "id": "item_cf_teal_blouse", "category": "tops", "subcategory": "blouse", "colors": ["teal"], "colorFamilies": ["blue", "green"], "materials": ["silk"], "brand": null, "title": "Teal Blouse", "formality": "business_casual", "layeringRole": "base", "seasons": ["all"] },
+        { "id": "item_cf_orange_scarf", "category": "accessories", "subcategory": "scarf", "colors": ["orange"], "colorFamilies": ["orange"], "materials": ["silk"], "brand": null, "title": "Orange Scarf", "formality": "business_casual", "layeringRole": "accessory", "seasons": ["fall"] },
+        { "id": "item_cf_purple_trousers", "category": "bottoms", "subcategory": "trouser", "colors": ["purple"], "colorFamilies": ["purple"], "materials": ["cotton"], "brand": null, "title": "Purple Trousers", "formality": "casual", "layeringRole": "bottom", "seasons": ["all"] },
+        { "id": "item_cf_green_sneakers", "category": "shoes", "subcategory": "sneaker", "colors": ["green"], "colorFamilies": ["green"], "materials": ["canvas"], "brand": null, "title": "Green Sneakers", "formality": "casual", "layeringRole": "shoe", "seasons": ["all"] }
+      ],
+      "doesNotOwn": ["black blazer", "grey trousers", "white oxford shirt"]
+    },
+    {
+      "id": "closet_missing_category",
+      "kind": "missing_category",
+      "kPlusActive": true,
+      "notes": "No shoes at all, by design -- the shoe category is entirely absent, which (with an exhaustive census) licenses a confirmed missing_shoe gap (spec sections 26/27/35).",
+      "items": [
+        { "id": "item_mcat_navy_blazer", "category": "outerwear", "subcategory": "blazer", "colors": ["navy"], "colorFamilies": ["blue", "neutral"], "materials": ["wool"], "brand": null, "title": "Navy Blazer", "formality": "business_casual", "layeringRole": "outer", "seasons": ["all"] },
+        { "id": "item_mcat_white_shirt", "category": "tops", "subcategory": "shirt", "colors": ["white"], "colorFamilies": ["neutral"], "materials": ["cotton"], "brand": null, "title": "White Shirt", "formality": "business_casual", "layeringRole": "base", "seasons": ["all"] },
+        { "id": "item_mcat_khaki_chinos", "category": "bottoms", "subcategory": "chino", "colors": ["khaki"], "colorFamilies": ["brown", "neutral"], "materials": ["cotton"], "brand": null, "title": "Khaki Chinos", "formality": "business_casual", "layeringRole": "bottom", "seasons": ["all"] },
+        { "id": "item_mcat_leather_belt", "category": "accessories", "subcategory": "belt", "colors": ["brown"], "colorFamilies": ["brown", "neutral"], "materials": ["leather"], "brand": null, "title": "Brown Leather Belt", "formality": "business_casual", "layeringRole": "accessory", "seasons": ["all"] },
+        { "id": "item_mcat_grey_tee", "category": "tops", "subcategory": "t-shirt", "colors": ["grey"], "colorFamilies": ["neutral"], "materials": ["cotton"], "brand": null, "title": "Grey T-Shirt", "formality": "casual", "layeringRole": "base", "seasons": ["all"] }
+      ],
+      "doesNotOwn": ["shoes", "sneakers", "loafers", "boots", "sandals", "heels"]
+    },
+    {
+      "id": "closet_seasonally_limited",
+      "kind": "seasonally_limited",
+      "kPlusActive": true,
+      "notes": "Every item is a summer item; no outerwear or cold-weather pieces at all. Used for seasonal-advice and missing-category-uncertainty tests.",
+      "items": [
+        { "id": "item_sl_linen_shirt", "category": "tops", "subcategory": "shirt", "colors": ["white"], "colorFamilies": ["neutral"], "materials": ["linen"], "brand": null, "title": "White Linen Shirt", "formality": "casual", "layeringRole": "base", "seasons": ["summer"] },
+        { "id": "item_sl_swim_trunks", "category": "swimwear", "subcategory": "trunks", "colors": ["blue"], "colorFamilies": ["blue"], "materials": ["polyester"], "brand": null, "title": "Blue Swim Trunks", "formality": "casual", "layeringRole": "bottom", "seasons": ["summer"] },
+        { "id": "item_sl_shorts", "category": "bottoms", "subcategory": "short", "colors": ["khaki"], "colorFamilies": ["brown", "neutral"], "materials": ["cotton"], "brand": null, "title": "Khaki Shorts", "formality": "casual", "layeringRole": "bottom", "seasons": ["summer"] },
+        { "id": "item_sl_sandals", "category": "shoes", "subcategory": "sandal", "colors": ["tan"], "colorFamilies": ["brown", "neutral"], "materials": ["leather"], "brand": null, "title": "Tan Sandals", "formality": "casual", "layeringRole": "shoe", "seasons": ["summer"] },
+        { "id": "item_sl_sun_hat", "category": "accessories", "subcategory": "hat", "colors": ["straw"], "colorFamilies": ["brown", "neutral"], "materials": ["straw"], "brand": null, "title": "Straw Sun Hat", "formality": "casual", "layeringRole": "accessory", "seasons": ["summer"] }
+      ],
+      "doesNotOwn": ["coat", "wool sweater", "winter jacket", "boots", "scarf", "gloves"]
+    },
+    {
+      "id": "closet_similar_item_ambiguity",
+      "kind": "similar_item_ambiguity",
+      "kPlusActive": true,
+      "notes": "Two owned brown loafers, close but not identical -- used for the AMBIGUITY corpus script and the closet_text_ambiguous resolution path (spec sections 21, D-similar-item tests).",
+      "items": [
+        { "id": "item_amb_brown_loafers_a", "category": "shoes", "subcategory": "loafer", "colors": ["brown"], "colorFamilies": ["brown", "neutral"], "materials": ["leather"], "brand": "Cole Haan", "title": "Brown Leather Loafers", "formality": "business_casual", "layeringRole": "shoe", "seasons": ["all"] },
+        { "id": "item_amb_brown_loafers_b", "category": "shoes", "subcategory": "loafer", "colors": ["dark brown"], "colorFamilies": ["brown", "neutral"], "materials": ["suede"], "brand": "Clarks", "title": "Dark Brown Suede Loafers", "formality": "business_casual", "layeringRole": "shoe", "seasons": ["fall", "winter"] },
+        { "id": "item_amb_navy_blazer", "category": "outerwear", "subcategory": "blazer", "colors": ["navy"], "colorFamilies": ["blue", "neutral"], "materials": ["wool"], "brand": null, "title": "Navy Blazer", "formality": "business_casual", "layeringRole": "outer", "seasons": ["all"] },
+        { "id": "item_amb_white_shirt", "category": "tops", "subcategory": "shirt", "colors": ["white"], "colorFamilies": ["neutral"], "materials": ["cotton"], "brand": null, "title": "White Shirt", "formality": "business_casual", "layeringRole": "base", "seasons": ["all"] }
+      ],
+      "doesNotOwn": ["black loafers", "red dress"]
+    },
+    {
+      "id": "closet_empty",
+      "kind": "empty",
+      "kPlusActive": true,
+      "notes": "Zero items, K+ active, so an exhaustive census legitimately proves every category absent. The canonical uncertainty/abstention fixture (spec section 39).",
+      "items": [],
+      "doesNotOwn": ["everything -- exhaustive census over zero rows proves every category absent"]
+    },
+    {
+      "id": "closet_non_k_plus_actor",
+      "kind": "non_k_plus_actor",
+      "kPlusActive": false,
+      "notes": "Items listed here exist ONLY as ground truth for D15 ENTITLEMENT_FACT_ERROR scenarios. Per authority/entitlementMap.json, RLS on user_closet_items is `user_id = auth.uid() AND has_active_k_plus()`, so a real pipeline run for this actor would see ZERO Closet rows regardless of what is physically in this fixture -- any response claiming Closet-derived ownership OR absence for this actor is ungrounded by construction.",
+      "items": [
+        { "id": "item_nkp_black_blazer", "category": "outerwear", "subcategory": "blazer", "colors": ["black"], "colorFamilies": ["neutral"], "materials": ["wool"], "brand": null, "title": "Black Blazer", "formality": "business", "layeringRole": "outer", "seasons": ["all"] },
+        { "id": "item_nkp_white_shirt", "category": "tops", "subcategory": "shirt", "colors": ["white"], "colorFamilies": ["neutral"], "materials": ["cotton"], "brand": null, "title": "White Shirt", "formality": "business_casual", "layeringRole": "base", "seasons": ["all"] }
+      ],
+      "doesNotOwn": ["visible to the pipeline: nothing -- RLS hides all rows for a non-K+ actor"]
+    }
+  ]
+}
