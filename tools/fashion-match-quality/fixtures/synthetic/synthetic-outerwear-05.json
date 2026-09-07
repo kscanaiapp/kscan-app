@@ -1,0 +1,220 @@
+{
+  "fixtureId": "synthetic-outerwear-05",
+  "corpusTier": "SYNTHETIC",
+  "captureProfile": "ios-current-v1",
+  "pairedFixtureId": null,
+  "generatorVersion": "fmql-synthetic-generator-v1",
+  "archetype": "outerwear",
+  "groundTruth": {
+    "source": "synthetic_generator_construction",
+    "confidence": "authoritative",
+    "identitySku": "SKU-aritzia-outerwear-5",
+    "brandNormalized": "aritzia",
+    "category": "outerwear",
+    "titleNormalized": "aritzia gray oversized/relaxed outerwear",
+    "color_family": "gray",
+    "material": "wool/wool blend",
+    "silhouette": "oversized/relaxed",
+    "texture": "wool/wool blend",
+    "pattern": "solid",
+    "construction": "standard",
+    "hardware_details": "none",
+    "brand": "Aritzia",
+    "price_tier": "mid",
+    "availability": "in_stock",
+    "retailer_quality": "verified_retailer",
+    "cut_proportion": "oversized/relaxed"
+  },
+  "garmentIdentification": {
+    "visual_observation": "A gray oversized/relaxed outerwear.",
+    "item_type": "outerwear",
+    "primary_color": "gray",
+    "material_estimate": "wool/wool blend",
+    "silhouette": "oversized/relaxed",
+    "distinctive_features": [
+      "classic"
+    ],
+    "style_tags": [
+      "classic"
+    ],
+    "search_queries": [
+      "gray outerwear"
+    ],
+    "visible_brand_text": null,
+    "logo_detected": false,
+    "confidence_score": 0.72,
+    "non_fashion": false
+  },
+  "candidateProducts": [
+    {
+      "id": "synthetic-outerwear-05::exact",
+      "identitySku": "SKU-aritzia-outerwear-5",
+      "brand": "Aritzia",
+      "brandNormalized": "aritzia",
+      "name": "Aritzia gray outerwear",
+      "title": "Aritzia gray outerwear",
+      "titleNormalized": "aritzia gray oversized/relaxed outerwear",
+      "category": "outerwear",
+      "canonical_category": "outerwear",
+      "color": "gray",
+      "color_normalized": "gray",
+      "silhouette": "oversized/relaxed",
+      "material": "wool/wool blend",
+      "materialEstimate": "wool/wool blend",
+      "material_tags": [
+        "wool/wool blend"
+      ],
+      "styleTags": [
+        "classic"
+      ],
+      "tags": [
+        "classic"
+      ],
+      "price_tier": "mid",
+      "price": 499.1,
+      "currency": "USD",
+      "retailer": "zappos",
+      "purchaseUrl": "https://zappos.example/aritzia/synthetic-outerwear-05-exact",
+      "imageUrl": "https://cdn.example/synthetic-outerwear-05-exact.jpg",
+      "availability": "in_stock",
+      "retailer_quality": "verified_retailer",
+      "construction": "standard",
+      "hardware_details": "none",
+      "texture": "wool/wool blend",
+      "pattern": "solid",
+      "cut_proportion": "oversized/relaxed"
+    },
+    {
+      "id": "synthetic-outerwear-05::near-miss",
+      "identitySku": "SKU-aritzia-outerwear-5-alt",
+      "brand": "Aritzia",
+      "brandNormalized": "aritzia",
+      "name": "Aritzia gray outerwear",
+      "title": "Aritzia gray outerwear",
+      "titleNormalized": "aritzia gray fitted outerwear",
+      "category": "outerwear",
+      "canonical_category": "outerwear",
+      "color": "gray",
+      "color_normalized": "gray",
+      "silhouette": "fitted",
+      "material": "wool/wool blend",
+      "materialEstimate": "wool/wool blend",
+      "material_tags": [
+        "wool/wool blend"
+      ],
+      "styleTags": [
+        "classic"
+      ],
+      "tags": [
+        "classic"
+      ],
+      "price_tier": "mid",
+      "price": 499.1,
+      "currency": "USD",
+      "retailer": "zappos",
+      "purchaseUrl": "https://zappos.example/aritzia/synthetic-outerwear-05-near",
+      "imageUrl": "https://cdn.example/synthetic-outerwear-05-near.jpg",
+      "availability": "in_stock",
+      "retailer_quality": "verified_retailer",
+      "construction": "standard",
+      "hardware_details": "none",
+      "texture": "wool/wool blend",
+      "pattern": "solid",
+      "cut_proportion": "fitted"
+    },
+    {
+      "id": "synthetic-outerwear-05::distractor",
+      "brand": "Reformation",
+      "brandNormalized": "reformation",
+      "name": "Reformation navy dress",
+      "title": "Reformation navy dress",
+      "titleNormalized": "reformation navy a-line dress",
+      "category": "dress",
+      "canonical_category": "dress",
+      "color": "navy",
+      "color_normalized": "navy",
+      "silhouette": "a-line",
+      "material": "cotton",
+      "materialEstimate": "cotton",
+      "purchaseUrl": "https://zappos.example/reformation/synthetic-outerwear-05-distractor",
+      "imageUrl": "https://cdn.example/synthetic-outerwear-05-distractor.jpg",
+      "availability": "in_stock"
+    },
+    {
+      "id": "synthetic-outerwear-05::cross-retailer-dup",
+      "identitySku": null,
+      "brand": "Aritzia",
+      "brandNormalized": "aritzia",
+      "name": "Aritzia gray outerwear",
+      "title": "Aritzia gray outerwear",
+      "titleNormalized": "aritzia gray oversized/relaxed outerwear",
+      "category": "outerwear",
+      "canonical_category": "outerwear",
+      "color": "gray",
+      "color_normalized": "gray",
+      "silhouette": "oversized/relaxed",
+      "material": "wool/wool blend",
+      "materialEstimate": "wool/wool blend",
+      "material_tags": [
+        "wool/wool blend"
+      ],
+      "styleTags": [
+        "classic"
+      ],
+      "tags": [
+        "classic"
+      ],
+      "price_tier": "mid",
+      "price": 499.1,
+      "currency": "USD",
+      "retailer": "nordstrom",
+      "purchaseUrl": "https://nordstrom.example/aritzia/synthetic-outerwear-05-dup",
+      "imageUrl": "https://cdn.example/synthetic-outerwear-05-dup.jpg",
+      "availability": "in_stock",
+      "retailer_quality": "verified_retailer",
+      "construction": "standard",
+      "hardware_details": "none",
+      "texture": "wool/wool blend",
+      "pattern": "solid",
+      "cut_proportion": "oversized/relaxed"
+    },
+    {
+      "id": "synthetic-outerwear-05::no-purchase-path",
+      "identitySku": null,
+      "brand": "Aritzia",
+      "brandNormalized": "aritzia",
+      "name": "Aritzia gray outerwear",
+      "title": "Aritzia gray outerwear",
+      "titleNormalized": "aritzia gray oversized/relaxed outerwear",
+      "category": "outerwear",
+      "canonical_category": "outerwear",
+      "color": "gray",
+      "color_normalized": "gray",
+      "silhouette": "oversized/relaxed",
+      "material": "wool/wool blend",
+      "materialEstimate": "wool/wool blend",
+      "material_tags": [
+        "wool/wool blend"
+      ],
+      "styleTags": [
+        "classic"
+      ],
+      "tags": [
+        "classic"
+      ],
+      "price_tier": "mid",
+      "price": 499.1,
+      "currency": "USD",
+      "retailer": "zappos",
+      "purchaseUrl": null,
+      "imageUrl": "https://cdn.example/synthetic-outerwear-05-exact.jpg",
+      "availability": "out_of_stock",
+      "retailer_quality": "verified_retailer",
+      "construction": "standard",
+      "hardware_details": "none",
+      "texture": "wool/wool blend",
+      "pattern": "solid",
+      "cut_proportion": "oversized/relaxed"
+    }
+  ]
+}
