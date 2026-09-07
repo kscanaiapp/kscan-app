@@ -425,6 +425,44 @@ refuses the comparison loudly rather than producing a misleading delta.
 
 ---
 
+## DM-08 — One intake sheet or two
+
+**QUESTION.** Cases outnumber garments (mission section 7's whole point is that
+one garment yields several captures). Should the collection template be one
+wide sheet with garment columns repeated on every capture row, or two sheets?
+
+**EVIDENCE.** A single sheet means the same brand / style code / colourway is
+typed three times for a garment with three captures. Three copies of a fact is
+three chances to disagree, and the disagreement is silent — whichever row was
+read last wins.
+
+**OPTIONS.**
+1. One wide sheet, garment columns repeated per row. — Invites contradiction.
+2. One sheet with garment columns blank after the first row for a garment. —
+   Fragile: a sort or a filter in Excel destroys the row ordering the
+   inheritance depends on, silently.
+3. **Two sheets: `collection-template-garments.csv` and
+   `collection-template-cases.csv`.**
+
+**SAFE DEFAULT — option 3.** It mirrors the record split exactly, so ground
+truth is typed once per product; each sheet is narrower and therefore easier
+to fill on a laptop in a shop; and there is no ordering dependency for a
+spreadsheet sort to break.
+
+Both templates are **generated from the column definitions in
+`lib/intake.js`** and a test asserts the checked-in files still match. A
+template that has drifted from its validator is worse than no template: it
+teaches a collector to fill in a column that will be rejected.
+
+**RISK.** A collector must keep two files. Mitigated by the collection guide
+walking both, and by ingestion reporting an unmatched `garment_id` as a
+row-level error naming the missing garment.
+
+**REVERSIBILITY.** High — a combined-sheet reader could be added beside
+`parseIntake()` without touching the record schemas.
+
+---
+
 ## 6. Directory map
 
 ```
