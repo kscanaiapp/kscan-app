@@ -14,15 +14,52 @@
  * becomes authorized by acquiring a table row WITH a reason and a source
  * authority, not by being appended to a list in a script.
  *
+ * WHICH LANES THE LIVE DIFF BINDS, AND WHY THAT IS NOW EXPLICIT. This guard
+ * has two halves. The STATIC half -- the manifest parser, the matcher, and the
+ * protected-boundary refusals -- is a policy control that is true of the whole
+ * repository and runs everywhere, on every branch. The LIVE half diffs a
+ * branch against the VTO integration base and refuses anything the manifest
+ * does not authorize; that one is only meaningful on a lane that is actually
+ * derived from, and answerable to, that base.
+ *
+ * The original implementation conflated the two. It picked a base ref by
+ * TRYING A LIST OF CANDIDATES AND TAKING THE FIRST THAT EXISTED, then diffed
+ * unconditionally. "This checkout contains the VTO integration commit" is true
+ * of every branch in this repository, so every non-VTO branch was judged
+ * against the VTO manifest and failed for its own unrelated work -- a
+ * notifications branch was told it had touched paths the VTO lane does not
+ * authorize. The candidate list is therefore gone: lane membership is now
+ * DECLARED, never guessed.
+ *
+ * The declaration is two environment variables:
+ *
+ *   KSCAN_VTO_SCOPE_ENFORCE=1                 this execution IS a VTO lane
+ *   KSCAN_VTO_SCOPE_BASE_REF=<approved base>  the base authority to judge against
+ *
+ * With the signal absent, the live diff reports NOT APPLICABLE and the static
+ * controls still run. With the signal present, the base ref is MANDATORY: a
+ * missing, empty or unresolvable base is a FAILURE, never a skip and never a
+ * pass. "The base could not be resolved, so we are fine" is exactly the
+ * control this guard must not have -- it would let a real VTO lane escape its
+ * own mutation boundary by breaking one ref. A value of the enforcement
+ * variable that is neither an ON nor an OFF token also fails closed, so a typo
+ * cannot quietly switch enforcement off.
+ *
  * Usage:
  *   node scripts/check-vto-live-integration-scope.js [baseRef]
  *
+ * A baseRef named on the command line is a deliberate, explicit human act, so
+ * it runs the diff without the environment signal (this is the documented
+ * local/manual invocation). It is still fail-closed: a base ref that does not
+ * resolve is an error, not a skip.
+ *
  * Exit codes:
- *   0  every changed path is authorized (or the base ref could not be
- *      resolved, in which case it reports SKIPPED and says why -- a guard that
- *      silently reports success on an empty diff is worse than no guard)
- *   1  the diff reached outside the authorized boundary, or the manifest is
- *      unparseable / self-inconsistent
+ *   0  every changed path is authorized, OR this is not a VTO enforcement lane
+ *      and the live diff reported NOT APPLICABLE (the static manifest controls
+ *      ran and passed either way)
+ *   1  the diff reached outside the authorized boundary, the manifest is
+ *      unparseable / self-inconsistent, or enforcement was declared and could
+ *      not be carried out
  */
 
 'use strict';
@@ -34,13 +71,12 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '..');
 const MANIFEST = path.join('docs', 'vto-live-integration-manifest.md');
 
-const DEFAULT_BASE_REFS = [
-  'origin/integration/backend-kplus-complimentary-staging-v1',
-  'integration/backend-kplus-complimentary-staging-v1',
-  // The manifest's own recorded base, so the guard still works in a checkout
-  // that has the commit but not the branch ref.
-  'f2ef091aae0f270a8b966dc03d7c18198070b42f',
-];
+/** The explicit VTO-lane enforcement signal. See the header. */
+const ENFORCE_ENV = 'KSCAN_VTO_SCOPE_ENFORCE';
+const BASE_REF_ENV = 'KSCAN_VTO_SCOPE_BASE_REF';
+
+const ENFORCE_ON_VALUES = new Set(['1', 'true']);
+const ENFORCE_OFF_VALUES = new Set(['', '0', 'false']);
 
 /**
  * Reads the authorized-path table out of the manifest.
@@ -116,17 +152,129 @@ function git(args) {
   return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim();
 }
 
-function resolveBaseRef(explicit) {
-  const candidates = explicit ? [explicit] : DEFAULT_BASE_REFS;
-  for (const candidate of candidates) {
-    try {
-      git(['rev-parse', '--verify', `${candidate}^{commit}`]);
-      return candidate;
-    } catch {
-      // Try the next candidate.
-    }
+/** True when `ref` names a commit reachable in this checkout. */
+function refExistsInCheckout(ref) {
+  try {
+    execFileSync('git', ['rev-parse', '--verify', `${ref}^{commit}`], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    return true;
+  } catch {
+    return false;
   }
-  return null;
+}
+
+/** The changed paths between an approved base authority and HEAD. */
+function diffChangedPaths(baseRef) {
+  const output = git(['diff', '--name-only', `${baseRef}...HEAD`]);
+  return output ? output.split('\n').filter(Boolean) : [];
+}
+
+/**
+ * Reads the enforcement signal. Three outcomes, never two:
+ *
+ *   { enforced: true }              a VTO lane declared itself
+ *   { enforced: false }             no declaration, or an explicit OFF
+ *   { enforced: null, reason }      the variable is set to something that is
+ *                                   neither -- fail closed rather than guess
+ *
+ * The third case is the point. If an unrecognised value read as "off", then
+ * `KSCAN_VTO_SCOPE_ENFORCE=ture` would silently disarm a real VTO lane's
+ * mutation guard and the run would still be green.
+ */
+function readEnforcementSignal(env) {
+  const raw = env[ENFORCE_ENV];
+  if (raw === undefined) return { enforced: false };
+
+  const value = String(raw).trim().toLowerCase();
+  if (ENFORCE_ON_VALUES.has(value)) return { enforced: true };
+  if (ENFORCE_OFF_VALUES.has(value)) return { enforced: false };
+  return {
+    enforced: null,
+    reason:
+      `${ENFORCE_ENV} is set to ${JSON.stringify(raw)}, which is neither an ON value ` +
+      `(${[...ENFORCE_ON_VALUES].join(', ')}) nor an OFF value ` +
+      `(${[...ENFORCE_OFF_VALUES].filter(Boolean).join(', ')}). ` +
+      'Refusing to guess: a VTO lane must not be able to disarm its own mutation guard with a typo.',
+  };
+}
+
+/**
+ * Decides whether the LIVE half of this guard runs on this execution, and
+ * against which base authority. Exactly one of:
+ *
+ *   { decision: 'ENFORCE', baseRef }  run the diff; unauthorized paths FAIL
+ *   { decision: 'SKIP', reason }      not a VTO lane; static controls only
+ *   { decision: 'FAIL', reason }      enforcement declared but not carriable
+ *
+ * Every dependency is injectable so the fail-closed branches can be proven
+ * without mutating a real checkout -- see
+ * __tests__/vtoScopeGuardEnforcementMode.test.js.
+ */
+function resolveScopeMode({
+  env = process.env,
+  explicitBaseRef = null,
+  refExists = refExistsInCheckout,
+} = {}) {
+  const signal = readEnforcementSignal(env);
+  if (signal.enforced === null) return { decision: 'FAIL', reason: signal.reason };
+
+  const declared = typeof env[BASE_REF_ENV] === 'string' ? env[BASE_REF_ENV].trim() : '';
+  const explicit = typeof explicitBaseRef === 'string' ? explicitBaseRef.trim() : '';
+
+  if (!signal.enforced) {
+    if (!explicit) {
+      return {
+        decision: 'SKIP',
+        reason:
+          `${ENFORCE_ENV} is not set, so this execution is NOT a VTO enforcement lane and the ` +
+          'live mutation-boundary diff does not apply to it. The static boundary controls ' +
+          '(manifest justification, matcher, protected-path refusal) ran regardless.',
+      };
+    }
+    // An explicit command-line base ref is a deliberate manual invocation.
+    // Still fail-closed: a ref that does not resolve is an error, not a pass.
+    if (!refExists(explicit)) {
+      return {
+        decision: 'FAIL',
+        reason: `base ref ${JSON.stringify(explicit)} was named on the command line but does not resolve to a commit in this checkout.`,
+      };
+    }
+    return { decision: 'ENFORCE', baseRef: explicit };
+  }
+
+  // Enforcement declared. From here, every unusable input is a FAILURE.
+  if (explicit && declared && explicit !== declared) {
+    return {
+      decision: 'FAIL',
+      reason:
+        `${ENFORCE_ENV} is on but two different base authorities were supplied: ` +
+        `${BASE_REF_ENV}=${JSON.stringify(declared)} and command-line ${JSON.stringify(explicit)}. ` +
+        'Refusing to pick one.',
+    };
+  }
+
+  const baseRef = declared || explicit;
+  if (!baseRef) {
+    return {
+      decision: 'FAIL',
+      reason:
+        `${ENFORCE_ENV} is on but ${BASE_REF_ENV} is unset or empty. An enforcing lane must name ` +
+        'the base authority it is judged against; enforcement cannot degrade to a skip.',
+    };
+  }
+  if (!refExists(baseRef)) {
+    return {
+      decision: 'FAIL',
+      reason:
+        `${ENFORCE_ENV} is on but the declared base authority ${JSON.stringify(baseRef)} does not ` +
+        'resolve to a commit in this checkout. An unrunnable guard on an enforcing lane is a ' +
+        'failure, never a pass.',
+    };
+  }
+  return { decision: 'ENFORCE', baseRef };
 }
 
 function main() {
@@ -147,19 +295,30 @@ function main() {
     process.exit(1);
   }
 
-  const baseRef = resolveBaseRef(process.argv[2]);
-  if (!baseRef) {
-    // Explicit, not silent: an unrunnable guard must not read as a pass.
-    console.log('SKIPPED: no base ref resolved (tried: ' + DEFAULT_BASE_REFS.join(', ') + ').');
-    console.log('The manifest parsed cleanly with ' + patterns.length + ' authorized patterns.');
-    console.log('Pass a base ref explicitly to run the diff check.');
+  const mode = resolveScopeMode({ explicitBaseRef: process.argv[2] || null });
+
+  if (mode.decision === 'FAIL') {
+    console.error(`FAIL: ${mode.reason}`);
+    process.exit(1);
+  }
+
+  if (mode.decision === 'SKIP') {
+    // Reported, never silent, and never dressed up as a pass of the live
+    // check: the static half genuinely passed, the live half did not run.
+    console.log('─'.repeat(64));
+    console.log('LIVE MUTATION-BOUNDARY DIFF: NOT APPLICABLE');
+    console.log('─'.repeat(64));
+    console.log(mode.reason);
+    console.log(`Authorized patterns parsed: ${patterns.length}`);
+    console.log(`To enforce, set ${ENFORCE_ENV}=1 and ${BASE_REF_ENV}=<approved base>,`);
+    console.log('or name a base ref on the command line.');
     process.exit(0);
   }
 
+  const { baseRef } = mode;
   let changedPaths = [];
   try {
-    const output = git(['diff', '--name-only', `${baseRef}...HEAD`]);
-    changedPaths = output ? output.split('\n').filter(Boolean) : [];
+    changedPaths = diffChangedPaths(baseRef);
   } catch (err) {
     console.error(`FAIL: could not diff against ${baseRef}: ${err.message}`);
     process.exit(1);
@@ -188,6 +347,17 @@ function main() {
   process.exit(0);
 }
 
-module.exports = { parseAuthorizedPatterns, matchesPattern, classifyChangedPaths, MANIFEST };
+module.exports = {
+  parseAuthorizedPatterns,
+  matchesPattern,
+  classifyChangedPaths,
+  readEnforcementSignal,
+  resolveScopeMode,
+  diffChangedPaths,
+  refExistsInCheckout,
+  MANIFEST,
+  ENFORCE_ENV,
+  BASE_REF_ENV,
+};
 
 if (require.main === module) main();
