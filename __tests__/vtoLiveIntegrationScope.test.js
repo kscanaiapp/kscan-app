@@ -184,16 +184,23 @@ function changedPathsForThisLane(t) {
   return guard.diffChangedPaths(mode.baseRef);
 }
 
-test('guard: this branch\'s actual diff stays inside the boundary', (t) => {
+test('guard: this branch\'s actual VTO-owned diff stays inside the boundary', (t) => {
   const changed = changedPathsForThisLane(t);
   if (changed === null) return;
 
+  // The VTO-OWNED SUBSET, exactly as the guard script judges it. This
+  // assertion is the same question the CLI answers, so it has to be asked the
+  // same way -- when it classified the WHOLE diff instead, the workflow's two
+  // enforcement steps disagreed with each other on an integration branch: the
+  // CLI passed and this test refused the research labs it had just, correctly,
+  // declined to judge.
+  const { vtoOwned } = guard.partitionByVtoOwnership(changed);
   const { patterns } = guard.parseAuthorizedPatterns(manifest);
-  const { unauthorized } = guard.classifyChangedPaths(changed, patterns);
+  const { unauthorized } = guard.classifyChangedPaths(vtoOwned, patterns);
   assert.deepEqual(
     unauthorized,
     [],
-    'this lane touched a path the manifest does not authorize',
+    'this lane touched a VTO path the manifest does not authorize',
   );
 });
 

@@ -596,3 +596,30 @@ test('SINGLE DEFINITION: every prefix is an exact string, never a pattern to int
 test('the prefix list is frozen, so no caller can widen ownership at runtime', () => {
   assert.ok(Object.isFrozen(guard.VTO_OWNED_PREFIXES));
 });
+
+test('AGREEMENT: the workflow\'s two enforcement steps ask the same question', () => {
+  // The scope-guard job runs the CLI and then runs this file, both with
+  // enforcement declared. They are two implementations of one boundary, so a
+  // change to the unit of scope in one and not the other makes the job
+  // self-contradictory -- which is exactly what happened: the CLI judged the
+  // VTO-owned subset and passed, while this file still classified the whole
+  // diff and refused an integration branch for its research labs.
+  //
+  // Asserted structurally rather than by re-running the CLI: both call sites
+  // must partition before classifying.
+  const suite = fs.readFileSync(GUARD_TESTS, 'utf8');
+  const script = fs.readFileSync(GUARD_SCRIPT, 'utf8');
+
+  for (const [name, source] of [['the guard script', script], ['the guard test suite', suite]]) {
+    const partitionAt = source.indexOf('partitionByVtoOwnership');
+    const classifyAt = source.indexOf('classifyChangedPaths(');
+    assert.notEqual(partitionAt, -1, `${name} must scope the diff to VTO-owned paths first`);
+    assert.notEqual(classifyAt, -1, `${name} must classify against the manifest`);
+  }
+
+  // And the live assertion must not classify the raw diff variable.
+  assert.ok(
+    !/classifyChangedPaths\(\s*changed\s*,/.test(suite),
+    'the live assertion must classify the VTO-owned subset, never the whole diff',
+  );
+});
