@@ -301,8 +301,17 @@ export default function DevN1Diagnostic() {
   // diagnostic screen has no view ref either, matching the real contract).
   const [partBEvents, setPartBEvents] = useState<string[]>([]);
   const [partBLastError, setPartBLastError] = useState('none');
-  const partBGarmentA = { productRef: 'part-b-diagnostic-a', imageUrl: 'https://example.test/a.png', canonicalCategory: 'top', templateFamily: 't-shirt' };
-  const partBGarmentB = { productRef: 'part-b-diagnostic-b', imageUrl: 'https://example.test/b.png', canonicalCategory: 'top', templateFamily: 'simple-top' };
+  // assetKey/assetId/assetVersion added alongside the governed asset
+  // resolver (services/vto/vtoLiveGarment.ts's resolveLiveGarment): native
+  // now refuses a descriptor without a valid, allowlisted assetKey rather
+  // than silently loading a bundled fixture (see
+  // services/vto/vtoLiveGarmentRegistry.ts). Pointed at the TWO REAL,
+  // materially different bundled fixtures (not the same one twice) so this
+  // diagnostic screen's A->B switch exercises genuine asset identity, the
+  // same real assets __tests__/vtoLiveGarmentResolver.test.js proves the
+  // resolver distinguishes.
+  const partBGarmentA = { productRef: 'part-b-diagnostic-a', imageUrl: 'https://example.test/a.png', canonicalCategory: 'top', templateFamily: 't-shirt', assetKey: 'n1b-fixture', assetId: '081350cef7f5c83e05c3e6c1', assetVersion: '1' };
+  const partBGarmentB = { productRef: 'part-b-diagnostic-b', imageUrl: 'https://example.test/b.png', canonicalCategory: 'top', templateFamily: 'simple-top', assetKey: 'n1c-asym-fixture', assetId: 'n1c-asym-marker-fixture', assetVersion: '1' };
 
   useEffect(() => {
     const nativeModule = getLiveVtoNativeModule();
