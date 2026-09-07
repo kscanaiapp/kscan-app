@@ -13,6 +13,10 @@
  */
 
 import type { RecommendedProduct } from './shoppingProvider.ts';
+import {
+  currencyCodeFromDisplayPrice,
+  normalizeCommerceCurrency,
+} from './commerceCurrency.ts';
 
 export type CanonicalOffer = {
   offerId: string;
@@ -20,7 +24,7 @@ export type CanonicalOffer = {
   source: string;
   retailer: string;
   providerProductId: string | null;
-  price: string | null;
+  price: string | number | null;
   priceValue: number | null;
   currency: string | null;
   availability: string | null;
@@ -38,7 +42,7 @@ export type CanonicalProduct = {
   title: string;
   imageUrl: string | null;
   offers: CanonicalOffer[];
-  /** Lowest numeric price across offers, when any offer carries one. */
+  /** Lowest comparable amount, only when every priced offer has one currency. */
   lowestPriceValue: number | null;
   offerCount: number;
 };
@@ -47,13 +51,6 @@ export type CanonicalCommerce = {
   products: CanonicalProduct[];
   /** Offers that were grouped away from the flat list, for telemetry only. */
   duplicateOfferCount: number;
-};
-
-const CURRENCY_SYMBOLS: Readonly<Record<string, string>> = {
-  '$': 'USD',
-  '£': 'GBP',
-  '€': 'EUR',
-  '¥': 'JPY',
 };
 
 /** Words that never help decide whether two listings are the same product. */
@@ -92,15 +89,9 @@ export function parseOfferPrice(raw: unknown): { value: number | null; currency:
   const t = raw.trim();
   if (!t) return { value: null, currency: null };
 
-  let currency: string | null = null;
-  for (const [symbol, code] of Object.entries(CURRENCY_SYMBOLS)) {
-    if (t.includes(symbol)) {
-      currency = code;
-      break;
-    }
-  }
-  const isoMatch = t.match(/\b(USD|GBP|EUR|JPY|CAD|AUD)\b/i);
-  if (isoMatch) currency = isoMatch[1].toUpperCase();
+  // Preserve a provider display string as display evidence, but do not turn a
+  // symbol such as "$" into a specific ISO code. That would falsely assert USD.
+  const currency = currencyCodeFromDisplayPrice(t);
 
   const cleaned = t.replace(/[^0-9.,]/g, '').replace(/,/g, '');
   if (!cleaned) return { value: null, currency };
@@ -142,14 +133,22 @@ export function canonicalProductKey(product: RecommendedProduct): string {
 function toOffer(product: RecommendedProduct, observedAt: string): CanonicalOffer {
   const rec = product as unknown as Record<string, unknown>;
   const parsed = parseOfferPrice(product.price);
+  const declaredCurrency = normalizeCommerceCurrency(rec.currency);
+  const parsedCurrency = parsed.currency;
+  const currency =
+    declaredCurrency && parsedCurrency && declaredCurrency !== parsedCurrency
+      ? null
+      : declaredCurrency ?? parsedCurrency;
   return {
     offerId: product.id,
     source: product.source,
     retailer: str(rec.retailer) ?? product.source,
     providerProductId: str(rec.providerProductId) ?? str(rec.productId) ?? null,
-    price: str(product.price),
+    price: typeof product.price === 'number' && Number.isFinite(product.price)
+      ? product.price
+      : str(product.price),
     priceValue: parsed.value,
-    currency: parsed.currency ?? str(rec.currency),
+    currency,
     availability: str(rec.availability),
     condition: str(rec.condition),
     size: str(rec.size) ?? str(rec.variant),
@@ -208,11 +207,14 @@ export function buildCanonicalCommerce(
 
   const out: CanonicalProduct[] = [];
   for (const p of byKey.values()) {
-    let lowest: number | null = null;
-    for (const o of p.offers) {
-      if (o.priceValue === null) continue;
-      if (lowest === null || o.priceValue < lowest) lowest = o.priceValue;
-    }
+    const priced = p.offers.filter((offer) => offer.priceValue !== null);
+    const currencies = new Set(priced.map((offer) => offer.currency));
+    const lowest = priced.length > 0 && !currencies.has(null) && currencies.size === 1
+      ? priced.reduce<number | null>(
+        (current, offer) => current === null || offer.priceValue! < current ? offer.priceValue : current,
+        null,
+      )
+      : null;
     out.push({ ...p, lowestPriceValue: lowest, offerCount: p.offers.length });
   }
 

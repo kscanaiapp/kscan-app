@@ -16,6 +16,28 @@ let FETCH_IMPL = async () => {
   throw new Error('fetch not configured');
 };
 
+function loadCommerceCurrencyHelpers() {
+  const filename = path.join(ROOT, 'supabase/functions/scan-identify/commerceCurrency.ts');
+  const output = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2020,
+      esModuleInterop: true,
+    },
+  }).outputText;
+  const mod = { exports: {} };
+  vm.runInNewContext(output, {
+    console,
+    Intl,
+    exports: mod.exports,
+    module: mod,
+    require: (id) => { throw new Error(`Unexpected currency-helper require: ${id}`); },
+  }, { filename });
+  return mod.exports;
+}
+
+const commerceCurrency = loadCommerceCurrencyHelpers();
+
 function loadProvider() {
   const filename = path.join(ROOT, 'supabase/functions/scan-identify/shoppingProvider.ts');
   const source = fs.readFileSync(filename, 'utf8');
@@ -39,6 +61,9 @@ function loadProvider() {
     fetch: (...args) => FETCH_IMPL(...args),
     Deno: { env: { get: (k) => ENV[k] } },
     require: (id) => {
+      if (id === './commerceCurrency.ts' || id === './commerceCurrency') {
+        return commerceCurrency;
+      }
       if (id.startsWith('node:')) return require(id);
       throw new Error(`Unexpected require: ${id}`);
     },
@@ -118,7 +143,7 @@ test('normalizePrice: strips noisy prefixes and handles numbers', () => {
   assert.equal(provider.normalizePrice('From $45'), '$45');
   assert.equal(provider.normalizePrice('Starting at $80'), '$80');
   assert.equal(provider.normalizePrice('$129.99'), '$129.99');
-  assert.equal(provider.normalizePrice(59), '$59.00');
+  assert.equal(provider.normalizePrice(59), 59);
   assert.equal(provider.normalizePrice(''), undefined);
   assert.equal(provider.normalizePrice(undefined), undefined);
 });

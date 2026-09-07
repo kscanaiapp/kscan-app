@@ -132,22 +132,56 @@ export type LegacyAnalysisData = {
   sneakerReference?: any[];
 };
 
+// This mapper is the Scanner UI's commerce-formatting boundary. Keep it
+// conservative: an amount without a known currency is unavailable, never USD.
+const SCANNER_CURRENCY_CODES = new Set(
+  (
+    'AED AFN ALL AMD ANG AOA ARS AUD AWG AZN BAM BBD BDT BGN BHD BIF BMD BND BOB BRL ' +
+    'BSD BTN BWP BYN BZD CAD CDF CHF CLP CNY COP CRC CUC CUP CVE CZK DJF DKK DOP DZD ' +
+    'EGP ERN ETB EUR FJD FKP GBP GEL GHS GIP GMD GNF GTQ GYD HKD HNL HRK HTG HUF IDR ' +
+    'ILS INR IQD IRR ISK JMD JOD JPY KES KGS KHR KMF KPW KRW KWD KYD KZT LAK LBP LKR ' +
+    'LRD LSL LYD MAD MDL MGA MKD MMK MNT MOP MRU MUR MVR MWK MXN MYR MZN NAD NGN NIO ' +
+    'NOK NPR NZD OMR PAB PEN PGK PHP PKR PLN PYG QAR RON RSD RUB RWF SAR SBD SCR SDG ' +
+    'SEK SGD SHP SLE SLL SOS SRD SSP STN SVC SYP SZL THB TJS TMT TND TOP TRY TTD TWD ' +
+    'TZS UAH UGX USD UYU UZS VES VND VUV WST XAF XCD XCG XDR XOF XPF XSU YER ZAR ZMW ' +
+    'ZWG ZWL'
+  ).split(' '),
+);
+
+function scannerCurrencyCode(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const code = value.trim().toUpperCase();
+  return SCANNER_CURRENCY_CODES.has(code) ? code : null;
+}
+
 function formatPriceLabel(price: unknown, currency?: string | null): string | undefined {
   if (price === null || price === undefined) return undefined;
-  if (typeof price === 'number' && Number.isFinite(price) && price > 0) {
-    const ccy = String(currency || 'USD').toUpperCase();
+  const currencyCode = scannerCurrencyCode(currency);
+  if (!currencyCode) return undefined;
+
+  const numeric =
+    typeof price === 'number'
+      ? price
+      : typeof price === 'string' && /^\d+(?:\.\d+)?$/.test(price.trim().replace(/,/g, ''))
+        ? Number(price.trim().replace(/,/g, ''))
+        : null;
+
+  if (numeric !== null) {
+    if (!Number.isFinite(numeric) || numeric <= 0) return undefined;
     try {
-      return new Intl.NumberFormat('en-US', { style: 'currency', currency: ccy }).format(price);
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currencyCode,
+      }).format(numeric);
     } catch {
-      return `$${price.toFixed(2)}`;
+      return `${currencyCode} ${numeric.toFixed(2)}`;
     }
   }
-  if (typeof price === 'string') {
-    const trimmed = price.trim();
-    if (!trimmed || trimmed === '0' || trimmed === '$0.00' || trimmed === '0.00') return undefined;
-    return trimmed;
-  }
-  return undefined;
+
+  if (typeof price !== 'string') return undefined;
+  const text = price.replace(/[\u0000-\u001F\u007F]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!text || text === '0' || text === '0.00' || text === '$0.00') return undefined;
+  return text.slice(0, 64);
 }
 
 function valueLooksDemo(value: unknown): boolean {

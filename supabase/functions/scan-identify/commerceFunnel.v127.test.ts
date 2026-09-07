@@ -196,6 +196,7 @@ function product(partial: Partial<RecommendedProduct> & { title: string; product
     imageUrl: partial.imageUrl ?? 'https://cdn.example-shop.test/i.jpg',
     productUrl: partial.productUrl,
     ...(partial.brand ? { brand: partial.brand } : {}),
+    ...(partial.currency ? { currency: partial.currency } : {}),
   };
 }
 
@@ -667,8 +668,8 @@ Deno.test('INVARIANT 12: retailer identity does not change the canonical groupin
 
 Deno.test('canonical model: offers keep price/currency/condition and never drop a listing', () => {
   const offers = [
-    product({ title: 'Saint Laurent L01 Jacket', productUrl: 'https://a.test/1', price: '$4,500', source: 'Farfetch' }),
-    product({ title: 'Saint Laurent L01 Jacket', productUrl: 'https://b.test/1', price: '$900', source: 'Poshmark' }),
+    product({ title: 'Saint Laurent L01 Jacket', productUrl: 'https://a.test/1', price: '$4,500', currency: 'USD', source: 'Farfetch' }),
+    product({ title: 'Saint Laurent L01 Jacket', productUrl: 'https://b.test/1', price: '$900', currency: 'USD', source: 'Poshmark' }),
     product({ title: 'Totally Different Bag', productUrl: 'https://c.test/1', price: '£300' }),
   ];
   const canonical = buildCanonicalCommerce(offers);
@@ -680,7 +681,7 @@ Deno.test('canonical model: offers keep price/currency/condition and never drop 
   assert.deepEqual(jacket.lowestPriceValue, 900);
   assert.deepEqual(jacket.offers[0].currency, 'USD');
 
-  assert.deepEqual(parseOfferPrice('£300').currency, 'GBP');
+  assert.deepEqual(parseOfferPrice('£300').currency, null);
   assert.deepEqual(parseOfferPrice('£300').value, 300);
   assert.deepEqual(parseOfferPrice('not a price').value, null);
 });

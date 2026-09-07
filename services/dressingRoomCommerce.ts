@@ -5,6 +5,70 @@
 
 import type { CanonicalPurchaseOption } from '../types/canonicalDressingRoomItem';
 
+/**
+ * Currency handling shared by Scanner commerce surfaces.
+ *
+ * A currency code is only useful when it is both well-formed and known. Keeping
+ * this list explicit prevents arbitrary provider text from becoming a trusted
+ * currency label, while still allowing the current ISO 4217 set the app can
+ * format.
+ */
+const ISO_4217_CURRENCY_CODES = new Set([
+  'AED', 'AFN', 'ALL', 'AMD', 'ANG', 'AOA', 'ARS', 'AUD', 'AWG', 'AZN',
+  'BAM', 'BBD', 'BDT', 'BGN', 'BHD', 'BIF', 'BMD', 'BND', 'BOB', 'BRL',
+  'BSD', 'BTN', 'BWP', 'BYN', 'BZD', 'CAD', 'CDF', 'CHF', 'CLP', 'CNY',
+  'COP', 'CRC', 'CUC', 'CUP', 'CVE', 'CZK', 'DJF', 'DKK', 'DOP', 'DZD',
+  'EGP', 'ERN', 'ETB', 'EUR', 'FJD', 'FKP', 'GBP', 'GEL', 'GHS', 'GIP',
+  'GMD', 'GNF', 'GTQ', 'GYD', 'HKD', 'HNL', 'HRK', 'HTG', 'HUF', 'IDR',
+  'ILS', 'INR', 'IQD', 'IRR', 'ISK', 'JMD', 'JOD', 'JPY', 'KES', 'KGS',
+  'KHR', 'KMF', 'KPW', 'KRW', 'KWD', 'KYD', 'KZT', 'LAK', 'LBP', 'LKR',
+  'LRD', 'LSL', 'LYD', 'MAD', 'MDL', 'MGA', 'MKD', 'MMK', 'MNT', 'MOP',
+  'MRU', 'MUR', 'MVR', 'MWK', 'MXN', 'MYR', 'MZN', 'NAD', 'NGN', 'NIO',
+  'NOK', 'NPR', 'NZD', 'OMR', 'PAB', 'PEN', 'PGK', 'PHP', 'PKR', 'PLN',
+  'PYG', 'QAR', 'RON', 'RSD', 'RUB', 'RWF', 'SAR', 'SBD', 'SCR', 'SDG',
+  'SEK', 'SGD', 'SHP', 'SLE', 'SLL', 'SOS', 'SRD', 'SSP', 'STN', 'SVC',
+  'SYP', 'SZL', 'THB', 'TJS', 'TMT', 'TND', 'TOP', 'TRY', 'TTD', 'TWD',
+  'TZS', 'UAH', 'UGX', 'USD', 'UYU', 'UZS', 'VES', 'VND', 'VUV', 'WST',
+  'XAF', 'XCD', 'XCG', 'XDR', 'XOF', 'XPF', 'XSU', 'YER', 'ZAR', 'ZMW',
+  'ZWG', 'ZWL',
+]);
+
+/** Return a normalized, known ISO 4217 code; never invent one. */
+export function normalizeCommerceCurrency(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const code = value.trim().toUpperCase();
+  return ISO_4217_CURRENCY_CODES.has(code) ? code : null;
+}
+
+/**
+ * Read an explicit ISO code embedded in an authoritative provider display
+ * string. Symbols are intentionally not converted: "$" is a display symbol,
+ * not proof that an amount is USD.
+ */
+export function currencyCodeFromDisplayPrice(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  for (const token of value.match(/[A-Za-z]{3}/g) ?? []) {
+    const currency = normalizeCommerceCurrency(token);
+    if (currency) return currency;
+  }
+  return null;
+}
+
+/** Format a numeric amount only when its currency is known. */
+export function formatKnownCurrencyAmount(amount: number, currency: unknown): string | null {
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  const currencyCode = normalizeCommerceCurrency(currency);
+  if (!currencyCode) return null;
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currencyCode,
+    }).format(amount);
+  } catch {
+    return `${currencyCode} ${amount.toFixed(2)}`;
+  }
+}
+
 const MAX_OPTIONS = 24;
 const MAX_TEXT = 200;
 const MAX_URL = 2000;
@@ -37,6 +101,14 @@ function cleanText(value: unknown, max = MAX_TEXT): string | null {
   const text = value.replace(/[\u0000-\u001F\u007F]/g, ' ').replace(/\s+/g, ' ').trim();
   if (!text) return null;
   return text.slice(0, max);
+}
+
+/** Preserve a finite numeric provider amount through the persisted string contract. */
+function cleanCommercePrice(value: unknown): string | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value > 0 ? String(value) : null;
+  }
+  return cleanText(value, 64);
 }
 
 /**
@@ -91,14 +163,10 @@ export function normalizePersistedCommerceUrl(value: unknown): string | null {
 /** Format canonical string/number prices without dropping their currency. */
 export function formatCommercePrice(
   price: unknown,
-  currency: unknown = 'USD',
+  currency: unknown = null,
 ): string | null {
   if (price === null || price === undefined) return null;
 
-  const currencyCode =
-    typeof currency === 'string' && /^[a-z]{3}$/i.test(currency.trim())
-      ? currency.trim().toUpperCase()
-      : 'USD';
   const numeric =
     typeof price === 'number'
       ? price
@@ -107,20 +175,16 @@ export function formatCommercePrice(
         : null;
 
   if (numeric !== null) {
-    if (!Number.isFinite(numeric) || numeric <= 0) return null;
-    try {
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: currencyCode,
-      }).format(numeric);
-    } catch {
-      return currencyCode === 'USD' ? `$${numeric.toFixed(2)}` : `${currencyCode} ${numeric.toFixed(2)}`;
-    }
+    return formatKnownCurrencyAmount(numeric, currency);
   }
 
   if (typeof price !== 'string') return null;
   const text = cleanText(price, 64);
   if (!text || text === '0' || text === '0.00' || text === '$0.00') return null;
+  // A provider-authored display string is safe to preserve only when its
+  // accompanying currency is known. Otherwise even "$29.99" would silently
+  // communicate an unproven USD price to the shopper.
+  if (!normalizeCommerceCurrency(currency)) return null;
   return text;
 }
 
@@ -150,6 +214,7 @@ function optionFingerprint(option: CanonicalPurchaseOption): string {
     (option.retailer ?? '').toLowerCase(),
     (option.productUrl ?? option.affiliateUrl ?? '').toLowerCase(),
     (option.price ?? '').toLowerCase(),
+    (option.currency ?? '').toLowerCase(),
     (option.size ?? '').toLowerCase(),
     (option.variant ?? '').toLowerCase(),
     (option.productId ?? '').toLowerCase(),
@@ -205,8 +270,8 @@ export function normalizePurchaseOptions(raw: unknown): CanonicalPurchaseOption[
     const option: CanonicalPurchaseOption = {
       title,
       retailer,
-      price: cleanText(record.price, 64),
-      currency: cleanText(record.currency, 8),
+      price: cleanCommercePrice(record.price),
+      currency: normalizeCommerceCurrency(record.currency),
       productUrl,
       affiliateUrl,
       imageUrl,

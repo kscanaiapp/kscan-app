@@ -8,13 +8,18 @@
 // or forwarded to the mobile app. All output is normalized to a small,
 // stable RecommendedProduct shape.
 
+import { normalizeCommerceCurrency } from './commerceCurrency.ts';
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export interface RecommendedProduct {
   id: string;
   title: string;
   source: string;
-  price?: string;
+  /** Provider display text, or a numeric amount when no display text exists. */
+  price?: string | number;
+  /** Explicit provider currency only. Never derived from a symbol or locale. */
+  currency?: string;
   type: 'retail' | 'similar';
   imageUrl?: string;
   productUrl?: string;
@@ -197,10 +202,12 @@ export function normalizeImageUrl(url: unknown): string | undefined {
   }
 }
 
-export function normalizePrice(price: unknown): string | undefined {
+export function normalizePrice(price: unknown): string | number | undefined {
   if (typeof price === 'number' && Number.isFinite(price)) {
     if (price <= 0) return undefined;
-    return `$${price.toFixed(2)}`;
+    // A bare numeric amount carries no currency evidence. Preserve it as such
+    // so the client can omit the label rather than silently asserting USD.
+    return price;
   }
   if (typeof price !== 'string') return undefined;
   let s = price.trim();
@@ -365,11 +372,13 @@ function mapSerperItems(items: unknown[], limit: number): RecommendedProduct[] {
     if (seen.has(dedupeKey)) continue;
     seen.add(dedupeKey);
     const source = (str(it.source) || hostnameOf(productUrl) || 'Shop').slice(0, MAX_SOURCE_LEN);
+    const currency = normalizeCommerceCurrency(it.currency ?? it.currencyCode ?? it.currency_code);
     out.push({
       id: makeId('serper', productUrl),
       title: title.slice(0, MAX_TITLE_LEN),
       source,
       price: normalizePrice(it.price),
+      ...(currency ? { currency } : {}),
       type: 'retail',
       imageUrl: normalizeImageUrl(it.imageUrl) ?? normalizeImageUrl(it.thumbnail),
       productUrl,
