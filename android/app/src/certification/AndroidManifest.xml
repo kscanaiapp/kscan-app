@@ -10,23 +10,23 @@
       selector resolves exactly "true":
 
         - `kscan.voiceCertification` (Gradle property) / KSCAN_VOICE_CERTIFICATION
-          (environment) -- set in exactly one committed place, the
+          (environment), set in exactly one committed place, the
           `staging-certification` EAS build profile in eas.json. This
           selector's meaning is specifically "this is the staging-certification
           build" and is never reinterpreted to mean anything else.
         - `kscan.voiceNativeCapability` (Gradle property) / KSCAN_VOICE_NATIVE_CAPABILITY
-          (environment) -- a non-public, generic "materialize native Voice
+          (environment), a non-public, generic "materialize native Voice
           capability" selector that eas.json commits to NO profile (production
           included). It is supplied out of band by a release operator only at
           an explicitly authorized production Voice activation; see
           docs/build34-android-voice-production-readiness-runbook.md.
 
       Both selectors choose this SAME manifest because its content (grant
-      RECORD_AUDIO, forbid everything else) is identical either way -- only
+      RECORD_AUDIO, forbid everything else) is identical either way; only
       android/app/build.gradle's guards differ in which EAS profile may set
       which selector (staging-certification for the first, staging-certification
-      or production for the second). Every other build -- ordinary production,
-      staging, preview, development, and any local `gradlew bundleRelease` --
+      or production for the second). Every other build, ordinary production,
+      staging, preview, development, and any local `gradlew bundleRelease`,
       leaves both selectors unset and therefore uses
       src/release/AndroidManifest.xml, which grants no microphone permission
       at all.
@@ -38,7 +38,7 @@
       PRODUCTION artifact by default, before any Voice activation is
       authorized. Voice Scan needs the permission only in a build that
       explicitly requested it, so the grant lives only in this manifest
-      variant, and app.json continues to declare RECORD_AUDIO blocked --
+      variant, and app.json continues to declare RECORD_AUDIO blocked,
       which remains true of the default/production artifact.
 
       WHAT THIS FILE MUST ALWAYS BE: a strict superset of

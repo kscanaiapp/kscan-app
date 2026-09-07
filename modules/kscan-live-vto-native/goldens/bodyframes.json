@@ -1,0 +1,971 @@
+{
+  "schema": "kscan-live-vto-native/goldens/1.0",
+  "coordinateSpace": {
+    "description": "Normalized [0,1] BodyFrame landmark space, origin top-left, front-camera-mirrored (the wearer's own left sits at the LOWER u). Identical convention to GarmentControlPoint (u,v).",
+    "origin": "top-left",
+    "range": [
+      0.0,
+      1.0
+    ],
+    "mirrored": true
+  },
+  "provenance": "Every case is a named perturbation of the research fixture generator's own base standing pose (kscan-live-vto/packages/evaluation/src/syntheticFixtures.ts, generateCenteredStandingSequence @ 266ab1a), already re-typed in LiveVtoBodyFrame.neutral(). Perturbations are geometric transforms of that base (rotation about the torso centre, axis scaling, landmark removal), not hand-authored coordinates.",
+  "absentLandmarkEncoding": "null",
+  "nonFiniteEncoding": "the strings \"NaN\", \"Infinity\", \"-Infinity\" -- JSON has no literal for them, and a golden set that could not express them could not test the finite-ness guards.",
+  "renderCanvas": {
+    "width": 720,
+    "height": 960
+  },
+  "cases": [
+    {
+      "id": "neutral-frontal",
+      "note": "The N1-B reference pose. Centred, front-facing, arms down. Non-regression anchor for every later gate.",
+      "landmarks": {
+        "headCenter": [
+          0.5,
+          0.15
+        ],
+        "neckCenter": [
+          0.5,
+          0.22
+        ],
+        "leftShoulder": [
+          0.38,
+          0.28
+        ],
+        "rightShoulder": [
+          0.62,
+          0.28
+        ],
+        "leftElbow": [
+          0.32,
+          0.45
+        ],
+        "rightElbow": [
+          0.68,
+          0.45
+        ],
+        "leftWrist": [
+          0.3,
+          0.6
+        ],
+        "rightWrist": [
+          0.7,
+          0.6
+        ],
+        "leftHip": [
+          0.4,
+          0.6
+        ],
+        "rightHip": [
+          0.6,
+          0.6
+        ]
+      }
+    },
+    {
+      "id": "arms-slightly-out",
+      "note": "Elbows abducted. Exercises the sleeve articulation branch away from the fallback direction.",
+      "landmarks": {
+        "headCenter": [
+          0.5,
+          0.15
+        ],
+        "neckCenter": [
+          0.5,
+          0.22
+        ],
+        "leftShoulder": [
+          0.38,
+          0.28
+        ],
+        "rightShoulder": [
+          0.62,
+          0.28
+        ],
+        "leftElbow": [
+          0.26,
+          0.44
+        ],
+        "rightElbow": [
+          0.74,
+          0.44
+        ],
+        "leftWrist": [
+          0.22,
+          0.58
+        ],
+        "rightWrist": [
+          0.78,
+          0.58
+        ],
+        "leftHip": [
+          0.4,
+          0.6
+        ],
+        "rightHip": [
+          0.6,
+          0.6
+        ]
+      }
+    },
+    {
+      "id": "left-shoulder-raised",
+      "note": "ASYMMETRIC. Wearer's own left shoulder raised. A left/right swap moves the garment's raised side to the wrong shoulder.",
+      "landmarks": {
+        "headCenter": [
+          0.5,
+          0.15
+        ],
+        "neckCenter": [
+          0.5,
+          0.22
+        ],
+        "leftShoulder": [
+          0.38,
+          0.235
+        ],
+        "rightShoulder": [
+          0.62,
+          0.28
+        ],
+        "leftElbow": [
+          0.32,
+          0.41
+        ],
+        "rightElbow": [
+          0.68,
+          0.45
+        ],
+        "leftWrist": [
+          0.3,
+          0.6
+        ],
+        "rightWrist": [
+          0.7,
+          0.6
+        ],
+        "leftHip": [
+          0.4,
+          0.6
+        ],
+        "rightHip": [
+          0.6,
+          0.6
+        ]
+      }
+    },
+    {
+      "id": "right-shoulder-raised",
+      "note": "ASYMMETRIC mirror of the previous case. Run as a pair: a mirroring defect passes one and fails the other.",
+      "landmarks": {
+        "headCenter": [
+          0.5,
+          0.15
+        ],
+        "neckCenter": [
+          0.5,
+          0.22
+        ],
+        "leftShoulder": [
+          0.38,
+          0.28
+        ],
+        "rightShoulder": [
+          0.62,
+          0.235
+        ],
+        "leftElbow": [
+          0.32,
+          0.45
+        ],
+        "rightElbow": [
+          0.68,
+          0.41
+        ],
+        "leftWrist": [
+          0.3,
+          0.6
+        ],
+        "rightWrist": [
+          0.7,
+          0.6
+        ],
+        "leftHip": [
+          0.4,
+          0.6
+        ],
+        "rightHip": [
+          0.6,
+          0.6
+        ]
+      }
+    },
+    {
+      "id": "torso-rotated-left",
+      "note": "ASYMMETRIC. Whole pose rotated 12 degrees counter-clockwise.",
+      "landmarks": {
+        "headCenter": [
+          0.439706,
+          0.156337
+        ],
+        "neckCenter": [
+          0.454259,
+          0.224808
+        ],
+        "leftShoulder": [
+          0.349356,
+          0.308446
+        ],
+        "rightShoulder": [
+          0.584112,
+          0.258547
+        ],
+        "leftElbow": [
+          0.326013,
+          0.487206
+        ],
+        "rightElbow": [
+          0.678146,
+          0.412357
+        ],
+        "leftWrist": [
+          0.337636,
+          0.638086
+        ],
+        "rightWrist": [
+          0.728895,
+          0.554921
+        ],
+        "leftHip": [
+          0.435451,
+          0.617295
+        ],
+        "rightHip": [
+          0.631081,
+          0.575712
+        ]
+      }
+    },
+    {
+      "id": "torso-rotated-right",
+      "note": "ASYMMETRIC. Whole pose rotated 12 degrees clockwise. Pair with the previous case.",
+      "landmarks": {
+        "headCenter": [
+          0.560294,
+          0.156337
+        ],
+        "neckCenter": [
+          0.545741,
+          0.224808
+        ],
+        "leftShoulder": [
+          0.415888,
+          0.258547
+        ],
+        "rightShoulder": [
+          0.650644,
+          0.308446
+        ],
+        "leftElbow": [
+          0.321854,
+          0.412357
+        ],
+        "rightElbow": [
+          0.673987,
+          0.487206
+        ],
+        "leftWrist": [
+          0.271105,
+          0.554921
+        ],
+        "rightWrist": [
+          0.662364,
+          0.638086
+        ],
+        "leftHip": [
+          0.368919,
+          0.575712
+        ],
+        "rightHip": [
+          0.564549,
+          0.617295
+        ]
+      }
+    },
+    {
+      "id": "narrow-torso",
+      "note": "Shoulder span and hip width reduced 30%. Drives lateralScaleForLength down and exercises the aspect bound.",
+      "landmarks": {
+        "headCenter": [
+          0.5,
+          0.15
+        ],
+        "neckCenter": [
+          0.5,
+          0.22
+        ],
+        "leftShoulder": [
+          0.416,
+          0.28
+        ],
+        "rightShoulder": [
+          0.584,
+          0.28
+        ],
+        "leftElbow": [
+          0.374,
+          0.45
+        ],
+        "rightElbow": [
+          0.626,
+          0.45
+        ],
+        "leftWrist": [
+          0.36,
+          0.6
+        ],
+        "rightWrist": [
+          0.64,
+          0.6
+        ],
+        "leftHip": [
+          0.43,
+          0.6
+        ],
+        "rightHip": [
+          0.57,
+          0.6
+        ]
+      }
+    },
+    {
+      "id": "wide-torso",
+      "note": "Shoulder span and hip width increased 35%.",
+      "landmarks": {
+        "headCenter": [
+          0.5,
+          0.15
+        ],
+        "neckCenter": [
+          0.5,
+          0.22
+        ],
+        "leftShoulder": [
+          0.338,
+          0.28
+        ],
+        "rightShoulder": [
+          0.662,
+          0.28
+        ],
+        "leftElbow": [
+          0.257,
+          0.45
+        ],
+        "rightElbow": [
+          0.743,
+          0.45
+        ],
+        "leftWrist": [
+          0.23,
+          0.6
+        ],
+        "rightWrist": [
+          0.77,
+          0.6
+        ],
+        "leftHip": [
+          0.365,
+          0.6
+        ],
+        "rightHip": [
+          0.635,
+          0.6
+        ]
+      }
+    },
+    {
+      "id": "short-torso",
+      "note": "Shoulder-to-hip distance reduced 30%. Should hit MAX_LONGITUDINAL_ASPECT_DEVIATION's lower clamp.",
+      "landmarks": {
+        "headCenter": [
+          0.5,
+          0.189
+        ],
+        "neckCenter": [
+          0.5,
+          0.238
+        ],
+        "leftShoulder": [
+          0.38,
+          0.28
+        ],
+        "rightShoulder": [
+          0.62,
+          0.28
+        ],
+        "leftElbow": [
+          0.32,
+          0.399
+        ],
+        "rightElbow": [
+          0.68,
+          0.399
+        ],
+        "leftWrist": [
+          0.3,
+          0.504
+        ],
+        "rightWrist": [
+          0.7,
+          0.504
+        ],
+        "leftHip": [
+          0.4,
+          0.504
+        ],
+        "rightHip": [
+          0.6,
+          0.504
+        ]
+      }
+    },
+    {
+      "id": "long-torso",
+      "note": "Shoulder-to-hip distance increased 40%. Should hit the upper clamp -- the hem sits high rather than stretching the garment.",
+      "landmarks": {
+        "headCenter": [
+          0.5,
+          0.098
+        ],
+        "neckCenter": [
+          0.5,
+          0.196
+        ],
+        "leftShoulder": [
+          0.38,
+          0.28
+        ],
+        "rightShoulder": [
+          0.62,
+          0.28
+        ],
+        "leftElbow": [
+          0.32,
+          0.518
+        ],
+        "rightElbow": [
+          0.68,
+          0.518
+        ],
+        "leftWrist": [
+          0.3,
+          0.728
+        ],
+        "rightWrist": [
+          0.7,
+          0.728
+        ],
+        "leftHip": [
+          0.4,
+          0.728
+        ],
+        "rightHip": [
+          0.6,
+          0.728
+        ]
+      }
+    },
+    {
+      "id": "partial-wrist",
+      "note": "Wrists absent. Wrists are not consumed by attachment geometry; this must be byte-identical to neutral-frontal.",
+      "landmarks": {
+        "headCenter": [
+          0.5,
+          0.15
+        ],
+        "neckCenter": [
+          0.5,
+          0.22
+        ],
+        "leftShoulder": [
+          0.38,
+          0.28
+        ],
+        "rightShoulder": [
+          0.62,
+          0.28
+        ],
+        "leftElbow": [
+          0.32,
+          0.45
+        ],
+        "rightElbow": [
+          0.68,
+          0.45
+        ],
+        "leftWrist": null,
+        "rightWrist": null,
+        "leftHip": [
+          0.4,
+          0.6
+        ],
+        "rightHip": [
+          0.6,
+          0.6
+        ]
+      }
+    },
+    {
+      "id": "missing-elbows",
+      "note": "Both elbows absent. Sleeves must take the documented fallback direction, not disappear and not guess.",
+      "landmarks": {
+        "headCenter": [
+          0.5,
+          0.15
+        ],
+        "neckCenter": [
+          0.5,
+          0.22
+        ],
+        "leftShoulder": [
+          0.38,
+          0.28
+        ],
+        "rightShoulder": [
+          0.62,
+          0.28
+        ],
+        "leftElbow": null,
+        "rightElbow": null,
+        "leftWrist": [
+          0.3,
+          0.6
+        ],
+        "rightWrist": [
+          0.7,
+          0.6
+        ],
+        "leftHip": [
+          0.4,
+          0.6
+        ],
+        "rightHip": [
+          0.6,
+          0.6
+        ]
+      }
+    },
+    {
+      "id": "missing-left-elbow",
+      "note": "ASYMMETRIC availability: one sleeve tracks the arm, the other takes the fallback.",
+      "landmarks": {
+        "headCenter": [
+          0.5,
+          0.15
+        ],
+        "neckCenter": [
+          0.5,
+          0.22
+        ],
+        "leftShoulder": [
+          0.38,
+          0.28
+        ],
+        "rightShoulder": [
+          0.62,
+          0.28
+        ],
+        "leftElbow": null,
+        "rightElbow": [
+          0.68,
+          0.45
+        ],
+        "leftWrist": [
+          0.3,
+          0.6
+        ],
+        "rightWrist": [
+          0.7,
+          0.6
+        ],
+        "leftHip": [
+          0.4,
+          0.6
+        ],
+        "rightHip": [
+          0.6,
+          0.6
+        ]
+      }
+    }
+  ],
+  "refusalCases": [
+    {
+      "id": "missing-left-shoulder",
+      "note": "Shoulders are the similarity fit's only correspondences. No shoulder, no placement.",
+      "expectedFailure": "missing_shoulders",
+      "landmarks": {
+        "headCenter": [
+          0.5,
+          0.15
+        ],
+        "neckCenter": [
+          0.5,
+          0.22
+        ],
+        "leftShoulder": null,
+        "rightShoulder": [
+          0.62,
+          0.28
+        ],
+        "leftElbow": [
+          0.32,
+          0.45
+        ],
+        "rightElbow": [
+          0.68,
+          0.45
+        ],
+        "leftWrist": [
+          0.3,
+          0.6
+        ],
+        "rightWrist": [
+          0.7,
+          0.6
+        ],
+        "leftHip": [
+          0.4,
+          0.6
+        ],
+        "rightHip": [
+          0.6,
+          0.6
+        ]
+      }
+    },
+    {
+      "id": "missing-right-shoulder",
+      "note": "Mirror of the previous case.",
+      "expectedFailure": "missing_shoulders",
+      "landmarks": {
+        "headCenter": [
+          0.5,
+          0.15
+        ],
+        "neckCenter": [
+          0.5,
+          0.22
+        ],
+        "leftShoulder": [
+          0.38,
+          0.28
+        ],
+        "rightShoulder": null,
+        "leftElbow": [
+          0.32,
+          0.45
+        ],
+        "rightElbow": [
+          0.68,
+          0.45
+        ],
+        "leftWrist": [
+          0.3,
+          0.6
+        ],
+        "rightWrist": [
+          0.7,
+          0.6
+        ],
+        "leftHip": [
+          0.4,
+          0.6
+        ],
+        "rightHip": [
+          0.6,
+          0.6
+        ]
+      }
+    },
+    {
+      "id": "missing-left-hip",
+      "note": "The reference refuses on absent hips; the native runtime must too, not substitute an estimate (N1-ENV-007).",
+      "expectedFailure": "missing_hips",
+      "landmarks": {
+        "headCenter": [
+          0.5,
+          0.15
+        ],
+        "neckCenter": [
+          0.5,
+          0.22
+        ],
+        "leftShoulder": [
+          0.38,
+          0.28
+        ],
+        "rightShoulder": [
+          0.62,
+          0.28
+        ],
+        "leftElbow": [
+          0.32,
+          0.45
+        ],
+        "rightElbow": [
+          0.68,
+          0.45
+        ],
+        "leftWrist": [
+          0.3,
+          0.6
+        ],
+        "rightWrist": [
+          0.7,
+          0.6
+        ],
+        "leftHip": null,
+        "rightHip": [
+          0.6,
+          0.6
+        ]
+      }
+    },
+    {
+      "id": "missing-hips",
+      "note": "Both hips absent.",
+      "expectedFailure": "missing_hips",
+      "landmarks": {
+        "headCenter": [
+          0.5,
+          0.15
+        ],
+        "neckCenter": [
+          0.5,
+          0.22
+        ],
+        "leftShoulder": [
+          0.38,
+          0.28
+        ],
+        "rightShoulder": [
+          0.62,
+          0.28
+        ],
+        "leftElbow": [
+          0.32,
+          0.45
+        ],
+        "rightElbow": [
+          0.68,
+          0.45
+        ],
+        "leftWrist": [
+          0.3,
+          0.6
+        ],
+        "rightWrist": [
+          0.7,
+          0.6
+        ],
+        "leftHip": null,
+        "rightHip": null
+      }
+    },
+    {
+      "id": "degenerate-shoulders",
+      "note": "Both shoulders on the same point: shoulder span 0, every derived unit vector undefined.",
+      "expectedFailure": "degenerate_shoulder_span",
+      "landmarks": {
+        "headCenter": [
+          0.5,
+          0.15
+        ],
+        "neckCenter": [
+          0.5,
+          0.22
+        ],
+        "leftShoulder": [
+          0.5,
+          0.28
+        ],
+        "rightShoulder": [
+          0.5,
+          0.28
+        ],
+        "leftElbow": [
+          0.32,
+          0.45
+        ],
+        "rightElbow": [
+          0.68,
+          0.45
+        ],
+        "leftWrist": [
+          0.3,
+          0.6
+        ],
+        "rightWrist": [
+          0.7,
+          0.6
+        ],
+        "leftHip": [
+          0.4,
+          0.6
+        ],
+        "rightHip": [
+          0.6,
+          0.6
+        ]
+      }
+    },
+    {
+      "id": "nan-shoulder",
+      "note": "NaN must be rejected at the boundary, never propagated into geometry.",
+      "expectedFailure": "non_finite_landmark",
+      "landmarks": {
+        "headCenter": [
+          0.5,
+          0.15
+        ],
+        "neckCenter": [
+          0.5,
+          0.22
+        ],
+        "leftShoulder": [
+          "NaN",
+          0.28
+        ],
+        "rightShoulder": [
+          0.62,
+          0.28
+        ],
+        "leftElbow": [
+          0.32,
+          0.45
+        ],
+        "rightElbow": [
+          0.68,
+          0.45
+        ],
+        "leftWrist": [
+          0.3,
+          0.6
+        ],
+        "rightWrist": [
+          0.7,
+          0.6
+        ],
+        "leftHip": [
+          0.4,
+          0.6
+        ],
+        "rightHip": [
+          0.6,
+          0.6
+        ]
+      }
+    },
+    {
+      "id": "infinite-hip",
+      "note": "Infinity must be rejected at the boundary.",
+      "expectedFailure": "non_finite_landmark",
+      "landmarks": {
+        "headCenter": [
+          0.5,
+          0.15
+        ],
+        "neckCenter": [
+          0.5,
+          0.22
+        ],
+        "leftShoulder": [
+          0.38,
+          0.28
+        ],
+        "rightShoulder": [
+          0.62,
+          0.28
+        ],
+        "leftElbow": [
+          0.32,
+          0.45
+        ],
+        "rightElbow": [
+          0.68,
+          0.45
+        ],
+        "leftWrist": [
+          0.3,
+          0.6
+        ],
+        "rightWrist": [
+          0.7,
+          0.6
+        ],
+        "leftHip": [
+          0.4,
+          0.6
+        ],
+        "rightHip": [
+          0.6,
+          "Infinity"
+        ]
+      }
+    },
+    {
+      "id": "impossible-coordinate",
+      "note": "Coordinates far outside [0,1] but finite, so not a boundary refusal. MEASURED, not predicted: the rigid gate rejects this as garment_largely_outside_torso, NOT as gross_scale_error. That is correct and worth recording -- gross_scale_error is close to unreachable for a placement fitted from this pipeline's own targets, because the similarity is fitted so the garment's shoulders land exactly on targets whose span is always shoulderSpan * (1 + 2*SHOULDER_SEAM_OUTSET) = 1.16x. The scale check exists to catch a placement that came from somewhere else; here the centroid check is the one doing real work.",
+      "expectedFailure": null,
+      "landmarks": {
+        "headCenter": [
+          0.5,
+          0.15
+        ],
+        "neckCenter": [
+          0.5,
+          0.22
+        ],
+        "leftShoulder": [
+          -40.0,
+          0.28
+        ],
+        "rightShoulder": [
+          42.0,
+          0.28
+        ],
+        "leftElbow": [
+          0.32,
+          0.45
+        ],
+        "rightElbow": [
+          0.68,
+          0.45
+        ],
+        "leftWrist": [
+          0.3,
+          0.6
+        ],
+        "rightWrist": [
+          0.7,
+          0.6
+        ],
+        "leftHip": [
+          0.4,
+          0.6
+        ],
+        "rightHip": [
+          0.6,
+          0.6
+        ]
+      },
+      "expectedGateFindings": [
+        "garment_largely_outside_torso"
+      ]
+    }
+  ],
+  "refusalEncoding": "A case with a non-null expectedFailure must be refused by the pipeline before geometry is produced. A case with expectedGateFindings instead must reach the rigid gate and be rejected there: no mesh, gate findings containing every listed finding. Both are fail-closed; they differ in which layer is responsible."
+}
