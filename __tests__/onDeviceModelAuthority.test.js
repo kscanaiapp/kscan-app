@@ -28,13 +28,20 @@ const REAL_AUTHORITY = JSON.parse(fs.readFileSync(path.join(ROOT, AUTHORITY_PATH
 
 const APPROVED_PATH = 'modules/kscan-live-vto-native/android/src/main/assets/models/pose_landmarker_lite.task';
 const APPROVED_SHA = '59929e1d1ee95287735ddd833b19cf4ac46d29bc7afddbbf6753c459690d574a';
+// iOS Live VTO native-runtime catch-up: the same governed model, bundled a
+// second time for the iOS module. Byte-identical, so it shares APPROVED_SHA
+// rather than needing its own constant. baseline() clones REAL_AUTHORITY
+// (which now carries both records), so its trackedFiles/hashOf must cover
+// both paths or the clone is internally inconsistent -- exactly the failure
+// mode "the baseline fixture must pass" exists to catch.
+const APPROVED_PATH_IOS = 'modules/kscan-live-vto-native/ios/Assets/models/pose_landmarker_lite.task';
 
-/** A minimal, valid world: one approved model, present, byte-identical. */
+/** A minimal, valid world: the approved models, present, byte-identical. */
 function baseline() {
   return {
-    trackedFiles: ['package.json', APPROVED_PATH],
+    trackedFiles: ['package.json', APPROVED_PATH, APPROVED_PATH_IOS],
     authority: JSON.parse(JSON.stringify(REAL_AUTHORITY)),
-    hashOf: (rel) => (rel === APPROVED_PATH ? APPROVED_SHA : 'x'.repeat(64)),
+    hashOf: (rel) => ((rel === APPROVED_PATH || rel === APPROVED_PATH_IOS) ? APPROVED_SHA : 'x'.repeat(64)),
   };
 }
 
