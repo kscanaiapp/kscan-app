@@ -1,14 +1,15 @@
 import { generateAnchors, requiredAnchorsPresent, toControlPoints } from './anchors';
 import { canonicalizeMedium } from './canonicalize';
 import type { DecodedSource } from './codec';
-import { resolveEligibility, overallConfidence } from './eligibility';
+import { explainEligibilityConfidence, resolveEligibility, overallConfidence } from './eligibility';
+import { ELIGIBILITY_CONFIDENCE_THRESHOLD } from './eligibility';
 import type { FidelityReferenceHints } from './fidelity';
 import { computeProductFidelity } from './fidelity';
 import { TEMPLATE_FAMILY_BY_CANONICAL, validateKsgarmentManifest } from './garmentContract';
 import { buildAssetManifest, buildKsgarmentManifest } from './manifestBuilder';
 import { buildMeshDefinition } from './mesh';
 import type { RgbaImage } from './pixels';
-import { segmentGarment } from './segmentation';
+import { INSIGNIFICANT_FRAGMENT_CEILING, segmentGarment } from './segmentation';
 import { computeSourceAdequacy } from './sourceAdequacy';
 import { classifyShot } from './shotClassifier';
 import type {
@@ -111,7 +112,12 @@ export function runPipelineForImage(
     if (segmentation === null) {
       const skinTriggered = Number(shotResult.evidence.skinRatio ?? 0) >= 0.06;
       rejection = {
-        code: skinTriggered ? 'OCCLUSION_TOO_HIGH' : 'EXTRACTION_UNRELIABLE',
+        // Audit P42-A-003 (A3): this is a POLICY refusal — classifyExtractionGate
+        // returned null for a HARD source, so extraction never ran. Emitting
+        // EXTRACTION_UNRELIABLE here made a refusal indistinguishable from a
+        // genuine extraction failure and caused correctionTriage to label 27
+        // of 29 such cases POTENTIALLY_CORRECTABLE, which they are not.
+        code: skinTriggered ? 'OCCLUSION_TOO_HIGH' : 'EXTRACTION_REFUSED_BY_POLICY',
         message: skinTriggered
           ? 'HARD-class source with detected skin-tone presence — this pipeline has no validated model-worn extraction path (task section 16: reject early)'
           : 'HARD-class source with a non-uniform background — background-color-based extraction is not defensible here',
@@ -211,13 +217,49 @@ export function runPipelineForImage(
   // --- confidence components (always computed, even on rejection, for defect-analysis evidence) ---
   const confidenceComponents: ConfidenceComponents = {
     shotClassification: shotResult.confidence,
-    segmentation: segmentation && segmentation.ok ? clamp01(segmentation.fillRatio * (1 - Math.min(1, (segmentation.componentCount - 1) * 0.05))) : 0,
+    // P42-001 (Phase 4.2 §42/§43): this penalty previously used
+    // `componentCount` — EVERY connected foreground component, including
+    // single-pixel speckle from lossy compression. Measured on the real
+    // 490-product corpus, 21 of the 49 addressable (EASY/MEDIUM) images
+    // carried >= 21 components, at which point `(n-1)*0.05` saturates and
+    // the segmentation score is forced to EXACTLY 0 — dragging the MIN-based
+    // overall confidence to 0 and rejecting the item as
+    // EXTRACTION_UNRELIABLE no matter how good the mask actually was. One
+    // measured example carried 4487 components with a single SIGNIFICANT
+    // one and largestComponentRatio 0.61; another had 114 components, 1
+    // significant, and largestComponentRatio 0.9977 — a near-perfect
+    // single-garment extraction scored 0.
+    //
+    // The fix uses the SIGNIFICANT component count (>= 1% of image area) —
+    // the same notion `shotClassifier.ts` has always used via
+    // SIGNIFICANT_COMPONENT_AREA_FRACTION, so this removes an internal
+    // inconsistency rather than introducing a new threshold. Genuine
+    // multi-object scenes still lose confidence; JPEG/WebP speckle no longer
+    // does. `fillRatio` continues to penalize fragmented or sparse masks,
+    // and HARD sources never reach this line at all (classifyExtractionGate
+    // returns null for HARD before extraction), so this cannot make any HARD
+    // source eligible — see vtoPhase42Repairs.test.ts.
+    segmentation: segmentation && segmentation.ok ? segmentationConfidence(segmentation) : 0,
     anchorCompleteness: requiredAnchorAverage(anchorCandidates),
     geometryValidity: ksgarment ? clamp01(1 - Math.abs(appliedRotationDegrees) / 40) : 0,
     sourceQuality: clamp01((decoded.image.width * decoded.image.height) / (300 * 300)),
     productFidelity: qa ? (qa.passed ? 1 : 0) : 0,
   };
 
+  const segmentationEvidence =
+    segmentation && segmentation.ok
+      ? {
+          componentCount: segmentation.componentCount,
+          significantComponentCount: segmentation.significantComponentCount,
+          largestNonWinnerComponentRatio: segmentation.largestNonWinnerComponentRatio,
+          insignificantFragmentRatio: segmentation.insignificantFragmentRatio,
+          fillRatio: segmentation.fillRatio,
+          maskPixelCount: segmentation.maskPixelCount,
+          bboxPixelCount: segmentation.bboxPixelCount,
+          edgesTouched: Object.values(segmentation.touchesEdge).filter(Boolean).length,
+        }
+      : null;
+  const confidenceExplanation = explainEligibilityConfidence(confidenceComponents);
   const eligibility = resolveEligibility(confidenceComponents, rejection);
   // A confidence-gate failure (no explicit stage rejection, but eligibility
   // still resolved to ineligible — see eligibility.ts's threshold check)
@@ -227,7 +269,23 @@ export function runPipelineForImage(
   // that is truly ineligible but carries `rejection: null` would silently
   // vanish from both (see docs/vto-phase4-defect-ledger.md, PHASE4-007).
   if (!rejection && !eligibility.live2d && eligibility.reason) {
-    rejection = { code: eligibility.reason, message: `overall confidence ${overallConfidence(confidenceComponents).toFixed(2)} is below the eligibility threshold`, stage: 'qa' };
+    // Phase 4.2 §22-§23: never emit a bare "aggregate confidence failed".
+    // The message names the limiting component(s) and their measured
+    // values, and flags malformed components explicitly, so a rejection is
+    // actionable from the manifest alone without re-running the pipeline.
+    const limiters = confidenceExplanation.limitingComponents
+      .map((key) => {
+        const detail = confidenceExplanation.components.find((c) => c.key === key)!;
+        return detail.malformedReason ? `${key}=MALFORMED(${detail.malformedReason}:${detail.observed})` : `${key}=${detail.observed}`;
+      })
+      .join(', ');
+    rejection = {
+      code: eligibility.reason,
+      message:
+        `overall confidence ${confidenceExplanation.overall.toFixed(3)} < threshold ${ELIGIBILITY_CONFIDENCE_THRESHOLD}; ` +
+        `limiting component(s): ${limiters}`,
+      stage: 'qa',
+    };
   }
 
   stageStart = Date.now();
@@ -258,6 +316,8 @@ export function runPipelineForImage(
     sourceFormat: decoded.format,
     shotClassification: shotResult,
     confidenceComponents,
+    confidenceExplanation,
+    segmentationEvidence,
     qa,
     eligibility,
     rejection,
@@ -280,6 +340,25 @@ function classifyExtractionGate(
 ): ReturnType<typeof segmentGarment> | null {
   if (shotClass === 'HARD') return null;
   return segmentGarment(image, edgeMarginFractionOverride ?? 0.02, segmentationThresholdOverride);
+}
+
+/**
+ * Audit P42-A-001 (amendment A8). Unchanged from Phase 4.2 in the case that
+ * repair was built for — compression speckle is significant by neither
+ * measure, so a speckled clean garment still scores `fillRatio` exactly.
+ *
+ * Two things changed, both in the fail-closed direction:
+ *  1. `significantComponentCount` now also counts a component that is
+ *     material relative to the GARMENT (see segmentation.ts). A detached
+ *     sleeve just under 1% of FRAME area used to cost exactly nothing while
+ *     being dropped from the emitted asset.
+ *  2. `INSIGNIFICANT_FRAGMENT_CEILING` is the A8 speck-AREA ceiling: past it
+ *     the foreground is confetti and `significantComponentCount === 1` may
+ *     no longer read as "one clean thing". Below it, nothing changes.
+ */
+function segmentationConfidence(segmentation: Extract<ReturnType<typeof segmentGarment>, { ok: true }>): number {
+  if (segmentation.insignificantFragmentRatio >= INSIGNIFICANT_FRAGMENT_CEILING) return 0;
+  return clamp01(segmentation.fillRatio * (1 - Math.min(1, (segmentation.significantComponentCount - 1) * 0.05)));
 }
 
 function requiredAnchorAverage(candidates: ReturnType<typeof generateAnchors>): number {

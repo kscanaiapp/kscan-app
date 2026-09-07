@@ -26,6 +26,10 @@ const POTENTIALLY_CORRECTABLE: readonly RejectionCode[] = [
 ];
 
 const NOT_ECONOMICALLY_CORRECTABLE: readonly RejectionCode[] = [
+  // Audit P42-A-003 (A3): a HARD policy refusal is not fixable by mask
+  // repair or crop adjustment — the pipeline declined to extract at all.
+  // Under the old conflated code it was triaged POTENTIALLY_CORRECTABLE.
+  'EXTRACTION_REFUSED_BY_POLICY',
   'OCCLUSION_TOO_HIGH',
   'MULTIPLE_GARMENTS',
   'GARMENT_NOT_PRIMARY',

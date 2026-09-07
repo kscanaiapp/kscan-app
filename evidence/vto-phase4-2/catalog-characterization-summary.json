@@ -1,0 +1,233 @@
+{
+  "schema": "vto-phase4-2-catalog-characterization/1",
+  "generatedAt": "2026-09-05T17:50:26.968Z",
+  "startedAt": "2026-09-05T17:49:00.956Z",
+  "boundaries": {
+    "commercePath": "product-search-deals (staging, already-deployed, already-authorized)",
+    "scraping": false,
+    "retailerIntegrationsAdded": 0,
+    "alternateUrlsInvented": 0,
+    "pdpBrowsing": false,
+    "productionMutation": false,
+    "stagingMutation": false,
+    "externalCvCalls": 0,
+    "generativeCalls": 0,
+    "sourceBytesRetained": 0
+  },
+  "corpus": {
+    "uniqueProductsCharacterized": 490,
+    "targetRequested": 1500,
+    "providerRequests": 47,
+    "providerRawRecordsSeen": 536,
+    "skippedRecordsWithNoPhotos": 0,
+    "strataQueried": 21,
+    "pagesPerStratumRequested": 12,
+    "providerMaxLimitPerRequest": 20,
+    "visualDistribution": {
+      "plain": 490
+    },
+    "assembleDurationMs": 45705,
+    "characterizeDurationMs": 40297,
+    "httpStatusDistribution": {
+      "200": 28,
+      "429": 19
+    },
+    "rateLimitResponses": 19
+  },
+  "imagesPerProduct": {
+    "totalAuthoritativeImages": 490,
+    "distribution": {
+      "1": 490
+    },
+    "stats": {
+      "count": 490,
+      "min": 1,
+      "median": 1,
+      "p75": 1,
+      "p95": 1,
+      "max": 1,
+      "mean": 1
+    },
+    "productsWithMoreThanOneImage": 0,
+    "productsWithMoreThanOneImagePct": 0,
+    "imageHostDistribution": {
+      "encrypted-tbn3.gstatic.com": 116,
+      "encrypted-tbn2.gstatic.com": 127,
+      "encrypted-tbn1.gstatic.com": 142,
+      "encrypted-tbn0.gstatic.com": 105
+    }
+  },
+  "decode": {
+    "imagesAttempted": 490,
+    "imagesDecoded": 490,
+    "imagesFailed": 0,
+    "decodePassRatePct": 100,
+    "formatDistribution": {
+      "webp": 490
+    },
+    "failureCodeDistribution": {}
+  },
+  "heroShotDistribution": {
+    "HARD": 435,
+    "EASY": 31,
+    "UNSUPPORTED": 6,
+    "MEDIUM": 18
+  },
+  "allImageShotDistribution": {
+    "HARD": 435,
+    "EASY": 31,
+    "UNSUPPORTED": 6,
+    "MEDIUM": 18
+  },
+  "productLevelAddressability": {
+    "totalProducts": 490,
+    "productsWithAtLeastOneEasyImage": 31,
+    "productsWithAtLeastOneMediumImage": 18,
+    "productsWithAtLeastOneAddressableImage": 49,
+    "productLevelAddressablePct": 10,
+    "heroOnlyAddressable": 49,
+    "heroOnlyAddressablePct": 10,
+    "addressabilityGainPoints": 0,
+    "productsWithOnlyHardImagery": 435,
+    "productsWithOnlyHardImageryPct": 88.8
+  },
+  "multiImageRescue": {
+    "productsWithMoreThanOneImage": 0,
+    "heroHardButAlternateAddressable": 0,
+    "heroHardButAlternateAddressablePct": 0,
+    "productsRescuedByAlternateImage": 0,
+    "rescuedProductRefs": [],
+    "catalogCoverageBeforeRescuePct": 10,
+    "catalogCoverageAfterRescuePct": 10,
+    "note": "ZERO products in this corpus carry more than one authoritative image, so multi-image rescue has no material to act on. This is a property of the SOURCE, not of the selection code: the rescue path is implemented and unit-tested, and would fire the moment a product carries an addressable alternate."
+  },
+  "hardSubdivision": {
+    "totalHardImages": 435,
+    "HARD_TRACTABLE": 8,
+    "HARD_INTRACTABLE": 423,
+    "HARD_UNKNOWN": 4,
+    "tractablePct": 1.8,
+    "intractablePct": 97.2,
+    "unknownPct": 0.9,
+    "note": "PLANNING DIAGNOSTIC ONLY. No HARD image is LIVE2D_ELIGIBLE in Phase 4.2; HARD_TRACTABLE means \"worth researching later\", never \"accept now\"."
+  },
+  "preflightDistributions": {
+    "shortSidePx": {
+      "count": 490,
+      "min": 183,
+      "median": 603,
+      "p75": 659,
+      "p95": 659,
+      "max": 659,
+      "mean": 547.343
+    },
+    "backgroundUniformity": {
+      "count": 490,
+      "min": 0,
+      "median": 79.3731,
+      "p75": 110.635,
+      "p95": 135.3469,
+      "max": 182.8503,
+      "mean": 75.007
+    },
+    "foregroundCoverage": {
+      "count": 490,
+      "min": 0.0019,
+      "median": 0.4878,
+      "p75": 0.5536,
+      "p95": 0.6973,
+      "max": 0.9548,
+      "mean": 0.449
+    },
+    "totalComponentCount": {
+      "count": 490,
+      "min": 1,
+      "median": 16,
+      "p75": 78,
+      "p95": 328,
+      "max": 4487,
+      "mean": 97.618
+    },
+    "significantComponentCount": {
+      "count": 490,
+      "min": 0,
+      "median": 1,
+      "p75": 1,
+      "p95": 3,
+      "max": 15,
+      "mean": 1.288
+    },
+    "largestComponentRatio": {
+      "count": 490,
+      "min": 0.0979,
+      "median": 0.9996,
+      "p75": 1,
+      "p95": 1,
+      "max": 1,
+      "mean": 0.917
+    },
+    "garmentOccupancy": {
+      "count": 490,
+      "min": 0.0004,
+      "median": 0.6608,
+      "p75": 0.7996,
+      "p95": 0.9448,
+      "max": 1,
+      "mean": 0.656
+    },
+    "borderContactEdges": {
+      "count": 490,
+      "min": 0,
+      "median": 2,
+      "p75": 2,
+      "p95": 3,
+      "max": 4,
+      "mean": 1.559
+    },
+    "paddingTotalFraction": {
+      "count": 490,
+      "min": 0,
+      "median": 0.2777,
+      "p75": 0.3686,
+      "p95": 0.4738,
+      "max": 0.6532,
+      "mean": 0.258
+    },
+    "paddingAsymmetry": {
+      "count": 490,
+      "min": 0,
+      "median": 0.1482,
+      "p75": 0.1908,
+      "p95": 0.2473,
+      "max": 0.4932,
+      "mean": 0.136
+    },
+    "contrast": {
+      "count": 490,
+      "min": 5.2102,
+      "median": 67.363,
+      "p75": 89.225,
+      "p95": 104.9848,
+      "max": 116.4517,
+      "mean": 67.632
+    },
+    "sharpnessProxy": {
+      "count": 490,
+      "min": 0.0016,
+      "median": 0.013,
+      "p75": 0.0177,
+      "p95": 0.0302,
+      "max": 0.1305,
+      "mean": 0.015
+    },
+    "skinRatioProxy": {
+      "count": 490,
+      "min": 0,
+      "median": 0.2287,
+      "p75": 0.3797,
+      "p95": 0.8496,
+      "max": 0.9997,
+      "mean": 0.273
+    }
+  }
+}
