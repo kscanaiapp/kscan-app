@@ -16,6 +16,8 @@ import { selectCommerceDestination } from '../../services/commerceDestination';
 import { resolveRetailerIdentity } from '../../services/commerce/retailerIdentity';
 import { RetailerIdentity } from '../commerce/RetailerIdentity';
 import { openCommerceOffer } from '../../services/commerce/commerceExit';
+import { buildWhereToBuySummary } from '../../services/commerce/whereToBuy';
+import { WhereToBuySummary } from '../commerce/WhereToBuySummary';
 // DEF-WL-07: the EXISTING Watch creation flow, reused rather than reimplemented.
 // ProductShelf keeps owning the modal and the createWatch call; this surface
 // only decides which rows may open it.
@@ -79,6 +81,17 @@ export function PurchaseOptionsPanel({
   // DEF-WL-07: the row whose Watch action is open, or null. Ephemeral view
   // state -- nothing here is written back into the scan.
   const [watchCandidate, setWatchCandidate] = useState<WatchCandidate | null>(null);
+  // §54: built from whatever offers are already shown above -- no grouping,
+  // no re-ranking. Renders nothing itself for fewer than two offers.
+  const whereToBuyRows = hasData
+    ? buildWhereToBuySummary(
+        purchaseOptions!.map((option) => ({
+          retailer: option.retailer,
+          productUrl: option.productUrl,
+          commerceType: option.watchCandidate?.commerceType,
+        })),
+      )
+    : [];
 
   return (
     <View style={styles.container} testID={testID ?? 'purchase-options-panel'}>
@@ -249,6 +262,10 @@ export function PurchaseOptionsPanel({
           testID="purchase-options-empty"
         />
       )}
+
+      {/* §54: self-guards to nothing for fewer than two offers, so this is
+          a no-op outside 'data' mode or for a single-offer item. */}
+      <WhereToBuySummary rows={whereToBuyRows} />
 
       {/* DEF-WL-07: the existing Watchlist creation flow. `WatchCandidate` is a
           structural subset of ProductShelf's `Product`, so the modal receives
