@@ -22,13 +22,12 @@ spec Section 55 and the Section 54 acceptance checklist.
   (`git merge-base --is-ancestor` confirmed)
 - **WORKTREE**: CLEAN before this lane's changes; all changes below are new
   files only (no existing file modified)
-- **AHEAD/BEHIND vs BASE SHA**: this branch is BASE SHA plus this lane's
-  commits only
-- **HEAD SHA**: see the PR — recorded at push time
-- **PR**: see the PR — created as a draft against `master` per repo convention
-  (opening against the integration branch is not supported by the hosting
-  remote's default-branch PR flow; the diff is base-branch-relative and
-  scoped exactly to the files listed in Section F)
+- **AHEAD/BEHIND vs BASE SHA**: this branch is BASE SHA plus 2 commits (a
+  manifest-schema scaffold, then the corpus itself)
+- **HEAD SHA**: `76f9f9c8438de0ec7d8e1fc9c38ba02ce189e75e`
+- **PR**: [kscanaiapp/kscan-app#340](https://github.com/kscanaiapp/kscan-app/pull/340)
+  (draft, opened against `integration/build35-v10-staging-certification-v1`,
+  the actual base this lane forked from and diffed against)
 
 ## B. Corpus
 
