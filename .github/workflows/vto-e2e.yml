@@ -174,12 +174,22 @@ jobs:
           # A pull request that mutates a VTO-owned path is a VTO lane no
           # matter what its branch is called.
           #
-          # `grep -E ... || true` rather than `grep -Eq`: under `pipefail`,
-          # -q exits at the first match and SIGPIPEs git, so the pipeline
-          # would report 141 exactly when a VTO path WAS found -- silently
-          # inverting the control it implements.
+          # The ownership test is `isVtoOwnedPath` from the guard itself, not a
+          # second copy of the prefix list kept here. Two definitions of "VTO
+          # path" that can drift apart is exactly how a lane ends up classified
+          # by one rule and judged by another.
+          #
+          # The node filter reads the diff on stdin and prints nothing when
+          # there is no match, so an empty VTO_TOUCHES still means "not a VTO
+          # lane" -- and unlike `grep -Eq` it cannot SIGPIPE git under
+          # `pipefail` and report 141 exactly when a VTO path WAS found.
           if [ "$LANE" = "general" ] && git rev-parse --verify --quiet "${BASE}^{commit}" >/dev/null; then
-            VTO_TOUCHES="$(git diff --name-only "${BASE}...HEAD" | grep -E '^(services/vto/|components/vto/|types/vto|hooks/useVto|hooks/useVirtualTryOn|supabase/functions/vto-generate/|vto-phase4-pipeline/|fixtures/vto-phase4/|evidence/vto-phase4|docs/vto-|scripts/vto-e2e/|__tests__/vto)' || true)"
+            VTO_TOUCHES="$(git diff --name-only "${BASE}...HEAD" | node -e '
+              const { isVtoOwnedPath } = require("./scripts/check-vto-live-integration-scope.js");
+              const input = require("node:fs").readFileSync(0, "utf8");
+              const hits = input.split("\n").map((l) => l.trim()).filter(Boolean).filter(isVtoOwnedPath);
+              if (hits.length > 0) process.stdout.write(hits.join("\n") + "\n");
+            ')"
             if [ -n "$VTO_TOUCHES" ]; then
               LANE=vto
               echo "VTO-owned paths in this diff:"

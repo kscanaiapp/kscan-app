@@ -210,7 +210,7 @@ test('MODE B: the live diff really runs end to end when a lane declares itself',
   const result = runGuardCli({ env: { [ENFORCE]: '1', [BASE]: 'HEAD' } });
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
   assert.match(result.stdout, /Base ref:\s+HEAD/);
-  assert.match(result.stdout, /PASS: every changed path is inside the authorized/);
+  assert.match(result.stdout, /PASS: every VTO-owned changed path is inside the authorized/);
   assert.doesNotMatch(result.stdout, /NOT APPLICABLE/);
 });
 
@@ -298,7 +298,7 @@ test('FAIL-CLOSED: enforcement can NEVER resolve to SKIP', () => {
 test('a base ref named on the command line runs the diff without the env signal', () => {
   const result = runGuardCli({ args: ['HEAD'] });
   assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-  assert.match(result.stdout, /PASS: every changed path is inside the authorized/);
+  assert.match(result.stdout, /PASS: every VTO-owned changed path is inside the authorized/);
 });
 
 test('a base ref named on the command line that does not resolve FAILS', () => {
@@ -399,4 +399,200 @@ test('the workflow\'s fallback base authority is the one the manifest records', 
     recorded[1],
     'the CI base authority and the manifest base authority must not drift apart',
   );
+});
+
+// ── The unit of enforcement is the VTO-OWNED SUBSET, not the whole diff ─────
+//
+// Declaring lane membership stopped a NON-VTO branch being judged. It did not
+// stop a MIXED one. An integration branch merges the VTO lane together with
+// unrelated lanes, so it touches VTO paths and is correctly classified a VTO
+// lane -- and was then refused for the research labs, commerce and onboarding
+// work it also carries, none of which answers to this boundary.
+//
+// The repair scopes the manifest check to the paths VTO actually owns. That is
+// only safe if it cannot become a bypass, so the controls below prove the
+// narrowing in BOTH directions: an unauthorized VTO path must still fail no
+// matter how much unrelated work is stacked around it.
+
+const LABS = [
+  'tools/fashion-match-quality/lib/score.js',
+  'tools/curiosity-gap-performance/runLab.js',
+  'tools/canonical-product-identity/resolver/identity.js',
+  'tools/elise-concierge-eval/runner.js',
+  'tools/real-fashion-corpus/lib/ingest.js',
+  '__tests__/curiosityGapPerformance/labGraph.test.js',
+];
+const UNRELATED_PRODUCTION = [
+  'app/onboarding/index.tsx',
+  'services/watchlist/pushRegistration.ts',
+  'supabase/functions/commerce-watch-refresh/index.ts',
+  'components/home/HomeLuxuryTechV1.tsx',
+];
+
+/** An authorized VTO path, taken from the manifest itself rather than guessed. */
+const AUTHORIZED_VTO_PATH = 'services/vto/vtoPersonInput.ts';
+/** VTO-owned by prefix, and deliberately absent from the manifest. */
+// `scripts/vto-e2e/` is VTO-owned, and the manifest deliberately declares ONE
+// exact file under it rather than widening to `scripts/vto-e2e/**`. So a second
+// file there is genuinely VTO-owned AND genuinely unauthorized -- which is what
+// this fixture has to be for the hostile controls to mean anything.
+const UNAUTHORIZED_VTO_PATH = 'scripts/vto-e2e/zzUnauthorizedProbe.mjs';
+
+function judge(changedPaths) {
+  const { vtoOwned, notJudged } = guard.partitionByVtoOwnership(changedPaths);
+  return {
+    notJudged,
+    unauthorized: guard.classifyChangedPaths(vtoOwned, patterns).unauthorized,
+  };
+}
+
+test('OWNERSHIP: the authorized VTO fixture really is authorized (so the controls below mean something)', () => {
+  assert.ok(guard.isVtoOwnedPath(AUTHORIZED_VTO_PATH));
+  assert.deepEqual(unauthorizedIn([AUTHORIZED_VTO_PATH]), []);
+});
+
+test('OWNERSHIP: the unauthorized VTO fixture is VTO-owned and NOT in the manifest', () => {
+  // If either half of this drifts, the hostile control below would pass for
+  // the wrong reason -- a path that is ignored rather than refused.
+  assert.ok(guard.isVtoOwnedPath(UNAUTHORIZED_VTO_PATH));
+  assert.deepEqual(unauthorizedIn([UNAUTHORIZED_VTO_PATH]), [UNAUTHORIZED_VTO_PATH]);
+});
+
+test('OWNERSHIP: labs and unrelated production paths are not VTO-owned', () => {
+  for (const p of [...LABS, ...UNRELATED_PRODUCTION]) {
+    assert.equal(guard.isVtoOwnedPath(p), false, `${p} must not be claimed by the VTO boundary`);
+  }
+});
+
+test('HOSTILE: many unrelated integration paths + ONE unauthorized VTO path -> still FAILS', () => {
+  // The control that keeps the narrowing honest. Volume of unrelated work is
+  // not a place to hide a VTO mutation.
+  const diff = [...LABS, ...UNRELATED_PRODUCTION, AUTHORIZED_VTO_PATH, UNAUTHORIZED_VTO_PATH];
+  const { unauthorized } = judge(diff);
+  assert.deepEqual(
+    unauthorized,
+    [UNAUTHORIZED_VTO_PATH],
+    'the one unauthorized VTO path must be refused, and it must be the ONLY thing refused',
+  );
+});
+
+test('HOSTILE: many unrelated integration paths + only AUTHORIZED VTO paths -> PASSES', () => {
+  const diff = [...LABS, ...UNRELATED_PRODUCTION, AUTHORIZED_VTO_PATH];
+  const { unauthorized, notJudged } = judge(diff);
+  assert.deepEqual(unauthorized, [], 'an integration branch must not be refused for other lanes');
+  assert.equal(
+    notJudged.length,
+    LABS.length + UNRELATED_PRODUCTION.length,
+    'every unrelated path must be REPORTED as not judged, not silently dropped',
+  );
+});
+
+test('HOSTILE: a pure VTO lane is judged exactly as hard as a mixed one', () => {
+  // Same VTO content, with and without unrelated work stacked around it. The
+  // verdict on the VTO paths must be identical -- otherwise adding unrelated
+  // files would itself be a way to soften the boundary.
+  const pure = judge([AUTHORIZED_VTO_PATH, UNAUTHORIZED_VTO_PATH]).unauthorized;
+  const mixed = judge([...LABS, AUTHORIZED_VTO_PATH, UNAUTHORIZED_VTO_PATH]).unauthorized;
+  assert.deepEqual(mixed, pure);
+  assert.deepEqual(pure, [UNAUTHORIZED_VTO_PATH]);
+});
+
+test('HOSTILE: an all-unrelated diff is not a pass the guard can be said to have granted', () => {
+  const { unauthorized, notJudged } = judge(LABS);
+  assert.deepEqual(unauthorized, []);
+  assert.deepEqual(notJudged, LABS, 'the guard must account for every path it declined to judge');
+});
+
+test('HOSTILE: partitioning loses nothing -- every changed path is judged or reported', () => {
+  const diff = [...LABS, ...UNRELATED_PRODUCTION, AUTHORIZED_VTO_PATH, UNAUTHORIZED_VTO_PATH];
+  const { vtoOwned, notJudged } = guard.partitionByVtoOwnership(diff);
+  assert.equal(vtoOwned.length + notJudged.length, diff.length);
+  assert.deepEqual([...vtoOwned, ...notJudged].sort(), [...diff].sort());
+});
+
+test('NO BYPASS: nothing in the ownership rule reads a branch name', () => {
+  // The superseded design inferred lane membership from substrings in the
+  // branch name. This one must not reintroduce that by any route.
+  const source = fs.readFileSync(GUARD_SCRIPT, 'utf8');
+  const owning = source.slice(
+    source.indexOf('const VTO_OWNED_PREFIXES'),
+    source.indexOf('function partitionByVtoOwnership'),
+  );
+  assert.ok(owning.length > 0, 'the ownership rule must be locatable in the guard source');
+
+  // Comments stripped first: this control is about what the rule EXECUTES, and
+  // the prose above it necessarily discusses branch names in order to explain
+  // why it does not read them.
+  const code = owning
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split('\n')
+    .filter((line) => !line.trim().startsWith('//'))
+    .join('\n');
+
+  for (const forbidden of [
+    'GITHUB_HEAD_REF',
+    'GITHUB_REF_NAME',
+    'process.env',
+    'branchName',
+    'headRef',
+    'execFileSync',
+  ]) {
+    assert.ok(
+      !code.includes(forbidden),
+      `the ownership rule must not consult ${forbidden}: ownership is by path, never by lane identity`,
+    );
+  }
+});
+
+test('NO BYPASS: an integration-looking branch does not change what a path is', () => {
+  // A VTO file does not stop being VTO-owned because of the branch it arrives
+  // on. Ownership is a property of the path and nothing else.
+  assert.ok(guard.isVtoOwnedPath('services/vto/anything.ts'));
+  assert.ok(guard.isVtoOwnedPath('modules/kscan-live-vto-native/android/src/main/Foo.kt'));
+  assert.ok(guard.isVtoOwnedPath('supabase/functions/vto-generate/index.ts'));
+});
+
+test('the Live VTO native runtime is inside VTO ownership', () => {
+  // #308/#312/#313 added a native runtime after the original prefix list was
+  // written. If it were not claimed here, the lane's own newest surface would
+  // be the one thing the boundary could not see.
+  for (const p of [
+    'modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/KScanLiveVtoModule.kt',
+    'config/on-device-model-authority.json',
+    'scripts/check-on-device-model-authority.js',
+    'evidence/vto-live-native-n1/capture.json',
+  ]) {
+    assert.ok(guard.isVtoOwnedPath(p), `${p} must be judged by the VTO boundary`);
+  }
+});
+
+test('SINGLE DEFINITION: the workflow classifies lanes with the guard own predicate', () => {
+  // Two definitions of "VTO path" that can drift apart is how a branch ends up
+  // classified by one rule and judged by another.
+  const workflow = fs.readFileSync(VTO_WORKFLOW, 'utf8');
+  assert.ok(
+    workflow.includes('isVtoOwnedPath'),
+    'the lane classifier must call the exported predicate from the guard',
+  );
+  assert.ok(
+    !workflow.includes("grep -E '^(services/vto/"),
+    'the workflow must not keep a second, forkable copy of the VTO prefix list',
+  );
+});
+
+test('SINGLE DEFINITION: every prefix is an exact string, never a pattern to interpret', () => {
+  for (const prefix of guard.VTO_OWNED_PREFIXES) {
+    assert.equal(typeof prefix, 'string');
+    assert.ok(prefix.length > 0);
+    for (const metachar of ['*', '?', '[', '(', '|', '\\']) {
+      assert.ok(
+        !prefix.includes(metachar),
+        `${prefix} must be a plain prefix: a guard whose matching rules need interpreting is one nobody can audit`,
+      );
+    }
+  }
+});
+
+test('the prefix list is frozen, so no caller can widen ownership at runtime', () => {
+  assert.ok(Object.isFrozen(guard.VTO_OWNED_PREFIXES));
 });
