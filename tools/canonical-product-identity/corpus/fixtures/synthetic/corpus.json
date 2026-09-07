@@ -5,7 +5,7 @@
   "corpusTier": "SYNTHETIC",
   "groundTruthSource": "synthetic_generator_construction",
   "instancesPerCase": 8,
-  "generatedAt": "2026-09-07T01:52:15.875Z",
+  "generatedAt": "2026-09-07T02:03:01.203Z",
   "offers": [
     {
       "offerId": "true-duplicate-cross-retailer-0-a",
@@ -21,8 +21,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Patent Chelsea Boot - Taupe Patent Leather",
+      "brand": "Isabel Marant",
+      "title": "Isabel Marant Lug-Sole Lace-Up Boot - Taupe Patent Leather",
       "category": "boot",
       "color": "taupe",
       "material": "patent leather",
@@ -47,8 +47,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Patent Chelsea Boot - Taupe Patent Leather",
+      "brand": "Isabel Marant",
+      "title": "Isabel Marant Lug-Sole Lace-Up Boot - Taupe Patent Leather",
       "category": "boot",
       "color": "taupe",
       "material": "patent leather",
@@ -73,8 +73,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Oversized Cable Knit Sweater - Rust Cashmere",
+      "brand": "The Row",
+      "title": "The Row Cropped Mock-Neck Sweater - Rust Cashmere",
       "category": "sweater",
       "color": "rust",
       "material": "cashmere",
@@ -99,8 +99,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Oversized Cable Knit Sweater - Rust Cashmere",
+      "brand": "The Row",
+      "title": "The Row Cropped Mock-Neck Sweater - Rust Cashmere",
       "category": "sweater",
       "color": "rust",
       "material": "cashmere",
@@ -125,8 +125,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Veronica Beard",
-      "title": "Veronica Beard Wrap Midi Dress - Ivory Ribbed Knit",
+      "brand": "Iro",
+      "title": "Iro Slip Maxi Dress - Ivory Ribbed Knit",
       "category": "dress",
       "color": "ivory",
       "material": "ribbed knit",
@@ -151,8 +151,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Veronica Beard",
-      "title": "Veronica Beard Wrap Midi Dress - Ivory Ribbed Knit",
+      "brand": "Iro",
+      "title": "Iro Slip Maxi Dress - Ivory Ribbed Knit",
       "category": "dress",
       "color": "ivory",
       "material": "ribbed knit",
@@ -177,8 +177,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Veronica Beard",
-      "title": "Veronica Beard Patent Chelsea Boot - Black Suede",
+      "brand": "Iro",
+      "title": "Iro Pointed-Toe Stiletto Boot - Black Suede",
       "category": "boot",
       "color": "black",
       "material": "suede",
@@ -203,8 +203,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Veronica Beard",
-      "title": "Veronica Beard Patent Chelsea Boot - Black Suede",
+      "brand": "Iro",
+      "title": "Iro Pointed-Toe Stiletto Boot - Black Suede",
       "category": "boot",
       "color": "black",
       "material": "suede",
@@ -229,8 +229,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Veronica Beard",
-      "title": "Veronica Beard Ribbed Mini Dress - Black Linen",
+      "brand": "Equipment",
+      "title": "Equipment Puff-Sleeve Tiered Dress - Black Linen",
       "category": "dress",
       "color": "black",
       "material": "linen",
@@ -255,8 +255,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Veronica Beard",
-      "title": "Veronica Beard Ribbed Mini Dress - Black Linen",
+      "brand": "Equipment",
+      "title": "Equipment Puff-Sleeve Tiered Dress - Black Linen",
       "category": "dress",
       "color": "black",
       "material": "linen",
@@ -281,8 +281,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Slip Maxi Dress - Sand Satin",
+      "brand": "Ganni",
+      "title": "Ganni Pleated Shirt Dress - Sand Satin",
       "category": "dress",
       "color": "sand",
       "material": "satin",
@@ -307,8 +307,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Slip Maxi Dress - Sand Satin",
+      "brand": "Ganni",
+      "title": "Ganni Pleated Shirt Dress - Sand Satin",
       "category": "dress",
       "color": "sand",
       "material": "satin",
@@ -333,8 +333,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Cropped Moto Jacket - Navy Nylon",
+      "brand": "Khaite",
+      "title": "Khaite Oversized Bomber Jacket - Navy Nylon",
       "category": "jacket",
       "color": "navy",
       "material": "nylon",
@@ -359,8 +359,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Cropped Moto Jacket - Navy Nylon",
+      "brand": "Khaite",
+      "title": "Khaite Oversized Bomber Jacket - Navy Nylon",
       "category": "jacket",
       "color": "navy",
       "material": "nylon",
@@ -385,8 +385,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Nili Lotan",
-      "title": "Nili Lotan Double-Breasted Blazer - Brown Lambskin",
+      "brand": "Free People",
+      "title": "Free People Cropped Denim Jacket - Brown Lambskin",
       "category": "jacket",
       "color": "brown",
       "material": "lambskin",
@@ -411,8 +411,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Nili Lotan",
-      "title": "Nili Lotan Double-Breasted Blazer - Brown Lambskin",
+      "brand": "Free People",
+      "title": "Free People Cropped Denim Jacket - Brown Lambskin",
       "category": "jacket",
       "color": "brown",
       "material": "lambskin",
@@ -437,8 +437,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Aritzia",
-      "title": "Aritzia Cropped Moto Jacket - Olive Cotton Twill",
+      "brand": "Reformation",
+      "title": "Reformation Cropped Moto Jacket - Olive Cotton Twill",
       "category": "jacket",
       "color": "olive",
       "material": "cotton twill",
@@ -463,8 +463,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Aritzia",
-      "title": "Aritzia Cropped Moto Jacket - Olive Cotton Twill",
+      "brand": "Reformation",
+      "title": "Reformation Cropped Moto Jacket - Olive Cotton Twill",
       "category": "jacket",
       "color": "olive",
       "material": "cotton twill",
@@ -489,8 +489,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Theory",
-      "title": "Theory Double-Breasted Blazer - Black Nylon",
+      "brand": "Rag & Bone",
+      "title": "Rag & Bone Shearling-Collar Aviator Jacket - Black Nylon",
       "category": "jacket",
       "color": "black",
       "material": "nylon",
@@ -515,8 +515,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Theory",
-      "title": "Theory Double-Breasted Blazer - Black Nylon",
+      "brand": "Rag & Bone",
+      "title": "Rag & Bone Shearling-Collar Aviator Jacket - Black Nylon",
       "category": "jacket",
       "color": "black",
       "material": "nylon",
@@ -542,7 +542,7 @@
       "manufacturerStyleCode": null,
       "retailerSku": null,
       "brand": "Aritzia",
-      "title": "Aritzia Ribbed Mini Dress - Ivory Satin",
+      "title": "Aritzia Halter Column Gown - Ivory Satin",
       "category": "dress",
       "color": "ivory",
       "material": "satin",
@@ -568,7 +568,7 @@
       "manufacturerStyleCode": null,
       "retailerSku": null,
       "brand": "Aritzia",
-      "title": "Aritzia Ribbed Mini Dress - Ivory Satin",
+      "title": "Aritzia Halter Column Gown - Ivory Satin",
       "category": "dress",
       "color": "ivory",
       "material": "satin",
@@ -593,8 +593,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Maje",
-      "title": "Maje Suede Knee-High Boot - Bone Pebbled Leather",
+      "brand": "Zimmermann",
+      "title": "Zimmermann Shearling-Lined Combat Boot - Bone Pebbled Leather",
       "category": "boot",
       "color": "bone",
       "material": "pebbled leather",
@@ -619,8 +619,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Maje",
-      "title": "Maje Suede Knee-High Boot - Bone Pebbled Leather",
+      "brand": "Zimmermann",
+      "title": "Zimmermann Shearling-Lined Combat Boot - Bone Pebbled Leather",
       "category": "boot",
       "color": "bone",
       "material": "pebbled leather",
@@ -645,8 +645,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Maje",
-      "title": "Maje Pebbled Leather Ankle Boot - Taupe Pebbled Leather",
+      "brand": "Zimmermann",
+      "title": "Zimmermann Suede Knee-High Boot - Taupe Pebbled Leather",
       "category": "boot",
       "color": "taupe",
       "material": "pebbled leather",
@@ -671,8 +671,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Maje",
-      "title": "Maje Pebbled Leather Ankle Boot - Taupe Pebbled Leather",
+      "brand": "Zimmermann",
+      "title": "Zimmermann Suede Knee-High Boot - Taupe Pebbled Leather",
       "category": "boot",
       "color": "taupe",
       "material": "pebbled leather",
@@ -697,8 +697,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Aritzia",
-      "title": "Aritzia Ribbed Turtleneck Sweater - Charcoal Cashmere",
+      "brand": "Reformation",
+      "title": "Reformation Embroidered Crewneck Sweater - Charcoal Cashmere",
       "category": "sweater",
       "color": "charcoal",
       "material": "cashmere",
@@ -723,8 +723,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Aritzia",
-      "title": "Aritzia Ribbed Turtleneck Sweater - Charcoal Cashmere",
+      "brand": "Reformation",
+      "title": "Reformation Embroidered Crewneck Sweater - Charcoal Cashmere",
       "category": "sweater",
       "color": "charcoal",
       "material": "cashmere",
@@ -749,8 +749,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Double-Breasted Blazer - Camel Suede",
+      "brand": "Toteme",
+      "title": "Toteme Shearling-Collar Aviator Jacket - Camel Suede",
       "category": "jacket",
       "color": "camel",
       "material": "suede",
@@ -775,8 +775,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Double-Breasted Blazer - Camel Suede",
+      "brand": "Toteme",
+      "title": "Toteme Shearling-Collar Aviator Jacket - Camel Suede",
       "category": "jacket",
       "color": "camel",
       "material": "suede",
@@ -801,8 +801,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Nili Lotan",
-      "title": "Nili Lotan Pebbled Leather Ankle Boot - Taupe Pebbled Leather",
+      "brand": "Acne Studios",
+      "title": "Acne Studios Pebbled Leather Ankle Boot - Taupe Pebbled Leather",
       "category": "boot",
       "color": "taupe",
       "material": "pebbled leather",
@@ -827,8 +827,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Nili Lotan",
-      "title": "Nili Lotan Pebbled Leather Ankle Boot - Taupe Pebbled Leather",
+      "brand": "Acne Studios",
+      "title": "Acne Studios Pebbled Leather Ankle Boot - Taupe Pebbled Leather",
       "category": "boot",
       "color": "taupe",
       "material": "pebbled leather",
@@ -856,8 +856,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Aritzia",
-      "title": "Aritzia Wrap Midi Dress - Sand Silk",
+      "brand": "Reformation",
+      "title": "Reformation Wrap Midi Dress - Sand Silk",
       "category": "dress",
       "color": "sand",
       "material": "silk",
@@ -885,8 +885,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Aritzia",
-      "title": "Aritzia Wrap Midi Dress - Sand Silk",
+      "brand": "Reformation",
+      "title": "Reformation Wrap Midi Dress - Sand Silk",
       "category": "dress",
       "color": "sand",
       "material": "silk",
@@ -914,8 +914,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Rag & Bone",
-      "title": "Rag & Bone Double-Breasted Blazer - Black Wool",
+      "brand": "Faithfull the Brand",
+      "title": "Faithfull the Brand Longline Wool Coat - Black Wool",
       "category": "jacket",
       "color": "black",
       "material": "wool",
@@ -943,8 +943,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Rag & Bone",
-      "title": "Rag & Bone Double-Breasted Blazer - Black Wool",
+      "brand": "Faithfull the Brand",
+      "title": "Faithfull the Brand Longline Wool Coat - Black Wool",
       "category": "jacket",
       "color": "black",
       "material": "wool",
@@ -972,8 +972,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Maje",
-      "title": "Maje Double-Breasted Blazer - Navy Lambskin",
+      "brand": "Zimmermann",
+      "title": "Zimmermann Shearling-Collar Aviator Jacket - Navy Lambskin",
       "category": "jacket",
       "color": "navy",
       "material": "lambskin",
@@ -1001,8 +1001,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Maje",
-      "title": "Maje Double-Breasted Blazer - Navy Lambskin",
+      "brand": "Zimmermann",
+      "title": "Zimmermann Shearling-Collar Aviator Jacket - Navy Lambskin",
       "category": "jacket",
       "color": "navy",
       "material": "lambskin",
@@ -1030,8 +1030,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Aritzia",
-      "title": "Aritzia Embroidered Crewneck Sweater - Cream Cotton Blend",
+      "brand": "Reformation",
+      "title": "Reformation Striped Boatneck Sweater - Cream Cotton Blend",
       "category": "sweater",
       "color": "cream",
       "material": "cotton blend",
@@ -1059,8 +1059,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Aritzia",
-      "title": "Aritzia Embroidered Crewneck Sweater - Cream Cotton Blend",
+      "brand": "Reformation",
+      "title": "Reformation Striped Boatneck Sweater - Cream Cotton Blend",
       "category": "sweater",
       "color": "cream",
       "material": "cotton blend",
@@ -1088,8 +1088,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Theory",
-      "title": "Theory Patent Chelsea Boot - Taupe Patent Leather",
+      "brand": "Sandro",
+      "title": "Sandro Woven Espadrille Boot - Taupe Patent Leather",
       "category": "boot",
       "color": "taupe",
       "material": "patent leather",
@@ -1117,8 +1117,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Theory",
-      "title": "Theory Patent Chelsea Boot - Taupe Patent Leather",
+      "brand": "Sandro",
+      "title": "Sandro Woven Espadrille Boot - Taupe Patent Leather",
       "category": "boot",
       "color": "taupe",
       "material": "patent leather",
@@ -1146,8 +1146,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Nili Lotan",
-      "title": "Nili Lotan Suede Knee-High Boot - Bone Patent Leather",
+      "brand": "Free People",
+      "title": "Free People Block-Heel Western Boot - Bone Patent Leather",
       "category": "boot",
       "color": "bone",
       "material": "patent leather",
@@ -1175,8 +1175,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Nili Lotan",
-      "title": "Nili Lotan Suede Knee-High Boot - Bone Patent Leather",
+      "brand": "Free People",
+      "title": "Free People Block-Heel Western Boot - Bone Patent Leather",
       "category": "boot",
       "color": "bone",
       "material": "patent leather",
@@ -1204,8 +1204,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "AllSaints",
-      "title": "AllSaints Embroidered Crewneck Sweater - Charcoal Cashmere",
+      "brand": "A.L.C.",
+      "title": "A.L.C. Cowl-Neck Tunic Sweater - Charcoal Cashmere",
       "category": "sweater",
       "color": "charcoal",
       "material": "cashmere",
@@ -1233,8 +1233,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "AllSaints",
-      "title": "AllSaints Embroidered Crewneck Sweater - Charcoal Cashmere",
+      "brand": "A.L.C.",
+      "title": "A.L.C. Cowl-Neck Tunic Sweater - Charcoal Cashmere",
       "category": "sweater",
       "color": "charcoal",
       "material": "cashmere",
@@ -1262,8 +1262,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Theory",
-      "title": "Theory Slip Maxi Dress - Sand Satin",
+      "brand": "Maje",
+      "title": "Maje Asymmetric Cutout Dress - Sand Satin",
       "category": "dress",
       "color": "sand",
       "material": "satin",
@@ -1291,8 +1291,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Theory",
-      "title": "Theory Slip Maxi Dress - Sand Satin",
+      "brand": "Maje",
+      "title": "Maje Asymmetric Cutout Dress - Sand Satin",
       "category": "dress",
       "color": "sand",
       "material": "satin",
@@ -1317,8 +1317,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Rag & Bone",
-      "title": "Rag & Bone Ribbed Turtleneck Sweater - Cream Cashmere",
+      "brand": "Joie",
+      "title": "Joie Oversized Cable Knit Sweater - Cream Cashmere",
       "category": "sweater",
       "color": "cream",
       "material": "cashmere",
@@ -1343,8 +1343,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Rag & Bone",
-      "title": "Rag & Bone Ribbed Turtleneck Sweater - Charcoal Cashmere",
+      "brand": "Joie",
+      "title": "Joie Oversized Cable Knit Sweater - Charcoal Cashmere",
       "category": "sweater",
       "color": "charcoal",
       "material": "cashmere",
@@ -1369,8 +1369,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Ribbed Turtleneck Sweater - Cream Merino Wool",
+      "brand": "Veronica Beard",
+      "title": "Veronica Beard Ribbed Turtleneck Sweater - Cream Merino Wool",
       "category": "sweater",
       "color": "cream",
       "material": "merino wool",
@@ -1395,8 +1395,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Ribbed Turtleneck Sweater - Charcoal Merino Wool",
+      "brand": "Veronica Beard",
+      "title": "Veronica Beard Ribbed Turtleneck Sweater - Charcoal Merino Wool",
       "category": "sweater",
       "color": "charcoal",
       "material": "merino wool",
@@ -1421,8 +1421,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Slip Maxi Dress - Black Silk",
+      "brand": "Nili Lotan",
+      "title": "Nili Lotan Pleated Shirt Dress - Black Silk",
       "category": "dress",
       "color": "black",
       "material": "silk",
@@ -1447,8 +1447,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Slip Maxi Dress - Ivory Silk",
+      "brand": "Nili Lotan",
+      "title": "Nili Lotan Pleated Shirt Dress - Ivory Silk",
       "category": "dress",
       "color": "ivory",
       "material": "silk",
@@ -1473,8 +1473,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Theory",
-      "title": "Theory Wrap Midi Dress - Black Ribbed Knit",
+      "brand": "Maje",
+      "title": "Maje Wrap Midi Dress - Black Ribbed Knit",
       "category": "dress",
       "color": "black",
       "material": "ribbed knit",
@@ -1499,8 +1499,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Theory",
-      "title": "Theory Wrap Midi Dress - Ivory Ribbed Knit",
+      "brand": "Maje",
+      "title": "Maje Wrap Midi Dress - Ivory Ribbed Knit",
       "category": "dress",
       "color": "ivory",
       "material": "ribbed knit",
@@ -1525,8 +1525,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Pebbled Leather Ankle Boot - Black Suede",
+      "brand": "Toteme",
+      "title": "Toteme Pebbled Leather Ankle Boot - Black Suede",
       "category": "boot",
       "color": "black",
       "material": "suede",
@@ -1551,8 +1551,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Pebbled Leather Ankle Boot - Brown Suede",
+      "brand": "Toteme",
+      "title": "Toteme Pebbled Leather Ankle Boot - Brown Suede",
       "category": "boot",
       "color": "brown",
       "material": "suede",
@@ -1577,8 +1577,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Quilted Puffer Jacket - Black Wool",
+      "brand": "Khaite",
+      "title": "Khaite Cropped Tweed Jacket - Black Wool",
       "category": "jacket",
       "color": "black",
       "material": "wool",
@@ -1603,8 +1603,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Quilted Puffer Jacket - Brown Wool",
+      "brand": "Khaite",
+      "title": "Khaite Cropped Tweed Jacket - Brown Wool",
       "category": "jacket",
       "color": "brown",
       "material": "wool",
@@ -1629,8 +1629,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Aritzia",
-      "title": "Aritzia Suede Knee-High Boot - Black Suede",
+      "brand": "Reformation",
+      "title": "Reformation Shearling-Lined Combat Boot - Black Suede",
       "category": "boot",
       "color": "black",
       "material": "suede",
@@ -1655,8 +1655,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Aritzia",
-      "title": "Aritzia Suede Knee-High Boot - Brown Suede",
+      "brand": "Reformation",
+      "title": "Reformation Shearling-Lined Combat Boot - Brown Suede",
       "category": "boot",
       "color": "brown",
       "material": "suede",
@@ -1681,8 +1681,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Theory",
-      "title": "Theory Oversized Cable Knit Sweater - Cream Cotton Blend",
+      "brand": "Maje",
+      "title": "Maje Fair Isle Crewneck Sweater - Cream Cotton Blend",
       "category": "sweater",
       "color": "cream",
       "material": "cotton blend",
@@ -1707,8 +1707,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Theory",
-      "title": "Theory Oversized Cable Knit Sweater - Charcoal Cotton Blend",
+      "brand": "Maje",
+      "title": "Maje Fair Isle Crewneck Sweater - Charcoal Cotton Blend",
       "category": "sweater",
       "color": "charcoal",
       "material": "cotton blend",
@@ -1733,8 +1733,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Oversized Cable Knit Sweater - Rust Cashmere",
+      "brand": "Nili Lotan",
+      "title": "Nili Lotan Fair Isle Crewneck Sweater - Rust Cashmere",
       "category": "sweater",
       "color": "rust",
       "material": "cashmere",
@@ -1759,8 +1759,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Oversized Cable Knit Sweater - Rust Merino Wool",
+      "brand": "Nili Lotan",
+      "title": "Nili Lotan Fair Isle Crewneck Sweater - Rust Merino Wool",
       "category": "sweater",
       "color": "rust",
       "material": "merino wool",
@@ -1785,8 +1785,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Veronica Beard",
-      "title": "Veronica Beard Cropped Moto Jacket - Black Lambskin",
+      "brand": "Iro",
+      "title": "Iro Cropped Moto Jacket - Black Lambskin",
       "category": "jacket",
       "color": "black",
       "material": "lambskin",
@@ -1811,8 +1811,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Veronica Beard",
-      "title": "Veronica Beard Cropped Moto Jacket - Black Suede",
+      "brand": "Iro",
+      "title": "Iro Cropped Moto Jacket - Black Suede",
       "category": "jacket",
       "color": "black",
       "material": "suede",
@@ -1837,8 +1837,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Wrap Midi Dress - Ivory Silk",
+      "brand": "The Row",
+      "title": "The Row Wrap Midi Dress - Ivory Silk",
       "category": "dress",
       "color": "ivory",
       "material": "silk",
@@ -1863,8 +1863,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Wrap Midi Dress - Ivory Ribbed Knit",
+      "brand": "The Row",
+      "title": "The Row Wrap Midi Dress - Ivory Ribbed Knit",
       "category": "dress",
       "color": "ivory",
       "material": "ribbed knit",
@@ -1889,8 +1889,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Ribbed Turtleneck Sweater - Rust Cashmere",
+      "brand": "AllSaints",
+      "title": "AllSaints Ribbed Turtleneck Sweater - Rust Cashmere",
       "category": "sweater",
       "color": "rust",
       "material": "cashmere",
@@ -1915,8 +1915,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Ribbed Turtleneck Sweater - Rust Merino Wool",
+      "brand": "AllSaints",
+      "title": "AllSaints Ribbed Turtleneck Sweater - Rust Merino Wool",
       "category": "sweater",
       "color": "rust",
       "material": "merino wool",
@@ -1941,8 +1941,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Veronica Beard",
-      "title": "Veronica Beard Patent Chelsea Boot - Black Pebbled Leather",
+      "brand": "Iro",
+      "title": "Iro Woven Espadrille Boot - Black Pebbled Leather",
       "category": "boot",
       "color": "black",
       "material": "pebbled leather",
@@ -1967,8 +1967,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Veronica Beard",
-      "title": "Veronica Beard Patent Chelsea Boot - Black Suede",
+      "brand": "Iro",
+      "title": "Iro Woven Espadrille Boot - Black Suede",
       "category": "boot",
       "color": "black",
       "material": "suede",
@@ -1993,8 +1993,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Pebbled Leather Ankle Boot - Brown Pebbled Leather",
+      "brand": "Vince",
+      "title": "Vince Patent Chelsea Boot - Brown Pebbled Leather",
       "category": "boot",
       "color": "brown",
       "material": "pebbled leather",
@@ -2019,8 +2019,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Pebbled Leather Ankle Boot - Brown Suede",
+      "brand": "Vince",
+      "title": "Vince Patent Chelsea Boot - Brown Suede",
       "category": "boot",
       "color": "brown",
       "material": "suede",
@@ -2045,8 +2045,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Ganni",
-      "title": "Ganni Slip Maxi Dress - Sand Silk",
+      "brand": "Jonathan Simkhai",
+      "title": "Jonathan Simkhai Asymmetric Cutout Dress - Sand Silk",
       "category": "dress",
       "color": "sand",
       "material": "silk",
@@ -2071,8 +2071,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Ganni",
-      "title": "Ganni Slip Maxi Dress - Sand Ribbed Knit",
+      "brand": "Jonathan Simkhai",
+      "title": "Jonathan Simkhai Asymmetric Cutout Dress - Sand Ribbed Knit",
       "category": "dress",
       "color": "sand",
       "material": "ribbed knit",
@@ -2097,8 +2097,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Nili Lotan",
-      "title": "Nili Lotan Pleated Shirt Dress - Burgundy Silk",
+      "brand": "Free People",
+      "title": "Free People Cowl-Neck Slip Dress - Burgundy Silk",
       "category": "dress",
       "color": "burgundy",
       "material": "silk",
@@ -2123,8 +2123,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Nili Lotan",
-      "title": "Nili Lotan Pleated Shirt Dress - Burgundy Ribbed Knit",
+      "brand": "Free People",
+      "title": "Free People Cowl-Neck Slip Dress - Burgundy Ribbed Knit",
       "category": "dress",
       "color": "burgundy",
       "material": "ribbed knit",
@@ -2149,8 +2149,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Nili Lotan",
-      "title": "Nili Lotan Ribbed Turtleneck Sweater - Charcoal Merino Wool",
+      "brand": "Acne Studios",
+      "title": "Acne Studios Ribbed Turtleneck Sweater - Charcoal Merino Wool",
       "category": "sweater",
       "color": "charcoal",
       "material": "merino wool",
@@ -2175,8 +2175,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Nili Lotan",
-      "title": "Nili Lotan Oversized Cable Knit Sweater - Charcoal Merino Wool",
+      "brand": "Acne Studios",
+      "title": "Acne Studios Oversized Cable Knit Sweater - Charcoal Merino Wool",
       "category": "sweater",
       "color": "charcoal",
       "material": "merino wool",
@@ -2201,8 +2201,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Theory",
-      "title": "Theory Ribbed Turtleneck Sweater - Cream Cotton Blend",
+      "brand": "Maje",
+      "title": "Maje Ribbed Turtleneck Sweater - Cream Cotton Blend",
       "category": "sweater",
       "color": "cream",
       "material": "cotton blend",
@@ -2227,8 +2227,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Theory",
-      "title": "Theory Oversized Cable Knit Sweater - Cream Cotton Blend",
+      "brand": "Maje",
+      "title": "Maje Oversized Cable Knit Sweater - Cream Cotton Blend",
       "category": "sweater",
       "color": "cream",
       "material": "cotton blend",
@@ -2253,8 +2253,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Veronica Beard",
-      "title": "Veronica Beard Pebbled Leather Ankle Boot - Bone Patent Leather",
+      "brand": "Iro",
+      "title": "Iro Pebbled Leather Ankle Boot - Bone Patent Leather",
       "category": "boot",
       "color": "bone",
       "material": "patent leather",
@@ -2279,8 +2279,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Veronica Beard",
-      "title": "Veronica Beard Suede Knee-High Boot - Bone Patent Leather",
+      "brand": "Iro",
+      "title": "Iro Suede Knee-High Boot - Bone Patent Leather",
       "category": "boot",
       "color": "bone",
       "material": "patent leather",
@@ -2305,8 +2305,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Veronica Beard",
-      "title": "Veronica Beard Wrap Midi Dress - Ivory Satin",
+      "brand": "Equipment",
+      "title": "Equipment Wrap Midi Dress - Ivory Satin",
       "category": "dress",
       "color": "ivory",
       "material": "satin",
@@ -2331,8 +2331,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Veronica Beard",
-      "title": "Veronica Beard Slip Maxi Dress - Ivory Satin",
+      "brand": "Equipment",
+      "title": "Equipment Slip Maxi Dress - Ivory Satin",
       "category": "dress",
       "color": "ivory",
       "material": "satin",
@@ -2357,8 +2357,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Aritzia",
-      "title": "Aritzia Cropped Moto Jacket - Camel Suede",
+      "brand": "Vince",
+      "title": "Vince Cropped Moto Jacket - Camel Suede",
       "category": "jacket",
       "color": "camel",
       "material": "suede",
@@ -2383,8 +2383,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Aritzia",
-      "title": "Aritzia Oversized Bomber Jacket - Camel Suede",
+      "brand": "Vince",
+      "title": "Vince Oversized Bomber Jacket - Camel Suede",
       "category": "jacket",
       "color": "camel",
       "material": "suede",
@@ -2409,8 +2409,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Ganni",
-      "title": "Ganni Pebbled Leather Ankle Boot - Bone Pebbled Leather",
+      "brand": "Staud",
+      "title": "Staud Pebbled Leather Ankle Boot - Bone Pebbled Leather",
       "category": "boot",
       "color": "bone",
       "material": "pebbled leather",
@@ -2435,8 +2435,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Ganni",
-      "title": "Ganni Suede Knee-High Boot - Bone Pebbled Leather",
+      "brand": "Staud",
+      "title": "Staud Suede Knee-High Boot - Bone Pebbled Leather",
       "category": "boot",
       "color": "bone",
       "material": "pebbled leather",
@@ -2461,8 +2461,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Pebbled Leather Ankle Boot - Brown Patent Leather",
+      "brand": "Theory",
+      "title": "Theory Pebbled Leather Ankle Boot - Brown Patent Leather",
       "category": "boot",
       "color": "brown",
       "material": "patent leather",
@@ -2487,8 +2487,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Suede Knee-High Boot - Brown Patent Leather",
+      "brand": "Theory",
+      "title": "Theory Suede Knee-High Boot - Brown Patent Leather",
       "category": "boot",
       "color": "brown",
       "material": "patent leather",
@@ -2513,8 +2513,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Pebbled Leather Ankle Boot - Bone Pebbled Leather",
+      "brand": "Khaite",
+      "title": "Khaite Pebbled Leather Ankle Boot - Bone Pebbled Leather",
       "category": "boot",
       "color": "bone",
       "material": "pebbled leather",
@@ -2539,8 +2539,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Suede Knee-High Boot - Bone Pebbled Leather",
+      "brand": "Khaite",
+      "title": "Khaite Suede Knee-High Boot - Bone Pebbled Leather",
       "category": "boot",
       "color": "bone",
       "material": "pebbled leather",
@@ -2566,7 +2566,7 @@
       "manufacturerStyleCode": null,
       "retailerSku": null,
       "brand": "Aritzia",
-      "title": "Aritzia Pleated Shirt Dress - Sand Silk",
+      "title": "Aritzia Smocked Tank Dress - Sand Silk",
       "category": "dress",
       "color": "sand",
       "material": "silk",
@@ -2592,7 +2592,7 @@
       "manufacturerStyleCode": null,
       "retailerSku": null,
       "brand": "Reformation",
-      "title": "Reformation Pleated Shirt Dress - Sand Silk",
+      "title": "Reformation Smocked Tank Dress - Sand Silk",
       "category": "dress",
       "color": "sand",
       "material": "silk",
@@ -2618,7 +2618,7 @@
       "manufacturerStyleCode": null,
       "retailerSku": null,
       "brand": "Reformation",
-      "title": "Reformation Ribbed Turtleneck Sweater - Rust Cotton Blend",
+      "title": "Reformation Oversized Cable Knit Sweater - Rust Cotton Blend",
       "category": "sweater",
       "color": "rust",
       "material": "cotton blend",
@@ -2644,7 +2644,7 @@
       "manufacturerStyleCode": null,
       "retailerSku": null,
       "brand": "Vince",
-      "title": "Vince Ribbed Turtleneck Sweater - Rust Cotton Blend",
+      "title": "Vince Oversized Cable Knit Sweater - Rust Cotton Blend",
       "category": "sweater",
       "color": "rust",
       "material": "cotton blend",
@@ -2670,7 +2670,7 @@
       "manufacturerStyleCode": null,
       "retailerSku": null,
       "brand": "Vince",
-      "title": "Vince Slip Maxi Dress - Ivory Linen",
+      "title": "Vince Pleated Shirt Dress - Ivory Linen",
       "category": "dress",
       "color": "ivory",
       "material": "linen",
@@ -2696,7 +2696,7 @@
       "manufacturerStyleCode": null,
       "retailerSku": null,
       "brand": "Theory",
-      "title": "Theory Slip Maxi Dress - Ivory Linen",
+      "title": "Theory Pleated Shirt Dress - Ivory Linen",
       "category": "dress",
       "color": "ivory",
       "material": "linen",
@@ -2722,7 +2722,7 @@
       "manufacturerStyleCode": null,
       "retailerSku": null,
       "brand": "Theory",
-      "title": "Theory Quilted Puffer Jacket - Brown Wool",
+      "title": "Theory Longline Wool Coat - Brown Wool",
       "category": "jacket",
       "color": "brown",
       "material": "wool",
@@ -2748,7 +2748,7 @@
       "manufacturerStyleCode": null,
       "retailerSku": null,
       "brand": "Frame",
-      "title": "Frame Quilted Puffer Jacket - Brown Wool",
+      "title": "Frame Longline Wool Coat - Brown Wool",
       "category": "jacket",
       "color": "brown",
       "material": "wool",
@@ -2774,7 +2774,7 @@
       "manufacturerStyleCode": null,
       "retailerSku": null,
       "brand": "Frame",
-      "title": "Frame Cropped Moto Jacket - Camel Lambskin",
+      "title": "Frame Double-Breasted Blazer - Camel Lambskin",
       "category": "jacket",
       "color": "camel",
       "material": "lambskin",
@@ -2800,7 +2800,7 @@
       "manufacturerStyleCode": null,
       "retailerSku": null,
       "brand": "Ganni",
-      "title": "Ganni Cropped Moto Jacket - Camel Lambskin",
+      "title": "Ganni Double-Breasted Blazer - Camel Lambskin",
       "category": "jacket",
       "color": "camel",
       "material": "lambskin",
@@ -2826,7 +2826,7 @@
       "manufacturerStyleCode": null,
       "retailerSku": null,
       "brand": "Ganni",
-      "title": "Ganni Cropped Moto Jacket - Olive Wool",
+      "title": "Ganni Double-Breasted Blazer - Olive Wool",
       "category": "jacket",
       "color": "olive",
       "material": "wool",
@@ -2852,7 +2852,7 @@
       "manufacturerStyleCode": null,
       "retailerSku": null,
       "brand": "AllSaints",
-      "title": "AllSaints Cropped Moto Jacket - Olive Wool",
+      "title": "AllSaints Double-Breasted Blazer - Olive Wool",
       "category": "jacket",
       "color": "olive",
       "material": "wool",
@@ -2878,7 +2878,7 @@
       "manufacturerStyleCode": null,
       "retailerSku": null,
       "brand": "AllSaints",
-      "title": "AllSaints Double-Breasted Blazer - Brown Lambskin",
+      "title": "AllSaints Longline Wool Coat - Brown Lambskin",
       "category": "jacket",
       "color": "brown",
       "material": "lambskin",
@@ -2904,7 +2904,7 @@
       "manufacturerStyleCode": null,
       "retailerSku": null,
       "brand": "Sandro",
-      "title": "Sandro Double-Breasted Blazer - Brown Lambskin",
+      "title": "Sandro Longline Wool Coat - Brown Lambskin",
       "category": "jacket",
       "color": "brown",
       "material": "lambskin",
@@ -2930,7 +2930,7 @@
       "manufacturerStyleCode": null,
       "retailerSku": null,
       "brand": "Sandro",
-      "title": "Sandro Oversized Bomber Jacket - Olive Suede",
+      "title": "Sandro Belted Trench Coat - Olive Suede",
       "category": "jacket",
       "color": "olive",
       "material": "suede",
@@ -2956,7 +2956,7 @@
       "manufacturerStyleCode": null,
       "retailerSku": null,
       "brand": "Maje",
-      "title": "Maje Oversized Bomber Jacket - Olive Suede",
+      "title": "Maje Belted Trench Coat - Olive Suede",
       "category": "jacket",
       "color": "olive",
       "material": "suede",
@@ -2981,8 +2981,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Quilted Puffer Jacket - Black Wool",
+      "brand": "Isabel Marant",
+      "title": "Isabel Marant Cropped Tweed Jacket - Black Wool",
       "category": "jacket",
       "color": "black",
       "material": "wool",
@@ -3007,8 +3007,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Quilted Puffer Jacket - Black Wool",
+      "brand": "Isabel Marant",
+      "title": "Isabel Marant Cropped Tweed Jacket - Black Wool",
       "category": "jacket",
       "color": "black",
       "material": "wool",
@@ -3033,8 +3033,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Double-Breasted Blazer - Navy Cotton Twill",
+      "brand": "AllSaints",
+      "title": "AllSaints Cropped Denim Jacket - Navy Cotton Twill",
       "category": "jacket",
       "color": "navy",
       "material": "cotton twill",
@@ -3059,8 +3059,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Double-Breasted Blazer - Navy Cotton Twill",
+      "brand": "AllSaints",
+      "title": "AllSaints Cropped Denim Jacket - Navy Cotton Twill",
       "category": "jacket",
       "color": "navy",
       "material": "cotton twill",
@@ -3086,7 +3086,7 @@
       "manufacturerStyleCode": null,
       "retailerSku": null,
       "brand": "Aritzia",
-      "title": "Aritzia Pleated Shirt Dress - Emerald Satin",
+      "title": "Aritzia Cowl-Neck Slip Dress - Emerald Satin",
       "category": "dress",
       "color": "emerald",
       "material": "satin",
@@ -3112,7 +3112,7 @@
       "manufacturerStyleCode": null,
       "retailerSku": null,
       "brand": "Aritzia",
-      "title": "Aritzia Pleated Shirt Dress - Emerald Satin",
+      "title": "Aritzia Cowl-Neck Slip Dress - Emerald Satin",
       "category": "dress",
       "color": "emerald",
       "material": "satin",
@@ -3137,8 +3137,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Pebbled Leather Ankle Boot - Brown Pebbled Leather",
+      "brand": "Frame",
+      "title": "Frame Pebbled Leather Ankle Boot - Brown Pebbled Leather",
       "category": "boot",
       "color": "brown",
       "material": "pebbled leather",
@@ -3163,8 +3163,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Pebbled Leather Ankle Boot - Brown Pebbled Leather",
+      "brand": "Frame",
+      "title": "Frame Pebbled Leather Ankle Boot - Brown Pebbled Leather",
       "category": "boot",
       "color": "brown",
       "material": "pebbled leather",
@@ -3189,8 +3189,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "AllSaints",
-      "title": "AllSaints Pebbled Leather Ankle Boot - Black Suede",
+      "brand": "A.L.C.",
+      "title": "A.L.C. Pebbled Leather Ankle Boot - Black Suede",
       "category": "boot",
       "color": "black",
       "material": "suede",
@@ -3215,8 +3215,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "AllSaints",
-      "title": "AllSaints Pebbled Leather Ankle Boot - Black Suede",
+      "brand": "A.L.C.",
+      "title": "A.L.C. Pebbled Leather Ankle Boot - Black Suede",
       "category": "boot",
       "color": "black",
       "material": "suede",
@@ -3241,8 +3241,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Rag & Bone",
-      "title": "Rag & Bone Double-Breasted Blazer - Olive Wool",
+      "brand": "Anine Bing",
+      "title": "Anine Bing Shearling-Collar Aviator Jacket - Olive Wool",
       "category": "jacket",
       "color": "olive",
       "material": "wool",
@@ -3267,8 +3267,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Rag & Bone",
-      "title": "Rag & Bone Double-Breasted Blazer - Olive Wool",
+      "brand": "Anine Bing",
+      "title": "Anine Bing Shearling-Collar Aviator Jacket - Olive Wool",
       "category": "jacket",
       "color": "olive",
       "material": "wool",
@@ -3293,8 +3293,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Oversized Bomber Jacket - Camel Cotton Twill",
+      "brand": "Theory",
+      "title": "Theory Quilted Puffer Jacket - Camel Cotton Twill",
       "category": "jacket",
       "color": "camel",
       "material": "cotton twill",
@@ -3319,8 +3319,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Oversized Bomber Jacket - Camel Cotton Twill",
+      "brand": "Theory",
+      "title": "Theory Quilted Puffer Jacket - Camel Cotton Twill",
       "category": "jacket",
       "color": "camel",
       "material": "cotton twill",
@@ -3345,8 +3345,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Rag & Bone",
-      "title": "Rag & Bone Slip Maxi Dress - Burgundy Satin",
+      "brand": "Anine Bing",
+      "title": "Anine Bing Pleated Shirt Dress - Burgundy Satin",
       "category": "dress",
       "color": "burgundy",
       "material": "satin",
@@ -3371,8 +3371,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Rag & Bone",
-      "title": "Rag & Bone Slip Maxi Dress - Burgundy Satin",
+      "brand": "Anine Bing",
+      "title": "Anine Bing Pleated Shirt Dress - Burgundy Satin",
       "category": "dress",
       "color": "burgundy",
       "material": "satin",
@@ -3397,8 +3397,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Ribbed Turtleneck Sweater - Forest Green Cotton Blend",
+      "brand": "Khaite",
+      "title": "Khaite Embroidered Crewneck Sweater - Forest Green Cotton Blend",
       "category": "sweater",
       "color": "forest green",
       "material": "cotton blend",
@@ -3423,8 +3423,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Ribbed Turtleneck Sweater - Forest Green Cotton Blend",
+      "brand": "Khaite",
+      "title": "Khaite Embroidered Crewneck Sweater - Forest Green Cotton Blend",
       "category": "sweater",
       "color": "forest green",
       "material": "cotton blend",
@@ -3449,8 +3449,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Double-Breasted Blazer - Olive Nylon",
+      "brand": "Theory",
+      "title": "Theory Longline Wool Coat - Olive Nylon",
       "category": "jacket",
       "color": "olive",
       "material": "nylon",
@@ -3475,8 +3475,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Double-Breasted Blazer - Olive Nylon",
+      "brand": "Theory",
+      "title": "Theory Longline Wool Coat - Olive Nylon",
       "category": "jacket",
       "color": "olive",
       "material": "nylon",
@@ -3501,8 +3501,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Maje",
-      "title": "Maje Suede Knee-High Boot - Bone Pebbled Leather",
+      "brand": "Zimmermann",
+      "title": "Zimmermann Block-Heel Western Boot - Bone Pebbled Leather",
       "category": "boot",
       "color": "bone",
       "material": "pebbled leather",
@@ -3527,8 +3527,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Maje",
-      "title": "Maje Suede Knee-High Boot - Bone Pebbled Leather",
+      "brand": "Zimmermann",
+      "title": "Zimmermann Block-Heel Western Boot - Bone Pebbled Leather",
       "category": "boot",
       "color": "bone",
       "material": "pebbled leather",
@@ -3553,8 +3553,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Cropped Moto Jacket - Camel Nylon",
+      "brand": "Sandro",
+      "title": "Sandro Double-Breasted Blazer - Camel Nylon",
       "category": "jacket",
       "color": "camel",
       "material": "nylon",
@@ -3579,8 +3579,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Cropped Moto Jacket - Camel Nylon",
+      "brand": "Sandro",
+      "title": "Sandro Double-Breasted Blazer - Camel Nylon",
       "category": "jacket",
       "color": "camel",
       "material": "nylon",
@@ -3605,8 +3605,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Oversized Cable Knit Sweater - Forest Green Merino Wool",
+      "brand": "Khaite",
+      "title": "Khaite Fair Isle Crewneck Sweater - Forest Green Merino Wool",
       "category": "sweater",
       "color": "forest green",
       "material": "merino wool",
@@ -3631,8 +3631,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Oversized Cable Knit Sweater - Forest Green Merino Wool",
+      "brand": "Khaite",
+      "title": "Khaite Fair Isle Crewneck Sweater - Forest Green Merino Wool",
       "category": "sweater",
       "color": "forest green",
       "material": "merino wool",
@@ -3657,8 +3657,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Ganni",
-      "title": "Ganni Ribbed Turtleneck Sweater - Charcoal Cashmere",
+      "brand": "Staud",
+      "title": "Staud Embroidered Crewneck Sweater - Charcoal Cashmere",
       "category": "sweater",
       "color": "charcoal",
       "material": "cashmere",
@@ -3683,8 +3683,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Ganni",
-      "title": "Ganni Ribbed Turtleneck Sweater - Charcoal Cashmere",
+      "brand": "Staud",
+      "title": "Staud Embroidered Crewneck Sweater - Charcoal Cashmere",
       "category": "sweater",
       "color": "charcoal",
       "material": "cashmere",
@@ -3709,8 +3709,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Rag & Bone",
-      "title": "Rag & Bone Slip Maxi Dress - Sand Satin",
+      "brand": "Anine Bing",
+      "title": "Anine Bing Asymmetric Cutout Dress - Sand Satin",
       "category": "dress",
       "color": "sand",
       "material": "satin",
@@ -3735,8 +3735,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Rag & Bone",
-      "title": "Rag & Bone Slip Maxi Dress - Sand Satin",
+      "brand": "Anine Bing",
+      "title": "Anine Bing Asymmetric Cutout Dress - Sand Satin",
       "category": "dress",
       "color": "sand",
       "material": "satin",
@@ -3761,8 +3761,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Theory",
-      "title": "Theory Slip Maxi Dress - Emerald Ribbed Knit",
+      "brand": "Rag & Bone",
+      "title": "Rag & Bone Pleated Shirt Dress - Emerald Ribbed Knit",
       "category": "dress",
       "color": "emerald",
       "material": "ribbed knit",
@@ -3787,8 +3787,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Theory",
-      "title": "Theory Slip Maxi Dress - Emerald Ribbed Knit",
+      "brand": "Rag & Bone",
+      "title": "Rag & Bone Pleated Shirt Dress - Emerald Ribbed Knit",
       "category": "dress",
       "color": "emerald",
       "material": "ribbed knit",
@@ -3813,8 +3813,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Cropped Moto Jacket - Camel Nylon",
+      "brand": "Isabel Marant",
+      "title": "Isabel Marant Oversized Bomber Jacket - Camel Nylon",
       "category": "jacket",
       "color": "camel",
       "material": "nylon",
@@ -3839,8 +3839,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Cropped Moto Jacket - Camel Nylon",
+      "brand": "Isabel Marant",
+      "title": "Isabel Marant Oversized Bomber Jacket - Camel Nylon",
       "category": "jacket",
       "color": "camel",
       "material": "nylon",
@@ -3865,8 +3865,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Theory",
-      "title": "Theory Ribbed Mini Dress - Sand Ribbed Knit",
+      "brand": "Maje",
+      "title": "Maje Off-Shoulder Midi Dress - Sand Ribbed Knit",
       "category": "dress",
       "color": "sand",
       "material": "ribbed knit",
@@ -3891,8 +3891,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Theory",
-      "title": "Theory Ribbed Mini Dress - Sand Ribbed Knit",
+      "brand": "Maje",
+      "title": "Maje Off-Shoulder Midi Dress - Sand Ribbed Knit",
       "category": "dress",
       "color": "sand",
       "material": "ribbed knit",
@@ -3917,8 +3917,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Ganni",
-      "title": "Ganni Embroidered Crewneck Sweater - Charcoal Cotton Blend",
+      "brand": "Staud",
+      "title": "Staud Chunky Shawl-Collar Cardigan - Charcoal Cotton Blend",
       "category": "sweater",
       "color": "charcoal",
       "material": "cotton blend",
@@ -3943,8 +3943,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Ganni",
-      "title": "Ganni Embroidered Crewneck Sweater - Charcoal Cotton Blend",
+      "brand": "Staud",
+      "title": "Staud Chunky Shawl-Collar Cardigan - Charcoal Cotton Blend",
       "category": "sweater",
       "color": "charcoal",
       "material": "cotton blend",
@@ -3969,8 +3969,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "AllSaints",
-      "title": "AllSaints Embroidered Crewneck Sweater - Forest Green Merino Wool",
+      "brand": "A.L.C.",
+      "title": "A.L.C. Striped Boatneck Sweater - Forest Green Merino Wool",
       "category": "sweater",
       "color": "forest green",
       "material": "merino wool",
@@ -3995,8 +3995,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "AllSaints",
-      "title": "AllSaints Embroidered Crewneck Sweater - Forest Green Merino Wool",
+      "brand": "A.L.C.",
+      "title": "A.L.C. Striped Boatneck Sweater - Forest Green Merino Wool",
       "category": "sweater",
       "color": "forest green",
       "material": "merino wool",
@@ -4021,8 +4021,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Ganni",
-      "title": "Ganni Pebbled Leather Ankle Boot - Brown Patent Leather",
+      "brand": "Staud",
+      "title": "Staud Pebbled Leather Ankle Boot - Brown Patent Leather",
       "category": "boot",
       "color": "brown",
       "material": "patent leather",
@@ -4047,8 +4047,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Ganni",
-      "title": "Ganni Pebbled Leather Ankle Boot - Brown Patent Leather",
+      "brand": "Staud",
+      "title": "Staud Pebbled Leather Ankle Boot - Brown Patent Leather",
       "category": "boot",
       "color": "brown",
       "material": "patent leather",
@@ -4073,8 +4073,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Ganni",
-      "title": "Ganni Patent Chelsea Boot - Taupe Suede",
+      "brand": "Jonathan Simkhai",
+      "title": "Jonathan Simkhai Pointed-Toe Stiletto Boot - Taupe Suede",
       "category": "boot",
       "color": "taupe",
       "material": "suede",
@@ -4099,8 +4099,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Ganni",
-      "title": "Ganni Patent Chelsea Boot - Taupe Suede",
+      "brand": "Jonathan Simkhai",
+      "title": "Jonathan Simkhai Pointed-Toe Stiletto Boot - Taupe Suede",
       "category": "boot",
       "color": "taupe",
       "material": "suede",
@@ -4125,8 +4125,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Maje",
-      "title": "Maje Ribbed Turtleneck Sweater - Charcoal Merino Wool",
+      "brand": "Ulla Johnson",
+      "title": "Ulla Johnson Ribbed Turtleneck Sweater - Charcoal Merino Wool",
       "category": "sweater",
       "color": "charcoal",
       "material": "merino wool",
@@ -4151,8 +4151,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Maje",
-      "title": "Maje Ribbed Turtleneck Sweater - Charcoal Merino Wool",
+      "brand": "Ulla Johnson",
+      "title": "Ulla Johnson Ribbed Turtleneck Sweater - Charcoal Merino Wool",
       "category": "sweater",
       "color": "charcoal",
       "material": "merino wool",
@@ -4177,8 +4177,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Nili Lotan",
-      "title": "Nili Lotan Oversized Cable Knit Sweater - Cream Cotton Blend",
+      "brand": "Ba&sh",
+      "title": "Ba&sh Cropped Mock-Neck Sweater - Cream Cotton Blend",
       "category": "sweater",
       "color": "cream",
       "material": "cotton blend",
@@ -4203,8 +4203,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Nili Lotan",
-      "title": "Nili Lotan Oversized Cable Knit Sweater - Cream Cotton Blend",
+      "brand": "Ba&sh",
+      "title": "Ba&sh Cropped Mock-Neck Sweater - Cream Cotton Blend",
       "category": "sweater",
       "color": "cream",
       "material": "cotton blend",
@@ -4229,8 +4229,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Slip Maxi Dress - Black Linen",
+      "brand": "AllSaints",
+      "title": "AllSaints Ribbed Mini Dress - Black Linen",
       "category": "dress",
       "color": "black",
       "material": "linen",
@@ -4255,8 +4255,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Slip Maxi Dress - Black Linen",
+      "brand": "AllSaints",
+      "title": "AllSaints Ribbed Mini Dress - Black Linen",
       "category": "dress",
       "color": "black",
       "material": "linen",
@@ -4281,8 +4281,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Ganni",
-      "title": "Ganni Quilted Puffer Jacket - Navy Cotton Twill",
+      "brand": "Jonathan Simkhai",
+      "title": "Jonathan Simkhai Cropped Tweed Jacket - Navy Cotton Twill",
       "category": "jacket",
       "color": "navy",
       "material": "cotton twill",
@@ -4307,8 +4307,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Ganni",
-      "title": "Ganni Quilted Puffer Jacket - Navy Cotton Twill",
+      "brand": "Jonathan Simkhai",
+      "title": "Jonathan Simkhai Cropped Tweed Jacket - Navy Cotton Twill",
       "category": "jacket",
       "color": "navy",
       "material": "cotton twill",
@@ -4333,8 +4333,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "AllSaints",
-      "title": "AllSaints Patent Chelsea Boot - Black Patent Leather",
+      "brand": "Proenza Schouler",
+      "title": "Proenza Schouler Woven Espadrille Boot - Black Patent Leather",
       "category": "boot",
       "color": "black",
       "material": "patent leather",
@@ -4359,8 +4359,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "AllSaints",
-      "title": "AllSaints Patent Chelsea Boot - Black Patent Leather",
+      "brand": "Proenza Schouler",
+      "title": "Proenza Schouler Woven Espadrille Boot - Black Patent Leather",
       "category": "boot",
       "color": "black",
       "material": "patent leather",
@@ -4385,8 +4385,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Oversized Cable Knit Sweater - Cream Cotton Blend",
+      "brand": "Veronica Beard",
+      "title": "Veronica Beard Fair Isle Crewneck Sweater - Cream Cotton Blend",
       "category": "sweater",
       "color": "cream",
       "material": "cotton blend",
@@ -4411,8 +4411,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Oversized Cable Knit Sweater - Cream Cotton Blend",
+      "brand": "Veronica Beard",
+      "title": "Veronica Beard Fair Isle Crewneck Sweater - Cream Cotton Blend",
       "category": "sweater",
       "color": "cream",
       "material": "cotton blend",
@@ -4437,8 +4437,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Nili Lotan",
-      "title": "Nili Lotan Slip Maxi Dress - Black Silk",
+      "brand": "Ba&sh",
+      "title": "Ba&sh Asymmetric Cutout Dress - Black Silk",
       "category": "dress",
       "color": "black",
       "material": "silk",
@@ -4463,8 +4463,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Nili Lotan",
-      "title": "Nili Lotan Slip Maxi Dress - Black Silk",
+      "brand": "Ba&sh",
+      "title": "Ba&sh Asymmetric Cutout Dress - Black Silk",
       "category": "dress",
       "color": "black",
       "material": "silk",
@@ -4489,8 +4489,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Theory",
-      "title": "Theory Embroidered Crewneck Sweater - Rust Cotton Blend",
+      "brand": "Sandro",
+      "title": "Sandro Striped Boatneck Sweater - Rust Cotton Blend",
       "category": "sweater",
       "color": "rust",
       "material": "cotton blend",
@@ -4515,8 +4515,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Theory",
-      "title": "Theory Embroidered Crewneck Sweater - Rust Cotton Blend",
+      "brand": "Sandro",
+      "title": "Sandro Striped Boatneck Sweater - Rust Cotton Blend",
       "category": "sweater",
       "color": "rust",
       "material": "cotton blend",
@@ -4541,8 +4541,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "AllSaints",
-      "title": "AllSaints Suede Knee-High Boot - Brown Pebbled Leather",
+      "brand": "A.L.C.",
+      "title": "A.L.C. Shearling-Lined Combat Boot - Brown Pebbled Leather",
       "category": "boot",
       "color": "brown",
       "material": "pebbled leather",
@@ -4567,8 +4567,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "AllSaints",
-      "title": "AllSaints Suede Knee-High Boot - Brown Pebbled Leather",
+      "brand": "A.L.C.",
+      "title": "A.L.C. Shearling-Lined Combat Boot - Brown Pebbled Leather",
       "category": "boot",
       "color": "brown",
       "material": "pebbled leather",
@@ -4593,8 +4593,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Pebbled Leather Ankle Boot - Brown Patent Leather",
+      "brand": "Ganni",
+      "title": "Ganni Pebbled Leather Ankle Boot - Brown Patent Leather",
       "category": "boot",
       "color": "brown",
       "material": "patent leather",
@@ -4619,8 +4619,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Pebbled Leather Ankle Boot - Brown Patent Leather",
+      "brand": "Ganni",
+      "title": "Ganni Pebbled Leather Ankle Boot - Brown Patent Leather",
       "category": "boot",
       "color": "brown",
       "material": "patent leather",
@@ -4645,8 +4645,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Aritzia",
-      "title": "Aritzia Oversized Bomber Jacket - Olive Cotton Twill",
+      "brand": "Vince",
+      "title": "Vince Quilted Puffer Jacket - Olive Cotton Twill",
       "category": "jacket",
       "color": "olive",
       "material": "cotton twill",
@@ -4671,8 +4671,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Aritzia",
-      "title": "Aritzia Oversized Bomber Jacket - Olive Cotton Twill",
+      "brand": "Vince",
+      "title": "Vince Quilted Puffer Jacket - Olive Cotton Twill",
       "category": "jacket",
       "color": "olive",
       "material": "cotton twill",
@@ -4697,8 +4697,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Aritzia",
-      "title": "Aritzia Oversized Bomber Jacket - Olive Cotton Twill",
+      "brand": "Vince",
+      "title": "Vince Quilted Puffer Jacket - Olive Cotton Twill",
       "category": "jacket",
       "color": "olive",
       "material": "cotton twill",
@@ -4723,8 +4723,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Maje",
-      "title": "Maje Pleated Shirt Dress - Sand Satin",
+      "brand": "Faithfull the Brand",
+      "title": "Faithfull the Brand Off-Shoulder Midi Dress - Sand Satin",
       "category": "dress",
       "color": "sand",
       "material": "satin",
@@ -4749,8 +4749,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Maje",
-      "title": "Maje Pleated Shirt Dress - Sand Satin",
+      "brand": "Faithfull the Brand",
+      "title": "Faithfull the Brand Off-Shoulder Midi Dress - Sand Satin",
       "category": "dress",
       "color": "sand",
       "material": "satin",
@@ -4775,8 +4775,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Maje",
-      "title": "Maje Pleated Shirt Dress - Sand Satin",
+      "brand": "Faithfull the Brand",
+      "title": "Faithfull the Brand Off-Shoulder Midi Dress - Sand Satin",
       "category": "dress",
       "color": "sand",
       "material": "satin",
@@ -4801,8 +4801,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Double-Breasted Blazer - Navy Nylon",
+      "brand": "Isabel Marant",
+      "title": "Isabel Marant Shearling-Collar Aviator Jacket - Navy Nylon",
       "category": "jacket",
       "color": "navy",
       "material": "nylon",
@@ -4827,8 +4827,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Double-Breasted Blazer - Navy Nylon",
+      "brand": "Isabel Marant",
+      "title": "Isabel Marant Shearling-Collar Aviator Jacket - Navy Nylon",
       "category": "jacket",
       "color": "navy",
       "material": "nylon",
@@ -4853,8 +4853,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Double-Breasted Blazer - Navy Nylon",
+      "brand": "Isabel Marant",
+      "title": "Isabel Marant Shearling-Collar Aviator Jacket - Navy Nylon",
       "category": "jacket",
       "color": "navy",
       "material": "nylon",
@@ -4879,8 +4879,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Slip Maxi Dress - Ivory Ribbed Knit",
+      "brand": "Veronica Beard",
+      "title": "Veronica Beard Pleated Shirt Dress - Ivory Ribbed Knit",
       "category": "dress",
       "color": "ivory",
       "material": "ribbed knit",
@@ -4905,8 +4905,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Slip Maxi Dress - Ivory Ribbed Knit",
+      "brand": "Veronica Beard",
+      "title": "Veronica Beard Pleated Shirt Dress - Ivory Ribbed Knit",
       "category": "dress",
       "color": "ivory",
       "material": "ribbed knit",
@@ -4931,8 +4931,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Slip Maxi Dress - Ivory Ribbed Knit",
+      "brand": "Veronica Beard",
+      "title": "Veronica Beard Pleated Shirt Dress - Ivory Ribbed Knit",
       "category": "dress",
       "color": "ivory",
       "material": "ribbed knit",
@@ -4957,8 +4957,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Rag & Bone",
-      "title": "Rag & Bone Ribbed Turtleneck Sweater - Rust Cotton Blend",
+      "brand": "Joie",
+      "title": "Joie Ribbed Turtleneck Sweater - Rust Cotton Blend",
       "category": "sweater",
       "color": "rust",
       "material": "cotton blend",
@@ -4983,8 +4983,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Rag & Bone",
-      "title": "Rag & Bone Ribbed Turtleneck Sweater - Rust Cotton Blend",
+      "brand": "Joie",
+      "title": "Joie Ribbed Turtleneck Sweater - Rust Cotton Blend",
       "category": "sweater",
       "color": "rust",
       "material": "cotton blend",
@@ -5009,8 +5009,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Rag & Bone",
-      "title": "Rag & Bone Ribbed Turtleneck Sweater - Rust Cotton Blend",
+      "brand": "Joie",
+      "title": "Joie Ribbed Turtleneck Sweater - Rust Cotton Blend",
       "category": "sweater",
       "color": "rust",
       "material": "cotton blend",
@@ -5035,8 +5035,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Ribbed Turtleneck Sweater - Forest Green Merino Wool",
+      "brand": "AllSaints",
+      "title": "AllSaints Ribbed Turtleneck Sweater - Forest Green Merino Wool",
       "category": "sweater",
       "color": "forest green",
       "material": "merino wool",
@@ -5061,8 +5061,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Ribbed Turtleneck Sweater - Forest Green Merino Wool",
+      "brand": "AllSaints",
+      "title": "AllSaints Ribbed Turtleneck Sweater - Forest Green Merino Wool",
       "category": "sweater",
       "color": "forest green",
       "material": "merino wool",
@@ -5087,8 +5087,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Ribbed Turtleneck Sweater - Forest Green Merino Wool",
+      "brand": "AllSaints",
+      "title": "AllSaints Ribbed Turtleneck Sweater - Forest Green Merino Wool",
       "category": "sweater",
       "color": "forest green",
       "material": "merino wool",
@@ -5113,8 +5113,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Pebbled Leather Ankle Boot - Brown Suede",
+      "brand": "Nili Lotan",
+      "title": "Nili Lotan Patent Chelsea Boot - Brown Suede",
       "category": "boot",
       "color": "brown",
       "material": "suede",
@@ -5139,8 +5139,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Pebbled Leather Ankle Boot - Brown Suede",
+      "brand": "Nili Lotan",
+      "title": "Nili Lotan Patent Chelsea Boot - Brown Suede",
       "category": "boot",
       "color": "brown",
       "material": "suede",
@@ -5165,8 +5165,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Pebbled Leather Ankle Boot - Brown Suede",
+      "brand": "Nili Lotan",
+      "title": "Nili Lotan Patent Chelsea Boot - Brown Suede",
       "category": "boot",
       "color": "brown",
       "material": "suede",
@@ -5191,8 +5191,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Rag & Bone",
-      "title": "Rag & Bone Pebbled Leather Ankle Boot - Black Suede",
+      "brand": "Joie",
+      "title": "Joie Suede Knee-High Boot - Black Suede",
       "category": "boot",
       "color": "black",
       "material": "suede",
@@ -5217,8 +5217,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Rag & Bone",
-      "title": "Rag & Bone Pebbled Leather Ankle Boot - Black Suede",
+      "brand": "Joie",
+      "title": "Joie Suede Knee-High Boot - Black Suede",
       "category": "boot",
       "color": "black",
       "material": "suede",
@@ -5243,8 +5243,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Rag & Bone",
-      "title": "Rag & Bone Pebbled Leather Ankle Boot - Black Suede",
+      "brand": "Joie",
+      "title": "Joie Suede Knee-High Boot - Black Suede",
       "category": "boot",
       "color": "black",
       "material": "suede",
@@ -5685,8 +5685,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Pleated Shirt Dress - Black Linen",
+      "brand": "Theory",
+      "title": "Theory Cowl-Neck Slip Dress - Black Linen",
       "category": "dress",
       "color": "black",
       "material": "linen",
@@ -5711,8 +5711,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Pleated Shirt Dress - Black Linen",
+      "brand": "Theory",
+      "title": "Theory Cowl-Neck Slip Dress - Black Linen",
       "category": "dress",
       "color": "black",
       "material": "linen",
@@ -5737,8 +5737,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Embroidered Crewneck Sweater - Cream Merino Wool",
+      "brand": "Khaite",
+      "title": "Khaite Striped Boatneck Sweater - Cream Merino Wool",
       "category": "sweater",
       "color": "cream",
       "material": "merino wool",
@@ -5763,8 +5763,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Embroidered Crewneck Sweater - Cream Merino Wool",
+      "brand": "Khaite",
+      "title": "Khaite Striped Boatneck Sweater - Cream Merino Wool",
       "category": "sweater",
       "color": "cream",
       "material": "merino wool",
@@ -5789,8 +5789,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Ganni",
-      "title": "Ganni Pebbled Leather Ankle Boot - Bone Pebbled Leather",
+      "brand": "Toteme",
+      "title": "Toteme Pebbled Leather Ankle Boot - Bone Pebbled Leather",
       "category": "boot",
       "color": "bone",
       "material": "pebbled leather",
@@ -5815,8 +5815,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Ganni",
-      "title": "Ganni Pebbled Leather Ankle Boot - Bone Pebbled Leather",
+      "brand": "Toteme",
+      "title": "Toteme Pebbled Leather Ankle Boot - Bone Pebbled Leather",
       "category": "boot",
       "color": "bone",
       "material": "pebbled leather",
@@ -5841,8 +5841,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Slip Maxi Dress - Sand Silk",
+      "brand": "Nili Lotan",
+      "title": "Nili Lotan Pleated Shirt Dress - Sand Silk",
       "category": "dress",
       "color": "sand",
       "material": "silk",
@@ -5867,8 +5867,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Slip Maxi Dress - Sand Silk",
+      "brand": "Nili Lotan",
+      "title": "Nili Lotan Pleated Shirt Dress - Sand Silk",
       "category": "dress",
       "color": "sand",
       "material": "silk",
@@ -5893,8 +5893,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Ganni",
-      "title": "Ganni Pebbled Leather Ankle Boot - Black Patent Leather",
+      "brand": "Toteme",
+      "title": "Toteme Patent Chelsea Boot - Black Patent Leather",
       "category": "boot",
       "color": "black",
       "material": "patent leather",
@@ -5919,8 +5919,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Ganni",
-      "title": "Ganni Pebbled Leather Ankle Boot - Black Patent Leather",
+      "brand": "Toteme",
+      "title": "Toteme Patent Chelsea Boot - Black Patent Leather",
       "category": "boot",
       "color": "black",
       "material": "patent leather",
@@ -5945,8 +5945,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Oversized Cable Knit Sweater - Rust Cashmere",
+      "brand": "Ganni",
+      "title": "Ganni V-Neck Vest Sweater - Rust Cashmere",
       "category": "sweater",
       "color": "rust",
       "material": "cashmere",
@@ -5971,8 +5971,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Oversized Cable Knit Sweater - Rust Cashmere",
+      "brand": "Ganni",
+      "title": "Ganni V-Neck Vest Sweater - Rust Cashmere",
       "category": "sweater",
       "color": "rust",
       "material": "cashmere",
@@ -5997,8 +5997,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Ganni",
-      "title": "Ganni Suede Knee-High Boot - Bone Suede",
+      "brand": "Staud",
+      "title": "Staud Shearling-Lined Combat Boot - Bone Suede",
       "category": "boot",
       "color": "bone",
       "material": "suede",
@@ -6023,8 +6023,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Ganni",
-      "title": "Ganni Suede Knee-High Boot - Bone Suede",
+      "brand": "Staud",
+      "title": "Staud Shearling-Lined Combat Boot - Bone Suede",
       "category": "boot",
       "color": "bone",
       "material": "suede",
@@ -6049,8 +6049,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Ribbed Mini Dress - Emerald Ribbed Knit",
+      "brand": "Vince",
+      "title": "Vince Puff-Sleeve Tiered Dress - Emerald Ribbed Knit",
       "category": "dress",
       "color": "emerald",
       "material": "ribbed knit",
@@ -6075,8 +6075,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Ribbed Mini Dress - Emerald Ribbed Knit",
+      "brand": "Vince",
+      "title": "Vince Puff-Sleeve Tiered Dress - Emerald Ribbed Knit",
       "category": "dress",
       "color": "emerald",
       "material": "ribbed knit",
@@ -6101,8 +6101,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Ribbed Turtleneck Sweater - Forest Green Cashmere (SS24)",
+      "brand": "Khaite",
+      "title": "Khaite Oversized Cable Knit Sweater - Forest Green Cashmere (SS24)",
       "category": "sweater",
       "color": "forest green",
       "material": "cashmere",
@@ -6127,8 +6127,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Ribbed Turtleneck Sweater - Forest Green Cashmere",
+      "brand": "Khaite",
+      "title": "Khaite Oversized Cable Knit Sweater - Forest Green Cashmere",
       "category": "sweater",
       "color": "forest green",
       "material": "cashmere",
@@ -6153,8 +6153,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Rag & Bone",
-      "title": "Rag & Bone Cropped Moto Jacket - Black Nylon (SS24)",
+      "brand": "Joie",
+      "title": "Joie Cropped Moto Jacket - Black Nylon (SS24)",
       "category": "jacket",
       "color": "black",
       "material": "nylon",
@@ -6179,8 +6179,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Rag & Bone",
-      "title": "Rag & Bone Cropped Moto Jacket - Black Nylon",
+      "brand": "Joie",
+      "title": "Joie Cropped Moto Jacket - Black Nylon",
       "category": "jacket",
       "color": "black",
       "material": "nylon",
@@ -6205,8 +6205,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "AllSaints",
-      "title": "AllSaints Ribbed Turtleneck Sweater - Rust Merino Wool (SS24)",
+      "brand": "The Row",
+      "title": "The Row Oversized Cable Knit Sweater - Rust Merino Wool (SS24)",
       "category": "sweater",
       "color": "rust",
       "material": "merino wool",
@@ -6231,8 +6231,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "AllSaints",
-      "title": "AllSaints Ribbed Turtleneck Sweater - Rust Merino Wool",
+      "brand": "The Row",
+      "title": "The Row Oversized Cable Knit Sweater - Rust Merino Wool",
       "category": "sweater",
       "color": "rust",
       "material": "merino wool",
@@ -6257,8 +6257,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Nili Lotan",
-      "title": "Nili Lotan Pebbled Leather Ankle Boot - Bone Suede (SS24)",
+      "brand": "Ba&sh",
+      "title": "Ba&sh Patent Chelsea Boot - Bone Suede (SS24)",
       "category": "boot",
       "color": "bone",
       "material": "suede",
@@ -6283,8 +6283,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Nili Lotan",
-      "title": "Nili Lotan Pebbled Leather Ankle Boot - Bone Suede",
+      "brand": "Ba&sh",
+      "title": "Ba&sh Patent Chelsea Boot - Bone Suede",
       "category": "boot",
       "color": "bone",
       "material": "suede",
@@ -6309,8 +6309,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Suede Knee-High Boot - Brown Pebbled Leather (SS24)",
+      "brand": "Isabel Marant",
+      "title": "Isabel Marant Block-Heel Western Boot - Brown Pebbled Leather (SS24)",
       "category": "boot",
       "color": "brown",
       "material": "pebbled leather",
@@ -6335,8 +6335,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Suede Knee-High Boot - Brown Pebbled Leather",
+      "brand": "Isabel Marant",
+      "title": "Isabel Marant Block-Heel Western Boot - Brown Pebbled Leather",
       "category": "boot",
       "color": "brown",
       "material": "pebbled leather",
@@ -6361,8 +6361,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Embroidered Crewneck Sweater - Rust Cotton Blend (SS24)",
+      "brand": "Nili Lotan",
+      "title": "Nili Lotan Striped Boatneck Sweater - Rust Cotton Blend (SS24)",
       "category": "sweater",
       "color": "rust",
       "material": "cotton blend",
@@ -6387,8 +6387,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Embroidered Crewneck Sweater - Rust Cotton Blend",
+      "brand": "Nili Lotan",
+      "title": "Nili Lotan Striped Boatneck Sweater - Rust Cotton Blend",
       "category": "sweater",
       "color": "rust",
       "material": "cotton blend",
@@ -6413,8 +6413,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Nili Lotan",
-      "title": "Nili Lotan Embroidered Crewneck Sweater - Cream Cashmere (SS24)",
+      "brand": "Ba&sh",
+      "title": "Ba&sh Chunky Shawl-Collar Cardigan - Cream Cashmere (SS24)",
       "category": "sweater",
       "color": "cream",
       "material": "cashmere",
@@ -6439,8 +6439,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Nili Lotan",
-      "title": "Nili Lotan Embroidered Crewneck Sweater - Cream Cashmere",
+      "brand": "Ba&sh",
+      "title": "Ba&sh Chunky Shawl-Collar Cardigan - Cream Cashmere",
       "category": "sweater",
       "color": "cream",
       "material": "cashmere",
@@ -6465,8 +6465,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Rag & Bone",
-      "title": "Rag & Bone Embroidered Crewneck Sweater - Forest Green Cashmere (SS24)",
+      "brand": "Joie",
+      "title": "Joie Chunky Shawl-Collar Cardigan - Forest Green Cashmere (SS24)",
       "category": "sweater",
       "color": "forest green",
       "material": "cashmere",
@@ -6491,8 +6491,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Rag & Bone",
-      "title": "Rag & Bone Embroidered Crewneck Sweater - Forest Green Cashmere",
+      "brand": "Joie",
+      "title": "Joie Chunky Shawl-Collar Cardigan - Forest Green Cashmere",
       "category": "sweater",
       "color": "forest green",
       "material": "cashmere",
@@ -6515,10 +6515,10 @@
       "sizeAvailable": null,
       "gtin": null,
       "mpn": null,
-      "manufacturerStyleCode": "CR-1000",
+      "manufacturerStyleCode": "DO-1000",
       "retailerSku": null,
-      "brand": "Maje",
-      "title": "Maje Cropped Moto Jacket - Brown Suede",
+      "brand": "Faithfull the Brand",
+      "title": "Faithfull the Brand Double-Breasted Blazer - Brown Suede",
       "category": "jacket",
       "color": "brown",
       "material": "suede",
@@ -6541,10 +6541,10 @@
       "sizeAvailable": null,
       "gtin": null,
       "mpn": null,
-      "manufacturerStyleCode": "CR-2000",
+      "manufacturerStyleCode": "DO-2000",
       "retailerSku": null,
-      "brand": "Maje",
-      "title": "Maje Cropped Moto Jacket - Brown Suede",
+      "brand": "Faithfull the Brand",
+      "title": "Faithfull the Brand Double-Breasted Blazer - Brown Suede",
       "category": "jacket",
       "color": "brown",
       "material": "suede",
@@ -6567,10 +6567,10 @@
       "sizeAvailable": null,
       "gtin": null,
       "mpn": null,
-      "manufacturerStyleCode": "OV-1001",
+      "manufacturerStyleCode": "BE-1001",
       "retailerSku": null,
-      "brand": "Rag & Bone",
-      "title": "Rag & Bone Oversized Bomber Jacket - Brown Suede",
+      "brand": "Joie",
+      "title": "Joie Belted Trench Coat - Brown Suede",
       "category": "jacket",
       "color": "brown",
       "material": "suede",
@@ -6593,10 +6593,10 @@
       "sizeAvailable": null,
       "gtin": null,
       "mpn": null,
-      "manufacturerStyleCode": "OV-2001",
+      "manufacturerStyleCode": "BE-2001",
       "retailerSku": null,
-      "brand": "Rag & Bone",
-      "title": "Rag & Bone Oversized Bomber Jacket - Brown Suede",
+      "brand": "Joie",
+      "title": "Joie Belted Trench Coat - Brown Suede",
       "category": "jacket",
       "color": "brown",
       "material": "suede",
@@ -6619,10 +6619,10 @@
       "sizeAvailable": null,
       "gtin": null,
       "mpn": null,
-      "manufacturerStyleCode": "SL-1002",
+      "manufacturerStyleCode": "AS-1002",
       "retailerSku": null,
-      "brand": "Maje",
-      "title": "Maje Slip Maxi Dress - Sand Linen",
+      "brand": "Zimmermann",
+      "title": "Zimmermann Asymmetric Cutout Dress - Sand Linen",
       "category": "dress",
       "color": "sand",
       "material": "linen",
@@ -6645,10 +6645,10 @@
       "sizeAvailable": null,
       "gtin": null,
       "mpn": null,
-      "manufacturerStyleCode": "SL-2002",
+      "manufacturerStyleCode": "AS-2002",
       "retailerSku": null,
-      "brand": "Maje",
-      "title": "Maje Slip Maxi Dress - Sand Linen",
+      "brand": "Zimmermann",
+      "title": "Zimmermann Asymmetric Cutout Dress - Sand Linen",
       "category": "dress",
       "color": "sand",
       "material": "linen",
@@ -6671,10 +6671,10 @@
       "sizeAvailable": null,
       "gtin": null,
       "mpn": null,
-      "manufacturerStyleCode": "OV-1003",
+      "manufacturerStyleCode": "QU-1003",
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Oversized Bomber Jacket - Brown Lambskin",
+      "brand": "Theory",
+      "title": "Theory Quilted Puffer Jacket - Brown Lambskin",
       "category": "jacket",
       "color": "brown",
       "material": "lambskin",
@@ -6697,10 +6697,10 @@
       "sizeAvailable": null,
       "gtin": null,
       "mpn": null,
-      "manufacturerStyleCode": "OV-2003",
+      "manufacturerStyleCode": "QU-2003",
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Oversized Bomber Jacket - Brown Lambskin",
+      "brand": "Theory",
+      "title": "Theory Quilted Puffer Jacket - Brown Lambskin",
       "category": "jacket",
       "color": "brown",
       "material": "lambskin",
@@ -6723,10 +6723,10 @@
       "sizeAvailable": null,
       "gtin": null,
       "mpn": null,
-      "manufacturerStyleCode": "RI-1004",
+      "manufacturerStyleCode": "OV-1004",
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Ribbed Turtleneck Sweater - Cream Cotton Blend",
+      "brand": "AllSaints",
+      "title": "AllSaints Oversized Cable Knit Sweater - Cream Cotton Blend",
       "category": "sweater",
       "color": "cream",
       "material": "cotton blend",
@@ -6749,10 +6749,10 @@
       "sizeAvailable": null,
       "gtin": null,
       "mpn": null,
-      "manufacturerStyleCode": "RI-2004",
+      "manufacturerStyleCode": "OV-2004",
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Ribbed Turtleneck Sweater - Cream Cotton Blend",
+      "brand": "AllSaints",
+      "title": "AllSaints Oversized Cable Knit Sweater - Cream Cotton Blend",
       "category": "sweater",
       "color": "cream",
       "material": "cotton blend",
@@ -6775,10 +6775,10 @@
       "sizeAvailable": null,
       "gtin": null,
       "mpn": null,
-      "manufacturerStyleCode": "DO-1005",
+      "manufacturerStyleCode": "CR-1005",
       "retailerSku": null,
-      "brand": "Nili Lotan",
-      "title": "Nili Lotan Double-Breasted Blazer - Camel Lambskin",
+      "brand": "Ba&sh",
+      "title": "Ba&sh Cropped Denim Jacket - Camel Lambskin",
       "category": "jacket",
       "color": "camel",
       "material": "lambskin",
@@ -6801,10 +6801,10 @@
       "sizeAvailable": null,
       "gtin": null,
       "mpn": null,
-      "manufacturerStyleCode": "DO-2005",
+      "manufacturerStyleCode": "CR-2005",
       "retailerSku": null,
-      "brand": "Nili Lotan",
-      "title": "Nili Lotan Double-Breasted Blazer - Camel Lambskin",
+      "brand": "Ba&sh",
+      "title": "Ba&sh Cropped Denim Jacket - Camel Lambskin",
       "category": "jacket",
       "color": "camel",
       "material": "lambskin",
@@ -6827,10 +6827,10 @@
       "sizeAvailable": null,
       "gtin": null,
       "mpn": null,
-      "manufacturerStyleCode": "EM-1006",
+      "manufacturerStyleCode": "CH-1006",
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Embroidered Crewneck Sweater - Charcoal Merino Wool",
+      "brand": "Theory",
+      "title": "Theory Chunky Shawl-Collar Cardigan - Charcoal Merino Wool",
       "category": "sweater",
       "color": "charcoal",
       "material": "merino wool",
@@ -6853,10 +6853,10 @@
       "sizeAvailable": null,
       "gtin": null,
       "mpn": null,
-      "manufacturerStyleCode": "EM-2006",
+      "manufacturerStyleCode": "CH-2006",
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Embroidered Crewneck Sweater - Charcoal Merino Wool",
+      "brand": "Theory",
+      "title": "Theory Chunky Shawl-Collar Cardigan - Charcoal Merino Wool",
       "category": "sweater",
       "color": "charcoal",
       "material": "merino wool",
@@ -6881,8 +6881,8 @@
       "mpn": null,
       "manufacturerStyleCode": "PE-1007",
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Pebbled Leather Ankle Boot - Brown Patent Leather",
+      "brand": "Veronica Beard",
+      "title": "Veronica Beard Pebbled Leather Ankle Boot - Brown Patent Leather",
       "category": "boot",
       "color": "brown",
       "material": "patent leather",
@@ -6907,8 +6907,8 @@
       "mpn": null,
       "manufacturerStyleCode": "PE-2007",
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Pebbled Leather Ankle Boot - Brown Patent Leather",
+      "brand": "Veronica Beard",
+      "title": "Veronica Beard Pebbled Leather Ankle Boot - Brown Patent Leather",
       "category": "boot",
       "color": "brown",
       "material": "patent leather",
@@ -6933,8 +6933,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Ribbed Turtleneck Sweater - Cream Merino Wool",
+      "brand": "Toteme",
+      "title": "Toteme Embroidered Crewneck Sweater - Cream Merino Wool",
       "category": "sweater",
       "color": "cream",
       "material": "merino wool",
@@ -6959,8 +6959,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Ribbed Turtleneck Sweater - Cream Merino Wool",
+      "brand": "Toteme",
+      "title": "Toteme Embroidered Crewneck Sweater - Cream Merino Wool",
       "category": "sweater",
       "color": "cream",
       "material": "merino wool",
@@ -6985,8 +6985,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Veronica Beard",
-      "title": "Veronica Beard Wrap Midi Dress - Emerald Satin",
+      "brand": "Equipment",
+      "title": "Equipment Wrap Midi Dress - Emerald Satin",
       "category": "dress",
       "color": "emerald",
       "material": "satin",
@@ -7011,8 +7011,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Veronica Beard",
-      "title": "Veronica Beard Wrap Midi Dress - Emerald Satin",
+      "brand": "Equipment",
+      "title": "Equipment Wrap Midi Dress - Emerald Satin",
       "category": "dress",
       "color": "emerald",
       "material": "satin",
@@ -7037,8 +7037,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Suede Knee-High Boot - Black Pebbled Leather",
+      "brand": "Frame",
+      "title": "Frame Slouchy Over-the-Knee Boot - Black Pebbled Leather",
       "category": "boot",
       "color": "black",
       "material": "pebbled leather",
@@ -7063,8 +7063,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Suede Knee-High Boot - Black Pebbled Leather",
+      "brand": "Frame",
+      "title": "Frame Slouchy Over-the-Knee Boot - Black Pebbled Leather",
       "category": "boot",
       "color": "black",
       "material": "pebbled leather",
@@ -7089,8 +7089,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "AllSaints",
-      "title": "AllSaints Quilted Puffer Jacket - Olive Wool",
+      "brand": "A.L.C.",
+      "title": "A.L.C. Utility Field Jacket - Olive Wool",
       "category": "jacket",
       "color": "olive",
       "material": "wool",
@@ -7115,8 +7115,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "AllSaints",
-      "title": "AllSaints Quilted Puffer Jacket - Olive Wool",
+      "brand": "A.L.C.",
+      "title": "A.L.C. Utility Field Jacket - Olive Wool",
       "category": "jacket",
       "color": "olive",
       "material": "wool",
@@ -7141,8 +7141,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "AllSaints",
-      "title": "AllSaints Ribbed Turtleneck Sweater - Charcoal Cashmere",
+      "brand": "Proenza Schouler",
+      "title": "Proenza Schouler Ribbed Turtleneck Sweater - Charcoal Cashmere",
       "category": "sweater",
       "color": "charcoal",
       "material": "cashmere",
@@ -7167,8 +7167,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "AllSaints",
-      "title": "AllSaints Ribbed Turtleneck Sweater - Charcoal Cashmere",
+      "brand": "Proenza Schouler",
+      "title": "Proenza Schouler Ribbed Turtleneck Sweater - Charcoal Cashmere",
       "category": "sweater",
       "color": "charcoal",
       "material": "cashmere",
@@ -7193,8 +7193,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Ganni",
-      "title": "Ganni Ribbed Turtleneck Sweater - Cream Cashmere",
+      "brand": "Staud",
+      "title": "Staud Ribbed Turtleneck Sweater - Cream Cashmere",
       "category": "sweater",
       "color": "cream",
       "material": "cashmere",
@@ -7219,8 +7219,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Ganni",
-      "title": "Ganni Ribbed Turtleneck Sweater - Cream Cashmere",
+      "brand": "Staud",
+      "title": "Staud Ribbed Turtleneck Sweater - Cream Cashmere",
       "category": "sweater",
       "color": "cream",
       "material": "cashmere",
@@ -7245,8 +7245,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Theory",
-      "title": "Theory Ribbed Turtleneck Sweater - Rust Cotton Blend",
+      "brand": "Rag & Bone",
+      "title": "Rag & Bone Ribbed Turtleneck Sweater - Rust Cotton Blend",
       "category": "sweater",
       "color": "rust",
       "material": "cotton blend",
@@ -7271,8 +7271,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Theory",
-      "title": "Theory Ribbed Turtleneck Sweater - Rust Cotton Blend",
+      "brand": "Rag & Bone",
+      "title": "Rag & Bone Ribbed Turtleneck Sweater - Rust Cotton Blend",
       "category": "sweater",
       "color": "rust",
       "material": "cotton blend",
@@ -7297,8 +7297,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Patent Chelsea Boot - Taupe Pebbled Leather",
+      "brand": "Vince",
+      "title": "Vince Lug-Sole Lace-Up Boot - Taupe Pebbled Leather",
       "category": "boot",
       "color": "taupe",
       "material": "pebbled leather",
@@ -7323,8 +7323,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Patent Chelsea Boot - Taupe Pebbled Leather",
+      "brand": "Vince",
+      "title": "Vince Lug-Sole Lace-Up Boot - Taupe Pebbled Leather",
       "category": "boot",
       "color": "taupe",
       "material": "pebbled leather",
@@ -7349,8 +7349,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Maje",
-      "title": "Maje Ribbed Turtleneck Sweater - Charcoal Cashmere - Womens",
+      "brand": "Zimmermann",
+      "title": "Zimmermann Ribbed Turtleneck Sweater - Charcoal Cashmere - Womens",
       "category": "sweater",
       "color": "charcoal",
       "material": "cashmere",
@@ -7377,8 +7377,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Maje",
-      "title": "Maje Ribbed Turtleneck Sweater - Charcoal Cashmere - Mens",
+      "brand": "Zimmermann",
+      "title": "Zimmermann Ribbed Turtleneck Sweater - Charcoal Cashmere - Mens",
       "category": "sweater",
       "color": "charcoal",
       "material": "cashmere",
@@ -7406,7 +7406,7 @@
       "manufacturerStyleCode": null,
       "retailerSku": null,
       "brand": "Aritzia",
-      "title": "Aritzia Pebbled Leather Ankle Boot - Bone Pebbled Leather - Womens",
+      "title": "Aritzia Patent Chelsea Boot - Bone Pebbled Leather - Womens",
       "category": "boot",
       "color": "bone",
       "material": "pebbled leather",
@@ -7434,7 +7434,7 @@
       "manufacturerStyleCode": null,
       "retailerSku": null,
       "brand": "Aritzia",
-      "title": "Aritzia Pebbled Leather Ankle Boot - Bone Pebbled Leather - Mens",
+      "title": "Aritzia Patent Chelsea Boot - Bone Pebbled Leather - Mens",
       "category": "boot",
       "color": "bone",
       "material": "pebbled leather",
@@ -7461,8 +7461,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Embroidered Crewneck Sweater - Rust Cotton Blend - Womens",
+      "brand": "Frame",
+      "title": "Frame Cowl-Neck Tunic Sweater - Rust Cotton Blend - Womens",
       "category": "sweater",
       "color": "rust",
       "material": "cotton blend",
@@ -7489,8 +7489,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Embroidered Crewneck Sweater - Rust Cotton Blend - Mens",
+      "brand": "Frame",
+      "title": "Frame Cowl-Neck Tunic Sweater - Rust Cotton Blend - Mens",
       "category": "sweater",
       "color": "rust",
       "material": "cotton blend",
@@ -7517,8 +7517,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Oversized Cable Knit Sweater - Cream Merino Wool - Womens",
+      "brand": "Frame",
+      "title": "Frame Cropped Mock-Neck Sweater - Cream Merino Wool - Womens",
       "category": "sweater",
       "color": "cream",
       "material": "merino wool",
@@ -7545,8 +7545,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Oversized Cable Knit Sweater - Cream Merino Wool - Mens",
+      "brand": "Frame",
+      "title": "Frame Cropped Mock-Neck Sweater - Cream Merino Wool - Mens",
       "category": "sweater",
       "color": "cream",
       "material": "merino wool",
@@ -7573,8 +7573,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Theory",
-      "title": "Theory Pleated Shirt Dress - Ivory Ribbed Knit - Womens",
+      "brand": "Sandro",
+      "title": "Sandro Smocked Tank Dress - Ivory Ribbed Knit - Womens",
       "category": "dress",
       "color": "ivory",
       "material": "ribbed knit",
@@ -7601,8 +7601,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Theory",
-      "title": "Theory Pleated Shirt Dress - Ivory Ribbed Knit - Mens",
+      "brand": "Sandro",
+      "title": "Sandro Smocked Tank Dress - Ivory Ribbed Knit - Mens",
       "category": "dress",
       "color": "ivory",
       "material": "ribbed knit",
@@ -7629,8 +7629,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Oversized Cable Knit Sweater - Cream Merino Wool - Womens",
+      "brand": "Khaite",
+      "title": "Khaite Cropped Mock-Neck Sweater - Cream Merino Wool - Womens",
       "category": "sweater",
       "color": "cream",
       "material": "merino wool",
@@ -7657,8 +7657,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Oversized Cable Knit Sweater - Cream Merino Wool - Mens",
+      "brand": "Khaite",
+      "title": "Khaite Cropped Mock-Neck Sweater - Cream Merino Wool - Mens",
       "category": "sweater",
       "color": "cream",
       "material": "merino wool",
@@ -7685,8 +7685,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Ganni",
-      "title": "Ganni Double-Breasted Blazer - Camel Nylon - Womens",
+      "brand": "Toteme",
+      "title": "Toteme Longline Wool Coat - Camel Nylon - Womens",
       "category": "jacket",
       "color": "camel",
       "material": "nylon",
@@ -7713,8 +7713,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Ganni",
-      "title": "Ganni Double-Breasted Blazer - Camel Nylon - Mens",
+      "brand": "Toteme",
+      "title": "Toteme Longline Wool Coat - Camel Nylon - Mens",
       "category": "jacket",
       "color": "camel",
       "material": "nylon",
@@ -7741,8 +7741,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Pebbled Leather Ankle Boot - Bone Suede - Womens",
+      "brand": "Nili Lotan",
+      "title": "Nili Lotan Pebbled Leather Ankle Boot - Bone Suede - Womens",
       "category": "boot",
       "color": "bone",
       "material": "suede",
@@ -7769,8 +7769,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Pebbled Leather Ankle Boot - Bone Suede - Mens",
+      "brand": "Nili Lotan",
+      "title": "Nili Lotan Pebbled Leather Ankle Boot - Bone Suede - Mens",
       "category": "boot",
       "color": "bone",
       "material": "suede",
@@ -7797,8 +7797,8 @@
       "mpn": null,
       "manufacturerStyleCode": "V2-0",
       "retailerSku": null,
-      "brand": "Maje",
-      "title": "Maje Ribbed Turtleneck Sweater - Forest Green Cotton Blend",
+      "brand": "Zimmermann",
+      "title": "Zimmermann Oversized Cable Knit Sweater - Forest Green Cotton Blend",
       "category": "sweater",
       "color": "forest green",
       "material": "cotton blend",
@@ -7823,8 +7823,8 @@
       "mpn": null,
       "manufacturerStyleCode": "V1-0",
       "retailerSku": null,
-      "brand": "Maje",
-      "title": "Maje Ribbed Turtleneck Sweater - Forest Green Cotton Blend",
+      "brand": "Zimmermann",
+      "title": "Zimmermann Oversized Cable Knit Sweater - Forest Green Cotton Blend",
       "category": "sweater",
       "color": "forest green",
       "material": "cotton blend",
@@ -7849,8 +7849,8 @@
       "mpn": null,
       "manufacturerStyleCode": "V2-1",
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Quilted Puffer Jacket - Black Suede",
+      "brand": "Theory",
+      "title": "Theory Cropped Tweed Jacket - Black Suede",
       "category": "jacket",
       "color": "black",
       "material": "suede",
@@ -7875,8 +7875,8 @@
       "mpn": null,
       "manufacturerStyleCode": "V1-1",
       "retailerSku": null,
-      "brand": "Reformation",
-      "title": "Reformation Quilted Puffer Jacket - Black Suede",
+      "brand": "Theory",
+      "title": "Theory Cropped Tweed Jacket - Black Suede",
       "category": "jacket",
       "color": "black",
       "material": "suede",
@@ -7901,8 +7901,8 @@
       "mpn": null,
       "manufacturerStyleCode": "V2-2",
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Ribbed Mini Dress - Sand Silk",
+      "brand": "Sandro",
+      "title": "Sandro Puff-Sleeve Tiered Dress - Sand Silk",
       "category": "dress",
       "color": "sand",
       "material": "silk",
@@ -7927,8 +7927,8 @@
       "mpn": null,
       "manufacturerStyleCode": "V1-2",
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Ribbed Mini Dress - Sand Silk",
+      "brand": "Sandro",
+      "title": "Sandro Puff-Sleeve Tiered Dress - Sand Silk",
       "category": "dress",
       "color": "sand",
       "material": "silk",
@@ -7953,8 +7953,8 @@
       "mpn": null,
       "manufacturerStyleCode": "V2-3",
       "retailerSku": null,
-      "brand": "Maje",
-      "title": "Maje Wrap Midi Dress - Burgundy Silk",
+      "brand": "Ulla Johnson",
+      "title": "Ulla Johnson Slip Maxi Dress - Burgundy Silk",
       "category": "dress",
       "color": "burgundy",
       "material": "silk",
@@ -7979,8 +7979,8 @@
       "mpn": null,
       "manufacturerStyleCode": "V1-3",
       "retailerSku": null,
-      "brand": "Maje",
-      "title": "Maje Wrap Midi Dress - Burgundy Silk",
+      "brand": "Ulla Johnson",
+      "title": "Ulla Johnson Slip Maxi Dress - Burgundy Silk",
       "category": "dress",
       "color": "burgundy",
       "material": "silk",
@@ -8005,8 +8005,8 @@
       "mpn": null,
       "manufacturerStyleCode": "V2-4",
       "retailerSku": null,
-      "brand": "Aritzia",
-      "title": "Aritzia Embroidered Crewneck Sweater - Forest Green Cotton Blend",
+      "brand": "Reformation",
+      "title": "Reformation Striped Boatneck Sweater - Forest Green Cotton Blend",
       "category": "sweater",
       "color": "forest green",
       "material": "cotton blend",
@@ -8031,8 +8031,8 @@
       "mpn": null,
       "manufacturerStyleCode": "V1-4",
       "retailerSku": null,
-      "brand": "Aritzia",
-      "title": "Aritzia Embroidered Crewneck Sweater - Forest Green Cotton Blend",
+      "brand": "Reformation",
+      "title": "Reformation Striped Boatneck Sweater - Forest Green Cotton Blend",
       "category": "sweater",
       "color": "forest green",
       "material": "cotton blend",
@@ -8057,8 +8057,8 @@
       "mpn": null,
       "manufacturerStyleCode": "V2-5",
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Patent Chelsea Boot - Bone Patent Leather",
+      "brand": "Sandro",
+      "title": "Sandro Lug-Sole Lace-Up Boot - Bone Patent Leather",
       "category": "boot",
       "color": "bone",
       "material": "patent leather",
@@ -8083,8 +8083,8 @@
       "mpn": null,
       "manufacturerStyleCode": "V1-5",
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Patent Chelsea Boot - Bone Patent Leather",
+      "brand": "Sandro",
+      "title": "Sandro Lug-Sole Lace-Up Boot - Bone Patent Leather",
       "category": "boot",
       "color": "bone",
       "material": "patent leather",
@@ -8110,7 +8110,7 @@
       "manufacturerStyleCode": "V2-6",
       "retailerSku": null,
       "brand": "Aritzia",
-      "title": "Aritzia Oversized Cable Knit Sweater - Forest Green Merino Wool",
+      "title": "Aritzia Fair Isle Crewneck Sweater - Forest Green Merino Wool",
       "category": "sweater",
       "color": "forest green",
       "material": "merino wool",
@@ -8136,7 +8136,7 @@
       "manufacturerStyleCode": "V1-6",
       "retailerSku": null,
       "brand": "Aritzia",
-      "title": "Aritzia Oversized Cable Knit Sweater - Forest Green Merino Wool",
+      "title": "Aritzia Fair Isle Crewneck Sweater - Forest Green Merino Wool",
       "category": "sweater",
       "color": "forest green",
       "material": "merino wool",
@@ -8161,8 +8161,8 @@
       "mpn": null,
       "manufacturerStyleCode": "V2-7",
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Cropped Moto Jacket - Olive Nylon",
+      "brand": "AllSaints",
+      "title": "AllSaints Double-Breasted Blazer - Olive Nylon",
       "category": "jacket",
       "color": "olive",
       "material": "nylon",
@@ -8187,8 +8187,8 @@
       "mpn": null,
       "manufacturerStyleCode": "V1-7",
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Cropped Moto Jacket - Olive Nylon",
+      "brand": "AllSaints",
+      "title": "AllSaints Double-Breasted Blazer - Olive Nylon",
       "category": "jacket",
       "color": "olive",
       "material": "nylon",
@@ -8213,8 +8213,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Nili Lotan",
-      "title": "Nili Lotan Slip Maxi Dress - Black Satin",
+      "brand": "Free People",
+      "title": "Free People Pleated Shirt Dress - Black Satin",
       "category": "dress",
       "color": "black",
       "material": "satin",
@@ -8265,8 +8265,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Frame",
-      "title": "Frame Cropped Moto Jacket - Brown Wool",
+      "brand": "Nili Lotan",
+      "title": "Nili Lotan Cropped Moto Jacket - Brown Wool",
       "category": "jacket",
       "color": "brown",
       "material": "wool",
@@ -8317,8 +8317,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "AllSaints",
-      "title": "AllSaints Oversized Bomber Jacket - Brown Nylon",
+      "brand": "Proenza Schouler",
+      "title": "Proenza Schouler Quilted Puffer Jacket - Brown Nylon",
       "category": "jacket",
       "color": "brown",
       "material": "nylon",
@@ -8369,8 +8369,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Theory",
-      "title": "Theory Suede Knee-High Boot - Bone Pebbled Leather",
+      "brand": "Rag & Bone",
+      "title": "Rag & Bone Shearling-Lined Combat Boot - Bone Pebbled Leather",
       "category": "boot",
       "color": "bone",
       "material": "pebbled leather",
@@ -8421,8 +8421,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Nili Lotan",
-      "title": "Nili Lotan Suede Knee-High Boot - Bone Suede",
+      "brand": "Acne Studios",
+      "title": "Acne Studios Shearling-Lined Combat Boot - Bone Suede",
       "category": "boot",
       "color": "bone",
       "material": "suede",
@@ -8473,8 +8473,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Veronica Beard",
-      "title": "Veronica Beard Pebbled Leather Ankle Boot - Black Suede",
+      "brand": "Acne Studios",
+      "title": "Acne Studios Pebbled Leather Ankle Boot - Black Suede",
       "category": "boot",
       "color": "black",
       "material": "suede",
@@ -8525,8 +8525,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Ganni",
-      "title": "Ganni Pleated Shirt Dress - Emerald Silk",
+      "brand": "Toteme",
+      "title": "Toteme Smocked Tank Dress - Emerald Silk",
       "category": "dress",
       "color": "emerald",
       "material": "silk",
@@ -8577,8 +8577,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Nili Lotan",
-      "title": "Nili Lotan Ribbed Mini Dress - Ivory Ribbed Knit",
+      "brand": "Ba&sh",
+      "title": "Ba&sh Halter Column Gown - Ivory Ribbed Knit",
       "category": "dress",
       "color": "ivory",
       "material": "ribbed knit",
@@ -8629,8 +8629,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Rag & Bone",
-      "title": "Rag & Bone Item",
+      "brand": "Anine Bing",
+      "title": "Anine Bing Item",
       "category": null,
       "color": null,
       "material": null,
@@ -8655,8 +8655,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Rag & Bone",
-      "title": "Rag & Bone Item",
+      "brand": "Anine Bing",
+      "title": "Anine Bing Item",
       "category": null,
       "color": null,
       "material": null,
@@ -8681,8 +8681,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "AllSaints",
-      "title": "AllSaints Item",
+      "brand": "Proenza Schouler",
+      "title": "Proenza Schouler Item",
       "category": null,
       "color": null,
       "material": null,
@@ -8707,8 +8707,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "AllSaints",
-      "title": "AllSaints Item",
+      "brand": "Proenza Schouler",
+      "title": "Proenza Schouler Item",
       "category": null,
       "color": null,
       "material": null,
@@ -8733,8 +8733,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Nili Lotan",
-      "title": "Nili Lotan Item",
+      "brand": "Free People",
+      "title": "Free People Item",
       "category": null,
       "color": null,
       "material": null,
@@ -8759,8 +8759,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Nili Lotan",
-      "title": "Nili Lotan Item",
+      "brand": "Free People",
+      "title": "Free People Item",
       "category": null,
       "color": null,
       "material": null,
@@ -8785,8 +8785,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Veronica Beard",
-      "title": "Veronica Beard Item",
+      "brand": "Acne Studios",
+      "title": "Acne Studios Item",
       "category": null,
       "color": null,
       "material": null,
@@ -8811,8 +8811,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Veronica Beard",
-      "title": "Veronica Beard Item",
+      "brand": "Acne Studios",
+      "title": "Acne Studios Item",
       "category": null,
       "color": null,
       "material": null,
@@ -8837,8 +8837,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "AllSaints",
-      "title": "AllSaints Item",
+      "brand": "Proenza Schouler",
+      "title": "Proenza Schouler Item",
       "category": null,
       "color": null,
       "material": null,
@@ -8863,8 +8863,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "AllSaints",
-      "title": "AllSaints Item",
+      "brand": "Proenza Schouler",
+      "title": "Proenza Schouler Item",
       "category": null,
       "color": null,
       "material": null,
@@ -8941,8 +8941,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Item",
+      "brand": "Khaite",
+      "title": "Khaite Item",
       "category": null,
       "color": null,
       "material": null,
@@ -8967,8 +8967,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Sandro",
-      "title": "Sandro Item",
+      "brand": "Khaite",
+      "title": "Khaite Item",
       "category": null,
       "color": null,
       "material": null,
@@ -8993,8 +8993,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Item",
+      "brand": "Ganni",
+      "title": "Ganni Item",
       "category": null,
       "color": null,
       "material": null,
@@ -9019,8 +9019,8 @@
       "mpn": null,
       "manufacturerStyleCode": null,
       "retailerSku": null,
-      "brand": "Vince",
-      "title": "Vince Item",
+      "brand": "Ganni",
+      "title": "Ganni Item",
       "category": null,
       "color": null,
       "material": null,
@@ -9035,8 +9035,8 @@
   "canonicalStyles": [
     {
       "styleId": "true-duplicate-cross-retailer-0-style1",
-      "brand": "Sandro",
-      "styleName": "Patent Chelsea Boot",
+      "brand": "Isabel Marant",
+      "styleName": "Lug-Sole Lace-Up Boot",
       "category": "boot",
       "variants": [
         {
@@ -9052,8 +9052,8 @@
     },
     {
       "styleId": "true-duplicate-cross-retailer-1-style1",
-      "brand": "Sandro",
-      "styleName": "Oversized Cable Knit Sweater",
+      "brand": "The Row",
+      "styleName": "Cropped Mock-Neck Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -9069,8 +9069,8 @@
     },
     {
       "styleId": "true-duplicate-cross-retailer-2-style1",
-      "brand": "Veronica Beard",
-      "styleName": "Wrap Midi Dress",
+      "brand": "Iro",
+      "styleName": "Slip Maxi Dress",
       "category": "dress",
       "variants": [
         {
@@ -9086,8 +9086,8 @@
     },
     {
       "styleId": "true-duplicate-cross-retailer-3-style1",
-      "brand": "Veronica Beard",
-      "styleName": "Patent Chelsea Boot",
+      "brand": "Iro",
+      "styleName": "Pointed-Toe Stiletto Boot",
       "category": "boot",
       "variants": [
         {
@@ -9103,8 +9103,8 @@
     },
     {
       "styleId": "true-duplicate-cross-retailer-4-style1",
-      "brand": "Veronica Beard",
-      "styleName": "Ribbed Mini Dress",
+      "brand": "Equipment",
+      "styleName": "Puff-Sleeve Tiered Dress",
       "category": "dress",
       "variants": [
         {
@@ -9120,8 +9120,8 @@
     },
     {
       "styleId": "true-duplicate-cross-retailer-5-style1",
-      "brand": "Vince",
-      "styleName": "Slip Maxi Dress",
+      "brand": "Ganni",
+      "styleName": "Pleated Shirt Dress",
       "category": "dress",
       "variants": [
         {
@@ -9137,8 +9137,8 @@
     },
     {
       "styleId": "true-duplicate-cross-retailer-6-style1",
-      "brand": "Sandro",
-      "styleName": "Cropped Moto Jacket",
+      "brand": "Khaite",
+      "styleName": "Oversized Bomber Jacket",
       "category": "jacket",
       "variants": [
         {
@@ -9154,8 +9154,8 @@
     },
     {
       "styleId": "true-duplicate-cross-retailer-7-style1",
-      "brand": "Nili Lotan",
-      "styleName": "Double-Breasted Blazer",
+      "brand": "Free People",
+      "styleName": "Cropped Denim Jacket",
       "category": "jacket",
       "variants": [
         {
@@ -9171,7 +9171,7 @@
     },
     {
       "styleId": "same-retailer-different-urls-0-style1",
-      "brand": "Aritzia",
+      "brand": "Reformation",
       "styleName": "Cropped Moto Jacket",
       "category": "jacket",
       "variants": [
@@ -9188,8 +9188,8 @@
     },
     {
       "styleId": "same-retailer-different-urls-1-style1",
-      "brand": "Theory",
-      "styleName": "Double-Breasted Blazer",
+      "brand": "Rag & Bone",
+      "styleName": "Shearling-Collar Aviator Jacket",
       "category": "jacket",
       "variants": [
         {
@@ -9206,7 +9206,7 @@
     {
       "styleId": "same-retailer-different-urls-2-style1",
       "brand": "Aritzia",
-      "styleName": "Ribbed Mini Dress",
+      "styleName": "Halter Column Gown",
       "category": "dress",
       "variants": [
         {
@@ -9222,8 +9222,8 @@
     },
     {
       "styleId": "same-retailer-different-urls-3-style1",
-      "brand": "Maje",
-      "styleName": "Suede Knee-High Boot",
+      "brand": "Zimmermann",
+      "styleName": "Shearling-Lined Combat Boot",
       "category": "boot",
       "variants": [
         {
@@ -9239,8 +9239,8 @@
     },
     {
       "styleId": "same-retailer-different-urls-4-style1",
-      "brand": "Maje",
-      "styleName": "Pebbled Leather Ankle Boot",
+      "brand": "Zimmermann",
+      "styleName": "Suede Knee-High Boot",
       "category": "boot",
       "variants": [
         {
@@ -9256,8 +9256,8 @@
     },
     {
       "styleId": "same-retailer-different-urls-5-style1",
-      "brand": "Aritzia",
-      "styleName": "Ribbed Turtleneck Sweater",
+      "brand": "Reformation",
+      "styleName": "Embroidered Crewneck Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -9273,8 +9273,8 @@
     },
     {
       "styleId": "same-retailer-different-urls-6-style1",
-      "brand": "Frame",
-      "styleName": "Double-Breasted Blazer",
+      "brand": "Toteme",
+      "styleName": "Shearling-Collar Aviator Jacket",
       "category": "jacket",
       "variants": [
         {
@@ -9290,7 +9290,7 @@
     },
     {
       "styleId": "same-retailer-different-urls-7-style1",
-      "brand": "Nili Lotan",
+      "brand": "Acne Studios",
       "styleName": "Pebbled Leather Ankle Boot",
       "category": "boot",
       "variants": [
@@ -9307,7 +9307,7 @@
     },
     {
       "styleId": "same-style-different-size-inventory-0-style1",
-      "brand": "Aritzia",
+      "brand": "Reformation",
       "styleName": "Wrap Midi Dress",
       "category": "dress",
       "variants": [
@@ -9324,8 +9324,8 @@
     },
     {
       "styleId": "same-style-different-size-inventory-1-style1",
-      "brand": "Rag & Bone",
-      "styleName": "Double-Breasted Blazer",
+      "brand": "Faithfull the Brand",
+      "styleName": "Longline Wool Coat",
       "category": "jacket",
       "variants": [
         {
@@ -9341,8 +9341,8 @@
     },
     {
       "styleId": "same-style-different-size-inventory-2-style1",
-      "brand": "Maje",
-      "styleName": "Double-Breasted Blazer",
+      "brand": "Zimmermann",
+      "styleName": "Shearling-Collar Aviator Jacket",
       "category": "jacket",
       "variants": [
         {
@@ -9358,8 +9358,8 @@
     },
     {
       "styleId": "same-style-different-size-inventory-3-style1",
-      "brand": "Aritzia",
-      "styleName": "Embroidered Crewneck Sweater",
+      "brand": "Reformation",
+      "styleName": "Striped Boatneck Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -9375,8 +9375,8 @@
     },
     {
       "styleId": "same-style-different-size-inventory-4-style1",
-      "brand": "Theory",
-      "styleName": "Patent Chelsea Boot",
+      "brand": "Sandro",
+      "styleName": "Woven Espadrille Boot",
       "category": "boot",
       "variants": [
         {
@@ -9392,8 +9392,8 @@
     },
     {
       "styleId": "same-style-different-size-inventory-5-style1",
-      "brand": "Nili Lotan",
-      "styleName": "Suede Knee-High Boot",
+      "brand": "Free People",
+      "styleName": "Block-Heel Western Boot",
       "category": "boot",
       "variants": [
         {
@@ -9409,8 +9409,8 @@
     },
     {
       "styleId": "same-style-different-size-inventory-6-style1",
-      "brand": "AllSaints",
-      "styleName": "Embroidered Crewneck Sweater",
+      "brand": "A.L.C.",
+      "styleName": "Cowl-Neck Tunic Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -9426,8 +9426,8 @@
     },
     {
       "styleId": "same-style-different-size-inventory-7-style1",
-      "brand": "Theory",
-      "styleName": "Slip Maxi Dress",
+      "brand": "Maje",
+      "styleName": "Asymmetric Cutout Dress",
       "category": "dress",
       "variants": [
         {
@@ -9443,8 +9443,8 @@
     },
     {
       "styleId": "same-style-different-color-0-style1",
-      "brand": "Rag & Bone",
-      "styleName": "Ribbed Turtleneck Sweater",
+      "brand": "Joie",
+      "styleName": "Oversized Cable Knit Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -9467,7 +9467,7 @@
     },
     {
       "styleId": "same-style-different-color-1-style1",
-      "brand": "Frame",
+      "brand": "Veronica Beard",
       "styleName": "Ribbed Turtleneck Sweater",
       "category": "sweater",
       "variants": [
@@ -9491,8 +9491,8 @@
     },
     {
       "styleId": "same-style-different-color-2-style1",
-      "brand": "Frame",
-      "styleName": "Slip Maxi Dress",
+      "brand": "Nili Lotan",
+      "styleName": "Pleated Shirt Dress",
       "category": "dress",
       "variants": [
         {
@@ -9515,7 +9515,7 @@
     },
     {
       "styleId": "same-style-different-color-3-style1",
-      "brand": "Theory",
+      "brand": "Maje",
       "styleName": "Wrap Midi Dress",
       "category": "dress",
       "variants": [
@@ -9539,7 +9539,7 @@
     },
     {
       "styleId": "same-style-different-color-4-style1",
-      "brand": "Frame",
+      "brand": "Toteme",
       "styleName": "Pebbled Leather Ankle Boot",
       "category": "boot",
       "variants": [
@@ -9563,8 +9563,8 @@
     },
     {
       "styleId": "same-style-different-color-5-style1",
-      "brand": "Sandro",
-      "styleName": "Quilted Puffer Jacket",
+      "brand": "Khaite",
+      "styleName": "Cropped Tweed Jacket",
       "category": "jacket",
       "variants": [
         {
@@ -9587,8 +9587,8 @@
     },
     {
       "styleId": "same-style-different-color-6-style1",
-      "brand": "Aritzia",
-      "styleName": "Suede Knee-High Boot",
+      "brand": "Reformation",
+      "styleName": "Shearling-Lined Combat Boot",
       "category": "boot",
       "variants": [
         {
@@ -9611,8 +9611,8 @@
     },
     {
       "styleId": "same-style-different-color-7-style1",
-      "brand": "Theory",
-      "styleName": "Oversized Cable Knit Sweater",
+      "brand": "Maje",
+      "styleName": "Fair Isle Crewneck Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -9635,8 +9635,8 @@
     },
     {
       "styleId": "same-style-different-material-0-style1",
-      "brand": "Frame",
-      "styleName": "Oversized Cable Knit Sweater",
+      "brand": "Nili Lotan",
+      "styleName": "Fair Isle Crewneck Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -9659,7 +9659,7 @@
     },
     {
       "styleId": "same-style-different-material-1-style1",
-      "brand": "Veronica Beard",
+      "brand": "Iro",
       "styleName": "Cropped Moto Jacket",
       "category": "jacket",
       "variants": [
@@ -9683,7 +9683,7 @@
     },
     {
       "styleId": "same-style-different-material-2-style1",
-      "brand": "Sandro",
+      "brand": "The Row",
       "styleName": "Wrap Midi Dress",
       "category": "dress",
       "variants": [
@@ -9707,7 +9707,7 @@
     },
     {
       "styleId": "same-style-different-material-3-style1",
-      "brand": "Vince",
+      "brand": "AllSaints",
       "styleName": "Ribbed Turtleneck Sweater",
       "category": "sweater",
       "variants": [
@@ -9731,8 +9731,8 @@
     },
     {
       "styleId": "same-style-different-material-4-style1",
-      "brand": "Veronica Beard",
-      "styleName": "Patent Chelsea Boot",
+      "brand": "Iro",
+      "styleName": "Woven Espadrille Boot",
       "category": "boot",
       "variants": [
         {
@@ -9755,8 +9755,8 @@
     },
     {
       "styleId": "same-style-different-material-5-style1",
-      "brand": "Reformation",
-      "styleName": "Pebbled Leather Ankle Boot",
+      "brand": "Vince",
+      "styleName": "Patent Chelsea Boot",
       "category": "boot",
       "variants": [
         {
@@ -9779,8 +9779,8 @@
     },
     {
       "styleId": "same-style-different-material-6-style1",
-      "brand": "Ganni",
-      "styleName": "Slip Maxi Dress",
+      "brand": "Jonathan Simkhai",
+      "styleName": "Asymmetric Cutout Dress",
       "category": "dress",
       "variants": [
         {
@@ -9803,8 +9803,8 @@
     },
     {
       "styleId": "same-style-different-material-7-style1",
-      "brand": "Nili Lotan",
-      "styleName": "Pleated Shirt Dress",
+      "brand": "Free People",
+      "styleName": "Cowl-Neck Slip Dress",
       "category": "dress",
       "variants": [
         {
@@ -9827,7 +9827,7 @@
     },
     {
       "styleId": "similar-title-same-brand-different-style-0-style1",
-      "brand": "Nili Lotan",
+      "brand": "Acne Studios",
       "styleName": "Ribbed Turtleneck Sweater",
       "category": "sweater",
       "variants": [
@@ -9843,7 +9843,7 @@
     },
     {
       "styleId": "similar-title-same-brand-different-style-0-style2",
-      "brand": "Nili Lotan",
+      "brand": "Acne Studios",
       "styleName": "Oversized Cable Knit Sweater",
       "category": "sweater",
       "variants": [
@@ -9859,7 +9859,7 @@
     },
     {
       "styleId": "similar-title-same-brand-different-style-1-style1",
-      "brand": "Theory",
+      "brand": "Maje",
       "styleName": "Ribbed Turtleneck Sweater",
       "category": "sweater",
       "variants": [
@@ -9875,7 +9875,7 @@
     },
     {
       "styleId": "similar-title-same-brand-different-style-1-style2",
-      "brand": "Theory",
+      "brand": "Maje",
       "styleName": "Oversized Cable Knit Sweater",
       "category": "sweater",
       "variants": [
@@ -9891,7 +9891,7 @@
     },
     {
       "styleId": "similar-title-same-brand-different-style-2-style1",
-      "brand": "Veronica Beard",
+      "brand": "Iro",
       "styleName": "Pebbled Leather Ankle Boot",
       "category": "boot",
       "variants": [
@@ -9907,7 +9907,7 @@
     },
     {
       "styleId": "similar-title-same-brand-different-style-2-style2",
-      "brand": "Veronica Beard",
+      "brand": "Iro",
       "styleName": "Suede Knee-High Boot",
       "category": "boot",
       "variants": [
@@ -9923,7 +9923,7 @@
     },
     {
       "styleId": "similar-title-same-brand-different-style-3-style1",
-      "brand": "Veronica Beard",
+      "brand": "Equipment",
       "styleName": "Wrap Midi Dress",
       "category": "dress",
       "variants": [
@@ -9939,7 +9939,7 @@
     },
     {
       "styleId": "similar-title-same-brand-different-style-3-style2",
-      "brand": "Veronica Beard",
+      "brand": "Equipment",
       "styleName": "Slip Maxi Dress",
       "category": "dress",
       "variants": [
@@ -9955,7 +9955,7 @@
     },
     {
       "styleId": "similar-title-same-brand-different-style-4-style1",
-      "brand": "Aritzia",
+      "brand": "Vince",
       "styleName": "Cropped Moto Jacket",
       "category": "jacket",
       "variants": [
@@ -9971,7 +9971,7 @@
     },
     {
       "styleId": "similar-title-same-brand-different-style-4-style2",
-      "brand": "Aritzia",
+      "brand": "Vince",
       "styleName": "Oversized Bomber Jacket",
       "category": "jacket",
       "variants": [
@@ -9987,7 +9987,7 @@
     },
     {
       "styleId": "similar-title-same-brand-different-style-5-style1",
-      "brand": "Ganni",
+      "brand": "Staud",
       "styleName": "Pebbled Leather Ankle Boot",
       "category": "boot",
       "variants": [
@@ -10003,7 +10003,7 @@
     },
     {
       "styleId": "similar-title-same-brand-different-style-5-style2",
-      "brand": "Ganni",
+      "brand": "Staud",
       "styleName": "Suede Knee-High Boot",
       "category": "boot",
       "variants": [
@@ -10019,7 +10019,7 @@
     },
     {
       "styleId": "similar-title-same-brand-different-style-6-style1",
-      "brand": "Reformation",
+      "brand": "Theory",
       "styleName": "Pebbled Leather Ankle Boot",
       "category": "boot",
       "variants": [
@@ -10035,7 +10035,7 @@
     },
     {
       "styleId": "similar-title-same-brand-different-style-6-style2",
-      "brand": "Reformation",
+      "brand": "Theory",
       "styleName": "Suede Knee-High Boot",
       "category": "boot",
       "variants": [
@@ -10051,7 +10051,7 @@
     },
     {
       "styleId": "similar-title-same-brand-different-style-7-style1",
-      "brand": "Sandro",
+      "brand": "Khaite",
       "styleName": "Pebbled Leather Ankle Boot",
       "category": "boot",
       "variants": [
@@ -10067,7 +10067,7 @@
     },
     {
       "styleId": "similar-title-same-brand-different-style-7-style2",
-      "brand": "Sandro",
+      "brand": "Khaite",
       "styleName": "Suede Knee-High Boot",
       "category": "boot",
       "variants": [
@@ -10084,7 +10084,7 @@
     {
       "styleId": "same-attributes-different-brand-0-style1",
       "brand": "Aritzia",
-      "styleName": "Pleated Shirt Dress",
+      "styleName": "Smocked Tank Dress",
       "category": "dress",
       "variants": [
         {
@@ -10100,7 +10100,7 @@
     {
       "styleId": "same-attributes-different-brand-0-style2",
       "brand": "Reformation",
-      "styleName": "Pleated Shirt Dress",
+      "styleName": "Smocked Tank Dress",
       "category": "dress",
       "variants": [
         {
@@ -10116,7 +10116,7 @@
     {
       "styleId": "same-attributes-different-brand-1-style1",
       "brand": "Reformation",
-      "styleName": "Ribbed Turtleneck Sweater",
+      "styleName": "Oversized Cable Knit Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -10132,7 +10132,7 @@
     {
       "styleId": "same-attributes-different-brand-1-style2",
       "brand": "Vince",
-      "styleName": "Ribbed Turtleneck Sweater",
+      "styleName": "Oversized Cable Knit Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -10148,7 +10148,7 @@
     {
       "styleId": "same-attributes-different-brand-2-style1",
       "brand": "Vince",
-      "styleName": "Slip Maxi Dress",
+      "styleName": "Pleated Shirt Dress",
       "category": "dress",
       "variants": [
         {
@@ -10164,7 +10164,7 @@
     {
       "styleId": "same-attributes-different-brand-2-style2",
       "brand": "Theory",
-      "styleName": "Slip Maxi Dress",
+      "styleName": "Pleated Shirt Dress",
       "category": "dress",
       "variants": [
         {
@@ -10180,7 +10180,7 @@
     {
       "styleId": "same-attributes-different-brand-3-style1",
       "brand": "Theory",
-      "styleName": "Quilted Puffer Jacket",
+      "styleName": "Longline Wool Coat",
       "category": "jacket",
       "variants": [
         {
@@ -10196,7 +10196,7 @@
     {
       "styleId": "same-attributes-different-brand-3-style2",
       "brand": "Frame",
-      "styleName": "Quilted Puffer Jacket",
+      "styleName": "Longline Wool Coat",
       "category": "jacket",
       "variants": [
         {
@@ -10212,7 +10212,7 @@
     {
       "styleId": "same-attributes-different-brand-4-style1",
       "brand": "Frame",
-      "styleName": "Cropped Moto Jacket",
+      "styleName": "Double-Breasted Blazer",
       "category": "jacket",
       "variants": [
         {
@@ -10228,7 +10228,7 @@
     {
       "styleId": "same-attributes-different-brand-4-style2",
       "brand": "Ganni",
-      "styleName": "Cropped Moto Jacket",
+      "styleName": "Double-Breasted Blazer",
       "category": "jacket",
       "variants": [
         {
@@ -10244,7 +10244,7 @@
     {
       "styleId": "same-attributes-different-brand-5-style1",
       "brand": "Ganni",
-      "styleName": "Cropped Moto Jacket",
+      "styleName": "Double-Breasted Blazer",
       "category": "jacket",
       "variants": [
         {
@@ -10260,7 +10260,7 @@
     {
       "styleId": "same-attributes-different-brand-5-style2",
       "brand": "AllSaints",
-      "styleName": "Cropped Moto Jacket",
+      "styleName": "Double-Breasted Blazer",
       "category": "jacket",
       "variants": [
         {
@@ -10276,7 +10276,7 @@
     {
       "styleId": "same-attributes-different-brand-6-style1",
       "brand": "AllSaints",
-      "styleName": "Double-Breasted Blazer",
+      "styleName": "Longline Wool Coat",
       "category": "jacket",
       "variants": [
         {
@@ -10292,7 +10292,7 @@
     {
       "styleId": "same-attributes-different-brand-6-style2",
       "brand": "Sandro",
-      "styleName": "Double-Breasted Blazer",
+      "styleName": "Longline Wool Coat",
       "category": "jacket",
       "variants": [
         {
@@ -10308,7 +10308,7 @@
     {
       "styleId": "same-attributes-different-brand-7-style1",
       "brand": "Sandro",
-      "styleName": "Oversized Bomber Jacket",
+      "styleName": "Belted Trench Coat",
       "category": "jacket",
       "variants": [
         {
@@ -10324,7 +10324,7 @@
     {
       "styleId": "same-attributes-different-brand-7-style2",
       "brand": "Maje",
-      "styleName": "Oversized Bomber Jacket",
+      "styleName": "Belted Trench Coat",
       "category": "jacket",
       "variants": [
         {
@@ -10339,8 +10339,8 @@
     },
     {
       "styleId": "missing-gtin-falls-through-safely-0-style1",
-      "brand": "Sandro",
-      "styleName": "Quilted Puffer Jacket",
+      "brand": "Isabel Marant",
+      "styleName": "Cropped Tweed Jacket",
       "category": "jacket",
       "variants": [
         {
@@ -10356,8 +10356,8 @@
     },
     {
       "styleId": "missing-gtin-falls-through-safely-1-style1",
-      "brand": "Vince",
-      "styleName": "Double-Breasted Blazer",
+      "brand": "AllSaints",
+      "styleName": "Cropped Denim Jacket",
       "category": "jacket",
       "variants": [
         {
@@ -10374,7 +10374,7 @@
     {
       "styleId": "missing-gtin-falls-through-safely-2-style1",
       "brand": "Aritzia",
-      "styleName": "Pleated Shirt Dress",
+      "styleName": "Cowl-Neck Slip Dress",
       "category": "dress",
       "variants": [
         {
@@ -10390,7 +10390,7 @@
     },
     {
       "styleId": "missing-gtin-falls-through-safely-3-style1",
-      "brand": "Reformation",
+      "brand": "Frame",
       "styleName": "Pebbled Leather Ankle Boot",
       "category": "boot",
       "variants": [
@@ -10407,7 +10407,7 @@
     },
     {
       "styleId": "missing-gtin-falls-through-safely-4-style1",
-      "brand": "AllSaints",
+      "brand": "A.L.C.",
       "styleName": "Pebbled Leather Ankle Boot",
       "category": "boot",
       "variants": [
@@ -10424,8 +10424,8 @@
     },
     {
       "styleId": "missing-gtin-falls-through-safely-5-style1",
-      "brand": "Rag & Bone",
-      "styleName": "Double-Breasted Blazer",
+      "brand": "Anine Bing",
+      "styleName": "Shearling-Collar Aviator Jacket",
       "category": "jacket",
       "variants": [
         {
@@ -10441,8 +10441,8 @@
     },
     {
       "styleId": "missing-gtin-falls-through-safely-6-style1",
-      "brand": "Reformation",
-      "styleName": "Oversized Bomber Jacket",
+      "brand": "Theory",
+      "styleName": "Quilted Puffer Jacket",
       "category": "jacket",
       "variants": [
         {
@@ -10458,8 +10458,8 @@
     },
     {
       "styleId": "missing-gtin-falls-through-safely-7-style1",
-      "brand": "Rag & Bone",
-      "styleName": "Slip Maxi Dress",
+      "brand": "Anine Bing",
+      "styleName": "Pleated Shirt Dress",
       "category": "dress",
       "variants": [
         {
@@ -10475,8 +10475,8 @@
     },
     {
       "styleId": "conflicting-ids-0-style1",
-      "brand": "Sandro",
-      "styleName": "Ribbed Turtleneck Sweater",
+      "brand": "Khaite",
+      "styleName": "Embroidered Crewneck Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -10491,8 +10491,8 @@
     },
     {
       "styleId": "conflicting-ids-0-style2",
-      "brand": "Sandro",
-      "styleName": "Ribbed Turtleneck Sweater",
+      "brand": "Khaite",
+      "styleName": "Embroidered Crewneck Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -10507,8 +10507,8 @@
     },
     {
       "styleId": "conflicting-ids-1-style1",
-      "brand": "Reformation",
-      "styleName": "Double-Breasted Blazer",
+      "brand": "Theory",
+      "styleName": "Longline Wool Coat",
       "category": "jacket",
       "variants": [
         {
@@ -10523,8 +10523,8 @@
     },
     {
       "styleId": "conflicting-ids-1-style2",
-      "brand": "Reformation",
-      "styleName": "Double-Breasted Blazer",
+      "brand": "Theory",
+      "styleName": "Longline Wool Coat",
       "category": "jacket",
       "variants": [
         {
@@ -10539,8 +10539,8 @@
     },
     {
       "styleId": "conflicting-ids-2-style1",
-      "brand": "Maje",
-      "styleName": "Suede Knee-High Boot",
+      "brand": "Zimmermann",
+      "styleName": "Block-Heel Western Boot",
       "category": "boot",
       "variants": [
         {
@@ -10555,8 +10555,8 @@
     },
     {
       "styleId": "conflicting-ids-2-style2",
-      "brand": "Maje",
-      "styleName": "Suede Knee-High Boot",
+      "brand": "Zimmermann",
+      "styleName": "Block-Heel Western Boot",
       "category": "boot",
       "variants": [
         {
@@ -10571,8 +10571,8 @@
     },
     {
       "styleId": "conflicting-ids-3-style1",
-      "brand": "Vince",
-      "styleName": "Cropped Moto Jacket",
+      "brand": "Sandro",
+      "styleName": "Double-Breasted Blazer",
       "category": "jacket",
       "variants": [
         {
@@ -10587,8 +10587,8 @@
     },
     {
       "styleId": "conflicting-ids-3-style2",
-      "brand": "Vince",
-      "styleName": "Cropped Moto Jacket",
+      "brand": "Sandro",
+      "styleName": "Double-Breasted Blazer",
       "category": "jacket",
       "variants": [
         {
@@ -10603,8 +10603,8 @@
     },
     {
       "styleId": "conflicting-ids-4-style1",
-      "brand": "Sandro",
-      "styleName": "Oversized Cable Knit Sweater",
+      "brand": "Khaite",
+      "styleName": "Fair Isle Crewneck Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -10619,8 +10619,8 @@
     },
     {
       "styleId": "conflicting-ids-4-style2",
-      "brand": "Sandro",
-      "styleName": "Oversized Cable Knit Sweater",
+      "brand": "Khaite",
+      "styleName": "Fair Isle Crewneck Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -10635,8 +10635,8 @@
     },
     {
       "styleId": "conflicting-ids-5-style1",
-      "brand": "Ganni",
-      "styleName": "Ribbed Turtleneck Sweater",
+      "brand": "Staud",
+      "styleName": "Embroidered Crewneck Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -10651,8 +10651,8 @@
     },
     {
       "styleId": "conflicting-ids-5-style2",
-      "brand": "Ganni",
-      "styleName": "Ribbed Turtleneck Sweater",
+      "brand": "Staud",
+      "styleName": "Embroidered Crewneck Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -10667,8 +10667,8 @@
     },
     {
       "styleId": "conflicting-ids-6-style1",
-      "brand": "Rag & Bone",
-      "styleName": "Slip Maxi Dress",
+      "brand": "Anine Bing",
+      "styleName": "Asymmetric Cutout Dress",
       "category": "dress",
       "variants": [
         {
@@ -10683,8 +10683,8 @@
     },
     {
       "styleId": "conflicting-ids-6-style2",
-      "brand": "Rag & Bone",
-      "styleName": "Slip Maxi Dress",
+      "brand": "Anine Bing",
+      "styleName": "Asymmetric Cutout Dress",
       "category": "dress",
       "variants": [
         {
@@ -10699,8 +10699,8 @@
     },
     {
       "styleId": "conflicting-ids-7-style1",
-      "brand": "Theory",
-      "styleName": "Slip Maxi Dress",
+      "brand": "Rag & Bone",
+      "styleName": "Pleated Shirt Dress",
       "category": "dress",
       "variants": [
         {
@@ -10715,8 +10715,8 @@
     },
     {
       "styleId": "conflicting-ids-7-style2",
-      "brand": "Theory",
-      "styleName": "Slip Maxi Dress",
+      "brand": "Rag & Bone",
+      "styleName": "Pleated Shirt Dress",
       "category": "dress",
       "variants": [
         {
@@ -10731,8 +10731,8 @@
     },
     {
       "styleId": "marketplace-reseller-0-style1",
-      "brand": "Sandro",
-      "styleName": "Cropped Moto Jacket",
+      "brand": "Isabel Marant",
+      "styleName": "Oversized Bomber Jacket",
       "category": "jacket",
       "variants": [
         {
@@ -10748,8 +10748,8 @@
     },
     {
       "styleId": "marketplace-reseller-1-style1",
-      "brand": "Theory",
-      "styleName": "Ribbed Mini Dress",
+      "brand": "Maje",
+      "styleName": "Off-Shoulder Midi Dress",
       "category": "dress",
       "variants": [
         {
@@ -10765,8 +10765,8 @@
     },
     {
       "styleId": "marketplace-reseller-2-style1",
-      "brand": "Ganni",
-      "styleName": "Embroidered Crewneck Sweater",
+      "brand": "Staud",
+      "styleName": "Chunky Shawl-Collar Cardigan",
       "category": "sweater",
       "variants": [
         {
@@ -10782,8 +10782,8 @@
     },
     {
       "styleId": "marketplace-reseller-3-style1",
-      "brand": "AllSaints",
-      "styleName": "Embroidered Crewneck Sweater",
+      "brand": "A.L.C.",
+      "styleName": "Striped Boatneck Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -10799,7 +10799,7 @@
     },
     {
       "styleId": "marketplace-reseller-4-style1",
-      "brand": "Ganni",
+      "brand": "Staud",
       "styleName": "Pebbled Leather Ankle Boot",
       "category": "boot",
       "variants": [
@@ -10816,8 +10816,8 @@
     },
     {
       "styleId": "marketplace-reseller-5-style1",
-      "brand": "Ganni",
-      "styleName": "Patent Chelsea Boot",
+      "brand": "Jonathan Simkhai",
+      "styleName": "Pointed-Toe Stiletto Boot",
       "category": "boot",
       "variants": [
         {
@@ -10833,7 +10833,7 @@
     },
     {
       "styleId": "marketplace-reseller-6-style1",
-      "brand": "Maje",
+      "brand": "Ulla Johnson",
       "styleName": "Ribbed Turtleneck Sweater",
       "category": "sweater",
       "variants": [
@@ -10850,8 +10850,8 @@
     },
     {
       "styleId": "marketplace-reseller-7-style1",
-      "brand": "Nili Lotan",
-      "styleName": "Oversized Cable Knit Sweater",
+      "brand": "Ba&sh",
+      "styleName": "Cropped Mock-Neck Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -10867,8 +10867,8 @@
     },
     {
       "styleId": "sale-price-difference-0-style1",
-      "brand": "Vince",
-      "styleName": "Slip Maxi Dress",
+      "brand": "AllSaints",
+      "styleName": "Ribbed Mini Dress",
       "category": "dress",
       "variants": [
         {
@@ -10884,8 +10884,8 @@
     },
     {
       "styleId": "sale-price-difference-1-style1",
-      "brand": "Ganni",
-      "styleName": "Quilted Puffer Jacket",
+      "brand": "Jonathan Simkhai",
+      "styleName": "Cropped Tweed Jacket",
       "category": "jacket",
       "variants": [
         {
@@ -10901,8 +10901,8 @@
     },
     {
       "styleId": "sale-price-difference-2-style1",
-      "brand": "AllSaints",
-      "styleName": "Patent Chelsea Boot",
+      "brand": "Proenza Schouler",
+      "styleName": "Woven Espadrille Boot",
       "category": "boot",
       "variants": [
         {
@@ -10918,8 +10918,8 @@
     },
     {
       "styleId": "sale-price-difference-3-style1",
-      "brand": "Frame",
-      "styleName": "Oversized Cable Knit Sweater",
+      "brand": "Veronica Beard",
+      "styleName": "Fair Isle Crewneck Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -10935,8 +10935,8 @@
     },
     {
       "styleId": "sale-price-difference-4-style1",
-      "brand": "Nili Lotan",
-      "styleName": "Slip Maxi Dress",
+      "brand": "Ba&sh",
+      "styleName": "Asymmetric Cutout Dress",
       "category": "dress",
       "variants": [
         {
@@ -10952,8 +10952,8 @@
     },
     {
       "styleId": "sale-price-difference-5-style1",
-      "brand": "Theory",
-      "styleName": "Embroidered Crewneck Sweater",
+      "brand": "Sandro",
+      "styleName": "Striped Boatneck Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -10969,8 +10969,8 @@
     },
     {
       "styleId": "sale-price-difference-6-style1",
-      "brand": "AllSaints",
-      "styleName": "Suede Knee-High Boot",
+      "brand": "A.L.C.",
+      "styleName": "Shearling-Lined Combat Boot",
       "category": "boot",
       "variants": [
         {
@@ -10986,7 +10986,7 @@
     },
     {
       "styleId": "sale-price-difference-7-style1",
-      "brand": "Vince",
+      "brand": "Ganni",
       "styleName": "Pebbled Leather Ankle Boot",
       "category": "boot",
       "variants": [
@@ -11003,8 +11003,8 @@
     },
     {
       "styleId": "large-retailer-price-difference-0-style1",
-      "brand": "Aritzia",
-      "styleName": "Oversized Bomber Jacket",
+      "brand": "Vince",
+      "styleName": "Quilted Puffer Jacket",
       "category": "jacket",
       "variants": [
         {
@@ -11021,8 +11021,8 @@
     },
     {
       "styleId": "large-retailer-price-difference-1-style1",
-      "brand": "Maje",
-      "styleName": "Pleated Shirt Dress",
+      "brand": "Faithfull the Brand",
+      "styleName": "Off-Shoulder Midi Dress",
       "category": "dress",
       "variants": [
         {
@@ -11039,8 +11039,8 @@
     },
     {
       "styleId": "large-retailer-price-difference-2-style1",
-      "brand": "Sandro",
-      "styleName": "Double-Breasted Blazer",
+      "brand": "Isabel Marant",
+      "styleName": "Shearling-Collar Aviator Jacket",
       "category": "jacket",
       "variants": [
         {
@@ -11057,8 +11057,8 @@
     },
     {
       "styleId": "large-retailer-price-difference-3-style1",
-      "brand": "Frame",
-      "styleName": "Slip Maxi Dress",
+      "brand": "Veronica Beard",
+      "styleName": "Pleated Shirt Dress",
       "category": "dress",
       "variants": [
         {
@@ -11075,7 +11075,7 @@
     },
     {
       "styleId": "large-retailer-price-difference-4-style1",
-      "brand": "Rag & Bone",
+      "brand": "Joie",
       "styleName": "Ribbed Turtleneck Sweater",
       "category": "sweater",
       "variants": [
@@ -11093,7 +11093,7 @@
     },
     {
       "styleId": "large-retailer-price-difference-5-style1",
-      "brand": "Vince",
+      "brand": "AllSaints",
       "styleName": "Ribbed Turtleneck Sweater",
       "category": "sweater",
       "variants": [
@@ -11111,8 +11111,8 @@
     },
     {
       "styleId": "large-retailer-price-difference-6-style1",
-      "brand": "Frame",
-      "styleName": "Pebbled Leather Ankle Boot",
+      "brand": "Nili Lotan",
+      "styleName": "Patent Chelsea Boot",
       "category": "boot",
       "variants": [
         {
@@ -11129,8 +11129,8 @@
     },
     {
       "styleId": "large-retailer-price-difference-7-style1",
-      "brand": "Rag & Bone",
-      "styleName": "Pebbled Leather Ankle Boot",
+      "brand": "Joie",
+      "styleName": "Suede Knee-High Boot",
       "category": "boot",
       "variants": [
         {
@@ -11403,8 +11403,8 @@
     },
     {
       "styleId": "different-photography-same-product-0-style1",
-      "brand": "Reformation",
-      "styleName": "Pleated Shirt Dress",
+      "brand": "Theory",
+      "styleName": "Cowl-Neck Slip Dress",
       "category": "dress",
       "variants": [
         {
@@ -11420,8 +11420,8 @@
     },
     {
       "styleId": "different-photography-same-product-1-style1",
-      "brand": "Sandro",
-      "styleName": "Embroidered Crewneck Sweater",
+      "brand": "Khaite",
+      "styleName": "Striped Boatneck Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -11437,7 +11437,7 @@
     },
     {
       "styleId": "different-photography-same-product-2-style1",
-      "brand": "Ganni",
+      "brand": "Toteme",
       "styleName": "Pebbled Leather Ankle Boot",
       "category": "boot",
       "variants": [
@@ -11454,8 +11454,8 @@
     },
     {
       "styleId": "different-photography-same-product-3-style1",
-      "brand": "Frame",
-      "styleName": "Slip Maxi Dress",
+      "brand": "Nili Lotan",
+      "styleName": "Pleated Shirt Dress",
       "category": "dress",
       "variants": [
         {
@@ -11471,8 +11471,8 @@
     },
     {
       "styleId": "different-photography-same-product-4-style1",
-      "brand": "Ganni",
-      "styleName": "Pebbled Leather Ankle Boot",
+      "brand": "Toteme",
+      "styleName": "Patent Chelsea Boot",
       "category": "boot",
       "variants": [
         {
@@ -11488,8 +11488,8 @@
     },
     {
       "styleId": "different-photography-same-product-5-style1",
-      "brand": "Vince",
-      "styleName": "Oversized Cable Knit Sweater",
+      "brand": "Ganni",
+      "styleName": "V-Neck Vest Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -11505,8 +11505,8 @@
     },
     {
       "styleId": "different-photography-same-product-6-style1",
-      "brand": "Ganni",
-      "styleName": "Suede Knee-High Boot",
+      "brand": "Staud",
+      "styleName": "Shearling-Lined Combat Boot",
       "category": "boot",
       "variants": [
         {
@@ -11522,8 +11522,8 @@
     },
     {
       "styleId": "different-photography-same-product-7-style1",
-      "brand": "Reformation",
-      "styleName": "Ribbed Mini Dress",
+      "brand": "Vince",
+      "styleName": "Puff-Sleeve Tiered Dress",
       "category": "dress",
       "variants": [
         {
@@ -11539,8 +11539,8 @@
     },
     {
       "styleId": "previous-season-adjacent-model-0-style1",
-      "brand": "Sandro",
-      "styleName": "Ribbed Turtleneck Sweater",
+      "brand": "Khaite",
+      "styleName": "Oversized Cable Knit Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -11555,8 +11555,8 @@
     },
     {
       "styleId": "previous-season-adjacent-model-0-style2",
-      "brand": "Sandro",
-      "styleName": "Ribbed Turtleneck Sweater",
+      "brand": "Khaite",
+      "styleName": "Oversized Cable Knit Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -11571,7 +11571,7 @@
     },
     {
       "styleId": "previous-season-adjacent-model-1-style1",
-      "brand": "Rag & Bone",
+      "brand": "Joie",
       "styleName": "Cropped Moto Jacket",
       "category": "jacket",
       "variants": [
@@ -11587,7 +11587,7 @@
     },
     {
       "styleId": "previous-season-adjacent-model-1-style2",
-      "brand": "Rag & Bone",
+      "brand": "Joie",
       "styleName": "Cropped Moto Jacket",
       "category": "jacket",
       "variants": [
@@ -11603,8 +11603,8 @@
     },
     {
       "styleId": "previous-season-adjacent-model-2-style1",
-      "brand": "AllSaints",
-      "styleName": "Ribbed Turtleneck Sweater",
+      "brand": "The Row",
+      "styleName": "Oversized Cable Knit Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -11619,8 +11619,8 @@
     },
     {
       "styleId": "previous-season-adjacent-model-2-style2",
-      "brand": "AllSaints",
-      "styleName": "Ribbed Turtleneck Sweater",
+      "brand": "The Row",
+      "styleName": "Oversized Cable Knit Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -11635,8 +11635,8 @@
     },
     {
       "styleId": "previous-season-adjacent-model-3-style1",
-      "brand": "Nili Lotan",
-      "styleName": "Pebbled Leather Ankle Boot",
+      "brand": "Ba&sh",
+      "styleName": "Patent Chelsea Boot",
       "category": "boot",
       "variants": [
         {
@@ -11651,8 +11651,8 @@
     },
     {
       "styleId": "previous-season-adjacent-model-3-style2",
-      "brand": "Nili Lotan",
-      "styleName": "Pebbled Leather Ankle Boot",
+      "brand": "Ba&sh",
+      "styleName": "Patent Chelsea Boot",
       "category": "boot",
       "variants": [
         {
@@ -11667,8 +11667,8 @@
     },
     {
       "styleId": "previous-season-adjacent-model-4-style1",
-      "brand": "Sandro",
-      "styleName": "Suede Knee-High Boot",
+      "brand": "Isabel Marant",
+      "styleName": "Block-Heel Western Boot",
       "category": "boot",
       "variants": [
         {
@@ -11683,8 +11683,8 @@
     },
     {
       "styleId": "previous-season-adjacent-model-4-style2",
-      "brand": "Sandro",
-      "styleName": "Suede Knee-High Boot",
+      "brand": "Isabel Marant",
+      "styleName": "Block-Heel Western Boot",
       "category": "boot",
       "variants": [
         {
@@ -11699,8 +11699,8 @@
     },
     {
       "styleId": "previous-season-adjacent-model-5-style1",
-      "brand": "Frame",
-      "styleName": "Embroidered Crewneck Sweater",
+      "brand": "Nili Lotan",
+      "styleName": "Striped Boatneck Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -11715,8 +11715,8 @@
     },
     {
       "styleId": "previous-season-adjacent-model-5-style2",
-      "brand": "Frame",
-      "styleName": "Embroidered Crewneck Sweater",
+      "brand": "Nili Lotan",
+      "styleName": "Striped Boatneck Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -11731,8 +11731,8 @@
     },
     {
       "styleId": "previous-season-adjacent-model-6-style1",
-      "brand": "Nili Lotan",
-      "styleName": "Embroidered Crewneck Sweater",
+      "brand": "Ba&sh",
+      "styleName": "Chunky Shawl-Collar Cardigan",
       "category": "sweater",
       "variants": [
         {
@@ -11747,8 +11747,8 @@
     },
     {
       "styleId": "previous-season-adjacent-model-6-style2",
-      "brand": "Nili Lotan",
-      "styleName": "Embroidered Crewneck Sweater",
+      "brand": "Ba&sh",
+      "styleName": "Chunky Shawl-Collar Cardigan",
       "category": "sweater",
       "variants": [
         {
@@ -11763,8 +11763,8 @@
     },
     {
       "styleId": "previous-season-adjacent-model-7-style1",
-      "brand": "Rag & Bone",
-      "styleName": "Embroidered Crewneck Sweater",
+      "brand": "Joie",
+      "styleName": "Chunky Shawl-Collar Cardigan",
       "category": "sweater",
       "variants": [
         {
@@ -11779,8 +11779,8 @@
     },
     {
       "styleId": "previous-season-adjacent-model-7-style2",
-      "brand": "Rag & Bone",
-      "styleName": "Embroidered Crewneck Sweater",
+      "brand": "Joie",
+      "styleName": "Chunky Shawl-Collar Cardigan",
       "category": "sweater",
       "variants": [
         {
@@ -11795,8 +11795,8 @@
     },
     {
       "styleId": "adjacent-style-code-attack-0-style1",
-      "brand": "Maje",
-      "styleName": "Cropped Moto Jacket",
+      "brand": "Faithfull the Brand",
+      "styleName": "Double-Breasted Blazer",
       "category": "jacket",
       "variants": [
         {
@@ -11811,8 +11811,8 @@
     },
     {
       "styleId": "adjacent-style-code-attack-0-style2",
-      "brand": "Maje",
-      "styleName": "Cropped Moto Jacket",
+      "brand": "Faithfull the Brand",
+      "styleName": "Double-Breasted Blazer",
       "category": "jacket",
       "variants": [
         {
@@ -11827,8 +11827,8 @@
     },
     {
       "styleId": "adjacent-style-code-attack-1-style1",
-      "brand": "Rag & Bone",
-      "styleName": "Oversized Bomber Jacket",
+      "brand": "Joie",
+      "styleName": "Belted Trench Coat",
       "category": "jacket",
       "variants": [
         {
@@ -11843,8 +11843,8 @@
     },
     {
       "styleId": "adjacent-style-code-attack-1-style2",
-      "brand": "Rag & Bone",
-      "styleName": "Oversized Bomber Jacket",
+      "brand": "Joie",
+      "styleName": "Belted Trench Coat",
       "category": "jacket",
       "variants": [
         {
@@ -11859,8 +11859,8 @@
     },
     {
       "styleId": "adjacent-style-code-attack-2-style1",
-      "brand": "Maje",
-      "styleName": "Slip Maxi Dress",
+      "brand": "Zimmermann",
+      "styleName": "Asymmetric Cutout Dress",
       "category": "dress",
       "variants": [
         {
@@ -11875,8 +11875,8 @@
     },
     {
       "styleId": "adjacent-style-code-attack-2-style2",
-      "brand": "Maje",
-      "styleName": "Slip Maxi Dress",
+      "brand": "Zimmermann",
+      "styleName": "Asymmetric Cutout Dress",
       "category": "dress",
       "variants": [
         {
@@ -11891,8 +11891,8 @@
     },
     {
       "styleId": "adjacent-style-code-attack-3-style1",
-      "brand": "Reformation",
-      "styleName": "Oversized Bomber Jacket",
+      "brand": "Theory",
+      "styleName": "Quilted Puffer Jacket",
       "category": "jacket",
       "variants": [
         {
@@ -11907,8 +11907,8 @@
     },
     {
       "styleId": "adjacent-style-code-attack-3-style2",
-      "brand": "Reformation",
-      "styleName": "Oversized Bomber Jacket",
+      "brand": "Theory",
+      "styleName": "Quilted Puffer Jacket",
       "category": "jacket",
       "variants": [
         {
@@ -11923,8 +11923,8 @@
     },
     {
       "styleId": "adjacent-style-code-attack-4-style1",
-      "brand": "Vince",
-      "styleName": "Ribbed Turtleneck Sweater",
+      "brand": "AllSaints",
+      "styleName": "Oversized Cable Knit Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -11939,8 +11939,8 @@
     },
     {
       "styleId": "adjacent-style-code-attack-4-style2",
-      "brand": "Vince",
-      "styleName": "Ribbed Turtleneck Sweater",
+      "brand": "AllSaints",
+      "styleName": "Oversized Cable Knit Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -11955,8 +11955,8 @@
     },
     {
       "styleId": "adjacent-style-code-attack-5-style1",
-      "brand": "Nili Lotan",
-      "styleName": "Double-Breasted Blazer",
+      "brand": "Ba&sh",
+      "styleName": "Cropped Denim Jacket",
       "category": "jacket",
       "variants": [
         {
@@ -11971,8 +11971,8 @@
     },
     {
       "styleId": "adjacent-style-code-attack-5-style2",
-      "brand": "Nili Lotan",
-      "styleName": "Double-Breasted Blazer",
+      "brand": "Ba&sh",
+      "styleName": "Cropped Denim Jacket",
       "category": "jacket",
       "variants": [
         {
@@ -11987,8 +11987,8 @@
     },
     {
       "styleId": "adjacent-style-code-attack-6-style1",
-      "brand": "Reformation",
-      "styleName": "Embroidered Crewneck Sweater",
+      "brand": "Theory",
+      "styleName": "Chunky Shawl-Collar Cardigan",
       "category": "sweater",
       "variants": [
         {
@@ -12003,8 +12003,8 @@
     },
     {
       "styleId": "adjacent-style-code-attack-6-style2",
-      "brand": "Reformation",
-      "styleName": "Embroidered Crewneck Sweater",
+      "brand": "Theory",
+      "styleName": "Chunky Shawl-Collar Cardigan",
       "category": "sweater",
       "variants": [
         {
@@ -12019,7 +12019,7 @@
     },
     {
       "styleId": "adjacent-style-code-attack-7-style1",
-      "brand": "Frame",
+      "brand": "Veronica Beard",
       "styleName": "Pebbled Leather Ankle Boot",
       "category": "boot",
       "variants": [
@@ -12035,7 +12035,7 @@
     },
     {
       "styleId": "adjacent-style-code-attack-7-style2",
-      "brand": "Frame",
+      "brand": "Veronica Beard",
       "styleName": "Pebbled Leather Ankle Boot",
       "category": "boot",
       "variants": [
@@ -12051,8 +12051,8 @@
     },
     {
       "styleId": "same-title-different-season-0-style1",
-      "brand": "Frame",
-      "styleName": "Ribbed Turtleneck Sweater",
+      "brand": "Toteme",
+      "styleName": "Embroidered Crewneck Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -12067,8 +12067,8 @@
     },
     {
       "styleId": "same-title-different-season-0-style2",
-      "brand": "Frame",
-      "styleName": "Ribbed Turtleneck Sweater",
+      "brand": "Toteme",
+      "styleName": "Embroidered Crewneck Sweater",
       "category": "sweater",
       "variants": [
         {
@@ -12083,7 +12083,7 @@
     },
     {
       "styleId": "same-title-different-season-1-style1",
-      "brand": "Veronica Beard",
+      "brand": "Equipment",
       "styleName": "Wrap Midi Dress",
       "category": "dress",
       "variants": [
@@ -12099,7 +12099,7 @@
     },
     {
       "styleId": "same-title-different-season-1-style2",
-      "brand": "Veronica Beard",
+      "brand": "Equipment",
       "styleName": "Wrap Midi Dress",
       "category": "dress",
       "variants": [
@@ -12115,8 +12115,8 @@
     },
     {
       "styleId": "same-title-different-season-2-style1",
-      "brand": "Reformation",
-      "styleName": "Suede Knee-High Boot",
+      "brand": "Frame",
+      "styleName": "Slouchy Over-the-Knee Boot",
       "category": "boot",
       "variants": [
         {
@@ -12131,8 +12131,8 @@
     },
     {
       "styleId": "same-title-different-season-2-style2",
-      "brand": "Reformation",
-      "styleName": "Suede Knee-High Boot",
+      "brand": "Frame",
+      "styleName": "Slouchy Over-the-Knee Boot",
       "category": "boot",
       "variants": [
         {
@@ -12147,8 +12147,8 @@
     },
     {
       "styleId": "same-title-different-season-3-style1",
-      "brand": "AllSaints",
-      "styleName": "Quilted Puffer Jacket",
+      "brand": "A.L.C.",
+      "styleName": "Utility Field Jacket",
       "category": "jacket",
       "variants": [
         {
@@ -12163,8 +12163,8 @@
     },
     {
       "styleId": "same-title-different-season-3-style2",
-      "brand": "AllSaints",
-      "styleName": "Quilted Puffer Jacket",
+      "brand": "A.L.C.",
+      "styleName": "Utility Field Jacket",
       "category": "jacket",
       "variants": [
         {
@@ -12179,7 +12179,7 @@
     },
     {
       "styleId": "same-title-different-season-4-style1",
-      "brand": "AllSaints",
+      "brand": "Proenza Schouler",
       "styleName": "Ribbed Turtleneck Sweater",
       "category": "sweater",
       "variants": [
@@ -12195,7 +12195,7 @@
     },
     {
       "styleId": "same-title-different-season-4-style2",
-      "brand": "AllSaints",
+      "brand": "Proenza Schouler",
       "styleName": "Ribbed Turtleneck Sweater",
       "category": "sweater",
       "variants": [
@@ -12211,7 +12211,7 @@
     },
     {
       "styleId": "same-title-different-season-5-style1",
-      "brand": "Ganni",
+      "brand": "Staud",
       "styleName": "Ribbed Turtleneck Sweater",
       "category": "sweater",
       "variants": [
@@ -12227,7 +12227,7 @@
     },
     {
       "styleId": "same-title-different-season-5-style2",
-      "brand": "Ganni",
+      "brand": "Staud",
       "styleName": "Ribbed Turtleneck Sweater",
       "category": "sweater",
       "variants": [
@@ -12243,7 +12243,7 @@
     },
     {
       "styleId": "same-title-different-season-6-style1",
-      "brand": "Theory",
+      "brand": "Rag & Bone",
       "styleName": "Ribbed Turtleneck Sweater",
       "category": "sweater",
       "variants": [
@@ -12259,7 +12259,7 @@
     },
     {
       "styleId": "same-title-different-season-6-style2",
-      "brand": "Theory",
+      "brand": "Rag & Bone",
       "styleName": "Ribbed Turtleneck Sweater",
       "category": "sweater",
       "variants": [
@@ -12275,8 +12275,8 @@
     },
     {
       "styleId": "same-title-different-season-7-style1",
-      "brand": "Reformation",
-      "styleName": "Patent Chelsea Boot",
+      "brand": "Vince",
+      "styleName": "Lug-Sole Lace-Up Boot",
       "category": "boot",
       "variants": [
         {
@@ -12291,8 +12291,8 @@
     },
     {
       "styleId": "same-title-different-season-7-style2",
-      "brand": "Reformation",
-      "styleName": "Patent Chelsea Boot",
+      "brand": "Vince",
+      "styleName": "Lug-Sole Lace-Up Boot",
       "category": "boot",
       "variants": [
         {
@@ -12307,7 +12307,7 @@
     },
     {
       "styleId": "mens-vs-womens-construction-0-style1",
-      "brand": "Maje",
+      "brand": "Zimmermann",
       "styleName": "Ribbed Turtleneck Sweater Womens",
       "category": "sweater",
       "variants": [
@@ -12323,7 +12323,7 @@
     },
     {
       "styleId": "mens-vs-womens-construction-0-style2",
-      "brand": "Maje",
+      "brand": "Zimmermann",
       "styleName": "Ribbed Turtleneck Sweater Mens",
       "category": "sweater",
       "variants": [
@@ -12340,7 +12340,7 @@
     {
       "styleId": "mens-vs-womens-construction-1-style1",
       "brand": "Aritzia",
-      "styleName": "Pebbled Leather Ankle Boot Womens",
+      "styleName": "Patent Chelsea Boot Womens",
       "category": "boot",
       "variants": [
         {
@@ -12356,7 +12356,7 @@
     {
       "styleId": "mens-vs-womens-construction-1-style2",
       "brand": "Aritzia",
-      "styleName": "Pebbled Leather Ankle Boot Mens",
+      "styleName": "Patent Chelsea Boot Mens",
       "category": "boot",
       "variants": [
         {
@@ -12371,8 +12371,8 @@
     },
     {
       "styleId": "mens-vs-womens-construction-2-style1",
-      "brand": "Reformation",
-      "styleName": "Embroidered Crewneck Sweater Womens",
+      "brand": "Frame",
+      "styleName": "Cowl-Neck Tunic Sweater Womens",
       "category": "sweater",
       "variants": [
         {
@@ -12387,8 +12387,8 @@
     },
     {
       "styleId": "mens-vs-womens-construction-2-style2",
-      "brand": "Reformation",
-      "styleName": "Embroidered Crewneck Sweater Mens",
+      "brand": "Frame",
+      "styleName": "Cowl-Neck Tunic Sweater Mens",
       "category": "sweater",
       "variants": [
         {
@@ -12403,8 +12403,8 @@
     },
     {
       "styleId": "mens-vs-womens-construction-3-style1",
-      "brand": "Reformation",
-      "styleName": "Oversized Cable Knit Sweater Womens",
+      "brand": "Frame",
+      "styleName": "Cropped Mock-Neck Sweater Womens",
       "category": "sweater",
       "variants": [
         {
@@ -12419,8 +12419,8 @@
     },
     {
       "styleId": "mens-vs-womens-construction-3-style2",
-      "brand": "Reformation",
-      "styleName": "Oversized Cable Knit Sweater Mens",
+      "brand": "Frame",
+      "styleName": "Cropped Mock-Neck Sweater Mens",
       "category": "sweater",
       "variants": [
         {
@@ -12435,8 +12435,8 @@
     },
     {
       "styleId": "mens-vs-womens-construction-4-style1",
-      "brand": "Theory",
-      "styleName": "Pleated Shirt Dress Womens",
+      "brand": "Sandro",
+      "styleName": "Smocked Tank Dress Womens",
       "category": "dress",
       "variants": [
         {
@@ -12451,8 +12451,8 @@
     },
     {
       "styleId": "mens-vs-womens-construction-4-style2",
-      "brand": "Theory",
-      "styleName": "Pleated Shirt Dress Mens",
+      "brand": "Sandro",
+      "styleName": "Smocked Tank Dress Mens",
       "category": "dress",
       "variants": [
         {
@@ -12467,8 +12467,8 @@
     },
     {
       "styleId": "mens-vs-womens-construction-5-style1",
-      "brand": "Sandro",
-      "styleName": "Oversized Cable Knit Sweater Womens",
+      "brand": "Khaite",
+      "styleName": "Cropped Mock-Neck Sweater Womens",
       "category": "sweater",
       "variants": [
         {
@@ -12483,8 +12483,8 @@
     },
     {
       "styleId": "mens-vs-womens-construction-5-style2",
-      "brand": "Sandro",
-      "styleName": "Oversized Cable Knit Sweater Mens",
+      "brand": "Khaite",
+      "styleName": "Cropped Mock-Neck Sweater Mens",
       "category": "sweater",
       "variants": [
         {
@@ -12499,8 +12499,8 @@
     },
     {
       "styleId": "mens-vs-womens-construction-6-style1",
-      "brand": "Ganni",
-      "styleName": "Double-Breasted Blazer Womens",
+      "brand": "Toteme",
+      "styleName": "Longline Wool Coat Womens",
       "category": "jacket",
       "variants": [
         {
@@ -12515,8 +12515,8 @@
     },
     {
       "styleId": "mens-vs-womens-construction-6-style2",
-      "brand": "Ganni",
-      "styleName": "Double-Breasted Blazer Mens",
+      "brand": "Toteme",
+      "styleName": "Longline Wool Coat Mens",
       "category": "jacket",
       "variants": [
         {
@@ -12531,7 +12531,7 @@
     },
     {
       "styleId": "mens-vs-womens-construction-7-style1",
-      "brand": "Frame",
+      "brand": "Nili Lotan",
       "styleName": "Pebbled Leather Ankle Boot Womens",
       "category": "boot",
       "variants": [
@@ -12547,7 +12547,7 @@
     },
     {
       "styleId": "mens-vs-womens-construction-7-style2",
-      "brand": "Frame",
+      "brand": "Nili Lotan",
       "styleName": "Pebbled Leather Ankle Boot Mens",
       "category": "boot",
       "variants": [
@@ -12563,8 +12563,8 @@
     },
     {
       "styleId": "retailer-removes-style-suffix-0-style1",
-      "brand": "Maje",
-      "styleName": "Ribbed Turtleneck Sweater V2",
+      "brand": "Zimmermann",
+      "styleName": "Oversized Cable Knit Sweater V2",
       "category": "sweater",
       "variants": [
         {
@@ -12579,8 +12579,8 @@
     },
     {
       "styleId": "retailer-removes-style-suffix-0-style2",
-      "brand": "Maje",
-      "styleName": "Ribbed Turtleneck Sweater V1",
+      "brand": "Zimmermann",
+      "styleName": "Oversized Cable Knit Sweater V1",
       "category": "sweater",
       "variants": [
         {
@@ -12595,8 +12595,8 @@
     },
     {
       "styleId": "retailer-removes-style-suffix-1-style1",
-      "brand": "Reformation",
-      "styleName": "Quilted Puffer Jacket V2",
+      "brand": "Theory",
+      "styleName": "Cropped Tweed Jacket V2",
       "category": "jacket",
       "variants": [
         {
@@ -12611,8 +12611,8 @@
     },
     {
       "styleId": "retailer-removes-style-suffix-1-style2",
-      "brand": "Reformation",
-      "styleName": "Quilted Puffer Jacket V1",
+      "brand": "Theory",
+      "styleName": "Cropped Tweed Jacket V1",
       "category": "jacket",
       "variants": [
         {
@@ -12627,8 +12627,8 @@
     },
     {
       "styleId": "retailer-removes-style-suffix-2-style1",
-      "brand": "Vince",
-      "styleName": "Ribbed Mini Dress V2",
+      "brand": "Sandro",
+      "styleName": "Puff-Sleeve Tiered Dress V2",
       "category": "dress",
       "variants": [
         {
@@ -12643,8 +12643,8 @@
     },
     {
       "styleId": "retailer-removes-style-suffix-2-style2",
-      "brand": "Vince",
-      "styleName": "Ribbed Mini Dress V1",
+      "brand": "Sandro",
+      "styleName": "Puff-Sleeve Tiered Dress V1",
       "category": "dress",
       "variants": [
         {
@@ -12659,8 +12659,8 @@
     },
     {
       "styleId": "retailer-removes-style-suffix-3-style1",
-      "brand": "Maje",
-      "styleName": "Wrap Midi Dress V2",
+      "brand": "Ulla Johnson",
+      "styleName": "Slip Maxi Dress V2",
       "category": "dress",
       "variants": [
         {
@@ -12675,8 +12675,8 @@
     },
     {
       "styleId": "retailer-removes-style-suffix-3-style2",
-      "brand": "Maje",
-      "styleName": "Wrap Midi Dress V1",
+      "brand": "Ulla Johnson",
+      "styleName": "Slip Maxi Dress V1",
       "category": "dress",
       "variants": [
         {
@@ -12691,8 +12691,8 @@
     },
     {
       "styleId": "retailer-removes-style-suffix-4-style1",
-      "brand": "Aritzia",
-      "styleName": "Embroidered Crewneck Sweater V2",
+      "brand": "Reformation",
+      "styleName": "Striped Boatneck Sweater V2",
       "category": "sweater",
       "variants": [
         {
@@ -12707,8 +12707,8 @@
     },
     {
       "styleId": "retailer-removes-style-suffix-4-style2",
-      "brand": "Aritzia",
-      "styleName": "Embroidered Crewneck Sweater V1",
+      "brand": "Reformation",
+      "styleName": "Striped Boatneck Sweater V1",
       "category": "sweater",
       "variants": [
         {
@@ -12723,8 +12723,8 @@
     },
     {
       "styleId": "retailer-removes-style-suffix-5-style1",
-      "brand": "Vince",
-      "styleName": "Patent Chelsea Boot V2",
+      "brand": "Sandro",
+      "styleName": "Lug-Sole Lace-Up Boot V2",
       "category": "boot",
       "variants": [
         {
@@ -12739,8 +12739,8 @@
     },
     {
       "styleId": "retailer-removes-style-suffix-5-style2",
-      "brand": "Vince",
-      "styleName": "Patent Chelsea Boot V1",
+      "brand": "Sandro",
+      "styleName": "Lug-Sole Lace-Up Boot V1",
       "category": "boot",
       "variants": [
         {
@@ -12756,7 +12756,7 @@
     {
       "styleId": "retailer-removes-style-suffix-6-style1",
       "brand": "Aritzia",
-      "styleName": "Oversized Cable Knit Sweater V2",
+      "styleName": "Fair Isle Crewneck Sweater V2",
       "category": "sweater",
       "variants": [
         {
@@ -12772,7 +12772,7 @@
     {
       "styleId": "retailer-removes-style-suffix-6-style2",
       "brand": "Aritzia",
-      "styleName": "Oversized Cable Knit Sweater V1",
+      "styleName": "Fair Isle Crewneck Sweater V1",
       "category": "sweater",
       "variants": [
         {
@@ -12787,8 +12787,8 @@
     },
     {
       "styleId": "retailer-removes-style-suffix-7-style1",
-      "brand": "Vince",
-      "styleName": "Cropped Moto Jacket V2",
+      "brand": "AllSaints",
+      "styleName": "Double-Breasted Blazer V2",
       "category": "jacket",
       "variants": [
         {
@@ -12803,8 +12803,8 @@
     },
     {
       "styleId": "retailer-removes-style-suffix-7-style2",
-      "brand": "Vince",
-      "styleName": "Cropped Moto Jacket V1",
+      "brand": "AllSaints",
+      "styleName": "Double-Breasted Blazer V1",
       "category": "jacket",
       "variants": [
         {
@@ -12819,8 +12819,8 @@
     },
     {
       "styleId": "evidence-stripped-listing-0-style1",
-      "brand": "Nili Lotan",
-      "styleName": "Slip Maxi Dress",
+      "brand": "Free People",
+      "styleName": "Pleated Shirt Dress",
       "category": "dress",
       "variants": [
         {
@@ -12851,7 +12851,7 @@
     },
     {
       "styleId": "evidence-stripped-listing-1-style1",
-      "brand": "Frame",
+      "brand": "Nili Lotan",
       "styleName": "Cropped Moto Jacket",
       "category": "jacket",
       "variants": [
@@ -12883,8 +12883,8 @@
     },
     {
       "styleId": "evidence-stripped-listing-2-style1",
-      "brand": "AllSaints",
-      "styleName": "Oversized Bomber Jacket",
+      "brand": "Proenza Schouler",
+      "styleName": "Quilted Puffer Jacket",
       "category": "jacket",
       "variants": [
         {
@@ -12915,8 +12915,8 @@
     },
     {
       "styleId": "evidence-stripped-listing-3-style1",
-      "brand": "Theory",
-      "styleName": "Suede Knee-High Boot",
+      "brand": "Rag & Bone",
+      "styleName": "Shearling-Lined Combat Boot",
       "category": "boot",
       "variants": [
         {
@@ -12947,8 +12947,8 @@
     },
     {
       "styleId": "evidence-stripped-listing-4-style1",
-      "brand": "Nili Lotan",
-      "styleName": "Suede Knee-High Boot",
+      "brand": "Acne Studios",
+      "styleName": "Shearling-Lined Combat Boot",
       "category": "boot",
       "variants": [
         {
@@ -12979,7 +12979,7 @@
     },
     {
       "styleId": "evidence-stripped-listing-5-style1",
-      "brand": "Veronica Beard",
+      "brand": "Acne Studios",
       "styleName": "Pebbled Leather Ankle Boot",
       "category": "boot",
       "variants": [
@@ -13011,8 +13011,8 @@
     },
     {
       "styleId": "evidence-stripped-listing-6-style1",
-      "brand": "Ganni",
-      "styleName": "Pleated Shirt Dress",
+      "brand": "Toteme",
+      "styleName": "Smocked Tank Dress",
       "category": "dress",
       "variants": [
         {
@@ -13043,8 +13043,8 @@
     },
     {
       "styleId": "evidence-stripped-listing-7-style1",
-      "brand": "Nili Lotan",
-      "styleName": "Ribbed Mini Dress",
+      "brand": "Ba&sh",
+      "styleName": "Halter Column Gown",
       "category": "dress",
       "variants": [
         {
@@ -13075,7 +13075,7 @@
     },
     {
       "styleId": "both-sides-evidence-neutralized-0-style1",
-      "brand": "Rag & Bone",
+      "brand": "Anine Bing",
       "styleName": "unknown",
       "category": "dress",
       "variants": [
@@ -13091,7 +13091,7 @@
     },
     {
       "styleId": "both-sides-evidence-neutralized-0-style2",
-      "brand": "Rag & Bone",
+      "brand": "Anine Bing",
       "styleName": "unknown",
       "category": "dress",
       "variants": [
@@ -13107,7 +13107,7 @@
     },
     {
       "styleId": "both-sides-evidence-neutralized-1-style1",
-      "brand": "AllSaints",
+      "brand": "Proenza Schouler",
       "styleName": "unknown",
       "category": "sweater",
       "variants": [
@@ -13123,7 +13123,7 @@
     },
     {
       "styleId": "both-sides-evidence-neutralized-1-style2",
-      "brand": "AllSaints",
+      "brand": "Proenza Schouler",
       "styleName": "unknown",
       "category": "sweater",
       "variants": [
@@ -13139,7 +13139,7 @@
     },
     {
       "styleId": "both-sides-evidence-neutralized-2-style1",
-      "brand": "Nili Lotan",
+      "brand": "Free People",
       "styleName": "unknown",
       "category": "sweater",
       "variants": [
@@ -13155,7 +13155,7 @@
     },
     {
       "styleId": "both-sides-evidence-neutralized-2-style2",
-      "brand": "Nili Lotan",
+      "brand": "Free People",
       "styleName": "unknown",
       "category": "sweater",
       "variants": [
@@ -13171,7 +13171,7 @@
     },
     {
       "styleId": "both-sides-evidence-neutralized-3-style1",
-      "brand": "Veronica Beard",
+      "brand": "Acne Studios",
       "styleName": "unknown",
       "category": "boot",
       "variants": [
@@ -13187,7 +13187,7 @@
     },
     {
       "styleId": "both-sides-evidence-neutralized-3-style2",
-      "brand": "Veronica Beard",
+      "brand": "Acne Studios",
       "styleName": "unknown",
       "category": "boot",
       "variants": [
@@ -13203,7 +13203,7 @@
     },
     {
       "styleId": "both-sides-evidence-neutralized-4-style1",
-      "brand": "AllSaints",
+      "brand": "Proenza Schouler",
       "styleName": "unknown",
       "category": "boot",
       "variants": [
@@ -13219,7 +13219,7 @@
     },
     {
       "styleId": "both-sides-evidence-neutralized-4-style2",
-      "brand": "AllSaints",
+      "brand": "Proenza Schouler",
       "styleName": "unknown",
       "category": "boot",
       "variants": [
@@ -13267,7 +13267,7 @@
     },
     {
       "styleId": "both-sides-evidence-neutralized-6-style1",
-      "brand": "Sandro",
+      "brand": "Khaite",
       "styleName": "unknown",
       "category": "dress",
       "variants": [
@@ -13283,7 +13283,7 @@
     },
     {
       "styleId": "both-sides-evidence-neutralized-6-style2",
-      "brand": "Sandro",
+      "brand": "Khaite",
       "styleName": "unknown",
       "category": "dress",
       "variants": [
@@ -13299,7 +13299,7 @@
     },
     {
       "styleId": "both-sides-evidence-neutralized-7-style1",
-      "brand": "Vince",
+      "brand": "Ganni",
       "styleName": "unknown",
       "category": "jacket",
       "variants": [
@@ -13315,7 +13315,7 @@
     },
     {
       "styleId": "both-sides-evidence-neutralized-7-style2",
-      "brand": "Vince",
+      "brand": "Ganni",
       "styleName": "unknown",
       "category": "jacket",
       "variants": [

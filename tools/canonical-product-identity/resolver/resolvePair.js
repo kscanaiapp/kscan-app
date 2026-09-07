@@ -31,14 +31,20 @@ const { tier1Exact } = require('./tier1Exact');
 const { tier2Structured } = require('./tier2Structured');
 const { RESOLVER_VERSION, NORMALIZATION_VERSION, DEFAULT_OPERATING_PARAMETERS } = require('./resolverVersion');
 
-function resolvePair(offerA, offerB, operatingParameters = DEFAULT_OPERATING_PARAMETERS) {
-  if (offerA.offerId === offerB.offerId) {
-    throw new Error(`resolvePair called with identical offerId: ${offerA.offerId}`);
+/**
+ * Core decision logic over ALREADY-NORMALIZED offers. Split out from
+ * resolvePair() so batch callers (evaluator/pairwiseEvaluation.js) can
+ * normalize each offer exactly once instead of once per pair - normalizing
+ * is the expensive part (Unicode/tokenization), the O(n^2) comparison work
+ * itself is cheap field comparisons. resolvePair() below is the normal
+ * single-pair entry point and is unaffected by this split.
+ */
+function resolveFromNormalized(normA, normB, offerIdA, offerIdB, operatingParameters = DEFAULT_OPERATING_PARAMETERS) {
+  if (offerIdA === offerIdB) {
+    throw new Error(`resolvePair called with identical offerId: ${offerIdA}`);
   }
   const tier2AutoMergeThreshold = operatingParameters.tier2AutoMergeThreshold ?? Infinity;
 
-  const normA = normalizeOffer(offerA);
-  const normB = normalizeOffer(offerB);
   const t1 = tier1Exact(normA, normB);
   const t2 = tier2Structured(normA, normB);
 
@@ -68,8 +74,8 @@ function resolvePair(offerA, offerB, operatingParameters = DEFAULT_OPERATING_PAR
   }
 
   return {
-    offerIdA: offerA.offerId,
-    offerIdB: offerB.offerId,
+    offerIdA,
+    offerIdB,
     decision,
     tier,
     positiveEvidence,
@@ -84,4 +90,11 @@ function resolvePair(offerA, offerB, operatingParameters = DEFAULT_OPERATING_PAR
   };
 }
 
-module.exports = { resolvePair };
+/** Normal single-pair entry point: normalizes both offers, then delegates to resolveFromNormalized. */
+function resolvePair(offerA, offerB, operatingParameters = DEFAULT_OPERATING_PARAMETERS) {
+  const normA = normalizeOffer(offerA);
+  const normB = normalizeOffer(offerB);
+  return resolveFromNormalized(normA, normB, offerA.offerId, offerB.offerId, operatingParameters);
+}
+
+module.exports = { resolvePair, resolveFromNormalized };
