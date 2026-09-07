@@ -86,16 +86,37 @@ test('flag: Live is a DIFFERENT switch from the generative VTO surface', () => {
   assert.ok(!vtoResolver.includes('EXPO_PUBLIC_LIVE_VTO_ENABLED'));
 });
 
-test('flag: no EAS profile sets it -- production and staging included', () => {
-  const forbidden = ['EXPO_PUBLIC_LIVE_VTO_ENABLED', 'EXPO_PUBLIC_LIVE_VTO_HARNESS'];
+test('flag: ONLY staging-certification sets it -- production and staging do not', () => {
+  // WAS "no EAS profile sets it". Changed by OWNER RULING 2026-09-07, which
+  // approved enabling Live on the existing `staging-certification` profile and
+  // NOWHERE else. The assertion is deliberately an EXACT SET rather than a
+  // relaxed "production must not have it": a rule that only names the profiles
+  // it forbids stops being a rule the moment somebody adds a sixth profile.
+  const withLiveFlag = Object.entries(easProfiles)
+    .filter(([, profile]) => 'EXPO_PUBLIC_LIVE_VTO_ENABLED' in (profile.env ?? {}))
+    .map(([name]) => name)
+    .sort();
+  assert.deepEqual(
+    withLiveFlag,
+    ['staging-certification'],
+    'Live VTO may be enabled on staging-certification and on no other profile. '
+      + 'Production activation is not authorized.',
+  );
+  assert.equal(
+    easProfiles['staging-certification'].env.EXPO_PUBLIC_LIVE_VTO_ENABLED,
+    'true',
+    'the flag must be the literal string "true" -- resolveLiveVtoEnabled accepts nothing else',
+  );
+
+  // The DEV HARNESS is a separate switch and remains forbidden everywhere. It
+  // simulates capability, and the Photoreal handoff refuses to reach the real
+  // backend under it; a build that shipped it would be a build whose Live
+  // evidence was fabricated. The owner ruling did not touch it.
   for (const [name, profile] of Object.entries(easProfiles)) {
-    const env = profile.env ?? {};
-    for (const key of forbidden) {
-      assert.ok(
-        !(key in env),
-        `${name} must not define ${key} -- Live is not enabled anywhere by this lane`,
-      );
-    }
+    assert.ok(
+      !('EXPO_PUBLIC_LIVE_VTO_HARNESS' in (profile.env ?? {})),
+      `${name} must not define EXPO_PUBLIC_LIVE_VTO_HARNESS -- the harness ships nowhere`,
+    );
   }
 });
 

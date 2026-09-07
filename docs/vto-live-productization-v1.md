@@ -284,76 +284,72 @@ runtime error state.
 
 ---
 
-## 8. Staging activation — HALF DONE, HALF OWNER ACTION
+## 8. Staging activation — DONE, both halves
 
 Live has **two independent gates**, by design: a build-time client flag and a
-server-side operator switch. Neither can turn the other on.
+server-side operator switch. Neither can turn the other on, and both are now
+set for Staging.
 
-### The server half — DONE
+### The client half — OWNER RULING 2026-09-07
+
+| | |
+| --- | --- |
+| **What** | `EXPO_PUBLIC_LIVE_VTO_ENABLED: "true"` |
+| **Where** | the `staging-certification` EAS profile, and **no other profile** |
+| **Backend it resolves to** | `yzqjvdfgefveprobvvyw` (staging), **inherited** from `staging` via `extends`, never restated |
+| **Production / preview / development** | unchanged; asserted not to carry the flag |
+| **Dev harness (`EXPO_PUBLIC_LIVE_VTO_HARNESS`)** | still set on **no** profile — the ruling did not touch it, and it must never ship: it *simulates* capability, and a build carrying it would be a build whose Live evidence was fabricated |
+
+**How this was reached, because the sequence is the point.** The lane wrote the
+flag onto `staging-certification` — the correct home, since it already carries
+`EXPO_PUBLIC_VOICESCAN_ENABLED`, `EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED` and
+`EXPO_PUBLIC_SMART_WATCHLIST_V1` on the same "staging exercises what production
+has not shipped" reasoning. (`staging` itself was never an option:
+`__tests__/staging/easProfileParity.test.js` requires it to expose *exactly*
+production's client-feature flag set.)
+
+Two governed gates refused it. The lane **reverted and escalated** rather than
+editing the gates standing in its way, and the owner ruled. All three pins now
+permit precisely this state and nothing wider, each carrying the ruling and its
+limits in the diff:
+
+- `__tests__/easConfigIntegrity.test.js` — `CERT_MATRIX_ENABLED` gains the key,
+  and the **separate hardcoded matrix-size pin** in the same file moves 6 → 7.
+  That second pin caught the change even after the list was updated, which is
+  the redundancy working rather than a duplicate to remove.
+- `__tests__/vtoLiveFeatureGate.test.js` — "no EAS profile sets it" becomes an
+  **exact set**: `['staging-certification']`. Deliberately an exact set rather
+  than a relaxed "production must not have it", because a rule that only names
+  what it forbids stops being a rule the moment somebody adds a sixth profile.
+- `__tests__/vtoLiveEnvironmentGate.test.js` — the posture assertion pins the
+  same exact set, resolved **through `extends`**, which is the part human
+  inspection of `eas.json` cannot do.
+
+**What the ruling explicitly did NOT authorize**, held mechanically rather than
+by prose: Production activation, store distribution, and external pilot use.
+The approval is source/configuration readiness only. `eas.json`'s diff is
+**one line**, and a programmatic check confirmed every other profile —
+including `submit` and `cli` configuration — is byte-identical.
+
+**The negative control is preserved, and is now load-bearing for the opposite
+reason.** When nothing enabled Live, it existed so an all-pass result would not
+be vacuous. With a real Live-enabled profile in the tree the rule is being
+exercised for real, and the control is what proves it would still **refuse** a
+Live-enabled Production candidate rather than having quietly become an
+always-allow.
+
+### The server half
 
 | | |
 | --- | --- |
 | **What** | `app_config` row `vto_generation`, added key `live` = `{ "enabled": true, "supportedCategories": ["top"] }` |
 | **Where** | Staging (`yzqjvdfgefveprobvvyw`) only |
-| **Why** | Section 5 permits VTO feature/config activation in Staging through governed mechanisms; without it the device QA session stalls at the packet's §8 table |
 | **When** | 2026-09-07, via the governed Supabase MCP against the staging project |
-| **Effect today** | **None.** `services/vto/vtoFeatureControl.ts` reads it, but the router requires the build flag as well, and no build sets that. The generative path is untouched: the server-side normalizer reads only `enabled`, `provider`, `supportedCategories` and `schemaVersion`, and ignores unknown keys |
+| **Effect on the generative path** | none — the server-side normalizer reads only `enabled`, `provider`, `supportedCategories` and `schemaVersion`, and ignores unknown keys |
 | **Status** | PERSISTS_FOR_STAGING_PILOT |
 | **To revert** | one `jsonb` statement removing the `live` key |
 
-### The client half — OWNER ACTION REQUIRED
-
-`EXPO_PUBLIC_LIVE_VTO_ENABLED` is set on **no** EAS profile. It was written to
-`staging-certification` during this lane and then **deliberately reverted**.
-
-**Why it was reverted.** `staging-certification` is the correct home — it
-already carries `EXPO_PUBLIC_VOICESCAN_ENABLED`,
-`EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED` and `EXPO_PUBLIC_SMART_WATCHLIST_V1`
-on exactly the "staging exercises what production has not shipped" reasoning,
-and it inherits the staging backend rather than restating it. (`staging`
-itself is not an option: `__tests__/staging/easProfileParity.test.js` requires
-it to expose *exactly* production's client-feature flag set.)
-
-But **two existing governed gates say that list is owner-ratified, not
-lane-editable**:
-
-- `__tests__/easConfigIntegrity.test.js` pins the certification matrix to
-  "the approved rulings … the Build 34 target matrix", exactly;
-- `__tests__/vtoLiveFeatureGate.test.js` asserts no EAS profile sets the Live
-  flag at all.
-
-Widening an owner-ratified certification matrix is not a defect repair, and a
-lane that rewrites the gate standing in its way has defeated a control to
-manufacture completion. Section 36's own instruction is to **fail closed when
-authority cannot be resolved**, and here it genuinely could not be: the lane
-brief authorizes Staging activation and two ratified gates say this particular
-list is not the lane's to change.
-
-**What the owner does to activate it** (three lines, one review):
-
-1. add `"EXPO_PUBLIC_LIVE_VTO_ENABLED": "true"` to the `staging-certification`
-   profile's `env` in `eas.json`;
-2. add `EXPO_PUBLIC_LIVE_VTO_ENABLED` to `CERT_MATRIX_ENABLED` in
-   `__tests__/easConfigIntegrity.test.js`;
-3. update the "no EAS profile sets it" assertion in
-   `__tests__/vtoLiveFeatureGate.test.js` and the "current, owner-ruled
-   posture" assertion in `__tests__/vtoLiveEnvironmentGate.test.js` to name
-   `staging-certification`.
-
-Everything downstream is already in place and already tested:
-
-- the certification profile **already** resolves to the staging backend, and
-  `vtoLiveEnvironmentGate.test.js` asserts that adding the flag there would be
-  classified `allowed`;
-- that same gate resolves every profile through `extends` — which human
-  inspection cannot see through — and refuses any Live-enabled profile that
-  does not land on staging;
-- its **negative control** constructs the Live-enabled production candidate the
-  rule exists to stop and asserts the same function refuses it, so the rule is
-  proven able to fail rather than merely never having fired.
-
-**PRODUCTION VTO ACTIVATION: NOT AUTHORIZED**, and production, preview and
-development are asserted not to carry the flag.
+**PRODUCTION VTO ACTIVATION: NOT AUTHORIZED.**
 
 ## 9. Holds carried forward
 

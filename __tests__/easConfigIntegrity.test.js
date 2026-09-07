@@ -213,6 +213,17 @@ const CERT_MATRIX_ENABLED = Object.freeze([
   'EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED',
   'EXPO_PUBLIC_SMART_WATCHLIST_V1',
   'EXPO_PUBLIC_VOICESCAN_ENABLED',
+  // OWNER RULING 2026-09-07 (Build 35 staging-only Live VTO readiness).
+  // Added by explicit owner decision, not by the lane that wanted it: the
+  // productization lane wrote this key here, hit this gate, reverted it, and
+  // escalated -- which is the sequence this list exists to force. The ruling
+  // authorizes SOURCE/CONFIGURATION READINESS ONLY. It does not authorize
+  // Production activation, store distribution, or external pilot use, and
+  // `__tests__/vtoLiveEnvironmentGate.test.js` holds the boundary
+  // mechanically: any Live-enabled profile that resolves to anything other
+  // than the staging project is refused, with a negative control that builds
+  // the Live-enabled Production candidate and proves the rule rejects it.
+  'EXPO_PUBLIC_LIVE_VTO_ENABLED',
 ]);
 
 // Nothing is excluded from the certification matrix any more: every feature
@@ -273,10 +284,17 @@ test('the effective (extends-resolved) staging-certification matrix equals the a
   // The exclusion list is empty by design right now, which would make the
   // loop above silently vacuous. State the intended matrix size explicitly so
   // a flag disappearing from CERT_MATRIX_ENABLED cannot pass unnoticed.
+  //
+  // SIX -> SEVEN by OWNER RULING 2026-09-07: Build 35 staging-only Live VTO
+  // readiness adds EXPO_PUBLIC_LIVE_VTO_ENABLED. This count is a SECOND,
+  // independent pin on the same list -- it caught the change even after
+  // CERT_MATRIX_ENABLED itself was updated, which is the redundancy working
+  // rather than a duplicate to be removed. Source/configuration readiness
+  // only: not Production activation, store distribution, or external pilot.
   assert.equal(
     CERT_MATRIX_ENABLED.length,
-    6,
-    'the Build 34 certification matrix is six client features; changing it is an owner ruling',
+    7,
+    'the Build 35 certification matrix is seven client features; changing it is an owner ruling',
   );
 });
 

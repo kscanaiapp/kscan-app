@@ -37,7 +37,7 @@ Three rules that override anything else in this packet:
 | --- | --- | --- |
 | A physical Android phone (**not** the Samsung that produced the carried camera hold, if one is available — see §7) | The camera runtime is the thing under test | — |
 | A physical iPhone (iOS 15.1 or later) | Same, on the other platform | — |
-| A **staging-certification** build for that platform **with the Live flag turned on** | It points at the staging backend, and it is the profile the Live flag belongs on. **As of 2026-09-07 the flag is not set on any profile** — that is an open OWNER ACTION (see `docs/vto-live-productization-v1.md` §8), and until it is done there is nothing to test | Owner enables the flag, then a fresh build |
+| A **staging-certification** build for that platform | It is the only profile with Live enabled (owner ruling 2026-09-07), and it resolves to the staging backend by inheritance | A build made from this branch or later |
 | A K Scan account with **K+** on staging | Journey D (Photoreal) is gated on it | Staging test actor |
 | A room with **controllable lighting** and about 2.5 m of clear floor | Journeys C and F need you to move, and one step needs the light turned down | — |
 | A second person to hold the phone, OR a tripod | You cannot stand 2 m from a phone you are holding | — |
@@ -57,7 +57,7 @@ Then, in the app, confirm all three:
 
 - the backend is **staging** (`yzqjvdfgefveprobvvyw`), not production;
 - **Try It On** appears on an eligible product;
-- opening Try It On offers a **Live** option, not only AI Photo (this is the one that fails if the owner action above has not been done).
+- opening Try It On offers a **Live** option, not only AI Photo.
 
 If Live is not offered, **stop**. Record the reason from §8's table and do not
 continue — every journey below assumes Live is reachable, and a run that
@@ -284,8 +284,7 @@ Work down this table in order. The first row that matches is the answer.
 
 | Check | If it fails |
 | --- | --- |
-| Is the Live build flag `EXPO_PUBLIC_LIVE_VTO_ENABLED` set on the profile this build came from? | **As of 2026-09-07 no EAS profile sets it** — that is an open OWNER ACTION, see `docs/vto-live-productization-v1.md` §8. If it has not been done, Live cannot appear and there is nothing to test. Stop here |
-| Is this the **staging-certification** build? | Live is enabled on no other profile. Get the right build |
+| Is this the **staging-certification** build? | Live is enabled on no other profile — a `staging`, `preview`, `development` or `production` build will never offer it. Get the right build |
 | Does the app point at staging? | A production build will never offer Live. Get the right build |
 | Is the operator switch on? | The `vto_generation` app_config row's `live.enabled` must be `true` on staging. This is a backend setting, not a build setting |
 | Is the product eligible? | Most real products are not. Live only renders products with a governed prepared asset — this is expected, not a bug |

@@ -13,36 +13,35 @@
 // `theGateRefusesALiveEnabledProductionCandidate` builds exactly the profile
 // this rule exists to stop and asserts the same function refuses it.
 //
-// NO PROFILE ENABLES LIVE TODAY, AND THAT IS AN OWNER RULING, NOT AN
-// OVERSIGHT.
+// LIVE IS ENABLED ON `staging-certification`, BY OWNER RULING 2026-09-07,
+// AND ON NOTHING ELSE.
 //
-// The productization lane's brief authorizes enabling Live in Staging, and the
-// obvious home for the flag is `staging-certification`: it already carries
-// EXPO_PUBLIC_VOICESCAN_ENABLED, EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED and
-// EXPO_PUBLIC_SMART_WATCHLIST_V1 on exactly the "staging exercises what
-// production has not shipped" reasoning, and it INHERITS the staging backend
-// rather than restating it. (`staging` itself is not an option:
-// __tests__/staging/easProfileParity.test.js requires it to expose exactly
-// production's flag set.)
+// The history matters, because it is the reason this file can be trusted. The
+// productization lane wrote the flag onto `staging-certification` -- the
+// correct home: it already carries EXPO_PUBLIC_VOICESCAN_ENABLED,
+// EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED and EXPO_PUBLIC_SMART_WATCHLIST_V1 on
+// exactly the "staging exercises what production has not shipped" reasoning,
+// and it INHERITS the staging backend rather than restating it. (`staging`
+// itself was never an option: __tests__/staging/easProfileParity.test.js
+// requires it to expose exactly production's flag set.)
 //
-// It was written there, and then reverted, because TWO existing governed gates
-// say that list is owner-ratified rather than lane-editable:
+// Two governed gates then refused it -- __tests__/easConfigIntegrity.test.js
+// pins the certification matrix to the approved rulings exactly, and
+// __tests__/vtoLiveFeatureGate.test.js asserted no profile set the flag at
+// all. The lane REVERTED and escalated rather than editing the gates standing
+// in its way, and the owner ruled. Both gates now permit precisely this state
+// and nothing wider, each carrying the ruling and its limits in the diff.
 //
-//   __tests__/easConfigIntegrity.test.js pins the certification matrix to
-//   "the approved rulings ... the Build 34 target matrix", exactly;
-//   __tests__/vtoLiveFeatureGate.test.js asserts no EAS profile sets the Live
-//   flag at all.
+// WHAT THE RULING DID NOT AUTHORIZE, and what this file therefore still has to
+// hold: Production activation, store distribution, and external pilot use. The
+// approval is source/configuration readiness only.
 //
-// Widening an owner-ratified certification matrix is not a defect repair, and
-// a lane that rewrites the gate standing in its way has defeated a control to
-// manufacture completion. So the flag is NOT set, the activation is recorded
-// as an OWNER ACTION in docs/vto-live-productization-v1.md, and the RULE below
-// is in place and proven-able-to-fail for the moment it is.
-//
-// THAT IS WHY THE NEGATIVE CONTROL CARRIES THE WEIGHT HERE. With nothing
-// enabling Live, an "everything passes" result is vacuous on its own -- so the
-// same function is run against a synthetic Live-enabled production candidate
-// and asserted to refuse it.
+// THE NEGATIVE CONTROL IS PRESERVED DELIBERATELY. It was load-bearing when
+// nothing enabled Live (an all-pass result would otherwise have been vacuous),
+// and it is load-bearing now for the opposite reason: with a real Live-enabled
+// profile in the tree, the rule is being exercised for real, and the control
+// is what proves it would still REFUSE the Production candidate rather than
+// having quietly become an always-allow.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -105,22 +104,36 @@ test('every EAS profile that enables Live resolves to the STAGING project', () =
   assert.ok(profilesChecked >= 4, `expected the real profile set, walked ${profilesChecked}`);
 });
 
-test('the current, owner-ruled posture is that NO profile enables Live', () => {
-  // Pinned so the activation is a deliberate, reviewed edit rather than
-  // something that drifts in. When the owner rules that the certification
-  // matrix may carry EXPO_PUBLIC_LIVE_VTO_ENABLED, this assertion and
-  // easConfigIntegrity.test.js's CERT_MATRIX_ENABLED change together -- and
-  // the rule above already governs where it may point.
+test('the owner-ruled posture is EXACTLY one profile: staging-certification', () => {
+  // An exact set, resolved through `extends`, not a list of profiles that must
+  // not have it. A rule that only names what it forbids stops being a rule the
+  // moment somebody adds a sixth profile -- and `extends` means a profile can
+  // acquire the flag without the flag appearing in its own `env` at all, which
+  // is precisely what a reviewer reading eas.json by eye would miss.
   const build = readEas().build;
   const enabled = Object.keys(build)
     .filter((name) => resolveEnv(build, name)[LIVE_FLAG] === 'true')
     .sort();
   assert.deepEqual(
     enabled,
-    [],
-    `Live is enabled on ${enabled.join(', ')}. That is an owner ruling on the certification `
-      + 'matrix (see easConfigIntegrity.test.js), so this assertion has to change with it.',
+    ['staging-certification'],
+    `Live resolves enabled on [${enabled.join(', ')}]. The owner ruling of 2026-09-07 `
+      + 'authorizes staging-certification and nothing else; widening this is a new ruling, '
+      + 'and easConfigIntegrity.test.js has to change with it.',
   );
+});
+
+test('the dev harness flag ships on NO profile, and the ruling did not change that', () => {
+  // A separate switch from the feature flag, and a more dangerous one: it
+  // SIMULATES capability, and `vtoLiveCapability.ts` marks any answer it
+  // produces `evidenceSource: 'harness'` so a simulated capability cannot be
+  // laundered into native evidence. A build that shipped it would be a build
+  // whose Live evidence was fabricated.
+  const build = readEas().build;
+  const withHarness = Object.keys(build)
+    .filter((name) => resolveEnv(build, name).EXPO_PUBLIC_LIVE_VTO_HARNESS !== undefined)
+    .sort();
+  assert.deepEqual(withHarness, [], `the Live dev harness is set on ${withHarness.join(', ')}`);
 });
 
 test('THE NEGATIVE CONTROL: the gate refuses a Live-enabled production candidate', () => {
@@ -160,11 +173,13 @@ test('the production, preview and development profiles do NOT enable Live', () =
   }
 });
 
-test('the certification profile ALREADY resolves to staging, so enabling Live there is a one-line change', () => {
-  // The half of the activation that does not need an owner ruling: whatever
-  // the matrix ends up carrying, the profile it would be carried on already
-  // lands on the staging backend by inheritance. Pinned so the owner's
-  // eventual one-line edit cannot silently also change the target.
+test('the Live-enabled certification profile INHERITS the staging backend, never restates it', () => {
+  // The activation and its target are two different facts, and this pins the
+  // second one: the profile that now carries the Live flag reaches the staging
+  // project by INHERITANCE from `staging`. A restated URL here would be a
+  // second copy of the backend identity, and a second thing to drift -- which
+  // is exactly how a Live-enabled build could one day resolve somewhere else
+  // while every profile still "looked" right.
   const eas = readEas();
   const profile = eas.build['staging-certification'];
   assert.equal(profile.extends, 'staging', 'the certification profile must inherit from staging');
@@ -178,11 +193,36 @@ test('the certification profile ALREADY resolves to staging, so enabling Live th
     resolved[URL_KEY],
     new RegExp(`^https://${STAGING_PROJECT_REF}\\.supabase\\.co/?$`),
   );
-  // And the rule agrees: a Live flag added here would be ALLOWED, not refused.
-  assert.deepEqual(
-    classifyLiveTarget({ ...resolved, [LIVE_FLAG]: 'true' }),
-    { verdict: 'allowed' },
+  // The flag is really there, and the rule really allows it -- run against the
+  // RESOLVED environment, so this is the same judgement EAS's own resolution
+  // would produce rather than a reading of one profile's literal `env`.
+  assert.equal(resolved[LIVE_FLAG], 'true');
+  assert.deepEqual(classifyLiveTarget(resolved), { verdict: 'allowed' });
+});
+
+test('the ruling authorized CONFIGURATION READINESS, not distribution', () => {
+  // Recorded mechanically because "source-ready" and "shippable" are exactly
+  // the two things a reader of a green pipeline is most likely to conflate.
+  const eas = readEas();
+  const cert = eas.build['staging-certification'];
+
+  // The profile is a STORE-shaped build pointed at staging -- that is what
+  // makes it the right vehicle for a production-style candidate -- but a
+  // build is not a submission. No submit configuration may target production
+  // from this lane, and none is added by it.
+  assert.equal(cert.distribution, 'store');
+  const resolved = resolveEnv(eas.build, 'staging-certification');
+  assert.match(resolved[URL_KEY], new RegExp(STAGING_PROJECT_REF));
+  assert.ok(
+    !resolved[URL_KEY].includes(PRODUCTION_PROJECT_REF),
+    'a Live-enabled certification build must never resolve to production',
   );
+
+  // And the production profile is untouched by the ruling, checked here as
+  // well as in its own test so the two claims cannot drift apart.
+  const production = resolveEnv(eas.build, 'production');
+  assert.equal(production[LIVE_FLAG], undefined, 'production must not carry the Live flag');
+  assert.match(production[URL_KEY], new RegExp(PRODUCTION_PROJECT_REF));
 });
 
 test('the client flag is read from that exact env var and defaults OFF', () => {
