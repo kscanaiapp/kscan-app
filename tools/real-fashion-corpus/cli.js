@@ -278,6 +278,13 @@ function cmdHoldoutStatus() {
   return 0;
 }
 
+function cmdDryRun(args) {
+  const { runOperatorDryRun, formatDryRun } = require('./lib/operatorDryRun');
+  const result = runOperatorDryRun({ workDir: flag(args, 'work-dir') });
+  console.log(formatDryRun(result));
+  return result.ok ? 0 : 1;
+}
+
 function cmdManifest() {
   const corpus = loadCorpus({ validate: false });
   const manifest = buildCorpusManifest(corpus);
@@ -309,6 +316,7 @@ const COMMANDS = {
   'validate-corpus': cmdValidateCorpus,
   'inspect-asset': cmdInspectAsset,
   'sanitize-asset': cmdSanitizeAsset,
+  'dry-run': cmdDryRun,
   'holdout-status': cmdHoldoutStatus,
   manifest: cmdManifest,
   'check-templates': cmdCheckTemplates,
@@ -329,6 +337,7 @@ function usage() {
   evaluate --mode MODE           REAL_DEVELOPMENT (default) | PAIRED_DEVICE | REAL_HOLDOUT
                                  REAL_HOLDOUT also needs --reason and --invoked-by,
                                  plus ${UNSEAL_ENV_VAR} in the environment
+  dry-run                        walk the whole documented workflow end to end
   validate-corpus [--report F]   the INDEPENDENT validator
   inspect-asset FILE             integrity + embedded-metadata report for one file
   sanitize-asset FILE [--out F]  strip location metadata, keep orientation
