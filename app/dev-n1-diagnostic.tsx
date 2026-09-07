@@ -293,6 +293,42 @@ export default function DevN1Diagnostic() {
     }
   };
 
+  // Part B (2026-09-06): live on-device exercise of the new session
+  // lifecycle commands (start/pause/resume/stop/loadGarment/switchGarment/
+  // dispose) via the SAME module-level bridge the real
+  // services/vto/vtoLiveSession.ts controller calls -- no new test-only
+  // surface. Subscribes to the new `liveVtoEvent` channel directly (this
+  // diagnostic screen has no view ref either, matching the real contract).
+  const [partBEvents, setPartBEvents] = useState<string[]>([]);
+  const [partBLastError, setPartBLastError] = useState('none');
+  const partBGarmentA = { productRef: 'part-b-diagnostic-a', imageUrl: 'https://example.test/a.png', canonicalCategory: 'top', templateFamily: 't-shirt' };
+  const partBGarmentB = { productRef: 'part-b-diagnostic-b', imageUrl: 'https://example.test/b.png', canonicalCategory: 'top', templateFamily: 'simple-top' };
+
+  useEffect(() => {
+    const nativeModule = getLiveVtoNativeModule();
+    const subscription = nativeModule?.addListener?.('liveVtoEvent', (event: any) => {
+      const line = `${new Date().toISOString().slice(11, 19)} ${event?.type} ${JSON.stringify(event?.payload ?? {})}`;
+      // eslint-disable-next-line no-console
+      console.log('[PART-B-EVENT]', line);
+      setPartBEvents((prev) => [...prev.slice(-9), line]);
+    });
+    return () => subscription?.remove?.();
+  }, []);
+
+  const runPartBCommand = (name: string, fn: () => void) => () => {
+    try {
+      fn();
+      setPartBLastError('none');
+    } catch (error) {
+      const line = `${name}: ${String(error)}`;
+      // eslint-disable-next-line no-console
+      console.log('[PART-B-ERROR]', line);
+      setPartBLastError(line);
+    }
+  };
+
+  const nm = () => getLiveVtoNativeModule() as any;
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.label}>N1-A capability</Text>
@@ -339,6 +375,37 @@ export default function DevN1Diagnostic() {
         }`}
       </Text>
 
+      <Text style={styles.label}>
+        Part B: session control surface (start/pause/resume/stop/loadGarment/switchGarment/dispose)
+      </Text>
+      <View style={styles.partBRow}>
+        <Pressable testID="partb-start" style={styles.buttonSmall} onPress={runPartBCommand('start', () => nm().start())}>
+          <Text style={styles.buttonText}>start</Text>
+        </Pressable>
+        <Pressable testID="partb-pause" style={styles.buttonSmall} onPress={runPartBCommand('pause', () => nm().pause())}>
+          <Text style={styles.buttonText}>pause</Text>
+        </Pressable>
+        <Pressable testID="partb-resume" style={styles.buttonSmall} onPress={runPartBCommand('resume', () => nm().resume())}>
+          <Text style={styles.buttonText}>resume</Text>
+        </Pressable>
+        <Pressable testID="partb-stop" style={styles.buttonSmall} onPress={runPartBCommand('stop', () => nm().stop())}>
+          <Text style={styles.buttonText}>stop</Text>
+        </Pressable>
+      </View>
+      <View style={styles.partBRow}>
+        <Pressable testID="partb-load-a" style={styles.buttonSmall} onPress={runPartBCommand('loadGarment(A)', () => nm().loadGarment(partBGarmentA))}>
+          <Text style={styles.buttonText}>loadGarment A</Text>
+        </Pressable>
+        <Pressable testID="partb-switch-b" style={styles.buttonSmall} onPress={runPartBCommand('switchGarment(B)', () => nm().switchGarment(partBGarmentB))}>
+          <Text style={styles.buttonText}>switchGarment B</Text>
+        </Pressable>
+        <Pressable testID="partb-dispose" style={styles.buttonSmall} onPress={runPartBCommand('dispose', () => nm().dispose())}>
+          <Text style={styles.buttonText}>dispose</Text>
+        </Pressable>
+      </View>
+      <Text testID="partb-last-error" style={styles.result}>{`lastError: ${partBLastError}`}</Text>
+      <Text testID="partb-events" style={styles.result}>{partBEvents.join('\n') || '(no events yet)'}</Text>
+
       <Text style={styles.label}>N1-F live front camera (real device only)</Text>
       <Pressable testID="n1-f-request-permission" style={styles.button} onPress={requestCameraPermission}>
         <Text style={styles.buttonText}>Request camera permission</Text>
@@ -367,6 +434,8 @@ const styles = StyleSheet.create({
   viewFrame: { height: 300, backgroundColor: '#000', marginBottom: 6 },
   nativeView: { flex: 1 },
   button: { backgroundColor: '#2a5', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 6, marginTop: 6, alignItems: 'center' },
+  partBRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
+  buttonSmall: { backgroundColor: '#2a5', paddingVertical: 6, paddingHorizontal: 8, borderRadius: 6, alignItems: 'center' },
   buttonDisabled: { backgroundColor: '#444' },
   buttonText: { color: '#fff', fontWeight: '600' },
 });

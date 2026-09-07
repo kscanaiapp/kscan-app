@@ -117,41 +117,67 @@ class KScanLiveVtoNativeModule : Module() {
       LiveVtoGarmentDescriptor.fromBridgeMap(raw)
         ?: throw CodedException("GARMENT_UNSUPPORTED", "loadGarment/switchGarment descriptor is missing a required field or has an unsupported templateFamily", null)
 
+    // `runOnMainThreadBlocking` on every one of these is load-bearing, not
+    // stylistic: a plain synchronous `Function` (unlike a View `Prop`
+    // setter, which Expo already guarantees runs on the UI thread, and
+    // unlike `AsyncFunction`, which has its own `.runOnQueue(Queues.MAIN)`
+    // -- a modifier the sync `Function` builder does NOT expose, confirmed
+    // by a real Kotlin "Unresolved reference" compile error when this was
+    // tried here) is dispatched on the JS bridge's own background thread by
+    // default. `startSession()` constructs a `PreviewView`/binds CameraX,
+    // both of which throw IllegalStateException("must be called from the
+    // main thread") off that thread -- confirmed via a real on-device
+    // stack trace during Part B verification, not assumed. Every command
+    // that can reach `startCamera()`/`stopCamera()` (start/pause/resume/
+    // stop/loadGarment/switchGarment/dispose) needs the SAME guarantee,
+    // since any of them can run while a camera session is active.
     Function("start") {
-      if (!currentViewOrThrow().startSession()) {
-        throw CodedException("RUNTIME_INITIALIZATION_FAILED", "start() is not valid from the session's current state", null)
+      runOnMainThreadBlocking {
+        if (!currentViewOrThrow().startSession()) {
+          throw CodedException("RUNTIME_INITIALIZATION_FAILED", "start() is not valid from the session's current state", null)
+        }
       }
     }
 
     Function("pause") {
-      if (!currentViewOrThrow().pauseSession()) {
-        throw CodedException("INVALID_STATE", "pause() is only valid while the session is RUNNING", null)
+      runOnMainThreadBlocking {
+        if (!currentViewOrThrow().pauseSession()) {
+          throw CodedException("INVALID_STATE", "pause() is only valid while the session is RUNNING", null)
+        }
       }
     }
 
     Function("resume") {
-      if (!currentViewOrThrow().resumeSession()) {
-        throw CodedException("INVALID_STATE", "resume() is only valid while the session is PAUSED", null)
+      runOnMainThreadBlocking {
+        if (!currentViewOrThrow().resumeSession()) {
+          throw CodedException("INVALID_STATE", "resume() is only valid while the session is PAUSED", null)
+        }
       }
     }
 
     Function("stop") {
-      if (!currentViewOrThrow().stopSession()) {
-        throw CodedException("INVALID_STATE", "stop() is refused after dispose()", null)
+      runOnMainThreadBlocking {
+        if (!currentViewOrThrow().stopSession()) {
+          throw CodedException("INVALID_STATE", "stop() is refused after dispose()", null)
+        }
       }
     }
 
     Function("loadGarment") { descriptor: Map<String, Any?>? ->
       val parsed = garmentDescriptorOrThrow(descriptor)
-      if (!currentViewOrThrow().loadGarmentSession(parsed)) {
-        throw CodedException("GARMENT_UNSUPPORTED", "loadGarment() is not valid from the session's current state", null)
+      runOnMainThreadBlocking {
+        if (!currentViewOrThrow().loadGarmentSession(parsed)) {
+          throw CodedException("GARMENT_UNSUPPORTED", "loadGarment() is not valid from the session's current state", null)
+        }
       }
     }
 
     Function("switchGarment") { descriptor: Map<String, Any?>? ->
       val parsed = garmentDescriptorOrThrow(descriptor)
-      if (!currentViewOrThrow().switchGarmentSession(parsed)) {
-        throw CodedException("GARMENT_UNSUPPORTED", "switchGarment() is only valid while the session is RUNNING, PAUSED or READY", null)
+      runOnMainThreadBlocking {
+        if (!currentViewOrThrow().switchGarmentSession(parsed)) {
+          throw CodedException("GARMENT_UNSUPPORTED", "switchGarment() is only valid while the session is RUNNING, PAUSED or READY", null)
+        }
       }
     }
 
@@ -160,8 +186,10 @@ class KScanLiveVtoNativeModule : Module() {
       // LiveVtoSessionController.dispose() contract exactly): calling
       // dispose on a view that never started a session, or twice, is a
       // safe no-op, not an error.
-      LiveVtoTestRenderView.currentInstance()?.disposeSession()
-      Unit
+      runOnMainThreadBlocking {
+        LiveVtoTestRenderView.currentInstance()?.disposeSession()
+        Unit
+      }
     }
 
     // N1-B: diagnostic-only native view, not part of the P3-C application
@@ -228,4 +256,32 @@ class KScanLiveVtoNativeModule : Module() {
   companion object {
     private const val RUNTIME_VERSION = "n1-a"
   }
+}
+
+/**
+ * Runs [block] on the main thread and blocks the calling thread until it
+ * completes, re-throwing whatever [block] threw on the CALLER's thread --
+ * the synchronous, throwing-or-not semantics `sendLiveVtoCommand` in
+ * services/vto/vtoLiveSession.ts depends on. The Expo `Function` (sync)
+ * builder has no `.runOnQueue` modifier (`AsyncFunction` does; a compile
+ * error confirmed the asymmetry) and is otherwise dispatched on the JS
+ * bridge's own background thread, off which UI-thread-only work
+ * (constructing `PreviewView`, binding CameraX) throws. A no-op fast path
+ * when already on the main thread avoids a pointless post+await when a
+ * caller is itself already there.
+ */
+private fun <T> runOnMainThreadBlocking(block: () -> T): T {
+  if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) return block()
+  val latch = java.util.concurrent.CountDownLatch(1)
+  var outcome: Result<T>? = null
+  android.os.Handler(android.os.Looper.getMainLooper()).post {
+    outcome = try {
+      Result.success(block())
+    } catch (t: Throwable) {
+      Result.failure(t)
+    }
+    latch.countDown()
+  }
+  latch.await()
+  return outcome!!.getOrThrow()
 }

@@ -59,7 +59,7 @@ for contract (1) to be built, jointly, on both platforms.
 
 ## 2. Commands (the real, pinned surface)
 
-Both platforms expose the SAME 9 bridge members, mechanically pinned by a
+Both platforms expose the SAME 18 bridge members, mechanically pinned by a
 source-scanning test on each side (Android: `RuntimeBoundaryTest.kt`; iOS:
 `LiveVtoRuntimeBoundaryTests.swift`):
 
@@ -74,22 +74,33 @@ source-scanning test on each side (Android: `RuntimeBoundaryTest.kt`; iOS:
 | `getPerceptionStatsJson` | `AsyncFunction` (View) | View | Bounded aggregate perception counters |
 | `camera` | `Prop` (View) | View | Start/stop the N1-F LIVE front-camera pipeline (CameraX / AVFoundation feeding the SAME perception/geometry/render stack `perception` already proved) |
 | `getCameraStatsJson` | `AsyncFunction` (View) | View | Bounded aggregate camera+perception counters |
+| `capturePersonFrame` | `AsyncFunction` (Module) | Module | N1-G: the ONLY capture that may feed the generative path (§12) |
+| `capturePreview` | `AsyncFunction` (Module) | Module | N1-G: composited local-display-only capture (§12) |
+| `start` | `Function` (sync, Module) | Module | Part B: begin the session (§13) |
+| `pause` | `Function` (sync, Module) | Module | Part B: pause a RUNNING session (§13) |
+| `resume` | `Function` (sync, Module) | Module | Part B: resume a PAUSED session (§13) |
+| `stop` | `Function` (sync, Module) | Module | Part B: idempotent teardown, session may `start()` again (§13) |
+| `loadGarment` | `Function` (sync, Module) | Module | Part B: load a garment before/while starting (§13) |
+| `switchGarment` | `Function` (sync, Module) | Module | Part B: atomic garment swap while RUNNING/PAUSED/READY (§13) |
+| `dispose` | `Function` (sync, Module) | Module | Part B: terminal, idempotent teardown (§13) |
 
-No `Events()` channel exists on either platform at this gate — every
-transition Android emits internally (`ReplayEvent`) stays inside the native
-process; the bridge only exposes pull-based, rate-limited, aggregate reads.
-iOS reproduces this exactly: `LiveVtoRenderView`'s replay/perception/camera
-sessions fire `ReplayEvent` callbacks that only trigger a `setNeedsDisplay()`,
-never a bridge `sendEvent`.
+**Events.** `Events("liveVtoEvent")` (Part B, §13) is the one bridge event
+channel on both platforms, carrying exactly `types/vtoLive.ts`'s
+`LiveVtoEvent` shape (`{type, timestamp, payload}`) for the ten names in
+`LIVE_VTO_EVENTS`. Every OTHER transition either platform tracks internally
+(`ReplayEvent`, `CameraControllerState`, perception session state) stays
+inside the native process exactly as before — this channel exists
+specifically to feed `services/vto/vtoLiveSession.ts`'s already-implemented,
+already-tested reducer, and carries nothing per-frame.
 
 **Banned substrings** (both platforms' boundary tests enforce this on every
 member name): `frame`, `bitmap`, `image`, `pixel`, `mask`, `landmark`, `mesh`,
-`texture`, `buffer`. None of the 9 names above contain any of them.
+`texture`, `buffer` — except the two already-governed exceptions
+`capturePersonFrame`/`capturepersonframe` (§12.1). None of the other 17
+names above contain any of them.
 
 **N1-F note:** `camera`/`getCameraStatsJson` are diagnostic-only additions in
-the SAME style as `perception`/`replay` — NOT the aspirational ten
-`LIVE_VTO_COMMANDS` §0 describes (`start`/`capturePersonFrame`/etc.), which
-remain unimplemented on both platforms. Full camera-lane design (mirror
+the SAME style as `perception`/`replay`. Full camera-lane design (mirror
 decision, backpressure design, known constraints, evidence tiers):
 `docs/vto-live-native-n1-camera.md` (Android + iOS).
 
@@ -439,11 +450,188 @@ session, not kept as a stray temp file.
 
 ### 12.6 What this section does NOT cover
 
-`start`/`pause`/`resume`/`stop`/`loadGarment`/`switchGarment`/
-`requestPhotorealCapture`/`dispose` remain unimplemented on both platforms
-(§0/§2 unchanged). `capturePersonFrame`/`capturePreview` work against
-whichever diagnostic mode (`camera`/`perception`) is already active via the
-Props in §2 -- there is currently no native-module-level `start()` that
-the real `vtoLiveSession.ts` flow expects to call first. Closing that gap
-is future work, not part of N1-G's scope (K Scan AI Live VTO N1-G mission,
-§29 scope fence).
+As of Part B (§13), `start`/`pause`/`resume`/`stop`/`loadGarment`/
+`switchGarment`/`dispose` are implemented on both platforms. Two things
+remain true from N1-G and are unchanged by Part B:
+- `requestPhotorealCapture` has no native counterpart and needs none: it is
+  a JS-level orchestration (`hooks/useVtoLiveSession.ts`'s
+  `requestPhotoreal()` — already implemented, already tested) over the
+  native `capturePersonFrame` this section documents.
+- `capturePersonFrame`/`capturePreview` STILL work against whichever
+  diagnostic mode (`camera`/`perception`) is active, exactly as before, for
+  any view whose session was never started (§13.4) — this is what keeps
+  the G3 real-staging test flow (dev-only, `perception`-mode) working
+  unchanged by Part B.
+
+## 13. Session control surface (Part B, 2026-09-06)
+
+### 13.1 Two state machines, not one
+
+`types/vtoLive.ts`'s `LiveVtoSessionState` (`INITIALIZING`/`READY`/
+`TRACKING`/`TRACKING_WEAK`/`TRACKING_LOST`/`GARMENT_LOADING`/
+`CAPTURE_READY`/`ERROR`) is the JS-facing vocabulary a UI renders, and
+`services/vto/vtoLiveSession.ts`'s `reduceLiveVtoSession` (already
+implemented, already tested) already owns it exhaustively — Part B does not
+touch or duplicate that reducer.
+
+What was missing was the layer BELOW it: a NATIVE-internal state machine
+answering "is this command valid right now", independent of what the
+camera/perception pipeline is doing frame-to-frame. That is
+`LiveVtoSessionState`/`LiveVtoSessionMachine` (Android:
+`LiveVtoSessionState.kt`; iOS: `ios/Core/LiveVtoSessionState.swift`, zero
+platform imports, `swift test`/JVM-testable with no device):
+
+```
+CREATED → STARTING → RUNNING ⇄ PAUSED → STOPPING → STOPPED → (STARTING again)
+   ↓          ↓          ↓         ↓          ↓
+   └────────────────→ GARMENT_LOADING (from CREATED/STARTING/READY/STOPPED,
+   |                   or from RUNNING/PAUSED/READY via switchGarment)
+   └────────────────→ CAPTURING (from RUNNING/PAUSED only, single-flight)
+   any state ──dispose()──→ DISPOSED (terminal, idempotent)
+```
+
+Full (state × command) allow-list, every named invariant
+(no-start-after-dispose, no-duplicate-start, pause-only-from-running,
+resume-only-from-paused, stop/dispose-idempotent,
+capture-cannot-outlive-disposed, capture-is-single-flight,
+failed-garment-load-cannot-pretend-ready, switch-cannot-attach-to-stale),
+and every required race (stop-while-starting, dispose-while-starting,
+garment-switch-during-start, stop-during-garment-load,
+dispose-during-capture, rapid A→B→C garment switch) are exercised as pure
+transition-table tests: `LiveVtoSessionStateTest.kt` /
+`LiveVtoSessionStateTests.swift`, one-to-one ports of each other.
+
+### 13.2 Wiring: reuses the pipeline, does not duplicate it
+
+`startSession()`/`stopSession()`/`pauseSession()`/`resumeSession()` drive
+the SAME `cameraController`/`cameraPerceptionSession`/
+`cameraPerceptionDriver` fields the diagnostic `camera` Prop already owns,
+via the SAME `startCamera()`/`stopCamera()` — there is no second
+CameraX/AVFoundation pipeline. `STARTING → RUNNING` is driven off the SAME
+`CameraControllerState.RUNNING`/`.running` signal the diagnostic camera
+stats already report. Per the confirmed HOLD evidence
+(`docs/vto-live-native-n1-camera.md`), `bindToLifecycle`/AVFoundation's own
+bind succeeds on the certified device even though the HAL never delivers a
+frame afterward — that is a downstream tracking-quality fact (the JS
+`TRACKING_LOST` state), not a native `start()` failure, so `start()` reaches
+`RUNNING` on this device class despite the carried camera HOLD.
+
+`pauseSession()`/`resumeSession()` stop/start the perception driver without
+tearing down the camera or perception session — `resumeSession()` restarts
+the SAME driver rather than rebuilding the pipeline.
+
+### 13.3 Generation/epoch protection
+
+A monotonic counter (`sessionGeneration`, `AtomicInteger`/`Int32`) is bumped
+on every `start()`/`stop()`/`dispose()`. Both platforms' completion
+callbacks (camera-ready, garment-load success/failure) are guarded by the
+session state itself rather than a separately-threaded generation parameter
+for the camera-ready signal specifically: `handleCameraControllerStateForSession`
+only acts while `sessionState == STARTING`, and both that callback and every
+session command run on the main thread (Expo dispatches View-touching
+`Function` calls there; the camera controller's own listener is posted via
+the main executor), so a stop/dispose that already moved the state off
+`STARTING` has already made a late completion a no-op by construction. The
+explicit generation check is used for garment loads (`performGarmentLoad`),
+which is the correct pattern for when a real async network-backed resolver
+replaces the current bounded fixture (§13.5) — a stale load's completion for
+an old epoch is dropped silently rather than overwriting a newer one.
+
+### 13.4 Capture, gated only once a session is engaged
+
+`captureCleanFrame()`/`captureCompositedFrame()` check
+`beginCaptureIfSessionActive()` first: if `sessionState == CREATED` (a
+session was never started on this view), the check passes through with NO
+state change — §12's existing capture behavior against whichever
+diagnostic mode is active is completely unaffected, which is what keeps the
+dev-only G3 real-staging test flow (perception-mode capture) working
+unchanged. Once a session HAS been started, capture is gated exactly like
+every other command: `RUNNING`/`PAUSED` only, single-flight (a second
+capture while one is in flight is refused, not queued), and refused outright
+once `STOPPED`/`DISPOSED`.
+
+### 13.5 Garment loading: a bounded scope decision
+
+There is no live product-catalog → native-asset resolver anywhere in this
+codebase (confirmed by research): `vto-phase4-pipeline/` is an offline
+batch tool producing committed fixtures, not a runtime dependency, and this
+section previously (§12.6, pre-Part-B) documented `loadGarment`/
+`switchGarment` themselves as future work with no design on file. Rather
+than inventing a network fetch or a new asset-factory, `loadGarment`/
+`switchGarment` validate the descriptor (`productRef`/`imageUrl`/
+`canonicalCategory` non-blank; `templateFamily` ∈ `t-shirt`/`simple-top`/
+`sweater`, `types/vtoLive.ts`'s `LIVE_SUPPORTED_TEMPLATE_FAMILIES`) and
+resolve EVERY supported family to the SAME governed bundled fixture (§12.3's
+`n1b-fixture`) the diagnostic view already renders. `productRef`/
+`assetVersion` (from the real, decoded `KsgarmentManifest`) are carried
+honestly in the `garmentLoaded` event for identity — nothing about them is
+fabricated — but a distinct visual asset per product is not yet addressed.
+This is real, bounded, and documented here rather than silently assumed;
+closing it (a real catalog → `.ksgarment` resolver) is future work.
+
+### 13.6 Events emitted
+
+`ready` (on `RUNNING`), `garmentLoaded` (`{productRef, assetVersion}`),
+`fatalError` (`{state: 'RUNTIME_INITIALIZATION_FAILED'|'CAMERA_PERMISSION_DENIED'|'GARMENT_UNSUPPORTED', recoverable}`).
+`trackingAcquired`/`trackingWeak`/`trackingLost`/`trackingRecovered`/
+`captureReady`/`privacyStateChanged`/`performanceChanged` are declared in
+`LIVE_VTO_EVENTS` and consumed by the JS reducer but are not yet emitted by
+either native platform — they describe per-frame tracking quality, which is
+downstream of the carried camera HOLD and out of Part B's scope (session
+lifecycle, not tracking quality).
+
+### 13.7 Defect found and fixed during verification: main-thread dispatch
+
+A synchronous Expo `Function` (unlike a View `Prop` setter, which Expo
+already guarantees runs on the main/UI thread) is dispatched on the JS
+bridge's own background thread by default. `startSession()` constructs a
+`PreviewView` (Android) / adds `LiveVtoCameraPreviewContainerView` and
+`LiveVtoMeshOverlayView` as subviews (iOS), all of which require the main
+thread. The first on-device attempt at `start()` threw a real
+`IllegalStateException` from `PreviewView`'s constructor
+(`Threads.checkMainThread()`), confirmed via a captured stack trace — not
+assumed. `AsyncFunction` has a `.runOnQueue(Queues.MAIN)` modifier for
+exactly this; the synchronous `Function` builder does not (confirmed by a
+Kotlin "Unresolved reference" compile error when tried). Fixed with a
+manual blocking main-thread dispatch on both platforms: a small
+`runOnMainThreadBlocking` helper (`Handler`/`CountDownLatch`) on Android,
+`DispatchQueue.main.sync` on iOS — both preserve the exact synchronous,
+throwing-or-not contract `sendLiveVtoCommand` depends on. Re-verified live
+on-device after the fix: `start()` now reaches `RUNNING` and emits `ready`
+through the real bridge (see §14 evidence log).
+
+## 14. G3 + Part B live verification evidence (2026-09-06)
+
+Real, on-device evidence gathered against the physical certified device
+(Samsung SM-S936U), signed in as a real staging actor with real K+
+entitlement, in this exact order:
+
+1. `capturePersonFrame()` via `perception` mode (no camera needed) →
+   real capture, `kind=PERSON_FRAME`, real dimensions.
+2. Negative control: real `capturePreview()` output (`kind=PREVIEW`) fed
+   into the real `buildPhotorealPersonInput` → refused,
+   `code=no_usable_still`.
+3. `start()` → `ready` event received through the real `liveVtoEvent`
+   bridge channel, confirming `RUNNING` was reached despite the carried
+   camera HOLD (native `CameraControllerState` log: `STARTING` → `RUNNING`
+   — `bindToLifecycle` succeeds; the HOLD is downstream frame delivery,
+   not session startup).
+4. `pause()` accepted from `RUNNING`.
+5. `resume()` accepted from `PAUSED`.
+6. `switchGarment(B)` while `RUNNING` → real `garmentLoaded` event with the
+   correct `productRef` for B (not a stale A).
+7. `loadGarment(A)` while `RUNNING` → correctly REJECTED ("not valid from
+   the session's current state" — `switchGarment` is the correct command
+   once running).
+8. `stop()` accepted from `RUNNING`.
+9. `dispose()` accepted (idempotent, never throws).
+10. `start()` after `dispose()` → correctly REJECTED (no-start-after-dispose).
+11. `capturePersonFrame()` after `dispose()` → correctly REJECTED ("no clean
+    person frame is currently available" — capture-cannot-outlive-disposed).
+
+Every rejection above is a REAL thrown `CodedException` propagated through
+the Expo bridge to JS, not a simulated/unit-tested outcome — confirmed by
+reading the exact error text back off the device. G3's own real-staging
+Photoreal calls are covered separately in the mission's final report
+(three bounded calls, all `rate_limited`/`submit_http_429` from the
+third-party provider itself, confirmed via staging function logs).

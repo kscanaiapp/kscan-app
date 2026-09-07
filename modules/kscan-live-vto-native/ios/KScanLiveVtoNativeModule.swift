@@ -76,27 +76,50 @@ public class KScanLiveVtoNativeModule: Module {
     // bounded error state itself.
     Events("liveVtoEvent")
 
+    // `DispatchQueue.main.sync` on every one of these is load-bearing, not
+    // stylistic: a plain synchronous `Function` (unlike a View `Prop`
+    // setter, which Expo already guarantees runs on the main thread) is
+    // dispatched on the JS bridge's own background thread by default.
+    // `startSession()` constructs `LiveVtoCameraPreviewContainerView`/
+    // `LiveVtoMeshOverlayView` and calls `addSubview`/`insertSubview`, all of
+    // which require the main thread -- confirmed the hard way on Android
+    // (a real on-device IllegalStateException from PreviewView's
+    // constructor, off this exact background dispatch, during Part B
+    // verification) and fixed there with `.runOnQueue(Queues.MAIN)`; Swift's
+    // Function builder has no equivalent modifier, so the dispatch is
+    // explicit here instead. `.sync` (not `.async`) is required to keep
+    // these synchronous, fire-and-forget-but-throwing semantics intact: the
+    // caller needs the accept/reject decision (or thrown error) before the
+    // call returns, exactly as sendLiveVtoCommand's try/catch expects.
     Function("start") { () throws -> Void in
-      guard try currentSessionView().startSession() else {
-        throw LiveVtoSessionCommandError.rejected("start() is not valid from the session's current state")
+      try DispatchQueue.main.sync {
+        guard try currentSessionView().startSession() else {
+          throw LiveVtoSessionCommandError.rejected("start() is not valid from the session's current state")
+        }
       }
     }
 
     Function("pause") { () throws -> Void in
-      guard try currentSessionView().pauseSession() else {
-        throw LiveVtoSessionCommandError.rejected("pause() is only valid while the session is RUNNING")
+      try DispatchQueue.main.sync {
+        guard try currentSessionView().pauseSession() else {
+          throw LiveVtoSessionCommandError.rejected("pause() is only valid while the session is RUNNING")
+        }
       }
     }
 
     Function("resume") { () throws -> Void in
-      guard try currentSessionView().resumeSession() else {
-        throw LiveVtoSessionCommandError.rejected("resume() is only valid while the session is PAUSED")
+      try DispatchQueue.main.sync {
+        guard try currentSessionView().resumeSession() else {
+          throw LiveVtoSessionCommandError.rejected("resume() is only valid while the session is PAUSED")
+        }
       }
     }
 
     Function("stop") { () throws -> Void in
-      guard try currentSessionView().stopSession() else {
-        throw LiveVtoSessionCommandError.rejected("stop() is refused after dispose()")
+      try DispatchQueue.main.sync {
+        guard try currentSessionView().stopSession() else {
+          throw LiveVtoSessionCommandError.rejected("stop() is refused after dispose()")
+        }
       }
     }
 
@@ -104,8 +127,10 @@ public class KScanLiveVtoNativeModule: Module {
       guard let parsed = LiveVtoGarmentDescriptor.fromBridgeMap(descriptor) else {
         throw LiveVtoSessionCommandError.rejected("loadGarment descriptor is missing a required field or has an unsupported templateFamily")
       }
-      guard try currentSessionView().loadGarmentSession(parsed) else {
-        throw LiveVtoSessionCommandError.rejected("loadGarment() is not valid from the session's current state")
+      try DispatchQueue.main.sync {
+        guard try currentSessionView().loadGarmentSession(parsed) else {
+          throw LiveVtoSessionCommandError.rejected("loadGarment() is not valid from the session's current state")
+        }
       }
     }
 
@@ -113,8 +138,10 @@ public class KScanLiveVtoNativeModule: Module {
       guard let parsed = LiveVtoGarmentDescriptor.fromBridgeMap(descriptor) else {
         throw LiveVtoSessionCommandError.rejected("switchGarment descriptor is missing a required field or has an unsupported templateFamily")
       }
-      guard try currentSessionView().switchGarmentSession(parsed) else {
-        throw LiveVtoSessionCommandError.rejected("switchGarment() is only valid while the session is RUNNING, PAUSED or READY")
+      try DispatchQueue.main.sync {
+        guard try currentSessionView().switchGarmentSession(parsed) else {
+          throw LiveVtoSessionCommandError.rejected("switchGarment() is only valid while the session is RUNNING, PAUSED or READY")
+        }
       }
     }
 
@@ -123,7 +150,9 @@ public class KScanLiveVtoNativeModule: Module {
       // LiveVtoSessionController.dispose() contract exactly): calling
       // dispose on a view that never started a session, or twice, is a
       // safe no-op, not an error.
-      LiveVtoRenderView.disposeCurrentSession()
+      DispatchQueue.main.sync {
+        LiveVtoRenderView.disposeCurrentSession()
+      }
     }
 
     // Diagnostic-only native view, not part of the P3-C application contract
