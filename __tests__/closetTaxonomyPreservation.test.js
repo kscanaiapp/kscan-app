@@ -837,7 +837,27 @@ test('a partial update preserves taxonomy and provenance', async () => {
   assert.equal(reloaded.material.length, 2);
 });
 
-test('a generic update cannot write taxonomy, provenance or ownership', async () => {
+// UPDATED BY Closet Ownership V1 (PR A2), deliberately.
+//
+// This test previously asserted that `updateClosetItem` could NOT write
+// taxonomy: "taxonomy is not a generic patch target; it moves through promotion
+// and the scoped repair path only." That was true, and it was the defect PR A2
+// exists to fix. Under the old rule a classifier that returned the wrong brand,
+// colour or size had written a fact the owner of the garment could not correct —
+// `repairClosetItemTaxonomy` fills only ABSENT fields and refuses to change a
+// present one, so there was no correction path at all.
+//
+// The half of this test that was really load-bearing is UNCHANGED and still
+// asserted below: a patch must never reach provenance or ownership. That
+// boundary did not move. What moved is that the eight committed taxonomy fields
+// are now user-correctable, through the same single normalizer the record
+// builder uses.
+//
+// See docs/closet-productization/03-decision-memos.md DM-04, and
+// __tests__/closetCorrectionAuthority.test.js for the full correction contract
+// (bounds, de-duplication, clearing, cross-actor refusal and precedence over
+// the repair path).
+test('an update may correct taxonomy, but never provenance or ownership', async () => {
   const env = load();
   const req = asActor(env.actorContext, 'user-a');
   const candidate = await stageReady(env, req, '/picker/a.jpg');
@@ -859,12 +879,19 @@ test('a generic update cannot write taxonomy, provenance or ownership', async ()
   );
   assert.equal(updated.ok, true);
   assert.equal(updated.item.title, 'Renamed');
-  // Taxonomy is not a generic patch target; it moves through promotion and the
-  // scoped repair path only.
-  assert.equal(updated.item.brand, 'Acme');
-  assert.equal(updated.item.subtype, 'Bomber');
-  assert.deepEqual(updated.item.material, ['Wool', 'Nylon']);
-  assert.equal(updated.item.size, 'M');
+
+  // TAXONOMY IS NOW CORRECTABLE. The owner of the garment is the authority on
+  // what it is; "Counterfeit" is a strange brand to type, but it is the user's
+  // to type, and the store must record what they said rather than overrule it.
+  assert.equal(updated.item.brand, 'Counterfeit');
+  assert.equal(updated.item.subtype, 'Parka');
+  assert.deepEqual(updated.item.material, ['Plastic']);
+  assert.equal(updated.item.size, 'XXL');
+
+  // PROVENANCE AND OWNERSHIP REMAIN UNREACHABLE. This is the boundary that did
+  // not move, and it is enforced by the allowlist rather than by caller
+  // discipline: these keys are not in CLOSET_ITEM_TAXONOMY_FIELDS, so a patch
+  // cannot address them however it is shaped.
   assert.equal(updated.item.sourceCandidateId, candidate.candidateId);
   assert.equal(updated.item.ownerId, 'user-a');
 });

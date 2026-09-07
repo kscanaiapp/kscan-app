@@ -38,7 +38,9 @@ test('the card renders edit as its own control, separate from the card tap', () 
 
 test('the edit sheet is mounted and bound to the selected item', () => {
   const library = read('app/library.tsx');
-  assert.match(library, /import \{ ClosetItemEditModal \}/);
+  // PR A2: the screen now imports the patch type alongside the component, so
+  // the import spans lines. Match the specifier rather than a one-line shape.
+  assert.match(library, /ClosetItemEditModal[\s\S]{0,80}from '\.\.\/components\/closet\/ClosetItemEditModal'/);
   assert.match(library, /<ClosetItemEditModal/);
   assert.match(library, /item=\{editingClosetItem\}/);
   assert.match(library, /onSave=\{handleSaveClosetItemEdit\}/);
@@ -60,13 +62,52 @@ test('save routes through the actor-guarded store update, not a direct write', (
   assert.match(hook, /addFromScan,\s*update,\s*remove/);
 });
 
-test('the sheet edits metadata only — no media, no scan, no taxonomy', () => {
+// UPDATED BY Closet Ownership V1 (PR A2), deliberately.
+//
+// This test previously pinned the edit sheet to exactly TWO fields, on the rule
+// that "the edit sheet must not gain fields intake never offered". That rule
+// tied correction to intake, and intake collects almost nothing (see
+// docs/closet-productization/02-metadata-coverage-audit.md: two of the three
+// shipping intake paths populate no taxonomy at all beyond a category). The
+// consequence was that a classifier's wrong brand, colour or size could never
+// be corrected by the person who owns the garment.
+//
+// The rule is now: the sheet offers exactly what the RECORD COMMITS — no
+// speculative field, and nothing services/closetLibrary.js cannot store. The
+// boundaries this test really protects (no media, no scan, no re-identification,
+// no reach into the repair path) are unchanged and still asserted.
+//
+// See DM-04 in docs/closet-productization/03-decision-memos.md.
+test('the sheet edits committed metadata only — no media, no scan, no re-identification', () => {
   const modal = read('components/closet/ClosetItemEditModal.tsx');
-  assert.match(modal, /label="Name"/);
-  assert.match(modal, /label="Category \(optional\)"/);
-  // The creation sheet collects exactly these two, and so does this one.
+
+  // Exactly the fields the record commits: title, the 8 taxonomy fields, notes.
+  const expectedLabels = [
+    'Name',
+    'Category (optional)',
+    'Type (optional)',
+    'Style (optional)',
+    'Brand (optional)',
+    'Main colour (optional)',
+    'Other colours (optional, separated by commas)',
+    'Material (optional, separated by commas)',
+    'Size (optional)',
+    'Notes (optional)',
+  ];
+  for (const label of expectedLabels) {
+    // Substring, not regex: these labels contain parentheses, and building a
+    // regex from them is how "(optional)" silently becomes a capture group.
+    assert.ok(modal.includes(`label="${label}"`), `missing field: ${label}`);
+  }
   const fields = modal.match(/<TextField/g) ?? [];
-  assert.equal(fields.length, 2, 'the edit sheet must not gain fields intake never offered');
+  assert.equal(
+    fields.length,
+    expectedLabels.length,
+    'the edit sheet must offer exactly the committed fields — no speculative field the record cannot store',
+  );
+
+  // UNCHANGED BOUNDARY. Editing metadata must never touch the photo, re-run
+  // identification, or reach the absent-only backfill path.
   for (const forbidden of ['manipulateAsync', 'ImagePicker', 'imageUri:', 'repairClosetItemTaxonomy']) {
     assert.equal(modal.includes(forbidden), false, `the edit sheet must not reach ${forbidden}`);
   }
@@ -75,7 +116,11 @@ test('the sheet edits metadata only — no media, no scan, no taxonomy', () => {
 test('cancel is lossless and a failed save keeps the draft on screen', () => {
   const modal = read('components/closet/ClosetItemEditModal.tsx');
   // Cancel reverts to the stored values and closes without calling onSave.
-  assert.match(modal, /const cancel = useCallback\(\(\) => \{[\s\S]{0,260}setTitle\(item\?\.title \?\? ''\)/);
+  // PR A2: the per-field setters moved into one `resetFrom` helper, so a field
+  // added to the sheet cannot be prefilled on open and forgotten on cancel.
+  // Cancel must still revert from the RECORD, not merely close.
+  assert.match(modal, /const cancel = useCallback\(\(\) => \{[\s\S]{0,260}resetFrom\(item\)/);
+  assert.match(modal, /const resetFrom = useCallback\([\s\S]{0,900}setTitle\(source\?\.title \?\? ''\)/);
   assert.match(modal, /onRequestClose=\{cancel\}/);
   const cancelBody = modal.slice(modal.indexOf('const cancel'), modal.indexOf('const save'));
   assert.equal(cancelBody.includes('onSave'), false, 'cancel must not write');
@@ -83,6 +128,7 @@ test('cancel is lossless and a failed save keeps the draft on screen', () => {
   assert.match(modal, /setError\(messageFor\(result\.reason\)\)/);
   const saveBody = modal.slice(modal.indexOf('const save'), modal.indexOf('const previewUri'));
   assert.equal(/setTitle\(/.test(saveBody), false, 'a failed save must not clear what was typed');
+  assert.equal(/resetFrom\(/.test(saveBody), false, 'a failed save must not revert the whole draft either');
 });
 
 test('NEGATIVE CONTROL: removing the affordance or the route fails these checks', () => {
