@@ -1,0 +1,21 @@
+{
+  "procedure": "Addendum A.2",
+  "ranAt": "2026-09-06",
+  "baseSha": "76b54ee17f032754bd96f19494adc400da77320d",
+  "command": "node scripts/run-all-tests.js",
+  "exitCode": 0,
+  "totalTestFiles": 426,
+  "totalTests": 7671,
+  "pass": 7593,
+  "fail": 13,
+  "cancelled": 0,
+  "skipped": 65,
+  "todo": 0,
+  "durationMs": 258670.857,
+  "knownFailureBaselineCount": 19,
+  "observedFailures": 13,
+  "unexpectedFailures": 0,
+  "verdict": "PASS - all 13 observed failures matched the pre-registered config/test-failure-baseline.json (19 known identities total; 6 of those were not observed as failing in this run, which run-all-tests.js explicitly allows - 'fixed baseline failures are allowed to disappear'). Zero unexpected failures.",
+  "inheritedBaseFailures": "13 pre-existing failures, none caused by this lane. Not fixed here per Addendum A.3 RULE 3 (record, don't broaden). See config/test-failure-baseline.json at base SHA for the full known-failure list (staging/eas parity drift, security gate identifiers, etc. - unrelated to product identity/canonicalization).",
+  "note": "This governed-suite run only covers __tests__/ (scripts/run-all-tests.js walks that root by default). tools/canonical-product-identity/**/*.test.js and tools/fashion-match-quality/**/*.test.js are run separately, directly via `node --test`, matching the pre-existing convention for tools/fashion-match-quality (spec section 43#27 / Addendum A.2)."
+}
