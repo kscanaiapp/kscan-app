@@ -49,8 +49,8 @@ function statusBranchOfPermissionCard() {
   const marker = "actionType === 'status'";
   const start = stepSource.indexOf(marker, renderFnStart);
   assert.ok(start > -1, "expected the PermissionCard render to branch on actionType === 'status'");
-  const end = stepSource.indexOf(") : actionType === 'allow'", start);
-  assert.ok(end > start, 'expected the status branch to be followed by the allow branch');
+  const end = stepSource.indexOf(") : actionType === 'button'", start);
+  assert.ok(end > start, 'expected the status branch to be followed by the K+ action branch');
   return stepSource.slice(start, end);
 }
 
@@ -66,10 +66,11 @@ test('"Coming Soon" is absent from the Microphone card', () => {
   assert.doesNotMatch(microphoneCardBlock(), /Coming Soon/i);
 });
 
-test('the Microphone card is not disabled or greyed out', () => {
+test('the Microphone card remains present while capability or entitlement resolution is unavailable', () => {
   const card = microphoneCardBlock();
-  assert.doesNotMatch(card, /disabled=\{?true\}?/);
-  assert.doesNotMatch(card, /disabled=\{/);
+  assert.match(card, /actionType=\{canUseVoiceScan \? 'status' : 'button'\}/);
+  assert.match(card, /disabled=\{microphoneActionDisabled\}/);
+  assert.doesNotMatch(card, /return null/);
 });
 
 test('the card describes on-use, just-in-time behavior without claiming background listening or upload', () => {
@@ -102,13 +103,13 @@ test('the card has no environment or feature-flag gate', () => {
 
 // ─── §6/§18: passive action area, structurally inert ─────────────────────────
 
-test('the card uses actionType="status", not allow/toggle', () => {
-  assert.match(microphoneCardBlock(), /actionType="status"/);
+test('the card resolves to a passive active-member status or a canonical K+ CTA, never allow/toggle', () => {
+  assert.match(microphoneCardBlock(), /actionType=\{canUseVoiceScan \? 'status' : 'button'\}/);
   assert.doesNotMatch(microphoneCardBlock(), /actionType="toggle"/);
   assert.doesNotMatch(microphoneCardBlock(), /actionType="allow"/);
 });
 
-test('the card passes no actionValue/onActionChange -- there is no state to flip', () => {
+test('the card passes no local actionValue/onActionChange -- K+ state is canonical', () => {
   const card = microphoneCardBlock();
   assert.doesNotMatch(card, /actionValue=/);
   assert.doesNotMatch(card, /onActionChange=/);
@@ -202,9 +203,10 @@ test('the dormant helper has zero callers across the app/component/hook/service 
   assert.deepEqual(callers, [], `requestMicrophonePermission must stay caller-less; found: ${callers.join(', ')}`);
 });
 
-test('PermissionKey and PermissionPreferences still carry a microphone slot (state contract preserved)', () => {
-  assert.match(hookSource, /'microphone'/);
-  assert.match(hookSource, /microphone:\s*boolean;/);
+test('permission preferences only reflect the real Notifications registration outcome', () => {
+  assert.doesNotMatch(hookSource, /'microphone'/);
+  assert.doesNotMatch(hookSource, /microphone:\s*boolean;/);
+  assert.match(hookSource, /notifications:\s*boolean;/);
 });
 
 // ─── VoiceScan JIT path is unchanged ─────────────────────────────────────────
@@ -299,16 +301,20 @@ test('recorded coherence decision: card visibility does not key off VOICESCAN_EN
 
 // ─── §12: other permission surfaces untouched ────────────────────────────────
 
-test('Camera card is unchanged', () => {
+test('Camera card is a truthful point-of-use status', () => {
   const card = stepSource.slice(stepSource.indexOf('title="Camera"'), stepSource.indexOf('title="Photos"'));
   assert.match(card, /badge="ESSENTIAL"/);
-  assert.match(card, /actionType="allow"/);
+  assert.match(card, /actionType="status"/);
+  assert.match(card, /statusLabel="ON USE"/);
+  assert.doesNotMatch(card, /ALLOW/);
 });
 
-test('Photos card is unchanged', () => {
+test('Photos card is a truthful point-of-use status', () => {
   const card = stepSource.slice(stepSource.indexOf('title="Photos"'), stepSource.indexOf('title="Microphone"'));
   assert.match(card, /badge="ESSENTIAL"/);
-  assert.match(card, /actionType="allow"/);
+  assert.match(card, /actionType="status"/);
+  assert.match(card, /statusLabel="ON USE"/);
+  assert.doesNotMatch(card, /ALLOW/);
 });
 
 test('Notifications card and its live wiring are unchanged', () => {

@@ -80,6 +80,7 @@ test('KPLUS_SOURCES is the exact bounded taxonomy from section 9, plus unknown',
     [
       'account',
       'closet_intelligence',
+      'onboarding',
       'packing',
       'unknown',
       'voice_scan',
@@ -218,6 +219,7 @@ const SURFACE_FILES = [
   'components/home/HomeLuxuryTechV1.tsx',
   'components/ProductShelf.tsx',
   'components/scan-results/PurchaseOptionsPanel.tsx',
+  'components/account-home/PermissionsStepV1.tsx',
   'app/privacy.tsx',
 ];
 
@@ -254,6 +256,10 @@ test('VTO entry point is sourced "vto", Watchlist entry points are sourced "watc
 test('Packing is sourced "packing" and the Account status row is sourced "account"', () => {
   assert.match(read('app/packing/index.tsx'), /<KPlusGate source="packing">/);
   assert.match(read('app/privacy.tsx'), /<KPlusEarlyAccessSheet[\s\S]{0,200}source="account"/);
+});
+
+test('the permanent onboarding Microphone entry is sourced "onboarding"', () => {
+  assert.match(read('components/account-home/PermissionsStepV1.tsx'), /<KPlusGate source="onboarding">/);
 });
 
 // ---------------------------------------------------------------------------
