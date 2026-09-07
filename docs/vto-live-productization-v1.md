@@ -476,10 +476,24 @@ factory is forbidden outright.
 rights record an addition would need, so a later expansion is a deliberate act
 rather than a quiet append.
 
-### 12.4 Staging build flag: reverted, escalated
+### 12.4 Staging build flag: reverted, escalated, then ruled on
 
 Covered in full in §8. The short version: the correct home for the flag is
-`staging-certification`, two governed gates say that list is owner-ratified,
-and §36's own instruction is to fail closed when authority cannot be resolved.
-The rule that governs *where* Live may point is in place and proven able to
-fail; the activation itself is a three-line owner edit.
+`staging-certification`; two governed gates said that list was owner-ratified;
+§36's own instruction is to fail closed when authority cannot be resolved. The
+lane therefore reverted its own change and escalated instead of editing the
+gates standing in its way.
+
+**The owner ruled on 2026-09-07** and the flag is now set — on that profile and
+no other, authorizing source/configuration readiness only. What is worth
+keeping from the episode is its shape: the gate refused, the lane stopped, a
+person decided, and all three pins were updated to permit exactly the decided
+state, each carrying the decision and its limits in its own diff rather than in
+a commit message nobody will read again.
+
+A fourth pin turned up during the update — a hardcoded matrix-size assertion in
+`easConfigIntegrity.test.js` that failed even after `CERT_MATRIX_ENABLED` had
+been corrected. That is the redundancy working, not a duplicate to remove.
+
+The rule governing *where* a Live-enabled build may point, and its negative
+control, are unchanged by the ruling and still refuse a Production target.
