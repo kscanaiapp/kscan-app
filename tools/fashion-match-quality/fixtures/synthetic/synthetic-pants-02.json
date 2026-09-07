@@ -1,0 +1,220 @@
+{
+  "fixtureId": "synthetic-pants-02",
+  "corpusTier": "SYNTHETIC",
+  "captureProfile": "ios-current-v1",
+  "pairedFixtureId": null,
+  "generatorVersion": "fmql-synthetic-generator-v1",
+  "archetype": "pants",
+  "groundTruth": {
+    "source": "synthetic_generator_construction",
+    "confidence": "authoritative",
+    "identitySku": "SKU-levi-s-pants-2",
+    "brandNormalized": "levi-s",
+    "category": "pants",
+    "titleNormalized": "levi's black straight pants",
+    "color_family": "black",
+    "material": "denim",
+    "silhouette": "straight",
+    "texture": "denim",
+    "pattern": "solid",
+    "construction": "standard",
+    "hardware_details": "none",
+    "brand": "Levi's",
+    "price_tier": "luxury",
+    "availability": "in_stock",
+    "retailer_quality": "verified_retailer",
+    "cut_proportion": "straight"
+  },
+  "garmentIdentification": {
+    "visual_observation": "A black straight pants.",
+    "item_type": "pants",
+    "primary_color": "black",
+    "material_estimate": "denim",
+    "silhouette": "straight",
+    "distinctive_features": [
+      "classic"
+    ],
+    "style_tags": [
+      "classic"
+    ],
+    "search_queries": [
+      "black pants"
+    ],
+    "visible_brand_text": null,
+    "logo_detected": false,
+    "confidence_score": 0.72,
+    "non_fashion": false
+  },
+  "candidateProducts": [
+    {
+      "id": "synthetic-pants-02::exact",
+      "identitySku": "SKU-levi-s-pants-2",
+      "brand": "Levi's",
+      "brandNormalized": "levi-s",
+      "name": "Levi's black pants",
+      "title": "Levi's black pants",
+      "titleNormalized": "levi's black straight pants",
+      "category": "pants",
+      "canonical_category": "pants",
+      "color": "black",
+      "color_normalized": "black",
+      "silhouette": "straight",
+      "material": "denim",
+      "materialEstimate": "denim",
+      "material_tags": [
+        "denim"
+      ],
+      "styleTags": [
+        "classic"
+      ],
+      "tags": [
+        "classic"
+      ],
+      "price_tier": "luxury",
+      "price": 739.27,
+      "currency": "USD",
+      "retailer": "revolve",
+      "purchaseUrl": "https://revolve.example/levi-s/synthetic-pants-02-exact",
+      "imageUrl": "https://cdn.example/synthetic-pants-02-exact.jpg",
+      "availability": "in_stock",
+      "retailer_quality": "verified_retailer",
+      "construction": "standard",
+      "hardware_details": "none",
+      "texture": "denim",
+      "pattern": "solid",
+      "cut_proportion": "straight"
+    },
+    {
+      "id": "synthetic-pants-02::near-miss",
+      "identitySku": "SKU-levi-s-pants-2-alt",
+      "brand": "Levi's",
+      "brandNormalized": "levi-s",
+      "name": "Levi's gray pants",
+      "title": "Levi's gray pants",
+      "titleNormalized": "levi's gray fitted pants",
+      "category": "pants",
+      "canonical_category": "pants",
+      "color": "gray",
+      "color_normalized": "gray",
+      "silhouette": "fitted",
+      "material": "denim",
+      "materialEstimate": "denim",
+      "material_tags": [
+        "denim"
+      ],
+      "styleTags": [
+        "classic"
+      ],
+      "tags": [
+        "classic"
+      ],
+      "price_tier": "luxury",
+      "price": 739.27,
+      "currency": "USD",
+      "retailer": "revolve",
+      "purchaseUrl": "https://revolve.example/levi-s/synthetic-pants-02-near",
+      "imageUrl": "https://cdn.example/synthetic-pants-02-near.jpg",
+      "availability": "in_stock",
+      "retailer_quality": "verified_retailer",
+      "construction": "standard",
+      "hardware_details": "none",
+      "texture": "denim",
+      "pattern": "solid",
+      "cut_proportion": "fitted"
+    },
+    {
+      "id": "synthetic-pants-02::distractor",
+      "brand": "Aritzia",
+      "brandNormalized": "aritzia",
+      "name": "Aritzia gray outerwear",
+      "title": "Aritzia gray outerwear",
+      "titleNormalized": "aritzia gray oversized/relaxed outerwear",
+      "category": "outerwear",
+      "canonical_category": "outerwear",
+      "color": "gray",
+      "color_normalized": "gray",
+      "silhouette": "oversized/relaxed",
+      "material": "wool/wool blend",
+      "materialEstimate": "wool/wool blend",
+      "purchaseUrl": "https://revolve.example/aritzia/synthetic-pants-02-distractor",
+      "imageUrl": "https://cdn.example/synthetic-pants-02-distractor.jpg",
+      "availability": "in_stock"
+    },
+    {
+      "id": "synthetic-pants-02::cross-retailer-dup",
+      "identitySku": null,
+      "brand": "Levi's",
+      "brandNormalized": "levi-s",
+      "name": "Levi's black pants",
+      "title": "Levi's black pants",
+      "titleNormalized": "levi's black straight pants",
+      "category": "pants",
+      "canonical_category": "pants",
+      "color": "black",
+      "color_normalized": "black",
+      "silhouette": "straight",
+      "material": "denim",
+      "materialEstimate": "denim",
+      "material_tags": [
+        "denim"
+      ],
+      "styleTags": [
+        "classic"
+      ],
+      "tags": [
+        "classic"
+      ],
+      "price_tier": "luxury",
+      "price": 739.27,
+      "currency": "USD",
+      "retailer": "nordstrom",
+      "purchaseUrl": "https://nordstrom.example/levi-s/synthetic-pants-02-dup",
+      "imageUrl": "https://cdn.example/synthetic-pants-02-dup.jpg",
+      "availability": "in_stock",
+      "retailer_quality": "verified_retailer",
+      "construction": "standard",
+      "hardware_details": "none",
+      "texture": "denim",
+      "pattern": "solid",
+      "cut_proportion": "straight"
+    },
+    {
+      "id": "synthetic-pants-02::no-purchase-path",
+      "identitySku": null,
+      "brand": "Levi's",
+      "brandNormalized": "levi-s",
+      "name": "Levi's black pants",
+      "title": "Levi's black pants",
+      "titleNormalized": "levi's black straight pants",
+      "category": "pants",
+      "canonical_category": "pants",
+      "color": "black",
+      "color_normalized": "black",
+      "silhouette": "straight",
+      "material": "denim",
+      "materialEstimate": "denim",
+      "material_tags": [
+        "denim"
+      ],
+      "styleTags": [
+        "classic"
+      ],
+      "tags": [
+        "classic"
+      ],
+      "price_tier": "luxury",
+      "price": 739.27,
+      "currency": "USD",
+      "retailer": "revolve",
+      "purchaseUrl": null,
+      "imageUrl": "https://cdn.example/synthetic-pants-02-exact.jpg",
+      "availability": "out_of_stock",
+      "retailer_quality": "verified_retailer",
+      "construction": "standard",
+      "hardware_details": "none",
+      "texture": "denim",
+      "pattern": "solid",
+      "cut_proportion": "straight"
+    }
+  ]
+}

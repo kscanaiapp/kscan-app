@@ -1,0 +1,32 @@
+{
+  "procedure": "Addendum A.3",
+  "entries": [
+    {
+      "id": "BL-001",
+      "blocker": "PR #314 (base authority) not merged at dispatch time",
+      "affectedTask": "section 1 / A.1 base authority resolution",
+      "evidence": "sourceMap.json baseAuthority - PR #314 state OPEN",
+      "safeContinuation": "FALLBACK path per A.1: base = exact head of PR #314's branch (76b54ee); final PR targets that branch, stacked.",
+      "ownerActionNeeded": "Merge PR #314 (and #315) in whatever order the owner prefers; this lab's PR will need a retarget/rebase onto master once #314 lands.",
+      "status": "RESOLVED_VIA_FALLBACK"
+    },
+    {
+      "id": "BL-002",
+      "blocker": "PR #315 (Curiosity Gap Performance Lab) branch is not an ancestor of PR #314's branch - the two research lines diverge from a shared ancestor (909df864) but neither contains the other",
+      "affectedTask": "section 29 performance placement simulation",
+      "evidence": "sourceMap.json baseAuthority.curiosityGapNote; tools/curiosity-gap-performance/ absent from this worktree (research/fashion-match-quality-lab-v1 branch does not include it)",
+      "safeContinuation": "Section 29 placement facts (P0/P1/P2 structural consequences) are derived directly from repository source truth (scan-identify retrieval/enrichment/ranking source files) and labeled DERIVED_FROM_SOURCE rather than reusing PR #315's own measured artifacts. Never presented as PROVEN production timing.",
+      "ownerActionNeeded": "None required for V1. If PR #315 merges before this lab's PR, a future pass could cross-check DERIVED_FROM_SOURCE placement facts against PR #315's own measured harness for closer agreement.",
+      "status": "RESOLVED_VIA_DERIVED_FROM_SOURCE"
+    },
+    {
+      "id": "BL-003",
+      "blocker": "13 pre-existing test failures in the governed __tests__ suite at base SHA 76b54ee (staging/EAS flag-parity drift, security-gate identifiers) - unrelated to product identity/canonicalization",
+      "affectedTask": "A.2 base sanity pre-check / final zero-unexpected-failures claim",
+      "evidence": "authority/baseSanityCheck.json - all 13 observed failures matched config/test-failure-baseline.json known identities; 0 unexpected",
+      "safeContinuation": "Not fixed in this lane (A.3 RULE 3: record, don't broaden). Reported as INHERITED_BASE_FAILURES in the final report, kept out of this lab's own pass/fail claims.",
+      "ownerActionNeeded": "None - these are tracked by whatever lane owns staging/EAS parity and the security gate; out of scope here.",
+      "status": "RECORDED_NOT_FIXED"
+    }
+  ]
+}

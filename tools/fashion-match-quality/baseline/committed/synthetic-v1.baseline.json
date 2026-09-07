@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "fmql-baseline-schema-v1",
+  "sourceSha": "909df8646a690b55c5af6b7b8c80193df64a2ec8",
+  "fixtureManifestHash": "f52225a0fbb07a91ab84a173faef2ef04e57778e1c67c84c227755b002eb214e",
+  "corpusTier": [
+    "SYNTHETIC"
+  ],
+  "rubricVersion": "fmql-rubric-v1",
+  "capturePolicy": "ios-current-v1+android-current-v1",
+  "evaluationMode": "L1_OFFLINE_FULL_CORPUS",
+  "generatedAt": "2026-09-06T23:35:14.021Z",
+  "metrics": {
+    "sampleCounts": {
+      "totalFixturesEvaluated": 10,
+      "headlineEligible": 10,
+      "excludedFromHeadline": 0,
+      "pairedForPlatformParity": 4
+    },
+    "identityDistribution": {
+      "EXACT": 10,
+      "PROBABLE_EXACT": 0,
+      "UNKNOWN": 0,
+      "WRONG_IDENTITY": 0
+    },
+    "substituteDistribution": {
+      "STRONG_SUBSTITUTE": 10,
+      "ACCEPTABLE_SUBSTITUTE": 0,
+      "WEAK_SUBSTITUTE": 0,
+      "UNUSABLE": 0,
+      "INSUFFICIENT_EVIDENCE": 0
+    },
+    "fashionComponentAverages": {
+      "category": 1,
+      "silhouette": 1,
+      "cut_proportion": 1,
+      "material": 1,
+      "texture": 1,
+      "pattern": 1,
+      "color_family": 0,
+      "construction": 1,
+      "hardware_details": 1,
+      "brand": 1,
+      "price_tier": 1,
+      "availability": 1,
+      "retailer_quality": 1
+    },
+    "duplicateMetrics": {
+      "totalCandidatesConsidered": 50,
+      "pairClassificationCounts": {
+        "CONFIRMED_DUPLICATE": 10,
+        "LIKELY_DUPLICATE": 20,
+        "DISTINCT_VARIANT": 30
+      }
+    },
+    "retailerNeutralityMetrics": {
+      "averageConcentrationIndex": 0.44000000000000006,
+      "note": "Concentration is descriptive, not a quality judgment (spec section 21) - it may reflect real catalogue availability rather than a ranking defect."
+    },
+    "captureProfileStratification": {
+      "ios-current-v1": {
+        "count": 8,
+        "identityDistribution": {
+          "EXACT": 8,
+          "PROBABLE_EXACT": 0,
+          "UNKNOWN": 0,
+          "WRONG_IDENTITY": 0
+        },
+        "substituteDistribution": {
+          "STRONG_SUBSTITUTE": 8,
+          "ACCEPTABLE_SUBSTITUTE": 0,
+          "WEAK_SUBSTITUTE": 0,
+          "UNUSABLE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "android-current-v1": {
+        "count": 2,
+        "identityDistribution": {
+          "EXACT": 2,
+          "PROBABLE_EXACT": 0,
+          "UNKNOWN": 0,
+          "WRONG_IDENTITY": 0
+        },
+        "substituteDistribution": {
+          "STRONG_SUBSTITUTE": 2,
+          "ACCEPTABLE_SUBSTITUTE": 0,
+          "WEAK_SUBSTITUTE": 0,
+          "UNUSABLE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      }
+    }
+  },
+  "perFixtureScore": {
+    "synthetic-accessory-06": 0.9000000000000001,
+    "synthetic-bag-04": 0.9000000000000001,
+    "synthetic-blazer-07": 0.9000000000000001,
+    "synthetic-dress-00": 0.9000000000000001,
+    "synthetic-dress-00-android": 0.9000000000000001,
+    "synthetic-footwear-03": 0.9000000000000001,
+    "synthetic-outerwear-05": 0.9000000000000001,
+    "synthetic-pants-02": 0.9000000000000001,
+    "synthetic-top-01": 0.9000000000000001,
+    "synthetic-top-01-android": 0.9000000000000001
+  },
+  "contentHash": "f7303845ee8c3787ad10a34ef3bf7b4c051a565804a4ada041ae9e63643456eb"
+}

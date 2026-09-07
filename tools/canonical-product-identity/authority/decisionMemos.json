@@ -1,0 +1,89 @@
+{
+  "procedure": "Addendum A.3 RULE 2",
+  "entries": [
+    {
+      "id": "DM-001",
+      "question": "A.4's FALSE-MERGE RATE definition lists UNDECIDABLE/NEAR_DUPLICATE_DISTINCT/DISTINCT as violating the section 25 gate, but does not mention SIBLING_VARIANT. Should an auto-merged sibling-variant pair (e.g. black merged with brown) also count as a 'false merge'?",
+      "evidence": "Addendum A.4 metric list keeps FALSE-MERGE RATE and VARIANT-SEPARATION ACCURACY as two separate, independently-reported metrics; section 6 treats color/material as variant-defining, not identity-defining, so collapsing siblings is a distinct failure mode (wrong variant boundary) from collapsing genuinely different products (wrong identity).",
+      "options": [
+        "A. Fold sibling-variant auto-merges into falseMergeRate (broadens the gate beyond A.4's literal text)",
+        "B. Keep them as a separate, equally-visible metric (siblingVariantAutoMergedCount / variantSeparationAccuracy) without touching the section 25 gate definition",
+        "C. Ignore sibling-variant auto-merges entirely"
+      ],
+      "safeDefault": "B - implemented in evaluator/safetyMetrics.js (siblingVariantAutoMergedCount, reported alongside falseMergeRate) and evaluator/clusterMetrics.js (variantSeparationAccuracy). Both are always reported in the same report; a reader cannot see false-merge-rate=0 without also seeing whether any siblings were incorrectly merged.",
+      "risk": "If a future reader treats falseMergeRate alone as 'the' safety gate and never looks at variantSeparationAccuracy, a resolver that merges black-and-brown pairs could look deceptively safe. Mitigated by keeping both metrics in the same top-level report object and calling this out explicitly in the final report.",
+      "reversibility": "Fully reversible - metric definitions live in one module (evaluator/safetyMetrics.js) and can be redefined without touching the resolver."
+    },
+    {
+      "id": "DM-002",
+      "question": "Tier 2's structured evidence treats a color/material/pattern conflict as a pairwise hard negative (decision=SEPARATE), even though section 6 says color/material differences should form a SIBLING_VARIANT relationship at the style level, not a DISTINCT relationship. Is SEPARATE the wrong pairwise decision for a sibling pair?",
+      "evidence": "resolver/resolvePair.js + resolver/cluster.js (already-existing code, kept as-is): the RESOLVER_DECISIONS vocabulary (A.4) has only 4 values (AUTO_MERGE/PROPOSED_REVIEW/ABSTAIN/SEPARATE) with no 'SIBLING' state. cluster.js already resolves this by treating a *purely* variant-attribute SEPARATE (isVariantAttributeOnlyConflict) as compatible at the STYLE clustering layer while still incompatible at the VARIANT clustering layer - i.e. SEPARATE correctly means 'not the same variant', and style-level siblinghood is reconstructed downstream from the same evidence, not encoded as a 5th pairwise decision.",
+      "options": [
+        "A. Add a 5th pairwise decision state for siblings (contradicts A.4's explicit 4-value RESOLVER_DECISIONS list)",
+        "B. Keep SEPARATE at the pairwise/variant layer; reconstruct style-siblinghood at the cluster layer from the same evidence (already implemented)"
+      ],
+      "safeDefault": "B - already implemented in resolver/cluster.js prior to this session; verified correct against section 6/18 and Addendum A.4 metric definitions rather than rewritten.",
+      "risk": "None identified beyond DM-001's reporting-visibility risk, which is handled the same way.",
+      "reversibility": "N/A - no change made; this memo documents verification of existing behavior, not a new decision."
+    },
+    {
+      "id": "DM-003",
+      "question": "Spec section 27 says 'Use the existing Match Quality duplicate machinery as the incumbent.' FMQL's duplicateClassifier.js expects a different product-object shape (identitySku/purchaseUrl/brandNormalized/etc.) than this lab's RetailOffer shape. How should the comparison be wired without modifying FMQL (forbidden) or duplicating its logic?",
+      "evidence": "tools/fashion-match-quality/duplicates/duplicateClassifier.js field reads: identitySku, sku, purchaseUrl/purchase_url/product_url/url, brandNormalized/brand, titleNormalized/title/name/product_name, category/canonical_category, color/color_normalized/silhouette/material, imageUrl/image_url.",
+      "options": [
+        "A. Modify duplicateClassifier.js to accept RetailOffer fields directly (forbidden - out of lane, and FMQL is another lab's authority)",
+        "B. Write a pure field-mapping adapter (compare/offerToFmqlProduct.js) in THIS lab that maps RetailOffer -> the exact field names duplicateClassifier.js already reads, with zero changes to FMQL"
+      ],
+      "safeDefault": "B - implemented in compare/incumbentComparison.js. The adapter only renames/copies fields (offerId->id, manufacturerStyleCode||retailerSku->identitySku, canonicalUrl||url->purchaseUrl, etc.); it introduces no new matching logic of its own.",
+      "risk": "identitySku mapping (manufacturerStyleCode||retailerSku) is a judgment call - FMQL's own identitySku field has no single equivalent on a RetailOffer. Documented inline in the adapter; does not affect gtin-based Tier 1 matches, which take precedence in both systems.",
+      "reversibility": "Fully reversible - the adapter is a single small pure function; changing the mapping does not touch FMQL or the resolver."
+    },
+    {
+      "id": "DM-004",
+      "question": "Spec sections 24/28/29/31/32 all need a notion of a 'candidate set' (what a single query would return) to measure WASTE@K, no-harm quality, structural placement, and display-policy lost options - but the corpus is organized as independent 2-3 offer case instances, not as realistic multi-product result sets. How should candidate sets be constructed without inventing a second, competing corpus framework (A.6 forbids that)?",
+      "evidence": "corpus/caseGenerators.js REGISTRY produces one deterministic case instance at a time; spec section 20 explicitly says reuse FMQL infrastructure 'where practical' and A.6 clarifies that means manifest/integrity/report conventions, not FMQL's own image-attribute generator.",
+      "options": [
+        "A. Build a second synthetic-corpus generator purpose-built for multi-product result sets (duplicates A.6's explicit prohibition)",
+        "B. Derive candidate-set 'pools' deterministically from the ALREADY-COMMITTED corpus by grouping existing offers by category (deterministic offerId sort, no new RNG), reusing the same offers/ground truth the resolver and evaluator already operate on"
+      ],
+      "safeDefault": "B - implemented in simulate/candidateEconomics.js (buildCategoryPool) and reused by evaluator/dedupWasteMetrics.js, compare/qualityNoHarm.js, simulate/placementSimulation.js, and simulate/displayPolicy.js. One pool-construction function, several downstream consumers - avoids a second corpus framework entirely.",
+      "risk": "Category pools mix many unrelated case instances together, so window composition is somewhat arbitrary (deterministic offerId ordering, not a simulated realistic query distribution). This is disclosed in every report section that uses it as 'SYNTHETIC POOL, not a modeled query distribution'.",
+      "reversibility": "Fully reversible - pool construction is isolated to one function; a future pass could swap in a purpose-built query-distribution simulator without touching the resolver or evaluator."
+    },
+    {
+      "id": "DM-005",
+      "question": "Design sections (33-38) risk ballooning per A.6's explicit timebox warning. How much depth is appropriate?",
+      "evidence": "A.6: 'these are decision memos, not essays. Timebox them; the lane's value is the resolver and the operating curve.'",
+      "options": ["A. Full architecture documents per surface", "B. Short decision-memo format (QUESTION/EVIDENCE/OPTIONS/RECOMMENDATION/RISK) capped at roughly half a page each"],
+      "safeDefault": "B - tools/canonical-product-identity/design/*.md, one file per surface (watchlist, closet, vto, persistence, vectorSearch), each in decision-memo format.",
+      "risk": "Low depth means some implementation detail is deferred to a real Phase 2 proposal, which is correct for V1 design-only sections.",
+      "reversibility": "Fully reversible - design memos are documentation, not code; expanding them later costs nothing else in the lab."
+    },
+    {
+      "id": "DM-006",
+      "question": "STYLE cluster purity measured 0.546 on the first evaluator smoke test - far below variant cluster purity (1.0). Is this a resolver defect?",
+      "evidence": "Diagnostic script found 68/146 distinct (brand, styleName, category) keys in canonicalStyles were reused by MORE THAN ONE generator-assigned styleId - i.e. unrelated case instances accidentally drew the identical (brand, styleName) combination from a narrow 12-brand x 3-4-styleName-per-category vocabulary, purely by chance (pigeonhole: ~168 case instances x up to 3 style draws each, only ~48 combinations available per category). The RESOLVER correctly treats identical brand+styleName+category as style-sibling evidence (that is its job); the ground-truth graph just happened to assign those accidental collisions different styleIds. This is a corpus-realism gap, not a resolver bug - confirmed by falseMergeCount staying 0 and variantClusterPurity staying 1.0 throughout.",
+      "options": [
+        "A. Leave the narrow vocabulary and just caveat the metric in every report",
+        "B. Widen BRANDS (12->30) and styleNames-per-category (3-4->9-10) - pure data change, zero logic/case-semantics risk - to reduce (not eliminate) accidental collisions, then still caveat the metric",
+        "C. Redefine style ground truth to merge accidentally-colliding styleIds after the fact (this is exactly the 'loosen ground truth to make a strategy pass' anti-pattern section 25 forbids - rejected outright)"
+      ],
+      "safeDefault": "B - implemented in lib/fashionWorld.js (widened BRANDS and each category's styleNames list; case generators use only rng.pick() and pre-existing positional indices [0]/[1] into the SAME first entries, so no case's intended semantics changed). Re-generating the corpus after the widening reduced accidental collisions from 68/146 to 49/198 keys and raised styleClusterPurity from 0.546 to 0.689, with every safety metric (precision=1, falseMergeRate=0, abstentionCorrectness=1, variantClusterPurity=1) unchanged. The residual ~25% collision rate is a mix of (i) INTENTIONAL within-case near-duplicate pairs (conflicting-ids, adjacent-style-code-attack, retailer-removes-style-suffix, near-identical-photography-different-product, mens-vs-womens-construction, same-title-different-season all deliberately construct two offers that look nearly identical - that is the whole point of those cases) and (ii) residual cross-case accidents given any finite vocabulary. Not chased further per A.6's timebox guidance - variant-level purity (the metric that actually gates promotion per section 25) was never affected.",
+      "risk": "styleClusterPurity remains a soft/descriptive metric, not a safety gate; reported with this caveat everywhere it appears so it is never mistaken for a false-merge signal.",
+      "reversibility": "Fully reversible - fashionWorld.js is pure data; further widening (or a purpose-built collision-free style-key generator) can be done later without touching the resolver or any case's semantics."
+    },
+    {
+      "id": "DM-007",
+      "question": "Spec section 28 says to use the Fashion Match Quality Lab to simulate raw-vs-canonically-grouped candidate sets and measure IDENTITY QUALITY and SUBSTITUTE QUALITY. FMQL's evaluator/evaluate.js + identityAxis.js/substituteAxis.js operate on FMQL's OWN fixture shape (a scan target + candidate list carrying FMQL's human-authored identity/substitute labels per candidate) - this lab's corpus has no such labels, only generator-known style/variant membership. How to satisfy section 28 without fabricating labels FMQL never assigned or force-fitting FMQL's rubric onto data it was never scored against?",
+      "evidence": "tools/fashion-match-quality/evaluator/identityAxis.js and substituteAxis.js key off FMQL fixture fields this lab's corpus does not have and cannot honestly synthesize (that would be inventing FMQL ground truth, not reusing it). A.6 permits a hybrid only if it reduces total code, and forbids force-fitting FMQL's own generator.",
+      "options": [
+        "A. Skip section 28 (not acceptable - it is a required deliverable)",
+        "B. Fabricate FMQL-shaped identity/substitute labels for this lab's corpus so evaluate.js can run directly (rejected - inventing ground truth FMQL never actually assigned is dishonest measurement, exactly what section 23's 'do not invent percentages' spirit forbids)",
+        "C. Build a corpus-native proxy for the same two concepts FMQL's axes measure - IDENTITY QUALITY (did canonicalization silently collapse two truly-distinct products together - directly answerable from THIS corpus's own generator-known variant graph via variantClusterPurity) and SUBSTITUTE QUALITY (did canonicalization reduce the count of genuinely distinct style alternatives a customer could discover - answerable via true-style-count-in-window vs produced-style-cluster-count-in-window) - both clearly labeled as a PROXY, not FMQL's own rubric output"
+      ],
+      "safeDefault": "C - implemented in compare/qualityNoHarm.js. Every result is labeled 'PROXY MEASUREMENT (this lab's own ground truth), not the Fashion Match Quality Lab's own identity/substitute rubric output' so it is never mistaken for an FMQL score.",
+      "risk": "The proxy is narrower than FMQL's full fashion-component rubric (fabric/silhouette/color nuance scoring) - it only asks the binary-ish questions section 28 actually cares about (silent collapse of distinct products; loss of distinct style alternatives), not general result-quality scoring, which is out of scope for a resolver lab anyway.",
+      "reversibility": "Fully reversible - if a future pass adds FMQL-shaped human/LLM labels to this corpus, evaluate.js could then run directly and this proxy could be dropped or kept as a second, cheaper check."
+    }
+  ]
+}
