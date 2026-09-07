@@ -143,9 +143,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # `bash ./gradlew`, not `./gradlew`. The wrapper is committed WITHOUT
+      # an executable bit (this repository is authored on Windows, where the
+      # mode bit is not meaningful), so a direct invocation on a Linux runner
+      # exits 126 "Permission denied" before Gradle starts. The first run of
+      # this job did exactly that -- and the JUnit assertion below caught it
+      # and refused to report success on a suite that never executed, which
+      # is the whole reason that step reads the XML instead of trusting an
+      # exit code.
       - name: Compile and run the module's JVM test suite
         working-directory: android
-        run: ./gradlew :kscan-live-vto-native:testDebugUnitTest --console=plain --stacktrace
+        run: bash ./gradlew :kscan-live-vto-native:testDebugUnitTest --console=plain --stacktrace
 
       - name: Assert the JUnit report is real
         if: always()
