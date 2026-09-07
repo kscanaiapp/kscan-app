@@ -186,8 +186,26 @@ function parseAuditOutput(stdout) {
  * runs until the CI timeout instead of failing closed. spawnSync with no shell
  * signals npm itself, and SIGKILL means a wedged process cannot ignore it.
  */
+function resolveNpmInvocation(
+  platform = process.platform,
+  env = process.env,
+  nodeExecutable = process.execPath,
+) {
+  if (platform !== 'win32') {
+    return { command: 'npm', args: ['audit', '--omit=dev', '--json'] };
+  }
+
+  // Windows cannot execute npm.cmd with shell:false on every supported Node
+  // runtime. Invoke npm's JavaScript entrypoint with Node so the hard timeout
+  // still targets the real process instead of an intermediate command shell.
+  const npmCli = env.npm_execpath
+    || path.join(path.dirname(nodeExecutable), 'node_modules', 'npm', 'bin', 'npm-cli.js');
+  return { command: nodeExecutable, args: [npmCli, 'audit', '--omit=dev', '--json'] };
+}
+
 function defaultAuditExec(command, options) {
-  const result = spawnSync('npm', ['audit', '--omit=dev', '--json'], {
+  const npm = resolveNpmInvocation();
+  const result = spawnSync(npm.command, npm.args, {
     cwd: options.cwd,
     timeout: options.timeout,
     killSignal: 'SIGKILL',
@@ -393,6 +411,7 @@ module.exports = {
   makeImportChecker,
   parseAuditOutput,
   readAppSource,
+  resolveNpmInvocation,
   runAudit,
 };
 

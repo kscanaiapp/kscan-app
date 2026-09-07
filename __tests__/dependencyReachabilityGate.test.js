@@ -35,6 +35,24 @@ const EXCEPTIONS_PATH = path.join(REPO_ROOT, 'config', 'dependency-reachability-
 
 const gate = require('../scripts/check-dependency-reachability.js');
 
+test('uses a shell-free platform-specific npm invocation', () => {
+  assert.deepEqual(gate.resolveNpmInvocation('linux'), {
+    command: 'npm',
+    args: ['audit', '--omit=dev', '--json'],
+  });
+  assert.deepEqual(gate.resolveNpmInvocation('darwin'), {
+    command: 'npm',
+    args: ['audit', '--omit=dev', '--json'],
+  });
+  assert.deepEqual(
+    gate.resolveNpmInvocation('win32', { npm_execpath: 'C:\\npm\\npm-cli.js' }, 'C:\\node\\node.exe'),
+    {
+      command: 'C:\\node\\node.exe',
+      args: ['C:\\npm\\npm-cli.js', 'audit', '--omit=dev', '--json'],
+    },
+  );
+});
+
 function runGateCapturing(env = {}) {
   try {
     const stdout = execFileSync(process.execPath, [GATE_SCRIPT], {
@@ -238,7 +256,7 @@ test('B34-DEF-014: a hung audit is hard-bounded and fails closed', () => {
   // and SIGKILLs it, so the bound is real.
   const hung = (command, options) => {
     const { spawnSync } = require('node:child_process');
-    const result = spawnSync('sleep', ['30'], {
+    const result = spawnSync(process.execPath, ['-e', 'setTimeout(() => {}, 30000)'], {
       timeout: options.timeout,
       killSignal: 'SIGKILL',
       encoding: 'buffer',
