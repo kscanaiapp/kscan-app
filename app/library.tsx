@@ -906,7 +906,7 @@ export default function LibraryScreen() {
               <EmptyStateCard
                 testID="closet-no-matches-card"
                 title="No items match"
-                subtitle={`None of your ${closetInventory.summary.totalItems} K Scan Closet items match this search or filter.`}
+                subtitle={`None of your ${closetInventory.summary.totalItems} K Scan AI Closet items match this search or filter.`}
                 action={{
                   label: 'Clear filters',
                   onPress: closetInventory.clear,

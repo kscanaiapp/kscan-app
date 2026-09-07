@@ -102,7 +102,7 @@ test('"no matches" is a DISTINCT state from "your Closet is empty"', () => {
   assert.equal(noMatch.length, 1, 'a narrowed-to-nothing Closet needs its own card');
   assert.match(
     noMatch[0].props.get('subtitle') ?? '',
-    /K Scan Closet items/,
+    /K Scan AI Closet items/,
     'the no-match copy must scope its count to K Scan Closet records (section 58)',
   );
   // And it must be reachable only when the actor genuinely owns items.

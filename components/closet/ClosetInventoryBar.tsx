@@ -72,17 +72,17 @@ function Chip({
 /**
  * The one line that says what the user owns.
  *
- * CLAIM BOUNDARY (sections 58, 87): "in K Scan" is not decoration. The Closet
+ * CLAIM BOUNDARY (sections 58, 87): "in K Scan AI" is not decoration. The Closet
  * knows what the user recorded, never what hangs in their actual wardrobe, and
  * every count rendered here has to say so.
  */
 function summaryLine(summary: ClosetInventorySummary): string {
-  if (summary.totalItems === 0) return 'No items in K Scan yet';
+  if (summary.totalItems === 0) return 'No items in K Scan AI yet';
   const items = summary.totalItems === 1 ? '1 item' : `${summary.totalItems} items`;
-  if (summary.distinctCategoryCount === 0) return `${items} in K Scan`;
+  if (summary.distinctCategoryCount === 0) return `${items} in K Scan AI`;
   const cats =
     summary.distinctCategoryCount === 1 ? '1 category' : `${summary.distinctCategoryCount} categories`;
-  return `${items} in K Scan · ${cats}`;
+  return `${items} in K Scan AI · ${cats}`;
 }
 
 export function ClosetInventoryBar({

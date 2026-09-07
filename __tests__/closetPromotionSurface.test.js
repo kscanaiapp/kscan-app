@@ -553,6 +553,29 @@ function mountLibrary(options = {}) {
     '../services/closetCandidateSchema': { createClosetBatchId: () => 'batch_test' },
     '../components/closet/ClosetIntakeModal': { ClosetIntakeModal: 'ClosetIntakeModal' },
     '../components/closet/ClosetItemEditModal': { ClosetItemEditModal: 'ClosetItemEditModal' },
+
+    // Closet Experience V1 (PR A1). The Closet section of this screen now
+    // renders an inventory bar and a cloud-status row. The two HOOKS are the
+    // real modules -- they are pure over the projections useCloset() already
+    // returns, so a hand-written stub could silently drift from the shape the
+    // screen destructures. The two COMPONENTS are inert stand-ins, matching how
+    // this harness already treats ClosetIntakeModal and the Mirror sheet: this
+    // suite is about candidate review, and mounting the real controls would put
+    // unrelated elements into the trees it walks.
+    '../components/closet/ClosetInventoryBar': { ClosetInventoryBar: 'ClosetInventoryBar' },
+    '../components/closet/ClosetSyncStatusRow': { ClosetSyncStatusRow: 'ClosetSyncStatusRow' },
+    '../hooks/useClosetInventory': runModule('hooks/useClosetInventory.ts', (spec) => {
+      if (spec === 'react') return renderer.react;
+      if (spec === '../services/closet/closetInventory') {
+        return runModule('services/closet/closetInventory.ts', () => ({}));
+      }
+      throw new Error(`Unexpected useClosetInventory import: ${spec}`);
+    }),
+    // Cloud status reaches the sync sidecar and the entitlement authority,
+    // neither of which this harness stands up. Null is the real module's own
+    // "render nothing" answer, so the screen takes exactly the path it takes
+    // for an actor without cloud sync.
+    '../hooks/useClosetSyncStatus': { useClosetSyncStatus: () => null },
     // Build 2.5 Step 3. Stubbed like its sibling: this harness renders the
     // Closet screen, and the Mirror sheet is gated off in every profile here.
     '../components/closet/MirrorSelfieExtractionModal': {
