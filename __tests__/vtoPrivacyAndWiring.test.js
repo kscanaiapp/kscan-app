@@ -145,9 +145,23 @@ test('server telemetry has a closed field allowlist too', () => {
 
 function personInputHarness(overrides = {}) {
   const cleaned = [];
+  const adopted = [];
+  const forgotten = [];
   const clientTypes = loadModule('types/vto.ts');
   const mod = loadModule('services/vto/vtoPersonInput.ts', {
     'expo-image-picker': {},
+    // RP-107. A pass-through adopter: these tests are about the privacy
+    // boundary, and the namespace relocation is exercised on its own in
+    // __tests__/vtoMediaLifecycle.test.js.
+    './vtoMediaCache': {
+      adoptVtoMediaFile: (uri) => {
+        adopted.push(uri);
+        return Promise.resolve(uri);
+      },
+      forgetVtoMediaFile: (uri) => {
+        forgotten.push(uri);
+      },
+    },
     '../privacyImageUpload': {
       cleanupSanitizedImage: (uri) => {
         cleaned.push(uri);
@@ -167,7 +181,7 @@ function personInputHarness(overrides = {}) {
     },
     '../../types/vto': clientTypes,
   });
-  return { mod, cleaned };
+  return { mod, cleaned, adopted, forgotten };
 }
 
 // Deliberately exposes ONLY launchImageLibraryAsync. If the person-input path
@@ -533,8 +547,24 @@ const VTO_ALLOWED_IMPORTS = {
   'services/vto/vtoClient.ts': [
     '../../types/vto', '../authenticatedFunctionSession', '../supabaseClient', './vtoFailures',
   ],
+  // RP-107. `./vtoMediaCache` is a deliberate new dependency and it is the
+  // NARROWEST one that closes the orphan: VTO's derivatives are moved into a
+  // cache directory VTO alone writes to, so a startup sweep can delete what a
+  // crashed process left behind WITHOUT being able to name a photo-library
+  // original, Closet media, or another feature's manipulator output. It adds
+  // no network client, no store, and no persistence -- a try-on is still
+  // evidence, not ownership.
   'services/vto/vtoPersonInput.ts': [
-    '../../types/vto', '../privacyImageUpload', 'expo-image-picker',
+    '../../types/vto', '../privacyImageUpload', './vtoMediaCache', 'expo-image-picker',
+  ],
+  // Enrolled in its own right rather than merely reachable: this is the module
+  // that holds a filesystem capability, so it is exactly the one the allowlist
+  // and the forbidden-call scan below must cover. `expo-file-system/legacy` is
+  // named here on purpose (the same reason vtoResultExport.ts names it), and
+  // `expo-crypto` supplies unguessable derivative names that carry no
+  // information about the source image.
+  'services/vto/vtoMediaCache.ts': [
+    'expo-crypto', 'expo-file-system/legacy',
   ],
   'hooks/useVirtualTryOn.ts': [
     '../services/vto/vtoPersonInput', '../services/vto/vtoRequestStore', '../types/vto', 'react',
