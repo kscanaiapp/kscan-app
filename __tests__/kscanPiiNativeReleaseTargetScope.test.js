@@ -109,6 +109,7 @@ test('every file that imports XCTest is captured by the Tests/ exclusion', () =>
 // it to a KNOWN set preserves that purpose: a third podspec, or one outside
 // modules/, still fails here.
 const KNOWN_PODSPECS = Object.freeze([
+  'modules/kscan-live-vto-native/ios/KScanLiveVtoNative.podspec',
   'modules/kscan-pii-native/ios/KScanPiiNative.podspec',
   'modules/kscan-voice-native/ios/KScanVoiceNative.podspec',
 ]);
