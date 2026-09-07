@@ -1,0 +1,294 @@
+{
+  "reportSchemaVersion": "fmql-report-schema-v1",
+  "sourceSha": "909df8646a690b55c5af6b7b8c80193df64a2ec8",
+  "fixtureManifestHash": "f52225a0fbb07a91ab84a173faef2ef04e57778e1c67c84c227755b002eb214e",
+  "rubricVersion": "fmql-rubric-v1",
+  "corpusTier": [
+    "SYNTHETIC"
+  ],
+  "generatedAt": "2026-09-06T23:35:30.572Z",
+  "corpus": {
+    "totalFixtures": 10,
+    "developmentCount": 7,
+    "holdoutCount": 3,
+    "countByTier": {
+      "SYNTHETIC": 10
+    }
+  },
+  "contractMode": "PASS",
+  "offlinePipelineMode": "PASS",
+  "replayMode": "READY_NO_CORPUS",
+  "liveMode": "NOT AUTHORIZED",
+  "metrics": {
+    "sampleCounts": {
+      "totalFixturesEvaluated": 7,
+      "headlineEligible": 7,
+      "excludedFromHeadline": 0,
+      "pairedForPlatformParity": 2
+    },
+    "identityDistribution": {
+      "EXACT": 7,
+      "PROBABLE_EXACT": 0,
+      "UNKNOWN": 0,
+      "WRONG_IDENTITY": 0
+    },
+    "substituteDistribution": {
+      "STRONG_SUBSTITUTE": 7,
+      "ACCEPTABLE_SUBSTITUTE": 0,
+      "WEAK_SUBSTITUTE": 0,
+      "UNUSABLE": 0,
+      "INSUFFICIENT_EVIDENCE": 0
+    },
+    "fashionComponentAverages": {
+      "category": 1,
+      "silhouette": 1,
+      "cut_proportion": 1,
+      "material": 1,
+      "texture": 1,
+      "pattern": 1,
+      "color_family": 0,
+      "construction": 1,
+      "hardware_details": 1,
+      "brand": 1,
+      "price_tier": 1,
+      "availability": 1,
+      "retailer_quality": 1
+    },
+    "duplicateMetrics": {
+      "totalCandidatesConsidered": 35,
+      "pairClassificationCounts": {
+        "CONFIRMED_DUPLICATE": 7,
+        "LIKELY_DUPLICATE": 14,
+        "DISTINCT_VARIANT": 21
+      }
+    },
+    "retailerNeutralityMetrics": {
+      "averageConcentrationIndex": 0.44,
+      "note": "Concentration is descriptive, not a quality judgment (spec section 21) - it may reflect real catalogue availability rather than a ranking defect."
+    },
+    "captureProfileStratification": {
+      "ios-current-v1": {
+        "count": 6,
+        "identityDistribution": {
+          "EXACT": 6,
+          "PROBABLE_EXACT": 0,
+          "UNKNOWN": 0,
+          "WRONG_IDENTITY": 0
+        },
+        "substituteDistribution": {
+          "STRONG_SUBSTITUTE": 6,
+          "ACCEPTABLE_SUBSTITUTE": 0,
+          "WEAK_SUBSTITUTE": 0,
+          "UNUSABLE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      },
+      "android-current-v1": {
+        "count": 1,
+        "identityDistribution": {
+          "EXACT": 1,
+          "PROBABLE_EXACT": 0,
+          "UNKNOWN": 0,
+          "WRONG_IDENTITY": 0
+        },
+        "substituteDistribution": {
+          "STRONG_SUBSTITUTE": 1,
+          "ACCEPTABLE_SUBSTITUTE": 0,
+          "WEAK_SUBSTITUTE": 0,
+          "UNUSABLE": 0,
+          "INSUFFICIENT_EVIDENCE": 0
+        }
+      }
+    }
+  },
+  "baseline": {
+    "action": "compared_against_existing",
+    "path": "tools\\fashion-match-quality\\baseline\\committed\\synthetic-v1.baseline.json",
+    "contentHash": "599a41829b8099dd06628ab8cda561e8940d6e08f32da82c2b17d25095846b12"
+  },
+  "comparison": {
+    "baselineContentHash": "f7303845ee8c3787ad10a34ef3bf7b4c051a565804a4ada041ae9e63643456eb",
+    "candidateContentHash": "599a41829b8099dd06628ab8cda561e8940d6e08f32da82c2b17d25095846b12",
+    "fixtureManifestHash": "f52225a0fbb07a91ab84a173faef2ef04e57778e1c67c84c227755b002eb214e",
+    "rubricVersion": "fmql-rubric-v1",
+    "sampleCount": 7,
+    "meanDelta": 0,
+    "confidenceInterval": {
+      "lower": 0,
+      "upper": 0
+    },
+    "noiseFloor": {
+      "meanVariance": null,
+      "stdDev": null,
+      "fixturesWithRepetition": 0
+    },
+    "status": "NOT_DECISION_GRADE",
+    "reason": "n=7 below minimum 30",
+    "perFixtureDeltas": [
+      {
+        "fixtureId": "synthetic-accessory-06",
+        "baseline": 0.9000000000000001,
+        "candidate": 0.9000000000000001,
+        "delta": 0
+      },
+      {
+        "fixtureId": "synthetic-bag-04",
+        "baseline": 0.9000000000000001,
+        "candidate": 0.9000000000000001,
+        "delta": 0
+      },
+      {
+        "fixtureId": "synthetic-blazer-07",
+        "baseline": 0.9000000000000001,
+        "candidate": 0.9000000000000001,
+        "delta": 0
+      },
+      {
+        "fixtureId": "synthetic-dress-00",
+        "baseline": 0.9000000000000001,
+        "candidate": 0.9000000000000001,
+        "delta": 0
+      },
+      {
+        "fixtureId": "synthetic-dress-00-android",
+        "baseline": 0.9000000000000001,
+        "candidate": 0.9000000000000001,
+        "delta": 0
+      },
+      {
+        "fixtureId": "synthetic-footwear-03",
+        "baseline": 0.9000000000000001,
+        "candidate": 0.9000000000000001,
+        "delta": 0
+      },
+      {
+        "fixtureId": "synthetic-outerwear-05",
+        "baseline": 0.9000000000000001,
+        "candidate": 0.9000000000000001,
+        "delta": 0
+      }
+    ]
+  },
+  "experiments": [
+    {
+      "hypothesis": "Raising the silhouette weight (0.10 -> 0.18) and lowering category (0.35 -> 0.27) improves substitute quality on fixtures where the top production match has the right category but the wrong silhouette, without materially harming identity metrics.",
+      "why": "authority/pipelineMap.json documents production silhouette weight (0.10) as roughly a third of category weight (0.35); K-SCAN memory (DEF-CON-002 shared layering taxonomy) records a related class of ranking defects where a strong single-token match outranks a better overall garment match.",
+      "variant": "silhouette-boost-v1",
+      "baseline": "L1 real production ranker (scanHelpers.ts rankRecommendedProducts, unmodified)",
+      "corpus": "SYNTHETIC, n=7 headline-eligible fixtures",
+      "result": {
+        "sampleCount": 7,
+        "meanSubstituteRollupDelta": 0,
+        "confidenceInterval": {
+          "lower": 0,
+          "upper": 0
+        },
+        "statisticalStatus": "NOT_DECISION_GRADE",
+        "identityImprovements": 0,
+        "identityRegressions": 0
+      },
+      "confidence": "LOW - synthetic corpus n=7 is far below the 30-fixture minimum this lab treats as decision-grade (spec section 17/18); this is a plumbing/direction signal only.",
+      "tradeoff": "No identity-axis regressions observed in this corpus.",
+      "status": "INCONCLUSIVE"
+    },
+    {
+      "hypothesis": "Suppressing all but the best-scored member of each detected duplicate cluster raises effective top-K diversity without harming identity metrics, because the highest-scored member of a cluster is always kept.",
+      "why": "Production deduplication (mergeProductCandidates) is exact-id/exact-URL only; a cross-retailer near-duplicate is invisible to it (spec section 20/21). This variant applies AFTER the real production ranking (L1), so it only changes which already-ranked results survive into the top-K, not how they were scored.",
+      "variant": "duplicate-suppression-v1",
+      "baseline": "L1 real production ranker (scanHelpers.ts rankRecommendedProducts, unmodified)",
+      "corpus": "SYNTHETIC, n=7 headline-eligible fixtures",
+      "result": {
+        "sampleCount": 7,
+        "meanSubstituteRollupDelta": 0,
+        "confidenceInterval": {
+          "lower": 0,
+          "upper": 0
+        },
+        "statisticalStatus": "NOT_DECISION_GRADE",
+        "identityImprovements": 0,
+        "identityRegressions": 0
+      },
+      "confidence": "LOW - synthetic corpus n=7 is far below the 30-fixture minimum this lab treats as decision-grade (spec section 17/18); this is a plumbing/direction signal only.",
+      "tradeoff": "No identity-axis regressions observed in this corpus.",
+      "status": "INCONCLUSIVE"
+    }
+  ],
+  "controls": [
+    {
+      "name": "corpus_schema_valid",
+      "verdict": "PASS",
+      "detail": "10 fixtures validated"
+    },
+    {
+      "name": "duplicate_fixture_id_rejected",
+      "verdict": "PASS",
+      "detail": "duplicate fixtureId correctly rejected"
+    },
+    {
+      "name": "missing_provenance_rejected",
+      "verdict": "PASS",
+      "detail": "groundTruth.source must be one of synthetic_generator_construction, retailer_pdp, manufacturer_specification, known_sku_metadata, owner_annotation, exploratory_non_authoritative, got undefined"
+    },
+    {
+      "name": "privacy_guard_rejects_prohibited_key",
+      "verdict": "PASS",
+      "detail": {
+        "path": "$.user_id",
+        "reason": "prohibited_key:user_id"
+      }
+    },
+    {
+      "name": "privacy_guard_rejects_nested_prohibited_key",
+      "verdict": "PASS",
+      "detail": {
+        "path": "$.nested.auth_token",
+        "reason": "prohibited_key:auth_token"
+      }
+    },
+    {
+      "name": "privacy_guard_rejects_data_uri_media",
+      "verdict": "PASS",
+      "detail": {
+        "path": "$.img",
+        "reason": "prohibited_value_pattern:data_uri_base64_media"
+      }
+    },
+    {
+      "name": "deterministic_corpus_manifest_hash",
+      "verdict": "PASS",
+      "detail": "f52225a0fbb07a91ab84a173faef2ef04e57778e1c67c84c227755b002eb214e"
+    },
+    {
+      "name": "rubric_weights_versioned_and_normalized",
+      "verdict": "PASS",
+      "detail": "fmql-rubric-v1"
+    },
+    {
+      "name": "baseline_overwrite_protected",
+      "verdict": "PASS",
+      "detail": "overwrite correctly refused without force"
+    },
+    {
+      "name": "baseline_schema_version_present",
+      "verdict": "PASS",
+      "detail": "fmql-baseline-schema-v1"
+    },
+    {
+      "name": "l1_harness_source_has_no_network_call",
+      "verdict": "PASS",
+      "detail": "no fetch()/Deno.connect() call present in L1 harness source"
+    },
+    {
+      "name": "offline_pipeline_mode",
+      "verdict": "PASS",
+      "detail": "PASS"
+    },
+    {
+      "name": "replay_mode",
+      "verdict": "PASS",
+      "detail": "READY_NO_CORPUS"
+    }
+  ],
+  "benchmarkStatus": "INTERNAL ENGINEERING EVIDENCE ONLY",
+  "contentHash": "3c8d6a7917f4b03e1b1752b1bba783fe1b988fe57608e13da9555200227dc2dd"
+}

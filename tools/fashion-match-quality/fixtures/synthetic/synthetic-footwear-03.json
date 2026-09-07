@@ -1,0 +1,220 @@
+{
+  "fixtureId": "synthetic-footwear-03",
+  "corpusTier": "SYNTHETIC",
+  "captureProfile": "ios-current-v1",
+  "pairedFixtureId": null,
+  "generatorVersion": "fmql-synthetic-generator-v1",
+  "archetype": "footwear",
+  "groundTruth": {
+    "source": "synthetic_generator_construction",
+    "confidence": "authoritative",
+    "identitySku": "SKU-clarks-footwear-3",
+    "brandNormalized": "clarks",
+    "category": "footwear",
+    "titleNormalized": "clarks brown/tan tailored/structured footwear",
+    "color_family": "brown/tan",
+    "material": "leather",
+    "silhouette": "tailored/structured",
+    "texture": "leather",
+    "pattern": "solid",
+    "construction": "standard",
+    "hardware_details": "none",
+    "brand": "Clarks",
+    "price_tier": "luxury",
+    "availability": "in_stock",
+    "retailer_quality": "verified_retailer",
+    "cut_proportion": "tailored/structured"
+  },
+  "garmentIdentification": {
+    "visual_observation": "A brown/tan tailored/structured footwear.",
+    "item_type": "footwear",
+    "primary_color": "brown/tan",
+    "material_estimate": "leather",
+    "silhouette": "tailored/structured",
+    "distinctive_features": [
+      "classic"
+    ],
+    "style_tags": [
+      "classic"
+    ],
+    "search_queries": [
+      "brown/tan footwear"
+    ],
+    "visible_brand_text": null,
+    "logo_detected": false,
+    "confidence_score": 0.72,
+    "non_fashion": false
+  },
+  "candidateProducts": [
+    {
+      "id": "synthetic-footwear-03::exact",
+      "identitySku": "SKU-clarks-footwear-3",
+      "brand": "Clarks",
+      "brandNormalized": "clarks",
+      "name": "Clarks brown/tan footwear",
+      "title": "Clarks brown/tan footwear",
+      "titleNormalized": "clarks brown/tan tailored/structured footwear",
+      "category": "footwear",
+      "canonical_category": "footwear",
+      "color": "brown/tan",
+      "color_normalized": "brown/tan",
+      "silhouette": "tailored/structured",
+      "material": "leather",
+      "materialEstimate": "leather",
+      "material_tags": [
+        "leather"
+      ],
+      "styleTags": [
+        "classic"
+      ],
+      "tags": [
+        "classic"
+      ],
+      "price_tier": "luxury",
+      "price": 677.09,
+      "currency": "USD",
+      "retailer": "net-a-porter",
+      "purchaseUrl": "https://net-a-porter.example/clarks/synthetic-footwear-03-exact",
+      "imageUrl": "https://cdn.example/synthetic-footwear-03-exact.jpg",
+      "availability": "in_stock",
+      "retailer_quality": "verified_retailer",
+      "construction": "standard",
+      "hardware_details": "none",
+      "texture": "leather",
+      "pattern": "solid",
+      "cut_proportion": "tailored/structured"
+    },
+    {
+      "id": "synthetic-footwear-03::near-miss",
+      "identitySku": "SKU-clarks-footwear-3-alt",
+      "brand": "Clarks",
+      "brandNormalized": "clarks",
+      "name": "Clarks gray footwear",
+      "title": "Clarks gray footwear",
+      "titleNormalized": "clarks gray fitted footwear",
+      "category": "footwear",
+      "canonical_category": "footwear",
+      "color": "gray",
+      "color_normalized": "gray",
+      "silhouette": "fitted",
+      "material": "leather",
+      "materialEstimate": "leather",
+      "material_tags": [
+        "leather"
+      ],
+      "styleTags": [
+        "classic"
+      ],
+      "tags": [
+        "classic"
+      ],
+      "price_tier": "luxury",
+      "price": 677.09,
+      "currency": "USD",
+      "retailer": "net-a-porter",
+      "purchaseUrl": "https://net-a-porter.example/clarks/synthetic-footwear-03-near",
+      "imageUrl": "https://cdn.example/synthetic-footwear-03-near.jpg",
+      "availability": "in_stock",
+      "retailer_quality": "verified_retailer",
+      "construction": "standard",
+      "hardware_details": "none",
+      "texture": "leather",
+      "pattern": "solid",
+      "cut_proportion": "fitted"
+    },
+    {
+      "id": "synthetic-footwear-03::distractor",
+      "brand": "Vince",
+      "brandNormalized": "vince",
+      "name": "Vince multicolor accessory",
+      "title": "Vince multicolor accessory",
+      "titleNormalized": "vince multicolor straight accessory",
+      "category": "accessory",
+      "canonical_category": "accessory",
+      "color": "multicolor",
+      "color_normalized": "multicolor",
+      "silhouette": "straight",
+      "material": "silk",
+      "materialEstimate": "silk",
+      "purchaseUrl": "https://net-a-porter.example/vince/synthetic-footwear-03-distractor",
+      "imageUrl": "https://cdn.example/synthetic-footwear-03-distractor.jpg",
+      "availability": "in_stock"
+    },
+    {
+      "id": "synthetic-footwear-03::cross-retailer-dup",
+      "identitySku": null,
+      "brand": "Clarks",
+      "brandNormalized": "clarks",
+      "name": "Clarks brown/tan footwear",
+      "title": "Clarks brown/tan footwear",
+      "titleNormalized": "clarks brown/tan tailored/structured footwear",
+      "category": "footwear",
+      "canonical_category": "footwear",
+      "color": "brown/tan",
+      "color_normalized": "brown/tan",
+      "silhouette": "tailored/structured",
+      "material": "leather",
+      "materialEstimate": "leather",
+      "material_tags": [
+        "leather"
+      ],
+      "styleTags": [
+        "classic"
+      ],
+      "tags": [
+        "classic"
+      ],
+      "price_tier": "luxury",
+      "price": 677.09,
+      "currency": "USD",
+      "retailer": "nordstrom",
+      "purchaseUrl": "https://nordstrom.example/clarks/synthetic-footwear-03-dup",
+      "imageUrl": "https://cdn.example/synthetic-footwear-03-dup.jpg",
+      "availability": "in_stock",
+      "retailer_quality": "verified_retailer",
+      "construction": "standard",
+      "hardware_details": "none",
+      "texture": "leather",
+      "pattern": "solid",
+      "cut_proportion": "tailored/structured"
+    },
+    {
+      "id": "synthetic-footwear-03::no-purchase-path",
+      "identitySku": null,
+      "brand": "Clarks",
+      "brandNormalized": "clarks",
+      "name": "Clarks brown/tan footwear",
+      "title": "Clarks brown/tan footwear",
+      "titleNormalized": "clarks brown/tan tailored/structured footwear",
+      "category": "footwear",
+      "canonical_category": "footwear",
+      "color": "brown/tan",
+      "color_normalized": "brown/tan",
+      "silhouette": "tailored/structured",
+      "material": "leather",
+      "materialEstimate": "leather",
+      "material_tags": [
+        "leather"
+      ],
+      "styleTags": [
+        "classic"
+      ],
+      "tags": [
+        "classic"
+      ],
+      "price_tier": "luxury",
+      "price": 677.09,
+      "currency": "USD",
+      "retailer": "net-a-porter",
+      "purchaseUrl": null,
+      "imageUrl": "https://cdn.example/synthetic-footwear-03-exact.jpg",
+      "availability": "out_of_stock",
+      "retailer_quality": "verified_retailer",
+      "construction": "standard",
+      "hardware_details": "none",
+      "texture": "leather",
+      "pattern": "solid",
+      "cut_proportion": "tailored/structured"
+    }
+  ]
+}

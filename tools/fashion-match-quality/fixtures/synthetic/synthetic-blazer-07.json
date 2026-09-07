@@ -1,0 +1,220 @@
+{
+  "fixtureId": "synthetic-blazer-07",
+  "corpusTier": "SYNTHETIC",
+  "captureProfile": "ios-current-v1",
+  "pairedFixtureId": null,
+  "generatorVersion": "fmql-synthetic-generator-v1",
+  "archetype": "blazer",
+  "groundTruth": {
+    "source": "synthetic_generator_construction",
+    "confidence": "authoritative",
+    "identitySku": "SKU-theory-blazer-7",
+    "brandNormalized": "theory",
+    "category": "blazer",
+    "titleNormalized": "theory navy tailored/structured blazer",
+    "color_family": "navy",
+    "material": "wool/wool blend",
+    "silhouette": "tailored/structured",
+    "texture": "wool/wool blend",
+    "pattern": "solid",
+    "construction": "standard",
+    "hardware_details": "none",
+    "brand": "Theory",
+    "price_tier": "luxury",
+    "availability": "in_stock",
+    "retailer_quality": "verified_retailer",
+    "cut_proportion": "tailored/structured"
+  },
+  "garmentIdentification": {
+    "visual_observation": "A navy tailored/structured blazer.",
+    "item_type": "blazer",
+    "primary_color": "navy",
+    "material_estimate": "wool/wool blend",
+    "silhouette": "tailored/structured",
+    "distinctive_features": [
+      "classic"
+    ],
+    "style_tags": [
+      "classic"
+    ],
+    "search_queries": [
+      "navy blazer"
+    ],
+    "visible_brand_text": null,
+    "logo_detected": false,
+    "confidence_score": 0.72,
+    "non_fashion": false
+  },
+  "candidateProducts": [
+    {
+      "id": "synthetic-blazer-07::exact",
+      "identitySku": "SKU-theory-blazer-7",
+      "brand": "Theory",
+      "brandNormalized": "theory",
+      "name": "Theory navy blazer",
+      "title": "Theory navy blazer",
+      "titleNormalized": "theory navy tailored/structured blazer",
+      "category": "blazer",
+      "canonical_category": "blazer",
+      "color": "navy",
+      "color_normalized": "navy",
+      "silhouette": "tailored/structured",
+      "material": "wool/wool blend",
+      "materialEstimate": "wool/wool blend",
+      "material_tags": [
+        "wool/wool blend"
+      ],
+      "styleTags": [
+        "classic"
+      ],
+      "tags": [
+        "classic"
+      ],
+      "price_tier": "luxury",
+      "price": 594.12,
+      "currency": "USD",
+      "retailer": "zappos",
+      "purchaseUrl": "https://zappos.example/theory/synthetic-blazer-07-exact",
+      "imageUrl": "https://cdn.example/synthetic-blazer-07-exact.jpg",
+      "availability": "in_stock",
+      "retailer_quality": "verified_retailer",
+      "construction": "standard",
+      "hardware_details": "none",
+      "texture": "wool/wool blend",
+      "pattern": "solid",
+      "cut_proportion": "tailored/structured"
+    },
+    {
+      "id": "synthetic-blazer-07::near-miss",
+      "identitySku": "SKU-theory-blazer-7-alt",
+      "brand": "Theory",
+      "brandNormalized": "theory",
+      "name": "Theory gray blazer",
+      "title": "Theory gray blazer",
+      "titleNormalized": "theory gray fitted blazer",
+      "category": "blazer",
+      "canonical_category": "blazer",
+      "color": "gray",
+      "color_normalized": "gray",
+      "silhouette": "fitted",
+      "material": "wool/wool blend",
+      "materialEstimate": "wool/wool blend",
+      "material_tags": [
+        "wool/wool blend"
+      ],
+      "styleTags": [
+        "classic"
+      ],
+      "tags": [
+        "classic"
+      ],
+      "price_tier": "luxury",
+      "price": 594.12,
+      "currency": "USD",
+      "retailer": "zappos",
+      "purchaseUrl": "https://zappos.example/theory/synthetic-blazer-07-near",
+      "imageUrl": "https://cdn.example/synthetic-blazer-07-near.jpg",
+      "availability": "in_stock",
+      "retailer_quality": "verified_retailer",
+      "construction": "standard",
+      "hardware_details": "none",
+      "texture": "wool/wool blend",
+      "pattern": "solid",
+      "cut_proportion": "fitted"
+    },
+    {
+      "id": "synthetic-blazer-07::distractor",
+      "brand": "Levi's",
+      "brandNormalized": "levi-s",
+      "name": "Levi's black pants",
+      "title": "Levi's black pants",
+      "titleNormalized": "levi's black straight pants",
+      "category": "pants",
+      "canonical_category": "pants",
+      "color": "black",
+      "color_normalized": "black",
+      "silhouette": "straight",
+      "material": "denim",
+      "materialEstimate": "denim",
+      "purchaseUrl": "https://zappos.example/levi-s/synthetic-blazer-07-distractor",
+      "imageUrl": "https://cdn.example/synthetic-blazer-07-distractor.jpg",
+      "availability": "in_stock"
+    },
+    {
+      "id": "synthetic-blazer-07::cross-retailer-dup",
+      "identitySku": null,
+      "brand": "Theory",
+      "brandNormalized": "theory",
+      "name": "Theory navy blazer",
+      "title": "Theory navy blazer",
+      "titleNormalized": "theory navy tailored/structured blazer",
+      "category": "blazer",
+      "canonical_category": "blazer",
+      "color": "navy",
+      "color_normalized": "navy",
+      "silhouette": "tailored/structured",
+      "material": "wool/wool blend",
+      "materialEstimate": "wool/wool blend",
+      "material_tags": [
+        "wool/wool blend"
+      ],
+      "styleTags": [
+        "classic"
+      ],
+      "tags": [
+        "classic"
+      ],
+      "price_tier": "luxury",
+      "price": 594.12,
+      "currency": "USD",
+      "retailer": "nordstrom",
+      "purchaseUrl": "https://nordstrom.example/theory/synthetic-blazer-07-dup",
+      "imageUrl": "https://cdn.example/synthetic-blazer-07-dup.jpg",
+      "availability": "in_stock",
+      "retailer_quality": "verified_retailer",
+      "construction": "standard",
+      "hardware_details": "none",
+      "texture": "wool/wool blend",
+      "pattern": "solid",
+      "cut_proportion": "tailored/structured"
+    },
+    {
+      "id": "synthetic-blazer-07::no-purchase-path",
+      "identitySku": null,
+      "brand": "Theory",
+      "brandNormalized": "theory",
+      "name": "Theory navy blazer",
+      "title": "Theory navy blazer",
+      "titleNormalized": "theory navy tailored/structured blazer",
+      "category": "blazer",
+      "canonical_category": "blazer",
+      "color": "navy",
+      "color_normalized": "navy",
+      "silhouette": "tailored/structured",
+      "material": "wool/wool blend",
+      "materialEstimate": "wool/wool blend",
+      "material_tags": [
+        "wool/wool blend"
+      ],
+      "styleTags": [
+        "classic"
+      ],
+      "tags": [
+        "classic"
+      ],
+      "price_tier": "luxury",
+      "price": 594.12,
+      "currency": "USD",
+      "retailer": "zappos",
+      "purchaseUrl": null,
+      "imageUrl": "https://cdn.example/synthetic-blazer-07-exact.jpg",
+      "availability": "out_of_stock",
+      "retailer_quality": "verified_retailer",
+      "construction": "standard",
+      "hardware_details": "none",
+      "texture": "wool/wool blend",
+      "pattern": "solid",
+      "cut_proportion": "tailored/structured"
+    }
+  ]
+}

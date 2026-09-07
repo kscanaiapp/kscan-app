@@ -6,6 +6,7 @@
   "exclude": [
     "supabase/functions/**",
     "qa/**",
-    "vto-phase4-pipeline/**"
+    "vto-phase4-pipeline/**",
+    "tools/fashion-match-quality/**"
   ]
 }

@@ -1,0 +1,220 @@
+{
+  "fixtureId": "synthetic-bag-04",
+  "corpusTier": "SYNTHETIC",
+  "captureProfile": "ios-current-v1",
+  "pairedFixtureId": null,
+  "generatorVersion": "fmql-synthetic-generator-v1",
+  "archetype": "bag",
+  "groundTruth": {
+    "source": "synthetic_generator_construction",
+    "confidence": "authoritative",
+    "identitySku": "SKU-coach-bag-4",
+    "brandNormalized": "coach",
+    "category": "bag",
+    "titleNormalized": "coach black structured bag",
+    "color_family": "black",
+    "material": "leather",
+    "silhouette": "structured",
+    "texture": "leather",
+    "pattern": "solid",
+    "construction": "standard",
+    "hardware_details": "none",
+    "brand": "Coach",
+    "price_tier": "luxury",
+    "availability": "in_stock",
+    "retailer_quality": "verified_retailer",
+    "cut_proportion": "structured"
+  },
+  "garmentIdentification": {
+    "visual_observation": "A black structured bag.",
+    "item_type": "bag",
+    "primary_color": "black",
+    "material_estimate": "leather",
+    "silhouette": "structured",
+    "distinctive_features": [
+      "classic"
+    ],
+    "style_tags": [
+      "classic"
+    ],
+    "search_queries": [
+      "black bag"
+    ],
+    "visible_brand_text": null,
+    "logo_detected": false,
+    "confidence_score": 0.72,
+    "non_fashion": false
+  },
+  "candidateProducts": [
+    {
+      "id": "synthetic-bag-04::exact",
+      "identitySku": "SKU-coach-bag-4",
+      "brand": "Coach",
+      "brandNormalized": "coach",
+      "name": "Coach black bag",
+      "title": "Coach black bag",
+      "titleNormalized": "coach black structured bag",
+      "category": "bag",
+      "canonical_category": "bag",
+      "color": "black",
+      "color_normalized": "black",
+      "silhouette": "structured",
+      "material": "leather",
+      "materialEstimate": "leather",
+      "material_tags": [
+        "leather"
+      ],
+      "styleTags": [
+        "classic"
+      ],
+      "tags": [
+        "classic"
+      ],
+      "price_tier": "luxury",
+      "price": 459.97,
+      "currency": "USD",
+      "retailer": "zappos",
+      "purchaseUrl": "https://zappos.example/coach/synthetic-bag-04-exact",
+      "imageUrl": "https://cdn.example/synthetic-bag-04-exact.jpg",
+      "availability": "in_stock",
+      "retailer_quality": "verified_retailer",
+      "construction": "standard",
+      "hardware_details": "none",
+      "texture": "leather",
+      "pattern": "solid",
+      "cut_proportion": "structured"
+    },
+    {
+      "id": "synthetic-bag-04::near-miss",
+      "identitySku": "SKU-coach-bag-4-alt",
+      "brand": "Coach",
+      "brandNormalized": "coach",
+      "name": "Coach gray bag",
+      "title": "Coach gray bag",
+      "titleNormalized": "coach gray fitted bag",
+      "category": "bag",
+      "canonical_category": "bag",
+      "color": "gray",
+      "color_normalized": "gray",
+      "silhouette": "fitted",
+      "material": "leather",
+      "materialEstimate": "leather",
+      "material_tags": [
+        "leather"
+      ],
+      "styleTags": [
+        "classic"
+      ],
+      "tags": [
+        "classic"
+      ],
+      "price_tier": "luxury",
+      "price": 459.97,
+      "currency": "USD",
+      "retailer": "zappos",
+      "purchaseUrl": "https://zappos.example/coach/synthetic-bag-04-near",
+      "imageUrl": "https://cdn.example/synthetic-bag-04-near.jpg",
+      "availability": "in_stock",
+      "retailer_quality": "verified_retailer",
+      "construction": "standard",
+      "hardware_details": "none",
+      "texture": "leather",
+      "pattern": "solid",
+      "cut_proportion": "fitted"
+    },
+    {
+      "id": "synthetic-bag-04::distractor",
+      "brand": "Theory",
+      "brandNormalized": "theory",
+      "name": "Theory navy blazer",
+      "title": "Theory navy blazer",
+      "titleNormalized": "theory navy tailored/structured blazer",
+      "category": "blazer",
+      "canonical_category": "blazer",
+      "color": "navy",
+      "color_normalized": "navy",
+      "silhouette": "tailored/structured",
+      "material": "wool/wool blend",
+      "materialEstimate": "wool/wool blend",
+      "purchaseUrl": "https://zappos.example/theory/synthetic-bag-04-distractor",
+      "imageUrl": "https://cdn.example/synthetic-bag-04-distractor.jpg",
+      "availability": "in_stock"
+    },
+    {
+      "id": "synthetic-bag-04::cross-retailer-dup",
+      "identitySku": null,
+      "brand": "Coach",
+      "brandNormalized": "coach",
+      "name": "Coach black bag",
+      "title": "Coach black bag",
+      "titleNormalized": "coach black structured bag",
+      "category": "bag",
+      "canonical_category": "bag",
+      "color": "black",
+      "color_normalized": "black",
+      "silhouette": "structured",
+      "material": "leather",
+      "materialEstimate": "leather",
+      "material_tags": [
+        "leather"
+      ],
+      "styleTags": [
+        "classic"
+      ],
+      "tags": [
+        "classic"
+      ],
+      "price_tier": "luxury",
+      "price": 459.97,
+      "currency": "USD",
+      "retailer": "nordstrom",
+      "purchaseUrl": "https://nordstrom.example/coach/synthetic-bag-04-dup",
+      "imageUrl": "https://cdn.example/synthetic-bag-04-dup.jpg",
+      "availability": "in_stock",
+      "retailer_quality": "verified_retailer",
+      "construction": "standard",
+      "hardware_details": "none",
+      "texture": "leather",
+      "pattern": "solid",
+      "cut_proportion": "structured"
+    },
+    {
+      "id": "synthetic-bag-04::no-purchase-path",
+      "identitySku": null,
+      "brand": "Coach",
+      "brandNormalized": "coach",
+      "name": "Coach black bag",
+      "title": "Coach black bag",
+      "titleNormalized": "coach black structured bag",
+      "category": "bag",
+      "canonical_category": "bag",
+      "color": "black",
+      "color_normalized": "black",
+      "silhouette": "structured",
+      "material": "leather",
+      "materialEstimate": "leather",
+      "material_tags": [
+        "leather"
+      ],
+      "styleTags": [
+        "classic"
+      ],
+      "tags": [
+        "classic"
+      ],
+      "price_tier": "luxury",
+      "price": 459.97,
+      "currency": "USD",
+      "retailer": "zappos",
+      "purchaseUrl": null,
+      "imageUrl": "https://cdn.example/synthetic-bag-04-exact.jpg",
+      "availability": "out_of_stock",
+      "retailer_quality": "verified_retailer",
+      "construction": "standard",
+      "hardware_details": "none",
+      "texture": "leather",
+      "pattern": "solid",
+      "cut_proportion": "structured"
+    }
+  ]
+}

@@ -8,15 +8,16 @@
 // parser are exercised against paths that MUST be rejected, not just against
 // the ones this branch happens to touch.
 //
-// The live diff check runs too, whenever a base ref resolves. It is not the
-// only assertion here on purpose: a guard that can only be proven by the diff
-// it was written against is a guard that proves nothing.
+// The live diff check runs too, on a lane that has explicitly declared itself
+// a VTO enforcement lane. It is not the only assertion here on purpose: a
+// guard that can only be proven by the diff it was written against is a guard
+// that proves nothing -- which is also why the static half above keeps running
+// on branches the live half does not apply to.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { execFileSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 const guard = require('../scripts/check-vto-live-integration-scope.js');
@@ -142,42 +143,51 @@ test('guard: authorization is per-path, not per-directory-of-the-repo', () => {
   assert.equal(unauthorized.length, 3);
 });
 
-// ── The live diff, when a base ref is available ────────────────────────────
+// ── The live diff, on a lane that has DECLARED itself a VTO lane ───────────
+//
+// Everything above is a policy control about the manifest and the matcher: it
+// is true of this repository on every branch, so it runs on every branch. The
+// two checks below are different in kind -- they judge one branch's actual
+// diff against the VTO integration base authority, which is only a meaningful
+// question on a lane derived from, and answerable to, that base.
+//
+// They used to be run the same way regardless, because the base ref was
+// DISCOVERED (first of three candidates that resolved) rather than declared.
+// Every branch in this repository contains the VTO integration commit, so
+// every branch was judged against the VTO manifest and every non-VTO branch
+// failed for its own unrelated work. The discovery list is gone; lane
+// membership is now an explicit signal that the VTO workflow declares. See
+// scripts/check-vto-live-integration-scope.js and
+// __tests__/vtoScopeGuardEnforcementMode.test.js, which proves the signal
+// cannot silently degrade to a skip.
 
-function resolveBaseRef() {
-  for (const candidate of [
-    'origin/integration/backend-kplus-complimentary-staging-v1',
-    'integration/backend-kplus-complimentary-staging-v1',
-    'f2ef091aae0f270a8b966dc03d7c18198070b42f',
-  ]) {
-    try {
-      execFileSync('git', ['rev-parse', '--verify', `${candidate}^{commit}`], {
-        cwd: ROOT,
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-      });
-      return candidate;
-    } catch {
-      // Try the next.
-    }
+/**
+ * Shared by both live checks: either the changed paths to judge, or an
+ * explicit reason this lane is not judged. Never "the base didn't resolve, so
+ * we're fine" -- resolveScopeMode returns FAIL for that on an enforcing lane,
+ * and this asserts on it.
+ */
+function changedPathsForThisLane(t) {
+  const mode = guard.resolveScopeMode();
+
+  if (mode.decision === 'SKIP') {
+    t.skip(`NOT APPLICABLE — ${mode.reason}`);
+    return null;
   }
-  return null;
+
+  assert.notEqual(
+    mode.decision,
+    'FAIL',
+    `VTO scope enforcement is declared but cannot be carried out: ${mode.reason}`,
+  );
+
+  return guard.diffChangedPaths(mode.baseRef);
 }
 
 test('guard: this branch\'s actual diff stays inside the boundary', (t) => {
-  const baseRef = resolveBaseRef();
-  if (!baseRef) {
-    // A shallow CI checkout with no integration ref cannot run this. Skipping
-    // is reported, never silently passed -- and the boundary logic above ran
-    // regardless, so this file still asserts something either way.
-    t.skip('no base ref available in this checkout');
-    return;
-  }
-  const output = execFileSync('git', ['diff', '--name-only', `${baseRef}...HEAD`], {
-    cwd: ROOT,
-    encoding: 'utf8',
-  }).trim();
-  const changed = output ? output.split('\n').filter(Boolean) : [];
+  const changed = changedPathsForThisLane(t);
+  if (changed === null) return;
+
   const { patterns } = guard.parseAuthorizedPatterns(manifest);
   const { unauthorized } = guard.classifyChangedPaths(changed, patterns);
   assert.deepEqual(
@@ -188,16 +198,9 @@ test('guard: this branch\'s actual diff stays inside the boundary', (t) => {
 });
 
 test('guard: the generative backend was read, never written', (t) => {
-  const baseRef = resolveBaseRef();
-  if (!baseRef) {
-    t.skip('no base ref available in this checkout');
-    return;
-  }
-  const output = execFileSync('git', ['diff', '--name-only', `${baseRef}...HEAD`], {
-    cwd: ROOT,
-    encoding: 'utf8',
-  }).trim();
-  const changed = output ? output.split('\n').filter(Boolean) : [];
+  const changed = changedPathsForThisLane(t);
+  if (changed === null) return;
+
   const backendTouches = changed.filter(
     (file) => file.startsWith('supabase/') || file === 'eas.json' || file === 'app.json',
   );
