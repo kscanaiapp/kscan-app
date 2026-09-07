@@ -30,7 +30,7 @@ Scope: source certification only; no EAS production build and no staging or prod
 Remaining higher-priority holds:
 
 - `SCAN-002` (P2): `docs/BUILD34_SCANNER_SCAN_RESULTS_DEEP_AUDIT.md:287-307,470-477` — measured identification time is 6.2–14.0 seconds against the five-second curiosity target. A model/prompt/schema change requires a governed accuracy corpus and owner decision; no speculative repair was made. Literal build blocker: NO. Release decision required: YES.
-- `VTO-MIG-001` (P3): `config/migration-authority-manifest.json:604-607`, `supabase/functions/vto-generate/vtoReservation.ts:115-139`, `supabase/migrations/20260902150000_vto_non_billable_attempt_release.sql:36-99` — staging does not yet have `release_vto_generation`; provably non-billable provider failures can remain counted against a daily limit. Source includes the forward migration, but applying it would mutate staging and was not authorized. Literal build blocker: NO. Staging certification hold: YES.
+- `VTO-MIG-001` (P3): **CLOSED 2026-09-07 under RP-106.** `release_vto_generation(uuid, text, text)` is present on K Scan AI Staging (`yzqjvdfgefveprobvvyw`), the ledger carries `20260902150000 vto_non_billable_attempt_release`, and `pg_get_functiondef` is byte-identical to `supabase/migrations/20260902150000_vto_non_billable_attempt_release.sql` including its comment; grants are `service_role` (+ owner `postgres`) only, with no `anon`/`authenticated`/`public` execute. Certified zero-spend against the deployed `vto-generate` on run `kscan-vto-rp106-cert-01`: 13/13 controls PASS, provider submits 0, paid requests 0, residual test state 0. Negative controls held — a second release returns `false`, a foreign actor cannot release another actor's reservation, and the rightful actor still can afterwards. NOTE: the migration was applied to staging BEFORE this repair pass began (the manifest's `GENUINELY_UNAPPLIED` declaration was captured 2026-09-03 and had since gone stale); this pass verified and certified it rather than applying it. Staging certification hold: CLOSED. Production promotion: PENDING — see `docs/audits/rp106-vto-attempt-release-promotion.md`.
 
 P0 FOUND: 0  
 P0 REPAIRED: 0  
@@ -42,8 +42,8 @@ P2 FOUND: 3
 P2 REPAIRED: 2  
 P2 REMAINING: 1  
 P3 FOUND: 4
-P3 REPAIRED: 3
-P3 REMAINING: 1
+P3 REPAIRED: 4
+P3 REMAINING: 0
 
 ## Platform parity matrix
 
@@ -57,7 +57,7 @@ P3 REMAINING: 1
 | PostHog | Sole governed wrapper, shared identity sync | Same | No platform permission; autocapture/replay/error capture/flags/surveys off, GeoIP disabled | PASS with consent decision recorded |
 | K+ | Shared RevenueCat/server entitlement authority; fail closed | Same | No platform permission | PASS source |
 | Home | Canonical shared route and hierarchy | Same; authenticated rendering source/test verified | Portrait policy intentionally differs on iPhone vs Android rotation | PASS |
-| Functional VTO | Shared photo-VTO route/request store | Same | Camera/photo only; no R&D native runtime | PASS source; staging migration hold |
+| Functional VTO | Shared photo-VTO route/request store | Same | Camera/photo only; no R&D native runtime | PASS source; staging migration applied and certified (RP-106) |
 | Icons/splash/metadata | Native iOS assets/config inspected | Native Android assets/config inspected | Bundle/package `com.kscanai.app`; version 1.0.1; builds 26/23 | PASS source; artifact verify |
 | Legal/privacy | Shared in-app privacy surfaces and hosted policy links | Same | No platform permission | PASS; metadata drift recorded |
 | Feature flags | Same shared selectors | Same | `staging-certification` intentionally enables K+/VTO/Watchlist/Packing/Voice; production promotion remains owner-controlled | INTENTIONAL EXCEPTION |

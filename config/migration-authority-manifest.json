@@ -599,12 +599,14 @@
             "evidence": "Same logical name, applied under ledger version 20260902154435. public.get_item_reaction_counts present."
           }
         ],
-        "genuinelyUnapplied": [
+        "genuinelyUnapplied": [],
+        "appliedSinceReconciliation": [
           {
             "localVersion": "20260902150000",
             "logicalName": "vto_non_billable_attempt_release",
-            "classification": "GENUINELY_UNAPPLIED",
-            "evidence": "public.release_vto_generation(uuid, text, text) does not exist on staging (pg_proc, confirmed 2026-09-03), and no applied migration or later schema state provides the non-billable attempt release. Frozen vto-generate depends on it: vtoReservation.ts calls rpc('release_vto_generation', ...) and vtoHandler.ts takes that path when outcome.billable === false. This is a real pending migration and MUST still be approved through APPROVED_MIGRATION_VERSION."
+            "classification": "APPLIED_AND_CERTIFIED",
+            "appliedConfirmedOn": "2026-09-07",
+            "evidence": "RP-106. Previously declared GENUINELY_UNAPPLIED on 2026-09-03; that declaration went stale. As of 2026-09-07 supabase_migrations.schema_migrations carries version 20260902150000 (name vto_non_billable_attempt_release), public.release_vto_generation(uuid, text, text) exists, pg_get_functiondef is byte-identical to the source migration body and comment, and execute grants are postgres + service_role only (no anon/authenticated/public). Certified zero-spend on run kscan-vto-rp106-cert-01: 13/13 controls PASS, 0 provider submits, 0 paid requests, 0 residual test state. Production (wyyuqfdxucjksghsmhry) is NOT promoted -- see docs/audits/rp106-vto-attempt-release-promotion.md."
           }
         ]
       }

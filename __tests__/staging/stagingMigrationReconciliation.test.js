@@ -378,20 +378,42 @@ test('the committed staging authority is structurally sound against the real tre
   assert.deepEqual(problems, [], problems.join('\n'));
 });
 
-test('the one genuinely unapplied staging migration is declared as such, and is not reconciled away', async () => {
+/**
+ * RP-106. This test previously pinned 20260902150000 as the ONE genuinely
+ * unapplied staging migration. That declaration was captured on 2026-09-03
+ * and went stale: by 2026-09-07 staging's ledger carried the version,
+ * public.release_vto_generation existed, pg_get_functiondef was byte-identical
+ * to the source migration, and its execute grants were service_role only. The
+ * migration was then certified zero-spend (run kscan-vto-rp106-cert-01, 13/13
+ * controls, 0 provider submits, 0 paid requests, 0 residual state).
+ *
+ * A governance manifest that asserts a false fact about staging is worse than
+ * one that asserts nothing, so the entry moved to `appliedSinceReconciliation`
+ * and this test now pins the CORRECTED shape. What it must keep proving is the
+ * structural invariant, not the count: nothing may be declared both unapplied
+ * and reconciled, and every declared version must still exist on disk.
+ */
+test('staging declares no genuinely unapplied migration, and the RP-106 version is recorded as applied', async () => {
   const { loadLedgerReconciliation } = await loadPreflight();
   const { genuinelyUnapplied, reconciled } = loadLedgerReconciliation(STAGING_REF);
 
-  assert.equal(genuinelyUnapplied.length, 1);
-  assert.equal(genuinelyUnapplied[0].localVersion, '20260902150000');
-  assert.equal(genuinelyUnapplied[0].logicalName, 'vto_non_billable_attempt_release');
-  assert.equal(genuinelyUnapplied[0].classification, 'GENUINELY_UNAPPLIED');
+  assert.deepEqual(genuinelyUnapplied, [], 'RP-106 closed the last one; a new one must be declared deliberately');
 
-  // It must NOT also appear as reconciled — that would hide it from the gate.
+  const manifest = JSON.parse(
+    fs.readFileSync(path.join(ROOT, 'config', 'migration-authority-manifest.json'), 'utf8'),
+  );
+  const applied = manifest.ledgerReconciliation.environments[STAGING_REF].appliedSinceReconciliation;
+  assert.equal(applied.length, 1);
+  assert.equal(applied[0].localVersion, '20260902150000');
+  assert.equal(applied[0].logicalName, 'vto_non_billable_attempt_release');
+  assert.equal(applied[0].classification, 'APPLIED_AND_CERTIFIED');
+
+  // It must NOT be declared reconciled — it was applied under its OWN version,
+  // not present under some other version identity.
   assert.equal(
     reconciled.some((r) => r.localVersion === '20260902150000'),
     false,
-    'a genuinely unapplied migration must never be declared reconciled',
+    'an applied-under-its-own-version migration is not a renumber and must never be declared reconciled',
   );
 
   // And the file it names must exist.
