@@ -392,9 +392,25 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
     // departing actor's session is still valid. A Watch alert's notification
     // body carries the watched item and its price, so a registration left
     // live after sign-out delivers that text to whoever holds the handset
-    // next. Awaited but never allowed to fail or stall sign-out (the helper
-    // swallows every error and no-ops when this device never registered).
-    await revokeWatchAlertsForThisDevice();
+    // next. This must stay BEFORE the auth sign-out call below: the
+    // revocation is an authenticated request, and moving it after the session
+    // is destroyed would make it unauthorized rather than merely best-effort.
+    //
+    // RP-109: awaited, but the helper enforces its own explicit network
+    // deadline (LOGOUT_PUSH_REVOCATION_DEADLINE_MS) and resolves with a
+    // bounded reason code instead of throwing. Previously this await had no
+    // deadline at all, so a request that hung held sign-out open forever and
+    // trapped the user inside the authenticated session. Push cleanup is
+    // important; ending the session is what the user actually asked for, so
+    // every outcome below — success, ordinary failure, timeout — falls through
+    // to the logout. Nothing here branches on the result.
+    const pushRevocation = await revokeWatchAlertsForThisDevice();
+    if (pushRevocation !== 'revoked' && pushRevocation !== 'not_registered') {
+      // A closed reason-code vocabulary on the existing dev-only trace: no new
+      // analytics surface, and the trace's field type structurally cannot
+      // carry a token, a device id, an email or a backend body.
+      traceAuthLifecycle('signout-push-revocation', { outcome: pushRevocation });
+    }
     await stopAvatarSpeechPlayback();
     resetActorScopedRuntimeState(null);
     setSession(null);

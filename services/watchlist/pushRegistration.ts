@@ -133,6 +133,37 @@ async function clearDevicePushExplicitlyDisabled(): Promise<void> {
   }
 }
 
+/**
+ * RP-109. Resolves with `onDeadline` if `operation` has not settled in
+ * `timeoutMs`, and always clears its own timer.
+ *
+ * Mirrors the withTimeout shape already used in services/featureFreeze.ts and
+ * services/vto/vtoFeatureControl.ts, with one deliberate difference: it
+ * RESOLVES rather than rejects. Its one caller is best-effort logout cleanup,
+ * where a rejection would only have to be caught and mapped straight back to a
+ * reason code -- and where an unhandled rejection is exactly the failure mode
+ * being repaired.
+ */
+function withDeadline<T>(operation: Promise<T>, timeoutMs: number, onDeadline: T): Promise<T> {
+  return new Promise<T>((resolve) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      resolve(onDeadline);
+    }, timeoutMs);
+    const finish = (value: T) => {
+      clearTimeout(timer);
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    };
+    // Both arms are attached, so a rejection that lands AFTER the deadline is
+    // still consumed and can never surface as an unhandled rejection.
+    operation.then(finish, () => finish(onDeadline));
+  });
+}
+
 async function getOrCreateDeviceId(): Promise<string> {
   const existing = await AsyncStorage.getItem(DEVICE_ID_STORAGE_KEY);
   if (existing) return existing;
@@ -273,6 +304,51 @@ export async function claimDeviceForCurrentActor(): Promise<void> {
 }
 
 /**
+ * RP-109. Explicit network deadline for the sign-out push-revocation attempt.
+ *
+ * Chosen conservatively rather than borrowed: the closest existing precedent,
+ * services/featureFreeze.ts, uses 2500ms for a config read that blocks a render
+ * -- a tighter budget than this needs. This one runs once per sign-out, on a
+ * handset that may be on a slow mobile network, and a revocation that DOES land
+ * is worth a short wait because it stops a departed actor's Watch alerts (item
+ * title and price) reaching whoever holds the handset next. Four seconds is
+ * long enough for an ordinary round trip on a poor connection and short enough
+ * that a hung request is never mistaken by the user for a failed logout.
+ *
+ * The number is the ceiling, not the cost: a normal revocation resolves in the
+ * time the request takes and the timer is cleared immediately.
+ */
+export const LOGOUT_PUSH_REVOCATION_DEADLINE_MS = 4000;
+
+/**
+ * Bounded reason code for one sign-out revocation attempt. Deliberately a
+ * closed set of opaque tokens: no device id, push token, access token, email,
+ * backend body or error text may leave this module (§19).
+ */
+export type LogoutPushRevocationOutcome =
+  | 'revoked'
+  | 'not_registered'
+  | 'no_session'
+  | 'failed'
+  | 'timed_out';
+
+/** The unbounded body of the revocation. Never rejects; see the wrapper. */
+async function revokeThisDevicePushRoute(): Promise<LogoutPushRevocationOutcome> {
+  try {
+    const deviceId = await readDeviceId();
+    if (!deviceId) return 'not_registered';
+    const session = await resolveAuthenticatedFunctionSession();
+    if (session.ok === false) return 'no_session';
+    const result = await supabase.functions.invoke('commerce-watch-refresh', {
+      body: { action: 'revoke_push_token', deviceId },
+    });
+    return result.error ? 'failed' : 'revoked';
+  } catch {
+    return 'failed';
+  }
+}
+
+/**
  * DEF-WL-01 (hostile-audit repair): retires THIS device's push registration
  * for the actor who is leaving.
  *
@@ -286,24 +362,29 @@ export async function claimDeviceForCurrentActor(): Promise<void> {
  * rows per token unrepresentable), so this is the cooperative half, not the
  * only guard.
  *
- * Never throws and never blocks: sign-out must complete even if the network,
- * the session, or storage is unavailable. Does nothing at all when this
- * device never registered — it deliberately does not mint a device id.
+ * RP-109: the wait is now EXPLICITLY BOUNDED at
+ * LOGOUT_PUSH_REVOCATION_DEADLINE_MS. Previously this awaited the network with
+ * no deadline, so a request that hung — a captive portal, a stalled TLS
+ * handshake, a dead radio — held sign-out open indefinitely and trapped the
+ * user inside the authenticated session. Push cleanup matters, but ending the
+ * session is the action the user actually asked for, so the deadline always
+ * wins. An abandoned request is harmless: the server holds the invariant
+ * independently, and the arriving actor's claim_device retires the route
+ * anyway.
+ *
+ * Never throws and never blocks past the deadline. Does nothing at all when
+ * this device never registered — it deliberately does not mint a device id.
+ * Returns a bounded reason code (never raw error material) so the caller can
+ * record the outcome; the caller is free to ignore it. It mutates NO
+ * actor-bound state, which is what makes a completion that lands after the
+ * next actor has signed in structurally incapable of touching them.
  */
-export async function revokeWatchAlertsForThisDevice(): Promise<void> {
-  try {
-    const deviceId = await readDeviceId();
-    if (!deviceId) return;
-    const session = await resolveAuthenticatedFunctionSession();
-    if (session.ok === false) return;
-    await supabase.functions.invoke('commerce-watch-refresh', {
-      body: { action: 'revoke_push_token', deviceId },
-    });
-  } catch {
-    // Intentionally silent: a failed revocation must never fail a sign-out.
-    // The server-side invariant still retires this row the moment the next
-    // actor registers on this device.
-  }
+export async function revokeWatchAlertsForThisDevice(): Promise<LogoutPushRevocationOutcome> {
+  return withDeadline(
+    revokeThisDevicePushRoute(),
+    LOGOUT_PUSH_REVOCATION_DEADLINE_MS,
+    'timed_out',
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
