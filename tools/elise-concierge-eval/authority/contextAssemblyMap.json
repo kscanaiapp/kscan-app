@@ -1,0 +1,55 @@
+{
+  "mapVersion": "CONTEXT_ASSEMBLY_MAP_V1",
+  "discoveredBy": "research/elise-concierge-evaluation-harness-v1, Build 35 instrument-validation lane",
+  "pinnedBaseSha": "a9fb82e9020fce268b9840b39cb7fc9a92e5747e",
+  "architectureGate": {
+    "status": "PROVEN",
+    "classification": "STRUCTURED_CONTEXT",
+    "verdict": "GROUNDING MACHINE-EVALUATION: STRONG_SEAM",
+    "rationale": "Context reaching the model is assembled from TYPED, TAGGED, TRUST-SEPARATED sections (promptEnvelope.ts: kscan_system_rules / trusted_server_context / closet_context / signature_style_context / style_dna_context / visual_context / attachment_context / commerce_context / shared_context / conversation_context / user_input), each independently bounded and sanitized (inputLimits.ts) before assembly (styleChatPromptAssembly.ts: assembleStyleChatPrompt). This is the opposite of an unstructured single prompt-string blob: every context class the evaluator needs to check (Closet, Signature Style, constraints-as-text, commerce, conversation history) is separately addressable BEFORE it reaches the model, which is exactly the seam an evaluation instrument needs. Section 12 of the spec requires this classification to be made right after source mapping, before implementation choices — this classification directly justified building context-assembly/l15ContextAssembly.js as a real-code-execution seam rather than reimplementing the prompt logic."
+  },
+  "seamAvailability": {
+    "status": "PROVEN",
+    "verdict": "L1.5: AVAILABLE (not BLOCKED_SEAM)",
+    "mechanism": "The relevant production TypeScript modules under supabase/functions/_shared/aiSecurity/ and supabase/functions/stylechat-generate/ are PURE functions (no Deno-specific I/O, no network calls, no Supabase client calls) written with only erasable TypeScript syntax (interfaces, type aliases — no enums/decorators/namespaces). Node.js (>=22.6, confirmed working unflagged on the pinned worktree's Node v24.14.0) can `import()` these .ts files directly via native type-stripping, executing the REAL, UNMODIFIED production source with synthetic inputs and capturing the exact string payload that would be sent to the provider — with zero network calls and zero production file changes.",
+    "modulesExercised": [
+      "supabase/functions/_shared/aiSecurity/inputLimits.ts (boundTextField, AI_INPUT_LIMITS)",
+      "supabase/functions/_shared/aiSecurity/promptEnvelope.ts (assemblePromptEnvelope, buildTrustedSystemRules, buildUserInputSection, buildConversationContextSection)",
+      "supabase/functions/_shared/aiSecurity/styleChatPromptAssembly.ts (assembleStyleChatPrompt)",
+      "supabase/functions/_shared/aiSecurity/escapeUntrustedText.ts (transitively, via promptEnvelope.ts)",
+      "supabase/functions/_shared/aiSecurity/trustTypes.ts (transitively)",
+      "supabase/functions/stylechat-generate/eliseAdvicePrompt.ts (buildEliseAdvicePromptBlock, buildEliseAdviceMetadata, deriveWardrobeContextMode)",
+      "supabase/functions/stylechat-generate/eliseStructuredGrounding.ts (buildStructuredGroundingSystemBlock)",
+      "supabase/functions/stylechat-generate/eliseOwnershipProseSafety.ts (enforceOwnershipProseSafety, enforceClosetAbsenceProseSafety)",
+      "supabase/functions/stylechat-generate/eliseWardrobeGap.ts (analyzeWardrobeGap, buildPurchaseAdvice, buildMultiLooks)",
+      "supabase/functions/stylechat-generate/eliseAdviceIntents.ts (classifyEliseAdviceIntent, intentAllowsCommerce)",
+      "supabase/functions/stylechat-generate/eliseFocusResolution.ts (resolveEliseFocusedItem)",
+      "supabase/functions/stylechat-generate/eliseCompatibilityScoring.ts (rankAndBoundCandidates)",
+      "supabase/functions/stylechat-generate/eliseClosetCensus.ts (buildClosetCensus and friends)"
+    ],
+    "constraint": "No production file was modified, no production DI/refactor was performed, no global networking was monkey-patched, and no new provider abstraction was created. Only already-pure, already-exported functions were imported and called with synthetic arguments — allowed under spec section 30's 'Allowed' list. If a future Node version or sandbox removes unflagged TS type-stripping, the harness degrades to L1.5: BLOCKED_SEAM at runtime (caught explicitly in context-assembly/l15ContextAssembly.js) rather than crashing the run."
+  },
+  "trustBoundary": {
+    "status": "PROVEN",
+    "details": "KSCAN_SYSTEM_TRUST_RULES (promptEnvelope.ts) is a fixed constant instructing the model to treat user_input/visual_context/retrieved_context/shared_context/attachment_context/commerce_context/conversation_context as data, never as instructions, and to never reveal hidden prompts, API keys, JWTs, storage paths, or actor IDs. escapeUntrustedText.js (imported transitively) is applied to every untrusted section body before it is wrapped in its XML-like tag."
+  },
+  "boundingAndSanitization": {
+    "status": "PROVEN",
+    "sourceFile": "supabase/functions/_shared/aiSecurity/inputLimits.ts",
+    "details": "AI_INPUT_LIMITS defines a hard character cap per field (eliseUserMessage: 500, closetContext: 500, signatureStyleContext: 500, styleDnaContext: 280, conversationMessage: 1000 x conversationHistoryMessages: 6, totalPromptChars: 24000). boundTextField additionally strips control characters, rejects raw file/data URIs and base64-looking blobs, and redacts JWT-like/API-key-like/Authorization-header-like substrings and (optionally) UUIDs before a field is allowed into the envelope."
+  },
+  "conversationHistoryAssembly": {
+    "status": "PROVEN",
+    "sourceFile": "supabase/functions/stylechat-generate/contextMessages.ts",
+    "function": "selectRecentModelContextMessages",
+    "details": "Pure function: takes newest-first rows from style_chat_messages, filters out assistant rows carrying a 'greeting' ui_block, takes the newest `limit`, and returns them in chronological order. Exercised directly by the L1.5 harness with synthetic message rows."
+  },
+  "constraintAssembly": {
+    "status": "PROVEN",
+    "details": "No dedicated structured 'constraints' context object exists. Constraints reach the model only as: (a) free text inside user_input, (b) a small number of regex-derived boolean signals consumed by the advice pipeline itself (noShopping, occasion/season token extraction in eliseAdvicePipeline.ts) that influence CANDIDATE SELECTION before the prompt is built, not as an explicit 'CONSTRAINTS:' block the model reads. This is recorded honestly as a context-assembly finding, not assumed."
+  },
+  "providerAdapterSeam": {
+    "status": "NOT_FOUND_WITHIN_DISCOVERY_CEILING",
+    "note": "The actual Gemini HTTP call site inside index.ts (a ~3389-line file) was not traced end to end; the discovery ceiling (bounded, targeted search) was spent on the deterministic advice/grounding/safety modules instead, since those are what an evaluation instrument can exercise without a live call. The harness never calls this seam and never will (LIVE MODEL CALLS: 0 is an absolute constraint, not merely a scoping choice)."
+  }
+}
