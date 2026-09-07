@@ -92,13 +92,11 @@ export default function OnboardingScreen() {
   const [legalBusy, setLegalBusy] = useState(false);
   const [legalError, setLegalError] = useState<string | null>(null);
 
-  // Step 5: Permissions (visual toggles only)
+  // Step 5: only the real Notifications registration outcome is reflected
+  // here. Camera, Photos, and Microphone are requested just in time.
   const {
     preferences: permissionPrefs,
-    togglePreference: togglePermission,
     setPreference: setPermissionPreference,
-    isSaving: permissionSaving,
-    savePreferences,
     requestNotificationPermission,
   } = usePermissionPreferences();
 
@@ -691,19 +689,12 @@ export default function OnboardingScreen() {
   );
 
   const renderPermissions = () => {
-    const handlePermissionsContinue = async () => {
-      await savePreferences();
-      await goToHome();
-    };
-
     return (
       <PermissionsStepV1
         preferences={permissionPrefs}
-        togglePreference={togglePermission}
         setPreference={setPermissionPreference}
         requestNotificationPermission={requestNotificationPermission}
-        isSaving={permissionSaving}
-        onContinueToHome={handlePermissionsContinue}
+        onContinueToHome={goToHome}
         onNotNow={goToHome}
       />
     );

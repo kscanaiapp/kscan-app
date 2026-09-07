@@ -16,6 +16,7 @@ export const KPLUS_SOURCES = [
   'voice_scan',
   'closet_intelligence',
   'account',
+  'onboarding',
   'unknown',
 ] as const;
 
