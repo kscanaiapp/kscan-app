@@ -710,8 +710,20 @@ const VTO_ALLOWED_IMPORTS = {
     'react', 'react-native',
   ],
   'components/vto/VtoLivePanel.tsx': [
+    // `./VtoLiveNativeView` is the customer-facing mount point for the Live
+    // native runtime. Approved deliberately: mission section 35 forbids the
+    // product surface depending on `app/dev-n1-diagnostic.tsx` for the camera,
+    // and this panel's own header used to say plainly that no camera view was
+    // mounted here. The new sibling is a VTO component that imports nothing
+    // but the module name, the theme and expo-modules-core -- it acquires no
+    // storage, no Closet, no ownership path -- and it is enrolled below in its
+    // own right so it is held to exactly this standard.
     '../../constants/theme', '../../services/vto/vtoLiveSession',
-    '../../types/vtoLive', '../luxury', 'react', 'react-native',
+    '../../types/vtoLive', '../luxury', './VtoLiveNativeView', 'react',
+    'react-native',
+  ],
+  'components/vto/VtoLiveNativeView.tsx': [
+    '../../constants/featureFlags', '../../constants/theme', 'react', 'react-native',
   ],
   'components/vto/VtoLiveErrorBoundary.tsx': [
     'react',
@@ -731,6 +743,13 @@ const VTO_ALLOWED_IMPORTS = {
 const VTO_ALLOWED_LAZY_REQUIRES = {
   'services/vto/liveVtoNativeModule.ts': ['expo-modules-core'],
   'services/vto/vtoLiveCameraPermission.ts': ['expo-camera'],
+  // Same reasoning as `liveVtoNativeModule.ts`'s: `requireNativeViewManager`
+  // THROWS for a module that is not in the binary, and every build before the
+  // Live runtime shipped is such a build. The require is inside a function so
+  // nothing native is touched at import time, so a resolution problem cannot
+  // participate in app startup -- it can only affect a customer who opened
+  // Live, and there it renders nothing rather than crashing the sheet.
+  'components/vto/VtoLiveNativeView.tsx': ['expo-modules-core'],
 };
 
 /**

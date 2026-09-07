@@ -1,0 +1,217 @@
+{
+  "version": 1,
+  "what": "The SHARED cross-platform conformance fixture for the Live VTO tracking-quality contract. Android's LiveVtoTrackingQualityTest.kt, iOS's LiveVtoTrackingQualityTests.swift and __tests__/vtoLiveTrackingParity.test.js all execute THIS file. Two implementations that merely look alike are not parity; a fixture both are run against is. Mission sections 12-14 (tracking contract, cross-platform parity, capture readiness).",
+  "howToRead": "Each step is applied in order to one machine constructed with `parameters` below. `kind` is observe | tick | reset. `expect.event` is the contract event the step must return (null when the step must emit nothing) and `expect.phase`/`confidence`/`guidance`/`captureReady` are the machine snapshot AFTER the step. Confidences are compared with a 1e-6 tolerance because Float->Double widening is not exact (0.9f widens to 0.8999999761581421). A `trackingConfidence` of the STRING \"NaN\" means the non-finite value the platform's own float type provides; JSON cannot carry it directly.",
+  "parameters": {
+    "strongConfidence": 0.6,
+    "weakFloorConfidence": 0.3,
+    "acquireStreak": 3,
+    "demoteStreak": 2,
+    "weakAfterMs": 400,
+    "lostAfterMs": 900,
+    "reEmitIntervalMs": 250
+  },
+  "confidenceTolerance": 0.000001,
+  "scenarios": [
+    {
+      "name": "acquires only after sustained strong geometry",
+      "why": "One good frame is not tracking. ACQUIRE_STREAK consecutive gate-passing, high-confidence observations are, and nothing is announced before that.",
+      "steps": [
+        { "kind": "observe", "monotonicMs": 0, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRING", "confidence": 0.9, "guidance": "none", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 33, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRING", "confidence": 0.9, "guidance": "none", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 66, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": { "name": "trackingAcquired", "payload": { "confidence": 0.9, "captureReady": true } }, "phase": "ACQUIRED", "confidence": 0.9, "guidance": "none", "captureReady": true } }
+      ]
+    },
+    {
+      "name": "capture readiness follows the person frame, not the phase",
+      "why": "Mission section 14: PERSON FRAME AVAILABLE is a required condition in its own right. An ACQUIRED session with nothing buffered must NOT offer a capture, and readiness must propagate the instant it changes -- it is never coalesced.",
+      "steps": [
+        { "kind": "observe", "monotonicMs": 0, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": false,
+          "expect": { "event": null, "phase": "ACQUIRING", "confidence": 0.9, "guidance": "none", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 33, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": false,
+          "expect": { "event": null, "phase": "ACQUIRING", "confidence": 0.9, "guidance": "none", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 66, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": false,
+          "expect": { "event": { "name": "trackingAcquired", "payload": { "confidence": 0.9, "captureReady": false } }, "phase": "ACQUIRED", "confidence": 0.9, "guidance": "none", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 99, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": { "name": "trackingAcquired", "payload": { "confidence": 0.9, "captureReady": true } }, "phase": "ACQUIRED", "confidence": 0.9, "guidance": "none", "captureReady": true } },
+        { "kind": "observe", "monotonicMs": 132, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": false,
+          "expect": { "event": { "name": "trackingAcquired", "payload": { "confidence": 0.9, "captureReady": false } }, "phase": "ACQUIRED", "confidence": 0.9, "guidance": "none", "captureReady": false } }
+      ]
+    },
+    {
+      "name": "one degraded frame does not unseat an acquired session, two do",
+      "why": "Hysteresis in both directions. A single dropped inference is noise; sustained degradation is a state change the customer needs told about.",
+      "steps": [
+        { "kind": "observe", "monotonicMs": 0, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRING", "confidence": 0.9, "guidance": "none", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 33, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRING", "confidence": 0.9, "guidance": "none", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 66, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": { "name": "trackingAcquired", "payload": { "confidence": 0.9, "captureReady": true } }, "phase": "ACQUIRED", "confidence": 0.9, "guidance": "none", "captureReady": true } },
+        { "kind": "observe", "monotonicMs": 99, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.55, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRED", "confidence": 0.55, "guidance": "none", "captureReady": true } },
+        { "kind": "observe", "monotonicMs": 132, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.55, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": { "name": "trackingWeak", "payload": { "confidence": 0.55, "guidance": "hold_still", "captureReady": false } }, "phase": "WEAK", "confidence": 0.55, "guidance": "hold_still", "captureReady": false } }
+      ]
+    },
+    {
+      "name": "geometry refusals map to framing guidance and guidance changes are coalesced",
+      "why": "Every LiveVtoGeometryPipeline.Refusal the customer can act on has a coarse, non-anatomical instruction, and a guidance change inside RE_EMIT_INTERVAL_MS is suppressed so a live region is not announced per inference.",
+      "steps": [
+        { "kind": "observe", "monotonicMs": 0, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRING", "confidence": 0.9, "guidance": "none", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 33, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRING", "confidence": 0.9, "guidance": "none", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 66, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": { "name": "trackingAcquired", "payload": { "confidence": 0.9, "captureReady": true } }, "phase": "ACQUIRED", "confidence": 0.9, "guidance": "none", "captureReady": true } },
+        { "kind": "observe", "monotonicMs": 99, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": false, "geometryFailure": "missing_shoulders", "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRED", "confidence": 0.9, "guidance": "none", "captureReady": true } },
+        { "kind": "observe", "monotonicMs": 132, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": false, "geometryFailure": "missing_shoulders", "personFrameAvailable": true,
+          "expect": { "event": { "name": "trackingWeak", "payload": { "confidence": 0.9, "guidance": "step_back", "captureReady": false } }, "phase": "WEAK", "confidence": 0.9, "guidance": "step_back", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 165, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": false, "geometryFailure": "degenerate_shoulder_span", "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "WEAK", "confidence": 0.9, "guidance": "step_closer", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 400, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": false, "geometryFailure": "degenerate_body_axis", "personFrameAvailable": true,
+          "expect": { "event": { "name": "trackingWeak", "payload": { "confidence": 0.9, "guidance": "center_yourself", "captureReady": false } }, "phase": "WEAK", "confidence": 0.9, "guidance": "center_yourself", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 700, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.2, "geometryGatePassed": false, "geometryFailure": "non_finite_landmark", "personFrameAvailable": true,
+          "expect": { "event": { "name": "trackingWeak", "payload": { "confidence": 0.2, "guidance": "hold_still", "captureReady": false } }, "phase": "WEAK", "confidence": 0.2, "guidance": "hold_still", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 1000, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.2, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": { "name": "trackingWeak", "payload": { "confidence": 0.2, "guidance": "improve_lighting", "captureReady": false } }, "phase": "WEAK", "confidence": 0.2, "guidance": "improve_lighting", "captureReady": false } }
+      ]
+    },
+    {
+      "name": "staleness demotes an acquired session and then loses it",
+      "why": "The ONLY thing time is used for. A session whose camera has stopped delivering must say so rather than hold a stale Live indefinitely -- and a tick never promotes.",
+      "steps": [
+        { "kind": "observe", "monotonicMs": 0, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRING", "confidence": 0.9, "guidance": "none", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 33, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRING", "confidence": 0.9, "guidance": "none", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 66, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": { "name": "trackingAcquired", "payload": { "confidence": 0.9, "captureReady": true } }, "phase": "ACQUIRED", "confidence": 0.9, "guidance": "none", "captureReady": true } },
+        { "kind": "tick", "monotonicMs": 200, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRED", "confidence": 0.9, "guidance": "none", "captureReady": true } },
+        { "kind": "tick", "monotonicMs": 500, "personFrameAvailable": true,
+          "expect": { "event": { "name": "trackingWeak", "payload": { "confidence": 0.0, "guidance": "hold_still", "captureReady": false } }, "phase": "WEAK", "confidence": 0.0, "guidance": "hold_still", "captureReady": false } },
+        { "kind": "tick", "monotonicMs": 800, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "WEAK", "confidence": 0.0, "guidance": "hold_still", "captureReady": false } },
+        { "kind": "tick", "monotonicMs": 1000, "personFrameAvailable": true,
+          "expect": { "event": { "name": "trackingLost", "payload": { "captureReady": false } }, "phase": "LOST", "confidence": 0.0, "guidance": "none", "captureReady": false } }
+      ]
+    },
+    {
+      "name": "a tick before the first resolved pose keeps the session acquiring",
+      "why": "Before the FIRST resolved pose there is no since-when. A session that has simply not started seeing anybody yet must stay in ACQUIRING, not be declared LOST on its first heartbeat.",
+      "steps": [
+        { "kind": "tick", "monotonicMs": 5000, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRING", "confidence": 0.0, "guidance": "none", "captureReady": false } },
+        { "kind": "tick", "monotonicMs": 9000, "personFrameAvailable": false,
+          "expect": { "event": null, "phase": "ACQUIRING", "confidence": 0.0, "guidance": "none", "captureReady": false } }
+      ]
+    },
+    {
+      "name": "recovery after weak announces trackingRecovered, never trackingAcquired",
+      "why": "The two names mean different things to a surface. A re-acquisition after a visible degradation is a recovery, and re-announcing an acquisition would read as a fresh session.",
+      "steps": [
+        { "kind": "observe", "monotonicMs": 0, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRING", "confidence": 0.9, "guidance": "none", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 33, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRING", "confidence": 0.9, "guidance": "none", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 66, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": { "name": "trackingAcquired", "payload": { "confidence": 0.9, "captureReady": true } }, "phase": "ACQUIRED", "confidence": 0.9, "guidance": "none", "captureReady": true } },
+        { "kind": "observe", "monotonicMs": 99, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.4, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRED", "confidence": 0.4, "guidance": "none", "captureReady": true } },
+        { "kind": "observe", "monotonicMs": 132, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.4, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": { "name": "trackingWeak", "payload": { "confidence": 0.4, "guidance": "hold_still", "captureReady": false } }, "phase": "WEAK", "confidence": 0.4, "guidance": "hold_still", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 165, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.95, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "WEAK", "confidence": 0.95, "guidance": "none", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 198, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.95, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "WEAK", "confidence": 0.95, "guidance": "none", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 231, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.95, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": { "name": "trackingRecovered", "payload": { "confidence": 0.95, "captureReady": true } }, "phase": "ACQUIRED", "confidence": 0.95, "guidance": "none", "captureReady": true } }
+      ]
+    },
+    {
+      "name": "recovery after lost also announces trackingRecovered",
+      "why": "Same rule from the other degraded phase, and a strong frame while LOST must not shortcut the acquire streak.",
+      "steps": [
+        { "kind": "observe", "monotonicMs": 0, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRING", "confidence": 0.9, "guidance": "none", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 33, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRING", "confidence": 0.9, "guidance": "none", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 66, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": { "name": "trackingAcquired", "payload": { "confidence": 0.9, "captureReady": true } }, "phase": "ACQUIRED", "confidence": 0.9, "guidance": "none", "captureReady": true } },
+        { "kind": "tick", "monotonicMs": 1000, "personFrameAvailable": true,
+          "expect": { "event": { "name": "trackingLost", "payload": { "captureReady": false } }, "phase": "LOST", "confidence": 0.0, "guidance": "none", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 1100, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "LOST", "confidence": 0.9, "guidance": "none", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 1133, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "LOST", "confidence": 0.9, "guidance": "none", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 1166, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": { "name": "trackingRecovered", "payload": { "confidence": 0.9, "captureReady": true } }, "phase": "ACQUIRED", "confidence": 0.9, "guidance": "none", "captureReady": true } }
+      ]
+    },
+    {
+      "name": "a refused pose is guidance to step back, and sustained refusal is a loss",
+      "why": "POSE_REFUSED means the provider looked and saw nobody -- a different fact from a frame never arriving, and the one case where staleness accumulates while observations keep coming.",
+      "steps": [
+        { "kind": "observe", "monotonicMs": 0, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRING", "confidence": 0.9, "guidance": "none", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 33, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRING", "confidence": 0.9, "guidance": "none", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 66, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": { "name": "trackingAcquired", "payload": { "confidence": 0.9, "captureReady": true } }, "phase": "ACQUIRED", "confidence": 0.9, "guidance": "none", "captureReady": true } },
+        { "kind": "observe", "monotonicMs": 99, "outcome": "POSE_REFUSED", "trackingConfidence": 0.0, "geometryGatePassed": false, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRED", "confidence": 0.0, "guidance": "none", "captureReady": true } },
+        { "kind": "observe", "monotonicMs": 132, "outcome": "POSE_REFUSED", "trackingConfidence": 0.0, "geometryGatePassed": false, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": { "name": "trackingWeak", "payload": { "confidence": 0.0, "guidance": "step_back", "captureReady": false } }, "phase": "WEAK", "confidence": 0.0, "guidance": "step_back", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 1000, "outcome": "POSE_REFUSED", "trackingConfidence": 0.0, "geometryGatePassed": false, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": { "name": "trackingLost", "payload": { "captureReady": false } }, "phase": "LOST", "confidence": 0.0, "guidance": "none", "captureReady": false } }
+      ]
+    },
+    {
+      "name": "garment-side refusals produce no framing instruction",
+      "why": "A missing garment control point is not something the customer can stand differently to fix. Telling them to step back would be a lie about the cause.",
+      "steps": [
+        { "kind": "observe", "monotonicMs": 0, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRING", "confidence": 0.9, "guidance": "none", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 33, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRING", "confidence": 0.9, "guidance": "none", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 66, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": { "name": "trackingAcquired", "payload": { "confidence": 0.9, "captureReady": true } }, "phase": "ACQUIRED", "confidence": 0.9, "guidance": "none", "captureReady": true } },
+        { "kind": "observe", "monotonicMs": 99, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": false, "geometryFailure": "missing_garment_control_points", "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRED", "confidence": 0.9, "guidance": "none", "captureReady": true } },
+        { "kind": "observe", "monotonicMs": 132, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": false, "geometryFailure": "missing_garment_control_points", "personFrameAvailable": true,
+          "expect": { "event": { "name": "trackingWeak", "payload": { "confidence": 0.9, "guidance": "none", "captureReady": false } }, "phase": "WEAK", "confidence": 0.9, "guidance": "none", "captureReady": false } }
+      ]
+    },
+    {
+      "name": "reset returns the machine to the pre-session position",
+      "why": "A new epoch (start, stop, dispose, garment load) must not inherit the previous one's ACQUIRED and let a capture control go live before anything was seen.",
+      "steps": [
+        { "kind": "observe", "monotonicMs": 0, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRING", "confidence": 0.9, "guidance": "none", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 33, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRING", "confidence": 0.9, "guidance": "none", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 66, "outcome": "POSE_RESOLVED", "trackingConfidence": 0.9, "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": { "name": "trackingAcquired", "payload": { "confidence": 0.9, "captureReady": true } }, "phase": "ACQUIRED", "confidence": 0.9, "guidance": "none", "captureReady": true } },
+        { "kind": "reset",
+          "expect": { "event": null, "phase": "ACQUIRING", "confidence": 0.0, "guidance": "none", "captureReady": false } },
+        { "kind": "tick", "monotonicMs": 10000, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRING", "confidence": 0.0, "guidance": "none", "captureReady": false } }
+      ]
+    },
+    {
+      "name": "a non-finite confidence is never strong and never becomes a confidence",
+      "why": "N1-ENV-008's absent-vs-non-finite lesson applied to tracking: NaN must not compare its way past the strong threshold, and it must never reach a surface as a number.",
+      "steps": [
+        { "kind": "observe", "monotonicMs": 0, "outcome": "POSE_RESOLVED", "trackingConfidence": "NaN", "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": null, "phase": "ACQUIRING", "confidence": 0.0, "guidance": "hold_still", "captureReady": false } },
+        { "kind": "observe", "monotonicMs": 33, "outcome": "POSE_RESOLVED", "trackingConfidence": "NaN", "geometryGatePassed": true, "geometryFailure": null, "personFrameAvailable": true,
+          "expect": { "event": { "name": "trackingWeak", "payload": { "confidence": 0.0, "guidance": "hold_still", "captureReady": false } }, "phase": "WEAK", "confidence": 0.0, "guidance": "hold_still", "captureReady": false } }
+      ]
+    }
+  ]
+}

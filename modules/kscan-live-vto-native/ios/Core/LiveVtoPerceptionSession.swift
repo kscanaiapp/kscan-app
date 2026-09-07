@@ -45,6 +45,12 @@ public final class LiveVtoPerceptionSession {
   /// gate passed). Never used to leak data across the JS bridge --
   /// native-side logging only.
   private let onSnapshotComputed: (GeometrySnapshot) -> Void
+  /// THE TRACKING-QUALITY FEED. Fired synchronously on the perception thread
+  /// for EVERY inference step outcome -- success, no-pose, provider failure,
+  /// unusable adapter result -- because a tracking state derived only from
+  /// the SUCCESSES could never say tracking was lost. Field-for-field mirror
+  /// of Android's `onPerceptionOutcome`.
+  private let onPerceptionOutcome: (LiveVtoPerceptionOutcome, Float, GeometrySnapshot?) -> Void
 
   private let lock = NSLock()
   private var state: ReplayState = .idle
@@ -65,13 +71,15 @@ public final class LiveVtoPerceptionSession {
   public init(
     provider: PerceptionProvider, canvasWidth: Float, canvasHeight: Float,
     onEvent: @escaping (ReplayEvent) -> Void = { _ in },
-    onSnapshotComputed: @escaping (GeometrySnapshot) -> Void = { _ in }
+    onSnapshotComputed: @escaping (GeometrySnapshot) -> Void = { _ in },
+    onPerceptionOutcome: @escaping (LiveVtoPerceptionOutcome, Float, GeometrySnapshot?) -> Void = { _, _, _ in }
   ) {
     self.provider = provider
     self.canvasWidth = canvasWidth
     self.canvasHeight = canvasHeight
     self.onEvent = onEvent
     self.onSnapshotComputed = onSnapshotComputed
+    self.onPerceptionOutcome = onPerceptionOutcome
   }
 
   public func currentState() -> ReplayState { lock.lock(); defer { lock.unlock() }; return state }
@@ -206,6 +214,12 @@ public final class LiveVtoPerceptionSession {
           manifest: activeGarment, frame: adapted, bodyFrameId: "perception#\(inferredSoFar)",
           canvasWidth: canvasWidth, canvasHeight: canvasHeight, textureWidth: texW, textureHeight: texH)
         onSnapshotComputed(snapshot)
+        // The tracking feed carries the BodyFrame's OWN confidence, not the
+        // provider's raw per-pose score: the adapter is the boundary where a
+        // provider-specific convention becomes a governed one, and reading
+        // past it here would reintroduce exactly the vendor leak the
+        // perception contract forbids.
+        onPerceptionOutcome(.poseResolved, adapted.trackingConfidence, snapshot)
         lock.lock()
         if state == .playing && garment?.productId == activeGarment.productId && garment == activeGarment {
           geometrySlot.publish(snapshot)
@@ -214,9 +228,11 @@ public final class LiveVtoPerceptionSession {
         lock.unlock()
       case .noUsablePose, .invalidProviderOutput:
         lock.lock(); refusedCount += 1; lock.unlock()
+        onPerceptionOutcome(.poseRefused, 0, nil)
       }
     case .noPose, .failure:
       lock.lock(); refusedCount += 1; lock.unlock()
+      onPerceptionOutcome(.poseRefused, 0, nil)
     }
     return true
   }

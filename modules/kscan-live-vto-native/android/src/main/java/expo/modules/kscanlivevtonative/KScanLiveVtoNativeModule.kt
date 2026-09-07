@@ -34,9 +34,10 @@ class KScanLiveVtoNativeModule : Module() {
     Name("KScanLiveVto")
 
     Function("getCapability") {
+      val evidence = gatherCapabilityEvidence()
       mapOf(
-        "capable" to false,
-        "runtimeReady" to false,
+        "capable" to LiveVtoRuntimeCapability.capable(evidence),
+        "runtimeReady" to LiveVtoRuntimeCapability.runtimeReady(evidence),
         "runtimeVersion" to RUNTIME_VERSION
       )
     }
@@ -243,6 +244,20 @@ class KScanLiveVtoNativeModule : Module() {
       // 23, 26).
       Prop("camera") { view: LiveVtoTestRenderView, camera: Boolean -> view.camera = camera }
 
+      // THE PRODUCT PATH (mission section 35). Every prop above this one is
+      // a DIAGNOSTIC entry point reached from app/dev-n1-diagnostic.tsx;
+      // `live` is the one the CUSTOMER surface (components/vto/VtoLivePanel)
+      // mounts. It runs the identical pipeline `camera` runs -- CameraX front
+      // camera -> real MediaPipe perception -> BodyFrame adapter -> geometry
+      // -> renderer -> the tracking-quality contract -- and is a separate
+      // NAME rather than a separate implementation on purpose: a second
+      // pipeline for the product path would be a second thing to certify,
+      // and the whole point is that the customer gets the one that was
+      // measured. The distinct name is what makes "a customer-reachable
+      // entry point exists" a reviewable fact in the pinned bridge surface
+      // rather than an inference from which screen happens to set `camera`.
+      Prop("live") { view: LiveVtoTestRenderView, live: Boolean -> view.live = live }
+
       // Aggregate camera+perception counters only -- the camera boundary's
       // own produced/dropped/consumed counts alongside the same bounded
       // perception counters `getPerceptionStatsJson` exposes. Never a
@@ -253,8 +268,56 @@ class KScanLiveVtoNativeModule : Module() {
     }
   }
 
+  /**
+   * Gathers the REAL device facts `getCapability()` reports on.
+   *
+   * Every one is checked, not assumed: the model asset is OPENED (not merely
+   * declared), each governed asset directory's manifest is PARSED (not merely
+   * listed), and the front camera is queried from `PackageManager`. Anything
+   * that throws yields `UNKNOWN`, which resolves to a flat no -- an
+   * unanswerable capability question is answered "no", exactly as the JS
+   * adapter already does for a module that throws.
+   */
+  private fun gatherCapabilityEvidence(): LiveVtoCapabilityEvidence {
+    return try {
+      val context = appContext.reactContext ?: return LiveVtoCapabilityEvidence.UNKNOWN
+      val assets = context.assets
+      val poseModelPresent = try {
+        assets.open(LiveVtoMediaPipePoseProvider.MODEL_ASSET_PATH).use { it.read() >= 0 }
+      } catch (t: Throwable) {
+        false
+      }
+      var governedAssetCount = 0
+      for (assetKey in LiveVtoGarmentDescriptor.SUPPORTED_ASSET_KEYS) {
+        try {
+          KsgarmentManifest.parseAssetManifest(
+            assets.open("$assetKey/manifest.json").use { it.readBytes() }.toString(Charsets.UTF_8)
+          )
+          governedAssetCount += 1
+        } catch (t: Throwable) {
+          // A missing or malformed governed asset is simply not counted.
+        }
+      }
+      LiveVtoCapabilityEvidence(
+        sdkInt = android.os.Build.VERSION.SDK_INT,
+        hasFrontCamera = context.packageManager
+          .hasSystemFeature(android.content.pm.PackageManager.FEATURE_CAMERA_FRONT),
+        poseModelPresent = poseModelPresent,
+        governedAssetCount = governedAssetCount,
+      )
+    } catch (t: Throwable) {
+      LiveVtoCapabilityEvidence.UNKNOWN
+    }
+  }
+
   companion object {
-    private const val RUNTIME_VERSION = "n1-a"
+    /**
+     * Bumped from "n1-a". That value described a module that had only
+     * registration; this one carries the camera, perception, geometry,
+     * renderer, session lifecycle, capture and tracking-quality contract.
+     * Telemetry/debug only -- nothing gates on it.
+     */
+    private const val RUNTIME_VERSION = "live-vto-1"
   }
 }
 

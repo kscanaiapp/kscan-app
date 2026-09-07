@@ -460,6 +460,9 @@ export function VirtualTryOnSheet({
                   onEnter={() => {
                     void live.enterLive();
                   }}
+                  onRetry={() => {
+                    void live.retryLive();
+                  }}
                   onClose={() => {
                     live.exitLive();
                     setMode('ai_photo');

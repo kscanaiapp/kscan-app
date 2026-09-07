@@ -35,6 +35,32 @@ public final class LiveVtoCameraController: NSObject {
   /// perception sessions already use -- not a new design per boundary.
   public let frameSlot = LatestStateSlot<PerceptionInputFrame>()
 
+  /// VTO-TRACK-001. The most recent camera frame, held for CAPTURE and for
+  /// the capture-readiness answer -- separate from `frameSlot` on purpose.
+  ///
+  /// `frameSlot` is a CONSUME-ONCE backpressure slot: `latestFrame()` empties
+  /// it every producer tick (33 ms). `captureCleanFrame()` and the tracking
+  /// contract's `personFrameAvailable` both used to read that same slot, so
+  /// whether a capture succeeded depended on whether the producer queue
+  /// happened to have consumed since the last camera frame -- an intermittent
+  /// "nothing to capture" on a session that was working perfectly, and a
+  /// readiness flag that flapped at the camera cadence.
+  ///
+  /// Backpressure and retention are different requirements. One reference,
+  /// overwritten by each new frame, cleared on stop -- retention is still
+  /// exactly one frame and it still dies with the session.
+  private let captureFrameLock = NSLock()
+  private var captureFrame: PerceptionInputFrame?
+
+  /// The latest camera frame WITHOUT consuming it. The single source both
+  /// `captureCleanFrame()` and the capture-readiness answer read, so "the
+  /// control is enabled" and "the capture returns a frame" cannot disagree.
+  public func latestFrameForCapture() -> PerceptionInputFrame? {
+    captureFrameLock.lock()
+    defer { captureFrameLock.unlock() }
+    return captureFrame
+  }
+
   public private(set) var state: CameraControllerState = .idle
   private let onStateChanged: (CameraControllerState, String?) -> Void
 
@@ -110,6 +136,12 @@ public final class LiveVtoCameraController: NSObject {
   public func stop() {
     guard state != .idle, state != .stopped else { return }
     frameSlot.clear()
+    // The retained capture frame dies with the session, exactly like the
+    // backpressure slot: a stopped camera must not leave a person frame
+    // reachable by a later capture.
+    captureFrameLock.lock()
+    captureFrame = nil
+    captureFrameLock.unlock()
     sessionQueue.async { [weak self] in
       guard let self = self else { return }
       if self.session.isRunning { self.session.stopRunning() }
@@ -135,6 +167,10 @@ extension LiveVtoCameraController: AVCaptureVideoDataOutputSampleBufferDelegate 
       os_log("camera frame conversion failed", log: cameraLog, type: .error)
       return
     }
-    frameSlot.publish(LiveVtoStaticImageFrame(image: image))
+    let converted = LiveVtoStaticImageFrame(image: image)
+    frameSlot.publish(converted)
+    captureFrameLock.lock()
+    captureFrame = converted
+    captureFrameLock.unlock()
   }
 }

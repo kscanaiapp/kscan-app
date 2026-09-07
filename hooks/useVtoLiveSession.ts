@@ -81,6 +81,23 @@ export interface UseVtoLiveSessionResult {
    *  that can raise a camera dialog. */
   enterLive: () => Promise<void>;
   exitLive: () => void;
+  /**
+   * Tears the failed session down and starts a fresh one.
+   *
+   * A RESTART, NOT A RESUME. A session that reached ERROR has a runtime in an
+   * unknown state behind it -- a camera that failed to bind, a runtime whose
+   * initialization threw -- and "call start() again on the same controller"
+   * would be asking that runtime to recover from a condition it already
+   * failed. `exitLive()` disposes it (releasing the camera, which is the
+   * point) and `enterLive()` builds a new controller from scratch, which is
+   * the same path a first entry takes and therefore the same path that is
+   * already tested.
+   *
+   * The camera permission is re-checked on the way through, so a customer who
+   * granted permission in Settings after a denial gets a working retry rather
+   * than the same refusal.
+   */
+  retryLive: () => Promise<void>;
   requestPhotoreal: () => Promise<void>;
   /** Local-only composited still. Never a generative input. */
   capturePreview: () => Promise<string | null>;
@@ -192,8 +209,21 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
     if (!controller || !descriptor) return;
     if (loadedRef.current === descriptor.productRef) return;
     loadedRef.current = descriptor.productRef;
+    // `switchGarment` records the SELECTED then LOADING lifecycle with THIS
+    // productRef, which is the identity a later `garmentLoaded` is checked
+    // against -- see `reduceLiveVtoSession`'s stale-completion rejection. The
+    // hook does not track that itself: one owner for the garment lifecycle,
+    // and it is the session.
     controller.switchGarment(descriptor);
   }, [descriptor]);
+
+  const retryLive = useCallback(async () => {
+    // Ordered, not concurrent: `enterLive` refuses to run while a controller
+    // still exists, so the disposal has to complete first. `exitLive` is
+    // synchronous, which is what makes this safe to write as two statements.
+    exitLive();
+    await enterLive();
+  }, [enterLive, exitLive]);
 
   const requestPhotoreal = useCallback(async () => {
     // A second tap while the first capture/sanitize is still running would
@@ -272,6 +302,7 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
       photorealPending,
       enterLive,
       exitLive,
+      retryLive,
       requestPhotoreal,
       capturePreview,
       dismissPhotorealFailure,
@@ -285,6 +316,7 @@ export function useVtoLiveSession(args: UseVtoLiveSessionArgs): UseVtoLiveSessio
       photorealPending,
       enterLive,
       exitLive,
+      retryLive,
       requestPhotoreal,
       capturePreview,
       dismissPhotorealFailure,

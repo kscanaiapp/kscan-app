@@ -46,6 +46,21 @@ class LiveVtoPerceptionDriver(
    */
   private val frameSource: () -> PerceptionInputFrame?,
   private val producerPeriodMillis: Long = DEFAULT_PRODUCER_PERIOD_MS,
+  /**
+   * THE TRACKING HEARTBEAT. Fired on every producer tick, whether or not a
+   * frame was available, so `LiveVtoTrackingQualityMachine.tick` can notice a
+   * pipeline that has stopped delivering.
+   *
+   * This is the ONLY way a session whose camera silently stops -- the exact
+   * Samsung `Camera2-FrameProcessorBase ETIMEDOUT` condition this program
+   * carries forward as an open device hold -- reports TRACKING LOST rather
+   * than holding a stale "Live" forever. `frameAvailable` is passed through
+   * rather than inferred, because "the producer had nothing this tick" at a
+   * 33 ms cadence is completely normal and must not by itself count as
+   * absence; only the perception loop's own outcomes and elapsed staleness
+   * decide that.
+   */
+  private val onProducerTick: (frameAvailable: Boolean) -> Unit = {},
 ) {
   private val running = AtomicBoolean(false)
   private var producerExecutor: ScheduledExecutorService? = null
@@ -62,6 +77,10 @@ class LiveVtoPerceptionDriver(
       try {
         val frame = frameSource()
         if (frame != null) session.submitFrame(frame)
+        // Outside the frame branch on purpose: a tick with NOTHING to submit
+        // is precisely the tick a stalled pipeline produces, and it is the
+        // one the tracking heartbeat most needs to see.
+        onProducerTick(frame != null)
       } catch (t: Throwable) {
         Log.e(TAG, "frame producer tick failed", t)
       }
