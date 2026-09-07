@@ -43,6 +43,19 @@ async function loadCleanup() {
 
 const WORKFLOW_PATH = path.join(__dirname, '..', '.github', 'workflows', 'vto-e2e.yml');
 
+// Every synthetic artifact this file hands to the validator is registered here
+// and reaped once, after the whole suite. Without it each run left its scratch
+// JSON behind in os.tmpdir() forever — including the 11 MB OVERSIZED fixture.
+const TEMP_ARTIFACTS = [];
+function tempArtifactPath(label) {
+  const p = path.join(os.tmpdir(), `vto-e2e-${label}-${crypto.randomUUID()}.json`);
+  TEMP_ARTIFACTS.push(p);
+  return p;
+}
+test.after(() => {
+  for (const p of TEMP_ARTIFACTS) fs.rmSync(p, { force: true });
+});
+
 // ── Controls A1/A2 (spec §5): pipeline failure propagation ──────────────
 // GitHub Actions' UNDECLARED default shell on Linux is `bash -e {0}` — no
 // `-o pipefail`. Naming `shell: bash` switches to
@@ -57,25 +70,45 @@ function runAsNamedBashShell(script) {
   return spawnSync('bash', ['--noprofile', '--norc', '-eo', 'pipefail', '-c', script], { encoding: 'utf8' });
 }
 
+// A path spliced into a `bash -c` string must be POSIX-separated and quoted.
+// `path.join(os.tmpdir(), …)` yields `C:\Users\…\Temp\x.json` on Windows, and
+// bash consumes every one of those backslashes as an escape: tee then wrote the
+// collapsed `C:Users…Tempx.json` (colon transliterated to U+F03A by the MSYS
+// layer) into the *caller's* cwd — the repo root — while the cleanup below
+// deleted an os.tmpdir() path that had never been created, so the strays
+// accumulated one pair per suite run. `bashPath` re-expresses the same file
+// with forward slashes (a no-op on POSIX, where path.sep is already '/'), and
+// the single quotes keep a spaced username intact.
+function bashPath(p) {
+  return p.split(path.sep).join('/');
+}
+
 test('Control A1 — failure propagation: node|tee is falsely green under the undeclared default shell, and correctly fails under named `shell: bash`', () => {
   const reportFile = path.join(os.tmpdir(), `vto-e2e-a1-${crypto.randomUUID()}.json`);
-  const script = `node -e "process.exit(1)" | tee ${reportFile} > /dev/null`;
+  const script = `node -e "process.exit(1)" | tee '${bashPath(reportFile)}' > /dev/null`;
+  try {
+    const undeclared = runAsUndeclaredDefaultShell(script);
+    assert.equal(undeclared.status, 0, 'undeclared default shell (bash -e, NO pipefail) must mask the node failure behind tee\'s own success — this is Defect A');
 
-  const undeclared = runAsUndeclaredDefaultShell(script);
-  assert.equal(undeclared.status, 0, 'undeclared default shell (bash -e, NO pipefail) must mask the node failure behind tee\'s own success — this is Defect A');
+    const named = runAsNamedBashShell(script);
+    assert.notEqual(named.status, 0, 'named `shell: bash` (pipefail) must propagate the node failure as the pipeline\'s own exit code — this is the repair');
 
-  const named = runAsNamedBashShell(script);
-  assert.notEqual(named.status, 0, 'named `shell: bash` (pipefail) must propagate the node failure as the pipeline\'s own exit code — this is the repair');
-
-  fs.rmSync(reportFile, { force: true });
+    assert.equal(fs.existsSync(reportFile), true, 'tee must write to the os.tmpdir() path this test named — a miss here means the target was mangled into a relative path and leaked into the caller cwd (repo root)');
+  } finally {
+    fs.rmSync(reportFile, { force: true });
+  }
 });
 
 test('Control A2 — legitimate success remains success under pipefail (the fix never turns a real pass into a false failure)', () => {
   const reportFile = path.join(os.tmpdir(), `vto-e2e-a2-${crypto.randomUUID()}.json`);
-  const script = `node -e "process.exit(0)" | tee ${reportFile} > /dev/null`;
-  const named = runAsNamedBashShell(script);
-  assert.equal(named.status, 0);
-  fs.rmSync(reportFile, { force: true });
+  const script = `node -e "process.exit(0)" | tee '${bashPath(reportFile)}' > /dev/null`;
+  try {
+    const named = runAsNamedBashShell(script);
+    assert.equal(named.status, 0);
+    assert.equal(fs.existsSync(reportFile), true, 'tee must write to the os.tmpdir() path this test named — a miss here means the target was mangled into a relative path and leaked into the caller cwd (repo root)');
+  } finally {
+    fs.rmSync(reportFile, { force: true });
+  }
 });
 
 // ── Control A3 (spec §5): structural YAML guard ──────────────────────────
@@ -214,21 +247,21 @@ function validReport(overrides = {}) {
 }
 
 function writeTempReport(obj) {
-  const p = path.join(os.tmpdir(), `vto-e2e-artifact-${crypto.randomUUID()}.json`);
+  const p = tempArtifactPath('artifact');
   fs.writeFileSync(p, JSON.stringify(obj));
   return p;
 }
 
 test('artifact validator: missing artifact is rejected (ABSENT)', async () => {
   const { validateReportFile } = await loadValidateReport();
-  const result = validateReportFile(path.join(os.tmpdir(), `vto-e2e-absent-${crypto.randomUUID()}.json`), EXPECT);
+  const result = validateReportFile(tempArtifactPath('absent'), EXPECT);
   assert.equal(result.ok, false);
   assert.equal(result.code, 'ABSENT');
 });
 
 test('artifact validator: empty (0-byte) artifact is rejected (EMPTY)', async () => {
   const { validateReportFile } = await loadValidateReport();
-  const p = path.join(os.tmpdir(), `vto-e2e-empty-${crypto.randomUUID()}.json`);
+  const p = tempArtifactPath('empty');
   fs.writeFileSync(p, '');
   const result = validateReportFile(p, EXPECT);
   assert.equal(result.ok, false);
@@ -237,7 +270,7 @@ test('artifact validator: empty (0-byte) artifact is rejected (EMPTY)', async ()
 
 test('artifact validator: malformed JSON is rejected (MALFORMED)', async () => {
   const { validateReportFile } = await loadValidateReport();
-  const p = path.join(os.tmpdir(), `vto-e2e-malformed-${crypto.randomUUID()}.json`);
+  const p = tempArtifactPath('malformed');
   fs.writeFileSync(p, '{ this is not valid json ][');
   const result = validateReportFile(p, EXPECT);
   assert.equal(result.ok, false);
@@ -320,7 +353,7 @@ test('artifact validator: a FAIL verdict is rejected even when otherwise structu
 
 test('artifact validator: an oversized artifact (>= 10 MB) is rejected (OVERSIZED)', async () => {
   const { validateReportFile } = await loadValidateReport();
-  const p = path.join(os.tmpdir(), `vto-e2e-oversized-${crypto.randomUUID()}.json`);
+  const p = tempArtifactPath('oversized');
   const huge = JSON.stringify(validReport({ controls: [{ name: 'x'.repeat(11 * 1024 * 1024), ok: true }] }));
   fs.writeFileSync(p, huge);
   const result = validateReportFile(p, EXPECT);
