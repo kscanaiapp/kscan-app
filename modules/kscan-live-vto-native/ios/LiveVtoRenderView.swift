@@ -306,6 +306,27 @@ public final class LiveVtoRenderView: ExpoView {
     }
   }
 
+  /// VTO-TRACK-002. Reports a start failure the customer's session can act on.
+  ///
+  /// Every early return in `startCamera()` used to set `loadError` (a
+  /// DIAGNOSTIC string this view draws on itself) and return, emitting
+  /// NOTHING. `startSession()` had already moved the native machine to
+  /// `.starting` and the JS controller had already moved the surface to
+  /// GARMENT_LOADING, so a customer whose camera could not start sat on
+  /// "Loading this piece..." forever -- exactly the permanent spinner mission
+  /// section 17 forbids. Only `handleCameraControllerStateForSession` ever
+  /// reported anything, and it only runs once a controller EXISTS.
+  ///
+  /// The state is a bounded `LIVE_VTO_RUNTIME_ERROR_STATES` member, never the
+  /// native reason: `toLiveVtoRuntimeError` turns it into customer copy and
+  /// discards native detail by design. Mirrors Android's `failSessionStart`.
+  private func failSessionStart(_ state: String) {
+    guard sessionState == .starting else { return }
+    sessionState = LiveVtoSessionMachine.complete(sessionState, .runtimeFailed).next
+    trackingMachine.reset()
+    emitSessionEvent("fatalError", ["state": state, "recoverable": state != "MODEL_UNAVAILABLE"])
+  }
+
   private func startCamera() {
     if cameraController != nil { return }
     do {
@@ -357,6 +378,11 @@ public final class LiveVtoRenderView: ExpoView {
         })
       guard session.load(manifest, textureWidth: dims.0, textureHeight: dims.1) else {
         loadError = "camera perception load refused: \(session.currentState())"
+        // The perception provider failed to INITIALIZE -- the bundled model
+        // is missing, unreadable, or failed its checksum. Not recoverable by
+        // retrying, and saying so is what stops a customer tapping a button
+        // that cannot work.
+        failSessionStart("MODEL_UNAVAILABLE")
         return
       }
       session.start()
@@ -380,6 +406,7 @@ public final class LiveVtoRenderView: ExpoView {
       controller.start()
     } catch {
       loadError = "\(error)"
+      failSessionStart("RUNTIME_INITIALIZATION_FAILED")
     }
   }
 

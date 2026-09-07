@@ -336,12 +336,36 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
       camera = value
     }
 
+  /**
+   * VTO-TRACK-002. Reports a start failure the customer's session can act on.
+   *
+   * Every early return in `startCamera()` used to set `loadError` (a
+   * DIAGNOSTIC string this view draws on itself) and return, emitting
+   * NOTHING. `startSession()` had already moved the native machine to
+   * STARTING and the JS controller had already moved the surface to
+   * GARMENT_LOADING, so a customer whose camera could not start sat on
+   * "Loading this piece..." forever -- exactly the permanent spinner mission
+   * section 17 forbids. Only `handleCameraControllerStateForSession` ever
+   * reported anything, and it only runs once a controller EXISTS.
+   *
+   * The state is a bounded `LIVE_VTO_RUNTIME_ERROR_STATES` member, never the
+   * native reason: `toLiveVtoRuntimeError` is what turns it into customer
+   * copy, and it discards native detail by design.
+   */
+  private fun failSessionStart(state: String) {
+    if (sessionState != LiveVtoSessionState.STARTING) return
+    sessionState = LiveVtoSessionMachine.complete(sessionState, LiveVtoSessionCompletion.RUNTIME_FAILED).next
+    trackingMachine.reset()
+    emitSessionEvent("fatalError", mapOf("state" to state, "recoverable" to (state != "MODEL_UNAVAILABLE")))
+  }
+
   private fun startCamera() {
     if (cameraController != null) return
     val activity = appContext.currentActivity
     val lifecycleOwner = activity as? LifecycleOwner
     if (lifecycleOwner == null) {
       loadError = "camera start refused: current Activity is not a LifecycleOwner"
+      failSessionStart("RUNTIME_INITIALIZATION_FAILED")
       return
     }
     try {
@@ -409,6 +433,11 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
       )
       if (!session.load(manifest, dims.first, dims.second)) {
         loadError = "camera perception load refused: ${session.currentState()}"
+        // The perception provider failed to INITIALIZE -- the bundled model
+        // is missing, unreadable, or failed its checksum. Not recoverable by
+        // retrying, and saying so is what stops a customer tapping a button
+        // that cannot work.
+        failSessionStart("MODEL_UNAVAILABLE")
         return
       }
       session.start()
@@ -442,6 +471,7 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
     } catch (t: Throwable) {
       loadError = t.message ?: t.toString()
       Log.e(TAG, "N1-F camera start failed", t)
+      failSessionStart("RUNTIME_INITIALIZATION_FAILED")
     }
   }
 
