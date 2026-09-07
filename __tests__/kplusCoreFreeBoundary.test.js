@@ -46,6 +46,7 @@ const SCANNED_ROOTS = ['app', 'components'];
 const EXPECTED_GATE_SITES = [
   'app/packing/index.tsx -> packing',
   'app/watchlist/[watchId].tsx -> watchlist',
+  'components/account-home/PermissionsStepV1.tsx -> onboarding',
   'components/ProductShelf.tsx -> watchlist',
   'components/home/HomeLuxuryTechV1.tsx -> watchlist',
   'components/home/HomeVoiceScanPill.tsx -> voice_scan',

@@ -88,14 +88,17 @@ test('the production route still renders the hardened Home variant', () => {
   assert.match(entry, /HomeLuxuryTechV1/);
 });
 
-test('onboarding advertises no unimplemented permissions', () => {
+test('onboarding advertises only truthful, point-of-use permission behavior', () => {
   const step = read('components', 'account-home', 'PermissionsStepV1.tsx');
   const body = step.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
   assert.doesNotMatch(body, /Coming Soon/i);
-  assert.doesNotMatch(body, /VoiceScan/i);
-  // Camera and Photos are real, point-of-use grants and must survive.
+  assert.doesNotMatch(body, />\s*ALLOW\s*</);
+  // Camera and Photos are real, point-of-use grants and must survive, while
+  // Microphone uses the shared K+ gate without becoming a permission prompt.
   assert.match(body, /title="Camera"/);
   assert.match(body, /title="Photos"/);
+  assert.match(body, /title="Microphone"/);
+  assert.match(body, /<KPlusGate source="onboarding">/);
   // The microphone prop is gone, so the step cannot request the permission.
   assert.doesNotMatch(body, /requestMicrophonePermission/);
 });

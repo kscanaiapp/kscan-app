@@ -92,13 +92,11 @@ export default function OnboardingScreen() {
   const [legalBusy, setLegalBusy] = useState(false);
   const [legalError, setLegalError] = useState<string | null>(null);
 
-  // Step 5: Permissions (visual toggles only)
+  // Step 5: only the real Notifications registration outcome is reflected
+  // here. Camera, Photos, and Microphone are requested just in time.
   const {
     preferences: permissionPrefs,
-    togglePreference: togglePermission,
     setPreference: setPermissionPreference,
-    isSaving: permissionSaving,
-    savePreferences,
     requestNotificationPermission,
   } = usePermissionPreferences();
 
@@ -478,11 +476,15 @@ export default function OnboardingScreen() {
           autoCapitalize="none"
           autoCorrect={false}
           editable={!createBusy}
+          accessibilityLabel="Password"
           style={styles.input}
         />
         <Pressable
           onPress={() => setPasswordVisible((v) => !v)}
           style={styles.eyeToggle}
+          accessibilityRole="button"
+          accessibilityLabel={passwordVisible ? 'Hide password' : 'Show password'}
+          accessibilityHint={passwordVisible ? 'Password is currently visible.' : 'Password is currently hidden.'}
         >
           <Text style={styles.eyeToggleText}>{passwordVisible ? 'Hide' : 'Show'}</Text>
         </Pressable>
@@ -501,11 +503,15 @@ export default function OnboardingScreen() {
           autoCapitalize="none"
           autoCorrect={false}
           editable={!createBusy}
+          accessibilityLabel="Confirm password"
           style={styles.input}
         />
         <Pressable
           onPress={() => setConfirmPasswordVisible((v) => !v)}
           style={styles.eyeToggle}
+          accessibilityRole="button"
+          accessibilityLabel={confirmPasswordVisible ? 'Hide confirmation password' : 'Show confirmation password'}
+          accessibilityHint={confirmPasswordVisible ? 'Confirmation password is currently visible.' : 'Confirmation password is currently hidden.'}
         >
           <Text style={styles.eyeToggleText}>{confirmPasswordVisible ? 'Hide' : 'Show'}</Text>
         </Pressable>
@@ -691,19 +697,12 @@ export default function OnboardingScreen() {
   );
 
   const renderPermissions = () => {
-    const handlePermissionsContinue = async () => {
-      await savePreferences();
-      await goToHome();
-    };
-
     return (
       <PermissionsStepV1
         preferences={permissionPrefs}
-        togglePreference={togglePermission}
         setPreference={setPermissionPreference}
         requestNotificationPermission={requestNotificationPermission}
-        isSaving={permissionSaving}
-        onContinueToHome={handlePermissionsContinue}
+        onContinueToHome={goToHome}
         onNotNow={goToHome}
       />
     );
@@ -801,7 +800,11 @@ const styles = StyleSheet.create({
   },
   eyeToggle: {
     alignSelf: 'flex-end',
-    paddingVertical: SPACING.xs,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    minWidth: 44,
+    minHeight: 44,
+    paddingHorizontal: SPACING.xs,
   },
   eyeToggleText: {
     ...LUXURY.typography.caption,
