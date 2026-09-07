@@ -1,0 +1,7 @@
+# Every report is reproducible on demand (node tools/fashion-match-quality/runner.js report)
+# and is content-addressed by its own contentHash, so hash-named reports are
+# build output, not source. latest.json is the one deliberately committed
+# example (tracked via a negated pattern below) so a reviewer can see the
+# report shape without running anything.
+report-*.json
+!latest.json
