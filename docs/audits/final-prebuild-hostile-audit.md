@@ -25,6 +25,7 @@ Scope: source certification only; no EAS production build and no staging or prod
 | AUD-P2-R02 | P2 | PostHog client did not explicitly disable GeoIP. | Set `disableGeoip: true` in the sole SDK boundary. | Repaired and regression-tested. |
 | AUD-P3-R01 | P3 | Dependency-reachability gate could not spawn npm on Windows. | Resolve npm through the current Node/npm CLI on Windows; retain shell-free bounded execution. | Repaired and regression-tested. |
 | AUD-P3-R02 | P3 | Two Bash-only VTO semantic controls failed on Windows because the host WSL relay is broken. | Skip only those two controls on Windows; retain the cross-platform structural control. | Repaired; 58 pass / 2 platform skips. |
+| AUD-P3-R03 | P3 | The exact-SHA VTO scope guard correctly refused unrelated-but-owner-authorized audit repair paths after the VTO test changed, leaving the audit PR's VTO certification red. | Add a reasoned, exact path row for each owner-authorized audit repair, its regression proof, and its required ledger evidence; do not add any directory wildcard. | Repaired; manifest remains deny-by-default outside those exact paths. |
 
 Remaining higher-priority holds:
 
@@ -40,8 +41,8 @@ P1 REMAINING: 0
 P2 FOUND: 3  
 P2 REPAIRED: 2  
 P2 REMAINING: 1  
-P3 FOUND: 3  
-P3 REPAIRED: 2  
+P3 FOUND: 4
+P3 REPAIRED: 3
 P3 REMAINING: 1
 
 ## Platform parity matrix
