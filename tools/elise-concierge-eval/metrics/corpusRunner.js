@@ -63,6 +63,7 @@ function buildCorpus(options = {}) {
             pair: synthesized.pair,
             comparison,
             groundTruth: synthesized.groundTruth,
+            injectedDefectManifest: synthesized.injectedDefectManifest,
           });
           continue;
         }
@@ -79,6 +80,7 @@ function buildCorpus(options = {}) {
           findings: result.findings,
           claims: result.claims,
           groundTruth: synthesized.groundTruth,
+          injectedDefectManifest: synthesized.injectedDefectManifest,
         });
       }
     }

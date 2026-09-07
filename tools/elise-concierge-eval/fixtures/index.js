@@ -146,4 +146,4 @@ function getFixtures() {
   return cached;
 }
 
-module.exports = { loadFixtures, getFixtures };
+module.exports = { loadFixtures, getFixtures, validateAndCollect, assertNoDuplicateIds };

@@ -1,0 +1,17 @@
+{
+  "baselineVersion": "BASELINE_V1",
+  "baseSha": "a9fb82e9020fce268b9840b39cb7fc9a92e5747e",
+  "harnessVersion": "1.0.0",
+  "corpusVersion": "CORPUS_V1",
+  "corpusHash": "edb6d71f77181bf6b96c2201f2be5905ce5116823512910047e5939a4c05fd77",
+  "synthesizerVersion": "SYNTHESIZER_V1",
+  "extractionRulesVersion": "EXTRACTION_RULES_V1",
+  "defectTaxonomyVersion": "DEFECT_TAXONOMY_V1",
+  "precedenceContractVersion": "V1",
+  "safetyPolicyMapVersion": "SAFETY_POLICY_MAP_V1",
+  "safetyPolicyMapHash": "2ffef71baecd55827c97daa73a89e8c70c8274ae16902626f2c5508128c76f8c",
+  "coverageMatrixHash": "1a87928c46856eb331d26fbad4b58fa9965ef43ca308199824b3702b0474fb02",
+  "rubricVersion": "RUBRIC_V1",
+  "generatedAt": "2026-09-07T02:55:35.341Z",
+  "baselineContentHash": "a7c3d26adf206ae0863f3c8c7b24c9a84423b3bea356e7d6912998022e7b158c"
+}
