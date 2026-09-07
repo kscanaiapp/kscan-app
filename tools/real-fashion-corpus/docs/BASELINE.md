@@ -150,3 +150,96 @@ them enters this lane's history**: no cherry-pick, no rebase onto, no merge,
 no waiting. FMQL content reaches this lane only through the already-merged
 PR #314 in the pinned base, never by pulling from the live
 `research/fashion-match-quality-lab-v1` branch.
+
+---
+
+# Closeout record
+
+Captured when the lane's autonomous engineering portion completed.
+
+## Post-change regression — identical to the pristine base
+
+| Gate | Pristine base | After this lane | Verdict |
+|---|---|---|---|
+| FMQL suite | 95 tests, 95 pass, 0 fail | 95 tests, 95 pass, 0 fail | unchanged |
+| `npm run test:all` files | 427 found / 427 executed | 427 found / 427 executed | unchanged |
+| `npm run test:all` tests | 7698, 7620 pass, 13 fail, 65 skip | 7698, 7620 pass, 13 fail, 65 skip | unchanged |
+| Known-failure match | 13 known / 0 unexpected | 13 known / **0 unexpected** | unchanged |
+| Gate exit code | 0 | **0** | unchanged |
+| `npx tsc --noEmit` | 0 | **0** | unchanged |
+| This lane's own suite | n/a | 155 tests, 155 pass | new |
+
+**LANE-CAUSED UNEXPECTED FAILURES: 0.** Every one of the 13 remaining failures
+is a pre-existing entry in `config/test-failure-baseline.json`, unchanged in
+count and identity from the pristine run recorded above. This is what makes
+invariant 42.15 checkable: the base's failures and this lane's failures are
+distinguishable because both were measured.
+
+## Blast radius
+
+```
+45 files changed, 10413 insertions(+), 0 deletions(-)
+```
+
+- Every changed path is under `tools/real-fashion-corpus/`.
+- `git diff --name-only afa2630 HEAD -- tools/fashion-match-quality/` → **empty**.
+- `git diff --name-only afa2630 HEAD | grep -v '^tools/real-fashion-corpus/'` → **empty**.
+
+**FMQL FILES MODIFIED: NONE.** The inherited authority is read, reused and
+depended upon, never edited (mission sections 3 and 29). No existing FMQL test
+was modified, disabled, or rewritten.
+
+## Sibling-lane firewall — verified at closeout
+
+Heads re-read at closeout:
+
+| Branch | At dispatch | At lane start | At closeout |
+|---|---|---|---|
+| `research/canonical-product-identity-lab-v1` | `ad2b70a` | `5ab6ded` | `44836b2` |
+| `research/elise-concierge-evaluation-harness-v1` | `139e863` | `798249b` | `7683742` |
+| `research/curiosity-gap-performance-v1` | `1693851` | `1693851` | `1693851` |
+| `research/fashion-match-quality-lab-v1` | `76b54ee` | `76b54ee` | `76b54ee` |
+| `research/scanner-accuracy-v2-evals` | — | `5e41243` | `5e41243` |
+| `research/scanner-accuracy-v2-phase2a` | — | `3e0b6ae` | `3e0b6ae` |
+| `research/scanner-accuracy-v2-phase2b-preintegration` | — | `4368067` | `4368067` |
+
+Three concurrent lanes advanced during this build. **None of their commits
+entered this history**, verified mechanically:
+
+```
+git rev-list afa2630..HEAD --count   ->  10   (exactly this lane's commits)
+git merge-base --is-ancestor <sibling> HEAD  ->  false for every sibling
+```
+
+with one expected exception that is **not** a breach:
+`research/fashion-match-quality-lab-v1` @ `76b54ee` *is* an ancestor of HEAD —
+because it is an ancestor of the **pinned base** `afa2630`:
+
+```
+git merge-base --is-ancestor 76b54ee afa2630   ->  true
+```
+
+That is FMQL arriving through the already-merged PR #314, which is the only
+permitted path, rather than through this lane pulling from the live branch.
+The dispatch briefing anticipated exactly this.
+
+**SIBLING FIREWALL HELD: YES.**
+
+## Corpus state at closeout
+
+| Field | Value |
+|---|---|
+| CORPUS VERSION | `1.0.0` |
+| CURRENT RAW CASES | 0 |
+| CURRENT VALID REAL CASES | **0** |
+| PIPELINE TEST ASSETS IN CORPUS | 0 |
+| MODEL-GENERATED GROUND TRUTH | 0 |
+| HOLDOUT SIZE | 0 (sealed) |
+| REAL PILOT | `READY_NO_CAPTURES` |
+| REAL MODEL EXECUTION | `BLOCKED_PROVIDER_AUTHORIZATION` |
+| AUTHORIZED PROVIDER SPEND | $0 |
+
+N=0 is the honest and correct state. No camera or physical garments existed in
+this environment, and mission section 48 is explicit: *do not create fake real
+cases to reach the target.* The pipeline is proved instead by the operator dry
+run, whose generated assets the real-corpus validator rejects by design.
