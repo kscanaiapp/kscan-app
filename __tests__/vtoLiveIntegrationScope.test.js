@@ -18,6 +18,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 const guard = require('../scripts/check-vto-live-integration-scope.js');
@@ -208,13 +209,70 @@ test('guard: the generative backend was read, never written', (t) => {
   const changed = changedPathsForThisLane(t);
   if (changed === null) return;
 
+  // `supabase/` and `app.json` stay ABSOLUTE: this control's core claim is
+  // that a VTO lane does not mutate the generative backend, and nothing has
+  // been ruled about that.
   const backendTouches = changed.filter(
-    (file) => file.startsWith('supabase/') || file === 'eas.json' || file === 'app.json',
+    (file) => file.startsWith('supabase/') || file === 'app.json',
   );
   assert.deepEqual(
     backendTouches,
     [],
-    'GENERATIVE BACKEND MUTATION must be NO, and no EAS/app config may change',
+    'GENERATIVE BACKEND MUTATION must be NO, and app config may not change',
+  );
+
+  // `eas.json` is now a NARROW, RULED exception rather than an absolute
+  // refusal (OWNER RULING 2026-09-07, Build 35 staging-only Live VTO
+  // readiness). The lane wrote the flag, this control and three others
+  // refused it, the lane reverted and escalated, and the owner approved
+  // enabling `EXPO_PUBLIC_LIVE_VTO_ENABLED` on the existing
+  // `staging-certification` profile and nowhere else.
+  //
+  // THE EXCEPTION IS THE CONTENT, NOT THE FILENAME. Allowing `eas.json`
+  // wholesale would retire a control that exists to stop a VTO lane retargeting
+  // a backend, changing a release channel, or altering a submit configuration.
+  // So the diff of that one file is read and every changed line has to be the
+  // one key the ruling names -- anything else in it still fails here.
+  if (!changed.includes('eas.json')) return;
+
+  const diff = execFileSync(
+    'git',
+    ['diff', '--unified=0', `${guard.resolveScopeMode().baseRef}...HEAD`, '--', 'eas.json'],
+    { cwd: ROOT, encoding: 'utf8' },
+  );
+  const changedLines = diff
+    .split('\n')
+    .filter((line) => /^[+-]/.test(line) && !/^(\+\+\+|---)/.test(line))
+    .map((line) => line.slice(1).trim())
+    .filter((line) => line.length > 0);
+
+  // Every line the diff touched, added or removed, must be the ruled key --
+  // allowing for the trailing comma the previous last entry acquires.
+  const RULED = /^"EXPO_PUBLIC_LIVE_VTO_ENABLED": "true",?$/;
+  const TRAILING_COMMA_ONLY = /^"KSCAN_VOICE_CERTIFICATION": "true",?$/;
+  const offending = changedLines.filter(
+    (line) => !RULED.test(line) && !TRAILING_COMMA_ONLY.test(line),
+  );
+  assert.deepEqual(
+    offending,
+    [],
+    'eas.json is authorized ONLY for the owner-ruled Live VTO staging flag. '
+      + 'Any other EAS change -- a backend URL, a release channel, a submit '
+      + 'configuration, another feature flag -- is outside that ruling.',
+  );
+
+  // And the ruling was staging-certification ONLY. Asserted here as well as in
+  // the dedicated environment gate, because a control that trusts another file
+  // to have run is not a control.
+  const eas = JSON.parse(fs.readFileSync(path.join(ROOT, 'eas.json'), 'utf8'));
+  const enabled = Object.entries(eas.build)
+    .filter(([, profile]) => (profile.env ?? {}).EXPO_PUBLIC_LIVE_VTO_ENABLED !== undefined)
+    .map(([name]) => name)
+    .sort();
+  assert.deepEqual(
+    enabled,
+    ['staging-certification'],
+    'the Live flag is declared on a profile the owner ruling did not authorize',
   );
 });
 
