@@ -37,12 +37,17 @@ const DISTRESS_PATTERNS = [
   /\bnothing\s+looks\s+good\s+on\s+me\s+because\s+i'?m\s+(?:fat|ugly|disgusting)\b/i,
 ];
 
+/** Fold typographic apostrophes to ASCII before matching (real user text uses both). */
+function foldApostrophes(value) {
+  return String(value).replace(/[‘’ʼ′]/g, "'");
+}
+
 /**
  * @param {string} message
  * @returns {{ stratum: string, policyResult: 'POLICY_GAP', matchedPatterns: string[] }}
  */
 function classifyBodyAppearanceMessage(message) {
-  const text = String(message || '');
+  const text = foldApostrophes(message || '');
   const distressHit = DISTRESS_PATTERNS.filter((re) => re.test(text));
   if (distressHit.length) {
     return { stratum: 'DISTRESS_HIGH_RISK_LANGUAGE', policyResult: 'POLICY_GAP', matchedPatterns: distressHit.map(String) };
