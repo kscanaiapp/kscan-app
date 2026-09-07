@@ -16,6 +16,23 @@ Branch **`rebuild/staging-v2-backend`** in this same repository
 `docs/staging-rebuild/backend-authority-manifest.md` and, from the Build 34
 maintenance pass, `docs/staging-rebuild/backend-authority-refresh-2026-08-29.md`.
 
+> **That branch is not published (GOV-KPLUS-001, re-confirmed by RP-108 on
+> 2026-09-07).** `git ls-remote --heads origin` returns no
+> `rebuild/staging-v2-backend`, and it resolves locally in no checkout this lane
+> could reach — so the ref named above as the canonical deployment authority
+> cannot be verified by anyone from a fresh clone.
+> `scripts/verify-backend-authority.js` reports this as
+> `CANONICAL_BRANCH_UNRESOLVABLE` rather than hiding it, and escalates it to a
+> hard failure the moment a checkout actually claims the authority role.
+>
+> RP-108 deliberately did **not** repair this by re-pointing `canonicalBranch`
+> at some other published branch. There is no evidence in this repository that
+> any published branch holds that authority, and writing one in would be
+> manufacturing a governance claim the contract does not support — a worse
+> outcome than an honest, visible gap. Closing it is an owner action: publish
+> the branch, or re-point the field at a ref whose authority the owner can
+> actually attest to.
+
 ## Why this matters
 
 Read-only inventory of live staging (`yzqjvdfgefveprobvvyw`) on 2026-08-29
@@ -31,12 +48,19 @@ rolling staging back to whatever this branch's copy happens to contain.
 ## The mechanical guard
 
 `config/backend-authority.json` in this checkout declares
-`"role": "mobile-integration-non-authoritative"`. `scripts/deploy-edge-functions.js`'s
-Step 1 requires `"role": "backend-deployment-authority"` before it will run
-at all — it fails here, every time, by design. This is not merely
-documentation: attempting to deploy from this branch fails closed before
-any other check runs, regardless of whether this branch's own manifest
-happens to be internally consistent.
+`"role": "integration-convergence-non-authoritative"`.
+`scripts/deploy-edge-functions.js`'s Step 1 requires
+`"role": "backend-deployment-authority"` before it will run at all — it fails
+here, every time, by design. This is not merely documentation: attempting to
+deploy from this branch fails closed before any other check runs, regardless
+of whether this branch's own manifest happens to be internally consistent.
+
+The guard compares that field exactly, so the role string in this document has
+to be the one actually in the file. It said `mobile-integration-non-authoritative`
+until RP-108 (2026-09-07); the config had moved to
+`integration-convergence-non-authoritative` and this page was not updated with
+it. Anyone verifying the guard by reading this page was checking for a string
+that no longer existed.
 
 ## What to do instead
 

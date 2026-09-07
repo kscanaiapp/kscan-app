@@ -326,6 +326,20 @@
       "logicalOwner": "kscan-app",
       "reasonCentralized": "native",
       "note": "MIG-01 7B (2026-09-02): renamed from 20260830160000, which collided with the unrelated 20260830160000_vto_feature_control.sql. This single authored file bundles two logically-adjacent pieces (the table+RLS+grants, and the two register/revoke RPC functions) that staging's watchlist-audit reconciliation applied as TWO SEPARATE ledger entries: this version (20260830212508, table/index/RLS/grants -- ledgerSqlHash is this entry's statement text only, confirmed content match via read-only execute_sql) and 20260830212518 'watchlist_audit_push_token_rpcs' (the register_device_push_token/revoke_device_push_token functions, confirmed byte-identical to this file's pre-hardening RPC bodies). canonicalSqlHash necessarily differs: it covers the full file (table + RPCs + 3 `comment on table/column` statements that were never actually executed under any ledger version on staging -- documentation-only, no functional effect, harmless if replayed). The RPCs are subsequently hardened for actor isolation by the already-correctly-versioned 20260830190000_watchlist_push_token_actor_isolation.sql (ledger 20260830214752), unaffected by this rename. Absent from production entirely."
+    },
+    {
+      "ledgerVersion": "20260905170749",
+      "logicalName": "legal_acceptances_ai_processing_consent",
+      "sourceRepo": "kscan-app",
+      "sourceCommit": "none found (never authored as a file on any ref)",
+      "sourceOriginalFilename": "none — recovered from the applied ledgers, not from source",
+      "canonicalFilename": "supabase/migrations/20260905170749_legal_acceptances_ai_processing_consent.sql",
+      "ledgerSqlHash": "560b3f08cc25c042130c8373640729bf6a55a55ff300ca53a9327563bb606700",
+      "canonicalSqlHash": "560b3f08cc25c042130c8373640729bf6a55a55ff300ca53a9327563bb606700",
+      "logicalOwner": "kscan-app",
+      "reasonCentralized": "native",
+      "productionLedgerVersion": "20260905171030",
+      "note": "RP-108 (2026-09-07): REMOTE-ONLY DRIFT, now closed. This migration was applied to BOTH environments and existed in NO repository: git log --all --diff-filter=A over the path returns nothing on any fetched ref, and no file, manifest or document in the tree referenced the version. Recovered read-only from supabase_migrations.schema_migrations.statements on both projects; the two ledgers hold BYTE-IDENTICAL statement text (single statement, sha256 560b3f08…) under the same logical name legal_acceptances_ai_processing_consent, and canonicalSqlHash equals ledgerSqlHash because the restored file body reproduces that text exactly. The environments recorded DIFFERENT versions for it -- staging 20260905170749, production 20260905171030 -- so productionLedgerVersion records the production alias rather than leaving the divergence to memory. Staging is canonical for the filename because staging (yzqjvdfgefveprobvvyw) is this tree approvedProjectRef. NOTHING was renamed, deleted, re-applied or repaired in either ledger: both keep the version they already hold, and production was read only. Logically this supersedes nothing -- 20260812031312_legal_acceptances_restore_ai_processing (staging) and 20260805170417_legal_acceptances_add_ai_processing (production) already established the same acceptance_type CHECK, so this is an idempotent re-assertion of a constraint that is already true in both environments and introduces no pending change."
     }
   ],
   "ledgerReconciliation": {

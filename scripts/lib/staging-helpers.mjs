@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { runWinSafe } from './win-safe-exec.mjs';
 import {
   STAGING_PROJECT_REF,
   PRODUCTION_PROJECT_REF,
@@ -154,13 +155,40 @@ export function parseDeployFunctionsAllowList(raw = process.env.DEPLOY_FUNCTIONS
   return value.split(',').map((s) => s.trim()).filter(Boolean);
 }
 
+/**
+ * Refuses any Supabase CLI invocation whose argv names the production project.
+ *
+ * The scripts in this directory only ever build staging arguments from
+ * STAGING_PROJECT_REF, so nothing legitimate reaches this guard. What it stops
+ * is a production reference arriving through data rather than through code --
+ * an operator-supplied FUNCTION_NAME, a deployment manifest handed to the
+ * rollback script, a MIGRATION_FILE path -- and being carried into the command
+ * line. It makes "production is not targetable by these commands" a property
+ * the tooling enforces at the point of invocation, not a convention.
+ */
+function assertNoProductionRef(args) {
+  const offending = args.findIndex(
+    (arg) => typeof arg === 'string' && arg.includes(PRODUCTION_PROJECT_REF),
+  );
+  if (offending !== -1) {
+    throw new StagingGuardError(
+      `Refusing to invoke the Supabase CLI: argument ${offending} names the production ` +
+        `project (${PRODUCTION_PROJECT_REF}). This tooling targets staging only.`,
+    );
+  }
+}
+
+/**
+ * Invokes the Supabase CLI with `args` delivered as a real argv (RP-114).
+ *
+ * Never uses a shell: see scripts/lib/win-safe-exec.mjs for why the previous
+ * `shell: process.platform === 'win32'` silently re-split every argument
+ * containing a space and let cmd.exe act on `&` and `|` inside argument text.
+ * Return value, thrown error, exit status and stream capture are unchanged.
+ */
 export function runSupabase(args, { cwd = process.cwd() } = {}) {
-  return execFileSync('supabase', args, {
-    encoding: 'utf8',
-    cwd,
-    shell: process.platform === 'win32',
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
+  assertNoProductionRef(args);
+  return runWinSafe('supabase', args, { cwd });
 }
 
 /**

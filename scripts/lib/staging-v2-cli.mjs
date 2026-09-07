@@ -7,7 +7,7 @@
  * a "current" project, no `supabase link` inspection, no default.
  */
 
-import { spawnSync } from 'node:child_process';
+import { spawnWinSafe } from './win-safe-exec.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { resolveTarget, TargetRejectedError, assertLinkedProjectSafe } from './staging-v2-guard.mjs';
@@ -83,11 +83,18 @@ export async function runGuarded(operation, main, { root } = {}) {
   }
 }
 
+/**
+ * Invokes the Supabase CLI with `argv` delivered as a real argv (RP-114).
+ *
+ * Never uses a shell -- see scripts/lib/win-safe-exec.mjs. The guarded target's
+ * project reference is appended by the callers below, so an argument that lost
+ * its boundary here could previously land next to (or in place of) that
+ * reference on the command line.
+ */
 function runSupabase(argv, { stdio = 'pipe' } = {}) {
-  const result = spawnSync('supabase', argv, {
+  const result = spawnWinSafe('supabase', argv, {
     encoding: 'utf8',
     stdio,
-    shell: process.platform === 'win32',
     env: process.env,
   });
   if (result.error) throw result.error;

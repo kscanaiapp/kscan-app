@@ -19,6 +19,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { runWinSafe } from './lib/win-safe-exec.mjs';
 import {
   assertStagingTarget,
   missingRequiredVars,
@@ -63,11 +64,10 @@ function functionSourceHash(fnName) {
 function runDenoCheck(fnName) {
   const indexPath = path.join('supabase', 'functions', fnName, 'index.ts');
   try {
-    execFileSync('deno', ['check', indexPath], {
-      encoding: 'utf8',
-      shell: process.platform === 'win32',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    // RP-114: no shell. `indexPath` is a filesystem path, and a checkout under
+    // a directory containing a space used to be re-split into several
+    // arguments here, so `deno check` ran against a path that does not exist.
+    runWinSafe('deno', ['check', indexPath], { encoding: 'utf8' });
     return { ok: true };
   } catch (err) {
     // Deno may be unavailable on some runners; surface as soft fail only when
