@@ -15,6 +15,34 @@ import { resolveAuthenticatedFunctionSession } from '../authenticatedFunctionSes
 
 const DEVICE_ID_STORAGE_KEY = 'kscan-watchlist-device-id';
 
+/**
+ * RP-104. Records that the user explicitly turned K Scan AI Notifications OFF on
+ * THIS device.
+ *
+ * Deliberately a SEPARATE key from the device id: the device identity must
+ * survive an OFF (deleting it would mint a second identity on the next ON and
+ * strand the revoked row), so "is this device disabled?" cannot be inferred
+ * from the id's absence.
+ *
+ * This is not a preference backend and is not the authority on delivery -- the
+ * backend `user_device_push_tokens` row is. It exists for exactly one job: to
+ * stop the AUTOMATIC re-registration paths (push-token refresh) from silently
+ * rebuilding a route the user explicitly revoked.
+ */
+const DEVICE_PUSH_DISABLED_STORAGE_KEY = 'kscan-watchlist-device-push-disabled';
+
+/**
+ * RP-104 in-process disable generation. Incremented synchronously by every
+ * explicit disable, captured by every enable.
+ *
+ * The persisted marker above cannot settle an ON and an OFF that overlap in
+ * memory: both read storage before either writes it. This counter can, because
+ * the increment happens before the disable's first await, so an enable that
+ * started earlier sees a changed generation and refuses to register rather
+ * than re-arming a route the user just revoked.
+ */
+let devicePushDisableGeneration = 0;
+
 /** Product notification channel id (Android 8+). Used for every Watch alert send. */
 export const ANDROID_NOTIFICATION_CHANNEL_ID = 'price-alerts';
 
@@ -66,6 +94,42 @@ async function readDeviceId(): Promise<string | null> {
     return await AsyncStorage.getItem(DEVICE_ID_STORAGE_KEY);
   } catch {
     return null;
+  }
+}
+
+/**
+ * RP-104. True only when the user explicitly turned K Scan AI Notifications OFF
+ * on this device and has not turned them back on.
+ *
+ * Fails OPEN (returns false) on a storage fault: an unreadable marker must not
+ * silently suppress a route the user asked for. The backend row remains the
+ * authority on whether anything is actually deliverable.
+ */
+async function isDevicePushExplicitlyDisabled(): Promise<boolean> {
+  try {
+    return (await AsyncStorage.getItem(DEVICE_PUSH_DISABLED_STORAGE_KEY)) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+/** Records the explicit OFF. Storage faults are swallowed: see below. */
+async function markDevicePushExplicitlyDisabled(): Promise<void> {
+  try {
+    await AsyncStorage.setItem(DEVICE_PUSH_DISABLED_STORAGE_KEY, 'true');
+  } catch {
+    // The backend revocation is the material authority for delivery; this
+    // marker only suppresses automatic re-registration. A storage fault must
+    // not stop the revocation itself from being attempted.
+  }
+}
+
+/** Clears the OFF marker. Called only where the user explicitly re-arms. */
+async function clearDevicePushExplicitlyDisabled(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(DEVICE_PUSH_DISABLED_STORAGE_KEY);
+  } catch {
+    // Same rationale as above.
   }
 }
 
@@ -160,6 +224,15 @@ export async function requestWatchAlerts(watchId: string): Promise<RequestWatchA
     return { ok: false, reason: 'register_failed' };
   }
 
+  // RP-104: this device now has a live route again, so the explicit-OFF marker
+  // is stale and must stop suppressing token-refresh re-registration.
+  //
+  // Not a hole in the OFF invariant: reaching here required the user to tap
+  // "alert me" on a Watch and grant permission. That is a fresh, explicit
+  // opt-in to delivery on this handset, exactly like tapping the onboarding
+  // switch back on — not an automatic path.
+  await clearDevicePushExplicitlyDisabled();
+
   return { ok: true };
 }
 
@@ -246,7 +319,13 @@ export type EnableDeviceNotificationsFailureReason =
   | 'permission_denied'
   | 'missing_project_id'
   | 'token_failed'
-  | 'backend_unavailable';
+  | 'backend_unavailable'
+  /**
+   * RP-104: an explicit OFF was issued while this enable was still in flight.
+   * The registration is abandoned rather than completed, so a stale ON can
+   * never re-arm a route the user has since revoked.
+   */
+  | 'superseded';
 
 /**
  * Flat by design (not a discriminated union): `reason` is simply undefined on
@@ -267,6 +346,11 @@ export interface EnableDeviceNotificationsResult {
  * state — denied vs. temporarily unavailable — and never a false "enabled".
  */
 export async function enableDeviceNotifications(): Promise<EnableDeviceNotificationsResult> {
+  // RP-104: captured BEFORE the first await. Any explicit disable that starts
+  // after this line changes the generation, and the check below abandons this
+  // registration instead of re-arming the route the user just turned off.
+  const generation = devicePushDisableGeneration;
+
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
     return { ok: false, reason: 'unsupported_platform', canAskAgain: false };
   }
@@ -316,6 +400,11 @@ export async function enableDeviceNotifications(): Promise<EnableDeviceNotificat
     return { ok: false, reason: 'backend_unavailable', canAskAgain: true };
   }
 
+  // RP-104: last gate before the route is actually armed.
+  if (generation !== devicePushDisableGeneration) {
+    return { ok: false, reason: 'superseded', canAskAgain: true };
+  }
+
   try {
     const registerResult = await supabase.functions.invoke('commerce-watch-refresh', {
       body: {
@@ -332,7 +421,101 @@ export async function enableDeviceNotifications(): Promise<EnableDeviceNotificat
     return { ok: false, reason: 'backend_unavailable', canAskAgain: true };
   }
 
+  // RP-104: the route is live again, so the explicit-OFF marker no longer
+  // describes this device and must stop suppressing token-refresh
+  // re-registration. Cleared only AFTER a registration that actually
+  // succeeded, and only on the path the user explicitly asked for.
+  await clearDevicePushExplicitlyDisabled();
+
   return { ok: true, canAskAgain: true };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RP-104: the canonical device-level DISABLE.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type DisableDeviceNotificationsFailureReason = 'backend_unavailable';
+
+/**
+ * Mirrors EnableDeviceNotificationsResult's flat shape on purpose, so the
+ * onboarding surface handles both directions of the same switch identically.
+ */
+export interface DisableDeviceNotificationsResult {
+  ok: boolean;
+  reason?: DisableDeviceNotificationsFailureReason;
+  /**
+   * True when this install had no registered device identifier at all, so
+   * there was no K Scan AI push-delivery route to revoke. Still `ok: true`: OFF
+   * is already the truth for delivery.
+   */
+  alreadyUnregistered?: boolean;
+}
+
+/**
+ * RP-104. Turns K Scan AI Notifications OFF for THIS device by revoking its
+ * backend push-delivery route.
+ *
+ * The defect this closes: turning the onboarding switch off only flipped local
+ * UI state. The `user_device_push_tokens` row stayed live, so the UI said OFF
+ * while the backend could still deliver K Scan AI pushes to the handset — a false
+ * control over a real delivery channel.
+ *
+ * Scope, precisely:
+ *  - Revokes THIS device only. `revoke_device_push_token` is keyed on
+ *    (user_id, device_id), so the same actor's other handsets are untouched.
+ *  - Deletes NO Watchlist record, price target, stock target or saved Watch,
+ *    and touches no K+ entitlement. Turning delivery off is not withdrawing
+ *    monitoring intent; a later ON re-registers through the canonical
+ *    enableDeviceNotifications() path.
+ *  - Changes NO operating-system notification authorization. It cannot, and it
+ *    never claims to: iOS/Android authorization is only revocable by the user
+ *    in Settings. This owns the application-level delivery route.
+ *  - Requests NO permission and mints NO device identifier. An install that
+ *    never registered is already OFF for delivery; minting an id to disable
+ *    something would create the very registration being disabled.
+ *
+ * Returns a bounded typed result. No backend body, status or error text ever
+ * reaches the caller.
+ */
+export async function disableDeviceNotifications(): Promise<DisableDeviceNotificationsResult> {
+  // Synchronous and first: an enable already in flight must observe this
+  // before it reaches its own registration gate.
+  devicePushDisableGeneration += 1;
+
+  const deviceId = await readDeviceId();
+  if (!deviceId) {
+    // No identifier means no route. Record the explicit intent and stop —
+    // no minted id, no token, no permission prompt, no backend call.
+    await markDevicePushExplicitlyDisabled();
+    return { ok: true, alreadyUnregistered: true };
+  }
+
+  // Marked BEFORE the network call, so a push-token refresh that fires while
+  // the revocation is in flight cannot re-register underneath it. Restored on
+  // failure below, so the marker never outlives a revocation that did not
+  // actually happen.
+  await markDevicePushExplicitlyDisabled();
+
+  const session = await resolveAuthenticatedFunctionSession();
+  if (session.ok === false) {
+    await clearDevicePushExplicitlyDisabled();
+    return { ok: false, reason: 'backend_unavailable' };
+  }
+
+  try {
+    const result = await supabase.functions.invoke('commerce-watch-refresh', {
+      body: { action: 'revoke_push_token', deviceId },
+    });
+    if (result.error) {
+      await clearDevicePushExplicitlyDisabled();
+      return { ok: false, reason: 'backend_unavailable' };
+    }
+  } catch {
+    await clearDevicePushExplicitlyDisabled();
+    return { ok: false, reason: 'backend_unavailable' };
+  }
+
+  return { ok: true };
 }
 
 /**
@@ -340,6 +523,14 @@ export async function enableDeviceNotifications(): Promise<EnableDeviceNotificat
  * token while the app runs; the old one stops delivering. Re-registers the
  * new Expo token for a device that already opted in. A device that never
  * registered mints nothing.
+ *
+ * RP-104: this listener is installed for the whole app lifetime at the root
+ * (app/_layout.tsx), and it re-registers on an event the user neither sees nor
+ * triggers. That made it the one path that could silently defeat an explicit
+ * OFF: the device id survives a disable by design, so before this repair a
+ * token roll rebuilt the very route the user had just revoked, with no UI
+ * anywhere reflecting it. It now refuses to register while the explicit-OFF
+ * marker stands, and only the user turning Notifications back on clears it.
  */
 export async function attachPushTokenRefreshListener(): Promise<() => void> {
   const Notifications = await import('expo-notifications');
@@ -347,6 +538,9 @@ export async function attachPushTokenRefreshListener(): Promise<() => void> {
     void (async () => {
       const deviceId = await readDeviceId();
       if (!deviceId) return;
+      // RP-104: an automatic refresh may never re-arm a route the user
+      // explicitly turned off. Checked before any network work.
+      if (await isDevicePushExplicitlyDisabled()) return;
       const projectId = getExplicitEasProjectId();
       if (!projectId) return;
       try {

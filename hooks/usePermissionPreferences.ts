@@ -1,8 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
+  disableDeviceNotifications,
   enableDeviceNotifications,
+  type DisableDeviceNotificationsResult,
   type EnableDeviceNotificationsResult,
 } from '../services/watchlist/pushRegistration';
+import { captureActorScope, isActorScopeCurrent } from '../services/actorScope';
 import { Platform, PermissionsAndroid } from 'react-native';
 
 import { VOICESCAN_ENABLED } from '../constants/featureFlags';
@@ -25,6 +28,11 @@ export interface UsePermissionPreferencesReturn {
   setPreference: (key: PermissionKey, value: boolean) => void;
   requestMicrophonePermission: () => Promise<MicrophonePermissionResult>;
   requestNotificationPermission: () => Promise<EnableDeviceNotificationsResult>;
+  /**
+   * RP-104: the explicit OFF. Revokes THIS device's backend push-delivery
+   * route and only then reflects OFF locally.
+   */
+  disableNotificationDelivery: () => Promise<DisableDeviceNotificationsResult>;
 }
 
 const DEFAULT_PREFERENCES: PermissionPreferences = {
@@ -76,18 +84,62 @@ export function usePermissionPreferences(): UsePermissionPreferencesReturn {
     }
   }, []);
 
+  /**
+   * RP-104 stale-completion control, shared by both directions of the switch.
+   *
+   * Monotonic, so the LAST toggle the user made is the only one allowed to
+   * write state: an earlier request that resolves afterwards sees a moved
+   * counter and mutates nothing. This is what stops a slow ON from settling
+   * the UI to ON after the user has since turned it OFF, and vice versa.
+   */
+  const notificationRequestSeqRef = useRef(0);
+
+  /**
+   * True only if `token` is still the newest notification request AND the
+   * actor generation captured with it is still live.
+   *
+   * The actor half reuses services/actorScope.ts — the project's existing
+   * authority, whose epoch increments on every auth transition — rather than
+   * a second lifecycle. A captured user id alone would not do: it matches
+   * again after an A -> B -> A cycle, and `isAuthenticated` never changes at
+   * all across an A -> B switch.
+   */
+  const canApplyNotificationResult = useCallback(
+    (token: number, scope: ReturnType<typeof captureActorScope>): boolean =>
+      token === notificationRequestSeqRef.current && isActorScopeCurrent(scope),
+    [],
+  );
+
   const requestNotificationPermission = useCallback(async (): Promise<EnableDeviceNotificationsResult> => {
+    const token = (notificationRequestSeqRef.current += 1);
+    const scope = captureActorScope();
     const result = await enableDeviceNotifications();
     // Reflect the REAL outcome only -- never optimistically flip this on
     // before the OS/registration result is known, and never on failure.
+    // Discarded with ZERO mutation when superseded or when the actor changed:
+    // the departing actor's completion must not paint the arriving one's UI.
+    if (!canApplyNotificationResult(token, scope)) return result;
     setPreference('notifications', result.ok);
     return result;
-  }, [setPreference]);
+  }, [canApplyNotificationResult, setPreference]);
+
+  const disableNotificationDelivery = useCallback(async (): Promise<DisableDeviceNotificationsResult> => {
+    const token = (notificationRequestSeqRef.current += 1);
+    const scope = captureActorScope();
+    const result = await disableDeviceNotifications();
+    if (!canApplyNotificationResult(token, scope)) return result;
+    // OFF is reflected ONLY after the backend route was actually revoked. A
+    // failed revocation leaves the switch where it was, because the device is
+    // still a live K Scan AI push destination and showing OFF would be a lie.
+    if (result.ok) setPreference('notifications', false);
+    return result;
+  }, [canApplyNotificationResult, setPreference]);
 
   return {
     preferences,
     setPreference,
     requestMicrophonePermission,
     requestNotificationPermission,
+    disableNotificationDelivery,
   };
 }
