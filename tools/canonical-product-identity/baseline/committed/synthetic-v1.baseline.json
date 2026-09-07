@@ -1,0 +1,88 @@
+{
+  "baselineSchemaVersion": "cpil-baseline-schema-v1",
+  "sourceSha": "f604e2c3bab4d97db9cb7c2350af75c76357dfa4",
+  "corpusHash": "ceb0116ac00afd819e5ef92e0e07bfedbef21a7b9c32e850c6a1a9edb8e7e568",
+  "corpusTier": "SYNTHETIC",
+  "corpusId": "cpil-synthetic-canonical-product-identity-lab-v1-synthetic",
+  "generatorVersion": "cpil-generator-v1",
+  "resolverVersion": "cpil-resolver-v1",
+  "normalizationVersion": "cpil-normalization-v1",
+  "identitySchemaVersion": "cpil-identity-schema-v1",
+  "operatingParameters": {
+    "tier2AutoMergeThreshold": null
+  },
+  "generatedAt": "2026-09-07T02:16:29.304Z",
+  "metrics": {
+    "safetyMetrics": {
+      "totalPairsEvaluated": 58996,
+      "decisionCounts": {
+        "AUTO_MERGE": 64,
+        "PROPOSED_REVIEW": 54,
+        "ABSTAIN": 2858,
+        "SEPARATE": 56020
+      },
+      "autoMergePrecision": 1,
+      "autoMergeRecall": 0.8,
+      "falseMergeCount": 0,
+      "falseMergeRate": 0,
+      "falseMergeGateStatus": "PASS - zero false merges (section 25 gate satisfied for this corpus/configuration)",
+      "missedMergeCount": 16,
+      "missedMergeRate": 0.2,
+      "abstentionRate": 0.04844396230252899,
+      "undecidablePairCount": 16,
+      "abstentionCorrectness": 1,
+      "sameVariantPairCount": 80,
+      "siblingVariantPairCount": 16,
+      "siblingVariantAutoMergedCount": 0,
+      "f1Secondary": 0.888888888888889,
+      "f1Note": "F1 reported secondarily only (section 24) - never a substitute for precision/recall/false-merge-rate.",
+      "confusionMatrix": {
+        "SAME_VARIANT": {
+          "AUTO_MERGE": 64,
+          "PROPOSED_REVIEW": 16,
+          "ABSTAIN": 0,
+          "SEPARATE": 0
+        },
+        "SIBLING_VARIANT": {
+          "AUTO_MERGE": 0,
+          "PROPOSED_REVIEW": 0,
+          "ABSTAIN": 0,
+          "SEPARATE": 16
+        },
+        "NEAR_DUPLICATE_DISTINCT": {
+          "AUTO_MERGE": 0,
+          "PROPOSED_REVIEW": 16,
+          "ABSTAIN": 0,
+          "SEPARATE": 0
+        },
+        "DISTINCT": {
+          "AUTO_MERGE": 0,
+          "PROPOSED_REVIEW": 22,
+          "ABSTAIN": 2842,
+          "SEPARATE": 56004
+        },
+        "UNDECIDABLE": {
+          "AUTO_MERGE": 0,
+          "PROPOSED_REVIEW": 0,
+          "ABSTAIN": 16,
+          "SEPARATE": 0
+        }
+      }
+    },
+    "clusterMetrics": {
+      "variantClusterCount": 288,
+      "styleClusterCount": 164,
+      "variantRejectedEdgeCount": 0,
+      "styleRejectedEdgeCount": 104,
+      "variantClusterPurity": 1,
+      "variantClusterCompleteness": 0.9534883720930233,
+      "styleClusterPurity": 0.688953488372093,
+      "styleClusterCompleteness": 0.9941860465116279,
+      "variantSeparationAccuracy": 1,
+      "variantSeparationPairCount": 16,
+      "variantSeparationFailureCount": 0,
+      "variantSeparationFailures": []
+    }
+  },
+  "contentHash": "8f6617fb30d3d76888241380015294f7e8d03eb30b1ef4c2281919bae368601c"
+}
