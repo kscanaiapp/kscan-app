@@ -141,10 +141,35 @@ Non-vacuous backpressure measured on real hardware with genuine (not simulated) 
 
 **Open:** the rigid gate consistently rejects the real detected placement on `garment_largely_outside_torso` for the current bundled test image / `n1b-fixture` pairing (N1-ENV-014) -- a real, measured calibration finding, not a pipeline defect (scale and orientation checks pass cleanly; N1-C's own conformance goldens are unaffected). A future test-frame or fixture-pairing refinement is owed before a real detection can be shown reaching a drawn mesh on screen.
 
-### N1-F / N1-G
+### N1-F -- camera-live (Android)
 
-Not started. Preparation only -- no N1-E code depends on live camera input.
-Each gate's own hard requirements apply unchanged.
+**N1-F ENGINEERING COMPLETE -- DEVICE EVIDENCE PENDING.**
+
+CameraX (`Preview` + `ImageAnalysis`, front camera) wired into the
+EXISTING N1-E pipeline: the perception provider, the BodyFrame adapter,
+the rigid gate, the deformation, and the renderer are all reused
+unmodified. Full design (mirror decision, backpressure design, YUV
+conversion, bridge surface, known constraints): `docs/vto-live-native-n1-camera.md`.
+
+Compile + unit-test evidence (`CI`/local Gradle authority): module compiles
+clean, all 59 existing JVM unit tests still pass with zero regressions,
+and `RuntimeBoundaryTest`'s Android-boundary allowlist / pinned bridge
+surface were both updated and re-verified against the two new files
+(`LiveVtoCameraController.kt`, `LiveVtoCameraFrameConverter.kt`) and the
+two new bridge members (`camera`, `getCameraStatsJson`).
+
+**Not attempted this session, and why:** the emulator's own diagnostic
+route is blocked by the SAME auth-guard finding N1-B through N1-E already
+documented above (no session on the emulator) -- mission section 13 says
+not to retry that the same way, so it was not retried. No physical Android
+device was attached this session. Real camera / real person / logo /
+left-right / tracking-loss evidence therefore all remain `PENDING-RUNTIME`,
+labelled honestly rather than upgraded from compile/unit-test evidence.
+
+### N1-G
+
+Not started (occlusion, capture, garment switching, thermal -- mission
+sections 21-33). Each gate's own hard requirements apply unchanged.
 
 ## Device authority
 

@@ -51,7 +51,7 @@ final class LiveVtoRuntimeBoundaryTests: XCTestCase {
   func testTheNativeRuntimeHasNoNetworkSurface() throws {
     let forbidden = ["URLSession", "URLRequest(", "CFNetwork", "Alamofire", "NWConnection", "NSURLConnection", "Socket("]
     var offenders: [String] = []
-    for dir in ["ios/Core", "ios/Drivers", "ios/Perception"] {
+    for dir in ["ios/Core", "ios/Drivers", "ios/Perception", "ios/Camera"] {
       for file in try swiftFiles(under: dir) {
         let lines = (try? String(contentsOf: file, encoding: .utf8))?.components(separatedBy: "\n") ?? []
         for (i, line) in lines.enumerated() {
@@ -85,12 +85,25 @@ final class LiveVtoRuntimeBoundaryTests: XCTestCase {
       }
     }
 
-    let expected: Set<String> = ["active", "getCapability", "getGeometrySnapshotJson", "getPerceptionStatsJson", "getReplayStatsJson", "perception", "replay"]
+    let expected: Set<String> = [
+      "active", "camera", "capturePersonFrame", "capturePreview", "dispose", "getCameraStatsJson", "getCapability",
+      "getGeometrySnapshotJson", "getPerceptionStatsJson", "getReplayStatsJson", "loadGarment", "pause",
+      "perception", "replay", "resume", "start", "stop", "switchGarment",
+    ]
     XCTAssertEqual(declared, expected, "the native bridge surface changed -- review the privacy boundary before updating this list")
 
+    // EXCEPT the two already-governed P3-C contract names (N1-G,
+    // 2026-09-06): `capturePersonFrame`/`capturePreview` come from
+    // types/vtoLive.ts's LIVE_VTO_COMMANDS, already promoted and tested
+    // long before this lane, and `LiveVtoCapturedFrame`'s own doc comment
+    // is explicit that it is "a local URI, not bytes: nothing pixel-shaped
+    // crosses the command/event boundary." Deliberate, reviewed, two-name
+    // exception -- matches Android's RuntimeBoundaryTest.kt exactly.
+    let governedFrameNamedExceptions: Set<String> = ["capturepersonframe"]
     let banned = ["frame", "bitmap", "image", "pixel", "mask", "landmark", "mesh", "texture", "buffer"]
     for name in declared {
       let lowered = name.lowercased()
+      if governedFrameNamedExceptions.contains(lowered) { continue }
       for word in banned {
         XCTAssertFalse(lowered.contains(word), "bridge member '\(name)' suggests it carries frame data")
       }

@@ -115,3 +115,25 @@ data class KsgarmentManifest(
 }
 
 class LiveVtoGarmentValidationException(message: String) : Exception(message)
+
+/**
+ * Post-load asset-identity cross-check: the manifest actually loaded from
+ * [descriptor]'s `assetKey` folder must be the SAME version the caller
+ * requested. Extracted as a pure function (zero Android imports, same as
+ * the rest of this file) specifically so it is unit-testable on the JVM --
+ * see LiveVtoGarmentDescriptorTest.kt -- even though `loadFixture()` itself
+ * (real asset-manager file I/O) is not.
+ *
+ * Deliberately does NOT compare `manifest.productId` to
+ * `descriptor.productRef`: those are different identity spaces by design
+ * (services/vto/vtoLiveGarmentRegistry.ts's header) -- `productRef` is
+ * Commerce's correlation handle, `productId` is the ksgarment manifest's own
+ * (Phase-4-assigned) identity, and the resolver's registry lookup is what
+ * ties them together, not a runtime string-equality requirement. What DOES
+ * always have to agree, for ANY asset addressed by any registry design, is
+ * the asset VERSION the caller resolved against and the asset version the
+ * loaded manifest actually reports -- a mismatch means the bundled folder
+ * was swapped or corrupted since the resolver made its decision.
+ */
+fun assetIdentityMatches(manifest: KsgarmentManifest, descriptor: LiveVtoGarmentDescriptor): Boolean =
+  manifest.assetVersion == descriptor.assetVersion

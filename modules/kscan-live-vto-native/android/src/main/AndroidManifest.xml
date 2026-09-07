@@ -1,3 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="expo.modules.kscanlivevtonative">
+    <!-- N1-F: optional, so the app still installs on a device with no front
+         camera (mission section 20's iOS/Android parity is about product
+         semantics, not about making a front camera mandatory hardware). -->
+    <uses-feature android:name="android.hardware.camera.front" android:required="false"/>
 </manifest>
