@@ -1,0 +1,45 @@
+{
+  "mapVersion": "ENTITLEMENT_MAP_V1",
+  "discoveredBy": "research/elise-concierge-evaluation-harness-v1, Build 35 instrument-validation lane",
+  "pinnedBaseSha": "a9fb82e9020fce268b9840b39cb7fc9a92e5747e",
+  "statedProjectPrinciple": {
+    "status": "UNKNOWN_UNTIL_VERIFIED_THEN_PROVEN",
+    "claim": "Base Elise = core/free capability; Wardrobe Concierge = K+ (premium) capability.",
+    "verification": "PROVEN for the Concierge-specific behaviors actually gated in source (see below). NOT verified that ALL of Elise is free with zero entitlement checks anywhere in its path — that would require tracing the full index.ts handler, which exceeds this lane's bounded discovery ceiling. Recorded as PROVEN-FOR-CONCIERGE, UNKNOWN-FOR-BASE-ELISE-EXHAUSTIVELY."
+  },
+  "entitlementChecks": [
+    {
+      "id": "K_PLUS_WARDROBE_CONTEXT_GATE",
+      "status": "PROVEN",
+      "sourceFile": "supabase/functions/stylechat-generate/index.ts",
+      "mechanism": "hasActiveKPlusForWardrobeContext, a boolean derived from a server-side has_active_k_plus() check (initialized false; see index.ts ~line 2180-2190), gates: (a) whether the deterministic Closet census (buildClosetCensus) is computed at all, and (b) — combined with config.flags.conciergeV1 — whether Concierge-only telemetry (concierge_turn_outcome) and evidence-exhaustive absence licensing are active.",
+      "note": "The code comment explicitly frames this as a FACT precondition, not just a query precondition: an absence claim ('you don't own X') may only be licensed when both the census ran AND the actor is K+-entitled, because RLS on user_closet_items already returns zero rows to a non-K+ actor for reasons unrelated to whether their Closet is actually empty."
+    },
+    {
+      "id": "USER_CLOSET_ITEMS_RLS_GATE",
+      "status": "PROVEN",
+      "mechanism": "RLS predicate on user_closet_items: user_id = auth.uid() AND has_active_k_plus() (per index.ts inline comment citing the exact predicate). A non-K+ actor's Closet rows are invisible to every query in this pipeline, not merely hidden in the UI.",
+      "implication": "A non-K+ actor's EliseWardrobeCandidate list can never contain sourceType: 'closet' rows. Any response claiming Closet-derived ownership or absence for a non-K+ actor is, by construction, unsupported by data the pipeline could have seen — this is the deterministic basis for D15 ENTITLEMENT_FACT_ERROR test cases."
+    },
+    {
+      "id": "CONCIERGE_V1_CAPABILITY_FLAG",
+      "status": "PROVEN",
+      "sourceFile": "supabase/functions/stylechat-generate/eliseConfig.ts",
+      "mechanism": "config.flags.conciergeV1 = parseBooleanEnv(env, 'ELISE_CONCIERGE_V1_ENABLED', false). This is a ROLLOUT flag, independent of (but composed with) the K+ entitlement check — a flag can be on with the actor still non-K+, in which case Concierge-only OUTPUT fields may still populate `displayFacts` etc. off non-Closet evidence (saved/scanned/shared/discovered), but Closet-specific claims remain gated by the RLS boundary above regardless of the flag."
+    }
+  ],
+  "premiumCapabilityBoundary": {
+    "status": "PROVEN",
+    "capabilitiesRequiringKPlus": [
+      "Deterministic exhaustive Closet census (buildClosetCensus) and any absence claim licensed by it",
+      "concierge_turn_outcome telemetry emission (config.flags.conciergeV1 AND, for census-backed fields, K+)"
+    ],
+    "capabilitiesNotProvenToRequireKPlus": [
+      "Base advice pipeline (runEliseAdvicePipeline) itself — runs regardless of K+ status; only the CENSUS and its associated absence-licensing are K+-gated",
+      "wardrobeContextMode / displayFacts / focusAmbiguity — gated on config.flags.conciergeV1 only, NOT on K+ in the code read during this lane's discovery (a potential D15-relevant surface worth an owner check: does a Concierge UI surface render for a conciergeV1=true, K+=false actor using only saved/scanned/shared/discovered evidence? Per project memory 'project_concierge_v1_hostile_audit', a prior audit (AUDIT-CON-005) found and fixed exactly this class of bug for owned_room items; this harness's D15 fixtures deliberately probe the same shape of question on synthetic data, not by re-auditing production.)"
+    ]
+  },
+  "harnessScope": {
+    "note": "This map records entitlement FACTS the pipeline can assert; it does not invent an upsell-message contract (spec section 42 explicitly forbids that). D15 ENTITLEMENT_FACT_ERROR synthetic cases test only: (a) a free-tier capability wrongly described as premium-only, and (b) a premium capability/context exposed or implied for a non-entitled actor, using the boundaries proven above."
+  }
+}

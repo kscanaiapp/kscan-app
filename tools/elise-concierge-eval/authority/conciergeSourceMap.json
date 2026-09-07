@@ -1,0 +1,68 @@
+{
+  "mapVersion": "CONCIERGE_SOURCE_MAP_V1",
+  "discoveredBy": "research/elise-concierge-evaluation-harness-v1, Build 35 instrument-validation lane",
+  "pinnedBaseSha": "a9fb82e9020fce268b9840b39cb7fc9a92e5747e",
+  "system": "WARDROBE_CONCIERGE",
+  "architectureFinding": {
+    "status": "PROVEN",
+    "finding": "Wardrobe Concierge is NOT a separate function or codebase. It is an ADDITIVE capability layer inside the same stylechat-generate Elise pipeline, gated end-to-end by a single boolean, `conciergeV1` (config.flags.conciergeV1, sourced from env var ELISE_CONCIERGE_V1_ENABLED — see eliseConfig.ts line ~189). Flag off reproduces the exact pre-Concierge v1 payload byte-for-byte (explicit contract comments: 'Flag off -> the pre-Concierge block, byte-identical.').",
+    "evidence": [
+      "supabase/functions/stylechat-generate/eliseAdvicePrompt.ts (conciergeV1 param threaded through buildEliseAdvicePromptBlock/buildEliseAdviceMetadata)",
+      "supabase/functions/stylechat-generate/eliseAdvicePipeline.ts (EliseAdviceFlagState.conciergeV1)",
+      "supabase/functions/stylechat-generate/eliseWardrobeGap.ts (conciergeV1 gates small-closet restraint, evidenceIsExhaustive licensing, structural look validity)",
+      "supabase/functions/stylechat-generate/eliseFocusResolution.ts (conciergeV1 gates text-based focus matching against owned Closet items)",
+      "supabase/functions/stylechat-generate/eliseOwnershipProseSafety.ts (Concierge-era prose guards; module docstring cites 'Build 34 / K+ Wardrobe Concierge V1 -- C3 sections 33/34/35')"
+    ],
+    "implication": "This harness treats 'Concierge' as: the same recommendation pipeline as Elise, evaluated with conciergeV1=true fixtures, plus the additional Concierge-only output surface (wardrobeContextMode, displayFacts, focusAmbiguity, evidenceIsExhaustive/confirmedAbsentCategories on wardrobe gaps) and the additional Concierge-only prose guards. Scorecards are still kept separate per spec section 13/48, because the CAPABILITY SET (Closet fidelity, gap accuracy with exhaustive-census claims, owned-vs-buy distinction) is a materially different responsibility surface even though the code path is shared."
+  },
+  "recommendationEntryPoint": {
+    "status": "PROVEN",
+    "sourceFile": "supabase/functions/stylechat-generate/eliseAdvicePipeline.ts",
+    "function": "runEliseAdvicePipeline(..., flags: { conciergeV1: true, ... })",
+    "note": "Same entry point as Elise; see eliseSourceMap.json recommendationPath."
+  },
+  "closetCensus": {
+    "status": "PROVEN",
+    "sourceFile": "supabase/functions/stylechat-generate/eliseClosetCensus.ts",
+    "details": "buildClosetCensus / censusConfirmsRoleAbsent / censusShowsRolePresent / censusConfirmedAbsentCategories implement a DETERMINISTIC, exhaustive-or-not category/role count of user_closet_items. This is the mechanism that lets a Concierge response say 'you don't own X' as a FACT rather than a bounded guess — and only when `exhaustive: true` and nothing is unclassified. Gated on hasActiveKPlusForWardrobeContext (K+ entitlement) AND config.flags.conciergeV1 (index.ts, ~line 2458)."
+  },
+  "ownershipAndAbsenceGuards": {
+    "status": "PROVEN",
+    "sourceFile": "supabase/functions/stylechat-generate/eliseOwnershipProseSafety.ts",
+    "functions": ["enforceOwnershipProseSafety", "enforceClosetAbsenceProseSafety"],
+    "details": "Last-line, sentence-level regex guards. enforceOwnershipProseSafety drops a sentence that BOTH asserts ownership (you own / you have / in your closet / in your wardrobe, apostrophe-folded) AND names a garment class not present in the owned-candidate vocabulary built from the shortlist+focus. enforceClosetAbsenceProseSafety drops a sentence that asserts absence ('you don't have any X', 'your closet is missing X') for a subject the exhaustive census cannot prove absent. Both replace with a caller-supplied neutral fallback ONLY when nothing safe survives; both explicitly document (in code comments) that they are the FOURTH line of defense, not the primary grounding mechanism — the prompt and structured metadata are.",
+    "reuseNote": "This harness's L1.5 context-assembly module (context-assembly/l15ContextAssembly.js) imports and EXECUTES these two real production functions directly against synthetic candidate sets and synthesizer-planted defect text, in addition to running the harness's own independent claim extractor. This is a genuine dual-oracle design, not a reimplementation — see context-assembly/README notes inline."
+  },
+  "wardrobeGapAndPurchaseAdvice": {
+    "status": "PROVEN",
+    "sourceFile": "supabase/functions/stylechat-generate/eliseWardrobeGap.ts",
+    "details": "analyzeWardrobeGap is deterministic role-gap detection (ROLE_GAPS table) with a small-Closet restraint (at most 1 gap surfaced below an 8-item threshold, Concierge-only) and per-gap-code census provenance tracking (a gap can only be spoken as a FACT when every surviving code was census-proven). buildPurchaseAdvice is a deterministic decision table (verdict: buy/skip/consider/replace) keyed on near-duplicate detection, focus confidence, and gap count — NOT a model output."
+  },
+  "multiLookGeneration": {
+    "status": "PROVEN",
+    "sourceFile": "supabase/functions/stylechat-generate/eliseWardrobeGap.ts",
+    "function": "buildMultiLooks",
+    "details": "Deterministic structural validity rules (SINGLE_OCCUPANCY_ROLES, ROLE_CONFLICTS) prevent e.g. two pairs of shoes or a one-piece dress paired with separate bottoms in one generated look, when conciergeV1 is on."
+  },
+  "outputSurface": {
+    "status": "PROVEN",
+    "sourceFile": "supabase/functions/stylechat-generate/eliseAdviceTypes.ts",
+    "conciergeOnlyFields": [
+      "focusedItem.displayFacts (EliseAdviceDisplayFacts: title/category/subtype/brand/primaryColor/clientId, copied verbatim off a server-authorized candidate — never model-authored)",
+      "recommendations[].displayFacts",
+      "wardrobeContextMode ('none'|'closet'|'mixed', gates client Closet-chrome rendering)",
+      "focusAmbiguity (candidateIds + sharedCategory when a text reference matched several owned items and the pipeline deliberately declined to pick one)",
+      "wardrobeGap.evidenceIsExhaustive / wardrobeGap.confirmedAbsentCategories"
+    ],
+    "contractVersioning": "ELISE_ADVICE_CONTRACT_VERSION_V2 ('elise_advice_v2') emitted only when conciergeV1 is on; flag off emits the v1 stamp with byte-identical shape."
+  },
+  "commerceCapability": {
+    "status": "PROVEN",
+    "evidence": "EliseWardrobeSourceType includes 'commerce_product'; EliseActorRelationship includes 'discovered'. intentAllowsCommerce (eliseAdviceIntents.ts) gates whether commerce/'discovered' candidates may appear in the shortlist for a given intent + message (explicit no-shopping phrases always suppress it).",
+    "verdict": "External-product recommendation IS a proven capability of this pipeline (both under the Elise and Concierge flag states) — justifies building the bounded synthetic commerce catalog (spec section 24)."
+  },
+  "entitlementBoundary": {
+    "status": "PROVEN",
+    "details": "See authority/entitlementMap.json. Concierge behavior (census, evidenceIsExhaustive licensing, telemetry event concierge_turn_outcome) requires BOTH config.flags.conciergeV1 AND hasActiveKPlusForWardrobeContext === true. The K+ check is asserted explicitly at the point the ABSENCE CLAIM is licensed (index.ts comment: 'The entitlement is therefore a precondition of the CLAIM, not just of the query'), not merely implied by which query ran."
+  }
+}
