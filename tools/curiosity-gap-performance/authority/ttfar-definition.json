@@ -1,0 +1,70 @@
+{
+  "artifact": "TTFAR_DEFINITION",
+  "ttfar_start_version": "ttfar-start-v1",
+  "source_sha": "909df8646a690b55c5af6b7b8c80193df64a2ec8",
+  "authored": "2026-09-06",
+  "benchmark_status": "INTERNAL ENGINEERING ANALYSIS ONLY. SIMULATED TTFAR IS NOT A MEASUREMENT OF REAL-WORLD K SCAN SPEED.",
+
+  "definition": "TTFAR is the elapsed time from the client event at which the user commits the scan (t=0) until the first commerce result is both rendered and actionable per ACTIONABLE_RESULT_SCHEMA_V1.",
+
+  "t_zero": {
+    "chosen": "scan_commit_analyze_press",
+    "source_file": "hooks/useKScan.js",
+    "function": "runAnalysis",
+    "line": 390,
+    "event": "onPress of the 'Analyze Scan' primary button",
+    "ui_binding": {
+      "component": "components/scan-room/CaptureReview.tsx",
+      "line": 141,
+      "prop": "onAnalyze",
+      "wired_at": "app.js:1002-1011 (onAnalyze={runAnalysis})",
+      "test_id": "scan-room-analyze"
+    },
+    "evidence_class": "PROVEN",
+    "rationale": "This is the first event after which the user cannot avoid spending a scan: runAnalysis sets scanInFlightRef, calls startInFlight(), and is the only path that reaches the network. Image compression, digesting and upload all happen inside runAnalysis and are therefore ON the TTFAR critical path, not before it."
+  },
+
+  "rejected_t_zero_candidates": [
+    {
+      "candidate": "shutter_press",
+      "source_file": "hooks/useKScan.js",
+      "function": "capturePhoto",
+      "line": 236,
+      "ui_binding": "components/ScanButton.tsx:36 onPress -> LiveScanCamera.tsx:178 onCapture -> app.js:947 capturePhoto(cameraRef)",
+      "why_rejected": "capturePhoto calls takePictureAsync({ quality: 0.7 }) and returns a file URI only. It performs no network work, no compression and no encoding, and the user may still retake or abandon. Treating it as t=0 would fold an unbounded human review pause into TTFAR.",
+      "recorded_as": "CAPTURE_COMMIT, a separate earlier boundary retained for completeness",
+      "evidence_class": "PROVEN"
+    },
+    {
+      "candidate": "gallery_pick",
+      "source_file": "hooks/useKScan.js",
+      "line": 310,
+      "why_rejected": "Same reason as shutter press; also enters the identical runAnalysis commit point.",
+      "evidence_class": "PROVEN"
+    }
+  ],
+
+  "two_ttfar_variants_because_the_architecture_has_two": {
+    "note": "The commerce funnel flag changes the request/response SEQUENCE, so TTFAR has two structurally different definitions and both must be reported. Source default is OFF (commerceFunnelConfig.ts:32); App Staging had it ON (docs/BUILD34_SCANNER_SCAN_RESULTS_DEEP_AUDIT.md:35).",
+    "funnel_off_inline": {
+      "requests_to_first_actionable_commerce_result": 1,
+      "terminal": "commerce card actionable inside the single scan-identify response",
+      "evidence_class": "PROVEN"
+    },
+    "funnel_on_deferred": {
+      "requests_to_first_actionable_commerce_result": 2,
+      "sequence": "MODE A scan-identify (image, no commerce) -> client paints identification -> MODE B scan-identify (requestMode: 'commerce_only', no image) -> commerce card actionable",
+      "terminal": "commerce card actionable after the SECOND round trip",
+      "evidence_class": "PROVEN",
+      "source": "supabase/functions/scan-identify/index.ts:3763-3801 (MODE A defers), index.ts:2004 (MODE B route), hooks/useKScan.js:1115-1119 (client dispatches MODE B)"
+    }
+  },
+
+  "secondary_kpi_slot": {
+    "name": "TTFAR_FIRST_HIGH_QUALITY_RESULT",
+    "status": "INTERFACE_ONLY_NOT_COMPUTED",
+    "contract": "time from t=0 until the first result that is both actionable per ACTIONABLE_RESULT_SCHEMA_V1 and meets an accepted match-quality threshold",
+    "quality_score_source": "NOT_OWNED_BY_THIS_LANE",
+    "note": "A neutral slot only. This lane does not define, compute or estimate a match-quality score; doing so would cross the parallel-lane firewall."
+  }
+}
