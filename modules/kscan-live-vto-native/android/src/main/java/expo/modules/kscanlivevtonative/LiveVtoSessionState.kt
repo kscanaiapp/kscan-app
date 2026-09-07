@@ -184,18 +184,47 @@ object LiveVtoSessionMachine {
  * Native mirror of `LiveVtoGarmentDescriptor` in types/vtoLive.ts. Re-declared
  * (not imported -- there is nothing to import across the JS/native boundary),
  * same reasoning as `LiveVtoGarment.kt`'s re-declaration of the `.ksgarment`
- * contract: the SAME four fields, the SAME three supported template
- * families, checked here so a malformed descriptor is refused before any
- * asset work starts, not discovered partway through it.
+ * contract: the SAME fields, the SAME three supported template families,
+ * checked here so a malformed descriptor is refused before any asset work
+ * starts, not discovered partway through it.
+ *
+ * `assetKey`/`assetId`/`assetVersion` (added alongside the governed asset
+ * resolver, services/vto/vtoLiveGarment.ts's `resolveLiveGarment`) are now
+ * REQUIRED, not optional. Before this, `performGarmentLoad`
+ * (LiveVtoTestRenderView.kt) resolved EVERY validated descriptor to the SAME
+ * bundled fixture ("n1b-fixture", hardcoded) -- see
+ * docs/vto-live-bridge-contract.md §13.5. `assetKey` is what closes that:
+ * it is the ONE new field `performGarmentLoad` reads to pick which bundled
+ * folder to load, and it is checked here against
+ * [SUPPORTED_ASSET_KEYS] -- an ALLOWLIST of real bundled directory names,
+ * never a caller-supplied filesystem path -- so a descriptor cannot address
+ * an arbitrary asset path (mission "resolver cannot use file:// arbitrary
+ * path traversal"). A descriptor missing a valid, allowlisted `assetKey` is
+ * refused here exactly like a missing `productRef` always was: this is what
+ * makes "no silent fixture fallback" a property of parsing, not of caller
+ * discipline -- the diagnostic `active`/`replay`/`perception`/`camera` View
+ * Props remain a SEPARATE, still-available explicit-fixture path (they call
+ * `loadFixture("n1b-fixture")` directly, never through this descriptor).
  */
 data class LiveVtoGarmentDescriptor(
   val productRef: String,
   val imageUrl: String,
   val canonicalCategory: String,
   val templateFamily: String,
+  val assetKey: String,
+  val assetId: String,
+  val assetVersion: String,
 ) {
   companion object {
     val SUPPORTED_TEMPLATE_FAMILIES = setOf("t-shirt", "simple-top", "sweater")
+
+    /** Allowlisted bundled-asset directory names. Mirrors
+     *  services/vto/vtoLiveGarmentRegistry.ts's LIVE_VTO_ASSET_KEY_ALLOWLIST
+     *  -- re-declared, not imported, same reasoning as the rest of this
+     *  file's re-declared TS contract. Cross-checked mechanically against
+     *  the TS side by __tests__/vtoLiveGarmentRegistryParity.test.js and,
+     *  from this side, by LiveVtoGarmentDescriptorTest.kt. */
+    val SUPPORTED_ASSET_KEYS = setOf("n1b-fixture", "n1c-asym-fixture")
 
     /** Parses and validates an Expo-bridged `Map<String, Any?>` command
      *  argument. Returns null for anything malformed -- never throws, so a
@@ -206,9 +235,16 @@ data class LiveVtoGarmentDescriptor(
       val imageUrl = raw?.get("imageUrl") as? String
       val canonicalCategory = raw?.get("canonicalCategory") as? String
       val templateFamily = raw?.get("templateFamily") as? String
+      val assetKey = raw?.get("assetKey") as? String
+      val assetId = raw?.get("assetId") as? String
+      val assetVersion = raw?.get("assetVersion") as? String
       if (productRef.isNullOrBlank() || imageUrl.isNullOrBlank() || canonicalCategory.isNullOrBlank()) return null
       if (templateFamily !in SUPPORTED_TEMPLATE_FAMILIES) return null
-      return LiveVtoGarmentDescriptor(productRef, imageUrl, canonicalCategory, templateFamily!!)
+      if (assetKey !in SUPPORTED_ASSET_KEYS) return null
+      if (assetId.isNullOrBlank() || assetVersion.isNullOrBlank()) return null
+      return LiveVtoGarmentDescriptor(
+        productRef, imageUrl, canonicalCategory, templateFamily!!, assetKey!!, assetId, assetVersion,
+      )
     }
   }
 }

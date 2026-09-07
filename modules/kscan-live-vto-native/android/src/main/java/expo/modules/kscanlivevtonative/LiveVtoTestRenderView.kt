@@ -965,19 +965,20 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
   }
 
   /**
-   * Bounded scope decision (Part B, 2026-09-06): no live product-catalog ->
-   * native-asset resolver exists anywhere in this codebase yet --
-   * docs/vto-live-bridge-contract.md section 12.6 already documented
-   * `loadGarment`/`switchGarment` themselves as future work, and the
-   * research pipeline that produces a real `.ksgarment`
-   * (`vto-phase4-pipeline/`) is an offline batch tool, not a runtime
-   * dependency of this app. Rather than inventing a network fetch or a new
-   * asset-factory here, every supported `templateFamily` resolves to the
-   * SAME governed bundled fixture the diagnostic view already renders;
-   * `productRef`/`imageUrl`/`canonicalCategory` are validated and carried in
-   * the `garmentLoaded` event for identity, but do not yet address a
-   * distinct asset. The state machine, generation guard, and event contract
-   * around this call are real and exercised regardless of that bound.
+   * Governed asset resolution (closes the Part B bounded-scope decision,
+   * docs/vto-live-bridge-contract.md §13.5). `descriptor.assetKey` is the
+   * ALLOWLISTED bundled-fixture directory the TS resolver
+   * (services/vto/vtoLiveGarment.ts's `resolveLiveGarment`) selected for
+   * THIS productRef -- already validated against
+   * `LiveVtoGarmentDescriptor.SUPPORTED_ASSET_KEYS` in `fromBridgeMap`
+   * before this method is ever reached, so `loadFixture` below is never
+   * called with a caller-supplied path. `loadFixture` is reused verbatim
+   * (including its existing `replayBitmaps` decode cache, keyed by name) --
+   * no new caching layer was needed, since selecting a DIFFERENT `name` is
+   * the entire change. A post-load `assetIdentityMatches` check catches a
+   * bundled folder whose manifest disagrees with the version the resolver
+   * committed to, and fails exactly like every other load failure here:
+   * closed, via the existing GARMENT_LOAD_FAILED/fatalError path.
    */
   private fun performGarmentLoad(
     descriptor: LiveVtoGarmentDescriptor,
@@ -987,7 +988,12 @@ class LiveVtoTestRenderView(context: Context, appContext: AppContext) : ExpoView
     sessionState = loadingState
     val myGeneration = sessionGeneration.get()
     try {
-      val (manifest, bitmap, _) = loadFixture("n1b-fixture")
+      val (manifest, bitmap, _) = loadFixture(descriptor.assetKey)
+      if (!assetIdentityMatches(manifest, descriptor)) {
+        throw LiveVtoGarmentValidationException(
+          "asset version mismatch for ${descriptor.assetKey}: requested ${descriptor.assetVersion}, manifest reports ${manifest.assetVersion}"
+        )
+      }
       if (sessionGeneration.get() != myGeneration) return true // superseded by a stop/dispose/newer load; drop silently
       sessionGarmentBitmap = bitmap
       loadedGarment = descriptor
