@@ -33,6 +33,7 @@ import {
   purchaseOptionsFingerprint,
   saveMultiItemScan,
   attachScanMultiItemCommerce,
+  multiItemCommerceFingerprint,
 } from './services/library';
 import { createActorRequest, isActorRequestCurrent } from './services/actorContext';
 import { setStyleChatHandoffContext } from './services/style-chat/styleChatHandoffContext';
@@ -513,11 +514,20 @@ export default function App() {
   // Build 32: attach multi-item commerce once hydration completes. Same
   // shape as the single-item attach effect above — correct whether commerce
   // lands before or after the record id is known, no timer.
+  //
+  // RP-111: keyed on shelf CONTENT, exactly as the single-item effect is. The
+  // previous key was `count + shelfStatus`, which says nothing about what the
+  // shelf contains: a refreshed shelf of three DIFFERENT products, or the same
+  // products at a corrected price or in a corrected currency, has the same
+  // count and the same status as the shelf it replaces, so the fresher result
+  // was read as already-written and thrown away. Identical content still
+  // fingerprints identically, so a rerender remains a no-op and this cannot
+  // become a write storm.
   const attachedMultiItemCommerceRef = useRef(null);
   useEffect(() => {
     if (status !== 'result' || !savedMultiItemScanId) return;
     if (!Array.isArray(multiItemCommerce) || multiItemCommerce.length === 0) return;
-    const key = savedMultiItemScanId + ':' + multiItemCommerce.length + ':' + multiItemCommerceStatus;
+    const key = savedMultiItemScanId + ':' + multiItemCommerceFingerprint(multiItemCommerce);
     if (attachedMultiItemCommerceRef.current === key) return;
     attachedMultiItemCommerceRef.current = key;
     const actorRequest = createActorRequest();
