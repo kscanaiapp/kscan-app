@@ -390,18 +390,84 @@ export function selectPurchaseOptionsSnapshot(analysis) {
  * Must not be reduced to a count: v127 enrichment replaces offers in place
  * rather than appending, so an enriched shelf has the same length as the
  * discovery shelf it upgraded. Keying on length alone therefore treats the
- * better data as already-persisted and drops it. The fields here are exactly
- * the ones enrichment can improve.
+ * better data as already-persisted and drops it.
+ *
+ * The fields are exactly the bounded, user-visible content of an offer -- what
+ * the row says (title, retailer, price, currency, availability, image) and
+ * where it goes (destination URLs). RP-110 added `currency`, without which
+ * "29.99 USD" and "29.99 EUR" fingerprint identically and a currency
+ * correction would silently fail to persist.
+ *
+ * Deliberately EXCLUDED, because they are provider bookkeeping rather than
+ * anything the user sees, and they churn between otherwise identical
+ * responses: matchScore, confidence, similarity scores, provider name and
+ * productId. Including them would trade stale writes for redundant ones.
+ *
+ * Order-sensitive by construction: commerce arrives already ranked and the
+ * client never re-sorts, so position IS content -- [A, B, C] and [C, B, A]
+ * present a different offer first and are different results.
  */
 export function purchaseOptionsFingerprint(options) {
   if (!Array.isArray(options) || options.length === 0) return '';
   return options
     .map((option) => {
       if (!option || typeof option !== 'object') return '';
-      return [option.productUrl, option.price, option.imageUrl, option.title]
+      return [
+        option.productUrl,
+        option.affiliateUrl,
+        option.retailer,
+        option.title,
+        option.price,
+        option.currency,
+        option.availability,
+        option.imageUrl,
+      ]
         .map((field) => (typeof field === 'string' ? field : ''))
         .join('|');
     })
+    .join('~');
+}
+
+/**
+ * Content fingerprint of a MULTI-ITEM commerce shelf (RP-111).
+ *
+ * The multi-item attach effect used to key on `cards.length + shelfStatus`,
+ * which is not a statement about content at all: a refreshed shelf offering
+ * three completely different products, or the same product at a corrected
+ * price or in a corrected currency, has the same count and the same status as
+ * the shelf it replaces, so the better data was discarded as
+ * already-persisted. This reuses the single-item offer fingerprint above
+ * rather than inventing a second convention for the same question.
+ *
+ * Per-card STATUS is content: 'ready', 'no_match' and 'error' each render a
+ * different thing to the user, so a card that flips between them must persist.
+ *
+ * CARD ORDER is canonicalized away, and offer order is not. The section renders
+ * one card per detected candidate by `cardsByCandidateId.get(candidate.id)`
+ * (components/scan-results/MultiItemCommerceSection.tsx), so the order of the
+ * card ARRAY is invisible to the user and sorting it prevents writes that would
+ * change nothing on screen. Within a card, position is visible and decisive:
+ * `splitBestMatchAndAlternatives` takes index 0 as BEST MATCH and renders the
+ * rest as ALTERNATIVES in order.
+ *
+ * `retryable` is excluded: `attachScanMultiItemCommerce` does not persist it,
+ * so keying on it would schedule writes that cannot change the stored row.
+ */
+export function multiItemCommerceFingerprint(cards) {
+  if (!Array.isArray(cards) || cards.length === 0) return '';
+  return cards
+    .filter((card) => card && typeof card === 'object' && !Array.isArray(card))
+    .map((card) => ({
+      candidateId: typeof card.candidateId === 'string' ? card.candidateId : '',
+      card,
+    }))
+    .sort((a, b) => (a.candidateId < b.candidateId ? -1 : a.candidateId > b.candidateId ? 1 : 0))
+    .map(({ candidateId, card }) => [
+      candidateId,
+      typeof card.status === 'string' ? card.status : '',
+      purchaseOptionsFingerprint(card.bestMatch ? [card.bestMatch] : []),
+      purchaseOptionsFingerprint(Array.isArray(card.alternatives) ? card.alternatives : []),
+    ].join('|'))
     .join('~');
 }
 
