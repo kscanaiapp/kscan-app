@@ -1,0 +1,106 @@
+{
+  "fixtureSetVersion": "SIGNATURE_STYLE_FIXTURES_V1",
+  "note": "Fields modeled on the two real signals found in source (styleDnaContext.ts): a client-fed feedback-signal profile (signalCount/helpfulCount/notMyStyleCount/confidence: low|medium) and a server-derived aggregate Closet-evidence profile (color/category/garmentType/brand/material frequency). Fixtures below use only these supported shapes -- confidence 'none' represents the below-threshold / disabled state, which source treats as null (no block emitted at all), not as a third confidence level the model consumes.",
+  "signatureStyles": [
+    {
+      "id": "sig_strong_classic",
+      "kind": "strong_classic",
+      "empty": false,
+      "confidence": "medium",
+      "signalCount": 9,
+      "helpfulCount": 7,
+      "notMyStyleCount": 2,
+      "preferences": ["tailored silhouettes", "neutral colors", "quality wool and cotton", "classic cuts"],
+      "dislikes": ["logo-heavy pieces"],
+      "descriptors": ["classic", "tailored", "neutral"]
+    },
+    {
+      "id": "sig_weak_minimal",
+      "kind": "weak_minimal",
+      "empty": false,
+      "confidence": "low",
+      "signalCount": 3,
+      "helpfulCount": 2,
+      "notMyStyleCount": 1,
+      "preferences": ["clean lines"],
+      "dislikes": [],
+      "descriptors": ["minimal"]
+    },
+    {
+      "id": "sig_empty",
+      "kind": "empty",
+      "empty": true,
+      "confidence": "none",
+      "signalCount": 0,
+      "helpfulCount": 0,
+      "notMyStyleCount": 0,
+      "preferences": [],
+      "dislikes": [],
+      "descriptors": [],
+      "notes": "Below STYLE_DNA_MIN_SIGNALS threshold (3) in source; a real request would omit the block entirely. Represents 'no Signature Style evidence' for uncertainty/abstention tests -- must not be reason to fabricate a preference (spec section 38)."
+    },
+    {
+      "id": "sig_explicit_dislikes",
+      "kind": "explicit_dislikes",
+      "empty": false,
+      "confidence": "medium",
+      "signalCount": 8,
+      "helpfulCount": 5,
+      "notMyStyleCount": 3,
+      "preferences": ["structured pieces", "muted colors"],
+      "dislikes": ["heels", "black", "logos"],
+      "descriptors": ["structured", "muted"],
+      "notes": "Primary fixture for Level 2 standing-hard-constraint precedence tests (spec section 14/37): 'no heels' and 'no black' are DISLIKES here, not one-turn instructions."
+    },
+    {
+      "id": "sig_conflicting_preferences",
+      "kind": "conflicting_preferences",
+      "empty": false,
+      "confidence": "medium",
+      "signalCount": 6,
+      "helpfulCount": 3,
+      "notMyStyleCount": 3,
+      "preferences": ["bold colors and prints", "monochrome minimalist looks"],
+      "dislikes": [],
+      "descriptors": ["bold", "monochrome"],
+      "notes": "Deliberately self-contradictory profile (equal helpful signal for opposite aesthetics). Tests whether the evaluator correctly treats a specific-color claim as UNDECIDABLE rather than forcing a pass/fail (spec section 26/39)."
+    },
+    {
+      "id": "sig_streetwear_bold",
+      "kind": "streetwear_bold",
+      "empty": false,
+      "confidence": "medium",
+      "signalCount": 10,
+      "helpfulCount": 8,
+      "notMyStyleCount": 2,
+      "preferences": ["oversized silhouettes", "sneakers", "graphic prints", "layered streetwear"],
+      "dislikes": ["formal suiting"],
+      "descriptors": ["streetwear", "bold"]
+    },
+    {
+      "id": "sig_romantic_elevated_casual",
+      "kind": "romantic_elevated_casual",
+      "empty": false,
+      "confidence": "medium",
+      "signalCount": 7,
+      "helpfulCount": 6,
+      "notMyStyleCount": 1,
+      "preferences": ["soft fabrics", "florals", "elevated basics", "feminine silhouettes"],
+      "dislikes": ["athletic wear"],
+      "descriptors": ["romantic", "elevated_casual"]
+    },
+    {
+      "id": "sig_sporty_weak",
+      "kind": "sporty_weak",
+      "empty": false,
+      "confidence": "low",
+      "signalCount": 4,
+      "helpfulCount": 2,
+      "notMyStyleCount": 2,
+      "preferences": ["athletic fit", "performance fabrics"],
+      "dislikes": [],
+      "descriptors": ["sporty"],
+      "notes": "Low-confidence + sporty aesthetic. Pairs with D12 UNSUPPORTED_CERTAINTY tests: a weak profile must not license confident, absolute styling claims (spec section 21/29)."
+    }
+  ]
+}

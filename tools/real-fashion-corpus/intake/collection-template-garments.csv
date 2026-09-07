@@ -1,0 +1,42 @@
+# K SCAN AI - REAL FASHION MATCH CORPUS: GARMENT COLLECTION TEMPLATE
+# One row per PHYSICAL PRODUCT. Photographs go in the cases template.
+#
+# GROUND-TRUTH RULE: never paste a K Scan / Gemini / Llama / any AI result
+# into this file. The model being evaluated may not create its own truth.
+# If you do not know the style code, LEAVE IT BLANK and set asserted_grade
+# to PARTIAL or VISUAL_ONLY. "Unknown" is a correct answer here.
+#
+# asserted_grade is your expectation. Validation derives the real grade
+# from the evidence you recorded and tells you if they disagree.
+#
+# Lines starting with # are ignored. Do not delete the header row.
+#
+# COLUMN GUIDE:
+#   garment_id (REQUIRED) | G001, G002, ... unique per physical product
+#   category (REQUIRED) | one of: top, dress, pants, outerwear, footwear, bag, accessory
+#   collector_id (REQUIRED) | who collected this, e.g. COL-01
+#   collection_source (REQUIRED) | one of: OWNER_TEAM_GARMENT, AUTHORIZED_IN_STORE, OTHER_AUTHORIZED_PHYSICAL
+#   store_policy_respected (optional) | yes/no - REQUIRED yes for AUTHORIZED_IN_STORE
+#   brand (optional) | brand as printed on the tag
+#   product_name (optional) | manufacturer product name
+#   style_code (optional) | manufacturer style/model code - a DURABLE identifier
+#   gtin (optional) | UPC/EAN barcode digits - a DURABLE identifier
+#   colorway_name (optional) | colourway as named by the manufacturer
+#   colorway_code (optional)
+#   size (optional)
+#   asserted_grade (REQUIRED) | one of: IDENTIFIER_GRADE, PARTIAL, VISUAL_ONLY | your expectation; checked against the evidence
+#   evidence_type (REQUIRED) | one of: MANUFACTURER_TAG, MANUFACTURER_PRODUCT_PAGE, RETAILER_PDP, GTIN_UPC_EAN, MANUFACTURER_STYLE_CODE, PURCHASE_RECORD, DIRECT_OWNER_KNOWLEDGE, OTHER_VERIFIABLE_PRODUCT_EVIDENCE | where the truth came from - never a scanner/AI result
+#   evidence_verified_on (REQUIRED) | YYYY-MM-DD
+#   evidence_verified_by (REQUIRED) | collector id who checked it
+#   evidence_observed_facts (REQUIRED) | facts read off the tag/page, as key=value; key=value. This is what survives the URL dying.
+#   evidence_url (optional) | optional supplementary pointer; never the only evidence
+#   catalog_state_verified_on (REQUIRED) | YYYY-MM-DD the catalogue was checked
+#   attr_silhouette (optional)
+#   attr_material (optional)
+#   attr_pattern (optional)
+#   attr_color_family (optional)
+#   attr_price_tier (optional) | value / mid / premium / luxury
+#   attr_gender_presentation (optional) | womens / mens / unisex - presentation of the GARMENT, never of a person
+#   notes (optional)
+#
+garment_id,category,collector_id,collection_source,store_policy_respected,brand,product_name,style_code,gtin,colorway_name,colorway_code,size,asserted_grade,evidence_type,evidence_verified_on,evidence_verified_by,evidence_observed_facts,evidence_url,catalog_state_verified_on,attr_silhouette,attr_material,attr_pattern,attr_color_family,attr_price_tier,attr_gender_presentation,notes

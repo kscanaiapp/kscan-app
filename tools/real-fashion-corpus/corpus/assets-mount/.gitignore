@@ -1,0 +1,8 @@
+# Real capture bytes are NEVER committed (docs/DESIGN.md DM-01).
+# This directory is the default local mount point for the real corpus asset
+# store. Everything in it is ignored except this file, so an accidental
+# `git add -A` after a collection session cannot put a garment photograph -
+# potentially showing a collector's home - into a PUBLIC repository's
+# permanent history.
+*
+!.gitignore

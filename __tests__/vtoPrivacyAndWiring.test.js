@@ -661,7 +661,18 @@ const VTO_ALLOWED_IMPORTS = {
   ],
   'services/vto/vtoLiveGarment.ts': [
     '../../types/vto', '../../types/vtoLive', './vtoEligibility',
+    // resolveLiveGarment (the governed product->Live-asset resolver, added
+    // to close docs/vto-live-bridge-contract.md §13.5) looks up the
+    // governed asset registry -- data only (assetKey/assetId/assetVersion/
+    // productRef/eligibility), no network, no storage, no ownership write.
+    './vtoLiveGarmentRegistry',
   ],
+  // The governed Live asset registry itself: hand-declared identity data
+  // for the two real bundled Phase-4 fixtures, plus one pure lookup
+  // function. Zero imports of its own (see the file header for why its
+  // entries are re-declared rather than cross-imported from
+  // vto-phase4-pipeline/), so this is an empty allowlist, not an omission.
+  'services/vto/vtoLiveGarmentRegistry.ts': [],
   'services/vto/liveVtoNativeModule.ts': [
     '../../constants/featureFlags', '../../types/vtoLive', 'react-native',
   ],

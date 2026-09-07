@@ -1,0 +1,220 @@
+{
+  "fixtureId": "synthetic-top-01",
+  "corpusTier": "SYNTHETIC",
+  "captureProfile": "ios-current-v1",
+  "pairedFixtureId": "synthetic-top-01-android",
+  "generatorVersion": "fmql-synthetic-generator-v1",
+  "archetype": "top",
+  "groundTruth": {
+    "source": "synthetic_generator_construction",
+    "confidence": "authoritative",
+    "identitySku": "SKU-everlane-top-1",
+    "brandNormalized": "everlane",
+    "category": "top",
+    "titleNormalized": "everlane white fitted top",
+    "color_family": "white",
+    "material": "silk",
+    "silhouette": "fitted",
+    "texture": "silk",
+    "pattern": "solid",
+    "construction": "standard",
+    "hardware_details": "none",
+    "brand": "Everlane",
+    "price_tier": "budget",
+    "availability": "in_stock",
+    "retailer_quality": "verified_retailer",
+    "cut_proportion": "fitted"
+  },
+  "garmentIdentification": {
+    "visual_observation": "A white fitted top.",
+    "item_type": "top",
+    "primary_color": "white",
+    "material_estimate": "silk",
+    "silhouette": "fitted",
+    "distinctive_features": [
+      "classic"
+    ],
+    "style_tags": [
+      "classic"
+    ],
+    "search_queries": [
+      "white top"
+    ],
+    "visible_brand_text": null,
+    "logo_detected": false,
+    "confidence_score": 0.72,
+    "non_fashion": false
+  },
+  "candidateProducts": [
+    {
+      "id": "synthetic-top-01::exact",
+      "identitySku": "SKU-everlane-top-1",
+      "brand": "Everlane",
+      "brandNormalized": "everlane",
+      "name": "Everlane white top",
+      "title": "Everlane white top",
+      "titleNormalized": "everlane white fitted top",
+      "category": "top",
+      "canonical_category": "top",
+      "color": "white",
+      "color_normalized": "white",
+      "silhouette": "fitted",
+      "material": "silk",
+      "materialEstimate": "silk",
+      "material_tags": [
+        "silk"
+      ],
+      "styleTags": [
+        "classic"
+      ],
+      "tags": [
+        "classic"
+      ],
+      "price_tier": "budget",
+      "price": 692.74,
+      "currency": "USD",
+      "retailer": "revolve",
+      "purchaseUrl": "https://revolve.example/everlane/synthetic-top-01-exact",
+      "imageUrl": "https://cdn.example/synthetic-top-01-exact.jpg",
+      "availability": "in_stock",
+      "retailer_quality": "verified_retailer",
+      "construction": "standard",
+      "hardware_details": "none",
+      "texture": "silk",
+      "pattern": "solid",
+      "cut_proportion": "fitted"
+    },
+    {
+      "id": "synthetic-top-01::near-miss",
+      "identitySku": "SKU-everlane-top-1-alt",
+      "brand": "Everlane",
+      "brandNormalized": "everlane",
+      "name": "Everlane gray top",
+      "title": "Everlane gray top",
+      "titleNormalized": "everlane gray fitted top",
+      "category": "top",
+      "canonical_category": "top",
+      "color": "gray",
+      "color_normalized": "gray",
+      "silhouette": "fitted",
+      "material": "silk",
+      "materialEstimate": "silk",
+      "material_tags": [
+        "silk"
+      ],
+      "styleTags": [
+        "classic"
+      ],
+      "tags": [
+        "classic"
+      ],
+      "price_tier": "budget",
+      "price": 692.74,
+      "currency": "USD",
+      "retailer": "revolve",
+      "purchaseUrl": "https://revolve.example/everlane/synthetic-top-01-near",
+      "imageUrl": "https://cdn.example/synthetic-top-01-near.jpg",
+      "availability": "in_stock",
+      "retailer_quality": "verified_retailer",
+      "construction": "standard",
+      "hardware_details": "none",
+      "texture": "silk",
+      "pattern": "solid",
+      "cut_proportion": "fitted"
+    },
+    {
+      "id": "synthetic-top-01::distractor",
+      "brand": "Coach",
+      "brandNormalized": "coach",
+      "name": "Coach black bag",
+      "title": "Coach black bag",
+      "titleNormalized": "coach black structured bag",
+      "category": "bag",
+      "canonical_category": "bag",
+      "color": "black",
+      "color_normalized": "black",
+      "silhouette": "structured",
+      "material": "leather",
+      "materialEstimate": "leather",
+      "purchaseUrl": "https://revolve.example/coach/synthetic-top-01-distractor",
+      "imageUrl": "https://cdn.example/synthetic-top-01-distractor.jpg",
+      "availability": "in_stock"
+    },
+    {
+      "id": "synthetic-top-01::cross-retailer-dup",
+      "identitySku": null,
+      "brand": "Everlane",
+      "brandNormalized": "everlane",
+      "name": "Everlane white top",
+      "title": "Everlane white top",
+      "titleNormalized": "everlane white fitted top",
+      "category": "top",
+      "canonical_category": "top",
+      "color": "white",
+      "color_normalized": "white",
+      "silhouette": "fitted",
+      "material": "silk",
+      "materialEstimate": "silk",
+      "material_tags": [
+        "silk"
+      ],
+      "styleTags": [
+        "classic"
+      ],
+      "tags": [
+        "classic"
+      ],
+      "price_tier": "budget",
+      "price": 692.74,
+      "currency": "USD",
+      "retailer": "nordstrom",
+      "purchaseUrl": "https://nordstrom.example/everlane/synthetic-top-01-dup",
+      "imageUrl": "https://cdn.example/synthetic-top-01-dup.jpg",
+      "availability": "in_stock",
+      "retailer_quality": "verified_retailer",
+      "construction": "standard",
+      "hardware_details": "none",
+      "texture": "silk",
+      "pattern": "solid",
+      "cut_proportion": "fitted"
+    },
+    {
+      "id": "synthetic-top-01::no-purchase-path",
+      "identitySku": null,
+      "brand": "Everlane",
+      "brandNormalized": "everlane",
+      "name": "Everlane white top",
+      "title": "Everlane white top",
+      "titleNormalized": "everlane white fitted top",
+      "category": "top",
+      "canonical_category": "top",
+      "color": "white",
+      "color_normalized": "white",
+      "silhouette": "fitted",
+      "material": "silk",
+      "materialEstimate": "silk",
+      "material_tags": [
+        "silk"
+      ],
+      "styleTags": [
+        "classic"
+      ],
+      "tags": [
+        "classic"
+      ],
+      "price_tier": "budget",
+      "price": 692.74,
+      "currency": "USD",
+      "retailer": "revolve",
+      "purchaseUrl": null,
+      "imageUrl": "https://cdn.example/synthetic-top-01-exact.jpg",
+      "availability": "out_of_stock",
+      "retailer_quality": "verified_retailer",
+      "construction": "standard",
+      "hardware_details": "none",
+      "texture": "silk",
+      "pattern": "solid",
+      "cut_proportion": "fitted"
+    }
+  ]
+}

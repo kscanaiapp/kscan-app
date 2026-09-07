@@ -1,0 +1,334 @@
+{
+  "schema": "vto-phase4-2-query-log/1",
+  "requests": [
+    {
+      "stratum": "plain",
+      "offset": 0,
+      "httpStatus": 200,
+      "returned": 20,
+      "durationMs": 1324
+    },
+    {
+      "stratum": "plain",
+      "offset": 20,
+      "httpStatus": 200,
+      "returned": 20,
+      "durationMs": 1088
+    },
+    {
+      "stratum": "plain",
+      "offset": 40,
+      "httpStatus": 200,
+      "returned": 20,
+      "durationMs": 1490
+    },
+    {
+      "stratum": "plain",
+      "offset": 60,
+      "httpStatus": 200,
+      "returned": 20,
+      "durationMs": 1342
+    },
+    {
+      "stratum": "plain",
+      "offset": 80,
+      "httpStatus": 200,
+      "returned": 20,
+      "durationMs": 1388
+    },
+    {
+      "stratum": "plain",
+      "offset": 100,
+      "httpStatus": 200,
+      "returned": 20,
+      "durationMs": 2733
+    },
+    {
+      "stratum": "plain",
+      "offset": 120,
+      "httpStatus": 200,
+      "returned": 20,
+      "durationMs": 2167
+    },
+    {
+      "stratum": "plain",
+      "offset": 140,
+      "httpStatus": 200,
+      "returned": 20,
+      "durationMs": 1034
+    },
+    {
+      "stratum": "plain",
+      "offset": 160,
+      "httpStatus": 200,
+      "returned": 20,
+      "durationMs": 1379
+    },
+    {
+      "stratum": "plain",
+      "offset": 180,
+      "httpStatus": 200,
+      "returned": 16,
+      "durationMs": 1104
+    },
+    {
+      "stratum": "plain",
+      "offset": 200,
+      "httpStatus": 200,
+      "returned": 0,
+      "durationMs": 930
+    },
+    {
+      "stratum": "plain",
+      "offset": 0,
+      "httpStatus": 200,
+      "returned": 20,
+      "durationMs": 1120
+    },
+    {
+      "stratum": "plain",
+      "offset": 20,
+      "httpStatus": 200,
+      "returned": 20,
+      "durationMs": 1066
+    },
+    {
+      "stratum": "plain",
+      "offset": 40,
+      "httpStatus": 200,
+      "returned": 20,
+      "durationMs": 1070
+    },
+    {
+      "stratum": "plain",
+      "offset": 60,
+      "httpStatus": 200,
+      "returned": 20,
+      "durationMs": 927
+    },
+    {
+      "stratum": "plain",
+      "offset": 80,
+      "httpStatus": 200,
+      "returned": 20,
+      "durationMs": 1055
+    },
+    {
+      "stratum": "plain",
+      "offset": 100,
+      "httpStatus": 200,
+      "returned": 20,
+      "durationMs": 1206
+    },
+    {
+      "stratum": "plain",
+      "offset": 120,
+      "httpStatus": 200,
+      "returned": 20,
+      "durationMs": 1171
+    },
+    {
+      "stratum": "plain",
+      "offset": 140,
+      "httpStatus": 200,
+      "returned": 20,
+      "durationMs": 1298
+    },
+    {
+      "stratum": "plain",
+      "offset": 160,
+      "httpStatus": 200,
+      "returned": 20,
+      "durationMs": 1818
+    },
+    {
+      "stratum": "plain",
+      "offset": 180,
+      "httpStatus": 200,
+      "returned": 20,
+      "durationMs": 1124
+    },
+    {
+      "stratum": "plain",
+      "offset": 200,
+      "httpStatus": 200,
+      "returned": 20,
+      "durationMs": 1219
+    },
+    {
+      "stratum": "plain",
+      "offset": 220,
+      "httpStatus": 200,
+      "returned": 20,
+      "durationMs": 1462
+    },
+    {
+      "stratum": "plain",
+      "offset": 0,
+      "httpStatus": 200,
+      "returned": 20,
+      "durationMs": 1037
+    },
+    {
+      "stratum": "plain",
+      "offset": 20,
+      "httpStatus": 200,
+      "returned": 20,
+      "durationMs": 944
+    },
+    {
+      "stratum": "plain",
+      "offset": 40,
+      "httpStatus": 200,
+      "returned": 20,
+      "durationMs": 1170
+    },
+    {
+      "stratum": "plain",
+      "offset": 60,
+      "httpStatus": 200,
+      "returned": 20,
+      "durationMs": 1104
+    },
+    {
+      "stratum": "plain",
+      "offset": 80,
+      "httpStatus": 200,
+      "returned": 20,
+      "durationMs": 1827
+    },
+    {
+      "stratum": "plain",
+      "offset": 100,
+      "httpStatus": 429,
+      "returned": 0,
+      "durationMs": 114
+    },
+    {
+      "stratum": "plain",
+      "offset": 0,
+      "httpStatus": 429,
+      "returned": 0,
+      "durationMs": 273
+    },
+    {
+      "stratum": "logo",
+      "offset": 0,
+      "httpStatus": 429,
+      "returned": 0,
+      "durationMs": 218
+    },
+    {
+      "stratum": "logo",
+      "offset": 0,
+      "httpStatus": 429,
+      "returned": 0,
+      "durationMs": 221
+    },
+    {
+      "stratum": "logo",
+      "offset": 0,
+      "httpStatus": 429,
+      "returned": 0,
+      "durationMs": 233
+    },
+    {
+      "stratum": "patterned",
+      "offset": 0,
+      "httpStatus": 429,
+      "returned": 0,
+      "durationMs": 203
+    },
+    {
+      "stratum": "patterned",
+      "offset": 0,
+      "httpStatus": 429,
+      "returned": 0,
+      "durationMs": 263
+    },
+    {
+      "stratum": "patterned",
+      "offset": 0,
+      "httpStatus": 429,
+      "returned": 0,
+      "durationMs": 220
+    },
+    {
+      "stratum": "dark",
+      "offset": 0,
+      "httpStatus": 429,
+      "returned": 0,
+      "durationMs": 231
+    },
+    {
+      "stratum": "dark",
+      "offset": 0,
+      "httpStatus": 429,
+      "returned": 0,
+      "durationMs": 224
+    },
+    {
+      "stratum": "light",
+      "offset": 0,
+      "httpStatus": 429,
+      "returned": 0,
+      "durationMs": 204
+    },
+    {
+      "stratum": "light",
+      "offset": 0,
+      "httpStatus": 429,
+      "returned": 0,
+      "durationMs": 383
+    },
+    {
+      "stratum": "softknit",
+      "offset": 0,
+      "httpStatus": 429,
+      "returned": 0,
+      "durationMs": 226
+    },
+    {
+      "stratum": "softknit",
+      "offset": 0,
+      "httpStatus": 429,
+      "returned": 0,
+      "durationMs": 110
+    },
+    {
+      "stratum": "softknit",
+      "offset": 0,
+      "httpStatus": 429,
+      "returned": 0,
+      "durationMs": 93
+    },
+    {
+      "stratum": "structured",
+      "offset": 0,
+      "httpStatus": 429,
+      "returned": 0,
+      "durationMs": 102
+    },
+    {
+      "stratum": "structured",
+      "offset": 0,
+      "httpStatus": 429,
+      "returned": 0,
+      "durationMs": 213
+    },
+    {
+      "stratum": "structured",
+      "offset": 0,
+      "httpStatus": 429,
+      "returned": 0,
+      "durationMs": 248
+    },
+    {
+      "stratum": "structured",
+      "offset": 0,
+      "httpStatus": 429,
+      "returned": 0,
+      "durationMs": 209
+    }
+  ]
+}

@@ -430,6 +430,18 @@ export function handlePhotorealFailure(code: PhotorealFailureCode): PhotorealFai
 export const LIVE_SUPPORTED_TEMPLATE_FAMILIES = ['t-shirt', 'simple-top', 'sweater'] as const;
 export type LiveSupportedTemplateFamily = (typeof LIVE_SUPPORTED_TEMPLATE_FAMILIES)[number];
 
+/**
+ * `assetKey`/`assetId`/`assetVersion` (added alongside the governed asset
+ * resolver, services/vto/vtoLiveGarment.ts's `resolveLiveGarment`). Required,
+ * not optional: a descriptor that reached ELIGIBLE went through the resolver
+ * and therefore always has a real governed asset attached, and the native
+ * parser (`LiveVtoGarmentDescriptor.fromBridgeMap`/`.parse`, both platforms)
+ * refuses anything without a valid, allowlisted `assetKey` rather than
+ * silently falling back to a bundled diagnostic fixture -- see
+ * services/vto/vtoLiveGarmentRegistry.ts for why "no entry" is the expected,
+ * truthful outcome for most real productRef values, not a bug to work around
+ * with a default.
+ */
 export interface LiveVtoGarmentDescriptor {
   /** The SAME productRef the generative path uses. One product identity. */
   productRef: string;
@@ -437,4 +449,16 @@ export interface LiveVtoGarmentDescriptor {
   /** K Scan canonical taxonomy token, e.g. 'top'. */
   canonicalCategory: string;
   templateFamily: LiveSupportedTemplateFamily;
+  /** Allowlisted bundled-asset directory key the resolver selected --
+   *  services/vto/vtoLiveGarmentRegistry.ts's LIVE_VTO_ASSET_KEY_ALLOWLIST.
+   *  Native validates membership itself; this is never treated as a raw
+   *  filesystem path. */
+  assetKey: string;
+  /** The resolved governed asset's stable identifier (manifest.assetId). */
+  assetId: string;
+  /** The resolved governed asset's version (manifest.assetVersion). A newer
+   *  asset must not silently mutate an in-progress session -- switching to a
+   *  new version is always a new loadGarment/switchGarment call, never a
+   *  live mutation of an already-loaded descriptor. */
+  assetVersion: string;
 }

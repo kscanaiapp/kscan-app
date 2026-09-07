@@ -1,0 +1,81 @@
+{
+  "platform_profile_version": "platform-profile-v1",
+  "platform": "ios",
+  "evidence_level": "SOURCE-MAPPED",
+  "device_measured": false,
+  "device_measured_reason": "No physical device runtime was authorized for this lane (§6). All client durations are PENDING_RUNTIME.",
+
+  "headline_finding": {
+    "statement": "The iOS and Android Scanner client paths are the SAME CODE. There is not one Platform.OS or Platform.select branch anywhere in hooks/useKScan.js, services/imageUtils.js, services/scanIdentification.ts, services/scannerScanRequest.ts, services/scannerEvidenceGateway.ts or components/scan-room/.",
+    "evidence_class": "PROVEN",
+    "consequence": "Any iOS/Android performance difference on this path originates inside the native implementations of expo-camera and expo-image-manipulator, not in K Scan's own logic. That is a DEVICE-MEASURED question this lane cannot answer and must not guess."
+  },
+
+  "pipeline": {
+    "capture_api": {
+      "value": "expo-camera CameraView.takePictureAsync({ quality: 0.7 })",
+      "source": "hooks/useKScan.js:261-263",
+      "evidence_class": "PROVEN",
+      "note": "No base64 flag, no exif flag, no skipProcessing — the call returns a file URI only, so nothing is encoded at shutter time."
+    },
+    "gallery_api": {
+      "value": "ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1, allowsEditing: false, allowsMultipleSelection: false })",
+      "source": "hooks/useKScan.js:310-315",
+      "evidence_class": "PROVEN",
+      "note": "allowsMultipleSelection:false — single image per session. quality:1 means the gallery path hands compressForUpload an uncompressed-as-picked source."
+    },
+    "resize": {
+      "value": "ImageManipulator.manipulateAsync(uri, [{ resize: { width: 896 } }], ...)",
+      "source": "services/imageUtils.js:45",
+      "evidence_class": "PROVEN",
+      "hazard": "Width-only resize sets the width EXACTLY, so a source narrower than 896 px is UPSCALED. Verified against the committed corpus: 5 of the 8 assets/qa_fixtures images upscale, dress.jpg by 4.49x in pixel count. This costs encoded bytes and upload time for zero added detail, and it bites the GALLERY/upload entry path (small or screenshot sources), not the camera path."
+    },
+    "compression": {
+      "value": "compress: 0.65, format: JPEG",
+      "source": "services/imageUtils.js:7,46-47",
+      "evidence_class": "PROVEN"
+    },
+    "encoding": {
+      "value": "base64: true, then wrapped as `data:image/jpeg;base64,${result.base64}` and stripped back to raw base64 before send",
+      "source": "services/imageUtils.js:48, services/scanIdentification.ts:92-94,478",
+      "evidence_class": "PROVEN"
+    },
+    "rotation_exif_metadata": {
+      "value": "No explicit rotation step and no EXIF option anywhere on the path. The JPEG re-encode drops EXIF implicitly, which the V2 contract declares honestly as rawExifTransmitted:false.",
+      "source": "services/imageUtils.js:43-57, services/scannerIdentificationV2.ts:221-225",
+      "evidence_class": "PROVEN"
+    },
+    "privacy_processing": {
+      "value": "NONE. sanitizeImageBeforeUpload is a proven passthrough (`return input`), with faceDetectionAvailable:false and plateMaskApplied:false. localPrivacyFiltered is therefore always false on the wire.",
+      "source": "services/privacyImageSanitizer.js:5-12,26-39; hooks/useKScan.js:578,590-592",
+      "evidence_class": "PROVEN"
+    },
+    "transport": {
+      "value": "supabase.functions.invoke('scan-identify', { body, signal }) — a JSON document with the base64 image inside it. NOT multipart, NOT a binary body, NOT a storage upload followed by a URL.",
+      "source": "services/scanIdentification.ts:553-556",
+      "evidence_class": "PROVEN"
+    },
+    "client_size_cap": {
+      "value": 2097152,
+      "unit": "bytes of base64",
+      "source": "services/scanIdentification.ts:37 MAX_IMAGE_BASE64_BYTES, enforced at :482-484 before any network call",
+      "evidence_class": "PROVEN",
+      "server_side_equivalent": "index.ts:180 MAX_IMAGE_BASE64_BYTES = 2*1024*1024, enforced independently of the client"
+    }
+  },
+
+  "modeled_capture_geometry": {
+    "note": "MODELED, not measured. Used only to compute payload sizes; the post-resize width is PROVEN to be 896 regardless.",
+    "typical_source": { "width": 4032, "height": 3024 },
+    "post_resize": { "width": 896, "height": 672 },
+    "evidence_class": "MODELED"
+  },
+
+  "modeled_bytes_per_pixel_at_quality_065": {
+    "low": 0.06,
+    "mid": 0.15,
+    "high": 0.30,
+    "derivation": "OBSERVED bytes-per-pixel range of the 8 committed assets/qa_fixtures JPEGs, computed from real file bytes and real SOF dimensions: min 0.0563, median 0.2387, max 0.3766. Those fixtures are at unknown encoder qualities, so the mapping to quality 0.65 specifically is MODELED. Real post-compression bytes are PENDING_RUNTIME.",
+    "evidence_class": "MODELED"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "corpusId": "real-fashion-match-corpus",
+  "corpusVersion": "1.0.0",
+  "corpusStatus": "INFRASTRUCTURE_COMPLETE_COLLECTION_IN_PROGRESS",
+  "evaluationSetTerminology": {
+    "development": "DEVELOPMENT EVALUATION SET",
+    "holdout": "HOLDOUT EVALUATION SET",
+    "note": "This is evaluation data. It is not a training set and no model training is authorized (mission section 22)."
+  },
+  "policyVersions": {
+    "garmentSchema": "rfc-garment-schema-v1",
+    "caseSchema": "rfc-case-schema-v1",
+    "groundTruthGradeRules": "rfc-ground-truth-grade-rules-v1",
+    "exifPolicy": "rfc-exif-policy-v1",
+    "qcPolicy": "rfc-qc-policy-v1",
+    "captureProfilePolicy": "rfc-capture-profile-policy-v1"
+  },
+  "holdout": {
+    "fractionTarget": 0.25,
+    "anchor": "garmentId",
+    "anchorRationale": "Partition is anchored on the garment, not the case, so every capture of one physical product lands in the same partition. Anchoring on the case would let a development-partition capture leak the answer for its holdout twin.",
+    "sealed": true,
+    "unsealEnvVar": "KSCAN_RFC_HOLDOUT_UNSEAL",
+    "invocationLog": "corpus/HOLDOUT_INVOCATION_LOG.jsonl"
+  },
+  "assetStorage": {
+    "model": "METADATA_AND_HASHES_IN_GIT__BYTES_IN_MOUNTED_EXTERNAL_ROOT",
+    "mountEnvVar": "KSCAN_RFC_ASSET_ROOT",
+    "defaultMountPath": "tools/real-fashion-corpus/corpus/assets-mount",
+    "rationale": "See docs/DESIGN.md DM-01. Git LFS is installed on the machine but not governed in this repository (git lfs ls-files is empty, .gitattributes has no filter=lfs entry), so mission section 18's LFS carve-out does not apply and adopting it unilaterally would be an unauthorized, hard-to-reverse repository-weight decision.",
+    "imageBytesCommitted": false
+  },
+  "plannedValidCaseTarget": {
+    "range": "96-120",
+    "pilotTarget": 10,
+    "basis": "docs/POWER_CLAIM_MAP.md"
+  },
+  "currentCounts": {
+    "note": "Counts are DERIVED from the records on disk by lib/queue.js, never hand-maintained here. This block records only what was true when the corpus manifest was last written.",
+    "validRealCases": 0,
+    "garments": 0
+  },
+  "benchmarkStatus": "INTERNAL ENGINEERING EVIDENCE ONLY",
+  "authorizedLiveEvaluationSpendUsd": 0
+}

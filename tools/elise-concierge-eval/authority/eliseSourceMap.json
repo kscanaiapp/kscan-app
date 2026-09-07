@@ -1,0 +1,87 @@
+{
+  "mapVersion": "ELISE_SOURCE_MAP_V1",
+  "discoveredBy": "research/elise-concierge-evaluation-harness-v1, Build 35 instrument-validation lane",
+  "pinnedBaseSha": "a9fb82e9020fce268b9840b39cb7fc9a92e5747e",
+  "note": "PROVEN entries were confirmed by directly reading the cited source file(s) in this worktree. NOT_FOUND entries were searched for with bounded, targeted queries per the discovery-ceiling instruction (three bounded passes) and not located. UNKNOWN entries could not be conclusively classified within the discovery ceiling. Never inferred from the feature name alone.",
+  "system": "ELISE",
+  "entryPoint": {
+    "status": "PROVEN",
+    "sourceFile": "supabase/functions/stylechat-generate/index.ts",
+    "function": "the request handler (Deno.serve callback) in index.ts; ~3389 lines, orchestrates auth, context assembly, model call, output validation, and persistence for one StyleChat/Elise turn",
+    "note": "Bounded discovery ceiling: index.ts was read in targeted slices (entitlement gating, advice-pipeline invocation) rather than traced end-to-end line by line."
+  },
+  "recommendationPath": {
+    "status": "PROVEN",
+    "sourceFiles": [
+      "supabase/functions/stylechat-generate/eliseAdvicePipeline.ts",
+      "supabase/functions/stylechat-generate/eliseAdviceIntents.ts",
+      "supabase/functions/stylechat-generate/eliseFocusResolution.ts",
+      "supabase/functions/stylechat-generate/eliseWardrobeRetrieval.ts",
+      "supabase/functions/stylechat-generate/eliseCompatibilityScoring.ts",
+      "supabase/functions/stylechat-generate/eliseWardrobeGap.ts",
+      "supabase/functions/stylechat-generate/eliseAdvicePrompt.ts"
+    ],
+    "function": "runEliseAdvicePipeline (eliseAdvicePipeline.ts) orchestrates: classifyEliseAdviceIntent -> retrieveAuthorizedWardrobeCandidates -> resolveEliseFocusedItem -> rankAndBoundCandidates -> analyzeWardrobeGap / buildPurchaseAdvice / buildMultiLooks -> buildEliseAdvicePromptBlock / buildEliseAdviceMetadata",
+    "note": "This deterministic pipeline is the SAME pipeline that implements 'Wardrobe Concierge' behavior when the conciergeV1 flag is on (see conciergeSourceMap.json). Elise and Concierge are not two codebases; Concierge is an additive, flag-gated capability layer inside this one pipeline. Recorded per source authority, not per feature name (spec section 13)."
+  },
+  "modelRouter": {
+    "status": "PROVEN",
+    "sourceFile": "supabase/functions/stylechat-generate/modelRouting.ts",
+    "sharedAllowlistFile": "supabase/functions/_shared/llmModelRouting.ts",
+    "details": "resolveEliseModels reads STYLECHAT_GEMINI_MODEL / STYLECHAT_GEMINI_FALLBACK_MODEL env vars, validated against an APPROVED_MODELS allowlist and a retired-model denylist shared with Scanner/TextScan. classifyHttpFailure/isDirectFallbackFailure/isRepairableFailure define the provider-failure taxonomy (timeout/network/429/5xx -> direct fallback; empty/malformed/incomplete -> one same-model repair then fallback).",
+    "provider": "Gemini (Google), per repo-wide convention recorded in project memory (project_stylechat_gemini) and confirmed by the 'gemini' provider literal in eliseGenerationTypes-adjacent persistence code (persistAssistantOnce writes provider: 'gemini')."
+  },
+  "systemPromptSource": {
+    "status": "PROVEN",
+    "sourceFiles": [
+      "supabase/functions/_shared/aiSecurity/promptEnvelope.ts",
+      "supabase/functions/_shared/aiSecurity/styleChatPromptAssembly.ts",
+      "supabase/functions/stylechat-generate/eliseStructuredGrounding.ts",
+      "supabase/functions/stylechat-generate/stylistIdentity.ts"
+    ],
+    "details": "System prompt is assembled from a fixed trust-separated envelope: KSCAN_SYSTEM_TRUST_RULES (promptEnvelope.ts, constant) + optional trustedServerContext, with every dynamic value (Closet, Signature Style, visual context, commerce, shared-room, conversation history) placed in explicitly-tagged UNTRUSTED sections via buildEnvelopeSection/assemblePromptEnvelope. buildStructuredGroundingSystemBlock (eliseStructuredGrounding.ts) is the higher-level assembler actually used by the Elise turn, folding in Signature Style, weather, visual context, and the E-4 advice prompt block from buildEliseAdvicePromptBlock. Persona name resolution (buildStylistPersonaBlock, stylistIdentity.ts) is a separate, small, server-controlled block."
+  },
+  "contextInputs": {
+    "status": "PROVEN",
+    "closet": "eliseWardrobeRetrieval.ts (retrieveAuthorizedWardrobeCandidates) — actor-scoped, source-typed (closet/saved_scan/recent_scan/owned_room/shared_room/saved_product/commerce_product/inspiration/focused_scan) candidates with an explicit actorRelationship (owned/saved/scanned/shared/discovered/unverified/unknown).",
+    "signatureStyle": "styleDnaContext.ts — TWO independent signals: (1) client-fed local feedback-signal counts (parseStyleDnaContext / buildStyleDnaContextBlock, gated on STYLE_DNA_MIN_SIGNALS=3), and (2) server-derived aggregate Closet-evidence profile (buildServerStyleDnaProfileBlock, StyleDnaProfileDataV1 — color/category/garmentType/brand/material frequency only, never raw item text).",
+    "conversationHistory": "contextMessages.ts (selectRecentModelContextMessages) selects the newest non-greeting messages (bounded window) from the persisted style_chat_messages table for the model context; confirms MULTI_TURN_SUPPORTED at the persistence/context layer.",
+    "explicitUserRequest": "input.message, bounded/sanitized via _shared/aiSecurity/inputLimits.ts (boundTextField, AI_INPUT_LIMITS.eliseUserMessage = 500 chars) before entering the prompt envelope as an untrusted_user section.",
+    "weather": "weatherContext, serialized and truncated to 400 chars, passed into the advice pipeline as weatherSummary and into the structured grounding block as an untrusted server-verified-context section.",
+    "constraints": "Not a first-class structured field; constraints are extracted informally from free text (e.g. noShopping regex in eliseAdvicePipeline.ts: /\\b(without\\s+buying|no\\s+shopping|closet\\s+only)\\b/i) and from occasion/season token extraction. No dedicated 'constraints' object reaches the prompt.",
+    "entitlementState": "hasActiveKPlusForWardrobeContext (index.ts), derived from a server-side has_active_k_plus() check; also gates RLS visibility of user_closet_items directly (see entitlementMap.json)."
+  },
+  "outputShape": {
+    "status": "PROVEN",
+    "sourceFiles": [
+      "supabase/functions/stylechat-generate/eliseGenerationTypes.ts",
+      "supabase/functions/stylechat-generate/eliseOutputValidation.ts",
+      "supabase/functions/stylechat-generate/eliseAdviceTypes.ts"
+    ],
+    "details": "validateEliseGenerationOutput produces { text, explanation, actions, metadata: { outputVersion, usedFallback, validationOutcome } }. Actions are allowlisted app-action types only (open_stylist, style_anchor_item, style_for_event, restyle_outfit, swap_item, open_look, ask_my_room); SQL/RPC/storage/mutation-shaped action types and any url/href field are dropped. The advice pipeline additionally produces EliseAdviceOutput (adviceIntent, focusedItem, recommendations[], wardrobeGap, purchaseAdvice, looks, contractVersion, and — Concierge only — wardrobeContextMode/focusAmbiguity)."
+  },
+  "failurePath": {
+    "status": "PROVEN",
+    "details": "Provider failures classified by modelRouting.ts (isDirectFallbackFailure / isRepairableFailure) drive fallback-model selection. eliseGenerationResilience.test.ts and eliseProviderRetry.ts cover a resilience/idempotency layer keyed on (actorId, sessionId, sourceMessageId) via reserveGenerationOperation/finalizeGenerationOperation RPCs (activeContext.ts), preventing duplicate generation on retried/duplicate requests."
+  },
+  "fallbackPath": {
+    "status": "PROVEN",
+    "details": "validateEliseGenerationOutput falls back to a caller-supplied fallbackText when model output is empty or fails validation (validationOutcome: 'fallback'). Ownership/absence prose safety guards (eliseOwnershipProseSafety.ts) drop unsafe sentences and, if nothing survives, substitute a caller-supplied neutralFallback string — never a rewritten claim."
+  },
+  "visualInput": {
+    "status": "PROVEN",
+    "sourceFiles": [
+      "supabase/functions/stylechat-generate/eliseVisualContextTypes.ts",
+      "supabase/functions/stylechat-generate/eliseVisualContextPipeline.ts",
+      "supabase/functions/stylechat-generate/visualContext.ts",
+      "supabase/functions/stylechat-generate/attachmentContext.ts"
+    ],
+    "details": "EliseVisualContextEnvelope / EliseVisualEvidence types and serializeEliseVisualContextPrompt confirm Elise supports typed visual-evidence context (scanned/attached/current-scan items), but this is a TYPED evidence envelope serialized to text for the prompt, not raw image bytes forwarded verbatim by this repo's own code inspected here.",
+    "verdict": "VISUAL GROUNDING: SUPPORTED BY PRODUCT (typed evidence pipeline exists in source). V1 harness evaluation: OUT OF SCOPE per spec section 49 (no deterministic committed replay seam exists in this lane; no real user images used)."
+  },
+  "multiTurn": {
+    "status": "PROVEN",
+    "verdict": "MULTI_TURN_SUPPORTED: YES",
+    "evidence": "style_chat_sessions / style_chat_messages tables (validateSessionOwnership, validateSourceMessageOwnership in activeContext.ts) persist conversation state; contextMessages.ts selects a bounded recent-message window (excluding greeting rows) as model context for every turn."
+  }
+}

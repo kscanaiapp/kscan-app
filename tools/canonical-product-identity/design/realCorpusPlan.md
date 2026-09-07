@@ -1,0 +1,13 @@
+# Real-corpus acquisition plan (spec section 23)
+
+**STATUS**: `REAL PRODUCT IDENTITY CORPUS: READY_NO_CORPUS` - `corpus/corpusLoader.js#loadApprovedRealCorpus` returns `null` (not an error) when no owner-approved real corpus exists at `corpus/real/corpus.json`; this lab did not fetch new retailer inventory to create one (forbidden by spec section 3/23).
+
+**STARTING SCALE RECOMMENDATION**: this is a recommendation for the STARTING scale, not a final sample size (section 23 forbids hardcoding an unjustified final count). Based on this lab's own synthetic-corpus experience (344 offers / 21 case types / 168 case instances was enough to produce a stable, non-trivial operating curve and a clean confusion matrix), a real-corpus PILOT of comparable order - roughly **300-500 real retailer listings**, spanning at least the same category breadth (jacket/dress/boot/sweater-equivalent) - is enough to validate whether the resolver's signal-availability assumptions (GTIN presence rate, manufacturer style code presence rate) hold against real provider data, before committing to a larger acquisition.
+
+**HARD-NEGATIVE COMPOSITION RECOMMENDATION**: mirror this lab's own adversarial ratio, not an arbitrary split - roughly 25-30% of the pilot's pairs should be deliberate hard negatives (same-brand adjacent styles, cross-brand lookalikes, previous-season/adjacent-model pairs, conflicting identifiers), matching the proportion of adversarial + UNDECIDABLE case types in this lab's own REGISTRY (6 of 21 case types, ~29%) - because the section 25 safety gate is measured almost entirely by how the resolver behaves on hard negatives, a real corpus thin on them would understate false-merge risk.
+
+**KEY UNKNOWN A REAL PILOT WOULD RESOLVE**: `authority/sourceMap.json#identitySignalInventory` found GTIN/UPC/EAN/MPN fields **PROVEN_ABSENT from K Scan's own current data model** (not merely unpopulated - the fields do not exist in the traced code at all). A real corpus is the only way to learn what fraction of ACTUAL retailer search results (Serper/Brave) carry these identifiers in a form K Scan could capture if it started requesting them - this lab's synthetic corpus assumes ~70% GTIN presence on true-duplicate pairs (`simulate/resolverPerformance.js`'s synthetic mix), which is an assumption, not a measurement.
+
+**ACQUISITION METHOD** (not executed by this lab - provider spend/live traffic forbidden, spec section 3): sample real Serper/Brave responses already being captured for OTHER purposes (e.g. existing eval/QA fixture capture, if any exists) rather than issuing new paid provider requests; owner-annotate ground truth for the sampled pairs.
+
+**REVERSIBILITY**: N/A - this is a plan, not an artifact; no real data was fetched or fabricated.

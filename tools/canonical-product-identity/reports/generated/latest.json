@@ -1,0 +1,1611 @@
+{
+  "reportSchemaVersion": "cpil-report-schema-v1",
+  "sourceSha": "b4b93e077b0c6f4183752e852851917cee9f570d",
+  "corpusHash": "ceb0116ac00afd819e5ef92e0e07bfedbef21a7b9c32e850c6a1a9edb8e7e568",
+  "corpusTier": "SYNTHETIC",
+  "corpusId": "cpil-synthetic-canonical-product-identity-lab-v1-synthetic",
+  "fixtureCount": 344,
+  "hardNegativeCaseCount": 48,
+  "generatorVersion": "cpil-generator-v1",
+  "resolverVersion": "cpil-resolver-v1",
+  "normalizationVersion": "cpil-normalization-v1",
+  "identitySchemaVersion": "cpil-identity-schema-v1",
+  "operatingParameters": {
+    "tier2AutoMergeThreshold": null
+  },
+  "generatedAt": "2026-09-07T02:30:41.027Z",
+  "productionPromotion": "HOLD - OWNER OPERATING-POINT + REAL-CORPUS VALIDATION REQUIRED",
+  "safetyMetrics": {
+    "totalPairsEvaluated": 58996,
+    "decisionCounts": {
+      "AUTO_MERGE": 64,
+      "PROPOSED_REVIEW": 54,
+      "ABSTAIN": 2858,
+      "SEPARATE": 56020
+    },
+    "autoMergePrecision": 1,
+    "autoMergeRecall": 0.8,
+    "falseMergeCount": 0,
+    "falseMergeRate": 0,
+    "falseMergeGateStatus": "PASS - zero false merges (section 25 gate satisfied for this corpus/configuration)",
+    "missedMergeCount": 16,
+    "missedMergeRate": 0.2,
+    "abstentionRate": 0.04844396230252899,
+    "undecidablePairCount": 16,
+    "abstentionCorrectness": 1,
+    "sameVariantPairCount": 80,
+    "siblingVariantPairCount": 16,
+    "siblingVariantAutoMergedCount": 0,
+    "f1Secondary": 0.888888888888889,
+    "f1Note": "F1 reported secondarily only (section 24) - never a substitute for precision/recall/false-merge-rate.",
+    "confusionMatrix": {
+      "SAME_VARIANT": {
+        "AUTO_MERGE": 64,
+        "PROPOSED_REVIEW": 16,
+        "ABSTAIN": 0,
+        "SEPARATE": 0
+      },
+      "SIBLING_VARIANT": {
+        "AUTO_MERGE": 0,
+        "PROPOSED_REVIEW": 0,
+        "ABSTAIN": 0,
+        "SEPARATE": 16
+      },
+      "NEAR_DUPLICATE_DISTINCT": {
+        "AUTO_MERGE": 0,
+        "PROPOSED_REVIEW": 16,
+        "ABSTAIN": 0,
+        "SEPARATE": 0
+      },
+      "DISTINCT": {
+        "AUTO_MERGE": 0,
+        "PROPOSED_REVIEW": 22,
+        "ABSTAIN": 2842,
+        "SEPARATE": 56004
+      },
+      "UNDECIDABLE": {
+        "AUTO_MERGE": 0,
+        "PROPOSED_REVIEW": 0,
+        "ABSTAIN": 16,
+        "SEPARATE": 0
+      }
+    }
+  },
+  "clusterMetrics": {
+    "variantClusterCount": 288,
+    "styleClusterCount": 164,
+    "variantRejectedEdgeCount": 0,
+    "styleRejectedEdgeCount": 104,
+    "variantClusterPurity": 1,
+    "variantClusterCompleteness": 0.9534883720930233,
+    "styleClusterPurity": 0.688953488372093,
+    "styleClusterCompleteness": 0.9941860465116279,
+    "variantSeparationAccuracy": 1,
+    "variantSeparationPairCount": 16,
+    "variantSeparationFailureCount": 0,
+    "variantSeparationFailures": []
+  },
+  "operatingCurve": [
+    {
+      "tier2AutoMergeThreshold": "Infinity (shipped default - Tier 2 never auto-merges)",
+      "autoMergePrecision": 1,
+      "autoMergeRecall": 0.8,
+      "falseMergeRate": 0,
+      "falseMergeCount": 0,
+      "missedMergeRate": 0.2,
+      "abstentionRate": 0.04844396230252899,
+      "reviewVolume": 54,
+      "autoMergeVolume": 64,
+      "falseMergeGateStatus": "PASS - zero false merges (section 25 gate satisfied for this corpus/configuration)"
+    },
+    {
+      "tier2AutoMergeThreshold": 1,
+      "autoMergePrecision": 1,
+      "autoMergeRecall": 0.8,
+      "falseMergeRate": 0,
+      "falseMergeCount": 0,
+      "missedMergeRate": 0.2,
+      "abstentionRate": 0.04844396230252899,
+      "reviewVolume": 54,
+      "autoMergeVolume": 64,
+      "falseMergeGateStatus": "PASS - zero false merges (section 25 gate satisfied for this corpus/configuration)"
+    },
+    {
+      "tier2AutoMergeThreshold": 0.95,
+      "autoMergePrecision": 0.8333333333333334,
+      "autoMergeRecall": 1,
+      "falseMergeRate": 0.16666666666666666,
+      "falseMergeCount": 16,
+      "missedMergeRate": 0,
+      "abstentionRate": 0.04844396230252899,
+      "reviewVolume": 22,
+      "autoMergeVolume": 96,
+      "falseMergeGateStatus": "FAIL - 16 false merge(s) - NOT_PROMOTABLE for this corpus/configuration (section 25)"
+    },
+    {
+      "tier2AutoMergeThreshold": 0.9,
+      "autoMergePrecision": 0.8333333333333334,
+      "autoMergeRecall": 1,
+      "falseMergeRate": 0.16666666666666666,
+      "falseMergeCount": 16,
+      "missedMergeRate": 0,
+      "abstentionRate": 0.04844396230252899,
+      "reviewVolume": 22,
+      "autoMergeVolume": 96,
+      "falseMergeGateStatus": "FAIL - 16 false merge(s) - NOT_PROMOTABLE for this corpus/configuration (section 25)"
+    },
+    {
+      "tier2AutoMergeThreshold": 0.85,
+      "autoMergePrecision": 0.8333333333333334,
+      "autoMergeRecall": 1,
+      "falseMergeRate": 0.16666666666666666,
+      "falseMergeCount": 16,
+      "missedMergeRate": 0,
+      "abstentionRate": 0.04844396230252899,
+      "reviewVolume": 22,
+      "autoMergeVolume": 96,
+      "falseMergeGateStatus": "FAIL - 16 false merge(s) - NOT_PROMOTABLE for this corpus/configuration (section 25)"
+    },
+    {
+      "tier2AutoMergeThreshold": 0.8,
+      "autoMergePrecision": 0.6779661016949152,
+      "autoMergeRecall": 1,
+      "falseMergeRate": 0.3220338983050847,
+      "falseMergeCount": 38,
+      "missedMergeRate": 0,
+      "abstentionRate": 0.04844396230252899,
+      "reviewVolume": 0,
+      "autoMergeVolume": 118,
+      "falseMergeGateStatus": "FAIL - 38 false merge(s) - NOT_PROMOTABLE for this corpus/configuration (section 25)"
+    },
+    {
+      "tier2AutoMergeThreshold": 0.75,
+      "autoMergePrecision": 0.6779661016949152,
+      "autoMergeRecall": 1,
+      "falseMergeRate": 0.3220338983050847,
+      "falseMergeCount": 38,
+      "missedMergeRate": 0,
+      "abstentionRate": 0.04844396230252899,
+      "reviewVolume": 0,
+      "autoMergeVolume": 118,
+      "falseMergeGateStatus": "FAIL - 38 false merge(s) - NOT_PROMOTABLE for this corpus/configuration (section 25)"
+    },
+    {
+      "tier2AutoMergeThreshold": 0.7,
+      "autoMergePrecision": 0.6779661016949152,
+      "autoMergeRecall": 1,
+      "falseMergeRate": 0.3220338983050847,
+      "falseMergeCount": 38,
+      "missedMergeRate": 0,
+      "abstentionRate": 0.04844396230252899,
+      "reviewVolume": 0,
+      "autoMergeVolume": 118,
+      "falseMergeGateStatus": "FAIL - 38 false merge(s) - NOT_PROMOTABLE for this corpus/configuration (section 25)"
+    },
+    {
+      "tier2AutoMergeThreshold": 0.65,
+      "autoMergePrecision": 0.6779661016949152,
+      "autoMergeRecall": 1,
+      "falseMergeRate": 0.3220338983050847,
+      "falseMergeCount": 38,
+      "missedMergeRate": 0,
+      "abstentionRate": 0.04844396230252899,
+      "reviewVolume": 0,
+      "autoMergeVolume": 118,
+      "falseMergeGateStatus": "FAIL - 38 false merge(s) - NOT_PROMOTABLE for this corpus/configuration (section 25)"
+    },
+    {
+      "tier2AutoMergeThreshold": 0.6,
+      "autoMergePrecision": 0.6779661016949152,
+      "autoMergeRecall": 1,
+      "falseMergeRate": 0.3220338983050847,
+      "falseMergeCount": 38,
+      "missedMergeRate": 0,
+      "abstentionRate": 0.04844396230252899,
+      "reviewVolume": 0,
+      "autoMergeVolume": 118,
+      "falseMergeGateStatus": "FAIL - 38 false merge(s) - NOT_PROMOTABLE for this corpus/configuration (section 25)"
+    },
+    {
+      "tier2AutoMergeThreshold": 0.55,
+      "autoMergePrecision": 0.6779661016949152,
+      "autoMergeRecall": 1,
+      "falseMergeRate": 0.3220338983050847,
+      "falseMergeCount": 38,
+      "missedMergeRate": 0,
+      "abstentionRate": 0.04844396230252899,
+      "reviewVolume": 0,
+      "autoMergeVolume": 118,
+      "falseMergeGateStatus": "FAIL - 38 false merge(s) - NOT_PROMOTABLE for this corpus/configuration (section 25)"
+    },
+    {
+      "tier2AutoMergeThreshold": 0.5,
+      "autoMergePrecision": 0.6779661016949152,
+      "autoMergeRecall": 1,
+      "falseMergeRate": 0.3220338983050847,
+      "falseMergeCount": 38,
+      "missedMergeRate": 0,
+      "abstentionRate": 0.04844396230252899,
+      "reviewVolume": 0,
+      "autoMergeVolume": 118,
+      "falseMergeGateStatus": "FAIL - 38 false merge(s) - NOT_PROMOTABLE for this corpus/configuration (section 25)"
+    },
+    {
+      "tier2AutoMergeThreshold": 0.45,
+      "autoMergePrecision": 0.6779661016949152,
+      "autoMergeRecall": 1,
+      "falseMergeRate": 0.3220338983050847,
+      "falseMergeCount": 38,
+      "missedMergeRate": 0,
+      "abstentionRate": 0.04844396230252899,
+      "reviewVolume": 0,
+      "autoMergeVolume": 118,
+      "falseMergeGateStatus": "FAIL - 38 false merge(s) - NOT_PROMOTABLE for this corpus/configuration (section 25)"
+    },
+    {
+      "tier2AutoMergeThreshold": 0.4,
+      "autoMergePrecision": 0.6779661016949152,
+      "autoMergeRecall": 1,
+      "falseMergeRate": 0.3220338983050847,
+      "falseMergeCount": 38,
+      "missedMergeRate": 0,
+      "abstentionRate": 0.04844396230252899,
+      "reviewVolume": 0,
+      "autoMergeVolume": 118,
+      "falseMergeGateStatus": "FAIL - 38 false merge(s) - NOT_PROMOTABLE for this corpus/configuration (section 25)"
+    },
+    {
+      "tier2AutoMergeThreshold": 0.35,
+      "autoMergePrecision": 0.6779661016949152,
+      "autoMergeRecall": 1,
+      "falseMergeRate": 0.3220338983050847,
+      "falseMergeCount": 38,
+      "missedMergeRate": 0,
+      "abstentionRate": 0.04844396230252899,
+      "reviewVolume": 0,
+      "autoMergeVolume": 118,
+      "falseMergeGateStatus": "FAIL - 38 false merge(s) - NOT_PROMOTABLE for this corpus/configuration (section 25)"
+    },
+    {
+      "tier2AutoMergeThreshold": 0.3,
+      "autoMergePrecision": 0.6779661016949152,
+      "autoMergeRecall": 1,
+      "falseMergeRate": 0.3220338983050847,
+      "falseMergeCount": 38,
+      "missedMergeRate": 0,
+      "abstentionRate": 0.04844396230252899,
+      "reviewVolume": 0,
+      "autoMergeVolume": 118,
+      "falseMergeGateStatus": "FAIL - 38 false merge(s) - NOT_PROMOTABLE for this corpus/configuration (section 25)"
+    },
+    {
+      "tier2AutoMergeThreshold": 0.25,
+      "autoMergePrecision": 0.6779661016949152,
+      "autoMergeRecall": 1,
+      "falseMergeRate": 0.3220338983050847,
+      "falseMergeCount": 38,
+      "missedMergeRate": 0,
+      "abstentionRate": 0.04844396230252899,
+      "reviewVolume": 0,
+      "autoMergeVolume": 118,
+      "falseMergeGateStatus": "FAIL - 38 false merge(s) - NOT_PROMOTABLE for this corpus/configuration (section 25)"
+    },
+    {
+      "tier2AutoMergeThreshold": 0.2,
+      "autoMergePrecision": 0.6779661016949152,
+      "autoMergeRecall": 1,
+      "falseMergeRate": 0.3220338983050847,
+      "falseMergeCount": 38,
+      "missedMergeRate": 0,
+      "abstentionRate": 0.04844396230252899,
+      "reviewVolume": 0,
+      "autoMergeVolume": 118,
+      "falseMergeGateStatus": "FAIL - 38 false merge(s) - NOT_PROMOTABLE for this corpus/configuration (section 25)"
+    },
+    {
+      "tier2AutoMergeThreshold": 0.15,
+      "autoMergePrecision": 0.6779661016949152,
+      "autoMergeRecall": 1,
+      "falseMergeRate": 0.3220338983050847,
+      "falseMergeCount": 38,
+      "missedMergeRate": 0,
+      "abstentionRate": 0.04844396230252899,
+      "reviewVolume": 0,
+      "autoMergeVolume": 118,
+      "falseMergeGateStatus": "FAIL - 38 false merge(s) - NOT_PROMOTABLE for this corpus/configuration (section 25)"
+    },
+    {
+      "tier2AutoMergeThreshold": 0.1,
+      "autoMergePrecision": 0.6779661016949152,
+      "autoMergeRecall": 1,
+      "falseMergeRate": 0.3220338983050847,
+      "falseMergeCount": 38,
+      "missedMergeRate": 0,
+      "abstentionRate": 0.04844396230252899,
+      "reviewVolume": 0,
+      "autoMergeVolume": 118,
+      "falseMergeGateStatus": "FAIL - 38 false merge(s) - NOT_PROMOTABLE for this corpus/configuration (section 25)"
+    },
+    {
+      "tier2AutoMergeThreshold": 0.05,
+      "autoMergePrecision": 0.6779661016949152,
+      "autoMergeRecall": 1,
+      "falseMergeRate": 0.3220338983050847,
+      "falseMergeCount": 38,
+      "missedMergeRate": 0,
+      "abstentionRate": 0.04844396230252899,
+      "reviewVolume": 0,
+      "autoMergeVolume": 118,
+      "falseMergeGateStatus": "FAIL - 38 false merge(s) - NOT_PROMOTABLE for this corpus/configuration (section 25)"
+    },
+    {
+      "tier2AutoMergeThreshold": 0,
+      "autoMergePrecision": 0.6779661016949152,
+      "autoMergeRecall": 1,
+      "falseMergeRate": 0.3220338983050847,
+      "falseMergeCount": 38,
+      "missedMergeRate": 0,
+      "abstentionRate": 0.04844396230252899,
+      "reviewVolume": 0,
+      "autoMergeVolume": 118,
+      "falseMergeGateStatus": "FAIL - 38 false merge(s) - NOT_PROMOTABLE for this corpus/configuration (section 25)"
+    }
+  ],
+  "dedupWasteMetrics": {
+    "kSizes": [
+      10,
+      20,
+      40
+    ],
+    "perWindow": [
+      {
+        "category": "boot",
+        "windowSize": 10,
+        "poolSize": 83,
+        "rawCount": 10,
+        "canonicalCount": 7,
+        "oracleCount": 7,
+        "wasteRaw": 0,
+        "wasteCanonical": 0.3,
+        "wasteOracle": 0.3,
+        "wasteDelta": -0.3,
+        "retailerDiversity": {
+          "distinctRetailersInWindow": 6,
+          "distinctRetailersAmongCanonicalRepresentatives": 4,
+          "concentrationIndexRaw": 0.30000000000000004,
+          "concentrationIndexCanonical": 0.3877551020408163,
+          "concentrationDelta": -0.08775510204081627
+        }
+      },
+      {
+        "category": "boot",
+        "windowSize": 20,
+        "poolSize": 83,
+        "rawCount": 20,
+        "canonicalCount": 13,
+        "oracleCount": 13,
+        "wasteRaw": 0,
+        "wasteCanonical": 0.35,
+        "wasteOracle": 0.35,
+        "wasteDelta": -0.35,
+        "retailerDiversity": {
+          "distinctRetailersInWindow": 8,
+          "distinctRetailersAmongCanonicalRepresentatives": 7,
+          "concentrationIndexRaw": 0.205,
+          "concentrationIndexCanonical": 0.21893491124260359,
+          "concentrationDelta": -0.013934911242603598
+        }
+      },
+      {
+        "category": "boot",
+        "windowSize": 40,
+        "poolSize": 83,
+        "rawCount": 40,
+        "canonicalCount": 31,
+        "oracleCount": 29,
+        "wasteRaw": 0,
+        "wasteCanonical": 0.225,
+        "wasteOracle": 0.275,
+        "wasteDelta": -0.225,
+        "retailerDiversity": {
+          "distinctRetailersInWindow": 14,
+          "distinctRetailersAmongCanonicalRepresentatives": 12,
+          "concentrationIndexRaw": 0.12250000000000001,
+          "concentrationIndexCanonical": 0.12174817898022895,
+          "concentrationDelta": 0.0007518210197710595
+        }
+      },
+      {
+        "category": "dress",
+        "windowSize": 10,
+        "poolSize": 71,
+        "rawCount": 10,
+        "canonicalCount": 8,
+        "oracleCount": 8,
+        "wasteRaw": 0,
+        "wasteCanonical": 0.2,
+        "wasteOracle": 0.2,
+        "wasteDelta": -0.2,
+        "retailerDiversity": {
+          "distinctRetailersInWindow": 6,
+          "distinctRetailersAmongCanonicalRepresentatives": 6,
+          "concentrationIndexRaw": 0.20000000000000004,
+          "concentrationIndexCanonical": 0.1875,
+          "concentrationDelta": 0.012500000000000039
+        }
+      },
+      {
+        "category": "dress",
+        "windowSize": 20,
+        "poolSize": 71,
+        "rawCount": 20,
+        "canonicalCount": 14,
+        "oracleCount": 14,
+        "wasteRaw": 0,
+        "wasteCanonical": 0.3,
+        "wasteOracle": 0.3,
+        "wasteDelta": -0.3,
+        "retailerDiversity": {
+          "distinctRetailersInWindow": 9,
+          "distinctRetailersAmongCanonicalRepresentatives": 9,
+          "concentrationIndexRaw": 0.13000000000000003,
+          "concentrationIndexCanonical": 0.1326530612244898,
+          "concentrationDelta": -0.0026530612244897722
+        }
+      },
+      {
+        "category": "dress",
+        "windowSize": 40,
+        "poolSize": 71,
+        "rawCount": 40,
+        "canonicalCount": 31,
+        "oracleCount": 29,
+        "wasteRaw": 0,
+        "wasteCanonical": 0.225,
+        "wasteOracle": 0.275,
+        "wasteDelta": -0.225,
+        "retailerDiversity": {
+          "distinctRetailersInWindow": 11,
+          "distinctRetailersAmongCanonicalRepresentatives": 10,
+          "concentrationIndexRaw": 0.115,
+          "concentrationIndexCanonical": 0.11966701352757543,
+          "concentrationDelta": -0.004667013527575425
+        }
+      },
+      {
+        "category": "jacket",
+        "windowSize": 10,
+        "poolSize": 76,
+        "rawCount": 10,
+        "canonicalCount": 10,
+        "oracleCount": 10,
+        "wasteRaw": 0,
+        "wasteCanonical": 0,
+        "wasteOracle": 0,
+        "wasteDelta": 0,
+        "retailerDiversity": {
+          "distinctRetailersInWindow": 9,
+          "distinctRetailersAmongCanonicalRepresentatives": 9,
+          "concentrationIndexRaw": 0.12000000000000005,
+          "concentrationIndexCanonical": 0.12000000000000005,
+          "concentrationDelta": 0
+        }
+      },
+      {
+        "category": "jacket",
+        "windowSize": 20,
+        "poolSize": 76,
+        "rawCount": 20,
+        "canonicalCount": 16,
+        "oracleCount": 16,
+        "wasteRaw": 0,
+        "wasteCanonical": 0.2,
+        "wasteOracle": 0.2,
+        "wasteDelta": -0.2,
+        "retailerDiversity": {
+          "distinctRetailersInWindow": 9,
+          "distinctRetailersAmongCanonicalRepresentatives": 9,
+          "concentrationIndexRaw": 0.12000000000000002,
+          "concentrationIndexCanonical": 0.125,
+          "concentrationDelta": -0.004999999999999977
+        }
+      },
+      {
+        "category": "jacket",
+        "windowSize": 40,
+        "poolSize": 76,
+        "rawCount": 40,
+        "canonicalCount": 35,
+        "oracleCount": 31,
+        "wasteRaw": 0,
+        "wasteCanonical": 0.125,
+        "wasteOracle": 0.225,
+        "wasteDelta": -0.125,
+        "retailerDiversity": {
+          "distinctRetailersInWindow": 12,
+          "distinctRetailersAmongCanonicalRepresentatives": 11,
+          "concentrationIndexRaw": 0.10375000000000002,
+          "concentrationIndexCanonical": 0.11510204081632652,
+          "concentrationDelta": -0.0113520408163265
+        }
+      },
+      {
+        "category": "sweater",
+        "windowSize": 10,
+        "poolSize": 90,
+        "rawCount": 10,
+        "canonicalCount": 10,
+        "oracleCount": 10,
+        "wasteRaw": 0,
+        "wasteCanonical": 0,
+        "wasteOracle": 0,
+        "wasteDelta": 0,
+        "retailerDiversity": {
+          "distinctRetailersInWindow": 7,
+          "distinctRetailersAmongCanonicalRepresentatives": 7,
+          "concentrationIndexRaw": 0.16000000000000003,
+          "concentrationIndexCanonical": 0.16000000000000003,
+          "concentrationDelta": 0
+        }
+      },
+      {
+        "category": "sweater",
+        "windowSize": 20,
+        "poolSize": 90,
+        "rawCount": 20,
+        "canonicalCount": 14,
+        "oracleCount": 14,
+        "wasteRaw": 0,
+        "wasteCanonical": 0.3,
+        "wasteOracle": 0.3,
+        "wasteDelta": -0.3,
+        "retailerDiversity": {
+          "distinctRetailersInWindow": 10,
+          "distinctRetailersAmongCanonicalRepresentatives": 8,
+          "concentrationIndexRaw": 0.12500000000000003,
+          "concentrationIndexCanonical": 0.15306122448979592,
+          "concentrationDelta": -0.028061224489795894
+        }
+      },
+      {
+        "category": "sweater",
+        "windowSize": 40,
+        "poolSize": 90,
+        "rawCount": 40,
+        "canonicalCount": 30,
+        "oracleCount": 30,
+        "wasteRaw": 0,
+        "wasteCanonical": 0.25,
+        "wasteOracle": 0.25,
+        "wasteDelta": -0.25,
+        "retailerDiversity": {
+          "distinctRetailersInWindow": 13,
+          "distinctRetailersAmongCanonicalRepresentatives": 11,
+          "concentrationIndexRaw": 0.10375000000000002,
+          "concentrationIndexCanonical": 0.13555555555555557,
+          "concentrationDelta": -0.031805555555555545
+        }
+      },
+      {
+        "category": "uncategorized",
+        "windowSize": 10,
+        "poolSize": 24,
+        "rawCount": 10,
+        "canonicalCount": 10,
+        "oracleCount": 10,
+        "wasteRaw": 0,
+        "wasteCanonical": 0,
+        "wasteOracle": 0,
+        "wasteDelta": 0,
+        "retailerDiversity": {
+          "distinctRetailersInWindow": 7,
+          "distinctRetailersAmongCanonicalRepresentatives": 7,
+          "concentrationIndexRaw": 0.16000000000000003,
+          "concentrationIndexCanonical": 0.16000000000000003,
+          "concentrationDelta": 0
+        }
+      },
+      {
+        "category": "uncategorized",
+        "windowSize": 20,
+        "poolSize": 24,
+        "rawCount": 20,
+        "canonicalCount": 20,
+        "oracleCount": 20,
+        "wasteRaw": 0,
+        "wasteCanonical": 0,
+        "wasteOracle": 0,
+        "wasteDelta": 0,
+        "retailerDiversity": {
+          "distinctRetailersInWindow": 8,
+          "distinctRetailersAmongCanonicalRepresentatives": 8,
+          "concentrationIndexRaw": 0.155,
+          "concentrationIndexCanonical": 0.155,
+          "concentrationDelta": 0
+        }
+      }
+    ],
+    "byK": {
+      "10": {
+        "windowCount": 5,
+        "averageWasteRaw": 0,
+        "averageWasteCanonical": 0.1,
+        "averageWasteOracle": 0.1,
+        "averageWasteDelta": -0.1,
+        "averageUniqueCanonicalProducts": 9,
+        "averageConcentrationDelta": -0.015051020408163246
+      },
+      "20": {
+        "windowCount": 5,
+        "averageWasteRaw": 0,
+        "averageWasteCanonical": 0.22999999999999998,
+        "averageWasteOracle": 0.22999999999999998,
+        "averageWasteDelta": -0.22999999999999998,
+        "averageUniqueCanonicalProducts": 15.4,
+        "averageConcentrationDelta": -0.009929839391377848
+      },
+      "40": {
+        "windowCount": 4,
+        "averageWasteRaw": 0,
+        "averageWasteCanonical": 0.20625,
+        "averageWasteOracle": 0.25625,
+        "averageWasteDelta": -0.20625,
+        "averageUniqueCanonicalProducts": 31.75,
+        "averageConcentrationDelta": -0.011768197219921603
+      }
+    },
+    "note": "Windows are synthetic category pools drawn deterministically from the committed corpus (Addendum A.3 decision memo DM-004), not a modeled real query distribution. wasteRaw uses production's own exact-id/exact-normalized-URL dedup method (authority/sourceMap.json); wasteCanonical uses this lab's resolver (AUTO_MERGE-only variant clusters); wasteOracle uses the generator-known ground truth as an upper bound on achievable reduction."
+  },
+  "incumbentComparison": {
+    "resolverSafety": {
+      "totalPairsEvaluated": 58996,
+      "decisionCounts": {
+        "AUTO_MERGE": 64,
+        "PROPOSED_REVIEW": 54,
+        "ABSTAIN": 2858,
+        "SEPARATE": 56020
+      },
+      "autoMergePrecision": 1,
+      "autoMergeRecall": 0.8,
+      "falseMergeCount": 0,
+      "falseMergeRate": 0,
+      "falseMergeGateStatus": "PASS - zero false merges (section 25 gate satisfied for this corpus/configuration)",
+      "missedMergeCount": 16,
+      "missedMergeRate": 0.2,
+      "abstentionRate": 0.04844396230252899,
+      "undecidablePairCount": 16,
+      "abstentionCorrectness": 1,
+      "sameVariantPairCount": 80,
+      "siblingVariantPairCount": 16,
+      "siblingVariantAutoMergedCount": 0,
+      "f1Secondary": 0.888888888888889,
+      "f1Note": "F1 reported secondarily only (section 24) - never a substitute for precision/recall/false-merge-rate.",
+      "confusionMatrix": {
+        "SAME_VARIANT": {
+          "AUTO_MERGE": 64,
+          "PROPOSED_REVIEW": 16,
+          "ABSTAIN": 0,
+          "SEPARATE": 0
+        },
+        "SIBLING_VARIANT": {
+          "AUTO_MERGE": 0,
+          "PROPOSED_REVIEW": 0,
+          "ABSTAIN": 0,
+          "SEPARATE": 16
+        },
+        "NEAR_DUPLICATE_DISTINCT": {
+          "AUTO_MERGE": 0,
+          "PROPOSED_REVIEW": 16,
+          "ABSTAIN": 0,
+          "SEPARATE": 0
+        },
+        "DISTINCT": {
+          "AUTO_MERGE": 0,
+          "PROPOSED_REVIEW": 22,
+          "ABSTAIN": 2842,
+          "SEPARATE": 56004
+        },
+        "UNDECIDABLE": {
+          "AUTO_MERGE": 0,
+          "PROPOSED_REVIEW": 0,
+          "ABSTAIN": 16,
+          "SEPARATE": 0
+        }
+      }
+    },
+    "incumbentSafety": {
+      "totalPairsEvaluated": 58996,
+      "decisionCounts": {
+        "AUTO_MERGE": 0,
+        "PROPOSED_REVIEW": 150,
+        "ABSTAIN": 58448,
+        "SEPARATE": 398
+      },
+      "autoMergePrecision": null,
+      "autoMergeRecall": 0,
+      "falseMergeCount": 0,
+      "falseMergeRate": 0,
+      "falseMergeGateStatus": "PASS - zero false merges (section 25 gate satisfied for this corpus/configuration)",
+      "missedMergeCount": 80,
+      "missedMergeRate": 1,
+      "abstentionRate": 0.9907112346599769,
+      "undecidablePairCount": 16,
+      "abstentionCorrectness": 1,
+      "sameVariantPairCount": 80,
+      "siblingVariantPairCount": 16,
+      "siblingVariantAutoMergedCount": 0,
+      "f1Secondary": null,
+      "f1Note": "F1 reported secondarily only (section 24) - never a substitute for precision/recall/false-merge-rate.",
+      "confusionMatrix": {
+        "SAME_VARIANT": {
+          "AUTO_MERGE": 0,
+          "PROPOSED_REVIEW": 80,
+          "ABSTAIN": 0,
+          "SEPARATE": 0
+        },
+        "SIBLING_VARIANT": {
+          "AUTO_MERGE": 0,
+          "PROPOSED_REVIEW": 0,
+          "ABSTAIN": 0,
+          "SEPARATE": 16
+        },
+        "NEAR_DUPLICATE_DISTINCT": {
+          "AUTO_MERGE": 0,
+          "PROPOSED_REVIEW": 16,
+          "ABSTAIN": 0,
+          "SEPARATE": 0
+        },
+        "DISTINCT": {
+          "AUTO_MERGE": 0,
+          "PROPOSED_REVIEW": 54,
+          "ABSTAIN": 58432,
+          "SEPARATE": 382
+        },
+        "UNDECIDABLE": {
+          "AUTO_MERGE": 0,
+          "PROPOSED_REVIEW": 0,
+          "ABSTAIN": 16,
+          "SEPARATE": 0
+        }
+      }
+    },
+    "byMetric": {
+      "autoMergePrecision": "N/A",
+      "autoMergeRecall": "RESOLVER_BETTER",
+      "falseMergeRate": "EQUAL",
+      "missedMergeRate": "RESOLVER_BETTER",
+      "abstentionRate": "RESOLVER_BETTER"
+    },
+    "decisionMap": {
+      "CONFIRMED_DUPLICATE": "AUTO_MERGE",
+      "LIKELY_DUPLICATE": "PROPOSED_REVIEW",
+      "DISTINCT_VARIANT": "SEPARATE",
+      "UNKNOWN": "ABSTAIN"
+    },
+    "note": "Incumbent = tools/fashion-match-quality/duplicates/duplicateClassifier.js, called unmodified via a pure field-mapping adapter (compare/offerToFmqlProduct.js). FMQL's classifier is a MEASUREMENT tool with no auto-merge concept of its own - its CONFIRMED_DUPLICATE bucket is mapped to AUTO_MERGE only for this comparison's purposes, which is more permissive than how FMQL itself is actually used in production measurement. This makes the comparison conservative FOR the incumbent (best-case reading of its output), not against it."
+  },
+  "qualityNoHarm": {
+    "kSizes": [
+      10,
+      20,
+      40
+    ],
+    "perWindow": [
+      {
+        "category": "boot",
+        "windowSize": 10,
+        "identityQuality": {
+          "harmedClusterCount": 0,
+          "harmedOfferCount": 0,
+          "verdict": "SAFE"
+        },
+        "substituteQuality": {
+          "trueStyleCount": 7,
+          "discoverableStyleCount": 7,
+          "lostStyleCount": 0,
+          "verdict": "SAFE"
+        }
+      },
+      {
+        "category": "boot",
+        "windowSize": 20,
+        "identityQuality": {
+          "harmedClusterCount": 0,
+          "harmedOfferCount": 0,
+          "verdict": "SAFE"
+        },
+        "substituteQuality": {
+          "trueStyleCount": 13,
+          "discoverableStyleCount": 13,
+          "lostStyleCount": 0,
+          "verdict": "SAFE"
+        }
+      },
+      {
+        "category": "boot",
+        "windowSize": 40,
+        "identityQuality": {
+          "harmedClusterCount": 0,
+          "harmedOfferCount": 0,
+          "verdict": "SAFE"
+        },
+        "substituteQuality": {
+          "trueStyleCount": 29,
+          "discoverableStyleCount": 29,
+          "lostStyleCount": 0,
+          "verdict": "SAFE"
+        }
+      },
+      {
+        "category": "dress",
+        "windowSize": 10,
+        "identityQuality": {
+          "harmedClusterCount": 0,
+          "harmedOfferCount": 0,
+          "verdict": "SAFE"
+        },
+        "substituteQuality": {
+          "trueStyleCount": 8,
+          "discoverableStyleCount": 8,
+          "lostStyleCount": 0,
+          "verdict": "SAFE"
+        }
+      },
+      {
+        "category": "dress",
+        "windowSize": 20,
+        "identityQuality": {
+          "harmedClusterCount": 0,
+          "harmedOfferCount": 0,
+          "verdict": "SAFE"
+        },
+        "substituteQuality": {
+          "trueStyleCount": 14,
+          "discoverableStyleCount": 14,
+          "lostStyleCount": 0,
+          "verdict": "SAFE"
+        }
+      },
+      {
+        "category": "dress",
+        "windowSize": 40,
+        "identityQuality": {
+          "harmedClusterCount": 0,
+          "harmedOfferCount": 0,
+          "verdict": "SAFE"
+        },
+        "substituteQuality": {
+          "trueStyleCount": 29,
+          "discoverableStyleCount": 29,
+          "lostStyleCount": 0,
+          "verdict": "SAFE"
+        }
+      },
+      {
+        "category": "jacket",
+        "windowSize": 10,
+        "identityQuality": {
+          "harmedClusterCount": 0,
+          "harmedOfferCount": 0,
+          "verdict": "SAFE"
+        },
+        "substituteQuality": {
+          "trueStyleCount": 10,
+          "discoverableStyleCount": 10,
+          "lostStyleCount": 0,
+          "verdict": "SAFE"
+        }
+      },
+      {
+        "category": "jacket",
+        "windowSize": 20,
+        "identityQuality": {
+          "harmedClusterCount": 0,
+          "harmedOfferCount": 0,
+          "verdict": "SAFE"
+        },
+        "substituteQuality": {
+          "trueStyleCount": 16,
+          "discoverableStyleCount": 16,
+          "lostStyleCount": 0,
+          "verdict": "SAFE"
+        }
+      },
+      {
+        "category": "jacket",
+        "windowSize": 40,
+        "identityQuality": {
+          "harmedClusterCount": 0,
+          "harmedOfferCount": 0,
+          "verdict": "SAFE"
+        },
+        "substituteQuality": {
+          "trueStyleCount": 31,
+          "discoverableStyleCount": 31,
+          "lostStyleCount": 0,
+          "verdict": "SAFE"
+        }
+      },
+      {
+        "category": "sweater",
+        "windowSize": 10,
+        "identityQuality": {
+          "harmedClusterCount": 0,
+          "harmedOfferCount": 0,
+          "verdict": "SAFE"
+        },
+        "substituteQuality": {
+          "trueStyleCount": 10,
+          "discoverableStyleCount": 10,
+          "lostStyleCount": 0,
+          "verdict": "SAFE"
+        }
+      },
+      {
+        "category": "sweater",
+        "windowSize": 20,
+        "identityQuality": {
+          "harmedClusterCount": 0,
+          "harmedOfferCount": 0,
+          "verdict": "SAFE"
+        },
+        "substituteQuality": {
+          "trueStyleCount": 14,
+          "discoverableStyleCount": 14,
+          "lostStyleCount": 0,
+          "verdict": "SAFE"
+        }
+      },
+      {
+        "category": "sweater",
+        "windowSize": 40,
+        "identityQuality": {
+          "harmedClusterCount": 0,
+          "harmedOfferCount": 0,
+          "verdict": "SAFE"
+        },
+        "substituteQuality": {
+          "trueStyleCount": 30,
+          "discoverableStyleCount": 30,
+          "lostStyleCount": 0,
+          "verdict": "SAFE"
+        }
+      },
+      {
+        "category": "uncategorized",
+        "windowSize": 10,
+        "identityQuality": {
+          "harmedClusterCount": 0,
+          "harmedOfferCount": 0,
+          "verdict": "SAFE"
+        },
+        "substituteQuality": {
+          "trueStyleCount": 10,
+          "discoverableStyleCount": 10,
+          "lostStyleCount": 0,
+          "verdict": "SAFE"
+        }
+      },
+      {
+        "category": "uncategorized",
+        "windowSize": 20,
+        "identityQuality": {
+          "harmedClusterCount": 0,
+          "harmedOfferCount": 0,
+          "verdict": "SAFE"
+        },
+        "substituteQuality": {
+          "trueStyleCount": 20,
+          "discoverableStyleCount": 20,
+          "lostStyleCount": 0,
+          "verdict": "SAFE"
+        }
+      }
+    ],
+    "summary": {
+      "windowsEvaluated": 14,
+      "identityHarmWindowCount": 0,
+      "substituteTradeoffWindowCount": 0,
+      "overallVerdict": "SAFE"
+    },
+    "measurementBasis": "PROXY MEASUREMENT (this lab's own generator-known ground truth) - NOT the Fashion Match Quality Lab's own identity/substitute rubric output (Addendum A.3 decision memo DM-007)."
+  },
+  "placementSimulation": {
+    "evidence": {
+      "sourcePath": "tools/fashion-match-quality/authority/pipelineMap.json (source SHA 909df8646a690b55c5af6b7b8c80193df64a2ec8), cross-checked against supabase/functions/_shared/catalogRetrieval.ts and supabase/functions/_shared/scanHelpers.ts",
+      "retrievalStage": "PRODUCT_RETAILER_RETRIEVAL (shoppingProvider.ts callSerper/callBrave, catalogRetrieval.ts fetchCatalogCandidates)",
+      "normalizationAndProductionDedupStage": "CANDIDATE_NORMALIZATION (catalogRetrieval.ts mergeProductCandidates - ALSO production's own exact-id/exact-URL dedup; one function, both concerns)",
+      "rankingStage": "SCORING_RANKING (scanHelpers.ts scoreRecommendedProduct/rankRecommendedProducts - pure, deterministic, zero-network)",
+      "enrichmentNote": "COMMERCE_ENRICHMENT (commerceOutcomeCapture.ts, commerce-watch-refresh/) is explicitly NOT part of the synchronous scan response path per pipelineMap.json - async telemetry/refresh only. There is no expensive per-candidate synchronous enrichment call in this pipeline today."
+    },
+    "evidenceClass": "DERIVED_FROM_SOURCE (Addendum A.1 - PR #315 artifacts absent from this base)",
+    "candidateCountBasis": {
+      "averageRawCandidatesPerWindow": 22.1,
+      "averageCanonicalCandidatesPerWindow": 17.8,
+      "windowsAveraged": 14
+    },
+    "placements": {
+      "P0_POST_RETRIEVAL_PRE_ENRICHMENT": {
+        "description": "Canonicalize immediately after PRODUCT_RETAILER_RETRIEVAL, before CANDIDATE_NORMALIZATION and SCORING_RANKING both run.",
+        "candidateCountEnteringNormalization": {
+          "withoutCanonicalization": 22.1,
+          "withCanonicalization": 17.8
+        },
+        "candidateCountEnteringRanking": {
+          "withoutCanonicalization": 22.1,
+          "withCanonicalization": 17.8
+        },
+        "duplicateWorkAvoided": {
+          "normalizationCallsAvoided": 4.4,
+          "scoringCallsAvoided": 4.4
+        },
+        "modeledMsAvoided": 0.65,
+        "timingClass": "MODELED"
+      },
+      "P1_POST_ENRICHMENT_PRE_RANKING": {
+        "description": "Canonicalize after CANDIDATE_NORMALIZATION (which already includes production's own exact-id/URL dedup) but before SCORING_RANKING.",
+        "candidateCountEnteringRanking": {
+          "withoutCanonicalization": 22.1,
+          "withCanonicalization": 17.8
+        },
+        "duplicateWorkAvoided": {
+          "scoringCallsAvoided": 4.4
+        },
+        "modeledMsAvoided": 0.44,
+        "timingClass": "MODELED",
+        "note": "Production's own exact-dedup (mergeProductCandidates) essentially never fires on this lab's corpus (wasteRaw ~= 0 in evaluator/dedupWasteMetrics.js) - so avgRaw here is a close proxy for what actually reaches ranking in production today, not an inflated raw count."
+      },
+      "P2_POST_RANKING_PRE_DISPLAY": {
+        "description": "Canonicalize only at FINAL_RESULT_PAYLOAD/display-grouping time, after SCORING_RANKING has already run on the full candidate list.",
+        "candidateCountEnteringDisplay": {
+          "withoutCanonicalization": 22.1,
+          "withCanonicalization": 17.8
+        },
+        "duplicateWorkAvoided": {
+          "normalizationCallsAvoided": 0,
+          "scoringCallsAvoided": 0
+        },
+        "modeledMsAvoided": 0,
+        "timingClass": "MODELED (zero upstream compute avoided by construction - this placement is purely a DISPLAY-GROUPING concern, see simulate/displayPolicy.js)"
+      }
+    },
+    "resolverProcessingCostNote": "The resolver's OWN processing cost at any placement is OBSERVED (not modeled) - see simulate/resolverPerformance.js P50/P95 at realistic candidate-set sizes."
+  },
+  "resolverPerformance": [
+    {
+      "candidateSetSize": 10,
+      "pairCount": 45,
+      "repetitions": 10,
+      "p50Ms": 0.153,
+      "p95Ms": 0.324,
+      "minMs": 0.139,
+      "maxMs": 0.324,
+      "avgHeapDeltaBytes": 296495,
+      "deterministic": true,
+      "timingClass": "OBSERVED - offline wall-clock time on this lab's own run, not a production latency measurement"
+    },
+    {
+      "candidateSetSize": 50,
+      "pairCount": 1225,
+      "repetitions": 10,
+      "p50Ms": 1.856,
+      "p95Ms": 3.889,
+      "minMs": 1.367,
+      "maxMs": 3.889,
+      "avgHeapDeltaBytes": 4822989,
+      "deterministic": true,
+      "timingClass": "OBSERVED - offline wall-clock time on this lab's own run, not a production latency measurement"
+    },
+    {
+      "candidateSetSize": 200,
+      "pairCount": 19900,
+      "repetitions": 10,
+      "p50Ms": 27.148,
+      "p95Ms": 58.763,
+      "minMs": 23.52,
+      "maxMs": 58.763,
+      "avgHeapDeltaBytes": -16065686,
+      "deterministic": true,
+      "timingClass": "OBSERVED - offline wall-clock time on this lab's own run, not a production latency measurement"
+    },
+    {
+      "candidateSetSize": 500,
+      "pairCount": 124750,
+      "repetitions": 10,
+      "p50Ms": 193.012,
+      "p95Ms": 333.342,
+      "minMs": 158.222,
+      "maxMs": 333.342,
+      "avgHeapDeltaBytes": 41629923,
+      "deterministic": true,
+      "timingClass": "OBSERVED - offline wall-clock time on this lab's own run, not a production latency measurement"
+    }
+  ],
+  "displayPolicy": {
+    "kSizes": [
+      10,
+      20,
+      40
+    ],
+    "perWindow": [
+      {
+        "category": "boot",
+        "windowSize": 10,
+        "D1_ONE_CARD_BEST_OFFER": {
+          "uniqueProductsVisible": 7,
+          "retailerChoice": 4,
+          "lostOptionsCount": 3,
+          "duplicateCardReductionRate": 0.3
+        },
+        "D2_ONE_CARD_RETAILER_COUNT": {
+          "uniqueProductsVisible": 7,
+          "retailerChoice": 4,
+          "indirectlyVisibleCount": 3,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0.3
+        },
+        "D3_ONE_CARD_TOP_TWO_OFFERS": {
+          "uniqueProductsVisible": 7,
+          "retailerChoice": 6,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0.3
+        },
+        "D4_STYLE_CARD_GROUPED_VARIANTS": {
+          "uniqueProductsVisible": 7,
+          "variantSelectorsVisible": 7,
+          "retailerChoice": 4,
+          "lostOptionsCount": 3,
+          "duplicateCardReductionRate": 0.3
+        }
+      },
+      {
+        "category": "boot",
+        "windowSize": 20,
+        "D1_ONE_CARD_BEST_OFFER": {
+          "uniqueProductsVisible": 13,
+          "retailerChoice": 7,
+          "lostOptionsCount": 7,
+          "duplicateCardReductionRate": 0.35
+        },
+        "D2_ONE_CARD_RETAILER_COUNT": {
+          "uniqueProductsVisible": 13,
+          "retailerChoice": 7,
+          "indirectlyVisibleCount": 7,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0.35
+        },
+        "D3_ONE_CARD_TOP_TWO_OFFERS": {
+          "uniqueProductsVisible": 13,
+          "retailerChoice": 8,
+          "lostOptionsCount": 2,
+          "duplicateCardReductionRate": 0.35
+        },
+        "D4_STYLE_CARD_GROUPED_VARIANTS": {
+          "uniqueProductsVisible": 13,
+          "variantSelectorsVisible": 13,
+          "retailerChoice": 7,
+          "lostOptionsCount": 7,
+          "duplicateCardReductionRate": 0.35
+        }
+      },
+      {
+        "category": "boot",
+        "windowSize": 40,
+        "D1_ONE_CARD_BEST_OFFER": {
+          "uniqueProductsVisible": 31,
+          "retailerChoice": 14,
+          "lostOptionsCount": 9,
+          "duplicateCardReductionRate": 0.225
+        },
+        "D2_ONE_CARD_RETAILER_COUNT": {
+          "uniqueProductsVisible": 31,
+          "retailerChoice": 14,
+          "indirectlyVisibleCount": 9,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0.225
+        },
+        "D3_ONE_CARD_TOP_TWO_OFFERS": {
+          "uniqueProductsVisible": 31,
+          "retailerChoice": 14,
+          "lostOptionsCount": 2,
+          "duplicateCardReductionRate": 0.225
+        },
+        "D4_STYLE_CARD_GROUPED_VARIANTS": {
+          "uniqueProductsVisible": 29,
+          "variantSelectorsVisible": 31,
+          "retailerChoice": 14,
+          "lostOptionsCount": 9,
+          "duplicateCardReductionRate": 0.275
+        }
+      },
+      {
+        "category": "dress",
+        "windowSize": 10,
+        "D1_ONE_CARD_BEST_OFFER": {
+          "uniqueProductsVisible": 8,
+          "retailerChoice": 6,
+          "lostOptionsCount": 2,
+          "duplicateCardReductionRate": 0.2
+        },
+        "D2_ONE_CARD_RETAILER_COUNT": {
+          "uniqueProductsVisible": 8,
+          "retailerChoice": 6,
+          "indirectlyVisibleCount": 2,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0.2
+        },
+        "D3_ONE_CARD_TOP_TWO_OFFERS": {
+          "uniqueProductsVisible": 8,
+          "retailerChoice": 6,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0.2
+        },
+        "D4_STYLE_CARD_GROUPED_VARIANTS": {
+          "uniqueProductsVisible": 8,
+          "variantSelectorsVisible": 8,
+          "retailerChoice": 6,
+          "lostOptionsCount": 2,
+          "duplicateCardReductionRate": 0.2
+        }
+      },
+      {
+        "category": "dress",
+        "windowSize": 20,
+        "D1_ONE_CARD_BEST_OFFER": {
+          "uniqueProductsVisible": 14,
+          "retailerChoice": 9,
+          "lostOptionsCount": 6,
+          "duplicateCardReductionRate": 0.3
+        },
+        "D2_ONE_CARD_RETAILER_COUNT": {
+          "uniqueProductsVisible": 14,
+          "retailerChoice": 9,
+          "indirectlyVisibleCount": 6,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0.3
+        },
+        "D3_ONE_CARD_TOP_TWO_OFFERS": {
+          "uniqueProductsVisible": 14,
+          "retailerChoice": 9,
+          "lostOptionsCount": 1,
+          "duplicateCardReductionRate": 0.3
+        },
+        "D4_STYLE_CARD_GROUPED_VARIANTS": {
+          "uniqueProductsVisible": 14,
+          "variantSelectorsVisible": 14,
+          "retailerChoice": 9,
+          "lostOptionsCount": 6,
+          "duplicateCardReductionRate": 0.3
+        }
+      },
+      {
+        "category": "dress",
+        "windowSize": 40,
+        "D1_ONE_CARD_BEST_OFFER": {
+          "uniqueProductsVisible": 31,
+          "retailerChoice": 11,
+          "lostOptionsCount": 9,
+          "duplicateCardReductionRate": 0.225
+        },
+        "D2_ONE_CARD_RETAILER_COUNT": {
+          "uniqueProductsVisible": 31,
+          "retailerChoice": 11,
+          "indirectlyVisibleCount": 9,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0.225
+        },
+        "D3_ONE_CARD_TOP_TWO_OFFERS": {
+          "uniqueProductsVisible": 31,
+          "retailerChoice": 11,
+          "lostOptionsCount": 2,
+          "duplicateCardReductionRate": 0.225
+        },
+        "D4_STYLE_CARD_GROUPED_VARIANTS": {
+          "uniqueProductsVisible": 22,
+          "variantSelectorsVisible": 31,
+          "retailerChoice": 11,
+          "lostOptionsCount": 9,
+          "duplicateCardReductionRate": 0.45
+        }
+      },
+      {
+        "category": "jacket",
+        "windowSize": 10,
+        "D1_ONE_CARD_BEST_OFFER": {
+          "uniqueProductsVisible": 10,
+          "retailerChoice": 9,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0
+        },
+        "D2_ONE_CARD_RETAILER_COUNT": {
+          "uniqueProductsVisible": 10,
+          "retailerChoice": 9,
+          "indirectlyVisibleCount": 0,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0
+        },
+        "D3_ONE_CARD_TOP_TWO_OFFERS": {
+          "uniqueProductsVisible": 10,
+          "retailerChoice": 9,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0
+        },
+        "D4_STYLE_CARD_GROUPED_VARIANTS": {
+          "uniqueProductsVisible": 8,
+          "variantSelectorsVisible": 10,
+          "retailerChoice": 9,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0.2
+        }
+      },
+      {
+        "category": "jacket",
+        "windowSize": 20,
+        "D1_ONE_CARD_BEST_OFFER": {
+          "uniqueProductsVisible": 16,
+          "retailerChoice": 9,
+          "lostOptionsCount": 4,
+          "duplicateCardReductionRate": 0.2
+        },
+        "D2_ONE_CARD_RETAILER_COUNT": {
+          "uniqueProductsVisible": 16,
+          "retailerChoice": 9,
+          "indirectlyVisibleCount": 4,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0.2
+        },
+        "D3_ONE_CARD_TOP_TWO_OFFERS": {
+          "uniqueProductsVisible": 16,
+          "retailerChoice": 9,
+          "lostOptionsCount": 2,
+          "duplicateCardReductionRate": 0.2
+        },
+        "D4_STYLE_CARD_GROUPED_VARIANTS": {
+          "uniqueProductsVisible": 14,
+          "variantSelectorsVisible": 16,
+          "retailerChoice": 9,
+          "lostOptionsCount": 4,
+          "duplicateCardReductionRate": 0.3
+        }
+      },
+      {
+        "category": "jacket",
+        "windowSize": 40,
+        "D1_ONE_CARD_BEST_OFFER": {
+          "uniqueProductsVisible": 35,
+          "retailerChoice": 12,
+          "lostOptionsCount": 5,
+          "duplicateCardReductionRate": 0.125
+        },
+        "D2_ONE_CARD_RETAILER_COUNT": {
+          "uniqueProductsVisible": 35,
+          "retailerChoice": 12,
+          "indirectlyVisibleCount": 5,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0.125
+        },
+        "D3_ONE_CARD_TOP_TWO_OFFERS": {
+          "uniqueProductsVisible": 35,
+          "retailerChoice": 12,
+          "lostOptionsCount": 2,
+          "duplicateCardReductionRate": 0.125
+        },
+        "D4_STYLE_CARD_GROUPED_VARIANTS": {
+          "uniqueProductsVisible": 27,
+          "variantSelectorsVisible": 35,
+          "retailerChoice": 12,
+          "lostOptionsCount": 5,
+          "duplicateCardReductionRate": 0.325
+        }
+      },
+      {
+        "category": "sweater",
+        "windowSize": 10,
+        "D1_ONE_CARD_BEST_OFFER": {
+          "uniqueProductsVisible": 10,
+          "retailerChoice": 7,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0
+        },
+        "D2_ONE_CARD_RETAILER_COUNT": {
+          "uniqueProductsVisible": 10,
+          "retailerChoice": 7,
+          "indirectlyVisibleCount": 0,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0
+        },
+        "D3_ONE_CARD_TOP_TWO_OFFERS": {
+          "uniqueProductsVisible": 10,
+          "retailerChoice": 7,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0
+        },
+        "D4_STYLE_CARD_GROUPED_VARIANTS": {
+          "uniqueProductsVisible": 10,
+          "variantSelectorsVisible": 10,
+          "retailerChoice": 7,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0
+        }
+      },
+      {
+        "category": "sweater",
+        "windowSize": 20,
+        "D1_ONE_CARD_BEST_OFFER": {
+          "uniqueProductsVisible": 14,
+          "retailerChoice": 8,
+          "lostOptionsCount": 6,
+          "duplicateCardReductionRate": 0.3
+        },
+        "D2_ONE_CARD_RETAILER_COUNT": {
+          "uniqueProductsVisible": 14,
+          "retailerChoice": 8,
+          "indirectlyVisibleCount": 6,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0.3
+        },
+        "D3_ONE_CARD_TOP_TWO_OFFERS": {
+          "uniqueProductsVisible": 14,
+          "retailerChoice": 9,
+          "lostOptionsCount": 2,
+          "duplicateCardReductionRate": 0.3
+        },
+        "D4_STYLE_CARD_GROUPED_VARIANTS": {
+          "uniqueProductsVisible": 13,
+          "variantSelectorsVisible": 14,
+          "retailerChoice": 8,
+          "lostOptionsCount": 6,
+          "duplicateCardReductionRate": 0.35
+        }
+      },
+      {
+        "category": "sweater",
+        "windowSize": 40,
+        "D1_ONE_CARD_BEST_OFFER": {
+          "uniqueProductsVisible": 30,
+          "retailerChoice": 13,
+          "lostOptionsCount": 10,
+          "duplicateCardReductionRate": 0.25
+        },
+        "D2_ONE_CARD_RETAILER_COUNT": {
+          "uniqueProductsVisible": 30,
+          "retailerChoice": 13,
+          "indirectlyVisibleCount": 10,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0.25
+        },
+        "D3_ONE_CARD_TOP_TWO_OFFERS": {
+          "uniqueProductsVisible": 30,
+          "retailerChoice": 13,
+          "lostOptionsCount": 2,
+          "duplicateCardReductionRate": 0.25
+        },
+        "D4_STYLE_CARD_GROUPED_VARIANTS": {
+          "uniqueProductsVisible": 22,
+          "variantSelectorsVisible": 30,
+          "retailerChoice": 13,
+          "lostOptionsCount": 10,
+          "duplicateCardReductionRate": 0.45
+        }
+      },
+      {
+        "category": "uncategorized",
+        "windowSize": 10,
+        "D1_ONE_CARD_BEST_OFFER": {
+          "uniqueProductsVisible": 10,
+          "retailerChoice": 7,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0
+        },
+        "D2_ONE_CARD_RETAILER_COUNT": {
+          "uniqueProductsVisible": 10,
+          "retailerChoice": 7,
+          "indirectlyVisibleCount": 0,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0
+        },
+        "D3_ONE_CARD_TOP_TWO_OFFERS": {
+          "uniqueProductsVisible": 10,
+          "retailerChoice": 7,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0
+        },
+        "D4_STYLE_CARD_GROUPED_VARIANTS": {
+          "uniqueProductsVisible": 10,
+          "variantSelectorsVisible": 10,
+          "retailerChoice": 7,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0
+        }
+      },
+      {
+        "category": "uncategorized",
+        "windowSize": 20,
+        "D1_ONE_CARD_BEST_OFFER": {
+          "uniqueProductsVisible": 20,
+          "retailerChoice": 8,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0
+        },
+        "D2_ONE_CARD_RETAILER_COUNT": {
+          "uniqueProductsVisible": 20,
+          "retailerChoice": 8,
+          "indirectlyVisibleCount": 0,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0
+        },
+        "D3_ONE_CARD_TOP_TWO_OFFERS": {
+          "uniqueProductsVisible": 20,
+          "retailerChoice": 8,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0
+        },
+        "D4_STYLE_CARD_GROUPED_VARIANTS": {
+          "uniqueProductsVisible": 20,
+          "variantSelectorsVisible": 20,
+          "retailerChoice": 8,
+          "lostOptionsCount": 0,
+          "duplicateCardReductionRate": 0
+        }
+      }
+    ],
+    "d4FalseStyleMergeRisk": {
+      "styleClusterPurity": 0.688953488372093,
+      "note": "D4 groups by STYLE cluster; styleClusterPurity < 1.0 means at least one produced style card contains offers from more than one true style (Addendum A.3 decision memo DM-006 - largely a corpus-vocabulary artifact here, but the mechanism is real: a false style merge would surface exactly like this, hiding a genuinely distinct product inside another product's color/material selector rather than as its own card)."
+    }
+  },
+  "baseSanity": {
+    "procedure": "Addendum A.2",
+    "ranAt": "2026-09-06",
+    "baseSha": "76b54ee17f032754bd96f19494adc400da77320d",
+    "command": "node scripts/run-all-tests.js",
+    "exitCode": 0,
+    "totalTestFiles": 426,
+    "totalTests": 7671,
+    "pass": 7593,
+    "fail": 13,
+    "cancelled": 0,
+    "skipped": 65,
+    "todo": 0,
+    "durationMs": 258670.857,
+    "knownFailureBaselineCount": 19,
+    "observedFailures": 13,
+    "unexpectedFailures": 0,
+    "verdict": "PASS - all 13 observed failures matched the pre-registered config/test-failure-baseline.json (19 known identities total; 6 of those were not observed as failing in this run, which run-all-tests.js explicitly allows - 'fixed baseline failures are allowed to disappear'). Zero unexpected failures.",
+    "inheritedBaseFailures": "13 pre-existing failures, none caused by this lane. Not fixed here per Addendum A.3 RULE 3 (record, don't broaden). See config/test-failure-baseline.json at base SHA for the full known-failure list (staging/eas parity drift, security gate identifiers, etc. - unrelated to product identity/canonicalization).",
+    "note": "This governed-suite run only covers __tests__/ (scripts/run-all-tests.js walks that root by default). tools/canonical-product-identity/**/*.test.js and tools/fashion-match-quality/**/*.test.js are run separately, directly via `node --test`, matching the pre-existing convention for tools/fashion-match-quality (spec section 43#27 / Addendum A.2)."
+  },
+  "blockerLedger": [
+    {
+      "id": "BL-001",
+      "blocker": "PR #314 (base authority) not merged at dispatch time",
+      "affectedTask": "section 1 / A.1 base authority resolution",
+      "evidence": "sourceMap.json baseAuthority - PR #314 state OPEN",
+      "safeContinuation": "FALLBACK path per A.1: base = exact head of PR #314's branch (76b54ee); final PR targets that branch, stacked.",
+      "ownerActionNeeded": "Merge PR #314 (and #315) in whatever order the owner prefers; this lab's PR will need a retarget/rebase onto master once #314 lands.",
+      "status": "RESOLVED_VIA_FALLBACK"
+    },
+    {
+      "id": "BL-002",
+      "blocker": "PR #315 (Curiosity Gap Performance Lab) branch is not an ancestor of PR #314's branch - the two research lines diverge from a shared ancestor (909df864) but neither contains the other",
+      "affectedTask": "section 29 performance placement simulation",
+      "evidence": "sourceMap.json baseAuthority.curiosityGapNote; tools/curiosity-gap-performance/ absent from this worktree (research/fashion-match-quality-lab-v1 branch does not include it)",
+      "safeContinuation": "Section 29 placement facts (P0/P1/P2 structural consequences) are derived directly from repository source truth (scan-identify retrieval/enrichment/ranking source files) and labeled DERIVED_FROM_SOURCE rather than reusing PR #315's own measured artifacts. Never presented as PROVEN production timing.",
+      "ownerActionNeeded": "None required for V1. If PR #315 merges before this lab's PR, a future pass could cross-check DERIVED_FROM_SOURCE placement facts against PR #315's own measured harness for closer agreement.",
+      "status": "RESOLVED_VIA_DERIVED_FROM_SOURCE"
+    },
+    {
+      "id": "BL-003",
+      "blocker": "13 pre-existing test failures in the governed __tests__ suite at base SHA 76b54ee (staging/EAS flag-parity drift, security-gate identifiers) - unrelated to product identity/canonicalization",
+      "affectedTask": "A.2 base sanity pre-check / final zero-unexpected-failures claim",
+      "evidence": "authority/baseSanityCheck.json - all 13 observed failures matched config/test-failure-baseline.json known identities; 0 unexpected",
+      "safeContinuation": "Not fixed in this lane (A.3 RULE 3: record, don't broaden). Reported as INHERITED_BASE_FAILURES in the final report, kept out of this lab's own pass/fail claims.",
+      "ownerActionNeeded": "None - these are tracked by whatever lane owns staging/EAS parity and the security gate; out of scope here.",
+      "status": "RECORDED_NOT_FIXED"
+    }
+  ],
+  "decisionMemoCount": 7,
+  "divergenceFromBase": "NO",
+  "filesChangedOutsideMappedPath": [],
+  "contentHash": "9a853a4dec191c16fd6d33f0da6bec2b14614d415a6cfdfc02d72034f0222fa9"
+}

@@ -123,3 +123,14 @@ product-search-response.json
 
 # Raw portrait source files (processed JPEGs are bundled)
 assets/stylist-avatars/portraits/raw/
+
+# Phase 4.2: transient Commerce corpus cache — holds real image URLs, never committed (§57).
+vto-phase4-pipeline/.corpus-cache/
+
+# Stray VTO E2E harness scratch files. On Windows the harness writes an
+# absolute temp path that git-bash materializes as a LITERAL filename in the
+# repo root (the ':' becomes U+F03A), so `git add -A` will otherwise commit
+# them. Observed empty; ignored so a local full-suite run cannot contaminate
+# a branch. See docs/vto-phase4-2-defect-ledger.md P42-006.
+C*UsersjsmitAppDataLocalTempvto-e2e-*.json
+*AppDataLocalTempvto-e2e-*.json

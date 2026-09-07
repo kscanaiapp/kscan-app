@@ -1,0 +1,121 @@
+{
+  "mappedAt": "2026-09-06",
+  "baseAuthority": {
+    "resolutionProcedure": "Addendum A.1",
+    "pr314": {
+      "title": "Fashion Match Quality Lab V1: measurement authority and offline evaluation",
+      "state": "OPEN",
+      "headRefName": "research/fashion-match-quality-lab-v1",
+      "headRefOid": "76b54ee17f032754bd96f19494adc400da77320d",
+      "baseRefName": "integration/backend-kplus-complimentary-staging-v1"
+    },
+    "pr315": {
+      "title": "Curiosity Gap Performance Lab V1: structural latency authority",
+      "state": "OPEN",
+      "headRefName": "research/curiosity-gap-performance-v1",
+      "headRefOid": "1693851e51aff07b191dac2e445765e34ca18967",
+      "baseRefName": "integration/backend-kplus-complimentary-staging-v1"
+    },
+    "branchPathApplied": "FALLBACK (PR #314 not merged): base = exact head of PR #314's branch; final PR targets that branch (stacked).",
+    "commonAncestorOf314And315": "909df8646a690b55c5af6b7b8c80193df64a2ec8",
+    "resolvedBaseBranch": "research/fashion-match-quality-lab-v1",
+    "resolvedBaseSha": "76b54ee17f032754bd96f19494adc400da77320d",
+    "fashionMatchQualityPresentAtBase": true,
+    "fashionMatchQualityPath": "tools/fashion-match-quality/",
+    "curiosityGapPresentAtBase": false,
+    "curiosityGapNote": "research/curiosity-gap-performance-v1 (PR #315) is NOT an ancestor of research/fashion-match-quality-lab-v1 (PR #314) - both branches fork from a shared ancestor (909df864) but neither contains the other. Per Addendum A.1, this does not block the lab: section 29 placement facts are derived directly from repository source truth and labeled DERIVED_FROM_SOURCE rather than reusing PR #315's own measured artifacts."
+  },
+  "productionProductIdentityPipeline": {
+    "sourceOfEvidence": "tools/fashion-match-quality/authority/pipelineMap.json (read verbatim, source SHA 909df8646a690b55c5af6b7b8c80193df64a2ec8) plus direct source reads in this pass",
+    "retrieval": {
+      "sourcePath": "supabase/functions/scan-identify/shoppingProvider.ts, supabase/functions/_shared/catalogRetrieval.ts",
+      "summary": "Two retailer-search providers (Serper primary, Brave fallback) plus an internal product_catalog table. Retailer results and catalog rows are merged into one candidate array via field-aliasing (adaptCatalogCandidate/mergeProductCandidates)."
+    },
+    "deduplication": {
+      "sourcePath": "supabase/functions/_shared/catalogRetrieval.ts:205-272 (mergeProductCandidates); supabase/functions/scan-identify/shoppingProvider.ts:351-395,460-470 (mapSerperItems/mapBraveItems)",
+      "method": "EXACT MATCH ONLY: dedupe key is (a) exact id, then (b) exact normalized (lowercased) product URL.",
+      "gap": "There is NO brand+title+category fuzzy duplicate detection, NO image-hash duplicate detection, and NO cross-retailer canonical-product merge in production today. This is the exact gap this lab studies."
+    },
+    "separateRetailerScopedIdentityKey": {
+      "sourcePath": "supabase/functions/scan-identify/qualityTuneCommerce.ts:308-339 (productIdentityKey)",
+      "summary": "A DIFFERENT, narrower key used elsewhere in commerce funnel logic (v127). Priority: (retailerId+sku) > canonicalized URL (tracking params stripped) > provider id (hash of raw URL, so trailing slash/case/param differences break it) > (retailer+normalized title). Comment at :320-327 explicitly documents that the provider-id tier had to be reordered because Serper/Brave synthesize `id` by hashing the RAW productUrl, which broke canonical-URL matching. This key is RETAILER-SCOPED throughout (every tier includes the retailer/source) - it never claims cross-retailer identity, which is exactly the gap this lab's resolver targets."
+    },
+    "vectorEmbeddingStack": {
+      "sourcePath": "tools/fashion-match-quality/authority/pipelineMap.json#vectorEmbeddingStack",
+      "status": "NOT_PROVEN / NOT_FOUND",
+      "summary": "No Pinecone/Milvus/pgvector import, no embedding-model API call, no ANN index found anywhere in the traced retrieval/ranking stages. Matching is text/attribute-based only. Confirms spec section 15's instruction not to assume reusable visual embeddings exist - Tier 3 (fuzzy/visual) is out of scope for this lab's V1 build."
+    },
+    "identityFieldsObservedOnRetailerOffers": {
+      "sourcePath": "supabase/functions/scan-identify/shoppingProvider.ts:13-36 (RecommendedProduct interface)",
+      "fields": ["id (provider-synthesized, hash of raw productUrl)", "title", "source (retailer name)", "price (string, no separate currency field on the raw Serper/Brave shape)", "type: retail|similar", "imageUrl", "productUrl", "brand (optional, rarely populated - Serper/Brave do not supply it)", "commerceType: retail|resale"],
+      "note": "No sku/gtin/mpn/color/material/category on this raw provider shape. Those attributes exist only on the internal product_catalog rows, not on live Serper/Brave results."
+    },
+    "identityFieldsObservedOnCatalogRows": {
+      "sourcePath": "supabase/migrations/202606290001_product_catalog.sql",
+      "fields": ["id (uuid, internal)", "retailer", "brand", "product_name", "canonical_category", "raw_category", "description", "price", "currency", "product_url", "image_url", "availability", "color_normalized", "material_tags[]", "silhouette_tags[]", "style_tags[]", "pattern_tags[]", "distinctive_features[]", "search_text", "source", "external_product_id (unique per row, retailer-feed-scoped, NOT a manufacturer identifier)"],
+      "note": "No gtin/upc/ean/mpn/manufacturer_style_code column exists on product_catalog."
+    }
+  },
+  "crossFeatureIdentityAudit": {
+    "method": "Direct source read by a dedicated research pass over supabase/migrations, services/, types/, supabase/functions - this pass's own evidence, not inferred.",
+    "surfaces": [
+      {
+        "surface": "Watchlist",
+        "identifier": "(source, canonical_url) pair - the normalized retailer listing URL is the sole identity authority. No product-level key exists.",
+        "sourceFile": "supabase/migrations/20260830150000_user_commerce_watches.sql:27-37,103-105 (unique index on (user_id, canonical_url)); supabase/functions/scan-identify/watchlistCapability.ts:54-60 (WATCH_PROVIDER_REGISTRY limited to farfetch, kickscrew)",
+        "designNote": "Migration comment at :31-37 explicitly states source/canonical_url together ARE the identity, and that a canonicalProductKey or brand/title hash was considered and REJECTED as unstable.",
+        "retailerSpecific": true,
+        "stableAcrossRetailers": false,
+        "stableAcrossSessions": true
+      },
+      {
+        "surface": "Closet / Saved",
+        "identifier": "Closet items: client_id (locally client-generated, not a retailer/product id) - table has NO product_url/external_product_id/retailer field at all (pure fashion taxonomy). Saved Scans: row id; the products jsonb column is an opaque, untyped snapshot with no identity extraction or dedup.",
+        "sourceFile": "supabase/migrations/20260829203657_user_closet_items.sql:16-71; services/closetLibrary.js:128-198 (CLOSET_ITEM_TAXONOMY_FIELDS, explicit 'COMMERCE EXCLUSION BOUNDARY' comment at :172-180); supabase/migrations/20260617215307_create_saved_scans.sql:6-40; services/savedScansCloud.ts:27-322",
+        "retailerSpecific": false,
+        "stableAcrossRetailers": "N/A - Closet carries no commerce identity by design; Saved Scans never deduplicates by product",
+        "stableAcrossSessions": true
+      },
+      {
+        "surface": "Dressing Rooms",
+        "identifier": "computeDressingRoomDedupeKey - a room-scoped priority chain: closet_item_id > scan_id+selected_item_id > saved_scan_id > inspiration_item_id > provider_product_id > storage_bucket+path > image_digest > request_idempotency_key. Every key is suffixed ':room:{roomId}'.",
+        "sourceFile": "services/dressingRoomDedupe.ts:1-107 (module header explicitly: 'Never merges different colors/variants/retailers with distinct offers'); supabase/migrations/202605200001_persistent_style_objects.sql:17-79 (dressing_room_items/look_items tables); types/canonicalDressingRoomItem.ts:9-40",
+        "retailerSpecific": true,
+        "stableAcrossRetailers": false,
+        "stableAcrossSessions": "room-scoped only - deterministic for the same room+source, not a durable cross-room or cross-surface identity by design"
+      },
+      {
+        "surface": "VTO",
+        "identifier": "productRef = commerce record's own id, else its purchase URL, else its image URL (documented as 'a correlation handle, never an authorization input'). Feeds the paid-generation idempotency key sha256(userId|productRef|garmentImageUrl|personImageDigest|requestGeneration).",
+        "sourceFile": "services/vto/vtoCommerceGarment.ts:86-107 (buildVtoGarmentFromCommerceRecord); types/vto.ts:118-133; supabase/functions/vto-generate/vtoReservation.ts:51-66 (buildVtoIdempotencyKey); supabase/functions/vto-generate/vtoPaidBoundary.test.ts:236,259",
+        "retailerSpecific": "derivative - inherits whatever instability Commerce's own id/URL already has",
+        "stableAcrossRetailers": false,
+        "stableAcrossSessions": "unknown/likely no - inherited directly from Commerce's per-response RecommendedProduct.id, which is provider-synthesized per request, not a durable identifier"
+      }
+    ],
+    "conclusion": "Every surface in K Scan today defines 'same product' differently, and every definition is either retailer-scoped, session/room-scoped, or (Closet) absent entirely. None is stable across retailers. This is precisely the incompatibility this lab's Style -> Variant -> Offer model is designed to eventually unify (design-only in V1; see design/ directory)."
+  },
+  "identitySignalInventory": {
+    "method": "Repo-wide source grep (excluding node_modules) for gtin/GTIN, upc/UPC, ean/EAN, mpn/MPN, style_code/styleCode, manufacturer_sku/manufacturerSku across services/, supabase/, types/, hooks/, contexts/, components/, __tests__/, app/, tools/.",
+    "coverage": "PROVEN_ABSENT",
+    "coverageNote": "Not UNKNOWN and not BLOCKED_EXTERNAL - this pass read the actual source and confirmed absence directly; no live provider traffic was needed because the question is 'does K Scan's own code model these fields at all', which is answerable from source alone.",
+    "signals": [
+      { "signal": "GTIN", "source": "N/A", "field": "N/A", "presentInCurrentDataModel": false, "crossRetailerStability": "N/A", "identityLevel": "VARIANT", "missingDataBehavior": "N/A - field does not exist anywhere in the traced codebase" },
+      { "signal": "UPC", "source": "N/A (one dead experimental exception, see note)", "field": "N/A", "presentInCurrentDataModel": false, "crossRetailerStability": "N/A", "identityLevel": "VARIANT", "missingDataBehavior": "N/A" },
+      { "signal": "EAN", "source": "N/A", "field": "N/A", "presentInCurrentDataModel": false, "crossRetailerStability": "N/A", "identityLevel": "VARIANT", "missingDataBehavior": "N/A" },
+      { "signal": "MPN", "source": "N/A", "field": "N/A", "presentInCurrentDataModel": false, "crossRetailerStability": "N/A", "identityLevel": "VARIANT", "missingDataBehavior": "N/A" },
+      { "signal": "manufacturer SKU / brand style code", "source": "services/nikeShoeDetails.ts (dead experimental provider)", "field": "NikeShoeResult.styleCode", "presentInCurrentDataModel": "PARTIAL - typed field exists but is unused", "crossRetailerStability": "UNKNOWN - never exercised", "identityLevel": "STYLE/VARIANT", "missingDataBehavior": "File header comment: 'Experimental provider. Upstream RapidAPI endpoint returned 404 for tested Nike URLs as of setup. Do not wire into production flows.' A repo-wide import search confirms nothing in Scanner/Commerce/Watchlist/Closet/Dressing Rooms/VTO imports this module - it is dead code, not a live signal." },
+      { "signal": "retailer SKU", "source": "supabase/functions/scan-identify/qualityTuneCommerce.ts:313-318", "field": "rec.sku / rec.SKU (loosely typed, provider-dependent presence)", "presentInCurrentDataModel": true, "crossRetailerStability": "LOW - explicitly namespaced per-retailer (`sku:${retailerId}|${sku}`), never treated as cross-retailer-comparable in production", "identityLevel": "OFFER", "missingDataBehavior": "falls through to canonical-URL tier, then provider-id, then retailer+title tier" },
+      { "signal": "provider product ID", "source": "supabase/functions/scan-identify/shoppingProvider.ts (RecommendedProduct.id)", "field": "id", "presentInCurrentDataModel": true, "crossRetailerStability": "NONE - synthesized per-request by hashing the raw productUrl (see qualityTuneCommerce.ts:320-327 comment)", "identityLevel": "OFFER", "missingDataBehavior": "N/A - always present, but not durable" },
+      { "signal": "brand", "source": "shoppingProvider.ts RecommendedProduct.brand (optional); product_catalog.brand", "field": "brand", "presentInCurrentDataModel": true, "crossRetailerStability": "MEDIUM - free text, no brand-alias normalization observed in production", "identityLevel": "STYLE", "missingDataBehavior": "undefined on raw Serper/Brave results; present on internal catalog rows" },
+      { "signal": "style/model name / title", "source": "RecommendedProduct.title; product_catalog.product_name", "field": "title / product_name", "presentInCurrentDataModel": true, "crossRetailerStability": "LOW-MEDIUM - free text, retailer-authored, no shared vocabulary", "identityLevel": "STYLE", "missingDataBehavior": "N/A - always present" },
+      { "signal": "category", "source": "product_catalog.canonical_category / raw_category; scanHelpers.ts normalizeCategory (regex-based)", "field": "canonical_category", "presentInCurrentDataModel": true, "crossRetailerStability": "MEDIUM - normalized deterministically by production code, but only on the internal catalog path", "identityLevel": "STYLE", "missingDataBehavior": "falls back to raw_category or unnormalized string" },
+      { "signal": "color", "source": "product_catalog.color_normalized", "field": "color_normalized", "presentInCurrentDataModel": true, "crossRetailerStability": "MEDIUM", "identityLevel": "VARIANT", "missingDataBehavior": "null column, not required" },
+      { "signal": "material", "source": "product_catalog.material_tags[]", "field": "material_tags", "presentInCurrentDataModel": true, "crossRetailerStability": "MEDIUM", "identityLevel": "VARIANT", "missingDataBehavior": "empty array default" },
+      { "signal": "pattern", "source": "product_catalog.pattern_tags[]", "field": "pattern_tags", "presentInCurrentDataModel": true, "crossRetailerStability": "MEDIUM", "identityLevel": "VARIANT", "missingDataBehavior": "empty array default" },
+      { "signal": "silhouette / construction", "source": "product_catalog.silhouette_tags[], distinctive_features[]", "field": "silhouette_tags / distinctive_features", "presentInCurrentDataModel": true, "crossRetailerStability": "MEDIUM", "identityLevel": "STYLE/VARIANT", "missingDataBehavior": "empty array default" },
+      { "signal": "image URL", "source": "RecommendedProduct.imageUrl; product_catalog.image_url", "field": "imageUrl / image_url", "presentInCurrentDataModel": true, "crossRetailerStability": "LOW - retailer-hosted CDN URL, never identical across retailers for the same physical product", "identityLevel": "OFFER (supporting evidence only per section 12)", "missingDataBehavior": "optional" },
+      { "signal": "canonical/product URL", "source": "RecommendedProduct.productUrl; product_catalog.product_url", "field": "productUrl / product_url", "presentInCurrentDataModel": true, "crossRetailerStability": "NONE across retailers by definition (each retailer's own URL); MEDIUM within one retailer after tracking-param normalization", "identityLevel": "OFFER", "missingDataBehavior": "optional" }
+    ]
+  }
+}
