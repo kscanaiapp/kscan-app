@@ -218,9 +218,13 @@ export function normalizePurchaseOptions(raw: unknown): CanonicalPurchaseOption[
       cleanText(record.displayName) ||
       cleanText(record.product_name) ||
       cleanText(record.productName);
+    // Commerce V2 seller-truth repair: `brand` is the item's manufacturer,
+    // never a fallback for who is selling it (Build 35 Commerce V2 plan
+    // §12-13). A record with only a brand field and no seller-authoritative
+    // field carries no retailer identity, so `retailer` stays null rather
+    // than silently repeating the brand.
     const retailer =
       cleanText(record.retailer) ||
-      cleanText(record.brand) ||
       cleanText(record.merchant) ||
       cleanText(record.store) ||
       cleanText(record.source);

@@ -162,9 +162,13 @@ function getPurchaseUrl(product: Product | null | undefined): string | null {
   );
 }
 
+// Commerce V2 seller-truth repair: `brand` is never a retailer candidate
+// (Build 35 Commerce V2 plan §12-13) -- a manufacturer is not who is selling
+// the item, and showing it in the "where to buy" slot misrepresents the
+// storefront. A product with no seller-authoritative field has no retailer.
 function getRetailer(product: Product | null | undefined): string | null {
   if (!product) return null;
-  const candidates = [product.retailer, product.brand, product.source, product.merchant, product.store];
+  const candidates = [product.retailer, product.source, product.merchant, product.store];
   for (const c of candidates) {
     if (typeof c === 'string' && c.trim()) return c.trim();
   }
