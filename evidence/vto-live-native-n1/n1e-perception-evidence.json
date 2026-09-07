@@ -1,0 +1,38 @@
+{
+  "gate": "N1-E",
+  "evidenceClass": "PHYSICAL_DEVICE",
+  "device": "Samsung SM-S936U, Android 16 (API 36), arm64-v8a",
+  "provider": {
+    "name": "mediapipe-tasks-vision-pose-landmarker",
+    "sdkVersion": "com.google.mediapipe:tasks-vision:1.0.0",
+    "model": "pose_landmarker_lite",
+    "modelSha256": "59929e1d1ee95287735ddd833b19cf4ac46d29bc7afddbbf6753c459690d574a"
+  },
+  "firstDetection": {
+    "logLine": "N1-E first detect() result: poses=1 landmarksInPose0=33 sample=[(0.50630647,0.1400494,vis=0.9997832,pres=0.9998172), (0.52187,0.120461404,vis=0.9996375,pres=0.99969065), (0.5317583,0.11997533,vis=0.99959975,pres=0.99965477)]"
+  },
+  "networkMonitoring": [
+    {"window": "init + 294 real inferences, all NoPose", "durationSeconds": 35, "rxBytesDelta": 0, "txBytesDelta": 0},
+    {"window": "init + 218 real inferences, all Success", "durationSeconds": 12, "rxBytesDelta": 0, "txBytesDelta": 0}
+  ],
+  "backpressure_real_device": {
+    "produced": 295, "submittedToPerception": 295, "inferred": 144,
+    "droppedBeforePerception": 150, "refused": 0, "rendered": 144,
+    "droppedBeforeRender": 0, "maxInputSlotDepth": 1, "maxGeometrySlotDepth": 1,
+    "windowSeconds": 10
+  },
+  "gateTally": {
+    "passed": 0, "failed": 50, "lastGateFindings": ["garment_largely_outside_torso"],
+    "lastScale": 1.0847614,
+    "classification": "measured calibration finding, not a pipeline defect -- see N1-ENV-014"
+  },
+  "checklistSection14": {
+    "realSdkCompiled": true,
+    "realModelBundled": true,
+    "realModelLoaded": true,
+    "actualInferenceInvoked": true,
+    "actualInferenceResultReturned": true,
+    "resultMappedIntoBodyFrame": true,
+    "bodyFrameReachedNativeRenderer": true
+  }
+}
