@@ -14,7 +14,10 @@ export interface PostHogIdentityClient {
   reset(): void;
 }
 
-let lastSyncedUserId: string | null = null;
+// `undefined` means this process has not synchronized the SDK yet. It is
+// deliberately distinct from anonymous (`null`): PostHog can restore a prior
+// distinct id from its own storage, so the first anonymous sync must reset it.
+let lastSyncedUserId: string | null | undefined;
 
 export function syncPostHogIdentityWith(
   client: PostHogIdentityClient | null,
@@ -29,5 +32,5 @@ export function syncPostHogIdentityWith(
 
 /** Test seam only. Not used by production code. */
 export function __resetPostHogIdentitySyncForTests(): void {
-  lastSyncedUserId = null;
+  lastSyncedUserId = undefined;
 }

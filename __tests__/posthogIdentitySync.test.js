@@ -36,6 +36,14 @@ test.beforeEach(() => {
   __resetPostHogIdentitySyncForTests();
 });
 
+test('the first anonymous sync clears any distinct id restored by the SDK', () => {
+  const client = fakeClient();
+
+  syncPostHogIdentityWith(client, null);
+
+  assert.deepEqual(client.calls, [{ op: 'reset' }]);
+});
+
 test('anonymous -> identify(A) -> reset() -> identify(B): B never inherits A', () => {
   const client = fakeClient();
 
