@@ -8,6 +8,8 @@
 // or forwarded to the mobile app. All output is normalized to a small,
 // stable RecommendedProduct shape.
 
+import { formatOfferPrice, normalizeCurrencyCode } from './offerCurrency.ts';
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export interface RecommendedProduct {
@@ -33,6 +35,13 @@ export interface RecommendedProduct {
    * (retailer-neutrality is a hard rule — see scanCommerceRouter.ts).
    */
   commerceType?: 'retail' | 'resale';
+  /**
+   * RP-110 — ISO-4217 currency for this offer, when the provider actually
+   * declared one. Never inferred from locale, market context, retailer country
+   * or domain: its absence means "the provider did not say", and every layer
+   * downstream must keep saying that rather than substituting a default.
+   */
+  currency?: string;
 }
 
 export interface ShoppingResult {
@@ -197,10 +206,20 @@ export function normalizeImageUrl(url: unknown): string | undefined {
   }
 }
 
-export function normalizePrice(price: unknown): string | undefined {
+/**
+ * RP-110: a numeric provider price carries no currency of its own, so it is
+ * rendered in the currency the provider DECLARED alongside it, or bare when it
+ * declared none. The previous unconditional dollar-prefixed formatting published
+ * a USD claim for every currency-less amount Serper returned.
+ *
+ * A provider-formatted price STRING is left exactly as the provider wrote it:
+ * that string is the provider's own representation and already carries whatever
+ * currency it means to assert.
+ */
+export function normalizePrice(price: unknown, currency?: unknown): string | undefined {
   if (typeof price === 'number' && Number.isFinite(price)) {
     if (price <= 0) return undefined;
-    return `$${price.toFixed(2)}`;
+    return formatOfferPrice(price, currency)?.slice(0, MAX_PRICE_LEN);
   }
   if (typeof price !== 'string') return undefined;
   let s = price.trim();
@@ -369,7 +388,8 @@ function mapSerperItems(items: unknown[], limit: number): RecommendedProduct[] {
       id: makeId('serper', productUrl),
       title: title.slice(0, MAX_TITLE_LEN),
       source,
-      price: normalizePrice(it.price),
+      price: normalizePrice(it.price, it.currency),
+      ...(normalizeCurrencyCode(it.currency) ? { currency: normalizeCurrencyCode(it.currency) as string } : {}),
       type: 'retail',
       imageUrl: normalizeImageUrl(it.imageUrl) ?? normalizeImageUrl(it.thumbnail),
       productUrl,

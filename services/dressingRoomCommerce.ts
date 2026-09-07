@@ -88,17 +88,42 @@ export function normalizePersistedCommerceUrl(value: unknown): string | null {
   }
 }
 
-/** Format canonical string/number prices without dropping their currency. */
+/**
+ * The offer's own ISO-4217 currency, or null (RP-110).
+ *
+ * The single client-side authority on what counts as a declared currency:
+ * a three-letter code and nothing else. Free text, a symbol, an empty string
+ * and a number are all "the offer did not declare one", which is a different
+ * fact from "the offer is priced in dollars" and must stay different.
+ */
+export function normalizeCommerceCurrency(currency: unknown): string | null {
+  if (typeof currency !== 'string') return null;
+  const trimmed = currency.trim();
+  if (!/^[a-z]{3}$/i.test(trimmed)) return null;
+  return trimmed.toUpperCase();
+}
+
+/**
+ * Format canonical string/number prices without dropping — or inventing — their
+ * currency (RP-110).
+ *
+ * A numeric amount whose currency is unknown renders as the bare amount. It is
+ * never given a `$`, never labelled USD, and never resolved from the device
+ * locale or the retailer's country: the app does not know, and saying nothing
+ * is the only truthful thing it can say. `currency` therefore has no default —
+ * an omitted argument means unknown, not dollars.
+ *
+ * A provider-formatted price STRING passes through untouched: it is the
+ * provider's own representation and already carries whatever currency it
+ * asserts.
+ */
 export function formatCommercePrice(
   price: unknown,
-  currency: unknown = 'USD',
+  currency?: unknown,
 ): string | null {
   if (price === null || price === undefined) return null;
 
-  const currencyCode =
-    typeof currency === 'string' && /^[a-z]{3}$/i.test(currency.trim())
-      ? currency.trim().toUpperCase()
-      : 'USD';
+  const currencyCode = normalizeCommerceCurrency(currency);
   const numeric =
     typeof price === 'number'
       ? price
@@ -108,13 +133,14 @@ export function formatCommercePrice(
 
   if (numeric !== null) {
     if (!Number.isFinite(numeric) || numeric <= 0) return null;
+    if (!currencyCode) return numeric.toFixed(2);
     try {
       return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: currencyCode,
       }).format(numeric);
     } catch {
-      return currencyCode === 'USD' ? `$${numeric.toFixed(2)}` : `${currencyCode} ${numeric.toFixed(2)}`;
+      return `${currencyCode} ${numeric.toFixed(2)}`;
     }
   }
 
@@ -206,7 +232,9 @@ export function normalizePurchaseOptions(raw: unknown): CanonicalPurchaseOption[
       title,
       retailer,
       price: cleanText(record.price, 64),
-      currency: cleanText(record.currency, 8),
+      // RP-110: only a real ISO-4217 code is persisted, so a reopened scan can
+      // never inherit a currency claim the provider never made.
+      currency: normalizeCommerceCurrency(record.currency),
       productUrl,
       affiliateUrl,
       imageUrl,

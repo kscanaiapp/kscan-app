@@ -16,8 +16,17 @@ let FETCH_IMPL = async () => {
   throw new Error('fetch not configured');
 };
 
-function loadProvider() {
-  const filename = path.join(ROOT, 'supabase/functions/scan-identify/shoppingProvider.ts');
+const FUNCTION_DIR = path.join(ROOT, 'supabase/functions/scan-identify');
+
+/**
+ * Load an Edge Function module in a sandbox, resolving its sibling `./x.ts`
+ * imports against the real function directory so the module under test runs
+ * against its actual dependencies rather than a stub of them.
+ */
+function loadModule(relativePath, cache = new Map()) {
+  const filename = path.join(FUNCTION_DIR, relativePath);
+  if (cache.has(filename)) return cache.get(filename);
+
   const source = fs.readFileSync(filename, 'utf8');
   const output = ts.transpileModule(source, {
     compilerOptions: {
@@ -28,11 +37,13 @@ function loadProvider() {
   }).outputText;
 
   const mod = { exports: {} };
+  cache.set(filename, mod.exports);
   const sandbox = {
     console,
     exports: mod.exports,
     module: mod,
     URL,
+    Intl,
     AbortController: globalThis.AbortController,
     setTimeout: globalThis.setTimeout,
     clearTimeout: globalThis.clearTimeout,
@@ -40,12 +51,18 @@ function loadProvider() {
     Deno: { env: { get: (k) => ENV[k] } },
     require: (id) => {
       if (id.startsWith('node:')) return require(id);
+      if (id.startsWith('./')) return loadModule(id.slice(2), cache);
       throw new Error(`Unexpected require: ${id}`);
     },
   };
   sandbox.globalThis = sandbox;
   vm.runInNewContext(output, sandbox, { filename });
+  cache.set(filename, mod.exports);
   return mod.exports;
+}
+
+function loadProvider() {
+  return loadModule('shoppingProvider.ts');
 }
 
 const provider = loadProvider();
@@ -118,7 +135,12 @@ test('normalizePrice: strips noisy prefixes and handles numbers', () => {
   assert.equal(provider.normalizePrice('From $45'), '$45');
   assert.equal(provider.normalizePrice('Starting at $80'), '$80');
   assert.equal(provider.normalizePrice('$129.99'), '$129.99');
-  assert.equal(provider.normalizePrice(59), '$59.00');
+  // RP-110: a numeric provider price declares no currency of its own, so it is
+  // rendered bare. Inventing '$59.00' here was the defect.
+  assert.equal(provider.normalizePrice(59), '59.00');
+  assert.equal(provider.normalizePrice(59, 'EUR'), '\u20AC59.00');
+  assert.equal(provider.normalizePrice(59, 'USD'), '$59.00');
+  assert.equal(provider.normalizePrice(59, 'not-a-currency'), '59.00');
   assert.equal(provider.normalizePrice(''), undefined);
   assert.equal(provider.normalizePrice(undefined), undefined);
 });

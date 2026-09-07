@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-05T19:30:38.472Z",
-    "generatedFromGitSha": "4365cebfccfd59843dd3f0a7418c07cb8e9ff843"
+    "generatedAtUtc": "2026-09-07T04:31:28.887Z",
+    "generatedFromGitSha": "6cb759641f86a09dc25ba7346842759736028c3b"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -39,10 +39,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 40,
-        "treeFileCount": 66,
-        "bundleHash": "4f12ca732bc09c628fbad6249ac136b34da1e315dd55cdf4e94dca932fef4e15",
-        "treeHash": "c5bf08876d7c2214bae7c45ae1ab129348e7ef8c2c37543b494fffb3ac981175",
+        "bundleFileCount": 41,
+        "treeFileCount": 67,
+        "bundleHash": "45394f994382e1502aeca25209706098c783a72f3faaedd2d4b74536e5426118",
+        "treeHash": "d2ec33ef6ac96b6546bd5f38a730369345234bb1db2a5377e836f0e521ed5b94",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -76,7 +76,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/canonicalCommerce.ts",
-            "sha256": "8d463cc9ee3a54d9a7ff8742880d5cad4e3dc3e8071e3083baea9c0f71e0b32a",
+            "sha256": "5848570a2121494800839bcc053d68c182cd8e2376e0b4761f4dbbc779c191f3",
             "bundle": true
           },
           {
@@ -181,7 +181,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/farfetch3Provider.ts",
-            "sha256": "e1d413142fcc771cf15b0db85c868218da720b077d994fdfdd49c3a36bd75e20",
+            "sha256": "98c9cafb574e55d969c5cdd4ffa86c209f55629bd69954f56a3868eaba88a792",
             "bundle": true
           },
           {
@@ -211,7 +211,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/kicksCrewProvider.ts",
-            "sha256": "1c966ac9a6db4c189eb402d7fcbc84037254066bab5bf5102f3e314e839b952b",
+            "sha256": "e71cc9b2cc1e0dc9e95bd200a5e46c1b22f382c43c1fd7af0c7d1c3b1ae69536",
             "bundle": true
           },
           {
@@ -235,6 +235,11 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/scan-identify/offerCurrency.ts",
+            "sha256": "617f75b22e66678758d209d48277470f990c971e68b71a4edad232c52f0436ef",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
             "sha256": "97107a41d5217d3a262547e49b29ab708b24d0a117f4f76b308a6241ebb4a870",
             "bundle": false
@@ -246,7 +251,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/poshmarkProvider.ts",
-            "sha256": "ce995624e7e76757d7d9407b169255ad27ce3484be192ba06aa3d11f387cb77f",
+            "sha256": "8410b122bfe6fb4ccb7361a00bdcecda7a7e96c4db2ad528212b0a49387ce089",
             "bundle": true
           },
           {
@@ -321,7 +326,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/shoppingProvider.ts",
-            "sha256": "33798bbcb357b70ec39ad9b25d68182117b239e47f481ea90cd2a33552f6bd8c",
+            "sha256": "71892f1dba27f2ff2648d83c930fc8270faaa167447d55811816f9a3026312c5",
             "bundle": true
           },
           {
@@ -382,10 +387,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 12,
-        "treeFileCount": 15,
-        "bundleHash": "361d99a2edc0e69a0d904c0bd6ff58ec964e0027a84f9e89ac611142362a46a5",
-        "treeHash": "c217391709239ac65b4075b2f23b6300ceeac854ae33b2658dc72df672e461ae",
+        "bundleFileCount": 13,
+        "treeFileCount": 16,
+        "bundleHash": "5f885310a2b3bee5c84d185d9d4959a13e85164828f6d7222874ac91e5bd59c7",
+        "treeHash": "e302d733d6e949e4ecd881a9a3d4854ca370a5b890e7dd1cde17fdc370f96234",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -439,22 +444,27 @@
           },
           {
             "path": "supabase/functions/scan-identify/canonicalCommerce.ts",
-            "sha256": "8d463cc9ee3a54d9a7ff8742880d5cad4e3dc3e8071e3083baea9c0f71e0b32a",
+            "sha256": "5848570a2121494800839bcc053d68c182cd8e2376e0b4761f4dbbc779c191f3",
             "bundle": true
           },
           {
             "path": "supabase/functions/scan-identify/farfetch3Provider.ts",
-            "sha256": "e1d413142fcc771cf15b0db85c868218da720b077d994fdfdd49c3a36bd75e20",
+            "sha256": "98c9cafb574e55d969c5cdd4ffa86c209f55629bd69954f56a3868eaba88a792",
             "bundle": true
           },
           {
             "path": "supabase/functions/scan-identify/kicksCrewProvider.ts",
-            "sha256": "1c966ac9a6db4c189eb402d7fcbc84037254066bab5bf5102f3e314e839b952b",
+            "sha256": "e71cc9b2cc1e0dc9e95bd200a5e46c1b22f382c43c1fd7af0c7d1c3b1ae69536",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/scan-identify/offerCurrency.ts",
+            "sha256": "617f75b22e66678758d209d48277470f990c971e68b71a4edad232c52f0436ef",
             "bundle": true
           },
           {
             "path": "supabase/functions/scan-identify/shoppingProvider.ts",
-            "sha256": "33798bbcb357b70ec39ad9b25d68182117b239e47f481ea90cd2a33552f6bd8c",
+            "sha256": "71892f1dba27f2ff2648d83c930fc8270faaa167447d55811816f9a3026312c5",
             "bundle": true
           },
           {

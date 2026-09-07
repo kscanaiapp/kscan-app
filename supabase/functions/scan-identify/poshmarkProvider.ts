@@ -19,6 +19,8 @@
 // Backend-only. No API keys, headers, raw provider payloads, or user PII are
 // logged or returned to the mobile app.
 
+import { formatOfferPrice, normalizeCurrencyCode } from './offerCurrency.ts';
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export type PoshmarkProduct = {
@@ -38,6 +40,8 @@ export type PoshmarkProduct = {
   commerceType: 'resale';
   condition?: string;
   size?: string;
+  /** RP-110: the provider's own declared currency. Absent when it declared none. */
+  currency?: string;
 };
 
 export type PoshmarkSearchResult = {
@@ -135,17 +139,14 @@ function normalizeImageUrl(raw: unknown): string | undefined {
   }
 }
 
+/**
+ * RP-110: Poshmark's own declared currency, or none. A listing that omits
+ * `currency` is not a USD listing — it is a listing whose currency Poshmark
+ * did not state, and it is published as a bare amount rather than as dollars.
+ */
 function formatPrice(amount: unknown, currency: unknown): string | undefined {
   const value = typeof amount === 'number' && Number.isFinite(amount) ? amount : parseFloat(str(amount));
-  if (!Number.isFinite(value) || value <= 0) return undefined;
-  const code = str(currency) || 'USD';
-  try {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: code.toUpperCase() })
-      .format(value)
-      .slice(0, MAX_PRICE_LEN);
-  } catch {
-    return `$${value.toFixed(2)}`.slice(0, MAX_PRICE_LEN);
-  }
+  return formatOfferPrice(value, currency)?.slice(0, MAX_PRICE_LEN);
 }
 
 function isAvailable(status: unknown): boolean {
@@ -195,6 +196,7 @@ function mapListing(item: Record<string, unknown>, index: number): PoshmarkProdu
   const id = str(item.listingId) || makeId(String(index));
   const brand = str(item.brand) || undefined;
   const price = formatPrice(item.price, item.currency);
+  const currency = normalizeCurrencyCode(item.currency) ?? undefined;
   const imageUrl = normalizeImageUrl(item.imageUrlLarge) ?? normalizeImageUrl(item.imageUrl);
   const condition = str(item.condition) || undefined;
   const size = str(item.size) || undefined;
@@ -207,6 +209,7 @@ function mapListing(item: Record<string, unknown>, index: number): PoshmarkProdu
     source: 'Poshmark',
     retailer: 'Poshmark',
     price,
+    ...(currency ? { currency } : {}),
     type: 'retail',
     imageUrl,
     image_url: imageUrl,
