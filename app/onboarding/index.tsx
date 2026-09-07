@@ -476,11 +476,15 @@ export default function OnboardingScreen() {
           autoCapitalize="none"
           autoCorrect={false}
           editable={!createBusy}
+          accessibilityLabel="Password"
           style={styles.input}
         />
         <Pressable
           onPress={() => setPasswordVisible((v) => !v)}
           style={styles.eyeToggle}
+          accessibilityRole="button"
+          accessibilityLabel={passwordVisible ? 'Hide password' : 'Show password'}
+          accessibilityHint={passwordVisible ? 'Password is currently visible.' : 'Password is currently hidden.'}
         >
           <Text style={styles.eyeToggleText}>{passwordVisible ? 'Hide' : 'Show'}</Text>
         </Pressable>
@@ -499,11 +503,15 @@ export default function OnboardingScreen() {
           autoCapitalize="none"
           autoCorrect={false}
           editable={!createBusy}
+          accessibilityLabel="Confirm password"
           style={styles.input}
         />
         <Pressable
           onPress={() => setConfirmPasswordVisible((v) => !v)}
           style={styles.eyeToggle}
+          accessibilityRole="button"
+          accessibilityLabel={confirmPasswordVisible ? 'Hide confirmation password' : 'Show confirmation password'}
+          accessibilityHint={confirmPasswordVisible ? 'Confirmation password is currently visible.' : 'Confirmation password is currently hidden.'}
         >
           <Text style={styles.eyeToggleText}>{confirmPasswordVisible ? 'Hide' : 'Show'}</Text>
         </Pressable>
@@ -792,7 +800,11 @@ const styles = StyleSheet.create({
   },
   eyeToggle: {
     alignSelf: 'flex-end',
-    paddingVertical: SPACING.xs,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    minWidth: 44,
+    minHeight: 44,
+    paddingHorizontal: SPACING.xs,
   },
   eyeToggleText: {
     ...LUXURY.typography.caption,
