@@ -13,19 +13,36 @@
 // `theGateRefusesALiveEnabledProductionCandidate` builds exactly the profile
 // this rule exists to stop and asserts the same function refuses it.
 //
-// WHY LIVE IS ENABLED ON `staging-certification` AND NOT ON `staging`.
-// __tests__/staging/easProfileParity.test.js enforces a deliberate control:
-// the `staging` profile must expose EXACTLY production's client-feature flag
-// set, because "staging must not enable behavior that production has not
-// shipped". Live is behavior production has not shipped, so putting the flag
-// on `staging` would have required either shipping it to production (which
-// this lane is not authorized to do) or writing a false justification into
-// that gate's environment-specific allowlist. `staging-certification` is the
-// established home for exactly this case -- it already carries
+// NO PROFILE ENABLES LIVE TODAY, AND THAT IS AN OWNER RULING, NOT AN
+// OVERSIGHT.
+//
+// The productization lane's brief authorizes enabling Live in Staging, and the
+// obvious home for the flag is `staging-certification`: it already carries
 // EXPO_PUBLIC_VOICESCAN_ENABLED, EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED and
-// EXPO_PUBLIC_SMART_WATCHLIST_V1 on the same reasoning -- and it inherits the
-// staging backend from `staging`, which is what makes the resolved answer
-// correct rather than merely permitted.
+// EXPO_PUBLIC_SMART_WATCHLIST_V1 on exactly the "staging exercises what
+// production has not shipped" reasoning, and it INHERITS the staging backend
+// rather than restating it. (`staging` itself is not an option:
+// __tests__/staging/easProfileParity.test.js requires it to expose exactly
+// production's flag set.)
+//
+// It was written there, and then reverted, because TWO existing governed gates
+// say that list is owner-ratified rather than lane-editable:
+//
+//   __tests__/easConfigIntegrity.test.js pins the certification matrix to
+//   "the approved rulings ... the Build 34 target matrix", exactly;
+//   __tests__/vtoLiveFeatureGate.test.js asserts no EAS profile sets the Live
+//   flag at all.
+//
+// Widening an owner-ratified certification matrix is not a defect repair, and
+// a lane that rewrites the gate standing in its way has defeated a control to
+// manufacture completion. So the flag is NOT set, the activation is recorded
+// as an OWNER ACTION in docs/vto-live-productization-v1.md, and the RULE below
+// is in place and proven-able-to-fail for the moment it is.
+//
+// THAT IS WHY THE NEGATIVE CONTROL CARRIES THE WEIGHT HERE. With nothing
+// enabling Live, an "everything passes" result is vacuous on its own -- so the
+// same function is run against a synthetic Live-enabled production candidate
+// and asserted to refuse it.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -74,19 +91,35 @@ function classifyLiveTarget(env) {
 test('every EAS profile that enables Live resolves to the STAGING project', () => {
   const build = readEas().build;
   const offenders = [];
-  let liveEnabledProfiles = 0;
+  let profilesChecked = 0;
   for (const name of Object.keys(build)) {
     const env = resolveEnv(build, name);
     const result = classifyLiveTarget(env);
     if (result.verdict === 'refused') offenders.push(`${name}: ${result.reason}`);
-    if (result.verdict === 'allowed') liveEnabledProfiles += 1;
+    profilesChecked += 1;
   }
   assert.deepEqual(offenders, [], `Live VTO is enabled against a non-staging backend: ${offenders.join('; ')}`);
-  // A gate that passes because nothing enables Live anywhere proves nothing
-  // about this lane's actual activation, so the activation itself is pinned.
-  assert.ok(
-    liveEnabledProfiles >= 1,
-    'no EAS profile enables Live VTO -- the staging pilot candidate has no activation at all',
+  // A rule applied to zero profiles would pass for the wrong reason. Every
+  // profile is walked, and the negative control below proves the rule can
+  // fail -- those two together are what make the empty result meaningful.
+  assert.ok(profilesChecked >= 4, `expected the real profile set, walked ${profilesChecked}`);
+});
+
+test('the current, owner-ruled posture is that NO profile enables Live', () => {
+  // Pinned so the activation is a deliberate, reviewed edit rather than
+  // something that drifts in. When the owner rules that the certification
+  // matrix may carry EXPO_PUBLIC_LIVE_VTO_ENABLED, this assertion and
+  // easConfigIntegrity.test.js's CERT_MATRIX_ENABLED change together -- and
+  // the rule above already governs where it may point.
+  const build = readEas().build;
+  const enabled = Object.keys(build)
+    .filter((name) => resolveEnv(build, name)[LIVE_FLAG] === 'true')
+    .sort();
+  assert.deepEqual(
+    enabled,
+    [],
+    `Live is enabled on ${enabled.join(', ')}. That is an owner ruling on the certification `
+      + 'matrix (see easConfigIntegrity.test.js), so this assertion has to change with it.',
   );
 });
 
@@ -127,7 +160,11 @@ test('the production, preview and development profiles do NOT enable Live', () =
   }
 });
 
-test('the Live-enabled certification profile inherits the STAGING backend, it does not restate it', () => {
+test('the certification profile ALREADY resolves to staging, so enabling Live there is a one-line change', () => {
+  // The half of the activation that does not need an owner ruling: whatever
+  // the matrix ends up carrying, the profile it would be carried on already
+  // lands on the staging backend by inheritance. Pinned so the owner's
+  // eventual one-line edit cannot silently also change the target.
   const eas = readEas();
   const profile = eas.build['staging-certification'];
   assert.equal(profile.extends, 'staging', 'the certification profile must inherit from staging');
@@ -141,7 +178,11 @@ test('the Live-enabled certification profile inherits the STAGING backend, it do
     resolved[URL_KEY],
     new RegExp(`^https://${STAGING_PROJECT_REF}\\.supabase\\.co/?$`),
   );
-  assert.equal(resolved[LIVE_FLAG], 'true');
+  // And the rule agrees: a Live flag added here would be ALLOWED, not refused.
+  assert.deepEqual(
+    classifyLiveTarget({ ...resolved, [LIVE_FLAG]: 'true' }),
+    { verdict: 'allowed' },
+  );
 });
 
 test('the client flag is read from that exact env var and defaults OFF', () => {

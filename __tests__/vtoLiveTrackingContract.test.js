@@ -669,3 +669,83 @@ test('the retry path is a RESTART, not a resume of a runtime that already failed
     'the disposal must complete before the new entry -- enterLive refuses while a controller exists',
   );
 });
+
+// ── Mirror / orientation contract (section 31) ──────────────────────────────
+
+test('the front-camera mirror is applied ONCE, in one place, on both platforms', () => {
+  // Each platform expresses the flip in its own idiom -- Android with a
+  // Matrix postScale, iOS with a single EXIF orientation constant -- so the
+  // assertion is per-platform. What is IDENTICAL is the invariant: exactly
+  // one mirroring operation. Two would be an identity transform that LOOKS
+  // correct on the preview and puts the garment on the wrong side of the
+  // body, which is the classic double-mirror bug and is invisible in a
+  // symmetric test pose.
+  const cases = [
+    {
+      name: 'Android converter',
+      file: 'modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoCameraFrameConverter.kt',
+      flip: /postScale\(-1f, ?1f\)/g,
+    },
+    {
+      name: 'iOS converter',
+      file: 'modules/kscan-live-vto-native/ios/Camera/LiveVtoCameraFrameConverter.swift',
+      flip: /\.oriented\(\.[a-zA-Z]*[Mm]irrored\)/g,
+    },
+  ];
+  for (const { name, file, flip } of cases) {
+    const source = code(file);
+    const flips = (source.match(flip) || []).length;
+    assert.equal(flips, 1, `${name} performs ${flips} mirroring operations; the contract is exactly one`);
+  }
+
+  // And nothing downstream compensates for it again. The garment texture, the
+  // geometry and the renderer all work in the ALREADY-mirrored space.
+  const downstream = [
+    'modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoGarmentAttachment.kt',
+    'modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoDeformation.kt',
+    'modules/kscan-live-vto-native/ios/Core/LiveVtoGarmentAttachment.swift',
+    'modules/kscan-live-vto-native/ios/Core/LiveVtoDeformation.swift',
+  ];
+  for (const file of downstream) {
+    const source = code(file);
+    assert.ok(
+      !/postScale\(-1f|scaleX: -1|1f - (u|x)\b/.test(source),
+      `${file} compensates for the mirror a second time -- "do not compensate for mirroring in multiple layers"`,
+    );
+  }
+});
+
+test('the person capture and the geometry read the SAME oriented frame', () => {
+  // The capture must not read a differently-oriented source from the one the
+  // geometry was computed against: a Photoreal input mirrored differently
+  // from the preview the customer approved is a different photo.
+  for (const file of [
+    'modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoTestRenderView.kt',
+    'modules/kscan-live-vto-native/ios/LiveVtoRenderView.swift',
+  ]) {
+    const source = code(file);
+    assert.match(
+      source,
+      /latestFrameForCapture\(\)/,
+      `${file}: capture must read the retained camera frame`,
+    );
+    assert.ok(
+      !/toBitmap\(|toImage\(/.test(source),
+      `${file}: the view must not re-convert a camera frame itself -- one converter, one orientation`,
+    );
+  }
+});
+
+test('the BodyFrame contract states the mirrored convention on both platforms', () => {
+  for (const file of [
+    'modules/kscan-live-vto-native/android/src/main/java/expo/modules/kscanlivevtonative/LiveVtoBodyFrame.kt',
+    'modules/kscan-live-vto-native/ios/Core/LiveVtoBodyFrame.swift',
+  ]) {
+    const source = read(file);
+    assert.match(
+      source,
+      /front-camera-mirrored/,
+      `${file} must state the coordinate convention -- an unstated convention is how two layers disagree`,
+    );
+  }
+});

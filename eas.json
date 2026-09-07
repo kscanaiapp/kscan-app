@@ -179,8 +179,7 @@
         "EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED": "true",
         "EXPO_PUBLIC_SMART_WATCHLIST_V1": "true",
         "EXPO_PUBLIC_VOICESCAN_ENABLED": "true",
-        "KSCAN_VOICE_CERTIFICATION": "true",
-        "EXPO_PUBLIC_LIVE_VTO_ENABLED": "true"
+        "KSCAN_VOICE_CERTIFICATION": "true"
       }
     },
     "production": {
