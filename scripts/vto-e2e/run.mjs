@@ -36,7 +36,7 @@ import { cleanupVtoActors, allActorsClean, summarizeCleanupStatus } from './lib/
 import { snapshotActorPersistence, diffPersistence } from './lib/persistence.mjs';
 import { writeReport } from './lib/report.mjs';
 import { gitHeadSha } from '../lib/staging-helpers.mjs';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 /**
  * The commit the harness is actually RUNNING as — the certification
@@ -71,10 +71,17 @@ async function runContractMode() {
   // simply runs them and reports pass/fail, exactly like `node --test`.
   const { run } = await import('node:test');
   return new Promise((resolve) => {
+    // fileURLToPath, NOT `.pathname`: on Windows a file URL's pathname is
+    // `/C:/...`, which node:test cannot resolve -- so all three files failed
+    // to LOAD and the mode reported `pass: 0, fail: 3` with the paths
+    // themselves as the failure names. Contract mode was therefore unrunnable
+    // on a Windows workstation (Linux CI was unaffected, which is why it
+    // survived). A certification harness that cannot run where the repair is
+    // being done is a harness the repair cannot use.
     const stream = run({ files: [
-      new URL('../../__tests__/vtoE2eFixtures.test.js', import.meta.url).pathname,
-      new URL('../../__tests__/vtoE2eContractControls.test.js', import.meta.url).pathname,
-      new URL('../../__tests__/vtoE2eHarnessIntegrity.test.js', import.meta.url).pathname,
+      fileURLToPath(new URL('../../__tests__/vtoE2eFixtures.test.js', import.meta.url)),
+      fileURLToPath(new URL('../../__tests__/vtoE2eContractControls.test.js', import.meta.url)),
+      fileURLToPath(new URL('../../__tests__/vtoE2eHarnessIntegrity.test.js', import.meta.url)),
     ] });
     let pass = 0;
     let fail = 0;

@@ -99,6 +99,12 @@ test('the person payload ceiling is the same number on both sides', () => {
       prepareImageForPrivacyUpload: () => Promise.resolve({}),
       PrivacyPrepareError: class extends Error {},
     },
+    // RP-107: the person path now adopts its derivatives into VTO's own cache
+    // namespace. This assertion is about a number, not the filesystem.
+    './vtoMediaCache': {
+      adoptVtoMediaFile: (uri) => Promise.resolve(uri),
+      forgetVtoMediaFile: () => {},
+    },
     '../../types/vto': clientTypes,
   });
   assert.equal(

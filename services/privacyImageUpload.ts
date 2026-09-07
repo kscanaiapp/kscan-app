@@ -58,6 +58,51 @@ function honestPolicy(metadataStripped: boolean) {
 }
 
 /**
+ * Resize instructions that bound the LONGEST edge, not the width.
+ *
+ * `{ resize: { width: max } }` alone was never a maximum dimension: it pins
+ * the width and lets expo-image-manipulator derive the height from the aspect
+ * ratio, so an 800x2400 portrait came back 1024x3072 -- three times the bound
+ * it was supposed to be under -- and a 400x600 thumbnail was UPSCALED to
+ * 1024x1536, spending payload on pixels that were never in the source.
+ *
+ * Given the source dimensions this returns a single-axis instruction on
+ * whichever edge is longer (so the aspect ratio is still derived, never
+ * distorted), or NO instruction at all when the image is already inside the
+ * bound -- that is the half that stops the upscale.
+ *
+ * WHEN THE DIMENSIONS ARE UNKNOWN it returns the legacy width-only action
+ * rather than probing. A probe means a second full-resolution decode+encode
+ * on the Scanner and Elise upload paths, which is a real cost on low-end
+ * Android for a build that is frozen; callers that already hold the source
+ * dimensions (VTO does, from the picker asset and from VtoPersonInput) pass
+ * them and get the true bound for free. See __tests__/vtoMediaLifecycle.test.js.
+ */
+export function boundedResizeActions(
+  sourceWidth: number | null | undefined,
+  sourceHeight: number | null | undefined,
+  maxDimension: number,
+): Array<{ resize: { width?: number; height?: number } }> {
+  const legacy = [{ resize: { width: maxDimension } }];
+  if (!Number.isFinite(maxDimension) || maxDimension <= 0) return legacy;
+  if (
+    typeof sourceWidth !== 'number' ||
+    typeof sourceHeight !== 'number' ||
+    !Number.isFinite(sourceWidth) ||
+    !Number.isFinite(sourceHeight) ||
+    sourceWidth <= 0 ||
+    sourceHeight <= 0
+  ) {
+    return legacy;
+  }
+  // Already within the bound on both edges: re-encode only. Never upscale.
+  if (sourceWidth <= maxDimension && sourceHeight <= maxDimension) return [];
+  return sourceWidth >= sourceHeight
+    ? [{ resize: { width: maxDimension } }]
+    : [{ resize: { height: maxDimension } }];
+}
+
+/**
  * Prepare a photo-library image for remote fashion analysis.
  *
  * Returns a sanitized derivative URI and an honest privacy policy. Throws
@@ -65,7 +110,14 @@ function honestPolicy(metadataStripped: boolean) {
  */
 export async function prepareImageForPrivacyUpload(
   inputUri: string,
-  options?: { maxDimension?: number; quality?: number },
+  options?: {
+    maxDimension?: number;
+    quality?: number;
+    /** Dimensions of `inputUri` when the caller already knows them. Supplying
+     *  them is what upgrades the bound from width-only to longest-edge. */
+    sourceWidth?: number | null;
+    sourceHeight?: number | null;
+  },
 ): Promise<PrivacyPrepareResult> {
   if (!inputUri || typeof inputUri !== 'string') {
     throw new PrivacyPrepareError('No image selected.');
@@ -82,7 +134,7 @@ export async function prepareImageForPrivacyUpload(
     // a fresh JPEG derivative in the app's cache directory.
     const result = await ImageManipulator.manipulateAsync(
       inputUri,
-      [{ resize: { width: maxDimension } }],
+      boundedResizeActions(options?.sourceWidth, options?.sourceHeight, maxDimension),
       {
         compress: quality,
         format: ImageManipulator.SaveFormat.JPEG,
@@ -125,11 +177,20 @@ export async function cleanupSanitizedImage(uri: string | undefined | null): Pro
  */
 export async function compressSanitizedImageForAnalysis(
   sanitizedUri: string,
-  options?: { width?: number; quality?: number },
+  options?: {
+    width?: number;
+    quality?: number;
+    /** Dimensions of `sanitizedUri` when known. Same upgrade as above: with
+     *  them the derivative is bounded on its longest edge and a small image
+     *  is re-encoded rather than blown up into a larger payload. */
+    sourceWidth?: number | null;
+    sourceHeight?: number | null;
+  },
 ): Promise<{ base64: string; uri: string }> {
+  const maxDimension = options?.width ?? 896;
   const result = await ImageManipulator.manipulateAsync(
     sanitizedUri,
-    [{ resize: { width: options?.width ?? 896 } }],
+    boundedResizeActions(options?.sourceWidth, options?.sourceHeight, maxDimension),
     {
       compress: options?.quality ?? 0.75,
       format: ImageManipulator.SaveFormat.JPEG,

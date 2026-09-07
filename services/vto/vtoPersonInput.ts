@@ -49,6 +49,7 @@ import {
   prepareImageForPrivacyUpload,
   PrivacyPrepareError,
 } from '../privacyImageUpload';
+import { adoptVtoMediaFile, forgetVtoMediaFile } from './vtoMediaCache';
 import type { VtoPersonInput } from '../../types/vto';
 
 /** Working resolution handed to the provider. Bounded for payload safety and
@@ -94,9 +95,17 @@ export async function pickVtoPersonInput(
   }
 
   try {
-    const prepared = await prepare(picked.assets[0].uri, {
+    const asset = picked.assets[0];
+    const prepared = await prepare(asset.uri, {
       maxDimension: VTO_PERSON_MAX_DIMENSION,
       quality: VTO_PERSON_JPEG_QUALITY,
+      // The picker already measured the source. Handing the dimensions over is
+      // what makes VTO_PERSON_MAX_DIMENSION a bound on the LONGEST edge rather
+      // than on the width: without them a tall portrait came back over three
+      // times this bound on its height, and a small photo was upscaled into a
+      // larger payload than the one the user actually chose.
+      sourceWidth: typeof asset.width === 'number' ? asset.width : null,
+      sourceHeight: typeof asset.height === 'number' ? asset.height : null,
     });
     if (!prepared.policy.metadataStripped) {
       // The sanitizer must not be believed on its own say-so: if it reports
@@ -104,11 +113,15 @@ export async function pickVtoPersonInput(
       await cleanupSanitizedImage(prepared.sanitizedUri);
       return { ok: false, reason: 'invalid_person_input' };
     }
+    // Move the derivative into VTO's own cache namespace so a process death
+    // cannot orphan it beyond reach of the startup sweep. Fails soft: on
+    // failure this is the manipulator path, unchanged and still usable.
+    const sanitizedUri = (await adoptVtoMediaFile(prepared.sanitizedUri, 'person')) ?? prepared.sanitizedUri;
     return {
       ok: true,
       person: {
         source: 'photo_library',
-        sanitizedUri: prepared.sanitizedUri,
+        sanitizedUri,
         width: prepared.width ?? null,
         height: prepared.height ?? null,
         metadataStripped: true,
@@ -137,16 +150,32 @@ export async function buildVtoPersonPayload(
   deps?: { compress?: typeof compressSanitizedImageForAnalysis },
 ): Promise<VtoPersonPayloadOutcome> {
   const compress = deps?.compress ?? compressSanitizedImageForAnalysis;
+  let transientUri: string | null | undefined;
   try {
     const { base64, uri } = await compress(person.sanitizedUri, {
       width: VTO_PERSON_MAX_DIMENSION,
       quality: VTO_PERSON_JPEG_QUALITY,
+      // Same bound, same reason as the pick path above. These are the sanitized
+      // derivative's own dimensions, which is exactly the source of this step.
+      sourceWidth: person.width,
+      sourceHeight: person.height,
     });
+    transientUri = (await adoptVtoMediaFile(uri, 'payload')) ?? uri;
     if (typeof base64 !== 'string' || base64.length > VTO_PERSON_PAYLOAD_MAX_CHARS) {
+      // The compression SUCCEEDED and wrote a file; only the payload is
+      // unusable. Returning here without deleting it -- as this path did --
+      // leaked a second image derivative on exactly the inputs most likely to
+      // produce one, since an oversized base64 means an oversized file. The
+      // caller never learns the URI on a failure, so this is the only place
+      // that can release it.
+      await releaseVtoPersonInput(transientUri);
       return { ok: false, reason: 'invalid_person_input' };
     }
-    return { ok: true, dataUri: base64, transientUri: uri };
+    return { ok: true, dataUri: base64, transientUri };
   } catch {
+    // A throw AFTER a successful compress (adoption, or any validation added
+    // later) must not leak the derivative either.
+    if (transientUri) await releaseVtoPersonInput(transientUri);
     return { ok: false, reason: 'invalid_person_input' };
   }
 }
@@ -157,6 +186,21 @@ export async function releaseVtoPersonInput(
   ...uris: Array<string | null | undefined>
 ): Promise<void> {
   for (const uri of uris) {
-    if (uri) await cleanupSanitizedImage(uri);
+    if (!uri) continue;
+    try {
+      await cleanupSanitizedImage(uri);
+    } catch {
+      // Releasing media is best-effort by definition, and this is called from
+      // failure paths and from fire-and-forget store teardown. The shipping
+      // cleanupSanitizedImage already swallows its own errors -- but a
+      // fail-closed guarantee that depends on a collaborator's internal error
+      // handling is not a guarantee. An undeletable file is a leaked cache
+      // entry the startup sweep will collect; it is never a crashed try-on.
+    }
+    // Deregister AFTER the attempt: a name kept in the process-owned set would
+    // be skipped by every later sweep, which is only correct while the file is
+    // live. Deregistering an undeleted file is the safe direction -- the next
+    // sweep reconsiders it.
+    forgetVtoMediaFile(uri);
   }
 }

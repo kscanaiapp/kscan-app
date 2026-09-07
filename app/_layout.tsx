@@ -26,6 +26,7 @@ import { traceAuthLifecycle } from '../services/authLifecycleTrace';
 import ErrorBoundary from '../src/components/ErrorBoundary';
 import { logError } from '../src/utils/errorLogger';
 import { cleanupOrphanedStylistSpeechFiles } from '../services/avatars/stylistSpeechFiles';
+import { sweepOrphanedVtoMedia } from '../services/vto/vtoMediaCache';
 import { installWatchNotificationRouting } from '../services/watchlist/watchNotificationRouting';
 import { attachPushTokenRefreshListener } from '../services/watchlist/pushRegistration';
 
@@ -340,6 +341,15 @@ function PostHogBridge() {
 export default function Layout() {
   useEffect(() => {
     void cleanupOrphanedStylistSpeechFiles();
+  }, []);
+
+  // RP-107. VTO's person-image ownership lives in module memory, so a crash or
+  // an OOM kill mid-generation erased the list and left the derivative in the
+  // cache. On a cold start nothing in VTO's namespace can still be referenced,
+  // so anything there is an orphan. Scoped to that one directory, bounded, and
+  // fail-soft: it cannot reach other features' media and cannot break startup.
+  useEffect(() => {
+    void sweepOrphanedVtoMedia();
   }, []);
 
   useEffect(() => {
