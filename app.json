@@ -179,6 +179,12 @@
                                                                                             "NSPrivacyCollectedDataTypeLinked": true,
                                                                                             "NSPrivacyCollectedDataTypeTracking": false,
                                                                                             "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality", "NSPrivacyCollectedDataTypePurposeProductPersonalization"]
+                                                                                        },
+                                                                                        {
+                                                                                            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeDeviceID",
+                                                                                            "NSPrivacyCollectedDataTypeLinked": true,
+                                                                                            "NSPrivacyCollectedDataTypeTracking": false,
+                                                                                            "NSPrivacyCollectedDataTypePurposes": ["NSPrivacyCollectedDataTypePurposeAppFunctionality"]
                                                                                         }
                                                                                     ],
                                                       "NSPrivacyAccessedAPITypes":  [

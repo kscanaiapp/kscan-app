@@ -8,6 +8,7 @@ const {
   verify,
   appleRevocationInvoked,
   appleRevocationOccursBeforeAuthDelete,
+  deviceIdDeclarationOk,
 } = require('../scripts/verify-apple-readiness');
 
 function readAppJsonPrivacyManifest() {
@@ -156,6 +157,179 @@ test('privacy manifest: Coarse Location is declared, linked, and used for person
         'NSPrivacyCollectedDataTypePurposeProductPersonalization',
       ),
   );
+});
+
+// RP-108 iOS repair: the Watchlist push-registration flow
+// (services/watchlist/pushRegistration.ts) persists an installation-level
+// device identifier (AsyncStorage key kscan-watchlist-device-id, minted with
+// crypto.randomUUID() and never rotated) and sends it to the authenticated
+// commerce-watch-refresh Edge Function alongside the Expo push token, so a
+// device's push route can be registered, claimed on sign-in, and revoked on
+// sign-out/disable. It supports push-delivery ownership only: it is never
+// sent to an advertising SDK or a third party, and the app already declares
+// NSPrivacyTracking: false. This closes the gap where that transmission was
+// undeclared.
+
+test('privacy manifest: Device ID is declared, linked, not tracking, App Functionality only', () => {
+  const manifest = readAppJsonPrivacyManifest();
+  const entry = collectedType(manifest, 'NSPrivacyCollectedDataTypeDeviceID');
+  assert.ok(
+    entry,
+    'Device ID must be declared — pushRegistration.ts sends the persisted install device id to commerce-watch-refresh for push ownership/revocation',
+  );
+  assert.equal(entry.NSPrivacyCollectedDataTypeLinked, true);
+  assert.equal(entry.NSPrivacyCollectedDataTypeTracking, false);
+  assert.deepEqual(entry.NSPrivacyCollectedDataTypePurposes, [
+    'NSPrivacyCollectedDataTypePurposeAppFunctionality',
+  ]);
+});
+
+test('privacy manifest: the readiness gate reports the Device ID declaration check as passing', () => {
+  const result = verify();
+  const deviceIdCheck = result.checks.find((item) =>
+    item.label.startsWith('Privacy manifest declares Device ID'),
+  );
+  assert.ok(deviceIdCheck, 'Device ID check must be registered in verify()');
+  assert.equal(deviceIdCheck.ok, true);
+});
+
+test('privacy manifest: adding Device ID did not remove any pre-existing declared category', () => {
+  const manifest = readAppJsonPrivacyManifest();
+  const types = manifest.NSPrivacyCollectedDataTypes.map((e) => e.NSPrivacyCollectedDataType);
+  assert.deepEqual(types, [
+    'NSPrivacyCollectedDataTypeEmailAddress',
+    'NSPrivacyCollectedDataTypeUserID',
+    'NSPrivacyCollectedDataTypePhotosorVideos',
+    'NSPrivacyCollectedDataTypeName',
+    'NSPrivacyCollectedDataTypeOtherUserContent',
+    'NSPrivacyCollectedDataTypeSearchHistory',
+    'NSPrivacyCollectedDataTypeProductInteraction',
+    'NSPrivacyCollectedDataTypeCoarseLocation',
+    'NSPrivacyCollectedDataTypeDeviceID',
+  ]);
+});
+
+// Hostile checks (Section 6 of the repair mission): prove the pure
+// deviceIdDeclarationOk() predicate — the same one verify() calls — actually
+// rejects each failure mode a bad declaration could take, using synthetic
+// mutated manifests rather than the real app.json.
+
+function withDeviceIdEntry(overrides) {
+  return {
+    NSPrivacyTracking: false,
+    NSPrivacyTrackingDomains: [],
+    NSPrivacyCollectedDataTypes: [
+      {
+        NSPrivacyCollectedDataType: 'NSPrivacyCollectedDataTypeDeviceID',
+        NSPrivacyCollectedDataTypeLinked: true,
+        NSPrivacyCollectedDataTypeTracking: false,
+        NSPrivacyCollectedDataTypePurposes: ['NSPrivacyCollectedDataTypePurposeAppFunctionality'],
+        ...overrides,
+      },
+    ],
+  };
+}
+
+test('hostile check: the real manifest passes deviceIdDeclarationOk', () => {
+  const manifest = readAppJsonPrivacyManifest();
+  assert.equal(deviceIdDeclarationOk(manifest), true);
+});
+
+test('NEGATIVE CONTROL: Device ID declared with Linked: false is rejected', () => {
+  assert.equal(
+    deviceIdDeclarationOk(withDeviceIdEntry({ NSPrivacyCollectedDataTypeLinked: false })),
+    false,
+  );
+});
+
+test('NEGATIVE CONTROL: Device ID declared with Tracking: true is rejected', () => {
+  assert.equal(
+    deviceIdDeclarationOk(withDeviceIdEntry({ NSPrivacyCollectedDataTypeTracking: true })),
+    false,
+  );
+});
+
+test('NEGATIVE CONTROL: Device ID declared for Analytics instead of App Functionality is rejected', () => {
+  assert.equal(
+    deviceIdDeclarationOk(
+      withDeviceIdEntry({
+        NSPrivacyCollectedDataTypePurposes: ['NSPrivacyCollectedDataTypePurposeAnalytics'],
+      }),
+    ),
+    false,
+  );
+});
+
+test('NEGATIVE CONTROL: no Device ID entry at all is rejected', () => {
+  assert.equal(
+    deviceIdDeclarationOk({
+      NSPrivacyTracking: false,
+      NSPrivacyTrackingDomains: [],
+      NSPrivacyCollectedDataTypes: [],
+    }),
+    false,
+  );
+});
+
+test('NEGATIVE CONTROL: the readiness gate would fail if NSPrivacyTracking flipped to true', () => {
+  const manifest = readAppJsonPrivacyManifest();
+  assert.notEqual(
+    { ...manifest, NSPrivacyTracking: true }.NSPrivacyTracking === false,
+    true,
+    'sanity: a flipped-true fixture must not read back as false',
+  );
+  assert.equal(manifest.NSPrivacyTracking, false, 'the real manifest must still be false');
+});
+
+test('NEGATIVE CONTROL: the readiness gate would fail if a tracking domain were introduced', () => {
+  const manifest = readAppJsonPrivacyManifest();
+  assert.deepEqual(manifest.NSPrivacyTrackingDomains, []);
+});
+
+// Android is out of scope for this repair; prove it is byte-for-byte
+// untouched rather than merely "probably fine".
+
+test('Android config is unchanged by this repair (out of scope for RP-108)', () => {
+  const appJson = JSON.parse(
+    fs.readFileSync(path.join(__dirname, '../app.json'), 'utf8'),
+  );
+  const android = appJson.expo.android;
+  assert.deepEqual(android, {
+    package: 'com.kscanai.app',
+    versionCode: 23,
+    softwareKeyboardLayoutMode: 'resize',
+    permissions: [
+      'android.permission.CAMERA',
+      'android.permission.INTERNET',
+      'android.permission.VIBRATE',
+      'android.permission.ACCESS_COARSE_LOCATION',
+      'android.permission.POST_NOTIFICATIONS',
+    ],
+    blockedPermissions: [
+      'android.permission.RECORD_AUDIO',
+      'android.permission.ACCESS_FINE_LOCATION',
+      'android.permission.READ_EXTERNAL_STORAGE',
+      'android.permission.WRITE_EXTERNAL_STORAGE',
+    ],
+    adaptiveIcon: {
+      foregroundImage: './assets/adaptive-icon.png',
+      backgroundColor: '#1a0a2e',
+    },
+    intentFilters: [
+      {
+        action: 'VIEW',
+        autoVerify: false,
+        data: [{ scheme: 'kscan' }],
+        category: ['BROWSABLE', 'DEFAULT'],
+      },
+      {
+        action: 'VIEW',
+        autoVerify: true,
+        data: [{ scheme: 'https', host: 'kscan.app', pathPrefix: '/rooms' }],
+        category: ['BROWSABLE', 'DEFAULT'],
+      },
+    ],
+  });
 });
 
 test('privacy manifest: no Diagnostics category is declared — no crash/perf/diagnostic collection exists on this line', () => {

@@ -48,6 +48,34 @@ function getProductionSubmit(easJson) {
   return easJson.submit?.production?.ios ?? {};
 }
 
+/**
+ * RP-108: true only when the iOS privacy manifest declares Device ID as
+ * linked to the user, not used for tracking, and purposed for App
+ * Functionality — the correct disclosure for the Watchlist push-registration
+ * identifier (services/watchlist/pushRegistration.ts), which exists to
+ * support push-delivery ownership/revocation and is never used for
+ * advertising or cross-company tracking.
+ *
+ * Exported as a standalone pure function (not inlined in verify()) so tests
+ * can run it against synthetic mutated manifests without touching the real
+ * app.json — the hostile checks this repair requires (wrong linked/tracking/
+ * purpose values) must be provable without a fixture-file dance.
+ */
+function deviceIdDeclarationOk(privacyManifests) {
+  const entry = (privacyManifests?.NSPrivacyCollectedDataTypes ?? []).find(
+    (item) => item.NSPrivacyCollectedDataType === 'NSPrivacyCollectedDataTypeDeviceID',
+  );
+  return Boolean(
+    entry &&
+      entry.NSPrivacyCollectedDataTypeLinked === true &&
+      entry.NSPrivacyCollectedDataTypeTracking === false &&
+      Array.isArray(entry.NSPrivacyCollectedDataTypePurposes) &&
+      entry.NSPrivacyCollectedDataTypePurposes.includes(
+        'NSPrivacyCollectedDataTypePurposeAppFunctionality',
+      ),
+  );
+}
+
 // The manual deletion executor (lib/account-deletion/processorCore.mjs) is
 // the operative path this release ships. These two checks are structural,
 // text-based contracts over that file's source rather than a live import —
@@ -189,6 +217,18 @@ function verify() {
       collectedTypes.includes('NSPrivacyCollectedDataTypePhotosorVideos'),
     'Privacy manifest includes email, user ID, and photos/videos data types',
   );
+  // RP-108 iOS repair: the Watchlist push-registration flow
+  // (services/watchlist/pushRegistration.ts) persists a per-install device
+  // identifier and sends it to the authenticated commerce-watch-refresh Edge
+  // Function alongside the Expo push token, so it can be registered/claimed/
+  // revoked for push-delivery ownership. It is not an advertising identifier
+  // and is never used for tracking, so it is declared linked + App
+  // Functionality only, matching the existing NSPrivacyTracking: false posture.
+  check(
+    result,
+    deviceIdDeclarationOk(privacyManifests),
+    'Privacy manifest declares Device ID as linked, non-tracking, App Functionality (Watchlist push-registration device identifier)',
+  );
   check(
     result,
     (privacyManifests.NSPrivacyCollectedDataTypes ?? []).every(
@@ -308,4 +348,5 @@ module.exports = {
   verify,
   appleRevocationInvoked,
   appleRevocationOccursBeforeAuthDelete,
+  deviceIdDeclarationOk,
 };
