@@ -6,12 +6,20 @@
  * (services/watchlist/watchlistClient.ts consumers) — see the master build
  * brief §51-52. A denied permission leaves the Watch valid with
  * push_enabled left false; this module never blocks Watch creation.
+ *
+ * Android Repair 05: every ACTIVATION path here (permission request, token
+ * acquisition, token-refresh re-registration) is additionally gated by the one
+ * canonical decision in services/notifications/remotePushCapability.ts. The
+ * DEACTIVATION paths -- revocation, explicit disable, actor claim -- are
+ * deliberately NOT gated: a route that already exists must always be
+ * retireable, whatever this build ships.
  */
 import { Platform, Linking } from 'react-native';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../supabaseClient';
 import { resolveAuthenticatedFunctionSession } from '../authenticatedFunctionSession';
+import { resolveRemotePushActivationAllowed } from '../notifications/remotePushCapability';
 
 const DEVICE_ID_STORAGE_KEY = 'kscan-watchlist-device-id';
 
@@ -177,7 +185,22 @@ async function getOrCreateDeviceId(): Promise<string> {
 
 export type RequestWatchAlertsResult =
   | { ok: true }
-  | { ok: false; reason: 'unsupported_platform' | 'permission_denied' | 'token_failed' | 'register_failed' | 'request_failed' };
+  | {
+      ok: false;
+      reason:
+        | 'unsupported_platform'
+        /**
+         * Android Repair 05: this build ships no feature that consumes remote
+         * push, so no permission is requested and no token is minted. Distinct
+         * from `unsupported_platform`, which is about the RUNTIME (web) rather
+         * than about what this build actually ships.
+         */
+        | 'capability_unavailable'
+        | 'permission_denied'
+        | 'token_failed'
+        | 'register_failed'
+        | 'request_failed';
+    };
 
 /**
  * Requests OS notification permission (if not already decided), fetches an
@@ -189,6 +212,16 @@ export type RequestWatchAlertsResult =
 export async function requestWatchAlerts(watchId: string): Promise<RequestWatchAlertsResult> {
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
     return { ok: false, reason: 'unsupported_platform' };
+  }
+
+  // Android Repair 05. The canonical activation gate, consulted BEFORE any
+  // permission prompt or token acquisition. Reaching this function already
+  // required a Watch to exist, so on a Watchlist-enabled build the capability
+  // is on by construction; the check is here so that EVERY token-acquiring
+  // path in this module answers to one authority rather than to whichever
+  // gate happens to guard its own entry point.
+  if (!resolveRemotePushActivationAllowed()) {
+    return { ok: false, reason: 'capability_unavailable' };
   }
 
   // Lazy import: expo-notifications pulls in native modules that should
@@ -397,6 +430,14 @@ export async function revokeWatchAlertsForThisDevice(): Promise<LogoutPushRevoca
 
 export type EnableDeviceNotificationsFailureReason =
   | 'unsupported_platform'
+  /**
+   * Android Repair 05: no feature that ships in this build consumes remote
+   * push, so the OS permission is never requested and no push token is
+   * acquired. The onboarding surface renders a passive, non-requesting row in
+   * this state, so this reason is the fail-closed backstop rather than a
+   * routine user-visible outcome.
+   */
+  | 'capability_unavailable'
   | 'permission_denied'
   | 'missing_project_id'
   | 'token_failed'
@@ -434,6 +475,16 @@ export async function enableDeviceNotifications(): Promise<EnableDeviceNotificat
 
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
     return { ok: false, reason: 'unsupported_platform', canAskAgain: false };
+  }
+
+  // Android Repair 05. Push-token acquisition is a consent boundary: it is
+  // only legitimate when something in THIS build can actually send the user a
+  // push. Checked before the permission prompt, so a build with no push
+  // consumer never asks. `canAskAgain: false` because retrying changes
+  // nothing -- the answer is a property of the build, not of the user's
+  // previous choice.
+  if (!resolveRemotePushActivationAllowed()) {
+    return { ok: false, reason: 'capability_unavailable', canAskAgain: false };
   }
 
   const Notifications = await import('expo-notifications');
@@ -614,6 +665,19 @@ export async function disableDeviceNotifications(): Promise<DisableDeviceNotific
  * marker stands, and only the user turning Notifications back on clears it.
  */
 export async function attachPushTokenRefreshListener(): Promise<() => void> {
+  // Android Repair 05. This listener exists for exactly one purpose -- to
+  // RE-REGISTER a rolled token -- so on a build with no push consumer it is
+  // pure activation with nothing behind it. Refused before the dynamic import,
+  // so expo-notifications' native module is not even loaded, and a no-op
+  // disposer is returned so the caller's cleanup path is unchanged.
+  //
+  // This suppresses only AUTOMATIC re-registration. Revocation
+  // (revokeWatchAlertsForThisDevice, disableDeviceNotifications) and actor
+  // handoff (claimDeviceForCurrentActor) stay ungated on purpose: a device
+  // that registered under an earlier build must still be able to retire that
+  // route.
+  if (!resolveRemotePushActivationAllowed()) return () => {};
+
   const Notifications = await import('expo-notifications');
   const subscription = Notifications.addPushTokenListener(() => {
     void (async () => {
