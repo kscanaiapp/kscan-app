@@ -55,9 +55,9 @@ import {
   CLOSET_DIRECT_INTAKE_ACTIVE,
   CLOSET_CANDIDATE_STAGING_ACTIVE,
   CLOSET_BATCH_REVIEW_V2_ACTIVE,
-  MIRROR_SELFIE_V1_ACTIVE,
   PRIVATE_DRESSING_ROOM_V1,
 } from '../constants/featureFlags';
+import { resolveMirrorSelfieAvailable } from '../services/mirror/mirrorSelfieAvailability';
 import { FreeTierUtilitySection } from '../components/free-tier/FreeTierUtilitySection';
 import { normalizeLocalSavedScan } from '../services/ownedClosetItems';
 import { setAttachmentHandoff } from '../services/style-chat/styleChatAttachmentStore';
@@ -617,6 +617,14 @@ export default function LibraryScreen() {
   const showRecentSection = !CLOSET_SEPARATION_V1 || section === 'recent';
   const showClosetSection = CLOSET_SEPARATION_V1 && section === 'closet';
 
+  // Mirror Selfie availability, decided ONCE per render and reused by every
+  // Mirror mount site below. The composition — the feature flag AND a platform
+  // whose native extraction runtime actually exists — belongs to
+  // services/mirror/mirrorSelfieAvailability.ts and is not restated here: a
+  // screen that re-derived it could drift from the sheet's own internal gate,
+  // which is the same resolver reached through useMirrorExtraction().
+  const mirrorSelfieAvailable = resolveMirrorSelfieAvailable();
+
   // Chrome follows the ACTIVE SECTION, never the screen's file name. Without
   // this the route could resolve to Recent Scans while the header still claimed
   // "Your Closet" — the alias that made scan history look like owned inventory.
@@ -737,10 +745,12 @@ export default function LibraryScreen() {
               fills the same Closet by a different route: one photo of an outfit
               instead of one photo per garment.
 
-              Renders NOTHING while MIRROR_SELFIE_V1_ACTIVE is false, which is
-              its state in every profile in this build.
+              Renders NOTHING unless Mirror Selfie is available: the flag is on
+              AND the platform has the required native extraction runtime
+              (Android does not — see
+              services/mirror/mirrorSelfieAvailability.ts).
             */}
-            {MIRROR_SELFIE_V1_ACTIVE ? (
+            {mirrorSelfieAvailable ? (
               <View style={styles.mirrorAction}>
                 <SecondaryButton
                   title="Mirror Selfie"
@@ -1065,7 +1075,7 @@ export default function LibraryScreen() {
         appear in the existing review surface below through the existing
         snapshot, with no second review UI.
       */}
-      {MIRROR_SELFIE_V1_ACTIVE ? (
+      {mirrorSelfieAvailable ? (
         <MirrorSelfieExtractionModal
           visible={mirrorSelfieVisible}
           onClose={() => setMirrorSelfieVisible(false)}
@@ -1078,13 +1088,13 @@ export default function LibraryScreen() {
       {/*
         Bounded Mirror staging progress (Build 2.5 Step 4).
 
-        Rendered only while MIRROR_SELFIE_V1_ACTIVE and only while an
+        Rendered only while Mirror Selfie is available and only while an
         operation is actually running or has just finished with something
         worth telling the user about a partial result. No internal group
         numbers, candidate IDs, or backend terms — see
         mirrorStagingProgressLabel below.
       */}
-      {MIRROR_SELFIE_V1_ACTIVE && closetCandidates.mirrorIntegration ? (
+      {mirrorSelfieAvailable && closetCandidates.mirrorIntegration ? (
         <View style={styles.mirrorStagingBanner} accessibilityLiveRegion="polite">
           <Text style={styles.mirrorStagingBannerText}>
             {mirrorStagingProgressLabel(closetCandidates.mirrorIntegration)}

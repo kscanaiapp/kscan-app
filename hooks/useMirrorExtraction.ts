@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { createActorRequest, getActorContext } from '../services/actorContext';
-import { MIRROR_SELFIE_V1_ACTIVE } from '../constants/featureFlags';
+import { resolveMirrorSelfieAvailable } from '../services/mirror/mirrorSelfieAvailability';
 import { createMirrorExtractionSession } from '../services/mirror/mirrorExtractionSession';
 import type {
   MirrorSessionController,
@@ -52,7 +52,7 @@ export function useMirrorExtraction(
     reconcile?: typeof reconcileStaleMirrorSessions;
   } = {},
 ): UseMirrorExtraction {
-  const resolveActive = deps.resolveActive ?? (() => MIRROR_SELFIE_V1_ACTIVE);
+  const resolveActive = deps.resolveActive ?? (() => resolveMirrorSelfieAvailable());
   const createSession = deps.createSession ?? createMirrorExtractionSession;
   const reconcile = deps.reconcile ?? reconcileStaleMirrorSessions;
 

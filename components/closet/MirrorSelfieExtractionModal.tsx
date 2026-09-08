@@ -261,8 +261,11 @@ export function MirrorSelfieExtractionModal({
     onClose();
   }, [mirror, onExtracted, onClose]);
 
-  // The master gate. While MIRROR_SELFIE_V1_ACTIVE is false this component
-  // renders nothing at all — no picker, no permission prompt, no session.
+  // The master gate. mirror.active is the canonical availability decision
+  // (services/mirror/mirrorSelfieAvailability.ts) — flag off OR an
+  // unsupported platform (Android has no native extraction runtime) and this
+  // component renders nothing at all: no picker, no permission prompt, no
+  // session.
   if (!mirror.active) return null;
 
   const snapshot = mirror.snapshot;

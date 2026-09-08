@@ -491,6 +491,12 @@ function mountLibrary(options = {}) {
     '../constants/elise': { ELISE_IDENTITY: { styleWithEliseLabel: 'Style with Elise' } },
     '../constants/freeTierUtilityFlags': { FREE_TIER_UTILITY_ENABLED: false },
     '../constants/featureFlags': featureFlags,
+    // Mirror Selfie is gated off in every profile this harness renders, and
+    // app/library.tsx now asks this resolver rather than composing the
+    // decision itself.
+    '../services/mirror/mirrorSelfieAvailability': {
+      resolveMirrorSelfieAvailable: () => false,
+    },
     '../components/free-tier/FreeTierUtilitySection': {
       FreeTierUtilitySection: 'FreeTierUtilitySection',
     },

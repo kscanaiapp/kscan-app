@@ -156,6 +156,28 @@ test('NEGATIVE-CONTROL: an absent separation flag reproduces the legacy Closet',
 
 // ══ PART B/C — the REAL app/library.tsx element tree ════════════════════════
 
+/**
+ * Loads the REAL services/mirror/mirrorSelfieAvailability.ts.
+ *
+ * app/library.tsx takes its Mirror decision from this module and nothing else,
+ * so stubbing it would make every MIRROR-ENTRY assertion below a statement
+ * about the stub. It is executed for real against this harness's platform and
+ * flag chain instead.
+ */
+function loadMirrorAvailability({ platformOS, flagActive }) {
+  const shim = (spec) => {
+    if (spec === 'react-native') return { Platform: { OS: platformOS } };
+    if (spec === '../../constants/featureFlags') return { MIRROR_SELFIE_V1_ACTIVE: flagActive };
+    throw new Error(`unexpected mirrorSelfieAvailability import: ${spec}`);
+  };
+  const mod = { exports: {} };
+  vm.runInThisContext(
+    `(function (exports, module, require) {\n${transpile('services/mirror/mirrorSelfieAvailability.ts')}\n})`,
+    { filename: 'services/mirror/mirrorSelfieAvailability.ts' },
+  )(mod.exports, mod, shim);
+  return mod.exports;
+}
+
 function makeReact() {
   const React = {
     __esModule: true,
@@ -265,6 +287,10 @@ function renderLibrary({
   const luxury = { __esModule: true };
   for (const n of LUXURY_NAMES) luxury[n] = named(n);
 
+  // One platform for the whole render — the screen and the availability
+  // resolver behind it must never be told different things.
+  const platformOS = 'ios';
+
   const modules = {
     react: React,
     'react-native': {
@@ -278,7 +304,7 @@ function renderLibrary({
       Linking: { openURL: () => {}, openSettings: () => {} },
       StyleSheet: { create: (s) => s, flatten: (s) => s, hairlineWidth: 1 },
       Dimensions: { get: () => ({ width: 390, height: 844 }) },
-      Platform: { OS: 'ios', select: (o) => o.ios ?? o.default },
+      Platform: { OS: platformOS, select: (o) => o[platformOS] ?? o.default },
     },
     'expo-router': {
       __esModule: true,
@@ -357,6 +383,10 @@ function renderLibrary({
       MIRROR_SELFIE_V1_ACTIVE: separation && mirror,
       PRIVATE_DRESSING_ROOM_V1: true,
     },
+    '../services/mirror/mirrorSelfieAvailability': loadMirrorAvailability({
+      platformOS,
+      flagActive: separation && mirror,
+    }),
   };
 
   function requireShim(spec) {
