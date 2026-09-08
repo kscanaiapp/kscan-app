@@ -94,6 +94,31 @@
             "artifactVerificationRequired": "The merged manifest of a staging-certification AAB must be inspected to prove BOTH POST_NOTIFICATIONS and RECORD_AUDIO are present, and that MODIFY_AUDIO_SETTINGS still arrives through expo-audio's ordinary merge (Repair 03) while FOREGROUND_SERVICE_MICROPHONE and CAPTURE_AUDIO_OUTPUT remain absent."
           }
         ]
+      },
+      "globallySuppressedTransitivePermissions": {
+        "note": "Android Repair 08. A SECOND, independent governance shape alongside buildProfileManifestExceptions above, for the case that block cannot express: a permission a DEPENDENCY contributes to the merged manifest, that NO build profile may ever re-grant. A build-profile exception says 'off by default, on for this selector'; an entry here says 'off everywhere, always'. Repair 07 found the governance blind spot these close together -- a library-contributed permission can enter the merged manifest without ever appearing as a first-party grant in src/main, so it is governed by neither app.json's declared list nor a reviewer reading K Scan's own manifest lines. check-native-config-parity.js enforces every entry in BOTH directions: the permission must be tools:node=\"remove\" in the main manifest AND listed in app.json android.blockedPermissions, and no build-profile exception manifest may grant it. Deliberately NOT a recursive audit of every permission under node_modules -- entries are added one at a time, each with a proven reachability finding.",
+        "permissions": [
+          {
+            "id": "NOTIFICATION_BOOT_RESTORATION_CAPABILITY",
+            "permission": "android.permission.RECEIVE_BOOT_COMPLETED",
+            "contributingDependency": "expo-notifications",
+            "contributingDependencyVersion": "0.32.17",
+            "contributingManifest": "node_modules/expo-notifications/android/src/main/AndroidManifest.xml",
+            "reason": "expo-notifications declares RECEIVE_BOOT_COMPLETED in its own library manifest and registers its NotificationsService receiver for BOOT_COMPLETED, REBOOT, QUICKBOOT_POWERON, com.htc.intent.action.QUICKBOOT_POWERON and MY_PACKAGE_REPLACED. Those five are NotificationsService.SETUP_ACTIONS and lead only to ExpoSchedulingDelegate.setupScheduledNotifications(), which re-arms alarms for notifications previously scheduled LOCALLY on the device. K Scan has no local/scheduled-notification feature: no first-party source calls scheduleNotificationAsync or any other scheduling API, so SharedPreferencesNotificationsStore -- written only by ExpoSchedulingDelegate.scheduleNotification() -- is provably empty and there is nothing to restore. Every K Scan notification originates remotely from the Watchlist push producer (supabase/functions/commerce-watch-refresh/pushDelivery.ts -> Expo push -> FCM).",
+            "removedIn": "android/app/src/main/AndroidManifest.xml",
+            "mustNeverBeGrantedByAnyProfile": true,
+            "independentOfRemotePush": "Remote push does NOT imply locally scheduled notifications, so this is not gated on pushNativeCapabilityMaterialized and no Repair 07 capability manifest re-grants it. Remote delivery runs FCM -> ExpoFirebaseMessagingService.onMessageReceived -> NotificationsService.receive() -> the expo.modules.notifications.NOTIFICATION_EVENT action, and a tap runs createNotificationResponseIntent -> the same NOTIFICATION_EVENT action; neither consults SETUP_ACTIONS, and RECEIVE_BOOT_COMPLETED appears nowhere in the library's Kotlin sources. The permission is therefore ABSENT in all four states of the Repair 07 push/Voice matrix.",
+            "componentsThatMustSurvive": [
+              "expo.modules.notifications.service.NotificationsService",
+              "expo.modules.notifications.NOTIFICATION_EVENT",
+              "expo.modules.notifications.service.ExpoFirebaseMessagingService"
+            ],
+            "componentPolicy": "PERMISSION ONLY. The receiver and its intent-filter are deliberately left intact: the same receiver carries NOTIFICATION_EVENT, which is how remote notification handling, presentation and tap/response handling all work, and the same library manifest declares the FCM service. Removing the permission is sufficient -- the platform then stops delivering BOOT_COMPLETED, and the actions that survive independently of it (MY_PACKAGE_REPLACED, OEM QUICKBOOT variants) reach a setupScheduledNotifications() that iterates an empty store. Selectively removing <action> elements would require redeclaring the library receiver, a brittle replacement that risks exactly the remote-push path this repair must preserve.",
+            "defaultArtifactPosture": "tools:node=\"remove\" in android/app/src/main/AndroidManifest.xml and listed in app.json android.blockedPermissions, with no overlay re-grant -- so ordinary production, staging, preview, development, staging-certification and any local `gradlew bundleRelease` all declare no boot permission.",
+            "ifTheDependencyStopsDeclaringIt": "The removal may remain, safely redundant. It is the INTENDED posture that is governed here, not the dependency's current internals; __tests__/androidNotificationBootCapability.test.js records the contribution as an observation and only requires the explicit removal while the contribution exists.",
+            "artifactVerificationRequired": "Manifest-merger behaviour is not provable from source. The merged manifest of an ordinary production AAB must be inspected to prove RECEIVE_BOOT_COMPLETED is ABSENT despite expo-notifications contributing it, and the merged manifest of a push-capable AAB (EXPO_PUBLIC_SMART_WATCHLIST_V1=true) must be inspected to prove it is ABSENT there too while POST_NOTIFICATIONS is PRESENT."
+          }
+        ]
       }
     },
     "ios": {

@@ -412,6 +412,106 @@ function main() {
     }
   }
 
+  // ---- Android globally suppressed transitive permissions (Android Repair 08) ----
+  //
+  // The block above governs "off by default, ON for this selector". This one
+  // governs "off EVERYWHERE, always": a permission a DEPENDENCY contributes to
+  // the merged manifest that no build profile may ever re-grant.
+  //
+  // Repair 07 surfaced the blind spot both blocks close. A library-contributed
+  // permission reaches the merged manifest without appearing as a first-party
+  // grant in src/main, so it is described by neither app.json's declared
+  // permission list nor a reviewer reading K Scan's own manifest lines. Only an
+  // explicit tools:node="remove" neutralises it, and only a declaration here
+  // makes that removal deliberate rather than incidental.
+  //
+  // Enforced in BOTH directions on purpose: deleting the removal from src/main
+  // and deleting the entry from app.json's blockedPermissions are separate
+  // regressions, and each must fail on its own. The main-manifest checks earlier
+  // in this file catch neither -- blockedPermissions -> src/main only fires
+  // while app.json still lists the permission, and the reverse-direction scan
+  // matches actively GRANTED lines, which a tools:node="remove" line is not.
+  const suppressionBlock = authority.platforms.android?.globallySuppressedTransitivePermissions;
+  const suppressedPermissions = suppressionBlock?.permissions || [];
+
+  if (suppressedPermissions.length > 0 && authority.platforms.android.model === 'NATIVE_AUTHORITATIVE') {
+    checked.push('globally suppressed transitive permissions (removed in src/main, blocked in app.json, granted nowhere)');
+    const blockedInAppJson = new Set(appConfig.android?.blockedPermissions || []);
+    const declaredInAppJson = new Set(appConfig.android?.permissions || []);
+    const mainXml = manifest ? stripXmlComments(manifest) : null;
+
+    for (const suppressed of suppressedPermissions) {
+      const label = suppressed.id || suppressed.permission || '(unnamed suppression)';
+      const permission = suppressed.permission;
+
+      if (!permission) {
+        failures.push(`Suppression "${label}" declares no "permission" -- it governs nothing.`);
+        continue;
+      }
+
+      // (a) src/main must EXPLICITLY remove it. Absence is not suppression:
+      //     the dependency's own manifest would still carry it into the merge.
+      if (mainXml && !removedPermissions(mainXml).includes(permission)) {
+        failures.push(
+          `Suppression "${label}" declares "${permission}" globally suppressed, so ` +
+            'android/app/src/main/AndroidManifest.xml must carry it at tools:node="remove" -- omitting our own ' +
+            'declaration leaves the dependency contribution in the merged manifest.',
+        );
+      }
+      if (mainXml && grantedPermissions(mainXml).includes(permission)) {
+        failures.push(`Suppression "${label}" declares "${permission}" globally suppressed, but src/main GRANTS it.`);
+      }
+
+      // (b) app.json must mirror the suppressed posture, and must not declare it.
+      if (!blockedInAppJson.has(permission)) {
+        failures.push(
+          `Suppression "${label}" declares "${permission}" globally suppressed, so app.json ` +
+            'android.blockedPermissions must list it -- app.json mirrors the intended default posture, and a ' +
+            'native removal it does not describe is an undocumented one.',
+        );
+      }
+      if (declaredInAppJson.has(permission)) {
+        failures.push(
+          `Suppression "${label}" declares "${permission}" globally suppressed, but app.json android.permissions ` +
+            'declares it as requested.',
+        );
+      }
+
+      // (c) NO build-type manifest may re-grant it. Every manifest under
+      //     android/app/src is checked, not only the declared exceptions, so a
+      //     new source set cannot quietly become the re-grant site.
+      const sourceSetsDir = path.join(REPO_ROOT, 'android', 'app', 'src');
+      if (fs.existsSync(sourceSetsDir)) {
+        for (const sourceSet of fs.readdirSync(sourceSetsDir)) {
+          if (sourceSet === 'main') continue;
+          const overlayPath = path.join(sourceSetsDir, sourceSet, 'AndroidManifest.xml');
+          const overlayRaw = readIfExists(overlayPath);
+          if (!overlayRaw) continue;
+          if (grantedPermissions(stripXmlComments(overlayRaw)).includes(permission)) {
+            failures.push(
+              `Suppression "${label}" declares "${permission}" suppressed in EVERY build configuration, but ` +
+                `android/app/src/${sourceSet}/AndroidManifest.xml grants it. ` +
+                (suppressed.independentOfRemotePush
+                  ? 'This capability is independent of the capability that manifest exists to enable.'
+                  : 'No build profile may re-grant a globally suppressed permission.'),
+            );
+          }
+        }
+      }
+
+      // (d) It must not be smuggled back in as a build-profile exception --
+      //     the two governance shapes must not contradict each other.
+      for (const exception of declaredExceptions) {
+        if ((exception.additionalGrantedPermissions || []).includes(permission)) {
+          failures.push(
+            `Suppression "${label}" declares "${permission}" globally suppressed, but build-profile exception ` +
+              `"${exception.id}" lists it in additionalGrantedPermissions.`,
+          );
+        }
+      }
+    }
+  }
+
   // ---- iOS: internal consistency of the CNG-authoritative app.json ios block ----
   if (authority.platforms.ios.model === 'CNG_AUTHORITATIVE') {
     checked.push('ios.bundleIdentifier is declared');

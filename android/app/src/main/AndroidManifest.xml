@@ -30,6 +30,64 @@
   -->
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS" tools:node="remove"/>
   <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove"/>
+  <!--
+    Android Repair 08 (unused notification BOOT capability containment).
+
+    expo-notifications@0.32.17's own library manifest
+    (node_modules/expo-notifications/android/src/main/AndroidManifest.xml)
+    declares RECEIVE_BOOT_COMPLETED and points its NotificationsService
+    receiver at BOOT_COMPLETED / REBOOT / QUICKBOOT_POWERON /
+    com.htc QUICKBOOT_POWERON / MY_PACKAGE_REPLACED. Those five actions are
+    NotificationsService.SETUP_ACTIONS, and the only thing they do is
+    NotificationsService.handleIntent -> onSetupScheduledNotifications ->
+    ExpoSchedulingDelegate.setupScheduledNotifications(), which re-arms the
+    alarms for notifications the device had scheduled LOCALLY before the
+    restart (SharedPreferencesNotificationsStore.allNotificationRequests).
+
+    K Scan schedules none. The store is only ever written by
+    ExpoSchedulingDelegate.scheduleNotification(), reachable exclusively from
+    JS scheduleNotificationAsync, and no first-party source calls it or any
+    other local-scheduling API -- the whole notification surface is
+    services/watchlist/pushRegistration.ts and
+    services/watchlist/watchNotificationRouting.ts, which between them use
+    only getPermissionsAsync, requestPermissionsAsync,
+    setNotificationChannelAsync, getExpoPushTokenAsync, addPushTokenListener,
+    addNotificationReceivedListener, addNotificationResponseReceivedListener,
+    getLastNotificationResponseAsync and setNotificationHandler. Every K Scan
+    notification originates REMOTELY, from the Watchlist push producer
+    (supabase/functions/commerce-watch-refresh/pushDelivery.ts -> Expo push
+    -> FCM). So boot restoration has nothing to restore.
+
+    THIS IS THE PERMISSION ONLY, NOT THE RECEIVER. The same
+    NotificationsService receiver also carries
+    expo.modules.notifications.NOTIFICATION_EVENT, which is how ordinary
+    remote push actually works: FCM -> ExpoFirebaseMessagingService
+    -> NotificationsService.receive() -> NOTIFICATION_EVENT/RECEIVE_TYPE, and
+    a tap -> createNotificationResponseIntent -> NOTIFICATION_EVENT/
+    RECEIVE_RESPONSE_TYPE. Neither route consults SETUP_ACTIONS and neither
+    needs this permission -- RECEIVE_BOOT_COMPLETED appears NOWHERE in the
+    library's Kotlin, only in its manifest. Deleting the receiver or that
+    action to "finish" this repair would break remote delivery, presentation
+    and tap handling; __tests__/androidNotificationBootCapability.test.js
+    fails if anyone tries.
+
+    The boot ACTIONS are deliberately left declared. Without the permission
+    the platform stops delivering BOOT_COMPLETED at all, and the actions that
+    survive independently (MY_PACKAGE_REPLACED, and OEM QUICKBOOT variants on
+    the devices that send them) reach a setupScheduledNotifications() that
+    iterates an empty store -- no capability, no work. Selectively removing
+    <action> elements from a library receiver would require redeclaring that
+    receiver, which is exactly the brittle replacement that endangers
+    NOTIFICATION_EVENT.
+
+    Unlike POST_NOTIFICATIONS above, this is NOT capability-gated: remote push
+    does not imply locally scheduled notifications, so no Repair 07 overlay
+    re-grants it and it is ABSENT in all four push/Voice states. It is
+    recorded in config/native-config-authority.json under
+    globallySuppressedTransitivePermissions rather than as a build-profile
+    exception, because no profile may ever re-grant it.
+  -->
+  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" tools:node="remove"/>
   <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" tools:node="remove"/>
   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove"/>
   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove"/>
