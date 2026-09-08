@@ -10,7 +10,7 @@
         "android/app/src/main/AndroidManifest.xml"
       ],
       "buildProfileManifestExceptions": {
-        "note": "Build 34 Android staging certification. Android is NATIVE_AUTHORITATIVE, so app.json cannot express a permission that exists in ONE build profile only. This block is the governed declaration of every such exception: what the exception is, which manifest carries it, which selector turns it on, and what it may never contain. check-native-config-parity.js enforces it. Anything not listed here is NOT an approved exception -- an extra granted permission in an exception manifest fails the gate.",
+        "note": "Build 34 Android staging certification, extended by Android Repair 07. Android is NATIVE_AUTHORITATIVE, so app.json cannot express a permission that exists in ONE build configuration only. This block is the governed declaration of every such exception: what the exception is, which manifest carries it, which selector turns it on, and what it may never contain. check-native-config-parity.js enforces it. Anything not listed here is NOT an approved exception -- an extra granted permission in an exception manifest fails the gate, and an exception manifest that exists under android/app/src without a declaration here fails it too. Repair 07 made Voice and remote push INDEPENDENT native capabilities: because an Android build-type source set has exactly one manifest slot, the four on/off combinations are carried by four manifests (src/release, src/certification, src/push, src/voicePush) selected in android/app/build.gradle by voiceNativeCapabilityMaterialized and pushNativeCapabilityMaterialized. Neither boolean is ever derived from the other, from EAS_BUILD_PROFILE, or from the presence of GOOGLE_SERVICES_JSON.",
         "exceptions": [
           {
             "id": "VOICE_SCAN_CERTIFICATION_MICROPHONE",
@@ -49,6 +49,49 @@
             ],
             "defaultArtifactPosture": "RECORD_AUDIO stays tools:node=\"remove\" in android/app/src/main/AndroidManifest.xml and stays in app.json android.blockedPermissions. selectorSetByEasProfiles is deliberately empty: eas.json commits this selector to NO profile today, including production -- it is supplied out of band by the governed production release environment only at the moment of an explicitly authorized activation (see docs/build34-android-voice-production-readiness-runbook.md). Committing it to any profile's eas.json env would itself broaden that profile before authorization, which is exactly what this declaration must not do.",
             "artifactVerificationRequired": "Manifest-merger behaviour is not provable from source. Before any production Voice release, the merged manifest of a production AAB built WITH KSCAN_VOICE_NATIVE_CAPABILITY=true set must be inspected to prove RECORD_AUDIO is present, and the merged manifest of an ordinary production AAB (selector unset, today's shipping state) must be inspected to prove it is still absent."
+          },
+          {
+            "id": "REMOTE_PUSH_NOTIFICATION_CAPABILITY",
+            "reason": "Android Repair 07. Ordinary production ships no remote-push consumer -- Repairs 05 and 06 made the runtime inert (no permission request, no Expo push token, no device registration) -- so android/app/src/main/AndroidManifest.xml now removes POST_NOTIFICATIONS by default. That removal is what neutralises expo-notifications' OWN library manifest, which declares the permission independently of K Scan; deleting K Scan's line alone would have left it in the merged manifest. A build that genuinely activates remote push re-grants it here. Repair 05 recorded this static-permission separation as future debt precisely because the four-state native architecture did not exist yet; this exception is that debt closed. This exception covers the push-ON / Voice-OFF combination.",
+            "baseManifest": "android/app/src/release/AndroidManifest.xml",
+            "exceptionManifest": "android/app/src/push/AndroidManifest.xml",
+            "selectorGradleProperty": "expo.public.smartWatchlistV1",
+            "selectorEnvironmentVariable": "EXPO_PUBLIC_SMART_WATCHLIST_V1",
+            "selectorSetByEasProfiles": [
+              "staging-certification"
+            ],
+            "additionalGrantedPermissions": [
+              "android.permission.POST_NOTIFICATIONS"
+            ],
+            "mustRemainRemovedEverywhere": [
+              "android.permission.FOREGROUND_SERVICE",
+              "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+            ],
+            "defaultArtifactPosture": "POST_NOTIFICATIONS is tools:node=\"remove\" in android/app/src/main/AndroidManifest.xml and is listed in app.json android.blockedPermissions, so ordinary production, staging, preview, development and any local `gradlew bundleRelease` declare no notification permission at all. The grant appears only in a build whose pushNativeCapabilityMaterialized resolves true, which is the same EXPO_PUBLIC_SMART_WATCHLIST_V1 input Repair 05 uses for runtime activation and for the fail-closed FCM requirement -- so a push-capable artifact cannot be produced without GOOGLE_SERVICES_JSON, and the presence of that credential alone never grants the permission.",
+            "artifactVerificationRequired": "Manifest-merger behaviour is not provable from source. The merged manifest of an ordinary production AAB must be inspected to prove POST_NOTIFICATIONS is ABSENT despite expo-notifications contributing it, and the merged manifest of a push-capable AAB (EXPO_PUBLIC_SMART_WATCHLIST_V1=true) must be inspected to prove it is PRESENT."
+          },
+          {
+            "id": "VOICE_AND_REMOTE_PUSH_COMBINED_CAPABILITY",
+            "reason": "Android Repair 07. An Android build-type source set has exactly ONE manifest slot, so Voice and remote push -- which are independent capabilities that may each be on or off -- need a manifest per combination. This is the both-ON file. Its content is nothing beyond src/certification's Voice block plus src/push's push grant over the same src/release base; it introduces no policy of its own. staging-certification is the profile that enables both today (EXPO_PUBLIC_SMART_WATCHLIST_V1 and KSCAN_VOICE_CERTIFICATION), but that is a fact about one profile, not a coupling: the three sibling manifests are what prove either capability can ship without the other.",
+            "baseManifest": "android/app/src/release/AndroidManifest.xml",
+            "exceptionManifest": "android/app/src/voicePush/AndroidManifest.xml",
+            "selectorGradleProperty": "expo.public.smartWatchlistV1",
+            "selectorEnvironmentVariable": "EXPO_PUBLIC_SMART_WATCHLIST_V1",
+            "selectorSetByEasProfiles": [
+              "staging-certification"
+            ],
+            "additionalGrantedPermissions": [
+              "android.permission.POST_NOTIFICATIONS",
+              "android.permission.RECORD_AUDIO"
+            ],
+            "mustRemainRemovedEverywhere": [
+              "android.permission.FOREGROUND_SERVICE",
+              "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+              "android.permission.FOREGROUND_SERVICE_MICROPHONE",
+              "android.permission.CAPTURE_AUDIO_OUTPUT"
+            ],
+            "defaultArtifactPosture": "Selected only when BOTH pushNativeCapabilityMaterialized and voiceNativeCapabilityMaterialized resolve true. Both POST_NOTIFICATIONS and RECORD_AUDIO stay tools:node=\"remove\" in android/app/src/main/AndroidManifest.xml and stay in app.json android.blockedPermissions, so the default artifact declares neither.",
+            "artifactVerificationRequired": "The merged manifest of a staging-certification AAB must be inspected to prove BOTH POST_NOTIFICATIONS and RECORD_AUDIO are present, and that MODIFY_AUDIO_SETTINGS still arrives through expo-audio's ordinary merge (Repair 03) while FOREGROUND_SERVICE_MICROPHONE and CAPTURE_AUDIO_OUTPUT remain absent."
           }
         ]
       }

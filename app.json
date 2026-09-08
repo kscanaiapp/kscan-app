@@ -65,10 +65,10 @@
                                                      "android.permission.CAMERA",
                                                      "android.permission.INTERNET",
                                                      "android.permission.VIBRATE",
-                                                     "android.permission.ACCESS_COARSE_LOCATION",
-                                                     "android.permission.POST_NOTIFICATIONS"
+                                                     "android.permission.ACCESS_COARSE_LOCATION"
                                                  ],
                                  "blockedPermissions":  [
+                                                            "android.permission.POST_NOTIFICATIONS",
                                                             "android.permission.RECORD_AUDIO",
                                                             "android.permission.ACCESS_FINE_LOCATION",
                                                             "android.permission.READ_EXTERNAL_STORAGE",
