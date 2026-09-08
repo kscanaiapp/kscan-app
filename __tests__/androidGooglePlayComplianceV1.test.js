@@ -13,6 +13,7 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const fs = require('node:fs');
 const path = require('node:path');
+const zlib = require('node:zlib');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const MANIFEST_PATH = path.join(REPO_ROOT, 'android', 'app', 'src', 'main', 'AndroidManifest.xml');
@@ -1137,4 +1138,389 @@ test('the JIT path is the one Voice actually uses', () => {
   assert.doesNotMatch(hook, /PermissionsAndroid/, 'Voice must not open a second permission path of its own');
   const startSession = hook.slice(hook.indexOf('const startSession'), hook.indexOf('const stopSession'));
   assert.match(startSession, /await requestVoiceRecordingPermission\(\)/);
+});
+
+// ── GOOGLE-ANDROID-006: notification icon/color native materialization ─────
+//
+// app.json's expo-notifications plugin config (icon, color) is not itself
+// native state -- Android is native-authoritative here
+// (config/native-config-authority.json). These tests prove the declared
+// icon/color are actually MATERIALIZED into the committed native project: a
+// drawable/color resource exists with the exact name expo-notifications
+// generates, and the manifest metadata expo-notifications/Firebase Messaging
+// actually read points at that exact resource -- never at the launcher icon,
+// never at a stale value. Expected names are DERIVED from the installed
+// expo-notifications package itself (require()'d directly below) rather than
+// duplicated as arbitrary strings, so a future expo-notifications upgrade
+// that renames its metadata keys or resource names is caught by this same
+// suite instead of silently drifting past it.
+
+const notificationPlugin = require('../node_modules/expo-notifications/plugin/build/withNotificationsAndroid.js');
+const COLORS_PATH = path.join(REPO_ROOT, 'android', 'app', 'src', 'main', 'res', 'values', 'colors.xml');
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+}
+
+function getNotificationPluginConfig() {
+  const appConfig = JSON.parse(readFile(APP_JSON_PATH)).expo;
+  const entry = (appConfig.plugins || []).find(
+    (plugin) => Array.isArray(plugin) && plugin[0] === 'expo-notifications',
+  );
+  assert.ok(entry, 'app.json must declare the expo-notifications plugin with config props');
+  return entry[1] || {};
+}
+
+/** The exact drawable-DPI folder names the installed plugin writes to
+ * (writeNotificationIconImageFilesAsync derives them from its own mipmap
+ * dpiValues via `folderName.replace('mipmap', 'drawable')`). */
+function notificationDrawableFolders() {
+  return Object.values(notificationPlugin.dpiValues).map(({ folderName }) =>
+    folderName.replace('mipmap', 'drawable'),
+  );
+}
+
+function notificationIconDrawablePaths() {
+  return notificationDrawableFolders().map((folder) =>
+    path.join(
+      REPO_ROOT, 'android', 'app', 'src', 'main', 'res', folder,
+      `${notificationPlugin.NOTIFICATION_ICON}.png`,
+    ),
+  );
+}
+
+test('NOTIFICATION-CONFIG-DECLARED: app.json declares the expo-notifications icon and color', () => {
+  const config = getNotificationPluginConfig();
+  assert.equal(config.icon, './assets/notification-icon.png');
+  assert.equal(config.color, '#3F0B2F');
+});
+
+// ── native icon ──────────────────────────────────────────────────────────
+
+function assertNotificationDrawablesExist(paths) {
+  assert.ok(paths.length > 0, 'the installed plugin must declare at least one DPI bucket');
+  for (const drawablePath of paths) {
+    assert.ok(fs.existsSync(drawablePath), `expected notification icon drawable missing: ${drawablePath}`);
+  }
+}
+
+test('NOTIFICATION-ICON-MATERIALIZED: the exact drawable the installed plugin generates exists at every DPI bucket', () => {
+  assertNotificationDrawablesExist(notificationIconDrawablePaths());
+});
+
+test('CONTROL S (negative): a missing notification drawable is caught', () => {
+  const real = notificationIconDrawablePaths();
+  const fixture = [
+    ...real.slice(1),
+    path.join(path.dirname(real[0]), 'notification_icon_MISSING.png'),
+  ];
+  assert.throws(() => assertNotificationDrawablesExist(fixture));
+});
+
+function assertNotificationIconManifestWiring(manifestXml) {
+  const iconResource = notificationPlugin.NOTIFICATION_ICON_RESOURCE;
+  for (const key of [
+    notificationPlugin.META_DATA_FCM_NOTIFICATION_ICON,
+    notificationPlugin.META_DATA_LOCAL_NOTIFICATION_ICON,
+  ]) {
+    const re = new RegExp(
+      `<meta-data android:name="${escapeRegExp(key)}" android:resource="${escapeRegExp(iconResource)}"/>`,
+    );
+    assert.ok(
+      re.test(manifestXml),
+      `expected <meta-data android:name="${key}" android:resource="${iconResource}"/> in the main manifest`,
+    );
+  }
+  assert.doesNotMatch(
+    manifestXml,
+    /notification[^>]*ic_launcher|ic_launcher[^>]*notification/i,
+    'no notification metadata may reference the launcher icon',
+  );
+  // Belt-and-suspenders: no meta-data anywhere in the file may resolve to the
+  // launcher mipmap at all, notification-named or not.
+  for (const match of manifestXml.matchAll(/<meta-data[^>]*android:resource="([^"]+)"[^>]*\/>/g)) {
+    assert.notEqual(match[1], '@mipmap/ic_launcher', 'a meta-data item resolves to the launcher icon');
+  }
+}
+
+test('NOTIFICATION-ICON-MANIFEST-WIRING: both metadata keys reference the exact drawable, never the launcher icon', () => {
+  assertNotificationIconManifestWiring(withoutComments(readFile(MANIFEST_PATH)));
+});
+
+test('CONTROL T (negative): a launcher-icon fallback in notification metadata is caught', () => {
+  const mutated = withoutComments(readFile(MANIFEST_PATH)).replace(
+    /android:resource="@drawable\/notification_icon"/g,
+    'android:resource="@mipmap/ic_launcher"',
+  );
+  assert.throws(() => assertNotificationIconManifestWiring(mutated));
+});
+
+test('CONTROL V (negative): manifest metadata pointing to a nonmatching resource is caught', () => {
+  // Only the FIRST occurrence is mutated -- proves a single mismatched
+  // meta-data line among several is still caught, not just a wholesale swap.
+  const mutated = withoutComments(readFile(MANIFEST_PATH)).replace(
+    'android:resource="@drawable/notification_icon"',
+    'android:resource="@drawable/some_other_icon"',
+  );
+  assert.throws(() => assertNotificationIconManifestWiring(mutated));
+});
+
+// ── native color ─────────────────────────────────────────────────────────
+
+function assertNotificationColorMatches(colorsXml, expectedColor) {
+  const colorName = notificationPlugin.NOTIFICATION_ICON_COLOR;
+  const re = new RegExp(`<color name="${escapeRegExp(colorName)}">([^<]+)</color>`);
+  const match = colorsXml.match(re);
+  assert.ok(match, `expected <color name="${colorName}"> in colors.xml`);
+  assert.equal(
+    match[1].toLowerCase(),
+    expectedColor.toLowerCase(),
+    `native notification color "${match[1]}" must equal app.json's "${expectedColor}"`,
+  );
+}
+
+test('NOTIFICATION-COLOR-MATERIALIZED: the exact color resource the installed plugin generates exists and equals app.json', () => {
+  const config = getNotificationPluginConfig();
+  assertNotificationColorMatches(readFile(COLORS_PATH), config.color);
+});
+
+test('CONTROL U (negative): a color-value drift from app.json is caught', () => {
+  const mutated = readFile(COLORS_PATH).replace('#3F0B2F', '#000000');
+  assert.throws(() => assertNotificationColorMatches(mutated, '#3F0B2F'));
+});
+
+test('the notification color resource never repurposes an existing branding color', () => {
+  const colorsXml = readFile(COLORS_PATH);
+  for (const existing of ['colorPrimary', 'colorPrimaryDark', 'iconBackground']) {
+    assert.ok(colorsXml.includes(`name="${existing}"`), `${existing} must still be declared`);
+  }
+  // The notification color must be its OWN resource, not an alias/reference
+  // to one of the existing ones.
+  const notifMatch = colorsXml.match(
+    new RegExp(`<color name="${notificationPlugin.NOTIFICATION_ICON_COLOR}">([^<]+)</color>`),
+  );
+  assert.ok(notifMatch);
+  assert.doesNotMatch(notifMatch[1], /^@color\//, 'the notification color must be a literal value, not a reference to another color resource');
+});
+
+function assertNotificationColorManifestWiring(manifestXml) {
+  const colorResource = notificationPlugin.NOTIFICATION_ICON_COLOR_RESOURCE;
+  for (const key of [
+    notificationPlugin.META_DATA_FCM_NOTIFICATION_ICON_COLOR,
+    notificationPlugin.META_DATA_LOCAL_NOTIFICATION_ICON_COLOR,
+  ]) {
+    const re = new RegExp(
+      `<meta-data android:name="${escapeRegExp(key)}" android:resource="${escapeRegExp(colorResource)}"/>`,
+    );
+    assert.ok(
+      re.test(manifestXml),
+      `expected <meta-data android:name="${key}" android:resource="${colorResource}"/> in the main manifest`,
+    );
+  }
+}
+
+test('NOTIFICATION-COLOR-MANIFEST-WIRING: both metadata keys reference the exact color resource', () => {
+  assertNotificationColorManifestWiring(withoutComments(readFile(MANIFEST_PATH)));
+});
+
+// ── icon quality (Android notification-small-icon semantics) ───────────────
+//
+// A small, deterministic, dependency-free PNG decoder (Node's built-in zlib
+// only) -- enough to check notification-small-icon semantics (white
+// foreground, transparent background), not a general-purpose image library.
+
+function decodeNotificationIconPng(buffer) {
+  const sig = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  if (buffer.length < 8 || !buffer.slice(0, 8).equals(sig)) {
+    throw new Error('not a valid PNG file (bad signature)');
+  }
+  let offset = 8;
+  let width, height, bitDepth, colorType, interlace;
+  const idatChunks = [];
+  while (offset < buffer.length) {
+    if (offset + 8 > buffer.length) throw new Error('truncated PNG (chunk header)');
+    const length = buffer.readUInt32BE(offset);
+    const type = buffer.toString('ascii', offset + 4, offset + 8);
+    const dataStart = offset + 8;
+    if (dataStart + length > buffer.length) throw new Error('truncated PNG (chunk data)');
+    const data = buffer.slice(dataStart, dataStart + length);
+    if (type === 'IHDR') {
+      width = data.readUInt32BE(0);
+      height = data.readUInt32BE(4);
+      bitDepth = data.readUInt8(8);
+      colorType = data.readUInt8(9);
+      interlace = data.readUInt8(12);
+    } else if (type === 'IDAT') {
+      idatChunks.push(data);
+    } else if (type === 'IEND') {
+      break;
+    }
+    offset = dataStart + length + 4;
+  }
+  if (!width || !height) throw new Error('PNG has zero or missing dimensions');
+  if (interlace !== 0) throw new Error('interlaced PNG not supported by this deterministic check');
+  if (bitDepth !== 8 || colorType !== 6) {
+    throw new Error(
+      `unsupported PNG format for notification-icon check: bitDepth=${bitDepth} colorType=${colorType} ` +
+        '(expected 8-bit RGBA)',
+    );
+  }
+  const raw = zlib.inflateSync(Buffer.concat(idatChunks));
+  const bpp = 4;
+  const stride = width * bpp;
+  if (raw.length < height * (stride + 1)) throw new Error('PNG pixel data shorter than declared dimensions');
+  const pixels = Buffer.alloc(height * stride);
+  let rawOffset = 0;
+  let prevLine = Buffer.alloc(stride);
+  for (let y = 0; y < height; y++) {
+    const filterType = raw[rawOffset];
+    rawOffset += 1;
+    const line = raw.slice(rawOffset, rawOffset + stride);
+    rawOffset += stride;
+    const outLine = Buffer.alloc(stride);
+    for (let x = 0; x < stride; x++) {
+      const a = x >= bpp ? outLine[x - bpp] : 0;
+      const b = prevLine[x];
+      const c = x >= bpp ? prevLine[x - bpp] : 0;
+      let value = line[x];
+      switch (filterType) {
+        case 0: break;
+        case 1: value = (value + a) & 0xff; break;
+        case 2: value = (value + b) & 0xff; break;
+        case 3: value = (value + Math.floor((a + b) / 2)) & 0xff; break;
+        case 4: {
+          const p = a + b - c;
+          const pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c);
+          const pr = pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+          value = (value + pr) & 0xff;
+          break;
+        }
+        default: throw new Error(`unsupported PNG filter type ${filterType}`);
+      }
+      outLine[x] = value;
+    }
+    outLine.copy(pixels, y * stride);
+    prevLine = outLine;
+  }
+  return { width, height, pixels, bpp };
+}
+
+/** Android notification-small-icon semantics: white foreground on a fully
+ * transparent background. Not a brand/pixel-perfect check -- just the
+ * structural properties Android/Play require. */
+function assertPixelsSuitableForNotificationIcon({ width, height, pixels, bpp }, label) {
+  assert.ok(width > 0 && height > 0, `${label}: zero/invalid dimensions`);
+  const total = width * height;
+  let opaqueCount = 0;
+  let transparentCount = 0;
+  let nonWhiteVisibleCount = 0;
+  for (let i = 0; i < total; i++) {
+    const idx = i * bpp;
+    const r = pixels[idx], g = pixels[idx + 1], b = pixels[idx + 2], a = pixels[idx + 3];
+    if (a === 255) opaqueCount++;
+    if (a === 0) transparentCount++;
+    if (a > 10 && !(r >= 245 && g >= 245 && b >= 245)) nonWhiteVisibleCount++;
+  }
+  assert.ok(
+    transparentCount > 0,
+    `${label}: zero transparent pixels -- a notification small icon must have a transparent background`,
+  );
+  assert.notEqual(
+    opaqueCount, total,
+    `${label}: every pixel is fully opaque -- solid/opaque background is not valid notification-icon semantics`,
+  );
+  assert.equal(
+    nonWhiteVisibleCount, 0,
+    `${label}: contains non-white visible pixels -- notification small icons must be white-on-transparent`,
+  );
+}
+
+function assertNotificationIconFileSuitable(pngPath) {
+  const buffer = fs.readFileSync(pngPath);
+  const decoded = decodeNotificationIconPng(buffer);
+  assertPixelsSuitableForNotificationIcon(decoded, path.relative(REPO_ROOT, pngPath));
+}
+
+test('NOTIFICATION-ICON-QUALITY: every materialized drawable is white-on-transparent at every DPI bucket', () => {
+  for (const drawablePath of notificationIconDrawablePaths()) {
+    assertNotificationIconFileSuitable(drawablePath);
+  }
+});
+
+test('the icon-quality check fails closed on a missing file', () => {
+  assert.throws(() =>
+    assertNotificationIconFileSuitable(
+      path.join(REPO_ROOT, 'android', 'app', 'src', 'main', 'res', 'drawable-mdpi', 'does_not_exist.png'),
+    ),
+  );
+});
+
+test('the icon-quality check fails on obviously corrupt/unusable image data', () => {
+  assert.throws(() => decodeNotificationIconPng(Buffer.from('not a png at all')));
+});
+
+test('CONTROL W (negative): a solid opaque/color-background icon fails the small-icon semantic check', () => {
+  // 4x4 fully-opaque, solid brand-colored fixture -- exactly the
+  // "background plate" shape Android notification-small-icon rules forbid.
+  const width = 4, height = 4, bpp = 4;
+  const pixels = Buffer.alloc(width * height * bpp);
+  for (let i = 0; i < width * height; i++) {
+    const idx = i * bpp;
+    pixels[idx] = 0x3f; pixels[idx + 1] = 0x0b; pixels[idx + 2] = 0x2f; pixels[idx + 3] = 255;
+  }
+  assert.throws(() => assertPixelsSuitableForNotificationIcon({ width, height, pixels, bpp }, 'fixture'));
+});
+
+test('the icon-quality check fails on non-white visible pixels (colored glyph)', () => {
+  const width = 4, height = 4, bpp = 4;
+  const pixels = Buffer.alloc(width * height * bpp); // defaults to transparent black
+  // one fully-opaque BLUE pixel amid an otherwise transparent canvas
+  pixels[0] = 0; pixels[1] = 0; pixels[2] = 255; pixels[3] = 255;
+  assert.throws(() => assertPixelsSuitableForNotificationIcon({ width, height, pixels, bpp }, 'fixture'));
+});
+
+test('the icon-quality check fails on zero transparency even when fully white', () => {
+  const width = 4, height = 4, bpp = 4;
+  const pixels = Buffer.alloc(width * height * bpp);
+  for (let i = 0; i < width * height; i++) {
+    const idx = i * bpp;
+    pixels[idx] = 255; pixels[idx + 1] = 255; pixels[idx + 2] = 255; pixels[idx + 3] = 255;
+  }
+  assert.throws(() => assertPixelsSuitableForNotificationIcon({ width, height, pixels, bpp }, 'fixture'));
+});
+
+test('a genuinely suitable white-on-transparent fixture passes (sanity: the check can pass)', () => {
+  const width = 4, height = 4, bpp = 4;
+  const pixels = Buffer.alloc(width * height * bpp); // transparent black
+  // top-left 2x2 quadrant: opaque white glyph; rest stays transparent
+  for (const [x, y] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
+    const idx = (y * width + x) * bpp;
+    pixels[idx] = 255; pixels[idx + 1] = 255; pixels[idx + 2] = 255; pixels[idx + 3] = 255;
+  }
+  assert.doesNotThrow(() => assertPixelsSuitableForNotificationIcon({ width, height, pixels, bpp }, 'fixture'));
+});
+
+// ── Repair 02 / Repair 03 invariants survive Repair 04 ──────────────────────
+
+test('REPAIR-04-KEEPS-PRIOR-REPAIRS: Repair 02 and Repair 03 invariants are unaffected', () => {
+  const mainXml = readFile(MANIFEST_PATH);
+  for (const permission of REPAIR_02_MAIN_PERMISSION_REMOVALS) {
+    assert.ok(removedPermissionNames(mainXml).has(permission), `Repair 02 removal of "${permission}" was lost`);
+  }
+  const removedServices = new Set(
+    parseServiceElements(mainXml)
+      .filter((element) => element.attrs['tools:node'] === 'remove')
+      .map((element) => element.name),
+  );
+  for (const service of REPAIR_02_MAIN_SERVICE_REMOVALS) {
+    assert.ok(removedServices.has(service), `Repair 02 removal of service "${service}" was lost`);
+  }
+  assertCertificationCaptureBoundaries(readFile(CERT_MANIFEST_PATH));
+  const reach = certificationEliseSpeechReachability();
+  assertCertificationRetainsAudioRouting(readFile(CERT_MANIFEST_PATH), reach.reachable);
+  // POST_NOTIFICATIONS is unaffected by this repair -- still actively granted.
+  assert.ok(
+    grantedPermissions(mainXml).includes('android.permission.POST_NOTIFICATIONS'),
+    'POST_NOTIFICATIONS must remain granted -- Repair 04 does not touch notification permission behavior',
+  );
 });
