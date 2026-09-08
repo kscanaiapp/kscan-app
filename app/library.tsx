@@ -58,6 +58,7 @@ import {
   MIRROR_SELFIE_V1_ACTIVE,
   PRIVATE_DRESSING_ROOM_V1,
 } from '../constants/featureFlags';
+import { isMirrorSelfiePlatformSupported } from '../services/mirror/mirrorSelfieAvailability';
 import { FreeTierUtilitySection } from '../components/free-tier/FreeTierUtilitySection';
 import { normalizeLocalSavedScan } from '../services/ownedClosetItems';
 import { setAttachmentHandoff } from '../services/style-chat/styleChatAttachmentStore';
@@ -737,10 +738,12 @@ export default function LibraryScreen() {
               fills the same Closet by a different route: one photo of an outfit
               instead of one photo per garment.
 
-              Renders NOTHING while MIRROR_SELFIE_V1_ACTIVE is false, which is
-              its state in every profile in this build.
+              Renders NOTHING while MIRROR_SELFIE_V1_ACTIVE is false, and NOTHING
+              on a platform without the required native extraction runtime
+              (Android — see services/mirror/mirrorSelfieAvailability.ts) even
+              when the flag is on.
             */}
-            {MIRROR_SELFIE_V1_ACTIVE ? (
+            {MIRROR_SELFIE_V1_ACTIVE && isMirrorSelfiePlatformSupported() ? (
               <View style={styles.mirrorAction}>
                 <SecondaryButton
                   title="Mirror Selfie"
@@ -1065,7 +1068,7 @@ export default function LibraryScreen() {
         appear in the existing review surface below through the existing
         snapshot, with no second review UI.
       */}
-      {MIRROR_SELFIE_V1_ACTIVE ? (
+      {MIRROR_SELFIE_V1_ACTIVE && isMirrorSelfiePlatformSupported() ? (
         <MirrorSelfieExtractionModal
           visible={mirrorSelfieVisible}
           onClose={() => setMirrorSelfieVisible(false)}
@@ -1078,13 +1081,13 @@ export default function LibraryScreen() {
       {/*
         Bounded Mirror staging progress (Build 2.5 Step 4).
 
-        Rendered only while MIRROR_SELFIE_V1_ACTIVE and only while an
-        operation is actually running or has just finished with something
-        worth telling the user about a partial result. No internal group
-        numbers, candidate IDs, or backend terms — see
-        mirrorStagingProgressLabel below.
+        Rendered only while Mirror Selfie is available (flag on AND a
+        supported platform) and only while an operation is actually running or
+        has just finished with something worth telling the user about a
+        partial result. No internal group numbers, candidate IDs, or backend
+        terms — see mirrorStagingProgressLabel below.
       */}
-      {MIRROR_SELFIE_V1_ACTIVE && closetCandidates.mirrorIntegration ? (
+      {MIRROR_SELFIE_V1_ACTIVE && isMirrorSelfiePlatformSupported() && closetCandidates.mirrorIntegration ? (
         <View style={styles.mirrorStagingBanner} accessibilityLiveRegion="polite">
           <Text style={styles.mirrorStagingBannerText}>
             {mirrorStagingProgressLabel(closetCandidates.mirrorIntegration)}
