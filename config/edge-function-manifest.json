@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-08T19:48:12.898Z",
-    "generatedFromGitSha": "80e1339f8b4b4461d42e6cc2d3a977e12ecced4c"
+    "generatedAtUtc": "2026-09-08T21:14:26.992Z",
+    "generatedFromGitSha": "0c362a1d479afe2d2ad06be7fdc7fb3bdcf5cdae"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -42,7 +42,7 @@
         "bundleFileCount": 41,
         "treeFileCount": 67,
         "bundleHash": "45394f994382e1502aeca25209706098c783a72f3faaedd2d4b74536e5426118",
-        "treeHash": "3a13a1b284f9d0786250f5fbefa7048e83b8c4411636b63322c7c616527df5a3",
+        "treeHash": "f216eefaa1bcf6314c96535549be8ac712e779b0b430d3ff7ff3bde4109da842",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -241,7 +241,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
-            "sha256": "14a0f52f07c608606495dea656c7dbc66308f9cc5f4a54f0c22464b7308efe80",
+            "sha256": "8aafd6cc99fd8e59037e6b8d0004718c210b6db9e7b8c88cbf944c991b5dfc65",
             "bundle": false
           },
           {
@@ -1217,12 +1217,19 @@
       {
         "name": "privacy-correction-request",
         "entry": "supabase/functions/privacy-correction-request/index.ts",
-        "remoteSpecifiers": [],
-        "bundleFileCount": 2,
-        "treeFileCount": 2,
-        "bundleHash": "73e9c232695a92789c3ab8f1ba85852750450b2b7ac33341beeac6554968d99d",
-        "treeHash": "73e9c232695a92789c3ab8f1ba85852750450b2b7ac33341beeac6554968d99d",
+        "remoteSpecifiers": [
+          "npm:@supabase/supabase-js@2"
+        ],
+        "bundleFileCount": 3,
+        "treeFileCount": 3,
+        "bundleHash": "1a5704f34405724cd181905e65d4ed82c8b2abf23ac52c2c613989b3b9d9ab64",
+        "treeHash": "1a5704f34405724cd181905e65d4ed82c8b2abf23ac52c2c613989b3b9d9ab64",
         "files": [
+          {
+            "path": "supabase/functions/_shared/deletion/common.ts",
+            "sha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
+            "bundle": true
+          },
           {
             "path": "supabase/functions/_shared/privacyRequestRateLimit.ts",
             "sha256": "22e1a4e8fcf40628b755167377a1c49e994c8efc7c9da710455a05336b25632f",
@@ -1230,7 +1237,7 @@
           },
           {
             "path": "supabase/functions/privacy-correction-request/index.ts",
-            "sha256": "05da2ea7e8f7271b33116d5e118de6cf2c92f08ca6a243381eff5f336a94da43",
+            "sha256": "3bb38d3b345da7407be0a0135dfbcfdddb015f16cc648300fd90892f5748dd8f",
             "bundle": true
           }
         ]
@@ -1238,12 +1245,19 @@
       {
         "name": "privacy-data-export",
         "entry": "supabase/functions/privacy-data-export/index.ts",
-        "remoteSpecifiers": [],
-        "bundleFileCount": 2,
-        "treeFileCount": 2,
-        "bundleHash": "4541fd8fabcd6ccbdeb63e17552e8f4d888310b841c065cc5c4500fa2bdf3abb",
-        "treeHash": "4541fd8fabcd6ccbdeb63e17552e8f4d888310b841c065cc5c4500fa2bdf3abb",
+        "remoteSpecifiers": [
+          "npm:@supabase/supabase-js@2"
+        ],
+        "bundleFileCount": 3,
+        "treeFileCount": 3,
+        "bundleHash": "f410151cf31a663e8878ada5acd15f6981c8e375e77a2863931c5ba326056549",
+        "treeHash": "f410151cf31a663e8878ada5acd15f6981c8e375e77a2863931c5ba326056549",
         "files": [
+          {
+            "path": "supabase/functions/_shared/deletion/common.ts",
+            "sha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
+            "bundle": true
+          },
           {
             "path": "supabase/functions/_shared/privacyRequestRateLimit.ts",
             "sha256": "22e1a4e8fcf40628b755167377a1c49e994c8efc7c9da710455a05336b25632f",
@@ -1251,7 +1265,7 @@
           },
           {
             "path": "supabase/functions/privacy-data-export/index.ts",
-            "sha256": "1742f74df4ba7ab9fe52d5934239ff778eead0c5c38cf2f71e33463bd500897d",
+            "sha256": "34762535f909769fdcece2c44a11365d3c5e50e9d48d07212db3a4c95b9e4211",
             "bundle": true
           }
         ]
