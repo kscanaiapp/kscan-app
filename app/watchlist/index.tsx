@@ -12,6 +12,7 @@ import { LuxuryScreen, KScanHeader, StatusPill, EmptyStateCard, InlineNotice } f
 import { KScanIcon } from '../../components/icons/kscan';
 import { LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import { useWatchlist } from '../../hooks/useWatchlist';
+import { resolveWatchlistAvailable } from '../../services/watchlist/watchlistAvailability';
 import { formatCommercePrice } from '../../services/dressingRoomCommerce';
 import type { CommerceWatch } from '../../types/watchlist';
 
@@ -78,7 +79,50 @@ function WatchRow({ watch }: { watch: CommerceWatch }) {
   );
 }
 
+/**
+ * Watchlist Repair 06 — the route-level availability gate.
+ *
+ * STRUCTURAL, not cosmetic. `useWatchlist()` fetches the user's Watches and
+ * fires a provider batch refresh from its own mount effects, so any check
+ * written INSIDE the content component would run only after that I/O had
+ * already been issued. The gate therefore has to decide whether
+ * WatchlistHomeContent is mounted at all — that, and only that, makes
+ * "Watchlist off" mean zero Watchlist network activity.
+ *
+ * Fails closed by rendering a truthful unavailable shell with a way out. It
+ * deliberately does not render an empty Watchlist (which would imply the user
+ * simply has no Watches), does not claim the feature is coming, and surfaces
+ * no K+ upgrade — this is not an entitlement the user can acquire.
+ */
 export default function WatchlistHomeScreen() {
+  if (!resolveWatchlistAvailable()) {
+    return <WatchlistUnavailableScreen />;
+  }
+  return <WatchlistHomeContent />;
+}
+
+function WatchlistUnavailableScreen() {
+  return (
+    <LuxuryScreen scrollable={false} testID="watchlist-unavailable-screen">
+      <StatusBar style="dark" />
+      <KScanHeader
+        title="Watchlist"
+        onBack={() => goBackOrHome(router)}
+        backLabel="Back"
+      />
+      <View style={styles.centerFill}>
+        <EmptyStateCard
+          title="Watchlist isn't part of this version"
+          subtitle="Price tracking isn't available in this build of K Scan AI."
+          icon={<KScanIcon name="watchlist" size={28} variant="standard" />}
+          testID="watchlist-unavailable-state"
+        />
+      </View>
+    </LuxuryScreen>
+  );
+}
+
+function WatchlistHomeContent() {
   const { watches, loading, error, refreshing } = useWatchlist();
 
   return (

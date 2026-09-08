@@ -35,6 +35,7 @@ import {
   deleteWatch,
   refreshWatches,
 } from '../../services/watchlist/watchlistClient';
+import { resolveWatchlistAvailable } from '../../services/watchlist/watchlistAvailability';
 import type { CommerceWatch, CommerceWatchEvent } from '../../types/watchlist';
 
 function relativeTime(iso: string | null): string {
@@ -58,7 +59,42 @@ const EVENT_LABEL: Record<CommerceWatchEvent['eventType'], string> = {
   listing_available_again: 'Listed again',
 };
 
+/**
+ * Watchlist Repair 06 — the route-level availability gate.
+ *
+ * Same structural rule as the Watchlist home route: the content component
+ * installs a useFocusEffect that calls fetchWatch() and fetchWatchEvents() and
+ * exposes refresh/pause/resume/delete, so the decision must be whether that
+ * component mounts at all. Hiding the buttons after the Watch had already been
+ * fetched would leave the read — the part that actually touches the user's
+ * data — untouched.
+ *
+ * A deep link to /watchlist/<id> on a build without Watchlist therefore reads
+ * nothing and shows a truthful shell rather than a Watch.
+ */
 export default function WatchDetailScreen() {
+  if (!resolveWatchlistAvailable()) {
+    return <WatchDetailUnavailableScreen />;
+  }
+  return <WatchDetailContent />;
+}
+
+function WatchDetailUnavailableScreen() {
+  return (
+    <LuxuryScreen testID="watch-detail-unavailable-screen">
+      <StatusBar style="dark" />
+      <KScanHeader title="Watch" onBack={() => goBackOrHome(router)} backLabel="Back" />
+      <View style={styles.centerFill}>
+        <InlineNotice
+          variant="info"
+          body="Price tracking isn't available in this build of K Scan AI."
+        />
+      </View>
+    </LuxuryScreen>
+  );
+}
+
+function WatchDetailContent() {
   const { watchId } = useLocalSearchParams<{ watchId: string }>();
   // INT-KPLUS-003 — a Watch and its price-history events are actor-private.
   // This screen previously had no actor awareness whatsoever: `load` keyed only
