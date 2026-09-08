@@ -142,11 +142,42 @@ test('MIRROR-ENTRY-REMAINS-GOVERNED-BY-COMPOSITE-FLAG: a rollback still works af
   );
 });
 
-test('MIRROR-UI-UNREACHABLE-WHEN-FLAG-FALSE: every mount site is behind the gate', () => {
+// TEST-FLIP LEDGER (Android Mirror Selfie production-exposure repair):
+//   TEST: MIRROR-UI-UNREACHABLE-WHEN-FLAG-FALSE
+//   OLD EXPECTATION: both Mirror mount sites in app/library.tsx were gated on
+//     MIRROR_SELFIE_V1_ACTIVE alone.
+//   WHY OLD EXPECTATION WAS WRONG: MIRROR_SELFIE_V1_ACTIVE reflects only the
+//     build-time feature flag chain, never the running platform. Every EAS
+//     profile — including Android production — sets that flag chain to
+//     "true" (Build 2.5 Step 6 activation), while the native person-extraction
+//     runtime it depends on (modules/kscan-pii-native/expo-module.config.json
+//     declares "platforms": ["apple"]) does not exist on Android. Gating on
+//     the flag alone therefore exposed a capability Android cannot execute.
+//   NEW EXPECTATION: both mount sites additionally require
+//     isMirrorSelfiePlatformSupported() from the new canonical resolver,
+//     services/mirror/mirrorSelfieAvailability.ts.
+//   DEFECT CLOSED: Android production advertising and rendering an active
+//     Mirror Selfie entry point with no runtime able to execute it.
+test('MIRROR-UI-UNREACHABLE-WHEN-FLAG-FALSE-OR-PLATFORM-UNSUPPORTED: every mount site is behind the gate', () => {
   const library = read('app/library.tsx');
-  // Both the action and the sheet are gated, not just one of them.
-  assert.ok(/\{MIRROR_SELFIE_V1_ACTIVE \? \(\s*\n\s*<View style=\{styles.mirrorAction\}>/.test(library));
-  assert.ok(/\{MIRROR_SELFIE_V1_ACTIVE \? \(\s*\n\s*<MirrorSelfieExtractionModal/.test(library));
+  // Both the action and the sheet are gated, not just one of them — and both
+  // now require platform support, not the flag alone.
+  assert.ok(
+    /\{MIRROR_SELFIE_V1_ACTIVE && isMirrorSelfiePlatformSupported\(\) \? \(\s*\n\s*<View style=\{styles.mirrorAction\}>/.test(
+      library,
+    ),
+  );
+  assert.ok(
+    /\{MIRROR_SELFIE_V1_ACTIVE && isMirrorSelfiePlatformSupported\(\) \? \(\s*\n\s*<MirrorSelfieExtractionModal/.test(
+      library,
+    ),
+  );
+  assert.ok(
+    /import \{ isMirrorSelfiePlatformSupported \} from '\.\.\/services\/mirror\/mirrorSelfieAvailability';/.test(
+      library,
+    ),
+    'the platform-aware resolver is no longer imported',
+  );
 
   // And the component itself refuses to render even if a caller forgets.
   const modal = read('components/closet/MirrorSelfieExtractionModal.tsx');
@@ -158,6 +189,33 @@ test('MIRROR-UI-UNREACHABLE-WHEN-FLAG-FALSE: every mount site is behind the gate
   // No new tab was introduced.
   const layout = read('app/_layout.tsx');
   assert.ok(!/mirror/i.test(layout), 'a Mirror route was added to the app layout');
+});
+
+test('MIRROR-SELFIE-AVAILABILITY: Android is never a supported platform', () => {
+  const resolver = read('services/mirror/mirrorSelfieAvailability.ts');
+  assert.ok(
+    /MIRROR_SELFIE_SUPPORTED_PLATFORMS: readonly string\[\] = \['ios'\]/.test(resolver),
+    'the supported-platform allowlist changed shape or grew to include Android',
+  );
+  const supportedPlatformsLiteral = resolver.match(
+    /MIRROR_SELFIE_SUPPORTED_PLATFORMS: readonly string\[\] = (\[[^\]]*\])/,
+  )[1];
+  assert.ok(
+    !supportedPlatformsLiteral.includes('android'),
+    'android was added to the supported-platform allowlist',
+  );
+
+  // The hook backing the sheet's internal gate must resolve through the
+  // canonical decision, not by reading the raw flag itself.
+  const hook = read('hooks/useMirrorExtraction.ts');
+  assert.ok(
+    !/MIRROR_SELFIE_V1_ACTIVE/.test(hook),
+    'useMirrorExtraction went back to reading the flag directly instead of the canonical resolver',
+  );
+  assert.ok(
+    /resolveMirrorSelfieAvailable/.test(hook),
+    'useMirrorExtraction no longer resolves through the canonical availability decision',
+  );
 });
 
 test('the Mirror action lives on the existing Closet intake surface, nowhere else', () => {

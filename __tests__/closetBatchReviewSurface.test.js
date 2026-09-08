@@ -491,6 +491,9 @@ function mountLibrary(options = {}) {
     '../constants/elise': { ELISE_IDENTITY: { styleWithEliseLabel: 'Style with Elise' } },
     '../constants/freeTierUtilityFlags': { FREE_TIER_UTILITY_ENABLED: false },
     '../constants/featureFlags': featureFlags,
+    '../services/mirror/mirrorSelfieAvailability': {
+      isMirrorSelfiePlatformSupported: () => true,
+    },
     '../components/free-tier/FreeTierUtilitySection': {
       FreeTierUtilitySection: 'FreeTierUtilitySection',
     },
