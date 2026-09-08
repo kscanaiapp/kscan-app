@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-08T20:24:43.663Z",
-    "generatedFromGitSha": "f2d1a491dc7ac40b14444394e3e1f7dea2ed444d"
+    "generatedAtUtc": "2026-09-08T21:14:26.992Z",
+    "generatedFromGitSha": "0c362a1d479afe2d2ad06be7fdc7fb3bdcf5cdae"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -42,7 +42,7 @@
         "bundleFileCount": 41,
         "treeFileCount": 67,
         "bundleHash": "45394f994382e1502aeca25209706098c783a72f3faaedd2d4b74536e5426118",
-        "treeHash": "3a13a1b284f9d0786250f5fbefa7048e83b8c4411636b63322c7c616527df5a3",
+        "treeHash": "f216eefaa1bcf6314c96535549be8ac712e779b0b430d3ff7ff3bde4109da842",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -241,7 +241,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
-            "sha256": "14a0f52f07c608606495dea656c7dbc66308f9cc5f4a54f0c22464b7308efe80",
+            "sha256": "8aafd6cc99fd8e59037e6b8d0004718c210b6db9e7b8c88cbf944c991b5dfc65",
             "bundle": false
           },
           {
