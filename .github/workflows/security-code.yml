@@ -87,18 +87,33 @@ jobs:
           echo "base_sha=${BASE_SHA}" >> "$GITHUB_OUTPUT"
           echo "head_sha=${HEAD_SHA}" >> "$GITHUB_OUTPUT"
 
+      # RP-06A.1: this report is written to RUNNER_TEMP, NOT into the checkout.
+      #
+      # security/reports/ is a tracked directory (it carries a .gitkeep) and is
+      # not gitignored, so emitting the report there left an untracked file in
+      # the working tree. Harmless on a mobile integration checkout -- but on
+      # the canonical backend authority branch, scripts/verify-backend-authority.js
+      # correctly refuses a DIRTY authority tree (AUTHORITY_TREE_DIRTY: "what
+      # would be deployed is not attributable to any commit"). CI was therefore
+      # manufacturing the very condition that guard exists to catch, and the
+      # governance suite failed on a defect CI had just introduced.
+      #
+      # The guard is right and is untouched. The transient artifact simply does
+      # not belong in the checkout. The uploaded artifact still contains a file
+      # named project-checks-regression.json, which is what the promotion gate
+      # looks for (it resolves the download by filename, not by repo path).
       - name: Run base/head regression check (NORMAL_PR)
         id: regression
         if: github.event_name == 'pull_request' && steps.enforcement.outputs.level == 'NORMAL_PR'
         run: |
-          node security/scripts/run-project-checks-regression.js             --base-sha "${{ steps.enforcement.outputs.base_sha }}"             --head-sha "${{ steps.enforcement.outputs.head_sha }}"             --output security/reports/project-checks-regression.json
+          node security/scripts/run-project-checks-regression.js             --base-sha "${{ steps.enforcement.outputs.base_sha }}"             --head-sha "${{ steps.enforcement.outputs.head_sha }}"             --output "${RUNNER_TEMP}/project-checks-regression.json"
 
       - name: Upload Project checks regression report
         if: always() && steps.regression.outcome != 'skipped'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: project-checks-regression-${{ github.run_number }}
-          path: security/reports/project-checks-regression.json
+          path: ${{ runner.temp }}/project-checks-regression.json
           if-no-files-found: warn
           retention-days: 30
 

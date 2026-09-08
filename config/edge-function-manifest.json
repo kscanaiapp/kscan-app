@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-07T04:31:28.887Z",
-    "generatedFromGitSha": "6cb759641f86a09dc25ba7346842759736028c3b"
+    "generatedAtUtc": "2026-09-08T17:56:53.722Z",
+    "generatedFromGitSha": "ec9badf39dfff3edc3fc09e12b504d44049cf4e2"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -42,7 +42,7 @@
         "bundleFileCount": 41,
         "treeFileCount": 67,
         "bundleHash": "45394f994382e1502aeca25209706098c783a72f3faaedd2d4b74536e5426118",
-        "treeHash": "d2ec33ef6ac96b6546bd5f38a730369345234bb1db2a5377e836f0e521ed5b94",
+        "treeHash": "3a13a1b284f9d0786250f5fbefa7048e83b8c4411636b63322c7c616527df5a3",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -241,7 +241,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
-            "sha256": "97107a41d5217d3a262547e49b29ab708b24d0a117f4f76b308a6241ebb4a870",
+            "sha256": "14a0f52f07c608606495dea656c7dbc66308f9cc5f4a54f0c22464b7308efe80",
             "bundle": false
           },
           {
@@ -1055,19 +1055,34 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 2,
-        "treeFileCount": 2,
-        "bundleHash": "6d8442fc690990a2a67113d83b7b2a37bcad0ebb39fc63dd2de10a51bb814fc3",
-        "treeHash": "6d8442fc690990a2a67113d83b7b2a37bcad0ebb39fc63dd2de10a51bb814fc3",
+        "bundleFileCount": 4,
+        "treeFileCount": 5,
+        "bundleHash": "551f50cff10644d5139ad0905c48ea0967f7c6068b9e122b2ced1443bd9cbe13",
+        "treeHash": "cd1439cf771f799fd0e7149393330a5a0d2477aca1b1b225a61d1438f51b8f98",
         "files": [
+          {
+            "path": "supabase/functions/_shared/deletion/common.ts",
+            "sha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
+            "bundle": true
+          },
           {
             "path": "supabase/functions/_shared/privacyRequestRateLimit.ts",
             "sha256": "22e1a4e8fcf40628b755167377a1c49e994c8efc7c9da710455a05336b25632f",
             "bundle": true
           },
           {
+            "path": "supabase/functions/handle-user-deletion/handler.test.ts",
+            "sha256": "7988969b0774836bbabdaad4bca806274b2bb5ec9339fb06620f2d91457ae350",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/handle-user-deletion/handler.ts",
+            "sha256": "d1747739b1950cdc24843b84c7bc1c7e419828e0b8eca2c19245c7db324858e7",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/handle-user-deletion/index.ts",
-            "sha256": "bfcddfc0cd45523887f8028f1332e7cd4a30052e501229637af9707db179569e",
+            "sha256": "d627c0f534e65aed27d547a56a8c5dc44470b4f4c2fa6dccafa2ca0b112fda27",
             "bundle": true
           }
         ]

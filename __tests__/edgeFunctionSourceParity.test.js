@@ -416,12 +416,66 @@ test('deploy guard: refuses to run when the marker declares this checkout non-au
   assert.ok(!/Deployment complete/.test(blocked.output));
 });
 
-test('deploy guard: this checkout itself is correctly marked non-authoritative (B34-DEF-001)', () => {
-  const authority = JSON.parse(
-    fs.readFileSync(path.join(REPO_ROOT, 'config', 'backend-authority.json'), 'utf8'),
+test('deploy guard: this checkout satisfies the deploy contract for its declared role (B34-DEF-001)', () => {
+  // B34-DEF-001 is PRESERVED, not removed -- its meaning is widened to cover
+  // both governed roles. It previously asserted `role !== backend-deployment-
+  // authority` unconditionally, which the canonical authority branch cannot
+  // satisfy by construction (RP-06A.1).
+  //
+  // The deployment boundary is unchanged and is still proven from BOTH sides:
+  //   non-authoritative -> running the deployer must actually ABORT;
+  //   authoritative     -> the preflight must pass on real lineage, and a
+  //                        non-authoritative marker must STILL be refused,
+  //                        which is proven here by mutating a copy of the
+  //                        marker rather than by trusting the source text.
+  const authorityPath = path.join(REPO_ROOT, 'config', 'backend-authority.json');
+  const authority = JSON.parse(fs.readFileSync(authorityPath, 'utf8'));
+  const GOVERNED_ROLES = [
+    'integration-convergence-non-authoritative',
+    'backend-deployment-authority',
+  ];
+  assert.ok(
+    GOVERNED_ROLES.includes(authority.role),
+    `unknown backend authority role ${JSON.stringify(authority.role)}`,
   );
-  assert.notEqual(authority.role, 'backend-deployment-authority');
-  const blocked = runNode(REPO_ROOT, DEPLOYER);
-  assert.equal(blocked.status, 1);
-  assert.match(blocked.output, /ABORTED/);
+
+  if (authority.role !== 'backend-deployment-authority') {
+    const blocked = runNode(REPO_ROOT, DEPLOYER);
+    assert.equal(blocked.status, 1, 'a non-authoritative checkout must refuse to deploy');
+    assert.match(blocked.output, /ABORTED/);
+    return;
+  }
+
+  // Authoritative checkout: Step 1 must PASS on this tree...
+  const allowed = runNode(REPO_ROOT, DEPLOYER);
+  assert.match(
+    allowed.output,
+    /PASS {2}This checkout declares itself the backend deployment authority/,
+    'the authority preflight must recognise a genuine authority checkout',
+  );
+  assert.equal(authority.approvedProjectRef, 'yzqjvdfgefveprobvvyw', 'staging, never production');
+  assert.notEqual(authority.approvedProjectRef, 'wyyuqfdxucjksghsmhry');
+  // ...and it must still be a DRY RUN: verification is not authorization.
+  assert.match(
+    allowed.output,
+    /Deployment is an owner-authorized release action\. Verification is not authorization\./,
+    'the deployer must never deploy without an explicit --confirm-deploy',
+  );
+
+  // The refusal path is still live: flip ONLY the role on a temporary copy of
+  // the marker and prove the deployer still aborts. Restored in `finally`, so
+  // a failure here cannot leave the authority marker mutated.
+  const original = fs.readFileSync(authorityPath, 'utf8');
+  try {
+    fs.writeFileSync(
+      authorityPath,
+      JSON.stringify({ ...authority, role: 'integration-convergence-non-authoritative' }, null, 2),
+    );
+    const refused = runNode(REPO_ROOT, DEPLOYER);
+    assert.equal(refused.status, 1, 'a non-authoritative marker must still be refused');
+    assert.match(refused.output, /ABORTED/);
+  } finally {
+    fs.writeFileSync(authorityPath, original);
+  }
+  assert.equal(fs.readFileSync(authorityPath, 'utf8'), original, 'the marker must be restored');
 });

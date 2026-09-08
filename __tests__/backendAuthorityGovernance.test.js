@@ -27,6 +27,24 @@ const {
 
 const AUTHORITY = JSON.parse(read('config', 'backend-authority.json'));
 
+/**
+ * RP-06A.1 — the two governed backend authority roles.
+ *
+ * These tests were written when every checkout in the repository was a mobile
+ * integration line, so they asserted the non-authoritative contract
+ * unconditionally. `rebuild/backend-authority-v2` is deliberately the other
+ * role, and a test that demands it fail merely for being authoritative is
+ * measuring the wrong thing.
+ *
+ * The contract is now graded by the role the checkout DECLARES, read from
+ * config/backend-authority.json rather than inferred from a branch name (the
+ * deploy guard reads that same field, so the tests and the guard cannot
+ * disagree). Neither role is skipped and neither passes vacuously: an unknown
+ * role fails closed, and each role must satisfy its own positive invariants.
+ */
+const GOVERNED_ROLES = ['integration-convergence-non-authoritative', 'backend-deployment-authority'];
+const AUTHORITY_IS_DEPLOYMENT_ROLE = AUTHORITY.role === 'backend-deployment-authority';
+
 // ── GOV-KPLUS-001 ────────────────────────────────────────────────────────────
 
 test('the governed count agrees with the manifest library', () => {
@@ -63,19 +81,49 @@ test('the verifier reports no ERROR-level discrepancy on this checkout', () => {
   );
 });
 
-test('an unpublished canonical branch never blocks a NON-authoritative checkout', () => {
-  // Regression guard for a bug this repair's own CI run caught: the unresolvable
-  // branch was first raised as an ERROR, which turned a pre-existing repository
-  // condition into a red build on every fresh clone.
+test('canonical-branch resolvability is graded by the checkout ROLE, not universally', () => {
+  // RP-06A.1. This assertion used to hardcode "this tree is non-authoritative",
+  // which was true of every checkout that existed when it was written. It is
+  // false on rebuild/backend-authority-v2, which is deliberately authoritative.
+  // The invariant it was actually protecting is role-dependent, so it is now
+  // graded per role rather than relaxed for the new one:
+  //
+  //   non-authoritative -> an unresolvable canonical branch is a repository
+  //     condition the checkout cannot fix, so it must stay a WARNING and name
+  //     the owner action. (The original regression: raising it to ERROR turned
+  //     a pre-existing condition into a red build on every fresh clone.)
+  //   authoritative     -> the checkout IS the deployment authority, so the
+  //     branch it names must genuinely resolve. Unresolvable is fatal here,
+  //     and the verifier must say so rather than warn.
   const { findings, info } = verify();
-  assert.equal(info.declaresDeploymentAuthority, false, 'this tree is non-authoritative');
-  for (const code of ['CANONICAL_BRANCH_UNRESOLVABLE', 'CANONICAL_BRANCH_LOCAL_ONLY']) {
-    const finding = findings.find((f) => f.code === code);
-    if (finding) {
-      assert.equal(finding.severity, 'warning', `${code} must not block a non-authoritative tree`);
-      assert.match(finding.message, /owner action/, 'it must name the owner action');
+
+  if (!AUTHORITY_IS_DEPLOYMENT_ROLE) {
+    assert.equal(info.declaresDeploymentAuthority, false, 'non-authoritative role must not claim authority');
+    for (const code of ['CANONICAL_BRANCH_UNRESOLVABLE', 'CANONICAL_BRANCH_LOCAL_ONLY']) {
+      const finding = findings.find((f) => f.code === code);
+      if (finding) {
+        assert.equal(finding.severity, 'warning', `${code} must not block a non-authoritative tree`);
+        assert.match(finding.message, /owner action/, 'it must name the owner action');
+      }
     }
+    return;
   }
+
+  // Authoritative checkout: the declared authority must be real and reachable.
+  assert.equal(info.declaresDeploymentAuthority, true, 'authority role must declare authority');
+  assert.ok(info.canonicalBranchRemoteSha, 'an authoritative checkout must publish its canonical branch');
+  assert.match(info.canonicalBranchRemoteSha, /^[0-9a-f]{40}$/);
+  assert.equal(info.headDescendsFromCanonical, true, 'HEAD must descend from the canonical authority lineage');
+  assert.equal(
+    findings.find((f) => f.code === 'AUTHORITY_REF_UNVERIFIABLE'),
+    undefined,
+    'an authoritative checkout must never be left unverifiable',
+  );
+  assert.equal(
+    findings.find((f) => f.code === 'AUTHORITY_REF_MISMATCH'),
+    undefined,
+    'an authoritative checkout must be on its own canonical lineage',
+  );
 });
 
 test('the verifier binds its answer to a git SHA and the manifest digest', () => {
@@ -102,14 +150,59 @@ test('an unresolvable canonical branch is SURFACED, not hidden', () => {
   assert.ok(resolvable || findings.some((f) => f.code === 'CANONICAL_BRANCH_UNRESOLVABLE'));
 });
 
-test('this integration checkout is still explicitly NON-authoritative', () => {
-  // Preserved negative: the Build 34 convergence tree must never be treated as
-  // the backend deployment authority.
-  assert.notEqual(AUTHORITY.role, 'backend-deployment-authority');
-  assert.equal(AUTHORITY.role, 'integration-convergence-non-authoritative');
+test('the declared authority role is one of the two governed roles, and nothing else', () => {
+  // Fail closed on an unknown or malformed role. Neither branch of the
+  // role-aware contract below may be reached by a typo, and a third role
+  // cannot be introduced without a deliberate decision here.
+  assert.ok(
+    GOVERNED_ROLES.includes(AUTHORITY.role),
+    `unknown backend authority role ${JSON.stringify(AUTHORITY.role)} -- ` +
+      `expected one of ${GOVERNED_ROLES.join(' | ')}`,
+  );
+});
+
+test('this checkout satisfies the contract for the role it declares', () => {
+  // RP-06A.1. Previously this asserted `role === integration-convergence-
+  // non-authoritative` unconditionally, which the canonical authority branch
+  // cannot satisfy by construction. Both roles are now protected explicitly;
+  // neither is skipped, and neither passes vacuously.
   const guard = read('scripts', 'deploy-edge-functions.js');
+
+  // The deploy preflight is mandatory for BOTH roles -- it is the mechanism
+  // that makes a non-authoritative tree refuse, so it must exist regardless of
+  // which role this particular checkout happens to declare.
   assert.match(guard, /role !== 'backend-deployment-authority'/);
   assert.match(guard, /ABORTED {2}Nothing was deployed\./);
+
+  if (!AUTHORITY_IS_DEPLOYMENT_ROLE) {
+    // Non-authoritative: must not claim authority, and must be refused.
+    assert.equal(AUTHORITY.role, 'integration-convergence-non-authoritative');
+    const { info } = verify();
+    assert.equal(info.declaresDeploymentAuthority, false);
+    return;
+  }
+
+  // Authoritative: the claim must be backed by real, checkable lineage.
+  assert.equal(AUTHORITY.role, 'backend-deployment-authority');
+  assert.ok(AUTHORITY.canonicalBranch, 'an authority checkout must name its canonical branch');
+
+  const { info, findings } = verify();
+  assert.equal(info.declaresDeploymentAuthority, true);
+  assert.equal(info.canonicalBranch, AUTHORITY.canonicalBranch);
+  assert.ok(info.canonicalBranchRemoteSha, 'the canonical branch must resolve on origin');
+  assert.equal(info.headDescendsFromCanonical, true);
+  assert.equal(info.governedCount, info.sourceCount, 'governed count must match the source inventory');
+  assert.equal(
+    info.workingTreeClean,
+    true,
+    'an authority checkout must be clean: what would be deployed must be attributable to a commit',
+  );
+  assert.match(info.manifestDigest ?? '', /^[0-9a-f]{64}$/, 'the manifest digest must be bound');
+  assert.deepEqual(
+    findings.filter((f) => f.severity === 'error').map((f) => f.code),
+    [],
+    'an authority checkout must carry no ERROR-level authority finding',
+  );
 });
 
 test('the approved project ref is staging, never production', () => {
