@@ -442,3 +442,157 @@ test('hasReviewInfo requires contact, demo account, and notes', () => {
     true,
   );
 });
+
+// ─── Reviewer-doc drift guards (iOS Repair 04) ──────────────────────────────
+//
+// docs/app-review-information-template.md and
+// docs/apple-app-store-submission-runbook.md are repository-owned reviewer
+// truth, and nothing governed them before this — which is exactly how they
+// came to assert supportsTablet:false, build number 13, "no microphone" and
+// "no push notifications" while the source said otherwise.
+//
+// These are deliberately NARROW: each one pins a doc claim to the source fact
+// it must track, so the docs cannot silently drift again. They are not a
+// general metadata-testing framework, and they live in the existing Apple
+// readiness authority rather than a new one.
+
+const REVIEW_TEMPLATE_PATH = '../docs/app-review-information-template.md';
+const RUNBOOK_PATH = '../docs/apple-app-store-submission-runbook.md';
+
+function readDoc(relative) {
+  return fs.readFileSync(path.join(__dirname, relative), 'utf8');
+}
+
+function readAppJson() {
+  return JSON.parse(fs.readFileSync(path.join(__dirname, '../app.json'), 'utf8'));
+}
+
+function productionEnv() {
+  const easJson = JSON.parse(fs.readFileSync(path.join(__dirname, '../eas.json'), 'utf8'));
+  return easJson.build.production.env ?? {};
+}
+
+test('reviewer docs: no doc asserts the stale supportsTablet:false claim', () => {
+  const app = readAppJson();
+  assert.equal(app.expo.ios.supportsTablet, true, 'source is a universal submission');
+  for (const [name, doc] of [
+    ['review template', readDoc(REVIEW_TEMPLATE_PATH)],
+    ['runbook', readDoc(RUNBOOK_PATH)],
+  ]) {
+    assert.ok(
+      !/supportsTablet:\s*false/.test(doc),
+      `${name} must not claim supportsTablet: false while app.json says true`,
+    );
+  }
+});
+
+test('reviewer docs: the submitted build number is gated on the artifact, never asserted', () => {
+  const runbook = readDoc(RUNBOOK_PATH);
+  // EAS owns the submitted number remotely, so the runbook must say so rather
+  // than naming a number as if it were the submitted one.
+  assert.match(runbook, /ARTIFACT GATE/, 'runbook must mark the submitted build number as artifact-gated');
+  assert.match(runbook, /appVersionSource/, 'runbook must cite the remote version authority');
+  assert.ok(
+    !/build number in repo:\s*`?13`?/.test(runbook),
+    'runbook must not carry the stale build number 13',
+  );
+});
+
+test('reviewer docs: microphone/speech are described as shipped capability, not absent', () => {
+  const app = readAppJson();
+  const infoPlist = app.expo.ios.infoPlist;
+  // The binary really does carry both strings.
+  assert.ok(infoPlist.NSMicrophoneUsageDescription, 'microphone purpose string ships');
+  assert.ok(infoPlist.NSSpeechRecognitionUsageDescription, 'speech purpose string ships');
+
+  const runbook = readDoc(RUNBOOK_PATH);
+  const template = readDoc(REVIEW_TEMPLATE_PATH);
+  // The old wording listed microphone under "still not included", which is
+  // false about an artifact that contains the purpose strings.
+  assert.ok(
+    !/not included for this release:[^\n]*microphone/i.test(runbook),
+    'runbook must not claim microphone is absent from the release',
+  );
+  for (const [name, doc] of [['runbook', runbook], ['review template', template]]) {
+    assert.match(
+      doc,
+      /VoiceScan is (?:DISABLED|disabled)/,
+      `${name} must state that VoiceScan is disabled rather than that the capability is missing`,
+    );
+  }
+});
+
+test('reviewer docs: notifications are described as reachable capability, not "no push"', () => {
+  const app = readAppJson();
+  const plugins = (app.expo.plugins ?? []).map((p) => (Array.isArray(p) ? p[0] : p));
+  assert.ok(plugins.includes('expo-notifications'), 'expo-notifications ships');
+
+  const runbook = readDoc(RUNBOOK_PATH);
+  assert.ok(
+    !/not included for this release:[^\n]*push notifications/i.test(runbook),
+    'runbook must not claim push notifications are absent while expo-notifications ships',
+  );
+  assert.match(runbook, /expo-notifications/, 'runbook must name the shipped notifications capability');
+});
+
+test('reviewer docs: the certification-only features are documented as production-disabled', () => {
+  const env = productionEnv();
+  const template = readDoc(REVIEW_TEMPLATE_PATH);
+  // Each of these is absent from the production profile, and every resolver in
+  // constants/featureFlags.ts compares against the literal string 'true', so
+  // absent means off. The reviewer template must not advertise them.
+  for (const flag of [
+    'EXPO_PUBLIC_VOICESCAN_ENABLED',
+    'EXPO_PUBLIC_VTO_UI_ENABLED',
+    'EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED',
+    'EXPO_PUBLIC_PACKING_INTELLIGENCE_V1',
+    'EXPO_PUBLIC_ELISE_CONCIERGE_V1',
+    'EXPO_PUBLIC_SMART_WATCHLIST_V1',
+  ]) {
+    assert.notEqual(env[flag], 'true', `${flag} must stay off in the production profile`);
+    assert.ok(
+      template.includes(flag),
+      `${flag} must be named in the reviewer template's production-state table`,
+    );
+  }
+  assert.equal(env.EXPO_PUBLIC_TODAY_WITH_ELISE_V1, 'false');
+});
+
+test('reviewer docs: account deletion is described as deactivate + restore window, not immediate purge', () => {
+  for (const [name, doc] of [
+    ['review template', readDoc(REVIEW_TEMPLATE_PATH)],
+    ['runbook', readDoc(RUNBOOK_PATH)],
+  ]) {
+    assert.match(doc, /30-day restoration window/, `${name} must describe the restoration window`);
+    assert.match(
+      doc,
+      /deactivat/i,
+      `${name} must describe immediate deactivation rather than immediate permanent deletion`,
+    );
+  }
+});
+
+test('reviewer docs: PostHog production state stays marked pending Repair 03', () => {
+  const runbook = readDoc(RUNBOOK_PATH);
+  assert.match(
+    runbook,
+    /POSTHOG PRODUCTION STATE — PENDING REPAIR 03 ENVIRONMENT VERIFICATION/,
+    'the runbook must not resolve the PostHog analytics answer in this lane',
+  );
+  // And the Product Interaction declaration itself must be untouched here.
+  const manifest = readAppJsonPrivacyManifest();
+  const entry = collectedType(manifest, 'NSPrivacyCollectedDataTypeProductInteraction');
+  assert.equal(entry.NSPrivacyCollectedDataTypeLinked, false, 'Repair 03 owns this value, not Repair 04');
+});
+
+test('reviewer docs: no reviewer password or secret is committed', () => {
+  for (const [name, doc] of [
+    ['review template', readDoc(REVIEW_TEMPLATE_PATH)],
+    ['runbook', readDoc(RUNBOOK_PATH)],
+  ]) {
+    assert.ok(
+      !/^\s*-?\s*Password:\s*\S+/m.test(doc.replace(/Password: enter directly in the store console only/g, '')),
+      `${name} must not carry a literal reviewer password`,
+    );
+  }
+});
