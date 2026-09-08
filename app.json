@@ -69,6 +69,7 @@
                                                  ],
                                  "blockedPermissions":  [
                                                             "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
                                                             "android.permission.RECORD_AUDIO",
                                                             "android.permission.ACCESS_FINE_LOCATION",
                                                             "android.permission.READ_EXTERNAL_STORAGE",
