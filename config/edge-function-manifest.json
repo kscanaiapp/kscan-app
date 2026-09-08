@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-08T21:14:26.992Z",
-    "generatedFromGitSha": "0c362a1d479afe2d2ad06be7fdc7fb3bdcf5cdae"
+    "generatedAtUtc": "2026-09-08T21:51:31.147Z",
+    "generatedFromGitSha": "475419665b5fd2e825b66719cbd34ea82bd5f260"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -42,7 +42,7 @@
         "bundleFileCount": 41,
         "treeFileCount": 67,
         "bundleHash": "45394f994382e1502aeca25209706098c783a72f3faaedd2d4b74536e5426118",
-        "treeHash": "f216eefaa1bcf6314c96535549be8ac712e779b0b430d3ff7ff3bde4109da842",
+        "treeHash": "c5ed2b12dc52a54dfcdcf94e9c310415b0f4997e4b0110137d051f49a1784b36",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -241,7 +241,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
-            "sha256": "8aafd6cc99fd8e59037e6b8d0004718c210b6db9e7b8c88cbf944c991b5dfc65",
+            "sha256": "a77d00d8d7dcf18b7a776187d789032db1bb5394198dfaee309eeaf634bb20db",
             "bundle": false
           },
           {
@@ -1407,15 +1407,27 @@
       {
         "name": "product-search-deals",
         "entry": "supabase/functions/product-search-deals/index.ts",
-        "remoteSpecifiers": [],
-        "bundleFileCount": 1,
-        "treeFileCount": 1,
-        "bundleHash": "d1d34aa7092551fc5326db3a85f18f2622f1879aa59532898c597be052496250",
-        "treeHash": "d1d34aa7092551fc5326db3a85f18f2622f1879aa59532898c597be052496250",
+        "remoteSpecifiers": [
+          "npm:@supabase/supabase-js@2"
+        ],
+        "bundleFileCount": 3,
+        "treeFileCount": 3,
+        "bundleHash": "2e2a8a98a2a986c89a35523dff712c86ddf7ba867ae6bfb0f1a56d629a8b6636",
+        "treeHash": "2e2a8a98a2a986c89a35523dff712c86ddf7ba867ae6bfb0f1a56d629a8b6636",
         "files": [
           {
+            "path": "supabase/functions/_shared/deletion/assertAccountActiveIfAuthenticated.ts",
+            "sha256": "bc8998c1f6e4fb2cd76b4a126974cdb681cb37451b041253f0558678061b8661",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/deletion/common.ts",
+            "sha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/product-search-deals/index.ts",
-            "sha256": "56ad582c8ed5b7f5321b649d5ef7b49fd8b68a3fb80147c58b405e144bcd56e9",
+            "sha256": "9bd06bfafbf97dddd2b337c36eb8dc2eb6fe3031b4d5f1acc34d6149c6ca0841",
             "bundle": true
           }
         ]
@@ -1423,15 +1435,27 @@
       {
         "name": "search-vinted-secondhand",
         "entry": "supabase/functions/search-vinted-secondhand/index.ts",
-        "remoteSpecifiers": [],
-        "bundleFileCount": 1,
-        "treeFileCount": 1,
-        "bundleHash": "9dbf7a56f3296a340be24a6052fbb18512ce18aa577ab20f2b8bedbae680956e",
-        "treeHash": "9dbf7a56f3296a340be24a6052fbb18512ce18aa577ab20f2b8bedbae680956e",
+        "remoteSpecifiers": [
+          "npm:@supabase/supabase-js@2"
+        ],
+        "bundleFileCount": 3,
+        "treeFileCount": 3,
+        "bundleHash": "95a2ba6ed3d73c89d102412d07a43eb3919dd96836eb005d0a437d364a2760ae",
+        "treeHash": "95a2ba6ed3d73c89d102412d07a43eb3919dd96836eb005d0a437d364a2760ae",
         "files": [
           {
+            "path": "supabase/functions/_shared/deletion/assertAccountActiveIfAuthenticated.ts",
+            "sha256": "bc8998c1f6e4fb2cd76b4a126974cdb681cb37451b041253f0558678061b8661",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/deletion/common.ts",
+            "sha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/search-vinted-secondhand/index.ts",
-            "sha256": "43b9140335ac2550c05b26db249a7a0203fd64bd4b823557fc26a3679ea5d441",
+            "sha256": "45e9c6b5f38e59d37a68ad5faa9430fa1b512d028942dbcde04c0987b8cb30e3",
             "bundle": true
           }
         ]
