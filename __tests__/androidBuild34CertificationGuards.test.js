@@ -240,16 +240,33 @@ test('Objective C: EXPO_PUBLIC_SMART_WATCHLIST_V1 is read at execution time', ()
   assert.match(gradle, /System\.getenv\('EXPO_PUBLIC_SMART_WATCHLIST_V1'\)/);
 });
 
-test('Objective C: Watchlist ON with FCM unconfigured throws the exact governed error', () => {
+test('Objective C: Watchlist ON with FCM unconfigured throws the governed error', () => {
+  // TEST-FLIP (Android Repair 05). The guard's CONDITION is unchanged in
+  // meaning -- Smart Watchlist on plus no Firebase configuration is still a
+  // hard build failure -- but it is now expressed through the one named
+  // remote-push capability that build.gradle and the client both derive from
+  // that flag, rather than reading the flag variable inline. The old
+  // expectation pinned the identifier `smartWatchlistEnabled` and the old
+  // message text; both moved, the invariant did not.
   assert.match(
     gradle,
-    /if\s*\(smartWatchlistEnabled\s*&&\s*!googleServicesConfigured\)\s*\{[\s\S]{0,300}throw new GradleException/,
-    'the guard must be conditioned on both smartWatchlistEnabled and !googleServicesConfigured',
+    /def remotePushCapabilityEnabled = smartWatchlistEnabled/,
+    'the capability must still be derived from the Smart Watchlist flag and nothing else',
   );
   assert.match(
     gradle,
-    /Smart Watchlist is enabled but GOOGLE_SERVICES_JSON did not materialize; \\?\s*"?\s*\+?\s*"?refusing to build an Android artifact without FCM configuration\./,
-    'the governed error text must be present verbatim',
+    /if\s*\(remotePushCapabilityEnabled\s*&&\s*!googleServicesConfigured\)\s*\{[\s\S]{0,300}throw new GradleException/,
+    'the guard must be conditioned on both the push capability and !googleServicesConfigured',
+  );
+  assert.match(
+    gradle,
+    /remote push is ACTIVATED for this build/,
+    'the governed error must say what was activated without FCM configuration',
+  );
+  assert.match(
+    gradle,
+    /GOOGLE_SERVICES_JSON did not materialize/,
+    'and must name the secret whose absence caused it',
   );
 });
 
@@ -264,12 +281,20 @@ test('Objective C: the plugin-apply conditional (unrelated profiles must stay gr
 });
 
 test('Objective C: Firebase is not made mandatory for profiles where Smart Watchlist is off', () => {
-  // The guard is a conjunction (Watchlist AND no Firebase); it must never
-  // degrade to firing on !googleServicesConfigured alone.
+  // The guard is a conjunction (push capability AND no Firebase); it must
+  // never degrade to firing on !googleServicesConfigured alone.
   assert.doesNotMatch(
     gradle,
     /if\s*\(!googleServicesConfigured\)\s*\{[\s\S]{0,120}throw new GradleException/,
-    'the build must not fail merely because Firebase is unconfigured -- only Watchlist-ON + unconfigured may fail',
+    'the build must not fail merely because Firebase is unconfigured -- only push-ON + unconfigured may fail',
+  );
+  // Android Repair 05 extended that rule to the shipping profile, which used
+  // to be exempted from it by name. A profile-name conjunction is exactly the
+  // shape that demanded a credential from a build activating nothing.
+  assert.doesNotMatch(
+    gradle,
+    /if\s*\(easBuildProfile\s*==\s*PRODUCTION_PROFILE\s*&&\s*!googleServicesConfigured\)/,
+    'production must not be required to carry FCM for a capability it never activates',
   );
 });
 
@@ -281,7 +306,7 @@ test('Objective C: no credential contents may be printed by the guard or the FCM
 
 test('Objective C NEGATIVE CONTROL: removing the Watchlist fail-closed guard is detected', () => {
   const mutated = gradle.replace(
-    /if\s*\(smartWatchlistEnabled\s*&&\s*!googleServicesConfigured\)\s*\{[\s\S]{0,300}throw new GradleException/,
+    /if\s*\(remotePushCapabilityEnabled\s*&&\s*!googleServicesConfigured\)\s*\{[\s\S]{0,300}throw new GradleException/,
     'if (false) { throw new GradleException',
   );
   assert.notStrictEqual(mutated, gradle);
