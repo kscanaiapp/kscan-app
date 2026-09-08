@@ -100,6 +100,7 @@
   },
   "overrides": {
     "shell-quote": "^1.10.0",
-    "browserslist": "4.28.8"
+    "browserslist": "4.28.8",
+    "@xmldom/xmldom": "^0.9.12"
   }
 }

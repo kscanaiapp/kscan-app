@@ -4,6 +4,13 @@
 // Uses the shared RAPIDAPI_KEY secret.  The key never leaves this function;
 // it is never forwarded, logged in plaintext, or included in any response body.
 
+// RP-06D: static top-level import (not a dynamic await import()). The
+// deployed production bundle documents that the --use-api bundler does not
+// follow a dynamic import() of this shared guard, which previously let the
+// account-state control silently drop out of the deployed bundle -- static
+// import keeps it in the governed bundle closure, proven by the manifest.
+import { assertAccountActiveIfAuthenticated } from '../_shared/deletion/assertAccountActiveIfAuthenticated.ts';
+
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin':  '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -93,6 +100,15 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return json({ error: 'Method not allowed' }, 405);
   }
+
+  // ── Account-state gate ───────────────────────────────────────────────────────
+  // Runs before secret validation, request parsing, and the paid RapidAPI call,
+  // so a pending-deletion / deactivated / locked authenticated actor can never
+  // reach the paid provider. Anonymous requests are unaffected: with no
+  // Authorization header the guard returns null and existing retailer-neutral
+  // search behavior is unchanged.
+  const accountGate = await assertAccountActiveIfAuthenticated(req);
+  if (accountGate) return accountGate;
 
   // ── Validate secret ─────────────────────────────────────────────────────────
   const apiKey = Deno.env.get('RAPIDAPI_KEY');
