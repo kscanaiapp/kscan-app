@@ -9,7 +9,13 @@ function read(rel) {
   return fs.readFileSync(path.join(ROOT, rel), 'utf8');
 }
 
-const deletion = read('supabase/functions/handle-user-deletion/index.ts');
+// RP-06A: account-deletion intake moved from a single `index.ts` to a thin
+// serve wrapper plus `handler.ts`, with JWT verification in the shared
+// deletion module. The properties asserted below are unchanged -- only the
+// file that has to satisfy them moved.
+const deletion = read('supabase/functions/handle-user-deletion/handler.ts');
+const deletionEntry = read('supabase/functions/handle-user-deletion/index.ts');
+const deletionAuth = read('supabase/functions/_shared/deletion/common.ts');
 const correction = read('supabase/functions/privacy-correction-request/index.ts');
 const exportFn = read('supabase/functions/privacy-data-export/index.ts');
 const helper = read('supabase/functions/_shared/privacyRequestRateLimit.ts');
@@ -27,18 +33,25 @@ test('privacy rate-limit helper never takes identity from request body', () => {
   assert.doesNotMatch(helper, /req\.json/);
 });
 
-test('handle-user-deletion rate-limits after already_requested short-circuit', () => {
-  const alreadyIdx = deletion.indexOf('already_requested');
-  const rateIdx = deletion.indexOf("reservePrivacyRequestRateLimit(user.id, 'account_deletion')");
-  assert.ok(alreadyIdx !== -1, 'must preserve already_requested');
+test('handle-user-deletion rate-limits after the existing-lifecycle short-circuit', () => {
+  const alreadyIdx = deletion.indexOf('findActiveLifecycle(deps, user.id)');
+  const rateIdx = deletion.indexOf("deps.reserveRateLimit(user.id, 'account_deletion')");
+  assert.ok(alreadyIdx !== -1, 'must check for an existing lifecycle');
   assert.ok(rateIdx !== -1, 'must reserve account_deletion rate limit');
   assert.ok(alreadyIdx < rateIdx, 'existing-request check must precede rate-limit reservation');
+  // The truthful "already running" payload survives the rename.
+  assert.match(deletion, /alreadyRequested: true/);
+  assert.match(deletion, /rateLimitedResponse/);
 });
 
 test('handle-user-deletion still requires auth and rejects body user ids', () => {
-  assert.match(deletion, /auth\.getUser\(accessToken\)/);
+  // JWT verification lives in the shared deletion module the handler imports.
+  assert.match(deletionAuth, /auth\.getUser\(accessToken\)/);
+  assert.match(deletionAuth, /Authentication required/);
+  assert.match(deletion, /deps\.requireUser\(req\)/);
+  // Identity must never come from the request body, in either file.
   assert.doesNotMatch(deletion, /req\.json\(/);
-  assert.match(deletion, /Authentication required/);
+  assert.doesNotMatch(deletionEntry, /req\.json\(/);
 });
 
 test('privacy-correction-request rate-limits before insert', () => {
