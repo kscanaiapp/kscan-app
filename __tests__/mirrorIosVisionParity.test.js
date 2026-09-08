@@ -390,6 +390,11 @@ test('no ML Kit, Gradle, model asset or new permission came along', () => {
     'NSPrivacyCollectedDataTypeSearchHistory',
     'NSPrivacyCollectedDataTypeProductInteraction',
     'NSPrivacyCollectedDataTypeCoarseLocation',
+    // RP-108: Watchlist push-registration's per-install device identifier
+    // (services/watchlist/pushRegistration.ts), unrelated to Vision/Mirror —
+    // reviewed and declared linked/App-Functionality/non-tracking in
+    // __tests__/verifyAppleReadiness.test.js.
+    'NSPrivacyCollectedDataTypeDeviceID',
   ]);
   for (const type of afterTypes) {
     if (beforeTypes.has(type)) continue;
