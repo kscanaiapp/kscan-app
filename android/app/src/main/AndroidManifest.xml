@@ -69,6 +69,31 @@
     <meta-data android:name="expo.modules.updates.ENABLED" android:value="false"/>
     <meta-data android:name="expo.modules.updates.EXPO_UPDATES_CHECK_ON_LAUNCH" android:value="ALWAYS"/>
     <meta-data android:name="expo.modules.updates.EXPO_UPDATES_LAUNCH_WAIT_MS" android:value="0"/>
+
+    <!--
+      Android Repair 04 (notification icon/color native materialization).
+
+      app.json's expo-notifications plugin config (icon:
+      ./assets/notification-icon.png, color: #3F0B2F) is not itself native
+      state -- Android is native-authoritative here
+      (config/native-config-authority.json), and this is the exact
+      meta-data shape expo-notifications@0.32.17's own config plugin
+      generates (node_modules/expo-notifications/plugin/src/
+      withNotificationsAndroid.ts: META_DATA_FCM_NOTIFICATION_ICON,
+      META_DATA_LOCAL_NOTIFICATION_ICON, META_DATA_FCM_NOTIFICATION_ICON_COLOR,
+      META_DATA_LOCAL_NOTIFICATION_ICON_COLOR), reproduced here directly
+      rather than via `expo prebuild`. Both the FCM and Expo-Notifications
+      keys are required: Firebase Messaging and expo-notifications' own
+      local presentation code
+      (ExpoNotificationBuilder.kt) each read their own key independently.
+      Without these, ExpoNotificationBuilder.icon falls back to
+      context.applicationInfo.icon -- the launcher icon -- for any
+      notification, which is exactly the fallback this repair removes.
+    -->
+    <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/notification_icon"/>
+    <meta-data android:name="expo.modules.notifications.default_notification_icon" android:resource="@drawable/notification_icon"/>
+    <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@color/notification_icon_color"/>
+    <meta-data android:name="expo.modules.notifications.default_notification_color" android:resource="@color/notification_icon_color"/>
     <activity android:name=".MainActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode" android:launchMode="singleTask" android:windowSoftInputMode="adjustResize" android:theme="@style/AppTheme" android:exported="true">
       <intent-filter>
         <action android:name="android.intent.action.MAIN"/>
