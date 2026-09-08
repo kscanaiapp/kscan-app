@@ -555,25 +555,48 @@ test('POST_NOTIFICATIONS: retained, because expo-notifications contributes it an
     /android\.permission\.POST_NOTIFICATIONS/,
     'the dependency itself contributes the permission to the merged manifest',
   );
+  // TEST-FLIP (Android Repair 07). Repair 05 asserted src/main still GRANTED
+  // the permission and explicitly forbade a src/main removal, because at that
+  // time a removal there would have stripped it from the certification
+  // artifact too -- the release manifest slot had exactly two possible files
+  // and the only selector on it was Voice's. That reasoning was correct and is
+  // now obsolete: Repair 07 gave the slot four files and a second, independent
+  // push selector, so src/main can remove the permission by default while a
+  // push-capable build re-grants it. The half that has NOT changed, and is
+  // what this test still exists for, is that the library contributes the
+  // permission independently -- which is exactly why the default posture had
+  // to be an explicit removal rather than a deletion.
   const appManifest = read('android/app/src/main/AndroidManifest.xml');
-  assert.match(appManifest, /<uses-permission android:name="android\.permission\.POST_NOTIFICATIONS"\/>/);
-  assert.doesNotMatch(
+  assert.match(
     appManifest,
-    /POST_NOTIFICATIONS"[^>]*tools:node="remove"/,
-    'a src/main removal would strip it from the certification artifact too',
+    /<uses-permission android:name="android\.permission\.POST_NOTIFICATIONS" tools:node="remove"\/>/,
+    'deleting the line would leave the library contribution in the merged manifest',
+  );
+  assert.ok(
+    !/<uses-permission android:name="android\.permission\.POST_NOTIFICATIONS"\/>/.test(appManifest),
+    'src/main must not also grant it',
   );
 });
 
-test('POST_NOTIFICATIONS: production and certification share one release manifest slot', () => {
-  // The evidence behind "record it separately rather than force it into this
-  // PR": there is no `certification` build type. Both artifacts are `release`,
-  // and the only manifest swap on that slot is the Voice selector's — a
-  // different capability entirely.
+test('POST_NOTIFICATIONS: the release manifest slot now expresses four capability states', () => {
+  // TEST-FLIP (Android Repair 07). This asserted the slot carried a single
+  // Voice swap, which was the evidence for deferring the static-permission
+  // separation as debt. Repair 07 closed that debt. There is still no separate
+  // `certification` build type -- the fix did not need one -- but the slot now
+  // selects among four manifests from two INDEPENDENT capability booleans.
   const gradle = read('android/app/build.gradle');
   const buildTypes = gradle.slice(gradle.indexOf('buildTypes {'), gradle.indexOf('packagingOptions {'));
   assert.ok(buildTypes.includes('release {'));
-  assert.ok(!buildTypes.includes('certification {'), 'no separate certification build type exists');
-  assert.match(gradle, /if \(voiceNativeCapabilityMaterialized\) \{\s*\n\s*manifest\.srcFile 'src\/certification\/AndroidManifest\.xml'/);
+  assert.ok(!buildTypes.includes('certification {'), 'no separate certification build type was introduced');
+  assert.match(gradle, /def pushNativeCapabilityMaterialized = remotePushCapabilityEnabled/);
+  for (const [condition, manifest] of [
+    [/pushNativeCapabilityMaterialized && voiceNativeCapabilityMaterialized/, "'src/voicePush/AndroidManifest.xml'"],
+    [/else if \(pushNativeCapabilityMaterialized\)/, "'src/push/AndroidManifest.xml'"],
+    [/else if \(voiceNativeCapabilityMaterialized\)/, "'src/certification/AndroidManifest.xml'"],
+  ]) {
+    assert.match(gradle, condition);
+    assert.ok(gradle.includes(manifest), `${manifest} must be reachable from the selector`);
+  }
 });
 
 test('FCM: the native requirement is derived from the same governed flag', () => {

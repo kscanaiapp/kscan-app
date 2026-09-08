@@ -224,6 +224,12 @@ const GATE_INPUTS = [
   path.join('android', 'app', 'src', 'main', 'AndroidManifest.xml'),
   path.join('android', 'app', 'src', 'release', 'AndroidManifest.xml'),
   path.join('android', 'app', 'src', 'certification', 'AndroidManifest.xml'),
+  // Android Repair 07 gave the release manifest slot two more capability
+  // files. They are declared exceptions, so the gate reads them; a fixture
+  // tree missing them makes the gate fail on absent files rather than on the
+  // mutation under test. Not an expectation change -- an input-list one.
+  path.join('android', 'app', 'src', 'push', 'AndroidManifest.xml'),
+  path.join('android', 'app', 'src', 'voicePush', 'AndroidManifest.xml'),
 ];
 
 function runGateAgainstMutatedManifest(mutate) {

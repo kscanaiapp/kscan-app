@@ -289,6 +289,15 @@ test('NEGATIVE CONTROL: the readiness gate would fail if a tracking domain were 
 // Android is out of scope for this repair; prove it is byte-for-byte
 // untouched rather than merely "probably fine".
 
+// TEST-FLIP (Android Repair 07). This snapshot is a TRIPWIRE proving RP-108's
+// iOS work did not reach Android, and that purpose is unchanged. What changed
+// is the authorized baseline it compares against: Repair 07 moved
+// POST_NOTIFICATIONS out of android.permissions and into blockedPermissions,
+// so ordinary production declares no notification permission and a
+// push-capable build re-grants it through a governed build-type manifest.
+// Resetting a tripwire to a newly authorized state is how it keeps working;
+// freezing it forever would block every legitimate Android change, and
+// deleting it would lose the scope guard entirely.
 test('Android config is unchanged by this repair (out of scope for RP-108)', () => {
   const appJson = JSON.parse(
     fs.readFileSync(path.join(__dirname, '../app.json'), 'utf8'),
@@ -303,9 +312,9 @@ test('Android config is unchanged by this repair (out of scope for RP-108)', () 
       'android.permission.INTERNET',
       'android.permission.VIBRATE',
       'android.permission.ACCESS_COARSE_LOCATION',
-      'android.permission.POST_NOTIFICATIONS',
     ],
     blockedPermissions: [
+      'android.permission.POST_NOTIFICATIONS',
       'android.permission.RECORD_AUDIO',
       'android.permission.ACCESS_FINE_LOCATION',
       'android.permission.READ_EXTERNAL_STORAGE',

@@ -908,12 +908,25 @@ test('REPAIR-03-CAPTURE-BOUNDARY: certification capture controls are unchanged',
   );
 
   // And the governed contract still names both capture permissions for every
-  // declared Voice exception -- the source of truth this file must agree with.
+  // declared exception THAT GRANTS RECORD_AUDIO -- the source of truth this
+  // file must agree with.
+  //
+  // TEST-FLIP (Android Repair 07). This used to iterate every declared
+  // exception, which was correct while every exception was a Voice exception.
+  // Repair 07 added push-capability manifests that grant POST_NOTIFICATIONS
+  // and no audio permission at all; demanding a capture-control declaration
+  // from a manifest with no microphone capability would assert a boundary
+  // that has nothing to bound. The capture boundary is scoped to the audio
+  // capability it protects, and is now REQUIRED of every Voice-granting
+  // exception rather than merely present on the two that existed.
   const authority = JSON.parse(readFile(AUTHORITY_PATH));
   const exceptions =
     authority.platforms.android.buildProfileManifestExceptions.exceptions;
-  assert.ok(exceptions.length > 0, 'the governed Voice exceptions must still be declared');
-  for (const exception of exceptions) {
+  const voiceExceptions = exceptions.filter((exception) =>
+    (exception.additionalGrantedPermissions || []).includes('android.permission.RECORD_AUDIO'),
+  );
+  assert.ok(voiceExceptions.length > 0, 'the governed Voice exceptions must still be declared');
+  for (const exception of voiceExceptions) {
     for (const permission of CERTIFICATION_CAPTURE_REMOVALS) {
       assert.ok(
         (exception.mustRemainRemovedEverywhere || []).includes(permission),
@@ -1518,9 +1531,24 @@ test('REPAIR-04-KEEPS-PRIOR-REPAIRS: Repair 02 and Repair 03 invariants are unaf
   assertCertificationCaptureBoundaries(readFile(CERT_MANIFEST_PATH));
   const reach = certificationEliseSpeechReachability();
   assertCertificationRetainsAudioRouting(readFile(CERT_MANIFEST_PATH), reach.reachable);
-  // POST_NOTIFICATIONS is unaffected by this repair -- still actively granted.
+  // TEST-FLIP (Android Repair 07). This asserted POST_NOTIFICATIONS was still
+  // GRANTED in src/main, which was correct through Repair 04 -- that repair
+  // materialised the notification icon/colour and deliberately did not touch
+  // permission behaviour. Repair 07 closed the declaration layer: ordinary
+  // production removes the permission and a push-capable build re-grants it
+  // through a governed build-type manifest. What Repair 04 actually owns is
+  // the RESOURCES, and those must survive precisely because they are what a
+  // legitimately push-capable build renders with.
   assert.ok(
-    grantedPermissions(mainXml).includes('android.permission.POST_NOTIFICATIONS'),
-    'POST_NOTIFICATIONS must remain granted -- Repair 04 does not touch notification permission behavior',
+    removedPermissionNames(mainXml).has('android.permission.POST_NOTIFICATIONS'),
+    'Repair 07: POST_NOTIFICATIONS must be removed by default in src/main',
   );
+  for (const key of [
+    'com.google.firebase.messaging.default_notification_icon',
+    'expo.modules.notifications.default_notification_icon',
+    'com.google.firebase.messaging.default_notification_color',
+    'expo.modules.notifications.default_notification_color',
+  ]) {
+    assert.ok(mainXml.includes(key), `Repair 04 metadata "${key}" must survive Repair 07`);
+  }
 });
