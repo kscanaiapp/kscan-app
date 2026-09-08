@@ -42,7 +42,18 @@ function loadTsModule(rel, requireMap = {}) {
   return module.exports;
 }
 
-const promptHardening = loadTsModule(`${DIR}/promptHardening.ts`);
+// RP-06B restored promptHardening.ts's real (pure, Node-loadable) dependency
+// on the shared prompt-injection neutralization corpus -- the accepted
+// production control RP-06A.2 found missing from canonical. Wired in here for
+// the same reason promptHardening.ts itself is: it is the real module, not a
+// stub.
+const trustTypes = loadTsModule('supabase/functions/_shared/aiSecurity/trustTypes.ts');
+const escapeUntrustedText = loadTsModule('supabase/functions/_shared/aiSecurity/escapeUntrustedText.ts', {
+  './trustTypes.ts': trustTypes,
+});
+const promptHardening = loadTsModule(`${DIR}/promptHardening.ts`, {
+  '../_shared/aiSecurity/escapeUntrustedText.ts': escapeUntrustedText,
+});
 // No longer a type-only import: the Track B B1A-B5 audit repair added
 // isStyleDnaProfileDataV1 to this module, and buildServerStyleDnaProfileBlock
 // now calls it to stay total against a malformed stored profile. The real

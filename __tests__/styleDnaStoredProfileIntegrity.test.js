@@ -25,7 +25,18 @@ function loadTsModule(rel, requireMap = {}) {
 }
 
 const types = loadTsModule('supabase/functions/_shared/styleDna/styleDnaProfileTypes.ts');
-const promptHardening = loadTsModule('supabase/functions/stylechat-generate/promptHardening.ts');
+// RP-06B restored promptHardening.ts's real (pure, Node-loadable) dependency
+// on the shared prompt-injection neutralization corpus -- the accepted
+// production control RP-06A.2 found missing from canonical. Wired in here for
+// the same reason promptHardening.ts itself is: it is the real module, not a
+// stub.
+const trustTypes = loadTsModule('supabase/functions/_shared/aiSecurity/trustTypes.ts');
+const escapeUntrustedText = loadTsModule('supabase/functions/_shared/aiSecurity/escapeUntrustedText.ts', {
+  './trustTypes.ts': trustTypes,
+});
+const promptHardening = loadTsModule('supabase/functions/stylechat-generate/promptHardening.ts', {
+  '../_shared/aiSecurity/escapeUntrustedText.ts': escapeUntrustedText,
+});
 const styleDnaContext = loadTsModule('supabase/functions/stylechat-generate/styleDnaContext.ts', {
   './promptHardening.ts': promptHardening,
   '../_shared/styleDna/styleDnaProfileTypes.ts': types,

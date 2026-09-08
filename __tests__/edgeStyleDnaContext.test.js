@@ -29,7 +29,18 @@ function run(rel, requireMap = {}) {
 // stored-shape guard that keeps a malformed profile from throwing inside a
 // live chat request. It is wired in here for the same reason promptHardening
 // is — it is the real module, not a stub.
-const promptHardening = run('supabase/functions/stylechat-generate/promptHardening.ts');
+// RP-06B restored promptHardening.ts's real (pure, Node-loadable) dependency
+// on the shared prompt-injection neutralization corpus -- the accepted
+// production control RP-06A.2 found missing from canonical. Wired in here for
+// the same reason promptHardening.ts and styleDnaProfileTypes.ts already are:
+// it is the real module, not a stub.
+const trustTypes = run('supabase/functions/_shared/aiSecurity/trustTypes.ts');
+const escapeUntrustedText = run('supabase/functions/_shared/aiSecurity/escapeUntrustedText.ts', {
+  './trustTypes.ts': trustTypes,
+});
+const promptHardening = run('supabase/functions/stylechat-generate/promptHardening.ts', {
+  '../_shared/aiSecurity/escapeUntrustedText.ts': escapeUntrustedText,
+});
 const profileTypes = run('supabase/functions/_shared/styleDna/styleDnaProfileTypes.ts');
 const m = run('supabase/functions/stylechat-generate/styleDnaContext.ts', {
   './promptHardening.ts': promptHardening,
