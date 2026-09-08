@@ -153,30 +153,49 @@ test('MIRROR-ENTRY-REMAINS-GOVERNED-BY-COMPOSITE-FLAG: a rollback still works af
 //     runtime it depends on (modules/kscan-pii-native/expo-module.config.json
 //     declares "platforms": ["apple"]) does not exist on Android. Gating on
 //     the flag alone therefore exposed a capability Android cannot execute.
-//   NEW EXPECTATION: both mount sites additionally require
-//     isMirrorSelfiePlatformSupported() from the new canonical resolver,
-//     services/mirror/mirrorSelfieAvailability.ts.
+//   NEW EXPECTATION: every mount site gates on the screen's single
+//     resolveMirrorSelfieAvailable() result from the canonical resolver,
+//     services/mirror/mirrorSelfieAvailability.ts, and the screen does not
+//     restate the flag+platform composition itself.
 //   DEFECT CLOSED: Android production advertising and rendering an active
 //     Mirror Selfie entry point with no runtime able to execute it.
-test('MIRROR-UI-UNREACHABLE-WHEN-FLAG-FALSE-OR-PLATFORM-UNSUPPORTED: every mount site is behind the gate', () => {
+test('MIRROR-UI-UNREACHABLE-WHEN-UNAVAILABLE: every mount site is behind the canonical gate', () => {
   const library = read('app/library.tsx');
-  // Both the action and the sheet are gated, not just one of them — and both
-  // now require platform support, not the flag alone.
+
+  // The decision is taken ONCE, from the canonical resolver.
   assert.ok(
-    /\{MIRROR_SELFIE_V1_ACTIVE && isMirrorSelfiePlatformSupported\(\) \? \(\s*\n\s*<View style=\{styles.mirrorAction\}>/.test(
+    /import \{ resolveMirrorSelfieAvailable \} from '\.\.\/services\/mirror\/mirrorSelfieAvailability';/.test(
       library,
     ),
+    'the canonical availability resolver is no longer imported',
   );
   assert.ok(
-    /\{MIRROR_SELFIE_V1_ACTIVE && isMirrorSelfiePlatformSupported\(\) \? \(\s*\n\s*<MirrorSelfieExtractionModal/.test(
-      library,
-    ),
+    /const mirrorSelfieAvailable = resolveMirrorSelfieAvailable\(\);/.test(library),
+    'the screen no longer resolves Mirror availability once through the canonical decision',
+  );
+
+  // Both the action and the sheet are gated on that one result, not just one
+  // of them, and not on a locally recomposed condition.
+  assert.ok(
+    /\{mirrorSelfieAvailable \? \(\s*\n\s*<View style=\{styles.mirrorAction\}>/.test(library),
+    'the Mirror action is no longer gated on the canonical availability result',
   );
   assert.ok(
-    /import \{ isMirrorSelfiePlatformSupported \} from '\.\.\/services\/mirror\/mirrorSelfieAvailability';/.test(
-      library,
-    ),
-    'the platform-aware resolver is no longer imported',
+    /\{mirrorSelfieAvailable \? \(\s*\n\s*<MirrorSelfieExtractionModal/.test(library),
+    'the Mirror sheet is no longer gated on the canonical availability result',
+  );
+
+  // AND the screen must not re-derive the decision for itself. A second
+  // composition of flag-and-platform is how the two gates drift apart, and it
+  // is what makes the resolver stop being the single authority.
+  const body = stripComments(library);
+  assert.ok(
+    !/MIRROR_SELFIE_V1_ACTIVE/.test(body),
+    'app/library.tsx reads the raw Mirror flag again instead of the canonical decision',
+  );
+  assert.ok(
+    !/isMirrorSelfiePlatformSupported/.test(body),
+    'app/library.tsx composes the platform check itself instead of using the canonical decision',
   );
 
   // And the component itself refuses to render even if a caller forgets.

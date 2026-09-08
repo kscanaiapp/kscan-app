@@ -239,6 +239,15 @@ function renderLibrary({ section, scans = [], closetItems = [], separation = tru
       CLOSET_BATCH_REVIEW_V2_ACTIVE: false,
       PRIVATE_DRESSING_ROOM_V1: true,
     },
+    // Mirror Selfie is not part of section identity or data separation, and
+    // this harness runs on Android where it is unavailable anyway. Stated
+    // explicitly rather than left to the generic stub, so the section
+    // assertions below never depend on what an unshimmed module happens to
+    // return.
+    '../services/mirror/mirrorSelfieAvailability': {
+      __esModule: true,
+      resolveMirrorSelfieAvailable: () => false,
+    },
   };
 
   function requireShim(spec) {
