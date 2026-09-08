@@ -63,8 +63,20 @@ const TEST_SUFFIX = '.test.ts';
  * meaningful if they actually run. Registering it here is what makes
  * `npm run test:backend` cover them.
  */
+/**
+ * `handle-user-deletion` joined in RP-06A, and it was a decision: the lineage
+ * reconciliation split the intake into a thin `index.ts` plus a
+ * dependency-injected `handler.ts` precisely so its ordering and absence
+ * invariants (token hash persisted before the email, raw token never
+ * persisted or logged, no second lifecycle, the Auth ban and global session
+ * revocation that production performs) could be driven directly. Those 26
+ * assertions were written but registered nowhere, so nothing ran them --
+ * the same "asserted but never executed" hole VTO-GATE-001 below describes.
+ * Registering it here is what makes `npm run test:backend` enforce them.
+ */
 const GOVERNED = [
   'scan-identify',
+  'handle-user-deletion',
   'stylechat-generate',
   'style-outfit-generate',
   'commerce-watch-refresh',

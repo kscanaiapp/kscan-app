@@ -11,7 +11,7 @@
  *   * a second request must never open a second lifecycle.
  * None of those can be proven by grepping the file.
  */
-import { assert, assertEquals, assertMatch, assertNotEquals } from 'jsr:@std/assert@1';
+import { assert, assertEquals, assertMatch, assertNotEquals } from 'https://deno.land/std@0.224.0/assert/mod.ts';
 import { createHandler, type HandlerDeps } from './handler.ts';
 
 const USER_ID = '11111111-2222-4333-8444-555555555555';
@@ -65,6 +65,12 @@ function harness(options: {
         id: options.user?.id ?? USER_ID,
         email: options.user === undefined ? USER_EMAIL : options.user.email,
         accessToken: 'header-token-not-a-restoration-token',
+        // A real, non-anonymous account. requireUser() derives this from
+        // auth.users.is_anonymous; deletion intake does not gate on it (only
+        // entitlement-spending paths use isEligibleAccountActor), but the
+        // stub must still be a well-typed AuthUser or `deno test` will not
+        // type-check this file.
+        isAnonymous: false,
       }),
     reserveRateLimit: () =>
       Promise.resolve({ allowed: options.rateAllowed !== false, retry_after_seconds: 60 }),
@@ -414,8 +420,14 @@ Deno.test('a lost insert race resolves to the winning row, not a second lifecycl
   const calls: Call[] = [];
   const handler = createHandler({
     requireUser: () =>
-      Promise.resolve({ id: USER_ID, email: USER_EMAIL, accessToken: 'x' }),
+      Promise.resolve({ id: USER_ID, email: USER_EMAIL, accessToken: 'x', isAnonymous: false }),
     reserveRateLimit: () => Promise.resolve({ allowed: true }),
+    // Same reason as the shared harness above: the real revokeSessions /
+    // banAuthUser open an admin client and hit the network, so an un-stubbed
+    // inline handler is not hermetic and fails on the runner's (correct)
+    // absence of --allow-net.
+    revokeSessions: () => Promise.resolve({ ok: true, method: 'admin_signOut_and_rpc' }),
+    banAuthUser: () => Promise.resolve(true),
     generateRestorationToken: () => RAW_TOKEN,
     now: () => new Date('2026-08-13T12:00:00.000Z'),
     rest: (path: string, init: RequestInit = {}) => {
@@ -544,8 +556,14 @@ Deno.test('intake falls back to the staging request_source vocabulary', async ()
   // fail every deletion request on staging.
   const attempted: string[] = [];
   const handler = createHandler({
-    requireUser: () => Promise.resolve({ id: USER_ID, email: USER_EMAIL, accessToken: 'x' }),
+    requireUser: () => Promise.resolve({ id: USER_ID, email: USER_EMAIL, accessToken: 'x', isAnonymous: false }),
     reserveRateLimit: () => Promise.resolve({ allowed: true }),
+    // Same reason as the shared harness above: the real revokeSessions /
+    // banAuthUser open an admin client and hit the network, so an un-stubbed
+    // inline handler is not hermetic and fails on the runner's (correct)
+    // absence of --allow-net.
+    revokeSessions: () => Promise.resolve({ ok: true, method: 'admin_signOut_and_rpc' }),
+    banAuthUser: () => Promise.resolve(true),
     generateRestorationToken: () => RAW_TOKEN,
     now: () => new Date('2026-08-13T12:00:00.000Z'),
     rest: (path: string, init: RequestInit = {}) => {
@@ -576,8 +594,14 @@ Deno.test('intake falls back to the staging request_source vocabulary', async ()
 Deno.test('a check violation that is NOT request_source fails fast', async () => {
   let attempts = 0;
   const handler = createHandler({
-    requireUser: () => Promise.resolve({ id: USER_ID, email: USER_EMAIL, accessToken: 'x' }),
+    requireUser: () => Promise.resolve({ id: USER_ID, email: USER_EMAIL, accessToken: 'x', isAnonymous: false }),
     reserveRateLimit: () => Promise.resolve({ allowed: true }),
+    // Same reason as the shared harness above: the real revokeSessions /
+    // banAuthUser open an admin client and hit the network, so an un-stubbed
+    // inline handler is not hermetic and fails on the runner's (correct)
+    // absence of --allow-net.
+    revokeSessions: () => Promise.resolve({ ok: true, method: 'admin_signOut_and_rpc' }),
+    banAuthUser: () => Promise.resolve(true),
     generateRestorationToken: () => RAW_TOKEN,
     now: () => new Date('2026-08-13T12:00:00.000Z'),
     rest: (path: string, init: RequestInit = {}) => {
@@ -601,8 +625,14 @@ Deno.test('a check violation that is NOT request_source fails fast', async () =>
 Deno.test('a missing note column is dropped rather than failing the request', async () => {
   const bodies: Record<string, unknown>[] = [];
   const handler = createHandler({
-    requireUser: () => Promise.resolve({ id: USER_ID, email: USER_EMAIL, accessToken: 'x' }),
+    requireUser: () => Promise.resolve({ id: USER_ID, email: USER_EMAIL, accessToken: 'x', isAnonymous: false }),
     reserveRateLimit: () => Promise.resolve({ allowed: true }),
+    // Same reason as the shared harness above: the real revokeSessions /
+    // banAuthUser open an admin client and hit the network, so an un-stubbed
+    // inline handler is not hermetic and fails on the runner's (correct)
+    // absence of --allow-net.
+    revokeSessions: () => Promise.resolve({ ok: true, method: 'admin_signOut_and_rpc' }),
+    banAuthUser: () => Promise.resolve(true),
     generateRestorationToken: () => RAW_TOKEN,
     now: () => new Date('2026-08-13T12:00:00.000Z'),
     rest: (path: string, init: RequestInit = {}) => {
