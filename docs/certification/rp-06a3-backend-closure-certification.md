@@ -455,13 +455,18 @@ Run in the certification worktree at the certified SHA.
 | Focused RP-06C/D/E + shared account-state suites | **76 passed / 0 failed** |
 | `__tests__/staging/stagingDeployPipeline.test.js` | **20 passed / 0 failed** |
 | RP-06B `promptHardening.test.ts` (Deno, offline) | **19 passed / 0 failed** |
-| `node scripts/run-backend-tests.js` | **NOT EXECUTED / ENVIRONMENT BLOCKED** |
+| `node scripts/run-backend-tests.js` | **NOT EXECUTED LOCALLY / ENVIRONMENT BLOCKED** — confirmed **green in CI** (see below) |
 
 `config/test-failure-baseline.json` was **not modified**.
 
 **Environment limitations, recorded rather than worked around:**
 
-- The full backend Deno suite cannot run here. The sandbox network policy
+- The full backend Deno suite cannot run here. It was subsequently confirmed
+  **green in CI** on certification commit `b58d3784`, in the `Project checks` job of
+  the `Security - Code and Dependencies` workflow, which runs
+  `scripts/run-backend-tests.js` alongside `run-all-tests.js`, the TypeScript
+  typecheck, `check-edge-function-parity.js` and
+  `generate-edge-function-manifest.js --check`. The sandbox network policy
   denies `deno.land:443` (`gateway answered 403 to CONNECT`), and
   `commerce-watch-refresh/changeEngine.test.ts` imports
   `https://deno.land/std@0.224.0/assert/mod.ts`. This is **not** reported as a
@@ -547,5 +552,7 @@ Follow-up, none of it blocking:
    slugs awaiting owner-action removal.
 3. Terminal deletion-status receipt and the post-auth terminal lifecycle
    endpoint remain **NOT IMPLEMENTED** — future Repair 06 scope.
-4. The backend Deno suite must be confirmed green in CI; it cannot run in this
-   sandbox.
+4. ~~The backend Deno suite must be confirmed green in CI~~ — **done**: green
+   in CI on certification commit `b58d3784` (all 14 workflow runs green, 0
+   failures). It remains unrunnable in this sandbox, so CI stays the authority
+   for it.
