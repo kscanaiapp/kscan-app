@@ -269,51 +269,66 @@ if (googleServicesSecretPath != null && !googleServicesSecretPath.trim().isEmpty
 def googleServicesConfigured = googleServicesTarget.exists()
 println "kscan: googleServicesConfigured=${googleServicesConfigured}"
 
-// Objective C -- Watchlist push must fail closed. The conditional
-// google-services.json apply above is intentionally lenient (an
-// unconfigured build must stay green for every profile that does not need
-// push), but a Watchlist-enabled certification artifact with no Firebase
-// configuration looks valid and can never deliver Android push -- exactly
-// the silent-failure shape this repair exists to close. This does NOT make
-// Firebase mandatory for any profile where Smart Watchlist is off, and it
-// does not touch production configuration.
+// Objective C / NOTIF-02 -- push must fail closed. The conditional
+// google-services.json apply above is intentionally lenient (an unconfigured
+// build must stay green for every profile that does not need push), but an
+// artifact that ACTIVATES push with no Firebase configuration looks valid and
+// can never deliver a single Android push -- exactly the silent-failure shape
+// this guard exists to close.
 def smartWatchlistEnabled = isCertificationSelectorEnabled(
     findProperty('expo.public.smartWatchlistV1'),
     System.getenv('EXPO_PUBLIC_SMART_WATCHLIST_V1')
 )
 println "kscan: smartWatchlistEnabled=${smartWatchlistEnabled}"
 
-if (smartWatchlistEnabled && !googleServicesConfigured) {
-    throw new GradleException(
-        "Smart Watchlist is enabled but GOOGLE_SERVICES_JSON did not materialize; " +
-        "refusing to build an Android artifact without FCM configuration."
-    )
-}
+/**
+ * Android Repair 05 -- the native projection of the ONE client-side remote-push
+ * capability decision (services/notifications/remotePushCapability.ts).
+ *
+ * FCM configuration exists in this project for exactly one reason: it is what
+ * lets expo-notifications obtain an Android push token. Nothing else consumes
+ * Firebase here -- no Analytics, Crashlytics, Performance or Ads product is
+ * declared anywhere in this build (asserted by
+ * __tests__/watchlistAndroidPushConfig.test.js), and the google-services
+ * plugin above is applied only when a real file is present. So "does this
+ * artifact need GOOGLE_SERVICES_JSON" is precisely "does this artifact
+ * activate remote push", and the client answers that with the same input:
+ * every remote push K Scan can send is a Watchlist event
+ * (supabase/functions/commerce-watch-refresh/pushDelivery.ts is the only
+ * sender in the backend), so Smart Watchlist is the capability.
+ *
+ * Read with the same fail-closed convention as every other governed selector
+ * in this file: missing, empty or malformed resolves false.
+ */
+def remotePushCapabilityEnabled = smartWatchlistEnabled
+println "kscan: remotePushCapabilityEnabled=${remotePushCapabilityEnabled}"
 
-// NOTIF-02 -- extend the same fail-closed rule to the SHIPPING profile now
-// that notifications are activated in onboarding.
+// The invariant this enforces, for EVERY profile rather than a named one:
+//   PUSH ACTIVATED => GOOGLE_SERVICES_JSON MATERIALIZED => PLUGIN APPLIED
+//                  => FCM CONFIG PRESENT
 //
-// The invariant this enforces:
-//   PUSH ENABLED => GOOGLE_SERVICES_JSON MATERIALIZED => PLUGIN APPLIED
-//                => FCM CONFIG PRESENT
+// NOTIF-02 previously bound `production` to this requirement UNCONDITIONALLY,
+// reasoning that "the shipping build advertises notifications and requests
+// POST_NOTIFICATIONS". Android Repair 05 removed that premise: production
+// ships Smart Watchlist dark, no other feature consumes remote push, and the
+// client no longer requests the permission or mints a token in that state. A
+// production artifact that activates nothing therefore needs no Firebase
+// configuration, and demanding a credential for a capability the artifact does
+// not use blocks the shipping build on a secret it has no use for.
 //
-// Before this, `production` inherited the lenient path above: a release AAB
-// built without the EAS file secret was green, shipped, asked the user for
-// POST_NOTIFICATIONS, and could never deliver a single Android push. That is
-// the silent-failure shape the certification guard already refuses -- there
-// is no reason the artifact that reaches real users should be held to a
-// weaker standard than the one that reaches the certification lane.
-//
-// Scope: production only. Debug/dev-client/preview builds stay lenient so a
-// developer without the secret can still build.
-if (easBuildProfile == PRODUCTION_PROFILE && !googleServicesConfigured) {
+// The requirement is NOT weakened where it bites: the moment any profile --
+// production included -- resolves the capability true, this throws exactly as
+// before. `staging-certification`, which sets EXPO_PUBLIC_SMART_WATCHLIST_V1
+// in eas.json, still cannot be built without FCM.
+if (remotePushCapabilityEnabled && !googleServicesConfigured) {
     throw new GradleException(
-        "kscan: EAS_BUILD_PROFILE=${PRODUCTION_PROFILE} but GOOGLE_SERVICES_JSON did not " +
-        "materialize, so the Google Services plugin was not applied and the artifact has no " +
-        "FCM configuration. The shipping build advertises notifications and requests " +
-        "POST_NOTIFICATIONS, so it must not ship unable to deliver Android push. " +
-        "Provide the governed EAS file secret GOOGLE_SERVICES_JSON for the production " +
-        "environment and rebuild."
+        "kscan: remote push is ACTIVATED for this build (EXPO_PUBLIC_SMART_WATCHLIST_V1=true" +
+        (easBuildProfile != null ? ", EAS_BUILD_PROFILE=${easBuildProfile}" : "") +
+        ") but GOOGLE_SERVICES_JSON did not materialize, so the Google Services plugin was " +
+        "not applied and the artifact has no FCM configuration. Such an artifact requests " +
+        "POST_NOTIFICATIONS and registers a push token it can never receive a delivery on. " +
+        "Provide the governed EAS file secret GOOGLE_SERVICES_JSON for this environment and " +
+        "rebuild, or leave the push-consuming feature dark."
     )
 }
 
