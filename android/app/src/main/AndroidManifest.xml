@@ -4,7 +4,31 @@
   <uses-permission android:name="android.permission.INTERNET"/>
   <uses-permission android:name="android.permission.VIBRATE"/>
   <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-  <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+  <!--
+    Android Repair 07 (native POST_NOTIFICATIONS containment).
+
+    Removed by DEFAULT, not merely undeclared. Deleting K Scan's own line
+    would not have been enough: expo-notifications' own library manifest
+    (node_modules/expo-notifications/android/src/main/AndroidManifest.xml)
+    declares POST_NOTIFICATIONS itself, so the merged manifest would still
+    carry it. Only tools:node="remove" neutralises both contributions --
+    the same merged-manifest governance Repair 02 established for the
+    foreground-service permissions below.
+
+    Repairs 05 and 06 already made the RUNTIME inert: with no shipping
+    remote-push consumer the app requests no notification permission,
+    acquires no Expo push token and registers no device. This closes the
+    DECLARATION layer that Repair 05 explicitly recorded as future debt,
+    because the native architecture to express it did not exist yet.
+
+    A push-capable build re-grants it through a governed build-type
+    manifest chosen by pushNativeCapabilityMaterialized in
+    android/app/build.gradle -- src/push (push only) or src/voicePush
+    (push + Voice). Both are declared exceptions in
+    config/native-config-authority.json. Push and Voice are INDEPENDENT
+    capabilities: neither manifest is selected by the other's selector.
+  -->
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" tools:node="remove"/>
   <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove"/>
   <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" tools:node="remove"/>
   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove"/>

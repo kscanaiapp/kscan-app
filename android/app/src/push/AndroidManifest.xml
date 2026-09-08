@@ -1,0 +1,70 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+      Push-capable release manifest (Android Repair 07).
+
+      PUSH ONLY. This file grants the notification permission and nothing
+      else. It is NOT part of any ordinary build: android/app/build.gradle
+      substitutes it for src/release/AndroidManifest.xml when
+      pushNativeCapabilityMaterialized is true and
+      voiceNativeCapabilityMaterialized is false.
+
+      pushNativeCapabilityMaterialized is the native projection of the SAME
+      decision Repair 05 already uses for runtime activation --
+      remotePushCapabilityEnabled, derived from EXPO_PUBLIC_SMART_WATCHLIST_V1
+      and nothing else. It is deliberately NOT keyed on
+      EAS_BUILD_PROFILE == staging-certification (a future production profile
+      may legitimately enable push) and NOT on the presence of
+      GOOGLE_SERVICES_JSON (a credential is configuration, not product
+      availability).
+
+      INDEPENDENT OF VOICE. The Voice selector never selects this file and
+      this selector never selects a Voice manifest. A build with Voice on and
+      push off gets src/certification, which grants no notification
+      permission; a build with both gets src/voicePush. Certification happens
+      to enable both capabilities today, but that coincidence is not the
+      architecture.
+
+      WHY A PROFILE-SPECIFIC MANIFEST INSTEAD OF app.json:
+      Android is NATIVE_AUTHORITATIVE (config/native-config-authority.json),
+      so app.json cannot express a permission that exists in one build
+      configuration only. Granting POST_NOTIFICATIONS in app.json + src/main
+      would broaden the ORDINARY PRODUCTION artifact, which ships no remote-push
+      consumer at all. app.json therefore keeps POST_NOTIFICATIONS in
+      android.blockedPermissions -- which remains true of the default artifact --
+      and the grant lives only here. scripts/check-native-config-parity.js
+      enforces exactly that relationship.
+
+      WHAT THIS FILE MUST NEVER CONTAIN: a <service> element of any kind, or
+      any re-grant of the foreground-service permissions Repair 02 removed. A
+      notification-capable build is precisely the shape that attracts a media
+      or foreground-service contribution, so both are named below and are
+      declared in this exception's mustRemainRemovedEverywhere.
+    -->
+
+    <!-- Carried verbatim from src/release/AndroidManifest.xml. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" tools:node="remove"/>
+
+    <!--
+      The push grant. tools:node="replace" supersedes the tools:node="remove"
+      that src/main/AndroidManifest.xml applies to this same permission: a
+      build-type source set outranks main in the manifest merger, exactly as
+      src/certification's RECORD_AUDIO grant does for Voice.
+
+      Artifact-verified claim: confirm against the merged manifest of the built
+      AAB before shipping a push-capable artifact.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" tools:node="replace"/>
+
+    <!--
+      Repair 02 foreground-service removals, restated for this variant.
+      src/main already removes both and an overlay only adds, so these are
+      belt-and-braces -- but naming them here means a library that later
+      contributes one cannot slip it into a push-capable artifact unnoticed,
+      and the parity gate enforces their presence.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" tools:node="remove"/>
+
+</manifest>

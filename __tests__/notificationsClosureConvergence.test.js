@@ -112,11 +112,27 @@ test('NOTIF-02 NEGATIVE CONTROL: certification can still never be built without 
 
 // ─── §13/§18: Android permission + channel authority ────────────────────────
 
-test('POST_NOTIFICATIONS is explicit in app.json and AndroidManifest', () => {
-  assert.ok(expo.android.permissions.includes('android.permission.POST_NOTIFICATIONS'));
+test('POST_NOTIFICATIONS is explicitly governed in app.json and AndroidManifest', () => {
+  // TEST-FLIP (Android Repair 07). This asserted the permission was explicitly
+  // GRANTED -- correct at the time, because notifications were activated in
+  // onboarding and the shipping build genuinely advertised them. Repairs 05
+  // and 06 removed that premise at runtime; Repair 07 closed the declaration
+  // layer that Repair 05 recorded as future debt. The property still worth
+  // pinning is that the permission is never AMBIGUOUS: app.json and the
+  // native manifest must state the same posture explicitly, in the same
+  // direction, so it can never be silently present or silently absent.
+  assert.ok(
+    expo.android.blockedPermissions.includes('android.permission.POST_NOTIFICATIONS'),
+    'the default artifact must declare the permission blocked, not merely omit it',
+  );
+  assert.ok(
+    !expo.android.permissions.includes('android.permission.POST_NOTIFICATIONS'),
+    'and must not simultaneously declare it granted',
+  );
   assert.match(
     androidManifest,
-    /<uses-permission android:name="android\.permission\.POST_NOTIFICATIONS"\/>/,
+    /<uses-permission android:name="android\.permission\.POST_NOTIFICATIONS" tools:node="remove"\/>/,
+    'src/main must REMOVE it -- omission would leave expo-notifications\' own contribution in the merge',
   );
 });
 

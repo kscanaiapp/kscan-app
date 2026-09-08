@@ -303,6 +303,23 @@ println "kscan: smartWatchlistEnabled=${smartWatchlistEnabled}"
 def remotePushCapabilityEnabled = smartWatchlistEnabled
 println "kscan: remotePushCapabilityEnabled=${remotePushCapabilityEnabled}"
 
+/**
+ * Android Repair 07 -- the NATIVE MANIFEST projection of that same decision.
+ *
+ * Named separately from remotePushCapabilityEnabled (which governs the FCM
+ * requirement above) purely so the manifest selection below reads as a
+ * capability, and so it can sit beside voiceNativeCapabilityMaterialized as a
+ * peer. It is the same boolean from the same input -- there is no second push
+ * selector, and there must never be one.
+ *
+ * INDEPENDENT of voiceNativeCapabilityMaterialized. Certification enables both
+ * capabilities today; that is a fact about one EAS profile, not a coupling.
+ * Neither boolean is ever derived from the other, and neither is derived from
+ * EAS_BUILD_PROFILE or from the presence of GOOGLE_SERVICES_JSON.
+ */
+def pushNativeCapabilityMaterialized = remotePushCapabilityEnabled
+println "kscan: pushNativeCapabilityMaterialized=${pushNativeCapabilityMaterialized}"
+
 // The invariant this enforces, for EVERY profile rather than a named one:
 //   PUSH ACTIVATED => GOOGLE_SERVICES_JSON MATERIALIZED => PLUGIN APPLIED
 //                  => FCM CONFIG PRESENT
@@ -443,20 +460,42 @@ android {
     }
     sourceSets {
         release {
-            // Voice-capable manifest swap. Off by default: the release build
-            // type keeps src/release/AndroidManifest.xml, which grants no
-            // microphone permission. Fires when EITHER the legacy
-            // staging-certification-only selector or the generalized
-            // ANDROID-VOICE-01 native capability selector resolves true
-            // (voiceNativeCapabilityMaterialized, defined above) -- both
-            // select the SAME manifest, since its content (grant
-            // RECORD_AUDIO, forbid everything else) is identical either way;
-            // only the guards above differ in which EAS profile may set
-            // which selector. Build type manifests outrank src/main, so the
-            // certification file's tools:node="replace" on RECORD_AUDIO
-            // supersedes main's tools:node="remove".
-            if (voiceNativeCapabilityMaterialized) {
-                manifest.srcFile 'src/certification/AndroidManifest.xml'
+            // Android Repair 07 -- capability-driven release manifest
+            // selection. An Android build-type source set has exactly ONE
+            // manifest slot, so two independent capabilities that can each be
+            // on or off need one file per combination. All four are declared
+            // exceptions in config/native-config-authority.json and are held
+            // to the same src/release base by
+            // scripts/check-native-config-parity.js.
+            //
+            //   push  voice   manifest                  grants
+            //   ----  -----   ------------------------  -------------------------
+            //   OFF   OFF     src/release  (default)    neither
+            //   OFF   ON      src/certification         RECORD_AUDIO
+            //   ON    OFF     src/push                  POST_NOTIFICATIONS
+            //   ON    ON      src/voicePush             both
+            //
+            // Off by default in every direction: an ordinary production build,
+            // and any local `gradlew bundleRelease` with no selectors and no
+            // EAS_BUILD_PROFILE, leaves both booleans false and keeps
+            // src/release/AndroidManifest.xml -- which grants neither
+            // permission, so src/main's tools:node="remove" for both stands.
+            //
+            // Build-type manifests outrank src/main in the merger, which is
+            // what lets the selected file's tools:node="replace" supersede
+            // main's tools:node="remove" for exactly the capability it grants
+            // and no other.
+            def releaseCapabilityManifest = null
+            if (pushNativeCapabilityMaterialized && voiceNativeCapabilityMaterialized) {
+                releaseCapabilityManifest = 'src/voicePush/AndroidManifest.xml'
+            } else if (pushNativeCapabilityMaterialized) {
+                releaseCapabilityManifest = 'src/push/AndroidManifest.xml'
+            } else if (voiceNativeCapabilityMaterialized) {
+                releaseCapabilityManifest = 'src/certification/AndroidManifest.xml'
+            }
+            println "kscan: releaseCapabilityManifest=${releaseCapabilityManifest ?: 'src/release/AndroidManifest.xml (default)'}"
+            if (releaseCapabilityManifest != null) {
+                manifest.srcFile releaseCapabilityManifest
             }
         }
     }

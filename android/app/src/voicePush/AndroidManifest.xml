@@ -1,0 +1,64 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+      Voice + push capable release manifest (Android Repair 07).
+
+      BOTH CAPABILITIES. This is the fourth and last state of the governed
+      matrix in android/app/build.gradle:
+
+        push OFF / voice OFF -> src/release        (neither grant)
+        push OFF / voice ON  -> src/certification  (RECORD_AUDIO only)
+        push ON  / voice OFF -> src/push           (POST_NOTIFICATIONS only)
+        push ON  / voice ON  -> src/voicePush      (this file, both)
+
+      It exists because an Android build-type source set has exactly ONE
+      manifest slot, so two independent capabilities that can each be on or
+      off need a file per combination. Its content is deliberately nothing
+      more than src/certification's Voice block plus src/push's push grant,
+      over the same src/release base -- there is no policy here that is not
+      already stated in one of those two files, and
+      scripts/check-native-config-parity.js holds all four to the same base
+      so they cannot drift apart.
+
+      This is the combination staging-certification builds today
+      (EXPO_PUBLIC_SMART_WATCHLIST_V1=true plus KSCAN_VOICE_CERTIFICATION=true
+      in eas.json). That is a fact about today's certification profile, not a
+      coupling: either capability can be activated without the other, and the
+      three sibling manifests above are what prove it.
+
+      WHAT THIS FILE MUST NEVER CONTAIN: a <service> element, a
+      foreground-service microphone permission, a background-capture
+      permission, or any re-grant of the foreground-service permissions
+      Repair 02 removed.
+    -->
+
+    <!-- Carried verbatim from src/release/AndroidManifest.xml. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" tools:node="remove"/>
+
+    <!--
+      Voice grant -- identical to src/certification/AndroidManifest.xml. See
+      that file for the full Voice rationale; it is the governed home of this
+      policy and this line is its combination-variant restatement.
+    -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="replace"/>
+
+    <!-- Push grant -- identical to src/push/AndroidManifest.xml. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" tools:node="replace"/>
+
+    <!--
+      Capture permissions, explicitly denied even here. Voice Scan is strictly
+      foreground and strictly just-in-time; there is no capture path that could
+      need either. MODIFY_AUDIO_SETTINGS is deliberately NOT listed: Repair 03
+      established that it is a PLAYBACK-ROUTING permission expo-audio
+      contributes for Elise speech, not a capture permission, and removing it
+      here would strip audio routing from an artifact that still plays Elise.
+    -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" tools:node="remove"/>
+    <uses-permission android:name="android.permission.CAPTURE_AUDIO_OUTPUT" tools:node="remove"/>
+
+    <!-- Repair 02 foreground-service removals, restated for this variant. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" tools:node="remove"/>
+
+</manifest>

@@ -184,7 +184,44 @@ test('the declared Voice certification exception is what the repository actually
   // original certification-only one. Both grant the same permission through
   // the same manifest; they differ only in which native selector reaches it
   // and which EAS profiles that selector is approved for.
-  assert.equal(exceptions.length, 2, 'exactly two build-profile exceptions are approved');
+  //
+  // TEST-FLIP (Android Repair 07). This asserted exactly TWO approved
+  // exceptions, which was the whole truth while Voice was the only
+  // profile-specific native capability. Repair 07 made remote push a second,
+  // INDEPENDENT capability, and because an Android build-type source set has
+  // one manifest slot, the four on/off combinations need four manifests. The
+  // count is no longer the invariant worth pinning -- the identity of each
+  // approved exception is, so every id is named below and an unrecognised one
+  // fails. That is strictly stronger than a bare count, which a future
+  // undeclared-but-counted exception could have satisfied.
+  const APPROVED_EXCEPTION_IDS = [
+    'VOICE_SCAN_CERTIFICATION_MICROPHONE',
+    'VOICE_SCAN_PRODUCTION_READINESS_CAPABILITY',
+    'REMOTE_PUSH_NOTIFICATION_CAPABILITY',
+    'VOICE_AND_REMOTE_PUSH_COMBINED_CAPABILITY',
+  ];
+  assert.deepEqual(
+    exceptions.map((e) => e.id).sort(),
+    [...APPROVED_EXCEPTION_IDS].sort(),
+    'exactly the approved build-profile exceptions are declared, by identity',
+  );
+
+  // Repair 07 independence, asserted on the governed contract itself: the push
+  // exceptions must not reach a Voice selector, and the Voice-only exception
+  // must not grant a notification permission.
+  const pushOnly = exceptions.find((e) => e.id === 'REMOTE_PUSH_NOTIFICATION_CAPABILITY');
+  assert.ok(pushOnly, 'the push capability exception must be declared');
+  assert.deepEqual(pushOnly.additionalGrantedPermissions, ['android.permission.POST_NOTIFICATIONS']);
+  assert.equal(pushOnly.selectorEnvironmentVariable, 'EXPO_PUBLIC_SMART_WATCHLIST_V1');
+  assert.ok(
+    !/voice/i.test(pushOnly.selectorGradleProperty + pushOnly.selectorEnvironmentVariable),
+    'push capability must never be reached through a Voice selector',
+  );
+  const certificationVoice = exceptions.find((e) => e.id === 'VOICE_SCAN_CERTIFICATION_MICROPHONE');
+  assert.ok(
+    !(certificationVoice.additionalGrantedPermissions || []).includes('android.permission.POST_NOTIFICATIONS'),
+    'the Voice-only exception must not grant push permission -- Voice ON / push OFF is a real state',
+  );
 
   const certification = exceptions.find((e) => e.id === 'VOICE_SCAN_CERTIFICATION_MICROPHONE');
   assert.ok(certification, 'the original certification-only exception must still be declared');
