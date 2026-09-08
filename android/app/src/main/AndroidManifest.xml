@@ -9,6 +9,33 @@
   <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" tools:node="remove"/>
   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove"/>
   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove"/>
+  <!--
+    Android Repair 02 (merged-manifest foreground-service exposure).
+
+    expo-audio's own AndroidManifest.xml unconditionally contributes
+    FOREGROUND_SERVICE and FOREGROUND_SERVICE_MEDIA_PLAYBACK -- the second
+    exists only to let its AudioControlsService (a mediaPlayback-typed
+    MediaSessionService, lock-screen/notification playback controls) run as a
+    foreground service. K Scan's only expo-audio call site
+    (services/avatars/stylistAudioPlayback.ts, Elise/stylist speech) never
+    calls setActiveForLockScreen -- the one API that activates that service
+    (node_modules/expo-audio/android/.../AudioPlayer.kt) -- and always passes
+    shouldPlayInBackground: false. With that service removed below and no
+    other package in this dependency tree declaring a foreground service
+    (verified: `grep -rl foregroundServiceType node_modules/**/AndroidManifest.xml`
+    finds only expo-audio and expo-location, both governed here), the generic
+    FOREGROUND_SERVICE permission itself has no remaining purpose either.
+
+    MODIFY_AUDIO_SETTINGS is deliberately NOT removed here: it is not a
+    foreground-service permission, and setAudioModeAsync -- called on every
+    stylist speech playback -- reaches AudioManager.setMode()/
+    setSpeakerphoneOn() (node_modules/expo-audio/android/.../AudioModule.kt,
+    updatePlaySoundThroughEarpiece(), invoked unconditionally from
+    setAudioModeAsync regardless of shouldRouteThroughEarpiece's value), so it
+    is genuinely required for the foreground playback K Scan uses.
+  -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" tools:node="remove"/>
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" tools:node="remove"/>
   <queries>
     <intent>
       <action android:name="android.intent.action.VIEW"/>
@@ -65,5 +92,35 @@
          usage anywhere in the app), so this delegate activity is unreachable; removed
          rather than left forcing portrait (GOOGLE-ANDROID-002). -->
     <activity android:name="com.google.mlkit.vision.codescanner.internal.GmsBarcodeScanningDelegateActivity" tools:node="remove"/>
+
+    <!--
+      Android Repair 02 (merged-manifest foreground-service exposure). Three
+      library-contributed foreground services K Scan never activates, each
+      removed individually rather than as a package-wide exclusion so an
+      unrelated future service from the same library is not silently dropped
+      too. See the permission-block comment above for the fuller trace.
+
+      expo-audio (node_modules/expo-audio/android/src/main/AndroidManifest.xml):
+        AudioControlsService  -- foregroundServiceType="mediaPlayback"; only
+          started by AudioPlayer.setActiveForLockScreen(), which
+          stylistAudioPlayback.ts never calls.
+        AudioRecordingService -- foregroundServiceType="microphone"; only
+          started when an AudioRecorder is created (AudioRecorder.kt
+          startService()); K Scan never imports/creates one -- the sole
+          expo-audio call site only ever creates an AudioPlayer.
+
+      expo-location (node_modules/expo-location/android/src/main/AndroidManifest.xml):
+        LocationTaskService -- foregroundServiceType="location"; only started
+          by the TaskManager-backed background-location task consumer
+          (LocationTaskConsumer.startLocationUpdates()), reachable only
+          through Location.startLocationUpdatesAsync()/startGeofencingAsync().
+          K Scan's only expo-location call site
+          (services/weather/weatherStylingContext.ts) calls solely the
+          one-shot Location.getCurrentPositionAsync() for foreground weather
+          styling; expo-task-manager is not even a project dependency.
+    -->
+    <service android:name="expo.modules.audio.service.AudioControlsService" tools:node="remove"/>
+    <service android:name="expo.modules.audio.service.AudioRecordingService" tools:node="remove"/>
+    <service android:name="expo.modules.location.services.LocationTaskService" tools:node="remove"/>
   </application>
 </manifest>
