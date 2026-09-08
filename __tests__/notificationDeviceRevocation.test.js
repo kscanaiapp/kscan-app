@@ -147,6 +147,13 @@ function loadPushRegistration({
         typeof session === 'function' ? session() : session,
     },
     'expo-notifications': notificationsModule,
+    // Android Repair 05: this suite exercises revocation / refresh / actor
+    // behaviour, not the activation gate, so the capability is supplied ACTIVE
+    // -- the state in which every pre-repair behaviour asserted below must be
+    // preserved byte-for-byte. The gate's own truth table (including the
+    // states that suppress activation) is proven in
+    // __tests__/androidNotificationActivationGating.test.js.
+    '../notifications/remotePushCapability': { resolveRemotePushActivationAllowed: () => true },
   };
 
   const mod = loadTsModule('services/watchlist/pushRegistration.ts', requireMap, {

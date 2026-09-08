@@ -42,11 +42,72 @@ test('NOTIF-01: the plugin config cannot silently regress to development', () =>
   assert.notEqual(plugin[1].mode, undefined);
 });
 
-// ─── NOTIF-02: Android FCM fail-closed on the shipping profile ───────────────
+// ─── NOTIF-02 (Android Repair 05): FCM fail-closed on PUSH, not on profile ───
+//
+// TEST-FLIP. The old expectation was `easBuildProfile == PRODUCTION_PROFILE &&
+// !googleServicesConfigured` -- production required Firebase configuration
+// unconditionally, on the stated premise that "the shipping build advertises
+// notifications and requests POST_NOTIFICATIONS". Repair 05 removed that
+// premise: production ships Smart Watchlist dark, no other feature in the app
+// consumes remote push, and the client no longer requests the permission or
+// mints a token in that state. Demanding an FCM credential for a capability
+// the artifact never activates is a requirement with nothing behind it.
+//
+// The fail-closed property itself is NOT relaxed: it now keys on the thing
+// that actually matters -- whether this build activates push -- and therefore
+// still fires for production the moment production turns a push consumer on.
 
-test('NOTIF-02: the production Android profile fails closed without Firebase config', () => {
-  assert.match(buildGradle, /easBuildProfile == PRODUCTION_PROFILE && !googleServicesConfigured/);
-  assert.match(buildGradle, /throw new GradleException/);
+test('NOTIF-02: FCM is required exactly when the build activates remote push', () => {
+  assert.match(
+    buildGradle,
+    /def remotePushCapabilityEnabled = smartWatchlistEnabled/,
+    'the native build must name the remote-push capability as one derived value',
+  );
+  assert.match(
+    buildGradle,
+    /if \(remotePushCapabilityEnabled && !googleServicesConfigured\) \{\s*\n\s*throw new GradleException/,
+    'a build that activates remote push without FCM configuration must fail closed',
+  );
+});
+
+test('NOTIF-02: the FCM requirement is not keyed on a profile name', () => {
+  // A profile-name guard is what produced the defect: it demanded Firebase of
+  // `production` regardless of whether production activated anything, and
+  // would equally have missed a future profile that turns push on.
+  const guard = buildGradle.slice(
+    buildGradle.indexOf('def googleServicesConfigured'),
+    buildGradle.indexOf('// Objective D'),
+  );
+  assert.ok(guard.length > 0, 'the FCM guard block must be locatable');
+  assert.doesNotMatch(
+    guard,
+    /easBuildProfile == PRODUCTION_PROFILE[^\n]*!googleServicesConfigured/,
+    'the FCM requirement must derive from the push capability, never from a profile name',
+  );
+});
+
+test('NOTIF-02 NEGATIVE CONTROL: certification can still never be built without FCM', () => {
+  // staging-certification is the one profile eas.json turns Smart Watchlist on
+  // for, so the capability resolves true there and the guard above applies.
+  // This is the half of the invariant Repair 05 must not have weakened.
+  const eas = JSON.parse(read('eas.json'));
+  const { resolveEasBuildProfiles } = require('../scripts/resolve-eas-build-profiles.js');
+  const profiles = resolveEasBuildProfiles(eas);
+  assert.equal(
+    profiles['staging-certification'].env.EXPO_PUBLIC_SMART_WATCHLIST_V1,
+    'true',
+    'certification must keep the flag the native capability is derived from',
+  );
+  assert.match(
+    buildGradle,
+    /System\.getenv\('EXPO_PUBLIC_SMART_WATCHLIST_V1'\)/,
+    'the native capability must read the same governed flag eas.json sets',
+  );
+  assert.match(
+    buildGradle,
+    /equalsIgnoreCase\('true'\)/,
+    'the selector must fail closed on a missing or malformed value',
+  );
 });
 
 // ─── §13/§18: Android permission + channel authority ────────────────────────
@@ -192,15 +253,23 @@ test('NOTIF-11: a permanently denied user is offered a Settings route', () => {
   assert.match(pushRegistration, /export function openNotificationSettings/);
 });
 
-test('§22: the Notifications card has no environment or feature-flag gate', () => {
+function notificationsCardSource() {
   const card = permissionsStep.slice(permissionsStep.indexOf('{/* Notifications'));
-  // Strip JSX/line comments first: prose explaining that the card must NOT be
-  // gated legitimately names the very gates being forbidden. Only executable
-  // code is evidence of a gate.
-  const cardOnly = card
+  // Strip JSX/line comments first: prose explaining which gates the card must
+  // NOT carry legitimately names those very gates. Only executable code is
+  // evidence of a gate.
+  return card
     .slice(0, card.indexOf('/>') + 2)
     .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
     .replace(/\/\/.*$/gm, '');
+}
+
+test('§22: the Notifications card carries no ad-hoc environment or entitlement gate', () => {
+  // TEST-FLIP (Android Repair 05). The old expectation was "no gate at all".
+  // That is no longer the truth and should not be: a build that ships nothing
+  // able to send a push must not offer a live permission CTA. What the card
+  // must never grow is a SECOND, ad-hoc authority — a raw env read, a remote
+  // config lookup, an entitlement check — competing with the canonical one.
   for (const token of [
     'ACCOUNT_HOME_UX_V1_ENABLED',
     'FeatureFreeze',
@@ -212,9 +281,32 @@ test('§22: the Notifications card has no environment or feature-flag gate', () 
     'PostHog',
     'kplus',
     'K_PLUS',
+    'SMART_WATCHLIST_V1',
+    'Platform.OS',
   ]) {
-    assert.ok(!cardOnly.includes(token), `Notifications card must not reference "${token}"`);
+    assert.ok(
+      !notificationsCardSource().includes(token),
+      `Notifications card must not reference "${token}" — the capability decision has one home`,
+    );
   }
+});
+
+test('§22: the Notifications card is never hidden, only made non-requesting', () => {
+  // The education surface stays four cards in every state (PERM-REG-001).
+  // Repair 05 changes actionability, never visibility.
+  assert.match(permissionsStep, /title="Notifications"/);
+  const card = notificationsCardSource();
+  assert.doesNotMatch(card, /return null/);
+  assert.doesNotMatch(
+    permissionsStep,
+    /remotePushAllowed \? \(?\s*<PermissionCard/,
+    'the card must not be conditionally rendered away',
+  );
+  assert.doesNotMatch(
+    permissionsStep,
+    /\{remotePushAllowed && \s*\n?\s*<PermissionCard/,
+    'the card must not be conditionally rendered away',
+  );
 });
 
 // ─── §2: already-approved non-notification work preserved ───────────────────

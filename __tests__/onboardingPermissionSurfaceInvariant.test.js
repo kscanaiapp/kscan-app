@@ -92,13 +92,59 @@ test('Microphone onboarding cannot request permission or start Voice Scan', () =
   }
 });
 
-test('Notifications is permanently OPTIONAL and retains the real actionable toggle', () => {
+test('Notifications is permanently OPTIONAL and actionable exactly when push ships', () => {
+  // TEST-FLIP (Android Repair 05). The old expectation was a literal
+  // `actionType="toggle"` — an unconditional, always-actionable control. On a
+  // build with no feature able to send a push, that toggle asked the OS for
+  // POST_NOTIFICATIONS and registered an Expo push token for alerts nothing
+  // could ever produce. The card itself is unchanged in status (permanent,
+  // OPTIONAL, never "Coming Soon", never rendered away); what is now
+  // conditional is whether it ACTS.
   const notifications = cardBlock('Notifications');
   assert.match(notifications, /badge="OPTIONAL"/);
-  assert.match(notifications, /actionType="toggle"/);
+  assert.match(
+    notifications,
+    /actionType=\{remotePushAllowed \? 'toggle' : 'status'\}/,
+    'the row must be a live toggle when push ships and a passive status row when it does not',
+  );
+  assert.match(
+    notifications,
+    /onActionChange=\{\s*remotePushAllowed \? \(value\) => void handleNotificationsToggle\(value\) : undefined\s*\}/,
+    'no change handler may be wired while the capability is off',
+  );
   assert.match(permissionsStep, /requestNotificationPermission\(\)/);
-  assert.match(notifications, /openNotificationSettings/);
+  assert.match(permissionsStep, /openNotificationSettings/);
   assert.doesNotMatch(notifications, /return null|COMING SOON/i);
+});
+
+test('the Notifications row reads the capability from the one canonical resolver', () => {
+  // Composed once per render from the single authority, never recomposed here
+  // out of a raw flag and a platform test — the same discipline Repair 01
+  // established for Mirror Selfie availability.
+  assert.match(
+    permissionsStep,
+    /import \{ resolveRemotePushActivationAllowed \} from '\.\.\/\.\.\/services\/notifications\/remotePushCapability';/,
+  );
+  assert.equal(
+    (permissionsStep.match(/resolveRemotePushActivationAllowed\(\)/g) ?? []).length,
+    1,
+    'the decision must be evaluated exactly once per render',
+  );
+  assert.match(permissionsStep, /const remotePushAllowed = resolveRemotePushActivationAllowed\(\);/);
+});
+
+test('a non-requesting Notifications row states the real reason and offers no dead CTA', () => {
+  const notifications = cardBlock('Notifications');
+  // Truthful, specific copy — never a generic retention line invented to keep
+  // the permission ("Stay up to date" and friends).
+  assert.match(notifications, /Price alerts are not available in this build\./);
+  assert.match(notifications, /statusLabel=\{remotePushAllowed \? undefined : 'NOT AVAILABLE'\}/);
+  // The Settings escape hatch belongs to a denied REQUEST. With no request
+  // there is no denial, so it must not be reachable either.
+  assert.match(
+    permissionsStep,
+    /\{remotePushAllowed && notificationsStatus === 'denied_needs_settings' \?/,
+  );
 });
 
 test('no flag, entitlement, or placeholder copy can remove the permanent four-card education surface', () => {

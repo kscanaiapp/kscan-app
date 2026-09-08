@@ -3,6 +3,7 @@ import { View, Text, Pressable, Switch, StyleSheet } from 'react-native';
 import { PrimaryButton, TertiaryButton } from '../../components/luxury';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { openNotificationSettings } from '../../services/watchlist/pushRegistration';
+import { resolveRemotePushActivationAllowed } from '../../services/notifications/remotePushCapability';
 import { KPlusGate } from '../kplus/KPlusGate';
 import { VOICESCAN_ENABLED } from '../../constants/featureFlags';
 
@@ -35,8 +36,10 @@ interface PermissionsStepV1Props {
  * - Continue to Home CTA and Not now link
  *
  * Build 33 removed the Microphone and Notifications "Coming Soon" cards
- * rather than activating them. Notifications is now a real, actionable
- * toggle (Build 34). Microphone is restored as a live but PASSIVE status
+ * rather than activating them. Notifications became a real, actionable toggle
+ * in Build 34, and Android Repair 05 made that toggle conditional on the build
+ * actually shipping something that sends push (see the card's own comment
+ * below). Microphone is restored as a live but PASSIVE status
  * card: Voice Scan (components/text-scan/VoiceScanButton.tsx) is the sole
  * governed microphone-permission authority, and its OS prompt must stay
  * strictly just-in-time -- fired only by an explicit tap on the Voice Scan
@@ -55,6 +58,12 @@ export function PermissionsStepV1({
   onNotNow,
 }: PermissionsStepV1Props) {
   const { notifications } = preferences;
+  // Android Repair 05. THE canonical decision, read once per render from the
+  // one authority (services/notifications/remotePushCapability.ts) rather than
+  // recomposed here from a flag and a platform test. When it is false this
+  // build ships nothing that can send the user a push, so the row below must
+  // not offer -- or silently perform -- a permission request.
+  const remotePushAllowed = resolveRemotePushActivationAllowed();
   const [notificationsBusy, setNotificationsBusy] = useState(false);
   const [notificationsStatus, setNotificationsStatus] = useState<
     'idle' | 'denied_can_retry' | 'denied_needs_settings' | 'unavailable' | 'disable_failed'
@@ -201,22 +210,44 @@ export function PermissionsStepV1({
           }}
         </KPlusGate>
 
-        {/* Notifications — permanent core permission surface. Visibility is
+        {/* Notifications — permanent core permission surface. VISIBILITY stays
             unconditional: no environment, K+, RevenueCat, PostHog,
-            FeatureFreeze, or remote-config gate may hide it. Off by default;
-            the user must affirmatively enable it. */}
+            FeatureFreeze, or remote-config gate may hide this card. Off by
+            default; the user must affirmatively enable it.
+
+            Android Repair 05 separates VISIBILITY from ACTIONABILITY. The card
+            is still always rendered — it is education, and the education is
+            true either way — but the live toggle is offered only when this
+            build actually ships a feature that sends push. With no such
+            feature, the row becomes a passive status card that requests no
+            permission and mints no push token, exactly like the Microphone row
+            above when Voice Scan is absent from the build. The alternative —
+            leaving a toggle that asks the OS for POST_NOTIFICATIONS and
+            registers a device for alerts nothing can ever send — is the defect
+            this repair closes, not a state worth preserving. */}
         <PermissionCard
           icon="◉"
           title="Notifications"
           badge="OPTIONAL"
-          description={notificationsDescription}
-          actionType="toggle"
+          description={
+            remotePushAllowed
+              ? notificationsDescription
+              : 'Price alerts are not available in this build.'
+          }
+          actionType={remotePushAllowed ? 'toggle' : 'status'}
+          statusLabel={remotePushAllowed ? undefined : 'NOT AVAILABLE'}
           actionValue={notifications}
-          onActionChange={(value) => void handleNotificationsToggle(value)}
+          onActionChange={
+            remotePushAllowed ? (value) => void handleNotificationsToggle(value) : undefined
+          }
           disabled={notificationsBusy}
-          accessibilityLabel="Notifications permission toggle"
+          accessibilityLabel={
+            remotePushAllowed
+              ? 'Notifications permission toggle'
+              : 'Price alerts are not available in this build, so no notification permission is requested'
+          }
         />
-        {notificationsStatus === 'denied_needs_settings' ? (
+        {remotePushAllowed && notificationsStatus === 'denied_needs_settings' ? (
           <Pressable
             testID="onboarding-notifications-open-settings-v1"
             onPress={() => void openNotificationSettings()}
