@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  AppState,
+  type AppStateStatus,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { Stack, router, useNavigationContainerRef, usePathname } from 'expo-router';
 import * as Linking from 'expo-linking';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -29,6 +37,7 @@ import { cleanupOrphanedStylistSpeechFiles } from '../services/avatars/stylistSp
 import { sweepOrphanedVtoMedia } from '../services/vto/vtoMediaCache';
 import { installWatchNotificationRouting } from '../services/watchlist/watchNotificationRouting';
 import { attachPushTokenRefreshListener } from '../services/watchlist/pushRegistration';
+import { runAppleCredentialStateCheck } from '../services/auth/appleCredentialState';
 
 type GlobalErrorHandler = (error: Error, isFatal?: boolean) => void;
 
@@ -338,6 +347,60 @@ function PostHogBridge() {
   return null;
 }
 
+/**
+ * Sign in with Apple credential-state lifecycle (iOS only).
+ *
+ * Apple can decide that this device's Sign in with Apple credential is no
+ * longer authorized for the signed-in user, and nothing in the app noticed:
+ * the K Scan AI session simply continued. This bridge closes that gap by asking
+ * Apple at the two boundaries that already exist, and handing an invalidating
+ * answer to the ONE canonical logout authority (AuthSessionContext's signOut).
+ *
+ * Bounded on purpose — no timer, no polling, no background execution, and
+ * nothing on the render path:
+ *  - when an authenticated actor first becomes available (session restoration,
+ *    and equally the completion of a fresh Apple sign-in), and
+ *  - on a real background/inactive -> active transition.
+ *
+ * A non-Apple actor never reaches Apple at all: runAppleCredentialStateCheck
+ * resolves the Apple identity from the session first and returns
+ * 'not_apple_actor' without importing or calling the SDK. Android returns
+ * 'unsupported_platform' the same way.
+ */
+function AppleCredentialStateBridge() {
+  const { user, signOut } = useAuthSession();
+  const userId = user?.id ?? null;
+
+  // Boundary 1 — an authenticated actor became available. Covers session
+  // restoration on launch and the completion of a fresh Apple sign-in alike,
+  // since both surface here as the actor id becoming set.
+  useEffect(() => {
+    if (!userId) return;
+    void runAppleCredentialStateCheck(user, { signOut });
+  }, [userId, user, signOut]);
+
+  // Boundary 2 — a real background/inactive -> active transition. Deliberately
+  // holds no ref: the subscription is rebuilt when the actor or the logout
+  // authority changes, so the listener can never close over a departed actor.
+  // `appState` is per-subscription, and a rebuild re-reads the live value, so a
+  // resume is still classified correctly.
+  useEffect(() => {
+    if (!userId) return;
+    let appState: AppStateStatus = AppState.currentState;
+    const subscription = AppState.addEventListener('change', (next) => {
+      const cameForward = /inactive|background/.test(appState) && next === 'active';
+      appState = next;
+      if (!cameForward) return;
+      // The module's own in-flight guard makes overlapping lifecycle events
+      // collapse into a single Apple call and a single logout.
+      void runAppleCredentialStateCheck(user, { signOut });
+    });
+    return () => subscription.remove();
+  }, [userId, user, signOut]);
+
+  return null;
+}
+
 export default function Layout() {
   useEffect(() => {
     void cleanupOrphanedStylistSpeechFiles();
@@ -396,6 +459,7 @@ export default function Layout() {
               <PrivacyPreferencesProvider>
                 <FeatureFreezeProvider>
                   <PostHogBridge />
+                  <AppleCredentialStateBridge />
                   <AuthGate />
                 </FeatureFreezeProvider>
               </PrivacyPreferencesProvider>
