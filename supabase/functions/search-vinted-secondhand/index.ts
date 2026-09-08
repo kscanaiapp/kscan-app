@@ -1,3 +1,10 @@
+// RP-06D: static top-level import (not a dynamic await import()). The
+// deployed production bundle documents that the --use-api bundler does not
+// follow a dynamic import() of this shared guard, which previously left the
+// module unbundled and 500'd the function -- static import keeps the guard
+// in the governed bundle closure, proven by the manifest.
+import { assertAccountActiveIfAuthenticated } from '../_shared/deletion/assertAccountActiveIfAuthenticated.ts';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -261,6 +268,15 @@ async function runApify(request: SearchRequest) {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+
+  // ── Account-state gate ───────────────────────────────────────────────────────
+  // Runs before the feature flag, request parsing, and the paid Apify call, so
+  // a pending-deletion / deactivated / locked authenticated actor can never
+  // reach the paid provider. Anonymous requests are unaffected: with no
+  // Authorization header the guard returns null and existing retailer-neutral
+  // search behavior is unchanged.
+  const accountGate = await assertAccountActiveIfAuthenticated(req);
+  if (accountGate) return accountGate;
 
   if (!isEnabled()) {
     return json(response(false, [], undefined, 'FEATURE_DISABLED'));
