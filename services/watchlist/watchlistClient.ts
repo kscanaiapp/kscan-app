@@ -9,6 +9,7 @@
  */
 import { supabase } from '../supabaseClient';
 import { resolveAuthenticatedFunctionSession } from '../authenticatedFunctionSession';
+import { resolveWatchlistAvailable } from './watchlistAvailability';
 import type {
   CommerceWatch,
   CommerceWatchEvent,
@@ -61,7 +62,34 @@ const WATCH_COLUMNS =
 
 export type WatchlistResult<T> =
   | { ok: true; data: T }
-  | { ok: false; reason: 'signed_out' | 'session_expired' | 'read_failed' | 'request_failed' | string };
+  | {
+      ok: false;
+      reason:
+        | 'signed_out'
+        | 'session_expired'
+        /**
+         * Watchlist Repair 06: Smart Watchlist does not exist in this build, so
+         * the operation was refused before any session resolution or network
+         * activity. Deliberately NOT 'kplus_required' -- that would claim the
+         * actor lacks an entitlement to a feature that ships here, which is a
+         * different and untrue statement. Nothing the user can buy or grant
+         * changes this answer.
+         */
+        | 'feature_unavailable'
+        | 'read_failed'
+        | 'request_failed'
+        | string;
+    };
+
+/**
+ * Watchlist Repair 06. The fail-closed refusal every feature-gated write
+ * returns when Smart Watchlist is not part of this build.
+ *
+ * Returned BEFORE resolveAuthenticatedFunctionSession() and before any
+ * supabase.functions.invoke(), so a darkened build performs no auth work and
+ * emits no network traffic for a feature it does not have.
+ */
+const FEATURE_UNAVAILABLE = { ok: false as const, reason: 'feature_unavailable' as const };
 
 /** Every non-deleted Watch for the current user, most recent first. */
 export async function fetchWatchlist(): Promise<WatchlistResult<CommerceWatch[]>> {
@@ -132,6 +160,9 @@ export async function createWatch(params: {
   watchIntent: WatchIntent;
   targetPriceAmount?: number;
 }): Promise<WatchlistResult<CommerceWatch>> {
+  // Repair 06: creating a Watch mints durable feature state. Refused first,
+  // before auth resolution and before any request leaves the device.
+  if (!resolveWatchlistAvailable()) return FEATURE_UNAVAILABLE;
   const result = await invokeWatchAction({
     action: 'create',
     listing: params.listing,
@@ -144,6 +175,14 @@ export async function createWatch(params: {
   return { ok: true, data: fromRow(result.data.watch as RawWatchRow) };
 }
 
+/**
+ * Repair 06 CLEANUP PATH -- deliberately NOT gated on feature availability.
+ *
+ * Pausing stops tracking; it never creates or reactivates feature state. A
+ * build that darkened Smart Watchlist must not strand a Watch created under an
+ * earlier build in a permanently active state, so quieting one stays reachable.
+ * Same principle as Repair 05: activation is gated, deactivation is not.
+ */
 export async function pauseWatch(watchId: string): Promise<WatchlistResult<CommerceWatch>> {
   const result = await invokeWatchAction({ action: 'pause', watchId });
   if (!result.ok) {
@@ -153,6 +192,10 @@ export async function pauseWatch(watchId: string): Promise<WatchlistResult<Comme
 }
 
 export async function resumeWatch(watchId: string): Promise<WatchlistResult<CommerceWatch>> {
+  // Repair 06: resuming REACTIVATES provider tracking on an existing Watch, so
+  // it is an activation path and is gated with create/refresh. Its counterpart
+  // pauseWatch stays ungated -- see the cleanup note below.
+  if (!resolveWatchlistAvailable()) return FEATURE_UNAVAILABLE;
   const result = await invokeWatchAction({ action: 'resume', watchId });
   if (!result.ok) {
     return { ok: false, reason: 'reason' in result ? result.reason : 'request_failed' };
@@ -160,6 +203,13 @@ export async function resumeWatch(watchId: string): Promise<WatchlistResult<Comm
   return { ok: true, data: fromRow(result.data.watch as RawWatchRow) };
 }
 
+/**
+ * Repair 06 CLEANUP PATH -- deliberately NOT gated on feature availability.
+ *
+ * Deleting only retires state that already exists. Gating it would make a
+ * Watch created under an earlier build impossible to remove, which is strictly
+ * worse for the user than allowing the delete.
+ */
 export async function deleteWatch(watchId: string): Promise<WatchlistResult<boolean>> {
   const result = await invokeWatchAction({ action: 'delete', watchId });
   if (!result.ok) {
@@ -168,7 +218,14 @@ export async function deleteWatch(watchId: string): Promise<WatchlistResult<bool
   return { ok: true, data: result.data.deleted === true };
 }
 
-/** Manual refresh: one Watch (from the detail screen) or the user's due batch (list open). */
+/**
+ * Manual refresh: one Watch (from the detail screen) or the user's due batch
+ * (list open).
+ *
+ * Repair 06: refresh performs real Watchlist/provider work, so it is an
+ * activation-class operation and is refused when the feature is absent.
+ */
 export async function refreshWatches(watchId?: string): Promise<WatchlistResult<Record<string, unknown>>> {
+  if (!resolveWatchlistAvailable()) return FEATURE_UNAVAILABLE;
   return invokeWatchAction({ action: 'refresh', ...(watchId ? { watchId } : {}) });
 }

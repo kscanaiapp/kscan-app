@@ -18,6 +18,7 @@ import { selectCommerceDestination } from '../../services/commerceDestination';
 // only decides which rows may open it.
 import { WatchThisModal } from '../ProductShelf';
 import { KPlusGate } from '../kplus/KPlusGate';
+import { resolveWatchlistAvailable } from '../../services/watchlist/watchlistAvailability';
 // VTO-REACH-001: the EXISTING try-on entry point, reused rather than
 // reimplemented. TryItOnEntry keeps owning eligibility, the K+ conversation and
 // the sheet; this surface only decides which rows may offer it.
@@ -76,6 +77,11 @@ export function PurchaseOptionsPanel({
   // DEF-WL-07: the row whose Watch action is open, or null. Ephemeral view
   // state -- nothing here is written back into the scan.
   const [watchCandidate, setWatchCandidate] = useState<WatchCandidate | null>(null);
+  // Watchlist Repair 06. Availability first, entitlement second -- the same
+  // ordering components/home/HomeLuxuryTechV1.tsx and ProductShelf use. This is
+  // the SHIPPED scan-results commerce surface, so it carries the identical
+  // boundary: a build without Smart Watchlist mounts no Watch action here.
+  const watchlistAvailable = resolveWatchlistAvailable();
 
   return (
     <View style={styles.container} testID={testID ?? 'purchase-options-panel'}>
@@ -155,7 +161,7 @@ export function PurchaseOptionsPanel({
                       placing it here reaches both without a second commerce
                       architecture and without resurrecting AnalysisCard.
                       Eligibility is server-authored and only read here. */}
-                  {canWatch ? (
+                  {watchlistAvailable && canWatch ? (
                     <KPlusGate source="watchlist">
                       {({ isActive, openUpgrade }) => (
                         <TouchableOpacity
@@ -234,11 +240,13 @@ export function PurchaseOptionsPanel({
           structural subset of ProductShelf's `Product`, so the modal receives
           the same canonical retailer/product-URL identity it does on the legacy
           shelf and creates an identical watch. No second creation path. */}
-      <WatchThisModal
-        product={watchCandidate}
-        visible={!!watchCandidate}
-        onClose={() => setWatchCandidate(null)}
-      />
+      {watchlistAvailable ? (
+        <WatchThisModal
+          product={watchCandidate}
+          visible={!!watchCandidate}
+          onClose={() => setWatchCandidate(null)}
+        />
+      ) : null}
     </View>
   );
 }

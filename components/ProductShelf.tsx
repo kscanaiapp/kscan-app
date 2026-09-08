@@ -32,6 +32,7 @@ import { toSnapshotPrice, normalizeForSnapshot } from '../src/utils/productSnaps
 import { KPlusGate } from './kplus/KPlusGate';
 import { emitKPlusEvent } from '../services/kplus/kplusTelemetry';
 import { createWatch } from '../services/watchlist/watchlistClient';
+import { resolveWatchlistAvailable } from '../services/watchlist/watchlistAvailability';
 import { requestWatchAlerts } from '../services/watchlist/pushRegistration';
 import type { WatchIntent } from '../types/watchlist';
 import {
@@ -339,6 +340,10 @@ export function ProductShelf({
   const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [watchModalProduct, setWatchModalProduct] = useState<Product | null>(null);
+  // Watchlist Repair 06. Availability first, entitlement second -- the ordering
+  // components/home/HomeLuxuryTechV1.tsx already uses. Read once per render
+  // from the one authority, never recomposed from the raw flag here.
+  const watchlistAvailable = resolveWatchlistAvailable();
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');
 
@@ -542,7 +547,12 @@ export function ProductShelf({
                     </Text>
                   </TouchableOpacity>
                 ) : null}
-                {canWatch ? (
+                {/* Repair 06: SMART_WATCHLIST_V1 says the feature EXISTS; KPlusGate
+                    says this actor may USE it. When it does not exist the button is
+                    NOT MOUNTED -- no disabled control, no "coming soon", no K+
+                    upsell. Offering to unlock something the build cannot perform
+                    would be the same false promise this repair removes. */}
+                {watchlistAvailable && canWatch ? (
                   <KPlusGate source="watchlist">
                     {({ isActive, openUpgrade }) => (
                       <TouchableOpacity
@@ -593,11 +603,17 @@ export function ProductShelf({
         />
       ) : null}
 
-      <WatchThisModal
-        product={watchModalProduct}
-        visible={!!watchModalProduct}
-        onClose={() => setWatchModalProduct(null)}
-      />
+      {/* Repair 06: not mounted at all when the feature is absent, matching how
+          AddToRoomModal above is bound to dressingRoomsEnabled. The modal ALSO
+          refuses to write on its own (see handleSave) -- surface and service
+          both hold the boundary, so neither is the single point of failure. */}
+      {watchlistAvailable ? (
+        <WatchThisModal
+          product={watchModalProduct}
+          visible={!!watchModalProduct}
+          onClose={() => setWatchModalProduct(null)}
+        />
+      ) : null}
     </View>
   );
 }
@@ -801,6 +817,12 @@ export function WatchThisModal({
 
   const handleSave = async () => {
     if (!product || saving) return;
+    // Repair 06 fail-closed backstop. The shelf does not mount this modal when
+    // Watchlist is absent, but stale state, a future refactor or another caller
+    // could still get here. Checked BEFORE the kplus_feature_started emit: a
+    // refused attempt is not a feature start, and recording one would put a
+    // begin with no matching completion into the K+ funnel.
+    if (!resolveWatchlistAvailable()) return;
     const targetPriceAmount =
       intent === 'buy_under' ? Number(targetText.replace(/[^0-9.]/g, '')) : undefined;
     if (intent === 'buy_under' && (!targetPriceAmount || !Number.isFinite(targetPriceAmount) || targetPriceAmount <= 0)) {
