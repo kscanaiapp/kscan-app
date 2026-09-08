@@ -25,6 +25,16 @@ maintenance pass, `docs/staging-rebuild/backend-authority-refresh-2026-08-29.md`
 > `CANONICAL_BRANCH_UNRESOLVABLE` rather than hiding it, and escalates it to a
 > hard failure the moment a checkout actually claims the authority role.
 >
+> **Repair 05 (2026-09-08) independently re-confirmed this from a fresh
+> `git fetch`**, and additionally enumerated every branch that currently
+> self-declares `role: "backend-deployment-authority"` in its own copy of
+> `config/backend-authority.json` — 12 found, all frozen 2026-08-29 through
+> 2026-08-31. 11 are already ancestors of `release/kscan-pre-freeze-v1` (their
+> content reached mainline through the ordinary Build 34 convergence and holds
+> no distinct authority); the 12th is a stale merge 605 commits behind. See
+> `docs/staging-rebuild/repair05-canonical-authority-reconfirmation-2026-09-08.md`
+> for the full search and the resulting convergence plan.
+>
 > RP-108 deliberately did **not** repair this by re-pointing `canonicalBranch`
 > at some other published branch. There is no evidence in this repository that
 > any published branch holds that authority, and writing one in would be
