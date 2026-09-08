@@ -326,14 +326,264 @@ test('CONTROL E (negative): a forbidden permission family is caught in every man
   }
 });
 
-test('no manifest declares a service, so there is no background-microphone surface at all', () => {
-  // A foreground-service microphone needs BOTH the permission and a service
-  // with foregroundServiceType="microphone". Neither exists; asserting the
-  // absence of the service closes the half the permission check does not.
-  for (const manifestPath of [MANIFEST_PATH, RELEASE_MANIFEST_PATH, CERT_MANIFEST_PATH]) {
+// ── GOOGLE-ANDROID-004: merged-manifest foreground-service governance ───────
+//
+// TEST-FLIP LEDGER (Android Repair 02):
+//   TEST: 'no manifest declares a service, so there is no background-microphone
+//         surface at all'
+//   OLD EXPECTATION: the first-party manifest (src/main, src/release,
+//     src/certification) contains no <service> element and no
+//     foregroundServiceType attribute, therefore the shipped app has no
+//     foreground-service surface at all.
+//   WHY OLD EXPECTATION WAS INSUFFICIENT/WRONG: Android's manifest merger
+//     also incorporates <service> elements and <uses-permission> grants from
+//     every LIBRARY manifest in the dependency tree. A first-party manifest
+//     with no <service> proves nothing about the merged manifest that
+//     actually ships -- expo-audio unconditionally contributes
+//     FOREGROUND_SERVICE, FOREGROUND_SERVICE_MEDIA_PLAYBACK,
+//     AudioControlsService (foregroundServiceType="mediaPlayback") and
+//     AudioRecordingService (foregroundServiceType="microphone");
+//     expo-location unconditionally contributes LocationTaskService
+//     (foregroundServiceType="location"). None of that is visible to a check
+//     that only reads K Scan's own manifest files, and the old assertion
+//     would in fact have REJECTED the correct fix (removing those
+//     contributions requires <service ... tools:node="remove"/> elements,
+//     which the old regex banned outright).
+//   NEW EXPECTATION: read the ACTUAL installed manifests of the governed
+//     dependencies (expo-audio, expo-location -- the only two packages in
+//     the entire node_modules tree that declare foregroundServiceType or a
+//     FOREGROUND_SERVICE* permission, reverified below) and prove every
+//     foreground-service-relevant permission/service they contribute is
+//     explicitly neutralized by a matching tools:node="remove" in K Scan's
+//     src/main manifest. A contribution with no matching removal now fails
+//     the gate, whether it exists today or arrives with a future dependency
+//     upgrade -- the check is driven off the real installed manifest content,
+//     not a fixed list of today's known offenders.
+//   DEFECT CLOSED: expo-audio's FOREGROUND_SERVICE /
+//     FOREGROUND_SERVICE_MEDIA_PLAYBACK permissions and
+//     AudioControlsService / AudioRecordingService services, plus
+//     expo-location's LocationTaskService, reaching the merged production
+//     manifest unreviewed.
+
+/** The only packages in this project's dependency tree that declare a
+ * foreground-service permission or a foregroundServiceType-typed <service>,
+ * reverified here rather than assumed -- see the sanity test below. */
+const GOVERNED_FGS_LIBRARIES = [
+  {
+    name: 'expo-audio',
+    namespace: 'expo.modules.audio',
+    manifestPath: path.join(REPO_ROOT, 'node_modules', 'expo-audio', 'android', 'src', 'main', 'AndroidManifest.xml'),
+  },
+  {
+    name: 'expo-location',
+    namespace: 'expo.modules.location',
+    manifestPath: path.join(REPO_ROOT, 'node_modules', 'expo-location', 'android', 'src', 'main', 'AndroidManifest.xml'),
+  },
+];
+
+/** A library manifest's own permission grants. Library manifests never carry
+ * tools:node="remove" of their own -- that mechanism belongs to the app
+ * manifest that consumes them. */
+function libraryPermissions(xml) {
+  return [...withoutComments(xml).matchAll(/<uses-permission\s+android:name="([^"]+)"\s*\/>/g)].map(
+    (match) => match[1],
+  );
+}
+
+/** A library manifest's own <service> declarations, resolved to fully
+ * qualified class names via the library's package namespace (a leading "."
+ * is manifest-merger shorthand for "this manifest's own package"), each with
+ * its foregroundServiceType if declared. Matches both self-closing services
+ * and services with child elements (e.g. an <intent-filter>). */
+function libraryServices(xml, namespace) {
+  const body = withoutComments(xml);
+  const services = [];
+  for (const match of body.matchAll(/<service\b([^>]*)\/?>/g)) {
+    const attrs = match[1];
+    const rawName = (attrs.match(/android:name="([^"]+)"/) || [])[1];
+    if (!rawName) continue;
+    const qualifiedName = rawName.startsWith('.') ? `${namespace}${rawName}` : rawName;
+    const foregroundServiceType = (attrs.match(/android:foregroundServiceType="([^"]+)"/) || [])[1] || null;
+    services.push({ qualifiedName, foregroundServiceType });
+  }
+  return services;
+}
+
+const FOREGROUND_SERVICE_PERMISSION = /^android\.permission\.FOREGROUND_SERVICE/;
+
+/**
+ * THE governance check. For every FGS-relevant permission or
+ * foregroundServiceType-typed service any of `libraries` contributes,
+ * requires an explicit tools:node="remove" for that exact name in
+ * `appManifestXml`. Library manifests never disclaim their own
+ * contributions, so the ONLY way a dangerous item passes is if the app
+ * manifest explicitly says so -- "library contributes X + app removes X =
+ * governed result".
+ */
+function assertNoUngovernedForegroundServiceSurface(appManifestXml, libraries) {
+  const appManifest = withoutComments(appManifestXml);
+  const appRemovedPermissions = new Set(
+    [...appManifest.matchAll(/<uses-permission\s+android:name="([^"]+)"\s+tools:node="remove"\s*\/>/g)].map(
+      (match) => match[1],
+    ),
+  );
+  const appRemovedServices = new Set(
+    [...appManifest.matchAll(/<service\s+android:name="([^"]+)"\s+tools:node="remove"\s*\/>/g)].map(
+      (match) => match[1],
+    ),
+  );
+
+  for (const lib of libraries) {
+    for (const permission of libraryPermissions(lib.xml)) {
+      if (!FOREGROUND_SERVICE_PERMISSION.test(permission)) continue;
+      assert.ok(
+        appRemovedPermissions.has(permission),
+        `${lib.name} contributes foreground-service permission "${permission}" with no governed ` +
+          'tools:node="remove" in the app manifest -- it would reach the merged manifest unreviewed',
+      );
+    }
+    for (const service of libraryServices(lib.xml, lib.namespace)) {
+      if (!service.foregroundServiceType) continue;
+      assert.ok(
+        appRemovedServices.has(service.qualifiedName),
+        `${lib.name} contributes foreground-service-typed <service android:name="${service.qualifiedName}" ` +
+          `foregroundServiceType="${service.foregroundServiceType}"> with no governed tools:node="remove" ` +
+          'in the app manifest -- it would reach the merged manifest unreviewed',
+      );
+    }
+  }
+}
+
+test('reverify the governed dependency set: no other installed package declares a foreground-service surface', () => {
+  // If a third package started declaring foregroundServiceType or a
+  // FOREGROUND_SERVICE* permission, GOVERNED_FGS_LIBRARIES above would be
+  // silently incomplete. Scanning the whole tree here means that arrives as
+  // a loud failure instead.
+  const { execFileSync } = require('node:child_process');
+  const matches = execFileSync(
+    'grep', ['-rl', '-E', 'foregroundServiceType|FOREGROUND_SERVICE', '--include=AndroidManifest.xml', 'node_modules/'],
+    { cwd: REPO_ROOT, encoding: 'utf8' },
+  )
+    .split('\n')
+    .filter(Boolean)
+    .map((rel) => path.resolve(REPO_ROOT, rel));
+  const governedPaths = new Set(GOVERNED_FGS_LIBRARIES.map((lib) => lib.manifestPath));
+  const unexpected = matches.filter((rel) => !governedPaths.has(rel));
+  assert.deepEqual(
+    unexpected,
+    [],
+    `a package outside GOVERNED_FGS_LIBRARIES declares a foreground-service surface: ${unexpected.join(', ')} -- add it to the governed set`,
+  );
+});
+
+test('MERGED-MANIFEST-FGS-GOVERNANCE: every library-contributed foreground-service permission/service is explicitly neutralized', () => {
+  const libraries = GOVERNED_FGS_LIBRARIES.map((lib) => ({ ...lib, xml: readFile(lib.manifestPath) }));
+  assertNoUngovernedForegroundServiceSurface(readFile(MANIFEST_PATH), libraries);
+});
+
+test('sanity: a properly governed (removed) contribution does not trip the gate', () => {
+  // Proves the check function can pass -- otherwise the negative controls
+  // below would "bite" trivially by always throwing.
+  const fixtureLib = {
+    name: 'fixture-lib',
+    namespace: 'com.example.fixture',
+    xml: `<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+      <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+      <application>
+        <service android:name=".SomeMediaService" android:foregroundServiceType="mediaPlayback" />
+      </application>
+    </manifest>`,
+  };
+  const governedAppManifest = `<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" tools:node="remove"/>
+    <application>
+      <service android:name="com.example.fixture.SomeMediaService" tools:node="remove"/>
+    </application>
+  </manifest>`;
+  assert.doesNotThrow(() =>
+    assertNoUngovernedForegroundServiceSurface(governedAppManifest, [fixtureLib]),
+  );
+});
+
+test('CONTROL H (negative): a NEW, ungoverned FOREGROUND_SERVICE_* permission contribution is caught', () => {
+  // Deliberately NOT one of the two permissions this repair already governs
+  // (FOREGROUND_SERVICE, FOREGROUND_SERVICE_MEDIA_PLAYBACK) -- reusing either
+  // would pass for the wrong reason, since the real app manifest already
+  // removes those for its own governed contributions. This simulates the
+  // actual drift scenario: a dependency upgrade adds a foreground-service
+  // permission type nobody has reviewed yet.
+  const fixtureLib = {
+    name: 'fixture-camera-lib',
+    namespace: 'com.example.fixture',
+    xml: `<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+      <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    </manifest>`,
+  };
+  // The real, governed app manifest has no removal for this fixture package's
+  // permission -- it was never told the fixture exists.
+  assert.throws(() =>
+    assertNoUngovernedForegroundServiceSurface(readFile(MANIFEST_PATH), [fixtureLib]),
+  );
+});
+
+test('CONTROL I (negative): an ungoverned media-playback <service> contribution is caught', () => {
+  const fixtureLib = {
+    name: 'fixture-lib',
+    namespace: 'com.example.fixture',
+    xml: `<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+      <application>
+        <service android:name="example.UnexpectedAudioService" android:foregroundServiceType="mediaPlayback" />
+      </application>
+    </manifest>`,
+  };
+  assert.throws(() =>
+    assertNoUngovernedForegroundServiceSurface(readFile(MANIFEST_PATH), [fixtureLib]),
+  );
+});
+
+test('CONTROL J (negative): an ungoverned microphone foreground-service is caught', () => {
+  const fixtureLib = {
+    name: 'fixture-mic-lib',
+    namespace: 'com.example.fixture',
+    xml: `<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+      <application>
+        <service android:name=".SomeMicService" android:foregroundServiceType="microphone" />
+      </application>
+    </manifest>`,
+  };
+  assert.throws(() =>
+    assertNoUngovernedForegroundServiceSurface(readFile(MANIFEST_PATH), [fixtureLib]),
+  );
+});
+
+test('CONTROL K (negative): an ungoverned location foreground-service is caught', () => {
+  const fixtureLib = {
+    name: 'fixture-location-lib',
+    namespace: 'com.example.fixture',
+    xml: `<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+      <application>
+        <service android:name=".SomeLocationService" android:foregroundServiceType="location" />
+      </application>
+    </manifest>`,
+  };
+  assert.throws(() =>
+    assertNoUngovernedForegroundServiceSurface(readFile(MANIFEST_PATH), [fixtureLib]),
+  );
+});
+
+test('the certification and release manifests carry no additional foreground-service surface of their own', () => {
+  // The governance check above covers src/main, which the merger applies to
+  // every build type. This closes the other half: the build-type-specific
+  // manifests must not themselves ADD back a <service> or
+  // foregroundServiceType that src/main just removed.
+  for (const manifestPath of [RELEASE_MANIFEST_PATH, CERT_MANIFEST_PATH]) {
     const xml = withoutComments(readFile(manifestPath));
-    assert.doesNotMatch(xml, /<service[\s>]/, `${manifestPath} must declare no <service>`);
-    assert.doesNotMatch(xml, /foregroundServiceType/, `${manifestPath} must declare no foregroundServiceType`);
+    assert.doesNotMatch(xml, /<service\b(?![^>]*tools:node="remove")/, `${manifestPath} must declare no active <service>`);
+    assert.doesNotMatch(
+      xml,
+      /foregroundServiceType/,
+      `${manifestPath} must declare no foregroundServiceType`,
+    );
   }
 });
 
