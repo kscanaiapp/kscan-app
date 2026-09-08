@@ -311,7 +311,13 @@ const GOVERNED_PRIVILEGE_INVENTORY: Record<string, PrivilegeProfile> = {
     privilegedBackend: true, actorBoundary: true,
   },
   'handle-user-deletion': {
-    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: false, storage: false,
+    // authAdmin true since RP-06A: deletion intake performs the grace-length
+    // Auth ban (auth.admin.updateUserById, reversed by restore-account) and its
+    // closure now includes _shared/deletion/common.ts, whose revokeAllSessions
+    // uses auth.admin.signOut. Both are the ALREADY-DEPLOYED production
+    // controls that the canonical source had been missing -- this records
+    // reality, it does not grant the function new power.
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
     privilegedBackend: false, actorBoundary: true,
   },
   'kickscrew-sneaker-description': {
@@ -479,9 +485,12 @@ const SERVICE_ROLE_ALLOWLIST: Record<string, string> = {
   'supabase/functions/_shared/privacyRequestRateLimit.ts':
     'Shared authenticated privacy-request rate-limit RPC; receives only the already '
     + 'verified caller id from its owning request handler.',
-  'supabase/functions/handle-user-deletion/index.ts':
+  'supabase/functions/handle-user-deletion/handler.ts':
     'Authenticated deletion intake reads and mutates only the verified caller\'s '
-    + 'deletion request and profile state.',
+    + 'deletion request and profile state, and performs the associated Auth ban '
+    + 'for the grace window (the mirror of restore-account\'s unban below). '
+    + 'RP-06A moved this logic out of index.ts, which is now a bare Deno.serve '
+    + 'wrapper holding no credential.',
   'supabase/functions/kplus-reconcile-revenuecat/index.ts':
     'Internal-secret-protected reconciliation worker invokes the bounded K+ '
     + 'RevenueCat RPC batch.',
