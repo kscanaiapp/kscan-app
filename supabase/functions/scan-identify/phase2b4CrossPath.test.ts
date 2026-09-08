@@ -336,12 +336,20 @@ const GOVERNED_PRIVILEGE_INVENTORY: Record<string, PrivilegeProfile> = {
     serviceRole: false, dbRead: false, dbWrite: false, rpc: false, authAdmin: false, storage: false,
     privilegedBackend: true, actorBoundary: false,
   },
+  // authAdmin true since RP-06C: both functions now call assertAccountActive
+  // from _shared/deletion/common.ts (the account-state gate restored from
+  // production), and that shared module's closure includes isAuthUserActive
+  // (auth.admin.getUserById, on the missing-profile fallback path) and
+  // revokeAllSessions (auth.admin.signOut). This records reality -- the same
+  // already-governed admin surface stylechat-generate, kplus-activate,
+  // handle-user-deletion and vto-generate already reach through this exact
+  // module -- it does not grant either function new power.
   'privacy-correction-request': {
-    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: false, storage: false,
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
     privilegedBackend: false, actorBoundary: true,
   },
   'privacy-data-export': {
-    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: false, storage: false,
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
     privilegedBackend: false, actorBoundary: true,
   },
   'process-account-deletions': {
