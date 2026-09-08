@@ -381,32 +381,72 @@ const GOVERNED_FGS_LIBRARIES = [
   },
 ];
 
+// ── attribute-order-tolerant element parsing ────────────────────────────────
+//
+// Every extraction below used to assume a fixed attribute order (android:name
+// first, at most one other attribute, in a specific position). Real manifests
+// don't promise that: android:maxSdkVersion, android:exported, or tools:node
+// can appear before or after android:name, and a future library or a
+// reordered app declaration must not silently stop being recognized. This is
+// a small bounded parser for exactly the one element shape this file reads
+// (an opening tag's own attributes) -- not a general XML parser, and none is
+// pulled in as a dependency.
+
+/** Every `attrName="value"` pair in a tag's attribute text, in any order,
+ * with any number of other attributes interspersed. */
+function parseAttributes(attrText) {
+  const attrs = {};
+  const ATTR_PATTERN = /([:\w.-]+)\s*=\s*"([^"]*)"/g;
+  let match;
+  while ((match = ATTR_PATTERN.exec(attrText))) {
+    attrs[match[1]] = match[2];
+  }
+  return attrs;
+}
+
+/** Every `<uses-permission .../>` element in `xml`, as {name, attrs}.
+ * Tolerant of whitespace, attribute order, extra attributes, and
+ * self-closing-vs-not formatting. */
+function parseUsesPermissionElements(xml) {
+  const elements = [];
+  for (const match of withoutComments(xml).matchAll(/<uses-permission\b([^>]*)\/?>/g)) {
+    const attrs = parseAttributes(match[1]);
+    if (!attrs['android:name']) continue;
+    elements.push({ name: attrs['android:name'], attrs });
+  }
+  return elements;
+}
+
+/** Every `<service .../>` element in `xml`, as {name, attrs}. Same tolerance
+ * as parseUsesPermissionElements; matches self-closing services and services
+ * with child elements (e.g. an <intent-filter>) alike, since only the
+ * opening tag's attributes are parsed. */
+function parseServiceElements(xml) {
+  const elements = [];
+  for (const match of withoutComments(xml).matchAll(/<service\b([^>]*)\/?>/g)) {
+    const attrs = parseAttributes(match[1]);
+    if (!attrs['android:name']) continue;
+    elements.push({ name: attrs['android:name'], attrs });
+  }
+  return elements;
+}
+
 /** A library manifest's own permission grants. Library manifests never carry
  * tools:node="remove" of their own -- that mechanism belongs to the app
  * manifest that consumes them. */
 function libraryPermissions(xml) {
-  return [...withoutComments(xml).matchAll(/<uses-permission\s+android:name="([^"]+)"\s*\/>/g)].map(
-    (match) => match[1],
-  );
+  return parseUsesPermissionElements(xml).map((element) => element.name);
 }
 
 /** A library manifest's own <service> declarations, resolved to fully
  * qualified class names via the library's package namespace (a leading "."
  * is manifest-merger shorthand for "this manifest's own package"), each with
- * its foregroundServiceType if declared. Matches both self-closing services
- * and services with child elements (e.g. an <intent-filter>). */
+ * its foregroundServiceType if declared. */
 function libraryServices(xml, namespace) {
-  const body = withoutComments(xml);
-  const services = [];
-  for (const match of body.matchAll(/<service\b([^>]*)\/?>/g)) {
-    const attrs = match[1];
-    const rawName = (attrs.match(/android:name="([^"]+)"/) || [])[1];
-    if (!rawName) continue;
-    const qualifiedName = rawName.startsWith('.') ? `${namespace}${rawName}` : rawName;
-    const foregroundServiceType = (attrs.match(/android:foregroundServiceType="([^"]+)"/) || [])[1] || null;
-    services.push({ qualifiedName, foregroundServiceType });
-  }
-  return services;
+  return parseServiceElements(xml).map((element) => ({
+    qualifiedName: element.name.startsWith('.') ? `${namespace}${element.name}` : element.name,
+    foregroundServiceType: element.attrs['android:foregroundServiceType'] || null,
+  }));
 }
 
 const FOREGROUND_SERVICE_PERMISSION = /^android\.permission\.FOREGROUND_SERVICE/;
@@ -423,14 +463,14 @@ const FOREGROUND_SERVICE_PERMISSION = /^android\.permission\.FOREGROUND_SERVICE/
 function assertNoUngovernedForegroundServiceSurface(appManifestXml, libraries) {
   const appManifest = withoutComments(appManifestXml);
   const appRemovedPermissions = new Set(
-    [...appManifest.matchAll(/<uses-permission\s+android:name="([^"]+)"\s+tools:node="remove"\s*\/>/g)].map(
-      (match) => match[1],
-    ),
+    parseUsesPermissionElements(appManifest)
+      .filter((element) => element.attrs['tools:node'] === 'remove')
+      .map((element) => element.name),
   );
   const appRemovedServices = new Set(
-    [...appManifest.matchAll(/<service\s+android:name="([^"]+)"\s+tools:node="remove"\s*\/>/g)].map(
-      (match) => match[1],
-    ),
+    parseServiceElements(appManifest)
+      .filter((element) => element.attrs['tools:node'] === 'remove')
+      .map((element) => element.name),
   );
 
   for (const lib of libraries) {
@@ -454,26 +494,104 @@ function assertNoUngovernedForegroundServiceSurface(appManifestXml, libraries) {
   }
 }
 
+/**
+ * Pure-Node recursive scan for every AndroidManifest.xml under `root` whose
+ * text mentions a foreground-service surface. No shell, no external process
+ * (no grep), no extra dependency -- fs.readdirSync with withFileTypes is
+ * enough, and it naturally can't loop on a symlinked node_modules (pnpm-style
+ * or otherwise): Dirent.isDirectory() is false for a symlink, so this only
+ * ever recurses into real directories. Returns normalized absolute paths.
+ */
+function findForegroundServiceManifests(root) {
+  const FGS_PATTERN = /foregroundServiceType|android\.permission\.FOREGROUND_SERVICE/;
+  const matches = [];
+  function walk(dir) {
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return; // unreadable directory (permissions, a race) -- not this gate's concern
+    }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(full);
+      } else if (entry.isFile() && entry.name === 'AndroidManifest.xml') {
+        let contents;
+        try {
+          contents = fs.readFileSync(full, 'utf8');
+        } catch {
+          continue;
+        }
+        if (FGS_PATTERN.test(contents)) matches.push(path.resolve(full));
+      }
+    }
+  }
+  walk(root);
+  return matches;
+}
+
+/** Every foreground-service-declaring manifest under `root` that is NOT one
+ * of `governedManifestPaths`. Factored out so the real reverify test and its
+ * negative control (CONTROL L below) exercise the exact same comparison. */
+function findUngovernedForegroundServiceManifests(root, governedManifestPaths) {
+  const governed = new Set(governedManifestPaths.map((p) => path.resolve(p)));
+  return findForegroundServiceManifests(root).filter((p) => !governed.has(p));
+}
+
 test('reverify the governed dependency set: no other installed package declares a foreground-service surface', () => {
   // If a third package started declaring foregroundServiceType or a
   // FOREGROUND_SERVICE* permission, GOVERNED_FGS_LIBRARIES above would be
   // silently incomplete. Scanning the whole tree here means that arrives as
   // a loud failure instead.
-  const { execFileSync } = require('node:child_process');
-  const matches = execFileSync(
-    'grep', ['-rl', '-E', 'foregroundServiceType|FOREGROUND_SERVICE', '--include=AndroidManifest.xml', 'node_modules/'],
-    { cwd: REPO_ROOT, encoding: 'utf8' },
-  )
-    .split('\n')
-    .filter(Boolean)
-    .map((rel) => path.resolve(REPO_ROOT, rel));
-  const governedPaths = new Set(GOVERNED_FGS_LIBRARIES.map((lib) => lib.manifestPath));
-  const unexpected = matches.filter((rel) => !governedPaths.has(rel));
+  const unexpected = findUngovernedForegroundServiceManifests(
+    path.join(REPO_ROOT, 'node_modules'),
+    GOVERNED_FGS_LIBRARIES.map((lib) => lib.manifestPath),
+  );
   assert.deepEqual(
     unexpected,
     [],
     `a package outside GOVERNED_FGS_LIBRARIES declares a foreground-service surface: ${unexpected.join(', ')} -- add it to the governed set`,
   );
+});
+
+test('CONTROL L (negative): a third library manifest discovered by the pure-Node scanner is treated as ungoverned', () => {
+  // A self-contained fixture tree (never the real node_modules) proves the
+  // scanner itself -- not just the governed list -- actually finds a new
+  // contributor and reports it as unexpected.
+  const os = require('node:os');
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'kscan-fgs-scan-'));
+  try {
+    const nestedDir = path.join(tmpRoot, 'some-other-lib', 'android', 'src', 'main');
+    fs.mkdirSync(nestedDir, { recursive: true });
+    const manifestPath = path.join(nestedDir, 'AndroidManifest.xml');
+    fs.writeFileSync(
+      manifestPath,
+      [
+        '<manifest xmlns:android="http://schemas.android.com/apk/res/android">',
+        '  <application>',
+        '    <service android:name=".SurpriseService" android:foregroundServiceType="mediaPlayback" />',
+        '  </application>',
+        '</manifest>',
+        '',
+      ].join('\n'),
+    );
+
+    const found = findForegroundServiceManifests(tmpRoot);
+    assert.deepEqual(found, [path.resolve(manifestPath)], 'the scanner must find the new manifest');
+
+    const unexpected = findUngovernedForegroundServiceManifests(
+      tmpRoot,
+      GOVERNED_FGS_LIBRARIES.map((lib) => lib.manifestPath),
+    );
+    assert.deepEqual(
+      unexpected,
+      [path.resolve(manifestPath)],
+      'a manifest discovered outside the governed set must be reported as ungoverned',
+    );
+  } finally {
+    fs.rmSync(tmpRoot, { recursive: true, force: true });
+  }
 });
 
 test('MERGED-MANIFEST-FGS-GOVERNANCE: every library-contributed foreground-service permission/service is explicitly neutralized', () => {
@@ -568,6 +686,63 @@ test('CONTROL K (negative): an ungoverned location foreground-service is caught'
   };
   assert.throws(() =>
     assertNoUngovernedForegroundServiceSurface(readFile(MANIFEST_PATH), [fixtureLib]),
+  );
+});
+
+test('CONTROL M (negative): an FGS permission with an additional attribute is still detected', () => {
+  // android:maxSdkVersion sits between the tag name and android:name -- a
+  // fixed "android:name is the only/first attribute" pattern would silently
+  // stop matching this and let it through ungoverned.
+  const fixtureLib = {
+    name: 'fixture-maxsdk-lib',
+    namespace: 'com.example.fixture',
+    xml: `<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+      <uses-permission android:maxSdkVersion="34" android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    </manifest>`,
+  };
+  assert.throws(() =>
+    assertNoUngovernedForegroundServiceSurface(readFile(MANIFEST_PATH), [fixtureLib]),
+  );
+});
+
+test('CONTROL N (negative): reordered attributes in a library permission are still detected', () => {
+  // android:name is not the first attribute, and there is no whitespace
+  // immediately after the tag name -- both must still parse.
+  const fixtureLib = {
+    name: 'fixture-reordered-lib',
+    namespace: 'com.example.fixture',
+    xml: `<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+      <uses-permission  android:maxSdkVersion="34"   android:name="android.permission.FOREGROUND_SERVICE_CAMERA"/>
+    </manifest>`,
+  };
+  assert.throws(() =>
+    assertNoUngovernedForegroundServiceSurface(readFile(MANIFEST_PATH), [fixtureLib]),
+  );
+});
+
+test('reordered attributes in an app tools:node="remove" declaration are still recognized', () => {
+  // The inverse of CONTROL N: tools:node="remove" appears BEFORE android:name
+  // on both the permission and the service removal. A parser that only
+  // recognized the "android:name then tools:node" order would treat these as
+  // ungoverned and fail this test with a false positive.
+  const fixtureLib = {
+    name: 'fixture-camera-lib',
+    namespace: 'com.example.fixture',
+    xml: `<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+      <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+      <application>
+        <service android:name=".SomeCameraService" android:foregroundServiceType="camera" />
+      </application>
+    </manifest>`,
+  };
+  const governedAppManifest = `<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission tools:node="remove" android:name="android.permission.FOREGROUND_SERVICE_CAMERA"/>
+    <application>
+      <service tools:node="remove" android:name="com.example.fixture.SomeCameraService"/>
+    </application>
+  </manifest>`;
+  assert.doesNotThrow(() =>
+    assertNoUngovernedForegroundServiceSurface(governedAppManifest, [fixtureLib]),
   );
 });
 
