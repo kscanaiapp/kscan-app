@@ -298,6 +298,20 @@ test('NEGATIVE CONTROL: the readiness gate would fail if a tracking domain were 
 // Resetting a tripwire to a newly authorized state is how it keeps working;
 // freezing it forever would block every legitimate Android change, and
 // deleting it would lose the scope guard entirely.
+//
+// TEST-FLIP (Android Repair 08). Same tripwire, same purpose, second
+// authorized baseline reset -- for the same structural reason. Repair 08 adds
+// RECEIVE_BOOT_COMPLETED to android.blockedPermissions: expo-notifications
+// contributes it from its own library manifest to restore LOCALLY scheduled
+// notifications after a reboot, and K Scan schedules none (every notification
+// arrives remotely via the Watchlist push path), so the capability is removed
+// by default in android/app/src/main/AndroidManifest.xml and app.json mirrors
+// that posture. It goes in blockedPermissions, never permissions -- Android is
+// NATIVE_AUTHORITATIVE, so app.json describes the intended default rather than
+// driving it. Unlike POST_NOTIFICATIONS this is not capability-gated: no build
+// profile re-grants it, which is why it is recorded under
+// globallySuppressedTransitivePermissions in
+// config/native-config-authority.json.
 test('Android config is unchanged by this repair (out of scope for RP-108)', () => {
   const appJson = JSON.parse(
     fs.readFileSync(path.join(__dirname, '../app.json'), 'utf8'),
@@ -315,6 +329,7 @@ test('Android config is unchanged by this repair (out of scope for RP-108)', () 
     ],
     blockedPermissions: [
       'android.permission.POST_NOTIFICATIONS',
+      'android.permission.RECEIVE_BOOT_COMPLETED',
       'android.permission.RECORD_AUDIO',
       'android.permission.ACCESS_FINE_LOCATION',
       'android.permission.READ_EXTERNAL_STORAGE',
