@@ -74,14 +74,42 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="replace"/>
 
     <!--
-      Explicitly denied even in the certification profile. Voice Scan is
-      strictly foreground and strictly just-in-time; there is no capture
-      path that could need any of these, and naming them here means a
-      library that later contributes one cannot slip it into the
-      certification artifact unnoticed.
+      CAPTURE permissions, explicitly denied even in the certification
+      profile. Voice Scan is strictly foreground and strictly just-in-time;
+      there is no capture path that could need either of these, and naming
+      them here means a library that later contributes one cannot slip it
+      into the certification artifact unnoticed. Both are also declared in
+      config/native-config-authority.json's mustRemainRemovedEverywhere for
+      each Voice exception, so this file and the governed contract agree.
+
+      MODIFY_AUDIO_SETTINGS USED TO BE LISTED HERE AND IS NOT ANY MORE
+      (Android Repair 03). It was grouped with the two capture permissions
+      above, but it is not a capture permission: expo-audio contributes it
+      for PLAYBACK ROUTING. setAudioModeAsync -- which
+      services/avatars/stylistAudioPlayback.ts calls as the first statement
+      of every Elise/stylist speech playback -- reaches
+      AudioManager.setMode()/setSpeakerphoneOn() unconditionally
+      (expo-audio's AudioModule.updatePlaySoundThroughEarpiece(), invoked
+      regardless of shouldRouteThroughEarpiece's value), and both of those
+      APIs require MODIFY_AUDIO_SETTINGS.
+
+      This manifest is selected for the staging-certification build AND for
+      a future production build carrying KSCAN_VOICE_NATIVE_CAPABILITY
+      (ANDROID-VOICE-01), and Elise speech is reachable in both: the
+      resolved staging-certification env sets
+      EXPO_PUBLIC_AI_STYLIST_ENABLED=true, and the stylist voice preference
+      defaults to ON for a device with no recorded choice
+      (stores/stylistVoicePreferenceStore.ts). Removing the permission here
+      therefore stripped audio routing from the exact artifact that still
+      plays Elise speech. It is not re-granted by this file -- expo-audio's
+      own manifest contributes it through the ordinary merge, exactly as it
+      does for production (see android/app/src/main/AndroidManifest.xml).
+
+      Removing it here never restricted the microphone: RECORD_AUDIO,
+      FOREGROUND_SERVICE_MICROPHONE and CAPTURE_AUDIO_OUTPUT are the
+      capture controls, and all three are unchanged by Repair 03.
     -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" tools:node="remove"/>
     <uses-permission android:name="android.permission.CAPTURE_AUDIO_OUTPUT" tools:node="remove"/>
-    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" tools:node="remove"/>
 
 </manifest>

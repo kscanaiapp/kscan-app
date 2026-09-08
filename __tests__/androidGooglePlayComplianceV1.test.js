@@ -762,6 +762,254 @@ test('the certification and release manifests carry no additional foreground-ser
   }
 });
 
+// ── GOOGLE-ANDROID-005: certification audio-routing permission (Repair 03) ──
+//
+// MODIFY_AUDIO_SETTINGS used to be removed by the certification manifest,
+// grouped with FOREGROUND_SERVICE_MICROPHONE and CAPTURE_AUDIO_OUTPUT under a
+// comment about capture paths. It is not a capture permission -- expo-audio
+// contributes it for PLAYBACK ROUTING, and the certification artifact still
+// plays Elise/stylist speech. The invariant below is therefore conditional,
+// not a snapshot: IF Elise speech is reachable in the certification variant,
+// THEN that variant must not strip the routing permission. Both halves are
+// traced from real source so a future change to either one moves the
+// conclusion with it.
+
+const AUTHORITY_PATH = path.join(REPO_ROOT, 'config', 'native-config-authority.json');
+const CERTIFICATION_EAS_PROFILE = 'staging-certification';
+const AUDIO_ROUTING_PERMISSION = 'android.permission.MODIFY_AUDIO_SETTINGS';
+
+/** Permissions a manifest explicitly removes, attribute-order tolerant. */
+function removedPermissionNames(xml) {
+  return new Set(
+    parseUsesPermissionElements(xml)
+      .filter((element) => element.attrs['tools:node'] === 'remove')
+      .map((element) => element.name),
+  );
+}
+
+/**
+ * Whether the certification variant can execute Elise/stylist speech
+ * playback -- derived from the real EAS profile resolution, the real flag
+ * wiring, the real preference default and the real playback entry point,
+ * never asserted as a constant.
+ */
+function certificationEliseSpeechReachability() {
+  const { resolveEasBuildProfiles } = require('../scripts/resolve-eas-build-profiles');
+  const eas = JSON.parse(readFile(path.join(REPO_ROOT, 'eas.json')));
+  const profile = resolveEasBuildProfiles(eas)[CERTIFICATION_EAS_PROFILE];
+  const env = (profile && profile.env) || {};
+
+  // 1. The certification profile (which extends staging) turns the stylist on.
+  const stylistFlagOn = env.EXPO_PUBLIC_AI_STYLIST_ENABLED === 'true';
+  // 2. ...and that env var really is what gates the stylist UI.
+  const flags = readFile(path.join(REPO_ROOT, 'constants', 'featureFlags.ts'));
+  const stylistFlagWired =
+    /AI_STYLIST_UI_ENABLED =\s*\n?\s*process\.env\.EXPO_PUBLIC_AI_STYLIST_ENABLED === 'true'/.test(flags);
+  // 3. Speech itself is gated by a runtime preference, not a build flag, and
+  //    that preference defaults ON when the device has no recorded choice.
+  const voiceStore = readFile(path.join(REPO_ROOT, 'stores', 'stylistVoicePreferenceStore.ts'));
+  const voiceDefaultsOn = /enabled: value !== 'off'/.test(voiceStore);
+  // 4. And the playback entry point configures the audio mode unconditionally,
+  //    as its very first statement -- this is what needs the permission.
+  const playback = readFile(path.join(REPO_ROOT, 'services', 'avatars', 'stylistAudioPlayback.ts'));
+  const configuresAudioModeFirst =
+    /export async function playStylistAudio\([\s\S]*?\)\s*:\s*Promise<StylistAudioPlaybackHandle>\s*\{\s*await setAudioModeAsync\(/.test(
+      playback,
+    );
+
+  return {
+    stylistFlagOn,
+    stylistFlagWired,
+    voiceDefaultsOn,
+    configuresAudioModeFirst,
+    reachable: stylistFlagOn && stylistFlagWired && voiceDefaultsOn && configuresAudioModeFirst,
+  };
+}
+
+test('CERTIFICATION-ELISE-REACHABLE: the certification variant can execute stylist speech playback', () => {
+  const reach = certificationEliseSpeechReachability();
+  assert.ok(
+    reach.stylistFlagOn,
+    `${CERTIFICATION_EAS_PROFILE} must resolve EXPO_PUBLIC_AI_STYLIST_ENABLED=true (it extends staging)`,
+  );
+  assert.ok(reach.stylistFlagWired, 'AI_STYLIST_UI_ENABLED must still be wired to that env var');
+  assert.ok(
+    reach.voiceDefaultsOn,
+    'the stylist voice preference must still default ON for a device with no recorded choice',
+  );
+  assert.ok(
+    reach.configuresAudioModeFirst,
+    'playStylistAudio must still call setAudioModeAsync as its first statement',
+  );
+  assert.ok(reach.reachable);
+});
+
+/**
+ * THE Repair 03 invariant. Conditional on reachability: if Elise speech can
+ * run in the certification variant, that variant must not remove the routing
+ * permission its playback path depends on.
+ */
+function assertCertificationRetainsAudioRouting(certificationXml, eliseSpeechReachable) {
+  if (!eliseSpeechReachable) return;
+  assert.ok(
+    !removedPermissionNames(certificationXml).has(AUDIO_ROUTING_PERMISSION),
+    `the certification manifest removes ${AUDIO_ROUTING_PERMISSION} while Elise/stylist speech is ` +
+      'reachable in that variant. expo-audio contributes it for playback ROUTING ' +
+      '(setAudioModeAsync -> AudioManager.setMode()/setSpeakerphoneOn()), not for capture -- ' +
+      'stripping it degrades the audio routing of the exact artifact that still plays Elise speech.',
+  );
+}
+
+test('CERTIFICATION-AUDIO-ROUTING: the certification manifest does not strip the playback routing permission', () => {
+  const reach = certificationEliseSpeechReachability();
+  assertCertificationRetainsAudioRouting(readFile(CERT_MANIFEST_PATH), reach.reachable);
+});
+
+test('CONTROL O (negative): reintroducing the MODIFY_AUDIO_SETTINGS removal is caught while playback is reachable', () => {
+  const mutated = readFile(CERT_MANIFEST_PATH).replace(
+    '</manifest>',
+    `<uses-permission android:name="${AUDIO_ROUTING_PERMISSION}" tools:node="remove"/>\n</manifest>`,
+  );
+  assert.throws(() => assertCertificationRetainsAudioRouting(mutated, true));
+  // ...and the same manifest is accepted when speech is NOT reachable, so the
+  // check is genuinely conditional rather than an unconditional ban.
+  assert.doesNotThrow(() => assertCertificationRetainsAudioRouting(mutated, false));
+});
+
+// ── capture boundaries are untouched by Repair 03 ───────────────────────────
+
+const CERTIFICATION_CAPTURE_REMOVALS = Object.freeze([
+  'android.permission.FOREGROUND_SERVICE_MICROPHONE',
+  'android.permission.CAPTURE_AUDIO_OUTPUT',
+]);
+
+function assertCertificationCaptureBoundaries(certificationXml) {
+  const removed = removedPermissionNames(certificationXml);
+  for (const permission of CERTIFICATION_CAPTURE_REMOVALS) {
+    assert.ok(
+      removed.has(permission),
+      `the certification manifest must keep "${permission}" removed -- Repair 03 changed the ` +
+        'routing permission only and must never relax a capture control',
+    );
+  }
+}
+
+test('REPAIR-03-CAPTURE-BOUNDARY: certification capture controls are unchanged', () => {
+  const certificationXml = readFile(CERT_MANIFEST_PATH);
+  assertCertificationCaptureBoundaries(certificationXml);
+
+  // RECORD_AUDIO remains exactly the one governed grant, still via the
+  // build-type tools:node="replace" (not widened into an unconditional grant).
+  assert.match(
+    withoutComments(certificationXml),
+    /<uses-permission[^>]*android:name="android\.permission\.RECORD_AUDIO"[^>]*tools:node="replace"[^>]*\/>/,
+    'the certification RECORD_AUDIO grant must keep its governed tools:node="replace" shape',
+  );
+
+  // And the governed contract still names both capture permissions for every
+  // declared Voice exception -- the source of truth this file must agree with.
+  const authority = JSON.parse(readFile(AUTHORITY_PATH));
+  const exceptions =
+    authority.platforms.android.buildProfileManifestExceptions.exceptions;
+  assert.ok(exceptions.length > 0, 'the governed Voice exceptions must still be declared');
+  for (const exception of exceptions) {
+    for (const permission of CERTIFICATION_CAPTURE_REMOVALS) {
+      assert.ok(
+        (exception.mustRemainRemovedEverywhere || []).includes(permission),
+        `exception "${exception.id}" must keep "${permission}" in mustRemainRemovedEverywhere`,
+      );
+    }
+    // Repair 03 must not have smuggled the routing permission into a forbidden
+    // list to "preserve" the old overlay.
+    assert.ok(
+      !(exception.mustRemainRemovedEverywhere || []).includes(AUDIO_ROUTING_PERMISSION),
+      `exception "${exception.id}" must not add ${AUDIO_ROUTING_PERMISSION} to mustRemainRemovedEverywhere -- ` +
+        'it is a playback-routing permission, not a capture control',
+    );
+  }
+});
+
+test('CONTROL P (negative): a restored FOREGROUND_SERVICE_MICROPHONE in certification is caught', () => {
+  const mutated = readFile(CERT_MANIFEST_PATH).replace(
+    /<uses-permission android:name="android\.permission\.FOREGROUND_SERVICE_MICROPHONE" tools:node="remove"\/>/,
+    '',
+  );
+  assert.throws(() => assertCertificationCaptureBoundaries(mutated));
+});
+
+test('CONTROL Q (negative): a restored CAPTURE_AUDIO_OUTPUT in certification is caught', () => {
+  const mutated = readFile(CERT_MANIFEST_PATH).replace(
+    /<uses-permission android:name="android\.permission\.CAPTURE_AUDIO_OUTPUT" tools:node="remove"\/>/,
+    '',
+  );
+  assert.throws(() => assertCertificationCaptureBoundaries(mutated));
+});
+
+// ── production and Repair 02 invariants are unchanged by Repair 03 ──────────
+
+const REPAIR_02_MAIN_PERMISSION_REMOVALS = Object.freeze([
+  'android.permission.FOREGROUND_SERVICE',
+  'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
+]);
+const REPAIR_02_MAIN_SERVICE_REMOVALS = Object.freeze([
+  'expo.modules.audio.service.AudioControlsService',
+  'expo.modules.audio.service.AudioRecordingService',
+  'expo.modules.location.services.LocationTaskService',
+]);
+
+test('REPAIR-03-PRODUCTION-UNCHANGED: the main manifest still retains audio routing by omission', () => {
+  const mainXml = readFile(MANIFEST_PATH);
+  // Production keeps MODIFY_AUDIO_SETTINGS the way Repair 02 left it: never
+  // declared, therefore never removed, therefore contributed by expo-audio's
+  // own manifest through the ordinary merge.
+  assert.ok(
+    !removedPermissionNames(mainXml).has(AUDIO_ROUTING_PERMISSION),
+    'src/main must not remove the audio routing permission (Repair 02 decision)',
+  );
+  assert.ok(
+    !grantedPermissions(mainXml).includes(AUDIO_ROUTING_PERMISSION),
+    'src/main must not GRANT the routing permission either -- expo-audio contributes it',
+  );
+});
+
+test('REPAIR-03-KEEPS-REPAIR-02: all five foreground-service removals survive, and stay governed', () => {
+  const mainXml = readFile(MANIFEST_PATH);
+  const removedPermissions = removedPermissionNames(mainXml);
+  for (const permission of REPAIR_02_MAIN_PERMISSION_REMOVALS) {
+    assert.ok(removedPermissions.has(permission), `Repair 02 removal of "${permission}" was lost`);
+  }
+  const removedServices = new Set(
+    parseServiceElements(mainXml)
+      .filter((element) => element.attrs['tools:node'] === 'remove')
+      .map((element) => element.name),
+  );
+  for (const service of REPAIR_02_MAIN_SERVICE_REMOVALS) {
+    assert.ok(removedServices.has(service), `Repair 02 removal of service "${service}" was lost`);
+  }
+
+  // Stronger than presence: the Repair 02 governance check still passes
+  // against the real installed library manifests.
+  const libraries = GOVERNED_FGS_LIBRARIES.map((lib) => ({ ...lib, xml: readFile(lib.manifestPath) }));
+  assert.doesNotThrow(() => assertNoUngovernedForegroundServiceSurface(mainXml, libraries));
+});
+
+test('CONTROL R (negative): deleting a Repair 02 foreground-service removal is caught', () => {
+  const mutated = readFile(MANIFEST_PATH).replace(
+    '<service android:name="expo.modules.audio.service.AudioControlsService" tools:node="remove"/>',
+    '',
+  );
+  const libraries = GOVERNED_FGS_LIBRARIES.map((lib) => ({ ...lib, xml: readFile(lib.manifestPath) }));
+  // Caught by the governance check (library contributes it, app no longer removes it)...
+  assert.throws(() => assertNoUngovernedForegroundServiceSurface(mutated, libraries));
+  // ...and by the explicit presence check above.
+  const removedServices = new Set(
+    parseServiceElements(mutated)
+      .filter((element) => element.attrs['tools:node'] === 'remove')
+      .map((element) => element.name),
+  );
+  assert.ok(!removedServices.has('expo.modules.audio.service.AudioControlsService'));
+});
+
 test('the Voice native module requests the microphone just-in-time and releases it on background', () => {
   // Source proof for the two behavioural claims the Data Safety declaration
   // and the Play permission review both rest on.
