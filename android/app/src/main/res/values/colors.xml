@@ -3,4 +3,13 @@
   <color name="colorPrimary">#023c69</color>
   <color name="colorPrimaryDark">#ffffff</color>
   <color name="iconBackground">#1a0a2e</color>
+  <!--
+    Android Repair 04. Resource name and semantics match exactly what
+    expo-notifications@0.32.17's config plugin generates
+    (node_modules/expo-notifications/plugin/src/withNotificationsAndroid.ts,
+    NOTIFICATION_ICON_COLOR = 'notification_icon_color'). Value is
+    app.json's expo-notifications plugin `color` verbatim, never
+    repurposed from colorPrimary/colorPrimaryDark/iconBackground above.
+  -->
+  <color name="notification_icon_color">#3F0B2F</color>
 </resources>
