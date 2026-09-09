@@ -32,6 +32,19 @@
 // explicit disable, actor claim) and passive handling (foreground presentation,
 // tap routing) deliberately do NOT consult it.
 //
+// N-1 (iOS remote push activation truthfulness): Repair 05 scoped the gate to
+// Android only, on the premise that widening it was "a different decision
+// needing its own authority" -- iOS was left ungated. In ordinary production,
+// where Smart Watchlist is dark on both platforms, that meant Android
+// correctly requested nothing while iOS still requested OS notification
+// permission, acquired an Expo push token and registered a push route for a
+// feature that cannot send it anything. N-1 closed that by adding 'ios' to
+// REMOTE_PUSH_GATED_PLATFORMS, so both platforms now answer the identical
+// governed question from the identical single consumer authority. The
+// Android-specific assertions below (native manifest selection, FCM,
+// Gradle) are untouched -- this repair changed a Gradle/manifest file for
+// exactly zero platforms; only the shared TypeScript resolver moved.
+//
 // This file proves the behaviour by executing the real modules with controlled
 // inputs, never by snapshotting text.
 
@@ -125,26 +138,31 @@ test('CAPABILITY: a future push-consuming feature re-enables activation', () => 
   assert.equal(cap.resolveRemotePushActivationAllowed('android', false), false);
 });
 
-test('CAPABILITY: the gate is an explicit Android allowlist, not a denylist', () => {
-  // A denylist ("everything except iOS") would silently darken the next
-  // platform this app ships on. Only listed platforms are governed.
+test('CAPABILITY: the gate is an explicit allowlist, not a denylist', () => {
+  // A denylist ("everything except the two shipping platforms") would
+  // silently darken the next platform this app ships on. Only listed
+  // platforms are governed. N-1 widened the allowlist from Android alone to
+  // Android + iOS -- the two platforms K Scan AI actually ships -- so both are
+  // governed and any future platform (web, windows, macos) stays ungated
+  // until it is deliberately added here.
   const cap = loadCapability({ platformOS: 'android', smartWatchlistActive: false });
-  assert.deepEqual([...cap.REMOTE_PUSH_GATED_PLATFORMS], ['android']);
+  assert.deepEqual([...cap.REMOTE_PUSH_GATED_PLATFORMS], ['android', 'ios']);
   assert.equal(cap.isRemotePushActivationGated('android'), true);
-  for (const other of ['ios', 'web', 'windows', 'macos']) {
+  assert.equal(cap.isRemotePushActivationGated('ios'), true);
+  for (const other of ['web', 'windows', 'macos']) {
     assert.equal(cap.isRemotePushActivationGated(other), false, `${other} must not be gated`);
   }
 });
 
-test('IOS NEGATIVE CONTROL: iOS activation is unchanged in every flag state', () => {
-  // §11: this is an Android repair. iOS must observe no new condition at all.
+test('IOS PARITY: iOS activation now derives from the same consumer flag as Android', () => {
+  // N-1: iOS is no longer a negative control. Both platforms must resolve
+  // identically for the same (platform, consumerActive) input, because both
+  // are governed by the one shipping push consumer, Smart Watchlist.
   for (const smartWatchlistActive of [true, false]) {
-    const cap = loadCapability({ platformOS: 'ios', smartWatchlistActive });
-    assert.equal(
-      cap.resolveRemotePushActivationAllowed(),
-      true,
-      `iOS must stay ungated with Watchlist ${smartWatchlistActive}`,
-    );
+    const androidResult = loadCapability({ platformOS: 'android', smartWatchlistActive }).resolveRemotePushActivationAllowed();
+    const iosResult = loadCapability({ platformOS: 'ios', smartWatchlistActive }).resolveRemotePushActivationAllowed();
+    assert.equal(iosResult, smartWatchlistActive, `iOS must resolve ${smartWatchlistActive} when Watchlist is ${smartWatchlistActive}`);
+    assert.equal(iosResult, androidResult, `iOS and Android must agree when Watchlist is ${smartWatchlistActive}`);
   }
 });
 
@@ -363,29 +381,63 @@ test('CERTIFICATION: eas.json is the one place the capability is turned on', () 
 });
 
 // ════════════════════════════════════════════════════════════════════════════
-// PART E — iOS behaviour is byte-for-byte what it was
+// PART E — iOS now mirrors Android's activation containment (N-1)
 // ════════════════════════════════════════════════════════════════════════════
 
-test('IOS NEGATIVE CONTROL: enabling notifications behaves exactly as before', () => {
-  // Same dark-Watchlist inputs that suppress everything on Android.
-  const { mod, calls } = loadPushRegistration({
+test('PRODUCTION IOS: enabling notifications requests nothing and mints nothing', () => {
+  // N-1: the same dark-Watchlist inputs that suppress everything on Android
+  // must now suppress everything on iOS too.
+  const { mod, calls, storage } = loadPushRegistration({
     platformOS: 'ios',
     smartWatchlistActive: false,
   });
   return mod.enableDeviceNotifications().then((result) => {
-    assert.equal(result.ok, true, 'iOS must still complete the registration it always did');
+    assert.equal(result.ok, false);
+    assert.equal(result.reason, 'capability_unavailable');
+    assert.equal(result.canAskAgain, false, 'retrying cannot change a property of the build');
+    assert.equal(calls.requestPermissions, 0, 'no OS permission prompt');
+    assert.equal(calls.getPermissions, 0, 'not even a permission read');
+    assert.equal(calls.getToken, 0, 'no Expo push token acquired');
+    assert.equal(calls.invokes.length, 0, 'no device registration');
+    assert.equal(storage.size, 0, 'no device identifier minted');
+  });
+});
+
+test('PRODUCTION IOS: the token-refresh listener is not even installed', () => {
+  const { mod, calls } = loadPushRegistration({
+    platformOS: 'ios',
+    smartWatchlistActive: false,
+  });
+  return mod.attachPushTokenRefreshListener().then((remove) => {
+    assert.equal(calls.addPushTokenListener, 0, 'no refresh listener may be registered');
+    assert.equal(activationCallCount(calls), 0);
+    assert.equal(typeof remove, 'function', 'the caller still receives a disposer');
+    remove(); // must not throw
+  });
+});
+
+test('CERTIFICATION IOS: enabling notifications still completes when Watchlist is ON', () => {
+  // Future activation must still work: with the consumer live, iOS reaches
+  // the same full registration path Android does.
+  const { mod, calls, storage } = loadPushRegistration({
+    platformOS: 'ios',
+    smartWatchlistActive: true,
+  });
+  return mod.enableDeviceNotifications().then((result) => {
+    assert.equal(result.ok, true, 'iOS must complete registration once the consumer is live');
     assert.equal(calls.requestPermissions, 1);
     assert.equal(calls.getToken, 1);
     assert.equal(calls.setChannel, 0, 'the Android channel is still Android-only');
     assert.equal(calls.invokes[0].body.action, 'register_push_token');
     assert.equal(calls.invokes[0].body.platform, 'ios');
+    assert.ok(storage.size > 0, 'a device identifier is minted on the path that registers');
   });
 });
 
-test('IOS NEGATIVE CONTROL: the token-refresh listener still installs on iOS', () => {
+test('CERTIFICATION IOS: the token-refresh listener installs when Watchlist is ON', () => {
   const { mod, calls } = loadPushRegistration({
     platformOS: 'ios',
-    smartWatchlistActive: false,
+    smartWatchlistActive: true,
   });
   return mod.attachPushTokenRefreshListener().then(() => {
     assert.equal(calls.addPushTokenListener, 1);

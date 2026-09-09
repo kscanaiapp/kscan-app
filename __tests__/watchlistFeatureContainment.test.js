@@ -749,7 +749,7 @@ test('PRODUCTION: Watchlist stays dark even with K+ forced ACTIVE', () => {
   assert.equal(io.fetchWatchlist + io.refreshWatches, 0);
 });
 
-test('REPAIR 05 REGRESSION: Android push activation still derives from the same flag', () => {
+test('REPAIR 05/N-1 REGRESSION: push activation still derives from the same flag, on both governed platforms', () => {
   const cap = evaluate('services/notifications/remotePushCapability.ts', (spec) => {
     if (spec === 'react-native') return { Platform: { OS: 'android' } };
     if (spec === '../../constants/featureFlags') return { SMART_WATCHLIST_V1: false };
@@ -757,7 +757,10 @@ test('REPAIR 05 REGRESSION: Android push activation still derives from the same 
   });
   assert.equal(cap.resolveRemotePushActivationAllowed(), false, 'production stays push-dark');
   assert.equal(cap.resolveRemotePushActivationAllowed('android', true), true, 'certification stays eligible');
-  assert.equal(cap.resolveRemotePushActivationAllowed('ios', false), true, 'iOS remains ungated');
+  // N-1: iOS is no longer ungated -- it answers the same governed question
+  // Android does, from the same single consumer authority.
+  assert.equal(cap.resolveRemotePushActivationAllowed('ios', false), false, 'iOS stays push-dark with Watchlist OFF');
+  assert.equal(cap.resolveRemotePushActivationAllowed('ios', true), true, 'iOS is eligible with Watchlist ON');
   // Repair 06 must not have rewired Repair 05 into itself.
   const source = read('services/notifications/remotePushCapability.ts');
   assert.match(source, /import \{ SMART_WATCHLIST_V1 \} from '\.\.\/\.\.\/constants\/featureFlags';/);
