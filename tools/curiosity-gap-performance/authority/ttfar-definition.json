@@ -1,7 +1,7 @@
 {
   "artifact": "TTFAR_DEFINITION",
   "ttfar_start_version": "ttfar-start-v1",
-  "source_sha": "909df8646a690b55c5af6b7b8c80193df64a2ec8",
+  "source_sha": "219f27aa0f2586d3bded1ca02f751a63d1960c48",
   "authored": "2026-09-06",
   "benchmark_status": "INTERNAL ENGINEERING ANALYSIS ONLY. SIMULATED TTFAR IS NOT A MEASUREMENT OF REAL-WORLD K SCAN SPEED.",
 
@@ -17,7 +17,7 @@
       "component": "components/scan-room/CaptureReview.tsx",
       "line": 141,
       "prop": "onAnalyze",
-      "wired_at": "app.js:1002-1011 (onAnalyze={runAnalysis})",
+      "wired_at": "app.js:1012-1021 (onAnalyze={runAnalysis})",
       "test_id": "scan-room-analyze"
     },
     "evidence_class": "PROVEN",
@@ -30,7 +30,7 @@
       "source_file": "hooks/useKScan.js",
       "function": "capturePhoto",
       "line": 236,
-      "ui_binding": "components/ScanButton.tsx:36 onPress -> LiveScanCamera.tsx:178 onCapture -> app.js:947 capturePhoto(cameraRef)",
+      "ui_binding": "components/ScanButton.tsx:36 onPress -> LiveScanCamera.tsx:178 onCapture -> app.js:957 capturePhoto(cameraRef)",
       "why_rejected": "capturePhoto calls takePictureAsync({ quality: 0.7 }) and returns a file URI only. It performs no network work, no compression and no encoding, and the user may still retake or abandon. Treating it as t=0 would fold an unbounded human review pause into TTFAR.",
       "recorded_as": "CAPTURE_COMMIT, a separate earlier boundary retained for completeness",
       "evidence_class": "PROVEN"

@@ -4,9 +4,9 @@
 
 | | |
 |---|---|
-| SOURCE SHA | `909df8646a690b55c5af6b7b8c80193df64a2ec8` |
+| SOURCE SHA | `219f27aa0f2586d3bded1ca02f751a63d1960c48` |
 | BRANCH | `research/curiosity-gap-performance-v1` |
-| SOURCE BINDING HASH | `3aaa80038736b843ca6b346cf82871b497144e13985ee456c95c6139c94cc768` |
+| SOURCE BINDING HASH | `7f057e5611a3634d8fcf084e54285c693891705d84481d9b637c7fa2b2b71d5c` |
 | DATE | 2026-09-06 |
 | LIVE TRAFFIC GENERATED | none. $0 spend, no provider call, no staging or production contact. |
 
@@ -104,7 +104,7 @@ Legend: **S** serial · **P** parallel · **TTFAR** blocks first actionable resu
 | **E** legacy fallback query | a full second pass of C+D | serial after the first | — | **NONE** | — | — | YES | YES |
 
 **Sub-group:** `shoppingProvider` is internally **serial** — Serper is awaited,
-then Brave runs only if Serper returned zero (`shoppingProvider.ts:528,541`).
+then Brave runs only if Serper returned zero (`shoppingProvider.ts:548,561`).
 The "shopping" child can therefore cost up to 2× its per-call timeout.
 
 **The invariant the funnel fixed, in its own words** (`commerceFunnelConfig.ts:60-67`):

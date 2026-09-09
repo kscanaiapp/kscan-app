@@ -235,7 +235,7 @@ function buildBaselineArtifact(baselineId) {
     network_calls_made: 0,
     provider_spend_usd: 0,
 
-    source_sha: '909df8646a690b55c5af6b7b8c80193df64a2ec8',
+    source_sha: '219f27aa0f2586d3bded1ca02f751a63d1960c48',
     source_binding_hash: bindings.binding_hash,
     trace_schema_version: TRACE_SCHEMA_VERSION,
     ttfar_definition_version: ttfar.ttfar_start_version,

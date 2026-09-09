@@ -23,7 +23,11 @@ const { loadRegister, paramsAtBand } = require(path.join(LAB, 'lib', 'params'));
 const { runContract } = require(path.join(LAB, 'runLab'));
 
 const readLab = (rel) => JSON.parse(fs.readFileSync(path.join(LAB, rel), 'utf8'));
-const BASE_SHA = '909df8646a690b55c5af6b7b8c80193df64a2ec8';
+const BASE_SHA = '219f27aa0f2586d3bded1ca02f751a63d1960c48';
+// The baseline derived against BASE_SHA. Superseded baselines stay on disk
+// (they are immutable by design) and keep declaring the SHA they were derived
+// against, so this names which one is current rather than assuming the newest.
+const CURRENT_BASELINE = 'baseline-v2.json';
 
 // ── Authority artifacts ─────────────────────────────────────────────────────
 
@@ -266,7 +270,7 @@ test('the lab source performs no network I/O — no http, fetch or socket module
 });
 
 test('the baseline on disk validates and separates structural from modelled findings', () => {
-  const b = JSON.parse(fs.readFileSync(path.join(LAB, 'baseline', 'baseline-v1.json'), 'utf8'));
+  const b = JSON.parse(fs.readFileSync(path.join(LAB, 'baseline', CURRENT_BASELINE), 'utf8'));
   assert.ok(assertBaselineShape(b));
   assert.strictEqual(b.source_sha, BASE_SHA);
   assert.strictEqual(b.network_calls_made, 0);
@@ -275,4 +279,43 @@ test('the baseline on disk validates and separates structural from modelled find
   const structuralText = JSON.stringify(b.structural_findings);
   assert.ok(!/"[a-z_]*_ms":\s*\d+\.\d/.test(structuralText),
     'structural findings must not smuggle modelled fractional timings');
+});
+
+// Baselines are immutable and versioned: a superseded one is KEPT, not rewritten,
+// so the SHA it was derived against stays readable. It therefore declares an older
+// source_sha than the current authority on purpose — that is the audit trail, not
+// drift. What must never happen is a superseded baseline being edited in place to
+// impersonate the current authority.
+test('superseded baselines are retained, still valid, and still declare their own derivation SHA', () => {
+  const files = fs.readdirSync(path.join(LAB, 'baseline')).filter((f) => f.endsWith('.json')).sort();
+  assert.ok(files.includes(CURRENT_BASELINE), 'the current baseline must be on disk');
+  const superseded = files.filter((f) => f !== CURRENT_BASELINE);
+  assert.ok(superseded.length > 0, 'the pre-refresh baseline must be retained as history');
+  for (const f of superseded) {
+    const b = JSON.parse(fs.readFileSync(path.join(LAB, 'baseline', f), 'utf8'));
+    assert.ok(assertBaselineShape(b), `${f} must still be a valid baseline`);
+    assert.notStrictEqual(b.source_sha, BASE_SHA,
+      `${f} is superseded, so it must keep its own derivation SHA rather than claim the current one`);
+    assert.strictEqual(b.network_calls_made, 0);
+    assert.strictEqual(b.provider_spend_usd, 0);
+  }
+});
+
+// The refresh claim under test: the accepted source movement that drifted the
+// bindings was byte drift only, with nothing the model reads behind it. If that
+// is true, re-deriving the baseline reproduces the previous one exactly apart
+// from the three identity fields. If a future source change DOES move the model,
+// this fails and the refresh has to be argued rather than assumed.
+test('re-deriving across the refresh changed the identity fields and nothing else', () => {
+  const prev = JSON.parse(fs.readFileSync(path.join(LAB, 'baseline', 'baseline-v1.json'), 'utf8'));
+  const curr = JSON.parse(fs.readFileSync(path.join(LAB, 'baseline', CURRENT_BASELINE), 'utf8'));
+  const cmp = compareBaselines(prev, curr);
+  assert.deepStrictEqual(cmp.structural_change, [],
+    'no structural claim may change without being re-derived and argued');
+  const identity = new Set(['baseline_id', 'source_sha', 'source_binding_hash']);
+  const strip = (o) => JSON.stringify(Object.fromEntries(
+    Object.entries(o).filter(([k]) => !identity.has(k)).sort(([a], [b]) => a.localeCompare(b)),
+  ));
+  assert.strictEqual(strip(prev), strip(curr),
+    'the refresh must not have moved a single modelled or structural value');
 });

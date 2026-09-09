@@ -2,13 +2,13 @@
 
 **BENCHMARK STATUS: INTERNAL ENGINEERING ANALYSIS ONLY. SIMULATED TTFAR IS NOT A MEASUREMENT OF REAL-WORLD K SCAN SPEED.**
 
-Source SHA `909df8646a690b55c5af6b7b8c80193df64a2ec8` · binding hash `3aaa8003…c94cc768`
+Source SHA `219f27aa0f2586d3bded1ca02f751a63d1960c48` · binding hash `7f057e56…b2b71d5c`
 
 ---
 
 **Q1 — What exact source event starts TTFAR?**
 `runAnalysis` at `hooks/useKScan.js:390`, invoked by the "Analyze Scan" press
-(`components/scan-room/CaptureReview.tsx:141` → `app.js:1002-1011`). **PROVEN.**
+(`components/scan-room/CaptureReview.tsx:141` → `app.js:1012-1021`). **PROVEN.**
 Deliberately *not* the shutter (`capturePhoto`, `useKScan.js:236`), which only
 calls `takePictureAsync` and returns a URI — the user may still retake, and
 folding that pause into TTFAR would make the metric meaningless. Compression,

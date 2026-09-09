@@ -1,7 +1,7 @@
 {
   "artifact": "ASSUMPTIONS_REGISTER",
   "assumptions_version": "assumptions-v1",
-  "source_sha": "909df8646a690b55c5af6b7b8c80193df64a2ec8",
+  "source_sha": "219f27aa0f2586d3bded1ca02f751a63d1960c48",
   "benchmark_status": "INTERNAL ENGINEERING ANALYSIS ONLY. SIMULATED TTFAR IS NOT A MEASUREMENT OF REAL-WORLD K SCAN SPEED.",
   "rule": "Every parameter the structural model consumes is declared here with its evidence class. A parameter absent from this register cannot be supplied to the model — lib/model.js throws rather than defaulting, because a silent default is how an invented number becomes a conclusion.",
 
@@ -140,7 +140,7 @@
       "parameter": "provider_farfetch_ms",
       "value_or_range": { "low": 1500, "mid": 3000, "high": 4000 },
       "unit": "ms",
-      "source": "Anchored on the source comment at commerceFunnelConfig.ts:78-81 ('Farfetch3 (~3.0s)'), hard-bounded by farfetch3Provider.ts:45 PROVIDER_TIMEOUT_MS=4000 (PROVEN).",
+      "source": "Anchored on the source comment at commerceFunnelConfig.ts:78-81 ('Farfetch3 (~3.0s)'), hard-bounded by farfetch3Provider.ts:49 PROVIDER_TIMEOUT_MS=4000 (PROVEN).",
       "evidence": "MODELED",
       "confidence": "MEDIUM",
       "if_wrong_by_3x_does_conclusion_survive": "YES",
@@ -150,7 +150,7 @@
       "parameter": "provider_kickscrew_ms",
       "value_or_range": { "low": 1300, "mid": 2600, "high": 4000 },
       "unit": "ms",
-      "source": "Anchored on commerceFunnelConfig.ts:78-81 ('KicksCrew (~2.6s)'), hard-bounded by kicksCrewProvider.ts:43 PROVIDER_TIMEOUT_MS=4000 (PROVEN).",
+      "source": "Anchored on commerceFunnelConfig.ts:78-81 ('KicksCrew (~2.6s)'), hard-bounded by kicksCrewProvider.ts:47 PROVIDER_TIMEOUT_MS=4000 (PROVEN).",
       "evidence": "MODELED",
       "confidence": "MEDIUM",
       "if_wrong_by_3x_does_conclusion_survive": "YES"

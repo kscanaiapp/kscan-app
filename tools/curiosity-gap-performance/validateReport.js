@@ -55,7 +55,7 @@ function validateArtifactFiles(failures) {
 }
 
 function validateSourceAuthority(failures, loaded) {
-  const EXPECTED_SHA = '909df8646a690b55c5af6b7b8c80193df64a2ec8';
+  const EXPECTED_SHA = '219f27aa0f2586d3bded1ca02f751a63d1960c48';
   for (const [rel, a] of Object.entries(loaded)) {
     if ('source_sha' in a && a.source_sha !== EXPECTED_SHA) {
       fail(failures, 'source_sha', `${rel} declares ${a.source_sha}, expected ${EXPECTED_SHA}`);
