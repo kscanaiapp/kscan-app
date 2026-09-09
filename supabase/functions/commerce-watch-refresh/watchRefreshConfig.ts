@@ -99,3 +99,52 @@ export const UNAVAILABLE_AFTER_CONSECUTIVE_FAILURES = readIntEnv(
  * append_user_commerce_watch_event; exported here only so callers agree on
  * the number when reasoning about behavior, not to re-implement pruning. */
 export const MAX_EVENTS_PER_WATCH = 20;
+
+// ── N-4: Expo push receipt consumption ──────────────────────────────────────
+
+/**
+ * Ticket ids checked in one drainEligiblePushReceipts() call. Bounded well
+ * under Expo's documented getReceipts batch ceiling (300 ids/request) so one
+ * invocation never needs to page.
+ */
+export const RECEIPT_CHECK_BATCH_CAP = readIntEnv('WATCHLIST_RECEIPT_CHECK_BATCH_CAP', 100);
+
+/**
+ * Delay before a ticket's FIRST receipt check. Matches Expo's own documented
+ * guidance: receipts are often available sooner, but the service wants
+ * roughly this long before a first check is meaningful.
+ */
+export const RECEIPT_INITIAL_DELAY_MS = readIntEnv('WATCHLIST_RECEIPT_INITIAL_DELAY_MS', 15 * 60 * 1000);
+
+/**
+ * Ceiling on the backoff between successive checks of one still-pending
+ * receipt, so a token that never resolves cannot push next_check_at
+ * arbitrarily far into a single retry step.
+ */
+export const RECEIPT_MAX_BACKOFF_MS = readIntEnv('WATCHLIST_RECEIPT_MAX_BACKOFF_MS', 4 * 60 * 60 * 1000);
+
+/**
+ * Bounded retry budget (§17: "no infinite pending receipt queue"). A receipt
+ * that has been checked this many times without a definitive verdict is
+ * marked expired rather than checked again — the row already caps
+ * attempt_count at the SQL layer (watchlist_push_receipts_attempt_bound); this
+ * is the lower, operational bound that actually stops retrying.
+ */
+export const RECEIPT_MAX_ATTEMPTS = readIntEnv('WATCHLIST_RECEIPT_MAX_ATTEMPTS', 6);
+
+/**
+ * Maximum age (from created_at) a receipt may stay pending before it is
+ * marked expired regardless of attempt_count. A receipt this old with no
+ * verdict from Expo is far past the vendor's own documented delivery window;
+ * treated as expired, never as a token failure — see RECEIPT REQUIRES A
+ * DEFINITIVE VERDICT BEFORE RETIREMENT in receiptProcessing.ts.
+ */
+export const RECEIPT_MAX_AGE_MS = readIntEnv('WATCHLIST_RECEIPT_MAX_AGE_MS', 24 * 60 * 60 * 1000);
+
+/**
+ * Bounded retention for TERMINAL receipt rows (§7, §20: "bounded retention").
+ * A row past this age (from updated_at) is pruned regardless of state; a
+ * still-pending row is never pruned by age alone (RECEIPT_MAX_AGE_MS already
+ * governs when pending becomes expired).
+ */
+export const RECEIPT_RETENTION_MS = readIntEnv('WATCHLIST_RECEIPT_RETENTION_MS', 30 * 24 * 60 * 60 * 1000);
