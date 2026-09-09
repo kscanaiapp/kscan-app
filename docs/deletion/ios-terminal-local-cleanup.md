@@ -1,15 +1,30 @@
-# iOS terminal local-deletion cleanup (Repair 07)
+# Terminal local-deletion cleanup (iOS Repair 07, Android Repair 09)
 
 Internal technical contract. The backend half is Repair 06, whose client-facing
 contract lives in `docs/deletion/terminal-status-client-contract.md` on the
 backend authority branch. This document is the device side: what it stores,
 what it is allowed to destroy, and what it must never touch.
 
-**Status: source implemented. Production backend dependency pending.** Repair 06
-is deployed and certified on staging only. Until it is promoted and certified on
-production, this path fails closed on a production build — the intake response
-carries no `statusReceiptBound` field, the marker is recorded as `unsupported`,
-and no terminal cleanup ever runs. Account deletion itself is unaffected.
+**Status: source implemented for both platforms. Production backend dependency
+pending.** Repair 06 is deployed and certified on staging only. Until it is
+promoted and certified on production, this path fails closed on a production
+build — the intake response carries no `statusReceiptBound` field, the marker
+is recorded as `unsupported`, and no terminal cleanup ever runs, on either
+platform. Account deletion itself is unaffected.
+
+Repair 07 (iOS) built the whole architecture below and held the destructive
+half behind an iOS-only guard in `app/_layout.tsx` while it was certified.
+Repair 09 (Android) is a hostile platform-safety review of every primitive
+described here, followed by the smallest possible change: removing that guard.
+Nothing below was redesigned, forked, or reimplemented for Android — every
+module in `services/deletion/` and every owner-scoped purge primitive it calls
+is platform-neutral by construction (`expo-secure-store` backs onto the
+Android Keystore the same way it backs onto the iOS Keychain, `expo-crypto` /
+Web Crypto supply CSPRNG bytes identically on both runtimes, and every purge
+primitive takes its target owner as an explicit argument rather than reading
+the live actor). iOS and Android now run the exact same
+`TerminalDeletionBridge` code path in `app/_layout.tsx`, at the exact same two
+lifecycle boundaries, with no platform conditional anywhere in that path.
 
 ---
 
@@ -175,14 +190,15 @@ Consequences, all enforced by test:
 ## 7. Lifecycle boundaries
 
 Cold start, and a real `background|inactive → active` transition — the same two
-boundaries `AppleCredentialStateBridge` uses, and for the same reason. No
-timers, no polling, no background fetch, no background task, no silent push, no
-new iOS background mode, no new entitlement, no new permission. An in-flight
-guard collapses overlapping foreground events into a single pass, and each pass
-is bounded to a small number of markers.
+boundaries `AppleCredentialStateBridge` uses on iOS (that bridge stays iOS-only;
+only its lifecycle SHAPE is reused here), for both iOS and Android since
+Repair 09. No timers, no polling, no background fetch, no background task, no
+silent push, no new background mode, no new entitlement, no new permission on
+either platform. An in-flight guard collapses overlapping foreground events
+into a single pass, and each pass is bounded to a small number of markers.
 
-`expo-secure-store` and `expo-crypto` were already shipped dependencies; this
-repair adds none.
+`expo-secure-store` and `expo-crypto` were already shipped dependencies on both
+platforms; neither Repair 07 nor Repair 09 adds a new one.
 
 ---
 

@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   AppState,
   type AppStateStatus,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -404,7 +403,7 @@ function AppleCredentialStateBridge() {
 }
 
 /**
- * Terminal account-deletion local cleanup (iOS only — Repair 07).
+ * Terminal account-deletion local cleanup (iOS Repair 07, Android Repair 09).
  *
  * THE GAP THIS CLOSES. Account deletion has always been asynchronous and
  * restorable: submitting it opens a 30-day lifecycle, and the permanent purge
@@ -429,21 +428,31 @@ function AppleCredentialStateBridge() {
  *
  * Bounded exactly like AppleCredentialStateBridge above: cold start, and a real
  * background/inactive -> active transition. No timer, no polling, no background
- * fetch, no background task, no new iOS capability, and nothing on the render
- * path. The reconciler holds its own in-flight guard, so overlapping lifecycle
- * events collapse into one pass.
+ * fetch, no background task, no new platform capability, and nothing on the
+ * render path. The reconciler holds its own in-flight guard, so overlapping
+ * lifecycle events collapse into one pass.
  *
- * iOS ONLY. Repair 07 is an iOS release blocker and the destructive half stays
- * contained to it; on Android this component mounts and does nothing at all.
+ * ONE SHARED PATH, NO PLATFORM GUARD. Every primitive this bridge calls
+ * (services/deletion/*, the owner-scoped purge targets in ownerTerminalPurge.ts)
+ * is platform-neutral: expo-secure-store backs onto the Android Keystore the
+ * same way it backs onto the iOS Keychain, expo-crypto/Web Crypto supply CSPRNG
+ * bytes identically on both runtimes, and every purge primitive takes its
+ * target owner as an explicit argument rather than reading the live actor. iOS
+ * carried the destructive half alone only until the Repair 06 backend contract
+ * existed to certify against; Android Repair 09 verified the same primitives
+ * against that contract and removed the platform guard rather than fork a
+ * second implementation. Until a project's backend has Repair 06 deployed, the
+ * intake response carries no `statusReceiptBound` field, every marker records
+ * `unsupported`, and this bridge's reconciliation pass never queries the
+ * network or purges anything on either platform — this is what keeps the path
+ * safe to enable on Android ahead of Repair 06 reaching production.
  */
 function TerminalDeletionBridge() {
   useEffect(() => {
-    if (Platform.OS !== 'ios') return;
     void reconcileTerminalDeletions();
   }, []);
 
   useEffect(() => {
-    if (Platform.OS !== 'ios') return;
     let appState: AppStateStatus = AppState.currentState;
     const subscription = AppState.addEventListener('change', (next) => {
       const cameForward = /inactive|background/.test(appState) && next === 'active';
