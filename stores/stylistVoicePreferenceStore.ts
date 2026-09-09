@@ -117,3 +117,27 @@ export function useStylistVoicePreferenceState(): StylistVoicePreferenceState {
     getStylistVoicePreferenceState,
   );
 }
+
+/**
+ * Narrow owner-scoped purge primitive for terminal account deletion (Repair 07).
+ *
+ * The preference is filed under a per-actor key, so removing exactly that key
+ * is structurally incapable of touching another actor's choice. The in-memory
+ * snapshot is left alone deliberately: it belongs to whoever is signed in NOW,
+ * which during terminal cleanup is usually somebody else.
+ */
+export async function purgeStylistVoicePreferenceForActor(
+  actorId: string,
+): Promise<{ ok: boolean; removed: number }> {
+  const target = typeof actorId === 'string' ? actorId.trim() : '';
+  if (!target) return { ok: false, removed: 0 };
+  try {
+    const key = await storageKey(target);
+    const existing = await AsyncStorage.getItem(key);
+    if (existing === null) return { ok: true, removed: 0 };
+    await AsyncStorage.removeItem(key);
+    return { ok: true, removed: 1 };
+  } catch {
+    return { ok: false, removed: 0 };
+  }
+}

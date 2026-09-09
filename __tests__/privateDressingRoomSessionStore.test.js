@@ -361,13 +361,52 @@ test('a missing actor context is refused', async () => {
 });
 
 test('no store function accepts an actor id, so a route cannot select one', () => {
-  // The actor is derived from the captured request only. Passing an extra
-  // argument that looks like an actor id must not change the partition.
-  const source = fs.readFileSync(
-    path.join(ROOT, 'services/privateDressingRoomSessionStore.ts'),
-    'utf8',
+  // ROUTE-SELECTION GUARD. The actor is derived from the captured request only:
+  // no route, screen or hook may hand this store an actor id and thereby choose
+  // whose partition it reads or writes.
+  //
+  // ONE AUDITED EXEMPTION (Repair 07): purgeDressingRoomSessionsForActor.
+  // Terminal account deletion is the one operation that must act for a
+  // NON-current actor — actor A's purge is confirmed after A signed out, often
+  // while B is signed in — so its target cannot come from the actor context.
+  // The exemption is narrowed here rather than removed, and the properties that
+  // make it safe are asserted below: it is destructive-only, it returns a count
+  // and never a record, and it is reachable from exactly one non-route module.
+  const source = fs.readFileSync(path.join(ROOT, 'services/privateDressingRoomSessionStore.ts'), 'utf8');
+
+  const takesActorId = (source.match(/export async function (\w+)\([^)]*actorId\s*:/g) || []).map(
+    (match) => /function (\w+)/.exec(match)[1],
   );
-  assert.equal(/export async function \w+\([^)]*actorId\s*:/.test(source), false);
+  assert.deepEqual(takesActorId, ['purgeDressingRoomSessionsForActor'], 'only the terminal-deletion purge may name an actor');
+
+  // Destructive-only: it hands back how many records went, never their contents.
+  const signature = new RegExp(
+    'export async function ' + 'purgeDressingRoomSessionsForActor' + '\\([^)]*\\): Promise<\\{ ok: boolean; removed: number \\}>',
+  );
+  assert.match(source, signature, 'the purge primitive returns a count, not records');
+
+  // Route-unreachable: only the terminal-deletion orchestrator may call it.
+  const callers = [];
+  for (const dir of ['app', 'components', 'hooks', 'contexts', 'services', 'stores']) {
+    const root = path.join(ROOT, dir);
+    if (!fs.existsSync(root)) continue;
+    const stack = [root];
+    while (stack.length) {
+      const current = stack.pop();
+      for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+        const full = path.join(current, entry.name);
+        if (entry.isDirectory()) stack.push(full);
+        else if (/\.(ts|tsx|js|jsx)$/.test(entry.name) && fs.readFileSync(full, 'utf8').includes('purgeDressingRoomSessionsForActor')) {
+          callers.push(path.relative(ROOT, full).replace(/\\/g, '/'));
+        }
+      }
+    }
+  }
+  assert.deepEqual(
+    callers.sort(),
+    ['services/privateDressingRoomSessionStore.ts', 'services/deletion/ownerTerminalPurge.ts'].sort(),
+    'the purge primitive is reachable only from the terminal-deletion orchestrator',
+  );
 });
 
 test('Android refuses the signed-out ownerless partition', async () => {

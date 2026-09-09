@@ -1517,8 +1517,10 @@ export async function sweepOrphanedClosetMedia(options = {}) {
  * by the captured owner id, preserves ownerless records and every other actor,
  * and unlinks media reference-aware. Idempotent and safe to retry.
  *
- * DELIBERATELY UNWIRED at deletion submission, matching the Recent Scan
- * primitive: terminal purge waits for confirmed server-side purge.
+ * NEVER RUNS AT DELETION SUBMISSION, matching the Recent Scan primitive:
+ * submission only opens a restorable window. Since Repair 07 this is called by
+ * services/deletion/ownerTerminalPurge.ts once the Repair 06 deletion-status
+ * endpoint confirms a terminal server-side purge.
  */
 export async function purgeLocalClosetForOwner(capturedOwnerId) {
   const owner =

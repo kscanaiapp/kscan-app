@@ -1615,9 +1615,10 @@ export async function recoverInterruptedClosetCandidates(actorRequest, options =
 /**
  * Owner-scoped purge primitive for account deletion.
  *
- * Mirrors services/closetLibrary.js#purgeLocalClosetForOwner, including being
- * DELIBERATELY UNWIRED at deletion submission: terminal purge waits for a
- * confirmed server-side purge.
+ * Mirrors services/closetLibrary.js#purgeLocalClosetForOwner, including WHEN it
+ * runs: never at deletion submission, which only opens a restorable window.
+ * Since Repair 07 it is called by services/deletion/ownerTerminalPurge.ts after
+ * the Repair 06 deletion-status endpoint confirms a terminal server-side purge.
  */
 export async function purgeLocalClosetCandidatesForOwner(capturedOwnerId) {
   const owner =
