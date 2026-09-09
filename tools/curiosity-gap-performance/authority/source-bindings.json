@@ -8,7 +8,7 @@
     "components/scan-results/PurchaseOptionsPanel.tsx": "1281af0b5c9e13bf487a881dcee21360bc1393b98b7c01146af7fae10b672507",
     "components/scan-room/AnalyzingScan.tsx": "6a44c7a8b563939926a34a62b0530e8e18e4105a2c7d2f6338e58af0df2e2f51",
     "components/scan-room/CaptureReview.tsx": "3f1388f6278b7c06f0b771e509d4f09bdcddf377220dd73cde07632224c99326",
-    "eas.json": "637328e578981a372b4c07ff99d1cd580c3bef5b10ca89edff6b9c476996ac40",
+    "eas.json": "a77c0af1dc803530834ad6ce61cd1a4c91fbdb8f8386bec8102b52a12fe2ceab",
     "hooks/useKScan.js": "925ab78d9abb986dfafec6656a6b51bd662d78268648a62188c91df2aff5e09c",
     "services/commerceDestination.ts": "876de38d7c039574a81a6e743c4f23470b885066f37d9bf72f833b87e356dc04",
     "services/commerceHydration.ts": "75788a3b128f906abb7a397b75f23b04e32189dcdb3398670093ec21ea481158",
@@ -30,5 +30,5 @@
     "supabase/functions/scan-identify/scanQuota.ts": "28c3524442bbf8bc79012514bcd1293222a2df991777c0329c1902f6f4a7d57d",
     "supabase/functions/scan-identify/shoppingProvider.ts": "71892f1dba27f2ff2648d83c930fc8270faaa167447d55811816f9a3026312c5"
   },
-  "binding_hash": "7f057e5611a3634d8fcf084e54285c693891705d84481d9b637c7fa2b2b71d5c"
+  "binding_hash": "2c5cd5bde4e2ab726e7475443191816c71cf94c3ad5a3fb0c779b86cdf8ad0f2"
 }
