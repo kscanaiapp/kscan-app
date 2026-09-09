@@ -123,3 +123,13 @@ product-search-response.json
 
 # Raw portrait source files (processed JPEGs are bundled)
 assets/stylist-avatars/portraits/raw/
+
+# Deno lockfile written by `npm run test:backend` (scripts/run-backend-tests.js).
+#
+# It is a per-run artifact, not a committed pin, and it lands at the repository
+# root. On the canonical backend authority branch that matters: an untracked
+# file makes `git status --porcelain` non-empty, which is exactly the
+# AUTHORITY_TREE_DIRTY condition scripts/verify-backend-authority.js refuses
+# to deploy from ("what would be deployed is not attributable to any commit").
+# Running the governed backend suite must not block the deploy preflight.
+deno.lock

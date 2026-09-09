@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-07T04:31:28.887Z",
-    "generatedFromGitSha": "6cb759641f86a09dc25ba7346842759736028c3b"
+    "generatedAtUtc": "2026-09-09T11:43:03.291Z",
+    "generatedFromGitSha": "806466ccaebfd4b45518df709ac69d2a454e45d9"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -11,6 +11,7 @@
       "apple-credential-link",
       "apple-revoke-credential",
       "commerce-watch-refresh",
+      "deletion-status",
       "handle-user-deletion",
       "kickscrew-sneaker-description",
       "kplus-activate",
@@ -42,7 +43,7 @@
         "bundleFileCount": 41,
         "treeFileCount": 67,
         "bundleHash": "45394f994382e1502aeca25209706098c783a72f3faaedd2d4b74536e5426118",
-        "treeHash": "d2ec33ef6ac96b6546bd5f38a730369345234bb1db2a5377e836f0e521ed5b94",
+        "treeHash": "1e3737bde2757eb7825df3f5ec1af500b90de6ce670027a2c1f0f5482c1c7b8b",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -241,7 +242,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
-            "sha256": "97107a41d5217d3a262547e49b29ab708b24d0a117f4f76b308a6241ebb4a870",
+            "sha256": "78be58d6dc16b9119fb14c966e9f3d950c099760073dc3675a5852693fb60cfe",
             "bundle": false
           },
           {
@@ -1055,19 +1056,39 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 2,
-        "treeFileCount": 2,
-        "bundleHash": "6d8442fc690990a2a67113d83b7b2a37bcad0ebb39fc63dd2de10a51bb814fc3",
-        "treeHash": "6d8442fc690990a2a67113d83b7b2a37bcad0ebb39fc63dd2de10a51bb814fc3",
+        "bundleFileCount": 5,
+        "treeFileCount": 6,
+        "bundleHash": "077c13e79c448c511e249455d74fc580dbfce3a74fe9d17c5da0006155a5beaf",
+        "treeHash": "f13fec73ada3d0b727c67e47c9b5ebe7afb30ac3e6aa1efc28c278c9a4540c22",
         "files": [
+          {
+            "path": "supabase/functions/_shared/deletion/common.ts",
+            "sha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/deletion/statusReceipt.ts",
+            "sha256": "7d698484bddd0b1c167ef5eb8476f4a334a5d3052f31006d4cf8d346cb91376d",
+            "bundle": true
+          },
           {
             "path": "supabase/functions/_shared/privacyRequestRateLimit.ts",
             "sha256": "22e1a4e8fcf40628b755167377a1c49e994c8efc7c9da710455a05336b25632f",
             "bundle": true
           },
           {
+            "path": "supabase/functions/handle-user-deletion/handler.test.ts",
+            "sha256": "7988969b0774836bbabdaad4bca806274b2bb5ec9339fb06620f2d91457ae350",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/handle-user-deletion/handler.ts",
+            "sha256": "66761821ad70bcd48854e52d53b5072d521b005b68ae1c3b8eda5d5e48cc81ba",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/handle-user-deletion/index.ts",
-            "sha256": "bfcddfc0cd45523887f8028f1332e7cd4a30052e501229637af9707db179569e",
+            "sha256": "d627c0f534e65aed27d547a56a8c5dc44470b4f4c2fa6dccafa2ca0b112fda27",
             "bundle": true
           }
         ]
@@ -1461,6 +1482,32 @@
           {
             "path": "supabase/functions/staging-health/index.ts",
             "sha256": "ac0f7dca696582b30006ab0f9c301a6add2f594aafc2b70952f6e91683401c6b",
+            "bundle": true
+          }
+        ]
+      },
+      {
+        "name": "deletion-status",
+        "entry": "supabase/functions/deletion-status/index.ts",
+        "remoteSpecifiers": [],
+        "bundleFileCount": 2,
+        "treeFileCount": 3,
+        "bundleHash": "03ba8050a6bcd210de7f4e90c918ead1a7a335628f800697ae731b005954884e",
+        "treeHash": "e049e2cbc64e1f29220eaece75d95c6b5498747676dbfacd3a755ab54435828f",
+        "files": [
+          {
+            "path": "supabase/functions/_shared/deletion/statusReceipt.ts",
+            "sha256": "7d698484bddd0b1c167ef5eb8476f4a334a5d3052f31006d4cf8d346cb91376d",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/deletion-status/config.toml",
+            "sha256": "43e9dec464217870a457bce806709aea59dc713630351bab7753628c65b4fa67",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/deletion-status/index.ts",
+            "sha256": "d1186f04e0ceab32c253c23d4e3228ba6b5cc1b081184997759c9368a2f16c5b",
             "bundle": true
           }
         ]
