@@ -125,10 +125,19 @@ test('committed manifest governs every governed function and the approved projec
   // apple-revoke-credential joined under EDGE-02: recovered from Git history
   // (commit e369fca9) and cross-verified against the live deployed source on
   // both Supabase projects before being governed here.
+  //
+  // deletion-status joined under Repair 06 -- the post-auth terminal
+  // deletion-status capability lookup. It is new backend source rather than a
+  // recovered deployment, so it is governed from birth: it carries a manifest
+  // entry, a privilege profile (serviceRole+dbRead only), a service-role
+  // allowlist justification, and verify_jwt = false declared in both
+  // supabase/config.toml and its own config.toml. It is deliberately NOT on
+  // the staging auto-deploy allowlist; promotion is a separate decision.
   assert.deepEqual(manifest.parity.expectedFunctions, [
     'apple-credential-link',
     'apple-revoke-credential',
     'commerce-watch-refresh',
+    'deletion-status',
     'handle-user-deletion',
     'kickscrew-sneaker-description',
     'kplus-activate',
