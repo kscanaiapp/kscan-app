@@ -209,19 +209,15 @@ creating the secret, or set the flag false until deploy completes. This lane did
 not change the flag — it is pre-existing state whose intent was not established
 here.
 
-**WL02-02 — MCP-applied migrations recorded under wall-clock ledger versions.**
-`SEVERITY=P3 · READINESS_BLOCKER=NO`
-`apply_migration` records its own timestamp, so the two migrations landed as
-ledger versions `20260909171001` / `20260909171017` while their repo filenames
-are `20260909115726` / `20260909170000`. Names match; versions do not. A later
-`supabase db push` from the repo would see both as unapplied and re-run them —
-harmless, since both are idempotent (`create table if not exists`,
-`create or replace`, `create index if not exists`), but it would add duplicate
-logical ledger entries. This is the same provenance-drift class F-03 came from,
-and it is a direct consequence of the governed CLI path (B3) being unavailable.
-`SUGGESTED_FIX`: on the next governed staging pass, record the mapping in
-`config/migration-authority-manifest.json` exactly as the earlier
-`watchlist_audit_*` entries do.
+**WL02-02 — CLOSED (was P3).** `apply_migration` records its own wall-clock
+version, so the two migrations landed as ledger `20260909171001` /
+`20260909171017` while their repo filenames are `20260909115726` /
+`20260909170000`. Names match; versions did not, and left undeclared the
+governed preflight would have reported *both* sides wrongly — the source
+versions as pending and the staging versions as drift.
+Closed through the mechanism this repo already has for exactly this:
+`config/migration-authority-manifest.json` -> `ledgerReconciliation`, two
+entries, classification `EQUIVALENT_RENUMBER`. See §10.
 
 **WL02-03 — APNs/FCM staging credential status not inspectable.**
 `SEVERITY=P4 · READINESS_BLOCKER=NO`
@@ -318,3 +314,74 @@ PRODUCTION
 Steps 1-3 are exactly the owner-provisioning steps that document already
 records. Once they are done, the remaining certification (F-02 scheduler proof,
 live Expo contract, N-4 runtime drain, N-5 live events) becomes executable.
+
+---
+
+## 10. WL02-02 closure — staging ledger aliases
+
+The remote ledger was **not** touched and no source migration was renamed. The
+divergence is *recorded*, not resolved by moving anything.
+
+### Why `entries[]` could not carry it
+
+`scripts/verify-migration-authority.js` check 5 hard-requires an entry's
+`canonicalFilename` version prefix to **equal** its `ledgerVersion` — "this is
+the actual thing `supabase db push` reconciles on". An entry for
+`20260909171001` pointing at `20260909115726_watchlist_push_receipts.sql` fails
+that check by construction. The only ways to satisfy it would be to rename the
+source file or to misstate a field; both are excluded. `entries[]` therefore
+*structurally cannot* express a renumber, and the aliases were recorded nowhere
+near it — `MIGRATION_AUTHORITY` still verifies 26 entries, unchanged.
+
+### The mechanism that can
+
+`ledgerReconciliation` exists for this and says so:
+
+> Records, per environment, which local migration VERSIONS are already
+> represented in that environment's applied ledger under a different version
+> identity (renumber) … This never renames, deletes, reorders or re-applies a
+> migration: it only records an explicit, evidence-backed decision that a
+> version difference is not a missing capability. Anything NOT listed here is
+> still treated as genuinely pending and blocks the gate.
+
+Its consumer is `scripts/staging-deploy-preflight.mjs` — precisely the governed
+path that would otherwise misclassify these. Twenty-eight such aliases already
+existed for this environment, including `20260830190000 -> 20260830214752`,
+which is the F-03 pair itself.
+
+### Classification: `EQUIVALENT_RENUMBER`, deliberately not `EXACT`
+
+Staging recorded 3937 and 3095 characters of statement text against source files
+of 9231 and 10152 bytes. The difference is comment/header text, omitted when the
+executable body was submitted. The SQL is semantically identical but **not**
+byte-identical, so `EXACT_CONTENT_RENUMBER` would have been an overclaim.
+
+### Proof
+
+`compareMigrations()` — the preflight's own classifier — run against the real
+local tree and the real staging ledger, with and without the entries:
+
+```
+BEFORE (entries absent)                AFTER (entries present)
+  pending 20260909115726   WRONG         pending  none                       OK
+  pending 20260909170000   WRONG         drift    none                       OK
+  drift   20260909171001   WRONG         reconciled 20260909115726 -> ...001  OK
+  drift   20260909171017   WRONG         reconciled 20260909170000 -> ...017  OK
+                                         reconciliation problems, all 30: 0
+```
+
+```
+REMOTE_LEDGER_MUTATED=NO
+SOURCE_MIGRATION_RENAMED=NO
+STAGING_ALIAS_RECORDED=YES
+MIGRATION_PROVENANCE=PASS
+MIGRATION_AUTHORITY=PASS (26 entries — unchanged; aliases are not entries[])
+FUTURE_GOVERNED_PUSH_DOES_NOT_MISCLASSIFY_THE_TWO_MIGRATIONS=YES
+```
+
+`__tests__/watchlistStagingLedgerAliases.test.js` pins the source-side contract
+in 11 assertions. Its negative control — deleting both aliases — turns it red
+with 6 named failures.
+
+**Still not done, deliberately:** no worker deployed, no secret provisioned, no
+scheduler activated. `WORKER_CAN_PROCESS=NO`.
