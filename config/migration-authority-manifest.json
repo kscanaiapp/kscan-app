@@ -611,6 +611,24 @@
             ],
             "classification": "EQUIVALENT_RENUMBER",
             "evidence": "Same logical name, applied under ledger version 20260902154435. public.get_item_reaction_counts present."
+          },
+          {
+            "localVersion": "20260909115726",
+            "logicalName": "watchlist_push_receipts",
+            "remoteVersions": [
+              "20260909171001"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "N-4. Applied to staging 2026-09-09 by the Watchlist Backend Readiness 02 lane, because public.watchlist_push_receipts was ABSENT on staging while the N-4 code had already landed on the release line. Applied through the Supabase MCP apply_migration surface (the governed scripts/deploy-staging-function.mjs path needs the supabase CLI and SUPABASE_ACCESS_TOKEN, neither available to that session), and that surface assigns its own wall-clock ledger version -- hence 20260909171001 rather than the source version. EQUIVALENT rather than EXACT: the executed statement is the source file's executable body with its comment/header text omitted (staging recorded 3937 chars against a 9231-byte source file), so the SQL is semantically identical but not byte-identical. Verified 2026-09-09 on staging: table present; RLS enabled with zero policies; anon and authenticated hold no grants; service_role holds SELECT/INSERT/UPDATE/DELETE; six CHECK constraints present; watchlist_push_receipts_ticket_uidx, _due_idx and _token_row_idx present; no raw push-token column. See docs/watchlist-backend-readiness-02-staging-certification.md."
+          },
+          {
+            "localVersion": "20260909170000",
+            "logicalName": "watchlist_f03_push_token_actor_isolation_reconciliation",
+            "remoteVersions": [
+              "20260909171017"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "F-03 forward reconciliation (PR #380). Applied to staging 2026-09-09 by the Watchlist Backend Readiness 02 lane via Supabase MCP apply_migration, which assigned wall-clock version 20260909171017 rather than the source version. EQUIVALENT rather than EXACT: the executed statement is the source file's executable body without its comment header (staging recorded 3095 chars against a 10152-byte source file). Functionally a no-op on staging, which already carried the DEF-WL-01 end state from ledger 20260830214752 -- the migration's own post-conditions executed and PASSED there, asserting both that user_device_push_tokens_live_token_uidx exists and that register_device_push_token carries the competing-route retirement. Note the sibling entry above: local 20260830190000 is itself reconciled to remote 20260830214752, which is exactly the ledger-vs-filename ordering split F-03 repaired in source."
           }
         ],
         "genuinelyUnapplied": [],
