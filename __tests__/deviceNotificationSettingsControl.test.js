@@ -93,24 +93,65 @@ function loadTsModule(rel, requireMap, { jsx = false, extras = {} } = {}) {
 
 // ── observing fakes ──────────────────────────────────────────────────────────
 
-/** AsyncStorage stand-in recording every read and write. */
-function createStorage(initial = {}) {
+/**
+ * AsyncStorage stand-in recording every read and write, with two hostile
+ * controls the F-N6-01/F-N6-02 scenarios need:
+ *
+ *  - `setFaulting(on, keys?)` makes operations throw, optionally for only some
+ *    keys. A whole-store outage is not the interesting case: the F-N6-02 hole
+ *    needs the device-id read to SUCCEED while the OFF marker fails, because a
+ *    total outage already fails closed for an unrelated reason (no device id).
+ *
+ *  - `gateNextReadOf(key)` holds one read open AFTER it has snapshotted its
+ *    value. That is what a slow read really is, and it is the only way to land
+ *    another writer strictly INSIDE an operation's read/write gap rather than
+ *    merely before it starts.
+ */
+function createStorage(initial = {}, options = {}) {
   const values = new Map(Object.entries(initial));
   const writes = [];
   const reads = [];
+  let faultKeys = options.faulting ? null : undefined; // null = all keys
+  let gate = null;
+
+  const failing = (key) =>
+    faultKeys !== undefined && (faultKeys === null || faultKeys.includes(key));
+
   return {
     values,
     writes,
     reads,
+    /** `keys` omitted faults every key; `false` clears the fault entirely. */
+    setFaulting(on, keys) {
+      faultKeys = on ? (keys ?? null) : undefined;
+    },
+    gateNextReadOf(key) {
+      let release;
+      const promise = new Promise((resolve) => {
+        release = resolve;
+      });
+      gate = { key, promise, used: false };
+      return () => release();
+    },
     getItem: async (key) => {
       reads.push(key);
-      return values.has(key) ? values.get(key) : null;
+      if (failing(key)) throw new Error('AsyncStorage unavailable');
+      // Snapshot BEFORE the gate. A read that began earlier returns the value
+      // as it was when it began — which is exactly what makes the gap real.
+      const snapshot = values.has(key) ? values.get(key) : null;
+      if (gate && gate.key === key && !gate.used) {
+        gate.used = true;
+        await gate.promise;
+      }
+      return snapshot;
     },
     setItem: async (key, value) => {
+      if (failing(key)) throw new Error('AsyncStorage unavailable');
       writes.push({ key, value });
       values.set(key, value);
     },
     removeItem: async (key) => {
+      if (failing(key)) throw new Error('AsyncStorage unavailable');
       writes.push({ key, value: null });
       values.delete(key);
     },
@@ -119,10 +160,7 @@ function createStorage(initial = {}) {
 
 /** Storage whose every operation throws, for the unreadable-state scenarios. */
 function createBrokenStorage() {
-  const boom = async () => {
-    throw new Error('AsyncStorage unavailable');
-  };
-  return { values: new Map(), writes: [], reads: [], getItem: boom, setItem: boom, removeItem: boom };
+  return createStorage({}, { faulting: true });
 }
 
 function createAppState() {
@@ -1863,4 +1901,266 @@ forPlatform('N-6: an unreadable device state never reports a confirmed OFF', asy
   assert.equal(result.reason, 'device_state_unreadable');
   assert.notEqual(result.alreadyUnregistered, true);
   assert.deepEqual(stack.actions(), [], 'and nothing is asserted to the backend either');
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// §P  F-N6-02 — the AUTOMATIC registration path fails CLOSED on an unreadable
+//     preference authority
+//
+// The hole: the explicit-OFF marker was read with a fail-OPEN catch. That is
+// right for an interactive request, where the user is present and asking for
+// delivery. It is wrong for the token-refresh listener, which registers on an
+// event the user neither sees nor triggers — there, one transient storage fault
+// silently rebuilt a route the user had explicitly revoked, with no UI anywhere
+// reflecting it. Durable OFF has to survive a bad read or it is not durable.
+// ════════════════════════════════════════════════════════════════════════════
+
+forPlatform('F-N6-02: OFF + an unreadable OFF marker + a token refresh registers NOTHING', async (platform) => {
+  // A pre-N-6 install (absent owner record) is used deliberately: it is the one
+  // state in which the owner guard is permissive, so the OFF marker is the only
+  // thing standing between the refresh and a re-registration. Anything else
+  // would let a second guard mask the hole and make this test vacuous.
+  const storage = createStorage({ [DEVICE_ID_KEY]: 'device-a' });
+  const stack = loadStack({ platform, storage, actorId: 'actor-a' });
+
+  await stack.push.attachPushTokenRefreshListener();
+  await stack.push.disableDeviceNotifications();
+  assert.equal(storage.values.get(DISABLED_KEY), 'true');
+  stack.invocations.length = 0;
+
+  // A transient fault on the marker ONLY: the device id still reads, so the
+  // path is not short-circuited for an unrelated reason.
+  storage.setFaulting(true, [DISABLED_KEY]);
+  for (const handler of stack.pushTokenHandlers) handler({ data: 'ExponentPushToken[rolled]' });
+  await settle(8);
+
+  assert.deepEqual(
+    stack.actions(),
+    [],
+    'an unreadable OFF authority must mean NOT AUTHORISED, never "carry on"',
+  );
+});
+
+forPlatform('F-N6-02: an unreadable OWNER record also refuses the automatic path', async (platform) => {
+  // Owner names a DIFFERENT actor, so the correct answer is "refuse". If the
+  // fault collapsed into "absent", the path would read that as a pre-N-6
+  // install and register a route for an actor who never opted in.
+  const storage = createStorage({ [DEVICE_ID_KEY]: 'device-a', [OWNER_KEY]: 'actor-b' });
+  const stack = loadStack({ platform, storage, actorId: 'actor-a' });
+
+  await stack.push.attachPushTokenRefreshListener();
+  stack.invocations.length = 0;
+
+  storage.setFaulting(true, [OWNER_KEY]);
+  for (const handler of stack.pushTokenHandlers) handler({ data: 'ExponentPushToken[rolled]' });
+  await settle(8);
+
+  assert.deepEqual(stack.actions(), []);
+});
+
+forPlatform('F-N6-02: OFF + a storage fault + an app resume registers NOTHING and never shows ON', async (platform) => {
+  const storage = createStorage({ [DEVICE_ID_KEY]: 'device-a', [DISABLED_KEY]: 'true', [OWNER_KEY]: '' });
+  const view = renderSection({ platform, storage });
+  await view.flush();
+  await view.stack.push.attachPushTokenRefreshListener();
+  assert.equal(view.toggle().props.value, false);
+
+  storage.setFaulting(true);
+  view.stack.invocations.length = 0;
+  view.stack.appState.emit('active');
+  await view.flush();
+  for (const handler of view.stack.pushTokenHandlers) handler({ data: 'ExponentPushToken[rolled]' });
+  await settle(8);
+
+  assert.deepEqual(view.stack.actions(), [], 'a resume under fault registers nothing');
+  assert.deepEqual(activationCalls(view.stack), []);
+  assert.equal(view.toggle(), null, 'and the surface asserts no position it cannot support');
+  assert.ok(view.notices().some((p) => p.testID === 'settings-device-notifications-unreadable'));
+});
+
+forPlatform('F-N6-02: an unreadable state can never silently become ON', async (platform) => {
+  const storage = createStorage({ [DEVICE_ID_KEY]: 'device-a', [DISABLED_KEY]: 'true', [OWNER_KEY]: '' });
+  const stack = loadStack({ platform, storage });
+  storage.setFaulting(true);
+  const hook = renderHook(stack);
+  await hook.flush();
+  assert.equal(hook.current.status, 'unreadable');
+
+  // Nothing that is not an explicit user ON may move it.
+  stack.appState.emit('active');
+  await hook.flush();
+  await hook.current.refresh();
+  await hook.flush();
+  assert.equal(hook.current.status, 'unreadable');
+  assert.deepEqual(stack.actions(), []);
+});
+
+forPlatform('F-N6-02: once storage recovers, an explicit ON still registers and clears the durable OFF', async (platform) => {
+  // Failing closed must not strand the user: the interactive path never
+  // consults the OFF marker, so recovery needs no repair step of its own.
+  const storage = createStorage({ [DEVICE_ID_KEY]: 'device-a', [DISABLED_KEY]: 'true', [OWNER_KEY]: '' });
+  const stack = loadStack({ platform, storage });
+  storage.setFaulting(true);
+  const hook = renderHook(stack);
+  await hook.flush();
+  assert.equal(hook.current.status, 'unreadable');
+
+  storage.setFaulting(false);
+  await hook.current.refresh();
+  await hook.flush();
+  assert.equal(hook.current.status, 'off');
+
+  await hook.current.enable();
+  await hook.flush();
+
+  assert.deepEqual(stack.actions(), ['register_push_token']);
+  assert.equal(hook.current.status, 'on');
+  assert.equal(storage.values.has(DISABLED_KEY), false);
+  assert.equal(storage.values.get(OWNER_KEY), 'actor-a');
+});
+
+forPlatform('F-N6-02: a readable pre-N-6 install still re-registers on refresh (guard did not over-reach)', async (platform) => {
+  // NEGATIVE CONTROL for the fail-closed change: absent is NOT unreadable, and
+  // NOTIF-16 recovery for a device that legitimately opted in is untouched.
+  const storage = createStorage({ [DEVICE_ID_KEY]: 'device-a' });
+  const stack = loadStack({ platform, storage, actorId: 'actor-a' });
+
+  await stack.push.attachPushTokenRefreshListener();
+  stack.invocations.length = 0;
+  for (const handler of stack.pushTokenHandlers) handler({ data: 'ExponentPushToken[rolled]' });
+  await settle(8);
+
+  assert.deepEqual(stack.actions(), ['register_push_token']);
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// §Q  F-N6-01 — the owner record's serialized mutation authority
+//
+// Every owner mutation is a read-decide-write and AsyncStorage has no
+// compare-and-swap, so a second writer landing between one operation's read and
+// its write is invisible to it. These tests inject that writer strictly INSIDE
+// the gap — by holding the read open after it has snapshotted its value — and
+// assert that an ownership actor B has committed is never cleared by actor A.
+// ════════════════════════════════════════════════════════════════════════════
+
+forPlatform('F-N6-01: actor B registering INSIDE actor A’s release gap keeps its ownership', async (platform) => {
+  const storage = createStorage({ [DEVICE_ID_KEY]: 'device-a', [OWNER_KEY]: 'actor-a' });
+  const stack = loadStack({ platform, storage, actorId: 'actor-a' });
+
+  // A signs out. Its release reads the owner record; the read is held open
+  // AFTER snapshotting 'actor-a', so A is now inside its read/write gap.
+  const releaseGate = storage.gateNextReadOf(OWNER_KEY);
+  const slowRelease = stack.push.revokeWatchAlertsForThisDevice();
+  await settle(4);
+
+  // B arrives and registers FOR REAL while A is stuck in that gap.
+  stack.actorContext.advanceActorEpoch('actor-b');
+  const bRegistration = stack.push.enableDeviceNotifications();
+  await settle(8);
+  assert.ok(
+    stack.actions().includes('register_push_token'),
+    'B must genuinely hold a live backend route for this test to mean anything',
+  );
+
+  releaseGate();
+  assert.equal(await slowRelease, 'revoked');
+  assert.equal((await bRegistration).ok, true);
+  await settle(8);
+
+  assert.equal(
+    storage.values.get(OWNER_KEY),
+    'actor-b',
+    'A’s stale release must not clear an ownership B committed',
+  );
+
+  // And the control tells B the truth about the route B actually has.
+  const hook = renderHook(stack, { actorKey: 'user:actor-b' });
+  await hook.flush();
+  assert.equal(hook.current.status, 'on', 'a live route must never render a false OFF');
+});
+
+forPlatform('F-N6-01: an actor A release that arrives after B has committed observes B and no-ops', async (platform) => {
+  const storage = createStorage({ [DEVICE_ID_KEY]: 'device-a', [OWNER_KEY]: 'actor-a' });
+  const stack = loadStack({ platform, storage, actorId: 'actor-a' });
+
+  // A's release is held BEFORE it enters the owner authority at all, so B's
+  // registration wins the queue outright — the other half of the ordering.
+  const releaseGate = storage.gateNextReadOf(DEVICE_ID_KEY);
+  const slowRelease = stack.push.revokeWatchAlertsForThisDevice();
+  await settle(4);
+
+  stack.actorContext.advanceActorEpoch('actor-b');
+  assert.equal((await stack.push.enableDeviceNotifications()).ok, true);
+  assert.equal(storage.values.get(OWNER_KEY), 'actor-b');
+
+  releaseGate();
+  await slowRelease;
+  await settle(8);
+
+  assert.equal(storage.values.get(OWNER_KEY), 'actor-b', 'A must read B and stand down');
+});
+
+forPlatform('F-N6-01: a stale explicit OFF cannot clear an ownership committed after it', async (platform) => {
+  // The same race reached through the user-facing control rather than logout.
+  const storage = createStorage({ [DEVICE_ID_KEY]: 'device-a', [OWNER_KEY]: 'actor-a' });
+  const stack = loadStack({ platform, storage, actorId: 'actor-a' });
+
+  const releaseGate = storage.gateNextReadOf(OWNER_KEY);
+  const slowDisable = stack.push.disableDeviceNotifications();
+  await settle(4);
+
+  stack.actorContext.advanceActorEpoch('actor-b');
+  const bRegistration = stack.push.enableDeviceNotifications();
+  await settle(8);
+
+  releaseGate();
+  await slowDisable;
+  await bRegistration;
+  await settle(8);
+
+  assert.equal(storage.values.get(OWNER_KEY), 'actor-b');
+});
+
+forPlatform('F-N6-01: a claim overtaken by a NEWER actor boundary writes nothing', async (platform) => {
+  // B's claim is still in flight when C arrives. B's late completion must not
+  // backfill this device to B, which would be a false ON for C.
+  const storage = createStorage({ [DEVICE_ID_KEY]: 'device-a' });
+  const stack = loadStack({ platform, storage, actorId: 'actor-b' });
+
+  const releaseGate = storage.gateNextReadOf(DEVICE_ID_KEY);
+  const slowClaim = stack.push.claimDeviceForCurrentActor();
+  await settle(4);
+
+  stack.actorContext.advanceActorEpoch('actor-c');
+  releaseGate();
+  await slowClaim;
+  await settle(6);
+
+  assert.equal(
+    storage.values.has(OWNER_KEY),
+    false,
+    'a superseded claim must not attribute this device to the actor who left',
+  );
+});
+
+test('F-N6-01: every owner mutation goes through the one serialized authority', () => {
+  const source = read('services/watchlist/pushRegistration.ts');
+  // The raw writer is named to be unmistakable, and may appear ONLY inside the
+  // exclusive authority's own helpers.
+  const rawWrites = [...source.matchAll(/writeDevicePushOwnerUnsafe\(/g)].length;
+  assert.ok(rawWrites >= 4, 'the raw writer should still be reachable from the guarded helpers');
+  // No caller outside the authority may write the record directly.
+  for (const [name] of [['recordDevicePushOwner'], ['releaseDevicePushOwnerIfHeldBy']]) {
+    assert.ok(source.includes(`async function ${name}`), `${name} must exist`);
+  }
+  assert.match(source, /function runExclusiveDevicePushOwnerMutation/);
+  // Each of the five owner-changing operations participates.
+  for (const site of [
+    'await recordDevicePushOwner(registeringActor)',        // registration (both paths)
+    'await releaseDevicePushOwnerIfHeldBy(departing)',      // logout release
+    'await releaseDevicePushOwnerIfHeldBy(actingActor)',    // explicit revoke
+    'await runExclusiveDevicePushOwnerMutation(async () => {', // claim + backfill
+  ]) {
+    assert.ok(source.includes(site), `missing serialized owner mutation: ${site}`);
+  }
 });

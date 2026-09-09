@@ -77,22 +77,43 @@ const DEVICE_PUSH_OWNER_STORAGE_KEY = 'kscan-watchlist-device-push-owner';
 /** The explicit "no route on this device" value. Distinct from an absent key. */
 const NO_DEVICE_PUSH_OWNER = '';
 
-/** Absent/unreadable both read as null: unknown, never as "no owner". */
-async function readDevicePushOwner(): Promise<string | null> {
+/**
+ * Reads the record, keeping an unreadable store DISTINGUISHABLE from an absent
+ * key.
+ *
+ * The distinction is the whole point for the automatic registration path: an
+ * absent record means "a pre-N-6 install, behave as before"; an unreadable one
+ * means "we do not know", and an automatic path that treats those the same will
+ * happily register on a device whose owner or OFF marker it simply failed to
+ * read.
+ */
+async function readDevicePushOwnerWithFault(): Promise<
+  { ok: true; owner: string | null } | { ok: false }
+> {
   try {
-    return await AsyncStorage.getItem(DEVICE_PUSH_OWNER_STORAGE_KEY);
+    return { ok: true, owner: await AsyncStorage.getItem(DEVICE_PUSH_OWNER_STORAGE_KEY) };
   } catch {
-    return null;
+    return { ok: false };
   }
 }
 
+/** The observing read. An unreadable store answers null: unknown, never "no owner". */
+async function readDevicePushOwner(): Promise<string | null> {
+  const result = await readDevicePushOwnerWithFault();
+  return result.ok ? result.owner : null;
+}
+
 /**
- * Records the owner. A null actor id removes the record rather than writing the
- * "no owner" sentinel: an unattributable registration is unknown, and claiming
- * "no route" over a route that was just armed would be the false-OFF this
- * repair exists to prevent.
+ * The raw write. NEVER call this directly -- every owner mutation must go
+ * through runExclusiveDevicePushOwnerMutation below, which is what makes the
+ * read-decide-write sequences atomic with respect to one another.
+ *
+ * A null actor id removes the record rather than writing the "no owner"
+ * sentinel: an unattributable registration is unknown, and claiming "no route"
+ * over a route that was just armed would be the false-OFF this repair exists
+ * to prevent.
  */
-async function writeDevicePushOwner(actorId: string | null): Promise<void> {
+async function writeDevicePushOwnerUnsafe(actorId: string | null): Promise<void> {
   try {
     if (actorId === null) {
       await AsyncStorage.removeItem(DEVICE_PUSH_OWNER_STORAGE_KEY);
@@ -106,24 +127,87 @@ async function writeDevicePushOwner(actorId: string | null): Promise<void> {
   }
 }
 
-/** Called after a registration that actually succeeded. */
-async function recordDevicePushOwnerForCurrentActor(): Promise<void> {
-  await writeDevicePushOwner(currentActorId());
+/**
+ * F-N6-01. THE single serialized mutation authority for the owner record.
+ *
+ * THE RACE THIS CLOSES
+ *
+ * Every owner mutation is a read-decide-write, and AsyncStorage offers no
+ * compare-and-swap, so a second writer landing between one operation's read and
+ * its write is invisible to it:
+ *
+ *   actor A's logout release reads owner = A
+ *   actor B signs in and registers, committing owner = B
+ *   actor A's release, still holding its stale read, writes "no owner"
+ *   -> B has a LIVE backend route and the control renders OFF
+ *
+ * That is a false OFF over a real delivery channel: the exact failure N-6
+ * exists to remove, arrived at through concurrency rather than through
+ * hydration. Re-reading immediately before the write does not close it -- it
+ * only narrows the window, because the sequence is still read -> await ->
+ * write with no serialization between the two.
+ *
+ * THE MECHANISM
+ *
+ * A promise chain. Each mutation runs only after the previous one has settled,
+ * so a read and the write that depends on it are atomic with respect to every
+ * other owner mutation in this process. There is exactly one JavaScript runtime
+ * in a React Native app, and this record is written from nowhere else, so
+ * in-process serialization IS the complete ordering authority here.
+ *
+ * The chain survives failure: `.then(mutation, mutation)` runs the next
+ * operation whether the previous one resolved or rejected, and the stored tail
+ * swallows both outcomes, so one bad mutation can never deadlock the queue.
+ * Every operation inside is a single local AsyncStorage call already wrapped in
+ * its own try/catch, so the critical section is short by construction.
+ *
+ * The resulting orderings are exactly the two that are safe:
+ *   A's release first -> clears A -> B's registration then writes B
+ *   B's registration first -> owner is B -> A's release reads B and no-ops
+ * There is no interleaving in which A clears an ownership B has committed.
+ */
+let devicePushOwnerMutationQueue: Promise<unknown> = Promise.resolve();
+
+function runExclusiveDevicePushOwnerMutation<T>(mutation: () => Promise<T>): Promise<T> {
+  const run = devicePushOwnerMutationQueue.then(mutation, mutation);
+  devicePushOwnerMutationQueue = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
 }
 
 /**
- * Compare-and-clear. Only ever removes a claim that still names `actorId`.
+ * Records the owner after a registration that actually succeeded.
+ *
+ * Takes the actor EXPLICITLY rather than reading the live one: the actor must
+ * be the one whose session actually created the route, captured before the
+ * registration's first await. Writing whoever happens to be current when this
+ * resolves would attribute A's route to B — a false ON for an actor who has
+ * none.
+ */
+async function recordDevicePushOwner(actorId: string | null): Promise<void> {
+  await runExclusiveDevicePushOwnerMutation(() => writeDevicePushOwnerUnsafe(actorId));
+}
+
+/**
+ * Compare-and-clear. Only ever removes a claim that still names `actorId`, with
+ * the comparison and the write inside ONE exclusive block.
  *
  * RP-109 depends on this: a sign-out revocation whose completion lands after
- * the NEXT actor has signed in (and possibly registered) must mutate nothing
- * of theirs. Naming the departing actor makes that structurally impossible
- * rather than merely unlikely.
+ * the NEXT actor has signed in — and after they have registered — must mutate
+ * nothing of theirs. Naming the departing actor makes that structurally
+ * impossible rather than merely unlikely, and the serialization is what makes
+ * "still names" true at the moment of writing rather than at the moment of
+ * reading.
  */
 async function releaseDevicePushOwnerIfHeldBy(actorId: string | null): Promise<void> {
   if (actorId === null) return;
-  const owner = await readDevicePushOwner();
-  if (owner !== actorId) return;
-  await writeDevicePushOwner(NO_DEVICE_PUSH_OWNER);
+  await runExclusiveDevicePushOwnerMutation(async () => {
+    const owner = await readDevicePushOwner();
+    if (owner !== actorId) return;
+    await writeDevicePushOwnerUnsafe(NO_DEVICE_PUSH_OWNER);
+  });
 }
 
 /**
@@ -300,18 +384,29 @@ async function readDeviceIdWithFault(): Promise<
 }
 
 /**
- * RP-104. True only when the user explicitly turned K Scan AI Notifications OFF
- * on this device and has not turned them back on.
+ * RP-104 / F-N6-02. The explicit-OFF marker as THREE states, because "we could
+ * not read it" is not the same answer as "it is not set".
  *
- * Fails OPEN (returns false) on a storage fault: an unreadable marker must not
- * silently suppress a route the user asked for. The backend row remains the
- * authority on whether anything is actually deliverable.
+ * The original reader collapsed those two and failed OPEN, on the reasoning
+ * that an unreadable marker must not suppress a route the user asked for. That
+ * reasoning holds for an INTERACTIVE path, where the user is present and asking
+ * for delivery right now. It does not hold for the AUTOMATIC one: a push-token
+ * refresh is an event the user neither sees nor triggers, and failing open
+ * there let a transient storage fault silently rebuild a route the user had
+ * explicitly revoked — with no UI anywhere reflecting it. Durable OFF has to
+ * survive a bad read, or it is not durable.
+ *
+ * So the state is reported honestly and each caller decides. Today the only
+ * caller is the automatic refresh path, and it fails CLOSED.
  */
-async function isDevicePushExplicitlyDisabled(): Promise<boolean> {
+type DevicePushDisableState = 'disabled' | 'enabled' | 'unreadable';
+
+async function readDevicePushDisableState(): Promise<DevicePushDisableState> {
   try {
-    return (await AsyncStorage.getItem(DEVICE_PUSH_DISABLED_STORAGE_KEY)) === 'true';
+    const marker = await AsyncStorage.getItem(DEVICE_PUSH_DISABLED_STORAGE_KEY);
+    return marker === 'true' ? 'disabled' : 'enabled';
   } catch {
-    return false;
+    return 'unreadable';
   }
 }
 
@@ -404,6 +499,11 @@ export type RequestWatchAlertsResult =
  * stays false), never as a broken intermediate state.
  */
 export async function requestWatchAlerts(watchId: string): Promise<RequestWatchAlertsResult> {
+  // N-6: captured before the first await, so the route this creates is recorded
+  // against the actor whose session actually created it -- never against
+  // whoever happens to be current when the registration finally resolves.
+  const registeringActor = currentActorId();
+
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
     return { ok: false, reason: 'unsupported_platform' };
   }
@@ -493,7 +593,7 @@ export async function requestWatchAlerts(watchId: string): Promise<RequestWatchA
   // N-6: and the route that now exists belongs to THIS actor. Recorded on
   // every path that registers, so the Settings control and the token-refresh
   // listener read the same fact.
-  await recordDevicePushOwnerForCurrentActor();
+  await recordDevicePushOwner(registeringActor);
 
   return { ok: true };
 }
@@ -518,6 +618,12 @@ export async function requestWatchAlerts(watchId: string): Promise<RequestWatchA
  * nothing. Never throws and never blocks sign-in.
  */
 export async function claimDeviceForCurrentActor(): Promise<void> {
+  // F-N6-01: captured SYNCHRONOUSLY, before the first await, so the ownership
+  // this reconciles names the actor the claim was made FOR. Reading the live
+  // actor after the round trip instead would let a claim that has been
+  // overtaken by a newer boundary attribute this device to whoever arrived
+  // last -- on the strength of a claim that was never made for them.
+  const arriving = currentActorId();
   try {
     // Deliberately does NOT mint an id: a device that never registered for
     // alerts has no route to retire.
@@ -535,23 +641,31 @@ export async function claimDeviceForCurrentActor(): Promise<void> {
     //
     // A failed claim tells us nothing, so nothing is written.
     if (claim.error) return;
-    const arriving = currentActorId();
     if (!arriving) return;
-    const owner = await readDevicePushOwner();
-    if (owner === null) {
-      // Pre-N-6 install: no record was ever written, and this device has an id,
-      // so a registration happened at some point. Attributing it to the actor
-      // present at this claim matches what the pre-N-6 code already assumed,
-      // and converts the install to the exact scheme for every later
-      // transition. Deliberately NOT written as "no owner": that would present
-      // OFF over a route that may well be live, which is the one direction of
-      // untruth this repair must never introduce.
-      await writeDevicePushOwner(arriving);
-      return;
-    }
-    if (owner !== arriving) {
-      await writeDevicePushOwner(NO_DEVICE_PUSH_OWNER);
-    }
+    // F-N6-01: the read, the decision and the write are ONE exclusive block, so
+    // no registration or release can land between them.
+    await runExclusiveDevicePushOwnerMutation(async () => {
+      // A claim that has been overtaken by a NEWER actor boundary must not
+      // write: its own claim already ran for the actor who is now current, and
+      // a late write here would attribute this device on the strength of a
+      // claim that was never made for them.
+      if (currentActorId() !== arriving) return;
+      const owner = await readDevicePushOwner();
+      if (owner === null) {
+        // Pre-N-6 install: no record was ever written, and this device has an
+        // id, so a registration happened at some point. Attributing it to the
+        // actor present at this claim matches what the pre-N-6 code already
+        // assumed, and converts the install to the exact scheme for every later
+        // transition. Deliberately NOT written as "no owner": that would
+        // present OFF over a route that may well be live, which is the one
+        // direction of untruth this repair must never introduce.
+        await writeDevicePushOwnerUnsafe(arriving);
+        return;
+      }
+      if (owner !== arriving) {
+        await writeDevicePushOwnerUnsafe(NO_DEVICE_PUSH_OWNER);
+      }
+    });
   } catch {
     // Silent: a failed claim must never fail or delay a sign-in. The server
     // still retires the foreign route the moment this actor registers.
@@ -711,6 +825,10 @@ export async function enableDeviceNotifications(): Promise<EnableDeviceNotificat
   // after this line changes the generation, and the check below abandons this
   // registration instead of re-arming the route the user just turned off.
   const generation = devicePushDisableGeneration;
+  // N-6: captured on the same line of reasoning. The registration below runs on
+  // THIS actor's session, so the ownership it records must name THIS actor even
+  // if the account changes while it is in flight.
+  const registeringActor = currentActorId();
 
   if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
     return { ok: false, reason: 'unsupported_platform', canAskAgain: false };
@@ -798,7 +916,7 @@ export async function enableDeviceNotifications(): Promise<EnableDeviceNotificat
   // succeeded, and only on the path the user explicitly asked for.
   await clearDevicePushExplicitlyDisabled();
   // N-6: the same registration, recorded against the actor it was made for.
-  await recordDevicePushOwnerForCurrentActor();
+  await recordDevicePushOwner(registeringActor);
 
   return { ok: true, canAskAgain: true };
 }
@@ -863,6 +981,12 @@ export async function disableDeviceNotifications(): Promise<DisableDeviceNotific
   // before it reaches its own registration gate.
   devicePushDisableGeneration += 1;
 
+  // F-N6-01: captured synchronously, before the first await, so the ownership
+  // release below names the actor who actually asked for this OFF. A disable
+  // whose completion lands after another actor has signed in and registered
+  // must not clear THEIR ownership.
+  const actingActor = currentActorId();
+
   const stored = await readDeviceIdWithFault();
   if (stored.ok === false) {
     // N-6: unreadable is not "unregistered". The explicit intent is still
@@ -877,8 +1001,10 @@ export async function disableDeviceNotifications(): Promise<DisableDeviceNotific
     // No identifier means no route. Record the explicit intent and stop —
     // no minted id, no token, no permission prompt, no backend call.
     await markDevicePushExplicitlyDisabled();
-    // N-6: and there is provably nothing registered here for anyone.
-    await writeDevicePushOwner(NO_DEVICE_PUSH_OWNER);
+    // N-6: and this actor provably holds nothing here. Compare-and-clear, so a
+    // late completion cannot release an ownership another actor has since
+    // committed.
+    await releaseDevicePushOwnerIfHeldBy(actingActor);
     return { ok: true, alreadyUnregistered: true };
   }
 
@@ -907,11 +1033,14 @@ export async function disableDeviceNotifications(): Promise<DisableDeviceNotific
     return { ok: false, reason: 'backend_unavailable' };
   }
 
-  // N-6: written only AFTER a revocation that actually landed. A failed revoke
+  // N-6: released only AFTER a revocation that actually landed. A failed revoke
   // leaves the record exactly as it was, because the route may still be live
   // and a Settings control that read "not registered" over it would be the
   // false OFF this lane exists to prevent.
-  await writeDevicePushOwner(NO_DEVICE_PUSH_OWNER);
+  //
+  // F-N6-01: and only if the record still names the actor who asked for this
+  // OFF, decided inside the serialized authority.
+  await releaseDevicePushOwnerIfHeldBy(actingActor);
 
   return { ok: true };
 }
@@ -949,9 +1078,16 @@ export async function attachPushTokenRefreshListener(): Promise<() => void> {
     void (async () => {
       const deviceId = await readDeviceId();
       if (!deviceId) return;
-      // RP-104: an automatic refresh may never re-arm a route the user
-      // explicitly turned off. Checked before any network work.
-      if (await isDevicePushExplicitlyDisabled()) return;
+      // RP-104 / F-N6-02: an automatic refresh may never re-arm a route the
+      // user explicitly turned off — and may not register while it cannot tell
+      // whether they did. This whole path is registration WITHOUT a user
+      // present, so an unreadable authority means NOT AUTHORISED, not "carry
+      // on". Checked before any network work.
+      //
+      // The interactive route out is untouched: enableDeviceNotifications()
+      // never consults this marker, so once storage is readable again an
+      // explicit ON registers and clears the OFF exactly as before.
+      if ((await readDevicePushDisableState()) !== 'enabled') return;
       // N-6: nor may it arm a route for an actor who never asked for one.
       //
       // The device id survives every revocation by design, so before this
@@ -966,7 +1102,13 @@ export async function attachPushTokenRefreshListener(): Promise<() => void> {
       // registers, exactly as it did before, so no device that legitimately
       // opted in loses NOTIF-16 token-refresh recovery. Only a record that
       // positively names no owner, or a different actor, refuses.
-      const owner = await readDevicePushOwner();
+      // Same fail-closed rule for the same reason: an UNREADABLE record refuses
+      // (F-N6-02), while an ABSENT one — a pre-N-6 install — still registers,
+      // exactly as it did before, so no device that legitimately opted in loses
+      // NOTIF-16 token-refresh recovery.
+      const ownership = await readDevicePushOwnerWithFault();
+      if (ownership.ok === false) return;
+      const owner = ownership.owner;
       if (owner !== null && owner !== currentActorId()) return;
       const projectId = getExplicitEasProjectId();
       if (!projectId) return;
