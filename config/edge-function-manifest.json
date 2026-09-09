@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-09T11:43:03.291Z",
-    "generatedFromGitSha": "806466ccaebfd4b45518df709ac69d2a454e45d9"
+    "generatedAtUtc": "2026-09-09T12:31:39.162Z",
+    "generatedFromGitSha": "faa02c390ed5d9626fdbe3cb827decee9d77dbe8"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -388,10 +388,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 13,
-        "treeFileCount": 16,
-        "bundleHash": "5f885310a2b3bee5c84d185d9d4959a13e85164828f6d7222874ac91e5bd59c7",
-        "treeHash": "e302d733d6e949e4ecd881a9a3d4854ca370a5b890e7dd1cde17fdc370f96234",
+        "bundleFileCount": 14,
+        "treeFileCount": 17,
+        "bundleHash": "87898c269a4c0b41d01e798b230c0afbf8f5ecc0db3586c3f60d8e84fcf54843",
+        "treeHash": "9f76b15ca295cdc1bfb1ee7f860b65a35fc25ab36c8538d921c95ff5aad480a7",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -410,12 +410,17 @@
           },
           {
             "path": "supabase/functions/commerce-watch-refresh/index.ts",
-            "sha256": "914dba0ad0dc317045b79888be7c41c79b1716dd919ba970d8c5cf56e34e2d4b",
+            "sha256": "c090a576d65fa26e915e94dd6db783b19e5111e3bb14f873a4b95923efa0d9ff",
             "bundle": true
           },
           {
             "path": "supabase/functions/commerce-watch-refresh/pushDelivery.ts",
             "sha256": "f6fa42466c7ed673559c319aa6e4e973b50a4213cedc3a49512c0d97ed87fb35",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/commerce-watch-refresh/receiptProcessing.ts",
+            "sha256": "4e4ce5c0baee67226216d342f9853877e533568d02cd7704f03c207b895f4b93",
             "bundle": true
           },
           {
@@ -435,7 +440,7 @@
           },
           {
             "path": "supabase/functions/commerce-watch-refresh/watchRefreshConfig.ts",
-            "sha256": "2469468236f7f8e6f48a077f573919708819430c9c54d3ba39ed2e404b5bf395",
+            "sha256": "bdb5a51b52f8de1b1d9032fa31d60488832b9c13de392d5978eb42664b67b7d6",
             "bundle": true
           },
           {
@@ -1101,8 +1106,8 @@
         ],
         "bundleFileCount": 5,
         "treeFileCount": 5,
-        "bundleHash": "bcc17302024df348e17dc412de1581f07cc4209a92a79beb4002e2903e3ba37f",
-        "treeHash": "bcc17302024df348e17dc412de1581f07cc4209a92a79beb4002e2903e3ba37f",
+        "bundleHash": "58bc0f641646253e221ab2d0de003cccb921d040aa708747f360d026bebd7c8c",
+        "treeHash": "58bc0f641646253e221ab2d0de003cccb921d040aa708747f360d026bebd7c8c",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/appleRevocation.ts",
@@ -1116,7 +1121,7 @@
           },
           {
             "path": "supabase/functions/_shared/deletion/userDataResources.ts",
-            "sha256": "b96bb285506a5ba7fff45e95a8e63cf1c59f5041c9bdbb289395181e7de182cd",
+            "sha256": "3021cc6a491b7f9bfc307dd6835d8d933458fa6a513713d76f730a7a0a58181c",
             "bundle": true
           },
           {

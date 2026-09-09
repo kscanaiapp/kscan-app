@@ -116,6 +116,12 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   { table: 'user_commerce_watches', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'user_commerce_watch_events', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'user_device_push_tokens', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  // N-4 Expo push receipt tracking. Backend-only bookkeeping (never
+  // client-readable, no notification content -- see the migration's own
+  // header) with the same ON DELETE CASCADE shape as user_device_push_tokens
+  // above; listed for the same reason: coverage counting and post-purge
+  // residual verification, not because any user-facing feature depends on it.
+  { table: 'watchlist_push_receipts', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   // Build 34 Track B B4 server-derived Style DNA profile (K+-adjacent, but
   // deletion is independent of K+ status like every other entry here). ON
   // DELETE CASCADE to auth.users already removes this row; this entry adds it

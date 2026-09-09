@@ -44,6 +44,12 @@ import { resolveObservedCurrency } from './watchCurrency.ts';
 import { refreshWatchObservation } from './watchRefreshObservation.ts';
 import { sendWatchPush } from './pushDelivery.ts';
 import {
+  drainEligiblePushReceipts,
+  persistPendingPushReceipt,
+  pruneOldPushReceipts,
+  retireStalePushRoute,
+} from './receiptProcessing.ts';
+import {
   MIN_REFRESH_INTERVAL_MS,
   USER_REFRESH_BATCH_CAP,
   WORKER_SWEEP_BATCH_CAP,
@@ -160,12 +166,17 @@ async function deliverPushIfArmed(
   // with a phone and a tablet was previously alerted on exactly one of them,
   // silently, with no way to tell which. Each token is delivered and retired
   // INDEPENDENTLY so one dead route cannot suppress a live sibling.
+  //
+  // N-4: `id` is selected alongside the token now because both the immediate
+  // ticket-error path and the deferred receipt path below retire routes by
+  // exact row identity + current push_token match, never by device_id alone
+  // (see retireStalePushRoute in receiptProcessing.ts).
   const tokenResponse = await rest(
-    `user_device_push_tokens?user_id=eq.${row.user_id}&revoked_at=is.null&select=push_token,device_id&order=last_used_at.desc.nullslast`,
+    `user_device_push_tokens?user_id=eq.${row.user_id}&revoked_at=is.null&select=id,push_token,device_id&order=last_used_at.desc.nullslast`,
     { method: 'GET' },
   );
   if (!tokenResponse.ok) return;
-  const tokens = (await tokenResponse.json()) as Array<{ push_token: string; device_id: string }>;
+  const tokens = (await tokenResponse.json()) as Array<{ id: string; push_token: string; device_id: string }>;
   const liveTokens = (tokens ?? []).filter((t) => Boolean(t?.push_token));
   if (liveTokens.length === 0) return;
 
@@ -188,13 +199,28 @@ async function deliverPushIfArmed(
             errorCode: result.errorCode,
           });
           // A ticket-confirmed dead token is revoked immediately rather than
-          // left to accumulate silent future failures (§63 "stale push token").
+          // left to accumulate silent future failures (§63 "stale push
+          // token"). N-4: scoped to the EXACT token this send used (row id +
+          // current push_token match), never to device_id alone — a
+          // device_id-scoped revoke here could retire a token the OS
+          // refreshed to between the SELECT above and this call landing.
           if (result.tokenInvalid) {
-            await rpc('revoke_device_push_token', {
-              p_user_id: row.user_id,
-              p_device_id: tokenRow.device_id,
-            }).catch(() => null);
+            await retireStalePushRoute({
+              tokenRowId: tokenRow.id,
+              expectedPushToken: tokenRow.push_token,
+            }).catch(() => 'skipped_stale' as const);
           }
+        } else if (result.ticketId) {
+          // NOTIF-12/N-4: an accepted ticket is not delivery. Persist it so
+          // the deferred receipt drain can later learn the real outcome and
+          // retire the route if — and only if — it turns out to be exactly
+          // this token incarnation that failed.
+          await persistPendingPushReceipt({
+            ticketId: result.ticketId,
+            tokenRowId: tokenRow.id,
+            pushToken: tokenRow.push_token,
+            userId: row.user_id,
+          });
         }
       } catch (error) {
         logEvent('watchlist_push_delivery_failed', {
@@ -322,6 +348,17 @@ async function runWorkerSweep(): Promise<Response> {
     logEvent('watchlist_worker_kill_switch_skip', {});
     return json({ mode: 'sweep', enabled: false, claimed: 0, results: [] });
   }
+
+  // N-4: drain any receipts due for a verdict BEFORE claiming new refresh
+  // work, so a dead route discovered this cycle cannot receive one more push
+  // attempt in the SAME invocation. Gated behind the same kill switch as the
+  // rest of Tier 2 on purpose — this is background delivery-hygiene work, not
+  // a user-facing action, and an operator who has not turned the worker on
+  // should not have a second, differently-gated background job running
+  // anyway. Bounded and best-effort: neither call ever throws, and both are
+  // no-ops on an empty table (no rows due, nothing to prune).
+  await drainEligiblePushReceipts();
+  await pruneOldPushReceipts();
 
   const claimResponse = await rpc('claim_watchable_commerce_watches', {
     p_limit: WORKER_SWEEP_BATCH_CAP,
