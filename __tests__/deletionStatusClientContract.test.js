@@ -6,9 +6,11 @@
 // 'purged') it proves the double lock holds. It cannot see the step before
 // that one — the backend's mapping from the database's ELEVEN internal
 // lifecycle statuses down to those four public states. That mapping is where a
-// terminal-purge authorisation is actually born, and until now nothing on this
-// branch asserted it at all, because the backend lives on a different branch
-// (see PROVENANCE below).
+// terminal-purge authorisation is actually born, and nothing else on this
+// branch asserts the client's end of it: the backend's own suite
+// (__tests__/deletionStatusContract.test.js, arrived with PR #375) proves the
+// backend produces the mapping, and this file proves the shipped iOS/Android
+// client modules consume it correctly, all the way to retain/release/purge.
 //
 // So this file certifies the FULL chain the device really experiences:
 //
@@ -35,12 +37,15 @@
 //     Repair 06 certification (16/16), recorded in
 //     docs/deletion/repair06-cross-contract-certification-2026-09-09.md.
 //
-// The backend source is deliberately NOT vendored into this branch:
-// release/kscan-pre-freeze-v1 is `integration-convergence-non-authoritative`
-// (config/backend-authority.json) and copying backend function source here
-// would fork a second backend lineage — the exact failure this repository
-// spent Repair 05 recovering from. Fixtures with recorded provenance are the
-// correct coupling.
+// A note on coupling, updated after PR #375. When this file was first written
+// the backend was not on this branch, so the mapping below was recorded as
+// fixtures with documented provenance. PR #375 has since converged the Repair
+// 06 backend onto this line, so `supabase/functions/deletion-status/index.ts`
+// is now present here. The fixtures are deliberately KEPT — they are stable,
+// readable, and independent of how the backend is structured — but they are no
+// longer trusted on their word: the final test in this file loads the real
+// backend module and proves every fixture matches what it actually returns, so
+// fixture drift fails loudly instead of silently certifying a stale contract.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -339,4 +344,71 @@ test('RECEIPT: a locally malformed capability never reaches the network', async 
   const outcome = await client.fetchDeletionStatus('ksdel_v1_not-a-valid-capability');
   assert.equal(outcome.kind, 'invalid_request');
   assert.equal(calls, 0, 'a malformed receipt must be rejected before any request is sent');
+});
+
+// ===========================================================================
+// FIXTURE FIDELITY — the fixtures above must equal the real backend's output
+// ===========================================================================
+
+test('FIDELITY: every fixture matches what the real deployed backend actually returns', async () => {
+  // PR #375 converged the Repair 06 backend onto this branch, so the real
+  // handler can be executed here. This test is what stops `repair06ResponseFor`
+  // from quietly drifting away from `evaluateLifecycle`: it runs the REAL
+  // backend module over the same 11-status vocabulary and asserts the bodies
+  // are identical, field for field.
+  //
+  // The backend targets Deno and calls `Deno.serve` at module load, so a
+  // minimal stub is installed for the duration of the load. Nothing else about
+  // the module is substituted — `evaluateLifecycle` is the real exported
+  // function, and the lookup seam is the module's own documented override.
+  const backendRel = 'supabase/functions/deletion-status/index.ts';
+  const receiptRel = 'supabase/functions/_shared/deletion/statusReceipt.ts';
+  assert.ok(fs.existsSync(path.join(ROOT, backendRel)), 'Repair 06 backend source must be present');
+
+  const previousDeno = globalThis.Deno;
+  globalThis.Deno = { serve: () => {}, env: { get: () => undefined } };
+  let backend;
+  try {
+    const backendReceipt = evaluate(receiptRel, () => {
+      throw new Error('the backend receipt module must have zero imports');
+    });
+    backend = evaluate(backendRel, (spec) => {
+      if (spec === '../_shared/deletion/statusReceipt.ts') return backendReceipt;
+      throw new Error(`unexpected backend import: ${spec}`);
+    });
+  } finally {
+    if (previousDeno === undefined) delete globalThis.Deno;
+    else globalThis.Deno = previousDeno;
+  }
+
+  for (const status of DB_STATUS_VOCABULARY) {
+    const row = {
+      status,
+      purged_at: status === 'purged' ? PURGED_AT : null,
+      restored_at: status === 'restored' ? RESTORED_AT : null,
+    };
+    const real = backend.evaluateLifecycle(row);
+    const fixture = repair06ResponseFor(status);
+    assert.deepEqual(
+      real,
+      fixture,
+      `fixture for internal status '${status}' has drifted from the real backend`,
+    );
+  }
+
+  // And the two inconsistent rows the decision table depends on.
+  assert.deepEqual(
+    backend.evaluateLifecycle({ status: 'purged', purged_at: null, restored_at: null }),
+    { state: 'purged', purgeAuthorized: false },
+    'a purged row with no purged_at must not authorise a purge',
+  );
+  assert.deepEqual(
+    backend.evaluateLifecycle({ status: 'purging', purged_at: PURGED_AT, restored_at: null }),
+    { state: 'pending', purgeAuthorized: false },
+    'purged_at under a non-purged status must fail closed',
+  );
+
+  // The receipt format the two sides agree on is one constant, not two.
+  const clientLength = RECEIPT.STATUS_RECEIPT_LENGTH;
+  assert.equal(backend.STATUS_RECEIPT_LENGTH, clientLength, 'receipt length must not diverge');
 });
