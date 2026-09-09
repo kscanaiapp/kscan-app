@@ -687,8 +687,20 @@ test('29. pushRegistration.ts (the RP-104/RP-109 client entrypoint) carries ZERO
   assert.doesNotMatch(PUSH_REGISTRATION, /recordPushOperationalEvent/);
 });
 
-test('30. RP-104 (disableDeviceNotifications) still posts exactly action: "revoke_push_token", and its failure-reason union is unchanged', () => {
-  assert.match(PUSH_REGISTRATION, /export type DisableDeviceNotificationsFailureReason = 'backend_unavailable';/);
+test('30. RP-104 (disableDeviceNotifications) still posts exactly action: "revoke_push_token", and its failure-reason union stays a closed bounded set', () => {
+  // N-6 added ONE member to this union — 'device_state_unreadable' — because
+  // collapsing an unreadable local state into "already unregistered" made
+  // disableDeviceNotifications report a CONFIRMED off over a route that may
+  // still be live. What this test protects is unchanged: the union is a closed
+  // vocabulary of opaque tokens, so no backend body, status or error text can
+  // reach the UI through it, and RP-104 still posts one revoke action.
+  const union = sliceFn(
+    PUSH_REGISTRATION,
+    'export type DisableDeviceNotificationsFailureReason',
+    'export interface DisableDeviceNotificationsResult',
+  );
+  const members = (union.match(/'[a-z_]+'/g) || []).sort();
+  assert.deepEqual(members, ["'backend_unavailable'", "'device_state_unreadable'"]);
   const disableFn = sliceFn(PUSH_REGISTRATION, 'export async function disableDeviceNotifications', 'export async function attachPushTokenRefreshListener');
   assert.match(disableFn, /action:\s*'revoke_push_token'/);
 });

@@ -89,6 +89,12 @@ function loadPushRegistration({ storage, invoke, session, clock }) {
     // states that suppress activation) is proven in
     // __tests__/androidNotificationActivationGating.test.js.
     '../notifications/remotePushCapability': { resolveRemotePushActivationAllowed: () => true },
+    // N-6: pushRegistration now consults the canonical actor authority to
+    // record which actor this device's route belongs to. This suite predates
+    // that record and asserts pre-N-6 behaviour, so the actor is supplied as
+    // null -- the state in which the owner record is never written and every
+    // path below behaves exactly as it did before N-6.
+    '../actorScope': { currentActorId: () => null },
   };
 
   const module = { exports: {} };

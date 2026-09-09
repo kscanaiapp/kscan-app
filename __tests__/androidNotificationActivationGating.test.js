@@ -280,6 +280,10 @@ function loadPushRegistration({ platformOS, smartWatchlistActive, permissionGran
       return { resolveAuthenticatedFunctionSession: async () => ({ ok: true }) };
     }
     if (spec === '../notifications/remotePushCapability') return capability;
+    // N-6: the owner record consults the canonical actor authority. This suite
+    // proves the ACTIVATION gate, not actor attribution, so the actor is null
+    // and no owner record is ever written.
+    if (spec === '../actorScope') return { currentActorId: () => null };
     if (spec === 'expo-notifications') return notifications;
     throw new Error(`unexpected pushRegistration import: ${spec}`);
   });
