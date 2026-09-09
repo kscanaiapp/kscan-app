@@ -211,14 +211,69 @@ No synthetic accounts were created, so there is no synthetic residue to clean
 up: **zero synthetic users, zero synthetic deletion rows, zero synthetic
 receipt bindings** were introduced by this lane.
 
-### 7.3 Terminal-purge sequencing is NOT yet independently re-verified
+### 7.3 Terminal-purge sequencing — RESOLVED 2026-09-09 (was open in the first revision)
 
-§12 of the charter requires proving that `process-account-deletions` writes
-`status='purged'` + `purged_at` only *after* the governed server-side purge
-completes. The endpoint's half of that is certified above (it authorises on
-nothing but those two fields). The worker's half — that it never sets them
-early — is the responsibility of the backend authority lane that built it, and
-re-proving it end-to-end needs the live invocation path that §7.2 blocks.
+This section originally recorded the worker's half of the terminal rule as
+unproven. It has since been proven from source, and the answer is clean:
+
+```
+EARLY_PURGE_AUTHORIZATION_FOUND=NO
+```
+
+`process-account-deletions` reaches the terminal mark only after, in order:
+Apple credential revocation (throws if blocked) → `revokeAllSessions` →
+`supabase.auth.admin.deleteUser(userId)` → confirmation the `deletion_requests`
+row survived with `user_id` forced NULL → a **post-delete residual sweep** that
+issues one count query per registry resource (~44) and **throws**
+(`purge_verification_failed`) if any non-`survive_auth_delete` resource still
+has rows → RevenueCat mirror retirement (throws if blocking) → **only then**
+`mark_deletion_request_purged`.
+
+That sweep runs deliberately *after* `auth.admin.deleteUser`, not before, so a
+cascade FK that silently failed is caught rather than reported as success.
+
+`mark_deletion_request_purged` writes `status='purged'` **and**
+`purged_at=now()` in a **single UPDATE gated on `status='purging'`**, so neither
+can exist without the other. Every failure before the mark routes into
+`schedule_deletion_retry_or_fail`, which writes `failed` (attempts exhausted) or
+`deactivated` (retry scheduled) — never `purged_at`. Both map to
+`purgeAuthorized: false`.
+
+The invariant is enforced three times over: by the worker's ordering, by
+`deletion_requests_purged_at_status_check` in the database, and again by the
+endpoint, which re-checks rather than trusting the constraint.
+
+The worker and RPC are byte-identical on the release line and the backend
+authority, so this proof holds for both.
+
+### 7.4 Staging Promotion 01 already certified the deployed bytes
+
+Found after the first revision of this record: the backend authority carries
+`docs/certification/staging-promotion-01-2026-09-09.md`, which deployed Repair
+06 to staging and certified it. It hit the **identical** egress block described
+in §7.2 and closed as much of the gap as is closable without the network hop —
+it pulled the **deployed payload back** from staging, confirmed both files hash
+identically to canonical (`index.ts` `d1186f04…`, `statusReceipt.ts`
+`7d698484…`), executed those deployed bytes under a capture harness against
+**real staging lifecycle rows** (captured with `to_jsonb` over the same
+projection the function selects), and negative-controlled the harness by
+mutating the deployed source and confirming the mutations were caught.
+
+**18 checks, 0 failures**, including an INVARIANT sweep over all 24 combinations
+of the full status vocabulary × (`purged_at` null / present): `purgeAuthorized`
+is true for exactly one. Six synthetic fixtures were used and removed, with the
+`md5` digest of all row ids identical before and after.
+
+What that record explicitly does **not** claim, and this lane cannot supply
+either: live HTTP invocation (§7.2), and a live destructive intake test — it
+recorded `NO GOVERNED DISPOSABLE ACTOR`, since intake revokes sessions, bans the
+Auth user for the full grace window and schedules irreversible purge.
+
+### 7.5 Source convergence
+
+The gap this record identified in §7.1 — Repair 06 source absent from the
+release line — has been closed by a separate, provenance-preserving PR. See
+`docs/deletion/repair06-release-convergence-2026-09-09.md`.
 
 ---
 
