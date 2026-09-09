@@ -6,7 +6,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   bridgeAllTelemetrySinks,
   PostHogAnalyticsProvider,
-  syncPostHogIdentity,
+  syncPostHogAnonymousIdentity,
 } from '../services/analytics/posthogClient';
 import { AuthSessionProvider } from '../contexts/AuthSessionContext';
 import { FeatureFreezeProvider } from '../contexts/FeatureFreezeContext';
@@ -328,11 +328,13 @@ function PostHogBridge() {
   }, []);
 
   useEffect(() => {
-    // Always resets before establishing a different identity — covers
-    // logout, account deletion, and an actor switch alike, since all three
-    // land here as session.user.id becoming null (then, for a switch, a
-    // different id). See syncPostHogIdentityWith for the isolation guarantee.
-    syncPostHogIdentity(session?.user?.id ?? null);
+    // PH35-R2: PostHog is anonymous-only. It is told WHETHER somebody is
+    // signed in, never WHO — the Supabase user id is read here purely to
+    // notice that the authentication boundary moved, and is converted to a
+    // boolean before it can cross into the analytics adapter. Logout,
+    // account deletion and an actor switch all land here as that boundary
+    // changing. See services/analytics/posthogIdentitySync.ts.
+    syncPostHogAnonymousIdentity(Boolean(session?.user?.id));
   }, [session?.user?.id]);
 
   return null;

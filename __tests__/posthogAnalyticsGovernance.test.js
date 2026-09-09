@@ -66,10 +66,24 @@ test('GeoIP enrichment is explicitly disabled instead of inheriting the stateful
   );
 });
 
+test('the wrapper exposes no identity API and never calls one', () => {
+  // PH35-R2: PostHog is anonymous-only. `identify`, `alias`, `group` and the
+  // person-property APIs would attach a K Scan identity to the anonymous
+  // distinct id, so the wrapper must neither export a way to reach them nor
+  // call them itself. Behavioural proof lives in
+  // __tests__/posthogAnonymousIdentity.test.js; this fails the build if the
+  // capability is reintroduced here.
+  assert.doesNotMatch(clientSource, /export function identifyPostHogUser/);
+  assert.doesNotMatch(
+    clientSource,
+    /posthog\.(identify|alias|group|setPersonProperties|setPersonPropertiesForFlags)\(/,
+  );
+  assert.doesNotMatch(providerSource, /identify|alias\(/);
+});
+
 test('every exported function no-ops when posthog is null', () => {
   for (const name of [
     'forwardTelemetryToPostHog',
-    'identifyPostHogUser',
     'resetPostHogUser',
   ]) {
     const fn = new RegExp(`export function ${name}\\([^)]*\\)[^{]*\\{\\s*if \\(!posthog\\) return;`);

@@ -121,10 +121,11 @@ if (core) {
 
   call(() => core.bridgeAllTelemetrySinks());
   call(() => core.forwardTelemetryToPostHog('containment_probe_event', { probe: 'direct' }));
-  call(() => core.identifyPostHogUser('containment-probe-user'));
   call(() => core.resetPostHogUser());
-  call(() => core.syncPostHogIdentity('containment-probe-user'));
-  call(() => core.syncPostHogIdentity(null));
+  // PH35-R2 removed every export that accepted a user identifier; the
+  // anonymous boundary sync takes one bit and nothing else.
+  call(() => core.syncPostHogAnonymousIdentity(true));
+  call(() => core.syncPostHogAnonymousIdentity(false));
 
   // The five bridged sinks, via their real emit functions — the path a
   // shipped feature actually takes.

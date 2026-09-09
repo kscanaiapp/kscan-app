@@ -128,8 +128,17 @@ test('negative control: a valid key + https host does construct, poll and egress
   assert.equal(observed.clientCreated, true);
   assert.equal(observed.vendorConstructed, true, 'the probe must be able to see a construct');
   assert.equal(observed.captureCalled, true, 'the probe must be able to see a capture');
-  assert.equal(observed.identifyCalled, true, 'the probe must be able to see an identify');
   assert.equal(observed.pollingStarted, true, 'the probe must be able to see a polling interval');
+  // Deliberately NOT asserting identify here: PH35-R2 removed the identify
+  // path entirely, so a live client never issues one. That the probe can
+  // still observe identity-shaped calls is proven by the reset below, and
+  // the absence of identify under a live client is asserted in
+  // __tests__/posthogAnonymousIdentity.test.js.
+  assert.ok(
+    observed.vendorCalls.includes('reset'),
+    'the probe must be able to see identity-shaped calls (reset)',
+  );
+  assert.equal(observed.identifyCalled, false, 'PH35-R2: a live client still never identifies');
   assert.ok(
     observed.networkEgressTotal > 0,
     'the probe must be able to see network egress — otherwise zero-egress proves nothing',
