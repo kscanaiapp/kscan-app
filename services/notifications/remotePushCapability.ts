@@ -33,11 +33,14 @@
 //
 // PLATFORM SCOPE
 //
-// This is an Android release repair, and it is scoped to Android on purpose.
-// iOS notification behaviour is deliberately left exactly as it was: no
-// gating, no new condition, nothing to observe. Widening the gate to every
-// platform would silently darken iOS notifications as a side effect of an
-// Android fix, which is a different decision needing its own authority.
+// N-1: this was an Android-only repair, and iOS was left deliberately
+// ungated -- observed, on Build 34, to mean iOS onboarding requested the OS
+// notification permission, acquired an Expo push token and registered a
+// device push route while Smart Watchlist was dark, exactly the defect this
+// module exists to close. There is no platform-specific reason iOS should
+// answer differently from Android here: the single backend push producer
+// (Watchlist) is not platform-scoped, so "does a shipping feature need
+// remote push" has one answer for both. Both platforms are gated.
 //
 // FAIL-CLOSED
 //
@@ -55,7 +58,7 @@ import { SMART_WATCHLIST_V1 } from '../../constants/featureFlags';
  * Anything not listed here keeps its pre-repair behaviour unconditionally --
  * see PLATFORM SCOPE above.
  */
-export const REMOTE_PUSH_GATED_PLATFORMS: readonly string[] = ['android'] as const;
+export const REMOTE_PUSH_GATED_PLATFORMS: readonly string[] = ['android', 'ios'] as const;
 
 /** True when this build's push activation is subject to the capability decision. */
 export function isRemotePushActivationGated(platformOS: string = Platform.OS): boolean {

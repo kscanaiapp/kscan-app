@@ -450,11 +450,13 @@ test('PROFILES: no committed profile activates either capability outside certifi
   }
 });
 
-test('REPAIR 05 REGRESSION: runtime push activation is unchanged', () => {
+test('REPAIR 05/N-1 REGRESSION: runtime push activation still derives from the same flag', () => {
   const cap = 'services/notifications/remotePushCapability.ts';
   const source = read(cap);
   assert.match(source, /import \{ SMART_WATCHLIST_V1 \} from '\.\.\/\.\.\/constants\/featureFlags';/);
-  assert.match(source, /REMOTE_PUSH_GATED_PLATFORMS: readonly string\[\] = \['android'\] as const;/);
+  // N-1 widened the governed platform set to include iOS; Android's own
+  // posture (still gated, same flag) is what this test protects.
+  assert.match(source, /REMOTE_PUSH_GATED_PLATFORMS: readonly string\[\] = \['android', 'ios'\] as const;/);
   assert.ok(!source.includes('watchlistAvailability'), 'Repair 05 must remain untouched by Repair 07');
 });
 
