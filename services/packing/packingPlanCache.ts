@@ -25,14 +25,13 @@
 // unaddressable. That is the same discipline getPackingSnapshotFor() applies in
 // memory, and the delete is the backstop rather than the mechanism.
 //
-// KNOWN INHERITED GAP, RECORDED NOT HIDDEN: this project has no terminal
-// account-deletion local purge yet (services/accountDeletion.js: "Nothing here
-// may purge local Recent Scans or unlink media -- that stays gated behind the
-// terminal-status endpoint, which is not built yet"). This cache inherits that
-// gap exactly as Recent Scans and Style DNA preferences already do. It is
-// cleared on sign-out, which is the boundary that actually occurs; a purged
-// account's residue on a device is a pre-existing project-wide item and needs
-// the same owner decision they do.
+// TERMINAL ACCOUNT DELETION (Repair 07). The gap recorded here is closed in
+// source: clearCachedPackingPlan below is now called with the departed actor's
+// id by services/deletion/ownerTerminalPurge.ts, once — and only once — the
+// Repair 06 deletion-status endpoint reports BOTH status 'purged' AND
+// purgeAuthorized true for that lifecycle. Sign-out still clears the current
+// actor's entry as before; that is the boundary that actually occurs most
+// often, and this remains the backstop rather than the mechanism.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PackingPlan } from '../../types/packing';

@@ -441,6 +441,20 @@ test('IDEMPOTENCY: the guard releases, so a later boundary can check again', asy
   assert.equal(sdk.calls.length, 2, 'sequential boundaries each get a real check');
 });
 
+/**
+ * The AppleCredentialStateBridge component alone.
+ *
+ * Ends at the NEXT top-level declaration rather than at `Layout`, so a sibling
+ * bridge added later cannot silently be counted as part of this one's
+ * boundaries. Repair 07's TerminalDeletionBridge now sits between them.
+ */
+function appleBridgeSource(layout) {
+  const start = layout.indexOf('function AppleCredentialStateBridge()');
+  const rest = layout.slice(start + 1);
+  const nextDeclaration = rest.search(/\nfunction |\nexport default function /);
+  return layout.slice(start, nextDeclaration === -1 ? undefined : start + 1 + nextDeclaration);
+}
+
 test('LIFECYCLE: the bridge checks on authenticated restoration and on background -> active only', () => {
   const layout = fs.readFileSync(path.join(ROOT, LAYOUT_REL), 'utf8');
   assert.match(layout, /<AppleCredentialStateBridge \/>/, 'the bridge must be mounted');
@@ -449,10 +463,7 @@ test('LIFECYCLE: the bridge checks on authenticated restoration and on backgroun
     /function AppleCredentialStateBridge\(\)/,
     'the bridge must exist in the layout',
   );
-  const bridge = layout.slice(
-    layout.indexOf('function AppleCredentialStateBridge()'),
-    layout.indexOf('export default function Layout()'),
-  );
+  const bridge = appleBridgeSource(layout);
   // Boundary 1: an authenticated actor becoming available.
   assert.match(bridge, /if \(!userId\) return;/, 'checks are gated on an authenticated actor');
   // Keyed on the actor id (extra deps such as the user object and the logout
@@ -470,10 +481,7 @@ test('LIFECYCLE: the bridge checks on authenticated restoration and on backgroun
 
 test('LIFECYCLE: nothing runs the check on every render', () => {
   const layout = fs.readFileSync(path.join(ROOT, LAYOUT_REL), 'utf8');
-  const bridge = layout.slice(
-    layout.indexOf('function AppleCredentialStateBridge()'),
-    layout.indexOf('export default function Layout()'),
-  );
+  const bridge = appleBridgeSource(layout);
   // Every invocation must sit inside a useEffect, never in the render body.
   const invocations = bridge.match(/runAppleCredentialStateCheck\(/g) ?? [];
   assert.ok(invocations.length > 0, 'the bridge must actually run the check');

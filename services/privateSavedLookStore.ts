@@ -412,9 +412,12 @@ export async function deleteSavedLook(
 }
 
 /**
- * Narrow future account-deletion primitive. It removes only records whose
- * stored actorId equals the supplied actor and is intentionally not wired to
- * any production deletion caller in Phase 5.
+ * Narrow account-deletion primitive. It removes only records whose stored
+ * actorId equals the supplied actor. Wired since Repair 07 to
+ * services/deletion/ownerTerminalPurge.ts, which runs only after the Repair 06
+ * deletion-status endpoint confirms a terminal purge for that lifecycle —
+ * never at deletion submission, which opens a restorable window rather than
+ * deleting anything.
  */
 export async function purgeSavedLooksForActor(actorId: string): Promise<SavedLooksResult> {
   const target = typeof actorId === 'string' ? actorId.trim() : '';

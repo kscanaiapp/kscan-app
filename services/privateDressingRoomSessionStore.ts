@@ -539,6 +539,41 @@ export async function resetCorruptSession(actorRequest: unknown): Promise<Privat
   });
 }
 
+/**
+ * Narrow owner-scoped purge primitive for terminal account deletion (Repair 07).
+ *
+ * Mirrors services/privateSavedLookStore.ts#purgeSavedLooksForActor, and exists
+ * for the same reason it does: every other erasure path here resolves the actor
+ * from the CURRENT actor context, which is precisely wrong for terminal
+ * cleanup. Actor A's deletion is confirmed long after A signed out, often while
+ * a different actor B is signed in, so the target actor must be supplied
+ * explicitly rather than inferred.
+ *
+ * Removes only records whose stored actorId equals the supplied actor. Records
+ * belonging to any other actor, and the ownerless partition, are rewritten
+ * unchanged. Idempotent: a second call finds nothing and reports removed: 0.
+ * A blank actor fails closed rather than matching the ownerless partition.
+ */
+export async function purgeDressingRoomSessionsForActor(
+  actorId: string,
+): Promise<{ ok: boolean; removed: number }> {
+  const target = typeof actorId === 'string' ? actorId.trim() : '';
+  if (!target) return { ok: false, removed: 0 };
+  return enqueue(async () => {
+    const { result } = await readManifest();
+    if (!result.ok) return { ok: false, removed: 0 };
+    const survivors = result.records.filter((record) => record.actorId !== target);
+    const removed = result.records.length - survivors.length;
+    if (removed === 0) return { ok: true, removed: 0 };
+    try {
+      await persistSessions(survivors);
+    } catch {
+      return { ok: false, removed: 0 };
+    }
+    return { ok: true, removed };
+  });
+}
+
 /** Test seam only. Not used by production code. */
 export const __privateSessionStoreInternals = {
   persistSessions,

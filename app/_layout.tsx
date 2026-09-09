@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   AppState,
   type AppStateStatus,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -38,6 +39,7 @@ import { sweepOrphanedVtoMedia } from '../services/vto/vtoMediaCache';
 import { installWatchNotificationRouting } from '../services/watchlist/watchNotificationRouting';
 import { attachPushTokenRefreshListener } from '../services/watchlist/pushRegistration';
 import { runAppleCredentialStateCheck } from '../services/auth/appleCredentialState';
+import { reconcileTerminalDeletions } from '../services/deletion/terminalDeletionReconciler';
 
 type GlobalErrorHandler = (error: Error, isFatal?: boolean) => void;
 
@@ -401,6 +403,60 @@ function AppleCredentialStateBridge() {
   return null;
 }
 
+/**
+ * Terminal account-deletion local cleanup (iOS only — Repair 07).
+ *
+ * THE GAP THIS CLOSES. Account deletion has always been asynchronous and
+ * restorable: submitting it opens a 30-day lifecycle, and the permanent purge
+ * happens later in a backend worker. Until now nothing on the device ever
+ * learned that the purge had actually happened, so a user whose account was
+ * genuinely and irreversibly deleted still had their Recent Scans, Closet,
+ * Style DNA and Dressing Room data sitting on the handset indefinitely.
+ *
+ * WHY IT CANNOT BE DONE FROM A SESSION. Intake revokes the caller's sessions
+ * and bans the Auth user for the whole grace window, and the purge worker
+ * deletes the Auth identity outright. By the time the interesting answer exists
+ * there is nothing left to authenticate as. The device instead holds an opaque
+ * capability it created BEFORE submitting the request, and that capability —
+ * not a session — is what resolves the lifecycle.
+ *
+ * DELIBERATELY NOT GATED ON A SIGNED-IN USER, and that is the point. Actor A's
+ * purge is confirmed after A is gone: the device may be signed out, or signed
+ * in as a completely different actor B. Every purge is driven by the marker's
+ * own stored owner scope, so only A's records are removed and B is untouched.
+ * Gating this on `user` — the obvious-looking guard — would make terminal
+ * cleanup structurally impossible.
+ *
+ * Bounded exactly like AppleCredentialStateBridge above: cold start, and a real
+ * background/inactive -> active transition. No timer, no polling, no background
+ * fetch, no background task, no new iOS capability, and nothing on the render
+ * path. The reconciler holds its own in-flight guard, so overlapping lifecycle
+ * events collapse into one pass.
+ *
+ * iOS ONLY. Repair 07 is an iOS release blocker and the destructive half stays
+ * contained to it; on Android this component mounts and does nothing at all.
+ */
+function TerminalDeletionBridge() {
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    void reconcileTerminalDeletions();
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    let appState: AppStateStatus = AppState.currentState;
+    const subscription = AppState.addEventListener('change', (next) => {
+      const cameForward = /inactive|background/.test(appState) && next === 'active';
+      appState = next;
+      if (!cameForward) return;
+      void reconcileTerminalDeletions();
+    });
+    return () => subscription.remove();
+  }, []);
+
+  return null;
+}
+
 export default function Layout() {
   useEffect(() => {
     void cleanupOrphanedStylistSpeechFiles();
@@ -460,6 +516,7 @@ export default function Layout() {
                 <FeatureFreezeProvider>
                   <PostHogBridge />
                   <AppleCredentialStateBridge />
+                  <TerminalDeletionBridge />
                   <AuthGate />
                 </FeatureFreezeProvider>
               </PrivacyPreferencesProvider>

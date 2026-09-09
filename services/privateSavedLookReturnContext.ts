@@ -130,3 +130,31 @@ export async function clearSavedLookReturnContext(actorRequest: unknown): Promis
   await AsyncStorage.removeItem(SAVED_LOOK_RETURN_CONTEXT_KEY);
   return actorFor(actorRequest) === actorId;
 }
+
+/**
+ * Narrow owner-scoped purge primitive for terminal account deletion (Repair 07).
+ *
+ * `clearSavedLookReturnContext` resolves the actor from the CURRENT actor
+ * context, which cannot express "remove the departed actor A's context while B
+ * is signed in". This takes the target explicitly.
+ *
+ * This is a SINGLE-SLOT store, so the actor check is what makes it safe: the
+ * slot is removed only when it belongs to the target. A context belonging to
+ * another actor is left exactly as it was, and an unreadable slot is left alone
+ * rather than cleared on a guess.
+ */
+export async function purgeSavedLookReturnContextForActor(
+  actorId: string,
+): Promise<{ ok: boolean; removed: number }> {
+  const target = typeof actorId === 'string' ? actorId.trim() : '';
+  if (!target) return { ok: false, removed: 0 };
+  const raw = await AsyncStorage.getItem(SAVED_LOOK_RETURN_CONTEXT_KEY).catch(() => null);
+  const stored = parseSerialized(raw);
+  if (!stored || stored.actorId !== target) return { ok: true, removed: 0 };
+  try {
+    await AsyncStorage.removeItem(SAVED_LOOK_RETURN_CONTEXT_KEY);
+  } catch {
+    return { ok: false, removed: 0 };
+  }
+  return { ok: true, removed: 1 };
+}

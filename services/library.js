@@ -1021,6 +1021,10 @@ export async function deleteScan(id, { actorRequest, actorId } = {}) {
  * owner id, preserves ownerless records and every other actor's records, and
  * unlinks media reference-aware. Idempotent and safe to retry.
  *
+ * Called by services/deletion/ownerTerminalPurge.ts (Repair 07) once the
+ * Repair 06 deletion-status endpoint confirms a terminal server-side purge —
+ * never at deletion submission, which opens a restorable 30-day window.
+ *
  * Never purges the ownerless partition: a missing/blank captured owner fails
  * closed rather than deleting device-local history.
  *
