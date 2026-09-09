@@ -3,8 +3,8 @@
   "role": "integration-convergence-non-authoritative",
   "canonicalBranch": "rebuild/backend-authority-v2",
   "approvedProjectRef": "yzqjvdfgefveprobvvyw",
-  "note": "Build 34 Track B convergence source. It combines governed backend and mobile lineages for certification only; deployment tooling must refuse this checkout. The canonical backend deployment authority remains the declared branch above.",
-  "governedFunctionCount": 23,
+  "note": "Build 34 Track B convergence source. It combines governed backend and mobile lineages for certification only; deployment tooling must refuse this checkout. The canonical backend deployment authority remains the declared branch above. Repair 06 (post-auth terminal deletion-status capability) was converged onto this line by provenance-preserving cherry-pick of 5cd3f72b, c0b01481 and 63bd6ecd so the Build 34 release candidate is backend source-complete; the source is byte-identical to the canonical authority and to what staging already runs. That convergence deliberately did NOT change this checkout's role -- it remains non-authoritative and its deploy tooling still refuses it, so deletion-status may only ever be deployed from rebuild/backend-authority-v2.",
+  "governedFunctionCount": 24,
   "notGoverned": {
     "note": "Functions deployed on staging that this source tree does not govern.",
     "websitePrivacyStack": {
