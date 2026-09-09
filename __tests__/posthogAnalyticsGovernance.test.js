@@ -42,11 +42,21 @@ test('the client reads config only from EXPO_PUBLIC_POSTHOG_API_KEY / _HOST, no 
   assert.doesNotMatch(clientSource, /['"]https:\/\/[a-z.]*posthog[a-z.]*['"]/);
 });
 
-test('isPostHogConfigured requires both key and host to be non-empty', () => {
+test('isPostHogConfigured requires a usable key and an https host', () => {
+  // Both values are trimmed, the key must carry no whitespace or control
+  // characters, and the host must be an https URL — so a whitespace-only or
+  // malformed env var reads as absent instead of satisfying a bare length
+  // check. This only pins the rule in place; the behavioural proof that it
+  // actually keeps the vendor SDK unconstructed (and therefore keeps the
+  // network and polling surfaces dead) lives in
+  // __tests__/posthogDisabledStateContainment.test.js.
+  assert.match(clientSource, /EXPO_PUBLIC_POSTHOG_API_KEY \?\? ''\)\.trim\(\)/);
+  assert.match(clientSource, /EXPO_PUBLIC_POSTHOG_HOST \?\? ''\)\.trim\(\)/);
   assert.match(
     clientSource,
-    /function isPostHogConfigured\(\)[\s\S]*?resolveApiKey\(\)\.length > 0 && resolveHost\(\)\.length > 0/,
+    /function isPostHogConfigured\(\)[\s\S]*?isUsableApiKey\(resolveApiKey\(\)\) && isUsableHost\(resolveHost\(\)\)/,
   );
+  assert.match(clientSource, /function isUsableHost[\s\S]*?\^https:/);
 });
 
 test('GeoIP enrichment is explicitly disabled instead of inheriting the stateful SDK default', () => {
