@@ -24,9 +24,11 @@
  *
  * CONFIGURATION — env-only, no fallback. EXPO_PUBLIC_POSTHOG_API_KEY and
  * EXPO_PUBLIC_POSTHOG_HOST are the sole configuration authority; this file
- * must never hardcode a project token or host. Either one absent (or empty)
- * means POSTHOG ENABLED = FALSE and the app runs exactly as it would without
- * PostHog — every exported function here degrades to a safe no-op.
+ * must never hardcode a project token or host. Either one absent, empty or
+ * whitespace-only — or a host that is not an http(s) URL — means POSTHOG
+ * ENABLED = FALSE and the app runs exactly as it would without PostHog: the
+ * vendor SDK is never constructed and every exported function here degrades
+ * to a safe no-op.
  *
  * CONSENT — none reinterpreted. `opt_out_of_sale` (contexts/
  * PrivacyPreferencesContext.tsx) is a CCPA/CPRA "don't sell my data" flag,
@@ -54,15 +56,28 @@ import { setVtoAnalyticsSink } from '../vto/vtoTelemetry';
 export { PostHogProvider };
 
 function resolveApiKey(): string {
-  return process.env.EXPO_PUBLIC_POSTHOG_API_KEY ?? '';
+  return (process.env.EXPO_PUBLIC_POSTHOG_API_KEY ?? '').trim();
 }
 
 function resolveHost(): string {
-  return process.env.EXPO_PUBLIC_POSTHOG_HOST ?? '';
+  return (process.env.EXPO_PUBLIC_POSTHOG_HOST ?? '').trim();
+}
+
+/**
+ * A host that is not an http(s) URL is treated as absent rather than as a
+ * destination worth trying. Without this, a whitespace-only or malformed
+ * value still satisfied a bare `.length > 0` check, so a misconfigured build
+ * constructed a live client — and a constructed client is network-capable
+ * regardless of whether its host can ever resolve. Matched by shape rather
+ * than parsed with `URL`, which is polyfilled and historically incomplete on
+ * React Native.
+ */
+function isUsableHost(host: string): boolean {
+  return /^https?:\/\/[^\s]+$/i.test(host);
 }
 
 export function isPostHogConfigured(): boolean {
-  return resolveApiKey().length > 0 && resolveHost().length > 0;
+  return resolveApiKey().length > 0 && isUsableHost(resolveHost());
 }
 
 function createClient(): PostHog | null {
