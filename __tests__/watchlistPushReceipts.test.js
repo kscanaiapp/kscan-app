@@ -204,6 +204,14 @@ function loadReceiptProcessing({ fetchImpl, env = {}, config = {}, onCall } = {}
         };
       }
       if (specifier === './watchRefreshConfig.ts') return CONFIG_DEFAULTS;
+      // N-5: receiptProcessing.ts now also imports pushObservability.ts.
+      // Stubbed as a no-op here deliberately -- this file's own job is N-4's
+      // receipt/retirement behavior, not observability emission (that has
+      // its own dedicated coverage in watchlistPushObservability.test.js,
+      // including loading the REAL pushObservability.ts end-to-end).
+      if (specifier === './pushObservability.ts') {
+        return { recordPushOperationalEvent: () => {}, mapVendorErrorToReasonCode: () => 'unknown_malformed' };
+      }
       throw new Error(`Unexpected import in ${MODULE_PATH}: ${specifier}`);
     },
     fetch: mockFetch,

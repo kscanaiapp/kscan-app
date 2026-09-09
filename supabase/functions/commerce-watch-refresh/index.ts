@@ -49,6 +49,7 @@ import {
   pruneOldPushReceipts,
   retireStalePushRoute,
 } from './receiptProcessing.ts';
+import { mapVendorErrorToReasonCode, recordPushOperationalEvent } from './pushObservability.ts';
 import {
   MIN_REFRESH_INTERVAL_MS,
   USER_REFRESH_BATCH_CAP,
@@ -191,12 +192,26 @@ async function deliverPushIfArmed(
     liveTokens.map(async (tokenRow) => {
       // One token's failure is contained here: no throw escapes, and no
       // sibling delivery is skipped because of it.
+      // N-5: emitted BEFORE the send, unlike every receipt-side event below
+      // — this one specifically answers "was a push even attempted", which
+      // by definition cannot be known only after the fact.
+      recordPushOperationalEvent({
+        type: 'push_send_attempted',
+        component: 'send',
+        routeId: tokenRow.id,
+      });
       try {
         const result = await sendWatchPush(tokenRow.push_token, payload);
         if (!result.ok) {
           logEvent('watchlist_push_delivery_failed', {
             watchId: row.id.slice(0, 8),
             errorCode: result.errorCode,
+          });
+          recordPushOperationalEvent({
+            type: 'push_ticket_rejected',
+            component: 'send',
+            reason: mapVendorErrorToReasonCode(result.errorCode),
+            routeId: tokenRow.id,
           });
           // A ticket-confirmed dead token is revoked immediately rather than
           // left to accumulate silent future failures (§63 "stale push
@@ -210,22 +225,35 @@ async function deliverPushIfArmed(
               expectedPushToken: tokenRow.push_token,
             }).catch(() => 'skipped_stale' as const);
           }
-        } else if (result.ticketId) {
-          // NOTIF-12/N-4: an accepted ticket is not delivery. Persist it so
-          // the deferred receipt drain can later learn the real outcome and
-          // retire the route if — and only if — it turns out to be exactly
-          // this token incarnation that failed.
-          await persistPendingPushReceipt({
-            ticketId: result.ticketId,
-            tokenRowId: tokenRow.id,
-            pushToken: tokenRow.push_token,
-            userId: row.user_id,
+        } else {
+          recordPushOperationalEvent({
+            type: 'push_ticket_accepted',
+            component: 'send',
+            routeId: tokenRow.id,
           });
+          if (result.ticketId) {
+            // NOTIF-12/N-4: an accepted ticket is not delivery. Persist it so
+            // the deferred receipt drain can later learn the real outcome and
+            // retire the route if — and only if — it turns out to be exactly
+            // this token incarnation that failed.
+            await persistPendingPushReceipt({
+              ticketId: result.ticketId,
+              tokenRowId: tokenRow.id,
+              pushToken: tokenRow.push_token,
+              userId: row.user_id,
+            });
+          }
         }
       } catch (error) {
         logEvent('watchlist_push_delivery_failed', {
           watchId: row.id.slice(0, 8),
           errorCode: error instanceof Error ? error.name : 'unknown',
+        });
+        recordPushOperationalEvent({
+          type: 'push_ticket_rejected',
+          component: 'send',
+          reason: 'network_error',
+          routeId: tokenRow.id,
         });
       }
     }),
@@ -346,8 +374,16 @@ async function runWorkerSweep(): Promise<Response> {
   const enabled = await readAppConfigFlag('watchlist_worker_enabled');
   if (!enabled) {
     logEvent('watchlist_worker_kill_switch_skip', {});
+    recordPushOperationalEvent({
+      type: 'watchlist_worker_disabled',
+      component: 'worker',
+      reason: 'worker_disabled',
+    });
     return json({ mode: 'sweep', enabled: false, claimed: 0, results: [] });
   }
+
+  const startedAtMs = Date.now();
+  recordPushOperationalEvent({ type: 'watchlist_worker_started', component: 'worker' });
 
   // N-4: drain any receipts due for a verdict BEFORE claiming new refresh
   // work, so a dead route discovered this cycle cannot receive one more push
@@ -357,7 +393,7 @@ async function runWorkerSweep(): Promise<Response> {
   // should not have a second, differently-gated background job running
   // anyway. Bounded and best-effort: neither call ever throws, and both are
   // no-ops on an empty table (no rows due, nothing to prune).
-  await drainEligiblePushReceipts();
+  const receiptSummary = await drainEligiblePushReceipts();
   await pruneOldPushReceipts();
 
   const claimResponse = await rpc('claim_watchable_commerce_watches', {
@@ -366,6 +402,12 @@ async function runWorkerSweep(): Promise<Response> {
   });
   if (!claimResponse.ok) {
     logEvent('watchlist_worker_claim_failed', { status: claimResponse.status });
+    recordPushOperationalEvent({
+      type: 'watchlist_worker_failed',
+      component: 'worker',
+      reason: 'worker_claim_failed',
+      counters: { durationMs: Date.now() - startedAtMs },
+    });
     return json({ error: 'Claim failed' }, 500);
   }
   const claimed = (await claimResponse.json()) as WatchRow[];
@@ -381,6 +423,25 @@ async function runWorkerSweep(): Promise<Response> {
       });
       return { watchId: row.id, refreshStatus: 'error', observedAt: new Date().toISOString(), currentPrice: null, currency: row.currency, event: null, refreshMetadata: { provider: row.source, latencyMs: 0, errorCode: 'threw' } };
     }
+  });
+
+  // N-5: a bounded rollup, not a per-watch log line — see COUNTER_KEYS in
+  // pushObservability.ts. receiptsTerminal folds terminal_other and expired
+  // together: both mean "no further receipt check will happen and it was not
+  // a success", the one distinction observability needs at this granularity.
+  recordPushOperationalEvent({
+    type: 'watchlist_worker_completed',
+    component: 'worker',
+    counters: {
+      watchesEvaluated: claimed.length,
+      receiptsChecked: receiptSummary.checked,
+      receiptsSuccess: receiptSummary.success,
+      receiptsTransient: receiptSummary.stillPending,
+      receiptsTerminal: receiptSummary.terminalOther + receiptSummary.expired,
+      deadRoutesRetired: receiptSummary.retired,
+      staleReceiptsIgnored: receiptSummary.staleSkipped,
+      durationMs: Date.now() - startedAtMs,
+    },
   });
 
   return json({ mode: 'sweep', enabled: true, claimed: claimed.length, results });
@@ -639,11 +700,44 @@ async function handleRegisterPushToken(authUser: AuthUser, body: UserActionBody)
   const platform = body.platform === 'ios' || body.platform === 'android' ? body.platform : undefined;
   const deviceId = str(body.deviceId, 200);
   if (!isValidExpoPushToken(pushToken) || !platform || !deviceId) {
+    recordPushOperationalEvent({
+      type: 'push_registration_rejected',
+      component: 'registration',
+      reason: 'invalid_token_registration',
+    });
     return json({ error: 'invalid_token_registration', code: 'invalid_token_registration' }, 400);
   }
 
+  recordPushOperationalEvent({ type: 'push_registration_started', component: 'registration' });
+
   if (!(await isEligibleAccountActor(authUser.id))) {
+    recordPushOperationalEvent({
+      type: 'push_registration_rejected',
+      component: 'registration',
+      reason: 'account_not_eligible',
+    });
     return json({ error: 'account_not_eligible', code: 'account_not_eligible' }, 403);
+  }
+
+  // N-5: registration vs. token-refresh distinguishability (§ observability
+  // architecture). register_device_push_token's ON CONFLICT ... DO UPDATE
+  // does not itself reveal whether this (user, device) row already existed,
+  // so a bounded existence check runs first -- once per registration call,
+  // never per-push. Read-only and never gates the RPC below: a failed check
+  // simply falls back to reporting a first-time registration rather than
+  // blocking anything.
+  let existedBefore = false;
+  try {
+    const existingResponse = await rest(
+      `user_device_push_tokens?user_id=eq.${authUser.id}&device_id=eq.${encodeURIComponent(deviceId)}&select=id`,
+      { method: 'GET' },
+    );
+    if (existingResponse.ok) {
+      const rows = await existingResponse.json().catch(() => []);
+      existedBefore = Array.isArray(rows) && rows.length > 0;
+    }
+  } catch {
+    existedBefore = false;
   }
 
   const response = await rpc('register_device_push_token', {
@@ -654,8 +748,17 @@ async function handleRegisterPushToken(authUser: AuthUser, body: UserActionBody)
   });
   if (!response.ok) {
     logEvent('watchlist_push_token_register_failed', { uid: shortUserId(authUser.id), status: response.status });
+    recordPushOperationalEvent({
+      type: 'push_registration_rejected',
+      component: 'registration',
+      reason: 'registration_rpc_failed',
+    });
     return json({ error: 'register_failed', code: 'register_failed' }, 502);
   }
+  recordPushOperationalEvent({
+    type: existedBefore ? 'push_token_refreshed' : 'push_registration_succeeded',
+    component: 'registration',
+  });
   return json({ registered: true });
 }
 
@@ -677,9 +780,25 @@ async function handleRevokePushToken(authUser: AuthUser, body: UserActionBody): 
   });
   if (!response.ok) {
     logEvent('watchlist_push_token_revoke_failed', { uid: shortUserId(authUser.id), status: response.status });
+    // N-5: this is the single server-side effect shared by BOTH RP-104's
+    // explicit-off (disableDeviceNotifications) and RP-109's logout
+    // revocation (revokeWatchAlertsForThisDevice) -- both ultimately POST
+    // action: 'revoke_push_token'. One event, distinguished by reason, covers
+    // both without any client-side change to either hardened invariant path.
+    recordPushOperationalEvent({
+      type: 'push_route_revoked',
+      component: 'revoke',
+      reason: 'revoke_rpc_failed',
+    });
     return json({ error: 'revoke_failed', code: 'revoke_failed' }, 502);
   }
-  return json({ revoked: (await response.json()) === true });
+  const revoked = (await response.json()) === true;
+  recordPushOperationalEvent({
+    type: 'push_route_revoked',
+    component: 'revoke',
+    reason: revoked ? undefined : 'already_inactive',
+  });
+  return json({ revoked });
 }
 
 /**
@@ -708,10 +827,16 @@ async function handleClaimDevice(authUser: AuthUser, body: UserActionBody): Prom
       uid: shortUserId(authUser.id),
       status: response.status,
     });
+    recordPushOperationalEvent({
+      type: 'push_device_claim_rejected',
+      component: 'claim',
+      reason: 'claim_rpc_failed',
+    });
     return json({ error: 'claim_failed', code: 'claim_failed' }, 502);
   }
   const retired = await response.json().catch(() => 0);
-  if (typeof retired === 'number' && retired > 0) {
+  const retiredCount = typeof retired === 'number' ? retired : 0;
+  if (retiredCount > 0) {
     // Worth seeing: a device changed hands and the previous owner's sign-out
     // revocation had not already retired their route.
     logEvent('watchlist_device_claim_retired_foreign_routes', {
@@ -719,7 +844,12 @@ async function handleClaimDevice(authUser: AuthUser, body: UserActionBody): Prom
       retired,
     });
   }
-  return json({ retired: typeof retired === 'number' ? retired : 0 });
+  recordPushOperationalEvent({
+    type: 'push_device_claimed',
+    component: 'claim',
+    counters: { deadRoutesRetired: retiredCount },
+  });
+  return json({ retired: retiredCount });
 }
 
 async function handleSetPushEnabled(authUser: AuthUser, body: UserActionBody): Promise<Response> {
@@ -770,6 +900,11 @@ Deno.serve(async (req: Request) => {
     } catch (err) {
       alertEvent('watchlist_worker_unexpected_error', {
         message: err instanceof Error ? err.message.slice(0, 200) : 'unknown',
+      });
+      recordPushOperationalEvent({
+        type: 'watchlist_worker_failed',
+        component: 'worker',
+        reason: 'worker_threw',
       });
       return json({ error: 'Worker failed' }, 500);
     }

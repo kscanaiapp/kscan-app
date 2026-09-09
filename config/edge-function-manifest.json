@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-09T12:31:39.162Z",
-    "generatedFromGitSha": "faa02c390ed5d9626fdbe3cb827decee9d77dbe8"
+    "generatedAtUtc": "2026-09-09T13:53:31.805Z",
+    "generatedFromGitSha": "b91432dc7d673cd6c742282ec4e0742faf9fcc87"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -388,10 +388,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 14,
-        "treeFileCount": 17,
-        "bundleHash": "87898c269a4c0b41d01e798b230c0afbf8f5ecc0db3586c3f60d8e84fcf54843",
-        "treeHash": "9f76b15ca295cdc1bfb1ee7f860b65a35fc25ab36c8538d921c95ff5aad480a7",
+        "bundleFileCount": 15,
+        "treeFileCount": 18,
+        "bundleHash": "28358c4d9a11d071a1fe823c557beb97d77861346946c7942bdc462ad659b07a",
+        "treeHash": "e9d6d42f3859e0de54bc9e6feb23b4c73e0868f07826754e5ddf7789cfc2c88e",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -410,7 +410,7 @@
           },
           {
             "path": "supabase/functions/commerce-watch-refresh/index.ts",
-            "sha256": "c090a576d65fa26e915e94dd6db783b19e5111e3bb14f873a4b95923efa0d9ff",
+            "sha256": "04ce7754c5d01ae65ec6d04d6d6e3e3895467f59b3e0647d861dfd589c1e4eca",
             "bundle": true
           },
           {
@@ -419,8 +419,13 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/commerce-watch-refresh/pushObservability.ts",
+            "sha256": "a3b4c091d5aa784d9332ab5909e2512cd12f673d02ad8b5a4de08f90a0cfa8ef",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/commerce-watch-refresh/receiptProcessing.ts",
-            "sha256": "4e4ce5c0baee67226216d342f9853877e533568d02cd7704f03c207b895f4b93",
+            "sha256": "54752d3b80d786173b3a4fae4a7a11a09d843d652fd4840d40c229b1edc321e6",
             "bundle": true
           },
           {

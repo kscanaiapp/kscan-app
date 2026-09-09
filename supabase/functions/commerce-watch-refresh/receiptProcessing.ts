@@ -47,6 +47,7 @@ import {
   RECEIPT_MAX_BACKOFF_MS,
   RECEIPT_RETENTION_MS,
 } from './watchRefreshConfig.ts';
+import { recordPushOperationalEvent, type PushReasonCode } from './pushObservability.ts';
 
 const EXPO_RECEIPTS_URL = 'https://exp.host/--/api/v2/push/getReceipts';
 
@@ -242,7 +243,16 @@ export async function persistPendingPushReceipt(params: {
     });
     if (!response.ok) {
       logEvent('watchlist_receipt_persist_failed', { status: response.status });
+      return;
     }
+    // N-5: the ticket was accepted and its receipt is now tracked. Emitted
+    // AFTER the write commits, never before -- see drainEligiblePushReceipts
+    // below for the same discipline on the consuming side.
+    recordPushOperationalEvent({
+      type: 'push_receipt_pending',
+      component: 'receipt',
+      routeId: params.tokenRowId,
+    });
   } catch {
     logEvent('watchlist_receipt_persist_failed', { status: 'threw' });
   }
@@ -315,6 +325,81 @@ export async function retireIfFingerprintStillMatches(params: {
   if (currentFingerprint !== params.expectedFingerprint) return 'skipped_stale';
 
   return retireStalePushRoute({ tokenRowId: params.tokenRowId, expectedPushToken: currentToken });
+}
+
+/**
+ * N-5, observability-only. retireIfFingerprintStillMatches has already run
+ * and decided 'skipped_stale' by the time this is called — this function
+ * never influences that decision and never retries it. It exists only to
+ * attribute WHY the fingerprint no longer matched, for diagnostics: is the
+ * same device_id now held by a different, currently-live route (an actor
+ * change via claim_device_for_actor), or not (an ordinary token refresh, an
+ * explicit off, or a logout revoke by the same actor)? A second, read-only
+ * lookup, performed only on this rare no-op branch — never on the success
+ * path, never per-push.
+ *
+ * Deliberately does NOT write to watchlist_push_receipts.retirement_outcome:
+ * that column's CHECK constraint ('retired' | 'skipped_stale' only) is N-4
+ * schema this repair does not touch (no migration — see pushObservability.ts
+ * header). The finer attribution lives only in the emitted event.
+ *
+ * Fails closed to the less specific, not the more alarming, bucket: any read
+ * failure or ambiguous row state returns 'stale_token'.
+ */
+async function classifyRetirementNoop(tokenRowId: string): Promise<'stale_token' | 'actor_changed'> {
+  try {
+    const readResponse = await rest(
+      `user_device_push_tokens?id=eq.${encodeURIComponent(tokenRowId)}&select=device_id,user_id,revoked_at`,
+      { method: 'GET' },
+    );
+    if (!readResponse.ok) return 'stale_token';
+    const rows = (await readResponse.json().catch(() => [])) as Array<{
+      device_id?: string;
+      user_id?: string;
+      revoked_at?: string | null;
+    }>;
+    const row = rows[0];
+    if (!row || !row.device_id || !row.user_id) return 'stale_token';
+    // Still live but the fingerprint didn't match: the same route refreshed
+    // its own token in place — never an actor change, since device_id and
+    // user_id here are this row's own and are unchanged.
+    if (row.revoked_at == null) return 'stale_token';
+
+    const siblingResponse = await rest(
+      `user_device_push_tokens?device_id=eq.${encodeURIComponent(row.device_id)}` +
+        `&user_id=neq.${encodeURIComponent(row.user_id)}&revoked_at=is.null&select=id&limit=1`,
+      { method: 'GET' },
+    );
+    if (!siblingResponse.ok) return 'stale_token';
+    const siblings = (await siblingResponse.json().catch(() => [])) as Array<{ id?: string }>;
+    return Array.isArray(siblings) && siblings.length > 0 ? 'actor_changed' : 'stale_token';
+  } catch {
+    return 'stale_token';
+  }
+}
+
+/**
+ * Every ReceiptCategory except 'success'/'not_yet_available' shares its exact
+ * string with a PushReasonCode (the two vocabularies were deliberately kept
+ * in lockstep — see pushObservability.ts's header). This performs no
+ * translation, only a type-safe narrowing for the observability call sites
+ * below; the switch is exhaustive so an added ReceiptCategory forces this to
+ * be updated too.
+ */
+function receiptCategoryToReasonCode(category: ReceiptCategory): PushReasonCode | undefined {
+  switch (category) {
+    case 'device_not_registered':
+    case 'transient_provider_failure':
+    case 'rate_limited':
+    case 'payload_failure':
+    case 'credential_configuration_failure':
+    case 'developer_error':
+    case 'unknown_malformed':
+      return category;
+    case 'success':
+    case 'not_yet_available':
+      return undefined;
+  }
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -398,13 +483,23 @@ export async function drainEligiblePushReceipts(): Promise<DrainSummary> {
 
     for (const row of due) {
       const classification = classifyReceiptEntry(receiptData[row.ticket_id]);
-      logEvent(`watchlist_receipt_${classification.category}`, {
-        receipt: row.id.slice(0, 8),
-      });
+
+      // N-5: every emission below fires AFTER the corresponding write has
+      // already committed (or, for the transient/retry branch, after the
+      // retry itself is scheduled) — never before the outcome is known. The
+      // old call here fired at classification time, ahead of the retirement
+      // attempt's actual result; that was the exact defect N-5 exists to fix
+      // (see this file's own header and pushObservability.ts's header).
 
       if (classification.category === 'success') {
         await patchReceiptTerminal(row.id, 'success', classification.category);
         summary.success += 1;
+        recordPushOperationalEvent({
+          type: 'push_receipt_success',
+          component: 'receipt',
+          receiptId: row.id,
+          routeId: row.token_row_id,
+        });
         continue;
       }
 
@@ -414,8 +509,32 @@ export async function drainEligiblePushReceipts(): Promise<DrainSummary> {
           expectedFingerprint: row.token_fingerprint,
         });
         await patchReceiptTerminal(row.id, 'device_not_registered', classification.category, outcome);
-        if (outcome === 'retired') summary.retired += 1;
-        else summary.staleSkipped += 1;
+        if (outcome === 'retired') {
+          summary.retired += 1;
+          recordPushOperationalEvent({
+            type: 'push_route_retired_dead_token',
+            component: 'retirement',
+            reason: 'device_not_registered',
+            receiptId: row.id,
+            routeId: row.token_row_id,
+          });
+        } else {
+          summary.staleSkipped += 1;
+          // Observability-only secondary read (§ retirement attribution) —
+          // never changes the outcome already decided above, and never
+          // touches watchlist_push_receipts.retirement_outcome.
+          const attribution = await classifyRetirementNoop(row.token_row_id);
+          recordPushOperationalEvent({
+            type:
+              attribution === 'actor_changed'
+                ? 'push_route_retirement_noop_actor_changed'
+                : 'push_route_retirement_noop_stale_token',
+            component: 'retirement',
+            reason: attribution,
+            receiptId: row.id,
+            routeId: row.token_row_id,
+          });
+        }
         continue;
       }
 
@@ -428,9 +547,23 @@ export async function drainEligiblePushReceipts(): Promise<DrainSummary> {
         if (decision.action === 'expire') {
           await patchReceiptTerminal(row.id, 'expired', 'expired');
           summary.expired += 1;
+          recordPushOperationalEvent({
+            type: 'push_receipt_expired',
+            component: 'receipt',
+            reason: 'receipt_expired',
+            receiptId: row.id,
+            routeId: row.token_row_id,
+          });
         } else {
           await patchReceiptRetry(row.id, row.attempt_count, decision.nextCheckAt, classification.category);
           summary.stillPending += 1;
+          recordPushOperationalEvent({
+            type: 'push_receipt_transient',
+            component: 'receipt',
+            reason: receiptCategoryToReasonCode(classification.category),
+            receiptId: row.id,
+            routeId: row.token_row_id,
+          });
         }
         continue;
       }
@@ -440,6 +573,13 @@ export async function drainEligiblePushReceipts(): Promise<DrainSummary> {
       // unknown_malformed. None retire a route.
       await patchReceiptTerminal(row.id, 'terminal_other', classification.category);
       summary.terminalOther += 1;
+      recordPushOperationalEvent({
+        type: 'push_receipt_terminal_failure',
+        component: 'receipt',
+        reason: receiptCategoryToReasonCode(classification.category),
+        receiptId: row.id,
+        routeId: row.token_row_id,
+      });
     }
 
     return summary;
