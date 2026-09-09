@@ -33,9 +33,36 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: kscan-staging-deployment
-  cancel-in-progress: false
+# CI-CONCURRENCY-002. There is deliberately NO workflow-level `concurrency` here.
+#
+# This workflow used to serialize ENTIRELY behind one repo-wide group
+# (`kscan-staging-deployment`, cancel-in-progress: false). That group exists for
+# a real reason -- actual staging writes must never overlap -- but applying it at
+# WORKFLOW level put every unrelated PR's pure validation behind the same single
+# mutex.
+#
+# GitHub keeps at most one PENDING run per concurrency group: when a third run is
+# queued, the one already waiting is cancelled, even with
+# `cancel-in-progress: false` (that setting only protects the RUNNING run). So a
+# batch of pushes across unrelated branches produced:
+#
+#   many branches pushed
+#     -> staging-gate runs queued behind one global group
+#     -> older PENDING runs superseded and cancelled before any job started
+#     -> `Contract tests` never emitted a check-run for those SHAs
+#     -> Security promotion gate waited out its full convergence budget
+#     -> OPERATIONAL FAILURE / "missing check: Contract tests"
+#
+# The gate's fail-closed behaviour was correct. The orchestration that stopped
+# the evidence from ever being produced was the defect, and this is where it is
+# fixed: the mutex now lives on the jobs that actually touch staging (see
+# `concurrency:` on deploy-staging, staging-health and synthetic-tests below),
+# so serialization covers exactly the staging-mutating lane and nothing else.
+#
+# Consequence, stated plainly: at most ONE staging-touching job runs at a time
+# across the whole repository -- strictly the property the global group provided
+# for writes -- while classification, migration validation, contract tests and
+# the gate verdict are free to run per-PR and can no longer starve each other.
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -170,6 +197,14 @@ jobs:
     name: Deploy staging candidate
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    # CI-CONCURRENCY-002. The staging-mutation mutex lives HERE, not at workflow
+    # level. Every job that touches the shared staging project carries this same
+    # group, so no two of them can ever execute at once, repo-wide. A job that is
+    # skipped by its `if:` takes no slot at all, which is why unrelated PR
+    # validation can no longer be starved by it.
+    concurrency:
+      group: kscan-staging-deployment
+      cancel-in-progress: false
     needs:
       - classify-changes
       - migration-validation
@@ -402,6 +437,14 @@ jobs:
     name: Staging health checks
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # CI-CONCURRENCY-002. The staging-mutation mutex lives HERE, not at workflow
+    # level. Every job that touches the shared staging project carries this same
+    # group, so no two of them can ever execute at once, repo-wide. A job that is
+    # skipped by its `if:` takes no slot at all, which is why unrelated PR
+    # validation can no longer be starved by it.
+    concurrency:
+      group: kscan-staging-deployment
+      cancel-in-progress: false
     needs:
       - classify-changes
       - deploy-staging
@@ -439,6 +482,14 @@ jobs:
     name: Synthetic auth tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # CI-CONCURRENCY-002. The staging-mutation mutex lives HERE, not at workflow
+    # level. Every job that touches the shared staging project carries this same
+    # group, so no two of them can ever execute at once, repo-wide. A job that is
+    # skipped by its `if:` takes no slot at all, which is why unrelated PR
+    # validation can no longer be starved by it.
+    concurrency:
+      group: kscan-staging-deployment
+      cancel-in-progress: false
     needs:
       - classify-changes
       - deploy-staging
