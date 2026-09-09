@@ -104,7 +104,7 @@
     { "id": "client.paint_identification", "deps": ["client.parse_map", "client.floor_min_analysis", "client.floor_analyzing_display"],
       "evidence_class": "PROVEN", "blocks_first_result": true,
       "where": "client", "duration": { "kind": "param", "param": "client_render_ms" },
-      "source": "hooks/useKScan.js:488-492 setAnalysis + setStatus('result'); app.js:1024-1038 holds the reveal until v2AnalyzingMinComplete" },
+      "source": "hooks/useKScan.js:488-492 setAnalysis + setStatus('result'); app.js:1034-1048 holds the reveal until v2AnalyzingMinComplete" },
 
     { "id": "client.modeb_dispatch", "deps": ["client.paint_identification"], "evidence_class": "PROVEN", "blocks_first_result": true,
       "where": "client", "duration": { "kind": "param", "param": "client_effect_dispatch_ms" },
@@ -169,7 +169,7 @@
       "where": "server",
       "duration": { "kind": "fanin", "children": ["provider_farfetch_ms", "provider_kickscrew_ms"] },
       "timeout_ms": 6000,
-      "source": "scanCommerceRouter.ts:1295-1313 collectBounded, ENRICHMENT_DEADLINE_MS=6000, MAX_ENRICHMENT_CANDIDATES=2. NOTE: per-child timeouts are hard-coded 4000ms inside the providers (farfetch3Provider.ts:45, kicksCrewProvider.ts:43) and are NOT derived from the remaining budget — providerDeadlineMs is not applied here." },
+      "source": "scanCommerceRouter.ts:1295-1313 collectBounded, ENRICHMENT_DEADLINE_MS=6000, MAX_ENRICHMENT_CANDIDATES=2. NOTE: per-child timeouts are hard-coded 4000ms inside the providers (farfetch3Provider.ts:49, kicksCrewProvider.ts:47) and are NOT derived from the remaining budget — providerDeadlineMs is not applied here." },
 
     { "id": "server.c.serialize", "deps": ["server.c.enrichment"], "evidence_class": "PROVEN", "blocks_first_result": false,
       "where": "server", "duration": { "kind": "param", "param": "server_serialize_ms" } },

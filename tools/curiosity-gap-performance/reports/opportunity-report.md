@@ -2,7 +2,7 @@
 
 **BENCHMARK STATUS: INTERNAL ENGINEERING ANALYSIS ONLY. SIMULATED TTFAR IS NOT A MEASUREMENT OF REAL-WORLD K SCAN SPEED.**
 
-Source SHA `909df8646a690b55c5af6b7b8c80193df64a2ec8`.
+Source SHA `219f27aa0f2586d3bded1ca02f751a63d1960c48`.
 No classification below is `PRODUCTION_READY` — that verdict is not this lane's to give (§34).
 
 ---

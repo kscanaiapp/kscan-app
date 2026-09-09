@@ -1,10 +1,10 @@
 {
   "artifact": "ACTIONABLE_RESULT_SCHEMA",
   "actionable_result_version": "actionable-result-v1",
-  "source_sha": "909df8646a690b55c5af6b7b8c80193df64a2ec8",
+  "source_sha": "219f27aa0f2586d3bded1ca02f751a63d1960c48",
   "authored": "2026-09-06",
 
-  "method": "Derived by reading the shipped result card and its upstream normalizer, not by assuming the usual title/price/image/retailer set. The shipped card was identified from eas.json, which sets EXPO_PUBLIC_SCAN_RESULTS_V2_UI=true in all four governed profiles (preview, development, staging, production), so app.js:1134 renders ScanResultV2 and the tappable row is a PurchaseOptionsPanel row.",
+  "method": "Derived by reading the shipped result card and its upstream normalizer, not by assuming the usual title/price/image/retailer set. The shipped card was identified from eas.json, which sets EXPO_PUBLIC_SCAN_RESULTS_V2_UI=true in all four governed profiles (preview, development, staging, production), so app.js:1144 renders ScanResultV2 and the tappable row is a PurchaseOptionsPanel row.",
 
   "shipped_card": {
     "component": "components/scan-results/PurchaseOptionsPanel.tsx",
