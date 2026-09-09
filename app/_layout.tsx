@@ -35,7 +35,10 @@ import ErrorBoundary from '../src/components/ErrorBoundary';
 import { logError } from '../src/utils/errorLogger';
 import { cleanupOrphanedStylistSpeechFiles } from '../services/avatars/stylistSpeechFiles';
 import { sweepOrphanedVtoMedia } from '../services/vto/vtoMediaCache';
-import { installWatchNotificationRouting } from '../services/watchlist/watchNotificationRouting';
+import {
+  installWatchNotificationRouting,
+  type WatchNotificationRoutingHandle,
+} from '../services/watchlist/watchNotificationRouting';
 import { attachPushTokenRefreshListener } from '../services/watchlist/pushRegistration';
 import { runAppleCredentialStateCheck } from '../services/auth/appleCredentialState';
 import { reconcileTerminalDeletions } from '../services/deletion/terminalDeletionReconciler';
@@ -467,6 +470,9 @@ function TerminalDeletionBridge() {
 }
 
 export default function Layout() {
+  const navigationRef = useNavigationContainerRef();
+  const notificationRoutingRef = useRef<WatchNotificationRoutingHandle | null>(null);
+
   useEffect(() => {
     void cleanupOrphanedStylistSpeechFiles();
   }, []);
@@ -512,8 +518,33 @@ export default function Layout() {
     const handle = installWatchNotificationRouting((route) => {
       router.push(route as never);
     });
-    return () => handle.remove();
+    notificationRoutingRef.current = handle;
+    return () => {
+      notificationRoutingRef.current = null;
+      handle.remove();
+    };
   }, []);
+
+  // N-2: the navigator's own readiness signal, which the routing module waits
+  // on before it navigates a cold-start launch response.
+  //
+  // A cold launch resolves getLastNotificationResponseAsync() within the first
+  // frames, before <Stack> has mounted, and a router.push then is dropped — so
+  // the tapped alert was lost. This is deliberately event-driven rather than a
+  // delay: addListener on the container ref is safe before the container
+  // exists (react-navigation queues the listener and attaches it the moment
+  // the ref is populated) and the synchronous isReady() check ahead of it
+  // covers the case where the navigator was already up. The routing module's
+  // own flush is idempotent, so firing this on every state change is free.
+  useEffect(() => {
+    const markReady = () => {
+      if (navigationRef.isReady()) {
+        notificationRoutingRef.current?.notifyNavigationReady();
+      }
+    };
+    markReady();
+    return navigationRef.addListener('state', markReady);
+  }, [navigationRef]);
 
   return (
     <PostHogAnalyticsProvider>
