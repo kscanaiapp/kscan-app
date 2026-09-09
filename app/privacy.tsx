@@ -40,6 +40,7 @@ import { supabase } from '../services/supabaseClient';
 import { LOCAL_PRIVACY_STORAGE_KEY } from '../services/privacyLocalStore';
 import { hasPendingDeletionProfile } from '../services/routingGuard';
 import { SignatureStyleSettingsSection } from '../components/style-chat/SignatureStyleSettingsSection';
+import { DeviceNotificationSettingsSection } from '../components/settings/DeviceNotificationSettingsSection';
 import { KPLUS_EARLY_ACCESS_ENABLED } from '../constants/featureFlags';
 import { useKPlusEntitlement } from '../hooks/useKPlusEntitlement';
 import { KPlusEarlyAccessSheet } from '../components/kplus/KPlusEarlyAccessSheet';
@@ -733,6 +734,15 @@ export default function PrivacyScreen() {
                 }}
               />
             </View>
+
+            {/* N-6. The post-onboarding home for K Scan AI notification control.
+                Rendered only for a signed-in actor: a push-delivery route is
+                keyed on (user, device), so there is nothing to turn on or off
+                — and nothing truthful to display — without one. Mounting it
+                performs reads only; see the hook's own contract. */}
+            {isAuthenticated && user ? (
+              <DeviceNotificationSettingsSection actorKey={`user:${user.id}`} />
+            ) : null}
 
             <SignatureStyleSettingsSection userKey={user ? `user:${user.id}` : null} />
 
