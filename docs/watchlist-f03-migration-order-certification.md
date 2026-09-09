@@ -1,9 +1,14 @@
 # F-03 — Watchlist migration ordering / fresh-replay certification
 
-Status: **repaired and certified locally.** Both database histories pass; two
+Status: **repaired and certified locally.** Both database histories pass; three
 negative controls prove the certification detects the defect. Production was
 not touched, staging was not mutated, and no scheduler, worker or notification
 path was activated.
+
+The repair **does modify the source of one already-applied migration** — see
+§6 for the precise breakdown of what changed and what did not. Its version,
+filename and ledger row are untouched, and no database that already applied it
+re-executes it, but the file's bytes are not what they were.
 
 Base: `release/kscan-pre-freeze-v1` @ `85134d505bba679945e9b18388a74ebfcdd84acf`
 (PR #377 N-5 and PR #378 N-6 both present).
@@ -92,7 +97,9 @@ database would then carry:
 ## 2. The repair
 
 Two parts. Neither renames, deletes, squashes or reuses a migration version,
-and no migration ledger entry is fabricated or hand-edited.
+and no migration ledger entry is fabricated or hand-edited. Part 1 does change
+the SOURCE TEXT of an already-applied migration; that is stated plainly rather
+than filed under the narrower "not renamed/deleted/squashed" claim (§6).
 
 **Part 1 — existence guard, in place, identity preserved.**
 `20260830190000`'s executable body is wrapped in
@@ -238,11 +245,40 @@ STAGING_MUTATED=NO
 WATCHLIST_SCHEDULER_ACTIVATED=NO
 WATCHLIST_WORKER_ACTIVATED=NO
 EDGE_FUNCTION_RUNTIME_CHANGE=NO
-OLD_MIGRATIONS_MODIFIED=NO   (no rename, delete, squash or version reuse;
-                              one already-applied file gained a fresh-replay
-                              guard around unchanged statements)
+OLD_MIGRATIONS_MODIFIED=YES — CONTROLLED FRESH-REPLAY GUARD ONLY
 EXISTING_APPLIED_IDENTITIES_PRESERVED=YES
 ```
+
+### What "modified" means here, stated precisely
+
+The lane's original expected answer was `OLD_MIGRATIONS_MODIFIED=NO`. The
+implementation does not meet that answer, and the record says so rather than
+forcing the implementation to fit it. One already-applied migration file
+(`20260830190000_watchlist_push_token_actor_isolation.sql`) has its source
+text changed. Broken out along the axes that actually carry risk:
+
+```
+HISTORICAL_MIGRATION_SOURCE_MODIFIED=YES
+APPLIED_MIGRATION_IDENTITY_CHANGED=NO
+APPLIED_LEDGER_HISTORY_CHANGED=NO
+EXISTING_DATABASE_REEXECUTES_OLD_MIGRATION=NO
+FRESH_REPLAY_BEHAVIOR_CHANGED=YES
+WHY=Required to prevent the historical dependency inversion from aborting
+    before the forward reconciliation migration can execute.
+```
+
+Read together: the file's bytes changed, its identity and ledger row did not,
+no database that already applied it will ever execute the new bytes, and the
+only behaviour that changed is what a *fresh* replay does when it reaches a
+file whose dependency does not exist yet — it now skips instead of aborting.
+The statements inside the guard are byte-identical to the ones that were there
+before (mechanically verified, and pinned by
+`__tests__/watchlistF03MigrationOrder.test.js`).
+
+The narrow claim `OLD_MIGRATIONS_MODIFIED=NO` would have been true only under
+a reading where "modified" means "renamed, deleted, squashed, or version-
+reused". That is not how a release record is read, so it is not the answer
+recorded here.
 
 N-1 … N-6, RP-104 and RP-109 runtime semantics are unchanged: the repair adds no
 column, drops nothing, alters no policy, and installs a
