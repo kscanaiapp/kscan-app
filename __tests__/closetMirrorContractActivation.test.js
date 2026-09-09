@@ -403,6 +403,84 @@ test('MIRROR PRODUCTION PROFILE ENABLEMENT: every profile opts in via the exact-
   assert.ok(!/MIRROR_SELFIE_V1\s*=\s*true;/.test(flags), 'the flag was hardcoded rather than left env-driven');
 });
 
+// ── MIRROR-FLAG-DOC-MATCHES-ROLLOUT-POSTURE ─────────────────────────────────
+//
+// WHY THIS EXISTS. The Mirror flag block in constants/featureFlags.ts carried,
+// for several releases after it stopped being true, a statement of CURRENT
+// FACT: that the deployed `scan-identify` predated the `closet_mirror`
+// vocabulary, rejected it as INVALID_SOURCE, and that the flag "must therefore
+// stay off until the backend contract is deployed and verified". By then
+// staging served the vocabulary and every EAS profile set the flag to "true" —
+// so the file simultaneously instructed the flag off and shipped it on.
+//
+// Nothing caught that, because a stale sentence breaks no behaviour. It breaks
+// the RELEASE DECISION: a reviewer reading the authoritative flag file is told
+// the shipped Mirror path cannot complete, which is the opposite of the truth
+// and is exactly the kind of claim this repository elsewhere refuses to leave
+// standing.
+//
+// Deliberately narrow. This does NOT assert the prose says any particular
+// thing — that would be a test of wording, and would fail on every honest
+// rewrite. It asserts the ONE self-contradiction that actually occurred: the
+// documentation may not instruct the flag to stay off while every build
+// profile turns it on. Either half may change; they may not disagree.
+test('MIRROR-FLAG-DOC-MATCHES-ROLLOUT-POSTURE: the flag block never contradicts the shipped profiles', () => {
+  const eas = JSON.parse(fs.readFileSync(path.join(ROOT, 'eas.json'), 'utf8'));
+  const { resolveEasBuildProfiles } = require('../scripts/resolve-eas-build-profiles');
+  const profiles = Object.values(resolveEasBuildProfiles(eas));
+  const shippedOn = profiles.length > 0
+    && profiles.every((profile) => profile?.env?.EXPO_PUBLIC_MIRROR_SELFIE_V1 === 'true');
+
+  const flags = fs.readFileSync(path.join(ROOT, 'constants', 'featureFlags.ts'), 'utf8');
+  // The Mirror block only — a "must stay off" sentence belonging to some other
+  // feature's flag is none of this test's business.
+  const block = /\/\/ ── Mirror Selfie[\s\S]*?export const MIRROR_SELFIE_V1 =/.exec(flags);
+  assert.ok(block, 'the Mirror Selfie flag block was renamed or removed');
+  const prose = block[0];
+
+  // Phrasings that assert the flag is to remain disabled, or that the backend
+  // has not shipped the vocabulary. Matched case-insensitively over the block.
+  const contradictions = [
+    /must\s+(therefore\s+)?stay\s+off/i,
+    /must\s+remain\s+(off|disabled)/i,
+    /keep\s+this\s+flag\s+off/i,
+    /rejects\s+`?closet_mirror`?\s+as\s+INVALID_SOURCE(?![\s\S]{0,400}(were|was)\s+(true|false))/i,
+  ];
+  if (!shippedOn) return; // documentation may say anything while the flag ships off.
+  for (const pattern of contradictions) {
+    assert.ok(
+      !pattern.test(prose),
+      `the Mirror flag documentation still asserts the flag should be off (${pattern}), `
+        + 'but every EAS profile sets EXPO_PUBLIC_MIRROR_SELFIE_V1="true"',
+    );
+  }
+});
+
+// ── MIRROR-BACKEND-VOCABULARY-IS-NOT-CLAIMED-UNDEPLOYED ─────────────────────
+//
+// The companion half. `closet_mirror` reaching the three-way contract is what
+// makes a Mirror request well-formed; a comment claiming the deployed function
+// does not carry it is a claim about the WORLD, not about this tree, and it
+// goes stale silently. This asserts only the internal consistency available
+// offline: the vocabulary the client will actually send is present in all
+// three authoritative surfaces, so no in-tree file may describe it as absent
+// from the contract.
+test('MIRROR-BACKEND-VOCABULARY-IS-NOT-CLAIMED-UNDEPLOYED: no source calls closet_mirror contract-absent', () => {
+  for (const [label, file] of [
+    ['schema', SCHEMA_PATH],
+    ['backend mirror', BACKEND_MIRROR],
+    ['client mirror', CLIENT_MIRROR],
+  ]) {
+    const source = fs.readFileSync(file, 'utf8');
+    assert.ok(source.includes(MIRROR), `${label} no longer carries ${MIRROR}`);
+  }
+  const flags = fs.readFileSync(path.join(ROOT, 'constants', 'featureFlags.ts'), 'utf8');
+  assert.ok(
+    !/`?closet_mirror`?\s+is\s+(not|absent)\s+(yet\s+)?(in|from)\s+the\s+(contract|vocabulary)/i.test(flags),
+    'the flag file describes closet_mirror as absent from the contract, which the three surfaces above disprove',
+  );
+});
+
 /**
  * Strip comments before matching a forbidden symbol.
  *

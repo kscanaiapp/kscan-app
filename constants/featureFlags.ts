@@ -901,24 +901,39 @@ export function resolveClosetLegacyMigrationEnabled(
 
 export const CLOSET_LEGACY_MIGRATION_V1 = resolveClosetLegacyMigrationEnabled();
 
-// ── Mirror Selfie staging contract (Build 2.5 Step 1 + Step 2) ──────────────
+// ── Mirror Selfie contract (Build 2.5 Steps 1-4) ────────────────────────────
 /**
- * Dedicated Mirror Selfie flag. Gates ONLY the reachability of the crop-staging
- * adapter and hook API (services/closetMirrorStaging.ts,
- * useClosetCandidates().addMirrorGarmentCrops) — no capture UI, camera intake,
- * gallery intake, person detection, or garment segmentation exists behind it.
+ * Dedicated Mirror Selfie flag. Gates the whole Mirror intake: the local
+ * extraction sheet and its picker/person-resolution/crop stages
+ * (components/closet/MirrorSelfieExtractionModal.tsx, hooks/useMirrorExtraction.ts,
+ * services/mirror/*), the crop-staging adapter and hook API
+ * (services/closetMirrorStaging.ts, useClosetCandidates().addMirrorGarmentCrops),
+ * and the Step 4 coordinator that hands a selection to the existing candidate
+ * pipeline.
  *
- * Default OFF, and only the exact string "true" opts in, matching every other
- * rollout flag in this file.
+ * THE FLAG IS NEVER SUFFICIENT ON ITS OWN. Availability is composed from this
+ * flag AND a platform whose native extraction runtime is actually linked, and
+ * that composition lives in exactly one place —
+ * services/mirror/mirrorSelfieAvailability.ts. Android has no such runtime
+ * (modules/kscan-pii-native/expo-module.config.json declares "platforms":
+ * ["apple"]), so Android resolves unavailable however this flag resolves. No
+ * caller may re-derive that decision from the flag alone.
  *
- * Build 2.5 Step 2 made `closet_mirror` a real entry path in the three-way
- * `scan-identify` contract, so a Mirror request is now well-formed IN SOURCE.
- * It is still not completable AT RUNTIME: the deployed `scan-identify` function
- * predates that vocabulary and rejects `closet_mirror` as INVALID_SOURCE. This
- * flag must therefore stay off until the backend contract is deployed and
- * verified — exactly like `CLOSET_CANDIDATE_STAGING_V1` before its backend
- * shipped. Deployment is a necessary condition, not a sufficient one: Steps 3-5
- * (capture, extraction, end-to-end certification) all gate enablement too.
+ * Only the exact string "true" opts in, matching every other rollout flag in
+ * this file. `eas.json` sets it to "true" on every build profile; that posture
+ * is pinned by __tests__/closetMirrorContractActivation.test.js.
+ *
+ * BACKEND CONTRACT: DEPLOYED AND VERIFIED. Build 2.5 Step 2 made `closet_mirror`
+ * a real entry path in the three-way `scan-identify` contract. It is no longer
+ * source-only: staging `scan-identify` (project yzqjvdfgefveprobvvyw, version
+ * 61) serves a bundle byte-identical to release-line commit `3c9abd15`, whose
+ * `_shared/fashionIdentificationV2.ts` and `scan-identify/v2Activation.ts` are
+ * byte-identical to this branch's. The deployed validator accepts
+ * `closet_mirror`, preserves it verbatim, and still fails every near-miss
+ * spelling closed as `invalid_source`. This block previously recorded the
+ * opposite — an undeployed vocabulary and a consequent hold on enablement.
+ * That was accurate when written and is retracted here as of the staging
+ * verification above; it is not a live constraint.
  */
 export function resolveMirrorSelfieV1Enabled(
   value: string | undefined = process.env.EXPO_PUBLIC_MIRROR_SELFIE_V1,
