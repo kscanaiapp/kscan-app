@@ -1466,10 +1466,10 @@ test('SECURITY: no keychain value outside this record can be reached', () => {
 });
 
 // ===========================================================================
-// iOS CONTAINMENT / NATIVE DELTA
+// iOS + ANDROID CONTAINMENT / NATIVE DELTA (Repair 07 / Repair 09 parity)
 // ===========================================================================
 
-test('CONTAINMENT: the destructive bridge is mounted iOS-only and without a timer', () => {
+test('CONTAINMENT: the destructive bridge is mounted on both platforms, with no platform guard and without a timer', () => {
   const layout = fs.readFileSync(path.join(ROOT, 'app/_layout.tsx'), 'utf8');
   assert.match(layout, /<TerminalDeletionBridge \/>/);
 
@@ -1478,31 +1478,49 @@ test('CONTAINMENT: the destructive bridge is mounted iOS-only and without a time
   const body = layout.slice(start, end);
   assert.ok(start > 0);
 
-  // Both boundaries are platform-gated before any work happens.
-  assert.equal((body.match(/Platform\.OS !== 'ios'/g) || []).length, 2);
+  // Repair 09: the platform guard is gone. Both boundaries run unconditionally
+  // on iOS and Android alike — one shared path, never a per-platform fork.
+  assert.ok(!/Platform/.test(body), 'no platform branch of any kind remains in the bridge');
   assert.equal((body.match(/reconcileTerminalDeletions\(\)/g) || []).length, 2);
   assert.match(body, /inactive\|background/);
   assert.ok(!/setInterval|setTimeout|BackgroundFetch|TaskManager|registerTaskAsync/.test(body));
   // Deliberately NOT gated on a signed-in user: terminal cleanup happens after
   // the actor is gone, so a `user`/`session` guard would make it impossible.
   assert.ok(!/useAuthSession|user\?\.id|session/.test(body));
+
+  // The `Platform` import itself is gone from this file now that nothing in it
+  // reads Platform.OS — an unused import would mean a stale guard was only
+  // half-removed.
+  const importLine = (layout.match(/^import \{[\s\S]*?\} from 'react-native';/m) || [''])[0];
+  assert.ok(!/\bPlatform\b/.test(importLine), "app/_layout.tsx must not import 'Platform' unused");
 });
 
-test('CONTAINMENT: Android gains no destructive behaviour and no native capability', () => {
+test('CONTAINMENT: Android runs the identical destructive path as iOS, with no new native capability', () => {
   const androidDir = path.join(ROOT, 'android');
   if (fs.existsSync(androidDir)) {
-    // No android/ source is touched by this repair; asserted by the diff-facing
-    // gates, and structurally by the platform guard above.
+    // No android/ source is touched by this repair — Repair 09 is a JS/TS-only
+    // change that removes a platform guard, and adds nothing native.
     assert.ok(true);
   }
   const layout = fs.readFileSync(path.join(ROOT, 'app/_layout.tsx'), 'utf8');
   const start = layout.indexOf('function TerminalDeletionBridge()');
   const body = layout.slice(start, layout.indexOf('\n}\n', layout.indexOf('return null;', start)));
-  // The reconciler is reachable from exactly one place, and that place refuses
-  // to run off iOS before touching anything.
+  // There is exactly one TerminalDeletionBridge implementation and it contains
+  // no per-platform fork of any kind — iOS and Android execute the same code.
   for (const guard of body.split('useEffect').slice(1)) {
-    assert.match(guard.trimStart().slice(0, 120), /Platform\.OS !== 'ios'/);
+    assert.ok(
+      !/Platform\.OS/.test(guard.trimStart().slice(0, 120)),
+      'no useEffect in the bridge may special-case a platform',
+    );
   }
+  assert.ok(
+    !fs.existsSync(path.join(ROOT, 'services/deletion/terminalDeletionReconciler.android.ts')),
+    'no forked Android reconciler implementation exists — one shared path only',
+  );
+  assert.ok(
+    !fs.existsSync(path.join(ROOT, 'app/_layout.android.tsx')),
+    'no forked Android layout implementation exists — one shared path only',
+  );
 
   const callers = [];
   for (const dir of ['app', 'components', 'hooks', 'contexts', 'services', 'stores']) {
@@ -1563,6 +1581,66 @@ test('NATIVE: no new permission, entitlement, background mode or privacy categor
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
   assert.ok(pkg.dependencies['expo-secure-store'], 'the keychain dependency already exists');
   assert.ok(pkg.dependencies['expo-crypto'], 'the CSPRNG dependency already exists');
+});
+
+test('NATIVE: Android production permission posture is unchanged by Repair 09', () => {
+  const app = JSON.parse(fs.readFileSync(path.join(ROOT, 'app.json'), 'utf8'));
+  const android = app.expo.android ?? {};
+
+  // Byte-for-byte the state governed by androidGooglePlayComplianceV1 and the
+  // notification-boot-capability-removal repair. Enabling the JS-only terminal
+  // deletion bridge on Android must not grant, request, or unblock anything.
+  assert.deepEqual(android.permissions, [
+    'android.permission.CAMERA',
+    'android.permission.INTERNET',
+    'android.permission.VIBRATE',
+    'android.permission.ACCESS_COARSE_LOCATION',
+  ]);
+  assert.deepEqual(android.blockedPermissions, [
+    'android.permission.POST_NOTIFICATIONS',
+    'android.permission.RECEIVE_BOOT_COMPLETED',
+    'android.permission.RECORD_AUDIO',
+    'android.permission.ACCESS_FINE_LOCATION',
+    'android.permission.READ_EXTERNAL_STORAGE',
+    'android.permission.WRITE_EXTERNAL_STORAGE',
+  ]);
+
+  // The checked-in native project (android/app/src/main/AndroidManifest.xml)
+  // is this repo's real Android permission surface. Terminal deletion
+  // reconciliation is pure JS/TS calling expo-secure-store and expo-crypto —
+  // both already-shipped dependencies with no native permission of their own —
+  // so every one of the task's named permissions must still be present only as
+  // an explicit `tools:node="remove"` merge instruction, never as a live grant.
+  const manifest = fs.readFileSync(
+    path.join(ROOT, 'android/app/src/main/AndroidManifest.xml'),
+    'utf8',
+  );
+  const GOVERNED_PERMISSIONS = [
+    'POST_NOTIFICATIONS',
+    'RECORD_AUDIO',
+    'RECEIVE_BOOT_COMPLETED',
+    'ACCESS_FINE_LOCATION',
+    'READ_EXTERNAL_STORAGE',
+    'WRITE_EXTERNAL_STORAGE',
+    'FOREGROUND_SERVICE',
+    'FOREGROUND_SERVICE_MEDIA_PLAYBACK',
+  ];
+  for (const permission of GOVERNED_PERMISSIONS) {
+    const uses = manifest.match(
+      new RegExp(`<uses-permission android:name="android\\.permission\\.${permission}"[^/]*/>`, 'g'),
+    ) || [];
+    assert.equal(uses.length, 1, `${permission} must appear exactly once in the manifest`);
+    assert.match(
+      uses[0],
+      /tools:node="remove"/,
+      `${permission} must remain blocked (tools:node="remove"), never granted, for terminal deletion`,
+    );
+  }
+
+  // No new native Android service or receiver: the manifest's <service> and
+  // <receiver> entries are unrelated to deletion reconciliation and untouched.
+  assert.ok(!manifest.includes('TerminalDeletion'), 'no native component was added for deletion');
+  assert.ok(!manifest.includes('DeletionReconcil'), 'no native component was added for deletion');
 });
 
 // ===========================================================================
