@@ -27,6 +27,22 @@ const STAGING_DEPLOYMENT_ALLOWLIST = [
   'kickscrew-sneaker-description',
   // Staging deployment observability — approved for controlled pipeline proof.
   'staging-health',
+  // Staging Promotion 01 (2026-09-09): first staging deployment of the Repair 06
+  // post-auth deletion-status capability lookup, explicitly authorized by the
+  // owner after RP-06A.3 certified canonical and Repair 06 landed in #364. This
+  // entry IS that decision -- deploy-changed-functions.js refuses any function
+  // absent from this list, so a first deployment cannot happen as a side effect
+  // of source changing.
+  'deletion-status',
+  //
+  // search-vinted-secondhand remains deliberately OFF this list. Staging
+  // Promotion 01 re-proved its prerequisites from source rather than from the
+  // older note below: runApify() hard-requires APIFY_VINTED_ACTOR_ID and
+  // APIFY_API_TOKEN, and docs/staging-rebuild/secret-name-manifest.md records
+  // both as absent on staging (APIFY_VINTED_ACTOR_ID on neither project), along
+  // with the SECONDHAND_VINTED_ENABLED flag. Deploying it would ship hardened
+  // source that can only answer SECONDHAND_RESULTS_UNAVAILABLE. Setting secrets
+  // was outside that lane's authority; promotion stays pending staging config.
   // Deliberately NOT listed — hardened in source this pass but kept
   // undeployed pending an explicit follow-up decision:
   //   'search-vinted-secondhand' — required Apify secrets absent from staging
