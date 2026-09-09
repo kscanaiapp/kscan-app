@@ -24,9 +24,14 @@
  *
  * CONFIGURATION — env-only, no fallback. EXPO_PUBLIC_POSTHOG_API_KEY and
  * EXPO_PUBLIC_POSTHOG_HOST are the sole configuration authority; this file
- * must never hardcode a project token or host. Either one absent (or empty)
- * means POSTHOG ENABLED = FALSE and the app runs exactly as it would without
- * PostHog — every exported function here degrades to a safe no-op.
+ * must never hardcode a project token or host. Anything short of a usable
+ * pair — either absent, empty, whitespace, a key containing whitespace or
+ * control characters, or a host that is not an `https://` URL — means
+ * POSTHOG ENABLED = FALSE: the vendor SDK is never constructed, so there is
+ * no flush loop, no polling and no transport, and the app runs exactly as it
+ * would without PostHog. Every exported function here degrades to a safe
+ * no-op. See __tests__/posthogDisabledStateContainment.test.js, which proves
+ * this at the vendor boundary and at the process (network/timer) boundary.
  *
  * CONSENT — none reinterpreted. `opt_out_of_sale` (contexts/
  * PrivacyPreferencesContext.tsx) is a CCPA/CPRA "don't sell my data" flag,
@@ -54,15 +59,44 @@ import { setVtoAnalyticsSink } from '../vto/vtoTelemetry';
 export { PostHogProvider };
 
 function resolveApiKey(): string {
-  return process.env.EXPO_PUBLIC_POSTHOG_API_KEY ?? '';
+  return (process.env.EXPO_PUBLIC_POSTHOG_API_KEY ?? '').trim();
 }
 
 function resolveHost(): string {
-  return process.env.EXPO_PUBLIC_POSTHOG_HOST ?? '';
+  return (process.env.EXPO_PUBLIC_POSTHOG_HOST ?? '').trim();
+}
+
+/**
+ * CONTAINMENT GATE. Both predicates below decide whether the vendor SDK is
+ * constructed at all, which is the only boundary that matters: a constructed
+ * client opens its own flush loop and talks to its host without waiting for
+ * the app to call capture(), so "configured" must mean "genuinely usable",
+ * never merely "non-empty".
+ *
+ * A key may not contain whitespace or control characters. Trimming alone is
+ * not enough — a token with an embedded space or tab survives both a trim and
+ * a length check while being unusable.
+ */
+function isUsableApiKey(apiKey: string): boolean {
+  return apiKey.length > 0 && !/[\s\u0000-\u001F\u007F]/.test(apiKey);
+}
+
+/**
+ * HTTPS only, with a non-empty authority. Rejects a bare `https://`, any
+ * non-https scheme (`http:`, `ftp:`, `javascript:`), and anything that is not
+ * a URL at all. Analytics egress is the one thing that must never travel in
+ * cleartext, and no K Scan environment targets a plaintext ingestion host.
+ *
+ * Matched by shape rather than parsed with `URL`, which is polyfilled and
+ * historically incomplete on React Native — a gate that throws on a valid
+ * host would fail open on the platform this actually ships to.
+ */
+function isUsableHost(host: string): boolean {
+  return /^https:\/\/[^\s/?#]+(?:[/?#][^\s]*)?$/.test(host);
 }
 
 export function isPostHogConfigured(): boolean {
-  return resolveApiKey().length > 0 && resolveHost().length > 0;
+  return isUsableApiKey(resolveApiKey()) && isUsableHost(resolveHost());
 }
 
 function createClient(): PostHog | null {
