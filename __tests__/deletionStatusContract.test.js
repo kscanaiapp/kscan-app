@@ -950,11 +950,29 @@ test('GOVERNANCE: the status bundle excludes the auth-admin-bearing shared modul
   assert.deepEqual(fn.remoteSpecifiers, []);
 });
 
-test('GOVERNANCE: deletion-status is NOT on the staging auto-deploy allowlist', () => {
+test('GOVERNANCE: the staging allowlist records the promotion decisions explicitly', () => {
   const { STAGING_DEPLOYMENT_ALLOWLIST } = require('../security/scripts/staging-deployment-allowlist.js');
+
+  // Repair 06 asserted the inverse of the first line: deletion-status was
+  // deliberately absent so its first deployment could not happen as a side
+  // effect of source changing. Staging Promotion 01 is the explicit owner
+  // decision that entry was waiting for, so the assertion now records the
+  // decision rather than its absence. The gate is not weakened -- an entry
+  // still has to be added deliberately, and this test still fails if one
+  // appears or disappears without a matching decision.
   assert.ok(
-    !STAGING_DEPLOYMENT_ALLOWLIST.includes('deletion-status'),
-    'Repair 06 is source-only; promotion is a later, separate controlled decision',
+    STAGING_DEPLOYMENT_ALLOWLIST.includes('deletion-status'),
+    'Staging Promotion 01 authorized the first deletion-status staging deployment',
+  );
+
+  // Still held back, and this is the load-bearing half: search-vinted-secondhand
+  // hard-requires APIFY_VINTED_ACTOR_ID and APIFY_API_TOKEN (see runApify), both
+  // absent on staging. Allowlisting it would deploy hardened source that can
+  // only answer SECONDHAND_RESULTS_UNAVAILABLE, and would do so without the
+  // prerequisite proof this project requires before a first deployment.
+  assert.ok(
+    !STAGING_DEPLOYMENT_ALLOWLIST.includes('search-vinted-secondhand'),
+    'Vinted promotion stays pending staging Apify configuration',
   );
 });
 
