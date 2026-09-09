@@ -132,6 +132,7 @@ const GOVERNED_FUNCTIONS = [
   'shared-room-image-url',
   'tryon-clothes-pro',
   'staging-health',
+  'deletion-status',
   'vto-generate',
 ];
 

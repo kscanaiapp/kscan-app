@@ -1,0 +1,7 @@
+# Deletion status — post-auth capability lookup, no JWT required.
+#
+# Intake revokes sessions and bans the Auth user for the grace window, and the
+# purge worker deletes the Auth identity outright, so no caller can hold a
+# valid session at the moment this endpoint's answer becomes interesting. The
+# opaque 256-bit receipt is the credential; see index.ts.
+verify_jwt = false
