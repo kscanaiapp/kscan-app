@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-08T22:54:16.281Z",
-    "generatedFromGitSha": "654989ed98f2c2887d07954bb7e7fa6c192a77f0"
+    "generatedAtUtc": "2026-09-08T23:51:20.128Z",
+    "generatedFromGitSha": "f12f86374e7b8a9901d026d7ab1f1d861b67dbca"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -11,6 +11,7 @@
       "apple-credential-link",
       "apple-revoke-credential",
       "commerce-watch-refresh",
+      "deletion-status",
       "handle-user-deletion",
       "kickscrew-sneaker-description",
       "kplus-activate",
@@ -42,7 +43,7 @@
         "bundleFileCount": 41,
         "treeFileCount": 67,
         "bundleHash": "45394f994382e1502aeca25209706098c783a72f3faaedd2d4b74536e5426118",
-        "treeHash": "c5ed2b12dc52a54dfcdcf94e9c310415b0f4997e4b0110137d051f49a1784b36",
+        "treeHash": "d06205b67270c4877ed4e78fb11edaef3895fad165425f4a23d2a460515a6629",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -241,7 +242,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
-            "sha256": "a77d00d8d7dcf18b7a776187d789032db1bb5394198dfaee309eeaf634bb20db",
+            "sha256": "04cbe6e65924bf373a4fc2dd4f404b2512d7ba1df428cad9cc13f5a4093be64a",
             "bundle": false
           },
           {
@@ -1070,14 +1071,19 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 4,
-        "treeFileCount": 5,
-        "bundleHash": "551f50cff10644d5139ad0905c48ea0967f7c6068b9e122b2ced1443bd9cbe13",
-        "treeHash": "cd1439cf771f799fd0e7149393330a5a0d2477aca1b1b225a61d1438f51b8f98",
+        "bundleFileCount": 5,
+        "treeFileCount": 6,
+        "bundleHash": "077c13e79c448c511e249455d74fc580dbfce3a74fe9d17c5da0006155a5beaf",
+        "treeHash": "f13fec73ada3d0b727c67e47c9b5ebe7afb30ac3e6aa1efc28c278c9a4540c22",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
             "sha256": "037415daa130c2983a3b9247c4cf0bb4533353a2f0d1f8ab6a0ce335add45f19",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/deletion/statusReceipt.ts",
+            "sha256": "7d698484bddd0b1c167ef5eb8476f4a334a5d3052f31006d4cf8d346cb91376d",
             "bundle": true
           },
           {
@@ -1092,7 +1098,7 @@
           },
           {
             "path": "supabase/functions/handle-user-deletion/handler.ts",
-            "sha256": "d1747739b1950cdc24843b84c7bc1c7e419828e0b8eca2c19245c7db324858e7",
+            "sha256": "66761821ad70bcd48854e52d53b5072d521b005b68ae1c3b8eda5d5e48cc81ba",
             "bundle": true
           },
           {
@@ -1529,6 +1535,32 @@
           {
             "path": "supabase/functions/staging-health/index.ts",
             "sha256": "7ff82c61eaafc3329fc9a3a95a30940ed1cb4a30c94cffc6c20da39960dcd5a4",
+            "bundle": true
+          }
+        ]
+      },
+      {
+        "name": "deletion-status",
+        "entry": "supabase/functions/deletion-status/index.ts",
+        "remoteSpecifiers": [],
+        "bundleFileCount": 2,
+        "treeFileCount": 3,
+        "bundleHash": "03ba8050a6bcd210de7f4e90c918ead1a7a335628f800697ae731b005954884e",
+        "treeHash": "e049e2cbc64e1f29220eaece75d95c6b5498747676dbfacd3a755ab54435828f",
+        "files": [
+          {
+            "path": "supabase/functions/_shared/deletion/statusReceipt.ts",
+            "sha256": "7d698484bddd0b1c167ef5eb8476f4a334a5d3052f31006d4cf8d346cb91376d",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/deletion-status/config.toml",
+            "sha256": "43e9dec464217870a457bce806709aea59dc713630351bab7753628c65b4fa67",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/deletion-status/index.ts",
+            "sha256": "d1186f04e0ceab32c253c23d4e3228ba6b5cc1b081184997759c9368a2f16c5b",
             "bundle": true
           }
         ]

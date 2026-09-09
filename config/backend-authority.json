@@ -4,7 +4,7 @@
   "canonicalBranch": "rebuild/backend-authority-v2",
   "approvedProjectRef": "yzqjvdfgefveprobvvyw",
   "note": "Canonical backend deployment authority (BACKEND-AUTHORITY-RECOVERY-05A, 2026-09-08). Reconstituted after Repair 05 exhaustively proved the former canonical branch (rebuild/staging-v2-backend) unrecoverable -- see docs/staging-rebuild/repair05-canonical-authority-reconfirmation-2026-09-08.md and docs/staging-rebuild/backend-authority-v2-provenance-2026-09-08.md. Its initial backend source tree (supabase/functions/**, migrations, manifest) is byte-identical to the release/kscan-pre-freeze-v1 checkout it branched from, itself unchanged from the RP-108-certified governed backend snapshot -- no backend function behavior was altered to create this authority. release/kscan-pre-freeze-v1 remains integration-convergence-non-authoritative and its own deploy tooling continues to refuse deployment; this branch is now the sole checkout that may deploy.",
-  "governedFunctionCount": 23,
+  "governedFunctionCount": 24,
   "notGoverned": {
     "note": "Functions deployed on staging that this source tree does not govern.",
     "websitePrivacyStack": {

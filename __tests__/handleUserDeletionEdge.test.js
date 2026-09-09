@@ -111,6 +111,10 @@ function loadHandlerModule(logSink) {
   const allowed = {
     '../_shared/deletion/common.ts': commonStub,
     '../_shared/privacyRequestRateLimit.ts': rateLimitStub,
+    // Repair 06: the deletion-status capability primitives. Loaded from the
+    // real module rather than stubbed -- it is pure crypto with no I/O, so the
+    // hashing this harness observes is the hashing that ships.
+    '../_shared/deletion/statusReceipt.ts': loadStatusReceiptModule(),
   };
 
   const mod = { exports: {} };
@@ -131,6 +135,37 @@ function loadHandlerModule(logSink) {
   vm.createContext(sandbox);
   new vm.Script(output, { filename }).runInContext(sandbox);
   return mod.exports;
+}
+
+/**
+ * Loads the real statusReceipt module (Repair 06). It imports nothing and
+ * touches no network, so the harness runs the shipped implementation.
+ */
+let statusReceiptModule;
+function loadStatusReceiptModule() {
+  if (statusReceiptModule) return statusReceiptModule;
+  const rel = 'supabase/functions/_shared/deletion/statusReceipt.ts';
+  const source = fs.readFileSync(path.join(ROOT, rel), 'utf8');
+  const output = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2020,
+      esModuleInterop: true,
+    },
+  }).outputText;
+  const mod = { exports: {} };
+  const sandbox = {
+    console, crypto, TextEncoder, btoa, Uint8Array, Array, Object, String, Promise,
+    exports: mod.exports,
+    module: mod,
+    require: (specifier) => {
+      throw new Error(`Unexpected import in statusReceipt.ts: ${specifier}`);
+    },
+  };
+  vm.createContext(sandbox);
+  new vm.Script(output, { filename: rel }).runInContext(sandbox);
+  statusReceiptModule = mod.exports;
+  return statusReceiptModule;
 }
 
 function createdRow(overrides = {}) {

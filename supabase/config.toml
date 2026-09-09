@@ -124,6 +124,17 @@ verify_jwt = false
 [functions.vto-generate]
 verify_jwt = true
 
+# Repair 06 post-auth deletion-status capability lookup.
+#
+# verify_jwt = false is required here, not a relaxation. Deletion intake revokes
+# the caller's sessions and bans the Auth user for the grace window, and the
+# purge worker deletes the Auth identity outright -- so no caller can hold a
+# valid session at the moment this endpoint's answer becomes meaningful. The
+# opaque 256-bit status receipt is the credential; the function performs a
+# single indexed read and can neither restore, purge, nor mutate anything.
+[functions.deletion-status]
+verify_jwt = false
+
 # ── Local shadow stack ───────────────────────────────────────────────────────
 #
 # Explicit non-default ports. Several other K Scan worktrees run their own local

@@ -65,6 +65,11 @@ import {
   type AuthUser,
 } from '../_shared/deletion/common.ts';
 import {
+  generateStatusReceipt,
+  hashStatusReceipt,
+  isValidStatusReceipt,
+} from '../_shared/deletion/statusReceipt.ts';
+import {
   rateLimitedResponse,
   reservePrivacyRequestRateLimit as reserveRateLimitImpl,
   type PrivacyRateLimitAction,
@@ -158,6 +163,8 @@ export type HandlerDeps = {
     action: PrivacyRateLimitAction,
   ) => Promise<{ allowed: boolean; retry_after_seconds?: number }>;
   generateRestorationToken: () => string;
+  /** Mints a deletion-status capability when the client supplied none. */
+  generateStatusReceipt: () => string;
   /** Global session revocation (production control). Best-effort by design. */
   revokeSessions: (
     userId: string,
@@ -241,6 +248,15 @@ async function insertDeactivatedRequest(params: {
   tokenHash: string;
   requestedAt: string;
   gracePeriodEndsAt: string;
+  /** SHA-256 of the deletion-status capability, or null when there is none. */
+  statusReceiptHash: string | null;
+  /**
+   * Out-parameter: set true only if the row was actually written WITH the
+   * status-receipt hash. The caller must not hand a receipt back to a client
+   * whose hash never reached the database — a receipt that resolves to nothing
+   * is worse than no receipt, because the client would poll it forever.
+   */
+  binding: { receiptBound: boolean };
 }): Promise<ActiveRequestRow | 'duplicate' | null> {
   const safeUserId = shortUserId(params.userId);
   const base: Record<string, unknown> = {
@@ -255,6 +271,27 @@ async function insertDeactivatedRequest(params: {
     restoration_token_expires_at: params.gracePeriodEndsAt,
   };
 
+  /**
+   * The status-receipt hash is bound in the SAME insert as the lifecycle row,
+   * for the same reason the restoration token hash is: the capability must be
+   * durable before the request can be reported as accepted.
+   *
+   * It degrades instead of failing. `deletion_requests.status_receipt_hash` is
+   * introduced by a source-only migration that this lane is not authorised to
+   * apply, so every currently deployed environment still lacks the column. An
+   * unconditional write would turn every live account deletion into a 500 the
+   * moment this function shipped ahead of its migration. Losing the capability
+   * costs the client a status lookup; losing the deletion costs the user their
+   * ability to delete their account at all.
+   */
+  const receiptVariants: Array<{ bound: boolean; body: Record<string, unknown> }> =
+    params.statusReceiptHash
+      ? [
+          { bound: true, body: { status_receipt_hash: params.statusReceiptHash } },
+          { bound: false, body: {} },
+        ]
+      : [{ bound: false, body: {} }];
+
   // `notes` is the release schema; some lineages expose `internal_notes` or
   // neither. The note is operator context only -- never lifecycle state -- so
   // dropping it is always preferable to failing an accepted deletion.
@@ -264,60 +301,196 @@ async function insertDeactivatedRequest(params: {
     { label: null, body: {} },
   ];
 
+  sourceLoop:
   for (const requestSource of REQUEST_SOURCES) {
     let sourceRejected = false;
 
-    for (const variant of noteVariants) {
-      const response = await params.deps.rest('deletion_requests', {
-        method: 'POST',
-        body: JSON.stringify({ ...base, request_source: requestSource, ...variant.body }),
-      });
-
-      if (response.ok) {
-        const rows = await response.json();
-        return Array.isArray(rows) && rows[0] ? (rows[0] as ActiveRequestRow) : null;
-      }
-
-      const detail = await response.text();
-
-      // A concurrent request already opened the lifecycle. Never retry.
-      if (isUniqueViolation(response.status, detail)) {
-        logEvent('deletion_request_insert_duplicate', { uid: safeUserId });
-        return 'duplicate';
-      }
-
-      // Wrong vocabulary for this project: no note variant will help, so stop
-      // this source immediately and try the next one.
-      if (isRequestSourceViolation(detail)) {
-        logEvent('deletion_request_source_rejected', {
-          uid: safeUserId,
-          requestSource,
+    receiptLoop:
+    for (const receiptVariant of receiptVariants) {
+      for (const variant of noteVariants) {
+        const response = await params.deps.rest('deletion_requests', {
+          method: 'POST',
+          body: JSON.stringify({
+            ...base,
+            request_source: requestSource,
+            ...receiptVariant.body,
+            ...variant.body,
+          }),
         });
-        sourceRejected = true;
-        break;
-      }
 
-      if (variant.label && isMissingColumn(detail, variant.label)) {
-        logEvent('deletion_request_note_column_unavailable', {
+        if (response.ok) {
+          params.binding.receiptBound = receiptVariant.bound;
+          const rows = await response.json();
+          return Array.isArray(rows) && rows[0] ? (rows[0] as ActiveRequestRow) : null;
+        }
+
+        const detail = await response.text();
+
+        // The Repair 06 column is absent on this project. Drop the receipt and
+        // retry; never fail an otherwise-valid deletion over it.
+        if (receiptVariant.bound && isMissingColumn(detail, 'status_receipt_hash')) {
+          logEvent('deletion_status_receipt_column_unavailable', { uid: safeUserId });
+          continue receiptLoop;
+        }
+
+        // A collision on the receipt's own unique index means the supplied
+        // capability is already bound to some OTHER lifecycle. That is a
+        // receipt conflict, NOT a duplicate deletion request, and must not be
+        // reported as one: retry without the receipt so the deletion still
+        // succeeds. Nothing about the conflicting row is disclosed.
+        if (
+          receiptVariant.bound
+          && isUniqueViolation(response.status, detail)
+          && detail.includes('deletion_requests_status_receipt_hash_uidx')
+        ) {
+          logEvent('deletion_status_receipt_conflict', { uid: safeUserId });
+          continue receiptLoop;
+        }
+
+        // A concurrent request already opened the lifecycle. Never retry.
+        if (isUniqueViolation(response.status, detail)) {
+          logEvent('deletion_request_insert_duplicate', { uid: safeUserId });
+          return 'duplicate';
+        }
+
+        // Wrong vocabulary for this project: no note variant will help, so stop
+        // this source immediately and try the next one.
+        if (isRequestSourceViolation(detail)) {
+          logEvent('deletion_request_source_rejected', {
+            uid: safeUserId,
+            requestSource,
+          });
+          sourceRejected = true;
+          break receiptLoop;
+        }
+
+        if (variant.label && isMissingColumn(detail, variant.label)) {
+          logEvent('deletion_request_note_column_unavailable', {
+            uid: safeUserId,
+            column: variant.label,
+          });
+          continue;
+        }
+
+        logEvent('deletion_request_insert_failed', {
           uid: safeUserId,
-          column: variant.label,
+          note: variant.label ?? 'none',
+          status: response.status,
         });
-        continue;
+        return null;
       }
-
-      logEvent('deletion_request_insert_failed', {
-        uid: safeUserId,
-        note: variant.label ?? 'none',
-        status: response.status,
-      });
-      return null;
     }
 
     if (!sourceRejected) return null;
+    continue sourceLoop;
   }
 
   logEvent('deletion_request_no_accepted_source', { uid: safeUserId });
   return null;
+}
+
+/**
+ * Binds a status receipt to a lifecycle that already exists.
+ *
+ * A user who re-requests deletion during an open lifecycle gets the existing
+ * row back rather than a second one, so without this an already-deleting
+ * account could never acquire a capability — including the exact case Repair 07
+ * needs most, a client that lost the acceptance response and is retrying.
+ *
+ * Rules, all fail-safe:
+ *   - no hash stored yet  -> bind the supplied one
+ *   - stored hash equals the supplied one -> idempotent success
+ *   - stored hash differs -> refuse; never rotate, never disclose
+ *
+ * Deliberately best-effort and isolated from `findActiveLifecycle`: the
+ * `status_receipt_hash` column does not exist on any deployed project yet, and
+ * adding it to ACTIVE_SELECT would make PostgREST reject the primary lifecycle
+ * lookup outright — turning a missing column into a total deletion outage.
+ * Every failure here returns false and changes nothing else.
+ */
+/**
+ * Reads the optional `statusReceipt` field from the request body.
+ *
+ * Returns the receipt, `null` when the caller supplied none (the released-client
+ * case: no body at all), or `'invalid'` when a receipt was supplied but is not
+ * a well-formed capability.
+ *
+ * Bounded before parsing: the body is read only if its declared length is
+ * plausible, so a hostile caller cannot make an authenticated endpoint buffer
+ * an arbitrary payload.
+ */
+const MAX_INTAKE_BODY_BYTES = 4096;
+
+async function readSuppliedStatusReceipt(
+  req: Request,
+): Promise<string | null | 'invalid'> {
+  const declared = Number(req.headers.get('content-length') ?? '0');
+  if (Number.isFinite(declared) && declared > MAX_INTAKE_BODY_BYTES) return 'invalid';
+
+  let raw: string;
+  try {
+    raw = await req.text();
+  } catch {
+    return null;
+  }
+  if (!raw) return null;
+  if (raw.length > MAX_INTAKE_BODY_BYTES) return 'invalid';
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    // Released clients are not required to send JSON. An unparseable body is
+    // treated as "no receipt", never as an error.
+    return null;
+  }
+  if (!parsed || typeof parsed !== 'object') return null;
+
+  const value = (parsed as { statusReceipt?: unknown }).statusReceipt;
+  if (value === undefined || value === null) return null;
+  return isValidStatusReceipt(value) ? value : 'invalid';
+}
+
+async function bindReceiptToExistingLifecycle(params: {
+  deps: HandlerDeps;
+  requestId: string;
+  statusReceiptHash: string;
+  userId: string;
+}): Promise<boolean> {
+  const safeUserId = shortUserId(params.userId);
+  try {
+    const existing = await params.deps.rest(
+      `deletion_requests?id=eq.${params.requestId}&select=status_receipt_hash&limit=1`,
+      { method: 'GET' },
+    );
+    if (!existing.ok) return false;
+
+    const rows = await existing.json();
+    const stored = Array.isArray(rows) && rows[0]
+      ? (rows[0] as { status_receipt_hash?: string | null }).status_receipt_hash ?? null
+      : null;
+
+    if (stored) {
+      // Same capability presented again (a retry): idempotent, already bound.
+      // A different one: the lifecycle keeps the receipt it has. Rotation is
+      // deliberately not implemented — it would let anyone who can reach this
+      // authenticated path invalidate a capability the real client is holding.
+      if (stored === params.statusReceiptHash) return true;
+      logEvent('deletion_status_receipt_already_bound', { uid: safeUserId });
+      return false;
+    }
+
+    const patch = await params.deps.rest(
+      `deletion_requests?id=eq.${params.requestId}&status_receipt_hash=is.null`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ status_receipt_hash: params.statusReceiptHash }),
+      },
+    );
+    return patch.ok;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -352,14 +525,45 @@ async function markDeactivationFailed(
 }
 
 /** Truthful "a lifecycle is already running" payload. Never claims an email. */
-function alreadyRequestedResponse(row: ActiveRequestRow) {
+function alreadyRequestedResponse(
+  row: ActiveRequestRow,
+  statusReceipt?: StatusReceiptResult,
+) {
   return json({
     status: row.status,
     alreadyRequested: true,
     requestId: row.id,
     requestedAt: row.requested_at,
     gracePeriodEndsAt: row.grace_period_ends_at,
+    ...statusReceiptFields(statusReceipt),
   });
+}
+
+/**
+ * The receipt half of a deletion response.
+ *
+ * `statusReceipt` is returned ONLY when the server minted it, and only when its
+ * hash actually reached the database — a receipt the server invented but did
+ * not persist would resolve to nothing forever. A client-supplied receipt is
+ * never echoed: the client already has it, and echoing a secret back adds a
+ * second copy to every log and proxy on the return path for no benefit.
+ *
+ * `statusReceiptBound` is always reported truthfully, including false, so a
+ * client can tell the difference between "you can poll this" and "this
+ * deployment cannot answer status yet".
+ */
+type StatusReceiptResult = {
+  bound: boolean;
+  /** Present only for a server-generated receipt that was durably bound. */
+  issued?: string;
+};
+
+function statusReceiptFields(result?: StatusReceiptResult) {
+  if (!result) return {};
+  return {
+    statusReceiptBound: result.bound,
+    ...(result.bound && result.issued ? { statusReceipt: result.issued } : {}),
+  };
 }
 
 /**
@@ -531,6 +735,7 @@ const DEFAULT_DEPS: HandlerDeps = {
   appendTransition: appendTransitionImpl,
   reserveRateLimit: (userId, action) => reserveRateLimitImpl(userId, action),
   generateRestorationToken: generateRestorationTokenImpl,
+  generateStatusReceipt,
   revokeSessions: revokeAllSessionsImpl,
   banAuthUser: banAuthUserImpl,
   now: () => new Date(),
@@ -548,6 +753,17 @@ export function createHandler(
     try {
       const user = await deps.requireUser(req);
 
+      // Optional, and parsed defensively. Released clients send no body at all
+      // and this handler has never read one, so an absent, empty, non-JSON or
+      // non-object body must remain exactly as valid as it is today. A
+      // malformed *receipt*, however, is an explicit client error and is
+      // rejected rather than silently ignored, so a client that believes it
+      // holds a capability is never told its deletion succeeded without one.
+      const suppliedReceipt = await readSuppliedStatusReceipt(req);
+      if (suppliedReceipt === 'invalid') {
+        return json({ error: 'Invalid status receipt' }, 400);
+      }
+
       // Existing lifecycle short-circuits BEFORE rate limiting so a user can
       // always observe their own active deletion state even after exhausting
       // the abuse window that guards NEW request creation.
@@ -556,7 +772,19 @@ export function createHandler(
         if (LEGACY_UPGRADEABLE_STATUSES.includes(existing.status)) {
           return await upgradeLegacyLifecycle({ deps, user, existing });
         }
-        return alreadyRequestedResponse(existing);
+        // A retry that carries a capability can still bind it to the lifecycle
+        // it already owns — this is the lost-response recovery path.
+        let receiptResult: StatusReceiptResult | undefined;
+        if (suppliedReceipt) {
+          const bound = await bindReceiptToExistingLifecycle({
+            deps,
+            requestId: existing.id,
+            statusReceiptHash: await hashStatusReceipt(suppliedReceipt),
+            userId: user.id,
+          });
+          receiptResult = { bound };
+        }
+        return alreadyRequestedResponse(existing, receiptResult);
       }
 
       const rate = await deps.reserveRateLimit(user.id, 'account_deletion');
@@ -574,12 +802,24 @@ export function createHandler(
       const rawToken = deps.generateRestorationToken();
       const tokenHash = await hashRestorationToken(rawToken);
 
+      // A client that supplied its own capability keeps it; otherwise the
+      // server mints one so old clients gain status support without shipping.
+      // Only the hash is persisted either way.
+      const serverGenerated = suppliedReceipt ? null : deps.generateStatusReceipt();
+      const rawStatusReceipt = suppliedReceipt ?? serverGenerated;
+      const statusReceiptHash = rawStatusReceipt
+        ? await hashStatusReceipt(rawStatusReceipt)
+        : null;
+      const binding = { receiptBound: false };
+
       const inserted = await insertDeactivatedRequest({
         deps,
         userId: user.id,
         tokenHash,
         requestedAt,
         gracePeriodEndsAt,
+        statusReceiptHash,
+        binding,
       });
 
       if (inserted === 'duplicate') {
@@ -653,6 +893,12 @@ export function createHandler(
         gracePeriodEndsAt: inserted.grace_period_ends_at ?? gracePeriodEndsAt,
         restorationEmailQueued,
         sessionRevocationOk: revocation.ok,
+        ...statusReceiptFields({
+          bound: binding.receiptBound,
+          // Only a server-minted receipt is handed back. A client-supplied one
+          // is never echoed.
+          ...(serverGenerated ? { issued: serverGenerated } : {}),
+        }),
       });
     } catch (error) {
       if (error instanceof Response) return error;

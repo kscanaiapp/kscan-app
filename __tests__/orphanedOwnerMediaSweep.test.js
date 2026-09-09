@@ -227,6 +227,11 @@ test('no new Edge Function is introduced (the governed set is unchanged)', () =>
   // These are legitimate, separately-governed additions, not this sweep
   // growing a function of its own -- which the directory-inclusion check
   // below still proves.
-  assert.equal(dirs.length, 23, 'the sweep must live in the existing worker, not a new function');
+  // Now 24: Repair 06 added deletion-status, the post-auth terminal
+  // deletion-status capability lookup. Also a separately-governed addition
+  // with its own manifest entry, privilege profile and config -- and again
+  // not this sweep growing a function, which the inclusion check below still
+  // proves independently of the count.
+  assert.equal(dirs.length, 24, 'the sweep must live in the existing worker, not a new function');
   assert.ok(dirs.includes('process-account-deletions'));
 });
