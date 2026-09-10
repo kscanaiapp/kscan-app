@@ -207,6 +207,62 @@ jobs:
           echo "actor_b_user_id=${UID_B}" >> "$GITHUB_OUTPUT"
           echo "Actor B created: ${UID_B}"
 
+      - name: Direct apple-revoke-credential authorization controls (issue #390)
+        id: revoke_controls
+        run: |
+          set -euo pipefail
+          # ISSUE #390 DIRECT CONTROL.
+          #
+          # apple-revoke-credential runs with verify_jwt = false and enforces its
+          # own `Authorization: Bearer <SUPABASE_SERVICE_ROLE_KEY>` check. These
+          # probes establish, live and without ever holding that credential, what
+          # the gate does to a call that does NOT present it -- which is the exact
+          # shape the nested call had before the repair.
+          #
+          # No service credential is used, produced or required here. Every probe
+          # is expected to be REFUSED; a probe that succeeded would itself be the
+          # finding. Only the HTTP status and the response's `error` word are
+          # recorded.
+          TOKEN=$(cat /tmp/actor_a_token)
+          URL="https://${STAGING_REF}.supabase.co/functions/v1/apple-revoke-credential"
+          BODY=$(jq -n '{userId:"00000000-0000-4000-8000-000000000001"}')
+
+          probe() {
+            # $1 = label, $2.. = extra curl args
+            local label="$1"; shift
+            local code
+            code=$(curl -sS -o /tmp/revoke_probe.json -w '%{http_code}' \
+              -X POST "$URL" \
+              -H "apikey: ${PUBLISHABLE_KEY}" \
+              -H "Content-Type: application/json" \
+              "$@" \
+              -d "$BODY")
+            local word
+            word=$(jq -r '.error // .status // "none"' /tmp/revoke_probe.json 2>/dev/null || echo "unparsable")
+            # Human-readable line to stderr so it reaches the log; only the
+            # status code goes to stdout, which is what the caller captures.
+            echo "${label}: HTTP ${code} (${word})" >&2
+            echo "${code}"
+          }
+
+          NO_AUTH_CODE=$(probe "no Authorization header")
+          USER_JWT_CODE=$(probe "actor user JWT" -H "Authorization: Bearer ${TOKEN}")
+          PUB_KEY_CODE=$(probe "publishable API key as bearer" -H "Authorization: Bearer ${PUBLISHABLE_KEY}")
+
+          echo "no_auth_code=${NO_AUTH_CODE}" >> "$GITHUB_OUTPUT"
+          echo "user_jwt_code=${USER_JWT_CODE}" >> "$GITHUB_OUTPUT"
+          echo "pub_key_code=${PUB_KEY_CODE}" >> "$GITHUB_OUTPUT"
+
+          FAILED=0
+          for pair in "no-Authorization:${NO_AUTH_CODE}" "user-JWT:${USER_JWT_CODE}" "publishable-key:${PUB_KEY_CODE}"; do
+            name="${pair%%:*}"; code="${pair##*:}"
+            if [ "${code}" != "403" ]; then
+              echo "::error::${name} probe returned HTTP ${code}, expected 403. The service-role gate is not behaving as designed."
+              FAILED=1
+            fi
+          done
+          [ "${FAILED}" -eq 0 ]
+
       - name: Upload tiny synthetic storage fixture for actor A
         id: storage
         env:
@@ -214,13 +270,17 @@ jobs:
         run: |
           set -euo pipefail
           TOKEN=$(cat /tmp/actor_a_token)
-          PATH_A="${ACTOR_A_UID}/scans/repair06-e2e-fixture.txt"
+          PATH_A="${ACTOR_A_UID}/scans/repair06-e2e-fixture.png"
+          # The style-library-images bucket enforces an image mime allowlist, so
+          # the fixture must be a real image. This is a 1x1 fully-transparent
+          # PNG -- 68 bytes, synthetic, and carries no likeness or content.
+          printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==' | base64 -d > /tmp/fixture.png
           CODE=$(curl -sS -o /tmp/storage_upload.json -w '%{http_code}' \
             -X POST "https://${STAGING_REF}.supabase.co/storage/v1/object/style-library-images/${PATH_A}" \
             -H "apikey: ${PUBLISHABLE_KEY}" \
             -H "Authorization: Bearer ${TOKEN}" \
-            -H "Content-Type: text/plain" \
-            --data-binary "kscan repair06 live e2e synthetic fixture -- not a real image")
+            -H "Content-Type: image/png" \
+            --data-binary @/tmp/fixture.png)
           echo "storage_http_code=${CODE}" >> "$GITHUB_OUTPUT"
           echo "storage_path=${PATH_A}" >> "$GITHUB_OUTPUT"
           echo "Storage upload -> HTTP ${CODE} at ${PATH_A}"
@@ -293,6 +353,9 @@ jobs:
           A_UID: ${{ steps.actor_a.outputs.actor_a_user_id }}
           A_REQ: ${{ steps.intake_a.outputs.actor_a_request_id }}
           STORAGE_CODE: ${{ steps.storage.outputs.storage_http_code }}
+          REVOKE_NO_AUTH: ${{ steps.revoke_controls.outputs.no_auth_code }}
+          REVOKE_USER_JWT: ${{ steps.revoke_controls.outputs.user_jwt_code }}
+          REVOKE_PUB_KEY: ${{ steps.revoke_controls.outputs.pub_key_code }}
           STORAGE_PATH: ${{ steps.storage.outputs.storage_path }}
           B_UID: ${{ steps.actor_b.outputs.actor_b_user_id }}
           B_REQ: ${{ steps.intake_b.outputs.actor_b_request_id }}
@@ -306,6 +369,10 @@ jobs:
             echo "- Actor A user id: \`${A_UID:-n/a}\`"
             echo "- Actor A request id: \`${A_REQ:-n/a}\`"
             echo "- Storage upload: HTTP ${STORAGE_CODE:-n/a} at \`${STORAGE_PATH:-n/a}\`"
+            echo "- apple-revoke-credential direct controls (all must be 403):"
+            echo "  - no Authorization header: HTTP ${REVOKE_NO_AUTH:-n/a}"
+            echo "  - actor user JWT: HTTP ${REVOKE_USER_JWT:-n/a}"
+            echo "  - publishable key as bearer: HTTP ${REVOKE_PUB_KEY:-n/a}"
             echo "- Actor B user id: \`${B_UID:-n/a}\`"
             echo "- Actor B request id: \`${B_REQ:-n/a}\`"
             echo ""
@@ -314,7 +381,7 @@ jobs:
 
       - name: Remove raw response bodies
         if: always()
-        run: rm -f /tmp/unauth.json /tmp/intake_a.json /tmp/storage_upload.json /tmp/actor_a_token /tmp/actor_b_token
+        run: rm -f /tmp/unauth.json /tmp/intake_a.json /tmp/storage_upload.json /tmp/actor_a_token /tmp/actor_b_token /tmp/fixture.png /tmp/revoke_probe.json
 
   status_check:
     if: github.event.inputs.phase == 'status_check'

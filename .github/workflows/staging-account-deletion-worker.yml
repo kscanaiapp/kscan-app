@@ -119,6 +119,19 @@ jobs:
 
           # Sanitized projection only — counts, mode and flags. No request ids,
           # no user ids, no subject refs, no manifest contents.
+          #
+          # The LIVE and DRY-RUN paths return different shapes, and this step
+          # must read both. A live run answers
+          #   { mode: "live", claimed, results: [{ requestId, status }, ...] }
+          # with no *Count fields at all; a dry run answers
+          #   { mode: "dry_run", summary: { eligibleCount, planCount, ... } }.
+          # Reading only the dry-run keys made every live run — successful or
+          # failing — report zeros and a green check. That is how issue #390
+          # ran for a week: purges were dead-ending in
+          # apple_revocation_blocked:failed while this workflow reported
+          # "failedCount: 0" on every scheduled run. Counts are derived from
+          # `results` for live runs, and a live run that processed rows but
+          # purged none is called out explicitly.
           node --input-type=commonjs -e '
             const fs = require("node:fs");
             let body;
@@ -129,18 +142,50 @@ jobs:
               process.exit(1);
             }
             const summary = body.summary || {};
+            const results = Array.isArray(body.results) ? body.results : [];
+            const live = body.mode === "live";
+            // Status words come from a small closed set the worker defines:
+            //   purged           terminal success
+            //   retry_or_failed  the purge threw; retry/fail lifecycle engaged
+            //   skipped_grace    claimed but still inside its grace period
+            //   skipped_terminal already terminal
+            //   lost_lease       another worker holds the row
+            // Only retry_or_failed (or a word this list does not know) is a
+            // real failure. Treating the benign three as failures would make
+            // this workflow cry wolf, which is the same end state as staying
+            // silent.
+            const BENIGN = ["skipped_grace", "skipped_terminal", "lost_lease"];
+            const word = (r) => String((r && r.status) ?? "unknown");
+            const purged = results.filter((r) => word(r) === "purged").length;
+            const skipped = results.filter((r) => BENIGN.includes(word(r))).length;
+            const failed = results.length - purged - skipped;
             const out = {
               mode: body.mode ?? "unknown",
               dryRun: body.dryRun === true,
               killSwitchEnabled: body.killSwitchEnabled === true,
               eligibleCount: Number(summary.eligibleCount ?? body.eligibleCount ?? 0),
               planCount: Number(summary.planCount ?? 0),
-              processedCount: Number(body.processedCount ?? summary.processedCount ?? 0),
-              purgedCount: Number(body.purgedCount ?? summary.purgedCount ?? 0),
-              failedCount: Number(body.failedCount ?? summary.failedCount ?? 0),
+              claimedCount: Number(body.claimed ?? 0),
+              processedCount: live ? results.length : Number(body.processedCount ?? summary.processedCount ?? 0),
+              purgedCount: live ? purged : Number(body.purgedCount ?? summary.purgedCount ?? 0),
+              skippedCount: live ? skipped : 0,
+              failedCount: live ? failed : Number(body.failedCount ?? summary.failedCount ?? 0),
+              statusWords: live ? Array.from(new Set(results.map(word))).sort() : [],
+              // Enum words from apple-revoke-credential. Surfaced because a
+              // blocking value here is the signature of issue #390, and nothing in
+              // this summary previously showed it.
+              appleRevocationStatuses: live
+                ? Array.from(new Set(results.map((r) => r && r.appleAuthorizationRevocation).filter(Boolean).map(String))).sort()
+                : [],
             };
             console.log(JSON.stringify(out));
             fs.writeFileSync("worker-summary.json", JSON.stringify(out, null, 2) + "\n");
+            // A claimed purge that did not reach a terminal state is the signal
+            // #390 needed and did not have. Never leave it as a green check.
+            if (live && out.failedCount > 0) {
+              console.log("::error::" + out.failedCount + " of " + out.processedCount + " claimed deletion request(s) did not reach a terminal purge. Status words: " + out.statusWords.join(", ") + ". Apple revocation: " + (out.appleRevocationStatuses.join(", ") || "n/a"));
+              process.exit(1);
+            }
           '
 
       - name: Record run summary
