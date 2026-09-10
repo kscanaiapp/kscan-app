@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-10T14:00:26.324Z",
-    "generatedFromGitSha": "35391c3c609f083f898a66bd9950c2e895e522a0"
+    "generatedAtUtc": "2026-09-10T19:26:38.876Z",
+    "generatedFromGitSha": "7b23939c6c7fbf7b5081e483474b0fa074ab0480"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -1114,10 +1114,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 5,
-        "treeFileCount": 5,
-        "bundleHash": "eeba716b45a60d271f29f36a3a9cefb1ddf05dee07fac022961c8602318022b0",
-        "treeHash": "eeba716b45a60d271f29f36a3a9cefb1ddf05dee07fac022961c8602318022b0",
+        "bundleFileCount": 6,
+        "treeFileCount": 6,
+        "bundleHash": "4469a43fdd17d9b45de582e9fe4e7329621a664e616c153fb279f59e0bdb7f22",
+        "treeHash": "4469a43fdd17d9b45de582e9fe4e7329621a664e616c153fb279f59e0bdb7f22",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/appleRevocation.ts",
@@ -1131,7 +1131,12 @@
           },
           {
             "path": "supabase/functions/_shared/deletion/userDataResources.ts",
-            "sha256": "b96bb285506a5ba7fff45e95a8e63cf1c59f5041c9bdbb289395181e7de182cd",
+            "sha256": "3021cc6a491b7f9bfc307dd6835d8d933458fa6a513713d76f730a7a0a58181c",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/_shared/deletion/workerMode.ts",
+            "sha256": "8f3b8e14a0fd90206fddf7b9153a51d7dd403aae59e9b1d1708c02f01bfa57c8",
             "bundle": true
           },
           {
@@ -1141,7 +1146,7 @@
           },
           {
             "path": "supabase/functions/process-account-deletions/index.ts",
-            "sha256": "b37ae4f8f01d7e350257e5b798c0f33bf16cf7ae5704d2134bc3aea0bac4a123",
+            "sha256": "95be6971020864d6ca814a83126fed52640fc07ef03662e094c1bedc7b09115c",
             "bundle": true
           }
         ]
