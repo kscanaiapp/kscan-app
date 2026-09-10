@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-08T23:51:20.128Z",
-    "generatedFromGitSha": "f12f86374e7b8a9901d026d7ab1f1d861b67dbca"
+    "generatedAtUtc": "2026-09-10T14:00:26.324Z",
+    "generatedFromGitSha": "35391c3c609f083f898a66bd9950c2e895e522a0"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -43,7 +43,7 @@
         "bundleFileCount": 41,
         "treeFileCount": 67,
         "bundleHash": "45394f994382e1502aeca25209706098c783a72f3faaedd2d4b74536e5426118",
-        "treeHash": "d06205b67270c4877ed4e78fb11edaef3895fad165425f4a23d2a460515a6629",
+        "treeHash": "a4489fe28095881cfdf032b2fe082adb498a49b850bbbcbbf41dbfd305b5cb35",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -242,7 +242,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
-            "sha256": "04cbe6e65924bf373a4fc2dd4f404b2512d7ba1df428cad9cc13f5a4093be64a",
+            "sha256": "72bb0d1963e1d6acbf249ab4e35a8f5297bd476ce2fbafdc7373fc248974fbe0",
             "bundle": false
           },
           {
@@ -1116,12 +1116,12 @@
         ],
         "bundleFileCount": 5,
         "treeFileCount": 5,
-        "bundleHash": "bcc17302024df348e17dc412de1581f07cc4209a92a79beb4002e2903e3ba37f",
-        "treeHash": "bcc17302024df348e17dc412de1581f07cc4209a92a79beb4002e2903e3ba37f",
+        "bundleHash": "eeba716b45a60d271f29f36a3a9cefb1ddf05dee07fac022961c8602318022b0",
+        "treeHash": "eeba716b45a60d271f29f36a3a9cefb1ddf05dee07fac022961c8602318022b0",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/appleRevocation.ts",
-            "sha256": "c441a99e5fb00b1efaf96560f3719b9df271f9a0fbc537b29ec0c885c3f13655",
+            "sha256": "1817307993176158d9f375b3b53c8ae663ebacd77ade449f26dd0096bbc3f914",
             "bundle": true
           },
           {
@@ -1141,7 +1141,7 @@
           },
           {
             "path": "supabase/functions/process-account-deletions/index.ts",
-            "sha256": "962fbaadae0cf6fee5c9decc56dd64c7fe0c2567cbc2596057cc85ce275bf604",
+            "sha256": "b37ae4f8f01d7e350257e5b798c0f33bf16cf7ae5704d2134bc3aea0bac4a123",
             "bundle": true
           }
         ]
