@@ -40,6 +40,8 @@ const { loadReplayRecords } = require('./replay');
 const { openHoldout } = require('./holdout');
 const { evaluateIdentityEligibility, deriveGrade } = require('./groundTruth');
 const { classifyClaims } = require('./power');
+const { ONTOLOGY_VERSION } = require('./ontology');
+const { MATCH_TRUTH_LEVELS, classifyMatchTruth } = require('./matchTruth');
 const {
   BENCHMARK_STATUS,
   AUTHORIZED_LIVE_EVALUATION_SPEND_USD,
@@ -106,6 +108,31 @@ function identityMetrics(evaluations, eligibleCaseIds) {
           'that were got wrong.'
         : null,
   };
+}
+
+/**
+ * Translates every evaluation's FMQ identity/substitute output into the
+ * shared match-truth doctrine (spec section 10) and returns its distribution.
+ * This is how FMQ's own result "consumes" the shared doctrine - see
+ * lib/matchTruth.js's header for why the translation lives here rather than
+ * inside FMQ itself (FMQ owns scoring; this lane owns interpreting its
+ * output as real-corpus ground truth requires).
+ */
+function matchTruthMetrics(evaluations) {
+  const distribution = emptyCounter(MATCH_TRUTH_LEVELS);
+  let unclassified = 0;
+  for (const evaluation of evaluations) {
+    const level = classifyMatchTruth({
+      identityLevel: evaluation.identity?.level,
+      substituteLevel: evaluation.substitute?.level,
+    });
+    if (level === null) {
+      unclassified += 1;
+      continue;
+    }
+    distribution[level] += 1;
+  }
+  return { distribution, n: evaluations.length - unclassified, unclassified };
 }
 
 /** Stratify a set of evaluations by an arbitrary key, keeping N visible. */
@@ -190,6 +217,7 @@ function runEvaluation(mode = 'REAL_DEVELOPMENT', options = {}) {
   const fmqlMetrics = fixtures.length > 0 ? aggregateMetrics(evaluations) : null;
 
   const identity = identityMetrics(evaluations, eligibleCaseIds);
+  const matchTruth = matchTruthMetrics(evaluations);
 
   const claims = classifyClaims({
     totalCases: cases.length,
@@ -204,9 +232,11 @@ function runEvaluation(mode = 'REAL_DEVELOPMENT', options = {}) {
     evaluationMode: mode,
     evaluationSetTerm: mode === 'REAL_HOLDOUT' ? EVALUATION_SET_TERMS.holdout : EVALUATION_SET_TERMS.development,
 
-    /* ---- mission section 37: every artifact binds these seven ---- */
+    /* ---- mission section 37: every artifact binds these identifiers ---- */
     sourceSha: currentSourceSha(),
     corpusVersion: corpus.config.corpusVersion,
+    // V2: the eighth bound identifier - see lib/ontology.js.
+    ontologyVersion: ONTOLOGY_VERSION,
     corpusHash: manifest.corpusHash,
     evaluatorVersion: { rubricVersion: RUBRIC_VERSION, fixtureSchemaVersion: FMQL_FIXTURE_SCHEMA_VERSION },
     holdoutStatus,
@@ -245,6 +275,11 @@ function runEvaluation(mode = 'REAL_DEVELOPMENT', options = {}) {
 
     metrics: {
       identity,
+      // V2: FMQ remains the sole scoring authority (identity/substitute
+      // above are its own, unmodified output). This is a deterministic
+      // TRANSLATION of that output into the shared match-truth doctrine
+      // (lib/matchTruth.js) - not a second scorer.
+      matchTruth,
       substitute: fmqlMetrics
         ? {
             distribution: fmqlMetrics.substituteDistribution,

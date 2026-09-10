@@ -30,10 +30,14 @@ const {
   DIFFICULTY_STRATA,
   IMAGE_FORMATS,
   EXIF_POLICY_VERSION,
+  OCCLUSION_LEVELS,
+  RELATIVE_SIZE_LEVELS,
+  FAILURE_TAXONOMY,
 } = require('./constants');
 
 const { deriveGrade, nonEmptyString } = require('./groundTruth');
 const { scanForPrivacyViolations } = require('../../fashion-match-quality/schema/privacyGuard');
+const { validateGarmentOntology } = require('./ontology');
 
 const ID_PATTERN_GARMENT = /^G\d{3,}$/;
 const ID_PATTERN_CASE = /^C\d{4,}$/;
@@ -118,6 +122,18 @@ function validateGarment(garment) {
   }
 
   checkEnum(errors, 'category', garment.category, CATEGORIES);
+
+  /* -------- fashion ontology (V2, spec section 5) -------- */
+  // Required: every corpus garment must support CanonicalFashionAttributesV1,
+  // with both the raw evidence and the resolved canonical value preserved
+  // (lib/ontology.js#buildGarmentOntology computes this automatically from
+  // `category`/`attributes.*` - a collector never enters it by hand).
+  if (!garment.ontology || typeof garment.ontology !== 'object') {
+    errors.push('ontology is required - every garment must carry a CanonicalFashionAttributesV1 block (see lib/ontology.js)');
+  } else {
+    const ontologyResult = validateGarmentOntology(garment.ontology);
+    for (const message of ontologyResult.errors) errors.push(message);
+  }
 
   const collection = garment.collection;
   if (!collection || typeof collection !== 'object') {
@@ -246,6 +262,96 @@ function validateDimensions(errors, prefix, dims, { required }) {
     if (!Number.isInteger(dims[axis]) || dims[axis] <= 0) {
       errors.push(`${prefix}.${axis} must be a positive integer, got ${JSON.stringify(dims[axis])}`);
     }
+  }
+}
+
+/* -------- garment-level spatial annotation helpers (V2) -------- */
+
+function validateBoundingBox(errors, prefix, bbox, imageDimensions) {
+  if (!bbox || typeof bbox !== 'object') {
+    errors.push(`${prefix} is required { x, y, width, height } - bounding boxes are the minimum usable spatial annotation`);
+    return;
+  }
+  for (const key of ['x', 'y', 'width', 'height']) {
+    if (!Number.isInteger(bbox[key]) || bbox[key] < 0) {
+      errors.push(`${prefix}.${key} must be a non-negative integer, got ${JSON.stringify(bbox[key])}`);
+    }
+  }
+  if (Number.isInteger(bbox.width) && bbox.width <= 0) errors.push(`${prefix}.width must be greater than zero`);
+  if (Number.isInteger(bbox.height) && bbox.height <= 0) errors.push(`${prefix}.height must be greater than zero`);
+
+  const dimsKnown =
+    imageDimensions &&
+    Number.isInteger(imageDimensions.width) &&
+    Number.isInteger(imageDimensions.height) &&
+    [bbox.x, bbox.y, bbox.width, bbox.height].every((n) => Number.isInteger(n) && n >= 0);
+  if (dimsKnown && (bbox.x + bbox.width > imageDimensions.width || bbox.y + bbox.height > imageDimensions.height)) {
+    errors.push(
+      `${prefix} (x:${bbox.x}, y:${bbox.y}, w:${bbox.width}, h:${bbox.height}) extends beyond the source image ` +
+        `dimensions (${imageDimensions.width}x${imageDimensions.height})`,
+    );
+  }
+}
+
+function validatePolygon(errors, prefix, polygon) {
+  if (polygon === undefined || polygon === null) return; // optional - present only where the source data supports it
+  if (!Array.isArray(polygon) || polygon.length < 3) {
+    errors.push(`${prefix}, when present, must be an array of at least 3 [x, y] points`);
+    return;
+  }
+  polygon.forEach((point, idx) => {
+    const isNumericPair =
+      Array.isArray(point) && point.length === 2 && point.every((n) => typeof n === 'number' && Number.isFinite(n));
+    if (!isNumericPair) errors.push(`${prefix}[${idx}] must be a [x, y] numeric pair`);
+  });
+}
+
+function validateGarmentAnnotations(errors, record) {
+  const imageDimensions = record.capture && typeof record.capture === 'object' ? record.capture.capturedDimensions : undefined;
+
+  if (!Number.isInteger(record.garmentCount) || record.garmentCount < 1) {
+    errors.push(`garmentCount must be a positive integer, got ${JSON.stringify(record.garmentCount)}`);
+  }
+  if (typeof record.multiGarment !== 'boolean') {
+    errors.push('multiGarment must be a boolean');
+  } else if (Number.isInteger(record.garmentCount) && record.multiGarment !== record.garmentCount > 1) {
+    errors.push(
+      `multiGarment must equal (garmentCount > 1); garmentCount is ${record.garmentCount} but multiGarment is ${record.multiGarment}`,
+    );
+  }
+
+  if (!Array.isArray(record.garments) || record.garments.length === 0) {
+    errors.push('garments must be a non-empty array of per-garment annotations when garment-level annotation is present');
+    return;
+  }
+  if (Number.isInteger(record.garmentCount) && record.garments.length !== record.garmentCount) {
+    errors.push(`garments.length (${record.garments.length}) must equal garmentCount (${record.garmentCount})`);
+  }
+
+  let targetCount = 0;
+  record.garments.forEach((entry, idx) => {
+    const prefix = `garments[${idx}]`;
+    if (!entry || typeof entry !== 'object') {
+      errors.push(`${prefix} must be an object`);
+      return;
+    }
+    if (!ID_PATTERN_GARMENT.test(String(entry.garmentId || ''))) {
+      errors.push(`${prefix}.garmentId must match G### (the physical garment this box shows), got ${JSON.stringify(entry.garmentId)}`);
+    }
+    checkEnum(errors, `${prefix}.garmentClass`, entry.garmentClass, CATEGORIES);
+    validateBoundingBox(errors, `${prefix}.boundingBox`, entry.boundingBox, imageDimensions);
+    validatePolygon(errors, `${prefix}.polygon`, entry.polygon);
+    checkEnum(errors, `${prefix}.occlusion`, entry.occlusion, OCCLUSION_LEVELS);
+    checkEnum(errors, `${prefix}.relativeSize`, entry.relativeSize, RELATIVE_SIZE_LEVELS);
+    if (typeof entry.isTargetGarment !== 'boolean') {
+      errors.push(`${prefix}.isTargetGarment must be a boolean`);
+    } else if (entry.isTargetGarment) {
+      targetCount += 1;
+    }
+  });
+
+  if (targetCount !== 1) {
+    errors.push(`exactly one garments[] entry must have isTargetGarment: true (the garment this case is evaluating), found ${targetCount}`);
   }
 }
 
@@ -411,6 +517,30 @@ function validateCase(record) {
       for (const stratum of record.difficultyStrata) {
         if (!DIFFICULTY_STRATA.includes(stratum)) {
           errors.push(`difficultyStrata contains unknown value ${JSON.stringify(stratum)}`);
+        }
+      }
+    }
+  }
+
+  /* -------- garment-level spatial annotation (V2, spec section 8) -------- *
+   * Optional at the schema level - not every case carries it yet, matching
+   * this lane's existing incremental-completeness pattern for
+   * difficultyStrata/pairing/inputHardNegativeOf. When present, it is
+   * validated fully: bounding boxes are the minimum usable annotation, a
+   * polygon may additionally be present where the source data supports it,
+   * and exactly one garment entry must be the target garment. */
+  if (record.garments !== undefined || record.garmentCount !== undefined || record.multiGarment !== undefined) {
+    validateGarmentAnnotations(errors, record);
+  }
+
+  /* -------- fashion failure taxonomy (V2, spec section 9) -------- */
+  if (record.failureTaxonomy !== undefined) {
+    if (!Array.isArray(record.failureTaxonomy)) {
+      errors.push('failureTaxonomy, when present, must be an array');
+    } else {
+      for (const label of record.failureTaxonomy) {
+        if (!FAILURE_TAXONOMY.includes(label)) {
+          errors.push(`failureTaxonomy contains unknown value ${JSON.stringify(label)}`);
         }
       }
     }

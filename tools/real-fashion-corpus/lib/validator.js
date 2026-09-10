@@ -401,6 +401,9 @@ const REQUIRED_REPORT_FIELDS = [
   'evaluationMode',
   'sourceSha',
   'corpusVersion',
+  // V2: the eighth bound identifier (spec section 5/7) - a frozen evaluation
+  // must not silently span two ontology contract versions.
+  'ontologyVersion',
   'corpusHash',
   'evaluatorVersion',
   'holdoutStatus',

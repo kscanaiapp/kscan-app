@@ -31,12 +31,14 @@
 #   evidence_observed_facts (REQUIRED) | facts read off the tag/page, as key=value; key=value. This is what survives the URL dying.
 #   evidence_url (optional) | optional supplementary pointer; never the only evidence
 #   catalog_state_verified_on (REQUIRED) | YYYY-MM-DD the catalogue was checked
+#   attr_subtype (optional) | garment subtype, e.g. "bomber jacket" - fed to the fashion ontology
 #   attr_silhouette (optional)
 #   attr_material (optional)
 #   attr_pattern (optional)
 #   attr_color_family (optional)
+#   attr_secondary_color_family (optional) | a second color, if the garment genuinely has one
 #   attr_price_tier (optional) | value / mid / premium / luxury
 #   attr_gender_presentation (optional) | womens / mens / unisex - presentation of the GARMENT, never of a person
 #   notes (optional)
 #
-garment_id,category,collector_id,collection_source,store_policy_respected,brand,product_name,style_code,gtin,colorway_name,colorway_code,size,asserted_grade,evidence_type,evidence_verified_on,evidence_verified_by,evidence_observed_facts,evidence_url,catalog_state_verified_on,attr_silhouette,attr_material,attr_pattern,attr_color_family,attr_price_tier,attr_gender_presentation,notes
+garment_id,category,collector_id,collection_source,store_policy_respected,brand,product_name,style_code,gtin,colorway_name,colorway_code,size,asserted_grade,evidence_type,evidence_verified_on,evidence_verified_by,evidence_observed_facts,evidence_url,catalog_state_verified_on,attr_subtype,attr_silhouette,attr_material,attr_pattern,attr_color_family,attr_secondary_color_family,attr_price_tier,attr_gender_presentation,notes

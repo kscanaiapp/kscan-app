@@ -25,6 +25,7 @@ const {
 } = require('../../fashion-match-quality/schema/fixtureSchema');
 const { deriveGrade, evaluateIdentityEligibility } = require('./groundTruth');
 const { ASSET_TIER_REAL } = require('./constants');
+const { ONTOLOGY_VERSION } = require('./ontology');
 
 /**
  * Corpus evidence type -> FMQL ground-truth source.
@@ -214,6 +215,23 @@ function compileCase(garment, caseRecord, { replayRecord = null } = {}) {
       collectorId: garment.collection?.collectorId,
       devicePlatform: caseRecord.capture?.device?.platform,
       candidateSource: replayRecord ? 'REPLAY' : 'NONE_SCANNER_NOT_RUN',
+      // V2: record the ontology version and carry raw+canonical fashion
+      // truth through to every compiled evaluation artifact (spec section
+      // 5). FMQL ignores unknown ground-truth/meta keys, so this never
+      // risks the inherited fixture schema.
+      ontologyVersion: ONTOLOGY_VERSION,
+      ontology: garment.ontology,
+      // V2: garment-level spatial ground truth, when the case carries it -
+      // Workstream 04 segmentation readiness (spec section 18).
+      spatial:
+        caseRecord.garments !== undefined
+          ? {
+              garmentCount: caseRecord.garmentCount,
+              multiGarment: caseRecord.multiGarment,
+              garments: caseRecord.garments,
+            }
+          : null,
+      failureTaxonomy: caseRecord.failureTaxonomy || [],
     },
   };
 

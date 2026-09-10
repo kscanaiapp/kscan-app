@@ -34,6 +34,7 @@ const {
   DIFFICULTY_STRATA,
   GROUND_TRUTH_GRADES,
 } = require('./constants');
+const { buildGarmentOntology } = require('./ontology');
 
 /* ------------------------------------------------------------------ *
  * Column definitions - these ARE the template
@@ -64,10 +65,12 @@ const GARMENT_COLUMNS = [
   },
   { name: 'evidence_url', required: false, help: 'optional supplementary pointer; never the only evidence' },
   { name: 'catalog_state_verified_on', required: true, date: true, help: 'YYYY-MM-DD the catalogue was checked' },
+  { name: 'attr_subtype', required: false, help: 'garment subtype, e.g. "bomber jacket" - fed to the fashion ontology' },
   { name: 'attr_silhouette', required: false },
   { name: 'attr_material', required: false },
   { name: 'attr_pattern', required: false },
   { name: 'attr_color_family', required: false },
+  { name: 'attr_secondary_color_family', required: false, help: 'a second color, if the garment genuinely has one' },
   { name: 'attr_price_tier', required: false, help: 'value / mid / premium / luxury' },
   { name: 'attr_gender_presentation', required: false, help: 'womens / mens / unisex - presentation of the GARMENT, never of a person' },
   { name: 'notes', required: false },
@@ -283,10 +286,12 @@ function buildGarmentFromRow(row, errors) {
   if (values.store_policy_respected !== undefined) collection.storePolicyRespected = values.store_policy_respected;
 
   const attributes = {};
+  if (values.attr_subtype) attributes.subtype = values.attr_subtype;
   if (values.attr_silhouette) attributes.silhouette = values.attr_silhouette;
   if (values.attr_material) attributes.material = values.attr_material;
   if (values.attr_pattern) attributes.pattern = values.attr_pattern;
   if (values.attr_color_family) attributes.colorFamily = values.attr_color_family;
+  if (values.attr_secondary_color_family) attributes.secondaryColorFamily = values.attr_secondary_color_family;
   if (values.attr_price_tier) attributes.priceTier = values.attr_price_tier;
   if (values.attr_gender_presentation) attributes.genderPresentation = values.attr_gender_presentation;
 
@@ -295,6 +300,10 @@ function buildGarmentFromRow(row, errors) {
     schemaVersion: GARMENT_SCHEMA_VERSION,
     garmentId: values.garment_id,
     category: values.category,
+    // V2: derived automatically from category + attributes, never typed by a
+    // collector. See lib/ontology.js - raw evidence and the ontology's
+    // (possibly coarser) canonical value are both preserved.
+    ontology: buildGarmentOntology({ category: values.category, attributes }),
     collection,
     groundTruth: {
       assertedGrade: values.asserted_grade,
