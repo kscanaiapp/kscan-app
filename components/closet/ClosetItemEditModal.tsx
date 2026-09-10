@@ -7,11 +7,23 @@
 // that produced it are separate rows, and editing one must not disturb the
 // other.
 //
-// EDITABLE FIELDS ARE THE CREATION FIELDS. Intake offers Name and Category, so
-// those are what can be changed afterwards. AI-derived taxonomy is evidence
-// about the photo, not user metadata, and stays out of reach here.
+// EDITABLE FIELDS ARE THE COMMITTED FIELDS (Closet Ownership V1, PR A2).
 //
-// Guard contract (mirrors ClosetIntakeModal):
+// This used to offer Name and Category only, on the reasoning that "AI-derived
+// taxonomy is evidence about the photo, not user metadata". That reasoning does
+// not survive contact with the product: the person who owns the garment is the
+// authority on what it is, and a classifier that returned the wrong brand or the
+// wrong colour had written a fact its owner could not correct. The Closet's job
+// is to be the trusted wardrobe truth layer; a truth layer that cannot be
+// corrected by the person who owns the truth is not one.
+//
+// What is offered here is exactly the set services/closetLibrary.js commits —
+// no speculative field, and nothing the record cannot store. Identity,
+// ownership, media, provenance, lineage, origin and timestamps remain
+// unreachable: `updateClosetItem` allowlists what a patch may address, so this
+// surface could not reach them even if it tried to.
+//
+// Guard contract (mirrors ClosetIntakeModal), unchanged by the widening:
 //   - single in-flight save, monotonic operation id
 //   - late results discarded after supersede/unmount
 //   - Cancel is lossless: it reverts the draft and writes nothing
@@ -28,8 +40,37 @@ export type ClosetEditableItem = {
   id: string;
   title: string;
   category?: string | null;
+  clothingType?: string | null;
+  subtype?: string | null;
+  brand?: string | null;
+  primaryColor?: string | null;
+  secondaryColors?: readonly string[] | null;
+  material?: readonly string[] | null;
+  size?: string | null;
+  notes?: string | null;
   imageUri?: string | null;
   thumbnailUri?: string | null;
+};
+
+/**
+ * The patch this surface can produce.
+ *
+ * A CLEAR IS A CORRECTION, NOT A NO-OP. An emptied field is sent as `null`
+ * (or `[]`) rather than omitted, because "this item has no brand" is a fact the
+ * owner is entitled to record — and if clearing were dropped, a wrong value
+ * would be permanent.
+ */
+export type ClosetItemEditPatch = {
+  title: string;
+  category: string | null;
+  clothingType: string | null;
+  subtype: string | null;
+  brand: string | null;
+  primaryColor: string | null;
+  secondaryColors: string[];
+  material: string[];
+  size: string | null;
+  notes: string | null;
 };
 
 export type ClosetItemEditResult = { ok: boolean; reason?: string };
@@ -47,6 +88,25 @@ function messageFor(reason?: string): string {
   return 'Your changes could not be saved. Please try again.';
 }
 
+/** Render a stored list as the comma-separated text a user edits. */
+function listToText(value: readonly string[] | null | undefined): string {
+  return Array.isArray(value) ? value.join(', ') : '';
+}
+
+/**
+ * Parse the comma-separated text back to a list.
+ *
+ * Deliberately permissive about spacing and trailing commas, and deliberately
+ * NOT de-duplicating or bounding here: `normalizeClosetTaxonomyValue` in the
+ * store is the one authority on both, and doing it twice is how the two drift.
+ */
+function textToList(value: string): string[] {
+  return value
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
 export function ClosetItemEditModal({
   visible,
   item,
@@ -57,13 +117,18 @@ export function ClosetItemEditModal({
   /** The item being edited, or null when the modal is closed. */
   item: ClosetEditableItem | null;
   onClose: () => void;
-  onSave: (
-    id: string,
-    patch: { title: string; category: string | null },
-  ) => Promise<ClosetItemEditResult>;
+  onSave: (id: string, patch: ClosetItemEditPatch) => Promise<ClosetItemEditResult>;
 }) {
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('');
+  const [clothingType, setClothingType] = useState('');
+  const [subtype, setSubtype] = useState('');
+  const [brand, setBrand] = useState('');
+  const [primaryColor, setPrimaryColor] = useState('');
+  const [secondaryColors, setSecondaryColors] = useState('');
+  const [material, setMaterial] = useState('');
+  const [size, setSize] = useState('');
+  const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,16 +144,30 @@ export function ClosetItemEditModal({
     };
   }, []);
 
+  /** Every field, back to what the record says. One place, so a new field
+   *  cannot be prefilled on open and forgotten on cancel. */
+  const resetFrom = useCallback((source: ClosetEditableItem | null) => {
+    setTitle(source?.title ?? '');
+    setCategory(source?.category ?? '');
+    setClothingType(source?.clothingType ?? '');
+    setSubtype(source?.subtype ?? '');
+    setBrand(source?.brand ?? '');
+    setPrimaryColor(source?.primaryColor ?? '');
+    setSecondaryColors(listToText(source?.secondaryColors));
+    setMaterial(listToText(source?.material));
+    setSize(source?.size ?? '');
+    setNotes(source?.notes ?? '');
+  }, []);
+
   // Prefill from the record every time the sheet opens on an item, so a second
   // edit never starts from the previous item's draft.
   useEffect(() => {
     if (!visible || !item) return;
-    setTitle(item.title ?? '');
-    setCategory(item.category ?? '');
+    resetFrom(item);
     setError(null);
     setSaving(false);
     inFlightRef.current = false;
-  }, [visible, item]);
+  }, [visible, item, resetFrom]);
 
   const isCurrent = useCallback(
     (operationId: number) => mountedRef.current && operationIdRef.current === operationId,
@@ -98,11 +177,10 @@ export function ClosetItemEditModal({
   /** Cancel is lossless: nothing is written and the record keeps its values. */
   const cancel = useCallback(() => {
     if (inFlightRef.current) return;
-    setTitle(item?.title ?? '');
-    setCategory(item?.category ?? '');
+    resetFrom(item);
     setError(null);
     onClose();
-  }, [item, onClose]);
+  }, [item, onClose, resetFrom]);
 
   const save = useCallback(async () => {
     if (!item) return;
@@ -122,6 +200,14 @@ export function ClosetItemEditModal({
       const result = await onSave(item.id, {
         title: nextTitle,
         category: category.trim() || null,
+        clothingType: clothingType.trim() || null,
+        subtype: subtype.trim() || null,
+        brand: brand.trim() || null,
+        primaryColor: primaryColor.trim() || null,
+        secondaryColors: textToList(secondaryColors),
+        material: textToList(material),
+        size: size.trim() || null,
+        notes: notes.trim() || null,
       });
       if (!isCurrent(operationId)) return;
       if (result.ok) {
@@ -137,7 +223,22 @@ export function ClosetItemEditModal({
       if (isCurrent(operationId)) setSaving(false);
       inFlightRef.current = false;
     }
-  }, [category, isCurrent, item, onClose, onSave, title]);
+  }, [
+    brand,
+    category,
+    clothingType,
+    isCurrent,
+    item,
+    material,
+    notes,
+    onClose,
+    onSave,
+    primaryColor,
+    secondaryColors,
+    size,
+    subtype,
+    title,
+  ]);
 
   const previewUri = item?.thumbnailUri ?? item?.imageUri ?? null;
 
@@ -153,7 +254,8 @@ export function ClosetItemEditModal({
         <ScrollView contentContainerStyle={styles.content}>
           <Text style={styles.heading}>Edit Item</Text>
           <Text style={styles.sub}>
-            Change how this piece is named and filed. Your photo and your scans are not affected.
+            Correct anything we got wrong. What you enter here is what K Scan AI treats as true
+            about this piece. Your photo and your scans are not affected.
           </Text>
 
           {error ? <InlineNotice variant="error" body={error} testID="closet-item-edit-error" /> : null}
@@ -177,6 +279,70 @@ export function ClosetItemEditModal({
             placeholder="Outerwear"
             maxLength={80}
             testID="closet-item-edit-category"
+          />
+          <TextField
+            label="Type (optional)"
+            value={clothingType}
+            onChangeText={setClothingType}
+            placeholder="Coat"
+            maxLength={80}
+            testID="closet-item-edit-clothing-type"
+          />
+          <TextField
+            label="Style (optional)"
+            value={subtype}
+            onChangeText={setSubtype}
+            placeholder="Trench"
+            maxLength={80}
+            testID="closet-item-edit-subtype"
+          />
+          <TextField
+            label="Brand (optional)"
+            value={brand}
+            onChangeText={setBrand}
+            placeholder="Add a brand"
+            maxLength={120}
+            testID="closet-item-edit-brand"
+          />
+          <TextField
+            label="Main colour (optional)"
+            value={primaryColor}
+            onChangeText={setPrimaryColor}
+            placeholder="Navy"
+            maxLength={60}
+            testID="closet-item-edit-primary-color"
+          />
+          <TextField
+            label="Other colours (optional, separated by commas)"
+            value={secondaryColors}
+            onChangeText={setSecondaryColors}
+            placeholder="Cream, gold"
+            maxLength={200}
+            testID="closet-item-edit-secondary-colors"
+          />
+          <TextField
+            label="Material (optional, separated by commas)"
+            value={material}
+            onChangeText={setMaterial}
+            placeholder="Wool, cashmere"
+            maxLength={200}
+            testID="closet-item-edit-material"
+          />
+          <TextField
+            label="Size (optional)"
+            value={size}
+            onChangeText={setSize}
+            placeholder="M"
+            maxLength={40}
+            testID="closet-item-edit-size"
+          />
+          <TextField
+            label="Notes (optional)"
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Anything you want to remember about this piece"
+            maxLength={500}
+            testID="closet-item-edit-notes"
           />
 
           {saving ? (

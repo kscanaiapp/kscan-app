@@ -67,13 +67,18 @@ import { useClosetCandidates } from '../hooks/useClosetCandidates';
 import { routeClosetIntake } from '../services/closetIntakeRouting';
 import { createClosetBatchId } from '../services/closetCandidateSchema';
 import { ClosetIntakeModal } from '../components/closet/ClosetIntakeModal';
-import { ClosetItemEditModal } from '../components/closet/ClosetItemEditModal';
+import {
+  ClosetItemEditModal,
+  type ClosetItemEditPatch,
+} from '../components/closet/ClosetItemEditModal';
 import { MirrorSelfieExtractionModal } from '../components/closet/MirrorSelfieExtractionModal';
 import { ClosetCandidateStatusPanel } from '../components/closet/ClosetCandidateStatusPanel';
 import { ClosetInventoryBar } from '../components/closet/ClosetInventoryBar';
 import { ClosetSyncStatusRow } from '../components/closet/ClosetSyncStatusRow';
+import { ClosetReviewRow } from '../components/closet/ClosetReviewRow';
 import { useClosetInventory } from '../hooks/useClosetInventory';
 import { useClosetSyncStatus } from '../hooks/useClosetSyncStatus';
+import { useClosetReview } from '../hooks/useClosetReview';
 import { isScanPromoted } from '../services/closetPromotion';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -336,7 +341,16 @@ export default function LibraryScreen() {
   // Query state (search / filter / sort) and the cloud status pill. Both are
   // READ-ONLY lenses over what `useCloset()` already loaded — neither can
   // create, edit or delete an owned item.
-  const closetInventory = useClosetInventory(closet.items as any);
+  // Closet Ownership V1 (PR A2). Review is DERIVED — no store, no queue. It is
+  // computed first so its ids can drive the inventory's review filter, which is
+  // how resolution works: filter to the flagged items, edit one, and it leaves
+  // the set because the condition that put it there is no longer true.
+  const closetReview = useClosetReview(closet.items as any, closet.items.length);
+  const closetReviewIds = useMemo(
+    () => closetReview.items.map((entry) => entry.id),
+    [closetReview],
+  );
+  const closetInventory = useClosetInventory(closet.items as any, closetReviewIds);
   // Re-read the sidecar whenever the inventory could have changed. Passing the
   // item count rather than the array keeps this to a value comparison.
   const closetSyncStatus = useClosetSyncStatus(closet.items.length);
@@ -345,7 +359,7 @@ export default function LibraryScreen() {
   // so a new search starts at the top of its own result set rather than
   // inheriting a window the previous query had grown.
   const [closetVisibleCount, setClosetVisibleCount] = useState(CLOSET_PAGE_SIZE);
-  const closetQueryKey = `${closetInventory.search}|${closetInventory.category ?? ''}|${closetInventory.origin}|${closetInventory.sort}`;
+  const closetQueryKey = `${closetInventory.search}|${closetInventory.category ?? ''}|${closetInventory.origin}|${closetInventory.sort}|${closetInventory.review}`;
   useEffect(() => {
     setClosetVisibleCount(CLOSET_PAGE_SIZE);
   }, [closetQueryKey]);
@@ -536,10 +550,10 @@ export default function LibraryScreen() {
   const editingClosetItem =
     closet.items.find((item: any) => item.id === editingClosetItemId) ?? null;
 
-  const handleSaveClosetItemEdit = async (
-    id: string,
-    patch: { title: string; category: string | null },
-  ) => {
+  // Closet Ownership V1 (PR A2): the patch now carries the full committed
+  // taxonomy. The store allowlists what it will apply, so widening this type
+  // cannot widen what a patch is able to reach.
+  const handleSaveClosetItemEdit = async (id: string, patch: ClosetItemEditPatch) => {
     const result = (await closet.update(id, patch)) as { ok: boolean; reason?: string };
     return { ok: result.ok, reason: result.reason };
   };
@@ -826,6 +840,13 @@ export default function LibraryScreen() {
               is a product state, not a degraded list.
             */}
             <ClosetSyncStatusRow status={closetSyncStatus} />
+            {!closet.loading && closet.items.length > 0 ? (
+              <ClosetReviewRow
+                review={closetReview}
+                active={closetInventory.review}
+                onToggle={closetInventory.setReview}
+              />
+            ) : null}
             {!closet.loading && closet.items.length > 0 ? (
               <ClosetInventoryBar
                 summary={closetInventory.summary}

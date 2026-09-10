@@ -555,6 +555,22 @@ function mountLibrary(options = {}) {
     // "render nothing" answer, so the screen takes exactly the path it takes
     // for an actor without cloud sync.
     '../hooks/useClosetSyncStatus': { useClosetSyncStatus: () => null },
+
+    // Closet Ownership V1 (PR A2). The review row is derived state on the Closet
+    // header. The DERIVER is not exercised here (this suite is about candidate
+    // review, a different concept), so the hook returns the shape the screen
+    // destructures with nothing flagged, and the row is an inert stand-in.
+    '../hooks/useClosetReview': {
+      useClosetReview: () => ({
+        contractVersion: 1,
+        items: [],
+        count: 0,
+        totalItems: 0,
+        coalesced: false,
+        homeMessage: null,
+      }),
+    },
+    '../components/closet/ClosetReviewRow': { ClosetReviewRow: 'ClosetReviewRow' },
     // Build 2.5 Step 3. Stubbed like its sibling: this harness renders the
     // Closet screen, and the Mirror sheet is gated off in every profile here.
     '../components/closet/MirrorSelfieExtractionModal': {

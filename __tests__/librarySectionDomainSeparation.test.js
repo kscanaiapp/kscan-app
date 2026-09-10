@@ -239,6 +239,20 @@ ${transpile('hooks/useClosetInventory.ts')}
     // is the real module's own "render nothing" result for an actor without
     // cloud sync, so the screen takes a path it genuinely takes.
     '../hooks/useClosetSyncStatus': { __esModule: true, useClosetSyncStatus: () => null },
+    // Closet Ownership V1 (PR A2). Derived review state; this suite asserts
+    // domain separation, not review, so nothing is flagged.
+    '../hooks/useClosetReview': {
+      __esModule: true,
+      useClosetReview: () => ({
+        contractVersion: 1,
+        items: [],
+        count: 0,
+        totalItems: 0,
+        coalesced: false,
+        homeMessage: null,
+      }),
+    },
+    '../components/closet/ClosetReviewRow': { __esModule: true, ClosetReviewRow: 'ClosetReviewRow' },
     '../components/closet/ClosetInventoryBar': {
       __esModule: true,
       ClosetInventoryBar: 'ClosetInventoryBar',

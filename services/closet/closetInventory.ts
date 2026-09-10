@@ -117,6 +117,16 @@ export type ClosetInventoryQuery = {
   category?: string | null;
   origin?: ClosetOriginFilterId;
   sort?: ClosetSortId;
+  /**
+   * Narrow to the items in `reviewIds` (Closet Ownership V1, PR A2).
+   *
+   * The ids arrive as DATA. This lens does not know what "needs review" means
+   * and must not: the condition is derived in services/closet/closetReview.ts
+   * from the item plus its sync state, and duplicating any part of that rule
+   * here would create a second, weaker answer to the same question.
+   */
+  review?: boolean;
+  reviewIds?: readonly string[];
 };
 
 export type ClosetInventoryResult = {
@@ -329,12 +339,18 @@ export function queryCloset(
   const origin = isClosetOriginFilterId(query.origin) ? query.origin : 'all';
   const sort = isClosetSortId(query.sort) ? query.sort : 'recently_added';
 
-  const narrowing = search.length > 0 || category !== null || origin !== 'all';
+  const reviewOnly = query.review === true;
+  // A Set, so a 1000-item Closet with 200 reviewable items is one linear pass
+  // rather than 200,000 comparisons.
+  const reviewIds = reviewOnly ? new Set(query.reviewIds ?? []) : null;
+
+  const narrowing = search.length > 0 || category !== null || origin !== 'all' || reviewOnly;
 
   const matched = source.filter(
     (item) =>
       matchesCategory(item, category) &&
       matchesOrigin(item, origin) &&
+      (reviewIds === null || reviewIds.has(item.id)) &&
       (search.length === 0 || searchableText(item).includes(search)),
   );
 

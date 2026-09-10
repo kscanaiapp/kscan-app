@@ -34,6 +34,9 @@ export type UseClosetInventoryResult = {
   setCategory: (value: string | null) => void;
   origin: ClosetOriginFilterId;
   setOrigin: (value: ClosetOriginFilterId) => void;
+  /** Narrow to items the review deriver flagged (PR A2). */
+  review: boolean;
+  setReview: (value: boolean) => void;
   sort: ClosetSortId;
   setSort: (value: ClosetSortId) => void;
   /** True when any control is narrowing the list. */
@@ -43,26 +46,37 @@ export type UseClosetInventoryResult = {
 
 export function useClosetInventory(
   items: readonly ClosetItemProjection[],
+  /**
+   * Ids the review deriver flagged, as DATA (PR A2). This hook never decides
+   * what needs review — services/closet/closetReview.ts is the one authority.
+   */
+  reviewIds: readonly string[] = [],
 ): UseClosetInventoryResult {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<string | null>(null);
   const [origin, setOrigin] = useState<ClosetOriginFilterId>('all');
   const [sort, setSort] = useState<ClosetSortId>('recently_added');
+  const [review, setReview] = useState(false);
 
   // The summary is computed over the UNFILTERED array on purpose: "You have 14
   // Tops" must not change to "You have 3 Tops" because a search box has text in
   // it. The summary describes the Closet; the view describes the query.
   const summary = useMemo(() => summarizeCloset(items), [items]);
 
+  // `reviewIds` is joined to a stable key so a re-derived array with identical
+  // contents does not invalidate this memo on every render.
+  const reviewKey = reviewIds.join(',');
   const view = useMemo(
-    () => queryCloset(items, { search, category, origin, sort }),
-    [items, search, category, origin, sort],
+    () => queryCloset(items, { search, category, origin, sort, review, reviewIds }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [items, search, category, origin, sort, review, reviewKey],
   );
 
   const clear = useCallback(() => {
     setSearch('');
     setCategory(null);
     setOrigin('all');
+    setReview(false);
   }, []);
 
   return {
@@ -74,6 +88,8 @@ export function useClosetInventory(
     setCategory,
     origin,
     setOrigin,
+    review,
+    setReview,
     sort,
     setSort,
     isNarrowed: view.filtered,

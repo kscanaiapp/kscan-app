@@ -1099,11 +1099,44 @@ export async function updateClosetItem(id, patch, { actorRequest, ownerId } = {}
     if (patch && Object.prototype.hasOwnProperty.call(patch, 'title')) {
       next.title = cleanText(patch.title) || next.title;
     }
-    if (patch && Object.prototype.hasOwnProperty.call(patch, 'category')) {
-      next.category = cleanText(patch.category, 80);
-    }
     if (patch && Object.prototype.hasOwnProperty.call(patch, 'notes')) {
       next.notes = cleanText(patch.notes, 500);
+    }
+
+    // USER CORRECTION IS THE HIGHEST AUTHORITY ON A COMMITTED ITEM (Closet
+    // Ownership V1, PR A2).
+    //
+    // Before this, only `category` of the eight committed taxonomy fields could
+    // be edited. The other seven were writable exclusively by
+    // `repairClosetItemTaxonomy`, which fills an ABSENT field and refuses to
+    // change a present one — so a classifier that returned the wrong brand, the
+    // wrong colour or the wrong size had produced a fact the owner of the
+    // garment could not correct. A wardrobe truth layer that cannot be corrected
+    // by the person who owns the wardrobe is not a truth layer.
+    //
+    // WHAT THIS DOES NOT DO, and why the loop is written this way:
+    //
+    //   - It iterates CLOSET_ITEM_TAXONOMY_FIELDS, the same frozen list the
+    //     record builder and the repair path use. A field can therefore never be
+    //     editable here and unknown there, which is the drift the single list
+    //     exists to prevent.
+    //   - It normalizes through `normalizeClosetTaxonomyValue`, the same one
+    //     normalizer, so an edited brand obeys the identical bound and the
+    //     identical list de-duplication a promoted brand obeys.
+    //   - It reaches NOTHING else. Identity, ownership, media, provenance,
+    //     lineage, origin, timestamps and schema version are not in the list, so
+    //     a patch cannot address them however it is shaped. That is a property
+    //     of the allowlist, not of caller discipline.
+    //
+    // CLEARING IS A LEGITIMATE CORRECTION. An explicit null/'' patch on a field
+    // sets it absent: "this item has no brand" is a fact a user is entitled to
+    // record, and treating a clear as a no-op would make a wrong value permanent.
+    // A field the patch does not mention is untouched.
+    if (patch && typeof patch === 'object' && !Array.isArray(patch)) {
+      for (const field of CLOSET_ITEM_TAXONOMY_FIELDS) {
+        if (!Object.prototype.hasOwnProperty.call(patch, field)) continue;
+        next[field] = normalizeClosetTaxonomyValue(field, patch[field]);
+      }
     }
 
     const updated = items.slice();
