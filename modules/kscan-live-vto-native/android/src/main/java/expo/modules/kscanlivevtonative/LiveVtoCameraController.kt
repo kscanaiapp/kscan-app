@@ -53,6 +53,33 @@ class LiveVtoCameraController(
   /** Camera -> perception-producer boundary. Bounded: at most one pending frame. */
   val frameSlot = LatestStateSlot<PerceptionInputFrame>()
 
+  /**
+   * VTO-TRACK-001. The most recent camera frame, held for CAPTURE and for
+   * the capture-readiness answer -- separate from `frameSlot` on purpose.
+   *
+   * `frameSlot` is a CONSUME-ONCE backpressure slot: `latestFrame()` empties
+   * it every producer tick (33 ms). `captureCleanFrame()` and the tracking
+   * contract's `personFrameAvailable` both used to read that same slot, so
+   * whether a capture succeeded depended on whether the producer thread
+   * happened to have consumed since the last camera frame -- an intermittent
+   * "nothing to capture" on a session that was working perfectly, and a
+   * readiness flag that flapped at the camera cadence.
+   *
+   * Backpressure and retention are different requirements: the pipeline must
+   * drop stale frames so inference never queues, and capture must be able to
+   * read the latest frame at any moment. One reference, overwritten by each
+   * new frame, cleared on stop -- so retention is still exactly one frame,
+   * and it still dies with the session.
+   */
+  private val captureFrame = java.util.concurrent.atomic.AtomicReference<PerceptionInputFrame?>(null)
+
+  /**
+   * The latest camera frame WITHOUT consuming it. The single source both
+   * `captureCleanFrame()` and the capture-readiness answer read, so "the
+   * control is enabled" and "the capture returns a frame" cannot disagree.
+   */
+  fun latestFrameForCapture(): PerceptionInputFrame? = captureFrame.get()
+
   @Volatile var state: CameraControllerState = CameraControllerState.IDLE
     private set
 
@@ -123,7 +150,9 @@ class LiveVtoCameraController(
     analysis.setAnalyzer(executor) { imageProxy ->
       try {
         val bitmap = LiveVtoCameraFrameConverter.toBitmap(imageProxy, mirror = true)
-        frameSlot.publish(BitmapPerceptionInputFrame(bitmap))
+        val converted = BitmapPerceptionInputFrame(bitmap)
+        frameSlot.publish(converted)
+        captureFrame.set(converted)
       } catch (t: Throwable) {
         Log.e(TAG, "camera frame conversion failed", t)
       } finally {
@@ -159,6 +188,11 @@ class LiveVtoCameraController(
     analysisExecutor?.shutdown()
     analysisExecutor = null
     frameSlot.clear()
+    // The retained capture frame dies with the session, exactly like the
+    // backpressure slot: a stopped camera must not leave a person frame
+    // reachable by a later capture (mission section 33, and the same
+    // retention rule `onDetachedFromWindow` applies to written captures).
+    captureFrame.set(null)
     transition(CameraControllerState.STOPPED, null)
   }
 

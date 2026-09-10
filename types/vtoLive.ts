@@ -179,12 +179,33 @@ export type LiveVtoGuidance =
   | 'improve_lighting'
   | 'hold_still';
 
+/**
+ * ADDITIVE, CARRIED BY EVERY TRACKING EVENT.
+ *
+ * The runtime is the only party that knows all of Section 14's conditions at
+ * once: whether a pose is currently resolved well enough, AND whether a clean
+ * person frame is actually buffered right now (the same source
+ * `capturePersonFrame()` reads -- "a camera object exists" is not that).
+ * `captureReady` is that answer, computed natively by
+ * `LiveVtoTrackingQualityMachine` on both platforms from the same facts the
+ * tracking phase itself is derived from.
+ *
+ * OPTIONAL FOR A REASON, NOT BY OVERSIGHT. A runtime that predates this field
+ * simply omits it, and `reduceLiveVtoSession` then reads it as FALSE -- the
+ * fail-closed direction, where the customer keeps a disabled capture control
+ * on a session that might have been ready, rather than an enabled one on a
+ * session that would capture nothing.
+ */
+export interface LiveVtoTrackingReadiness {
+  captureReady?: boolean;
+}
+
 export interface LiveVtoEventPayloads {
   ready: Record<string, never>;
-  trackingAcquired: { confidence: number };
-  trackingWeak: { confidence: number; guidance: LiveVtoGuidance };
-  trackingLost: Record<string, never>;
-  trackingRecovered: { confidence: number };
+  trackingAcquired: { confidence: number } & LiveVtoTrackingReadiness;
+  trackingWeak: { confidence: number; guidance: LiveVtoGuidance } & LiveVtoTrackingReadiness;
+  trackingLost: LiveVtoTrackingReadiness;
+  trackingRecovered: { confidence: number } & LiveVtoTrackingReadiness;
   garmentLoaded: { productRef: string; assetVersion: string };
   /** A capture is buffered natively and addressable by id. Never pixel data. */
   captureReady: { captureId: string; kind: LiveVtoCapturedFrameKind };
@@ -429,6 +450,36 @@ export function handlePhotorealFailure(code: PhotorealFailureCode): PhotorealFai
  */
 export const LIVE_SUPPORTED_TEMPLATE_FAMILIES = ['t-shirt', 'simple-top', 'sweater'] as const;
 export type LiveSupportedTemplateFamily = (typeof LIVE_SUPPORTED_TEMPLATE_FAMILIES)[number];
+
+/**
+ * The garment lifecycle a surface may render, Section 18.
+ *
+ * WHY THE SESSION STATE WAS NOT ENOUGH. `LIVE_VTO_SESSION_STATES` has one
+ * `GARMENT_LOADING` member and nothing else about the garment, so a surface
+ * could tell that SOMETHING was loading but never which product it was, nor
+ * whether the previously-loaded one was still what the runtime was drawing.
+ * A switch that failed left the session back in READY with the OLD garment
+ * still rendered and nothing on screen saying so.
+ *
+ *   IDLE      no garment has ever been selected for this session
+ *   SELECTED  the customer's choice is acknowledged; nothing sent yet
+ *   LOADING   a load/switch command is in flight for `pendingProductRef`
+ *   RENDERED  the runtime confirmed THIS product's asset is what it draws
+ *   FAILED    the load was refused; the previous garment, if any, still draws
+ *
+ * The identity, not just the phase, is what makes a stale completion
+ * detectable: see `reduceLiveVtoSession`, where a `garmentLoaded` naming a
+ * product that is not the pending one is REJECTED rather than allowed to
+ * report success for a garment the customer already moved on from.
+ */
+export const LIVE_VTO_GARMENT_STATUSES = [
+  'IDLE',
+  'SELECTED',
+  'LOADING',
+  'RENDERED',
+  'FAILED',
+] as const;
+export type LiveVtoGarmentStatus = (typeof LIVE_VTO_GARMENT_STATUSES)[number];
 
 /**
  * `assetKey`/`assetId`/`assetVersion` (added alongside the governed asset

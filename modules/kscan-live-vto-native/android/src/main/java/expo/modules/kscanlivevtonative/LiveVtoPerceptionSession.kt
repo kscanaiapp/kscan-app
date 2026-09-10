@@ -47,6 +47,24 @@ class LiveVtoPerceptionSession(
   private val onEvent: (ReplayEvent) -> Unit = {},
   /** Diagnostic-only observer, fired synchronously on the perception thread right after a geometry snapshot is computed (whether or not its rigid gate passed). Never used to leak data across the JS bridge -- Android-side logging only. */
   private val onSnapshotComputed: (GeometrySnapshot) -> Unit = {},
+  /**
+   * THE TRACKING-QUALITY FEED. Fired synchronously on the perception thread
+   * for EVERY inference step outcome -- success, no-pose, provider failure,
+   * unusable adapter result -- because a tracking state derived only from
+   * the SUCCESSES could never say tracking was lost.
+   *
+   * Reports the three facts and nothing else (outcome, the BodyFrame's own
+   * confidence, the geometry snapshot when there is one). It deliberately
+   * does not build a `LiveVtoTrackingObservation` itself: that needs a
+   * monotonic clock and the "is a clean person frame buffered" answer, both
+   * of which belong to the view that owns the camera, and this class owns no
+   * clock and no threads on purpose.
+   */
+  private val onPerceptionOutcome: (
+    outcome: LiveVtoPerceptionOutcome,
+    trackingConfidence: Float,
+    snapshot: GeometrySnapshot?,
+  ) -> Unit = { _, _, _ -> },
 ) {
   private val lock = Any()
 
@@ -195,6 +213,14 @@ class LiveVtoPerceptionSession(
               textureHeight = textureHeight,
             )
             onSnapshotComputed(snapshot)
+            // The tracking feed carries the BodyFrame's OWN confidence, not
+            // the provider's raw per-pose score: the adapter is the boundary
+            // where a provider-specific convention becomes a governed one,
+            // and reading past it here would reintroduce exactly the vendor
+            // leak `LiveVtoPerceptionTypes`'s header forbids.
+            onPerceptionOutcome(
+              LiveVtoPerceptionOutcome.POSE_RESOLVED, adapted.frame.trackingConfidence, snapshot,
+            )
             synchronized(lock) {
               if (state != ReplayState.PLAYING || garment !== activeGarment) return true
               geometrySlot.publish(snapshot)
@@ -203,10 +229,14 @@ class LiveVtoPerceptionSession(
           }
           is LiveVtoBodyFrameAdapter.Result.NoUsablePose, is LiveVtoBodyFrameAdapter.Result.InvalidProviderOutput -> {
             refusedCount.incrementAndGet()
+            onPerceptionOutcome(LiveVtoPerceptionOutcome.POSE_REFUSED, 0f, null)
           }
         }
       }
-      is PerceptionResult.NoPose, is PerceptionResult.Failure -> refusedCount.incrementAndGet()
+      is PerceptionResult.NoPose, is PerceptionResult.Failure -> {
+        refusedCount.incrementAndGet()
+        onPerceptionOutcome(LiveVtoPerceptionOutcome.POSE_REFUSED, 0f, null)
+      }
     }
     return true
   }

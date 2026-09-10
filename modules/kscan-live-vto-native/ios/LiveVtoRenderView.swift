@@ -194,6 +194,22 @@ public final class LiveVtoRenderView: ExpoView {
           // intentionally not wired to os_log at every frame to avoid
           // becoming a de facto frame-rate log channel; aggregate counters
           // are read via getPerceptionStatsJson instead.
+        },
+        // The diagnostic perception mode drives the SAME tracking contract
+        // the camera mode does -- the one path that can exercise tracking
+        // end-to-end on a device whose camera is the thing under suspicion.
+        onPerceptionOutcome: { [weak self] outcome, trackingConfidence, snapshot in
+          guard let self = self else { return }
+          self.publishTrackingEvent(
+            self.trackingMachine.observe(
+              LiveVtoTrackingObservation(
+                monotonicMs: self.monotonicMillis(),
+                outcome: outcome,
+                trackingConfidence: trackingConfidence,
+                geometryGatePassed: snapshot?.gatePassed == true,
+                geometryFailure: snapshot?.failure,
+                personFrameAvailable: self.personFrameAvailable()
+              )))
         })
       guard session.load(manifest, textureWidth: dims.0, textureHeight: dims.1) else {
         loadError = "perception load refused: \(session.currentState())"
@@ -201,7 +217,14 @@ public final class LiveVtoRenderView: ExpoView {
       }
       session.start()
       perceptionSession = session
-      let driver = LiveVtoPerceptionDriver(session: session, frameSource: { frameSource() })
+      let driver = LiveVtoPerceptionDriver(
+        session: session, frameSource: { frameSource() },
+        onProducerTick: { [weak self] _ in
+          guard let self = self else { return }
+          self.publishTrackingEvent(
+            self.trackingMachine.tick(
+              monotonicMs: self.monotonicMillis(), personFrameAvailable: self.personFrameAvailable()))
+        })
       perceptionDriver = driver
       driver.start()
     } catch {
@@ -264,11 +287,44 @@ public final class LiveVtoRenderView: ExpoView {
   /// synthetic frame (mission section 7). Deliberately a SEPARATE session/
   /// driver pair from `perception`'s, mirroring this file's own established
   /// pattern of one independent prop+session+driver per phase.
+  /// THE PRODUCT PATH (mission section 35).
+  ///
+  /// `active`/`replay`/`perception`/`camera` are DIAGNOSTIC entry points, set
+  /// only by app/dev-n1-diagnostic.tsx. `live` is the one the CUSTOMER
+  /// surface sets, and it drives the SAME `camera` pipeline -- deliberately
+  /// the same implementation, because a separate product pipeline would be a
+  /// second thing to certify and the customer must get the one that was
+  /// measured. Mirrors Android's `live` exactly.
+  public var live: Bool = false {
+    didSet { camera = live }
+  }
+
   public var camera: Bool = false {
     didSet {
       if camera { startCamera() } else { stopCamera() }
       setNeedsDisplay()
     }
+  }
+
+  /// VTO-TRACK-002. Reports a start failure the customer's session can act on.
+  ///
+  /// Every early return in `startCamera()` used to set `loadError` (a
+  /// DIAGNOSTIC string this view draws on itself) and return, emitting
+  /// NOTHING. `startSession()` had already moved the native machine to
+  /// `.starting` and the JS controller had already moved the surface to
+  /// GARMENT_LOADING, so a customer whose camera could not start sat on
+  /// "Loading this piece..." forever -- exactly the permanent spinner mission
+  /// section 17 forbids. Only `handleCameraControllerStateForSession` ever
+  /// reported anything, and it only runs once a controller EXISTS.
+  ///
+  /// The state is a bounded `LIVE_VTO_RUNTIME_ERROR_STATES` member, never the
+  /// native reason: `toLiveVtoRuntimeError` turns it into customer copy and
+  /// discards native detail by design. Mirrors Android's `failSessionStart`.
+  private func failSessionStart(_ state: String) {
+    guard sessionState == .starting else { return }
+    sessionState = LiveVtoSessionMachine.complete(sessionState, .runtimeFailed).next
+    trackingMachine.reset()
+    emitSessionEvent("fatalError", ["state": state, "recoverable": state != "MODEL_UNAVAILABLE"])
   }
 
   private func startCamera() {
@@ -303,14 +359,42 @@ public final class LiveVtoRenderView: ExpoView {
       let provider = LiveVtoMediaPipePoseProvider()
       let session = LiveVtoPerceptionSession(
         provider: provider, canvasWidth: Float(renderCanvasW), canvasHeight: Float(renderCanvasH),
-        onEvent: { [weak self] _ in DispatchQueue.main.async { self?.cameraMeshOverlay?.setNeedsDisplay() } })
+        onEvent: { [weak self] _ in DispatchQueue.main.async { self?.cameraMeshOverlay?.setNeedsDisplay() } },
+        // THE TRACKING CONTRACT'S ONLY INPUT. Every inference outcome, not
+        // just the successful ones -- a tracking state built from successes
+        // alone could never report a loss.
+        onPerceptionOutcome: { [weak self] outcome, trackingConfidence, snapshot in
+          guard let self = self else { return }
+          self.publishTrackingEvent(
+            self.trackingMachine.observe(
+              LiveVtoTrackingObservation(
+                monotonicMs: self.monotonicMillis(),
+                outcome: outcome,
+                trackingConfidence: trackingConfidence,
+                geometryGatePassed: snapshot?.gatePassed == true,
+                geometryFailure: snapshot?.failure,
+                personFrameAvailable: self.personFrameAvailable()
+              )))
+        })
       guard session.load(manifest, textureWidth: dims.0, textureHeight: dims.1) else {
         loadError = "camera perception load refused: \(session.currentState())"
+        // The perception provider failed to INITIALIZE -- the bundled model
+        // is missing, unreadable, or failed its checksum. Not recoverable by
+        // retrying, and saying so is what stops a customer tapping a button
+        // that cannot work.
+        failSessionStart("MODEL_UNAVAILABLE")
         return
       }
       session.start()
       cameraPerceptionSession = session
-      let driver = LiveVtoPerceptionDriver(session: session, frameSource: { [weak controller] in controller?.latestFrame() })
+      let driver = LiveVtoPerceptionDriver(
+        session: session, frameSource: { [weak controller] in controller?.latestFrame() },
+        onProducerTick: { [weak self] _ in
+          guard let self = self else { return }
+          self.publishTrackingEvent(
+            self.trackingMachine.tick(
+              monotonicMs: self.monotonicMillis(), personFrameAvailable: self.personFrameAvailable()))
+        })
       cameraPerceptionDriver = driver
       driver.start()
       // The camera producer (AVCaptureVideoDataOutput's own delegate
@@ -322,6 +406,7 @@ public final class LiveVtoRenderView: ExpoView {
       controller.start()
     } catch {
       loadError = "\(error)"
+      failSessionStart("RUNTIME_INITIALIZATION_FAILED")
     }
   }
 
@@ -495,7 +580,13 @@ public final class LiveVtoRenderView: ExpoView {
     defer { endCaptureIfSessionActive() }
     let source: UIImage?
     if camera {
-      guard let frame = cameraController?.frameSlot.peek() as? LiveVtoStaticImageFrame else { return nil }
+      // VTO-TRACK-001: `latestFrameForCapture()`, NOT `frameSlot.peek()`.
+      // The slot is a consume-once backpressure boundary the perception
+      // producer empties every 33 ms, so reading it here made a capture
+      // succeed or fail on a queue race rather than on whether the camera
+      // was delivering. This reads the retained frame -- the SAME source
+      // `personFrameAvailable()` reports on.
+      guard let frame = cameraController?.latestFrameForCapture() as? LiveVtoStaticImageFrame else { return nil }
       source = frame.image
     } else if perception {
       source = perceptionSourceImage
@@ -588,6 +679,46 @@ public final class LiveVtoRenderView: ExpoView {
   /// emitting events through a stale closure.
   var sessionEventSink: ((_ type: String, _ payload: [String: Any]) -> Void)?
 
+  /// The tracking-quality contract for THIS view's session. One machine per
+  /// view instance, reset at every epoch boundary (start, stop, dispose,
+  /// garment load) so a new epoch cannot inherit the previous one's ACQUIRED
+  /// and hand a capture control back before anything was seen. Mirrors
+  /// Android's `trackingMachine` exactly.
+  private let trackingMachine = LiveVtoTrackingQualityMachine()
+
+  /// Read-only view of the current tracking position, for tests and evidence.
+  func trackingSnapshot() -> LiveVtoTrackingSnapshot { trackingMachine.snapshot() }
+
+  /// MONOTONIC, NOT WALL CLOCK. `Date()` moves when the device's clock is
+  /// corrected or the time zone changes, and a backwards jump there would
+  /// read as "the last pose was resolved in the future" -- a session that
+  /// never goes stale. The uptime clock cannot do that.
+  private func monotonicMillis() -> Int64 {
+    Int64(ProcessInfo.processInfo.systemUptime * 1000.0)
+  }
+
+  /// IS A CLEAN PERSON FRAME ACTUALLY BUFFERED RIGHT NOW.
+  ///
+  /// Reads the SAME sources `captureCleanFrame()` reads, in the same order,
+  /// without consuming anything -- so "the capture control is enabled" and
+  /// "the capture would return a frame" cannot disagree. Deliberately NOT
+  /// "a camera controller object exists".
+  private func personFrameAvailable() -> Bool {
+    if camera { return (cameraController?.latestFrameForCapture() as? LiveVtoStaticImageFrame) != nil }
+    if perception { return perceptionSourceImage != nil }
+    return false
+  }
+
+  /// Forwards one tracking event to the bridge, if the machine produced one.
+  /// Called from the perception thread and the producer queue, never the main
+  /// thread: `sendEvent` is safe off main, and hopping to main for every
+  /// observation would put the tracking contract behind whatever else is
+  /// queued there.
+  private func publishTrackingEvent(_ event: LiveVtoTrackingEvent?) {
+    guard let event = event else { return }
+    emitSessionEvent(event.name, event.payload)
+  }
+
   func sessionSnapshotState() -> LiveVtoSessionState { sessionState }
 
   private func emitSessionEvent(_ type: String, _ payload: [String: Any] = [:]) {
@@ -645,6 +776,8 @@ public final class LiveVtoRenderView: ExpoView {
     guard result.accepted else { return false }
     sessionState = result.next
     sessionGeneration += 1
+    // A new epoch starts with no tracking claim of its own.
+    trackingMachine.reset()
     startCamera()
     return true
   }
@@ -656,6 +789,7 @@ public final class LiveVtoRenderView: ExpoView {
     sessionState = result.next
     if before == .created || before == .stopped { return true } // idempotent no-op
     sessionGeneration += 1 // invalidate any in-flight start/garment-load for the prior epoch
+    trackingMachine.reset()
     stopCamera()
     sessionState = LiveVtoSessionMachine.complete(sessionState, .stopped).next
     return true
@@ -681,6 +815,7 @@ public final class LiveVtoRenderView: ExpoView {
   func disposeSession() -> Bool {
     let result = LiveVtoSessionMachine.apply(sessionState, .dispose)
     sessionGeneration += 1
+    trackingMachine.reset()
     stopCamera()
     sessionState = result.next
     loadedGarment = nil
@@ -717,6 +852,12 @@ public final class LiveVtoRenderView: ExpoView {
   /// here: closed, via the existing garmentLoadFailed/fatalError path.
   private func performGarmentLoad(_ descriptor: LiveVtoGarmentDescriptor, loadingState: LiveVtoSessionState, resumeTo: LiveVtoSessionState) -> Bool {
     sessionState = loadingState
+    // A garment change is an epoch boundary for the CAPTURE authority too:
+    // until the new asset is confirmed loaded, what the runtime draws is not
+    // what the customer chose, and a capture taken now would be attributed to
+    // the wrong product. Resetting here is what makes captureReady go false
+    // on the switch itself rather than on some later frame.
+    trackingMachine.reset()
     let myGeneration = sessionGeneration
     do {
       let (manifest, image, _) = try loadFixture(descriptor.assetKey)

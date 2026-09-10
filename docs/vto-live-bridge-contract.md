@@ -112,6 +112,22 @@ decision, backpressure design, known constraints, evidence tiers):
 Function("getCapability") -> { capable: Bool, runtimeReady: Bool, runtimeVersion: String? }
 ```
 
+> **SUPERSEDED 2026-09-07** by the cross-platform staging pilot lane. The
+> paragraph below described the state through N1-G and is kept as history.
+> What is true now is in
+> [`docs/vto-live-productization-v1.md`](./vto-live-productization-v1.md) §2:
+> both platforms now answer from real device evidence (front-camera discovery,
+> the bundled pose model actually opening, governed asset manifests actually
+> parsing), fail closed to a flat no when that evidence cannot be gathered, and
+> report `runtimeVersion` `"live-vto-1"` / `"live-vto-1-ios"`.
+>
+> The hardcoded `false` was correct at N1-A and was left in place through the
+> gates that built the runtime it describes. Because
+> `services/vto/vtoLiveCapability.ts` reads exactly these two fields, the
+> consequence was total: Live resolved to `device_unsupported` on every build
+> in existence, before any other gate was consulted, however the feature flag
+> and the operator switch were set.
+
 Both platforms return `capable: false, runtimeReady: false` — **"registration
 is not capability"** (both native module header comments say this verbatim).
 Neither platform has implemented device-eligibility detection or runtime
@@ -636,6 +652,14 @@ closing it (a real catalog → `.ksgarment` resolver) is future work.
 
 `ready` (on `RUNNING`), `garmentLoaded` (`{productRef, assetVersion}`),
 `fatalError` (`{state: 'RUNTIME_INITIALIZATION_FAILED'|'CAMERA_PERMISSION_DENIED'|'GARMENT_UNSUPPORTED', recoverable}`).
+> **SUPERSEDED 2026-09-07** for the four tracking events. They ARE now emitted
+> by both platforms, derived from real perception and geometry facts by
+> `LiveVtoTrackingQuality` — see
+> [`docs/vto-live-productization-v1.md`](./vto-live-productization-v1.md) §1.
+> `captureReady` (the capture-COMPLETED event), `privacyStateChanged` and
+> `performanceChanged` remain unemitted, and the sentence below is still
+> accurate for those three.
+
 `trackingAcquired`/`trackingWeak`/`trackingLost`/`trackingRecovered`/
 `captureReady`/`privacyStateChanged`/`performanceChanged` are declared in
 `LIVE_VTO_EVENTS` and consumed by the JS reducer but are not yet emitted by

@@ -1,4 +1,5 @@
 import ExpoModulesCore
+import AVFoundation
 
 /// iOS catch-up counterpart to Android's `KScanLiveVtoNativeModule.kt`.
 ///
@@ -36,9 +37,10 @@ public class KScanLiveVtoNativeModule: Module {
     Name("KScanLiveVto")
 
     Function("getCapability") { () -> [String: Any?] in
-      [
-        "capable": false,
-        "runtimeReady": false,
+      let evidence = Self.gatherCapabilityEvidence()
+      return [
+        "capable": LiveVtoRuntimeCapability.capable(evidence),
+        "runtimeReady": LiveVtoRuntimeCapability.runtimeReady(evidence),
         "runtimeVersion": Self.runtimeVersion,
       ]
     }
@@ -211,6 +213,17 @@ public class KScanLiveVtoNativeModule: Module {
         view.camera = camera
       }
 
+      // THE PRODUCT PATH (mission section 35). Every prop above this one is
+      // a DIAGNOSTIC entry point reached from app/dev-n1-diagnostic.tsx;
+      // `live` is the one the CUSTOMER surface (components/vto/VtoLivePanel)
+      // mounts. It runs the identical pipeline `camera` runs and is a
+      // separate NAME rather than a separate implementation on purpose: a
+      // second pipeline for the product path would be a second thing to
+      // certify, and the customer must get the one that was measured.
+      Prop("live") { (view: LiveVtoRenderView, live: Bool) in
+        view.live = live
+      }
+
       // Aggregate camera+perception counters only -- the camera boundary's
       // own produced/dropped/consumed counts alongside the same bounded
       // perception counters `getPerceptionStatsJson` exposes. Never a
@@ -224,7 +237,53 @@ public class KScanLiveVtoNativeModule: Module {
   /// Distinguishable from Android's "n1-a" on purpose -- this is a free-text
   /// diagnostic field, not part of any pinned contract, so a captured log
   /// can tell which platform's module actually answered.
-  private static let runtimeVersion = "n1-a-ios"
+  /// Bumped from "n1-a-ios". That value described a module that had only
+  /// registration; this one carries the camera, perception, geometry,
+  /// renderer, session lifecycle, capture and tracking-quality contract.
+  /// Telemetry/debug only -- nothing gates on it.
+  private static let runtimeVersion = "live-vto-1-ios"
+
+  /// Gathers the REAL device facts `getCapability()` reports on.
+  ///
+  /// Every one is checked, not assumed: the model asset is RESOLVED in the
+  /// governed resource bundle (not merely declared), each governed asset
+  /// directory's manifest is PARSED (not merely listed), and the front camera
+  /// is queried from `AVCaptureDevice`'s own discovery session. Anything that
+  /// fails yields `.unknown`, which resolves to a flat no -- an unanswerable
+  /// capability question is answered "no", exactly as the JS adapter already
+  /// does for a module that throws.
+  private static func gatherCapabilityEvidence() -> LiveVtoCapabilityEvidence {
+    let bundle = LiveVtoAssetBundle.shared
+
+    let poseModelPresent = bundle.path(
+      forResource: LiveVtoMediaPipePoseProvider.modelName, ofType: "task", inDirectory: "models"
+    ) != nil
+
+    var governedAssetCount = 0
+    for assetKey in LiveVtoGarmentDescriptor.supportedAssetKeys {
+      guard
+        let manifestURL = bundle.url(forResource: "manifest", withExtension: "json", subdirectory: assetKey),
+        let manifestText = try? String(contentsOf: manifestURL, encoding: .utf8),
+        (try? KsgarmentManifest.parseAssetManifest(manifestText)) != nil
+      else { continue }
+      governedAssetCount += 1
+    }
+
+    // `.builtInWideAngleCamera` on `.front` is the device every iPhone that
+    // can run this feature has; the discovery session returning empty is the
+    // honest "no front camera" answer (a Mac Catalyst host, or a simulator
+    // with no camera), not an error to swallow.
+    let frontCameras = AVCaptureDevice.DiscoverySession(
+      deviceTypes: [.builtInWideAngleCamera], mediaType: .video, position: .front
+    ).devices
+
+    return LiveVtoCapabilityEvidence(
+      osMajorVersion: ProcessInfo.processInfo.operatingSystemVersion.majorVersion,
+      hasFrontCamera: !frontCameras.isEmpty,
+      poseModelPresent: poseModelPresent,
+      governedAssetCount: governedAssetCount
+    )
+  }
 
   /// Resolves the currently-mounted `LiveVtoRenderView` (mirrors
   /// `capturePersonFrame`'s own `currentInstance` lookup) and (re)arms its

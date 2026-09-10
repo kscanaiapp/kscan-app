@@ -94,6 +94,104 @@ jobs:
       - name: Run harness contract mode
         run: node scripts/vto-e2e/run.mjs --mode=contract
 
+  # ── The Android half of the native runtime, BUILT AND TESTED ────────────
+  #
+  # WHY THIS JOB EXISTS. `live-vto-ios-native-catchup.yml` compiles and tests
+  # the iOS half of `modules/kscan-live-vto-native/` on every PR that touches
+  # it. There was no equivalent for Android at all: the Kotlin runtime -- the
+  # geometry stack, the session state machine, the perception session, the
+  # camera controller, the tracking-quality contract -- had ZERO continuous
+  # integration, so a Kotlin compile error or a broken conformance golden
+  # could only be found by someone running Gradle by hand. Mission section 38
+  # requires both platforms build-proven; this is the Android side of that.
+  #
+  # UNIT TESTS, NOT AN INSTALLABLE. `testDebugUnitTest` compiles the WHOLE
+  # module (main + test source sets, against the real MediaPipe Tasks Vision
+  # and CameraX artifacts) and executes the JVM suite, which is exactly the
+  # authority Android's zero-Android-import geometry/tracking stack was
+  # designed to be checkable by. Assembling an APK is a separate, much
+  # heavier question and is not what this gate answers.
+  #
+  # THE JUNIT TALLY IS THE EVIDENCE, NOT "BUILD SUCCESSFUL". A wrapper that
+  # prints a success line with zero executed tests is a false green -- this
+  # program has hit that exact failure mode before -- so the last step reads
+  # the JUnit XML and fails on a zero count, on any failure, and on any error,
+  # independently of Gradle's own exit status.
+  android-native:
+    name: VTO Live — Android native module (compile + JVM tests)
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Setup JDK
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # Expo autolinking resolves the module list from node_modules at
+      # settings-plugin time, so the JS dependency tree has to exist before
+      # Gradle can configure the project at all.
+      - name: Install dependencies
+        run: npm ci
+
+      # `bash ./gradlew`, not `./gradlew`. The wrapper is committed WITHOUT
+      # an executable bit (this repository is authored on Windows, where the
+      # mode bit is not meaningful), so a direct invocation on a Linux runner
+      # exits 126 "Permission denied" before Gradle starts. The first run of
+      # this job did exactly that -- and the JUnit assertion below caught it
+      # and refused to report success on a suite that never executed, which
+      # is the whole reason that step reads the XML instead of trusting an
+      # exit code.
+      - name: Compile and run the module's JVM test suite
+        working-directory: android
+        run: bash ./gradlew :kscan-live-vto-native:testDebugUnitTest --console=plain --stacktrace
+
+      - name: Assert the JUnit report is real
+        if: always()
+        run: |
+          node -e '
+            const fs = require("fs");
+            const path = require("path");
+            const root = "modules/kscan-live-vto-native/android/build/test-results";
+            const files = [];
+            (function walk(dir) {
+              if (!fs.existsSync(dir)) return;
+              for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+                const full = path.join(dir, entry.name);
+                if (entry.isDirectory()) walk(full);
+                else if (entry.name.startsWith("TEST-") && entry.name.endsWith(".xml")) files.push(full);
+              }
+            })(root);
+            let tests = 0, failures = 0, errors = 0;
+            for (const file of files) {
+              const head = (fs.readFileSync(file, "utf8").match(/<testsuite[^>]*>/) || [""])[0];
+              const num = (key) => Number((head.match(new RegExp(key + "=\"(\\d+)\"")) || [0, 0])[1]);
+              tests += num("tests"); failures += num("failures"); errors += num("errors");
+            }
+            console.log(`JUnit reports=${files.length} tests=${tests} failures=${failures} errors=${errors}`);
+            if (files.length === 0) { console.error("::error::no JUnit report was produced -- the suite did not run"); process.exit(1); }
+            if (tests === 0) { console.error("::error::the suite reported ZERO executed tests -- that is a false green, not a pass"); process.exit(1); }
+            if (failures > 0 || errors > 0) { console.error("::error::the Android native suite failed"); process.exit(1); }
+          '
+
+      - name: Upload the JUnit reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: vto-android-native-test-results-${{ github.run_number }}
+          path: modules/kscan-live-vto-native/android/build/test-results/**/*.xml
+          if-no-files-found: warn
+          retention-days: 14
+
   # ── The VTO mutation boundary, ENFORCED ─────────────────────────────────
   #
   # This job is the one execution point in the repository that declares

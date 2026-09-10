@@ -41,6 +41,13 @@ public final class LiveVtoPerceptionDriver {
   /// behaviour is unchanged.
   private let frameSource: () -> PerceptionInputFrame?
   private let producerPeriodSeconds: TimeInterval
+  /// THE TRACKING HEARTBEAT. Fired on every producer tick, whether or not a
+  /// frame was available, so `LiveVtoTrackingQualityMachine.tick` can notice
+  /// a pipeline that has stopped delivering. Mirrors Android's
+  /// `onProducerTick` exactly: this is the only way a session whose camera
+  /// silently stops reports TRACKING LOST rather than holding a stale
+  /// "Live" forever.
+  private let onProducerTick: (Bool) -> Void
 
   private let producerQueue = DispatchQueue(label: LiveVtoPerceptionDriver.producerThreadName, qos: .userInitiated)
   private var perceptionThread: Thread?
@@ -52,11 +59,13 @@ public final class LiveVtoPerceptionDriver {
 
   public init(
     session: LiveVtoPerceptionSession, frameSource: @escaping () -> PerceptionInputFrame?,
-    producerPeriodSeconds: TimeInterval = LiveVtoPerceptionDriver.defaultProducerPeriodSeconds
+    producerPeriodSeconds: TimeInterval = LiveVtoPerceptionDriver.defaultProducerPeriodSeconds,
+    onProducerTick: @escaping (Bool) -> Void = { _ in }
   ) {
     self.session = session
     self.frameSource = frameSource
     self.producerPeriodSeconds = producerPeriodSeconds
+    self.onProducerTick = onProducerTick
   }
 
   public func start() {
@@ -81,7 +90,12 @@ public final class LiveVtoPerceptionDriver {
     guard running, generation == myGeneration else { runningLock.unlock(); return }
     runningLock.unlock()
 
-    if let frame = frameSource() { _ = session.submitFrame(frame) }
+    let frame = frameSource()
+    if let frame = frame { _ = session.submitFrame(frame) }
+    // Outside the frame branch on purpose: a tick with NOTHING to submit is
+    // precisely the tick a stalled pipeline produces, and it is the one the
+    // tracking heartbeat most needs to see.
+    onProducerTick(frame != nil)
 
     runningLock.lock()
     guard running, generation == myGeneration else { runningLock.unlock(); return }
