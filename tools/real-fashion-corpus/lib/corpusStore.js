@@ -16,6 +16,7 @@ const { validateGarment, validateCase } = require('./recordSchema');
 const { deriveGrade, evaluateIdentityEligibility } = require('./groundTruth');
 const { canonicalHash } = require('../../fashion-match-quality/lib/canonicalJson');
 const { ASSET_TIER_REAL } = require('./constants');
+const { ONTOLOGY_VERSION } = require('./ontology');
 
 function readJsonDir(dir) {
   if (!fs.existsSync(dir)) return [];
@@ -158,6 +159,10 @@ function buildCorpusManifest({ config, garments, cases }) {
   const manifest = {
     corpusId: config.corpusId,
     corpusVersion: config.corpusVersion,
+    // V2: bound into the hash like every other identifier here - an ontology
+    // upgrade (a new tools/fashion-ontology contract version) is a corpus
+    // change, and a frozen evaluation must not silently span two ontologies.
+    ontologyVersion: ONTOLOGY_VERSION,
     policyVersions: config.policyVersions,
     garmentCount: garmentEntries.length,
     developmentCaseCount: caseEntries.length,
@@ -167,7 +172,12 @@ function buildCorpusManifest({ config, garments, cases }) {
     holdout: holdoutEntries,
   };
 
-  return { ...manifest, corpusHash: canonicalHash(manifest) };
+  // creationTimestamp is metadata ABOUT the manifest, not part of its
+  // identity - it is attached after the hash is computed so that building
+  // the manifest for the same, unchanged corpus twice (spec section 7: "Any
+  // later corpus mutation must produce a different manifest hash") always
+  // yields the same corpusHash regardless of wall-clock time.
+  return { ...manifest, corpusHash: canonicalHash(manifest), creationTimestamp: new Date().toISOString() };
 }
 
 function writeRecord(dir, filename, record) {
