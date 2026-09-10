@@ -49,7 +49,7 @@
 
 import PostHog, { PostHogProvider } from 'posthog-react-native';
 
-import { syncPostHogIdentityWith } from './posthogIdentitySync';
+import { syncPostHogAnonymousIdentityWith } from './posthogIdentitySync';
 import { setClosetTelemetrySink } from '../closetTelemetry';
 import { setKPlusAnalyticsSink } from '../kplus/kplusTelemetry';
 import { setTodayWithEliseAnalyticsSink } from '../todayWithElise/analytics';
@@ -186,15 +186,14 @@ export function unbridgeAllTelemetrySinks(): void {
   bridged = false;
 }
 
-export function identifyPostHogUser(userId: string): void {
-  if (!posthog) return;
-  try {
-    posthog.identify(userId);
-  } catch {
-    /* identity sync never propagates */
-  }
-}
-
+/**
+ * PH35-R2: there is deliberately no `identifyPostHogUser` here, and no other
+ * export that accepts a user identifier. PostHog is anonymous-only — see
+ * posthogIdentitySync.ts. Do not add one: `identify`, `alias`, `group` and
+ * the person-property APIs are all off-limits for this analytics model, and
+ * __tests__/posthogAnalyticsGovernance.test.js fails the build if this file
+ * starts calling them.
+ */
 export function resetPostHogUser(): void {
   if (!posthog) return;
   try {
@@ -204,9 +203,15 @@ export function resetPostHogUser(): void {
   }
 }
 
-export function syncPostHogIdentity(userId: string | null): void {
+/**
+ * Takes one bit — whether somebody is signed in — never who. Analytics is
+ * subordinate to product behaviour: this swallows its own failures so a
+ * broken adapter can never block login, session restore, logout, account
+ * deletion, entitlement evaluation or navigation.
+ */
+export function syncPostHogAnonymousIdentity(isAuthenticated: boolean): void {
   try {
-    syncPostHogIdentityWith(posthog, userId);
+    syncPostHogAnonymousIdentityWith(posthog, isAuthenticated);
   } catch {
     /* identity sync never propagates */
   }
