@@ -214,13 +214,17 @@ jobs:
         run: |
           set -euo pipefail
           TOKEN=$(cat /tmp/actor_a_token)
-          PATH_A="${ACTOR_A_UID}/scans/repair06-e2e-fixture.txt"
+          PATH_A="${ACTOR_A_UID}/scans/repair06-e2e-fixture.png"
+          # The style-library-images bucket enforces an image mime allowlist, so
+          # the fixture must be a real image. This is a 1x1 fully-transparent
+          # PNG -- 68 bytes, synthetic, and carries no likeness or content.
+          printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==' | base64 -d > /tmp/fixture.png
           CODE=$(curl -sS -o /tmp/storage_upload.json -w '%{http_code}' \
             -X POST "https://${STAGING_REF}.supabase.co/storage/v1/object/style-library-images/${PATH_A}" \
             -H "apikey: ${PUBLISHABLE_KEY}" \
             -H "Authorization: Bearer ${TOKEN}" \
-            -H "Content-Type: text/plain" \
-            --data-binary "kscan repair06 live e2e synthetic fixture -- not a real image")
+            -H "Content-Type: image/png" \
+            --data-binary @/tmp/fixture.png)
           echo "storage_http_code=${CODE}" >> "$GITHUB_OUTPUT"
           echo "storage_path=${PATH_A}" >> "$GITHUB_OUTPUT"
           echo "Storage upload -> HTTP ${CODE} at ${PATH_A}"
@@ -314,7 +318,7 @@ jobs:
 
       - name: Remove raw response bodies
         if: always()
-        run: rm -f /tmp/unauth.json /tmp/intake_a.json /tmp/storage_upload.json /tmp/actor_a_token /tmp/actor_b_token
+        run: rm -f /tmp/unauth.json /tmp/intake_a.json /tmp/storage_upload.json /tmp/actor_a_token /tmp/actor_b_token /tmp/fixture.png
 
   status_check:
     if: github.event.inputs.phase == 'status_check'
