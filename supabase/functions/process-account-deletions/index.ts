@@ -655,7 +655,11 @@ async function processClaimedRequest(
   // durable retry/fail lifecycle every other purge-step error already uses.
   // Nothing has been erased yet that a retry would need: this runs before the
   // AUTH_DELETE_STARTED ledger transition and before the Auth delete itself.
-  const appleRevocation = await requestAppleRevocation(supabase, userId);
+  const appleRevocation = await requestAppleRevocation(
+    supabase,
+    userId,
+    env('SUPABASE_SERVICE_ROLE_KEY'),
+  );
   if (isBlockingAppleRevocationStatus(appleRevocation.status)) {
     throw new Error(`apple_revocation_blocked:${appleRevocation.status}`);
   }
