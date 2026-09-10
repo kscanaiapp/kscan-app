@@ -11,6 +11,7 @@ import { supabase } from '../services/supabaseClient';
 import { AUTH_CALLBACK_URL } from '../services/authConfig';
 import { isSessionUsable } from '../services/routingGuard';
 import { invalidateAllMemoryCache } from '../services/style-chat/styleMemoryCache';
+import { revokeAllWearableSessions } from '../services/wearables/bridge';
 
 /**
  * Returned by signUp so the caller can distinguish between an immediate
@@ -95,6 +96,11 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const signOut = useCallback(async () => {
+    try {
+      await revokeAllWearableSessions();
+    } catch {
+      // Sessions are short-lived server-side; sign-out must not be held hostage by a network outage.
+    }
     invalidateAllMemoryCache();
     setSession(null);
     await supabase.auth.signOut();

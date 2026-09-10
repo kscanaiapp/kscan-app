@@ -55,7 +55,7 @@ function warnInvalidTransition(from, to) {
  *   analysis will be null; nonFashionMessage holds the AI's explanation.
  *   Resets to idle via dismissResult().
  */
-export function useKScan() {
+export function useKScan(options = {}) {
   const [status, setStatus] = useState('idle');
   const [photo, setPhoto] = useState(null);
   const [analysis, setAnalysis] = useState(null);
@@ -173,7 +173,11 @@ export function useKScan() {
         const compressed = await compressForUpload(photo.uri);
         if (__DEV__) console.log('[DEBUG] AFTER_COMPRESS duration=' + (Date.now() - processingStart) + 'ms payloadLen=' + (compressed?.length ?? 0));
 
-        const sanitized = await sanitizeImageBeforeUpload(compressed);
+        if (options.onStage) await options.onStage('PRIVACY_PROCESSING', 10);
+        const sanitized = await sanitizeImageBeforeUpload(compressed, {
+          requireFaceMasking: options.requireFaceMasking === true,
+        });
+        if (options.onStage) await options.onStage('ANALYZING', 45);
         if (__DEV__) {
           const sanitizerStatus = getPrivacySanitizerStatus();
           console.warn(
@@ -188,6 +192,7 @@ export function useKScan() {
 
         if (__DEV__) console.log('[DEBUG] BEFORE_API_CALL');
         const data = await analyzeImage(sanitized);
+        if (options.onStage) await options.onStage('MATCHING', 85);
         if (__DEV__) console.log('[DEBUG] AFTER_API_CALL duration=' + (Date.now() - processingStart) + 'ms type=' + data?.type);
 
         // Enforce minimum HUD display time so PerceptionLayer completes its entry
@@ -260,7 +265,7 @@ export function useKScan() {
         analysisInProgressRef.current = false;
       }
     },
-    [status, photo]
+    [status, photo, options.requireFaceMasking, options.onStage]
   );
 
   const retake = useCallback(() => {

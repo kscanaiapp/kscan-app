@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { StatusBar } from 'expo-status-bar';
 
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { useScanAnimation } from './hooks/useScanAnimation';
 import { useKScan } from './hooks/useKScan';
@@ -26,6 +26,13 @@ import { AddScanToDressingRoomModal } from './components/AddScanToDressingRoomMo
 import { PerceptionLayer } from './components/PerceptionLayer';
 import { ScanButton } from './components/ScanButton';
 import { useFeatureFreeze } from './hooks/useFeatureFreeze';
+import { isWearableScanCancelled } from './components/wearables/WearableCompanionHost';
+import {
+  completeWearableScan,
+  failWearableScan,
+  reportWearableProgress,
+  startWearableProcessing,
+} from './services/wearables/bridge';
 import {
   APP_BUILD_LABEL,
   DEV_FALLBACK_STATUS,
@@ -204,6 +211,22 @@ export default function App() {
   const { isFeatureEnabled, isLoading: featureFreezeLoading } = useFeatureFreeze();
   const dressingRoomsEnabled = !featureFreezeLoading && isFeatureEnabled('dressingRooms');
 
+  const wearableParams = useLocalSearchParams();
+  const wearableSessionId = Array.isArray(wearableParams.wearableSessionId) ? wearableParams.wearableSessionId[0] : wearableParams.wearableSessionId;
+  const wearableRequestId = Array.isArray(wearableParams.wearableRequestId) ? wearableParams.wearableRequestId[0] : wearableParams.wearableRequestId;
+  const wearableScanId = Array.isArray(wearableParams.wearableScanId) ? wearableParams.wearableScanId[0] : wearableParams.wearableScanId;
+  const wearableMode = !!(wearableSessionId && wearableRequestId && wearableScanId);
+  const wearableProcessingStarted = useRef(false);
+  const wearableTerminalSent = useRef(false);
+  const onWearableStage = useCallback(async (stage, percent) => {
+    if (!wearableMode || wearableTerminalSent.current) return;
+    if (!wearableProcessingStarted.current) {
+      wearableProcessingStarted.current = true;
+      await startWearableProcessing(wearableSessionId, wearableScanId);
+    }
+    await reportWearableProgress(wearableSessionId, wearableScanId, stage, percent);
+  }, [wearableMode, wearableSessionId, wearableScanId]);
+
   const {
     status,
     photo,
@@ -216,7 +239,7 @@ export default function App() {
     dismissResult,
     retry,
     selectStaticFixture,
-  } = useKScan();
+  } = useKScan({ requireFaceMasking: wearableMode, onStage: onWearableStage });
 
   const router = useRouter();
   const [qaPanelVisible, setQaPanelVisible] = useState(false);
@@ -322,6 +345,21 @@ export default function App() {
     });
     return () => { live = false; };
   }, [status, photo, analysis]);
+
+  useEffect(() => {
+    if (!wearableMode || wearableTerminalSent.current) return;
+    if (status === 'result' && analysis) {
+      wearableTerminalSent.current = true;
+      void isWearableScanCancelled(wearableScanId).then(async (cancelled) => {
+        if (!cancelled) await completeWearableScan(wearableSessionId, wearableRequestId, wearableScanId, analysis);
+      });
+    } else if (status === 'error') {
+      wearableTerminalSent.current = true;
+      void isWearableScanCancelled(wearableScanId).then(async (cancelled) => {
+        if (!cancelled) await failWearableScan(wearableSessionId, wearableRequestId, wearableScanId, 'SAFE_BACKEND_FAILURE');
+      });
+    }
+  }, [wearableMode, wearableSessionId, wearableRequestId, wearableScanId, status, analysis]);
 
   // Android hardware back button — handle non-modal screens where React
   // Native's default behavior would exit the app instead of resetting state.

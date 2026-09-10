@@ -60,6 +60,20 @@ export default function Home() {
           <Text style={styles.scanNowText}>SCAN NOW</Text>
         </Pressable>
 
+        {isAuthenticated ? (
+          <View style={[styles.card, styles.cardMuted]}>
+            <Text style={styles.cardLabel}>GOOGLE XR</Text>
+            <Text style={styles.cardBody}>Pair and manage your private K Scan wearable session.</Text>
+            <Pressable
+              testID="open-wearables-button"
+              style={({ pressed }) => [styles.cardButton, pressed ? styles.cardButtonPressed : null]}
+              onPress={() => router.push('/wearables')}
+            >
+              <Text style={styles.cardButtonText}>MANAGE XR</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         {/* 5. Resume placeholder — hidden for Beta 4.2 */}
 
         {/* 6. Dressing Rooms */}
