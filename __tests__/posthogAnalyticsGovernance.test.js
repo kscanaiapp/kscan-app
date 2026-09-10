@@ -42,10 +42,18 @@ test('the client reads config only from EXPO_PUBLIC_POSTHOG_API_KEY / _HOST, no 
   assert.doesNotMatch(clientSource, /['"]https:\/\/[a-z.]*posthog[a-z.]*['"]/);
 });
 
-test('isPostHogConfigured requires both key and host to be non-empty', () => {
+test('isPostHogConfigured requires a non-empty key and an http(s) host', () => {
+  // Both values are trimmed first, so a whitespace-only env var reads as
+  // absent rather than satisfying a bare length check, and the host must
+  // additionally look like an http(s) URL. The behavioural proof that this
+  // actually keeps the vendor SDK unconstructed lives in
+  // __tests__/posthogDisabledStateEgress.test.js — this only pins the rule
+  // in place so it cannot be loosened back to `.length > 0` unnoticed.
+  assert.match(clientSource, /EXPO_PUBLIC_POSTHOG_API_KEY \?\? ''\)\.trim\(\)/);
+  assert.match(clientSource, /EXPO_PUBLIC_POSTHOG_HOST \?\? ''\)\.trim\(\)/);
   assert.match(
     clientSource,
-    /function isPostHogConfigured\(\)[\s\S]*?resolveApiKey\(\)\.length > 0 && resolveHost\(\)\.length > 0/,
+    /function isPostHogConfigured\(\)[\s\S]*?resolveApiKey\(\)\.length > 0 && isUsableHost\(resolveHost\(\)\)/,
   );
 });
 
