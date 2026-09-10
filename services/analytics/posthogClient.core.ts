@@ -49,6 +49,7 @@
 
 import PostHog, { PostHogProvider } from 'posthog-react-native';
 
+import { applyAnalyticsBoundary } from './analyticsBoundary';
 import { syncPostHogAnonymousIdentityWith } from './posthogIdentitySync';
 import { setClosetTelemetrySink } from '../closetTelemetry';
 import { setKPlusAnalyticsSink } from '../kplus/kplusTelemetry';
@@ -129,14 +130,27 @@ function createClient(): PostHog | null {
 
 export const posthog: PostHog | null = createClient();
 
-/** Generic bridge target for every feature telemetry module's `setXSink`. */
-export function forwardTelemetryToPostHog(
-  event: string,
-  payload: Record<string, string | number | boolean | null> = {},
-): void {
+/**
+ * Generic bridge target for every feature telemetry module's `setXSink`, and
+ * the ONE place a payload becomes a vendor call.
+ *
+ * PH35-R3: every event passes the runtime boundary here, no matter which
+ * caller holds this reference. The five bridged sinks already allowlist and
+ * scrub their own events, so in normal operation this changes nothing; it
+ * exists because this function used to be an exported escape hatch with no
+ * runtime contract, through which an arbitrary event name and an arbitrary
+ * object reached `posthog.capture` unmodified.
+ *
+ * Types are deliberately `unknown`: the parameter shape is not a guarantee at
+ * runtime, and pretending otherwise is what made the previous signature look
+ * safer than it was.
+ */
+export function forwardTelemetryToPostHog(event: unknown, payload: unknown = {}): void {
   if (!posthog) return;
   try {
-    posthog.capture(event, payload);
+    const governed = applyAnalyticsBoundary(event, payload);
+    if (!governed.allowed) return;
+    posthog.capture(event as string, governed.payload);
   } catch {
     /* analytics never propagates */
   }

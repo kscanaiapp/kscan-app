@@ -142,6 +142,48 @@ test('the .tsx Provider sibling gets PostHogProvider from core, never from the v
   assert.match(providerSource, /from ['"]\.\/posthogClient\.core['"]/);
 });
 
+// ─── PH35-R3: the governed boundary ────────────────────────────────────────
+
+test('the single bridge target applies the runtime boundary before capturing', () => {
+  // Behavioural proof lives in __tests__/posthogGovernedBoundary.test.js.
+  // This pins the wiring so capture can never be reached without the gate.
+  assert.match(
+    clientSource,
+    /export function forwardTelemetryToPostHog\([\s\S]*?applyAnalyticsBoundary\([\s\S]*?if \(!governed\.allowed\) return;[\s\S]*?posthog\.capture\(/,
+  );
+  assert.match(clientSource, /from '\.\/analyticsBoundary'/);
+});
+
+test('no code outside services/analytics can reach the bridge target', () => {
+  // `forwardTelemetryToPostHog` is what the five sinks are handed. A feature
+  // importing it directly would be sending straight to the adapter; it is
+  // now boundary-guarded either way, but the import itself is the smell.
+  const offenders = [];
+  walk(ROOT, (file, source) => {
+    if (file.startsWith(`services${path.sep}analytics${path.sep}`)) return;
+    if (/forwardTelemetryToPostHog/.test(source)) offenders.push(file);
+  });
+  assert.deepEqual(offenders, []);
+});
+
+test('the event registry is composed from the sinks rather than restating them', () => {
+  const registrySource = read('services/analytics/analyticsEventRegistry.ts');
+  for (const owner of [
+    '../closetTelemetry',
+    '../kplus/kplusTelemetry',
+    '../todayWithElise/analytics',
+    '../voice/voiceTelemetry',
+    '../vto/vtoTelemetry',
+  ]) {
+    assert.ok(
+      registrySource.includes(`from '${owner}'`),
+      `registry must import its event names from ${owner}, not re-type them`,
+    );
+  }
+  // A literal event-name array here would be a second authority that drifts.
+  assert.doesNotMatch(registrySource, /events:\s*\[\s*'/);
+});
+
 test('no alternative analytics/tracking SDK is a project dependency', () => {
   const pkg = JSON.parse(read('package.json'));
   const deps = Object.keys({ ...pkg.dependencies, ...pkg.devDependencies });
