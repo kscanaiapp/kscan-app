@@ -174,6 +174,44 @@ const HARD_NEGATIVE_KINDS = Object.freeze(['INPUT_HARD_NEGATIVE', 'RESULT_SET_HA
 
 const IMAGE_FORMATS = Object.freeze(['jpeg', 'png']);
 
+/* ------------------------------------------------------------------ *
+ * Garment-level spatial annotation (V2 - Workstream 04 segmentation
+ * readiness). A case's `garments[]` entries carry these; see
+ * lib/recordSchema.js#validateCase and docs/DESIGN.md DM-09.
+ * ------------------------------------------------------------------ */
+
+const OCCLUSION_LEVELS = Object.freeze(['none', 'partial', 'heavy']);
+const RELATIVE_SIZE_LEVELS = Object.freeze(['normal', 'small']);
+
+/* ------------------------------------------------------------------ *
+ * Fashion failure taxonomy (V2). Classifies the real failure mode a case is
+ * meant to exercise, distinct from `DIFFICULTY_STRATA` above:
+ * DIFFICULTY_STRATA describes properties of the garment/photograph itself,
+ * while this taxonomy names the kind of MATCHING MISTAKE the case is built
+ * to surface (a garment can carry both - e.g. DARK_GARMENT strata and a
+ * BLACK_NAVY_CONFUSION failure-taxonomy entry are complementary, not
+ * duplicative).
+ * ------------------------------------------------------------------ */
+
+const FAILURE_TAXONOMY = Object.freeze([
+  'EXACT_SAME_PRODUCT',
+  'SAME_PRODUCT_DIFFERENT_COLOR',
+  'SAME_STYLE_DIFFERENT_VARIANT',
+  'VISUALLY_SIMILAR_COMPETITOR',
+  'SAME_COLOR_WRONG_SILHOUETTE',
+  'BLACK_NAVY_CONFUSION',
+  'MATERIAL_CONFUSION',
+  'PATTERN_CONFUSION',
+  'PARTIAL_GARMENT',
+  'OCCLUDED_GARMENT',
+  'MULTI_GARMENT',
+  'SMALL_GARMENT',
+  'STREET_LIGHTING',
+  'LOW_LIGHT',
+  'RETAILER_PHOTOGRAPHY',
+  'ACCESSORY_APPAREL_MIX',
+]);
+
 /** Mission section 39 - stamped on every artifact this lane produces. */
 const BENCHMARK_STATUS = 'INTERNAL ENGINEERING EVIDENCE ONLY';
 
@@ -212,6 +250,9 @@ module.exports = {
   DIFFICULTY_STRATA,
   HARD_NEGATIVE_KINDS,
   IMAGE_FORMATS,
+  OCCLUSION_LEVELS,
+  RELATIVE_SIZE_LEVELS,
+  FAILURE_TAXONOMY,
   BENCHMARK_STATUS,
   AUTHORIZED_LIVE_EVALUATION_SPEND_USD,
   EVALUATION_SET_TERMS,

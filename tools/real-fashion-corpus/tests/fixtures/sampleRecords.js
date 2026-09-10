@@ -16,6 +16,7 @@ const {
   EXIF_POLICY_VERSION,
   ASSET_TIER_PIPELINE_TEST,
 } = require('../../lib/constants');
+const { buildGarmentOntology } = require('../../lib/ontology');
 
 const ZERO_HASH = '0'.repeat(64);
 
@@ -45,11 +46,26 @@ function deepMerge(base, patch) {
 
 /** An IDENTIFIER_GRADE, colorway-level, identity-eligible garment. */
 function makeGarment(overrides) {
+  const category = 'outerwear';
+  const attributes = {
+    silhouette: 'boxy',
+    material: 'polyester',
+    pattern: 'solid',
+    colorFamily: 'navy',
+    priceTier: 'mid',
+    genderPresentation: 'unisex',
+  };
   const base = {
     recordType: 'GARMENT',
     schemaVersion: GARMENT_SCHEMA_VERSION,
     garmentId: 'G001',
-    category: 'outerwear',
+    category,
+    // V2: every garment carries a CanonicalFashionAttributesV1 block, always
+    // computed the same way production intake computes it - from `category`
+    // and `attributes` - so this fixture never drifts from real behavior. A
+    // test that wants an invalid/tampered ontology overrides this key
+    // directly (see tests/ontology.test.js's negative-control anchor).
+    ontology: buildGarmentOntology({ category, attributes }),
     collection: {
       collectorId: 'COL-TEST-01',
       source: 'OWNER_TEAM_GARMENT',
@@ -84,14 +100,7 @@ function makeGarment(overrides) {
       ],
       catalogStateVerifiedOn: '2026-09-01',
     },
-    attributes: {
-      silhouette: 'boxy',
-      material: 'polyester',
-      pattern: 'solid',
-      colorFamily: 'navy',
-      priceTier: 'mid',
-      genderPresentation: 'unisex',
-    },
+    attributes,
     revisions: [],
   };
   return deepMerge(base, overrides);
