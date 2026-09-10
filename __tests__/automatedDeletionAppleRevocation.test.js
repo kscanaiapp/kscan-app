@@ -58,7 +58,7 @@ test('P2-01: no JWT/.p8/client-secret logic is duplicated directly in the worker
 
 test('P2-01: Apple revocation is requested, and its blocking check runs, before auth.admin.deleteUser', () => {
   const body = processClaimedRequestBody();
-  const revokeCallIdx = body.indexOf('await requestAppleRevocation(supabase, userId)');
+  const revokeCallIdx = body.indexOf('await requestAppleRevocation(');
   const blockCheckIdx = body.indexOf('isBlockingAppleRevocationStatus(appleRevocation.status)');
   const authDeleteIdx = body.indexOf('await supabase.auth.admin.deleteUser(userId)');
 
@@ -83,7 +83,7 @@ test('P2-01: revocation runs AFTER direct-row deletion, room transfer, and stora
   const directIdx = body.indexOf('const direct = await deleteDirectUserRows(supabase, userId);');
   const roomsIdx = body.indexOf('const rooms = await transferSharedRooms(supabase, userId);');
   const storageIdx = body.indexOf('const storage = await deleteOwnedStorage(supabase, userId);');
-  const revokeIdx = body.indexOf('await requestAppleRevocation(supabase, userId)');
+  const revokeIdx = body.indexOf('await requestAppleRevocation(');
 
   assert.ok(directIdx > -1 && roomsIdx > -1 && storageIdx > -1, 'cleanup steps must still run');
   assert.ok(directIdx < revokeIdx, 'direct row deletion precedes revocation');
@@ -93,14 +93,14 @@ test('P2-01: revocation runs AFTER direct-row deletion, room transfer, and stora
 
 test('P2-01: revocation runs BEFORE the AUTH_DELETE_STARTED ledger transition, so nothing is half-written on a block', () => {
   const body = processClaimedRequestBody();
-  const revokeIdx = body.indexOf('await requestAppleRevocation(supabase, userId)');
+  const revokeIdx = body.indexOf('await requestAppleRevocation(');
   const ledgerIdx = body.indexOf("p_reason_code: 'AUTH_DELETE_STARTED'");
   assert.ok(revokeIdx > -1 && ledgerIdx > -1);
   assert.ok(revokeIdx < ledgerIdx, 'a blocking revocation must throw before the ledger transition is written');
 });
 
 test('P2-01: exactly one revocation call site exists — no second Apple implementation', () => {
-  const attempts = WORKER.match(/requestAppleRevocation\(supabase, userId\)/g) ?? [];
+  const attempts = WORKER.match(/await requestAppleRevocation\(/g) ?? [];
   assert.equal(attempts.length, 1, 'exactly one call to requestAppleRevocation in the worker');
   const otherAppleInvokes = WORKER.match(/functions\.invoke\('apple-revoke-credential'/g) ?? [];
   assert.equal(otherAppleInvokes.length, 0, 'the worker must not invoke apple-revoke-credential directly — only through the shared mirror');

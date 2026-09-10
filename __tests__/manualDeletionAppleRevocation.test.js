@@ -16,6 +16,17 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
+// Issue #390: requestAppleRevocation now states its own service credential
+// instead of relying on supabase-js to forward the client key as a Bearer
+// token (which it does not do for new-format keys without a session). The
+// manual pipeline resolves it from SUPABASE_SERVICE_ROLE_KEY, which
+// scripts/process-deletion-request.js requireEnv()s in production, so these
+// tests set it to run in the same configuration production runs in. The
+// absent-credential path is covered explicitly in
+// __tests__/appleRevocationServiceAuth.test.js.
+process.env.SUPABASE_SERVICE_ROLE_KEY =
+  process.env.SUPABASE_SERVICE_ROLE_KEY || 'sb_secret_TESTONLYNOTAREALKEY0000000000';
+
 let core;
 test.before(async () => {
   core = await import('../lib/account-deletion/processorCore.mjs');

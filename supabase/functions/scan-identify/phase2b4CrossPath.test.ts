@@ -492,6 +492,16 @@ const SERVICE_ROLE_ALLOWLIST: Record<string, string> = {
     'verify_jwt = false; the function authenticates the caller itself via a '
     + 'constant-time compare against SUPABASE_SERVICE_ROLE_KEY, so only a caller '
     + 'that already holds full database authority reaches this function at all.',
+  'supabase/functions/_shared/deletion/appleRevocation.ts':
+    'Holds no client and touches no table. It receives the service credential '
+    + 'from its caller for exactly one purpose: to present it as the '
+    + '`Authorization: Bearer` header on the single nested invoke of '
+    + 'apple-revoke-credential, whose own gate (allowlisted above) authenticates '
+    + 'by constant-time compare against that same value. Issue #390: supabase-js '
+    + 'does not forward a client key as that header, so the call arrived '
+    + 'unauthenticated and every purge blocked. It runs no query, never calls '
+    + 'auth.admin, and never logs, returns, or branches on the credential -- a '
+    + 'missing one is reported only as the opaque detail missing_service_credential.',
   'supabase/functions/_shared/deletion/common.ts':
     'Shared account-lifecycle authority: authenticated actor/account-status checks, '
     + 'lifecycle RPCs, session revocation, and the internal restoration-email handoff.',
