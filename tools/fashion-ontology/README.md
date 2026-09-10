@@ -32,6 +32,21 @@ attributes already important to K Scan's real matching problems — see
 `compatibility.js` for exactly which existing fields it replaces or maps
 onto.
 
+**Semantic hardening pass.** Before this ontology becomes ground truth for
+Real Fashion Corpus, every hard alias in `colors.js`, `materials.js`,
+`patterns.js`, `silhouettes.js`, and `categories.js` was hostile-reviewed
+against one doctrine: *"a hard alias means the terms can safely be treated
+as the same canonical fashion concept for K Scan matching" — shared color
+family, relatedness, subtype membership, or common retail misuse are not
+sufficient.* Several V1 collapses did not survive that review (e.g. gold
+was not actually a shade of yellow, houndstooth is not the same pattern as
+plaid, a hoodie is not the same subtype as a crewneck sweatshirt, flare and
+wide-leg are different cuts) and were split into their own canonical
+values; a smaller number were reviewed and explicitly retained (e.g.
+oxblood as a burgundy naming variant, a pump as structurally a heel). Every
+module's header comment documents its own pass in full, including the
+reasoning for what was split and what was deliberately kept merged.
+
 ## Quickstart
 
 ```bash
