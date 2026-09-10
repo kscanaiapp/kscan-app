@@ -705,6 +705,10 @@ function normalizeToRecommendedProduct(
     commerceType: p.commerceType,
     // v124: provider brand was previously discarded at this boundary.
     ...(includeBrand && p.brand ? { brand: p.brand } : {}),
+    // Build 35 closure: the retailer's own SKU was likewise discarded here.
+    // Only KicksCrew declares one today; `in` narrows the provider union so
+    // the others stay untouched rather than gaining an empty field.
+    ...('retailerSku' in p && p.retailerSku ? { retailerSku: p.retailerSku } : {}),
   };
 }
 

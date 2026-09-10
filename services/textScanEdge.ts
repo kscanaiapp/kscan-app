@@ -1,5 +1,6 @@
 import { supabase } from './supabaseClient';
 import { validateTextScanQuery } from './textScan';
+import { formatCommercePrice } from './dressingRoomCommerce';
 import type { TextScanProduct, TextScanProductType, TextScanResult } from './textScan';
 
 const EDGE_FN = 'scan-identify';
@@ -50,20 +51,30 @@ function normalizeMaterial(
   return null;
 }
 
-function formatPrice(price: unknown, currency: unknown): string | undefined {
-  if (typeof price !== 'number' || !Number.isFinite(price)) return undefined;
-  const symbol = typeof currency === 'string' && currency.trim() ? currency.trim() : '$';
-  return `${symbol}${price.toFixed(2)}`;
-}
-
-// Accepts either a pre-formatted string price (from real shopping providers,
-// e.g. Serper) or a numeric price + currency (legacy/catalog shape).
+/**
+ * Accepts either a pre-formatted string price (from real shopping providers,
+ * e.g. Serper) or a numeric price + currency (legacy/catalog shape).
+ *
+ * RP-110: the numeric branch delegates to `formatCommercePrice`, the canonical
+ * client currency authority, rather than restating the rule. It previously had
+ * its own formatter with two defects: an undeclared currency rendered as `$`
+ * (inventing USD -- exactly the anti-pattern RP-110 removed from five other
+ * formatters), and a DECLARED ISO-4217 code was concatenated as though it were
+ * a symbol, producing `USD29.99`. Both are gone with the local formatter.
+ *
+ * The pre-formatted STRING branch is deliberately kept, and is the one place
+ * this differs from `formatCommercePrice`: a provider's own price string is
+ * passed through verbatim (`'1,200'` stays `'1,200'`) rather than reparsed.
+ * That is this path's existing, intended behaviour for provider-rendered
+ * prices; it is pinned by commerceCurrencyTruth.test.js so it cannot quietly
+ * become drift.
+ */
 function normalizeProductPrice(price: unknown, currency: unknown): string | undefined {
   if (typeof price === 'string') {
     const trimmed = price.trim();
     return trimmed || undefined;
   }
-  return formatPrice(price, currency);
+  return formatCommercePrice(price, currency) ?? undefined;
 }
 
 function firstNonEmptyString(...values: unknown[]): string {

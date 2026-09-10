@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-07T04:31:28.887Z",
-    "generatedFromGitSha": "6cb759641f86a09dc25ba7346842759736028c3b"
+    "generatedAtUtc": "2026-09-07T21:31:56.092Z",
+    "generatedFromGitSha": "a2b39da9498718cd5f865c2f4e1b353f2641c79b"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -41,8 +41,8 @@
         ],
         "bundleFileCount": 41,
         "treeFileCount": 67,
-        "bundleHash": "45394f994382e1502aeca25209706098c783a72f3faaedd2d4b74536e5426118",
-        "treeHash": "d2ec33ef6ac96b6546bd5f38a730369345234bb1db2a5377e836f0e521ed5b94",
+        "bundleHash": "cb5169916d37c1cb7eb10d143ecf050b9ccc56ce1569fe9373e7baa74206c97a",
+        "treeHash": "ce17418dc79fd5f6adb3b22eaf060b586be1b78814915e7622c9e21b3433fa4b",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -211,7 +211,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/kicksCrewProvider.ts",
-            "sha256": "e71cc9b2cc1e0dc9e95bd200a5e46c1b22f382c43c1fd7af0c7d1c3b1ae69536",
+            "sha256": "0ff14ce17f98d9916c0183813d353151fa03a979555a29d37230f8f54b100997",
             "bundle": true
           },
           {
@@ -281,7 +281,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/scanCommerceRouter.ts",
-            "sha256": "a3b71084145590293e730fcae0015e7900eaff27d88cb588200a9e9d4bbf6f15",
+            "sha256": "c6d33f1009ee7dcdeb2245801e812d04b40b52ce8b3d766b20e61182b302f92f",
             "bundle": true
           },
           {
@@ -326,7 +326,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/shoppingProvider.ts",
-            "sha256": "71892f1dba27f2ff2648d83c930fc8270faaa167447d55811816f9a3026312c5",
+            "sha256": "01c478939250bc3fab814917aeed2dd1a1f4f22afb709a98fa78cbb98b881795",
             "bundle": true
           },
           {
@@ -389,8 +389,8 @@
         ],
         "bundleFileCount": 13,
         "treeFileCount": 16,
-        "bundleHash": "5f885310a2b3bee5c84d185d9d4959a13e85164828f6d7222874ac91e5bd59c7",
-        "treeHash": "e302d733d6e949e4ecd881a9a3d4854ca370a5b890e7dd1cde17fdc370f96234",
+        "bundleHash": "1eeb74c75c6d27281914c0e37460f13f2f233b8625b391a5a8cc4031fb40d48e",
+        "treeHash": "df67229185cb57c7ef84c8e2c49b45847deb6ceb1f0327d0b327ad5494c2900a",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -454,7 +454,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/kicksCrewProvider.ts",
-            "sha256": "e71cc9b2cc1e0dc9e95bd200a5e46c1b22f382c43c1fd7af0c7d1c3b1ae69536",
+            "sha256": "0ff14ce17f98d9916c0183813d353151fa03a979555a29d37230f8f54b100997",
             "bundle": true
           },
           {
@@ -464,7 +464,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/shoppingProvider.ts",
-            "sha256": "71892f1dba27f2ff2648d83c930fc8270faaa167447d55811816f9a3026312c5",
+            "sha256": "01c478939250bc3fab814917aeed2dd1a1f4f22afb709a98fa78cbb98b881795",
             "bundle": true
           },
           {

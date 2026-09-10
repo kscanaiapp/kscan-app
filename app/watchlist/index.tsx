@@ -14,6 +14,8 @@ import { LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/th
 import { useWatchlist } from '../../hooks/useWatchlist';
 import { formatCommercePrice } from '../../services/dressingRoomCommerce';
 import type { CommerceWatch } from '../../types/watchlist';
+import { resolveRetailerIdentity } from '../../services/commerce/retailerIdentity';
+import { RetailerIdentity } from '../../components/commerce/RetailerIdentity';
 
 function relativeTime(iso: string | null): string {
   if (!iso) return 'Not checked yet';
@@ -61,7 +63,10 @@ function WatchRow({ watch }: { watch: CommerceWatch }) {
         <Text style={styles.rowTitle} numberOfLines={2}>
           {watch.displayTitle}
         </Text>
-        <Text style={styles.rowRetailer}>{watch.source.toUpperCase()}</Text>
+        <RetailerIdentity
+          identity={resolveRetailerIdentity({ retailer: watch.source })}
+          mode="watchlist"
+        />
         <View style={styles.rowMetaLine}>
           <Text style={styles.rowPrice}>{price ?? 'Price unavailable'}</Text>
           {watch.watchIntent === 'buy_under' && watch.targetPriceAmount != null ? (
@@ -193,11 +198,6 @@ const styles = StyleSheet.create({
   rowTitle: {
     ...TYPOGRAPHY.bodyStrong,
     color: LUXURY.colors.plum,
-  },
-  rowRetailer: {
-    ...TYPOGRAPHY.caption,
-    color: LUXURY.colors.plumMuted,
-    letterSpacing: 0.5,
   },
   rowMetaLine: {
     flexDirection: 'row',
