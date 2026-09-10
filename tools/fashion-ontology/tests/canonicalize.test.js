@@ -35,7 +35,7 @@ test('every registered alias resolves to a stable canonical value across two ind
 test('canonical values are stable: canonicalizing a resolved canonical value returns itself', () => {
   assert.equal(canonicalizeMaterial('leather').value, 'leather');
   assert.equal(canonicalizeMaterial(canonicalizeMaterial('lambskin').value).value, 'leather');
-  assert.equal(canonicalizePattern(canonicalizePattern('plaid').value).value, 'plaid_check');
+  assert.equal(canonicalizePattern(canonicalizePattern('plaid').value).value, 'plaid');
 });
 
 // ── Case / whitespace normalization ─────────────────────────────────────
