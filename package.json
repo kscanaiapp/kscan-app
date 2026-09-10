@@ -101,6 +101,12 @@
   },
   "overrides": {
     "shell-quote": "^1.10.0",
-    "browserslist": "4.28.8"
+    "browserslist": "4.28.8",
+    "@expo/plist": {
+      "@xmldom/xmldom": "0.8.15"
+    },
+    "plist": {
+      "@xmldom/xmldom": "0.9.12"
+    }
   }
 }
