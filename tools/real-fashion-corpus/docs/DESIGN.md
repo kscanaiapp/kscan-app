@@ -463,7 +463,114 @@ row-level error naming the missing garment.
 
 ---
 
-## 6. Directory map
+---
+
+# V2 addendum (Build 35 Workstream 02 — Real Fashion Match Corpus V2)
+
+This section documents the design decisions made when upgrading the V1 corpus
+above to carry ontology-backed ground truth, garment-level spatial
+annotations, and an explicit failure/match-truth vocabulary, in preparation
+for future FashionCLIP and segmentation experiments (neither of which is
+begun here — see `tests/segmentationReadiness.test.js`'s own no-provider-call
+proof). Everything in sections 1-6 above stays true; nothing here supersedes
+it.
+
+## DM-09 — Ontology integration point
+
+**QUESTION.** How does `tools/fashion-ontology/`'s accepted
+`CanonicalFashionAttributesV1` contract (Build 35 Workstream 01, PR #399)
+enter this corpus without this lane forking or re-implementing it?
+
+**SAFE DEFAULT.** One new, narrow module, `lib/ontology.js`, is the *only*
+place this lane touches the ontology package. It derives a garment's
+`ontology` block from fields the corpus already collects
+(`category`, `attributes.*`) — a collector enters nothing new to get ontology
+coverage. The block is the ontology package's own record shape verbatim
+(`{value, raw}`, `{value, family, raw}` for colors), so raw evidence
+(`"high-top sneaker"`) and the canonical, coarser value (`"sneaker"`) are both
+preserved, never one discarding the other. `garment.ontology` is a **required**
+field (auto-computed, zero collector burden); it is validated both for shape
+(the ontology package's own validator) and for taxonomy membership
+(`isKnownCanonicalValue`/`isKnownCanonicalColor` in `lib/ontology.js`, which
+exist specifically so a corrupted-but-shaped-correctly value cannot pass —
+see the ontology negative control below).
+
+## DM-10 — Three questions, still kept apart, now four
+
+Section 1 above already separates **product identity** from **fashion
+substitute**. V2 adds two more axes that must not collapse into either:
+
+| Axis | Question | Owned by |
+|---|---|---|
+| **Fashion truth** (ontology) | What canonical category/subtype/color/material/pattern/silhouette *is this garment*? | `tools/fashion-ontology/` via `lib/ontology.js` |
+| **Product identity truth** | Did K Scan find *the actual item*? | FMQL `identityAxis.js` (unchanged) |
+| **Fashion substitute** | Is a non-exact result a *useful* alternative? | FMQL `substituteAxis.js` (unchanged) |
+| **Match truth** (new) | A single closed-vocabulary summary of a scored pair, for reporting | `lib/matchTruth.js` |
+
+`lib/matchTruth.js`'s `MATCH_TRUTH_LEVELS` (`EXACT_PRODUCT` /
+`EXACT_VARIANT` / `SAME_STYLE_DIFFERENT_VARIANT` / `USEFUL_SUBSTITUTE` /
+`WEAK_SUBSTITUTE` / `INCORRECT`) is a **derived, reporting-layer** vocabulary,
+computed deterministically from the two FMQL axes
+(`classifyMatchTruth({identityLevel, substituteLevel})`). It is not a third
+scorer: `lib/evaluate.js` calls FMQL's evaluator for both axes exactly as
+before and only *afterward* folds the pair into one match-truth bucket for
+`metrics.matchTruth`. FMQ remains the sole scoring authority (mission section
+28); this lane still supplies inputs and now also a summary view over FMQL's
+own outputs, never a competing judgment.
+
+## DM-11 — Provenance vocabulary: extend, do not fork
+
+**QUESTION.** Should image/data provenance use a new
+`SYNTHETIC`/`INTERNAL_RIGHTS_CLEARED`/`LICENSED_PUBLIC` vocabulary?
+
+**EVIDENCE.** That vocabulary does not exist anywhere in this codebase.
+This corpus already has an established, tested provenance model: the
+`ASSET_TIER_REAL`/`ASSET_TIER_PIPELINE_TEST` firewall (section 5 above),
+`GROUND_TRUTH_GRADES` (`IDENTIFIER_GRADE`/`PARTIAL`/`VISUAL_ONLY`), and the
+closed `ALLOWED_EVIDENCE_TYPES`/`FORBIDDEN_EVIDENCE_TYPES` lists (section 4).
+Introducing a second, unrelated provenance vocabulary alongside an existing,
+mutation-tested one would give two ways to answer "where did this come from"
+that could silently disagree.
+
+**SAFE DEFAULT.** V2 introduces no new provenance vocabulary. Every V2
+addition (`ontology`, spatial annotations, `failureTaxonomy`, `matchTruth`)
+is additional *structure* layered on records that still carry the existing
+tier/grade/evidence-type provenance model unchanged.
+
+## DM-12 — Initial V2 corpus population
+
+**QUESTION.** Populate the V2 corpus with real cases now, targeting the
+spec's "≥100 cases, only if realistic"?
+
+**EVIDENCE.** `corpus/garments/` and `corpus/cases/` hold zero records (by
+design — see `corpus.json`'s `corpusStatus:
+"INFRASTRUCTURE_COMPLETE_COLLECTION_IN_PROGRESS"` and `currentCounts:
+{validRealCases: 0, garments: 0}`, both true before this workstream and
+unchanged by it). No real photography or approved real assets exist on this
+checkout to compile into cases. Fabricating cases to hit a number is
+forbidden absolutely (mission section 26; `BIAS_AND_LIMITATIONS.md`).
+
+**DECISION.** Report the honest count: **0 real V2 cases**, matching the
+corpus's own pre-existing honest state. All V2 machinery (ontology
+attachment, spatial annotations, failure taxonomy, match truth, the
+distribution report, on-disk validation) is instead proven with the same
+kind of schema/fixture-based tests already used throughout
+`tests/invariants.test.js` — exercising real production code paths
+(`buildGarmentOntology`, `validateCorpusOnDisk`, `compileCase`,
+`runEvaluation`) against constructed records, never against invented
+"real-looking" corpus entries. `docs/POWER_CLAIM_MAP.md`'s existing
+"0 today" evidence line already covers this; V2 adds no new claim about N.
+
+**RISK.** None of the distribution-report imbalance flagging or FMQ
+ingestion has been exercised against real-world data distribution — only
+against synthetic fixtures. Accepted: the alternative is fabricating the
+distribution it would report on, which is the one thing this lab exists to
+refuse.
+
+**REVERSIBILITY.** N/A — population is additive; nothing here blocks real
+collection from starting on this schema at any time.
+
+## 7. Directory map
 
 ```
 tools/real-fashion-corpus/
@@ -488,6 +595,9 @@ tools/real-fashion-corpus/
     collection-template.csv  the fillable template
     inbox/                   operator drops filled CSVs here
   lib/                       schemas, grading, EXIF, QC, ingest, holdout, validator, ...
+  lib/ontology.js            V2: the sole integration point with tools/fashion-ontology/
+  lib/matchTruth.js          V2: derived EXACT_PRODUCT..INCORRECT reporting vocabulary
+  lib/distributionReport.js  V2: deterministic quality/imbalance report
   testAssets/                PIPELINE_TEST_ASSET generator (never real corpus)
   tests/                     the mission section 42 invariant suite
 ```

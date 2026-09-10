@@ -292,6 +292,14 @@ function cmdManifest() {
   return 0;
 }
 
+function cmdDistributionReport() {
+  const { buildDistributionReport } = require('./lib/distributionReport');
+  const corpus = loadCorpus({ validate: false });
+  const report = buildDistributionReport(corpus);
+  console.log(JSON.stringify(report, null, 2));
+  return 0;
+}
+
 function cmdCheckTemplates() {
   const result = templatesAreCurrent();
   console.log(`TEMPLATES: ${result.current ? 'CURRENT' : 'STALE'}`);
@@ -319,6 +327,7 @@ const COMMANDS = {
   'dry-run': cmdDryRun,
   'holdout-status': cmdHoldoutStatus,
   manifest: cmdManifest,
+  'distribution-report': cmdDistributionReport,
   'check-templates': cmdCheckTemplates,
 };
 
@@ -343,6 +352,7 @@ function usage() {
   sanitize-asset FILE [--out F]  strip location metadata, keep orientation
   holdout-status                 seal state and recorded unseals
   manifest                       the corpus manifest, as JSON
+  distribution-report            the V2 quality distribution report, as JSON
   check-templates                are the checked-in templates current
 
   Common: --asset-root DIR       where the real capture bytes are mounted

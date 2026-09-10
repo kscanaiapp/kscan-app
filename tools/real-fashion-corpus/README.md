@@ -105,6 +105,7 @@ node tools/real-fashion-corpus/cli.js validate --garments F --cases F
 node tools/real-fashion-corpus/cli.js ingest   --garments F --cases F
 node tools/real-fashion-corpus/cli.js qc
 node tools/real-fashion-corpus/cli.js queue             # state + gap list
+node tools/real-fashion-corpus/cli.js distribution-report  # V2 quality/imbalance report, as JSON
 ```
 
 The guide is **tested**: `cli.js dry-run` walks every stage above and fails if
