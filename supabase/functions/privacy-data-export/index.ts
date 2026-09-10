@@ -2,6 +2,7 @@ import {
   rateLimitedResponse,
   reservePrivacyRequestRateLimit,
 } from '../_shared/privacyRequestRateLimit.ts';
+import { assertAccountActive } from '../_shared/deletion/common.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -62,6 +63,21 @@ Deno.serve(async (req) => {
 
   try {
     const user = await requireUser(req);
+    // RP-06C: fail-closed account-state gate, restored from production. Runs
+    // before the rate-limit reservation and before any durable write, so a
+    // deactivated/locked/pending-deletion actor produces zero side effects --
+    // not even a consumed rate-limit slot. assertAccountActive is the
+    // governed canonical primitive (also used by stylechat-generate,
+    // kplus-activate, vto-generate) rather than a second definition of
+    // "active account": it fail-closes on non-active status, account_locked_at,
+    // and profile-lookup failure -- production's two separate branches here
+    // (lookup/missing-profile vs. explicit inactive/locked) collapse into
+    // this one call because both produced the identical 403 response and
+    // assertAccountActive fail-closes on both. It also stays compatible with
+    // the 30-day deletion lifecycle (a restored account's account_status
+    // reads 'active' again on this same live lookup, so it is never
+    // permanently stuck).
+    await assertAccountActive(user.id);
 
     const rate = await reservePrivacyRequestRateLimit(user.id, 'privacy_export');
     if (!rate.allowed) {

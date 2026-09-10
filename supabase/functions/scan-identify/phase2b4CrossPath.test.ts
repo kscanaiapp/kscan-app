@@ -336,20 +336,38 @@ const GOVERNED_PRIVILEGE_INVENTORY: Record<string, PrivilegeProfile> = {
     serviceRole: false, dbRead: false, dbWrite: false, rpc: false, authAdmin: false, storage: false,
     privilegedBackend: true, actorBoundary: false,
   },
+  // authAdmin true since RP-06C: both functions now call assertAccountActive
+  // from _shared/deletion/common.ts (the account-state gate restored from
+  // production), and that shared module's closure includes isAuthUserActive
+  // (auth.admin.getUserById, on the missing-profile fallback path) and
+  // revokeAllSessions (auth.admin.signOut). This records reality -- the same
+  // already-governed admin surface stylechat-generate, kplus-activate,
+  // handle-user-deletion and vto-generate already reach through this exact
+  // module -- it does not grant either function new power.
   'privacy-correction-request': {
-    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: false, storage: false,
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
     privilegedBackend: false, actorBoundary: true,
   },
   'privacy-data-export': {
-    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: false, storage: false,
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
     privilegedBackend: false, actorBoundary: true,
   },
   'process-account-deletions': {
     serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: true,
     privilegedBackend: true, actorBoundary: true,
   },
+  // RP-06D: serviceRole/dbRead/dbWrite/rpc/authAdmin all true since this
+  // function now statically imports assertAccountActiveIfAuthenticated,
+  // whose closure over _shared/deletion/common.ts carries that module's full
+  // footprint -- profiles lookup (dbRead), the missing-profile self-heal
+  // insert (dbWrite), the rpc() helper (rpc), and isAuthUserActive's
+  // auth.admin.getUserById (authAdmin) -- even though this function itself
+  // only ever calls the one guard function. Same reasoning already recorded
+  // for vto-generate's entry above. This records reality; it does not grant
+  // the function new power beyond what the already-governed guard exercises
+  // on scan-identify.
   'product-search-deals': {
-    serviceRole: false, dbRead: false, dbWrite: false, rpc: false, authAdmin: false, storage: false,
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
     privilegedBackend: true, actorBoundary: false,
   },
   'resend-restoration-email': {
@@ -364,8 +382,11 @@ const GOVERNED_PRIVILEGE_INVENTORY: Record<string, PrivilegeProfile> = {
     serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
     privilegedBackend: true, actorBoundary: true,
   },
+  // RP-06D: same reasoning as product-search-deals above -- static import of
+  // assertAccountActiveIfAuthenticated pulls in _shared/deletion/common.ts's
+  // full footprint.
   'search-vinted-secondhand': {
-    serviceRole: false, dbRead: false, dbWrite: false, rpc: false, authAdmin: false, storage: false,
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
     privilegedBackend: true, actorBoundary: false,
   },
   'shared-room-image-url': {
