@@ -1,0 +1,60 @@
+{
+  "commerceCorpusFixtureVersion": 1,
+  "category": "affiliate-attribution",
+  "records": [
+    {
+      "scenarioId": "aff-no-attribution-null-field",
+      "description": "An offer with affiliateUrl explicitly null. This is the truthful, common case: no attribution mechanism exists in source (AFFILIATE_AUTHORITY: ABSENT), so 'no attribution' must remain 'no attribution' rather than being backfilled with anything.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["attribution", "pr-b-support"],
+      "input": { "retailer": "Nordstrom", "productUrl": "https://www.nordstrom.com/s/example-item/1234567", "affiliateUrl": null },
+      "expected": { "attributionPresent": false, "destinationUrl": "https://www.nordstrom.com/s/example-item/1234567", "fabricatedAttribution": false },
+      "notes": "data/catalog.json: every one of ~60 real fixture entries has affiliateUrl: null. No affiliate ID, click ID, or network ID minting exists anywhere in source (grep for affiliateId|clickId|trackingId|networkId|utm_|partnerId returns zero hits)."
+    },
+    {
+      "scenarioId": "aff-credential-shaped-param-rejected",
+      "description": "A candidate affiliateUrl carries embedded basic-auth-style credentials. This must be rejected as a destination outright — attribution safety checking is a URL-safety problem, not a URL-rewriting problem, and this corpus does not invent a scrubbing mechanism that doesn't exist in source.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["attribution", "unsafe-url", "pr-b-support"],
+      "input": { "retailer": "Example Retailer", "productUrl": null, "affiliateUrl": "https://fake-user:fake-pass@example-retailer.test/item/1?ref=aff" },
+      "expected": { "attributionPresent": false, "destinationUrl": null, "fabricatedAttribution": false, "rejectedAsUnsafe": true },
+      "notes": "services/commerceDestination.ts:56-69 isSafeCommerceUrl rejects any URL with parsed.username/password set, regardless of which field (productUrl vs affiliateUrl) carried it — commerceDestination.ts treats affiliateUrl as just another untrusted candidate URL."
+    },
+    {
+      "scenarioId": "aff-tracking-param-not-fabricated-as-attribution",
+      "description": "A URL carries an ordinary-looking UTM/tracking query string that the PROVIDER supplied. This must not be interpreted as governed K Scan attribution (since none exists) — it is preserved as part of the URL, but the corpus must not label it 'K Scan attribution' or assert revenue tracking is occurring.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["attribution", "safe-url", "pr-b-support"],
+      "input": { "retailer": "Example Retailer", "productUrl": "https://example-retailer.test/item/1?utm_source=providerfeed&utm_medium=shopping" },
+      "expected": { "attributionPresent": false, "destinationUrl": "https://example-retailer.test/item/1?utm_source=providerfeed&utm_medium=shopping", "fabricatedAttribution": false, "kscanOperatedAttribution": false },
+      "notes": "commerceDestination.ts does not inspect, strip, or interpret query strings at all (only protocol/credentials/host) — a tracking parameter passes through unexamined. This corpus must not claim it represents K Scan-operated affiliate attribution, since AFFILIATE_AUTHORITY: ABSENT."
+    },
+    {
+      "scenarioId": "aff-ordinary-query-param-preserved",
+      "description": "An ordinary, non-tracking query parameter (e.g. a color/size selector) on a retailer URL must be preserved untouched when selecting the Shop destination.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["attribution", "safe-url", "pr-b-support"],
+      "input": { "retailer": "Zappos", "productUrl": "https://www.zappos.com/p/example-shoe/product/1111111?color=3" },
+      "expected": { "attributionPresent": false, "destinationUrl": "https://www.zappos.com/p/example-shoe/product/1111111?color=3", "fabricatedAttribution": false },
+      "notes": "services/commerceDestination.ts:77-85 selectCommerceDestination returns the URL text unmodified; no parameter stripping/rewriting occurs for safe URLs."
+    },
+    {
+      "scenarioId": "aff-redirect-url-safety-checked-not-attribution",
+      "description": "A safe-looking https redirect URL through a third-party redirect host is a URL-safety case, not an attribution case: it may be opened if it passes isSafeCommerceUrl, but that alone must never be presented as proof of governed affiliate attribution.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["attribution", "safe-url", "pr-b-support"],
+      "input": { "retailer": null, "productUrl": null, "affiliateUrl": "https://click.example-affiliate-network.test/redirect?to=example-retailer.test%2Fitem%2F1" },
+      "expected": { "attributionPresent": false, "destinationUrl": "https://click.example-affiliate-network.test/redirect?to=example-retailer.test%2Fitem%2F1", "fabricatedAttribution": false, "retailerIdentityFromThisUrl": "unknown" },
+      "notes": "Overlaps with dom-affiliate-redirect-domain in domains/domain-resolution.json by design: the same URL shape is both a domain-truth case (retailer identity) and an attribution case (no governed program exists to have produced this redirect)."
+    },
+    {
+      "scenarioId": "aff-canonical-merchant-url-no-params",
+      "description": "A bare canonical merchant URL with no query string at all is the simplest true case: no attribution, no tracking, nothing to preserve or strip.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["attribution", "safe-url", "pr-b-support"],
+      "input": { "retailer": "Farfetch", "productUrl": "https://www.farfetch.com/shopping/item/12345.aspx", "affiliateUrl": null },
+      "expected": { "attributionPresent": false, "destinationUrl": "https://www.farfetch.com/shopping/item/12345.aspx", "fabricatedAttribution": false },
+      "notes": "Baseline case for the attribution category."
+    }
+  ]
+}

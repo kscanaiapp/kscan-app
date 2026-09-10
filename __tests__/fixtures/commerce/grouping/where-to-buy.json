@@ -1,0 +1,299 @@
+{
+  "commerceCorpusFixtureVersion": 1,
+  "category": "where-to-buy",
+  "records": [
+    {
+      "scenarioId": "wtb-one-retailer",
+      "description": "A Where to Buy list with exactly one offer from one retailer.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["pr-c-support", "retailer-truth"],
+      "input": {
+        "offers": [
+          {
+            "id": "offer-nordstrom-010",
+            "retailer": "Nordstrom",
+            "source": "serper",
+            "price": "$150.00",
+            "currency": "USD",
+            "productUrl": "https://www.nordstrom.com/s/item/3456789",
+            "type": "retail"
+          }
+        ]
+      },
+      "expected": {
+        "count": 1,
+        "orderPreserved": true,
+        "expectedOrder": ["Nordstrom"]
+      },
+      "notes": "services/multiItemCommerce.ts and commerceHydration.ts document that ordering is final and the client never re-sorts (multiItemCommerce.ts:44-48); a single-offer list is the trivial case of that rule."
+    },
+    {
+      "scenarioId": "wtb-multiple-retailers-order-preserved",
+      "description": "Four offers from four different retailers, in a specific deliberate order, must be shown in exactly that order — never re-sorted by price or commission.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["pr-c-support", "retailer-truth"],
+      "input": {
+        "offers": [
+          {
+            "id": "offer-farfetch-010",
+            "retailer": "Farfetch",
+            "source": "farfetch",
+            "price": "$980.00",
+            "currency": "USD",
+            "productUrl": "https://www.farfetch.com/shopping/women/item-14568803.aspx",
+            "type": "retail"
+          },
+          {
+            "id": "offer-zappos-010",
+            "retailer": "Zappos",
+            "source": "serper",
+            "price": "$1,050.00",
+            "currency": "USD",
+            "productUrl": "https://www.zappos.com/p/item/product/1234599",
+            "type": "retail"
+          },
+          {
+            "id": "offer-nordstrom-011",
+            "retailer": "Nordstrom",
+            "source": "serper",
+            "price": "$899.00",
+            "currency": "USD",
+            "productUrl": "https://www.nordstrom.com/s/item/3456790",
+            "type": "retail"
+          },
+          {
+            "id": "offer-ssense-010",
+            "retailer": "SSENSE",
+            "source": "brave",
+            "price": "$1,200.00",
+            "currency": "USD",
+            "productUrl": "https://www.ssense.com/en-us/women/product/item/1122335",
+            "type": "retail"
+          }
+        ]
+      },
+      "expected": {
+        "count": 4,
+        "orderPreserved": true,
+        "expectedOrder": ["Farfetch", "Zappos", "Nordstrom", "SSENSE"]
+      },
+      "notes": "services/multiItemCommerce.ts:44-48 (splitBestMatchAndAlternatives) — 'The backend documents that ordering is final and the client never re-sorts'; no ranking/sorting by commission was found anywhere in the codebase. Nordstrom is the cheapest offer here yet must stay third, proving no price-based re-sort occurs."
+    },
+    {
+      "scenarioId": "wtb-same-retailer-multiple-offers",
+      "description": "Three offers from the same retailer, representing different sizes or variants, are all shown rather than collapsed or deduped.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["pr-c-support", "retailer-truth"],
+      "input": {
+        "offers": [
+          {
+            "id": "offer-zappos-011",
+            "retailer": "Zappos",
+            "source": "serper",
+            "price": "$89.99",
+            "currency": "USD",
+            "productUrl": "https://www.zappos.com/p/shoe-size-8/product/7654322",
+            "variant": "Size 8",
+            "type": "retail"
+          },
+          {
+            "id": "offer-zappos-012",
+            "retailer": "Zappos",
+            "source": "serper",
+            "price": "$89.99",
+            "currency": "USD",
+            "productUrl": "https://www.zappos.com/p/shoe-size-9/product/7654323",
+            "variant": "Size 9",
+            "type": "retail"
+          },
+          {
+            "id": "offer-zappos-013",
+            "retailer": "Zappos",
+            "source": "serper",
+            "price": "$89.99",
+            "currency": "USD",
+            "productUrl": "https://www.zappos.com/p/shoe-size-10/product/7654324",
+            "variant": "Size 10",
+            "type": "retail"
+          }
+        ]
+      },
+      "expected": {
+        "count": 3,
+        "collapsedOrDeduped": false,
+        "reasoning": "distinct variants (different sizes), not exact duplicate listings"
+      },
+      "notes": "SYNTHETIC — no single real-source file was found that specifically asserts same-retailer-multi-variant list behavior; constructed as a boundary probe against the general 'no re-sort/no silent collapse of distinct offers' doctrine implied by multiItemCommerce.ts's ordering-preservation comment."
+    },
+    {
+      "scenarioId": "wtb-retail-plus-resale",
+      "description": "A mix of two retail offers and one Poshmark resale offer, order preserved as given, with neither commerceType ranked above the other.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["pr-c-support", "retail", "resale"],
+      "input": {
+        "offers": [
+          {
+            "id": "offer-nordstrom-012",
+            "retailer": "Nordstrom",
+            "source": "serper",
+            "price": "$395.00",
+            "currency": "USD",
+            "productUrl": "https://www.nordstrom.com/s/item/3456791",
+            "type": "retail"
+          },
+          {
+            "id": "offer-poshmark-006",
+            "retailer": "Poshmark",
+            "source": "poshmark",
+            "price": "$210.00",
+            "currency": "USD",
+            "productUrl": "https://poshmark.com/listing/item-64f1a2b3c4d5e6f7a8b9c0d6",
+            "type": "retail",
+            "commerceType": "resale"
+          },
+          {
+            "id": "offer-zappos-014",
+            "retailer": "Zappos",
+            "source": "serper",
+            "price": "$350.00",
+            "currency": "USD",
+            "productUrl": "https://www.zappos.com/p/item/product/1234600",
+            "type": "retail"
+          }
+        ]
+      },
+      "expected": {
+        "count": 3,
+        "orderPreserved": true,
+        "expectedOrder": ["Nordstrom", "Poshmark", "Zappos"],
+        "neitherCommerceTypeRankedAbove": true
+      },
+      "notes": "shoppingProvider.ts:32-37 retailer-neutrality rule applied to a mixed list; Poshmark ($210, cheapest) stays in its original middle position rather than being promoted or demoted for being resale."
+    },
+    {
+      "scenarioId": "wtb-unknown-retailer-included",
+      "description": "One of three offers has no resolvable retailer field at all; it must still be included in the list, shown as unknown, not silently dropped and not fabricated as a fake retailer name.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["pr-c-support", "unknown-retailer"],
+      "input": {
+        "offers": [
+          {
+            "id": "offer-nordstrom-013",
+            "retailer": "Nordstrom",
+            "source": "serper",
+            "price": "$75.00",
+            "currency": "USD",
+            "productUrl": "https://www.nordstrom.com/s/item/3456792",
+            "type": "retail"
+          },
+          {
+            "id": "offer-noretailer-001",
+            "source": "brave",
+            "price": "$60.00",
+            "currency": "USD",
+            "productUrl": "https://www.example-boutique-shop.test/product/9988776",
+            "type": "similar"
+          },
+          {
+            "id": "offer-zappos-015",
+            "retailer": "Zappos",
+            "source": "serper",
+            "price": "$70.00",
+            "currency": "USD",
+            "productUrl": "https://www.zappos.com/p/item/product/1234601",
+            "type": "retail"
+          }
+        ]
+      },
+      "expected": {
+        "count": 3,
+        "orderPreserved": true,
+        "expectedOrder": ["Nordstrom", "unknown", "Zappos"],
+        "droppedFromList": false,
+        "retailerFabricated": false
+      },
+      "notes": "SYNTHETIC — no dedicated 'missing retailer' fixture exists in real source; constructed to test the same doctrine as rr-unknown-commerce-type: an absent field must render as an unknown/neutral placeholder, never dropped from the list and never fabricated as a real-sounding retailer name."
+    },
+    {
+      "scenarioId": "wtb-concentration-balanced-4-retailers",
+      "description": "Eight offers spread evenly (two each) across four different retailers is a balanced concentration; no correction or rebalancing is applied and source order is preserved.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["pr-c-support", "retailer-truth"],
+      "input": {
+        "offers": [
+          { "id": "offer-a1", "retailer": "Farfetch", "source": "farfetch", "price": "$500.00", "currency": "USD", "productUrl": "https://www.farfetch.com/shopping/women/item-a1.aspx", "type": "retail" },
+          { "id": "offer-a2", "retailer": "Farfetch", "source": "farfetch", "price": "$510.00", "currency": "USD", "productUrl": "https://www.farfetch.com/shopping/women/item-a2.aspx", "type": "retail" },
+          { "id": "offer-b1", "retailer": "Zappos", "source": "serper", "price": "$90.00", "currency": "USD", "productUrl": "https://www.zappos.com/p/item-b1/product/2000001", "type": "retail" },
+          { "id": "offer-b2", "retailer": "Zappos", "source": "serper", "price": "$95.00", "currency": "USD", "productUrl": "https://www.zappos.com/p/item-b2/product/2000002", "type": "retail" },
+          { "id": "offer-c1", "retailer": "Nordstrom", "source": "serper", "price": "$400.00", "currency": "USD", "productUrl": "https://www.nordstrom.com/s/item-c1/4000001", "type": "retail" },
+          { "id": "offer-c2", "retailer": "Nordstrom", "source": "serper", "price": "$410.00", "currency": "USD", "productUrl": "https://www.nordstrom.com/s/item-c2/4000002", "type": "retail" },
+          { "id": "offer-d1", "retailer": "SSENSE", "source": "brave", "price": "$600.00", "currency": "USD", "productUrl": "https://www.ssense.com/en-us/women/product/item-d1/5000001", "type": "retail" },
+          { "id": "offer-d2", "retailer": "SSENSE", "source": "brave", "price": "$610.00", "currency": "USD", "productUrl": "https://www.ssense.com/en-us/women/product/item-d2/5000002", "type": "retail" }
+        ]
+      },
+      "expected": {
+        "count": 8,
+        "orderPreserved": true,
+        "concentration": "balanced",
+        "retailerCounts": { "Farfetch": 2, "Zappos": 2, "Nordstrom": 2, "SSENSE": 2 },
+        "rebalancingApplied": false
+      },
+      "notes": "SYNTHETIC — constructed to exercise retailer-concentration visibility per the corpus doctrine (Section 32: concentration must be visible/testable, not silently corrected); no source file computes or corrects concentration, so this fixture documents the absence of any such correction step."
+    },
+    {
+      "scenarioId": "wtb-concentration-skewed-8of10",
+      "description": "Ten offers where eight come from one retailer and two from others is a skewed concentration; no rebalancing or correction is applied, and the skew must remain visible/testable.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["pr-c-support", "retailer-truth"],
+      "input": {
+        "offers": [
+          { "id": "offer-e1", "retailer": "Nordstrom", "source": "serper", "price": "$300.00", "currency": "USD", "productUrl": "https://www.nordstrom.com/s/item-e1/6000001", "type": "retail" },
+          { "id": "offer-e2", "retailer": "Nordstrom", "source": "serper", "price": "$301.00", "currency": "USD", "productUrl": "https://www.nordstrom.com/s/item-e2/6000002", "type": "retail" },
+          { "id": "offer-e3", "retailer": "Nordstrom", "source": "serper", "price": "$302.00", "currency": "USD", "productUrl": "https://www.nordstrom.com/s/item-e3/6000003", "type": "retail" },
+          { "id": "offer-e4", "retailer": "Nordstrom", "source": "serper", "price": "$303.00", "currency": "USD", "productUrl": "https://www.nordstrom.com/s/item-e4/6000004", "type": "retail" },
+          { "id": "offer-e5", "retailer": "Nordstrom", "source": "serper", "price": "$304.00", "currency": "USD", "productUrl": "https://www.nordstrom.com/s/item-e5/6000005", "type": "retail" },
+          { "id": "offer-e6", "retailer": "Nordstrom", "source": "serper", "price": "$305.00", "currency": "USD", "productUrl": "https://www.nordstrom.com/s/item-e6/6000006", "type": "retail" },
+          { "id": "offer-e7", "retailer": "Nordstrom", "source": "serper", "price": "$306.00", "currency": "USD", "productUrl": "https://www.nordstrom.com/s/item-e7/6000007", "type": "retail" },
+          { "id": "offer-e8", "retailer": "Nordstrom", "source": "serper", "price": "$307.00", "currency": "USD", "productUrl": "https://www.nordstrom.com/s/item-e8/6000008", "type": "retail" },
+          { "id": "offer-f1", "retailer": "Farfetch", "source": "farfetch", "price": "$450.00", "currency": "USD", "productUrl": "https://www.farfetch.com/shopping/women/item-f1.aspx", "type": "retail" },
+          { "id": "offer-g1", "retailer": "SSENSE", "source": "brave", "price": "$470.00", "currency": "USD", "productUrl": "https://www.ssense.com/en-us/women/product/item-g1/7000001", "type": "retail" }
+        ]
+      },
+      "expected": {
+        "count": 10,
+        "orderPreserved": true,
+        "concentration": "skewed",
+        "retailerCounts": { "Nordstrom": 8, "Farfetch": 1, "SSENSE": 1 },
+        "dominantRetailer": "Nordstrom",
+        "dominantRetailerShare": 0.8,
+        "rebalancingApplied": false
+      },
+      "notes": "SYNTHETIC — the corpus doctrine (Section 32) is that concentration must be visible/testable, not silently corrected; no source file implements any correction, so 'rebalancingApplied: false' documents an absence rather than citing an affirmative mechanism."
+    },
+    {
+      "scenarioId": "wtb-concentration-all-one-retailer",
+      "description": "Five offers, all from a single retailer, is the extreme case of concentration; no correction is applied, the same as the skewed case.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["pr-c-support", "retailer-truth"],
+      "input": {
+        "offers": [
+          { "id": "offer-h1", "retailer": "Zappos", "source": "serper", "price": "$60.00", "currency": "USD", "productUrl": "https://www.zappos.com/p/item-h1/product/8000001", "type": "retail" },
+          { "id": "offer-h2", "retailer": "Zappos", "source": "serper", "price": "$61.00", "currency": "USD", "productUrl": "https://www.zappos.com/p/item-h2/product/8000002", "type": "retail" },
+          { "id": "offer-h3", "retailer": "Zappos", "source": "serper", "price": "$62.00", "currency": "USD", "productUrl": "https://www.zappos.com/p/item-h3/product/8000003", "type": "retail" },
+          { "id": "offer-h4", "retailer": "Zappos", "source": "serper", "price": "$63.00", "currency": "USD", "productUrl": "https://www.zappos.com/p/item-h4/product/8000004", "type": "retail" },
+          { "id": "offer-h5", "retailer": "Zappos", "source": "serper", "price": "$64.00", "currency": "USD", "productUrl": "https://www.zappos.com/p/item-h5/product/8000005", "type": "retail" }
+        ]
+      },
+      "expected": {
+        "count": 5,
+        "orderPreserved": true,
+        "concentration": "all-one-retailer",
+        "retailerCounts": { "Zappos": 5 },
+        "dominantRetailer": "Zappos",
+        "dominantRetailerShare": 1.0,
+        "rebalancingApplied": false
+      },
+      "notes": "SYNTHETIC — same no-correction doctrine as wtb-concentration-skewed-8of10, extended to the 100%-single-retailer extreme."
+    }
+  ]
+}

@@ -1,0 +1,158 @@
+{
+  "commerceCorpusFixtureVersion": 1,
+  "category": "retailer-identity",
+  "records": [
+    {
+      "scenarioId": "ri-brand-retailer-provider-distinct",
+      "description": "Brand, retailer, and commerce provider are three independent facts and must never collapse into one another: a Nike jacket sold by Farfetch, surfaced through provider-X, must report retailer = Farfetch, not Nike and not provider-X.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["retailer-truth", "brand-retailer", "pr-a-support"],
+      "input": {
+        "brand": "Nike",
+        "retailer": "Farfetch",
+        "source": "provider-X",
+        "title": "Nike Tech Fleece Jacket",
+        "price": 145,
+        "currency": "USD"
+      },
+      "expected": {
+        "resolvedRetailer": "Farfetch",
+        "resolvedBrand": "Nike",
+        "resolvedProvider": "provider-X",
+        "brandDisplayedAsRetailer": false,
+        "providerDisplayedAsRetailer": false
+      },
+      "notes": "Section 14 required example. SYNTHETIC: brand/retailer/provider co-occurring this cleanly wasn't observed in a single real record, but each field individually is a real, distinct field (RecommendedProduct.brand, .retailer alias-chain target, .source) per supabase/functions/scan-identify/shoppingProvider.ts:15-45."
+    },
+    {
+      "scenarioId": "ri-merchant-only-audited-semantics",
+      "description": "When a provider names a merchant but no explicit retailer field, the merchant IS the seller — this is an audited semantic mapping (merchant == retailer-of-record), not a brand fallback.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["retailer-truth", "brand-retailer", "pr-a-support"],
+      "input": {
+        "brand": "Levi's",
+        "merchant": "Nordstrom",
+        "retailer": null,
+        "title": "Levi's 501 Original Fit Jeans",
+        "price": 69.5,
+        "currency": "USD"
+      },
+      "expected": {
+        "resolvedRetailer": "Nordstrom",
+        "resolvedBrand": "Levi's",
+        "resolvionBasis": "merchant-field-audited-as-seller",
+        "brandDisplayedAsRetailer": false
+      },
+      "notes": "Section 14 required example. SYNTHETIC composition; 'merchant' as a real alias field is cited in the census (components/ProductShelf.tsx getRetailer candidate list, services/dressingRoomCommerce.ts normalizer). Doctrine: reading merchant as the seller is a deliberate, audited mapping — it is NOT the same operation as falling back to brand (Finding F1), because merchant genuinely denotes a seller-shaped field, whereas brand denotes the manufacturer."
+    },
+    {
+      "scenarioId": "ri-brand-known-seller-unknown",
+      "description": "A record with a known brand but no retailer, merchant, store, or source field at all must report the seller as UNKNOWN — never substitute the brand.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["retailer-truth", "brand-retailer", "unknown-retailer", "pr-a-support"],
+      "input": {
+        "brand": "Patagonia",
+        "retailer": null,
+        "merchant": null,
+        "store": null,
+        "source": null,
+        "title": "Patagonia Better Sweater Fleece"
+      },
+      "expected": {
+        "resolvedRetailer": null,
+        "resolvedRetailerStatus": "unknown",
+        "brandDisplayedAsRetailer": false
+      },
+      "notes": "Section 14 required example (doctrine target, not current behavior). See Finding F1 in docs/commerce-corpus/01-commerce-shape-census.md: 2 of 4 real call sites (components/ProductShelf.tsx:167 getRetailer; services/dressingRoomCommerce.ts persisted normalizer) currently fall back to brand and WOULD violate this expected outcome; see ri-fallback-divergence-finding below for the reproduction of that exact behavior."
+    },
+    {
+      "scenarioId": "ri-provider-known-seller-unknown",
+      "description": "A record with a known commerce provider/source but no retailer, brand, merchant, or store field must never silently display the provider name as if it were the retailer.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["retailer-truth", "unknown-retailer", "pr-a-support"],
+      "input": {
+        "source": "serper",
+        "retailer": null,
+        "brand": null,
+        "merchant": null,
+        "store": null,
+        "title": "Similar style jacket"
+      },
+      "expected": {
+        "resolvedRetailer": null,
+        "resolvedRetailerStatus": "unknown",
+        "providerDisplayedAsRetailer": false
+      },
+      "notes": "Section 14 required example (doctrine target). Real source explicitly documents 'source' as a provider identity that must never be a ranking input (supabase/functions/scan-identify/canonicalCommerce.ts:20-21 comment on CanonicalOffer.source) — this fixture extends that same neutrality principle to display: a provider name is not a retailer name. Note: this is the doctrine target; per Finding F1, real fallback chains DO read 'source' as a last-resort retailer candidate, which is a softer, more defensible fallback than the brand-substitution case (a provider string is at least sometimes literally the retailer's own name, e.g. 'poshmark'), but is still not a verified retailer identity and should be flagged distinctly from a truly resolved retailer."
+    },
+    {
+      "scenarioId": "ri-fallback-divergence-finding",
+      "description": "Reproduces Finding F1: the exact same raw commerce record, run through the three real retailer-resolution call sites that exist in source today, produces THREE DIFFERENT results for 'who is the retailer'. This scenario documents current (non-doctrine-compliant) behavior for regression-tracking, not the desired outcome.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["retailer-truth", "brand-retailer", "pr-a-support"],
+      "input": {
+        "brand": "Ganni",
+        "retailer": null,
+        "source": "brave",
+        "merchant": null,
+        "store": null,
+        "title": "Ganni Printed Mesh Dress"
+      },
+      "expected": {
+        "callSites": [
+          {
+            "name": "getRetailer",
+            "file": "components/ProductShelf.tsx:165-172",
+            "fallbackOrder": ["retailer", "brand", "source", "merchant", "store"],
+            "resolvedRetailerToday": "Ganni",
+            "matchesDoctrine": false,
+            "violation": "substitutes brand for retailer"
+          },
+          {
+            "name": "normalizePurchaseOptions (persisted)",
+            "file": "services/dressingRoomCommerce.ts (retailer resolution, ~line 221-226)",
+            "fallbackOrder": ["retailer", "brand", "merchant", "store", "source"],
+            "resolvedRetailerToday": "Ganni",
+            "matchesDoctrine": false,
+            "violation": "substitutes brand for retailer, and does so before checking source"
+          },
+          {
+            "name": "mapRawProductToPurchaseOption",
+            "file": "components/scan-results/types.ts:288-294",
+            "fallbackOrder": ["retailer", "source", "literal 'Retailer'"],
+            "resolvedRetailerToday": "brave",
+            "matchesDoctrine": false,
+            "violation": "substitutes provider name for retailer (softer than brand-substitution, still not a verified retailer)"
+          },
+          {
+            "name": "mapLegacyToV2 similarFinds mapping",
+            "file": "components/scan-results/types.ts:364-368",
+            "fallbackOrder": ["retailer", "source", "undefined"],
+            "resolvedRetailerToday": "brave",
+            "matchesDoctrine": false,
+            "violation": "same as above; still not the one call site that leaves retailer genuinely unknown in this particular input (that path only leaves it unknown when source is ALSO absent)"
+          }
+        ],
+        "consistentAcrossCallSites": false
+      },
+      "notes": "RECORDED FINDING, NOT FIXED IN THIS LANE (Section 52 Diff Fence). This is the mechanical reproduction backing docs/commerce-corpus/01-commerce-shape-census.md Finding F1 and docs/commerce-corpus/02-final-report.md Findings Ledger. A future PR A change that unifies retailer resolution should make this scenario's four callSites entries converge to resolvedRetailerToday: null / matchesDoctrine: true."
+    },
+    {
+      "scenarioId": "ri-stable-retailer-key-fixture-values",
+      "description": "Demonstrates the corpus's retailer-key fixture convention: this corpus uses stable lowercase-kebab retailerKey values (e.g. 'nordstrom', 'farfetch') as test data ONLY. It does not create or own a production retailer registry, logo mapping, or RetailerIdentity component — those belong to Commerce V2 (Section 15).",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["retailer-truth", "missing-logo", "pr-a-support"],
+      "input": {
+        "retailerKey": "nordstrom",
+        "displayName": "Nordstrom",
+        "logoAvailable": true
+      },
+      "expected": {
+        "corpusOwnsRegistry": false,
+        "corpusOwnsLogoMapping": false,
+        "usageNote": "retailerKey is a stable fixture-data convention only"
+      },
+      "notes": "Section 15. No production retailer registry exists in source today (confirmed absent during the shape census); this fixture exists to fix the corpus's OWN data convention, not to assert a production contract."
+    }
+  ]
+}

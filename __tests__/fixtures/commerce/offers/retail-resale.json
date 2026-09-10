@@ -1,0 +1,163 @@
+{
+  "commerceCorpusFixtureVersion": 1,
+  "category": "retail-resale",
+  "records": [
+    {
+      "scenarioId": "rr-retail-offer",
+      "description": "A normal retail offer from an ordinary provider (e.g. Serper-sourced) carries no commerceType field at all — absence is the realistic representation of retail, not an explicit 'retail' string.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["retail"],
+      "input": {
+        "id": "offer-nordstrom-001",
+        "title": "Wool Blend Overcoat",
+        "brand": "Theory",
+        "source": "serper",
+        "retailer": "Nordstrom",
+        "price": "$395.00",
+        "currency": "USD",
+        "productUrl": "https://www.nordstrom.com/s/theory-wool-blend-overcoat/1234567",
+        "imageUrl": "https://example-cdn.nordstrom.com/images/wool-overcoat.jpg",
+        "type": "retail"
+      },
+      "expected": {
+        "commerceType": "absent",
+        "renderedAs": "retail",
+        "rankingAdjustment": "none"
+      },
+      "notes": "supabase/functions/scan-identify/shoppingProvider.ts:32-37 — RecommendedProduct.commerceType is optional and only ever set by the Poshmark provider; every other provider (Serper, Brave, Farfetch, KicksCrew) leaves it unset. An ordinary retail offer is represented by the field's absence, not by an explicit commerceType: 'retail' string, since no real source ever writes that literal."
+    },
+    {
+      "scenarioId": "rr-resale-offer-poshmark",
+      "description": "A Poshmark resale listing explicitly carries commerceType: 'resale', the only provider in the real system that ever sets this field.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["resale"],
+      "input": {
+        "id": "offer-poshmark-001",
+        "title": "Vintage Levi's 501 Jeans",
+        "brand": "Levi's",
+        "source": "poshmark",
+        "retailer": "Poshmark",
+        "price": "$45.00",
+        "currency": "USD",
+        "productUrl": "https://poshmark.com/listing/vintage-levis-501-jeans-64f1a2b3c4d5e6f7a8b9c0d1",
+        "imageUrl": "https://example-cdn.poshmarkapp.com/images/vintage-levis-501.jpg",
+        "type": "retail",
+        "commerceType": "resale"
+      },
+      "expected": {
+        "commerceType": "resale",
+        "renderedAs": "resale",
+        "rankingAdjustment": "none"
+      },
+      "notes": "supabase/functions/scan-identify/poshmarkProvider.ts:213,219 — the Poshmark normalizer sets type: 'retail' (it is a real purchasable listing) and commerceType: 'resale' (its provenance) as two independent fields."
+    },
+    {
+      "scenarioId": "rr-mixed-retail-resale",
+      "description": "A retail offer and a Poshmark resale offer for the same garment are shown side by side, with neither ranked above the other on the basis of commerceType.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["retail", "resale"],
+      "input": [
+        {
+          "id": "offer-zappos-002",
+          "title": "Vintage Levi's 501 Jeans",
+          "source": "serper",
+          "retailer": "Zappos",
+          "price": "$68.00",
+          "currency": "USD",
+          "productUrl": "https://www.zappos.com/p/levis-501-jeans/product/1234567",
+          "type": "retail"
+        },
+        {
+          "id": "offer-poshmark-002",
+          "title": "Vintage Levi's 501 Jeans",
+          "source": "poshmark",
+          "retailer": "Poshmark",
+          "price": "$45.00",
+          "currency": "USD",
+          "productUrl": "https://poshmark.com/listing/vintage-levis-501-jeans-64f1a2b3c4d5e6f7a8b9c0d2",
+          "type": "retail",
+          "commerceType": "resale"
+        }
+      ],
+      "expected": {
+        "bothPreserved": true,
+        "order": ["offer-zappos-002", "offer-poshmark-002"],
+        "rankingAdjustment": "none",
+        "neitherCommerceTypeRankedAbove": true
+      },
+      "notes": "supabase/functions/scan-identify/shoppingProvider.ts:32-37 — commerceType 'must never carry a ranking bonus or penalty (retailer-neutrality is a hard rule)'; a retail and a resale offer for the same garment must be presented without either being preferred on that basis alone."
+    },
+    {
+      "scenarioId": "rr-unknown-commerce-type",
+      "description": "An offer from a generic/ambiguous provider has no commerceType field and no other signal that would let it be attributed to either retail or resale — it must not be defaulted to retail.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["retailer-truth"],
+      "input": {
+        "id": "offer-genericmart-001",
+        "title": "Cotton Crewneck Sweater",
+        "source": "brave",
+        "retailer": "GenericMart",
+        "price": "$29.99",
+        "currency": "USD",
+        "productUrl": "https://www.genericmart.example/p/cotton-crewneck-sweater",
+        "type": "similar"
+      },
+      "expected": {
+        "commerceType": "absent",
+        "renderedAs": "commerce-type-unknown",
+        "notDefaultedTo": "retail"
+      },
+      "notes": "SYNTHETIC boundary probe: constructed to exercise the case where commerceType is absent AND the offer cannot be inferred as retail from other fields (type: 'similar', a generic non-registered source). Grounded in shoppingProvider.ts:32-37's optionality, but the specific 'ambiguous provider' framing was not observed in real code and is deliberately invented to test that absence is never silently coerced into 'retail'."
+    },
+    {
+      "scenarioId": "rr-resale-with-size-condition",
+      "description": "A resale offer carries condition-like information inside the generic free-text availability field, since no dedicated structured condition enum exists in the real source.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["resale"],
+      "input": {
+        "id": "offer-poshmark-003",
+        "title": "Leather Ankle Boots",
+        "source": "poshmark",
+        "retailer": "Poshmark",
+        "price": "$62.00",
+        "currency": "USD",
+        "productUrl": "https://poshmark.com/listing/leather-ankle-boots-64f1a2b3c4d5e6f7a8b9c0d3",
+        "type": "retail",
+        "commerceType": "resale",
+        "size": "8.5",
+        "availability": "Good condition, pre-owned"
+      },
+      "expected": {
+        "conditionIsStructuredField": false,
+        "conditionSource": "availability",
+        "renderedCondition": "Good condition, pre-owned",
+        "sizeShown": "8.5"
+      },
+      "notes": "poshmarkProvider.ts:213-219 shows only generic size/availability/variant fields on any offer, retail or resale — no dedicated condition field exists in RecommendedProduct (shoppingProvider.ts:15-45). The availability field here is reused as free text to carry condition information; it is not a structured condition enum."
+    },
+    {
+      "scenarioId": "rr-resale-unavailable-listing",
+      "description": "A resale offer whose availability signal indicates the listing is gone normalizes to an Out of Stock label rather than being silently dropped.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["resale", "failure"],
+      "input": {
+        "id": "offer-poshmark-004",
+        "title": "Silk Scarf",
+        "source": "poshmark",
+        "retailer": "Poshmark",
+        "price": "$18.00",
+        "currency": "USD",
+        "productUrl": "https://poshmark.com/listing/silk-scarf-64f1a2b3c4d5e6f7a8b9c0d4",
+        "type": "retail",
+        "commerceType": "resale",
+        "availability": "sold_out"
+      },
+      "expected": {
+        "availabilityLabel": "Out of Stock",
+        "listingDropped": false,
+        "shopActionState": "suppressed-or-disabled"
+      },
+      "notes": "components/scan-results/types.ts:213-221 (availabilityLabel()) normalizes 'sold_out' to 'Out of Stock'; the offer itself is still surfaced (not removed from the list), only its availability state changes."
+    }
+  ]
+}

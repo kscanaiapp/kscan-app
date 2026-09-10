@@ -1,0 +1,118 @@
+{
+  "commerceCorpusFixtureVersion": 1,
+  "category": "mutation-negative-control",
+  "description": "Section 39: each record deliberately corrupts a known-good scenario's expected outcome. __tests__/commerce-corpus/mutationSuite.test.js must FAIL when a mutated expectation is checked against the doctrine validator that governs its original scenario's category — proving the harness actually bites rather than rubber-stamping anything shaped like a scenario.",
+  "records": [
+    {
+      "scenarioId": "mut-brand-substituted-as-retailer",
+      "mutationOf": "ri-brand-known-seller-unknown",
+      "tags": ["retailer-truth", "brand-retailer", "must-not-group"],
+      "mutatedField": "resolvedRetailer",
+      "originalValue": null,
+      "mutatedValue": "Patagonia",
+      "violationType": "brand-as-retailer",
+      "expected": { "harnessMustFlagAsViolation": true, "doctrineViolated": "Section 14: brand must never be displayed as retailer" }
+    },
+    {
+      "scenarioId": "mut-wrong-logo-identity",
+      "mutationOf": "ri-stable-retailer-key-fixture-values",
+      "tags": ["retailer-truth", "missing-logo"],
+      "mutatedField": "retailerKey",
+      "originalValue": "nordstrom",
+      "mutatedValue": "farfetch",
+      "violationType": "logo-identity-mismatch",
+      "expected": { "harnessMustFlagAsViolation": true, "doctrineViolated": "a retailerKey's associated logo/identity must match the retailer actually being displayed" }
+    },
+    {
+      "scenarioId": "mut-unknown-domain-mapped-to-known-retailer",
+      "mutationOf": "dom-unknown-domain",
+      "tags": ["retailer-truth", "unknown-retailer"],
+      "mutatedField": "resolvedRetailer",
+      "originalValue": null,
+      "mutatedValue": "Nordstrom",
+      "violationType": "unknown-domain-falsely-resolved",
+      "expected": { "harnessMustFlagAsViolation": true, "doctrineViolated": "Section 16: an unrecognizable domain must resolve to unknown-retailer, never a guessed known retailer" }
+    },
+    {
+      "scenarioId": "mut-offer-order-changed",
+      "mutationOf": "wtb-multiple-retailers-order-preserved",
+      "tags": ["retailer-truth"],
+      "mutatedField": "expectedOrder",
+      "originalValue": "source order preserved",
+      "mutatedValue": "reordered (e.g. by ascending price)",
+      "violationType": "order-not-preserved",
+      "expected": { "harnessMustFlagAsViolation": true, "doctrineViolated": "Section 31/38: source order must be preserved; sorting by price/commission is forbidden" }
+    },
+    {
+      "scenarioId": "mut-fuzzy-grouping-introduced",
+      "mutationOf": "mng-same-brand-similar-title",
+      "tags": ["must-not-group", "exact-group"],
+      "mutatedField": "mustGroup",
+      "originalValue": false,
+      "mutatedValue": true,
+      "violationType": "fuzzy-identity-grouped",
+      "expected": { "harnessMustFlagAsViolation": true, "doctrineViolated": "Section 28: same-brand-similar-title must stay separate; this is the exact canonicalProductKey risk in Finding F2" }
+    },
+    {
+      "scenarioId": "mut-watch-a-becomes-watch-b",
+      "mutationOf": "watch-id-per-offer-independent",
+      "tags": ["watchable", "retailer-truth"],
+      "mutatedField": "watches[0].identity",
+      "originalValue": "{ canonicalUrl: offer-a's farfetch URL, retailer: Farfetch, price: 340 }",
+      "mutatedValue": "{ canonicalUrl: offer-b's kickscrew URL, retailer: KicksCrew, price: 210 }",
+      "violationType": "cross-offer-watch-identity-leakage",
+      "expected": { "harnessMustFlagAsViolation": true, "doctrineViolated": "Section 23/DEF-WL-07: watching offer A must never carry offer B's identity" }
+    },
+    {
+      "scenarioId": "mut-shop-a-opens-b",
+      "mutationOf": "shop-id-per-offer-independent",
+      "tags": ["safe-url", "retailer-truth"],
+      "mutatedField": "shopDestinations[0].opensUrl",
+      "originalValue": "https://www.zappos.com/p/example-shoe/product/1111111/color/3",
+      "mutatedValue": "https://www.ssense.com/en-us/men/product/example/jacket/2222222",
+      "violationType": "cross-offer-shop-destination-leakage",
+      "expected": { "harnessMustFlagAsViolation": true, "doctrineViolated": "Section 24: Shop on offer A must never open offer B's URL" }
+    },
+    {
+      "scenarioId": "mut-currency-fabricated",
+      "mutationOf": "price-missing-currency",
+      "tags": ["currency"],
+      "mutatedField": "formatted output",
+      "originalValue": "40.00 (bare number, no currency symbol)",
+      "mutatedValue": "$40.00 (USD guessed)",
+      "violationType": "currency-fabricated",
+      "expected": { "harnessMustFlagAsViolation": true, "doctrineViolated": "RP-110 / Section 18: an undeclared currency must never be guessed as USD or rendered with a '$'" }
+    },
+    {
+      "scenarioId": "mut-affiliate-attribution-fabricated",
+      "mutationOf": "aff-no-attribution-null-field",
+      "tags": ["attribution"],
+      "mutatedField": "attributionPresent",
+      "originalValue": false,
+      "mutatedValue": true,
+      "violationType": "attribution-fabricated",
+      "expected": { "harnessMustFlagAsViolation": true, "doctrineViolated": "Section 25: AFFILIATE_AUTHORITY is ABSENT; attribution must never be asserted present where no mechanism exists" }
+    },
+    {
+      "scenarioId": "mut-legitimate-parameter-stripped",
+      "mutationOf": "aff-ordinary-query-param-preserved",
+      "tags": ["attribution", "safe-url"],
+      "mutatedField": "destinationUrl",
+      "originalValue": "https://www.zappos.com/p/example-shoe/product/1111111?color=3",
+      "mutatedValue": "https://www.zappos.com/p/example-shoe/product/1111111",
+      "violationType": "legitimate-parameter-stripped",
+      "expected": { "harnessMustFlagAsViolation": true, "doctrineViolated": "Section 25: a legitimate, already-present URL parameter must be preserved untouched, not silently stripped" },
+      "notes": "AFFILIATE_AUTHORITY is ABSENT in source (Finding, Section 5 of the shape census), so there is no real 'legitimate governed attribution present' fixture to mutate; this uses the closest real analogue (an ordinary parameter that must survive untouched) to exercise the same 'don't silently strip a parameter' property Section 39 requires."
+    },
+    {
+      "scenarioId": "mut-credential-shaped-url-preserved",
+      "mutationOf": "aff-credential-shaped-param-rejected",
+      "tags": ["unsafe-url", "attribution"],
+      "mutatedField": "rejectedAsUnsafe / destinationUrl",
+      "originalValue": "rejectedAsUnsafe: true, destinationUrl: null",
+      "mutatedValue": "rejectedAsUnsafe: false, destinationUrl: https://fake-user:fake-pass@example-retailer.test/item/1?ref=aff",
+      "violationType": "credential-shaped-url-not-rejected",
+      "expected": { "harnessMustFlagAsViolation": true, "doctrineViolated": "Section 16/25: a URL with embedded credentials must be rejected, never opened" }
+    }
+  ]
+}

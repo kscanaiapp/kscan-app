@@ -1,0 +1,42 @@
+{
+  "commerceCorpusFixtureVersion": 1,
+  "category": "product-identity",
+  "records": [
+    {
+      "scenarioId": "pid-provider-product-id-present-not-cross-retailer",
+      "description": "A provider-issued product ID exists on the offer, but it is scoped to that single provider/listing — it must never be treated as a universal identity that would justify matching it against a DIFFERENT retailer's product ID for the 'same' item.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["retailer-truth", "exact-group", "pr-c-support"],
+      "input": { "retailer": "Farfetch", "productId": "FF-99231-08", "title": "Ganni Printed Mesh Dress" },
+      "expected": { "hasProviderScopedId": true, "usableForCrossRetailerGrouping": false },
+      "notes": "types/canonicalDressingRoomItem.ts:26-41 CanonicalPurchaseOption.productId; supabase/functions/scan-identify/canonicalCommerce.ts:23 CanonicalOffer.providerProductId. Both are provider/offer-scoped identifiers, not universal product codes — there is no evidence in source that the same physical product carries the same productId across two different retailers' listings."
+    },
+    {
+      "scenarioId": "pid-no-stable-id",
+      "description": "An offer with no productId, no SKU, and no other identity field at all — this must be handled as 'no stable identity', not silently treated as identical to any other offer with the same title/brand.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["retailer-truth", "must-not-group", "pr-c-support"],
+      "input": { "retailer": "Brave-sourced listing", "productId": null, "title": "Floral midi dress" },
+      "expected": { "hasProviderScopedId": false, "identityStatus": "no-stable-identity" },
+      "notes": "services/dressingRoomCommerce.ts optionFingerprint (~line 174-183) falls back to an empty string for a missing productId component, which is a real, deliberate 'no stronger signal available' state in the current dedup fingerprint — not an error."
+    },
+    {
+      "scenarioId": "pid-gtin-sku-upc-ean-absent-from-schema",
+      "description": "SKU, GTIN, UPC, and EAN fields do not exist anywhere in this app's real production commerce types. This fixture documents that absence explicitly so the corpus does not silently invent these fields elsewhere.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["retailer-truth", "pr-c-support"],
+      "input": { "note": "no input record — this documents an absence, not a value" },
+      "expected": { "gtinFieldExistsInProduction": false, "skuFieldExistsInProduction": false, "upcFieldExistsInProduction": false, "eanFieldExistsInProduction": false },
+      "notes": "Confirmed absent across RecommendedProduct, CanonicalOffer/CanonicalProduct, CanonicalPurchaseOption, PurchaseOption/WatchCandidate, ProductMatch during the shape census. The only place these field names appear in this repository is the RESEARCH/PROPOSAL shape tools/canonical-product-identity/lib/offerFactory.js:16-46 (RetailOffer), which is explicitly a design lab artifact, not shipped production schema — Section 7 'reuse pattern, not implementation' applies: this corpus does not adopt that invented shape as if it were real."
+    },
+    {
+      "scenarioId": "pid-no-governed-cross-retailer-source-id",
+      "description": "No field in production source establishes a governed, stable identity that is comparable ACROSS retailers for the same physical product. This is the single most important input to the Grouping Readiness verdict.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["retailer-truth", "must-not-group", "exact-group", "pr-c-support"],
+      "input": { "note": "no input record — this documents an absence, not a value" },
+      "expected": { "governedCrossRetailerIdExists": false, "onlyExistingGroupingMechanism": "canonicalProductKey (brand + title tokens, heuristic, dormant)" },
+      "notes": "supabase/functions/scan-identify/canonicalCommerce.ts:133-141 canonicalProductKey deliberately excludes retailer/source from its key so that same-product-different-retailer listings CAN collapse together — but it does so via fuzzy title-token matching, not an exact governed ID, and supabase/functions/scan-identify/watchlistCapability.ts:9-11 explicitly documents that this same function 'groups colorways together and is unstable under a retailer re-title.' See Finding F2 in docs/commerce-corpus/01-commerce-shape-census.md."
+    }
+  ]
+}

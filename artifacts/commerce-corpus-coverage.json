@@ -1,0 +1,155 @@
+{
+  "commerceCorpusVersion": 1,
+  "generatedBy": "tools/commerce-corpus/buildCoverageReport.js",
+  "stagingObservedShape": "UNAVAILABLE",
+  "scenarioCounts": {
+    "total": 112,
+    "byCategory": {
+      "accessibility-data": 3,
+      "affiliate-attribution": 6,
+      "customer-claim-safety": 8,
+      "domain-resolution": 9,
+      "failure": 10,
+      "multi-item": 3,
+      "must-not-group": 9,
+      "mutation-negative-control": 11,
+      "price-currency": 10,
+      "product-identity": 4,
+      "product-image": 6,
+      "retail-resale": 6,
+      "retailer-identity": 6,
+      "safe-grouping": 2,
+      "scale": 3,
+      "shop-offer-identity": 2,
+      "watch-offer-identity": 1,
+      "watchability": 5,
+      "where-to-buy": 8
+    },
+    "byEvidenceClass": {
+      "SOURCE-SHAPE": 66,
+      "SYNTHETIC": 46
+    },
+    "byTag": {
+      "pr-b-support": 36,
+      "attribution": 9,
+      "safe-url": 14,
+      "unsafe-url": 7,
+      "currency": 14,
+      "retailer-truth": 31,
+      "pr-a-support": 15,
+      "unknown-retailer": 7,
+      "failure": 12,
+      "pr-c-support": 31,
+      "not-watchable": 5,
+      "multi-item": 3,
+      "must-not-group": 13,
+      "brand-retailer": 8,
+      "exact-group": 5,
+      "watchable": 4,
+      "missing-logo": 2,
+      "retail": 3,
+      "resale": 6,
+      "scale": 3
+    }
+  },
+  "retailResaleCoverage": {
+    "retail": 3,
+    "resale": 6
+  },
+  "retailerTruthCoverage": {
+    "knownRetailer": 31,
+    "unknownRetailer": 7,
+    "missingLogo": 2,
+    "brandRetailerDistinctionCases": 8
+  },
+  "watchCoverage": {
+    "watchable": 4,
+    "notWatchable": 5
+  },
+  "currencyCoverage": {
+    "scenarios": 14
+  },
+  "groupingCoverage": {
+    "exactGroupCases": 5,
+    "mustNotGroupCases": 13
+  },
+  "failureCoverage": {
+    "scenarios": 12
+  },
+  "scaleCoverage": {
+    "scenarios": 3
+  },
+  "urlSafetyCoverage": {
+    "safeUrl": 14,
+    "unsafeUrl": 7
+  },
+  "attributionCoverage": {
+    "scenarios": 9,
+    "affiliateAuthority": "ABSENT",
+    "affiliateAuthorityCitation": "affiliateUrl is a passthrough field slot only; every real fixture in data/catalog.json has it null; no affiliate/click/tracking/network ID minting exists anywhere in source (zero grep hits).",
+    "fabricatedAffiliateIds": 0
+  },
+  "prSupportCoverage": {
+    "prA": 15,
+    "prB": 36,
+    "prC": 31
+  },
+  "identityCoverage": {
+    "evidenceNote": "STAGING_OBSERVED_SHAPE: UNAVAILABLE. Every count below describes THIS CORPUS's own fixture composition, kept strictly separate by evidenceClass, and must never be read as a production runtime-prevalence claim.",
+    "bySourceShape": {
+      "offerCount": 54,
+      "withProviderScopedId": 5,
+      "withHypotheticalExactCrossRetailerId": 0,
+      "withSku": 0,
+      "withGtinUpcEan": 0,
+      "withNoStableIdentity": 49,
+      "commerceType": {
+        "retail": 0,
+        "resale": 8,
+        "unknown": 46
+      },
+      "pctWithProviderScopedId": 9,
+      "pctWithHypotheticalExactCrossRetailerId": 0,
+      "pctWithSku": 0,
+      "pctWithGtinUpcEan": 0,
+      "pctWithNoStableIdentity": 91
+    },
+    "bySynthetic": {
+      "offerCount": 144,
+      "withProviderScopedId": 89,
+      "withHypotheticalExactCrossRetailerId": 2,
+      "withSku": 0,
+      "withGtinUpcEan": 0,
+      "withNoStableIdentity": 53,
+      "commerceType": {
+        "retail": 65,
+        "resale": 20,
+        "unknown": 59
+      },
+      "pctWithProviderScopedId": 62,
+      "pctWithHypotheticalExactCrossRetailerId": 1,
+      "pctWithSku": 0,
+      "pctWithGtinUpcEan": 0,
+      "pctWithNoStableIdentity": 37
+    },
+    "exactIdentityGroups": 2,
+    "groupsWithTwoOrMoreOffers": 2,
+    "crossRetailerExactGroups": 1
+  },
+  "perGarmentCommerce": {
+    "status": "PRESENT",
+    "citation": "services/multiItemCommerce.ts fetchMultiItemCommerce produces an independent Map<candidateId, ItemCommerceCard> per detected garment, Promise.allSettled-isolated, with 11 dedicated test files."
+  },
+  "priceFreshnessAuthority": {
+    "status": "PARTIAL",
+    "citation": "PRESENT at the Watchlist layer (user_commerce_watches.last_checked_at, CommerceWatchEvent.observedAt) and the dormant backend v127 canonical layer (CanonicalOffer.observedAt); ABSENT on CanonicalPurchaseOption/PurchaseOption/WatchCandidate/RankedScanProduct, the shapes that render ordinary shelves."
+  },
+  "groupingReadiness": {
+    "verdict": "NOT_YET",
+    "citation": "No production type carries a governed, cross-retailer-comparable exact product identifier (no GTIN/SKU/UPC/EAN anywhere; productId/providerProductId are provider-scoped). The one mechanism that attempts cross-retailer grouping (canonicalProductKey, brand+title-token heuristic) is dormant/unconsumed and is explicitly documented in-source (watchlistCapability.ts:9-11) as merging colorways and being unstable under a retailer re-title - the exact must-not-group failure mode this corpus tests for. See Finding F2.",
+    "prCRecommendation": "DEFER",
+    "groupingImplication": "Cannot be quantified from OBSERVED-SHAPE evidence because none exists in this lane, and cannot be quantified from source-shape evidence either, because the source-level identity model provides no cross-retailer exact key at all to count against - stating a percentage here would itself be a fabricated number. Commerce V2 PR C should not build a grouped purchase-option ladder against canonicalProductKey without first introducing a real exact cross-retailer identity field."
+  },
+  "contentHash": "52507514e43e0fdbf80aee79e617fbaf99653cc93665eff23cbb17a45622d635",
+  "generatedAt": "2026-09-07"
+}

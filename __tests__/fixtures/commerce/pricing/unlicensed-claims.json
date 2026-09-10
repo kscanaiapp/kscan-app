@@ -1,0 +1,148 @@
+{
+  "commerceCorpusFixtureVersion": 1,
+  "category": "customer-claim-safety",
+  "records": [
+    {
+      "scenarioId": "claim-no-exact-match",
+      "description": "A high matchScore alone does not license an 'Exact Match' claim: matchScore measures visual/text similarity, not verified product identity.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["pr-b-support"],
+      "input": {
+        "title": "Classic Wool Overcoat - Navy",
+        "retailer": "Nordstrom",
+        "matchScore": 0.94,
+        "productUrl": "https://www.nordstrom.com/s/classic-wool-overcoat/7788990"
+      },
+      "expected": {
+        "claimLicensed": false,
+        "claim": "Exact Match",
+        "reason": "matchScore is a similarity score, not an identity assertion; no field on this or any production shape asserts exact SKU/GTIN/UPC identity between the scanned item and this listing, so no matchScore value -- even 0.94 -- licenses an 'Exact Match' label."
+      },
+      "notes": "matchScore/confidence are real fields (types/canonicalDressingRoomItem.ts:37-38 CanonicalPurchaseOption.matchScore/confidence; cleanScore(), services/dressingRoomCommerce.ts:168-172, bounds it to 0-1,000,000 with no semantic meaning beyond a similarity score). SKU/GTIN/UPC/EAN are ABSENT from every production schema (docs/commerce-corpus/01-commerce-shape-census.md §1 census table; only the research-lab tools/canonical-product-identity/lib/offerFactory.js invents them, and that lab is explicitly not production source authority). canonicalProductKey (§3, Finding F2) is the only cross-listing identity mechanism, is fuzzy/dormant, and is not an exact-match assertion either."
+    },
+    {
+      "scenarioId": "claim-no-best-price",
+      "description": "No field on this record, or on any client-consumed commerce shape, asserts that this price is the lowest available across retailers, so a 'Best Price' claim is not licensed.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["currency", "pr-b-support"],
+      "input": {
+        "title": "Classic Wool Overcoat - Navy",
+        "retailer": "Nordstrom",
+        "price": "450.00",
+        "currency": "USD"
+      },
+      "expected": {
+        "claimLicensed": false,
+        "claim": "Best Price",
+        "reason": "There is no cross-retailer price-comparison authority client-side; this record carries only its own retailer's price, with no field comparing it to any other retailer's offer for the same item."
+      },
+      "notes": "The only price-comparison-shaped field anywhere is CanonicalProduct.lowestPriceValue (supabase/functions/scan-identify/canonicalCommerce.ts:40-43), and it does not license a live cross-market claim: it is computed per fuzzy/dormant canonicalProductKey group (Finding F2, docs/commerce-corpus/01-commerce-shape-census.md §3), not per real-world market, and it is confirmed absent from commerceHydration.ts and every other client normalizer -- no client ever reads it. Treating it as authority for a live 'Best Price' claim would be a fabrication relative to what the field actually represents."
+    },
+    {
+      "scenarioId": "claim-no-cheapest",
+      "description": "The same missing cross-retailer price-comparison authority means a 'Cheapest' claim is not licensed either, regardless of wording.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["currency", "pr-b-support"],
+      "input": {
+        "title": "Classic Wool Overcoat - Navy",
+        "retailer": "Zappos",
+        "price": "420.00",
+        "currency": "USD"
+      },
+      "expected": {
+        "claimLicensed": false,
+        "claim": "Cheapest",
+        "reason": "There is no cross-retailer price-comparison authority client-side; a lower number on one retailer's own record does not license a superlative claim about every other retailer's price for the same item."
+      },
+      "notes": "Same grounding as claim-no-best-price: CanonicalProduct.lowestPriceValue (supabase/functions/scan-identify/canonicalCommerce.ts:40-43) is per fuzzy/dormant canonicalProductKey group (Finding F2) and is never consumed by any client. 'Cheapest' and 'Best Price' are the same missing-authority finding under two different claim wordings, tested as separate scenarios because UI copy could independently introduce either phrase."
+    },
+    {
+      "scenarioId": "claim-no-verified-retailer",
+      "description": "No boolean or field anywhere -- client or backend -- asserts retailer verification or authentication, so a 'Verified Retailer' claim is not licensed.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["retailer-truth", "pr-b-support"],
+      "input": {
+        "title": "Classic Wool Overcoat - Navy",
+        "retailer": "Farfetch",
+        "productUrl": "https://www.farfetch.com/shopping/item/778899.aspx"
+      },
+      "expected": {
+        "claimLicensed": false,
+        "claim": "Verified Retailer",
+        "reason": "No 'verified retailer' / 'official partner' / 'authenticated' boolean exists anywhere in source; 'retailer' is a bare string field, and no verification step or authority ever populates or checks it."
+      },
+      "notes": "Compounding evidence: 'retailer' is not even reliably resolved, let alone verified -- Finding F1 (docs/commerce-corpus/01-commerce-shape-census.md §2) documents three divergent, inconsistent retailer-resolution fallback chains across the codebase (ProductShelf.tsx:165-172, dressingRoomCommerce.ts ~221-226, scan-results/types.ts:288-294), two of which will silently fall back to printing a brand name into the retailer field. A field this loosely resolved cannot be the basis of a 'Verified' claim."
+    },
+    {
+      "scenarioId": "claim-no-official-partner",
+      "description": "No partner or affiliate-program relationship exists in source, so an 'Official Partner' claim is not licensed.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["retailer-truth", "pr-b-support"],
+      "input": {
+        "title": "Classic Wool Overcoat - Navy",
+        "retailer": "Farfetch",
+        "affiliateUrl": null,
+        "productUrl": "https://www.farfetch.com/shopping/item/778899.aspx"
+      },
+      "expected": {
+        "claimLicensed": false,
+        "claim": "Official Partner",
+        "reason": "AFFILIATE_AUTHORITY is ABSENT: no affiliate ID, click ID, tracking parameter, or network/partner ID is ever minted anywhere in source, so no partner/affiliate-program relationship exists to license this claim."
+      },
+      "notes": "docs/commerce-corpus/01-commerce-shape-census.md §5 ('Affiliate/attribution -- mechanism ABSENT'): affiliateUrl is a field slot read as a fallback destination candidate by services/commerceDestination.ts but every real fixture in data/catalog.json (~60 entries) has it null, and a grep for affiliateId|clickId|trackingId|networkId|utm_|partnerId across the whole repository returns zero hits. AFFILIATE_AUTHORITY: ABSENT is the corpus's own finding label for this gap."
+    },
+    {
+      "scenarioId": "claim-no-authentic",
+      "description": "No authenticity-verification field exists anywhere in source, so an 'Authentic' claim is not licensed, even on a resale listing where authenticity concerns are most salient.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["pr-b-support"],
+      "input": {
+        "title": "Classic Wool Overcoat - Navy",
+        "retailer": "Poshmark",
+        "commerceType": "resale"
+      },
+      "expected": {
+        "claimLicensed": false,
+        "claim": "Authentic",
+        "reason": "commerceType only distinguishes retail vs. resale channel; it is not an authenticity signal, and no separate authentication/verification field exists on any production commerce shape."
+      },
+      "notes": "commerceType?: 'retail'|'resale' (RecommendedProduct.commerceType, supabase/functions/scan-identify/shoppingProvider.ts:32-37, comment: 'must never carry a ranking bonus or penalty') is only ever set to 'resale' by the Poshmark provider (poshmarkProvider.ts:213,219); every other provider leaves it unset. This corpus's census (docs/commerce-corpus/01-commerce-shape-census.md §1 field table) found no authenticity/verification boolean on any shape."
+    },
+    {
+      "scenarioId": "claim-no-in-stock-without-signal",
+      "description": "Free-text availability that doesn't match a recognized literal must not be presented as 'In Stock' -- only an exact match to a known in-stock string licenses that label.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["pr-b-support"],
+      "input": {
+        "title": "Classic Wool Overcoat - Navy",
+        "retailer": "Nordstrom",
+        "availability": "ships in 3-5 business days"
+      },
+      "expected": {
+        "claimLicensed": false,
+        "claim": "In Stock",
+        "reason": "availability is free text; only exact matches to 'in_stock'/'in stock'/'available' normalize to the 'In Stock' label. This string matches none of those, so availability is effectively unknown and must not be presented as In Stock."
+      },
+      "notes": "availabilityLabel() (components/scan-results/types.ts:213-221) normalizes only 'in_stock'/'in stock'/'available' -> 'In Stock' and 'out_of_stock'/'out of stock'/'sold_out'/'sold out'/'unavailable' -> 'Out of Stock'; any other string, including this one, returns undefined (unknown), never a default 'In Stock'."
+    },
+    {
+      "scenarioId": "claim-no-current-price",
+      "description": "CanonicalPurchaseOption/PurchaseOption/WatchCandidate shelf records carry no price-freshness timestamp at all, so 'Current Price' is not a licensable claim from those shapes today; a Watchlist-style record that DOES carry a lastCheckedAt/observedAt timestamp could license a narrower 'last checked' style claim (not 'current'), but that nuance does not license the word 'Current' either, since even a recent check timestamp doesn't make a price true at this instant.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["currency", "pr-b-support"],
+      "input": {
+        "title": "Classic Wool Overcoat - Navy",
+        "retailer": "Nordstrom",
+        "price": "450.00",
+        "currency": "USD",
+        "productUrl": "https://www.nordstrom.com/s/classic-wool-overcoat/7788990"
+      },
+      "expected": {
+        "claimLicensed": false,
+        "claim": "Current Price",
+        "reason": "This record has the shape of a CanonicalPurchaseOption/PurchaseOption, neither of which carries any freshness timestamp field; RP-110 governs correctness of the displayed number/currency but says nothing about how recently the price was observed."
+      },
+      "notes": "PRICE_FRESHNESS_AUTHORITY: PARTIAL (docs/commerce-corpus/01-commerce-shape-census.md §7). Freshness timestamps exist only in the separate Watchlist subsystem: CommerceWatch.lastCheckedAt (types/watchlist.ts:33) and CommerceWatchEvent.observedAt (types/watchlist.ts:44), plus the dormant, request-time-only CanonicalOffer.observedAt (canonicalCommerce.ts:32, not consumed by any client per Finding F2). They are ABSENT on CanonicalPurchaseOption (types/canonicalDressingRoomItem.ts:26-41), PurchaseOption and WatchCandidate (components/scan-results/types.ts:34-48, 50-70) -- the ordinary shelf shapes this record represents."
+    }
+  ]
+}

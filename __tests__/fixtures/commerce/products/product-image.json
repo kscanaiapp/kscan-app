@@ -1,0 +1,101 @@
+{
+  "commerceCorpusFixtureVersion": 1,
+  "category": "product-image",
+  "records": [
+    {
+      "scenarioId": "img-valid-https",
+      "description": "A clean https image URL with no sensitive-looking query parameters is used directly as the displayable product image.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["pr-b-support"],
+      "input": {
+        "imageUrl": "https://images.example-retailer.test/products/12345/main.jpg"
+      },
+      "expected": {
+        "displayable": true,
+        "resolvedUrl": "https://images.example-retailer.test/products/12345/main.jpg",
+        "fallback": null
+      },
+      "notes": "imageUrl is resolved via normalizePersistedCommerceUrl (services/dressingRoomCommerce.ts:49-89), the same function backing the imageUrl/image_url/thumbnail/thumbnailUrl alias chain at :209-213. A plain https URL with no sensitive query keys, no /storage/v1/object/sign/ path segment, and no JWT-shaped path/query segment passes through unchanged."
+    },
+    {
+      "scenarioId": "img-missing",
+      "description": "When no image field is present at all, the product record must fail safely to a no-image/placeholder display state rather than rendering broken markup.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["pr-b-support"],
+      "input": {
+        "title": "Classic Wool Overcoat - Navy",
+        "retailer": "Nordstrom"
+      },
+      "expected": {
+        "displayable": false,
+        "resolvedUrl": null,
+        "fallback": "placeholder-no-image-state"
+      },
+      "notes": "SYNTHETIC: the data-layer resolution to null when imageUrl/image_url/thumbnail/thumbnailUrl are all absent is grounded in services/dressingRoomCommerce.ts:209-213 (each candidate passes through normalizePersistedCommerceUrl, which returns null for a non-string/undefined input). What this fixture actually asserts -- that the UI must render a safe placeholder/no-image state rather than broken markup -- describes a required behavior, not one inspected in a specific component in this lane, so no specific placeholder asset or component is claimed."
+    },
+    {
+      "scenarioId": "img-malformed",
+      "description": "An image URL string that isn't a valid https URL is treated as absent, not displayed as broken markup.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["pr-b-support"],
+      "input": {
+        "imageUrl": "not-a-valid-url-at-all"
+      },
+      "expected": {
+        "displayable": false,
+        "resolvedUrl": null,
+        "fallback": "treated-as-absent"
+      },
+      "notes": "normalizePersistedCommerceUrl (services/dressingRoomCommerce.ts:49-51) requires the text to match /^https:\\/\\//i before it even attempts `new URL(...)`; a string with no https:// prefix returns null immediately, so it is resolved identically to an absent field."
+    },
+    {
+      "scenarioId": "img-signed-credential-shaped",
+      "description": "An image URL carrying a long signed-token-shaped query string (?sig=...&expires=...) is actually REJECTED (resolved to null, treated as absent), not kept: the persisted image alias chain runs every image URL through the same normalizePersistedCommerceUrl() used for purchase-option destination URLs, and that function treats 'sig' and 'expires' as disqualifying query keys for ANY persisted commerce URL, image URLs included.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["pr-b-support"],
+      "input": {
+        "imageUrl": "https://images.example-retailer.test/products/12345/main.jpg?sig=fake1234567890abcdef&expires=1893456000"
+      },
+      "expected": {
+        "displayable": false,
+        "resolvedUrl": null,
+        "fallback": "treated-as-absent"
+      },
+      "notes": "JUDGMENT-CALL CORRECTION: the scenario was originally expected to be 'safe to keep' on the theory that no client-side helper is known to sanitize image URLs specifically. Direct inspection of services/dressingRoomCommerce.ts:11-30 (SENSITIVE_URL_QUERY_KEYS, an exact-match set including 'sig' and 'expires') and :49-89 (normalizePersistedCommerceUrl) shows one does exist and does reject this exact shape -- the same function backs the imageUrl/image_url/thumbnail/thumbnailUrl alias chain at :209-213 cited for img-multiple-fields-precedence, so it is the correct function to ground this scenario against. This is a real product-implication worth flagging: a legitimately signed/expiring CDN image URL would fail to persist through this path, not just a hostile one. No separate, more permissive image-URL-only sanitizer was found anywhere in source (a source gap: image URLs are not deliberately special-cased away from the destination-URL credential/signature checks, for better or worse)."
+    },
+    {
+      "scenarioId": "img-multiple-fields-precedence",
+      "description": "When imageUrl, image_url, thumbnail, and thumbnailUrl are all present with different values, imageUrl wins: the alias chain tries imageUrl first and returns on the first non-empty normalized result.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["pr-b-support"],
+      "input": {
+        "imageUrl": "https://images.example-retailer.test/variant-a.jpg",
+        "image_url": "https://images.example-retailer.test/variant-b.jpg",
+        "thumbnail": "https://images.example-retailer.test/variant-c.jpg",
+        "thumbnailUrl": "https://images.example-retailer.test/variant-d.jpg"
+      },
+      "expected": {
+        "displayable": true,
+        "resolvedUrl": "https://images.example-retailer.test/variant-a.jpg",
+        "wonFrom": "imageUrl"
+      },
+      "notes": "services/dressingRoomCommerce.ts:209-213: `normalizePersistedCommerceUrl(record.imageUrl) || normalizePersistedCommerceUrl(record.image_url) || normalizePersistedCommerceUrl(record.thumbnail) || normalizePersistedCommerceUrl(record.thumbnailUrl)` -- first non-empty normalized candidate wins, in that exact precedence order."
+    },
+    {
+      "scenarioId": "img-failed-load",
+      "description": "A valid-looking image URL that fails to load at render time (a runtime image-load event, not a URL-shape problem) must not crash the screen and must fall back to a safe empty/placeholder image state.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["pr-b-support"],
+      "input": {
+        "imageUrl": "https://images.example-retailer.test/products/99999/main.jpg",
+        "runtimeEvent": "image-load-error"
+      },
+      "expected": {
+        "crashes": false,
+        "fallbackRendered": true,
+        "fallback": "safe-empty-or-placeholder-image-state"
+      },
+      "notes": "SYNTHETIC boundary case; no specific image-load-failure handler (e.g. an <Image onError> handler) was located in source for this lane's research, so this describes required behavior, not observed behavior."
+    }
+  ]
+}

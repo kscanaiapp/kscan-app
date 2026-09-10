@@ -1,0 +1,199 @@
+{
+  "commerceCorpusFixtureVersion": 1,
+  "category": "domain-resolution",
+  "records": [
+    {
+      "scenarioId": "dom-exact-merchant-domain",
+      "description": "A clean https URL on a retailer's own bare apex domain is a safe URL and resolves to a known retailer identity.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["pr-a-support", "safe-url", "retailer-truth"],
+      "input": {
+        "productUrl": "https://zappos.com/p/example-product/product/9999999/color/3"
+      },
+      "expected": {
+        "safe": true,
+        "resolvedUrl": "https://zappos.com/p/example-product/product/9999999/color/3",
+        "rejectionReason": null,
+        "isAggregator": false,
+        "retailerIdentity": "known",
+        "retailerName": "Zappos"
+      },
+      "notes": "safe:true is grounded in isSafeCommerceUrl (services/commerceDestination.ts:56-69), SOURCE-SHAPE: https protocol, no embedded username/password, non-private hostname. isAggregator:false is grounded in isAggregatorDestination/AGGREGATOR_HOSTS (services/commerceDestination.ts:21-24,40-49), SOURCE-SHAPE: zappos.com is not in that fixed 8-host list. 'retailerIdentity: known' / 'retailerName' is illustrative/SYNTHETIC: no repo-internal retailer registry exists to classify a domain as a known retailer (Commerce V2 owns building the real one)."
+    },
+    {
+      "scenarioId": "dom-subdomain-variants",
+      "description": "www, regional, and marketplace subdomains of the same retailer all resolve to the same retailer identity and are all safe; per Section 16 these subdomain variants must not be conflated with 'unknown retailer' just because the hostname isn't the bare apex domain.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["pr-a-support", "safe-url", "retailer-truth"],
+      "input": [
+        "https://www.zappos.com/p/example-product/product/9999999/color/3",
+        "https://uk.zappos.com/p/example-product/product/9999999/color/3",
+        "https://marketplace.zappos.com/p/example-product/product/9999999/color/3"
+      ],
+      "expected": [
+        {
+          "safe": true,
+          "resolvedUrl": "https://www.zappos.com/p/example-product/product/9999999/color/3",
+          "isAggregator": false,
+          "retailerIdentity": "known",
+          "retailerName": "Zappos",
+          "subdomainKind": "www"
+        },
+        {
+          "safe": true,
+          "resolvedUrl": "https://uk.zappos.com/p/example-product/product/9999999/color/3",
+          "isAggregator": false,
+          "retailerIdentity": "known",
+          "retailerName": "Zappos",
+          "subdomainKind": "regional"
+        },
+        {
+          "safe": true,
+          "resolvedUrl": "https://marketplace.zappos.com/p/example-product/product/9999999/color/3",
+          "isAggregator": false,
+          "retailerIdentity": "known",
+          "retailerName": "Zappos",
+          "subdomainKind": "marketplace"
+        }
+      ],
+      "notes": "safe:true / isAggregator:false for all three entries is grounded in isSafeCommerceUrl and isAggregatorDestination (services/commerceDestination.ts:21-24,40-69), SOURCE-SHAPE: none of these checks look at subdomain structure at all, so www./uk./marketplace. pass identically to the bare apex. 'retailerIdentity: known' / matching all three to the same retailer name is illustrative/SYNTHETIC: no repo-internal retailer registry or subdomain-normalization rule exists yet (Commerce V2 owns building one)."
+    },
+    {
+      "scenarioId": "dom-affiliate-redirect-domain",
+      "description": "A third-party affiliate-redirect-shaped domain is a safe https URL (no embedded credentials, not a private host) but is not a direct retailer identity -- retailer identity stays unknown/unresolved from the URL alone, unlike dom-exact-merchant-domain.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["pr-a-support", "safe-url", "unknown-retailer"],
+      "input": {
+        "productUrl": "https://click.example-affiliate-network.test/redirect?dest=example-item-9182"
+      },
+      "expected": {
+        "safe": true,
+        "resolvedUrl": "https://click.example-affiliate-network.test/redirect?dest=example-item-9182",
+        "rejectionReason": null,
+        "isAggregator": false,
+        "retailerIdentity": "unresolved",
+        "retailerName": null
+      },
+      "notes": "safe:true is grounded in isSafeCommerceUrl (services/commerceDestination.ts:56-69), SOURCE-SHAPE. isAggregator:false is grounded in isAggregatorDestination checking only the fixed 8-host AGGREGATOR_HOSTS list (services/commerceDestination.ts:21-24,40-49) -- this redirect domain is not on that list, SOURCE-SHAPE. Whether a domain is a genuine retailer vs. a generic affiliate-redirect middleman is illustrative/SYNTHETIC: no repo-internal registry distinguishes them, so today's real code would treat this host the same as any other non-aggregator safe URL -- a gap worth flagging for Commerce V2, not a bug being asserted here."
+    },
+    {
+      "scenarioId": "dom-shared-host-ambiguous",
+      "description": "A generic shared redirect host and a generic shared CDN/image host, both used by many unrelated retailers, cannot establish retailer identity from the hostname alone -- both remain safe URLs but resolve to unknown-retailer.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["pr-a-support", "safe-url", "unknown-retailer"],
+      "input": [
+        "https://redirect.example-shared-host.test/r/abc123",
+        "https://cdn.example-shared-images.test/img/abc123.jpg"
+      ],
+      "expected": [
+        {
+          "safe": true,
+          "resolvedUrl": "https://redirect.example-shared-host.test/r/abc123",
+          "isAggregator": false,
+          "retailerIdentity": "unresolved",
+          "retailerName": null,
+          "hostKind": "shared-redirect"
+        },
+        {
+          "safe": true,
+          "resolvedUrl": "https://cdn.example-shared-images.test/img/abc123.jpg",
+          "isAggregator": false,
+          "retailerIdentity": "unresolved",
+          "retailerName": null,
+          "hostKind": "shared-cdn"
+        }
+      ],
+      "notes": "safe:true / isAggregator:false for both entries is grounded in isSafeCommerceUrl and isAggregatorDestination (services/commerceDestination.ts:21-24,40-69), SOURCE-SHAPE. The 'a shared host cannot establish identity' classification is illustrative/SYNTHETIC: no repo-internal registry of shared redirect/CDN hosts vs. retailer-owned hosts exists (Commerce V2 owns building one)."
+    },
+    {
+      "scenarioId": "dom-unknown-domain",
+      "description": "A domain with no recognizable retailer signal at all is still a safe https URL but resolves to no known retailer identity.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["pr-a-support", "safe-url", "unknown-retailer"],
+      "input": {
+        "productUrl": "https://example-generic-shop.test/items/44821"
+      },
+      "expected": {
+        "safe": true,
+        "resolvedUrl": "https://example-generic-shop.test/items/44821",
+        "rejectionReason": null,
+        "isAggregator": false,
+        "retailerIdentity": "unknown",
+        "retailerName": null
+      },
+      "notes": "safe:true is grounded in isSafeCommerceUrl (services/commerceDestination.ts:56-69) and isAggregator:false in isAggregatorDestination (services/commerceDestination.ts:21-24,40-49), both SOURCE-SHAPE. 'unknown-retailer' itself is illustrative/SYNTHETIC since no repo-internal retailer registry exists yet (Commerce V2 owns building one)."
+    },
+    {
+      "scenarioId": "dom-malformed-url",
+      "description": "A string that does not parse as a URL at all is rejected outright and never reaches retailer classification.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["pr-a-support", "unsafe-url"],
+      "input": {
+        "productUrl": "not a url {{"
+      },
+      "expected": {
+        "safe": false,
+        "resolvedUrl": null,
+        "rejectionReason": "malformed",
+        "isAggregator": null,
+        "retailerIdentity": "unresolved",
+        "retailerName": null
+      },
+      "notes": "isSafeCommerceUrl (services/commerceDestination.ts:56-69) wraps `new URL(text)` in try/catch and returns null on a parse failure -- exactly the 'not a url {{' case."
+    },
+    {
+      "scenarioId": "dom-http-not-https",
+      "description": "An otherwise well-formed retailer URL is rejected solely because its scheme is http, not https -- contrast with dom-exact-merchant-domain, the identical host over https, which passes.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["pr-a-support", "unsafe-url"],
+      "input": {
+        "productUrl": "http://zappos.com/p/example-product/product/9999999/color/3"
+      },
+      "expected": {
+        "safe": false,
+        "resolvedUrl": null,
+        "rejectionReason": "not-https",
+        "isAggregator": null,
+        "retailerIdentity": "unresolved",
+        "retailerName": null
+      },
+      "notes": "isSafeCommerceUrl (services/commerceDestination.ts:56-69) requires `parsed.protocol !== 'https:' -> null`; http is rejected regardless of how legitimate the host looks."
+    },
+    {
+      "scenarioId": "dom-credential-shaped-url",
+      "description": "A URL carrying embedded username:password-style credentials is rejected outright, regardless of protocol or host.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["pr-a-support", "unsafe-url"],
+      "input": {
+        "productUrl": "https://fake-user:fake-pass@example-retailer.test/item/1"
+      },
+      "expected": {
+        "safe": false,
+        "resolvedUrl": null,
+        "rejectionReason": "embedded-credentials",
+        "isAggregator": null,
+        "retailerIdentity": "unresolved",
+        "retailerName": null
+      },
+      "notes": "isSafeCommerceUrl (services/commerceDestination.ts:56-69) rejects any URL where `parsed.username || parsed.password` is truthy. Placeholder-only credentials ('fake-user'/'fake-pass') on a .test domain -- not a real credential shape."
+    },
+    {
+      "scenarioId": "dom-signed-url-tracking-params",
+      "description": "A legitimate retailer https URL carrying a long signed-looking query string plus ordinary utm_ tracking parameters is still safe: isSafeCommerceUrl only inspects protocol, embedded username/password, and hostname, and never rejects on query-string content -- contrast with dom-credential-shaped-url, where basic-auth-style user:pass@ credentials embedded IN the URL (a different, rejected risk class) cause rejection.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["pr-a-support", "safe-url", "retailer-truth"],
+      "input": {
+        "productUrl": "https://zappos.com/p/example-product/product/9999999/color/3?utm_source=newsletter&utm_medium=email&sig=abc123def456ghi789&expires=1893456000"
+      },
+      "expected": {
+        "safe": true,
+        "resolvedUrl": "https://zappos.com/p/example-product/product/9999999/color/3?utm_source=newsletter&utm_medium=email&sig=abc123def456ghi789&expires=1893456000",
+        "rejectionReason": null,
+        "isAggregator": false,
+        "retailerIdentity": "known",
+        "retailerName": "Zappos"
+      },
+      "notes": "isSafeCommerceUrl (services/commerceDestination.ts:56-69) never reads `parsed.search` at all -- SOURCE-SHAPE for the safe:true determination, which is unaffected by the utm_/sig/expires query params. 'retailerIdentity: known' is illustrative/SYNTHETIC since no repo-internal registry exists yet; included only to show hostname resolution is unaffected by the query string. Note: this module (commerceDestination.ts) is distinct from services/dressingRoomCommerce.ts's normalizePersistedCommerceUrl, which DOES reject 'sig'/'expires' query keys for persisted purchase-option/image URLs (see products/product-image.json#img-signed-credential-shaped) -- the two safety checks are not the same function and do not agree on this exact query shape."
+    }
+  ]
+}
