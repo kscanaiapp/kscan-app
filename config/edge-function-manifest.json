@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-09T13:53:31.805Z",
-    "generatedFromGitSha": "b91432dc7d673cd6c742282ec4e0742faf9fcc87"
+    "generatedAtUtc": "2026-09-10T13:26:29.523Z",
+    "generatedFromGitSha": "82b9b7cfea4d59e6706db19588969e4efd07b489"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -1111,12 +1111,12 @@
         ],
         "bundleFileCount": 5,
         "treeFileCount": 5,
-        "bundleHash": "58bc0f641646253e221ab2d0de003cccb921d040aa708747f360d026bebd7c8c",
-        "treeHash": "58bc0f641646253e221ab2d0de003cccb921d040aa708747f360d026bebd7c8c",
+        "bundleHash": "aa3b707d2f115adc4aafe5af4df03377fa7607565f821d5b7b5cc9e6cf299cbf",
+        "treeHash": "aa3b707d2f115adc4aafe5af4df03377fa7607565f821d5b7b5cc9e6cf299cbf",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/appleRevocation.ts",
-            "sha256": "c441a99e5fb00b1efaf96560f3719b9df271f9a0fbc537b29ec0c885c3f13655",
+            "sha256": "1817307993176158d9f375b3b53c8ae663ebacd77ade449f26dd0096bbc3f914",
             "bundle": true
           },
           {
@@ -1136,7 +1136,7 @@
           },
           {
             "path": "supabase/functions/process-account-deletions/index.ts",
-            "sha256": "962fbaadae0cf6fee5c9decc56dd64c7fe0c2567cbc2596057cc85ce275bf604",
+            "sha256": "b37ae4f8f01d7e350257e5b798c0f33bf16cf7ae5704d2134bc3aea0bac4a123",
             "bundle": true
           }
         ]

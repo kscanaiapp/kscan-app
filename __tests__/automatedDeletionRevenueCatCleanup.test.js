@@ -71,7 +71,7 @@ test('RC-DEL-001/RC-DEL-006: RevenueCat cleanup runs AFTER the Auth user delete 
 
 test('RC-DEL-006: Apple revocation is unchanged and still runs, and still blocks, before the Auth user is deleted', () => {
   const body = processClaimedRequestBody();
-  const appleCallIdx = body.indexOf('await requestAppleRevocation(supabase, userId)');
+  const appleCallIdx = body.indexOf('await requestAppleRevocation(');
   const appleBlockIdx = body.indexOf('isBlockingAppleRevocationStatus(appleRevocation.status)');
   const authDeleteIdx = body.indexOf('await supabase.auth.admin.deleteUser(userId)');
   const rcCallIdx = body.indexOf('await retireMirroredEntitlement({ appUserId: userId })');

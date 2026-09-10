@@ -95,15 +95,28 @@ test('PARITY: isBlockingAppleRevocationStatus agrees on every known and unknown 
 // ── Behavioral proof: the mirror itself calls the deployed function correctly ──
 // Same double shape as __tests__/manualDeletionAppleRevocation.test.js.
 
+// The double enforces the SAME authorization rule the deployed
+// apple-revoke-credential function enforces (requireServiceRole: the bearer
+// must equal SUPABASE_SERVICE_ROLE_KEY). Issue #390 happened precisely because
+// a double that ignored `options` could not tell an authenticated call from an
+// unauthenticated one, so the contract went unverified for both mirrors.
 function createFunctionsDouble({ revokeResponse, revokeThrows = false } = {}) {
   const calls = [];
+  const seen = [];
   return {
     calls,
+    seen,
     functions: {
       invoke: async (name, options) => {
         calls.push(`invoke:${name}`);
+        seen.push(options);
         if (revokeThrows) throw new Error('network down');
-        void options;
+        const authorization = options?.headers?.Authorization ?? null;
+        if (authorization !== `Bearer ${SERVICE_KEY}`) {
+          // What the real function answers an unauthenticated caller: 403,
+          // which supabase-js surfaces to the caller as `error`.
+          return { data: null, error: { message: 'Forbidden', status: 403 } };
+        }
         return revokeResponse ?? { data: { status: 'revoked' }, error: null };
       },
     },
@@ -111,10 +124,13 @@ function createFunctionsDouble({ revokeResponse, revokeThrows = false } = {}) {
 }
 
 const USER_ID = '11111111-2222-3333-4444-555555555555';
+// Deliberately new-format-shaped: the key format that supabase-js >= 2.111.0
+// refuses to forward as a Bearer token when the client has no session.
+const SERVICE_KEY = 'sb_secret_TESTONLYNOTAREALKEY0000000000';
 
 test('mirror requestAppleRevocation calls the deployed apple-revoke-credential function with the userId', async () => {
   const supabase = createFunctionsDouble({ revokeResponse: { data: { status: 'revoked' }, error: null } });
-  const result = await mirror.requestAppleRevocation(supabase, USER_ID);
+  const result = await mirror.requestAppleRevocation(supabase, USER_ID, SERVICE_KEY);
   assert.deepEqual(supabase.calls, ['invoke:apple-revoke-credential']);
   assert.equal(result.status, 'revoked');
 });
@@ -122,7 +138,7 @@ test('mirror requestAppleRevocation calls the deployed apple-revoke-credential f
 test('mirror requestAppleRevocation: settled statuses pass through unchanged', async () => {
   for (const status of ['revoked', 'already_gone', 'no_credential', 'unreadable']) {
     const supabase = createFunctionsDouble({ revokeResponse: { data: { status }, error: null } });
-    const result = await mirror.requestAppleRevocation(supabase, USER_ID);
+    const result = await mirror.requestAppleRevocation(supabase, USER_ID, SERVICE_KEY);
     assert.equal(result.status, status);
     assert.equal(mirror.isBlockingAppleRevocationStatus(result.status), false);
   }
@@ -131,7 +147,7 @@ test('mirror requestAppleRevocation: settled statuses pass through unchanged', a
 test('mirror requestAppleRevocation: known-retryable statuses pass through and are classified blocking', async () => {
   for (const status of ['failed', 'not_configured']) {
     const supabase = createFunctionsDouble({ revokeResponse: { data: { status }, error: null } });
-    const result = await mirror.requestAppleRevocation(supabase, USER_ID);
+    const result = await mirror.requestAppleRevocation(supabase, USER_ID, SERVICE_KEY);
     assert.equal(result.status, status);
     assert.equal(mirror.isBlockingAppleRevocationStatus(result.status), true);
   }
@@ -139,21 +155,21 @@ test('mirror requestAppleRevocation: known-retryable statuses pass through and a
 
 test('mirror requestAppleRevocation: a transport throw becomes a blocking "failed" result, not a thrown error', async () => {
   const supabase = createFunctionsDouble({ revokeThrows: true });
-  const result = await mirror.requestAppleRevocation(supabase, USER_ID);
+  const result = await mirror.requestAppleRevocation(supabase, USER_ID, SERVICE_KEY);
   assert.equal(result.status, 'failed');
   assert.equal(mirror.isBlockingAppleRevocationStatus(result.status), true);
 });
 
 test('mirror requestAppleRevocation: an HTTP-level error result becomes blocking "failed"', async () => {
   const supabase = createFunctionsDouble({ revokeResponse: { data: null, error: { message: 'boom' } } });
-  const result = await mirror.requestAppleRevocation(supabase, USER_ID);
+  const result = await mirror.requestAppleRevocation(supabase, USER_ID, SERVICE_KEY);
   assert.equal(result.status, 'failed');
 });
 
 test('mirror requestAppleRevocation: an unrecognised status is treated as blocking, never as benign', async () => {
   for (const body of [{ status: 'something_new' }, { status: 42 }, {}, null]) {
     const supabase = createFunctionsDouble({ revokeResponse: { data: body, error: null } });
-    const result = await mirror.requestAppleRevocation(supabase, USER_ID);
+    const result = await mirror.requestAppleRevocation(supabase, USER_ID, SERVICE_KEY);
     assert.equal(result.status, 'failed');
     assert.equal(mirror.isBlockingAppleRevocationStatus(result.status), true);
   }
