@@ -5,7 +5,8 @@ import {
   envOptional,
   json,
   logEvent,
-  readAppConfigFlag,
+  readAppConfigFlagState,
+  resolveDeletionWorkerMode,
   revokeAllSessions,
   rpc,
   shortUserId,
@@ -805,11 +806,29 @@ Deno.serve(async (req) => {
     const workerId = `worker_${crypto.randomUUID()}`;
     logEvent('worker_invocation', { workerIdPrefix: workerId.slice(0, 16) });
 
-    const enabled = await readAppConfigFlag('account_deletion_worker_enabled');
-    const dryRunFlag = await readAppConfigFlag('account_deletion_worker_dry_run');
+    // Mode selection is fail-safe: it is decided from the EXPLICIT state of
+    // each governed flag, never from a boolean that has already collapsed
+    // "unreadable" and "malformed" into "off". The previous form,
+    //
+    //     dryRun = envDryRun || dryRunFlag || !enabled
+    //
+    // read a missing, malformed or unreadable dry-run row as `false`, so an
+    // enabled worker whose SAFETY flag could not be read resolved to LIVE and
+    // began deleting accounts. Uncertainty about the destructive-mode control
+    // must resolve to dry-run; only an explicit, valid `enabled=true` plus an
+    // explicit, valid `dry_run=false` authorizes erasure.
+    const enabledState = await readAppConfigFlagState('account_deletion_worker_enabled');
+    const dryRunState = await readAppConfigFlagState('account_deletion_worker_dry_run');
     // Env override for emergency dry-run (server-controlled; not request body).
+    // It can only force SAFETY -- there is no environment path to live mode.
     const envDryRun = (Deno.env.get('DELETION_WORKER_DRY_RUN') ?? '').toLowerCase() === 'true';
-    const dryRun = envDryRun || dryRunFlag || !enabled;
+    const enabled = enabledState === 'explicit_true';
+    const dryRun =
+      resolveDeletionWorkerMode({
+        enabled: enabledState,
+        dryRun: dryRunState,
+        envDryRun,
+      }) === 'dry_run';
 
     if (!enabled) {
       logEvent('kill_switch_skip', { workerIdPrefix: workerId.slice(0, 16) });
@@ -892,7 +911,8 @@ Deno.serve(async (req) => {
         ...summary,
         orphanSweepPlan,
         killSwitchEnabled: enabled,
-        dryRunFlag,
+        dryRunState,
+        enabledState,
         envDryRun,
       });
       return json({

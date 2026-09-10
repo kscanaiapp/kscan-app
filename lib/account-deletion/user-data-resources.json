@@ -242,6 +242,12 @@
       "optional": true
     },
     {
+      "table": "watchlist_push_receipts",
+      "column": "user_id",
+      "action": "auth_delete_cascade",
+      "optional": true
+    },
+    {
       "table": "wardrobe_activity_log",
       "column": "user_id",
       "action": "auth_delete_cascade",
