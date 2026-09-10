@@ -29,24 +29,96 @@ server-side kill switch is on. Three independent gates, all currently closed:
 Gate 3 is the authority — it holds even if the workflow is run by hand, and it
 is why nothing in this repo can activate the sweep on its own.
 
+> **Staging state, 2026-09-10 (Watchlist Convergence 02):** gate 1 (the
+> secret, in both stores) and the workflow variable are provisioned on
+> staging, and the two secret copies were proven to match by a live request:
+> the governed no-op returned `HTTP 200 enabled:false`. Gate 3 is `false` and
+> the schedule is still commented out. The table above describes the shipped
+> default and still applies to any environment not yet provisioned.
+
 ### Owner steps (staging first; production is a separate decision)
 
-1. **Create the Edge Function secret** on the staging project
-   (`yzqjvdfgefveprobvvyw`). Name exactly:
+1. **Generate one value and write it to both stores in one session.** The name
+   is exactly `WATCHLIST_WORKER_SECRET`, both as an Edge Function secret on the
+   staging project (`yzqjvdfgefveprobvvyw`) and as a GitHub repository secret.
+   `requireWorkerSecret()` compares the bytes exactly, so both stores must hold
+   the identical value: no trailing newline, no byte-order mark, no whitespace.
 
+   Windows PowerShell 5.1 (the stock `powershell.exe`). Every API below exists
+   on .NET Framework 4.x:
+
+   ```powershell
+   $ErrorActionPreference = 'Stop'   # any failure aborts; nothing continues with an empty value
+
+   # 256 bits from the OS CSPRNG, hex-encoded (64 characters).
+   $bytes = New-Object byte[] 32
+   $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+   try { $rng.GetBytes($bytes) } finally { $rng.Dispose() }
+   $secret = ([System.BitConverter]::ToString($bytes) -replace '-', '').ToLowerInvariant()
+   [Array]::Clear($bytes, 0, $bytes.Length)
+   if ($secret -notmatch '^[0-9a-f]{64}$') { throw 'Secret generation failed - nothing was written.' }
+
+   # The Supabase CLI has no stdin mode, a 5.1 pipe into gh alters the bytes
+   # (see below), and command-line arguments are visible to other local
+   # processes. So both CLIs read the value from one short-lived dotenv file:
+   # BOM-less UTF-8, no trailing newline, deleted in `finally`.
+   $envFile = Join-Path $env:TEMP ('wl-worker-' + [guid]::NewGuid().ToString('N') + '.env')
+   try {
+     [System.IO.File]::WriteAllText($envFile, "WATCHLIST_WORKER_SECRET=$secret", (New-Object System.Text.UTF8Encoding($false)))
+     npx supabase secrets set --env-file $envFile --project-ref yzqjvdfgefveprobvvyw
+     if ($LASTEXITCODE -ne 0) { throw 'supabase secrets set failed - GitHub was NOT updated.' }
+     gh secret set --env-file $envFile --repo kscanaiapp/kscan-app
+     if ($LASTEXITCODE -ne 0) { throw 'gh secret set failed - the two stores now DIFFER; rerun this whole block.' }
+   } finally {
+     Remove-Item -LiteralPath $envFile -Force -ErrorAction SilentlyContinue
+   }
    ```
-   WATCHLIST_WORKER_SECRET
+
+   Do **not** use any of these. They are the known ways this step goes wrong on
+   Windows PowerShell 5.1:
+
+   - `[System.Security.Cryptography.RandomNumberGenerator]::Fill(...)` and
+     `[Convert]::ToHexString(...)`. Both are .NET Core / .NET 5+ APIs and do
+     not exist in 5.1. Under the default `$ErrorActionPreference` the failure
+     does not stop the script, `$secret` stays empty, and the next line writes
+     an empty secret. That is what happened during the 2026-09-10 rotation.
+   - `supabase secrets set WATCHLIST_WORKER_SECRET` (a bare name). The CLI only
+     accepts `NAME=VALUE` pairs or `--env-file`.
+   - `$secret | gh secret set ...`. A 5.1 pipe into a native command changes
+     the bytes: measured on this repository's Windows host, a 64-character
+     value arrived as 67, with a leading U+FEFF and a trailing CRLF. The CLI
+     reports success, and the sweep then fails with an HTTP 401 that looks
+     exactly like a wrong secret.
+   - `Set-Content -Encoding UTF8` for the env file. In 5.1 it writes a
+     byte-order mark in front of the key name.
+
+2. **Verify without revealing the value.** Run this in the same PowerShell
+   session:
+
+   ```powershell
+   # Supabase lists the SHA-256 of each stored value: compare digests, print only the verdict.
+   $sha = [System.Security.Cryptography.SHA256]::Create()
+   $localDigest = -join ($sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($secret)) | ForEach-Object { $_.ToString('x2') })
+   $sha.Dispose()
+   $remoteEntry = (npx supabase secrets list --project-ref yzqjvdfgefveprobvvyw --output json | ConvertFrom-Json) |
+     Where-Object { $_.name -eq 'WATCHLIST_WORKER_SECRET' }
+   if ($remoteEntry.value -ne $localDigest) { throw 'Supabase digest MISMATCH - do not proceed.' }
+   'Supabase WATCHLIST_WORKER_SECRET digest matches the generated value.'
+
+   # GitHub exposes presence and an update timestamp only, never the value or a digest.
+   gh secret list --repo kscanaiapp/kscan-app | Select-String '^WATCHLIST_WORKER_SECRET\s'
+
+   Remove-Variable secret, localDigest, remoteEntry -ErrorAction SilentlyContinue
    ```
 
-   Generate a high-entropy value; it is compared byte-for-byte and never logged.
+   GitHub has no readable digest. The only way to prove the GitHub copy matches
+   is a live authenticated request, so run step 4 through the workflow, which
+   sends the GitHub copy. `HTTP 200` with `enabled: false` proves the two
+   stores match. `HTTP 401` means they differ. If that happens, rerun step 1
+   for both stores; do not hand-edit only one of them.
 
-   ```bash
-   supabase secrets set WATCHLIST_WORKER_SECRET --project-ref yzqjvdfgefveprobvvyw
-   ```
-
-2. **Mirror it as a GitHub repository secret** of the same name, so the workflow
-   can present it. Add repository **variable** `SUPABASE_STAGING_FUNCTIONS_URL`
-   set to the staging functions origin (`https://<ref>.functions.supabase.co`).
+   Then add the repository **variable** `SUPABASE_STAGING_FUNCTIONS_URL`, set
+   to the staging functions origin (`https://<ref>.functions.supabase.co`).
 
 3. **Validate — refusal path first.** Confirm the endpoint refuses a wrong
    secret before enabling anything:
@@ -61,7 +133,17 @@ is why nothing in this repo can activate the sweep on its own.
    ```
 
 4. **Validate — governed no-op.** With the real secret and the kill switch still
-   `false`, the sweep must report `enabled: false` and claim nothing:
+   `false`, the sweep must report `enabled: false` and claim nothing. Prefer the
+   workflow, because it sends the **GitHub** copy of the secret, so a 200 here
+   also proves the two stores match (step 2):
+
+   ```powershell
+   gh workflow run watchlist-tier2-sweep.yml --repo kscanaiapp/kscan-app -f confirm=RUN-SWEEP
+   # the run log must show: HTTP 200 and {"mode": "sweep", "enabled": false, "claimed": 0}
+   ```
+
+   The direct request below only proves the Supabase copy, and it puts the
+   value on a command line:
 
    ```bash
    curl -sS -X POST \

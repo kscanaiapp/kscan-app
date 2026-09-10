@@ -305,6 +305,10 @@ PRODUCTION
 1. Deploy current `commerce-watch-refresh` to staging via
    `staging-controlled-deploy.yml` (**before** step 2 — see WL02-01).
 2. `supabase secrets set WATCHLIST_WORKER_SECRET --project-ref yzqjvdfgefveprobvvyw`.
+   *(Superseded 2026-09-10: the CLI rejects a bare name. It accepts only
+   `NAME=VALUE` pairs or `--env-file`. Use the Windows PowerShell 5.1
+   generate, write and verify procedure in `docs/watchlist-tier2-operations.md`
+   §1 steps 1-2, which also covers step 3.)*
 3. Add the same value as a GitHub repository secret, plus repository variable
    `SUPABASE_STAGING_FUNCTIONS_URL`.
 4. Run the refusal + governed-no-op validations in
