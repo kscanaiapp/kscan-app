@@ -10,6 +10,21 @@
  * Evidence base: task's explicit list, plus CPI's corpus generator
  * vocabulary (lib/fashionWorld.js jacket materials: lambskin, suede, wool,
  * cotton twill, nylon).
+ *
+ * SEMANTIC HARDENING PASS: every alias below was hostile-reviewed against
+ * the same doctrine applied to colors.js/patterns.js/silhouettes.js/
+ * categories.js ("similarity/relatedness is not sufficient for hard
+ * aliasing"). No change was made here, because every merge in this file
+ * passes a stronger test than a same-family color or a related silhouette:
+ * each is the literal same base material, named by source, weave, or brand
+ * rather than a different substance — `lambskin` is still animal leather
+ * (source variant, not a different material, unlike `faux_leather` which
+ * genuinely is a different material and stays split), `merino wool`/
+ * `lambswool` are still wool, `cotton twill`/`organic cotton` are still
+ * cotton, and `elastane`/`lycra` are literally alternate generic/brand
+ * names for the same synthetic fiber as `spandex`. None of these are a
+ * "shared family, distinct value" case the way `royal_blue`/`blue` is —
+ * there is no second material concept being erased.
  */
 const CANONICAL_MATERIALS = Object.freeze([
   { value: 'leather', aliases: ['leather', 'lambskin', 'genuine leather', 'real leather'] },
