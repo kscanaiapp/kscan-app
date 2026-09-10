@@ -5,12 +5,14 @@ import {
   envOptional,
   json,
   logEvent,
-  readAppConfigFlagState,
-  resolveDeletionWorkerMode,
   revokeAllSessions,
   rpc,
   shortUserId,
 } from '../_shared/deletion/common.ts';
+import {
+  readAppConfigFlagState,
+  resolveDeletionWorkerMode,
+} from '../_shared/deletion/workerMode.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import {
   USER_DATA_RESOURCES,

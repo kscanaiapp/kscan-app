@@ -20,7 +20,8 @@
 //
 // HOW THIS FILE PROVES IT. The mode decision is exercised by EXECUTING the
 // real `resolveDeletionWorkerMode` and the real `readAppConfigFlagState` out
-// of _shared/deletion/common.ts, transpiled into a vm sandbox -- the same
+// of _shared/deletion/workerMode.ts (layered on the real common.ts, so the
+// genuine rest() call path runs), transpiled into a vm sandbox -- the same
 // seam __tests__/appleRevocationParity.test.js uses to prove the real Apple
 // module. The Boolean is deliberately NOT restated here: a second copy of the
 // formula would only prove the test agrees with itself. The worker's own
@@ -38,30 +39,33 @@ const vm = require('node:vm');
 const ROOT = path.resolve(__dirname, '..');
 const read = (...p) => fs.readFileSync(path.join(ROOT, ...p), 'utf8');
 
-const COMMON_PATH = path.join(ROOT, 'supabase', 'functions', '_shared', 'deletion', 'common.ts');
+const DELETION_DIR = path.join(ROOT, 'supabase', 'functions', '_shared', 'deletion');
+const COMMON_PATH = path.join(DELETION_DIR, 'common.ts');
+const WORKER_MODE_PATH = path.join(DELETION_DIR, 'workerMode.ts');
 const WORKER = read('supabase', 'functions', 'process-account-deletions', 'index.ts');
 
-/**
- * Loads the REAL common.ts into a sandbox, with `fetch` and `Deno.env`
- * supplied so `rest()` -- which readAppConfigFlagState actually calls -- runs
- * its real code path rather than a stub of the function under test.
- */
-function loadCommon(fetchImpl) {
-  const output = ts.transpileModule(fs.readFileSync(COMMON_PATH, 'utf8'), {
+function transpile(file) {
+  return ts.transpileModule(fs.readFileSync(file, 'utf8'), {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
       target: ts.ScriptTarget.ES2020,
       esModuleInterop: true,
     },
   }).outputText;
+}
 
+function runModule(file, fetchImpl, requireMap = {}) {
   const sandbox = {
     module: { exports: {} },
     exports: {},
-    require: () => ({}),
+    require: (spec) => (spec in requireMap ? requireMap[spec] : {}),
     console: { log() {}, warn() {}, error() {} },
     fetch: fetchImpl,
-    Deno: { env: { get: (k) => ({ SUPABASE_URL: 'https://x.test', SUPABASE_SERVICE_ROLE_KEY: 'k' })[k] } },
+    Deno: {
+      env: {
+        get: (k) => ({ SUPABASE_URL: 'https://x.test', SUPABASE_SERVICE_ROLE_KEY: 'k' })[k],
+      },
+    },
     Response,
     TextEncoder,
     JSON,
@@ -79,8 +83,18 @@ function loadCommon(fetchImpl) {
   };
   sandbox.module.exports = sandbox.exports;
   sandbox.globalThis = sandbox;
-  vm.runInNewContext(output, sandbox, { filename: 'supabase/functions/_shared/deletion/common.ts' });
+  vm.runInNewContext(transpile(file), sandbox, { filename: path.relative(ROOT, file) });
   return sandbox.module.exports;
+}
+
+/**
+ * Loads the REAL workerMode.ts on top of the REAL common.ts, so
+ * readAppConfigFlagState runs through the genuine rest() call path rather
+ * than a stub of the code under test.
+ */
+function loadCommon(fetchImpl) {
+  const common = runModule(COMMON_PATH, fetchImpl);
+  return runModule(WORKER_MODE_PATH, fetchImpl, { './common.ts': common });
 }
 
 /** A fetch that answers the app_config lookup with a chosen body/status. */
@@ -270,8 +284,10 @@ test('end-to-end: the emergency environment override forces dry-run over a live 
 // ── Worker wiring (source, per the established Edge-function precedent) ─────
 
 test('worker: selects its mode through the fail-safe reader and resolver', () => {
-  assert.match(WORKER, /readAppConfigFlagState,/);
-  assert.match(WORKER, /resolveDeletionWorkerMode,/);
+  assert.match(
+    WORKER,
+    /import \{\s*readAppConfigFlagState,\s*resolveDeletionWorkerMode,?\s*\} from '\.\.\/_shared\/deletion\/workerMode\.ts';/,
+  );
   assert.match(WORKER, /readAppConfigFlagState\('account_deletion_worker_enabled'\)/);
   assert.match(WORKER, /readAppConfigFlagState\('account_deletion_worker_dry_run'\)/);
   assert.match(WORKER, /resolveDeletionWorkerMode\(\{/);
