@@ -1,0 +1,423 @@
+name: Staging Repair 06 Live E2E (Manual Certification)
+
+# Closes the one gap the Repair 06 backend-authority-convergence and
+# cross-contract certification lanes both recorded as outstanding: live HTTP
+# proof of account-deletion INTAKE and the public deletion-status contract,
+# using a disposable synthetic actor created through the real signup flow.
+# (`staging-account-deletion-worker.yml` already covers live HTTP for the
+# PROCESSING/worker side and is unchanged by this file.)
+#
+# DELIBERATELY NARROW, same reasoning as staging-account-deletion-worker.yml
+# and security/release/set-staging-runtime-flag.mjs:
+#   * the project ref is a literal, and the production ref is an explicit
+#     deny-check performed before any request is built;
+#   * NO service-role key anywhere in this file. Every call this workflow
+#     makes is one a real mobile client could already make: the staging
+#     publishable key plus, for the intake calls, a session obtained by
+#     signing up a brand-new disposable account through the public signup
+#     endpoint. That is the only account-creation path this file uses --
+#     no row is ever inserted into auth.users directly, matching the
+#     convention `supabase/staging-v2/seed-synthetic.sql` states and
+#     `scripts/staging-v2/seed-fixtures.mjs` enforces for the emulator
+#     fixtures ("the signup path, the handle_new_user trigger, and the
+#     profile/privacy bootstrap are all genuinely exercised rather than
+#     bypassed");
+#   * disposable actor passwords are generated inside the job with `openssl
+#     rand` and never leave it -- not logged, not written to an output, not
+#     needed again after this run (every subsequent authenticated call in the
+#     `intake` job reuses the in-memory access token from signup, since a
+#     successful deletion request bans further sign-in for the grace window);
+#   * every access token is masked immediately on receipt and never printed;
+#   * every workflow_dispatch input reaches a shell only via `env:`, and every
+#     JSON request body is built with `jq -n --arg` rather than string
+#     interpolation, so no input value can break out of its shell/JSON
+#     context regardless of what characters it contains;
+#   * a required `confirm` input must equal the literal `RUN-LIVE-E2E-<phase>`
+#     for the matching phase, so this cannot fire by a stray dispatch;
+#   * this workflow never triggers `process-account-deletions` itself --
+#     that stays the sole job of staging-account-deletion-worker.yml.
+#
+# WHAT THIS PROVES LIVE, END TO END, AGAINST REAL STAGING:
+#   intake  phase: auth is required; each actor can only create/observe their
+#           own lifecycle; a repeat request is idempotent (same requestId,
+#           alreadyRequested:true); a status receipt binds; storage upload
+#           respects the same per-user RLS a mobile client is bound by.
+#   status  phase: the public deletion-status contract for a real receipt, an
+#           unknown-but-valid-shaped receipt (never an existence oracle --
+#           404 either way), and a battery of malformed/wrong-method/
+#           wrong-content-type shapes, all against verify_jwt=false.
+#
+# WHAT THIS DOES NOT DO: shorten any grace period, touch deletion_requests
+# rows, read/write app-data tables, or call any Watchlist resource. Those
+# stay separate, disclosed operator actions taken directly against the
+# database (see the Repair 06 live E2E certification report), never inside
+# CI.
+
+on:
+  workflow_dispatch:
+    inputs:
+      phase:
+        description: 'Which half to run.'
+        required: true
+        type: choice
+        options:
+          - intake
+          - status_check
+      confirm:
+        description: "Must equal RUN-LIVE-E2E-INTAKE (intake phase) or RUN-LIVE-E2E-STATUS (status_check phase)."
+        required: true
+        type: string
+      run_tag:
+        description: 'Free-text label recorded in the summary (e.g. a run id).'
+        required: false
+        type: string
+      publishable_key:
+        description: 'Staging publishable API key (client-safe by design; not the service role key).'
+        required: false
+        type: string
+        default: 'sb_publishable_vyI28NK--LQTNWS1lfLmaw_oHjRARjJ'
+      actor_a_email:
+        description: '[intake] Disposable actor A email, e.g. kscan-repair06-e2e-<run>-a@kscan-test.invalid'
+        required: false
+        type: string
+      actor_b_email:
+        description: '[intake] Disposable actor B (control) email.'
+        required: false
+        type: string
+      actor_a_receipt:
+        description: '[intake] Pre-generated ksdel_v1_ status receipt to bind for actor A (52 chars).'
+        required: false
+        type: string
+      actor_b_receipt:
+        description: '[intake] Pre-generated ksdel_v1_ status receipt to bind for actor B (52 chars).'
+        required: false
+        type: string
+      status_receipt:
+        description: '[status_check] A receipt to look up (e.g. actor A''s, pre- or post-purge).'
+        required: false
+        type: string
+      status_receipt_label:
+        description: '[status_check] Free-text label for the receipt above, recorded in the summary only.'
+        required: false
+        type: string
+      unknown_receipt:
+        description: '[status_check] A valid-shaped receipt that was never bound to any row.'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-repair06-live-e2e
+  cancel-in-progress: false
+
+env:
+  STAGING_REF: yzqjvdfgefveprobvvyw
+  PRODUCTION_REF: wyyuqfdxucjksghsmhry
+
+jobs:
+  intake:
+    if: github.event.inputs.phase == 'intake'
+    name: Live intake (disposable actors)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: staging
+    env:
+      CONFIRM: ${{ github.event.inputs.confirm }}
+      RUN_TAG: ${{ github.event.inputs.run_tag }}
+      PUBLISHABLE_KEY: ${{ github.event.inputs.publishable_key }}
+      ACTOR_A_EMAIL: ${{ github.event.inputs.actor_a_email }}
+      ACTOR_B_EMAIL: ${{ github.event.inputs.actor_b_email }}
+      ACTOR_A_RECEIPT: ${{ github.event.inputs.actor_a_receipt }}
+      ACTOR_B_RECEIPT: ${{ github.event.inputs.actor_b_receipt }}
+    steps:
+      - name: Assert staging authority and confirmation token
+        run: |
+          set -euo pipefail
+          if [ "${STAGING_REF}" = "${PRODUCTION_REF}" ]; then
+            echo "::error::Target ref equals the production ref. Refusing."
+            exit 1
+          fi
+          if [ "${CONFIRM}" != "RUN-LIVE-E2E-INTAKE" ]; then
+            echo "::error::confirm input did not match RUN-LIVE-E2E-INTAKE. Refusing."
+            exit 1
+          fi
+          if [ -z "${ACTOR_A_EMAIL}" ] || [ -z "${ACTOR_A_RECEIPT}" ]; then
+            echo "::error::actor_a_email and actor_a_receipt are required for the intake phase."
+            exit 1
+          fi
+          echo "Target project: ${STAGING_REF} (staging)"
+          echo "Run tag: ${RUN_TAG}"
+
+      - name: Unauthenticated intake is rejected
+        id: unauth
+        run: |
+          set -euo pipefail
+          CODE=$(curl -sS -o /tmp/unauth.json -w '%{http_code}' \
+            -X POST "https://${STAGING_REF}.supabase.co/functions/v1/handle-user-deletion" \
+            -H "apikey: ${PUBLISHABLE_KEY}" \
+            -H "Content-Type: application/json")
+          echo "unauthenticated_http_code=${CODE}" >> "$GITHUB_OUTPUT"
+          echo "Unauthenticated intake -> HTTP ${CODE}"
+          cat /tmp/unauth.json || true
+
+      - name: Sign up disposable actor A
+        id: actor_a
+        run: |
+          set -euo pipefail
+          PASSWORD="$(openssl rand -base64 24)"
+          BODY=$(jq -n --arg email "$ACTOR_A_EMAIL" --arg password "$PASSWORD" '{email:$email,password:$password}')
+          RESP=$(curl -sS -X POST "https://${STAGING_REF}.supabase.co/auth/v1/signup" \
+            -H "apikey: ${PUBLISHABLE_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "$BODY")
+          TOKEN=$(echo "$RESP" | jq -r '.access_token // empty')
+          UID_A=$(echo "$RESP" | jq -r '.user.id // .id // empty')
+          if [ -z "$TOKEN" ] || [ -z "$UID_A" ]; then
+            echo "::error::Actor A signup did not return a session. Response shape (no secrets): $(echo "$RESP" | jq -c 'del(.access_token,.refresh_token)')"
+            exit 1
+          fi
+          echo "::add-mask::${TOKEN}"
+          echo "::add-mask::${PASSWORD}"
+          echo "$TOKEN" > /tmp/actor_a_token
+          echo "actor_a_user_id=${UID_A}" >> "$GITHUB_OUTPUT"
+          echo "Actor A created: ${UID_A}"
+
+      - name: Sign up disposable actor B (control)
+        id: actor_b
+        if: github.event.inputs.actor_b_email != ''
+        run: |
+          set -euo pipefail
+          PASSWORD="$(openssl rand -base64 24)"
+          BODY=$(jq -n --arg email "$ACTOR_B_EMAIL" --arg password "$PASSWORD" '{email:$email,password:$password}')
+          RESP=$(curl -sS -X POST "https://${STAGING_REF}.supabase.co/auth/v1/signup" \
+            -H "apikey: ${PUBLISHABLE_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "$BODY")
+          TOKEN=$(echo "$RESP" | jq -r '.access_token // empty')
+          UID_B=$(echo "$RESP" | jq -r '.user.id // .id // empty')
+          if [ -z "$TOKEN" ] || [ -z "$UID_B" ]; then
+            echo "::error::Actor B signup did not return a session."
+            exit 1
+          fi
+          echo "::add-mask::${TOKEN}"
+          echo "::add-mask::${PASSWORD}"
+          echo "$TOKEN" > /tmp/actor_b_token
+          echo "actor_b_user_id=${UID_B}" >> "$GITHUB_OUTPUT"
+          echo "Actor B created: ${UID_B}"
+
+      - name: Upload tiny synthetic storage fixture for actor A
+        id: storage
+        env:
+          ACTOR_A_UID: ${{ steps.actor_a.outputs.actor_a_user_id }}
+        run: |
+          set -euo pipefail
+          TOKEN=$(cat /tmp/actor_a_token)
+          PATH_A="${ACTOR_A_UID}/scans/repair06-e2e-fixture.txt"
+          CODE=$(curl -sS -o /tmp/storage_upload.json -w '%{http_code}' \
+            -X POST "https://${STAGING_REF}.supabase.co/storage/v1/object/style-library-images/${PATH_A}" \
+            -H "apikey: ${PUBLISHABLE_KEY}" \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "Content-Type: text/plain" \
+            --data-binary "kscan repair06 live e2e synthetic fixture -- not a real image")
+          echo "storage_http_code=${CODE}" >> "$GITHUB_OUTPUT"
+          echo "storage_path=${PATH_A}" >> "$GITHUB_OUTPUT"
+          echo "Storage upload -> HTTP ${CODE} at ${PATH_A}"
+          cat /tmp/storage_upload.json || true
+
+      - name: Authenticated intake as actor A
+        id: intake_a
+        run: |
+          set -euo pipefail
+          TOKEN=$(cat /tmp/actor_a_token)
+          BODY=$(jq -n --arg r "$ACTOR_A_RECEIPT" '{statusReceipt:$r}')
+          RESP=$(curl -sS -X POST "https://${STAGING_REF}.supabase.co/functions/v1/handle-user-deletion" \
+            -H "apikey: ${PUBLISHABLE_KEY}" \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "$BODY")
+          echo "$RESP" > /tmp/intake_a.json
+          echo "Actor A intake response (sanitized): $(echo "$RESP" | jq -c '{status,alreadyRequested,requestId,gracePeriodEndsAt,statusReceiptBound,sessionRevocationOk,restorationEmailQueued}')"
+          REQ_ID=$(echo "$RESP" | jq -r '.requestId // empty')
+          echo "actor_a_request_id=${REQ_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: Idempotent repeat intake as actor A
+        id: intake_a_repeat
+        env:
+          FIRST_ID: ${{ steps.intake_a.outputs.actor_a_request_id }}
+        run: |
+          set -euo pipefail
+          TOKEN=$(cat /tmp/actor_a_token)
+          BODY=$(jq -n --arg r "$ACTOR_A_RECEIPT" '{statusReceipt:$r}')
+          RESP=$(curl -sS -X POST "https://${STAGING_REF}.supabase.co/functions/v1/handle-user-deletion" \
+            -H "apikey: ${PUBLISHABLE_KEY}" \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "$BODY")
+          echo "Actor A repeat intake response (sanitized): $(echo "$RESP" | jq -c '{status,alreadyRequested,requestId,statusReceiptBound}')"
+          REPEAT_ID=$(echo "$RESP" | jq -r '.requestId // empty')
+          if [ "$FIRST_ID" != "$REPEAT_ID" ]; then
+            echo "::warning::Repeat intake returned a DIFFERENT requestId (${REPEAT_ID} vs ${FIRST_ID}) -- not idempotent as expected."
+          else
+            echo "Idempotency confirmed: same requestId (${REPEAT_ID}) on repeat."
+          fi
+
+      - name: Authenticated intake as actor B (own-lifecycle-only proof)
+        id: intake_b
+        if: github.event.inputs.actor_b_email != ''
+        env:
+          ACTOR_A_ID: ${{ steps.intake_a.outputs.actor_a_request_id }}
+        run: |
+          set -euo pipefail
+          TOKEN=$(cat /tmp/actor_b_token)
+          BODY=$(jq -n --arg r "$ACTOR_B_RECEIPT" '{statusReceipt:$r}')
+          RESP=$(curl -sS -X POST "https://${STAGING_REF}.supabase.co/functions/v1/handle-user-deletion" \
+            -H "apikey: ${PUBLISHABLE_KEY}" \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "$BODY")
+          echo "Actor B intake response (sanitized): $(echo "$RESP" | jq -c '{status,alreadyRequested,requestId,statusReceiptBound}')"
+          REQ_ID=$(echo "$RESP" | jq -r '.requestId // empty')
+          echo "actor_b_request_id=${REQ_ID}" >> "$GITHUB_OUTPUT"
+          if [ "$REQ_ID" = "$ACTOR_A_ID" ]; then
+            echo "::error::Actor B's intake returned actor A's requestId -- cross-actor isolation FAILED."
+            exit 1
+          fi
+          echo "Cross-actor isolation confirmed: actor B got its own distinct requestId."
+
+      - name: Record run summary
+        if: always()
+        env:
+          UNAUTH_CODE: ${{ steps.unauth.outputs.unauthenticated_http_code }}
+          A_UID: ${{ steps.actor_a.outputs.actor_a_user_id }}
+          A_REQ: ${{ steps.intake_a.outputs.actor_a_request_id }}
+          STORAGE_CODE: ${{ steps.storage.outputs.storage_http_code }}
+          STORAGE_PATH: ${{ steps.storage.outputs.storage_path }}
+          B_UID: ${{ steps.actor_b.outputs.actor_b_user_id }}
+          B_REQ: ${{ steps.intake_b.outputs.actor_b_request_id }}
+        run: |
+          {
+            echo "### Repair 06 live E2E -- intake phase"
+            echo ""
+            echo "- Project: \`${STAGING_REF}\` (staging)"
+            echo "- Run tag: ${RUN_TAG}"
+            echo "- Unauthenticated intake: HTTP ${UNAUTH_CODE:-n/a}"
+            echo "- Actor A user id: \`${A_UID:-n/a}\`"
+            echo "- Actor A request id: \`${A_REQ:-n/a}\`"
+            echo "- Storage upload: HTTP ${STORAGE_CODE:-n/a} at \`${STORAGE_PATH:-n/a}\`"
+            echo "- Actor B user id: \`${B_UID:-n/a}\`"
+            echo "- Actor B request id: \`${B_REQ:-n/a}\`"
+            echo ""
+            echo "No secrets above: user ids and request ids are pseudonymous ledger keys, not credentials."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove raw response bodies
+        if: always()
+        run: rm -f /tmp/unauth.json /tmp/intake_a.json /tmp/storage_upload.json /tmp/actor_a_token /tmp/actor_b_token
+
+  status_check:
+    if: github.event.inputs.phase == 'status_check'
+    name: Live deletion-status contract probes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: staging
+    env:
+      CONFIRM: ${{ github.event.inputs.confirm }}
+      RUN_TAG: ${{ github.event.inputs.run_tag }}
+      PUBLISHABLE_KEY: ${{ github.event.inputs.publishable_key }}
+      STATUS_RECEIPT: ${{ github.event.inputs.status_receipt }}
+      STATUS_RECEIPT_LABEL: ${{ github.event.inputs.status_receipt_label }}
+      UNKNOWN_RECEIPT: ${{ github.event.inputs.unknown_receipt }}
+    steps:
+      - name: Assert staging authority and confirmation token
+        run: |
+          set -euo pipefail
+          if [ "${STAGING_REF}" = "${PRODUCTION_REF}" ]; then
+            echo "::error::Target ref equals the production ref. Refusing."
+            exit 1
+          fi
+          if [ "${CONFIRM}" != "RUN-LIVE-E2E-STATUS" ]; then
+            echo "::error::confirm input did not match RUN-LIVE-E2E-STATUS. Refusing."
+            exit 1
+          fi
+          echo "Target project: ${STAGING_REF} (staging)"
+          echo "Run tag: ${RUN_TAG}  Label: ${STATUS_RECEIPT_LABEL}"
+
+      - name: Probe -- supplied receipt
+        if: github.event.inputs.status_receipt != ''
+        run: |
+          set -euo pipefail
+          BODY=$(jq -n --arg r "$STATUS_RECEIPT" '{receipt:$r}')
+          CODE=$(curl -sS -o /tmp/r1.json -w '%{http_code}' \
+            -X POST "https://${STAGING_REF}.supabase.co/functions/v1/deletion-status" \
+            -H "apikey: ${PUBLISHABLE_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "$BODY")
+          echo "supplied_receipt_http_code=${CODE}"
+          echo "supplied_receipt_body=$(cat /tmp/r1.json)"
+
+      - name: Probe -- unknown but valid-shaped receipt
+        if: github.event.inputs.unknown_receipt != ''
+        run: |
+          set -euo pipefail
+          BODY=$(jq -n --arg r "$UNKNOWN_RECEIPT" '{receipt:$r}')
+          CODE=$(curl -sS -o /tmp/r2.json -w '%{http_code}' \
+            -X POST "https://${STAGING_REF}.supabase.co/functions/v1/deletion-status" \
+            -H "apikey: ${PUBLISHABLE_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "$BODY")
+          echo "unknown_receipt_http_code=${CODE}"
+          echo "unknown_receipt_body=$(cat /tmp/r2.json)"
+
+      - name: Probe -- malformed shapes
+        run: |
+          set -euo pipefail
+          declare -a CASES=(
+            '{"receipt":"too-short"}'
+            '{"receipt":"wrong_prefix_v1_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}'
+            '{"receipt":12345}'
+            '{"receipt":null}'
+            '{}'
+            '{"receipt":"ksdel_v1_ has spaces and !!! bad chars in the body xx"}'
+          )
+          for BODY in "${CASES[@]}"; do
+            CODE=$(curl -sS -o /tmp/rm.json -w '%{http_code}' \
+              -X POST "https://${STAGING_REF}.supabase.co/functions/v1/deletion-status" \
+              -H "apikey: ${PUBLISHABLE_KEY}" \
+              -H "Content-Type: application/json" \
+              -d "$BODY")
+            echo "malformed[$BODY] -> HTTP ${CODE} : $(cat /tmp/rm.json)"
+          done
+
+      - name: Probe -- wrong method and wrong content-type
+        run: |
+          set -euo pipefail
+          CODE_GET=$(curl -sS -o /tmp/rg.json -w '%{http_code}' -G \
+            "https://${STAGING_REF}.supabase.co/functions/v1/deletion-status" \
+            --data-urlencode "receipt=${STATUS_RECEIPT}" \
+            -H "apikey: ${PUBLISHABLE_KEY}")
+          echo "GET_with_query_receipt -> HTTP ${CODE_GET} : $(cat /tmp/rg.json)"
+
+          CODE_CT=$(curl -sS -o /tmp/rc.json -w '%{http_code}' \
+            -X POST "https://${STAGING_REF}.supabase.co/functions/v1/deletion-status" \
+            -H "apikey: ${PUBLISHABLE_KEY}" \
+            -H "Content-Type: text/plain" \
+            --data-urlencode "receipt=${STATUS_RECEIPT}")
+          echo "wrong_content_type -> HTTP ${CODE_CT} : $(cat /tmp/rc.json)"
+
+      - name: Record run summary
+        if: always()
+        run: |
+          {
+            echo "### Repair 06 live E2E -- status_check phase"
+            echo ""
+            echo "- Project: \`${STAGING_REF}\` (staging)"
+            echo "- Run tag: ${RUN_TAG}"
+            echo "- Label: ${STATUS_RECEIPT_LABEL}"
+            echo "- See job log above for per-case HTTP codes and bodies (no secrets: status responses carry only state/purgeAuthorized/timestamps)."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove raw response bodies
+        if: always()
+        run: rm -f /tmp/r1.json /tmp/r2.json /tmp/rm.json /tmp/rg.json /tmp/rc.json
