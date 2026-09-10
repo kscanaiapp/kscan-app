@@ -209,6 +209,15 @@ const { resolveEasBuildProfile } = require('../scripts/resolve-eas-build-profile
 const CERT_MATRIX_ENABLED = Object.freeze([
   'EXPO_PUBLIC_VTO_UI_ENABLED',
   'EXPO_PUBLIC_PACKING_INTELLIGENCE_V1',
+  // Wardrobe Concierge is TWO layers, not one. This is the advice-metadata
+  // TRANSPORT parent: without it the provider discards the server's
+  // adviceMetadata, so the presentation child below has nothing to draw and
+  // the certification artifact would claim a capability it could not exercise.
+  // It is listed here — rather than merely tolerated — so the effective-matrix
+  // assertion requires it to resolve 'true', and so the leak and exhaustive
+  // negative controls below hold it to the same certification-only isolation
+  // as every other key: no other profile, production included, may declare it.
+  'EXPO_PUBLIC_ELISE_ADVICE_METADATA_CLIENT_V1',
   'EXPO_PUBLIC_ELISE_CONCIERGE_V1',
   'EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED',
   'EXPO_PUBLIC_SMART_WATCHLIST_V1',
@@ -275,8 +284,8 @@ test('the effective (extends-resolved) staging-certification matrix equals the a
   // a flag disappearing from CERT_MATRIX_ENABLED cannot pass unnoticed.
   assert.equal(
     CERT_MATRIX_ENABLED.length,
-    6,
-    'the Build 34 certification matrix is six client features; changing it is an owner ruling',
+    7,
+    'the Build 34 certification matrix is seven client flags; changing it is an owner ruling',
   );
 });
 
