@@ -46,6 +46,18 @@ const SCANNED_ROOTS = ['app', 'components'];
 const EXPECTED_GATE_SITES = [
   'app/packing/index.tsx -> packing',
   'app/watchlist/[watchId].tsx -> watchlist',
+  // Closet Intelligence V1 (PR B). Added deliberately, and it gates a K+
+  // ENHANCEMENT only: the panel renders the total item count, the category
+  // counts and the review count OUTSIDE the gate, because basic wardrobe
+  // management is core and "42 items" must never become a premium feature
+  // (program section 57). Only the richer derived structure — coverage
+  // analysis, recent inventory patterns, metadata quality — sits inside it.
+  // `closet_intelligence` was already an approved KPlusSource in
+  // types/kplusSource.ts before this lane; no new source was introduced.
+  // The free/gated split is asserted in __tests__/closetIntelligence.test.js
+  // ("K+ BOUNDARY: the panel leaves total, categories and review count
+  // outside the gate").
+  'components/closet/ClosetIntelligencePanel.tsx -> closet_intelligence',
   'components/account-home/PermissionsStepV1.tsx -> onboarding',
   'components/ProductShelf.tsx -> watchlist',
   'components/home/HomeLuxuryTechV1.tsx -> watchlist',

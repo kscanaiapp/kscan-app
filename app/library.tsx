@@ -76,9 +76,11 @@ import { ClosetCandidateStatusPanel } from '../components/closet/ClosetCandidate
 import { ClosetInventoryBar } from '../components/closet/ClosetInventoryBar';
 import { ClosetSyncStatusRow } from '../components/closet/ClosetSyncStatusRow';
 import { ClosetReviewRow } from '../components/closet/ClosetReviewRow';
+import { ClosetIntelligencePanel } from '../components/closet/ClosetIntelligencePanel';
 import { useClosetInventory } from '../hooks/useClosetInventory';
 import { useClosetSyncStatus } from '../hooks/useClosetSyncStatus';
 import { useClosetReview } from '../hooks/useClosetReview';
+import { useClosetIntelligence } from '../hooks/useClosetIntelligence';
 import { isScanPromoted } from '../services/closetPromotion';
 
 // ── Layout constants ──────────────────────────────────────────────────────────
@@ -351,6 +353,9 @@ export default function LibraryScreen() {
     [closetReview],
   );
   const closetInventory = useClosetInventory(closet.items as any, closetReviewIds);
+  // Closet Intelligence V1 (PR B). Deterministic, local, recomputed when the
+  // authoritative Closet changes. No LLM, no endpoint, no durable store.
+  const closetIntelligence = useClosetIntelligence(closet.items as any, closet.items.length);
   // Re-read the sidecar whenever the inventory could have changed. Passing the
   // item count rather than the array keeps this to a value comparison.
   const closetSyncStatus = useClosetSyncStatus(closet.items.length);
@@ -840,6 +845,9 @@ export default function LibraryScreen() {
               is a product state, not a degraded list.
             */}
             <ClosetSyncStatusRow status={closetSyncStatus} />
+            {!closet.loading && closet.items.length > 0 ? (
+              <ClosetIntelligencePanel intelligence={closetIntelligence} />
+            ) : null}
             {!closet.loading && closet.items.length > 0 ? (
               <ClosetReviewRow
                 review={closetReview}

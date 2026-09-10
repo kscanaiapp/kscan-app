@@ -253,6 +253,29 @@ ${transpile('hooks/useClosetInventory.ts')}
       }),
     },
     '../components/closet/ClosetReviewRow': { __esModule: true, ClosetReviewRow: 'ClosetReviewRow' },
+    // Closet Intelligence V1 (PR B). Not exercised by this suite.
+    '../hooks/useClosetIntelligence': {
+      __esModule: true,
+      useClosetIntelligence: () => ({
+        contractVersion: 1,
+        totalItems: 0,
+        categoryCounts: [],
+        distinctCategoryCount: 0,
+        reviewRequiredCount: 0,
+        classificationCoverage: { field: 'category', populated: 0, total: 0, percent: 0, meetsFilterFloor: false },
+        fieldCoverage: [],
+        recentlyAddedCount: 0,
+        recentlyAddedWindowDays: 30,
+        unclassifiedItems: 0,
+        duplicateCandidates: [],
+        duplicateDetection: 'unavailable_no_stable_identifier',
+        licensesAbsenceClaims: false,
+      }),
+    },
+    '../components/closet/ClosetIntelligencePanel': {
+      __esModule: true,
+      ClosetIntelligencePanel: 'ClosetIntelligencePanel',
+    },
     '../components/closet/ClosetInventoryBar': {
       __esModule: true,
       ClosetInventoryBar: 'ClosetInventoryBar',
