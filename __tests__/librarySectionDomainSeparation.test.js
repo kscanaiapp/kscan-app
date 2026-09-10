@@ -207,6 +207,46 @@ function renderLibrary({ section, scans = [], closetItems = [], separation = tru
         refresh: async () => {},
       }),
     },
+    // Closet Experience V1 (PR A1). The REAL inventory hook, not a stand-in.
+    // This harness's fallback is a permissive deep stub, so an unregistered
+    // hook would hand the screen a proxy whose `.view.items` is not an array —
+    // the Closet grid would then render zero cards and this suite would be
+    // asserting over an empty tree while reporting nothing wrong. Registering
+    // the real (pure) module keeps the section rendering what it actually
+    // renders.
+    '../hooks/useClosetInventory': (() => {
+      const lensMod = { exports: {} };
+      vm.runInThisContext(
+        `(function (exports, module, require) {
+${transpile('services/closet/closetInventory.ts')}
+})`,
+        { filename: 'closetInventory.ts' },
+      )(lensMod.exports, lensMod, () => ({}));
+      const hookMod = { exports: {} };
+      vm.runInThisContext(
+        `(function (exports, module, require) {
+${transpile('hooks/useClosetInventory.ts')}
+})`,
+        { filename: 'useClosetInventory.ts' },
+      )(hookMod.exports, hookMod, (spec) => {
+        if (spec === 'react') return React;
+        if (spec === '../services/closet/closetInventory') return lensMod.exports;
+        throw new Error(`Unexpected useClosetInventory import: ${spec}`);
+      });
+      return { __esModule: true, ...hookMod.exports };
+    })(),
+    // Cloud status needs the sync sidecar and the entitlement authority. Null
+    // is the real module's own "render nothing" result for an actor without
+    // cloud sync, so the screen takes a path it genuinely takes.
+    '../hooks/useClosetSyncStatus': { __esModule: true, useClosetSyncStatus: () => null },
+    '../components/closet/ClosetInventoryBar': {
+      __esModule: true,
+      ClosetInventoryBar: 'ClosetInventoryBar',
+    },
+    '../components/closet/ClosetSyncStatusRow': {
+      __esModule: true,
+      ClosetSyncStatusRow: 'ClosetSyncStatusRow',
+    },
     '../hooks/useClosetCandidates': {
       __esModule: true,
       useClosetCandidates: () => ({
