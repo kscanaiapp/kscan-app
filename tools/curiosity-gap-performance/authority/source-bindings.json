@@ -5,7 +5,7 @@
   "rule": "Whole-file sha256. Drift is FAIL, not a warning: a stale model that still runs green is worse than no model, because it is trusted.",
   "files": {
     "app.js": "2181d94d347cc6bfdcdb348835e779264394decf6dcae5d9fb5b48dbdf86f4dd",
-    "components/scan-results/PurchaseOptionsPanel.tsx": "1281af0b5c9e13bf487a881dcee21360bc1393b98b7c01146af7fae10b672507",
+    "components/scan-results/PurchaseOptionsPanel.tsx": "b22eb7ea3b2491102ab6cd11ca3d16545c7fa1ebfa4cf0f6742d8930123e0496",
     "components/scan-room/AnalyzingScan.tsx": "6a44c7a8b563939926a34a62b0530e8e18e4105a2c7d2f6338e58af0df2e2f51",
     "components/scan-room/CaptureReview.tsx": "3f1388f6278b7c06f0b771e509d4f09bdcddf377220dd73cde07632224c99326",
     "eas.json": "a77c0af1dc803530834ad6ce61cd1a4c91fbdb8f8386bec8102b52a12fe2ceab",
@@ -23,12 +23,12 @@
     "supabase/functions/scan-identify/commerceResultCache.ts": "4f6c69f517b27eb0a528e53c10bceb762b73ad6cd2aed3e201f2b4d67c49c5bd",
     "supabase/functions/scan-identify/farfetch3Provider.ts": "98c9cafb574e55d969c5cdd4ffa86c209f55629bd69954f56a3868eaba88a792",
     "supabase/functions/scan-identify/index.ts": "d9b4e886e416b173724bbeb7fadb22a768bc6cf085235932aa59832c425b9e36",
-    "supabase/functions/scan-identify/kicksCrewProvider.ts": "e71cc9b2cc1e0dc9e95bd200a5e46c1b22f382c43c1fd7af0c7d1c3b1ae69536",
+    "supabase/functions/scan-identify/kicksCrewProvider.ts": "0ff14ce17f98d9916c0183813d353151fa03a979555a29d37230f8f54b100997",
     "supabase/functions/scan-identify/poshmarkProvider.ts": "8410b122bfe6fb4ccb7361a00bdcecda7a7e96c4db2ad528212b0a49387ce089",
     "supabase/functions/scan-identify/qualityTuneCommerce.ts": "9be2434ba3cc4f7906f85767edf8ac0d6f4499a962b6e7ab252896569fa831ab",
-    "supabase/functions/scan-identify/scanCommerceRouter.ts": "a3b71084145590293e730fcae0015e7900eaff27d88cb588200a9e9d4bbf6f15",
+    "supabase/functions/scan-identify/scanCommerceRouter.ts": "c6d33f1009ee7dcdeb2245801e812d04b40b52ce8b3d766b20e61182b302f92f",
     "supabase/functions/scan-identify/scanQuota.ts": "28c3524442bbf8bc79012514bcd1293222a2df991777c0329c1902f6f4a7d57d",
-    "supabase/functions/scan-identify/shoppingProvider.ts": "71892f1dba27f2ff2648d83c930fc8270faaa167447d55811816f9a3026312c5"
+    "supabase/functions/scan-identify/shoppingProvider.ts": "01c478939250bc3fab814917aeed2dd1a1f4f22afb709a98fa78cbb98b881795"
   },
-  "binding_hash": "2c5cd5bde4e2ab726e7475443191816c71cf94c3ad5a3fb0c779b86cdf8ad0f2"
+  "binding_hash": "9fe7f557e810555667407fd852b6f71429c0d96345fda4390c50e7429eca422d"
 }

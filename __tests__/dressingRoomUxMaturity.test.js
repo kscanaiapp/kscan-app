@@ -45,8 +45,13 @@ function loadTsModule(relativePath, requireMap = {}) {
 const commerce = loadTsModule('services/dressingRoomCommerce.ts', {
   '../types/canonicalDressingRoomItem': {},
 });
+// Commerce V2 closure §6: the card resolver now consults the persisted-aware
+// retailer identity resolver, so the real module is supplied here rather than
+// a stub — the point of these tests is what the card actually resolves.
+const retailerIdentity = require('../services/commerce/retailerIdentity.ts');
 const card = loadTsModule('services/dressingRoomCommerceCard.ts', {
   './dressingRoomCommerce': commerce,
+  './commerce/retailerIdentity': retailerIdentity,
   '../types/canonicalDressingRoomItem': {},
   '../types/styleObjects': {},
 });

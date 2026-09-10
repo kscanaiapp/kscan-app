@@ -13,6 +13,11 @@ import { InlineNotice } from '../luxury/InlineNotice';
 import { canWatchPurchaseOption } from './types';
 import type { PurchaseOption, WatchCandidate } from './types';
 import { selectCommerceDestination } from '../../services/commerceDestination';
+import { resolvePersistedRetailerIdentity } from '../../services/commerce/retailerIdentity';
+import { RetailerIdentity } from '../commerce/RetailerIdentity';
+import { openCommerceOffer } from '../../services/commerce/commerceExit';
+import { buildWhereToBuySummary } from '../../services/commerce/whereToBuy';
+import { WhereToBuySummary } from '../commerce/WhereToBuySummary';
 // DEF-WL-07: the EXISTING Watch creation flow, reused rather than reimplemented.
 // ProductShelf keeps owning the modal and the createWatch call; this surface
 // only decides which rows may open it.
@@ -76,6 +81,18 @@ export function PurchaseOptionsPanel({
   // DEF-WL-07: the row whose Watch action is open, or null. Ephemeral view
   // state -- nothing here is written back into the scan.
   const [watchCandidate, setWatchCandidate] = useState<WatchCandidate | null>(null);
+  // §54: built from whatever offers are already shown above -- no grouping,
+  // no re-ranking. Renders nothing itself for fewer than two offers.
+  const whereToBuyRows = hasData
+    ? buildWhereToBuySummary(
+        purchaseOptions!.map((option) => ({
+          retailer: option.retailer,
+          productUrl: option.productUrl,
+          commerceType: option.watchCandidate?.commerceType,
+        })),
+        resolvePersistedRetailerIdentity,
+      )
+    : [];
 
   return (
     <View style={styles.container} testID={testID ?? 'purchase-options-panel'}>
@@ -91,6 +108,21 @@ export function PurchaseOptionsPanel({
             const hasAvailability = Boolean(option.availabilityLabel);
             // DEF-WL-07: server-authored eligibility, read not re-derived.
             const canWatch = canWatchPurchaseOption(option);
+            // Closure §6: reopened Recent/Saved scans render through this
+            // same panel, so a row written before the seller-truth repair can
+            // carry a brand in its stored retailer field. The persisted-aware
+            // resolver lets the row's governed merchant domain correct that.
+            const retailerIdentity = resolvePersistedRetailerIdentity({
+              retailer: option.retailer,
+              productUrl: option.productUrl,
+              commerceType: option.watchCandidate?.commerceType,
+            });
+            const openOffer = () =>
+              openCommerceOffer(
+                { productUrl: destination ?? undefined, retailer: option.retailer },
+                'purchase_options_panel',
+                (safeUrl) => Linking.openURL(safeUrl),
+              );
 
             return (
               <View
@@ -101,10 +133,16 @@ export function PurchaseOptionsPanel({
                 ]}
               >
                 <View style={styles.rowLeft}>
-                  <Text style={styles.retailer}>{option.retailer}</Text>
+                  <RetailerIdentity identity={retailerIdentity} mode="text-only" testID={`purchase-option-retailer-${option.id}`} />
                   {option.title ? (
                     <Text style={styles.productTitle} numberOfLines={1}>
                       {option.title}
+                    </Text>
+                  ) : null}
+                  {/* §43: small and clear, never affects ranking. */}
+                  {retailerIdentity.commerceType ? (
+                    <Text style={styles.commerceTypeBadge} numberOfLines={1}>
+                      {retailerIdentity.commerceType === 'resale' ? 'RESALE' : 'RETAIL'}
                     </Text>
                   ) : null}
                 </View>
@@ -127,7 +165,7 @@ export function PurchaseOptionsPanel({
                   ) : null}
                   {destination ? (
                     <TouchableOpacity
-                      onPress={() => Linking.openURL(destination)}
+                      onPress={openOffer}
                       activeOpacity={0.78}
                       accessibilityRole="link"
                       accessibilityLabel={`View options for ${option.title ?? option.retailer}`}
@@ -198,7 +236,7 @@ export function PurchaseOptionsPanel({
                       garment={option.vtoGarment}
                       garmentTitle={option.title ?? option.retailer}
                       origin="commerce_product"
-                      onShop={destination ? () => Linking.openURL(destination) : undefined}
+                      onShop={destination ? openOffer : undefined}
                       testID={`purchase-option-try-it-on-${option.id}`}
                     />
                   ) : null}
@@ -229,6 +267,10 @@ export function PurchaseOptionsPanel({
           testID="purchase-options-empty"
         />
       )}
+
+      {/* §54: self-guards to nothing for fewer than two offers, so this is
+          a no-op outside 'data' mode or for a single-offer item. */}
+      <WhereToBuySummary rows={whereToBuyRows} />
 
       {/* DEF-WL-07: the existing Watchlist creation flow. `WatchCandidate` is a
           structural subset of ProductShelf's `Product`, so the modal receives
@@ -274,17 +316,16 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     gap: SPACING.xs,
   },
-  retailer: {
-    ...LUXURY.typography.caption,
-    fontSize: 10,
-    letterSpacing: 1.4,
-    color: LUXURY.colors.stone,
-    textTransform: 'uppercase',
-  },
   productTitle: {
     ...LUXURY.typography.bodyStrong,
     fontSize: 13,
     lineHeight: 18,
+  },
+  commerceTypeBadge: {
+    ...LUXURY.typography.caption,
+    fontSize: 9,
+    letterSpacing: 1.2,
+    color: LUXURY.colors.goldText,
   },
   price: {
     ...LUXURY.typography.bodyStrong,

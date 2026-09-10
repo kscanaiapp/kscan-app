@@ -34,6 +34,25 @@ export type KicksCrewProduct = {
   product_url?: string;
   url?: string;
   commerceType: 'retail';
+  /**
+   * The retailer's own SKU for this listing, when KicksCrew declares one
+   * (`product.variants[0].sku`).
+   *
+   * Provenance only. It was previously extracted and then collapsed into
+   * `id` -- where it was indistinguishable from the `product.id` or raw-URL
+   * fallbacks -- so nothing downstream could tell a real identifier from a
+   * hash. Carried here as its own typed field instead.
+   *
+   * Named `retailerSku`, not `sku`, deliberately: it is scoped to this
+   * retailer's catalog. Whether it is product-unique or shared across
+   * colorways is NOT established, so it must not be treated as a
+   * cross-retailer product key or as a dedupe identity until that is proved
+   * against real responses. `retailerSku` is also the name this repo's own
+   * identity vocabulary already uses (OFFER_SIGNAL_FIELDS in
+   * tools/canonical-product-identity/schema/identitySchema.js), which
+   * separately distinguishes it from `manufacturerStyleCode`.
+   */
+  retailerSku?: string;
 };
 
 export type KicksCrewEnrichResult = {
@@ -178,10 +197,15 @@ function mapProduct(data: Record<string, unknown>, productUrl: string): KicksCre
   const currency = lowest?.currency ?? undefined;
   const imageUrl = extractImageUrl(product);
   const sku = extractSku(product);
+  // `id` keeps its exact existing precedence. It is the dedupe/persistence
+  // key everywhere downstream, so changing it would silently move offers
+  // between shelves; the SKU is now ALSO carried as its own field rather
+  // than only surviving inside this one.
   const id = sku || str(product.id) || productUrl;
 
   return {
     id,
+    ...(sku ? { retailerSku: sku } : {}),
     title: title.slice(0, MAX_TITLE_LEN),
     name: title.slice(0, MAX_TITLE_LEN),
     ...(brand ? { brand } : {}),

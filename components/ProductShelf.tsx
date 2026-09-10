@@ -37,12 +37,14 @@ import type { WatchIntent } from '../types/watchlist';
 import {
   formatCommercePrice,
   normalizePersistedCommerceUrl,
-  openPersistedCommerceUrl,
 } from '../services/dressingRoomCommerce';
 import { VTO_UI_ENABLED } from '../constants/featureFlags';
 import { TryItOnEntry } from './vto/TryItOnEntry';
 import { buildVtoGarmentFromCommerceRecord } from '../services/vto/vtoCommerceGarment';
 import type { VtoGarmentInput } from '../types/vto';
+import { resolvePersistedRetailerIdentity } from '../services/commerce/retailerIdentity';
+import { RetailerIdentity } from './commerce/RetailerIdentity';
+import { openCommerceOffer } from '../services/commerce/commerceExit';
 
 export interface Product {
   id?:         string;
@@ -162,9 +164,13 @@ function getPurchaseUrl(product: Product | null | undefined): string | null {
   );
 }
 
+// Commerce V2 seller-truth repair: `brand` is never a retailer candidate
+// (Build 35 Commerce V2 plan §12-13) -- a manufacturer is not who is selling
+// the item, and showing it in the "where to buy" slot misrepresents the
+// storefront. A product with no seller-authoritative field has no retailer.
 function getRetailer(product: Product | null | undefined): string | null {
   if (!product) return null;
-  const candidates = [product.retailer, product.brand, product.source, product.merchant, product.store];
+  const candidates = [product.retailer, product.source, product.merchant, product.store];
   for (const c of candidates) {
     if (typeof c === 'string' && c.trim()) return c.trim();
   }
@@ -387,7 +393,16 @@ export function ProductShelf({
   const handleLinkPress = (url: string | null | undefined) => {
     if (!url) return;
     selectionTick();
-    void openPersistedCommerceUrl(url, (safeUrl) => Linking.openURL(safeUrl)).then((opened) => {
+    // §28 commerce-exit contract. This shelf renders both live and reopened
+    // (persisted) commerce data, so it keeps the stricter persisted-URL
+    // safety gate it already used (normalizePersistedCommerceUrl), same as
+    // before this call routed through openCommerceOffer.
+    void openCommerceOffer(
+      { productUrl: url },
+      'product_shelf',
+      (safeUrl) => Linking.openURL(safeUrl),
+      { validate: normalizePersistedCommerceUrl },
+    ).then((opened) => {
       if (!opened) {
         setLinkErrorVisible(true);
         setTimeout(() => setLinkErrorVisible(false), 2000);
@@ -420,7 +435,12 @@ export function ProductShelf({
           const canWatch = canWatchProduct(p);
           const imageCategory = normalizeImageCategory(p.imageCategory || p.category);
           const showImage = !!productImageUrl && !failedImages[productKey];
-          const retailer = getRetailer(p);
+          // Closure §6: this shelf renders reopened (persisted) commerce as well
+          // as live results, and a row written before the seller-truth repair
+          // can carry a brand in its stored retailer field. The persisted-aware
+          // resolver lets the row's own governed merchant domain correct that;
+          // it changes nothing when no registered domain contradicts the label.
+          const retailerIdentity = resolvePersistedRetailerIdentity(p);
           const priceText = formatPrice(p);
           const vtoGarment = buildVtoGarmentFromProduct(p);
           const availability = typeof p.availability === 'string' ? p.availability.toLowerCase() : null;
@@ -474,11 +494,7 @@ export function ProductShelf({
               </TouchableOpacity>
 
               <View style={styles.cardBody}>
-                {retailer ? (
-                  <Text style={styles.retailer} numberOfLines={1}>
-                    {retailer.toUpperCase()}
-                  </Text>
-                ) : null}
+                <RetailerIdentity identity={retailerIdentity} mode="text-only" testID="product-shelf-retailer" />
                 <Text style={styles.name} numberOfLines={2}>
                   {productTitle}
                 </Text>
@@ -490,6 +506,14 @@ export function ProductShelf({
                 {isOutOfStock ? (
                   <Text style={styles.availabilityLabel} numberOfLines={1}>
                     Out of stock
+                  </Text>
+                ) : null}
+                {/* §43: small and clear, never affects ranking -- purely a
+                    presentation-layer fact read off the already-resolved
+                    identity. */}
+                {retailerIdentity.commerceType ? (
+                  <Text style={styles.commerceTypeBadge} numberOfLines={1}>
+                    {retailerIdentity.commerceType === 'resale' ? 'RESALE' : 'RETAIL'}
                   </Text>
                 ) : null}
                 {/*
@@ -1234,13 +1258,6 @@ const styles = StyleSheet.create({
     padding: SPACING.sm,
     gap:     SPACING.xxs,
   },
-  retailer: {
-    ...LUXURY.typography.caption,
-    fontSize:      10,
-    letterSpacing: 1.4,
-    color:         LUXURY.colors.stone,
-    textTransform: 'uppercase' as const,
-  },
   name: {
     ...LUXURY.typography.bodyStrong,
     fontSize:   13,
@@ -1255,6 +1272,13 @@ const styles = StyleSheet.create({
     ...LUXURY.typography.caption,
     fontSize: 10,
     color: LUXURY.colors.stone,
+    marginTop: SPACING.xxs,
+  },
+  commerceTypeBadge: {
+    ...LUXURY.typography.caption,
+    fontSize: 9,
+    letterSpacing: 1.2,
+    color: LUXURY.colors.goldText,
     marginTop: SPACING.xxs,
   },
   linkDot: {

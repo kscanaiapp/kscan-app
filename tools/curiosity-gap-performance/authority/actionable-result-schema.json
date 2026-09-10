@@ -32,7 +32,7 @@
     "panel_level_gates": [
       {
         "gate": "purchaseOptions.length > 0",
-        "enforced_at": "components/scan-results/PurchaseOptionsPanel.tsx:74",
+        "enforced_at": "components/scan-results/PurchaseOptionsPanel.tsx:79",
         "evidence_class": "PROVEN"
       },
       {
@@ -51,8 +51,8 @@
       "no URL username or password",
       "hostname must exist and must not be a private/loopback/link-local host"
     ],
-    "applied_at": "components/scan-results/PurchaseOptionsPanel.tsx:89 (selectCommerceDestination([option.productUrl]))",
-    "failure_behaviour": "the row still renders but the CTA is replaced by an inert 'Unavailable' label (PurchaseOptionsPanel.tsx:128-150). In practice a URL-less entry was already dropped upstream at commerceHydration.ts:151, so the two paths disagree about which layer removes it.",
+    "applied_at": "components/scan-results/PurchaseOptionsPanel.tsx:106 (selectCommerceDestination([option.productUrl]))",
+    "failure_behaviour": "the row still renders but the CTA is replaced by an inert 'Unavailable' label (PurchaseOptionsPanel.tsx:166-188). In practice a URL-less entry was already dropped upstream at commerceHydration.ts:151, so the two paths disagree about which layer removes it.",
     "evidence_class": "PROVEN"
   },
 
@@ -61,12 +61,12 @@
       "field": "imageUrl",
       "finding": "The shipped purchase row renders NO product image at all — retailer, title, price and availability text plus the CTA. Image bytes are therefore not on the TTFAR critical path for the primary shelf.",
       "evidence_class": "PROVEN",
-      "source": "components/scan-results/PurchaseOptionsPanel.tsx:86-207"
+      "source": "components/scan-results/PurchaseOptionsPanel.tsx:103-246"
     },
     { "field": "retailer", "fallback": "'Retailer'", "source": "components/scan-results/types.ts:258-263", "evidence_class": "PROVEN" },
     { "field": "id", "fallback": "`purchase-${index}`", "source": "components/scan-results/types.ts:266", "evidence_class": "PROVEN" },
-    { "field": "price / currency", "fallback": "the price line is omitted", "source": "components/scan-results/PurchaseOptionsPanel.tsx:90,113", "evidence_class": "PROVEN" },
-    { "field": "availability", "fallback": "the availability label is omitted", "source": "components/scan-results/PurchaseOptionsPanel.tsx:91,116", "evidence_class": "PROVEN" },
+    { "field": "price / currency", "fallback": "the price line is omitted", "source": "components/scan-results/PurchaseOptionsPanel.tsx:107,151", "evidence_class": "PROVEN" },
+    { "field": "availability", "fallback": "the availability label is omitted", "source": "components/scan-results/PurchaseOptionsPanel.tsx:108,154", "evidence_class": "PROVEN" },
     { "field": "brand", "fallback": "not read by the shipped row", "evidence_class": "PROVEN" }
   ],
 

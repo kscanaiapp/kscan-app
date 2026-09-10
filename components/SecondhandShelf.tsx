@@ -12,6 +12,14 @@ import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constan
 import { selectionTick } from '../services/haptics';
 import { openExternalUrl } from '../services/openExternalUrl';
 import type { SecondhandItem } from '../types/scan';
+import { resolveRetailerIdentity } from '../services/commerce/retailerIdentity';
+import { RetailerIdentity } from './commerce/RetailerIdentity';
+
+// Every item on this shelf is a Vinted listing (types/scan.ts SecondhandItem
+// -- `source: 'vinted'` is a literal, single-provider-is-the-retailer
+// design). Resolved once, not per-item: it is the same identity for the
+// whole shelf.
+const VINTED_IDENTITY = resolveRetailerIdentity({ retailer: 'vinted' });
 
 interface SecondhandShelfProps {
   items?: SecondhandItem[];
@@ -113,7 +121,7 @@ export function SecondhandShelf({ items = [] }: SecondhandShelfProps) {
               )}
 
               <View style={styles.cardBody}>
-                <Text style={styles.source}>VINTED</Text>
+                <RetailerIdentity identity={VINTED_IDENTITY} mode="text-only" />
                 <Text style={styles.title} numberOfLines={2}>
                   {item.title}
                 </Text>
@@ -196,12 +204,6 @@ const styles = StyleSheet.create({
   cardBody: {
     padding: SPACING.sm,
     gap: SPACING.xxs,
-  },
-  source: {
-    ...LUXURY.typography.caption,
-    fontSize: 10,
-    letterSpacing: 1.4,
-    textTransform: 'uppercase' as const,
   },
   title: {
     ...LUXURY.typography.bodyStrong,

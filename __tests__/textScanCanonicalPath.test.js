@@ -251,6 +251,10 @@ async function loadTextScanEdgeWithMockSupabase(mockSupabase) {
   const requireMap = {
     './supabaseClient': { supabase: mockSupabase },
     './textScan': textScan,
+    // RP-110: textScanEdge delegates numeric price rendering to the canonical
+    // client currency authority. The REAL module is supplied, not a stub --
+    // these tests are about what price a user actually sees.
+    './dressingRoomCommerce': require('../services/dressingRoomCommerce.ts'),
   };
   return loadTsModule('services/textScanEdge.ts', requireMap);
 }
@@ -671,5 +675,126 @@ test('analyzeTextWithEdge: rejects invalid input before invoking edge', async ()
   } catch (err) {
     assert.equal(err.message, 'TEXTSCAN_INVALID_INPUT');
     assert.equal(calls.length, 0, 'Must not invoke edge for code block input');
+  }
+});
+
+// ── RP-110: currency truth on the TextScan product path ─────────────────────
+//
+// services/textScanEdge.ts carried its own price formatter with two defects:
+// an undeclared currency rendered as `$` (inventing USD, the exact
+// anti-pattern RP-110 removed from five other formatters), and a DECLARED
+// ISO-4217 code was concatenated as if it were a symbol (`USD29.99`). The
+// numeric branch now delegates to formatCommercePrice. These assertions run
+// the real shipped path end to end.
+
+test('RP-110 TextScan: a numeric price with NO declared currency renders bare — never "$"', async () => {
+  const mockSupabase = createMockSupabaseClient({
+    response: {
+      data: {
+        status: 'completed',
+        attributes: { category: 'Tops' },
+        userMessage: 'A silk blouse.',
+        recommendedProducts: [
+          { id: 'p1', title: 'Silk Blouse', source: 'Boutique', price: 129.5, type: 'retail', productUrl: 'https://example.com/b' },
+        ],
+      },
+      error: null,
+    },
+  });
+  const { analyzeTextWithEdge } = await loadTextScanEdgeWithMockSupabase(mockSupabase);
+  const result = await analyzeTextWithEdge('silk blouse');
+
+  assert.equal(result.products[0].price, '129.50');
+  assert.ok(!result.products[0].price.includes('$'), 'invented a dollar sign for an undeclared currency');
+  assert.ok(!/USD/i.test(result.products[0].price), 'claimed USD for an undeclared currency');
+});
+
+test('RP-110 TextScan: a declared ISO-4217 code renders as a real currency, not a concatenated code', async () => {
+  const cases = [
+    { currency: 'USD', expected: '$129.50' },
+    { currency: 'usd', expected: '$129.50' },
+    { currency: ' eur ', expected: '€129.50' },
+    { currency: 'GBP', expected: '£129.50' },
+  ];
+
+  for (const { currency, expected } of cases) {
+    const mockSupabase = createMockSupabaseClient({
+      response: {
+        data: {
+          status: 'completed',
+          attributes: { category: 'Tops' },
+          userMessage: 'A silk blouse.',
+          recommendedProducts: [
+            { id: 'p1', title: 'Silk Blouse', source: 'Boutique', price: 129.5, currency, type: 'retail', productUrl: 'https://example.com/b' },
+          ],
+        },
+        error: null,
+      },
+    });
+    const { analyzeTextWithEdge } = await loadTextScanEdgeWithMockSupabase(mockSupabase);
+    const result = await analyzeTextWithEdge('silk blouse');
+    assert.equal(result.products[0].price, expected, `currency ${JSON.stringify(currency)} rendered wrong`);
+    assert.ok(!/^[A-Z]{3}\d/.test(result.products[0].price), 'concatenated an ISO code as if it were a symbol');
+  }
+});
+
+test('RP-110 TextScan: free-form currency text is not a currency and never becomes "$"', async () => {
+  for (const currency of ['US Dollar', 'dollars', '$', 'USDD', '', 42]) {
+    const mockSupabase = createMockSupabaseClient({
+      response: {
+        data: {
+          status: 'completed',
+          attributes: { category: 'Tops' },
+          userMessage: 'A silk blouse.',
+          recommendedProducts: [
+            { id: 'p1', title: 'Silk Blouse', source: 'Boutique', price: 129.5, currency, type: 'retail', productUrl: 'https://example.com/b' },
+          ],
+        },
+        error: null,
+      },
+    });
+    const { analyzeTextWithEdge } = await loadTextScanEdgeWithMockSupabase(mockSupabase);
+    const result = await analyzeTextWithEdge('silk blouse');
+    assert.equal(result.products[0].price, '129.50', `treated ${JSON.stringify(currency)} as a currency`);
+  }
+});
+
+test('RP-110 TextScan: a provider-formatted STRING price still passes through verbatim', async () => {
+  const mockSupabase = createMockSupabaseClient({
+    response: {
+      data: {
+        status: 'completed',
+        attributes: { category: 'Outerwear' },
+        userMessage: 'A trench coat.',
+        recommendedProducts: [
+          { id: 'p1', title: 'Trench', source: 'Burberry', price: '$2,590', type: 'retail', productUrl: 'https://example.com/c' },
+        ],
+      },
+      error: null,
+    },
+  });
+  const { analyzeTextWithEdge } = await loadTextScanEdgeWithMockSupabase(mockSupabase);
+  const result = await analyzeTextWithEdge('trench coat');
+  assert.equal(result.products[0].price, '$2,590', 'a provider string price must not be reparsed or reformatted');
+});
+
+test('RP-110 TextScan: a zero or negative numeric price yields no price at all', async () => {
+  for (const price of [0, -5]) {
+    const mockSupabase = createMockSupabaseClient({
+      response: {
+        data: {
+          status: 'completed',
+          attributes: { category: 'Tops' },
+          userMessage: 'A silk blouse.',
+          recommendedProducts: [
+            { id: 'p1', title: 'Silk Blouse', source: 'Boutique', price, currency: 'USD', type: 'retail', productUrl: 'https://example.com/b' },
+          ],
+        },
+        error: null,
+      },
+    });
+    const { analyzeTextWithEdge } = await loadTextScanEdgeWithMockSupabase(mockSupabase);
+    const result = await analyzeTextWithEdge('silk blouse');
+    assert.equal(result.products[0].price, undefined, `rendered a meaningless price for ${price}`);
   }
 });
