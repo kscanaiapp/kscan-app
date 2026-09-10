@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-10T17:06:59.146Z",
-    "generatedFromGitSha": "19e56a6406d4845f42a81340cf273e61c43ca09e"
+    "generatedAtUtc": "2026-09-10T19:33:41.983Z",
+    "generatedFromGitSha": "b8015e4f627384fc4a444a4c7d59f1656339ee04"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -1109,10 +1109,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 5,
-        "treeFileCount": 5,
-        "bundleHash": "aa3b707d2f115adc4aafe5af4df03377fa7607565f821d5b7b5cc9e6cf299cbf",
-        "treeHash": "aa3b707d2f115adc4aafe5af4df03377fa7607565f821d5b7b5cc9e6cf299cbf",
+        "bundleFileCount": 6,
+        "treeFileCount": 6,
+        "bundleHash": "4469a43fdd17d9b45de582e9fe4e7329621a664e616c153fb279f59e0bdb7f22",
+        "treeHash": "4469a43fdd17d9b45de582e9fe4e7329621a664e616c153fb279f59e0bdb7f22",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/appleRevocation.ts",
@@ -1130,13 +1130,18 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/_shared/deletion/workerMode.ts",
+            "sha256": "8f3b8e14a0fd90206fddf7b9153a51d7dd403aae59e9b1d1708c02f01bfa57c8",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/_shared/revenuecat/revenueCatClient.ts",
             "sha256": "83ba5ec496d881a201cfd8e5d0386636adfaa9a62093afc808178a900c096a7b",
             "bundle": true
           },
           {
             "path": "supabase/functions/process-account-deletions/index.ts",
-            "sha256": "b37ae4f8f01d7e350257e5b798c0f33bf16cf7ae5704d2134bc3aea0bac4a123",
+            "sha256": "95be6971020864d6ca814a83126fed52640fc07ef03662e094c1bedc7b09115c",
             "bundle": true
           }
         ]
