@@ -87,12 +87,22 @@ test('mut-brand-substituted-as-retailer: the original doctrine scenario expects 
   const original = byId.get(mutation.mutationOf).record;
   assert.equal(original.expected.resolvedRetailer, null);
   assert.equal(original.input.brand, mutation.mutatedValue, 'sanity: the mutated value must be the record\'s own brand field');
-  // Finding F1 cross-check: real source call sites DO make exactly this
-  // substitution today (see ri-fallback-divergence-finding), which is why
-  // this mutation encodes a real risk, not a hypothetical one.
+  // Finding F1 update (Build 35 convergence, post-#339): the two call sites
+  // that used to make exactly this substitution (getRetailer,
+  // normalizePurchaseOptions) were repaired to drop brand from their
+  // fallback chains entirely -- verified directly against current source.
+  // This mutation is still a valid corpus doctrine negative control on its
+  // own (the assertions above don't depend on real call-site behavior), but
+  // asserting "a real call site does this today" would now be false. Assert
+  // the inverse instead, so this test starts failing loudly -- not silently
+  // stays green for the wrong reason -- if brand-substitution ever regresses.
   const findingScenario = byId.get('ri-fallback-divergence-finding').record;
   const brandSubstitutingCallSite = findingScenario.expected.callSites.find((c) => c.violation.includes('substitutes brand'));
-  assert.ok(brandSubstitutingCallSite, 'expected Finding F1 evidence of a real brand-substituting call site');
+  assert.equal(
+    brandSubstitutingCallSite,
+    undefined,
+    'Finding F1 brand-substitution should be CLOSED (Commerce V2, #339) -- if this fires, either the fixture is stale or the fix regressed',
+  );
 });
 
 test('mut-wrong-logo-identity: the retailerKey fixture convention scenario does not license swapping in a different retailer\'s key', () => {

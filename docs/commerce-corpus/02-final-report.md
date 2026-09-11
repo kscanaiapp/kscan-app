@@ -232,12 +232,22 @@ offers as "the same product across retailers" (see Section G).
 All recorded here per Section 52 (Diff Fence) — **none repaired in this
 lane**:
 
-1. **F1 — retailer-resolution divergence.** 3 real call sites, 3 different
+1. **F1 — retailer-resolution divergence.** ~~3 real call sites, 3 different
    fallback orders; 2 substitute brand (or provider name) for an absent
-   retailer. `components/ProductShelf.tsx:165-172`,
-   `services/dressingRoomCommerce.ts` (persisted normalizer),
-   `components/scan-results/types.ts:288-294`. Reproduced in
-   `retailer-identity/brand-retailer-provider.json#ri-fallback-divergence-finding`.
+   retailer.~~ **PARTIALLY CLOSED (Build 35 convergence, post-#339,
+   2026-09-10):** Commerce V2 removed the brand fallback from
+   `components/ProductShelf.tsx`'s `getRetailer()` and
+   `services/dressingRoomCommerce.ts`'s persisted normalizer — verified
+   directly against current source and empirically against the finding's own
+   input. All four tracked call sites (adding
+   `components/scan-results/types.ts:288-294` and its `mapLegacyToV2`
+   sibling, which never substituted brand) now resolve the same way; the
+   three-way divergence is closed. Still open: none of the four leave
+   retailer genuinely `null` when only a provider/source string is available
+   — that doctrine target is unmet. Reproduced (current state) in
+   `retailer-identity/brand-retailer-provider.json#ri-fallback-divergence-finding`;
+   regression-guarded in `__tests__/commerce-corpus/mutationSuite.test.js`
+   (`mut-brand-substituted-as-retailer`).
 2. **F2 — grouping mechanism is fuzzy, dormant, and self-flagged unsafe.**
    `supabase/functions/scan-identify/canonicalCommerce.ts:133-141`
    (`canonicalProductKey`), dormant since `canonicalProducts` is unconsumed

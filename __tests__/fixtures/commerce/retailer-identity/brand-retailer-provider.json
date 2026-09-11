@@ -87,7 +87,7 @@
     },
     {
       "scenarioId": "ri-fallback-divergence-finding",
-      "description": "Reproduces Finding F1: the exact same raw commerce record, run through the three real retailer-resolution call sites that exist in source today, produces THREE DIFFERENT results for 'who is the retailer'. This scenario documents current (non-doctrine-compliant) behavior for regression-tracking, not the desired outcome.",
+      "description": "Reproduces Finding F1 (Build 35 convergence update, post-#339): the exact same raw commerce record, run through the four real retailer-resolution call sites that exist in source today, now produces the SAME result for 'who is the retailer' across all four -- Commerce V2 (PR #339) removed the brand fallback from the two call sites that used to substitute it. This scenario now documents the post-fix behavior for regression-tracking: all four call sites are internally consistent, but none yet meet the doctrine target of leaving retailer genuinely unknown when only a provider/source string is available.",
       "evidenceClass": "SOURCE-SHAPE",
       "tags": ["retailer-truth", "brand-retailer", "pr-a-support"],
       "input": {
@@ -102,19 +102,19 @@
         "callSites": [
           {
             "name": "getRetailer",
-            "file": "components/ProductShelf.tsx:165-172",
-            "fallbackOrder": ["retailer", "brand", "source", "merchant", "store"],
-            "resolvedRetailerToday": "Ganni",
+            "file": "components/ProductShelf.tsx:171-178",
+            "fallbackOrder": ["retailer", "source", "merchant", "store"],
+            "resolvedRetailerToday": "brave",
             "matchesDoctrine": false,
-            "violation": "substitutes brand for retailer"
+            "violation": "CLOSED (Commerce V2, #339): brand fallback removed. Remaining violation: substitutes provider name for retailer, same softer category as the other two call sites"
           },
           {
             "name": "normalizePurchaseOptions (persisted)",
-            "file": "services/dressingRoomCommerce.ts (retailer resolution, ~line 221-226)",
-            "fallbackOrder": ["retailer", "brand", "merchant", "store", "source"],
-            "resolvedRetailerToday": "Ganni",
+            "file": "services/dressingRoomCommerce.ts (retailer resolution, ~line 226-230)",
+            "fallbackOrder": ["retailer", "merchant", "store", "source"],
+            "resolvedRetailerToday": "brave",
             "matchesDoctrine": false,
-            "violation": "substitutes brand for retailer, and does so before checking source"
+            "violation": "CLOSED (Commerce V2, #339): brand fallback removed, per the seller-truth repair comment at this call site. Remaining violation: substitutes provider name for retailer, same softer category as the other two call sites"
           },
           {
             "name": "mapRawProductToPurchaseOption",
@@ -122,7 +122,7 @@
             "fallbackOrder": ["retailer", "source", "literal 'Retailer'"],
             "resolvedRetailerToday": "brave",
             "matchesDoctrine": false,
-            "violation": "substitutes provider name for retailer (softer than brand-substitution, still not a verified retailer)"
+            "violation": "substitutes provider name for retailer (unchanged by #339, still not a verified retailer)"
           },
           {
             "name": "mapLegacyToV2 similarFinds mapping",
@@ -133,9 +133,9 @@
             "violation": "same as above; still not the one call site that leaves retailer genuinely unknown in this particular input (that path only leaves it unknown when source is ALSO absent)"
           }
         ],
-        "consistentAcrossCallSites": false
+        "consistentAcrossCallSites": true
       },
-      "notes": "RECORDED FINDING, NOT FIXED IN THIS LANE (Section 52 Diff Fence). This is the mechanical reproduction backing docs/commerce-corpus/01-commerce-shape-census.md Finding F1 and docs/commerce-corpus/02-final-report.md Findings Ledger. A future PR A change that unifies retailer resolution should make this scenario's four callSites entries converge to resolvedRetailerToday: null / matchesDoctrine: true."
+      "notes": "UPDATED FINDING (Build 35 convergence, post-#339): the brand-substitution half of F1 is CLOSED -- verified directly against current source for both components/ProductShelf.tsx getRetailer and services/dressingRoomCommerce.ts's persisted normalizer, and empirically against normalizePurchaseOptions() with this exact input (resolves to 'brave', not 'Ganni'). The four call sites now converge on the SAME (non-brand) answer, closing the 'three different results' divergence this finding originally reported. Doctrine is still not fully met: converging on the provider/source string is not the same as leaving retailer genuinely unknown (resolvedRetailerToday: null), which remains open per docs/commerce-corpus/01-commerce-shape-census.md Finding F1 and docs/commerce-corpus/02-final-report.md Findings Ledger."
     },
     {
       "scenarioId": "ri-stable-retailer-key-fixture-values",

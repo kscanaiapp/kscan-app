@@ -99,6 +99,24 @@ The corpus's `retailer-identity` fixtures encode the *correct* doctrine
 separately include a fixture pair that reproduces this exact divergence so a
 future PR A change can be regression-tested against it.
 
+> **UPDATE (Build 35 convergence, post-#339, 2026-09-10):** call sites 1 and
+> 2 above were repaired by Commerce V2 (PR #339, "seller-truth repairs") —
+> verified directly against current source. `getRetailer()` is now
+> `[retailer, source, merchant, store]` and `normalizePurchaseOptions()` is
+> now `[retailer, merchant, store, source]`; **neither reads `brand` at
+> all.** Re-run empirically against the exact `ri-fallback-divergence-finding`
+> input: all four call sites now resolve to `"brave"` (the provider), not a
+> mix including `"Ganni"` (the brand) — the three-way divergence this finding
+> reported is closed, and the brand-substitution defect described in the
+> "Product implication" paragraph above no longer reproduces. **Doctrine is
+> still not fully met**: converging on the provider/source string is not the
+> same as leaving retailer genuinely `null` when no seller-authoritative
+> field exists (the standard call site 4 already met). See the updated
+> `ri-fallback-divergence-finding` fixture
+> (`__tests__/fixtures/commerce/retailer-identity/brand-retailer-provider.json`)
+> and `docs/commerce-corpus/02-final-report.md` Findings Ledger for the
+> current, non-stale record.
+
 ## 3. Finding F2 — the only cross-retailer grouping mechanism is fuzzy, dormant, and self-flagged as unsafe
 
 `canonicalProductKey()` (`supabase/functions/scan-identify/canonicalCommerce.ts:133-141`)
@@ -286,7 +304,7 @@ follows the same precedent:
 
 | Question | Answer |
 |---|---|
-| Brand vs retailer known? | Doctrine exists; **2 of 4** real call sites violate it (Finding F1) |
+| Brand vs retailer known? | Doctrine exists; brand-substitution **CLOSED post-#339** (Finding F1 update) — 0 of 4 call sites now substitute brand, though none yet meet the stricter "unknown stays unknown" target |
 | Same retailer resolves consistently? | **No** — three divergent fallback chains |
 | Unknown retailer stays unknown? | Only in `mapLegacyToV2`'s `similarFinds` path |
 | Retail/Resale represented truthfully? | Yes, but only Poshmark ever sets Resale |
