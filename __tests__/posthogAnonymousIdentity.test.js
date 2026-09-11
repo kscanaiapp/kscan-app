@@ -23,12 +23,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
 
-const ROOT = path.join(__dirname, '..');
-const REGISTER = path.join(__dirname, 'helpers', 'posthogContainmentRegister.mjs');
+const { runProbeProcess } = require('./helpers/posthogProbeSpawn.js');
+
 const PROBE = path.join(__dirname, 'helpers', 'posthogIdentityProbe.mjs');
-const CORE = path.join(ROOT, 'services', 'analytics', 'posthogClient.core.ts');
 
 // Loaded defensively rather than destructured, so that when this suite is run
 // against a PRE-REPAIR adapter (the negative control below) the end-to-end
@@ -59,11 +57,7 @@ function runLifecycle(steps) {
   env.EXPO_PUBLIC_POSTHOG_API_KEY = 'phc_identityprobe';
   env.EXPO_PUBLIC_POSTHOG_HOST = 'https://example.invalid';
 
-  const result = spawnSync(
-    process.execPath,
-    ['--import', REGISTER, PROBE, CORE, JSON.stringify(steps)],
-    { encoding: 'utf8', env },
-  );
+  const result = runProbeProcess(PROBE, [JSON.stringify(steps)], env);
   assert.equal(
     result.status,
     0,
