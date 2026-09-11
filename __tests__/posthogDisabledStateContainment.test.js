@@ -28,12 +28,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
 
-const ROOT = path.join(__dirname, '..');
-const REGISTER = path.join(__dirname, 'helpers', 'posthogContainmentRegister.mjs');
+const { runProbeProcess } = require('./helpers/posthogProbeSpawn.js');
+
 const PROBE = path.join(__dirname, 'helpers', 'posthogContainmentProbe.mjs');
-const CORE = path.join(ROOT, 'services', 'analytics', 'posthogClient.core.ts');
 
 const KEY = 'EXPO_PUBLIC_POSTHOG_API_KEY';
 const HOST = 'EXPO_PUBLIC_POSTHOG_HOST';
@@ -51,10 +49,7 @@ function probe(overrides) {
     if (value !== undefined) env[name] = value;
   }
 
-  const result = spawnSync(process.execPath, ['--import', REGISTER, PROBE, CORE], {
-    encoding: 'utf8',
-    env,
-  });
+  const result = runProbeProcess(PROBE, [], env);
 
   assert.equal(
     result.status,

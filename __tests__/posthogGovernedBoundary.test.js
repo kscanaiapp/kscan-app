@@ -20,12 +20,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
 
-const ROOT = path.join(__dirname, '..');
-const REGISTER = path.join(__dirname, 'helpers', 'posthogContainmentRegister.mjs');
+const { runProbeProcess } = require('./helpers/posthogProbeSpawn.js');
+
 const PROBE = path.join(__dirname, 'helpers', 'posthogBoundaryProbe.mjs');
-const CORE = path.join(ROOT, 'services', 'analytics', 'posthogClient.core.ts');
 
 // A real, registered event with a real, allowlisted property.
 const GOVERNED_EVENT = 'closet_candidate_created';
@@ -40,11 +38,7 @@ function runProbe(spec) {
   env.EXPO_PUBLIC_POSTHOG_API_KEY = 'phc_boundaryprobe';
   env.EXPO_PUBLIC_POSTHOG_HOST = 'https://example.invalid';
 
-  const result = spawnSync(
-    process.execPath,
-    ['--import', REGISTER, PROBE, CORE, JSON.stringify(spec)],
-    { encoding: 'utf8', env },
-  );
+  const result = runProbeProcess(PROBE, [JSON.stringify(spec)], env);
   assert.equal(
     result.status,
     0,
