@@ -1,0 +1,104 @@
+{
+  "commerceCorpusFixtureVersion": 1,
+  "category": "accessibility-data",
+  "records": [
+    {
+      "scenarioId": "a11y-product-retailer-price-facts",
+      "description": "For a single offer record, the semantic facts an accessibility label could be built from (title presence, retailer known/unknown, price/currency known/unknown, commerce type retail/resale/unknown) must be programmatically available; exact label copy is not asserted here, only the underlying facts plus one provisional example.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["pr-b-support"],
+      "input": {
+        "id": "offer-a11y-001",
+        "title": "Wool Blend Overcoat",
+        "retailer": "Nordstrom",
+        "source": "serper",
+        "price": "$395.00",
+        "currency": "USD",
+        "productUrl": "https://www.nordstrom.com/s/theory-wool-blend-overcoat/1234567",
+        "type": "retail"
+      },
+      "expected": {
+        "presentationStatus": "PROVISIONAL PRESENTATION TEMPLATE",
+        "semanticFacts": {
+          "titlePresent": true,
+          "retailerKnown": true,
+          "priceKnown": true,
+          "currencyKnown": true,
+          "commerceType": "retail"
+        },
+        "provisionalExampleSentence": "PROVISIONAL PRESENTATION TEMPLATE: 'Wool Blend Overcoat, $395.00, from Nordstrom.'"
+      },
+      "notes": "shoppingProvider.ts:15-45 (RecommendedProduct) is the source of the title/price/currency/commerceType fields these facts are derived from; Section 40 says exact accessibility copy is not this corpus's authority, only the underlying semantic facts, so the example sentence is marked provisional."
+    },
+    {
+      "scenarioId": "a11y-watch-state-fact",
+      "description": "For an offer carrying a watchCapability value, the semantic fact 'watch available: true/false' must be programmatically available; exact phrasing is provisional.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["pr-b-support"],
+      "input": {
+        "id": "offer-a11y-002",
+        "title": "Marc Jacobs Sac de Jour Bag",
+        "retailer": "Farfetch",
+        "source": "farfetch",
+        "price": "$1,290.00",
+        "currency": "USD",
+        "productUrl": "https://www.farfetch.com/shopping/women/marc-jacobs-sac-a-main-item-14568802.aspx",
+        "type": "retail",
+        "watchCapability": "refreshable_listing"
+      },
+      "expected": {
+        "presentationStatus": "PROVISIONAL PRESENTATION TEMPLATE",
+        "semanticFacts": {
+          "watchAvailable": true
+        },
+        "provisionalExamplePhrase": "PROVISIONAL PRESENTATION TEMPLATE: 'Watch available for price updates.'"
+      },
+      "notes": "types/watchlist.ts:60-62 (isWatchableListing) is the real boolean derivation this semantic fact maps to; the phrase itself is provisional per Section 40."
+    },
+    {
+      "scenarioId": "a11y-purchase-option-count-fact",
+      "description": "For a Where-to-Buy-style list of N offers, the semantic fact 'number of purchase options: N' must be programmatically available; exact phrasing is provisional.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["pr-b-support"],
+      "input": {
+        "offers": [
+          {
+            "id": "offer-a11y-003",
+            "retailer": "Farfetch",
+            "source": "farfetch",
+            "price": "$980.00",
+            "currency": "USD",
+            "productUrl": "https://www.farfetch.com/shopping/women/item-14568803.aspx",
+            "type": "retail"
+          },
+          {
+            "id": "offer-a11y-004",
+            "retailer": "Zappos",
+            "source": "serper",
+            "price": "$1,050.00",
+            "currency": "USD",
+            "productUrl": "https://www.zappos.com/p/item/product/1234599",
+            "type": "retail"
+          },
+          {
+            "id": "offer-a11y-005",
+            "retailer": "Nordstrom",
+            "source": "serper",
+            "price": "$899.00",
+            "currency": "USD",
+            "productUrl": "https://www.nordstrom.com/s/item/3456790",
+            "type": "retail"
+          }
+        ]
+      },
+      "expected": {
+        "presentationStatus": "PROVISIONAL PRESENTATION TEMPLATE",
+        "semanticFacts": {
+          "numberOfPurchaseOptions": 3
+        },
+        "provisionalExamplePhrase": "PROVISIONAL PRESENTATION TEMPLATE: '3 ways to buy this item.'"
+      },
+      "notes": "services/multiItemCommerce.ts's ordering-preservation doctrine (lines 44-48) means the count of offers in a Where to Buy list is a straightforward array length; the count fact itself is real, the example phrase is provisional per Section 40."
+    }
+  ]
+}

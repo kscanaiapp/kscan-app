@@ -1,0 +1,274 @@
+{
+  "commerceCorpusFixtureVersion": 1,
+  "category": "failure",
+  "records": [
+    {
+      "scenarioId": "fail-no-products",
+      "description": "A commerce fetch completes with a genuinely empty result set; this must render as an empty state, not an error state.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["failure", "pr-c-support"],
+      "input": {
+        "candidateId": "cand-empty-1",
+        "status": "no_match",
+        "bestMatch": null,
+        "alternatives": [],
+        "retryable": false
+      },
+      "expected": {
+        "uiState": "empty",
+        "isErrorState": false
+      },
+      "notes": "services/multiItemCommerce.ts:59-88 (toCardStatus/GENUINE_NO_MATCH_ERROR_TYPES) — an empty shelf with no errorType or errorType 'no_results' maps to status 'no_match', which is a genuine 'nothing found' state, distinct from an error."
+    },
+    {
+      "scenarioId": "fail-commerce-pending",
+      "description": "A commerce fetch is still in flight; this must render as a loading/pending state, not as empty and not as an error.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["failure", "pr-c-support"],
+      "input": {
+        "candidateId": "cand-pending-1",
+        "status": "pending"
+      },
+      "expected": {
+        "uiState": "loading",
+        "isEmptyState": false,
+        "isErrorState": false
+      },
+      "notes": "SYNTHETIC — ItemCommerceCard.status (services/multiItemCommerce.ts:20-28) is only ever 'ready' | 'no_match' | 'error' once a card exists in the result Map; a card absent from the Map while its fetch is still in flight is the real mechanism for pending, but no dedicated 'pending' status literal was found in source, so this fixture describes the required UI state rather than citing a status enum value."
+    },
+    {
+      "scenarioId": "fail-commerce-error",
+      "description": "A commerce fetch fails with a non-no_results errorType (e.g. provider_error); this must render as a distinct error state, never conflated with a genuine no-match.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["failure", "pr-c-support"],
+      "input": {
+        "candidateId": "cand-error-1",
+        "status": "error",
+        "bestMatch": null,
+        "alternatives": [],
+        "retryable": true,
+        "errorType": "provider_error"
+      },
+      "expected": {
+        "uiState": "error",
+        "conflatedWithNoMatch": false
+      },
+      "notes": "services/multiItemCommerce.ts:58-88 (toCardStatus) — any errorType other than 'no_results' (provider_error, no_key, disabled, timeout) maps to 'error', never 'no_match'; the code comment explains a provider outage must not be rendered as a statement about the garment ('nothing found')."
+    },
+    {
+      "scenarioId": "fail-retryable-error",
+      "description": "An error card marked retryable: true must offer a retry action.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["failure", "pr-c-support"],
+      "input": {
+        "candidateId": "cand-error-2",
+        "status": "error",
+        "bestMatch": null,
+        "alternatives": [],
+        "retryable": true
+      },
+      "expected": {
+        "retryActionOffered": true
+      },
+      "notes": "services/multiItemCommerce.ts:22-28 — ItemCommerceCard.retryable is a first-class boolean field distinct from status, meant to gate whether a retry action is offered."
+    },
+    {
+      "scenarioId": "fail-non-retryable-error",
+      "description": "An error card marked retryable: false must not offer a retry action.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["failure", "pr-c-support"],
+      "input": {
+        "candidateId": "cand-error-3",
+        "status": "error",
+        "bestMatch": null,
+        "alternatives": [],
+        "retryable": false
+      },
+      "expected": {
+        "retryActionOffered": false
+      },
+      "notes": "SYNTHETIC — strengthens the retryable-boundary pair alongside fail-retryable-error; grounded in the same retryable field (services/multiItemCommerce.ts:22-28) but the specific non-retryable-error case was not independently observed as a real fixture, so it is marked SYNTHETIC."
+    },
+    {
+      "scenarioId": "fail-missing-required-fields",
+      "description": "Five otherwise-valid offer records, each missing exactly one required field (title, retailer, imageUrl, price, productUrl), must each degrade safely without crashing and without fabricating a stand-in value for the missing field.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["failure", "pr-b-support"],
+      "input": [
+        {
+          "id": "offer-missing-title",
+          "retailer": "Nordstrom",
+          "source": "serper",
+          "price": "$45.00",
+          "currency": "USD",
+          "productUrl": "https://www.nordstrom.com/s/item/9100001",
+          "imageUrl": "https://example-cdn.nordstrom.com/images/item-9100001.jpg",
+          "type": "retail"
+        },
+        {
+          "id": "offer-missing-retailer",
+          "title": "Striped Cotton Shirt",
+          "source": "brave",
+          "price": "$38.00",
+          "currency": "USD",
+          "productUrl": "https://www.example-shop.test/product/9100002",
+          "imageUrl": "https://example-cdn.example-shop.test/images/item-9100002.jpg",
+          "type": "retail"
+        },
+        {
+          "id": "offer-missing-imageurl",
+          "title": "Canvas Tote Bag",
+          "retailer": "Zappos",
+          "source": "serper",
+          "price": "$32.00",
+          "currency": "USD",
+          "productUrl": "https://www.zappos.com/p/item/product/9100003",
+          "type": "retail"
+        },
+        {
+          "id": "offer-missing-price",
+          "title": "Merino Wool Beanie",
+          "retailer": "SSENSE",
+          "source": "brave",
+          "productUrl": "https://www.ssense.com/en-us/women/product/item/9100004",
+          "imageUrl": "https://example-cdn.ssense.com/images/item-9100004.jpg",
+          "type": "retail"
+        },
+        {
+          "id": "offer-missing-producturl",
+          "title": "Leather Belt",
+          "retailer": "Farfetch",
+          "source": "farfetch",
+          "price": "$150.00",
+          "currency": "USD",
+          "imageUrl": "https://example-cdn.farfetch.com/images/item-9100005.jpg",
+          "type": "retail"
+        }
+      ],
+      "expected": [
+        {
+          "missingField": "title",
+          "crash": false,
+          "rendering": "fallback title placeholder shown",
+          "fabricatedValue": false
+        },
+        {
+          "missingField": "retailer",
+          "crash": false,
+          "rendering": "neutral retailer placeholder shown, no claim of a specific real retailer name",
+          "fabricatedValue": false
+        },
+        {
+          "missingField": "imageUrl",
+          "crash": false,
+          "rendering": "no-image-state (placeholder graphic, not a broken image)",
+          "fabricatedValue": false
+        },
+        {
+          "missingField": "price",
+          "crash": false,
+          "rendering": "no price shown; not rendered as $0.00 or any other invented amount",
+          "fabricatedValue": false
+        },
+        {
+          "missingField": "productUrl",
+          "crash": false,
+          "rendering": "no Shop action offered",
+          "fabricatedValue": false
+        }
+      ],
+      "notes": "SYNTHETIC boundary probes: these are deliberately invented missing-field cases with no single real-source fixture to cite. The doctrine each expected outcome follows is that a missing field may render a neutral placeholder or omission, but must never be presented as a fabricated real value (e.g. missing retailer must never silently become the literal string 'Unknown Retailer' asserted with false confidence as if it were provider-supplied data) — precision here is about what is actually claimed vs. displayed."
+    },
+    {
+      "scenarioId": "fail-unsafe-url-rejected",
+      "description": "An offer whose only productUrl is unsafe (embedded credentials) must render with the Shop action suppressed, not crash.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["failure", "pr-c-support", "unsafe-url"],
+      "input": {
+        "id": "offer-unsafe-url-001",
+        "title": "Silk Blouse",
+        "retailer": "SuspiciousShop",
+        "source": "brave",
+        "price": "$40.00",
+        "currency": "USD",
+        "productUrl": "https://user:pass@www.suspicious-shop.test/product/9200001",
+        "type": "retail"
+      },
+      "expected": {
+        "safeUrl": null,
+        "shopActionSuppressed": true,
+        "crash": false
+      },
+      "notes": "services/commerceDestination.ts (isSafeCommerceUrl) — a URL with embedded credentials (parsed.username || parsed.password) returns null; selectCommerceDestination skips unsafe candidates individually so the record still renders with the action suppressed rather than crashing."
+    },
+    {
+      "scenarioId": "fail-listing-unavailable",
+      "description": "A listing whose availability indicates it is gone must be shown as unavailable truthfully, without crashing; Watch behavior on an unavailable listing is described conservatively since it was not independently verified.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["failure", "pr-b-support"],
+      "input": {
+        "id": "offer-unavailable-001",
+        "title": "Pleated Skirt",
+        "retailer": "Nordstrom",
+        "source": "serper",
+        "price": "$65.00",
+        "currency": "USD",
+        "productUrl": "https://www.nordstrom.com/s/item/9300001",
+        "type": "retail",
+        "availability": "out_of_stock",
+        "watchCapability": "unsupported"
+      },
+      "expected": {
+        "availabilityLabel": "Out of Stock",
+        "crash": false,
+        "unavailabilitySurfacedTruthfully": true,
+        "watchOnUnavailableListing": "SYNTHETIC nuance — not asserted here whether Watch could still be offered to notify on restock; only the safe, verified facts are asserted (no crash, availability shown truthfully)"
+      },
+      "notes": "components/scan-results/types.ts:213-221 (availabilityLabel()) normalizes 'out_of_stock' to 'Out of Stock'. Whether a Watch action could exist specifically to notify on restock for an unavailable listing was not verified in any real source file, so that nuance is marked SYNTHETIC/unclaimed rather than asserted as a real behavior."
+    },
+    {
+      "scenarioId": "fail-watch-unsupported",
+      "description": "A listing with watchCapability: 'unsupported' must not offer a Watch action; this is a normal, expected, non-error state.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["failure", "pr-b-support", "not-watchable"],
+      "input": {
+        "id": "offer-watch-unsupported-001",
+        "title": "Canvas Sneakers",
+        "retailer": "Zappos",
+        "source": "serper",
+        "price": "$55.00",
+        "currency": "USD",
+        "productUrl": "https://www.zappos.com/p/item/product/9400001",
+        "type": "retail",
+        "watchCapability": "unsupported"
+      },
+      "expected": {
+        "watchActionOffered": false,
+        "isErrorState": false,
+        "isNormalExpectedState": true
+      },
+      "notes": "types/watchlist.ts:56-62, watchlistCapability.ts:63-86 — 'unsupported' is a normal, expected value for any provider outside the two-entry registry, not a failure signal; the card still renders exactly as it would without Watch at all."
+    },
+    {
+      "scenarioId": "fail-callback-ordering",
+      "description": "A general async-safety property for stale/duplicate/late commerce callbacks: the UI must reflect only the latest request's result, must not double-apply a duplicate response, and must not apply a late response to a candidate/screen that has moved on.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["failure", "pr-c-support"],
+      "input": {
+        "candidateId": "cand-race-1",
+        "requestSequence": [
+          { "requestId": "req-1", "issuedAtMs": 0, "resolvesAtMs": 300 },
+          { "requestId": "req-2", "issuedAtMs": 100, "resolvesAtMs": 150 },
+          { "requestId": "req-2-duplicate-delivery", "issuedAtMs": 100, "resolvesAtMs": 150 }
+        ],
+        "userNavigatedAwayAtMs": 400
+      },
+      "expected": {
+        "latestOnly": "only req-2's result is applied to cand-race-1's card, even though req-1 (issued earlier) resolves later at 300ms",
+        "noDoubleApply": "req-2's duplicate delivery at 150ms must not be applied a second time",
+        "noApplyAfterNavigateAway": "no response arriving after userNavigatedAwayAtMs (400ms) may be applied to a screen/candidate the user has left"
+      },
+      "notes": "SYNTHETIC: a general async-safety property, not tied to one specific file verified for this exact behavior. Describes the required behavior for any implementation that dispatches concurrent commerce fetches per candidate/request (the same category of concern services/multiItemCommerce.ts's Promise.allSettled dispatch pattern raises, but the specific stale/duplicate/late-arrival guarantee was not independently confirmed in that file)."
+    }
+  ]
+}

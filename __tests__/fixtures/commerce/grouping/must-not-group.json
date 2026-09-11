@@ -1,0 +1,124 @@
+{
+  "commerceCorpusFixtureVersion": 1,
+  "category": "must-not-group",
+  "records": [
+    {
+      "scenarioId": "mng-same-brand-similar-title",
+      "description": "Same brand, IDENTICAL marketing title, two different retailers, two different colorways (carried only in the variant field, which the title text does not mention). canonicalProductKey reads only brand+title, never variant/color, so this is EXACTLY the shape of listing the real, dormant algorithm would collapse together -- and exactly the shape the corpus's doctrine requires stay separate absent an exact identity match.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["must-not-group", "brand-retailer", "pr-c-support"],
+      "input": {
+        "offers": [
+          { "retailer": "Farfetch", "brand": "Ganni", "title": "Ganni Printed Mesh Dress", "variant": "black", "productId": "FF-99231-08" },
+          { "retailer": "SSENSE", "brand": "Ganni", "title": "Ganni Printed Mesh Dress", "variant": "green", "productId": "SS-44120-02" }
+        ]
+      },
+      "expected": { "mustGroup": false, "reason": "identical-title-different-colorway-is-not-exact-identity" },
+      "notes": "Directly models supabase/functions/scan-identify/canonicalCommerce.ts:133-141 canonicalProductKey's real, EMPIRICALLY VERIFIED behavior (see __tests__/commerce-corpus/groupingDoctrine.test.js, which calls the real function on this exact fixture): the key is computed from brand + up-to-8 normalized title TOKENS only -- it never reads `variant`/`color` -- so two colorways sharing one marketing title produce the IDENTICAL key. A merely 'similar but not identical' title (e.g. one listing adding a size word or reordering words) does NOT reliably collide, because titleIdentityTokens() compares the full sorted token SET; this fixture uses the realistic colorway-collision shape the algorithm's own author flagged as risky in supabase/functions/scan-identify/watchlistCapability.ts:9-11 ('groups colorways together and is unstable under a retailer re-title'). This is Finding F2's central evidence."
+    },
+    {
+      "scenarioId": "mng-same-image-different-sku",
+      "description": "Two listings sharing the exact same product photo but different SKU/productId values must stay separate — a shared stock photo is not proof of shared identity (retailers frequently reuse manufacturer stock photography across different variants or even different products).",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["must-not-group"],
+      "input": {
+        "offers": [
+          { "retailer": "Nordstrom", "imageUrl": "https://images.example-cdn.test/stock/jacket-navy.jpg", "productId": "NRD-1001" },
+          { "retailer": "Zappos", "imageUrl": "https://images.example-cdn.test/stock/jacket-navy.jpg", "productId": "ZAP-5544" }
+        ]
+      },
+      "expected": { "mustGroup": false, "reason": "shared-image-is-not-identity" }
+    },
+    {
+      "scenarioId": "mng-same-brand-same-color",
+      "description": "Same brand and same color description is still not enough to prove identity — many products from one brand share both.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["must-not-group", "brand-retailer"],
+      "input": {
+        "offers": [
+          { "retailer": "Farfetch", "brand": "Acne Studios", "variant": "black", "title": "Acne Studios Oversized Wool Coat" },
+          { "retailer": "SSENSE", "brand": "Acne Studios", "variant": "black", "title": "Acne Studios Cropped Wool Jacket" }
+        ]
+      },
+      "expected": { "mustGroup": false, "reason": "shared-brand-and-color-is-not-identity" }
+    },
+    {
+      "scenarioId": "mng-title-typo",
+      "description": "A one-character title typo between two listings (e.g. a transposed letter) must not be treated as proof they are the same listing at two retailers — a fuzzy/edit-distance match is exactly the kind of implicit identity this corpus forbids.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["must-not-group"],
+      "input": {
+        "offers": [
+          { "retailer": "Nordstrom", "title": "Mango Ribbed Cropped Sweater" },
+          { "retailer": "Zappos", "title": "Magno Ribbed Cropped Sweater" }
+        ]
+      },
+      "expected": { "mustGroup": false, "reason": "near-identical-title-is-not-identity" }
+    },
+    {
+      "scenarioId": "mng-same-category",
+      "description": "Two entirely different products in the same category (e.g. two different sneakers) must never be grouped merely for sharing a category.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["must-not-group"],
+      "input": {
+        "offers": [
+          { "retailer": "KicksCrew", "category": "sneakers", "title": "Air Max 90 White/Grey" },
+          { "retailer": "KicksCrew", "category": "sneakers", "title": "Air Force 1 Low White" }
+        ]
+      },
+      "expected": { "mustGroup": false, "reason": "shared-category-is-not-identity" }
+    },
+    {
+      "scenarioId": "mng-same-retailer-similar-names",
+      "description": "Two listings from the SAME retailer with similar names must still stay separate absent an exact ID match — same-retailer proximity is not identity either.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["must-not-group", "retailer-truth"],
+      "input": {
+        "offers": [
+          { "retailer": "Nordstrom", "title": "Everlane The Cashmere Crew - Grey" , "productId": "NRD-8801"},
+          { "retailer": "Nordstrom", "title": "Everlane The Cashmere Crew - Charcoal", "productId": "NRD-8802" }
+        ]
+      },
+      "expected": { "mustGroup": false, "reason": "same-retailer-and-similar-name-is-not-identity-different-productId" }
+    },
+    {
+      "scenarioId": "mng-image-similarity-only",
+      "description": "Visual/perceptual image similarity alone (no shared exact identity field at all) must never license grouping — this corpus does not endorse an image-hash-based matching heuristic as identity.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["must-not-group"],
+      "input": {
+        "offers": [
+          { "retailer": "Farfetch", "imageSimilarityScoreToSibling": 0.94, "title": "Cream Wool Blend Coat A" },
+          { "retailer": "SSENSE", "imageSimilarityScoreToSibling": 0.94, "title": "Cream Wool Blend Coat B" }
+        ]
+      },
+      "expected": { "mustGroup": false, "reason": "image-similarity-score-alone-is-not-identity" }
+    },
+    {
+      "scenarioId": "mng-same-family-different-model",
+      "description": "Two products in the same model family (e.g. two different generations/versions of the same sneaker line) must not be grouped as the same product.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["must-not-group"],
+      "input": {
+        "offers": [
+          { "retailer": "KicksCrew", "brand": "New Balance", "title": "New Balance 550 White/Green" },
+          { "retailer": "KicksCrew", "brand": "New Balance", "title": "New Balance 574 White/Green" }
+        ]
+      },
+      "expected": { "mustGroup": false, "reason": "same-family-different-model-is-not-identity" }
+    },
+    {
+      "scenarioId": "mng-visually-similar-different-item",
+      "description": "Two visually similar but genuinely different garments from different brands must never be grouped just because they look alike in a photo.",
+      "evidenceClass": "SYNTHETIC",
+      "tags": ["must-not-group", "brand-retailer"],
+      "input": {
+        "offers": [
+          { "retailer": "Zara", "brand": "Zara", "title": "Zara Oversized Denim Jacket" },
+          { "retailer": "Nordstrom", "brand": "Levi's", "title": "Levi's Oversized Trucker Jacket" }
+        ]
+      },
+      "expected": { "mustGroup": false, "reason": "visual-similarity-across-different-brands-is-not-identity" }
+    }
+  ]
+}

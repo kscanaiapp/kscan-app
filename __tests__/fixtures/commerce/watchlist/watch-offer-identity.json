@@ -1,0 +1,68 @@
+{
+  "commerceCorpusFixtureVersion": 1,
+  "category": "watch-offer-identity",
+  "records": [
+    {
+      "scenarioId": "watch-id-per-offer-independent",
+      "description": "Three offers for the same detected garment, each at a different retailer (two watch-eligible retail offers, one non-watch-eligible resale offer). Watching offer A must carry only offer A's identity (canonicalUrl, retailer, price) — never offer B's or C's.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": ["watchable", "not-watchable", "retailer-truth", "pr-c-support"],
+      "input": {
+        "offers": [
+          {
+            "offerId": "offer-a",
+            "retailer": "Farfetch",
+            "source": "farfetch",
+            "type": "retail",
+            "productUrl": "https://www.farfetch.com/shopping/item/12345.aspx",
+            "price": 340,
+            "currency": "USD",
+            "watchCapability": "refreshable_listing"
+          },
+          {
+            "offerId": "offer-b",
+            "retailer": "KicksCrew",
+            "source": "kickscrew",
+            "type": "retail",
+            "productUrl": "https://www.kickscrew.com/products/example-sneaker",
+            "price": 210,
+            "currency": "USD",
+            "watchCapability": "refreshable_listing"
+          },
+          {
+            "offerId": "offer-c",
+            "retailer": "Poshmark",
+            "source": "poshmark",
+            "type": "retail",
+            "commerceType": "resale",
+            "productUrl": "https://poshmark.com/listing/example-resale",
+            "price": 95,
+            "currency": "USD",
+            "watchCapability": "unsupported"
+          }
+        ]
+      },
+      "expected": {
+        "watches": [
+          {
+            "fromOfferId": "offer-a",
+            "watchable": true,
+            "identity": { "canonicalUrl": "https://www.farfetch.com/shopping/item/12345.aspx", "retailer": "Farfetch", "price": 340, "currency": "USD" }
+          },
+          {
+            "fromOfferId": "offer-b",
+            "watchable": true,
+            "identity": { "canonicalUrl": "https://www.kickscrew.com/products/example-sneaker", "retailer": "KicksCrew", "price": 210, "currency": "USD" }
+          },
+          {
+            "fromOfferId": "offer-c",
+            "watchable": false,
+            "identity": null
+          }
+        ],
+        "crossOfferIdentityLeakage": false
+      },
+      "notes": "types/watchlist.ts:20-36 (CommerceWatch keyed by canonicalUrl); watchlistCapability.ts:54-61 (WATCH_PROVIDER_REGISTRY: farfetch, kickscrew only, so Poshmark stays 'unsupported' even as a real retail-typed offer); components/scan-results/types.ts:19-33,303-309 (WatchCandidate derived at render time 'from the SAME canonical record this row is rendered from', named bug class DEF-WL-07 for cross-offer leakage)."
+    }
+  ]
+}

@@ -1,0 +1,213 @@
+{
+  "commerceCorpusFixtureVersion": 1,
+  "category": "price-currency",
+  "records": [
+    {
+      "scenarioId": "price-usd",
+      "description": "A finite positive numeric price with a valid USD currency code formats via Intl.NumberFormat currency style.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": [
+        "currency",
+        "pr-b-support"
+      ],
+      "input": {
+        "price": 29.99,
+        "currency": "USD"
+      },
+      "expected": {
+        "formatted": "$29.99"
+      },
+      "notes": "RP-110, services/dressingRoomCommerce.ts:120-151 (formatCommercePrice) and :99-104 (normalizeCommerceCurrency). Verified: new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(29.99) === '$29.99'."
+    },
+    {
+      "scenarioId": "price-eur",
+      "description": "A finite positive numeric price with a valid EUR currency code formats with the euro symbol.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": [
+        "currency",
+        "pr-b-support"
+      ],
+      "input": {
+        "price": 45.5,
+        "currency": "EUR"
+      },
+      "expected": {
+        "formatted": "€45.50"
+      },
+      "notes": "RP-110, services/dressingRoomCommerce.ts:120-151. Verified: Intl.NumberFormat('en-US',{style:'currency',currency:'EUR'}).format(45.5) === '€45.50'."
+    },
+    {
+      "scenarioId": "price-gbp",
+      "description": "A finite positive numeric price with a valid GBP currency code formats with the pound symbol.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": [
+        "currency",
+        "pr-b-support"
+      ],
+      "input": {
+        "price": 120,
+        "currency": "GBP"
+      },
+      "expected": {
+        "formatted": "£120.00"
+      },
+      "notes": "RP-110, services/dressingRoomCommerce.ts:120-151. Verified: Intl.NumberFormat('en-US',{style:'currency',currency:'GBP'}).format(120) === '£120.00'."
+    },
+    {
+      "scenarioId": "price-numeric-precision-variants",
+      "description": "A whole-value JPY price and a USD price with more than two source decimal places both go through the same Intl.NumberFormat currency-style call, which applies each currency's own default fraction-digit rounding rather than always forcing two decimals.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": [
+        "currency",
+        "pr-b-support"
+      ],
+      "input": [
+        {
+          "price": 3500,
+          "currency": "JPY"
+        },
+        {
+          "price": 19.999,
+          "currency": "USD"
+        }
+      ],
+      "expected": [
+        {
+          "formatted": "¥3,500"
+        },
+        {
+          "formatted": "$20.00"
+        }
+      ],
+      "notes": "CORRECTION TO BRIEF: the brief anticipated '¥3,500.00' (2 decimals) on the theory that this code path always uses default 2-decimal formatting for every currency. Directly executing the cited formatCommercePrice logic (services/dressingRoomCommerce.ts:120-151, RP-110) with Node's full-ICU Intl.NumberFormat -- `new Intl.NumberFormat('en-US',{style:'currency',currency:'JPY'}).format(3500)` -- verifiably produces '¥3,500' (0 decimals), because the app code passes only `{style:'currency', currency}` with no minimumFractionDigits/maximumFractionDigits override, so each currency's own CLDR-default fraction digits apply (0 for JPY, 2 for USD/EUR/GBP) -- this is standard Intl.NumberFormat behavior, not JPY-specific code in this app. Used the verified value rather than the brief's assumption; the 19.999 USD case verified to '$20.00' (Intl currency formatting rounds to the currency's 2 decimals, half-expand)."
+    },
+    {
+      "scenarioId": "price-input-type-variants",
+      "description": "A price given as a JS number and the identical price given as a numeric-looking string both parse to the same numeric value and produce an identical formatted string, proving type-agnostic parsing.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": [
+        "currency",
+        "pr-b-support"
+      ],
+      "input": [
+        {
+          "price": 59.99,
+          "currency": "USD"
+        },
+        {
+          "price": "59.99",
+          "currency": "USD"
+        }
+      ],
+      "expected": [
+        {
+          "formatted": "$59.99"
+        },
+        {
+          "formatted": "$59.99"
+        }
+      ],
+      "notes": "RP-110, services/dressingRoomCommerce.ts:127-132: `typeof price === 'number' ? price : (typeof price === 'string' && /^\\d+(?:\\.\\d+)?$/.test(...) ? Number(...) : null)` -- a numeric-looking string is parsed identically to a number before formatting."
+    },
+    {
+      "scenarioId": "price-null-price",
+      "description": "A null price with a currency present still formats to null: currency alone never implies a price.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": [
+        "currency",
+        "pr-b-support"
+      ],
+      "input": {
+        "price": null,
+        "currency": "USD"
+      },
+      "expected": {
+        "formatted": null
+      },
+      "notes": "RP-110, services/dressingRoomCommerce.ts:124: `if (price === null || price === undefined) return null;` -- checked before currency is even read."
+    },
+    {
+      "scenarioId": "price-missing-currency",
+      "description": "A finite positive numeric price with no currency at all formats as the bare number with no symbol, no code, and no locale guess.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": [
+        "currency",
+        "pr-b-support"
+      ],
+      "input": {
+        "price": 40
+      },
+      "expected": {
+        "formatted": "40.00"
+      },
+      "notes": "RP-110, services/dressingRoomCommerce.ts:136: `if (!currencyCode) return numeric.toFixed(2);` -- never a '$', never a USD guess, never a locale-based guess, per the function's own doc comment at :106-119."
+    },
+    {
+      "scenarioId": "price-unknown-currency-code",
+      "description": "A well-formed-looking but non-real 3-letter currency code passes shape validation, then is accepted directly by Intl.NumberFormat (which does not validate against the real ISO-4217 list either) and rendered using the code itself as the symbol, rather than being treated as unknown.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": [
+        "currency",
+        "pr-b-support"
+      ],
+      "input": {
+        "price": 40,
+        "currency": "XYZ"
+      },
+      "expected": {
+        "formatted": "XYZ 40.00"
+      },
+      "notes": "CORRECTION, verified directly: `new Intl.NumberFormat('en-US',{style:'currency',currency:'XYZ'})` does NOT throw in this Node runtime -- it succeeds, using the currency code itself as the display symbol, joined to the amount with a NON-BREAKING SPACE (U+00A0), because ICU has no real symbol for an unrecognized code. So formatCommercePrice's try/catch fallback (services/dressingRoomCommerce.ts:136-144) is never reached for this input; the success path (`Intl.NumberFormat(...).format(numeric)`) produces this output directly. Finding F5 stands, more strongly than originally stated: normalizeCommerceCurrency (services/dressingRoomCommerce.ts:99-104) checks only /^[a-z]{3}$/i -- the SHAPE of a currency code, never the real ISO-4217 list -- and Intl.NumberFormat itself performs no such validation either, so a fake code like XYZ is treated as fully valid currency input at every layer, not merely caught by a fallback branch."
+    },
+    {
+      "scenarioId": "price-currency-embedded-in-source-string",
+      "description": "An already-provider-formatted price string with no separate currency field passes through unchanged, because it is not purely numeric and is not one of the null-triggering empty/zero literals.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": [
+        "currency",
+        "pr-b-support"
+      ],
+      "input": {
+        "price": "€25 (incl. VAT)"
+      },
+      "expected": {
+        "formatted": "€25 (incl. VAT)"
+      },
+      "notes": "RP-110, services/dressingRoomCommerce.ts:147-150: the numeric-string regex (/^\\d+(?:\\.\\d+)?$/) does not match this string, so numeric stays null; the string is cleaned and returned as-is because it is non-empty and not '0'/'0.00'/'$0.00'. The doc comment at :116-119 states this is 'the provider's own representation and already carries whatever currency it asserts' -- it is never re-parsed or re-formatted."
+    },
+    {
+      "scenarioId": "price-malformed-or-nonpositive",
+      "description": "A non-numeric passthrough string ('free shipping') is returned unchanged via the text-passthrough rule, while a zero price and a negative price both format to null via the non-positive-numeric rule -- these are two different code branches and must not be confused.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "tags": [
+        "currency",
+        "pr-b-support"
+      ],
+      "input": [
+        {
+          "price": "free shipping"
+        },
+        {
+          "price": 0,
+          "currency": "USD"
+        },
+        {
+          "price": -15,
+          "currency": "USD"
+        }
+      ],
+      "expected": [
+        {
+          "formatted": "free shipping"
+        },
+        {
+          "formatted": null
+        },
+        {
+          "formatted": null
+        }
+      ],
+      "notes": "RP-110, services/dressingRoomCommerce.ts:127-150. 'free shipping' fails the numeric regex, so it takes the string-passthrough branch (:147-150) and is returned as-is (not '0'/'0.00'/'$0.00'). 0 and -15 are numeric and hit `if (!Number.isFinite(numeric) || numeric <= 0) return null;` (:135) -- a text amount and a non-positive numeric amount are handled by different branches of the same function, and this fixture exercises both to guard against them being conflated."
+    }
+  ]
+}
