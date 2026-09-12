@@ -1,0 +1,6 @@
+# Computed embedding cache entries are NEVER committed - they are derived,
+# reproducible from the frozen fixture inputs (see buildIndex.js), and
+# keyed by content hash + model revision + preprocessing version, so nothing
+# here needs to be version-controlled.
+*
+!.gitignore

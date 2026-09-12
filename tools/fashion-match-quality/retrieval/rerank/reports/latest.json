@@ -1,0 +1,967 @@
+{
+  "reportVersion": "fashionclip-rerank-report-v1",
+  "generatedAt": "2026-09-12T18:27:04.584Z",
+  "conclusion": "ENVIRONMENT_BLOCKED",
+  "conclusionRationale": "The pinned FashionCLIP model could not be executed in this authorized environment, so no conclusion about the model's ranking quality is available. Unmet preconditions: PROVIDER_IS_NOT_REAL_MODEL:HARNESS_VISUAL_DESCRIPTOR_NOT_FASHIONCLIP, MODEL_WEIGHTS_NOT_LOADED, NO_REAL_MODEL_EMBEDDINGS_PRODUCED, NO_REAL_MODEL_EMBEDDINGS_USED_IN_RERANK, MODEL_REVISION_NOT_IMMUTABLE:harness-visual-descriptor-v1, CACHE_REVISION_NOT_VALIDATED",
+  "evidenceClass": "MECHANISM_CHECK",
+  "model": {
+    "MODEL": "patrickjohncyh/fashion-clip",
+    "MODEL_REVISION": null,
+    "MODEL_REVISION_REQUESTED_REF": "main",
+    "EMBEDDING_DIM": 512,
+    "PREPROCESSING": {
+      "version": "clip-vit-b32-image-preprocessing-v1",
+      "resize": {
+        "shortSide": 224,
+        "method": "bicubic"
+      },
+      "centerCrop": {
+        "width": 224,
+        "height": 224
+      },
+      "colorSpace": "RGB",
+      "normalize": {
+        "mean": [
+          0.48145466,
+          0.4578275,
+          0.40821073
+        ],
+        "std": [
+          0.26862954,
+          0.26130258,
+          0.27577711
+        ]
+      }
+    },
+    "EXECUTION_PROVIDER": "HARNESS_VISUAL_DESCRIPTOR_NOT_FASHIONCLIP",
+    "actualProviderThisRun": "HARNESS_VISUAL_DESCRIPTOR_NOT_FASHIONCLIP",
+    "actualRevisionThisRun": "harness-visual-descriptor-v1",
+    "availabilityReasons": [
+      "TORCH_OR_TRANSFORMERS_NOT_INSTALLED",
+      "MODEL_NOT_CACHED_LOCALLY_AND_HUGGINGFACE_CO_IS_NETWORK_BLOCKED_IN_THIS_SESSION"
+    ]
+  },
+  "executionIdentity": {
+    "provider": "HARNESS_VISUAL_DESCRIPTOR_NOT_FASHIONCLIP",
+    "MODEL_WEIGHTS_LOADED": false,
+    "MODEL_EMBEDDINGS_PRODUCED": false,
+    "EMBEDDINGS_USED_IN_RERANK": false,
+    "RUN_ARTIFACT_MODEL_REVISION": null,
+    "CACHE_REVISION_VALIDATED": false,
+    "REAL_FASHIONCLIP_EXECUTED": false,
+    "unmetPreconditions": [
+      "PROVIDER_IS_NOT_REAL_MODEL:HARNESS_VISUAL_DESCRIPTOR_NOT_FASHIONCLIP",
+      "MODEL_WEIGHTS_NOT_LOADED",
+      "NO_REAL_MODEL_EMBEDDINGS_PRODUCED",
+      "NO_REAL_MODEL_EMBEDDINGS_USED_IN_RERANK",
+      "MODEL_REVISION_NOT_IMMUTABLE:harness-visual-descriptor-v1",
+      "CACHE_REVISION_NOT_VALIDATED"
+    ]
+  },
+  "candidateUniverse": {
+    "CONTROL_UNIVERSE_HASH": "56f4b9416aa595071cda0c524ef5c037c4663ba0e6adc4e61ebf5eed10b3a717d22cb6857896109dcccb5aa10b6106635c6d18a2d7f0648fc11a43eef828a0dc8c4a86fb8f5726876c208f05e0300b950d56c6cb7eca989c21ee3af7d39b12511d4c819ab08a706a0c36b6ac1387c09d0fcf281bc1fc8278faabe40ffcec8a20f9571c578d6645b8065d0eccebe5f4f96d6ccd6738cd60b17407f6073bd248cc3c85f1259cccf7ee734e15fbe133fdee7e22f38893efe1bec510efb556445c32805b54d9f2cb1bca7dfa404548d921646b051a3bc24202fb5e13cc80e3dd565d308673e50e1de22b69fbb430cc6ca927cfacc96785ce2ebe656611c38a81a3afa945887c4cd014255285c3e4a2906177a70db49e457e3433cc7f5be769c5acb546c5c652427577d784a4d7f5f2a2e80e8481bb57138c51a273988bac7d6f5af8",
+    "CHALLENGER_UNIVERSE_HASH": "56f4b9416aa595071cda0c524ef5c037c4663ba0e6adc4e61ebf5eed10b3a717d22cb6857896109dcccb5aa10b6106635c6d18a2d7f0648fc11a43eef828a0dc8c4a86fb8f5726876c208f05e0300b950d56c6cb7eca989c21ee3af7d39b12511d4c819ab08a706a0c36b6ac1387c09d0fcf281bc1fc8278faabe40ffcec8a20f9571c578d6645b8065d0eccebe5f4f96d6ccd6738cd60b17407f6073bd248cc3c85f1259cccf7ee734e15fbe133fdee7e22f38893efe1bec510efb556445c32805b54d9f2cb1bca7dfa404548d921646b051a3bc24202fb5e13cc80e3dd565d308673e50e1de22b69fbb430cc6ca927cfacc96785ce2ebe656611c38a81a3afa945887c4cd014255285c3e4a2906177a70db49e457e3433cc7f5be769c5acb546c5c652427577d784a4d7f5f2a2e80e8481bb57138c51a273988bac7d6f5af8",
+    "identical": true,
+    "fingerprintVersion": "candidate-universe-fingerprint-v1",
+    "perCase": [
+      {
+        "fixtureId": "synthetic-accessory-06",
+        "controlHash": "56f4b9416aa595071cda0c524ef5c037c4663ba0e6adc4e61ebf5eed10b3a717",
+        "challengerHash": "56f4b9416aa595071cda0c524ef5c037c4663ba0e6adc4e61ebf5eed10b3a717",
+        "identical": true,
+        "memberCount": 5
+      },
+      {
+        "fixtureId": "synthetic-bag-04",
+        "controlHash": "d22cb6857896109dcccb5aa10b6106635c6d18a2d7f0648fc11a43eef828a0dc",
+        "challengerHash": "d22cb6857896109dcccb5aa10b6106635c6d18a2d7f0648fc11a43eef828a0dc",
+        "identical": true,
+        "memberCount": 5
+      },
+      {
+        "fixtureId": "synthetic-blazer-07",
+        "controlHash": "8c4a86fb8f5726876c208f05e0300b950d56c6cb7eca989c21ee3af7d39b1251",
+        "challengerHash": "8c4a86fb8f5726876c208f05e0300b950d56c6cb7eca989c21ee3af7d39b1251",
+        "identical": true,
+        "memberCount": 5
+      },
+      {
+        "fixtureId": "synthetic-dress-00",
+        "controlHash": "1d4c819ab08a706a0c36b6ac1387c09d0fcf281bc1fc8278faabe40ffcec8a20",
+        "challengerHash": "1d4c819ab08a706a0c36b6ac1387c09d0fcf281bc1fc8278faabe40ffcec8a20",
+        "identical": true,
+        "memberCount": 5
+      },
+      {
+        "fixtureId": "synthetic-dress-00-android",
+        "controlHash": "f9571c578d6645b8065d0eccebe5f4f96d6ccd6738cd60b17407f6073bd248cc",
+        "challengerHash": "f9571c578d6645b8065d0eccebe5f4f96d6ccd6738cd60b17407f6073bd248cc",
+        "identical": true,
+        "memberCount": 5
+      },
+      {
+        "fixtureId": "synthetic-footwear-03",
+        "controlHash": "3c85f1259cccf7ee734e15fbe133fdee7e22f38893efe1bec510efb556445c32",
+        "challengerHash": "3c85f1259cccf7ee734e15fbe133fdee7e22f38893efe1bec510efb556445c32",
+        "identical": true,
+        "memberCount": 5
+      },
+      {
+        "fixtureId": "synthetic-outerwear-05",
+        "controlHash": "805b54d9f2cb1bca7dfa404548d921646b051a3bc24202fb5e13cc80e3dd565d",
+        "challengerHash": "805b54d9f2cb1bca7dfa404548d921646b051a3bc24202fb5e13cc80e3dd565d",
+        "identical": true,
+        "memberCount": 5
+      },
+      {
+        "fixtureId": "synthetic-pants-02",
+        "controlHash": "308673e50e1de22b69fbb430cc6ca927cfacc96785ce2ebe656611c38a81a3af",
+        "challengerHash": "308673e50e1de22b69fbb430cc6ca927cfacc96785ce2ebe656611c38a81a3af",
+        "identical": true,
+        "memberCount": 5
+      },
+      {
+        "fixtureId": "synthetic-top-01",
+        "controlHash": "a945887c4cd014255285c3e4a2906177a70db49e457e3433cc7f5be769c5acb5",
+        "challengerHash": "a945887c4cd014255285c3e4a2906177a70db49e457e3433cc7f5be769c5acb5",
+        "identical": true,
+        "memberCount": 5
+      },
+      {
+        "fixtureId": "synthetic-top-01-android",
+        "controlHash": "46c5c652427577d784a4d7f5f2a2e80e8481bb57138c51a273988bac7d6f5af8",
+        "challengerHash": "46c5c652427577d784a4d7f5f2a2e80e8481bb57138c51a273988bac7d6f5af8",
+        "identical": true,
+        "memberCount": 5
+      }
+    ]
+  },
+  "corpusCensus": {
+    "REAL": 0,
+    "SANITIZED_REAL": 0,
+    "SYNTHETIC": 10,
+    "UNKNOWN": 0,
+    "truthLabelCoverage": {
+      "category": {
+        "fixturesLabelled": 10,
+        "totalFixtures": 10,
+        "distinctValues": 8,
+        "discriminative": true
+      },
+      "color": {
+        "fixturesLabelled": 10,
+        "totalFixtures": 10,
+        "distinctValues": 6,
+        "discriminative": true
+      },
+      "silhouette": {
+        "fixturesLabelled": 10,
+        "totalFixtures": 10,
+        "distinctValues": 6,
+        "discriminative": true
+      },
+      "material": {
+        "fixturesLabelled": 10,
+        "totalFixtures": 10,
+        "distinctValues": 5,
+        "discriminative": true
+      },
+      "pattern": {
+        "fixturesLabelled": 10,
+        "totalFixtures": 10,
+        "distinctValues": 1,
+        "discriminative": false
+      }
+    },
+    "corpusManifestHash": "44aa37d588663c9222c6564b6fdff960a3b41d881ca19a81d3551ce800c04efb",
+    "ontologyVersion": "canonical-fashion-attributes-v1"
+  },
+  "evaluatorStatus": {
+    "rubricVersion": "fmql-rubric-v1",
+    "componentFieldResolutionVersion": "fmql-component-field-resolution-v2-color-family-repair",
+    "bothArmsScoredBySameEvaluator": true,
+    "COLOR_METRIC": "REPAIRED_AND_DISCRIMINATIVE",
+    "colorRepairNote": "wrongColor was 1.0 for every ranking before this lane because FMQ ground truth stores colour as `color_family` while candidate products store it as `color_normalized`/`color`, so the evaluator compared against an always-absent field. Repaired by a versioned candidate-field alias; verified against known-correct and known-wrong colour cases.",
+    "OTHER_LIMITATIONS": [
+      "PATTERN_METRIC=NON_DISCRIMINATIVE (only 1 distinct value(s) corpus-wide)"
+    ]
+  },
+  "experiment": {
+    "strategyVersion": "fashionclip-visual-rerank-v1",
+    "attributeRenderVersion": "attribute-rendered-placeholder-v1",
+    "configuration": {
+      "imageSource": "ATTRIBUTE_RENDERED_PLACEHOLDER",
+      "strategy": "PURE_VISUAL",
+      "visualWeight": 0.5,
+      "topK": 5,
+      "cacheDir": "/tmp/fclip-rerank-cold-sI33yi"
+    },
+    "control": {
+      "description": "K Scan production L1 ranking (runL1.deno.ts, unmodified)",
+      "metrics": {
+        "n": 10,
+        "exactTop1Rate": 1,
+        "exactTop5Rate": 1,
+        "usefulTop1Rate": 1,
+        "usefulTop5Rate": 1,
+        "wrongColorRate": {
+          "rate": 0,
+          "n": 10
+        },
+        "wrongSilhouetteRate": {
+          "rate": 0,
+          "n": 10
+        },
+        "wrongMaterialRate": {
+          "rate": 0,
+          "n": 10
+        },
+        "wrongPatternRate": {
+          "rate": 0,
+          "n": 10
+        },
+        "wrongSubtypeRate": {
+          "rate": null,
+          "n": 0,
+          "reason": "UNAVAILABLE: FMQ fixture ground truth has no ontology subtype field (category only) - see buildIndex.js header"
+        },
+        "irrelevantRate": 0,
+        "duplicateRate": 1
+      }
+    },
+    "challenger": {
+      "description": "L1 candidates re-ordered by visual similarity (PURE_VISUAL)",
+      "metrics": {
+        "n": 10,
+        "exactTop1Rate": 1,
+        "exactTop5Rate": 1,
+        "usefulTop1Rate": 1,
+        "usefulTop5Rate": 1,
+        "wrongColorRate": {
+          "rate": 0,
+          "n": 10
+        },
+        "wrongSilhouetteRate": {
+          "rate": 0,
+          "n": 10
+        },
+        "wrongMaterialRate": {
+          "rate": 0,
+          "n": 10
+        },
+        "wrongPatternRate": {
+          "rate": 0,
+          "n": 10
+        },
+        "wrongSubtypeRate": {
+          "rate": null,
+          "n": 0,
+          "reason": "UNAVAILABLE: FMQ fixture ground truth has no ontology subtype field (category only) - see buildIndex.js header"
+        },
+        "irrelevantRate": 0,
+        "duplicateRate": 1
+      }
+    },
+    "comparison": {
+      "EXACT_TOP1": {
+        "control": 1,
+        "challenger": 1,
+        "delta": 0,
+        "verdict": "TIE"
+      },
+      "EXACT_TOP5": {
+        "control": 1,
+        "challenger": 1,
+        "delta": 0,
+        "verdict": "TIE"
+      },
+      "USEFUL_TOP1": {
+        "control": 1,
+        "challenger": 1,
+        "delta": 0,
+        "verdict": "TIE"
+      },
+      "USEFUL_TOP5": {
+        "control": 1,
+        "challenger": 1,
+        "delta": 0,
+        "verdict": "TIE"
+      },
+      "WRONG_COLOR": {
+        "control": 0,
+        "challenger": 0,
+        "delta": 0,
+        "verdict": "TIE"
+      },
+      "WRONG_SILHOUETTE": {
+        "control": 0,
+        "challenger": 0,
+        "delta": 0,
+        "verdict": "TIE"
+      },
+      "WRONG_MATERIAL": {
+        "control": 0,
+        "challenger": 0,
+        "delta": 0,
+        "verdict": "TIE"
+      },
+      "WRONG_PATTERN": {
+        "control": 0,
+        "challenger": 0,
+        "delta": 0,
+        "verdict": "TIE"
+      },
+      "IRRELEVANT": {
+        "control": 0,
+        "challenger": 0,
+        "delta": 0,
+        "verdict": "TIE"
+      },
+      "DUPLICATE": {
+        "control": 1,
+        "challenger": 1,
+        "delta": 0,
+        "verdict": "TIE"
+      }
+    },
+    "counts": {
+      "total": 10,
+      "scored": 10,
+      "notRun": 0,
+      "invalid": 0
+    },
+    "orderChangedCaseCount": 8,
+    "top1ChangedCaseCount": 0,
+    "perCase": [
+      {
+        "fixtureId": "synthetic-accessory-06",
+        "archetype": "accessory",
+        "controlOrder": [
+          "synthetic-accessory-06::exact",
+          "synthetic-accessory-06::cross-retailer-dup",
+          "synthetic-accessory-06::no-purchase-path",
+          "synthetic-accessory-06::near-miss",
+          "synthetic-accessory-06::distractor"
+        ],
+        "challengerOrder": [
+          "synthetic-accessory-06::exact",
+          "synthetic-accessory-06::cross-retailer-dup",
+          "synthetic-accessory-06::no-purchase-path",
+          "synthetic-accessory-06::near-miss",
+          "synthetic-accessory-06::distractor"
+        ],
+        "identicalOrder": true,
+        "controlTop1": "synthetic-accessory-06::exact",
+        "challengerTop1": "synthetic-accessory-06::exact",
+        "controlUsefulTop1": true,
+        "challengerUsefulTop1": true,
+        "similarityByCandidate": [
+          {
+            "candidateId": "synthetic-accessory-06::exact",
+            "visualScore": 1
+          },
+          {
+            "candidateId": "synthetic-accessory-06::cross-retailer-dup",
+            "visualScore": 1
+          },
+          {
+            "candidateId": "synthetic-accessory-06::no-purchase-path",
+            "visualScore": 1
+          },
+          {
+            "candidateId": "synthetic-accessory-06::near-miss",
+            "visualScore": 0.7460719649325477
+          },
+          {
+            "candidateId": "synthetic-accessory-06::distractor",
+            "visualScore": 0.7460719649325477
+          }
+        ]
+      },
+      {
+        "fixtureId": "synthetic-bag-04",
+        "archetype": "bag",
+        "controlOrder": [
+          "synthetic-bag-04::exact",
+          "synthetic-bag-04::cross-retailer-dup",
+          "synthetic-bag-04::no-purchase-path",
+          "synthetic-bag-04::near-miss",
+          "synthetic-bag-04::distractor"
+        ],
+        "challengerOrder": [
+          "synthetic-bag-04::exact",
+          "synthetic-bag-04::cross-retailer-dup",
+          "synthetic-bag-04::no-purchase-path",
+          "synthetic-bag-04::distractor",
+          "synthetic-bag-04::near-miss"
+        ],
+        "identicalOrder": false,
+        "controlTop1": "synthetic-bag-04::exact",
+        "challengerTop1": "synthetic-bag-04::exact",
+        "controlUsefulTop1": true,
+        "challengerUsefulTop1": true,
+        "similarityByCandidate": [
+          {
+            "candidateId": "synthetic-bag-04::exact",
+            "visualScore": 1
+          },
+          {
+            "candidateId": "synthetic-bag-04::cross-retailer-dup",
+            "visualScore": 1
+          },
+          {
+            "candidateId": "synthetic-bag-04::no-purchase-path",
+            "visualScore": 1
+          },
+          {
+            "candidateId": "synthetic-bag-04::distractor",
+            "visualScore": 0.9827856078793785
+          },
+          {
+            "candidateId": "synthetic-bag-04::near-miss",
+            "visualScore": 0.7478777411212578
+          }
+        ]
+      },
+      {
+        "fixtureId": "synthetic-blazer-07",
+        "archetype": "blazer",
+        "controlOrder": [
+          "synthetic-blazer-07::exact",
+          "synthetic-blazer-07::cross-retailer-dup",
+          "synthetic-blazer-07::no-purchase-path",
+          "synthetic-blazer-07::near-miss",
+          "synthetic-blazer-07::distractor"
+        ],
+        "challengerOrder": [
+          "synthetic-blazer-07::exact",
+          "synthetic-blazer-07::cross-retailer-dup",
+          "synthetic-blazer-07::no-purchase-path",
+          "synthetic-blazer-07::distractor",
+          "synthetic-blazer-07::near-miss"
+        ],
+        "identicalOrder": false,
+        "controlTop1": "synthetic-blazer-07::exact",
+        "challengerTop1": "synthetic-blazer-07::exact",
+        "controlUsefulTop1": true,
+        "challengerUsefulTop1": true,
+        "similarityByCandidate": [
+          {
+            "candidateId": "synthetic-blazer-07::exact",
+            "visualScore": 1.0000000000000002
+          },
+          {
+            "candidateId": "synthetic-blazer-07::cross-retailer-dup",
+            "visualScore": 1.0000000000000002
+          },
+          {
+            "candidateId": "synthetic-blazer-07::no-purchase-path",
+            "visualScore": 1.0000000000000002
+          },
+          {
+            "candidateId": "synthetic-blazer-07::distractor",
+            "visualScore": 0.9796473917972737
+          },
+          {
+            "candidateId": "synthetic-blazer-07::near-miss",
+            "visualScore": 0.7802336365575191
+          }
+        ]
+      },
+      {
+        "fixtureId": "synthetic-dress-00",
+        "archetype": "dress",
+        "controlOrder": [
+          "synthetic-dress-00::exact",
+          "synthetic-dress-00::cross-retailer-dup",
+          "synthetic-dress-00::no-purchase-path",
+          "synthetic-dress-00::near-miss",
+          "synthetic-dress-00::distractor"
+        ],
+        "challengerOrder": [
+          "synthetic-dress-00::exact",
+          "synthetic-dress-00::cross-retailer-dup",
+          "synthetic-dress-00::no-purchase-path",
+          "synthetic-dress-00::distractor",
+          "synthetic-dress-00::near-miss"
+        ],
+        "identicalOrder": false,
+        "controlTop1": "synthetic-dress-00::exact",
+        "challengerTop1": "synthetic-dress-00::exact",
+        "controlUsefulTop1": true,
+        "challengerUsefulTop1": true,
+        "similarityByCandidate": [
+          {
+            "candidateId": "synthetic-dress-00::exact",
+            "visualScore": 1.0000000000000002
+          },
+          {
+            "candidateId": "synthetic-dress-00::cross-retailer-dup",
+            "visualScore": 1.0000000000000002
+          },
+          {
+            "candidateId": "synthetic-dress-00::no-purchase-path",
+            "visualScore": 1.0000000000000002
+          },
+          {
+            "candidateId": "synthetic-dress-00::distractor",
+            "visualScore": 0.8594487120320835
+          },
+          {
+            "candidateId": "synthetic-dress-00::near-miss",
+            "visualScore": 0.8096970152723153
+          }
+        ]
+      },
+      {
+        "fixtureId": "synthetic-dress-00-android",
+        "archetype": "dress",
+        "controlOrder": [
+          "synthetic-dress-00-android::exact",
+          "synthetic-dress-00-android::cross-retailer-dup",
+          "synthetic-dress-00-android::no-purchase-path",
+          "synthetic-dress-00-android::near-miss",
+          "synthetic-dress-00-android::distractor"
+        ],
+        "challengerOrder": [
+          "synthetic-dress-00-android::exact",
+          "synthetic-dress-00-android::cross-retailer-dup",
+          "synthetic-dress-00-android::no-purchase-path",
+          "synthetic-dress-00-android::distractor",
+          "synthetic-dress-00-android::near-miss"
+        ],
+        "identicalOrder": false,
+        "controlTop1": "synthetic-dress-00-android::exact",
+        "challengerTop1": "synthetic-dress-00-android::exact",
+        "controlUsefulTop1": true,
+        "challengerUsefulTop1": true,
+        "similarityByCandidate": [
+          {
+            "candidateId": "synthetic-dress-00-android::exact",
+            "visualScore": 1.0000000000000002
+          },
+          {
+            "candidateId": "synthetic-dress-00-android::cross-retailer-dup",
+            "visualScore": 1.0000000000000002
+          },
+          {
+            "candidateId": "synthetic-dress-00-android::no-purchase-path",
+            "visualScore": 1.0000000000000002
+          },
+          {
+            "candidateId": "synthetic-dress-00-android::distractor",
+            "visualScore": 0.8594487120320835
+          },
+          {
+            "candidateId": "synthetic-dress-00-android::near-miss",
+            "visualScore": 0.8096970152723153
+          }
+        ]
+      },
+      {
+        "fixtureId": "synthetic-footwear-03",
+        "archetype": "footwear",
+        "controlOrder": [
+          "synthetic-footwear-03::exact",
+          "synthetic-footwear-03::cross-retailer-dup",
+          "synthetic-footwear-03::no-purchase-path",
+          "synthetic-footwear-03::near-miss",
+          "synthetic-footwear-03::distractor"
+        ],
+        "challengerOrder": [
+          "synthetic-footwear-03::exact",
+          "synthetic-footwear-03::cross-retailer-dup",
+          "synthetic-footwear-03::no-purchase-path",
+          "synthetic-footwear-03::distractor",
+          "synthetic-footwear-03::near-miss"
+        ],
+        "identicalOrder": false,
+        "controlTop1": "synthetic-footwear-03::exact",
+        "challengerTop1": "synthetic-footwear-03::exact",
+        "controlUsefulTop1": true,
+        "challengerUsefulTop1": true,
+        "similarityByCandidate": [
+          {
+            "candidateId": "synthetic-footwear-03::exact",
+            "visualScore": 1
+          },
+          {
+            "candidateId": "synthetic-footwear-03::cross-retailer-dup",
+            "visualScore": 1
+          },
+          {
+            "candidateId": "synthetic-footwear-03::no-purchase-path",
+            "visualScore": 1
+          },
+          {
+            "candidateId": "synthetic-footwear-03::distractor",
+            "visualScore": 0.7919329161046698
+          },
+          {
+            "candidateId": "synthetic-footwear-03::near-miss",
+            "visualScore": 0.7472849344920899
+          }
+        ]
+      },
+      {
+        "fixtureId": "synthetic-outerwear-05",
+        "archetype": "outerwear",
+        "controlOrder": [
+          "synthetic-outerwear-05::exact",
+          "synthetic-outerwear-05::cross-retailer-dup",
+          "synthetic-outerwear-05::no-purchase-path",
+          "synthetic-outerwear-05::near-miss",
+          "synthetic-outerwear-05::distractor"
+        ],
+        "challengerOrder": [
+          "synthetic-outerwear-05::exact",
+          "synthetic-outerwear-05::cross-retailer-dup",
+          "synthetic-outerwear-05::no-purchase-path",
+          "synthetic-outerwear-05::near-miss",
+          "synthetic-outerwear-05::distractor"
+        ],
+        "identicalOrder": true,
+        "controlTop1": "synthetic-outerwear-05::exact",
+        "challengerTop1": "synthetic-outerwear-05::exact",
+        "controlUsefulTop1": true,
+        "challengerUsefulTop1": true,
+        "similarityByCandidate": [
+          {
+            "candidateId": "synthetic-outerwear-05::exact",
+            "visualScore": 1
+          },
+          {
+            "candidateId": "synthetic-outerwear-05::cross-retailer-dup",
+            "visualScore": 1
+          },
+          {
+            "candidateId": "synthetic-outerwear-05::no-purchase-path",
+            "visualScore": 1
+          },
+          {
+            "candidateId": "synthetic-outerwear-05::near-miss",
+            "visualScore": 0.9720510936883671
+          },
+          {
+            "candidateId": "synthetic-outerwear-05::distractor",
+            "visualScore": 0.9076236681096268
+          }
+        ]
+      },
+      {
+        "fixtureId": "synthetic-pants-02",
+        "archetype": "pants",
+        "controlOrder": [
+          "synthetic-pants-02::exact",
+          "synthetic-pants-02::cross-retailer-dup",
+          "synthetic-pants-02::no-purchase-path",
+          "synthetic-pants-02::near-miss",
+          "synthetic-pants-02::distractor"
+        ],
+        "challengerOrder": [
+          "synthetic-pants-02::exact",
+          "synthetic-pants-02::cross-retailer-dup",
+          "synthetic-pants-02::no-purchase-path",
+          "synthetic-pants-02::distractor",
+          "synthetic-pants-02::near-miss"
+        ],
+        "identicalOrder": false,
+        "controlTop1": "synthetic-pants-02::exact",
+        "challengerTop1": "synthetic-pants-02::exact",
+        "controlUsefulTop1": true,
+        "challengerUsefulTop1": true,
+        "similarityByCandidate": [
+          {
+            "candidateId": "synthetic-pants-02::exact",
+            "visualScore": 1
+          },
+          {
+            "candidateId": "synthetic-pants-02::cross-retailer-dup",
+            "visualScore": 1
+          },
+          {
+            "candidateId": "synthetic-pants-02::no-purchase-path",
+            "visualScore": 1
+          },
+          {
+            "candidateId": "synthetic-pants-02::distractor",
+            "visualScore": 0.8363292950412315
+          },
+          {
+            "candidateId": "synthetic-pants-02::near-miss",
+            "visualScore": 0.7462354435933173
+          }
+        ]
+      },
+      {
+        "fixtureId": "synthetic-top-01",
+        "archetype": "top",
+        "controlOrder": [
+          "synthetic-top-01::exact",
+          "synthetic-top-01::cross-retailer-dup",
+          "synthetic-top-01::no-purchase-path",
+          "synthetic-top-01::near-miss",
+          "synthetic-top-01::distractor"
+        ],
+        "challengerOrder": [
+          "synthetic-top-01::exact",
+          "synthetic-top-01::cross-retailer-dup",
+          "synthetic-top-01::no-purchase-path",
+          "synthetic-top-01::distractor",
+          "synthetic-top-01::near-miss"
+        ],
+        "identicalOrder": false,
+        "controlTop1": "synthetic-top-01::exact",
+        "challengerTop1": "synthetic-top-01::exact",
+        "controlUsefulTop1": true,
+        "challengerUsefulTop1": true,
+        "similarityByCandidate": [
+          {
+            "candidateId": "synthetic-top-01::exact",
+            "visualScore": 1.0000000000000002
+          },
+          {
+            "candidateId": "synthetic-top-01::cross-retailer-dup",
+            "visualScore": 1.0000000000000002
+          },
+          {
+            "candidateId": "synthetic-top-01::no-purchase-path",
+            "visualScore": 1.0000000000000002
+          },
+          {
+            "candidateId": "synthetic-top-01::distractor",
+            "visualScore": 0.7478654220808375
+          },
+          {
+            "candidateId": "synthetic-top-01::near-miss",
+            "visualScore": 0.7058383534097664
+          }
+        ]
+      },
+      {
+        "fixtureId": "synthetic-top-01-android",
+        "archetype": "top",
+        "controlOrder": [
+          "synthetic-top-01-android::exact",
+          "synthetic-top-01-android::cross-retailer-dup",
+          "synthetic-top-01-android::no-purchase-path",
+          "synthetic-top-01-android::near-miss",
+          "synthetic-top-01-android::distractor"
+        ],
+        "challengerOrder": [
+          "synthetic-top-01-android::exact",
+          "synthetic-top-01-android::cross-retailer-dup",
+          "synthetic-top-01-android::no-purchase-path",
+          "synthetic-top-01-android::distractor",
+          "synthetic-top-01-android::near-miss"
+        ],
+        "identicalOrder": false,
+        "controlTop1": "synthetic-top-01-android::exact",
+        "challengerTop1": "synthetic-top-01-android::exact",
+        "controlUsefulTop1": true,
+        "challengerUsefulTop1": true,
+        "similarityByCandidate": [
+          {
+            "candidateId": "synthetic-top-01-android::exact",
+            "visualScore": 1.0000000000000002
+          },
+          {
+            "candidateId": "synthetic-top-01-android::cross-retailer-dup",
+            "visualScore": 1.0000000000000002
+          },
+          {
+            "candidateId": "synthetic-top-01-android::no-purchase-path",
+            "visualScore": 1.0000000000000002
+          },
+          {
+            "candidateId": "synthetic-top-01-android::distractor",
+            "visualScore": 0.7478654220808375
+          },
+          {
+            "candidateId": "synthetic-top-01-android::near-miss",
+            "visualScore": 0.7058383534097664
+          }
+        ]
+      }
+    ]
+  },
+  "mechanismProbe": {
+    "label": "MECHANISM_CHECK_NOT_QUALITY_EVIDENCE",
+    "description": "Re-ranker fed a deliberately reversed L1 ordering, to test whether the layer responds to visual evidence at all. Says nothing about FashionCLIP (which did not run) and nothing about how often real L1 orderings need correcting.",
+    "casesProbed": 10,
+    "meanRanksRecovered": 2,
+    "recoveredToTop1Count": 0,
+    "usefulTop1RecoveredCount": 10,
+    "rank1UnusableAfterRecoveryCount": 10,
+    "results": [
+      {
+        "fixtureId": "synthetic-accessory-06",
+        "degradedRankOfTruth": 5,
+        "recoveredRankOfTruth": 3,
+        "ranksRecovered": 2,
+        "rank1IdentityLevel": "PROBABLE_EXACT",
+        "rank1SubstituteLevel": "UNUSABLE"
+      },
+      {
+        "fixtureId": "synthetic-bag-04",
+        "degradedRankOfTruth": 5,
+        "recoveredRankOfTruth": 3,
+        "ranksRecovered": 2,
+        "rank1IdentityLevel": "PROBABLE_EXACT",
+        "rank1SubstituteLevel": "UNUSABLE"
+      },
+      {
+        "fixtureId": "synthetic-blazer-07",
+        "degradedRankOfTruth": 5,
+        "recoveredRankOfTruth": 3,
+        "ranksRecovered": 2,
+        "rank1IdentityLevel": "PROBABLE_EXACT",
+        "rank1SubstituteLevel": "UNUSABLE"
+      },
+      {
+        "fixtureId": "synthetic-dress-00",
+        "degradedRankOfTruth": 5,
+        "recoveredRankOfTruth": 3,
+        "ranksRecovered": 2,
+        "rank1IdentityLevel": "PROBABLE_EXACT",
+        "rank1SubstituteLevel": "UNUSABLE"
+      },
+      {
+        "fixtureId": "synthetic-dress-00-android",
+        "degradedRankOfTruth": 5,
+        "recoveredRankOfTruth": 3,
+        "ranksRecovered": 2,
+        "rank1IdentityLevel": "PROBABLE_EXACT",
+        "rank1SubstituteLevel": "UNUSABLE"
+      },
+      {
+        "fixtureId": "synthetic-footwear-03",
+        "degradedRankOfTruth": 5,
+        "recoveredRankOfTruth": 3,
+        "ranksRecovered": 2,
+        "rank1IdentityLevel": "PROBABLE_EXACT",
+        "rank1SubstituteLevel": "UNUSABLE"
+      },
+      {
+        "fixtureId": "synthetic-outerwear-05",
+        "degradedRankOfTruth": 5,
+        "recoveredRankOfTruth": 3,
+        "ranksRecovered": 2,
+        "rank1IdentityLevel": "PROBABLE_EXACT",
+        "rank1SubstituteLevel": "UNUSABLE"
+      },
+      {
+        "fixtureId": "synthetic-pants-02",
+        "degradedRankOfTruth": 5,
+        "recoveredRankOfTruth": 3,
+        "ranksRecovered": 2,
+        "rank1IdentityLevel": "PROBABLE_EXACT",
+        "rank1SubstituteLevel": "UNUSABLE"
+      },
+      {
+        "fixtureId": "synthetic-top-01",
+        "degradedRankOfTruth": 5,
+        "recoveredRankOfTruth": 3,
+        "ranksRecovered": 2,
+        "rank1IdentityLevel": "PROBABLE_EXACT",
+        "rank1SubstituteLevel": "UNUSABLE"
+      },
+      {
+        "fixtureId": "synthetic-top-01-android",
+        "degradedRankOfTruth": 5,
+        "recoveredRankOfTruth": 3,
+        "ranksRecovered": 2,
+        "rank1IdentityLevel": "PROBABLE_EXACT",
+        "rank1SubstituteLevel": "UNUSABLE"
+      }
+    ]
+  },
+  "timing": {
+    "COLD": {
+      "QUERY_EMBEDDING_TIME": {
+        "n": 10,
+        "p50": 0.06137999999998556,
+        "p95": 0.16809699999998884,
+        "max": 0.16809699999998884
+      },
+      "CANDIDATE_EMBEDDING_TIME": {
+        "n": 50,
+        "p50": 0.08296399999994719,
+        "p95": 1.179159000000027,
+        "max": 4.256188999999949
+      },
+      "RERANK_TIME": {
+        "n": 10,
+        "p50": 0.08089800000016112,
+        "p95": 0.8055980000000318,
+        "max": 0.8055980000000318
+      },
+      "TOTAL_ADDED_RERANK_TIME": {
+        "n": 10,
+        "p50": 1.1974330000000464,
+        "p95": 8.161252999999874,
+        "max": 8.161252999999874
+      },
+      "controlL1Time": {
+        "n": 10,
+        "p50": 41.32154899999989,
+        "p95": 610.569581,
+        "max": 610.569581
+      }
+    },
+    "WARM": {
+      "QUERY_EMBEDDING_TIME": {
+        "n": 10,
+        "p50": 0.0527620000002571,
+        "p95": 0.11304900000004636,
+        "max": 0.11304900000004636
+      },
+      "CANDIDATE_EMBEDDING_TIME": {
+        "n": 50,
+        "p50": 0.054473000000143657,
+        "p95": 0.12323500000002241,
+        "max": 0.15546199999971577
+      },
+      "RERANK_TIME": {
+        "n": 10,
+        "p50": 0.0550239999997757,
+        "p95": 0.16473500000029162,
+        "max": 0.16473500000029162
+      },
+      "TOTAL_ADDED_RERANK_TIME": {
+        "n": 10,
+        "p50": 0.44966100000010556,
+        "p95": 0.6336339999998017,
+        "max": 0.6336339999998017
+      },
+      "controlL1Time": {
+        "n": 10,
+        "p50": 41.691074999999955,
+        "p95": 58.80062700000008,
+        "max": 58.80062700000008
+      }
+    },
+    "note": "R&D sandbox timing on placeholder 32x32 images with a non-model descriptor. NOT a production latency measurement and NOT evidence of sub-5-second production performance. Real FashionCLIP inference is orders of magnitude more expensive than the descriptor timed here.",
+    "environment": {
+      "node": "v22.22.2",
+      "platform": "linux",
+      "arch": "x64",
+      "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+      "cpuCount": 4,
+      "totalMemoryMb": 16075,
+      "note": "R&D sandbox timing, CPU-only, single process. Not mobile production timing and not comparable to tools/curiosity-gap-performance/ reports without saying so explicitly (spec section 16)."
+    }
+  },
+  "provider": {
+    "NEW_PAID_PROVIDER_CALLS": 0,
+    "newScannerNetworkCalls": 0,
+    "note": "No RapidAPI, Apify, retailer or other paid provider was called. The experiment runs entirely against committed fixtures."
+  },
+  "limitations": [
+    "REAL_FASHIONCLIP_EXECUTED=NO. Blocked by: TORCH_OR_TRANSFORMERS_NOT_INSTALLED, MODEL_NOT_CACHED_LOCALLY_AND_HUGGINGFACE_CO_IS_NETWORK_BLOCKED_IN_THIS_SESSION.",
+    "The control arm already achieves a perfect score on every headline metric over this corpus (exactTop1=1, usefulTop1=1). There is therefore NO HEADROOM for any re-ranker to demonstrate improvement here: the paired comparison can structurally only tie or regress, whatever model drives it.",
+    "Candidate and query images are attribute-rendered placeholders, not photographs. Candidates sharing the scored attributes render to byte-identical images, so any embedder - including a hash - returns similarity 1.0 between them. This corpus cannot distinguish a real model from a stub.",
+    "Corpus is 10 synthetic / 0 real / 0 sanitized-real. No real-world efficacy claim is available at any sample size here.",
+    "PATTERN_METRIC=NON_DISCRIMINATIVE (only 1 distinct value(s) corpus-wide) - the corresponding wrong-attribute metric cannot discriminate between two rankings on this corpus."
+  ]
+}

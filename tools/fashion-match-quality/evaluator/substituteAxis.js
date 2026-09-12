@@ -1,6 +1,6 @@
 'use strict';
 
-const { SUBSTITUTE_LEVELS, FASHION_COMPONENTS } = require('./rubric');
+const { SUBSTITUTE_LEVELS, FASHION_COMPONENTS, resolveCandidateField, COMPONENT_FIELD_RESOLUTION_VERSION } = require('./rubric');
 
 /**
  * Axis B - shopping substitute quality (spec section 13).
@@ -15,7 +15,15 @@ function componentScore(name, candidate, groundTruth) {
   // Each component is scored 0/0.5/1 by explicit rule, never inferred from
   // an aggregate. This keeps color accuracy from ever hiding a silhouette
   // failure (section 14).
-  const c = candidate?.[name];
+  //
+  // The candidate side is resolved through rubric.js's alias table rather
+  // than by a bare `candidate[name]` lookup. See
+  // COMPONENT_FIELD_RESOLUTION_VERSION's comment there for why: ground truth
+  // and candidate products do not share a key for `color_family`, which made
+  // every colour score 0 regardless of the candidate's actual colour. Ground
+  // truth is still read by its own canonical key - only the candidate side
+  // needed aliasing.
+  const c = resolveCandidateField(candidate, name);
   const g = groundTruth?.[name];
   if (g === undefined || g === null) return null; // unscoreable - excluded from rollup, not defaulted to 0
   if (c === undefined || c === null) return 0;
@@ -108,4 +116,10 @@ function isValidSubstituteLevel(level) {
   return SUBSTITUTE_LEVELS.includes(level);
 }
 
-module.exports = { scoreSubstitute, scoreFashionComponents, isValidSubstituteLevel, SUBSTITUTE_LEVELS };
+module.exports = {
+  scoreSubstitute,
+  scoreFashionComponents,
+  isValidSubstituteLevel,
+  SUBSTITUTE_LEVELS,
+  COMPONENT_FIELD_RESOLUTION_VERSION,
+};
