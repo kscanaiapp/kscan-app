@@ -4,7 +4,7 @@
 // a 30-day lifecycle; the permanent purge happens later, in a backend worker.
 // Until this repair nothing on the device ever learned that the purge had
 // actually happened, so a user whose account was genuinely and irreversibly
-// deleted still had their Recent Scans, Closet, Style DNA and Dressing Room
+// deleted still had their Recent Scans, Closet, Signature Style and Dressing Room
 // data on the handset indefinitely. Every owner-scoped purge primitive this app
 // needed already existed and several said so in their own comments — "not wired
 // to any production deletion caller", "terminal purge waits for a confirmed
@@ -187,9 +187,9 @@ function createPurgeSpies(overrides = {}) {
       purgeDressingRoomInteractions: spy('purgeDressingRoomInteractions'),
       purgeSavedLookReturnContext: spy('purgeSavedLookReturnContext'),
       purgeStylistVoicePreference: spy('purgeStylistVoicePreference'),
-      clearStyleDnaPreferences: spy('clearStyleDnaPreferences'),
-      clearStyleDnaFeedback: spy('clearStyleDnaFeedback'),
-      clearStyleDnaReasons: spy('clearStyleDnaReasons'),
+      clearSignatureStylePreferences: spy('clearSignatureStylePreferences'),
+      clearSignatureStyleFeedback: spy('clearSignatureStyleFeedback'),
+      clearSignatureStyleReasons: spy('clearSignatureStyleReasons'),
       clearPackingPlanCache: spy('clearPackingPlanCache'),
       clearOnboarding: spy('clearOnboarding'),
     },
@@ -214,9 +214,9 @@ function loadPurge() {
     '../privateDressingRoomInteractionStore',
     '../privateSavedLookReturnContext',
     '../../stores/stylistVoicePreferenceStore',
-    '../style-dna/localStyleDnaPreferences',
-    '../style-dna/localStyleDnaFeedbackStore',
-    '../style-dna/localStyleDnaReasons',
+    '../signature-style/localSignatureStylePreferences',
+    '../signature-style/localSignatureStyleFeedbackStore',
+    '../signature-style/localSignatureStyleReasons',
     '../packing/packingPlanCache',
     '../onboardingCompletion',
   ]);
@@ -966,9 +966,9 @@ test('PURGE: every step receives the marker owner, never the current actor', asy
   assert.equal(result.ownerId, OWNER_A);
   assert.equal(calls.length, 16, 'every owner-scoped subsystem is covered');
 
-  const styleDnaSteps = ['clearStyleDnaPreferences', 'clearStyleDnaFeedback', 'clearStyleDnaReasons'];
+  const signatureStyleSteps = ['clearSignatureStylePreferences', 'clearSignatureStyleFeedback', 'clearSignatureStyleReasons'];
   for (const call of calls) {
-    const expected = styleDnaSteps.includes(call.name) ? `user:${OWNER_A}` : OWNER_A;
+    const expected = signatureStyleSteps.includes(call.name) ? `user:${OWNER_A}` : OWNER_A;
     assert.equal(call.arg, expected, `${call.name} must target the marker owner`);
     assert.ok(!String(call.arg).includes(OWNER_B), 'B is never a target');
   }
@@ -1668,7 +1668,7 @@ test('NEGATIVE CONTROL: a global storage clear would break actor isolation', asy
 
   // And the ban is enforced on the real module.
   const source = stripComments(fs.readFileSync(path.join(ROOT, PURGE_REL), 'utf8'));
-  assert.ok(!/clearAllStyleDnaPreferences|clearAllLocalStyleDna|clearAllCachedPackingPlans/.test(source));
+  assert.ok(!/clearAllSignatureStylePreferences|clearAllLocalSignatureStyle|clearAllCachedPackingPlans/.test(source));
 });
 
 test('NEGATIVE CONTROL: clearing the marker before the purge finishes loses resumability', async () => {

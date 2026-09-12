@@ -2,59 +2,59 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getFeedbackForMessage,
   setFeedbackForMessage,
-  type LocalStyleDnaFeedbackValue,
-} from '../services/style-dna/localStyleDnaFeedbackStore';
+  type LocalSignatureStyleFeedbackValue,
+} from '../services/signature-style/localSignatureStyleFeedbackStore';
 import {
   getReasonForMessage,
   setReasonForMessage,
   clearReasonForMessage,
   isReasonValidForFeedback,
-  STYLE_DNA_REASON_FEEDBACK_ENABLED,
-  type StyleDnaReasonCode,
-} from '../services/style-dna/localStyleDnaReasons';
+  SIGNATURE_STYLE_REASON_FEEDBACK_ENABLED,
+  type SignatureStyleReasonCode,
+} from '../services/signature-style/localSignatureStyleReasons';
 
-// Style DNA Phase 0/3 — per-message local feedback hook.
+// Signature Style Phase 0/3 — per-message local feedback hook.
 // Phase 0: loads any persisted Helpful/Not-my-style selection on mount, then exposes an
 // optimistic save that reverts on write failure.
 // Phase 3 (flag-gated): optional reason code per message. Reason capture never blocks the
 // feedback tap; changing feedback polarity clears any now-incompatible reason.
 
-export interface UseStyleDnaFeedbackParams {
+export interface UseSignatureStyleFeedbackParams {
   userKey: string | null | undefined;
   sessionId: string;
   messageId: string;
   enabled?: boolean;
-  onSaved?: (value: LocalStyleDnaFeedbackValue) => void;
+  onSaved?: (value: LocalSignatureStyleFeedbackValue) => void;
 }
 
-export interface UseStyleDnaFeedbackReturn {
-  selectedFeedback: LocalStyleDnaFeedbackValue | null;
+export interface UseSignatureStyleFeedbackReturn {
+  selectedFeedback: LocalSignatureStyleFeedbackValue | null;
   isSavingFeedback: boolean;
   feedbackError: string | null;
-  saveFeedback: (value: LocalStyleDnaFeedbackValue) => Promise<boolean>;
+  saveFeedback: (value: LocalSignatureStyleFeedbackValue) => Promise<boolean>;
   // Phase 3 (optional reason enrichment)
   reasonEnabled: boolean;
-  selectedReason: StyleDnaReasonCode | null;
+  selectedReason: SignatureStyleReasonCode | null;
   isSavingReason: boolean;
-  saveReason: (code: StyleDnaReasonCode) => void;
+  saveReason: (code: SignatureStyleReasonCode) => void;
 }
 
-export function useStyleDnaFeedback({
+export function useSignatureStyleFeedback({
   userKey,
   sessionId,
   messageId,
   enabled = true,
   onSaved,
-}: UseStyleDnaFeedbackParams): UseStyleDnaFeedbackReturn {
-  const [selectedFeedback, setSelectedFeedback] = useState<LocalStyleDnaFeedbackValue | null>(null);
+}: UseSignatureStyleFeedbackParams): UseSignatureStyleFeedbackReturn {
+  const [selectedFeedback, setSelectedFeedback] = useState<LocalSignatureStyleFeedbackValue | null>(null);
   const [isSavingFeedback, setIsSavingFeedback] = useState(false);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
-  const [selectedReason, setSelectedReason] = useState<StyleDnaReasonCode | null>(null);
+  const [selectedReason, setSelectedReason] = useState<SignatureStyleReasonCode | null>(null);
   const [isSavingReason, setIsSavingReason] = useState(false);
   const mountedRef = useRef(true);
   const activeRef = useRef(false);
-  const selectedFeedbackRef = useRef<LocalStyleDnaFeedbackValue | null>(null);
-  const selectedReasonRef = useRef<StyleDnaReasonCode | null>(null);
+  const selectedFeedbackRef = useRef<LocalSignatureStyleFeedbackValue | null>(null);
+  const selectedReasonRef = useRef<SignatureStyleReasonCode | null>(null);
   const savingFeedbackRef = useRef(false);
   const savingReasonRef = useRef(false);
   const scopeVersionRef = useRef(0);
@@ -62,7 +62,7 @@ export function useStyleDnaFeedback({
   const scopeKeyRef = useRef('');
 
   const active = Boolean(enabled && userKey && sessionId && messageId);
-  const reasonEnabled = STYLE_DNA_REASON_FEEDBACK_ENABLED;
+  const reasonEnabled = SIGNATURE_STYLE_REASON_FEEDBACK_ENABLED;
   const scopeKey = `${userKey ?? ''}\u0000${sessionId}\u0000${messageId}`;
   if (scopeKeyRef.current !== scopeKey) {
     scopeKeyRef.current = scopeKey;
@@ -151,7 +151,7 @@ export function useStyleDnaFeedback({
   }, [active, reasonEnabled, userKey, sessionId, messageId]);
 
   const saveFeedback = useCallback(
-    async (value: LocalStyleDnaFeedbackValue): Promise<boolean> => {
+    async (value: LocalSignatureStyleFeedbackValue): Promise<boolean> => {
       if (!activeRef.current || savingFeedbackRef.current) return false;
       // Re-tapping the current selection is a no-op (no write, no confirmation spam).
       if (value === selectedFeedbackRef.current) return false;
@@ -225,7 +225,7 @@ export function useStyleDnaFeedback({
   );
 
   const saveReason = useCallback(
-    (code: StyleDnaReasonCode) => {
+    (code: SignatureStyleReasonCode) => {
       if (!activeRef.current || !reasonEnabled || savingReasonRef.current) return;
       const feedback = selectedFeedbackRef.current;
       // Reason requires a current feedback selection and must match its polarity.

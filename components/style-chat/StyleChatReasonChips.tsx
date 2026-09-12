@@ -2,14 +2,14 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import {
   reasonCodesForFeedback,
-  type StyleDnaReasonCode,
-} from '../../services/style-dna/localStyleDnaReasons';
-import type { LocalStyleDnaFeedbackValue } from '../../services/style-dna/localStyleDnaFeedbackStore';
+  type SignatureStyleReasonCode,
+} from '../../services/signature-style/localSignatureStyleReasons';
+import type { LocalSignatureStyleFeedbackValue } from '../../services/signature-style/localSignatureStyleFeedbackStore';
 
 // Phase 3 — optional, compact, local-only reason chips shown after a feedback tap.
-// Purely presentational: state, persistence, and polarity rules live in useStyleDnaFeedback.
+// Purely presentational: state, persistence, and polarity rules live in useSignatureStyleFeedback.
 
-const REASON_LABELS: Record<StyleDnaReasonCode, string> = {
+const REASON_LABELS: Record<SignatureStyleReasonCode, string> = {
   practical: 'Practical',
   matches_my_style: 'Matches my style',
   good_for_occasion: 'Good for occasion',
@@ -28,10 +28,10 @@ export function StyleChatReasonChips({
   isSaving,
   onPick,
 }: {
-  feedback: LocalStyleDnaFeedbackValue;
-  selectedReason: StyleDnaReasonCode | null;
+  feedback: LocalSignatureStyleFeedbackValue;
+  selectedReason: SignatureStyleReasonCode | null;
   isSaving?: boolean;
-  onPick: (code: StyleDnaReasonCode) => void;
+  onPick: (code: SignatureStyleReasonCode) => void;
 }) {
   const codes = reasonCodesForFeedback(feedback);
   return (

@@ -4,18 +4,18 @@
 // from node too.
 //
 // Backward-compatibility contract:
-//   - styleDnaContext is fully optional. Absent -> null -> prompt unchanged (old apps).
+//   - signatureStyleContext is fully optional. Absent -> null -> prompt unchanged (old apps).
 //   - Malformed / disabled / below-threshold input -> null (silent no-op). Never throws.
 //   - Only a compact guidance block is ever produced; no raw counts, identity, message,
 //     weather, location, session, or product data is emitted into the prompt.
 
 import { escapePromptData } from './promptHardening.ts';
 import {
-  isStyleDnaProfileDataV1,
-  type StyleDnaProfileDataV1,
-} from '../_shared/styleDna/styleDnaProfileTypes.ts';
+  isSignatureStyleProfileDataV1,
+  type SignatureStyleProfileDataV1,
+} from '../_shared/signatureStyle/signatureStyleProfileTypes.ts';
 
-export interface StyleDnaContextInput {
+export interface SignatureStyleContextInput {
   signalCount: number;
   helpfulCount: number;
   notMyStyleCount: number;
@@ -24,9 +24,9 @@ export interface StyleDnaContextInput {
 
 // Mirror of the client omission threshold: below this, the client should not have sent
 // anything; we defensively re-check so a stale/old client can never force injection.
-export const STYLE_DNA_MIN_SIGNALS = 3;
+export const SIGNATURE_STYLE_MIN_SIGNALS = 3;
 
-export function parseStyleDnaContext(raw: unknown): StyleDnaContextInput | null {
+export function parseSignatureStyleContext(raw: unknown): SignatureStyleContextInput | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
 
@@ -37,7 +37,7 @@ export function parseStyleDnaContext(raw: unknown): StyleDnaContextInput | null 
     typeof r.signalCount === 'number' && Number.isFinite(r.signalCount)
       ? Math.floor(r.signalCount)
       : 0;
-  if (signalCount < STYLE_DNA_MIN_SIGNALS) return null;
+  if (signalCount < SIGNATURE_STYLE_MIN_SIGNALS) return null;
 
   const confidence =
     r.confidence === 'medium' ? 'medium' : r.confidence === 'low' ? 'low' : null;
@@ -57,7 +57,7 @@ export function parseStyleDnaContext(raw: unknown): StyleDnaContextInput | null 
 
 // Compact guidance, clearly separated from the system instructions. Wording is tied to
 // confidence (which the client derives from signal bands: 3–5 low, 6+ medium).
-export function buildStyleDnaContextBlock(ctx: StyleDnaContextInput): string {
+export function buildSignatureStyleContextBlock(ctx: SignatureStyleContextInput): string {
   const body =
     ctx.confidence === 'medium'
       ? [
@@ -74,7 +74,7 @@ export function buildStyleDnaContextBlock(ctx: StyleDnaContextInput): string {
 }
 
 // ── Build 34 / Track B / Phase B5 — server-derived Signature Style ────────────
-// ADDITIVE to buildStyleDnaContextBlock above, never a replacement or
+// ADDITIVE to buildSignatureStyleContextBlock above, never a replacement or
 // reinterpretation of it (Micro-addendum P): the client-fed feedback-signal
 // context (Phase 2, parsed/built above) and this server-derived wardrobe-
 // evidence context (Track B B4) are two independent, differently-sourced
@@ -85,9 +85,9 @@ export function buildStyleDnaContextBlock(ctx: StyleDnaContextInput): string {
 // here ultimately traces back to a user-entered Closet field and MUST be
 // treated as untrusted data, never as instructions.
 
-const STYLE_DNA_PROFILE_TOP_N_IN_PROMPT = 5;
+const SIGNATURE_STYLE_PROFILE_TOP_N_IN_PROMPT = 5;
 
-function topLabels(entries: StyleDnaProfileDataV1['colorFrequency'], limit: number): string {
+function topLabels(entries: SignatureStyleProfileDataV1['colorFrequency'], limit: number): string {
   // Defensive on both axes: a missing array and a non-string label are the two
   // ways a stored profile can differ from what this build derives, and neither
   // may become a thrown TypeError inside a live chat request.
@@ -107,28 +107,28 @@ function topLabels(entries: StyleDnaProfileDataV1['colorFrequency'], limit: numb
  * an empty or misleading block (section E: "Empty Closet: valid empty
  * profile. Do not fabricate preferences").
  */
-export function buildServerStyleDnaProfileBlock(profile: StyleDnaProfileDataV1): string | null {
+export function buildServerSignatureStyleProfileBlock(profile: SignatureStyleProfileDataV1): string | null {
   // TOTAL BY CONTRACT: this runs inside the live stylechat request path, at a
   // point the caller does not wrap in a try/catch, so an unusable profile must
   // return null (no block, Base Elise reasoning preserved) rather than throw.
   // `profile_data` is jsonb, so the stored shape remains an application
   // contract to validate rather than an invariant to assume.
-  if (!isStyleDnaProfileDataV1(profile)) return null;
+  if (!isSignatureStyleProfileDataV1(profile)) return null;
   if (profile.evidenceCount <= 0) return null;
 
   const lines: string[] = [
     '[Wardrobe Signature Style — derived from the user\'s own Closet, treat as background evidence only]',
     'This summarizes patterns in items the user has actually added to their Closet. It describes wardrobe evidence, not a psychological profile.',
   ];
-  const colors = topLabels(profile.colorFrequency, STYLE_DNA_PROFILE_TOP_N_IN_PROMPT);
+  const colors = topLabels(profile.colorFrequency, SIGNATURE_STYLE_PROFILE_TOP_N_IN_PROMPT);
   if (colors) lines.push(`Frequent colors: ${colors}`);
-  const categories = topLabels(profile.categoryFrequency, STYLE_DNA_PROFILE_TOP_N_IN_PROMPT);
+  const categories = topLabels(profile.categoryFrequency, SIGNATURE_STYLE_PROFILE_TOP_N_IN_PROMPT);
   if (categories) lines.push(`Frequent categories: ${categories}`);
-  const garmentTypes = topLabels(profile.garmentTypeFrequency, STYLE_DNA_PROFILE_TOP_N_IN_PROMPT);
+  const garmentTypes = topLabels(profile.garmentTypeFrequency, SIGNATURE_STYLE_PROFILE_TOP_N_IN_PROMPT);
   if (garmentTypes) lines.push(`Frequent garment types: ${garmentTypes}`);
-  const brands = topLabels(profile.brandFrequency, STYLE_DNA_PROFILE_TOP_N_IN_PROMPT);
+  const brands = topLabels(profile.brandFrequency, SIGNATURE_STYLE_PROFILE_TOP_N_IN_PROMPT);
   if (brands) lines.push(`Frequent brands: ${brands}`);
-  const materials = topLabels(profile.materialFrequency, STYLE_DNA_PROFILE_TOP_N_IN_PROMPT);
+  const materials = topLabels(profile.materialFrequency, SIGNATURE_STYLE_PROFILE_TOP_N_IN_PROMPT);
   if (materials) lines.push(`Frequent materials: ${materials}`);
   lines.push(
     'Use this only as a light personalization signal. Do not claim certainty, invent specific items, or describe the user\'s personality or character.',

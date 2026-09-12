@@ -36,21 +36,21 @@ function run(rel, requireMap, env = {}) {
 
 function load(storage, env = {}) {
   const asyncMock = { __esModule: true, default: storage };
-  const feedback = run('services/style-dna/localStyleDnaFeedbackStore.ts', {
+  const feedback = run('services/signature-style/localSignatureStyleFeedbackStore.ts', {
     '@react-native-async-storage/async-storage': asyncMock,
   }, env);
-  const reasons = run('services/style-dna/localStyleDnaReasons.ts', {
+  const reasons = run('services/signature-style/localSignatureStyleReasons.ts', {
     '@react-native-async-storage/async-storage': asyncMock,
-    './localStyleDnaFeedbackStore': feedback,
+    './localSignatureStyleFeedbackStore': feedback,
   }, env);
-  const profile = run('services/style-dna/localStyleDnaProfile.ts', {
+  const profile = run('services/signature-style/localSignatureStyleProfile.ts', {
     '@react-native-async-storage/async-storage': asyncMock,
-    './localStyleDnaFeedbackStore': feedback,
-    './localStyleDnaReasons': reasons,
+    './localSignatureStyleFeedbackStore': feedback,
+    './localSignatureStyleReasons': reasons,
   }, env);
-  const preferences = run('services/style-dna/localStyleDnaPreferences.ts', {
+  const preferences = run('services/signature-style/localSignatureStylePreferences.ts', {
     '@react-native-async-storage/async-storage': asyncMock,
-    './localStyleDnaFeedbackStore': feedback,
+    './localSignatureStyleFeedbackStore': feedback,
   }, env);
   return { feedback, reasons, profile, preferences };
 }
@@ -64,12 +64,12 @@ test('reset clears feedback and reasons for current actor only', async () => {
   await reasons.setReasonForMessage({ userKey: U, sessionId: 's1', messageId: 'm1', feedback: 'helpful', reasonCode: 'practical' });
   await feedback.setFeedbackForMessage({ userKey: OTHER, sessionId: 's1', messageId: 'm1', feedback: 'helpful' });
 
-  await profile.resetLocalStyleDnaProfile(U);
+  await profile.resetLocalSignatureStyleProfile(U);
 
-  assert.equal((await profile.getStyleDnaProfileSummary({ userKey: U })).totalSignals, 0);
+  assert.equal((await profile.getSignatureStyleProfileSummary({ userKey: U })).totalSignals, 0);
   assert.equal((await reasons.getReasonCountsForUser({ userKey: U })).totalReasons, 0);
 
-  const other = await profile.getStyleDnaProfileSummary({ userKey: OTHER });
+  const other = await profile.getSignatureStyleProfileSummary({ userKey: OTHER });
   assert.equal(other.totalSignals, 1);
 });
 
@@ -77,17 +77,17 @@ test('reset preserves UI preferences for current actor', async () => {
   const storage = makeStorage();
   const { feedback, profile, preferences } = load(storage);
   await feedback.setFeedbackForMessage({ userKey: U, sessionId: 's1', messageId: 'm1', feedback: 'helpful' });
-  await preferences.setStyleDnaPreferences(U, {
+  await preferences.setSignatureStylePreferences(U, {
     learnFromFeedback: true,
     showFeedbackControls: true,
     feedbackEducationDismissed: true,
   });
 
-  await profile.resetLocalStyleDnaProfile(U);
+  await profile.resetLocalSignatureStyleProfile(U);
 
-  assert.equal((await profile.getStyleDnaProfileSummary({ userKey: U })).totalSignals, 0);
+  assert.equal((await profile.getSignatureStyleProfileSummary({ userKey: U })).totalSignals, 0);
 
-  const prefs = await preferences.getStyleDnaPreferences(U);
+  const prefs = await preferences.getSignatureStylePreferences(U);
   assert.equal(prefs.learnFromFeedback, true);
   assert.equal(prefs.showFeedbackControls, true);
   assert.equal(prefs.feedbackEducationDismissed, true);
@@ -101,7 +101,7 @@ test('reset does not touch unrelated namespaces', async () => {
   const { feedback, profile } = load(storage);
   await feedback.setFeedbackForMessage({ userKey: U, sessionId: 's1', messageId: 'm1', feedback: 'helpful' });
 
-  await profile.resetLocalStyleDnaProfile(U);
+  await profile.resetLocalSignatureStyleProfile(U);
 
   const keys = await storage.getAllKeys();
   assert.ok(keys.includes('onboardingComplete'));

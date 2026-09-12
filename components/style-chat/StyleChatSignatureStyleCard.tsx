@@ -3,10 +3,10 @@ import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'rea
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { MODAL_MAX_WIDTH } from '../../services/responsiveLayout';
 import { STYLE_MEMORY_COPY } from '../../constants/elise';
-import type { LocalStyleDnaProfileSummary } from '../../services/style-dna/localStyleDnaProfile';
+import type { LocalSignatureStyleProfileSummary } from '../../services/signature-style/localSignatureStyleProfile';
 
-interface StyleChatStyleDnaCardProps {
-  summary: LocalStyleDnaProfileSummary | null;
+interface StyleChatSignatureStyleCardProps {
+  summary: LocalSignatureStyleProfileSummary | null;
   summaryText?: string | null;
   loading?: boolean;
   resetting?: boolean;
@@ -14,7 +14,7 @@ interface StyleChatStyleDnaCardProps {
   onReset?: () => void;
 }
 
-function formatRatio(summary: LocalStyleDnaProfileSummary | null): string | null {
+function formatRatio(summary: LocalSignatureStyleProfileSummary | null): string | null {
   if (!summary || summary.helpfulRatio == null) return null;
   return `${Math.round(summary.helpfulRatio * 100)}% helpful`;
 }
@@ -22,14 +22,14 @@ function formatRatio(summary: LocalStyleDnaProfileSummary | null): string | null
 // Compact collapsed status row (default) + on-demand details sheet. Keeps the chat
 // window visible: the row is a quiet utility band, and full stats/reset live behind a
 // tap in a modal sheet so Style Memory supports the conversation rather than replacing it.
-export function StyleChatStyleDnaCard({
+export function StyleChatSignatureStyleCard({
   summary,
   summaryText,
   loading = false,
   resetting = false,
   learnFromFeedback = true,
   onReset,
-}: StyleChatStyleDnaCardProps) {
+}: StyleChatSignatureStyleCardProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const totalSignals = summary?.totalSignals ?? 0;
   const hasSignals = totalSignals > 0;
@@ -54,7 +54,7 @@ export function StyleChatStyleDnaCard({
     <>
       <Pressable
         style={styles.row}
-        testID="style-chat-style-dna-card"
+        testID="style-chat-signature-style-card"
         onPress={() => setDetailsOpen(true)}
         accessibilityRole="button"
         accessibilityLabel={STYLE_MEMORY_COPY.detailsAccessibilityLabel}

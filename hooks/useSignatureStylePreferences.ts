@@ -1,25 +1,25 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import {
-  getStyleDnaPreferencesSnapshot,
-  hydrateStyleDnaPreferences,
-  setStyleDnaPreferences,
-  subscribeStyleDnaPreferences,
-  type LocalStyleDnaPreferences,
-} from '../services/style-dna/localStyleDnaPreferences';
+  getSignatureStylePreferencesSnapshot,
+  hydrateSignatureStylePreferences,
+  setSignatureStylePreferences,
+  subscribeSignatureStylePreferences,
+  type LocalSignatureStylePreferences,
+} from '../services/signature-style/localSignatureStylePreferences';
 
-export interface UseStyleDnaPreferencesParams {
+export interface UseSignatureStylePreferencesParams {
   userKey: string | null | undefined;
 }
 
-export interface UseStyleDnaPreferencesReturn {
-  preferences: LocalStyleDnaPreferences;
+export interface UseSignatureStylePreferencesReturn {
+  preferences: LocalSignatureStylePreferences;
   loading: boolean;
-  updatePreferences: (update: Partial<LocalStyleDnaPreferences>) => Promise<void>;
+  updatePreferences: (update: Partial<LocalSignatureStylePreferences>) => Promise<void>;
 }
 
-export function useStyleDnaPreferences({
+export function useSignatureStylePreferences({
   userKey,
-}: UseStyleDnaPreferencesParams): UseStyleDnaPreferencesReturn {
+}: UseSignatureStylePreferencesParams): UseSignatureStylePreferencesReturn {
   const actorKey = userKey || null;
   const [loadingState, setLoadingState] = useState<{ actorKey: string | null; loading: boolean }>({
     actorKey,
@@ -28,11 +28,11 @@ export function useStyleDnaPreferences({
   const hydrationVersionRef = useRef(0);
 
   const subscribe = useCallback(
-    (listener: () => void) => subscribeStyleDnaPreferences(actorKey, listener),
+    (listener: () => void) => subscribeSignatureStylePreferences(actorKey, listener),
     [actorKey],
   );
   const getSnapshot = useCallback(
-    () => getStyleDnaPreferencesSnapshot(actorKey),
+    () => getSignatureStylePreferencesSnapshot(actorKey),
     [actorKey],
   );
   const preferences = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
@@ -45,7 +45,7 @@ export function useStyleDnaPreferences({
     }
 
     setLoadingState({ actorKey, loading: true });
-    void hydrateStyleDnaPreferences(actorKey).finally(() => {
+    void hydrateSignatureStylePreferences(actorKey).finally(() => {
       if (hydrationVersionRef.current === version) {
         setLoadingState({ actorKey, loading: false });
       }
@@ -53,9 +53,9 @@ export function useStyleDnaPreferences({
   }, [actorKey]);
 
   const updatePreferences = useCallback(
-    async (update: Partial<LocalStyleDnaPreferences>) => {
+    async (update: Partial<LocalSignatureStylePreferences>) => {
       if (!actorKey) return;
-      await setStyleDnaPreferences(actorKey, update);
+      await setSignatureStylePreferences(actorKey, update);
     },
     [actorKey],
   );

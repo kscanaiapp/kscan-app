@@ -15,7 +15,7 @@ import {
 } from '../../../constants/featureFlags';
 import { getFriendlyStyleChatError } from '../styleChatErrors';
 import type { WeatherLocationInput } from '../../../constants/weatherStyling';
-import type { StyleDnaContext } from '../../style-dna/styleDnaContext';
+import type { SignatureStyleContext } from '../../signature-style/signatureStyleContext';
 import type { StyleChatHandoffContext } from '../styleChatHandoffContext';
 import type { GenderStylingContext } from '../../../constants/genderStylingContext';
 import {
@@ -328,10 +328,10 @@ export class EdgeStyleChatProvider {
     sessionId: string;
     message: string;
     weatherLocation?: WeatherLocationInput | null;
-    styleDnaContext?: StyleDnaContext | null;
+    signatureStyleContext?: SignatureStyleContext | null;
     /**
      * Fix #5 — explicit, self-disclosed baseline styling context. A stable
-     * stored preference, not resolved fresh per send like weather/Style DNA.
+     * stored preference, not resolved fresh per send like weather/Signature Style.
      */
     genderStylingContext?: GenderStylingContext | null;
     activeContext?: StyleChatHandoffContext | null;
@@ -371,11 +371,18 @@ export class EdgeStyleChatProvider {
           ...(input.weatherLocation && input.weatherLocation.enabled
             ? { weatherLocation: input.weatherLocation }
             : {}),
-          // Additive/optional Style DNA personalization signal (Phase 2). Sent only
+          // Additive/optional Signature Style personalization signal (Phase 2). Sent only
           // when the client built a flag-on, above-threshold context. Requests without
           // it stay valid; the Edge Function treats a missing field as pre-Phase 2.
-          ...(input.styleDnaContext && input.styleDnaContext.enabled
-            ? { styleDnaContext: input.styleDnaContext }
+          //
+          // The wire field name `styleDnaContext` is retained here deliberately
+          // (EXTERNAL_WIRE_CONTRACT): it is not proven safe to rename ahead of a
+          // native release, since an already-shipped app build could still be
+          // sending this exact JSON key to an independently-redeployable Edge
+          // Function. The internal parameter is named for Signature Style; only
+          // this literal wire key stays legacy-named.
+          ...(input.signatureStyleContext && input.signatureStyleContext.enabled
+            ? { styleDnaContext: input.signatureStyleContext }
             : {}),
           // Additive/optional Fix #5 baseline styling context. Sent only when the
           // user has an on-record answer; requests without it stay valid and the

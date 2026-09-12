@@ -7,8 +7,8 @@ import {
   View,
 } from 'react-native';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
-import { useStyleDnaFeedback } from '../../hooks/useStyleDnaFeedback';
-import type { LocalStyleDnaFeedbackValue } from '../../services/style-dna/localStyleDnaFeedbackStore';
+import { useSignatureStyleFeedback } from '../../hooks/useSignatureStyleFeedback';
+import type { LocalSignatureStyleFeedbackValue } from '../../services/signature-style/localSignatureStyleFeedbackStore';
 import { StyleChatReasonChips } from './StyleChatReasonChips';
 
 const CONFIRMATION_DURATION_MS = 2200;
@@ -80,7 +80,7 @@ export function StyleChatFeedbackControls({
   }, []);
 
   const handleFeedbackSaved = useCallback(
-    (value: LocalStyleDnaFeedbackValue) => {
+    (value: LocalSignatureStyleFeedbackValue) => {
       submissionPendingRef.current = false;
       if (mountedRef.current && feedbackEnabledRef.current) {
         showConfirmation(
@@ -101,7 +101,7 @@ export function StyleChatFeedbackControls({
     selectedReason,
     isSavingReason,
     saveReason,
-  } = useStyleDnaFeedback({
+  } = useSignatureStyleFeedback({
     userKey,
     sessionId,
     messageId,

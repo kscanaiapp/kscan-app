@@ -51,9 +51,9 @@ import { purgeDressingRoomCompositionsForActor } from '../privateDressingRoomCom
 import { purgeDressingRoomInteractionsForActor } from '../privateDressingRoomInteractionStore';
 import { purgeSavedLookReturnContextForActor } from '../privateSavedLookReturnContext';
 import { purgeStylistVoicePreferenceForActor } from '../../stores/stylistVoicePreferenceStore';
-import { clearStyleDnaPreferencesForUser } from '../style-dna/localStyleDnaPreferences';
-import { clearLocalStyleDnaForUser } from '../style-dna/localStyleDnaFeedbackStore';
-import { clearReasonsForUser } from '../style-dna/localStyleDnaReasons';
+import { clearSignatureStylePreferencesForUser } from '../signature-style/localSignatureStylePreferences';
+import { clearLocalSignatureStyleForUser } from '../signature-style/localSignatureStyleFeedbackStore';
+import { clearReasonsForUser } from '../signature-style/localSignatureStyleReasons';
 import { clearCachedPackingPlan } from '../packing/packingPlanCache';
 import { clearOnboardingComplete } from '../onboardingCompletion';
 
@@ -67,13 +67,13 @@ export type OwnerPurgeResult = {
 };
 
 /**
- * Style DNA files its local records under `user:<supabase user id>` — see
- * app/style-chat/[sessionId].tsx, which is where that key is minted. The
+ * Signature Style files its local records under `user:<supabase user id>` —
+ * see app/style-chat/[sessionId].tsx, which is where that key is minted. The
  * marker stores the raw id, so the derivation lives here rather than being
- * baked into the stored record, where a later change to the Style DNA key
- * shape would silently orphan every existing marker.
+ * baked into the stored record, where a later change to the Signature Style
+ * key shape would silently orphan every existing marker.
  */
-export function styleDnaUserKey(ownerId: string): string {
+export function signatureStyleUserKey(ownerId: string): string {
   return `user:${ownerId}`;
 }
 
@@ -89,9 +89,9 @@ type PurgeDeps = Partial<{
   purgeDressingRoomInteractions: (ownerId: string) => Promise<{ ok: boolean }>;
   purgeSavedLookReturnContext: (ownerId: string) => Promise<{ ok: boolean }>;
   purgeStylistVoicePreference: (ownerId: string) => Promise<{ ok: boolean }>;
-  clearStyleDnaPreferences: (userKey: string) => Promise<void>;
-  clearStyleDnaFeedback: (userKey: string) => Promise<void>;
-  clearStyleDnaReasons: (userKey: string) => Promise<void>;
+  clearSignatureStylePreferences: (userKey: string) => Promise<void>;
+  clearSignatureStyleFeedback: (userKey: string) => Promise<void>;
+  clearSignatureStyleReasons: (userKey: string) => Promise<void>;
   clearPackingPlanCache: (ownerId: string) => Promise<void>;
   clearOnboarding: (ownerId: string) => Promise<void>;
 }>;
@@ -146,7 +146,7 @@ export async function purgeOwnerScopedLocalData(
     return { complete: false, ownerId: '', steps: [{ step: 'owner_scope', ok: false }] };
   }
 
-  const userKey = styleDnaUserKey(owner);
+  const userKey = signatureStyleUserKey(owner);
 
   const steps: PurgeStepResult[] = [];
   steps.push(await runStep('recent_scans', () => (deps.purgeScans ?? purgeLocalScansForOwner)(owner)));
@@ -195,18 +195,18 @@ export async function purgeOwnerScopedLocalData(
     ),
   );
   steps.push(
-    await runStep('style_dna_preferences', () =>
-      (deps.clearStyleDnaPreferences ?? clearStyleDnaPreferencesForUser)(userKey),
+    await runStep('signature_style_preferences', () =>
+      (deps.clearSignatureStylePreferences ?? clearSignatureStylePreferencesForUser)(userKey),
     ),
   );
   steps.push(
-    await runStep('style_dna_feedback', () =>
-      (deps.clearStyleDnaFeedback ?? clearLocalStyleDnaForUser)(userKey),
+    await runStep('signature_style_feedback', () =>
+      (deps.clearSignatureStyleFeedback ?? clearLocalSignatureStyleForUser)(userKey),
     ),
   );
   steps.push(
-    await runStep('style_dna_reasons', () =>
-      (deps.clearStyleDnaReasons ?? clearReasonsForUser)(userKey),
+    await runStep('signature_style_reasons', () =>
+      (deps.clearSignatureStyleReasons ?? clearReasonsForUser)(userKey),
     ),
   );
   steps.push(

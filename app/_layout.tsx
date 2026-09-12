@@ -413,7 +413,7 @@ function AppleCredentialStateBridge() {
  * happens later in a backend worker. Until now nothing on the device ever
  * learned that the purge had actually happened, so a user whose account was
  * genuinely and irreversibly deleted still had their Recent Scans, Closet,
- * Style DNA and Dressing Room data sitting on the handset indefinitely.
+ * Signature Style and Dressing Room data sitting on the handset indefinitely.
  *
  * WHY IT CANNOT BE DONE FROM A SESSION. Intake revokes the caller's sessions
  * and bans the Auth user for the whole grace window, and the purge worker

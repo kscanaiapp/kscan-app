@@ -2,8 +2,8 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LUXURY, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
 import { PrivacyToggle } from '../PrivacyToggle';
-import { useStyleDnaPreferences } from '../../hooks/useStyleDnaPreferences';
-import { resetLocalStyleDnaProfile } from '../../services/style-dna/localStyleDnaProfile';
+import { useSignatureStylePreferences } from '../../hooks/useSignatureStylePreferences';
+import { resetLocalSignatureStyleProfile } from '../../services/signature-style/localSignatureStyleProfile';
 import { SectionHeader } from '../luxury';
 
 interface SignatureStyleSettingsSectionProps {
@@ -11,7 +11,7 @@ interface SignatureStyleSettingsSectionProps {
 }
 
 export function SignatureStyleSettingsSection({ userKey }: SignatureStyleSettingsSectionProps) {
-  const { preferences, loading, updatePreferences } = useStyleDnaPreferences({ userKey });
+  const { preferences, loading, updatePreferences } = useSignatureStylePreferences({ userKey });
   const [isResetting, setIsResetting] = useState(false);
   const [preferenceError, setPreferenceError] = useState<string | null>(null);
 
@@ -40,7 +40,7 @@ export function SignatureStyleSettingsSection({ userKey }: SignatureStyleSetting
           onPress: async () => {
             setIsResetting(true);
             try {
-              await resetLocalStyleDnaProfile(userKey);
+              await resetLocalSignatureStyleProfile(userKey);
             } catch {
               Alert.alert('Could not reset Signature Style', 'Please try again.');
             } finally {

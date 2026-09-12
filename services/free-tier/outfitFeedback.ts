@@ -1,6 +1,6 @@
 /**
  * Free Tier Utility Expansion — outfit/item feedback store (local only).
- * Kept separate from the existing Style DNA feedback layer by design; see
+ * Kept separate from the existing Signature Style feedback layer by design; see
  * docs/FREE_TIER_UTILITY_EXPANSION_MAP.md for the deferred connection note.
  */
 

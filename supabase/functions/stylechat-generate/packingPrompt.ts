@@ -6,7 +6,7 @@
 //   1. EVERY user- or Closet-sourced string is escaped with escapePromptData
 //      before it enters the prompt. A Closet note, an item title, a destination
 //      and a refinement note are all data. escapePromptData is the same
-//      function eliseAdvicePrompt.ts and styleDnaContext.ts already use for
+//      function eliseAdvicePrompt.ts and signatureStyleContext.ts already use for
 //      exactly these fields.
 //   2. The model may only cite ids from the numbered list below. Nothing it
 //      returns is trusted; packingValidation.ts re-checks every reference

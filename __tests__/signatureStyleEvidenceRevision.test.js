@@ -25,12 +25,12 @@ function run(rel) {
   return module.exports;
 }
 
-const m = run('supabase/functions/_shared/styleDna/styleDnaEvidenceRevision.ts');
+const m = run('supabase/functions/_shared/signatureStyle/signatureStyleEvidenceRevision.ts');
 
 test('empty evidence -> the fixed empty sentinel', () => {
   assert.equal(m.computeClosetEvidenceRevision([]), 'empty:0');
   assert.equal(m.computeClosetEvidenceRevision(undefined), 'empty:0');
-  assert.equal(m.STYLE_DNA_EMPTY_EVIDENCE_REVISION, 'empty:0');
+  assert.equal(m.SIGNATURE_STYLE_EMPTY_EVIDENCE_REVISION, 'empty:0');
 });
 
 test('single row -> {updatedAt}:1', () => {

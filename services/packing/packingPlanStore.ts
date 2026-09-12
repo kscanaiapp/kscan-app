@@ -22,7 +22,7 @@
 //
 // This is a new device-local personal-data class and it carries the project's
 // existing unbuilt-local-purge gap (services/accountDeletion.js), exactly as
-// Recent Scans and Style DNA preferences already do. Server-side trip history
+// Recent Scans and Signature Style preferences already do. Server-side trip history
 // remains a FUTURE change needing owner sign-off, not something a downstream
 // feature may quietly add.
 //

@@ -1,6 +1,6 @@
 /**
  * Free Tier Utility Expansion — outfit/item rating card (1–5 stars + tags).
- * Local only; kept separate from the Style DNA feedback layer.
+ * Local only; kept separate from the Signature Style feedback layer.
  */
 
 import React from 'react';

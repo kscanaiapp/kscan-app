@@ -15,7 +15,7 @@ function transpile(rel) {
 
 const mod = { exports: {} };
 const sandbox = { console, exports: mod.exports, module: mod, require: () => { throw new Error('Unexpected require'); } };
-vm.runInNewContext(transpile('services/style-dna/styleDnaEligibility.ts'), sandbox, { filename: 'services/style-dna/styleDnaEligibility.ts' });
+vm.runInNewContext(transpile('services/signature-style/signatureStyleEligibility.ts'), sandbox, { filename: 'services/signature-style/signatureStyleEligibility.ts' });
 const { isEligibleForStyleFeedback } = mod.exports;
 
 function makeMessage(overrides = {}) {

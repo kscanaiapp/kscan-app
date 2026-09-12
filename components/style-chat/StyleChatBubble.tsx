@@ -7,14 +7,14 @@ import { StyleChatActionCards } from './StyleChatActionCards';
 import { StyleChatFeedbackControls } from './StyleChatFeedbackControls';
 import { StyleChatVoiceRetry } from './StyleChatVoiceRetry';
 import { useStylistIdentity } from '../../hooks/useStylistIdentity';
-import { STYLE_DNA_ENABLED } from '../../services/style-dna/localStyleDnaFeedbackStore';
+import { SIGNATURE_STYLE_ENABLED } from '../../services/signature-style/localSignatureStyleFeedbackStore';
 import { useAiOutputReporting } from '../../contexts/AiOutputReportingContext';
 import {
   isPendingUserMessage,
   isStablePersistedId,
 } from '../../services/style-chat/styleChatMessageState';
 import { isSyntheticStyleChatFailure } from '../../services/style-chat/styleChatOutcome';
-import { isEligibleForStyleFeedback } from '../../services/style-dna/styleDnaEligibility';
+import { isEligibleForStyleFeedback } from '../../services/signature-style/signatureStyleEligibility';
 import * as FileSystem from 'expo-file-system';
 import { ELISE_CONCIERGE_V1 } from '../../constants/featureFlags';
 import { ConciergeEvidenceBlock } from '../concierge/ConciergeEvidenceBlock';
@@ -28,7 +28,7 @@ interface StyleChatBubbleProps {
   onRetry?: () => void;
   isError?: boolean;
   /**
-   * Authenticated Style DNA user key (e.g. `user:{supabaseUserId}`), passed from
+   * Authenticated Signature Style user key (e.g. `user:{supabaseUserId}`), passed from
    * the session screen. When absent, local feedback UI is not rendered.
    */
   userKey?: string | null;
@@ -51,7 +51,7 @@ interface StyleChatBubbleProps {
    */
   onDismissFeedbackEducation?: () => void;
   onFeedbackMenuOpened?: () => void;
-  onStyleDnaFeedbackSaved?: () => void;
+  onSignatureStyleFeedbackSaved?: () => void;
 }
 
 type AssistantContentBlock =
@@ -127,7 +127,7 @@ export function StyleChatBubble({
   feedbackEducationDismissed = false,
   onDismissFeedbackEducation,
   onFeedbackMenuOpened,
-  onStyleDnaFeedbackSaved,
+  onSignatureStyleFeedbackSaved,
 }: StyleChatBubbleProps) {
   const isUser = message.sender === 'user';
   const { identity } = useStylistIdentity();
@@ -145,7 +145,7 @@ export function StyleChatBubble({
       }
     : null;
 
-  // Style DNA Phase 0: local feedback only on completed assistant messages with a
+  // Signature Style Phase 0: local feedback only on completed assistant messages with a
   // stable persisted id, and only when we have an authenticated user key.
   const isGreeting = !isUser && uiBlocks.some((block) => block?.type === 'greeting');
 
@@ -155,7 +155,7 @@ export function StyleChatBubble({
   const conciergeOwnerId = conciergeOwnerIdFromUserKey(userKey);
 
   const showFeedback =
-    STYLE_DNA_ENABLED &&
+    SIGNATURE_STYLE_ENABLED &&
     !isSyntheticFailure &&
     !isGreeting &&
     isStablePersistedId(message.id) &&
@@ -298,7 +298,7 @@ export function StyleChatBubble({
             feedbackEducationDismissed={feedbackEducationDismissed}
             onDismissEducation={onDismissFeedbackEducation ?? (() => {})}
             onMenuOpened={onFeedbackMenuOpened}
-            onSaved={onStyleDnaFeedbackSaved}
+            onSaved={onSignatureStyleFeedbackSaved}
           />
         ) : null}
         {isError && onRetry ? (

@@ -23,7 +23,7 @@ test('v1 request shape remains accepted: sessionId and message only', () => {
 });
 
 test('v1 optional additive fields remain optional', () => {
-  assert.match(edgeIndex, /styleDnaContext/);
+  assert.match(edgeIndex, /signatureStyleContext/);
   assert.match(edgeIndex, /activeContext/);
   assert.match(edgeIndex, /weatherLocation/);
 });

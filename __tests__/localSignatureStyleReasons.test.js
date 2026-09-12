@@ -33,17 +33,17 @@ function makeStorage(initial = {}) {
 }
 function load(storage, env = {}) {
   const asyncMock = { __esModule: true, default: storage };
-  const store = run('services/style-dna/localStyleDnaFeedbackStore.ts', {
+  const store = run('services/signature-style/localSignatureStyleFeedbackStore.ts', {
     '@react-native-async-storage/async-storage': asyncMock,
   }, env);
-  const reasons = run('services/style-dna/localStyleDnaReasons.ts', {
+  const reasons = run('services/signature-style/localSignatureStyleReasons.ts', {
     '@react-native-async-storage/async-storage': asyncMock,
-    './localStyleDnaFeedbackStore': store,
+    './localSignatureStyleFeedbackStore': store,
   }, env);
-  const profile = run('services/style-dna/localStyleDnaProfile.ts', {
+  const profile = run('services/signature-style/localSignatureStyleProfile.ts', {
     '@react-native-async-storage/async-storage': asyncMock,
-    './localStyleDnaFeedbackStore': store,
-    './localStyleDnaReasons': reasons,
+    './localSignatureStyleFeedbackStore': store,
+    './localSignatureStyleReasons': reasons,
   }, env);
   return { store, reasons, profile, storage };
 }
@@ -52,12 +52,12 @@ const U = 'user:abc';
 
 test('reason feedback flag disabled by default (env unset)', () => {
   const { reasons } = load(makeStorage());
-  assert.equal(reasons.STYLE_DNA_REASON_FEEDBACK_ENABLED, false);
+  assert.equal(reasons.SIGNATURE_STYLE_REASON_FEEDBACK_ENABLED, false);
 });
 
 test('reason feedback flag enabled when env is "true"', () => {
   const { reasons } = load(makeStorage(), { EXPO_PUBLIC_STYLE_DNA_REASON_FEEDBACK_ENABLED: 'true' });
-  assert.equal(reasons.STYLE_DNA_REASON_FEEDBACK_ENABLED, true);
+  assert.equal(reasons.SIGNATURE_STYLE_REASON_FEEDBACK_ENABLED, true);
 });
 
 test('reason is optional: feedback persists with no reason recorded', async () => {
@@ -144,12 +144,12 @@ test('clearReasonsForUser clears only current user', async () => {
 });
 
 test('reset via profile clears reasons for current user (reset synchronization)', async () => {
-  // profile.resetLocalStyleDnaProfile must clear reasons too once wired.
+  // profile.resetLocalSignatureStyleProfile must clear reasons too once wired.
   const { store, reasons, profile } = load(makeStorage());
   await store.setFeedbackForMessage({ userKey: U, sessionId: 's1', messageId: 'm1', feedback: 'helpful' });
   await reasons.setReasonForMessage({ userKey: U, sessionId: 's1', messageId: 'm1', feedback: 'helpful', reasonCode: 'practical' });
-  await profile.resetLocalStyleDnaProfile(U);
-  assert.equal((await profile.getStyleDnaProfileSummary({ userKey: U })).totalSignals, 0);
+  await profile.resetLocalSignatureStyleProfile(U);
+  assert.equal((await profile.getSignatureStyleProfileSummary({ userKey: U })).totalSignals, 0);
   assert.equal((await reasons.getReasonCountsForUser({ userKey: U })).totalReasons, 0);
 });
 
@@ -189,9 +189,9 @@ test('Signature Style context (derived from feedback) is unaffected by reason sa
   await store.setFeedbackForMessage({ userKey: U, sessionId: 's', messageId: 'b', feedback: 'helpful' });
   await store.setFeedbackForMessage({ userKey: U, sessionId: 's', messageId: 'c', feedback: 'not_my_style' });
   await reasons.setReasonForMessage({ userKey: U, sessionId: 's', messageId: 'a', feedback: 'helpful', reasonCode: 'practical' });
-  const summary = await profile.getStyleDnaProfileSummary({ userKey: U });
-  const ctxMod = run('services/style-dna/styleDnaContext.ts', {}, {});
-  const ctx = ctxMod.buildStyleDnaContext(summary, { enabled: true });
+  const summary = await profile.getSignatureStyleProfileSummary({ userKey: U });
+  const ctxMod = run('services/signature-style/signatureStyleContext.ts', {}, {});
+  const ctx = ctxMod.buildSignatureStyleContext(summary, { enabled: true });
   assert.equal(ctx.signalCount, 3);
   assert.equal(ctx.confidence, 'low');
 });

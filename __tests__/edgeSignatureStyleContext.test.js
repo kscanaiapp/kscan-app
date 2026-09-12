@@ -20,58 +20,58 @@ function run(rel, requireMap = {}) {
   return module.exports;
 }
 // Build 34 / Track B / Phase B5 added a real (pure, Deno/network-free)
-// dependency on promptHardening.ts for buildServerStyleDnaProfileBlock; this
+// dependency on promptHardening.ts for buildServerSignatureStyleProfileBlock; this
 // pre-existing harness predates that and needs the real module wired in, not
 // a stub, since these tests exercise no server-derived-profile behavior that
 // would need faking.
 // The Track B B1A-B5 audit repair added a second real (equally pure) runtime
-// dependency: styleDnaProfileTypes.ts now exports isStyleDnaProfileDataV1, the
+// dependency: signatureStyleProfileTypes.ts now exports isSignatureStyleProfileDataV1, the
 // stored-shape guard that keeps a malformed profile from throwing inside a
 // live chat request. It is wired in here for the same reason promptHardening
 // is — it is the real module, not a stub.
 const promptHardening = run('supabase/functions/stylechat-generate/promptHardening.ts');
-const profileTypes = run('supabase/functions/_shared/styleDna/styleDnaProfileTypes.ts');
-const m = run('supabase/functions/stylechat-generate/styleDnaContext.ts', {
+const profileTypes = run('supabase/functions/_shared/signatureStyle/signatureStyleProfileTypes.ts');
+const m = run('supabase/functions/stylechat-generate/signatureStyleContext.ts', {
   './promptHardening.ts': promptHardening,
-  '../_shared/styleDna/styleDnaProfileTypes.ts': profileTypes,
+  '../_shared/signatureStyle/signatureStyleProfileTypes.ts': profileTypes,
 });
 
-test('old request (missing styleDnaContext) is a no-op', () => {
-  assert.equal(m.parseStyleDnaContext(undefined), null);
-  assert.equal(m.parseStyleDnaContext(null), null);
+test('old request (missing signatureStyleContext) is a no-op', () => {
+  assert.equal(m.parseSignatureStyleContext(undefined), null);
+  assert.equal(m.parseSignatureStyleContext(null), null);
 });
 
-test('malformed styleDnaContext is ignored (never throws)', () => {
-  assert.equal(m.parseStyleDnaContext('nope'), null);
-  assert.equal(m.parseStyleDnaContext(42), null);
-  assert.equal(m.parseStyleDnaContext([]), null);
-  assert.equal(m.parseStyleDnaContext({}), null);
-  assert.equal(m.parseStyleDnaContext({ enabled: false, signalCount: 9, confidence: 'medium' }), null);
+test('malformed signatureStyleContext is ignored (never throws)', () => {
+  assert.equal(m.parseSignatureStyleContext('nope'), null);
+  assert.equal(m.parseSignatureStyleContext(42), null);
+  assert.equal(m.parseSignatureStyleContext([]), null);
+  assert.equal(m.parseSignatureStyleContext({}), null);
+  assert.equal(m.parseSignatureStyleContext({ enabled: false, signalCount: 9, confidence: 'medium' }), null);
 });
 
 test('below-threshold context is ignored server-side even if client sent it', () => {
-  assert.equal(m.parseStyleDnaContext({ enabled: true, signalCount: 2, confidence: 'low' }), null);
+  assert.equal(m.parseSignatureStyleContext({ enabled: true, signalCount: 2, confidence: 'low' }), null);
 });
 
 test('missing/invalid confidence is ignored', () => {
-  assert.equal(m.parseStyleDnaContext({ enabled: true, signalCount: 5 }), null);
-  assert.equal(m.parseStyleDnaContext({ enabled: true, signalCount: 5, confidence: 'high' }), null);
+  assert.equal(m.parseSignatureStyleContext({ enabled: true, signalCount: 5 }), null);
+  assert.equal(m.parseSignatureStyleContext({ enabled: true, signalCount: 5, confidence: 'high' }), null);
 });
 
 test('valid low context (3-5) parses', () => {
-  const c = m.parseStyleDnaContext({ enabled: true, signalCount: 4, helpfulCount: 3, notMyStyleCount: 1, confidence: 'low' });
+  const c = m.parseSignatureStyleContext({ enabled: true, signalCount: 4, helpfulCount: 3, notMyStyleCount: 1, confidence: 'low' });
   assert.equal(c.signalCount, 4);
   assert.equal(c.confidence, 'low');
 });
 
 test('valid medium context (6+) parses', () => {
-  const c = m.parseStyleDnaContext({ enabled: true, signalCount: 7, helpfulCount: 5, notMyStyleCount: 2, confidence: 'medium' });
+  const c = m.parseSignatureStyleContext({ enabled: true, signalCount: 7, helpfulCount: 5, notMyStyleCount: 2, confidence: 'medium' });
   assert.equal(c.confidence, 'medium');
 });
 
 test('guidance block wording differs by confidence and is clearly delimited', () => {
-  const low = m.buildStyleDnaContextBlock({ signalCount: 3, helpfulCount: 2, notMyStyleCount: 1, confidence: 'low' });
-  const med = m.buildStyleDnaContextBlock({ signalCount: 8, helpfulCount: 6, notMyStyleCount: 2, confidence: 'medium' });
+  const low = m.buildSignatureStyleContextBlock({ signalCount: 3, helpfulCount: 2, notMyStyleCount: 1, confidence: 'low' });
+  const med = m.buildSignatureStyleContextBlock({ signalCount: 8, helpfulCount: 6, notMyStyleCount: 2, confidence: 'medium' });
   assert.ok(low.startsWith('[Optional Signature Style Context]'));
   assert.ok(low.includes('[/Optional Signature Style Context]'));
   assert.ok(low.includes('small number'));

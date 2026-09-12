@@ -145,7 +145,7 @@ package files, env files, Supabase functions all untouched).
   and occasion-driven features activate only for product-shelf items or
   future metadata.
 - Outfit feedback is intentionally separate from Signature Style feedback
-  (`useStyleDnaFeedback`) to avoid touching sacred StyleChat files; a later
+  (`useSignatureStyleFeedback`) to avoid touching sacred StyleChat files; a later
   merge could unify them.
 - Collections rename UX is a lightweight prototype (reuses the create input).
 - Share is plain-text only (RN `Share`); no image capture dependency added.

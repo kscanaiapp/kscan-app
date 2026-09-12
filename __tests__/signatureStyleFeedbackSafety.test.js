@@ -4,7 +4,7 @@ const path = require('node:path');
 const test = require('node:test');
 
 const ROOT = path.resolve(__dirname, '..');
-const hookSource = fs.readFileSync(path.join(ROOT, 'hooks', 'useStyleDnaFeedback.ts'), 'utf8');
+const hookSource = fs.readFileSync(path.join(ROOT, 'hooks', 'useSignatureStyleFeedback.ts'), 'utf8');
 const controlsSource = fs.readFileSync(
   path.join(ROOT, 'components', 'style-chat', 'StyleChatFeedbackControls.tsx'),
   'utf8',
@@ -18,7 +18,7 @@ const bubbleSource = fs.readFileSync(
   'utf8',
 );
 const statusRowSource = fs.readFileSync(
-  path.join(ROOT, 'components', 'style-chat', 'StyleChatStyleDnaCard.tsx'),
+  path.join(ROOT, 'components', 'style-chat', 'StyleChatSignatureStyleCard.tsx'),
   'utf8',
 );
 const settingsSource = fs.readFileSync(
@@ -34,7 +34,7 @@ test('feedback hook gates direct writes and rapid repeated submissions', () => {
   assert.match(hookSource, /activeRef\.current/);
   assert.match(hookSource, /savingFeedbackRef\.current/);
   assert.match(hookSource, /if \(!activeRef\.current \|\| savingFeedbackRef\.current\) return false/);
-  assert.match(hookSource, /saveFeedback: \(value: LocalStyleDnaFeedbackValue\) => Promise<boolean>/);
+  assert.match(hookSource, /saveFeedback: \(value: LocalSignatureStyleFeedbackValue\) => Promise<boolean>/);
 });
 
 test('feedback hydration and completions are scoped to the exact actor and message', () => {
@@ -85,8 +85,8 @@ test('conversation feedback UI and writes use the same explicit two-part gate', 
 });
 
 test('compact status row remains while feedback education is menu-only', () => {
-  assert.match(sessionSource, /<StyleChatStyleDnaCard/);
-  assert.match(statusRowSource, /testID="style-chat-style-dna-card"/);
+  assert.match(sessionSource, /<StyleChatSignatureStyleCard/);
+  assert.match(statusRowSource, /testID="style-chat-signature-style-card"/);
   assert.match(statusRowSource, /<Text style=\{styles\.detailsText\}>Details<\/Text>/);
   assert.match(controlsSource, /const menu = menuState === 'open' \? \(/);
   assert.match(controlsSource, /!feedbackEducationDismissed \? \(/);

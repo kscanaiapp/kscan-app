@@ -35,7 +35,7 @@ import {
   STYLE_CHAT_THINKING_COPY_STYLES,
 } from '../../components/style-chat/StyleChatThinkingIndicator';
 import { StyleChatContextPreview } from '../../components/style-chat/StyleChatContextPreview';
-import { StyleChatStyleDnaCard } from '../../components/style-chat/StyleChatStyleDnaCard';
+import { StyleChatSignatureStyleCard } from '../../components/style-chat/StyleChatSignatureStyleCard';
 import { useStyleChat } from '../../hooks/useStyleChat';
 import { useGenderStylingContext } from '../../hooks/useGenderStylingContext';
 import { getFriendlyStyleChatError } from '../../services/style-chat/styleChatErrors';
@@ -50,18 +50,18 @@ import { captureActorScope, isActorScopeCurrent } from '../../services/actorScop
 import { useEliseVisualContext } from '../../hooks/useEliseVisualContext';
 import { EliseVisualContextBar } from '../../components/style-chat/EliseVisualContextBar';
 import { EliseVisualSourceMenu } from '../../components/style-chat/EliseVisualSourceMenu';
-import { useStyleDnaPreferences } from '../../hooks/useStyleDnaPreferences';
+import { useSignatureStylePreferences } from '../../hooks/useSignatureStylePreferences';
 import { useWeatherStyling } from '../../hooks/useWeatherStyling';
 import { StyleChatWeatherPrompt, StyleChatWeatherChip } from '../../components/style-chat/StyleChatWeatherPrompt';
 import { WEATHER_COPY } from '../../constants/weatherStyling';
 import {
-  buildStyleDnaSummaryText,
-  getStyleDnaProfileSummary,
-  resetLocalStyleDnaProfile,
-  type LocalStyleDnaProfileSummary,
-} from '../../services/style-dna/localStyleDnaProfile';
-import { STYLE_DNA_ENABLED } from '../../services/style-dna/localStyleDnaFeedbackStore';
-import { buildStyleDnaContext } from '../../services/style-dna/styleDnaContext';
+  buildSignatureStyleSummaryText,
+  getSignatureStyleProfileSummary,
+  resetLocalSignatureStyleProfile,
+  type LocalSignatureStyleProfileSummary,
+} from '../../services/signature-style/localSignatureStyleProfile';
+import { SIGNATURE_STYLE_ENABLED } from '../../services/signature-style/localSignatureStyleFeedbackStore';
+import { buildSignatureStyleContext } from '../../services/signature-style/signatureStyleContext';
 import { AI_STYLIST_UI_ENABLED, ELISE_LEGACY_PHOTO_INTAKE_ENABLED, ELISE_VISUAL_ATTACHMENTS_V1_ENABLED, STYLECHAT_ATTACHMENTS_ENABLED } from '../../constants/featureFlags';
 import { useFeatureFreeze } from '../../hooks/useFeatureFreeze';
 import { useStylistIdentity } from '../../hooks/useStylistIdentity';
@@ -101,8 +101,8 @@ export default function StyleChatSessionScreen() {
   // populated whenever messages exist; null hides the local feedback UI.
   const userKey = user ? `user:${user.id}` : null;
   const actorKey = userKey;
-  const { preferences: styleDnaPreferences, updatePreferences: updateStyleDnaPreferences } =
-    useStyleDnaPreferences({ userKey });
+  const { preferences: signatureStylePreferences, updatePreferences: updateSignatureStylePreferences } =
+    useSignatureStylePreferences({ userKey });
   const weather = useWeatherStyling(sessionId ?? '');
   // Fix #5 — already hydrated by the time a session screen mounts (the
   // /style-chat index screen gates entry on this same hook's first-use card).
@@ -111,11 +111,11 @@ export default function StyleChatSessionScreen() {
   // fresh each time and self-gates on EXPO_PUBLIC_STYLE_DNA_CONTEXT_ENABLED + the
   // >=3-signal threshold (returns null otherwise). Reading fresh means a reset — which
   // clears local feedback — immediately produces a neutral request with no memoized ctx.
-  const getStyleDnaContext = useCallback(async () => {
+  const getSignatureStyleContext = useCallback(async () => {
     if (!userKey) return null;
     try {
-      const summary = await getStyleDnaProfileSummary({ userKey });
-      return buildStyleDnaContext(summary);
+      const summary = await getSignatureStyleProfileSummary({ userKey });
+      return buildSignatureStyleContext(summary);
     } catch {
       return null;
     }
@@ -285,16 +285,16 @@ export default function StyleChatSessionScreen() {
     clearError,
   } = useStyleChat(sessionId ?? '', {
     getWeatherLocation: weather.getWeatherLocation,
-    getStyleDnaContext,
+    getSignatureStyleContext,
     activeContext: activeContextForGeneration,
     genderStylingContext: genderStylingContext.value,
   });
 
   const [isDeleting, setIsDeleting] = useState(false);
-  const [styleDnaSummary, setStyleDnaSummary] = useState<LocalStyleDnaProfileSummary | null>(null);
-  const [isLoadingStyleDna, setIsLoadingStyleDna] = useState(false);
-  const [isResettingStyleDna, setIsResettingStyleDna] = useState(false);
-  const [styleDnaRefreshTick, setStyleDnaRefreshTick] = useState(0);
+  const [signatureStyleSummary, setSignatureStyleSummary] = useState<LocalSignatureStyleProfileSummary | null>(null);
+  const [isLoadingSignatureStyle, setIsLoadingSignatureStyle] = useState(false);
+  const [isResettingSignatureStyle, setIsResettingSignatureStyle] = useState(false);
+  const [signatureStyleRefreshTick, setSignatureStyleRefreshTick] = useState(0);
   const listRef = useRef<FlatList<StyleChatMessage>>(null);
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -307,30 +307,30 @@ export default function StyleChatSessionScreen() {
   useEffect(() => {
     let cancelled = false;
 
-    if (!STYLE_DNA_ENABLED || !userKey) {
-      setStyleDnaSummary(null);
-      setIsLoadingStyleDna(false);
+    if (!SIGNATURE_STYLE_ENABLED || !userKey) {
+      setSignatureStyleSummary(null);
+      setIsLoadingSignatureStyle(false);
       return () => {
         cancelled = true;
       };
     }
 
-    setIsLoadingStyleDna(true);
+    setIsLoadingSignatureStyle(true);
     void (async () => {
       try {
-        const nextSummary = await getStyleDnaProfileSummary({ userKey });
-        if (!cancelled) setStyleDnaSummary(nextSummary);
+        const nextSummary = await getSignatureStyleProfileSummary({ userKey });
+        if (!cancelled) setSignatureStyleSummary(nextSummary);
       } catch {
-        if (!cancelled) setStyleDnaSummary(null);
+        if (!cancelled) setSignatureStyleSummary(null);
       } finally {
-        if (!cancelled) setIsLoadingStyleDna(false);
+        if (!cancelled) setIsLoadingSignatureStyle(false);
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [userKey, styleDnaRefreshTick]);
+  }, [userKey, signatureStyleRefreshTick]);
 
   // Scroll to bottom when messages arrive or update
   useEffect(() => {
@@ -374,12 +374,12 @@ export default function StyleChatSessionScreen() {
     );
   };
 
-  const refreshStyleDnaSummary = () => {
-    setStyleDnaRefreshTick((value) => value + 1);
+  const refreshSignatureStyleSummary = () => {
+    setSignatureStyleRefreshTick((value) => value + 1);
   };
 
-  const handleResetStyleDna = () => {
-    if (!userKey || !styleDnaSummary || styleDnaSummary.totalSignals === 0 || isResettingStyleDna) {
+  const handleResetSignatureStyle = () => {
+    if (!userKey || !signatureStyleSummary || signatureStyleSummary.totalSignals === 0 || isResettingSignatureStyle) {
       return;
     }
     Alert.alert(
@@ -391,17 +391,17 @@ export default function StyleChatSessionScreen() {
           text: 'Reset',
           style: 'destructive',
           onPress: async () => {
-            setIsResettingStyleDna(true);
+            setIsResettingSignatureStyle(true);
             try {
-              await resetLocalStyleDnaProfile(userKey);
-              refreshStyleDnaSummary();
+              await resetLocalSignatureStyleProfile(userKey);
+              refreshSignatureStyleSummary();
             } catch {
               Alert.alert(
                 STYLE_MEMORY_COPY.resetErrorAlertTitle,
                 STYLE_MEMORY_COPY.resetErrorAlertMessage,
               );
             } finally {
-              setIsResettingStyleDna(false);
+              setIsResettingSignatureStyle(false);
             }
           },
         },
@@ -412,23 +412,23 @@ export default function StyleChatSessionScreen() {
   const isLoading = loadingSession || loadingMessages;
 
   const handleDismissFeedbackEducation = useCallback(() => {
-    void updateStyleDnaPreferences({ feedbackEducationDismissed: true }).catch(() => {
+    void updateSignatureStylePreferences({ feedbackEducationDismissed: true }).catch(() => {
       // Keep education visible when local persistence fails; avoid a false dismissal.
     });
-  }, [updateStyleDnaPreferences]);
+  }, [updateSignatureStylePreferences]);
 
   const renderMessage = ({ item, index }: { item: StyleChatMessage; index: number }) => (
     <StyleChatBubble
       message={item}
       userKey={userKey}
-      learnFromFeedback={styleDnaPreferences.learnFromFeedback}
-      showFeedbackControls={styleDnaPreferences.showFeedbackControls}
-      feedbackEducationDismissed={styleDnaPreferences.feedbackEducationDismissed}
+      learnFromFeedback={signatureStylePreferences.learnFromFeedback}
+      showFeedbackControls={signatureStylePreferences.showFeedbackControls}
+      feedbackEducationDismissed={signatureStylePreferences.feedbackEducationDismissed}
       onDismissFeedbackEducation={handleDismissFeedbackEducation}
       onFeedbackMenuOpened={() => {
         listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0 });
       }}
-      onStyleDnaFeedbackSaved={refreshStyleDnaSummary}
+      onSignatureStyleFeedbackSaved={refreshSignatureStyleSummary}
     />
   );
 
@@ -531,7 +531,7 @@ export default function StyleChatSessionScreen() {
     />
   ) : null;
 
-  const styleDnaSummaryText = styleDnaSummary ? buildStyleDnaSummaryText(styleDnaSummary) : null;
+  const signatureStyleSummaryText = signatureStyleSummary ? buildSignatureStyleSummaryText(signatureStyleSummary) : null;
 
   // StyleChat → visual stylist bridge. Passes ONLY the latest user message as
   // a contextHint (never chat history); a conservative local matcher may
@@ -640,7 +640,7 @@ export default function StyleChatSessionScreen() {
       <FlatList
         ref={listRef}
         data={messages}
-        extraData={[userKey, styleDnaPreferences.learnFromFeedback, styleDnaPreferences.showFeedbackControls, styleDnaPreferences.feedbackEducationDismissed]}
+        extraData={[userKey, signatureStylePreferences.learnFromFeedback, signatureStylePreferences.showFeedbackControls, signatureStylePreferences.feedbackEducationDismissed]}
         keyExtractor={item => item.id}
         renderItem={renderMessage}
         ListEmptyComponent={ListEmpty}
@@ -869,14 +869,14 @@ export default function StyleChatSessionScreen() {
           )}
         </Pressable>
       </View>
-      {STYLE_DNA_ENABLED && userKey ? (
-        <StyleChatStyleDnaCard
-          summary={styleDnaSummary}
-          summaryText={styleDnaSummaryText}
-          loading={isLoadingStyleDna}
-          resetting={isResettingStyleDna}
-          learnFromFeedback={styleDnaPreferences.learnFromFeedback}
-          onReset={handleResetStyleDna}
+      {SIGNATURE_STYLE_ENABLED && userKey ? (
+        <StyleChatSignatureStyleCard
+          summary={signatureStyleSummary}
+          summaryText={signatureStyleSummaryText}
+          loading={isLoadingSignatureStyle}
+          resetting={isResettingSignatureStyle}
+          learnFromFeedback={signatureStylePreferences.learnFromFeedback}
+          onReset={handleResetSignatureStyle}
         />
       ) : null}
       <KeyboardAvoidingView
