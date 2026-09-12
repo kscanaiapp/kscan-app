@@ -40,6 +40,7 @@ import type {
   EliseScoredCandidate,
   EliseWardrobeCandidate,
 } from './eliseAdviceTypes.ts';
+import { colorTokensOf } from './eliseFashionFeatures.ts';
 
 /**
  * Literal ownership assertions. Present tense, second person, about a garment
@@ -63,6 +64,132 @@ const OWNERSHIP_ASSERTIONS: RegExp[] = [
   /\bfrom\s+your\s+wardrobe\b/i,
   /\byour\s+wardrobe\s+(?:already\s+)?(?:has|includes|contains|holds)\b/i,
 ];
+
+/**
+ * CON-PROSE-005 -- THE BARE POSSESSIVE, which is how the claim is actually made.
+ *
+ * Every pattern above needs a VERB of possession ("you own", "you have") or the
+ * word closet/wardrobe. The most natural false ownership claim in English needs
+ * neither:
+ *
+ *     "Wear your black loafers with the charcoal trousers."
+ *
+ * That is the exact sentence this subsystem's own product truth names as the
+ * thing that may be said ONLY when ownership is verified -- and it was not
+ * examined at all, for any actor, with any Closet. `your` + a garment is a
+ * possessive: the reader hears "the black loafers you own", which is the same
+ * claim as "you own black loafers" and is checkable the same way.
+ *
+ * Why this is NOT another entry in the list above
+ * -----------------------------------------------
+ * The list is matched against the WHOLE sentence, after which every garment
+ * noun anywhere in the sentence is checked. A bare `\byour\b` pattern would
+ * therefore convict a sentence for a garment the possessive never governed:
+ *
+ *     "That dress would suit your figure."
+ *
+ * "your" governs `figure`, not `dress`, but a sentence-wide garment sweep would
+ * read `dress` as claimed and delete ordinary styling advice. So the possessive
+ * is matched as a PHRASE and yields only the garment it actually governs --
+ * which is also what lets the colour qualifier below be read off the same span.
+ *
+ * At most three modifier words are admitted between `your` and the head noun
+ * ("your dark brown suede loafers"). Bounded deliberately: a wildcard here
+ * would let the match jump a clause boundary and attribute a garment to a
+ * possessive that never reached it.
+ */
+/**
+ * Words that end the noun phrase `your ...` opened. Reaching one means the
+ * possessive never governed whatever follows, so the scan stops rather than
+ * jumping a clause boundary and attributing a garment to it.
+ */
+/*
+ * Written as ONE space-separated string rather than an array of quoted words,
+ * and that is load-bearing: `scripts/edge-function-manifest-lib.js` scans
+ * source for import specifiers, and a quoted `'from'` immediately followed by
+ * `, '` matches its `from '<spec>'` pattern and yields the bogus specifier
+ * `", "` -- the B34-DEF-001 false-positive class its own comments describe,
+ * which line comments are deliberately not stripped for. An array here breaks
+ * the edge-function parity gate. Please do not "tidy" this back into a list.
+ */
+const PHRASE_TERMINATORS = new Set(
+  (
+    'with and or but for from to in on at over under plus ' +
+    'is are was were would will could should ' +
+    'looks look works work pairs pair goes go ' +
+    'the a an that this those these if so because'
+  ).split(' '),
+);
+
+/**
+ * Words that are grammatically between `your` and the garment but mean the
+ * possessive does not reach it -- "your friend's jacket" is not a claim that
+ * the user owns a jacket, and "your partner's coat" is someone else's coat.
+ */
+const POSSESSION_BREAKERS = /(?:'s|s')$/i;
+
+/** How many modifier words may sit between `your` and the head noun. */
+const MAX_POSSESSIVE_MODIFIERS = 3;
+
+/** A phrase-level possessive ownership claim about one garment class. */
+interface PossessiveClaim {
+  /** The garment class the possessive governs, e.g. `loafer`. */
+  garment: string;
+  /** Colour tokens named inside the same possessive phrase, e.g. `black`. */
+  colors: string[];
+}
+
+/**
+ * Extract every `your <modifiers> <garment>` claim from one sentence.
+ *
+ * A forward token scan rather than one regex, deliberately. A regex with a
+ * bounded modifier gap is greedy about the gap, so in "your black loafers with
+ * the trousers" it consumed "black loafers with" as modifiers and offered
+ * "the" as the head noun -- finding no garment and silently passing the very
+ * sentence it was added for. Scanning forward and stopping at the FIRST garment
+ * cannot make that mistake, and it is easier to read than the backtracking that
+ * would be needed to fix the regex.
+ *
+ * Returns the garment CLASS plus any colour words that sat inside the same
+ * phrase, so the caller can check both what was claimed and which one.
+ */
+function possessiveClaimsIn(sentence: string): PossessiveClaim[] {
+  const claims: PossessiveClaim[] = [];
+  const tokens = sentence.split(/[^A-Za-z0-9'-]+/).filter(Boolean);
+
+  for (let i = 0; i < tokens.length; i += 1) {
+    if (tokens[i].toLowerCase() !== 'your') continue;
+
+    const modifiers: string[] = [];
+    for (let j = i + 1; j < tokens.length && modifiers.length <= MAX_POSSESSIVE_MODIFIERS; j += 1) {
+      const token = tokens[j];
+      const lowered = token.toLowerCase();
+
+      // "your friend's jacket" -- the possessive stops at the intervening owner.
+      if (POSSESSION_BREAKERS.test(lowered)) break;
+      if (PHRASE_TERMINATORS.has(lowered)) break;
+
+      const garment = garmentClassOf(token);
+      if (garment) {
+        claims.push({ garment, colors: colorTokensOf(modifiers) });
+        break;
+      }
+      modifiers.push(token);
+    }
+  }
+
+  return claims;
+}
+
+/**
+ * CON-PROSE-006 -- colour words named alongside an ownership assertion.
+ *
+ * Read off the whole sentence for the verb-form assertions ("you already have
+ * black loafers"), where there is no possessive phrase to scope to.
+ */
+function sentenceColorTokens(sentence: string): string[] {
+  return colorTokensOf(sentence.split(/[^A-Za-z0-9]+/));
+}
 
 /**
  * Garment nouns a false claim would name. Intentionally the same everyday
@@ -367,6 +494,102 @@ function ownedGarmentVocabulary(
 }
 
 /**
+ * CON-PROSE-006 -- WHICH one, not just which KIND.
+ *
+ * The vocabulary above answers "does this actor own a loafer?". The customer
+ * was never told about a garment CLASS, though; they were told about a
+ * particular garment:
+ *
+ *     owns: brown leather loafers
+ *     said: "you already have black loafers"      <- passed the guard
+ *
+ * `loafer` is in the vocabulary, so the claim was supported at class level and
+ * kept, while the sentence the customer read named a shoe they do not own. The
+ * class check is necessary and was never sufficient.
+ *
+ * This builds garment class -> the colours the actor's OWNED items of that
+ * class actually have, so a colour named in the claim can be checked against
+ * the colours the evidence carries.
+ *
+ * WHY ONLY COLOUR
+ * ---------------
+ * Colour is the qualifier the evidence reliably carries (`candidate.colors`,
+ * populated by the retrieval normalizer from the row itself) and the one a
+ * reader treats as identifying. Material, brand and silhouette are far more
+ * often absent on a real Closet row, so checking them would convict true
+ * sentences for want of metadata -- the mirror of the failure being fixed, and
+ * a worse one, because it deletes advice that was correct.
+ */
+function ownedColorsByGarment(
+  shortlist: EliseScoredCandidate[],
+  focus?: EliseFocusedItem | null,
+): Map<string, Set<string>> {
+  const byGarment = new Map<string, Set<string>>();
+
+  const add = (candidate: EliseWardrobeCandidate): void => {
+    if (candidate.actorRelationship !== 'owned') return;
+    const colors = colorTokensOf([
+      ...candidate.colors,
+      ...(typeof candidate.title === 'string' ? [candidate.title] : []),
+    ]);
+    // Garment classes this ONE item can be spoken about as. Taxonomy and the
+    // title's licensed head noun, matching `addCandidateWords` exactly, so the
+    // colour map and the class vocabulary can never disagree about what an item
+    // is called.
+    const classes = new Set<string>();
+    for (const field of [candidate.category, candidate.subcategory]) {
+      if (typeof field !== 'string') continue;
+      for (const word of field.split(/[^A-Za-z0-9]+/)) {
+        const garment = garmentClassOf(word);
+        if (garment) classes.add(garment);
+      }
+    }
+    if (typeof candidate.title === 'string') {
+      for (const word of titleLicensedWords(candidate.title)) {
+        const garment = garmentClassOf(word);
+        if (garment) classes.add(garment);
+      }
+    }
+
+    for (const garment of classes) {
+      const existing = byGarment.get(garment) ?? new Set<string>();
+      for (const color of colors) existing.add(color);
+      byGarment.set(garment, existing);
+    }
+  };
+
+  for (const scored of shortlist) add(scored.candidate);
+  if (focus?.candidate) add(focus.candidate);
+  for (const candidate of focus?.ambiguousCandidates ?? []) add(candidate);
+  return byGarment;
+}
+
+/**
+ * Is a colour named in a claim contradicted by the owned evidence?
+ *
+ * ABSTENTION IS THE DEFAULT, in both directions:
+ *
+ *   - no colour named in the claim        -> nothing to contradict
+ *   - no owned item of that class         -> the CLASS check already convicts
+ *   - owned items carry NO colour at all  -> the evidence cannot disagree
+ *
+ * Only when the evidence actually knows the colours of that garment class, and
+ * none of them is the colour claimed, is the claim contradicted. A Closet row
+ * with an empty `colors` array therefore never causes a true sentence to be
+ * deleted -- incomplete metadata abstains rather than accusing.
+ */
+function colorContradictsOwnedEvidence(
+  garment: string,
+  claimedColors: string[],
+  byGarment: Map<string, Set<string>>,
+): boolean {
+  if (!claimedColors.length) return false;
+  const owned = byGarment.get(garment);
+  if (!owned || owned.size === 0) return false;
+  return claimedColors.every((color) => !owned.has(color));
+}
+
+/**
  * Split into sentences on terminal punctuation, keeping the punctuation so a
  * surviving sentence reads normally. Bounded by construction: the split is over
  * text the generation layer already length-capped.
@@ -428,6 +651,7 @@ export function enforceOwnershipProseSafety(input: {
   }
 
   const vocabulary = ownedGarmentVocabulary(input.shortlist, input.focus);
+  const colorsByGarment = ownedColorsByGarment(input.shortlist, input.focus);
   const sentences = splitSentences(text);
   const kept: string[] = [];
   const conflictCodes = new Set<string>();
@@ -436,6 +660,26 @@ export function enforceOwnershipProseSafety(input: {
     // Matched against the apostrophe-folded copy; `sentence` itself is what is
     // kept or dropped, never a rewritten version of it.
     const probe = foldApostrophes(sentence);
+
+    // CON-PROSE-005. The possessive is checked FIRST and independently, because
+    // it is scoped to the garment it governs rather than to the sentence. A
+    // sentence can carry a possessive claim and no verb-form assertion at all
+    // ("Wear your black loafers."), which is the shape that was going through.
+    const possessive = possessiveClaimsIn(probe);
+    let sentenceConvicted = false;
+    for (const claim of possessive) {
+      if (!vocabulary.has(claim.garment)) {
+        conflictCodes.add(`unsupported_owned_${claim.garment}`);
+        sentenceConvicted = true;
+        continue;
+      }
+      if (colorContradictsOwnedEvidence(claim.garment, claim.colors, colorsByGarment)) {
+        conflictCodes.add(`unsupported_owned_color_${claim.garment}`);
+        sentenceConvicted = true;
+      }
+    }
+    if (sentenceConvicted) continue;
+
     const assertsOwnership = OWNERSHIP_ASSERTIONS.some((pattern) => pattern.test(probe));
     if (!assertsOwnership) {
       kept.push(sentence);
@@ -459,12 +703,28 @@ export function enforceOwnershipProseSafety(input: {
     }
 
     const unsupported = namedGarments.filter((garment) => !vocabulary.has(garment));
-    if (!unsupported.length) {
-      kept.push(sentence);
+    if (unsupported.length) {
+      for (const garment of unsupported) conflictCodes.add(`unsupported_owned_${garment}`);
       continue;
     }
 
-    for (const garment of unsupported) conflictCodes.add(`unsupported_owned_${garment}`);
+    // CON-PROSE-006. Every garment named is one the actor owns SOME of. The
+    // remaining question is whether the sentence described the ones they have:
+    // "you already have black loafers" names a class they own and a colour they
+    // do not. The colour is read off the whole sentence here because this form
+    // has no possessive phrase to scope to.
+    const claimedColors = sentenceColorTokens(sentence);
+    const miscolored = namedGarments.filter((garment) =>
+      colorContradictsOwnedEvidence(garment, claimedColors, colorsByGarment),
+    );
+    if (miscolored.length) {
+      for (const garment of miscolored) {
+        conflictCodes.add(`unsupported_owned_color_${garment}`);
+      }
+      continue;
+    }
+
+    kept.push(sentence);
   }
 
   if (!conflictCodes.size) {

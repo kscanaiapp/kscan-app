@@ -7,6 +7,8 @@ import type {
   EliseAdvicePipelineResult,
   EliseAdviceIntent,
   EliseClosetCensus,
+  EliseOutfitState,
+  EliseRefinementOutcome,
   EliseWardrobeContextMode,
 } from './eliseAdviceTypes.ts';
 import {
@@ -29,6 +31,12 @@ import {
   buildEliseAdvicePromptBlock,
   deriveWardrobeContextMode,
 } from './eliseAdvicePrompt.ts';
+import {
+  applyRefinementExclusions,
+  planRefinement,
+  projectOutfitState,
+  readRefinementDirectives,
+} from './eliseOutfitState.ts';
 
 export interface EliseAdviceFlagState {
   adviceIntentsV1: boolean;
@@ -96,6 +104,19 @@ export async function runEliseAdvicePipeline(input: {
    * degrades gap claims to bounded scope rather than failing the turn.
    */
   census?: EliseClosetCensus | null;
+  /**
+   * Build 36 / V2. The styling decision that was active when this turn arrived,
+   * restored from the previous assistant message. UNTRUSTED by contract (it
+   * round-trips through the client), and safe for exactly that reason: it can
+   * only remove candidates from this turn's shortlist, never add or own one.
+   * Null on a first turn, a new outfit, or a block that failed validation.
+   */
+  priorOutfitState?: EliseOutfitState | null;
+  /**
+   * Injected id for a NEW outfit, so this pipeline stays deterministic under
+   * test. Callers pass `crypto.randomUUID()`.
+   */
+  newOutfitId?: string;
 }): Promise<EliseAdvicePipelineResult | null> {
   const flags = input.flags;
   if (!flags.adviceIntentsV1) return null;
@@ -194,6 +215,35 @@ export async function runEliseAdvicePipeline(input: {
     shortlist = shortlist.filter((s) => s.candidate.actorRelationship !== 'discovered');
   }
 
+  // Build 36 / V2 -- REFINEMENT.
+  //
+  // Applied here, after retrieval/scoring and after commerce deferral, and
+  // before gap analysis and look building. That position is load-bearing in
+  // both directions: exclusions must act on the ranked list the answer would
+  // otherwise have used, and the gap/look logic downstream must reason about
+  // what is ACTUALLY left after a rejection rather than about a shortlist the
+  // customer has already turned down.
+  //
+  // Concierge-gated: with the flag off the plan is empty, no candidate is
+  // excluded, and the result is byte-identical to the pre-V2 one.
+  const directives = readRefinementDirectives(input.message);
+  const plan = conciergeV1
+    ? planRefinement({ prior: input.priorOutfitState ?? null, directives })
+    : {
+        continued: false,
+        excludedCandidateIds: [],
+        excludedGarmentClasses: [],
+        retainedCandidateIds: [],
+        activeConstraints: [],
+      };
+
+  const exclusion = applyRefinementExclusions({
+    shortlist,
+    excludedCandidateIds: plan.excludedCandidateIds,
+    excludedGarmentClasses: plan.excludedGarmentClasses,
+  });
+  shortlist = exclusion.shortlist;
+
   const wardrobeGap =
     flags.wardrobeGapV1 &&
     (intent === 'wardrobe_gap' || intent === 'build_outfit' || intent === 'multi_look_generation')
@@ -217,6 +267,24 @@ export async function runEliseAdvicePipeline(input: {
       ? buildMultiLooks({ intent, shortlist, wardrobeGap, conciergeV1 })
       : null;
 
+  const projected = conciergeV1
+    ? projectOutfitState({
+        prior: input.priorOutfitState ?? null,
+        continued: plan.continued,
+        shortlist,
+        excludedCandidateIds: exclusion.excludedCandidateIds,
+        excludedGarmentClasses: plan.excludedGarmentClasses,
+        retainedCandidateIds: plan.retainedCandidateIds,
+        activeConstraints: plan.activeConstraints,
+        newOutfitId: input.newOutfitId ?? 'outfit_unset',
+      })
+    : null;
+
+  const outfitState: EliseOutfitState | null = projected?.state ?? null;
+  const refinement: EliseRefinementOutcome | null = projected
+    ? { ...projected.outcome, action: directives.action }
+    : null;
+
   const promptBlock = buildEliseAdvicePromptBlock({
     intent,
     focused,
@@ -225,6 +293,8 @@ export async function runEliseAdvicePipeline(input: {
     purchaseAdvice,
     looks,
     conciergeV1,
+    outfitState,
+    refinement,
   });
 
   const adviceMetadata = buildEliseAdviceMetadata({
@@ -235,6 +305,8 @@ export async function runEliseAdvicePipeline(input: {
     purchaseAdvice,
     looks,
     conciergeV1,
+    outfitState,
+    refinement,
   });
 
   const wardrobeContextMode: EliseWardrobeContextMode = conciergeV1
@@ -252,6 +324,8 @@ export async function runEliseAdvicePipeline(input: {
     census: conciergeV1 ? (input.census ?? null) : null,
     promptBlock,
     adviceMetadata,
+    outfitState,
+    refinement,
     telemetry: {
       adviceIntent: intent,
       candidateCountsBySource: countsBySource,
@@ -281,6 +355,12 @@ export async function runEliseAdvicePipeline(input: {
       focusAmbiguous: focused.resolution === 'closet_text_ambiguous',
       censusExhaustive: input.census?.exhaustive ?? false,
       censusTotalItems: input.census?.totalItems ?? 0,
+      refinementAction: refinement?.action,
+      refinementContinued: refinement?.continued ?? false,
+      refinementExcludedCount: refinement?.excludedCandidateIds.length ?? 0,
+      refinementRetainedCount: refinement?.honouredRetainedIds.length ?? 0,
+      refinementDroppedRetainedCount: refinement?.droppedRetainedIds.length ?? 0,
+      outfitTurn: outfitState?.turn ?? 0,
     },
   };
 }

@@ -10,7 +10,9 @@ import type {
   EliseAdviceLook,
   EliseAdviceOutput,
   EliseFocusedItem,
+  EliseOutfitState,
   ElisePurchaseAdvice,
+  EliseRefinementOutcome,
   EliseScoredCandidate,
   EliseWardrobeCandidate,
   EliseWardrobeContextMode,
@@ -56,6 +58,10 @@ export function buildEliseAdvicePromptBlock(input: {
   looks: EliseAdviceLook[] | null;
   /** Concierge capability. Off -> the pre-Concierge block, byte-identical. */
   conciergeV1?: boolean;
+  /** Build 36 / V2. The styling decision this turn produced. */
+  outfitState?: EliseOutfitState | null;
+  /** Build 36 / V2. How this turn related to the outfit that was active. */
+  refinement?: EliseRefinementOutcome | null;
 }): string {
   const lines: string[] = [
     '[Elise Closet-Aware Advice Grounding]',
@@ -143,6 +149,57 @@ export function buildEliseAdvicePromptBlock(input: {
     }
   }
   lines.push('[/AUTHORIZED CANDIDATES]');
+
+  // Build 36 / V2 -- THE ACTIVE STYLING DECISION.
+  //
+  // Emitted only when this turn CONTINUED an outfit, so an ordinary first
+  // request is unchanged. The exclusions below have already been applied to the
+  // candidate list above -- a rejected piece is not in it -- so this block
+  // exists to tell the model WHY the list changed and what it is refining, not
+  // to ask it to do the filtering. That distinction is the whole point of the
+  // repair: the removal is deterministic, and the prompt is told about it.
+  if (input.conciergeV1 && input.refinement?.continued && input.outfitState) {
+    const state = input.outfitState;
+    lines.push('[ACTIVE OUTFIT - REFINEMENT]');
+    lines.push(
+      `refinement=${escapePromptData(input.refinement.action)} turn=${state.turn}`,
+    );
+    if (input.refinement.excludedCandidateIds.length) {
+      lines.push(
+        `REJECTED: ${input.refinement.excludedCandidateIds.length} piece(s) the user has turned ` +
+          'down were REMOVED from the candidates above. Do not reintroduce them, and do not ' +
+          'apologise for them or explain their absence unless asked.',
+      );
+    }
+    if (state.rejectedGarmentClasses.length) {
+      lines.push(
+        `rejectedTypes=${escapePromptData(state.rejectedGarmentClasses.join(','))}`,
+      );
+    }
+    if (input.refinement.honouredRetainedIds.length) {
+      lines.push(
+        `KEEP: ${escapePromptData(input.refinement.honouredRetainedIds.join(','))} ` +
+          '-- the user asked to keep these. Build around them; do not replace them.',
+      );
+    }
+    if (input.refinement.droppedRetainedIds.length) {
+      // Section 34's discipline applied to continuity: a piece that cannot be
+      // re-verified this turn must not keep being spoken about as though it
+      // were still on the table.
+      lines.push(
+        'NOTE: a piece the user asked to keep is no longer in the authorized evidence for ' +
+          'this turn. Do not refer to it as still being in the outfit, and do not claim they ' +
+          'own it. Say plainly that you cannot confirm it right now if it matters to the answer.',
+      );
+    }
+    if (state.activeConstraints.length) {
+      lines.push(
+        `constraints=${escapePromptData(state.activeConstraints.join(','))} ` +
+          '-- these came from earlier turns and still apply.',
+      );
+    }
+    lines.push('[/ACTIVE OUTFIT - REFINEMENT]');
+  }
 
   if (input.wardrobeGap) {
     const label = '— SCOPED';
@@ -291,6 +348,10 @@ export function buildEliseAdviceMetadata(input: {
   looks: EliseAdviceLook[] | null;
   /** Concierge capability. Off -> a byte-identical v1 payload. */
   conciergeV1?: boolean;
+  /** Build 36 / V2. State for the client to persist and return next turn. */
+  outfitState?: EliseOutfitState | null;
+  /** Build 36 / V2. How this turn related to the outfit that was active. */
+  refinement?: EliseRefinementOutcome | null;
 }): Omit<EliseAdviceOutput, 'text'> {
   const base: Omit<EliseAdviceOutput, 'text'> = {
     adviceIntent: input.intent,
@@ -343,5 +404,10 @@ export function buildEliseAdviceMetadata(input: {
           sharedCategory: input.focused.ambiguousSharedCategory ?? null,
         }
         : null,
+    // Build 36 / V2. Ids, roles and enum codes only -- the same discipline
+    // every other structured field here follows. The client persists this
+    // verbatim and hands it back next turn; it never renders it.
+    outfitState: input.outfitState ?? null,
+    refinement: input.refinement ?? null,
   };
 }

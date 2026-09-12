@@ -729,6 +729,31 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
               result: conciergeResult,
             } as unknown as StyleChatUiBlock);
           }
+
+          // Build 36 / Wardrobe Concierge V2 -- carry the ACTIVE STYLING
+          // DECISION forward.
+          //
+          // Persisted the same way the evidence block above already is: no new
+          // table, no new column, no extra request. The server reads it back
+          // out of this message's `ui_blocks` on the next turn, which is what
+          // makes "swap the shoes" and "keep the trousers" operate on the
+          // outfit actually on the table instead of on whatever the model can
+          // reconstruct from prose.
+          //
+          // Stored VERBATIM and never rendered (see StyleChatBubble). The
+          // server re-validates every field on the way back in and can only
+          // ever use it to remove candidates, so a corrupted or edited block
+          // costs a suggestion and can never invent an owned item.
+          const outfitState = (result.adviceMetadata as
+            | { outfitState?: unknown }
+            | null
+            | undefined)?.outfitState;
+          if (outfitState && typeof outfitState === 'object') {
+            explanationBlocks.push({
+              type: 'concierge_outfit_state',
+              state: outfitState,
+            } as unknown as StyleChatUiBlock);
+          }
         }
 
         const optimisticAssistant: StyleChatMessage = {

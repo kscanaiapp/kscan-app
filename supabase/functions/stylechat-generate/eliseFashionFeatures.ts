@@ -29,7 +29,54 @@ const COLOR_FAMILIES: Record<string, string> = {
   tan: 'earth',
   olive: 'earth',
   purple: 'cool',
+  // CON-PROSE-006. These are ordinary Closet colours that this table simply did
+  // not know, so `inferColorFamilies` returned nothing for an ivory blouse or a
+  // charcoal trouser and the colour was invisible to every consumer of the
+  // table. Added HERE rather than in a second list because the ownership guard
+  // now reads the same vocabulary: two colour tables would be two answers to
+  // "is this word a colour?", and the guard's answer has to be the scorer's.
+  ivory: 'neutral',
+  charcoal: 'neutral',
+  silver: 'neutral',
+  taupe: 'earth',
+  camel: 'earth',
+  khaki: 'earth',
+  rust: 'earth',
+  gold: 'warm',
+  maroon: 'warm',
+  coral: 'warm',
+  lavender: 'cool',
+  mint: 'cool',
 };
+
+/**
+ * CON-PROSE-006 -- the colour words this subsystem recognises, as a list.
+ *
+ * Exported so the ownership prose guard can ask "is this word a colour?" of the
+ * SAME table the scorer infers families from. A guard with its own colour list
+ * would drift from the scorer's the first time either was edited, and the two
+ * disagreeing about whether "charcoal" is a colour is exactly how a false
+ * ownership claim slips through a check that looks present.
+ */
+export const COLOR_TOKENS: readonly string[] = Object.keys(COLOR_FAMILIES);
+
+/**
+ * The colour tokens a set of free-text values names, normalized and deduped.
+ *
+ * Substring matching, matching `inferColorFamilies` above, so "dark brown" and
+ * "brown leather" both yield `brown`.
+ */
+export function colorTokensOf(values: readonly string[]): string[] {
+  const found = new Set<string>();
+  for (const value of values) {
+    if (typeof value !== 'string') continue;
+    const key = value.toLowerCase();
+    for (const token of COLOR_TOKENS) {
+      if (key.includes(token)) found.add(token);
+    }
+  }
+  return [...found];
+}
 
 /**
  * Category/subtype token -> layering role.

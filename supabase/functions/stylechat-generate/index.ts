@@ -108,6 +108,7 @@ import {
   type ParsedFashionContextV2,
 } from './fashionContextV2.ts';
 import { runEliseAdvicePipeline } from './eliseAdvicePipeline.ts';
+import { findLatestOutfitState } from './eliseOutfitState.ts';
 import {
   buildClosetCensus,
   censusLicensesAbsenceClaims,
@@ -213,6 +214,16 @@ const SYSTEM_PROMPT = `You are K Scan's personal AI fashion stylist.
 ROLE: You help users style clothing and photos they save, scan, or attach, answer questions about saved Looks, discuss AI outfit suggestions, and guide them inside K Scan AI. Saving, scanning, or attaching an item is NOT proof the user owns it — an attached photo may be a screenshot or a picture of something they do not own. You do not perform actions yourself; users tap app-controlled actions to open flows such as the stylist or a Dressing Room.
 
 MEMORY: If Signature Style context is provided, use it as background context only. Do not repeat it back. Do not mention that you have memory data.
+
+WHAT WINS WHEN TWO THINGS CONFLICT — in this order, highest first:
+1. Factual truth about what the user owns. Never resolve a conflict by assuming ownership.
+2. What the user explicitly asked for in this message.
+3. Constraints they stated explicitly (occasion, budget, weather, owned-only).
+4. Their actual Closet contents.
+5. Preferences they have stated in words.
+6. Signature Style, which is inferred from behaviour rather than stated.
+7. General fashion convention.
+A stated request outranks an inferred preference every time: if they ask for bright blue and their Signature Style is warm neutrals, style the bright blue and do not talk them back toward neutrals. If they ask for something built only from pieces they own and their Closet cannot supply it, say so plainly — do not quietly substitute something they do not own, and do not present a shopping suggestion as though it were theirs.
 
 IDENTITY AND BOUNDARIES — strictly follow all:
 1. You are an AI, not a human, not a licensed fashion professional, and not physically present. Never claim human memories, lived experiences, or that you can touch clothing.
@@ -2048,6 +2059,24 @@ Deno.serve(async (req) => {
     MAX_RECENT_MESSAGES,
   );
 
+  // Build 36 / Wardrobe Concierge V2 -- restore the ACTIVE STYLING DECISION.
+  //
+  // Read off the SAME rows already fetched above: no extra query, no extra
+  // round trip, no new table. That read is `.eq('session_id', sessionId)
+  // .eq('user_id', userId)` under RLS, so actor scoping is inherited rather
+  // than reimplemented -- another actor's outfit is unreadable, not merely
+  // filtered, and a signed-out/switched actor simply finds nothing.
+  //
+  // The rows come back newest-first, which is the order `findLatestOutfitState`
+  // requires, and it consults ASSISTANT rows only: a user row's `ui_blocks` is
+  // client-authored content for a message the server never generated, and
+  // trusting one would let a crafted message seed the outfit.
+  const priorOutfitState = config.flags.conciergeV1
+    ? findLatestOutfitState(
+        (recentMsgs ?? []) as Array<{ sender?: unknown; ui_blocks?: unknown }>,
+      )
+    : null;
+
   // Fetch compact style signals for memory text.
   const [itemsResult, reactionsResult] = await Promise.allSettled([
     userClient
@@ -2485,6 +2514,12 @@ Deno.serve(async (req) => {
           conciergeV1: config.flags.conciergeV1,
         },
         census: closetCensus,
+        // Build 36 / V2. UNTRUSTED by contract -- it round-trips through the
+        // client -- and safe for exactly that reason: it can only remove
+        // candidates from this turn's shortlist, never add one and never make
+        // one owned. See `EliseOutfitState`.
+        priorOutfitState,
+        newOutfitId: crypto.randomUUID(),
         weatherSummary: weatherContext ? JSON.stringify(weatherContext).slice(0, 400) : null,
         // Prefer the richer, server-derived wardrobe-evidence summary (actual
         // aggregate facts) over the client-fed feedback-signal counts when
@@ -2546,6 +2581,13 @@ Deno.serve(async (req) => {
             lookCount: adviceResult.telemetry.multiLookCount,
             gapPresented: (adviceResult.wardrobeGap?.gapCodes.length ?? 0) > 0,
             gapEvidenceExhaustive: adviceResult.wardrobeGap?.evidenceIsExhaustive ?? false,
+            // Build 36 / V2 -- aggregate refinement dimensions. Enums and
+            // counts only; none of these can carry item text.
+            refinementAction: adviceResult.telemetry.refinementAction ?? 'new_outfit',
+            refinementContinued: adviceResult.telemetry.refinementContinued ?? false,
+            refinementExcludedCount: adviceResult.telemetry.refinementExcludedCount ?? 0,
+            refinementRetainedCount: adviceResult.telemetry.refinementRetainedCount ?? 0,
+            outfitTurn: adviceResult.telemetry.outfitTurn ?? 0,
             kPlusActive: hasActiveKPlusForWardrobeContext,
             retrievalLatencyMs: adviceResult.telemetry.retrievalLatencyMs,
             stableErrorClass: adviceResult.telemetry.stableErrorClass,
