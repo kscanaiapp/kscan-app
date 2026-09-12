@@ -96,7 +96,7 @@ test('store: exclusions are session intent and never a stored preference', () =>
   // Matched against CODE, not prose. The store's header documents what it
   // deliberately does NOT write, and a guard that cannot tell "writes
   // AsyncStorage" from "never writes AsyncStorage" is matching the wrong thing.
-  assert.doesNotMatch(stripComments(storeSource), /AsyncStorage|supabase|styleDna|user_style_profiles/i);
+  assert.doesNotMatch(stripComments(storeSource), /AsyncStorage|supabase|signatureStyle|user_style_profiles/i);
 });
 
 test('auth boundary: Packing state is cleared by the one shared actor reset', () => {

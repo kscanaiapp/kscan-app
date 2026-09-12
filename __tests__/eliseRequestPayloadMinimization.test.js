@@ -169,7 +169,7 @@ test('ELISE-NC-005: no identity, credential or device value reaches the request 
   const { options } = await captureBody({
     sessionId: SESSION_ID,
     message: 'Style this for me.',
-    styleDnaContext: { enabled: true, signals: ['tailored', 'monochrome'] },
+    signatureStyleContext: { enabled: true, signals: ['tailored', 'monochrome'] },
     genderStylingContext: 'neutral',
     activeContext: {
       source: 'camera',

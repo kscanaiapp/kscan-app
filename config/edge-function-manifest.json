@@ -508,12 +508,12 @@
             "bundle": true
           },
           {
-            "path": "supabase/functions/_shared/styleDna/styleDnaProfileStore.ts",
+            "path": "supabase/functions/_shared/signatureStyle/signatureStyleProfileStore.ts",
             "sha256": "f978cadf90cbc0d6207a16c92eea006f0f81f300b53b2728940afbf3ce25dec0",
             "bundle": true
           },
           {
-            "path": "supabase/functions/_shared/styleDna/styleDnaProfileTypes.ts",
+            "path": "supabase/functions/_shared/signatureStyle/signatureStyleProfileTypes.ts",
             "sha256": "7f034a224b323c984b7ae5a1acbc75c3a84f1cf14013481caddb2d08f4bba133",
             "bundle": true
           },
@@ -853,7 +853,7 @@
             "bundle": true
           },
           {
-            "path": "supabase/functions/stylechat-generate/styleDnaContext.ts",
+            "path": "supabase/functions/stylechat-generate/signatureStyleContext.ts",
             "sha256": "5cd059faf651f8865deb7bf84ff672e1c83609fb20d33a609cdf8d1105bd38d0",
             "bundle": true
           },

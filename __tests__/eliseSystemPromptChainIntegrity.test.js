@@ -4,7 +4,7 @@
 // bindings, each one appending an optional block to the previous link, with
 // the LAST link being what actually reaches the model:
 //
-//   baseSystemPrompt -> ...memory -> ...weather -> ...styleDna -> [more] -> model
+//   baseSystemPrompt -> ...memory -> ...weather -> ...signatureStyle -> [more] -> model
 //
 // Two independent platform lineages extend this same chain. The client
 // branches append the first-use gender styling context (Fix #5) and the
@@ -14,10 +14,10 @@
 // name the other side reads.
 //
 // B5 originally did rebind one: it renamed the long-standing client-fed link
-// `systemTextWithStyleDna` to `systemTextWithClientStyleDna` and reused the
+// `systemTextWithSignatureStyle` to `systemTextWithClientSignatureStyle` and reused the
 // vacated name for its own new server-derived link. Merged with the client
 // lineage, that produced a file in which the gender block read
-// `systemTextWithStyleDna` ABOVE its own declaration — a const temporal-dead-
+// `systemTextWithSignatureStyle` ABOVE its own declaration — a const temporal-dead-
 // zone ReferenceError on every StyleChat request — and in which the server
 // block was computed but never consumed, because the downstream consumers had
 // been repointed by the other lineage. Both failures merged CLEANLY; git had no
@@ -53,10 +53,10 @@ function referenceOffsets(name) {
 // declares them. A new link belongs in this list.
 const CHAIN = [
   'systemTextWithWeather',
-  'systemTextWithStyleDna',
+  'systemTextWithSignatureStyle',
   'systemTextWithGenderContext',
   'systemTextWithStylistName',
-  'systemTextWithServerStyleDna',
+  'systemTextWithServerSignatureStyle',
   'systemTextForModelBase',
 ];
 
@@ -92,12 +92,12 @@ test('CHAIN: the client-fed Style DNA link keeps its long-standing name and mean
   // that had silently changed meaning underneath them.
   assert.match(
     source,
-    /const systemTextWithStyleDna = styleDnaContext\s*\n\s*\?\s*`\$\{systemTextWithWeather\}[\s\S]{0,80}buildStyleDnaContextBlock\(styleDnaContext\)\}`/,
-    'systemTextWithStyleDna must remain the CLIENT-FED Signature Style link',
+    /const systemTextWithSignatureStyle = signatureStyleContext\s*\n\s*\?\s*`\$\{systemTextWithWeather\}[\s\S]{0,80}buildSignatureStyleContextBlock\(signatureStyleContext\)\}`/,
+    'systemTextWithSignatureStyle must remain the CLIENT-FED Signature Style link',
   );
   assert.doesNotMatch(
     source,
-    /systemTextWithClientStyleDna/,
+    /systemTextWithClientSignatureStyle/,
     'the client-fed link must not be renamed out from under the other lineage',
   );
 });
@@ -105,7 +105,7 @@ test('CHAIN: the client-fed Style DNA link keeps its long-standing name and mean
 test('CHAIN: each optional context is additive and the server-derived block follows first-use context', () => {
   assert.match(
     source,
-    /const systemTextWithGenderContext = genderStylingContext\s*\n\s*\?\s*`\$\{systemTextWithStyleDna\}[\s\S]{0,120}buildGenderStylingContextBlock\(genderStylingContext\)\}`\s*\n\s*:\s*systemTextWithStyleDna;/,
+    /const systemTextWithGenderContext = genderStylingContext\s*\n\s*\?\s*`\$\{systemTextWithSignatureStyle\}[\s\S]{0,120}buildGenderStylingContextBlock\(genderStylingContext\)\}`\s*\n\s*:\s*systemTextWithSignatureStyle;/,
     'gender context must extend the client-fed Signature Style link',
   );
   assert.match(
@@ -115,7 +115,7 @@ test('CHAIN: each optional context is additive and the server-derived block foll
   );
   assert.match(
     source,
-    /const systemTextWithServerStyleDna = serverStyleDnaBlock\s*\n\s*\?\s*`\$\{systemTextWithStylistName\}[\s\S]{0,60}serverStyleDnaBlock\}`\s*\n\s*:\s*systemTextWithStylistName;/,
+    /const systemTextWithServerSignatureStyle = serverSignatureStyleBlock\s*\n\s*\?\s*`\$\{systemTextWithStylistName\}[\s\S]{0,60}serverSignatureStyleBlock\}`\s*\n\s*:\s*systemTextWithStylistName;/,
     'the server-derived block must be additive to every earlier context, never a replacement',
   );
 });
@@ -124,10 +124,10 @@ test('CHAIN: what reaches the model carries the server-derived block, not an ear
   const start = source.indexOf('const systemTextForModelBase');
   assert.notEqual(start, -1, 'systemTextForModelBase must exist');
   const block = source.slice(start, source.indexOf(';', start) + 1);
-  assert.match(block, /systemTextWithServerStyleDna/);
+  assert.match(block, /systemTextWithServerSignatureStyle/);
   assert.doesNotMatch(
     block,
-    /\bsystemTextWithStyleDna\b/,
+    /\bsystemTextWithSignatureStyle\b/,
     'consuming the pre-server link would compute the Track B block and then discard it',
   );
 });

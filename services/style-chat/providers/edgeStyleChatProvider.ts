@@ -15,7 +15,7 @@ import {
 } from '../../../constants/featureFlags';
 import { getFriendlyStyleChatError } from '../styleChatErrors';
 import type { WeatherLocationInput } from '../../../constants/weatherStyling';
-import type { StyleDnaContext } from '../../style-dna/styleDnaContext';
+import type { SignatureStyleContext } from '../../signature-style/signatureStyleContext';
 import type { StyleChatHandoffContext } from '../styleChatHandoffContext';
 import type { GenderStylingContext } from '../../../constants/genderStylingContext';
 import {
@@ -328,7 +328,7 @@ export class EdgeStyleChatProvider {
     sessionId: string;
     message: string;
     weatherLocation?: WeatherLocationInput | null;
-    styleDnaContext?: StyleDnaContext | null;
+    signatureStyleContext?: SignatureStyleContext | null;
     /**
      * Fix #5 — explicit, self-disclosed baseline styling context. A stable
      * stored preference, not resolved fresh per send like weather/Style DNA.
@@ -374,8 +374,8 @@ export class EdgeStyleChatProvider {
           // Additive/optional Style DNA personalization signal (Phase 2). Sent only
           // when the client built a flag-on, above-threshold context. Requests without
           // it stay valid; the Edge Function treats a missing field as pre-Phase 2.
-          ...(input.styleDnaContext && input.styleDnaContext.enabled
-            ? { styleDnaContext: input.styleDnaContext }
+          ...(input.signatureStyleContext && input.signatureStyleContext.enabled
+            ? { signatureStyleContext: input.signatureStyleContext }
             : {}),
           // Additive/optional Fix #5 baseline styling context. Sent only when the
           // user has an on-record answer; requests without it stay valid and the

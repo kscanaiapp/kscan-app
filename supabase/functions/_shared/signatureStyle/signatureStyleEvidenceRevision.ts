@@ -17,7 +17,7 @@
 // this phase needs to catch, without event sourcing, a Merkle tree, or a new
 // revision service.
 
-export const STYLE_DNA_EMPTY_EVIDENCE_REVISION = 'empty:0';
+export const SIGNATURE_STYLE_EMPTY_EVIDENCE_REVISION = 'empty:0';
 
 /**
  * Compute the V1 evidence revision from the current non-tombstoned Closet
@@ -29,7 +29,7 @@ export const STYLE_DNA_EMPTY_EVIDENCE_REVISION = 'empty:0';
  */
 export function computeClosetEvidenceRevision(updatedAtValues: readonly string[]): string {
   const values = Array.isArray(updatedAtValues) ? updatedAtValues.filter((v) => typeof v === 'string' && v) : [];
-  if (values.length === 0) return STYLE_DNA_EMPTY_EVIDENCE_REVISION;
+  if (values.length === 0) return SIGNATURE_STYLE_EMPTY_EVIDENCE_REVISION;
 
   let maxIso = values[0];
   let maxMs = Date.parse(maxIso);

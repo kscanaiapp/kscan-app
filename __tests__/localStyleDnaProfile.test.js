@@ -33,17 +33,17 @@ function makeStorage(initial = {}) {
 }
 function load(storage, env = {}) {
   const asyncMock = { __esModule: true, default: storage };
-  const store = run('services/style-dna/localStyleDnaFeedbackStore.ts', {
+  const store = run('services/signature-style/localSignatureStyleFeedbackStore.ts', {
     '@react-native-async-storage/async-storage': asyncMock,
   }, env);
-  const reasons = run('services/style-dna/localStyleDnaReasons.ts', {
+  const reasons = run('services/signature-style/localSignatureStyleReasons.ts', {
     '@react-native-async-storage/async-storage': asyncMock,
-    './localStyleDnaFeedbackStore': store,
+    './localSignatureStyleFeedbackStore': store,
   }, env);
-  const profile = run('services/style-dna/localStyleDnaProfile.ts', {
+  const profile = run('services/signature-style/localSignatureStyleProfile.ts', {
     '@react-native-async-storage/async-storage': asyncMock,
-    './localStyleDnaFeedbackStore': store,
-    './localStyleDnaReasons': reasons,
+    './localSignatureStyleFeedbackStore': store,
+    './localSignatureStyleReasons': reasons,
   }, env);
   return { store, reasons, profile };
 }
@@ -52,7 +52,7 @@ const U = 'user:abc';
 
 test('empty profile when no feedback', async () => {
   const { profile } = load(makeStorage());
-  const s = await profile.getStyleDnaProfileSummary({ userKey: U });
+  const s = await profile.getSignatureStyleProfileSummary({ userKey: U });
   assert.equal(s.totalSignals, 0);
   assert.equal(s.helpfulRatio, null);
   assert.equal(s.sessionsWithFeedback, 0);
@@ -63,7 +63,7 @@ test('aggregates helpful/not_my_style across multiple sessions', async () => {
   await store.setFeedbackForMessage({ userKey: U, sessionId: 's1', messageId: 'm1', feedback: 'helpful' });
   await store.setFeedbackForMessage({ userKey: U, sessionId: 's1', messageId: 'm2', feedback: 'not_my_style' });
   await store.setFeedbackForMessage({ userKey: U, sessionId: 's2', messageId: 'm3', feedback: 'helpful' });
-  const s = await profile.getStyleDnaProfileSummary({ userKey: U });
+  const s = await profile.getSignatureStyleProfileSummary({ userKey: U });
   assert.equal(s.helpfulCount, 2);
   assert.equal(s.notMyStyleCount, 1);
   assert.equal(s.totalSignals, 3);
@@ -76,7 +76,7 @@ test('only counts the queried user', async () => {
   const { store, profile } = load(makeStorage());
   await store.setFeedbackForMessage({ userKey: U, sessionId: 's1', messageId: 'm1', feedback: 'helpful' });
   await store.setFeedbackForMessage({ userKey: 'user:other', sessionId: 's1', messageId: 'm1', feedback: 'helpful' });
-  const s = await profile.getStyleDnaProfileSummary({ userKey: U });
+  const s = await profile.getSignatureStyleProfileSummary({ userKey: U });
   assert.equal(s.totalSignals, 1);
 });
 
@@ -86,31 +86,31 @@ test('summary text: null when flag off, present when enabled and >= 3 signals', 
   await off.store.setFeedbackForMessage({ userKey: U, sessionId: 's', messageId: 'a', feedback: 'helpful' });
   await off.store.setFeedbackForMessage({ userKey: U, sessionId: 's', messageId: 'b', feedback: 'helpful' });
   await off.store.setFeedbackForMessage({ userKey: U, sessionId: 's', messageId: 'c', feedback: 'not_my_style' });
-  const offSummary = await off.profile.getStyleDnaProfileSummary({ userKey: U });
-  assert.equal(off.profile.buildStyleDnaSummaryText(offSummary), null);
+  const offSummary = await off.profile.getSignatureStyleProfileSummary({ userKey: U });
+  assert.equal(off.profile.buildSignatureStyleSummaryText(offSummary), null);
 
   // flag on, >= 3 signals
   const on = load(makeStorage(), { EXPO_PUBLIC_STYLE_DNA_PROFILE_ENABLED: 'true' });
   await on.store.setFeedbackForMessage({ userKey: U, sessionId: 's', messageId: 'a', feedback: 'helpful' });
   await on.store.setFeedbackForMessage({ userKey: U, sessionId: 's', messageId: 'b', feedback: 'helpful' });
   await on.store.setFeedbackForMessage({ userKey: U, sessionId: 's', messageId: 'c', feedback: 'not_my_style' });
-  const onSummary = await on.profile.getStyleDnaProfileSummary({ userKey: U });
-  const text = on.profile.buildStyleDnaSummaryText(onSummary);
+  const onSummary = await on.profile.getSignatureStyleProfileSummary({ userKey: U });
+  const text = on.profile.buildSignatureStyleSummaryText(onSummary);
   assert.ok(text && text.includes('2 marked helpful'));
 });
 
 test('summary text: null below threshold even when enabled', async () => {
   const { store, profile } = load(makeStorage(), { EXPO_PUBLIC_STYLE_DNA_PROFILE_ENABLED: 'true' });
   await store.setFeedbackForMessage({ userKey: U, sessionId: 's', messageId: 'a', feedback: 'helpful' });
-  const s = await profile.getStyleDnaProfileSummary({ userKey: U });
-  assert.equal(profile.buildStyleDnaSummaryText(s), null);
+  const s = await profile.getSignatureStyleProfileSummary({ userKey: U });
+  assert.equal(profile.buildSignatureStyleSummaryText(s), null);
 });
 
-test('resetLocalStyleDnaProfile clears the derived signal', async () => {
+test('resetLocalSignatureStyleProfile clears the derived signal', async () => {
   const { store, profile } = load(makeStorage());
   await store.setFeedbackForMessage({ userKey: U, sessionId: 's', messageId: 'a', feedback: 'helpful' });
-  await profile.resetLocalStyleDnaProfile(U);
-  const s = await profile.getStyleDnaProfileSummary({ userKey: U });
+  await profile.resetLocalSignatureStyleProfile(U);
+  const s = await profile.getSignatureStyleProfileSummary({ userKey: U });
   assert.equal(s.totalSignals, 0);
 });
 
@@ -118,6 +118,6 @@ test('corrupted session map is skipped, not thrown', async () => {
   const storage = makeStorage({ '@style_dna_v1/sessions/user:abc/sBad': '{broken' });
   const { store, profile } = load(storage);
   await store.setFeedbackForMessage({ userKey: U, sessionId: 'sOk', messageId: 'a', feedback: 'helpful' });
-  const s = await profile.getStyleDnaProfileSummary({ userKey: U });
+  const s = await profile.getSignatureStyleProfileSummary({ userKey: U });
   assert.equal(s.totalSignals, 1);
 });

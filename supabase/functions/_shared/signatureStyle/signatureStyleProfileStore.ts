@@ -25,11 +25,11 @@
 // cannot provide authoritative profile data, a revision, or another user id.
 
 import {
-  isStyleDnaProfileDataV1,
-  type StyleDnaProfileRecord,
-} from './styleDnaProfileTypes.ts';
+  isSignatureStyleProfileDataV1,
+  type SignatureStyleProfileRecord,
+} from './signatureStyleProfileTypes.ts';
 
-export interface StyleDnaSupabaseClient {
+export interface SignatureStyleSupabaseClient {
   /**
    * Supabase `.rpc()` returns a thenable PostgrestFilterBuilder, NOT a full
    * Promise (it has no `.catch`, `.finally`, or `[Symbol.toStringTag]`).
@@ -51,8 +51,8 @@ export interface StyleDnaSupabaseClient {
  * shape server-side, schema drift or corrupted historical data must degrade to
  * "no profile" rather than reaching the prompt builder.
  */
-function mapProfileRow(raw: Record<string, any>): StyleDnaProfileRecord | null {
-  if (!isStyleDnaProfileDataV1(raw?.profile_data)) return null;
+function mapProfileRow(raw: Record<string, any>): SignatureStyleProfileRecord | null {
+  if (!isSignatureStyleProfileDataV1(raw?.profile_data)) return null;
   return {
     userId: raw.user_id,
     profileVersion: raw.profile_version,
@@ -62,9 +62,9 @@ function mapProfileRow(raw: Record<string, any>): StyleDnaProfileRecord | null {
   };
 }
 
-export interface StyleDnaProfileResult {
+export interface SignatureStyleProfileResult {
   ok: boolean;
-  profile: StyleDnaProfileRecord | null;
+  profile: SignatureStyleProfileRecord | null;
   /** True when this call actually recomputed and persisted a new profile,
    *  false when the stored profile was reused unchanged. Absent on failure. */
   recomputed?: boolean;
@@ -77,9 +77,9 @@ export interface StyleDnaProfileResult {
  * Request the current server-authoritative Signature Style profile. The
  * database decides whether to reuse or recompute based on trusted evidence.
  */
-export async function getOrRecomputeStyleDnaProfile(input: {
-  supabase: StyleDnaSupabaseClient;
-}): Promise<StyleDnaProfileResult> {
+export async function getOrRecomputeSignatureStyleProfile(input: {
+  supabase: SignatureStyleSupabaseClient;
+}): Promise<SignatureStyleProfileResult> {
   const { supabase } = input;
   const result = await supabase.rpc('recompute_signature_style', {});
   if (result.error) return { ok: false, profile: null, failureReason: 'profile_recompute_failed' };

@@ -21,11 +21,11 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.105.4';
 import { assertAccountActive } from '../_shared/deletion/common.ts';
 import {
-  parseStyleDnaContext,
-  buildStyleDnaContextBlock,
-  buildServerStyleDnaProfileBlock,
-} from './styleDnaContext.ts';
-import { getOrRecomputeStyleDnaProfile } from '../_shared/styleDna/styleDnaProfileStore.ts';
+  parseSignatureStyleContext,
+  buildSignatureStyleContextBlock,
+  buildServerSignatureStyleProfileBlock,
+} from './signatureStyleContext.ts';
+import { getOrRecomputeSignatureStyleProfile } from '../_shared/signatureStyle/signatureStyleProfileStore.ts';
 import { parseGenderStylingContext, buildGenderStylingContextBlock } from './genderStylingContext.ts';
 import {
   resolveStylistDisplayName,
@@ -1012,7 +1012,7 @@ Deno.serve(async (req) => {
     sessionId?: unknown;
     message?: unknown;
     weatherLocation?: unknown;
-    styleDnaContext?: unknown;
+    signatureStyleContext?: unknown;
     // Fix #5 — additive and optional. Absent on every pre-Fix-#5 client.
     genderStylingContext?: unknown;
     activeContext?: unknown;
@@ -1183,9 +1183,9 @@ Deno.serve(async (req) => {
       resolveSignatureStyleBlock: async () => {
         if (!config.flags.closetWardrobeContextV1) return null;
         try {
-          const profileResult = await getOrRecomputeStyleDnaProfile({ supabase: userClient });
+          const profileResult = await getOrRecomputeSignatureStyleProfile({ supabase: userClient });
           if (!profileResult.ok || !profileResult.profile) return null;
-          return buildServerStyleDnaProfileBlock(profileResult.profile.profileData);
+          return buildServerSignatureStyleProfileBlock(profileResult.profile.profileData);
         } catch {
           return null;
         }
@@ -1256,7 +1256,7 @@ Deno.serve(async (req) => {
 
   // Optional, additive Style DNA personalization signal. Unknown/absent/malformed -> null
   // (older app builds send nothing and behave exactly as before).
-  const styleDnaContext = parseStyleDnaContext(body.styleDnaContext);
+  const signatureStyleContext = parseSignatureStyleContext(body.signatureStyleContext);
 
   // Fix #5 — explicit, self-disclosed baseline styling context. Unknown/absent/
   // malformed -> null (older app builds send nothing and behave exactly as before).
@@ -2153,15 +2153,15 @@ Deno.serve(async (req) => {
     : systemText;
   // Signature Style feedback is additive and independent of weather: appended only when a valid,
   // above-threshold context is present. Absent/malformed leaves the prompt unchanged.
-  const systemTextWithStyleDna = styleDnaContext
-    ? `${systemTextWithWeather}\n\n${buildStyleDnaContextBlock(styleDnaContext)}`
+  const systemTextWithSignatureStyle = signatureStyleContext
+    ? `${systemTextWithWeather}\n\n${buildSignatureStyleContextBlock(signatureStyleContext)}`
     : systemTextWithWeather;
   // Fix #5 is additive and independent of weather/Signature Style: appended only when
   // the client sent a recognized value. Absent/malformed leaves the prompt
   // unchanged (identical to a pre-Fix-#5 client).
   const systemTextWithGenderContext = genderStylingContext
-    ? `${systemTextWithStyleDna}\n\n${buildGenderStylingContextBlock(genderStylingContext)}`
-    : systemTextWithStyleDna;
+    ? `${systemTextWithSignatureStyle}\n\n${buildGenderStylingContextBlock(genderStylingContext)}`
+    : systemTextWithSignatureStyle;
   // Fix #6 — the model always has a resolved name (custom, else canonical for the
   // active portrait, else the safe default), never asserted independently of the
   // same row the client's UI and greeting resolve from.
@@ -2178,8 +2178,8 @@ Deno.serve(async (req) => {
   // never a client-supplied flag. Computed only when the flag is on, so a
   // non-K+ or flag-off request never pays for the extra round trip.
   let hasActiveKPlusForWardrobeContext = false;
-  let serverStyleDnaProfile: Awaited<ReturnType<typeof getOrRecomputeStyleDnaProfile>>['profile'] = null;
-  let serverStyleDnaAvailable = false;
+  let serverSignatureStyleProfile: Awaited<ReturnType<typeof getOrRecomputeSignatureStyleProfile>>['profile'] = null;
+  let serverSignatureStyleAvailable = false;
   if (config.flags.closetWardrobeContextV1) {
     try {
       const { data: kPlusActive } = await userClient.rpc('has_active_k_plus', {});
@@ -2191,42 +2191,42 @@ Deno.serve(async (req) => {
     }
     if (hasActiveKPlusForWardrobeContext) {
       try {
-        const profileResult = await getOrRecomputeStyleDnaProfile({ supabase: userClient });
+        const profileResult = await getOrRecomputeSignatureStyleProfile({ supabase: userClient });
         if (profileResult.ok && profileResult.profile) {
-          serverStyleDnaProfile = profileResult.profile;
-          serverStyleDnaAvailable = true;
+          serverSignatureStyleProfile = profileResult.profile;
+          serverSignatureStyleAvailable = true;
         }
       } catch {
         // Context-unavailable is not a chat failure (section R): fall back to
         // Base Elise silently, never fabricate a profile.
-        serverStyleDnaProfile = null;
+        serverSignatureStyleProfile = null;
       }
     }
   }
-  // buildServerStyleDnaProfileBlock is total and returns null for any profile
+  // buildServerSignatureStyleProfileBlock is total and returns null for any profile
   // it cannot safely render (see its own contract note). Branch on the BLOCK,
   // not on a field of the payload: interpolating the function's result
   // unconditionally would have put the literal string "null" into the system
   // prompt on exactly the paths the null return exists to protect.
-  const serverStyleDnaBlock = serverStyleDnaProfile
-    ? buildServerStyleDnaProfileBlock(serverStyleDnaProfile.profileData)
+  const serverSignatureStyleBlock = serverSignatureStyleProfile
+    ? buildServerSignatureStyleProfileBlock(serverSignatureStyleProfile.profileData)
     : null;
   //
-  // NAMING IS LOAD-BEARING HERE. This must not reuse `systemTextWithStyleDna`,
+  // NAMING IS LOAD-BEARING HERE. This must not reuse `systemTextWithSignatureStyle`,
   // the name the client-fed Phase 2 block has carried since before Track B.
   // The platform client branches append two further links to that same chain
   // after it -- the first-use gender styling context (Fix #5) and the stylist
   // persona block (Fix #6) -- and repoint the downstream consumers at the last
   // one. Rebinding the shared name to a NEW value here made a three-way merge
   // between the two lineages produce a file in which the gender block read
-  // `systemTextWithStyleDna` before its own declaration (a const TDZ
+  // `systemTextWithSignatureStyle` before its own declaration (a const TDZ
   // ReferenceError on every StyleChat request) and in which the server block
   // was computed but never consumed. A distinct name keeps the shared chain
   // link byte-identical to its pre-Track-B form, so that merge either composes
   // correctly or conflicts visibly at the consumption site below -- never
   // silently drops one lineage's prompt blocks.
-  const systemTextWithServerStyleDna = serverStyleDnaBlock
-    ? `${systemTextWithStylistName}\n\n${serverStyleDnaBlock}`
+  const systemTextWithServerSignatureStyle = serverSignatureStyleBlock
+    ? `${systemTextWithStylistName}\n\n${serverSignatureStyleBlock}`
     : systemTextWithStylistName;
 
   // ── E-4 closet-aware advice (flag-gated; fail-open on retrieval errors) ─────
@@ -2491,10 +2491,10 @@ Deno.serve(async (req) => {
         // both are present — it is strictly more informative grounding for
         // the deterministic scoring pipeline, and still bounded/truncated
         // identically to the pre-existing path.
-        signatureStyleSummary: serverStyleDnaProfile
-          ? JSON.stringify(serverStyleDnaProfile.profileData).slice(0, 400)
-          : styleDnaContext
-            ? JSON.stringify(styleDnaContext).slice(0, 400)
+        signatureStyleSummary: serverSignatureStyleProfile
+          ? JSON.stringify(serverSignatureStyleProfile.profileData).slice(0, 400)
+          : signatureStyleContext
+            ? JSON.stringify(signatureStyleContext).slice(0, 400)
             : null,
       });
 
@@ -2524,7 +2524,7 @@ Deno.serve(async (req) => {
             .slice(0, 160),
           stableErrorClass: adviceResult.telemetry.stableErrorClass,
           kPlusActive: hasActiveKPlusForWardrobeContext,
-          styleDnaAvailable: serverStyleDnaAvailable,
+          signatureStyleAvailable: serverSignatureStyleAvailable,
         });
 
         // Section 54. One Concierge event per turn, carrying only aggregate
@@ -2586,14 +2586,14 @@ Deno.serve(async (req) => {
   }
 
   const systemTextForModelBase = config.flags.structuredGroundingV1 && structuredGroundingBlock
-    ? `${systemTextWithServerStyleDna}\n\n${structuredGroundingBlock}`
+    ? `${systemTextWithServerSignatureStyle}\n\n${structuredGroundingBlock}`
     : config.flags.contextNormalizationV1
     ? (visualContextPromptBlock
-      ? `${systemTextWithServerStyleDna}\n\n${visualContextPromptBlock}`
-      : systemTextWithServerStyleDna)
+      ? `${systemTextWithServerSignatureStyle}\n\n${visualContextPromptBlock}`
+      : systemTextWithServerSignatureStyle)
     : (activeContext
-      ? `${systemTextWithServerStyleDna}\n\n${buildActiveContextBlock(activeContext)}`
-      : systemTextWithServerStyleDna);
+      ? `${systemTextWithServerSignatureStyle}\n\n${buildActiveContextBlock(activeContext)}`
+      : systemTextWithServerSignatureStyle);
 
   const systemTextForModelWithAdvice =
     !config.flags.structuredGroundingV1 && advicePromptBlock

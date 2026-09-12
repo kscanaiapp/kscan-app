@@ -4,35 +4,35 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Device-local only. No backend writes, no migration, no message text stored.
 // A single session-scoped map holds feedback records keyed by assistant messageId.
 
-export const STYLE_DNA_NAMESPACE = '@style_dna_v1/';
-const SESSIONS_PREFIX = `${STYLE_DNA_NAMESPACE}sessions/`;
+export const SIGNATURE_STYLE_NAMESPACE = '@style_dna_v1/';
+const SESSIONS_PREFIX = `${SIGNATURE_STYLE_NAMESPACE}sessions/`;
 
 // Feature flag. Enabled by default for internal beta; set
 // EXPO_PUBLIC_STYLE_DNA_ENABLED="false" to hide the UI and skip all writes.
 // Kept local to this service so no broad build/config change is needed; to
 // convert to a remote/config flag later, replace this constant's source.
-export const STYLE_DNA_ENABLED =
+export const SIGNATURE_STYLE_ENABLED =
   process.env.EXPO_PUBLIC_STYLE_DNA_ENABLED !== 'false';
 
-export type LocalStyleDnaFeedbackValue = 'helpful' | 'not_my_style';
+export type LocalSignatureStyleFeedbackValue = 'helpful' | 'not_my_style';
 
-export type LocalStyleDnaFeedback = {
+export type LocalSignatureStyleFeedback = {
   schemaVersion: 1;
   userKey: string;
   sessionId: string;
   messageId: string;
-  feedback: LocalStyleDnaFeedbackValue;
+  feedback: LocalSignatureStyleFeedbackValue;
   messageRole: 'assistant';
   contextSource: 'style_chat';
   createdAt: string;
   updatedAt: string;
 };
 
-export type LocalStyleDnaSessionFeedbackMap = {
+export type LocalSignatureStyleSessionFeedbackMap = {
   schemaVersion: 1;
   userKey: string;
   sessionId: string;
-  feedbackByMessageId: Record<string, LocalStyleDnaFeedback>;
+  feedbackByMessageId: Record<string, LocalSignatureStyleFeedback>;
   updatedAt: string;
 };
 
@@ -40,11 +40,11 @@ function sessionKey(userKey: string, sessionId: string): string {
   return `${SESSIONS_PREFIX}${userKey}/${sessionId}`;
 }
 
-function isFeedbackValue(value: unknown): value is LocalStyleDnaFeedbackValue {
+function isFeedbackValue(value: unknown): value is LocalSignatureStyleFeedbackValue {
   return value === 'helpful' || value === 'not_my_style';
 }
 
-function emptyMap(userKey: string, sessionId: string): LocalStyleDnaSessionFeedbackMap {
+function emptyMap(userKey: string, sessionId: string): LocalSignatureStyleSessionFeedbackMap {
   return {
     schemaVersion: 1,
     userKey,
@@ -60,7 +60,7 @@ function normalizeRecord(
   userKey: string,
   sessionId: string,
   messageId: string,
-): LocalStyleDnaFeedback | null {
+): LocalSignatureStyleFeedback | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
   if (!isFeedbackValue(r.feedback)) return null;
@@ -84,7 +84,7 @@ function normalizeMap(
   raw: string | null,
   userKey: string,
   sessionId: string,
-): LocalStyleDnaSessionFeedbackMap {
+): LocalSignatureStyleSessionFeedbackMap {
   if (!raw) return emptyMap(userKey, sessionId);
   let parsed: unknown;
   try {
@@ -99,7 +99,7 @@ function normalizeMap(
       ? (p.feedbackByMessageId as Record<string, unknown>)
       : {};
 
-  const feedbackByMessageId: Record<string, LocalStyleDnaFeedback> = {};
+  const feedbackByMessageId: Record<string, LocalSignatureStyleFeedback> = {};
   for (const [messageId, value] of Object.entries(source)) {
     const record = normalizeRecord(value, userKey, sessionId, messageId);
     if (record) feedbackByMessageId[messageId] = record;
@@ -118,7 +118,7 @@ function normalizeMap(
 async function readSessionMap(
   userKey: string,
   sessionId: string,
-): Promise<LocalStyleDnaSessionFeedbackMap> {
+): Promise<LocalSignatureStyleSessionFeedbackMap> {
   try {
     const raw = await AsyncStorage.getItem(sessionKey(userKey, sessionId));
     return normalizeMap(raw, userKey, sessionId);
@@ -130,7 +130,7 @@ async function readSessionMap(
 async function readSessionMapForWrite(
   userKey: string,
   sessionId: string,
-): Promise<LocalStyleDnaSessionFeedbackMap> {
+): Promise<LocalSignatureStyleSessionFeedbackMap> {
   const raw = await AsyncStorage.getItem(sessionKey(userKey, sessionId));
   return normalizeMap(raw, userKey, sessionId);
 }
@@ -160,7 +160,7 @@ export async function getFeedbackForMessage(params: {
   userKey: string;
   sessionId: string;
   messageId: string;
-}): Promise<LocalStyleDnaFeedback | null> {
+}): Promise<LocalSignatureStyleFeedback | null> {
   const { userKey, sessionId, messageId } = params;
   if (!userKey || !sessionId || !messageId) return null;
   const map = await readSessionMap(userKey, sessionId);
@@ -170,7 +170,7 @@ export async function getFeedbackForMessage(params: {
 export async function getFeedbackForSession(params: {
   userKey: string;
   sessionId: string;
-}): Promise<Record<string, LocalStyleDnaFeedback>> {
+}): Promise<Record<string, LocalSignatureStyleFeedback>> {
   const { userKey, sessionId } = params;
   if (!userKey || !sessionId) return {};
   const map = await readSessionMap(userKey, sessionId);
@@ -181,8 +181,8 @@ export async function setFeedbackForMessage(params: {
   userKey: string;
   sessionId: string;
   messageId: string;
-  feedback: LocalStyleDnaFeedbackValue;
-}): Promise<LocalStyleDnaFeedback> {
+  feedback: LocalSignatureStyleFeedbackValue;
+}): Promise<LocalSignatureStyleFeedback> {
   const { userKey, sessionId, messageId, feedback } = params;
   if (!userKey || !sessionId || !messageId) {
     throw new Error('Signature Style feedback requires userKey, sessionId, and messageId.');
@@ -199,7 +199,7 @@ export async function setFeedbackForMessage(params: {
 
     // One record per message: update in place, preserving the original createdAt.
     // TODO: Phase 1 - differentiate contextSource via handoff metadata.
-    const record: LocalStyleDnaFeedback = {
+    const record: LocalSignatureStyleFeedback = {
       schemaVersion: 1,
       userKey,
       sessionId,
@@ -221,7 +221,7 @@ export async function setFeedbackForMessage(params: {
 // ── Delete / sign-out safety helpers ──────────────────────────────────────────
 // Implemented for Phase 0; wiring into sign-out / account deletion is deferred.
 
-export async function clearLocalStyleDnaForUser(userKey: string): Promise<void> {
+export async function clearLocalSignatureStyleForUser(userKey: string): Promise<void> {
   if (!userKey) return;
   const prefix = `${SESSIONS_PREFIX}${userKey}/`;
   const keys = await AsyncStorage.getAllKeys();
@@ -229,8 +229,8 @@ export async function clearLocalStyleDnaForUser(userKey: string): Promise<void> 
   if (toRemove.length > 0) await AsyncStorage.multiRemove(toRemove);
 }
 
-export async function clearAllLocalStyleDna(): Promise<void> {
+export async function clearAllLocalSignatureStyle(): Promise<void> {
   const keys = await AsyncStorage.getAllKeys();
-  const toRemove = keys.filter((k) => k.startsWith(STYLE_DNA_NAMESPACE));
+  const toRemove = keys.filter((k) => k.startsWith(SIGNATURE_STYLE_NAMESPACE));
   if (toRemove.length > 0) await AsyncStorage.multiRemove(toRemove);
 }

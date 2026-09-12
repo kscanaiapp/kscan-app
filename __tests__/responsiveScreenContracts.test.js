@@ -193,7 +193,7 @@ const CAPPED_MODAL_FILES = [
   'components/looks/AskMyRoomModal.tsx',
   'components/style-chat/StyleChatAttachmentBar.tsx',
   'components/style-chat/StyleChatPhotoIntake.tsx',
-  'components/style-chat/StyleChatStyleDnaCard.tsx',
+  'components/style-chat/StyleChatSignatureStyleCard.tsx',
   'components/style-chat/EliseVisualSourceMenu.tsx',
   'components/ProductShelf.tsx',
   'app/stylist/index.tsx',

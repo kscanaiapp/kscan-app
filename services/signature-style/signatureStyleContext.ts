@@ -11,28 +11,28 @@
 //   - No identity/message/weather/location data ever enters this object.
 
 // Independent feature flag (separate from the profile-UI flag). Default disabled.
-export const STYLE_DNA_CONTEXT_ENABLED =
+export const SIGNATURE_STYLE_CONTEXT_ENABLED =
   process.env.EXPO_PUBLIC_STYLE_DNA_CONTEXT_ENABLED === 'true';
 
 // Below this many signals: send nothing at all.
-export const STYLE_DNA_CONTEXT_MIN_SIGNALS = 3;
+export const SIGNATURE_STYLE_CONTEXT_MIN_SIGNALS = 3;
 // At/above this many signals: still-careful but slightly stronger personalization.
-export const STYLE_DNA_CONTEXT_MEDIUM_SIGNALS = 6;
+export const SIGNATURE_STYLE_CONTEXT_MEDIUM_SIGNALS = 6;
 
-export type StyleDnaConfidence = 'low' | 'medium';
+export type SignatureStyleConfidence = 'low' | 'medium';
 
 // The only Style DNA payload that may leave the device. Data-only by contract.
-export type StyleDnaContext = {
+export type SignatureStyleContext = {
   enabled: true;
   signalCount: number;
   helpfulCount: number;
   notMyStyleCount: number;
-  confidence: StyleDnaConfidence;
+  confidence: SignatureStyleConfidence;
 };
 
 // Minimal structural input so this module needs no runtime import of the profile
 // service (keeps it trivially unit-testable and dependency-free).
-export type StyleDnaContextInput = {
+export type SignatureStyleContextInput = {
   helpfulCount: number;
   notMyStyleCount: number;
   totalSignals: number;
@@ -44,22 +44,22 @@ function toCount(value: number): number {
 
 // Builds the data-only context, or returns null when it must be omitted entirely.
 // `opts.enabled` overrides the module flag (used by callers/tests); when omitted the
-// module-level STYLE_DNA_CONTEXT_ENABLED flag decides.
-export function buildStyleDnaContext(
-  summary: StyleDnaContextInput,
+// module-level SIGNATURE_STYLE_CONTEXT_ENABLED flag decides.
+export function buildSignatureStyleContext(
+  summary: SignatureStyleContextInput,
   opts?: { enabled?: boolean },
-): StyleDnaContext | null {
-  const enabled = opts?.enabled ?? STYLE_DNA_CONTEXT_ENABLED;
+): SignatureStyleContext | null {
+  const enabled = opts?.enabled ?? SIGNATURE_STYLE_CONTEXT_ENABLED;
   if (!enabled) return null;
 
   const signalCount = toCount(summary.totalSignals);
-  if (signalCount < STYLE_DNA_CONTEXT_MIN_SIGNALS) return null;
+  if (signalCount < SIGNATURE_STYLE_CONTEXT_MIN_SIGNALS) return null;
 
   return {
     enabled: true,
     signalCount,
     helpfulCount: toCount(summary.helpfulCount),
     notMyStyleCount: toCount(summary.notMyStyleCount),
-    confidence: signalCount >= STYLE_DNA_CONTEXT_MEDIUM_SIGNALS ? 'medium' : 'low',
+    confidence: signalCount >= SIGNATURE_STYLE_CONTEXT_MEDIUM_SIGNALS ? 'medium' : 'low',
   };
 }

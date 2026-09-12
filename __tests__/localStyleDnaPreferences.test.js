@@ -35,12 +35,12 @@ function run(rel, requireMap, env = {}) {
 
 function loadPreferences(storage, env = {}) {
   const asyncMock = { __esModule: true, default: storage };
-  const feedbackStore = run('services/style-dna/localStyleDnaFeedbackStore.ts', {
+  const feedbackStore = run('services/signature-style/localSignatureStyleFeedbackStore.ts', {
     '@react-native-async-storage/async-storage': asyncMock,
   }, env);
-  return run('services/style-dna/localStyleDnaPreferences.ts', {
+  return run('services/signature-style/localSignatureStylePreferences.ts', {
     '@react-native-async-storage/async-storage': asyncMock,
-    './localStyleDnaFeedbackStore': feedbackStore,
+    './localSignatureStyleFeedbackStore': feedbackStore,
   }, env);
 }
 
@@ -50,7 +50,7 @@ const U2 = 'user:def';
 
 test('defaults are learn=true, show=false, education=false', async () => {
   const prefs = loadPreferences(makeStorage());
-  const result = await prefs.getStyleDnaPreferences(U);
+  const result = await prefs.getSignatureStylePreferences(U);
   assert.equal(result.learnFromFeedback, true);
   assert.equal(result.showFeedbackControls, false);
   assert.equal(result.feedbackEducationDismissed, false);
@@ -58,15 +58,15 @@ test('defaults are learn=true, show=false, education=false', async () => {
 
 test('preferences are actor-scoped', async () => {
   const prefs = loadPreferences(makeStorage());
-  await prefs.setStyleDnaPreferences(U, { learnFromFeedback: false, showFeedbackControls: true });
-  await prefs.setStyleDnaPreferences(U2, { learnFromFeedback: true, showFeedbackControls: false, feedbackEducationDismissed: true });
+  await prefs.setSignatureStylePreferences(U, { learnFromFeedback: false, showFeedbackControls: true });
+  await prefs.setSignatureStylePreferences(U2, { learnFromFeedback: true, showFeedbackControls: false, feedbackEducationDismissed: true });
 
-  const a = await prefs.getStyleDnaPreferences(U);
+  const a = await prefs.getSignatureStylePreferences(U);
   assert.equal(a.learnFromFeedback, false);
   assert.equal(a.showFeedbackControls, false);
   assert.equal(a.feedbackEducationDismissed, false);
 
-  const b = await prefs.getStyleDnaPreferences(U2);
+  const b = await prefs.getSignatureStylePreferences(U2);
   assert.equal(b.learnFromFeedback, true);
   assert.equal(b.showFeedbackControls, false);
   assert.equal(b.feedbackEducationDismissed, true);
@@ -74,8 +74,8 @@ test('preferences are actor-scoped', async () => {
 
 test('partial update preserves other fields', async () => {
   const prefs = loadPreferences(makeStorage());
-  await prefs.setStyleDnaPreferences(U, { feedbackEducationDismissed: true });
-  const result = await prefs.getStyleDnaPreferences(U);
+  await prefs.setSignatureStylePreferences(U, { feedbackEducationDismissed: true });
+  const result = await prefs.getSignatureStylePreferences(U);
   assert.equal(result.learnFromFeedback, true);
   assert.equal(result.showFeedbackControls, false);
   assert.equal(result.feedbackEducationDismissed, true);
@@ -87,12 +87,12 @@ test('visibility and learning changes preserve existing learned feedback data', 
   const storage = makeStorage({ [feedbackKey]: learnedData });
   const prefs = loadPreferences(storage);
 
-  await prefs.setStyleDnaPreferences(U, { showFeedbackControls: true });
-  await prefs.setStyleDnaPreferences(U, { learnFromFeedback: false });
-  await prefs.setStyleDnaPreferences(U, { learnFromFeedback: true });
+  await prefs.setSignatureStylePreferences(U, { showFeedbackControls: true });
+  await prefs.setSignatureStylePreferences(U, { learnFromFeedback: false });
+  await prefs.setSignatureStylePreferences(U, { learnFromFeedback: true });
 
   assert.equal(await storage.getItem(feedbackKey), learnedData);
-  const result = await prefs.getStyleDnaPreferences(U);
+  const result = await prefs.getSignatureStylePreferences(U);
   assert.equal(result.learnFromFeedback, true);
   assert.equal(result.showFeedbackControls, false);
 });
@@ -100,39 +100,39 @@ test('visibility and learning changes preserve existing learned feedback data', 
 test('preferences persist across reads', async () => {
   const storage = makeStorage();
   const prefs = loadPreferences(storage);
-  await prefs.setStyleDnaPreferences(U, { learnFromFeedback: false });
+  await prefs.setSignatureStylePreferences(U, { learnFromFeedback: false });
   const second = loadPreferences(storage);
-  const result = await second.getStyleDnaPreferences(U);
+  const result = await second.getSignatureStylePreferences(U);
   assert.equal(result.learnFromFeedback, false);
 });
 
 test('corrupted JSON recovers to defaults', async () => {
   const storage = makeStorage({ '@style_dna_v1/preferences/user:abc': '{not valid' });
   const prefs = loadPreferences(storage);
-  const result = await prefs.getStyleDnaPreferences(U);
+  const result = await prefs.getSignatureStylePreferences(U);
   assert.equal(result.learnFromFeedback, true);
   assert.equal(result.showFeedbackControls, false);
 });
 
-test('clearStyleDnaPreferencesForUser removes only that user', async () => {
+test('clearSignatureStylePreferencesForUser removes only that user', async () => {
   const prefs = loadPreferences(makeStorage());
-  await prefs.setStyleDnaPreferences(U, { learnFromFeedback: false });
-  await prefs.setStyleDnaPreferences(U2, { learnFromFeedback: false });
-  await prefs.clearStyleDnaPreferencesForUser(U);
-  const a = await prefs.getStyleDnaPreferences(U);
+  await prefs.setSignatureStylePreferences(U, { learnFromFeedback: false });
+  await prefs.setSignatureStylePreferences(U2, { learnFromFeedback: false });
+  await prefs.clearSignatureStylePreferencesForUser(U);
+  const a = await prefs.getSignatureStylePreferences(U);
   assert.equal(a.learnFromFeedback, true);
-  const b = await prefs.getStyleDnaPreferences(U2);
+  const b = await prefs.getSignatureStylePreferences(U2);
   assert.equal(b.learnFromFeedback, false);
 });
 
-test('clearAllStyleDnaPreferences removes only preference keys', async () => {
+test('clearAllSignatureStylePreferences removes only preference keys', async () => {
   const storage = makeStorage({
     '@style_dna_v1/preferences/user:abc': '{}',
     '@style_dna_v1/sessions/user:abc/session-1': '{}',
     'other:key': 'value',
   });
   const prefs = loadPreferences(storage);
-  await prefs.clearAllStyleDnaPreferences();
+  await prefs.clearAllSignatureStylePreferences();
   const keys = await storage.getAllKeys();
   assert.ok(!keys.some((k) => k.startsWith('@style_dna_v1/preferences/')));
   assert.ok(keys.includes('@style_dna_v1/sessions/user:abc/session-1'));
@@ -141,14 +141,14 @@ test('clearAllStyleDnaPreferences removes only preference keys', async () => {
 
 test('missing userKey returns defaults', async () => {
   const prefs = loadPreferences(makeStorage());
-  const result = await prefs.getStyleDnaPreferences('');
+  const result = await prefs.getSignatureStylePreferences('');
   assert.equal(result.learnFromFeedback, true);
   assert.equal(result.showFeedbackControls, false);
 });
 
-test('setStyleDnaPreferences throws without userKey', async () => {
+test('setSignatureStylePreferences throws without userKey', async () => {
   const prefs = loadPreferences(makeStorage());
-  await assert.rejects(() => prefs.setStyleDnaPreferences('', { learnFromFeedback: false }));
+  await assert.rejects(() => prefs.setSignatureStylePreferences('', { learnFromFeedback: false }));
 });
 
 test('cold-launch hydration publishes the persisted actor snapshot', async () => {
@@ -161,12 +161,12 @@ test('cold-launch hydration publishes the persisted actor snapshot', async () =>
   });
   const prefs = loadPreferences(storage);
   assert.strictEqual(
-    prefs.getStyleDnaPreferencesSnapshot(U),
-    prefs.DEFAULT_STYLE_DNA_PREFERENCES,
+    prefs.getSignatureStylePreferencesSnapshot(U),
+    prefs.DEFAULT_SIGNATURE_STYLE_PREFERENCES,
   );
 
-  await prefs.hydrateStyleDnaPreferences(U);
-  const hydrated = prefs.getStyleDnaPreferencesSnapshot(U);
+  await prefs.hydrateSignatureStylePreferences(U);
+  const hydrated = prefs.getSignatureStylePreferencesSnapshot(U);
   assert.equal(hydrated.learnFromFeedback, false);
   assert.equal(hydrated.showFeedbackControls, false);
   assert.equal(hydrated.feedbackEducationDismissed, true);
@@ -185,12 +185,12 @@ test('stale hydration cannot overwrite a newer local selection', async () => {
   };
   const prefs = loadPreferences(storage);
 
-  const hydration = prefs.hydrateStyleDnaPreferences(U);
-  await prefs.setStyleDnaPreferences(U, { learnFromFeedback: false });
+  const hydration = prefs.hydrateSignatureStylePreferences(U);
+  await prefs.setSignatureStylePreferences(U, { learnFromFeedback: false });
   resolveHydration(JSON.stringify({ learnFromFeedback: true }));
   await hydration;
 
-  assert.equal(prefs.getStyleDnaPreferencesSnapshot(U).learnFromFeedback, false);
+  assert.equal(prefs.getSignatureStylePreferencesSnapshot(U).learnFromFeedback, false);
 });
 
 test('account A hydration arriving after account B stays actor-isolated', async () => {
@@ -207,23 +207,23 @@ test('account A hydration arriving after account B stays actor-isolated', async 
   };
   const prefs = loadPreferences(storage);
 
-  const actorAHydration = prefs.hydrateStyleDnaPreferences(U);
-  await prefs.hydrateStyleDnaPreferences(U2);
-  assert.equal(prefs.getStyleDnaPreferencesSnapshot(U2).learnFromFeedback, false);
+  const actorAHydration = prefs.hydrateSignatureStylePreferences(U);
+  await prefs.hydrateSignatureStylePreferences(U2);
+  assert.equal(prefs.getSignatureStylePreferencesSnapshot(U2).learnFromFeedback, false);
 
   resolveActorA(JSON.stringify({ showFeedbackControls: true }));
   await actorAHydration;
-  assert.equal(prefs.getStyleDnaPreferencesSnapshot(U2).learnFromFeedback, false);
-  assert.equal(prefs.getStyleDnaPreferencesSnapshot(U2).showFeedbackControls, false);
+  assert.equal(prefs.getSignatureStylePreferencesSnapshot(U2).learnFromFeedback, false);
+  assert.equal(prefs.getSignatureStylePreferencesSnapshot(U2).showFeedbackControls, false);
 });
 
 test('serialized rapid partial updates preserve both selections', async () => {
   const prefs = loadPreferences(makeStorage());
   await Promise.all([
-    prefs.setStyleDnaPreferences(U, { learnFromFeedback: false }),
-    prefs.setStyleDnaPreferences(U, { showFeedbackControls: true }),
+    prefs.setSignatureStylePreferences(U, { learnFromFeedback: false }),
+    prefs.setSignatureStylePreferences(U, { showFeedbackControls: true }),
   ]);
-  const result = await prefs.getStyleDnaPreferences(U);
+  const result = await prefs.getSignatureStylePreferences(U);
   assert.equal(result.learnFromFeedback, false);
   assert.equal(result.showFeedbackControls, false);
 });
@@ -240,13 +240,13 @@ test('read failure rejects an update without overwriting stored preferences', as
   const prefs = loadPreferences(storage);
 
   await assert.rejects(
-    prefs.setStyleDnaPreferences(U, { feedbackEducationDismissed: false }),
+    prefs.setSignatureStylePreferences(U, { feedbackEducationDismissed: false }),
     /read unavailable/,
   );
   assert.equal(storage.map.get(key), stored);
   assert.strictEqual(
-    prefs.getStyleDnaPreferencesSnapshot(U),
-    prefs.DEFAULT_STYLE_DNA_PREFERENCES,
+    prefs.getSignatureStylePreferencesSnapshot(U),
+    prefs.DEFAULT_SIGNATURE_STYLE_PREFERENCES,
   );
 });
 
@@ -255,10 +255,10 @@ test('persistence rejection does not publish a false selection', async () => {
   storage.setItem = async () => { throw new Error('disk full'); };
   const prefs = loadPreferences(storage);
   await assert.rejects(
-    prefs.setStyleDnaPreferences(U, { learnFromFeedback: false }),
+    prefs.setSignatureStylePreferences(U, { learnFromFeedback: false }),
     /disk full/,
   );
-  assert.equal(prefs.getStyleDnaPreferencesSnapshot(U).learnFromFeedback, true);
+  assert.equal(prefs.getSignatureStylePreferencesSnapshot(U).learnFromFeedback, true);
 });
 
 test('a later failed update does not suppress an earlier durable snapshot', async () => {
@@ -272,12 +272,12 @@ test('a later failed update does not suppress an earlier durable snapshot', asyn
   };
   const prefs = loadPreferences(storage);
 
-  const first = prefs.setStyleDnaPreferences(U, { showFeedbackControls: true });
-  const second = prefs.setStyleDnaPreferences(U, { feedbackEducationDismissed: true });
+  const first = prefs.setSignatureStylePreferences(U, { showFeedbackControls: true });
+  const second = prefs.setSignatureStylePreferences(U, { feedbackEducationDismissed: true });
   await first;
   await assert.rejects(second, /disk full/);
 
-  const snapshot = prefs.getStyleDnaPreferencesSnapshot(U);
+  const snapshot = prefs.getSignatureStylePreferencesSnapshot(U);
   assert.equal(snapshot.showFeedbackControls, true);
   assert.equal(snapshot.feedbackEducationDismissed, false);
 });
@@ -285,19 +285,19 @@ test('a later failed update does not suppress an earlier durable snapshot', asyn
 test('snapshots are referentially stable and duplicate subscriptions notify once', async () => {
   const prefs = loadPreferences(makeStorage());
   assert.strictEqual(
-    prefs.getStyleDnaPreferencesSnapshot(U),
-    prefs.getStyleDnaPreferencesSnapshot(U),
+    prefs.getSignatureStylePreferencesSnapshot(U),
+    prefs.getSignatureStylePreferencesSnapshot(U),
   );
 
   let notifications = 0;
   const listener = () => { notifications += 1; };
-  const unsubscribeA = prefs.subscribeStyleDnaPreferences(U, listener);
-  const unsubscribeB = prefs.subscribeStyleDnaPreferences(U, listener);
-  await prefs.setStyleDnaPreferences(U, { showFeedbackControls: true });
+  const unsubscribeA = prefs.subscribeSignatureStylePreferences(U, listener);
+  const unsubscribeB = prefs.subscribeSignatureStylePreferences(U, listener);
+  await prefs.setSignatureStylePreferences(U, { showFeedbackControls: true });
   assert.equal(notifications, 1);
   assert.strictEqual(
-    prefs.getStyleDnaPreferencesSnapshot(U),
-    prefs.getStyleDnaPreferencesSnapshot(U),
+    prefs.getSignatureStylePreferencesSnapshot(U),
+    prefs.getSignatureStylePreferencesSnapshot(U),
   );
   unsubscribeA();
   unsubscribeB();

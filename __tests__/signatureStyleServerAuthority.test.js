@@ -11,7 +11,7 @@ const migration = fs.readFileSync(
   'utf8',
 );
 const store = fs.readFileSync(
-  path.join(ROOT, 'supabase/functions/_shared/styleDna/styleDnaProfileStore.ts'),
+  path.join(ROOT, 'supabase/functions/_shared/signatureStyle/signatureStyleProfileStore.ts'),
   'utf8',
 );
 const columnAmbiguityFix = fs.readFileSync(

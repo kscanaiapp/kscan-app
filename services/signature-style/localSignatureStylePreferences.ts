@@ -1,19 +1,19 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { STYLE_DNA_NAMESPACE } from './localStyleDnaFeedbackStore';
+import { SIGNATURE_STYLE_NAMESPACE } from './localSignatureStyleFeedbackStore';
 
 // ── Signature Style UI preferences — device-local, actor-scoped ───────────────
 // These control the reduced-footprint feedback UX. They are NOT sent to Supabase
 // and are NOT part of the learned Style DNA profile; they are pure UI state.
 
-const PREFERENCES_PREFIX = `${STYLE_DNA_NAMESPACE}preferences/`;
+const PREFERENCES_PREFIX = `${SIGNATURE_STYLE_NAMESPACE}preferences/`;
 
-export type LocalStyleDnaPreferences = {
+export type LocalSignatureStylePreferences = {
   learnFromFeedback: boolean;
   showFeedbackControls: boolean;
   feedbackEducationDismissed: boolean;
 };
 
-export const DEFAULT_STYLE_DNA_PREFERENCES: LocalStyleDnaPreferences = Object.freeze({
+export const DEFAULT_SIGNATURE_STYLE_PREFERENCES: LocalSignatureStylePreferences = Object.freeze({
   learnFromFeedback: true,
   showFeedbackControls: false,
   feedbackEducationDismissed: false,
@@ -21,10 +21,10 @@ export const DEFAULT_STYLE_DNA_PREFERENCES: LocalStyleDnaPreferences = Object.fr
 
 type PreferencesListener = () => void;
 
-const snapshotByUser = new Map<string, LocalStyleDnaPreferences>();
+const snapshotByUser = new Map<string, LocalSignatureStylePreferences>();
 const listenersByUser = new Map<string, Set<PreferencesListener>>();
 const hydratedUsers = new Set<string>();
-const hydrationByUser = new Map<string, Promise<LocalStyleDnaPreferences>>();
+const hydrationByUser = new Map<string, Promise<LocalSignatureStylePreferences>>();
 const writeChains = new Map<string, Promise<unknown>>();
 const revisionByUser = new Map<string, number>();
 
@@ -36,8 +36,8 @@ function isBoolean(value: unknown): value is boolean {
   return typeof value === 'boolean';
 }
 
-function normalizePreferences(raw: string | null): LocalStyleDnaPreferences {
-  const prefs = { ...DEFAULT_STYLE_DNA_PREFERENCES };
+function normalizePreferences(raw: string | null): LocalSignatureStylePreferences {
+  const prefs = { ...DEFAULT_SIGNATURE_STYLE_PREFERENCES };
   if (!raw) return prefs;
 
   let parsed: unknown;
@@ -68,7 +68,7 @@ function advanceRevision(userKey: string): number {
   return next;
 }
 
-function samePreferences(a: LocalStyleDnaPreferences, b: LocalStyleDnaPreferences): boolean {
+function samePreferences(a: LocalSignatureStylePreferences, b: LocalSignatureStylePreferences): boolean {
   return (
     a.learnFromFeedback === b.learnFromFeedback &&
     a.showFeedbackControls === b.showFeedbackControls &&
@@ -76,7 +76,7 @@ function samePreferences(a: LocalStyleDnaPreferences, b: LocalStyleDnaPreference
   );
 }
 
-function publishSnapshot(userKey: string, next: LocalStyleDnaPreferences): LocalStyleDnaPreferences {
+function publishSnapshot(userKey: string, next: LocalSignatureStylePreferences): LocalSignatureStylePreferences {
   const current = snapshotByUser.get(userKey);
   if (current && samePreferences(current, next)) return current;
   snapshotByUser.set(userKey, next);
@@ -84,18 +84,18 @@ function publishSnapshot(userKey: string, next: LocalStyleDnaPreferences): Local
   return next;
 }
 
-async function readStoredPreferences(userKey: string): Promise<LocalStyleDnaPreferences> {
-  if (!userKey) return DEFAULT_STYLE_DNA_PREFERENCES;
+async function readStoredPreferences(userKey: string): Promise<LocalSignatureStylePreferences> {
+  if (!userKey) return DEFAULT_SIGNATURE_STYLE_PREFERENCES;
   try {
     return normalizePreferences(await AsyncStorage.getItem(preferencesKey(userKey)));
   } catch {
-    return DEFAULT_STYLE_DNA_PREFERENCES;
+    return DEFAULT_SIGNATURE_STYLE_PREFERENCES;
   }
 }
 
 async function readStoredPreferencesForWrite(
   userKey: string,
-): Promise<LocalStyleDnaPreferences> {
+): Promise<LocalSignatureStylePreferences> {
   return normalizePreferences(await AsyncStorage.getItem(preferencesKey(userKey)));
 }
 
@@ -108,18 +108,18 @@ function enqueueWrite<T>(userKey: string, task: () => Promise<T>): Promise<T> {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
-export async function getStyleDnaPreferences(userKey: string): Promise<LocalStyleDnaPreferences> {
+export async function getSignatureStylePreferences(userKey: string): Promise<LocalSignatureStylePreferences> {
   return readStoredPreferences(userKey);
 }
 
-export function getStyleDnaPreferencesSnapshot(
+export function getSignatureStylePreferencesSnapshot(
   userKey: string | null | undefined,
-): LocalStyleDnaPreferences {
-  if (!userKey) return DEFAULT_STYLE_DNA_PREFERENCES;
-  return snapshotByUser.get(userKey) ?? DEFAULT_STYLE_DNA_PREFERENCES;
+): LocalSignatureStylePreferences {
+  if (!userKey) return DEFAULT_SIGNATURE_STYLE_PREFERENCES;
+  return snapshotByUser.get(userKey) ?? DEFAULT_SIGNATURE_STYLE_PREFERENCES;
 }
 
-export function subscribeStyleDnaPreferences(
+export function subscribeSignatureStylePreferences(
   userKey: string | null | undefined,
   listener: PreferencesListener,
 ): () => void {
@@ -133,11 +133,11 @@ export function subscribeStyleDnaPreferences(
   };
 }
 
-export async function hydrateStyleDnaPreferences(
+export async function hydrateSignatureStylePreferences(
   userKey: string | null | undefined,
-): Promise<LocalStyleDnaPreferences> {
-  if (!userKey) return DEFAULT_STYLE_DNA_PREFERENCES;
-  if (hydratedUsers.has(userKey)) return getStyleDnaPreferencesSnapshot(userKey);
+): Promise<LocalSignatureStylePreferences> {
+  if (!userKey) return DEFAULT_SIGNATURE_STYLE_PREFERENCES;
+  if (hydratedUsers.has(userKey)) return getSignatureStylePreferencesSnapshot(userKey);
   const pending = hydrationByUser.get(userKey);
   if (pending) return pending;
 
@@ -145,7 +145,7 @@ export async function hydrateStyleDnaPreferences(
   const hydration = readStoredPreferences(userKey)
     .then((next) => {
       if (currentRevision(userKey) !== startingRevision) {
-        return getStyleDnaPreferencesSnapshot(userKey);
+        return getSignatureStylePreferencesSnapshot(userKey);
       }
       hydratedUsers.add(userKey);
       return publishSnapshot(userKey, next);
@@ -157,10 +157,10 @@ export async function hydrateStyleDnaPreferences(
   return hydration;
 }
 
-export async function setStyleDnaPreferences(
+export async function setSignatureStylePreferences(
   userKey: string,
-  update: Partial<LocalStyleDnaPreferences>,
-): Promise<LocalStyleDnaPreferences> {
+  update: Partial<LocalSignatureStylePreferences>,
+): Promise<LocalSignatureStylePreferences> {
   if (!userKey) throw new Error('Signature Style preferences require a userKey.');
 
   advanceRevision(userKey);
@@ -169,7 +169,7 @@ export async function setStyleDnaPreferences(
     const learnFromFeedback = isBoolean(update.learnFromFeedback)
       ? update.learnFromFeedback
       : current.learnFromFeedback;
-    const next: LocalStyleDnaPreferences = {
+    const next: LocalSignatureStylePreferences = {
       learnFromFeedback,
       showFeedbackControls: learnFromFeedback
         ? isBoolean(update.showFeedbackControls)
@@ -188,19 +188,19 @@ export async function setStyleDnaPreferences(
   });
 }
 
-export async function clearStyleDnaPreferencesForUser(userKey: string): Promise<void> {
+export async function clearSignatureStylePreferencesForUser(userKey: string): Promise<void> {
   if (!userKey) return;
   advanceRevision(userKey);
   try {
     await AsyncStorage.removeItem(preferencesKey(userKey));
     hydratedUsers.add(userKey);
-    publishSnapshot(userKey, DEFAULT_STYLE_DNA_PREFERENCES);
+    publishSnapshot(userKey, DEFAULT_SIGNATURE_STYLE_PREFERENCES);
   } catch {
     // best-effort
   }
 }
 
-export async function clearAllStyleDnaPreferences(): Promise<void> {
+export async function clearAllSignatureStylePreferences(): Promise<void> {
   try {
     const keys = await AsyncStorage.getAllKeys();
     const toRemove = keys.filter((k) => k.startsWith(PREFERENCES_PREFIX));
@@ -208,7 +208,7 @@ export async function clearAllStyleDnaPreferences(): Promise<void> {
     for (const userKey of snapshotByUser.keys()) {
       advanceRevision(userKey);
       hydratedUsers.add(userKey);
-      publishSnapshot(userKey, DEFAULT_STYLE_DNA_PREFERENCES);
+      publishSnapshot(userKey, DEFAULT_SIGNATURE_STYLE_PREFERENCES);
     }
   } catch {
     // best-effort

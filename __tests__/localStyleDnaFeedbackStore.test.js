@@ -30,7 +30,7 @@ function makeStorage(initial = {}) {
 }
 
 function loadStore(storage, env = {}) {
-  const filename = path.join(ROOT, 'services/style-dna/localStyleDnaFeedbackStore.ts');
+  const filename = path.join(ROOT, 'services/signature-style/localSignatureStyleFeedbackStore.ts');
   const source = fs.readFileSync(filename, 'utf8');
   const output = ts.transpileModule(source, {
     compilerOptions: {
@@ -128,22 +128,22 @@ test('corrupted JSON recovers to empty (returns null)', async () => {
   assert.equal(r, null);
 });
 
-test('clearAllLocalStyleDna removes only @style_dna_v1/ keys', async () => {
+test('clearAllLocalSignatureStyle removes only @style_dna_v1/ keys', async () => {
   const storage = makeStorage({ 'onboardingComplete:x': 'true', 'kscan.privacy_preferences.v1': '{}' });
   const store = loadStore(storage);
   await store.setFeedbackForMessage({ userKey: U, sessionId: S, messageId: M, feedback: 'helpful' });
-  await store.clearAllLocalStyleDna();
+  await store.clearAllLocalSignatureStyle();
   const keys = await storage.getAllKeys();
   assert.ok(!keys.some((k) => k.startsWith('@style_dna_v1/')));
   assert.ok(keys.includes('onboardingComplete:x'));
   assert.ok(keys.includes('kscan.privacy_preferences.v1'));
 });
 
-test('clearLocalStyleDnaForUser removes only that user keys', async () => {
+test('clearLocalSignatureStyleForUser removes only that user keys', async () => {
   const store = loadStore(makeStorage());
   await store.setFeedbackForMessage({ userKey: U, sessionId: S, messageId: M, feedback: 'helpful' });
   await store.setFeedbackForMessage({ userKey: 'user:other', sessionId: S, messageId: M, feedback: 'helpful' });
-  await store.clearLocalStyleDnaForUser(U);
+  await store.clearLocalSignatureStyleForUser(U);
   assert.equal(await store.getFeedbackForMessage({ userKey: U, sessionId: S, messageId: M }), null);
   const other = await store.getFeedbackForMessage({ userKey: 'user:other', sessionId: S, messageId: M });
   assert.equal(other.feedback, 'helpful');
@@ -156,8 +156,8 @@ test('invalid feedback value throws', async () => {
   );
 });
 
-test('feature flag: STYLE_DNA_ENABLED defaults true, false only when explicitly "false"', () => {
-  assert.equal(loadStore(makeStorage(), {}).STYLE_DNA_ENABLED, true);
-  assert.equal(loadStore(makeStorage(), { EXPO_PUBLIC_STYLE_DNA_ENABLED: 'false' }).STYLE_DNA_ENABLED, false);
-  assert.equal(loadStore(makeStorage(), { EXPO_PUBLIC_STYLE_DNA_ENABLED: 'true' }).STYLE_DNA_ENABLED, true);
+test('feature flag: SIGNATURE_STYLE_ENABLED defaults true, false only when explicitly "false"', () => {
+  assert.equal(loadStore(makeStorage(), {}).SIGNATURE_STYLE_ENABLED, true);
+  assert.equal(loadStore(makeStorage(), { EXPO_PUBLIC_STYLE_DNA_ENABLED: 'false' }).SIGNATURE_STYLE_ENABLED, false);
+  assert.equal(loadStore(makeStorage(), { EXPO_PUBLIC_STYLE_DNA_ENABLED: 'true' }).SIGNATURE_STYLE_ENABLED, true);
 });

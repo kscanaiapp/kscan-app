@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { STYLE_DNA_NAMESPACE } from './localStyleDnaFeedbackStore';
+import { SIGNATURE_STYLE_NAMESPACE } from './localSignatureStyleFeedbackStore';
 
 // ── Style DNA Phase 3 (start) — local reason-code enrichment ─────────────────────
 // Optional "why" behind a Helpful / Not-my-style tap, stored DEVICE-LOCAL only.
@@ -9,13 +9,13 @@ import { STYLE_DNA_NAMESPACE } from './localStyleDnaFeedbackStore';
 //     yet still inside @style_dna_v1/ so a full Style DNA wipe clears it too.
 //   - Per-user reset supported (clearReasonsForUser) and wired into profile reset.
 
-const REASONS_PREFIX = `${STYLE_DNA_NAMESPACE}reasons/`;
+const REASONS_PREFIX = `${SIGNATURE_STYLE_NAMESPACE}reasons/`;
 
 // Independent feature flag. Default disabled (undefined/"false" → off, "true" → on).
-export const STYLE_DNA_REASON_FEEDBACK_ENABLED =
+export const SIGNATURE_STYLE_REASON_FEEDBACK_ENABLED =
   process.env.EXPO_PUBLIC_STYLE_DNA_REASON_FEEDBACK_ENABLED === 'true';
 
-export type StyleDnaFeedbackValue = 'helpful' | 'not_my_style';
+export type SignatureStyleFeedbackValue = 'helpful' | 'not_my_style';
 
 export const HELPFUL_REASON_CODES = [
   'practical',
@@ -35,38 +35,38 @@ export const NOT_MY_STYLE_REASON_CODES = [
 
 export type HelpfulReasonCode = (typeof HELPFUL_REASON_CODES)[number];
 export type NotMyStyleReasonCode = (typeof NOT_MY_STYLE_REASON_CODES)[number];
-export type StyleDnaReasonCode = HelpfulReasonCode | NotMyStyleReasonCode;
+export type SignatureStyleReasonCode = HelpfulReasonCode | NotMyStyleReasonCode;
 
 const HELPFUL_SET = new Set<string>(HELPFUL_REASON_CODES);
 const NOT_MY_STYLE_SET = new Set<string>(NOT_MY_STYLE_REASON_CODES);
 
-export function isValidReasonCode(value: unknown): value is StyleDnaReasonCode {
+export function isValidReasonCode(value: unknown): value is SignatureStyleReasonCode {
   return typeof value === 'string' && (HELPFUL_SET.has(value) || NOT_MY_STYLE_SET.has(value));
 }
 
 // A reason code must match the feedback polarity it was given for.
 export function isReasonValidForFeedback(
   value: unknown,
-  feedback: StyleDnaFeedbackValue,
-): value is StyleDnaReasonCode {
+  feedback: SignatureStyleFeedbackValue,
+): value is SignatureStyleReasonCode {
   if (typeof value !== 'string') return false;
   return feedback === 'helpful' ? HELPFUL_SET.has(value) : NOT_MY_STYLE_SET.has(value);
 }
 
 // The reason chips a caller should offer for a given feedback tap.
 export function reasonCodesForFeedback(
-  feedback: StyleDnaFeedbackValue,
-): readonly StyleDnaReasonCode[] {
+  feedback: SignatureStyleFeedbackValue,
+): readonly SignatureStyleReasonCode[] {
   return feedback === 'helpful' ? HELPFUL_REASON_CODES : NOT_MY_STYLE_REASON_CODES;
 }
 
-export type LocalStyleDnaReason = {
+export type LocalSignatureStyleReason = {
   schemaVersion: 1;
   userKey: string;
   sessionId: string;
   messageId: string;
-  feedback: StyleDnaFeedbackValue;
-  reasonCode: StyleDnaReasonCode;
+  feedback: SignatureStyleFeedbackValue;
+  reasonCode: SignatureStyleReasonCode;
   createdAt: string;
   updatedAt: string;
 };
@@ -75,7 +75,7 @@ type ReasonSessionMap = {
   schemaVersion: 1;
   userKey: string;
   sessionId: string;
-  reasonByMessageId: Record<string, LocalStyleDnaReason>;
+  reasonByMessageId: Record<string, LocalSignatureStyleReason>;
   updatedAt: string;
 };
 
@@ -93,7 +93,7 @@ function emptyMap(userKey: string, sessionId: string): ReasonSessionMap {
   };
 }
 
-function isFeedbackValue(value: unknown): value is StyleDnaFeedbackValue {
+function isFeedbackValue(value: unknown): value is SignatureStyleFeedbackValue {
   return value === 'helpful' || value === 'not_my_style';
 }
 
@@ -103,7 +103,7 @@ function normalizeRecord(
   userKey: string,
   sessionId: string,
   messageId: string,
-): LocalStyleDnaReason | null {
+): LocalSignatureStyleReason | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
   if (!isFeedbackValue(r.feedback)) return null;
@@ -117,7 +117,7 @@ function normalizeRecord(
     sessionId,
     messageId,
     feedback: r.feedback,
-    reasonCode: r.reasonCode as StyleDnaReasonCode,
+    reasonCode: r.reasonCode as SignatureStyleReasonCode,
     createdAt,
     updatedAt,
   };
@@ -142,7 +142,7 @@ function normalizeMap(
       ? (p.reasonByMessageId as Record<string, unknown>)
       : {};
 
-  const reasonByMessageId: Record<string, LocalStyleDnaReason> = {};
+  const reasonByMessageId: Record<string, LocalSignatureStyleReason> = {};
   for (const [messageId, value] of Object.entries(source)) {
     const record = normalizeRecord(value, userKey, sessionId, messageId);
     if (record) reasonByMessageId[messageId] = record;
@@ -190,7 +190,7 @@ export async function getReasonForMessage(params: {
   userKey: string;
   sessionId: string;
   messageId: string;
-}): Promise<LocalStyleDnaReason | null> {
+}): Promise<LocalSignatureStyleReason | null> {
   const { userKey, sessionId, messageId } = params;
   if (!userKey || !sessionId || !messageId) return null;
   const map = await readSessionMap(userKey, sessionId);
@@ -203,9 +203,9 @@ export async function setReasonForMessage(params: {
   userKey: string;
   sessionId: string;
   messageId: string;
-  feedback: StyleDnaFeedbackValue;
-  reasonCode: StyleDnaReasonCode;
-}): Promise<LocalStyleDnaReason> {
+  feedback: SignatureStyleFeedbackValue;
+  reasonCode: SignatureStyleReasonCode;
+}): Promise<LocalSignatureStyleReason> {
   const { userKey, sessionId, messageId, feedback, reasonCode } = params;
   if (!userKey || !sessionId || !messageId) {
     throw new Error('Signature Style reason requires userKey, sessionId, and messageId.');
@@ -222,7 +222,7 @@ export async function setReasonForMessage(params: {
     const map = await readSessionMapForWrite(userKey, sessionId);
     const now = new Date().toISOString();
     const existing = map.reasonByMessageId[messageId];
-    const record: LocalStyleDnaReason = {
+    const record: LocalSignatureStyleReason = {
       schemaVersion: 1,
       userKey,
       sessionId,
@@ -258,9 +258,9 @@ export async function clearReasonForMessage(params: {
   });
 }
 
-export type StyleDnaReasonCounts = {
+export type SignatureStyleReasonCounts = {
   totalReasons: number;
-  byReasonCode: Partial<Record<StyleDnaReasonCode, number>>;
+  byReasonCode: Partial<Record<SignatureStyleReasonCode, number>>;
   byFeedback: { helpful: number; not_my_style: number };
 };
 
@@ -268,8 +268,8 @@ export type StyleDnaReasonCounts = {
 // maps are skipped, never thrown.
 export async function getReasonCountsForUser(params: {
   userKey: string;
-}): Promise<StyleDnaReasonCounts> {
-  const empty: StyleDnaReasonCounts = {
+}): Promise<SignatureStyleReasonCounts> {
+  const empty: SignatureStyleReasonCounts = {
     totalReasons: 0,
     byReasonCode: {},
     byFeedback: { helpful: 0, not_my_style: 0 },
@@ -303,7 +303,7 @@ export async function getReasonCountsForUser(params: {
     entries = fallback;
   }
 
-  const counts: StyleDnaReasonCounts = {
+  const counts: SignatureStyleReasonCounts = {
     totalReasons: 0,
     byReasonCode: {},
     byFeedback: { helpful: 0, not_my_style: 0 },
@@ -321,7 +321,7 @@ export async function getReasonCountsForUser(params: {
   return counts;
 }
 
-// Per-user reset. Called from resetLocalStyleDnaProfile so a Style DNA reset clears
+// Per-user reset. Called from resetLocalSignatureStyleProfile so a Style DNA reset clears
 // reasons for the current user too. Does not touch other users or other namespaces.
 export async function clearReasonsForUser(userKey: string): Promise<void> {
   if (!userKey) return;

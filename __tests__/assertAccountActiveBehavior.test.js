@@ -60,7 +60,7 @@ function deletionRequestsRule(respond) {
  * into `require('npm:@supabase/supabase-js@2')` calls (dynamic import becomes
  * `Promise.resolve().then(() => require(...))`), so the same require-map
  * substitution pattern already used elsewhere in this repo's Node vm harnesses
- * (e.g. __tests__/styleDnaServerPromptBlock.test.js) covers it -- no source
+ * (e.g. __tests__/signatureStyleServerPromptBlock.test.js) covers it -- no source
  * patching needed.
  */
 function loadCommon({ env = {}, fetchImpl, adminClient } = {}) {

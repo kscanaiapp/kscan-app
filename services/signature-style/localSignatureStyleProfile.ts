@@ -1,9 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
-  STYLE_DNA_NAMESPACE,
-  clearLocalStyleDnaForUser,
-} from './localStyleDnaFeedbackStore';
-import { clearReasonsForUser } from './localStyleDnaReasons';
+  SIGNATURE_STYLE_NAMESPACE,
+  clearLocalSignatureStyleForUser,
+} from './localSignatureStyleFeedbackStore';
+import { clearReasonsForUser } from './localSignatureStyleReasons';
 
 // ── Style DNA Phase 1 — local profile summary ───────────────────────────────────
 // Derives a compact, device-local summary from the Phase 0 feedback signals
@@ -12,16 +12,16 @@ import { clearReasonsForUser } from './localStyleDnaReasons';
 // existing feedback storage; adds no new persisted state of its own.
 
 // Flag: undefined/"false" -> disabled, "true" -> enabled. Default disabled.
-export const STYLE_DNA_PROFILE_ENABLED =
+export const SIGNATURE_STYLE_PROFILE_ENABLED =
   process.env.EXPO_PUBLIC_STYLE_DNA_PROFILE_ENABLED === 'true';
 
-const SESSIONS_PREFIX = `${STYLE_DNA_NAMESPACE}sessions/`;
+const SESSIONS_PREFIX = `${SIGNATURE_STYLE_NAMESPACE}sessions/`;
 
 // Minimum signals before we surface a compact summary to the model — avoids
 // overclaiming personalization from one or two taps.
 const MIN_SIGNALS_FOR_SUMMARY_TEXT = 3;
 
-export type LocalStyleDnaProfileSummary = {
+export type LocalSignatureStyleProfileSummary = {
   schemaVersion: 1;
   userKey: string;
   helpfulCount: number;
@@ -33,7 +33,7 @@ export type LocalStyleDnaProfileSummary = {
   generatedAt: string;
 };
 
-function emptySummary(userKey: string): LocalStyleDnaProfileSummary {
+function emptySummary(userKey: string): LocalSignatureStyleProfileSummary {
   return {
     schemaVersion: 1,
     userKey,
@@ -76,9 +76,9 @@ async function readAllUserSessionMaps(userKey: string): Promise<string[]> {
 
 // Aggregates all local feedback for a user into a single summary. Corrupted maps
 // are skipped, never thrown.
-export async function getStyleDnaProfileSummary(params: {
+export async function getSignatureStyleProfileSummary(params: {
   userKey: string;
-}): Promise<LocalStyleDnaProfileSummary> {
+}): Promise<LocalSignatureStyleProfileSummary> {
   const { userKey } = params;
   if (!userKey) return emptySummary(userKey);
 
@@ -141,8 +141,8 @@ export async function getStyleDnaProfileSummary(params: {
 // Compact, cautious summary text for optional StyleChat injection. Returns null
 // when the flag is off or there is not enough signal. Counts only — no invented
 // style traits, no overclaimed personalization.
-export function buildStyleDnaSummaryText(summary: LocalStyleDnaProfileSummary): string | null {
-  if (!STYLE_DNA_PROFILE_ENABLED) return null;
+export function buildSignatureStyleSummaryText(summary: LocalSignatureStyleProfileSummary): string | null {
+  if (!SIGNATURE_STYLE_PROFILE_ENABLED) return null;
   if (summary.totalSignals < MIN_SIGNALS_FOR_SUMMARY_TEXT) return null;
   return (
     `The user has reacted to past styling replies: ${summary.helpfulCount} marked helpful ` +
@@ -152,9 +152,9 @@ export function buildStyleDnaSummaryText(summary: LocalStyleDnaProfileSummary): 
 }
 
 // Reset: the profile is derived from local feedback, so clearing feedback resets it.
-export async function resetLocalStyleDnaProfile(userKey: string): Promise<void> {
+export async function resetLocalSignatureStyleProfile(userKey: string): Promise<void> {
   // Phase 3: reset clears Phase 0 feedback AND Phase 3 reason codes for this user,
   // so the derived profile summary and any reason aggregation both return to empty.
-  await clearLocalStyleDnaForUser(userKey);
+  await clearLocalSignatureStyleForUser(userKey);
   await clearReasonsForUser(userKey);
 }

@@ -12,7 +12,7 @@ import { getFriendlyStyleChatError } from '../services/style-chat/styleChatError
 import type { StyleChatMessage, StyleChatSession, StyleChatUiBlock } from '../services/style-chat/types';
 import type { WeatherLocationInput } from '../constants/weatherStyling';
 import { saveTodayWeather } from '../services/weather/todayWeatherStore';
-import type { StyleDnaContext } from '../services/style-dna/styleDnaContext';
+import type { SignatureStyleContext } from '../services/signature-style/signatureStyleContext';
 import type { StyleChatHandoffContext } from '../services/style-chat/styleChatHandoffContext';
 import type { GenderStylingContext } from '../constants/genderStylingContext';
 import { STYLE_CHAT_COPY, STYLE_CHAT_DAILY_MESSAGE_LIMIT } from '../constants/styleChat';
@@ -110,7 +110,7 @@ export interface UseStyleChatOptions {
   // Awaited before each send; returns a rounded weather location or null to skip.
   getWeatherLocation?: () => Promise<WeatherLocationInput | null>;
   // Awaited before each send; returns a data-only Style DNA context or null to skip.
-  getStyleDnaContext?: () => Promise<StyleDnaContext | null>;
+  getSignatureStyleContext?: () => Promise<SignatureStyleContext | null>;
   // Active scan/upload/TextScan context visible in the StyleChat UI. Passed to the
   // backend on every message so replies are grounded to the reference item.
   activeContext?: StyleChatHandoffContext | null;
@@ -137,8 +137,8 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
   // Held in a ref so passing an inline getter does not churn sendMessage/retry identity.
   const getWeatherLocationRef = useRef(opts?.getWeatherLocation);
   getWeatherLocationRef.current = opts?.getWeatherLocation;
-  const getStyleDnaContextRef = useRef(opts?.getStyleDnaContext);
-  getStyleDnaContextRef.current = opts?.getStyleDnaContext;
+  const getSignatureStyleContextRef = useRef(opts?.getSignatureStyleContext);
+  getSignatureStyleContextRef.current = opts?.getSignatureStyleContext;
   const activeContextRef = useRef(opts?.activeContext);
   activeContextRef.current = opts?.activeContext;
   const genderStylingContextRef = useRef(opts?.genderStylingContext);
@@ -522,9 +522,9 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         // Style DNA context is independent of weather and best-effort: any failure
         // resolves to null and the message sends normally. Read fresh each send so a
         // reset (which clears local feedback) immediately yields a neutral request.
-        const resolveStyleDna = getStyleDnaContextRef.current;
-        const styleDnaContext = resolveStyleDna
-          ? await resolveStyleDna().catch(() => null)
+        const resolveSignatureStyle = getSignatureStyleContextRef.current;
+        const signatureStyleContext = resolveSignatureStyle
+          ? await resolveSignatureStyle().catch(() => null)
           : null;
         if (!isCurrentSend()) return;
         // Active scan/upload/TextScan context is held in a ref so it is included on
@@ -537,7 +537,7 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
           sessionId,
           message: trimmed,
           weatherLocation,
-          styleDnaContext,
+          signatureStyleContext,
           activeContext: activeContextSnapshot,
           genderStylingContext: genderStylingContextRef.current ?? null,
           sourceMessageId: persistedUserMessageId,

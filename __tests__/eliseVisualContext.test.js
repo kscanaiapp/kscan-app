@@ -873,7 +873,7 @@ test('blocked picker originals are previewed but never passed to temporary-file 
 
 test('visual context tray exposes 44dp targets and blocked-state copy', () => {
   const bar = read('components/style-chat/EliseVisualContextBar.tsx');
-  const signatureStyle = read('components/style-chat/StyleChatStyleDnaCard.tsx');
+  const signatureStyle = read('components/style-chat/StyleChatSignatureStyleCard.tsx');
   assert.match(bar, /minWidth: 44/);
   assert.match(bar, /height: 44/);
   assert.match(bar, /uploadUnavailableReason/);
