@@ -8,6 +8,7 @@ const path = require('node:path');
 
 const { runFullEvaluation } = require('../runEvaluation');
 const { validateReport } = require('../reportSchema');
+const { isFashionClipAvailable } = require('../fashionClipAdapter');
 
 function tempCacheDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'fclip-runeval-test-'));
@@ -24,7 +25,7 @@ test('RUN EVALUATION: produces a report that validates against reportSchema', ()
   }
 });
 
-test('RUN EVALUATION: is HARNESS_READY in this sandbox even though both arms are provider-blocked', () => {
+test('RUN EVALUATION: reports HARNESS_READY whenever the harness itself ran, independently of which arms were provider-blocked', () => {
   const cacheDir = tempCacheDir();
   try {
     const report = runFullEvaluation({ cacheDir });
@@ -66,11 +67,27 @@ test('RUN EVALUATION: control and challenger arms are both reported, with blocke
     const report = runFullEvaluation({ cacheDir });
     assert.ok('control' in report.metrics);
     assert.ok('challenger' in report.metrics);
-    // Neither arm's real backend is reachable in this sandbox (Deno / huggingface.co
-    // are both unavailable here) - the report must say so, not silently omit it.
-    assert.equal(report.metrics.controlBlocked, true);
-    assert.equal(report.metrics.controlBlocker.blocker, 'DENO_UNAVAILABLE');
-    assert.notEqual(report.modelProvider, 'FASHIONCLIP');
+
+    // The invariant is that a blocked arm SAYS SO rather than being silently
+    // omitted - not that any particular arm is blocked. This assertion used to
+    // hardcode `controlBlocked === true` / `DENO_UNAVAILABLE`, which was true
+    // of the sandbox it was written in and became a false failure the moment a
+    // session could actually run Deno. An environment fact does not belong in
+    // an assertion; the honesty property does.
+    assert.equal(typeof report.metrics.controlBlocked, 'boolean');
+    if (report.metrics.controlBlocked) {
+      assert.ok(report.metrics.controlBlocker, 'a blocked control arm must name its blocker');
+      assert.equal(typeof report.metrics.controlBlocker.blocker, 'string');
+      assert.ok(report.metrics.controlBlocker.blocker.length > 0);
+    } else {
+      assert.ok(report.metrics.control, 'an unblocked control arm must report metrics');
+    }
+
+    // The challenger's provenance is never assumed either: it may only claim
+    // FASHIONCLIP when the real adapter genuinely reported itself available.
+    if (!isFashionClipAvailable()) {
+      assert.notEqual(report.modelProvider, 'FASHIONCLIP');
+    }
   } finally {
     fs.rmSync(cacheDir, { recursive: true, force: true });
   }

@@ -16,7 +16,11 @@ const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const ROOT = path.join(__dirname, 'tests');
+// Discover recursively from the lab root so both `tests/` (the #402
+// retrieval suite) and `rerank/tests/` (the visual re-ranker suite) are
+// executed by one entry point - a runner that silently misses a whole
+// subdirectory is the exact failure scripts/run-all-tests.js exists to avoid.
+const ROOT = __dirname;
 
 function discover(dir) {
   const found = [];
@@ -34,7 +38,7 @@ function discover(dir) {
 function main() {
   const files = discover(ROOT);
   console.log('-'.repeat(64));
-  console.log(`FASHIONCLIP RETRIEVAL LAB: ${files.length} test file(s)`);
+  console.log(`FASHIONCLIP RETRIEVAL + RE-RANK LAB: ${files.length} test file(s)`);
   for (const file of files) console.log(`  ${path.relative(process.cwd(), file)}`);
   console.log('-'.repeat(64));
 
