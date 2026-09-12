@@ -256,6 +256,15 @@ export function StyleChatBubble({
                 return null;
               }
 
+              // Build 36 / Wardrobe Concierge V2. The active styling decision
+              // rides along with the message so the next turn can refine the
+              // outfit that is actually on the table. It is state, not
+              // presentation -- there is nothing here a customer should see --
+              // so it renders nothing, exactly as `greeting` above does.
+              if (block?.type === 'concierge_outfit_state') {
+                return null;
+              }
+
               if (block?.type === 'stylechat_actions') {
                 const actions = Array.isArray((block as { actions?: unknown }).actions)
                   ? ((block as unknown as { actions: never[] }).actions)

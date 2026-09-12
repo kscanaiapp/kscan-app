@@ -280,6 +280,98 @@ export interface EliseClosetCensus {
   categoriesTruncated: boolean;
 }
 
+/**
+ * Build 36 / Wardrobe Concierge V2 -- the ACTIVE STYLING DECISION.
+ *
+ * WHAT THIS FIXES
+ * ---------------
+ * Continuity was prose. `runEliseAdvicePipeline` received one field about the
+ * conversation -- `message` -- so "swap the shoes" and "keep the trousers" ran
+ * the identical retrieval as the turn before and produced the identical
+ * shortlist. Whether the answer honoured the refinement depended entirely on
+ * the model re-reading its own previous reply out of the history window and
+ * deciding to. A rejected piece could therefore come straight back on the next
+ * turn, which is the single most common way a styling conversation feels
+ * broken.
+ *
+ * THE TRUST RULE, STATED ONCE
+ * ---------------------------
+ * This state round-trips through the CLIENT (it is persisted in the assistant
+ * message's `ui_blocks`, the same way `concierge_evidence` already is). It is
+ * therefore UNTRUSTED INPUT on the way back in, and the contract is built so
+ * that it cannot matter:
+ *
+ *   - `rejectedCandidateIds` can only ever REMOVE a candidate from a shortlist.
+ *     A forged rejection costs the user a suggestion; it cannot invent one.
+ *   - `retainedCandidateIds` is a REQUEST to keep something, honoured only
+ *     after the id is found in THIS turn's freshly authorized candidates.
+ *   - `relationship` is recorded for rendering only and is re-derived from
+ *     retrieval every turn. A forged `owned` never reaches ownership language,
+ *     because ownership language is gated on the fresh candidate, never on
+ *     this object.
+ *
+ * So the worst a tampered state can do is ask for fewer options. It can never
+ * manufacture an ownership claim -- which is the invariant the whole Concierge
+ * lane exists to protect.
+ */
+export interface EliseOutfitStateItem {
+  /** The candidate id, e.g. `closet:<uuid>`. Ids only, never prose. */
+  candidateId: string;
+  /** The slot this piece fills, from the existing recommendation vocabulary. */
+  role: EliseRecommendationRole;
+  /**
+   * The relationship AS RESOLVED WHEN PROPOSED. Advisory: re-derived from
+   * retrieval every turn, and never a licence for ownership language.
+   */
+  relationship: EliseActorRelationship;
+  sourceType: EliseWardrobeSourceType;
+}
+
+export interface EliseOutfitState {
+  /** Stable id for the active styling decision. A new request starts a new one. */
+  outfitId: string;
+  /** How many refinement turns this outfit has survived. Bounded. */
+  turn: number;
+  /** The pieces currently proposed. */
+  items: EliseOutfitStateItem[];
+  /** Pieces the user asked to keep. Honoured only if re-authorized this turn. */
+  retainedCandidateIds: string[];
+  /** Pieces the user rejected. Exclusion-only, and therefore always safe. */
+  rejectedCandidateIds: string[];
+  /**
+   * Garment CLASSES the user rejected ("not the loafers") when no specific
+   * candidate id could be resolved. Also exclusion-only.
+   */
+  rejectedGarmentClasses: string[];
+  /** Constraints the user stated that still apply, e.g. `less_formal`. */
+  activeConstraints: string[];
+}
+
+/** How this turn related to the outfit that was active when it arrived. */
+export type EliseRefinementAction =
+  | 'new_outfit'
+  | 'refine_swap'
+  | 'refine_keep'
+  | 'refine_reject'
+  | 'refine_constraint'
+  | 'refine_variation';
+
+export interface EliseRefinementOutcome {
+  action: EliseRefinementAction;
+  /** True when the turn continued the prior outfit rather than starting one. */
+  continued: boolean;
+  /** Candidate ids excluded from this turn's shortlist by prior rejections. */
+  excludedCandidateIds: string[];
+  /** Retained ids that were re-authorized from THIS turn's evidence. */
+  honouredRetainedIds: string[];
+  /**
+   * Retained ids the user asked to keep that this turn's evidence no longer
+   * authorizes. Reported rather than silently kept: a piece that cannot be
+   * re-verified must not be spoken about as though it were still owned.
+   */
+  droppedRetainedIds: string[];
+}
+
 export interface EliseAdviceLook {
   lookId: string;
   label: string;
@@ -326,6 +418,15 @@ export interface EliseAdviceOutput {
     /** Shared category the tie collapsed to, when the tied items agree on one. */
     sharedCategory: string | null;
   } | null;
+  /**
+   * Build 36 / V2. The active styling decision after this turn, for the client
+   * to persist and hand back on the next one. Ids, roles and enums only -- no
+   * prose, no titles, no URIs. Absent when Concierge is off or nothing was
+   * proposed.
+   */
+  outfitState?: EliseOutfitState | null;
+  /** Build 36 / V2. How this turn related to the outfit that was active. */
+  refinement?: EliseRefinementOutcome | null;
   contractVersion: EliseAdviceContractVersion;
 }
 
@@ -355,6 +456,13 @@ export interface EliseAdviceTelemetry {
   censusTotalItems?: number;
   lookRoleRepairs?: number;
   ownershipProseConflict?: boolean;
+  /** Build 36 / V2 -- aggregate refinement dimensions. Enums and counts only. */
+  refinementAction?: EliseRefinementAction;
+  refinementContinued?: boolean;
+  refinementExcludedCount?: number;
+  refinementRetainedCount?: number;
+  refinementDroppedRetainedCount?: number;
+  outfitTurn?: number;
 }
 
 export interface EliseAdvicePipelineResult {
@@ -369,4 +477,7 @@ export interface EliseAdvicePipelineResult {
   promptBlock: string;
   adviceMetadata: Omit<EliseAdviceOutput, 'text'>;
   telemetry: EliseAdviceTelemetry;
+  /** Build 36 / V2. The state to persist for the next turn. */
+  outfitState: EliseOutfitState | null;
+  refinement: EliseRefinementOutcome | null;
 }
