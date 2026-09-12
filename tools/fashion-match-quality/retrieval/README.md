@@ -75,3 +75,18 @@ See `DESIGN.md`'s Workstream 03 addendum for the full decision-memo
 record (model network-block handling, stub-embedder honesty contract, why
 `wrongSubtypeRate` is unavailable, the pre-existing FMQ fixture `color_family`
 quirk, and the Curiosity Gap integration choice).
+
+---
+
+## Visual re-ranker (`rerank/`)
+
+A later lane added a downstream **visual re-ranking** layer over K Scan's
+existing L1 candidate generation — a different architecture from the retrieval
+index documented above. Where this lab retrieves from a candidate universe,
+`rerank/` receives the candidate list L1 already produced and only reorders it.
+
+It also unblocked the control arm (the real production L1 module now executes
+via a Deno binary installed from npm) and repaired the `wrongColor = 1.0`
+defect in FMQ's evaluator.
+
+See `rerank/README.md` and `rerank/DESIGN.md`.
