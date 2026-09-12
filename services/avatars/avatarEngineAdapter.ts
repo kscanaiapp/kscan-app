@@ -9,7 +9,8 @@ import type {
   AvatarSpeechRuntimeSnapshot,
   AvatarVisualFrame,
 } from './engine/contract';
-import { isFrameApplicable } from './engine/contract';
+import { AVATAR_ENGINE_CONTRACT_VERSION, isFrameApplicable } from './engine/contract';
+
 import { AvatarRuntime } from './engine/runtime/AvatarRuntime';
 import {
   AvatarEngineMetricsCollector,
@@ -107,6 +108,48 @@ function toRendererMouthState(frame: AvatarVisualFrame): LegacyAvatarMouthState 
   }
 }
 
+/**
+ * The host's last-resort frame, for when normalizing host state throws before
+ * the engine can be asked anything.
+ *
+ * Built here rather than by calling back into the runtime: the runtime cannot
+ * be trusted to be reachable at this point, and asking it for a frame with a
+ * fabricated snapshot would let an error path disturb the engine state of a
+ * live utterance. Identity is left empty so the renderer's own admission check
+ * rejects it, which is why `applied` is false and the mouth is closed.
+ */
+function neutralResult(): AvatarEngineFrameResult {
+  return {
+    frame: {
+      contractVersion: AVATAR_ENGINE_CONTRACT_VERSION,
+      avatarId: '',
+      speechGeneration: -1,
+      motionEpoch: -1,
+      mouthState: 'closed',
+      mouthTransition: null,
+      eyeState: 'open',
+      browState: 'neutral',
+      headMotion: { rotateDeg: 0, translateX: 0, translateY: 0 },
+      breathing: { scale: 1, phase: 0 },
+      isSpeaking: false,
+      shouldRenderMouth: false,
+      shouldRenderEyes: false,
+      shouldRenderBrows: false,
+      tapAcknowledgementActive: false,
+      diagnostics: {
+        reason: 'calculation-error',
+        generationAccepted: false,
+        timelineDisposition: 'missing',
+        droppedAlignmentIntervals: 0,
+        fallbackUsed: false,
+        neutral: true,
+      },
+    },
+    mouthState: 'closed',
+    applied: false,
+  };
+}
+
 export class AvatarEngineHostAdapter {
   private readonly metrics: AvatarEngineMetricsCollector;
   private readonly now: () => number;
@@ -128,27 +171,21 @@ export class AvatarEngineHostAdapter {
    * fail-closed guard turns any internal defect into a neutral frame, and the
    * identity check below turns any late or mismatched frame into a closed
    * mouth. There is no path from here back into the speech lifecycle.
+   *
+   * The engine's guard covers the engine. This outer guard covers the ADAPTER —
+   * normalizing the host's own state can throw too, and this runs inside the
+   * Elise header's render. An exception escaping here would take the whole
+   * conversation surface down over a presentation detail, so a failure to
+   * translate host state is answered the same way a failure to calculate is:
+   * one neutral frame and a closed mouth. Speech never learns it happened.
    */
   computeFrame(input: AvatarEngineHostInput): AvatarEngineFrameResult {
-    const avatarId = input.avatarId ?? '';
-    this.ensureAvatarLoaded(avatarId);
-
-    const snapshot = this.toSnapshot(input, avatarId);
-    this.reconcileSpeechEnd(input.speech, snapshot);
-    const frame = this.runtime.update(snapshot);
-
-    const applied = isFrameApplicable(frame, {
-      avatarId,
-      speechGeneration: snapshot.speechGeneration,
-      motionEpoch: snapshot.motionEpoch,
-    });
-    if (!applied) this.metrics.countEvent('STALE_FRAME_REJECTIONS', 1);
-
-    return {
-      frame,
-      mouthState: applied ? toRendererMouthState(frame) : 'closed',
-      applied,
-    };
+    try {
+      return this.calculateFrame(input);
+    } catch {
+      this.metrics.countEvent('CALCULATION_ERRORS', 1);
+      return neutralResult();
+    }
   }
 
   acknowledgeTap(hostNowMs: number, semanticMode: AvatarSemanticMode = 'idle'): boolean {
@@ -174,6 +211,28 @@ export class AvatarEngineHostAdapter {
   }
 
   // -- internals --------------------------------------------------------------
+
+  private calculateFrame(input: AvatarEngineHostInput): AvatarEngineFrameResult {
+    const avatarId = input.avatarId ?? '';
+    this.ensureAvatarLoaded(avatarId);
+
+    const snapshot = this.toSnapshot(input, avatarId);
+    this.reconcileSpeechEnd(input.speech, snapshot);
+    const frame = this.runtime.update(snapshot);
+
+    const applied = isFrameApplicable(frame, {
+      avatarId,
+      speechGeneration: snapshot.speechGeneration,
+      motionEpoch: snapshot.motionEpoch,
+    });
+    if (!applied) this.metrics.countEvent('STALE_FRAME_REJECTIONS', 1);
+
+    return {
+      frame,
+      mouthState: applied ? toRendererMouthState(frame) : 'closed',
+      applied,
+    };
+  }
 
   /**
    * Capabilities come from validated package metadata, never from a hard-coded
