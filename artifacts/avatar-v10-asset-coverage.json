@@ -1,0 +1,1092 @@
+{
+  "avatarCoverageVersion": 1,
+  "generatedBy": "scripts/generate-avatar-asset-coverage.js",
+  "derivedFrom": [
+    "services/avatars/avatarAssetCoverage.ts",
+    "services/avatars/avatarEnginePackages.ts",
+    "services/avatars/engine/package/validate.ts",
+    "constants/stylistIdentity.ts"
+  ],
+  "states": [
+    "IDLE",
+    "LISTENING",
+    "THINKING",
+    "SPEAKING_CLOSED",
+    "SPEAKING_HALF",
+    "SPEAKING_OPEN",
+    "INTERRUPTED",
+    "ERROR"
+  ],
+  "degradationContract": [
+    "MAPPED requires an approved asset in the validated engine package.",
+    "Missing speaking frames degrade round -> open -> halfOpen -> closed; never substituted.",
+    "No approved speaking frames: base pose held, SPEAKING carried by the header status channel.",
+    "LISTENING and INTERRUPTED draw the approved base pose; the engine still receives the real mode.",
+    "Reduce Motion holds the approved base pose; the status channel carries SPEAKING."
+  ],
+  "registryAssetCount": 34,
+  "registryAssetsMissingOnDisk": [],
+  "cellTotals": {
+    "MAPPED": 61,
+    "DEGRADED": 52,
+    "MISSING": 15
+  },
+  "stylists": [
+    {
+      "presetId": "elise_default",
+      "visualAvatarId": "stylist_portrait_01",
+      "voiceProfile": "feminine",
+      "canSpeak": true,
+      "packageValid": true,
+      "speakingTier": "basic",
+      "states": {
+        "IDLE": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_01:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_01.jpg",
+          "assetOnDisk": true,
+          "note": "approved base pose"
+        },
+        "LISTENING": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_01:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_01.jpg",
+          "assetOnDisk": true,
+          "note": "no approved listening pose: base pose held"
+        },
+        "THINKING": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_01:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_01.jpg",
+          "assetOnDisk": true,
+          "note": "approved base pose plus the existing thinking ring"
+        },
+        "SPEAKING_CLOSED": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_01:mouth:closed",
+          "assetPath": "assets/stylist-avatars/portraits/animated/avatar_stylist_01_mouth_closed.png",
+          "assetOnDisk": true,
+          "note": "approved closed frame"
+        },
+        "SPEAKING_HALF": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_01:mouth:closed",
+          "assetPath": "assets/stylist-avatars/portraits/animated/avatar_stylist_01_mouth_closed.png",
+          "assetOnDisk": true,
+          "note": "no approved half-open frame: degrades to closed"
+        },
+        "SPEAKING_OPEN": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_01:mouth:open",
+          "assetPath": "assets/stylist-avatars/portraits/animated/avatar_stylist_01_mouth_open.png",
+          "assetOnDisk": true,
+          "note": "approved open frame"
+        },
+        "INTERRUPTED": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_01:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_01.jpg",
+          "assetOnDisk": true,
+          "note": "no approved interrupted pose: base pose held, mouth closed"
+        },
+        "ERROR": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_01:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_01.jpg",
+          "assetOnDisk": true,
+          "note": "safe static approved base pose"
+        }
+      }
+    },
+    {
+      "presetId": "editorial_plum",
+      "visualAvatarId": "editorial_plum",
+      "voiceProfile": "silent",
+      "canSpeak": false,
+      "packageValid": false,
+      "speakingTier": "none",
+      "states": {
+        "IDLE": {
+          "coverage": "MAPPED",
+          "assetKey": "editorial_plum:base",
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "approved base pose"
+        },
+        "LISTENING": {
+          "coverage": "DEGRADED",
+          "assetKey": "editorial_plum:base",
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "no approved listening pose: base pose held"
+        },
+        "THINKING": {
+          "coverage": "MAPPED",
+          "assetKey": "editorial_plum:base",
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "approved base pose plus the existing thinking ring"
+        },
+        "SPEAKING_CLOSED": {
+          "coverage": "MISSING",
+          "assetKey": null,
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "silent preset: no speaking state is reachable"
+        },
+        "SPEAKING_HALF": {
+          "coverage": "MISSING",
+          "assetKey": null,
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "silent preset: no speaking state is reachable"
+        },
+        "SPEAKING_OPEN": {
+          "coverage": "MISSING",
+          "assetKey": null,
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "silent preset: no speaking state is reachable"
+        },
+        "INTERRUPTED": {
+          "coverage": "DEGRADED",
+          "assetKey": "editorial_plum:base",
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "no approved interrupted pose: base pose held, mouth closed"
+        },
+        "ERROR": {
+          "coverage": "MAPPED",
+          "assetKey": "editorial_plum:base",
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "safe static approved base pose"
+        }
+      }
+    },
+    {
+      "presetId": "chrome_muse",
+      "visualAvatarId": "chrome_muse",
+      "voiceProfile": "silent",
+      "canSpeak": false,
+      "packageValid": false,
+      "speakingTier": "none",
+      "states": {
+        "IDLE": {
+          "coverage": "MAPPED",
+          "assetKey": "chrome_muse:base",
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "approved base pose"
+        },
+        "LISTENING": {
+          "coverage": "DEGRADED",
+          "assetKey": "chrome_muse:base",
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "no approved listening pose: base pose held"
+        },
+        "THINKING": {
+          "coverage": "MAPPED",
+          "assetKey": "chrome_muse:base",
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "approved base pose plus the existing thinking ring"
+        },
+        "SPEAKING_CLOSED": {
+          "coverage": "MISSING",
+          "assetKey": null,
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "silent preset: no speaking state is reachable"
+        },
+        "SPEAKING_HALF": {
+          "coverage": "MISSING",
+          "assetKey": null,
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "silent preset: no speaking state is reachable"
+        },
+        "SPEAKING_OPEN": {
+          "coverage": "MISSING",
+          "assetKey": null,
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "silent preset: no speaking state is reachable"
+        },
+        "INTERRUPTED": {
+          "coverage": "DEGRADED",
+          "assetKey": "chrome_muse:base",
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "no approved interrupted pose: base pose held, mouth closed"
+        },
+        "ERROR": {
+          "coverage": "MAPPED",
+          "assetKey": "chrome_muse:base",
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "safe static approved base pose"
+        }
+      }
+    },
+    {
+      "presetId": "deep_space",
+      "visualAvatarId": "deep_space",
+      "voiceProfile": "silent",
+      "canSpeak": false,
+      "packageValid": false,
+      "speakingTier": "none",
+      "states": {
+        "IDLE": {
+          "coverage": "MAPPED",
+          "assetKey": "deep_space:base",
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "approved base pose"
+        },
+        "LISTENING": {
+          "coverage": "DEGRADED",
+          "assetKey": "deep_space:base",
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "no approved listening pose: base pose held"
+        },
+        "THINKING": {
+          "coverage": "MAPPED",
+          "assetKey": "deep_space:base",
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "approved base pose plus the existing thinking ring"
+        },
+        "SPEAKING_CLOSED": {
+          "coverage": "MISSING",
+          "assetKey": null,
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "silent preset: no speaking state is reachable"
+        },
+        "SPEAKING_HALF": {
+          "coverage": "MISSING",
+          "assetKey": null,
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "silent preset: no speaking state is reachable"
+        },
+        "SPEAKING_OPEN": {
+          "coverage": "MISSING",
+          "assetKey": null,
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "silent preset: no speaking state is reachable"
+        },
+        "INTERRUPTED": {
+          "coverage": "DEGRADED",
+          "assetKey": "deep_space:base",
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "no approved interrupted pose: base pose held, mouth closed"
+        },
+        "ERROR": {
+          "coverage": "MAPPED",
+          "assetKey": "deep_space:base",
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "safe static approved base pose"
+        }
+      }
+    },
+    {
+      "presetId": "cream_gold",
+      "visualAvatarId": "cream_gold",
+      "voiceProfile": "silent",
+      "canSpeak": false,
+      "packageValid": false,
+      "speakingTier": "none",
+      "states": {
+        "IDLE": {
+          "coverage": "MAPPED",
+          "assetKey": "cream_gold:base",
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "approved base pose"
+        },
+        "LISTENING": {
+          "coverage": "DEGRADED",
+          "assetKey": "cream_gold:base",
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "no approved listening pose: base pose held"
+        },
+        "THINKING": {
+          "coverage": "MAPPED",
+          "assetKey": "cream_gold:base",
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "approved base pose plus the existing thinking ring"
+        },
+        "SPEAKING_CLOSED": {
+          "coverage": "MISSING",
+          "assetKey": null,
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "silent preset: no speaking state is reachable"
+        },
+        "SPEAKING_HALF": {
+          "coverage": "MISSING",
+          "assetKey": null,
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "silent preset: no speaking state is reachable"
+        },
+        "SPEAKING_OPEN": {
+          "coverage": "MISSING",
+          "assetKey": null,
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "silent preset: no speaking state is reachable"
+        },
+        "INTERRUPTED": {
+          "coverage": "DEGRADED",
+          "assetKey": "cream_gold:base",
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "no approved interrupted pose: base pose held, mouth closed"
+        },
+        "ERROR": {
+          "coverage": "MAPPED",
+          "assetKey": "cream_gold:base",
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "safe static approved base pose"
+        }
+      }
+    },
+    {
+      "presetId": "obsidian_orchid",
+      "visualAvatarId": "obsidian_orchid",
+      "voiceProfile": "silent",
+      "canSpeak": false,
+      "packageValid": false,
+      "speakingTier": "none",
+      "states": {
+        "IDLE": {
+          "coverage": "MAPPED",
+          "assetKey": "obsidian_orchid:base",
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "approved base pose"
+        },
+        "LISTENING": {
+          "coverage": "DEGRADED",
+          "assetKey": "obsidian_orchid:base",
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "no approved listening pose: base pose held"
+        },
+        "THINKING": {
+          "coverage": "MAPPED",
+          "assetKey": "obsidian_orchid:base",
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "approved base pose plus the existing thinking ring"
+        },
+        "SPEAKING_CLOSED": {
+          "coverage": "MISSING",
+          "assetKey": null,
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "silent preset: no speaking state is reachable"
+        },
+        "SPEAKING_HALF": {
+          "coverage": "MISSING",
+          "assetKey": null,
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "silent preset: no speaking state is reachable"
+        },
+        "SPEAKING_OPEN": {
+          "coverage": "MISSING",
+          "assetKey": null,
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "silent preset: no speaking state is reachable"
+        },
+        "INTERRUPTED": {
+          "coverage": "DEGRADED",
+          "assetKey": "obsidian_orchid:base",
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "no approved interrupted pose: base pose held, mouth closed"
+        },
+        "ERROR": {
+          "coverage": "MAPPED",
+          "assetKey": "obsidian_orchid:base",
+          "assetPath": null,
+          "assetOnDisk": null,
+          "note": "safe static approved base pose"
+        }
+      }
+    },
+    {
+      "presetId": "stylist_portrait_01",
+      "visualAvatarId": "stylist_portrait_01",
+      "voiceProfile": "feminine",
+      "canSpeak": true,
+      "packageValid": true,
+      "speakingTier": "basic",
+      "states": {
+        "IDLE": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_01:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_01.jpg",
+          "assetOnDisk": true,
+          "note": "approved base pose"
+        },
+        "LISTENING": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_01:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_01.jpg",
+          "assetOnDisk": true,
+          "note": "no approved listening pose: base pose held"
+        },
+        "THINKING": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_01:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_01.jpg",
+          "assetOnDisk": true,
+          "note": "approved base pose plus the existing thinking ring"
+        },
+        "SPEAKING_CLOSED": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_01:mouth:closed",
+          "assetPath": "assets/stylist-avatars/portraits/animated/avatar_stylist_01_mouth_closed.png",
+          "assetOnDisk": true,
+          "note": "approved closed frame"
+        },
+        "SPEAKING_HALF": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_01:mouth:closed",
+          "assetPath": "assets/stylist-avatars/portraits/animated/avatar_stylist_01_mouth_closed.png",
+          "assetOnDisk": true,
+          "note": "no approved half-open frame: degrades to closed"
+        },
+        "SPEAKING_OPEN": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_01:mouth:open",
+          "assetPath": "assets/stylist-avatars/portraits/animated/avatar_stylist_01_mouth_open.png",
+          "assetOnDisk": true,
+          "note": "approved open frame"
+        },
+        "INTERRUPTED": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_01:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_01.jpg",
+          "assetOnDisk": true,
+          "note": "no approved interrupted pose: base pose held, mouth closed"
+        },
+        "ERROR": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_01:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_01.jpg",
+          "assetOnDisk": true,
+          "note": "safe static approved base pose"
+        }
+      }
+    },
+    {
+      "presetId": "stylist_portrait_02",
+      "visualAvatarId": "stylist_portrait_02",
+      "voiceProfile": "masculine",
+      "canSpeak": true,
+      "packageValid": true,
+      "speakingTier": "full",
+      "states": {
+        "IDLE": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_02:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_02.jpg",
+          "assetOnDisk": true,
+          "note": "approved base pose"
+        },
+        "LISTENING": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_02:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_02.jpg",
+          "assetOnDisk": true,
+          "note": "no approved listening pose: base pose held"
+        },
+        "THINKING": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_02:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_02.jpg",
+          "assetOnDisk": true,
+          "note": "approved base pose plus the existing thinking ring"
+        },
+        "SPEAKING_CLOSED": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_02:mouth:closed",
+          "assetPath": "assets/stylist-avatars/portraits/animated/avatar_stylist_02_mouth_closed.png",
+          "assetOnDisk": true,
+          "note": "approved closed frame"
+        },
+        "SPEAKING_HALF": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_02:mouth:halfOpen",
+          "assetPath": "assets/stylist-avatars/portraits/animated/avatar_stylist_02_mouth_half_open.png",
+          "assetOnDisk": true,
+          "note": "approved half-open frame"
+        },
+        "SPEAKING_OPEN": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_02:mouth:open",
+          "assetPath": "assets/stylist-avatars/portraits/animated/avatar_stylist_02_mouth_open.png",
+          "assetOnDisk": true,
+          "note": "approved open frame"
+        },
+        "INTERRUPTED": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_02:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_02.jpg",
+          "assetOnDisk": true,
+          "note": "no approved interrupted pose: base pose held, mouth closed"
+        },
+        "ERROR": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_02:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_02.jpg",
+          "assetOnDisk": true,
+          "note": "safe static approved base pose"
+        }
+      }
+    },
+    {
+      "presetId": "stylist_portrait_03",
+      "visualAvatarId": "stylist_portrait_03",
+      "voiceProfile": "feminine",
+      "canSpeak": true,
+      "packageValid": true,
+      "speakingTier": "none",
+      "states": {
+        "IDLE": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_03:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_03.jpg",
+          "assetOnDisk": true,
+          "note": "approved base pose"
+        },
+        "LISTENING": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_03:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_03.jpg",
+          "assetOnDisk": true,
+          "note": "no approved listening pose: base pose held"
+        },
+        "THINKING": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_03:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_03.jpg",
+          "assetOnDisk": true,
+          "note": "approved base pose plus the existing thinking ring"
+        },
+        "SPEAKING_CLOSED": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_03:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_03.jpg",
+          "assetOnDisk": true,
+          "note": "no approved speaking frames: base pose held, SPEAKING shown by the status channel"
+        },
+        "SPEAKING_HALF": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_03:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_03.jpg",
+          "assetOnDisk": true,
+          "note": "no approved speaking frames: base pose held, SPEAKING shown by the status channel"
+        },
+        "SPEAKING_OPEN": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_03:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_03.jpg",
+          "assetOnDisk": true,
+          "note": "no approved speaking frames: base pose held, SPEAKING shown by the status channel"
+        },
+        "INTERRUPTED": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_03:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_03.jpg",
+          "assetOnDisk": true,
+          "note": "no approved interrupted pose: base pose held, mouth closed"
+        },
+        "ERROR": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_03:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_03.jpg",
+          "assetOnDisk": true,
+          "note": "safe static approved base pose"
+        }
+      }
+    },
+    {
+      "presetId": "stylist_portrait_04",
+      "visualAvatarId": "stylist_portrait_04",
+      "voiceProfile": "masculine",
+      "canSpeak": true,
+      "packageValid": true,
+      "speakingTier": "none",
+      "states": {
+        "IDLE": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_04:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_04.jpg",
+          "assetOnDisk": true,
+          "note": "approved base pose"
+        },
+        "LISTENING": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_04:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_04.jpg",
+          "assetOnDisk": true,
+          "note": "no approved listening pose: base pose held"
+        },
+        "THINKING": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_04:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_04.jpg",
+          "assetOnDisk": true,
+          "note": "approved base pose plus the existing thinking ring"
+        },
+        "SPEAKING_CLOSED": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_04:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_04.jpg",
+          "assetOnDisk": true,
+          "note": "no approved speaking frames: base pose held, SPEAKING shown by the status channel"
+        },
+        "SPEAKING_HALF": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_04:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_04.jpg",
+          "assetOnDisk": true,
+          "note": "no approved speaking frames: base pose held, SPEAKING shown by the status channel"
+        },
+        "SPEAKING_OPEN": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_04:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_04.jpg",
+          "assetOnDisk": true,
+          "note": "no approved speaking frames: base pose held, SPEAKING shown by the status channel"
+        },
+        "INTERRUPTED": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_04:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_04.jpg",
+          "assetOnDisk": true,
+          "note": "no approved interrupted pose: base pose held, mouth closed"
+        },
+        "ERROR": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_04:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_04.jpg",
+          "assetOnDisk": true,
+          "note": "safe static approved base pose"
+        }
+      }
+    },
+    {
+      "presetId": "stylist_portrait_05",
+      "visualAvatarId": "stylist_portrait_05",
+      "voiceProfile": "feminine",
+      "canSpeak": true,
+      "packageValid": true,
+      "speakingTier": "full",
+      "states": {
+        "IDLE": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_05:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_05.jpg",
+          "assetOnDisk": true,
+          "note": "approved base pose"
+        },
+        "LISTENING": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_05:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_05.jpg",
+          "assetOnDisk": true,
+          "note": "no approved listening pose: base pose held"
+        },
+        "THINKING": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_05:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_05.jpg",
+          "assetOnDisk": true,
+          "note": "approved base pose plus the existing thinking ring"
+        },
+        "SPEAKING_CLOSED": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_05:mouth:closed",
+          "assetPath": "assets/stylist-avatars/portraits/animated/avatar_stylist_05_mouth_closed.png",
+          "assetOnDisk": true,
+          "note": "approved closed frame"
+        },
+        "SPEAKING_HALF": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_05:mouth:halfOpen",
+          "assetPath": "assets/stylist-avatars/portraits/animated/avatar_stylist_05_mouth_half_open.png",
+          "assetOnDisk": true,
+          "note": "approved half-open frame"
+        },
+        "SPEAKING_OPEN": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_05:mouth:open",
+          "assetPath": "assets/stylist-avatars/portraits/animated/avatar_stylist_05_mouth_open.png",
+          "assetOnDisk": true,
+          "note": "approved open frame"
+        },
+        "INTERRUPTED": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_05:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_05.jpg",
+          "assetOnDisk": true,
+          "note": "no approved interrupted pose: base pose held, mouth closed"
+        },
+        "ERROR": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_05:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_05.jpg",
+          "assetOnDisk": true,
+          "note": "safe static approved base pose"
+        }
+      }
+    },
+    {
+      "presetId": "stylist_portrait_06",
+      "visualAvatarId": "stylist_portrait_06",
+      "voiceProfile": "masculine",
+      "canSpeak": true,
+      "packageValid": true,
+      "speakingTier": "none",
+      "states": {
+        "IDLE": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_06:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_06.jpg",
+          "assetOnDisk": true,
+          "note": "approved base pose"
+        },
+        "LISTENING": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_06:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_06.jpg",
+          "assetOnDisk": true,
+          "note": "no approved listening pose: base pose held"
+        },
+        "THINKING": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_06:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_06.jpg",
+          "assetOnDisk": true,
+          "note": "approved base pose plus the existing thinking ring"
+        },
+        "SPEAKING_CLOSED": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_06:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_06.jpg",
+          "assetOnDisk": true,
+          "note": "no approved speaking frames: base pose held, SPEAKING shown by the status channel"
+        },
+        "SPEAKING_HALF": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_06:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_06.jpg",
+          "assetOnDisk": true,
+          "note": "no approved speaking frames: base pose held, SPEAKING shown by the status channel"
+        },
+        "SPEAKING_OPEN": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_06:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_06.jpg",
+          "assetOnDisk": true,
+          "note": "no approved speaking frames: base pose held, SPEAKING shown by the status channel"
+        },
+        "INTERRUPTED": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_06:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_06.jpg",
+          "assetOnDisk": true,
+          "note": "no approved interrupted pose: base pose held, mouth closed"
+        },
+        "ERROR": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_06:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_06.jpg",
+          "assetOnDisk": true,
+          "note": "safe static approved base pose"
+        }
+      }
+    },
+    {
+      "presetId": "stylist_portrait_07",
+      "visualAvatarId": "stylist_portrait_07",
+      "voiceProfile": "feminine",
+      "canSpeak": true,
+      "packageValid": true,
+      "speakingTier": "none",
+      "states": {
+        "IDLE": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_07:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_07.jpg",
+          "assetOnDisk": true,
+          "note": "approved base pose"
+        },
+        "LISTENING": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_07:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_07.jpg",
+          "assetOnDisk": true,
+          "note": "no approved listening pose: base pose held"
+        },
+        "THINKING": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_07:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_07.jpg",
+          "assetOnDisk": true,
+          "note": "approved base pose plus the existing thinking ring"
+        },
+        "SPEAKING_CLOSED": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_07:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_07.jpg",
+          "assetOnDisk": true,
+          "note": "no approved speaking frames: base pose held, SPEAKING shown by the status channel"
+        },
+        "SPEAKING_HALF": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_07:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_07.jpg",
+          "assetOnDisk": true,
+          "note": "no approved speaking frames: base pose held, SPEAKING shown by the status channel"
+        },
+        "SPEAKING_OPEN": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_07:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_07.jpg",
+          "assetOnDisk": true,
+          "note": "no approved speaking frames: base pose held, SPEAKING shown by the status channel"
+        },
+        "INTERRUPTED": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_07:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_07.jpg",
+          "assetOnDisk": true,
+          "note": "no approved interrupted pose: base pose held, mouth closed"
+        },
+        "ERROR": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_07:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_07.jpg",
+          "assetOnDisk": true,
+          "note": "safe static approved base pose"
+        }
+      }
+    },
+    {
+      "presetId": "stylist_portrait_08",
+      "visualAvatarId": "stylist_portrait_08",
+      "voiceProfile": "masculine",
+      "canSpeak": true,
+      "packageValid": true,
+      "speakingTier": "full",
+      "states": {
+        "IDLE": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_08:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_08.jpg",
+          "assetOnDisk": true,
+          "note": "approved base pose"
+        },
+        "LISTENING": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_08:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_08.jpg",
+          "assetOnDisk": true,
+          "note": "no approved listening pose: base pose held"
+        },
+        "THINKING": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_08:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_08.jpg",
+          "assetOnDisk": true,
+          "note": "approved base pose plus the existing thinking ring"
+        },
+        "SPEAKING_CLOSED": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_08:mouth:closed",
+          "assetPath": "assets/stylist-avatars/portraits/animated/avatar_stylist_08_mouth_closed.png",
+          "assetOnDisk": true,
+          "note": "approved closed frame"
+        },
+        "SPEAKING_HALF": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_08:mouth:halfOpen",
+          "assetPath": "assets/stylist-avatars/portraits/animated/avatar_stylist_08_mouth_half_open.png",
+          "assetOnDisk": true,
+          "note": "approved half-open frame"
+        },
+        "SPEAKING_OPEN": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_08:mouth:open",
+          "assetPath": "assets/stylist-avatars/portraits/animated/avatar_stylist_08_mouth_open.png",
+          "assetOnDisk": true,
+          "note": "approved open frame"
+        },
+        "INTERRUPTED": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_08:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_08.jpg",
+          "assetOnDisk": true,
+          "note": "no approved interrupted pose: base pose held, mouth closed"
+        },
+        "ERROR": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_08:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_08.jpg",
+          "assetOnDisk": true,
+          "note": "safe static approved base pose"
+        }
+      }
+    },
+    {
+      "presetId": "stylist_portrait_09",
+      "visualAvatarId": "stylist_portrait_09",
+      "voiceProfile": "feminine",
+      "canSpeak": true,
+      "packageValid": true,
+      "speakingTier": "none",
+      "states": {
+        "IDLE": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_09:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_09.jpg",
+          "assetOnDisk": true,
+          "note": "approved base pose"
+        },
+        "LISTENING": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_09:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_09.jpg",
+          "assetOnDisk": true,
+          "note": "no approved listening pose: base pose held"
+        },
+        "THINKING": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_09:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_09.jpg",
+          "assetOnDisk": true,
+          "note": "approved base pose plus the existing thinking ring"
+        },
+        "SPEAKING_CLOSED": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_09:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_09.jpg",
+          "assetOnDisk": true,
+          "note": "no approved speaking frames: base pose held, SPEAKING shown by the status channel"
+        },
+        "SPEAKING_HALF": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_09:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_09.jpg",
+          "assetOnDisk": true,
+          "note": "no approved speaking frames: base pose held, SPEAKING shown by the status channel"
+        },
+        "SPEAKING_OPEN": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_09:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_09.jpg",
+          "assetOnDisk": true,
+          "note": "no approved speaking frames: base pose held, SPEAKING shown by the status channel"
+        },
+        "INTERRUPTED": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_09:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_09.jpg",
+          "assetOnDisk": true,
+          "note": "no approved interrupted pose: base pose held, mouth closed"
+        },
+        "ERROR": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_09:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_09.jpg",
+          "assetOnDisk": true,
+          "note": "safe static approved base pose"
+        }
+      }
+    },
+    {
+      "presetId": "stylist_portrait_10",
+      "visualAvatarId": "stylist_portrait_10",
+      "voiceProfile": "masculine",
+      "canSpeak": true,
+      "packageValid": true,
+      "speakingTier": "none",
+      "states": {
+        "IDLE": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_10:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_10.jpg",
+          "assetOnDisk": true,
+          "note": "approved base pose"
+        },
+        "LISTENING": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_10:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_10.jpg",
+          "assetOnDisk": true,
+          "note": "no approved listening pose: base pose held"
+        },
+        "THINKING": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_10:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_10.jpg",
+          "assetOnDisk": true,
+          "note": "approved base pose plus the existing thinking ring"
+        },
+        "SPEAKING_CLOSED": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_10:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_10.jpg",
+          "assetOnDisk": true,
+          "note": "no approved speaking frames: base pose held, SPEAKING shown by the status channel"
+        },
+        "SPEAKING_HALF": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_10:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_10.jpg",
+          "assetOnDisk": true,
+          "note": "no approved speaking frames: base pose held, SPEAKING shown by the status channel"
+        },
+        "SPEAKING_OPEN": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_10:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_10.jpg",
+          "assetOnDisk": true,
+          "note": "no approved speaking frames: base pose held, SPEAKING shown by the status channel"
+        },
+        "INTERRUPTED": {
+          "coverage": "DEGRADED",
+          "assetKey": "stylist_portrait_10:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_10.jpg",
+          "assetOnDisk": true,
+          "note": "no approved interrupted pose: base pose held, mouth closed"
+        },
+        "ERROR": {
+          "coverage": "MAPPED",
+          "assetKey": "stylist_portrait_10:base",
+          "assetPath": "assets/stylist-avatars/portraits/stylist_portrait_10.jpg",
+          "assetOnDisk": true,
+          "note": "safe static approved base pose"
+        }
+      }
+    }
+  ]
+}
