@@ -15,6 +15,9 @@ import { useAuthSession } from '../../contexts/AuthSessionContext';
 import { resolveStylistVisualAvatarId } from '../../constants/stylistIdentity';
 import { getAvatarEngineAdapter } from '../../services/avatars/avatarEngineAdapter';
 import { resolveAvatarMotionEpoch } from '../../services/avatars/avatarMotionEpoch';
+import { deriveAvatarPresentation } from '../../services/avatars/avatarPresentation';
+import { resolveAvatarSpeakingCoverage } from '../../services/avatars/avatarAssetCoverage';
+import { AvatarStateInspector } from './AvatarStateInspector';
 
 interface StyleChatHeaderProps {
   showBadge?: boolean;
@@ -66,7 +69,35 @@ export function StyleChatHeader({
     speechState.sessionId === sessionId &&
     speechState.stylistId === identity.avatarId &&
     speechState.avatarId === identity.avatarId;
-  const isSpeaking = speechScopeMatches && speechState.phase === 'playing';
+  const motionEpoch = resolveAvatarMotionEpoch({
+    actorId,
+    sessionId: sessionId ?? null,
+    avatarId: visualAvatarId,
+  });
+
+  // ONE avatar-state projection. Every presentation decision below — the
+  // renderer's state, the engine's semantic mode, the status channel, whether
+  // speech is degraded — comes from this single derivation of state the app
+  // already owns. The header no longer decides any of it inline, so there is
+  // one place to review and one place to test.
+  //
+  // `listening` is false here, and false deliberately: Elise has no voice
+  // input (`VOICE_UI_ENABLED === false` in StyleChatInput), and microphone
+  // permission is never a listening state. The app's live listening authority
+  // (`useVoiceScan`) belongs to Voice Scan, a surface with no avatar.
+  const speakingCoverage = resolveAvatarSpeakingCoverage(visualAvatarId);
+  const presentation = deriveAvatarPresentation({
+    playbackPhase: speechState.phase,
+    playbackScopeMatches: speechScopeMatches,
+    playbackActive: speechScopeMatches && speechState.phase === 'playing',
+    utteranceGeneration: speechState.generation,
+    eliseProcessing: isThinking,
+    listening: false,
+    reduceMotion: reducedMotion,
+    mouthCapable: speakingCoverage.mouthCapable,
+    assetsAvailable: speakingCoverage.assetsAvailable,
+  });
+  const isSpeaking = presentation.speaking;
 
   // MOTION AUTHORITY, one owner per channel:
   //
@@ -94,13 +125,12 @@ export function StyleChatHeader({
       // background transition stops advancing the clock and the next render
       // hands the engine a foreground:false snapshot, which it fails closed on.
       foreground: AppState.currentState === 'active',
-      motionEpoch: resolveAvatarMotionEpoch({
-        actorId,
-        sessionId: sessionId ?? null,
-        avatarId: visualAvatarId,
-      }),
+      motionEpoch,
       hostNowMs: Date.now(),
-      ...(isThinking ? { semanticMode: 'thinking' as const } : {}),
+      // The projection's mode, not a second reading of the same state. It is
+      // undefined for SPEAKING and IDLE, which the engine derives from the
+      // playback fields in this same snapshot.
+      ...(presentation.semanticMode ? { semanticMode: presentation.semanticMode } : {}),
     });
     return {
       mouthState: result.mouthState,
@@ -114,9 +144,8 @@ export function StyleChatHeader({
     speechState,
     speechScopeMatches,
     reducedMotion,
-    actorId,
-    sessionId,
-    isThinking,
+    motionEpoch,
+    presentation.semanticMode,
     // The ticker's only job: make this memo recompute so `Date.now()` above
     // moves while idle. The value itself is never read.
     idleTick,
@@ -125,12 +154,7 @@ export function StyleChatHeader({
   const displayName = identity.displayName;
   const headerAccessibilityLabel = `${displayName}, ${ELISE_IDENTITY.role}`;
 
-  let avatarState: 'idle' | 'thinking' | 'speaking' = 'idle';
-  if (isSpeaking) {
-    avatarState = 'speaking';
-  } else if (isThinking) {
-    avatarState = 'thinking';
-  }
+  const avatarState = presentation.rendererState;
 
   return (
     <View
@@ -157,6 +181,14 @@ export function StyleChatHeader({
             reducedMotion={reducedMotion}
             accessibilityLabel={`${displayName} avatar`}
           />
+          <AvatarStateInspector
+            presentation={presentation}
+            playbackPhase={speechState.phase}
+            eliseProcessing={isThinking}
+            playbackScopeMatches={speechScopeMatches}
+            motionEpoch={motionEpoch}
+            reduceMotion={reducedMotion}
+          />
         </View>
 
         <View
@@ -172,12 +204,19 @@ export function StyleChatHeader({
             {ELISE_IDENTITY.role}
           </Text>
         </View>
-        {isSpeaking || isThinking ? (
+        {/*
+          The status channel, and the reason degraded SPEAKING is never
+          indistinguishable from IDLE. It follows the projection rather than
+          Reduce Motion or mouth capability, so an avatar with no approved
+          speaking frames — and a Reduce Motion user, whose face is held
+          static on purpose — still sees that Elise is speaking.
+        */}
+        {presentation.statusSpeaking || presentation.statusThinking ? (
           <View
             style={[
               styles.statusDot,
-              isSpeaking && styles.statusDotActive,
-              isThinking && !isSpeaking && styles.statusDotThinking,
+              presentation.statusSpeaking && styles.statusDotActive,
+              presentation.statusThinking && styles.statusDotThinking,
             ]}
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
