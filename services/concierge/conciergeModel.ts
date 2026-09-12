@@ -114,11 +114,11 @@ export const EMPTY_CONCIERGE_RESULT: ConciergeResult = {
 };
 
 /**
- * Derive the Closet owner id from the authenticated Style DNA user key.
+ * Derive the Closet owner id from the authenticated Signature Style user key.
  *
  * SHARED, NOT PLATFORM, AND SECURITY-RELEVANT. `userKey` is the
  * `user:{supabaseUserId}` form the session screen already derives from the
- * authenticated session -- the same key the Style DNA feedback surface gates
+ * authenticated session -- the same key the Signature Style feedback surface gates
  * on. This is the only accepted input: taking an owner id from anywhere less
  * authenticated (a route param, a cached profile, a message field) would let a
  * signed-out or wrongly-scoped render reach a Closet.

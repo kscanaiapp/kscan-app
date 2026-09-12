@@ -52,7 +52,7 @@ function codeOf(rel) {
 }
 
 const PERSONALIZATION_TOKENS = [
-  'signatureStyle', 'signature_style', 'signatureStyle', 'style_dna',
+  'signatureStyle', 'signature_style',
   'closetItems', 'closet_items', 'wardrobe', 'packingList', 'packing_list',
   'concierge', 'eliseHistory', 'elise_history', 'preferredBrands', 'preferred_brands',
   'purchaseHistory', 'purchase_history', 'userPreferences', 'user_preferences',

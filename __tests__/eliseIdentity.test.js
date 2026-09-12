@@ -70,7 +70,7 @@ test('centralized Elise identity exports required copy', () => {
   assert.match(eliseConstants, /headerAccessibilityLabel:\s*'Elise, your AI-powered virtual stylist'/);
 });
 
-test('centralized Signature Style copy replaces Style DNA user-facing strings', () => {
+test('centralized Signature Style copy replaces legacy "Style DNA" user-facing strings', () => {
   assert.match(eliseConstants, /featureName:\s*'Signature Style'/);
   assert.match(eliseConstants, /onDeviceLabel:\s*'Signature Style · On-device'/);
   assert.match(eliseConstants, /learningLabel:\s*'Signature Style is learning · Rate a few replies'/);
@@ -156,7 +156,10 @@ test('Edge Function action defaults are app-controlled Elise labels', () => {
 
 // ── Signature Style terminology ──────────────────────────────────────────────
 
-test('user-facing Style DNA strings are absent from audited surfaces', () => {
+test('legacy "Style DNA" strings are absent from audited surfaces (Signature Style rename regression guard)', () => {
+  // Signature Style is the canonical name now; this pins the rename so the
+  // old, competitor-associated term cannot silently creep back into
+  // consumer-facing copy.
   const surfaces = [
     styleChatConstants, styleChatSessionList, styleChatSessionScreen, styleChatSignatureStyleCard,
     styleChatErrors, styleChatPrompts, eliseConstants, libraryScreen, looksIndex,
@@ -173,7 +176,7 @@ test('Signature Style strings are present where appropriate', () => {
   assert.match(edgeSignatureStyleContext, /Signature Style/);
 });
 
-test('internal Style DNA identifiers are preserved in code', () => {
+test('internal Signature Style identifiers are preserved in code', () => {
   assert.match(styleChatSessionScreen, /StyleChatSignatureStyleCard/);
   assert.match(styleChatSessionScreen, /LocalSignatureStyleProfileSummary/);
   assert.match(styleChatSessionScreen, /getSignatureStyleProfileSummary/);

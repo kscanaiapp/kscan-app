@@ -5,7 +5,7 @@ import {
 } from './localSignatureStyleFeedbackStore';
 import { clearReasonsForUser } from './localSignatureStyleReasons';
 
-// ── Style DNA Phase 1 — local profile summary ───────────────────────────────────
+// ── Signature Style Phase 1 — local profile summary ───────────────────────────────────
 // Derives a compact, device-local summary from the Phase 0 feedback signals
 // (helpful / not_my_style). Phase 0 stores NO message text, so the honest summary
 // is counts and engagement only — no fabricated style traits. Read-only over the

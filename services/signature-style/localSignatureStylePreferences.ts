@@ -3,7 +3,7 @@ import { SIGNATURE_STYLE_NAMESPACE } from './localSignatureStyleFeedbackStore';
 
 // ── Signature Style UI preferences — device-local, actor-scoped ───────────────
 // These control the reduced-footprint feedback UX. They are NOT sent to Supabase
-// and are NOT part of the learned Style DNA profile; they are pure UI state.
+// and are NOT part of the learned Signature Style profile; they are pure UI state.
 
 const PREFERENCES_PREFIX = `${SIGNATURE_STYLE_NAMESPACE}preferences/`;
 

@@ -108,7 +108,7 @@ Deno.test('Gemini attempt labels include provider-retry suffixes as plain string
 // scan-identify has carried a "TYPECHECK GATE: the Edge Function compiles
 // clean" test since a deferred-branch defect shipped past `supabase functions
 // deploy` (which does not typecheck). stylechat-generate had no equivalent, and
-// the gap let a real regression through: Track B B5 declared its Style DNA
+// the gap let a real regression through: Track B B5 declared its Signature Style
 // store's `rpc()` as returning a full Promise, which a real SupabaseClient does
 // not satisfy — TS2322 at the call site in index.ts, on a function whose own
 // dependency surface Track B changes more than any other. The same quirk was

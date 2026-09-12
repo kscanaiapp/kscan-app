@@ -4,7 +4,7 @@
 // a 30-day lifecycle; the permanent purge happens later, in a backend worker.
 // Until this repair nothing on the device ever learned that the purge had
 // actually happened, so a user whose account was genuinely and irreversibly
-// deleted still had their Recent Scans, Closet, Style DNA and Dressing Room
+// deleted still had their Recent Scans, Closet, Signature Style and Dressing Room
 // data on the handset indefinitely. Every owner-scoped purge primitive this app
 // needed already existed and several said so in their own comments — "not wired
 // to any production deletion caller", "terminal purge waits for a confirmed

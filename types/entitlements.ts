@@ -12,7 +12,7 @@ export type ProductTier = 'free' | 'k_plus';
  *  in this build -- the rest are reserved names, not yet enabled anywhere. */
 export type KPlusCapability =
   | 'voice_scan'
-  | 'style_dna'
+  | 'signature_style'
   | 'premium_rooms'
   | 'advanced_wardrobe'
   | 'higher_elise_limits';

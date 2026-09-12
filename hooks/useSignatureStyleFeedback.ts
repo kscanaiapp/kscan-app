@@ -13,7 +13,7 @@ import {
   type SignatureStyleReasonCode,
 } from '../services/signature-style/localSignatureStyleReasons';
 
-// Style DNA Phase 0/3 — per-message local feedback hook.
+// Signature Style Phase 0/3 — per-message local feedback hook.
 // Phase 0: loads any persisted Helpful/Not-my-style selection on mount, then exposes an
 // optimistic save that reverts on write failure.
 // Phase 3 (flag-gated): optional reason code per message. Reason capture never blocks the

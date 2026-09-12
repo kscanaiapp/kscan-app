@@ -6,7 +6,7 @@ import {
 } from '../../constants/weatherStyling';
 
 // Stores ONLY the user's weather-permission preference — never raw GPS, never
-// location history. Namespaced under the existing Style DNA local prefix.
+// location history. Namespaced under the existing Signature Style local prefix.
 const PERMISSION_KEY = '@style_dna_v1/weather/permissionState';
 
 // Prominent disclosure choice flag, separate from the OS permission state.

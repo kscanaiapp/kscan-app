@@ -1,4 +1,4 @@
-// Build 34 / Track B / Phase B4 — Style DNA evidence revision (Micro-addendum E).
+// Build 34 / Track B / Phase B4 — Signature Style evidence revision (Micro-addendum E).
 //
 // PURE MODULE. No Deno/network imports.
 //

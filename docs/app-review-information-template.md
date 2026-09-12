@@ -32,7 +32,7 @@ this".
 ```text
 Sign-in offers three options: email/password, Sign in with Apple, and Google. Any one of them reaches the same app. Use the reviewer email/password above unless testing a specific provider.
 
-This build includes camera-based scan analysis, TextScan, retailer-neutral commerce discovery, the Closet (including saved scans and batch review), Style DNA, StyleChat with Elise, Dressing Rooms with room chat and shared rooms, Mirror Selfie, privacy controls, data export/correction request entry points, and in-app account deletion.
+This build includes camera-based scan analysis, TextScan, retailer-neutral commerce discovery, the Closet (including saved scans and batch review), Signature Style, StyleChat with Elise, Dressing Rooms with room chat and shared rooms, Mirror Selfie, privacy controls, data export/correction request entry points, and in-app account deletion.
 
 Permissions you may see, and where:
 - Camera — when you start a scan.
@@ -72,7 +72,7 @@ literal string `'true'`), so "not declared" means "off".
 | Scanner, TextScan (+ backend) | VoiceScan (`EXPO_PUBLIC_VOICESCAN_ENABLED` not declared) |
 | Retailer-neutral commerce discovery | Virtual Try-On (`EXPO_PUBLIC_VTO_UI_ENABLED` not declared) |
 | Closet, batch review, candidate staging, direct intake | K+ premium boundary (`EXPO_PUBLIC_KPLUS_EARLY_ACCESS_ENABLED` not declared) |
-| Style DNA (profile, context, reason feedback) | Packing Intelligence (`EXPO_PUBLIC_PACKING_INTELLIGENCE_V1` not declared) |
+| Signature Style (profile, context, reason feedback) | Packing Intelligence (`EXPO_PUBLIC_PACKING_INTELLIGENCE_V1` not declared) |
 | StyleChat / Elise, attachments, identification V2 | Wardrobe Concierge (`EXPO_PUBLIC_ELISE_CONCIERGE_V1` not declared) |
 | Dressing Rooms, room chat, shared rooms, private rooms | Smart Watchlist (`EXPO_PUBLIC_SMART_WATCHLIST_V1` not declared) |
 | Mirror Selfie (iOS-supported platform) | Today with Elise (`EXPO_PUBLIC_TODAY_WITH_ELISE_V1=false`) |

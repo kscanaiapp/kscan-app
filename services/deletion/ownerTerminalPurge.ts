@@ -67,11 +67,11 @@ export type OwnerPurgeResult = {
 };
 
 /**
- * Style DNA files its local records under `user:<supabase user id>` — see
- * app/style-chat/[sessionId].tsx, which is where that key is minted. The
+ * Signature Style files its local records under `user:<supabase user id>` —
+ * see app/style-chat/[sessionId].tsx, which is where that key is minted. The
  * marker stores the raw id, so the derivation lives here rather than being
- * baked into the stored record, where a later change to the Style DNA key
- * shape would silently orphan every existing marker.
+ * baked into the stored record, where a later change to the Signature Style
+ * key shape would silently orphan every existing marker.
  */
 export function signatureStyleUserKey(ownerId: string): string {
   return `user:${ownerId}`;
@@ -195,17 +195,17 @@ export async function purgeOwnerScopedLocalData(
     ),
   );
   steps.push(
-    await runStep('style_dna_preferences', () =>
+    await runStep('signature_style_preferences', () =>
       (deps.clearSignatureStylePreferences ?? clearSignatureStylePreferencesForUser)(userKey),
     ),
   );
   steps.push(
-    await runStep('style_dna_feedback', () =>
+    await runStep('signature_style_feedback', () =>
       (deps.clearSignatureStyleFeedback ?? clearLocalSignatureStyleForUser)(userKey),
     ),
   );
   steps.push(
-    await runStep('style_dna_reasons', () =>
+    await runStep('signature_style_reasons', () =>
       (deps.clearSignatureStyleReasons ?? clearReasonsForUser)(userKey),
     ),
   );

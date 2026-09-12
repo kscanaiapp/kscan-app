@@ -9,7 +9,7 @@
 // Two independent platform lineages extend this same chain. The client
 // branches append the first-use gender styling context (Fix #5) and the
 // stylist persona (Fix #6); the backend branch appends Track B's server-derived
-// Style DNA (B5). Because the chain is expressed as plain textual bindings, a
+// Signature Style (B5). Because the chain is expressed as plain textual bindings, a
 // three-way merge of the two lineages is only safe if neither side REBINDS a
 // name the other side reads.
 //
@@ -87,7 +87,7 @@ test('CHAIN: no prompt-chain binding is read before it is declared (const TDZ gu
   }
 });
 
-test('CHAIN: the client-fed Style DNA link keeps its long-standing name and meaning', () => {
+test('CHAIN: the client-fed Signature Style link keeps its long-standing name and meaning', () => {
   // Renaming this binding is what made the other lineage's blocks read a name
   // that had silently changed meaning underneath them.
   assert.match(

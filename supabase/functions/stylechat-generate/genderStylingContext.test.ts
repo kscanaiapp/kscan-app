@@ -57,7 +57,7 @@ Deno.test('NO_GENDER_INFERENCE: every block forbids stating the preference back 
   }
 });
 
-Deno.test('block is a compact, bracketed, self-contained section (matches the Style DNA block convention)', () => {
+Deno.test('block is a compact, bracketed, self-contained section (matches the Signature Style block convention)', () => {
   for (const value of ['man', 'woman', 'prefer_not_to_say'] as const) {
     const block = buildGenderStylingContextBlock(value);
     assert.ok(block.startsWith('[Optional Baseline Styling Context]'));

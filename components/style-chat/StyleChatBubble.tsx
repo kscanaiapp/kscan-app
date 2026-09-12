@@ -28,7 +28,7 @@ interface StyleChatBubbleProps {
   onRetry?: () => void;
   isError?: boolean;
   /**
-   * Authenticated Style DNA user key (e.g. `user:{supabaseUserId}`), passed from
+   * Authenticated Signature Style user key (e.g. `user:{supabaseUserId}`), passed from
    * the session screen. When absent, local feedback UI is not rendered.
    */
   userKey?: string | null;
@@ -145,7 +145,7 @@ export function StyleChatBubble({
       }
     : null;
 
-  // Style DNA Phase 0: local feedback only on completed assistant messages with a
+  // Signature Style Phase 0: local feedback only on completed assistant messages with a
   // stable persisted id, and only when we have an authenticated user key.
   const isGreeting = !isUser && uiBlocks.some((block) => block?.type === 'greeting');
 

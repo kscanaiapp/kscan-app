@@ -1,4 +1,4 @@
-// ── Style DNA Phase 2 — client-side context builder ─────────────────────────────
+// ── Signature Style Phase 2 — client-side context builder ─────────────────────────────
 // Turns the device-local Phase 1 profile summary into a compact, DATA-ONLY context
 // object that StyleChat may attach to a request (additively, alongside weather).
 //
@@ -21,7 +21,7 @@ export const SIGNATURE_STYLE_CONTEXT_MEDIUM_SIGNALS = 6;
 
 export type SignatureStyleConfidence = 'low' | 'medium';
 
-// The only Style DNA payload that may leave the device. Data-only by contract.
+// The only Signature Style payload that may leave the device. Data-only by contract.
 export type SignatureStyleContext = {
   enabled: true;
   signalCount: number;

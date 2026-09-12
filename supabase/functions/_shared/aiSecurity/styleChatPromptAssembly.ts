@@ -23,8 +23,9 @@ export type StyleChatPromptAssemblyInput = {
   attachmentContextBlock?: string | null;
   closetContext?: string | null;
   signatureStyleContext?: string | null;
-  /** StyleDNA satisfaction signal — kept distinct from Signature Style preferences. */
-  signatureStyleContext?: string | null;
+  /** Signature Style satisfaction/feedback signal — kept distinct from the
+   *  Signature Style profile/preferences context above. */
+  signatureStyleFeedbackContext?: string | null;
   commerceContext?: string | null;
   sharedContext?: string | null;
   focusText?: string | null;
@@ -71,9 +72,9 @@ export function assembleStyleChatPrompt(
       body: input.signatureStyleContext ?? '',
     },
     {
-      name: 'style_dna_context',
+      name: 'signature_style_feedback_context',
       trust: 'untrusted_derived',
-      body: input.signatureStyleContext ?? '',
+      body: input.signatureStyleFeedbackContext ?? '',
     },
     {
       name: 'visual_context',
@@ -127,7 +128,7 @@ export function assembleStyleChatPrompt(
     attachment_context: (input.attachmentContextBlock ?? '').length,
     closet_context: (input.closetContext ?? '').length,
     signature_style_context: (input.signatureStyleContext ?? '').length,
-    style_dna_context: (input.signatureStyleContext ?? '').length,
+    signature_style_feedback_context: (input.signatureStyleFeedbackContext ?? '').length,
   };
 
   const totalChars = systemText.length + userEnvelopeText.length;

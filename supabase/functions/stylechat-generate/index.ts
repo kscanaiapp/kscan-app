@@ -2,7 +2,7 @@
 //
 // Architecture:
 //   Mobile StyleChat UI → supabase.functions.invoke() → this function → Gemini Flash
-//   Optional additive context (weather, Style DNA, active scan/upload/TextScan) is
+//   Optional additive context (weather, Signature Style, active scan/upload/TextScan) is
 //   sent by the client but validated and consumed server-side.
 //
 // Security guarantees:
@@ -1012,7 +1012,12 @@ Deno.serve(async (req) => {
     sessionId?: unknown;
     message?: unknown;
     weatherLocation?: unknown;
-    signatureStyleContext?: unknown;
+    // Wire field name retained as `styleDnaContext` (EXTERNAL_WIRE_CONTRACT):
+    // an already-shipped app build may still send this exact JSON key to this
+    // independently-redeployable Edge Function; renaming it here without a
+    // synchronized native release would silently drop the signal for those
+    // clients. Read once, then carried internally as `signatureStyleContext`.
+    styleDnaContext?: unknown;
     // Fix #5 — additive and optional. Absent on every pre-Fix-#5 client.
     genderStylingContext?: unknown;
     activeContext?: unknown;
@@ -1254,9 +1259,9 @@ Deno.serve(async (req) => {
   // Optional, additive weather-aware styling input. Unknown/absent -> null (older clients).
   const weatherLocation = parseWeatherLocationInput(body.weatherLocation);
 
-  // Optional, additive Style DNA personalization signal. Unknown/absent/malformed -> null
+  // Optional, additive Signature Style personalization signal. Unknown/absent/malformed -> null
   // (older app builds send nothing and behave exactly as before).
-  const signatureStyleContext = parseSignatureStyleContext(body.signatureStyleContext);
+  const signatureStyleContext = parseSignatureStyleContext(body.styleDnaContext);
 
   // Fix #5 — explicit, self-disclosed baseline styling context. Unknown/absent/
   // malformed -> null (older app builds send nothing and behave exactly as before).

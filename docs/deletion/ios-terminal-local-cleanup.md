@@ -129,9 +129,9 @@ user id, which is also what every owner-scoped store files records under.
 | Dressing-room interactions | FileSystem manifest | per-record `actorId` | `purgeDressingRoomInteractionsForActor` † |
 | Saved-look return context | AsyncStorage, single slot | envelope `actorId` | `purgeSavedLookReturnContextForActor` † |
 | Stylist voice preference | AsyncStorage, per-actor key | key | `purgeStylistVoicePreferenceForActor` † |
-| Style DNA preferences | AsyncStorage, per-user key | key | `clearSignatureStylePreferencesForUser` |
-| Style DNA feedback | AsyncStorage, per-user prefix | key | `clearLocalSignatureStyleForUser` |
-| Style DNA reasons | AsyncStorage, per-user prefix | key | `clearReasonsForUser` |
+| Signature Style preferences | AsyncStorage, per-user key | key | `clearSignatureStylePreferencesForUser` |
+| Signature Style feedback | AsyncStorage, per-user prefix | key | `clearLocalSignatureStyleForUser` |
+| Signature Style reasons | AsyncStorage, per-user prefix | key | `clearReasonsForUser` |
 | Packing plan cache | AsyncStorage, per-actor key | key | `clearCachedPackingPlan` |
 | Onboarding completion | AsyncStorage, per-user key | key | `clearOnboardingComplete` |
 

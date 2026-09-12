@@ -1,12 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SIGNATURE_STYLE_NAMESPACE } from './localSignatureStyleFeedbackStore';
 
-// ── Style DNA Phase 3 (start) — local reason-code enrichment ─────────────────────
+// ── Signature Style Phase 3 (start) — local reason-code enrichment ─────────────────────
 // Optional "why" behind a Helpful / Not-my-style tap, stored DEVICE-LOCAL only.
 //   - No raw message text. No backend. No remote persistence. No migration.
 //   - Reason capture is always optional: a feedback tap works with no reason.
 //   - Lives under its own sub-namespace so it is isolated from Phase 0 feedback,
-//     yet still inside @style_dna_v1/ so a full Style DNA wipe clears it too.
+//     yet still inside @style_dna_v1/ so a full Signature Style wipe clears it too.
 //   - Per-user reset supported (clearReasonsForUser) and wired into profile reset.
 
 const REASONS_PREFIX = `${SIGNATURE_STYLE_NAMESPACE}reasons/`;
@@ -321,7 +321,7 @@ export async function getReasonCountsForUser(params: {
   return counts;
 }
 
-// Per-user reset. Called from resetLocalSignatureStyleProfile so a Style DNA reset clears
+// Per-user reset. Called from resetLocalSignatureStyleProfile so a Signature Style reset clears
 // reasons for the current user too. Does not touch other users or other namespaces.
 export async function clearReasonsForUser(userKey: string): Promise<void> {
   if (!userKey) return;

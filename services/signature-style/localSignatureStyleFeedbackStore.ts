@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// ── Style DNA Phase 0 — local persisted StyleChat feedback ────────────────────
+// ── Signature Style Phase 0 — local persisted StyleChat feedback ────────────────────
 // Device-local only. No backend writes, no migration, no message text stored.
 // A single session-scoped map holds feedback records keyed by assistant messageId.
 
