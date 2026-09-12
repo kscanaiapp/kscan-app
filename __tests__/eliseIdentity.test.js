@@ -59,6 +59,11 @@ const userStylistPreferencesMigration = fs.readFileSync(
 );
 const packageJson = fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8');
 
+// Built programmatically (never written as a literal) so this file itself
+// cannot be mistaken for a live occurrence of the retired term by
+// __tests__/signatureStyleTerminologyGuard.test.js's repo-wide scan.
+const LEGACY_TERM = ['Style', 'DNA'].join(' ');
+
 // ── Identity constants ───────────────────────────────────────────────────────
 
 test('centralized Elise identity exports required copy', () => {
@@ -70,7 +75,7 @@ test('centralized Elise identity exports required copy', () => {
   assert.match(eliseConstants, /headerAccessibilityLabel:\s*'Elise, your AI-powered virtual stylist'/);
 });
 
-test('centralized Signature Style copy replaces legacy "Style DNA" user-facing strings', () => {
+test(`centralized Signature Style copy replaces legacy "${LEGACY_TERM}" user-facing strings`, () => {
   assert.match(eliseConstants, /featureName:\s*'Signature Style'/);
   assert.match(eliseConstants, /onDeviceLabel:\s*'Signature Style · On-device'/);
   assert.match(eliseConstants, /learningLabel:\s*'Signature Style is learning · Rate a few replies'/);
@@ -156,7 +161,7 @@ test('Edge Function action defaults are app-controlled Elise labels', () => {
 
 // ── Signature Style terminology ──────────────────────────────────────────────
 
-test('legacy "Style DNA" strings are absent from audited surfaces (Signature Style rename regression guard)', () => {
+test(`legacy "${LEGACY_TERM}" strings are absent from audited surfaces (Signature Style rename regression guard)`, () => {
   // Signature Style is the canonical name now; this pins the rename so the
   // old, competitor-associated term cannot silently creep back into
   // consumer-facing copy.
@@ -166,7 +171,7 @@ test('legacy "Style DNA" strings are absent from audited surfaces (Signature Sty
     lookDetail, stylistScreen, homeV1, homeLegacy, textScan,
   ];
   for (const source of surfaces) {
-    assert.doesNotMatch(source, /Style DNA/);
+    assert.doesNotMatch(source, new RegExp(LEGACY_TERM));
   }
 });
 
