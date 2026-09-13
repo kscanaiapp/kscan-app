@@ -69,17 +69,22 @@ const ID_DRESS = {
 /**
  * Three strong non-black alternatives, one genuinely WEAKER black arrival last.
  *
- * The black option is a thin listing -- right category, but no photograph and a
- * silhouette and material that do not match the garment. It is still real and
- * still buyable: a valid retailer URL and a real price. This is the candidate
+ * The black option is genuinely weaker on SECONDARY FASHION ATTRIBUTES: right
+ * category, but a silhouette and material that do not match the garment. It is
+ * fully real and fully buyable -- photograph, valid retailer URL, real price --
+ * so nothing about its commercial quality is in question. This is the candidate
  * set section 13 asks for, and the question it poses is the honest one: how far
  * should a weaker option rise because the customer named its colour?
+ *
+ * It must stay above the shape filters. A candidate with no photograph is
+ * removed by an existing Stage A rule (`missing_image`) long before ranking, so
+ * a missing image cannot be used to model "weaker" -- it models "rejected".
  */
 const U_BLACK_WEAK_LAST = [
   p('u1_brown_chelsea', 'Brown Leather Chelsea Ankle Boot Solid', '$180.00', { source: 'Farfetch' }),
   p('u1_tan_chelsea', 'Tan Leather Chelsea Ankle Boot Solid', '$170.00', { source: 'KicksCrew' }),
   p('u1_burgundy_chelsea', 'Burgundy Leather Chelsea Ankle Boot Solid', '$160.00', { source: 'Poshmark' }),
-  p('u1_black_thin', 'Black Woven Espadrille', '$62.00', { source: 'Serper', noImage: true }),
+  p('u1_black_weaker', 'Black Woven Espadrille', '$62.00', { source: 'Serper' }),
 ];
 
 /** Red is the preferred colour, arrives last, and is the weaker listing. */
@@ -87,7 +92,7 @@ const U_RED_WEAK_LAST = [
   p('u2_navy_field', 'Navy Cotton Field Jacket Relaxed Solid', '$320.00', { source: 'Farfetch' }),
   p('u2_olive_field', 'Olive Cotton Field Jacket Relaxed Solid', '$240.00', { source: 'KicksCrew' }),
   p('u2_grey_field', 'Grey Cotton Field Jacket Relaxed Solid', '$275.00', { source: 'Poshmark' }),
-  p('u2_red_thin', 'Red Nylon Cropped Puffer', '$95.00', { source: 'Serper', noImage: true }),
+  p('u2_red_weaker', 'Red Nylon Cropped Puffer', '$95.00', { source: 'Serper' }),
 ];
 
 /** Navy is the preferred colour, arrives last, and is the weaker listing. */
@@ -95,7 +100,7 @@ const U_NAVY_WEAK_LAST = [
   p('u3_ivory_shift', 'Ivory Cotton Shift Dress Solid', '$230.00', { source: 'Farfetch' }),
   p('u3_green_shift', 'Green Cotton Shift Dress Solid', '$210.00', { source: 'KicksCrew' }),
   p('u3_black_shift', 'Black Cotton Shift Dress Solid', '$260.00', { source: 'Poshmark' }),
-  p('u3_navy_thin', 'Navy Linen Tiered Maxi Dress', '$120.00', { source: 'Serper', noImage: true }),
+  p('u3_navy_weaker', 'Navy Linen Tiered Maxi Dress', '$120.00', { source: 'Serper' }),
 ];
 
 // ── Tier 3 universes (sparse / competing quality) ──────────────────────────

@@ -192,6 +192,16 @@
     "top5": [
       {
         "rank": 1,
+        "id": "u1_black_weaker",
+        "title": "Black Woven Espadrille",
+        "score": 59,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_color_match"
+        ]
+      },
+      {
+        "rank": 2,
         "id": "u1_burgundy_chelsea",
         "title": "Burgundy Leather Chelsea Ankle Boot Solid",
         "score": 57,
@@ -201,7 +211,7 @@
         ]
       },
       {
-        "rank": 2,
+        "rank": 3,
         "id": "u1_brown_chelsea",
         "title": "Brown Leather Chelsea Ankle Boot Solid",
         "score": 57,
@@ -211,23 +221,13 @@
         ]
       },
       {
-        "rank": 3,
+        "rank": 4,
         "id": "u1_tan_chelsea",
         "title": "Tan Leather Chelsea Ankle Boot Solid",
         "score": 57,
         "usability": "TRANSACTION_READY",
         "factCodes": [
           "explicit_attribute_missing"
-        ]
-      },
-      {
-        "rank": 4,
-        "id": "u1_black_weaker",
-        "title": "Black Woven Espadrille",
-        "score": 47,
-        "usability": "TRANSACTION_READY",
-        "factCodes": [
-          "explicit_color_match"
         ]
       }
     ]
@@ -253,7 +253,7 @@
         "rank": 1,
         "id": "u2_red_weaker",
         "title": "Red Nylon Cropped Puffer",
-        "score": 77,
+        "score": 89,
         "usability": "TRANSACTION_READY",
         "factCodes": [
           "explicit_color_match"
@@ -312,7 +312,7 @@
         "rank": 1,
         "id": "u3_navy_weaker",
         "title": "Navy Linen Tiered Maxi Dress",
-        "score": 77,
+        "score": 89,
         "usability": "TRANSACTION_READY",
         "factCodes": [
           "explicit_color_match"
@@ -371,7 +371,7 @@
         "rank": 1,
         "id": "u4_black_chelsea",
         "title": "Black Leather Chelsea Ankle Boot Solid",
-        "score": 97,
+        "score": 100,
         "usability": "TRANSACTION_READY",
         "factCodes": [
           "explicit_color_match"
@@ -428,20 +428,20 @@
     "top5": [
       {
         "rank": 1,
-        "id": "u5_black_unusable",
-        "title": "Black Leather Chelsea Ankle Boot Solid - See Similar Items",
-        "score": 97,
-        "usability": "BROWSE_ONLY",
+        "id": "u5_black_good",
+        "title": "Black Leather Chelsea Ankle Boot Solid",
+        "score": 100,
+        "usability": "TRANSACTION_READY",
         "factCodes": [
           "explicit_color_match"
         ]
       },
       {
         "rank": 2,
-        "id": "u5_black_good",
-        "title": "Black Leather Chelsea Ankle Boot Solid",
-        "score": 97,
-        "usability": "TRANSACTION_READY",
+        "id": "u5_black_unusable",
+        "title": "Black Leather Chelsea Ankle Boot Solid - See Similar Items",
+        "score": 100,
+        "usability": "BROWSE_ONLY",
         "factCodes": [
           "explicit_color_match"
         ]

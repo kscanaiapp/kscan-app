@@ -63,9 +63,40 @@ const PROVENANCE_RANK: Readonly<Record<IntentProvenance, number>> = {
   COMMERCIAL_FACT: 8,
 };
 
+/**
+ * How hard the customer asked for an attribute.
+ *
+ * TWO TIERS, AND THE ASYMMETRY IS THE POINT. "black shoes" and "only black"
+ * are both positive requests: neither one deletes the rest of the market. What
+ * separates them is how far a matching candidate rises, never how far a
+ * non-matching one is pushed down -- a stronger ask elevates, it does not
+ * suppress.
+ *
+ * An absent, unknown or malformed strength degrades to EXPLICIT_PREFERENCE.
+ * Degrading to STRONG would let a malformed payload buy extra ranking weight,
+ * and degrading to "no preference" would silently discard something the
+ * customer actually said.
+ */
+export type AttributeStrength = 'EXPLICIT_PREFERENCE' | 'STRONG_EXPLICIT_PREFERENCE';
+
+export const ATTRIBUTE_STRENGTHS: readonly AttributeStrength[] = [
+  'EXPLICIT_PREFERENCE',
+  'STRONG_EXPLICIT_PREFERENCE',
+];
+
+/** Total, and never throws: anything unrecognised is ordinary preference. */
+export function normalizeAttributeStrength(raw: unknown): AttributeStrength {
+  return raw === 'STRONG_EXPLICIT_PREFERENCE' ? 'STRONG_EXPLICIT_PREFERENCE' : 'EXPLICIT_PREFERENCE';
+}
+
 export interface IntentField<T> {
   value: T;
   provenance: IntentProvenance;
+  /**
+   * Only meaningful on a USER_EXPLICIT field. A derived or scanned value is
+   * not something the customer asked for, so it carries no strength.
+   */
+  strength?: AttributeStrength;
 }
 
 export interface BudgetCeiling {
@@ -210,6 +241,7 @@ function setField<T>(
   current: IntentField<T> | undefined,
   value: T,
   provenance: IntentProvenance,
+  strength?: AttributeStrength,
 ): IntentField<T> | undefined {
   if (current && current.provenance === 'COMMERCIAL_FACT' && provenance !== 'COMMERCIAL_FACT') {
     return current;
@@ -217,7 +249,12 @@ function setField<T>(
   if (current && PROVENANCE_RANK[provenance] < PROVENANCE_RANK[current.provenance]) {
     return current;
   }
-  return { value, provenance };
+  // Strength belongs to the customer's own instruction. A field that arrives
+  // from anywhere else carries none, so a later PACKING or SCANNER write of the
+  // same axis cannot inherit the emphasis of an earlier explicit one.
+  return provenance === 'USER_EXPLICIT' && strength
+    ? { value, provenance, strength }
+    : { value, provenance };
 }
 
 export interface IntentContribution {
@@ -226,6 +263,11 @@ export interface IntentContribution {
   category?: string;
   subtype?: string;
   color?: string;
+  /**
+   * How hard the customer asked for `color`. Read only alongside a
+   * USER_EXPLICIT contribution; anything unrecognised degrades to ordinary.
+   */
+  colorStrength?: unknown;
   material?: string;
   silhouette?: string;
   pattern?: string;
@@ -280,7 +322,9 @@ export function buildShoppingIntent(
     const sub = collapse(c.subtype);
     if (sub) intent.subtype = setField(intent.subtype, sub.toLowerCase(), p);
     const col = collapse(c.color);
-    if (col) intent.color = setField(intent.color, col.toLowerCase(), p);
+    if (col) {
+      intent.color = setField(intent.color, col.toLowerCase(), p, normalizeAttributeStrength(c.colorStrength));
+    }
     const mat = collapse(c.material);
     if (mat) intent.material = setField(intent.material, mat.toLowerCase(), p);
     const sil = collapse(c.silhouette);
@@ -549,6 +593,16 @@ export function parseContextContributions(raw: unknown): IntentContribution[] {
       const value = collapse(rec[key]);
       if (value) contribution[key] = value;
     }
+    // Normalised here rather than passed through: the enum is closed, and an
+    // unrecognised value must become ordinary preference before it can be
+    // stored, not merely before it is scored.
+    //
+    // USER_EXPLICIT only. Strength describes how hard the CUSTOMER asked, so a
+    // Closet, Packing or Signature Style contribution carries none and keeps
+    // exactly the key set it had before this field existed.
+    if (contribution.color && provenance === 'USER_EXPLICIT') {
+      contribution.colorStrength = normalizeAttributeStrength(rec.colorStrength);
+    }
     if (typeof rec.actorId === 'string' && rec.actorId.trim()) {
       contribution.actorId = rec.actorId.trim().slice(0, 80);
     }
@@ -639,8 +693,22 @@ export function parseContextContributions(raw: unknown): IntentContribution[] {
 export function shoppingIntentFingerprint(intent: ShoppingIntent | null | undefined): string {
   if (!intent) return '';
   const parts: string[] = [];
+  // STRENGTH IS PART OF THE KEY. It changes ranking, and a cache hit returns a
+  // stored shelf without re-ranking, so "black boots" and "only black" must not
+  // be able to collide. Appended only when present, so an intent without a
+  // strength produces the byte-identical part it produced before this existed.
+  // STRENGTH IS PART OF THE KEY. It changes ranking, and a cache hit returns a
+  // stored shelf without re-ranking, so "black boots" and "only black" must not
+  // be able to collide.
+  //
+  // Only a STRONG strength is appended. Ordinary preference is the default the
+  // absent value already means, so an ordinary request keeps exactly the key it
+  // had before this field existed -- the same "omitted is byte-identical" rule
+  // the fingerprint itself follows inside the cache key.
   const scalar = (name: string, field?: IntentField<string>) => {
-    if (field) parts.push(`${name}:${field.provenance}:${field.value}`);
+    if (!field) return;
+    const base = `${name}:${field.provenance}:${field.value}`;
+    parts.push(field.strength === 'STRONG_EXPLICIT_PREFERENCE' ? `${base}:STRONG` : base);
   };
   scalar('cat', intent.category);
   scalar('sub', intent.subtype);

@@ -24,10 +24,12 @@ const ROOT = path.resolve(__dirname, '../..');
 const edge = (n) => require(path.join(ROOT, 'supabase/functions/scan-identify', n));
 const { filterAndDedupeProducts } = edge('qualityTuneCommerce.ts');
 const { buildShoppingIntent, parseContextContributions } = edge('commerceShoppingIntent.ts');
-const { attachCommercialUsability } = edge('commerceContextualRanking.ts');
+const { attachCommercialUsability, scoreContextualFit } = edge('commerceContextualRanking.ts');
+const { scoreProductAgreement } = edge('commerceRelevanceAgreement.ts');
 const { FIXTURES } = require(path.join(ROOT, 'tools/activation/attributeStrengthFixtures.js'));
 
 const BASELINE_PATH = path.join(ROOT, 'tools/activation/rankingBaseline.json');
+const AFTER_PATH = path.join(ROOT, 'tools/activation/rankingAfter.json');
 
 const ROUTE_BY_ITEM_TYPE = {
   footwear: 'footwear',
@@ -57,12 +59,19 @@ function runFixture(fixture) {
     requestActorId: null,
   });
   const annotated = attachCommercialUsability(res.products);
-  const scores = res.stats.agreementScores ?? [];
+  // The deciding score, recomputed per product rather than read positionally:
+  // `stats.agreementScores` is emitted in pre-diversity order, so indexing it by
+  // final rank would print a number next to the wrong candidate.
+  const decidingScore = (product) => {
+    const ag = scoreProductAgreement(product, fixture.identification, route, null);
+    const ctx = scoreContextualFit(product, intent);
+    return Math.max(0, Math.min(100, ag.score + ctx.delta));
+  };
   const top5 = annotated.slice(0, 5).map((product, rank) => ({
     rank: rank + 1,
     id: product.id,
     title: product.title,
-    score: scores[rank] ?? null,
+    score: decidingScore(product),
     usability: product.commercialUsability ?? null,
     factCodes: product.commerceRationale ? [...product.commerceRationale.factCodes].sort() : [],
   }));
@@ -104,13 +113,16 @@ function orderingOf(results) {
   return Object.fromEntries(results.map((r) => [r.id, r.top5.map((product) => product.id)]));
 }
 
-module.exports = { runAll, runFixture, render, orderingOf, BASELINE_PATH };
+module.exports = { runAll, runFixture, render, orderingOf, BASELINE_PATH, AFTER_PATH };
 
 if (require.main === module) {
   const results = runAll();
   if (process.argv.includes('--write')) {
     fs.writeFileSync(BASELINE_PATH, `${JSON.stringify(results, null, 2)}\n`);
     console.log(`wrote ${path.relative(ROOT, BASELINE_PATH)} (${results.length} fixtures)`);
+  } else if (process.argv.includes('--write-after')) {
+    fs.writeFileSync(AFTER_PATH, `${JSON.stringify(results, null, 2)}\n`);
+    console.log(`wrote ${path.relative(ROOT, AFTER_PATH)} (${results.length} fixtures)`);
   } else if (process.argv.includes('--json')) {
     console.log(JSON.stringify(results, null, 2));
   } else {
