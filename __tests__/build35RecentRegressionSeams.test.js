@@ -346,6 +346,28 @@ test('CONCIERGE: a compound garment can be kept, not just rejected', () => {
   assert.deepEqual(directives.retainedGarmentClasses, ['dress']);
 });
 
+test('VOCABULARY: dressing verbs are not dresses, in either system', async () => {
+  // The compound rule reads "shirtdress" as a dress. It must not read
+  // "overdress" as one: "I don't want to overdress" is a formality worry, and
+  // turning it into a rejection of every dress silently empties the answer.
+  for (const word of ['overdress', 'underdress', 'undress', 'address', 'addresses', 'wheel']) {
+    assert.equal(outfitState.garmentClassOf(word), null, word);
+    assert.equal(garmentFacts.garmentClassOfWord(word), null, word);
+  }
+  for (const word of ['sundress', 'shirtdress', 'minidress']) {
+    assert.equal(outfitState.garmentClassOf(word), 'dress', word);
+  }
+
+  const directives = outfitState.readRefinementDirectives("I don't want to overdress for the wedding, what should I wear?");
+  assert.deepEqual(directives.rejectedGarmentClasses, []);
+  assert.notEqual(directives.action, 'refine_reject');
+
+  const first = await packingRun(packingRequest());
+  const refined = await packingRefine(first.plan, "I don't want to overdress on Friday");
+  assert.equal(refined.result.body.status, 'success');
+  assert.ok(!refined.plan.state.rejectedGarmentClasses.includes('dress'), refined.result.body.message);
+});
+
 test('CLOSET TRUTH: one Closet row read by both systems is owned in both', async () => {
   // Ownership must agree for the same authorized row. Garment classes are
   // compared on identical input in the first test: the two retrieval mappers

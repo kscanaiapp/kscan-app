@@ -134,6 +134,16 @@ function directGarmentClassOf(word: string): string | null {
 }
 
 /**
+ * Words that END in a garment without being one. Without this the compound rule
+ * reads "I don't want to overdress" as a rejection of every dress. One
+ * space-separated string rather than an array of quoted words, which the
+ * governed Edge manifest scanner misreads (B34-DEF-001).
+ */
+const NOT_GARMENT_COMPOUNDS = new Set(
+  'overdress underdress undress redress address wheel reboot invest harvest outskirt'.split(' '),
+);
+
+/**
  * The garment class a word names, or null.
  *
  * Exported (Build 35) so Packing refinement resolves "the loafers" through THIS
@@ -147,6 +157,7 @@ export function garmentClassOf(word: string): string | null {
   const direct = directGarmentClassOf(word);
   if (direct) return direct;
   const letters = word.toLowerCase().replace(/[^a-z]/g, '');
+  if (wordStems(letters).some((stem) => NOT_GARMENT_COMPOUNDS.has(stem))) return null;
   for (let index = 1; index <= letters.length - 4; index += 1) {
     const hit = directGarmentClassOf(letters.slice(index));
     if (hit && hit.length >= 4) return hit;
