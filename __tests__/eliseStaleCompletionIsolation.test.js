@@ -192,6 +192,25 @@ function createHarness(options = {}) {
     },
     '../contexts/AuthSessionContext': { useAuthSession: () => ({ user: { id: actorId } }) },
     '../services/actorScope': actorScope,
+    // Build 36 activation. Stubbed like every other dependency this harness
+    // controls: these tests are about the SEND LIFECYCLE, so Commerce must
+    // never run. `parseShoppingIntentWire` returning null is the real
+    // behaviour for a turn that carried no shopping intent, which is every
+    // turn here.
+    '../services/style-chat/commerceActivation': {
+      parseShoppingIntentWire: () => null,
+      runCommerceActivation: async () => ({
+        blocks: [], status: 'skipped', needsBudgetReference: false, commerceCalls: 0,
+      }),
+    },
+    '../services/commerceHydration': {
+      fetchDeferredCommerce: async () => {
+        throw new Error('commerce must not be reached in a send-lifecycle test');
+      },
+    },
+    '../services/ownedClosetItems': {
+      listOwnedClosetItems: async () => [],
+    },
     './useStylistIdentity': {
       useStylistIdentity: () => ({
         identity: { avatarId: 'elise_default', displayName: 'Elise' },
