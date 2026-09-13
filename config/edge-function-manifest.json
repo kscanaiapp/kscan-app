@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-13T15:45:20.298Z",
-    "generatedFromGitSha": "254f5dc4943d011c503374572795ab29f6a11144"
+    "generatedAtUtc": "2026-09-13T16:28:46.408Z",
+    "generatedFromGitSha": "23e4226e2f67187bf777e0899782bbb66d104409"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -483,8 +483,8 @@
         ],
         "bundleFileCount": 59,
         "treeFileCount": 85,
-        "bundleHash": "cc161a64d09a5fec6044701de6f755beec9a15f15bb2a9af7492669d6c624129",
-        "treeHash": "69efcc0139a78629e7e8e902f7b07d116eb2effe05070cd6e411d38cd28c7547",
+        "bundleHash": "db19d852908c88317557c6f9259535554ef4fd8a39c1e2b829aa2647072fbfaf",
+        "treeHash": "ba63b2965f6a82f210c91471883dd1c5ccd7682cf87a0cb4aabef5a641a7464f",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -658,7 +658,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseOutfitState.ts",
-            "sha256": "be1f80f42b989b42cc0a613092a636a7e742d99e436702495c4fb62ecb5f71cb",
+            "sha256": "97fe5379ddc30b96238e9dc43249c1e335b92dc4857689f1f20931659a18a7e8",
             "bundle": true
           },
           {
