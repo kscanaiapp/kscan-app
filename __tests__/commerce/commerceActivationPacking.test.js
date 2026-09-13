@@ -114,17 +114,23 @@ test('JOURNEY G: an UNCONFIRMED gap keeps its uncertainty and is not shoppable',
   assert.equal(contribution.functionalRequirements, undefined);
 });
 
-test('HOLD: the Packing customer action is NOT surfaced, and the existing no-tap contract stands', () => {
-  // PR #407 made "IDEAS TO CONSIDER" deliberately inert and pinned it with an
+test('the external-ideas surface stays inert; the confirmed-gap surface is the one that opened', () => {
+  // #410 held this seam because the only surface considered for it was "IDEAS
+  // TO CONSIDER", which #407 made deliberately inert and pinned with an
   // explicit assertion (packingPlannerV2Client.test.js :: "with nothing to
-  // tap"). A "Find options" control there would contradict an accepted
-  // product decision from another lane, so the activation brief's own
-  // HOLD_ACTIVATION_SEAM applies rather than weakening someone else's gate.
+  // tap"). The hold was on the wrong object: those rows are ungrounded
+  // suggestions, and the shoppable thing is the CONFIRMED GAP itself.
   //
-  // The bridge below is built, tested and ready; only the surface is held.
+  // Build 36 connects the confirmed gap and leaves the ideas list exactly as
+  // #407 pinned it -- that test passes unmodified.
   const view = src('components/packing/PackingPlanView.tsx');
-  assert.equal(/packing-find-options-/.test(view), false, 'no action was added to the held surface');
-  assert.equal(/Pressable/.test(view.slice(view.indexOf('IDEAS TO CONSIDER'))), false, 'the no-tap contract is intact');
+  const ideas = view.slice(view.indexOf('IDEAS TO CONSIDER'));
+  assert.equal(/Pressable/.test(ideas), false, "#407's no-tap contract is intact");
+  assert.equal(/onFindOptions/.test(ideas), false, 'and it carries no Commerce seam');
+
+  // The action exists, on the confirmed gap, and nowhere else.
+  assert.match(view, /packing-gap-find-\$\{gap\.code\}/, 'the confirmed-gap action is surfaced');
+  assert.match(view, /onFindOptions && gap\.certainty === 'confirmed'/);
 
   const deriver = src('supabase/functions/stylechat-generate/packingGaps.ts');
   assert.match(deriver, /if \(gap\.certainty !== 'confirmed'\) continue;/, 'only confirmed gaps become ideas');

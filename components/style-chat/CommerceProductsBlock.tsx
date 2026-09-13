@@ -15,6 +15,8 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { ProductShelf, type Product } from '../ProductShelf';
 import { hasCommerceProvenance } from '../../services/style-chat/commerceActivation';
+// The fact is read, never re-derived: see `matchedRequestedAttribute`.
+import { matchedRequestedAttribute } from '../../services/commerce/commerceRationale';
 import { LUXURY, SPACING } from '../../constants/theme';
 
 export interface CommerceProductsBlockProps {
@@ -50,19 +52,6 @@ const ERROR_COPY = "I couldn't check live options right now.";
  */
 const noPreferredMatchCopy = (color: string) =>
   `I couldn't find a strong ${color} match right now, but these are the closest alternatives.`;
-
-/**
- * Did the ranker record this candidate as matching the stated colour?
- *
- * Read from the rationale facts #409 already produced during ranking. This is
- * a READ of an existing decision, never a second one: nothing here inspects a
- * title, compares a colour, or reorders anything.
- */
-function matchedRequestedAttribute(product: Product): boolean {
-  const rationale = (product as { commerceRationale?: { factCodes?: unknown } }).commerceRationale;
-  const codes = Array.isArray(rationale?.factCodes) ? rationale.factCodes : [];
-  return codes.includes('explicit_color_match');
-}
 
 export function CommerceProductsBlock({
   status,

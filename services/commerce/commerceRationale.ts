@@ -144,3 +144,26 @@ export function eliseRationaleFacts(facts: CommerceRationaleFacts | null | undef
     ownership: 'external',
   };
 }
+
+/**
+ * Did the ranker record this candidate as matching the colour the customer
+ * stated?
+ *
+ * A READ OF AN EXISTING DECISION. `explicit_color_match` is written by #409's
+ * ranker during ranking; nothing here inspects a title, compares a colour or
+ * re-derives anything. That matters because this fact decides how a shelf is
+ * PRESENTED (BEST MATCHES versus OTHER OPTIONS), and a presentation layer that
+ * made its own colour judgement would be a second opinion the customer could
+ * catch disagreeing with the ordering.
+ *
+ * Absent evidence reads as "not a stated match", never as one: a zero-context
+ * product carries no rationale at all, and must not be captioned as answering
+ * a request nobody scored it against.
+ */
+export function matchedRequestedAttribute(product: unknown): boolean {
+  if (!product || typeof product !== 'object') return false;
+  const rationale = (product as { commerceRationale?: unknown }).commerceRationale;
+  if (!rationale || typeof rationale !== 'object') return false;
+  const codes = (rationale as { factCodes?: unknown }).factCodes;
+  return Array.isArray(codes) && codes.includes('explicit_color_match');
+}

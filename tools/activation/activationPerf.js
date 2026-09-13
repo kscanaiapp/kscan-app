@@ -48,14 +48,36 @@ const median = (v) => {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 };
 
-function timed(fn, iterations) {
-  const samples = [];
+/** p95 from the sorted sample, nearest-rank. */
+const p95 = (v) => {
+  const s = [...v].sort((a, b) => a - b);
+  return s[Math.min(s.length - 1, Math.ceil(0.95 * s.length) - 1)];
+};
+
+function samplesOf(fn, iterations) {
+  const out = [];
   for (let i = 0; i < iterations; i += 1) {
     const t = process.hrtime.bigint();
     fn();
-    samples.push(Number(process.hrtime.bigint() - t) / 1e6);
+    out.push(Number(process.hrtime.bigint() - t) / 1e6);
   }
-  return +median(samples).toFixed(4);
+  return out;
+}
+
+function timed(fn, iterations) {
+  return +median(samplesOf(fn, iterations)).toFixed(4);
+}
+
+/**
+ * Median AND p95 (continuation brief section 26).
+ *
+ * A median alone hides the tail, and the tail is what a customer on a slow
+ * device actually feels. Both are wall-clock on this machine and are engineering
+ * evidence only -- no device claim is made from them.
+ */
+function timedStats(fn, iterations) {
+  const s = samplesOf(fn, iterations);
+  return { median: +median(s).toFixed(4), p95: +p95(s).toFixed(4) };
 }
 
 function run() {
@@ -110,8 +132,29 @@ function run() {
         .contributionFromPackingGap({ code: 'missing_weather_layer', label: 'A light rain layer', certainty: 'confirmed', source: 'weather' }),
       N,
     ),
+    // Build 36 continuation: the confirmed-gap handoff the Packing screen builds
+    // before it navigates. Distinct from PACKING_BRIDGE_MS, which is the
+    // Commerce-side contribution builder.
+    PACKING_HANDOFF_BUILD_MS: timed(
+      () => require(path.join(ROOT, 'services/packing/packingCommerceHandoff.ts'))
+        .buildPackingCommerceHandoff({ gapCode: 'missing_weather_layer', label: 'A packable rain jacket', certainty: 'confirmed' }),
+      N,
+    ),
     LOCAL_ACTIVATION_OVERHEAD_MS: +(contextAssembly + rankingOverhead).toFixed(4),
     RANKING_OVERHEAD_MS: rankingOverhead,
+    // Section 26: median AND p95 for each measured local operation. Wall-clock
+    // on this machine; no device claim is derived from it.
+    percentiles: {
+      evidenceBuild: timedStats(buildEvidence, N),
+      closetSelection: timedStats(closetSelect, N),
+      rankWithContext: timedStats(rankWithContext, N),
+      rankBaseline: timedStats(rankBaseline, N),
+      packingHandoff: timedStats(
+        () => require(path.join(ROOT, 'services/packing/packingCommerceHandoff.ts'))
+          .buildPackingCommerceHandoff({ gapCode: 'missing_weather_layer', label: 'A packable rain jacket', certainty: 'confirmed' }),
+        N,
+      ),
+    },
     breakdown: { actionParseMs: actionMs, reducerMs: reduceMs, evidenceBuildMs: evidenceMs, baselineRankMs, contextRankMs },
     MAX_CLOSET_CONTEXT_ITEMS: activation.MAX_CLOSET_CONTEXT_ITEMS,
     MODEL_TURNS_PER_NORMAL_ELISE_TURN: 1,
