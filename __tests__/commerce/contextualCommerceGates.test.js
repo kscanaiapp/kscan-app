@@ -10,7 +10,12 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
+const path = require('node:path');
+
 const fmq = require('../../tools/contextual-commerce/fmqGate');
+const { CTX_EXPLICIT_ATTRIBUTE_MISS } = require(
+  path.resolve(__dirname, '../../supabase/functions/scan-identify/commerceContextualRanking.ts'),
+);
 const measure = require('../../tools/contextual-commerce/measure');
 
 // ── §17 FMQ control / challenger ───────────────────────────────────────────
@@ -24,15 +29,62 @@ test('FMQ gate: contextual ranking causes no material fashion-match regression',
 test('FMQ gate: the challenger arms genuinely perturbed the ranking', () => {
   // A gate that silently no-ops proves nothing. Each arm must be shown to have
   // actually moved scores before its "no regression" verdict means anything.
+  //
+  // THE FLOOR IS DERIVED FROM THE MODEL, NOT HARD-CODED. It read `>= 20` while a
+  // stated colour was scored TWICE -- once by the agreement scorer, because the
+  // Elise path stamped the customer's preference into `primary_color`, and again
+  // on the contextual axis. Removing that double count lowered the sharpest
+  // available single-candidate shift from 22 to 18/19, so a literal constant
+  // calibrated against the defect would now fail for the right behaviour.
+  //
+  // Tying it to the contextual model's own miss weight means the check cannot
+  // silently drift again: if the explicit-attribute weights are ever cut, this
+  // moves with them instead of quietly passing. Fashion-match quality itself is
+  // asserted by the verdict above and is unchanged (identity EXACT 8/8,
+  // substitute STRONG 8/8, in both arms and both controls).
   const report = fmq.run();
+  const floor = Math.abs(CTX_EXPLICIT_ATTRIBUTE_MISS);
+
   assert.ok(report.fixtures >= 10, 'the authoritative corpus must be non-trivial');
   assert.equal(report.fixturesWhereContextApplied, report.fixtures, 'context must have been live on every fixture');
-  assert.ok(report.reorderingArm.perturbation.maxAbsScoreShift >= 20, 'the reordering arm must push hard');
-  assert.equal(
-    report.reorderingArm.perturbation.fixturesWithScoreChange,
-    report.reorderingArm.fixtures,
-    'every fixture in the reordering arm must have moved',
+
+  for (const arm of ['reorderingArm', 'strongReorderingArm']) {
+    assert.ok(report[arm].fixtures > 0, `${arm} must actually have fixtures`);
+    assert.ok(
+      report[arm].perturbation.maxAbsScoreShift >= floor,
+      `${arm} must push at least a full explicit-attribute weight`,
+    );
+    assert.equal(
+      report[arm].perturbation.fixturesWithScoreChange,
+      report[arm].fixtures,
+      `every fixture in ${arm} must have moved`,
+    );
+  }
+
+  // And the two tiers must be distinguishable inside the FMQ corpus too, not
+  // only in the ranking fixtures next door.
+  assert.ok(
+    report.strongReorderingArm.perturbation.maxAbsScoreShift >
+      report.reorderingArm.perturbation.maxAbsScoreShift,
+    'a strong ask must elevate further than an ordinary one',
   );
+});
+
+test('FMQ gate: neither strength tier degrades fashion match', () => {
+  const report = fmq.run();
+  for (const arm of ['reorderingArm', 'strongReorderingArm']) {
+    assert.deepEqual(
+      report[arm].challenger.identityQuality,
+      report[arm].control.identityQuality,
+      `${arm}: identity quality is unchanged`,
+    );
+    assert.deepEqual(
+      report[arm].challenger.substituteQuality,
+      report[arm].control.substituteQuality,
+      `${arm}: substitute quality is unchanged`,
+    );
+    assert.equal(report[arm].fixturesReordered, 0, `${arm}: the correct answer still comes first`);
+  }
 });
 
 test('FMQ gate: identity and substitute quality are measured on the same universes', () => {

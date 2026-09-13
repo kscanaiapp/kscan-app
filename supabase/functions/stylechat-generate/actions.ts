@@ -56,6 +56,12 @@ export type ValidatedStyleChatAction = {
     shopping?: {
       category?: string;
       color?: string;
+      /**
+       * How hard the customer asked for `color`. A closed enum: the model may
+       * PROPOSE it, and it is validated deterministically here. Anything else
+       * becomes ordinary preference -- the model never owns ranking.
+       */
+      colorStrength?: 'EXPLICIT_PREFERENCE' | 'STRONG_EXPLICIT_PREFERENCE';
       budgetAmount?: number;
       budgetCurrency?: string;
       excludeMaterials?: string[];
@@ -185,7 +191,16 @@ function parseShoppingProposal(raw: unknown): NonNullable<ValidatedStyleChatActi
     if (category) out.category = category;
   }
   const color = boundedWord(rec.color, SHOPPING_COLORS);
-  if (color) out.color = color;
+  if (color) {
+    out.color = color;
+    // Strength is only meaningful alongside a colour, and only in the two
+    // values the contract names. No free text, and no numeric score: an
+    // unbounded "how much they meant it" field is exactly how a model ends up
+    // owning ranking weight.
+    out.colorStrength = rec.colorStrength === 'STRONG_EXPLICIT_PREFERENCE'
+      ? 'STRONG_EXPLICIT_PREFERENCE'
+      : 'EXPLICIT_PREFERENCE';
+  }
 
   // A ceiling is only a ceiling with a currency the model actually named:
   // a bare number cannot be compared to an offer truthfully.

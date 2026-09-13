@@ -646,10 +646,43 @@ export function filterAndDedupeProducts(
     // v122: agreement score → coverage selection → dedupe → soft diversity
     const priceComparable = intent ? candidatesArePriceComparable(contextFiltered) : false;
     const contextualByIndex = new Map<number, ReturnType<typeof scoreContextualFit>>();
+
+    // ONE SIGNAL, SCORED ONCE.
+    //
+    // `garmentIdentification` describes the garment, and its `primary_color`
+    // earns a colour term from the agreement scorer. But the Elise path has no
+    // scanned garment: it SYNTHESISES an identification from the shopping
+    // intent, and stamps the customer's requested colour into `primary_color`
+    // so the provider retrieves the right things. The ranker then read that
+    // preference a second time, as though the garment itself were that colour.
+    //
+    // The effect was a colour worth roughly 65 points across two axes. It made
+    // the explicit-attribute strength tier unreachable -- a requested colour
+    // already dominated every ordering, so asking harder could change nothing
+    // -- and it pushed alternatives down twice for a preference the customer
+    // expressed once, which is the suppression the owner's direction refuses.
+    //
+    // Dropped only when the intent already carries that same colour as a
+    // USER_EXPLICIT field, so it is provably the same signal. A scan-derived
+    // colour, or a stated colour that DIFFERS from the scanned garment ("in red
+    // instead"), is untouched: those are two different facts and both count.
+    // The retailer query is built upstream from the untouched identification,
+    // so retrieval is unaffected.
+    const rankingIdentification = (() => {
+      const explicitColor = intent?.color?.provenance === 'USER_EXPLICIT' ? intent.color.value : null;
+      if (!explicitColor) return garmentIdentification;
+      const garmentColor = typeof garmentIdentification.primary_color === 'string'
+        ? garmentIdentification.primary_color.toLowerCase()
+        : '';
+      if (!garmentColor || garmentColor !== explicitColor.toLowerCase()) return garmentIdentification;
+      const { primary_color: _preferenceNotIdentity, ...rest } = garmentIdentification;
+      return rest;
+    })();
+
     const scored: ScoredProduct[] = contextFiltered.map((p, originalIndex) => {
       const ag = scoreProductAgreement(
         p,
-        garmentIdentification,
+        rankingIdentification,
         relevance.categoryRoute,
         relevance.commerceIdentity,
       );

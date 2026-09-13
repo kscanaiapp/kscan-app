@@ -40,6 +40,7 @@ export const MAX_COMMERCE_CARDS = 6;
 export interface ShoppingIntentStateLike {
   category: string | null;
   color: string | null;
+  colorStrength?: 'EXPLICIT_PREFERENCE' | 'STRONG_EXPLICIT_PREFERENCE' | null;
   budget: { amount: number; currency: string } | null;
   exclusions: Array<{ axis: 'material' | 'color'; token: string }>;
   functionalRequirements: string[];
@@ -168,7 +169,12 @@ export function buildActivationEvidence(input: {
   if (!identification) return null;
 
   const explicit: CommerceContextContribution = { provenance: 'USER_EXPLICIT' };
-  if (input.state?.color) explicit.color = input.state.color;
+  if (input.state?.color) {
+    explicit.color = input.state.color;
+    if (input.state.colorStrength === 'STRONG_EXPLICIT_PREFERENCE') {
+      explicit.colorStrength = 'STRONG_EXPLICIT_PREFERENCE';
+    }
+  }
   if (input.state?.budget) {
     explicit.budgetCeiling = { amount: input.state.budget.amount, currency: input.state.budget.currency };
   }
@@ -337,6 +343,12 @@ export function parseShoppingIntentWire(raw: unknown): ShoppingIntentWire | null
   const color = typeof st.color === 'string' && COLOR_RE.test(st.color.trim().toLowerCase())
     ? st.color.trim().toLowerCase()
     : null;
+  // Closed enum, re-validated on the way in. Only STRONG is carried: the
+  // ordinary tier is what an absent value already means, so an ordinary request
+  // produces exactly the contribution it produced before this field existed.
+  const colorStrength = color && st.colorStrength === 'STRONG_EXPLICIT_PREFERENCE'
+    ? ('STRONG_EXPLICIT_PREFERENCE' as const)
+    : null;
 
   let budget: { amount: number; currency: string } | null = null;
   if (st.budget && typeof st.budget === 'object') {
@@ -377,6 +389,7 @@ export function parseShoppingIntentWire(raw: unknown): ShoppingIntentWire | null
       stateVersion: 1,
       category,
       color,
+      colorStrength,
       budget,
       exclusions,
       functionalRequirements,

@@ -56,6 +56,75 @@ const COLOR_TOKENS = [
   'gray', 'beige', 'cream', 'tan', 'burgundy', 'olive', 'yellow', 'purple', 'orange',
 ] as const;
 
+/**
+ * How hard the customer asked for a colour. Two tiers, and only two.
+ *
+ * The tier may be PROPOSED by the model on the existing action channel, and it
+ * may be RAISED by the customer's own words, but it is decided here, in
+ * deterministic code, against a closed vocabulary. The model never owns
+ * ranking weight, and nothing unbounded is ever persisted.
+ */
+export type EliseColorStrength = 'EXPLICIT_PREFERENCE' | 'STRONG_EXPLICIT_PREFERENCE';
+
+/** Total. Anything unrecognised is an ordinary preference, never a strong one. */
+export function normalizeColorStrength(raw: unknown): EliseColorStrength {
+  return raw === 'STRONG_EXPLICIT_PREFERENCE' ? 'STRONG_EXPLICIT_PREFERENCE' : 'EXPLICIT_PREFERENCE';
+}
+
+/**
+ * Phrases that mean "I really do mean this colour".
+ *
+ * Deterministic signals, mirroring `eliseAdviceIntents` rather than adding a
+ * model call -- this is why the strength tier costs no extra round trip.
+ *
+ * Everything here is an EMPHASIS, not an exclusion: "only black" raises how far
+ * a black option rises and does nothing to a brown one. A customer who wants
+ * brown gone says "no brown", which is a different field entirely.
+ */
+const STRONG_COLOR_PHRASES: readonly RegExp[] = [
+  /\bonly\s+(?:in\s+)?[a-z]+\b/i,
+  /\bjust\s+(?:in\s+)?[a-z]+\b/i,
+  /\bstrictly\b/i,
+  /\bmust\s+be\b/i,
+  /\bhas\s+to\s+be\b/i,
+  /\bneeds?\s+to\s+be\b/i,
+  /\breally\s+(?:want|need|prefer)\b/i,
+  /\bdefinitely\b/i,
+  /\bis\s+important\b/i,
+  /\bit\s+has\s+to\b/i,
+  /\bnothing\s+(?:but|else)\b/i,
+];
+
+/** Phrases that mean the opposite, and must not be read as emphasis. */
+const SOFT_COLOR_PHRASES: readonly RegExp[] = [
+  /\bif\s+possible\b/i,
+  /\bif\s+(?:you\s+)?can\b/i,
+  /\bwould\s+prefer\b/i,
+  /\b(?:i'?d|i\s+would)\s+prefer\b/i,
+  /\bideally\b/i,
+  /\bopen\s+to\b/i,
+  /\bdoesn'?t\s+have\s+to\b/i,
+];
+
+/**
+ * The tier for THIS turn: the stronger of what the model proposed and what the
+ * customer's words show, unless they hedged in the same breath.
+ *
+ * A hedge wins over the model's proposal deliberately. "Black if possible" read
+ * as insistence is the failure that makes a customer feel unheard, and the
+ * model is the party more likely to over-read enthusiasm.
+ */
+export function strengthForTurn(proposed: unknown, message: unknown): EliseColorStrength {
+  const text = typeof message === 'string' ? message.slice(0, 400) : '';
+  if (SOFT_COLOR_PHRASES.some((re) => re.test(text))) return 'EXPLICIT_PREFERENCE';
+  if (normalizeColorStrength(proposed) === 'STRONG_EXPLICIT_PREFERENCE') {
+    return 'STRONG_EXPLICIT_PREFERENCE';
+  }
+  return STRONG_COLOR_PHRASES.some((re) => re.test(text))
+    ? 'STRONG_EXPLICIT_PREFERENCE'
+    : 'EXPLICIT_PREFERENCE';
+}
+
 const MATERIAL_TOKENS = [
   'leather', 'suede', 'denim', 'wool', 'cotton', 'silk', 'satin', 'linen',
   'cashmere', 'nylon', 'polyester', 'fur', 'velvet',
@@ -71,6 +140,16 @@ export interface EliseShoppingIntentState {
   category: string | null;
   /** Explicit colour, when the customer stated one. */
   color: string | null;
+  /**
+   * How hard they asked for it. Null whenever `color` is null.
+   *
+   * A CLOSED ENUM, never free text and never a number. The model may propose a
+   * tier on the existing action channel and the customer's own words may raise
+   * it, but both are validated deterministically here -- the emphasis a
+   * customer put on a word is worth storing, the sentence they put it in is
+   * not.
+   */
+  colorStrength: EliseColorStrength | null;
   /** Explicit budget ceiling. Null once the customer removes it. */
   budget: { amount: number; currency: string } | null;
   exclusions: Array<{ axis: 'material' | 'color'; token: string }>;
@@ -86,6 +165,7 @@ export function emptyShoppingIntentState(): EliseShoppingIntentState {
     stateVersion: 1,
     category: null,
     color: null,
+    colorStrength: null,
     budget: null,
     exclusions: [],
     functionalRequirements: [],
@@ -119,6 +199,7 @@ export function restoreShoppingIntentState(raw: unknown): EliseShoppingIntentSta
   state.category = str(rec.category, ELISE_COMMERCE_INTENT_LIMITS.maxCategoryChars);
   const color = str(rec.color, ELISE_COMMERCE_INTENT_LIMITS.maxTokenChars);
   state.color = color && (COLOR_TOKENS as readonly string[]).includes(color) ? color : null;
+  state.colorStrength = state.color ? normalizeColorStrength(rec.colorStrength) : null;
 
   const budget = rec.budget;
   if (budget && typeof budget === 'object') {
@@ -197,6 +278,7 @@ export function findLatestShoppingIntent(
 export interface EliseCommerceActionPayload {
   category?: unknown;
   color?: unknown;
+  colorStrength?: unknown;
   budgetAmount?: unknown;
   budgetCurrency?: unknown;
   excludeMaterials?: unknown;
@@ -341,10 +423,24 @@ export function reduceShoppingIntent(input: {
 
   if (payload.clearColor === true) {
     state.color = null;
+    state.colorStrength = null;
   } else if (payload.color !== undefined) {
     const color = str(payload.color, ELISE_COMMERCE_INTENT_LIMITS.maxTokenChars);
-    if (color && (COLOR_TOKENS as readonly string[]).includes(color)) state.color = color;
-    else rejected.push('color');
+    if (color && (COLOR_TOKENS as readonly string[]).includes(color)) {
+      state.color = color;
+      // A NEW colour is a fresh instruction: it does not inherit the emphasis of
+      // the one it replaces. "Only black" then "actually, brown" is an ordinary
+      // ask for brown, not an insistent one.
+      state.colorStrength = strengthForTurn(payload.colorStrength, input.message);
+    } else {
+      rejected.push('color');
+    }
+  } else if (state.color) {
+    // The colour is unchanged, but the customer may have just leaned on it --
+    // "only black" after "black boots". Emphasis can rise within a thread and
+    // never silently falls: removing it takes a new colour or a clearing.
+    const raised = strengthForTurn(payload.colorStrength, input.message);
+    if (raised === 'STRONG_EXPLICIT_PREFERENCE') state.colorStrength = raised;
   }
 
   const addExclusions = (raw: unknown, axis: 'material' | 'color', known: readonly string[]) => {
@@ -395,7 +491,11 @@ export function reduceShoppingIntent(input: {
 export function contributionsFromState(state: EliseShoppingIntentState | null): IntentContribution[] {
   if (!state) return [];
   const contribution: IntentContribution = { provenance: 'USER_EXPLICIT' };
-  if (state.color) contribution.color = state.color;
+  if (state.color) {
+    contribution.color = state.color;
+    // Strength travels with the colour it qualifies, never on its own.
+    if (state.colorStrength) contribution.colorStrength = state.colorStrength;
+  }
   if (state.budget) {
     contribution.budgetCeiling = { amount: state.budget.amount, currency: state.budget.currency };
   }

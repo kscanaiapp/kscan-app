@@ -142,6 +142,28 @@ function reorderingContextFor(fixture) {
   return buildShoppingIntent([contribution], null);
 }
 
+/**
+ * The same perturbation at the STRONG tier ("only white", not "in white").
+ *
+ * The strong tier elevates a matching candidate further than any other weight
+ * in the contextual model, so it is the arm most able to displace a
+ * known-correct match -- which makes it the one worth proving safe. The
+ * ordinary arm above is left exactly as it was, so the two tiers are measured
+ * side by side rather than one replacing the other.
+ */
+function strongReorderingContextFor(fixture) {
+  const gt = fixture.groundTruth || {};
+  const color = typeof gt.color_family === 'string' ? gt.color_family : null;
+  if (!color) return null;
+  // The same extractor phrase as the ordinary arm, so the two differ ONLY in
+  // the strength tier: any difference between them is the tier's doing and
+  // nothing else.
+  const contribution = extractExplicitContribution(`in ${color} instead`);
+  if (!contribution.color) return null;
+  contribution.colorStrength = 'STRONG_EXPLICIT_PREFERENCE';
+  return buildShoppingIntent([contribution], null);
+}
+
 function rankArm(fixture, intent) {
   const products = (fixture.candidateProducts || []).map(toRecommendedProduct);
   const relevance = {
@@ -282,12 +304,17 @@ function run() {
   const reorderingFixtures = fixtures.filter((f) => reorderingContextFor(f) !== null);
   const reorderingControl = reorderingFixtures.map((f) => rankArm(f, null));
   const reordering = reorderingFixtures.map((f) => rankArm(f, reorderingContextFor(f)));
+  const strongFixtures = fixtures.filter((f) => strongReorderingContextFor(f) !== null);
+  const strongControl = strongFixtures.map((f) => rankArm(f, null));
+  const strongReordering = strongFixtures.map((f) => rankArm(f, strongReorderingContextFor(f)));
 
   const controlSummary = summarize(control, fixtures);
   const mildSummary = summarize(mild, fixtures);
   const challengerSummary = summarize(challenger, fixtures);
   const reorderingControlSummary = summarize(reorderingControl, reorderingFixtures);
   const reorderingSummary = summarize(reordering, reorderingFixtures);
+  const strongControlSummary = summarize(strongControl, strongFixtures);
+  const strongSummary = summarize(strongReordering, strongFixtures);
 
   const changed = (a, b) =>
     a.reduce((n, x, i) => (x.order.join('|') !== b[i].order.join('|') ? n + 1 : n), 0);
@@ -366,6 +393,13 @@ function run() {
       perturbation: perturbation(reorderingControl, reordering),
       control: reorderingControlSummary,
       challenger: reorderingSummary,
+    },
+    strongReorderingArm: {
+      fixtures: strongFixtures.length,
+      fixturesReordered: changed(strongControl, strongReordering),
+      perturbation: perturbation(strongControl, strongReordering),
+      control: strongControlSummary,
+      challenger: strongSummary,
     },
     activeArmPerturbation: perturbation(control, challenger),
     mildArmPerturbation: perturbation(control, mild),

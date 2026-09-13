@@ -13,6 +13,8 @@ export interface IntentContribution {
   category?: string;
   subtype?: string;
   color?: string;
+  /** Read only alongside a USER_EXPLICIT colour; validated by the consumer. */
+  colorStrength?: 'EXPLICIT_PREFERENCE' | 'STRONG_EXPLICIT_PREFERENCE';
   material?: string;
   silhouette?: string;
   pattern?: string;
