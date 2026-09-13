@@ -385,3 +385,52 @@ test('no wardrobe identifiers or raw profile text leave with the tokens', async 
     }
   }
 });
+
+// ── §21: exactly what reaches the retailer ─────────────────────────────────
+
+test('CLOSET_TERMS_TO_RETAILER = NO and SIGNATURE_STYLE_TERMS_TO_RETAILER = NO', () => {
+  // The context contributions travel to the K SCAN BACKEND, where they inform
+  // ranking. The retailer query is built from a different input entirely, and
+  // the two are never joined: `buildWeightedCommerceQueries` is not handed
+  // `shoppingContext`, so no wardrobe-derived term can reach a provider.
+  const router = fs.readFileSync(
+    path.join(ROOT, 'supabase/functions/scan-identify/scanCommerceRouter.ts'),
+    'utf8',
+  );
+  const call = router.slice(
+    router.indexOf('const weighted = buildWeightedCommerceQueries({'),
+    router.indexOf('});', router.indexOf('const weighted = buildWeightedCommerceQueries({')),
+  );
+  assert.ok(call.length > 0, 'the query construction must be found');
+  assert.doesNotMatch(call, /shoppingContext|signatureStyle|relevantOwned|closet/i);
+
+  // And the query builder cannot read them even if they were passed.
+  const queries = fs.readFileSync(
+    path.join(ROOT, 'supabase/functions/scan-identify/commerceRelevanceQueries.ts'),
+    'utf8',
+  );
+  assert.doesNotMatch(queries, /shoppingContext|signatureStyleTokens|relevantOwned/);
+});
+
+test('the outbound identification carries stated search terms only', async () => {
+  const harness = createHarness({
+    signatureStyleTokens: ['navy', 'wool'],
+    closet: [
+      { id: 'closet-uuid-9', title: 'Navy Wool Overcoat', category: 'outerwear', color: 'navy', material: 'wool' },
+    ],
+  });
+  await sendOneTurn(harness, 'Only black boots please.');
+  const [evidence] = harness.observed.evidence;
+
+  // item_type and subtype come from the canonical category; primary_color is
+  // the colour the CUSTOMER stated. Nothing derived from their wardrobe.
+  assert.deepEqual(
+    Object.keys(evidence.identification).sort(),
+    ['item_type', 'primary_color', 'subtype'],
+  );
+  assert.equal(evidence.identification.primary_color, 'black');
+  const serialized = JSON.stringify(evidence.identification);
+  for (const wardrobeTerm of ['navy', 'wool', 'Overcoat', 'closet-uuid-9']) {
+    assert.equal(serialized.includes(wardrobeTerm), false, `${wardrobeTerm} must not reach the retailer`);
+  }
+});
