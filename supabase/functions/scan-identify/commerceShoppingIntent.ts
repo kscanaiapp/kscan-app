@@ -618,3 +618,53 @@ export function parseContextContributions(raw: unknown): IntentContribution[] {
 
   return out;
 }
+
+/**
+ * A stable fingerprint of everything in an intent that can change WHICH
+ * candidates survive or how they order.
+ *
+ * Used as a commerce-cache discriminator (Build 36 activation): a cache hit
+ * returns a stored shelf without re-running the contextual filter, so two
+ * requests may share a cache entry only when their constraints agree.
+ *
+ * Deliberately covers the ranking-relevant fields rather than the whole
+ * object: `contractVersion` and `actorId` are not ranking inputs (the actor is
+ * enforced separately, and mixing it in would fragment the cache per user for
+ * no correctness gain). Field order is fixed, and lists are sorted, so the
+ * same intent always produces the same string.
+ *
+ * Returns '' for an intent that constrains nothing — which keeps the cache key
+ * byte-identical to the pre-activation build for every zero-context caller.
+ */
+export function shoppingIntentFingerprint(intent: ShoppingIntent | null | undefined): string {
+  if (!intent) return '';
+  const parts: string[] = [];
+  const scalar = (name: string, field?: IntentField<string>) => {
+    if (field) parts.push(`${name}:${field.provenance}:${field.value}`);
+  };
+  scalar('cat', intent.category);
+  scalar('sub', intent.subtype);
+  scalar('col', intent.color);
+  scalar('mat', intent.material);
+  scalar('sil', intent.silhouette);
+  scalar('pat', intent.pattern);
+  scalar('occ', intent.occasion);
+  scalar('for', intent.formality);
+  if (intent.matchIntent) parts.push(`match:${intent.matchIntent.value}`);
+  if (intent.budgetCeiling) {
+    parts.push(`budget:${intent.budgetCeiling.value.amount}:${intent.budgetCeiling.value.currency}`);
+  }
+  for (const f of [...intent.functionalRequirements].sort((a, b) => a.value.localeCompare(b.value))) {
+    parts.push(`fn:${f.value}`);
+  }
+  for (const e of [...intent.exclusions].sort((a, b) => `${a.axis}${a.token}`.localeCompare(`${b.axis}${b.token}`))) {
+    parts.push(`ex:${e.axis}:${e.token}`);
+  }
+  for (const o of [...intent.relevantOwned].sort((a, b) => a.descriptor.localeCompare(b.descriptor))) {
+    parts.push(`own:${o.category ?? ''}:${o.color ?? ''}:${o.material ?? ''}`);
+  }
+  for (const t of [...intent.signatureStyleTokens].sort()) parts.push(`sig:${t}`);
+  const gap = intent.gapRelationship?.value;
+  if (gap) parts.push(`gap:${gap.gapCode}:${gap.certainty}`);
+  return parts.join('|');
+}

@@ -57,6 +57,25 @@ export type CommerceCacheKeyInput = {
   locale?: string | null;
   currency?: string | null;
   country?: string | null;
+  /**
+   * Fingerprint of the request's SHOPPING INTENT (Build 36 activation).
+   *
+   * WHY THIS EXISTS. A cache hit returns the stored shelf directly, without
+   * re-running `filterAndDedupeProducts` -- so the contextual hard constraints
+   * (budget ceiling, explicit exclusions) never run on a hit. Before
+   * activation that was harmless: the Scanner's intent was a function of the
+   * garment, so the same garment meant the same constraints. Activation is
+   * exactly what breaks that assumption -- "different shoes" and "different
+   * shoes under $120" are the same garment and the same query, with different
+   * answers.
+   *
+   * Keying on the intent keeps constrained and unconstrained turns in separate
+   * cache entries instead of letting one answer the other.
+   *
+   * OMITTED -> byte-identical key to the pre-activation build, which is what
+   * keeps every existing zero-context caller unchanged.
+   */
+  shoppingIntentFingerprint?: string | null;
 };
 
 export type CommerceCacheEntry = {
@@ -116,6 +135,10 @@ export function buildCommerceCacheKey(input: CommerceCacheKeyInput): string {
     `u=${norm(input.currency)}`,
     `m=${norm(input.country)}`,
   ];
+  // Appended only when the caller actually has an intent, so a request with no
+  // contextual constraints hashes exactly the same set of parts it always did.
+  const intent = norm(input.shoppingIntentFingerprint);
+  if (intent) parts.push(`i=${intent}`);
   return `v127:${fnv1a(parts.join('|'))}`;
 }
 

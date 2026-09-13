@@ -675,6 +675,26 @@ export function filterAndDedupeProducts(
         })
       : undefined;
 
+    // Build 36 activation: publish the facts ON the product.
+    //
+    // `stats.rationale` alone could not reach a customer — no caller read it,
+    // and positional re-alignment across the slicing and re-mapping every
+    // downstream path does would have been fragile anyway. Attaching here,
+    // where product and facts are provably the same index, means the facts
+    // travel with the offer through the router, the cache, the response
+    // envelope and the client's `normalizeProducts` (which passes items
+    // through whole) without any of them needing to know about it.
+    //
+    // It also makes fabrication mechanically detectable: a rendered card
+    // carries this field only if a real Commerce result produced it.
+    if (rationale) {
+      for (let i = 0; i < deduped.length; i += 1) {
+        const facts = rationale[i];
+        if (!facts) continue;
+        deduped[i] = { ...deduped[i], commerceRationale: facts } as RecommendedProduct;
+      }
+    }
+
     return {
       products: deduped,
       stats: {
