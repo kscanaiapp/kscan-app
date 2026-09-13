@@ -80,15 +80,15 @@ Legend: **S** serial · **P** parallel · **TTFAR** blocks first actionable resu
 | 25 | auth context **again** | SV | S | ✔ | ✔ | — | — | `index.ts:1966` |
 | 26 | commerce rate limit (40 / 10 min) | SV | S | ✔ | ✔ | — | — | `index.ts:2009`, `:204` |
 | 27 | query build + weak-query gate (sync) | SV | S | ✔ | ✔ | — | — | `commerceRelevanceQueries.ts` |
-| 28 | result-cache read (in-memory, per-isolate) | SV | S | ✔ | ✔ | TTL 10 min | — | `commerceResultCache.ts:124` |
-| 29 | **FAST FAN-OUT**: Serper∥Poshmark | SV | **P** | ✔ | ✔ | **1900 ms** global **and** per child | none | `scanCommerceRouter.ts:1127-1175` |
+| 28 | result-cache read (in-memory, per-isolate) | SV | S | ✔ | ✔ | TTL 10 min | — | `commerceResultCache.ts:147` |
+| 29 | **FAST FAN-OUT**: Serper∥Poshmark | SV | **P** | ✔ | ✔ | **1900 ms** global **and** per child | none | `scanCommerceRouter.ts:1132-1180` |
 | 30 | rank + dedupe — **whole-array, sync** | SV | S | ✔ | ✔ | — | — | `qualityTuneCommerce.ts:479` |
 | 31 | serialize | SV | S | ✔ | ✔ | — | — | — |
 | 32 | download | N | S | ✔ | ✔ | — | — | — |
 | 33 | hydrate — drops entries lacking productUrl/title | C | S | ✔ | ✔ | — | — | `commerceHydration.ts:177-181` |
 | 34 | **PAINT COMMERCE — FIRST ACTIONABLE RESULT** | C | S | ✔ | ✔ | — | — | `hooks/useKScan.js:1083` |
 | 35 | enrichment dispatch | C | S | ✘ | ✔ | — | — | `hooks/useKScan.js:1101-1110` |
-| 36 | enrichment fan-out: Farfetch3 ∥ KicksCrew | SV | **P** | ✘ | ✔ | 6000 ms global, **4000 ms per child hard-coded** | none | `scanCommerceRouter.ts:1351-1369` |
+| 36 | enrichment fan-out: Farfetch3 ∥ KicksCrew | SV | **P** | ✘ | ✔ | 6000 ms global, **4000 ms per child hard-coded** | none | `scanCommerceRouter.ts:1356-1374` |
 | 37 | paint enriched — **COMPLETION** | C | S | ✘ | ✔ | — | — | — |
 
 ---
@@ -230,7 +230,7 @@ network time.
 | Gemini backoff | 250 ms base, 2000 ms cap | `llmModelRouting.ts:182-183` | exponential + 25% jitter |
 | Fast commerce fan-out | 1900 ms | `commerceFunnelConfig.ts:45` | global **and** per child |
 | Deferred enrichment | 6000 ms global, 4000 ms per child | `commerceFunnelConfig.ts:89`; provider files | per-child is **not** budget-derived |
-| Legacy discovery | 4500 ms | `scanCommerceRouter.ts:246` | paired with 4500/4000 ms per-provider ceilings |
+| Legacy discovery | 4500 ms | `scanCommerceRouter.ts:247` | paired with 4500/4000 ms per-provider ceilings |
 | Inline commerce race | 3000 ms image / 5000 ms text | `index.ts:188-189` | **shorter than the 4500 ms it wraps** |
 | Similarity | 300 ms | `index.ts:187` | serial *after* commerce |
 | Intelligence capture | 500 ms | `index.ts:186` | |
@@ -250,5 +250,5 @@ isolate lifetime.
 
 | Cache | Contents | TTL | Key | Bound |
 |---|---|---|---|---|
-| `commerceResultCache` | the final ranked shelf | 10 min | FNV-1a over category/subtype/brand/hypothesis/query/locale/currency/country | 200 entries, oldest-first eviction; empty shelves never cached |
+| `commerceResultCache` | the final ranked shelf | 10 min | FNV-1a over category/subtype/brand/hypothesis/query/locale/currency/country, plus a shopping-intent fingerprint when the request carries one (Build 36 activation). A request with no contextual constraints appends nothing and hashes exactly the pre-activation part set | 200 entries, oldest-first eviction; empty shelves never cached |
 | `shoppingProvider` CACHE | raw Serper/Brave results | 60 min | lowercased literal query | hard failures deliberately not cached |
