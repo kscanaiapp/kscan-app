@@ -81,14 +81,14 @@ Legend: **S** serial · **P** parallel · **TTFAR** blocks first actionable resu
 | 26 | commerce rate limit (40 / 10 min) | SV | S | ✔ | ✔ | — | — | `index.ts:2009`, `:204` |
 | 27 | query build + weak-query gate (sync) | SV | S | ✔ | ✔ | — | — | `commerceRelevanceQueries.ts` |
 | 28 | result-cache read (in-memory, per-isolate) | SV | S | ✔ | ✔ | TTL 10 min | — | `commerceResultCache.ts:124` |
-| 29 | **FAST FAN-OUT**: Serper∥Poshmark | SV | **P** | ✔ | ✔ | **1900 ms** global **and** per child | none | `scanCommerceRouter.ts:1071-1119` |
-| 30 | rank + dedupe — **whole-array, sync** | SV | S | ✔ | ✔ | — | — | `qualityTuneCommerce.ts:449` |
+| 29 | **FAST FAN-OUT**: Serper∥Poshmark | SV | **P** | ✔ | ✔ | **1900 ms** global **and** per child | none | `scanCommerceRouter.ts:1127-1175` |
+| 30 | rank + dedupe — **whole-array, sync** | SV | S | ✔ | ✔ | — | — | `qualityTuneCommerce.ts:479` |
 | 31 | serialize | SV | S | ✔ | ✔ | — | — | — |
 | 32 | download | N | S | ✔ | ✔ | — | — | — |
-| 33 | hydrate — drops entries lacking productUrl/title | C | S | ✔ | ✔ | — | — | `commerceHydration.ts:148-152` |
+| 33 | hydrate — drops entries lacking productUrl/title | C | S | ✔ | ✔ | — | — | `commerceHydration.ts:177-181` |
 | 34 | **PAINT COMMERCE — FIRST ACTIONABLE RESULT** | C | S | ✔ | ✔ | — | — | `hooks/useKScan.js:1083` |
 | 35 | enrichment dispatch | C | S | ✘ | ✔ | — | — | `hooks/useKScan.js:1101-1110` |
-| 36 | enrichment fan-out: Farfetch3 ∥ KicksCrew | SV | **P** | ✘ | ✔ | 6000 ms global, **4000 ms per child hard-coded** | none | `scanCommerceRouter.ts:1295-1313` |
+| 36 | enrichment fan-out: Farfetch3 ∥ KicksCrew | SV | **P** | ✘ | ✔ | 6000 ms global, **4000 ms per child hard-coded** | none | `scanCommerceRouter.ts:1351-1369` |
 | 37 | paint enriched — **COMPLETION** | C | S | ✘ | ✔ | — | — | — |
 
 ---
@@ -141,7 +141,7 @@ Group C (`Promise.all` over both providers).
 |---|---|---|
 | Does the client wait for the full body? | **YES** | `supabase.functions.invoke` buffers; `scanIdentification.ts:553` |
 | Does it wait for the full result set? | **YES** | one `setAnalysis` commit, `useKScan.js:488-492` |
-| Does it re-sort after receiving? | **NO** | `commerceHydration.ts:243-262` states backend order is preserved exactly; zero `.sort(` in the client result path |
+| Does it re-sort after receiving? | **NO** | `commerceHydration.ts:272-291` states backend order is preserved exactly; zero `.sort(` in the client result path |
 | Does image load block actionability? | **NO** | the shipped purchase row renders no image at all |
 | Do secondary fields block the card? | **NO** | every non-required field has a fallback or is omitted |
 | Does the client wait for more than the actionable schema needs? | **YES** | it needs `productUrl` + `title`, but receives and awaits the entire ranked, deduped, diversity-capped array |
@@ -154,7 +154,7 @@ Group C (`Promise.all` over both providers).
 |---|---|---|
 | **Transport** | **NO** | `index.ts:1091` returns one buffered `new Response(JSON.stringify(body))`. Zero non-test hits for `ReadableStream`, `text/event-stream`, `TransformStream`, `Transfer-Encoding`, `streamGenerateContent` across `scan-identify/` and `_shared/`. The Gemini call itself uses `:generateContent`, not `:streamGenerateContent`. |
 | **Client** | **PARTIAL** | Partial-result *state* already exists (`commerceStatus`, `multiItemCommerce`, `useKScan.js:123-134`) and the client already patches a rendered shelf after the fact. What is missing is an incremental *transport*, not incremental state. |
-| **Ranking** | **BLOCKING** | Ranking is whole-array and synchronous: global sort (`qualityTuneCommerce.ts:531`), one shared cross-provider dedupe set (`:498`), coverage bands and retailer-diversity caps computed over the entire selected set (`commerceRelevanceDiversity.ts:96-124`). |
+| **Ranking** | **BLOCKING** | Ranking is whole-array and synchronous: global sort (`qualityTuneCommerce.ts:631`), one shared cross-provider dedupe set (`:537`), coverage bands and retailer-diversity caps computed over the entire selected set (`commerceRelevanceDiversity.ts:96-124`). |
 | **UX risk** | **HIGH** | Because ranking is whole-array, an item emitted early can afterwards be outranked, deduped away or diversity-demoted — items moving under the user's finger. |
 
 **PROGRESSIVE DELIVERY: ARCHITECTURE CHANGE REQUIRED.**
@@ -230,7 +230,7 @@ network time.
 | Gemini backoff | 250 ms base, 2000 ms cap | `llmModelRouting.ts:182-183` | exponential + 25% jitter |
 | Fast commerce fan-out | 1900 ms | `commerceFunnelConfig.ts:45` | global **and** per child |
 | Deferred enrichment | 6000 ms global, 4000 ms per child | `commerceFunnelConfig.ts:89`; provider files | per-child is **not** budget-derived |
-| Legacy discovery | 4500 ms | `scanCommerceRouter.ts:222` | paired with 4500/4000 ms per-provider ceilings |
+| Legacy discovery | 4500 ms | `scanCommerceRouter.ts:246` | paired with 4500/4000 ms per-provider ceilings |
 | Inline commerce race | 3000 ms image / 5000 ms text | `index.ts:188-189` | **shorter than the 4500 ms it wraps** |
 | Similarity | 300 ms | `index.ts:187` | serial *after* commerce |
 | Intelligence capture | 500 ms | `index.ts:186` | |

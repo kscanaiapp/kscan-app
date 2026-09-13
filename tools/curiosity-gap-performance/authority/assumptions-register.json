@@ -159,7 +159,7 @@
       "parameter": "legacy_discovery_ms",
       "value_or_range": { "low": 900, "mid": 2000, "high": 4500 },
       "unit": "ms",
-      "source": "MODELED. The legacy path uses Promise.all over BOTH providers with NO early exit (scanCommerceRouter.ts:1428), so this is max(serper, poshmark) clamped by GLOBAL_DISCOVERY_DEADLINE_MS=4500 (PROVEN).",
+      "source": "MODELED. The legacy path uses Promise.all over BOTH providers with NO early exit (scanCommerceRouter.ts:1484), so this is max(serper, poshmark) clamped by GLOBAL_DISCOVERY_DEADLINE_MS=4500 (PROVEN).",
       "evidence": "MODELED",
       "confidence": "MEDIUM",
       "if_wrong_by_3x_does_conclusion_survive": "YES",
@@ -169,7 +169,7 @@
       "parameter": "legacy_enrich_farfetch_ms",
       "value_or_range": { "low": 800, "mid": 3000, "high": 4000 },
       "unit": "ms",
-      "source": "MODELED. Group D runs serially after discovery with NO deadline of its own (scanCommerceRouter.ts:1470); bounded only by the provider's own 4000 ms abort.",
+      "source": "MODELED. Group D runs serially after discovery with NO deadline of its own (scanCommerceRouter.ts:1526); bounded only by the provider's own 4000 ms abort.",
       "evidence": "MODELED",
       "confidence": "LOW",
       "if_wrong_by_3x_does_conclusion_survive": "YES"
@@ -178,7 +178,7 @@
       "parameter": "legacy_enrich_kickscrew_ms",
       "value_or_range": { "low": 0, "mid": 2600, "high": 4000 },
       "unit": "ms",
-      "source": "MODELED. Only runs when isSneaker (scanCommerceRouter.ts:1481), hence a low of 0.",
+      "source": "MODELED. Only runs when isSneaker (scanCommerceRouter.ts:1537), hence a low of 0.",
       "evidence": "MODELED",
       "confidence": "LOW",
       "if_wrong_by_3x_does_conclusion_survive": "YES"
