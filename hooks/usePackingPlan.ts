@@ -39,7 +39,7 @@ import {
   writeCachedPackedOff,
   writeCachedPackingPlan,
 } from '../services/packing/packingPlanCache';
-import type { PackingTripDraft } from '../types/packing';
+import type { PackingClarificationOption, PackingTripDraft } from '../types/packing';
 import { resolveRefinementIntent } from '../services/packing/packingRefinement';
 
 export interface UsePackingPlanResult extends PackingSnapshot {
@@ -50,6 +50,8 @@ export interface UsePackingPlanResult extends PackingSnapshot {
   regenerate: () => Promise<void>;
   removeItem: (itemId: string) => Promise<void>;
   refineWith: (note: string) => Promise<void>;
+  /** Build 35. Answer "which blazer?" / "which Friday?" and re-send the refinement. */
+  answerClarification: (option: PackingClarificationOption) => Promise<void>;
   togglePackLight: (packLight: boolean) => Promise<void>;
   /** Tick/untick a packed item. Local only -- never touches the Closet. */
   toggleItemPacked: (itemId: string) => void;
@@ -70,7 +72,14 @@ const EMPTY_SNAPSHOT: PackingSnapshot = {
   retryable: false,
   restoredFrom: null,
   packedOff: [],
+  clarification: null,
+  pendingRefinement: null,
 };
+
+interface PackingRefinementDispatch {
+  refinement: { message: string; resolvedItemId?: string; resolvedDate?: string };
+  priorState: Record<string, unknown>;
+}
 
 function newSessionId(): string {
   // The Packing task is carried on a StyleChat session id so the backend records
@@ -102,6 +111,7 @@ export function usePackingPlan(): UsePackingPlanResult {
       trip: PackingTripDraft,
       constraints: { excludeItemIds: string[]; notes: string[]; packLight: boolean },
       sessionId: string,
+      dispatch?: PackingRefinementDispatch,
     ) => {
       if (!actorId) return;
       // Capture the actor generation before the request. An A -> B -> A cycle
@@ -132,6 +142,7 @@ export function usePackingPlan(): UsePackingPlanResult {
           notes: constraints.notes,
           packLight: constraints.packLight,
         },
+        ...(dispatch ? { refinement: dispatch.refinement, priorState: dispatch.priorState } : {}),
       });
 
       // The actor may have changed while the request was in flight. Applying the
@@ -141,7 +152,13 @@ export function usePackingPlan(): UsePackingPlanResult {
       if (!isActorScopeCurrent(scope)) return;
 
       if (result.status === 'success' && result.plan) {
-        applyPackingPlan({ actorId, plan: result.plan, message: result.message });
+        applyPackingPlan({
+          actorId,
+          plan: result.plan,
+          message: result.message,
+          clarification: result.clarification ?? null,
+          pendingRefinement: dispatch?.refinement.message ?? null,
+        });
         // UX-4. Cached AFTER the actor-scope check above, so a plan that
         // belongs to a departed actor is never written to this device at all.
         void writeCachedPackingPlan({ actorId, plan: result.plan, message: result.message });
@@ -240,6 +257,25 @@ export function usePackingPlan(): UsePackingPlanResult {
       const current = actorId ? getPackingSnapshotFor(actorId) : EMPTY_SNAPSHOT;
       if (!available || !actorId || !current.trip || !note.trim()) return;
 
+      // Build 35. A day-by-day plan carries structured state, and its
+      // refinement is resolved ON THE SERVER against that state: local changes
+      // stay local, pins hold, rejections persist, and ambiguity is asked about
+      // rather than guessed. The sentence is NOT appended to the V1 note list --
+      // the server records what it understood as state instead.
+      if (current.plan?.state) {
+        await run(
+          current.trip,
+          {
+            excludeItemIds: current.excludedItemIds,
+            notes: current.constraintNotes,
+            packLight: current.packLight,
+          },
+          current.sessionId ?? newSessionId(),
+          { refinement: { message: note.trim().slice(0, 300) }, priorState: current.plan.state },
+        );
+        return;
+      }
+
       // A refinement that unambiguously names one item in the plan on screen
       // becomes a HARD exclusion the server enforces in post-model
       // validation -- so "don't bring the boots" removes the boots whether or
@@ -257,6 +293,30 @@ export function usePackingPlan(): UsePackingPlanResult {
         current.trip,
         { excludeItemIds, notes, packLight: current.packLight },
         current.sessionId ?? newSessionId(),
+      );
+    },
+    [available, actorId, run],
+  );
+
+  const answerClarification = useCallback(
+    async (option: PackingClarificationOption) => {
+      const current = actorId ? getPackingSnapshotFor(actorId) : EMPTY_SNAPSHOT;
+      if (!available || !actorId || !current.trip || !current.plan?.state || !current.pendingRefinement) return;
+      await run(
+        current.trip,
+        {
+          excludeItemIds: current.excludedItemIds,
+          notes: current.constraintNotes,
+          packLight: current.packLight,
+        },
+        current.sessionId ?? newSessionId(),
+        {
+          refinement: {
+            message: current.pendingRefinement,
+            ...(option.kind === 'item' ? { resolvedItemId: option.value } : { resolvedDate: option.value }),
+          },
+          priorState: current.plan.state,
+        },
       );
     },
     [available, actorId, run],
@@ -288,6 +348,7 @@ export function usePackingPlan(): UsePackingPlanResult {
     regenerate,
     removeItem,
     refineWith,
+    answerClarification,
     togglePackLight,
     toggleItemPacked,
   };

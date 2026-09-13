@@ -13,8 +13,16 @@
 import { supabase } from '../supabaseClient';
 import {
   PACKING_ACTIVITIES,
+  PACKING_PLANNER_VERSION,
   PACKING_REQUEST_SCHEMA_VERSION,
   type PackingActivity,
+  type PackingClarification,
+  type PackingClarificationOption,
+  type PackingExternalSuggestion,
+  type PackingLeftHomeItem,
+  type PackingPlanDay,
+  type PackingPlanDaySlot,
+  type PackingSlotCoverage,
   type PackingGap,
   type PackingGeneralGuide,
   type PackingPlan,
@@ -96,6 +104,10 @@ function parseItem(value: unknown): PackingPlanItem | null {
   if (!isRecord(value)) return null;
   const itemId = str(value.itemId, 80);
   if (!itemId) return null;
+  // Build 35 (ADD-10). A packed item that arrives labelled as anything other
+  // than owned is not rendered as packed -- the checklist's "IN YOUR CLOSET"
+  // badge is a claim this screen will not make on the wire's say-so.
+  if (value.ownership !== undefined && value.ownership !== 'owned') return null;
   return {
     itemId,
     clientId: str(value.clientId, 200),
@@ -115,13 +127,131 @@ function parseOutfit(value: unknown, index: number): PackingPlanOutfit | null {
   if (!isRecord(value)) return null;
   const itemIds = strList(value.itemIds, MAX_ITEMS_PER_OUTFIT, 80);
   if (itemIds.length === 0) return null;
+  const slotId = str(value.slotId, 40);
+  const date = str(value.date, 10);
+  const coverage = COVERAGES.includes(value.coverage as PackingSlotCoverage)
+    ? (value.coverage as PackingSlotCoverage)
+    : null;
   return {
     outfitId: str(value.outfitId, 80) ?? `outfit-${index}`,
     label: str(value.label, 60) ?? `Look ${index + 1}`,
     activity: parseActivity(value.activity),
     itemIds,
     reason: str(value.reason, 160),
+    ...(slotId ? { slotId } : {}),
+    ...(date ? { date } : {}),
+    ...(coverage ? { coverage } : {}),
   };
+}
+
+const COVERAGES: PackingSlotCoverage[] = ['covered', 'unconfirmed', 'uncovered'];
+const MAX_DAYS = 31;
+const MAX_NOTES = 12;
+/** Opaque state is bounded before it is stored or sent back. */
+const MAX_STATE_JSON_CHARS = 24_000;
+
+function parseDays(value: unknown): PackingPlanDay[] {
+  if (!Array.isArray(value)) return [];
+  const days: PackingPlanDay[] = [];
+  for (const raw of value) {
+    if (!isRecord(raw)) continue;
+    const date = str(raw.date, 10);
+    const label = str(raw.label, 40);
+    if (!date || !label) continue;
+    const slots: PackingPlanDaySlot[] = [];
+    for (const rawSlot of Array.isArray(raw.slots) ? raw.slots : []) {
+      if (!isRecord(rawSlot)) continue;
+      const slotId = str(rawSlot.slotId, 40);
+      const activity = parseActivity(rawSlot.activity);
+      const slotLabel = str(rawSlot.label, 60);
+      if (!slotId || !activity || !slotLabel) continue;
+      slots.push({
+        slotId,
+        activity,
+        formalityShift:
+          rawSlot.formalityShift === 'less_formal' || rawSlot.formalityShift === 'more_formal'
+            ? rawSlot.formalityShift
+            : null,
+        label: slotLabel,
+        outfitId: str(rawSlot.outfitId, 80),
+        coverage: COVERAGES.includes(rawSlot.coverage as PackingSlotCoverage)
+          ? (rawSlot.coverage as PackingSlotCoverage)
+          : 'uncovered',
+        missing: strList(rawSlot.missing, 4, 40),
+        pinned: rawSlot.pinned === true,
+        repeatsSlotId: str(rawSlot.repeatsSlotId, 40),
+      });
+      if (slots.length >= 6) break;
+    }
+    days.push({ dayIndex: int(raw.dayIndex), date, label, slots });
+    if (days.length >= MAX_DAYS) break;
+  }
+  return days;
+}
+
+function parseLeftHome(value: unknown): PackingLeftHomeItem[] {
+  if (!Array.isArray(value)) return [];
+  const out: PackingLeftHomeItem[] = [];
+  for (const raw of value) {
+    if (!isRecord(raw)) continue;
+    const itemId = str(raw.itemId, 80);
+    const title = str(raw.title, 120);
+    if (!itemId || !title) continue;
+    out.push({
+      itemId,
+      title,
+      coveredByItemId: str(raw.coveredByItemId, 80),
+      coveredByTitle: str(raw.coveredByTitle, 120),
+    });
+    if (out.length >= MAX_ITEMS) break;
+  }
+  return out;
+}
+
+/**
+ * External ideas are accepted only in their unowned shape: relationship fixed
+ * to `external`, and anything carrying an item id, price or link is dropped.
+ */
+function parseConsiderBuying(value: unknown): PackingExternalSuggestion[] {
+  if (!Array.isArray(value)) return [];
+  const out: PackingExternalSuggestion[] = [];
+  for (const raw of value) {
+    if (!isRecord(raw)) continue;
+    if (raw.relationship !== 'external') continue;
+    if (raw.itemId != null || raw.price != null || raw.url != null || raw.productId != null) continue;
+    const gapCode = str(raw.gapCode, 60);
+    const label = str(raw.label, 80);
+    if (!gapCode || !label) continue;
+    out.push({ gapCode, label, relationship: 'external' });
+    if (out.length >= 3) break;
+  }
+  return out;
+}
+
+function parseState(value: unknown): Record<string, unknown> | null {
+  if (!isRecord(value) || value.stateVersion !== 1) return null;
+  try {
+    return JSON.stringify(value).length <= MAX_STATE_JSON_CHARS ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+export function parseClarification(value: unknown): PackingClarification | null {
+  if (!isRecord(value)) return null;
+  const question = str(value.question, 120);
+  if (!question) return null;
+  const options: PackingClarificationOption[] = [];
+  for (const raw of Array.isArray(value.options) ? value.options : []) {
+    if (!isRecord(raw)) continue;
+    const kind = raw.kind === 'item' || raw.kind === 'day' ? raw.kind : null;
+    const optionValue = str(raw.value, 80);
+    const label = str(raw.label, 120);
+    if (!kind || !optionValue || !label) continue;
+    options.push({ kind, value: optionValue, label });
+    if (options.length >= 4) break;
+  }
+  return options.length > 0 ? { question, options } : null;
 }
 
 export function parsePackingPlan(value: unknown): PackingPlan | null {
@@ -168,8 +298,20 @@ export function parsePackingPlan(value: unknown): PackingPlan | null {
 
   const constraints = isRecord(value.constraints) ? value.constraints : {};
   const gaps = parseGaps(value.gaps);
+  const plannerFields =
+    value.plannerVersion === PACKING_PLANNER_VERSION
+      ? {
+          plannerVersion: PACKING_PLANNER_VERSION as 2,
+          days: parseDays(value.days),
+          notes: strList(value.notes, MAX_NOTES, 240),
+          leftHome: parseLeftHome(value.leftHome),
+          considerBuying: parseConsiderBuying(value.considerBuying),
+          state: parseState(value.state),
+        }
+      : {};
 
   return {
+    ...plannerFields,
     contractVersion: str(value.contractVersion, 40) ?? '',
     planId,
     mode: value.mode === 'general' ? 'general' : 'personal',
@@ -221,7 +363,7 @@ export function parseGeneralGuide(value: unknown): PackingGeneralGuide | null {
   return { sections, notes: strList(value.notes, 5, 200) };
 }
 
-const MAX_GAPS = 3;
+const MAX_GAPS = 4;
 
 /**
  * A gap is a REQUIREMENT, and the client renders it in its own unowned
@@ -239,7 +381,9 @@ function parseGaps(value: unknown): PackingGap[] {
     const rationale = str(raw.rationale, 200);
     if (!code || !label || !rationale) continue;
     if (raw.price != null || raw.url != null || raw.productId != null) continue;
-    gaps.push({ code, label, rationale });
+    const certainty =
+      raw.certainty === 'confirmed' || raw.certainty === 'unconfirmed' ? raw.certainty : undefined;
+    gaps.push({ code, label, rationale, ...(certainty ? { certainty } : {}) });
     if (gaps.length >= MAX_GAPS) break;
   }
   return gaps;
@@ -289,6 +433,7 @@ export function parsePackingResponse(raw: unknown): PackingResult {
     generalGuide: status === 'general_mode' ? parseGeneralGuide(raw.generalGuide) : null,
     errorCode,
     retryable: status === 'error' || status === 'no_result',
+    clarification: status === 'success' ? parseClarification(raw.clarification) : null,
   };
 }
 
@@ -300,6 +445,9 @@ export interface PackingRequestInput {
     packLight?: boolean;
     notes?: string[];
   };
+  /** Build 35. A refinement of the plan on screen, with its opaque state. */
+  refinement?: { message: string; resolvedItemId?: string; resolvedDate?: string };
+  priorState?: Record<string, unknown> | null;
 }
 
 export async function requestPackingPlan(input: PackingRequestInput): Promise<PackingResult> {
@@ -310,6 +458,7 @@ export async function requestPackingPlan(input: PackingRequestInput): Promise<Pa
     const { data, error } = await supabase.functions.invoke(EDGE_FN, {
       body: {
         schemaVersion: PACKING_REQUEST_SCHEMA_VERSION,
+        plannerVersion: PACKING_PLANNER_VERSION,
         sessionId: input.sessionId,
         trip: {
           destination: input.trip.destination,
@@ -318,8 +467,11 @@ export async function requestPackingPlan(input: PackingRequestInput): Promise<Pa
           tripType: input.trip.tripType,
           activities: input.trip.activities,
           ...(input.trip.note.trim() ? { note: input.trip.note.trim() } : {}),
+          ...(input.trip.schedule && input.trip.schedule.length > 0 ? { schedule: input.trip.schedule } : {}),
         },
         ...(input.constraints ? { constraints: input.constraints } : {}),
+        ...(input.refinement ? { refinement: input.refinement } : {}),
+        ...(input.priorState ? { priorState: input.priorState } : {}),
       },
       signal: controller.signal,
     });

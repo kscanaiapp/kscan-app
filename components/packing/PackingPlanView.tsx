@@ -287,6 +287,13 @@ export function PackingPlanView({
   }, [plan.packedItems]);
 
   const sections = useMemo(() => groupByRole(plan.packedItems), [plan.packedItems]);
+  const outfitsById = useMemo(
+    () => new Map(plan.outfits.map((outfit) => [outfit.outfitId, outfit])),
+    [plan.outfits],
+  );
+  // Build 35. A day-by-day plan replaces the occasion list below; a V1 plan
+  // has no days and renders exactly as before.
+  const days = plan.days ?? [];
   const checked = useMemo(() => new Set(packedOff ?? []), [packedOff]);
   // Counted from the items actually rendered, so the header can never claim a
   // tick for an item this plan does not contain.
@@ -322,6 +329,68 @@ export function PackingPlanView({
         <Text style={styles.eliseLine} testID="packing-message">
           {message}
         </Text>
+      ) : null}
+
+      {days.length > 0 ? (
+        <>
+          <SectionHeader title="YOUR TRIP" />
+          {/* WHAT AM I WEARING, AND WHEN. Every look sits on its day; a repeat
+              day says so rather than pretending to be a new look. */}
+          <View testID="packing-days">
+            {days.map((day) => (
+              <View key={day.date} style={styles.dayBlock} testID={`packing-day-${day.date}`}>
+                <Text style={styles.dayLabel}>{day.label.toUpperCase()}</Text>
+                {day.slots.map((slot) => {
+                  const outfit = slot.outfitId ? outfitsById.get(slot.outfitId) : undefined;
+                  return (
+                    <View key={slot.slotId} style={styles.slotRow} testID={`packing-slot-${slot.slotId}`}>
+                      <View style={styles.badgeRow}>
+                        <Text style={styles.outfitLabel}>
+                          {PACKING_ACTIVITY_LABELS[slot.activity].toUpperCase()}
+                        </Text>
+                        {slot.pinned ? <Text style={styles.slotBadge}>KEPT AS IS</Text> : null}
+                        {slot.formalityShift ? (
+                          <Text style={styles.slotBadge}>
+                            {slot.formalityShift === 'less_formal' ? 'MORE CASUAL' : 'DRESSIER'}
+                          </Text>
+                        ) : null}
+                        {slot.repeatsSlotId ? <Text style={styles.slotBadge}>REPEAT LOOK</Text> : null}
+                      </View>
+                      {outfit ? (
+                        <ScrollView
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={styles.outfitRow}
+                        >
+                          {outfit.itemIds.map((itemId) => {
+                            const item = itemsById.get(itemId);
+                            if (!item) return null;
+                            return (
+                              <ClosetItemCard
+                                key={`${slot.slotId}-${itemId}`}
+                                item={item}
+                                imageUri={resolveImage(item.clientId)}
+                                compact
+                              />
+                            );
+                          })}
+                        </ScrollView>
+                      ) : null}
+                      {slot.coverage === 'uncovered' ? (
+                        <Text style={styles.coverageNote}>Not fully covered from your Closet</Text>
+                      ) : slot.coverage === 'unconfirmed' ? (
+                        <Text style={styles.coverageNote}>Dress code not confirmed</Text>
+                      ) : null}
+                      {outfit?.reason && !slot.repeatsSlotId ? (
+                        <Text style={styles.outfitReason}>{outfit.reason}</Text>
+                      ) : null}
+                    </View>
+                  );
+                })}
+              </View>
+            ))}
+          </View>
+        </>
       ) : null}
 
       <SectionHeader title="PACK" />
@@ -369,8 +438,39 @@ export function PackingPlanView({
         </ScrollView>
       ) : null}
 
-      <SectionHeader title="LOOKS" />
-      {plan.outfits.map((outfit) => (
+      {plan.notes && plan.notes.length > 0 ? (
+        <>
+          <SectionHeader title="WHY THIS PLAN" />
+          {/* Rendered by the server from the planner's structured decisions:
+              what repeats, what stays home, what could not be covered. */}
+          <View style={styles.assumptionCard} testID="packing-notes">
+            {plan.notes.map((note) => (
+              <Text key={note} style={styles.assumption}>
+                {`• ${note}`}
+              </Text>
+            ))}
+          </View>
+        </>
+      ) : null}
+
+      {plan.leftHome && plan.leftHome.length > 0 ? (
+        <>
+          <SectionHeader title="LEAVE AT HOME" />
+          <View testID="packing-left-home">
+            {plan.leftHome.map((entry) => (
+              <View key={entry.itemId} style={styles.leftHomeRow} testID={`packing-left-home-${entry.itemId}`}>
+                <Text style={styles.leftHomeTitle}>{entry.title}</Text>
+                {entry.coveredByTitle ? (
+                  <Text style={styles.gapRationale}>{`Covered by your ${entry.coveredByTitle}`}</Text>
+                ) : null}
+              </View>
+            ))}
+          </View>
+        </>
+      ) : null}
+
+      {days.length === 0 ? <SectionHeader title="LOOKS" /> : null}
+      {days.length === 0 && plan.outfits.map((outfit) => (
         <View key={outfit.outfitId} style={styles.outfitCard} testID={`packing-outfit-${outfit.outfitId}`}>
           <Text style={styles.outfitLabel}>
             {(outfit.activity ? PACKING_ACTIVITY_LABELS[outfit.activity] : outfit.label).toUpperCase()}
@@ -403,6 +503,10 @@ export function PackingPlanView({
               // is a thing the traveller does not have, and it must never be
               // able to read as a thing they do.
               <View key={gap.code} style={styles.gapRow} testID={`packing-gap-${gap.code}`}>
+                {gap.certainty === 'unconfirmed' ? (
+                  // "I can't tell" is not "you don't have", and it never looks like one.
+                  <Text style={styles.gapCertainty}>{"CAN'T CONFIRM"}</Text>
+                ) : null}
                 <Text style={styles.gapLabel}>{gap.label}</Text>
                 <Text style={styles.gapRationale}>{gap.rationale}</Text>
               </View>
@@ -419,6 +523,24 @@ export function PackingPlanView({
               <Text key={assumption} style={styles.assumption}>
                 {`• ${assumption}`}
               </Text>
+            ))}
+          </View>
+        </>
+      ) : null}
+
+      {plan.considerBuying && plan.considerBuying.length > 0 ? (
+        <>
+          <SectionHeader title="IDEAS TO CONSIDER" />
+          {/* EXTERNAL, AND LABELLED SO. Shown only when the traveller asked
+              what to buy, only for confirmed gaps. No photograph, no product,
+              no price, no link, nothing to tap -- and every row says outright
+              that it is not something they own. */}
+          <View testID="packing-consider">
+            {plan.considerBuying.map((idea) => (
+              <View key={idea.gapCode} style={styles.gapRow} testID={`packing-consider-${idea.gapCode}`}>
+                <Text style={styles.gapCertainty}>NOT IN YOUR CLOSET</Text>
+                <Text style={styles.gapLabel}>{idea.label}</Text>
+              </View>
             ))}
           </View>
         </>
@@ -651,6 +773,47 @@ const styles = StyleSheet.create({
     ...LUXURY.typography.caption,
     color: LUXURY.colors.graphite,
     marginTop: SPACING.xs,
+  },
+  dayBlock: {
+    marginBottom: SPACING.lg,
+  },
+  dayLabel: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+    letterSpacing: 1,
+    marginBottom: SPACING.sm,
+  },
+  slotRow: {
+    backgroundColor: LUXURY.colors.cream,
+    borderRadius: RADIUS.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: LUXURY.colors.border,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  slotBadge: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.plum,
+  },
+  coverageNote: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.graphite,
+    marginTop: SPACING.xs,
+  },
+  leftHomeRow: {
+    paddingVertical: SPACING.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: LUXURY.colors.border,
+  },
+  leftHomeTitle: {
+    ...LUXURY.typography.body,
+    color: LUXURY.colors.ink,
+    textDecorationLine: 'line-through',
+  },
+  gapCertainty: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+    letterSpacing: 0.5,
   },
   gapRow: {
     borderLeftWidth: 2,
