@@ -247,7 +247,14 @@ export function StyleChatBubble({
                 </View>
               ))
           : null}
-        {!isUser && uiBlocks.length > 0 ? (
+        {/*
+          Build 35 regression repair. Wardrobe Concierge V2 persists its
+          `concierge_outfit_state` on EVERY advice answer, and that block renders
+          nothing. Counting it here mounted an empty container -- whose top margin
+          still takes space -- under every answer that has no wardrobe evidence,
+          which the evidence path promises to leave completely unchanged.
+        */}
+        {!isUser && uiBlocks.some((block) => block?.type !== 'concierge_outfit_state') ? (
           <View style={styles.uiBlocks}>
             {uiBlocks.map((block, i) => {
               // Phase 2: validated structured actions render as app-controlled
