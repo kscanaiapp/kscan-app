@@ -126,13 +126,30 @@ function wordStems(value: string): string[] {
   return [...stems];
 }
 
-/**
- * Exported (Build 35) so Packing refinement resolves "the loafers" through THIS
- * vocabulary rather than a second garment word list. Behaviour unchanged.
- */
-export function garmentClassOf(word: string): string | null {
+function directGarmentClassOf(word: string): string | null {
   for (const stem of wordStems(word)) {
     if (REJECTABLE_GARMENTS.includes(stem)) return stem;
+  }
+  return null;
+}
+
+/**
+ * The garment class a word names, or null.
+ *
+ * Exported (Build 35) so Packing refinement resolves "the loafers" through THIS
+ * vocabulary rather than a second garment word list. Compounds resolve to the
+ * garment they end in -- a raincoat is a coat, sweatpants are pants, a
+ * shirtdress is a dress -- so "not the raincoat" is a rejection here exactly as
+ * it is in Packing, and one Closet item has one set of classes in both. Only
+ * suffix classes of four or more letters count, so a laptop is never a top.
+ */
+export function garmentClassOf(word: string): string | null {
+  const direct = directGarmentClassOf(word);
+  if (direct) return direct;
+  const letters = word.toLowerCase().replace(/[^a-z]/g, '');
+  for (let index = 1; index <= letters.length - 4; index += 1) {
+    const hit = directGarmentClassOf(letters.slice(index));
+    if (hit && hit.length >= 4) return hit;
   }
   return null;
 }
