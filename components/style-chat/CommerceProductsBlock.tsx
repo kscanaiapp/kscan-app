@@ -20,6 +20,12 @@ import { LUXURY, SPACING } from '../../constants/theme';
 export interface CommerceProductsBlockProps {
   status: 'results' | 'no_matches' | 'error';
   products: unknown;
+  /**
+   * The colour the customer asked for and how hard they asked, echoed from the
+   * shopping intent. Presentation only -- ranking already happened.
+   */
+  requestedColor?: string | null;
+  colorStrength?: 'EXPLICIT_PREFERENCE' | 'STRONG_EXPLICIT_PREFERENCE' | null;
   testID?: string;
 }
 
@@ -34,7 +40,37 @@ export interface CommerceProductsBlockProps {
 const NO_MATCHES_COPY = "I couldn't find a current option that fits those constraints.";
 const ERROR_COPY = "I couldn't check live options right now.";
 
-export function CommerceProductsBlock({ status, products, testID }: CommerceProductsBlockProps) {
+/**
+ * Nothing matched the colour they insisted on, but real alternatives came back.
+ *
+ * THIS IS NOT A NO-RESULTS STATE, and it must not read like one: the customer
+ * has options, they simply are not the colour asked for. Saying so plainly is
+ * the whole job -- what must never happen is a brown boot sitting silently
+ * under a request for black, as though it answered it.
+ */
+const noPreferredMatchCopy = (color: string) =>
+  `I couldn't find a strong ${color} match right now, but these are the closest alternatives.`;
+
+/**
+ * Did the ranker record this candidate as matching the stated colour?
+ *
+ * Read from the rationale facts #409 already produced during ranking. This is
+ * a READ of an existing decision, never a second one: nothing here inspects a
+ * title, compares a colour, or reorders anything.
+ */
+function matchedRequestedAttribute(product: Product): boolean {
+  const rationale = (product as { commerceRationale?: { factCodes?: unknown } }).commerceRationale;
+  const codes = Array.isArray(rationale?.factCodes) ? rationale.factCodes : [];
+  return codes.includes('explicit_color_match');
+}
+
+export function CommerceProductsBlock({
+  status,
+  products,
+  requestedColor,
+  colorStrength,
+  testID,
+}: CommerceProductsBlockProps) {
   if (status === 'error') {
     return (
       <View style={styles.state} testID={testID ? `${testID}-error` : undefined}>
@@ -56,9 +92,59 @@ export function CommerceProductsBlock({ status, products, testID }: CommerceProd
     );
   }
 
+  // A strong request is the only one that earns a split shelf. An ordinary
+  // preference needs no explanation for a near-miss being on the list, and
+  // splitting every shelf would make the distinction meaningless where it
+  // matters.
+  const shouldGroup =
+    colorStrength === 'STRONG_EXPLICIT_PREFERENCE' &&
+    typeof requestedColor === 'string' &&
+    requestedColor.length > 0;
+
+  if (!shouldGroup) {
+    return (
+      <View testID={testID}>
+        <ProductShelf products={verified} label="OPTIONS" testID={testID ? `${testID}-shelf` : undefined} />
+      </View>
+    );
+  }
+
+  // ORDER IS PRESERVED WITHIN EACH GROUP. This partitions the shelf the ranker
+  // produced; it does not re-rank it, and a candidate cannot change position
+  // relative to another in the same group.
+  const best = verified.filter(matchedRequestedAttribute);
+  const other = verified.filter((product) => !matchedRequestedAttribute(product));
+
+  // Nothing in the requested colour, but real alternatives did come back.
+  if (best.length === 0) {
+    return (
+      <View testID={testID}>
+        <Text style={styles.stateText} testID={testID ? `${testID}-no-preferred-match` : undefined}>
+          {noPreferredMatchCopy(requestedColor)}
+        </Text>
+        <ProductShelf
+          products={other}
+          label="OTHER OPTIONS"
+          testID={testID ? `${testID}-shelf-other` : undefined}
+        />
+      </View>
+    );
+  }
+
   return (
     <View testID={testID}>
-      <ProductShelf products={verified} label="OPTIONS" testID={testID ? `${testID}-shelf` : undefined} />
+      <ProductShelf
+        products={best}
+        label="BEST MATCHES"
+        testID={testID ? `${testID}-shelf-best` : undefined}
+      />
+      {other.length > 0 ? (
+        <ProductShelf
+          products={other}
+          label="OTHER OPTIONS"
+          testID={testID ? `${testID}-shelf-other` : undefined}
+        />
+      ) : null}
     </View>
   );
 }

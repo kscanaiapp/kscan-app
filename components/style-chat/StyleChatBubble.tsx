@@ -288,12 +288,21 @@ export function StyleChatBubble({
                 const commerceBlock = block as unknown as {
                   status?: 'results' | 'no_matches' | 'error';
                   products?: unknown;
+                  // Echoed by the activation writer. Optional on purpose: a
+                  // block persisted by an older build has no intent summary,
+                  // and must still render as the single unsplit shelf.
+                  intentSummary?: {
+                    color?: string | null;
+                    colorStrength?: 'EXPLICIT_PREFERENCE' | 'STRONG_EXPLICIT_PREFERENCE' | null;
+                  };
                 };
                 return (
                   <CommerceProductsBlock
                     key={`commerce-${i}`}
                     status={commerceBlock.status ?? 'no_matches'}
                     products={commerceBlock.products}
+                    requestedColor={commerceBlock.intentSummary?.color ?? null}
+                    colorStrength={commerceBlock.intentSummary?.colorStrength ?? null}
                     testID="chat-commerce-products"
                   />
                 );

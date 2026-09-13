@@ -82,7 +82,7 @@ Legend: **S** serial · **P** parallel · **TTFAR** blocks first actionable resu
 | 27 | query build + weak-query gate (sync) | SV | S | ✔ | ✔ | — | — | `commerceRelevanceQueries.ts` |
 | 28 | result-cache read (in-memory, per-isolate) | SV | S | ✔ | ✔ | TTL 10 min | — | `commerceResultCache.ts:147` |
 | 29 | **FAST FAN-OUT**: Serper∥Poshmark | SV | **P** | ✔ | ✔ | **1900 ms** global **and** per child | none | `scanCommerceRouter.ts:1132-1180` |
-| 30 | rank + dedupe — **whole-array, sync** | SV | S | ✔ | ✔ | — | — | `qualityTuneCommerce.ts:479` |
+| 30 | rank + dedupe — **whole-array, sync** | SV | S | ✔ | ✔ | — | — | `qualityTuneCommerce.ts:534` |
 | 31 | serialize | SV | S | ✔ | ✔ | — | — | — |
 | 32 | download | N | S | ✔ | ✔ | — | — | — |
 | 33 | hydrate — drops entries lacking productUrl/title | C | S | ✔ | ✔ | — | — | `commerceHydration.ts:177-181` |
@@ -154,7 +154,7 @@ Group C (`Promise.all` over both providers).
 |---|---|---|
 | **Transport** | **NO** | `index.ts:1091` returns one buffered `new Response(JSON.stringify(body))`. Zero non-test hits for `ReadableStream`, `text/event-stream`, `TransformStream`, `Transfer-Encoding`, `streamGenerateContent` across `scan-identify/` and `_shared/`. The Gemini call itself uses `:generateContent`, not `:streamGenerateContent`. |
 | **Client** | **PARTIAL** | Partial-result *state* already exists (`commerceStatus`, `multiItemCommerce`, `useKScan.js:123-134`) and the client already patches a rendered shelf after the fact. What is missing is an incremental *transport*, not incremental state. |
-| **Ranking** | **BLOCKING** | Ranking is whole-array and synchronous: global sort (`qualityTuneCommerce.ts:631`), one shared cross-provider dedupe set (`:537`), coverage bands and retailer-diversity caps computed over the entire selected set (`commerceRelevanceDiversity.ts:96-124`). |
+| **Ranking** | **BLOCKING** | Ranking is whole-array and synchronous: global sort (`qualityTuneCommerce.ts:719`), one shared cross-provider dedupe set (`:592`), coverage bands and retailer-diversity caps computed over the entire selected set (`commerceRelevanceDiversity.ts:96-124`). |
 | **UX risk** | **HIGH** | Because ranking is whole-array, an item emitted early can afterwards be outranked, deduped away or diversity-demoted — items moving under the user's finger. |
 
 **PROGRESSIVE DELIVERY: ARCHITECTURE CHANGE REQUIRED.**

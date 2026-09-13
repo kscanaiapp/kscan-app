@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-13T19:40:23.074Z",
-    "generatedFromGitSha": "28e1203aebe4864e4bed689ccb14d16ec857aaf7"
+    "generatedAtUtc": "2026-09-13T21:46:20.933Z",
+    "generatedFromGitSha": "61567b164debd87a0b233e348d16ad3336fdb992"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -41,8 +41,8 @@
         ],
         "bundleFileCount": 43,
         "treeFileCount": 70,
-        "bundleHash": "bed5c3c0d9d2999b5e760f547ffc6a40ec79db585491d2ce63054d9d4a7ef8ec",
-        "treeHash": "3e0fb86e5a3fd933a26ce714e4e450fa1accfcee2df646322e12644802bb74ff",
+        "bundleHash": "99e4f8bc85dae97e924ad09c2132416a3b7913dc2a84c42a18179e52c13b6970",
+        "treeHash": "1f61da99e42043a4f09f3cfe93a6e4696eb4ecb181adc73eeb517d86c049ee0f",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -86,7 +86,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/commerceContextualRanking.ts",
-            "sha256": "5218a7e24a30258372295740715af26f401ade260b2c76b1cef63fae3ebd4a59",
+            "sha256": "08e09feef7769ac46a8f0c10e3b0bd6b2035c0cefa0bbbeb9bb433ec09d1938b",
             "bundle": true
           },
           {
@@ -186,7 +186,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/commerceShoppingIntent.ts",
-            "sha256": "b179f2671564f91222f3e46ce83ab5d722f26fe4cd05529e69d6a46ae9722b7c",
+            "sha256": "0191dcd7863098202c48f20f92593070838cfdfaca4267e7067d34b417d3013a",
             "bundle": true
           },
           {
@@ -276,7 +276,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/qualityTuneCommerce.ts",
-            "sha256": "8daae2d02cc32b98125a6affbb8d235bcdb1e1e3e3d0edf2fdc8909821dc9c5c",
+            "sha256": "c433a3128252164530ebaa12eacd7d16fe99643c95d3ec54c7877229862acd82",
             "bundle": true
           },
           {
@@ -498,8 +498,8 @@
         ],
         "bundleFileCount": 61,
         "treeFileCount": 87,
-        "bundleHash": "2e823d7036373cd69fec0952376e64edcac5c227220c9c3e3467f79f4c1850ab",
-        "treeHash": "900042ded358376ad13d0054da81f43fcee86501ee7ce66e0d0efe53c7a039f7",
+        "bundleHash": "58ef1c2b47c7463bed3957ea480f61983394bfcf09b955116faced9ffd7b10f5",
+        "treeHash": "4878e6e7e83f71ac3d86de0b080f130e413298ec7cbb9eecf9a1e13855917b6d",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -523,7 +523,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/actions.ts",
-            "sha256": "31706e4e830925ed90420f0a2a73f96493a09a9c59b89fe44faf59fe54865816",
+            "sha256": "216d2c158e0ecedee1d6a7c707f69f858ab2d4c6e494f8fa4087573f7a785e85",
             "bundle": true
           },
           {
@@ -608,12 +608,12 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseCommerceIntent.ts",
-            "sha256": "b277561ebc11c84f84e2afa124849036047631bce46e7c50e4a2ca635d3a118a",
+            "sha256": "eccb81b82ed165414d664bb7f78695b5782478533ff5c2fc879b8a495675551f",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseCommerceIntentTypes.ts",
-            "sha256": "77a4333efed8d2048cdd2e26ca2ab333936b32c58e42a44b1237c9ea3b8a7563",
+            "sha256": "05bb5eb1d1513ff7c6a1fc3ee53642e260cefc01c9756dc3e581a0b323b06f03",
             "bundle": true
           },
           {
@@ -783,7 +783,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/index.ts",
-            "sha256": "c94143de69e198a93c1bab643e3c35cdfd122c02e3be055ecba90e6f6a5ed4b7",
+            "sha256": "a9886532f95f231125194de25ca58f3b8d7dd44a5a227f3d4fe0c7609b88cd8a",
             "bundle": true
           },
           {
@@ -908,7 +908,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/styleDnaContext.ts",
-            "sha256": "5cd059faf651f8865deb7bf84ff672e1c83609fb20d33a609cdf8d1105bd38d0",
+            "sha256": "0d8b875f2e186de5edcd2a79443137ac8a3acabad2479d71af9c2c80feb5391b",
             "bundle": true
           },
           {

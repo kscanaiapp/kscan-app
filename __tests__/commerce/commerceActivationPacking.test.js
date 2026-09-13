@@ -144,9 +144,13 @@ test('§20: Commerce can consume gap confidence and can never modify it', () => 
 });
 
 test('§21: no third Commerce results UI was built inside Packing', () => {
-  const view = src('components/packing/PackingPlanView.tsx');
+  // Comments stripped: the screen now explains in prose that Elise owns the
+  // ProductShelf journey, and prose naming the rule is not a breach of it.
+  const stripComments = (text) =>
+    text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  const view = stripComments(src('components/packing/PackingPlanView.tsx'));
   assert.equal(/ProductShelf|purchaseOptions|commerce_products/.test(view), false, 'no third Commerce results UI');
-  const screen = src('app/packing/index.tsx');
+  const screen = stripComments(src('app/packing/index.tsx'));
   assert.equal(/fetchDeferredCommerce|ProductShelf/.test(screen), false);
 });
 

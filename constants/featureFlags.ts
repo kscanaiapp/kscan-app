@@ -1008,3 +1008,26 @@ export function resolveSmartWatchlistEnabled(
 }
 
 export const SMART_WATCHLIST_V1 = resolveSmartWatchlistEnabled();
+
+/**
+ * Build 36 — Contextual Commerce activation, client side.
+ *
+ * THE SAME CAPABILITY AS `ELISE_COMMERCE_ACTIVATION_V1_ENABLED`, not a second
+ * gate. The Elise path is already self-gating: with the server flag off no
+ * `shoppingIntent` is published, so `parseShoppingIntentWire` returns null and
+ * Commerce never runs. This mirror exists for the one surface the client
+ * INITIATES -- the confirmed Packing gap action -- which would otherwise offer
+ * to find options against a backend that cannot look for them, and hand the
+ * customer a conversation where a shelf was promised.
+ *
+ * NOT A PAYWALL and not an entitlement. Commerce keeps its existing access
+ * model, enforced server-side; this only decides whether the control is
+ * offered at all.
+ */
+export function resolveEliseCommerceActivationEnabled(
+  value: string | undefined = process.env.EXPO_PUBLIC_ELISE_COMMERCE_ACTIVATION_V1,
+): boolean {
+  return value === 'true';
+}
+
+export const ELISE_COMMERCE_ACTIVATION_V1 = resolveEliseCommerceActivationEnabled();

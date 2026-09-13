@@ -25,10 +25,10 @@
     "supabase/functions/scan-identify/index.ts": "967309c5953bde0647b6b07b55c932aa23b579a7bd357a98a5c414abdc2d0473",
     "supabase/functions/scan-identify/kicksCrewProvider.ts": "0ff14ce17f98d9916c0183813d353151fa03a979555a29d37230f8f54b100997",
     "supabase/functions/scan-identify/poshmarkProvider.ts": "8410b122bfe6fb4ccb7361a00bdcecda7a7e96c4db2ad528212b0a49387ce089",
-    "supabase/functions/scan-identify/qualityTuneCommerce.ts": "8daae2d02cc32b98125a6affbb8d235bcdb1e1e3e3d0edf2fdc8909821dc9c5c",
+    "supabase/functions/scan-identify/qualityTuneCommerce.ts": "c433a3128252164530ebaa12eacd7d16fe99643c95d3ec54c7877229862acd82",
     "supabase/functions/scan-identify/scanCommerceRouter.ts": "d7aba79699c946cdb9374d6351ffe69a18ff054981497ef7e657a7ed157aaf79",
     "supabase/functions/scan-identify/scanQuota.ts": "28c3524442bbf8bc79012514bcd1293222a2df991777c0329c1902f6f4a7d57d",
     "supabase/functions/scan-identify/shoppingProvider.ts": "01c478939250bc3fab814917aeed2dd1a1f4f22afb709a98fa78cbb98b881795"
   },
-  "binding_hash": "8946dae0cddf36792ed9f2e8b503c0e53e81627bc6d0e6100eef0e409935d441"
+  "binding_hash": "f55debe76fa205b5b39d5214589defb6e5b0912ef1286a100d86db150a8bc225"
 }

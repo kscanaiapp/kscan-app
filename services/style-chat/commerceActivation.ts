@@ -212,6 +212,15 @@ export interface CommerceProductsBlock extends StyleChatUiBlock {
   intentSummary: {
     category: string | null;
     color: string | null;
+    /**
+     * Whether the customer INSISTED on the colour.
+     *
+     * Presentation reads this, not ranking: when someone says "only black" and
+     * a brown option is still on the shelf, the shelf has to say why it is
+     * there. An ordinary preference needs no such explanation, so the split is
+     * offered only for the strong tier.
+     */
+    colorStrength: 'EXPLICIT_PREFERENCE' | 'STRONG_EXPLICIT_PREFERENCE' | null;
     budget: { amount: number; currency: string } | null;
     exclusions: string[];
   };
@@ -253,6 +262,7 @@ export function buildCommerceProductsBlock(input: {
   const intentSummary = {
     category: input.state?.category ?? null,
     color: input.state?.color ?? null,
+    colorStrength: input.state?.color ? (input.state.colorStrength ?? 'EXPLICIT_PREFERENCE') : null,
     budget: input.state?.budget ? { ...input.state.budget } : null,
     exclusions: (input.state?.exclusions ?? []).map((e) => `${e.axis}:${e.token}`),
   };

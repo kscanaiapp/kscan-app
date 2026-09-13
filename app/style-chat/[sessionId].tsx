@@ -290,6 +290,30 @@ export default function StyleChatSessionScreen() {
     genderStylingContext: genderStylingContext.value,
   });
 
+  /**
+   * Build 36 — a CONFIRMED Packing gap arrives as a shopping request to send.
+   *
+   * AUTO-SENT EXACTLY ONCE, AND ONLY FOR THIS SOURCE. The customer already
+   * pressed a control that said FIND OPTIONS; making them press send again to
+   * repeat a sentence they did not write would be a worse experience, not a
+   * safer one. Every other handoff source keeps its existing behaviour of
+   * landing as a reference card with an empty composer.
+   *
+   * The guard is a ref rather than state so a re-render cannot re-enter it, and
+   * it is keyed on the query so a second, DIFFERENT gap in the same session is
+   * still sent. `canSend` gates it on the session actually being ready, which
+   * is the same gate the composer uses.
+   */
+  const autoSentHandoffRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!handoffContext || handoffContext.source !== 'packing-gap') return;
+    const query = typeof handoffContext.query === 'string' ? handoffContext.query.trim() : '';
+    if (!query || !canSend || isSending) return;
+    if (autoSentHandoffRef.current === query) return;
+    autoSentHandoffRef.current = query;
+    void sendMessage(query);
+  }, [handoffContext, canSend, isSending, sendMessage]);
+
   const [isDeleting, setIsDeleting] = useState(false);
   const [styleDnaSummary, setStyleDnaSummary] = useState<LocalStyleDnaProfileSummary | null>(null);
   const [isLoadingStyleDna, setIsLoadingStyleDna] = useState(false);
