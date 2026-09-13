@@ -58,6 +58,10 @@ export interface PackingPlanOutfit {
   activity: PackingActivity | null;
   itemIds: string[];
   reason: string | null;
+  /** Build 35. The day/occasion slot this look is worn in. */
+  slotId?: string;
+  date?: string;
+  coverage?: 'covered' | 'unconfirmed' | 'uncovered';
 }
 
 export interface PackingPlanWeather {
@@ -205,7 +209,17 @@ export function validatePackingModelOutput(input: {
   censusComplete?: boolean;
   /** Deterministically derived unmet requirements (packingGaps). */
   gaps?: PackingGap[];
+  /**
+   * Build 35. Bounds for a day-by-day plan, which legitimately carries more
+   * looks than the V1 occasion list. Defaults are the V1 limits.
+   */
+  maxOutfits?: number;
+  maxPackedItems?: number;
+  /** Build 35. Slot ids the model was asked to plan; any other slotId is dropped. */
+  allowedSlotIds?: Set<string>;
 }): PackingValidationResult {
+  const maxOutfits = input.maxOutfits ?? PACKING_LIMITS.maxOutfits;
+  const maxPackedItems = input.maxPackedItems ?? PACKING_LIMITS.maxPackedItems;
   const telemetry: PackingValidationTelemetry = {
     modelItemRefs: 0,
     rejectedItemRefs: 0,
@@ -269,7 +283,7 @@ export function validatePackingModelOutput(input: {
   const usageCount = new Map<string, number>();
 
   for (const rawOutfit of rawOutfits) {
-    if (outfits.length >= PACKING_LIMITS.maxOutfits) break;
+    if (outfits.length >= maxOutfits) break;
     if (!isRecord(rawOutfit)) {
       telemetry.rejectedOutfits += 1;
       continue;
@@ -296,7 +310,12 @@ export function validatePackingModelOutput(input: {
       continue;
     }
 
-    const rawActivity = typeof rawOutfit.activity === 'string' ? rawOutfit.activity : null;
+    // Build 35: a slot the model was not asked to plan is not a slot. The look
+    // still survives as an occasion-keyed proposal, exactly like a V1 look.
+    const rawSlotId = typeof rawOutfit.slotId === 'string' ? rawOutfit.slotId.trim().toLowerCase() : null;
+    const slotId = rawSlotId && input.allowedSlotIds?.has(rawSlotId) ? rawSlotId : null;
+    const slotActivity = slotId ? slotId.replace(/^d\d+-/, '') : null;
+    const rawActivity = typeof rawOutfit.activity === 'string' ? rawOutfit.activity : slotActivity;
     const activity =
       rawActivity && (PACKING_ACTIVITIES as readonly string[]).includes(rawActivity)
         ? (rawActivity as PackingActivity)
@@ -314,6 +333,7 @@ export function validatePackingModelOutput(input: {
       activity,
       itemIds,
       reason: safeProse(rawOutfit.reason, MAX_REASON_CHARS),
+      ...(slotId ? { slotId } : {}),
     });
   }
 
@@ -325,7 +345,7 @@ export function validatePackingModelOutput(input: {
   const orderedIds: string[] = [];
 
   const rawPacked = Array.isArray(input.raw.packedItems) ? input.raw.packedItems : [];
-  for (const rawItem of rawPacked.slice(0, PACKING_LIMITS.maxPackedItems * 2)) {
+  for (const rawItem of rawPacked.slice(0, maxPackedItems * 2)) {
     if (!isRecord(rawItem)) continue;
     const candidate = resolve(rawItem.itemId);
     if (!candidate) continue;
@@ -347,7 +367,7 @@ export function validatePackingModelOutput(input: {
 
   const packedItems: PackingPlanItem[] = [];
   for (const itemId of orderedIds) {
-    if (packedItems.length >= PACKING_LIMITS.maxPackedItems) break;
+    if (packedItems.length >= maxPackedItems) break;
     const candidate = authorized.get(itemId);
     if (!candidate) continue;
     packedItems.push({

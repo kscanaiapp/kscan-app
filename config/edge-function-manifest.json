@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-12T17:31:36.402Z",
-    "generatedFromGitSha": "b729a947768b4fef99c4d999befc821a714b62d4"
+    "generatedAtUtc": "2026-09-13T15:45:20.298Z",
+    "generatedFromGitSha": "254f5dc4943d011c503374572795ab29f6a11144"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -481,10 +481,10 @@
           "npm:@supabase/supabase-js@2",
           "npm:@supabase/supabase-js@2.105.4"
         ],
-        "bundleFileCount": 53,
-        "treeFileCount": 78,
-        "bundleHash": "5302dc066b01e3e3ecc4a414fc7c724ce0c6b4032e4ed3cab4b67a32687d3ca9",
-        "treeHash": "16c911c0863aa34d48d4cc09c2ddfc65fb521e6fc39b5437d8c0d58857ece123",
+        "bundleFileCount": 59,
+        "treeFileCount": 85,
+        "bundleHash": "cc161a64d09a5fec6044701de6f755beec9a15f15bb2a9af7492669d6c624129",
+        "treeHash": "69efcc0139a78629e7e8e902f7b07d116eb2effe05070cd6e411d38cd28c7547",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -658,7 +658,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseOutfitState.ts",
-            "sha256": "37c6b51ab8493f0bfd6affe10abdeb2ebdf3059dd93deec3fda3396639f3a662",
+            "sha256": "be1f80f42b989b42cc0a613092a636a7e742d99e436702495c4fb62ecb5f71cb",
             "bundle": true
           },
           {
@@ -758,7 +758,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/index.ts",
-            "sha256": "0eea3662d5a95c0cbbea7bd55153042e590f8c5ddba6b45aa0118417b3dde79f",
+            "sha256": "06f0a4f855f1698f3ab22128fadb24af25d2b3d6b6b402e78237d54c68f41682",
             "bundle": true
           },
           {
@@ -778,17 +778,22 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/packingCandidates.ts",
-            "sha256": "2b4cbe9c65f2132e903af861e9f1d1404264c327a9ade4bf13dc5def09c188f5",
+            "sha256": "33246ab881e300daa36f7557c6c020b1dde9146bb9e8c30ae3a7f2a0b7d7d125",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylechat-generate/packingContract.ts",
-            "sha256": "2ebf35656450cbbd78d93239316e99117262c4949014175209ac7bc8fd63e661",
+            "sha256": "27ae12e57547b6f0ebd346e70983b06d7c14b5d52e825aa67cb74d3d2f757e7c",
             "bundle": true
           },
           {
             "path": "supabase/functions/stylechat-generate/packingGaps.ts",
-            "sha256": "0d79348c0fc77c9af973df2a22cce13efec0a188f98cc14b129f8cabe1d9872e",
+            "sha256": "c865f990a6fa54d13d8c6241bd241cdf28348e81e6c2b3fb2cb72b634f833c0b",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/packingGarmentFacts.ts",
+            "sha256": "ea33b967787bd08db6ed983837a9c6cdfd021c4d756b6ce309696ab6cfc832d2",
             "bundle": true
           },
           {
@@ -798,7 +803,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/packingHandler.ts",
-            "sha256": "376d6985081b1705c806e3e87a1b9d6ac1f9d18c1959b6bc4d26102544228ecb",
+            "sha256": "b72edf88f8deeab1ac7eb422d4a6684f5d826c59e2bb989b39586389e3866009",
             "bundle": true
           },
           {
@@ -807,8 +812,18 @@
             "bundle": false
           },
           {
+            "path": "supabase/functions/stylechat-generate/packingPlanState.ts",
+            "sha256": "d6931bdd6fc58a6792c6261aec69ec0f8077f2fd57ec0cc5e00713e9f01edc62",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/packingPlannerHandler.ts",
+            "sha256": "ba3b58576a749e84b5c582084754e2e92cbd5c182a46f1230023adfbc154c13e",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/stylechat-generate/packingPrompt.ts",
-            "sha256": "22e9afa0525b34f8085da6a55fe815e84dd6a1261db6214a963facbc08f01148",
+            "sha256": "54b45bc8c6811b0f8b3afab3cb1668e0e12f847739e5c9bc79ec0ef71d3a41ac",
             "bundle": true
           },
           {
@@ -822,13 +837,33 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/stylechat-generate/packingRefinementIntent.ts",
+            "sha256": "b06a81a050617002a70c83682d72f46108f8ba23b25d70243131d95701dbec54",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/stylechat-generate/packingRetrieval.ts",
             "sha256": "dfe52474a9ee6998129c9744d2fc05bc95b5617693ac61d6769e7601a1f221af",
             "bundle": true
           },
           {
+            "path": "supabase/functions/stylechat-generate/packingSchedule.ts",
+            "sha256": "29cf399050c47bf65c3834a2a0c9f54a890b9bea9a1d5b868bb8d17dcbea3ea1",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/packingTripPlanner.test.ts",
+            "sha256": "5dfbf5c043227e0359f0121b57392ee3701cae4d7b17c227b2efb9935eb6121b",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/stylechat-generate/packingTripPlanner.ts",
+            "sha256": "7ef771c315da1bd67791e938a4f297bd987d4d3e3a8dfb0e0e4e4f7c65f496f7",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/stylechat-generate/packingValidation.ts",
-            "sha256": "d9bd95dff7394aa6eba2404cc44af0070e88fe24bc1d4f3b170b9a1b22f164b3",
+            "sha256": "da770f70f62bcc2700405bf962c625405e6f96776d1741d2b960260f7621e3eb",
             "bundle": true
           },
           {
