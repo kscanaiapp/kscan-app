@@ -110,6 +110,15 @@ export interface EdgeChatResult {
    * normal case — every non-shopping turn and every pre-activation backend.
    */
   shoppingIntent?: unknown;
+  /**
+   * Bounded Signature Style ranking tokens for this shopping turn.
+   *
+   * `unknown` for the same reason as `shoppingIntent`: it crosses a trust
+   * boundary and is re-validated before anything ranks on it. Absent on every
+   * non-shopping turn, for every customer with no Signature Style profile, and
+   * for every pre-activation backend.
+   */
+  signatureStyleTokens?: unknown;
 }
 
 // ── Safe fallback ─────────────────────────────────────────────────────────────
@@ -650,6 +659,9 @@ export class EdgeStyleChatProvider {
         // Passed through unvalidated BY DESIGN and validated at the point of
         // use, exactly as weatherContext above is.
         ...(isRecord(data.shoppingIntent) ? { shoppingIntent: data.shoppingIntent } : {}),
+        ...(Array.isArray(data.signatureStyleTokens)
+          ? { signatureStyleTokens: data.signatureStyleTokens }
+          : {}),
       };
 
     } catch (err: unknown) {

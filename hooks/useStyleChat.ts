@@ -771,6 +771,12 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         const shoppingWire = parseShoppingIntentWire(
           (result as { shoppingIntent?: unknown }).shoppingIntent,
         );
+        // Signature Style rides the same response. The server derived it from
+        // the authoritative profile it had already loaded for this request,
+        // under the existing K+ entitlement -- nothing is inferred here, and
+        // nothing is stored.
+        const signatureStyleTokens = (result as { signatureStyleTokens?: unknown })
+          .signatureStyleTokens;
 
         const optimisticAssistant: StyleChatMessage = {
           id: `optimistic-assistant-${Date.now()}`,
@@ -798,6 +804,19 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
             actorId,
             deps: {
               fetchCommerce: (evidence) => fetchDeferredCommerce(evidence),
+              // PREFERENCE, NOT INSTRUCTION. Signature Style carries the
+              // smallest weight in the contextual model and the lowest
+              // provenance rank, so it breaks ties among otherwise suitable
+              // options and can never outrank what the customer just asked
+              // for. A turn without it ranks exactly as it did before.
+              ...(Array.isArray(signatureStyleTokens) && signatureStyleTokens.length
+                ? {
+                    loadSignatureStyleTokens: async () =>
+                      signatureStyleTokens.filter(
+                        (token): token is string => typeof token === 'string' && token.length > 0,
+                      ),
+                  }
+                : {}),
               // Bounded, actor-scoped, same-category selection happens inside
               // `buildActivationEvidence`; this only supplies the raw list.
               loadClosetItems: async () => {

@@ -136,3 +136,50 @@ export function buildServerStyleDnaProfileBlock(profile: StyleDnaProfileDataV1):
   lines.push('[/Wardrobe Signature Style]');
   return lines.join('\n');
 }
+
+/**
+ * The same authoritative profile, reduced to bounded Commerce ranking tokens.
+ *
+ * WHY THIS EXISTS AND WHAT IT IS NOT. Contextual Commerce ranks candidates
+ * partly on Signature Style, at the smallest weight in the model -- a
+ * tie-break among otherwise suitable options, never a constraint. It needs a
+ * few short descriptors, and the authoritative source for those is the
+ * server-derived profile this module already reads for the prompt. No new
+ * store, no new inference, no second profile, and no extra round trip: the
+ * caller passes the profile it has already loaded for this request.
+ *
+ * COLOURS AND MATERIALS ONLY. Those are the two axes a product title actually
+ * carries, so they are the two that can match. Brands are deliberately left
+ * out: a brand token would tilt ranking toward particular sellers' catalogues
+ * and has nothing to do with retailer neutrality's intent. Garment types are
+ * left out because category agreement is already scored, and repeating it here
+ * would quietly double count it.
+ *
+ * The tokens are aggregate Closet evidence -- frequencies, never item rows --
+ * and carry no ids. They are also UNTRUSTED DATA in the same sense the prompt
+ * block is: each value traces back to a user-entered Closet field.
+ */
+export function buildSignatureStyleCommerceTokens(
+  profile: StyleDnaProfileDataV1 | null | undefined,
+  limit = 6,
+): string[] {
+  if (!profile) return [];
+  const out: string[] = [];
+  const take = (entries: StyleDnaProfileDataV1['colorFrequency'], perAxis: number) => {
+    if (!Array.isArray(entries)) return;
+    let taken = 0;
+    for (const entry of entries) {
+      if (taken >= perAxis || out.length >= limit) return;
+      if (!entry || typeof entry.value !== 'string') continue;
+      // Lowercased, trimmed and bounded: this is a ranking token, and anything
+      // that is not a short word is not one.
+      const token = entry.value.trim().toLowerCase().slice(0, 32);
+      if (!token || !/^[a-z][a-z -]*$/.test(token) || out.includes(token)) continue;
+      out.push(token);
+      taken += 1;
+    }
+  };
+  take(profile.colorFrequency, 3);
+  take(profile.materialFrequency, 3);
+  return out;
+}

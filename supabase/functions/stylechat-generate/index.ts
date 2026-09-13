@@ -24,6 +24,7 @@ import {
   parseStyleDnaContext,
   buildStyleDnaContextBlock,
   buildServerStyleDnaProfileBlock,
+  buildSignatureStyleCommerceTokens,
 } from './styleDnaContext.ts';
 import { getOrRecomputeStyleDnaProfile } from '../_shared/styleDna/styleDnaProfileStore.ts';
 import { parseGenderStylingContext, buildGenderStylingContextBlock } from './genderStylingContext.ts';
@@ -2302,6 +2303,12 @@ Deno.serve(async (req) => {
   const serverStyleDnaBlock = serverStyleDnaProfile
     ? buildServerStyleDnaProfileBlock(serverStyleDnaProfile.profileData)
     : null;
+  // Derived from the SAME already-loaded profile. No extra read, no extra
+  // entitlement check: if the K+ gate above declined, there is no profile here
+  // and this is simply empty.
+  const signatureStyleCommerceTokens = config.flags.commerceActivationV1
+    ? buildSignatureStyleCommerceTokens(serverStyleDnaProfile?.profileData ?? null)
+    : [];
   //
   // NAMING IS LOAD-BEARING HERE. This must not reuse `systemTextWithStyleDna`,
   // the name the client-fed Phase 2 block has carried since before Track B.
@@ -3535,6 +3542,24 @@ Deno.serve(async (req) => {
           needsBudgetReference: shoppingIntentNeedsBudgetReference,
         },
       }
+      : {}),
+    // Build 36 activation: bounded Signature Style tokens for Commerce ranking.
+    //
+    // THE SAME PROFILE THE PROMPT ALREADY USED, read once per request under the
+    // existing K+ entitlement and RLS. Sent only alongside a shopping turn, so a
+    // normal chat turn carries nothing new, and omitted entirely when the
+    // profile is absent -- a customer with no Signature Style gets a response
+    // byte-identical to the one they got before this field existed.
+    //
+    // It travels to the device and back because the Commerce request is served
+    // by a DIFFERENT edge function; re-reading the profile there would be a
+    // second database round trip and a second seam onto the same authority.
+    // The tokens are aggregate frequencies with no ids, they re-enter through
+    // the same untrusted-contribution validator as every other client context,
+    // and SIGNATURE_STYLE is the LOWEST precedence rank in the model -- so a
+    // tampered value cannot override anything the customer actually said.
+    ...(shoppingIntentState && signatureStyleCommerceTokens.length
+      ? { signatureStyleTokens: signatureStyleCommerceTokens }
       : {}),
     attachmentsResolved: resolvedAttachments.length,
     imagesInspected: inspectedImageCount,
