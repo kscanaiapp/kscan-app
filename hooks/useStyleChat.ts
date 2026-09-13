@@ -25,6 +25,12 @@ import { createStyleChatRetryState } from '../services/style-chat/styleChatRetry
 import { classifyStyleChatOperationalFailure } from '../services/style-chat/styleChatOutcome';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { captureActorScope, isActorScopeCurrent } from '../services/actorScope';
+import {
+  parseShoppingIntentWire,
+  runCommerceActivation,
+} from '../services/style-chat/commerceActivation';
+import { fetchDeferredCommerce } from '../services/commerceHydration';
+import { listOwnedClosetItems } from '../services/ownedClosetItems';
 import { useStylistIdentity } from './useStylistIdentity';
 import { useScreenReaderEnabled, useScreenReaderReady } from './useScreenReaderEnabled';
 import { getStylistVoiceProfile } from '../constants/stylistIdentity';
@@ -756,6 +762,16 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
           }
         }
 
+        // ── Build 36 activation ───────────────────────────────────────────
+        //
+        // ORDER IS THE LATENCY DECISION. The optimistic assistant below is
+        // pushed with Elise's prose BEFORE Commerce runs, so first text is not
+        // gated on a provider round trip. The shelf attaches to the same
+        // message when verified results arrive.
+        const shoppingWire = parseShoppingIntentWire(
+          (result as { shoppingIntent?: unknown }).shoppingIntent,
+        );
+
         const optimisticAssistant: StyleChatMessage = {
           id: `optimistic-assistant-${Date.now()}`,
           sessionId,
@@ -772,6 +788,41 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
           createdAt: new Date().toISOString(),
         };
         setMessages(prev => [...prev, optimisticAssistant]);
+
+        // Commerce runs AFTER first paint and only when this turn actually
+        // asked for it. Every failure mode returns a block, never a throw, so
+        // a provider outage degrades the shelf and never the conversation.
+        if (shoppingWire) {
+          const activation = await runCommerceActivation({
+            wire: shoppingWire,
+            actorId,
+            deps: {
+              fetchCommerce: (evidence) => fetchDeferredCommerce(evidence),
+              // Bounded, actor-scoped, same-category selection happens inside
+              // `buildActivationEvidence`; this only supplies the raw list.
+              loadClosetItems: async () => {
+                // The owned-item read is already actor-scoped by RLS through
+                // the authenticated client; nothing here re-derives ownership.
+                const owned = await listOwnedClosetItems();
+                return owned.map((item) => ({
+                  title: item.title,
+                  category: item.category,
+                  color: item.color,
+                  material: item.material,
+                }));
+              },
+            },
+          });
+          if (!isCurrentSend()) return;
+          if (activation.blocks.length) {
+            explanationBlocks.push(...activation.blocks);
+            setMessages(prev =>
+              prev.map(m =>
+                m.id === optimisticAssistant.id ? { ...m, uiBlocks: [...explanationBlocks] } : m,
+              ),
+            );
+          }
+        }
 
         // 5. Persist assistant message; replace optimistic entry.
         const savedAssistant = await saveStyleChatMessage({

@@ -101,6 +101,15 @@ export interface EdgeChatResult {
    */
   weatherContext?: unknown;
   weatherContextVersion?: number;
+  /**
+   * Build 36 activation. Present only when this turn produced a validated
+   * `find_products` action AND the capability is enabled server-side.
+   *
+   * Deliberately `unknown`: it crosses a trust boundary and is validated by
+   * `parseShoppingIntentWire` before anything acts on it. Absence is the
+   * normal case — every non-shopping turn and every pre-activation backend.
+   */
+  shoppingIntent?: unknown;
 }
 
 // ── Safe fallback ─────────────────────────────────────────────────────────────
@@ -638,6 +647,9 @@ export class EdgeStyleChatProvider {
                 : {}),
             }
           : {}),
+        // Passed through unvalidated BY DESIGN and validated at the point of
+        // use, exactly as weatherContext above is.
+        ...(isRecord(data.shoppingIntent) ? { shoppingIntent: data.shoppingIntent } : {}),
       };
 
     } catch (err: unknown) {
