@@ -233,12 +233,93 @@ caller unchanged.
 - Probe: `node tools/activation/seamProbes.js` → `preconditions`
 - Test: `commerceActivationBlocking.test.js :: BLOCK-08` (both cache assertions)
 
+---
+
+# Build 36 continuation — what the activation pass closed
+
+Three seams were connected after this map was first written. Each is recorded
+with the production **call site**, because a module that exports a capability
+and a customer who can reach it are different things, and the gap between them
+is what this pass existed to close.
+
+| Seam | Was | Now | Production call site |
+|---|---|---|---|
+| Signature Style → Commerce context | `NEEDS_ADAPT`, adapter built, **never supplied** | `CONNECTED` | `hooks/useStyleChat.ts` → `loadSignatureStyleTokens` |
+| Confirmed Packing gap → Commerce | `READY`, adapter built, **surface held** | `CONNECTED` | `app/packing/index.tsx` → `buildPackingCommerceHandoff` |
+| Explicit attribute strength → ranking | did not exist | `CONNECTED` | `commerceContextualRanking.ts` → `CTX_STRONG_EXPLICIT_ATTRIBUTE_MATCH` |
+
+`APPROVED_INACTIVE_SURFACES = 0`, asserted rather than claimed: a test reads
+every optional dependency `CommerceActivationDeps` declares and fails if the
+production call site does not supply it. That assertion would have caught the
+Signature Style hole in #410.
+
+## Signature Style — where the tokens actually come from
+
+The client-local Style DNA profile stores engagement **counts** and, by explicit
+design, no descriptors ("no fabricated style traits"). It cannot answer this.
+The profile that can is the server-derived one behind
+`recompute_signature_style()`, which `stylechat-generate` **already loads once
+per request** under the existing K+ entitlement and RLS.
+
+So Commerce reduces that in-hand profile to bounded tokens: colours and
+materials, three per axis, six total. No new store, no new inference, no second
+profile, and **no extra round trip** — asserted by a test that counts the
+`getOrRecomputeStyleDnaProfile` call sites.
+
+Brands and garment types are deliberately excluded. A brand token would tilt
+ranking toward particular sellers' catalogues; a garment type would double count
+the category agreement the ranker already scores.
+
+## Packing — the hold was on the wrong object
+
+#410 held this seam because the only surface considered was **IDEAS TO
+CONSIDER**, which #407 made deliberately inert. Re-reading the rationale
+separated two different things:
+
+- **IDEAS TO CONSIDER** is ungrounded suggestions — "no photograph, no product,
+  no price, no link, nothing to tap". Those rows are not confirmed gaps. They
+  stay completely inert, and #407's test passes **unmodified**.
+- **POSSIBLE GAPS** is where a confirmed gap lives. #405's B4 lane pinned "a gap
+  is not an action" there, alongside "a gap is an unmet requirement, not a sales
+  opportunity" and "a bare Closet cannot become a shopping list". The Build 36
+  owner direction narrows the **first clause only**.
+
+Everything else B4 protected is unchanged and re-asserted by test: the deriver
+still cannot reach a retailer, catalogue, price or product; the client still
+drops any gap arriving with one; the row still has no photograph, no card chrome
+and no price. An **unconfirmed** gap gets no action at all.
+
+## The double count the strength tier exposed
+
+Elise has no scanned garment, so it synthesises an identification from the
+shopping intent and stamps the requested colour into `primary_color` for
+retrieval. The ranker then read that preference a **second time**, as garment
+identity — roughly 65 points across two axes for one stated colour.
+
+Consequences, measured: the strength tier was unreachable (a colour already
+dominated every ordering), and alternatives were pushed down twice for a
+preference expressed once. The ranker now drops `primary_color` only when the
+intent carries that same colour as a `USER_EXPLICIT` field — provably the same
+signal. A scanned colour, or a stated colour that *differs* from the scanned
+garment ("in red instead"), is untouched.
+
 ## Deferred
 
 - `PRECEDENCE_CONSOLIDATION_FOLLOWUP` — precedence rules are stated in #409's
   provenance ranking and echoed in prose in the Elise prompt and the Packing
   gap copy. They agree today; no refactor was attempted in an activation lane.
-- `RANKING_FOLLOWUP_REQUIRED` — "only black" is an explicit *attribute* in #409
-  (+22 match / −18 miss), not a Stage A exclusion, so a non-black option is
-  ranked down rather than removed. Diagnosed per §31 as correct #409 behaviour,
-  documented rather than retuned; changing it is a ranking-weight decision.
+- `RANKING_IDENTIFICATION_DEPTH` — on the Elise path the synthesised
+  identification carries only `item_type` and `subtype`, so every candidate in a
+  category search agrees with it almost equally and a stated colour is the only
+  axis separating them. Strength therefore widens the gap rather than reordering
+  the top slot **on that path**; the ordering differentiation is proved over a
+  Scanner-grade identification in `commerceAttributeStrength.test.js`. Giving
+  Elise a richer identification is a retrieval decision, not a ranking one.
+- `DIFFERENT_BEHAVIOR_FOLLOWUP_REQUIRED` — "show me different shoes" carries no
+  intent signal today: the word sets no field, and the turn is identical to
+  "show me shoes". Showing something *different from what was just shown* needs
+  the shown product identities remembered, and the persisted intent carries
+  prices (for "cheaper") and no product identity. New persisted state is outside
+  this lane, so the behaviour is recorded and left alone.
+- `UNCONFIRMED_GAP_COMMERCE_ACTION = OUT_OF_SCOPE_BY_PRODUCT_DECISION` — not an
+  inactive surface: no adapter, no control and no future hook exists for it.
