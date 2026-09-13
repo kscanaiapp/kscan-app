@@ -110,6 +110,13 @@ import {
 import { runEliseAdvicePipeline } from './eliseAdvicePipeline.ts';
 import { findLatestOutfitState } from './eliseOutfitState.ts';
 import {
+  ELISE_COMMERCE_ACTION_TYPE,
+  ELISE_COMMERCE_INTENT_BLOCK_TYPE,
+  findLatestShoppingIntent,
+  reduceShoppingIntent,
+  type EliseShoppingIntentState,
+} from './eliseCommerceIntent.ts';
+import {
   buildClosetCensus,
   censusLicensesAbsenceClaims,
   CENSUS_ROW_CAP,
@@ -267,6 +274,24 @@ const ATTACHMENT_INSTRUCTIONS = `ATTACHED ITEM CONTEXT RULES:
 Allowed action types: open_stylist, style_anchor_item, style_for_event, restyle_outfit, swap_item, open_look, ask_my_room. Use only ref ids that appear in the Attached block. At most 2 actions. The <actions> tags must wrap valid JSON and appear after your reply text.
 6. Actions are suggestions the user must tap; never state that you already built, saved, shared, or changed anything.
 7. Without verified attachments, do not imply you can see the user's Closet or name specific owned pieces. With verified attachments, discuss only the verified metadata and authorized visual details when multimodal inspection actually occurred.`
+
+/**
+ * Build 36 activation. The ONE thing the model is told about Commerce.
+ *
+ * It proposes a typed request; it never produces a product, a price, or an
+ * availability claim. Those come back from the Commerce path afterwards and
+ * render from structured facts, which is why nothing here invites the model to
+ * describe results it has not seen.
+ */
+const COMMERCE_ACTION_INSTRUCTIONS = `SHOPPING REQUESTS
+When the user asks you to FIND or SHOW them something to buy (e.g. "show me different shoes under $120", "find a rain jacket", "something cheaper", "only black"), reply conversationally in one or two sentences and append an actions block:
+<actions>[{"type":"find_products","shopping":{"category":"shoes","budgetAmount":120,"budgetCurrency":"USD","color":"black","excludeMaterials":["leather"],"clearBudget":false}}]</actions>
+Rules:
+- Include only fields the user actually stated this turn. Omit everything else; a field you invent is dropped.
+- budgetAmount requires budgetCurrency (a 3-letter code). A number with no currency is dropped.
+- Use clearBudget:true when they remove a price limit ("any price is fine"), clearColor:true when they drop a colour.
+- Do NOT name products, prices, brands, retailers, stock or availability. You are asking for options, not providing them; the app fetches and shows the real ones.
+- Do not say you already found, checked, or listed anything.`
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -2102,6 +2127,16 @@ Deno.serve(async (req) => {
       )
     : null;
 
+  // Build 36 activation -- restore the ACTIVE SHOPPING INTENT.
+  //
+  // Same rows, same read, same reasoning as the outfit state above: no extra
+  // query, actor scoping inherited from the RLS-bound select rather than
+  // reimplemented, and ASSISTANT rows only, so a crafted user message cannot
+  // seed a budget or an exclusion the customer never stated.
+  const priorShoppingIntent = findLatestShoppingIntent(
+    (recentMsgs ?? []) as Array<{ sender?: unknown; ui_blocks?: unknown }>,
+  );
+
   // Fetch compact style signals for memory text.
   const [itemsResult, reactionsResult] = await Promise.allSettled([
     userClient
@@ -2697,6 +2732,11 @@ Deno.serve(async (req) => {
         ]
       : []),
     fashionContextBlock,
+    // Appended independently of attachments: a shopping request ("show me
+    // different shoes under $120") needs no attached item, so gating this on
+    // the attachment block would make the capability unreachable exactly when
+    // it is asked for.
+    config.flags.commerceActivationV1 ? COMMERCE_ACTION_INSTRUCTIONS : null,
   ]
     .filter(Boolean)
     .join('\n\n');
@@ -3040,6 +3080,49 @@ Deno.serve(async (req) => {
   if (validatedOutput.actions.length && isV2Request) {
     // Prefer E-2 allowlisted actions when structured grounding/safety paths are active.
     validatedActions = validatedOutput.actions as typeof validatedActions;
+  }
+
+  // ── Build 36 activation: deterministic code owns the shopping intent ───────
+  //
+  // The model PROPOSED typed fields inside the `find_products` action it
+  // emitted in its single pass. The reducer decides what is actually
+  // persisted: it validates against fixed vocabularies, applies precedence,
+  // resets on a new garment category, and returns a NEW state object so the
+  // snapshot this turn publishes is never mutated by the next one.
+  //
+  // Nothing here calls a model, and nothing reads the transcript for a
+  // remembered budget — that is the whole point of persisting the state.
+  // Defence in depth: with the capability off the prompt never mentions the
+  // action, but a model that emits one anyway must not reach the client as a
+  // suggestion nothing will fulfil.
+  if (!config.flags.commerceActivationV1) {
+    validatedActions = validatedActions.filter(
+      (a) => a.type !== ELISE_COMMERCE_ACTION_TYPE,
+    ) as typeof validatedActions;
+  }
+  const commerceAction = config.flags.commerceActivationV1
+    ? validatedActions.find((a) => a.type === ELISE_COMMERCE_ACTION_TYPE)
+    : undefined;
+  let shoppingIntentState: EliseShoppingIntentState | null = null;
+  let shoppingIntentNeedsBudgetReference = false;
+  if (commerceAction) {
+    const reduced = reduceShoppingIntent({
+      previous: priorShoppingIntent,
+      message,
+      payload: commerceAction.payload.shopping ?? null,
+    });
+    shoppingIntentState = reduced.state;
+    shoppingIntentNeedsBudgetReference = reduced.needsBudgetReference;
+    console.log(
+      '[stylechat-generate] commerce_intent reset=%s turns=%d category=%s hasBudget=%s exclusions=%d rejected=%d needsRef=%s',
+      String(reduced.reset),
+      reduced.state.turns,
+      reduced.state.category ?? 'none',
+      String(Boolean(reduced.state.budget)),
+      reduced.state.exclusions.length,
+      reduced.rejected.length,
+      String(reduced.needsBudgetReference),
+    );
   }
 
   // Final safety net: if no usable text survived (e.g. an empty best-effort path),
@@ -3439,6 +3522,18 @@ Deno.serve(async (req) => {
     contractVersion: STYLECHAT_ATTACHMENT_CONTRACT_VERSION,
     capabilities: ['attachments', 'structured_actions'],
     actions: validatedActions,
+    // Build 36 activation. The client persists this verbatim as a
+    // `commerce_shopping_intent` ui_block and uses it to build the Commerce
+    // request; the server reads it back next turn. State, never presentation.
+    ...(shoppingIntentState
+      ? {
+        shoppingIntent: {
+          blockType: ELISE_COMMERCE_INTENT_BLOCK_TYPE,
+          state: shoppingIntentState,
+          needsBudgetReference: shoppingIntentNeedsBudgetReference,
+        },
+      }
+      : {}),
     attachmentsResolved: resolvedAttachments.length,
     imagesInspected: inspectedImageCount,
     ...(activeContext?.visualCollection?.evidence.length
