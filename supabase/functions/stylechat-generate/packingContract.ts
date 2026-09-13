@@ -58,7 +58,39 @@ export const PACKING_LIMITS = {
   maxOutfits: 8,
   maxPackedItems: 24,
   maxItemsPerOutfit: 6,
+  /** Build 35. Occasions a single day may carry (daytime + dinner + night out). */
+  maxActivitiesPerDay: 3,
+  /**
+   * Build 35. Days planned look-by-look. Longer trips repeat the first week's
+   * looks on later days, and the plan SAYS so -- see packingTripPlanner.ts.
+   */
+  maxPlannedDays: 7,
+  /** Build 35. Hard bound on day/occasion slots the model is asked to fill. */
+  maxSlots: 21,
+  maxRefinementChars: 300,
 } as const;
+
+/**
+ * Build 35 -- trip-level planner generation. Carried on the plan and its state
+ * so a client can tell a day-by-day plan from a V1 occasion list without
+ * guessing from which fields happen to be present.
+ */
+export const PACKING_PLANNER_VERSION = 2;
+
+/**
+ * Conditions the TRAVELLER stated ("it's going to rain"). Deliberately not a
+ * weather source: nothing here geocodes, forecasts or reads the device's own
+ * location. A condition is a trip requirement the traveller told us about.
+ */
+export const PACKING_CONDITIONS = ['rain', 'snow', 'cold', 'hot'] as const;
+export type PackingCondition = (typeof PACKING_CONDITIONS)[number];
+
+export interface PackingDaySchedule {
+  /** 0-based offset from startDate. */
+  dayIndex: number;
+  date: string;
+  activities: PackingActivity[];
+}
 
 export const PACKING_TRIP_TYPES = [
   'leisure',
@@ -113,6 +145,15 @@ export interface PackingTripInput {
   tripType: PackingTripType;
   activities: PackingActivity[];
   note: string | null;
+  /**
+   * Build 35. One entry per trip day, each with its own occasions. Optional on
+   * the type so a V1 caller that never sent a schedule still type-checks; the
+   * planner derives one (and says it did) when this is absent.
+   */
+  schedule?: PackingDaySchedule[];
+  scheduleSource?: 'explicit' | 'derived';
+  /** Build 35. Conditions the traveller stated. Never a forecast. */
+  conditions?: PackingCondition[];
 }
 
 export interface PackingConstraints {
@@ -121,6 +162,22 @@ export interface PackingConstraints {
   packLight: boolean;
   /** Free-text refinement constraints ("no heels"). Untrusted data. */
   notes: string[];
+  /** Build 35. "Only from my Closet" -- no external suggestion of any kind. */
+  ownedOnly?: boolean;
+}
+
+/**
+ * Build 35. A refinement of the plan currently on screen.
+ *
+ * `resolvedItemId` is the traveller's answer to a clarification ("which
+ * blazer?"). It is a REQUEST, honoured only when the id is part of the prior
+ * plan AND re-resolves against this actor's freshly retrieved Closet.
+ */
+export interface PackingRefinementRequest {
+  message: string;
+  resolvedItemId: string | null;
+  /** The traveller's answer to "which Friday?" -- an ISO date inside the trip. */
+  resolvedDate?: string | null;
 }
 
 export interface ParsedPackingRequest {
@@ -128,6 +185,20 @@ export interface ParsedPackingRequest {
   sessionId: string;
   trip: PackingTripInput;
   constraints: PackingConstraints;
+  /**
+   * Build 35. 2 selects the day-by-day trip planner. Absent or anything else is
+   * the V1 occasion list, byte-for-byte -- a client that never asked for a
+   * planned trip never receives one.
+   */
+  plannerVersion?: 1 | 2;
+  refinement?: PackingRefinementRequest | null;
+  /**
+   * Build 35. The structured plan state the client holds, UNPARSED. It
+   * round-trips through the device and is untrusted: packingPlanState.ts
+   * validates it and re-verifies every id against this actor's own Closet
+   * before any of it can influence a plan.
+   */
+  priorState?: unknown;
 }
 
 export interface RejectedPackingRequest {
@@ -272,6 +343,43 @@ export function parsePackingRequest(body: unknown): ParsedPackingRequest | Rejec
     if (constraintNotes.length >= PACKING_LIMITS.maxConstraintNotes) break;
   }
 
+  const note = boundedText(trip.note, PACKING_LIMITS.maxNoteChars);
+  const explicitSchedule = parseExplicitSchedule(trip.schedule, start.ms, nights);
+  const schedule = explicitSchedule ?? derivePackingSchedule({
+    startDate: start.iso,
+    nights,
+    activities,
+    tripType,
+  });
+
+  const conditions: PackingCondition[] = [];
+  const rawConditions = Array.isArray(trip.conditions) ? trip.conditions : [];
+  for (const entry of rawConditions) {
+    if (typeof entry !== 'string') continue;
+    if (!(PACKING_CONDITIONS as readonly string[]).includes(entry)) continue;
+    if (!conditions.includes(entry as PackingCondition)) conditions.push(entry as PackingCondition);
+  }
+  for (const stated of [note, ...constraintNotes]) {
+    for (const condition of readStatedConditions(stated)) {
+      if (!conditions.includes(condition)) conditions.push(condition);
+    }
+  }
+
+  const rawRefinement = isRecord(body.refinement) ? body.refinement : null;
+  const refinementMessage = rawRefinement
+    ? boundedText(rawRefinement.message, PACKING_LIMITS.maxRefinementChars)
+    : null;
+  const resolvedItemId =
+    rawRefinement && typeof rawRefinement.resolvedItemId === 'string' &&
+      UUID_RE.test(rawRefinement.resolvedItemId)
+      ? rawRefinement.resolvedItemId.toLowerCase()
+      : null;
+  const resolvedDateParsed = rawRefinement ? parseCalendarDate(rawRefinement.resolvedDate) : null;
+  const resolvedDate =
+    resolvedDateParsed && resolvedDateParsed.ms >= start.ms && resolvedDateParsed.ms <= end.ms
+      ? resolvedDateParsed.iso
+      : null;
+
   return {
     ok: true,
     sessionId,
@@ -282,12 +390,120 @@ export function parsePackingRequest(body: unknown): ParsedPackingRequest | Rejec
       nights,
       tripType,
       activities,
-      note: boundedText(trip.note, PACKING_LIMITS.maxNoteChars),
+      note,
+      schedule,
+      scheduleSource: explicitSchedule ? 'explicit' : 'derived',
+      conditions,
     },
     constraints: {
       excludeItemIds,
       packLight: rawConstraints.packLight === true,
       notes: constraintNotes,
+      ownedOnly: rawConstraints.ownedOnly === true,
     },
+    plannerVersion: body.plannerVersion === PACKING_PLANNER_VERSION ? 2 : 1,
+    refinement: refinementMessage ? { message: refinementMessage, resolvedItemId, resolvedDate } : null,
+    // Passed through UNPARSED on purpose: only packingPlanState.ts, holding the
+    // actor's freshly retrieved Closet, is allowed to decide what survives.
+    priorState: isRecord(body.priorState) ? body.priorState : null,
   };
+}
+
+function isoDayOffset(startMs: number, dayIndex: number): string {
+  return new Date(startMs + dayIndex * MS_PER_DAY).toISOString().slice(0, 10);
+}
+
+function dedupeActivities(values: unknown): PackingActivity[] {
+  const out: PackingActivity[] = [];
+  if (!Array.isArray(values)) return out;
+  for (const entry of values) {
+    if (typeof entry !== 'string') continue;
+    if (!(PACKING_ACTIVITIES as readonly string[]).includes(entry)) continue;
+    if (out.includes(entry as PackingActivity)) continue;
+    out.push(entry as PackingActivity);
+    if (out.length >= PACKING_LIMITS.maxActivitiesPerDay) break;
+  }
+  return out;
+}
+
+/**
+ * A schedule the traveller built day by day. Entries outside the trip's own
+ * dates are DROPPED -- a Saturday dinner on a trip that ends Friday is not a
+ * requirement of this trip. A day left without any occasion keeps an empty
+ * list here and is given a daytime look by the planner, which says so.
+ */
+function parseExplicitSchedule(
+  value: unknown,
+  startMs: number,
+  nights: number,
+): PackingDaySchedule[] | null {
+  if (!Array.isArray(value) || value.length === 0) return null;
+  const days: PackingDaySchedule[] = [];
+  for (let dayIndex = 0; dayIndex <= nights; dayIndex += 1) {
+    days.push({ dayIndex, date: isoDayOffset(startMs, dayIndex), activities: [] });
+  }
+  let accepted = 0;
+  for (const entry of value) {
+    if (!isRecord(entry)) continue;
+    const parsed = parseCalendarDate(entry.date);
+    if (!parsed) continue;
+    const dayIndex = Math.round((parsed.ms - startMs) / MS_PER_DAY);
+    if (dayIndex < 0 || dayIndex > nights) continue;
+    days[dayIndex].activities = dedupeActivities(entry.activities);
+    accepted += 1;
+  }
+  return accepted > 0 ? days : null;
+}
+
+/**
+ * The schedule when the traveller named occasions for the whole trip but not
+ * per day. Travel sits on the first and last day only; every other chosen
+ * occasion is assumed to recur daily. packingHandler surfaces this assumption
+ * in the plan, so a derived schedule is never presented as the traveller's own.
+ */
+export function derivePackingSchedule(input: {
+  startDate: string;
+  nights: number;
+  activities: PackingActivity[];
+  tripType: PackingTripType;
+}): PackingDaySchedule[] {
+  const startMs = Date.parse(`${input.startDate}T00:00:00Z`);
+  const daily = input.activities.filter((activity) => activity !== 'travel_day');
+  const travels = input.activities.includes('travel_day');
+  const fallback: PackingActivity = input.tripType === 'business' ? 'work' : 'casual_day';
+  const days: PackingDaySchedule[] = [];
+  for (let dayIndex = 0; dayIndex <= input.nights; dayIndex += 1) {
+    const edge = dayIndex === 0 || dayIndex === input.nights;
+    const activities: PackingActivity[] = [];
+    if (travels && edge) activities.push('travel_day');
+    for (const activity of daily) {
+      if (activities.length >= PACKING_LIMITS.maxActivitiesPerDay) break;
+      activities.push(activity);
+    }
+    if (activities.length === 0) activities.push(fallback);
+    days.push({ dayIndex, date: isoDayOffset(startMs, dayIndex), activities });
+  }
+  return days;
+}
+
+const CONDITION_PATTERNS: Array<[PackingCondition, RegExp, RegExp]> = [
+  ['rain', /\b(?:rain|rainy|raining|showers|downpours?|wet weather)\b/i, /\b(?:no|not|without)\s+(?:\w+\s+){0,2}(?:rain|showers)\b/i],
+  ['snow', /\b(?:snow|snowy|snowing|blizzard)\b/i, /\b(?:no|not|without)\s+(?:\w+\s+){0,2}snow\b/i],
+  ['cold', /\b(?:cold|freezing|chilly|below zero)\b/i, /\b(?:no|not)\s+(?:\w+\s+){0,2}cold\b/i],
+  ['hot', /\b(?:hot|heatwave|heat wave|humid|scorching)\b/i, /\b(?:no|not)\s+(?:\w+\s+){0,2}hot\b/i],
+];
+
+/**
+ * Conditions the traveller wrote down in their own words. Literal matching,
+ * negation-aware ("no rain expected" states no rain). This reads what the
+ * traveller SAID about the destination; it is never a forecast and never the
+ * weather where the phone currently is.
+ */
+export function readStatedConditions(text: string | null): PackingCondition[] {
+  if (!text) return [];
+  const found: PackingCondition[] = [];
+  for (const [condition, positive, negative] of CONDITION_PATTERNS) {
+    if (positive.test(text) && !negative.test(text)) found.push(condition);
+  }
+  return found;
 }

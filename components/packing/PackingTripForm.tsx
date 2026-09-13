@@ -9,22 +9,69 @@
 // they drive deterministic coverage on the server. The free-text note exists
 // for everything the chips cannot say, and is treated as data end to end.
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { PrimaryButton } from '../luxury';
 import {
   PACKING_ACTIVITIES,
   PACKING_ACTIVITY_LABELS,
+  PACKING_MAX_ACTIVITIES_PER_DAY,
   PACKING_TRIP_TYPES,
   PACKING_TRIP_TYPE_LABELS,
   type PackingActivity,
+  type PackingDayScheduleDraft,
   type PackingTripDraft,
   type PackingTripType,
 } from '../../types/packing';
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_NIGHTS = 30;
+/** Day-by-day editing is offered for trips a person would plan per day. */
+const MAX_EDITABLE_DAYS = 14;
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/** Every calendar date of the trip, or [] while the dates are not valid yet. */
+export function tripDates(startDate: string, endDate: string): string[] {
+  if (!ISO_DATE_RE.test(startDate) || !ISO_DATE_RE.test(endDate)) return [];
+  const start = Date.parse(`${startDate}T00:00:00Z`);
+  const end = Date.parse(`${endDate}T00:00:00Z`);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return [];
+  const days = Math.round((end - start) / 86_400_000) + 1;
+  if (days > MAX_EDITABLE_DAYS) return [];
+  return Array.from({ length: days }, (_, index) =>
+    new Date(start + index * 86_400_000).toISOString().slice(0, 10),
+  );
+}
+
+/**
+ * The same default the server derives (packingContract.derivePackingSchedule):
+ * travel on the first and last day, every other chosen occasion daily. Showing
+ * it here means the traveller edits the plan's real assumption, not a guess.
+ */
+export function defaultDaySchedule(
+  dates: string[],
+  activities: PackingActivity[],
+  tripType: PackingTripType,
+): PackingDayScheduleDraft[] {
+  const daily = activities.filter((activity) => activity !== 'travel_day');
+  const travels = activities.includes('travel_day');
+  const fallback: PackingActivity = tripType === 'business' ? 'work' : 'casual_day';
+  return dates.map((date, index) => {
+    const edge = index === 0 || index === dates.length - 1;
+    const day: PackingActivity[] = travels && edge ? ['travel_day'] : [];
+    for (const activity of daily) {
+      if (day.length >= PACKING_MAX_ACTIVITIES_PER_DAY) break;
+      day.push(activity);
+    }
+    return { date, activities: day.length > 0 ? day : [fallback] };
+  });
+}
+
+function shortDate(date: string): string {
+  const parsed = new Date(`${date}T00:00:00Z`);
+  return `${WEEKDAYS[parsed.getUTCDay()]} ${parsed.getUTCDate()}`.toUpperCase();
+}
 
 export function validateTripDraft(draft: PackingTripDraft): string | null {
   if (!draft.destination.trim()) return 'Where are you going?';
@@ -63,11 +110,48 @@ export function PackingTripForm({
   const [activities, setActivities] = useState<PackingActivity[]>(initial?.activities ?? []);
   const [note, setNote] = useState(initial?.note ?? '');
   const [error, setError] = useState<string | null>(null);
+  const [perDay, setPerDay] = useState(Boolean(initial?.schedule?.length));
+  const [schedule, setSchedule] = useState<PackingDayScheduleDraft[]>(initial?.schedule ?? []);
+
+  const dates = useMemo(() => tripDates(startDate, endDate), [startDate, endDate]);
+
+  // Keep the per-day editor aligned with the dates: a day the traveller already
+  // edited keeps its occasions; a new day starts from the shared default.
+  useEffect(() => {
+    if (!perDay) return;
+    setSchedule((current) => {
+      const defaults = defaultDaySchedule(dates, activities, tripType);
+      return defaults.map((day) => current.find((entry) => entry.date === day.date) ?? day);
+    });
+  }, [perDay, dates, activities, tripType]);
 
   const draft = useMemo<PackingTripDraft>(
-    () => ({ destination, startDate, endDate, tripType, activities, note }),
-    [destination, startDate, endDate, tripType, activities, note],
+    () => ({
+      destination,
+      startDate,
+      endDate,
+      tripType,
+      activities,
+      note,
+      ...(perDay && dates.length > 0
+        ? { schedule: schedule.filter((day) => dates.includes(day.date)) }
+        : {}),
+    }),
+    [destination, startDate, endDate, tripType, activities, note, perDay, dates, schedule],
   );
+
+  const toggleDayActivity = (date: string, activity: PackingActivity) => {
+    setSchedule((current) =>
+      current.map((day) => {
+        if (day.date !== date) return day;
+        if (day.activities.includes(activity)) {
+          return { ...day, activities: day.activities.filter((entry) => entry !== activity) };
+        }
+        if (day.activities.length >= PACKING_MAX_ACTIVITIES_PER_DAY) return day;
+        return { ...day, activities: [...day.activities, activity] };
+      }),
+    );
+  };
 
   const toggleActivity = (activity: PackingActivity) => {
     setActivities((current) =>
@@ -155,6 +239,42 @@ export function PackingTripForm({
           />
         ))}
       </View>
+
+      {dates.length > 0 ? (
+        // Build 35. Optional: without it the server assumes each day follows
+        // the occasions above and says so in the plan. With it, a Saturday can
+        // be sightseeing AND a formal dinner, and both get a look.
+        <View testID="packing-day-planner">
+          <Pressable
+            onPress={() => setPerDay((value) => !value)}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: perDay }}
+            accessibilityLabel="Plan each day separately"
+            testID="packing-per-day-toggle"
+            style={styles.perDayToggle}
+          >
+            <Text style={styles.label}>{perDay ? 'DAY BY DAY ✓' : 'PLAN EACH DAY (OPTIONAL)'}</Text>
+          </Pressable>
+          {perDay
+            ? schedule.map((day) => (
+                <View key={day.date} style={styles.dayRow} testID={`packing-day-${day.date}`}>
+                  <Text style={styles.dayLabel}>{shortDate(day.date)}</Text>
+                  <View style={[styles.chipRow, styles.dayChips]}>
+                    {PACKING_ACTIVITIES.map((activity) => (
+                      <Chip
+                        key={activity}
+                        label={PACKING_ACTIVITY_LABELS[activity]}
+                        selected={day.activities.includes(activity)}
+                        onPress={() => toggleDayActivity(day.date, activity)}
+                        testID={`packing-day-${day.date}-${activity}`}
+                      />
+                    ))}
+                  </View>
+                </View>
+              ))
+            : null}
+        </View>
+      ) : null}
 
       <Text style={styles.label}>ANYTHING ELSE? (OPTIONAL)</Text>
       <TextInput
@@ -275,5 +395,20 @@ const styles = StyleSheet.create({
   },
   cta: {
     marginTop: SPACING.xl,
+  },
+  perDayToggle: {
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  dayRow: {
+    marginBottom: SPACING.md,
+  },
+  dayLabel: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.stone,
+    marginBottom: SPACING.xs,
+  },
+  dayChips: {
+    gap: SPACING.xs,
   },
 });

@@ -61,6 +61,15 @@ export const PACKING_TRIP_TYPE_LABELS: Record<PackingTripType, string> = {
 
 export type PackingWeatherProvenance = 'FORECAST' | 'SEASONAL' | 'UNAVAILABLE';
 
+/** Build 35. The day-by-day trip planner the client asks the server for. */
+export const PACKING_PLANNER_VERSION = 2;
+export const PACKING_MAX_ACTIVITIES_PER_DAY = 3;
+
+export interface PackingDayScheduleDraft {
+  date: string;
+  activities: PackingActivity[];
+}
+
 export interface PackingTripDraft {
   destination: string;
   startDate: string;
@@ -68,6 +77,64 @@ export interface PackingTripDraft {
   tripType: PackingTripType;
   activities: PackingActivity[];
   note: string;
+  /**
+   * Build 35. Occasions per day, when the traveller set them. Absent means the
+   * server derives a schedule and says so in the plan's assumptions.
+   */
+  schedule?: PackingDayScheduleDraft[];
+}
+
+export type PackingSlotCoverage = 'covered' | 'unconfirmed' | 'uncovered';
+
+export interface PackingPlanDaySlot {
+  slotId: string;
+  activity: PackingActivity;
+  formalityShift: 'less_formal' | 'more_formal' | null;
+  label: string;
+  outfitId: string | null;
+  coverage: PackingSlotCoverage;
+  missing: string[];
+  /** The traveller asked to keep this look exactly as it is. */
+  pinned: boolean;
+  /** A later day re-wearing an earlier look. */
+  repeatsSlotId: string | null;
+}
+
+export interface PackingPlanDay {
+  dayIndex: number;
+  date: string;
+  label: string;
+  slots: PackingPlanDaySlot[];
+}
+
+/** A packed-elsewhere piece the planner decided can stay home. */
+export interface PackingLeftHomeItem {
+  itemId: string;
+  title: string;
+  coveredByItemId: string | null;
+  coveredByTitle: string | null;
+}
+
+/**
+ * NOT OWNED. A category-level idea for a confirmed gap, shown only when the
+ * traveller asked to shop. No item id, no product, no price, no link -- and the
+ * relationship is fixed so it can never be rendered as something packed.
+ */
+export interface PackingExternalSuggestion {
+  gapCode: string;
+  label: string;
+  relationship: 'external';
+}
+
+export interface PackingClarificationOption {
+  kind: 'item' | 'day';
+  value: string;
+  label: string;
+}
+
+export interface PackingClarification {
+  question: string;
+  options: PackingClarificationOption[];
 }
 
 export interface PackingPlanItem {
@@ -83,6 +150,8 @@ export interface PackingPlanItem {
   /** Server-derived Closet fact ('Your only outer layer'), never a model claim. */
   scarcitySignal: string | null;
   usedInOutfits: number;
+  /** Build 35. Only `owned` can ever be packed; the parser drops anything else. */
+  ownership?: 'owned';
 }
 
 export interface PackingPlanOutfit {
@@ -91,6 +160,9 @@ export interface PackingPlanOutfit {
   activity: PackingActivity | null;
   itemIds: string[];
   reason: string | null;
+  slotId?: string;
+  date?: string;
+  coverage?: PackingSlotCoverage;
 }
 
 /**
@@ -102,6 +174,8 @@ export interface PackingGap {
   code: string;
   label: string;
   rationale: string;
+  /** Build 35. `unconfirmed` means "I can't tell", never "you don't have". */
+  certainty?: 'confirmed' | 'unconfirmed';
 }
 
 export interface PackingPlanWeather {
@@ -144,6 +218,18 @@ export interface PackingPlan {
     shoes: number;
     gaps: number;
   };
+  /** Build 35 planner fields. All optional: a V1 plan has none of them. */
+  plannerVersion?: 2;
+  days?: PackingPlanDay[];
+  notes?: string[];
+  leftHome?: PackingLeftHomeItem[];
+  considerBuying?: PackingExternalSuggestion[];
+  /**
+   * Opaque structured plan state. The client stores it and hands it back on
+   * the next refinement; it never reads ownership from it, and the server
+   * re-verifies every id in it against the actor's Closet.
+   */
+  state?: Record<string, unknown> | null;
 }
 
 export interface PackingGeneralGuideSection {
@@ -171,4 +257,6 @@ export interface PackingResult {
   errorCode: string | null;
   /** True when retrying the same trip is worth offering. */
   retryable: boolean;
+  /** Build 35. A question the traveller must answer before anything changes. */
+  clarification?: PackingClarification | null;
 }

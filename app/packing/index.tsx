@@ -292,6 +292,25 @@ export default function PackingScreen() {
                       />
                     ) : null}
                   </View>
+                  {isActive && packing.clarification ? (
+                    // Build 35 (ADD-14). The server asked before changing
+                    // anything -- "which blazer?". Each option re-sends the
+                    // same refinement with the traveller's choice; nothing on
+                    // screen changes until one is picked.
+                    <View style={styles.clarifyBlock} testID="packing-clarification">
+                      <Text style={styles.refineLabel}>{packing.clarification.question.toUpperCase()}</Text>
+                      {packing.clarification.options.map((option) => (
+                        <SecondaryButton
+                          key={`${option.kind}-${option.value}`}
+                          title={option.label.toUpperCase()}
+                          onPress={() => void packing.answerClarification(option)}
+                          disabled={busy}
+                          style={styles.clarifyOption}
+                          testID={`packing-clarify-${option.value}`}
+                        />
+                      ))}
+                    </View>
+                  ) : null}
                   {isActive ? (
                     // REFINE WITH ELISE. One Elise, one plan: the sentence goes
                     // to the same generation path everything else does, and the
@@ -415,6 +434,12 @@ const styles = StyleSheet.create({
   },
   refineBlock: {
     marginTop: SPACING.xl,
+  },
+  clarifyBlock: {
+    marginTop: SPACING.xl,
+  },
+  clarifyOption: {
+    marginTop: SPACING.sm,
   },
   refineLabel: {
     ...LUXURY.typography.sectionLabel,

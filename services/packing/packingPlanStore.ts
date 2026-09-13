@@ -33,7 +33,12 @@
 // clearing on the auth boundary (resetPackingPlanState, wired into
 // AuthSessionContext) is the primary mechanism, and this is the backstop.
 
-import type { PackingGeneralGuide, PackingPlan, PackingTripDraft } from '../../types/packing';
+import type {
+  PackingClarification,
+  PackingGeneralGuide,
+  PackingPlan,
+  PackingTripDraft,
+} from '../../types/packing';
 import { clearAllCachedPackingPlans } from './packingPlanCache';
 
 export interface PackingSnapshot {
@@ -61,6 +66,13 @@ export interface PackingSnapshot {
   restoredFrom: number | null;
   /** Item ids the traveller has ticked off. Device-local; never sent anywhere. */
   packedOff: string[];
+  /**
+   * Build 35. A question the server asked before changing anything ("which
+   * blazer?"). Cleared by the next plan. The refinement it belongs to is kept
+   * so an answer can re-send it with the chosen option.
+   */
+  clarification: PackingClarification | null;
+  pendingRefinement: string | null;
 }
 
 const EMPTY: PackingSnapshot = {
@@ -78,6 +90,8 @@ const EMPTY: PackingSnapshot = {
   retryable: false,
   restoredFrom: null,
   packedOff: [],
+  clarification: null,
+  pendingRefinement: null,
 };
 
 let snapshot: PackingSnapshot = EMPTY;
@@ -142,23 +156,42 @@ export function applyPackingPlan(input: {
   actorId: string;
   plan: PackingPlan;
   message: string;
+  clarification?: PackingClarification | null;
+  pendingRefinement?: string | null;
 }): void {
+  const previous = getPackingSnapshotFor(input.actorId);
+  // Build 35. A look the server kept unchanged comes back with the same
+  // outfit id but no reason (the reason is prose, and state carries none).
+  // Keep the reason the traveller already read for that exact look.
+  const reasons = new Map((previous.plan?.outfits ?? []).map((outfit) => [outfit.outfitId, outfit.reason]));
+  const plan: PackingPlan = {
+    ...input.plan,
+    outfits: input.plan.outfits.map((outfit) =>
+      outfit.reason ? outfit : { ...outfit, reason: reasons.get(outfit.outfitId) ?? null },
+    ),
+  };
+  // Ticks survive a refinement for pieces still packed; a new trip starts clean.
+  const sameTrip =
+    previous.plan?.state && plan.state && previous.plan.state.tripId === plan.state.tripId;
+  const stillPacked = new Set(plan.packedItems.map((item) => item.itemId));
   update(input.actorId, {
-    plan: input.plan,
+    clarification: input.clarification ?? null,
+    pendingRefinement: input.clarification ? input.pendingRefinement ?? null : null,
+    plan,
     generalGuide: null,
     message: input.message,
     status: 'ready',
     errorCode: null,
     retryable: false,
     // The plan the server returned is now the authority for what is excluded.
-    excludedItemIds: input.plan.constraints.excludedItemIds,
-    constraintNotes: input.plan.constraints.notes,
-    packLight: input.plan.constraints.packLight,
-    // A freshly generated plan is not a restored one, and its checklist starts
-    // empty: ticks belonged to the plan they were made against, and this is a
-    // different plan with different items.
+    excludedItemIds: plan.constraints.excludedItemIds,
+    constraintNotes: plan.constraints.notes,
+    packLight: plan.constraints.packLight,
+    // A freshly generated plan is not a restored one. Its checklist starts
+    // empty unless it is a refinement of the SAME trip's plan, where a tick on a
+    // piece that is still packed still describes the traveller's suitcase.
     restoredFrom: null,
-    packedOff: [],
+    packedOff: sameTrip ? previous.packedOff.filter((id) => stillPacked.has(id)) : [],
   });
 }
 

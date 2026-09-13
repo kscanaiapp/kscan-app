@@ -1147,6 +1147,13 @@ Deno.serve(async (req) => {
     // anything decided after an await (a Closet round trip, the daily
     // charge, Signature Style) is exactly how a lapsed entitlement gets
     // treated as still active.
+    // One Signature Style read per request, shared by the prompt block and the
+    // planner signal. Lazy: nothing calls it until the handler has passed both
+    // K+ checks and readiness. This caches a PROFILE, never an entitlement.
+    let packingStyleDnaProfile: ReturnType<typeof getOrRecomputeStyleDnaProfile> | null = null;
+    const loadPackingStyleDnaProfile = () =>
+      (packingStyleDnaProfile ??= getOrRecomputeStyleDnaProfile({ supabase: userClient }));
+
     const packingResult = await handlePackingRequest({
       request: parsedPacking,
       requestId,
@@ -1194,9 +1201,27 @@ Deno.serve(async (req) => {
       resolveSignatureStyleBlock: async () => {
         if (!config.flags.closetWardrobeContextV1) return null;
         try {
-          const profileResult = await getOrRecomputeStyleDnaProfile({ supabase: userClient });
+          const profileResult = await loadPackingStyleDnaProfile();
           if (!profileResult.ok || !profileResult.profile) return null;
           return buildServerStyleDnaProfileBlock(profileResult.profile.profileData);
+        } catch {
+          return null;
+        }
+      },
+      // Build 35. The same profile, read once per request, reduced to its most
+      // frequent colours for the planner's deterministic tie-break.
+      resolveSignatureStyleSignals: async () => {
+        if (!config.flags.closetWardrobeContextV1) return null;
+        try {
+          const profileResult = await loadPackingStyleDnaProfile();
+          if (!profileResult.ok || !profileResult.profile) return null;
+          const entries = profileResult.profile.profileData?.colorFrequency;
+          if (!Array.isArray(entries)) return null;
+          const frequentColors = entries
+            .slice(0, 3)
+            .map((entry) => (entry && typeof entry.value === 'string' ? entry.value : ''))
+            .filter(Boolean);
+          return frequentColors.length > 0 ? { frequentColors } : null;
         } catch {
           return null;
         }

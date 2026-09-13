@@ -58,6 +58,10 @@ import {
   renderGeneralModeMessage,
   type PackingGeneralGuide,
 } from './packingGeneralMode.ts';
+import { inferColorFamilies } from './eliseFashionFeatures.ts';
+import { runPackingPlannerV2 } from './packingPlannerHandler.ts';
+import type { PackingClarification } from './packingRefinementIntent.ts';
+import type { PackingColorPreference } from './packingGarmentFacts.ts';
 
 export type PackingStatus =
   | 'success'
@@ -74,6 +78,8 @@ export interface PackingResponseBody {
   plan: PackingPlan | null;
   generalGuide: PackingGeneralGuide | null;
   errorCode?: string;
+  /** Build 35. "Which blazer do you mean?" -- nothing changed until answered. */
+  clarification?: PackingClarification | null;
 }
 
 /**
@@ -159,6 +165,13 @@ export interface PackingHandlerDeps {
    * caller with no Signature Style authority to offer may omit this entirely.
    */
   resolveSignatureStyleBlock?: () => Promise<string | null>;
+  /**
+   * Build 35. The Signature Style profile's most frequent Closet colours, as a
+   * deterministic SELECTION SIGNAL for the planner (never a constraint, never a
+   * Closet fact). Same laziness rule as the block above: called only after both
+   * K+ checks and readiness have passed, and only on the planner path.
+   */
+  resolveSignatureStyleSignals?: () => Promise<{ frequentColors: string[] } | null>;
   /** B2M passes nothing; B3 injects the resolver. Absent means UNAVAILABLE. */
   resolveWeather?: () => Promise<PackingWeatherPromptContext | null>;
   /**
@@ -402,6 +415,53 @@ export async function handlePackingRequest(deps: PackingHandlerDeps): Promise<Pa
     }
   }
   telemetry.signatureStyleApplied = Boolean(signatureStyleBlock);
+
+  // ── 5c. Build 35 day-by-day planner, only when the client asked for it ────
+  // Every gate above has already run, in the same order. The planner path
+  // reserves quota itself, immediately before its one (optional) model call.
+  if (deps.request.plannerVersion === 2) {
+    let signatureColor: PackingColorPreference | null = null;
+    if (deps.resolveSignatureStyleSignals) {
+      try {
+        const signals = await deps.resolveSignatureStyleSignals();
+        const families = inferColorFamilies((signals?.frequentColors ?? []).slice(0, 3));
+        signatureColor = families.length > 0 ? { families, tokens: [] } : null;
+      } catch {
+        signatureColor = null;
+      }
+    }
+    telemetry.signatureStyleApplied = Boolean(signatureStyleBlock) || Boolean(signatureColor);
+    const outcome = await runPackingPlannerV2({
+      request: deps.request,
+      planId: deps.makePlanId ? deps.makePlanId() : `plan-${deps.requestId}`,
+      retrieval,
+      selection,
+      weather,
+      weatherPrompt,
+      signatureStyleBlock,
+      signatureColor,
+      telemetry,
+      reserveDailyGeneration: deps.reserveDailyGeneration,
+      callProvider: deps.callProvider,
+      now,
+    });
+    telemetry.event = outcome.body.status === 'success' ? 'packing_generated' : 'packing_failed';
+    return finish(
+      outcome.httpStatus,
+      {
+        status: outcome.body.status,
+        contractVersion: PACKING_CONTRACT_VERSION,
+        requestId: deps.requestId,
+        message: outcome.body.message,
+        plan: outcome.body.plan,
+        generalGuide: null,
+        clarification: outcome.body.clarification,
+        ...(outcome.body.errorCode ? { errorCode: outcome.body.errorCode } : {}),
+      },
+      telemetry,
+      outcome.providerInvoked,
+    );
+  }
 
   // ── 6. Bounded fashion reasoning ──────────────────────────────────────────
   const userPrompt = buildPackingUserPrompt({
