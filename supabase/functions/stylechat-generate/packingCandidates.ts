@@ -19,6 +19,8 @@
 // best remaining items.
 
 import type { EliseWardrobeCandidate } from './eliseAdviceTypes.ts';
+import { packingGarmentClassesOf as candidateGarmentClasses } from './packingGarmentFacts.ts';
+import { matchesColorPreference, type PackingColorPreference } from './packingGarmentFacts.ts';
 import {
   PACKING_LIMITS,
   type PackingActivity,
@@ -184,11 +186,33 @@ export function resolveRequiredRoles(trip: PackingTripInput): PackingLayeringRol
   return roles;
 }
 
+/**
+ * Build 35 selection signals (ADD-03). NOT constraints: they only reorder items
+ * competing for the same role. An explicit traveller instruction outweighs the
+ * inferred Signature Style, which outweighs the neutral-versatility heuristic.
+ */
+export interface PackingSelectionSignals {
+  explicitColor?: PackingColorPreference | null;
+  signatureColor?: PackingColorPreference | null;
+  /** Rejected for this trip: removed exactly like an exclusion. */
+  rejectedItemIds?: Set<string>;
+  rejectedClasses?: Set<string>;
+}
+
+function signalScore(candidate: EliseWardrobeCandidate, signals: PackingSelectionSignals | undefined): number {
+  if (!signals) return 0;
+  let score = 0;
+  if (matchesColorPreference(candidate, signals.explicitColor ?? null)) score += 12;
+  if (matchesColorPreference(candidate, signals.signatureColor ?? null)) score += 4;
+  return score;
+}
+
 export function selectPackingCandidates(input: {
   candidates: EliseWardrobeCandidate[];
   trip: PackingTripInput;
   constraints: PackingConstraints;
   shortlistTarget?: number;
+  signals?: PackingSelectionSignals;
 }): PackingCandidateSelection {
   const target = Math.min(
     input.shortlistTarget ?? PACKING_LIMITS.shortlistTarget,
@@ -207,6 +231,16 @@ export function selectPackingCandidates(input: {
   for (const candidate of input.candidates) {
     const itemId = candidate.canonicalResourceIds.itemId?.toLowerCase() ?? '';
     if (itemId && excluded.has(itemId)) {
+      excludedCount += 1;
+      continue;
+    }
+    const signals = input.signals;
+    if (
+      signals &&
+      ((itemId && signals.rejectedItemIds?.has(itemId)) ||
+        (signals.rejectedClasses?.size &&
+          candidateGarmentClasses(candidate).some((cls) => signals.rejectedClasses!.has(cls))))
+    ) {
       excludedCount += 1;
       continue;
     }
@@ -240,6 +274,8 @@ export function selectPackingCandidates(input: {
   }
   for (const bucket of byRole.values()) {
     bucket.sort((a, b) => {
+      const signalDelta = signalScore(b, input.signals) - signalScore(a, input.signals);
+      if (signalDelta !== 0) return signalDelta;
       const delta = versatilityScore(b, input.trip) - versatilityScore(a, input.trip);
       if (delta !== 0) return delta;
       return recencyRank(a, retrievalOrder) - recencyRank(b, retrievalOrder);
@@ -281,6 +317,8 @@ export function selectPackingCandidates(input: {
     const leftovers = [...usable, ...unroled]
       .filter((candidate) => !taken.has(candidate.candidateId))
       .sort((a, b) => {
+        const signalDelta = signalScore(b, input.signals) - signalScore(a, input.signals);
+        if (signalDelta !== 0) return signalDelta;
         const delta = versatilityScore(b, input.trip) - versatilityScore(a, input.trip);
         if (delta !== 0) return delta;
         return recencyRank(a, retrievalOrder) - recencyRank(b, retrievalOrder);
