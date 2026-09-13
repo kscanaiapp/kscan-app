@@ -152,10 +152,7 @@ export function usePackingPlan(): UsePackingPlanResult {
       if (!isActorScopeCurrent(scope)) return;
 
       if (result.status === 'success' && result.plan) {
-        applyPackingPlan({
-          actorId,
-          plan: result.plan,
-          message: result.message,
+        applyPackingPlan({ actorId, plan: result.plan, message: result.message,
           clarification: result.clarification ?? null,
           pendingRefinement: dispatch?.refinement.message ?? null,
         });
