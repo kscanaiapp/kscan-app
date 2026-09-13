@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-13T15:45:20.298Z",
-    "generatedFromGitSha": "254f5dc4943d011c503374572795ab29f6a11144"
+    "generatedAtUtc": "2026-09-13T16:40:15.613Z",
+    "generatedFromGitSha": "8997b92d73263d23751b2dad3e871131070be718"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -483,8 +483,8 @@
         ],
         "bundleFileCount": 59,
         "treeFileCount": 85,
-        "bundleHash": "cc161a64d09a5fec6044701de6f755beec9a15f15bb2a9af7492669d6c624129",
-        "treeHash": "69efcc0139a78629e7e8e902f7b07d116eb2effe05070cd6e411d38cd28c7547",
+        "bundleHash": "a0836c4f85d5f87721e48c4e07e704cae31606f0ad8ebf2b84478202d5bf8e28",
+        "treeHash": "6305b133c74af84caf2122e5c2547ec4f7250c20177df5c4b5748b2dfccbbc91",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -658,7 +658,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/eliseOutfitState.ts",
-            "sha256": "be1f80f42b989b42cc0a613092a636a7e742d99e436702495c4fb62ecb5f71cb",
+            "sha256": "1175f3c3466b9176e8125035a6776467eeb954a686f113bf6d19f458741c403e",
             "bundle": true
           },
           {
@@ -793,7 +793,7 @@
           },
           {
             "path": "supabase/functions/stylechat-generate/packingGarmentFacts.ts",
-            "sha256": "ea33b967787bd08db6ed983837a9c6cdfd021c4d756b6ce309696ab6cfc832d2",
+            "sha256": "71e05b17ca96386d1e420aea27d2478f9931dcb6e11fd2ecb60c72d396c01dbc",
             "bundle": true
           },
           {

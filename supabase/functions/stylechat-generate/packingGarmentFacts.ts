@@ -23,33 +23,18 @@ import { candidateGarmentClasses, garmentClassOf } from './eliseOutfitState.ts';
 import type { PackingActivity } from './packingContract.ts';
 
 /**
- * The shared garment vocabulary, plus compounds it does not split: "raincoat"
- * is a coat, "sweatpants" are pants, "shirtdress" is a dress. Only suffix
- * classes of four or more letters are accepted, so "laptop" never becomes a
- * top. The shared table itself is untouched.
+ * The shared garment vocabulary. Compounds ("raincoat" is a coat, "sweatpants"
+ * are pants) are resolved inside eliseOutfitState.garmentClassOf itself, so a
+ * Closet item has the same classes in Packing as in Concierge. These names stay
+ * so the Packing modules read unchanged.
  */
 export function garmentClassOfWord(word: string): string | null {
-  const direct = garmentClassOf(word);
-  if (direct) return direct;
-  const letters = word.toLowerCase().replace(/[^a-z]/g, '');
-  for (let index = 1; index <= letters.length - 4; index += 1) {
-    const hit = garmentClassOf(letters.slice(index));
-    if (hit && hit.length >= 4) return hit;
-  }
-  return null;
+  return garmentClassOf(word);
 }
 
 /** Garment classes a Closet item can honestly be called, compounds included. */
 export function packingGarmentClassesOf(candidate: EliseWardrobeCandidate): string[] {
-  const classes = new Set(candidateGarmentClasses(candidate));
-  for (const field of [candidate.category, candidate.subcategory, candidate.title]) {
-    if (typeof field !== 'string') continue;
-    for (const word of field.split(/[^A-Za-z0-9]+/)) {
-      const garment = garmentClassOfWord(word);
-      if (garment) classes.add(garment);
-    }
-  }
-  return [...classes];
+  return candidateGarmentClasses(candidate);
 }
 
 export type PackingFormalityBand = 'athletic' | 'casual' | 'smart' | 'formal';
