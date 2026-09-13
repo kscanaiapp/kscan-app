@@ -132,6 +132,8 @@ import {
 } from './commerceFunnelConfig.ts';
 import { buildCanonicalCommerce } from './canonicalCommerce.ts';
 import { attachWatchCapability } from './watchlistCapability.ts';
+import { attachCommercialUsability } from './commerceContextualRanking.ts';
+import { parseContextContributions } from './commerceShoppingIntent.ts';
 import {
   mapFastCommerceFailureReason,
   mapToFailureReason,
@@ -2063,6 +2065,14 @@ Deno.serve(async (req) => {
         : null,
     });
 
+    const commerceOnlyContext = parseContextContributions(
+      (body as Record<string, unknown>).shoppingContext,
+    );
+    const rawShoppingText = (body as Record<string, unknown>).shoppingText;
+    const commerceOnlyShoppingText = typeof rawShoppingText === 'string'
+      ? rawShoppingText.replace(/\s+/g, ' ').trim().slice(0, 600)
+      : '';
+
     const fast = await getFastCommerceResults({
       mode: 'image',
       identification: gated.identification,
@@ -2087,6 +2097,16 @@ Deno.serve(async (req) => {
           commerceRetrievalEnabled: commerceRetrievalEnabledForCommerceOnly,
         }
         : {}),
+      // Contextual Commerce. The client carries the context it already holds
+      // (a CONFIRMED Packing gap, relevant Closet pieces, Signature Style);
+      // `parseContextContributions` rebuilds it field by field because it is
+      // untrusted input, and `requestActorId` is the AUTHENTICATED id, never a
+      // client-supplied one — otherwise cross-actor context would be a claim
+      // rather than a check. Absent context → the existing path, unchanged.
+      ...(commerceOnlyContext.length
+        ? { contextContributions: commerceOnlyContext, requestActorId: userId }
+        : {}),
+      ...(commerceOnlyShoppingText ? { originalText: commerceOnlyShoppingText } : {}),
     }).catch((err) => {
       console.warn('[scan-identify] commerce_only provider error:', err);
       return null;
@@ -2158,6 +2178,11 @@ Deno.serve(async (req) => {
     // plus one — never a filter, and never allowed to change what Recent
     // Scans persists (see watchlistCapability.ts).
     products = attachWatchCapability(products);
+    // Contextual Commerce: the commercial-usability FLOOR, applied at the same
+    // boundary and with the same additive-only contract. Buy availability is
+    // derived from this classification and never from rank position, a
+    // recommendation label, or model output.
+    products = attachCommercialUsability(products);
     const canonical = buildCanonicalCommerce(products);
 
     console.log(
@@ -3928,6 +3953,7 @@ Deno.serve(async (req) => {
     // see watchlistCapability.ts. Never a filter; never seen by ranking,
     // dedupe, or the Recent Scans persistence decision.
     finalRecommendedProducts = attachWatchCapability(finalRecommendedProducts);
+    finalRecommendedProducts = attachCommercialUsability(finalRecommendedProducts);
 
     const legacyFinalResponse = withSafeImageArrays(
       {

@@ -17,6 +17,10 @@ import { COLORS, LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constan
 import { MODAL_MAX_WIDTH } from '../services/responsiveLayout';
 import { selectionTick } from '../services/haptics';
 import { selectCommerceDestination } from '../services/commerceDestination';
+import {
+  canActivateTransaction,
+  resolveCommercialUsability,
+} from '../services/commerce/commercialUsability';
 import { PRODUCT_TITLE_UNAVAILABLE } from '../services/privateSavedLookCopy';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { useFeatureFreeze } from '../hooks/useFeatureFreeze';
@@ -79,6 +83,13 @@ export interface Product {
   similarityPercentage?: number;
   /** K5-C1, server-authored. Only 'refreshable_listing' may be watched. */
   watchCapability?: 'refreshable_listing' | 'unsupported';
+  /**
+   * Build 35 Contextual Commerce, server-authored at the response boundary.
+   * Only 'TRANSACTION_READY' may render an active Shop control. Absent (an
+   * older response, a persisted row) → re-derived from the same commercial
+   * facts client-side; never assumed usable.
+   */
+  commercialUsability?: 'TRANSACTION_READY' | 'BROWSE_ONLY' | 'UNUSABLE' | 'UNKNOWN';
   type?: 'retail' | 'similar';
   commerceType?: 'retail' | 'resale';
 }
@@ -189,6 +200,27 @@ export function canAddProductToDressingRoom(product: Product | null | undefined)
 /** K5-C5: the Watch action only ever appears on a server-marked-eligible listing. */
 export function canWatchProduct(product: Product | null | undefined): boolean {
   return product?.watchCapability === 'refreshable_listing';
+}
+
+/**
+ * Build 35 §19: the Shop control's availability derives from validated
+ * commercial usability — never from rank position, a recommendation label, or
+ * model output. A BROWSE_ONLY listing still OPENS (looking at a page is not a
+ * transaction); it just does not get a control that promises a purchase the
+ * offer cannot complete.
+ */
+export function productCommercialUsability(product: Product | null | undefined) {
+  return resolveCommercialUsability({
+    commercialUsability: product?.commercialUsability,
+    type: product?.type,
+    price: product?.price,
+    availability: product?.availability,
+    destinationUrl: product ? getPurchaseUrl(product) : null,
+  });
+}
+
+export function canShopProduct(product: Product | null | undefined): boolean {
+  return canActivateTransaction(productCommercialUsability(product));
 }
 
 /**
@@ -433,6 +465,10 @@ export function ProductShelf({
           const productTitle = getProductTitle(p) || PRODUCT_TITLE_UNAVAILABLE;
           const canSaveToRoom = canAddProductToDressingRoom(p);
           const canWatch = canWatchProduct(p);
+          // §19 transaction floor. `hasLink` still governs whether the card
+          // OPENS; this governs whether anything may present itself as a
+          // purchase. The two are deliberately separate.
+          const canShop = canShopProduct(p);
           const imageCategory = normalizeImageCategory(p.imageCategory || p.category);
           const showImage = !!productImageUrl && !failedImages[productKey];
           // Closure §6: this shelf renders reopened (persisted) commerce as well
@@ -528,7 +564,7 @@ export function ProductShelf({
                     garment={vtoGarment}
                     garmentTitle={productTitle}
                     origin="commerce_product"
-                    onShop={hasLink ? () => handleLinkPress(purchaseUrl) : undefined}
+                    onShop={canShop && hasLink ? () => handleLinkPress(purchaseUrl) : undefined}
                     testID={`try-it-on-${productKey}`}
                   />
                 ) : null}

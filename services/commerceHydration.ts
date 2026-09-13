@@ -37,6 +37,8 @@ const EDGE_FN = 'scan-identify';
  */
 const COMMERCE_INVOKE_TIMEOUT_MS = 15_000;
 
+import type { CommerceContextContribution } from './commerce/shoppingContext';
+
 export type CommerceHydrationStatus = 'idle' | 'pending' | 'success' | 'empty' | 'error';
 
 export type CommerceHydrationEvidence = {
@@ -51,6 +53,22 @@ export type CommerceHydrationEvidence = {
    * single-item flow; every pre-Build-32 caller already omits it.
    */
   candidateId?: string | null;
+  /**
+   * Build 35 Contextual Commerce. The context K Scan already holds for THIS
+   * request — a CONFIRMED Packing gap, relevant Closet pieces, Signature Style
+   * tokens — each tagged with its own provenance.
+   *
+   * Additive and optional: omitted (the pre-Build-35 default for every
+   * existing caller) the backend runs its exact prior ranking path. Built by
+   * `services/commerce/shoppingContext.ts`; nothing else may construct it.
+   */
+  shoppingContext?: CommerceContextContribution[] | null;
+  /**
+   * The user's own words for this request, when there are any (a conversational
+   * "same idea, under $100"). Parsed deterministically server-side into explicit
+   * constraints — never sent to a model, and never required.
+   */
+  shoppingText?: string | null;
 };
 
 export type CommerceHydrationResult = {
@@ -135,6 +153,17 @@ export function buildCommerceOnlyBody(
   }
 
   if (options?.enrich) body.enrich = true;
+
+  // Contextual Commerce, still by explicit copy. The backend re-validates and
+  // re-bounds everything here, so this is a transport, not a trust boundary.
+  const shoppingContext = Array.isArray(evidence.shoppingContext)
+    ? evidence.shoppingContext.filter((c) => c && typeof c === 'object').slice(0, 8)
+    : null;
+  if (shoppingContext && shoppingContext.length) body.shoppingContext = shoppingContext;
+
+  if (typeof evidence.shoppingText === 'string' && evidence.shoppingText.trim()) {
+    body.shoppingText = evidence.shoppingText.trim().slice(0, 600);
+  }
 
   return body;
 }

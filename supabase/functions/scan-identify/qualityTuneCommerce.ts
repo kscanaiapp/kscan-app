@@ -32,6 +32,16 @@ import {
   FAILURE_REASON_PRODUCT_DEDUPE_REDUCTION,
   FAILURE_REASON_PRODUCT_FILTER_EMPTY,
 } from './commerceRelevanceFailure.ts';
+import {
+  buildRationaleFacts,
+  candidatesArePriceComparable,
+  evaluateHardConstraints,
+  scoreContextualFit,
+  stripOwnershipClaim,
+  type CommerceRationaleFacts,
+  type HardConstraintCode,
+} from './commerceContextualRanking.ts';
+import { hasUsableContext, intentMatchesActor, type ShoppingIntent } from './commerceShoppingIntent.ts';
 
 export type WeightedCommerceQueries = {
   /** v125 — present only when identity-aware retrieval ran. */
@@ -52,6 +62,15 @@ export type ProductFilterStats = {
   failureReasonHints?: string[];
   productsBeforeFilter?: number;
   latencyRelevanceMs?: number;
+  /** Contextual Commerce diagnostics — present only when context actually ran. */
+  contextualApplied?: boolean;
+  contextualRemovals?: Partial<Record<HardConstraintCode, number>>;
+  contextualDeltas?: number[];
+  /** True when a stated budget ceiling removed every candidate. */
+  budgetUnsatisfiable?: boolean;
+  latencyContextualMs?: number;
+  /** Per-surviving-product rationale facts, positionally aligned with `products`. */
+  rationale?: CommerceRationaleFacts[];
 };
 
 export type CommerceRelevanceOptions = {
@@ -63,6 +82,17 @@ export type CommerceRelevanceOptions = {
    * Ranking-only: filtering, dedupe, coverage, and diversity are unchanged.
    */
   commerceIdentity?: CommerceIdentityEvidence;
+  /**
+   * Contextual Commerce (Build 35). Omitted, empty, or actor-mismatched →
+   * EXACT existing v124 behaviour: no extra filtering, no delta, no rationale,
+   * and no context-assembly cost. This is the zero-context fast path.
+   *
+   * Not a second ranking authority: `shoppingContext` supplies extra Stage A
+   * constraints and a bounded Stage B delta to the ONE scorer below.
+   */
+  shoppingContext?: ShoppingIntent;
+  /** Live request actor. Context naming a different actor is discarded whole. */
+  requestActorId?: string | null;
 };
 
 const FILLER = new Set([
@@ -491,7 +521,16 @@ export function filterAndDedupeProducts(
       bump('category_mismatch');
       continue;
     }
-    validShaped.push(p);
+    // OWNERSHIP FIREWALL — unconditional, and deliberately not part of the
+    // contextual stage.
+    //
+    // A Commerce candidate is external by definition: the Closet ownership
+    // flow does not produce retailer listings, so an `owned` / `inCloset` /
+    // `actorRelationship: 'owned'` field arriving on one was never written by
+    // it. Reverifying that here rather than inside the context gate matters,
+    // because a request with no context still must not be told it already owns
+    // a product it has never bought. The offer survives; only the claim dies.
+    validShaped.push(stripOwnershipClaim(p));
   }
 
   const productsBeforeDedupe = validShaped.length;
@@ -501,17 +540,78 @@ export function filterAndDedupeProducts(
   const failureReasonHints: string[] = [];
 
   if (relevance?.enabled) {
+    // ── Contextual Commerce gate (zero-context fast path) ───────────────────
+    //
+    // Context is used only when there IS context. An intent that names nothing
+    // the ranker could act on, or one assembled for a different actor, is
+    // dropped here — before any per-candidate work — so a cold request pays
+    // exactly the v124 cost it paid before this lane existed.
+    const rawIntent = relevance.shoppingContext;
+    const contextActive = Boolean(
+      rawIntent &&
+        hasUsableContext(rawIntent) &&
+        intentMatchesActor(rawIntent, relevance.requestActorId ?? null),
+    );
+    const intent = contextActive ? (rawIntent as ShoppingIntent) : null;
+    const contextualStarted = contextActive ? Date.now() : 0;
+    const contextualRemovals: Partial<Record<HardConstraintCode, number>> = {};
+    let budgetCandidatesSeen = 0;
+    let budgetCandidatesRemoved = 0;
+
+    // ── Stage A (contextual half) ───────────────────────────────────────────
+    //
+    // Runs alongside the existing shape/URL/image/category filters above, and
+    // like them it cannot be outscored: a candidate that violates an explicit
+    // exclusion or a stated ceiling is answering a different question.
+    let contextFiltered = validShaped;
+    if (intent) {
+      const kept: RecommendedProduct[] = [];
+      for (const p of validShaped) {
+        const verdict = evaluateHardConstraints(p, intent);
+        if (!verdict.violated) {
+          kept.push(p);
+          continue;
+        }
+        // A forged ownership field is the one violation the OFFER survives:
+        // the listing is real, only the claim attached to it is not. The claim
+        // is stripped and the candidate continues; every other violation drops
+        // the candidate.
+        const onlyOwnership = verdict.codes.length === 1 && verdict.codes[0] === 'forged_ownership_claim';
+        for (const code of verdict.codes) {
+          contextualRemovals[code] = (contextualRemovals[code] || 0) + 1;
+          bump(`contextual_${code}`);
+          if (code === 'budget_ceiling_violation') budgetCandidatesRemoved += 1;
+        }
+        if (onlyOwnership) kept.push(stripOwnershipClaim(p));
+      }
+      budgetCandidatesSeen = validShaped.length;
+      contextFiltered = kept;
+    }
+
     // v122: agreement score → coverage selection → dedupe → soft diversity
-    const scored: ScoredProduct[] = validShaped.map((p, originalIndex) => {
+    const priceComparable = intent ? candidatesArePriceComparable(contextFiltered) : false;
+    const contextualByIndex = new Map<number, ReturnType<typeof scoreContextualFit>>();
+    const scored: ScoredProduct[] = contextFiltered.map((p, originalIndex) => {
       const ag = scoreProductAgreement(
         p,
         garmentIdentification,
         relevance.categoryRoute,
         relevance.commerceIdentity,
       );
+      // ── Stage B ───────────────────────────────────────────────────────────
+      // One score, one authority. The contextual delta is folded INTO the
+      // agreement score rather than kept as a parallel ranking number, so
+      // there is still exactly one value that decides order.
+      let contextual = null as ReturnType<typeof scoreContextualFit> | null;
+      let score = ag.score;
+      if (intent) {
+        contextual = scoreContextualFit(p, intent);
+        contextualByIndex.set(originalIndex, contextual);
+        score = Math.max(0, Math.min(100, ag.score + contextual.delta));
+      }
       return {
         product: p,
-        agreementScore: ag.score,
+        agreementScore: score,
         agreementBand: ag.band,
         clearCategoryConflict: ag.clearCategoryConflict,
         originalIndex,
@@ -560,6 +660,21 @@ export function filterAndDedupeProducts(
       deduped.map((p) => (typeof p.source === 'string' ? p.source.toLowerCase() : 'unknown')),
     );
 
+    // Rationale is built ONCE, at the end, against the final order — never
+    // re-derived downstream. Elise and the product UI read the same facts.
+    const rationale = intent
+      ? deduped.map((p) => {
+          const match = scored.find((s) => s.product === p);
+          const contextual = match ? contextualByIndex.get(match.originalIndex) : undefined;
+          return buildRationaleFacts(
+            p,
+            intent,
+            contextual ?? { delta: 0, facts: [], matchedAttributes: [] },
+            priceComparable,
+          );
+        })
+      : undefined;
+
     return {
       products: deduped,
       stats: {
@@ -573,6 +688,23 @@ export function filterAndDedupeProducts(
         failureReasonHints,
         productsBeforeFilter,
         latencyRelevanceMs: Date.now() - started,
+        ...(intent
+          ? {
+            contextualApplied: true,
+            contextualRemovals,
+            contextualDeltas: dedupedScored.map((s) => contextualByIndex.get(s.originalIndex)?.delta ?? 0),
+            // "Nothing you asked for is under that price" is a real answer and
+            // must be sayable. It is true only when a ceiling actually removed
+            // candidates and left none.
+            budgetUnsatisfiable:
+              Boolean(intent.budgetCeiling) &&
+              budgetCandidatesSeen > 0 &&
+              budgetCandidatesRemoved > 0 &&
+              deduped.length === 0,
+            latencyContextualMs: Date.now() - contextualStarted,
+            ...(rationale ? { rationale } : {}),
+          }
+          : { contextualApplied: false }),
       },
     };
   }

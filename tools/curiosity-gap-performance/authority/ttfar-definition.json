@@ -56,7 +56,7 @@
       "sequence": "MODE A scan-identify (image, no commerce) -> client paints identification -> MODE B scan-identify (requestMode: 'commerce_only', no image) -> commerce card actionable",
       "terminal": "commerce card actionable after the SECOND round trip",
       "evidence_class": "PROVEN",
-      "source": "supabase/functions/scan-identify/index.ts:3763-3801 (MODE A defers), index.ts:2004 (MODE B route), hooks/useKScan.js:1115-1119 (client dispatches MODE B)"
+      "source": "supabase/functions/scan-identify/index.ts:3788-3826 (MODE A defers), index.ts:2006 (MODE B route), hooks/useKScan.js:1115-1119 (client dispatches MODE B)"
     }
   },
 

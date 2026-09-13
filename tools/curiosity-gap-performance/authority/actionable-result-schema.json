@@ -18,14 +18,14 @@
       {
         "field": "productUrl",
         "type": "string",
-        "enforced_at": "services/commerceHydration.ts:151",
+        "enforced_at": "services/commerceHydration.ts:180",
         "code": "if (!productUrl || !title) continue;",
         "evidence_class": "PROVEN"
       },
       {
         "field": "title",
         "type": "string",
-        "enforced_at": "services/commerceHydration.ts:151",
+        "enforced_at": "services/commerceHydration.ts:180",
         "evidence_class": "PROVEN"
       }
     ],
@@ -52,7 +52,7 @@
       "hostname must exist and must not be a private/loopback/link-local host"
     ],
     "applied_at": "components/scan-results/PurchaseOptionsPanel.tsx:106 (selectCommerceDestination([option.productUrl]))",
-    "failure_behaviour": "the row still renders but the CTA is replaced by an inert 'Unavailable' label (PurchaseOptionsPanel.tsx:166-188). In practice a URL-less entry was already dropped upstream at commerceHydration.ts:151, so the two paths disagree about which layer removes it.",
+    "failure_behaviour": "the row still renders but the CTA is replaced by an inert 'Unavailable' label (PurchaseOptionsPanel.tsx:166-188). In practice a URL-less entry was already dropped upstream at commerceHydration.ts:180, so the two paths disagree about which layer removes it.",
     "evidence_class": "PROVEN"
   },
 

@@ -44,6 +44,13 @@ import {
   type CommerceRelevanceOptions,
 } from './qualityTuneCommerce.ts';
 import { agreementBandFromScore } from './commerceRelevanceAgreement.ts';
+import {
+  buildShoppingIntent,
+  extractExplicitContribution,
+  hasUsableContext,
+  type IntentContribution,
+  type ShoppingIntent,
+} from './commerceShoppingIntent.ts';
 import type { ScannerCategoryRoute } from './scannerCategoryRoute.ts';
 import type { CommerceIdentityEvidence } from './scannerQualityGate.ts';
 import type { CommerceQueryStrategy } from './commerceRetrievalConfig.ts';
@@ -106,6 +113,23 @@ export type ScanCommerceInput = {
    * early-exit threshold, and fallback conditions are all untouched.
    */
   commerceRetrievalEnabled?: boolean;
+  /**
+   * Contextual Commerce (Build 35). Omitted → EXACT existing behaviour.
+   *
+   * `contextContributions` carries context another K Scan surface already
+   * holds (a CONFIRMED Packing gap, relevant Closet pieces, Signature Style
+   * tokens), each tagged with its own provenance. An explicit user constraint
+   * found in `originalText` is folded in on top, because the latest thing the
+   * user actually said outranks anything inferred for them.
+   *
+   * No new provider, no new model call, no new retrieval: this changes which
+   * of the SAME candidates rank where, and nothing else.
+   */
+  contextContributions?: IntentContribution[];
+  /** Live request actor. Context naming another actor is discarded whole. */
+  requestActorId?: string | null;
+  /** Escape hatch: false disables contextual ranking for this request. */
+  contextualRankingEnabled?: boolean;
 };
 
 export type ScanCommerceProvider = 'kickscrew' | 'farfetch' | 'poshmark' | 'serper' | 'brave' | 'none';
@@ -806,10 +830,39 @@ type ResolvedCommerceQueries = {
  * construction it delegates to is unchanged — this only decides which options
  * to pass, exactly as before.
  */
+/**
+ * Assemble this request's shopping intent, or nothing at all.
+ *
+ * ORDER IS THE POLICY. Caller-supplied context (Packing, Closet, Signature
+ * Style) is folded first, then the explicit constraints parsed deterministically
+ * out of the user's own words — so "under $100, not leather" lands LAST and
+ * outranks everything assembled on the user's behalf.
+ *
+ * Returns undefined whenever the result would carry nothing a ranker could act
+ * on. That undefined is the zero-context fast path: `filterAndDedupeProducts`
+ * then runs its exact pre-existing code path, with no contextual work at all.
+ *
+ * Deliberately NOT a model call. `extractExplicitContribution` is the same
+ * deterministic-phrase-signal approach `eliseAdviceIntents.ts` already uses, so
+ * this lane adds zero production LLM round trips.
+ */
+function resolveShoppingContext(input: ScanCommerceInput): ShoppingIntent | undefined {
+  if (input.contextualRankingEnabled === false) return undefined;
+  const contributions: IntentContribution[] = [...(input.contextContributions ?? [])];
+  const explicit = extractExplicitContribution(input.originalText);
+  // An empty explicit contribution (`{ provenance }` and nothing else) adds no
+  // field, so appending it unconditionally is safe and keeps ordering honest.
+  contributions.push(explicit);
+  if (contributions.length === 0) return undefined;
+  const intent = buildShoppingIntent(contributions, input.requestActorId ?? null);
+  return hasUsableContext(intent) ? intent : undefined;
+}
+
 function resolveCommerceQueries(input: ScanCommerceInput): ResolvedCommerceQueries {
   const qualityEnabled = isQualityTuneEnabled();
   const identityEnabled = input.commerceIdentityEnabled === true;
   const retrievalEnabled = input.commerceRetrievalEnabled === true;
+  const shoppingContext = resolveShoppingContext(input);
   const relevanceOpts: CommerceRelevanceOptions | undefined =
     input.relevanceEnabled && input.relevanceRoute
       ? {
@@ -818,6 +871,9 @@ function resolveCommerceQueries(input: ScanCommerceInput): ResolvedCommerceQueri
         qualityBand: input.qualityBand,
         ...(identityEnabled && input.commerceIdentity
           ? { commerceIdentity: input.commerceIdentity }
+          : {}),
+        ...(shoppingContext
+          ? { shoppingContext, requestActorId: input.requestActorId ?? null }
           : {}),
       }
       : undefined;
