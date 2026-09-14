@@ -100,7 +100,12 @@ const JACKETS = [
 ];
 
 async function scenario(name, turns) {
-  require(path.join(ROOT, 'services/style-chat/commerceShelfMemory.ts')).clearCandidateUniverses();
+  // Absent on the pre-V2 authority, which is exactly when this probe is most
+  // useful: it must run unchanged against both trees to produce a comparable
+  // before/after, so a missing module is a fact about the tree, not an error.
+  try {
+    require(path.join(ROOT, 'services/style-chat/commerceShelfMemory.ts')).clearCandidateUniverses();
+  } catch { /* pre-V2 tree: there is no retained universe to clear */ }
   const provider = makeFixtureProvider({ universe: turns.universe ?? LOAFERS });
   let rows = [];
   const record = [];
