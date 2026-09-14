@@ -91,7 +91,7 @@ async function callReserveRpc(runSql, userId, idempotencyKey) {
 export const REQ = Object.freeze({
   SEEDED_IN_FLIGHT: 'reservation is in_flight before the HTTP request',
   HTTP_429: 'HTTP 429',
-  CODE_RATE_LIMITED: 'error.code = rate_limited',
+  CODE_REQUEST_IN_FLIGHT: 'error.code = request_in_flight',
   NO_PROVIDER_RESULT: 'suppressed response carries no provider result',
   RESERVATION_SURVIVES: 'the prior reservation survives the suppression',
   SINGLE_ROW: 'exactly one reservation row for the identity',
@@ -124,16 +124,20 @@ export const DUPLICATE_CONTROL_NAME = 'rapid duplicate: one reservation authorit
  * against the real deployed vto-generate. Nothing about the HTTP path is
  * simulated, stubbed or bypassed.
  *
- * WHY 429 HERE CAN ONLY MEAN `reservation_duplicate`. `stage` is a log field,
- * not part of the governed response body (vtoHandler.ts::fail emits only
- * `{ requestId, status, error: { code, retryable } }`), and BOTH
- * `reservation_duplicate` and `reservation_quota` surface as
- * rate_limited/429 — so the code alone cannot separate them. The RPC ordering
- * does: reserve_vto_generation checks the existing row FIRST and returns
- * `duplicate` for an in-flight reservation inside its lease, before it ever
- * counts the day's attempts against the cap. With a reservation proven
- * `in_flight` immediately beforehand, `quota_exceeded` is unreachable for this
- * request, so a rate_limited/429 is necessarily the duplicate branch.
+ * HOW THIS CONTROL KNOWS IT IS THE DUPLICATE BRANCH. It reads the code, which
+ * now says so: VTO V3.1 split the old collapsed `rate_limited` into
+ * `quota_exhausted` (the actor's own allowance), `request_in_flight` (this
+ * branch) and `provider_busy` (the vendor throttling K Scan), because telling
+ * all three to a customer as "you've reached your try-on limit" was false for
+ * two of them. `stage` remains a log field and is still not asserted from the
+ * body.
+ *
+ * The RPC-ordering argument this control used to depend on — reserve_vto_
+ * generation checks the existing row BEFORE it counts the day's attempts, so
+ * `quota_exceeded` was unreachable here — is no longer load-bearing for the
+ * disambiguation. It is still true and still separately guarded by
+ * `__tests__/vtoE2eHarnessIntegrity.test.js`, because the ordering matters for
+ * its own sake: a duplicate must never be charged against the daily cap.
  *
  * WHY IT ALSO PROVES KEY AGREEMENT. The seeded identity is computed by the
  * harness's own mirror of buildVtoIdempotencyKey. If that mirror ever drifted
@@ -205,7 +209,7 @@ export async function runDuplicateSuppressionControl({
     }
   }
 
-  // (5) HTTP 429 + rate_limited, on a proven in_flight prerequisite. Every
+  // (5) HTTP 429 + request_in_flight, on a proven in_flight prerequisite. Every
   // requirement is named and evaluated INDIVIDUALLY rather than collapsed
   // into one boolean, so a failing run says which one was not met — and so
   // a requirement silently disappearing from this control is itself
@@ -214,7 +218,7 @@ export async function runDuplicateSuppressionControl({
   const met = {
     [REQ.SEEDED_IN_FLIGHT]: seededStatus === 'in_flight',
     [REQ.HTTP_429]: httpStatus === 429,
-    [REQ.CODE_RATE_LIMITED]: httpCode === 'rate_limited',
+    [REQ.CODE_REQUEST_IN_FLIGHT]: httpCode === 'request_in_flight',
     [REQ.NO_PROVIDER_RESULT]: carriedProviderResult === false,
     [REQ.RESERVATION_SURVIVES]: statusAfterHttp === 'in_flight',
     [REQ.SINGLE_ROW]: rowsAfterHttp === 1,
@@ -229,8 +233,8 @@ export async function runDuplicateSuppressionControl({
     `seededStatus=${seededStatus ?? 'absent'} httpStatus=${httpStatus ?? 'none'} code=${httpCode ?? 'none'} `
     + `providerResult=${carriedProviderResult} statusAfterHttp=${statusAfterHttp ?? 'absent'} rowsAfterHttp=${rowsAfterHttp} `
     + `rightfulRelease=${released} rowsAfterRelease=${rowsAfterRelease} unmet=${JSON.stringify(unmet)} `
-    + '(an in_flight reservation makes reserve_vto_generation return duplicate before it counts quota, '
-    + 'so a 429 here is necessarily stage=reservation_duplicate, never reservation_quota)',
+    + '(request_in_flight is emitted only by the reservation-duplicate branch; a real daily-cap '
+    + 'refusal would have returned quota_exhausted, and a vendor throttle provider_busy)',
   );
 }
 
@@ -280,7 +284,7 @@ export async function runVtoStagingDryRun({ base, publishableKey, plan, tokens, 
     results.push(check(
       'retry after valid release -> may reserve again',
       res1Retry.status === 422 && res1Retry.json?.error?.code === 'invalid_garment_input',
-      `httpStatus=${res1Retry.status} code=${res1Retry.json?.error?.code ?? 'none'} (rate_limited/duplicate here would mean the release did not take)`,
+      `httpStatus=${res1Retry.status} code=${res1Retry.json?.error?.code ?? 'none'} (request_in_flight here would mean the release did not take)`,
     ));
     const rowsAfterRetry = await vtoRequestRowCount(runSql, activeUserId, activeKey1);
     results.push(check('retry attempt also released cleanly', rowsAfterRetry === 0, `rows=${rowsAfterRetry}`));

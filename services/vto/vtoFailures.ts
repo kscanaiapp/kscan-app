@@ -47,8 +47,37 @@ const COPY: Readonly<Record<VtoFailureCode, CopyEntry>> = {
     message: 'Try-on is unavailable right now. Try again shortly.',
     retryable: true,
   },
+  /**
+   * LEGACY, and deliberately neutral now.
+   *
+   * This copy used to read "You've reached the try-on limit for now" and was
+   * emitted for THREE different situations, two of which had nothing to do
+   * with the customer's allowance. The server no longer sends this code; it
+   * can still arrive from an older deployment, so it keeps copy that is true
+   * whichever of the three it was.
+   */
   rate_limited: {
+    message: 'Try-on is unavailable right now. Try again shortly.',
+    retryable: true,
+  },
+  /** The ONE place a limit may be mentioned, because here there really is one. */
+  quota_exhausted: {
     message: "You've reached the try-on limit for now. Try again later.",
+    retryable: true,
+  },
+  /**
+   * The customer's try-on is already running. Not retryable on purpose: a
+   * "Try again" button here asks for the duplicate submission idempotency
+   * just prevented.
+   */
+  request_in_flight: {
+    message: 'This try-on is already running. Give it a moment.',
+    retryable: false,
+  },
+  /** K Scan is being throttled, not the customer. Says so, and names no
+   *  vendor, status code or provider identity. */
+  provider_busy: {
+    message: 'Photo try-on is temporarily busy. Try again shortly.',
     retryable: true,
   },
   generation_failed: {

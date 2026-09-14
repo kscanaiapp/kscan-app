@@ -76,7 +76,23 @@ export const VTO_FAILURE_CODES = [
   'provider_moderation',
   'provider_timeout',
   'provider_unavailable',
+  /**
+   * LEGACY -- see the peer note in
+   * supabase/functions/vto-generate/vtoContract.ts. Until VTO V3.1 this one
+   * code carried three different truths, and the customer copy for it claimed
+   * the shopper had reached their own try-on limit. That was false for two of
+   * the three. It is no longer emitted; it stays on the wire because an older
+   * deployment can still send it, and its copy is now neutral.
+   */
   'rate_limited',
+  /** The actor has spent their own daily allowance. The ONLY code whose copy
+   *  may speak about the customer's limit. */
+  'quota_exhausted',
+  /** A generation for this exact intent is already running. */
+  'request_in_flight',
+  /** The generation service is busy. K Scan is being throttled, not the
+   *  customer -- and the copy must not say otherwise. */
+  'provider_busy',
   'generation_failed',
   'invalid_output',
   'authorization_failed',
