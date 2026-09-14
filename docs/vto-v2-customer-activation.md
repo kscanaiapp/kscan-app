@@ -380,3 +380,79 @@ NEW_PERSISTENT_USER_DATA = NO
 
 No new table, no new migration, no new persisted state. The only new
 module-scoped state is a device-capability memo that dies with the JS context.
+
+---
+
+# VTO V3.1 addendum — provider rate-limit truth
+
+Discovered during the VTO V3 preflight, repaired before any money was spent.
+
+## The defect
+
+Three unrelated situations all left `vto-generate` as `rate_limited`, and the
+app rendered every one of them as **"You've reached the try-on limit for now."**
+
+| What actually happened | Old code | Was the copy true? |
+| --- | --- | --- |
+| the actor really did spend their daily allowance | `rate_limited` | yes |
+| a duplicate request was already in flight | `rate_limited` | **no** |
+| the vendor gateway was throttling K Scan | `rate_limited` | **no** |
+
+The distinction existed internally the whole time — `stage` is
+`reservation_quota` / `reservation_duplicate` / `provider_outcome`, and the
+adapter records `providerDetail: submit_http_429` — but `fail()` returns only
+`{ code, retryable }`, so all three collapsed at the response boundary. Two
+shoppers in three were told they had used something up when they had not.
+
+## The split
+
+| Cause | Code | HTTP | Copy | Retryable |
+| --- | --- | --- | --- | --- |
+| the actor's own daily allowance | `quota_exhausted` | 429 | "You've reached the try-on limit for now. Try again later." | yes |
+| duplicate already running | `request_in_flight` | 429 | "This try-on is already running. Give it a moment." | **no** |
+| vendor throttling K Scan | `provider_busy` | 503 | "Photo try-on is temporarily busy. Try again shortly." | yes |
+
+`request_in_flight` is deliberately **not** retryable: a retry button there
+asks for exactly the second submission idempotency just suppressed.
+
+`rate_limited` stays in the vocabulary — a client build can still receive it
+from an older deployment — but nothing emits it any more, and its copy is now
+neutral rather than an accusation about the customer's allowance.
+
+`stage` and `providerDetail` remain server-log only. No vendor name, host,
+HTTP status or raw body reaches the client, and no customer string names one.
+
+## `Retry-After`
+
+Previously never parsed at all, so §19's "honour Retry-After" could not be
+executed by code. Now `parseRetryAfterSeconds` accepts **both** RFC 9110 forms
+(delta-seconds and HTTP-date) and returns bounded whole seconds within
+`[VTO_RETRY_AFTER_MIN_SECONDS, VTO_RETRY_AFTER_MAX_SECONDS]` = `[1, 3600]`.
+
+Anything else — absent, empty, negative, zero, fractional, non-numeric, a
+400-digit string, a date in the past, or a value outside the window — returns
+`null`, and the response simply omits the field. **Out-of-range values are
+discarded rather than clamped**: clamping ten days down to an hour would invent
+a wait nobody promised, and the copy already degrades honestly to "try again
+shortly" when there is no number.
+
+The value is carried as `error.retryAfterSeconds`, the only provider-derived
+number that reaches a client. **It is guidance, not a trigger** — nothing
+retries automatically, the submit is issued exactly once, and the second
+attempt (if there is ever one) remains the certification harness's single
+authorized call.
+
+## What did not change
+
+`NEW_PROVIDER=0 · NEW_MODEL=0 · NEW_LLM_CALLS=0`
+
+Idempotency key composition, reservation locking, duplicate suppression and
+billing accounting are untouched, and pinned as such: a gateway 429 still
+**releases** the attempt (no vendor job existed), a billable failure still
+settles it `failed`, and an adapter that omits `billable` still counts. Retry
+timing is deliberately absent from the idempotency identity — a key that varied
+with a vendor's `Retry-After` would defeat duplicate suppression outright.
+
+Covered by `BLOCK-VTO31-00..10` in `__tests__/vtoRateLimitTruth.test.js`, which
+drives the **real** `handleVtoRequest` and the **real** adapter against injected
+transports rather than matching source text.

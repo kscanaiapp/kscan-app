@@ -58,6 +58,10 @@ import {
   ALLOWED_MEDIA_CONTENT_TYPES,
   assertSafeRemoteMediaUrl,
 } from '../../_shared/net/safeRemoteMedia.ts';
+import {
+  VTO_RETRY_AFTER_MAX_SECONDS,
+  VTO_RETRY_AFTER_MIN_SECONDS,
+} from '../vtoContract.ts';
 import type {
   VtoProvider,
   VtoProviderInput,
@@ -273,6 +277,51 @@ export interface AiLabToolsAdapterOptions {
 }
 
 /**
+ * Parses an HTTP `Retry-After` into bounded whole seconds, or null.
+ *
+ * BOTH RFC 9110 forms are accepted, because a gateway may send either and a
+ * silently-ignored date is the same bug as an unparsed number:
+ *   - delta-seconds:  `Retry-After: 120`
+ *   - HTTP-date:      `Retry-After: Wed, 21 Oct 2026 07:28:00 GMT`
+ *
+ * EVERYTHING ELSE IS null, INCLUDING OUT-OF-RANGE VALUES. A vendor can send a
+ * negative number, a date in the past, `0`, `NaN`, or ten days. None of those
+ * is guidance K Scan can stand behind, and a value outside the bound is
+ * DISCARDED rather than clamped -- clamping ten days down to an hour would
+ * invent a wait nobody promised, and the caller's own copy already degrades
+ * gracefully to "try again shortly" when there is no number. Returning null is
+ * the honest answer to "how long?" when the answer is unusable.
+ *
+ * Pure and side-effect free, and `nowMs` is injectable so the HTTP-date branch
+ * is testable without freezing the clock.
+ */
+export function parseRetryAfterSeconds(
+  raw: string | null | undefined,
+  nowMs: number = Date.now(),
+): number | null {
+  if (typeof raw !== 'string') return null;
+  const value = raw.trim();
+  if (!value) return null;
+
+  let seconds: number;
+  if (/^\d+$/.test(value)) {
+    // Bounded BEFORE Number(): a 400-digit string is not a duration, and
+    // parsing it first would produce Infinity.
+    if (value.length > 10) return null;
+    seconds = Number(value);
+  } else {
+    const at = Date.parse(value);
+    if (!Number.isFinite(at)) return null;
+    seconds = Math.ceil((at - nowMs) / 1000);
+  }
+
+  if (!Number.isFinite(seconds)) return null;
+  if (seconds < VTO_RETRY_AFTER_MIN_SECONDS) return null;
+  if (seconds > VTO_RETRY_AFTER_MAX_SECONDS) return null;
+  return seconds;
+}
+
+/**
  * VTO-QUOTA-003. `billable` on the gateway refusals below is not a guess.
  *
  * 401/403 is RapidAPI's own auth/subscription refusal -- the empirical probe
@@ -282,14 +331,34 @@ export interface AiLabToolsAdapterOptions {
  * an attempt. A 4xx that is NOT one of those means the vendor looked at the
  * request and rejected it, which is left billable.
  */
-function mapSubmitFailure(httpStatus: number, body: unknown): VtoProviderOutcome & { ok: false } {
+function mapSubmitFailure(
+  httpStatus: number,
+  body: unknown,
+  headers?: Headers,
+  nowMs?: number,
+): VtoProviderOutcome & { ok: false } {
   if (httpStatus === 401 || httpStatus === 403) {
     return {
       ok: false, failure: 'provider_unavailable', detail: `submit_http_${httpStatus}`, billable: false,
     };
   }
   if (httpStatus === 429) {
-    return { ok: false, failure: 'rate_limited', detail: 'submit_http_429', billable: false };
+    // VTO V3.1. This is the VENDOR GATEWAY throttling K Scan -- it says nothing
+    // about the customer's own allowance, and reporting it as `rate_limited`
+    // is what made the app tell a shopper they had reached their try-on limit
+    // when they had not. `provider_busy` is the truthful code; the orchestrator
+    // maps it to temporary-service copy and the customer's quota is untouched.
+    //
+    // `billable` is deliberately unchanged (false): a gateway 429 means no
+    // AILabTools generation was ever created, so the attempt is still released.
+    const retryAfterSeconds = parseRetryAfterSeconds(headers?.get('retry-after'), nowMs) ?? undefined;
+    return {
+      ok: false,
+      failure: 'provider_busy',
+      detail: 'submit_http_429',
+      billable: false,
+      retryAfterSeconds,
+    };
   }
   if (httpStatus >= 500) {
     return {
@@ -373,11 +442,11 @@ export function createAiLabToolsProvider(options: AiLabToolsAdapterOptions): Vto
 
       const submitBody = await submitResponse.json().catch(() => null);
       if (!submitResponse.ok) {
-        return mapSubmitFailure(submitResponse.status, submitBody);
+        return mapSubmitFailure(submitResponse.status, submitBody, submitResponse.headers);
       }
       const errorCode = (submitBody as Record<string, unknown> | null)?.error_code;
       if (typeof errorCode === 'number' && errorCode !== 0) {
-        return mapSubmitFailure(submitResponse.status, submitBody);
+        return mapSubmitFailure(submitResponse.status, submitBody, submitResponse.headers);
       }
       const taskId = (submitBody as Record<string, unknown> | null)?.task_id;
       if (typeof taskId !== 'string' || !taskId) {
@@ -420,12 +489,12 @@ export function createAiLabToolsProvider(options: AiLabToolsAdapterOptions): Vto
         // retrying within the poll budget.
         if (!pollResponse.ok) {
           if (pollBody && typeof pollErrorCode === 'number' && pollErrorCode !== 0) {
-            return mapSubmitFailure(pollResponse.status, pollBody);
+            return mapSubmitFailure(pollResponse.status, pollBody, pollResponse.headers);
           }
           continue;
         }
         if (typeof pollErrorCode === 'number' && pollErrorCode !== 0) {
-          return mapSubmitFailure(pollResponse.status, pollBody);
+          return mapSubmitFailure(pollResponse.status, pollBody, pollResponse.headers);
         }
 
         const taskStatus = (pollBody as Record<string, unknown> | null)?.task_status;

@@ -128,6 +128,17 @@ export function photorealOutcomeForGenerativeFailure(
     case 'provider_unavailable':
     case 'provider_timeout':
     case 'rate_limited':
+    // VTO V3.1. A busy vendor and an exhausted personal allowance are
+    // different sentences to the customer, but both land on the same Live
+    // outcome here: the generation did not happen and the Live session stays
+    // usable. The DISTINCTION is carried by the failure code's own copy
+    // (services/vto/vtoFailures.ts), not by this mapping -- which is why
+    // `quota_exhausted` must not be folded into `entitlement_missing`: having
+    // spent today's allowance is not the same as lacking K+, and offering an
+    // upgrade to someone who already pays would be the next wrong sentence.
+    case 'provider_busy':
+    case 'quota_exhausted':
+    case 'request_in_flight':
       return handlePhotorealFailure('provider_unavailable');
     case 'cancelled':
       return handlePhotorealFailure('capture_cancelled');
