@@ -1,0 +1,72 @@
+## RANKING AXES (executed, not inferred)
+COLOR_AXIS_PRESENT=YES (delta 0 -> 22)
+MATERIAL_AXIS_PRESENT=YES (delta 0 -> 22)
+SILHOUETTE_AXIS_PRESENT=YES (delta 0 -> 22)
+PATTERN_AXIS_PRESENT=NO (delta 0 -> 0)
+FORMALITY_AXIS_PRESENT=YES (delta 0 -> 6)
+FUNCTIONAL_AXIS_PRESENT=YES (delta 0 -> 12)
+
+## PRODUCT IDENTITY
+DEDUP_IDENTITY=qualityTuneCommerce.productIdentityKey -> canonical_url tier (canonicalizeUrlForIdentity)
+CANONICAL_AGREEMENT=["https://www.farfetch.com/shopping/s_loafer.aspx","https://www.farfetch.com/shopping/s_loafer.aspx"]
+CROSS_RETRIEVAL_IDENTITY_STABLE=YES (canonical url)
+
+## CACHE
+BASE_CACHE_KEY_ZERO_MEMORY=v127:17787b52
+FINGERPRINT_ZERO_CONTEXT=""
+
+## PHASE 0 FAILURE BASELINE (current build, before any V2 change)
+
+### Q01 "different ones"
+INTENT_BEFORE="footwear"  INTENT_AFTER="footwear"
+PRODUCTS_BEFORE=["l_black_canvas","l_black_chunky","l_black_suede_casual","l_black_suede","l_black_leather","l_black_horsebit"]
+PRODUCTS_AFTER=["l_black_formal","l_brown_suede","l_tan_leather","l_navy_leather"]
+REPEATED_IDENTITIES=[]
+MEMORY_OP=different  NOTICES=[]  STATUS=results
+PROVIDER_CALLS=1
+OBSERVED_FAILURE=see above
+
+### Q02 "not those"
+INTENT_BEFORE="footwear"  INTENT_AFTER="footwear"
+PRODUCTS_BEFORE=["l_black_canvas","l_brown_suede","l_black_chunky","l_black_suede_casual","l_black_suede","l_tan_leather"]
+PRODUCTS_AFTER=["l_black_leather","l_navy_leather","l_black_horsebit","l_black_formal"]
+REPEATED_IDENTITIES=[]
+MEMORY_OP=not_those  NOTICES=[]  STATUS=results
+PROVIDER_CALLS=1
+OBSERVED_FAILURE=see above
+
+### Q03 "something less formal"
+INTENT_BEFORE="footwear"  INTENT_AFTER="footwear"
+PRODUCTS_BEFORE=["l_black_canvas","l_brown_suede","l_black_chunky","l_black_suede_casual","l_black_suede","l_tan_leather"]
+PRODUCTS_AFTER=["l_black_canvas","l_brown_suede","l_black_chunky","l_black_suede_casual","l_black_suede","l_tan_leather"]
+REPEATED_IDENTITIES=["l_black_canvas","l_brown_suede","l_black_chunky","l_black_suede_casual","l_black_suede","l_tan_leather"]
+MEMORY_OP=none  NOTICES=["formality_needs_reference"]  STATUS=results
+PROVIDER_CALLS=2
+OBSERVED_FAILURE=IDENTICAL SHELF RETURNED
+
+### Q04 "maybe suede instead"
+INTENT_BEFORE="outerwear"  INTENT_AFTER="outerwear"
+PRODUCTS_BEFORE=["j_red_wool","j_red_suede","j_red_leather","j_black_suede"]
+PRODUCTS_AFTER=["j_red_suede","j_red_wool","j_black_suede","j_red_leather"]
+REPEATED_IDENTITIES=["j_red_wool","j_red_suede","j_red_leather","j_black_suede"]
+MEMORY_OP=none  NOTICES=[]  STATUS=results
+PROVIDER_CALLS=2
+OBSERVED_FAILURE=IDENTICAL SHELF RETURNED
+
+### Q05 "go back to the first one"
+INTENT_BEFORE="footwear"  INTENT_AFTER="footwear"
+PRODUCTS_BEFORE=["l_black_canvas","l_black_chunky","l_black_suede_casual","l_black_suede","l_black_leather","l_black_horsebit"]
+PRODUCTS_AFTER=["l_black_canvas"]
+REPEATED_IDENTITIES=["l_black_canvas"]
+MEMORY_OP=reference  NOTICES=[]  STATUS=results
+PROVIDER_CALLS=1
+OBSERVED_FAILURE=IDENTICAL SHELF RETURNED
+
+### Q06 "another"
+INTENT_BEFORE="footwear"  INTENT_AFTER="footwear"
+PRODUCTS_BEFORE=["l_black_canvas","l_black_chunky","l_black_suede_casual","l_black_suede","l_black_leather","l_black_horsebit"]
+PRODUCTS_AFTER=["l_black_formal"]
+REPEATED_IDENTITIES=[]
+MEMORY_OP=another  NOTICES=[]  STATUS=results
+PROVIDER_CALLS=1
+OBSERVED_FAILURE=see above

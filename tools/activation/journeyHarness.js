@@ -22,6 +22,7 @@ const client = (n) => require(path.join(ROOT, 'services/style-chat', n));
 
 const { validateStyleChatActions, extractActionsBlock } = chat('actions.ts');
 const { reduceShoppingIntent, findLatestShoppingIntent } = chat('eliseCommerceIntent.ts');
+const shelfMemory = client('commerceShelfMemory.ts');
 const { filterAndDedupeProducts } = edge('qualityTuneCommerce.ts');
 const { buildShoppingIntent, parseContextContributions } = edge('commerceShoppingIntent.ts');
 const { attachCommercialUsability } = edge('commerceContextualRanking.ts');
@@ -103,6 +104,11 @@ function makeFixtureProvider(options = {}) {
  * rather than by handing state around in memory.
  */
 async function runTurn(input) {
+  // A turn with no history is a NEW CONVERSATION, so the client-side candidate
+  // retention starts cold — the same state a freshly launched app is in. Being
+  // explicit about it keeps one journey's retained universe from silently
+  // answering the next journey's first turn.
+  if (!input.priorRows || !input.priorRows.length) shelfMemory.clearCandidateUniverses();
   const modelText = input.modelText ?? '';
   const extracted = extractActionsBlock(modelText);
   const actions = validateStyleChatActions(extracted.rawActions, []);
@@ -123,12 +129,27 @@ async function runTurn(input) {
     blockType: 'commerce_shopping_intent',
     state: reduced.state,
     needsBudgetReference: reduced.needsBudgetReference,
+    needsFormalityReference: reduced.needsFormalityReference,
+    ...(reduced.memory ? { memory: { op: reduced.memory.op, ordinal: reduced.memory.ordinal, scope: reduced.memory.scope } } : {}),
   });
 
   const provider = input.provider ?? makeFixtureProvider({ actorId: input.actorId ?? null });
+  // Verified products a real client would have in its loaded message list:
+  // everything a persisted `commerce_products` block in this session showed.
+  const priorShelfProducts = [];
+  for (const row of input.priorRows ?? []) {
+    for (const block of row.ui_blocks ?? []) {
+      if (block?.type === 'commerce_products' && Array.isArray(block.products)) {
+        priorShelfProducts.push(...block.products);
+      }
+    }
+  }
+
   const outcome = await activation.runCommerceActivation({
     wire,
     actorId: input.actorId ?? null,
+    priorShelfProducts: input.priorShelfProducts ?? priorShelfProducts,
+    ...(input.now ? { now: input.now } : {}),
     deps: {
       fetchCommerce: provider.fetchCommerce,
       ...(input.closetItems ? { loadClosetItems: async () => input.closetItems } : {}),
@@ -142,6 +163,9 @@ async function runTurn(input) {
     blocks: outcome.blocks,
     status: outcome.status,
     needsBudgetReference: outcome.needsBudgetReference,
+    needsFormalityReference: outcome.needsFormalityReference,
+    memoryOp: outcome.memoryOp,
+    notices: outcome.notices,
     commerceCalls: outcome.commerceCalls,
     reset: reduced.reset,
     state: reduced.state,
@@ -153,7 +177,7 @@ async function runTurn(input) {
   };
 }
 
-module.exports = { runTurn, makeFixtureProvider, SHOE_UNIVERSE, product };
+module.exports = { runTurn, makeFixtureProvider, SHOE_UNIVERSE, product, shelfMemory };
 
 if (require.main === module) {
   (async () => {

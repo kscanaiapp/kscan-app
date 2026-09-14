@@ -1,0 +1,102 @@
+{
+  "corpusFixtures": 10,
+  "discrimination": {
+    "status": "NON_DISCRIMINATING",
+    "why": "the control arm is already EXACT on 10/10 fixtures, so a true stated attribute has nothing to correct and no order to change",
+    "meaning": "this run shows the richer axes do no harm; it does NOT show they work",
+    "positiveEvidenceLivesIn": [
+      "__tests__/commerce/commerceV2RicherIntent.test.js :: AXIS GATE (the ranker delta per axis)",
+      "__tests__/commerce/commerceV2RicherIntent.test.js :: BLOCK-CV2-16 (a real order change on a material-diverse fixture)"
+    ]
+  },
+  "controlSummary": {
+    "identityQuality": {
+      "EXACT": 10
+    },
+    "substituteQuality": {
+      "STRONG_SUBSTITUTE": 10
+    },
+    "wrongAttributeRates": {
+      "color_family_wrong_rate": 0,
+      "silhouette_wrong_rate": 0,
+      "material_wrong_rate": 0,
+      "pattern_wrong_rate": 0
+    },
+    "topResultWithNoPurchasePath": 0
+  },
+  "arms": {
+    "material": {
+      "fixturesWithGroundTruthForAxis": 10,
+      "orderChangedCount": 0,
+      "control": {
+        "identityQuality": {
+          "EXACT": 10
+        },
+        "substituteQuality": {
+          "STRONG_SUBSTITUTE": 10
+        },
+        "wrongAttributeRates": {
+          "color_family_wrong_rate": 0,
+          "silhouette_wrong_rate": 0,
+          "material_wrong_rate": 0,
+          "pattern_wrong_rate": 0
+        },
+        "topResultWithNoPurchasePath": 0
+      },
+      "richer": {
+        "identityQuality": {
+          "EXACT": 10
+        },
+        "substituteQuality": {
+          "STRONG_SUBSTITUTE": 10
+        },
+        "wrongAttributeRates": {
+          "color_family_wrong_rate": 0,
+          "silhouette_wrong_rate": 0,
+          "material_wrong_rate": 0,
+          "pattern_wrong_rate": 0
+        },
+        "topResultWithNoPurchasePath": 0
+      }
+    },
+    "silhouette": {
+      "fixturesWithGroundTruthForAxis": 10,
+      "orderChangedCount": 0,
+      "control": {
+        "identityQuality": {
+          "EXACT": 10
+        },
+        "substituteQuality": {
+          "STRONG_SUBSTITUTE": 10
+        },
+        "wrongAttributeRates": {
+          "color_family_wrong_rate": 0,
+          "silhouette_wrong_rate": 0,
+          "material_wrong_rate": 0,
+          "pattern_wrong_rate": 0
+        },
+        "topResultWithNoPurchasePath": 0
+      },
+      "richer": {
+        "identityQuality": {
+          "EXACT": 10
+        },
+        "substituteQuality": {
+          "STRONG_SUBSTITUTE": 10
+        },
+        "wrongAttributeRates": {
+          "color_family_wrong_rate": 0,
+          "silhouette_wrong_rate": 0,
+          "material_wrong_rate": 0,
+          "pattern_wrong_rate": 0
+        },
+        "topResultWithNoPurchasePath": 0
+      }
+    }
+  },
+  "regressions": [],
+  "verdict": "NO_MATERIAL_REGRESSION",
+  "statisticalClaim": "NONE — synthetic corpus, gross-regression catch only",
+  "benchmarkStatus": "INTERNAL ENGINEERING EVIDENCE ONLY",
+  "note": "A stated TRUE attribute is expected to change ordering. Where it does, that is the feature working; the gate watches for identity quality falling, wrong-attribute rates rising, or the top result losing its purchase path."
+}
