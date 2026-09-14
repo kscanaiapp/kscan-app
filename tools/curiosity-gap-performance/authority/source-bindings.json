@@ -20,15 +20,15 @@
     "supabase/functions/scan-identify/commerceFastPath.ts": "4c9889b2cb1f5f34dbac5aa6863c4d357408074d8a53961c22b820d71ef03299",
     "supabase/functions/scan-identify/commerceFunnelConfig.ts": "a4625246aeb0f16a8189d89a2593e43a31df8bf897b765d0e2abc9aa32fac348",
     "supabase/functions/scan-identify/commerceRelevanceDiversity.ts": "8d3594f1c83c4361053ed8814144d927e29306c07553b3e9438ac62e46f96fe6",
-    "supabase/functions/scan-identify/commerceResultCache.ts": "4f6c69f517b27eb0a528e53c10bceb762b73ad6cd2aed3e201f2b4d67c49c5bd",
+    "supabase/functions/scan-identify/commerceResultCache.ts": "491b68ae564e70722eea2e17e9c6c44a4afba757423c91140a9e9478e2f75f2a",
     "supabase/functions/scan-identify/farfetch3Provider.ts": "98c9cafb574e55d969c5cdd4ffa86c209f55629bd69954f56a3868eaba88a792",
     "supabase/functions/scan-identify/index.ts": "967309c5953bde0647b6b07b55c932aa23b579a7bd357a98a5c414abdc2d0473",
     "supabase/functions/scan-identify/kicksCrewProvider.ts": "0ff14ce17f98d9916c0183813d353151fa03a979555a29d37230f8f54b100997",
     "supabase/functions/scan-identify/poshmarkProvider.ts": "8410b122bfe6fb4ccb7361a00bdcecda7a7e96c4db2ad528212b0a49387ce089",
-    "supabase/functions/scan-identify/qualityTuneCommerce.ts": "78ce742b6b87d36813bdfbc1bc32158b574de11febe3093f311b28ffbbcbd72f",
-    "supabase/functions/scan-identify/scanCommerceRouter.ts": "73474241b66e0ba5b21332450059a3c1c6e763ae6f0848c6e692b3147ae69093",
+    "supabase/functions/scan-identify/qualityTuneCommerce.ts": "c433a3128252164530ebaa12eacd7d16fe99643c95d3ec54c7877229862acd82",
+    "supabase/functions/scan-identify/scanCommerceRouter.ts": "d7aba79699c946cdb9374d6351ffe69a18ff054981497ef7e657a7ed157aaf79",
     "supabase/functions/scan-identify/scanQuota.ts": "28c3524442bbf8bc79012514bcd1293222a2df991777c0329c1902f6f4a7d57d",
     "supabase/functions/scan-identify/shoppingProvider.ts": "01c478939250bc3fab814917aeed2dd1a1f4f22afb709a98fa78cbb98b881795"
   },
-  "binding_hash": "a601046facee7cb389b4b0d28472f8013cfa2f0b508753ea889e46f507cda81a"
+  "binding_hash": "f55debe76fa205b5b39d5214589defb6e5b0912ef1286a100d86db150a8bc225"
 }

@@ -292,7 +292,7 @@ test('client: the gap count is derived from the gaps that will render', () => {
   assert.match(clientSource, /gaps: gaps\.length,/);
 });
 
-test('view: a gap is rendered with no photograph, no card and nothing to tap', () => {
+test('view: a gap is rendered with no photograph, no card and no price', () => {
   const view = read('components/packing/PackingPlanView.tsx');
   // Anchor on the section header, not the summary-stat label of the same name.
   const start = view.indexOf('<SectionHeader title=\"POSSIBLE GAPS\" />');
@@ -301,8 +301,57 @@ test('view: a gap is rendered with no photograph, no card and nothing to tap', (
   const section = view.slice(start, end);
   assert.doesNotMatch(section, /ClosetItemCard/, 'a gap must not use the owned-item card');
   assert.doesNotMatch(section, /resolveImage|Image /, 'a gap must not render imagery');
-  assert.doesNotMatch(section, /Pressable|onPress/, 'a gap is not an action');
+  // Comments stripped first: prose ABOUT the no-price rule must not be mistaken
+  // for a violation of it.
+  const code = section.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  assert.doesNotMatch(code, /price/i, 'a gap must not carry a price');
   assert.match(section, /packing-gap-/);
+});
+
+// B4 established "a gap is not an action", alongside "a gap is an unmet
+// requirement, not a sales opportunity" and "a bare Closet cannot become a
+// shopping list". The Build 36 owner direction narrows the FIRST of those
+// deliberately -- a CONFIRMED gap may now offer to look for something that
+// fills it -- and leaves the other two exactly as they were.
+//
+// What B4 was protecting is unchanged and re-asserted below: packingGaps.ts
+// still cannot reach a retailer, catalogue, price or product; the client still
+// drops any gap that arrives carrying one; the row still has no photograph, no
+// card chrome and no price; and a gap still cannot read as something owned.
+// The action is a link to a search, and it says so.
+//
+// The generic external-ideas list (IDEAS TO CONSIDER) stays completely inert:
+// those rows are ungrounded suggestions rather than confirmed gaps, and
+// packingPlannerV2Client.test.js pins them untouched.
+test('view: only a CONFIRMED gap may carry an action, and only a search', () => {
+  const view = read('components/packing/PackingPlanView.tsx');
+  const start = view.indexOf('<SectionHeader title=\"POSSIBLE GAPS\" />');
+  const section = view.slice(start, view.indexOf('ASSUMPTIONS'));
+
+  // Gated on BOTH the caller supplying a handler and the gap being confirmed.
+  // Either alone is not enough.
+  assert.match(
+    section,
+    /onFindOptions && gap\.certainty === 'confirmed'/,
+    'an unconfirmed gap must never carry the action',
+  );
+  assert.match(section, /FIND OPTIONS/, 'and it must say that it is a search');
+  assert.doesNotMatch(section, /productUrl|productId|addToCart|checkout/i);
+});
+
+test('view: the gaps section has exactly one action and the handler is optional', () => {
+  // Optional is the flag-off and pre-activation shape: a screen that does not
+  // pass a handler renders exactly the B4 treatment, with nothing to tap.
+  const view = read('components/packing/PackingPlanView.tsx');
+  assert.match(
+    view,
+    /onFindOptions\?: \(gap: PackingPlan\['gaps'\]\[number\]\) => void;/,
+    'the handler must be optional',
+  );
+  const start = view.indexOf('<SectionHeader title=\"POSSIBLE GAPS\" />');
+  const section = view.slice(start, view.indexOf('ASSUMPTIONS'));
+  const pressables = section.match(/<Pressable/g) ?? [];
+  assert.equal(pressables.length, 1, 'exactly one action exists in the gaps section');
 });
 
 test('view: the scarcity badge renders only the server-derived signal', () => {

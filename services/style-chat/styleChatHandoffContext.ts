@@ -11,7 +11,13 @@ import type {
   EliseVisualContextInput,
 } from '../../types/eliseVisualContext';
 
-export type StyleChatHandoffSource = 'camera' | 'upload' | 'text-scan';
+export type StyleChatHandoffSource =
+  | 'camera'
+  | 'upload'
+  | 'text-scan'
+  // Build 36 activation: a CONFIRMED Packing gap handed to Elise as a shopping
+  // request. Carries a query and a category only -- no trip data, no item ids.
+  | 'packing-gap';
 
 export type StyleChatHandoffContext = {
   source: StyleChatHandoffSource;

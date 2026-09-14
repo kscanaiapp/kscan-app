@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
+import { CommerceProductsBlock } from './CommerceProductsBlock';
 import type { StyleChatMessage } from '../../services/style-chat/types';
 import { StyleChatUiBlockView } from './StyleChatUiBlock';
 import { StyleChatActionCards } from './StyleChatActionCards';
@@ -254,7 +255,7 @@ export function StyleChatBubble({
           still takes space -- under every answer that has no wardrobe evidence,
           which the evidence path promises to leave completely unchanged.
         */}
-        {!isUser && uiBlocks.some((block) => block?.type !== 'concierge_outfit_state') ? (
+        {!isUser && uiBlocks.some((block) => block?.type !== 'concierge_outfit_state' && block?.type !== 'commerce_shopping_intent') ? (
           <View style={styles.uiBlocks}>
             {uiBlocks.map((block, i) => {
               // Phase 2: validated structured actions render as app-controlled
@@ -270,6 +271,41 @@ export function StyleChatBubble({
               // so it renders nothing, exactly as `greeting` above does.
               if (block?.type === 'concierge_outfit_state') {
                 return null;
+              }
+
+              // Build 36 activation. The shopping intent travels with the
+              // message so the next turn can refine the request that is
+              // actually on the table. State, not presentation -- nothing here
+              // is for a customer to read.
+              if (block?.type === 'commerce_shopping_intent') {
+                return null;
+              }
+
+              // The one place chat renders Commerce, and it renders through
+              // ProductShelf so Shop/Save/Watch gating stays in a single
+              // authority rather than being re-implemented for chat.
+              if (block?.type === 'commerce_products') {
+                const commerceBlock = block as unknown as {
+                  status?: 'results' | 'no_matches' | 'error';
+                  products?: unknown;
+                  // Echoed by the activation writer. Optional on purpose: a
+                  // block persisted by an older build has no intent summary,
+                  // and must still render as the single unsplit shelf.
+                  intentSummary?: {
+                    color?: string | null;
+                    colorStrength?: 'EXPLICIT_PREFERENCE' | 'STRONG_EXPLICIT_PREFERENCE' | null;
+                  };
+                };
+                return (
+                  <CommerceProductsBlock
+                    key={`commerce-${i}`}
+                    status={commerceBlock.status ?? 'no_matches'}
+                    products={commerceBlock.products}
+                    requestedColor={commerceBlock.intentSummary?.color ?? null}
+                    colorStrength={commerceBlock.intentSummary?.colorStrength ?? null}
+                    testID="chat-commerce-products"
+                  />
+                );
               }
 
               if (block?.type === 'stylechat_actions') {

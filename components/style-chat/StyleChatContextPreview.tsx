@@ -22,6 +22,11 @@ function sourceLabel(source: StyleChatHandoffContext['source']): string {
       return 'From Upload';
     case 'text-scan':
       return 'From TextScan';
+    case 'packing-gap':
+      // Naming the real origin matters here: this card is the only thing on
+      // screen explaining why a shopping request appeared without the customer
+      // typing it.
+      return 'From Packing';
     default:
       return 'From Scan';
   }

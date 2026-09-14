@@ -94,6 +94,16 @@ export interface EliseBackendFlags {
    * whether the assistant may state a falsehood.
    */
   conciergeV1: boolean;
+  /**
+   * commerceActivationV1 -- CAPABILITY. Whether Elise may propose the
+   * `find_products` action and carry a shopping intent between turns.
+   *
+   * OFF -> the prompt never mentions the action, the reducer never runs, and
+   * no `shoppingIntent` is published, so a turn is byte-identical to its
+   * pre-activation form. Commerce itself is unchanged either way: this flag
+   * governs whether Elise can REACH it, never how it ranks.
+   */
+  commerceActivationV1: boolean;
 }
 
 export interface EliseBackendConfig {
@@ -187,6 +197,7 @@ export function readEliseBackendConfig(env: EnvReader): EliseBackendConfig {
       closetWardrobeContextV1: parseBooleanEnv(env, 'ELISE_CLOSET_WARDROBE_CONTEXT_V1_ENABLED', false),
       packingIntelligenceV1: parseBooleanEnv(env, 'ELISE_PACKING_INTELLIGENCE_V1_ENABLED', false),
       conciergeV1: parseBooleanEnv(env, 'ELISE_CONCIERGE_V1_ENABLED', false),
+      commerceActivationV1: parseBooleanEnv(env, 'ELISE_COMMERCE_ACTIVATION_V1_ENABLED', false),
     },
   };
 }

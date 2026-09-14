@@ -21,6 +21,11 @@ export const ALLOWED_STYLECHAT_ACTIONS = [
   'swap_item',
   'open_look',
   'ask_my_room',
+  // Build 36 activation. The ONE structured channel Elise already has is the
+  // place Commerce is registered, rather than a new routing mechanism: the
+  // model proposes typed shopping fields here in its single pass, and
+  // deterministic code owns everything that happens next.
+  'find_products',
 ] as const;
 export type StyleChatActionType = (typeof ALLOWED_STYLECHAT_ACTIONS)[number];
 
@@ -41,6 +46,30 @@ export type ValidatedStyleChatAction = {
     occasion?: string;
     dressCode?: string;
     contextHint?: string;
+    /**
+     * Build 36 activation: the shopping fields the model may PROPOSE.
+     *
+     * Validated here against fixed vocabularies and then handed to the
+     * reducer in `eliseCommerceIntent.ts`, which owns what is actually
+     * persisted. Nothing the model writes outside these fields survives.
+     */
+    shopping?: {
+      category?: string;
+      color?: string;
+      /**
+       * How hard the customer asked for `color`. A closed enum: the model may
+       * PROPOSE it, and it is validated deterministically here. Anything else
+       * becomes ordinary preference -- the model never owns ranking.
+       */
+      colorStrength?: 'EXPLICIT_PREFERENCE' | 'STRONG_EXPLICIT_PREFERENCE';
+      budgetAmount?: number;
+      budgetCurrency?: string;
+      excludeMaterials?: string[];
+      excludeColors?: string[];
+      functionalRequirements?: string[];
+      clearBudget?: boolean;
+      clearColor?: boolean;
+    };
   };
 };
 
@@ -53,6 +82,7 @@ const DEFAULT_LABELS: Record<StyleChatActionType, string> = {
   swap_item: 'ASK ELISE TO SWAP THIS ITEM',
   open_look: 'OPEN THIS LOOK',
   ask_my_room: 'ASK MY ROOM',
+  find_products: 'FIND OPTIONS',
 };
 
 /**
@@ -116,6 +146,88 @@ function boundLabel(raw: unknown, type: StyleChatActionType): string {
  * Strict allowlist validation. Unknown fields are removed by reconstruction;
  * invalid actions are dropped entirely (never patched, never replaced).
  */
+/**
+ * Bounded vocabularies for the shopping proposal. Deliberately the same word
+ * lists the reducer enforces: a value that would be dropped later is dropped
+ * here, so the action a client receives never promises a constraint the
+ * persisted intent will not carry.
+ */
+const SHOPPING_COLORS = [
+  'black', 'white', 'red', 'blue', 'navy', 'green', 'brown', 'pink', 'grey',
+  'gray', 'beige', 'cream', 'tan', 'burgundy', 'olive', 'yellow', 'purple', 'orange',
+];
+const SHOPPING_MATERIALS = [
+  'leather', 'suede', 'denim', 'wool', 'cotton', 'silk', 'satin', 'linen',
+  'cashmere', 'nylon', 'polyester', 'fur', 'velvet',
+];
+const SHOPPING_FUNCTIONAL = ['waterproof', 'packable', 'warm', 'breathable'];
+const ISO_CURRENCY_RE = /^[A-Za-z]{3}$/;
+const MAX_SHOPPING_LIST = 6;
+
+function boundedWord(value: unknown, allowed: string[]): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const token = value.trim().toLowerCase().slice(0, 32);
+  return allowed.includes(token) ? token : undefined;
+}
+
+function boundedWordList(value: unknown, allowed: string[]): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const out: string[] = [];
+  for (const entry of value) {
+    if (out.length >= MAX_SHOPPING_LIST) break;
+    const token = boundedWord(entry, allowed);
+    if (token && !out.includes(token)) out.push(token);
+  }
+  return out.length ? out : undefined;
+}
+
+function parseShoppingProposal(raw: unknown): NonNullable<ValidatedStyleChatAction['payload']['shopping']> {
+  const out: NonNullable<ValidatedStyleChatAction['payload']['shopping']> = {};
+  if (!raw || typeof raw !== 'object') return out;
+  const rec = raw as Record<string, unknown>;
+
+  if (typeof rec.category === 'string') {
+    const category = rec.category.trim().toLowerCase().slice(0, 40);
+    if (category) out.category = category;
+  }
+  const color = boundedWord(rec.color, SHOPPING_COLORS);
+  if (color) {
+    out.color = color;
+    // Strength is only meaningful alongside a colour, and only in the two
+    // values the contract names. No free text, and no numeric score: an
+    // unbounded "how much they meant it" field is exactly how a model ends up
+    // owning ranking weight.
+    out.colorStrength = rec.colorStrength === 'STRONG_EXPLICIT_PREFERENCE'
+      ? 'STRONG_EXPLICIT_PREFERENCE'
+      : 'EXPLICIT_PREFERENCE';
+  }
+
+  // A ceiling is only a ceiling with a currency the model actually named:
+  // a bare number cannot be compared to an offer truthfully.
+  const amount = typeof rec.budgetAmount === 'number'
+    ? rec.budgetAmount
+    : typeof rec.budgetAmount === 'string' ? Number.parseFloat(rec.budgetAmount) : NaN;
+  const currency = typeof rec.budgetCurrency === 'string' && ISO_CURRENCY_RE.test(rec.budgetCurrency.trim())
+    ? rec.budgetCurrency.trim().toUpperCase()
+    : undefined;
+  if (Number.isFinite(amount) && amount > 0 && currency) {
+    out.budgetAmount = amount;
+    out.budgetCurrency = currency;
+  }
+
+  const materials = boundedWordList(rec.excludeMaterials, SHOPPING_MATERIALS);
+  if (materials) out.excludeMaterials = materials;
+  const colors = boundedWordList(rec.excludeColors, SHOPPING_COLORS);
+  if (colors) out.excludeColors = colors;
+  const functional = boundedWordList(rec.functionalRequirements, SHOPPING_FUNCTIONAL);
+  if (functional) out.functionalRequirements = functional;
+
+  if (rec.clearBudget === true) out.clearBudget = true;
+  if (rec.clearColor === true) out.clearColor = true;
+
+  return out;
+}
+
 export function validateStyleChatActions(
   rawActions: unknown,
   resolved: ResolvedAttachment[],
@@ -169,6 +281,12 @@ export function validateStyleChatActions(
     } else if (actionType === 'open_stylist') {
       const anchor = parseRef(record.anchor, index);
       if (anchor) payload.anchor = anchor;
+    } else if (actionType === 'find_products') {
+      // Bounded, vocabulary-checked proposal. An action whose every field is
+      // rejected still survives as a bare `find_products`: "show me options"
+      // with no constraints is a legitimate request, and the reducer will
+      // simply carry the previous intent forward.
+      payload.shopping = parseShoppingProposal(record.shopping ?? record);
     }
 
     if (typeof record.contextHint === 'string') {

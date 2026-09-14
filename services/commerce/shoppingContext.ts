@@ -33,6 +33,12 @@ export interface CommerceContextContribution {
   category?: string;
   subtype?: string;
   color?: string;
+  /**
+   * How hard the customer asked for `color`. Meaningful only on a
+   * USER_EXPLICIT contribution; the server re-validates it against a closed
+   * enum and degrades anything else to ordinary preference.
+   */
+  colorStrength?: 'EXPLICIT_PREFERENCE' | 'STRONG_EXPLICIT_PREFERENCE';
   material?: string;
   silhouette?: string;
   pattern?: string;

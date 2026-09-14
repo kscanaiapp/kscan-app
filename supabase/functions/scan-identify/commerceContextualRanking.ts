@@ -316,6 +316,23 @@ export function evaluateHardConstraints(
  */
 export const CTX_EXPLICIT_ATTRIBUTE_MATCH = 22;
 export const CTX_EXPLICIT_ATTRIBUTE_MISS = -18;
+
+/**
+ * A STRONG explicit request elevates further. It does not suppress further.
+ *
+ * "Only black" and "black shoes" are both positive requests; the difference
+ * between them is how far a black candidate rises, not how far a brown one
+ * falls. That asymmetry is the whole mechanism: a positive request must never
+ * become a disguised exclusion, because the customer who says "only black" and
+ * is shown nothing else has lost the market, and the one who is shown a brown
+ * boot ranked second has lost nothing.
+ *
+ * The miss penalty is deliberately SHARED between the two tiers, and is the
+ * one the ordinary tier already used. Adding a second, harsher penalty for the
+ * strong tier is the obvious-looking change and is exactly the suppression
+ * this contract exists to refuse.
+ */
+export const CTX_STRONG_EXPLICIT_ATTRIBUTE_MATCH = 34;
 export const CTX_FUNCTIONAL_REQUIREMENT_MATCH = 12;
 export const CTX_CONFIRMED_GAP_ALIGNMENT = 10;
 export const CTX_OCCASION_OR_FORMALITY_MATCH = 6;
@@ -391,7 +408,9 @@ export function scoreContextualFit(
     if (!axis.field || axis.field.provenance !== 'USER_EXPLICIT') continue;
     sawExplicitAxis = true;
     if (includesToken(text, axis.field.value)) {
-      delta += CTX_EXPLICIT_ATTRIBUTE_MATCH;
+      delta += axis.field.strength === 'STRONG_EXPLICIT_PREFERENCE'
+        ? CTX_STRONG_EXPLICIT_ATTRIBUTE_MATCH
+        : CTX_EXPLICIT_ATTRIBUTE_MATCH;
       facts.push(axis.fact);
       matchedAttributes.push(axis.field.value);
     } else {

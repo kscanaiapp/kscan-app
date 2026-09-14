@@ -24,7 +24,9 @@ import { PackingGeneralGuideView, PackingPlanView } from '../../components/packi
 import { usePackingPlan } from '../../hooks/usePackingPlan';
 import { useCloset } from '../../hooks/useCloset';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
-import { PACKING_INTELLIGENCE_V1 } from '../../constants/featureFlags';
+import { ELISE_COMMERCE_ACTIVATION_V1, PACKING_INTELLIGENCE_V1 } from '../../constants/featureFlags';
+import { buildPackingCommerceHandoff } from '../../services/packing/packingCommerceHandoff';
+import { setStyleChatHandoffContext } from '../../services/style-chat/styleChatHandoffContext';
 import type { PackingTripDraft } from '../../types/packing';
 
 /**
@@ -100,6 +102,45 @@ export default function PackingScreen() {
   const resolveImage = useCallback(
     (clientId: string | null) => (clientId ? imageByClientId.get(clientId) ?? null : null),
     [imageByClientId],
+  );
+
+  /**
+   * Build 36 — a CONFIRMED gap hands off to Elise as a shopping request.
+   *
+   * THE EXISTING GOVERNED DESTINATION, not a new one. This is the same
+   * ephemeral in-memory bridge the Scanner and Dressing Room already use to
+   * put a request to Elise, and Elise already owns the activated Commerce
+   * journey: real candidates, #409 ranking, ProductShelf, and the existing
+   * Save / Watch / Shop contracts. A second Commerce results screen inside
+   * Packing would be a third place those rules could drift.
+   *
+   * The handoff carries a shopping request and a stable gap code. No trip id,
+   * no Closet id, no dates, no plan state -- the adapter builds it from the
+   * gap alone, and everything else the journey needs it assembles itself,
+   * actor-scoped, on the way.
+   *
+   * Undefined when the capability is off, so the control does not render at
+   * all rather than offering to find options the backend cannot look for.
+   */
+  const onFindOptions = useCallback(
+    (gap: { code: string; label: string; certainty?: 'confirmed' | 'unconfirmed' }) => {
+      // `gapIsShoppable` inside the adapter is the authority on certainty; this
+      // returns null for anything it will not carry, including a gap the view
+      // should never have offered.
+      const handoff = buildPackingCommerceHandoff({
+        gapCode: gap.code,
+        label: gap.label,
+        certainty: gap.certainty,
+      });
+      if (!handoff) return;
+      setStyleChatHandoffContext({
+        source: handoff.source,
+        query: handoff.query,
+        category: handoff.category,
+      });
+      router.push('/style-chat');
+    },
+    [],
   );
 
   const busy = packing.status === 'generating';
@@ -268,6 +309,7 @@ export default function PackingScreen() {
                     resolveImage={resolveImage}
                     packedOff={packing.packedOff}
                     onToggleItemPacked={packing.toggleItemPacked}
+                    onFindOptions={ELISE_COMMERCE_ACTIVATION_V1 ? onFindOptions : undefined}
                     // An expired entitlement stops new work; it does not strip
                     // the plan already on screen.
                     onRemoveItem={

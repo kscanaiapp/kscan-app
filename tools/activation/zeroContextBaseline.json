@@ -1,0 +1,58 @@
+{
+  "capturedAgainst": "PR #409 merge 28e1203aebe4864e4bed689ccb14d16ec857aaf7 (pre-activation)",
+  "fixtures": [
+    {
+      "fixture": "ZC1_boots",
+      "candidateSet": [
+        "z1",
+        "z2",
+        "z3",
+        "z4"
+      ],
+      "order": [
+        "z1",
+        "z2",
+        "z3"
+      ],
+      "scores": [
+        80,
+        70,
+        55
+      ],
+      "contextualApplied": false,
+      "transactionStates": [
+        "z1:TRANSACTION_READY",
+        "z2:TRANSACTION_READY",
+        "z3:TRANSACTION_READY"
+      ],
+      "primaryTransactionalIndex": 0,
+      "commerceRankPasses": 1
+    },
+    {
+      "fixture": "ZC2_jacket",
+      "candidateSet": [
+        "y1",
+        "y2",
+        "y3"
+      ],
+      "order": [
+        "y1",
+        "y2",
+        "y3"
+      ],
+      "scores": [
+        80,
+        80,
+        0
+      ],
+      "contextualApplied": false,
+      "transactionStates": [
+        "y1:TRANSACTION_READY",
+        "y2:TRANSACTION_READY",
+        "y3:BROWSE_ONLY"
+      ],
+      "primaryTransactionalIndex": 0,
+      "commerceRankPasses": 1
+    }
+  ]
+}

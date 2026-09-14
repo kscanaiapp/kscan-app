@@ -1,0 +1,519 @@
+[
+  {
+    "id": "F01_ordinary_black_boot",
+    "tier": "ordinary",
+    "message": "Show me black boots.",
+    "request": {
+      "provenance": "USER_EXPLICIT",
+      "color": "black"
+    },
+    "universe": [
+      "u1_brown_chelsea",
+      "u1_tan_chelsea",
+      "u1_burgundy_chelsea",
+      "u1_black_weaker"
+    ],
+    "kept": 4,
+    "top5": [
+      {
+        "rank": 1,
+        "id": "u1_burgundy_chelsea",
+        "title": "Burgundy Leather Chelsea Ankle Boot Solid",
+        "score": 57,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_attribute_missing"
+        ]
+      },
+      {
+        "rank": 2,
+        "id": "u1_brown_chelsea",
+        "title": "Brown Leather Chelsea Ankle Boot Solid",
+        "score": 57,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_attribute_missing"
+        ]
+      },
+      {
+        "rank": 3,
+        "id": "u1_tan_chelsea",
+        "title": "Tan Leather Chelsea Ankle Boot Solid",
+        "score": 57,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_attribute_missing"
+        ]
+      },
+      {
+        "rank": 4,
+        "id": "u1_black_weaker",
+        "title": "Black Woven Espadrille",
+        "score": 47,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_color_match"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "F02_ordinary_red_jacket",
+    "tier": "ordinary",
+    "message": "I'd prefer a red jacket.",
+    "request": {
+      "provenance": "USER_EXPLICIT",
+      "color": "red"
+    },
+    "universe": [
+      "u2_navy_field",
+      "u2_olive_field",
+      "u2_grey_field",
+      "u2_red_weaker"
+    ],
+    "kept": 4,
+    "top5": [
+      {
+        "rank": 1,
+        "id": "u2_red_weaker",
+        "title": "Red Nylon Cropped Puffer",
+        "score": 77,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_color_match"
+        ]
+      },
+      {
+        "rank": 2,
+        "id": "u2_olive_field",
+        "title": "Olive Cotton Field Jacket Relaxed Solid",
+        "score": 47,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_attribute_missing"
+        ]
+      },
+      {
+        "rank": 3,
+        "id": "u2_navy_field",
+        "title": "Navy Cotton Field Jacket Relaxed Solid",
+        "score": 47,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_attribute_missing"
+        ]
+      },
+      {
+        "rank": 4,
+        "id": "u2_grey_field",
+        "title": "Grey Cotton Field Jacket Relaxed Solid",
+        "score": 47,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_attribute_missing"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "F03_ordinary_navy_dress",
+    "tier": "ordinary",
+    "message": "A navy dress if possible.",
+    "request": {
+      "provenance": "USER_EXPLICIT",
+      "color": "navy"
+    },
+    "universe": [
+      "u3_ivory_shift",
+      "u3_green_shift",
+      "u3_black_shift",
+      "u3_navy_weaker"
+    ],
+    "kept": 4,
+    "top5": [
+      {
+        "rank": 1,
+        "id": "u3_navy_weaker",
+        "title": "Navy Linen Tiered Maxi Dress",
+        "score": 77,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_color_match"
+        ]
+      },
+      {
+        "rank": 2,
+        "id": "u3_green_shift",
+        "title": "Green Cotton Shift Dress Solid",
+        "score": 57,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_attribute_missing"
+        ]
+      },
+      {
+        "rank": 3,
+        "id": "u3_ivory_shift",
+        "title": "Ivory Cotton Shift Dress Solid",
+        "score": 57,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_attribute_missing"
+        ]
+      },
+      {
+        "rank": 4,
+        "id": "u3_black_shift",
+        "title": "Black Cotton Shift Dress Solid",
+        "score": 57,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_attribute_missing"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "F04_strong_only_black",
+    "tier": "strong",
+    "message": "Only black.",
+    "request": {
+      "provenance": "USER_EXPLICIT",
+      "color": "black",
+      "colorStrength": "STRONG_EXPLICIT_PREFERENCE"
+    },
+    "universe": [
+      "u1_brown_chelsea",
+      "u1_tan_chelsea",
+      "u1_burgundy_chelsea",
+      "u1_black_weaker"
+    ],
+    "kept": 4,
+    "top5": [
+      {
+        "rank": 1,
+        "id": "u1_black_weaker",
+        "title": "Black Woven Espadrille",
+        "score": 59,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_color_match"
+        ]
+      },
+      {
+        "rank": 2,
+        "id": "u1_burgundy_chelsea",
+        "title": "Burgundy Leather Chelsea Ankle Boot Solid",
+        "score": 57,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_attribute_missing"
+        ]
+      },
+      {
+        "rank": 3,
+        "id": "u1_brown_chelsea",
+        "title": "Brown Leather Chelsea Ankle Boot Solid",
+        "score": 57,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_attribute_missing"
+        ]
+      },
+      {
+        "rank": 4,
+        "id": "u1_tan_chelsea",
+        "title": "Tan Leather Chelsea Ankle Boot Solid",
+        "score": 57,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_attribute_missing"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "F05_strong_really_want_red",
+    "tier": "strong",
+    "message": "I really want red.",
+    "request": {
+      "provenance": "USER_EXPLICIT",
+      "color": "red",
+      "colorStrength": "STRONG_EXPLICIT_PREFERENCE"
+    },
+    "universe": [
+      "u2_navy_field",
+      "u2_olive_field",
+      "u2_grey_field",
+      "u2_red_weaker"
+    ],
+    "kept": 4,
+    "top5": [
+      {
+        "rank": 1,
+        "id": "u2_red_weaker",
+        "title": "Red Nylon Cropped Puffer",
+        "score": 89,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_color_match"
+        ]
+      },
+      {
+        "rank": 2,
+        "id": "u2_olive_field",
+        "title": "Olive Cotton Field Jacket Relaxed Solid",
+        "score": 47,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_attribute_missing"
+        ]
+      },
+      {
+        "rank": 3,
+        "id": "u2_navy_field",
+        "title": "Navy Cotton Field Jacket Relaxed Solid",
+        "score": 47,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_attribute_missing"
+        ]
+      },
+      {
+        "rank": 4,
+        "id": "u2_grey_field",
+        "title": "Grey Cotton Field Jacket Relaxed Solid",
+        "score": 47,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_attribute_missing"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "F06_strong_navy_important",
+    "tier": "strong",
+    "message": "Navy is important to me.",
+    "request": {
+      "provenance": "USER_EXPLICIT",
+      "color": "navy",
+      "colorStrength": "STRONG_EXPLICIT_PREFERENCE"
+    },
+    "universe": [
+      "u3_ivory_shift",
+      "u3_green_shift",
+      "u3_black_shift",
+      "u3_navy_weaker"
+    ],
+    "kept": 4,
+    "top5": [
+      {
+        "rank": 1,
+        "id": "u3_navy_weaker",
+        "title": "Navy Linen Tiered Maxi Dress",
+        "score": 89,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_color_match"
+        ]
+      },
+      {
+        "rank": 2,
+        "id": "u3_green_shift",
+        "title": "Green Cotton Shift Dress Solid",
+        "score": 57,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_attribute_missing"
+        ]
+      },
+      {
+        "rank": 3,
+        "id": "u3_ivory_shift",
+        "title": "Ivory Cotton Shift Dress Solid",
+        "score": 57,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_attribute_missing"
+        ]
+      },
+      {
+        "rank": 4,
+        "id": "u3_black_shift",
+        "title": "Black Cotton Shift Dress Solid",
+        "score": 57,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_attribute_missing"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "F07_sparse_single_black",
+    "tier": "sparse",
+    "message": "Only black please.",
+    "request": {
+      "provenance": "USER_EXPLICIT",
+      "color": "black",
+      "colorStrength": "STRONG_EXPLICIT_PREFERENCE"
+    },
+    "universe": [
+      "u4_brown_chelsea",
+      "u4_tan_chelsea",
+      "u4_cream_chelsea",
+      "u4_black_chelsea"
+    ],
+    "kept": 4,
+    "top5": [
+      {
+        "rank": 1,
+        "id": "u4_black_chelsea",
+        "title": "Black Leather Chelsea Ankle Boot Solid",
+        "score": 100,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_color_match"
+        ]
+      },
+      {
+        "rank": 2,
+        "id": "u4_cream_chelsea",
+        "title": "Cream Leather Chelsea Ankle Boot Solid",
+        "score": 57,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_attribute_missing"
+        ]
+      },
+      {
+        "rank": 3,
+        "id": "u4_brown_chelsea",
+        "title": "Brown Leather Chelsea Ankle Boot Solid",
+        "score": 57,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_attribute_missing"
+        ]
+      },
+      {
+        "rank": 4,
+        "id": "u4_tan_chelsea",
+        "title": "Tan Leather Chelsea Ankle Boot Solid",
+        "score": 57,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_attribute_missing"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "F08_quality_floor_black_unusable",
+    "tier": "sparse",
+    "message": "Only black.",
+    "request": {
+      "provenance": "USER_EXPLICIT",
+      "color": "black",
+      "colorStrength": "STRONG_EXPLICIT_PREFERENCE"
+    },
+    "universe": [
+      "u5_brown_chelsea",
+      "u5_tan_chelsea",
+      "u5_black_unusable",
+      "u5_black_good"
+    ],
+    "kept": 4,
+    "top5": [
+      {
+        "rank": 1,
+        "id": "u5_black_good",
+        "title": "Black Leather Chelsea Ankle Boot Solid",
+        "score": 100,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_color_match"
+        ]
+      },
+      {
+        "rank": 2,
+        "id": "u5_black_unusable",
+        "title": "Black Leather Chelsea Ankle Boot Solid - See Similar Items",
+        "score": 100,
+        "usability": "BROWSE_ONLY",
+        "factCodes": [
+          "explicit_color_match"
+        ]
+      },
+      {
+        "rank": 3,
+        "id": "u5_tan_chelsea",
+        "title": "Tan Leather Chelsea Ankle Boot Solid",
+        "score": 57,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_attribute_missing"
+        ]
+      },
+      {
+        "rank": 4,
+        "id": "u5_brown_chelsea",
+        "title": "Brown Leather Chelsea Ankle Boot Solid",
+        "score": 57,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_attribute_missing"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "F09_no_black_candidate",
+    "tier": "sparse",
+    "message": "I really want black.",
+    "request": {
+      "provenance": "USER_EXPLICIT",
+      "color": "black",
+      "colorStrength": "STRONG_EXPLICIT_PREFERENCE"
+    },
+    "universe": [
+      "u6_brown_chelsea",
+      "u6_tan_chelsea",
+      "u6_burgundy_chelsea"
+    ],
+    "kept": 3,
+    "top5": [
+      {
+        "rank": 1,
+        "id": "u6_burgundy_chelsea",
+        "title": "Burgundy Leather Chelsea Ankle Boot Solid",
+        "score": 57,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_attribute_missing"
+        ]
+      },
+      {
+        "rank": 2,
+        "id": "u6_brown_chelsea",
+        "title": "Brown Leather Chelsea Ankle Boot Solid",
+        "score": 57,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_attribute_missing"
+        ]
+      },
+      {
+        "rank": 3,
+        "id": "u6_tan_chelsea",
+        "title": "Tan Leather Chelsea Ankle Boot Solid",
+        "score": 57,
+        "usability": "TRANSACTION_READY",
+        "factCodes": [
+          "explicit_attribute_missing"
+        ]
+      }
+    ]
+  }
+]

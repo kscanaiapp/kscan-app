@@ -48,6 +48,7 @@ import {
   buildShoppingIntent,
   extractExplicitContribution,
   hasUsableContext,
+  shoppingIntentFingerprint,
   type IntentContribution,
   type ShoppingIntent,
 } from './commerceShoppingIntent.ts';
@@ -1089,6 +1090,10 @@ export async function getFastCommerceResults(
     locale: input.market?.locale ?? null,
     currency: input.market?.currency ?? null,
     country: input.market?.country ?? null,
+    // A cache HIT returns the stored shelf without re-running the contextual
+    // filter, so two requests may share an entry only when their constraints
+    // agree. Empty for a zero-context request -> unchanged key.
+    shoppingIntentFingerprint: shoppingIntentFingerprint(resolved.relevanceOpts?.shoppingContext),
   };
   const cacheKey = buildCommerceCacheKey(cacheKeyInput);
   const cacheStarted = Date.now();

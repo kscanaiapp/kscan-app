@@ -11,9 +11,17 @@
 // local photo degrades to a typographic tile rather than a broken image.
 //
 // A GAP IS NEVER STYLED LIKE SOMETHING OWNED. The POSSIBLE GAPS section has no
-// photograph, no card chrome, nothing to tap and no price -- a thing the
-// traveller does not have must never be able to read as a thing they do. The
-// general-mode guide uses the same unowned treatment for the same reason.
+// photograph, no card chrome and no price -- a thing the traveller does not
+// have must never be able to read as a thing they do. The general-mode guide
+// uses the same unowned treatment for the same reason.
+//
+// Build 36 adds ONE action to that section, and only on a CONFIRMED gap: an
+// offer to look for something that fills it. The anti-ownership rule is
+// unchanged -- the row still carries no image, no product and no price, and
+// the action is typographic and says plainly that it is a search. IDEAS TO
+// CONSIDER, the external-ideas list, stays completely inert: those rows are
+// not confirmed gaps, they are ungrounded suggestions, and nothing there is
+// tappable.
 
 import React, { useMemo } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -270,6 +278,7 @@ export function PackingPlanView({
   busy,
   packedOff,
   onToggleItemPacked,
+  onFindOptions,
 }: {
   plan: PackingPlan;
   message: string | null;
@@ -279,6 +288,14 @@ export function PackingPlanView({
   /** Item ids the traveller has ticked off. Device-local. */
   packedOff?: string[];
   onToggleItemPacked?: (itemId: string) => void;
+  /**
+   * Build 36. Offer to look for something that fills a CONFIRMED gap.
+   *
+   * Omitted -> the control does not render at all, which is the flag-off and
+   * pre-activation shape. The screen decides where the request goes; this
+   * component only knows which gaps may carry the offer.
+   */
+  onFindOptions?: (gap: PackingPlan['gaps'][number]) => void;
 }) {
   const itemsById = useMemo(() => {
     const map = new Map<string, PackingPlanItem>();
@@ -499,9 +516,14 @@ export function PackingPlanView({
           <View testID="packing-gaps">
             {plan.gaps.map((gap) => (
               // Deliberately a different treatment from an owned item: no
-              // photograph, no card chrome, no price and nothing to tap. A gap
-              // is a thing the traveller does not have, and it must never be
-              // able to read as a thing they do.
+              // photograph, no card chrome and no price. A gap is a thing the
+              // traveller does not have, and it must never be able to read as
+              // a thing they do.
+              //
+              // Build 36: a CONFIRMED gap may now carry one action, and that
+              // does not weaken the rule above. The row still shows no image,
+              // no product and no price; the action is plainly a search, and it
+              // says what it does. What it must never become is a card.
               <View key={gap.code} style={styles.gapRow} testID={`packing-gap-${gap.code}`}>
                 {gap.certainty === 'unconfirmed' ? (
                   // "I can't tell" is not "you don't have", and it never looks like one.
@@ -509,6 +531,20 @@ export function PackingPlanView({
                 ) : null}
                 <Text style={styles.gapLabel}>{gap.label}</Text>
                 <Text style={styles.gapRationale}>{gap.rationale}</Text>
+                {onFindOptions && gap.certainty === 'confirmed' ? (
+                  // CONFIRMED ONLY. An unconfirmed gap is Packing saying "I
+                  // can't tell", and offering to go looking for an absence
+                  // nobody proved would turn uncertainty into a transaction.
+                  <Pressable
+                    onPress={() => onFindOptions(gap)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Find options for ${gap.label}`}
+                    testID={`packing-gap-find-${gap.code}`}
+                    style={styles.gapAction}
+                  >
+                    <Text style={styles.gapActionLabel}>FIND OPTIONS</Text>
+                  </Pressable>
+                ) : null}
               </View>
             ))}
           </View>
@@ -830,6 +866,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
     marginTop: SPACING.xxs,
+  },
+  // Typographic, like the rest of this section. No card chrome, no fill and no
+  // image: it must read as a link to a search, never as a product.
+  gapAction: {
+    alignSelf: 'flex-start',
+    marginTop: SPACING.xs,
+    paddingVertical: SPACING.xxs,
+  },
+  gapActionLabel: {
+    ...LUXURY.typography.caption,
+    color: LUXURY.colors.goldText,
+    letterSpacing: 1,
   },
   itemReuse: {
     ...LUXURY.typography.caption,

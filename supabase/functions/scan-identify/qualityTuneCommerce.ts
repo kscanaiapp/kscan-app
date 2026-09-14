@@ -35,6 +35,7 @@ import {
 import {
   buildRationaleFacts,
   candidatesArePriceComparable,
+  classifyCommercialUsability,
   evaluateHardConstraints,
   scoreContextualFit,
   stripOwnershipClaim,
@@ -470,6 +471,60 @@ function scoreProduct(p: RecommendedProduct, garment: Record<string, unknown>): 
 }
 
 /**
+ * Among candidates the ranker scored EXACTLY EQUAL, put the buyable ones first.
+ *
+ * A TIE-BREAK, NOT A SCORE TERM. Commercial usability still contributes ZERO to
+ * the number that ranks the shelf, and that contract is deliberately unchanged:
+ * nothing here can move a candidate past one the single ranking authority
+ * scored differently, by even one point.
+ *
+ * WHAT IT REPLACES IS PROVIDER ORDER. An aggregator "see similar" link with no
+ * price and no purchase path scores identically to the real buyable boot behind
+ * it -- same category, same subtype, same words -- and every sort in the chain
+ * settled that tie on `originalIndex`, the retailer's own ordering. So the one
+ * listing the customer cannot buy took the top slot. Between two candidates K
+ * Scan judges equal, K Scan's own signal decides rather than the provider's
+ * (retailer neutrality).
+ *
+ * The unusable candidate is reordered, never removed: a browse-only listing is
+ * still a real option, and someone may want to look at it.
+ *
+ * Runs only on the contextual path, so the zero-context Scanner shelf keeps
+ * provider order exactly as before. Equal-score runs are reordered in place,
+ * which leaves the soft-diversity result untouched everywhere else.
+ */
+function stabilizeEqualScoresByUsability(
+  ordered: RecommendedProduct[],
+  scored: ScoredProduct[],
+  contextual: boolean,
+): RecommendedProduct[] {
+  if (!contextual || ordered.length < 2) return ordered;
+  const scoreOf = new Map<RecommendedProduct, number>();
+  for (const s of scored) scoreOf.set(s.product, s.agreementScore);
+
+  const out: RecommendedProduct[] = [];
+  let runStart = 0;
+  const flushRun = (endExclusive: number) => {
+    const run = ordered.slice(runStart, endExclusive);
+    if (run.length < 2) {
+      out.push(...run);
+      return;
+    }
+    // Stable partition: buyable first, each group keeping its incoming order.
+    const buyable = run.filter((p) => classifyCommercialUsability(p) === 'TRANSACTION_READY');
+    const rest = run.filter((p) => classifyCommercialUsability(p) !== 'TRANSACTION_READY');
+    out.push(...buyable, ...rest);
+  };
+  for (let i = 1; i <= ordered.length; i += 1) {
+    const sameScore = i < ordered.length && scoreOf.get(ordered[i]) === scoreOf.get(ordered[runStart]);
+    if (sameScore) continue;
+    flushRun(i);
+    runStart = i;
+  }
+  return out;
+}
+
+/**
  * Filter + dedupe products before returning to the app.
  * Does not rename products ↔ purchaseOptions arrays.
  *
@@ -591,10 +646,43 @@ export function filterAndDedupeProducts(
     // v122: agreement score → coverage selection → dedupe → soft diversity
     const priceComparable = intent ? candidatesArePriceComparable(contextFiltered) : false;
     const contextualByIndex = new Map<number, ReturnType<typeof scoreContextualFit>>();
+
+    // ONE SIGNAL, SCORED ONCE.
+    //
+    // `garmentIdentification` describes the garment, and its `primary_color`
+    // earns a colour term from the agreement scorer. But the Elise path has no
+    // scanned garment: it SYNTHESISES an identification from the shopping
+    // intent, and stamps the customer's requested colour into `primary_color`
+    // so the provider retrieves the right things. The ranker then read that
+    // preference a second time, as though the garment itself were that colour.
+    //
+    // The effect was a colour worth roughly 65 points across two axes. It made
+    // the explicit-attribute strength tier unreachable -- a requested colour
+    // already dominated every ordering, so asking harder could change nothing
+    // -- and it pushed alternatives down twice for a preference the customer
+    // expressed once, which is the suppression the owner's direction refuses.
+    //
+    // Dropped only when the intent already carries that same colour as a
+    // USER_EXPLICIT field, so it is provably the same signal. A scan-derived
+    // colour, or a stated colour that DIFFERS from the scanned garment ("in red
+    // instead"), is untouched: those are two different facts and both count.
+    // The retailer query is built upstream from the untouched identification,
+    // so retrieval is unaffected.
+    const rankingIdentification = (() => {
+      const explicitColor = intent?.color?.provenance === 'USER_EXPLICIT' ? intent.color.value : null;
+      if (!explicitColor) return garmentIdentification;
+      const garmentColor = typeof garmentIdentification.primary_color === 'string'
+        ? garmentIdentification.primary_color.toLowerCase()
+        : '';
+      if (!garmentColor || garmentColor !== explicitColor.toLowerCase()) return garmentIdentification;
+      const { primary_color: _preferenceNotIdentity, ...rest } = garmentIdentification;
+      return rest;
+    })();
+
     const scored: ScoredProduct[] = contextFiltered.map((p, originalIndex) => {
       const ag = scoreProductAgreement(
         p,
-        garmentIdentification,
+        rankingIdentification,
         relevance.categoryRoute,
         relevance.commerceIdentity,
       );
@@ -650,7 +738,9 @@ export function filterAndDedupeProducts(
     }
 
     const diversified = applySoftDiversityRerank(dedupedScored);
-    for (const p of diversified) deduped.push(p);
+    for (const p of stabilizeEqualScoresByUsability(diversified, dedupedScored, Boolean(intent))) {
+      deduped.push(p);
+    }
 
     if (deduped.length === 0 && productsBeforeFilter > 0) {
       failureReasonHints.push(FAILURE_REASON_PRODUCT_FILTER_EMPTY);
@@ -674,6 +764,26 @@ export function filterAndDedupeProducts(
           );
         })
       : undefined;
+
+    // Build 36 activation: publish the facts ON the product.
+    //
+    // `stats.rationale` alone could not reach a customer — no caller read it,
+    // and positional re-alignment across the slicing and re-mapping every
+    // downstream path does would have been fragile anyway. Attaching here,
+    // where product and facts are provably the same index, means the facts
+    // travel with the offer through the router, the cache, the response
+    // envelope and the client's `normalizeProducts` (which passes items
+    // through whole) without any of them needing to know about it.
+    //
+    // It also makes fabrication mechanically detectable: a rendered card
+    // carries this field only if a real Commerce result produced it.
+    if (rationale) {
+      for (let i = 0; i < deduped.length; i += 1) {
+        const facts = rationale[i];
+        if (!facts) continue;
+        deduped[i] = { ...deduped[i], commerceRationale: facts } as RecommendedProduct;
+      }
+    }
 
     return {
       products: deduped,
