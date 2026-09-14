@@ -38,6 +38,41 @@ export const VTO_EVENTS = [
   // toggle is not an entry impression, and logging it as one would put a
   // false number in front of whoever reads this later.
   'vto_mode_selected',
+
+  // ── VTO V2 funnel ──────────────────────────────────────────────────────
+  //
+  // The measurable customer loop: entry impression -> tap -> mode -> session
+  // -> capture -> handoff -> result -> commerce action. Added rather than
+  // overloaded, because every existing event above already means something
+  // else and reusing one would put a false number in front of whoever reads
+  // this later. `vto_entry_impression`, for instance, fires when the SHEET
+  // opens -- it is not the entry-point impression a start-rate denominator
+  // needs, which is what `vto_entry_shown` is.
+  //
+  // Every payload is a bounded enum or a count. None of them carries a
+  // productRef, a product title, an image, a URL, or a provider string --
+  // the property allowlist below is what makes that structural rather than
+  // a promise.
+
+  /** The Try On action was RENDERED for an eligible product. The denominator
+   *  of TRY_ON_START_RATE. */
+  'vto_entry_shown',
+  /** The Try On action was deliberately NOT rendered, with the reason code.
+   *  This is the coverage roadmap's own measurement: it is the only way to
+   *  learn what is actually blocking try-on in the field. */
+  'vto_entry_unavailable',
+  /** The mode authority produced a decision (mode + status + reason). */
+  'vto_mode_resolved',
+  /** An explicit clean-person still was captured for a Photoreal handoff. */
+  'vto_capture_completed',
+  /** A captured still passed preflight and is ready for the governed
+   *  backend. Emitted BEFORE any request is made, so the gap between this and
+   *  `vto_request_start` is measurable. */
+  'vto_handoff_ready',
+  /** The customer took the existing Shop/View action from a try-on result. */
+  'vto_result_shop',
+  /** The customer took the existing Watch action from a try-on result. */
+  'vto_result_watch',
 ] as const;
 
 export type VtoEvent = (typeof VTO_EVENTS)[number];
@@ -53,9 +88,24 @@ export const VTO_EVENT_PROPERTIES = [
   'inputBucket',
   'outputBucket',
   'eligibility',
-  /** 'live' | 'ai_photo'. The mode name only -- never a capability reason,
-   *  a device identifier, or anything about why Live was or was not offered. */
+  /** 'live' | 'ai_photo'. The SURFACE mode the customer toggled to -- never a
+   *  capability reason, a device identifier, or anything about why Live was
+   *  or was not offered. Kept distinct from `resolvedMode` below: mixing two
+   *  vocabularies in one property makes both unreadable. */
   'mode',
+  /** The mode AUTHORITY's answer: one of VTO_MODES, lower-cased. */
+  'resolvedMode',
+  /** One of VTO_MODE_STATUSES, lower-cased. Records whether a mode being
+   *  offered is runtime-proven or only source-connected, so no later reading
+   *  of this funnel can mistake connected wiring for proven coverage. */
+  'status',
+  /** One of VTO_MODE_REASON_CODES, lower-cased. A bounded enum naming WHY a
+   *  mode is not on offer. Never a provider error, an HTTP status, a stack,
+   *  or free text. */
+  'reasonCode',
+  /** Live's own blocker when the decision itself was not Live, so Live
+   *  coverage gaps stay countable behind a working photo path. */
+  'liveReasonCode',
 ] as const;
 
 export type VtoEventProperty = (typeof VTO_EVENT_PROPERTIES)[number];

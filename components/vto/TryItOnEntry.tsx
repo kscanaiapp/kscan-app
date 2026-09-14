@@ -1,29 +1,51 @@
 /**
- * The one narrow Commerce seam for VTO.
+ * The VTO-owned Try-On action -- the one narrow Commerce seam for VTO.
  *
  * Drops into an existing product card's action area next to whatever is
  * already there. It does not restyle the card, does not wrap Commerce in a
- * VTO context, and does not touch ranking, destination selection, or any
- * other shopping authority. Which retailer wins is Commerce's decision, made
- * before this component exists; VTO only visualizes whatever candidate the
- * user is already looking at.
+ * VTO context, and does not touch retailer ordering, destination selection,
+ * or any other shopping authority. Which retailer wins is Commerce's
+ * decision, made before this component exists; VTO only visualizes whatever
+ * candidate the customer is already looking at, and reaches Shop/Watch
+ * through callbacks the product surface owns.
  *
- * It renders nothing at all unless the item is genuinely eligible, or unless
- * the ONLY missing thing is K+ -- in which case it opens the one shared K+
- * surface (KPlusGate / KPlusEarlyAccessSheet) rather than inventing a
+ * ONE AUTHORITY DECIDES WHAT THIS RENDERS. `useVtoMode` -> `resolveVtoMode`
+ * is the single answer to "which try-on mode may this customer use for this
+ * item, right now". This component holds no eligibility rule of its own: no
+ * flag read, no category list, no native probe, no asset lookup, no
+ * permission check, no second entitlement question.
+ *
+ * WHAT CHANGED IN VTO V2, AND WHY. This entry point used to gate its
+ * visibility on the GENERATIVE availability answer alone. A product with a
+ * governed Live asset, on a Live-capable device, rendered NO Try On at all
+ * whenever the generative half was off -- which is exactly the documented
+ * Live-pilot operator posture. The Live router computed `mode: 'live'` and
+ * nothing could reach it. The affordance is now as available as the customer
+ * genuinely is, and it SAYS WHICH MODE it will open rather than presenting
+ * two very different experiences behind identical copy.
+ *
+ * AN UNAVAILABLE ITEM RENDERS NOTHING. Never a disabled button, never a
+ * "coming soon", never a tap that reveals a dead end. The one exception is
+ * the single ineligibility worth converting on -- K+ -- which opens the one
+ * shared K+ surface (KPlusGate / KPlusEarlyAccessSheet) rather than a
  * VTO-specific paywall.
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { selectionTick } from '../../services/haptics';
 import { KPlusGate } from '../kplus/KPlusGate';
-import { useVtoAvailability } from '../../hooks/useVtoAvailability';
-import { useVtoLiveCapability } from '../../hooks/useVtoLiveCapability';
+import { useVtoMode } from '../../hooks/useVtoMode';
 import { useVtoSessionStatus } from '../../hooks/useVtoSessionStatus';
 import { emitVtoEvent } from '../../services/vto/vtoTelemetry';
+import {
+  emitVtoEntryShown,
+  emitVtoEntryUnavailable,
+  emitVtoModeResolved,
+} from '../../services/vto/vtoFunnelTelemetry';
+import { sessionRefForDecision } from '../../services/vto/vtoEntryContract';
 import { VirtualTryOnSheet } from './VirtualTryOnSheet';
 import { VtoMinimizedPill } from './VtoMinimizedPill';
 import type { VtoGarmentInput, VtoOrigin } from '../../types/vto';
@@ -33,17 +55,36 @@ export interface TryItOnEntryProps {
   garmentTitle: string;
   origin?: VtoOrigin;
   onShop?: () => void;
+  /** Opens the EXISTING Watchlist creation flow for this same product, when
+   *  the product surface has one. VTO neither creates nor evaluates a watch;
+   *  it only offers the action the surface already offers. */
+  onWatch?: () => void;
   /** Retailer size-guide page, when Commerce has one. Presentation only. */
   sizeGuideUrl?: string | null;
   devScenario?: string;
   testID?: string;
 }
 
+/** Customer copy per mode. Live and Photo must not look identical: one is
+ *  interactive and local, the other is a still image that takes a moment to
+ *  create. Neither string names a technology, a model, or a vendor. */
+const MODE_COPY = {
+  LIVE_LOCAL: {
+    label: 'TRY IT ON',
+    hint: 'Opens live try-on using your camera',
+  },
+  PHOTOREAL_STILL: {
+    label: 'TRY IT ON · PHOTO',
+    hint: 'Opens photo try-on with a photo you choose. It takes a moment to create.',
+  },
+} as const;
+
 export function TryItOnEntry({
   garment,
   garmentTitle,
   origin = 'commerce_product',
   onShop,
+  onWatch,
   sizeGuideUrl,
   devScenario,
   testID,
@@ -53,31 +94,37 @@ export function TryItOnEntry({
   // Read-only: observing the running generation must not claim authority over
   // it. See hooks/useVtoSessionStatus.ts.
   const session = useVtoSessionStatus();
-  const { available, upgradeOpportunity, liveRemoteEnabled, liveSupportedCategories } =
-    useVtoAvailability({
-      category: garment.category,
-      imageUrl: garment.imageUrl,
-      productRef: garment.productRef,
-    });
 
-  // The capability router is asked HERE, once, and its answer is handed to the
-  // sheet -- rather than the sheet asking again and the two possibly
-  // disagreeing about the same garment. It changes nothing about this entry
-  // point: the button below is still governed by `available` /
-  // `upgradeOpportunity` exactly as before, because a Live-capable build must
-  // not add a second Try It On, only a second mode behind the existing one.
-  const capability = useVtoLiveCapability({
-    garment,
-    aiPhotoAvailable: available,
-    liveRemoteEnabled,
-    liveSupportedCategories,
-  });
+  // THE decision. Everything below reads it; nothing below re-derives it.
+  const decision = useVtoMode({ garment });
+  const { mode, upgradeOpportunity } = decision;
+
+  // Funnel instrumentation, emitted once per resolved (product, mode) pair
+  // rather than per render -- a product shelf re-renders constantly and an
+  // impression counted per frame is not an impression.
+  const emittedKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    const key = `${decision.productRef ?? ''}:${mode}:${decision.reasonCode ?? ''}`;
+    if (emittedKeyRef.current === key) return;
+    emittedKeyRef.current = key;
+    emitVtoModeResolved(decision, origin);
+    if (mode === 'UNAVAILABLE' && !upgradeOpportunity) {
+      emitVtoEntryUnavailable(decision, origin);
+    } else {
+      emitVtoEntryShown(decision, origin);
+    }
+  }, [decision, mode, origin, upgradeOpportunity]);
 
   const openSheet = useCallback(() => {
+    // The contract refuses a decision that is not about THIS product, so a
+    // stale decision carried over from a previous card cannot open a sheet.
+    const outcome = sessionRefForDecision(garment, decision, origin);
+    if (!outcome.started) return;
     selectionTick();
+    emitVtoEvent('vto_entry_tap', { origin, resolvedMode: outcome.session.mode.toLowerCase() });
     setMinimized(false);
     setSheetVisible(true);
-  }, []);
+  }, [decision, garment, origin]);
 
   const closeSheet = useCallback(() => {
     setMinimized(false);
@@ -90,10 +137,11 @@ export function TryItOnEntry({
     setMinimized(false);
   }, [origin]);
 
-  if (!available && !upgradeOpportunity) return null;
+  if (mode === 'UNAVAILABLE' && !upgradeOpportunity) return null;
 
-  if (!available) {
-    // Entitlement is the only gap. The shared K+ sheet owns this conversation.
+  if (mode === 'UNAVAILABLE') {
+    // Entitlement is the only gap. The shared K+ surface owns this
+    // conversation, and this component invents no price and no tier.
     return (
       <KPlusGate source="vto">
         {({ openUpgrade }) => (
@@ -117,6 +165,8 @@ export function TryItOnEntry({
     );
   }
 
+  const copy = MODE_COPY[mode];
+
   return (
     <>
       <Pressable
@@ -124,11 +174,11 @@ export function TryItOnEntry({
         style={styles.button}
         accessibilityRole="button"
         accessibilityLabel={`Try on ${garmentTitle}`}
-        accessibilityHint="Opens virtual try-on with a photo you choose"
+        accessibilityHint={copy.hint}
         testID={testID ?? 'try-it-on-button'}
       >
         <Text style={styles.label} numberOfLines={1}>
-          TRY IT ON
+          {copy.label}
         </Text>
       </Pressable>
       {/*
@@ -147,9 +197,10 @@ export function TryItOnEntry({
           garmentTitle={garmentTitle}
           origin={origin}
           onShop={onShop}
+          onWatch={onWatch}
           sizeGuideUrl={sizeGuideUrl}
           devScenario={devScenario}
-          capability={capability}
+          capability={decision.capability}
         />
       ) : null}
       {/*

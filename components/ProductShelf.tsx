@@ -565,6 +565,12 @@ export function ProductShelf({
                     garmentTitle={productTitle}
                     origin="commerce_product"
                     onShop={canShop && hasLink ? () => handleLinkPress(purchaseUrl) : undefined}
+                    /* VTO V2: the SAME Watch action this card already renders,
+                       reusing this shelf's existing modal and its existing
+                       server-authored eligibility. Undefined when this card
+                       cannot be watched, in which case the try-on result
+                       renders no Watch action at all. */
+                    onWatch={canWatch ? () => setWatchModalProduct(p) : undefined}
                     testID={`try-it-on-${productKey}`}
                   />
                 ) : null}

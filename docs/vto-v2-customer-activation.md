@@ -1,0 +1,382 @@
+# VTO V2 — Customer activation, product coverage, commerce loop
+
+Source-development record for the lane that turns Virtual Try-On from a
+technically capable subsystem into a reachable product experience.
+
+**No deployment, no staging activation, no EAS, no paid generation was
+performed by this lane.** Both feature gates remain default-OFF.
+
+---
+
+## 1. What was actually wrong
+
+The VTO subsystem was not missing a router. It had three correct ones, and a
+customer could not reach the answer they produced.
+
+`components/vto/TryItOnEntry.tsx` — the only VTO entry point, mounted on both
+shipped product surfaces — gated its visibility on `useVtoAvailability`, which
+answers the **generative** question only:
+
+```
+if (!available && !upgradeOpportunity) return null;
+```
+
+`available` is false whenever the generative operator switch is off, or the
+product's category is outside the *generative* allow-list. So a product with a
+governed Live asset, on a Live-capable device, rendered **no Try On at all**
+under the documented Live-pilot posture (`app_config.vto_generation.live.enabled
+= true` with the generative `enabled` untouched — `docs/vto-live-productization-v1.md`
+§8). `resolveVtoCapability` computed `mode: 'live'` and nothing on any screen
+could call it.
+
+That is the defect this lane closes. It is a coverage improvement of the kind
+the brief's §43 case 2 describes — a product that was *incorrectly unavailable
+because of an artificial client restriction* — and it is measured, not asserted:
+see §5.
+
+## 2. The single mode authority
+
+`services/vto/vtoModeAuthority.ts#resolveVtoMode(garment, capabilityState, entitlementState)`
+
+```
+{ mode, status, reasonCode, productRef, liveAssetKey?, garmentImageRef?,
+  supportedCategory?, liveReasonCode, capability, upgradeOpportunity }
+```
+
+- `mode` — `LIVE_LOCAL` | `PHOTOREAL_STILL` | `UNAVAILABLE`
+- `status` — `PROVEN` | `SOURCE_CONNECTED_RUNTIME_UNPROVEN` | `UNAVAILABLE`
+- `reasonCode` — a bounded enum (`VTO_MODE_REASON_CODES`), telemetry-safe
+
+**It re-derives nothing.** It calls `evaluateVtoEligibility` (the generative
+rule, still the client mirror the server re-derives and wins over),
+`resolveLiveGarment` (the governed asset rule) and `resolveVtoCapability` (the
+Live reason ladder), and decides only *order* and *reason reporting*.
+
+**It is cheap.** Static verified facts only: a category string, a verified
+https reference, the bundled registry, resolved flags, a cached native
+self-check, resolved entitlement/quota. No I/O, no image bytes. Measured at
+**0.007 ms per product** over the 16-record corpus
+(`__tests__/vtoCustomerJourneys.test.js`, `[vto-perf]`).
+
+**Decision order.** product identity → actor → entitlement → LIVE → PHOTOREAL
+→ UNAVAILABLE. Live is tried first because it is local, non-billable and does
+not depend on the generative operator switch — *not* to widen anything: it
+still demands an exact governed asset for that exact `productRef`.
+
+`hooks/useVtoMode.ts` is the one React binding. Nothing under `components/`
+may call `useVtoAvailability`, `useVtoLiveCapability`, `evaluateVtoEligibility`
+or `resolveVtoCapability` — asserted in
+`__tests__/vtoModeAuthorityBlocking.test.js` (BLOCK-VTO2-00).
+
+## 3. Runtime proof status — declared, never inferred
+
+`VTO_RUNTIME_PROOF` is a frozen constant with its evidence cited inline:
+
+| Mode | Status | Evidence |
+| --- | --- | --- |
+| `LIVE_LOCAL` | `SOURCE_CONNECTED_RUNTIME_UNPROVEN` | `docs/vto-live-productization-v1.md` §10: *"No frame has been rendered on a phone by this lane's code."* iOS physical runtime PENDING; the Android physical-camera hold (`ETIMEDOUT (-110)` — binds, reports RUNNING, never delivers a frame) PENDING RECLASSIFICATION. |
+| `PHOTOREAL_STILL` | `SOURCE_CONNECTED_RUNTIME_UNPROVEN` | See §4. |
+
+Changing either is a deliberate edit backed by new evidence. No UI, telemetry
+event, or report in this lane may describe either mode as proven coverage.
+
+## 4. Photoreal: what has and has not succeeded
+
+**A real provider generation HAS completed. The governed customer path has
+never produced one.** Both halves matter and neither may be reported alone.
+
+| | |
+| --- | --- |
+| `PHOTOREAL_GENERATION_EVER_SUCCEEDED` | **YES — provider transport only. NO — through the governed `vto-generate` function.** |
+| The successful generation | `docs/vto-provider-benchmark.md` §3.6: submit → real `task_id` (3.5s) → poll ×3 → `task_status: 2` → real `output.image_url`, `usage.image_count: 1` (a real billed generation). |
+| Why it is not customer proof | It ran through a **temporary diagnostic function**, not the governed `vto-generate`, with **synthetic random-noise input**. The output was noise-shaped, which is the honest outcome of feeding noise to a person-detection-dependent model. §5 of that document records the governed function's own result path as *"not yet exercised inside the deployed `vto-generate` function itself"*. |
+| `LAST_KNOWN_PROVIDER_RESULT` (governed staging path) | `rate_limited` / `submit_http_429`, three bounded calls (`docs/vto-live-bridge-contract.md`). |
+| `LAST_KNOWN_ERROR_CLASS` | **RATE_LIMIT.** Distinguished by the adapter itself (`providers/aiLabToolsProvider.ts#mapSubmitFailure`): 401/403 is the subscription gate, 429 is the RapidAPI gateway rate limiter, 5xx is upstream. All three are marked `billable: false` because no AILabTools task exists in any of them. **Not** `QUOTA_EXHAUSTED`, **not** `PLAN_NOT_SUBSCRIBED`. |
+| `PROVIDER_PLAN_STATUS` | **ACTIVE.** The earlier `403 {"message":"You are not subscribed to this API."}` went stale within its own session; a re-check produced an AILabTools-origin `400` (`error_code`/`error_code_str`/`error_detail`), which is past the gateway. |
+| `CONTRACT_STATUS` | Adapter contract-complete and live-verified, including one bug found and fixed from live evidence (a terminal `413` was being retried as transient). |
+| `CREDENTIAL_PATH_STATUS` | `RAPIDAPI_KEY` present in staging, authenticates, no new secret created or rotated. |
+| `QUOTA_STATUS` | Server-owned (`vto_generation_reservations`). Not readable from the client — see §8. |
+
+### 4.1 OWNER ACTION — paid smoke test
+
+```
+PAID_SMOKE_TEST_RECOMMENDED = YES
+PROVIDER                    = AILabTools "Try On Clothes Pro" (existing, via RapidAPI)
+MAX_GENERATIONS_REQUIRED    = 2   (one nominal, one deliberate refusal)
+EXPECTED_MAX_COST_IF_KNOWN  = ~$0.008 per generation (measured, benchmark §3.6) -> ~$0.02 total
+TEST_INPUT_CLASS            = a consented or synthetic NON-CUSTOMER person fixture
+                              + one governed garment image. No user data.
+WHAT_THE_TEST_PROVES        = that the GOVERNED vto-generate function -- with
+                              real auth, K+ entitlement, eligibility, reservation,
+                              idempotency, media safety and result validation in
+                              the path -- produces a validated result the result
+                              UI can render. Transport is already proven; this is
+                              the only unproven link.
+```
+
+**Not run by this lane.** The existing zero-spend posture is already correct:
+`vto-e2e.yml`'s `staging-full-certification` job requires a `workflow_dispatch`
+with `confirm_paid_certification: YES`, which is an owner act.
+
+Preferred posture when authorized: a small fixed count, a non-production
+environment, a controlled fixture, no continuous live-frame upload.
+
+```
+WHAT PREVENTS FIRST SUCCESSFUL PHOTO GENERATION (governed path) =
+  1. No owner-authorized paid execution against the governed function. (The
+     blocker. Everything else below is downstream of it.)
+  2. No consented non-customer person fixture exists to run it with.
+  3. The legal question in section 9 is open for anything beyond a controlled
+     internal test.
+```
+
+## 5. Coverage — measured, reported separately, never summed
+
+`__tests__/vtoCoverageCorpus.json` (16 records) + `__tests__/vtoCoverageReport.test.js`.
+
+**This is a FIXTURE corpus of product shapes. It is not catalog coverage and no
+percentage from it may be reported as such.**
+
+```
+LIVE_FIXTURE_ELIGIBILITY  = 2    (exactly the two real governed assets)
+PHOTO_FIXTURE_ELIGIBILITY = 4
+UNAVAILABLE               = 10
+UNKNOWN                   = 0    (every record classifies to a declared mode)
+```
+
+### UNAVAILABLE reason distribution — this is the roadmap
+
+| Reason | Count | What it means |
+| --- | --- | --- |
+| `UNSUPPORTED_CATEGORY` | 6 | bottoms, footwear, bag, accessory, an unknown category, an explicit non-fashion result |
+| `NO_SAFE_GARMENT_IMAGE` | 3 | no image, an `http:` image, a `data:` image |
+| `INVALID_PRODUCT_REFERENCE` | 1 | nothing stable to anchor a try-on to |
+
+`NO_LIVE_ASSET` does not appear here, and that is the honest result rather than
+a flattering one: the record it applies to has a working photo path, so it is
+not UNAVAILABLE. Its Live gap is counted in the **Live blocker distribution**,
+reported separately for exactly that reason:
+
+```
+LIVE_BLOCKERS = { NO_LIVE_ASSET: 1, UNSUPPORTED_CATEGORY: 9,
+                  NO_SAFE_GARMENT_IMAGE: 3, INVALID_PRODUCT_REFERENCE: 1 }
+```
+
+### Before / after
+
+| | Before | After |
+| --- | --- | --- |
+| Reachable try-ons under the **Live-pilot operator posture** (Live on, generative operator switch off) | **0** | **2**, both `LIVE_LOCAL` |
+| Products that previously offered a try-on and now offer none | — | **0** (asserted) |
+
+Both numbers are computed in the test, the "before" by evaluating the old entry
+rule (one call to the same `evaluateVtoEligibility` that still owns it) over the
+same corpus. No coverage is claimed from the router merely labelling things.
+
+### Category gate finding
+
+```
+PHOTO_CATEGORY_GATE = HARD_PROVIDER_CONSTRAINT (bottoms)
+                    + HARD_CONTRACT_CONSTRAINT (no body slot)
+```
+
+Investigated rather than assumed. `providers/aiLabToolsProvider.ts#unsupportedSlotReason`
+serves `top` and `full_body` (a one-piece goes through `top_garment` with
+`bottom_garment` empty) and genuinely cannot serve `bottom`: `top_garment` is
+required, so a bottom-only submission would need an unrelated top image the
+customer never chose. Footwear, bags and accessories resolve to **no body slot
+at all** (`resolveVtoGarmentSlot` → `null`) — they are not a policy narrowing.
+
+**Nothing was widened, and nothing artificial was found to remove on the photo
+side.** The artificial restriction this lane removed was on the *entry point*,
+not the category list. Live's narrow vocabulary (`top` only) was verified to be
+a native-runtime fact (`LIVE_SUPPORTED_TEMPLATE_FAMILIES`), not a client
+opinion — and it was confirmed that it was NOT being used to narrow Photoreal.
+
+## 6. Customer entry and the flow
+
+```
+CUSTOMER_ENTRY_CONNECTED = YES
+```
+
+`components/vto/TryItOnEntry.tsx` is the VTO-owned Try-On action and was
+already mounted on both shipped product surfaces — `PurchaseOptionsPanel`
+(what a person actually sees, since `eas.json` sets
+`EXPO_PUBLIC_SCAN_RESULTS_V2_UI=true` in every governed profile) and
+`ProductShelf`. **No new mount was needed.** The shared files were edited for
+exactly one thing: passing an existing Watch callback (§7).
+
+Visibility is now honest per mode:
+
+| Mode | Renders | Copy |
+| --- | --- | --- |
+| `LIVE_LOCAL` | yes | `TRY IT ON` — *"Opens live try-on using your camera"* |
+| `PHOTOREAL_STILL` | yes | `TRY IT ON · PHOTO` — *"…with a photo you choose. It takes a moment to create."* |
+| `UNAVAILABLE` | **nothing** | — |
+| `UNAVAILABLE` + only K+ missing | `TRY IT ON · K+` | opens the one shared K+ surface |
+
+Live and Photo deliberately do not read identically (§27 of the brief): one is
+interactive and local, the other is a still that takes time. Neither string
+names a technology or a vendor.
+
+### `VtoEntryContract`
+
+`services/vto/vtoEntryContract.ts` publishes the typed boundary:
+`resolveMode(product)`, `startTryOn(product, decision)`, `resumeTryOn(session)`.
+A product surface supplies only a verified product reference and opaque
+callbacks it already owns. It never learns an `assetKey`, that MediaPipe or a
+camera exists, a native capability shape, clean-frame internals, or a provider.
+`sessionRefForDecision` **refuses a decision about a different product**, which
+makes "product A's completion opens product B's try-on" unreachable at the
+entry rather than merely superseded later.
+
+## 7. Result → Commerce loop
+
+| Action | Path | New code |
+| --- | --- | --- |
+| **Shop / View** | the injected `onShop` callback the product surface already owns; disabled when Commerce supplied no destination | none |
+| **Save** | existing `VtoSaveToDressingRoom` → `AddScanToDressingRoomModal` | none |
+| **Watch** | **new action, existing path**: `onWatch` opens the surface's own `WatchThisModal` with its own server-authored `watchCandidate`, gated by its own `canWatchPurchaseOption` / `canWatchProduct` | one optional prop |
+
+VTO creates no price, currency, stock, availability, retailer or purchase URL,
+and no VTO module understands what a watch is. A browse-only product gets no
+Buy action. **TRY ON ≠ OWNED; result ≠ OWNED; SAVE/WATCH/SHOP ≠ OWNED** —
+Closet remains the ownership authority.
+
+```
+VTO_RESULT_SHARE_FOLLOWUP_REQUIRED = YES
+```
+Dressing Rooms already support sharing, and a saved try-on result becomes a
+Dressing Room item through the existing path — so sharing a *saved* result
+already works. Sharing a *session-scoped, unsaved* result has no governed path
+and none was built here: that is a social-surface decision, not a VTO one.
+
+## 8. Entitlement, quota, account state
+
+- **Entitlement**: the existing K+ policy, unchanged and un-priced. Both modes
+  require it; `__tests__/kplusCoreFreeBoundary.test.js` still pins
+  `components/vto/TryItOnEntry.tsx -> vto`. A still-loading entitlement is
+  never rendered as an upgrade prompt.
+- **Quota**: the resolver gate is wired and tested (`QUOTA_EXHAUSTED` is
+  refused before the customer enters a paid flow, and never takes Live away —
+  Live costs no provider call). **The client passes `'unknown'` today, and that
+  is deliberate.** Quota lives in `vto_generation_reservations` and reaches the
+  client only as a `rate_limited` refusal, which the server also returns for a
+  duplicate in-flight request and which the provider adapter also returns for a
+  gateway 429. Inferring quota from an ambiguous code would hide a working Try
+  On after a transient provider blip. The seam is one field.
+- **Account state**: server-authoritative (`assertAccountActive` in
+  `vto-generate`). The client holds no suspension / pending-deletion signal, so
+  it asserts only that a session exists. Kept as a distinct resolver input so a
+  future client signal wires in one place.
+
+An unentitled or ineligible actor triggers **no camera startup, no asset load
+and no provider work** — the entry returns before any of it.
+
+## 9. Privacy and data boundary
+
+```
+LIVE_FRAME_CLOUD_EGRESS = NONE
+```
+
+| Data | Where it goes |
+| --- | --- |
+| **Continuous live camera frames** | **On device only.** No router, telemetry event, Commerce callback or eligibility request can carry one. The new V2 modules are asserted to contain no network client and no camera-data vocabulary at all (BLOCK-VTO2-08/19). |
+| **Clean person still** | Leaves the device **only** after an explicit customer capture, through the existing governed handoff: `assertCleanPersonFrame` (refuses a `PREVIEW` by declared kind — never by a pixel heuristic), harness refusal, metadata-stripping sanitizer, then the same store → client → `vto-generate` chain a picked photo uses. |
+| **Garment image** | The retailer image URL, to the existing provider contract. |
+| **Product reference** | A bounded correlation handle. Never an authorization input. |
+| **Never sent** | Closet context, Signature Style, Elise transcript, Commerce shelf memory, body data of any kind. |
+
+The customer's own face is **not** masked in a still they deliberately supplied
+for try-on. That is the point of the feature and it changes nothing about
+Scanner/bystander controls.
+
+```
+GARMENT_IMAGE_SOURCE                        = the retailer/catalog image on the commerce record
+GARMENT_IMAGE_RIGHTS_STATUS_KNOWN           = NO
+GARMENT_IMAGE_SENT_TO_PROVIDER              = YES (existing behaviour, unchanged by this lane)
+LEGAL_OPEN_RETAILER_IMAGE_GENERATIVE_USE    = YES
+```
+
+Whether retailer-sourced product imagery may be sent to an external generative
+system has not been established by this program. It does not block source
+architecture, and this lane changed nothing about it — but it is a
+**production / user-exposure gate**, and it is an owner and counsel decision,
+not an engineering one.
+
+## 10. Telemetry and the future binding metrics
+
+Seven events added to the **existing** governed sink
+(`services/vto/vtoTelemetry.ts`, auto-registered through
+`services/analytics/analyticsEventRegistry.ts`). No direct PostHog call, no new
+vendor, no arbitrary string.
+
+| Funnel step | Event |
+| --- | --- |
+| `VTO_ENTRY_SEEN` | `vto_entry_shown` *(new)* |
+| `VTO_UNAVAILABLE_SHOWN` | `vto_entry_unavailable` *(new)* |
+| `VTO_MODE_RESOLVED` | `vto_mode_resolved` *(new)* |
+| `VTO_TRY_ON_TAPPED` | `vto_entry_tap` *(reused)* |
+| `VTO_SESSION_STARTED` | `vto_request_start` *(reused)* |
+| `VTO_CAPTURE_COMPLETED` | `vto_capture_completed` *(new)* |
+| `VTO_HANDOFF_READY` | `vto_handoff_ready` *(new)* |
+| `VTO_RESULT_COMPLETED` | `vto_request_success` *(reused)* |
+| `VTO_SAVE_ACTION` | `vto_result_save_opened` *(reused)* |
+| `VTO_SHOP_ACTION` | `vto_result_shop` *(new)* |
+| `VTO_WATCH_ACTION` | `vto_result_watch` *(new)* |
+| `VTO_FAILURE` | `vto_request_failure` *(reused)* |
+
+`vto_entry_impression` was **not** reused for the entry impression: it fires
+when the *sheet* opens, and using it as a start-rate denominator would put a
+false number in front of whoever reads this later.
+
+Payloads carry `resolvedMode`, `status`, `reasonCode`, `liveReasonCode`,
+`origin` — bounded lower-cased enums only. `__tests__/vtoModeAuthorityBlocking.test.js`
+drives every emitter through the real sink and asserts no `productRef`, image
+name, URL, retailer, category text, `file://` or base64 can appear.
+
+### Future binding metrics (definitions only — this lane is not activated)
+
+```
+TRY_ON_START_RATE      = vto_entry_tap / vto_entry_shown
+TRY_ON_COMPLETION_RATE = (successful Live session | vto_request_success) / vto_request_start
+TRY_ON_TO_SAVE_RATE    = vto_result_save_opened / vto_request_success
+TRY_ON_TO_WATCH_RATE   = vto_result_watch      / vto_request_success
+TRY_ON_TO_SHOP_RATE    = vto_result_shop       / vto_request_success
+REPEAT_TRY_ON_RATE     = actors with >1 vto_request_start in the analytics window
+                         / actors with >=1
+```
+
+**No value is reported for any of them.** The lane is not activated; runtime
+activation later supplies the data.
+
+## 11. Performance (local code only)
+
+Measured over the 16-record fixture corpus, 200 iterations, on CI hardware
+(`__tests__/vtoCustomerJourneys.test.js`):
+
+```
+MODE_RESOLUTION_MS         = 0.0067   (per product)
+ASSET_LOOKUP_MS            = 0.0008   (per product)
+CAPABILITY_CACHE_LOOKUP_MS = 0.0006
+HANDOFF_PREFLIGHT_MS       = 0.0001   (the local clean-frame gate)
+```
+
+No provider latency and no device frame rate is reported — neither has been
+observed. The decision path is asserted to contain no `fetch`, no filesystem,
+no image decode and no `async`, which is what keeps these numbers local.
+
+`services/vto/vtoCapabilityCache.ts` memoizes the native self-check so a shelf
+of ten product cards costs **one** bridge call instead of ten (asserted). It is
+memory-only — no persistent device fingerprint exists to leak — with a short
+TTL on a negative answer so a runtime that finishes initializing later is not
+locked out until relaunch.
+
+## 12. Data lifecycle
+
+```
+NEW_PERSISTENT_USER_DATA = NO
+```
+
+No new table, no new migration, no new persisted state. The only new
+module-scoped state is a device-capability memo that dies with the JS context.

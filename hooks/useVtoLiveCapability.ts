@@ -1,6 +1,17 @@
 /**
  * React binding for the VTO capability router.
  *
+ * NO LONGER THE CUSTOMER-ENTRY AUTHORITY (VTO V2). `resolveVtoMode`
+ * (services/vto/vtoModeAuthority.ts), bound by `hooks/useVtoMode.ts`, is the
+ * ONE decision every customer surface asks, and it carries this router's
+ * answer through on `decision.capability`. Nothing under `components/` may
+ * call this hook -- `__tests__/vtoModeAuthority.test.js` asserts that -- so
+ * the Live answer on a screen and the Live answer in the authority cannot
+ * drift apart. This binding is kept because it is still the narrowest
+ * correct way to ask the router in isolation (diagnostics, and any future
+ * non-customer surface), and because deleting a correct, tested decision
+ * layer to make a point is not a repair.
+ *
  * ONE HOOK, ONE DECISION. Components ask this and nothing else: no component
  * reads LIVE_VTO_ENABLED, probes the native module, checks a garment category
  * against a Live allow-list, or reads a permission status. Keeping those four
@@ -26,11 +37,11 @@ import { Platform } from 'react-native';
 
 import { LIVE_VTO_ENABLED } from '../constants/featureFlags';
 import {
-  describeLiveVtoNativeCapability,
   isLiveVtoNativeCapable,
   LIVE_VTO_SUPPORTED_PLATFORMS,
   type LiveVtoNativeCapability,
 } from '../services/vto/liveVtoNativeModule';
+import { getLiveVtoCapability } from '../services/vto/vtoCapabilityCache';
 import { isLiveGarmentEligible } from '../services/vto/vtoLiveGarment';
 import { getLiveVtoHarnessState } from '../services/vto/vtoLiveHarness';
 import { readLiveCameraPermission } from '../services/vto/vtoLiveCameraPermission';
@@ -61,7 +72,10 @@ export function useVtoLiveCapability(args: UseVtoLiveCapabilityArgs): VtoCapabil
   );
 
   const nativeCapability: LiveVtoNativeCapability = useMemo(
-    () => harness?.nativeCapability ?? describeLiveVtoNativeCapability(),
+    // Cached rather than probed per mount: a shelf of product cards must not
+    // cross the native bridge once per card. See
+    // services/vto/vtoCapabilityCache.ts.
+    () => harness?.nativeCapability ?? getLiveVtoCapability(),
     [harness?.nativeCapability],
   );
 
