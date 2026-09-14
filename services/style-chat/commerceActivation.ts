@@ -26,12 +26,13 @@ import { buildShoppingContext, closetContribution, signatureStyleContribution } 
 import type { StyleChatUiBlock } from './types';
 import { hasCommerceProvenance } from '../commerce/productIdentity.ts';
 import {
+  EXHAUSTION_REFRESH_MIN_AGE_MS,
   activeExclusions,
   candidateUniverseKey,
   clearRejections,
   emptyShelfMemory,
   parseShelfMemory,
-  readCandidateUniverse,
+  readCandidateUniverseEntry,
   recordShelf,
   rejectLatestShelf,
   resolveShelfReference,
@@ -672,9 +673,15 @@ export async function runCommerceActivation(input: {
    * K Scan has already paid for.
    */
   const reuseUniverse = op !== null;
-  let universe = (reuseUniverse ? readCandidateUniverse(universeKey, now) : null) as
-    | Array<Record<string, unknown>>
-    | null;
+  const retained = reuseUniverse ? readCandidateUniverseEntry(universeKey, now) : null;
+  let universe = (retained?.products ?? null) as Array<Record<string, unknown>> | null;
+  /**
+   * A universe this fresh was just fetched, so re-fetching it on exhaustion
+   * would re-ask the same provider the same question and be billed for the
+   * same answer. "That is everything I can currently find" is already the
+   * honest reply; paying again to hear it is not.
+   */
+  const retainedIsFresh = retained !== null && retained.ageMs < EXHAUSTION_REFRESH_MIN_AGE_MS;
 
   // Context is loaded LAZILY, on the first retrieval that actually happens.
   // A turn answered entirely from the retained universe reads neither the
@@ -748,7 +755,7 @@ export async function runCommerceActivation(input: {
   // retained universe has nothing left to offer, the live market may; if the
   // live market has nothing left either, that is an honest answer and not a
   // reason to keep asking a provider the same question.
-  if (selection.exhausted && commerceCalls === 0) {
+  if (selection.exhausted && commerceCalls === 0 && !retainedIsFresh) {
     await retrieve();
     selection = selectPresentedShelf({
       universe: universe ?? [], memory, op, limit: MAX_COMMERCE_CARDS,

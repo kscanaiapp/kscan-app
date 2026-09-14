@@ -87,6 +87,8 @@ export type ValidatedStyleChatAction = {
       functionalRequirements?: string[];
       clearBudget?: boolean;
       clearColor?: boolean;
+      /** Exclusion tokens the customer has decided to allow again. */
+      clearExclusions?: string[];
     };
   };
 };
@@ -274,6 +276,9 @@ function parseShoppingProposal(raw: unknown): NonNullable<ValidatedStyleChatActi
   if (colors) out.excludeColors = colors;
   const functional = boundedWordList(rec.functionalRequirements, SHOPPING_FUNCTIONAL);
   if (functional) out.functionalRequirements = functional;
+
+  const lifted = boundedWordList(rec.clearExclusions, [...SHOPPING_MATERIALS, ...SHOPPING_COLORS]);
+  if (lifted) out.clearExclusions = lifted;
 
   if (rec.clearBudget === true) out.clearBudget = true;
   if (rec.clearColor === true) out.clearColor = true;

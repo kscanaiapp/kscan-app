@@ -429,10 +429,12 @@ test('BLOCK-CV2-21: a cache-served universe is revalidated against active exclus
 // ── Exhaustion vs failure (§27, §43) ───────────────────────────────────────
 
 test('§43: exhaustion and lookup failure are different answers', async () => {
+  const STALE = Date.now() + 5 * 60 * 1000; // older than EXHAUSTION_REFRESH_MIN_AGE_MS
+
   const provider = makeControllableProvider({ universe: LOAFERS.slice(0, 4) });
   const c = conversation({ provider });
   await c.say('Show me loafers.', { category: 'loafers' });
-  const exhausted = await c.say('Show me different ones.');
+  const exhausted = await c.say('Show me different ones.', undefined, { now: STALE });
   assert.equal(exhausted.status, 'exhausted', 'everything eligible has been seen');
   assert.notEqual(exhausted.status, 'error', 'and that is NOT a failure');
 
@@ -442,9 +444,28 @@ test('§43: exhaustion and lookup failure are different answers', async () => {
   const c2 = conversation({ provider: provider2 });
   await c2.say('Show me loafers.', { category: 'loafers' });
   provider2.failFrom('timeout');
-  const failed = await c2.say('Show me different ones.');
+  const failed = await c2.say('Show me different ones.', undefined, { now: STALE });
   assert.equal(failed.status, 'error', 'a lookup failure is reported as one');
-  assert.ok(failed.callsThisTurn <= 1, 'and costs at most one refresh attempt');
+  assert.equal(failed.callsThisTurn, 1, 'and costs exactly one refresh attempt');
+});
+
+test('§42: an exhausted market is not re-asked seconds after it answered', async () => {
+  const provider = makeControllableProvider({ universe: LOAFERS.slice(0, 4) });
+  const c = conversation({ provider });
+  await c.say('Show me loafers.', { category: 'loafers' });
+  const first = await c.say('Not those.');
+  const second = await c.say('Another.');
+  const third = await c.say('Show me different ones.');
+
+  for (const [label, turn] of [['not those', first], ['another', second], ['different', third]]) {
+    assert.equal(turn.callsThisTurn, 0, `${label}: the market answered moments ago`);
+    assert.equal(turn.status, 'exhausted', `${label}: and the answer is still honest`);
+  }
+  assert.equal(c.calls, 1, 'three exhausted turns, one provider request in total');
+
+  // But a market that has had time to change IS re-checked.
+  const later = await c.say('Show me different ones.', undefined, { now: Date.now() + 5 * 60 * 1000 });
+  assert.equal(later.callsThisTurn, 1, 'a stale universe is worth re-asking');
 });
 
 test('§24 vs §23: "another" and "different" are not aliases', async () => {

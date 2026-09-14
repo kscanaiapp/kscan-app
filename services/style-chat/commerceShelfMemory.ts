@@ -480,6 +480,20 @@ interface UniverseEntry {
 export const CANDIDATE_UNIVERSE_TTL_MS = 10 * 60 * 1000;
 export const CANDIDATE_UNIVERSE_MAX_ENTRIES = 8;
 
+/**
+ * How stale a retained universe must be before exhaustion justifies re-asking.
+ *
+ * Asking the same provider the same question a second time, seconds after it
+ * answered, cannot produce a different market — it can only produce the same
+ * answer and another invoice. So a customer who says "not those" and then
+ * "another" against a market they have genuinely seen all of gets one honest
+ * answer and one bill, not one of each per sentence.
+ *
+ * It is a minimum age, not a lockout: a universe older than this is worth
+ * re-checking, because stock and listings really do change.
+ */
+export const EXHAUSTION_REFRESH_MIN_AGE_MS = 60 * 1000;
+
 const universeStore = new Map<string, UniverseEntry>();
 
 /**
@@ -516,13 +530,22 @@ export function candidateUniverseKey(input: {
 }
 
 export function readCandidateUniverse(key: string, now: number = Date.now()): unknown[] | null {
+  return readCandidateUniverseEntry(key, now)?.products ?? null;
+}
+
+/** The retained universe plus its age, for the exhaustion-refresh decision. */
+export function readCandidateUniverseEntry(
+  key: string,
+  now: number = Date.now(),
+): { products: unknown[]; ageMs: number } | null {
   const entry = universeStore.get(key);
   if (!entry) return null;
-  if (now - entry.storedAt >= CANDIDATE_UNIVERSE_TTL_MS) {
+  const ageMs = now - entry.storedAt;
+  if (ageMs >= CANDIDATE_UNIVERSE_TTL_MS) {
     universeStore.delete(key);
     return null;
   }
-  return entry.products;
+  return { products: entry.products, ageMs };
 }
 
 export function writeCandidateUniverse(key: string, products: readonly unknown[], now: number = Date.now()): void {

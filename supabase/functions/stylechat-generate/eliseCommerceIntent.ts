@@ -453,6 +453,15 @@ export interface EliseCommerceActionPayload {
   /** True when the customer asked to drop a constraint rather than add one. */
   clearBudget?: unknown;
   clearColor?: unknown;
+  /**
+   * Exclusion tokens the customer has decided to allow again.
+   *
+   * The counterpart the exhaustion path needs. When every remaining option has
+   * been excluded, Elise offers to open something up — and an offer the system
+   * cannot then act on is worse than no offer, because the customer says yes
+   * and nothing happens.
+   */
+  clearExclusions?: unknown;
 }
 
 function canonicalCategory(raw: unknown): string | null {
@@ -708,6 +717,39 @@ export function resolveRelativeBudget(
   return { kind: 'needs_reference' };
 }
 
+// ── Lifting an exclusion (Commerce V2 §27, §38) ────────────────────────────
+
+/**
+ * "Actually, leather is fine."
+ *
+ * Deliberately narrow. These are all POSITIVE re-admissions, and none of them
+ * can fire on a rejection: the cost of misreading "no leather" as "leather is
+ * fine" is showing someone exactly the thing they told you they did not want,
+ * which is the failure the exclusion existed to prevent.
+ */
+const INCLUSION_PATTERNS: readonly RegExp[] = [
+  /\b(?:include|allow|add\s+back|bring\s+back|open\s+up\s+to)\s+(?:some\s+)?([a-z-]{3,20})\b/i,
+  /\b([a-z-]{3,20})\s+is\s+(?:fine|ok|okay|good|alright)\b/i,
+  /\b(?:i'?m\s+)?(?:ok|okay|fine)\s+with\s+([a-z-]{3,20})\b/i,
+  /\b(?:drop|remove|forget|lift)\s+(?:the\s+)?([a-z-]{3,20})\s+(?:exclusion|filter|restriction)\b/i,
+];
+
+/** Tokens this turn's words re-admit, against the closed vocabularies. */
+export function inclusionsFromMessage(message: unknown): string[] {
+  const text = typeof message === 'string' ? message.toLowerCase().slice(0, 400) : '';
+  if (!text) return [];
+  const out: string[] = [];
+  for (const pattern of INCLUSION_PATTERNS) {
+    const match = text.match(pattern);
+    const token = match?.[1];
+    if (!token || out.includes(token)) continue;
+    const known = (MATERIAL_TOKENS as readonly string[]).includes(token)
+      || (COLOR_TOKENS as readonly string[]).includes(token);
+    if (known) out.push(token);
+  }
+  return out;
+}
+
 // ── Per-field provenance for the richer axes (Commerce V2 §35-§37) ─────────
 
 /**
@@ -934,6 +976,24 @@ export function reduceShoppingIntent(input: {
   };
   addExclusions(payload.excludeMaterials, 'material', MATERIAL_TOKENS);
   addExclusions(payload.excludeColors, 'color', COLOR_TOKENS);
+
+  // REMOVAL RUNS LAST and therefore wins within a turn, exactly as
+  // `clearBudget` already wins over a ceiling proposed in the same breath.
+  // "Actually leather is fine" must not be re-narrowed by a stale field.
+  const lifted = new Set<string>(inclusionsFromMessage(input.message));
+  if (Array.isArray(payload.clearExclusions)) {
+    for (const entry of payload.clearExclusions) {
+      const token = str(entry, ELISE_COMMERCE_INTENT_LIMITS.maxTokenChars);
+      // A model proposal is admitted only with the customer's own words behind
+      // it, for the same reason the richer axes are: re-admitting something
+      // they rejected is not a call the model gets to make alone.
+      if (token && userStatedToken(input.message, token)) lifted.add(token);
+      else if (token) rejected.push(`clearExclusion:unsupported`);
+    }
+  }
+  if (lifted.size) {
+    state.exclusions = state.exclusions.filter((e) => !lifted.has(e.token));
+  }
 
   if (payload.functionalRequirements !== undefined) {
     if (!Array.isArray(payload.functionalRequirements)) rejected.push('functionalRequirements');
