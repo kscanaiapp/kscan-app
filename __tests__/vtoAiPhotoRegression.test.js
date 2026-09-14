@@ -425,10 +425,21 @@ test('regression: opening Try It On requests no camera permission', () => {
 
 test('regression: there is exactly ONE Try It On entry point', () => {
   const entry = code('components/vto/TryItOnEntry.tsx');
-  // The button's gating is still the pre-existing availability answer -- the
-  // capability router changed which MODES exist behind the entry, not whether
-  // the entry renders.
-  assert.ok(/if \(!available && !upgradeOpportunity\) return null;/.test(entry));
+  // VTO V2 CHANGED THIS ASSERTION DELIBERATELY, and it is worth saying why
+  // rather than quietly relaxing it. The old expression pinned
+  // `!available && !upgradeOpportunity`, where `available` was the GENERATIVE
+  // availability answer -- so a product with a governed Live asset, on a
+  // Live-capable device, rendered no Try On at all whenever the generative
+  // half was off. That is the defect the mode authority exists to close.
+  //
+  // What the test still guards is the invariant that actually matters and is
+  // unchanged: an item with no usable mode renders NOTHING (never a disabled
+  // button, never a dead tap), the sole exception being the K+ upgrade
+  // conversation, and there is exactly one entry component and one sheet.
+  assert.ok(
+    /if \(mode === 'UNAVAILABLE' && !upgradeOpportunity\) return null;/.test(entry),
+    'an unavailable item must render nothing at all',
+  );
   assert.equal([...entry.matchAll(/<VirtualTryOnSheet/g)].length, 1);
   // And no second entry component was introduced anywhere.
   const vtoComponents = fs.readdirSync(path.join(ROOT, 'components', 'vto'));

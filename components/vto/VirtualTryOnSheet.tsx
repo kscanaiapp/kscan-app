@@ -37,6 +37,12 @@ import { openExternalUrl } from '../../services/openExternalUrl';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useVirtualTryOn } from '../../hooks/useVirtualTryOn';
 import { emitVtoEvent } from '../../services/vto/vtoTelemetry';
+import {
+  emitVtoCaptureCompleted,
+  emitVtoHandoffReady,
+  emitVtoResultShop,
+  emitVtoResultWatch,
+} from '../../services/vto/vtoFunnelTelemetry';
 import { emitKPlusEvent } from '../../services/kplus/kplusTelemetry';
 import {
   resolveVtoProgress,
@@ -64,6 +70,16 @@ export interface VirtualTryOnSheetProps {
   origin: VtoOrigin;
   /** Opens the retailer page. Commerce keeps owning where "Shop" goes. */
   onShop?: () => void;
+  /**
+   * Opens the EXISTING Watchlist creation flow for this same product.
+   *
+   * Supplied only by a product surface that already offers Watch for this
+   * row, and only where that surface's own server-authored capability says
+   * the listing may be watched. VTO neither creates a watch, evaluates
+   * whether one is possible, nor knows what a watch is -- absent the prop the
+   * action is simply not rendered, which is the same rule `onShop` follows.
+   */
+  onWatch?: () => void;
   /**
    * Collapses the sheet while a generation runs. Supplying this is what makes
    * the surface minimizable. The owner MUST keep this component mounted while
@@ -126,6 +142,7 @@ export function VirtualTryOnSheet({
   garmentTitle,
   origin,
   onShop,
+  onWatch,
   onMinimize,
   sizeGuideUrl,
   devScenario,
@@ -171,11 +188,24 @@ export function VirtualTryOnSheet({
     // surface switches to the generative view while the Live session stays
     // alive behind it, so a completed or failed generation can return to Live.
     onPhotorealPerson: (person) => {
+      // The still exists and passed the clean-frame + sanitizer gate. Both
+      // events are content-free: they record that a capture happened and that
+      // it is ready for the governed backend, never anything about the image.
+      emitVtoCaptureCompleted(origin);
+      emitVtoHandoffReady(origin, true);
       vto.adoptPerson(person);
       vto.generate();
       setMode('ai_photo');
     },
   });
+
+  // A refused handoff is as much a funnel fact as an accepted one: without it
+  // the gap between "captured" and "requested" is unexplained. Content-free --
+  // it carries no failure text, no code, and nothing about the still.
+  const photorealFailure = live.photorealFailure;
+  useEffect(() => {
+    if (photorealFailure) emitVtoHandoffReady(origin, false);
+  }, [photorealFailure, origin]);
 
   const liveVisible = liveOffered && mode === 'live' && !liveCrashed;
   const aiPhotoVisible = !liveVisible;
@@ -677,11 +707,23 @@ export function VirtualTryOnSheet({
                   title="Shop this piece"
                   onPress={() => {
                     selectionTick();
+                    emitVtoResultShop(origin, mode);
                     onShop?.();
                   }}
                   disabled={!onShop}
                   testID="vto-shop"
                 />
+                {onWatch ? (
+                  <SecondaryButton
+                    title="Watch this piece"
+                    onPress={() => {
+                      selectionTick();
+                      emitVtoResultWatch(origin, mode);
+                      onWatch();
+                    }}
+                    testID="vto-watch"
+                  />
+                ) : null}
                 <SecondaryButton title="Try again" onPress={vto.retry} testID="vto-retry" />
               </>
             ) : vto.person ? (

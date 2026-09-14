@@ -586,6 +586,9 @@ const VTO_ALLOWED_IMPORTS = {
     '../../services/responsiveLayout',
     '../../services/vto/vtoProgressStages',
     '../../services/vto/vtoTelemetry',
+    // VTO V2. Capture / handoff / result-action funnel events. Same sink, same
+    // allowlist, bounded enums only.
+    '../../services/vto/vtoFunnelTelemetry',
     '../../types/vto', '../luxury',
     './VtoSaveToDressingRoom', './VtoSilhouetteGuide',
     // P3-C LIVE VTO INTEGRATION. The sheet gains a second visualization MODE,
@@ -602,15 +605,25 @@ const VTO_ALLOWED_IMPORTS = {
     'react', 'react-native',
   ],
   'components/vto/TryItOnEntry.tsx': [
-    '../../constants/theme', '../../hooks/useVtoAvailability',
+    '../../constants/theme',
+    // VTO V2. `useVtoAvailability` (the generative half) and
+    // `useVtoLiveCapability` (the Live half) are both GONE from this file and
+    // replaced by ONE hook over ONE authority. That is the point of the
+    // change: gating the entry on the generative half alone hid a Live-
+    // eligible product whenever the generative half was off.
+    '../../hooks/useVtoMode',
     // CONVERGENCE #277: minimize/restore needs the live session status, and the
     // pill reports it. Neither reads or writes ownership state.
     '../../hooks/useVtoSessionStatus',
-    // P3-C: the capability router is asked ONCE, here, and handed to the sheet.
-    // The entry point itself is unchanged -- still one Try It On, still gated
-    // by the same availability/K+ answer as before.
-    '../../hooks/useVtoLiveCapability',
-    '../../services/haptics', '../../services/vto/vtoTelemetry',
+    '../../services/haptics',
+    // VTO V2. The typed entry contract refuses a decision about a DIFFERENT
+    // product, so a stale decision cannot open this card's sheet. Pure types
+    // plus one total function -- no storage, no network, no ownership path.
+    '../../services/vto/vtoEntryContract',
+    // VTO V2. The funnel emitters. Bounded enums only; the module is
+    // structurally incapable of emitting a productRef, an image or a URL.
+    '../../services/vto/vtoFunnelTelemetry',
+    '../../services/vto/vtoTelemetry',
     '../../types/vto', '../kplus/KPlusGate',
     './VirtualTryOnSheet', './VtoMinimizedPill',
     'react', 'react-native',
@@ -695,6 +708,10 @@ const VTO_ALLOWED_IMPORTS = {
   ],
   'hooks/useVtoLiveCapability.ts': [
     '../constants/featureFlags', '../services/vto/liveVtoNativeModule',
+    // VTO V2. The native self-check is now read through a bounded cache rather
+    // than probed once per mounting product card. It adds no capability -- it
+    // only stops the same question being asked ten times in one frame.
+    '../services/vto/vtoCapabilityCache',
     '../services/vto/vtoLiveCameraPermission', '../services/vto/vtoLiveCapability',
     '../services/vto/vtoLiveGarment', '../services/vto/vtoLiveHarness',
     '../types/vto', 'react', 'react-native',
@@ -727,6 +744,48 @@ const VTO_ALLOWED_IMPORTS = {
   ],
   'components/vto/VtoLiveErrorBoundary.tsx': [
     'react',
+  ],
+
+  // ── VTO V2 ────────────────────────────────────────────────────────────────
+  //
+  // Enrolled in their own right rather than left merely reachable, for the
+  // reason VTO-NC-010 exists: a module this control does not name is a module
+  // it does not guard. Between them they hold the mode decision, the native
+  // capability memo, the Commerce boundary and the funnel emitters -- exactly
+  // the surfaces a future ownership write, network client or analytics leak
+  // would most plausibly arrive through.
+
+  // THE mode authority. Composes the three existing authorities and decides
+  // nothing itself beyond order and reason reporting. Pure and synchronous:
+  // no storage, no network, no persistence, no ownership path.
+  'services/vto/vtoModeAuthority.ts': [
+    '../../types/vto', './liveVtoNativeModule', './vtoEligibility',
+    './vtoLiveCapability', './vtoLiveGarment', './vtoLiveGarmentRegistry',
+  ],
+  // A module-scoped memo over the native self-check. Nothing is written to
+  // disk, so there is no persistent device fingerprint by construction.
+  'services/vto/vtoCapabilityCache.ts': [
+    './liveVtoNativeModule',
+  ],
+  // The typed Commerce boundary. Types plus one total function.
+  'services/vto/vtoEntryContract.ts': [
+    '../../types/vto', './vtoModeAuthority',
+  ],
+  // The funnel emitters. Kept OUT of vtoTelemetry.ts deliberately: that module
+  // is imported by services/analytics/analyticsEventRegistry.ts and must not
+  // acquire a dependency that drags the native adapter into the registry.
+  'services/vto/vtoFunnelTelemetry.ts': [
+    '../../types/vto', './vtoModeAuthority', './vtoTelemetry',
+  ],
+  // The one React binding customer surfaces use. It GATHERS evidence and
+  // decides nothing: every verdict comes back from resolveVtoMode.
+  'hooks/useVtoMode.ts': [
+    '../constants/featureFlags', '../contexts/AuthSessionContext',
+    '../services/vto/liveVtoNativeModule', '../services/vto/vtoCapabilityCache',
+    '../services/vto/vtoFeatureControl', '../services/vto/vtoLiveCameraPermission',
+    '../services/vto/vtoLiveCapability', '../services/vto/vtoLiveHarness',
+    '../services/vto/vtoModeAuthority', '../types/vto', './useKPlusEntitlement',
+    'react', 'react-native',
   ],
 };
 

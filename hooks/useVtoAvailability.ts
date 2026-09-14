@@ -1,6 +1,17 @@
 /**
  * Resolves whether a VTO entry point should be offered for a given item.
  *
+ * NO LONGER THE CUSTOMER-ENTRY AUTHORITY (VTO V2). This hook answers the
+ * GENERATIVE half only, which is exactly why it could not stay the entry
+ * point's gate: an item with a governed Live asset was hidden whenever the
+ * generative half was off. `resolveVtoMode`
+ * (services/vto/vtoModeAuthority.ts), bound by `hooks/useVtoMode.ts`, is now
+ * the ONE decision every customer surface asks, and it consumes the same
+ * `evaluateVtoEligibility` this hook does -- so the generative rule still has
+ * exactly one definition, and it is still the client mirror the server
+ * re-derives and wins over. Nothing under `components/` may call this hook;
+ * `__tests__/vtoModeAuthority.test.js` asserts that.
+ *
  * Composes the four independent questions -- does this build carry VTO, is
  * the feature remotely on, does this actor hold K+, and is this item the kind
  * of thing we can visualize -- into one eligibility answer, so no component

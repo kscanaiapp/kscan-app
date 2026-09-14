@@ -237,6 +237,23 @@ export function PurchaseOptionsPanel({
                       garmentTitle={option.title ?? option.retailer}
                       origin="commerce_product"
                       onShop={destination ? openOffer : undefined}
+                      /* VTO V2. The SAME Watch action this row already
+                         renders above, handed to the try-on result so a
+                         customer who just saw the piece on themselves can act
+                         on it without navigating back. It opens the existing
+                         WatchThisModal with the existing server-authored
+                         candidate -- no second Watchlist, no second
+                         eligibility rule, and nothing rendered when this row
+                         cannot be watched. No second K+ gate is needed: a
+                         try-on result is only reachable by an entitled actor,
+                         and TryItOnEntry's own mode authority re-resolves on
+                         every entitlement change -- a lapse unmounts the sheet
+                         and this action with it. */
+                      onWatch={
+                        canWatch
+                          ? () => setWatchCandidate(option.watchCandidate ?? null)
+                          : undefined
+                      }
                       testID={`purchase-option-try-it-on-${option.id}`}
                     />
                   ) : null}

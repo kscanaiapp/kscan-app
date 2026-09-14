@@ -1,0 +1,211 @@
+{
+  "vtoCoverageFixtureVersion": 1,
+  "purpose": "A representative VTO coverage FIXTURE corpus. It measures what the mode authority decides for a spread of product shapes K Scan actually produces. IT IS NOT CATALOG COVERAGE and no percentage derived from it may be reported as such: the two governed Live assets below are the only real ones that exist, and the remaining records are product SHAPES, not a sample of any retailer's inventory.",
+  "imageHostNote": "Every imageUrl/productUrl below is a synthetic example on an example.com-family host. No real retailer image is referenced, fetched, or bundled anywhere in this corpus.",
+  "records": [
+    {
+      "fixtureId": "live-governed-asset-a",
+      "description": "The first of the two REAL governed Live assets. Its productRef is the manifest's own productIdentity.productRef, bundled on both platforms.",
+      "evidenceClass": "GOVERNED-ASSET",
+      "imageType": "flat-lay",
+      "record": {
+        "id": "p4-multi-image-product",
+        "category": "top",
+        "imageUrl": "https://cdn.example.com/garments/p4-multi-image-product.jpg",
+        "productUrl": "https://shop.example.com/p/p4-multi-image-product",
+        "retailer": "Example Retailer"
+      }
+    },
+    {
+      "fixtureId": "live-governed-asset-b",
+      "description": "The second real governed Live asset (asymmetric marker fixture).",
+      "evidenceClass": "GOVERNED-ASSET",
+      "imageType": "flat-lay",
+      "record": {
+        "id": "n1c-asym-marker",
+        "category": "t-shirt",
+        "imageUrl": "https://cdn.example.com/garments/n1c-asym-marker.jpg",
+        "productUrl": "https://shop.example.com/p/n1c-asym-marker",
+        "retailer": "Example Retailer"
+      }
+    },
+    {
+      "fixtureId": "top-no-live-asset",
+      "description": "An ordinary top. Live's category vocabulary covers it; no governed Live asset addresses this productRef, which is the expected outcome for almost every real product.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "imageType": "model-shot",
+      "record": {
+        "id": "prod-top-0001",
+        "category": "Cotton Shirt",
+        "imageUrl": "https://cdn.example.com/garments/prod-top-0001.jpg",
+        "productUrl": "https://shop.example.com/p/prod-top-0001",
+        "retailer": "Example Retailer"
+      }
+    },
+    {
+      "fixtureId": "outerwear-flatlay",
+      "description": "Outerwear: generative-eligible, outside Live's implemented template families.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "imageType": "flat-lay",
+      "record": {
+        "id": "prod-outer-0002",
+        "category": "Wool Overcoat",
+        "imageUrl": "https://cdn.example.com/garments/prod-outer-0002.jpg",
+        "productUrl": "https://shop.example.com/p/prod-outer-0002",
+        "retailer": "Example Retailer"
+      }
+    },
+    {
+      "fixtureId": "blazer-model-shot",
+      "description": "Blazer: canonicalizes to its own token, generative-eligible, not Live.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "imageType": "model-shot",
+      "record": {
+        "id": "prod-blazer-0003",
+        "category": "Tailored Jacket",
+        "imageUrl": "https://cdn.example.com/garments/prod-blazer-0003.jpg",
+        "productUrl": "https://shop.example.com/p/prod-blazer-0003",
+        "retailer": "Example Retailer"
+      }
+    },
+    {
+      "fixtureId": "dress-model-shot",
+      "description": "Dress: full_body slot. Generative-eligible; the provider serves full_body through top_garment.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "imageType": "model-shot",
+      "record": {
+        "id": "prod-dress-0004",
+        "category": "Midi Dress",
+        "imageUrl": "https://cdn.example.com/garments/prod-dress-0004.jpg",
+        "productUrl": "https://shop.example.com/p/prod-dress-0004",
+        "retailer": "Example Retailer"
+      }
+    },
+    {
+      "fixtureId": "bottoms-jeans",
+      "description": "Bottoms. A HARD provider constraint, not a client preference: AILabTools requires a top_garment image and has no bottom-only path (supabase/functions/vto-generate/providers/aiLabToolsProvider.ts#unsupportedSlotReason).",
+      "evidenceClass": "SOURCE-SHAPE",
+      "imageType": "flat-lay",
+      "record": {
+        "id": "prod-bottom-0005",
+        "category": "Straight Leg Jeans",
+        "imageUrl": "https://cdn.example.com/garments/prod-bottom-0005.jpg",
+        "productUrl": "https://shop.example.com/p/prod-bottom-0005",
+        "retailer": "Example Retailer"
+      }
+    },
+    {
+      "fixtureId": "shoes",
+      "description": "Footwear: canonicalizes, but occupies no body slot VTO can visualize.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "imageType": "flat-lay",
+      "record": {
+        "id": "prod-shoe-0006",
+        "category": "Leather Sneakers",
+        "imageUrl": "https://cdn.example.com/garments/prod-shoe-0006.jpg",
+        "productUrl": "https://shop.example.com/p/prod-shoe-0006",
+        "retailer": "Example Retailer"
+      }
+    },
+    {
+      "fixtureId": "accessory-bag",
+      "description": "Bag: a garment-adjacent accessory with no VTO slot.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "imageType": "flat-lay",
+      "record": {
+        "id": "prod-bag-0007",
+        "category": "Leather Tote",
+        "imageUrl": "https://cdn.example.com/garments/prod-bag-0007.jpg",
+        "productUrl": "https://shop.example.com/p/prod-bag-0007",
+        "retailer": "Example Retailer"
+      }
+    },
+    {
+      "fixtureId": "accessory-sunglasses",
+      "description": "Accessory with no VTO slot.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "imageType": "model-shot",
+      "record": {
+        "id": "prod-acc-0008",
+        "category": "Sunglasses",
+        "imageUrl": "https://cdn.example.com/garments/prod-acc-0008.jpg",
+        "productUrl": "https://shop.example.com/p/prod-acc-0008",
+        "retailer": "Example Retailer"
+      }
+    },
+    {
+      "fixtureId": "top-missing-image",
+      "description": "A supported category with NO garment image at all.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "imageType": "missing",
+      "record": {
+        "id": "prod-top-noimg-0009",
+        "category": "Knit Sweater",
+        "productUrl": "https://shop.example.com/p/prod-top-noimg-0009",
+        "retailer": "Example Retailer"
+      }
+    },
+    {
+      "fixtureId": "top-unsafe-image-scheme",
+      "description": "A supported category whose garment image is a non-https reference. Refused by the same rule the server applies: an http:/data:/file:/content: reference is either not a retailer image or is an attempt to make the server fetch something it should not.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "imageType": "unsafe",
+      "record": {
+        "id": "prod-top-unsafe-0010",
+        "category": "Hoodie",
+        "imageUrl": "http://cdn.example.com/garments/prod-top-unsafe-0010.jpg",
+        "productUrl": "https://shop.example.com/p/prod-top-unsafe-0010",
+        "retailer": "Example Retailer"
+      }
+    },
+    {
+      "fixtureId": "top-data-uri-image",
+      "description": "A data: garment reference. Same refusal, different shape -- pinned separately because a data: URI parses as a URL and would pass a naive check.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "imageType": "unsafe",
+      "record": {
+        "id": "prod-top-datauri-0011",
+        "category": "Polo Shirt",
+        "imageUrl": "data:image/png;base64,iVBORw0KGgo=",
+        "productUrl": "https://shop.example.com/p/prod-top-datauri-0011",
+        "retailer": "Example Retailer"
+      }
+    },
+    {
+      "fixtureId": "unknown-category",
+      "description": "A category that canonicalizes to nothing recognisable. It must NOT be guessed into eligibility.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "imageType": "model-shot",
+      "record": {
+        "id": "prod-unknown-0012",
+        "category": "Assorted Homeware Bundle",
+        "imageUrl": "https://cdn.example.com/garments/prod-unknown-0012.jpg",
+        "productUrl": "https://shop.example.com/p/prod-unknown-0012",
+        "retailer": "Example Retailer"
+      }
+    },
+    {
+      "fixtureId": "non-fashion",
+      "description": "An explicitly non-fashion result. Scanner produces these and they must reach UNAVAILABLE, not a try-on.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "imageType": "non-garment",
+      "record": {
+        "id": "prod-nonfashion-0013",
+        "category": "non_fashion",
+        "imageUrl": "https://cdn.example.com/garments/prod-nonfashion-0013.jpg",
+        "productUrl": "https://shop.example.com/p/prod-nonfashion-0013",
+        "retailer": "Example Retailer"
+      }
+    },
+    {
+      "fixtureId": "no-product-reference",
+      "description": "A record with no id, no purchase URL and no image -- nothing stable to anchor a try-on to.",
+      "evidenceClass": "SOURCE-SHAPE",
+      "imageType": "missing",
+      "record": {
+        "category": "Shirt",
+        "retailer": "Example Retailer"
+      }
+    }
+  ]
+}
