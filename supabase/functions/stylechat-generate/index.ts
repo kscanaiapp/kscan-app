@@ -294,7 +294,23 @@ Rules:
 - With a colour, set colorStrength: "STRONG_EXPLICIT_PREFERENCE" when they insist ("only black", "I really want black", "black is important"), or "EXPLICIT_PREFERENCE" when they simply state or hedge it ("black shoes", "I'd prefer black", "black if possible"). It changes how strongly matching options are elevated; it never removes the alternatives, and the app decides the final order either way.
 - A colour is a PREFERENCE, not a filter. To actually rule a colour out the user must reject it ("nothing in brown") — that is excludeColors, and it is a different thing from asking for black.
 - Do NOT name products, prices, brands, retailers, stock or availability. You are asking for options, not providing them; the app fetches and shows the real ones.
-- Do not say you already found, checked, or listed anything. Say you are going to look ("let me find options that prioritise black"), never that you have looked.`
+- Do not say you already found, checked, or listed anything. Say you are going to look ("let me find options that prioritise black"), never that you have looked.
+
+REFINING A SHOPPING REQUEST
+- material, silhouette and formality may be set the same way, and ONLY when the user said the word themselves this turn: material (leather, suede, denim, wool, cotton, silk, satin, linen, cashmere, nylon, polyester, fur, velvet), silhouette (chelsea, ankle, knee-high, chunky, platform, slim, straight, tapered, wide-leg, oversized, cropped, a-line, midi, maxi, mini, fitted, boxy, relaxed), formality (casual, smart, dressy, formal). A value the user did not say is dropped, so do not fill these in from what you imagine the item looks like.
+- Relative asks ("less formal", "dressier") need no field from you; the app resolves them against the request it already has and asks the user when there is nothing to be relative to.
+
+REFERRING TO OPTIONS ALREADY SHOWN
+When the user talks about options they have already been shown, add memoryOp to the same shopping object:
+- "show me different ones", "something else" -> memoryOp:"different"
+- "another", "one more" -> memoryOp:"another"
+- "not those", "none of these" -> memoryOp:"not_those"
+- "go back to the first one", "the second pair" -> memoryOp:"reference" with referenceOrdinal (1-6)
+- "show me everything again" -> memoryOp:"clear"
+Rules:
+- You do NOT know which products were shown, and you must never claim to. You have not seen them: no titles, no prices, no brands, no retailers, no availability. Say what you are doing ("let me pull up the first one"), never what it is.
+- referenceOrdinal is a POSITION only. If the user refers to an option by description rather than position ("the cheaper one", "the suede one"), do not guess an ordinal — ask which one they mean.
+- The app resolves every reference against what it actually showed, and re-checks price and availability before offering to shop. Never state that an option is still available or still that price.`
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -3114,6 +3130,8 @@ Deno.serve(async (req) => {
     : undefined;
   let shoppingIntentState: EliseShoppingIntentState | null = null;
   let shoppingIntentNeedsBudgetReference = false;
+  let shoppingIntentNeedsFormalityReference = false;
+  let shoppingIntentMemory: { op: string; ordinal: number | null } | null = null;
   if (commerceAction) {
     const reduced = reduceShoppingIntent({
       previous: priorShoppingIntent,
@@ -3122,6 +3140,10 @@ Deno.serve(async (req) => {
     });
     shoppingIntentState = reduced.state;
     shoppingIntentNeedsBudgetReference = reduced.needsBudgetReference;
+    shoppingIntentNeedsFormalityReference = reduced.needsFormalityReference;
+    shoppingIntentMemory = reduced.memory
+      ? { op: reduced.memory.op, ordinal: reduced.memory.ordinal }
+      : null;
     console.log(
       '[stylechat-generate] commerce_intent reset=%s turns=%d category=%s hasBudget=%s exclusions=%d rejected=%d needsRef=%s',
       String(reduced.reset),
@@ -3540,6 +3562,16 @@ Deno.serve(async (req) => {
           blockType: ELISE_COMMERCE_INTENT_BLOCK_TYPE,
           state: shoppingIntentState,
           needsBudgetReference: shoppingIntentNeedsBudgetReference,
+          // Commerce V2. A relative formality request with nothing to be
+          // relative to is REPORTED rather than swallowed: the client still
+          // runs the search for whatever else the sentence carried, and Elise
+          // asks about the formality instead of silently doing nothing.
+          needsFormalityReference: shoppingIntentNeedsFormalityReference,
+          // The memory operation deterministic code resolved for this turn.
+          // It names an OPERATION and, at most, an ordinal — never a product,
+          // a title, a price or a retailer. Which real product an ordinal
+          // refers to is decided on the device, against verified state.
+          ...(shoppingIntentMemory ? { memory: shoppingIntentMemory } : {}),
         },
       }
       : {}),

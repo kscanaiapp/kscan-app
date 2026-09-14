@@ -62,6 +62,24 @@ export type ValidatedStyleChatAction = {
        * becomes ordinary preference -- the model never owns ranking.
        */
       colorStrength?: 'EXPLICIT_PREFERENCE' | 'STRONG_EXPLICIT_PREFERENCE';
+      /**
+       * Commerce V2 richer fashion axes. Proposable here, and admitted by the
+       * reducer only when the customer's own words corroborate them — this
+       * layer bounds the vocabulary, `userStatedToken` bounds the authority.
+       */
+      material?: string;
+      silhouette?: string;
+      formality?: string;
+      /**
+       * A conversational memory operation over products ALREADY SHOWN.
+       *
+       * The model may say "they mean the first one". It may not say WHICH
+       * PRODUCT that was: no product identity, title, price or retailer is
+       * proposable here, and none is ever placed in the model's prompt.
+       * Deterministic state resolves the ordinal to a real, verified listing.
+       */
+      memoryOp?: 'different' | 'another' | 'not_those' | 'reference' | 'clear';
+      referenceOrdinal?: number;
       budgetAmount?: number;
       budgetCurrency?: string;
       excludeMaterials?: string[];
@@ -161,6 +179,20 @@ const SHOPPING_MATERIALS = [
   'cashmere', 'nylon', 'polyester', 'fur', 'velvet',
 ];
 const SHOPPING_FUNCTIONAL = ['waterproof', 'packable', 'warm', 'breathable'];
+/**
+ * Commerce V2 vocabularies. Deliberately the same word lists the reducer
+ * enforces, for the reason the comment above already gives: a value that would
+ * be dropped later is dropped here, so the action a client receives never
+ * promises a constraint the persisted intent will not carry.
+ */
+const SHOPPING_SILHOUETTES = [
+  'chelsea', 'ankle', 'knee-high', 'chunky', 'platform', 'slim', 'straight',
+  'tapered', 'wide-leg', 'oversized', 'cropped', 'a-line', 'midi', 'maxi',
+  'mini', 'fitted', 'boxy', 'relaxed',
+];
+const SHOPPING_FORMALITY = ['casual', 'smart', 'dressy', 'formal'];
+const SHOPPING_MEMORY_OPS = ['different', 'another', 'not_those', 'reference', 'clear'];
+const MAX_SHELF_ORDINAL = 6;
 const ISO_CURRENCY_RE = /^[A-Za-z]{3}$/;
 const MAX_SHOPPING_LIST = 6;
 
@@ -213,6 +245,27 @@ function parseShoppingProposal(raw: unknown): NonNullable<ValidatedStyleChatActi
   if (Number.isFinite(amount) && amount > 0 && currency) {
     out.budgetAmount = amount;
     out.budgetCurrency = currency;
+  }
+
+  const material = boundedWord(rec.material, SHOPPING_MATERIALS);
+  if (material) out.material = material;
+  const silhouette = boundedWord(rec.silhouette, SHOPPING_SILHOUETTES);
+  if (silhouette) out.silhouette = silhouette;
+  const formality = boundedWord(rec.formality, SHOPPING_FORMALITY);
+  if (formality) out.formality = formality;
+
+  const memoryOp = boundedWord(rec.memoryOp, SHOPPING_MEMORY_OPS);
+  if (memoryOp) {
+    out.memoryOp = memoryOp as NonNullable<ValidatedStyleChatAction['payload']['shopping']>['memoryOp'];
+    // An ordinal only means anything for a reference, and only inside the
+    // shelf bound. Anything else is dropped rather than clamped: a clamped
+    // ordinal would resolve to a real product the customer did not name.
+    if (memoryOp === 'reference') {
+      const raw = typeof rec.referenceOrdinal === 'number'
+        ? rec.referenceOrdinal
+        : typeof rec.referenceOrdinal === 'string' ? Number.parseInt(rec.referenceOrdinal, 10) : NaN;
+      if (Number.isInteger(raw) && raw >= 1 && raw <= MAX_SHELF_ORDINAL) out.referenceOrdinal = raw;
+    }
   }
 
   const materials = boundedWordList(rec.excludeMaterials, SHOPPING_MATERIALS);

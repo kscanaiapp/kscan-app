@@ -130,11 +130,21 @@ test('the strength is echoed on the block so the shelf can explain itself', () =
     path.join(ROOT, 'services/style-chat/commerceActivation.ts'),
     'utf8',
   );
+  // Commerce V2 lifted this expression into `buildIntentSummary(state)` so the
+  // memory-selected and provider-selected shelves cannot disagree about the
+  // summary they echo. The RULE is unchanged and is asserted twice: once
+  // against the source, and once against the built block below.
   assert.match(
     activation,
-    /colorStrength: input\.state\?\.color \? \(input\.state\.colorStrength \?\? 'EXPLICIT_PREFERENCE'\) : null/,
+    /colorStrength: state\?\.color \? \(state\.colorStrength \?\? 'EXPLICIT_PREFERENCE'\) : null/,
     'no colour means no strength',
   );
+  const activationModule = require(path.join(ROOT, 'services/style-chat/commerceActivation.ts'));
+  const noColour = activationModule.buildCommerceProductsBlock({
+    result: null,
+    state: { category: 'footwear', color: null, colorStrength: 'STRONG_EXPLICIT_PREFERENCE', budget: null, exclusions: [], functionalRequirements: [] },
+  });
+  assert.equal(noColour.intentSummary.colorStrength, null, 'a strength without a colour is not a strength');
   const bubble = fs.readFileSync(
     path.join(ROOT, 'components/style-chat/StyleChatBubble.tsx'),
     'utf8',
