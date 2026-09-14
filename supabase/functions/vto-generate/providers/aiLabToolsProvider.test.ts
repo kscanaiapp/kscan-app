@@ -24,6 +24,7 @@ import { assert, assertEquals } from 'https://deno.land/std@0.224.0/assert/mod.t
 import {
   AILABTOOLS_PROVIDER_ID,
   createAiLabToolsProvider,
+  parseRetryAfterSeconds,
   unsupportedSlotReason,
 } from './aiLabToolsProvider.ts';
 import { validateVtoResultMedia } from '../vtoResultValidation.ts';
@@ -346,12 +347,61 @@ Deno.test('401 is also provider_unavailable, not authorization_failed', async ()
   if (!outcome.ok) assertEquals(outcome.failure, 'provider_unavailable');
 });
 
-Deno.test('429 maps to rate_limited', async () => {
+// VTO V3.1. This assertion used to read `rate_limited`, and that is precisely
+// the defect: a gateway 429 means the VENDOR is throttling K Scan, and the app
+// rendered that same code as "You've reached the try-on limit for now". The
+// customer had reached nothing. `provider_busy` is the truthful code.
+Deno.test('a gateway 429 maps to provider_busy, not to the customer\'s quota', async () => {
   const { fn } = scriptedFetch({ submit: () => jsonResponse({ message: 'Too Many Requests' }, 429) });
   const provider = createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn });
   const outcome = await provider.generate(TOP_INPUT, { signal: signal() });
   assertEquals(outcome.ok, false);
-  if (!outcome.ok) assertEquals(outcome.failure, 'rate_limited');
+  if (!outcome.ok) {
+    assertEquals(outcome.failure, 'provider_busy');
+    // No job was created, so the attempt is still given back. Unchanged.
+    assertEquals(outcome.billable, false);
+    // Nothing was sent, so nothing is invented.
+    assertEquals(outcome.retryAfterSeconds, undefined);
+  }
+});
+
+Deno.test('a 429 carrying Retry-After surfaces bounded, normalized guidance', async () => {
+  const { fn } = scriptedFetch({
+    submit: () =>
+      new Response(JSON.stringify({ message: 'Too Many Requests' }), {
+        status: 429,
+        headers: { 'Content-Type': 'application/json', 'Retry-After': '45' },
+      }),
+  });
+  const provider = createAiLabToolsProvider({ apiKey: 'k', fetchImpl: fn });
+  const outcome = await provider.generate(TOP_INPUT, { signal: signal() });
+  assertEquals(outcome.ok, false);
+  if (!outcome.ok) {
+    assertEquals(outcome.failure, 'provider_busy');
+    assertEquals(outcome.retryAfterSeconds, 45);
+  }
+});
+
+Deno.test('Retry-After: both HTTP forms are accepted, and everything unusable is discarded', () => {
+  // delta-seconds
+  assertEquals(parseRetryAfterSeconds('30'), 30);
+  assertEquals(parseRetryAfterSeconds('  30  '), 30);
+  // HTTP-date, against an injected clock
+  const now = Date.parse('2026-10-21T07:00:00Z');
+  assertEquals(parseRetryAfterSeconds('Wed, 21 Oct 2026 07:01:00 GMT', now), 60);
+  // A vendor may send anything at all. None of this is guidance, and an
+  // out-of-range value is DROPPED rather than clamped -- clamping would invent
+  // a wait nobody promised.
+  for (
+    const hostile of [
+      '', '   ', 'soon', '-1', '0', '1.5', '1e9', 'NaN',
+      '9'.repeat(400), '3601', 'Wed, 21 Oct 2020 07:00:00 GMT',
+    ]
+  ) {
+    assertEquals(parseRetryAfterSeconds(hostile, now), null, `must discard ${JSON.stringify(hostile.slice(0, 16))}`);
+  }
+  assertEquals(parseRetryAfterSeconds(null), null);
+  assertEquals(parseRetryAfterSeconds(undefined), null);
 });
 
 Deno.test('a 5xx maps to provider_unavailable', async () => {

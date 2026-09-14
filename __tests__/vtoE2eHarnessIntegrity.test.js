@@ -872,7 +872,7 @@ function makeFakeStagingBackend(options = {}) {
  * A stand-in for the deployed vto-generate, reduced to the one decision this
  * control is about: it re-derives the idempotency identity from the request
  * BODY exactly as vto-generate does, consults the same reservation store, and
- * answers 429/rate_limited for a live in-flight reservation or 422/
+ * answers 429/request_in_flight for a live in-flight reservation or 422/
  * invalid_garment_input otherwise (the zero-spend fixture's real outcome).
  * Mutations below break exactly one of those behaviours at a time.
  */
@@ -905,24 +905,24 @@ function makeFakeVtoGenerate(backend, userId, computeVtoIdempotencyKey, mutation
       // MUTATION: refused, but the response still carries a generation result
       // — i.e. provider work happened behind the suppression.
       if (mutation === 'carries_provider_result') {
-        return { status: 429, json: { status: 'failed', error: { code: 'rate_limited' }, result: { mediaType: 'image/png' } } };
+        return { status: 429, json: { status: 'failed', error: { code: 'request_in_flight' }, result: { mediaType: 'image/png' } } };
       }
       // MUTATION: the right code under the WRONG HTTP status. Isolates the
       // 429 requirement on its own — every other requirement still holds, so
       // only a control that genuinely pins the status can fail this.
-      if (mutation === 'rate_limited_wrong_status') {
+      if (mutation === 'in_flight_wrong_status') {
         // Deliberately a 4xx that is NOT 429: a control loosened to "any
         // client error" would accept this, so only an exact 429 check passes
         // the assertion below.
-        return { status: 400, json: { status: 'failed', error: { code: 'rate_limited' } } };
+        return { status: 400, json: { status: 'failed', error: { code: 'request_in_flight' } } };
       }
       // MUTATION: suppression that RELEASES the prior reservation instead of
       // deferring to it — the response looks right, the state does not.
       if (mutation === 'suppression_releases_prior') {
         backend.rows.delete(backend.keyOf(userId, key));
-        return { status: 429, json: { status: 'failed', error: { code: 'rate_limited' } } };
+        return { status: 429, json: { status: 'failed', error: { code: 'request_in_flight' } } };
       }
-      return { status: 429, json: { status: 'failed', error: { code: 'rate_limited' } } };
+      return { status: 429, json: { status: 'failed', error: { code: 'request_in_flight' } } };
     }
     return { status: 422, json: { status: 'failed', error: { code: 'invalid_garment_input' } } };
   };
@@ -962,7 +962,7 @@ test('VTO-CERT-012: the repaired duplicate control PASSES against a faithful mod
   const { result } = await runDuplicateControlAgainst();
   assert.equal(result.ok, true, `control should pass a correct implementation — detail: ${result.detail}`);
   assert.match(result.detail, /seededStatus=in_flight/);
-  assert.match(result.detail, /httpStatus=429 code=rate_limited/);
+  assert.match(result.detail, /httpStatus=429 code=request_in_flight/);
 });
 
 test('VTO-CERT-012: the control is DETERMINISTIC — the same faithful model yields the identical verdict on repeated runs (the defect it replaces was scheduling-dependent)', async () => {
@@ -982,17 +982,17 @@ test('VTO-CERT-012 MUTATION: duplicate suppression stops working (the HTTP dupli
   assert.match(result.detail, /httpStatus=422 code=invalid_garment_input/);
 });
 
-test('VTO-CERT-012 MUTATION: the duplicate is refused under a code other than rate_limited -> control FAILS, and rate_limited is the ONLY unmet requirement', async () => {
+test('VTO-CERT-012 MUTATION: the duplicate is refused under a code other than request_in_flight -> control FAILS, and that code requirement is the ONLY unmet one', async () => {
   const { REQ } = await loadDryRun();
   const { result } = await runDuplicateControlAgainst({ mutation: 'wrong_failure_code' });
   assert.equal(result.ok, false);
   assert.match(result.detail, /code=too_many_requests/);
-  assert.deepEqual(unmetOf(result), [REQ.CODE_RATE_LIMITED]);
+  assert.deepEqual(unmetOf(result), [REQ.CODE_REQUEST_IN_FLIGHT]);
 });
 
-test('VTO-CERT-012 MUTATION: rate_limited returned under a non-429 status -> control FAILS, and HTTP 429 is the ONLY unmet requirement (the status check cannot be weakened away)', async () => {
+test('VTO-CERT-012 MUTATION: request_in_flight returned under a non-429 status -> control FAILS, and HTTP 429 is the ONLY unmet requirement (the status check cannot be weakened away)', async () => {
   const { REQ } = await loadDryRun();
-  const { result } = await runDuplicateControlAgainst({ mutation: 'rate_limited_wrong_status' });
+  const { result } = await runDuplicateControlAgainst({ mutation: 'in_flight_wrong_status' });
   assert.equal(result.ok, false);
   assert.deepEqual(unmetOf(result), [REQ.HTTP_429]);
 });
@@ -1031,7 +1031,7 @@ test('VTO-CERT-012: the control enforces its full, pinned requirement set — no
   assert.deepEqual([...DUPLICATE_CONTROL_REQUIREMENTS], [
     'reservation is in_flight before the HTTP request',
     'HTTP 429',
-    'error.code = rate_limited',
+    'error.code = request_in_flight',
     'suppressed response carries no provider result',
     'the prior reservation survives the suppression',
     'exactly one reservation row for the identity',
@@ -1155,12 +1155,31 @@ test('VTO-CERT-012: `stage` is deliberately not asserted from the HTTP body — 
     'utf8',
   );
   const failBody = handler.slice(handler.indexOf('function fail('), handler.indexOf('function normalizeOrigin('));
-  // The response body is { requestId, status, error: { code, retryable } } —
-  // `stage` reaches the log only. If that ever changes, this control may be
-  // strengthened to assert the stage directly.
-  assert.match(failBody, /error:\s*\{\s*code,\s*retryable:/);
+  // THE INVARIANT, which is about what the customer may see -- not about the
+  // literal shape of the object literal that produces it. VTO V3.1 added one
+  // bounded integer (`retryAfterSeconds`) to the error envelope, which is why
+  // this is now asserted by CONTENT rather than by pinning
+  // `{ code, retryable }` as a source substring.
+  assert.match(failBody, /const error: Record<string, unknown> = \{ code, retryable:/,
+    'the error envelope is still built from the failure code and its retryability');
+
+  // Operator-only fields must never cross the boundary. `stage` is how an
+  // operator tells a gateway throttle from a duplicate; `providerDetail` can
+  // carry an adapter note. Neither is the customer's business, and neither may
+  // be assigned onto the response envelope.
+  for (const operatorOnly of ['stage', 'providerDetail', 'provider', 'uid', 'latencyMs']) {
+    assert.equal(
+      new RegExp(`error\\.${operatorOnly}\\s*=`).test(failBody), false,
+      `${operatorOnly} must not be assigned onto the governed response body`,
+    );
+  }
   assert.equal(/return json\(\s*\{[^}]*stage/.test(failBody), false,
     'stage is not part of the governed response body');
+
+  // The ONE field VTO V3.1 added, and the guard that it is a number rather
+  // than whatever the vendor sent.
+  assert.match(failBody, /if \(typeof context\.retryAfterSeconds === 'number'\)/,
+    'retry guidance reaches the wire only when it is actually a number');
 });
 
 // ── Control-matrix shape: the staging-dryrun lane reports exactly the 13
@@ -1191,7 +1210,7 @@ test('staging-dryrun control matrix: exactly 13 controls, in their established i
       requestGeneration: body.requestGeneration,
     });
     const payload = backend.rows.has(backend.keyOf(DUP_ACTOR, key))
-      ? { status: 'failed', error: { code: 'rate_limited' } }
+      ? { status: 'failed', error: { code: 'request_in_flight' } }
       : { status: 'failed', error: { code: 'invalid_garment_input' } };
     const text = JSON.stringify(payload);
     return {

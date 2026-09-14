@@ -28,7 +28,28 @@ export const VTO_FAILURE_CODES = [
   'provider_moderation',
   'provider_timeout',
   'provider_unavailable',
+  /**
+   * LEGACY. Until VTO V3.1 this single code carried THREE different truths --
+   * the actor's own daily allowance being spent, a duplicate request already
+   * in flight, and the vendor gateway throttling K Scan -- and the client
+   * rendered all three as "you've reached the try-on limit". Two of those were
+   * a lie about the customer's allowance.
+   *
+   * It is no longer emitted by this function. It stays in the vocabulary
+   * because a client build may still receive it from an older deployment, and
+   * because deleting a wire code is not a thing that can be done safely; its
+   * copy is now deliberately neutral (services/vto/vtoFailures.ts).
+   */
   'rate_limited',
+  /** The actor has spent their own daily generation allowance. The ONLY code
+   *  that may speak about the customer's limit. */
+  'quota_exhausted',
+  /** A generation for this exact intent is already running (or already
+   *  succeeded). Not a limit, and not an error the customer caused. */
+  'request_in_flight',
+  /** The generation vendor is throttling or temporarily refusing work. K Scan,
+   *  not the customer, is being rate-limited. Carries no vendor identity. */
+  'provider_busy',
   'generation_failed',
   'invalid_output',
   'authorization_failed',
@@ -62,6 +83,18 @@ export const VTO_PERSON_PAYLOAD_MAX_CHARS = 2_000_000;
 
 /** Lower bound on a plausible decoded image. Anything under this is a
  *  truncated or empty result masquerading as success. */
+/**
+ * Bounds on any `Retry-After` K Scan will repeat to a caller.
+ *
+ * A vendor may send anything at all, including a negative number, a date in
+ * the past, or ten days. Guidance outside this window is DISCARDED rather
+ * than clamped: clamping 10 days down to an hour would invent a wait nobody
+ * promised, and clamping up would do the same. No guidance is honest; wrong
+ * guidance is not.
+ */
+export const VTO_RETRY_AFTER_MIN_SECONDS = 1;
+export const VTO_RETRY_AFTER_MAX_SECONDS = 3600;
+
 export const VTO_RESULT_MIN_BYTES = 1024;
 export const VTO_RESULT_MAX_BYTES = 8 * 1024 * 1024;
 
@@ -117,6 +150,16 @@ export type VtoProviderOutcome =
        * unbounded retry loop, which is what VTO-QUOTA-001 closed.
        */
       billable?: boolean;
+      /**
+       * Normalized, BOUNDED retry guidance the vendor supplied with a refusal
+       * (an HTTP `Retry-After`), in whole seconds.
+       *
+       * The adapter parses and validates it; anything absent, malformed,
+       * zero/negative, or outside VTO_RETRY_AFTER_{MIN,MAX}_SECONDS arrives
+       * here as `undefined` rather than as a number nobody can stand behind.
+       * It is guidance only: nothing in this function retries automatically.
+       */
+      retryAfterSeconds?: number;
     };
 
 export interface VtoProvider {

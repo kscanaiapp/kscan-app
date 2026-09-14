@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-13T21:46:20.933Z",
-    "generatedFromGitSha": "61567b164debd87a0b233e348d16ad3336fdb992"
+    "generatedAtUtc": "2026-09-14T19:01:47.651Z",
+    "generatedFromGitSha": "3626f81d9e0f0a976400141cbef1fec73193c384"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -1538,8 +1538,8 @@
         ],
         "bundleFileCount": 16,
         "treeFileCount": 21,
-        "bundleHash": "898983d46f2d3e4f1d04251150e7d213a1c1b4d2d388233060504eb683f8e256",
-        "treeHash": "a793eea9bbefc53f3a243a2203123b5fcf996c83fc6cab3aed615a3ee58b8738",
+        "bundleHash": "b45b6f1a541e10de983228d50abec5cafc09ccc5438dc40ab6ce0631af6c4ddd",
+        "treeHash": "4feeb166a6548c03bad89f0c9e2ebd339bf37eabdd8d414cff2e722dfb20c806",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -1563,12 +1563,12 @@
           },
           {
             "path": "supabase/functions/vto-generate/providers/aiLabToolsProvider.test.ts",
-            "sha256": "a35f5ce7271720c8aa530bc66102dede8f854c37eb272359a6e855a4e9ec8a0a",
+            "sha256": "07dedfc46d2a06f33c8171f0aea70c10fb95994d09a4efbd422b9761c21177f7",
             "bundle": false
           },
           {
             "path": "supabase/functions/vto-generate/providers/aiLabToolsProvider.ts",
-            "sha256": "a2c5c24dfd290f8a56c0e2708764ada8a315f14d96a7f0f8e554b0d23df9eec5",
+            "sha256": "fd1148ac06528b6d66c11082e8151d17a17fe2e29bd8e8b99f0d72ac4afa81c6",
             "bundle": true
           },
           {
@@ -1593,7 +1593,7 @@
           },
           {
             "path": "supabase/functions/vto-generate/vtoContract.ts",
-            "sha256": "94d9a7d88de848b988ab042151f21a9f4549e89179bec9a757673e21876691ee",
+            "sha256": "2c4ee9996ab8bcdfef2a085ae900e51e88d0751c7b6b2c816e17edd17b5ee6a2",
             "bundle": true
           },
           {
@@ -1623,7 +1623,7 @@
           },
           {
             "path": "supabase/functions/vto-generate/vtoHandler.ts",
-            "sha256": "2a9f052cdb75cadcf8a6e057424752f06dc9d9df6b29fe12c8b9ad0f91756451",
+            "sha256": "291dfb8ab6e216fe603eb97fe693c7841980a7371b6f4a90c69f2616138b4958",
             "bundle": true
           },
           {
