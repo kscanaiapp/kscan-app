@@ -286,14 +286,24 @@ export function StyleChatBubble({
               // authority rather than being re-implemented for chat.
               if (block?.type === 'commerce_products') {
                 const commerceBlock = block as unknown as {
-                  status?: 'results' | 'no_matches' | 'error';
+                  status?: 'results' | 'no_matches' | 'exhausted' | 'error';
                   products?: unknown;
+                  // Commerce V2 memory fields. All optional for the same
+                  // reason the intent summary is: a block persisted by an
+                  // older build carries none of them and must still render.
+                  memoryOp?: 'different' | 'another' | 'not_those' | 'reference' | 'clear' | null;
+                  notices?: unknown;
+                  hiddenCount?: number | null;
                   // Echoed by the activation writer. Optional on purpose: a
                   // block persisted by an older build has no intent summary,
                   // and must still render as the single unsplit shelf.
                   intentSummary?: {
                     color?: string | null;
                     colorStrength?: 'EXPLICIT_PREFERENCE' | 'STRONG_EXPLICIT_PREFERENCE' | null;
+                    material?: string | null;
+                    silhouette?: string | null;
+                    formality?: string | null;
+                    budget?: { amount: number; currency: string } | null;
                   };
                 };
                 return (
@@ -303,6 +313,10 @@ export function StyleChatBubble({
                     products={commerceBlock.products}
                     requestedColor={commerceBlock.intentSummary?.color ?? null}
                     colorStrength={commerceBlock.intentSummary?.colorStrength ?? null}
+                    memoryOp={commerceBlock.memoryOp ?? null}
+                    notices={Array.isArray(commerceBlock.notices) ? (commerceBlock.notices as never[]) : null}
+                    hiddenCount={commerceBlock.hiddenCount ?? null}
+                    intentSummary={commerceBlock.intentSummary ?? null}
                     testID="chat-commerce-products"
                   />
                 );

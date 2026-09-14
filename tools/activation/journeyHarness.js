@@ -130,7 +130,7 @@ async function runTurn(input) {
     state: reduced.state,
     needsBudgetReference: reduced.needsBudgetReference,
     needsFormalityReference: reduced.needsFormalityReference,
-    ...(reduced.memory ? { memory: { op: reduced.memory.op, ordinal: reduced.memory.ordinal } } : {}),
+    ...(reduced.memory ? { memory: { op: reduced.memory.op, ordinal: reduced.memory.ordinal, scope: reduced.memory.scope } } : {}),
   });
 
   const provider = input.provider ?? makeFixtureProvider({ actorId: input.actorId ?? null });

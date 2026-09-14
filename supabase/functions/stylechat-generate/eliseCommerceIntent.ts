@@ -562,15 +562,32 @@ export interface EliseShelfMemoryDirective {
   op: EliseShelfMemoryOp;
   /** 1-based, within the referenced shelf. Present only for `reference`. */
   ordinal: number | null;
+  /**
+   * WHICH shelf the ordinal counts within.
+   *
+   * "The second one" said while looking at a shelf means the second of THAT
+   * shelf. "Go back to the first pair" is a backward reference: it means the
+   * first pair they were shown in this shopping task, several shelves ago —
+   * which is a different product, and answering one with the other is the
+   * quiet kind of wrong that makes a shopper stop trusting the memory.
+   */
+  scope: 'latest' | 'earliest';
   /** Where the directive came from, for diagnostics and for the tests. */
   source: 'user_text' | 'model_proposal';
 }
 
-function ordinalFromMessage(text: string): number | null {
+/** A backward reference: not "of these", but "of the ones from before". */
+const BACKWARD_REFERENCE_RE = /\b(?:go\s+back\s+to|back\s+to|earlier|before|original(?:ly)?|at\s+the\s+start|you\s+showed\s+me\s+first)\b/i;
+
+function ordinalFromMessage(text: string): { ordinal: number; scope: 'latest' | 'earliest' } | null {
   for (const pattern of REFERENCE_PATTERNS) {
     const match = text.match(pattern);
     const word = match?.[1]?.toLowerCase();
-    if (word && ORDINAL_WORDS[word]) return ORDINAL_WORDS[word];
+    if (!word || !ORDINAL_WORDS[word]) continue;
+    return {
+      ordinal: ORDINAL_WORDS[word],
+      scope: BACKWARD_REFERENCE_RE.test(text) ? 'earliest' : 'latest',
+    };
   }
   return null;
 }
@@ -590,12 +607,15 @@ export function detectShelfMemoryDirective(
 ): EliseShelfMemoryDirective | null {
   const text = typeof message === 'string' ? message.slice(0, 400) : '';
 
-  const ordinal = ordinalFromMessage(text);
-  if (ordinal !== null) return { op: 'reference', ordinal, source: 'user_text' };
-  if (NOT_THOSE_PATTERNS.some((re) => re.test(text))) return { op: 'not_those', ordinal: null, source: 'user_text' };
-  if (CLEAR_PATTERNS.some((re) => re.test(text))) return { op: 'clear', ordinal: null, source: 'user_text' };
-  if (ANOTHER_PATTERNS.some((re) => re.test(text))) return { op: 'another', ordinal: null, source: 'user_text' };
-  if (DIFFERENT_PATTERNS.some((re) => re.test(text))) return { op: 'different', ordinal: null, source: 'user_text' };
+  const reference = ordinalFromMessage(text);
+  if (reference) {
+    return { op: 'reference', ordinal: reference.ordinal, scope: reference.scope, source: 'user_text' };
+  }
+  const plain = { ordinal: null, scope: 'latest' as const, source: 'user_text' as const };
+  if (NOT_THOSE_PATTERNS.some((re) => re.test(text))) return { op: 'not_those', ...plain };
+  if (CLEAR_PATTERNS.some((re) => re.test(text))) return { op: 'clear', ...plain };
+  if (ANOTHER_PATTERNS.some((re) => re.test(text))) return { op: 'another', ...plain };
+  if (DIFFERENT_PATTERNS.some((re) => re.test(text))) return { op: 'different', ...plain };
 
   // Nothing in the customer's own words. The model's proposal may stand, but
   // only inside the closed enum and the bounded ordinal range — and a proposed
@@ -603,7 +623,7 @@ export function detectShelfMemoryDirective(
   if (typeof proposedOp !== 'string') return null;
   if (!(ELISE_SHELF_MEMORY_OPS as readonly string[]).includes(proposedOp)) return null;
   const op = proposedOp as EliseShelfMemoryOp;
-  if (op !== 'reference') return { op, ordinal: null, source: 'model_proposal' };
+  if (op !== 'reference') return { op, ordinal: null, scope: 'latest', source: 'model_proposal' };
 
   const raw = typeof proposedOrdinal === 'number'
     ? proposedOrdinal
@@ -611,7 +631,9 @@ export function detectShelfMemoryDirective(
   if (!Number.isFinite(raw)) return null;
   const bounded = Math.floor(raw);
   if (bounded < 1 || bounded > ELISE_COMMERCE_INTENT_LIMITS.maxProductsPerShelf) return null;
-  return { op: 'reference', ordinal: bounded, source: 'model_proposal' };
+  // A model proposal never claims a backward reference: the customer's own
+  // words are the only evidence that they meant an earlier shelf.
+  return { op: 'reference', ordinal: bounded, scope: 'latest', source: 'model_proposal' };
 }
 
 // ── Relative fashion requests (Commerce V2 §39) ────────────────────────────

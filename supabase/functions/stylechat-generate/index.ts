@@ -3131,7 +3131,7 @@ Deno.serve(async (req) => {
   let shoppingIntentState: EliseShoppingIntentState | null = null;
   let shoppingIntentNeedsBudgetReference = false;
   let shoppingIntentNeedsFormalityReference = false;
-  let shoppingIntentMemory: { op: string; ordinal: number | null } | null = null;
+  let shoppingIntentMemory: { op: string; ordinal: number | null; scope: 'latest' | 'earliest' } | null = null;
   if (commerceAction) {
     const reduced = reduceShoppingIntent({
       previous: priorShoppingIntent,
@@ -3142,7 +3142,7 @@ Deno.serve(async (req) => {
     shoppingIntentNeedsBudgetReference = reduced.needsBudgetReference;
     shoppingIntentNeedsFormalityReference = reduced.needsFormalityReference;
     shoppingIntentMemory = reduced.memory
-      ? { op: reduced.memory.op, ordinal: reduced.memory.ordinal }
+      ? { op: reduced.memory.op, ordinal: reduced.memory.ordinal, scope: reduced.memory.scope }
       : null;
     console.log(
       '[stylechat-generate] commerce_intent reset=%s turns=%d category=%s hasBudget=%s exclusions=%d rejected=%d needsRef=%s',

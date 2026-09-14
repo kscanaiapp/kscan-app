@@ -75,10 +75,20 @@ export interface ShelfMemoryState {
   shelves: RememberedShelf[];
   /** Identities the customer explicitly rejected in this task. */
   rejected: string[];
+  /**
+   * True once a shelf has aged out of the bounds above.
+   *
+   * It exists so that "go back to the first pair" can FAIL HONESTLY. Without
+   * it, the oldest shelf still in memory would silently impersonate the task's
+   * first shelf, and a backward reference would resolve confidently to a
+   * product that was not the one being referred to. A wrong product shown with
+   * confidence is worse than admitting the earlier options are gone.
+   */
+  truncated?: boolean;
 }
 
 export function emptyShelfMemory(): ShelfMemoryState {
-  return { actorId: null, shelves: [], rejected: [] };
+  return { actorId: null, shelves: [], rejected: [], truncated: false };
 }
 
 export function isEmptyShelfMemory(memory: ShelfMemoryState | null | undefined): boolean {
@@ -140,6 +150,7 @@ export function parseShelfMemory(raw: unknown): ShelfMemoryState | null {
   }
 
   memory.rejected = boundedIdentities(rec.rejected, SHELF_MEMORY_LIMITS.maxActiveExclusions);
+  memory.truncated = rec.truncated === true;
   return memory;
 }
 
@@ -196,7 +207,12 @@ export function recordShelf(
     total += shelf.items.length;
   }
 
-  return { actorId: input.actorId, shelves: kept, rejected: [...base.rejected] };
+  return {
+    actorId: input.actorId,
+    shelves: kept,
+    rejected: [...base.rejected],
+    truncated: base.truncated === true || kept.length < shelves.length,
+  };
 }
 
 /**
@@ -234,7 +250,12 @@ export function rejectLatestShelf(
   const rejected = overflow ? merged.slice(overflow) : merged;
 
   return {
-    memory: { actorId: base.actorId, shelves: base.shelves.map((s) => ({ ...s, items: [...s.items] })), rejected },
+    memory: {
+      actorId: base.actorId,
+      shelves: base.shelves.map((s) => ({ ...s, items: [...s.items] })),
+      rejected,
+      truncated: base.truncated === true,
+    },
     rejectedCount: added,
     dropped: overflow,
   };
@@ -247,6 +268,7 @@ export function clearRejections(memory: ShelfMemoryState | null | undefined): Sh
     actorId: base.actorId,
     shelves: base.shelves.map((s) => ({ ...s, items: [...s.items] })),
     rejected: [],
+    truncated: base.truncated === true,
   };
 }
 
@@ -359,11 +381,28 @@ export interface ShelfReferenceOutcome<T> {
 export function resolveShelfReference<T>(input: {
   memory: ShelfMemoryState | null | undefined;
   ordinal: number;
+  /**
+   * `latest` for a bare ordinal ("the second one" — of what you just showed).
+   * `earliest` for a backward reference ("go back to the first pair" — of what
+   * you showed me at the start of this task).
+   */
+  scope?: 'latest' | 'earliest';
   verifiedProducts: readonly T[] | null | undefined;
   actorId: string | null;
 }): ShelfReferenceOutcome<T> {
   const memory = shelfMemoryForActor(input.memory, input.actorId);
-  const shelf = memory.shelves[0];
+  if (!memory.shelves.length) return { reason: 'no_shelf', product: null, identity: null };
+
+  // A backward reference against a memory that has already dropped a shelf
+  // cannot be answered: the oldest shelf still held is NOT the one being
+  // referred to, and resolving it anyway would be a confident wrong answer.
+  if (input.scope === 'earliest' && memory.truncated === true) {
+    return { reason: 'expired', product: null, identity: null };
+  }
+
+  const shelf = input.scope === 'earliest'
+    ? memory.shelves[memory.shelves.length - 1]
+    : memory.shelves[0];
   if (!shelf || !shelf.items.length) return { reason: 'no_shelf', product: null, identity: null };
 
   const ordinal = Math.floor(input.ordinal);

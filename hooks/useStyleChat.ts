@@ -799,9 +799,36 @@ export function useStyleChat(sessionId: string, opts?: UseStyleChatOptions): Use
         // asked for it. Every failure mode returns a block, never a throw, so
         // a provider outage degrades the shelf and never the conversation.
         if (shoppingWire) {
+          // Commerce V2: the verified products this session has actually
+          // shown, read off the persisted `commerce_products` blocks already
+          // in the loaded message list.
+          //
+          // NO EXTRA READ, AND NO NEW SCOPE. That list came from
+          // `listStyleChatMessages`, which is bound to this session and this
+          // user under RLS, so "whose shelf is this?" is inherited from the
+          // query that loaded it rather than re-derived here. It is the
+          // evidence a reference must match: an ordinal alone cannot produce a
+          // card, because the identity it names has to belong to a product
+          // that really came back from the Commerce path.
+          const priorShelfProducts: Array<Record<string, unknown>> = [];
+          // `messages` is already a dependency of this callback, so this is
+          // the loaded history as of this send — no new ref, no extra state.
+          for (const message of messages) {
+            for (const uiBlock of message.uiBlocks ?? []) {
+              const typed = uiBlock as unknown as { type?: unknown; products?: unknown };
+              if (typed?.type !== 'commerce_products' || !Array.isArray(typed.products)) continue;
+              for (const product of typed.products) {
+                if (product && typeof product === 'object') {
+                  priorShelfProducts.push(product as Record<string, unknown>);
+                }
+              }
+            }
+          }
+
           const activation = await runCommerceActivation({
             wire: shoppingWire,
             actorId,
+            priorShelfProducts,
             deps: {
               fetchCommerce: (evidence) => fetchDeferredCommerce(evidence),
               // PREFERENCE, NOT INSTRUCTION. Signature Style carries the

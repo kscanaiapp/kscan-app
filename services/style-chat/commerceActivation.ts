@@ -410,7 +410,7 @@ export interface ShoppingIntentWire {
   /** A relative formality request with nothing to be relative to (§39). */
   needsFormalityReference: boolean;
   /** The memory operation the server's reducer resolved for this turn. */
-  memory: { op: ShelfMemoryOp; ordinal: number | null } | null;
+  memory: { op: ShelfMemoryOp; ordinal: number | null; scope: 'latest' | 'earliest' } | null;
 }
 
 const MEMORY_OPS: readonly ShelfMemoryOp[] = ['different', 'another', 'not_those', 'reference', 'clear'];
@@ -497,7 +497,8 @@ export function parseShoppingIntentWire(raw: unknown): ShoppingIntentWire | null
       const op = m.op as ShelfMemoryOp;
       const raw = typeof m.ordinal === 'number' ? m.ordinal : Number.NaN;
       const ordinal = Number.isInteger(raw) && raw >= 1 && raw <= MAX_COMMERCE_CARDS ? raw : null;
-      memory = op === 'reference' && ordinal === null ? null : { op, ordinal };
+      const scope = m.scope === 'earliest' ? ('earliest' as const) : ('latest' as const);
+      memory = op === 'reference' && ordinal === null ? null : { op, ordinal, scope };
     }
   }
 
@@ -723,6 +724,7 @@ export async function runCommerceActivation(input: {
   if (op === 'reference') {
     return resolveReferenceTurn({
       wire, memory, actorId: input.actorId, ordinal: wire.memory?.ordinal ?? 0,
+      scope: wire.memory?.scope ?? 'latest',
       priorShelfProducts: input.priorShelfProducts, universe, notices,
     });
   }
@@ -827,6 +829,7 @@ function resolveReferenceTurn(input: {
   memory: ShelfMemoryState;
   actorId: string | null;
   ordinal: number;
+  scope: 'latest' | 'earliest';
   priorShelfProducts?: readonly Record<string, unknown>[] | null;
   universe: Array<Record<string, unknown>> | null;
   notices: CommerceBlockNotice[];
@@ -835,6 +838,7 @@ function resolveReferenceTurn(input: {
   const outcome = resolveShelfReference<Record<string, unknown>>({
     memory,
     ordinal: input.ordinal,
+    scope: input.scope,
     verifiedProducts: input.priorShelfProducts ?? [],
     actorId: input.actorId,
   });

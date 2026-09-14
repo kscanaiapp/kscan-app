@@ -62,7 +62,16 @@ test('only a STRONG request splits the shelf', () => {
     'an ordinary preference renders one shelf',
   );
   assert.match(SOURCE, /if \(!shouldGroup\) \{/);
-  assert.match(SOURCE, /label="OPTIONS"/, 'the unsplit shelf keeps its existing label');
+  // Commerce V2 gave the unsplit shelf one alternative label, for the single
+  // RESTORED product a "go back to the first one" resolves to — calling that
+  // "OPTIONS" would imply K Scan went looking again, which it did not. Every
+  // other shelf keeps exactly the label it had.
+  assert.match(
+    SOURCE,
+    /const shelfLabel = memoryOp === 'reference' \? 'THE ONE YOU ASKED FOR' : 'OPTIONS';/,
+    'the unsplit shelf keeps its existing label',
+  );
+  assert.match(SOURCE, /label=\{shelfLabel\}/);
 });
 
 test('both groups render, and only through ProductShelf', () => {
