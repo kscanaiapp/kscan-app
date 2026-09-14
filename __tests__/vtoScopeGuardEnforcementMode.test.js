@@ -188,19 +188,34 @@ test('MODE B: authorizing the VTO workflow did not authorize workflows generally
   );
 });
 
-test('MODE B: a generative backend mutation is REJECTED', () => {
+test('MODE B: an unauthorized generative backend mutation is still REJECTED', () => {
+  // VTO V3.1 authorized THREE exact files inside vto-generate (the handler,
+  // the contract and the AILabTools adapter) because the 429 truth-collapse
+  // defect lives in them and nowhere else. It did NOT authorize the directory.
+  // These paths prove the boundary did not become a subtree grant.
   assert.deepEqual(
     unauthorizedIn([
       'supabase/functions/vto-generate/index.ts',
-      'supabase/functions/vto-generate/providers/aiLabToolsProvider.ts',
+      'supabase/functions/vto-generate/vtoReservation.ts',
+      'supabase/functions/vto-generate/providers/mockProvider.ts',
       'supabase/functions/commerce-watch-refresh/index.ts',
     ]).sort(),
     [
       'supabase/functions/commerce-watch-refresh/index.ts',
       'supabase/functions/vto-generate/index.ts',
-      'supabase/functions/vto-generate/providers/aiLabToolsProvider.ts',
+      'supabase/functions/vto-generate/providers/mockProvider.ts',
+      'supabase/functions/vto-generate/vtoReservation.ts',
     ],
-    'GENERATIVE BACKEND MUTATION must remain NO',
+    'UNAUTHORIZED GENERATIVE BACKEND MUTATION must remain NO',
+  );
+  // And the three that WERE authorized are authorized -- no more, no less.
+  assert.deepEqual(
+    unauthorizedIn([
+      'supabase/functions/vto-generate/vtoHandler.ts',
+      'supabase/functions/vto-generate/vtoContract.ts',
+      'supabase/functions/vto-generate/providers/aiLabToolsProvider.ts',
+    ]),
+    [],
   );
 });
 

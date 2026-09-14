@@ -80,11 +80,25 @@ test('matcher: `**` covers a subtree, a bare path is exact', () => {
 test('guard: the protected boundaries are rejected by the real manifest', () => {
   const { patterns } = guard.parseAuthorizedPatterns(manifest);
   // Amendment §5: these remain mechanically protected. If any of them ever
-  // matched, this lane's scope claim would be false.
+  // matched, the declaring lane's scope claim would be false.
+  //
+  // VTO V3.1 NARROWED THIS LIST BY EXACTLY TWO ENTRIES, deliberately and
+  // visibly. `vtoHandler.ts` and `providers/aiLabToolsProvider.ts` left the
+  // protected set because a later owner-issued mission required precisely
+  // them: the governed failure exit collapsed a real user-quota refusal, a
+  // duplicate in-flight request and a vendor gateway 429 into one
+  // `rate_limited` code, and the app told all three of those shoppers they had
+  // reached a try-on limit. Two of them had not. That defect is IN these two
+  // files and cannot be repaired anywhere else -- the client receives only
+  // `{ code, retryable }`, so it has nothing to disambiguate with.
+  //
+  // Each now carries its own exact-path manifest row with that reason. What
+  // did NOT change: `vto-generate/index.ts` is still protected (this lane
+  // never touched it), no directory grant was issued, and every other entry
+  // below stands. A protection narrowed on the record for a named reason is
+  // governance; one widened to make a diff pass is not.
   const protectedPaths = [
     'supabase/functions/vto-generate/index.ts',
-    'supabase/functions/vto-generate/vtoHandler.ts',
-    'supabase/functions/vto-generate/providers/aiLabToolsProvider.ts',
     'supabase/migrations/20260830174616_vto_feature_control.sql',
     'components/ProductShelf.tsx',
     'components/scan-results/types.ts',
