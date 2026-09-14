@@ -733,6 +733,23 @@ export function shoppingIntentFingerprint(intent: ShoppingIntent | null | undefi
   }
   for (const t of [...intent.signatureStyleTokens].sort()) parts.push(`sig:${t}`);
   const gap = intent.gapRelationship?.value;
-  if (gap) parts.push(`gap:${gap.gapCode}:${gap.certainty}`);
+  // THE LABEL IS PART OF THE KEY, not just the code and certainty.
+  //
+  // `scoreContextualFit` tokenizes `gap.label` and awards
+  // CTX_CONFIRMED_GAP_ALIGNMENT (plus the `confirmed_gap_match` rationale fact)
+  // to candidates that match those tokens. Two customers can hold the same
+  // gapCode and certainty with different labels -- "dress shoes for the gala"
+  // and "hiking boots for the trail" are both `missing_role_shoe:confirmed` --
+  // so leaving the label out let them share a cache entry whose order was
+  // computed from one customer's words. A cache HIT returns the stored shelf
+  // without re-ranking, so the second customer inherited the first's ordering
+  // AND a `confirmed_gap_match` fact their own gap never produced.
+  //
+  // That is the rule this whole function already states: everything in an
+  // intent that can change which candidates survive, or how they order, keys
+  // the cache. A gap with no label still hashes as it did before.
+  // Normalized exactly as the ranker reads it (collapsed to the stored bound,
+  // then lowercased), so two labels that rank identically also hash identically.
+  if (gap) parts.push(`gap:${gap.gapCode}:${gap.certainty}:${collapse(gap.label, 80).toLowerCase()}`);
   return parts.join('|');
 }
