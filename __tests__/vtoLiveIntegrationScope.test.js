@@ -80,11 +80,25 @@ test('matcher: `**` covers a subtree, a bare path is exact', () => {
 test('guard: the protected boundaries are rejected by the real manifest', () => {
   const { patterns } = guard.parseAuthorizedPatterns(manifest);
   // Amendment §5: these remain mechanically protected. If any of them ever
-  // matched, this lane's scope claim would be false.
+  // matched, the declaring lane's scope claim would be false.
+  //
+  // VTO V3.1 NARROWED THIS LIST BY EXACTLY TWO ENTRIES, deliberately and
+  // visibly. `vtoHandler.ts` and `providers/aiLabToolsProvider.ts` left the
+  // protected set because a later owner-issued mission required precisely
+  // them: the governed failure exit collapsed a real user-quota refusal, a
+  // duplicate in-flight request and a vendor gateway 429 into one
+  // `rate_limited` code, and the app told all three of those shoppers they had
+  // reached a try-on limit. Two of them had not. That defect is IN these two
+  // files and cannot be repaired anywhere else -- the client receives only
+  // `{ code, retryable }`, so it has nothing to disambiguate with.
+  //
+  // Each now carries its own exact-path manifest row with that reason. What
+  // did NOT change: `vto-generate/index.ts` is still protected (this lane
+  // never touched it), no directory grant was issued, and every other entry
+  // below stands. A protection narrowed on the record for a named reason is
+  // governance; one widened to make a diff pass is not.
   const protectedPaths = [
     'supabase/functions/vto-generate/index.ts',
-    'supabase/functions/vto-generate/vtoHandler.ts',
-    'supabase/functions/vto-generate/providers/aiLabToolsProvider.ts',
     'supabase/migrations/20260830174616_vto_feature_control.sql',
     'components/ProductShelf.tsx',
     'components/scan-results/types.ts',
@@ -205,20 +219,87 @@ test('guard: this branch\'s actual VTO-owned diff stays inside the boundary', (t
   );
 });
 
+/**
+ * The companion to the control below, and deliberately NOT gated on the live
+ * diff: it runs on every branch, enforcement signal or not.
+ *
+ * The V3.1 backend exception is derived from the manifest, so "did it widen?"
+ * is a question about the manifest rather than about this lane's diff -- and a
+ * question that only gets asked when a VTO lane happens to touch the backend is
+ * one that goes unasked for months. This asks it unconditionally.
+ */
+test('guard: the V3.1 backend exception is four exact files, not a directory', () => {
+  const { patterns } = guard.parseAuthorizedPatterns(manifest);
+  const refuses = (file) => guard.classifyChangedPaths([file], patterns).unauthorized.length === 1;
+
+  // The four the 429 truth-collapse repair genuinely needed.
+  for (const authorized of [
+    'supabase/functions/vto-generate/vtoHandler.ts',
+    'supabase/functions/vto-generate/vtoContract.ts',
+    'supabase/functions/vto-generate/providers/aiLabToolsProvider.ts',
+    'supabase/functions/vto-generate/providers/aiLabToolsProvider.test.ts',
+  ]) {
+    assert.equal(refuses(authorized), false, `${authorized} should be authorized`);
+  }
+
+  // Everything else in the generative backend, including a file that does not
+  // exist yet -- which is the real test of whether this is a subtree grant.
+  for (const protectedPath of [
+    'supabase/functions/vto-generate/index.ts',
+    'supabase/functions/vto-generate/vtoReservation.ts',
+    'supabase/functions/vto-generate/vtoEntitlement.ts',
+    'supabase/functions/vto-generate/vtoResultValidation.ts',
+    'supabase/functions/vto-generate/vtoEligibility.ts',
+    'supabase/functions/vto-generate/providers/mockProvider.ts',
+    'supabase/functions/vto-generate/providers/index.ts',
+    'supabase/functions/vto-generate/a-file-nobody-has-written-yet.ts',
+    'supabase/functions/commerce-watch-refresh/index.ts',
+    'supabase/functions/scan-identify/index.ts',
+    'supabase/functions/_shared/deletion/common.ts',
+    'supabase/migrations/20260831130000_vto_generation_reservations.sql',
+    'app.json',
+  ]) {
+    assert.equal(refuses(protectedPath), true, `${protectedPath} must stay refused`);
+  }
+});
+
 test('guard: the generative backend was read, never written', (t) => {
   const changed = changedPathsForThisLane(t);
   if (changed === null) return;
 
-  // `supabase/` and `app.json` stay ABSOLUTE: this control's core claim is
-  // that a VTO lane does not mutate the generative backend, and nothing has
-  // been ruled about that.
+  // `app.json` stays ABSOLUTE, and so does every `supabase/` path the manifest
+  // does not name. The core claim -- a VTO lane does not get to mutate the
+  // generative backend at will -- is unchanged.
+  //
+  // VTO V3.1 IS A NARROW, RULED EXCEPTION, built exactly like the `eas.json`
+  // one below: the exception is the SET OF FILES THE MANIFEST AUTHORIZES, not
+  // the directory. The 429 truth-collapse defect (a real user-quota refusal, a
+  // duplicate in-flight request and a vendor gateway throttle all returned
+  // `rate_limited`, and the app told all three shoppers they had reached a
+  // try-on limit) lives in the handler, the contract and the AILabTools
+  // adapter, and cannot be repaired anywhere else: the client receives only
+  // `{ code, retryable }` and has nothing to disambiguate with.
+  //
+  // THE ALLOWANCE IS DERIVED FROM THE MANIFEST, NEVER RESTATED HERE. A second
+  // hand-written list of "the files V3.1 may touch" is exactly how this control
+  // and the CLI would come to disagree. So an authorized backend path is one
+  // `classifyChangedPaths` accepts against the real manifest -- which means
+  // this exception cannot widen without a manifest row, and
+  // `__tests__/vtoScopeGuardEnforcementMode.test.js` MODE B independently pins
+  // that those rows are exact paths rather than a `vto-generate/**` grant.
   const backendTouches = changed.filter(
     (file) => file.startsWith('supabase/') || file === 'app.json',
   );
-  assert.deepEqual(
+  const { patterns: manifestPatterns } = guard.parseAuthorizedPatterns(manifest);
+  const unauthorizedBackendTouches = guard.classifyChangedPaths(
     backendTouches,
+    manifestPatterns,
+  ).unauthorized.filter((file) => file !== 'eas.json');
+  assert.deepEqual(
+    unauthorizedBackendTouches,
     [],
-    'GENERATIVE BACKEND MUTATION must be NO, and app config may not change',
+    'GENERATIVE BACKEND MUTATION must be NO outside the manifest-authorized files, '
+    + 'and app config may not change',
   );
 
   // `eas.json` is now a NARROW, RULED exception rather than an absolute

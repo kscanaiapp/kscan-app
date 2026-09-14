@@ -113,7 +113,7 @@ test('MODE A: the guard test file skips exactly the two live assertions and pass
   assert.equal(result.status, 0, output);
   assert.match(output, /^# fail 0$/m, output);
   assert.match(output, /^# skipped 2$/m, 'exactly the two live-diff assertions skip');
-  assert.match(output, /^# pass 8$/m, 'the eight static boundary controls still run');
+  assert.match(output, /^# pass 9$/m, 'the nine static boundary controls still run');
   // Skipping is reported with its reason, never silent.
   assert.match(output, /NOT APPLICABLE/);
 });
@@ -188,19 +188,34 @@ test('MODE B: authorizing the VTO workflow did not authorize workflows generally
   );
 });
 
-test('MODE B: a generative backend mutation is REJECTED', () => {
+test('MODE B: an unauthorized generative backend mutation is still REJECTED', () => {
+  // VTO V3.1 authorized THREE exact files inside vto-generate (the handler,
+  // the contract and the AILabTools adapter) because the 429 truth-collapse
+  // defect lives in them and nowhere else. It did NOT authorize the directory.
+  // These paths prove the boundary did not become a subtree grant.
   assert.deepEqual(
     unauthorizedIn([
       'supabase/functions/vto-generate/index.ts',
-      'supabase/functions/vto-generate/providers/aiLabToolsProvider.ts',
+      'supabase/functions/vto-generate/vtoReservation.ts',
+      'supabase/functions/vto-generate/providers/mockProvider.ts',
       'supabase/functions/commerce-watch-refresh/index.ts',
     ]).sort(),
     [
       'supabase/functions/commerce-watch-refresh/index.ts',
       'supabase/functions/vto-generate/index.ts',
-      'supabase/functions/vto-generate/providers/aiLabToolsProvider.ts',
+      'supabase/functions/vto-generate/providers/mockProvider.ts',
+      'supabase/functions/vto-generate/vtoReservation.ts',
     ],
-    'GENERATIVE BACKEND MUTATION must remain NO',
+    'UNAUTHORIZED GENERATIVE BACKEND MUTATION must remain NO',
+  );
+  // And the three that WERE authorized are authorized -- no more, no less.
+  assert.deepEqual(
+    unauthorizedIn([
+      'supabase/functions/vto-generate/vtoHandler.ts',
+      'supabase/functions/vto-generate/vtoContract.ts',
+      'supabase/functions/vto-generate/providers/aiLabToolsProvider.ts',
+    ]),
+    [],
   );
 });
 
