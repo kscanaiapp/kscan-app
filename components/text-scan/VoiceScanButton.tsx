@@ -31,6 +31,8 @@ export interface VoiceScanButtonProps {
 
 interface VoiceScanButtonInnerProps {
   isKPlusActive: boolean;
+  /** RESOLVING != FREE -- see KPlusGateRenderArgs.resolving. */
+  resolving: boolean;
   openUpgrade: () => void;
   onTranscript: (transcript: string) => void;
   onRequestManualEntry?: () => void;
@@ -39,6 +41,7 @@ interface VoiceScanButtonInnerProps {
 
 function VoiceScanButtonInner({
   isKPlusActive,
+  resolving,
   openUpgrade,
   onTranscript,
   onRequestManualEntry,
@@ -65,6 +68,10 @@ function VoiceScanButtonInner({
 
   const handlePress = () => {
     if (disabled) return;
+    // RESOLVING != FREE. An unread entitlement is not a free actor, so the tap
+    // neither starts a session (we do not know the actor may) nor opens the
+    // upsell (we do not know they need it).
+    if (resolving) return;
     if (!isKPlusActive) {
       openUpgrade();
       return;
@@ -84,10 +91,16 @@ function VoiceScanButtonInner({
       <Pressable
         testID="text-scan-voice-button"
         onPress={handlePress}
-        disabled={disabled}
+        disabled={disabled || resolving}
         style={[styles.button, !isKPlusActive && styles.buttonLocked]}
         accessibilityRole="button"
-        accessibilityLabel={isKPlusActive ? 'Voice Scan, K+, included with K+. Tap to speak' : 'Voice Scan, K+, upgrade to K+'}
+        accessibilityLabel={
+          resolving
+            ? 'Voice Scan, K+, checking your K+ status'
+            : isKPlusActive
+              ? 'Voice Scan, K+, included with K+. Tap to speak'
+              : 'Voice Scan, K+, upgrade to K+'
+        }
       >
         <VoiceScanIcon size={20} color={isKPlusActive ? LUXURY.colors.plum : LUXURY.colors.stone} />
         <View style={styles.labelStack} pointerEvents="none">
@@ -97,7 +110,9 @@ function VoiceScanButtonInner({
               <Text style={styles.kplusText}>K+</Text>
             </View>
           </View>
-          <Text style={styles.status}>{isKPlusActive ? 'INCLUDED · TAP TO SPEAK' : 'UPGRADE TO K+'}</Text>
+          <Text style={styles.status}>
+            {resolving ? 'CHECKING K+' : isKPlusActive ? 'INCLUDED · TAP TO SPEAK' : 'UPGRADE TO K+'}
+          </Text>
         </View>
       </Pressable>
       <VoiceListeningSheet
@@ -155,9 +170,10 @@ export function VoiceScanButton({ onTranscript, onRequestManualEntry, disabled }
     // Access shell section 9) and an out-of-set value would normalize to
     // 'unknown', silently losing the attribution the shell was built to keep.
     <KPlusGate source="voice_scan">
-      {({ isActive, openUpgrade }) => (
+      {({ isActive, resolving, openUpgrade }) => (
         <VoiceScanButtonInner
           isKPlusActive={isActive}
+          resolving={resolving}
           openUpgrade={openUpgrade}
           onTranscript={onTranscript}
           onRequestManualEntry={onRequestManualEntry}

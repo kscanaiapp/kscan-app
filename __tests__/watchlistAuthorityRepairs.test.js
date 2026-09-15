@@ -206,7 +206,7 @@ test('the Home entry gates on availability, not on K+ entitlement alone', () => 
 });
 
 test('K+ entitlement still governs the entry when the feature IS available', () => {
-  assert.match(HOME, /isActive \? router\.push\('\/watchlist'\) : openUpgrade\(\)/);
+  assert.match(HOME, /if \(isActive\) router\.push\('\/watchlist'\);\s*else openUpgrade\(\)/);
 });
 
 test('the flag helper is exported for testing, matching the packing convention', () => {

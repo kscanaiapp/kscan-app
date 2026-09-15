@@ -81,20 +81,34 @@ function VoiceScanBlock() {
 
   return (
     <KPlusGate source="voice_scan">
-      {({ isActive, openUpgrade }) => (
+      {({ isActive, resolving, openUpgrade }) => (
         <Pressable
           style={styles.block}
-          onPress={isActive ? undefined : openUpgrade}
-          disabled={isActive}
+          // RESOLVING != FREE. While the entitlement answer is unknown this
+          // block states neither "included" nor "upgrade" -- both would be a
+          // claim about an entitlement nobody has read yet -- and the tap is
+          // inert rather than routed into the upsell.
+          onPress={isActive || resolving ? undefined : openUpgrade}
+          disabled={isActive || resolving}
           accessibilityRole="button"
-          accessibilityLabel={isActive ? 'Voice Scan, included with K+' : 'Voice Scan, upgrade to K+'}
+          accessibilityLabel={
+            resolving
+              ? 'Voice Scan, checking your K+ status'
+              : isActive
+                ? 'Voice Scan, included with K+'
+                : 'Voice Scan, upgrade to K+'
+          }
           testID="text-scan-voice-kplus-block"
         >
           <FeatureBlockContent
             feature={{
               title: 'VOICE TO SEARCH',
-              body: isActive ? 'Included with your K+ Early Access.' : 'Unlock with K+ Early Access.',
-              badge: isActive ? 'Included with K+' : 'Upgrade to K+',
+              body: resolving
+                ? 'Checking your K+ status.'
+                : isActive
+                  ? 'Included with your K+ Early Access.'
+                  : 'Unlock with K+ Early Access.',
+              badge: resolving ? 'K+' : isActive ? 'Included with K+' : 'Upgrade to K+',
             }}
           />
         </Pressable>

@@ -72,3 +72,39 @@ export interface KPlusEntitlementSnapshot {
 export const KPLUS_ENTITLEMENT_KEY = 'k_plus' as const;
 export const KPLUS_CAMPAIGN_KEY = 'kplus_early_access_2026' as const;
 export const KPLUS_TERMS_VERSION = 'kplus_early_access_v1' as const;
+
+/**
+ * Is the K+ answer still UNKNOWN for this actor?
+ *
+ * THE INVARIANT THIS EXISTS FOR: RESOLVING != FREE.
+ *
+ * `isActive` is false for every state that is not 'active', which is correct
+ * for deciding ACCESS -- the client must fail closed and never invent a grant.
+ * It is wrong for deciding PRESENTATION. 'loading' and 'error' do not mean
+ * "this actor is on the free tier"; they mean "we have not been told yet".
+ * Rendering the free-tier lock or the upgrade CTA for either one tells a
+ * paying/complimentary K+ customer that they do not have K+ because their
+ * network blipped -- and 'error' is precisely the transient-authority case
+ * (fetchKPlusStatus -> reason 'read_failed'), so the lock appears exactly when
+ * it is least likely to be true.
+ *
+ * The canonical server-facing contract already states this rule for the
+ * summary model: shouldPresentKPlusPaywall() in types/kplusEntitlementContract.ts
+ * returns false for 'resolving' and for 'unavailable' with reason 'network'.
+ * This is the same rule for the KPlusResolvedState model the shipped surfaces
+ * read, so the two cannot drift.
+ *
+ * NOT INCLUDED, deliberately:
+ *   'unavailable' -- a definite answer ("K+ does not apply to this build or
+ *                    this signed-out session"), which each surface already
+ *                    handles through its own build flag / auth check.
+ *   'eligible' / 'expired' -- genuine free-tier states. The upsell is correct
+ *                    and intended there; suppressing it would break conversion.
+ *
+ * This decides only what is SHOWN. It never grants access: every caller still
+ * gates capability on `isActive`, and the server re-resolves has_active_k_plus()
+ * on every privileged request regardless of what any client believes.
+ */
+export function isKPlusEntitlementUnresolved(state: KPlusResolvedState): boolean {
+  return state === 'loading' || state === 'error';
+}

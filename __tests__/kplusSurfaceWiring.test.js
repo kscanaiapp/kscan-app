@@ -37,8 +37,9 @@ test('Voice Scan pill falls back to the legacy Coming Soon copy when the K+ boun
 
 test('Voice Scan pill never opens a nonexistent feature for an active K+ member', () => {
   const block = textScanFeatureRow.slice(textScanFeatureRow.indexOf('function VoiceScanBlock'));
-  assert.match(block, /disabled=\{isActive\}/);
-  assert.match(block, /onPress=\{isActive \? undefined : openUpgrade\}/);
+  // BUILD34-KPLUS-RESOLVING-001 widened both guards to `isActive || resolving`.
+  assert.match(block, /disabled=\{isActive \|\| resolving\}/);
+  assert.match(block, /onPress=\{isActive \|\| resolving \? undefined : openUpgrade\}/);
 });
 
 test('Voice Scan K+ pill hides behind VOICESCAN_ENABLED, not just the K+ boundary flag (Build 34 K+ Early Access shell, section 8)', () => {

@@ -348,8 +348,11 @@ test('VTO availability requires VTO_UI_ENABLED before entitlement is ever consid
 test('Voice Scan pill disables its own press and never opens the sheet for an active member', () => {
   const block = read('components/text-scan/TextScanFeatureRow.tsx');
   const fn = block.slice(block.indexOf('function VoiceScanBlock'));
-  assert.match(fn, /onPress=\{isActive \? undefined : openUpgrade\}/);
-  assert.match(fn, /disabled=\{isActive\}/);
+  // BUILD34-KPLUS-RESOLVING-001 widened both guards from `isActive` to
+  // `isActive || resolving`: an UNREAD entitlement must not open the sheet
+  // either, so the block is inert for an active member AND while resolving.
+  assert.match(fn, /onPress=\{isActive \|\| resolving \? undefined : openUpgrade\}/);
+  assert.match(fn, /disabled=\{isActive \|\| resolving\}/);
 });
 
 test('Watchlist entry points route active members straight to the feature, never to openUpgrade', () => {
@@ -368,6 +371,13 @@ test('Packing shows the unlock CTA only when NOT active, and hides it once activ
   const src = read('app/packing/index.tsx');
   assert.match(src, /if \(!isActive && !packing\.plan\)/);
   assert.match(src, /UNLOCK WITH K\+/);
+  // BUILD34-KPLUS-RESOLVING-001: "not active" is only a free actor once the
+  // answer is known, so the unresolved branch must come first.
+  assert.ok(
+    src.indexOf('if (resolving && !packing.plan)') >= 0
+      && src.indexOf('if (resolving && !packing.plan)') < src.indexOf('if (!isActive && !packing.plan)'),
+    'the unresolved branch must precede the unlock CTA',
+  );
 });
 
 // ---------------------------------------------------------------------------

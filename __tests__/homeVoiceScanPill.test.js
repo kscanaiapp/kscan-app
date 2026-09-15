@@ -93,9 +93,16 @@ test('the KPlusGate source is a member of the bounded taxonomy, and is voice_sca
   assert.equal(match[1], 'voice_scan', 'must share attribution with VoiceScanButton and the TextScan info block, not a new source key');
 });
 
-test('RESOLVING (loading) never renders the K+/INCLUDED badge and is a tap no-op', () => {
+test('RESOLVING (loading or error) never renders the K+/INCLUDED badge and is a tap no-op', () => {
   const inner = sliceFn(pill, 'function HomeVoiceScanPillInner', 'const styles');
-  assert.match(inner, /const resolving = state === 'loading';/);
+  // BUILD34-KPLUS-RESOLVING-001: this used to pin the literal
+  // `state === 'loading'`, which classified 'error' -- the transient
+  // entitlement-authority failure -- as a resolved free actor and badged an
+  // entitled customer LOCKED. Both unresolved states now arrive as the single
+  // `resolving` flag KPlusGate computes; see
+  // __tests__/kplusResolvingNeverFree.test.js.
+  assert.match(inner, /\{ isActive, resolving, openUpgrade, style \}/);
+  assert.doesNotMatch(inner, /const resolving = state === 'loading'/);
   const handlePress = sliceFn(inner, 'const handlePress =', 'const accessibilityLabel');
   assert.match(handlePress, /if \(resolving\) return;/);
   assert.match(inner, /disabled=\{resolving\}/);

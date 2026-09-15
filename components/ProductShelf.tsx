@@ -554,7 +554,7 @@ export function ProductShelf({
                     would be the same false promise this repair removes. */}
                 {watchlistAvailable && canWatch ? (
                   <KPlusGate source="watchlist">
-                    {({ isActive, openUpgrade }) => (
+                    {({ isActive, resolving, openUpgrade }) => (
                       <TouchableOpacity
                         testID="watch-listing-button"
                         accessibilityRole="button"
@@ -566,7 +566,11 @@ export function ProductShelf({
                         accessibilityLabel={`Watch ${getProductTitle(p)}`}
                         accessibilityHint="Get notified about price changes on this item"
                         style={styles.addToRoomButton}
+                        disabled={resolving}
+                        // RESOLVING != FREE: while the answer is unknown the
+                        // control does nothing rather than claim the actor is free.
                         onPress={() => {
+                          if (resolving) return;
                           selectionTick();
                           if (isActive) setWatchModalProduct(p);
                           else openUpgrade();

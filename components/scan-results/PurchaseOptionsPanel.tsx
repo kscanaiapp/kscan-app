@@ -163,7 +163,7 @@ export function PurchaseOptionsPanel({
                       Eligibility is server-authored and only read here. */}
                   {watchlistAvailable && canWatch ? (
                     <KPlusGate source="watchlist">
-                      {({ isActive, openUpgrade }) => (
+                      {({ isActive, resolving, openUpgrade }) => (
                         <TouchableOpacity
                           testID={`purchase-option-watch-${option.id}`}
                           accessibilityRole="button"
@@ -171,7 +171,11 @@ export function PurchaseOptionsPanel({
                           accessibilityHint="Get notified about price changes on this listing"
                           style={styles.watchButton}
                           activeOpacity={0.78}
+                          disabled={resolving}
+                          // RESOLVING != FREE: an unknown entitlement must not
+                          // be answered with the upgrade sheet.
                           onPress={() => {
+                            if (resolving) return;
                             if (isActive) setWatchCandidate(option.watchCandidate ?? null);
                             else openUpgrade();
                           }}
