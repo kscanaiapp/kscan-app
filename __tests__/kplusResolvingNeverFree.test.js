@@ -17,6 +17,17 @@
 //   * The Home Voice Scan pill badged LOCKED for the same customer.
 //   * Pack For A Trip showed "UNLOCK WITH K+" on every cold entry BEFORE the
 //     first read returned, and permanently whenever that read failed.
+//   * The TextScan Voice block said "Unlock with K+ Early Access." and the
+//     Voice Scan button said "UPGRADE TO K+".
+//   * Every Watchlist affordance (Home tile, product shelf, purchase options)
+//     routed the tap straight into the upgrade sheet.
+//
+// components/account-home/PermissionsStepV1.tsx was the ONE surface that had
+// it right, and is the shape the rest now follow.
+//
+// The repair puts `resolving` on KPlusGateRenderArgs so every gate consumer
+// gets the correct answer without deriving one, and no future gate can repeat
+// the mistake by omission.
 //
 // A temporary authority failure must never throw a valid K+ actor behind a
 // free-user lock. The repo's own canonical presentation contract already says
@@ -132,31 +143,33 @@ test('Try It On derives VTO loading from the shared predicate, not a bare litera
     "the old literal check omitted 'error' and must not come back");
 });
 
-test('the Home Voice Scan pill derives resolving from the shared predicate', () => {
+test('the Home Voice Scan pill takes resolving from the gate, not a literal', () => {
   const src = read('components', 'home', 'HomeVoiceScanPill.tsx');
-  assert.match(src, /const resolving = isKPlusEntitlementUnresolved\(state\);/);
   const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  assert.match(code, /\{\(\{ isActive, resolving, openUpgrade \}\)/,
+    'the pill must receive `resolving` from KPlusGate');
+  assert.match(code, /const locked = !resolving && !isActive;/,
+    'LOCKED must require a RESOLVED non-entitled answer');
   assert.doesNotMatch(code, /const resolving = state === 'loading'/,
     "the old literal check omitted 'error' and must not come back");
 });
 
 test('Pack For A Trip withholds the K+ upsell until the answer is known', () => {
-  const src = read('app', 'packing', 'index.tsx');
-  const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-  assert.match(code, /isKPlusEntitlementUnresolved\(state\)/,
-    'the Packing gate must ask the shared predicate');
+  const code = read('app', 'packing', 'index.tsx')
+    .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+
+  // The gate must actually receive `resolving`; destructuring only `isActive`
+  // is how the defect existed in the first place.
+  assert.match(code, /\{\(\{ resolving, isActive, openUpgrade \}\)/,
+    'the Packing KPlusGate render prop must take `resolving`');
 
   // Ordering is the whole fix: the unresolved branch must be reached BEFORE
   // the branch that renders "UNLOCK WITH K+", or the upsell still wins.
-  const unresolvedIndex = code.indexOf('isKPlusEntitlementUnresolved(state)');
+  const unresolvedIndex = code.indexOf('if (resolving && !packing.plan)');
   const upsellIndex = code.indexOf('packing-kplus-gate');
-  assert.ok(unresolvedIndex >= 0 && upsellIndex > unresolvedIndex,
+  assert.ok(unresolvedIndex >= 0, 'the Packing gate must have an unresolved branch');
+  assert.ok(upsellIndex > unresolvedIndex,
     'the unresolved branch must precede the UNLOCK WITH K+ branch');
-
-  // The gate must actually receive `state`; destructuring only `isActive`
-  // is how the defect existed in the first place.
-  assert.match(code, /\{\(\{ state, isActive, openUpgrade \}\)/,
-    'the Packing KPlusGate render prop must take `state`');
 });
 
 test('NEGATIVE CONTROL: a surface that checks only isActive would be caught', () => {
@@ -187,4 +200,79 @@ test('the KPlusResolvedState rule agrees with the canonical summary contract', (
   // 'loading' and 'error' are this model's 'resolving' and 'unavailable/network'.
   assert.equal(isKPlusEntitlementUnresolved('loading'), true);
   assert.equal(isKPlusEntitlementUnresolved('error'), true);
+});
+
+// ── The shared gate hands every consumer the answer ────────────────────────
+
+test('KPlusGate computes `resolving` once and passes it to every consumer', () => {
+  const src = read('components', 'kplus', 'KPlusGate.tsx');
+  assert.match(src, /resolving: boolean;/, 'KPlusGateRenderArgs must expose `resolving`');
+  assert.match(
+    src,
+    /children\(\{ state, isActive, resolving: isKPlusEntitlementUnresolved\(state\), openUpgrade \}\)/,
+    'the gate must derive `resolving` from the shared predicate, once',
+  );
+});
+
+// Every surface that can present a free-tier lock or the upgrade CTA. Each of
+// these re-derived "unresolved" independently before the repair; all but
+// PermissionsStepV1 got it wrong. Listing them here is what makes a NEW gate
+// consumer that forgets `resolving` a visible omission rather than a silent one.
+const LOCK_BEARING_SURFACES = [
+  ['components', 'home', 'HomeVoiceScanPill.tsx'],
+  ['components', 'home', 'HomeLuxuryTechV1.tsx'],
+  ['components', 'text-scan', 'VoiceScanButton.tsx'],
+  ['components', 'text-scan', 'TextScanFeatureRow.tsx'],
+  ['components', 'scan-results', 'PurchaseOptionsPanel.tsx'],
+  ['components', 'ProductShelf.tsx'],
+  ['app', 'packing', 'index.tsx'],
+];
+
+test('every lock-bearing K+ surface consumes `resolving` from the gate', () => {
+  for (const parts of LOCK_BEARING_SURFACES) {
+    const code = read(...parts).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    assert.match(code, /\bresolving\b/,
+      `${parts.join('/')} renders a K+ lock but never consults resolving`);
+  }
+});
+
+test('no lock-bearing surface routes a tap to openUpgrade without checking resolving', () => {
+  for (const parts of LOCK_BEARING_SURFACES) {
+    const code = read(...parts).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    if (!code.includes('openUpgrade')) continue;
+    const firstResolving = code.indexOf('resolving');
+    const firstUpgradeCall = code.indexOf('openUpgrade()');
+    if (firstUpgradeCall < 0) continue;
+    assert.ok(firstResolving >= 0 && firstResolving < firstUpgradeCall,
+      `${parts.join('/')} must establish resolving before it can call openUpgrade()`);
+  }
+});
+
+test('the TextScan voice block claims neither "included" nor "upgrade" while unresolved', () => {
+  const code = read('components', 'text-scan', 'TextScanFeatureRow.tsx')
+    .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  assert.match(code, /resolving\s*\?\s*'Checking your K\+ status\.'/,
+    'the body copy must not assert an entitlement nobody has read');
+  assert.match(code, /disabled=\{isActive \|\| resolving\}/,
+    'the block must be inert while unresolved');
+});
+
+test('the Voice Scan button neither starts a session nor upsells while unresolved', () => {
+  const code = read('components', 'text-scan', 'VoiceScanButton.tsx')
+    .replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  const press = code.slice(code.indexOf('const handlePress'), code.indexOf('const sheetVisible'));
+  const resolvingGuard = press.indexOf('if (resolving) return;');
+  const upgrade = press.indexOf('openUpgrade()');
+  const start = press.indexOf('voice.startSession()');
+  assert.ok(resolvingGuard >= 0, 'handlePress must return early while unresolved');
+  assert.ok(upgrade > resolvingGuard, 'the upsell must be unreachable while unresolved');
+  assert.ok(start > resolvingGuard, 'a session must not start on an unread entitlement');
+});
+
+test('PermissionsStepV1 — the surface that was already correct — is unchanged in posture', () => {
+  // Kept as a positive control: it separated 'error' from a free actor before
+  // this repair existed, and must keep doing so.
+  const code = read('components', 'account-home', 'PermissionsStepV1.tsx');
+  assert.match(code, /state === 'error' \|\| state === 'unavailable'/,
+    'PermissionsStepV1 must keep treating an error state as "needs a K+ check", not as free');
 });

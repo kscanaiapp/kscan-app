@@ -25,7 +25,6 @@ import { usePackingPlan } from '../../hooks/usePackingPlan';
 import { useCloset } from '../../hooks/useCloset';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import { PACKING_INTELLIGENCE_V1 } from '../../constants/featureFlags';
-import { isKPlusEntitlementUnresolved } from '../../types/entitlements';
 import type { PackingTripDraft } from '../../types/packing';
 
 /**
@@ -170,14 +169,14 @@ export default function PackingScreen() {
       <KScanHeader title="PACK FOR A TRIP" onBack={() => router.back()} />
 
       <KPlusGate source="packing">
-        {({ state, isActive, openUpgrade }) => {
+        {({ resolving, isActive, openUpgrade }) => {
           // RESOLVING != FREE. This gate previously asked only `!isActive`,
           // which is true for 'loading' and for 'error' as well as for a
           // genuine free actor. A K+ traveller therefore met "UNLOCK WITH K+"
           // on every cold entry to this route before the first status read
           // returned, and met it PERMANENTLY whenever the entitlement read
           // failed. Neither is a statement about their entitlement.
-          if (isKPlusEntitlementUnresolved(state) && !packing.plan) {
+          if (resolving && !packing.plan) {
             return (
               <View testID="packing-kplus-resolving">
                 <ActivityIndicator color={LUXURY.colors.plum} />

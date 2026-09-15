@@ -7,18 +7,15 @@ import { VoiceScanIcon } from '../icons/kscan';
 import { VOICESCAN_ENABLED } from '../../constants/featureFlags';
 import { isVoicePlatformProvisioned } from '../../services/voice/voiceRecognition';
 import { getPlatform } from '../../services/voice/voiceNativeModule';
-import {
-  isKPlusEntitlementUnresolved,
-  type KPlusResolvedState,
-} from '../../types/entitlements';
 
 export interface HomeVoiceScanPillProps {
   style?: ViewStyle;
 }
 
 interface HomeVoiceScanPillInnerProps {
-  state: KPlusResolvedState;
   isActive: boolean;
+  /** RESOLVING != FREE -- see KPlusGateRenderArgs.resolving. */
+  resolving: boolean;
   openUpgrade: () => void;
   style?: ViewStyle;
 }
@@ -32,11 +29,10 @@ interface HomeVoiceScanPillInnerProps {
  * Scan entry point -- this pill never starts a session, requests the
  * microphone, or duplicates that eligibility check.
  */
-function HomeVoiceScanPillInner({ state, isActive, openUpgrade, style }: HomeVoiceScanPillInnerProps) {
-  // RESOLVING != FREE. 'error' means the entitlement authority could not be
-  // reached, not that this actor is on the free tier -- badging it LOCKED
-  // tells a complimentary K+ customer they lost K+ because the network did.
-  const resolving = isKPlusEntitlementUnresolved(state);
+function HomeVoiceScanPillInner({ isActive, resolving, openUpgrade, style }: HomeVoiceScanPillInnerProps) {
+  // RESOLVING != FREE. `resolving` covers 'error' -- the entitlement authority
+  // could not be reached -- as well as 'loading'. Badging either LOCKED tells a
+  // complimentary K+ customer they lost K+ because the network did.
   const locked = !resolving && !isActive;
 
   const handlePress = () => {
@@ -95,8 +91,13 @@ export function HomeVoiceScanPill({ style }: HomeVoiceScanPillProps) {
 
   return (
     <KPlusGate source="voice_scan">
-      {({ state, isActive, openUpgrade }) => (
-        <HomeVoiceScanPillInner state={state} isActive={isActive} openUpgrade={openUpgrade} style={style} />
+      {({ isActive, resolving, openUpgrade }) => (
+        <HomeVoiceScanPillInner
+          isActive={isActive}
+          resolving={resolving}
+          openUpgrade={openUpgrade}
+          style={style}
+        />
       )}
     </KPlusGate>
   );

@@ -443,12 +443,19 @@ export default function HomeLuxuryTechV1() {
             live tile pointing at a screen whose server seam is not deployed. */}
         {watchlistEnabled && (
           <KPlusGate source="watchlist">
-            {({ isActive, openUpgrade }) => (
+            {({ isActive, resolving, openUpgrade }) => (
               <SecondaryButton
                 testID="home-luxury-watchlist"
                 title="WATCHLIST"
                 icon={<KScanIcon name="watchlist" size={24} variant="standard" />}
-                onPress={() => (isActive ? router.push('/watchlist') : openUpgrade())}
+                // RESOLVING != FREE: until the entitlement answer is known, a
+                // tap must not route an entitled customer into the upsell.
+                disabled={resolving}
+                onPress={() => {
+                  if (resolving) return;
+                  if (isActive) router.push('/watchlist');
+                  else openUpgrade();
+                }}
                 accessibilityLabel="Open Smart Watchlist"
                 accessibilityHint="Track prices on listings you're not ready to buy yet"
                 style={styles.secondaryActionButton}
