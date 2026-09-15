@@ -17,6 +17,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '..');
@@ -165,22 +166,58 @@ test('the blocking migration creates the internal schema it depends on (clean-re
   assert.doesNotMatch(blocking, /create schema internal;/i);
 });
 
-test('no migration references a schema-qualified object in a schema no migration creates', () => {
-  // Narrow, high-signal check: `internal` is the only non-standard schema
-  // this migration set uses. Assert it is created somewhere before use.
-  const files = fs.readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith('.sql')).sort();
+/**
+ * Sorted replay positions, within one migrations directory, of the first
+ * migration that creates the `internal` schema and of the first that calls
+ * into it (-1 when there is none).
+ */
+function internalSchemaReplayOrder(migrationsDir) {
+  const files = fs.readdirSync(migrationsDir).filter((f) => f.endsWith('.sql')).sort();
   let createdAt = -1;
   let firstUsedAt = -1;
   files.forEach((name, index) => {
-    const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, name), 'utf8');
+    const sql = fs.readFileSync(path.join(migrationsDir, name), 'utf8');
     if (createdAt === -1 && /create schema if not exists internal;/i.test(sql)) createdAt = index;
     if (firstUsedAt === -1 && /\binternal\.[a-z_]+\s*\(/i.test(sql)) firstUsedAt = index;
   });
+  return { createdAt, firstUsedAt };
+}
+
+test('no migration references a schema-qualified object in a schema no migration creates', () => {
+  // Narrow, high-signal check: `internal` is the only non-standard schema
+  // this migration set uses. Assert it is created somewhere before use.
+  const { createdAt, firstUsedAt } = internalSchemaReplayOrder(MIGRATIONS_DIR);
   assert.ok(createdAt !== -1, 'some migration must create the internal schema');
   assert.ok(firstUsedAt !== -1, 'expected the internal schema to be used');
   assert.ok(
     createdAt <= firstUsedAt,
     'the migration creating the internal schema must not sort after the first migration that uses it',
+  );
+});
+
+test('the internal-schema replay check still rejects a use before, or without, the creating migration', (t) => {
+  // Fixture migrations live in a throwaway directory, never the real tree,
+  // which other test files read concurrently (see migrationProvenanceGate.test.js).
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kscan-internal-schema-replay-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const write = (name, sql) => fs.writeFileSync(path.join(dir, name), sql);
+
+  write('20260101000000_uses_internal.sql', 'create or replace function internal.helper() returns void language sql as $$ select 1 $$;\n');
+  write('20260102000000_creates_internal.sql', 'create schema if not exists internal;\n');
+  const useBeforeCreate = internalSchemaReplayOrder(dir);
+  assert.ok(
+    useBeforeCreate.firstUsedAt !== -1 && useBeforeCreate.createdAt > useBeforeCreate.firstUsedAt,
+    'a use that sorts before the creating migration must be detected',
+  );
+
+  fs.rmSync(path.join(dir, '20260102000000_creates_internal.sql'));
+  assert.equal(internalSchemaReplayOrder(dir).createdAt, -1, 'a use with no creating migration at all must be detected');
+
+  write('20251231000000_creates_internal.sql', 'create schema if not exists internal;\n');
+  const createThenUse = internalSchemaReplayOrder(dir);
+  assert.ok(
+    createThenUse.createdAt !== -1 && createThenUse.createdAt <= createThenUse.firstUsedAt,
+    'creating the schema before its first use is accepted',
   );
 });
 
