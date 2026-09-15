@@ -97,14 +97,8 @@ test('an unreadable authority is unknown (not denied, and never active)', async 
   assert.equal(outcome.state, 'unknown');
 });
 
-test('the REST fallback applies the canonical ROW rule, and can confirm but never deny', async () => {
-  // RPC unavailable, row has a null expiry -> not active, exactly as canonical.
-  //
-  // K+ entitlement authority (Phase 1): this used to expect `denied`. The
-  // fallback reads only the Build 34 user_entitlements row, while the RPC it
-  // stands in for is now the union of every grant (complimentary grants, store
-  // subscriptions). An inactive row therefore proves nothing about the user,
-  // so the answer is `unknown`: still no generation, never "buy K+".
+test('the REST fallback applies the SAME canonical rule as the RPC', async () => {
+  // RPC unavailable, row has a null expiry -> denied, exactly as canonical.
   const outcome = await resolveVtoEntitlement(USER, {
     rpc: async () => {
       throw new Error('rpc down');
@@ -112,16 +106,7 @@ test('the REST fallback applies the canonical ROW rule, and can confirm but neve
     rest: async () => jsonResponse([{ status: 'active', expires_at: null }]),
     nowMs: NOW,
   });
-  assert.equal(outcome.state, 'unknown');
-  // A live row still confirms access while the RPC is down.
-  const live = await resolveVtoEntitlement(USER, {
-    rpc: async () => {
-      throw new Error('rpc down');
-    },
-    rest: async () => jsonResponse([{ status: 'active', expires_at: FUTURE, revoked_at: null }]),
-    nowMs: NOW,
-  });
-  assert.equal(live.state, 'active');
+  assert.equal(outcome.state, 'denied');
   // And the fallback must actually request revoked_at.
   let requestedPath = '';
   await resolveVtoEntitlement(USER, {

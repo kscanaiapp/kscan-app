@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-15T02:59:27.755Z",
-    "generatedFromGitSha": "173c9dba9ebd15dfd5b82173af8a70e8042b4385"
+    "generatedAtUtc": "2026-09-15T10:07:51.520Z",
+    "generatedFromGitSha": "814b5961baa55050d4d73b8289502f07beebcb06"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -1573,8 +1573,8 @@
         ],
         "bundleFileCount": 16,
         "treeFileCount": 21,
-        "bundleHash": "a54194293185552fab6d06e74d70731dd6b305f24bd8c9b2cb101571fb0a6a9e",
-        "treeHash": "2e75367a1475653aa8e971a6addd73273cf56e70e626fa1109e0d8229d960b47",
+        "bundleHash": "898983d46f2d3e4f1d04251150e7d213a1c1b4d2d388233060504eb683f8e256",
+        "treeHash": "a793eea9bbefc53f3a243a2203123b5fcf996c83fc6cab3aed615a3ee58b8738",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -1638,7 +1638,7 @@
           },
           {
             "path": "supabase/functions/vto-generate/vtoEntitlement.ts",
-            "sha256": "dd2def863e20da817a075c08847ab59d54219de9a5e64bf450bedcbb05840ae7",
+            "sha256": "68adee2af9dbc78de19e05f12741824a9ef6c61df9137a7b4189a51456d9c531",
             "bundle": true
           },
           {
@@ -1648,7 +1648,7 @@
           },
           {
             "path": "supabase/functions/vto-generate/vtoGuards.test.ts",
-            "sha256": "4902e374725faa71edd32277cc517048763d72fc2e70926d3c92b993cb5440c3",
+            "sha256": "daaf183a090ec5f08969b1030311aca627db8e8a496c8498ad781db3e5ce4171",
             "bundle": false
           },
           {
@@ -1663,7 +1663,7 @@
           },
           {
             "path": "supabase/functions/vto-generate/vtoPaidBoundary.test.ts",
-            "sha256": "060e08ec1adc6b56017bdcd47ab04c7c604879e3bad712338dce65c0c952bb83",
+            "sha256": "66214c4e79e192247d55fc7ad75fc8aa15c34cb57b8037534703db120a04e9bf",
             "bundle": false
           },
           {

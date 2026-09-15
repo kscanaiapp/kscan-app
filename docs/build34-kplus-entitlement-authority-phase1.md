@@ -281,7 +281,7 @@ unchanged: gated server work re-checks the canonical predicate and denies when i
 |---|---|---|
 | Wardrobe Concierge (server) | `stylechat-generate` → `has_active_k_plus()`; Closet RLS | CONSUMES_NEW_CONTRACT |
 | Packing Intelligence (server) | `packingHandler` precheck + confirmation → `has_active_k_plus()`; Closet RLS | CONSUMES_NEW_CONTRACT |
-| Still-image VTO (server) | `vto-generate` → `kplus_has_active_entitlement` (direct-read fallback now confirm-only) | CONSUMES_NEW_CONTRACT |
+| Still-image VTO (server) | `vto-generate` → `kplus_has_active_entitlement`; its direct `user_entitlements` fallback is unchanged | CONSUMES_NEW_CONTRACT (canonical RPC); fallback DEFERRED — see below |
 | Voice Scan (server) | none — on-device speech into the core Text Scan field | N/A (no server route) |
 | Smart Watchlist (server) | `commerce-watch-refresh`, watchlist claim/create SQL | CONSUMES_NEW_CONTRACT |
 | Closet cloud facts (server) | `user_closet_items` RLS → `has_active_k_plus()` | CONSUMES_NEW_CONTRACT |
@@ -300,6 +300,24 @@ Every client surface reads through one path (`kplusClient` → `kplusEntitlement
 `useKPlusEntitlement` / `KPlusGate`), which reads the caller's own `user_entitlements` row. In every state
 reachable in Build 34 (no `kplus_entitlement_grants` rows exist) that row and the new contract agree. The
 client migration swaps that one read for `get_my_kplus_entitlement_summary()`; no UI changed in Phase 1.
+
+### Deferred VTO consumer migration — `VTO_KPLUS_FALLBACK_MIGRATION_REQUIRED=YES`
+
+- **Current Phase 1 status.** VTO's canonical server-side K+ check, `kplus_has_active_entitlement`,
+  consumes the new entitlement authority unchanged.
+- **Deferred migration.** VTO's direct legacy-row fallback (`resolveVtoEntitlement` when that RPC is
+  unavailable) is unchanged. `supabase/functions/vto-generate/**` is read-only under
+  `docs/vto-live-integration-manifest.md`; a Phase 1 edit to it was reverted and the manifest was not
+  widened. While the RPC is unreachable, the fallback still reads only `user_entitlements`, so an absent or
+  lapsed legacy row resolves `denied`.
+- **Why it is not a Phase 1 regression.** Phase 1 activates no non-legacy grant: no store purchase, trial,
+  access-code or paid grant exists, so today `user_entitlements` is the whole authority and the fallback's
+  answer matches the canonical one.
+- **Required later work.** Before VTO is allowed to rely on new non-legacy K+ grant types in a production
+  launch state, its fallback path must be updated under an explicitly authorized VTO integration lane so an
+  unavailable canonical entitlement RPC cannot falsely classify an otherwise-entitled user as free/denied.
+  It becomes a launch blocker the moment any non-legacy grant (store subscription, store trial or a
+  `grant_kplus_complimentary` grant) can be written in an environment where VTO serves users.
 
 ## 14. Existing grants and dual-read compatibility
 
@@ -383,6 +401,8 @@ Paid K+ stays inactive until each item below is separately confirmed:
   - decide the sandbox acceptance policy per environment
   - decide the Welcome dispatch cutoff for pre-existing activations
   - promote the migration to production through the governed path
+  - `VTO_KPLUS_FALLBACK_MIGRATION_REQUIRED`: migrate VTO's direct legacy-row fallback under an authorized
+    VTO/K+ integration lane before any non-legacy K+ grant becomes launch-active for VTO
 
 ## 18. Recorded, not repaired
 
@@ -395,3 +415,4 @@ Paid K+ stays inactive until each item below is separately confirmed:
 | 5 | Precondition | staging `kplus-activate` v18 | runs pre-Phase-1 source (user-level mirror gate); safe while no grant rows exist on staging |
 | 6 | Observation | staging ledger `20260914201155` | a Build 35 migration not in the Build 34 tree; touches no K+ object |
 | 7 | Compatibility | `user_entitlements` own-row SELECT | still exposes the legacy row's sync/customer columns to its owner; retire after client migration |
+| 8 | Deferred (launch blocker for non-legacy grants) | `vto-generate/vtoEntitlement.ts` fallback | with the canonical RPC unavailable, an absent/lapsed legacy row resolves `denied`; protected by the VTO integration manifest, so it needs an authorized VTO/K+ lane (`VTO_KPLUS_FALLBACK_MIGRATION_REQUIRED`) |

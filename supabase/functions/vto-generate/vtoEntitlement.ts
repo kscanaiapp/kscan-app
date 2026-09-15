@@ -1,13 +1,13 @@
 /**
  * Server-side K+ authority for VTO.
  *
- * Asks the SAME authority the rest of K Scan AI treats as truth --
- * public.kplus_has_active_entitlement, which since the K+ entitlement
- * authority migration (Phase 1) is the union of every valid K+ grant: the
- * Build 34 user_entitlements row, complimentary grants and store
- * subscriptions alike. This module does not define a second notion of
- * premium: there is no vto_paid, no premium_vto, no VTO product, and no new
- * table.
+ * Reads the SAME row the rest of K Scan treats as truth --
+ * public.user_entitlements, entitlement_key 'k_plus', written only by the
+ * SECURITY DEFINER grant RPCs (see the B34 K+ Foundation migration). This
+ * module does not define a second notion of premium: there is no vto_paid,
+ * no premium_vto, no VTO product, and no new table. Complimentary, staff,
+ * admin, promo, trial and paid grants all resolve here identically, because
+ * they are all just rows in that table.
  *
  * The user id comes from requireUser()'s verified JWT. A body-supplied
  * user_id never reaches this function.
@@ -108,14 +108,7 @@ export async function resolveVtoEntitlement(
     // fall through to the direct read
   }
 
-  // 2 — fallback read of the Build 34 row, using the SAME row rule.
-  //
-  // K+ entitlement authority (Phase 1): this direct read sees ONLY the
-  // user_entitlements row, not the other grants the RPC unions (complimentary
-  // grants, store subscriptions). It can still CONFIRM access from a live row,
-  // but it can no longer DENY: an absent or lapsed row is `unknown` -- still no
-  // generation, but the user is never told to buy K+ they may already hold
-  // through another grant while the authority is unreachable.
+  // 2 — fallback read, using the SAME rule as the RPC.
   try {
     const response = await read(
       `user_entitlements?user_id=eq.${encodeURIComponent(userId)}`
@@ -127,7 +120,7 @@ export async function resolveVtoEntitlement(
     const rows = await response.json();
     if (!Array.isArray(rows)) return { state: 'unknown' };
     const row = rows[0] as EntitlementRow | undefined;
-    return isEntitlementRowActive(row, nowMs) ? { state: 'active' } : { state: 'unknown' };
+    return isEntitlementRowActive(row, nowMs) ? { state: 'active' } : { state: 'denied' };
   } catch {
     return { state: 'unknown' };
   }
