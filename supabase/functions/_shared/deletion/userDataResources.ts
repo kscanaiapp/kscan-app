@@ -103,6 +103,14 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   },
   { table: 'user_entitlements', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'kplus_activation_events', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  // K+ entitlement authority (Phase 1): grants, their transition ledger and
+  // activation events. ON DELETE CASCADE to auth.users removes every row at
+  // purge; nothing K+-related is retained in de-identified form. Listed for
+  // coverage counting and post-purge residual verification. Purging an account
+  // does not cancel a store subscription -- that is the store's, never ours.
+  { table: 'kplus_entitlement_grants', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  { table: 'kplus_entitlement_transitions', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  { table: 'kplus_entitlement_activations', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   // Build 34 Track B B1A cloud Closet facts (K+ only, staging). ON DELETE
   // CASCADE to auth.users already removes these rows; this entry adds them to
   // the worker's coverage counting and post-purge residual verification.

@@ -93,16 +93,27 @@ test('kplus-activate treats RevenueCat sync as best-effort and never blocks the 
   );
 });
 
-test('SEC-KPLUS-008: the RevenueCat mirror is gated on the CANONICAL authority, not on an expiry', () => {
+test('SEC-KPLUS-008: the RevenueCat mirror is gated on the ROW-SCOPED authority, not on an expiry', () => {
   // grant_kplus_early_access does not return revoked_at, so "expires_at is in
-  // the future" is NOT the same question as "does this actor hold K+". A
-  // revoked grant with a future expiry was mirrored into RevenueCat as a live
+  // the future" is NOT the same question as "is this row live". A revoked
+  // grant with a future expiry was mirrored into RevenueCat as a live
   // promotional entitlement -- confirmed on staging, where a revoked synthetic
   // actor's row read external_sync_status = 'synced' after revocation.
+  //
+  // K+ entitlement authority (Phase 1): this assertion previously required
+  // rpc('kplus_has_active_entitlement'). That predicate now answers for the
+  // USER across every grant, so a revoked Early Access row plus an active
+  // store subscription reads true and would be mirrored. The mirror describes
+  // one row, so it must ask about that row.
   assert.match(
     ACTIVATE_SOURCE,
+    /rpc\('kplus_user_entitlement_row_is_active'/,
+    'the activation function must ask whether THIS row is live before mirroring it',
+  );
+  assert.doesNotMatch(
+    ACTIVATE_SOURCE,
     /rpc\('kplus_has_active_entitlement'/,
-    'the activation function must ask the canonical predicate every other K+ surface uses',
+    'the user-level predicate is true whenever ANY grant is live, so it must never gate the row mirror',
   );
   // The mirror is entered only when that answer is true.
   assert.match(
@@ -116,7 +127,7 @@ test('SEC-KPLUS-008: the RevenueCat mirror is gated on the CANONICAL authority, 
     'the pre-repair expiry-only gate must not come back',
   );
   // The canonical check happens BEFORE the mirror it gates.
-  const checkIdx = ACTIVATE_SOURCE.indexOf("rpc('kplus_has_active_entitlement'");
+  const checkIdx = ACTIVATE_SOURCE.indexOf("rpc('kplus_user_entitlement_row_is_active'");
   const mirrorIdx = ACTIVATE_SOURCE.indexOf('await syncPromotionalEntitlement(');
   assert.ok(checkIdx > 0 && mirrorIdx > 0);
   assert.ok(checkIdx < mirrorIdx, 'the authority is read before the mirror is attempted');
@@ -134,7 +145,7 @@ test('SEC-KPLUS-008: campaignStatus reports already_active only for a genuinely 
   assert.match(
     ACTIVATE_SOURCE,
     /: currentlyActive[\s\S]{0,8}\? 'already_active'/,
-    'already_active must be decided by the canonical predicate',
+    'already_active must be decided by the row-scoped predicate',
   );
   assert.doesNotMatch(
     ACTIVATE_SOURCE,
@@ -147,10 +158,10 @@ test('SEC-KPLUS-008: the repair does not weaken the grant path or the best-effor
   // The grant itself is still unconditional and still comes from the RPC.
   assert.match(ACTIVATE_SOURCE, /rpc\('grant_kplus_early_access', \{ p_user_id: authUser\.id \}\)/);
   // The canonical check is read-only: it must never be able to change a grant.
-  const checkBlock = ACTIVATE_SOURCE.slice(
-    ACTIVATE_SOURCE.indexOf("rpc('kplus_has_active_entitlement'"),
-    ACTIVATE_SOURCE.indexOf('const campaignStatus'),
-  );
+  const checkStart = ACTIVATE_SOURCE.indexOf("rpc('kplus_user_entitlement_row_is_active'");
+  const checkEnd = ACTIVATE_SOURCE.indexOf('const campaignStatus');
+  assert.ok(checkStart > 0 && checkEnd > checkStart, 'the row-scoped check and campaignStatus anchors must both be found');
+  const checkBlock = ACTIVATE_SOURCE.slice(checkStart, checkEnd);
   assert.doesNotMatch(checkBlock, /return json\(/, 'a failed authority read must not fail the request');
 });
 
