@@ -7,7 +7,10 @@ import { VoiceScanIcon } from '../icons/kscan';
 import { VOICESCAN_ENABLED } from '../../constants/featureFlags';
 import { isVoicePlatformProvisioned } from '../../services/voice/voiceRecognition';
 import { getPlatform } from '../../services/voice/voiceNativeModule';
-import type { KPlusResolvedState } from '../../types/entitlements';
+import {
+  isKPlusEntitlementUnresolved,
+  type KPlusResolvedState,
+} from '../../types/entitlements';
 
 export interface HomeVoiceScanPillProps {
   style?: ViewStyle;
@@ -30,7 +33,10 @@ interface HomeVoiceScanPillInnerProps {
  * microphone, or duplicates that eligibility check.
  */
 function HomeVoiceScanPillInner({ state, isActive, openUpgrade, style }: HomeVoiceScanPillInnerProps) {
-  const resolving = state === 'loading';
+  // RESOLVING != FREE. 'error' means the entitlement authority could not be
+  // reached, not that this actor is on the free tier -- badging it LOCKED
+  // tells a complimentary K+ customer they lost K+ because the network did.
+  const resolving = isKPlusEntitlementUnresolved(state);
   const locked = !resolving && !isActive;
 
   const handlePress = () => {

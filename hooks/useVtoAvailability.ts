@@ -22,6 +22,7 @@ import {
   type VtoRemoteConfig,
 } from '../services/vto/vtoFeatureControl';
 import { evaluateVtoEligibility } from '../services/vto/vtoEligibility';
+import { isKPlusEntitlementUnresolved } from '../types/entitlements';
 import type { VtoEligibility } from '../types/vto';
 
 export interface UseVtoAvailabilityArgs {
@@ -80,7 +81,11 @@ export function useVtoAvailability(args: UseVtoAvailabilityArgs): UseVtoAvailabi
   }, [isAuthenticated]);
 
   return useMemo(() => {
-    const loading = VTO_UI_ENABLED && isAuthenticated && (config === null || kplusState === 'loading');
+    // RESOLVING != FREE. 'error' is the transient-authority case, so treating
+    // it as resolved is what turns a K+ customer's network blip into an
+    // "upgrade to K+" button on a feature they already own.
+    const loading =
+      VTO_UI_ENABLED && isAuthenticated && (config === null || isKPlusEntitlementUnresolved(kplusState));
     if (!VTO_UI_ENABLED || !isAuthenticated || !config) {
       return {
         available: false,
