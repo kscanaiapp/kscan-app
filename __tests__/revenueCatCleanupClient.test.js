@@ -104,7 +104,14 @@ test('the revoke call targets the same customer id (Supabase UUID) as the App Us
   });
   await mod.retireMirroredEntitlement({ appUserId: '11111111-0000-4000-8000-0000000000d1' });
   assert.equal(calls.length, 1);
-  assert.match(calls[0].url, /\/customers\/11111111-0000-4000-8000-0000000000d1\/actions\/revoke_entitlement$/);
+  // REVENUECAT_REVOCATION_RETIREMENT: the current RevenueCat V2 action is
+  // revoke_granted_entitlement. The pre-repair client called the obsolete
+  // revoke_entitlement, which answers 404 and is read as 'already retired' by
+  // the branch above -- see __tests__/revenueCatEndpointContract.test.js.
+  assert.match(
+    calls[0].url,
+    /\/customers\/11111111-0000-4000-8000-0000000000d1\/actions\/revoke_granted_entitlement$/,
+  );
   assert.doesNotMatch(calls[0].url, /@/, 'the customer identifier must never be an email address');
 });
 

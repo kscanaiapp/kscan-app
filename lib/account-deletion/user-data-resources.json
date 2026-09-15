@@ -367,6 +367,13 @@
       "notes": "K+ entitlement authority (Phase 1) lifecycle activation events (future Welcome to K+). ON DELETE CASCADE FK to auth.users; nothing retained after purge."
     },
     {
+      "table": "kplus_revenuecat_mirror_queue",
+      "column": "user_id",
+      "action": "auth_delete_cascade",
+      "optional": true,
+      "notes": "RevenueCat promotional-mirror reconciliation queue (REVENUECAT_REVOCATION_RETIREMENT). ON DELETE CASCADE FK to auth.users clears any queued work for a purged account, so a queued retirement can never outlive the account it was queued for. Holds only the auth UUID, the entitlement key and coarse sync status -- no RevenueCat payload, receipt or token. The mirror itself is retired separately and explicitly by retireMirroredEntitlement."
+    },
+    {
       "table": "user_closet_items",
       "column": "user_id",
       "action": "auth_delete_cascade",
