@@ -28,6 +28,23 @@ const REVENUECAT_CLIENT_SOURCE = fs.readFileSync(
   'utf8',
 );
 
+// kplus-reconcile-revenuecat runs TWO passes in one invocation: pass 1 drains
+// list_kplus_pending_revenuecat_sync (grant convergence, #417's lane) and pass
+// 2 drains list_kplus_revenuecat_mirror_retirements (desired-state mirror
+// retirement). The #417 assertions below are about PASS 1 specifically, so
+// they are scoped to the handler body rather than to the whole file -- a
+// second pass elsewhere in the module must not be able to loosen them.
+const RECONCILE_HANDLER = RECONCILE_SOURCE.slice(RECONCILE_SOURCE.indexOf('Deno.serve('));
+
+/** Source of one top-level function, from its header to its closing brace. */
+function topLevelFunction(source, header) {
+  const start = source.indexOf(header);
+  if (start < 0) throw new Error(`function not found: ${header}`);
+  const end = source.indexOf('\n}\n', start);
+  if (end < 0) throw new Error(`unterminated function: ${header}`);
+  return source.slice(start, end + 2);
+}
+
 test('kplus-activate derives identity only from the verified JWT', () => {
   assert.match(ACTIVATE_SOURCE, /requireUser\(req\)/);
   assert.doesNotMatch(ACTIVATE_SOURCE, /body\.(userId|user_id)/);
@@ -200,16 +217,19 @@ test('SEC-KPLUS-008 (reconcile): every pending row is gated on the ROW-SCOPED au
     'the user-level predicate is true whenever ANY grant is live, so it must never gate the row mirror',
   );
 
-  // The mirror is called exactly once, inside the per-row loop, so there is no
-  // second call site the gate could be bypassed through.
-  assert.equal((RECONCILE_SOURCE.match(/syncPromotionalEntitlement\(/g) ?? []).length, 1);
-  const loopStart = RECONCILE_SOURCE.indexOf('for (const row of rows) {');
-  const mirrorIdx = RECONCILE_SOURCE.indexOf('await syncPromotionalEntitlement(');
+  // Within the handler (pass 1) the mirror is called exactly once, inside the
+  // per-row loop, so there is no second call site the gate could be bypassed
+  // through. Pass 2's own call site lives outside the handler and is gated by
+  // kplus_promotional_mirror_state instead -- see
+  // __tests__/kplusRevenueCatMirrorRetirement.test.js.
+  assert.equal((RECONCILE_HANDLER.match(/syncPromotionalEntitlement\(/g) ?? []).length, 1);
+  const loopStart = RECONCILE_HANDLER.indexOf('for (const row of rows) {');
+  const mirrorIdx = RECONCILE_HANDLER.indexOf('await syncPromotionalEntitlement(');
   assert.ok(loopStart > 0 && mirrorIdx > loopStart, 'the mirror must be attempted inside the per-row loop');
 
   // Before the mirror, in the same iteration, a row not confirmed live leaves
   // the iteration -- counted, never mirrored.
-  const beforeMirror = RECONCILE_SOURCE.slice(loopStart, mirrorIdx);
+  const beforeMirror = RECONCILE_HANDLER.slice(loopStart, mirrorIdx);
   assert.match(
     beforeMirror,
     /if \(!\(await isRowActive\(row\)\)\) \{\s*skippedNotActive \+= 1;\s*continue;\s*\}/,
@@ -218,9 +238,9 @@ test('SEC-KPLUS-008 (reconcile): every pending row is gated on the ROW-SCOPED au
 
   // The sync status is written once, and only after a mirror attempt: a skipped
   // row is left exactly as the revocation left it.
-  assert.equal((RECONCILE_SOURCE.match(/'set_kplus_revenuecat_sync_status'/g) ?? []).length, 1);
+  assert.equal((RECONCILE_HANDLER.match(/'set_kplus_revenuecat_sync_status'/g) ?? []).length, 1);
   assert.ok(
-    RECONCILE_SOURCE.indexOf("rpcServiceRole('set_kplus_revenuecat_sync_status'") > mirrorIdx,
+    RECONCILE_HANDLER.indexOf("rpcServiceRole('set_kplus_revenuecat_sync_status'") > mirrorIdx,
     'no sync status may be written before the mirror is attempted',
   );
 });
@@ -229,7 +249,12 @@ test('SEC-KPLUS-008 (reconcile): the gate asks about THIS row and fails CLOSED',
   const helperStart = RECONCILE_SOURCE.indexOf('async function isRowActive(row: PendingRow): Promise<boolean> {');
   const helperEnd = RECONCILE_SOURCE.indexOf('Deno.serve(');
   assert.ok(helperStart > 0 && helperEnd > helperStart, 'the isRowActive gate must be defined before the handler');
-  const helper = RECONCILE_SOURCE.slice(helperStart, helperEnd);
+  // Bounded to the gate itself: other helpers now sit between it and the
+  // handler, and none of them may satisfy these assertions on its behalf.
+  const helper = topLevelFunction(
+    RECONCILE_SOURCE,
+    'async function isRowActive(row: PendingRow): Promise<boolean> {',
+  );
 
   // Row-scoped predicate, keyed on the pending row itself.
   assert.match(
@@ -252,17 +277,129 @@ test('SEC-KPLUS-008 (reconcile): the gate keeps the batch bounded and RevenueCat
   // Still one bounded list call and one pass over its rows -- the gate adds no
   // paging, no refill and no retry loop.
   assert.equal((RECONCILE_SOURCE.match(/rpcServiceRole\('list_kplus_pending_revenuecat_sync'/g) ?? []).length, 1);
-  assert.equal((RECONCILE_SOURCE.match(/\bfor\s*\(/g) ?? []).length, 1);
+  // Exactly one loop inside the handler: pass 1's. Pass 2 has its own single
+  // bounded loop in reconcileMirrorRetirements, asserted separately below.
+  assert.equal((RECONCILE_HANDLER.match(/\bfor\s*\(/g) ?? []).length, 1);
 
   // No row -- skipped, unreadable or failed at RevenueCat -- may end the pass.
-  const loopStart = RECONCILE_SOURCE.indexOf('for (const row of rows) {');
-  const loopEnd = RECONCILE_SOURCE.indexOf("logEvent('kplus_reconcile_completed'");
+  const loopStart = RECONCILE_HANDLER.indexOf('for (const row of rows) {');
+  const loopEnd = RECONCILE_HANDLER.indexOf('const retirements = await reconcileMirrorRetirements(');
   assert.ok(loopStart > 0 && loopEnd > loopStart);
-  const loopCode = RECONCILE_SOURCE.slice(loopStart, loopEnd).replace(/\/\/.*$/gm, '');
+  const loopCode = RECONCILE_HANDLER.slice(loopStart, loopEnd).replace(/\/\/.*$/gm, '');
   assert.doesNotMatch(loopCode, /\b(return|break|throw)\b/, 'nothing inside the per-row loop may end the pass early');
 
   // Skipped rows are reported, not folded into synced/stillPending.
-  assert.match(RECONCILE_SOURCE, /return json\(\{ scanned: rows\.length, synced, stillPending, skippedNotActive \}\);/);
+  assert.match(RECONCILE_HANDLER, /scanned: rows\.length,\s*synced,\s*stillPending,\s*skippedNotActive,/);
+});
+
+test('REVENUECAT_REVOCATION_RETIREMENT: pass 2 is bounded, batch-safe and cannot end the invocation', () => {
+  const pass2 = topLevelFunction(
+    RECONCILE_SOURCE,
+    'async function reconcileMirrorRetirements(limit: number) {',
+  );
+
+  // One bounded list call, one pass over its rows -- no paging, refill or
+  // retry loop, exactly like pass 1.
+  assert.equal((pass2.match(/rpcServiceRole\('list_kplus_revenuecat_mirror_retirements'/g) ?? []).length, 1);
+  assert.equal((pass2.match(/\bfor\s*\(/g) ?? []).length, 1);
+  assert.doesNotMatch(pass2, /while\s*\(\s*true\s*\)/);
+  assert.doesNotMatch(pass2, /setInterval|setTimeout/);
+
+  // One pair's failure never ends the batch: the per-row loop may `continue`,
+  // never `return`, `break` or `throw`.
+  const loopStart = pass2.indexOf('for (const row of rows) {');
+  const loopEnd = pass2.indexOf('return { scanned: rows.length');
+  assert.ok(loopStart > 0 && loopEnd > loopStart);
+  const loopCode = pass2.slice(loopStart, loopEnd).replace(/\/\/.*$/gm, '');
+  assert.doesNotMatch(loopCode, /\b(break|throw)\b/, 'nothing inside the per-row loop may abort the batch');
+  assert.doesNotMatch(loopCode, /\breturn\b/, 'a per-row failure must `continue`, never return out of the batch');
+});
+
+test('REVENUECAT_REVOCATION_RETIREMENT: pass 2 resolves CURRENT authority before every external call, and fails closed', () => {
+  const pass2 = topLevelFunction(
+    RECONCILE_SOURCE,
+    'async function reconcileMirrorRetirements(limit: number) {',
+  );
+
+  // Desired state is read first, for every row, and a revoke is only reachable
+  // after a readable answer that says nothing should be mirrored. A queued
+  // retirement is never replayed blindly.
+  const stateIdx = pass2.indexOf('await readPromotionalMirrorState(row)');
+  const revokeIdx = pass2.indexOf('await retireMirroredEntitlement(');
+  const syncIdx = pass2.indexOf('await syncPromotionalEntitlement(');
+  assert.ok(stateIdx > 0, 'desired state must be resolved inside the loop');
+  assert.ok(revokeIdx > stateIdx, 'no revoke may precede the desired-state read');
+  assert.ok(syncIdx > stateIdx, 'no grant may precede the desired-state read');
+
+  // An unreadable authority makes no external call at all.
+  assert.match(
+    pass2,
+    /if \(!desired\) \{[\s\S]{0,400}?'desired_state_unreadable'\);[\s\S]{0,80}?continue;/,
+    'an unreadable desired state must defer without calling RevenueCat',
+  );
+
+  // Retirement happens only on the explicit "nothing should be mirrored"
+  // branch, and re-sync only on the surviving branch.
+  assert.match(pass2, /if \(desired\.should_mirror\) \{/);
+  assert.equal((pass2.match(/retireMirroredEntitlement\(/g) ?? []).length, 1,
+    'exactly one revoke call site');
+
+  // The promotional contract is the authority here -- never the user-level
+  // predicate, which is true for store and legacy-unverified sources too.
+  const reader = topLevelFunction(
+    RECONCILE_SOURCE,
+    'async function readPromotionalMirrorState(',
+  );
+  const pass2Code = (pass2 + reader)
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/.*$/gm, '');
+  assert.match(pass2Code, /kplus_promotional_mirror_state/);
+  assert.doesNotMatch(pass2Code, /kplus_has_active_entitlement/);
+  assert.doesNotMatch(pass2Code, /kplus_effective_access_state/);
+});
+
+test('REVENUECAT_REVOCATION_RETIREMENT: pass 2 never touches local entitlement authority', () => {
+  const pass2 = topLevelFunction(
+    RECONCILE_SOURCE,
+    'async function reconcileMirrorRetirements(limit: number) {',
+  );
+  const settle = topLevelFunction(
+    RECONCILE_SOURCE,
+    'async function settleMirrorQueueRow(',
+  );
+  const lane = pass2 + settle;
+
+  for (const forbidden of [
+    'grant_kplus_complimentary', 'grant_kplus_early_access', 'revoke_kplus_grant',
+    'apply_kplus_provider_transition', 'set_kplus_revenuecat_sync_status',
+    'user_entitlements', 'kplus_entitlement_grants',
+  ]) {
+    assert.equal(lane.includes(forbidden), false,
+      `the retirement lane must never reach ${forbidden} -- it is mirror bookkeeping only`);
+  }
+
+  // The only local write is the queue status.
+  assert.equal((lane.match(/rpcServiceRole\('set_kplus_revenuecat_mirror_status'/g) ?? []).length, 1);
+});
+
+test('REVENUECAT_REVOCATION_RETIREMENT: an open-ended promotional grant is reported, never revoked or given an invented expiry', () => {
+  const pass2 = topLevelFunction(
+    RECONCILE_SOURCE,
+    'async function reconcileMirrorRetirements(limit: number) {',
+  );
+  const openEndedIdx = pass2.indexOf('open_ended_mirror_unsupported');
+  assert.ok(openEndedIdx > 0, 'the open-ended case must be handled explicitly');
+
+  // It sits on the should_mirror branch and continues out -- so it can never
+  // fall through to the revoke branch.
+  const branchIdx = pass2.indexOf('if (desired.should_mirror) {');
+  assert.ok(branchIdx > 0 && openEndedIdx > branchIdx);
+  assert.match(
+    pass2.slice(openEndedIdx),
+    /^[\s\S]{0,120}?continue;/,
+    'the open-ended branch must leave the iteration without any RevenueCat call',
+  );
+  assert.doesNotMatch(pass2, /expiresAt:\s*['"`]/, 'no expiry literal may be invented');
 });
 
 test('RevenueCat adapter fails closed without a secret key and never treats sync as an availability dependency', () => {
@@ -274,7 +411,11 @@ test('RevenueCat adapter fails closed without a secret key and never treats sync
 test('RevenueCat adapter grants via the V2 project-scoped endpoint with an explicit expiry, never additive duration', () => {
   assert.match(REVENUECAT_CLIENT_SOURCE, /REVENUECAT_PROJECT_ID/);
   assert.match(REVENUECAT_CLIENT_SOURCE, /\/v2\//);
-  assert.match(REVENUECAT_CLIENT_SOURCE, /actions\/grant_entitlement/);
+  assert.match(
+    REVENUECAT_CLIENT_SOURCE,
+    /export const REVENUECAT_GRANT_ACTION = 'grant_entitlement';/,
+    'the grant action is pinned as a constant, not left to a doc comment',
+  );
   assert.match(REVENUECAT_CLIENT_SOURCE, /entitlement_id:\s*entitlementId/);
   assert.match(REVENUECAT_CLIENT_SOURCE, /expires_at:\s*endTimeMs/);
   assert.doesNotMatch(REVENUECAT_CLIENT_SOURCE, /\/v1\/subscribers/);

@@ -111,6 +111,13 @@ export const USER_DATA_RESOURCES: UserDataResource[] = [
   { table: 'kplus_entitlement_grants', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'kplus_entitlement_transitions', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   { table: 'kplus_entitlement_activations', column: 'user_id', action: 'auth_delete_cascade', optional: true },
+  // RevenueCat promotional-mirror reconciliation queue
+  // (REVENUECAT_REVOCATION_RETIREMENT). ON DELETE CASCADE to auth.users clears
+  // any queued work for a purged account, so a retirement can never outlive the
+  // account it was queued for. The mirror itself is retired separately and
+  // explicitly by retireMirroredEntitlement below -- this entry only brings the
+  // queue into coverage counting and post-purge residual verification.
+  { table: 'kplus_revenuecat_mirror_queue', column: 'user_id', action: 'auth_delete_cascade', optional: true },
   // Build 34 Track B B1A cloud Closet facts (K+ only, staging). ON DELETE
   // CASCADE to auth.users already removes these rows; this entry adds them to
   // the worker's coverage counting and post-purge residual verification.
