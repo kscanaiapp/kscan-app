@@ -117,7 +117,7 @@ test('SIGNATURE_STYLE=FREE: the authoritative recompute RPC requires no K+ entit
   const { file, executable } = authoritativeFunctionSql('recompute_signature_style');
   assert.equal(
     file,
-    '20260915214857_signature_style_free_entitlement.sql',
+    '20260915232402_signature_style_free_closet_evidence.sql',
     'the Signature Style repair must remain the last migration to define this function',
   );
   for (const forbidden of [
@@ -150,13 +150,23 @@ test('SIGNATURE_STYLE=FREE: removing the K+ requirement did not remove authoriza
   assert.match(definition, /security definer/);
   assert.match(definition, /set search_path = ''/);
   assert.match(definition, /#variable_conflict use_column/);
-  // Every read and the upsert are still scoped to the caller's OWN rows.
-  const ownershipScoped = [...definition.matchAll(/\buser_id = v_user_id\b/g)].length;
-  assert.equal(
-    ownershipScoped,
-    8,
-    'every Closet read and the profile lookup must stay scoped to auth.uid()\'s own rows',
-  );
+  // EVERY owned-item source read, and the profile lookup, stay scoped to the
+  // caller's own rows. Asserted structurally rather than by a magic count, so
+  // adding a legitimate new evidence source cannot silently add an UNSCOPED
+  // read: each `from public.<table>` must carry `user_id = v_user_id` before
+  // the next one begins.
+  const { executable } = authoritativeFunctionSql('recompute_signature_style');
+  const reads = [...executable.matchAll(/from public\.(\w+)/g)];
+  assert.ok(reads.length >= 3, 'expected at least the two evidence sources plus the profile lookup');
+  for (let i = 0; i < reads.length; i += 1) {
+    const start = reads[i].index;
+    const end = i + 1 < reads.length ? reads[i + 1].index : executable.length;
+    assert.match(
+      executable.slice(start, end),
+      /user_id = v_user_id/,
+      `the read of public.${reads[i][1]} is not scoped to auth.uid()'s own rows`,
+    );
+  }
   assert.match(definition, /on conflict \(user_id\) do update/);
   // anon gains nothing; authenticated keeps exactly the execute grant it had.
   assert.match(

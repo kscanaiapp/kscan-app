@@ -137,10 +137,11 @@ test('entitlement authority: the forward-only repair supersedes both historical 
     '20260830131956_signature_style_server_authority.sql',
     '20260830140000_fix_recompute_signature_style_column_ambiguity.sql',
     '20260915214857_signature_style_free_entitlement.sql',
+    '20260915232402_signature_style_free_closet_evidence.sql',
   ]);
 });
 
-test('entitlement authority: the repair removed ONLY the K+ requirement', () => {
+test('entitlement authority (STEP 1): the entitlement repair removed ONLY the K+ requirement', () => {
   // Executable SQL only -- the migration explains in prose which gate it
   // removed, and that explanation must not read as the gate.
   const executable = freeEntitlementRepair
@@ -162,6 +163,31 @@ test('entitlement authority: the repair removed ONLY the K+ requirement', () => 
   assert.match(freeEntitlementRepair, /grant execute on function public\.recompute_signature_style\(\) to authenticated;/);
   const body = freeEntitlementRepair.split('as $$')[1];
   assert.equal([...body.matchAll(/\buser_id\s*=\s*v_user_id\b/g)].length, 8);
+});
+
+// STEP 2 superseded STEP 1's evidence source. The live contract -- both owned-item
+// sources under one entitlement-independent algorithm -- is pinned in
+// __tests__/signatureStyleFreeClosetEvidence.test.js; this only records that the
+// entitlement repair above is history and was not retro-edited when it was
+// superseded.
+test('entitlement authority (STEP 2): the free-Closet evidence repair supersedes it, and step 1 was not retro-edited', () => {
+  const evidenceRepair = fs.readFileSync(
+    path.join(ROOT, 'supabase/migrations/20260915232402_signature_style_free_closet_evidence.sql'),
+    'utf8',
+  );
+  const executable = evidenceRepair
+    .split('\n')
+    .map((line) => line.replace(/--.*$/, ''))
+    .join('\n');
+  assert.match(executable, /from public\.wardrobe_utility_items/);
+  assert.match(executable, /from public\.user_closet_items/);
+  assert.doesNotMatch(executable, /has_active_k_plus/);
+  // Step 1 still reads only the K+ store: it is applied history, not the contract.
+  const step1 = freeEntitlementRepair
+    .split('\n')
+    .map((line) => line.replace(/--.*$/, ''))
+    .join('\n');
+  assert.doesNotMatch(step1, /wardrobe_utility_items/);
 });
 
 test('entitlement authority: the historical files were not retro-edited to match', () => {

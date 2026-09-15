@@ -20,16 +20,22 @@
 // Supabase SDK, so it is testable from Node without a Deno runtime.
 //
 // The public RPC takes no parameters. It validates auth.uid() under SECURITY
-// DEFINER, reads only that actor's live non-tombstoned Closet rows, derives the
-// profile/revision, and upserts it. A client can request work but cannot
-// provide authoritative profile data, a revision, or another user id.
+// DEFINER, reads only that actor's own live non-tombstoned owned-item rows,
+// derives the profile/revision, and upserts it. A client can request work but
+// cannot provide authoritative profile data, a revision, or another user id.
 //
-// ENTITLEMENT: SIGNATURE_STYLE_ENTITLEMENT=FREE (Build 34 owner authority).
-// The RPC required an active K+ entitlement until
-// 20260915214857_signature_style_free_entitlement.sql removed that requirement
-// — and only that requirement. Authentication, the zero-argument contract, the
-// auth.uid() ownership scope and the RLS on public.user_style_profiles are all
-// unchanged, so this module still cannot reach another actor's data.
+// ENTITLEMENT: SIGNATURE_STYLE_ENTITLEMENT=FREE (Build 34 owner authority),
+// reached in two steps. 20260915214857 removed the K+ entitlement requirement
+// — and only that requirement. 20260915232402 then closed the gap that left:
+// the RPC derived evidence from the K+ Closet alone, so a free actor with a
+// real item in the FREE Closet (public.wardrobe_utility_items) still computed
+// an empty profile. It now aggregates every owned-item source the actor has,
+// under one entitlement-independent algorithm, normalizing only the attributes
+// each source authoritatively carries.
+//
+// Authentication, the zero-argument contract, the auth.uid() ownership scope
+// and the RLS on public.user_style_profiles are unchanged throughout, so this
+// module still cannot reach another actor's data.
 
 import {
   isSignatureStyleProfileDataV1,

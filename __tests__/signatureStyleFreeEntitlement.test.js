@@ -5,7 +5,7 @@
  * product. public.recompute_signature_style() had required an active K+
  * entitlement since it was introduced, so an authenticated free user's
  * recompute failed with 42501 and they could neither generate nor view a
- * Signature Style. 20260915214857_signature_style_free_entitlement.sql removes
+ * Signature Style. 20260915232402_signature_style_free_closet_evidence.sql removes
  * that requirement -- and only that requirement.
  *
  * WHAT THIS SUITE IS
@@ -65,7 +65,7 @@ const store = loadTsModule('supabase/functions/_shared/signatureStyle/signatureS
 });
 
 const AUTHORITATIVE_MIGRATION = fs.readFileSync(
-  path.join(ROOT, 'supabase/migrations/20260915214857_signature_style_free_entitlement.sql'),
+  path.join(ROOT, 'supabase/migrations/20260915232402_signature_style_free_closet_evidence.sql'),
   'utf8',
 );
 const PROFILE_TABLE_MIGRATION = fs.readFileSync(
@@ -265,10 +265,18 @@ test('CROSS_USER_SIGNATURE_STYLE_RECOMPUTE: one actor cannot recompute another a
 
 test('CROSS_USER_SIGNATURE_STYLE_RECOMPUTE: every read and write in the function is scoped to auth.uid()', () => {
   const body = AUTHORITATIVE_MIGRATION.split('as $$')[1];
-  // Eight bare `user_id = v_user_id` comparisons: the evidence-count query, the
-  // existing-row lookup, one per source column feeding each of the five
-  // frequency calls, plus the colour subquery's UNION ALL half.
-  assert.equal([...body.matchAll(/\buser_id\s*=\s*v_user_id\b/g)].length, 8);
+  // Structural, not a magic count: EVERY owned-item source read plus the profile
+  // lookup must carry an owner scope, so adding a legitimate new evidence source
+  // can never silently add an unscoped read.
+  const executableBody = body.split('\n').map((l) => l.replace(/--.*$/, '')).join('\n');
+  const reads = [...executableBody.matchAll(/from public\.(\w+)/g)];
+  assert.ok(reads.length >= 3, 'expected both evidence sources plus the profile lookup');
+  for (let i = 0; i < reads.length; i += 1) {
+    const start = reads[i].index;
+    const end = i + 1 < reads.length ? reads[i + 1].index : executableBody.length;
+    assert.match(executableBody.slice(start, end), /user_id = v_user_id/,
+      `public.${reads[i][1]} is read without an owner scope`);
+  }
   assert.match(body, /on conflict \(user_id\) do update/);
   // Zero-argument signature: there is no parameter to forge.
   assert.match(
