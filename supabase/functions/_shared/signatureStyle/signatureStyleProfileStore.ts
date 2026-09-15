@@ -19,10 +19,17 @@
 // Deliberately takes an injected client rather than importing a concrete
 // Supabase SDK, so it is testable from Node without a Deno runtime.
 //
-// The public RPC takes no parameters. It validates auth.uid() and K+ under
-// SECURITY DEFINER, reads only that actor's live non-tombstoned Closet rows,
-// derives the profile/revision, and upserts it. A client can request work but
-// cannot provide authoritative profile data, a revision, or another user id.
+// The public RPC takes no parameters. It validates auth.uid() under SECURITY
+// DEFINER, reads only that actor's live non-tombstoned Closet rows, derives the
+// profile/revision, and upserts it. A client can request work but cannot
+// provide authoritative profile data, a revision, or another user id.
+//
+// ENTITLEMENT: SIGNATURE_STYLE_ENTITLEMENT=FREE (Build 34 owner authority).
+// The RPC required an active K+ entitlement until
+// 20260915213000_signature_style_free_entitlement.sql removed that requirement
+// — and only that requirement. Authentication, the zero-argument contract, the
+// auth.uid() ownership scope and the RLS on public.user_style_profiles are all
+// unchanged, so this module still cannot reach another actor's data.
 
 import {
   isSignatureStyleProfileDataV1,

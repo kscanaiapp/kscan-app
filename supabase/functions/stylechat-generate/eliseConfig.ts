@@ -71,8 +71,11 @@ export interface EliseBackendFlags {
    *                              reach the client at all. Predates Concierge and
    *                              keeps its existing meaning unchanged.
    *   closetWardrobeContextV1 -- SOURCE. Whether the authoritative Track B
-   *                              Closet participates in retrieval (plus the
-   *                              server-derived Signature Style context), K+ gated.
+   *                              Closet participates in retrieval (K+ gated),
+   *                              plus the server-derived Signature Style
+   *                              context (FREE -- see the Build 34 entitlement
+   *                              matrix; this flag decides only whether the
+   *                              source exists, never who is entitled to it).
    *   conciergeV1             -- CAPABILITY. Whether the new customer-visible
    *                              Concierge behaviour exists: v2 display facts,
    *                              the wardrobe-context signal, text->Closet focus
