@@ -25,6 +25,7 @@ import { COLORS, LUXURY, LAYOUT, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '..
 import { FORM_MAX_WIDTH } from '../../services/responsiveLayout';
 import { validateAuthInput, mapAuthError } from '../../services/authValidation';
 import { AUTH_CALLBACK_URL } from '../../services/authConfig';
+import { beginAuthCallbackRequest } from '../../services/authCallbackOrigin';
 import { supabase } from '../../services/supabaseClient';
 import { parseAuthCallbackUrl } from '../../services/authDeepLink';
 import { completeOAuthCallbackSession } from '../../services/oauthCallbackSession';
@@ -113,6 +114,12 @@ export default function AuthScreen() {
     setStep('google-oauth');
 
     try {
+      // SEC-AUTH-CB-001: record that THIS device started a flow that can land
+      // tokens on kscan://auth/callback, before the request that produces the
+      // callback URL. Without this marker the callback is refused as
+      // unsolicited -- which is exactly what an attacker-supplied link is.
+      await beginAuthCallbackRequest('oauth');
+
       const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
