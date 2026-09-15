@@ -100,3 +100,31 @@ This commit changes nothing else: no product code, no privacy manifest
 content, no test, no baseline file, and no CI/gate script or workflow. It
 exists solely to give the already-accepted PR #341 tree a fresh SHA so the
 required checks can certify it from a clean slate.
+
+## Addendum 2026-09-15 — root cause found (PR #417)
+
+The same single unexpected identity recurred on the push-event `Project checks`
+run for PR #417 (`d48148b9`, run `34972453848`), while the pull_request run of
+the identical SHA passed. It was not a runner anomaly.
+
+`__tests__/migrationProvenanceGate.test.js` ran its negative controls against
+the shared checkout: it copied a migration to
+`supabase/migrations/99990101000000_undeclared_duplicate_negctrl.sql`, rewrote a
+declared alias and `config/migration-provenance-manifest.json` in place, and
+restored all three in `t.after()`. `scripts/run-all-tests.js` runs every test
+file in one concurrent `node --test` pool, and
+`__tests__/migrationReplayConflicts.test.js` is adjacent to it in that order.
+When that test's `readdirSync` listed the duplicate and the provenance test
+removed it before `readFileSync` reached it, the test failed with `ENOENT`.
+
+Evidence:
+- Forcing that interleaving reproduces exactly this identity: 14/15 pass, only
+  this test fails, `ENOENT` at line 175.
+- An independent observer of the real checkout, across ten ordinary runs of the
+  unmodified provenance test, saw the duplicate listed in 55 polls, the
+  manifest changed in 55 and the alias changed in 52.
+
+Fix: the negative controls now mutate a throwaway copy of what the gate reads,
+and assert the real checkout is untouched while each mutation is live. The
+"one-off, non-reproducible anomaly" conclusion above is superseded; the
+fresh-SHA remedy it describes cleared the symptom, not the cause.
