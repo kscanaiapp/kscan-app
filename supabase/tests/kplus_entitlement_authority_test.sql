@@ -151,9 +151,18 @@ select ok(not public.has_active_k_plus(), 'A11: has_active_k_plus() still answer
 reset role;
 
 set local role service_role;
-select ok(exists (select 1 from public.list_kplus_pending_revenuecat_sync(200) r
+-- A12 originally asserted that a revoked-but-pending row (legacy_revoked:
+-- status='active', revoked_at set, sync='pending') WAS returned here -- that
+-- was the SEC-KPLUS-008 queue-starvation shape itself, not a contract worth
+-- protecting. The reconcile queue-selection hardening (see
+-- 20260915124849_kplus_reconcile_queue_excludes_inactive_rows.sql) makes this
+-- RPC apply the same row-liveness predicate as
+-- kplus_user_entitlement_row_is_active before a row ever occupies a batch
+-- slot, so legacy_revoked must now be ABSENT. Section O below is the full
+-- inclusion/exclusion/starvation/race matrix for this predicate.
+select ok(not exists (select 1 from public.list_kplus_pending_revenuecat_sync(200) r
                    where r.user_id = pg_temp.u('legacy_revoked')),
-  'A12: the RevenueCat reconciler list keeps its shape and still returns pending legacy rows');
+  'A12: the RevenueCat reconciler list still keeps its shape, but a revoked-yet-pending legacy row is no longer eligible (queue-starvation closure)');
 select lives_ok(
   format($f$ select public.set_kplus_revenuecat_sync_status(%L::uuid, 'k_plus', 'failed_terminal', null) $f$,
          pg_temp.u('legacy_active')),
@@ -890,6 +899,243 @@ select is(pg_temp.activations('parity_active_apple')::text, (select v::text from
   'N14: restoring or signing in on another platform never creates a second activation');
 select is((select count(*)::int from public.kplus_entitlement_grants where user_id = pg_temp.u('parity_active_apple')), 1,
   'N15: a restore never duplicates the subscription grant');
+
+-- ── O. RevenueCat reconcile queue selection: inactive rows are ineligible ────
+-- Closes the queue-starvation shape left by #417's per-row mirror gate: see
+-- 20260915124849_kplus_reconcile_queue_excludes_inactive_rows.sql. Every case
+-- here is independent of the shared fixtures above -- its own synthetic users,
+-- its own uuid namespace -- so it stands alone as the eligibility contract.
+--
+-- Role discipline matters here (unlike a plain insert into public.*, auth.users
+-- INSERT is NOT granted to service_role -- only the default connecting role has
+-- it, same as every earlier auth.users insert in this file). Every fixture
+-- insert below therefore runs BEFORE any `set local role service_role;`, and
+-- role is reset before the next fixture block. Only the actual RPC calls
+-- (list_kplus_pending_revenuecat_sync, kplus_user_entitlement_row_is_active --
+-- both revoked from public/anon/authenticated, granted service_role only) run
+-- inside a service_role block.
+
+create function pg_temp.qu(p_label text) returns uuid
+language sql immutable as $$ select md5('kplus-reconcile-queue-test:' || p_label)::uuid $$;
+
+insert into auth.users (id, email, is_anonymous)
+select pg_temp.qu(l), 'kplus-reconcile-queue-' || l || '@kscan-test.invalid', false
+  from unnest(array[
+    'active_pending', 'active_failed_retryable', 'revoked_at_set', 'status_revoked',
+    'status_expired', 'expiry_past', 'expiry_now', 'expiry_null', 'sync_synced',
+    'sync_failed_terminal', 'sync_not_required', 'order_older', 'order_newer', 'starve_active'
+  ]) l;
+
+-- Included: currently actionable rows (queue-eligible if also sync-pending).
+insert into public.user_entitlements
+  (user_id, entitlement_key, status, grant_reason, expires_at, revoked_at, external_sync_status)
+values
+  (pg_temp.qu('active_pending'), 'k_plus', 'active', 'admin', now() + interval '30 days', null, 'pending'),
+  (pg_temp.qu('active_failed_retryable'), 'k_plus', 'active', 'admin', now() + interval '30 days', null, 'failed_retryable'),
+-- Excluded: revocation, in either shape the schema allows.
+  (pg_temp.qu('revoked_at_set'), 'k_plus', 'active', 'admin', now() + interval '30 days', now() - interval '1 hour', 'pending'),
+  (pg_temp.qu('status_revoked'), 'k_plus', 'revoked', 'admin', now() + interval '30 days', null, 'pending'),
+-- Excluded: status not active for a reason other than revocation.
+  (pg_temp.qu('status_expired'), 'k_plus', 'expired', 'admin', now() + interval '30 days', null, 'pending'),
+-- Excluded: expiry boundary. now() is fixed for this whole transaction, so
+-- 'expiry_now' proves the operator is strictly '>', not '>=' -- an expiry
+-- exactly equal to the query's own now() is not "still active".
+  (pg_temp.qu('expiry_past'), 'k_plus', 'active', 'admin', now() - interval '1 minute', null, 'pending'),
+  (pg_temp.qu('expiry_now'), 'k_plus', 'active', 'admin', (select now()), null, 'pending'),
+  (pg_temp.qu('expiry_null'), 'k_plus', 'active', 'admin', null, null, 'pending'),
+-- Excluded: already outside the sync-status set (unchanged from before this
+-- migration -- kept here so a regression that drops this clause is caught by
+-- the same matrix as the new one).
+  (pg_temp.qu('sync_synced'), 'k_plus', 'active', 'admin', now() + interval '30 days', null, 'synced'),
+  (pg_temp.qu('sync_failed_terminal'), 'k_plus', 'active', 'admin', now() + interval '30 days', null, 'failed_terminal'),
+  (pg_temp.qu('sync_not_required'), 'k_plus', 'active', 'admin', now() + interval '30 days', null, 'not_required');
+
+-- Ordering fixtures (O13), separate insert -- an explicit updated_at column.
+-- updated_at is set directly in the INSERT -- the table's BEFORE UPDATE
+-- trigger (set_user_entitlements_updated_at) only fires on UPDATE, never on
+-- INSERT, so this value is not overwritten.
+insert into public.user_entitlements
+  (user_id, entitlement_key, status, grant_reason, expires_at, revoked_at, external_sync_status, updated_at)
+values
+  (pg_temp.qu('order_older'), 'k_plus', 'active', 'admin', now() + interval '30 days', null, 'pending', timestamp '2020-01-01 00:00:00+00'),
+  (pg_temp.qu('order_newer'), 'k_plus', 'active', 'admin', now() + interval '30 days', null, 'pending', timestamp '2020-01-02 00:00:00+00');
+
+set local role service_role;
+select ok(public.kplus_user_entitlement_row_is_active(pg_temp.qu('active_pending'), 'k_plus'),
+  'O1a: INCLUDED fixture is actually live (sanity check on the fixture itself)');
+select ok(not public.kplus_user_entitlement_row_is_active(pg_temp.qu('status_revoked'), 'k_plus'),
+  'O1b: EXCLUDED-by-status fixture is actually not live (sanity check on the fixture itself)');
+
+select ok(exists (select 1 from public.list_kplus_pending_revenuecat_sync(200) r where r.user_id = pg_temp.qu('active_pending')),
+  'O2: INCLUDED -- active + pending + future expiry is selected');
+select ok(exists (select 1 from public.list_kplus_pending_revenuecat_sync(200) r where r.user_id = pg_temp.qu('active_failed_retryable')),
+  'O3: INCLUDED -- active + failed_retryable + future expiry is selected');
+select ok(not exists (select 1 from public.list_kplus_pending_revenuecat_sync(200) r where r.user_id = pg_temp.qu('revoked_at_set')),
+  'O4: EXCLUDED -- revoked_at set');
+select ok(not exists (select 1 from public.list_kplus_pending_revenuecat_sync(200) r where r.user_id = pg_temp.qu('status_revoked')),
+  'O5: EXCLUDED -- status = revoked');
+select ok(not exists (select 1 from public.list_kplus_pending_revenuecat_sync(200) r where r.user_id = pg_temp.qu('status_expired')),
+  'O6: EXCLUDED -- status = expired');
+select ok(not exists (select 1 from public.list_kplus_pending_revenuecat_sync(200) r where r.user_id = pg_temp.qu('expiry_past')),
+  'O7: EXCLUDED -- expiry in the past');
+select ok(not exists (select 1 from public.list_kplus_pending_revenuecat_sync(200) r where r.user_id = pg_temp.qu('expiry_now')),
+  'O8: EXCLUDED -- expiry exactly now() (the predicate is strictly >, not >=)');
+select ok(not exists (select 1 from public.list_kplus_pending_revenuecat_sync(200) r where r.user_id = pg_temp.qu('expiry_null')),
+  'O9: EXCLUDED -- null expiry (never reinterpreted as open-ended)');
+select ok(not exists (select 1 from public.list_kplus_pending_revenuecat_sync(200) r where r.user_id = pg_temp.qu('sync_synced')),
+  'O10: EXCLUDED -- external_sync_status = synced');
+select ok(not exists (select 1 from public.list_kplus_pending_revenuecat_sync(200) r where r.user_id = pg_temp.qu('sync_failed_terminal')),
+  'O11: EXCLUDED -- external_sync_status = failed_terminal');
+select ok(not exists (select 1 from public.list_kplus_pending_revenuecat_sync(200) r where r.user_id = pg_temp.qu('sync_not_required')),
+  'O12: EXCLUDED -- external_sync_status = not_required');
+
+-- Ordering: oldest eligible row still sorts first among eligible rows.
+-- (order_older / order_newer were inserted above, before the role switch.)
+select is(
+  (select r.user_id from public.list_kplus_pending_revenuecat_sync(1) r
+    where r.user_id in (pg_temp.qu('order_older'), pg_temp.qu('order_newer'))
+    order by r.updated_at asc limit 1),
+  pg_temp.qu('order_older'),
+  'O13: ordering is preserved -- the older eligible row still sorts first');
+
+-- Bounds: the clamp expression itself is unchanged (floor 1, ceiling 200) --
+-- structural rather than a 200+-row fixture, which nothing else in this file
+-- needs and which would just slow every run down.
+select matches(pg_get_functiondef('public.list_kplus_pending_revenuecat_sync(integer)'::regprocedure),
+  'least\(coalesce\(p_limit,\s*25\),\s*200\)', 'O14: the max-limit clamp (200) is unchanged');
+select matches(pg_get_functiondef('public.list_kplus_pending_revenuecat_sync(integer)'::regprocedure),
+  'greatest\(1,', 'O15: the floor clamp (1) is unchanged');
+
+-- Grants: unchanged from before this migration -- service_role only.
+select ok(has_function_privilege('service_role', 'public.list_kplus_pending_revenuecat_sync(integer)', 'execute'),
+  'O16: service_role keeps execute');
+select ok(not has_function_privilege('authenticated', 'public.list_kplus_pending_revenuecat_sync(integer)', 'execute'),
+  'O17: authenticated still has no execute');
+select ok(not has_function_privilege('anon', 'public.list_kplus_pending_revenuecat_sync(integer)', 'execute'),
+  'O18: anon still has no execute');
+
+-- ── O-STARVE. 25 permanently-inactive pending rows cannot hide 1 live one ────
+-- Reproduces the exact defect shape: give 25 revoked-but-pending rows an
+-- OLDER updated_at than one genuinely live pending row, then ask for exactly
+-- 25 (the reconcile function's own default batch size). The unfiltered
+-- pre-fix query (reproduced inline below, read-only) would return the 25
+-- oldest MATCHING-SYNC-STATUS rows regardless of liveness -- exactly the 25
+-- inactive ones -- and the live row would never be reached. This is the test
+-- required to fail against that pre-fix definition.
+--
+-- reset role first: auth.users INSERT needs the default connecting role, not
+-- service_role (same reasoning as the top of section O).
+reset role;
+insert into auth.users (id, email, is_anonymous)
+select md5('kplus-reconcile-queue-test:starve_inactive_' || g)::uuid,
+       'kplus-reconcile-queue-starve-' || g || '@kscan-test.invalid', false
+  from generate_series(0, 24) g;
+do $$
+declare
+  i int;
+begin
+  for i in 0..24 loop
+    insert into public.user_entitlements
+      (user_id, entitlement_key, status, grant_reason, expires_at, revoked_at, external_sync_status, updated_at)
+    values (
+      md5('kplus-reconcile-queue-test:starve_inactive_' || i)::uuid, 'k_plus', 'active', 'admin',
+      now() + interval '30 days', now() - interval '1 hour', 'pending',
+      timestamp '2019-01-01 00:00:00+00' + (i || ' seconds')::interval
+    );
+  end loop;
+end;
+$$;
+-- updated_at set directly in the INSERT, same reasoning as O13 above.
+insert into public.user_entitlements (user_id, entitlement_key, status, grant_reason, expires_at, revoked_at, external_sync_status, updated_at)
+values (pg_temp.qu('starve_active'), 'k_plus', 'active', 'admin', now() + interval '30 days', null, 'pending', timestamp '2019-01-01 00:01:00+00');
+
+set local role service_role;
+select ok(
+  (select count(*)::int from public.user_entitlements ue
+    where ue.user_id = any (
+      select md5('kplus-reconcile-queue-test:starve_inactive_' || g)::uuid from generate_series(0, 24) g)
+      and ue.updated_at < (select updated_at from public.user_entitlements where user_id = pg_temp.qu('starve_active'))
+  ) = 25,
+  'O19: all 25 inactive filler rows are older than the one live row (fixture sanity)');
+-- The PRE-FIX query, reproduced verbatim (sync-status filter only, no
+-- liveness filter) against the WHOLE table -- not a restricted candidate
+-- list -- exactly as list_kplus_pending_revenuecat_sync read before this
+-- migration. No other row anywhere in this file's fixtures carries
+-- external_sync_status in ('pending', 'failed_retryable') at this point
+-- (legacy_revoked, the only earlier one, has revoked_at set and a much older
+-- updated_at than nothing relevant here changes that), so this is a faithful
+-- reproduction, not a narrowed one.
+select ok(
+  not exists (
+    select 1 from (
+      select user_id from public.user_entitlements
+       where external_sync_status in ('pending', 'failed_retryable')
+       order by updated_at asc
+       limit 25
+    ) prefix_result
+    where prefix_result.user_id = pg_temp.qu('starve_active')
+  ),
+  'O20: the PRE-FIX query would NOT have reached the live row within the first 25 -- this fixture genuinely reproduces starvation'
+);
+select ok(
+  exists (
+    select 1 from public.list_kplus_pending_revenuecat_sync(25) r
+     where r.user_id = pg_temp.qu('starve_active')
+  ),
+  'O21: POST-FIX -- the hardened query DOES reach the live row at limit=25, because the 25 inactive rows never occupy a slot'
+);
+
+-- ── O-RACE. Selected-while-active, revoked before the mirror is attempted ───
+-- The queue filter is SELECTION, not authorization: a row can be genuinely
+-- live at list time and revoked microseconds later, before this batch's loop
+-- reaches it (list and mirror are not one transaction in the Edge Function).
+-- The Edge Function's OWN re-check of this same row
+-- (kplus_user_entitlement_row_is_active, called per-row, immediately before
+-- the mirror attempt -- see __tests__/kplusEdgeContract.test.js) is what
+-- makes this safe. This test proves the two answers CAN disagree across time
+-- and that the row-scoped predicate is authoritative for whichever answer is
+-- current.
+reset role;
+insert into auth.users (id, email, is_anonymous)
+values (pg_temp.qu('race_row'), 'kplus-reconcile-queue-race@kscan-test.invalid', false);
+insert into public.user_entitlements (user_id, entitlement_key, status, grant_reason, expires_at, revoked_at, external_sync_status)
+values (pg_temp.qu('race_row'), 'k_plus', 'active', 'admin', now() + interval '30 days', null, 'pending');
+
+set local role service_role;
+-- T0/T1: the row is active and pending, and the list RPC selects it.
+select ok(exists (select 1 from public.list_kplus_pending_revenuecat_sync(200) r where r.user_id = pg_temp.qu('race_row')),
+  'O22 (T0/T1): the row is active + pending and IS selected by the list RPC');
+select ok(public.kplus_user_entitlement_row_is_active(pg_temp.qu('race_row'), 'k_plus'),
+  'O22b (T1): the row-scoped predicate agrees -- live at selection time');
+
+-- T2: an operator revokes it (exactly the direct-SQL path this whole class of
+-- defect is about -- there is no Edge Function for it; see the read-only
+-- RevenueCat-retirement note in the PR description).
+update public.user_entitlements set revoked_at = now() where user_id = pg_temp.qu('race_row');
+
+-- T3/T4: the reconcile Edge Function's per-row re-check (the same RPC
+-- kplus-reconcile-revenuecat calls immediately before attempting the mirror)
+-- now answers false for the identical row, with no further mutation.
+select ok(not public.kplus_user_entitlement_row_is_active(pg_temp.qu('race_row'), 'k_plus'),
+  'O23 (T4): after revocation, the SAME row-scoped predicate call now answers false');
+
+-- T5/T6: this predicate is exactly the one the Edge Function's isRowActive()
+-- gates on before calling syncPromotionalEntitlement or
+-- set_kplus_revenuecat_sync_status -- proven, and mutation-tested, by
+-- __tests__/kplusEdgeContract.test.js ("SEC-KPLUS-008 (reconcile): every
+-- pending row is gated..." and "...fails CLOSED"). A false answer here always
+-- means: no RevenueCat call, no sync-status write. This SQL-side test proves
+-- the precondition (the answer genuinely flips mid-batch); the Deno-side
+-- static contract proves the consequence (the code never mirrors on a false
+-- answer). Confirm the row's own sync status is untouched by the revoke
+-- itself, since that is the other half of "no status write for an inactive
+-- row":
+select is(
+  (select external_sync_status from public.user_entitlements where user_id = pg_temp.qu('race_row')),
+  'pending',
+  'O24 (T6 precondition): revoking the grant alone does not touch external_sync_status -- only a completed mirror attempt may'
+);
+reset role;
 
 select * from finish();
 rollback;
