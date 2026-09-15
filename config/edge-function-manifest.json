@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-15T10:07:51.520Z",
-    "generatedFromGitSha": "814b5961baa55050d4d73b8289502f07beebcb06"
+    "generatedAtUtc": "2026-09-15T11:55:34.056Z",
+    "generatedFromGitSha": "36834bd44b3dea3e86213170684ba881fcacf8d4"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -1374,8 +1374,8 @@
         ],
         "bundleFileCount": 3,
         "treeFileCount": 3,
-        "bundleHash": "c1779621932eecc7099f24400723e0da152ae67a67b477071d334191cab7d97c",
-        "treeHash": "c1779621932eecc7099f24400723e0da152ae67a67b477071d334191cab7d97c",
+        "bundleHash": "56091c5bee1bd74d1841f3e1bb701c43382c5da94632c18356ef6ac7104bfd19",
+        "treeHash": "56091c5bee1bd74d1841f3e1bb701c43382c5da94632c18356ef6ac7104bfd19",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -1389,7 +1389,7 @@
           },
           {
             "path": "supabase/functions/kplus-reconcile-revenuecat/index.ts",
-            "sha256": "55c47e3af4faa96375ec18676b5bdb283b608682cbe519c91cbb675ee46056be",
+            "sha256": "afa2b72d50d1559d1ee52bebbf5f1e3189ef2a18f94225f7294e70eb4b726cc0",
             "bundle": true
           }
         ]
