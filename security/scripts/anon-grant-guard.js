@@ -28,6 +28,31 @@ const ANON_EXECUTE_ALLOWLIST = [
   // the room have an active, non-revoked, non-expired share. See
   // supabase/migrations/20260803214145_harden_public_rpc_execution_grants.sql.
   'get_item_reaction_counts',
+  // public.get_public_room_decision_preview(text) -- the outfit-decision half
+  // of the same unauthenticated public room-preview screen
+  // (app/(public)/rooms/[token].tsx, via services/outfitDecisions.ts). Anon
+  // EXECUTE here is deliberate and was granted twice on purpose:
+  // 20260711000002_outfit_decision_rooms.sql created it with
+  // `grant execute ... to anon, authenticated`, 20260712010000_audit_hardening_
+  // ai_stylist_stylechat.sql re-affirmed that grant during an audit-hardening
+  // pass, and 20260808115735_enforce_rpc_privilege_boundary.sql names it in
+  // its "Deliberately NOT revoked" list. This entry closes the last gap
+  // between that decision and the governed allowlist -- the grant was never
+  // unintended, only unrecorded here.
+  //
+  // Why public access is necessary: a shared dressing room is opened from an
+  // SMS/link by a recipient who has no K Scan account. Requiring auth would
+  // break the share feature outright. The function is a capability-scoped
+  // read: it takes only the opaque share token, regex-validates it
+  // (`^[A-Za-z0-9_-]+$`) before touching a table, and resolves a room only
+  // through a room_shares row that is access_level='view', is_active,
+  // revoked_at IS NULL and unexpired. Anything else returns a generic
+  // 'malformed'/'unavailable' -- no enumeration oracle, no private room, no
+  // voter or owner identity (votes are count(*) only), all free text
+  // HTML-stripped and length-capped, and the result bounded to 10 decision
+  // groups x 3 options x 6 items. See
+  // __tests__/security/publicRoomDecisionPreviewGrant.test.js.
+  'get_public_room_decision_preview',
 ];
 
 // liveGrants: [{ functionName, anonCanExecute }]. Returns functions with

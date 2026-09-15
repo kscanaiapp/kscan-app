@@ -10,8 +10,12 @@ const {
   detectStaleAllowlistEntries,
 } = require('../../security/scripts/anon-grant-guard');
 
-test('ANON_EXECUTE_ALLOWLIST covers exactly the two reviewed public RPCs', () => {
-  assert.deepEqual([...ANON_EXECUTE_ALLOWLIST].sort(), ['get_item_reaction_counts', 'get_public_room_preview']);
+test('ANON_EXECUTE_ALLOWLIST covers exactly the three reviewed public RPCs', () => {
+  assert.deepEqual([...ANON_EXECUTE_ALLOWLIST].sort(), [
+    'get_item_reaction_counts',
+    'get_public_room_decision_preview',
+    'get_public_room_preview',
+  ]);
 });
 
 test('detectUnintendedAnonGrants: an allowlisted function with anon EXECUTE is not flagged', () => {
@@ -45,6 +49,7 @@ test('detectStaleAllowlistEntries: reports nothing when every allowlisted functi
   const grants = [
     { functionName: 'get_public_room_preview', anonCanExecute: true },
     { functionName: 'get_item_reaction_counts', anonCanExecute: true },
+    { functionName: 'get_public_room_decision_preview', anonCanExecute: true },
   ];
   assert.deepEqual(detectStaleAllowlistEntries(grants), []);
 });
@@ -53,6 +58,7 @@ test('detectStaleAllowlistEntries: flags an allowlisted function whose grant was
   const grants = [
     { functionName: 'get_public_room_preview', anonCanExecute: true },
     { functionName: 'get_item_reaction_counts', anonCanExecute: false },
+    { functionName: 'get_public_room_decision_preview', anonCanExecute: true },
   ];
   assert.deepEqual(detectStaleAllowlistEntries(grants), ['get_item_reaction_counts']);
 });
