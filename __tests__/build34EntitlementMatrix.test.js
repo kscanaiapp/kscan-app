@@ -117,7 +117,7 @@ test('SIGNATURE_STYLE=FREE: the authoritative recompute RPC requires no K+ entit
   const { file, executable } = authoritativeFunctionSql('recompute_signature_style');
   assert.equal(
     file,
-    '20260915213000_signature_style_free_entitlement.sql',
+    '20260915214857_signature_style_free_entitlement.sql',
     'the Signature Style repair must remain the last migration to define this function',
   );
   for (const forbidden of [

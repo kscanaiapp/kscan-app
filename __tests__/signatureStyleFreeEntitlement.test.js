@@ -5,7 +5,7 @@
  * product. public.recompute_signature_style() had required an active K+
  * entitlement since it was introduced, so an authenticated free user's
  * recompute failed with 42501 and they could neither generate nor view a
- * Signature Style. 20260915213000_signature_style_free_entitlement.sql removes
+ * Signature Style. 20260915214857_signature_style_free_entitlement.sql removes
  * that requirement -- and only that requirement.
  *
  * WHAT THIS SUITE IS
@@ -65,7 +65,7 @@ const store = loadTsModule('supabase/functions/_shared/signatureStyle/signatureS
 });
 
 const AUTHORITATIVE_MIGRATION = fs.readFileSync(
-  path.join(ROOT, 'supabase/migrations/20260915213000_signature_style_free_entitlement.sql'),
+  path.join(ROOT, 'supabase/migrations/20260915214857_signature_style_free_entitlement.sql'),
   'utf8',
 );
 const PROFILE_TABLE_MIGRATION = fs.readFileSync(

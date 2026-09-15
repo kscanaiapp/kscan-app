@@ -2,6 +2,13 @@
 --
 -- OWNER PRODUCT AUTHORITY (Build 34): SIGNATURE_STYLE_ENTITLEMENT=FREE.
 --
+-- APPLIED LEDGER IDENTITY: staging (yzqjvdfgefveprobvvyw) recorded this file as
+-- version 20260915214857 on 2026-09-15. The filename carries that exact version
+-- so `supabase db push` reconciles on it. It was authored as 20260915213000 and
+-- renamed BEFORE any ledger anywhere recorded that number — staging holds only
+-- 20260915214857, and production (wyyuqfdxucjksghsmhry, confirmed read-only via
+-- list_migrations 2026-09-15) holds neither — so nothing can double-apply.
+--
 -- public.recompute_signature_style() has required an active K+ entitlement
 -- since 20260830131956 introduced it (and 20260830140000 carried that gate
 -- forward verbatim while fixing the column-shadowing bug). That requirement

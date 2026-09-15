@@ -2187,7 +2187,7 @@ Deno.serve(async (req) => {
   //
   // Removing the entitlement requirement did NOT remove authorization. The RPC
   // is zero-argument and SECURITY DEFINER over `auth.uid()` alone
-  // (20260915213000_signature_style_free_entitlement.sql), so it derives one
+  // (20260915214857_signature_style_free_entitlement.sql), so it derives one
   // actor's profile from that same actor's own Closet rows and can neither be
   // pointed at another user nor be fed a client-authored payload. A signed-out
   // request never reaches here at all.

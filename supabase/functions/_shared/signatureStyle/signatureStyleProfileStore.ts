@@ -26,7 +26,7 @@
 //
 // ENTITLEMENT: SIGNATURE_STYLE_ENTITLEMENT=FREE (Build 34 owner authority).
 // The RPC required an active K+ entitlement until
-// 20260915213000_signature_style_free_entitlement.sql removed that requirement
+// 20260915214857_signature_style_free_entitlement.sql removed that requirement
 // — and only that requirement. Authentication, the zero-argument contract, the
 // auth.uid() ownership scope and the RLS on public.user_style_profiles are all
 // unchanged, so this module still cannot reach another actor's data.

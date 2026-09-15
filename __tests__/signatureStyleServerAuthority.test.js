@@ -24,7 +24,7 @@ const columnAmbiguityFix = fs.readFileSync(
 // The two files above are APPLIED HISTORY, and the assertions in this suite
 // describe what they did at the time. They are not the current entitlement
 // contract: Build 34 owner authority resolved SIGNATURE_STYLE_ENTITLEMENT=FREE,
-// and 20260915213000_signature_style_free_entitlement.sql removed the K+
+// and 20260915214857_signature_style_free_entitlement.sql removed the K+
 // requirement these two carried (and only that requirement).
 //
 // So where a test below asserts `if not public.has_active_k_plus() then`, it is
@@ -118,7 +118,7 @@ test('live bug closure (HISTORICAL): the fix migration kept the same K+ gate, ze
 // carried every non-entitlement control forward unchanged.
 
 const freeEntitlementRepair = fs.readFileSync(
-  path.join(ROOT, 'supabase/migrations/20260915213000_signature_style_free_entitlement.sql'),
+  path.join(ROOT, 'supabase/migrations/20260915214857_signature_style_free_entitlement.sql'),
   'utf8',
 );
 
@@ -136,7 +136,7 @@ test('entitlement authority: the forward-only repair supersedes both historical 
   assert.deepEqual(defining, [
     '20260830131956_signature_style_server_authority.sql',
     '20260830140000_fix_recompute_signature_style_column_ambiguity.sql',
-    '20260915213000_signature_style_free_entitlement.sql',
+    '20260915214857_signature_style_free_entitlement.sql',
   ]);
 });
 
