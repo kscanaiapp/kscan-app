@@ -43,6 +43,7 @@ import { usePermissionPreferences } from '../../hooks/usePermissionPreferences';
 import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../../services/supabaseClient';
 import { AUTH_CALLBACK_URL } from '../../services/authConfig';
+import { beginAuthCallbackRequest } from '../../services/authCallbackOrigin';
 import { parseAuthCallbackUrl } from '../../services/authDeepLink';
 import { completeOAuthCallbackSession } from '../../services/oauthCallbackSession';
 import { traceAuthLifecycle } from '../../services/authLifecycleTrace';
@@ -263,6 +264,10 @@ export default function OnboardingScreen() {
     setGoogleBusy(true);
 
     try {
+      // SEC-AUTH-CB-001: see app/auth/index.tsx -- the onboarding entry point
+      // starts the same flow and needs the same device-initiated marker.
+      await beginAuthCallbackRequest('oauth');
+
       const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {

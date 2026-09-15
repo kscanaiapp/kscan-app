@@ -16,6 +16,7 @@ import {
   takeAuthBootstrapStorageError,
 } from '../services/supabaseClient';
 import { AUTH_CALLBACK_URL } from '../services/authConfig';
+import { beginAuthCallbackRequest } from '../services/authCallbackOrigin';
 import { AUTH_STATE, getSessionAuthState, isSessionUsable } from '../services/routingGuard';
 import { invalidateAllMemoryCache } from '../services/style-chat/styleMemoryCache';
 import { resetAttachmentStore } from '../services/style-chat/styleChatAttachmentStore';
@@ -368,6 +369,9 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
     // Carried in options.data so the name survives email confirmation: Supabase
     // persists it on the user at sign-up, before any session exists.
     const nameMetadata = buildSignupNameMetadata(profile ?? {});
+    // SEC-AUTH-CB-001: an emailRedirectTo confirmation link lands tokens on
+    // kscan://auth/callback, so this sign-up is what authorises that callback.
+    await beginAuthCallbackRequest('email_confirmation');
     const { data, error } = await supabase.auth.signUp({
       email,
       password,

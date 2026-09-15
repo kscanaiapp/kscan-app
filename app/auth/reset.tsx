@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 
 import { COLORS, LAYOUT, RADIUS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import { AUTH_CALLBACK_URL } from '../../services/authConfig';
+import { beginAuthCallbackRequest } from '../../services/authCallbackOrigin';
 import { mapAuthError } from '../../services/authValidation';
 import { goBackOrAuth } from '../../services/navigationExit';
 import { supabase } from '../../services/supabaseClient';
@@ -36,6 +37,11 @@ export default function ResetPasswordScreen() {
     setBusy(true);
     setError(null);
     setMessage(null);
+    // SEC-AUTH-CB-001: the recovery link lands tokens on
+    // kscan://auth/callback, often at cold start from a mail client, so the
+    // marker is written before the link is requested and persists for the
+    // link's own lifetime.
+    await beginAuthCallbackRequest('password_reset');
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(trimmed, {
       redirectTo: AUTH_CALLBACK_URL,
     });
