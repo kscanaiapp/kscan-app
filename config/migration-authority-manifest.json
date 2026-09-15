@@ -632,6 +632,15 @@
             ],
             "classification": "EQUIVALENT_RENUMBER",
             "evidence": "F-03 forward reconciliation (PR #380). Applied to staging 2026-09-09 by the Watchlist Backend Readiness 02 lane via Supabase MCP apply_migration, which assigned wall-clock version 20260909171017 rather than the source version. EQUIVALENT rather than EXACT: the executed statement is the source file's executable body without its comment header (staging recorded 3095 chars against a 10152-byte source file). Functionally a no-op on staging, which already carried the DEF-WL-01 end state from ledger 20260830214752 -- the migration's own post-conditions executed and PASSED there, asserting both that user_device_push_tokens_live_token_uidx exists and that register_device_push_token carries the competing-route retirement. Note the sibling entry above: local 20260830190000 is itself reconciled to remote 20260830214752, which is exactly the ledger-vs-filename ordering split F-03 repaired in source."
+          },
+          {
+            "localVersion": "20260914120000",
+            "logicalName": "close_authenticated_cross_actor_owned_item_snapshot",
+            "remoteVersions": [
+              "20260914201155"
+            ],
+            "classification": "EXACT_CONTENT_RENUMBER",
+            "evidence": "Build 34 staging-to-release SECURITY convergence (2026-09-15). This narrow hardening was authored on fix/notifications-final-convergence-v1 (commit d66f03d) as supabase/migrations/20260914120000_close_authenticated_cross_actor_owned_item_snapshot.sql and applied to staging under ledger version 20260914201155 while living in NO merged branch -- so the governed deploy preflight correctly reported it as undeclared remote-only drift and blocked every staging deploy. Identity is PROVEN, not asserted: with SQL line comments stripped and whitespace normalized, the source file and staging's recorded supabase_migrations.schema_migrations.statements are byte-identical, both hashing to 23a939056a54927124b2eb3eaf42f01b (2535 chars, 1 statement). Behaviour re-read live on staging the same day: build_owned_item_snapshot(text,uuid,uuid) grants are postgres/service_role EXECUTE only (has_function_privilege authenticated=false, anon=false) and the body carries the 'p_owner_id <> auth.uid()' actor gate, still SECURITY DEFINER. The file is now carried in the release tree at its ORIGINAL authored version 20260914120000; this entry records that staging applied that exact content under 20260914201155. Nothing else from that branch is ported."
           }
         ],
         "genuinelyUnapplied": [],
