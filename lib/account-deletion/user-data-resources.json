@@ -346,6 +346,27 @@
       "optional": true
     },
     {
+      "table": "kplus_entitlement_grants",
+      "column": "user_id",
+      "action": "auth_delete_cascade",
+      "optional": true,
+      "notes": "K+ entitlement authority (Phase 1) grants. ON DELETE CASCADE FK to auth.users removes every row at purge; no de-identified K+ residue is retained. Purging an account does not cancel a store subscription."
+    },
+    {
+      "table": "kplus_entitlement_transitions",
+      "column": "user_id",
+      "action": "auth_delete_cascade",
+      "optional": true,
+      "notes": "K+ entitlement authority (Phase 1) transition ledger, including provider-event idempotency keys. ON DELETE CASCADE FK to auth.users; nothing retained after purge."
+    },
+    {
+      "table": "kplus_entitlement_activations",
+      "column": "user_id",
+      "action": "auth_delete_cascade",
+      "optional": true,
+      "notes": "K+ entitlement authority (Phase 1) lifecycle activation events (future Welcome to K+). ON DELETE CASCADE FK to auth.users; nothing retained after purge."
+    },
+    {
       "table": "user_closet_items",
       "column": "user_id",
       "action": "auth_delete_cascade",

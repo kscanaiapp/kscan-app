@@ -109,18 +109,25 @@ Deno.serve(async (req: Request) => {
   // synthetic actor's row came back external_sync_status = 'synced', minutes
   // after revocation.
   //
-  // public.kplus_has_active_entitlement is the same predicate Closet RLS,
-  // Packing, Watchlist refresh and VTO all use (status = 'active' AND
-  // revoked_at IS NULL AND expires_at IS NOT NULL AND expires_at > now()).
-  // Delegating to it is how vto-generate stopped drifting from canonical in
-  // SEC-KPLUS-003; the same reasoning applies here.
+  // K+ entitlement authority (Phase 1) -- the question here is ROW-SCOPED.
+  //
+  // public.kplus_has_active_entitlement now answers for the USER across every
+  // grant they hold (this Early Access row, complimentary grants, store
+  // subscriptions). That is the right question for a feature gate and the
+  // wrong one here: this function reports on, and mirrors, THIS row. A revoked
+  // Early Access row plus an active store subscription reads true at the user
+  // level, and mirroring on that answer would put the revoked row's expiry
+  // back into RevenueCat -- SEC-KPLUS-008 again, through a second grant.
+  // public.kplus_user_entitlement_row_is_active applies the Build 34 canonical
+  // predicate (status = 'active' AND revoked_at IS NULL AND expires_at IS NOT
+  // NULL AND expires_at > now()) to this row alone.
   //
   // Fails CLOSED: an unreadable answer means no mirror and no `already_active`
   // claim. The local grant itself is already durable either way -- this only
   // decides what we tell the caller and whether we touch the external mirror.
   let currentlyActive = false;
   try {
-    const activeResponse = await rpc('kplus_has_active_entitlement', {
+    const activeResponse = await rpc('kplus_user_entitlement_row_is_active', {
       p_user_id: authUser.id,
       p_entitlement_key: grant.entitlement_key,
     });
@@ -151,8 +158,8 @@ Deno.serve(async (req: Request) => {
   // timeout inside syncPromotionalEntitlement) -- never retried synchronously
   // and never allowed to change the HTTP response's success/failure.
   //
-  // SEC-KPLUS-008: gated on the CANONICAL answer, not merely on an expiry being
-  // present. K Scan is the authority and RevenueCat is its mirror; a mirror
+  // SEC-KPLUS-008: gated on the row-scoped answer above, not merely on an expiry
+  // being present. K Scan is the authority and RevenueCat is its mirror; a mirror
   // that outlives a revocation is the authority running backwards. When the
   // entitlement is not currently active this call makes no external request
   // and writes no sync status, so a revoked row is left exactly as the

@@ -147,11 +147,18 @@ Deno.test('entitlement: an unreadable table is unknown, not denied and not activ
   assertEquals(outcome.state, 'unknown');
 });
 
-Deno.test('entitlement: no row means denied', async () => {
+// K+ entitlement authority (Phase 1). These fallback tests pass no `rpc`, so
+// the canonical RPC is unreachable and resolveVtoEntitlement reads the Build 34
+// user_entitlements row directly. That row is no longer the whole authority --
+// the RPC unions it with complimentary grants and store subscriptions -- so an
+// absent or lapsed row now yields `unknown` (still no generation) instead of
+// `denied` (which tells the user to buy K+ they may already hold). A canonical
+// `false` from the RPC is still `denied`; see vtoPaidBoundary.test.ts.
+Deno.test('entitlement: with the authority unreachable, no row is unknown, not denied', async () => {
   const outcome = await resolveVtoEntitlement('user-1', {
     rest: () => Promise.resolve(jsonResponse([])),
   });
-  assertEquals(outcome.state, 'denied');
+  assertEquals(outcome.state, 'unknown');
 });
 
 Deno.test('entitlement: an active, unexpired grant is active', async () => {
@@ -163,13 +170,13 @@ Deno.test('entitlement: an active, unexpired grant is active', async () => {
   assertEquals(outcome.state, 'active');
 });
 
-Deno.test('entitlement: a row left active past its expiry is NOT access', async () => {
+Deno.test('entitlement: a row left active past its expiry is NOT access (unknown while unreachable)', async () => {
   const outcome = await resolveVtoEntitlement('user-1', {
     rest: () =>
       Promise.resolve(jsonResponse([{ status: 'active', expires_at: '2026-01-01T00:00:00Z' }])),
     nowMs: Date.parse('2026-08-30T00:00:00Z'),
   });
-  assertEquals(outcome.state, 'denied');
+  assertEquals(outcome.state, 'unknown');
 });
 
 Deno.test('entitlement: revoked and expired statuses are denied', () => {
