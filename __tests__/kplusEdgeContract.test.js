@@ -182,6 +182,89 @@ test('kplus-reconcile-revenuecat processes a bounded batch, never an unbounded l
   assert.doesNotMatch(RECONCILE_SOURCE, /setInterval|setTimeout/);
 });
 
+test('SEC-KPLUS-008 (reconcile): every pending row is gated on the ROW-SCOPED authority before it is mirrored', () => {
+  // list_kplus_pending_revenuecat_sync selects on external_sync_status alone.
+  // A K Scan AI K+ Early Access row revoked by an operator keeps its future
+  // expires_at, so while its sync status was still pending the sweep mirrored
+  // it into RevenueCat as a LIVE promotional entitlement. kplus-activate was
+  // repaired for exactly this; the reconcile path was not.
+  //
+  // The user-level kplus_has_active_entitlement is the wrong question here: it
+  // is true whenever ANY grant is live, including when THIS row is revoked.
+  // Comments are stripped first so the source may still explain why; any CODE
+  // reference (a call, a constant, a table of names) is refused.
+  const reconcileCode = RECONCILE_SOURCE.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  assert.doesNotMatch(
+    reconcileCode,
+    /kplus_has_active_entitlement/,
+    'the user-level predicate is true whenever ANY grant is live, so it must never gate the row mirror',
+  );
+
+  // The mirror is called exactly once, inside the per-row loop, so there is no
+  // second call site the gate could be bypassed through.
+  assert.equal((RECONCILE_SOURCE.match(/syncPromotionalEntitlement\(/g) ?? []).length, 1);
+  const loopStart = RECONCILE_SOURCE.indexOf('for (const row of rows) {');
+  const mirrorIdx = RECONCILE_SOURCE.indexOf('await syncPromotionalEntitlement(');
+  assert.ok(loopStart > 0 && mirrorIdx > loopStart, 'the mirror must be attempted inside the per-row loop');
+
+  // Before the mirror, in the same iteration, a row not confirmed live leaves
+  // the iteration -- counted, never mirrored.
+  const beforeMirror = RECONCILE_SOURCE.slice(loopStart, mirrorIdx);
+  assert.match(
+    beforeMirror,
+    /if \(!\(await isRowActive\(row\)\)\) \{\s*skippedNotActive \+= 1;\s*continue;\s*\}/,
+    'a row the row-scoped authority does not confirm live must be skipped before the mirror',
+  );
+
+  // The sync status is written once, and only after a mirror attempt: a skipped
+  // row is left exactly as the revocation left it.
+  assert.equal((RECONCILE_SOURCE.match(/'set_kplus_revenuecat_sync_status'/g) ?? []).length, 1);
+  assert.ok(
+    RECONCILE_SOURCE.indexOf("rpcServiceRole('set_kplus_revenuecat_sync_status'") > mirrorIdx,
+    'no sync status may be written before the mirror is attempted',
+  );
+});
+
+test('SEC-KPLUS-008 (reconcile): the gate asks about THIS row and fails CLOSED', () => {
+  const helperStart = RECONCILE_SOURCE.indexOf('async function isRowActive(row: PendingRow): Promise<boolean> {');
+  const helperEnd = RECONCILE_SOURCE.indexOf('Deno.serve(');
+  assert.ok(helperStart > 0 && helperEnd > helperStart, 'the isRowActive gate must be defined before the handler');
+  const helper = RECONCILE_SOURCE.slice(helperStart, helperEnd);
+
+  // Row-scoped predicate, keyed on the pending row itself.
+  assert.match(
+    helper,
+    /rpcServiceRole\('kplus_user_entitlement_row_is_active', \{\s*p_user_id: row\.user_id,\s*p_entitlement_key: row\.entitlement_key,\s*\}\)/,
+    'the gate must ask whether THIS row (user_id + entitlement_key) is live',
+  );
+
+  // Only a literal `true` from a successful read is live. A non-ok response or
+  // a thrown request answers false -- no mirror and no status write follow.
+  assert.match(helper, /if \(!activeResponse\.ok\) \{[\s\S]{0,160}?return false;\s*\}/);
+  assert.match(helper, /return \(await activeResponse\.json\(\)\) === true;/);
+  assert.match(helper, /\} catch \{[\s\S]{0,160}?return false;\s*\}/);
+  assert.match(helper, /logEvent\('kplus_reconcile_active_check_failed'/);
+  assert.doesNotMatch(helper, /return true/, 'no path may assume the row is live');
+  assert.equal((helper.match(/\breturn\b/g) ?? []).length, 3, 'non-ok -> false, literal true, thrown -> false');
+});
+
+test('SEC-KPLUS-008 (reconcile): the gate keeps the batch bounded and RevenueCat failures non-blocking', () => {
+  // Still one bounded list call and one pass over its rows -- the gate adds no
+  // paging, no refill and no retry loop.
+  assert.equal((RECONCILE_SOURCE.match(/rpcServiceRole\('list_kplus_pending_revenuecat_sync'/g) ?? []).length, 1);
+  assert.equal((RECONCILE_SOURCE.match(/\bfor\s*\(/g) ?? []).length, 1);
+
+  // No row -- skipped, unreadable or failed at RevenueCat -- may end the pass.
+  const loopStart = RECONCILE_SOURCE.indexOf('for (const row of rows) {');
+  const loopEnd = RECONCILE_SOURCE.indexOf("logEvent('kplus_reconcile_completed'");
+  assert.ok(loopStart > 0 && loopEnd > loopStart);
+  const loopCode = RECONCILE_SOURCE.slice(loopStart, loopEnd).replace(/\/\/.*$/gm, '');
+  assert.doesNotMatch(loopCode, /\b(return|break|throw)\b/, 'nothing inside the per-row loop may end the pass early');
+
+  // Skipped rows are reported, not folded into synced/stillPending.
+  assert.match(RECONCILE_SOURCE, /return json\(\{ scanned: rows\.length, synced, stillPending, skippedNotActive \}\);/);
+});
+
 test('RevenueCat adapter fails closed without a secret key and never treats sync as an availability dependency', () => {
   assert.match(REVENUECAT_CLIENT_SOURCE, /REVENUECAT_SECRET_API_KEY/);
   assert.match(REVENUECAT_CLIENT_SOURCE, /failed_retryable/);

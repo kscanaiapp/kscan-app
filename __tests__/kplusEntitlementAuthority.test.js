@@ -104,7 +104,16 @@ test('exactly one K+ entitlement authority migration exists, after the Build 34 
     '20260829203657_user_closet_items.sql']) {
     assert.ok(all.indexOf(dependency) >= 0 && all.indexOf(dependency) < index, `${dependency} must sort before the authority migration`);
   }
-  assert.equal(index, all.length - 1, 'the authority migration is the newest migration on this line');
+  // This previously also asserted the authority migration was the newest file
+  // on the line. That stopped being the right invariant once a legitimate,
+  // dependent successor exists: 20260915124849_kplus_reconcile_queue_excludes_
+  // inactive_rows.sql (PR #417's queue-starvation closure) replaces
+  // list_kplus_pending_revenuecat_sync and can only be written AFTER this
+  // migration adds kplus_user_entitlement_row_is_active, which it reads. What
+  // still matters -- that the authority migration itself sorts after its own
+  // Build 34 dependencies -- is unchanged above and still enforced.
+  assert.ok(all.indexOf('20260915124849_kplus_reconcile_queue_excludes_inactive_rows.sql') > index,
+    'the reconcile queue-selection migration must sort after the authority migration it depends on');
 });
 
 test('the migration defines exactly the reviewed function set', () => {
