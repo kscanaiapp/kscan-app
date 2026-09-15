@@ -18,7 +18,11 @@ import {
   getAuthCallbackRedirect,
   parseAuthCallbackUrl,
 } from '../../services/authDeepLink';
-import { completeOAuthCallbackSession } from '../../services/oauthCallbackSession';
+import {
+  AuthCallbackOriginError,
+  completeOAuthCallbackSession,
+  completeTokenHashCallbackSession,
+} from '../../services/oauthCallbackSession';
 import { traceAuthLifecycle } from '../../services/authLifecycleTrace';
 
 type CallbackState = 'loading' | 'error';
@@ -26,6 +30,17 @@ type CallbackState = 'loading' | 'error';
 const AUTH_CALLBACK_FAILED_MESSAGE = 'Sign-in failed. Please try again or use email sign-in.';
 const AUTH_SESSION_FAILED_MESSAGE =
   "Sign-in completed, but we couldn't start your session. Please try again.";
+// SEC-AUTH-CB-001. A refused link is not a failed sign-in, and saying
+// "sign-in completed" about one would be untrue. One message covers both
+// refusal reasons on purpose: it never reveals which account a link named.
+const AUTH_CALLBACK_REFUSED_MESSAGE =
+  'This sign-in link could not be used on this device. Start sign-in from the app and try again.';
+
+function messageForFailure(error: unknown): string {
+  return error instanceof AuthCallbackOriginError
+    ? AUTH_CALLBACK_REFUSED_MESSAGE
+    : AUTH_SESSION_FAILED_MESSAGE;
+}
 
 export default function AuthCallbackScreen() {
   const router = useRouter();
@@ -77,13 +92,18 @@ export default function AuthCallbackScreen() {
         }
 
         if (parsed.hasTokenHash) {
-          const { error } = await supabase.auth.verifyOtp({
-            token_hash: parsed.tokenHash,
-            type: parsed.type,
-          } as any);
-          if (error) {
-            console.error('Auth callback OTP verification failed', error);
-            setMessage(AUTH_SESSION_FAILED_MESSAGE);
+          // SEC-AUTH-CB-001: a one-time token is server-verified but carries
+          // the same forced-login shape as a token fragment, so it goes through
+          // the same origin gate rather than straight to verifyOtp.
+          const otpResult = await completeTokenHashCallbackSession(parsed);
+          traceAuthLifecycle('callback-route-session-establishment', {
+            callbackKind: otpResult.source,
+            outcome: otpResult.error || !otpResult.session ? 'failed' : 'accepted',
+            sessionPresent: Boolean(otpResult.session),
+          });
+          if (otpResult.error || !otpResult.session) {
+            console.error('Auth callback OTP verification failed', otpResult.error);
+            setMessage(messageForFailure(otpResult.error));
             setState('error');
             return;
           }
@@ -105,7 +125,7 @@ export default function AuthCallbackScreen() {
         });
         if (callbackResult.error || !callbackResult.session) {
           console.error('Auth callback session start failed', callbackResult.error);
-          setMessage(AUTH_SESSION_FAILED_MESSAGE);
+          setMessage(messageForFailure(callbackResult.error));
           setState('error');
           return;
         }

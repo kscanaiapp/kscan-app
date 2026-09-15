@@ -7,7 +7,13 @@ const vm = require('node:vm');
 
 const ROOT = path.resolve(__dirname, '..');
 
-function loadService(defaultClient, DateImplementation = Date) {
+/**
+ * `origin` stubs services/authCallbackOrigin (SEC-AUTH-CB-001). These tests
+ * cover the idempotency contract, which is exercised through `code` callbacks,
+ * so the default stands in for a device that legitimately started a flow. The
+ * origin gate itself is proven in __tests__/authCallbackTokenInjection.test.js.
+ */
+function loadService(defaultClient, DateImplementation = Date, origin = {}) {
   const filename = path.join(ROOT, 'services/oauthCallbackSession.ts');
   const source = fs.readFileSync(filename, 'utf8');
   const output = ts.transpileModule(source, {
@@ -17,6 +23,12 @@ function loadService(defaultClient, DateImplementation = Date) {
     },
   }).outputText;
   const module = { exports: {} };
+  const originStub = {
+    peekAuthCallbackRequest: async () => ({ kind: 'oauth', startedAt: 0 }),
+    clearAuthCallbackRequest: async () => undefined,
+    readUnverifiedSubjectClaim: () => null,
+    ...origin,
+  };
   vm.runInNewContext(output, {
     Date: DateImplementation,
     Error,
@@ -26,6 +38,7 @@ function loadService(defaultClient, DateImplementation = Date) {
     module,
     require: (id) => {
       if (id === './supabaseClient') return { supabase: defaultClient };
+      if (id === './authCallbackOrigin') return originStub;
       throw new Error(`Unexpected require: ${id}`);
     },
   }, { filename });
