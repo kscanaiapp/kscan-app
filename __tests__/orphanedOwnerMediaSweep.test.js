@@ -232,6 +232,39 @@ test('no new Edge Function is introduced (the governed set is unchanged)', () =>
   // with its own manifest entry, privilege profile and config -- and again
   // not this sweep growing a function, which the inclusion check below still
   // proves independently of the count.
-  assert.equal(dirs.length, 24, 'the sweep must live in the existing worker, not a new function');
+  // Now 25: B33-STO-002 added reconcile-orphan-media. This one deserves its own
+  // note, because at a glance it looks like the thing this test exists to forbid.
+  // It is not THIS sweep. This sweep services objects a SUCCESSFUL purge
+  // deliberately retained because a surviving transferred room still referenced
+  // them, and it is fed by the worker calling record_retained_owner_media at the
+  // end of that purge -- so it belongs in the worker, and the checks below prove
+  // it still lives there.
+  //
+  // reconcile-orphan-media handles a failure this sweep structurally cannot see:
+  // an Auth user deleted OUTSIDE the worker, so no purge ran, nothing was ever
+  // enqueued, and deletion_requests.user_id was nulled by the ON DELETE SET NULL
+  // FK. A work queue cannot service rows that were never written, and no amount
+  // of worker hardening prevents a deletion that bypasses the worker. Its only
+  // usable signal is storage.objects.owner failing to resolve.
+  //
+  // It is also deliberately standalone for a Build 33 constraint this sweep did
+  // not have: production runs process-account-deletions v25, and folding this
+  // into the worker would drag the whole newer worker source into a production
+  // deploy. Keeping it separate holds its blast radius on the deletion path at
+  // exactly zero.
+  assert.equal(dirs.length, 25, 'no unexplained Edge Function has appeared');
   assert.ok(dirs.includes('process-account-deletions'));
+
+  // The count is a tripwire, not the guarantee. Prove the real invariant
+  // directly: THIS sweep's machinery lives in the worker and nowhere else.
+  assert.match(WORKER, /record_retained_owner_media/,
+    'the retained-media sweep must still be driven from the deletion worker');
+  for (const dir of dirs) {
+    if (dir === 'process-account-deletions') continue;
+    const entry = path.join(ROOT, 'supabase', 'functions', dir, 'index.ts');
+    if (!fs.existsSync(entry)) continue;
+    assert.doesNotMatch(fs.readFileSync(entry, 'utf8'),
+      /record_retained_owner_media|deleted_owner_retained_media|claim_retained_owner_media_for_sweep/,
+      `${dir} must not carry the retained-media sweep -- it belongs in the worker`);
+  }
 });
