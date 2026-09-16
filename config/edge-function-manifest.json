@@ -21,6 +21,7 @@
       "privacy-data-export",
       "process-account-deletions",
       "product-search-deals",
+      "reconcile-orphan-media",
       "resend-restoration-email",
       "restore-account",
       "scan-identify",
@@ -40,10 +41,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 41,
-        "treeFileCount": 67,
-        "bundleHash": "45394f994382e1502aeca25209706098c783a72f3faaedd2d4b74536e5426118",
-        "treeHash": "a4489fe28095881cfdf032b2fe082adb498a49b850bbbcbbf41dbfd305b5cb35",
+        "bundleFileCount": 42,
+        "treeFileCount": 69,
+        "bundleHash": "00a37116b65c91e9bcb4760b12afc5b3a7f19d486d5a5b9b2749c149f255689b",
+        "treeHash": "fd7ab4f9785b39489c80205886b30abba85add222053b7ac0da56b58ef0e1b3f",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -176,6 +177,16 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/scan-identify/eliseDominantGarment.test.ts",
+            "sha256": "791a6cf3840eebc1ec659b4dbb7e32ba74f6b348a1552a73948b4b79097690da",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/scan-identify/eliseDominantGarment.ts",
+            "sha256": "b73eafa9119749bfed42b9d9c04ddb5d893f950f162572cb90a22f1525827bf1",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/scan-identify/farfetch3Provider.test.ts",
             "sha256": "f9edef272262e395924e2883a66f826ef01ca0cc1c5c07b48d393aa9e61f5f39",
             "bundle": false
@@ -202,7 +213,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/index.ts",
-            "sha256": "d9b4e886e416b173724bbeb7fadb22a768bc6cf085235932aa59832c425b9e36",
+            "sha256": "e83884d2e35c04c4a4c4c94584aa821d0a8855cafe62563b75ffb9a02500b088",
             "bundle": true
           },
           {
@@ -242,7 +253,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
-            "sha256": "72bb0d1963e1d6acbf249ab4e35a8f5297bd476ce2fbafdc7373fc248974fbe0",
+            "sha256": "bc38b095e27aecc1477d55c04406f6bbf124e351c4c3ff7f8c542ec75fdcaca0",
             "bundle": false
           },
           {
@@ -1679,6 +1690,29 @@
           {
             "path": "supabase/functions/vto-generate/vtoTelemetry.ts",
             "sha256": "6186f7e6bc16a407f25ab6fed14aa6ca720be4a2d0818c3466154e02c63eea28",
+            "bundle": true
+          }
+        ]
+      },
+      {
+        "name": "reconcile-orphan-media",
+        "entry": "supabase/functions/reconcile-orphan-media/index.ts",
+        "remoteSpecifiers": [
+          "npm:@supabase/supabase-js@2"
+        ],
+        "bundleFileCount": 1,
+        "treeFileCount": 2,
+        "bundleHash": "fcdec6f02bb3ff5febc7d1883b34e52181040c81b79b91b65935dccbb3c103c1",
+        "treeHash": "9ca75698f3a471c4225603028c4f0365bcf1097c923b5509440810f7c981a38f",
+        "files": [
+          {
+            "path": "supabase/functions/reconcile-orphan-media/config.toml",
+            "sha256": "4e39c1433d00ed5ee1516e65e3026d9af4bd9adf0e0d1b032fd0f7013125e4f0",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/reconcile-orphan-media/index.ts",
+            "sha256": "74b250df552d265510f5994124feee4539e095ab20b2a2507eaab44c095b2f2d",
             "bundle": true
           }
         ]

@@ -1,0 +1,62 @@
+# Bounded live probe for the P1 Elise photo-upload dominant-garment repair.
+#
+# Follows the existing live-probe pattern (staging-closet-intake-live-probe.yml,
+# feature-stylist-speech-live-probe.yml): dispatch-only, staging environment,
+# one narrow script, sanitized JSON artifact. It is NOT a general-purpose secret
+# or debug workflow — it runs exactly one probe with a fixed set of approved
+# fixtures and cannot be pointed anywhere else.
+#
+# It deploys nothing, writes nothing to staging, and creates no account. Its
+# only side effect is a bounded number of authenticated read-path requests
+# against the staging scan-identify function.
+
+name: K Scan Staging Elise Dominant Garment Live Probe
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kscan-elise-dominant-garment-live-probe
+  cancel-in-progress: false
+
+jobs:
+  live-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20'
+
+      - name: Run the bounded Elise dominant-garment proof
+        env:
+          SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          SUPABASE_STAGING_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          STAGING_SYNTHETIC_ACTIVE_EMAIL: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_EMAIL }}
+          STAGING_SYNTHETIC_ACTIVE_PASSWORD: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_PASSWORD }}
+        # The access token is masked by the script itself (::add-mask:: to
+        # stderr) the instant it is received, before it is used, so the job log
+        # is safe to read. Deliberately NOT redirected: the script writes the
+        # report file itself on both the success and failure paths, and a shell
+        # redirect to that same name would race its own write.
+        run: node security/release/run-elise-dominant-garment-live-probe.js
+
+      - name: Print sanitized evidence
+        if: always()
+        run: test -s elise-dominant-garment-live-probe-report.json && cat elise-dominant-garment-live-probe-report.json
+
+      - name: Upload sanitized evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: elise-dominant-garment-live-probe-${{ github.run_id }}
+          path: elise-dominant-garment-live-probe-report.json
+          if-no-files-found: warn
+          retention-days: 30
