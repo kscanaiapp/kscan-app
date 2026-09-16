@@ -135,6 +135,17 @@ verify_jwt = true
 [functions.deletion-status]
 verify_jwt = false
 
+# B33-STO-002 orphan-owner media reconciliation.
+#
+# verify_jwt = false because this has no end-user caller at all: it is invoked
+# server-to-server by an operator or a scheduled job, and it authenticates that
+# caller itself via a constant-time compare against ORPHAN_MEDIA_SWEEP_SECRET,
+# explicitly rejecting the anon key. A user JWT would grant nothing here -- the
+# function reads no request body and selects candidates only through a
+# service-role RPC, so no caller can nominate an object for deletion.
+[functions.reconcile-orphan-media]
+verify_jwt = false
+
 # ── Local shadow stack ───────────────────────────────────────────────────────
 #
 # Explicit non-default ports. Several other K Scan worktrees run their own local
