@@ -1,4 +1,5 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { selectionTick } from '../../services/haptics';
 import { LUXURY, RADIUS, SPACING } from '../../constants/theme';
 import {
   reasonCodesForFeedback,
@@ -43,7 +44,10 @@ export function StyleChatReasonChips({
           return (
             <Pressable
               key={code}
-              onPress={() => onPick(code)}
+              onPress={() => {
+                selectionTick();
+                onPick(code);
+              }}
               disabled={isSaving}
               style={[styles.chip, selected ? styles.chipSelected : null]}
               accessibilityRole="button"

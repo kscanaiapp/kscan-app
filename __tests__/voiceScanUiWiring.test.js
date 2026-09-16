@@ -331,19 +331,30 @@ test('the TextScan screen focuses its own query input for Voice, with no separat
   assert.doesNotMatch(voiceScanButton, /['"]Edit['"]/);
 });
 
+// Build 35 moved both calls off the raw expo-haptics API and onto the shared
+// services/haptics.js authority (see __tests__/hapticAuthorityGate.test.js,
+// which now pins that authority as the ONLY file allowed to import
+// expo-haptics). fire-and-forget / swallowed-failure semantics are the
+// authority's job and are proven there; this file only needs to prove these
+// two components go through it, never a raw call, and never await it.
 test('haptics are fire-and-forget and can never gate or delay the transcript path', () => {
-  for (const [name, source] of [['VoiceScanButton', voiceScanButton], ['VoiceListeningSheet', voiceListeningSheet]]) {
-    if (!/Haptics\./.test(source)) continue;
-    assert.doesNotMatch(source, /await Haptics\./, `${name} must never await a haptic`);
-    for (const call of source.match(/Haptics\.\w+\([^)]*\)[^;]*/g) ?? []) {
-      assert.match(call, /\.catch\(/, `${name}: every haptic call must swallow its own failure: ${call}`);
-    }
+  for (const [name, source, semanticCall] of [
+    ['VoiceScanButton', voiceScanButton, /\bsuccessPulse\(\)/],
+    ['VoiceListeningSheet', voiceListeningSheet, /\bsoftImpact\(\)/],
+  ]) {
+    assert.match(source, semanticCall, `${name} must fire its haptic through the shared services/haptics authority`);
+    assert.doesNotMatch(
+      source,
+      /await\s+(softImpact|successPulse|selectionTick|warningPulse|errorPulse)\(/,
+      `${name} must never await a haptic`,
+    );
+    assert.doesNotMatch(source, /Haptics\./, `${name} must not call the raw expo-haptics API directly`);
   }
 });
 
 test('the listening haptic is distinct from the transcript-ready haptic', () => {
-  assert.match(voiceListeningSheet, /Haptics\.impactAsync\(Haptics\.ImpactFeedbackStyle\.Light\)/);
-  assert.match(voiceScanButton, /Haptics\.notificationAsync\(Haptics\.NotificationFeedbackType\.Success\)/);
+  assert.match(voiceListeningSheet, /\bsoftImpact\(\)/);
+  assert.match(voiceScanButton, /\bsuccessPulse\(\)/);
 });
 
 test('haptics never reach the pure voice services -- they stay in the UI layer', () => {

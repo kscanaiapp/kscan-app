@@ -685,6 +685,7 @@ export function AddToRoomModal({
 
   const handleAdd = async (roomId: string) => {
     if (!product || saving) return;
+    selectionTick();
     setSaving(true);
     setMessage(null);
     try {
@@ -705,6 +706,7 @@ export function AddToRoomModal({
 
   const handleCreateAndAdd = async () => {
     if (!newRoomTitle.trim() || !product || saving) return;
+    selectionTick();
     setSaving(true);
     setMessage(null);
     try {
@@ -873,6 +875,7 @@ export function WatchThisModal({
       setMessage('Enter a target price to watch for.');
       return;
     }
+    selectionTick();
     setSaving(true);
     setMessage(null);
     // Section 22: creating a Watch is a real, deterministic K+ feature

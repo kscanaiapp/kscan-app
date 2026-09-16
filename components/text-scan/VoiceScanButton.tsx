@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { successPulse } from '../../services/haptics';
 import { KPlusGate } from '../kplus/KPlusGate';
 import { VoiceListeningSheet } from './VoiceListeningSheet';
 import { VoiceScanIcon } from '../icons/kscan';
@@ -57,7 +57,7 @@ function VoiceScanButtonInner({
     // text -- it bridges "I stopped talking" and "I can see/fix the words".
     // Fire-and-forget: haptics are a nicety and must never affect the
     // transcript path, so a rejection here is swallowed.
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    successPulse();
     // Hand the user straight into the keyboard, cursor in the field, so a
     // misheard brand or silhouette can be corrected without a tap first.
     onRequestManualEntry?.();

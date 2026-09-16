@@ -50,8 +50,6 @@ import {
   createOrGetRoomShare,
   createLookFromDressingRoomItems,
   deleteDressingRoom,
-  getItemReactionCounts,
-  getMyItemReaction,
   getDressingRoomDetail,
   getRoomShareStatus,
   listDressingRoomInspirationItems,
@@ -60,26 +58,23 @@ import {
   revokeRoomShare,
   ROOM_NOTE_MAX_LENGTH,
   ROOM_TITLE_MAX_LENGTH,
-  setItemReaction,
   normalizeRoomNoteValue,
   updateDressingRoom,
   updateDressingRoomNote,
 } from '../../services/styleObjects';
 import { shouldOfferDisableSharedLink } from '../../services/roomShareState';
 import { resolveCollaborationAccess } from '../../services/dressingRoomCollaboration';
-import { applyOptimisticReaction } from '../../services/dressingRoomReactionOptimism';
 import {
-  isActiveDressingRoomReactionType,
-  type DressingRoomReactionType,
+  createEmptyReactionCounts,
+  normalizeReactionItemId,
+  useDressingRoomReactions,
+} from '../../hooks/useDressingRoomReactions';
+import {
   type DressingRoom,
   type DressingRoomItem,
   type InspirationItem,
-  type ItemReactionCount,
 } from '../../types/styleObjects';
-import {
-  ItemReactions,
-  type ReactionCountsForItem,
-} from '../../components/dressing-rooms/ItemReactions';
+import { ItemReactions } from '../../components/dressing-rooms/ItemReactions';
 import { RoomMessagesPanel } from '../../components/rooms/RoomMessagesPanel';
 import { RoomItemDetailModal } from '../../components/dressing-rooms/RoomItemDetailModal';
 import {
@@ -114,12 +109,6 @@ const DRESSING_ROOM_SHARE_ERROR = "We couldn't update sharing right now. Please 
 const DRESSING_ROOM_ACCESS_REVOKED_TITLE = 'Room no longer available';
 const DRESSING_ROOM_ACCESS_REVOKED_BODY =
   'You no longer have access to this Dressing Room.';
-const EMPTY_REACTION_COUNTS: ReactionCountsForItem = {
-  love: 0,
-  like: 0,
-  looking: 0,
-  thumbs_down: 0,
-};
 
 const buildRoomSharePayload = (shareUrl: string) => {
   const message = `Join my K Scan AI Dressing Room: ${shareUrl}`;
@@ -140,29 +129,6 @@ const buildRoomSharePayload = (shareUrl: string) => {
 
 function getRoomNoteDraft(note?: string | null) {
   return note ?? '';
-}
-
-type ReactionCountsByItem = Record<string, ReactionCountsForItem>;
-type SelectedReactionsByItem = Record<string, DressingRoomReactionType | null>;
-
-function createEmptyReactionCounts() {
-  return { ...EMPTY_REACTION_COUNTS };
-}
-
-function normalizeReactionItemId(itemId?: string | null) {
-  const normalizedItemId = String(itemId || '').trim();
-  return normalizedItemId.length > 0 ? normalizedItemId : null;
-}
-
-function buildReactionCountsByItem(itemIds: string[], rows: ItemReactionCount[]): ReactionCountsByItem {
-  const base = Object.fromEntries(itemIds.map((itemId) => [itemId, createEmptyReactionCounts()])) as ReactionCountsByItem;
-  rows.forEach((row) => {
-    const itemId = String(row.item_id || '').trim();
-    if (!itemId || !base[itemId]) return;
-    if (!isActiveDressingRoomReactionType(row.reaction_type)) return;
-    base[itemId][row.reaction_type] = Number.isFinite(row.count) ? row.count : 0;
-  });
-  return base;
 }
 
 function EditRoomModal({
@@ -321,9 +287,6 @@ function DressingRoomDetailContent() {
   const [noteError, setNoteError] = useState<string | null>(null);
   const [noteMessage, setNoteMessage] = useState<string | null>(null);
   const [savingNote, setSavingNote] = useState(false);
-  const [reactionCounts, setReactionCounts] = useState<ReactionCountsByItem>({});
-  const [selectedReactions, setSelectedReactions] = useState<SelectedReactionsByItem>({});
-  const [mutatingReactionItemId, setMutatingReactionItemId] = useState<string | null>(null);
 
   const [inspirations, setInspirations] = useState<InspirationItem[]>([]);
   const [inspirationLoading, setInspirationLoading] = useState(false);
@@ -339,6 +302,26 @@ function DressingRoomDetailContent() {
   const activeRoomIdRef = useRef(roomId);
   activeActorIdRef.current = user?.id ?? null;
   activeRoomIdRef.current = roomId;
+
+  const reactionItemIds = useMemo(
+    () => Array.from(new Set(items.map((item) => normalizeReactionItemId(item.id)).filter(Boolean))) as string[],
+    [items],
+  );
+  const getReactionIdentity = useCallback(
+    () => `${activeRoomIdRef.current}:${activeActorIdRef.current}`,
+    [],
+  );
+  const reactionContext = useMemo(
+    () => ({ enabled: isAuthenticated, roomId, getIdentity: getReactionIdentity }),
+    [isAuthenticated, roomId, getReactionIdentity],
+  );
+  const {
+    reactionCounts,
+    selectedReactions,
+    mutatingReactionItemId,
+    handleReact,
+    reset: resetReactions,
+  } = useDressingRoomReactions(reactionItemIds, reactionContext);
 
   const loadInspirations = useCallback(async () => {
     if (!roomId) return;
@@ -471,8 +454,7 @@ function DressingRoomDetailContent() {
         setSelectedIds([]);
         setSelectedItem(null);
         setItemDetailVisible(false);
-        setReactionCounts({});
-        setSelectedReactions({});
+        resetReactions();
         setHasActiveShare(null);
         setNoteDraft('');
         setEditingNote(false);
@@ -489,7 +471,7 @@ function DressingRoomDetailContent() {
         setLoading(false);
       }
     }
-  }, [roomId, user?.id]);
+  }, [roomId, user?.id, resetReactions]);
 
   useFocusEffect(useCallback(() => {
     void reload();
@@ -510,71 +492,6 @@ function DressingRoomDetailContent() {
     });
     return () => subscription.remove();
   }, [reload, loadInspirations]);
-
-  const reactionItemIds = useMemo(
-    () => Array.from(new Set(items.map((item) => normalizeReactionItemId(item.id)).filter(Boolean))) as string[],
-    [items],
-  );
-
-  useEffect(() => {
-    if (reactionItemIds.length === 0) {
-      setReactionCounts({});
-      setSelectedReactions({});
-      return;
-    }
-
-    setReactionCounts((current) => ({
-      ...buildReactionCountsByItem(reactionItemIds, []),
-      ...current,
-    }));
-    setSelectedReactions((current) => ({
-      ...Object.fromEntries(reactionItemIds.map((itemId) => [itemId, null])),
-      ...current,
-    }));
-
-    let cancelled = false;
-
-    const loadReactions = async () => {
-      try {
-        const counts = await getItemReactionCounts(reactionItemIds);
-        if (!cancelled) {
-          setReactionCounts(buildReactionCountsByItem(reactionItemIds, counts));
-        }
-      } catch {
-        if (!cancelled) {
-          setReactionCounts(buildReactionCountsByItem(reactionItemIds, []));
-        }
-      }
-
-      if (!isAuthenticated) {
-        if (!cancelled) {
-          setSelectedReactions(
-            Object.fromEntries(reactionItemIds.map((itemId) => [itemId, null])) as SelectedReactionsByItem,
-          );
-        }
-        return;
-      }
-
-      try {
-        const mine = await getMyItemReaction(reactionItemIds);
-        if (!cancelled) {
-          setSelectedReactions(mine);
-        }
-      } catch {
-        if (!cancelled) {
-          setSelectedReactions(
-            Object.fromEntries(reactionItemIds.map((itemId) => [itemId, null])) as SelectedReactionsByItem,
-          );
-        }
-      }
-    };
-
-    void loadReactions();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthenticated, reactionItemIds]);
 
   const selectedCount = selectedIds.length;
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
@@ -752,98 +669,6 @@ function DressingRoomDetailContent() {
       ],
     );
   };
-
-  const refreshItemReactions = useCallback(async (itemIds: string[]) => {
-    const normalizedItemIds = Array.from(new Set(itemIds.map((itemId) => String(itemId || '').trim()).filter(Boolean)));
-    if (normalizedItemIds.length === 0) return;
-
-    try {
-      const counts = await getItemReactionCounts(normalizedItemIds);
-      setReactionCounts((current) => ({
-        ...current,
-        ...buildReactionCountsByItem(normalizedItemIds, counts),
-      }));
-    } catch {
-      setReactionCounts((current) => ({
-        ...current,
-        ...buildReactionCountsByItem(normalizedItemIds, []),
-      }));
-    }
-
-    if (!isAuthenticated) {
-      setSelectedReactions((current) => ({
-        ...current,
-        ...Object.fromEntries(normalizedItemIds.map((itemId) => [itemId, null])),
-      }));
-      return;
-    }
-
-    try {
-      const mine = await getMyItemReaction(normalizedItemIds);
-      setSelectedReactions((current) => ({ ...current, ...mine }));
-    } catch {
-      setSelectedReactions((current) => ({
-        ...current,
-        ...Object.fromEntries(normalizedItemIds.map((itemId) => [itemId, null])),
-      }));
-    }
-  }, [isAuthenticated]);
-
-  const handleReact = useCallback(async (itemId: string, reactionType: DressingRoomReactionType) => {
-    if (!isAuthenticated || mutatingReactionItemId === itemId) return;
-
-    const currentReaction = selectedReactions[itemId] ?? null;
-    // Snapshots taken before anything is shown, so a rejection restores exactly
-    // what was on screen rather than an approximation of it.
-    const previousSelection = currentReaction;
-    const previousCounts = reactionCounts[itemId] ?? createEmptyReactionCounts();
-    const reactRoomId = roomId;
-    const reactActorId = user?.id ?? null;
-    const optimistic = applyOptimisticReaction({
-      current: currentReaction,
-      tapped: reactionType,
-      counts: previousCounts as unknown as Record<string, number>,
-    });
-
-    const stillThisRoomAndActor = () =>
-      activeRoomIdRef.current === reactRoomId && activeActorIdRef.current === reactActorId;
-
-    setMutatingReactionItemId(itemId);
-    setSelectedReactions((current) => ({ ...current, [itemId]: optimistic.nextSelection }));
-    setReactionCounts((current) => ({
-      ...current,
-      [itemId]: optimistic.nextCounts as unknown as ReactionCountsForItem,
-    }));
-
-    try {
-      await setItemReaction(itemId, reactionType, {
-        roomId: reactRoomId ?? undefined,
-        active: optimistic.active,
-      });
-      if (!stillThisRoomAndActor()) return;
-      // Reconcile against server truth: other participants may have reacted
-      // while this one was in flight.
-      await refreshItemReactions([itemId]);
-    } catch {
-      if (!stillThisRoomAndActor()) return;
-      // Truthful rollback. The server refused - a lost membership or a block
-      // both land here - so the reaction must not remain on screen as though
-      // it had been recorded.
-      setSelectedReactions((current) => ({ ...current, [itemId]: previousSelection }));
-      setReactionCounts((current) => ({ ...current, [itemId]: previousCounts }));
-      Alert.alert('Unable to save reaction.', 'Please try again.');
-    } finally {
-      setMutatingReactionItemId((current) => (current === itemId ? null : current));
-    }
-  }, [
-    isAuthenticated,
-    mutatingReactionItemId,
-    reactionCounts,
-    refreshItemReactions,
-    roomId,
-    selectedReactions,
-    user?.id,
-  ]);
 
   const handleUploadInspiration = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();

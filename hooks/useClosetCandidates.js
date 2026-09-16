@@ -14,6 +14,7 @@ import {
   sweepOrphanedClosetCandidateMedia,
 } from '../services/closetCandidateLibrary';
 import { createClosetBatchId } from '../services/closetCandidateSchema';
+import { softImpact, successPulse } from '../services/haptics';
 import {
   requeueClosetCandidatesOnReconnect,
   cancelAllClosetClassifications,
@@ -619,6 +620,10 @@ export function useClosetCandidates() {
         startedUnder.actorKey === actorKey &&
         startedUnder.actorEpoch === actorEpoch;
 
+      // Neutral tap acknowledgement only -- ownership is not confirmed until
+      // the write is read back, so success below is signaled separately,
+      // only once the batch actually lands.
+      softImpact();
       promotionLiveRef.current = true;
       const batchId = activeBatchId ?? null;
       setPromotion({
@@ -677,6 +682,10 @@ export function useClosetCandidates() {
             ? { ...current, activeCandidateId: null, pendingCandidateIds: [], done: true }
             : current,
         );
+        // Success only once the committed write has actually been read back
+        // (promoteSelectedClosetCandidates already enforces that before it
+        // resolves `ok`) -- never on tap, never on a partial/failed batch.
+        if (result?.ok && result.promotedCount > 0) successPulse();
         return result;
       } finally {
         promotionLiveRef.current = false;

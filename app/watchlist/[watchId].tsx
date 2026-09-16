@@ -6,6 +6,7 @@
 // staleness is the fastest way to lose the user's trust.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Linking, StyleSheet, Text, View } from 'react-native';
+import { errorPulse, softImpact } from '../../services/haptics';
 import { StatusBar } from 'expo-status-bar';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
@@ -132,6 +133,7 @@ export default function WatchDetailScreen() {
 
   const handlePause = useCallback(async () => {
     if (!watchId) return;
+    softImpact();
     setBusy(true);
     const result = await pauseWatch(watchId);
     if (result.ok) setWatch(result.data);
@@ -141,6 +143,7 @@ export default function WatchDetailScreen() {
   const handleResume = useCallback(
     async (openUpgrade: () => void) => {
       if (!watchId) return;
+      softImpact();
       setBusy(true);
       const result = await resumeWatch(watchId);
       if (result.ok) {
@@ -161,6 +164,8 @@ export default function WatchDetailScreen() {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
+          // Fired at the confirmed action point, not when the dialog opens.
+          errorPulse();
           setBusy(true);
           const result = await deleteWatch(watchId);
           setBusy(false);

@@ -1,7 +1,6 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   KeyboardAvoidingView,
   Linking,
@@ -35,21 +34,14 @@ import { AI_STYLIST_UI_ENABLED } from '../../../constants/featureFlags';
 import { OutfitDecisionSection } from '../../../components/dressing-rooms/OutfitDecisionSection';
 import { getPublicRoomDecisionPreview } from '../../../services/outfitDecisions';
 import { useAuthSession } from '../../../contexts/AuthSessionContext';
-import {
-  getItemReactionCounts,
-  getMyItemReaction,
-  setItemReaction,
-} from '../../../services/styleObjects';
 import { joinSharedRoom, ROOM_JOIN_ERROR } from '../../../services/roomMessages';
 import { resolveCollaborationAccess } from '../../../services/dressingRoomCollaboration';
-import { applyOptimisticReaction } from '../../../services/dressingRoomReactionOptimism';
-import { ItemReactions, type ReactionCountsForItem } from '../../../components/dressing-rooms/ItemReactions';
-import { RoomMessagesPanel } from '../../../components/rooms/RoomMessagesPanel';
 import {
-  type DressingRoomReactionType,
-  isActiveDressingRoomReactionType,
-  type ItemReactionCount,
-} from '../../../types/styleObjects';
+  createEmptyReactionCounts,
+  useDressingRoomReactions,
+} from '../../../hooks/useDressingRoomReactions';
+import { ItemReactions } from '../../../components/dressing-rooms/ItemReactions';
+import { RoomMessagesPanel } from '../../../components/rooms/RoomMessagesPanel';
 import {
   KSCAN_PUBLIC_BASE_URL,
   KSCAN_ROOM_API_BASE_URL,
@@ -130,31 +122,6 @@ type FetchState =
   | { phase: 'rate_limited' }
   | { phase: 'network_error' }
   | { phase: 'timeout' };
-
-const EMPTY_REACTION_COUNTS: ReactionCountsForItem = {
-  love: 0,
-  like: 0,
-  looking: 0,
-  thumbs_down: 0,
-};
-
-type ReactionCountsByItem = Record<string, ReactionCountsForItem>;
-type SelectedReactionsByItem = Record<string, DressingRoomReactionType | null>;
-
-function createEmptyReactionCounts() {
-  return { ...EMPTY_REACTION_COUNTS };
-}
-
-function buildReactionCountsByItem(itemIds: string[], rows: ItemReactionCount[]): ReactionCountsByItem {
-  const base = Object.fromEntries(itemIds.map((itemId) => [itemId, createEmptyReactionCounts()])) as ReactionCountsByItem;
-  rows.forEach((row) => {
-    const itemId = String(row.item_id || '').trim();
-    if (!itemId || !base[itemId]) return;
-    if (!isActiveDressingRoomReactionType(row.reaction_type)) return;
-    base[itemId][row.reaction_type] = Number.isFinite(row.count) ? row.count : 0;
-  });
-  return base;
-}
 
 async function fetchRoomPreview(token: string): Promise<FetchState> {
   const controller = new AbortController();
@@ -546,9 +513,6 @@ export default function SharedRoomScreen() {
   const { isAuthenticated, loading: authLoading, user } = useAuthSession();
   const [state, setState] = useState<FetchState>({ phase: 'loading' });
   const [refreshing, setRefreshing] = useState(false);
-  const [reactionCounts, setReactionCounts] = useState<ReactionCountsByItem>({});
-  const [selectedReactions, setSelectedReactions] = useState<SelectedReactionsByItem>({});
-  const [mutatingReactionItemId, setMutatingReactionItemId] = useState<string | null>(null);
   const [joinedRoomId, setJoinedRoomId] = useState<string | null>(null);
   const [openAppStatus, setOpenAppStatus] = useState<OpenAppStatus>('idle');
   const [webSelected, setWebSelected] = useState(false);
@@ -601,6 +565,41 @@ export default function SharedRoomScreen() {
   const webUserAgent = getWebUserAgent();
   const installUrl = getRoomInstallUrl(webUserAgent);
   const likelyInAppBrowser = isLikelyInAppBrowser(webUserAgent);
+
+  const reactionItemIds = useMemo(() => {
+    if (state.phase !== 'available') return [];
+    return [
+      ...new Set(
+        state.preview.items
+          .filter((item) => item.sourceType === 'dressing_room_item')
+          .map((item) => String(item.sourceId || item.id || '').trim())
+          .filter(Boolean)
+      ),
+    ];
+  }, [state]);
+
+  // The share token identifies the room on this screen, so both it and the
+  // actor must still be the ones a reaction tap started under -- read fresh
+  // on every check, never from a snapshot.
+  const getReactionIdentity = useCallback(
+    () => `${routeTokenRef.current}:${user?.id ?? null}`,
+    [user?.id],
+  );
+  const reactionContext = useMemo(
+    () => ({
+      enabled: Boolean(capabilities.canReact && joinedRoomId),
+      roomId: joinedRoomId,
+      getIdentity: getReactionIdentity,
+    }),
+    [capabilities.canReact, joinedRoomId, getReactionIdentity],
+  );
+  const {
+    reactionCounts,
+    selectedReactions,
+    mutatingReactionItemId,
+    handleReact,
+    reset: resetReactions,
+  } = useDressingRoomReactions(reactionItemIds, reactionContext);
 
   const handleBack = useCallback(() => {
     goBackOrHome(router);
@@ -751,21 +750,19 @@ export default function SharedRoomScreen() {
 
   useEffect(() => {
     setJoinedRoomId(null);
-    setSelectedReactions({});
-    setMutatingReactionItemId(null);
+    resetReactions();
     setOpenAppStatus('idle');
     setWebSelected(false);
     setResolvedImageUrls({});
     imageResolutionGuard.current = null;
     membershipCaptureTracker.current.reset();
-  }, [normalizedRouteToken]);
+  }, [normalizedRouteToken, resetReactions]);
 
   useEffect(() => {
     membershipCaptureTracker.current.reset();
     setJoinedRoomId(null);
-    setSelectedReactions({});
-    setMutatingReactionItemId(null);
-  }, [user?.id]);
+    resetReactions();
+  }, [user?.id, resetReactions]);
 
   // Account-anchored Shared with Me capture: non-blocking side effect after a
   // valid public preview resolves for an authenticated native viewer.
@@ -846,165 +843,6 @@ export default function SharedRoomScreen() {
       cancelled = true;
     };
   }, [rawToken, state]);
-
-  useEffect(() => {
-    if (state.phase !== 'available') {
-      if (state.phase !== 'empty') {
-        setReactionCounts({});
-        setSelectedReactions({});
-      }
-      return;
-    }
-
-    const itemIds = [
-      ...new Set(
-        state.preview.items
-          .filter((item) => item.sourceType === 'dressing_room_item')
-          .map((item) => String(item.sourceId || item.id || '').trim())
-          .filter(Boolean)
-      ),
-    ];
-
-    if (itemIds.length === 0) {
-      setReactionCounts({});
-      setSelectedReactions({});
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadReactions = async () => {
-      try {
-        const counts = await getItemReactionCounts(itemIds);
-        if (!cancelled) {
-          setReactionCounts(buildReactionCountsByItem(itemIds, counts));
-        }
-      } catch {
-        if (!cancelled) {
-          setReactionCounts(buildReactionCountsByItem(itemIds, []));
-        }
-      }
-
-      if (!capabilities.canReact || !joinedRoomId) {
-        if (!cancelled) {
-          setSelectedReactions(
-            Object.fromEntries(itemIds.map((itemId) => [itemId, null])) as SelectedReactionsByItem,
-          );
-        }
-        return;
-      }
-
-      try {
-        const mine = await getMyItemReaction(itemIds);
-        if (!cancelled) {
-          setSelectedReactions(mine);
-        }
-      } catch {
-        if (!cancelled) {
-          setSelectedReactions(
-            Object.fromEntries(itemIds.map((itemId) => [itemId, null])) as SelectedReactionsByItem,
-          );
-        }
-      }
-    };
-
-    void loadReactions();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [capabilities.canReact, joinedRoomId, state]);
-
-  const refreshItemReactions = useCallback(async (itemIds: string[]) => {
-    const normalizedItemIds = Array.from(new Set(itemIds.map((itemId) => String(itemId || '').trim()).filter(Boolean)));
-    if (normalizedItemIds.length === 0) return;
-
-    try {
-      const counts = await getItemReactionCounts(normalizedItemIds);
-      setReactionCounts((current) => ({
-        ...current,
-        ...buildReactionCountsByItem(normalizedItemIds, counts),
-      }));
-    } catch {
-      setReactionCounts((current) => ({
-        ...current,
-        ...buildReactionCountsByItem(normalizedItemIds, []),
-      }));
-    }
-
-    if (!capabilities.canReact || !joinedRoomId) {
-      setSelectedReactions((current) => ({
-        ...current,
-        ...Object.fromEntries(normalizedItemIds.map((itemId) => [itemId, null])),
-      }));
-      return;
-    }
-
-    try {
-      const mine = await getMyItemReaction(normalizedItemIds);
-      setSelectedReactions((current) => ({ ...current, ...mine }));
-    } catch {
-      setSelectedReactions((current) => ({
-        ...current,
-        ...Object.fromEntries(normalizedItemIds.map((itemId) => [itemId, null])),
-      }));
-    }
-  }, [capabilities.canReact, joinedRoomId]);
-
-  const handleReact = useCallback(async (itemId: string, reactionType: DressingRoomReactionType) => {
-    if (!capabilities.canReact || !joinedRoomId || mutatingReactionItemId === itemId) return;
-
-    const currentReaction = selectedReactions[itemId] ?? null;
-    const previousSelection = currentReaction;
-    const previousCounts = reactionCounts[itemId] ?? createEmptyReactionCounts();
-    const reactRoomId = joinedRoomId;
-    const reactToken = normalizedRouteToken;
-    const reactActorId = user?.id ?? null;
-    const optimistic = applyOptimisticReaction({
-      current: currentReaction,
-      tapped: reactionType,
-      counts: previousCounts as unknown as Record<string, number>,
-    });
-
-    // The share token identifies the room on this screen, so both it and the
-    // actor must still be the ones the tap started under.
-    const stillThisRoomAndActor = () =>
-      routeTokenRef.current === reactToken && (user?.id ?? null) === reactActorId;
-
-    setMutatingReactionItemId(itemId);
-    setSelectedReactions((current) => ({ ...current, [itemId]: optimistic.nextSelection }));
-    setReactionCounts((current) => ({
-      ...current,
-      [itemId]: optimistic.nextCounts as unknown as ReactionCountsForItem,
-    }));
-
-    try {
-      await setItemReaction(itemId, reactionType, {
-        roomId: reactRoomId,
-        active: optimistic.active,
-      });
-      if (!stillThisRoomAndActor()) return;
-      await refreshItemReactions([itemId]);
-    } catch {
-      if (!stillThisRoomAndActor()) return;
-      // Truthful rollback: a revoked share or a block both surface here, and
-      // the reaction must not linger as though the server had accepted it.
-      setSelectedReactions((current) => ({ ...current, [itemId]: previousSelection }));
-      setReactionCounts((current) => ({ ...current, [itemId]: previousCounts }));
-      Alert.alert('Unable to save reaction.', 'Please try again.');
-    } finally {
-      setMutatingReactionItemId((current) => (current === itemId ? null : current));
-    }
-  }, [
-    capabilities.canReact,
-    joinedRoomId,
-    mutatingReactionItemId,
-    normalizedRouteToken,
-    reactionCounts,
-    refreshItemReactions,
-    selectedReactions,
-    user?.id,
-  ]);
 
   // ── Feature flag fallback ──────────────────────────────────────────────────
   if (!ENABLE_IN_APP_SHARED_ROOMS) {
@@ -1215,7 +1053,7 @@ export default function SharedRoomScreen() {
                               itemId={reactionItemId}
                               counts={reactionCounts[reactionItemId] ?? createEmptyReactionCounts()}
                               selectedReaction={selectedReactions[reactionItemId] ?? null}
-                              disabled={!canReact || mutatingReactionItemId === reactionItemId}
+                              disabled={!canReact}
                               isMutating={mutatingReactionItemId === reactionItemId}
                               onReact={canReact ? handleReact : undefined}
                             />
