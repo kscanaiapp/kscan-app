@@ -6,7 +6,6 @@
     "media dimensions are inherited from the existing Closet store, not invented",
     "no repo migration other than the blocking one assumes the internal schema",
     "IOS-001: any profile mounting the attach surface also enables identification",
-    "config.toml pins JWT posture so a deploy cannot silently change it",
     "the real repo manifest and migration tree pass with zero violations",
     "parity: every governed file exists and matches its recorded hash",
     "parity: the generator agrees the committed manifest is current",
