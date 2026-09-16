@@ -14,7 +14,7 @@ interface OnboardingStepIndicatorProps {
  */
 export function OnboardingStepIndicator({
   step,
-  totalSteps = 6,
+  totalSteps = 7,
 }: OnboardingStepIndicatorProps) {
   return (
     <View style={styles.root} testID="onboarding-step-indicator">

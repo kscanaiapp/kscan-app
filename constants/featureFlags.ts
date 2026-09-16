@@ -134,6 +134,39 @@ export function resolveKPlusEarlyAccessEnabled(
 }
 export const KPLUS_EARLY_ACCESS_ENABLED = resolveKPlusEarlyAccessEnabled();
 
+/**
+ * K+ activation OFFER TERM -- presentation only.
+ *
+ * The real term of a K+ grant is decided by the SERVER campaign and reported
+ * back as `expiresAt` on the entitlement row (services/kplus/kplusClient.ts).
+ * Nothing in this repository may derive access, duration, eligibility, or
+ * price from the string below: it exists so the activation screen can name
+ * the current introductory offer in ONE place instead of embedding a
+ * duration across the UI.
+ *
+ * Consequences of that split, all deliberate:
+ *   - Changing this value changes COPY and nothing else. It cannot lengthen,
+ *     shorten, or create a grant.
+ *   - An empty value renders NO offer line at all, rather than a placeholder.
+ *     A build that does not know the current campaign stays silent instead of
+ *     guessing.
+ *   - There is no price here, and there must never be one. Build 34 K+ Early
+ *     Access is complimentary; a future paid tier requires its own purchase
+ *     confirmation surface, not a string swap.
+ *
+ * It must also stay FACTUAL. This is the one line on the activation screen
+ * that makes a commercial claim, so it may only state what the campaign
+ * actually grants -- never urgency ("limited time", "today only", "expires
+ * tonight") unless the campaign carries a real, enforceable deadline that the
+ * copy matches.
+ */
+export function resolveKPlusActivationOfferTerm(
+  value: string | undefined = process.env.EXPO_PUBLIC_KPLUS_ACTIVATION_OFFER_TERM,
+): string {
+  return typeof value === 'string' ? value.trim() : '6 months included';
+}
+export const KPLUS_ACTIVATION_OFFER_TERM = resolveKPlusActivationOfferTerm();
+
 // ── Virtual Try-On ───────────────────────────────────────────────────────────
 /**
  * Build-time rollout switch for VTO surfaces. This is the SHIPPING gate, not

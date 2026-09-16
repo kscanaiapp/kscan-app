@@ -24,7 +24,7 @@ interface OnboardingShellProps {
 export function OnboardingShell({
   children,
   step,
-  totalSteps = 6,
+  totalSteps = 7,
   style,
   testID,
 }: OnboardingShellProps) {
