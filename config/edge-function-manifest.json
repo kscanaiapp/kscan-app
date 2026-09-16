@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-16T13:21:46.068Z",
-    "generatedFromGitSha": "e340878fd3022a571f1b4e07d90b3329436e6b33"
+    "generatedAtUtc": "2026-09-16T13:27:12.655Z",
+    "generatedFromGitSha": "59eaf040dd5737f1d2ca7f2681e961cd232d4e6b"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -1706,10 +1706,15 @@
           "npm:@supabase/supabase-js@2"
         ],
         "bundleFileCount": 1,
-        "treeFileCount": 1,
+        "treeFileCount": 2,
         "bundleHash": "fcdec6f02bb3ff5febc7d1883b34e52181040c81b79b91b65935dccbb3c103c1",
-        "treeHash": "fcdec6f02bb3ff5febc7d1883b34e52181040c81b79b91b65935dccbb3c103c1",
+        "treeHash": "9ca75698f3a471c4225603028c4f0365bcf1097c923b5509440810f7c981a38f",
         "files": [
+          {
+            "path": "supabase/functions/reconcile-orphan-media/config.toml",
+            "sha256": "4e39c1433d00ed5ee1516e65e3026d9af4bd9adf0e0d1b032fd0f7013125e4f0",
+            "bundle": false
+          },
           {
             "path": "supabase/functions/reconcile-orphan-media/index.ts",
             "sha256": "74b250df552d265510f5994124feee4539e095ab20b2a2507eaab44c095b2f2d",

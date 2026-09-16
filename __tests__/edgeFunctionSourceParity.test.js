@@ -133,6 +133,18 @@ test('committed manifest governs every governed function and the approved projec
   // allowlist justification, and verify_jwt = false declared in both
   // supabase/config.toml and its own config.toml. It is deliberately NOT on
   // the staging auto-deploy allowlist; promotion is a separate decision.
+  //
+  // reconcile-orphan-media joined under B33-STO-002 -- it reconciles storage
+  // objects whose owner no longer resolves to an auth.users row, media
+  // stranded when an Auth user is deleted outside the deletion worker (which
+  // storage.objects cannot cascade, holding no FK to auth.users). Like
+  // deletion-status it is new source governed from birth, not a recovered
+  // deployment: manifest entry, verify_jwt = false declared in both
+  // supabase/config.toml and its own config.toml, and deliberately absent from
+  // the staging auto-deploy allowlist so promotion stays a separate decision.
+  // It is separately governed rather than folded into process-account-deletions
+  // because production runs that worker at v25, and merging it in would drag
+  // the whole newer worker source into a production deploy.
   assert.deepEqual(manifest.parity.expectedFunctions, [
     'apple-credential-link',
     'apple-revoke-credential',
@@ -147,6 +159,7 @@ test('committed manifest governs every governed function and the approved projec
     'privacy-data-export',
     'process-account-deletions',
     'product-search-deals',
+    'reconcile-orphan-media',
     'resend-restoration-email',
     'restore-account',
     'scan-identify',
