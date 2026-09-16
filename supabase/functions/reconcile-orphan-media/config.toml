@@ -1,0 +1,9 @@
+# Orphan-owner media reconciliation — server-to-server only, no JWT required.
+#
+# This endpoint has no end-user caller. It is invoked by an operator or a
+# scheduled job and authenticates that caller itself: a constant-time compare
+# against ORPHAN_MEDIA_SWEEP_SECRET, with the anon key explicitly rejected. A
+# user JWT would grant nothing here — the function reads no request body and
+# obtains candidates only from a service-role RPC, so no caller can nominate an
+# object for deletion. See index.ts.
+verify_jwt = false
