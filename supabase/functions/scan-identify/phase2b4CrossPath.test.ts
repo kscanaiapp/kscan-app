@@ -370,6 +370,31 @@ const GOVERNED_PRIVILEGE_INVENTORY: Record<string, PrivilegeProfile> = {
     serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
     privilegedBackend: true, actorBoundary: false,
   },
+  // B33-STO-002 orphan-owner media reconciliation. It holds service role because
+  // its whole job is to see across every user's media: the objects it targets are
+  // owned by accounts that no longer exist, so no RLS role can read them. Actor
+  // isolation is therefore code, not the database -- and the code narrows it hard:
+  // the function reads NO request body, so a caller cannot nominate an object;
+  // candidates come only from list_orphan_owner_media, which is bucket-allowlisted
+  // and returns an object only when its owner fails to resolve against auth.users
+  // AND nothing references it.
+  //
+  // Two heuristic readings are worth stating plainly rather than leaving to a
+  // future reader to rediscover:
+  //   dbWrite is true because hasDirectRestWrite sees `rest('rpc/...', { method:
+  //   'POST' })` in one file. The only POST this function makes is the call to
+  //   that read-only, STABLE RPC; it writes no table. The flag records what the
+  //   per-file heuristic observes, which is the contract of this inventory.
+  //   rpc is false for the mirror-image reason: the path is interpolated
+  //   (`/rest/v1/${path}`), so the literal `/rest/v1/rpc/` never appears and
+  //   neither does `.rpc('`. The function does call exactly one RPC.
+  // storage is true and is the point of the function -- it is the only governed
+  // function besides process-account-deletions that removes stored objects, and
+  // it does so only for candidates the RPC returned.
+  'reconcile-orphan-media': {
+    serviceRole: true, dbRead: true, dbWrite: true, rpc: false, authAdmin: false, storage: true,
+    privilegedBackend: true, actorBoundary: true,
+  },
   'resend-restoration-email': {
     serviceRole: true, dbRead: true, dbWrite: true, rpc: true, authAdmin: true, storage: false,
     privilegedBackend: true, actorBoundary: false,
@@ -555,6 +580,18 @@ const SERVICE_ROLE_ALLOWLIST: Record<string, string> = {
   'supabase/functions/process-account-deletions/index.ts':
     'Privileged deletion worker that performs the documented lifecycle purge, '
     + 'Auth administration, and Storage cleanup.',
+  'supabase/functions/reconcile-orphan-media/index.ts':
+    'verify_jwt = false; the function authenticates the caller itself via a '
+    + 'constant-time compare against ORPHAN_MEDIA_SWEEP_SECRET, explicitly '
+    + 'rejecting the anon key. Service role is required because the objects it '
+    + 'reconciles are owned by accounts that no longer exist, so no RLS role can '
+    + 'see them. It reads no request body and selects nothing itself: candidates '
+    + 'come only from list_orphan_owner_media, which is service-role-only, '
+    + 'restricted to style-library-images, and returns an object only when its '
+    + 'owner fails to resolve against auth.users AND no reference column points '
+    + 'at it. It writes no table, never calls auth.admin, and deletes only the '
+    + 'objects that RPC returned -- and only once both app_config switches are '
+    + 'off dry-run.',
   'supabase/functions/restore-account/index.ts':
     'Single-use restoration-token authority that performs the associated Auth '
     + 'unban after the restoration RPC succeeds.',

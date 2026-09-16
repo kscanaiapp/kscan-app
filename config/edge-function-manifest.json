@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-16T03:45:16.567Z",
-    "generatedFromGitSha": "9b2d6fa1212aacc442cd4e13c687b1035e01dd21"
+    "generatedAtUtc": "2026-09-16T13:37:53.580Z",
+    "generatedFromGitSha": "958eab83fc5700f99b978f6724f1811dbb85f624"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -21,6 +21,7 @@
       "privacy-data-export",
       "process-account-deletions",
       "product-search-deals",
+      "reconcile-orphan-media",
       "resend-restoration-email",
       "restore-account",
       "scan-identify",
@@ -43,7 +44,7 @@
         "bundleFileCount": 42,
         "treeFileCount": 69,
         "bundleHash": "00a37116b65c91e9bcb4760b12afc5b3a7f19d486d5a5b9b2749c149f255689b",
-        "treeHash": "2cbb8a1d57fa35cb785ccd5b03232fe867e2fc921bbd090504ca3fe494e689cb",
+        "treeHash": "fd7ab4f9785b39489c80205886b30abba85add222053b7ac0da56b58ef0e1b3f",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -252,7 +253,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/phase2b4CrossPath.test.ts",
-            "sha256": "72bb0d1963e1d6acbf249ab4e35a8f5297bd476ce2fbafdc7373fc248974fbe0",
+            "sha256": "bc38b095e27aecc1477d55c04406f6bbf124e351c4c3ff7f8c542ec75fdcaca0",
             "bundle": false
           },
           {
@@ -1694,6 +1695,29 @@
           {
             "path": "supabase/functions/vto-generate/vtoTelemetry.ts",
             "sha256": "6186f7e6bc16a407f25ab6fed14aa6ca720be4a2d0818c3466154e02c63eea28",
+            "bundle": true
+          }
+        ]
+      },
+      {
+        "name": "reconcile-orphan-media",
+        "entry": "supabase/functions/reconcile-orphan-media/index.ts",
+        "remoteSpecifiers": [
+          "npm:@supabase/supabase-js@2"
+        ],
+        "bundleFileCount": 1,
+        "treeFileCount": 2,
+        "bundleHash": "fcdec6f02bb3ff5febc7d1883b34e52181040c81b79b91b65935dccbb3c103c1",
+        "treeHash": "9ca75698f3a471c4225603028c4f0365bcf1097c923b5509440810f7c981a38f",
+        "files": [
+          {
+            "path": "supabase/functions/reconcile-orphan-media/config.toml",
+            "sha256": "4e39c1433d00ed5ee1516e65e3026d9af4bd9adf0e0d1b032fd0f7013125e4f0",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/reconcile-orphan-media/index.ts",
+            "sha256": "74b250df552d265510f5994124feee4539e095ab20b2a2507eaab44c095b2f2d",
             "bundle": true
           }
         ]

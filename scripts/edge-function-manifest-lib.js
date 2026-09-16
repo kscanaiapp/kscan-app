@@ -108,6 +108,17 @@ const APPROVED_PROJECT_REF = 'yzqjvdfgefveprobvvyw';
  * added. Recovered read-only from Git history (byte-identical across both
  * origin-pushed hotfix branches) and cross-verified against the live
  * Management API source on both projects before being added here.
+ *
+ * B33-STO-002: `reconcile-orphan-media` joins here as a new, separately
+ * governed function. It reconciles storage objects whose owner no longer
+ * resolves to an auth.users row -- media stranded when an Auth user is
+ * deleted outside the deletion worker, which storage.objects cannot cascade
+ * because it holds no foreign key to auth.users. It is deliberately NOT part
+ * of process-account-deletions: production runs that worker at v25, and
+ * folding this in would drag the whole newer worker source into a production
+ * deploy. Governing it here is required, not optional --
+ * scripts/deploy-edge-functions.js refuses to deploy any function absent from
+ * the manifest, so an ungoverned function could never be shipped at all.
  */
 const GOVERNED_FUNCTIONS = [
   'scan-identify',
@@ -134,6 +145,7 @@ const GOVERNED_FUNCTIONS = [
   'staging-health',
   'deletion-status',
   'vto-generate',
+  'reconcile-orphan-media',
 ];
 
 const FUNCTIONS_ROOT = path.join('supabase', 'functions');
