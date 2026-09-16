@@ -311,6 +311,8 @@ Deno.test('WIRING: the resolution log carries no image or garment content', () =
   ) {
     assert.equal(line.includes(forbidden), false, `resolution log must not carry ${forbidden}`);
   }
+  assert.match(line, /requestHash=%s/);
+  assert.match(line, /sha256Hex\(internalRequest\.requestId \?\? scanId\)/);
 });
 
 Deno.test('identical boxes resolve deterministically rather than by input order', () => {

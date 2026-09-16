@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-16T01:27:53.104Z",
-    "generatedFromGitSha": "c5e5bd563bfc92d269f5a2dd02d9e36b55162d01"
+    "generatedAtUtc": "2026-09-16T03:45:16.567Z",
+    "generatedFromGitSha": "9b2d6fa1212aacc442cd4e13c687b1035e01dd21"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -42,8 +42,8 @@
         ],
         "bundleFileCount": 42,
         "treeFileCount": 69,
-        "bundleHash": "f667415a27ab3d6057079b252ffc49f4472c57a1d71282d78a2bb352516aeab8",
-        "treeHash": "533d0691829da07d1f137ff3aa5c459c82bcc5758f6179376b7a17943761a3c9",
+        "bundleHash": "00a37116b65c91e9bcb4760b12afc5b3a7f19d486d5a5b9b2749c149f255689b",
+        "treeHash": "2cbb8a1d57fa35cb785ccd5b03232fe867e2fc921bbd090504ca3fe494e689cb",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -177,7 +177,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/eliseDominantGarment.test.ts",
-            "sha256": "79c813cb699d73ae9b4fcdd594c28b693f5f511b2927b9ebdaa4d440cd668f60",
+            "sha256": "791a6cf3840eebc1ec659b4dbb7e32ba74f6b348a1552a73948b4b79097690da",
             "bundle": false
           },
           {
@@ -212,7 +212,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/index.ts",
-            "sha256": "1dab354946021a9359bbd4a59ce1e495f2ae846f5fed753bb0765c7d58cbe0e0",
+            "sha256": "e83884d2e35c04c4a4c4c94584aa821d0a8855cafe62563b75ffb9a02500b088",
             "bundle": true
           },
           {
