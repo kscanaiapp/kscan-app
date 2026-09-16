@@ -10,7 +10,7 @@
       },
       {
         "path": "supabase/functions/scan-identify/index.ts",
-        "sha256": "132888926b4a287b926ee967c1ed0c756eec2619e6fc0cd2c2897172720cc7f1"
+        "sha256": "1dab354946021a9359bbd4a59ce1e495f2ae846f5fed753bb0765c7d58cbe0e0"
       },
       {
         "path": "supabase/functions/scan-identify/v2Activation.ts",
@@ -22,7 +22,7 @@
       },
       {
         "path": "supabase/functions/stylechat-generate/index.ts",
-        "sha256": "1d17431b479a29e7536eb44c588f08871ccef8282e7c56e8960ebc6ee082ebe7"
+        "sha256": "6307e63ee11be4fb89aaddb41603e952a78b180411a4f517d2164bb9e5b20ecc"
       }
     ],
     "contract": [
