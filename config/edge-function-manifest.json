@@ -40,10 +40,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 41,
-        "treeFileCount": 67,
-        "bundleHash": "45394f994382e1502aeca25209706098c783a72f3faaedd2d4b74536e5426118",
-        "treeHash": "a4489fe28095881cfdf032b2fe082adb498a49b850bbbcbbf41dbfd305b5cb35",
+        "bundleFileCount": 42,
+        "treeFileCount": 69,
+        "bundleHash": "f667415a27ab3d6057079b252ffc49f4472c57a1d71282d78a2bb352516aeab8",
+        "treeHash": "533d0691829da07d1f137ff3aa5c459c82bcc5758f6179376b7a17943761a3c9",
         "files": [
           {
             "path": "supabase/functions/_shared/catalogRetrieval.ts",
@@ -176,6 +176,16 @@
             "bundle": true
           },
           {
+            "path": "supabase/functions/scan-identify/eliseDominantGarment.test.ts",
+            "sha256": "79c813cb699d73ae9b4fcdd594c28b693f5f511b2927b9ebdaa4d440cd668f60",
+            "bundle": false
+          },
+          {
+            "path": "supabase/functions/scan-identify/eliseDominantGarment.ts",
+            "sha256": "b73eafa9119749bfed42b9d9c04ddb5d893f950f162572cb90a22f1525827bf1",
+            "bundle": true
+          },
+          {
             "path": "supabase/functions/scan-identify/farfetch3Provider.test.ts",
             "sha256": "f9edef272262e395924e2883a66f826ef01ca0cc1c5c07b48d393aa9e61f5f39",
             "bundle": false
@@ -202,7 +212,7 @@
           },
           {
             "path": "supabase/functions/scan-identify/index.ts",
-            "sha256": "d9b4e886e416b173724bbeb7fadb22a768bc6cf085235932aa59832c425b9e36",
+            "sha256": "1dab354946021a9359bbd4a59ce1e495f2ae846f5fed753bb0765c7d58cbe0e0",
             "bundle": true
           },
           {
