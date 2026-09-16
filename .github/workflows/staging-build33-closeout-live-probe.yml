@@ -13,6 +13,15 @@ name: K Scan Staging Build 33 Closeout Live Probe
 
 on:
   workflow_dispatch: {}
+  # Scoped to this exact probe branch only, so the file can self-register and
+  # run once without needing to land on the default branch first (a brand new
+  # workflow_dispatch-only trigger cannot be dispatched until GitHub has
+  # observed the file via a push/pull_request event it is registered against).
+  # This is the only branch that can ever satisfy this condition; it has no
+  # effect on any other branch, PR, or the deploy authority itself.
+  push:
+    branches:
+      - test/build33-closeout-live-probe-v1
 
 permissions:
   contents: read
