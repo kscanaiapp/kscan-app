@@ -189,7 +189,12 @@ const MAX_OUTPUT_TOKENS = 2048;
 const DEFAULT_GEMINI_TIMEOUT_MS = 14_000;
 const SCAN_INTELLIGENCE_TIMEOUT_MS = 500;
 const SIMILARITY_TIMEOUT_MS = 300;
-const IMAGE_MODE_COMMERCE_TIMEOUT_MS = 3000;
+// Outer commerce budgets must stay ABOVE shoppingProvider's PROVIDER_TIMEOUT_MS
+// (4500). Below it, the provider's own abort is unreachable: a call that would
+// have returned products at 3-4.5s is always discarded, the wasted provider
+// spend is still billed, and the scan reports an empty shelf. Image mode sat at
+// 3000 and produced exactly that in production; text mode was already correct.
+const IMAGE_MODE_COMMERCE_TIMEOUT_MS = 5000;
 const TEXT_MODE_COMMERCE_TIMEOUT_MS = 5000;
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_MIME = 'image/jpeg';
@@ -3912,6 +3917,14 @@ Deno.serve(async (req) => {
           mode,
           source,
         );
+        // Report the timeout as a timeout. Leaving provider as 'none' made this
+        // indistinguishable from "the provider genuinely found nothing", so the
+        // outcome was recorded as commerce_primary_empty and the failure was
+        // invisible. mapToFailureReason resolves providerOutcome 'timeout' to
+        // provider_timeout ahead of the commercePrimaryEmpty branch, and text
+        // mode already ships provider:'timeout' to this same Build 33 client in
+        // production, so the wire shape is proven safe.
+        commerceProvider = 'timeout';
       } else {
         if (relevanceEnabled && commerce.qualityTune) {
           commerceRelevanceStats = {

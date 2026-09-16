@@ -408,10 +408,35 @@ test('edge source: image mode captures scan intelligence with timeout protection
   );
 });
 
-test('edge source: image mode commerce lookup has a 3000ms Promise.race timeout guard', () => {
+test('edge source: image mode commerce budget stays above the provider abort', () => {
+  // B33-COM-001. This used to pin the constant to 3000, which is BELOW
+  // shoppingProvider's PROVIDER_TIMEOUT_MS (4500). An outer budget under the
+  // provider's own abort makes that abort unreachable: a call that would have
+  // returned products between 3s and 4.5s is always discarded, the provider
+  // spend is still billed, and the scan reports an empty shelf. Production ran
+  // the repaired value while governed source still carried 3000, so a governed
+  // redeploy would have silently reverted the live fix.
+  //
+  // The invariant, not the literal, is what matters — so assert the relation
+  // against the provider's own constant rather than restating a number that can
+  // drift out from under this test.
+  const imageBudget = Number(
+    /IMAGE_MODE_COMMERCE_TIMEOUT_MS = (\d+)/.exec(EDGE_SOURCE)?.[1],
+  );
+  const providerTimeout = Number(
+    /PROVIDER_TIMEOUT_MS = (\d+)/.exec(
+      fs.readFileSync(
+        path.join(ROOT, 'supabase/functions/scan-identify/shoppingProvider.ts'),
+        'utf8',
+      ),
+    )?.[1],
+  );
+  assert.ok(Number.isFinite(imageBudget), 'image commerce budget must be a literal constant');
+  assert.ok(Number.isFinite(providerTimeout), 'provider timeout must be a literal constant');
   assert.ok(
-    EDGE_SOURCE.includes('IMAGE_MODE_COMMERCE_TIMEOUT_MS = 3000'),
-    'Image mode commerce timeout constant must be 3000ms',
+    imageBudget > providerTimeout,
+    `image commerce budget (${imageBudget}ms) must exceed the provider abort `
+      + `(${providerTimeout}ms), or the provider's own timeout is unreachable`,
   );
 
   const imageBranchStart = EDGE_SOURCE.indexOf('} else {');
