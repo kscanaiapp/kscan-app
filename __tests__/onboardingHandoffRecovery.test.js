@@ -1,13 +1,13 @@
 /**
  * Onboarding Handoff Recovery Tests
  *
- * Step 6 ("Entering K Scan...") is a handoff spinner with NO navigation of its
+ * Step 7 ("Entering K Scan...") is a handoff spinner with NO navigation of its
  * own. It clears only when AuthGate (app/_layout.tsx) observes onboarding
- * completion and redirects to '/'. That makes step 6 a terminal route whenever
+ * completion and redirects to '/'. That makes step 7 a terminal route whenever
  * the completion write does not land, so every path into it must be guarded:
  *
- *   1. No resolvable user id  -> never enter step 6 (session died mid-flow).
- *   2. Completion write fails -> leave step 6 for a retryable step.
+ *   1. No resolvable user id  -> never enter step 7 (session died mid-flow).
+ *   2. Completion write fails -> leave step 7 for a retryable step.
  *
  * These are source-level assertions, matching the convention established by
  * welcomeRouting.test.js: app/onboarding/index.tsx is a TSX screen with heavy
@@ -43,19 +43,19 @@ test('goToHome resolves a user id from the live session, not just context state'
   assert.match(goToHome, /const resolvedUserId\s*=/);
 });
 
-test('goToHome never enters the step 6 handoff without a resolvable user id', () => {
+test('goToHome never enters the step 7 handoff without a resolvable user id', () => {
   const guardIndex = goToHome.indexOf('if (!resolvedUserId)');
-  const stepSixIndex = goToHome.indexOf('setStep(6)');
+  const handoffIndex = goToHome.indexOf('setStep(7)');
 
   assert.notEqual(guardIndex, -1, 'a missing-user guard must exist');
-  assert.notEqual(stepSixIndex, -1, 'the handoff step must still be reachable');
+  assert.notEqual(handoffIndex, -1, 'the handoff step must still be reachable');
   assert.ok(
-    guardIndex < stepSixIndex,
-    'the missing-user guard must run before setStep(6), otherwise a lost session strands the tester on the handoff spinner',
+    guardIndex < handoffIndex,
+    'the missing-user guard must run before setStep(7), otherwise a lost session strands the tester on the handoff spinner',
   );
 
   // The guard must route somewhere actionable and return before the handoff.
-  const guardBlock = goToHome.slice(guardIndex, stepSixIndex);
+  const guardBlock = goToHome.slice(guardIndex, handoffIndex);
   assert.match(guardBlock, /setStep\(2\)/, 'lost session must return to the auth choice');
   assert.match(guardBlock, /return;/, 'the guard must short-circuit before the handoff');
 });
@@ -63,7 +63,7 @@ test('goToHome never enters the step 6 handoff without a resolvable user id', ()
 test('goToHome marks completion with the resolved id and recovers if the write fails', () => {
   assert.match(goToHome, /markOnboardingComplete\(resolvedUserId\)/);
 
-  // A rejected completion write would leave step 6 with nothing to clear it.
+  // A rejected completion write would leave step 7 with nothing to clear it.
   assert.match(goToHome, /try\s*\{/, 'the completion write must be guarded');
   const catchIndex = goToHome.indexOf('catch');
   assert.notEqual(catchIndex, -1, 'the completion write must have a catch');
@@ -74,7 +74,7 @@ test('goToHome marks completion with the resolved id and recovers if the write f
   );
 });
 
-test('the step 6 handoff still depends on AuthGate observing completion', () => {
+test('the step 7 handoff still depends on AuthGate observing completion', () => {
   // If this coupling is ever removed, the guards above stop being necessary --
   // and this test should be revisited rather than deleted.
   assert.match(layoutSource, /subscribeOnboardingCompletion\(/);

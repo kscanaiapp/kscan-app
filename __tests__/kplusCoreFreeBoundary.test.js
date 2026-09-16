@@ -66,6 +66,12 @@ const EXPECTED_GATE_SITES = [
 const EXPECTED_ENTITLEMENT_READERS = [
   'app/privacy.tsx',                  // Account screen K+ status row (display only)
   'app/style-chat/[sessionId].tsx',   // chooses Concierge vs base wait copy
+  // The onboarding activation step IS an acquisition surface, so it reads
+  // state directly rather than through KPlusGate (there is no gated feature
+  // behind it to gate). It gates NOTHING: every branch ends in the user
+  // continuing into the app, and an unresolved read shows neither the offer
+  // nor the free framing.
+  'components/kplus/KPlusActivationStep.tsx',
   'components/kplus/KPlusEarlyAccessSheet.tsx',
   'components/kplus/KPlusGate.tsx',   // the shared gate itself
 ];

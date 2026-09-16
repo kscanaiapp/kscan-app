@@ -173,7 +173,7 @@ test('canonical onboarding components are unconditional and no simplified altern
   assert.match(onboardingSource, /<PermissionsStepV1/);
 });
 
-test('canonical six-step welcome source is shared by Android and iOS', () => {
+test('canonical seven-step welcome source is shared by Android and iOS', () => {
   const accountHomeDir = path.join(__dirname, '..', 'components', 'account-home');
   const platformWelcomeOverrides = fs.readdirSync(accountHomeDir).filter((name) =>
     /^WelcomeStepV1\.(?:android|ios)\./.test(name),
@@ -182,9 +182,13 @@ test('canonical six-step welcome source is shared by Android and iOS', () => {
   assert.deepEqual(platformWelcomeOverrides, []);
   assert.doesNotMatch(welcomeStepSource, /Platform\.(?:OS|select)/);
   assert.doesNotMatch(onboardingSource, /Platform\.OS\s*===\s*['"]android['"][\s\S]{0,240}WelcomeStepV1/);
-  assert.match(onboardingShellSource, /totalSteps = 6/);
+  // Seven since K+ activation was inserted at step 6 and the home handoff
+  // moved to step 7. The point of this assertion is that the shell, the
+  // indicator, and the step union agree on ONE count -- not the count itself.
+  assert.match(onboardingShellSource, /totalSteps = 7/);
+  assert.match(onboardingStepIndicatorSource, /totalSteps = 7/);
   assert.match(onboardingStepIndicatorSource, /STEP \{step\} OF \{totalSteps\}/);
-  assert.match(onboardingSource, /type OnboardingStep\s*=[\s\S]*\| 6;/);
+  assert.match(onboardingSource, /type OnboardingStep\s*=[\s\S]*\| 7;/);
 });
 
 // -- 9. Step 4 is reserved for resume/authenticated incomplete flows ----------

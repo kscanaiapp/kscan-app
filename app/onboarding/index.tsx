@@ -30,6 +30,7 @@ import {
   AccountSetupStepV1,
   PermissionsStepV1,
 } from '../../components/account-home';
+import { KPlusActivationStep } from '../../components/kplus/KPlusActivationStep';
 import { LUXURY, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../../constants/theme';
 import {
   TERMS_VERSION,
@@ -56,7 +57,8 @@ type OnboardingStep =
   | 3  // Create Account / Email Auth
   | 4  // Terms + Privacy
   | 5  // Permissions Preferences
-  | 6; // Home Handoff
+  | 6  // K+ Activation
+  | 7; // Home Handoff
 
 // ── Main Route ───────────────────────────────────────────────────────────────
 
@@ -212,7 +214,7 @@ export default function OnboardingScreen() {
       return;
     }
 
-    setStep(6);
+    setStep(7);
     try {
       await markOnboardingComplete(resolvedUserId);
     } catch (error) {
@@ -228,6 +230,17 @@ export default function OnboardingScreen() {
   const goToAuth = useCallback(() => {
     router.push('/auth');
   }, [router]);
+
+  /** Permissions -> K+ activation (step 6).
+   *
+   *  Authentication already happened at step 3, so every actor reaching this
+   *  point is signed in and the activation screen can read a real, actor-scoped
+   *  entitlement. The screen itself decides whether an offer is appropriate --
+   *  an existing K+ member, an unresolved read, or a build with no K+
+   *  capabilities compiled in all route straight on without showing an upsell. */
+  const goToKPlusActivation = useCallback(() => {
+    setStep(6);
+  }, []);
 
   // ── Step 3: Create Account handler ───────────────────────────────────────
 
@@ -709,11 +722,15 @@ export default function OnboardingScreen() {
         setPreference={setPermissionPreference}
         requestNotificationPermission={requestNotificationPermission}
         disableNotificationDelivery={disableNotificationDelivery}
-        onContinueToHome={goToHome}
-        onNotNow={goToHome}
+        onContinueToHome={goToKPlusActivation}
+        onNotNow={goToKPlusActivation}
       />
     );
   };
+
+  const renderKPlusActivation = () => (
+    <KPlusActivationStep onContinue={goToHome} onSkip={goToHome} />
+  );
 
   const renderHomeHandoff = () => (
     <View style={styles.stepContent} testID="onboarding-home-handoff">
@@ -737,6 +754,8 @@ export default function OnboardingScreen() {
       case 5:
         return renderPermissions();
       case 6:
+        return renderKPlusActivation();
+      case 7:
         return renderHomeHandoff();
       default:
         return renderWelcome();
