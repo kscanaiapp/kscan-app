@@ -1,0 +1,264 @@
+name: Production Account Deletion Worker
+
+# Build 33 backend repair -- production deletion scheduler.
+#
+# STATUS ON MERGE: MANUAL ONLY, DRY-RUN BY DEFAULT, NOT SCHEDULED.
+# Merging this file starts no purge. There is deliberately no `schedule:` trigger
+# yet, live mode requires a typed confirmation phrase, and the worker's real
+# authority lives in the database, not here (see STAGED ENABLEMENT below).
+#
+# This is NOT the staging workflow with the project ref swapped. Production
+# carries risks staging does not, so it adds: a production environment gate, a
+# mirror-image ref allowlist that refuses staging, an explicit live-mode
+# confirmation, and terminal-state metrics in the run summary.
+#
+# WHY PRODUCTION HAS NO SCHEDULER TODAY
+#
+# `process-account-deletions` is an HTTP endpoint. Production has no pg_cron or
+# pg_net scheduler for it, and the only workflow in the repository
+# (staging-account-deletion-worker.yml) explicitly refuses the production ref.
+# Production's worker has therefore never run: all 8 stale deletion_requests show
+# attempt_count = 0 and worker_id null.
+#
+# WHY ENABLING THIS IS SAFE WITH RESPECT TO THE 8 STALE ROWS
+#
+# Those rows cannot be claimed, by construction rather than by luck. Their Auth
+# users were deleted out of band, which set deletion_requests.user_id to NULL via
+# the ON DELETE SET NULL foreign key. Both candidate RPCs exclude them twice over:
+#
+#   list_deletion_purge_candidates ... and dr.user_id is not null
+#   claim_deletion_requests_for_purge ... join public.profiles p on p.id = dr.user_id
+#                                     ... and dr.user_id is not null
+#
+# and the profiles rows cascaded away with the Auth users, so even a non-null id
+# would not match. The worker cannot select them, cannot delete an Auth user for a
+# null id, and cannot build a storage prefix from one. Their terminal state is a
+# separate ledger reconciliation that requires explicit authorization; it is not
+# unblocked or affected by this workflow.
+#
+# STAGED ENABLEMENT -- the order matters, and each step is independently reversible
+#
+#   Stage 0 (on merge)  Nothing runs. No schedule, manual dispatch only.
+#   Stage 1             Dispatch with mode=dry_run. The Edge Function enumerates
+#                       candidates and returns a plan; it claims nothing and
+#                       deletes nothing. Confirm eligibleCount and byEligibility
+#                       match expectations.
+#   Stage 2             Set account_deletion_worker_dry_run.enabled = false while
+#                       leaving account_deletion_worker_enabled = false. The claim
+#                       RPC still returns zero rows, so this proves the flag path
+#                       without any purge.
+#   Stage 3             Set account_deletion_worker_enabled = true. Dispatch with
+#                       mode=live and the confirmation phrase. The first live run
+#                       should be observed end to end before anything is scheduled.
+#   Stage 4             Only then add a `schedule:` trigger, as a reviewed change
+#                       to this file.
+#
+# ROLLBACK. Set app_config.account_deletion_worker_enabled.enabled = false. The
+# kill switch is read inside claim_deletion_requests_for_purge, which returns no
+# rows when it is off, so the worker stops claiming immediately and no redeploy,
+# revert or workflow edit is required. Disabling this workflow is a second,
+# independent lever, not the primary one.
+
+on:
+  # No `schedule:` trigger. Adding one is Stage 4 and must be a reviewed change.
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'dry_run enumerates only. live may permanently purge accounts.'
+        required: true
+        default: dry_run
+        type: choice
+        options: [dry_run, live]
+      confirm:
+        description: 'For mode=live only, type: PURGE PRODUCTION ACCOUNTS'
+        required: false
+        type: string
+      reason:
+        description: 'Why this run is being made (recorded in the summary).'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  # The worker leases the rows it claims, so a concurrent run is safe by design.
+  # Serialising anyway keeps the audit trail one run at a time and stops two runs
+  # racing for the same small candidate set.
+  group: production-account-deletion-worker
+  cancel-in-progress: false
+
+jobs:
+  invoke-worker:
+    name: Invoke production deletion worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Protected environment. Required reviewers and the worker secret are
+    # configured on this environment, so a dispatch cannot proceed unreviewed.
+    environment: production
+    env:
+      # Literals, not inputs, so widening the target requires a reviewed diff.
+      PRODUCTION_REF: wyyuqfdxucjksghsmhry
+      STAGING_REF: yzqjvdfgefveprobvvyw
+      FUNCTION_SLUG: process-account-deletions
+    steps:
+      - name: Assert production authority and refuse any other project
+        run: |
+          set -euo pipefail
+          if [ "${PRODUCTION_REF}" = "${STAGING_REF}" ]; then
+            echo "::error::Target ref equals the staging ref. Refusing."
+            exit 1
+          fi
+          # Mirror image of the staging workflow's guard: an explicit allowlist of
+          # one, so a typo or an edit that points this at another project fails.
+          case "${PRODUCTION_REF}" in
+            wyyuqfdxucjksghsmhry) : ;;
+            *) echo "::error::Unrecognised target project ref. Refusing."; exit 1 ;;
+          esac
+          echo "Target project: ${PRODUCTION_REF} (production)"
+          echo "Function: ${FUNCTION_SLUG}"
+          echo "Mode: ${{ inputs.mode }}"
+
+      - name: Gate live mode behind an explicit confirmation
+        if: inputs.mode == 'live'
+        run: |
+          set -euo pipefail
+          # A dispatch that reaches live mode by accident (wrong dropdown, repeated
+          # run, copied link) must not purge accounts.
+          if [ "${{ inputs.confirm }}" != "PURGE PRODUCTION ACCOUNTS" ]; then
+            echo "::error::mode=live requires the exact confirmation phrase. Refusing."
+            exit 1
+          fi
+          echo "Live mode confirmed."
+
+      - name: Invoke worker
+        id: invoke
+        env:
+          WORKER_SECRET: ${{ secrets.ACCOUNT_DELETION_WORKER_SECRET }}
+          DRY_RUN_REQUESTED: ${{ inputs.mode == 'dry_run' }}
+        run: |
+          set -euo pipefail
+
+          # FAIL CLOSED: an absent secret stops the run rather than falling through
+          # to an unauthenticated call whose 401 would look like a code regression.
+          if [ -z "${WORKER_SECRET:-}" ]; then
+            echo "::error::ACCOUNT_DELETION_WORKER_SECRET is not set on the production environment. Refusing to invoke."
+            exit 1
+          fi
+
+          umask 077
+          HDR="$(mktemp)"
+          trap 'rm -f "${HDR}"' EXIT
+          # The secret reaches curl through @file, so it never appears in a process
+          # listing, in the workflow log, or in a crash dump of the command line.
+          printf 'x-deletion-worker-secret: %s\n' "${WORKER_SECRET}" > "${HDR}"
+
+          HTTP_CODE="$(curl --silent --show-error \
+            --output response.json \
+            --write-out '%{http_code}' \
+            --max-time 600 \
+            --request POST \
+            --header @"${HDR}" \
+            --header 'Content-Type: application/json' \
+            --data '{}' \
+            "https://${PRODUCTION_REF}.supabase.co/functions/v1/${FUNCTION_SLUG}")" || {
+              echo "::error::Worker invocation failed at the transport layer."
+              exit 1
+            }
+
+          echo "http_code=${HTTP_CODE}" >> "$GITHUB_OUTPUT"
+
+          if [ "${HTTP_CODE}" != "200" ]; then
+            # The body is never printed. An error body from an authenticated
+            # internal endpoint is not guaranteed to be free of operational detail.
+            echo "::error::Worker returned HTTP ${HTTP_CODE}."
+            exit 1
+          fi
+
+          # Sanitized projection only: counts, mode and flags. No request ids, no
+          # user ids, no subject refs, no plan contents, no storage paths.
+          node --input-type=commonjs -e '
+            const fs = require("node:fs");
+            let body;
+            try {
+              body = JSON.parse(fs.readFileSync("response.json", "utf8"));
+            } catch {
+              console.log("::error::Worker response was not valid JSON.");
+              process.exit(1);
+            }
+            const summary = body.summary || {};
+            const results = Array.isArray(body.results) ? body.results : [];
+            const byStatus = {};
+            for (const r of results) {
+              const k = String(r && r.status ? r.status : "unknown");
+              byStatus[k] = (byStatus[k] || 0) + 1;
+            }
+            const out = {
+              mode: body.mode ?? "unknown",
+              dryRun: body.dryRun === true,
+              killSwitchEnabled: body.killSwitchEnabled === true,
+              eligibleCount: Number(summary.eligibleCount ?? 0),
+              planCount: Number(summary.planCount ?? 0),
+              byEligibility: summary.byEligibility ?? {},
+              claimed: Number(body.claimed ?? 0),
+              terminalState: byStatus,
+              purged: Number(byStatus.purged || 0),
+              retryOrFailed: Number(byStatus.retry_or_failed || 0),
+              lostLease: Number(byStatus.lost_lease || 0),
+            };
+            console.log(JSON.stringify(out));
+            fs.writeFileSync("worker-summary.json", JSON.stringify(out, null, 2) + "\n");
+          '
+
+      - name: Detect a run that did work it was not authorised to do
+        if: steps.invoke.outcome == 'success'
+        run: |
+          set -euo pipefail
+          MODE="$(node -e 'console.log(JSON.parse(require("fs").readFileSync("worker-summary.json","utf8")).mode)')"
+          # A dry-run dispatch that comes back "live" means the database flags and
+          # the requested mode disagree. Surface it loudly rather than trusting it.
+          if [ "${DRY_RUN_REQUESTED:-}" = "true" ] && [ "${MODE}" != "dry_run" ]; then
+            echo "::error::Requested dry_run but the worker reported mode=${MODE}. Set account_deletion_worker_enabled to false and investigate."
+            exit 1
+          fi
+        env:
+          DRY_RUN_REQUESTED: ${{ inputs.mode == 'dry_run' }}
+
+      - name: Detect terminal-state failures
+        if: steps.invoke.outcome == 'success'
+        run: |
+          set -euo pipefail
+          FAILED="$(node -e 'console.log(JSON.parse(require("fs").readFileSync("worker-summary.json","utf8")).retryOrFailed||0)')"
+          if [ "${FAILED}" -gt 0 ]; then
+            # Not a workflow failure: the worker's own durable retry/dead-letter
+            # lifecycle owns these. Surface them so a run is never silently partial.
+            echo "::warning::${FAILED} request(s) ended in retry_or_failed. Check the deletion ledger."
+          fi
+
+      - name: Record run summary
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "### Production account-deletion worker"
+            echo ""
+            echo "- Project: \`${PRODUCTION_REF}\` (production)"
+            echo "- Function: \`${FUNCTION_SLUG}\`"
+            echo "- Requested mode: \`${{ inputs.mode }}\`"
+            echo "- HTTP: \`${{ steps.invoke.outputs.http_code || 'n/a' }}\`"
+            echo "- Reason: ${{ inputs.reason }}"
+            echo ""
+            if [ -f worker-summary.json ]; then
+              echo '```json'
+              cat worker-summary.json
+              echo '```'
+            else
+              echo "_No sanitized summary produced._"
+            fi
+            echo ""
+            echo "Rollback: set \`app_config.account_deletion_worker_enabled.enabled = false\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove raw response
+        if: always()
+        run: rm -f response.json
