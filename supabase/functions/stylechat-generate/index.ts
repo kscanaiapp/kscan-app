@@ -2173,15 +2173,24 @@ Deno.serve(async (req) => {
   const systemTextWithStylistName =
     `${systemTextWithGenderContext}\n\n${buildStylistPersonaBlock(stylistDisplayName)}`;
 
-  // ── Build 34 / Track B / Phase B5 — server-derived Signature Style (K+ only) ─
+  // ── Build 34 / Track B / Phase B5 — server-derived Signature Style (FREE) ───
   // ADDITIVE to the client-fed block above, never a replacement: the client-fed
   // feedback-signal context (Phase 2) and this server-derived wardrobe-evidence
   // context (Track B) are two independent, differently-sourced signals.
   //
-  // SERVER-SIDE K+ ENFORCEMENT (section 45): resolved via the SAME entitlement
-  // authority RLS on user_closet_items already trusts (has_active_k_plus()),
-  // never a client-supplied flag. Computed only when the flag is on, so a
-  // non-K+ or flag-off request never pays for the extra round trip.
+  // ENTITLEMENT: SIGNATURE_STYLE_ENTITLEMENT=FREE (Build 34 owner authority).
+  // Signature Style is part of the free K Scan AI product, so it is resolved
+  // for EVERY authenticated actor and is deliberately NOT nested inside the K+
+  // answer read just above. The two are separate decisions that happen to need
+  // the same flag: `hasActiveKPlusForWardrobeContext` continues to gate the K+
+  // Wardrobe Concierge sources and census below, and nothing about those moved.
+  //
+  // Removing the entitlement requirement did NOT remove authorization. The RPC
+  // is zero-argument and SECURITY DEFINER over `auth.uid()` alone
+  // (20260915214857_signature_style_free_entitlement.sql), so it derives one
+  // actor's profile from that same actor's own Closet rows and can neither be
+  // pointed at another user nor be fed a client-authored payload. A signed-out
+  // request never reaches here at all.
   let hasActiveKPlusForWardrobeContext = false;
   let serverSignatureStyleProfile: Awaited<ReturnType<typeof getOrRecomputeSignatureStyleProfile>>['profile'] = null;
   let serverSignatureStyleAvailable = false;
@@ -2191,21 +2200,20 @@ Deno.serve(async (req) => {
       hasActiveKPlusForWardrobeContext = kPlusActive === true;
     } catch {
       // Fail closed on the entitlement check itself: an error here must never
-      // silently grant premium wardrobe context.
+      // silently grant premium wardrobe context. (K+ Wardrobe Concierge only —
+      // Signature Style below does not consult this answer.)
       hasActiveKPlusForWardrobeContext = false;
     }
-    if (hasActiveKPlusForWardrobeContext) {
-      try {
-        const profileResult = await getOrRecomputeSignatureStyleProfile({ supabase: userClient });
-        if (profileResult.ok && profileResult.profile) {
-          serverSignatureStyleProfile = profileResult.profile;
-          serverSignatureStyleAvailable = true;
-        }
-      } catch {
-        // Context-unavailable is not a chat failure (section R): fall back to
-        // Base Elise silently, never fabricate a profile.
-        serverSignatureStyleProfile = null;
+    try {
+      const profileResult = await getOrRecomputeSignatureStyleProfile({ supabase: userClient });
+      if (profileResult.ok && profileResult.profile) {
+        serverSignatureStyleProfile = profileResult.profile;
+        serverSignatureStyleAvailable = true;
       }
+    } catch {
+      // Context-unavailable is not a chat failure (section R): fall back to
+      // Base Elise silently, never fabricate a profile.
+      serverSignatureStyleProfile = null;
     }
   }
   // buildServerSignatureStyleProfileBlock is total and returns null for any profile
