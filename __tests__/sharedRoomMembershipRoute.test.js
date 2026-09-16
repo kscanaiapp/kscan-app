@@ -79,13 +79,16 @@ test('auth timing waits for loading to resolve before capture eligibility', () =
 
 test('attempt tracker resets on token and user changes', () => {
   assert.match(publicRoomScreen, /membershipCaptureTracker\.current\.reset\(\)/);
+  // Build 35 added resetReactions() to both of these effects (so a token or
+  // actor switch also clears reaction state, per the actor-isolation
+  // requirement) and it is a correctness-required dependency of each.
   assert.match(
     publicRoomScreen,
-    /membershipCaptureTracker\.current\.reset\(\);\s+\}, \[normalizedRouteToken\]\);/,
+    /membershipCaptureTracker\.current\.reset\(\);\s+\}, \[normalizedRouteToken, resetReactions\]\);/,
   );
   assert.match(
     publicRoomScreen,
-    /useEffect\(\(\) => \{\s+membershipCaptureTracker\.current\.reset\(\);[\s\S]*?\}, \[user\?\.id\]\);/,
+    /useEffect\(\(\) => \{\s+membershipCaptureTracker\.current\.reset\(\);[\s\S]*?\}, \[user\?\.id, resetReactions\]\);/,
   );
   assert.match(publicRoomScreen, /mountedRef\.current = false/);
   assert.match(publicRoomScreen, /if \(mountedRef\.current\) \{\s+onJoined\(joinedRoomId\);/);

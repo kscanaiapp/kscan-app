@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Modal, StyleSheet, Text, View } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { softImpact } from '../../services/haptics';
 import { PrimaryButton, SecondaryButton } from '../luxury';
 import { VoiceScanIcon } from '../icons/kscan';
 import { LUXURY, MOTION, RADIUS, SHADOWS, SPACING } from '../../constants/theme';
@@ -114,7 +114,7 @@ export function VoiceListeningSheet({
     // moments feel different. Fire-and-forget: haptics must never gate or
     // delay recognition, and a device without a taptic engine simply
     // no-ops.
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    softImpact();
   }, [state]);
 
   const renderContent = () => {

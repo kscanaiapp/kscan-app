@@ -289,7 +289,9 @@ test('Shared-With-Me route upgrades only collaborator-mode authenticated session
   assert.match(route, /canChat=\{capabilities\.canChat\}/);
   assert.match(route, /autoJoin=\{collaboratorMode\}/);
   assert.match(route, /capabilities\.canReact && joinedRoomId/);
-  assert.match(route, /setJoinedRoomId\(null\)[\s\S]*\[user\?\.id\]/);
+  // Build 35 added resetReactions to this effect's deps (it also resets
+  // reaction state on an actor switch now -- see sharedRoomMembershipRoute.test.js).
+  assert.match(route, /setJoinedRoomId\(null\)[\s\S]*\[user\?\.id, resetReactions\]/);
 });
 
 test('public preview cannot receive collaborator controls from a query mode alone', () => {

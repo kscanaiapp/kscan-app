@@ -267,18 +267,24 @@ test('a pending message is never presented as delivered or actionable', () => {
   assert.match(panel, /\{!message\.isMine && !pending \? \(/);
 });
 
+// Build 35 extracted the reaction rollback/rejection machinery out of both
+// screens into the shared hooks/useDressingRoomReactions.ts (so the fix and
+// the tap haptic only had to land once); see also
+// __tests__/styleObjectsContract.test.js for the same extraction.
 test('a rejected reaction restores the exact prior selection and counts', () => {
+  const hook = read('hooks/useDressingRoomReactions.ts');
+  assert.match(hook, /previousSelection: currentReaction,/);
+  assert.match(hook, /previousCounts,\n/);
+  assert.match(
+    hook,
+    /setSelectedReactions\(\(current\) => \(\{ \.\.\.current, \[itemId\]: payload\.previousSelection \}\)\);\s*setReactionCounts\(\(current\) => \(\{ \.\.\.current, \[itemId\]: payload\.previousCounts \}\)\);/,
+    'rollback must restore both halves of the snapshot',
+  );
+  // And it must not roll back into a room or an account that has moved on.
+  assert.match(hook, /contextRef\.current\.getIdentity\(\) !== payload\.identityAtTap/);
+
   for (const screen of ['app/dressing-rooms/[id].tsx', 'app/(public)/rooms/[token].tsx']) {
-    const source = read(screen);
-    assert.match(source, /const previousSelection = currentReaction;/, screen);
-    assert.match(source, /const previousCounts = reactionCounts\[itemId\] \?\? createEmptyReactionCounts\(\);/, screen);
-    assert.match(
-      source,
-      /setSelectedReactions\(\(current\) => \(\{ \.\.\.current, \[itemId\]: previousSelection \}\)\);\s*setReactionCounts\(\(current\) => \(\{ \.\.\.current, \[itemId\]: previousCounts \}\)\);/,
-      `${screen} must restore both halves of the snapshot`,
-    );
-    // And it must not roll back into a room or an account that has moved on.
-    assert.match(source, /const stillThisRoomAndActor = \(\) =>/, screen);
+    assert.match(read(screen), /useDressingRoomReactions\(reactionItemIds, reactionContext\)/, screen);
   }
 });
 
@@ -290,12 +296,18 @@ test('the access-revoked screen shows nothing from the room behind it', () => {
     'setRoom\\(null\\)',
     'setItems\\(\\[\\]\\)',
     'setInspirations\\(\\[\\]\\)',
-    'setReactionCounts\\(\\{\\}\\)',
-    'setSelectedReactions\\(\\{\\}\\)',
+    'resetReactions\\(\\)',
     'setSelectedItem\\(null\\)',
   ]) {
     assert.match(screen, new RegExp(flush), `access loss must flush: ${flush}`);
   }
+  // resetReactions (from the shared hook) clears both halves of reaction
+  // state, so the flush above genuinely empties it rather than no-op'ing.
+  const hook = read('hooks/useDressingRoomReactions.ts');
+  assert.match(
+    hook,
+    /setReactionCounts\(\{\}\);\s*setSelectedReactions\(\{\}\);\s*setMutatingReactionItemId\(null\);/,
+  );
   // The stale room title must not survive into the header either.
   assert.match(screen, /title=\{accessLost \? 'Dressing Room' : room\?\.title \|\| 'Untitled Room'\}/);
   // No Retry on an authorization loss - it could only fail again.

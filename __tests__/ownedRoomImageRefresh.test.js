@@ -25,9 +25,13 @@ test('identical focus and foreground requests are deduped while actor and room c
 });
 
 test('blur invalidates pending room and inspiration responses', () => {
+  // Build 35 moved the reaction hook setup earlier in this component (it
+  // must exist before the reload/reset callbacks that reference it), so the
+  // focus/blur block's end anchor is now the next declaration after the
+  // AppState effect rather than the reaction setup.
   const focusBlock = roomScreen.slice(
     roomScreen.indexOf('useFocusEffect(useCallback'),
-    roomScreen.indexOf('const reactionItemIds'),
+    roomScreen.indexOf('const selectedCount = selectedIds.length'),
   );
   assert.match(focusBlock, /roomLoadRequestId\.current \+= 1/);
   assert.match(focusBlock, /inspirationLoadRequestId\.current \+= 1/);
