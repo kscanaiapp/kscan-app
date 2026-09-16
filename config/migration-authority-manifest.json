@@ -614,6 +614,42 @@
             ],
             "classification": "EQUIVALENT_RENUMBER",
             "evidence": "Same logical name, applied under ledger version 20260902154435. public.get_item_reaction_counts present."
+          },
+          {
+            "localVersion": "20260909115726",
+            "logicalName": "watchlist_push_receipts",
+            "remoteVersions": [
+              "20260909171001"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "N-4. Applied to staging 2026-09-09 by the Watchlist Backend Readiness 02 lane, because public.watchlist_push_receipts was ABSENT on staging while the N-4 code had already landed on the release line. Applied through the Supabase MCP apply_migration surface (the governed scripts/deploy-staging-function.mjs path needs the supabase CLI and SUPABASE_ACCESS_TOKEN, neither available to that session), and that surface assigns its own wall-clock ledger version -- hence 20260909171001 rather than the source version. EQUIVALENT rather than EXACT: the executed statement is the source file's executable body with its comment/header text omitted (staging recorded 3937 chars against a 9231-byte source file), so the SQL is semantically identical but not byte-identical. Verified 2026-09-09 on staging: table present; RLS enabled with zero policies; anon and authenticated hold no grants; service_role holds SELECT/INSERT/UPDATE/DELETE; six CHECK constraints present; watchlist_push_receipts_ticket_uidx, _due_idx and _token_row_idx present; no raw push-token column. See docs/watchlist-backend-readiness-02-staging-certification.md."
+          },
+          {
+            "localVersion": "20260909170000",
+            "logicalName": "watchlist_f03_push_token_actor_isolation_reconciliation",
+            "remoteVersions": [
+              "20260909171017"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "F-03 forward reconciliation (PR #380). Applied to staging 2026-09-09 by the Watchlist Backend Readiness 02 lane via Supabase MCP apply_migration, which assigned wall-clock version 20260909171017 rather than the source version. EQUIVALENT rather than EXACT: the executed statement is the source file's executable body without its comment header (staging recorded 3095 chars against a 10152-byte source file). Functionally a no-op on staging, which already carried the DEF-WL-01 end state from ledger 20260830214752 -- the migration's own post-conditions executed and PASSED there, asserting both that user_device_push_tokens_live_token_uidx exists and that register_device_push_token carries the competing-route retirement. Note the sibling entry above: local 20260830190000 is itself reconciled to remote 20260830214752, which is exactly the ledger-vs-filename ordering split F-03 repaired in source."
+          },
+          {
+            "localVersion": "20260914120000",
+            "logicalName": "close_authenticated_cross_actor_owned_item_snapshot",
+            "remoteVersions": [
+              "20260914201155"
+            ],
+            "classification": "EXACT_CONTENT_RENUMBER",
+            "evidence": "Build 34 staging-to-release SECURITY convergence (2026-09-15). This narrow hardening was authored on fix/notifications-final-convergence-v1 (commit d66f03d) as supabase/migrations/20260914120000_close_authenticated_cross_actor_owned_item_snapshot.sql and applied to staging under ledger version 20260914201155 while living in NO merged branch -- so the governed deploy preflight correctly reported it as undeclared remote-only drift and blocked every staging deploy. Identity is PROVEN, not asserted: with SQL line comments stripped and whitespace normalized, the source file and staging's recorded supabase_migrations.schema_migrations.statements are byte-identical, both hashing to 23a939056a54927124b2eb3eaf42f01b (2535 chars, 1 statement). Behaviour re-read live on staging the same day: build_owned_item_snapshot(text,uuid,uuid) grants are postgres/service_role EXECUTE only (has_function_privilege authenticated=false, anon=false) and the body carries the 'p_owner_id <> auth.uid()' actor gate, still SECURITY DEFINER. The file is now carried in the release tree at its ORIGINAL authored version 20260914120000; this entry records that staging applied that exact content under 20260914201155. Nothing else from that branch is ported."
+          },
+          {
+            "localVersion": "20260916203000",
+            "logicalName": "reaction_counts_require_live_room_access",
+            "remoteVersions": [
+              "20260916204355"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "B34-SEC-001, PR #431 (draft; base release/kscan-pre-freeze-v1; head claude/relaxed-noether-zqp4rl @ ccb1dd0f), authored in commit 96d1c3a1 as supabase/migrations/20260916203000_reaction_counts_require_live_room_access.sql. Staging recorded it under ledger version 20260916204355 (2026-09-16T20:43:55Z), about three and a half minutes before that commit (20:47:28Z), and it lives in NO merged branch -- so the governed deploy preflight correctly reported it as undeclared remote-only drift and refused staging-controlled-deploy run 35154244943 for PR #432. EQUIVALENT rather than EXACT: staging's recorded statement is the source file's executable body without its comment text (2988 chars against a 7317-byte source file). With SQL line comments stripped and whitespace normalized, the source file and supabase_migrations.schema_migrations.statements are identical, both hashing to b630bcd353b9120f379b19aa83a9bce5 (2391 chars, 1 statement) -- the same normalization that reproduces the 23a939056a54927124b2eb3eaf42f01b proof recorded for 20260914120000. Behaviour re-read live on staging 2026-09-16: public.get_item_reaction_counts(uuid[]) is SECURITY DEFINER, owner postgres, search_path pg_catalog, public, returns TABLE(item_id uuid, reaction_type text, count integer), carries both the anonymous active-share branch and the shared_room_memberships gate for authenticated callers, and anon/authenticated retain EXECUTE. Production (wyyuqfdxucjksghsmhry) carries this migration under no version or name and still runs the B33-SEC-001 body, so the two environments now differ on this function. This entry records only that staging applied this content under 20260916204355; it does not review or approve PR #431, and the file is carried at its original authored version so the renumber stays provable. Nothing else from that branch is ported."
           }
         ],
         "genuinelyUnapplied": [],
