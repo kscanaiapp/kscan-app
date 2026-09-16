@@ -97,6 +97,10 @@ import {
   sanitizeDetectedGarments,
   type SanitizedDetectedGarment,
 } from './multiItemGarments.ts';
+import {
+  isEliseItemEntryPath,
+  resolveEliseDominantGarment,
+} from './eliseDominantGarment.ts';
 import { isQualityTuneEnabled, QUALITY_TUNE_VERSION } from './qualityTuneConfig.ts';
 import { checkAuthenticatedScanQuota } from './scanQuota.ts';
 import { applyQualityTaxonomyTune } from './qualityTuneNormalize.ts';
@@ -3348,8 +3352,46 @@ Deno.serve(async (req) => {
     // which is what makes them structurally unable to disagree. There is no
     // second visual-classification pipeline.
     const v2EvidenceIds = internalRequest.evidenceId ? [internalRequest.evidenceId] : [];
-    const v2DetectionCandidates = useMultiItemDetectionProvider && detectedGarments.length > 0
-      ? detectedGarments.map((garment) => ({
+
+    // ── Elise item-path dominant-garment resolution ─────────────────────────
+    // Elise's direct photo attachment analyses ONE garment, so its client
+    // treats any multi-candidate detection as terminal and tells the user to
+    // re-shoot. An ordinary worn-garment photo with an incidental second
+    // garment in frame therefore got rejected for being an ordinary photo.
+    //
+    // When one garment unambiguously dominates the frame, the candidate set is
+    // narrowed to that garment HERE, so the existing single-candidate
+    // auto-continue carries it forward. When nothing dominates, every
+    // candidate is passed through untouched and the client's current
+    // ask-the-user behaviour is unchanged — this never converts an ambiguous
+    // photo into a silent guess.
+    //
+    // Confined to `elise_camera` / `elise_gallery`. Scanner, Closet and
+    // Elise's outfit-oriented header gallery keep the full candidate set: this
+    // reads the entry path the request already carries rather than changing
+    // what detection does for everyone.
+    const eliseDominant = useMultiItemDetectionProvider &&
+        detectedGarments.length > 1 &&
+        isEliseItemEntryPath(internalRequest.entryPath)
+      ? resolveEliseDominantGarment(detectedGarments)
+      : null;
+    if (eliseDominant) {
+      const resolutionRequestHash = (await sha256Hex(internalRequest.requestId ?? scanId)).slice(0, 12);
+      console.log(
+        '[scan-identify] elise_item_candidate_resolution requestHash=%s entryPath=%s detected=%d outcome=%s reason=%s',
+        resolutionRequestHash,
+        internalRequest.entryPath ?? 'none',
+        detectedGarments.length,
+        eliseDominant.kind,
+        eliseDominant.reason,
+      );
+    }
+    const v2CandidateGarments = eliseDominant?.kind === 'dominant'
+      ? [eliseDominant.garment]
+      : detectedGarments;
+
+    const v2DetectionCandidates = useMultiItemDetectionProvider && v2CandidateGarments.length > 0
+      ? v2CandidateGarments.map((garment) => ({
         candidateId: garment.candidateId,
         // Every candidate keeps the id of the image it came from, so the
         // follow-up selected-item request stays correlated to this detection.
