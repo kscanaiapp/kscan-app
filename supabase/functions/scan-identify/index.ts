@@ -2112,7 +2112,7 @@ Deno.serve(async (req) => {
     if (commerceOnlyQuota.outcome !== 'allowed') {
       // 'unverified' fails CLOSED here for the same reason it does on the image
       // route: quota infrastructure being unreachable is not evidence the user
-      // is under their limit, and this is a paid path.
+      // is under their limit, and this route spends real provider money.
       const exceeded = commerceOnlyQuota.outcome === 'exceeded';
       console.warn(
         '[scan-identify] commerce_only_quota_blocked uid=%s outcome=%s paid_work=blocked',
@@ -4016,7 +4016,7 @@ Deno.serve(async (req) => {
           source,
         );
         // Report the timeout as a timeout. Leaving provider as 'none' made this
-        // indistinguishable from "the provider genuinely found nothing", so the
+        // indistinguishable from a provider that genuinely found nothing, so the
         // outcome was recorded as commerce_primary_empty and the failure was
         // invisible. mapToFailureReason resolves providerOutcome 'timeout' to
         // provider_timeout ahead of the commercePrimaryEmpty branch, and text

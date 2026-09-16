@@ -118,7 +118,28 @@ test('edge source: image mode remains backward-compatible', () => {
 });
 
 test('edge source: image mode works without explicit mode field', () => {
-  assert.ok(EDGE_SOURCE.includes("typeof body.mode === 'string'") && EDGE_SOURCE.includes("'image'"), 'Must default to image mode');
+  // B33-SEC-003 moved this decision out of an inline ternary in index.ts and
+  // into scanQuota.canonicalizeScanMode(), because the inline form fed the
+  // caller's raw string straight into the durable quota key. The CONTRACT is
+  // unchanged — an absent or non-string mode is still an image scan — so assert
+  // the contract at its new home rather than the shape it used to have.
+  assert.ok(
+    /const mode: CanonicalScanMode = isV2Request \? 'image' : canonicalizeScanMode\(body\.mode\)/
+      .test(EDGE_SOURCE),
+    'the request boundary must canonicalize body.mode',
+  );
+  const quotaSource = fs.readFileSync(
+    path.join(ROOT, 'supabase/functions/scan-identify/scanQuota.ts'),
+    'utf8',
+  );
+  assert.ok(
+    quotaSource.includes("if (typeof raw !== 'string') return 'image';"),
+    'an absent or non-string mode must still default to image',
+  );
+  assert.ok(
+    quotaSource.includes("return raw.trim().toLowerCase() === 'text' ? 'text' : 'image';"),
+    'only text may leave the image bucket',
+  );
 });
 
 test('edge source: image failures return safe app-compatible shape', () => {
