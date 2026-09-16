@@ -188,8 +188,12 @@ test('COMMERCIAL_TERMS: the offer term resolver is presentation-only and env-dri
 
 test('COMMERCIAL_TERMS: an unset campaign renders no offer line rather than a guess', () => {
   const flags = loadModule(path.join(ROOT, 'constants', 'featureFlags.ts'), {});
+  // undefined is what an unset EXPO_PUBLIC_KPLUS_ACTIVATION_OFFER_TERM resolves
+  // to -- this must render nothing, never a hardcoded duration guess.
+  assert.equal(flags.resolveKPlusActivationOfferTerm(undefined), '');
   assert.equal(flags.resolveKPlusActivationOfferTerm(''), '');
   assert.equal(flags.resolveKPlusActivationOfferTerm('  '), '');
+  assert.equal(flags.resolveKPlusActivationOfferTerm('6 months included'), '6 months included');
   assert.equal(flags.resolveKPlusActivationOfferTerm('3 months included'), '3 months included');
 
   // And the screen must actually respect an empty term.

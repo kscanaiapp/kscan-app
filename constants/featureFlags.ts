@@ -163,7 +163,7 @@ export const KPLUS_EARLY_ACCESS_ENABLED = resolveKPlusEarlyAccessEnabled();
 export function resolveKPlusActivationOfferTerm(
   value: string | undefined = process.env.EXPO_PUBLIC_KPLUS_ACTIVATION_OFFER_TERM,
 ): string {
-  return typeof value === 'string' ? value.trim() : '6 months included';
+  return typeof value === 'string' ? value.trim() : '';
 }
 export const KPLUS_ACTIVATION_OFFER_TERM = resolveKPlusActivationOfferTerm();
 
