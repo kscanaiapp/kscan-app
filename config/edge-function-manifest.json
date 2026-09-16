@@ -21,6 +21,7 @@
       "privacy-data-export",
       "process-account-deletions",
       "product-search-deals",
+      "reconcile-orphan-media",
       "resend-restoration-email",
       "restore-account",
       "scan-identify",
@@ -1689,6 +1690,24 @@
           {
             "path": "supabase/functions/vto-generate/vtoTelemetry.ts",
             "sha256": "6186f7e6bc16a407f25ab6fed14aa6ca720be4a2d0818c3466154e02c63eea28",
+            "bundle": true
+          }
+        ]
+      },
+      {
+        "name": "reconcile-orphan-media",
+        "entry": "supabase/functions/reconcile-orphan-media/index.ts",
+        "remoteSpecifiers": [
+          "npm:@supabase/supabase-js@2"
+        ],
+        "bundleFileCount": 1,
+        "treeFileCount": 1,
+        "bundleHash": "fcdec6f02bb3ff5febc7d1883b34e52181040c81b79b91b65935dccbb3c103c1",
+        "treeHash": "fcdec6f02bb3ff5febc7d1883b34e52181040c81b79b91b65935dccbb3c103c1",
+        "files": [
+          {
+            "path": "supabase/functions/reconcile-orphan-media/index.ts",
+            "sha256": "74b250df552d265510f5994124feee4539e095ab20b2a2507eaab44c095b2f2d",
             "bundle": true
           }
         ]
