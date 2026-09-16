@@ -43,7 +43,9 @@
       "ledgerSqlHash": "a23728727bb26d6311140e493ebcd3e861beddedf00d2acb6f6790bde7805e51",
       "canonicalSqlHash": "a23728727bb26d6311140e493ebcd3e861beddedf00d2acb6f6790bde7805e51",
       "logicalOwner": "kscan-app",
-      "reasonCentralized": "native"
+      "reasonCentralized": "native",
+      "productionLedgerVersion": "20260916160903",
+      "note": "B33-DRIFT-001 (2026-09-16): the live environment had never applied this version and all four functions were confirmed unpinned (pg_proc.proconfig IS NULL) while staging held search_path=pg_catalog,public. Found by diffing the security profile (prosecdef / search_path pinned / anon EXECUTE / authenticated EXECUTE) of 21 shared security-critical RPCs across both environments -- these four were the ONLY differences; anon and authenticated grants were identical everywhere, and the anon-executable set remains exactly the three intended public-share RPCs. Classified SECURITY_FIX_MISSING at P4, not higher: all four are SECURITY INVOKER in both environments, so the SECURITY DEFINER search_path escalation vector does not apply, matching the not-exploitable assessment recorded in PR #428 -- which deferred them as behavioral DDL that did not belong in a privilege migration, not as work to skip. Converged by applying this migration's identical four ALTER statements under the environment's own ledger version 20260916160903, the same one-logical-migration/two-ledger-identities pattern used for legal_acceptances_ai_processing_consent and scan_commerce_events_accuracy_telemetry. Metadata-only: no body redefined. Bodies were read live first and are functionally identical to staging's (line endings aside), and every body references only NEW and pg_catalog built-ins (now, btrim, coalesce, nullif, char_length) with no public object, so pinning cannot change name resolution for any statement they execute. Verified after: 4/4 pinned, 0 became SECURITY DEFINER, 77 functions and 31 triggers unchanged with 0 disabled, and zero remaining functions in public without a pinned search_path."
     },
     {
       "ledgerVersion": "20260808115735",
