@@ -323,7 +323,29 @@ test('Elise sources its allowlist from the shared module so surfaces cannot drif
 });
 
 test('config.toml pins JWT posture so a deploy cannot silently change it', () => {
-  assert.match(configToml, /project_id = "wyyuqfdxucjksghsmhry"/);
+  // B34-GOV-002. This assertion used to hardcode the production project ref.
+  // aeb84551 ("make the production contract replay from source control")
+  // deliberately repointed config.toml at staging, and config/backend-authority.json
+  // records that as `approvedProjectRef`, but this line was not updated. Because it
+  // is the FIRST assertion in the test, it threw before any of the verify_jwt
+  // assertions below could run — so the guard that exists to stop JWT posture
+  // drifting had itself been dead since that commit. Real drift got through while
+  // it was: tryon-clothes-pro is declared verify_jwt = true here and is deployed to
+  // staging with verify_jwt false (harmless today only because the slug is a
+  // retired 410 stub that reads no secrets and calls nothing).
+  //
+  // Pinning to the governed approvedProjectRef instead of a literal keeps the guard
+  // doing its actual job — catching a silent repoint — and keeps it correct across
+  // the environment migration, which will move both values together.
+  const approvedProjectRef = JSON.parse(
+    fs.readFileSync(path.join(ROOT, 'config/backend-authority.json'), 'utf8'),
+  ).approvedProjectRef;
+  assert.ok(approvedProjectRef, 'backend-authority.json must declare approvedProjectRef');
+  assert.match(
+    configToml,
+    new RegExp(`project_id = "${approvedProjectRef}"`),
+    'config.toml must point at the governed approvedProjectRef, not some other project',
+  );
   assert.match(configToml, /\[functions\.scan-identify\][\s\S]{0,80}verify_jwt = false/);
   assert.match(configToml, /\[functions\.stylechat-generate\][\s\S]{0,80}verify_jwt = true/);
   assert.match(configToml, /\[functions\.style-outfit-generate\]/, 'style-outfit-generate must be declared so verify_jwt cannot silently drift');
