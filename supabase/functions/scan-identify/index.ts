@@ -3376,8 +3376,10 @@ Deno.serve(async (req) => {
       ? resolveEliseDominantGarment(detectedGarments)
       : null;
     if (eliseDominant) {
+      const resolutionRequestHash = (await sha256Hex(internalRequest.requestId ?? scanId)).slice(0, 12);
       console.log(
-        '[scan-identify] elise_item_candidate_resolution entryPath=%s detected=%d outcome=%s reason=%s',
+        '[scan-identify] elise_item_candidate_resolution requestHash=%s entryPath=%s detected=%d outcome=%s reason=%s',
+        resolutionRequestHash,
         internalRequest.entryPath ?? 'none',
         detectedGarments.length,
         eliseDominant.kind,

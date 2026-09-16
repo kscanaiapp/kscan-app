@@ -14,14 +14,16 @@
  * for an ordinary worn-garment photo. If real detection returned no bounds, or
  * only ever one candidate, the rule would be correct and inert.
  *
- * So this sends each image class twice:
+ * So this sends each image class through both paths:
  *
  *   `elise_gallery`  -- the repaired item path, post-narrowing
  *   `scanner_camera` -- the untouched control, which reveals what detection
  *                       actually found before any narrowing
  *
- * The difference between the two is the rule firing, observed live. The control
- * doubles as live evidence that Scanner still receives the full candidate set.
+ * Provider output is nondeterministic across calls, so the probe does not infer
+ * the repair from a difference between those two responses. It reads the
+ * function's sanitized, same-request resolution diagnostic from staging logs.
+ * The control independently proves Scanner remains healthy on the same fixture.
  *
  * For the classes that resolve to a single candidate it then runs the real
  * second stage (`identify_selected_item`) with the server-issued correlation
@@ -31,7 +33,8 @@
  * SCOPE AND SAFETY
  * - Staging only. Refuses a production ref or URL before any network call.
  * - Reads only the repository's own approved `assets/qa_fixtures` images.
- * - Ten bounded, sequential provider calls. No retries, no loops.
+ * - At most fourteen bounded, sequential provider calls. Geometry-sensitive
+ *   classes get at most three attempts because provider detection can vary.
  * - Emits contract facts only: counts, enum-ish strings, and normalized
  *   bounding-box AREA. Never image bytes, tokens, email, user id, provider
  *   prose, or raw provider payload. `assertEvidencePrivacy` re-checks the
@@ -51,6 +54,8 @@ const FIXTURE_DIR = path.join(REPO_ROOT, 'assets', 'qa_fixtures');
 const SCAN_IDENTIFY_PATH = '/functions/v1/scan-identify';
 const CONTRACT_VERSION = 'fashion-identification-v2';
 const REPORT_FILE = 'elise-dominant-garment-live-probe-report.json';
+const RESOLUTION_MARKER = 'elise_item_candidate_resolution';
+const GEOMETRY_ATTEMPT_LIMIT = 3;
 
 const STAGING_PROJECT_REF = 'yzqjvdfgefveprobvvyw';
 const PRODUCTION_PROJECT_REF = 'wyyuqfdxucjksghsmhry';
@@ -63,6 +68,7 @@ const REQUIRED_ENV_VARS = Object.freeze([
   'SUPABASE_STAGING_PROJECT_REF',
   'SUPABASE_STAGING_URL',
   'SUPABASE_STAGING_PUBLISHABLE_KEY',
+  'SUPABASE_ACCESS_TOKEN',
   'STAGING_SYNTHETIC_ACTIVE_EMAIL',
   'STAGING_SYNTHETIC_ACTIVE_PASSWORD',
 ]);
@@ -76,8 +82,10 @@ const FORBIDDEN_EVIDENCE_PATTERNS = Object.freeze([
 
 /**
  * The four classes the incident is about, each mapped to an image the
- * repository already owns and has cleared for use. No composition step, and
- * emphatically not the customer's photograph.
+ * repository already owns and has cleared for use. The ambiguity fixture is a
+ * deterministic equal-scale, side-by-side duplicate of the approved `top.jpg`
+ * fixture, so it gives the live provider two equally prominent garments. It
+ * contains no customer photograph.
  */
 const CLASSES = Object.freeze([
   {
@@ -95,9 +103,10 @@ const CLASSES = Object.freeze([
   },
   {
     id: 'GENUINE_AMBIGUITY',
-    fixture: 'bottom_skirt.jpg',
-    // A cropped jacket over a denim skirt, both squarely in frame at
-    // comparable prominence. Guessing here is the failure the rule prevents.
+    fixture: 'ambiguous_two_garments.jpg',
+    // Two equal-scale copies of the approved hoodie fixture. Live provider
+    // evidence on 2026-09-16 measured both leading garment boxes at 0.189 area
+    // (ratio 1.0), which is the comparable-prominence case the rule must keep.
     expect: 'asks',
   },
   {
@@ -246,6 +255,63 @@ function clientOutcomeForItemPolicy(wireCandidateCount) {
   return 'asks';
 }
 
+function hashRequestId(requestId) {
+  return crypto.createHash('sha256').update(requestId, 'utf8').digest('hex').slice(0, 12);
+}
+
+function parseResolutionDiagnostic(message) {
+  if (typeof message !== 'string' || !message.includes(RESOLUTION_MARKER)) return null;
+  const match = message.match(
+    /requestHash=([a-f0-9]{12}) entryPath=([^\s]+) detected=(\d+) outcome=([^\s]+) reason=([^\s]+)/,
+  );
+  if (!match) return null;
+  return {
+    requestHash: match[1],
+    entryPath: match[2],
+    detected: Number(match[3]),
+    outcome: match[4],
+    reason: match[5],
+  };
+}
+
+async function queryResolutionDiagnostics(projectRef, managementToken, startIso, expectedRequestHash, fetchImpl) {
+  const sql = `select timestamp, event_message from logs where source = 'function_logs' and timestamp >= parseDateTimeBestEffort('${startIso}') and event_message like '%${RESOLUTION_MARKER} requestHash=${expectedRequestHash} %' order by timestamp desc limit 20`;
+  const url = new URL(`https://api.supabase.com/v1/projects/${projectRef}/analytics/endpoints/logs`);
+  url.searchParams.set('sql', sql);
+  url.searchParams.set('iso_timestamp_start', startIso);
+  url.searchParams.set('iso_timestamp_end', new Date().toISOString());
+  const response = await fetchImpl(url, {
+    headers: { Authorization: `Bearer ${managementToken}` },
+  });
+  if (!response.ok) return [];
+  const body = await response.json().catch(() => ({}));
+  return (Array.isArray(body?.result) ? body.result : [])
+    .map((row) => ({ timestamp: row.timestamp, ...parseResolutionDiagnostic(row.event_message) }))
+    .filter((row) => row.requestHash === expectedRequestHash && row.entryPath === ELISE_ENTRY_PATH);
+}
+
+async function waitForResolutionDiagnostic(
+  projectRef,
+  managementToken,
+  startIso,
+  expectedRequestHash,
+  fetchImpl,
+) {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    // Function console logs are delivered asynchronously to the analytics API.
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    const diagnostics = await queryResolutionDiagnostics(
+      projectRef,
+      managementToken,
+      startIso,
+      expectedRequestHash,
+      fetchImpl,
+    );
+    if (diagnostics.length > 0) return diagnostics[0];
+  }
+  return null;
+}
+
 function assertEvidencePrivacy(value) {
   if (typeof value === 'string') {
     for (const pattern of FORBIDDEN_EVIDENCE_PATTERNS) {
@@ -317,32 +383,63 @@ async function run(env = process.env, fetchImpl = fetch) {
   const url = buildScanIdentifyUrl(env.SUPABASE_STAGING_URL);
   const key = env.SUPABASE_STAGING_PUBLISHABLE_KEY;
   const token = signIn.accessToken;
+  const managementToken = env.SUPABASE_ACCESS_TOKEN;
   const results = [];
 
   for (const klass of CLASSES) {
     const imageBase64 = loadApprovedFixture(klass.fixture);
+    const control = await detect(url, key, token, CONTROL_ENTRY_PATH, imageBase64, fetchImpl);
+    const scannerControlHealthy = control.authenticated && control.httpStatus === 200;
+    const geometrySensitive = ['DOMINANT_PLUS_INCIDENTAL', 'GENUINE_AMBIGUITY'].includes(klass.id);
+    const attemptLimit = geometrySensitive ? GEOMETRY_ATTEMPT_LIMIT : 1;
+    let chosen = null;
 
     // Sequential on purpose: staging quota and provider pressure stay bounded.
     /* eslint-disable no-await-in-loop */
-    const control = await detect(url, key, token, CONTROL_ENTRY_PATH, imageBase64, fetchImpl);
-    const elise = await detect(url, key, token, ELISE_ENTRY_PATH, imageBase64, fetchImpl);
-
-    const providerCount = control.candidates.length;
-    const wireCount = elise.candidates.length;
-    const boundsPresent = control.candidates.length > 0
-      && control.candidates.every((c) => c.boundsPresent);
-
-    let dominanceResolution = 'not_applicable';
-    if (providerCount > 1) {
-      dominanceResolution = wireCount === 1 ? 'dominant' : 'ambiguous';
+    for (let attempt = 1; attempt <= attemptLimit; attempt += 1) {
+      const startedAt = new Date(Date.now() - 1000).toISOString();
+      const elise = await detect(url, key, token, ELISE_ENTRY_PATH, imageBase64, fetchImpl);
+      const expectedRequestHash = hashRequestId(elise.request.requestId);
+      const wireCount = elise.candidates.length;
+      const clientOutcome = clientOutcomeForItemPolicy(wireCount);
+      const diagnostic = geometrySensitive
+        ? await waitForResolutionDiagnostic(
+          env.SUPABASE_STAGING_PROJECT_REF,
+          managementToken,
+          startedAt,
+          expectedRequestHash,
+          fetchImpl,
+        )
+        : null;
+      const sameRequestResolutionProven = klass.id === 'DOMINANT_PLUS_INCIDENTAL'
+        ? diagnostic?.requestHash === expectedRequestHash
+          && diagnostic?.detected > 1
+          && diagnostic?.outcome === 'dominant'
+          && diagnostic?.reason === 'area_dominance'
+          && wireCount === 1
+        : klass.id === 'GENUINE_AMBIGUITY'
+          ? diagnostic?.requestHash === expectedRequestHash
+            && diagnostic?.detected > 1
+            && diagnostic?.outcome === 'ambiguous'
+            && diagnostic?.reason === 'comparable_area'
+            && wireCount > 1
+          : true;
+      const wireExpectationMet = clientOutcome === klass.expect;
+      chosen = {
+        attemptCount: attempt,
+        elise,
+        diagnostic,
+        wireCount,
+        clientOutcome,
+        sameRequestResolutionProven,
+        wireExpectationMet,
+      };
+      if (wireExpectationMet && sameRequestResolutionProven) break;
     }
 
-    const clientOutcome = clientOutcomeForItemPolicy(wireCount);
-
-    // Second stage, only where the flow actually continues. This is what makes
-    // "proceeds" an observation rather than an inference.
+    const { elise, diagnostic, wireCount, clientOutcome } = chosen;
     let selectedItem = null;
-    if (wireCount === 1) {
+    if (wireCount === 1 && chosen.sameRequestResolutionProven) {
       const selectedRequest = buildSelectedItemRequest(
         elise.request,
         elise.candidates[0],
@@ -365,7 +462,8 @@ async function run(env = process.env, fetchImpl = fetch) {
     }
     /* eslint-enable no-await-in-loop */
 
-    const expectationMet = clientOutcome === klass.expect
+    const expectationMet = chosen.wireExpectationMet
+      && chosen.sameRequestResolutionProven
       && (klass.expect !== 'proceeds' || Boolean(selectedItem?.usableIdentity));
 
     results.push({
@@ -373,11 +471,12 @@ async function run(env = process.env, fetchImpl = fetch) {
       fixture: klass.fixture,
       expected: klass.expect,
       authenticated: control.authenticated && elise.authenticated,
+      attemptCount: chosen.attemptCount,
       control: {
         entryPath: CONTROL_ENTRY_PATH,
         httpStatus: control.httpStatus,
         v2Status: control.v2Status,
-        candidateCount: providerCount,
+        candidateCount: control.candidates.length,
         // Sorted descending so the dominance comparison is readable directly.
         areas: control.candidates.map((c) => c.area).sort((a, b) => (b ?? 0) - (a ?? 0)),
         categories: control.candidates.map((c) => c.category),
@@ -390,15 +489,15 @@ async function run(env = process.env, fetchImpl = fetch) {
         candidateCount: wireCount,
         categories: elise.candidates.map((c) => c.category),
       },
-      realProviderCandidateCount: providerCount,
-      realProviderBoundsPresent: boundsPresent,
-      dominanceResolution,
+      sameRequestDiagnostic: diagnostic,
+      realProviderCandidateCount: diagnostic?.detected ?? null,
+      realProviderBoundsPresent: ['area_dominance', 'comparable_area'].includes(diagnostic?.reason),
+      dominanceResolution: diagnostic?.outcome ?? 'not_applicable',
       finalWireCandidateCount: wireCount,
       clientOutcome,
       selectedItem,
       expectationMet,
-      // Live proof that Scanner still sees everything detection found.
-      scannerRetainedAllCandidates: providerCount === control.candidates.length,
+      scannerControlHealthy,
     });
   }
 
@@ -416,7 +515,7 @@ async function run(env = process.env, fetchImpl = fetch) {
       && (dominantCase?.realProviderCandidateCount ?? 0) > 1,
     dominanceRuleExercisedLive: dominantCase?.dominanceResolution === 'dominant',
     ambiguityPreservedLive: ambiguousCase ? ambiguousCase.dominanceResolution !== 'dominant' : null,
-    scannerRegressionLive: results.every((r) => r.scannerRetainedAllCandidates),
+    scannerRegressionLive: results.every((r) => r.scannerControlHealthy),
     results,
   };
 
@@ -470,6 +569,8 @@ module.exports = {
   buildScanIdentifyUrl,
   summarizeCandidates,
   clientOutcomeForItemPolicy,
+  hashRequestId,
+  parseResolutionDiagnostic,
   assertEvidencePrivacy,
   buildTerminalFailureReport,
   run,
