@@ -118,7 +118,28 @@ test('edge source: image mode remains backward-compatible', () => {
 });
 
 test('edge source: image mode works without explicit mode field', () => {
-  assert.ok(EDGE_SOURCE.includes("typeof body.mode === 'string'") && EDGE_SOURCE.includes("'image'"), 'Must default to image mode');
+  // B33-SEC-003 moved this decision out of an inline ternary in index.ts and
+  // into scanQuota.canonicalizeScanMode(), because the inline form fed the
+  // caller's raw string straight into the durable quota key. The CONTRACT is
+  // unchanged — an absent or non-string mode is still an image scan — so assert
+  // the contract at its new home rather than the shape it used to have.
+  assert.ok(
+    /const mode: CanonicalScanMode = isV2Request \? 'image' : canonicalizeScanMode\(body\.mode\)/
+      .test(EDGE_SOURCE),
+    'the request boundary must canonicalize body.mode',
+  );
+  const quotaSource = fs.readFileSync(
+    path.join(ROOT, 'supabase/functions/scan-identify/scanQuota.ts'),
+    'utf8',
+  );
+  assert.ok(
+    quotaSource.includes("if (typeof raw !== 'string') return 'image';"),
+    'an absent or non-string mode must still default to image',
+  );
+  assert.ok(
+    quotaSource.includes("return raw.trim().toLowerCase() === 'text' ? 'text' : 'image';"),
+    'only text may leave the image bucket',
+  );
 });
 
 test('edge source: image failures return safe app-compatible shape', () => {
@@ -408,10 +429,35 @@ test('edge source: image mode captures scan intelligence with timeout protection
   );
 });
 
-test('edge source: image mode commerce lookup has a 3000ms Promise.race timeout guard', () => {
+test('edge source: image mode commerce budget stays above the provider abort', () => {
+  // B33-COM-001. This used to pin the constant to 3000, which is BELOW
+  // shoppingProvider's PROVIDER_TIMEOUT_MS (4500). An outer budget under the
+  // provider's own abort makes that abort unreachable: a call that would have
+  // returned products between 3s and 4.5s is always discarded, the provider
+  // spend is still billed, and the scan reports an empty shelf. Production ran
+  // the repaired value while governed source still carried 3000, so a governed
+  // redeploy would have silently reverted the live fix.
+  //
+  // The invariant, not the literal, is what matters — so assert the relation
+  // against the provider's own constant rather than restating a number that can
+  // drift out from under this test.
+  const imageBudget = Number(
+    /IMAGE_MODE_COMMERCE_TIMEOUT_MS = (\d+)/.exec(EDGE_SOURCE)?.[1],
+  );
+  const providerTimeout = Number(
+    /PROVIDER_TIMEOUT_MS = (\d+)/.exec(
+      fs.readFileSync(
+        path.join(ROOT, 'supabase/functions/scan-identify/shoppingProvider.ts'),
+        'utf8',
+      ),
+    )?.[1],
+  );
+  assert.ok(Number.isFinite(imageBudget), 'image commerce budget must be a literal constant');
+  assert.ok(Number.isFinite(providerTimeout), 'provider timeout must be a literal constant');
   assert.ok(
-    EDGE_SOURCE.includes('IMAGE_MODE_COMMERCE_TIMEOUT_MS = 3000'),
-    'Image mode commerce timeout constant must be 3000ms',
+    imageBudget > providerTimeout,
+    `image commerce budget (${imageBudget}ms) must exceed the provider abort `
+      + `(${providerTimeout}ms), or the provider's own timeout is unreachable`,
   );
 
   const imageBranchStart = EDGE_SOURCE.indexOf('} else {');
