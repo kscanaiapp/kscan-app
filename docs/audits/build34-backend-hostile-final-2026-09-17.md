@@ -3,7 +3,8 @@
 Campaign date: 2026-09-17  
 Environment: staging only (`yzqjvdfgefveprobvvyw`, `us-west-1`)  
 Final audit branch: `codex/build34-backend-hostile-audit-20260917`  
-Final audit SHA: `2314d29bb868f643fde2db52bf939643c7ee4eea`
+Final backend source SHA: `2314d29bb868f643fde2db52bf939643c7ee4eea`  
+Documentation commit: `6e111780ebca465224bc5373d05046fc9cbc8092`
 
 ## Executive result
 
