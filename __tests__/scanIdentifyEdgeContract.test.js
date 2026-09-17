@@ -5,6 +5,11 @@ const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '..');
 const EDGE_SOURCE = fs.readFileSync(path.join(ROOT, 'supabase/functions/scan-identify/index.ts'), 'utf8');
+const SCAN_QUOTA_SOURCE = fs.readFileSync(
+  path.join(ROOT, 'supabase/functions/scan-identify/scanQuota.ts'),
+  'utf8',
+);
+const SCAN_IDENTIFY_SOURCE_BUNDLE = `${EDGE_SOURCE}\n${SCAN_QUOTA_SOURCE}`;
 
 // ── 1. CORS and Auth Contract ──
 
@@ -626,7 +631,7 @@ test('edge source: production stage logs are present and do not leak sensitive d
   ];
   for (const label of logLabels) {
     assert.ok(
-      EDGE_SOURCE.includes(`[scan-identify] ${label}`),
+      SCAN_IDENTIFY_SOURCE_BUNDLE.includes(`[scan-identify] ${label}`),
       `Must include production stage log: ${label}`,
     );
   }
@@ -642,7 +647,7 @@ test('edge source: authenticated image scan checks DB quota before Gemini', () =
   const geminiIndex = EDGE_SOURCE.indexOf('fetch(buildGeminiUrl(');
   assert.ok(EDGE_SOURCE.includes('checkAuthenticatedScanQuota'), 'Must call authenticated quota check');
   assert.ok(
-    EDGE_SOURCE.includes('check_and_increment_scan_identify_daily_usage'),
+    SCAN_QUOTA_SOURCE.includes('check_and_increment_scan_identify_daily_usage'),
     'Must call scan_identify daily quota RPC',
   );
   assert.ok(quotaIndex !== -1, 'Must check authenticated quota');
@@ -684,22 +689,26 @@ test('edge source: quota exceeded does not call Gemini, commerce, or similarity'
   assert.ok(rateLimitReturn < similarityIndex, 'Rate-limited response must return before similarity');
 });
 
-test('edge source: quota DB/RPC failure fails open and proceeds to Gemini', () => {
-  assert.ok(EDGE_SOURCE.includes('quota_check_error'), 'Must log quota check errors');
+test('edge source: quota DB/RPC failure fails closed before paid work', () => {
+  assert.ok(SCAN_QUOTA_SOURCE.includes('quota_check_error'), 'Must log quota check errors');
   assert.ok(
-    EDGE_SOURCE.includes('{ allowed: true, count: 0, limit: 0 }'),
-    'Must allow scan when quota check fails',
+    SCAN_QUOTA_SOURCE.includes("return { outcome: 'unverified', reason: 'quota_rpc_error' }"),
+    'RPC failure must return an unverified decision, never authorize paid work',
+  );
+  assert.ok(
+    EDGE_SOURCE.includes("if (quota.outcome === 'unverified')"),
+    'The request boundary must stop on an unverified quota decision',
   );
 });
 
-test('edge source: missing service role key fails open for authenticated quota', () => {
+test('edge source: missing service role key fails closed for authenticated quota', () => {
   assert.ok(
-    EDGE_SOURCE.includes('reason=missing_service_role_client'),
+    SCAN_QUOTA_SOURCE.includes('reason=missing_service_role_client'),
     'Must detect missing service role client',
   );
   assert.ok(
-    EDGE_SOURCE.includes('{ allowed: true, count: 0, limit: 0 }'),
-    'Must allow scan when service role client missing',
+    SCAN_QUOTA_SOURCE.includes("return { outcome: 'unverified', reason: 'missing_service_role_client' }"),
+    'Missing quota authority must not authorize paid work',
   );
 });
 
@@ -721,7 +730,7 @@ test('edge source: TextScan remains authenticated-only', () => {
 });
 
 test('edge source: quota logs do not expose full user id, tokens, image, or text', () => {
-  const quotaLogLines = EDGE_SOURCE.split('\n').filter(
+  const quotaLogLines = SCAN_IDENTIFY_SOURCE_BUNDLE.split('\n').filter(
     (line) =>
       line.includes('quota_allowed') ||
       line.includes('quota_rate_limited') ||
