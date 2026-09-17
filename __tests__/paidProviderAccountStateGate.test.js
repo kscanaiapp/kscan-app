@@ -194,6 +194,20 @@ function postRequest(body, headers = {}) {
   });
 }
 
+function assertAccountGatePrecedesPaidWork(source, functionName) {
+  const gate = source.indexOf('const accountGate = await assertAccountActiveIfAuthenticated(req);');
+  const gateReturn = source.indexOf('if (accountGate) return accountGate;', gate);
+  const bodyParse = source.indexOf('await req.json()', gate);
+  const paidWork = functionName === 'search-vinted-secondhand'
+    ? source.indexOf('const result = await runApify(request);', gate)
+    : source.indexOf('const upstream = await fetch(upstreamUrl', gate);
+
+  assert.ok(gate >= 0, `${functionName}: account-state gate missing`);
+  assert.ok(gateReturn > gate, `${functionName}: gate result is not returned`);
+  assert.ok(bodyParse > gateReturn, `${functionName}: request parsing precedes account-state rejection`);
+  assert.ok(paidWork > bodyParse, `${functionName}: paid provider work is not after the gate`);
+}
+
 for (const fn of FUNCTIONS) {
   test(`${fn.name}: unauthenticated request reaches the provider -- existing anonymous policy preserved`, async () => {
     const { handler, fetchImpl } = loadHandler(fn, { users: {} });
@@ -279,6 +293,20 @@ for (const fn of FUNCTIONS) {
     );
     const calls = source.match(/assertAccountActiveIfAuthenticated\(req\)/g) ?? [];
     assert.equal(calls.length, 1);
+    assertAccountGatePrecedesPaidWork(source, fn.name);
+  });
+
+  test(`${fn.name} negative control: removing the account-state gate fails the paid-work boundary`, () => {
+    const source = fs.readFileSync(path.join(ROOT, fn.entry), 'utf8');
+    const broken = source.replace(
+      /\n\s*const accountGate = await assertAccountActiveIfAuthenticated\(req\);\n\s*if \(accountGate\) return accountGate;\n/,
+      '\n',
+    );
+    assert.notEqual(broken, source, `${fn.name}: negative-control mutation did not apply`);
+    assert.throws(
+      () => assertAccountGatePrecedesPaidWork(broken, fn.name),
+      /account-state gate missing/,
+    );
   });
 }
 
