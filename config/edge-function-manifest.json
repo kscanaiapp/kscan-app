@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-17T11:39:49.292Z",
-    "generatedFromGitSha": "ebf804645baedf9be8bb9420ef328439280ce3f1"
+    "generatedAtUtc": "2026-09-17T14:58:57.108Z",
+    "generatedFromGitSha": "9a95e6d078a6eecf6b3cfe84ede982ac1affa830"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -404,10 +404,10 @@
         "remoteSpecifiers": [
           "npm:@supabase/supabase-js@2"
         ],
-        "bundleFileCount": 13,
-        "treeFileCount": 16,
-        "bundleHash": "5f885310a2b3bee5c84d185d9d4959a13e85164828f6d7222874ac91e5bd59c7",
-        "treeHash": "e302d733d6e949e4ecd881a9a3d4854ca370a5b890e7dd1cde17fdc370f96234",
+        "bundleFileCount": 15,
+        "treeFileCount": 18,
+        "bundleHash": "28358c4d9a11d071a1fe823c557beb97d77861346946c7942bdc462ad659b07a",
+        "treeHash": "e9d6d42f3859e0de54bc9e6feb23b4c73e0868f07826754e5ddf7789cfc2c88e",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/common.ts",
@@ -426,12 +426,22 @@
           },
           {
             "path": "supabase/functions/commerce-watch-refresh/index.ts",
-            "sha256": "914dba0ad0dc317045b79888be7c41c79b1716dd919ba970d8c5cf56e34e2d4b",
+            "sha256": "04ce7754c5d01ae65ec6d04d6d6e3e3895467f59b3e0647d861dfd589c1e4eca",
             "bundle": true
           },
           {
             "path": "supabase/functions/commerce-watch-refresh/pushDelivery.ts",
             "sha256": "f6fa42466c7ed673559c319aa6e4e973b50a4213cedc3a49512c0d97ed87fb35",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/commerce-watch-refresh/pushObservability.ts",
+            "sha256": "a3b4c091d5aa784d9332ab5909e2512cd12f673d02ad8b5a4de08f90a0cfa8ef",
+            "bundle": true
+          },
+          {
+            "path": "supabase/functions/commerce-watch-refresh/receiptProcessing.ts",
+            "sha256": "54752d3b80d786173b3a4fae4a7a11a09d843d652fd4840d40c229b1edc321e6",
             "bundle": true
           },
           {
@@ -451,7 +461,7 @@
           },
           {
             "path": "supabase/functions/commerce-watch-refresh/watchRefreshConfig.ts",
-            "sha256": "2469468236f7f8e6f48a077f573919708819430c9c54d3ba39ed2e404b5bf395",
+            "sha256": "bdb5a51b52f8de1b1d9032fa31d60488832b9c13de392d5978eb42664b67b7d6",
             "bundle": true
           },
           {
