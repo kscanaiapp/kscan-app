@@ -1,8 +1,8 @@
 {
   "provenance": {
     "note": "Informational only. Excluded from every parity comparison because it differs per branch.",
-    "generatedAtUtc": "2026-09-17T14:58:57.108Z",
-    "generatedFromGitSha": "9a95e6d078a6eecf6b3cfe84ede982ac1affa830"
+    "generatedAtUtc": "2026-09-17T16:53:32.290Z",
+    "generatedFromGitSha": "daa92e51be175502c4a545faab2945db876b4f50"
   },
   "parity": {
     "manifestVersion": "edge-function-manifest-v1",
@@ -1477,8 +1477,8 @@
         ],
         "bundleFileCount": 3,
         "treeFileCount": 3,
-        "bundleHash": "95a2ba6ed3d73c89d102412d07a43eb3919dd96836eb005d0a437d364a2760ae",
-        "treeHash": "95a2ba6ed3d73c89d102412d07a43eb3919dd96836eb005d0a437d364a2760ae",
+        "bundleHash": "6e2b00f7fd9bcc9139236a50cb6bde9c85ec908e54b1f66ca05a38c2139bd481",
+        "treeHash": "6e2b00f7fd9bcc9139236a50cb6bde9c85ec908e54b1f66ca05a38c2139bd481",
         "files": [
           {
             "path": "supabase/functions/_shared/deletion/assertAccountActiveIfAuthenticated.ts",
@@ -1492,7 +1492,7 @@
           },
           {
             "path": "supabase/functions/search-vinted-secondhand/index.ts",
-            "sha256": "45e9c6b5f38e59d37a68ad5faa9430fa1b512d028942dbcde04c0987b8cb30e3",
+            "sha256": "b3e0949e2b5d9e88944fe84e4000d20141cefb677322bd66072741068b2c1557",
             "bundle": true
           }
         ]
@@ -1555,8 +1555,8 @@
         "remoteSpecifiers": [],
         "bundleFileCount": 1,
         "treeFileCount": 2,
-        "bundleHash": "c00af375114b164ff49c125e784722cb52fd76ace3996e00c8644f086cb3c528",
-        "treeHash": "5137e5b1e5666085a37a611e2c7ecdef4ec247d7e27658d0aea5c43c2d74ad17",
+        "bundleHash": "60555e3a1ac48a23a2fc5c5e87653f3a0e09fa48a0e44e9d731c934e4d44a4d9",
+        "treeHash": "64aae57b663889a58be69aa6e7201e1a8301fdc70869ab659af2b5578ce404ce",
         "files": [
           {
             "path": "supabase/functions/staging-health/config.toml",
@@ -1565,7 +1565,7 @@
           },
           {
             "path": "supabase/functions/staging-health/index.ts",
-            "sha256": "7ff82c61eaafc3329fc9a3a95a30940ed1cb4a30c94cffc6c20da39960dcd5a4",
+            "sha256": "c132bd038eb3fca1c3835ce7839d6460020cd52a5f1769dc036a91c6d8cea5c1",
             "bundle": true
           }
         ]
