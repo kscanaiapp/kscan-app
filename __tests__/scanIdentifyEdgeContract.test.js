@@ -84,9 +84,9 @@ test('edge source: paid image inference requires a real, non-anonymous K Scan AI
   assert.ok(gateIndex !== -1 && geminiIndex !== -1 && gateIndex < geminiIndex,
     'Actor eligibility must be decided before any Gemini call');
 
-  // MODE B (commerce-only, no bearer token by design) is a separate surface
-  // that never reaches Gemini and is unaffected by this authority — it must
-  // still be dispatched before this gate runs.
+  // MODE B (commerce-only) is a separate, authenticated surface that never
+  // reaches Gemini. Its own real-account and durable-quota boundary must run
+  // before this later paid-AI gate without being folded into it.
   const modeBIndex = EDGE_SOURCE.indexOf('MODE B: commerce-only request');
   assert.ok(modeBIndex !== -1 && modeBIndex < gateIndex,
     'MODE B must remain dispatched before the paid-AI actor gate, and must not be folded into it');
