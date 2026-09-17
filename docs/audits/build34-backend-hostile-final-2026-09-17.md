@@ -18,7 +18,7 @@ AUDIT_INTRODUCED_DEFECTS=0
 The campaign repaired and staging-verified the two P1 defects and both proven
 backend P2 defects, reconciled the active watchlist source drift, and deployed
 the safe orphan-media reconciler. Certification is intentionally withheld:
-the reconciler has no staging secret or scheduler/invoker, two active privacy
+the reconciler has no scheduler/invoker, two active privacy
 function bundles could not be read back through the Management API, four
 ungoverned wearable functions remain outside this authority, and the shared
 public-room client still omits the backend's required reaction share token.
@@ -30,8 +30,9 @@ P0_P3_REPAIRS=scan-identify auth boundary; deletion-worker fail-closed mode;
   orphan-media reconciler deployment
 STAGING_DEPLOYMENTS=scan-identify v73; process-account-deletions v68;
   search-vinted-secondhand v58; reconcile-orphan-media v1
-STAGING_RUNTIME_PROOFS=401 auth boundaries; 503 orphan secret gate;
-  exact source readbacks; 22 migration gates; 60 orphan/deletion tests
+STAGING_RUNTIME_PROOFS=401 auth boundaries; authenticated orphan dry-run HTTP 200
+  with 30 candidates and zero deletes; exact source readbacks; 22 migration
+  gates; 60 orphan/deletion tests
 P4_P10_DEBT_LEDGER=advisor/performance debt and retired/ungoverned surfaces;
   no formal P4-P10 campaign severity opened
 KNOWN_UNKNOWNS=privacy-controls/public-sale-share-opt-out source readback;
@@ -97,7 +98,7 @@ P1_OPEN=0
 P2_TOTAL=3 (2 backend, 1 frontend blocker)
 P2_OPEN=0 backend; 1 frontend blocker remains
 P3_TOTAL=1
-P3_OPEN=1 operationally (secret + scheduler/invoker not configured)
+P3_OPEN=1 operationally (scheduler/invoker not configured)
 P4_TOTAL=0 formal campaign findings
 P5_TOTAL=0
 P6_TOTAL=0
@@ -115,7 +116,7 @@ P10_TOTAL=0
 | B34-BE-LIFE-001, P1 — deletion worker fail-open flags | Fail-safe worker-mode parser, K+ resource registry, RevenueCat cleanup ordering/retry, and malformed/missing/read-error controls. | 92 lifecycle/deletion tests pass; no-secret probe returns HTTP 401; readback matched all 6 manifest files. | `ebf80464` / `c83e7e05`; `process-account-deletions` v67 → v68, `ezbr_sha256=06007e3e7fe76e4fa4d73fad53f13d6b5c251308246e10230af2a4ed64aaf14b` |
 | B34-BE-COST-001, P2 — Vinted account-state spend gate | Account-state gate precedes the paid provider call; deactivated, pending, locked, and unreadable states make zero upstream calls. | 23 direct module/fetch-spy tests pass; missing/malformed JWT probes return HTTP 401; readback matched all 3 manifest files. | `9a95e6d0`; `search-vinted-secondhand` v57 → v58, `ezbr_sha256=0e70e57fa79e3d322b4fb08df6094c554a82717e2c49a6ce596c4a0fc246d63b` |
 | B34-BE-GOV-001, P2 governance — watchlist live source ahead of authority | Reconciled four byte-identical release/live receipt-processing and observability files into backend authority; did not redeploy an older bundle. | Watchlist/notification suites: 98 + 89 pass; source parity and backend-authority gates pass; staging v12 was already the reconciled implementation. | `c8574398`; no staging mutation |
-| B34-BE-STO-001, P3 — orphan media operations | Deployed canonical secret-gated, dry-run-default, fail-closed reconciler; no storage object was deleted. | `reconcile-orphan-media` absent → v1; exact source readback (`74b250df…b2f2d`); unauthenticated runtime returns HTTP 503 `Sweep secret not configured`. | deployed from `2314d29b`; bundle `fcdec6f0…103c1`, tree `9ca75698…a38f` |
+| B34-BE-STO-001, P3 — orphan media operations | Deployed canonical secret-gated, dry-run-default, fail-closed reconciler; configured a generated staging secret; no storage object was deleted. | `reconcile-orphan-media` absent → v1; exact source readback (`74b250df…b2f2d`); authenticated staging dry-run returns HTTP 200 with `killSwitchEnabled=false`, `candidateCount=30`, `distinctOwners=6`, `totalBytes=10662345`, and `hasMore=false`. | deployed from `2314d29b`; bundle `fcdec6f0…103c1`, tree `9ca75698…a38f` |
 
 No diagnostic, temporary, reduced, or mock handler replaced a shipping slug.
 
@@ -191,8 +192,8 @@ TRANSACTIONAL_INTEGRITY_STATUS=PASS for audited mutation paths
 IDEMPOTENCY_STATUS=PASS for deletion/provider controls; dedupe primitive staged,
   source-identity proposal rejected
 CONCURRENCY_STATUS=PARTIAL; hostile unit/concurrency controls pass, no load claim
-STORAGE_STATUS=PARTIAL; safe reconciler deployed, 30 historical orphans retained,
-  secret and scheduler/invoker still absent
+STORAGE_STATUS=PARTIAL; safe reconciler deployed and dry-run proven, 30 historical
+  orphans retained, scheduler/invoker still absent
 EDGE_FUNCTION_STATUS=PASS for governed readback surfaces; global status partial
 PROVIDER_STATUS=PASS for audited paid-provider gates; full wearable provider
   authority is unknown
@@ -265,9 +266,9 @@ CROSS_FEATURE_PHASE_COMPLETE=NO
 
 ```text
 NEXT_OWNER_ACTION=
-1. Configure ORPHAN_MEDIA_SWEEP_SECRET in staging through the approved secret
-   manager and add a separately governed scheduler/invoker; prove dry-run with
-   zero deletions before enabling any live sweep.
+1. Add a separately governed scheduler/invoker for the already-secret-gated
+   staging reconciler; keep the kill switch disabled and prove repeated dry-run
+   execution before enabling any live sweep.
 2. Repair the public-room client to pass p_share_token and add wrong/revoked/
    expired-token regression coverage.
 3. Bring privacy-controls/public-sale-share-opt-out and wearable functions under
