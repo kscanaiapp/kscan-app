@@ -875,7 +875,7 @@ export default function SharedRoomScreen() {
 
     const loadReactions = async () => {
       try {
-        const counts = await getItemReactionCounts(itemIds);
+        const counts = await getItemReactionCounts(itemIds, rawToken);
         if (!cancelled) {
           setReactionCounts(buildReactionCountsByItem(itemIds, counts));
         }
@@ -913,14 +913,14 @@ export default function SharedRoomScreen() {
     return () => {
       cancelled = true;
     };
-  }, [capabilities.canReact, joinedRoomId, state]);
+  }, [capabilities.canReact, joinedRoomId, rawToken, state]);
 
   const refreshItemReactions = useCallback(async (itemIds: string[]) => {
     const normalizedItemIds = Array.from(new Set(itemIds.map((itemId) => String(itemId || '').trim()).filter(Boolean)));
     if (normalizedItemIds.length === 0) return;
 
     try {
-      const counts = await getItemReactionCounts(normalizedItemIds);
+      const counts = await getItemReactionCounts(normalizedItemIds, rawToken);
       setReactionCounts((current) => ({
         ...current,
         ...buildReactionCountsByItem(normalizedItemIds, counts),
@@ -949,7 +949,7 @@ export default function SharedRoomScreen() {
         ...Object.fromEntries(normalizedItemIds.map((itemId) => [itemId, null])),
       }));
     }
-  }, [capabilities.canReact, joinedRoomId]);
+  }, [capabilities.canReact, joinedRoomId, rawToken]);
 
   const handleReact = useCallback(async (itemId: string, reactionType: DressingRoomReactionType) => {
     if (!capabilities.canReact || !joinedRoomId || mutatingReactionItemId === itemId) return;
