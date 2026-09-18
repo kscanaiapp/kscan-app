@@ -100,8 +100,18 @@ export function RoomItemDetailModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <View style={styles.card}>
+      {/*
+        B34-FE-A11Y-001. `accessible={false}` is load-bearing, not cosmetic.
+        React Native's Pressable defaults `accessible` to true
+        (Libraries/Components/Pressable/Pressable.js: `accessible: accessible !== false`),
+        and on iOS an accessible container collapses its entire subtree into ONE
+        VoiceOver element. This Pressable wraps the whole card, so Ask Elise,
+        Select, Remove and Close were all unreachable to a VoiceOver user --
+        including Remove, the destructive one. Tap-outside-to-dismiss is
+        preserved for everyone else.
+      */}
+      <Pressable style={styles.backdrop} onPress={onClose} accessible={false}>
+        <View style={styles.card} accessibilityViewIsModal>
           <ScrollView showsVerticalScrollIndicator={false}>
             {versionOk && item.imageUrl ? (
               <Image source={{ uri: item.imageUrl }} style={styles.image} resizeMode="cover" />

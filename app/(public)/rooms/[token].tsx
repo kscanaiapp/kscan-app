@@ -874,7 +874,11 @@ export default function SharedRoomScreen() {
 
     const loadReactions = async () => {
       try {
-        const counts = await getItemReactionCounts(itemIds);
+        // B34-FE-DR-001: this screen is the ONLY anonymous caller of this RPC.
+        // Without the share token the backend authorizes nothing for an
+        // anonymous viewer and returns zero rows, which this screen renders as
+        // a genuine count of 0 on every item.
+        const counts = await getItemReactionCounts(itemIds, { shareToken: normalizedRouteToken });
         if (!cancelled) {
           setReactionCounts(buildReactionCountsByItem(itemIds, counts));
         }
@@ -912,14 +916,22 @@ export default function SharedRoomScreen() {
     return () => {
       cancelled = true;
     };
-  }, [capabilities.canReact, joinedRoomId, state]);
+    // B34-FE-DR-001 convergence: `normalizedRouteToken` is a dependency, not
+    // just a captured value. Without it a room-to-room navigation re-runs this
+    // effect with the PREVIOUS room's token still closed over, and the backend
+    // -- correctly -- authorizes nothing for that token on the new room, so
+    // every count renders 0 again for the exact defect this repair closed.
+  }, [capabilities.canReact, joinedRoomId, normalizedRouteToken, state]);
 
   const refreshItemReactions = useCallback(async (itemIds: string[]) => {
     const normalizedItemIds = Array.from(new Set(itemIds.map((itemId) => String(itemId || '').trim()).filter(Boolean)));
     if (normalizedItemIds.length === 0) return;
 
     try {
-      const counts = await getItemReactionCounts(normalizedItemIds);
+      // B34-FE-DR-001 — same anonymous-viewer authorization as the initial load.
+      const counts = await getItemReactionCounts(normalizedItemIds, {
+        shareToken: routeTokenRef.current,
+      });
       setReactionCounts((current) => ({
         ...current,
         ...buildReactionCountsByItem(normalizedItemIds, counts),

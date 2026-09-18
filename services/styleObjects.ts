@@ -764,6 +764,10 @@ export async function addScanImageToDressingRoom(input: {
   let storagePath: string | null = null;
   let imageWidth: number | null = null;
   let imageHeight: number | null = null;
+  // B33-STO-004: only the object THIS call freshly uploads is ours to
+  // compensate for. A reused pre-existing storage ref (imageSource.kind ===
+  // 'storage') must never be deleted on a later failure in this call.
+  let uploadedThisCall = false;
 
   if (imageSource.kind === 'storage') {
     // Already durably stored (e.g. re-adding a previously uploaded item) - no re-upload.
@@ -781,6 +785,7 @@ export async function addScanImageToDressingRoom(input: {
     storagePath = upload.path;
     imageWidth = upload.width;
     imageHeight = upload.height;
+    uploadedThisCall = true;
     devLog('add:upload_succeeded', { entryPoint: 'scan_image' });
   }
 
@@ -887,6 +892,17 @@ export async function addScanImageToDressingRoom(input: {
     .single();
   if (error) {
     devLog('add:insert_failed', { entryPoint: 'scan_image', code: error.code ?? null });
+    if (uploadedThisCall && storageBucket && storagePath) {
+      // The image already uploaded successfully. Without this, an insert
+      // failure leaves an orphan storage object with no owning row and no
+      // compensating delete. Best-effort: a failed cleanup must not mask the
+      // original insert error, which is what the caller needs to see.
+      await supabase.storage
+        .from(storageBucket)
+        .remove([storagePath])
+        .catch(() => {});
+      devLog('add:compensating_delete_attempted', { entryPoint: 'scan_image' });
+    }
     throw safeError(error, 'Unable to add scan to Dressing Room.');
   }
   devLog('add:insert_succeeded', { entryPoint: 'scan_image', success: true });
@@ -902,9 +918,73 @@ export async function removeDressingRoomItem(itemId: string): Promise<void> {
   if (error) throw safeError(error, 'Unable to remove item.');
 }
 
-export async function getItemReactionCounts(itemIds: string[]): Promise<ItemReactionCount[]> {
+/**
+ * B34-FE-DR-001 -- the anonymous public-room caller must present its share
+ * token.
+ *
+ * The governed backend contract is
+ * `public.get_item_reaction_counts(p_item_ids uuid[], p_share_token text
+ * default null)` (staging migration 20260916233708,
+ * `reaction_counts_bind_anonymous_share_token`, which DROPPED the former
+ * single-argument overload). Its anonymous branch -- the one an unauthenticated
+ * link visitor takes -- is gated on the token naming a live share:
+ *
+ *     when caller.uid is null then
+ *       normalized_token.token is not null
+ *       and exists (select 1 from public.room_shares rs
+ *                    where rs.room_id = dr.id
+ *                      and rs.share_token = normalized_token.token
+ *                      and rs.is_active and rs.revoked_at is null
+ *                      and (rs.expires_at is null or rs.expires_at > now()))
+ *
+ * With no token that predicate is false for EVERY item, so the RPC returns no
+ * rows and app/(public)/rooms/[token].tsx rendered 0/0/0/0 on every item of
+ * every public Dressing Room -- a silent wrong answer, not an error, because
+ * `buildReactionCountsByItem` zero-fills whatever the RPC omits.
+ *
+ * `shareToken` is therefore forwarded verbatim (only trimmed) so it can match
+ * `room_shares.share_token` exactly -- never lower-cased, the same rule
+ * `services/sharedRoomMemberships.ts` follows and
+ * `__tests__/sharedRoomMembershipRoute.test.js` enforces.
+ *
+ * The parameter is OMITTED, not sent as null, when there is no token. The
+ * authenticated in-room path (app/dressing-rooms/[id].tsx) takes the
+ * membership/`can_access_room_messages()` branch, where `p_share_token` is
+ * ignored -- so keeping its call shape unchanged narrows this repair to the
+ * one caller class the contract actually moved under.
+ *
+ * CONVERGENCE NOTE (Build 34 cross-platform). The iOS candidate repaired the
+ * same defect with the same call shape and added a PGRST202 fallback that
+ * retries WITHOUT the token when the two-argument overload is missing. That
+ * fallback is not carried here, for two reasons. It is unreachable: migration
+ * 20260916233708 DROPPED the single-argument overload, and the deployed
+ * definition was read back from staging with `pg_get_functiondef` -- the
+ * two-argument form is the only one that exists. And it is untestable in the
+ * direction that matters: on any backend where it DID fire, the token-less call
+ * is precisely the pre-repair call, which authorizes an anonymous viewer
+ * nothing and returns zero rows. So it cannot weaken the contract (it grants no
+ * access the token-bound call does not), but neither can it help -- it only adds
+ * a second, unexercised call shape to a security-relevant path. A missing
+ * overload is a deployment fault and is surfaced as the error it is.
+ *
+ * `shareToken` is accepted only as a non-blank STRING. A non-string is not
+ * coerced: `String(someNumber)` would have produced a token-shaped value that
+ * the backend then compares against `room_shares.share_token`, turning a caller
+ * bug into a silent authorization attempt. A blank or absent token omits the
+ * parameter entirely, so the anonymous branch's `token is not null` guard fails
+ * closed and no accidental anonymous room access is possible.
+ */
+export async function getItemReactionCounts(
+  itemIds: string[],
+  options?: { shareToken?: string | null },
+): Promise<ItemReactionCount[]> {
   const normalizedItemIds = Array.from(new Set(itemIds.map((itemId) => String(itemId).trim()).filter(Boolean)));
   if (normalizedItemIds.length === 0) return [];
+
+  const shareToken =
+    typeof options?.shareToken === 'string' && options.shareToken.trim()
+      ? options.shareToken.trim()
+      : '';
 
   try {
     const batches = chunkItems(normalizedItemIds, REACTION_BATCH_SIZE);
@@ -912,6 +992,7 @@ export async function getItemReactionCounts(itemIds: string[]): Promise<ItemReac
       batches.map(async (batch) => {
         const { data, error } = await supabase.rpc('get_item_reaction_counts', {
           p_item_ids: batch,
+          ...(shareToken ? { p_share_token: shareToken } : {}),
         });
         if (error) throw error;
         return (data ?? []) as ItemReactionCount[];
