@@ -184,12 +184,15 @@ type OwnerOutcome = { ok: true; owner: string } | { ok: false };
  * must not receive another account's rows.
  */
 function resolveOwner(explicitUserId?: string | null): OwnerOutcome {
-  const supplied = typeof explicitUserId === 'string' ? explicitUserId.trim() : '';
-  if (supplied) {
-    const explicit = normalizeActorId(supplied);
-    return explicit ? { ok: true, owner: explicit } : { ok: false };
+  // ABSENT (undefined / null) means "this call site does not name an owner",
+  // which is the ordinary UI path: use the live actor. Anything else was
+  // SUPPLIED, and a supplied value that does not normalize is a caller bug, not
+  // an invitation to substitute whoever happens to be signed in.
+  if (explicitUserId === undefined || explicitUserId === null) {
+    return { ok: true, owner: liveActorId() ?? ANONYMOUS_OWNER };
   }
-  return { ok: true, owner: liveActorId() ?? ANONYMOUS_OWNER };
+  const explicit = normalizeActorId(explicitUserId);
+  return explicit ? { ok: true, owner: explicit } : { ok: false };
 }
 
 function namespacedKey(key: FreeTierStorageKey, owner: string): string {
