@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Animated,
   BackHandler,
+  Linking,
   Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -370,15 +371,26 @@ export default function App() {
   }
 
   if (!permission.granted) {
+    // Once iOS has recorded a denial, canAskAgain is false and
+    // requestPermission() resolves immediately without showing a prompt. Without
+    // this branch the button was inert and the Scanner — the core feature — was
+    // permanently unreachable with no route back.
+    const canAskAgain = permission.canAskAgain !== false;
+
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar style="light" />
         <View style={styles.centerContent}>
           {renderBrandTitle()}
           <Text style={styles.infoText}>
-            Camera access is currently disabled. Enable it in settings to continue.
+            {canAskAgain
+              ? 'Camera access is currently disabled. Enable it to continue.'
+              : 'Camera access is turned off for K Scan. Open Settings to turn it back on, then return here.'}
           </Text>
-          <ActionButton label="Grant Access" onPress={requestPermission} />
+          <ActionButton
+            label={canAskAgain ? 'Grant Access' : 'Open Settings'}
+            onPress={canAskAgain ? requestPermission : () => { void Linking.openSettings(); }}
+          />
         </View>
       </SafeAreaView>
     );

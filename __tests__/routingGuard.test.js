@@ -245,3 +245,38 @@ test('the root layout latches the deferral rather than recomputing it from initi
     'a deep link that never routes must not disable the guard indefinitely',
   );
 });
+
+// ── Camera permission recovery ───────────────────────────────────────────────
+//
+// Once iOS records a denial, canAskAgain is false and requestPermission()
+// resolves immediately without prompting. A "Grant Access" button wired
+// unconditionally to requestPermission() is inert, leaving the Scanner — the
+// core feature — permanently unreachable with no route back.
+
+test('the scanner offers a Settings route when the camera prompt cannot reopen', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const scanner = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
+
+  assert.match(scanner, /permission\.canAskAgain/, 'permanent denial must be detected');
+  assert.match(scanner, /Linking\.openSettings\(\)/, 'permanent denial must offer Settings');
+  assert.match(scanner, /Open Settings/, 'the button must say what it does');
+});
+
+test('destructive Style Library controls are labelled for VoiceOver', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const library = fs.readFileSync(path.join(__dirname, '..', 'app', 'library.tsx'), 'utf8');
+
+  const deleteButtons = library.match(/onPress=\{\(\) => onDelete\([\s\S]{0,400}?<\/TouchableOpacity>/g) ?? [];
+  assert.equal(deleteButtons.length, 2, 'expected the scan and inspiration delete controls');
+
+  for (const button of deleteButtons) {
+    assert.match(
+      button,
+      /accessibilityLabel=/,
+      'an icon-only destructive control must not ship without a label',
+    );
+    assert.match(button, /accessibilityRole="button"/);
+  }
+});

@@ -147,8 +147,14 @@ function ScanCard({ scan, onPress, onDelete }: ScanCardProps) {
         style={styles.deleteBtn}
         onPress={() => onDelete(scan.id)}
         hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
+        accessibilityRole="button"
+        accessibilityLabel={
+          scan.attributes.category
+            ? `Delete ${scan.attributes.category} scan`
+            : 'Delete scan'
+        }
       >
-        <Text style={styles.deleteBtnText}>×</Text>
+        <Text style={styles.deleteBtnText} accessible={false}>×</Text>
       </TouchableOpacity>
     </TouchableOpacity>
   );
@@ -190,8 +196,10 @@ function InspirationCard({ item, onDelete }: InspirationCardProps) {
         style={styles.deleteBtn}
         onPress={() => onDelete(item.id)}
         hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
+        accessibilityRole="button"
+        accessibilityLabel={item.note ? `Delete upload: ${item.note}` : 'Delete inspiration upload'}
       >
-        <Text style={styles.deleteBtnText}>×</Text>
+        <Text style={styles.deleteBtnText} accessible={false}>×</Text>
       </TouchableOpacity>
     </View>
   );
