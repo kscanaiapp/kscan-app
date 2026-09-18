@@ -1,6 +1,6 @@
 {
   "manifestVersion": "dependency-reachability-exceptions-v1",
-  "generatedFromAudit": "npm audit --omit=dev --json, 2026-08-29, post shell-quote remediation",
+  "generatedFromAudit": "npm audit --omit=dev --json, 2026-08-29, post shell-quote remediation; re-run 2026-09-18 during the Build 34 iOS hostile-audit replay (two build-only advisories appeared in the feed after the 2026-08-31 source freeze and are triaged below)",
   "note": "B34-DEF-014. Every entry here is a documented, evidence-based exception for a build/dev-tool-only advisory that npm's severity label alone would otherwise flag as release-blocking. Removing a package from this file re-enables a hard failure for it. Adding a package here requires the same evidence standard: confirmed dependency path (npm explain) AND a grep of app/components/services/hooks/contexts/lib/supabase/functions confirming no direct import from shipped source.",
   "resolvedByOverride": {
     "shell-quote": {
@@ -15,7 +15,12 @@
   },
   "exceptions": [
     {
-      "packages": ["@expo/cli", "@expo/metro", "@expo/metro-config", "expo"],
+      "packages": [
+        "@expo/cli",
+        "@expo/metro",
+        "@expo/metro-config",
+        "expo"
+      ],
       "severity": "high",
       "classification": "BUILD_DEV_ONLY",
       "reachability": "Expo CLI / Metro bundler toolchain. Runs only during `expo start`, `expo prebuild`, and bundling; never ships inside the compiled Hermes bytecode delivered to a device.",
@@ -23,7 +28,11 @@
       "fixAvailable": "Only via expo@57 (isSemVerMajor) per npm audit fixAvailable — out of scope for this SDK 54 maintenance pass."
     },
     {
-      "packages": ["metro", "metro-config", "metro-transform-worker"],
+      "packages": [
+        "metro",
+        "metro-config",
+        "metro-transform-worker"
+      ],
       "severity": "high",
       "classification": "BUILD_DEV_ONLY",
       "reachability": "React Native's own bundler, pulled in via @react-native/community-cli-plugin. Build/dev-server only.",
@@ -31,7 +40,9 @@
       "fixAvailable": false
     },
     {
-      "packages": ["ws"],
+      "packages": [
+        "ws"
+      ],
       "severity": "high",
       "classification": "BUILD_DEV_ONLY",
       "reachability": "WebSocket transport for the Metro/RN dev server (HMR) and react-devtools-core (the __DEV__-only inspector backend already documented in DEF-014's root cause). Never active in a release build.",
@@ -39,7 +50,9 @@
       "fixAvailable": false
     },
     {
-      "packages": ["brace-expansion"],
+      "packages": [
+        "brace-expansion"
+      ],
       "severity": "high",
       "classification": "BUILD_DEV_ONLY",
       "reachability": "Glob-matching helper transitively required by minimatch/test-exclude/chromium-edge-launcher/@react-native/codegen — all build-time or test-tooling consumers.",
@@ -47,7 +60,9 @@
       "fixAvailable": true
     },
     {
-      "packages": ["image-size"],
+      "packages": [
+        "image-size"
+      ],
       "severity": "high",
       "classification": "BUILD_DEV_ONLY",
       "reachability": "Used by Metro's asset plugin to read image dimensions at bundle time, not at app runtime.",
@@ -55,7 +70,9 @@
       "fixAvailable": true
     },
     {
-      "packages": ["js-yaml"],
+      "packages": [
+        "js-yaml"
+      ],
       "severity": "high",
       "classification": "BUILD_DEV_ONLY",
       "reachability": "YAML parsing for build/coverage tooling (@istanbuljs/load-nyc-config) and Expo config loading; not invoked by shipped app code.",
@@ -63,7 +80,9 @@
       "fixAvailable": true
     },
     {
-      "packages": ["nanoid"],
+      "packages": [
+        "nanoid"
+      ],
       "severity": "high",
       "classification": "BUILD_DEV_ONLY",
       "reachability": "Non-secure ID generator used internally by build tooling in this dependency graph; not imported by application code.",
@@ -71,7 +90,9 @@
       "fixAvailable": true
     },
     {
-      "packages": ["postcss"],
+      "packages": [
+        "postcss"
+      ],
       "severity": "high",
       "classification": "BUILD_DEV_ONLY",
       "reachability": "CSS transform used by react-native-web / bundler tooling at build time; not invoked at runtime by shipped app code.",
@@ -79,7 +100,9 @@
       "fixAvailable": true
     },
     {
-      "packages": ["tar"],
+      "packages": [
+        "tar"
+      ],
       "severity": "high",
       "classification": "BUILD_DEV_ONLY",
       "reachability": "Archive extraction used by install/prebuild-time tooling (e.g. autolinking asset fetch); not invoked at app runtime.",
@@ -104,12 +127,56 @@
       "fixAvailable": "mixed — tracked for the next scheduled SDK alignment pass, not this patch."
     },
     {
-      "packages": ["qs", "uuid", "undici", "body-parser", "@babel/core"],
+      "packages": [
+        "qs",
+        "uuid",
+        "undici",
+        "body-parser",
+        "@babel/core"
+      ],
       "severity": "moderate-or-low",
       "classification": "BUILD_DEV_ONLY",
       "reachability": "Transitive dependencies of build/dev tooling (Babel transpilation, local dev/test HTTP tooling). No direct app import found.",
       "evidence": "Zero matches importing these names from app/components/services/hooks/contexts/lib/supabase/functions.",
       "fixAvailable": "mixed"
+    },
+    {
+      "packages": [
+        "@xmldom/xmldom"
+      ],
+      "severity": "high",
+      "classification": "BUILD_DEV_ONLY",
+      "addedDuring": "Build 34 iOS hostile-audit replay, 2026-09-18",
+      "reachability": "Apple plist/Xcode-project generation, used only by Expo's Continuous Native Generation. Both copies are reached through prebuild tooling: @expo/plist (under @expo/cli / @expo/config-plugins) and plist -> simple-plist -> xcode (also under @expo/config-plugins). iOS is CNG_AUTHORITATIVE for this repository (config/native-config-authority.json), so this code runs on the BUILD MACHINE while generating Info.plist and the Xcode project, and is never part of the Hermes bytecode or the app bundle delivered to a device. Every advisory in the set is an XML parse/serialize correctness or complexity issue reachable only by feeding it attacker-controlled XML; the only XML it is given here is this repository's own app.json-derived plist content.",
+      "evidence": "npm explain @xmldom/xmldom terminates at node_modules/@expo/plist (from @expo/config-plugins <- @expo/config <- expo) and node_modules/plist/node_modules/@xmldom/xmldom (from simple-plist <- xcode <- @expo/config-plugins). npm audit nodes: ['node_modules/@xmldom/xmldom', 'node_modules/plist/node_modules/@xmldom/xmldom'], effects: []. grep over app/components/services/hooks/contexts/lib/supabase/functions returns zero direct imports; the gate's own isDirectlyImportedByAppSource check re-proves this on every run.",
+      "advisories": [
+        "https://github.com/advisories/GHSA-6gmq-8vp8-gcm6",
+        "https://github.com/advisories/GHSA-w2rr-34g9-rvrj",
+        "https://github.com/advisories/GHSA-4w3w-2rp5-g8jm",
+        "https://github.com/advisories/GHSA-c7q8-3ch8-vqpv",
+        "https://github.com/advisories/GHSA-27p8-2357-5qqv",
+        "https://github.com/advisories/GHSA-3px3-54cx-rmw9",
+        "https://github.com/advisories/GHSA-6h8r-xr42-gp59",
+        "https://github.com/advisories/GHSA-8344-3jmq-59r6",
+        "https://github.com/advisories/GHSA-965w-775f-mr7g",
+        "https://github.com/advisories/GHSA-93r5-fhx6-vmg9"
+      ],
+      "fixAvailable": "Not from this repository's direct dependencies: both copies are transitive under expo@54's own pinned tooling. Resolving it means an Expo SDK bump, which is out of scope for a frozen release candidate and must not be done to satisfy a build-only advisory."
+    },
+    {
+      "packages": [
+        "browserslist"
+      ],
+      "severity": "high",
+      "classification": "BUILD_DEV_ONLY",
+      "addedDuring": "Build 34 iOS hostile-audit replay, 2026-09-18",
+      "reachability": "Babel/Metro transpilation target resolution. Reached through @expo/metro-config and babel-preset-expo -> @babel/plugin-transform-runtime -> babel-plugin-polyfill-corejs3 -> core-js-compat. It decides which syntax to downlevel while the bundle is being BUILT and is not part of the bundle. Both advisories require feeding it untrusted input -- unbounded query results, or a custom browserslist-stats.json -- and neither exists here: no browserslist configuration, no browserslist-stats.json, and no runtime query path.",
+      "evidence": "npm explain browserslist terminates at @babel/helper-compilation-targets (from @babel/core, from @expo/metro-config) and at @expo/metro-config's own dependency. npm audit nodes: ['node_modules/browserslist'], effects: []. grep over app/components/services/hooks/contexts/lib/supabase/functions returns zero direct imports; the gate's own isDirectlyImportedByAppSource check re-proves this on every run.",
+      "advisories": [
+        "https://github.com/advisories/GHSA-c83g-rgw3-j3cx",
+        "https://github.com/advisories/GHSA-73wf-gq98-2v4g"
+      ],
+      "fixAvailable": "Transitive under expo@54's pinned Babel/Metro toolchain; a fix requires moving that toolchain, which is out of scope for a frozen release candidate."
     }
   ]
 }
