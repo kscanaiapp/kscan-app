@@ -350,18 +350,29 @@ entitlement, no `eas.json`, no `app.json`, no `app.js`.
 
 ## 10. Recommended merge order
 
-Owner controls the merge. The safest sequence follows from §9.3.
+Owner controls the merge. Nothing here is merged by this campaign.
 
-1. **This PR first.** It is based on the Android repaired candidate and changes
-   only shared client code. Merging it before #439 keeps #439's own review
-   surface free of the convergence rewrite.
-2. **PR #439 (Android) second**, now carrying the converged storage rather than
-   its own variant. Re-run the identity/deletion closure harness after the
-   merge; it is the suite that would notice a bad resolution.
+This branch is **stacked on PR #439's head** (`claude/clever-hopper-2jx4gw` @
+`a49203c2`), so its PR targets that branch and its diff is exactly the six
+converged files. The sequence that follows from that and from §9.3:
+
+1. **This PR into `claude/clever-hopper-2jx4gw` first.** It replaces #439's
+   free-tier variant with the converged one in place, so #439 goes to the
+   release branch already carrying it rather than having to be re-reviewed
+   afterwards.
+2. **PR #439 into `release/kscan-pre-freeze-v1` second.** Re-run the
+   identity/deletion closure harness after the merge; it is the suite that
+   would notice a bad resolution. Note #439's body still describes its own
+   free-tier implementation — that description is superseded by this
+   convergence, and the PR body should be updated before it merges.
 3. **PR #440 (iOS) last, and NOT by cherry-picking this branch.** Take
    `services/free-tier/freeTierStorage.ts` wholesale (it is drop-in portable),
    and take the `getItemReactionCounts` normalization. Do **not** attempt the
    `ownerTerminalPurge` wiring on that line — there is nothing to wire it into.
+   Doing this also retires the upgrade-visible data loss #440 currently declares
+   as unavoidable ("an existing user who set shopping intents while signed in
+   will no longer see them"): the converged module adopts pre-partition data
+   into the first authenticated reader's namespace, so that loss does not occur.
 4. **Decide explicitly whether Build 34 iOS ships terminal free-tier purge.**
    It cannot, on the frozen line, without also taking the Android/shared Build
    34 deletion stack — which would also bring `posthog-react-native` and the
