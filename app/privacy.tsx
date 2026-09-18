@@ -28,6 +28,7 @@ import { useAuthSession } from '../contexts/AuthSessionContext';
 import { COLORS, LAYOUT, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { submitAccountDeletionRequest } from '../services/accountDeletion';
 import { LOCAL_PRIVACY_STORAGE_KEY } from '../services/privacyLocalStore';
+import { clearLibrary } from '../services/library';
 
 const PRIVACY_COPY = {
   saleRemote:
@@ -178,6 +179,10 @@ export default function PrivacyScreen() {
     }
 
     try {
+      // Clear device-local scan photos and style reads before the session goes
+      // away: once signed out the library scope can no longer be resolved, and a
+      // deleted account's images must not stay readable on the device.
+      await clearLibrary();
       await AsyncStorage.removeItem(LOCAL_PRIVACY_STORAGE_KEY);
       await signOut();
     } catch {
