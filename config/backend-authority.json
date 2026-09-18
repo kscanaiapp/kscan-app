@@ -12,13 +12,19 @@
         "privacy-controls",
         "public-sale-share-opt-out"
       ],
-      "reason": "Website privacy stack source lives outside this repository's supabase/functions tree."
+      "reason": "Website privacy stack source lives outside this repository's supabase/functions tree.",
+      "build34Scope": "OUT",
+      "migrationDisposition": "EXCLUDE_FROM_BUILD34_PRODUCTION_MIGRATION",
+      "stagingRuntimeState": "B34 backend closure (2026-09-17): both slugs are listed ACTIVE v13 but the platform no longer holds their bundles. Every request returns HTTP 404 sb-error-code NOT_FOUND_FUNCTION_BLOB, and Management API / CLI bundle readback returns HTTP 500 'Failed to retrieve function bundle'. public-sale-share-opt-out source is kscan-website@eed83bae supabase/functions/public-sale-share-opt-out/index.ts (the only blob in that file's history); privacy-controls has no source in any repository or branch found. No Build 34 mobile caller exists for either; the website Do-Not-Sell page calls public-sale-share-opt-out.",
+      "ownerAction": "Website owner: decide the website privacy backend (this staging ref is documented as the website waitlist/privacy project), then redeploy public-sale-share-opt-out from kscan-website and retire or recover privacy-controls. See docs/audits/build34-pre-migration/environment-migration-readiness-manifest.md."
     },
     "stagingToolingOutsideThisTree": {
       "functions": [
         "product-match"
       ],
-      "reason": "Staging tooling with no corresponding function source in this tree."
+      "reason": "Staging tooling with no corresponding function source in this tree.",
+      "build34Scope": "OUT",
+      "migrationDisposition": "EXCLUDE_FROM_BUILD34_PRODUCTION_MIGRATION"
     },
     "wearableFunctions": {
       "functions": [
@@ -27,7 +33,12 @@
         "wearable-open-on-phone",
         "wearable-scan"
       ],
-      "reason": "Governed by a different repository."
+      "reason": "Governed by a different repository.",
+      "build34Scope": "OUT",
+      "stagingState": "ACTIVE_STAGING_NON_SHIPPING_SURFACE",
+      "promotion": "DO_NOT_PROMOTE",
+      "migrationDisposition": "EXCLUDE_FROM_BUILD34_PRODUCTION_MIGRATION",
+      "scopeEvidence": "B34 backend closure (2026-09-17): no Build 34 mobile caller on release/kscan-pre-freeze-v1 (app/, services/, components/, hooks/, lib/, contexts/), no wearable/glasses/XR feature flag in app.json/eas.json, no glasses native module, the isolated glasses prototype has no route and no backend call, and docs/build34-integration-validation-report.md defers wearable/XR PRs #187/#188/#190 as not authorized Build 34 inputs. Source is kscan-glasses-webapp; its staging presence confers no migration authority."
     },
     "stagingDiagnosticResidue": {
       "functions": [
@@ -37,9 +48,11 @@
       ],
       "reason": "RP-108 (2026-09-07): temporary diagnostic slugs left on staging by the 2026-08-30 VTO provider benchmark. They have no source in this tree and never did, so they are not governed here — but they WERE deployed on staging and this file did not name them, which meant a read of it under-counted the live surface by three. Recorded so a fresh clone can account for every slug staging actually carries. vto-provider-diag is documented in docs/vto-provider-benchmark.md §3.7, where it was redeployed as an inert 410 stub; rapidapi-key-diag and rapidapi-current-audit were undocumented anywhere in the repository before this entry.",
       "posture": "vto-provider-diag: verify_jwt=true. rapidapi-key-diag and rapidapi-current-audit: verify_jwt=false, i.e. invokable without a caller JWT. All three were read from the Management API read-only during RP-108; none was invoked, redeployed or deleted by that lane.",
-      "ownerAction": "Remove all three slugs from staging (yzqjvdfgefveprobvvyw). This is an owner action: RP-108 has no authority to delete Edge Functions, and the Supabase MCP surface exposes no delete_edge_function tool. They are absent from production."
+      "ownerAction": "Remove all three slugs from staging (yzqjvdfgefveprobvvyw). This is an owner action: RP-108 has no authority to delete Edge Functions, and the Supabase MCP surface exposes no delete_edge_function tool. They are absent from production.",
+      "build34Scope": "OUT",
+      "migrationDisposition": "EXCLUDE_FROM_BUILD34_PRODUCTION_MIGRATION"
     }
   },
   "canonicalBranchNote": "GOV-KPLUS-001 CLOSED (2026-09-08, BACKEND-AUTHORITY-RECOVERY-05A). This field is now self-referential -- rebuild/backend-authority-v2 is this branch, published to origin, so a fresh clone resolves it directly (git rev-parse origin/rebuild/backend-authority-v2). History: the original canonical branch, rebuild/staging-v2-backend, was proven unresolvable across an exhaustive search (RP-108, 2026-09-07; Repair 05, 2026-09-08 -- docs/staging-rebuild/repair05-canonical-authority-reconfirmation-2026-09-08.md, which additionally ruled out all 12 branches then self-declaring role=backend-deployment-authority as either already-absorbed or stale). Rather than repair an unrecoverable branch, this branch was created fresh from the certified governed backend snapshot and declared canonical in its place -- see docs/staging-rebuild/backend-authority-v2-provenance-2026-09-08.md. scripts/verify-backend-authority.js verifies this branch resolves and that HEAD descends from it.",
-  "governedFunctionCountSource": "Must equal GOVERNED_FUNCTIONS.length in scripts/edge-function-manifest-lib.js. Verified by scripts/verify-backend-authority.js; it was 19 against 20 governed functions after commerce-watch-refresh was added and this file was not updated. Was 21 after Build 34 K4 VTO backend convergence added vto-generate (tryon-clothes-pro remains governed as the retired stub). Was 23 (EDGE-02): apple-credential-link and apple-revoke-credential moved out of notGoverned.appleCredentialFunctions into governed status -- their deployed staging/production source lineage was GIT-PROVEN (commit e369fca9) and cross-verified against the live Supabase Management API source on both projects, closing the 'documented but unconfirmed' gap this file previously recorded for them. Now 24 (Repair 06): deletion-status, the post-auth terminal deletion-status capability lookup. Unlike the EDGE-02 pair it is not a recovered deployment but new source governed from birth -- it is deployed nowhere, and is deliberately absent from security/scripts/staging-deployment-allowlist.js so that its first deployment stays a separate, explicit decision. Now 25 (B33-STO-002): reconcile-orphan-media, which reconciles storage objects whose owner no longer resolves to an auth.users row -- media stranded when an Auth user is deleted outside the deletion worker, which storage.objects cannot cascade because it holds no foreign key to auth.users. Like deletion-status it is new source governed from birth rather than a recovered deployment, it is deployed nowhere, and it is likewise deliberately absent from security/scripts/staging-deployment-allowlist.js so that its first deployment stays a separate, explicit decision. It is deliberately NOT folded into process-account-deletions: production runs that worker at v25, and merging this in would drag the whole newer worker source into a production deploy."
+  "governedFunctionCountSource": "Must equal GOVERNED_FUNCTIONS.length in scripts/edge-function-manifest-lib.js. Verified by scripts/verify-backend-authority.js; it was 19 against 20 governed functions after commerce-watch-refresh was added and this file was not updated. Was 21 after Build 34 K4 VTO backend convergence added vto-generate (tryon-clothes-pro remains governed as the retired stub). Was 23 (EDGE-02): apple-credential-link and apple-revoke-credential moved out of notGoverned.appleCredentialFunctions into governed status -- their deployed staging/production source lineage was GIT-PROVEN (commit e369fca9) and cross-verified against the live Supabase Management API source on both projects, closing the 'documented but unconfirmed' gap this file previously recorded for them. Now 24 (Repair 06): deletion-status, the post-auth terminal deletion-status capability lookup. Unlike the EDGE-02 pair it is not a recovered deployment but new source governed from birth -- it is deployed nowhere, and is deliberately absent from security/scripts/staging-deployment-allowlist.js so that its first deployment stays a separate, explicit decision. Now 25 (B33-STO-002): reconcile-orphan-media, which reconciles storage objects whose owner no longer resolves to an auth.users row -- media stranded when an Auth user is deleted outside the deletion worker, which storage.objects cannot cascade because it holds no foreign key to auth.users. Like deletion-status it is new source governed from birth rather than a recovered deployment, it is deployed nowhere, and it is likewise deliberately absent from security/scripts/staging-deployment-allowlist.js so that its first deployment stays a separate, explicit decision. It is deliberately NOT folded into process-account-deletions: production runs that worker at v25, and merging this in would drag the whole newer worker source into a production deploy. Update (B34 backend closure, 2026-09-17): the Build 34 hostile audit made the explicit first-deployment decision for staging (byte-identical readback), and .github/workflows/staging-orphan-media-reconciler.yml is now its only invoker, dry run only; it remains absent from the staging deployment allowlist, so every further deployment stays an explicit governed dispatch."
 }

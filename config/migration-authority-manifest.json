@@ -331,6 +331,32 @@
       "note": "MIG-01 7B (2026-09-02): renamed from 20260830160000, which collided with the unrelated 20260830160000_vto_feature_control.sql. This single authored file bundles two logically-adjacent pieces (the table+RLS+grants, and the two register/revoke RPC functions) that staging's watchlist-audit reconciliation applied as TWO SEPARATE ledger entries: this version (20260830212508, table/index/RLS/grants -- ledgerSqlHash is this entry's statement text only, confirmed content match via read-only execute_sql) and 20260830212518 'watchlist_audit_push_token_rpcs' (the register_device_push_token/revoke_device_push_token functions, confirmed byte-identical to this file's pre-hardening RPC bodies). canonicalSqlHash necessarily differs: it covers the full file (table + RPCs + 3 `comment on table/column` statements that were never actually executed under any ledger version on staging -- documentation-only, no functional effect, harmless if replayed). The RPCs are subsequently hardened for actor isolation by the already-correctly-versioned 20260830190000_watchlist_push_token_actor_isolation.sql (ledger 20260830214752), unaffected by this rename. Absent from production entirely."
     },
     {
+      "ledgerVersion": "20260916233708",
+      "logicalName": "reaction_counts_bind_anonymous_share_token",
+      "sourceRepo": "kscan-app",
+      "sourceCommit": "build34-audit-c8574398",
+      "sourceOriginalFilename": "supabase/migrations/20260916233708_reaction_counts_bind_anonymous_share_token.sql",
+      "canonicalFilename": "supabase/migrations/20260916233708_reaction_counts_bind_anonymous_share_token.sql",
+      "ledgerSqlHash": "a61d933b381527a191e990b4cf5dbaa834ebe175b8e01451e534fe2b198024bf",
+      "canonicalSqlHash": "a61d933b381527a191e990b4cf5dbaa834ebe175b8e01451e534fe2b198024bf",
+      "logicalOwner": "kscan-app",
+      "reasonCentralized": "native",
+      "note": "B34-SEC-001 staging reconciliation. Read-only staging ledger row 20260916233708 is byte-identical to this source body after the provenance header. The function binds anonymous reaction-count reads to the exact live share token while preserving owner and authenticated membership access. Production was not queried or changed."
+    },
+    {
+      "ledgerVersion": "20260916235651",
+      "logicalName": "dressing_room_items_dedupe_key_idempotency",
+      "sourceRepo": "kscan-app",
+      "sourceCommit": "build34-audit-c8574398",
+      "sourceOriginalFilename": "supabase/migrations/20260916235651_dressing_room_items_dedupe_key_idempotency.sql",
+      "canonicalFilename": "supabase/migrations/20260916235651_dressing_room_items_dedupe_key_idempotency.sql",
+      "ledgerSqlHash": "656eb4db20aa5480a52ff44fdcff1445e7b143a91bdf0ebc7a2cf2676dbb5948",
+      "canonicalSqlHash": "656eb4db20aa5480a52ff44fdcff1445e7b143a91bdf0ebc7a2cf2676dbb5948",
+      "logicalOwner": "kscan-app",
+      "reasonCentralized": "native",
+      "note": "B34-CON-001 staging reconciliation. Read-only staging ledger row 20260916235651 is represented by the safe partial unique dedupe-key index. The feature flag remains off and current rows carry no dedupe key, so the primitive is inert until the write path enables it. Production was not queried or changed."
+    },
+    {
       "ledgerVersion": "20260905170749",
       "logicalName": "legal_acceptances_ai_processing_consent",
       "sourceRepo": "kscan-app",
@@ -352,7 +378,8 @@
       "EXACT_CONTENT_RENUMBER",
       "EQUIVALENT_RENUMBER",
       "CONSOLIDATED_IN_REMOTE",
-      "SUPERSEDED_BY_LATER_MIGRATION"
+      "SUPERSEDED_BY_LATER_MIGRATION",
+      "OBSOLETE_REMOTE_ONLY"
     ],
     "environments": {
       "yzqjvdfgefveprobvvyw": {
@@ -653,6 +680,14 @@
           }
         ],
         "genuinelyUnapplied": [],
+        "remoteOnly": [
+          {
+            "remoteVersion": "20260916234025",
+            "logicalName": "dressing_room_items_source_idempotency",
+            "classification": "OBSOLETE_REMOTE_ONLY",
+            "evidence": "The staging ledger row exists, but the effective index public.dressing_room_items_source_identity_key is absent. Its proposed invariant dedupes the same product once per room rather than the same mutation once, and the current write path lacks a stable operation identity/upsert contract. The safe dedupe-key migration at 20260916235651 is the approved primitive; do not replay or add this obsolete source-identity migration to future manifests."
+          }
+        ],
         "appliedSinceReconciliation": [
           {
             "localVersion": "20260902150000",

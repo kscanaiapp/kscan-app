@@ -1,18 +1,20 @@
 #!/usr/bin/env node
 /**
- * Apply exactly one approved migration to K Scan AI Staging.
+ * Apply exactly one approved migration to K Scan App Production.
  *
- * Never uses blanket `db push`, `db reset`, or `migration up`.
- * Records the applied version via `migration repair --status applied --linked`
- * only as the intentional counterpart to a successful SQL apply (not for drift repair).
+ * Never uses blanket `db push`, `db reset`, or `migration up`. Records the
+ * applied version via `migration repair --status applied --linked` only as
+ * the intentional counterpart to a successful SQL apply.
+ *
+ * Production mirror of scripts/apply-staging-migration.mjs.
  *
  * Required env:
  *   SUPABASE_ACCESS_TOKEN
- *   SUPABASE_STAGING_PROJECT_REF=yzqjvdfgefveprobvvyw
- *   SUPABASE_STAGING_URL
- *   SUPABASE_STAGING_ANON_KEY
+ *   SUPABASE_PRODUCTION_PROJECT_REF=wyyuqfdxucjksghsmhry
+ *   SUPABASE_PRODUCTION_URL
+ *   SUPABASE_PRODUCTION_ANON_KEY
  *   MIGRATION_VERSION
- *   APPROVE_STAGING_MIGRATION=YES
+ *   APPROVE_PRODUCTION_MIGRATION=YES
  *
  * Optional:
  *   MIGRATION_FILE (defaults to matching file under supabase/migrations/)
@@ -23,25 +25,30 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
-  assertStagingTarget,
-  missingRequiredVars,
   listLocalMigrationVersions,
   parseMigrationFilename,
   scanSqlForProhibited,
   sha256File,
-  runSupabase,
   readRemoteMigrationVersions,
   writeJsonArtifact,
   ensureArtifactsDir,
   gitHeadSha,
-  STAGING_PROJECT_REF,
   fail,
 } from './lib/staging-helpers.mjs';
-import { loadLedgerReconciliation, OBSOLETE_REMOTE_ONLY } from './staging-deploy-preflight.mjs';
+import {
+  assertProductionTarget,
+  missingRequiredProductionVars,
+  runSupabaseProduction,
+  PRODUCTION_PROJECT_REF,
+} from './lib/production-helpers.mjs';
+import { loadLedgerReconciliation } from './staging-deploy-preflight.mjs';
+import { assertGovernedCommit } from './production-deploy-preflight.mjs';
+
+const DEFAULT_GOVERNED_BRANCH = 'rebuild/backend-authority-v2';
 
 function requireApproval() {
-  if (String(process.env.APPROVE_STAGING_MIGRATION || '').toUpperCase() !== 'YES') {
-    fail('Set APPROVE_STAGING_MIGRATION=YES to apply a staging migration');
+  if (String(process.env.APPROVE_PRODUCTION_MIGRATION || '').toUpperCase() !== 'YES') {
+    fail('Set APPROVE_PRODUCTION_MIGRATION=YES to apply a production migration');
   }
 }
 
@@ -63,35 +70,25 @@ function resolveMigrationFile(version, explicitPath) {
   return match;
 }
 
-// Both of these read the SAME inventory, so they can never disagree about what
-// staging has applied -- and both fail closed rather than reporting an
-// unreadable ledger as an empty one. See readRemoteMigrationVersions().
 function listRemoteVersions() {
-  return readRemoteMigrationVersions(runSupabase);
+  return readRemoteMigrationVersions(runSupabaseProduction);
 }
 
 function remoteHasVersion(version, remote = listRemoteVersions()) {
   return remote.includes(version);
 }
 
-/**
- * The versions genuinely absent from staging: local files minus everything the
- * ledger already carries, minus everything the reconciliation authority proves
- * is present under another version identity (renumbered, consolidated,
- * superseded). Without this the gate counts historical renumbering as pending
- * work and can never see exactly one approved migration.
- */
 function pendingVersions(local, remote) {
   const remoteSet = new Set(remote);
-  const { reconciled } = loadLedgerReconciliation(STAGING_PROJECT_REF);
+  const { reconciled } = loadLedgerReconciliation(PRODUCTION_PROJECT_REF);
   const reconciledLocal = new Set(reconciled.map((r) => r.localVersion));
   return local.filter((m) => !remoteSet.has(m.version) && !reconciledLocal.has(m.version));
 }
 
 function main() {
-  const missing = missingRequiredVars();
+  const missing = missingRequiredProductionVars();
   if (missing.length) {
-    console.error('Missing required staging variables:');
+    console.error('Missing required production variables:');
     for (const name of missing) console.error(`- ${name}`);
     process.exit(1);
   }
@@ -99,10 +96,18 @@ function main() {
   requireApproval();
   let identity;
   try {
-    identity = assertStagingTarget();
+    identity = assertProductionTarget();
   } catch (err) {
     fail(err.message);
   }
+
+  const governedBranch = process.env.GOVERNED_BRANCH || DEFAULT_GOVERNED_BRANCH;
+  try {
+    assertGovernedCommit(governedBranch);
+  } catch (err) {
+    fail(err.message);
+  }
+
   const version = String(process.env.MIGRATION_VERSION || '').trim();
   if (!/^\d{12,14}$/.test(version)) fail('MIGRATION_VERSION must be a 12-14 digit migration version');
 
@@ -116,7 +121,7 @@ function main() {
     fail(`Migration blocked by prohibited SQL patterns: ${blocked.map((f) => f.id).join(', ')}`);
   }
 
-  runSupabase(['link', '--project-ref', STAGING_PROJECT_REF, '--yes']);
+  runSupabaseProduction(['link', '--project-ref', PRODUCTION_PROJECT_REF, '--yes']);
 
   let remote;
   try {
@@ -126,7 +131,7 @@ function main() {
   }
 
   if (remoteHasVersion(version, remote)) {
-    fail(`Version ${version} is already recorded on staging — refusing re-apply`);
+    fail(`Version ${version} is already recorded on production — refusing re-apply`);
   }
 
   const local = listLocalMigrationVersions();
@@ -148,14 +153,13 @@ function main() {
   }, null, 2));
 
   try {
-    runSupabase(['db', 'query', '--linked', '-f', migration.path]);
+    runSupabaseProduction(['db', 'query', '--linked', '-f', migration.path]);
   } catch (err) {
     fail(`SQL apply failed: ${err.message}`);
   }
 
-  // Intentional history record for the SQL just applied — not a drift-repair operation.
   try {
-    runSupabase(['migration', 'repair', version, '--status', 'applied', '--linked']);
+    runSupabaseProduction(['migration', 'repair', version, '--status', 'applied', '--linked']);
   } catch (err) {
     fail(`Failed to record applied migration version ${version}: ${err.message}`);
   }
@@ -167,25 +171,16 @@ function main() {
   const afterRemote = listRemoteVersions();
   const afterLocalMigrations = listLocalMigrationVersions();
   const afterLocal = afterLocalMigrations.map((m) => m.version);
-  const { reconciled, remoteOnly: remoteOnlyDeclarations } = loadLedgerReconciliation(STAGING_PROJECT_REF);
+  const { reconciled } = loadLedgerReconciliation(PRODUCTION_PROJECT_REF);
   const reconciledLocal = new Set(reconciled.map((r) => r.localVersion));
   const reconciledRemote = new Set(reconciled.flatMap((r) => r.remoteVersions ?? []));
-  // Declared OBSOLETE_REMOTE_ONLY rows (validated by the preflight that gates this
-  // job) are accounted for, not drift -- the same rule the preflight applies.
-  const excludedRemote = new Set(
-    remoteOnlyDeclarations
-      .filter((r) => r?.classification === OBSOLETE_REMOTE_ONLY && !afterLocal.includes(r.remoteVersion))
-      .map((r) => r.remoteVersion),
-  );
-  const remoteOnly = afterRemote.filter(
-    (v) => !afterLocal.includes(v) && !reconciledRemote.has(v) && !excludedRemote.has(v),
-  );
+  const remoteOnly = afterRemote.filter((v) => !afterLocal.includes(v) && !reconciledRemote.has(v));
   const localOnly = afterLocal.filter((v) => !afterRemote.includes(v) && !reconciledLocal.has(v));
 
   const artifact = {
     timestamp: new Date().toISOString(),
     commit: gitHeadSha(),
-    target: STAGING_PROJECT_REF,
+    target: PRODUCTION_PROJECT_REF,
     version,
     name: migration.name,
     sha256: hash,
@@ -197,7 +192,7 @@ function main() {
     outcome: remoteOnly.length === 0 && localOnly.length === 0 ? 'ALIGNED' : 'ALIGNED_WITH_PENDING',
   };
 
-  const dir = ensureArtifactsDir('staging-migrations');
+  const dir = ensureArtifactsDir('production-migrations');
   const artifactPath = path.join(dir, `${version}-${migration.name}.json`);
   writeJsonArtifact(artifactPath, artifact);
 
@@ -206,7 +201,6 @@ function main() {
   if (remoteOnly.length > 0) process.exit(1);
 }
 
-// Only run when invoked as a script; importing must not apply anything.
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main();
 }

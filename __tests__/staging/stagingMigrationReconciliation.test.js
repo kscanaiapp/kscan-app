@@ -215,6 +215,168 @@ test('unknown mismatch fails: an undeclared remote-only version still blocks', a
   assert.ok(result.blockers.some((b) => b.includes('no declared reconciliation')));
 });
 
+// ------------------------------------- OBSOLETE_REMOTE_ONLY (B34-BE-GOV-004)
+//
+// A declaration-only exclusion for a ledger row whose effect is proven absent and
+// whose migration must never be replayed. The audit declared one
+// (20260916234025) but the gate ignored the key, so the governed staging deploy
+// refused the canonical authority. Honouring it must not open a laundering path.
+
+function exclusion(overrides = {}) {
+  return {
+    remoteVersion: '20260916234025',
+    logicalName: 'obsolete_remote_row',
+    classification: 'OBSOLETE_REMOTE_ONLY',
+    evidence: 'ledger row present; effective object absent; never replay',
+    ...overrides,
+  };
+}
+
+function withExclusions(reconciledItems, ...exclusions) {
+  return { ...reconciliation(...reconciledItems), remoteOnly: exclusions };
+}
+
+test('a validated OBSOLETE_REMOTE_ONLY exclusion is accounted for, not drift', async () => {
+  const { compareMigrations } = await loadPreflight();
+  const result = compareMigrations(
+    localOf('20260101000000'),
+    ['20260101000000', '20260916234025'],
+    '',
+    withExclusions([], exclusion()),
+  );
+  assert.equal(result.ok, true, result.blockers.join('\n'));
+  assert.deepEqual(result.remoteOnly, []);
+  assert.deepEqual(result.excludedRemoteOnly, ['20260916234025']);
+});
+
+test('an exclusion covers only the version it names: another remote-only row still blocks', async () => {
+  const { compareMigrations } = await loadPreflight();
+  const result = compareMigrations(
+    localOf('20260101000000'),
+    ['20260101000000', '20260916234025', '20260999999999'],
+    '',
+    withExclusions([], exclusion()),
+  );
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.remoteOnly, ['20260999999999']);
+  assert.ok(result.blockers.some((b) => b.includes('no declared reconciliation: 20260999999999')));
+});
+
+const INVALID_EXCLUSIONS = [
+  ['a reconciliation classification', { classification: 'SUPERSEDED_BY_LATER_MIGRATION' }, /classification must be OBSOLETE_REMOTE_ONLY/],
+  ['no classification', { classification: undefined }, /classification must be OBSOLETE_REMOTE_ONLY/],
+  ['no evidence', { evidence: '  ' }, /evidence is required/],
+  ['no logical name', { logicalName: '' }, /logicalName is required/],
+  ['a malformed version', { remoteVersion: '2026091623' }, /14-digit version/],
+];
+
+for (const [label, overrides, pattern] of INVALID_EXCLUSIONS) {
+  test(`an exclusion with ${label} fails and does not suppress the remote-only row`, async () => {
+    const { compareMigrations } = await loadPreflight();
+    const result = compareMigrations(
+      localOf('20260101000000'),
+      ['20260101000000', '20260916234025'],
+      '',
+      withExclusions([], exclusion(overrides)),
+    );
+    assert.equal(result.ok, false);
+    assert.ok(result.blockers.some((b) => pattern.test(b)), result.blockers.join('\n'));
+  });
+}
+
+test('stale authority fails: an exclusion naming a version the remote ledger lacks', async () => {
+  const { compareMigrations } = await loadPreflight();
+  const result = compareMigrations(
+    localOf('20260101000000'),
+    ['20260101000000'],
+    '',
+    withExclusions([], exclusion()),
+  );
+  assert.equal(result.ok, false);
+  assert.ok(result.blockers.some((b) => b.includes('remote ledger does not contain it')), result.blockers.join('\n'));
+});
+
+test('an exclusion may not name a version a local migration carries', async () => {
+  const { compareMigrations } = await loadPreflight();
+  const result = compareMigrations(
+    localOf('20260101000000', '20260916234025'),
+    ['20260101000000', '20260916234025'],
+    '',
+    withExclusions([], exclusion()),
+  );
+  assert.equal(result.ok, false);
+  assert.ok(result.blockers.some((b) => b.includes('not remote-only')), result.blockers.join('\n'));
+});
+
+test('an exclusion may not also be claimed by a reconciliation', async () => {
+  const { compareMigrations } = await loadPreflight();
+  const result = compareMigrations(
+    localOf('20260101000000', '20260202000000'),
+    ['20260101000000', '20260916234025'],
+    '',
+    withExclusions(
+      [{ localVersion: '20260202000000', remoteVersions: ['20260916234025'], classification: 'EQUIVALENT_RENUMBER' }],
+      exclusion(),
+    ),
+  );
+  assert.equal(result.ok, false);
+  assert.ok(result.blockers.some((b) => b.includes('also claimed by reconciliation')), result.blockers.join('\n'));
+});
+
+test('an exclusion declared twice fails', async () => {
+  const { compareMigrations } = await loadPreflight();
+  const result = compareMigrations(
+    localOf('20260101000000'),
+    ['20260101000000', '20260916234025'],
+    '',
+    withExclusions([], exclusion(), exclusion({ logicalName: 'again' })),
+  );
+  assert.equal(result.ok, false);
+  assert.ok(result.blockers.some((b) => b.includes('declared more than once')), result.blockers.join('\n'));
+});
+
+test('an exclusion cannot excuse a genuinely pending LOCAL migration', async () => {
+  const { compareMigrations } = await loadPreflight();
+  const result = compareMigrations(
+    localOf('20260101000000', '20260202000000', '20260303000000'),
+    ['20260101000000', '20260916234025'],
+    '',
+    withExclusions([], exclusion()),
+  );
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.localOnly.map((m) => m.version), ['20260202000000', '20260303000000']);
+  assert.ok(result.blockers.some((b) => b.includes('multiple pending migrations')));
+});
+
+test('a non-array remoteOnly in the manifest is a hard error', async () => {
+  const { loadLedgerReconciliation } = await loadPreflight();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bad-remote-only-'));
+  const file = path.join(dir, 'migration-authority-manifest.json');
+  fs.writeFileSync(file, JSON.stringify({
+    ledgerReconciliation: { environments: { [STAGING_REF]: { reconciled: [], remoteOnly: { remoteVersion: '20260916234025' } } } },
+  }), 'utf8');
+  assert.throws(() => loadLedgerReconciliation(STAGING_REF, file), /remoteOnly must be an array/);
+});
+
+test('negative control: without the exclusion the same ledger is refused', async () => {
+  const { compareMigrations } = await loadPreflight();
+  const result = compareMigrations(
+    localOf('20260101000000'),
+    ['20260101000000', '20260916234025'],
+    '',
+    withExclusions([]),
+  );
+  assert.equal(result.ok, false);
+  assert.deepEqual(result.remoteOnly, ['20260916234025']);
+});
+
+test('apply-staging-migration applies the same exclusion rule as the preflight', () => {
+  const source = fs.readFileSync(path.join(ROOT, 'scripts', 'apply-staging-migration.mjs'), 'utf8');
+  assert.match(source, /import \{ loadLedgerReconciliation, OBSOLETE_REMOTE_ONLY \} from '\.\/staging-deploy-preflight\.mjs';/);
+  assert.match(source, /r\?\.classification === OBSOLETE_REMOTE_ONLY/);
+  assert.match(source, /!reconciledRemote\.has\(v\) && !excludedRemote\.has\(v\)/);
+});
+
 test('duplicate version collision still fails', async () => {
   const { compareMigrations } = await loadPreflight();
   const local = [...localOf('20260101000000'), ...localOf('20260101000000')];
@@ -333,6 +495,7 @@ test('production ref still fails closed: it carries no reconciliation authority'
   const prod = loadLedgerReconciliation(PRODUCTION_REF);
   assert.deepEqual(prod.reconciled, []);
   assert.deepEqual(prod.genuinelyUnapplied, []);
+  assert.deepEqual(prod.remoteOnly, [], 'production carries no remote-only exclusion');
 
   const staging = loadLedgerReconciliation(STAGING_REF);
   assert.ok(staging.reconciled.length > 0, 'staging authority must be populated');
@@ -375,6 +538,29 @@ test('the committed staging authority is structurally sound against the real tre
   // the half that is checkable offline.
   const remoteSet = new Set(reconciled.flatMap((r) => r.remoteVersions));
   const { problems } = validateReconciliation(reconciled, localSet, remoteSet);
+  assert.deepEqual(problems, [], problems.join('\n'));
+});
+
+test('the committed staging exclusions name exactly the obsolete source-identity row, which no file carries', async () => {
+  const { loadLedgerReconciliation, validateReconciliation, validateRemoteOnlyExclusions } = await loadPreflight();
+  const { listLocalMigrationVersions } = await import(
+    pathToFileUrl(path.join(ROOT, 'scripts', 'lib', 'staging-helpers.mjs'))
+  );
+  const local = listLocalMigrationVersions(path.join(ROOT, 'supabase', 'migrations'));
+  const localSet = new Set(local.map((m) => m.version));
+  const { reconciled, remoteOnly } = loadLedgerReconciliation(STAGING_REF);
+
+  assert.deepEqual(remoteOnly.map((r) => [r.remoteVersion, r.logicalName, r.classification]), [
+    ['20260916234025', 'dressing_room_items_source_idempotency', 'OBSOLETE_REMOTE_ONLY'],
+  ]);
+  // Its migration must never re-enter source under any version.
+  const names = fs.readdirSync(path.join(ROOT, 'supabase', 'migrations'));
+  assert.equal(names.some((n) => n.includes('dressing_room_items_source_idempotency')), false);
+
+  // Offline half of the check: remote presence is asserted by the live preflight.
+  const remoteSet = new Set([...reconciled.flatMap((r) => r.remoteVersions), '20260916234025']);
+  const { claimedRemote } = validateReconciliation(reconciled, localSet, remoteSet);
+  const { problems } = validateRemoteOnlyExclusions(remoteOnly, localSet, remoteSet, claimedRemote);
   assert.deepEqual(problems, [], problems.join('\n'));
 });
 

@@ -3,8 +3,9 @@
 # Declares the JWT posture of every deployed Edge Function so a deploy can never
 # silently change it. Without this file the CLI applies its own default, which
 # would flip scan-identify from its deployed verify_jwt = false to true and
-# break the commerce-only (MODE B) request, which genuinely has no bearer
-# token by design.
+# bypass the function's custom auth/error contract. MODE B now requires a
+# verified, non-anonymous bearer token, but validation remains inside the
+# function so missing and malformed credentials keep their governed response.
 #
 # Changing any verify_jwt value here changes production authentication
 # behaviour and is an owner decision, not a deployment side effect.

@@ -102,7 +102,12 @@ import {
   resolveEliseDominantGarment,
 } from './eliseDominantGarment.ts';
 import { isQualityTuneEnabled, QUALITY_TUNE_VERSION } from './qualityTuneConfig.ts';
-import { checkAuthenticatedScanQuota } from './scanQuota.ts';
+import {
+  canonicalizeScanMode,
+  checkAuthenticatedScanQuota,
+  COMMERCE_ONLY_QUOTA_MODE,
+  type CanonicalScanMode,
+} from './scanQuota.ts';
 import { applyQualityTaxonomyTune } from './qualityTuneNormalize.ts';
 import {
   buildWeightedCommerceQueries,
@@ -189,7 +194,12 @@ const MAX_OUTPUT_TOKENS = 2048;
 const DEFAULT_GEMINI_TIMEOUT_MS = 14_000;
 const SCAN_INTELLIGENCE_TIMEOUT_MS = 500;
 const SIMILARITY_TIMEOUT_MS = 300;
-const IMAGE_MODE_COMMERCE_TIMEOUT_MS = 3000;
+// Outer commerce budgets must stay ABOVE shoppingProvider's PROVIDER_TIMEOUT_MS
+// (4500). Below it, the provider's own abort is unreachable: a call that would
+// have returned products at 3-4.5s is always discarded, the wasted provider
+// spend is still billed, and the scan reports an empty shelf. Image mode sat at
+// 3000 and produced exactly that in production; text mode was already correct.
+const IMAGE_MODE_COMMERCE_TIMEOUT_MS = 5000;
 const TEXT_MODE_COMMERCE_TIMEOUT_MS = 5000;
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DEFAULT_MIME = 'image/jpeg';
@@ -1905,11 +1915,13 @@ Deno.serve(async (req) => {
   // A V2 request carries `mode: detect_items | identify_selected_item`, which
   // collides with the legacy `mode: image | text`. V2 is always an image
   // request; its own mode travels in internalRequest.resolvedMode.
-  const mode = isV2Request
-    ? 'image'
-    : typeof body.mode === 'string'
-    ? body.mode.toLowerCase()
-    : 'image';
+  // B33-SEC-003. This used to be `body.mode.toLowerCase()`, i.e. an arbitrary
+  // caller string. Execution only ever asked `mode === 'text'`, so any other
+  // spelling ran as a paid image scan — but the SAME string was the `p_mode`
+  // that keys the durable quota row, so each spelling minted its own 30/day
+  // bucket. canonicalizeScanMode() collapses the vocabulary to image|text so
+  // the bucket always matches the work performed.
+  const mode: CanonicalScanMode = isV2Request ? 'image' : canonicalizeScanMode(body.mode);
   // V2 sends a structured source object, so the legacy string read would yield
   // 'unknown'. The specific entry path is preserved instead.
   const source = isV2Request
@@ -2008,8 +2020,61 @@ Deno.serve(async (req) => {
   if (commerceFunnelEnabled && isCommerceOnlyRequest(body)) {
     const commerceOnlyStarted = Date.now();
 
-    // Rate limit before anything else in this block: no provider call, no
-    // evidence parsing, no ranking work happens for a request this rejects.
+    // B33-SEC-002. MODE B spends real provider money, and it used to do so for
+    // ANY caller: there was no auth check in this block at all, and the only
+    // bound was checkCommerceOnlyRateLimit() — a sliding window held in an
+    // isolate-local Map keyed by IP+UA. Edge isolates are per-request cheap and
+    // short-lived, so that Map is empty far more often than not: a staging
+    // probe of 45 requests landed on 42 distinct isolates, i.e. the limiter
+    // admitted essentially every request. Staging also shares provider
+    // credentials with production, so anonymous staging traffic could burn
+    // production provider quota.
+    //
+    // Two changes close it, in this order, BEFORE any parsing or provider work:
+    //   1. require a real, non-anonymous authenticated principal;
+    //   2. bound that principal with the DURABLE daily bucket, not an
+    //      in-memory window that restarts with the isolate.
+    //
+    // Authentication is checked first because a rejected caller must cost
+    // nothing — no fingerprint hash, no evidence parse, no provider call.
+    if (!auth.isAuthenticated || !userId || auth.authError) {
+      console.warn(
+        '[scan-identify] commerce_only_auth_required authenticated=%s authError=%s',
+        String(auth.isAuthenticated),
+        String(auth.authError),
+      );
+      return json(
+        {
+          status: 'failed',
+          error: auth.authError ? 'commerce_only_auth_invalid' : 'commerce_only_auth_required',
+          purchaseOptions: [],
+          recommendedProducts: [],
+        },
+        401,
+      );
+    }
+    // A signInAnonymously() session is a verified user record but not a
+    // principal we bill provider work to — the same rule the paid image path
+    // applies (Build 32 P1-B).
+    if (auth.isAnonymous) {
+      console.warn('[scan-identify] commerce_only_auth_anonymous uid=%s', logUserId);
+      return json(
+        {
+          status: 'failed',
+          error: 'commerce_only_auth_required',
+          purchaseOptions: [],
+          recommendedProducts: [],
+        },
+        401,
+      );
+    }
+
+    // Cheap per-fingerprint burst guard, kept as a SECOND layer and explicitly
+    // NOT the authority. It is isolate-local, so it bounds nothing across the
+    // fleet (45 requests landed on 42 isolates) — which is precisely why it was
+    // insufficient on its own. It stays because it is free and short-circuits a
+    // hot loop before the durable check's database round-trip. The durable
+    // bucket below is what actually enforces the limit.
     const commerceOnlyFingerprint = await sha256Hex(getClientFingerprintMaterial(req));
     const commerceOnlyRate = checkCommerceOnlyRateLimit(commerceOnlyFingerprint);
     if (!commerceOnlyRate.allowed) {
@@ -2027,6 +2092,44 @@ Deno.serve(async (req) => {
           recommendedProducts: [],
         },
         429,
+      );
+    }
+
+    // Durable bucket. Built here rather than reusing `catalogClient`, which is
+    // constructed further down and so is not in scope on this route.
+    const commerceOnlyServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const commerceOnlyQuotaClient = supabaseUrl && commerceOnlyServiceRoleKey
+      ? createClient(supabaseUrl, commerceOnlyServiceRoleKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        })
+      : null;
+    const commerceOnlyQuota = await checkAuthenticatedScanQuota(
+      commerceOnlyQuotaClient,
+      userId,
+      COMMERCE_ONLY_QUOTA_MODE,
+      logUserId,
+    );
+    if (commerceOnlyQuota.outcome !== 'allowed') {
+      // 'unverified' fails CLOSED here for the same reason it does on the image
+      // route: quota infrastructure being unreachable is not evidence the user
+      // is under their limit, and this route spends real provider money.
+      const exceeded = commerceOnlyQuota.outcome === 'exceeded';
+      console.warn(
+        '[scan-identify] commerce_only_quota_blocked uid=%s outcome=%s paid_work=blocked',
+        logUserId,
+        commerceOnlyQuota.outcome,
+      );
+      return json(
+        {
+          status: 'failed',
+          error: exceeded ? 'commerce_only_quota_exceeded' : 'commerce_only_quota_unverified',
+          ...(exceeded
+            ? { count: commerceOnlyQuota.count, limit: commerceOnlyQuota.limit }
+            : { retryable: true }),
+          purchaseOptions: [],
+          recommendedProducts: [],
+        },
+        exceeded ? 429 : 503,
       );
     }
 
@@ -3912,6 +4015,14 @@ Deno.serve(async (req) => {
           mode,
           source,
         );
+        // Report the timeout as a timeout. Leaving provider as 'none' made this
+        // indistinguishable from a provider that genuinely found nothing, so the
+        // outcome was recorded as commerce_primary_empty and the failure was
+        // invisible. mapToFailureReason resolves providerOutcome 'timeout' to
+        // provider_timeout ahead of the commercePrimaryEmpty branch, and text
+        // mode already ships provider:'timeout' to this same Build 33 client in
+        // production, so the wire shape is proven safe.
+        commerceProvider = 'timeout';
       } else {
         if (relevanceEnabled && commerce.qualityTune) {
           commerceRelevanceStats = {
