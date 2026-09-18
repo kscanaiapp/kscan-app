@@ -91,6 +91,15 @@ const VALID_RECONCILIATION_CLASSIFICATIONS = new Set([
 ]);
 
 /**
+ * The ONLY classification a declaration-only remote exclusion may carry
+ * (ledgerReconciliation.environments.<ref>.remoteOnly[]). It names a ledger row
+ * whose effect is proven absent and whose migration must never be replayed or
+ * carried into source (B34-BE-GOV-004). It is deliberately not a `reconciled`
+ * classification: nothing local stands in for it.
+ */
+const OBSOLETE_REMOTE_ONLY = 'OBSOLETE_REMOTE_ONLY';
+
+/**
  * Loads the reconciliation authority for one project ref.
  * An unknown ref (production included) resolves to an empty authority, so the
  * gate keeps its original strict behaviour wherever nothing was ever proven.
@@ -99,7 +108,7 @@ function loadLedgerReconciliation(projectRef, manifestPath) {
   const file =
     manifestPath ||
     path.join(process.cwd(), 'config', 'migration-authority-manifest.json');
-  if (!fs.existsSync(file)) return { reconciled: [], genuinelyUnapplied: [] };
+  if (!fs.existsSync(file)) return { reconciled: [], genuinelyUnapplied: [], remoteOnly: [] };
   let manifest;
   try {
     manifest = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -107,11 +116,69 @@ function loadLedgerReconciliation(projectRef, manifestPath) {
     throw new Error(`migration authority manifest is unparseable: ${err.message}`);
   }
   const env = manifest?.ledgerReconciliation?.environments?.[projectRef];
-  if (!env) return { reconciled: [], genuinelyUnapplied: [] };
+  if (!env) return { reconciled: [], genuinelyUnapplied: [], remoteOnly: [] };
+  if (env.remoteOnly !== undefined && !Array.isArray(env.remoteOnly)) {
+    throw new Error('migration authority manifest remoteOnly must be an array');
+  }
   return {
     reconciled: Array.isArray(env.reconciled) ? env.reconciled : [],
     genuinelyUnapplied: Array.isArray(env.genuinelyUnapplied) ? env.genuinelyUnapplied : [],
+    remoteOnly: env.remoteOnly ?? [],
   };
+}
+
+/**
+ * Validates declaration-only remote exclusions against the real local tree, the
+ * real remote ledger, and the `reconciled` claims. An exclusion is accepted only
+ * when it is exactly OBSOLETE_REMOTE_ONLY, carries a name and evidence, names a
+ * version the remote ledger really holds, names a version NO local file carries
+ * (otherwise it is not remote-only), and is not also claimed by a reconciliation.
+ * Anything else is a blocker, never a licence.
+ */
+function validateRemoteOnlyExclusions(remoteOnly, localSet, remoteSet, claimedRemote) {
+  const problems = [];
+  const excludedRemote = new Map();
+
+  for (const item of remoteOnly) {
+    const label = `${item?.remoteVersion ?? '(no remoteVersion)'} (${item?.logicalName ?? 'unnamed'})`;
+    if (!item || typeof item.remoteVersion !== 'string' || !/^\d{14}$/.test(item.remoteVersion)) {
+      problems.push(`remote-only exclusion ${label}: remoteVersion must be a 14-digit version`);
+      continue;
+    }
+    if (item.classification !== OBSOLETE_REMOTE_ONLY) {
+      problems.push(
+        `remote-only exclusion ${label}: classification must be ${OBSOLETE_REMOTE_ONLY}, got "${item.classification}"`,
+      );
+    }
+    if (typeof item.logicalName !== 'string' || item.logicalName.trim() === '') {
+      problems.push(`remote-only exclusion ${label}: logicalName is required`);
+    }
+    if (typeof item.evidence !== 'string' || item.evidence.trim() === '') {
+      problems.push(`remote-only exclusion ${label}: evidence is required`);
+    }
+    if (!remoteSet.has(item.remoteVersion)) {
+      problems.push(
+        `remote-only exclusion ${label}: the remote ledger does not contain it — stale authority`,
+      );
+    }
+    if (localSet.has(item.remoteVersion)) {
+      problems.push(
+        `remote-only exclusion ${label}: a local migration carries this version, so it is not remote-only`,
+      );
+    }
+    if (claimedRemote.has(item.remoteVersion)) {
+      problems.push(
+        `remote-only exclusion ${label}: also claimed by reconciliation ${claimedRemote.get(item.remoteVersion)}`,
+      );
+    }
+    if (excludedRemote.has(item.remoteVersion)) {
+      problems.push(`remote-only exclusion ${label}: declared more than once`);
+    } else {
+      excludedRemote.set(item.remoteVersion, item);
+    }
+  }
+
+  return { problems, excludedRemote };
 }
 
 /**
@@ -187,10 +254,22 @@ function compareMigrations(local, remote, approvedVersion, reconciliation = null
     localSet,
     remoteSet,
   );
+  const exclusions = validateRemoteOnlyExclusions(
+    reconciliation?.remoteOnly ?? [],
+    localSet,
+    remoteSet,
+    claimedRemote,
+  );
+  problems.push(...exclusions.problems);
+  const { excludedRemote } = exclusions;
 
-  // A remote-only version is drift ONLY if no proven reconciliation accounts for it.
-  const remoteOnly = remote.filter((v) => !localSet.has(v) && !claimedRemote.has(v));
+  // A remote-only version is drift ONLY if no proven reconciliation accounts for
+  // it and no validated OBSOLETE_REMOTE_ONLY exclusion names it.
+  const remoteOnly = remote.filter(
+    (v) => !localSet.has(v) && !claimedRemote.has(v) && !excludedRemote.has(v),
+  );
   const reconciledRemote = remote.filter((v) => !localSet.has(v) && claimedRemote.has(v));
+  const excludedRemoteOnly = remote.filter((v) => !localSet.has(v) && excludedRemote.has(v));
 
   // A local-only version is pending ONLY if it is not itself reconciled.
   const pending = local.filter((m) => !remoteSet.has(m.version) && !aliasedLocal.has(m.version));
@@ -218,6 +297,7 @@ function compareMigrations(local, remote, approvedVersion, reconciliation = null
       remoteVersions: aliasedLocal.get(m.version).remoteVersions ?? [],
     })),
     reconciledRemote,
+    excludedRemoteOnly,
     reconciliationProblems: problems,
     duplicates,
     ok: true,
@@ -377,6 +457,7 @@ function main() {
       console.log(`  local-only (pending): ${migrationReport.localOnly.length ? migrationReport.localOnly.map((m) => m.version).join(', ') : 'none'}`);
       console.log(`  reconciled local: ${migrationReport.reconciledLocal?.length ?? 0}`);
       console.log(`  reconciled remote: ${migrationReport.reconciledRemote?.length ?? 0}`);
+      console.log(`  excluded obsolete remote-only: ${migrationReport.excludedRemoteOnly?.length ? migrationReport.excludedRemoteOnly.join(', ') : 'none'}`);
       for (const item of migrationReport.reconciledLocal ?? []) {
         console.log(`    ${item.version} ${item.name} — ${item.classification} -> ${item.remoteVersions.join(', ') || '(none)'}`);
       }
@@ -398,4 +479,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   main();
 }
 
-export { compareMigrations, loadLedgerReconciliation, validateReconciliation };
+export {
+  compareMigrations,
+  loadLedgerReconciliation,
+  validateReconciliation,
+  validateRemoteOnlyExclusions,
+  OBSOLETE_REMOTE_ONLY,
+};

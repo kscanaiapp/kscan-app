@@ -6,7 +6,6 @@
     "media dimensions are inherited from the existing Closet store, not invented",
     "no repo migration other than the blocking one assumes the internal schema",
     "IOS-001: any profile mounting the attach surface also enables identification",
-    "config.toml pins JWT posture so a deploy cannot silently change it",
     "the real repo manifest and migration tree pass with zero violations",
     "parity: every governed file exists and matches its recorded hash",
     "parity: the generator agrees the committed manifest is current",
@@ -21,6 +20,6 @@
     "contribution DELETE remains own-item-only while existing owner policies are untouched",
     "staging exposes exactly the production client-feature flag set",
     "shared flags hold identical values unless allow-listed as environment-specific",
-    "migration: compareMigrations — aligned history passes"
+    "migration: compareMigrations \u2014 aligned history passes"
   ]
 }

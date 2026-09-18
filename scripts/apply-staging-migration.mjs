@@ -37,7 +37,7 @@ import {
   STAGING_PROJECT_REF,
   fail,
 } from './lib/staging-helpers.mjs';
-import { loadLedgerReconciliation } from './staging-deploy-preflight.mjs';
+import { loadLedgerReconciliation, OBSOLETE_REMOTE_ONLY } from './staging-deploy-preflight.mjs';
 
 function requireApproval() {
   if (String(process.env.APPROVE_STAGING_MIGRATION || '').toUpperCase() !== 'YES') {
@@ -167,10 +167,19 @@ function main() {
   const afterRemote = listRemoteVersions();
   const afterLocalMigrations = listLocalMigrationVersions();
   const afterLocal = afterLocalMigrations.map((m) => m.version);
-  const { reconciled } = loadLedgerReconciliation(STAGING_PROJECT_REF);
+  const { reconciled, remoteOnly: remoteOnlyDeclarations } = loadLedgerReconciliation(STAGING_PROJECT_REF);
   const reconciledLocal = new Set(reconciled.map((r) => r.localVersion));
   const reconciledRemote = new Set(reconciled.flatMap((r) => r.remoteVersions ?? []));
-  const remoteOnly = afterRemote.filter((v) => !afterLocal.includes(v) && !reconciledRemote.has(v));
+  // Declared OBSOLETE_REMOTE_ONLY rows (validated by the preflight that gates this
+  // job) are accounted for, not drift -- the same rule the preflight applies.
+  const excludedRemote = new Set(
+    remoteOnlyDeclarations
+      .filter((r) => r?.classification === OBSOLETE_REMOTE_ONLY && !afterLocal.includes(r.remoteVersion))
+      .map((r) => r.remoteVersion),
+  );
+  const remoteOnly = afterRemote.filter(
+    (v) => !afterLocal.includes(v) && !reconciledRemote.has(v) && !excludedRemote.has(v),
+  );
   const localOnly = afterLocal.filter((v) => !afterRemote.includes(v) && !reconciledLocal.has(v));
 
   const artifact = {

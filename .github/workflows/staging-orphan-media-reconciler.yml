@@ -1,0 +1,153 @@
+name: Staging Orphan Media Reconciler (dry run)
+
+# Build 34 backend closure -- B34-BE-STO-001.
+#
+# `reconcile-orphan-media` (B33-STO-002) is deployed to staging secret-gated,
+# dry-run by default and fail-closed, but nothing ever invoked it: the orphan
+# inventory (storage objects whose owner no longer resolves) was never observed
+# after the one manual audit run. This workflow is the governed invoker. It uses
+# the repository's one established scheduling mechanism -- a GitHub workflow with
+# a protected `staging` environment secret, the same shape as
+# staging-account-deletion-worker.yml -- rather than enabling pg_cron/pg_net or
+# adding an external scheduler.
+#
+# DRY RUN ONLY. NOTHING HERE CAN DELETE.
+#   * There is no live mode and no input that could select one. The function reads
+#     no request body; its mode comes only from server-side switches, and all three
+#     hold it in dry run on staging:
+#       app_config.orphan_media_sweep_enabled   absent => OFF (kill switch)
+#       app_config.orphan_media_sweep_dry_run   absent => not consulted while OFF
+#       ORPHAN_MEDIA_SWEEP_DRY_RUN secret       "true" => forces dry run regardless
+#   * scripts/invoke-orphan-media-reconciler.mjs REFUSES any response that is not
+#     `mode=dry_run`, `dryRun=true`, `killSwitchEnabled=false` with no removals, and
+#     exits 3. Arming deletion server-side therefore turns this job red on the next
+#     run instead of passing silently. Enabling a live sweep is a separate, reviewed
+#     owner change to this file AND to the server switches -- not a toggle.
+#
+# DELIBERATELY NARROW (see the script header): literal staging ref and function
+# slug, explicit production deny, one environment secret passed as a header and
+# never echoed, sanitized counts only in the log and step summary.
+#
+# SCHEDULE. GitHub runs `schedule:` triggers only from the default branch. On any
+# other branch the cron below is inert, and the dispatch path is the invoker. The
+# daily cadence becomes active when this file is promoted to the default branch,
+# exactly as staging-account-deletion-worker.yml was.
+#
+# PULL REQUESTS run only the offline contract job (no environment, no secret, no
+# network). That job is also what registers this workflow with GitHub so the
+# dispatch path works before the file reaches the default branch.
+
+on:
+  schedule:
+    # 09:40 UTC daily -- after the 09:15 deletion worker, so a purge that ran today
+    # is reflected in the orphan count the same morning. Off the top of the hour to
+    # avoid GitHub cron congestion drift.
+    - cron: '40 9 * * *'
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Why this manual dry run is being made (recorded in the summary).'
+        required: false
+        type: string
+  pull_request:
+    paths:
+      - .github/workflows/staging-orphan-media-reconciler.yml
+      - scripts/invoke-orphan-media-reconciler.mjs
+      - __tests__/orphanMediaReconcilerInvoker.test.js
+      - supabase/functions/reconcile-orphan-media/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-orphan-media-reconciler
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    name: Orphan reconciler invoker contract
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Run offline invoker contract tests
+        run: node --test __tests__/orphanMediaReconcilerInvoker.test.js
+
+  invoke-reconciler:
+    name: Invoke staging orphan media reconciler (dry run)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: staging
+    env:
+      # Literals, not inputs. See header.
+      STAGING_REF: yzqjvdfgefveprobvvyw
+      PRODUCTION_REF: wyyuqfdxucjksghsmhry
+      FUNCTION_SLUG: reconcile-orphan-media
+    steps:
+      - name: Assert staging authority and refuse production
+        run: |
+          set -euo pipefail
+          if [ "${STAGING_REF}" = "${PRODUCTION_REF}" ]; then
+            echo "::error::Target ref equals the production ref. Refusing."
+            exit 1
+          fi
+          case "${STAGING_REF}" in
+            yzqjvdfgefveprobvvyw) : ;;
+            *) echo "::error::Unrecognised target project ref. Refusing."; exit 1 ;;
+          esac
+          echo "Target project: ${STAGING_REF} (staging)"
+          echo "Function: ${FUNCTION_SLUG}"
+          echo "Mode: dry_run (the only mode this workflow can express)"
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Invoke reconciler and enforce the dry-run invariant
+        id: invoke
+        env:
+          ORPHAN_MEDIA_SWEEP_SECRET: ${{ secrets.ORPHAN_MEDIA_SWEEP_SECRET }}
+        run: |
+          set -euo pipefail
+          # FAIL CLOSED: the script refuses to send a request without the secret, so
+          # an unprovisioned environment is a red run, never an unauthenticated call.
+          node scripts/invoke-orphan-media-reconciler.mjs --summary-file reconciler-summary.json
+
+      - name: Record run summary
+        if: always()
+        env:
+          RUN_REASON: ${{ inputs.reason }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### Staging orphan media reconciler (dry run)"
+            echo ""
+            echo "- Project: \`${STAGING_REF}\` (staging)"
+            echo "- Function: \`${FUNCTION_SLUG}\`"
+            echo "- Trigger: \`${{ github.event_name }}\`"
+            echo "- Outcome: \`${{ steps.invoke.outcome }}\`"
+            if [ -n "${RUN_REASON:-}" ]; then echo "- Reason: ${RUN_REASON}"; fi
+            echo ""
+            if [ -f reconciler-summary.json ]; then
+              echo '```json'
+              cat reconciler-summary.json
+              echo '```'
+            else
+              echo "_No sanitized summary produced._"
+            fi
+            echo ""
+            echo "No object is deleted by this workflow. A non-dry-run response fails the job (exit 3)."
+          } >> "$GITHUB_STEP_SUMMARY"

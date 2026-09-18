@@ -181,6 +181,48 @@ Deno.test('B33-SEC-002: MODE B is bounded by the durable bucket, not only the is
   assert(block.includes("'commerce_only_quota_unverified'"));
 });
 
+function modeBBoundaryViolations(source: string): string[] {
+  const routeStart = source.indexOf('if (commerceFunnelEnabled && isCommerceOnlyRequest(body))');
+  if (routeStart === -1) return ['MODE B route missing'];
+
+  const block = source.slice(routeStart);
+  const authGate = block.indexOf('if (!auth.isAuthenticated || !userId || auth.authError)');
+  const anonymousGate = block.indexOf('if (auth.isAnonymous)');
+  const durableQuota = block.indexOf('checkAuthenticatedScanQuota(');
+  const evidenceParse = block.indexOf('const evidence = readCommerceOnlyEvidence(body);');
+  const providerCall = block.indexOf('const fast = await getFastCommerceResults({');
+  const violations: string[] = [];
+
+  if (authGate === -1) violations.push('authenticated principal gate missing');
+  if (anonymousGate === -1) violations.push('anonymous principal gate missing');
+  if (durableQuota === -1) violations.push('durable quota missing');
+  if (evidenceParse === -1) violations.push('evidence parser missing');
+  if (providerCall === -1) violations.push('provider call missing');
+  if (
+    [authGate, anonymousGate, durableQuota, evidenceParse, providerCall].every((position) => position >= 0) &&
+    !(authGate < anonymousGate && anonymousGate < durableQuota && durableQuota < evidenceParse && evidenceParse < providerCall)
+  ) {
+    violations.push('security boundary does not precede parsing and provider work');
+  }
+
+  return violations;
+}
+
+Deno.test('B33-SEC-002: MODE B boundary detector accepts the repaired source', () => {
+  assertEquals(modeBBoundaryViolations(indexSource), []);
+});
+
+Deno.test('B33-SEC-002 negative control: removing the account gate is detected', () => {
+  // Mutate an in-memory copy only. This proves the regression assertion bites
+  // without ever putting deployable source into the deliberately broken state.
+  const broken = indexSource.replace(
+    'if (!auth.isAuthenticated || !userId || auth.authError)',
+    'if (false)',
+  );
+  assert(broken !== indexSource, 'negative-control mutation did not apply');
+  assertEquals(modeBBoundaryViolations(broken), ['authenticated principal gate missing']);
+});
+
 // ── B33-OBS-001 — the five commerce outcomes stay distinguishable ──────────
 
 Deno.test('B33-OBS-001: timeout, empty, failure and success are four different answers', () => {
