@@ -117,9 +117,15 @@ export async function saveScan({ photoUri, analysis }) {
         category:          analysis.metadata?.category   ?? '',
         silhouette:        analysis.metadata?.silhouette ?? '',
         color_palette:     analysis.metadata?.color      ?? '',
-        material_estimate: null,
-        style_tags:        [],
-        confidence_score:  null,
+        // scan-identify returns these; persist them instead of dropping them so
+        // a reopened Style Library scan carries the same read as the live card.
+        material_estimate: analysis.metadata?.material ?? null,
+        style_tags:        Array.isArray(analysis.metadata?.styleTags)
+          ? analysis.metadata.styleTags
+          : [],
+        confidence_score:  typeof analysis.metadata?.categoryConfidence === 'number'
+          ? analysis.metadata.categoryConfidence
+          : null,
       },
       result:   analysis.result   ?? '',
       products: Array.isArray(analysis.products) ? analysis.products : [],

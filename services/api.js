@@ -1,20 +1,37 @@
 /**
  * K-SCAN service layer. All backend communication lives here.
  *
- * Legacy API base URL resolution:
- *   - EXPO_PUBLIC_API_URL in .env (set per environment — see README)
- *   - No hosted fallback is configured; legacy calls fail lazily without it.
+ * Scan identification transport
+ * -----------------------------
+ * analyzeImage() calls the governed `scan-identify` Supabase Edge Function.
+ * That function is the authoritative identification gateway: it verifies the
+ * caller's JWT, holds the provider key server-side, and returns a normalized
+ * response. The mobile client never talks to a model provider directly.
  *
- * Environment guide:
- *   Local dev (iOS sim):    EXPO_PUBLIC_API_URL=http://localhost:3001
- *   Local dev (Android em): EXPO_PUBLIC_API_URL=http://10.0.2.2:3001
- *   Physical device:        EXPO_PUBLIC_API_URL=http://<your-LAN-IP>:3001
+ * Request body uses the gateway's legacy-compatible shape, which
+ * normalizeLegacyBody() promotes to the canonical KScanAIRequest:
+ *   { mode, imageBase64, imageMimeType, imageBytes, localPrivacyFiltered,
+ *     source, requestId, clientTimestamp }
+ *
+ * Response contract (scan-identify):
+ *   { status: 'completed',   attributes, userMessage, recommendedProducts }
+ *   { status: 'non_fashion', userMessage, recommendedProducts }
+ *   { status: 'failed',      userMessage, recommendedProducts }
+ *
+ * Legacy API base URL resolution (diagnostics only):
+ *   - EXPO_PUBLIC_API_URL in .env (set per environment — see README)
+ *   - No hosted fallback is configured. The legacy Render /api/analyze route is
+ *     a permanent 410 tombstone and is never used for identification.
  */
+import { Platform } from 'react-native';
+import { supabase } from './supabaseClient';
 
-// 45 seconds — must exceed the server's 15-second AI timeout plus network
-// round-trip, so the client waits for the server's own error response rather
-// than timing out first and showing a generic network error.
-const ANALYZE_TIMEOUT_MS = 45000;
+// 30 seconds — must exceed the scan-identify server budget (8s provider cap plus
+// auth/validation overhead) so the client waits for the function's own
+// structured error response rather than aborting first and masking it as a
+// generic network error.
+const ANALYZE_TIMEOUT_MS = 30000;
+const SCAN_IDENTIFY_FN = 'scan-identify';
 const API_URL_CONFIG_ERROR = 'KSCAN_API_URL_NOT_CONFIGURED';
 let analyzeRequestSequence = 0;
 
@@ -45,7 +62,11 @@ function resolveBaseUrl() {
   return null;
 }
 
-function getRequiredApiBaseUrl() {
+// Diagnostics-only. Identification no longer depends on EXPO_PUBLIC_API_URL —
+// analyzeImage() calls the scan-identify Edge Function. This helper is retained
+// so any remaining legacy caller fails loudly with KSCAN_API_URL_NOT_CONFIGURED
+// instead of silently targeting the retired Render host.
+export function getRequiredApiBaseUrl() {
   const baseUrl = resolveBaseUrl();
   if (baseUrl) return baseUrl;
   throw userSafeError(
@@ -54,8 +75,7 @@ function getRequiredApiBaseUrl() {
   );
 }
 
-// Safe at module load: missing EXPO_PUBLIC_API_URL is reported only if a legacy
-// API function is invoked.
+// Safe at module load: missing EXPO_PUBLIC_API_URL never blocks identification.
 export const BASE_URL = resolveBaseUrl();
 export function getApiBaseUrl() {
   return resolveBaseUrl();
@@ -126,83 +146,192 @@ function deduplicateProducts(products) {
   });
 }
 
+// ── scan-identify response mapping ───────────────────────────────────────────
+// The gateway returns a sanitized FashionAttributes object. It deliberately
+// never returns identity, demographic, or brand fields, so `brand` stays
+// undefined here rather than being invented client-side.
+
+function firstString(value) {
+  return Array.isArray(value)
+    ? value.find((entry) => typeof entry === 'string' && entry.trim()) || ''
+    : '';
+}
+
+function joinPalette(value) {
+  if (!Array.isArray(value)) return '';
+  return value
+    .filter((entry) => typeof entry === 'string' && entry.trim())
+    .map((entry) => entry.trim())
+    .join(' / ');
+}
+
 /**
- * POST image to /api/analyze.
+ * Map scan-identify `attributes` onto the metadata shape the scan UI, the
+ * Style Library writer, and the secondhand/sneaker enrichment inputs consume.
+ */
+export function mapScanAttributesToMetadata(attributes) {
+  const a = attributes && typeof attributes === 'object' && !Array.isArray(attributes)
+    ? attributes
+    : {};
+
+  return {
+    category:   typeof a.category === 'string' ? a.category : '',
+    color:      joinPalette(a.colorPalette),
+    silhouette: typeof a.silhouette === 'string' ? a.silhouette : '',
+    itemType:   typeof a.itemType === 'string' ? a.itemType : '',
+    material:   typeof a.materialEstimate === 'string' ? a.materialEstimate : '',
+    pattern:    typeof a.pattern === 'string' ? a.pattern : '',
+    texture:    typeof a.texture === 'string' ? a.texture : '',
+    occasion:   typeof a.occasion === 'string' ? a.occasion : '',
+    style:      firstString(a.styleTags),
+    styleTags:  Array.isArray(a.styleTags)
+      ? a.styleTags.filter((tag) => typeof tag === 'string' && tag.trim())
+      : [],
+    colorPalette: Array.isArray(a.colorPalette)
+      ? a.colorPalette.filter((tone) => typeof tone === 'string' && tone.trim())
+      : [],
+    categoryConfidence:
+      typeof a.confidenceScore === 'number' && Number.isFinite(a.confidenceScore)
+        ? a.confidenceScore
+        : undefined,
+  };
+}
+
+/** Estimate decoded byte length of a base64 payload (data-URI prefix tolerated). */
+function estimateImageBytes(value) {
+  if (typeof value !== 'string') return 0;
+  const payload = value.startsWith('data:') ? value.slice(value.indexOf(',') + 1) : value;
+  const padding = payload.endsWith('==') ? 2 : payload.endsWith('=') ? 1 : 0;
+  return Math.max(0, Math.floor((payload.length * 3) / 4) - padding);
+}
+
+/**
+ * Read a structured error body out of a Supabase FunctionsHttpError without
+ * throwing. The SDK leaves the raw Response on `error.context`.
+ */
+async function readFunctionErrorBody(error) {
+  const context = error && typeof error === 'object' ? error.context : null;
+  if (!context || typeof context.json !== 'function') return null;
+  try {
+    return await context.json();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Identify a fashion item via the governed scan-identify Edge Function.
+ *
+ * @param {string} base64 - data URI or bare base64 JPEG produced by
+ *   compressForUpload() and passed through the pre-upload privacy sanitizer.
  * Returns one of:
  *   { type: 'fashion', result, metadata, products }
  *   { type: 'non-fashion', message }
- * Throws on network failure, server error, or timeout.
+ * Throws a user-safe Error on auth failure, provider failure, or timeout.
  */
 export async function analyzeImage(base64) {
   if (__DEV__) console.log('[DEBUG] analyzeImage called payloadLen=' + (base64?.length ?? 0));
 
   const requestStartedAt = Date.now();
-  const baseUrl = getRequiredApiBaseUrl();
-  const endpoint = `${baseUrl}/api/analyze`;
-  const requestBody = JSON.stringify({ image: base64 });
   const requestId = createAnalyzeRequestId();
+  const imageBytes = estimateImageBytes(base64);
+
   logAnalyzeDiag({
     event: 'request_prepared',
     requestId,
-    endpoint,
+    endpoint: `functions/v1/${SCAN_IDENTIFY_FN}`,
     imageValueLength: typeof base64 === 'string' ? base64.length : 0,
-    bodyBytes: requestBody.length,
+    imageBytes,
     hasExpectedDataUriPrefix:
       typeof base64 === 'string' && base64.startsWith('data:image/jpeg;base64,'),
   });
+
+  if (typeof base64 !== 'string' || !base64.trim()) {
+    throw userSafeError(
+      'SCAN_IMAGE_MISSING',
+      'We could not read that photo. Please retake it and try again.'
+    );
+  }
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), ANALYZE_TIMEOUT_MS);
 
   try {
-    if (__DEV__) console.log('[DEBUG] FETCH_START url=' + baseUrl + '/api/analyze');
     logAnalyzeDiag({
       event: 'request_start',
       requestId,
-      endpoint,
-      bodyBytes: requestBody.length,
+      imageBytes,
       elapsedMs: Date.now() - requestStartedAt,
     });
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: requestBody,
+
+    const { data, error } = await supabase.functions.invoke(SCAN_IDENTIFY_FN, {
+      body: {
+        mode: 'image',
+        imageBase64: base64,
+        imageMimeType: 'image/jpeg',
+        imageBytes,
+        // Truthful privacy declaration: the pre-upload sanitizer is currently a
+        // documented pass-through, so we must NOT claim local PII masking.
+        localPrivacyFiltered: false,
+        source: Platform.OS,
+        requestId,
+        clientTimestamp: new Date().toISOString(),
+      },
       signal: controller.signal,
     });
+
     clearTimeout(timeoutId);
+
+    if (error) {
+      const body = await readFunctionErrorBody(error);
+      const serverError = typeof body?.error === 'string' ? body.error : '';
+      logAnalyzeDiag({
+        event: 'request_error',
+        requestId,
+        elapsedMs: Date.now() - requestStartedAt,
+        errorName: error?.name ?? null,
+        serverError: serverError || null,
+      });
+
+      if (/authenticat|authoriz/i.test(serverError)) {
+        throw userSafeError(
+          'SCAN_NOT_AUTHENTICATED',
+          'Please sign in again to scan.'
+        );
+      }
+      if (typeof body?.message === 'string' && body.code === 'TEXTSCAN_INVALID_INPUT') {
+        throw userSafeError('SCAN_INVALID_INPUT', body.message);
+      }
+      throw userSafeError(
+        'SCAN_IDENTIFY_UNAVAILABLE',
+        'We couldn’t complete the scan. Please check your connection and try again.'
+      );
+    }
+
     logAnalyzeDiag({
       event: 'request_response',
       requestId,
       elapsedMs: Date.now() - requestStartedAt,
-      status: response.status,
-      ok: response.ok,
+      status: data?.status ?? null,
     });
-    if (__DEV__) console.log('[DEBUG] FETCH_DONE status=' + response.status);
 
-    // Guard: try parsing JSON; surface a clean error if the server sent garbage
-    let data;
-    try {
-      data = await response.json();
-    } catch {
-      throw new Error(`Server returned an unreadable response (${response.status}).`);
+    const status = typeof data?.status === 'string' ? data.status : '';
+    const userMessage = typeof data?.userMessage === 'string' ? data.userMessage : '';
+
+    if (status === 'non_fashion') {
+      return {
+        type: 'non-fashion',
+        message: userMessage || "This doesn't appear to be a fashion item.",
+      };
     }
 
-    // Log raw response once in dev for debugging
-    if (typeof __DEV__ !== 'undefined' && __DEV__) {
-      console.log('[K-SCAN] raw response:', JSON.stringify(data));
-    }
-
-    if (!response.ok) {
-      // Structured backend failure (e.g. 503 with { status:'FAILED', message:'...' })
-      if (data?.status === 'FAILED') {
-        throw new Error(
-          'STYLE-PARSE COULD NOT COMPLETE\n' +
-          (data.message || 'The AI provider did not return a valid read.')
-        );
-      }
-      // Generic server error — prefer the message field, then result, then fallback
-      throw new Error(
-        data?.message || data?.result || `Server error (${response.status}). Please try again.`
+    if (status !== 'completed') {
+      // 'failed' and any unrecognized status are surfaced, never silently
+      // rendered as an empty successful result.
+      throw userSafeError(
+        'SCAN_IDENTIFY_FAILED',
+        userMessage ||
+          'We couldn’t complete this scan. Please try again in better light or retake the photo.'
       );
     }
 
@@ -210,36 +339,21 @@ export async function analyzeImage(base64) {
       event: 'request_success',
       requestId,
       elapsedMs: Date.now() - requestStartedAt,
-      status: response.status,
     });
 
-    // Non-fashion: return a distinct result type so the UI can show a tailored message
-    if (data.type === 'non-fashion') {
-      return {
-        type: 'non-fashion',
-        message: data.message || "This doesn't appear to be a fashion item.",
-      };
-    }
-
-    // Support multiple possible product array keys from backend
-    const rawProducts =
-      data.products ??
-      data.recommended_products ??
-      data.matches ??
-      data.items ??
-      data.results ??
-      [];
+    const rawProducts = Array.isArray(data?.recommendedProducts) ? data.recommendedProducts : [];
 
     return {
       type: 'fashion',
-      result: data.result ?? '',
-      metadata: data.metadata ?? { category: '', color: '', silhouette: '' },
-      products: Array.isArray(rawProducts)
-        ? deduplicateProducts(rawProducts.map(normalizeProduct).filter(Boolean))
-        : [],
+      result: userMessage,
+      metadata: mapScanAttributesToMetadata(data?.attributes),
+      products: deduplicateProducts(rawProducts.map(normalizeProduct).filter(Boolean)),
     };
   } catch (err) {
     clearTimeout(timeoutId);
+
+    if (err?.userMessage) throw err;
+
     logAnalyzeDiag({
       event: 'request_error',
       requestId,
@@ -247,19 +361,22 @@ export async function analyzeImage(base64) {
       errorName: err?.name ?? null,
       errorMessage: err?.message ?? null,
     });
-    if (err.name === 'AbortError') {
+
+    if (err?.name === 'AbortError') {
       throw userSafeError(
-        'Analysis timed out.',
+        'SCAN_TIMEOUT',
         'Analysis is taking longer than expected. Please try again in a moment.'
       );
     }
-    // Network / connection failure (fetch throws TypeError for unreachable hosts)
     if (err instanceof TypeError) {
       throw userSafeError(
-        'Network request failed.',
+        'SCAN_NETWORK_FAILED',
         'We couldn’t complete the scan. Please check your connection and try again.'
       );
     }
-    throw err;
+    throw userSafeError(
+      'SCAN_IDENTIFY_UNAVAILABLE',
+      'We couldn’t complete the scan. Please check your connection and try again.'
+    );
   }
 }
