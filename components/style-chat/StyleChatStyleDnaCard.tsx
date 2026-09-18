@@ -79,8 +79,22 @@ export function StyleChatStyleDnaCard({
         animationType="slide"
         onRequestClose={() => setDetailsOpen(false)}
       >
-        <Pressable style={styles.backdrop} onPress={() => setDetailsOpen(false)}>
-          <Pressable style={styles.sheet} onPress={() => {}}>
+        {/*
+          B34-FE-A11Y-001 — see components/dressing-rooms/RoomItemDetailModal.tsx.
+          Pressable is accessible by default, and an accessible container is a
+          single VoiceOver element on iOS, so this pair hid both of the sheet's
+          controls: "Reset local signals" (which erases this account's on-device
+          Signature Style) and "Done". The inner Pressable exists only to stop a
+          tap on the sheet from closing it, so it is not an interactive element
+          in its own right and must never be focusable.
+        */}
+        <Pressable style={styles.backdrop} onPress={() => setDetailsOpen(false)} accessible={false}>
+          <Pressable
+            style={styles.sheet}
+            onPress={() => {}}
+            accessible={false}
+            accessibilityViewIsModal
+          >
             <View style={styles.sheetHandle} />
             <View style={styles.headerRow}>
               <View style={styles.badge}>
