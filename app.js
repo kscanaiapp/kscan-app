@@ -11,6 +11,7 @@ import {
   BackHandler,
   Modal,
   Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -631,7 +632,25 @@ export default function App() {
 
   const scanAnim = useScanAnimation(status === 'processing');
 
-  if (!permission) {
+  // B34-FE-CAM-001 — where the camera permission screen may stand in.
+  //
+  // TWO CONDITIONS, for two different mistakes this early return used to make.
+  //
+  // 1. NOT WHEN THE V2 SCAN ROOM IS SHIPPING. Every governed profile sets
+  //    EXPO_PUBLIC_SCAN_ROOM_V2_UI=true, so idle resolves to <ScanLanding> --
+  //    a page whose Upload Image, Text Scan and Home actions need no camera
+  //    permission at all -- and the camera itself is <LiveScanCamera>, which
+  //    already branches on canAskAgain and already offers Open Settings,
+  //    Upload and Back. Returning early replaced that whole working page with
+  //    a dead end, so on the shipped surface the ONLY effect of this gate was
+  //    to remove routes that still worked.
+  //
+  // 2. NOT ONCE AN IMAGE EXISTS. Preview, analysis, result and error have
+  //    nothing to do with camera permission; gating them would let the upload
+  //    recovery route pick a photo and then bounce straight back here.
+  const cameraPermissionScreenApplies = !SCAN_ROOM_V2_UI_ENABLED && !photo;
+
+  if (!permission && cameraPermissionScreenApplies) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar style="light" />
@@ -641,21 +660,60 @@ export default function App() {
             We need access to your camera to capture your look.
           </Text>
           <ActionButton label="Allow Camera" onPress={requestPermission} />
+          <ActionButton label="Not now" variant="tertiary" onPress={handleHome} />
         </View>
       </SafeAreaView>
     );
   }
 
-  if (!permission.granted) {
+  if (permission && !permission.granted && cameraPermissionScreenApplies) {
+    // B34-FE-CAM-001. Two different states used to share one button.
+    //
+    // After a PERMANENT denial iOS does not present the system prompt again:
+    // requestCameraPermissionsAsync() resolves immediately with the same denied
+    // status and `canAskAgain: false`, so "Grant Access" did nothing at all
+    // while the copy told the user to go to settings and gave them no way to
+    // get there. This screen renders no header (the root Stack sets
+    // headerShown: false) and BackHandler is Android-only, so the only exit on
+    // iOS was the undiscoverable edge-swipe gesture.
+    //
+    // It also gated MORE than the camera: the gallery upload path
+    // (selectGalleryPhoto) lives below this early return and needs no camera
+    // permission, so a camera denial removed the whole legacy Scanner,
+    // including the route that would still have worked.
+    //
+    // Mirrors components/scan-room/LiveScanCamera.tsx, which already branches
+    // on canAskAgain for exactly this reason. This legacy branch is reached
+    // only when EXPO_PUBLIC_SCAN_ROOM_V2_UI is off.
+    const canPrompt = permission.canAskAgain !== false;
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar style="light" />
         <View style={styles.centerContent}>
           {renderBrandTitle()}
           <Text style={styles.infoText}>
-            Camera access is currently disabled. Enable it in settings to continue.
+            {canPrompt
+              ? 'We need access to your camera to capture your look.'
+              : 'Camera access is off for K Scan AI. Turn it on in Settings, or upload a photo from your library instead.'}
           </Text>
-          <ActionButton label="Grant Access" onPress={requestPermission} />
+          {canPrompt ? (
+            <ActionButton label="Allow Camera" onPress={requestPermission} />
+          ) : (
+            <ActionButton
+              label="Open Settings"
+              onPress={() => {
+                // Never allowed to throw: a device that refuses to open
+                // Settings must still leave the two routes below usable.
+                void Promise.resolve(Linking.openSettings()).catch(() => undefined);
+              }}
+            />
+          )}
+          <ActionButton
+            label="Upload a photo instead"
+            variant="secondary"
+            onPress={selectGalleryPhoto}
+          />
+          <ActionButton label="Not now" variant="tertiary" onPress={handleHome} />
         </View>
       </SafeAreaView>
     );
