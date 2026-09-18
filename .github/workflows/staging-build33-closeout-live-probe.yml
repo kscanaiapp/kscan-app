@@ -1,0 +1,65 @@
+# Bounded live probe closing the Build 33 backend closeout runtime matrix
+# (B33-SEC-002, B33-SEC-003, B33-OBS-001, B33-COM-001).
+#
+# Follows the existing live-probe pattern (staging-elise-dominant-garment-live-
+# probe.yml): dispatch-only, staging environment, one narrow script, sanitized
+# JSON artifact. It tests whatever scan-identify is currently deployed on
+# staging over HTTP; it does not deploy, does not touch a migration, and
+# creates no account.
+#
+# At most 5 authenticated/rejected HTTP calls against staging scan-identify.
+
+name: K Scan Staging Build 33 Closeout Live Probe
+
+on:
+  workflow_dispatch: {}
+  # Scoped to this exact probe branch only, so the file can self-register and
+  # run once without needing to land on the default branch first (a brand new
+  # workflow_dispatch-only trigger cannot be dispatched until GitHub has
+  # observed the file via a push/pull_request event it is registered against).
+  # This is the only branch that can ever satisfy this condition; it has no
+  # effect on any other branch, PR, or the deploy authority itself.
+  push:
+    branches:
+      - test/build33-closeout-live-probe-v1
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kscan-build33-closeout-live-probe
+  cancel-in-progress: false
+
+jobs:
+  live-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20'
+
+      - name: Run the bounded Build 33 closeout proof
+        env:
+          SUPABASE_STAGING_PROJECT_REF: ${{ vars.SUPABASE_STAGING_PROJECT_REF }}
+          SUPABASE_STAGING_URL: ${{ vars.SUPABASE_STAGING_URL }}
+          SUPABASE_STAGING_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_STAGING_PUBLISHABLE_KEY }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          STAGING_SYNTHETIC_ACTIVE_EMAIL: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_EMAIL }}
+          STAGING_SYNTHETIC_ACTIVE_PASSWORD: ${{ secrets.STAGING_SYNTHETIC_ACTIVE_PASSWORD }}
+        run: node security/release/run-build33-closeout-live-probe.js
+
+      - name: Print sanitized evidence
+        if: always()
+        run: test -s build33-closeout-live-probe-report.json && cat build33-closeout-live-probe-report.json
+
+      - name: Upload sanitized evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: build33-closeout-live-probe-${{ github.run_id }}
+          path: build33-closeout-live-probe-report.json
+          if-no-files-found: warn
+          retention-days: 30
