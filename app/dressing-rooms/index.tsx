@@ -116,14 +116,38 @@ function CreateRoomModal({
 
 function DressingRoomsContent() {
   const { rooms, loading, error, reload } = useDressingRooms();
+  const { isFeatureEnabled } = useFeatureFreeze();
   const [creating, setCreating] = useState(false);
   const blocking = loading || !!error;
   const friendlyError = error ? DRESSING_ROOM_LOAD_ERROR : null;
 
+  // Looks are created from inside a Dressing Room, and this is the only screen
+  // that can reach the Saved Looks list. Without this entry point /looks was
+  // navigable only from a Look detail, which is itself only reachable straight
+  // after creating one — so a saved Look became unreachable once the user left.
+  const looksEnabled = isFeatureEnabled('outfitRemixLooks');
+
   return (
     <View style={styleObjectStyles.screen}>
       <StatusBar style="dark" />
-      <Header title="Dressing Rooms" eyebrow="Persistent Boards" onBack={() => router.back()} />
+      <Header
+        title="Dressing Rooms"
+        eyebrow="Persistent Boards"
+        onBack={() => router.back()}
+        right={
+          looksEnabled ? (
+            <TouchableOpacity
+              testID="open-saved-looks-button"
+              onPress={() => router.push('/looks')}
+              accessibilityRole="button"
+              accessibilityLabel="Saved Looks"
+              hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
+            >
+              <Text style={styles.headerAction}>LOOKS</Text>
+            </TouchableOpacity>
+          ) : null
+        }
+      />
       {blocking ? (
         <LoadingOrError loading={loading} error={friendlyError} onRetry={reload} />
       ) : (
@@ -160,6 +184,10 @@ export default function DressingRoomsScreen() {
 }
 
 const styles = StyleSheet.create({
+  headerAction: {
+    ...TYPOGRAPHY.caption,
+    color: ACCESSIBLE_GOLD_TEXT,
+  },
   grid: {
     gap: SPACING.md,
     marginTop: SPACING.lg,
