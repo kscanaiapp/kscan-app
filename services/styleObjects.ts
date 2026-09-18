@@ -764,6 +764,10 @@ export async function addScanImageToDressingRoom(input: {
   let storagePath: string | null = null;
   let imageWidth: number | null = null;
   let imageHeight: number | null = null;
+  // B33-STO-004: only the object THIS call freshly uploads is ours to
+  // compensate for. A reused pre-existing storage ref (imageSource.kind ===
+  // 'storage') must never be deleted on a later failure in this call.
+  let uploadedThisCall = false;
 
   if (imageSource.kind === 'storage') {
     // Already durably stored (e.g. re-adding a previously uploaded item) - no re-upload.
@@ -781,6 +785,7 @@ export async function addScanImageToDressingRoom(input: {
     storagePath = upload.path;
     imageWidth = upload.width;
     imageHeight = upload.height;
+    uploadedThisCall = true;
     devLog('add:upload_succeeded', { entryPoint: 'scan_image' });
   }
 
@@ -887,6 +892,17 @@ export async function addScanImageToDressingRoom(input: {
     .single();
   if (error) {
     devLog('add:insert_failed', { entryPoint: 'scan_image', code: error.code ?? null });
+    if (uploadedThisCall && storageBucket && storagePath) {
+      // The image already uploaded successfully. Without this, an insert
+      // failure leaves an orphan storage object with no owning row and no
+      // compensating delete. Best-effort: a failed cleanup must not mask the
+      // original insert error, which is what the caller needs to see.
+      await supabase.storage
+        .from(storageBucket)
+        .remove([storagePath])
+        .catch(() => {});
+      devLog('add:compensating_delete_attempted', { entryPoint: 'scan_image' });
+    }
     throw safeError(error, 'Unable to add scan to Dressing Room.');
   }
   devLog('add:insert_succeeded', { entryPoint: 'scan_image', success: true });
@@ -903,79 +919,83 @@ export async function removeDressingRoomItem(itemId: string): Promise<void> {
 }
 
 /**
- * True when a PostgREST error means "no function with this argument shape".
+ * B34-FE-DR-001 -- the anonymous public-room caller must present its share
+ * token.
  *
- * Used to fall back to the single-argument call shape on a backend whose
- * `get_item_reaction_counts` has not yet grown `p_share_token`. Matched on the
- * PGRST202 code first, with a message match only as a secondary signal, so an
- * ordinary authorization or network failure is never mistaken for it.
- */
-function isMissingRpcOverloadError(error: unknown): boolean {
-  if (!error || typeof error !== 'object') return false;
-  const candidate = error as { code?: unknown; message?: unknown };
-  if (candidate.code === 'PGRST202') return true;
-  const message = typeof candidate.message === 'string' ? candidate.message.toLowerCase() : '';
-  return message.includes('could not find the function') && message.includes('get_item_reaction_counts');
-}
-
-/**
- * Reaction counts for Dressing Room items.
+ * The governed backend contract is
+ * `public.get_item_reaction_counts(p_item_ids uuid[], p_share_token text
+ * default null)` (staging migration 20260916233708,
+ * `reaction_counts_bind_anonymous_share_token`, which DROPPED the former
+ * single-argument overload). Its anonymous branch -- the one an unauthenticated
+ * link visitor takes -- is gated on the token naming a live share:
  *
- * B34-FE-DR-001. `get_item_reaction_counts` authorizes the caller three ways:
- * the room's owner, an authenticated member of a live share, or -- and this is
- * the one that needs help from the client -- an ANONYMOUS viewer holding the
- * share token. The governed backend signature is
+ *     when caller.uid is null then
+ *       normalized_token.token is not null
+ *       and exists (select 1 from public.room_shares rs
+ *                    where rs.room_id = dr.id
+ *                      and rs.share_token = normalized_token.token
+ *                      and rs.is_active and rs.revoked_at is null
+ *                      and (rs.expires_at is null or rs.expires_at > now()))
  *
- *     get_item_reaction_counts(p_item_ids uuid[], p_share_token text DEFAULT NULL)
+ * With no token that predicate is false for EVERY item, so the RPC returns no
+ * rows and app/(public)/rooms/[token].tsx rendered 0/0/0/0 on every item of
+ * every public Dressing Room -- a silent wrong answer, not an error, because
+ * `buildReactionCountsByItem` zero-fills whatever the RPC omits.
  *
- * and for an anonymous caller its predicate requires `p_share_token` to be
- * non-null AND to match an active, non-revoked, non-expired share on the item's
- * room. This function previously never sent the token, so the public share-link
- * screen -- the only surface where the caller is anonymous -- matched zero rows
- * and rendered every count as 0 rather than as an error. Silently wrong counts,
- * not a missing section.
+ * `shareToken` is therefore forwarded verbatim (only trimmed) so it can match
+ * `room_shares.share_token` exactly -- never lower-cased, the same rule
+ * `services/sharedRoomMemberships.ts` follows and
+ * `__tests__/sharedRoomMembershipRoute.test.js` enforces.
  *
- * `shareToken` is therefore REQUIRED on the public preview surface and must be
- * omitted everywhere the caller is the owner or a joined member, where the
- * backend decides from the session and ignores the token entirely.
+ * The parameter is OMITTED, not sent as null, when there is no token. The
+ * authenticated in-room path (app/dressing-rooms/[id].tsx) takes the
+ * membership/`can_access_room_messages()` branch, where `p_share_token` is
+ * ignored -- so keeping its call shape unchanged narrows this repair to the
+ * one caller class the contract actually moved under.
+ *
+ * CONVERGENCE NOTE (Build 34 cross-platform). The iOS candidate repaired the
+ * same defect with the same call shape and added a PGRST202 fallback that
+ * retries WITHOUT the token when the two-argument overload is missing. That
+ * fallback is not carried here, for two reasons. It is unreachable: migration
+ * 20260916233708 DROPPED the single-argument overload, and the deployed
+ * definition was read back from staging with `pg_get_functiondef` -- the
+ * two-argument form is the only one that exists. And it is untestable in the
+ * direction that matters: on any backend where it DID fire, the token-less call
+ * is precisely the pre-repair call, which authorizes an anonymous viewer
+ * nothing and returns zero rows. So it cannot weaken the contract (it grants no
+ * access the token-bound call does not), but neither can it help -- it only adds
+ * a second, unexercised call shape to a security-relevant path. A missing
+ * overload is a deployment fault and is surfaced as the error it is.
+ *
+ * `shareToken` is accepted only as a non-blank STRING. A non-string is not
+ * coerced: `String(someNumber)` would have produced a token-shaped value that
+ * the backend then compares against `room_shares.share_token`, turning a caller
+ * bug into a silent authorization attempt. A blank or absent token omits the
+ * parameter entirely, so the anonymous branch's `token is not null` guard fails
+ * closed and no accidental anonymous room access is possible.
  */
 export async function getItemReactionCounts(
   itemIds: string[],
-  options: { shareToken?: string | null } = {},
+  options?: { shareToken?: string | null },
 ): Promise<ItemReactionCount[]> {
   const normalizedItemIds = Array.from(new Set(itemIds.map((itemId) => String(itemId).trim()).filter(Boolean)));
   if (normalizedItemIds.length === 0) return [];
 
   const shareToken =
-    typeof options.shareToken === 'string' && options.shareToken.trim()
+    typeof options?.shareToken === 'string' && options.shareToken.trim()
       ? options.shareToken.trim()
-      : null;
-
-  const invoke = async (batch: string[], withToken: boolean) => {
-    const args: { p_item_ids: string[]; p_share_token?: string } = { p_item_ids: batch };
-    // The key is added only when a token is actually being sent: the
-    // owner/member call shape stays byte-identical to what shipped before.
-    if (withToken && shareToken) args.p_share_token = shareToken;
-    const { data, error } = await supabase.rpc('get_item_reaction_counts', args);
-    if (error) throw error;
-    return (data ?? []) as ItemReactionCount[];
-  };
+      : '';
 
   try {
     const batches = chunkItems(normalizedItemIds, REACTION_BATCH_SIZE);
     const results = await Promise.all(
       batches.map(async (batch) => {
-        if (!shareToken) return invoke(batch, false);
-        try {
-          return await invoke(batch, true);
-        } catch (error) {
-          // Compatibility, not error-swallowing: an environment still carrying
-          // the single-argument function rejects the named argument outright,
-          // and on THAT backend the token-less call is the one that authorizes
-          // an anonymous viewer. Any other failure rethrows untouched.
-          if (!isMissingRpcOverloadError(error)) throw error;
-          return invoke(batch, false);
-        }
+        const { data, error } = await supabase.rpc('get_item_reaction_counts', {
+          p_item_ids: batch,
+          ...(shareToken ? { p_share_token: shareToken } : {}),
+        });
+        if (error) throw error;
+        return (data ?? []) as ItemReactionCount[];
       }),
     );
     return results.flat();

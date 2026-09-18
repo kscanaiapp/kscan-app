@@ -79,8 +79,14 @@ function loadStorage() {
       if (specifier === '@react-native-async-storage/async-storage') {
         return { __esModule: true, default: storage };
       }
+      // The converged module reads the actor through services/actorScope,
+      // the typed seam over services/actorContext. Both are accepted so this
+      // harness does not silently stop exercising the real import.
       if (specifier === '../actorContext') {
         return { getActorContext: () => ({ ...actor }) };
+      }
+      if (specifier === '../actorScope') {
+        return { currentActorId: () => actor.actorId };
       }
       if (specifier === './wardrobeUtilityTypes') {
         return require(path.join(ROOT, '__tests__/fixtures/freeTierStorageKeys.js'));
@@ -142,12 +148,32 @@ test('the partitions are distinct PHYSICAL keys, not a filter over one key', asy
   await api.writeStore(WISHLIST, { a: true });
 
   const keys = [...storage.map.keys()].sort();
-  assert.deepEqual(keys, [WISHLIST, `${WISHLIST}::u:user-a`]);
+  assert.deepEqual(keys, [`${WISHLIST}::anonymous`, `${WISHLIST}::user-a`]);
 });
 
-test('pre-partition data becomes the signed-out partition and is never claimed by whoever signs in', async () => {
-  // The Style Library rule, verbatim: an envelope with no owner does not say
-  // who wrote it, so an authenticated actor may neither see nor claim it.
+test('pre-partition data is ADOPTED once by the first authenticated reader, and never by a second', async () => {
+  // THIS ASSERTION WAS REVERSED BY THE CROSS-PLATFORM CONVERGENCE, and the
+  // reversal is the point, so it is recorded rather than quietly rewritten.
+  //
+  // This line originally applied the Style Library rule verbatim: an unstamped
+  // envelope does not say who wrote it, so no authenticated actor may see or
+  // claim it. Correct in the abstract, and it has a cost this line accepted
+  // explicitly in PR #440 -- "an existing user who set shopping intents while
+  // signed in will no longer see them." On a single-account device, which is
+  // the overwhelming majority, that silently orphans every upgrading user's
+  // wishlist, care notes, wear log and saved outfits.
+  //
+  // The Android/shared line instead ADOPTS the legacy blob into the first
+  // authenticated reader's namespace and removes the legacy key in the same
+  // step. Removing it IS the "at most once" guarantee: there is nothing left
+  // for a second actor to adopt, on this launch or any later one. The residue
+  // is one bounded window on a device ALREADY shared by two accounts before
+  // this build -- whoever opens the app first inherits it -- weighed against
+  // orphaning every single-account user on upgrade.
+  //
+  // The signed-out reader is unaffected either way: it reads the dedicated
+  // `anonymous` partition and can neither adopt the legacy key nor see an
+  // account's data.
   const { api, storage, actor } = loadStorage();
 
   storage.map.set(
@@ -156,27 +182,56 @@ test('pre-partition data becomes the signed-out partition and is never claimed b
   );
 
   actor.actorId = 'user-a';
-  assert.deepEqual(await api.readStore(WISHLIST, {}), {}, 'legacy data must not surface for an authenticated actor');
-  assert.ok(storage.map.has(WISHLIST), 'and it must NOT be destroyed — only withheld');
+  assert.deepEqual(
+    await api.readStore(WISHLIST, {}),
+    { legacy: true },
+    'the upgrading user must keep their own pre-partition data',
+  );
+  assert.ok(!storage.map.has(WISHLIST), 'the legacy key is consumed, so no second actor can adopt it');
+  assert.ok(storage.map.has(`${WISHLIST}::user-a`), 'and it now lives in that actor\'s partition');
+
+  actor.actorId = 'user-b';
+  assert.deepEqual(await api.readStore(WISHLIST, {}), {}, 'a second account adopts nothing');
 
   actor.actorId = null;
-  assert.deepEqual(await api.readStore(WISHLIST, {}), { legacy: true });
+  assert.deepEqual(await api.readStore(WISHLIST, {}), {}, 'the signed-out partition is its own, and empty');
 });
 
 // ── The partition cannot be overridden by a call site ───────────────────────
 
-test('a caller-supplied userId cannot move data out of its partition', async () => {
+test('a caller-supplied userId files into THAT actor\'s partition, and an unusable one is refused', async () => {
+  // ALSO REVERSED BY THE CONVERGENCE. This line made the partition strictly the
+  // live actor's, so a caller-supplied id was inert. That is safe against a
+  // careless call site but wrong for the one real caller:
+  // services/free-tier/freeTierSupabaseSync.ts captures the id it is syncing
+  // FOR, awaits the network, and writes when the response lands -- which can be
+  // after that account's session is gone. Filing such a response under the LIVE
+  // actor writes one account's server rows into another account's partition,
+  // which is the very leak B34-FE-FT-001 closed, reopened from the sync path.
+  //
+  // So an explicit id wins, and is invisible to whoever is signed in now. What
+  // protects a careless call site instead is validation: an id that is SUPPLIED
+  // but unusable refuses the operation rather than falling through to the live
+  // actor, because that fall-through would guess exactly the actor whose
+  // partition must not receive another account's rows.
   const { api, storage, actor } = loadStorage();
 
   actor.actorId = 'user-a';
-  // freeTierSupabaseSync passes the id it synced for; a wrong one must be inert.
-  await api.writeStore(WISHLIST, { a: 1 }, 'user-b');
+  await api.writeStore(WISHLIST, { fromBackend: 'b' }, 'user-b');
 
-  assert.ok(storage.map.has(`${WISHLIST}::u:user-a`), 'the live actor decides the partition');
-  assert.ok(!storage.map.has(`${WISHLIST}::u:user-b`), 'the argument must not be able to name a partition');
+  assert.ok(storage.map.has(`${WISHLIST}::user-b`), 'the response is filed under the account it belongs to');
+  assert.ok(!storage.map.has(`${WISHLIST}::user-a`), 'and never under the live actor');
+  assert.deepEqual(await api.readStore(WISHLIST, {}), {}, 'the live actor sees nothing of it');
 
   actor.actorId = 'user-b';
-  assert.deepEqual(await api.readStore(WISHLIST, {}), {});
+  assert.deepEqual(await api.readStore(WISHLIST, {}), { fromBackend: 'b' });
+
+  // A supplied-but-unusable owner refuses rather than guessing.
+  actor.actorId = 'user-a';
+  for (const bad of ['   ', 'anonymous', 'user-a::user-b']) {
+    assert.equal(await api.writeStore(WISHLIST, { forged: true }, bad), false, `${bad} must be refused`);
+  }
+  assert.ok(!storage.map.has(`${WISHLIST}::user-a`), 'a refused write must not land on the live actor');
 });
 
 test('updateStore read-modify-writes inside one partition only', async () => {
@@ -210,6 +265,9 @@ test('an actor authority that throws resolves to the ownerless partition, never 
       if (specifier === '../actorContext') {
         return { getActorContext: () => { throw new Error('actor authority unavailable'); } };
       }
+      if (specifier === '../actorScope') {
+        return { currentActorId: () => { throw new Error('actor authority unavailable'); } };
+      }
       if (specifier === './wardrobeUtilityTypes') return require(path.join(ROOT, '__tests__/fixtures/freeTierStorageKeys.js'));
       throw new Error(`Unexpected import: ${specifier}`);
     },
@@ -218,10 +276,26 @@ test('an actor authority that throws resolves to the ownerless partition, never 
   new vm.Script(output, { filename }).runInContext(sandbox);
 
   await mod.exports.writeStore(WISHLIST, { x: 1 });
-  assert.deepEqual([...storage.map.keys()], [WISHLIST], 'the ownerless partition is the fail-closed direction');
+  // The converged module gives the signed-out case its OWN named partition
+  // rather than the bare legacy key, so a broken authority can neither read nor
+  // claim pre-partition data belonging to a real account.
+  assert.deepEqual(
+    [...storage.map.keys()],
+    [`${WISHLIST}::anonymous`],
+    'the ownerless partition is the fail-closed direction',
+  );
 });
 
-test('clearAllFreeTierStores erases ONE actor and never reaches another', async () => {
+test('clearFreeTierStoresForActor erases ONE named actor and never reaches another', async () => {
+  // RENAMED BY THE CONVERGENCE, because one function cannot honestly be both.
+  // This line's clearAllFreeTierStores() defaulted to the live actor, which
+  // makes it unusable for terminal deletion: that runs AFTER the departed
+  // actor's session is gone and usually while somebody else is signed in, so
+  // "the current actor" is precisely the wrong target. The converged module
+  // splits them -- clearFreeTierStoresForActor(actorId) takes the owner
+  // explicitly with no ambient default, and clearAllFreeTierStores() is the
+  // device-wide "wipe this device" helper that terminal deletion must never
+  // call.
   const { api, storage, actor } = loadStorage();
 
   actor.actorId = 'user-a';
@@ -230,12 +304,21 @@ test('clearAllFreeTierStores erases ONE actor and never reaches another', async 
   actor.actorId = 'user-b';
   await api.writeStore(WISHLIST, { b: 2 });
 
-  actor.actorId = 'user-a';
-  await api.clearAllFreeTierStores();
+  // Deliberately purge A while B is the live actor: the real terminal ordering.
+  const result = await api.clearFreeTierStoresForActor('user-a');
+  assert.equal(result.ok, true);
+  assert.equal(result.actorId, 'user-a');
 
-  assert.ok(!storage.map.has(`${WISHLIST}::u:user-a`));
-  assert.ok(!storage.map.has(`${KEYS.careNotes}::u:user-a`));
-  assert.ok(storage.map.has(`${WISHLIST}::u:user-b`), "another actor's partition must survive");
+  assert.ok(!storage.map.has(`${WISHLIST}::user-a`));
+  assert.ok(!storage.map.has(`${KEYS.careNotes}::user-a`));
+  assert.ok(storage.map.has(`${WISHLIST}::user-b`), "another actor's partition must survive");
+
+  // And it refuses to run without a named target rather than falling back.
+  for (const bad of ['', '   ', null, undefined, 'anonymous']) {
+    const refused = await api.clearFreeTierStoresForActor(bad);
+    assert.equal(refused.ok, false, `${JSON.stringify(bad)} must be refused`);
+  }
+  assert.ok(storage.map.has(`${WISHLIST}::user-b`), 'a refused purge removes nothing');
 });
 
 test('every declared store key is swept, not just the ones a test remembered', async () => {
@@ -245,8 +328,14 @@ test('every declared store key is swept, not just the ones a test remembered', a
     await api.writeStore(key, { seeded: true });
   }
   assert.equal(storage.map.size, Object.keys(KEYS).length);
-  await api.clearAllFreeTierStores();
-  assert.equal(storage.map.size, 0, 'a key added to FREE_TIER_STORAGE_KEYS is swept the day it is added');
+  const result = await api.clearFreeTierStoresForActor('user-a');
+  assert.equal(result.ok, true);
+  assert.equal(
+    result.targetedKeys.length,
+    Object.keys(KEYS).length,
+    'a key added to FREE_TIER_STORAGE_KEYS is targeted the day it is added',
+  );
+  assert.equal(storage.map.size, 0, 'and it is actually swept');
 });
 
 // ── Source guards on the rule ──────────────────────────────────────────────

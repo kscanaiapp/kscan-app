@@ -71,13 +71,25 @@ function reactionCountCalls(code) {
 test('getItemReactionCounts accepts a shareToken and forwards it as p_share_token', () => {
   assert.match(
     serviceCode,
-    /export async function getItemReactionCounts\(\s*itemIds: string\[\],\s*options: \{ shareToken\?: string \| null \} = \{\},/,
+    /export async function getItemReactionCounts\(\s*itemIds: string\[\],\s*options\?: \{ shareToken\?: string \| null \},/,
     'the service must expose a shareToken option',
   );
   assert.match(
     serviceCode,
-    /args\.p_share_token = shareToken/,
+    /p_share_token: shareToken/,
     'the token must be sent under the exact backend parameter name',
+  );
+});
+
+test('a non-string shareToken is refused rather than coerced into a token-shaped value', () => {
+  // Convergence hardening. The earlier form was String(options?.shareToken ?? ''),
+  // which turns a number or an object into a string the backend would then
+  // compare against room_shares.share_token -- a caller bug becoming a silent
+  // authorization attempt. Only a non-blank string may be forwarded.
+  assert.match(
+    serviceCode,
+    /typeof options\?\.shareToken === 'string' && options\.shareToken\.trim\(\)/,
+    'only a non-blank string may be treated as a share token',
   );
 });
 
@@ -87,26 +99,43 @@ test('the owner/member call shape is unchanged: no token key is sent without a t
   // would break any environment still carrying the single-argument function.
   assert.match(
     serviceCode,
-    /if \(withToken && shareToken\) args\.p_share_token = shareToken;/,
+    /\.\.\.\(shareToken \? \{ p_share_token: shareToken \} : \{\}\)/,
     'the token key must be conditional on a token actually being present',
   );
   assert.match(
     serviceCode,
-    /const args: \{ p_item_ids: string\[\]; p_share_token\?: string \} = \{ p_item_ids: batch \};/,
-    'p_item_ids must always be sent and p_share_token must be optional',
+    /p_item_ids: batch,/,
+    'p_item_ids must always be sent',
   );
 });
 
-test('a missing overload falls back to the token-less shape, and nothing else does', () => {
-  assert.match(
+test('there is exactly ONE call shape: the PGRST202 fallback is deliberately absent', () => {
+  // THIS ASSERTION WAS INVERTED BY THE CROSS-PLATFORM CONVERGENCE, and that is
+  // the point of recording it rather than deleting it.
+  //
+  // This line originally retried WITHOUT the token when PostgREST reported a
+  // missing overload (PGRST202), as compatibility with a backend still
+  // carrying get_item_reaction_counts(uuid[]). Two facts retired it. It is
+  // unreachable: migration 20260916233708 DROPPED the single-argument overload
+  // and the deployed definition was read back from staging with
+  // pg_get_functiondef, so the two-argument form is the only one that exists.
+  // And it could never have helped: on a backend where it DID fire, the
+  // token-less call is precisely the pre-repair call, whose anonymous branch
+  // authorizes a viewer nothing and returns zero rows -- the very defect
+  // B34-FE-DR-001 describes.
+  //
+  // So it cannot weaken the contract, but neither can it help, and it adds a
+  // second unexercised call shape to a security-relevant path. A missing
+  // overload is a deployment fault and now surfaces as the error it is.
+  assert.doesNotMatch(
     serviceCode,
-    /if \(!isMissingRpcOverloadError\(error\)\) throw error;/,
-    'only a missing-overload error may trigger the compatibility fallback',
+    /PGRST202/,
+    'no missing-overload fallback may be reintroduced on this path',
   );
-  assert.match(
+  assert.doesNotMatch(
     serviceCode,
-    /candidate\.code === 'PGRST202'/,
-    'the fallback must key on the PostgREST missing-function code',
+    /isMissingRpcOverloadError/,
+    'no missing-overload fallback may be reintroduced on this path',
   );
 });
 

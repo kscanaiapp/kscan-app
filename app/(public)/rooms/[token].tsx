@@ -916,7 +916,12 @@ export default function SharedRoomScreen() {
     return () => {
       cancelled = true;
     };
-  }, [capabilities.canReact, joinedRoomId, state]);
+    // B34-FE-DR-001 convergence: `normalizedRouteToken` is a dependency, not
+    // just a captured value. Without it a room-to-room navigation re-runs this
+    // effect with the PREVIOUS room's token still closed over, and the backend
+    // -- correctly -- authorizes nothing for that token on the new room, so
+    // every count renders 0 again for the exact defect this repair closed.
+  }, [capabilities.canReact, joinedRoomId, normalizedRouteToken, state]);
 
   const refreshItemReactions = useCallback(async (itemIds: string[]) => {
     const normalizedItemIds = Array.from(new Set(itemIds.map((itemId) => String(itemId || '').trim()).filter(Boolean)));
