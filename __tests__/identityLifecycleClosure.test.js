@@ -221,6 +221,8 @@ function noopPurgeDeps() {
     'purgeSavedLookReturnContext', 'purgeStylistVoicePreference',
     'clearSignatureStylePreferences', 'clearSignatureStyleFeedback',
     'clearSignatureStyleReasons', 'clearPackingPlanCache', 'clearOnboarding',
+    // CPR-FT-001 — owner-scoped since B34-FE-FT-001, purged since this campaign.
+    'clearFreeTierStores',
   ]) {
     deps[name] = async () => ({ ok: true });
   }
@@ -733,6 +735,6 @@ test('FAULT: a purge whose every step fails reports incomplete, so the marker is
 
   const result = await app.purge.purgeOwnerScopedLocalData(USER_A, deps);
   assert.equal(result.complete, false, 'a total failure must never report complete');
-  assert.ok(result.steps.length >= 16, 'every step must still be attempted');
+  assert.ok(result.steps.length >= 17, 'every step must still be attempted');
   assert.ok(result.steps.every((step) => step.ok === false));
 });
