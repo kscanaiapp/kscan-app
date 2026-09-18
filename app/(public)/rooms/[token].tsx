@@ -874,7 +874,11 @@ export default function SharedRoomScreen() {
 
     const loadReactions = async () => {
       try {
-        const counts = await getItemReactionCounts(itemIds);
+        // B34-FE-DR-001: this screen is the ONLY anonymous caller of this RPC.
+        // Without the share token the backend authorizes nothing for an
+        // anonymous viewer and returns zero rows, which this screen renders as
+        // a genuine count of 0 on every item.
+        const counts = await getItemReactionCounts(itemIds, { shareToken: normalizedRouteToken });
         if (!cancelled) {
           setReactionCounts(buildReactionCountsByItem(itemIds, counts));
         }
@@ -919,7 +923,10 @@ export default function SharedRoomScreen() {
     if (normalizedItemIds.length === 0) return;
 
     try {
-      const counts = await getItemReactionCounts(normalizedItemIds);
+      // B34-FE-DR-001 — same anonymous-viewer authorization as the initial load.
+      const counts = await getItemReactionCounts(normalizedItemIds, {
+        shareToken: routeTokenRef.current,
+      });
       setReactionCounts((current) => ({
         ...current,
         ...buildReactionCountsByItem(normalizedItemIds, counts),

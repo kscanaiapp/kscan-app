@@ -902,19 +902,80 @@ export async function removeDressingRoomItem(itemId: string): Promise<void> {
   if (error) throw safeError(error, 'Unable to remove item.');
 }
 
-export async function getItemReactionCounts(itemIds: string[]): Promise<ItemReactionCount[]> {
+/**
+ * True when a PostgREST error means "no function with this argument shape".
+ *
+ * Used to fall back to the single-argument call shape on a backend whose
+ * `get_item_reaction_counts` has not yet grown `p_share_token`. Matched on the
+ * PGRST202 code first, with a message match only as a secondary signal, so an
+ * ordinary authorization or network failure is never mistaken for it.
+ */
+function isMissingRpcOverloadError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { code?: unknown; message?: unknown };
+  if (candidate.code === 'PGRST202') return true;
+  const message = typeof candidate.message === 'string' ? candidate.message.toLowerCase() : '';
+  return message.includes('could not find the function') && message.includes('get_item_reaction_counts');
+}
+
+/**
+ * Reaction counts for Dressing Room items.
+ *
+ * B34-FE-DR-001. `get_item_reaction_counts` authorizes the caller three ways:
+ * the room's owner, an authenticated member of a live share, or -- and this is
+ * the one that needs help from the client -- an ANONYMOUS viewer holding the
+ * share token. The governed backend signature is
+ *
+ *     get_item_reaction_counts(p_item_ids uuid[], p_share_token text DEFAULT NULL)
+ *
+ * and for an anonymous caller its predicate requires `p_share_token` to be
+ * non-null AND to match an active, non-revoked, non-expired share on the item's
+ * room. This function previously never sent the token, so the public share-link
+ * screen -- the only surface where the caller is anonymous -- matched zero rows
+ * and rendered every count as 0 rather than as an error. Silently wrong counts,
+ * not a missing section.
+ *
+ * `shareToken` is therefore REQUIRED on the public preview surface and must be
+ * omitted everywhere the caller is the owner or a joined member, where the
+ * backend decides from the session and ignores the token entirely.
+ */
+export async function getItemReactionCounts(
+  itemIds: string[],
+  options: { shareToken?: string | null } = {},
+): Promise<ItemReactionCount[]> {
   const normalizedItemIds = Array.from(new Set(itemIds.map((itemId) => String(itemId).trim()).filter(Boolean)));
   if (normalizedItemIds.length === 0) return [];
+
+  const shareToken =
+    typeof options.shareToken === 'string' && options.shareToken.trim()
+      ? options.shareToken.trim()
+      : null;
+
+  const invoke = async (batch: string[], withToken: boolean) => {
+    const args: { p_item_ids: string[]; p_share_token?: string } = { p_item_ids: batch };
+    // The key is added only when a token is actually being sent: the
+    // owner/member call shape stays byte-identical to what shipped before.
+    if (withToken && shareToken) args.p_share_token = shareToken;
+    const { data, error } = await supabase.rpc('get_item_reaction_counts', args);
+    if (error) throw error;
+    return (data ?? []) as ItemReactionCount[];
+  };
 
   try {
     const batches = chunkItems(normalizedItemIds, REACTION_BATCH_SIZE);
     const results = await Promise.all(
       batches.map(async (batch) => {
-        const { data, error } = await supabase.rpc('get_item_reaction_counts', {
-          p_item_ids: batch,
-        });
-        if (error) throw error;
-        return (data ?? []) as ItemReactionCount[];
+        if (!shareToken) return invoke(batch, false);
+        try {
+          return await invoke(batch, true);
+        } catch (error) {
+          // Compatibility, not error-swallowing: an environment still carrying
+          // the single-argument function rejects the named argument outright,
+          // and on THAT backend the token-less call is the one that authorizes
+          // an anonymous viewer. Any other failure rethrows untouched.
+          if (!isMissingRpcOverloadError(error)) throw error;
+          return invoke(batch, false);
+        }
       }),
     );
     return results.flat();
