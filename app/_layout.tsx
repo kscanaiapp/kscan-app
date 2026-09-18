@@ -7,7 +7,11 @@ import { FeatureFreezeProvider } from '../contexts/FeatureFreezeContext';
 import { PrivacyPreferencesProvider } from '../contexts/PrivacyPreferencesContext';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { COLORS, SPACING, TYPOGRAPHY } from '../constants/theme';
-import { getRoutingGuardState, isAuthCallbackUrl } from '../services/routingGuard';
+import {
+  getRoutingGuardState,
+  isAuthCallbackUrl,
+  shouldDeferToAuthCallbackRoute,
+} from '../services/routingGuard';
 import ErrorBoundary from '../src/components/ErrorBoundary';
 import { logError } from '../src/utils/errorLogger';
 
@@ -34,11 +38,17 @@ if (rnGlobal.ErrorUtils && !rnGlobal.__KSCAN_ERROR_UTILS_ATTACHED__) {
   rnGlobal.__KSCAN_ERROR_UTILS_ATTACHED__ = true;
 }
 
+// Upper bound on how long the auth guard may stay open waiting for expo-router
+// to land on the cold-start auth-callback route. expo-router resolves the
+// initial deep link immediately, so this only ever fires when routing failed.
+const AUTH_CALLBACK_ROUTE_GRACE_MS = 5000;
+
 function AuthGate() {
   const pathname = usePathname();
   const { loading, session } = useAuthSession();
   const [initialUrl, setInitialUrl] = useState<string | null>(null);
   const [initialUrlChecked, setInitialUrlChecked] = useState(false);
+  const [callbackRouteSettled, setCallbackRouteSettled] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -55,8 +65,28 @@ function AuthGate() {
     };
   }, []);
 
-  const waitingForAuthCallbackRoute =
-    initialUrlChecked && isAuthCallbackUrl(initialUrl) && pathname !== '/auth/callback';
+  // Linking.getInitialURL() keeps returning the cold-start URL for the whole
+  // process, so the deferral must be latched shut once the callback route has
+  // been reached. Otherwise a session that began at kscan://auth/callback leaves
+  // the guard disabled for every later navigation, and an expiring session
+  // strands the user on a protected screen with no redirect to /auth.
+  useEffect(() => {
+    if (pathname === '/auth/callback') setCallbackRouteSettled(true);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (callbackRouteSettled) return undefined;
+    if (!initialUrlChecked || !isAuthCallbackUrl(initialUrl)) return undefined;
+    const timer = setTimeout(() => setCallbackRouteSettled(true), AUTH_CALLBACK_ROUTE_GRACE_MS);
+    return () => clearTimeout(timer);
+  }, [callbackRouteSettled, initialUrl, initialUrlChecked]);
+
+  const waitingForAuthCallbackRoute = shouldDeferToAuthCallbackRoute({
+    initialUrlChecked,
+    initialUrl,
+    pathname,
+    callbackRouteSettled,
+  });
 
   const guardState = getRoutingGuardState({
     pathname,

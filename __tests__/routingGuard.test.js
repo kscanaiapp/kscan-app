@@ -6,6 +6,7 @@ const {
   isAuthCallbackUrl,
   isPublicRoute,
   isSessionUsable,
+  shouldDeferToAuthCallbackRoute,
 } = require('../services/routingGuard');
 
 const NOW = 1000;
@@ -114,4 +115,133 @@ test('expired sessions are treated as signed out', () => {
   });
   assert.equal(state.action, 'redirect');
   assert.equal(state.redirectTo, '/auth');
+});
+
+// ── Cold-start auth-callback deferral ────────────────────────────────────────
+//
+// The root layout holds the auth guard open while expo-router settles onto a
+// cold-start auth-callback deep link. Linking.getInitialURL() keeps returning
+// that URL for the whole process lifetime, so the deferral must be latched shut
+// once the callback route has been reached — otherwise the guard stays disabled
+// for every later navigation in a session that began with a magic link.
+
+const CALLBACK_URL = 'kscan://auth/callback#access_token=a&refresh_token=b&type=signup';
+
+test('deferral holds while routing to the cold-start callback route', () => {
+  assert.equal(
+    shouldDeferToAuthCallbackRoute({
+      initialUrlChecked: true,
+      initialUrl: CALLBACK_URL,
+      pathname: '/',
+      callbackRouteSettled: false,
+    }),
+    true,
+  );
+});
+
+test('deferral does not apply before the initial URL has been read', () => {
+  assert.equal(
+    shouldDeferToAuthCallbackRoute({
+      initialUrlChecked: false,
+      initialUrl: null,
+      pathname: '/',
+      callbackRouteSettled: false,
+    }),
+    false,
+  );
+});
+
+test('deferral does not apply once the callback route is showing', () => {
+  assert.equal(
+    shouldDeferToAuthCallbackRoute({
+      initialUrlChecked: true,
+      initialUrl: CALLBACK_URL,
+      pathname: '/auth/callback',
+      callbackRouteSettled: false,
+    }),
+    false,
+  );
+});
+
+test('deferral releases permanently once the callback route has been settled', () => {
+  // This is the regression: the callback screen replaces to '/', pathname is no
+  // longer '/auth/callback', and initialUrl still holds the cold-start deep
+  // link. Before the latch this re-opened the bypass for the rest of the
+  // process and no expired session could ever be redirected to /auth.
+  assert.equal(
+    shouldDeferToAuthCallbackRoute({
+      initialUrlChecked: true,
+      initialUrl: CALLBACK_URL,
+      pathname: '/',
+      callbackRouteSettled: true,
+    }),
+    false,
+  );
+
+  for (const pathname of ['/', '/scan', '/library', '/dressing-rooms', '/privacy']) {
+    assert.equal(
+      shouldDeferToAuthCallbackRoute({
+        initialUrlChecked: true,
+        initialUrl: CALLBACK_URL,
+        pathname,
+        callbackRouteSettled: true,
+      }),
+      false,
+      `guard must be active again on ${pathname} after a link-started session`,
+    );
+  }
+});
+
+test('a non-callback cold-start URL never defers the guard', () => {
+  for (const url of [null, '', 'kscan://scan', 'https://kscan.app/rooms/tok']) {
+    assert.equal(
+      shouldDeferToAuthCallbackRoute({
+        initialUrlChecked: true,
+        initialUrl: url,
+        pathname: '/',
+        callbackRouteSettled: false,
+      }),
+      false,
+      `${String(url)} must not defer the auth guard`,
+    );
+  }
+});
+
+test('after the deferral releases, an expired session still redirects to /auth', () => {
+  // End-to-end of the repaired behaviour: link-started session, guard released,
+  // token expires, protected route -> redirect.
+  assert.equal(
+    shouldDeferToAuthCallbackRoute({
+      initialUrlChecked: true,
+      initialUrl: CALLBACK_URL,
+      pathname: '/library',
+      callbackRouteSettled: true,
+    }),
+    false,
+  );
+
+  const state = getRoutingGuardState({
+    pathname: '/library',
+    loading: false,
+    session: expiredSession,
+    nowSeconds: NOW,
+  });
+  assert.equal(state.action, 'redirect');
+  assert.equal(state.redirectTo, '/auth');
+});
+
+test('the root layout latches the deferral rather than recomputing it from initialUrl alone', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const layout = fs.readFileSync(
+    path.join(__dirname, '..', 'app', '_layout.tsx'),
+    'utf8',
+  );
+  assert.match(layout, /shouldDeferToAuthCallbackRoute\(/);
+  assert.match(layout, /callbackRouteSettled/);
+  assert.match(
+    layout,
+    /AUTH_CALLBACK_ROUTE_GRACE_MS/,
+    'a deep link that never routes must not disable the guard indefinitely',
+  );
 });

@@ -88,6 +88,18 @@ function loadUseKScanWithMocks({ analyzeImage, compressForUpload, log }) {
     compressForUpload,
     buildSecondhandSearchRequest: () => null,
     searchVintedSecondhand: async () => ({ enabled: false, items: [] }),
+    // useKScan later gained a pre-upload privacy sanitizer and sneaker
+    // enrichment. Without stubs for them the hook threw a ReferenceError inside
+    // runAnalysis()'s try block, analyzeImage was never reached, and this test
+    // stopped exercising the duplicate guard it exists to protect.
+    sanitizeImageBeforeUpload: async (input) => input,
+    getPrivacySanitizerStatus: () => ({
+      faceDetectionAvailable: false,
+      faceBlurApplied: false,
+      mode: 'passthrough',
+    }),
+    shouldEnrichSneakers: () => false,
+    searchSneakers: async () => [],
     errorPulse: () => {},
     softImpact: () => {},
     successPulse: () => {},

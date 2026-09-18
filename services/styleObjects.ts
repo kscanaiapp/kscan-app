@@ -576,9 +576,31 @@ export async function removeDressingRoomItem(itemId: string): Promise<void> {
   if (error) throw safeError(error, 'Unable to remove item.');
 }
 
-export async function getItemReactionCounts(itemIds: string[]): Promise<ItemReactionCount[]> {
+/**
+ * Read reaction counts for dressing-room items.
+ *
+ * The backend RPC is `get_item_reaction_counts(p_item_ids uuid[], p_share_token
+ * text DEFAULT NULL)`. Authorization branches on the caller:
+ *   - authenticated owner/member -> resolved from auth.uid(); no token needed
+ *   - anonymous public viewer    -> REQUIRES a live, unrevoked, unexpired
+ *                                   share token, otherwise zero rows are
+ *                                   returned
+ *
+ * Because p_share_token defaults to NULL, omitting it does not raise — the call
+ * succeeds and silently returns nothing. Anonymous callers must therefore pass
+ * the share token they were given, or every count renders as 0.
+ *
+ * @param shareToken - the public share token, for unauthenticated callers only.
+ */
+export async function getItemReactionCounts(
+  itemIds: string[],
+  shareToken?: string | null,
+): Promise<ItemReactionCount[]> {
   const normalizedItemIds = Array.from(new Set(itemIds.map((itemId) => String(itemId).trim()).filter(Boolean)));
   if (normalizedItemIds.length === 0) return [];
+
+  const normalizedShareToken =
+    typeof shareToken === 'string' && shareToken.trim() ? shareToken.trim() : null;
 
   try {
     const batches = chunkItems(normalizedItemIds, REACTION_BATCH_SIZE);
@@ -586,6 +608,7 @@ export async function getItemReactionCounts(itemIds: string[]): Promise<ItemReac
       batches.map(async (batch) => {
         const { data, error } = await supabase.rpc('get_item_reaction_counts', {
           p_item_ids: batch,
+          p_share_token: normalizedShareToken,
         });
         if (error) throw error;
         return (data ?? []) as ItemReactionCount[];

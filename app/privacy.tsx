@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -21,12 +21,12 @@ import { canToggleSaleSharing } from '../services/privacyPolicy';
 import {
   requestCorrection,
   requestDataExport,
+  requestDeletion,
 } from '../services/supabasePrivacy';
 import { usePrivacyPreferences } from '../contexts/PrivacyPreferencesContext';
 import { useAuthSession } from '../contexts/AuthSessionContext';
 import { COLORS, LAYOUT, RADIUS, SHADOWS, SPACING, TYPOGRAPHY } from '../constants/theme';
 import { submitAccountDeletionRequest } from '../services/accountDeletion';
-import { supabase } from '../services/supabaseClient';
 import { LOCAL_PRIVACY_STORAGE_KEY } from '../services/privacyLocalStore';
 
 const PRIVACY_COPY = {
@@ -65,7 +65,7 @@ const SYNC_STATUS_COLORS: Record<string, string> = {
 export default function PrivacyScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { isAuthenticated, session, user, signOut, isRefreshing } = useAuthSession();
+  const { isAuthenticated, user, signOut, isRefreshing } = useAuthSession();
   const {
     mode,
     syncStatus,
@@ -75,6 +75,7 @@ export default function PrivacyScreen() {
     remoteFetchError,
     preferenceSource,
     normalized,
+    profile,
     saving,
     persistPreference,
   } = usePrivacyPreferences();
@@ -83,6 +84,13 @@ export default function PrivacyScreen() {
   const [correctionText, setCorrectionText] = useState('');
   const [deletionSubmitting, setDeletionSubmitting] = useState(false);
   const [deletionPending, setDeletionPending] = useState(false);
+
+  // profiles.account_status is the authority for an open request. Without this
+  // the screen offered "Delete Account" again to a user whose deletion was
+  // already queued, and only discovered the duplicate after a round trip.
+  useEffect(() => {
+    if (profile?.account_status === 'pending_deletion') setDeletionPending(true);
+  }, [profile?.account_status]);
   const [deletionConfirmVisible, setDeletionConfirmVisible] = useState(false);
 
   const saleSharingLocked = !canToggleSaleSharing(normalized.age_group);
@@ -155,7 +163,7 @@ export default function PrivacyScreen() {
     setDeletionConfirmVisible(false);
     setDeletionSubmitting(true);
     try {
-      const result = await submitAccountDeletionRequest(supabase, session);
+      const result = await submitAccountDeletionRequest(requestDeletion);
       setDeletionPending(true);
       setMessage(
         result.status === 'already_requested'

@@ -381,9 +381,14 @@ export default function SharedRoomScreen() {
 
     let cancelled = false;
 
+    // Anonymous viewers are authorized purely by the share token. Omitting it
+    // makes the RPC return zero rows for every item, so the panel would render
+    // all-zero counts with no error to explain it.
+    const shareTokenForCounts = typeof token === 'string' ? token.trim() : '';
+
     const loadReactionCounts = async () => {
       try {
-        const counts = await getItemReactionCounts(itemIds);
+        const counts = await getItemReactionCounts(itemIds, shareTokenForCounts);
         if (!cancelled) {
           setReactionCounts(buildReactionCountsByItem(itemIds, counts));
         }
@@ -399,7 +404,7 @@ export default function SharedRoomScreen() {
     return () => {
       cancelled = true;
     };
-  }, [state]);
+  }, [state, token]);
 
   // ── Feature flag fallback ──────────────────────────────────────────────────
   if (!ENABLE_IN_APP_SHARED_ROOMS) {

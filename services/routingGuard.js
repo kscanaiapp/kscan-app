@@ -35,6 +35,32 @@ function isSessionUsable(session, nowSeconds = Math.floor(Date.now() / 1000)) {
   return true;
 }
 
+/**
+ * Decide whether the root layout should hold the auth guard open while
+ * expo-router settles onto a cold-start auth-callback deep link.
+ *
+ * The cold-start URL from Linking.getInitialURL() never changes for the life of
+ * the process, so this must ALSO depend on a latch. Without one, a session that
+ * began at kscan://auth/callback leaves the guard disabled for every subsequent
+ * navigation: an expiring session then strands the user on a protected screen
+ * with no redirect back to /auth.
+ *
+ * `callbackRouteSettled` is latched by the caller once the callback route has
+ * actually been reached, or once a bounded grace window elapses so a deep link
+ * that never routes cannot disable the guard indefinitely.
+ */
+function shouldDeferToAuthCallbackRoute({
+  initialUrlChecked,
+  initialUrl,
+  pathname,
+  callbackRouteSettled,
+}) {
+  if (!initialUrlChecked) return false;
+  if (callbackRouteSettled) return false;
+  if (!isAuthCallbackUrl(initialUrl)) return false;
+  return normalizePathname(pathname) !== '/auth/callback';
+}
+
 function getRoutingGuardState({ pathname, loading, session, nowSeconds }) {
   const normalizedPathname = normalizePathname(pathname);
   const hasUsableSession = isSessionUsable(session, nowSeconds);
@@ -64,4 +90,5 @@ module.exports = {
   isPublicRoute,
   isSessionUsable,
   normalizePathname,
+  shouldDeferToAuthCallbackRoute,
 };
