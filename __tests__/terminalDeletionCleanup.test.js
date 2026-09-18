@@ -191,6 +191,7 @@ function createPurgeSpies(overrides = {}) {
       clearSignatureStyleFeedback: spy('clearSignatureStyleFeedback'),
       clearSignatureStyleReasons: spy('clearSignatureStyleReasons'),
       clearPackingPlanCache: spy('clearPackingPlanCache'),
+      clearFreeTierStores: spy('clearFreeTierStores'),
       clearOnboarding: spy('clearOnboarding'),
     },
   };
@@ -218,6 +219,14 @@ function loadPurge() {
     '../signature-style/localSignatureStyleFeedbackStore',
     '../signature-style/localSignatureStyleReasons',
     '../packing/packingPlanCache',
+    // CPR-FT-001. Owner-scoped since B34-FE-FT-001, so terminal deletion must
+    // erase it. Listed for the same reason '../privateSavedLookStore' is:
+    // ownerTerminalPurge imports the OWNER-TAKING primitive by name. The
+    // containment claim is about what this orchestrator reaches directly --
+    // it never resolves an ambient actor, and the free-tier primitive it calls
+    // has no ambient-actor default to resolve. That is asserted against the
+    // real module in __tests__/freeTierTerminalPurgeConvergence.test.js.
+    '../free-tier/freeTierStorage',
     '../onboardingCompletion',
   ]);
   return evaluate(PURGE_REL, (spec) => {
@@ -964,7 +973,10 @@ test('PURGE: every step receives the marker owner, never the current actor', asy
 
   assert.equal(result.complete, true);
   assert.equal(result.ownerId, OWNER_A);
-  assert.equal(calls.length, 16, 'every owner-scoped subsystem is covered');
+  // 17 since CPR-FT-001 added the free-tier namespace. An EXACT count, not a
+  // floor: a subsystem that silently stops being purged is the defect this
+  // assertion exists to catch.
+  assert.equal(calls.length, 17, 'every owner-scoped subsystem is covered');
 
   const signatureStyleSteps = ['clearSignatureStylePreferences', 'clearSignatureStyleFeedback', 'clearSignatureStyleReasons'];
   for (const call of calls) {

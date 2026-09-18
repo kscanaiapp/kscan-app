@@ -776,6 +776,10 @@ export async function addScanImageToDressingRoom(input: {
   let storagePath: string | null = null;
   let imageWidth: number | null = null;
   let imageHeight: number | null = null;
+  // B33-STO-004: only the object THIS call freshly uploads is ours to
+  // compensate for. A reused pre-existing storage ref (imageSource.kind ===
+  // 'storage') must never be deleted on a later failure in this call.
+  let uploadedThisCall = false;
 
   if (imageSource.kind === 'storage') {
     // Already durably stored (e.g. re-adding a previously uploaded item) - no re-upload.
@@ -793,6 +797,7 @@ export async function addScanImageToDressingRoom(input: {
     storagePath = upload.path;
     imageWidth = upload.width;
     imageHeight = upload.height;
+    uploadedThisCall = true;
     devLog('add:upload_succeeded', { entryPoint: 'scan_image' });
   }
 
@@ -899,6 +904,17 @@ export async function addScanImageToDressingRoom(input: {
     .single();
   if (error) {
     devLog('add:insert_failed', { entryPoint: 'scan_image', code: error.code ?? null });
+    if (uploadedThisCall && storageBucket && storagePath) {
+      // The image already uploaded successfully. Without this, an insert
+      // failure leaves an orphan storage object with no owning row and no
+      // compensating delete. Best-effort: a failed cleanup must not mask the
+      // original insert error, which is what the caller needs to see.
+      await supabase.storage
+        .from(storageBucket)
+        .remove([storagePath])
+        .catch(() => {});
+      devLog('add:compensating_delete_attempted', { entryPoint: 'scan_image' });
+    }
     throw safeError(error, 'Unable to add scan to Dressing Room.');
   }
   devLog('add:insert_succeeded', { entryPoint: 'scan_image', success: true });
@@ -948,6 +964,27 @@ export async function removeDressingRoomItem(itemId: string): Promise<void> {
  * membership/`can_access_room_messages()` branch, where `p_share_token` is
  * ignored -- so keeping its call shape unchanged narrows this repair to the
  * one caller class the contract actually moved under.
+ *
+ * CONVERGENCE NOTE (Build 34 cross-platform). The iOS candidate repaired the
+ * same defect with the same call shape and added a PGRST202 fallback that
+ * retries WITHOUT the token when the two-argument overload is missing. That
+ * fallback is not carried here, for two reasons. It is unreachable: migration
+ * 20260916233708 DROPPED the single-argument overload, and the deployed
+ * definition was read back from staging with `pg_get_functiondef` -- the
+ * two-argument form is the only one that exists. And it is untestable in the
+ * direction that matters: on any backend where it DID fire, the token-less call
+ * is precisely the pre-repair call, which authorizes an anonymous viewer
+ * nothing and returns zero rows. So it cannot weaken the contract (it grants no
+ * access the token-bound call does not), but neither can it help -- it only adds
+ * a second, unexercised call shape to a security-relevant path. A missing
+ * overload is a deployment fault and is surfaced as the error it is.
+ *
+ * `shareToken` is accepted only as a non-blank STRING. A non-string is not
+ * coerced: `String(someNumber)` would have produced a token-shaped value that
+ * the backend then compares against `room_shares.share_token`, turning a caller
+ * bug into a silent authorization attempt. A blank or absent token omits the
+ * parameter entirely, so the anonymous branch's `token is not null` guard fails
+ * closed and no accidental anonymous room access is possible.
  */
 export async function getItemReactionCounts(
   itemIds: string[],
@@ -956,7 +993,10 @@ export async function getItemReactionCounts(
   const normalizedItemIds = Array.from(new Set(itemIds.map((itemId) => String(itemId).trim()).filter(Boolean)));
   if (normalizedItemIds.length === 0) return [];
 
-  const shareToken = String(options?.shareToken ?? '').trim();
+  const shareToken =
+    typeof options?.shareToken === 'string' && options.shareToken.trim()
+      ? options.shareToken.trim()
+      : '';
 
   try {
     const batches = chunkItems(normalizedItemIds, REACTION_BATCH_SIZE);
