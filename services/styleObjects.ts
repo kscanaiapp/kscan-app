@@ -776,6 +776,10 @@ export async function addScanImageToDressingRoom(input: {
   let storagePath: string | null = null;
   let imageWidth: number | null = null;
   let imageHeight: number | null = null;
+  // B33-STO-004: only the object THIS call freshly uploads is ours to
+  // compensate for. A reused pre-existing storage ref (imageSource.kind ===
+  // 'storage') must never be deleted on a later failure in this call.
+  let uploadedThisCall = false;
 
   if (imageSource.kind === 'storage') {
     // Already durably stored (e.g. re-adding a previously uploaded item) - no re-upload.
@@ -793,6 +797,7 @@ export async function addScanImageToDressingRoom(input: {
     storagePath = upload.path;
     imageWidth = upload.width;
     imageHeight = upload.height;
+    uploadedThisCall = true;
     devLog('add:upload_succeeded', { entryPoint: 'scan_image' });
   }
 
@@ -899,6 +904,17 @@ export async function addScanImageToDressingRoom(input: {
     .single();
   if (error) {
     devLog('add:insert_failed', { entryPoint: 'scan_image', code: error.code ?? null });
+    if (uploadedThisCall && storageBucket && storagePath) {
+      // The image already uploaded successfully. Without this, an insert
+      // failure leaves an orphan storage object with no owning row and no
+      // compensating delete. Best-effort: a failed cleanup must not mask the
+      // original insert error, which is what the caller needs to see.
+      await supabase.storage
+        .from(storageBucket)
+        .remove([storagePath])
+        .catch(() => {});
+      devLog('add:compensating_delete_attempted', { entryPoint: 'scan_image' });
+    }
     throw safeError(error, 'Unable to add scan to Dressing Room.');
   }
   devLog('add:insert_succeeded', { entryPoint: 'scan_image', success: true });
