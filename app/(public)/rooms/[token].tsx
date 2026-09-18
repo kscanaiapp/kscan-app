@@ -875,7 +875,15 @@ export default function SharedRoomScreen() {
 
     const loadReactions = async () => {
       try {
-        const counts = await getItemReactionCounts(itemIds);
+        // B34-FE-DR-001: an anonymous visitor's ONLY capability here is the
+        // share link, and the governed RPC now requires it (see
+        // getItemReactionCounts). Without it every count came back 0.
+        // `normalizedRouteToken` is the same token the preview was fetched
+        // with, and captureSharedRoomMembershipAfterPreview already refuses to
+        // act unless it equals the server's echoed `preview.token`.
+        const counts = await getItemReactionCounts(itemIds, {
+          shareToken: normalizedRouteToken,
+        });
         if (!cancelled) {
           setReactionCounts(buildReactionCountsByItem(itemIds, counts));
         }
@@ -913,14 +921,17 @@ export default function SharedRoomScreen() {
     return () => {
       cancelled = true;
     };
-  }, [capabilities.canReact, joinedRoomId, state]);
+  }, [capabilities.canReact, joinedRoomId, normalizedRouteToken, state]);
 
   const refreshItemReactions = useCallback(async (itemIds: string[]) => {
     const normalizedItemIds = Array.from(new Set(itemIds.map((itemId) => String(itemId || '').trim()).filter(Boolean)));
     if (normalizedItemIds.length === 0) return;
 
     try {
-      const counts = await getItemReactionCounts(normalizedItemIds);
+      // B34-FE-DR-001 -- same share-token binding as the initial load above.
+      const counts = await getItemReactionCounts(normalizedItemIds, {
+        shareToken: routeTokenRef.current,
+      });
       setReactionCounts((current) => ({
         ...current,
         ...buildReactionCountsByItem(normalizedItemIds, counts),

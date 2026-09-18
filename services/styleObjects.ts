@@ -914,9 +914,49 @@ export async function removeDressingRoomItem(itemId: string): Promise<void> {
   if (error) throw safeError(error, 'Unable to remove item.');
 }
 
-export async function getItemReactionCounts(itemIds: string[]): Promise<ItemReactionCount[]> {
+/**
+ * B34-FE-DR-001 -- the anonymous public-room caller must present its share
+ * token.
+ *
+ * The governed backend contract is
+ * `public.get_item_reaction_counts(p_item_ids uuid[], p_share_token text
+ * default null)` (staging migration 20260916233708,
+ * `reaction_counts_bind_anonymous_share_token`, which DROPPED the former
+ * single-argument overload). Its anonymous branch -- the one an unauthenticated
+ * link visitor takes -- is gated on the token naming a live share:
+ *
+ *     when caller.uid is null then
+ *       normalized_token.token is not null
+ *       and exists (select 1 from public.room_shares rs
+ *                    where rs.room_id = dr.id
+ *                      and rs.share_token = normalized_token.token
+ *                      and rs.is_active and rs.revoked_at is null
+ *                      and (rs.expires_at is null or rs.expires_at > now()))
+ *
+ * With no token that predicate is false for EVERY item, so the RPC returns no
+ * rows and app/(public)/rooms/[token].tsx rendered 0/0/0/0 on every item of
+ * every public Dressing Room -- a silent wrong answer, not an error, because
+ * `buildReactionCountsByItem` zero-fills whatever the RPC omits.
+ *
+ * `shareToken` is therefore forwarded verbatim (only trimmed) so it can match
+ * `room_shares.share_token` exactly -- never lower-cased, the same rule
+ * `services/sharedRoomMemberships.ts` follows and
+ * `__tests__/sharedRoomMembershipRoute.test.js` enforces.
+ *
+ * The parameter is OMITTED, not sent as null, when there is no token. The
+ * authenticated in-room path (app/dressing-rooms/[id].tsx) takes the
+ * membership/`can_access_room_messages()` branch, where `p_share_token` is
+ * ignored -- so keeping its call shape unchanged narrows this repair to the
+ * one caller class the contract actually moved under.
+ */
+export async function getItemReactionCounts(
+  itemIds: string[],
+  options?: { shareToken?: string | null },
+): Promise<ItemReactionCount[]> {
   const normalizedItemIds = Array.from(new Set(itemIds.map((itemId) => String(itemId).trim()).filter(Boolean)));
   if (normalizedItemIds.length === 0) return [];
+
+  const shareToken = String(options?.shareToken ?? '').trim();
 
   try {
     const batches = chunkItems(normalizedItemIds, REACTION_BATCH_SIZE);
@@ -924,6 +964,7 @@ export async function getItemReactionCounts(itemIds: string[]): Promise<ItemReac
       batches.map(async (batch) => {
         const { data, error } = await supabase.rpc('get_item_reaction_counts', {
           p_item_ids: batch,
+          ...(shareToken ? { p_share_token: shareToken } : {}),
         });
         if (error) throw error;
         return (data ?? []) as ItemReactionCount[];
