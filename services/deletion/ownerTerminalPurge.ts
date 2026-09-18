@@ -29,10 +29,28 @@
  *    module exists to avoid.
  *  - Device-scoped state: the Watchlist device id and push-disabled marker,
  *    feature-freeze config, privacy preferences, location-disclosure
- *    acknowledgement, hidden-content/hidden-user moderation lists, free-tier
- *    device stores, mirror sessions and the avatar animation engine choice.
+ *    acknowledgement, hidden-content/hidden-user moderation lists, mirror
+ *    sessions and the avatar animation engine choice.
  *    None of these is filed under an owner, and this repair does not
  *    reclassify device state as user-owned deletion data.
+ *
+ * CPR-FT-001 — WHY THE FREE-TIER STORES ARE NOW PURGED HERE. They used to be on
+ * the list above, and that was correct when it was written: every free-tier
+ * utility store lived at one device-wide AsyncStorage key with no owner at all.
+ * B34-FE-FT-001 then partitioned all ten of them by actor
+ * (`<logical key>::<actorId>`) and did not revisit this module, so the
+ * classification outlived the fact it described. The consequence was a terminal
+ * deletion that left the deleted actor's wishlist, saved outfits, collections,
+ * care notes, wear log, brand sizing, outfit ratings and activity log on the
+ * device: unreadable by the next account, but not erased. Invisibility is not
+ * deletion, and §10 of the closure contract requires the namespace to be
+ * physically gone.
+ *
+ * The step below uses `clearFreeTierStoresForActor`, which takes the owner
+ * EXPLICITLY and has no ambient-actor default — deliberately NOT
+ * `clearAllFreeTierStores()`, which is device-wide and would take a
+ * still-signed-in actor's stores with it. That distinction is the whole reason
+ * a second primitive exists.
  *
  * IDEMPOTENT AND RESUMABLE. Every step tolerates already-done: a manifest with
  * no matching records, an AsyncStorage key that is already absent, a directory
@@ -56,6 +74,7 @@ import { clearLocalSignatureStyleForUser } from '../signature-style/localSignatu
 import { clearReasonsForUser } from '../signature-style/localSignatureStyleReasons';
 import { clearCachedPackingPlan } from '../packing/packingPlanCache';
 import { clearOnboardingComplete } from '../onboardingCompletion';
+import { clearFreeTierStoresForActor } from '../free-tier/freeTierStorage';
 
 export type PurgeStepResult = { step: string; ok: boolean };
 
@@ -94,6 +113,7 @@ type PurgeDeps = Partial<{
   clearSignatureStyleReasons: (userKey: string) => Promise<void>;
   clearPackingPlanCache: (ownerId: string) => Promise<void>;
   clearOnboarding: (ownerId: string) => Promise<void>;
+  clearFreeTierStores: (ownerId: string) => Promise<{ ok: boolean }>;
 }>;
 
 /**
@@ -212,6 +232,12 @@ export async function purgeOwnerScopedLocalData(
   steps.push(
     await runStep('packing_plan_cache', () =>
       (deps.clearPackingPlanCache ?? clearCachedPackingPlan)(owner),
+    ),
+  );
+  // CPR-FT-001. Owner-scoped since B34-FE-FT-001; erased here, by name.
+  steps.push(
+    await runStep('free_tier_stores', () =>
+      (deps.clearFreeTierStores ?? clearFreeTierStoresForActor)(owner),
     ),
   );
   steps.push(

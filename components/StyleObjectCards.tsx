@@ -35,7 +35,26 @@ export function Header({
 }) {
   return (
     <View style={styles.header}>
-      <TouchableOpacity style={styles.backButton} onPress={onBack} disabled={!onBack}>
+      {/*
+        A11Y-SOC-001. This control's only content is the glyph "<" (or nothing
+        at all when there is no onBack), so a screen reader announced "less
+        than" or landed on an unnamed, empty control — on the back affordance
+        of every Dressing Room, Saved Look and room-list screen.
+
+        When there is nothing to go back to the element is not merely disabled
+        but removed from the accessibility tree: a focusable control that
+        announces nothing and does nothing is worse than no control.
+      */}
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={onBack}
+        disabled={!onBack}
+        accessible={Boolean(onBack)}
+        importantForAccessibility={onBack ? 'yes' : 'no-hide-descendants'}
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
+        accessibilityState={{ disabled: !onBack }}
+      >
         <Text style={styles.backText}>{onBack ? '<' : ''}</Text>
       </TouchableOpacity>
       <View style={styles.headerCenter}>
@@ -158,6 +177,13 @@ export function TextField({
   );
 }
 
+/**
+ * A11Y-SOC-003. `removeButton` is a 32dp circle; Android's minimum touch
+ * target is 48dp. 8dp on each side closes exactly that gap (32 + 8 + 8 = 48)
+ * with no visual change.
+ */
+const REMOVE_BUTTON_HIT_SLOP = { top: 8, bottom: 8, left: 8, right: 8 } as const;
+
 function ItemTileBase({
   item,
   selected,
@@ -174,6 +200,28 @@ function ItemTileBase({
   footer?: React.ReactNode;
 }) {
   const versionOk = canRenderSnapshotVersion(item.snapshotVersion);
+
+  /**
+   * A11Y-SOC-002. The name a screen reader should use for THIS tile's
+   * per-item controls.
+   *
+   * Built from the same fields the tile already renders, in the same
+   * precedence, so the spoken name and the visible one cannot drift. Falls
+   * back to a generic noun rather than an id: an item with no title, brand or
+   * category is still "this item" to the customer, and a UUID is not a name.
+   */
+  const accessibleItemName = useMemo(() => {
+    const candidates = [
+      versionOk ? item.title : null,
+      item.brand,
+      item.category,
+    ];
+    for (const candidate of candidates) {
+      const text = typeof candidate === 'string' ? candidate.trim() : '';
+      if (text) return text;
+    }
+    return 'this item';
+  }, [item.brand, item.category, item.title, versionOk]);
 
   const sourceBadge = useMemo(() => {
     const sourceType = (item as DressingRoomItem).sourceType ?? null;
@@ -229,7 +277,12 @@ function ItemTileBase({
           </Text>
         ) : null}
         {onViewDetail ? (
-          <TouchableOpacity style={styles.viewDetailButton} onPress={onViewDetail}>
+          <TouchableOpacity
+            style={styles.viewDetailButton}
+            onPress={onViewDetail}
+            accessibilityRole="button"
+            accessibilityLabel={`View detail for ${accessibleItemName}`}
+          >
             <Text style={styles.viewDetailText}>View Detail</Text>
           </TouchableOpacity>
         ) : null}
@@ -237,7 +290,25 @@ function ItemTileBase({
       {footer ? <View style={styles.itemFooter}>{footer}</View> : null}
       {selected ? <Text style={styles.selectedMark}>SELECTED</Text> : null}
       {onRemove ? (
-        <TouchableOpacity style={styles.removeButton} onPress={onRemove}>
+        /*
+          A11Y-SOC-003. A DESTRUCTIVE control whose only content was the letter
+          "x": a screen reader announced "x", with no role and no indication of
+          which item it would remove — on a grid where every tile carries an
+          identical one.
+
+          The 32dp visual circle is deliberately unchanged (it is the room
+          grid's design language); `hitSlop` raises the EFFECTIVE touch target
+          to 48dp, the Android minimum, without moving a pixel. Extending the
+          target this way rather than growing the button is also what keeps it
+          from overlapping the tile's own press area.
+        */
+        <TouchableOpacity
+          style={styles.removeButton}
+          onPress={onRemove}
+          hitSlop={REMOVE_BUTTON_HIT_SLOP}
+          accessibilityRole="button"
+          accessibilityLabel={`Remove ${accessibleItemName}`}
+        >
           <Text style={styles.removeText}>x</Text>
         </TouchableOpacity>
       ) : null}
