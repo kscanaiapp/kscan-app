@@ -13,6 +13,15 @@ import { STYLE_CHAT_COPY, STYLE_CHAT_DAILY_MESSAGE_LIMIT } from '../constants/st
 // MockStyleChatProvider remains available in edgeStyleChatProvider's fallback chain.
 const provider = new EdgeStyleChatProvider();
 
+export interface SendMessageOptions {
+  /**
+   * A user message that is already persisted server-side. Supplied by a retry
+   * so the turn is re-sent to the model without inserting a second copy of the
+   * same message row.
+   */
+  persistedUserMessage?: StyleChatMessage | null;
+}
+
 export interface UseStyleChatReturn {
   session: StyleChatSession | null;
   messages: StyleChatMessage[];
@@ -23,7 +32,7 @@ export interface UseStyleChatReturn {
   messagesUsed: number;
   messagesLimit: number;
   canSend: boolean;
-  sendMessage: (text: string) => Promise<void>;
+  sendMessage: (text: string, options?: SendMessageOptions) => Promise<void>;
   retryLastMessage: () => void;
   clearError: () => void;
 }
@@ -87,7 +96,8 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
   const canSend = messagesUsed < messagesLimit && !isSending;
 
   const sendMessage = useCallback(
-    async (text: string) => {
+    async (text: string, options?: SendMessageOptions) => {
+      const persistedUserMessage = options?.persistedUserMessage ?? null;
       const trimmed = text.trim();
       if (!trimmed) return;
       if (messagesUsed >= messagesLimit) {
@@ -117,11 +127,16 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
 
       try {
         // 2. Persist user message; replace optimistic entry with real row.
-        const savedUser = await saveStyleChatMessage({
-          sessionId,
-          sender: 'user',
-          content: trimmed,
-        });
+        //    A retry of an already-stored turn reuses that row: re-inserting it
+        //    left a second copy of the same message in the conversation, which
+        //    reappeared on every reload.
+        const savedUser =
+          persistedUserMessage ??
+          (await saveStyleChatMessage({
+            sessionId,
+            sender: 'user',
+            content: trimmed,
+          }));
         setMessages(prev =>
           prev.map(m => (m.id === optimisticUser.id ? savedUser : m)),
         );
@@ -207,10 +222,17 @@ export function useStyleChat(sessionId: string): UseStyleChatReturn {
 
   const retryLastMessage = useCallback(() => {
     const lastUser = [...messages].reverse().find(m => m.sender === 'user');
-    if (lastUser) {
-      setMessages(prev => prev.filter(m => m.id !== lastUser.id));
-      void sendMessage(lastUser.content);
-    }
+    if (!lastUser) return;
+
+    // A message that still carries an optimistic id was never stored, so the
+    // retry must persist it. One with a real id is already stored and must be
+    // reused rather than inserted again.
+    const alreadyPersisted = !lastUser.id.startsWith('optimistic-');
+
+    setMessages(prev => prev.filter(m => m.id !== lastUser.id));
+    void sendMessage(lastUser.content, {
+      persistedUserMessage: alreadyPersisted ? lastUser : null,
+    });
   }, [messages, sendMessage]);
 
   const clearError = useCallback(() => setError(null), []);
