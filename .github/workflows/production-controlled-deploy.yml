@@ -1,0 +1,570 @@
+# Controlled production deployment pipeline.
+#
+# Deploys exactly one allow-listed Edge Function (and optionally one approved
+# migration) to KScan App Production (wyyuqfdxucjksghsmhry). Staging is never
+# targeted — every script this workflow calls refuses any argument naming the
+# staging project (scripts/lib/production-helpers.mjs).
+#
+# GOVERNANCE (repo-settings prerequisites, not expressible in this file):
+#   - A GitHub "production" Environment must exist with required reviewers
+#     configured. The `environment: production` gate below then pauses this
+#     workflow for human approval before any job that can mutate production
+#     runs — this is what satisfies Phase 4's "show the production migration
+#     plan before applying it" and "require reviewers" requirements. Approve
+#     after reading the preflight job's summary (posted before the gate), not
+#     blind.
+#   - Branch protection on rebuild/backend-authority-v2 should require the
+#     usual checks before merge. This workflow additionally refuses to run
+#     against anything that is not the CURRENT tip of that branch (see
+#     scripts/production-deploy-preflight.mjs assertGovernedCommit) — a
+#     stale or unmerged checkout cannot deploy no matter who approves it.
+#
+# This workflow is manual-dispatch only. It is never triggered by push, PR,
+# or schedule — production is deployed to on purpose, by a named human, or
+# not at all.
+
+name: K Scan Production Controlled Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      function_name:
+        description: Exactly one Edge Function to deploy
+        required: true
+        type: string
+      verify_jwt:
+        description: Whether the function expects JWT verification
+        required: true
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      approved_migration_version:
+        description: Optional single migration version to apply before deploy (12-14 digits)
+        required: false
+        default: ''
+        type: string
+      approve_migration:
+        description: Must be YES to apply the approved migration
+        required: false
+        default: 'NO'
+        type: choice
+        options:
+          - 'NO'
+          - 'YES'
+      confirm_production:
+        description: Must be exactly "DEPLOY TO PRODUCTION" to proceed past preflight
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kscan-production-deployment
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  GOVERNED_BRANCH: rebuild/backend-authority-v2
+  EXPECTED_PRODUCTION_REF: wyyuqfdxucjksghsmhry
+  STAGING_REF: yzqjvdfgefveprobvvyw
+
+jobs:
+  confirm:
+    name: Confirm intent
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require exact confirmation phrase
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.confirm_production }}" != "DEPLOY TO PRODUCTION" ]; then
+            echo "confirm_production must be exactly: DEPLOY TO PRODUCTION"
+            exit 1
+          fi
+
+  preflight:
+    name: Preflight (no production environment gate — read-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: confirm
+    outputs:
+      function_name: ${{ steps.scope.outputs.function_name }}
+      verify_jwt: ${{ steps.scope.outputs.verify_jwt }}
+      migration_version: ${{ steps.scope.outputs.migration_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Refuse anything but the governed branch tip
+        run: |
+          set -euo pipefail
+          git fetch origin "${GOVERNED_BRANCH}" --quiet
+          HEAD_SHA="$(git rev-parse HEAD)"
+          GOVERNED_SHA="$(git rev-parse "origin/${GOVERNED_BRANCH}")"
+          if [ "$HEAD_SHA" != "$GOVERNED_SHA" ]; then
+            echo "HEAD ($HEAD_SHA) is not the current tip of ${GOVERNED_BRANCH} ($GOVERNED_SHA)."
+            echo "Production deploys only from a merged commit on the governed backend authority branch."
+            exit 1
+          fi
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+
+      - name: Validate required production variables (values never printed)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PRODUCTION_PROJECT_REF: ${{ vars.SUPABASE_PRODUCTION_PROJECT_REF }}
+          SUPABASE_PRODUCTION_URL: ${{ vars.SUPABASE_PRODUCTION_URL }}
+          SUPABASE_PRODUCTION_ANON_KEY: ${{ secrets.SUPABASE_PRODUCTION_PUBLISHABLE_KEY }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for v in SUPABASE_ACCESS_TOKEN SUPABASE_PRODUCTION_PROJECT_REF SUPABASE_PRODUCTION_URL SUPABASE_PRODUCTION_ANON_KEY; do
+            if [ -z "${!v:-}" ]; then missing+=("$v"); fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "Missing required production variables:"
+            printf -- '- %s\n' "${missing[@]}"
+            exit 1
+          fi
+          if [ "${SUPABASE_PRODUCTION_PROJECT_REF}" = "${STAGING_REF}" ]; then
+            echo "Staging project ref is forbidden here"
+            exit 1
+          fi
+          if [ "${SUPABASE_PRODUCTION_PROJECT_REF}" != "${EXPECTED_PRODUCTION_REF}" ]; then
+            echo "SUPABASE_PRODUCTION_PROJECT_REF must be ${EXPECTED_PRODUCTION_REF}"
+            exit 1
+          fi
+
+      - name: Record deployment scope
+        id: scope
+        run: |
+          set -euo pipefail
+          FN="${{ inputs.function_name }}"
+          if [ -z "$FN" ] || [ "$FN" = "all" ]; then
+            echo "Invalid function_name"
+            exit 1
+          fi
+          echo "function_name=${FN}" >> "$GITHUB_OUTPUT"
+          echo "verify_jwt=${{ inputs.verify_jwt }}" >> "$GITHUB_OUTPUT"
+          echo "migration_version=${{ inputs.approved_migration_version }}" >> "$GITHUB_OUTPUT"
+
+      - name: Run production preflight and show the migration plan
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PRODUCTION_PROJECT_REF: ${{ vars.SUPABASE_PRODUCTION_PROJECT_REF }}
+          SUPABASE_PRODUCTION_URL: ${{ vars.SUPABASE_PRODUCTION_URL }}
+          SUPABASE_PRODUCTION_ANON_KEY: ${{ secrets.SUPABASE_PRODUCTION_PUBLISHABLE_KEY }}
+          DEPLOY_FUNCTIONS: ${{ inputs.function_name }}
+          APPROVED_MIGRATION_VERSION: ${{ inputs.approved_migration_version }}
+        run: |
+          set -euo pipefail
+          node scripts/production-deploy-preflight.mjs --json | tee preflight.json
+          {
+            echo "## Production deployment plan"
+            echo
+            echo "**This is what the required-reviewer approval below is approving.**"
+            echo
+            node -e "
+              const r = require('./preflight.json');
+              console.log('| Field | Value |');
+              console.log('| --- | --- |');
+              console.log(\`| Target | \${r.environment.projectRef} |\`);
+              console.log(\`| Governed branch | \${r.governance.governedBranch} @ \${r.governance.sha} |\`);
+              console.log(\`| Function to deploy | \${r.deployFunctions.join(', ') || '(none)'} |\`);
+              console.log(\`| verify_jwt | ${{ inputs.verify_jwt }} |\`);
+              console.log(\`| Migration to apply | \${r.migrations.approvedPending ? r.migrations.approvedPending.version + ' ' + r.migrations.approvedPending.name : '(none)'} |\`);
+              console.log(\`| Local migrations | \${r.migrations.localCount} |\`);
+              console.log(\`| Remote migrations | \${r.migrations.remoteCount ?? 'n/a'} |\`);
+              console.log(\`| Pending (unapproved) | \${(r.migrations.localOnly||[]).map(m=>m.version).join(', ') || 'none'} |\`);
+            "
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload preflight artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: production-preflight-${{ github.run_number }}
+          path: preflight.json
+          retention-days: 90
+
+  migration-plan:
+    name: Migration plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs:
+      - confirm
+      - preflight
+    outputs:
+      apply: ${{ steps.plan.outputs.apply }}
+    steps:
+      - name: Plan
+        id: plan
+        run: |
+          set -euo pipefail
+          VER="${{ needs.preflight.outputs.migration_version }}"
+          APPROVE="${{ inputs.approve_migration }}"
+          if [ -n "$VER" ] && [ "$APPROVE" = "YES" ]; then
+            echo "apply=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "apply=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Everything from here on can mutate production, so everything from here on
+  # carries `environment: production` — this is the required-reviewer gate.
+  # GitHub pauses the run here until an approver acts, with the preflight
+  # job's summary (the plan above) already visible on the run.
+  approved-single-migration:
+    name: Approved single migration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs:
+      - confirm
+      - preflight
+      - migration-plan
+    if: needs.migration-plan.outputs.apply == 'true'
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Refuse anything but the governed branch tip
+        run: |
+          set -euo pipefail
+          git fetch origin "${GOVERNED_BRANCH}" --quiet
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "origin/${GOVERNED_BRANCH}")"
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+
+      - name: Apply one approved migration
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PRODUCTION_PROJECT_REF: ${{ vars.SUPABASE_PRODUCTION_PROJECT_REF }}
+          SUPABASE_PRODUCTION_URL: ${{ vars.SUPABASE_PRODUCTION_URL }}
+          SUPABASE_PRODUCTION_ANON_KEY: ${{ secrets.SUPABASE_PRODUCTION_PUBLISHABLE_KEY }}
+          MIGRATION_VERSION: ${{ needs.preflight.outputs.migration_version }}
+          APPROVE_PRODUCTION_MIGRATION: YES
+        run: |
+          set -euo pipefail
+          node scripts/apply-production-migration.mjs | tee migration-result.json
+
+      - name: Upload migration artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: production-migration-${{ github.run_number }}
+          path: |
+            migration-result.json
+            artifacts/production-migrations/
+          if-no-files-found: warn
+          retention-days: 90
+
+  source-validation:
+    name: Source validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs:
+      - confirm
+      - preflight
+      - migration-plan
+      - approved-single-migration
+    if: |
+      always() &&
+      needs.preflight.result == 'success' &&
+      (needs.approved-single-migration.result == 'success' || needs.approved-single-migration.result == 'skipped')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Validate function source exists
+        run: |
+          set -euo pipefail
+          FN="${{ needs.preflight.outputs.function_name }}"
+          test -f "supabase/functions/${FN}/index.ts"
+          echo "source ok: ${FN}"
+
+      - name: Deno check
+        run: |
+          set -euo pipefail
+          FN="${{ needs.preflight.outputs.function_name }}"
+          if command -v deno >/dev/null 2>&1; then
+            deno check --node-modules-dir=none "supabase/functions/${FN}/index.ts"
+          else
+            curl -fsSL https://deno.land/install.sh | sh
+            export DENO_INSTALL="$HOME/.deno"
+            export PATH="$DENO_INSTALL/bin:$PATH"
+            deno check --node-modules-dir=none "supabase/functions/${FN}/index.ts"
+          fi
+
+      - name: Edge-function source parity gate
+        run: |
+          set -euo pipefail
+          if [ -f __tests__/edgeFunctionSourceParity.test.js ]; then
+            node --test __tests__/edgeFunctionSourceParity.test.js
+          else
+            echo "no edge-function source parity gate present; skipping"
+          fi
+
+  deploy-one-function:
+    name: Deploy one function
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs:
+      - confirm
+      - preflight
+      - source-validation
+    if: |
+      always() &&
+      needs.preflight.result == 'success' &&
+      needs.source-validation.result == 'success'
+    environment: production
+    outputs:
+      manifest_path: ${{ steps.deploy.outputs.manifest_path }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Refuse anything but the governed branch tip
+        run: |
+          set -euo pipefail
+          git fetch origin "${GOVERNED_BRANCH}" --quiet
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "origin/${GOVERNED_BRANCH}")"
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+
+      - name: Deploy function
+        id: deploy
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PRODUCTION_PROJECT_REF: ${{ vars.SUPABASE_PRODUCTION_PROJECT_REF }}
+          SUPABASE_PRODUCTION_URL: ${{ vars.SUPABASE_PRODUCTION_URL }}
+          SUPABASE_PRODUCTION_ANON_KEY: ${{ secrets.SUPABASE_PRODUCTION_PUBLISHABLE_KEY }}
+          DEPLOY_FUNCTIONS: ${{ needs.preflight.outputs.function_name }}
+          FUNCTION_NAME: ${{ needs.preflight.outputs.function_name }}
+          EXPECTED_VERIFY_JWT: ${{ needs.preflight.outputs.verify_jwt }}
+          APPROVED_MIGRATION_VERSION: ${{ needs.preflight.outputs.migration_version }}
+          SKIP_PREFLIGHT_REMOTE: 'false'
+        run: |
+          set -euo pipefail
+          node scripts/deploy-production-function.mjs | tee deploy-result.json
+          MANIFEST="$(python3 -c "import json; print(json.load(open('deploy-result.json')).get('manifestPath',''))")"
+          echo "manifest_path=${MANIFEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload deploy artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: production-deploy-${{ github.run_number }}
+          path: |
+            deploy-result.json
+            artifacts/production-deployments/
+          if-no-files-found: warn
+          retention-days: 90
+
+  health-check:
+    name: Health check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs:
+      - confirm
+      - preflight
+      - deploy-one-function
+    if: |
+      always() &&
+      needs.preflight.result == 'success' &&
+      needs.deploy-one-function.result == 'success'
+    environment: production
+    steps:
+      - name: Probe deployed function
+        env:
+          SUPABASE_PRODUCTION_URL: ${{ vars.SUPABASE_PRODUCTION_URL }}
+          SUPABASE_PRODUCTION_ANON_KEY: ${{ secrets.SUPABASE_PRODUCTION_PUBLISHABLE_KEY }}
+          FUNCTION_NAME: ${{ needs.preflight.outputs.function_name }}
+        run: |
+          set -euo pipefail
+          BASE="${SUPABASE_PRODUCTION_URL%/}"
+          FN="${FUNCTION_NAME}"
+          CODE=$(curl -sS -o /tmp/opt.txt -w "%{http_code}" -X OPTIONS \
+            -H "apikey: ${SUPABASE_PRODUCTION_ANON_KEY}" \
+            "${BASE}/functions/v1/${FN}")
+          test "$CODE" != "503"
+          if grep -Eqi "service_role|eyJ|password|sbp_" /tmp/opt.txt; then
+            echo "Response appears to leak sensitive material"
+            exit 1
+          fi
+
+  synthetic-tests:
+    name: Synthetic tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs:
+      - confirm
+      - preflight
+      - health-check
+    if: |
+      always() &&
+      needs.preflight.result == 'success' &&
+      needs.health-check.result == 'success'
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Run production deployment smoke tests
+        run: |
+          set -euo pipefail
+          if [ -f __tests__/production/productionDeployPipeline.test.js ]; then
+            node --test __tests__/production/productionDeployPipeline.test.js
+          else
+            echo "no production smoke-test suite present yet; skipping (does not block this run)"
+          fi
+
+  rollback-on-failure:
+    name: Rollback on failure
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs:
+      - confirm
+      - preflight
+      - deploy-one-function
+      - health-check
+      - synthetic-tests
+    if: |
+      always() &&
+      needs.deploy-one-function.result == 'success' &&
+      (needs.health-check.result == 'failure' || needs.synthetic-tests.result == 'failure')
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "20"
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+
+      - name: Download deployment manifest
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        with:
+          name: production-deploy-${{ github.run_number }}
+          path: .
+
+      - name: Resolve manifest path
+        id: manifest
+        run: |
+          set -euo pipefail
+          MANIFEST="${{ needs.deploy-one-function.outputs.manifest_path }}"
+          if [ -z "$MANIFEST" ] || [ ! -f "$MANIFEST" ]; then
+            MANIFEST="$(find artifacts/production-deployments -name '*.json' -type f 2>/dev/null | head -1 || true)"
+          fi
+          if [ -z "$MANIFEST" ] || [ ! -f "$MANIFEST" ]; then
+            echo "No deployment manifest available for rollback"
+            exit 1
+          fi
+          echo "path=${MANIFEST}" >> "$GITHUB_OUTPUT"
+          echo "Using manifest: ${MANIFEST}"
+
+      - name: Roll back / contain deployed function
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PRODUCTION_PROJECT_REF: ${{ vars.SUPABASE_PRODUCTION_PROJECT_REF }}
+          SUPABASE_PRODUCTION_URL: ${{ vars.SUPABASE_PRODUCTION_URL }}
+          SUPABASE_PRODUCTION_ANON_KEY: ${{ secrets.SUPABASE_PRODUCTION_PUBLISHABLE_KEY }}
+        run: |
+          set -euo pipefail
+          node scripts/rollback-production-function.mjs --manifest "${{ steps.manifest.outputs.path }}" | tee rollback-result.json
+
+      - name: Upload rollback artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: production-rollback-${{ github.run_number }}
+          path: |
+            rollback-result.json
+            artifacts/production-rollbacks/
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Fail workflow after rollback/containment attempt
+        run: |
+          set -euo pipefail
+          echo "Post-deployment validation failed; rollback/containment attempted. A human must review before retrying."
+          exit 1
+
+  publish-deployment-artifact:
+    name: Publish deployment artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs:
+      - confirm
+      - preflight
+      - deploy-one-function
+      - health-check
+      - synthetic-tests
+      - rollback-on-failure
+    if: always()
+    steps:
+      - name: Summary
+        run: |
+          set -euo pipefail
+          {
+            echo "## Controlled production deployment"
+            echo
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| Function | ${{ needs.preflight.outputs.function_name }} |"
+            echo "| Migration applied | ${{ needs.preflight.outputs.migration_version || '(none)' }} |"
+            echo "| Deploy | ${{ needs.deploy-one-function.result }} |"
+            echo "| Health | ${{ needs.health-check.result }} |"
+            echo "| Synthetic | ${{ needs.synthetic-tests.result }} |"
+            echo "| Rollback/containment | ${{ needs.rollback-on-failure.result }} |"
+            echo "| Manifest | ${{ needs.deploy-one-function.outputs.manifest_path }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ needs.deploy-one-function.result }}" != "success" ]; then
+            echo "Deploy failed"
+            exit 1
+          fi
+          if [ "${{ needs.health-check.result }}" != "success" ] || [ "${{ needs.synthetic-tests.result }}" != "success" ]; then
+            echo "Post-deployment validation failed"
+            if [ "${{ needs.rollback-on-failure.result }}" != "success" ]; then
+              echo "Rollback/containment did not succeed — workflow failed"
+            fi
+            exit 1
+          fi
