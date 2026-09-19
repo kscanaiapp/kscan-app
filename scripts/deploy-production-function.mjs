@@ -168,6 +168,36 @@ async function main() {
   const priorVersion = prior?.version ?? prior?.id ?? null;
   const priorBundleHash = readBundleHash(prior);
 
+  // AD-PRE-001: CAPTURE BEFORE REPLACE.
+  //
+  // An EXISTING function may not be replaced until its live bundle has been
+  // captured, because prior_version and prior_bundle_hash are metadata and
+  // cannot be redeployed. Without a capture, rollback has nothing to restore
+  // from and the deploy is a one-way door (B34-BE-G2).
+  //
+  // A NEW function needs no capture: deleting it restores the prior state
+  // exactly, which is what planRollback() does for that shape.
+  let capturePath = null;
+  if (prior) {
+    try {
+      const out = execFileSync(process.execPath, [
+        path.join('scripts', 'capture-production-function.mjs'),
+        '--function',
+        fnName,
+      ], { encoding: 'utf8', env: process.env });
+      process.stdout.write(out);
+      capturePath = JSON.parse(out.slice(out.indexOf('{'))).capture_path;
+    } catch (err) {
+      fail(
+        `Could not capture the live production bundle for ${fnName}: ${err.message}. ` +
+          'Refusing to replace an existing production function without exact rollback material.',
+      );
+    }
+    if (!capturePath || !fs.existsSync(capturePath)) {
+      fail(`Capture reported success but no capture manifest exists for ${fnName}`);
+    }
+  }
+
   const commit = gitHeadSha();
   const deployArgs = ['functions', 'deploy', fnName, '--project-ref', PRODUCTION_PROJECT_REF, '--debug'];
   if (!verifyJwt) deployArgs.push('--no-verify-jwt');
@@ -178,6 +208,7 @@ async function main() {
     function: fnName,
     priorVersion,
     priorBundleHash,
+    capturePath,
     sourceCommit: commit,
     sourceHash,
     verifyJwt,
@@ -211,6 +242,10 @@ async function main() {
     function_name: fnName,
     prior_version: priorVersion,
     prior_bundle_hash: priorBundleHash,
+    // The rollback script resolves the capture from here when --capture is not
+    // passed explicitly, so an operator holding only the deployment manifest can
+    // still perform an exact restore.
+    capture_path: capturePath,
     new_version: newVersion,
     new_source_commit: commit,
     new_source_hash: sourceHash,
@@ -222,7 +257,7 @@ async function main() {
     verify_jwt: verifyJwt,
     status,
     health,
-    rollback_strategy: priorVersion ? 'redeploy_prior_source' : 'remove_or_disable_new_function',
+    rollback_strategy: priorVersion ? 'restore_captured_bundle' : 'remove_or_disable_new_function',
   };
 
   const dir = ensureArtifactsDir('production-deployments');
@@ -246,6 +281,7 @@ async function main() {
         path.join('scripts', 'rollback-production-function.mjs'),
         '--manifest',
         manifestPath,
+        ...(capturePath ? ['--capture', capturePath] : []),
       ], { encoding: 'utf8', stdio: 'inherit', env: process.env });
     } catch {
       fail('Health failed and rollback also failed');
