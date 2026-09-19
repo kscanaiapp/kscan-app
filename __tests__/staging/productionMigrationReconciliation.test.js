@@ -21,6 +21,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const PREFLIGHT = path.join(ROOT, 'scripts', 'staging-deploy-preflight.mjs');
@@ -484,6 +485,30 @@ test('the applier applies exactly one governed file and never loops or pushes', 
   // No iteration over the pending set anywhere near execution.
   assert.doesNotMatch(src, /for\s*\(\s*const\s+\w+\s+of\s+pending\s*\)/, 'the applier never loops over pending');
   assert.doesNotMatch(src, /pending\.forEach/, 'the applier never iterates pending');
+});
+
+test('MIGRATION_FILE cannot substitute alternate SQL for an approved governed version', async (t) => {
+  const { resolveMigrationFile } = await loadApplier();
+  const governed = resolveMigrationFile(AD_DB_001, '');
+  assert.equal(path.basename(governed.path), `${AD_DB_001}_deleted_owner_retained_media.sql`);
+  assert.equal(resolveMigrationFile(AD_DB_001, governed.path).path, governed.path);
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'prod-migration-file-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const substitute = path.join(dir, `${AD_DB_001}_substitute.sql`);
+  fs.writeFileSync(substitute, 'select 1; -- different SQL under an approved version\n');
+
+  const script = [
+    `import { resolveMigrationFile } from ${JSON.stringify(pathToFileUrl(APPLIER))};`,
+    `resolveMigrationFile(${JSON.stringify(AD_DB_001)}, ${JSON.stringify(substitute)});`,
+  ].join('\n');
+  const attempt = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+    cwd: ROOT,
+    encoding: 'utf8',
+  });
+
+  assert.equal(attempt.status, 1, attempt.stderr || attempt.stdout);
+  assert.match(attempt.stderr, /MIGRATION_FILE must resolve to the governed local migration/);
 });
 
 test('the old pending.length === 1 invariant is gone', () => {

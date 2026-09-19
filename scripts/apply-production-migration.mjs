@@ -17,7 +17,7 @@
  *   APPROVE_PRODUCTION_MIGRATION=YES
  *
  * Optional:
- *   MIGRATION_FILE (defaults to matching file under supabase/migrations/)
+ *   MIGRATION_FILE (optional; must resolve to the matching governed file under supabase/migrations/)
  *   ALLOW_DESTRUCTIVE_MIGRATION=YES (required for DROP TABLE / destructive ALTER)
  */
 
@@ -59,6 +59,14 @@ function requireApproval() {
 }
 
 function resolveMigrationFile(version, explicitPath) {
+  const local = listLocalMigrationVersions();
+  const matches = local.filter((m) => m.version === version);
+  if (matches.length === 0) fail(`No local migration file for version ${version}`);
+  if (matches.length > 1) {
+    fail(`Multiple local migration files carry version ${version}; refusing ambiguous execution`);
+  }
+  const governed = matches[0];
+
   if (explicitPath) {
     const abs = path.resolve(explicitPath);
     if (!fs.existsSync(abs)) fail(`Migration file not found: ${abs}`);
@@ -67,13 +75,16 @@ function resolveMigrationFile(version, explicitPath) {
     if (parsed.version !== version) {
       fail(`Filename version ${parsed.version} does not equal MIGRATION_VERSION ${version}`);
     }
-    return { ...parsed, path: abs };
+    const explicitRealPath = fs.realpathSync(abs);
+    const governedRealPath = fs.realpathSync(governed.path);
+    if (explicitRealPath !== governedRealPath) {
+      fail(
+        `MIGRATION_FILE must resolve to the governed local migration for version ${version}: ${governedRealPath}`,
+      );
+    }
   }
 
-  const local = listLocalMigrationVersions();
-  const match = local.find((m) => m.version === version);
-  if (!match) fail(`No local migration file for version ${version}`);
-  return match;
+  return governed;
 }
 
 function listRemoteVersions() {
@@ -377,4 +388,4 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   main();
 }
 
-export { pendingVersions, remoteHasVersion, selectApprovedMigration };
+export { pendingVersions, remoteHasVersion, resolveMigrationFile, selectApprovedMigration };
