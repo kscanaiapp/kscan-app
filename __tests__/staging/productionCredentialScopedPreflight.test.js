@@ -229,17 +229,27 @@ function extractLiveGateProgram() {
   return program;
 }
 
-/** Runs the extracted live gate against one report. */
+/**
+ * Runs the extracted live gate against one report.
+ *
+ * The gate locates its report through LIVE_PREFLIGHT_JSON rather than a
+ * checkout-relative path: the workflow captures into $RUNNER_TEMP so the
+ * preflight's clean-worktree gate never sees its own output as drift. This
+ * harness mirrors that contract, so the program under test is byte-identical
+ * to the one production runs.
+ */
 function runLiveGate(report, env = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'live-gate-'));
   try {
-    fs.writeFileSync(path.join(dir, 'live-preflight.json'), JSON.stringify(report));
+    const reportPath = path.join(dir, 'live-production-preflight.json');
+    fs.writeFileSync(reportPath, JSON.stringify(report));
     fs.writeFileSync(path.join(dir, 'gate.js'), extractLiveGateProgram());
     const result = spawnSync(process.execPath, ['gate.js'], {
       cwd: dir,
       encoding: 'utf8',
       env: {
         ...process.env,
+        LIVE_PREFLIGHT_JSON: reportPath,
         EXPECTED_VERSION: APPROVED_VERSION,
         EXPECTED_REF: PRODUCTION_REF,
         FORBIDDEN_REF: STAGING_REF,

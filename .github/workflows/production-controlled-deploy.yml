@@ -217,14 +217,30 @@ jobs:
           APPROVED_MIGRATION_VERSION: ${{ inputs.approved_migration_version }}
         run: |
           set -euo pipefail
-          node scripts/production-deploy-preflight.mjs --static --json | tee preflight.json
+
+          # CAPTURE OUTSIDE THE CHECKOUT.
+          #
+          # `node ... | tee report.json` creates report.json the moment the
+          # pipeline starts — before the node process on the left has even
+          # finished loading. The preflight's FIRST act is gitWorkingTreeClean(),
+          # so a capture file written into $GITHUB_WORKSPACE makes the preflight
+          # see its own not-yet-written output as untracked drift and refuse with
+          # "Working tree is dirty; production never deploys from a dirty
+          # worktree" — which is exactly what killed run 35462960188.
+          #
+          # $RUNNER_TEMP is outside the checkout, so the gate keeps its full
+          # strength and sees only real drift. The gate is NOT relaxed, the file
+          # is NOT gitignored, and --allow-dirty is still not offered.
+          export STATIC_PREFLIGHT_JSON="$RUNNER_TEMP/production-preflight.json"
+
+          node scripts/production-deploy-preflight.mjs --static --json | tee "$STATIC_PREFLIGHT_JSON"
           {
             echo "## Production deployment plan"
             echo
             echo "**This is what the required-reviewer approval below is approving.**"
             echo
             node -e "
-              const r = require('./preflight.json');
+              const r = require(process.env.STATIC_PREFLIGHT_JSON);
               console.log('| Field | Value |');
               console.log('| --- | --- |');
               console.log(\`| Target (expected) | \${r.environment.expectedProductionRef} |\`);
@@ -248,7 +264,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: production-preflight-${{ github.run_number }}
-          path: preflight.json
+          path: ${{ runner.temp }}/production-preflight.json
           retention-days: 90
 
   migration-plan:
@@ -360,12 +376,18 @@ jobs:
           APPROVED_MIGRATION_VERSION: ${{ needs.preflight.outputs.migration_version }}
         run: |
           set -euo pipefail
-          node scripts/production-deploy-preflight.mjs --json | tee live-preflight.json
+
+          # Same capture-outside-the-checkout rule as the preflight job. The
+          # FULL preflight calls gitWorkingTreeClean() too, so its own report
+          # must not land in the worktree it is about to judge.
+          export LIVE_PREFLIGHT_JSON="$RUNNER_TEMP/live-production-preflight.json"
+
+          node scripts/production-deploy-preflight.mjs --json | tee "$LIVE_PREFLIGHT_JSON"
           EXPECTED_VERSION="${APPROVED_MIGRATION_VERSION}" \
           EXPECTED_REF="${EXPECTED_PRODUCTION_REF}" \
           FORBIDDEN_REF="${STAGING_REF}" \
           node -e "
-            const r = require('./live-preflight.json');
+            const r = require(process.env.LIVE_PREFLIGHT_JSON);
             const m = r.migrations || {};
             const fail = (msg) => { console.error('LIVE GATE FAILED: ' + msg); process.exitCode = 1; };
 
@@ -413,7 +435,14 @@ jobs:
           APPROVE_PRODUCTION_MIGRATION: YES
         run: |
           set -euo pipefail
-          node scripts/apply-production-migration.mjs | tee migration-result.json
+
+          # The applier does not itself gate on a clean worktree, but its result
+          # is kept out of the checkout for the same reason: nothing this
+          # pipeline produces may become drift that a later production gate
+          # would have to forgive.
+          export MIGRATION_RESULT_JSON="$RUNNER_TEMP/production-migration-result.json"
+
+          node scripts/apply-production-migration.mjs | tee "$MIGRATION_RESULT_JSON"
 
       - name: Upload migration artifact
         if: always()
@@ -421,8 +450,8 @@ jobs:
         with:
           name: production-migration-${{ github.run_number }}
           path: |
-            live-preflight.json
-            migration-result.json
+            ${{ runner.temp }}/live-production-preflight.json
+            ${{ runner.temp }}/production-migration-result.json
             artifacts/production-migrations/
           if-no-files-found: warn
           retention-days: 90
