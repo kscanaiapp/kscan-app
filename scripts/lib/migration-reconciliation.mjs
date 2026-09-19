@@ -266,14 +266,35 @@ export function validateRemoteOnlyExclusions(remoteOnly, localSet, remoteSet, cl
  * Validates `knownPending[]`.
  *
  * A known-pending declaration says "this local version is genuinely unapplied
- * here, and that is expected". It is therefore a lie -- and a blocker -- if the
- * remote ledger already holds that version, or if a `reconciled` entry
- * simultaneously claims the effect is already present. Those two checks are the
- * whole reason this cannot be used to smuggle a migration past the gate.
+ * here, and that is expected". It is a lie -- and a blocker -- if a `reconciled`
+ * entry simultaneously claims the effect is already present.
+ *
+ * THE LIFECYCLE, and why it is asymmetric
+ *
+ * A production migration campaign applies one approved migration at a time, over
+ * days. If a KNOWN_FUTURE_UNAPPLIED entry became "stale authority" the moment its
+ * version landed in the remote ledger, every successful migration would invalidate
+ * the manifest and require a source edit before the next one could run. Editing
+ * governed authority between every production write is worse than the problem it
+ * would solve, so a KNOWN_FUTURE_UNAPPLIED entry has two legitimate states:
+ *
+ *   STATE A  version absent from the ledger   -> KNOWN_PENDING (approvable)
+ *   STATE B  that exact version now present   -> FULFILLED
+ *
+ * A FULFILLED entry stops being pending, is never selected again, does not fail
+ * the gate, stays visible in reporting, and lets the next migration be approved --
+ * with the manifest untouched.
+ *
+ * This tolerance is deliberately NOT extended to HOLD or EXCLUDE. Those say the
+ * migration must not run here. If one of them turns up in the ledger anyway,
+ * something applied it outside this gate, which is exactly the unexplained
+ * production mutation the whole authority exists to catch. That fails closed.
  */
 export function validateKnownPending(knownPending, localSet, remoteSet, aliasedLocal) {
   const problems = [];
   const declaredPending = new Map();
+  const fulfilled = new Map();
+  const seen = new Set();
 
   for (const item of knownPending) {
     const label = `${item?.localVersion ?? '(no localVersion)'} (${item?.logicalName ?? 'unnamed'})`;
@@ -298,24 +319,35 @@ export function validateKnownPending(knownPending, localSet, remoteSet, aliasedL
         `known-pending entry ${label}: localVersion is not present in supabase/migrations — stale authority`,
       );
     }
-    if (remoteSet.has(item.localVersion)) {
-      problems.push(
-        `known-pending entry ${label}: the remote ledger already contains this version, so it is not pending — stale authority`,
-      );
-    }
     if (aliasedLocal.has(item.localVersion)) {
       problems.push(
         `known-pending entry ${label}: also declared reconciled, which asserts its effect is already present — contradictory authority`,
       );
     }
-    if (declaredPending.has(item.localVersion)) {
+    if (seen.has(item.localVersion)) {
       problems.push(`known-pending entry ${label}: declared more than once`);
+      continue;
+    }
+    seen.add(item.localVersion);
+
+    const presentRemotely = remoteSet.has(item.localVersion);
+    if (presentRemotely && item.disposition !== KNOWN_FUTURE_UNAPPLIED) {
+      // HOLD / EXCLUDE must never be present. Something applied it outside this
+      // gate. Fail closed and say so plainly.
+      problems.push(
+        `known-pending entry ${label}: declared ${item.disposition}, which must never be applied here, but the remote ledger contains it — unexplained production mutation`,
+      );
+      continue;
+    }
+
+    if (presentRemotely) {
+      fulfilled.set(item.localVersion, item);
     } else {
       declaredPending.set(item.localVersion, item);
     }
   }
 
-  return { problems, declaredPending };
+  return { problems, declaredPending, fulfilled };
 }
 
 /**

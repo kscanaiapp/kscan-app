@@ -148,7 +148,7 @@ function compareMigrations(local, remote, approvedVersion, reconciliation = null
   const knownPendingDeclarations = reconciliation?.knownPending ?? [];
   const known = validateKnownPending(knownPendingDeclarations, localSet, remoteSet, aliasedLocal);
   problems.push(...known.problems);
-  const { declaredPending } = known;
+  const { declaredPending, fulfilled } = known;
 
   // A remote-only version is drift ONLY if no proven reconciliation accounts for
   // it and no validated remote-only exclusion names it.
@@ -176,9 +176,12 @@ function compareMigrations(local, remote, approvedVersion, reconciliation = null
   }
 
   // The environment is operating under an explicit reconciliation authority as
-  // soon as it declares any knownPending entry. Only then may more than one
-  // migration legitimately remain pending.
-  const hasKnownPendingAuthority = declaredPending.size > 0;
+  // soon as it DECLARES a knownPending section at all. Deriving this from the
+  // declarations rather than from how many are still outstanding is what lets a
+  // campaign run to completion on one unchanged manifest: as entries become
+  // FULFILLED the authority stays in force instead of silently reverting to the
+  // strict one-pending rule partway through.
+  const hasKnownPendingAuthority = knownPendingDeclarations.length > 0;
 
   const approval = resolveApprovedMigration({
     approvedVersion,
@@ -200,6 +203,9 @@ function compareMigrations(local, remote, approvedVersion, reconciliation = null
     };
   };
 
+  const withDisposition = (d) =>
+    knownPending.filter((m) => declaredPending.get(m.version)?.disposition === d).map(describe);
+
   const result = {
     localCount: local.length,
     remoteCount: remote.length,
@@ -220,8 +226,20 @@ function compareMigrations(local, remote, approvedVersion, reconciliation = null
     blockers: [],
 
     // --- the report the production campaign reads -------------------------
-    // Each bucket answers one question and only that question.
+    // Each bucket answers one question and only that question. HOLD and EXCLUDE
+    // are reported separately and never folded into a generic pending count:
+    // the operator has to be able to see, at a glance, how much of the pending
+    // set is actually approvable.
     knownPending: knownPending.map(describe),
+    approvableKnownPending: withDisposition(KNOWN_FUTURE_UNAPPLIED),
+    hold: withDisposition(HOLD),
+    exclude: withDisposition(EXCLUDE),
+    fulfilled: [...fulfilled.values()].map((k) => ({
+      version: k.localVersion,
+      logicalName: k.logicalName,
+      disposition: k.disposition,
+      state: 'FULFILLED',
+    })),
     unexplainedRemote: remoteOnly,
     unexplainedLocal: unexplainedLocal.map(describe),
     remoteOnlyAllowed: excludedRemoteOnly.map((v) => ({

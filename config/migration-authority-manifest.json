@@ -1072,8 +1072,8 @@
           {
             "localVersion": "20260818000001",
             "logicalName": "add_user_stylist_preferences_display_name_customized",
-            "disposition": "KNOWN_FUTURE_UNAPPLIED",
-            "evidence": "Effect proven absent on production: the objects this migration depends on (see 20260818000001_add_user_stylist_preferences_display_name_customized.sql) are not present in the live inventory — production carries 55 public tables against the governed tree's expectation, and no ledger row records this logical name. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+            "disposition": "EXCLUDE",
+            "evidence": "NON-CANONICAL DUPLICATE. config/migration-authority-manifest.json -> entries declares ledgerVersion 20260818141056 (user_stylist_preferences_display_name_customized) as the canonical identity, recording this file as its sourceOriginalFilename and noting (MIG-03) that the pre-rename original is retained in place only because __tests__/stylistIdentity.test.js reads it directly. Both files carry byte-identical executable SQL. Only ONE of the pair may ever become a production ledger row, so the non-canonical original is non-executable here; 20260818141056 carries the production identity if the effect is required. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
           },
           {
             "localVersion": "20260818141056",
@@ -1084,26 +1084,26 @@
           {
             "localVersion": "20260819125404",
             "logicalName": "wearable_pairings_sessions",
-            "disposition": "KNOWN_FUTURE_UNAPPLIED",
-            "evidence": "Effect proven absent on production: 5 declared object(s) verified missing — public.wearable_pairings, public.wearable_sessions, public.wearable_messages, public.wearable_results, public.wearable_actions. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+            "disposition": "EXCLUDE",
+            "evidence": "WEARABLE_SCOPE=EXCLUDE_FROM_BUILD34_PRODUCTION (locked owner decision). creates the five public.wearable_* tables (pairings, sessions, actions, messages, results, auth_attempts) and their indexes; a content scan shows it touches no non-wearable object. The wearable surface is outside Build 34 production and must never execute through this path — not merely deferred. Corroborated by config/backend-authority.json, which carries WEARABLE_BUILD34_SCOPE=OUT for the wearable Edge Functions. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
           },
           {
             "localVersion": "20260819125700",
             "logicalName": "saved_scans_wearable_source",
-            "disposition": "HOLD",
-            "evidence": "Widens saved_scans.source for the wearable lane. saved_scans.source exists on production, but the live CHECK constraint's accepted value set was not enumerated in this pass, so whether the wearable value is already permitted is undetermined. The wearable surface is additionally declared WEARABLE_BUILD34_SCOPE=OUT. Not cleared for execution. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+            "disposition": "EXCLUDE",
+            "evidence": "WEARABLE_SCOPE=EXCLUDE_FROM_BUILD34_PRODUCTION (locked owner decision). widens the saved_scans.source contract specifically to admit the wearable lane. It touches a shared table, so it is excluded by the scope decision rather than by object ownership. The wearable surface is outside Build 34 production and must never execute through this path — not merely deferred. Corroborated by config/backend-authority.json, which carries WEARABLE_BUILD34_SCOPE=OUT for the wearable Edge Functions. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
           },
           {
             "localVersion": "20260819144630",
             "logicalName": "widen_saved_scans_source_for_meta_wearable",
-            "disposition": "HOLD",
-            "evidence": "Further widens saved_scans.source for the Meta wearable lane. Same indeterminacy as 20260819125700, and the same WEARABLE_BUILD34_SCOPE=OUT declaration applies. Not cleared for execution. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+            "disposition": "EXCLUDE",
+            "evidence": "WEARABLE_SCOPE=EXCLUDE_FROM_BUILD34_PRODUCTION (locked owner decision). further widens saved_scans.source for the Meta wearable lane. Same shared-table reasoning as 20260819125700. The wearable surface is outside Build 34 production and must never execute through this path — not merely deferred. Corroborated by config/backend-authority.json, which carries WEARABLE_BUILD34_SCOPE=OUT for the wearable Edge Functions. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
           },
           {
             "localVersion": "20260819151224",
             "logicalName": "wearable_security_hardening",
-            "disposition": "KNOWN_FUTURE_UNAPPLIED",
-            "evidence": "Effect proven absent on production: 1 declared object(s) verified missing — public.wearable_auth_attempts. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+            "disposition": "EXCLUDE",
+            "evidence": "WEARABLE_SCOPE=EXCLUDE_FROM_BUILD34_PRODUCTION (locked owner decision). wearable-only privilege hardening; a content scan shows every object it names is a public.wearable_* relation. The wearable surface is outside Build 34 production and must never execute through this path — not merely deferred. Corroborated by config/backend-authority.json, which carries WEARABLE_BUILD34_SCOPE=OUT for the wearable Edge Functions. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
           },
           {
             "localVersion": "20260823120000",
@@ -1114,8 +1114,8 @@
           {
             "localVersion": "20260823170850",
             "logicalName": "reconcile_wearable_schema_with_staging",
-            "disposition": "KNOWN_FUTURE_UNAPPLIED",
-            "evidence": "Effect proven absent on production: 1 declared object(s) verified missing — public.wearable_auth_attempts. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+            "disposition": "EXCLUDE",
+            "evidence": "WEARABLE_SCOPE=EXCLUDE_FROM_BUILD34_PRODUCTION (locked owner decision). reconciles the wearable schema with staging; a content scan shows every object it names is a public.wearable_* relation. The wearable surface is outside Build 34 production and must never execute through this path — not merely deferred. Corroborated by config/backend-authority.json, which carries WEARABLE_BUILD34_SCOPE=OUT for the wearable Edge Functions. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
           },
           {
             "localVersion": "20260823175314",
@@ -1126,8 +1126,8 @@
           {
             "localVersion": "20260824175813",
             "logicalName": "create_investor_inquiries",
-            "disposition": "KNOWN_FUTURE_UNAPPLIED",
-            "evidence": "Effect proven absent on production: 1 declared object(s) verified missing — public.investor_inquiries. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+            "disposition": "EXCLUDE",
+            "evidence": "INVESTOR_SCOPE=EXCLUDE_FROM_BUILD34_PRODUCTION (locked owner decision). Creates public.investor_inquiries and its RLS policy; a content scan shows it touches no non-investor object. Investor schema and storage are outside Build 34 production and must never execute through this path. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
           },
           {
             "localVersion": "20260829120000",
@@ -1342,8 +1342,8 @@
           {
             "localVersion": "20260915232402",
             "logicalName": "signature_style_free_closet_evidence",
-            "disposition": "KNOWN_FUTURE_UNAPPLIED",
-            "evidence": "Effect proven absent on production: 1 declared object(s) verified missing — public.recompute_signature_style. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+            "disposition": "HOLD",
+            "evidence": "SIGNATURE_STYLE_FREE_CLOSET_EVIDENCE_MIGRATION=HOLD_AS_CURRENTLY_WRITTEN (locked owner decision, Build 34 release review). Effect is absent from production, but as written the migration conflates legacy Recent Scan / utility evidence with owned Closet evidence. It must not be selectable through the production migration path until that evidence boundary is rewritten. This is a release-contract hold, not a drift finding. Its sibling 20260915214857 (signature_style_free_entitlement) is NOT covered by this decision and remains legitimate Build 34 work. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
           },
           {
             "localVersion": "20260916130553",

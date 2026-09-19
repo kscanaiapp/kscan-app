@@ -563,16 +563,31 @@ test('the reaction-count token contract is NOT laundered as already reconciled',
   }
 });
 
-test('a knownPending declaration for a version the ledger already holds is a blocker', async () => {
+// SUPERSEDED by the sequential-campaign lifecycle (FIX 1). A KNOWN_FUTURE_UNAPPLIED
+// entry whose version lands in the ledger is FULFILLED, not stale authority --
+// otherwise every successful migration would invalidate the manifest and demand a
+// source edit before the next one could run. The tolerance is asymmetric, and
+// this test now pins both halves of that asymmetry.
+test('a knownPending version the ledger holds is FULFILLED for KNOWN_FUTURE_UNAPPLIED, and a blocker otherwise', async () => {
   const { compareMigrations } = await loadPreflight();
   const remote = [...REMOTE_BASE, AD_DB_001];
-  const result = compareMigrations(LOCAL_BASE, remote, '', fourPendingAuthority());
 
-  assert.equal(result.ok, false);
-  assert.ok(
-    result.blockers.some((b) => b.includes('already contains this version')),
-    result.blockers.join('\n'),
-  );
+  const tolerated = compareMigrations(LOCAL_BASE, remote, '', fourPendingAuthority());
+  assert.equal(tolerated.ok, true, tolerated.blockers.join('\n'));
+  assert.deepEqual(tolerated.fulfilled.map((f) => f.version), [AD_DB_001]);
+  assert.ok(!tolerated.knownPending.map((m) => m.version).includes(AD_DB_001));
+
+  for (const disposition of ['HOLD', 'EXCLUDE']) {
+    const auth = fourPendingAuthority({
+      knownPending: [
+        knownPending(AD_DB_001, disposition),
+        ...[AD_DB_002, AD_DB_003, AD_DB_004].map((v) => knownPending(v)),
+      ],
+    });
+    const refused = compareMigrations(LOCAL_BASE, remote, '', auth);
+    assert.equal(refused.ok, false, `${disposition} present remotely must fail closed`);
+    assert.ok(refused.blockers.some((b) => b.includes('unexplained production mutation')));
+  }
 });
 
 test('a knownPending declaration for a version that does not exist locally is a blocker', async () => {
@@ -675,4 +690,355 @@ test('a knownPending section that is not an array is a hard error', async () => 
     }),
   );
   assert.throws(() => loadLedgerReconciliation(PRODUCTION_REF, file), /knownPending must be an array/);
+});
+
+// ===========================================================================
+// RELEASE-SAFETY REPAIR PASS
+//
+// The tests above prove ONE migration can be selected safely. These prove the
+// CAMPAIGN is safe: that four migrations can be applied one at a time, in
+// sequence, against a single unchanged authority manifest, and that the
+// migrations the owner has taken out of Build 34 scope can never be selected.
+// ===========================================================================
+
+// --------------------------------------------------- sequential campaign (1-3)
+
+test('SEQ 1. M1 -> M2 -> M3 -> M4 runs to completion on ONE unchanged manifest', async () => {
+  const { compareMigrations } = await loadPreflight();
+
+  // Authored ONCE, deliberately frozen, and deep-frozen so that any attempt to
+  // mutate it between steps throws rather than quietly passing the test.
+  const AUTHORITY = Object.freeze(fourPendingAuthority());
+  Object.freeze(AUTHORITY.knownPending);
+  AUTHORITY.knownPending.forEach(Object.freeze);
+  const authoritySnapshot = JSON.stringify(AUTHORITY);
+
+  let remote = [...REMOTE_BASE];
+  const applied = [];
+
+  for (const step of ALL_FOUR) {
+    const result = compareMigrations(LOCAL_BASE, remote, step, AUTHORITY);
+
+    assert.equal(result.ok, true, `approving ${step}: ${result.blockers.join('\n')}`);
+    assert.equal(result.approvedPending.version, step, `${step} must be the selection`);
+    assert.equal(result.approvedSelectedForExecution, 1, `${step}: exactly one selection`);
+
+    // Everything already applied is FULFILLED: no longer pending, still visible.
+    assert.deepEqual(
+      result.fulfilled.map((f) => f.version).sort(),
+      [...applied].sort(),
+      `${step}: fulfilled set must be exactly what has been applied`,
+    );
+    for (const done of applied) {
+      assert.ok(
+        !result.knownPending.map((m) => m.version).includes(done),
+        `${done} must not still be pending after it was applied`,
+      );
+    }
+
+    // Simulate a SUCCESSFUL apply: the ledger gains exactly this version.
+    // The manifest is NOT touched.
+    remote = [...remote, step];
+    applied.push(step);
+  }
+
+  assert.equal(applied.length, 4, 'all four migrations ran');
+  assert.equal(
+    JSON.stringify(AUTHORITY),
+    authoritySnapshot,
+    'the authority manifest was never edited during the campaign',
+  );
+
+  // Campaign complete: nothing left pending, all four fulfilled, still green.
+  const final = compareMigrations(LOCAL_BASE, remote, '', AUTHORITY);
+  assert.equal(final.ok, true, final.blockers.join('\n'));
+  assert.equal(final.knownPending.length, 0, 'nothing remains pending');
+  assert.equal(final.fulfilled.length, 4, 'all four are fulfilled');
+});
+
+test('SEQ 2. a FULFILLED entry does not block the next migration or read as stale authority', async () => {
+  const { compareMigrations } = await loadPreflight();
+
+  // M1 already applied; the manifest still lists it as knownPending.
+  const remote = [...REMOTE_BASE, AD_DB_001];
+  const result = compareMigrations(LOCAL_BASE, remote, AD_DB_002, fourPendingAuthority());
+
+  assert.equal(result.ok, true, result.blockers.join('\n'));
+  assert.ok(
+    !result.blockers.some((b) => b.includes('stale authority')),
+    'a fulfilled entry must never be reported as stale authority',
+  );
+  assert.deepEqual(result.fulfilled.map((f) => f.version), [AD_DB_001]);
+  assert.equal(result.approvedPending.version, AD_DB_002, 'the next migration is selectable');
+  assert.equal(result.approvedSelectedForExecution, 1);
+});
+
+test('SEQ 3. a FULFILLED migration can never be selected again', async () => {
+  const { compareMigrations } = await loadPreflight();
+  const { selectApprovedMigration } = await loadApplier();
+  const remote = [...REMOTE_BASE, AD_DB_001];
+
+  // Re-approving M1 after it is present selects NOTHING.
+  const pre = compareMigrations(LOCAL_BASE, remote, AD_DB_001, fourPendingAuthority());
+  assert.equal(pre.approvedSelectedForExecution, 0, 're-approval must select nothing');
+  assert.equal(pre.approvedPending, undefined);
+  assert.equal(pre.approvedAlreadyApplied, AD_DB_001);
+  assert.ok(
+    !pre.knownPending.map((m) => m.version).includes(AD_DB_001),
+    'a fulfilled migration is no longer pending',
+  );
+
+  // And the applier, the only thing that mutates production, refuses outright.
+  const decision = selectApprovedMigration({
+    local: LOCAL_BASE,
+    remote,
+    approvedVersion: AD_DB_001,
+    reconciliation: fourPendingAuthority(),
+  });
+  assert.equal(decision.selected, null);
+  assert.ok(decision.blockers.some((b) => b.includes('already recorded on production')));
+});
+
+// ------------------------------------------- the tolerance is asymmetric (4-5)
+
+test('SEQ 4. a HOLD migration that appears in production FAILS CLOSED', async () => {
+  const { compareMigrations } = await loadPreflight();
+  const auth = fourPendingAuthority({
+    knownPending: [
+      knownPending(AD_DB_001, 'HOLD'),
+      ...[AD_DB_002, AD_DB_003, AD_DB_004].map((v) => knownPending(v)),
+    ],
+  });
+  const result = compareMigrations(LOCAL_BASE, [...REMOTE_BASE, AD_DB_001], AD_DB_002, auth);
+
+  assert.equal(result.ok, false, 'a HOLD migration appearing remotely is never tolerated');
+  assert.ok(
+    result.blockers.some((b) => b.includes('unexplained production mutation')),
+    result.blockers.join('\n'),
+  );
+  assert.equal(result.fulfilled.length, 0, 'HOLD is never fulfilled — it is a mutation we did not sanction');
+});
+
+test('SEQ 5. an EXCLUDE migration that appears in production FAILS CLOSED', async () => {
+  const { compareMigrations } = await loadPreflight();
+  const auth = fourPendingAuthority({
+    knownPending: [
+      knownPending(AD_DB_001, 'EXCLUDE'),
+      ...[AD_DB_002, AD_DB_003, AD_DB_004].map((v) => knownPending(v)),
+    ],
+  });
+  const result = compareMigrations(LOCAL_BASE, [...REMOTE_BASE, AD_DB_001], AD_DB_002, auth);
+
+  assert.equal(result.ok, false, 'an EXCLUDE migration appearing remotely is never tolerated');
+  assert.ok(result.blockers.some((b) => b.includes('unexplained production mutation')));
+  assert.equal(result.fulfilled.length, 0);
+});
+
+// ------------------------------------- locked owner scope decisions (6, 7, 8, 9)
+
+/** Asserts a real shipped-manifest version carries `disposition` and cannot be approved. */
+async function assertNotSelectable(version, disposition, evidencePattern) {
+  const { loadLedgerReconciliation } = await loadRecon();
+  const { compareMigrations } = await loadPreflight();
+  const prod = loadLedgerReconciliation(PRODUCTION_REF, MANIFEST);
+
+  const entry = prod.knownPending.find((k) => k.localVersion === version);
+  assert.ok(entry, `${version} must be declared in the shipped production authority`);
+  assert.equal(entry.disposition, disposition, `${version} must be ${disposition}`);
+  if (evidencePattern) assert.match(entry.evidence, evidencePattern);
+
+  // And prove the gate actually refuses it, not just that the manifest says so.
+  const local = localOf(version, AD_DB_002);
+  const auth = {
+    reconciled: [],
+    remoteOnly: [],
+    knownPending: [
+      { ...entry, logicalName: entry.logicalName || `m_${version}` },
+      knownPending(AD_DB_002),
+    ],
+  };
+  const result = compareMigrations(local, [], version, auth);
+  assert.equal(result.ok, false, `${version} must not be approvable`);
+  assert.equal(result.approvedSelectedForExecution, 0);
+  assert.ok(
+    result.blockers.some((b) => b.includes(disposition)),
+    `${version}: ${result.blockers.join('\n')}`,
+  );
+  return entry;
+}
+
+test('SEQ 6. the Signature Style closet-evidence migration is HOLD and cannot be selected', async () => {
+  await assertNotSelectable(
+    '20260915232402',
+    'HOLD',
+    /SIGNATURE_STYLE_FREE_CLOSET_EVIDENCE_MIGRATION=HOLD_AS_CURRENTLY_WRITTEN/,
+  );
+
+  // Its sibling is explicitly NOT covered by that decision and stays approvable.
+  const { loadLedgerReconciliation } = await loadRecon();
+  const prod = loadLedgerReconciliation(PRODUCTION_REF, MANIFEST);
+  const sibling = prod.knownPending.find((k) => k.localVersion === '20260915214857');
+  assert.ok(sibling, 'signature_style_free_entitlement must still be declared');
+  assert.equal(
+    sibling.disposition,
+    'KNOWN_FUTURE_UNAPPLIED',
+    'the entitlement migration is legitimate Build 34 work and must not be swept up in the hold',
+  );
+});
+
+test('SEQ 7. every Build 34 wearable migration is EXCLUDE and cannot be selected', async () => {
+  const WEARABLE = [
+    '20260819125404', // wearable_pairings_sessions
+    '20260819125700', // saved_scans_wearable_source
+    '20260819144630', // widen_saved_scans_source_for_meta_wearable
+    '20260819151224', // wearable_security_hardening
+    '20260823170850', // reconcile_wearable_schema_with_staging
+  ];
+  for (const version of WEARABLE) {
+    await assertNotSelectable(version, 'EXCLUDE', /WEARABLE_SCOPE=EXCLUDE_FROM_BUILD34_PRODUCTION/);
+  }
+
+  // No wearable-named migration may be left approvable anywhere in the authority.
+  const { loadLedgerReconciliation } = await loadRecon();
+  const prod = loadLedgerReconciliation(PRODUCTION_REF, MANIFEST);
+  const strays = prod.knownPending.filter(
+    (k) => /wearable/i.test(k.logicalName) && k.disposition !== 'EXCLUDE',
+  );
+  assert.deepEqual(strays.map((k) => k.localVersion), [], 'no wearable migration may remain selectable');
+});
+
+test('SEQ 8. the investor migration is EXCLUDE and cannot be selected', async () => {
+  await assertNotSelectable('20260824175813', 'EXCLUDE', /INVESTOR_SCOPE=EXCLUDE_FROM_BUILD34_PRODUCTION/);
+
+  const { loadLedgerReconciliation } = await loadRecon();
+  const prod = loadLedgerReconciliation(PRODUCTION_REF, MANIFEST);
+  const strays = prod.knownPending.filter(
+    (k) => /investor/i.test(k.logicalName) && k.disposition !== 'EXCLUDE',
+  );
+  assert.deepEqual(strays.map((k) => k.localVersion), [], 'no investor migration may remain selectable');
+});
+
+test('SEQ 9. the non-canonical display-name duplicate cannot be selected', async () => {
+  await assertNotSelectable('20260818000001', 'EXCLUDE', /NON-CANONICAL DUPLICATE/);
+});
+
+test('SEQ 10. the CANONICAL display-name identity remains valid when otherwise eligible', async () => {
+  const { loadLedgerReconciliation } = await loadRecon();
+  const { compareMigrations } = await loadPreflight();
+  const prod = loadLedgerReconciliation(PRODUCTION_REF, MANIFEST);
+
+  const canonical = prod.knownPending.find((k) => k.localVersion === '20260818141056');
+  assert.ok(canonical, 'the canonical identity must still be declared');
+  assert.equal(canonical.disposition, 'KNOWN_FUTURE_UNAPPLIED', 'the canonical copy stays approvable');
+
+  // The registry names 20260818141056 as the canonical ledgerVersion, and names
+  // 20260818000001 only as its sourceOriginalFilename.
+  const registry = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
+  const entry = registry.entries.find((e) => e.ledgerVersion === '20260818141056');
+  assert.ok(entry, 'the registry must carry the canonical ledger identity');
+  assert.match(entry.sourceOriginalFilename, /20260818000001_/, 'the duplicate is only the original source file');
+  assert.ok(
+    !registry.entries.some((e) => e.ledgerVersion === '20260818000001'),
+    'the non-canonical version must never be a ledger identity',
+  );
+
+  // And it really is selectable when approved.
+  const local = localOf('20260818141056', AD_DB_002);
+  const auth = {
+    reconciled: [],
+    remoteOnly: [],
+    knownPending: [canonical, knownPending(AD_DB_002)],
+  };
+  const result = compareMigrations(local, [], '20260818141056', auth);
+  assert.equal(result.ok, true, result.blockers.join('\n'));
+  assert.equal(result.approvedPending.version, '20260818141056');
+  assert.equal(result.approvedSelectedForExecution, 1);
+});
+
+test('SEQ 11. both reaction-count migrations remain HOLD and cannot be selected', async () => {
+  for (const version of ['20260916203000', '20260916233708']) {
+    const entry = await assertNotSelectable(version, 'HOLD', /one-argument|B34-FE-DR-001/);
+    assert.ok(
+      !/KNOWN_FUTURE_UNAPPLIED/.test(entry.disposition),
+      `${version} must not be loosened to approvable merely because its backend effect is absent`,
+    );
+  }
+});
+
+// ------------------------------------------------------- reporting (FIX 7)
+
+test('SEQ 12. the report separates HOLD and EXCLUDE from the approvable pending count', async () => {
+  const { compareMigrations } = await loadPreflight();
+  const local = localOf('20260101000000', ...ALL_FOUR);
+  const auth = {
+    reconciled: [],
+    remoteOnly: [],
+    knownPending: [
+      knownPending(AD_DB_001),
+      knownPending(AD_DB_002, 'HOLD'),
+      knownPending(AD_DB_003, 'EXCLUDE'),
+      knownPending(AD_DB_004),
+    ],
+  };
+  const result = compareMigrations(local, REMOTE_BASE, AD_DB_001, auth);
+
+  assert.equal(result.ok, true, result.blockers.join('\n'));
+  assert.deepEqual(result.approvableKnownPending.map((m) => m.version), [AD_DB_001, AD_DB_004]);
+  assert.deepEqual(result.hold.map((m) => m.version), [AD_DB_002]);
+  assert.deepEqual(result.exclude.map((m) => m.version), [AD_DB_003]);
+  assert.equal(result.knownPending.length, 4, 'the umbrella count still shows everything known');
+
+  // The operator must be able to tell approvable work from parked work. Folding
+  // HOLD and EXCLUDE into one number is exactly what this asserts against.
+  assert.notEqual(
+    result.approvableKnownPending.length,
+    result.knownPending.length,
+    'approvable and known must be distinct numbers',
+  );
+});
+
+test('SEQ 13. the production preflight prints every required bucket', () => {
+  const src = fs.readFileSync(path.join(ROOT, 'scripts', 'production-deploy-preflight.mjs'), 'utf8');
+  for (const label of [
+    'RECONCILED',
+    'KNOWN_PENDING',
+    'FULFILLED',
+    'HOLD',
+    'EXCLUDE',
+    'REMOTE_ONLY_ALLOWED',
+    'UNEXPLAINED_REMOTE',
+    'APPROVED_PENDING',
+  ]) {
+    assert.ok(src.includes(label), `the production preflight must report ${label}`);
+  }
+});
+
+// ---------------------------------------- the shipped authority, after repair
+
+test('SEQ 14. the shipped production authority reflects every locked scope decision', async () => {
+  const { loadLedgerReconciliation } = await loadRecon();
+  const prod = loadLedgerReconciliation(PRODUCTION_REF, MANIFEST);
+
+  const disposition = (v) => prod.knownPending.find((k) => k.localVersion === v)?.disposition;
+
+  assert.equal(disposition('20260915232402'), 'HOLD');
+  assert.equal(disposition('20260915214857'), 'KNOWN_FUTURE_UNAPPLIED');
+  for (const v of ['20260819125404', '20260819125700', '20260819144630', '20260819151224', '20260823170850']) {
+    assert.equal(disposition(v), 'EXCLUDE', `${v} is wearable and must be EXCLUDE`);
+  }
+  assert.equal(disposition('20260824175813'), 'EXCLUDE');
+  assert.equal(disposition('20260818000001'), 'EXCLUDE');
+  assert.equal(disposition('20260818141056'), 'KNOWN_FUTURE_UNAPPLIED');
+  assert.equal(disposition('20260916203000'), 'HOLD');
+  assert.equal(disposition('20260916233708'), 'HOLD');
+
+  // The four account-deletion migrations stay approvable, in order.
+  for (const v of ALL_FOUR) {
+    assert.equal(disposition(v), 'KNOWN_FUTURE_UNAPPLIED', `${v} must stay approvable`);
+  }
+
+  // Every declaration still carries its own evidence.
+  for (const entry of prod.knownPending) {
+    assert.ok(entry.evidence.trim().length > 40, `${entry.localVersion} needs evidence`);
+  }
 });

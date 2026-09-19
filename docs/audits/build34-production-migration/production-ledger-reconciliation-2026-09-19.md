@@ -109,9 +109,9 @@ version on both sides is accounted for, with evidence.
 
 | disposition | count | meaning | approvable |
 |---|---|---|---|
-| `KNOWN_FUTURE_UNAPPLIED` | 53 | effect proven absent; legitimate Build 34 work | yes, one at a time, by explicit approval |
-| `HOLD` | 12 | known and classified, not cleared for execution at this SHA | **no** |
-| `EXCLUDE` | 13 | must never execute against production | **no** |
+| `KNOWN_FUTURE_UNAPPLIED` | 47 | effect proven absent; legitimate Build 34 work | yes, one at a time, by explicit approval |
+| `HOLD` | 11 | known and classified, not cleared for execution at this SHA | **no** |
+| `EXCLUDE` | 20 | must never execute against production | **no** |
 
 The four account-deletion migrations the campaign targets are all
 `KNOWN_FUTURE_UNAPPLIED`: `20260831140000`, `20260908230000`, `20260916130553`,
@@ -148,15 +148,92 @@ would outrun the client:
   live definition was not compared against the governed body, so it cannot be
   proven to be the hardened, cross-actor-closing one. Claiming it reconciled
   would assert a security property that was not verified.
-- `20260814230933`, `20260819125700`, `20260819144630`, `20260814140000`,
-  `20260915133739`, `20260803214253`, `20260812031312` — partially satisfied or
-  grant-level deltas not enumerated in this pass.
+- `20260814230933`, `20260814140000`, `20260915133739`, `20260803214253`,
+  `20260812031312` — partially satisfied or grant-level deltas not enumerated in
+  this pass.
 - `20260618132214`, `20260722201910` — the legacy waitlist surface; whether it
   belongs on this project is an owner decision.
+- `20260915232402` — a locked release decision rather than a probe result; see
+  **Locked owner scope decisions** below.
+
+(`20260819125700` and `20260819144630` were `HOLD` in the first pass and are now
+`EXCLUDE` under `WEARABLE_SCOPE=EXCLUDE_FROM_BUILD34_PRODUCTION`.)
 
 **HOLD is a classification, not a deferral of the honesty requirement.** A HOLD
 entry still carries evidence, still counts as explained (so it does not read as
 drift), and is still refused for execution.
+
+---
+
+## THE CAMPAIGN LIFECYCLE
+
+A production campaign applies one approved migration at a time, over days. If a
+`KNOWN_FUTURE_UNAPPLIED` entry became "stale authority" the moment its version
+landed in the ledger, **every successful migration would invalidate the manifest**
+and require a governed-source edit before the next one could run. Editing
+authority between every production write is worse than the problem it solves.
+
+So `KNOWN_FUTURE_UNAPPLIED` has two legitimate states:
+
+| state | ledger | meaning |
+|---|---|---|
+| **A** | version absent | `KNOWN_PENDING` — approvable |
+| **B** | that exact version present | `FULFILLED` — no longer pending, never selected again, still reported |
+
+A fulfilled entry does not fail the gate and does not block the next migration.
+The whole four-step account-deletion campaign runs on **one unchanged manifest**.
+
+**The tolerance is deliberately asymmetric.** `HOLD` and `EXCLUDE` say the
+migration must not run here. If one of them turns up in the ledger anyway,
+something applied it outside this gate — which is precisely the unexplained
+production mutation the authority exists to catch. That fails closed, loudly:
+
+```
+known-pending entry <v>: declared EXCLUDE, which must never be applied here,
+but the remote ledger contains it — unexplained production mutation
+```
+
+---
+
+## LOCKED OWNER SCOPE DECISIONS
+
+Build 34's goal is **production must support the application contract safely** —
+not production/staging parity, and not clearing every historical difference. The
+following are release decisions, not drift findings.
+
+| decision | versions | disposition |
+|---|---|---|
+| `SIGNATURE_STYLE_FREE_CLOSET_EVIDENCE_MIGRATION=HOLD_AS_CURRENTLY_WRITTEN` | `20260915232402` | `HOLD` |
+| `WEARABLE_SCOPE=EXCLUDE_FROM_BUILD34_PRODUCTION` | `20260819125404`, `20260819125700`, `20260819144630`, `20260819151224`, `20260823170850` | `EXCLUDE` |
+| `INVESTOR_SCOPE=EXCLUDE_FROM_BUILD34_PRODUCTION` | `20260824175813` | `EXCLUDE` |
+| Non-canonical duplicate identity | `20260818000001` | `EXCLUDE` |
+
+Notes that matter:
+
+- **Signature Style.** `20260915232402` conflates legacy Recent Scan / utility
+  evidence with owned Closet evidence. Its sibling `20260915214857`
+  (`signature_style_free_entitlement`) is **not** covered by that decision and
+  remains legitimate Build 34 work. The two are not equivalent and are not
+  treated as such.
+- **Wearables.** A content scan confirms `20260819125404`, `20260819151224` and
+  `20260823170850` touch only `public.wearable_*` relations. `20260819125700`
+  and `20260819144630` touch the shared `saved_scans.source` contract but exist
+  to admit the wearable lane, so they are excluded by the scope decision rather
+  than by object ownership. A scan of all 78 known-pending entries found **no
+  other** wearable-only migration.
+- **Investor.** A content scan confirms `20260824175813` touches only
+  `public.investor_inquiries`. No other known-pending entry is exclusively
+  investor infrastructure.
+- **Not excluded speculatively.** `20260618132214` and `20260722201910` (the
+  legacy waitlist surface) remain `HOLD`. They are website-adjacent, but no
+  locked Build 34 scope decision covers them, so they are reported rather than
+  excluded.
+- **Display-name duplicate.** The registry declares `20260818141056` the
+  canonical `ledgerVersion` and records `20260818000001` only as its
+  `sourceOriginalFilename` (retained because `__tests__/stylistIdentity.test.js`
+  reads it directly). Both carry byte-identical executable SQL, so only one may
+  ever become a production ledger row. The non-canonical original is
+  non-executable; the canonical copy carries the production identity.
 
 ---
 
@@ -199,7 +276,10 @@ is recorded, not resolved, here: production exposes the one-argument
 token-bound two-argument form, and the public Dressing Room route does not yet
 pass `p_share_token` (**B34-FE-DR-001**). This reconciliation holds both
 migrations rather than reconciling them, so the tooling cannot be used to apply
-that contract ahead of the client.
+that contract ahead of the client. They are **not** loosened to approvable merely
+because their backend effect is absent: they stay `HOLD` until the authoritative
+Build 34 client callsites have been separately verified and the migration
+sequence is explicitly authorized.
 
 ```
 CLIENT_CONTRACT_REVIEW_REQUIRED = B34-FE-DR-001 (pre-existing; recorded, not introduced)

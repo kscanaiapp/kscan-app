@@ -155,6 +155,10 @@ function main() {
       reconciledRemote: [],
       reconciliationProblems: [],
       knownPending: [],
+      approvableKnownPending: [],
+      hold: [],
+      exclude: [],
+      fulfilled: [],
       unexplainedRemote: [],
       unexplainedLocal: [],
       remoteOnlyAllowed: [],
@@ -223,6 +227,10 @@ function main() {
       console.log(`  REMOTE_ONLY_ALLOWED: ${migrationReport.remoteOnlyAllowed?.length ?? 0}`);
       console.log(`  UNEXPLAINED_REMOTE: ${migrationReport.unexplainedRemote?.length ? migrationReport.unexplainedRemote.join(', ') : '0'}`);
       console.log(`  KNOWN_PENDING: ${migrationReport.knownPending?.length ?? 0}`);
+      console.log(`    approvable (KNOWN_FUTURE_UNAPPLIED): ${migrationReport.approvableKnownPending?.length ?? 0}`);
+      console.log(`    HOLD: ${migrationReport.hold?.length ?? 0}`);
+      console.log(`    EXCLUDE: ${migrationReport.exclude?.length ?? 0}`);
+      console.log(`  FULFILLED: ${migrationReport.fulfilled?.length ?? 0}`);
       console.log(
         `  APPROVED_PENDING: ${migrationReport.approvedPending ? migrationReport.approvedPending.version : '(none)'}`,
       );

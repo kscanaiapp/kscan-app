@@ -145,7 +145,9 @@ function selectApprovedMigration({ local, remote, approvedVersion, reconciliatio
   }
 
   const pending = pendingVersions(local, remote, reconciliation);
-  const hasKnownPendingAuthority = known.declaredPending.size > 0;
+  // Derived from the DECLARATIONS, not from how many are still outstanding, so a
+  // sequential campaign keeps its authority as entries become FULFILLED.
+  const hasKnownPendingAuthority = (reconciliation.knownPending ?? []).length > 0;
 
   // Unexplained LOCAL divergence fails closed too, once the environment is
   // operating under an explicit authority.
