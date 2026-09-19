@@ -351,6 +351,85 @@ export function validateKnownPending(knownPending, localSet, remoteSet, aliasedL
 }
 
 /**
+ * The CREDENTIAL-FREE half of the approval decision.
+ *
+ * Everything here is answerable from the local tree and the declared authority
+ * alone -- no production credentials, no remote ledger read. It exists so the
+ * pre-approval preflight can show a reviewer exactly which migration is being
+ * proposed, and refuse an obviously illegitimate one, WITHOUT holding
+ * production credentials outside the `environment: production` gate.
+ *
+ * What it deliberately CANNOT decide, and must never imply it has:
+ *   - whether the version is already applied on production
+ *   - whether the pending set is what the authority expects
+ *   - whether unexplained remote drift exists
+ *
+ * Those need the live ledger, so they stay in resolveApprovedMigration(), which
+ * the applier runs inside the environment gate immediately before the write.
+ * This check narrows what can reach that gate; it never substitutes for it.
+ *
+ * @returns {{ok: boolean, blockers: string[], disposition: string|null, migration: object|null}}
+ */
+export function staticApprovalCheck({ local, approvedVersion, reconciliation }) {
+  const blockers = [];
+  const version = String(approvedVersion || '').trim();
+  const push = (reason) => blockers.push(`APPROVED_MIGRATION_VERSION=${version} ${reason}`);
+
+  if (!version) {
+    return { ok: false, blockers: ['No approved migration version was supplied'], disposition: null, migration: null };
+  }
+  if (!/^\d{12,14}$/.test(version)) {
+    return {
+      ok: false,
+      blockers: [`APPROVED_MIGRATION_VERSION=${version} is not a 12-14 digit migration version`],
+      disposition: null,
+      migration: null,
+    };
+  }
+
+  const matches = local.filter((m) => m.version === version);
+  if (matches.length === 0) {
+    push('names no migration in supabase/migrations — it does not exist');
+    return { ok: false, blockers, disposition: null, migration: null };
+  }
+  if (matches.length > 1) {
+    push(`matches ${matches.length} local migration files — refusing ambiguous execution`);
+    return { ok: false, blockers, disposition: null, migration: null };
+  }
+
+  const reconciled = (reconciliation?.reconciled ?? []).find((r) => r.localVersion === version);
+  if (reconciled) {
+    push(
+      `is declared reconciled (${reconciled.classification}) — its effect is already present, so it must not execute`,
+    );
+    return { ok: false, blockers, disposition: null, migration: matches[0] };
+  }
+
+  const declarations = reconciliation?.knownPending ?? [];
+  const declaration = declarations.find((k) => k.localVersion === version) || null;
+
+  // An environment that declares a knownPending authority must declare THIS
+  // version too, exactly as the gated check requires.
+  if (declarations.length > 0) {
+    if (!declaration) {
+      push('carries no knownPending declaration in the reconciliation authority');
+      return { ok: false, blockers, disposition: null, migration: matches[0] };
+    }
+    if (!APPROVABLE_DISPOSITIONS.has(declaration.disposition)) {
+      push(`is declared ${declaration.disposition} — ${declaration.disposition} migrations never execute through this path`);
+      return { ok: false, blockers, disposition: declaration.disposition, migration: matches[0] };
+    }
+  }
+
+  return {
+    ok: true,
+    blockers: [],
+    disposition: declaration ? declaration.disposition : null,
+    migration: matches[0],
+  };
+}
+
+/**
  * The single selection gate.
  *
  * Returns the migration -- at most ONE -- that this invocation may execute, and
