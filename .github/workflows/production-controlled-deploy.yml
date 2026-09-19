@@ -5,6 +5,13 @@
 # targeted — every script this workflow calls refuses any argument naming the
 # staging project (scripts/lib/production-helpers.mjs).
 #
+# MIGRATION-ONLY MODE: dispatch with `function_name: none` to apply the approved
+# migration and deploy no function. The mode exists because a migration cannot
+# always ride a function deploy — see the comment on the "Record deployment
+# scope" step. It skips source validation and the deploy/health/synthetic/
+# rollback chain, and NOTHING else: every governance control listed below still
+# applies, and the run is judged on the migration alone.
+#
 # GOVERNANCE (repo-settings prerequisites, not expressible in this file):
 #   - A GitHub "production" Environment must exist with required reviewers
 #     configured. The `environment: production` gate below then pauses this
@@ -29,7 +36,9 @@ on:
   workflow_dispatch:
     inputs:
       function_name:
-        description: Exactly one Edge Function to deploy
+        description: >-
+          Exactly one Edge Function to deploy, or "none" for a migration-only run
+          (applies the approved migration and deploys no function).
         required: true
         type: string
       verify_jwt:
@@ -94,6 +103,7 @@ jobs:
       function_name: ${{ steps.scope.outputs.function_name }}
       verify_jwt: ${{ steps.scope.outputs.verify_jwt }}
       migration_version: ${{ steps.scope.outputs.migration_version }}
+      migration_only: ${{ steps.scope.outputs.migration_only }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -148,6 +158,26 @@ jobs:
             exit 1
           fi
 
+      # MIGRATION-ONLY MODE
+      #
+      # `function_name: none` runs the approved migration and deploys nothing.
+      # It exists because the account-deletion campaign's first migration cannot
+      # ride any function deploy: every existing production function is blocked
+      # until exact-bundle rollback lands, and the two new functions
+      # (deletion-status, reconcile-orphan-media) each depend on a LATER
+      # migration in the same sequence. Without this mode there is no governed
+      # path for the first migration at all.
+      #
+      # It removes ONE thing: the function deployment. Every governance control
+      # -- manual dispatch, the DEPLOY TO PRODUCTION phrase, the production
+      # Environment gate, the production ref check, the governed-commit check,
+      # the reconciliation preflight, APPROVED_MIGRATION_VERSION enforcement and
+      # the prohibited-SQL scan -- still applies, because they all live in jobs
+      # and scripts this mode does not touch.
+      #
+      # A migration-only run with no approved migration would be a no-op wearing
+      # a production deployment's clothes, so it is refused here rather than
+      # allowed to look like a successful deploy.
       - name: Record deployment scope
         id: scope
         run: |
@@ -157,9 +187,25 @@ jobs:
             echo "Invalid function_name"
             exit 1
           fi
+
+          MIGRATION_ONLY=false
+          if [ "$(printf '%s' "$FN" | tr '[:upper:]' '[:lower:]')" = "none" ]; then
+            MIGRATION_ONLY=true
+            if [ -z "${{ inputs.approved_migration_version }}" ]; then
+              echo "function_name=none is migration-only: approved_migration_version is required"
+              exit 1
+            fi
+            if [ "${{ inputs.approve_migration }}" != "YES" ]; then
+              echo "function_name=none is migration-only: approve_migration must be YES"
+              exit 1
+            fi
+            echo "MIGRATION-ONLY RUN: no Edge Function will be deployed."
+          fi
+
           echo "function_name=${FN}" >> "$GITHUB_OUTPUT"
           echo "verify_jwt=${{ inputs.verify_jwt }}" >> "$GITHUB_OUTPUT"
           echo "migration_version=${{ inputs.approved_migration_version }}" >> "$GITHUB_OUTPUT"
+          echo "migration_only=${MIGRATION_ONLY}" >> "$GITHUB_OUTPUT"
 
       - name: Run production preflight and show the migration plan
         env:
@@ -167,7 +213,9 @@ jobs:
           SUPABASE_PRODUCTION_PROJECT_REF: ${{ vars.SUPABASE_PRODUCTION_PROJECT_REF }}
           SUPABASE_PRODUCTION_URL: ${{ vars.SUPABASE_PRODUCTION_URL }}
           SUPABASE_PRODUCTION_ANON_KEY: ${{ secrets.SUPABASE_PRODUCTION_PUBLISHABLE_KEY }}
-          DEPLOY_FUNCTIONS: ${{ inputs.function_name }}
+          # Empty in migration-only mode: parseDeployFunctionsAllowList() reads
+          # that as "deploy nothing", which the preflight already supports.
+          DEPLOY_FUNCTIONS: ${{ steps.scope.outputs.migration_only == 'true' && '' || inputs.function_name }}
           APPROVED_MIGRATION_VERSION: ${{ inputs.approved_migration_version }}
         run: |
           set -euo pipefail
@@ -289,6 +337,7 @@ jobs:
       - approved-single-migration
     if: |
       always() &&
+      needs.preflight.outputs.migration_only != 'true' &&
       needs.preflight.result == 'success' &&
       (needs.approved-single-migration.result == 'success' || needs.approved-single-migration.result == 'skipped')
     steps:
@@ -334,6 +383,7 @@ jobs:
       - source-validation
     if: |
       always() &&
+      needs.preflight.outputs.migration_only != 'true' &&
       needs.preflight.result == 'success' &&
       needs.source-validation.result == 'success'
     environment: production
@@ -535,6 +585,7 @@ jobs:
     needs:
       - confirm
       - preflight
+      - approved-single-migration
       - deploy-one-function
       - health-check
       - synthetic-tests
@@ -544,19 +595,42 @@ jobs:
       - name: Summary
         run: |
           set -euo pipefail
+          MIGRATION_ONLY="${{ needs.preflight.outputs.migration_only }}"
+          if [ "$MIGRATION_ONLY" = "true" ]; then
+            MODE=migration-only
+            FUNCTION_DEPLOYMENT=SKIPPED_MIGRATION_ONLY
+          else
+            MODE=function+migration
+            FUNCTION_DEPLOYMENT="${{ needs.deploy-one-function.result }}"
+          fi
           {
             echo "## Controlled production deployment"
             echo
             echo "| Field | Value |"
             echo "| --- | --- |"
+            echo "| Mode | ${MODE} |"
             echo "| Function | ${{ needs.preflight.outputs.function_name }} |"
             echo "| Migration applied | ${{ needs.preflight.outputs.migration_version || '(none)' }} |"
-            echo "| Deploy | ${{ needs.deploy-one-function.result }} |"
+            echo "| Migration job | ${{ needs.approved-single-migration.result }} |"
+            echo "| FUNCTION_DEPLOYMENT | ${FUNCTION_DEPLOYMENT} |"
             echo "| Health | ${{ needs.health-check.result }} |"
             echo "| Synthetic | ${{ needs.synthetic-tests.result }} |"
             echo "| Rollback/containment | ${{ needs.rollback-on-failure.result }} |"
             echo "| Manifest | ${{ needs.deploy-one-function.outputs.manifest_path }} |"
           } >> "$GITHUB_STEP_SUMMARY"
+
+          # A migration-only run is judged on the migration alone. The function
+          # jobs are SKIPPED by design, so treating "not success" as failure
+          # would fail every migration-only run.
+          if [ "$MIGRATION_ONLY" = "true" ]; then
+            if [ "${{ needs.approved-single-migration.result }}" != "success" ]; then
+              echo "Migration-only run: the approved migration did not succeed"
+              exit 1
+            fi
+            echo "Migration-only run complete: FUNCTION_DEPLOYMENT=SKIPPED_MIGRATION_ONLY"
+            exit 0
+          fi
+
           if [ "${{ needs.deploy-one-function.result }}" != "success" ]; then
             echo "Deploy failed"
             exit 1
