@@ -275,11 +275,32 @@ test('8. function_name=all is still rejected, and so is an empty name', () => {
 test('9. staging can never be targeted, in either mode', () => {
   assert.match(source, /STAGING_REF: yzqjvdfgefveprobvvyw/);
   assert.match(source, /EXPECTED_PRODUCTION_REF: wyyuqfdxucjksghsmhry/);
-  assert.match(jobs.preflight, /Staging project ref is forbidden here/);
-  assert.match(
-    jobs.preflight,
-    /SUPABASE_PRODUCTION_PROJECT_REF\}" != "\$\{EXPECTED_PRODUCTION_REF\}"/,
-    'the production ref is still pinned',
+
+  // The ref comparison used to live in the `preflight` job. It cannot: that
+  // job runs BEFORE the production Environment gate and so has no project ref
+  // to compare. It now runs inside `approved-single-migration`, where the
+  // environment supplies the ref and where it sits immediately before the
+  // write. Assert the refusal exists AND that every job performing it is
+  // environment-gated — stricter than pinning it to one named job.
+  const refusingJobs = Object.keys(jobs).filter((j) =>
+    /Staging project ref is forbidden here/.test(jobs[j]),
+  );
+  assert.ok(refusingJobs.length > 0, 'some job must refuse the staging project ref');
+  for (const job of refusingJobs) {
+    assert.match(
+      jobs[job],
+      /^ {4}environment: production$/m,
+      `the staging refusal in ${job} must sit behind the production Environment gate`,
+    );
+    assert.match(
+      jobs[job],
+      /SUPABASE_PRODUCTION_PROJECT_REF\}" != "\$\{EXPECTED_PRODUCTION_REF\}"/,
+      'the production ref is still pinned',
+    );
+  }
+  assert.ok(
+    refusingJobs.includes('approved-single-migration'),
+    'the migration job must refuse staging before it writes',
   );
 
   const helpers = fs.readFileSync(path.join(ROOT, 'scripts', 'lib', 'production-helpers.mjs'), 'utf8');
@@ -289,10 +310,23 @@ test('9. staging can never be targeted, in either mode', () => {
 });
 
 test('10. migration-only mode cannot bypass reconciliation or the prohibited-SQL scan', () => {
-  // The preflight runs before anything can mutate production, in both modes,
-  // and it is the job that computes the reconciliation report.
-  assert.match(jobs.preflight, /production-deploy-preflight\.mjs --json/);
+  // The preflight runs before anything can mutate production, in both modes.
+  // It now runs in two halves: a credential-free static precheck before the
+  // approval gate (reconciliation authority + prohibited-SQL scan, everything
+  // answerable without production), and the full remote preflight inside
+  // `environment: production` immediately before the write. Both are
+  // unconditional, so neither mode can skip either half.
+  assert.match(
+    jobs.preflight,
+    /production-deploy-preflight\.mjs --static --json/,
+    'the pre-approval half runs unconditionally and credential-free',
+  );
   assert.equal(jobIf('preflight'), '', 'the preflight is unconditional');
+  assert.match(
+    jobs['approved-single-migration'],
+    /node scripts\/production-deploy-preflight\.mjs --json/,
+    'the full remote half runs inside the environment gate',
+  );
   assert.match(jobs['approved-single-migration'], /^ {6}- preflight$/m);
 
   // Nothing in this change touched the gate or the scan.

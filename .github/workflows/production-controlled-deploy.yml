@@ -20,11 +20,32 @@
 #     plan before applying it" and "require reviewers" requirements. Approve
 #     after reading the preflight job's summary (posted before the gate), not
 #     blind.
+#   - Production credentials (SUPABASE_ACCESS_TOKEN,
+#     SUPABASE_PRODUCTION_PUBLISHABLE_KEY, SUPABASE_PRODUCTION_PROJECT_REF,
+#     SUPABASE_PRODUCTION_URL) belong on that Environment, NOT at repository
+#     scope. Repository scope would hand them to every job in every workflow,
+#     including the ones that run before the gate, which defeats the gate.
 #   - Branch protection on rebuild/backend-authority-v2 should require the
 #     usual checks before merge. This workflow additionally refuses to run
 #     against anything that is not the CURRENT tip of that branch (see
 #     scripts/production-deploy-preflight.mjs assertGovernedCommit) — a
 #     stale or unmerged checkout cannot deploy no matter who approves it.
+#
+# WHERE VALIDATION RUNS (and why it is split):
+#   The `preflight` job runs BEFORE the environment gate — that is what lets
+#   it show a reviewer the plan they are approving. Because it runs before the
+#   gate it cannot hold environment-scoped credentials, so it is credential-
+#   free: confirmation phrase, governed-branch tip, migration version syntax
+#   and selection, migration-only scope, and the local/static authority checks
+#   (canonical file, exactly one match, not reconciled, not HOLD, not EXCLUDE,
+#   prohibited-SQL scan). It makes no remote call.
+#
+#   Every check that needs live production — target identity, the staging
+#   refusal, the remote ledger, already-applied, unexplained drift in either
+#   direction — runs INSIDE `approved-single-migration`, which carries
+#   `environment: production`, immediately before the write, and again inside
+#   apply-production-migration.mjs itself. Nothing was dropped; it moved to the
+#   only place it can legitimately run.
 #
 # This workflow is manual-dispatch only. It is never triggered by push, PR,
 # or schedule — production is deployed to on purpose, by a named human, or
@@ -127,36 +148,17 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: 2.109.1
-
-      - name: Validate required production variables (values never printed)
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PRODUCTION_PROJECT_REF: ${{ vars.SUPABASE_PRODUCTION_PROJECT_REF }}
-          SUPABASE_PRODUCTION_URL: ${{ vars.SUPABASE_PRODUCTION_URL }}
-          SUPABASE_PRODUCTION_ANON_KEY: ${{ secrets.SUPABASE_PRODUCTION_PUBLISHABLE_KEY }}
-        run: |
-          set -euo pipefail
-          missing=()
-          for v in SUPABASE_ACCESS_TOKEN SUPABASE_PRODUCTION_PROJECT_REF SUPABASE_PRODUCTION_URL SUPABASE_PRODUCTION_ANON_KEY; do
-            if [ -z "${!v:-}" ]; then missing+=("$v"); fi
-          done
-          if [ "${#missing[@]}" -gt 0 ]; then
-            echo "Missing required production variables:"
-            printf -- '- %s\n' "${missing[@]}"
-            exit 1
-          fi
-          if [ "${SUPABASE_PRODUCTION_PROJECT_REF}" = "${STAGING_REF}" ]; then
-            echo "Staging project ref is forbidden here"
-            exit 1
-          fi
-          if [ "${SUPABASE_PRODUCTION_PROJECT_REF}" != "${EXPECTED_PRODUCTION_REF}" ]; then
-            echo "SUPABASE_PRODUCTION_PROJECT_REF must be ${EXPECTED_PRODUCTION_REF}"
-            exit 1
-          fi
+      # CREDENTIAL-FREE BY DESIGN.
+      #
+      # This job runs BEFORE the `production` Environment gate, so it must not
+      # hold production credentials — keeping them behind that gate is the
+      # whole point of the gate. It therefore installs no Supabase CLI, reads
+      # no secret or variable, and makes no remote call.
+      #
+      # The project-ref validation that used to live here needs
+      # SUPABASE_PRODUCTION_PROJECT_REF, so it moved into
+      # `approved-single-migration`, where the environment supplies it and
+      # where it runs immediately before the write rather than long before it.
 
       # MIGRATION-ONLY MODE
       #
@@ -207,19 +209,15 @@ jobs:
           echo "migration_version=${{ inputs.approved_migration_version }}" >> "$GITHUB_OUTPUT"
           echo "migration_only=${MIGRATION_ONLY}" >> "$GITHUB_OUTPUT"
 
-      - name: Run production preflight and show the migration plan
+      - name: Static precheck and migration plan (no production credentials)
         env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PRODUCTION_PROJECT_REF: ${{ vars.SUPABASE_PRODUCTION_PROJECT_REF }}
-          SUPABASE_PRODUCTION_URL: ${{ vars.SUPABASE_PRODUCTION_URL }}
-          SUPABASE_PRODUCTION_ANON_KEY: ${{ secrets.SUPABASE_PRODUCTION_PUBLISHABLE_KEY }}
           # Empty in migration-only mode: parseDeployFunctionsAllowList() reads
           # that as "deploy nothing", which the preflight already supports.
           DEPLOY_FUNCTIONS: ${{ steps.scope.outputs.migration_only == 'true' && '' || inputs.function_name }}
           APPROVED_MIGRATION_VERSION: ${{ inputs.approved_migration_version }}
         run: |
           set -euo pipefail
-          node scripts/production-deploy-preflight.mjs --json | tee preflight.json
+          node scripts/production-deploy-preflight.mjs --static --json | tee preflight.json
           {
             echo "## Production deployment plan"
             echo
@@ -229,15 +227,21 @@ jobs:
               const r = require('./preflight.json');
               console.log('| Field | Value |');
               console.log('| --- | --- |');
-              console.log(\`| Target | \${r.environment.projectRef} |\`);
+              console.log(\`| Target (expected) | \${r.environment.expectedProductionRef} |\`);
               console.log(\`| Governed branch | \${r.governance.governedBranch} @ \${r.governance.sha} |\`);
               console.log(\`| Function to deploy | \${r.deployFunctions.join(', ') || '(none)'} |\`);
               console.log(\`| verify_jwt | ${{ inputs.verify_jwt }} |\`);
-              console.log(\`| Migration to apply | \${r.migrations.approvedPending ? r.migrations.approvedPending.version + ' ' + r.migrations.approvedPending.name : '(none)'} |\`);
-              console.log(\`| Local migrations | \${r.migrations.localCount} |\`);
-              console.log(\`| Remote migrations | \${r.migrations.remoteCount ?? 'n/a'} |\`);
-              console.log(\`| Pending (unapproved) | \${(r.migrations.localOnly||[]).map(m=>m.version).join(', ') || 'none'} |\`);
+              console.log(\`| Migration to apply | \${r.approvedMigration ? r.approvedMigration.version + ' ' + r.approvedMigration.name : '(none)'} |\`);
+              console.log(\`| Local migrations | \${r.localCount} |\`);
+              console.log(\`| Precheck | \${r.mode} (credential-free: \${r.credentialFree}) |\`);
+              console.log(\`| Remote verified here | \${r.remoteVerified} |\`);
             "
+            echo
+            echo "**Remote verification is deferred to \`environment: production\`.** Target identity,"
+            echo "the staging refusal, the live ledger, already-applied and unexplained drift in"
+            echo "either direction are checked by the \"Live remote preflight\" step and again by"
+            echo "apply-production-migration.mjs, both immediately before the write and both"
+            echo "after this approval. Approving means approving the plan above, not skipping them."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload preflight artifact
@@ -303,6 +307,102 @@ jobs:
         with:
           version: 2.109.1
 
+      # ---------------------------------------------------------------------
+      # LIVE PRODUCTION GATE
+      #
+      # Everything below runs INSIDE `environment: production`: after the
+      # required reviewer approved, with credentials the environment supplies,
+      # and immediately before the write. This is where the remote validation
+      # lives now. The pre-approval preflight job was made credential-free
+      # because it runs OUTSIDE this gate — that moved WHERE these checks run,
+      # not WHETHER they run. Nothing reaches "Apply one approved migration"
+      # without passing every one of them against the live ledger.
+      # ---------------------------------------------------------------------
+      - name: Validate required production variables (values never printed)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PRODUCTION_PROJECT_REF: ${{ vars.SUPABASE_PRODUCTION_PROJECT_REF }}
+          SUPABASE_PRODUCTION_URL: ${{ vars.SUPABASE_PRODUCTION_URL }}
+          SUPABASE_PRODUCTION_ANON_KEY: ${{ secrets.SUPABASE_PRODUCTION_PUBLISHABLE_KEY }}
+        run: |
+          set -euo pipefail
+          missing=()
+          for v in SUPABASE_ACCESS_TOKEN SUPABASE_PRODUCTION_PROJECT_REF SUPABASE_PRODUCTION_URL SUPABASE_PRODUCTION_ANON_KEY; do
+            if [ -z "${!v:-}" ]; then missing+=("$v"); fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "Missing required production variables:"
+            printf -- '- %s\n' "${missing[@]}"
+            echo "They must be defined on the production GitHub Environment."
+            exit 1
+          fi
+          if [ "${SUPABASE_PRODUCTION_PROJECT_REF}" = "${STAGING_REF}" ]; then
+            echo "Staging project ref is forbidden here"
+            exit 1
+          fi
+          if [ "${SUPABASE_PRODUCTION_PROJECT_REF}" != "${EXPECTED_PRODUCTION_REF}" ]; then
+            echo "SUPABASE_PRODUCTION_PROJECT_REF must be ${EXPECTED_PRODUCTION_REF}"
+            exit 1
+          fi
+
+      # The full remote preflight, run against live production. Its own exit
+      # code gates the write; the assertions afterwards additionally PROVE on
+      # the run log that this report is a live remote one and that it selected
+      # exactly the approved migration with zero unexplained drift, so a
+      # --skip-remote or --static report can never be mistaken for this.
+      - name: Live remote preflight against production (post-approval, pre-write)
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PRODUCTION_PROJECT_REF: ${{ vars.SUPABASE_PRODUCTION_PROJECT_REF }}
+          SUPABASE_PRODUCTION_URL: ${{ vars.SUPABASE_PRODUCTION_URL }}
+          SUPABASE_PRODUCTION_ANON_KEY: ${{ secrets.SUPABASE_PRODUCTION_PUBLISHABLE_KEY }}
+          DEPLOY_FUNCTIONS: ${{ needs.preflight.outputs.migration_only == 'true' && '' || needs.preflight.outputs.function_name }}
+          APPROVED_MIGRATION_VERSION: ${{ needs.preflight.outputs.migration_version }}
+        run: |
+          set -euo pipefail
+          node scripts/production-deploy-preflight.mjs --json | tee live-preflight.json
+          EXPECTED_VERSION="${APPROVED_MIGRATION_VERSION}" \
+          EXPECTED_REF="${EXPECTED_PRODUCTION_REF}" \
+          FORBIDDEN_REF="${STAGING_REF}" \
+          node -e "
+            const r = require('./live-preflight.json');
+            const m = r.migrations || {};
+            const fail = (msg) => { console.error('LIVE GATE FAILED: ' + msg); process.exitCode = 1; };
+
+            if (r.remoteVerified !== true || r.mode !== 'live-remote-gate') {
+              fail('this report did not verify production remotely (mode=' + r.mode + ')');
+            }
+            if (r.environment.projectRef !== process.env.EXPECTED_REF) {
+              fail('target is ' + r.environment.projectRef + ', not ' + process.env.EXPECTED_REF);
+            }
+            if (r.environment.projectRef === process.env.FORBIDDEN_REF) {
+              fail('target is the staging project');
+            }
+            if (m.skipped === true) fail('the remote ledger was not read');
+            if (typeof m.remoteCount !== 'number') fail('no live remote ledger count was reported');
+            if ((m.unexplainedLocal || []).length !== 0) {
+              fail('unexplained local drift: ' + m.unexplainedLocal.map(x => x.version).join(', '));
+            }
+            if ((m.unexplainedRemote || []).length !== 0) {
+              fail('unexplained remote drift: ' + m.unexplainedRemote.join(', '));
+            }
+            if (!m.approvedPending || m.approvedPending.version !== process.env.EXPECTED_VERSION) {
+              fail('selected migration is ' + (m.approvedPending ? m.approvedPending.version : '(none)') +
+                   ', not the approved ' + process.env.EXPECTED_VERSION);
+            }
+            if (m.approvedSelectedForExecution !== 1) {
+              fail('selected ' + m.approvedSelectedForExecution + ' migrations for execution, not exactly 1');
+            }
+            if (r.ok !== true) fail('preflight blockers: ' + (m.blockers || []).join('; '));
+
+            if (!process.exitCode) {
+              console.log('LIVE GATE PASSED against ' + r.environment.projectRef +
+                ': remote ledger ' + m.remoteCount + ' rows, 0 unexplained local drift, ' +
+                '0 unexplained remote drift, exactly 1 migration selected (' +
+                m.approvedPending.version + ' ' + m.approvedPending.name + ').');
+            }
+          "
+
       - name: Apply one approved migration
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -321,6 +421,7 @@ jobs:
         with:
           name: production-migration-${{ github.run_number }}
           path: |
+            live-preflight.json
             migration-result.json
             artifacts/production-migrations/
           if-no-files-found: warn

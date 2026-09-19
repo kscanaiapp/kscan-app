@@ -15,6 +15,10 @@
  *
  * Usage:
  *   node scripts/production-deploy-preflight.mjs [--json] [--skip-remote]
+ *   node scripts/production-deploy-preflight.mjs --static [--json]
+ *
+ * --static is the credential-free pre-approval precheck (see staticMain); the
+ * default mode is the live remote gate and requires the four variables below.
  *
  * Env:
  *   SUPABASE_ACCESS_TOKEN
@@ -32,9 +36,11 @@
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
+import fs from 'node:fs';
 import {
   listLocalMigrationVersions,
   parseDeployFunctionsAllowList,
+  scanSqlForProhibited,
   StagingGuardError,
   gitHeadSha,
   gitWorkingTreeClean,
@@ -48,7 +54,7 @@ import {
   STAGING_PROJECT_REF,
 } from './lib/production-helpers.mjs';
 import { compareMigrations } from './staging-deploy-preflight.mjs';
-import { loadLedgerReconciliation } from './lib/migration-reconciliation.mjs';
+import { loadLedgerReconciliation, staticApprovalCheck } from './lib/migration-reconciliation.mjs';
 
 const DEFAULT_GOVERNED_BRANCH = 'rebuild/backend-authority-v2';
 
@@ -56,7 +62,127 @@ function parseArgs(argv) {
   return {
     json: argv.includes('--json'),
     skipRemote: argv.includes('--skip-remote'),
+    // --static is the CREDENTIAL-FREE pre-approval mode. See staticMain().
+    static: argv.includes('--static'),
   };
+}
+
+/**
+ * CREDENTIAL-FREE PRE-APPROVAL PRECHECK.
+ *
+ * Production credentials belong behind the `production` GitHub Environment --
+ * that is the whole point of the environment gate. But the job that shows a
+ * reviewer WHAT they are approving necessarily runs BEFORE that gate, so it
+ * cannot hold those credentials. Previously it demanded all four and failed on
+ * "Missing required production variables" whenever they were correctly scoped
+ * to the environment, which made a correctly-secured repository unable to
+ * deploy at all.
+ *
+ * This mode answers everything answerable from the local tree and the declared
+ * authority: the governed tip, a clean worktree, the function/migration scope,
+ * that the approved version exists canonically exactly once, that it is not
+ * reconciled, HOLD or EXCLUDE, and that its SQL passes the prohibited-pattern
+ * scan.
+ *
+ * It does NOT touch production, and it is NOT the gate. Everything requiring
+ * the live ledger -- target identity, already-applied, the pending set,
+ * unexplained drift -- is verified by scripts/apply-production-migration.mjs
+ * INSIDE `environment: production`, immediately before the write. This check
+ * narrows what can reach that gate; it never replaces it.
+ */
+function staticMain(args) {
+  const governedBranch = process.env.GOVERNED_BRANCH || DEFAULT_GOVERNED_BRANCH;
+
+  if (!gitWorkingTreeClean()) {
+    fail('Working tree is dirty; production never deploys from a dirty worktree');
+  }
+
+  let governance;
+  try {
+    governance = assertGovernedCommit(governedBranch);
+  } catch (err) {
+    fail(err.message);
+  }
+
+  let deployFunctions;
+  try {
+    deployFunctions = parseDeployFunctionsAllowList(process.env.DEPLOY_FUNCTIONS);
+  } catch (err) {
+    fail(err.message);
+  }
+
+  const local = listLocalMigrationVersions();
+  const approvedVersion = String(process.env.APPROVED_MIGRATION_VERSION || '').trim();
+
+  let reconciliation;
+  try {
+    reconciliation = loadLedgerReconciliation(PRODUCTION_PROJECT_REF);
+  } catch (err) {
+    fail(err.message);
+  }
+
+  const blockers = [];
+  let approved = null;
+  let findings = [];
+
+  if (approvedVersion) {
+    const check = staticApprovalCheck({ local, approvedVersion, reconciliation });
+    blockers.push(...check.blockers);
+    approved = check.migration;
+
+    if (check.ok && approved) {
+      const allowDestructive =
+        String(process.env.ALLOW_DESTRUCTIVE_MIGRATION || '').toUpperCase() === 'YES';
+      findings = scanSqlForProhibited(fs.readFileSync(approved.path, 'utf8'), { allowDestructive });
+      const blocked = findings.filter((f) => f.severity === 'BLOCK');
+      if (blocked.length) {
+        blockers.push(
+          `Migration blocked by prohibited SQL patterns: ${blocked.map((f) => f.id).join(', ')}`,
+        );
+      }
+    }
+  }
+
+  const report = {
+    ok: blockers.length === 0,
+    mode: 'static-precheck',
+    credentialFree: true,
+    remoteVerified: false,
+    remoteGate:
+      'Target identity, already-applied, pending set and unexplained drift are verified by ' +
+      'scripts/apply-production-migration.mjs inside environment: production, immediately before the write.',
+    environment: {
+      expectedProductionRef: PRODUCTION_PROJECT_REF,
+      forbiddenStagingRef: STAGING_PROJECT_REF,
+    },
+    governance,
+    git: { commit: gitHeadSha(), workingTreeClean: true },
+    deployFunctions,
+    deployFunctionsDefault: deployFunctions.length === 0 ? 'deploy nothing' : deployFunctions,
+    approvedMigration: approved
+      ? { version: approved.version, name: approved.name, path: approved.path }
+      : null,
+    prohibitedSqlFindings: findings,
+    localCount: local.length,
+    blockers,
+  };
+
+  if (args.json) {
+    console.log(JSON.stringify(report, null, 2));
+  } else {
+    console.log('Production static precheck (credential-free, pre-approval)');
+    console.log(`  governed branch: ${governance.governedBranch} @ ${governance.sha}`);
+    console.log(`  deploy functions: ${deployFunctions.length ? deployFunctions.join(', ') : '(none)'}`);
+    console.log(`  approved migration: ${approved ? `${approved.version} ${approved.name}` : '(none)'}`);
+    console.log(`  local migrations: ${local.length}`);
+    console.log('  REMOTE VERIFICATION: deferred to environment: production (see remoteGate)');
+    if (blockers.length) {
+      console.log('  blockers:');
+      for (const b of blockers) console.log(`    - ${b}`);
+    }
+  }
+
+  if (!report.ok) process.exit(1);
 }
 
 function getRemoteVersions() {
@@ -110,6 +236,8 @@ function assertGovernedCommit(governedBranch) {
 
 function main() {
   const args = parseArgs(process.argv.slice(2));
+  if (args.static) return staticMain(args);
+
   const governedBranch = process.env.GOVERNED_BRANCH || DEFAULT_GOVERNED_BRANCH;
 
   const missing = missingRequiredProductionVars();
@@ -193,6 +321,13 @@ function main() {
 
   const report = {
     ok: migrationReport.ok,
+    // Named so a caller can PROVE which mode produced a report rather than
+    // inferring it. The live gate inside `environment: production` asserts
+    // remoteVerified === true, so a --skip-remote (or --static) report can
+    // never be mistaken for a remote verification.
+    mode: args.skipRemote ? 'local-only' : 'live-remote-gate',
+    credentialFree: false,
+    remoteVerified: !args.skipRemote,
     environment: {
       expectedProductionRef: PRODUCTION_PROJECT_REF,
       forbiddenStagingRef: STAGING_PROJECT_REF,
@@ -262,4 +397,4 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   main();
 }
 
-export { assertGovernedCommit, getRemoteVersions };
+export { assertGovernedCommit, getRemoteVersions, staticMain };
