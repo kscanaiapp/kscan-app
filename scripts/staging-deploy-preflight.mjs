@@ -49,6 +49,22 @@ import {
   fail,
 } from './lib/staging-helpers.mjs';
 
+import {
+  OBSOLETE_REMOTE_ONLY,
+  PRODUCTION_ONLY_HISTORICAL,
+  VALID_RECONCILIATION_CLASSIFICATIONS,
+  VALID_REMOTE_ONLY_CLASSIFICATIONS,
+  VALID_KNOWN_PENDING_DISPOSITIONS,
+  KNOWN_FUTURE_UNAPPLIED,
+  HOLD,
+  EXCLUDE,
+  loadLedgerReconciliation,
+  validateReconciliation,
+  validateRemoteOnlyExclusions,
+  validateKnownPending,
+  resolveApprovedMigration,
+} from './lib/migration-reconciliation.mjs';
+
 function parseArgs(argv) {
   return {
     json: argv.includes('--json'),
@@ -83,167 +99,33 @@ function getRemoteVersions() {
   return [...versions].sort();
 }
 
-const VALID_RECONCILIATION_CLASSIFICATIONS = new Set([
-  'EXACT_CONTENT_RENUMBER',
-  'EQUIVALENT_RENUMBER',
-  'CONSOLIDATED_IN_REMOTE',
-  'SUPERSEDED_BY_LATER_MIGRATION',
-]);
+/**
+ * The reconciliation vocabulary, its validators and the single approval gate now
+ * live in scripts/lib/migration-reconciliation.mjs so that the production
+ * preflight and the production applier reach the same decision from the same
+ * code. They are re-exported here unchanged: this module remains the import
+ * site the rest of the tooling and the existing tests already use.
+ */
 
 /**
- * The ONLY classification a declaration-only remote exclusion may carry
- * (ledgerReconciliation.environments.<ref>.remoteOnly[]). It names a ledger row
- * whose effect is proven absent and whose migration must never be replayed or
- * carried into source (B34-BE-GOV-004). It is deliberately not a `reconciled`
- * classification: nothing local stands in for it.
+ * Compares the local migration tree against a remote ledger under the declared
+ * reconciliation authority, and decides which single migration (if any) this
+ * invocation may execute.
+ *
+ * The model is:
+ *
+ *   EXACTLY_ONE_EXPLICITLY_APPROVED_PENDING_MIGRATION + ZERO_UNEXPLAINED_DRIFT
+ *
+ * not the older EXACTLY_ONE_PENDING_MIGRATION. Other known, legitimate,
+ * deliberately-unapplied migrations may remain pending; they simply never
+ * execute. Anything the authority does NOT explain -- an undeclared remote-only
+ * row, an undeclared local divergence -- still fails closed.
+ *
+ * An environment that declares no `knownPending` (staging, and every unknown
+ * ref) keeps the original behaviour exactly: with nothing declared, every
+ * pending migration is undeclared, so more than one pending migration is still a
+ * blocker and the message is unchanged.
  */
-const OBSOLETE_REMOTE_ONLY = 'OBSOLETE_REMOTE_ONLY';
-
-/**
- * Loads the reconciliation authority for one project ref.
- * An unknown ref (production included) resolves to an empty authority, so the
- * gate keeps its original strict behaviour wherever nothing was ever proven.
- */
-function loadLedgerReconciliation(projectRef, manifestPath) {
-  const file =
-    manifestPath ||
-    path.join(process.cwd(), 'config', 'migration-authority-manifest.json');
-  if (!fs.existsSync(file)) return { reconciled: [], genuinelyUnapplied: [], remoteOnly: [] };
-  let manifest;
-  try {
-    manifest = JSON.parse(fs.readFileSync(file, 'utf8'));
-  } catch (err) {
-    throw new Error(`migration authority manifest is unparseable: ${err.message}`);
-  }
-  const env = manifest?.ledgerReconciliation?.environments?.[projectRef];
-  if (!env) return { reconciled: [], genuinelyUnapplied: [], remoteOnly: [] };
-  if (env.remoteOnly !== undefined && !Array.isArray(env.remoteOnly)) {
-    throw new Error('migration authority manifest remoteOnly must be an array');
-  }
-  return {
-    reconciled: Array.isArray(env.reconciled) ? env.reconciled : [],
-    genuinelyUnapplied: Array.isArray(env.genuinelyUnapplied) ? env.genuinelyUnapplied : [],
-    remoteOnly: env.remoteOnly ?? [],
-  };
-}
-
-/**
- * Validates declaration-only remote exclusions against the real local tree, the
- * real remote ledger, and the `reconciled` claims. An exclusion is accepted only
- * when it is exactly OBSOLETE_REMOTE_ONLY, carries a name and evidence, names a
- * version the remote ledger really holds, names a version NO local file carries
- * (otherwise it is not remote-only), and is not also claimed by a reconciliation.
- * Anything else is a blocker, never a licence.
- */
-function validateRemoteOnlyExclusions(remoteOnly, localSet, remoteSet, claimedRemote) {
-  const problems = [];
-  const excludedRemote = new Map();
-
-  for (const item of remoteOnly) {
-    const label = `${item?.remoteVersion ?? '(no remoteVersion)'} (${item?.logicalName ?? 'unnamed'})`;
-    if (!item || typeof item.remoteVersion !== 'string' || !/^\d{14}$/.test(item.remoteVersion)) {
-      problems.push(`remote-only exclusion ${label}: remoteVersion must be a 14-digit version`);
-      continue;
-    }
-    if (item.classification !== OBSOLETE_REMOTE_ONLY) {
-      problems.push(
-        `remote-only exclusion ${label}: classification must be ${OBSOLETE_REMOTE_ONLY}, got "${item.classification}"`,
-      );
-    }
-    if (typeof item.logicalName !== 'string' || item.logicalName.trim() === '') {
-      problems.push(`remote-only exclusion ${label}: logicalName is required`);
-    }
-    if (typeof item.evidence !== 'string' || item.evidence.trim() === '') {
-      problems.push(`remote-only exclusion ${label}: evidence is required`);
-    }
-    if (!remoteSet.has(item.remoteVersion)) {
-      problems.push(
-        `remote-only exclusion ${label}: the remote ledger does not contain it — stale authority`,
-      );
-    }
-    if (localSet.has(item.remoteVersion)) {
-      problems.push(
-        `remote-only exclusion ${label}: a local migration carries this version, so it is not remote-only`,
-      );
-    }
-    if (claimedRemote.has(item.remoteVersion)) {
-      problems.push(
-        `remote-only exclusion ${label}: also claimed by reconciliation ${claimedRemote.get(item.remoteVersion)}`,
-      );
-    }
-    if (excludedRemote.has(item.remoteVersion)) {
-      problems.push(`remote-only exclusion ${label}: declared more than once`);
-    } else {
-      excludedRemote.set(item.remoteVersion, item);
-    }
-  }
-
-  return { problems, excludedRemote };
-}
-
-/**
- * Validates the declared reconciliation against the real local tree and the real
- * remote ledger. A declaration that has rotted (names a version that no longer
- * exists on either side, claims a remote row twice, contradicts itself, or carries
- * an unknown classification) is a blocker, not a licence.
- */
-function validateReconciliation(reconciled, localSet, remoteSet) {
-  const problems = [];
-  const aliasedLocal = new Map();
-  const claimedRemote = new Map();
-
-  for (const item of reconciled) {
-    const label = `${item?.localVersion ?? '(no localVersion)'} (${item?.logicalName ?? 'unnamed'})`;
-
-    if (!item || typeof item.localVersion !== 'string' || !item.localVersion) {
-      problems.push(`reconciliation entry ${label}: localVersion is missing`);
-      continue;
-    }
-    if (!VALID_RECONCILIATION_CLASSIFICATIONS.has(item.classification)) {
-      problems.push(
-        `reconciliation entry ${label}: unknown classification "${item.classification}"`,
-      );
-    }
-    if (typeof item.evidence !== 'string' || item.evidence.trim() === '') {
-      problems.push(`reconciliation entry ${label}: evidence is required`);
-    }
-    if (!localSet.has(item.localVersion)) {
-      problems.push(
-        `reconciliation entry ${label}: localVersion is not present in supabase/migrations — stale authority`,
-      );
-    }
-    if (aliasedLocal.has(item.localVersion)) {
-      problems.push(`reconciliation entry ${label}: localVersion declared more than once`);
-    } else {
-      aliasedLocal.set(item.localVersion, item);
-    }
-
-    const remoteVersions = Array.isArray(item.remoteVersions) ? item.remoteVersions : [];
-    if (remoteVersions.length === 0 && item.classification !== 'SUPERSEDED_BY_LATER_MIGRATION') {
-      problems.push(
-        `reconciliation entry ${label}: only SUPERSEDED_BY_LATER_MIGRATION may declare no remoteVersions`,
-      );
-    }
-    for (const remoteVersion of remoteVersions) {
-      if (!remoteSet.has(remoteVersion)) {
-        problems.push(
-          `reconciliation entry ${label}: claims remote version ${remoteVersion}, which the remote ledger does not contain — stale authority`,
-        );
-        continue;
-      }
-      if (claimedRemote.has(remoteVersion)) {
-        problems.push(
-          `reconciliation entry ${label}: remote version ${remoteVersion} is already claimed by ${claimedRemote.get(remoteVersion)}`,
-        );
-      } else {
-        claimedRemote.set(remoteVersion, label);
-      }
-    }
-  }
-
-  return { problems, aliasedLocal, claimedRemote };
-}
-
 function compareMigrations(local, remote, approvedVersion, reconciliation = null) {
   const localSet = new Set(local.map((m) => m.version));
   const remoteSet = new Set(remote);
@@ -263,8 +145,13 @@ function compareMigrations(local, remote, approvedVersion, reconciliation = null
   problems.push(...exclusions.problems);
   const { excludedRemote } = exclusions;
 
+  const knownPendingDeclarations = reconciliation?.knownPending ?? [];
+  const known = validateKnownPending(knownPendingDeclarations, localSet, remoteSet, aliasedLocal);
+  problems.push(...known.problems);
+  const { declaredPending, fulfilled } = known;
+
   // A remote-only version is drift ONLY if no proven reconciliation accounts for
-  // it and no validated OBSOLETE_REMOTE_ONLY exclusion names it.
+  // it and no validated remote-only exclusion names it.
   const remoteOnly = remote.filter(
     (v) => !localSet.has(v) && !claimedRemote.has(v) && !excludedRemote.has(v),
   );
@@ -277,12 +164,47 @@ function compareMigrations(local, remote, approvedVersion, reconciliation = null
     (m) => !remoteSet.has(m.version) && aliasedLocal.has(m.version),
   );
 
+  // Pending splits into KNOWN (explained by the authority) and UNEXPLAINED.
+  const knownPending = pending.filter((m) => declaredPending.has(m.version));
+  const unexplainedLocal = pending.filter((m) => !declaredPending.has(m.version));
+
   const duplicates = [];
   const seen = new Set();
   for (const m of local) {
     if (seen.has(m.version)) duplicates.push(m.version);
     seen.add(m.version);
   }
+
+  // The environment is operating under an explicit reconciliation authority as
+  // soon as it DECLARES a knownPending section at all. Deriving this from the
+  // declarations rather than from how many are still outstanding is what lets a
+  // campaign run to completion on one unchanged manifest: as entries become
+  // FULFILLED the authority stays in force instead of silently reverting to the
+  // strict one-pending rule partway through.
+  const hasKnownPendingAuthority = knownPendingDeclarations.length > 0;
+
+  const approval = resolveApprovedMigration({
+    approvedVersion,
+    pending,
+    declaredPending,
+    aliasedLocal,
+    remoteSet,
+    localSet,
+    requireDeclaration: hasKnownPendingAuthority,
+  });
+
+  const describe = (m) => {
+    const declaration = declaredPending.get(m.version);
+    return {
+      version: m.version,
+      name: m.name,
+      path: m.path,
+      ...(declaration ? { disposition: declaration.disposition } : {}),
+    };
+  };
+
+  const withDisposition = (d) =>
+    knownPending.filter((m) => declaredPending.get(m.version)?.disposition === d).map(describe);
 
   const result = {
     localCount: local.length,
@@ -302,6 +224,31 @@ function compareMigrations(local, remote, approvedVersion, reconciliation = null
     duplicates,
     ok: true,
     blockers: [],
+
+    // --- the report the production campaign reads -------------------------
+    // Each bucket answers one question and only that question. HOLD and EXCLUDE
+    // are reported separately and never folded into a generic pending count:
+    // the operator has to be able to see, at a glance, how much of the pending
+    // set is actually approvable.
+    knownPending: knownPending.map(describe),
+    approvableKnownPending: withDisposition(KNOWN_FUTURE_UNAPPLIED),
+    hold: withDisposition(HOLD),
+    exclude: withDisposition(EXCLUDE),
+    fulfilled: [...fulfilled.values()].map((k) => ({
+      version: k.localVersion,
+      logicalName: k.logicalName,
+      disposition: k.disposition,
+      state: 'FULFILLED',
+    })),
+    unexplainedRemote: remoteOnly,
+    unexplainedLocal: unexplainedLocal.map(describe),
+    remoteOnlyAllowed: excludedRemoteOnly.map((v) => ({
+      version: v,
+      classification: excludedRemote.get(v).classification,
+      logicalName: excludedRemote.get(v).logicalName,
+    })),
+    approvedSelectedForExecution: 0,
+    otherKnownPendingCount: 0,
   };
 
   if (problems.length > 0) {
@@ -318,7 +265,20 @@ function compareMigrations(local, remote, approvedVersion, reconciliation = null
     result.ok = false;
     result.blockers.push(`duplicate local versions: ${duplicates.join(', ')}`);
   }
-  if (pending.length > 1) {
+
+  if (hasKnownPendingAuthority) {
+    // Under an explicit authority, many known pending migrations are fine and
+    // only UNEXPLAINED local divergence is drift.
+    if (unexplainedLocal.length > 0) {
+      result.ok = false;
+      result.blockers.push(
+        `local migrations diverge from the remote ledger with no declared reconciliation or knownPending disposition: ${unexplainedLocal
+          .map((m) => m.version)
+          .join(', ')}`,
+      );
+    }
+  } else if (pending.length > 1) {
+    // Original behaviour, unchanged, for every environment without an authority.
     result.ok = false;
     result.blockers.push(
       `multiple pending migrations (${pending.length}); approve exactly one: ${pending
@@ -326,33 +286,31 @@ function compareMigrations(local, remote, approvedVersion, reconciliation = null
         .join(', ')}`,
     );
   }
-  if (pending.length === 1) {
-    const item = pending[0];
-    if (!approvedVersion) {
+
+  for (const blocker of approval.blockers) {
+    result.ok = false;
+    result.blockers.push(blocker);
+  }
+
+  if (approval.selected) {
+    result.approvedPending = approval.selected;
+    result.approvedSelectedForExecution = 1;
+    result.otherKnownPendingCount = pending.length - 1;
+  } else if (approval.alreadyApplied) {
+    // Nothing to select. The deploy job re-runs this preflight AFTER the
+    // approved migration has been applied, carrying the same
+    // APPROVED_MIGRATION_VERSION through -- so an approved version the ledger
+    // already contains is a satisfied approval. It is reported, and it selects
+    // nothing for execution.
+    result.approvedAlreadyApplied = approval.alreadyApplied;
+    result.otherKnownPendingCount = pending.length;
+  } else {
+    result.otherKnownPendingCount = pending.length;
+    if (!approvedVersion && pending.length === 1 && !hasKnownPendingAuthority) {
+      const item = pending[0];
       result.ok = false;
       result.blockers.push(
         `pending migration ${item.version} requires APPROVED_MIGRATION_VERSION=${item.version}`,
-      );
-    } else if (approvedVersion !== item.version) {
-      result.ok = false;
-      result.blockers.push(
-        `pending migration ${item.version} does not match APPROVED_MIGRATION_VERSION=${approvedVersion}`,
-      );
-    } else {
-      result.approvedPending = item;
-    }
-  } else if (approvedVersion) {
-    // Nothing pending. The deploy job re-runs this preflight AFTER the approved
-    // migration has been applied, carrying the same APPROVED_MIGRATION_VERSION
-    // through -- so an approved version the ledger already contains is a
-    // satisfied approval, not a failure. Only a version that is neither pending
-    // nor applied is wrong: that names a migration that does not exist.
-    if (remoteSet.has(approvedVersion)) {
-      result.approvedAlreadyApplied = approvedVersion;
-    } else {
-      result.ok = false;
-      result.blockers.push(
-        `APPROVED_MIGRATION_VERSION=${approvedVersion} is neither pending nor present in the remote ledger`,
       );
     }
   }
@@ -484,5 +442,14 @@ export {
   loadLedgerReconciliation,
   validateReconciliation,
   validateRemoteOnlyExclusions,
+  validateKnownPending,
+  resolveApprovedMigration,
   OBSOLETE_REMOTE_ONLY,
+  PRODUCTION_ONLY_HISTORICAL,
+  KNOWN_FUTURE_UNAPPLIED,
+  HOLD,
+  EXCLUDE,
+  VALID_RECONCILIATION_CLASSIFICATIONS,
+  VALID_REMOTE_ONLY_CLASSIFICATIONS,
+  VALID_KNOWN_PENDING_DISPOSITIONS,
 };

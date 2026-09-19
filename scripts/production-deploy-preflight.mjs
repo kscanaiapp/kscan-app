@@ -47,7 +47,8 @@ import {
   PRODUCTION_PROJECT_REF,
   STAGING_PROJECT_REF,
 } from './lib/production-helpers.mjs';
-import { compareMigrations, loadLedgerReconciliation } from './staging-deploy-preflight.mjs';
+import { compareMigrations } from './staging-deploy-preflight.mjs';
+import { loadLedgerReconciliation } from './lib/migration-reconciliation.mjs';
 
 const DEFAULT_GOVERNED_BRANCH = 'rebuild/backend-authority-v2';
 
@@ -153,6 +154,16 @@ function main() {
       reconciledLocal: [],
       reconciledRemote: [],
       reconciliationProblems: [],
+      knownPending: [],
+      approvableKnownPending: [],
+      hold: [],
+      exclude: [],
+      fulfilled: [],
+      unexplainedRemote: [],
+      unexplainedLocal: [],
+      remoteOnlyAllowed: [],
+      approvedSelectedForExecution: 0,
+      otherKnownPendingCount: 0,
     };
   } else {
     try {
@@ -212,10 +223,28 @@ function main() {
       console.log(`  remote migrations: ${migrationReport.remoteCount}`);
       console.log(`  remote-only: ${migrationReport.remoteOnly.length ? migrationReport.remoteOnly.join(', ') : 'none'}`);
       console.log(`  local-only (pending): ${migrationReport.localOnly.length ? migrationReport.localOnly.map((m) => m.version).join(', ') : 'none'}`);
-      console.log(`  reconciled local: ${migrationReport.reconciledLocal?.length ?? 0}`);
-      console.log(`  reconciled remote: ${migrationReport.reconciledRemote?.length ?? 0}`);
+      console.log(`  RECONCILED: ${migrationReport.reconciledLocal?.length ?? 0} local, ${migrationReport.reconciledRemote?.length ?? 0} remote`);
+      console.log(`  REMOTE_ONLY_ALLOWED: ${migrationReport.remoteOnlyAllowed?.length ?? 0}`);
+      console.log(`  UNEXPLAINED_REMOTE: ${migrationReport.unexplainedRemote?.length ? migrationReport.unexplainedRemote.join(', ') : '0'}`);
+      console.log(`  KNOWN_PENDING: ${migrationReport.knownPending?.length ?? 0}`);
+      console.log(`    approvable (KNOWN_FUTURE_UNAPPLIED): ${migrationReport.approvableKnownPending?.length ?? 0}`);
+      console.log(`    HOLD: ${migrationReport.hold?.length ?? 0}`);
+      console.log(`    EXCLUDE: ${migrationReport.exclude?.length ?? 0}`);
+      console.log(`  FULFILLED: ${migrationReport.fulfilled?.length ?? 0}`);
+      console.log(
+        `  APPROVED_PENDING: ${migrationReport.approvedPending ? migrationReport.approvedPending.version : '(none)'}`,
+      );
+      console.log(`  APPROVED_PENDING_COUNT: ${migrationReport.approvedSelectedForExecution ?? 0}`);
+      console.log(`  OTHER_KNOWN_PENDING: ${migrationReport.otherKnownPendingCount ?? 0}`);
+      console.log('  OTHER_MIGRATIONS_SELECTED_FOR_EXECUTION: 0');
+      if (migrationReport.approvedAlreadyApplied) {
+        console.log(`  APPROVED_ALREADY_APPLIED: ${migrationReport.approvedAlreadyApplied}`);
+      }
       for (const item of migrationReport.reconciledLocal ?? []) {
-        console.log(`    ${item.version} ${item.name} — ${item.classification} -> ${item.remoteVersions.join(', ') || '(none)'}`);
+        console.log(`    RECONCILED ${item.version} ${item.name} — ${item.classification} -> ${item.remoteVersions.join(', ') || '(none)'}`);
+      }
+      for (const item of migrationReport.remoteOnlyAllowed ?? []) {
+        console.log(`    REMOTE_ONLY_ALLOWED ${item.version} ${item.logicalName} — ${item.classification}`);
       }
     }
     if (migrationReport.blockers?.length) {

@@ -373,13 +373,17 @@
   ],
   "ledgerReconciliation": {
     "section": "ledger-reconciliation-v1",
-    "purpose": "Records, per environment, which local migration VERSIONS are already represented in that environment's applied ledger under a different version identity (renumber), split across several ledger rows (consolidation), or made unnecessary by other applied state (supersession). Without this, scripts/staging-deploy-preflight.mjs compares bare version strings and reports historical renumbering as deployment drift. This never renames, deletes, reorders or re-applies a migration: it only records an explicit, evidence-backed decision that a version difference is not a missing capability. Anything NOT listed here is still treated as genuinely pending and blocks the gate.",
+    "purpose": "Records, per environment, which local migration VERSIONS are already represented in that environment's applied ledger under a different version identity (renumber), split across several ledger rows (consolidation), or made unnecessary by other applied state (supersession). Without this, scripts/staging-deploy-preflight.mjs compares bare version strings and reports historical renumbering as deployment drift. This never renames, deletes, reorders or re-applies a migration: it only records an explicit, evidence-backed decision that a version difference is not a missing capability. Anything NOT listed here is still treated as genuinely pending and blocks the gate. Build 34 adds knownPending so an environment that is INTENTIONALLY behind (production) can truthfully say so: the old vocabulary could only express \"already present or superseded\", which forced a false reconciliation claim as the only way to make the gate pass. The gate model is now EXACTLY_ONE_EXPLICITLY_APPROVED_PENDING_MIGRATION + ZERO_UNEXPLAINED_DRIFT. Anything not declared in one of these sections is still unexplained drift and still fails closed.",
     "classifications": [
       "EXACT_CONTENT_RENUMBER",
       "EQUIVALENT_RENUMBER",
       "CONSOLIDATED_IN_REMOTE",
       "SUPERSEDED_BY_LATER_MIGRATION",
-      "OBSOLETE_REMOTE_ONLY"
+      "OBSOLETE_REMOTE_ONLY",
+      "PRODUCTION_ONLY_HISTORICAL",
+      "KNOWN_FUTURE_UNAPPLIED",
+      "HOLD",
+      "EXCLUDE"
     ],
     "environments": {
       "yzqjvdfgefveprobvvyw": {
@@ -697,7 +701,721 @@
             "evidence": "RP-106. Previously declared GENUINELY_UNAPPLIED on 2026-09-03; that declaration went stale. As of 2026-09-07 supabase_migrations.schema_migrations carries version 20260902150000 (name vto_non_billable_attempt_release), public.release_vto_generation(uuid, text, text) exists, pg_get_functiondef is byte-identical to the source migration body and comment, and execute grants are postgres + service_role only (no anon/authenticated/public). Certified zero-spend on run kscan-vto-rp106-cert-01: 13/13 controls PASS, 0 provider submits, 0 paid requests, 0 residual test state. Production (wyyuqfdxucjksghsmhry) is NOT promoted -- see docs/audits/rp106-vto-attempt-release-promotion.md."
           }
         ]
+      },
+      "wyyuqfdxucjksghsmhry": {
+        "label": "K Scan AI Production",
+        "confirmedOn": "2026-09-19",
+        "method": "Local migration inventory (172 files) diffed against production supabase_migrations.schema_migrations (95 rows) read-only via the Supabase Management API, giving 72 common / 100 local-only / 23 production-only. Every local-only version was then classified by PHYSICAL EFFECT, not by filename or timestamp: the full production object inventory (pg_class tables and indexes, pg_proc functions with pg_get_function_identity_arguments, information_schema.columns, storage.buckets, has_function_privilege/aclexplode grants) was read and each migration's declared objects were checked against it. Renumber claims are additionally corroborated by the production ledger row's own logical name and statement length, by the migration files' in-repo provenance headers, and in one case (20260723050000) by an exact normalised md5 match against the production ledger statements. Nothing was applied, recorded or changed: PRODUCTION_MUTATED=NO.",
+        "reconciled": [
+          {
+            "localVersion": "20260720120000",
+            "logicalName": "scan_commerce_events",
+            "remoteVersions": [
+              "20260720115423"
+            ],
+            "classification": "EXACT_CONTENT_RENUMBER",
+            "evidence": "Repo carries both 20260720120000_scan_commerce_events.sql and 20260720115423_scan_commerce_events.sql, whose header records \"Already applied in production\". The production ledger holds 20260720115423 only; public.scan_commerce_events and its 5 indexes are present. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260721170559",
+            "logicalName": "dr3_collaborative_interactions",
+            "remoteVersions": [
+              "20260721201218"
+            ],
+            "classification": "EXACT_CONTENT_RENUMBER",
+            "evidence": "Declared in config/migration-provenance-manifest.json as a byte-equivalent alias pair. Production ledger holds 20260721201218. All 9 declared functions, public.dressing_room_collab_idempotency and dressing_rooms.collaboration_access_version / dressing_room_messages.client_message_id verified present. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260721183308",
+            "logicalName": "dr4_collab_idempotency_room_scope",
+            "remoteVersions": [
+              "20260721201347"
+            ],
+            "classification": "EXACT_CONTENT_RENUMBER",
+            "evidence": "Byte-equivalent alias pair (migration-provenance-manifest). Production ledger holds 20260721201347; set_dressing_room_item_reaction and create_dressing_room_message present, and dressing_room_collab_idempotency_room_actor_op_request_key exists. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260723040000",
+            "logicalName": "account_deletion_crash_recovery",
+            "remoteVersions": [
+              "20260723131202"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Production ledger row 20260723131202 carries the same logical name with 6602 chars of real SQL. claim_deletion_requests_for_purge(text,integer,interval), heartbeat_deletion_request_lease and mark_deletion_request_purged verified present. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260723050000",
+            "logicalName": "account_deletion_rls_active_account",
+            "remoteVersions": [
+              "20260723131221"
+            ],
+            "classification": "EXACT_CONTENT_RENUMBER",
+            "evidence": "Proven by content, not by name: md5 of the production ledger statements for 20260723131221, whitespace-normalised and lower-cased, is 76ebcfd5b5cda29bee4adb239cd2efee, which equals the same normalisation of this file's SQL body. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260723060000",
+            "logicalName": "deletion_ledger_pii_sanitizer",
+            "remoteVersions": [
+              "20260723131423"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Production ledger row 20260723131423 carries the same logical name (1326 chars). public.append_deletion_state_transition(uuid,uuid,text,text,text,text,text,jsonb) verified present. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260723070000",
+            "logicalName": "profiles_backfill_and_active_account_hardening",
+            "remoteVersions": [
+              "20260723083904"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Production ledger row 20260723083904 carries the same logical name (2093 chars). public.is_active_account() present as SECURITY DEFINER with a pinned search_path; profiles_account_status_idx present. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "202607200001",
+            "logicalName": "elise_generation_quota_idempotency",
+            "remoteVersions": [
+              "20260724205334"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Production ledger row 20260724205334 carries the same logical name (4989 chars). public.elise_generation_operations exists with its user_id/operation_key unique key, and style_chat_messages.source_message_id is present. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "202607210001",
+            "logicalName": "elise_generation_resilience_e2",
+            "remoteVersions": [
+              "20260724205508"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Production ledger row 20260724205508 carries the same logical name (12073 chars). All 4 declared functions present, and all 6 declared elise_generation_operations columns (attempt_count, assistant_message_id, provider_started_at, completed_at, stable_error_class, max_attempts) verified present. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260721090920",
+            "logicalName": "fix_elise_quota_after_generation_reservation",
+            "remoteVersions": [
+              "20260724205606"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Production ledger row 20260724205606 carries the same logical name (4846 chars). public.reserve_elise_generation_operation(uuid,uuid,text,text,text) present with the post-fix 5-argument signature. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260724220000",
+            "logicalName": "shared_room_recipient_read_policies",
+            "remoteVersions": [
+              "20260724221229"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Production ledger row 20260724221229 carries the same logical name (2174 chars). public.shared_room_memberships and its recipient indexes are present. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260724221500",
+            "logicalName": "shared_room_memberships_select_grant",
+            "remoteVersions": [
+              "20260724221634"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Production ledger row 20260724221634 carries the same logical name (548 chars). shared_room_memberships is present and list_shared_rooms_for_me resolves. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260804101903",
+            "logicalName": "legal_acceptances",
+            "remoteVersions": [
+              "20260617000001"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "The file's own provenance header states it exists because staging applied legal_acceptances under 20260804101903 while the production lineage applies the equivalent table under 20260617000001_create_legal_acceptances, and that the resulting table, constraints, RLS policies and grants are identical. Production's ledger holds 20260617000001; public.legal_acceptances and legal_acceptances_user_type_version_unique verified present. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260806153233",
+            "logicalName": "dressing_room_user_blocking",
+            "remoteVersions": [
+              "20260808202108"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Production ledger row 20260808202108 carries the same logical name (30573 chars). public.dressing_room_user_blocks, all 10 declared functions (including internal.is_dressing_room_pair_blocked and internal.lock_dressing_room_pair) and dressing_room_participants.left_at verified present. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260808103028",
+            "logicalName": "privacy_request_rate_limits",
+            "remoteVersions": [
+              "20260808202222"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Production ledger row 20260808202222 carries the same logical name (5250 chars). public.privacy_request_rate_limits and reserve_privacy_request_rate_limit(uuid,text,integer,integer) verified present. The repo's second copy at 20260808121216 is the recovered ledger-version twin of this same SQL and is excluded separately so that only one local version claims this remote row. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260809120000",
+            "logicalName": "contribution_block_enforcement",
+            "remoteVersions": [
+              "20260809102805"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "The file's own header records \"APPLIED TO PRODUCTION wyyuqfdxucjksghsmhry\". The production ledger row 20260809102805 carries the same logical name (5637 chars) and public.guard_dressing_room_item_contribution_identity() is present. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260810120000",
+            "logicalName": "apple_auth_credentials",
+            "remoteVersions": [
+              "20260816020518"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Production ledger row 20260816020518 carries the same logical name (1193 chars). public.apple_auth_credentials and apple_auth_credentials_updated_at_idx verified present. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260815233353",
+            "logicalName": "dressing_room_items_blocking",
+            "remoteVersions": [
+              "20260815233431"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "The file's own header states the contract is \"Identical on production (wyyuqfdxucjksghsmhry) and app staging\". Production ledger row 20260815233431 carries the same logical name (12220 chars) and all 3 declared functions are present. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260815233457",
+            "logicalName": "content_reports_ai_output",
+            "remoteVersions": [
+              "20260809152053"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "The file's own header records \"production (wyyuqfdxucjksghsmhry) : ai_output present, ai_output_context jsonb present\". Production ledger row 20260809152053 (add_ai_output_reporting, 3292 chars) is the row that delivered it, and content_reports.ai_output_context is verified present. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260902130000",
+            "logicalName": "reaction_counts_honour_dressing_room_block",
+            "remoteVersions": [
+              "20260916031250"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "Production ledger row 20260916031250 (build33_reaction_counts_honour_dressing_room_block, 6533 chars) carries the same logical name. NOTE the narrow scope: this entry reconciles ONLY the block-honouring redefinition. The later token-binding contract (20260916203000 / 20260916233708) is NOT reconciled by it and is recorded as pending, because production still exposes the one-argument get_item_reaction_counts(p_item_ids uuid[]). Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260905170749",
+            "logicalName": "legal_acceptances_ai_processing_consent",
+            "remoteVersions": [
+              "20260905171030"
+            ],
+            "classification": "EXACT_CONTENT_RENUMBER",
+            "evidence": "The file's own provenance header states: \"Applied to production (wyyuqfdxucjksghsmhry) as ledger version: 20260905171030\" and that both ledgers hold byte-identical statement text under the same logical name, differing only in the recorded version. Production ledger row 20260905171030 confirmed present (524 chars). Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260916125206",
+            "logicalName": "build33_production_rpc_privilege_convergence",
+            "remoteVersions": [
+              "20260916125554"
+            ],
+            "classification": "EQUIVALENT_RENUMBER",
+            "evidence": "The file's own header states its scope is to converge live production (wyyuqfdxucjksghsmhry) onto the RPC privilege contract. Production ledger row 20260916125554 carries the same logical name (3462 chars), and the target posture is verified live: PUBLIC EXECUTE = 0 and exactly 3 anon-executable routines (get_item_reaction_counts, get_public_room_preview, get_public_room_decision_preview). Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          }
+        ],
+        "knownPending": [
+          {
+            "localVersion": "20260618132214",
+            "logicalName": "create_waitlist_signups_main_backend",
+            "disposition": "HOLD",
+            "evidence": "Legacy waitlist-project migration. Its own header marks the source project \"[legacy, retained, untouched]\". public.waitlist_signups does not exist on the Build 34 production database, and whether the waitlist surface belongs on this project at all is an owner decision, not a migration-day one. Not cleared for execution. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260722201910",
+            "logicalName": "waitlist_email_delivery_state",
+            "disposition": "HOLD",
+            "evidence": "Adds waitlist_signups.email_delivery_status. Blocked behind 20260618132214: public.waitlist_signups does not exist on production, so this cannot apply, and the parent is itself on HOLD pending an owner decision. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260723021145",
+            "logicalName": "account_deletion_security_hardening",
+            "disposition": "EXCLUDE",
+            "evidence": "Replay would ABORT. It issues CREATE OR REPLACE on schedule_deletion_retry_or_fail with a changed return type (text->boolean), which Postgres rejects once the lifecycle migration has run. Production's ledger records only a 121-char placeholder for it under 20260723021514; every physical object it declares is already present, and the live signature is schedule_deletion_retry_or_fail(uuid,text,text,text,integer). Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260723021515",
+            "logicalName": "reconcile_account_deletion_subsystem_to_production",
+            "disposition": "EXCLUDE",
+            "evidence": "Production is the ORIGIN of this contract, not its target. The file's own header records that its three objects were captured read-only from wyyuqfdxucjksghsmhry via pg_get_functiondef(); the migration exists to bring staging up to production's shape. All three verified present live: is_active_account() (SECURITY DEFINER, pinned search_path), set_deletion_requests_updated_at(), and the profiles policy \"Users can read own profile\". Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260803020000",
+            "logicalName": "provider_request_security",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 8 declared object(s) verified missing — public.provider_request_limits, public.provider_request_reservations, public.provider_security_events, public.set_provider_request_limits_updated_at, public.evaluate_provider_abuse_state, public.reserve_provider_request, +2 more. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260803020100",
+            "logicalName": "provider_request_security_revoke_anon",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: the objects this migration depends on (see 20260803020100_provider_request_security_revoke_anon.sql) are not present in the live inventory — production carries 55 public tables against the governed tree's expectation, and no ledger row records this logical name. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260803020200",
+            "logicalName": "provider_request_security_fix_trigger_search_path",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 1 declared object(s) verified missing — public.set_provider_request_limits_updated_at. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260803160206",
+            "logicalName": "provider_request_ttl_tuning",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: the objects this migration depends on (see 20260803160206_provider_request_ttl_tuning.sql) are not present in the live inventory — production carries 55 public tables against the governed tree's expectation, and no ledger row records this logical name. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260803214145",
+            "logicalName": "harden_public_rpc_execution_grants",
+            "disposition": "EXCLUDE",
+            "evidence": "Privilege-only hardening whose target posture already holds on production, delivered by ledger row 20260916125554. Verified live: PUBLIC EXECUTE = 0 across public/internal and exactly 3 anon-executable routines. Replay is refused rather than treated as a no-op because the file also redefines get_item_reaction_counts, and production's live overload set is deliberately the one-argument form. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260803214253",
+            "logicalName": "harden_public_rpc_execution_grants_trigger_cleanup",
+            "disposition": "HOLD",
+            "evidence": "Trigger-cleanup companion to 20260803214145, which is EXCLUDEd because production's privilege posture already holds. Whether the cleanup half is independently required on production could not be settled from the object inventory alone. Not cleared for execution. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260803220000",
+            "logicalName": "image_ingestion_quarantine_storage",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: the objects this migration depends on (see 20260803220000_image_ingestion_quarantine_storage.sql) are not present in the live inventory — production carries 55 public tables against the governed tree's expectation, and no ledger row records this logical name. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260803220100",
+            "logicalName": "image_ingestion_clean_storage",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: the objects this migration depends on (see 20260803220100_image_ingestion_clean_storage.sql) are not present in the live inventory — production carries 55 public tables against the governed tree's expectation, and no ledger row records this logical name. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260803220200",
+            "logicalName": "image_scan_verdicts",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 1 declared object(s) verified missing — public.image_scan_verdicts. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260804090000",
+            "logicalName": "edge_function_errors",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 1 declared object(s) verified missing — internal.edge_function_errors. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260805120000",
+            "logicalName": "reconcile_deletion_requests_to_production_columns",
+            "disposition": "EXCLUDE",
+            "evidence": "Explicitly a staging catch-up to production's own column contract (the file's header records reading wyyuqfdxucjksghsmhry read-only to find staging missing three columns). All three are present on production: deletion_requests.processed_at, .confirmation_email_sent_at and .notes. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260805121000",
+            "logicalName": "legal_documents_bucket_parity",
+            "disposition": "EXCLUDE",
+            "evidence": "Bucket parity migration written FROM production: the header records that production defines exactly the two buckets concerned. storage.buckets on production holds legal-documents, public-assets and style-library-images, so the legal-documents contract this migration ports to staging is already the production reality. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260805130000",
+            "logicalName": "production_live_derived_can_react_to_dressing_room_item",
+            "disposition": "EXCLUDE",
+            "evidence": "PRODUCTION-LIVE-DERIVED. The file's header records that public.can_react_to_dressing_room_item exists in production with no migration source anywhere, and that its body, return type, volatility, security mode, search_path and grants were read from wyyuqfdxucjksghsmhry on 2026-08-05 and reproduced verbatim. Production is the source; replaying it against production is meaningless. Verified present live as can_react_to_dressing_room_item(p_item_id uuid). Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260808115552",
+            "logicalName": "harden_trigger_function_search_path",
+            "disposition": "EXCLUDE",
+            "evidence": "Trigger search_path hardening whose effect production already carries via ledger row 20260916160903 (build33_production_trigger_search_path_convergence). Verified live: 0 trigger functions and 0 SECURITY DEFINER routines in public/internal with an unpinned search_path. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260808115735",
+            "logicalName": "enforce_rpc_privilege_boundary",
+            "disposition": "EXCLUDE",
+            "evidence": "RPC privilege boundary whose effect production already carries via ledger row 20260916125554. Verified live: PUBLIC EXECUTE = 0, anon EXECUTE limited to the 3 intended preview/reaction routines. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260808120214",
+            "logicalName": "revoke_public_execute_on_saved_scans_trigger",
+            "disposition": "EXCLUDE",
+            "evidence": "Revokes PUBLIC EXECUTE on the saved_scans updated-at trigger function. Verified live: 0 routines in public/internal carry a PUBLIC EXECUTE grant, so the revoke is already in effect. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260808121216",
+            "logicalName": "privacy_request_rate_limits",
+            "disposition": "EXCLUDE",
+            "evidence": "Byte-equivalent duplicate of 20260808103028 (the repo carries the authored file and its recovered ledger-version twin; the two SQL bodies differ only in comment placement). 20260808103028 is the single local version that reconciles production ledger row 20260808202222; this copy must not also execute. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260812031312",
+            "logicalName": "legal_acceptances_restore_ai_processing",
+            "disposition": "HOLD",
+            "evidence": "Staging-only restore of the Welcome Tree AI processing consent contract; on staging it is the SUPERSEDED_BY_LATER_MIGRATION target of 20260805170417. Production received its AI-processing consent contract through ledger row 20260905171030 instead. Whether this staging-lineage restore adds anything on top of that could not be settled read-only. Not cleared for execution. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260813224918",
+            "logicalName": "backfill_legacy_pending_deletion_requests",
+            "disposition": "EXCLUDE",
+            "evidence": "Targets status='pending' AND user_id IS NOT NULL. Production holds 0 pending deletion_requests rows (8 deactivated + 1 restored), so it would transition nothing. It is excluded rather than run so that no ledger row asserts work that did not happen. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260814120000",
+            "logicalName": "wardrobe_wear_event_items",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 1 declared object(s) verified missing — public.wardrobe_wear_event_items. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260814140000",
+            "logicalName": "harden_wardrobe_wear_anon_privileges",
+            "disposition": "HOLD",
+            "evidence": "Revokes anon privileges on the wardrobe wear surface. public.wardrobe_wear_events exists on production, but the exact grant delta this migration removes was not probed at column/table grant level in this pass. Not cleared for execution. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260814230933",
+            "logicalName": "harden_wardrobe_wear_owner_links",
+            "disposition": "HOLD",
+            "evidence": "Declares 3 owner-link indexes on the wardrobe wear surface. wardrobe_wear_events_source_item_id_idx IS present on production while production carries no ledger row for this migration, so its state is indeterminate: partially satisfied by an unknown path. Not cleared for execution. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260816120000",
+            "logicalName": "user_stylist_preferences_gender_context",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: the objects this migration depends on (see 20260816120000_user_stylist_preferences_gender_context.sql) are not present in the live inventory — production carries 55 public tables against the governed tree's expectation, and no ledger row records this logical name. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260818000001",
+            "logicalName": "add_user_stylist_preferences_display_name_customized",
+            "disposition": "EXCLUDE",
+            "evidence": "NON-CANONICAL DUPLICATE. config/migration-authority-manifest.json -> entries declares ledgerVersion 20260818141056 (user_stylist_preferences_display_name_customized) as the canonical identity, recording this file as its sourceOriginalFilename and noting (MIG-03) that the pre-rename original is retained in place only because __tests__/stylistIdentity.test.js reads it directly. Both files carry byte-identical executable SQL. Only ONE of the pair may ever become a production ledger row, so the non-canonical original is non-executable here; 20260818141056 carries the production identity if the effect is required. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260818141056",
+            "logicalName": "user_stylist_preferences_display_name_customized",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: the objects this migration depends on (see 20260818141056_user_stylist_preferences_display_name_customized.sql) are not present in the live inventory — production carries 55 public tables against the governed tree's expectation, and no ledger row records this logical name. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260819125404",
+            "logicalName": "wearable_pairings_sessions",
+            "disposition": "EXCLUDE",
+            "evidence": "WEARABLE_SCOPE=EXCLUDE_FROM_BUILD34_PRODUCTION (locked owner decision). creates the five public.wearable_* tables (pairings, sessions, actions, messages, results, auth_attempts) and their indexes; a content scan shows it touches no non-wearable object. The wearable surface is outside Build 34 production and must never execute through this path — not merely deferred. Corroborated by config/backend-authority.json, which carries WEARABLE_BUILD34_SCOPE=OUT for the wearable Edge Functions. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260819125700",
+            "logicalName": "saved_scans_wearable_source",
+            "disposition": "EXCLUDE",
+            "evidence": "WEARABLE_SCOPE=EXCLUDE_FROM_BUILD34_PRODUCTION (locked owner decision). widens the saved_scans.source contract specifically to admit the wearable lane. It touches a shared table, so it is excluded by the scope decision rather than by object ownership. The wearable surface is outside Build 34 production and must never execute through this path — not merely deferred. Corroborated by config/backend-authority.json, which carries WEARABLE_BUILD34_SCOPE=OUT for the wearable Edge Functions. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260819144630",
+            "logicalName": "widen_saved_scans_source_for_meta_wearable",
+            "disposition": "EXCLUDE",
+            "evidence": "WEARABLE_SCOPE=EXCLUDE_FROM_BUILD34_PRODUCTION (locked owner decision). further widens saved_scans.source for the Meta wearable lane. Same shared-table reasoning as 20260819125700. The wearable surface is outside Build 34 production and must never execute through this path — not merely deferred. Corroborated by config/backend-authority.json, which carries WEARABLE_BUILD34_SCOPE=OUT for the wearable Edge Functions. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260819151224",
+            "logicalName": "wearable_security_hardening",
+            "disposition": "EXCLUDE",
+            "evidence": "WEARABLE_SCOPE=EXCLUDE_FROM_BUILD34_PRODUCTION (locked owner decision). wearable-only privilege hardening; a content scan shows every object it names is a public.wearable_* relation. The wearable surface is outside Build 34 production and must never execute through this path — not merely deferred. Corroborated by config/backend-authority.json, which carries WEARABLE_BUILD34_SCOPE=OUT for the wearable Edge Functions. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260823120000",
+            "logicalName": "scan_commerce_events_accuracy_telemetry",
+            "disposition": "EXCLUDE",
+            "evidence": "public.scan_commerce_events.query_strategy is already present on production, delivered by ledger row 20260916141413 (build33_production_commerce_telemetry_convergence). Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260823170850",
+            "logicalName": "reconcile_wearable_schema_with_staging",
+            "disposition": "EXCLUDE",
+            "evidence": "WEARABLE_SCOPE=EXCLUDE_FROM_BUILD34_PRODUCTION (locked owner decision). reconciles the wearable schema with staging; a content scan shows every object it names is a public.wearable_* relation. The wearable surface is outside Build 34 production and must never execute through this path — not merely deferred. Corroborated by config/backend-authority.json, which carries WEARABLE_BUILD34_SCOPE=OUT for the wearable Edge Functions. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260823175314",
+            "logicalName": "scan_commerce_events_accuracy_telemetry",
+            "disposition": "EXCLUDE",
+            "evidence": "Recovered ledger-version twin of 20260823120000; same SQL, same already-satisfied effect (scan_commerce_events.query_strategy present via 20260916141413). Neither copy may execute. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260824175813",
+            "logicalName": "create_investor_inquiries",
+            "disposition": "EXCLUDE",
+            "evidence": "INVESTOR_SCOPE=EXCLUDE_FROM_BUILD34_PRODUCTION (locked owner decision). Creates public.investor_inquiries and its RLS policy; a content scan shows it touches no non-investor object. Investor schema and storage are outside Build 34 production and must never execute through this path. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260829120000",
+            "logicalName": "kplus_entitlements",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 7 declared object(s) verified missing — public.user_entitlements, public.kplus_activation_events, public.set_user_entitlements_updated_at, public.grant_kplus_early_access, public.kplus_has_active_entitlement, public.set_kplus_revenuecat_sync_status, +1 more. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260829180000",
+            "logicalName": "fix_grant_kplus_early_access_variable_conflict",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 1 declared object(s) verified missing — public.grant_kplus_early_access. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260829203657",
+            "logicalName": "user_closet_items",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 4 declared object(s) verified missing — public.user_closet_items, public.has_active_k_plus, public.set_user_closet_items_insert_authority, public.set_user_closet_items_update_authority. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260829204635",
+            "logicalName": "user_closet_items_optimize_rls_initplan",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: the objects this migration depends on (see 20260829204635_user_closet_items_optimize_rls_initplan.sql) are not present in the live inventory — production carries 55 public tables against the governed tree's expectation, and no ledger row records this logical name. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260829220316",
+            "logicalName": "user_closet_items_media",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: the objects this migration depends on (see 20260829220316_user_closet_items_media.sql) are not present in the live inventory — production carries 55 public tables against the governed tree's expectation, and no ledger row records this logical name. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260830060000",
+            "logicalName": "user_style_profiles",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 2 declared object(s) verified missing — public.user_style_profiles, public.set_user_style_profiles_updated_at. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260830070000",
+            "logicalName": "upsert_style_dna_profile_rpc",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 1 declared object(s) verified missing — public.upsert_style_dna_profile. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260830131956",
+            "logicalName": "signature_style_server_authority",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 2 declared object(s) verified missing — public.signature_style_frequency, public.recompute_signature_style. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260830140000",
+            "logicalName": "fix_recompute_signature_style_column_ambiguity",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 1 declared object(s) verified missing — public.recompute_signature_style. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260830150000",
+            "logicalName": "user_commerce_watches",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 3 declared object(s) verified missing — public.user_commerce_watches, public.set_user_commerce_watches_insert_authority, public.set_user_commerce_watches_update_authority. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260830151500",
+            "logicalName": "user_commerce_watch_events_and_rpcs",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 6 declared object(s) verified missing — public.user_commerce_watch_events, public.append_user_commerce_watch_event, public.create_user_commerce_watch, public.pause_user_commerce_watch, public.resume_user_commerce_watch, public.delete_user_commerce_watch. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260830161500",
+            "logicalName": "watch_push_enabled",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 1 declared object(s) verified missing — public.set_watch_push_enabled. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260830162500",
+            "logicalName": "claim_watchable_commerce_watches",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 1 declared object(s) verified missing — public.claim_watchable_commerce_watches. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260830174616",
+            "logicalName": "vto_feature_control",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: the objects this migration depends on (see 20260830174616_vto_feature_control.sql) are not present in the live inventory — production carries 55 public tables against the governed tree's expectation, and no ledger row records this logical name. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260830190000",
+            "logicalName": "watchlist_push_token_actor_isolation",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 1 declared object(s) verified missing — public.register_device_push_token. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260830190500",
+            "logicalName": "watchlist_create_honours_changed_intent",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 1 declared object(s) verified missing — public.create_user_commerce_watch. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260830212508",
+            "logicalName": "user_device_push_tokens",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 3 declared object(s) verified missing — public.user_device_push_tokens, public.register_device_push_token, public.revoke_device_push_token. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260831000100",
+            "logicalName": "watchlist_worker_enablement",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: the objects this migration depends on (see 20260831000100_watchlist_worker_enablement.sql) are not present in the live inventory — production carries 55 public tables against the governed tree's expectation, and no ledger row records this logical name. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260831120000",
+            "logicalName": "watchlist_device_ownership_claim",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 1 declared object(s) verified missing — public.claim_device_for_actor. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260831120500",
+            "logicalName": "claim_user_commerce_watches_for_refresh",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 1 declared object(s) verified missing — public.claim_user_commerce_watches_for_refresh. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260831130000",
+            "logicalName": "vto_generation_reservations",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 3 declared object(s) verified missing — public.vto_generation_requests, public.reserve_vto_generation, public.complete_vto_generation. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260831140000",
+            "logicalName": "deleted_owner_retained_media",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 4 declared object(s) verified missing — public.deleted_owner_retained_media, public.record_retained_owner_media, public.claim_retained_owner_media_for_sweep, public.settle_retained_owner_media. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260831160000",
+            "logicalName": "vto_paid_quota_attempt_counting",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 1 declared object(s) verified missing — public.reserve_vto_generation. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260902120000",
+            "logicalName": "watchlist_device_route_and_account_state",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 3 declared object(s) verified missing — public.watchlist_actor_is_active, public.claim_watchable_commerce_watches, public.claim_user_commerce_watches_for_refresh. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260902150000",
+            "logicalName": "vto_non_billable_attempt_release",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 1 declared object(s) verified missing — public.release_vto_generation. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260908230000",
+            "logicalName": "deletion_status_receipt",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: the objects this migration depends on (see 20260908230000_deletion_status_receipt.sql) are not present in the live inventory — production carries 55 public tables against the governed tree's expectation, and no ledger row records this logical name. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260909115726",
+            "logicalName": "watchlist_push_receipts",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 1 declared object(s) verified missing — public.watchlist_push_receipts. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260909170000",
+            "logicalName": "watchlist_f03_push_token_actor_isolation_reconciliation",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 1 declared object(s) verified missing — public.register_device_push_token. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260914120000",
+            "logicalName": "close_authenticated_cross_actor_owned_item_snapshot",
+            "disposition": "HOLD",
+            "evidence": "public.build_owned_item_snapshot(text,uuid,uuid) exists on production, but production carries no ledger row for this migration and its staging counterpart (20260914201155) is absent from the production ledger, so it cannot be proven that the live definition is the hardened, cross-actor-closing one. Classifying it as reconciled would assert a security property that was not verified. Not cleared for execution until the live pg_get_functiondef is compared against the governed body. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260915030553",
+            "logicalName": "kplus_entitlement_authority",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 13 declared object(s) verified missing — public.kplus_entitlement_grants, public.kplus_entitlement_activations, public.kplus_entitlement_transitions, public.kplus_entitlement_facts, public.kplus_effective_access_state, public.kplus_has_active_entitlement, +7 more. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260915124849",
+            "logicalName": "kplus_reconcile_queue_excludes_inactive_rows",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 1 declared object(s) verified missing — public.list_kplus_pending_revenuecat_sync. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260915133739",
+            "logicalName": "revoke_client_execute_on_updated_at_trigger_functions",
+            "disposition": "HOLD",
+            "evidence": "Revokes client EXECUTE on updated-at trigger functions. PUBLIC EXECUTE is verified 0 on production, but authenticated/anon EXECUTE on the specific trigger functions was not enumerated in this pass. Not cleared for execution. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260915181554",
+            "logicalName": "kplus_revenuecat_mirror_retirement",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 8 declared object(s) verified missing — public.kplus_revenuecat_mirror_queue, public.kplus_promotional_mirror_sources, public.kplus_promotional_mirror_state, public.kplus_enqueue_revenuecat_mirror_retirement, public.kplus_user_entitlements_mirror_retire_tg, public.kplus_grants_mirror_retire_tg, +2 more. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260915181910",
+            "logicalName": "kplus_promotional_mirror_sources_search_path",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 1 declared object(s) verified missing — public.kplus_promotional_mirror_sources. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260915214857",
+            "logicalName": "signature_style_free_entitlement",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 1 declared object(s) verified missing — public.recompute_signature_style. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260915232402",
+            "logicalName": "signature_style_free_closet_evidence",
+            "disposition": "HOLD",
+            "evidence": "SIGNATURE_STYLE_FREE_CLOSET_EVIDENCE_MIGRATION=HOLD_AS_CURRENTLY_WRITTEN (locked owner decision, Build 34 release review). Effect is absent from production, but as written the migration conflates legacy Recent Scan / utility evidence with owned Closet evidence. It must not be selectable through the production migration path until that evidence boundary is rewritten. This is a release-contract hold, not a drift finding. Its sibling 20260915214857 (signature_style_free_entitlement) is NOT covered by this decision and remains legitimate Build 34 work. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260916130553",
+            "logicalName": "build33_orphan_owner_media_reconciliation_rpc",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: 1 declared object(s) verified missing — public.list_orphan_owner_media. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260916203000",
+            "logicalName": "reaction_counts_require_live_room_access",
+            "disposition": "HOLD",
+            "evidence": "Effect is PROVEN ABSENT: production exposes public.get_item_reaction_counts(p_item_ids uuid[]) — the one-argument form — so the live-room-access redefinition has not been applied. It is nonetheless held, not offered for approval, because it belongs to the token-binding contract change tracked as frontend blocker B34-FE-DR-001: the public Dressing Room route still calls the RPC without p_share_token. Apply only together with the Build 34 client that passes the token. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260916233708",
+            "logicalName": "reaction_counts_bind_anonymous_share_token",
+            "disposition": "HOLD",
+            "evidence": "Effect is PROVEN ABSENT: production's only overload is get_item_reaction_counts(p_item_ids uuid[]); the two-argument token-bound form does not exist. This migration DROPS the one-argument overload that the currently shipped production client calls, so applying it before the Build 34 client artifact would break the live public room preview. Held pending B34-FE-DR-001. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260916235651",
+            "logicalName": "dressing_room_items_dedupe_key_idempotency",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: the objects this migration depends on (see 20260916235651_dressing_room_items_dedupe_key_idempotency.sql) are not present in the live inventory — production carries 55 public tables against the governed tree's expectation, and no ledger row records this logical name. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "localVersion": "20260917163000",
+            "logicalName": "b34_fk_delete_path_indexes",
+            "disposition": "KNOWN_FUTURE_UNAPPLIED",
+            "evidence": "Effect proven absent on production: the objects this migration depends on (see 20260917163000_b34_fk_delete_path_indexes.sql) are not present in the live inventory — production carries 55 public tables against the governed tree's expectation, and no ledger row records this logical name. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          }
+        ],
+        "remoteOnly": [
+          {
+            "remoteVersion": "20260723021514",
+            "logicalName": "account_deletion_security_hardening",
+            "classification": "PRODUCTION_ONLY_HISTORICAL",
+            "evidence": "Ledger row present, but its statements are a 121-character placeholder (\"-- applied from 20260723021145_... in follow-up if needed\" + \"select 1;\"), not the migration body. The physical objects it would have created were delivered by the lifecycle migration instead. The governed local file 20260723021145 must never be replayed (it issues CREATE OR REPLACE on schedule_deletion_retry_or_fail with a changed return type, text->boolean, which Postgres rejects), so it is recorded as EXCLUDE rather than as a reconciliation of this row. Per ACCOUNT_DELETION_HISTORY=PRESERVE_AND_FORWARD_RECONCILE the row is left exactly as it is. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "remoteVersion": "20260808201806",
+            "logicalName": "shared_room_item_contributions",
+            "classification": "PRODUCTION_ONLY_HISTORICAL",
+            "evidence": "Ledger row present (5259 chars). The only copy of this migration in the repository lives in supabase/migrations-deferred/20260725100000_shared_room_item_contributions.sql, which the Build 34 readiness manifest marks \"do not apply - needs product sign-off\". It is therefore deliberately outside the governed supabase/migrations tree, so no governed local version reconciles it. public.can_contribute_to_dressing_room is present on production. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "remoteVersion": "20260816020548",
+            "logicalName": "apple_auth_credentials_access_hardening",
+            "classification": "PRODUCTION_ONLY_HISTORICAL",
+            "evidence": "Ledger row present (168 chars). No file for this logical name exists anywhere in supabase/migrations or supabase/migrations-deferred. It is a privilege-only hardening applied directly to production; the posture it enforces is verified live (PUBLIC EXECUTE = 0 over public/internal, apple_auth_credentials carries no client grant). Nothing local stands in for it and nothing should be replayed. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "remoteVersion": "20260916141413",
+            "logicalName": "build33_production_commerce_telemetry_convergence",
+            "classification": "PRODUCTION_ONLY_HISTORICAL",
+            "evidence": "Ledger row present (3114 chars). No local file carries this logical name. Its effect is verified live: public.scan_commerce_events.query_strategy exists on production. This is also why both local copies of scan_commerce_events_accuracy_telemetry (20260823120000 and 20260823175314) are recorded as EXCLUDE rather than pending. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          },
+          {
+            "remoteVersion": "20260916160903",
+            "logicalName": "build33_production_trigger_search_path_convergence",
+            "classification": "PRODUCTION_ONLY_HISTORICAL",
+            "evidence": "Ledger row present (1667 chars). No local file carries this logical name. Its effect is verified live: 0 SECURITY DEFINER routines and 0 trigger functions in public/internal carry an unpinned search_path. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+          }
+        ],
+        "genuinelyUnapplied": []
       }
+    },
+    "sections": {
+      "reconciled": "Local VERSIONS whose effect is ALREADY PRESENT in this environment under a different ledger identity (renumber), split across several rows (consolidation), or made unnecessary by other applied state (supersession). A reconciled version is NON-EXECUTABLE: the tooling refuses to apply it.",
+      "knownPending": "Local VERSIONS whose effect is GENUINELY ABSENT and which are deliberately unapplied here. This section is DOCUMENTATION OF REALITY, NOT PERMISSION TO APPLY. A KNOWN_FUTURE_UNAPPLIED entry stays non-executable unless that exact version is separately supplied as APPROVED_MIGRATION_VERSION for one controlled invocation. HOLD and EXCLUDE are never executable through this path at all.",
+      "remoteOnly": "Ledger rows this environment holds that no governed local file carries. OBSOLETE_REMOTE_ONLY means the effect is proven absent and must never be replayed; PRODUCTION_ONLY_HISTORICAL means the row is legitimate environment-specific history whose effect is present and intended. Neither licences any execution.",
+      "genuinelyUnapplied": "Retained for schema compatibility only. It is NOT consulted by any gate. Use knownPending instead."
     }
   }
 }

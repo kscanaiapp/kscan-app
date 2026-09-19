@@ -490,15 +490,67 @@ test('only SUPERSEDED_BY_LATER_MIGRATION may declare zero remote versions', asyn
 
 // ------------------------------------------------- environment fail-closed
 
-test('production ref still fails closed: it carries no reconciliation authority', async () => {
+// Superseded by the authorized production reconciliation decision
+// (PRODUCTION_RECONCILIATION_AUTHORITY=AUTHORIZED). Production no longer carries
+// an EMPTY authority -- it carries an EXPLICIT, evidence-backed one. The
+// assertion is correspondingly stronger: production may reconcile only what it
+// has declared, and must still fail closed on everything outside that.
+test('production carries only explicit governed reconciliation authority', async () => {
   const { loadLedgerReconciliation } = await loadPreflight();
   const prod = loadLedgerReconciliation(PRODUCTION_REF);
-  assert.deepEqual(prod.reconciled, []);
-  assert.deepEqual(prod.genuinelyUnapplied, []);
-  assert.deepEqual(prod.remoteOnly, [], 'production carries no remote-only exclusion');
+
+  assert.ok(prod.reconciled.length > 0, 'production authority must be populated');
+  assert.ok(prod.knownPending.length > 0, 'production must declare its known pending set');
+  assert.deepEqual(prod.genuinelyUnapplied, [], 'genuinelyUnapplied is never consulted; keep it empty');
+
+  // Every single declaration carries evidence. No bare assertions.
+  for (const entry of prod.reconciled) {
+    assert.ok(entry.evidence && entry.evidence.trim().length > 40, `reconciled ${entry.localVersion} needs evidence`);
+    assert.ok(entry.logicalName, `reconciled ${entry.localVersion} needs a logicalName`);
+  }
+  for (const entry of prod.knownPending) {
+    assert.ok(entry.evidence && entry.evidence.trim().length > 40, `knownPending ${entry.localVersion} needs evidence`);
+    assert.ok(
+      ['KNOWN_FUTURE_UNAPPLIED', 'HOLD', 'EXCLUDE'].includes(entry.disposition),
+      `knownPending ${entry.localVersion} carries an unknown disposition ${entry.disposition}`,
+    );
+  }
+  for (const entry of prod.remoteOnly) {
+    assert.ok(entry.evidence && entry.evidence.trim().length > 40, `remoteOnly ${entry.remoteVersion} needs evidence`);
+    assert.ok(
+      ['OBSOLETE_REMOTE_ONLY', 'PRODUCTION_ONLY_HISTORICAL'].includes(entry.classification),
+      `remoteOnly ${entry.remoteVersion} carries an unknown classification ${entry.classification}`,
+    );
+  }
 
   const staging = loadLedgerReconciliation(STAGING_REF);
   assert.ok(staging.reconciled.length > 0, 'staging authority must be populated');
+  assert.deepEqual(
+    staging.knownPending,
+    [],
+    'staging declares no knownPending, so its one-pending-migration rule is unchanged',
+  );
+});
+
+test('production still fails closed on anything outside its declared authority', async () => {
+  const { compareMigrations, loadLedgerReconciliation } = await loadPreflight();
+  const prod = loadLedgerReconciliation(PRODUCTION_REF);
+  const declared = prod.knownPending.map((k) => k.localVersion);
+  const reconciledLocal = prod.reconciled.map((r) => r.localVersion);
+
+  // An UNDECLARED local divergence is still drift, even though production now
+  // carries an authority and 78 other migrations legitimately stay pending.
+  const local = localOf(...declared, ...reconciledLocal, '20269999999999');
+  const remote = [
+    ...prod.reconciled.flatMap((r) => r.remoteVersions ?? []),
+    ...prod.remoteOnly.map((r) => r.remoteVersion),
+  ];
+  const result = compareMigrations(local, remote, '', prod);
+  assert.equal(result.ok, false);
+  assert.ok(
+    result.blockers.some((b) => b.includes('20269999999999')),
+    'an undeclared local version must be named as unexplained divergence',
+  );
 });
 
 test('an unknown project ref resolves to an empty authority', async () => {

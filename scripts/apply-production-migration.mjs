@@ -17,7 +17,7 @@
  *   APPROVE_PRODUCTION_MIGRATION=YES
  *
  * Optional:
- *   MIGRATION_FILE (defaults to matching file under supabase/migrations/)
+ *   MIGRATION_FILE (optional; must resolve to the matching governed file under supabase/migrations/)
  *   ALLOW_DESTRUCTIVE_MIGRATION=YES (required for DROP TABLE / destructive ALTER)
  */
 
@@ -41,8 +41,14 @@ import {
   runSupabaseProduction,
   PRODUCTION_PROJECT_REF,
 } from './lib/production-helpers.mjs';
-import { loadLedgerReconciliation } from './staging-deploy-preflight.mjs';
 import { assertGovernedCommit } from './production-deploy-preflight.mjs';
+import {
+  loadLedgerReconciliation,
+  validateReconciliation,
+  validateRemoteOnlyExclusions,
+  validateKnownPending,
+  resolveApprovedMigration,
+} from './lib/migration-reconciliation.mjs';
 
 const DEFAULT_GOVERNED_BRANCH = 'rebuild/backend-authority-v2';
 
@@ -53,6 +59,14 @@ function requireApproval() {
 }
 
 function resolveMigrationFile(version, explicitPath) {
+  const local = listLocalMigrationVersions();
+  const matches = local.filter((m) => m.version === version);
+  if (matches.length === 0) fail(`No local migration file for version ${version}`);
+  if (matches.length > 1) {
+    fail(`Multiple local migration files carry version ${version}; refusing ambiguous execution`);
+  }
+  const governed = matches[0];
+
   if (explicitPath) {
     const abs = path.resolve(explicitPath);
     if (!fs.existsSync(abs)) fail(`Migration file not found: ${abs}`);
@@ -61,13 +75,16 @@ function resolveMigrationFile(version, explicitPath) {
     if (parsed.version !== version) {
       fail(`Filename version ${parsed.version} does not equal MIGRATION_VERSION ${version}`);
     }
-    return { ...parsed, path: abs };
+    const explicitRealPath = fs.realpathSync(abs);
+    const governedRealPath = fs.realpathSync(governed.path);
+    if (explicitRealPath !== governedRealPath) {
+      fail(
+        `MIGRATION_FILE must resolve to the governed local migration for version ${version}: ${governedRealPath}`,
+      );
+    }
   }
 
-  const local = listLocalMigrationVersions();
-  const match = local.find((m) => m.version === version);
-  if (!match) fail(`No local migration file for version ${version}`);
-  return match;
+  return governed;
 }
 
 function listRemoteVersions() {
@@ -78,11 +95,117 @@ function remoteHasVersion(version, remote = listRemoteVersions()) {
   return remote.includes(version);
 }
 
-function pendingVersions(local, remote) {
+/**
+ * The legitimately pending set: local versions the remote ledger does not hold
+ * and that no reconciliation declares already-present.
+ */
+function pendingVersions(local, remote, reconciliation = loadLedgerReconciliation(PRODUCTION_PROJECT_REF)) {
   const remoteSet = new Set(remote);
-  const { reconciled } = loadLedgerReconciliation(PRODUCTION_PROJECT_REF);
-  const reconciledLocal = new Set(reconciled.map((r) => r.localVersion));
+  const reconciledLocal = new Set((reconciliation.reconciled ?? []).map((r) => r.localVersion));
   return local.filter((m) => !remoteSet.has(m.version) && !reconciledLocal.has(m.version));
+}
+
+/**
+ * The whole selection decision, in one place, fail-closed.
+ *
+ * Replaces the old `pending.length === 1` invariant, which could not express
+ * "apply exactly this one approved migration while other legitimate Build 34
+ * migrations remain pending". The new invariant is:
+ *
+ *   APPROVED_VERSION is in the legitimate pending set
+ *   AND it occurs exactly once
+ *   AND all production drift has passed reconciliation validation
+ *   AND no other migration is selected
+ *
+ * Returns { selected, pending, blockers }. `selected` is null whenever ANY
+ * blocker exists, so a caller that refuses on blockers can never act on a
+ * partially-validated decision.
+ */
+function selectApprovedMigration({ local, remote, approvedVersion, reconciliation }) {
+  const localSet = new Set(local.map((m) => m.version));
+  const remoteSet = new Set(remote);
+
+  const { problems, aliasedLocal, claimedRemote } = validateReconciliation(
+    reconciliation.reconciled ?? [],
+    localSet,
+    remoteSet,
+  );
+  const exclusions = validateRemoteOnlyExclusions(
+    reconciliation.remoteOnly ?? [],
+    localSet,
+    remoteSet,
+    claimedRemote,
+  );
+  const known = validateKnownPending(
+    reconciliation.knownPending ?? [],
+    localSet,
+    remoteSet,
+    aliasedLocal,
+  );
+  const blockers = [...problems, ...exclusions.problems, ...known.problems];
+
+  // 11. every production-only remote version must be reconciled or explicitly
+  // classified. Unknown drift fails closed, exactly as before.
+  const unexplainedRemote = remote.filter(
+    (v) => !localSet.has(v) && !claimedRemote.has(v) && !exclusions.excludedRemote.has(v),
+  );
+  if (unexplainedRemote.length > 0) {
+    blockers.push(
+      `remote-only migrations exist with no declared reconciliation: ${unexplainedRemote.join(', ')}`,
+    );
+  }
+
+  const pending = pendingVersions(local, remote, reconciliation);
+  // Derived from the DECLARATIONS, not from how many are still outstanding, so a
+  // sequential campaign keeps its authority as entries become FULFILLED.
+  const hasKnownPendingAuthority = (reconciliation.knownPending ?? []).length > 0;
+
+  // Unexplained LOCAL divergence fails closed too, once the environment is
+  // operating under an explicit authority.
+  if (hasKnownPendingAuthority) {
+    const unexplainedLocal = pending
+      .filter((m) => !known.declaredPending.has(m.version))
+      .map((m) => m.version);
+    if (unexplainedLocal.length > 0) {
+      blockers.push(
+        `local migrations diverge from the remote ledger with no declared reconciliation or knownPending disposition: ${unexplainedLocal.join(', ')}`,
+      );
+    }
+  } else if (pending.length > 1) {
+    blockers.push(
+      `multiple pending migrations (${pending.length}) and no production reconciliation authority to explain them: ${pending
+        .map((m) => m.version)
+        .join(', ')}`,
+    );
+  }
+
+  if (!String(approvedVersion || '').trim()) {
+    blockers.push('No approved migration was supplied; nothing may be executed');
+    return { selected: null, pending, blockers };
+  }
+
+  const approval = resolveApprovedMigration({
+    approvedVersion,
+    pending,
+    declaredPending: known.declaredPending,
+    aliasedLocal,
+    remoteSet,
+    localSet,
+    requireDeclaration: hasKnownPendingAuthority,
+  });
+  blockers.push(...approval.blockers);
+
+  // The applier NEVER re-applies. Unlike the preflight -- which the deploy job
+  // re-runs after a successful apply and which therefore treats an
+  // already-applied approval as satisfied -- reaching the applier with a version
+  // the ledger already holds is a refusal.
+  if (approval.alreadyApplied) {
+    blockers.push(
+      `Version ${approval.alreadyApplied} is already recorded on production — refusing re-apply`,
+    );
+  }
+
+  return { selected: blockers.length === 0 ? approval.selected : null, pending, blockers };
 }
 
 function main() {
@@ -130,17 +253,36 @@ function main() {
     fail(err.message);
   }
 
-  if (remoteHasVersion(version, remote)) {
-    fail(`Version ${version} is already recorded on production — refusing re-apply`);
+  const local = listLocalMigrationVersions();
+  let reconciliation;
+  try {
+    reconciliation = loadLedgerReconciliation(PRODUCTION_PROJECT_REF);
+  } catch (err) {
+    fail(err.message);
   }
 
-  const local = listLocalMigrationVersions();
-  const pending = pendingVersions(local, remote);
-  if (pending.length !== 1 || pending[0].version !== version) {
+  const selection = selectApprovedMigration({
+    local,
+    remote,
+    approvedVersion: version,
+    reconciliation,
+  });
+  if (selection.blockers.length > 0 || !selection.selected) {
     fail(
-      `Expected exactly one approved pending migration ${version}; pending=[${pending.map((p) => p.version).join(', ')}]`,
+      `Refusing to apply ${version}:\n  - ${selection.blockers.join('\n  - ')}`,
     );
   }
+  if (selection.selected.version !== version) {
+    // Unreachable by construction; asserted because this is the line that
+    // decides what actually runs against production.
+    fail(
+      `Selection gate returned ${selection.selected.version} for approved version ${version} — refusing`,
+    );
+  }
+
+  const otherPending = selection.pending
+    .map((m) => m.version)
+    .filter((v) => v !== version);
 
   console.log(JSON.stringify({
     phase: 'pre-apply',
@@ -150,6 +292,11 @@ function main() {
     path: migration.path,
     sha256: hash,
     findings,
+    // Explicit, auditable proof that exactly one migration was selected and the
+    // rest were left alone.
+    approvedPendingCount: 1,
+    otherKnownPending: otherPending,
+    otherMigrationsSelectedForExecution: 0,
   }, null, 2));
 
   try {
@@ -171,11 +318,32 @@ function main() {
   const afterRemote = listRemoteVersions();
   const afterLocalMigrations = listLocalMigrationVersions();
   const afterLocal = afterLocalMigrations.map((m) => m.version);
-  const { reconciled } = loadLedgerReconciliation(PRODUCTION_PROJECT_REF);
-  const reconciledLocal = new Set(reconciled.map((r) => r.localVersion));
-  const reconciledRemote = new Set(reconciled.flatMap((r) => r.remoteVersions ?? []));
-  const remoteOnly = afterRemote.filter((v) => !afterLocal.includes(v) && !reconciledRemote.has(v));
-  const localOnly = afterLocal.filter((v) => !afterRemote.includes(v) && !reconciledLocal.has(v));
+  const after = loadLedgerReconciliation(PRODUCTION_PROJECT_REF);
+  const reconciledLocal = new Set((after.reconciled ?? []).map((r) => r.localVersion));
+  const reconciledRemote = new Set((after.reconciled ?? []).flatMap((r) => r.remoteVersions ?? []));
+  const classifiedRemote = new Set((after.remoteOnly ?? []).map((r) => r.remoteVersion));
+  const declaredPending = new Set((after.knownPending ?? []).map((k) => k.localVersion));
+
+  // Post-apply drift: a remote row that neither the local tree, a reconciliation
+  // nor an explicit remote-only classification accounts for is UNEXPECTED -- the
+  // ledger changed in a way this invocation did not intend.
+  const remoteOnly = afterRemote.filter(
+    (v) => !afterLocal.includes(v) && !reconciledRemote.has(v) && !classifiedRemote.has(v),
+  );
+  // Local versions still absent from the ledger are expected: they are the other
+  // known, deliberately-unapplied Build 34 migrations. Only UNDECLARED ones are
+  // drift.
+  const localOnly = afterLocal.filter(
+    (v) => !afterRemote.includes(v) && !reconciledLocal.has(v) && !declaredPending.has(v),
+  );
+  const stillPending = afterLocal.filter(
+    (v) => !afterRemote.includes(v) && declaredPending.has(v),
+  );
+
+  // The ledger must have gained EXACTLY this version and nothing else.
+  const unexpectedLedgerAdditions = afterRemote.filter(
+    (v) => v !== version && !remote.includes(v),
+  );
 
   const artifact = {
     timestamp: new Date().toISOString(),
@@ -189,7 +357,18 @@ function main() {
     remoteCount: afterRemote.length,
     remoteOnly,
     localOnly,
-    outcome: remoteOnly.length === 0 && localOnly.length === 0 ? 'ALIGNED' : 'ALIGNED_WITH_PENDING',
+    knownPendingRemaining: stillPending,
+    unexpectedLedgerAdditions,
+    // Computed, never asserted: the count of ledger rows that appeared beyond
+    // the one approved version. This artifact is audit evidence, so it must
+    // report what happened rather than what was intended.
+    otherMigrationsApplied: unexpectedLedgerAdditions.length,
+    outcome:
+      remoteOnly.length === 0 && localOnly.length === 0 && unexpectedLedgerAdditions.length === 0
+        ? stillPending.length === 0
+          ? 'ALIGNED'
+          : 'ALIGNED_WITH_KNOWN_PENDING'
+        : 'UNEXPECTED_DRIFT',
   };
 
   const dir = ensureArtifactsDir('production-migrations');
@@ -198,11 +377,15 @@ function main() {
 
   console.log(JSON.stringify({ ok: true, artifact: artifactPath, ...artifact }, null, 2));
 
-  if (remoteOnly.length > 0) process.exit(1);
+  // Unexpected drift after the apply is a failure even though the SQL succeeded:
+  // the ledger is no longer the ledger this invocation was authorised against.
+  if (remoteOnly.length > 0 || localOnly.length > 0 || unexpectedLedgerAdditions.length > 0) {
+    process.exit(1);
+  }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main();
 }
 
-export { pendingVersions, remoteHasVersion };
+export { pendingVersions, remoteHasVersion, resolveMigrationFile, selectApprovedMigration };
