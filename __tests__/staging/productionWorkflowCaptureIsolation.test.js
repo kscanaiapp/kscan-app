@@ -19,7 +19,7 @@
  * The same defect sat in the gated live preflight, which would have failed the
  * moment a reviewer approved the run.
  *
- * The fix moves every capture file to $RUNNER_TEMP, outside the checkout. The
+ * The fix moves every pre-gate capture file to $RUNNER_TEMP, outside the checkout. The
  * gate is untouched: not relaxed, not gitignored, no --allow-dirty.
  *
  * These tests are written so that reintroducing the bug fails them. The central
@@ -39,8 +39,13 @@ const WORKFLOW = path.join(ROOT, '.github', 'workflows', 'production-controlled-
 const HELPERS = path.join(ROOT, 'scripts', 'lib', 'staging-helpers.mjs');
 const source = fs.readFileSync(WORKFLOW, 'utf8');
 
-/** The three capture files that must never be born inside the checkout. */
-const FORBIDDEN_IN_CHECKOUT = ['preflight.json', 'live-preflight.json', 'migration-result.json'];
+/** Capture files that must never be born inside the checkout before a clean-tree gate. */
+const FORBIDDEN_IN_CHECKOUT = [
+  'preflight.json',
+  'live-preflight.json',
+  'migration-result.json',
+  'deploy-result.json',
+];
 
 // --------------------------------------------------------------- workflow IR
 
@@ -104,6 +109,7 @@ function shellOf(step) {
 const STATIC_STEP = 'Static precheck and migration plan (no production credentials)';
 const LIVE_STEP = 'Live remote preflight against production (post-approval, pre-write)';
 const APPLY_STEP = 'Apply one approved migration';
+const DEPLOY_STEP = 'Deploy function';
 
 // ============================================================================
 // THE CENTRAL EXECUTION TEST
@@ -338,7 +344,28 @@ test('7. the migration result is captured outside the checkout', () => {
   );
 });
 
-test('8. no step anywhere creates the three capture files inside the checkout', () => {
+test('8. the function deploy result is captured outside the checkout and keeps its manifest output', () => {
+  const shell = shellOf(stepNamed('deploy-one-function', DEPLOY_STEP));
+
+  assert.match(
+    shell,
+    /export DEPLOY_RESULT_JSON="\$RUNNER_TEMP\/[\w.-]+"/,
+    'the function deploy result path must be rooted at $RUNNER_TEMP',
+  );
+  assert.match(
+    shell,
+    /deploy-production-function\.mjs \| tee "\$DEPLOY_RESULT_JSON"/,
+    'the deployer must tee into that external path',
+  );
+  assert.match(
+    shell,
+    /grep[^\n]+"\$DEPLOY_RESULT_JSON"/,
+    'manifest parsing must read the same external capture',
+  );
+  assert.match(shell, /echo "manifest_path=\$\{MANIFEST\}" >> "\$GITHUB_OUTPUT"/);
+});
+
+test('9. no step anywhere creates the capture files inside the checkout', () => {
   for (const step of allSteps) {
     const shell = shellOf(step);
     if (!shell) continue;
@@ -359,7 +386,7 @@ test('8. no step anywhere creates the three capture files inside the checkout', 
   }
 });
 
-test('9. the uploaded artifacts point at the temp captures, not the checkout', () => {
+test('10. the uploaded artifacts point at the temp captures, not the checkout', () => {
   const preflightUpload = stepNamed('preflight', 'Upload preflight artifact').body;
   assert.match(
     preflightUpload,
@@ -379,13 +406,25 @@ test('9. the uploaded artifacts point at the temp captures, not the checkout', (
     !/^\s+migration-result\.json\s*$/m.test(migrationUpload),
     'stale checkout-relative migration-result.json artifact path',
   );
+
+  const deployStage = stepNamed('deploy-one-function', 'Stage deploy artifacts outside checkout').body;
+  assert.match(deployStage, /DEPLOY_ARTIFACT_ROOT="\$RUNNER_TEMP\/production-deploy-artifact"/);
+  assert.match(
+    deployStage,
+    /cp -R artifacts\/production-deployments "\$DEPLOY_ARTIFACT_ROOT\/artifacts\/"/,
+    'the staged artifact must retain artifacts/production-deployments for rollback',
+  );
+
+  const deployUpload = stepNamed('deploy-one-function', 'Upload deploy artifacts').body;
+  assert.match(deployUpload, /path: \$\{\{ runner\.temp \}\}\/production-deploy-artifact\//);
+  assert.ok(!/^\s+deploy-result\.json\s*$/m.test(deployUpload), 'stale checkout-relative deploy result');
 });
 
-test('10. every capture written before a clean-worktree gate is rooted at RUNNER_TEMP', () => {
+test('11. every capture written before a clean-worktree gate is rooted at RUNNER_TEMP', () => {
   // Scripts that gate on a clean worktree. Any step piping one of these must
   // capture outside the checkout; steps running other scripts need not, and
   // this test must not silently start demanding it of them.
-  const GATING_SCRIPTS = ['production-deploy-preflight.mjs'];
+  const GATING_SCRIPTS = ['production-deploy-preflight.mjs', 'deploy-production-function.mjs'];
 
   let checked = 0;
   for (const step of allSteps) {
@@ -402,14 +441,14 @@ test('10. every capture written before a clean-worktree gate is rooted at RUNNER
       );
     }
   }
-  assert.equal(checked, 2, 'both preflight invocations (static and live) must be covered');
+  assert.equal(checked, 3, 'both direct preflights and the deployer wrapper must be covered');
 });
 
 // ============================================================================
 // NOTHING ELSE MOVED
 // ============================================================================
 
-test('11. migration-only mode still deploys zero Edge Functions', () => {
+test('12. migration-only mode still deploys zero Edge Functions', () => {
   const staticShell = stepNamed('preflight', STATIC_STEP).body;
   assert.match(
     staticShell,
@@ -437,7 +476,7 @@ test('11. migration-only mode still deploys zero Edge Functions', () => {
   }
 });
 
-test('12. migration selection, credentials, approval and refs are unchanged', () => {
+test('13. migration selection, credentials, approval and refs are unchanged', () => {
   // Selection.
   assert.match(source, /approved_migration_version:/);
   assert.match(

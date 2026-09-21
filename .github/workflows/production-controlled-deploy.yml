@@ -553,18 +553,38 @@ jobs:
           SKIP_PREFLIGHT_REMOTE: 'false'
         run: |
           set -euo pipefail
-          node scripts/deploy-production-function.mjs | tee deploy-result.json
-          MANIFEST="$(python3 -c "import json; print(json.load(open('deploy-result.json')).get('manifestPath',''))")"
+          export DEPLOY_RESULT_JSON="$RUNNER_TEMP/deploy-result.json"
+          node scripts/deploy-production-function.mjs | tee "$DEPLOY_RESULT_JSON"
+          # The deployer emits one JSON document per phase. Read the final
+          # manifestPath from that stream without copying the capture back into
+          # the checkout after the clean-worktree gate.
+          MANIFEST="$(grep -o '"manifestPath": *"[^"]*"' "$DEPLOY_RESULT_JSON" | tail -1 | sed 's/.*: *"//; s/"$//' || true)"
+          if [ -z "$MANIFEST" ]; then
+            echo "No deployment manifest path was reported"
+            exit 1
+          fi
           echo "manifest_path=${MANIFEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Stage deploy artifacts outside checkout
+        if: always()
+        run: |
+          set -euo pipefail
+          DEPLOY_ARTIFACT_ROOT="$RUNNER_TEMP/production-deploy-artifact"
+          mkdir -p "$DEPLOY_ARTIFACT_ROOT"
+          if [ -f "$RUNNER_TEMP/deploy-result.json" ]; then
+            cp "$RUNNER_TEMP/deploy-result.json" "$DEPLOY_ARTIFACT_ROOT/deploy-result.json"
+          fi
+          if [ -d artifacts/production-deployments ]; then
+            mkdir -p "$DEPLOY_ARTIFACT_ROOT/artifacts"
+            cp -R artifacts/production-deployments "$DEPLOY_ARTIFACT_ROOT/artifacts/"
+          fi
 
       - name: Upload deploy artifacts
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: production-deploy-${{ github.run_number }}
-          path: |
-            deploy-result.json
-            artifacts/production-deployments/
+          path: ${{ runner.temp }}/production-deploy-artifact/
           if-no-files-found: warn
           retention-days: 90
 
