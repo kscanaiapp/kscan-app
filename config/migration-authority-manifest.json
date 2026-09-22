@@ -1138,8 +1138,8 @@
           {
             "localVersion": "20260829180000",
             "logicalName": "fix_grant_kplus_early_access_variable_conflict",
-            "disposition": "KNOWN_FUTURE_UNAPPLIED",
-            "evidence": "Effect proven absent on production: 1 declared object(s) verified missing — public.grant_kplus_early_access. Legitimately pending Build 34 work; non-executable unless supplied as APPROVED_MIGRATION_VERSION for a single controlled invocation. Live read-only probe of wyyuqfdxucjksghsmhry, 2026-09-19."
+            "disposition": "EXCLUDE",
+            "evidence": "Superseded by live production K+ authority. Fresh read-only verification on 2026-09-22 shows public.grant_kplus_early_access(uuid) already exists with the later Build 34 entitlement-authority body introduced by 20260915030553, including advisory serialization and effective-access/activation tracking that are absent from 20260829180000. Production ledger already records 20260915030553_kplus_entitlement_authority. Replaying 20260829180000 would replace the newer function body with an older implementation, so this precursor is non-executable in production."
           },
           {
             "localVersion": "20260829203657",
